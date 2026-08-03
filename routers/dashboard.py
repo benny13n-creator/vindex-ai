@@ -331,121 +331,85 @@ async def matter_health_score(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
+    """Project Sentinel (2026-08-03): ovaj endpoint je ranije računao SOPSTVENU,
+    trećU nezavisnu "case health" formulu (drugačije težine, 48h prozor za
+    hitne rokove umesto 7 dana koje koristi ostatak platforme, brojanje
+    dokumenata bez tip_dokaza poklapanja) — potpuno nezavisno od
+    services/risk_engine.py::calculate_procesni_rizik, koji već koriste
+    routers/matter_intel.py i routers/ccc.py (Project Nexus). Nije imao
+    frontend pozivaoca (potvrđeno pretragom static/*.js), ali je bio potpuno
+    živ — rutiran, testiran — landmina za bilo koga ko ga ojača u UI kasnije
+    i dobije broj koji se ne slaže sa Matter Intel/CCC/Cockpit za isti
+    predmet istog dana. Sada delegira na kanonski izvor, isti obrazac kao
+    ccc.py fix — `score`/`status`/`hitnih_rokova` sada dolaze isključivo iz
+    calculate_procesni_rizik/identify_case_problems; `aktivnost` (beleška/
+    komentar poslednjih 7 dana) ostaje sopstveni signal ovog pogleda jer
+    risk_engine ne prati aktivnost uopšte."""
     uid  = user["user_id"]
     supa = _get_supa()
 
     today     = date.today()
     today_iso = today.isoformat()
-    in_2_iso  = (today + timedelta(days=2)).isoformat()
     ago_7_iso = (today - timedelta(days=7)).isoformat()
 
     # Verify ownership + parallel fetch
-    pred_r, bel_r, risk_r, kom_r, hron_r, dok_r, roc_r = await asyncio.gather(
+    pred_r, bel_r, kom_r, dok_r, roc_r, dokaz_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
-            .select("id,status").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()),
+            .select("id,status,tip").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske")
             .select("id").eq("predmet_id", predmet_id).gte("created_at", ago_7_iso).limit(1).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_istorija")
-            .select("odgovor").eq("predmet_id", predmet_id)
-            .like("pitanje", "[Rizik]%").order("created_at", desc=True).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari")
             .select("id").eq("predmet_id", predmet_id).gte("created_at", ago_7_iso).limit(1).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("datum_iso,vaznost").eq("predmet_id", predmet_id)
-            .gte("datum_iso", today_iso).order("datum_iso").limit(20).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
-            .select("id").eq("predmet_id", predmet_id).limit(50).execute()),
+            .select("id,tip_dokaza").eq("predmet_id", predmet_id).limit(200).execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
-            .select("datum").eq("predmet_id", predmet_id).gte("datum", today_iso).limit(1).execute()),
+            .select("datum").eq("predmet_id", predmet_id).gte("datum", today_iso).limit(50).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi")
+            .select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).limit(200).execute()),
         return_exceptions=True,
     )
 
     if isinstance(pred_r, Exception) or not (pred_r.data if not isinstance(pred_r, Exception) else []):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
-    score    = 0
-    razlozi: list[str] = []
-
     def _ok(r):
         return not isinstance(r, Exception) and bool(r.data)
 
-    # Aktivnost: 0-25
-    if _ok(bel_r) or _ok(kom_r):
-        aktivnost_poeni = 25
-        score += aktivnost_poeni
-    else:
-        aktivnost_poeni = 0
+    tip_predmeta = (pred_r.data[0] or {}).get("tip") or "ostalo"
+    dok_data     = (dok_r.data   if not isinstance(dok_r,   Exception) else []) or []
+    roc_data     = (roc_r.data   if not isinstance(roc_r,   Exception) else []) or []
+    dokazi_data  = (dokaz_r.data if not isinstance(dokaz_r, Exception) else []) or []
+
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+
+    rizik = calculate_procesni_rizik(
+        dokazi=dokazi_data, dokumenti=dok_data, rocista=roc_data,
+        tip_predmeta=tip_predmeta, expected_docs=_EXPECTED_DOCS,
+    )
+    problemi = identify_case_problems(rizik, tip_predmeta)
+
+    aktivnost_prisutna = _ok(bel_r) or _ok(kom_r)
+    aktivnost_poeni    = 25 if aktivnost_prisutna else 0
+
+    razlozi: list[str] = [p["problem"] for p in problemi]
+    if not aktivnost_prisutna:
         razlozi.append("Nema aktivnosti (beleška/komentar) u poslednjih 7 dana")
 
-    # Procena rizika: 0-25
-    if _ok(risk_r):
-        try:
-            risk = json.loads(risk_r.data[0].get("odgovor", "{}"))
-            nivo = risk.get("nivo", "")
-            if nivo == "nizak":
-                score += 25
-            elif nivo == "srednji":
-                score += 13
-                razlozi.append("Srednji nivo rizika — razmotriti mere")
-            else:
-                razlozi.append("Visok nivo rizika — hitna pažnja")
-        except Exception:
-            score += 8
-            razlozi.append("Procena rizika nije parsabilna — ponovo analizirajte")
-    else:
-        score += 8
-        razlozi.append("Nedostaje procena rizika — pokrenite analizu predmeta")
-
-    # Rokovi: 0-25
-    hron_data = (hron_r.data if not isinstance(hron_r, Exception) else []) or []
-    hitni = [h for h in hron_data if (h.get("datum_iso") or "9999") <= in_2_iso and h.get("vaznost") == "kritičan"]
-    if not hitni:
-        score += 25
-    elif len(hitni) == 1:
-        score += 12
-        razlozi.append("1 hitan rok u narednih 48h")
-    else:
-        razlozi.append(f"{len(hitni)} hitnih rokova u narednih 48h")
-
-    # Dokumentacija: 0-15
-    dok_count = len((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
-    if dok_count >= 5:
-        score += 15
-    elif dok_count >= 2:
-        score += 10
-    elif dok_count >= 1:
-        score += 5
-        razlozi.append("Mala dokumentacija — dodajte relevantne dokumente")
-    else:
-        razlozi.append("Nema dokumenata — dodajte dokumentaciju predmeta")
-
-    # Ročište: 0-10
-    if _ok(roc_r):
-        score += 10
-    else:
-        razlozi.append("Nema zakazanih ročišta")
-
-    if score >= 75:
-        status = "zdrav"
-    elif score >= 50:
-        status = "upozorenje"
-    else:
-        status = "kriticno"
+    # nivo (Nizak/Srednji/Visok) je jedini izvor statusne kategorije — ne
+    # izmišljaju se novi pragovi nad health_score, isto kao ccc.py fix.
+    _NIVO_TO_STATUS = {"Nizak": "zdrav", "Srednji": "upozorenje", "Visok": "kriticno"}
+    status = _NIVO_TO_STATUS.get(rizik["nivo"], "upozorenje")
 
     return {
         "predmet_id": predmet_id,
-        "score":      score,
+        "score":      rizik["health_score"],
         "status":     status,
         "razlozi":    razlozi,
         "faktori": {
-            # FIX (nightly repair, 2026-07-24): ranije je ovde stajalo
-            # `min(25, score if score <= 25 else 25)` -- besmislena
-            # re-izvedena vrednost iz UKUPNOG skora, ne stvaran broj poena
-            # osvojen u koraku "Aktivnost" iznad. Sada prijavljuje stvarno
-            # osvojene poene (0 ili 25).
             "aktivnost":     aktivnost_poeni,
-            "dokumentacija": dok_count,
-            "hitnih_rokova": len(hitni),
-            "ima_rociste":   _ok(roc_r),
+            "dokumentacija": len(dok_data),
+            "hitnih_rokova": rizik["kriticni_rokovi"],
+            "ima_rociste":   bool(roc_data),
         },
     }

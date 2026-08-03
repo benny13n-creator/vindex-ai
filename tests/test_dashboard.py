@@ -7,6 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import json
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 import pytest
 from starlette.requests import Request as StarletteRequest
@@ -85,17 +86,23 @@ def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
     return supa
 
 
-def _make_health_supa(pred=None, bel=None, risk=None, kom=None, hron=None, dok=None, roc=None):
-    """Route health queries by table name — each table queried at most once."""
+def _make_health_supa(pred=None, bel=None, risk=None, kom=None, hron=None, dok=None, roc=None, dokazi=None):
+    """Route health queries by table name — each table queried at most once.
+    `risk`/`hron` params are kept for signature compatibility with older
+    call sites in this file but no longer read by matter_health_score since
+    Project Sentinel (2026-08-03) delegated scoring to
+    services/risk_engine.py::calculate_procesni_rizik — `dokazi` (predmet_dokazi)
+    is the new input that actually drives the risk portion of the score."""
     supa = MagicMock()
     table_map = {
-        "predmeti":            pred or [],
-        "predmet_beleske":     bel  or [],
-        "predmet_istorija":    risk or [],
-        "predmet_komentari":   kom  or [],
-        "predmet_hronologija": hron or [],
-        "predmet_dokumenti":   dok  or [],
-        "rocista":             roc  or [],
+        "predmeti":            pred   or [],
+        "predmet_beleske":     bel    or [],
+        "predmet_istorija":    risk   or [],
+        "predmet_komentari":   kom    or [],
+        "predmet_hronologija": hron   or [],
+        "predmet_dokumenti":   dok    or [],
+        "rocista":             roc    or [],
+        "predmet_dokazi":      dokazi or [],
     }
     supa.table = MagicMock(side_effect=lambda name: _make_chain(table_map.get(name, [])))
     return supa
@@ -323,40 +330,46 @@ async def test_health_404_missing_predmet():
 
 @pytest.mark.anyio
 async def test_health_max_score():
+    """Project Sentinel (2026-08-03): score/status now come exclusively from
+    services/risk_engine.py::calculate_procesni_rizik (same source ccc.py and
+    matter_intel.py already use) instead of this endpoint's own 5-category
+    formula. With strong evidence (jaka), no missing expected doc types, and
+    no critical (0-7 day) rociste, the risk formula's own floor for
+    rizik_score is 30 (the only available discount is -20 for "Jaka" off a
+    base of 50) → health_score=70, nivo="Nizak" → status="zdrav"."""
     from routers.dashboard import matter_health_score
-    risk_json = json.dumps({"nivo": "nizak"})
+    far_future = (date.today() + timedelta(days=60)).isoformat()
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
-        bel=[{"id": "b1"}],                         # aktivnost: 25
-        risk=[{"odgovor": risk_json}],              # rizik nizak: 25
-        kom=[],
-        hron=[],                                    # no urgent deadlines: 25
-        dok=[{"id": f"d{i}"} for i in range(5)],   # 5 docs: 15
-        roc=[{"datum": "2026-08-01"}],              # future rociste: 10
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
+        bel=[{"id": "b1"}],                                            # aktivnost present
+        dokazi=[{"snaga": "jaka"}],                                    # snaga_dokaza=Jaka
+        dok=[{"id": "d1", "tip_dokaza": "podnesak"},
+             {"id": "d2", "tip_dokaza": "dopis"}],                     # covers both EXPECTED_DOCS["ostalo"]
+        roc=[{"datum": far_future}],                                   # non-critical, but present
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-    assert result["score"] == 100
+    assert result["score"] == 70
     assert result["status"] == "zdrav"
     assert result["razlozi"] == []
+    assert result["faktori"]["ima_rociste"] is True
 
 
 @pytest.mark.anyio
 async def test_health_kriticno_no_activity_high_risk():
+    """No dokazi at all (+20) plus a critical (within 7 days) rociste (+20)
+    → rizik_score=90 → health_score=10, nivo="Visok" → status="kriticno"."""
     from routers.dashboard import matter_health_score
-    risk_json = json.dumps({"nivo": "visok"})
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
-        bel=[],
-        risk=[{"odgovor": risk_json}],
-        kom=[],
-        hron=[],
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
+        bel=[], kom=[],
+        dokazi=[],
         dok=[],
-        roc=[],
+        roc=[{"datum": tomorrow}],
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-    # aktivnost=0, rizik=0, rokovi=25, dokumentacija=0, rociste=0 → total=25
     assert result["score"] < 50
     assert result["status"] == "kriticno"
     assert len(result["razlozi"]) >= 2
@@ -365,74 +378,61 @@ async def test_health_kriticno_no_activity_high_risk():
 @pytest.mark.anyio
 async def test_health_faktori_aktivnost_reports_real_subscore_not_total():
     """NIGHTLY REPAIR (2026-07-24), Faza 2 item 7: faktori.aktivnost used
-    to be `min(25, score if score <= 25 else 25)` -- a nonsensical
-    re-derivation from the TOTAL score, not the actual 0/25 awarded in the
-    "Aktivnost" step. With activity present but a low total score (high
-    risk, no docs, no rociste), the old code would still have reported
-    aktivnost=25 correctly by coincidence in some cases and wrongly in
-    others -- this test picks a combination where the two diverge."""
+    to be a nonsensical re-derivation from the TOTAL score. This test picks
+    a case with no activity but a real (non-zero) total health_score, to
+    prove aktivnost is reported independently of the total."""
     from routers.dashboard import matter_health_score
-    risk_json = json.dumps({"nivo": "visok"})  # rizik: 0 poena
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
-        bel=[],                                  # NEMA aktivnosti -> aktivnost poeni = 0
-        risk=[{"odgovor": risk_json}],
-        kom=[],
-        hron=[],
-        dok=[],
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
+        bel=[], kom=[],                      # NEMA aktivnosti -> aktivnost poeni = 0
+        dokazi=[{"snaga": "jaka"}],          # health_score=70 (non-zero, non-25-coincidence)
+        dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
         roc=[],
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-
-    # total score je 25 (samo rokovi-bonus), stari bug bi prijavio
-    # aktivnost=min(25,25)=25 iako aktivnosti NIJE bilo.
+    assert result["score"] == 70
     assert result["faktori"]["aktivnost"] == 0
 
 
 @pytest.mark.anyio
 async def test_health_faktori_aktivnost_reports_25_when_activity_present():
     from routers.dashboard import matter_health_score
-    risk_json = json.dumps({"nivo": "nizak"})
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
-        bel=[{"id": "b1"}],                      # ima aktivnosti -> 25 poena
-        risk=[{"odgovor": risk_json}],
-        kom=[],
-        hron=[],
-        dok=[],
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
+        bel=[{"id": "b1"}],                  # ima aktivnosti -> 25 poena
+        dokazi=[{"snaga": "jaka"}],
+        dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
         roc=[],
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-
     assert result["faktori"]["aktivnost"] == 25
 
 
 @pytest.mark.anyio
 async def test_health_upozorenje_range():
+    """dokazi snage "srednja" doesn't move rizik_score off its base of 50
+    (only "Jaka"/-20 and "Slaba"/+15 do) → health_score=50, nivo="Srednji"
+    → status="upozorenje"."""
     from routers.dashboard import matter_health_score
-    # no activity(0) + srednji(13) + rokovi(25) + 1 doc(5) + rociste(10) = 53 → upozorenje
-    risk_json = json.dumps({"nivo": "srednji"})
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
         bel=[],
-        risk=[{"odgovor": risk_json}],
-        kom=[],
-        hron=[],
-        dok=[{"id": "d1"}],
-        roc=[{"datum": "2026-09-01"}],
+        dokazi=[{"snaga": "srednja"}],
+        dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
+        roc=[],
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-    assert 50 <= result["score"] < 75
+    assert result["score"] == 50
     assert result["status"] == "upozorenje"
 
 
 @pytest.mark.anyio
 async def test_health_returns_predmet_id():
     from routers.dashboard import matter_health_score
-    supa = _make_health_supa(pred=[{"id": PID, "status": "aktivan"}])
+    supa = _make_health_supa(pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}])
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
     assert result["predmet_id"] == PID
@@ -444,28 +444,25 @@ async def test_health_returns_predmet_id():
 
 @pytest.mark.anyio
 async def test_health_hitni_rokovi_reduce_score():
+    """Project Sentinel (2026-08-03): 'hitnih_rokova' now comes from
+    calculate_procesni_rizik's kriticni_rokovi count, which reads the
+    `rocista` table (0-7 day window), not predmet_hronologija's `vaznost`
+    tag (48h window) the old formula used — a different canonical source,
+    same observable guarantee: multiple near-term hearings visibly reduce
+    the score and appear in razlozi."""
     from routers.dashboard import matter_health_score
-    from datetime import date, timedelta
-    risk_json = json.dumps({"nivo": "nizak"})
-    tomorrow  = (date.today() + timedelta(days=1)).isoformat()
-    urgentni  = [
-        {"datum_iso": tomorrow, "vaznost": "kritičan"},
-        {"datum_iso": tomorrow, "vaznost": "kritičan"},
-    ]
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
     supa = _make_health_supa(
-        pred=[{"id": PID, "status": "aktivan"}],
+        pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
         bel=[{"id": "b1"}],
-        risk=[{"odgovor": risk_json}],
-        kom=[],
-        hron=urgentni,
-        dok=[{"id": f"d{i}"} for i in range(5)],
-        roc=[{"datum": tomorrow}],
+        dokazi=[{"snaga": "jaka"}],
+        dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
+        roc=[{"datum": tomorrow}, {"datum": tomorrow}],
     )
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await matter_health_score(predmet_id=PID, request=_req(), user=_user())
-    # 2 hitna → rokovi=0
     assert result["faktori"]["hitnih_rokova"] == 2
-    assert any("hitan" in r.lower() or "hitnih" in r.lower() for r in result["razlozi"])
+    assert any("kritičan rok" in r.lower() for r in result["razlozi"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -146,6 +146,50 @@ async def on_health_score_promenjen(event: Event) -> None:
         logger.warning("[EventBus] on_health_score_promenjen greška: %s", exc)
 
 
+async def on_document_job_failed(event: Event) -> None:
+    """Project Sentinel (2026-08-03) — DocumentJobFailed je ranije bio
+    dispečovan i tiho odbačen (nula registrovanih handlera od Faze 0 Smart
+    Intake-a naovamo) — permanentno neuspeo OCR/intake posao (posle svih
+    pokušaja, v. fail_intake_job RPC) nije proizvodio nikakav proactive_alert
+    niti obaveštenje; advokat je jedini način da sazna bio da ručno proveri
+    status dokumenta. migrations/073_intake_foundations.sql's fail_intake_job
+    RPC upisuje SAMO event_type/payload na 'events' red (bez user_id/
+    predmet_id) — vlasnik posla se mora razrešiti preko intake_jobs.uploaded_by."""
+    try:
+        job_id = (event.payload or {}).get("intake_job_id")
+        if not job_id:
+            return
+        from shared.deps import _get_supa
+        supa = _get_supa()
+        job_r = await asyncio.to_thread(
+            lambda: supa.table("intake_jobs")
+                .select("uploaded_by,predmet_id,storage_path,last_error")
+                .eq("id", job_id)
+                .limit(1)
+                .execute()
+        )
+        job = (job_r.data or [{}])[0]
+        uid = job.get("uploaded_by")
+        if not uid:
+            logger.warning("[EventBus] on_document_job_failed: intake_job=%s nema uploaded_by, alert preskočen", job_id)
+            return
+        naziv = (job.get("storage_path") or "dokument").rsplit("/", 1)[-1]
+        greska = (job.get("last_error") or "")[:200]
+        await asyncio.to_thread(
+            lambda: supa.table("proactive_alerts").insert({
+                "user_id":    uid,
+                "predmet_id": job.get("predmet_id"),
+                "tip":        "dokument_obrada_neuspesna",
+                "naslov":     f"Obrada dokumenta neuspešna: {naziv}",
+                "opis":       f"Dokument nije uspeo da se obradi posle svih pokušaja. Greška: {greska}. Otpremite dokument ponovo.",
+                "urgentnost": "visoka",
+            }).execute()
+        )
+        logger.info("[EventBus] on_document_job_failed: alert kreiran za intake_job=%s uid=%s", job_id, uid)
+    except Exception as exc:
+        logger.warning("[EventBus] on_document_job_failed greška: %s", exc)
+
+
 async def on_genome_updated(event: Event) -> None:
     """Faza 1.2 (90-dnevni plan, 2026-07-18) — prvi stvaran potrošač GENOME_UPDATED
     eventa. Upisuje audit_immutable red (hash-chain, nepromenjiv) za svaku Genome
@@ -199,6 +243,7 @@ class EventBus:
         self.subscribe(EventType.DOKUMENT_UPLOADOVAN,    on_dokument_uploadovan)
         self.subscribe(EventType.HEALTH_SCORE_PROMENJEN, on_health_score_promenjen)
         self.subscribe(EventType.GENOME_UPDATED,          on_genome_updated)
+        self.subscribe(EventType.DOCUMENT_JOB_FAILED,     on_document_job_failed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""

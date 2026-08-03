@@ -3075,135 +3075,21 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
 
 
 # ── Global Search ─────────────────────────────────────────────────────────────
-
-
-@app.get("/api/search")
-@limiter.limit("30/minute")
-async def global_search(
-    request: Request,
-    q: str = "",
-    limit: int = 10,
-    user: dict = Depends(get_current_user),
-):
-    """
-    Pretražuje klijente, predmete, beleške i komentare jednim upitom.
-    Vraća rangirane rezultate po tipu entiteta.
-    """
-    q = (q or "").strip()
-    if not q or len(q) < 2:
-        raise HTTPException(status_code=400, detail="Upit mora imati najmanje 2 karaktera.")
-    limit = min(max(limit, 1), 50)
-    uid = user["user_id"]
-    supa = _get_supa()
-    results = []
-
-    # Sanitize q for PostgREST .or_() interpolation — comma/dot break filter syntax
-    import re as _re
-    q_safe = _re.sub(r'[,.()\[\]{}\\\'"%]', ' ', q).strip()
-    if not q_safe:
-        q_safe = "zzz_no_match"  # prevent empty pattern returning all rows
-
-    # ── Klijenti ──────────────────────────────────────────────────────────────
-    try:
-        rows = (
-            supa.table("klijenti")
-            .select("id, ime, prezime, firma, email, tip, status")
-            .eq("user_id", uid)
-            .is_("deleted_at", "null")
-            .or_(
-                f"ime.ilike.%{q_safe}%,"
-                f"prezime.ilike.%{q_safe}%,"
-                f"firma.ilike.%{q_safe}%,"
-                f"email.ilike.%{q_safe}%"
-            )
-            .limit(limit)
-            .execute()
-        )
-        for r in (rows.data or []):
-            naziv = (
-                f"{r.get('ime','')} {r.get('prezime','')}".strip()
-                or r.get("firma", "")
-            )
-            results.append({
-                "tip": "klijent",
-                "id": r["id"],
-                "naziv": naziv,
-                "meta": r.get("status", ""),
-                "url": f"/klijenti/{r['id']}",
-            })
-    except Exception as e:
-        logger.warning("[SEARCH] klijenti greška: %s", e)
-
-    # ── Predmeti ──────────────────────────────────────────────────────────────
-    try:
-        rows = (
-            supa.table("predmeti")
-            .select("id, naziv, opis, tip, status")
-            .eq("user_id", uid)
-            .or_(f"naziv.ilike.%{q_safe}%,opis.ilike.%{q_safe}%")
-            .limit(limit)
-            .execute()
-        )
-        for r in (rows.data or []):
-            results.append({
-                "tip": "predmet",
-                "id": r["id"],
-                "naziv": r.get("naziv", ""),
-                "meta": r.get("status", ""),
-                "url": f"/predmeti/{r['id']}",
-            })
-    except Exception as e:
-        logger.warning("[SEARCH] predmeti greška: %s", e)
-
-    # ── Beleške ───────────────────────────────────────────────────────────────
-    try:
-        rows = (
-            supa.table("predmet_beleske")
-            .select("id, sadrzaj, predmet_id, created_at")
-            .eq("user_id", uid)
-            .ilike("sadrzaj", f"%{q_safe}%")
-            .limit(limit)
-            .execute()
-        )
-        for r in (rows.data or []):
-            snippet = (r.get("sadrzaj") or "")[:120]
-            results.append({
-                "tip": "beleska",
-                "id": r["id"],
-                "naziv": snippet,
-                "meta": r.get("predmet_id", ""),
-                "url": f"/predmeti/{r.get('predmet_id', '')}",
-            })
-    except Exception as e:
-        logger.warning("[SEARCH] beleske greška: %s", e)
-
-    # ── Komentari ─────────────────────────────────────────────────────────────
-    try:
-        rows = (
-            supa.table("predmet_komentari")
-            .select("id, tekst, predmet_id, created_at")
-            .eq("user_id", uid)
-            .ilike("tekst", f"%{q_safe}%")
-            .limit(limit)
-            .execute()
-        )
-        for r in (rows.data or []):
-            snippet = (r.get("tekst") or "")[:120]
-            results.append({
-                "tip": "komentar",
-                "id": r["id"],
-                "naziv": snippet,
-                "meta": r.get("predmet_id", ""),
-                "url": f"/predmeti/{r.get('predmet_id', '')}",
-            })
-    except Exception as e:
-        logger.warning("[SEARCH] komentari greška: %s", e)
-
-    return {
-        "q": q,
-        "ukupno": len(results),
-        "rezultati": results[:limit],
-    }
+# Project Sentinel (2026-08-03): ovaj fajl je ranije imao SOPSTVENU
+# @app.get("/api/search") definiciju ovde — drugu, nezavisno napisanu
+# implementaciju istog (path, method) para koji routers/search.py već
+# registruje. Starlette matchuje rute po redosledu registracije i staje na
+# prvi pogodak; routers/search.py se uključuje (app.include_router) PRE nego
+# što se ovaj modul do kraja učita, pa je ova verzija bila 100% mrtav kod —
+# nijedan HTTP zahtev je nikad nije mogao dostići, tiho, bez greške, bez
+# test failure-a. Ovo je DRUGI potvrđen slučaj iste klase greške u ovom
+# engagement-u (prvi: SEC-002, /api/cron/daily dispečer kolizija) — obrisano
+# u potpunosti umesto ostavljeno kao "možda nekad korisno". routers/search.py
+# je funkcionalno širi (dokumenti/billing/zadaci/hronologija/beleske) osim
+# što ne pretražuje predmet_komentari — ta jedna kategorija nikad nije bila
+# stvarno dostupna korisniku (ova ruta ju je jedina nudila, i bila je mrtva),
+# pa dodavanje komentar-pretrage u routers/search.py je moguće buduće
+# poboljšanje, ne bug fix — van obima ove misije (nema novih funkcija).
 
 
 # ── F5: CASE MANAGEMENT ───────────────────────────────────────────────────────
@@ -3259,12 +3145,32 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     # "+ Novi predmet" tok. Aktivira postojeći case_pipeline (services/case_pipeline.py)
     # kroz vec registrovan on_predmet_kreiran handler (services/event_bus.py) — nema
     # novog agenta niti nove event arhitekture, samo povezuje vec izgradjen lanac.
+    #
+    # Project Sentinel (2026-08-03): ranije je ovo bio čist in-process emit()
+    # (fire-and-forget asyncio.create_task, bez ikakvog durable outbox reda) —
+    # restart/pad procesa između commit-a predmeta iznad i završetka
+    # run_case_pipeline je tiho i trajno gubio ceo Case Pipeline (rokovi,
+    # mini-strategija, HCC briefing, risk snapshot) bez ijednog traga da je
+    # ikad trebalo da se pokrene (Sentinel Phase 2 event_bus_hardening
+    # investigation, Finding 1). Sada se, isto kao GENOME_UPDATED
+    # (routers/case_dna.py::_emit_genome_event), upisuje ISKLJUČIVO u durable
+    # outbox ('events' tabela) — dispatch_pending_events() poller pokreće vec
+    # registrovan on_predmet_kreiran handler, i preživljava restart. Bezbedno
+    # potvrđeno: run_case_pipeline je idempotentan po koraku (marker-based
+    # dedup, npr. _step_ekstrakcija_rokova), pa čak i redak dupli dispatch ne
+    # pravi duplirane redove.
     try:
-        from services.event_bus import emit, EventType
-        emit(EventType.PREDMET_KREIRAN, user_id=user.id, predmet_id=novi_predmet["id"],
-             payload={"naziv": naziv, "tip": body.get("tip", "opsti")})
+        from services.event_bus import EventType
+        await asyncio.to_thread(
+            lambda: _get_supa().table("events").insert({
+                "event_type": EventType.PREDMET_KREIRAN.value,
+                "user_id":    user.id,
+                "predmet_id": novi_predmet["id"],
+                "payload":    {"naziv": naziv, "tip": body.get("tip", "opsti")},
+            }).execute()
+        )
     except Exception as _pe:
-        logger.warning("[PIPELINE] PredmetKreiran emit greška: %s", _pe)
+        logger.warning("[PIPELINE] PredmetKreiran durable event upis greška: %s", _pe)
 
     # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — minimalni audit trag:
     # ko je kreirao predmet, kada, preko kog API poziva. 'predmet_create' je vec
@@ -4313,6 +4219,22 @@ async def predmet_upload_auto_analyze(
         _dok_id = (_ins.data or [{}])[0].get("id")
     except Exception:
         logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+
+    # Project Sentinel (2026-08-03): ako predmet_dokumenti insert nije uspeo
+    # (npr. Supabase greška odmah posle uspešnog Pinecone ingest-a iznad),
+    # dokument ne postoji u sistemu iz perspektive predmeta — nastavak na AI
+    # procenu/hronologiju/metapodatke bi proizveo kompletan HTTP 200 "uspeh"
+    # (auto_analyzed=true, procena_tekst, predmet_istorija unos) za dokument
+    # koji se nikad ne pojavljuje u case-ovoj sopstvenoj listi dokumenata —
+    # potvrđena lažna potvrda uspeha (Sentinel Phase 3, failure_recovery
+    # investigation §8). Pinecone vektor ostaje (best-effort cleanup nije
+    # implementiran ovde — vidi SENTINEL_PRE_BETA_CRITICAL_PATH.md), ali
+    # korisnik više ne dobija lažan signal uspeha niti AI analizu duha-dokumenta.
+    if not _dok_id:
+        raise HTTPException(
+            status_code=500,
+            detail="Dokument je otpremljen, ali nije uspešno sačuvan u sistemu — analiza nije pokrenuta. Pokušajte ponovo.",
+        )
 
     # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — isti obrazac kao
     # predmet_create iznad. 'dokument_upload' je vec u AUDITABLE_ACTIONS.
