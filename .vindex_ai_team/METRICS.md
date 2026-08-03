@@ -253,3 +253,34 @@ security-specific one) and Lawyer Day's photo-upload correction (found via a ful
 not a targeted bug hunt) — **the most valuable bugs this entire engagement has found were discovered
 as a side effect of connecting or verifying something else, not by looking for bugs directly.** Worth
 treating "trying to wire X" as itself a productive bug-finding method, not just an orchestration task.
+
+---
+
+## 2026-08-03 (Project Nexus, BETA-009)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 3 (NEX-001 CCC dedup, NEX-002 zadaci.py AI grounding, NEX-003 Genome-refresh toast fix) |
+| Bugs fixed | 3 — `ccc.py`'s missing `tip_dokaza` column (a live bug making "missing documents" always show everything as missing, regardless of reality), `ccc.py`'s independently-duplicated copy of the naive/aware datetime bug (eliminated by removing the duplicate formula entirely), the Genome-refresh false-success-toast |
+| New bugs discovered | Same 2 as "bugs fixed" above — found while verifying a fork's Phase-5 duplication finding, not while hunting bugs directly (4th occurrence of this engagement's recurring pattern) |
+| Blockers correctly escalated | 4 — `NEX-004` (Event Bus durability, needs idempotency verification first), `NEX-005` (new handler logic needed), `NEX-006` (founder decision on AI provenance strategy), `NEX-007`/`NEX-008` (well-precedented future work, not attempted this mission) |
+| Regressions introduced | 0 — full suite re-run as final gate: 2334 passed, 1 skipped, 0 failed (was 2329 before this mission) |
+| Test pass rate | 2334/2335 (99.96%) |
+| Beta blockers removed | 0 in the formal Beta Critical Path sense — this mission's value is architectural integrity (eliminating 2 real "two sources of truth" violations), measured via the new Intelligence Connectivity Score, not scenario completion |
+| Security findings resolved | 0 new — no new attack surface; this mission's fixes reuse existing auth/tenant-scoping unchanged |
+| Founder decisions required | 2 pure (`NEX-006` provenance strategy, plus the 2 unchanged duplicate-feature pairs from earlier missions), 1 needing investigation-then-decide (`NEX-004`) |
+
+**New this run**: a formal Intelligence Connectivity Score (ICS) — 20 of 32 verified required
+connections, **62.5%**, against the founder's own >90% pre-beta target. See
+`docs/architecture/NEXUS_ICS_SCORE.md` for the full connection ledger and methodology. This is the
+first numeric, trend-trackable measure of architectural fragmentation this engagement has produced —
+future missions touching these modules should recompute it the same way (same connection list, same
+exclusion criteria for deliberately-sealed modules) rather than redefining the methodology.
+
+**Notable pattern, this run — the 4th occurrence**: yet again, the two real bugs found and fixed this
+mission (a live, silently-wrong "missing documents" bug in `ccc.py`, and an independently-duplicated
+copy of a datetime bug already fixed once this engagement in a different file) were found while
+verifying a fork's duplication-audit finding, not while looking for bugs. This is now confirmed across
+4 consecutive missions (Beta Lockdown, Lawyer Day, Project Synapse, Project Nexus) — strong enough to
+treat as a standing operating principle for this codebase specifically: any "connect/verify/eliminate a
+duplicate" task should be treated as an implicit bug-hunting task too, not a pure refactor.

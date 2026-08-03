@@ -187,6 +187,26 @@ reports: `docs/architecture/EXECUTIVE_SUMMARY.md`, `COGNITIVE_GRAPH.md`,
 | SYN-007 | `knowledge_profiles` phantom data source (Briefing's 8th source, structurally always empty) | 7 | none | — (founder decision) | NEEDS_SCOPING | Only writer is confirmed-dead `knowledge_transfer.py`. Two paths (build real extraction = new AI, out of charter; wire the existing dead router's UI = smaller). Founder call. |
 | SYN-008 | Write Smart Intake's extracted judge/opponent entities onto `predmeti.tuzilac`/`tuzeni` | 8 | none | Small | NEEDS_SCOPING (reconfirmed from `WOW-003`) | Highest-value remaining opportunity per `FOUNDER_WOW_REPORT.md` — would let Judge/Opponent Intelligence auto-populate with zero lawyer typing. Not attempted this mission (compose-only scope). |
 
+## Project Nexus (2026-08-03) — NEX missions
+
+Founder's Master Prompt (BETA-009): "Pre-Beta Intelligence Integration Mission" — transform Vindex from
+a collection of modules into one intelligence flow. Full reports: `docs/architecture/NEXUS_INTELLIGENCE_GRAPH.md`,
+`NEXUS_MODULE_DEPENDENCY_MAP.md`, `NEXUS_ICS_SCORE.md`, `NEXUS_TOP_20_BREAKPOINTS.md`,
+`NEXUS_PRE_BETA_CRITICAL_PATH.md`, `NEXUS_ORCHESTRATION_REPORT.md`, `NEXUS_BETA_READINESS_REPORT.md`.
+Investigations: `decisions/2026-08-03_nexus_module_inventory_source_of_truth_INVESTIGATION.md`,
+`decisions/2026-08-03_nexus_provenance_reliability_audit_INVESTIGATION.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| NEX-001 | Eliminate `routers/ccc.py`'s duplicate, silently-diverging health-score formula + fix its missing-`tip_dokaza` bug | 1 | none | Small | **DONE** | Delegates to the canonical `services/risk_engine.py::calculate_procesni_rizik` instead of a local reimplementation. **Completed 2026-08-03** — see `docs/architecture/NEXUS_ORCHESTRATION_REPORT.md`. Confirmed real Phase-5 violation: two live endpoints could report two different `health_score` values for the same case under the identical field name. 2 new tests + 2 rewritten (imported a now-deleted function), 11 total in `test_ccc.py`. |
+| NEX-002 | Ground `routers/zadaci.py::ai_analiziraj_predmet`'s AI task creation in the canonical `identify_case_problems` | 2 | none | Medium | **DONE** | Was a 5th independent, side-effect-producing GPT-based missing-document detector bypassing the platform's declared sole deterministic algorithm. Now folds the deterministic finding into its GPT prompt (and its GPT-failure fallback path) instead of independently guessing from raw filenames. 3 new tests. |
+| NEX-003 | Fix Case Genome refresh's false-success-toast on genuine LLM failure | 3 | none | Small | **DONE** | Frontend never checked `dna.greska` before choosing a toast — a lawyer saw a green "success" notification on a real failure. Pure frontend fix, no backend change. |
+| NEX-004 | Resolve `PREDMET_KREIRAN`'s Event Bus durability gap | 4 | Verify `run_case_pipeline` idempotency first | Medium | NEEDS_SCOPING | The one true in-process-only `emit()` call site in the repo — no durable outbox row, unlike every other event type. Highest-priority open item per `NEXUS_BETA_READINESS_REPORT.md`. Not fixed blind: making it durable risks double-firing the Case Pipeline unless idempotency is verified first. |
+| NEX-005 | New `DOCUMENT_JOB_FAILED` handler | 5 | none | Small-Medium | NEEDS_SCOPING | Emitted on every failed OCR/classification job, zero handler exists. Needs new handler logic, one step past pure orchestration. |
+| NEX-006 | AI action provenance strategy (`model`/`prompt version`/`output hash`, captured nowhere in the repo) | 6 | none | Large (schema decision) | NEEDS_SCOPING — founder decision | Uniform gap across all 6 audited AI call sites. Needs a founder-level decision on how much provenance infrastructure to build. |
+| NEX-007 | Fold Case Genome/AI Briefing into an existing hallucination guardrail (Quality Gate's citation check, or Legal Reasoning Engine's SOURCE-n constraint) | 7 | none | Medium | TODO | Both of the highest-visibility AI outputs trust GPT-4o's own output on prompt instruction alone; two structurally-stronger guardrails exist elsewhere, unused here. |
+| NEX-008 | Outcome Intelligence + Judge/Court Predictor read Case Genome (same pattern as Copilot/Firm Brain, Project Synapse) | 8 | none | Small-Medium | TODO | Reconfirmed same gap; well-precedented, low-risk future mission. |
+
 ## Dependency graph (for the "eligible" check)
 
 ```
