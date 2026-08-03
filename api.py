@@ -4126,8 +4126,20 @@ _ALLOWED_MIMES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
     "application/octet-stream",  # some browsers send this for .docx
+    # Operation Lawyer Day (2026-08-03): image OCR (uploaded_doc/extractor.py::
+    # extract_image, Night Shift M-001, 2026-08-02) was wired into Smart
+    # Intake's own upload validation but never into THIS endpoint -- the one
+    # a lawyer can actually reach today (Smart Intake has no frontend entry
+    # point, see decisions/2026-08-03_ZTC-FRONTEND_smart_intake_wiring_BLOCKER_REPORT.md).
+    # M-001's own "photo upload now works end to end" claim was therefore only
+    # true for an unreachable path -- a lawyer with phone photos of a document
+    # could not upload them anywhere in the app. extract_image()'s own
+    # docstring already anticipated this exact caller ("api.py's auto-analyze
+    # upload") needing zero special-casing -- this closes that gap.
+    "image/jpeg",
+    "image/png",
 }
-_ALLOWED_SUFFIXES = {".pdf", ".docx", ".doc"}
+_ALLOWED_SUFFIXES = {".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"}
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 @app.post("/api/predmeti/{predmet_id}/upload")
@@ -4202,7 +4214,7 @@ async def predmet_upload_auto_analyze(
         if is_scanned:
             raise HTTPException(
                 status_code=422,
-                detail="Skenirani PDF — tekst nije čitljiv ni optičkim prepoznavanjem (OCR). Probajte digitalni PDF ili DOCX."
+                detail="Tekst nije čitljiv ni optičkim prepoznavanjem (OCR). Probajte jasniju fotografiju/sken, digitalni PDF ili DOCX."
             )
     finally:
         if tmp_path and tmp_path.exists():
