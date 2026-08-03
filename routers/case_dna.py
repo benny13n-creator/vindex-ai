@@ -220,19 +220,33 @@ async def _pozovi_genome_api(client, combined: str, broj_dokumenata: int) -> str
     return (resp.choices[0].message.content or "").strip()
 
 
-async def _extract_genome(docs: list[dict], dokazi: Optional[list[dict]] = None) -> dict:
+async def _extract_genome(
+    docs: list[dict], dokazi: Optional[list[dict]] = None,
+    ukupno_u_predmetu: Optional[int] = None,
+) -> dict:
     """GPT-4o ekstrakcija Case Genome iz liste dokumenata.
 
     dokazi (Core Consolidation Sec 1.3): vec-klasifikovane kljucne
     cinjenice iz Evidence Vault-a (predmet_dokazi), prosledjene kao
     dodatni kontekst — GPT vise ne izvlaci cinjenice IZOLOVANO od onoga
-    sto je Evidence Vault vec utvrdio o istim dokumentima."""
+    sto je Evidence Vault vec utvrdio o istim dokumentima.
+
+    ukupno_u_predmetu (Zero-Touch Case investigation, 2026-08-03,
+    BETA-002/Scenario G): `docs` je vec limitiran na _GENOME_MAX_DOCS PRE
+    poziva ovoj funkciji (pozivalac radi `.limit(_GENOME_MAX_DOCS)` na
+    upitu) -- `len(docs) - _GENOME_MAX_DOCS` je zato skoro uvek <= 0 i
+    _genome_docs_preskoceno je cutke prijavljivao pogresan (skoro uvek
+    nula) broj bas za slucajeve kada je istina najveca: predmet sa >25
+    dokumenata. Kada pozivalac prosledi stvaran ukupan broj dokumenata u
+    predmetu (necuknjen upitom), ovaj broj je tacan; ako ne, ponasanje
+    ostaje isto kao pre (priblizno, iz already-limited liste)."""
     if not docs:
         return {}
 
     parts = []
     total_chars = 0
-    docs_preskoceno = max(0, len(docs) - _GENOME_MAX_DOCS)
+    osnova_za_preskoceno = ukupno_u_predmetu if ukupno_u_predmetu is not None else len(docs)
+    docs_preskoceno = max(0, osnova_za_preskoceno - _GENOME_MAX_DOCS)
     for dok in docs[:_GENOME_MAX_DOCS]:
         rn = dok.get("redni_broj") or "?"
         naziv = dok.get("naziv_fajla", "dokument")
@@ -582,7 +596,43 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
     return upisano
 
 
+_genome_refresh_inflight: set = set()
+_genome_refresh_rerun: set = set()
+
+
 async def _run_genome_background(
+    predmet_id: str, uid: str, stari_procent: Optional[int] = None,
+    trigger: str = "upload_trigger",
+):
+    """Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario F):
+    thin coalescing wrapper around _do_genome_refresh. More than one
+    trigger for the SAME predmet_id in quick succession (e.g. several
+    documents finalized into one case back-to-back, per Scenario B) could
+    previously race: both read the same case_dna.verzija, both write,
+    whichever write lands last silently wins -- confirmed, not previously
+    fixed. Since a full refresh always re-reads ALL current documents
+    (never incremental), running it once per predmet_id at a time and
+    re-running once more if a new trigger arrived meanwhile produces the
+    same end state as running every trigger separately, minus the lost-
+    update race and the redundant GPT calls. In-process only (a set, not a
+    DB-level lock) -- does NOT coalesce across separate worker processes;
+    documented here as a real limitation, not claimed as a complete fix."""
+    if predmet_id in _genome_refresh_inflight:
+        _genome_refresh_rerun.add(predmet_id)
+        return
+    _genome_refresh_inflight.add(predmet_id)
+    try:
+        while True:
+            _genome_refresh_rerun.discard(predmet_id)
+            await _do_genome_refresh(predmet_id, uid, stari_procent, trigger)
+            if predmet_id not in _genome_refresh_rerun:
+                break
+    finally:
+        _genome_refresh_inflight.discard(predmet_id)
+        _genome_refresh_rerun.discard(predmet_id)
+
+
+async def _do_genome_refresh(
     predmet_id: str, uid: str, stari_procent: Optional[int] = None,
     trigger: str = "upload_trigger",
 ):
@@ -610,11 +660,25 @@ async def _run_genome_background(
         stari_genome = (pred_res.data or {}).get("case_dna") or {}
         stari_verzija = stari_genome.get("verzija") or 0
 
+        # Scenario G fix (2026-08-03): bio je .order("redni_broj") rastuce --
+        # za predmet sa >_GENOME_MAX_DOCS dokumenata to je cutke odsecalo sve
+        # NAKON prvih 25 uploadovanih (najstarije), tako da najnovija podneska/
+        # presuda nikad nije stizala do Genome-a. Opadajuce (najnoviji prvo)
+        # je bezbedniji default za pravni status predmeta -- GPT i dalje vidi
+        # redni_broj svakog dokumenta u zaglavlju (DOK-NN), pa redosled
+        # predstavljanja u promptu ne utice na razumevanje.
+        count_res = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("id", count="exact")
+                .eq("predmet_id", predmet_id).execute()
+        )
+        ukupno_dokumenata = count_res.count if count_res.count is not None else None
+
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                 .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
-                .order("redni_broj")
+                .order("redni_broj", desc=True)
                 .limit(_GENOME_MAX_DOCS).execute()
         )
         docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
@@ -622,7 +686,12 @@ async def _run_genome_background(
             return
 
         dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
-        genome = await _extract_genome(docs, dokazi=dokazi_ctx)
+        genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
+        if genome.get("_genome_docs_preskoceno"):
+            logger.warning(
+                "[GENOME] predmet=%s: %d dokumenata IZOSTAVLJENO iz analize (ukupno=%s, analizirano=%d)",
+                predmet_id, genome["_genome_docs_preskoceno"], ukupno_dokumenata, len(docs),
+            )
 
         # Auto-versioning
         genome["verzija"] = stari_verzija + 1
@@ -740,11 +809,19 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
     stari_verzija = (stari_genome.get("verzija") or 0) if isinstance(stari_genome, dict) else 0
 
     try:
+        count_res = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("id", count="exact")
+                .eq("predmet_id", predmet_id).execute()
+        )
+        ukupno_dokumenata = count_res.count if count_res.count is not None else None
+
+        # Scenario G fix (2026-08-03) -- vidi identicnu napomenu u _do_genome_refresh.
         dok_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                 .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb,pravni_elementi")
                 .eq("predmet_id", predmet_id)
-                .order("redni_broj")
+                .order("redni_broj", desc=True)
                 .limit(_GENOME_MAX_DOCS).execute()
         )
         docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
@@ -760,7 +837,7 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
         }
 
     dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
-    genome = await _extract_genome(docs, dokazi=dokazi_ctx)
+    genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
 
     if not genome.get("greska"):
         await UsageService.consume(uid, user.get("email", ""), "case_dna")
