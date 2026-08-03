@@ -100,6 +100,9 @@ async def on_rok_kritican(event: Event) -> None:
         logger.info("[EventBus] on_rok_kritican: predmet=%s rok=%s", event.predmet_id, rok_naziv)
     except Exception as exc:
         logger.warning("[EventBus] on_rok_kritican greška: %s", exc)
+        # Project Phoenix (2026-08-03): re-baci posle logovanja -- v. napomenu
+        # na EventBus.publish_async() za zašto ovo mora da se propagira.
+        raise
 
 
 async def on_predmet_kreiran(event: Event) -> None:
@@ -112,6 +115,7 @@ async def on_predmet_kreiran(event: Event) -> None:
         logger.info("[EventBus] on_predmet_kreiran: pipeline pokrenut za %s", event.predmet_id)
     except Exception as exc:
         logger.warning("[EventBus] on_predmet_kreiran greška: %s", exc)
+        raise
 
 
 async def on_dokument_uploadovan(event: Event) -> None:
@@ -128,6 +132,7 @@ async def on_dokument_uploadovan(event: Event) -> None:
         logger.info("[EventBus] on_dokument_uploadovan: %s", event.payload.get("naziv", ""))
     except Exception as exc:
         logger.warning("[EventBus] on_dokument_uploadovan greška: %s", exc)
+        raise
 
 
 async def on_health_score_promenjen(event: Event) -> None:
@@ -151,6 +156,7 @@ async def on_health_score_promenjen(event: Event) -> None:
         logger.info("[EventBus] on_health_score: alert za score=%d predmet=%s", score, event.predmet_id)
     except Exception as exc:
         logger.warning("[EventBus] on_health_score_promenjen greška: %s", exc)
+        raise
 
 
 async def on_document_job_failed(event: Event) -> None:
@@ -195,6 +201,7 @@ async def on_document_job_failed(event: Event) -> None:
         logger.info("[EventBus] on_document_job_failed: alert kreiran za intake_job=%s uid=%s", job_id, uid)
     except Exception as exc:
         logger.warning("[EventBus] on_document_job_failed greška: %s", exc)
+        raise
 
 
 async def on_genome_updated(event: Event) -> None:
@@ -236,6 +243,7 @@ async def on_genome_updated(event: Event) -> None:
                     event.predmet_id, payload.get("verzija"))
     except Exception as exc:
         logger.warning("[EventBus] on_genome_updated greška: %s", exc)
+        raise
 
 
 # ─── EventBus klasa ───────────────────────────────────────────────────────────
@@ -292,11 +300,27 @@ class EventBus:
         logger.debug("[EventBus] publish: %s predmet=%s", event.type, event.predmet_id)
 
     async def publish_async(self, event: Event) -> None:
-        """Async verzija publish — awaitable, čeka završetak SVIH handlera."""
+        """Async verzija publish — awaitable, čeka završetak SVIH handlera.
+
+        Project Phoenix (2026-08-03): ranije je `return_exceptions=True` tiho
+        gutao SVAKI handler exception pre nego što bi ikad stigao do
+        dispatch_pending_events()'s sopstvenog except bloka — koji postoji
+        upravo da bi track-ovao dispatch_attempts/last_error i omogućio
+        pravi retry (migracija 073 je dodala te kolone TAČNO za ovaj
+        slučaj, ali su ostale mrtve za klasu "handler bug", ne "infra pad").
+        Kombinovano sa time da svaki handler VEĆ hvata i loguje sopstvene
+        greške pa ih sada i re-baca, ovde se PROVERAVA da li je neki handler
+        pao POSLE što su svi (uspešni i neuspešni) završili izvršavanje —
+        `return_exceptions=True` ostaje (jedan pokvaren handler ne sme da
+        spreči IZVRŠAVANJE drugih), samo se REZULTAT sada ispravno
+        prijavljuje pozivaocu umesto da nestane bez traga."""
         handlers = self._handlers.get(event.type, [])
         if not handlers:
             return
-        await asyncio.gather(*(h(event) for h in handlers), return_exceptions=True)
+        results = await asyncio.gather(*(h(event) for h in handlers), return_exceptions=True)
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
 
 # ─── Singleton ────────────────────────────────────────────────────────────────
@@ -345,6 +369,14 @@ def emit(
 
 DISPATCH_BATCH_SIZE = 50
 
+# Project Phoenix (2026-08-03): sada kad publish_async() ispravno propagira
+# handler greške (v. napomenu tamo), jedan trajno pokvaren handler bi bez
+# gornje granice pokušavao ZAUVEK, na svakih 3s (DispatchLoop) — "retry
+# exhaustion never triggers, infinite retry storm" klasa rizika koju je ova
+# misija eksplicitno tražila da se proveri. Ista granica kao Smart Intake's
+# već dokazan max_attempts=5 (migracija 073, fail_intake_job).
+MAX_DISPATCH_ATTEMPTS = 5
+
 
 async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict[str, int]:
     """Čita do batch_size nedispečovanih redova iz 'events', pokreće handlere
@@ -364,7 +396,7 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             .execute()
     )
     rows = res.data or []
-    dispatched, errored, unknown_type = 0, 0, 0
+    dispatched, errored, unknown_type, dead_lettered = 0, 0, 0, 0
 
     for row in rows:
         row_id = row["id"]
@@ -390,20 +422,47 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             dispatched += 1
         except Exception as exc:
             errored += 1
-            logger.error("[EVENT_BUS] dispatch greška za red=%s tip=%s: %s", str(row_id)[:8], raw_type, exc)
-            await asyncio.to_thread(
-                lambda: supa.table("events")
-                    .update({
-                        "dispatch_attempts": (row.get("dispatch_attempts") or 0) + 1,
-                        "last_error": str(exc)[:500],
-                    })
-                    .eq("id", row_id)
-                    .execute()
-            )
+            attempts = (row.get("dispatch_attempts") or 0) + 1
+            logger.error("[EVENT_BUS] dispatch greška za red=%s tip=%s (pokušaj %d/%d): %s", str(row_id)[:8], raw_type, attempts, MAX_DISPATCH_ATTEMPTS, exc)
+
+            if attempts >= MAX_DISPATCH_ATTEMPTS:
+                # Odustani od daljeg pokušavanja -- BEZ ovoga, trajno pokvaren
+                # handler bi se pokušavao zauvek na svaka 3s. Markira se
+                # dispatched (poller ga više ne dohvata) da ne uspori batch,
+                # ali last_error nosi eksplicitan "DEAD_LETTER" prefiks tako
+                # da ovo NIKAD ne izgleda kao tih uspeh -- ostaje dokazivo iz
+                # same events tabele (correlation_id + last_error), zadovoljava
+                # "nijedan kritični događaj ne sme biti izgubljen bez
+                # detekcije" čak i u ovom najgorem slučaju.
+                dead_lettered += 1
+                logger.critical(
+                    "[EVENT_BUS] DEAD_LETTER: red=%s tip=%s odustajem posle %d pokušaja — POTREBNA RUČNA INTERVENCIJA. correlation_id=%s greška=%s",
+                    str(row_id)[:8], raw_type, attempts, event.correlation_id, str(exc)[:200],
+                )
+                await asyncio.to_thread(
+                    lambda: supa.table("events")
+                        .update({
+                            "dispatch_attempts": attempts,
+                            "last_error": f"DEAD_LETTER after {attempts} attempts: {str(exc)[:450]}",
+                            "dispatched_at": datetime.now(timezone.utc).isoformat(),
+                        })
+                        .eq("id", row_id)
+                        .execute()
+                )
+            else:
+                await asyncio.to_thread(
+                    lambda: supa.table("events")
+                        .update({
+                            "dispatch_attempts": attempts,
+                            "last_error": str(exc)[:500],
+                        })
+                        .eq("id", row_id)
+                        .execute()
+                )
 
     if rows:
-        logger.info("[EVENT_BUS] dispatch batch: %d obrađeno, %d dispečovano, %d nepoznat tip, %d grešaka", len(rows), dispatched, unknown_type, errored)
-    return {"obradjeno": len(rows), "dispecovano": dispatched, "nepoznat_tip": unknown_type, "greske": errored}
+        logger.info("[EVENT_BUS] dispatch batch: %d obrađeno, %d dispečovano, %d nepoznat tip, %d grešaka, %d dead-lettered", len(rows), dispatched, unknown_type, errored, dead_lettered)
+    return {"obradjeno": len(rows), "dispecovano": dispatched, "nepoznat_tip": unknown_type, "greske": errored, "dead_letter": dead_lettered}
 
 
 async def _mark_dispatched(supa, row_id: str) -> None:

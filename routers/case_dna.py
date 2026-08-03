@@ -552,11 +552,19 @@ async def _emit_genome_event(
         # 'correlation_id' kolonu na 'events' — pokušaj prvo sa njom, pa
         # bez nje ako kolona još ne postoji (isti "probaj široko, padni na
         # usko" obrazac kao security/ai_forensics.py::log_provenance_from_wrapper).
+        # Project Phoenix (2026-08-03), Finding P-1: fallback je namerno
+        # NARROW (_is_missing_column_error), ne bare except -- isti razlog
+        # kao shared/audit_immutable.py's već-ispravna verzija: širi catch bi
+        # tiho pokušao drugi upis i na potpuno nepovezanu grešku (npr.
+        # konekcija), ne samo na "kolona ne postoji".
+        from shared.audit_immutable import _is_missing_column_error
         try:
             await asyncio.to_thread(
                 lambda: supa.table("events").insert({**_row, "correlation_id": correlation_id}).execute()
             )
-        except Exception:
+        except Exception as _wide_exc:
+            if not _is_missing_column_error(_wide_exc):
+                raise
             await asyncio.to_thread(lambda: supa.table("events").insert(_row).execute())
     except Exception as exc:
         logger.warning("[GENOME] Event emit greška (nije kritično): %s", exc)

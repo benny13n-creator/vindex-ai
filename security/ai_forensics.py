@@ -288,11 +288,19 @@ async def log_provenance_from_wrapper(
 
     try:
         from api import _get_supa
+        from shared.audit_immutable import _is_missing_column_error
         supa = _get_supa()
         safe = {k: (json.dumps(v) if isinstance(v, list) else v) for k, v in record.items() if v is not None}
         try:
             await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe).execute())
-        except Exception:
+        except Exception as _wide_exc:
+            # Project Phoenix (2026-08-03), Finding P-1: NARROW fallback --
+            # only retry without the extended-schema columns when the error
+            # actually looks like "column doesn't exist yet" (pre-migration
+            # 089), not for a genuinely unrelated failure (e.g. connection
+            # reset), which would just waste a second doomed attempt.
+            if not _is_missing_column_error(_wide_exc):
+                raise
             safe_legacy = {k: v for k, v in safe.items() if k in legacy_record}
             await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe_legacy).execute())
     except Exception as e:

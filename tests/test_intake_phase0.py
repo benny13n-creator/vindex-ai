@@ -358,4 +358,4 @@ async def test_dispatch_pending_events_empty_batch_is_noop():
     supa.table = MagicMock(return_value=_make_chain([]))
     with patch("shared.deps._get_supa", return_value=supa):
         result = await eb.dispatch_pending_events()
-    assert result == {"obradjeno": 0, "dispecovano": 0, "nepoznat_tip": 0, "greske": 0}
+    assert result == {"obradjeno": 0, "dispecovano": 0, "nepoznat_tip": 0, "greske": 0, "dead_letter": 0}

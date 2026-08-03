@@ -3182,11 +3182,17 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
             "predmet_id": novi_predmet["id"],
             "payload":    {"naziv": naziv, "tip": body.get("tip", "opsti"), "correlation_id": _cid},
         }
+        # Project Phoenix (2026-08-03), Finding P-1: NARROW fallback
+        # (_is_missing_column_error), ne bare except -- v. shared/
+        # audit_immutable.py's ista logika za obrazloženje.
+        from shared.audit_immutable import _is_missing_column_error
         try:
             await asyncio.to_thread(
                 lambda: _get_supa().table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
             )
-        except Exception:
+        except Exception as _wide_exc:
+            if not _is_missing_column_error(_wide_exc):
+                raise
             await asyncio.to_thread(lambda: _get_supa().table("events").insert(_evt_row).execute())
     except Exception as _pe:
         logger.warning("[PIPELINE] PredmetKreiran durable event upis greška: %s", _pe)

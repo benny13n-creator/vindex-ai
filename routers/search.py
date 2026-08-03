@@ -272,12 +272,23 @@ async def global_search(
 
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
     grouped: dict[str, list] = {}
+    # Project Phoenix (2026-08-03): a failed per-type sub-search used to
+    # silently become an empty list, structurally indistinguishable from "no
+    # matching rows" -- a lawyer searching during e.g. a predmet_dokumenti
+    # outage would see "0 results" with no way to know the system failed
+    # rather than genuinely finding nothing. `nepotpuno` now names exactly
+    # which categories degraded, so the caller can tell the difference.
+    nepotpuno: list[str] = []
     for tip, res in zip(tasks.keys(), results):
         if isinstance(res, Exception):
             logger.warning("[SEARCH] tip=%s greška: %s", tip, res)
             grouped[tip] = []
+            nepotpuno.append(tip)
         else:
             grouped[tip] = res
 
     ukupno = sum(len(v) for v in grouped.values())
-    return {"q": q, "ukupno": ukupno, **grouped}
+    response = {"q": q, "ukupno": ukupno, **grouped}
+    if nepotpuno:
+        response["nepotpuno"] = nepotpuno
+    return response

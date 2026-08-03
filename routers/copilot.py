@@ -210,15 +210,32 @@ async def _load_predmet_context(predmet_id: str, user_id: str) -> str:
 async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
     """Poziva RAG zakon pipeline direktno. ask_agent interno radi retrieve — ne pre-fetchujemo."""
     from main import ask_agent as _ask
+    from shared.ai_provenance import case_context as _ai_case_ctx
     try:
         q = f"{predmet_ctx}\n\n{poruka}".strip() if predmet_ctx else poruka
-        rezultat = await asyncio.to_thread(_ask, q, history or None)
+        # Project Phoenix (2026-08-03) — Phase 8: main.py::ask_agent was one
+        # of Mission Migration's 3 deferred items ("too deep/large to
+        # migrate safely"); re-verified this mission as a single flat
+        # function, no case scope by design (matches Strategy Engine's own
+        # precedent of calling case_context() with predmet_id=None) --
+        # migrated here since Phoenix's own reliability work touched this
+        # exact call site.
+        with _ai_case_ctx(module_name="ask_agent", operation_name="pravno_pitanje"):
+            rezultat = await asyncio.to_thread(_ask, q, history or None)
         if isinstance(rezultat, dict):
             odgovor = rezultat.get("data") or rezultat.get("message") or ""
+            uspesno = rezultat.get("status") != "error"
         else:
             odgovor = str(rezultat)
+            uspesno = True
         if not odgovor.strip():
             odgovor = "Sistem nije mogao da obradi pitanje. Pokušajte ponovo."
+        if uspesno and odgovor.strip():
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                action="copilot_pravno_pitanje", user_id=user.get("user_id"),
+                resource_type="pravno_pitanje", resource_id=None,
+            ))
         return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor}
     except Exception as e:
         _sentry_capture(e)
@@ -701,6 +718,19 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
             "uloga_klijenta": uloga,
         }).execute())
     except Exception as e:
+        # Project Phoenix (2026-08-03): check-then-insert TOCTOU race on the
+        # (predmet_id, klijent_id) composite PK -- two near-simultaneous
+        # requests (double-click, or a retried request after a slow
+        # response) can both pass the `existing.data` check above before
+        # either INSERTs; the losing request previously got a generic
+        # failure message even though the link WAS created (by the winning
+        # request) -- a false-negative outcome for an action that actually
+        # succeeded. Reuses the same duplicate-key detection
+        # shared/audit_immutable.py already established, rather than
+        # inventing a new check.
+        from shared.audit_immutable import _is_unique_violation
+        if _is_unique_violation(e):
+            return {"tip": "POVEZI_KLIJENTA", "uspeh": True, "odgovor": f"{naziv} je već vezan za ovaj predmet."}
         _sentry_capture(e)
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Greška pri povezivanju klijenta."}
 

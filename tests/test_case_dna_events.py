@@ -174,11 +174,19 @@ async def test_on_genome_updated_writes_audit_row_with_correct_mapping():
 
 
 @pytest.mark.anyio
-async def test_on_genome_updated_swallows_errors():
+async def test_on_genome_updated_reraises_after_logging():
+    """Project Phoenix (2026-08-03): pre ovog ispravka, handler je gutao
+    grešku (bare log + no raise), zbog čega je dispatch_pending_events()-ov
+    retry/dead-letter mehanizam (migracija 073) strukturno bio mrtav kod za
+    ovu klasu kvara -- red bi bio markiran dispatched_at (lažan uspeh) posle
+    tačno jednog tihog neuspeha. Handler sada mora da baci dalje posle
+    logovanja, da bi asyncio.gather(..., return_exceptions=True) u
+    publish_async() mogao da otkrije kvar i vrati ga pozivaocu."""
     from services.event_bus import Event, EventType, on_genome_updated
     event = Event(type=EventType.GENOME_UPDATED, user_id="u", predmet_id="p", payload={})
     with patch("shared.audit_immutable.log_action", side_effect=Exception("db down")):
-        await on_genome_updated(event)  # ne sme da baci
+        with pytest.raises(Exception, match="db down"):
+            await on_genome_updated(event)
 
 
 @pytest.mark.anyio

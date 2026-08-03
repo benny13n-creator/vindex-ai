@@ -547,7 +547,14 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
     try:
         qh_nacrt = _q_hash(_skini_pii(req.opis))
         t0 = _time.monotonic()
-        rezultat = await _pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis), user["user_id"])
+        # Project Phoenix (2026-08-03) — Phase 8: migrates the deep
+        # generation call itself (previously only the router-level staging
+        # step, _stage_draft_for_review, had audit/case-context wiring --
+        # this closes the gap for the raw generate call, including the
+        # case-less/ad-hoc draft path staging never covers).
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="drafting", operation_name="nacrt"):
+            rezultat = await _pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis), user["user_id"])
         latency_ms = int((_time.monotonic() - t0) * 1000)
         _al.log_response(
             endpoint="/api/nacrt",
@@ -557,8 +564,15 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
             latency_ms=latency_ms,
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
-        if req.predmet_id and isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
-            asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
+        if isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(
+                action="drafting_nacrt", user_id=user["user_id"],
+                resource_type="predmet" if req.predmet_id else "nacrt",
+                resource_id=req.predmet_id, metadata={"vrsta": req.vrsta},
+            ))
+            if req.predmet_id:
+                asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception as _exc:
         _sentry_capture(_exc)
@@ -579,7 +593,12 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(Permis
     try:
         qh_analiza = _q_hash(_skini_pii(req.pitanje or req.tekst[:200]))
         t0 = _time.monotonic()
-        rezultat = await _pokreni(ask_analiza, req.tekst, req.pitanje)
+        # Project Phoenix (2026-08-03) — Phase 8, same reasoning as nacrt()
+        # above: no predmet_id by design (AnalizaReq has no case-scope
+        # field), matching Strategy Engine's own precedent.
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="drafting", operation_name="analiza"):
+            rezultat = await _pokreni(ask_analiza, req.tekst, req.pitanje)
         latency_ms = int((_time.monotonic() - t0) * 1000)
         _al.log_response(
             endpoint="/api/analiza",
@@ -590,6 +609,8 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(Permis
         is_blocked = (rezultat.get("data") or "").startswith("[!] ANALIZA BLOKIRANA")
         if rezultat.get("status") == "success" and not is_blocked:
             preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
+            from shared.audit_immutable import log_action
+            asyncio.create_task(log_action(action="drafting_analiza", user_id=user["user_id"], resource_type="analiza"))
         else:
             preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))

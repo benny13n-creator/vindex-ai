@@ -95,6 +95,16 @@ AUDITABLE_ACTIONS: set[str] = {
     "copilot_povezi_klijenta", "copilot_naplati_radnju",
     "court_predictor_analiza", "drafting_generisan",
     "evidence_klasifikacija", "dokument_ai_analiza_complete",
+    # Project Phoenix (2026-08-03) — Enterprise Reliability & Failure
+    # Recovery Validation. Zatvara pravu tihu izgubljenu-podatak rupu:
+    # nightly proactive_alerts insert je ranije bio DEBUG-only log sa nula
+    # pokušaja; sada ima retry + ovaj durable audit trag ako i posle
+    # ponavljanja ne uspe.
+    "nightly_alert_insert_failed",
+    # Phase 8 (Mission Migration remainder, closed by Project Phoenix
+    # 2026-08-03 since its own reliability work touched these exact call
+    # sites): main.py::ask_agent and Drafting's generate/analiza calls.
+    "copilot_pravno_pitanje", "drafting_nacrt", "drafting_analiza",
 }
 
 

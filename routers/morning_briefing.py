@@ -737,23 +737,50 @@ async def nightly_intelligence_run(request: Request):
 
             ai_tekst = await _ai_prioritizacija_alertova(alerts, ime)
 
-            # Upiši alerts u bazu
-            try:
-                for a in alerts:
-                    await asyncio.to_thread(
-                        lambda al=a: supa.table("proactive_alerts").insert({
-                            "user_id":    uid,
-                            "tip":        al["tip"],
-                            "naslov":     al["naslov"],
-                            "opis":       al["opis"],
-                            "urgentnost": al["urgentnost"],
-                            "predmet_id": al.get("predmet_id"),
-                            "procitana":  False,
-                        }).execute()
+            # Upiši alerts u bazu -- Project Phoenix (2026-08-03): ranije je
+            # cela petlja delila JEDAN try/except logovan na DEBUG nivou
+            # (efektivno nevidljivo u produkciji), nula pokušaja ponavljanja
+            # -- prava tiha izgubljena kritična informacija (npr. kritičan
+            # rok), tačno scenario zbog kog proactive_alerts postoji. Sada:
+            # do 3 pokušaja PO ALERTU (kratak backoff), ERROR nivo loga (ne
+            # debug), i durable audit trag preko već postojećeg log_action
+            # mehanizma ako i posle 3 pokušaja ne uspe -- ništa se više gubi
+            # bez traga.
+            for a in alerts:
+                _inserted = False
+                _last_exc: Exception | None = None
+                for _attempt in range(3):
+                    try:
+                        await asyncio.to_thread(
+                            lambda al=a: supa.table("proactive_alerts").insert({
+                                "user_id":    uid,
+                                "tip":        al["tip"],
+                                "naslov":     al["naslov"],
+                                "opis":       al["opis"],
+                                "urgentnost": al["urgentnost"],
+                                "predmet_id": al.get("predmet_id"),
+                                "procitana":  False,
+                            }).execute()
+                        )
+                        _inserted = True
+                        break
+                    except Exception as _ie:
+                        _last_exc = _ie
+                        if _attempt < 2:
+                            await asyncio.sleep(0.5 * (_attempt + 1))
+                if _inserted:
+                    ukupno_alertova += 1
+                else:
+                    logger.error(
+                        "[NIGHTLY] Insert alert TRAJNO neuspešan uid=%.8s tip=%s posle 3 pokušaja: %s",
+                        uid, a.get("tip"), _last_exc,
                     )
-                ukupno_alertova += len(alerts)
-            except Exception as e:
-                logger.debug("[NIGHTLY] Insert alert greška uid=%.8s: %s", uid, e)
+                    from shared.audit_immutable import log_action
+                    asyncio.create_task(log_action(
+                        action="nightly_alert_insert_failed", user_id=uid,
+                        resource_type="proactive_alert", resource_id=a.get("predmet_id"),
+                        metadata={"tip": a.get("tip"), "naslov": a.get("naslov"), "greska": str(_last_exc)[:300]},
+                    ))
 
             # Pošalji email ako ima SMTP
             hitni_alerts = [a for a in alerts if a["urgentnost"] == "hitna"]
