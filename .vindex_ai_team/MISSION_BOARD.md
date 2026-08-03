@@ -44,6 +44,20 @@ active backlog. M-009 (Workflow Regression Tests) supports confidence in already
 rather than closing a new one — useful, but ranked below anything that would close a scenario still
 open.
 
+## Operation Lawyer Zero (2026-08-03) — LZ missions
+
+Added per `docs/product/LAWYER_AUTOMATION_MAP.md`, itself filtered through the North Star above.
+LZ missions are numbered separately from the M-series (different mission, same board, same rules).
+
+---
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| LZ-001 | Fix `vaznost` vocabulary mismatch so AI-extracted deadlines trigger the automatic email reminder | 1 | none | Small | TODO | The daily-cron email reminder (`email_notif.py::posalji_podsetnike`) fires for deadlines written by Smart Intake (`"važan"`) and `intake_kreiraj` (`"bitan"`), not only the hardcoded templates' `"kritičan"`. Regression test: a deadline created via each AI-extraction path is confirmed to match the cron's query. |
+| LZ-002 | Auto-trigger Evidence Vault classification on document ingestion | 2 | none | Medium | TODO | `routers/evidence.py`'s richer classifier (`tip_dokaza`, `pravni_elementi`, `kljucne_cinjenice`) fires automatically when a document is ingested (Smart Intake finalize and/or Case Pipeline step 1), not only via the manual `/reklasifikuj` action. Regression test: a newly-finalized document has `tip_dokaza` set without a manual trigger; `services/risk_engine.py`'s missing-document detector can see it. |
+| LZ-003 | Extend global search to cover tasks + evidence fields | 3 | none | Small | TODO | `routers/search.py` gains `_search_zadaci` and evidence-field coverage, following the existing 6-type pattern exactly. Regression test: a task is findable by name; a document is findable by its `tip_dokaza`/`pravni_elementi`. |
+| LZ-004 | Convert Genome/risk-engine "missing" findings into `zadaci` tasks | 4 | LZ-002 (risk engine needs a real signal first) | Medium (design decision needed — see map) | NEEDS_SCOPING | Auto-create-silently vs. propose-then-confirm needs a founder-level call (same class of question as `M-005`'s blocker report) before this is a safe TODO. |
+
 ---
 
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
