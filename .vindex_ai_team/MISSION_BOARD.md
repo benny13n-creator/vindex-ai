@@ -13,6 +13,37 @@ start safely — must become TODO with real completion criteria before it's elig
 explicit instruction for this operation — this overrides the standing auto-push convention
 (`feedback_auto_push.md`) for Night Shift runs specifically, not permanently.
 
+## North Star (added 2026-08-02, binding for all future mission selection)
+
+The founder's own instruction after the first Night Shift run, verbatim: *"Ne bih povećavao broj
+agenata. Ne bih dodavao nove uloge. Ne bih komplikovao organizaciju. Umesto toga, zadao bih joj jedan
+cilj: 'Smanjite broj beta blokera.' Sve misije neka se biraju isključivo prema tome."* No new roles,
+no new process — the existing 15-role organization and this board's existing mechanics are judged
+sufficient. What changes is the filter every future mission (proposed or pre-listed) must pass:
+
+**Does this mission remove, or provide direct evidence toward removing, a blocker on one of
+`docs/product/BETA_CRITICAL_PATH_2026-08-02.md`'s 9 named scenarios?**
+
+- If yes — eligible, prioritize by the existing priority number.
+- If it's general engineering quality with **no** identified connection to a beta-blocking
+  scenario (performance work with no measured problem, technical debt with no user-facing
+  symptom, "improve X" with no evidence of X currently blocking anything) — it stays
+  `NEEDS_SCOPING` or gets removed from active consideration entirely, regardless of how cheap or
+  well-understood the fix would be. Being easy to do is not the same as being worth doing next.
+- Track actual impact in `METRICS.md`'s "Beta blockers removed" row — that number, over time, is
+  the organization's real scorecard, not "missions completed."
+
+Re-evaluated below against this filter (2026-08-02): M-004/M-006 (chronology/timeline) and M-005
+(deadline chains) directly gate Beta Critical Path scenarios #6/#7 — stay prioritized. M-007 (OCR
+accuracy) is scenario-#4-adjacent but has no measured baseline yet — stays `NEEDS_SCOPING` until
+one exists, not promoted on assumption. **M-011 (Performance) has no identified connection to any
+Beta Critical Path scenario and no evidence a performance problem exists at all** — per the North
+Star, this does not compete for mission slots going forward unless real evidence surfaces that
+something is actually blocking beta because of it; kept on the board only as a record, not as
+active backlog. M-009 (Workflow Regression Tests) supports confidence in already-closed blockers
+rather than closing a new one — useful, but ranked below anything that would close a scenario still
+open.
+
 ---
 
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
@@ -27,7 +58,7 @@ explicit instruction for this operation — this overrides the standing auto-pus
 | M-008 | AI Extraction Improvements | 8 | none | Unknown | NEEDS_SCOPING | Same issue as M-007 — "improve extraction" has no measurable target without a known failure case. Convert to TODO only once a specific extraction gap is found with evidence (e.g., during M-002's or M-004's investigation). |
 | M-009 | Workflow Regression Tests | 9 | none | Medium | TODO | Add end-to-end regression coverage for the 9 Beta Critical Path scenarios (`docs/product/BETA_CRITICAL_PATH_2026-08-02.md`) that don't yet have one — cross-reference against the existing suite first; don't duplicate what `tests/test_mission001_predmet_klijenti.py` and others already cover. |
 | M-010 | Security Findings (forensic audit) | 10 | none | Small (scoped narrowly, see note) | **DONE** | **Scoped deliberately narrow for Night Shift**: only SEC-058 (duplicate `_verify_token`-adjacent PII log line, `shared/deps.py:229` + `api.py:216` — a 2-line diff, already fully specified in the forensic remediation plan's Epic A). **Everything else from the forensic audit's Epic B/Security Governance Framework chain stays explicitly OUT of scope for autonomous execution** — that whole area is mid-founder-review (parked at Revision 2, ACTIVE BLOCKER) and touching it autonomously would violate the "Founder decision required → stop" rule. **Completed 2026-08-02** — see `decisions/2026-08-02_M-010_sec058_MISSION_REVIEW.md`. Found and disclosed an adjacent, out-of-scope `.warning` line with the same pattern (lower risk, failure-path only) rather than silently touching or ignoring it. 5 new tests (one verified against a negative control), 31/31 green. |
-| M-011 | Performance Improvements | 11 | none | Unknown | NEEDS_SCOPING | No profiling data exists in this repo from this session. Do not invent a performance fix without a measured baseline — Phase 2's own admission criteria ("clear repository evidence") isn't met. If attempted: the mission is to *produce* a baseline (identify the 2-3 heaviest real endpoints and measure them), not to "optimize" blind. |
+| M-011 | Performance Improvements | 11 | none | Unknown | **NEEDS_SCOPING — parked under the North Star** | No profiling data exists in this repo from this session, and no connection to any Beta Critical Path scenario has been identified. Per the 2026-08-02 North Star addition: this does not compete for mission slots until real evidence surfaces that a performance problem is actually blocking beta — kept on the board as a record, not as active backlog. If that evidence ever appears, re-scope with a measured baseline first (identify the 2-3 heaviest real endpoints and measure them), not a blind "optimize." |
 | M-012 | Technical Debt | 12 | none | Small (scoped narrowly) | **DONE** | **Scoped to one concrete, already-found item**: `routers/copilot.py:610`'s `.select("id")` duplicate-check bug (same nonexistent-column class fixed at `api.py:5245` in Mission 001, deliberately kept separate then — see `decisions/2026-08-02_mission001_predmet_klijenti_ARCHITECTURE_DECISION.md` §2/Revision 3) — now its own small, well-understood, one-line-plus-test fix. **Completed 2026-08-02** — see `decisions/2026-08-02_M-012_copilot_predmet_klijenti_MISSION_REVIEW.md`. Scope grew from 1 to 2 bugs: found, while fixing the known one, that the same function's INSERT also had Mission 001's `user_id` bug — a 6th call site that mission's sweep missed. Fixed both together (same user-facing action). 2 new tests, 30/30 green. |
 | M-013 | Wire `intake_kreiraj` into the Case Pipeline / Event Bus | 3.5 (added by M-002, ordered after M-003, before M-004) | none | Small | **DONE** | Proposed by M-002's investigation: `POST /api/intake/kreiraj` (the primary AI-assisted case-creation endpoint) does not trigger the 9-step Case Pipeline, unlike `post_from_template` (`routers/intake.py:775-783`) and the plain `/api/predmeti` route (`api.py:3242-3268`), both of which already do. Completion: `intake_kreiraj` triggers the pipeline the same way (via `emit(EventType.PREDMET_KREIRAN, ...)` or a direct `run_case_pipeline` call, matching an existing convention, not inventing one); a regression test confirms the pipeline runs after a case is created through this specific endpoint. **Completed 2026-08-02** — see `decisions/2026-08-02_M-013_intake_kreiraj_pipeline_MISSION_REVIEW.md`. Verbatim copy of `post_from_template`'s existing pattern. 2 new tests, 180 total green. |
 
