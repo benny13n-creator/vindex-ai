@@ -132,6 +132,11 @@ class TestEventBusRetryDetection:
 
         supa = MagicMock()
         supa.table = MagicMock(side_effect=_table)
+        # Mission Keystone (2026-08-04): dispatch_pending_events() now tries
+        # migration 091's claim_pending_events() RPC first -- simulate the
+        # pre-migration state (RPC not deployed yet) so it falls back to the
+        # plain-select path this test's mock actually sets up.
+        supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
         async def _broken_handler(event):
             raise RuntimeError("db unavailable")
@@ -182,6 +187,7 @@ class TestEventBusRetryDetection:
 
         supa = MagicMock()
         supa.table = MagicMock(side_effect=_table)
+        supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
         async def _broken_handler(event):
             raise RuntimeError("permanently broken")
@@ -220,6 +226,7 @@ class TestEventBusRetryDetection:
 
         supa = MagicMock()
         supa.table = MagicMock(side_effect=_table)
+        supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
         async def _ok_handler(event):
             captured["event"] = event

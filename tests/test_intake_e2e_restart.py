@@ -150,6 +150,14 @@ def _wire_fake_supa(fake: FakeIntakeDB):
         elif name == "fail_intake_job":
             fake.fail_intake_job(**params)
             data = None
+        elif name == "claim_pending_events":
+            # Mission Keystone (2026-08-04): this fake models the
+            # pre-migration-091 state -- FakeIntakeDB has no atomic
+            # events-claim RPC, so dispatch_pending_events() must fall back
+            # to its pre-existing plain-select path (already faithfully
+            # modeled below via events/select_undispatched_events), exactly
+            # as it would against a real, not-yet-migrated production DB.
+            raise Exception("PGRST202: Could not find the function public.claim_pending_events in the schema cache")
         else:
             raise AssertionError(f"unexpected rpc: {name}")
         chain.execute = MagicMock(return_value=MagicMock(data=data))

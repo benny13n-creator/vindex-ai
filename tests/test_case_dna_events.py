@@ -120,6 +120,11 @@ async def test_dispatch_pending_events_recognizes_genome_updated_type():
         return chain
     supa = MagicMock()
     supa.table = MagicMock(side_effect=_table)
+    # Mission Keystone (2026-08-04): dispatch_pending_events() now tries
+    # migration 091's claim_pending_events() RPC first -- simulate the
+    # pre-migration state (RPC not deployed yet) so it falls back to the
+    # plain-select path this test's mock actually sets up.
+    supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
     with patch("shared.deps._get_supa", return_value=supa):
         result = await eb.dispatch_pending_events()
@@ -207,6 +212,7 @@ async def test_dispatch_pending_events_genome_updated_triggers_real_audit_write(
         return _make_chain([row] if name == "events" else [])
     supa = MagicMock()
     supa.table = MagicMock(side_effect=_table)
+    supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
     captured = {}
     async def _fake_log_action(**kwargs):

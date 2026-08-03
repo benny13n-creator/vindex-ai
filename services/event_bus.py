@@ -378,23 +378,59 @@ DISPATCH_BATCH_SIZE = 50
 MAX_DISPATCH_ATTEMPTS = 5
 
 
+def _is_missing_function_error(exc: Exception) -> bool:
+    """Mission Keystone (2026-08-04): PostgREST's "function not found in
+    schema cache" (PGRST202) or Postgres's own undefined_function SQLSTATE
+    (42883) — narrow, deliberate check (mirrors shared/audit_immutable.py's
+    _is_missing_column_error) so claim_pending_events() falling back to the
+    pre-migration-091 plain-select behavior only happens for "RPC not
+    deployed yet", never masking an unrelated real error."""
+    msg = str(exc).lower()
+    return "pgrst202" in msg or "42883" in msg or "could not find the function" in msg
+
+
 async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict[str, int]:
     """Čita do batch_size nedispečovanih redova iz 'events', pokreće handlere
     preko bus.publish_async(), i markira dispatched_at. Best-effort po redu —
     greška na jednom redu ne sme da blokira ostale u batch-u. Namerno se ne
     poziva iz FastAPI request handlera — pokreće ga periodičan worker/cron
-    (Faza 0 infrastruktura, van ovog fajla)."""
+    (Faza 0 infrastruktura, van ovog fajla).
+
+    Mission Keystone (2026-08-04): produkcija podrazumevano pokreće 4
+    gunicorn worker procesa (gunicorn.conf.py), svaki sa sopstvenim
+    DispatchLoop-om koji poll-uje ISTU 'events' tabelu na svake 3s. Prostim
+    SELECT-om bez claim-a, dva worker-a mogu izabrati isti nedispečovan red u
+    istom tick-u i oba pokrenuti handler — duplirani proactive_alerts/audit
+    upisi za jedan stvaran događaj (handleri nisu svi idempotentni). Sada se
+    prvo pokušava atomski claim preko migracije 091's claim_pending_events()
+    RPC-a (SELECT ... FOR UPDATE SKIP LOCKED, isti obrazac kao migracija
+    073's claim_intake_job za intake_jobs) -- ako RPC još nije pokrenut,
+    tiho se vraća na prethodno ponašanje (funkcionalno identično kao pre ove
+    izmene za single-worker slučaj, i dalje izloženo istom riziku dok se
+    migracija ne pokrene)."""
     from shared.deps import _get_supa
 
     supa = _get_supa()
-    res = await asyncio.to_thread(
-        lambda: supa.table("events")
-            .select("*")
-            .is_("dispatched_at", "null")
-            .order("created_at")
-            .limit(batch_size)
-            .execute()
-    )
+    claimed = True
+    try:
+        res = await asyncio.to_thread(
+            lambda: supa.rpc(
+                "claim_pending_events",
+                {"p_batch_size": batch_size, "p_stale_claim_seconds": 30},
+            ).execute()
+        )
+    except Exception as _rpc_exc:
+        if not _is_missing_function_error(_rpc_exc):
+            raise
+        claimed = False
+        res = await asyncio.to_thread(
+            lambda: supa.table("events")
+                .select("*")
+                .is_("dispatched_at", "null")
+                .order("created_at")
+                .limit(batch_size)
+                .execute()
+        )
     rows = res.data or []
     dispatched, errored, unknown_type, dead_lettered = 0, 0, 0, 0
 
@@ -450,12 +486,17 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
                         .execute()
                 )
             else:
+                # Claimed_at se čisti (samo kad je RPC put stvarno korišćen)
+                # da neuspešan-ali-ne-iscrpljen red ostane odmah ponovo
+                # dostupan za claim na SLEDEĆEM 3s pollu -- bez ovoga bi
+                # p_stale_claim_seconds prozor (30s) neopravdano usporio
+                # retry cadence koju je Project Phoenix već dokazao testovima.
+                _update = {"dispatch_attempts": attempts, "last_error": str(exc)[:500]}
+                if claimed:
+                    _update["claimed_at"] = None
                 await asyncio.to_thread(
                     lambda: supa.table("events")
-                        .update({
-                            "dispatch_attempts": attempts,
-                            "last_error": str(exc)[:500],
-                        })
+                        .update(_update)
                         .eq("id", row_id)
                         .execute()
                 )

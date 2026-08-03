@@ -302,6 +302,11 @@ async def test_dispatch_pending_events_calls_handler_and_marks_dispatched():
         return chain
     supa = MagicMock()
     supa.table = MagicMock(side_effect=_table)
+    # Mission Keystone (2026-08-04): dispatch_pending_events() now tries
+    # migration 091's claim_pending_events() RPC first -- simulate the
+    # pre-migration state (RPC not deployed yet) so it falls back to the
+    # plain-select path this test's mock actually sets up.
+    supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
     fake_handler = AsyncMock()
     with patch("shared.deps._get_supa", return_value=supa), \
@@ -322,6 +327,7 @@ async def test_dispatch_pending_events_handles_unknown_event_type():
 
     supa = MagicMock()
     supa.table = MagicMock(return_value=_make_chain([row]))
+    supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
     with patch("shared.deps._get_supa", return_value=supa):
         result = await eb.dispatch_pending_events()
@@ -339,6 +345,7 @@ async def test_dispatch_pending_events_records_error_without_crashing_batch():
 
     supa = MagicMock()
     supa.table = MagicMock(return_value=_make_chain([row]))
+    supa.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
     async def _boom(event):
         raise RuntimeError("handler exploded")

@@ -355,12 +355,25 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
-    rezultat = await asyncio.to_thread(
-        ask_agent,
-        body.pitanje,
-        body.history,
-        [f"{ns_prefix}{body.session_id}"],
-    )
+    # Mission Keystone (2026-08-04): a second, real, unwrapped ask_agent call
+    # path that Mission Migration/Project Phoenix's own inventories missed
+    # (both only traced routers/copilot.py's delegation) -- same flat
+    # single-wrap-point shape as copilot.py::_handle_pravno_pitanje, migrated
+    # here using the identical proven pattern.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(module_name="ask_agent", operation_name="dokument_pitanje"):
+        rezultat = await asyncio.to_thread(
+            ask_agent,
+            body.pitanje,
+            body.history,
+            [f"{ns_prefix}{body.session_id}"],
+        )
+    if isinstance(rezultat, dict) and rezultat.get("status") != "error":
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="dokument_pitanje", user_id=user.get("user_id"),
+            resource_type="dokument_pitanje", resource_id=body.session_id,
+        ))
     await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
     return rezultat
 

@@ -105,6 +105,12 @@ AUDITABLE_ACTIONS: set[str] = {
     # 2026-08-03 since its own reliability work touched these exact call
     # sites): main.py::ask_agent and Drafting's generate/analiza calls.
     "copilot_pravno_pitanje", "drafting_nacrt", "drafting_analiza",
+    # Mission Keystone (2026-08-04) — Phase 2 fresh metric recalculation
+    # found routers/dokument.py::dokument_pitanje as a second, real,
+    # unwrapped ask_agent call path that Mission Migration/Project Phoenix's
+    # narrower inventories both missed (both only traced copilot.py's
+    # delegation into ask_agent).
+    "dokument_pitanje",
 }
 
 
