@@ -66,15 +66,30 @@ def calculate_procesni_rizik(
 
     predstojeći = 0
     kriticni = 0
+    kriticni_rocista: list[dict] = []
     for r in rocista:
         try:
             ds = r.get("datum", "") or ""
-            dt = datetime.fromisoformat((ds + "T00:00:00") if len(ds) == 10 else ds.replace("Z", "+00:00"))
-            dana = (dt - now).days
+            # Project Synapse (2026-08-03) bug fix: was comparing a naive
+            # datetime (built from a plain "YYYY-MM-DD" via +"T00:00:00", no
+            # tz) against `now` (timezone-AWARE) whenever `datum` arrived as
+            # a 10-char date string -- Python raises TypeError subtracting
+            # naive from aware, silently swallowed by the bare except below,
+            # so EVERY hearing stored as a plain date (the realistic shape
+            # for a Postgres DATE column) was silently excluded from both
+            # predstojeći_rokovi and kriticni_rokovi. Comparing calendar
+            # dates (not instants) is also more semantically correct here --
+            # a hearing "date" has no meaningful sub-day precision for this
+            # day-count check.
+            if len(ds) == 10:
+                dana = (datetime.fromisoformat(ds).date() - now.date()).days
+            else:
+                dana = (datetime.fromisoformat(ds.replace("Z", "+00:00")).date() - now.date()).days
             if 0 <= dana <= 30:
                 predstojeći += 1
             if 0 <= dana <= 7:
                 kriticni += 1
+                kriticni_rocista.append(r)
         except Exception:
             pass
 
@@ -115,6 +130,13 @@ def calculate_procesni_rizik(
         "nedostajuci_count": len(nedostajuci),
         "predstojeći_rokovi": predstojeći,
         "kriticni_rokovi": kriticni,
+        # Project Synapse (2026-08-03): the actual critical rociste rows, not
+        # just the count above -- added so a caller can emit EventType.ROK_KRITICAN
+        # (a real, already-wired proactive-alert handler, previously never
+        # triggered by anything) without re-deriving the same 0<=days<=7 date
+        # math a second time. Purely additive -- existing callers reading only
+        # "kriticni_rokovi" are unaffected.
+        "kriticni_rocista": kriticni_rocista,
     }
 
 

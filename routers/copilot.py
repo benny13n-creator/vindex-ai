@@ -287,8 +287,15 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     supa = _get_supa()
 
     # Parallel fetch of all case data
+    # Project Synapse (2026-08-03): "case_dna" added to this select -- a full
+    # cognitive audit found this handler was a 4th independent case-strength
+    # synthesis path (alongside Case Genome, the AI Briefing, and Matter
+    # Intelligence), never reading the Case Genome analysis that's often
+    # already been computed for the exact same case. This lets the one GPT
+    # call below build on that existing analysis instead of re-deriving it
+    # from raw rows blind to it -- purely additive context, no restructuring.
     pred_r, beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(5).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").limit(8).execute()),
@@ -316,11 +323,35 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         ' "nedostaju": [str] (max 4, dokumenti/dokazi kojih nema),\n'
         ' "sledeci_korak": {"opis": str, "rok": str, "prioritet": "hitan|normalan"},\n'
         ' "verovatnoca_uspeha": int (0-100)}\n'
-        "Ne halucinuj zakone ni činjenice koje nisu u podacima."
+        "Ne halucinuj zakone ni činjenice koje nisu u podacima. "
+        "Ako je dole dat CASE GENOME (već izračunata analiza ovog predmeta), gradi na njemu — "
+        "ne ponavljaj istu analizu iz nule i ne izmišljaj suprotnu ocenu bez razloga."
     )
+
+    # Project Synapse (2026-08-03) — vidi napomenu iznad. Kompaktan rezime
+    # Case Genome-a (ako postoji i nije greška) kao dodatni kontekst.
+    genome = (pred.get("case_dna") or {}) if pred else {}
+    genome_ctx = ""
+    if genome and not genome.get("greska"):
+        _gi = genome.get("pravna_teorija") or {}
+        _nt = genome.get("najslabija_tacka") or {}
+        _snaga = genome.get("snaga_predmeta_procent")
+        _delovi = []
+        if _gi.get("sustina_spora"):
+            _delovi.append(f"Suština: {_gi['sustina_spora']}")
+        if _snaga is not None:
+            _delovi.append(f"Snaga predmeta: {_snaga}% ({genome.get('snaga_predmeta','')})")
+        if _nt.get("rizik"):
+            _delovi.append(f"Najslabija tačka: {_nt['rizik']}")
+        _ned = genome.get("nedostaje") or []
+        if _ned:
+            _delovi.append("Nedostajući dokazi: " + "; ".join(n.get("dokument", "") for n in _ned[:3] if n.get("dokument")))
+        if _delovi:
+            genome_ctx = "CASE GENOME (već izračunata analiza ovog predmeta):\n" + "\n".join(_delovi)
 
     ctx = "\n".join([
         f"Predmet: {pred.get('naziv','')} | Tip: {pred.get('tip','')} | Status: {pred.get('status','')}",
+    ] + ([genome_ctx] if genome_ctx else []) + [
         f"Opis: {(pred.get('opis') or '')[:500]}",
         f"Dokumenti u dosijeu: {', '.join(d.get('naziv_fajla','') for d in dok[:6]) or 'nema'}",
         f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:80] for b in beleske[:3]) or 'nema'}",

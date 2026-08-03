@@ -93,6 +93,15 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
     # ── Otkriveni problemi — Core Consolidation Sec 1.2, jedini algoritam ─────
     otkriveni_problemi = identify_case_problems(_rizik, tip)
 
+    # Project Synapse (2026-08-03) — vidi _maybe_emit_health_and_deadline_events
+    # docstring: dva vec ozicena proactive-alert handlera (services/event_bus.py)
+    # nikad nisu triggerovana jer nista u repou nije emitovalo ta dva EventType.
+    # Fire-and-forget: ne sme usporiti ovaj (cesto pozivan, na svakom case-open)
+    # endpoint.
+    asyncio.create_task(_maybe_emit_health_and_deadline_events(
+        supa, uid, predmet_id, health, _rizik.get("kriticni_rocista") or [],
+    ))
+
     # ── Trend aktivnosti + Health log — paralelno ────────────────────────────
     trend, health_history = await asyncio.gather(
         asyncio.to_thread(_compute_trend, supa, predmet_id, now),
@@ -114,6 +123,52 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
         "trend":              trend,
         "health_history":     health_history,
     }
+
+
+async def _maybe_emit_health_and_deadline_events(
+    supa, uid: str, predmet_id: str, health: int, kriticni_rocista: list,
+) -> None:
+    """Project Synapse (2026-08-03): a full emit/consume audit of every
+    services/event_bus.py EventType found HEALTH_SCORE_PROMENJEN and
+    ROK_KRITICAN both already have real, fully-wired handlers (create a
+    proactive_alerts row) that were NEVER emitted by anything in the repo --
+    get_matter_intel already computes exactly the signal each one needs, on
+    every case-open. This connects them.
+
+    Dedup is mandatory, not optional: this endpoint runs on every case-open
+    (matter_intel_load(), auto-called from pred_select()) -- emitting
+    unconditionally would create a new duplicate alert every single page
+    view. Guarded by checking for an existing UNREAD alert of the same type
+    first; only emits if none exists yet."""
+    from services.event_bus import emit, EventType
+
+    try:
+        if health < 30:
+            existing = await asyncio.to_thread(
+                lambda: supa.table("proactive_alerts").select("id")
+                    .eq("predmet_id", predmet_id).eq("tip", "nizak_health_score")
+                    .eq("procitana", False).limit(1).execute()
+            )
+            if not (existing.data or []):
+                emit(EventType.HEALTH_SCORE_PROMENJEN, uid, predmet_id, {"health_score": health})
+    except Exception as exc:
+        logger.warning("[MATTER_INTEL] health-score event emit greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+    try:
+        if kriticni_rocista:
+            existing_rok = await asyncio.to_thread(
+                lambda: supa.table("proactive_alerts").select("id")
+                    .eq("predmet_id", predmet_id).eq("tip", "rok_kritican")
+                    .eq("procitana", False).limit(1).execute()
+            )
+            if not (existing_rok.data or []):
+                r0 = kriticni_rocista[0]
+                emit(EventType.ROK_KRITICAN, uid, predmet_id, {
+                    "naziv": f"Ročište — {r0.get('sud') or 'sud'}",
+                    "datum": r0.get("datum", ""),
+                })
+    except Exception as exc:
+        logger.warning("[MATTER_INTEL] rok-kritican event emit greška (non-fatal) predmet=%s: %s", predmet_id, exc)
 
 
 def _log_and_fetch_health(supa, predmet_id: str, health: int, rizik_label: str, now: datetime) -> list:

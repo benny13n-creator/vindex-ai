@@ -54,8 +54,13 @@ async def get_precedenti(request: Request, predmet_id: str, user=Depends(Permiss
     uid = user["user_id"]
 
     # Provera vlasništva + dohvati predmet
+    # Project Synapse (2026-08-03): "case_dna" dodat -- audit je nasao da ovaj
+    # endpoint nikad nije citao vec izracunat Case Genome za TEKUCI predmet,
+    # vec je nezavisno GPT pozivom sintetisao slicnost sa zatvorenim
+    # predmetima iz nule. Cisto dodatan kontekst, ne menja logiku pronalazenja
+    # slicnih predmeta ispod.
     pr = supa.table("predmeti").select(
-        "id,naziv,tip,status,oblast,opis"
+        "id,naziv,tip,status,oblast,opis,case_dna"
     ).eq("id", predmet_id).eq("user_id", uid).execute()
     if not pr.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
@@ -116,6 +121,21 @@ async def get_precedenti(request: Request, predmet_id: str, user=Depends(Permiss
 
     # Pripremi kontekst za GPT
     ctx_predmet = f"Naziv: {predmet.get('naziv', '')}\nTip: {tip}\nOpis: {(predmet.get('opis') or '')[:300]}"
+
+    # Project Synapse (2026-08-03) -- vidi napomenu iznad. Kompaktan rezime
+    # Case Genome-a (ako postoji i nije greška) dodat kao dodatni kontekst,
+    # da GPT gradi na vec izracunatoj analizi umesto da je ignorise.
+    _genome = predmet.get("case_dna") or {}
+    if _genome and not _genome.get("greska"):
+        _snaga = _genome.get("snaga_predmeta_procent")
+        _nt = _genome.get("najslabija_tacka") or {}
+        _genome_delovi = []
+        if _snaga is not None:
+            _genome_delovi.append(f"Snaga predmeta: {_snaga}% ({_genome.get('snaga_predmeta','')})")
+        if _nt.get("rizik"):
+            _genome_delovi.append(f"Najslabija tačka: {_nt['rizik']}")
+        if _genome_delovi:
+            ctx_predmet += "\nCase Genome (već izračunata analiza): " + " | ".join(_genome_delovi)
 
     ctx_slicni = ""
     for i, p in enumerate(slicni[:6], 1):
