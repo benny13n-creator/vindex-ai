@@ -168,6 +168,25 @@ features — "Not five buttons. One." Full report: `docs/product/WOW_REPORT.md`.
 | WOW-002 | Post-upload magic-moment recap for Smart Intake | 2 | none | Small | **DONE** | After finalize, shows document-type counts + review-correction count using data already in memory — zero new API calls. Does not poll for Genome/Evidence completion (states plainly they're running in background) to avoid introducing new waiting/polling. |
 | WOW-003 | Auto-populate `predmeti.tuzilac`/`tuzeni` from Smart Intake's already-extracted judge/opponent entities | 3 | none | Small (backend write, uses existing extraction) | NEEDS_SCOPING | Found this mission: Smart Intake extracts judge/court/plaintiff/defendant entities but never writes them onto the case row, so Judge & Court Profiler / Opponent Intelligence still require manual name entry even when the AI already knows it. A real, small, low-risk backend change — outside this mission's compose-only charter, flagged for a future mission rather than built speculatively. |
 
+## Project Synapse (2026-08-03) — SYN missions
+
+Founder's Master Prompt (BETA-008): "Architecture Evolution" — transform independent AI modules into
+one continuously reasoning system. "DO NOT BUILD NEW AI FEATURES. BUILD ONE INTELLIGENCE." Full
+reports: `docs/architecture/EXECUTIVE_SUMMARY.md`, `COGNITIVE_GRAPH.md`,
+`INTELLIGENCE_PROPAGATION_MAP.md`, `ORCHESTRATION_REPORT.md`, `COGNITIVE_ISLANDS_REPORT.md`,
+`FOUNDER_WOW_REPORT.md`. Investigation: `decisions/2026-08-03_synapse_cognitive_audit_INVESTIGATION.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| SYN-001 | Fix `calculate_procesni_rizik`'s naive/aware datetime bug + return critical-hearing rows | 1 | none | Small | **DONE** | Pre-existing bug: silently excluded any hearing stored as a plain date from `predstojeći_rokovi`/`kriticni_rokovi`. Found while wiring SYN-002 below, fixed as a prerequisite. 3 new tests, 12 pre-existing `test_matter_intel.py` tests re-confirmed passing. |
+| SYN-002 | Emit `HEALTH_SCORE_PROMENJEN` and `ROK_KRITICAN` — both had real, fully-wired proactive-alert handlers, never triggered by anything | 2 | SYN-001 | Small | **DONE** | Wired from `routers/matter_intel.py::get_matter_intel`, mandatory dedup against an existing unread alert (this endpoint fires on every case-open). 6 new tests including an explicit dedup-guard test. |
+| SYN-003 | Copilot's case analysis reads Case Genome instead of re-deriving from scratch | 3 | none | Small | **DONE** | Confirmed 4th independent case-strength-synthesis path via a full cognitive audit; now folds a compact Genome summary into its existing single GPT call. 3 new tests. |
+| SYN-004 | Firm Brain (precedenti.py) reads Case Genome instead of re-deriving from scratch | 4 | none | Small | **DONE** | Same pattern as SYN-003. 2 new tests. |
+| SYN-005 | New `DOCUMENT_JOB_FAILED` handler (event already emitted, zero handler exists) | 5 | none | Small-Medium | NEEDS_SCOPING | Requires genuinely new handler logic (what to notify, whom) — outside this mission's orchestration-only charter. See `COGNITIVE_ISLANDS_REPORT.md` #4. |
+| SYN-006 | Outcome Intelligence + Judge/Court Profiler read Case Genome (same pattern as SYN-003/004) | 6 | none | Small-Medium | TODO | Confirmed same gap as SYN-003/004; not fixed this mission due to more involved per-file prompt logic in each — well-precedented, low-risk future mission. |
+| SYN-007 | `knowledge_profiles` phantom data source (Briefing's 8th source, structurally always empty) | 7 | none | — (founder decision) | NEEDS_SCOPING | Only writer is confirmed-dead `knowledge_transfer.py`. Two paths (build real extraction = new AI, out of charter; wire the existing dead router's UI = smaller). Founder call. |
+| SYN-008 | Write Smart Intake's extracted judge/opponent entities onto `predmeti.tuzilac`/`tuzeni` | 8 | none | Small | NEEDS_SCOPING (reconfirmed from `WOW-003`) | Highest-value remaining opportunity per `FOUNDER_WOW_REPORT.md` — would let Judge/Opponent Intelligence auto-populate with zero lawyer typing. Not attempted this mission (compose-only scope). |
+
 ## Dependency graph (for the "eligible" check)
 
 ```

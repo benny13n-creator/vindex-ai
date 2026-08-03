@@ -229,3 +229,27 @@ was found by asking which of tonight's OWN already-completed missions solve adja
 question. Worth carrying forward: after a long engagement of individually-correct fixes, a dedicated
 composition pass over what's already been built is itself a distinct, valuable kind of audit — not
 redundant with the bug-finding sweeps that came before it.
+
+---
+
+## 2026-08-03 (Project Synapse, BETA-008)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 4 (SYN-001 date-bug fix, SYN-002 Event Bus wiring, SYN-003 Copilot→Genome, SYN-004 Firm Brain→Genome) |
+| Bugs fixed | 1 — a real, pre-existing, silent date-comparison bug (naive vs. aware datetime) that made critical-hearing detection always return empty for any hearing stored as a plain date, the realistic shape for a production DATE column |
+| New bugs discovered | 1 (the above — found while wiring an unrelated Event Bus connection, not while looking for bugs specifically) |
+| Blockers correctly escalated | 3 — `SYN-005` (needs new handler logic, outside orchestration-only scope), `SYN-007` (`knowledge_profiles` needs a founder decision), `SYN-008` (reconfirmed from last mission's `WOW-003`, still not attempted) |
+| Regressions introduced | 0 — full suite re-run as final gate: 2329 passed, 1 skipped, 0 failed (was 2315 before this mission) |
+| Test pass rate | 2329/2330 (99.96%) |
+| Beta blockers removed | 0 in the formal sense — this mission's charter was architectural coherence ("one intelligence"), not blocker removal; value is measured in reduced duplicated reasoning and 2 newly-functional proactive alerts |
+| Security findings resolved | 0 — no new attack surface; every change reuses existing auth/billing/tenant-scoping exactly as it already worked |
+| Founder decisions required | 2 new-ish (`SYN-007`, whether to build real `knowledge_profiles` extraction or retire it as a Briefing input) — `SYN-008` is a reconfirmation of an already-known item, not new |
+
+**Notable pattern, this run — the same lesson recurring a third time this engagement**: connecting
+`ROK_KRITICAN` (Event Bus wiring) required first fixing a silent bug in the exact signal that event
+needed to carry. This is the same shape as Beta Lockdown's IDOR (found via an isolation sweep, not a
+security-specific one) and Lawyer Day's photo-upload correction (found via a full-workflow simulation,
+not a targeted bug hunt) — **the most valuable bugs this entire engagement has found were discovered
+as a side effect of connecting or verifying something else, not by looking for bugs directly.** Worth
+treating "trying to wire X" as itself a productive bug-finding method, not just an orchestration task.
