@@ -334,6 +334,15 @@ class FinalizeReq(BaseModel):
     naziv: Optional[str] = Field(default=None, max_length=200)
     klijent_strana: Optional[str] = Field(default=None, max_length=20)  # "plaintiff" | "defendant" | None
     klijent_ime_override: Optional[str] = Field(default=None, max_length=200)
+    # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario B): before
+    # this field existed there was NO way to finalize a second document into
+    # a case a prior finalize call already created -- every finalize always
+    # inserted a new `predmeti` row. A lawyer uploading N documents for one
+    # client (the batch-upload contract already returns one job_id per file)
+    # got N separate cases, not one organized case, with no merge feature to
+    # recover afterward. Passing predmet_id attaches this job's document to
+    # an already-finalized case instead of creating a new one.
+    predmet_id: Optional[str] = Field(default=None, max_length=64)
 
 
 def _compute_finalize_wait_s(job: dict) -> Optional[float]:
@@ -417,42 +426,57 @@ async def finalize_intake_job(
     doc_type = document.get("document_type") or "other"
     tip_labela = _DOC_TYPE_LABELS.get(doc_type, "dokument")
 
-    # ── Naziv predmeta ───────────────────────────────────────────────────────
-    if body.naziv and body.naziv.strip():
-        naziv = body.naziv.strip()[:200]
-    elif value_map.get("plaintiff") and value_map.get("defendant"):
-        naziv = f"{value_map['plaintiff']} protiv {value_map['defendant']}"[:200]
-    elif value_map.get("case_number"):
-        naziv = f"Predmet {value_map['case_number']}"[:200]
-    elif job.get("original_filename"):
-        naziv = Path(job["original_filename"]).stem[:200]
+    # ── Predmet: prikaci na postojeci (Scenario B) ili napravi novi ─────────
+    attach_existing = bool(body.predmet_id)
+    if attach_existing:
+        existing_pred = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id,naziv")
+                .eq("id", body.predmet_id)
+                .eq("user_id", uid)
+                .maybe_single().execute()
+        )
+        if not existing_pred or not existing_pred.data:
+            raise HTTPException(status_code=404, detail="Predmet za prikačivanje nije pronađen.")
+        predmet_id = existing_pred.data["id"]
+        naziv = existing_pred.data.get("naziv") or ""
     else:
-        naziv = f"Predmet iz dokumenta ({tip_labela})"
+        # ── Naziv predmeta ───────────────────────────────────────────────
+        if body.naziv and body.naziv.strip():
+            naziv = body.naziv.strip()[:200]
+        elif value_map.get("plaintiff") and value_map.get("defendant"):
+            naziv = f"{value_map['plaintiff']} protiv {value_map['defendant']}"[:200]
+        elif value_map.get("case_number"):
+            naziv = f"Predmet {value_map['case_number']}"[:200]
+        elif job.get("original_filename"):
+            naziv = Path(job["original_filename"]).stem[:200]
+        else:
+            naziv = f"Predmet iz dokumenta ({tip_labela})"
 
-    opis_delovi = [f"Kreirano iz dokumenta ({tip_labela}) putem Smart Intake."]
-    if value_map.get("case_number"):
-        opis_delovi.append(f"Broj predmeta: {value_map['case_number']}")
-    if value_map.get("court"):
-        opis_delovi.append(f"Sud/organ: {value_map['court']}")
-    if value_map.get("judge"):
-        opis_delovi.append(f"Sudija: {value_map['judge']}")
-    if value_map.get("law_cited"):
-        opis_delovi.append(f"Zakon: {value_map['law_cited']}")
-    if value_map.get("amount"):
-        opis_delovi.append(f"Iznos: {value_map['amount']}")
+        opis_delovi = [f"Kreirano iz dokumenta ({tip_labela}) putem Smart Intake."]
+        if value_map.get("case_number"):
+            opis_delovi.append(f"Broj predmeta: {value_map['case_number']}")
+        if value_map.get("court"):
+            opis_delovi.append(f"Sud/organ: {value_map['court']}")
+        if value_map.get("judge"):
+            opis_delovi.append(f"Sudija: {value_map['judge']}")
+        if value_map.get("law_cited"):
+            opis_delovi.append(f"Zakon: {value_map['law_cited']}")
+        if value_map.get("amount"):
+            opis_delovi.append(f"Iznos: {value_map['amount']}")
 
-    pred_r = await asyncio.to_thread(
-        lambda: supa.table("predmeti").insert({
-            "user_id": uid,
-            "naziv":   naziv,
-            "opis":    "\n".join(opis_delovi),
-            "tip":     "opsti",
-            "status":  "aktivan",
-        }).execute()
-    )
-    if not pred_r.data:
-        raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
-    predmet_id = pred_r.data[0]["id"]
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").insert({
+                "user_id": uid,
+                "naziv":   naziv,
+                "opis":    "\n".join(opis_delovi),
+                "tip":     "opsti",
+                "status":  "aktivan",
+            }).execute()
+        )
+        if not pred_r.data:
+            raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
+        predmet_id = pred_r.data[0]["id"]
 
     # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
     klijent_ime = (body.klijent_ime_override or "").strip()
@@ -498,6 +522,47 @@ async def finalize_intake_job(
                 )
         except Exception as exc:
             logger.warning("[SMART_INTAKE] klijent link greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+        # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario 5):
+        # POST /api/intake/conflict-check (routers/intake.py) exists and
+        # works, but only in the older name-first CRM Intake Wizard flow --
+        # this document-first flow never called it, so a case could be
+        # created here with a conflict of interest never having been
+        # checked, silently, every time. Extracted party names ARE already
+        # available in value_map at exactly this point. Deliberately
+        # non-blocking (surfaces a proactive_alerts entry, does not fail or
+        # delay finalize) -- this endpoint is a promise of automatic case
+        # creation, and a false-positive name match should never silently
+        # block a lawyer from opening a real case. The lawyer sees the
+        # alert immediately inside the case that was just created either
+        # way; the actual "should I decline this client" judgment remains
+        # the lawyer's, per the existing endpoint's own BLOKIRAJUCI wording.
+        protivna_strana_val = ""
+        if body.klijent_strana == "plaintiff":
+            protivna_strana_val = (value_map.get("defendant") or "").strip()
+        elif body.klijent_strana == "defendant":
+            protivna_strana_val = (value_map.get("plaintiff") or "").strip()
+
+        async def _conflict_check_bg():
+            try:
+                from routers.intake import _run_conflict_check
+                result = await _run_conflict_check(uid, klijent_ime, "", protivna_strana_val, "")
+                if result.get("conflict_detected"):
+                    opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
+                    await asyncio.to_thread(
+                        lambda: supa.table("proactive_alerts").insert({
+                            "user_id": uid,
+                            "predmet_id": predmet_id,
+                            "naslov": "BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
+                            "opis": f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+                            "tip": "sukob_interesa",
+                            "urgentnost": "hitna" if result.get("has_blocker") else "normalna",
+                            "procitana": False,
+                        }).execute()
+                    )
+            except Exception as cce:
+                logger.warning("[SMART_INTAKE] Conflict-check greška (non-fatal) predmet=%s: %s", predmet_id, cce)
+        asyncio.create_task(_conflict_check_bg())
 
     # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
     rok_dodat = False
@@ -579,6 +644,20 @@ async def finalize_intake_job(
                 logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s: %s", predmet_id, str(pe)[:150])
                 pinecone_ok = False
 
+            # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario B):
+            # bilo je hardkodovano na 1 -- bezopasno dok je svaki finalize
+            # uvek pravio NOV predmet (tacno jedan dokument po predmetu), ali
+            # cim je moguce prikaciti vise dokumenata na ISTI predmet (gore),
+            # svaki naredni dokument bi kolidirao na redni_broj=1, sto bi
+            # ucinilo Genome-ovo .order("redni_broj") sortiranje besmislenim.
+            _postojeci_redni = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti")
+                    .select("redni_broj").eq("predmet_id", predmet_id)
+                    .order("redni_broj", desc=True).limit(1).execute()
+            )
+            _sledeci_redni = ((_postojeci_redni.data or [{}])[0].get("redni_broj") or 0) + 1 \
+                if _postojeci_redni.data else 1
+
             _dok_row_base = {
                 "predmet_id":         predmet_id,
                 "user_id":            uid,
@@ -587,7 +666,7 @@ async def finalize_intake_job(
                 "pinecone_namespace": _owner_ns,
                 "status":             "indeksirano" if pinecone_ok else "sacuvano",
                 "velicina_kb":        max(1, len(raw_bytes) // 1024),
-                "redni_broj":         1,
+                "redni_broj":         _sledeci_redni,
             }
             # tip_dokaza/klasifikovan_at (migracija 016) i tekst_sadrzaj su
             # opcioni po istom obrascu kao api.py predmet upload — probaj
