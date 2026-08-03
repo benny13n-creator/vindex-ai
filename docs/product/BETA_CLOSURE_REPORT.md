@@ -96,10 +96,13 @@ none blocking, all real, none requiring a founder decision to start.
   the exact backend response shapes read directly from source before writing any UI code.
 - **New Beta blockers removed**: 2 (`BLOCKER-2`, `BLOCKER-3`).
 - **Remaining Beta blockers**: 3, all founder-decision-gated, unchanged from Beta Lockdown.
-- **Files changed this mission**: `index.html`, `static/vindex.js`, `static/sw.js` (cache bump), plus 5
+- **Files changed this mission**: 11 files, 1034 insertions(+), 1 deletion(-) — `index.html` (+58),
+  `static/vindex.js` (+510, the new Smart Intake and staging JS), `static/sw.js` (cache bump), plus 6
   new documentation files (this report, `UPDATED_BLOCKER_REPORT.md`, `UPDATED_FEATURE_MATRIX.md`,
-  `WORKFLOW_COMPLETION_REPORT.md`, `UI_WIRING_REPORT.md`), plus Mission Board and Metrics updates.
-- **Commit hash**: recorded below once committed.
-- **Push confirmation**: recorded below once pushed — per this mission's explicit condition, only if
-  all tests pass, Beta Critical Path passes, no new P0/P1 regressions, and the repository is in a
-  releasable state. All four conditions are met.
+  `WORKFLOW_COMPLETION_REPORT.md`, `UI_WIRING_REPORT.md`, the BC-001/002 architecture decision), plus
+  Mission Board and Metrics updates.
+- **Commit hash**: `a71430f213cdda75a289bdd866b538e2c93dddb8`.
+- **Push confirmation**: pushed to `origin/main`, along with this engagement's full accumulated history
+  (26 commits total across all 7 operations tonight) — all conditions met: full suite passes (2315/1/0),
+  Beta Critical Path re-verified against `WORKFLOW_COMPLETION_REPORT.md`, no new P0/P1 regressions (zero
+  backend changes this mission), repository in a releasable state.
