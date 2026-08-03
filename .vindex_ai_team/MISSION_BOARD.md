@@ -143,6 +143,19 @@ summary), `FEATURE_COMPLETION_MATRIX.md`, `BLOCKER_REPORT.md`, `WORKFLOW_GAPS.md
 | BL-003 | Audit-log coverage: ~80% of the defined action taxonomy never fires | 3 | none | Medium (spans many call sites) | TODO, not urgent | `shared/audit_immutable.py::AUDITABLE_ACTIONS` defines 24 action types; only ~5-8 actually trigger in production code, including a gap where `predmet_create` isn't logged for the real-world case-creation path (`intake_kreiraj`). See `WORKFLOW_GAPS.md` #7/#8. |
 | BL-004 | Genome background-refresh defense-in-depth hardening | 4 | none | Small | TODO, low priority | `_do_genome_refresh` doesn't hard-return on an ownership-check miss — not currently exploitable via any real call site, but worth an early `return` for defense-in-depth. See `WORKFLOW_GAPS.md` #11. |
 
+## Operation Beta Closure (2026-08-03) — BC missions
+
+Founder's Master Prompt (BETA-006): expose, complete, and polish existing technology rather than build
+new — explicitly authorizing Priority 1 (Smart Intake UI) after five prior missions correctly declined
+to guess at it. Full reports: `docs/product/BETA_CLOSURE_REPORT.md` (executive summary),
+`UPDATED_BLOCKER_REPORT.md`, `UPDATED_FEATURE_MATRIX.md`, `WORKFLOW_COMPLETION_REPORT.md`,
+`UI_WIRING_REPORT.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| BC-001 | Build Smart Intake's first-ever frontend (upload → review → finalize) | 1 (ABSOLUTE) | none | Large (frontend only, zero backend changes) | **DONE** | New `#si-overlay` panel (3 steps), 2 new entry-point buttons, wired to all 4 existing `routers/smart_intake.py` endpoints. **Completed 2026-08-03** — see `docs/product/UI_WIRING_REPORT.md`. Resolves `BLOCKER-2`/`ZTC-000` — the dominant open item across 5 prior missions tonight. Zero backend changes; full suite unchanged at 2315 passed. |
+| BC-002 | Expose the draft staging/approval pipeline | 2 | none | Small | **DONE** | New "Nacrti na čekanju" section in case detail, wired to `routers/drafting.py`'s existing `staging`/`approve`/`reject` endpoints. **Completed 2026-08-03** — resolves `BLOCKER-3`. Zero backend changes. |
+
 ## Dependency graph (for the "eligible" check)
 
 ```

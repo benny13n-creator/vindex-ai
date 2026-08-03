@@ -10581,6 +10581,7 @@ function pred_select(id) {
   if (detail) setTimeout(function(){ detail.scrollIntoView({behavior:'smooth', block:'start'}); }, 120);
   // Auto-load Matter Intelligence bar (u Pregledu)
   setTimeout(function(){ matter_intel_load(); }, 400);
+  setTimeout(function(){ _stagingLoad(id); }, 400);
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
   // Prikaži FAB za brze akcije
@@ -20773,6 +20774,515 @@ function intakePipelineDone() {
   if (tabEl) setTab(tabEl, 'p');
   if (_intakePipelinePredmetId) pred_select(_intakePipelinePredmetId);
   _intakePipelinePredmetId = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SMART INTAKE — document-first case creation (Operation Beta Closure, 2026-08-03)
+//
+// Backend (routers/smart_intake.py) has existed since Faza 0/1A -- OCR,
+// classification, entity extraction with a Confidence Graph, per-entity
+// correction, batch upload, exact-duplicate detection, and (since ZTC-001,
+// same night as Operation Autonomous Law Office) attaching multiple documents
+// to ONE case via FinalizeReq.predmet_id -- but had ZERO frontend callers
+// (see .vindex_ai_team/decisions/2026-08-03_ZTC-FRONTEND_smart_intake_wiring_BLOCKER_REPORT.md).
+// This is the first UI wired to it. No backend changes -- pure frontend,
+// reusing the Intake Wizard's own .intake-* classes so it reads as native.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _siFiles = [];            // [{file, filename, status, job_id, lastError, docType, docTypeConf, entities, review}]
+var _siStep = 1;
+var _siDirty = false;
+var _siPollTimer = null;
+var _siKlijentStrana = null;
+
+var _SI_DOC_TYPE_LABELS = {
+  lawsuit: 'tužba', response: 'odgovor na tužbu', appeal: 'žalba', judgment: 'presuda',
+  contract: 'ugovor', invoice: 'faktura', power_of_attorney: 'punomoćje', evidence: 'dokaz',
+  email: 'email', court_decision: 'sudska odluka', enforcement: 'izvršenje',
+  legal_opinion: 'pravno mišljenje', other: 'dokument',
+};
+var _SI_ENTITY_LABELS = {
+  case_number: 'Broj predmeta', judge: 'Sudija', plaintiff: 'Tužilac', defendant: 'Tuženi',
+  court: 'Sud', deadline: 'Rok', amount: 'Iznos', law_cited: 'Zakon',
+};
+var _SI_STATUS_LABELS = {
+  received: 'Primljeno', preprocessing: 'Priprema...', classifying: 'Prepoznavanje tipa...',
+  extracting: 'Izvlačenje podataka (OCR)...', matching: 'Poređenje sa predmetima...',
+  dedup_check: 'Provera duplikata...', awaiting_review: 'Čeka pregled',
+  completed: 'Obrađeno', failed: 'Neuspešno',
+};
+var _SI_ALLOWED_EXT = ['.pdf', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
+
+function siOtvori() {
+  if (!currentSession) { openModal(); return; }
+  _siFiles = [];
+  _siStep = 1;
+  _siDirty = false;
+  _siKlijentStrana = null;
+  if (_siPollTimer) { clearTimeout(_siPollTimer); _siPollTimer = null; }
+  document.getElementById('si-overlay').classList.add('open');
+  document.getElementById('si-file-input').value = '';
+  document.getElementById('si-files-list').innerHTML = '';
+  document.getElementById('si-upload-err').style.display = 'none';
+  _siRenderStep();
+}
+
+function siZatvori() {
+  document.getElementById('si-overlay').classList.remove('open');
+  if (_siPollTimer) { clearTimeout(_siPollTimer); _siPollTimer = null; }
+}
+
+function siConfirmClose() {
+  if (_siDirty && !confirm('Otpremanje je u toku ili predmet još nije potvrđen. Zatvoriti?')) return;
+  siZatvori();
+}
+
+function _siRenderStep() {
+  ['si-s1', 'si-s2', 'si-s3'].forEach(function (id, i) {
+    document.getElementById(id).style.display = (i + 1 === _siStep) ? '' : 'none';
+  });
+  for (var i = 0; i < 3; i++) {
+    var dot = document.getElementById('si-sb-' + i);
+    dot.className = 'intake-step-dot' + (i + 1 < _siStep ? ' done' : i + 1 === _siStep ? ' active' : '');
+  }
+  var labels = ['Otpremanje', 'Obrada', 'Pregled i potvrda'];
+  document.getElementById('si-step-label').textContent = 'Korak ' + _siStep + ' / 3 — ' + labels[_siStep - 1];
+
+  var backBtn = document.getElementById('si-btn-back');
+  var nextBtn = document.getElementById('si-btn-next');
+  backBtn.style.display = (_siStep === 2) ? '' : 'none';
+  if (_siStep === 1) { nextBtn.style.display = ''; nextBtn.disabled = false; nextBtn.textContent = 'Otpremi →'; }
+  else if (_siStep === 2) { nextBtn.style.display = 'none'; }
+  else if (_siStep === 3) { nextBtn.style.display = ''; nextBtn.disabled = false; nextBtn.textContent = 'Kreiraj predmet'; }
+}
+
+function siBack() {
+  if (_siStep !== 2) return;
+  if (_siPollTimer) { clearTimeout(_siPollTimer); _siPollTimer = null; }
+  _siStep = 1;
+  _siRenderStep();
+}
+
+function siNext() {
+  if (_siStep === 1) siUploadAndProceed();
+  else if (_siStep === 3) siFinalize();
+}
+
+function siFilesSelected(fileList) { _siAddFiles(fileList); }
+function siDropFiles(event) {
+  event.preventDefault();
+  document.getElementById('si-upload-zone').classList.remove('dragover');
+  _siAddFiles(event.dataTransfer.files);
+}
+
+function _siAddFiles(fileList) {
+  var errEl = document.getElementById('si-upload-err');
+  errEl.style.display = 'none';
+  for (var i = 0; i < fileList.length; i++) {
+    var f = fileList[i];
+    var parts = f.name.split('.');
+    var ext = '.' + (parts.length > 1 ? parts.pop().toLowerCase() : '');
+    if (_SI_ALLOWED_EXT.indexOf(ext) === -1) {
+      errEl.textContent = '"' + f.name + '" nije podržan format. Podržano: PDF, DOCX, TXT, JPG, PNG.';
+      errEl.style.display = 'block';
+      continue;
+    }
+    if (f.size > 25 * 1024 * 1024) {
+      errEl.textContent = '"' + f.name + '" je preveliki (maks. 25MB).';
+      errEl.style.display = 'block';
+      continue;
+    }
+    _siFiles.push({ file: f, filename: f.name, status: 'staged' });
+  }
+  _siDirty = _siFiles.length > 0;
+  _siRenderFilesList();
+}
+
+function _siRenderFilesList() {
+  var el = document.getElementById('si-files-list');
+  el.innerHTML = _siFiles.map(function (sf, idx) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;'
+      + 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:2px;'
+      + 'margin-bottom:5px;font-size:0.78rem;color:rgba(255,255,255,0.7);">'
+      + '<span>' + escHtml(sf.filename) + '</span>'
+      + '<span onclick="siRemoveFile(' + idx + ')" style="cursor:pointer;color:rgba(255,255,255,0.35);padding:0 4px;">✕</span>'
+      + '</div>';
+  }).join('');
+}
+
+function siRemoveFile(idx) {
+  _siFiles.splice(idx, 1);
+  _siDirty = _siFiles.length > 0;
+  _siRenderFilesList();
+}
+
+async function siUploadAndProceed() {
+  if (!_siFiles.length) {
+    var errEl = document.getElementById('si-upload-err');
+    errEl.textContent = 'Otpremite bar jedan dokument.';
+    errEl.style.display = 'block';
+    return;
+  }
+  var nextBtn = document.getElementById('si-btn-next');
+  nextBtn.disabled = true; nextBtn.textContent = 'Otpremam...';
+
+  var fd = new FormData();
+  _siFiles.forEach(function (sf) { fd.append('files', sf.file, sf.filename); });
+
+  try {
+    var r = await fetch(BASE_URL + '/api/smart-intake/documents', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: fd,
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error((d && d.detail) || ('HTTP ' + r.status));
+    (d.rezultati || []).forEach(function (res, i) {
+      var sf = _siFiles[i];
+      if (!sf) return;
+      if (res.ok) { sf.status = 'received'; sf.job_id = res.job_id; }
+      else { sf.status = 'failed'; sf.lastError = res.greska; }
+    });
+  } catch (e) {
+    var errEl2 = document.getElementById('si-upload-err');
+    errEl2.textContent = 'Greška pri otpremanju: ' + _friendlyErr(e);
+    errEl2.style.display = 'block';
+    nextBtn.disabled = false; nextBtn.textContent = 'Otpremi →';
+    return;
+  }
+
+  _siStep = 2;
+  _siRenderStep();
+  _siRenderProcessingList();
+  _siPollJobs();
+}
+
+function _siRenderProcessingList() {
+  var el = document.getElementById('si-processing-list');
+  el.innerHTML = _siFiles.map(function (sf) {
+    var lbl = _SI_STATUS_LABELS[sf.status] || sf.status || '—';
+    var color = sf.status === 'completed' ? '#4ade80' : sf.status === 'failed' ? '#f87171' : 'rgba(255,255,255,0.55)';
+    var extra = (sf.status === 'failed' && sf.lastError)
+      ? '<div style="font-size:0.68rem;color:rgba(248,113,113,0.7);margin-top:2px;">' + escHtml(sf.lastError) + '</div>' : '';
+    return '<div style="padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:2px;margin-bottom:6px;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;font-size:0.8rem;">'
+      + '<span style="color:rgba(255,255,255,0.75);">' + escHtml(sf.filename) + '</span>'
+      + '<span style="color:' + color + ';font-size:0.72rem;">' + escHtml(lbl) + '</span>'
+      + '</div>' + extra + '</div>';
+  }).join('');
+}
+
+function _siJobsStillActive() {
+  return _siFiles.filter(function (sf) { return sf.job_id && sf.status !== 'completed' && sf.status !== 'failed'; });
+}
+
+async function _siPollJobs() {
+  var active = _siJobsStillActive();
+  if (!active.length) {
+    _siRenderProcessingList();
+    await _siFetchCompletedDetails();
+    _siStep = 3;
+    _siRenderStep();
+    _siRenderReview();
+    return;
+  }
+
+  await Promise.all(active.map(async function (sf) {
+    try {
+      var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id, {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      });
+      if (!r.ok) return;
+      var d = await r.json();
+      sf.status = d.job.status;
+      sf.lastError = d.job.last_error;
+      if (d.job.status === 'completed') {
+        sf.docType = d.dokument ? d.dokument.tip : null;
+        sf.docTypeConf = d.dokument ? d.dokument.tip_pouzdanost : null;
+        sf.entities = d.entiteti || [];
+        sf.review = d.potrebna_provera;
+      }
+    } catch (e) { /* transient network error -- retried next tick */ }
+  }));
+
+  _siRenderProcessingList();
+
+  // Adaptive interval: /jobs/{id} is rate-limited to 60/min per user. A fixed
+  // short interval would exceed that for a real-world batch of ~20 files
+  // (Beta Critical Path Scenario: "20 new scanned documents arrive"). This
+  // bounds total request rate regardless of batch size, and gets faster
+  // automatically as fewer jobs remain active.
+  var interval = Math.max(4000, _siJobsStillActive().length * 1200);
+  _siPollTimer = setTimeout(_siPollJobs, interval);
+}
+
+async function _siFetchCompletedDetails() {
+  var need = _siFiles.filter(function (sf) { return sf.status === 'completed' && !sf.entities; });
+  await Promise.all(need.map(async function (sf) {
+    try {
+      var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id, {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+      });
+      if (!r.ok) return;
+      var d = await r.json();
+      sf.docType = d.dokument ? d.dokument.tip : null;
+      sf.docTypeConf = d.dokument ? d.dokument.tip_pouzdanost : null;
+      sf.entities = d.entiteti || [];
+      sf.review = d.potrebna_provera;
+    } catch (e) { /* ignore -- review just shows fewer fields for this file */ }
+  }));
+}
+
+function _siRenderReview() {
+  var body = document.getElementById('si-review-body');
+  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed'; });
+  var failed = _siFiles.filter(function (sf) { return sf.status === 'failed'; });
+
+  var html = '';
+
+  if (failed.length) {
+    html += '<div style="margin-bottom:14px;padding:8px 10px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.18);border-radius:2px;">';
+    html += '<div style="font-size:0.72rem;color:#f87171;margin-bottom:4px;">' + failed.length + ' dokument(a) nije uspešno obrađeno — neće ući u predmet:</div>';
+    failed.forEach(function (sf) {
+      html += '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);">' + escHtml(sf.filename) + (sf.lastError ? ' — ' + escHtml(sf.lastError) : '') + '</div>';
+    });
+    html += '</div>';
+  }
+
+  if (!ok.length) {
+    html += '<div style="font-size:0.82rem;color:rgba(255,255,255,0.5);">Nijedan dokument nije uspešno obrađen. Vratite se i pokušajte ponovo.</div>';
+    body.innerHTML = html;
+    document.getElementById('si-btn-next').disabled = true;
+    return;
+  }
+
+  html += '<div style="margin-bottom:16px;">';
+  html += '<div class="intake-field-lbl">Naziv predmeta <span style="font-size:0.68rem;color:rgba(255,255,255,0.3);">— ostavite prazno za automatski predlog</span></div>';
+  html += '<input id="si-f-naziv" class="intake-field" type="text" maxlength="200">';
+  html += '<div class="intake-field-lbl">Vaš klijent je</div>';
+  html += '<div style="display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap;">';
+  html += '<label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:rgba(255,255,255,0.7);cursor:pointer;">'
+    + '<input type="radio" name="si-strana" value="plaintiff" onchange="_siKlijentStrana=\'plaintiff\'"> Tužilac</label>';
+  html += '<label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:rgba(255,255,255,0.7);cursor:pointer;">'
+    + '<input type="radio" name="si-strana" value="defendant" onchange="_siKlijentStrana=\'defendant\'"> Tuženi</label>';
+  html += '<label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:rgba(255,255,255,0.7);cursor:pointer;">'
+    + '<input type="radio" name="si-strana" value="" checked onchange="_siKlijentStrana=null"> Ne znam / nije primenljivo</label>';
+  html += '</div>';
+  html += '<div class="intake-field-lbl">Ime klijenta <span style="font-size:0.68rem;color:rgba(255,255,255,0.3);">— ostavite prazno da Vindex koristi izvučeno ime</span></div>';
+  html += '<input id="si-f-klijent" class="intake-field" type="text" maxlength="200">';
+  html += '</div>';
+
+  ok.forEach(function (sf) {
+    var typeLabel = _SI_DOC_TYPE_LABELS[sf.docType] || sf.docType || 'dokument';
+    html += '<div style="margin-bottom:14px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:2px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
+    html += '<span style="font-size:0.82rem;color:rgba(255,255,255,0.8);font-weight:600;">' + escHtml(sf.filename) + '</span>';
+    html += '<span style="font-size:0.7rem;color:rgba(255,255,255,0.45);">' + escHtml(typeLabel)
+      + (sf.docTypeConf != null ? ' · ' + Math.round(sf.docTypeConf * 100) + '%' : '') + '</span>';
+    html += '</div>';
+
+    (sf.entities || []).forEach(function (ent) {
+      var label = _SI_ENTITY_LABELS[ent.entity_type] || ent.entity_type;
+      var confPct = Math.round((ent.confidence || 0) * 100);
+      var confColor = ent.needs_review ? '#fbbf24' : '#4ade80';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(255,255,255,0.04);">';
+      html += '<span style="flex:0 0 110px;font-size:0.72rem;color:rgba(255,255,255,0.45);">' + escHtml(label) + '</span>';
+      if (ent.needs_review) {
+        html += '<input type="text" value="' + escHtml(ent.value || '') + '" id="si-ent-' + escHtml(ent.entity_id) + '" '
+          + 'style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(251,191,36,0.3);border-radius:2px;padding:4px 8px;color:rgba(255,255,255,0.85);font-size:0.76rem;">';
+        html += '<button onclick="siCorrectEntity(\'' + escHtml(ent.entity_id) + '\')" '
+          + 'style="font-size:0.68rem;padding:4px 8px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:2px;color:#fbbf24;cursor:pointer;font-family:inherit;">Sačuvaj</button>';
+      } else {
+        html += '<span style="flex:1;font-size:0.76rem;color:rgba(255,255,255,0.75);">' + escHtml(ent.value || '—') + '</span>';
+      }
+      html += '<span style="font-size:0.65rem;color:' + confColor + ';flex:0 0 32px;text-align:right;">' + confPct + '%</span>';
+      html += '</div>';
+    });
+
+    if (sf.review && sf.review.polja && sf.review.polja.length) {
+      html += '<div style="font-size:0.68rem;color:#fbbf24;margin-top:6px;">⚠ Proverite: ' + sf.review.polja.map(escHtml).join(', ') + '</div>';
+    }
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+  document.getElementById('si-btn-next').disabled = false;
+}
+
+async function siCorrectEntity(entityId) {
+  var input = document.getElementById('si-ent-' + entityId);
+  if (!input) return;
+  var newVal = input.value.trim();
+  if (!newVal) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/smart-intake/entities/' + entityId + '/correct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+      body: JSON.stringify({ corrected_value: newVal }),
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    _siFiles.forEach(function (sf) {
+      (sf.entities || []).forEach(function (ent) {
+        if (ent.entity_id === entityId) { ent.value = newVal; ent.needs_review = false; ent.corrected = true; }
+      });
+    });
+    _siRenderReview();
+    showToast('Ispravka sačuvana.', 'ok');
+  } catch (e) {
+    showToast('Greška pri čuvanju ispravke: ' + _friendlyErr(e), 'error');
+  }
+}
+
+async function siFinalize() {
+  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed'; });
+  if (!ok.length) return;
+
+  var nextBtn = document.getElementById('si-btn-next');
+  nextBtn.disabled = true; nextBtn.textContent = 'Kreiram predmet...';
+
+  var naziv = (document.getElementById('si-f-naziv').value || '').trim();
+  var klijentIme = (document.getElementById('si-f-klijent').value || '').trim();
+  var strana = _siKlijentStrana || null;
+
+  var predmetId = null;
+  var errors = [];
+
+  for (var i = 0; i < ok.length; i++) {
+    var sf = ok[i];
+    var body = {};
+    if (predmetId) {
+      // Attaching a SUBSEQUENT document to the case the first call already
+      // created (ZTC-001) -- deliberately omits klijent_strana/klijent_ime_override
+      // here: the backend's client-linking step runs on every finalize call
+      // regardless of predmet_id, and repeating the same name would create a
+      // duplicate predmet_klijenti row per extra document (no uniqueness
+      // check on that insert) if this weren't scoped to the first call only.
+      body.predmet_id = predmetId;
+    } else {
+      if (naziv) body.naziv = naziv;
+      if (strana) body.klijent_strana = strana;
+      if (klijentIme) body.klijent_ime_override = klijentIme;
+    }
+    try {
+      var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id + '/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
+        body: JSON.stringify(body),
+      });
+      var d = await r.json();
+      if (!r.ok) { errors.push(sf.filename + ': ' + ((d && d.detail) || 'greška')); continue; }
+      if (!predmetId) predmetId = d.predmet_id;
+    } catch (e) {
+      errors.push(sf.filename + ': ' + _friendlyErr(e));
+    }
+  }
+
+  if (!predmetId) {
+    showToast('Kreiranje predmeta nije uspelo. Pokušajte ponovo.', 'error');
+    nextBtn.disabled = false; nextBtn.textContent = 'Kreiraj predmet';
+    return;
+  }
+
+  if (errors.length) {
+    showToast(errors.length + ' dokument(a) nije uspelo da se poveže sa predmetom, ali predmet je kreiran.', 'warn');
+  } else {
+    showToast('✓ Predmet kreiran!', 'ok');
+  }
+
+  _siDirty = false;
+  siGoToPredmet(predmetId);
+}
+
+function siGoToPredmet(id) {
+  siZatvori();
+  var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
+  if (tabEl) setTab(tabEl, 'p');
+  if (typeof pred_load === 'function') pred_load();
+  pred_select(id);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAFT STAGING/APPROVAL — Operation Beta Closure, Priority 2 (2026-08-03)
+//
+// routers/drafting.py's staging_memory review flow (GET /api/staging/predmet/{id},
+// POST /api/staging/{id}/approve, POST /api/staging/{id}/reject) existed with
+// zero frontend callers -- every AI-generated draft (nacrti/podnesak) was
+// staged automatically but had no UI path to review/approve/reject it, so it
+// never entered the permanent, searchable case record. This exposes the
+// existing endpoints; no backend change.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _SI_STAGING_TIP_LABELS = {
+  tuzba_naknada_stete: 'Tužba za naknadu štete', zalba_parnicna: 'Žalba', predlog_izvrsenje: 'Predlog za izvršenje',
+  tuzba_radni_spor: 'Tužba (radni spor)', tuzba_razvod: 'Tužba za razvod', prigovor_platni_nalog: 'Prigovor na platni nalog',
+  krivicna_prijava: 'Krivična prijava', predlog_privremena_mera: 'Predlog za privremenu meru',
+};
+
+async function _stagingLoad(predmetId) {
+  var section = document.getElementById('staging-section-mount');
+  var mount = document.getElementById('staging-list-mount');
+  if (!section || !mount || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/staging/predmet/' + predmetId, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+    });
+    if (!r.ok) { section.style.display = 'none'; return; }
+    var d = await r.json();
+    var stavke = (d.stavke || []).filter(function (s) { return s.status !== 'rejected'; });
+    if (!stavke.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    _stagingRender(mount, stavke);
+  } catch (e) { section.style.display = 'none'; }
+}
+
+function _stagingRender(mount, stavke) {
+  mount.innerHTML = stavke.map(function (s) {
+    var label = _SI_STAGING_TIP_LABELS[s.tip] || s.tip || 'Nacrt';
+    var confPct = Math.round((s.confidence_score || 0) * 100);
+    var confColor = s.confidence_score >= 0.85 ? '#4ade80' : '#fbbf24';
+    var statusLbl = s.status === 'approved' ? 'Odobreno' : 'Čeka odobrenje';
+    var actions = s.status === 'approved'
+      ? '<span style="font-size:0.68rem;color:#4ade80;">✓ Odobreno</span>'
+      : '<button onclick="stagingApprove(\'' + escHtml(s.id) + '\')" style="font-size:0.68rem;padding:4px 9px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:2px;color:#4ade80;cursor:pointer;font-family:inherit;margin-right:6px;">Odobri</button>'
+      + '<button onclick="stagingReject(\'' + escHtml(s.id) + '\')" style="font-size:0.68rem;padding:4px 9px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:2px;color:#f87171;cursor:pointer;font-family:inherit;">Odbij</button>';
+    return '<div id="staging-row-' + escHtml(s.id) + '" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,0.05);flex-wrap:wrap;">'
+      + '<div>'
+      + '<div style="font-size:0.8rem;color:rgba(255,255,255,0.8);">' + escHtml(s.naziv || label) + '</div>'
+      + '<div style="font-size:0.66rem;color:rgba(255,255,255,0.35);">' + escHtml(label) + ' · pouzdanost <span style="color:' + confColor + ';">' + confPct + '%</span> · ' + escHtml(statusLbl) + '</div>'
+      + '</div>'
+      + '<div>' + actions + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+async function stagingApprove(stagingId) {
+  try {
+    var r = await fetch(BASE_URL + '/api/staging/' + stagingId + '/approve', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error((d && d.detail) || ('HTTP ' + r.status));
+    showToast(d.poruka || 'Nacrt odobren.', d.indexed ? 'ok' : 'warn');
+    if (activePredmetId) _stagingLoad(activePredmetId);
+  } catch (e) {
+    showToast('Greška: ' + _friendlyErr(e), 'error');
+  }
+}
+
+async function stagingReject(stagingId) {
+  if (!confirm('Odbaciti ovaj nacrt? Neće ući u bazu znanja kancelarije.')) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/staging/' + stagingId + '/reject', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    showToast('Nacrt odbačen.', 'ok');
+    if (activePredmetId) _stagingLoad(activePredmetId);
+  } catch (e) {
+    showToast('Greška: ' + _friendlyErr(e), 'error');
+  }
 }
 
 // ── Quick Intake ──────────────────────────────────────────────────────────────

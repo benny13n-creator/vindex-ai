@@ -177,3 +177,30 @@ check) was the subject of a prior, well-executed, *specifically security-focused
 2026-07-23) that correctly and thoroughly covered every mutation endpoint — but declared its scope as
 mutations only, leaving an identically-shaped read-endpoint gap unexamined for two weeks. A scoped
 sweep's own stated boundary is exactly where the next instance of the same bug class tends to hide.
+
+---
+
+## 2026-08-03 (Operation Beta Closure, BETA-006)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 2 (BC-001 Smart Intake UI, BC-002 draft staging/approval UI) |
+| Bugs fixed | 0 — this run built new frontend surface for existing, correct backend logic; nothing was broken |
+| New bugs discovered | 0 — one clarifying correction made instead: this engagement's own prior claim about draft approval ("promotes into predmet_dokumenti") was verified precisely and found to be conditional (only when confidence_score >= 0.85), not unconditional as the prose implied — the new UI surfaces this honestly rather than overclaiming |
+| Blockers correctly escalated | 0 new — the 3 remaining blockers (CSV import, WhatsApp, Memory Graph) are unchanged founder decisions from Beta Lockdown, not re-investigated this run |
+| Regressions introduced | 0 — no backend code changed; full suite re-run as this mission's own final gate: 2315 passed, 1 skipped, 0 failed, identical to before this mission |
+| Test pass rate | 2315/2316 (99.96%), unchanged |
+| Beta blockers removed | **2** — the two Level-3 ("backend complete, frontend absent") findings from Operation Beta Lockdown's Feature Completion Matrix, the dominant completion gap identified across all six prior operations tonight |
+| Security findings resolved | 0 new — inherited tenant isolation from unchanged backend endpoints; no new attack surface introduced |
+| Founder decisions required | 0 new — this mission's own Master Prompt pre-authorized the one product decision (build Smart Intake's UI) every prior mission had correctly escalated instead of guessing at |
+
+**Notable pattern, this run**: this is the first mission all engagement where the founder's own
+instructions directly resolved a standing blocker rather than asking the organization to investigate or
+guess at one. Five prior missions independently arrived at "Smart Intake needs a founder decision on
+which UI approach to take" — when that decision arrived explicitly in this mission's Master Prompt
+("reuse existing backend/APIs/AI pipeline"), the actual build was straightforward specifically because
+five separate investigations had already fully characterized the exact API contract, the exact
+workflow shape, and the exact risk (multi-document-to-one-case batching, rate-limit-aware polling) in
+advance. Worth the lesson: correctly escalating a decision instead of guessing doesn't just avoid a
+wrong guess — it means the eventual authorized implementation has zero remaining unknowns to discover
+mid-build.
