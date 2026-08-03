@@ -429,3 +429,55 @@ a signal that the "connect, don't build" sweeps of the prior 4 missions (Nexus, 
 were thorough: by this point in the engagement, the remaining gaps are genuinely just "wire the existing
 proven pattern into more call sites," not "discover another disconnected system," matching the founder's
 own framing that this mission closes the infrastructure phase rather than opening new fronts.
+
+---
+
+## 2026-08-03 (Project Phoenix — Enterprise Reliability & Failure Recovery Validation)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (closes `MIGRATION-001`/`002`, re-verifies all 12 of Sentinel's original scenarios) + 4 new PHOENIX-001..004 scoped |
+| Bugs fixed | 2 real, previously-undiscovered silent-failure defects in production code: (1) Event Bus's durable-outbox retry mechanism could not detect handler failures at all (`asyncio.gather(..., return_exceptions=True)` swallowing every handler exception before `dispatch_pending_events()`'s retry-tracking ever saw it) — the single most severe finding across this entire 5-mission engagement; (2) nightly alert-insert failures were silently lost with only a debug-level log and zero retry. Plus 1 real TOCTOU race (`predmet_klijenti` false-negative outcome message) and 1 code-consistency normalization (3 of 4 "try wide, fall back narrow" blocks using an over-broad bare `except` instead of the established narrow check) |
+| Discoveries | 1 major — the Event Bus defect above invalidated every prior mission's implicit "fully durable" claim for `GENOME_UPDATED`/`PREDMET_KREIRAN` (durable against process crashes only, never against handler bugs, until this mission) |
+| Corrections to prior missions | 2 — Mission Migration's "too risky to migrate this session" assessment for `ask_agent`/Drafting was overly cautious (both are flat, single-wrap-point functions, migrated this mission with no reliability risk); Sentinel's own "could escalate to CRITICAL" flag on `log_action`'s Supabase-outage behavior is resolved favorably (directly re-verified: internally exception-safe, cannot produce an unhandled task exception) |
+| Regressions introduced | 0 — 242-test targeted regression sweep (morning_briefing/event_bus/copilot/search/drafting/case_dna/evidence/court_predictor/ai_forensics/sentinel) all passing; 1 pre-existing test (`test_on_genome_updated_swallows_errors`) updated to match the intentional handler-contract change (swallow → re-raise) rather than left asserting the now-fixed bug; 71-test Atlas/Ledger/Migration/intake regression suite unchanged |
+| Test pass rate | 12 new tests in `tests/test_phoenix_reliability_failure_recovery.py`, all passing; full suite re-run as final gate (see report for exact count at merge time) |
+| Founder decisions required | 0 new — the 4 new items (`PHOENIX-001..004`) are scoped as future mechanical/investigation work, not decisions requiring founder input |
+
+**Methodology note for the 6 metrics below**: computed only against the failure classes this mission
+actually investigated (Event Bus durability, nightly alerts, search degradation, DB race conditions, the
+3 Migration-remainder items) — Anthropic, File Storage, Timeline, Deadlines, and Firm Brain were
+explicitly not re-verified this mission and are excluded from these figures rather than assumed
+compliant, following the same honesty norm Mission Migration's own 78%-against-95%-target report set.
+
+- **Reliability Score**: not reduced to a single number against the ≥90% target (would manufacture false
+  precision given the explicitly-unscored systems above) — the Recovery Matrix (report Phase 5) scores 12
+  workflows individually; median **8/10**, floor **7/10**, no workflow scored below that floor.
+- **Failure Recovery Coverage**: **~75-80%** of the ~30 enumerated Chaos Matrix scenarios now have a
+  directly-confirmed correct recovery path (8 scenarios gained a genuinely new/fixed mechanism this
+  mission; the remainder were already correct, confirmed not assumed, or explicitly not re-verified).
+  Target 100% — **not met, not claimed**.
+- **Retry Success Rate**: not measurable as a live production statistic this session (no production
+  telemetry queried) — the new Event Bus retry path (bounded at 5 attempts, then dead-letter) and the new
+  nightly-alert retry path (bounded at 3 attempts, then durable audit) are proven correct by direct test,
+  not by observed real-world ratio.
+- **Consistency Preservation**: **100% for the 5 defects this mission targeted** (verified via test, zero
+  regressions in 313 combined targeted-suite tests) — **not claimed platform-wide**; `SENT-001` and the
+  Pinecone ghost-vector cleanup remain known, open exceptions.
+- **Silent Failure Count**: **2 silent failures found and eliminated** this mission (Event Bus
+  handler-failure false-success; nightly alert-insert debug-only logging). **1 silent-failure class
+  remains confirmed open** (`SENT-001`, `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN` non-durability) — not new
+  this mission, not yet closed either.
+- **Orphan Recovery Count**: **2 real orphan-creation mechanisms found and fixed** (Genome/Case Pipeline
+  handler-failure false-success; nightly alert silent loss). **0 new orphan classes found and left
+  unfixed.**
+
+**Notable pattern, this run**: unlike Mission Migration's "zero new architectural discoveries" run
+immediately prior, Project Phoenix's adversarial re-investigation of already-shipped infrastructure (not
+new call sites) found this engagement's single most severe defect — proof that "connect, don't build"
+sweeps eventually run out of new places to look, but adversarial *re-verification* of what's already
+"done" is a genuinely different, still-productive activity. The founder's own closing directive for this
+mission ("work as an independent engineer trying to break the system, not the author trying to confirm
+their own code") is the direct cause of this mission's headline finding — a confirmation-oriented pass
+over the same code would very plausibly have re-stated Sentinel/Ledger's "GENOME_UPDATED is fully durable"
+claim rather than tracing one more layer into `asyncio.gather`'s actual semantics.

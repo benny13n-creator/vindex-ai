@@ -235,7 +235,7 @@ implemented this mission.
 
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
-| SENT-001 | Convert `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN` to durable outbox | 1 | Verify `matter_intel.py`'s alert-dedup is safe under durable retry (a naive conversion could double-insert an alert) | Medium | NEEDS_SCOPING | Same non-durable-emit exposure `PREDMET_KREIRAN` had — NOT converted this mission per the investigation's own explicit recommendation to verify dedup safety first. |
+| SENT-001 | Convert `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN` to durable outbox | 1 | Verify `matter_intel.py`'s alert-dedup is safe under durable retry (a naive conversion could double-insert an alert) | Medium | **NEEDS_SCOPING — re-verified still accurate, still open (2026-08-03, Project Phoenix)** | Same non-durable-emit exposure `PREDMET_KREIRAN` had — NOT converted this mission per the investigation's own explicit recommendation to verify dedup safety first. Project Phoenix directly re-confirmed both event types are still `emit()`'d purely in-process, no durable outbox row for either (`2026-08-03_phoenix_reverify_sentinel_INVESTIGATION.md` §7) — unchanged, not a regression, still gated on the same dedup-safety check. |
 | SENT-002 | Ground Morning Briefing in `calculate_procesni_rizik`/`identify_case_problems` | 2 | none | Medium-Large | NEEDS_SCOPING | Proven fix pattern exists (Task Engine, Project Nexus) but Briefing fans out across up to 20 active cases per request — not a single-case surgical fix, needs its own scoped pass. |
 | SENT-003 | Strategy Engine persistence (link legal conclusions to `predmet_id`) | 3 | Founder decision: should every Strategy Engine call require a case context? | Large (architecture) | NEEDS_SCOPING — founder decision | 8 endpoints currently discard every output on response; not linked to Timeline/Genome/Firm Brain. |
 | SENT-004 | Widen `AUDITABLE_ACTIONS` + wire Strategy Engine/Copilot/Briefing/Case Pipeline/Task Engine into durable audit | 4 | Founder decision on which actions warrant durable hash-chained provenance | Medium-Large | **MOSTLY DONE (2026-08-03, Mission Ledger + Mission Migration)** | Strategy Engine (9 endpoints), Briefing, Task Engine, and 6 of Copilot's ~8 handlers now wired. Case Pipeline's own 9 internal steps remain unwired — see `MIGRATION-001`. |
@@ -271,8 +271,8 @@ and partially closes `SENT-004`/`ATLAS-006` (above). Full report:
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
 | LEDGER-001 | Run migration 090 in production (alongside 089 if not already run) | 1 | Founder runs migrations himself | Small | NEEDS_SCOPING — founder action | Until run, `correlation_id` on `events`/`audit_immutable` falls back to payload/metadata JSON only (proven safe, not indexed/joinable at the column level). |
-| LEDGER-002 | Propagate `PREDMET_KREIRAN`'s correlation_id into Case Pipeline's 9 internal steps | 2 | Decision: is per-step granularity worth it, or is "pipeline ran" sufficient? | Medium | NEEDS_SCOPING | Chain currently provably continuous through the event trigger, not into each step's own writes. |
-| LEDGER-003 | Wire correlation_id into `DOCUMENT_JOB_*` events (SQL-sourced, not Python) | 3 | Founder decision — worth changing `fail_intake_job` and sibling RPC signatures? | Medium-Large | NEEDS_SCOPING — founder decision | Needs `intake_worker.py` to generate and pass a correlation_id at enqueue time, threaded through the whole job lifecycle. |
+| LEDGER-002 | Propagate `PREDMET_KREIRAN`'s correlation_id into Case Pipeline's 9 internal steps | 2 | Decision: is per-step granularity worth it, or is "pipeline ran" sufficient? | Medium | NEEDS_SCOPING — not re-investigated this pass | Chain currently provably continuous through the event trigger, not into each step's own writes. Not directly re-traced by Project Phoenix (out of its 4 forks' specific scope) — status carried forward unchanged, not re-confirmed. |
+| LEDGER-003 | Wire correlation_id into `DOCUMENT_JOB_*` events (SQL-sourced, not Python) | 3 | Founder decision — worth changing `fail_intake_job` and sibling RPC signatures? | Medium-Large | NEEDS_SCOPING — founder decision | Needs `intake_worker.py` to generate and pass a correlation_id at enqueue time, threaded through the whole job lifecycle. Related, same-shaped design question surfaced independently by Project Phoenix's `MIGRATION-003` re-scoping (Smart Intake's background-worker context has no HTTP-request-scoped correlation_id to inherit either) — worth resolving both together, same root cause. |
 | LEDGER-004 | Extend `AUDITABLE_ACTIONS`/`log_action` wiring to the remaining ~15 AI features (Court Predictor, Drafting, document classification, Copilot's other ~9 handlers, etc.) | 4 | none (mechanical, many files) | Large | **MOSTLY DONE (2026-08-03, Mission Migration)** | Court Predictor (7 endpoints), Copilot (5 more handlers), Evidence classification, Drafting staging, upload AI analysis all migrated. Audit Link Coverage now ~78% (36-row granular count) — see `docs/architecture/MIGRATION_CANONICAL_AI_ADOPTION_REPORT.md`. Remainder: `MIGRATION-001`/`002`. |
 
 ## Mission Migration (2026-08-03) — MIGRATION missions
@@ -283,9 +283,37 @@ Founder's Master Prompt: "Canonical AI Infrastructure Adoption" — closes most 
 
 | ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
-| MIGRATION-001 | Migrate `main.py::ask_agent` (core RAG Q&A, Copilot's `pravno_pitanje` delegates here) onto explicit `case_context()` + a dedicated audit action | 1 | none (mechanical, but architecturally deep/complex) | Large | TODO | Single most-used AI entry point in the app; deliberately not rushed this mission per the "one feature at a time, full verification" mandate. |
-| MIGRATION-002 | Migrate `drafting/`'s `_drafting_generate` (deep GPT call) and `routers/drafting.py::analiza` (`ask_analiza`) | 2 | none (mechanical, multi-layer) | Medium-Large | TODO | Router-level staging already audited (`drafting_generisan`); the actual generation call itself isn't case-context-wired yet. |
-| MIGRATION-003 | Re-verify Smart Intake extraction's audit/case-context status | 3 | none | Small (verification) | TODO | Not re-checked this mission (time-boxed scope) — presumed partially migrated (wrapper-only) by pattern, not confirmed. |
+| MIGRATION-001 | Migrate `main.py::ask_agent` (core RAG Q&A, Copilot's `pravno_pitanje` delegates here) onto explicit `case_context()` + a dedicated audit action | 1 | none (mechanical, but architecturally deep/complex) | Large | **DONE (2026-08-03, Project Phoenix)** | Mission Migration's own "too large/complex" characterization corrected — Phoenix's re-investigation found it a flat, single-wrap-point function. `routers/copilot.py::_handle_pravno_pitanje` now wraps the `ask_agent` delegation in `case_context(module_name="ask_agent", operation_name="pravno_pitanje")` + `log_action(action="copilot_pravno_pitanje", ...)` on success. See `PHOENIX_RELIABILITY_FAILURE_RECOVERY_REPORT.md` Phase 8. |
+| MIGRATION-002 | Migrate `drafting/`'s `_drafting_generate` (deep GPT call) and `routers/drafting.py::analiza` (`ask_analiza`) | 2 | none (mechanical, multi-layer) | Medium-Large | **DONE (2026-08-03, Project Phoenix)** | Same correction as MIGRATION-001 — both turned out to be 1-2 call sites, not a deep package. `routers/drafting.py::nacrt` and `::analiza` now wrapped in `case_context()` + `log_action("drafting_nacrt"/"drafting_analiza", ...)`. `nacrt`'s new audit entry fires independently of the pre-existing `_stage_draft_for_review` entry (two distinct points, not a duplicate). See Phase 8. |
+| MIGRATION-003 | Re-verify Smart Intake extraction's audit/case-context status | 3 | none | Small (verification) | **NEEDS_SCOPING — deferred a 2nd time, different reason this time** | Re-investigated by Project Phoenix (`2026-08-03_phoenix_migration_remainder_INVESTIGATION.md` §3): confirmed reliability is excellent (best of the 3 deferred items — genuine durable job queue, tested reaper) but migration difficulty is genuinely Medium, not mechanical like the other two — its AI calls run inside a background worker loop with no HTTP-request-scoped correlation_id to inherit; needs a deliberate design decision (job `id` as correlation_id, or mint+store a new one) before wiring. Not deferred out of caution this time — deferred because it needs a real design call. |
+
+## Project Phoenix (2026-08-03) — PHOENIX missions
+
+Founder's Master Prompt: "Enterprise Reliability & Failure Recovery Validation" — closes
+`MIGRATION-001`/`002` (above), re-verifies Project Sentinel's original 12-scenario investigation
+against current code, and finds/fixes the single most severe reliability defect discovered across this
+entire engagement: the durable-outbox Event Bus could not actually detect or retry a handler failure —
+`asyncio.gather(..., return_exceptions=True)` in `publish_async()` swallowed every handler exception
+before `dispatch_pending_events()`'s own retry-tracking `except` block ever saw it, meaning migration
+073's `dispatch_attempts`/`last_error` columns were dead code for this failure class and a
+permanently-broken `on_genome_updated`/`on_predmet_kreiran` handler was marked `dispatched_at` (false
+success) after exactly one silent failure. Full report:
+`docs/architecture/PHOENIX_RELIABILITY_FAILURE_RECOVERY_REPORT.md`. Investigations:
+`decisions/2026-08-03_phoenix_reverify_sentinel_INVESTIGATION.md`,
+`decisions/2026-08-03_phoenix_event_search_memory_chaos_INVESTIGATION.md`,
+`decisions/2026-08-03_phoenix_db_transaction_chaos_INVESTIGATION.md`,
+`decisions/2026-08-03_phoenix_migration_remainder_INVESTIGATION.md`.
+
+Also closed **MIGRATION-001** and **MIGRATION-002** (see above) — both correctly identified by Mission
+Migration, both migrated this mission after Phoenix's own re-investigation corrected Migration's "too
+risky this session" caution.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| PHOENIX-001 | Event Bus dead-letter rows have no operator-facing surface | 1 | none | Small-Medium | TODO | `MAX_DISPATCH_ATTEMPTS=5` dead-lettering (this mission's own new mechanism) durably records a permanently-failing handler's row with a `"DEAD_LETTER after N attempts: ..."` marker and a `logger.critical` line, but nothing alerts a human — an engineer must know to query the `events` table. A cron digest or a `proactive_alerts` row (mirroring `on_document_job_failed`'s own precedent) would close this cheaply, using an existing pattern rather than new infrastructure. |
+| PHOENIX-002 | `nightly_alert_insert_failed` audit entries have no operator-facing surface | 2 | none | Small | TODO | Same shape as PHOENIX-001 — this mission's fix makes a lost critical alert durably recorded (`shared/audit_immutable.py`), but no human is notified. Same fix pattern applies (cron digest, or a `proactive_alerts` row for the on-call engineer/founder, not the affected lawyer). |
+| PHOENIX-003 | Re-verify Timeline, Deadlines, Firm Brain, Anthropic, and File Storage failure-recovery posture | 3 | none | Medium (investigation) | NEEDS_SCOPING | Explicitly not re-verified this mission (out of the 4 forks' scope) — Phase 5's Recovery Matrix leaves these unscored rather than guessing. Should be a future investigation-only pass before any Reliability Score claim can honestly cover 100% of Phase 1's named systems. |
+| PHOENIX-004 | Pinecone ghost-vector cleanup on the aborted-upload path | 4 | none | Small-Medium | TODO | Known, named since Project Sentinel (`api.py:4249-4251`'s own comment) — a vector ingested before a `predmet_dokumenti` insert failure is never cleaned up. Not attempted this mission (different scope: request-path reliability, not post-hoc cleanup) but now explicitly tracked as its own item rather than living only as an inline comment. |
 
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
