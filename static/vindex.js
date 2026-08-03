@@ -17134,6 +17134,93 @@ function _intelBriefingRender(b, izvori) {
   el.style.display = '';
 }
 
+// Operation Wow Factor (2026-08-03): "Winning Strategy Brief" -- composes 3
+// already-existing, already-tested, already-billed endpoints (AI Briefing,
+// Law Firm Brain / precedenti, Outcome Intelligence) into ONE panel, so a
+// lawyer sees next-step + firm-experience + outcome-statistics without
+// leaving the case for a separate AI Workspace tab. Zero backend changes --
+// each endpoint is called exactly as it already is standalone (same auth,
+// same permission/tier gate, same billing), via normal fetch() so FastAPI's
+// own Depends()-based checks run unmodified for every call -- no bypass.
+// Deliberately a SEPARATE button from the plain "AI Briefing" above: folding
+// this into that existing button would have silently changed its cost from
+// 1 credit to potentially 3, a regression on an already-shipped feature.
+// Each section degrades gracefully (Promise.allSettled) if the lawyer's
+// plan doesn't include one of the 3 underlying features, or if any single
+// call fails -- never blocks the other two sections from rendering.
+var _winningBriefInProgress = false;
+async function _winningBriefLoad(predmetId) {
+  if (!predmetId || _winningBriefInProgress) return;
+  _winningBriefInProgress = true;
+  var btn = document.getElementById('winning-brief-btn');
+  var origLbl = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Sastavljam Winning Strategy Brief... (do 30s)'; }
+
+  var hdr = { 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') };
+
+  var briefingP = fetch(BASE_URL + '/api/intelligence/predmeti/' + predmetId + '/briefing', { method: 'POST', headers: hdr })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  var precedentiP = fetch(BASE_URL + '/api/precedenti/predmeti/' + predmetId, { headers: hdr })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+  var outcomeP = fetch(BASE_URL + '/api/outcome-intel/predmeti/' + predmetId, { headers: hdr })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+
+  try {
+    var results = await Promise.allSettled([briefingP, precedentiP, outcomeP]);
+    _winningBriefRender(results[0], results[1], results[2]);
+  } catch (e) {
+    showToast('Greška pri sastavljanju Winning Strategy Brief-a: ' + _friendlyErr(e), 'error');
+  } finally {
+    _winningBriefInProgress = false;
+    if (btn) { btn.disabled = false; btn.textContent = origLbl; }
+  }
+}
+
+function _winningBriefRender(briefingResult, precedentiResult, outcomeResult) {
+  var el = document.getElementById('winning-brief-panel-mount');
+  if (!el) return;
+  var html = '<div style="font-size:.6rem;color:rgba(255,255,255,.35);letter-spacing:.08em;margin-bottom:.6rem;">WINNING STRATEGY BRIEF</div>';
+
+  if (briefingResult.status === 'fulfilled' && briefingResult.value && briefingResult.value.briefing && briefingResult.value.briefing.sledeci_korak) {
+    var b = briefingResult.value.briefing;
+    var hitnostColor = b.hitnost === 'odmah' ? '#f87171' : (b.hitnost === 'ovu_nedelju' ? '#fbbf24' : '#4ade80');
+    html += '<div style="margin-bottom:.9rem;">';
+    html += '<div style="font-size:.68rem;color:rgba(255,255,255,.45);margin-bottom:.25rem;">SLEDEĆI KORAK</div>';
+    html += '<div style="font-size:.85rem;color:rgba(255,255,255,.9);font-weight:600;">' + escHtml(b.sledeci_korak) + '</div>';
+    if (b.razlog) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:.2rem;">' + escHtml(b.razlog) + '</div>';
+    if (b.hitnost) html += '<div style="font-size:.65rem;color:' + hitnostColor + ';margin-top:.3rem;">Hitnost: ' + escHtml(b.hitnost) + '</div>';
+    if ((b.kljucni_rizici || []).length) {
+      html += '<ul style="margin:.3rem 0 0;padding-left:1.1rem;font-size:.7rem;color:rgba(255,255,255,.6);">';
+      b.kljucni_rizici.forEach(function (r) { html += '<li>' + escHtml(r) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div style="margin-bottom:.9rem;font-size:.7rem;color:rgba(255,255,255,.35);">AI Briefing nije dostupan.</div>';
+  }
+
+  html += '<div style="margin-bottom:.9rem;border-top:1px solid rgba(255,255,255,.06);padding-top:.7rem;">';
+  html += '<div style="font-size:.68rem;color:rgba(255,255,255,.45);margin-bottom:.25rem;">ISKUSTVO KANCELARIJE (SLIČNI PREDMETI)</div>';
+  if (precedentiResult.status === 'fulfilled' && precedentiResult.value && precedentiResult.value.analiza) {
+    html += '<div style="font-size:.74rem;color:rgba(255,255,255,.65);white-space:pre-line;">' + escHtml(precedentiResult.value.analiza) + '</div>';
+  } else {
+    html += '<div style="font-size:.7rem;color:rgba(255,255,255,.3);">Nije dostupno (proverite Vaš plan ili pokušajte kasnije).</div>';
+  }
+  html += '</div>';
+
+  html += '<div style="border-top:1px solid rgba(255,255,255,.06);padding-top:.7rem;">';
+  html += '<div style="font-size:.68rem;color:rgba(255,255,255,.45);margin-bottom:.25rem;">STATISTIKA ISHODA</div>';
+  if (outcomeResult.status === 'fulfilled' && outcomeResult.value && outcomeResult.value.analiza) {
+    html += '<div style="font-size:.74rem;color:rgba(255,255,255,.65);white-space:pre-line;">' + escHtml(outcomeResult.value.analiza) + '</div>';
+  } else {
+    html += '<div style="font-size:.7rem;color:rgba(255,255,255,.3);">Nije dostupno (proverite Vaš plan ili pokušajte kasnije).</div>';
+  }
+  html += '</div>';
+
+  el.innerHTML = html;
+  el.style.display = '';
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CHIEF INTELLIGENCE OFFICER — proaktivna dnevna inteligencija
 // ═══════════════════════════════════════════════════════════════
@@ -20824,6 +20911,10 @@ function siOtvori() {
   document.getElementById('si-file-input').value = '';
   document.getElementById('si-files-list').innerHTML = '';
   document.getElementById('si-upload-err').style.display = 'none';
+  // Restore footer in case a prior session was left showing the post-finalize
+  // recap (_siShowRecap hides it) without the lawyer clicking through.
+  var footer = document.getElementById('si-panel-footer');
+  if (footer) footer.style.display = '';
   _siRenderStep();
 }
 
@@ -21190,11 +21281,50 @@ async function siFinalize() {
   }
 
   _siDirty = false;
-  siGoToPredmet(predmetId);
+  _siShowRecap(predmetId, ok);
+}
+
+// Operation Wow Factor (2026-08-03): "magic moment" recap -- built entirely
+// from data ALREADY fetched during Step 3's review (document types,
+// per-entity confidence), zero new API calls, zero new latency, zero new
+// credit consumption. Deliberately does NOT poll for Case Genome/Evidence
+// Vault completion (both are fire-and-forget background tasks that were
+// still running when finalize returned, per routers/smart_intake.py) --
+// stating plainly that they're running in the background and will be ready
+// when the case opens is more honest than faking a synchronous wait, and
+// avoids introducing exactly the kind of extra polling/waiting this
+// mission's own friction-reduction task explicitly flags as a bug.
+function _siShowRecap(predmetId, okFiles) {
+  var typeCounts = {};
+  okFiles.forEach(function (sf) {
+    var lbl = _SI_DOC_TYPE_LABELS[sf.docType] || sf.docType || 'dokument';
+    typeCounts[lbl] = (typeCounts[lbl] || 0) + 1;
+  });
+  var needsReviewCount = 0;
+  okFiles.forEach(function (sf) { (sf.entities || []).forEach(function (e) { if (e.needs_review) needsReviewCount++; }); });
+
+  var html = '<div style="font-size:.6rem;color:rgba(255,255,255,.35);letter-spacing:.08em;margin-bottom:.6rem;">PREDMET KREIRAN — ŠTA JE VINDEX PRONAŠAO</div>';
+  html += '<ul style="margin:0 0 .8rem;padding-left:1.1rem;font-size:.8rem;color:rgba(255,255,255,.75);line-height:1.7;">';
+  Object.keys(typeCounts).forEach(function (lbl) {
+    html += '<li>Prepoznato ' + typeCounts[lbl] + ' × ' + escHtml(lbl) + '</li>';
+  });
+  html += '</ul>';
+  if (needsReviewCount > 0) {
+    html += '<div style="font-size:.74rem;color:#fbbf24;margin-bottom:.6rem;">⚠ ' + needsReviewCount + ' izvučeno polje je zahtevalo proveru — ispravke su već sačuvane u predmetu.</div>';
+  }
+  html += '<div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.9rem;">Case Genome i analiza dokaza se generišu u pozadini — biće spremni čim otvorite predmet.</div>';
+  html += '<button class="intake-next-btn" style="width:100%;" onclick="siGoToPredmet(\'' + predmetId + '\')">Nastavi na predmet →</button>';
+
+  var body = document.getElementById('si-review-body');
+  if (body) body.innerHTML = html;
+  var footer = document.getElementById('si-panel-footer');
+  if (footer) footer.style.display = 'none';
 }
 
 function siGoToPredmet(id) {
   siZatvori();
+  var footer = document.getElementById('si-panel-footer');
+  if (footer) footer.style.display = '';
   var tabEl = document.querySelector('[onclick*="setTab"][onclick*="\'p\'"]');
   if (tabEl) setTab(tabEl, 'p');
   if (typeof pred_load === 'function') pred_load();

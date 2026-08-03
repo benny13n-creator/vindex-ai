@@ -1603,6 +1603,15 @@
                   <button onclick="_intelBriefingLoad(activePredmetId);return false;" id="intel-briefing-btn" class="vx-btn vx-btn-secondary" style="width:100%;margin-top:.6rem;">AI Briefing — sledeći korak</button>
                   <div id="intel-briefing-hint" style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Sintetizuje lekcije, Firm DNA, rizike i istoriju odluka u JEDNU preporuku (obično 10–15 sekundi).</div>
                   <div id="intel-briefing-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;padding:.75rem 1rem;"></div>
+                  <!-- Winning Strategy Brief (Operation Wow Factor, 2026-08-03) — composes 3 already-
+                       existing, independently-working analyses (AI Briefing, Law Firm Brain "slični
+                       predmeti", Outcome Intelligence) into ONE view, so a lawyer doesn't have to leave
+                       the case and hunt through a separate AI Workspace tab for precedent/outcome
+                       signal. Zero backend changes -- pure orchestration of existing endpoints, each
+                       still independently authorized/billed exactly as it already was standalone. -->
+                  <button onclick="_winningBriefLoad(activePredmetId);return false;" id="winning-brief-btn" class="vx-btn vx-btn-secondary" style="width:100%;margin-top:.6rem;">Winning Strategy Brief — sve uvide na jednom mestu</button>
+                  <div id="winning-brief-hint" style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Kombinuje AI Briefing + slične predmete kancelarije + statistiku ishoda (do 20-30 sekundi, više kredita).</div>
+                  <div id="winning-brief-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;padding:.75rem 1rem;"></div>
                   <!-- Nacrti na čekanju (Operation Beta Closure, 2026-08-03) — routers/drafting.py's
                        staging/approval flow existed with zero frontend callers; this exposes it. -->
                   <div id="staging-section-mount" style="display:none;margin-top:.6rem;">

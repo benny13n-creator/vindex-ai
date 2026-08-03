@@ -156,6 +156,18 @@ to guess at it. Full reports: `docs/product/BETA_CLOSURE_REPORT.md` (executive s
 | BC-001 | Build Smart Intake's first-ever frontend (upload → review → finalize) | 1 (ABSOLUTE) | none | Large (frontend only, zero backend changes) | **DONE** | New `#si-overlay` panel (3 steps), 2 new entry-point buttons, wired to all 4 existing `routers/smart_intake.py` endpoints. **Completed 2026-08-03** — see `docs/product/UI_WIRING_REPORT.md`. Resolves `BLOCKER-2`/`ZTC-000` — the dominant open item across 5 prior missions tonight. Zero backend changes; full suite unchanged at 2315 passed. |
 | BC-002 | Expose the draft staging/approval pipeline | 2 | none | Small | **DONE** | New "Nacrti na čekanju" section in case detail, wired to `routers/drafting.py`'s existing `staging`/`approve`/`reject` endpoints. **Completed 2026-08-03** — resolves `BLOCKER-3`. Zero backend changes. |
 
+## Operation Wow Factor (2026-08-03) — WOW missions
+
+Founder's Master Prompt (BETA-007): dramatically increase perceived value via composition, not new
+features — "Not five buttons. One." Full report: `docs/product/WOW_REPORT.md`. Investigation:
+`decisions/2026-08-03_wow_factor_composition_audit_INVESTIGATION.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| WOW-001 | Winning Strategy Brief — compose AI Briefing + Similar Cases + Outcome Trends into one panel | 1 | none | Small (pure orchestration) | **DONE** | New button in Case Intelligence section, parallel-fetches 3 existing endpoints, graceful per-section degradation. **Completed 2026-08-03** — see `docs/product/WOW_REPORT.md`. Deliberately a separate button from plain AI Briefing (no silent cost change to an existing feature); deliberately excludes Matter Intelligence (already visible elsewhere) and Judge/Opponent Intelligence (real data gap found, not composable for free — see WOW-003). Zero backend changes, full suite unchanged at 2315 passed. |
+| WOW-002 | Post-upload magic-moment recap for Smart Intake | 2 | none | Small | **DONE** | After finalize, shows document-type counts + review-correction count using data already in memory — zero new API calls. Does not poll for Genome/Evidence completion (states plainly they're running in background) to avoid introducing new waiting/polling. |
+| WOW-003 | Auto-populate `predmeti.tuzilac`/`tuzeni` from Smart Intake's already-extracted judge/opponent entities | 3 | none | Small (backend write, uses existing extraction) | NEEDS_SCOPING | Found this mission: Smart Intake extracts judge/court/plaintiff/defendant entities but never writes them onto the case row, so Judge & Court Profiler / Opponent Intelligence still require manual name entry even when the AI already knows it. A real, small, low-risk backend change — outside this mission's compose-only charter, flagged for a future mission rather than built speculatively. |
+
 ## Dependency graph (for the "eligible" check)
 
 ```
