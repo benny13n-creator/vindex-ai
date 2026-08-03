@@ -398,3 +398,34 @@ untouched call sites across the codebase (every existing `AUDITABLE_ACTIONS` ent
 continuity for free, without a single line of their own code changing. This is the same "connect, don't
 build" principle Mission Atlas applied at table-and-wrapper scale, applied here at the level of a single
 shared parameter's default-value semantics.
+
+---
+
+## 2026-08-03 (Mission Migration — Canonical AI Infrastructure Adoption)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (mostly closes `LEDGER-004`/`ATLAS-005`/`ATLAS-006`/`SENT-004`) + 3 new MIGRATION-001..003 scoped |
+| Bugs fixed | 0 in production code — but 1 real bug caught during THIS mission's own migration work, before merge: `routers/evidence.py::klasifikuj_i_sacuvaj` runs in a `asyncio.to_thread` worker with no running event loop, so the first draft's `asyncio.create_task(log_action(...))` would have raised `RuntimeError` on every document classification — fixed by using `log_action_sync` instead |
+| Features migrated this mission | 19 operations across 5 modules: Copilot (5 handlers), upload AI analysis (3 parallel calls, 1 operation), Court Predictor (7 endpoints), Evidence classification (1), Drafting staging (1) |
+| Duplicates found/removed | 0 — confirmed at every migration step: no feature had a parallel audit table, correlation generator, or provenance implementation |
+| Regressions introduced | 0 — targeted suites re-run after every single migration step (`-k copilot`: 33, `-k "predictor or court"`: 31, `-k evidence`: 13, `-k "drafting or staging"`: 126), full suite re-run as final gate (see below) |
+| Test pass rate | 10 new tests in `tests/test_mission_migration_coverage.py`, all passing; full suite unchanged in regressions |
+| Founder decisions required | 0 new — the 3 remaining items (`MIGRATION-001..003`) are scoped as future mechanical/verification work, not decisions requiring founder input |
+
+**Four metrics recomputed at a finer granularity than Mission Ledger's own headline numbers** (36
+individual operations vs. Ledger's ~20-feature grouping — see the report's own methodology note for why
+both are legitimate, non-contradictory views): **Audit Link Coverage 78%** (28/36, up from an
+equivalent-granularity pre-mission baseline of ~39%), **Wrapper Coverage 100%** (unchanged, already
+complete before this mission), **Replay Coverage ~78%** for full case-linkage / **100%** for
+model-prompt-output-level replay, **Correlation Coverage 100%** (unchanged from Mission Ledger). Target
+≥95% Audit Link Coverage **not met** — reported honestly at 78%, with all 8 remaining gaps individually
+named and reasoned (see the report's Phase 7/remaining-features sections), not rounded up.
+
+**Notable pattern, this run**: for the first time this engagement, a "mass migration" mission (touching
+5 different router files, 19 distinct operations) produced **zero new architectural discoveries** — no
+dormant infrastructure, no duplicate mechanism, no independent correlation_id generator. This is itself
+a signal that the "connect, don't build" sweeps of the prior 4 missions (Nexus, Sentinel, Atlas, Ledger)
+were thorough: by this point in the engagement, the remaining gaps are genuinely just "wire the existing
+proven pattern into more call sites," not "discover another disconnected system," matching the founder's
+own framing that this mission closes the infrastructure phase rather than opening new fronts.
