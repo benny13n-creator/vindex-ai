@@ -367,3 +367,34 @@ same "connect, don't build" principle that has driven every real fix since Proje
 at the scale of an entire mission's scope rather than a single bug — the founder's own instruction
 ("Ne pretpostavljaj. Potvrdi kodom") caught this before a single line of duplicate schema/wrapper code
 was written.
+
+---
+
+## 2026-08-03 (Mission Ledger — End-to-End Traceability & Operational Evidence Chain)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (closes `ATLAS-004`, partially closes `SENT-004`/`ATLAS-006`) + 4 new LEDGER-001..004 scoped |
+| Bugs fixed | 0 in production code — but 1 real design flaw caught and corrected during THIS mission's own testing (the "try wide, fall back narrow" audit insert initially caught *any* exception as a retry signal, which would have silently changed intentional error-propagation behavior a pre-existing test protected — narrowed to a Postgres-42703-specific check before merging) |
+| Discoveries | 1 — Genome's `_emit_genome_event` was independently minting its own `correlation_id`, disconnected from Mission Atlas's `shared/ai_provenance.py` (`ATLAS-004`) — unified this mission |
+| New code | `correlation_id` promoted to a first-class field across `shared/ai_provenance.py`, `services/event_bus.py::Event`, `shared/audit_immutable.py::log_action`, `security/ai_forensics.py::log_provenance_from_wrapper` — three independent consumers, one shared source of truth, auto-filled so existing call sites benefit without being touched; `AUDITABLE_ACTIONS` widened + `log_action` wired into 5 representative AI modules; migration 090 (drafted, NOT applied) |
+| Regressions introduced | 0 — full suite re-run as final gate (see below); one near-regression caught by an EXISTING test (`test_build_and_insert_does_not_retry_on_unrelated_errors`) before it ever reached production, exactly the safety net this engagement's testing discipline is meant to provide |
+| Test pass rate | See full-suite run this session — 17 new tests in `tests/test_mission_ledger_correlation.py`, all passing |
+| Founder decisions required | 3 (`LEDGER-002` per-step Case Pipeline granularity, `LEDGER-003` SQL RPC signature change for intake events, implicit scope confirmation for `LEDGER-004`'s mechanical rollout) |
+
+**Four new metrics** (this mission's own charter): **Audit Link Coverage ~25%** (up from Atlas's ~5-10%,
+5 of 20+ AI features now purpose-built-audited), **Ledger Continuity ~85%** (4 of 5 replay scenarios
+fully reconstructable), **Correlation Integrity ~95-100%** (the strongest — structurally guaranteed by
+design for any request-scoped operation, not dependent on per-call-site correctness), **Orphan Record
+Count 0 by construction going forward** (not a live-DB-verified count — a SQL verification query is
+handed to the founder for post-migration confirmation). None hit the mission's own ≥95% targets except
+Correlation Integrity — reported honestly, not rounded up.
+
+**Notable pattern, this run**: the single highest-leverage design decision was making correlation_id
+propagation the *responsibility of the three consumer functions* (`emit`, `log_action`,
+`log_provenance_from_wrapper`) rather than every individual call site — meaning dozens of pre-existing,
+untouched call sites across the codebase (every existing `AUDITABLE_ACTIONS` entry: `predmet_create`,
+`dokument_upload`, `klijent_create`, login events, etc.) now automatically gained correlation_id
+continuity for free, without a single line of their own code changing. This is the same "connect, don't
+build" principle Mission Atlas applied at table-and-wrapper scale, applied here at the level of a single
+shared parameter's default-value semantics.
