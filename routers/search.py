@@ -2,10 +2,10 @@
 """
 Vindex AI — routers/search.py
 
-GET /api/search?q=...&vrste=predmeti,klijenti,dokumenti,billing,hronologija&limit=5
+GET /api/search?q=...&vrste=predmeti,klijenti,dokumenti,billing,hronologija,beleske,zadaci&limit=5
 
-Globalna pretraga: pretražuje predmete, klijente, dokumente, billing i hronologiju
-korisnika. Vrši ilike pretragu po ključnim tekstualnim kolonama.
+Globalna pretraga: pretražuje predmete, klijente, dokumente, billing, hronologiju,
+beleške i zadatke korisnika. Vrši ilike pretragu po ključnim tekstualnim kolonama.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from shared.rate import limiter
 logger = logging.getLogger("vindex.search")
 router = APIRouter(tags=["search"])
 
-_VALID_VRSTE = {"predmeti", "klijenti", "dokumenti", "billing", "hronologija", "beleske"}
+_VALID_VRSTE = {"predmeti", "klijenti", "dokumenti", "billing", "hronologija", "beleske", "zadaci"}
 _MAX_LIMIT   = 10
 _MAX_Q_LEN   = 200
 
@@ -85,11 +85,17 @@ def _search_dokumenti(supa, uid: str, q: str, limit: int) -> list[dict]:
     # column every AI/analysis consumer already reads -- case_dna.py,
     # evidence.py, drafting.py, multi_agent.py, etc.), which is what a
     # document uploaded through Smart Intake's finalize path is linked into.
+    #
+    # Lawyer Zero, LZ-003 (2026-08-03): also match tip_dokaza (evidence type,
+    # e.g. "ugovor"/"sudska_odluka") -- now that LZ-002 auto-populates this
+    # field with Evidence Vault's real classification, a lawyer searching for
+    # a document *type* (not just words in its text) should find it, the same
+    # way a document containing that word in its body already would.
     q2 = q.replace("%", "")
     r  = (supa.table("predmet_dokumenti")
-          .select("id, naziv_fajla, predmet_id, status, tekst_sadrzaj, created_at")
+          .select("id, naziv_fajla, predmet_id, status, tekst_sadrzaj, tip_dokaza, created_at")
           .eq("user_id", uid)
-          .or_(f"naziv_fajla.ilike.%{q2}%,tekst_sadrzaj.ilike.%{q2}%")
+          .or_(f"naziv_fajla.ilike.%{q2}%,tekst_sadrzaj.ilike.%{q2}%,tip_dokaza.ilike.%{q2}%")
           .limit(limit)
           .execute())
     return [
@@ -97,8 +103,37 @@ def _search_dokumenti(supa, uid: str, q: str, limit: int) -> list[dict]:
             "tip":       "dokument",
             "id":        row["id"],
             "naziv":     row.get("naziv_fajla") or "",
-            "preview":   (row.get("tekst_sadrzaj") or "")[:100] or (row.get("status") or ""),
+            "preview":   (row.get("tekst_sadrzaj") or "")[:100] or (row.get("tip_dokaza") or "") or (row.get("status") or ""),
             "meta":      {"predmet_id": row.get("predmet_id")},
+        }
+        for row in (r.data or [])
+    ]
+
+
+def _search_zadaci(supa, uid: str, q: str, limit: int) -> list[dict]:
+    # Lawyer Zero, LZ-003 (2026-08-03): zadaci has no user_id column at all --
+    # only kreirao_uid (creator), dodeljen_uid (assignee), and kancelarija_id
+    # (firm). Its RLS policy (migrations/045_firm_intelligence.sql) also
+    # grants visibility to any active member of the same kancelarija, but
+    # replicating that tier here would need an async kancelarija_id lookup
+    # this synchronous helper doesn't have -- deliberately scoped to the
+    # safe subset only (creator or assignee), a strict SUBSET of what the
+    # RLS policy already allows a user to see, never a superset. Firm-wide
+    # task search is a real, separate, smaller follow-on, not attempted here.
+    q2 = q.replace("%", "")
+    r  = (supa.table("zadaci")
+          .select("id, naziv, opis, status, prioritet, predmet_id, rok_datum")
+          .or_(f"kreirao_uid.eq.{uid},dodeljen_uid.eq.{uid}")
+          .ilike("naziv", f"%{q2}%")
+          .limit(limit)
+          .execute())
+    return [
+        {
+            "tip":     "zadatak",
+            "id":      row["id"],
+            "naziv":   row.get("naziv") or "",
+            "preview": f"{row.get('status', '')} · {row.get('prioritet', '')}".strip(" ·"),
+            "meta":    {"predmet_id": row.get("predmet_id"), "rok_datum": row.get("rok_datum")},
         }
         for row in (r.data or [])
     ]
@@ -188,6 +223,7 @@ _SEARCHERS = {
     "billing":    _search_billing,
     "hronologija": _search_hronologija,
     "beleske":    _search_beleske,
+    "zadaci":     _search_zadaci,
 }
 
 
