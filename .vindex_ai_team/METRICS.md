@@ -67,3 +67,35 @@ system" mission turned out on inspection to be "a field is already being populat
 with the wrong value" rather than "nothing runs at all." Worth treating as a standing hypothesis to
 check first in any future mission of this shape, not just this one: before assuming a downstream
 consumer has *no* signal, check whether it has the *wrong* signal.
+
+---
+
+## 2026-08-03 (Operation Autonomous Law Office, BETA-002)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 3 (ZTC-001, ZTC-002, ZTC-003) |
+| Bugs fixed | 3 — ZTC-001 (batch upload created N cases instead of 1, plus a `redni_broj` collision bug found while fixing it), ZTC-002 (Genome silently dropped documents past #25, ordered by upload date not recency, and its own "documents skipped" counter always read ~0 for exactly the cases where it mattered), ZTC-003 (conflict-of-interest check never ran anywhere in the document-first case-creation flow) |
+| New bugs discovered | 2 — the `redni_broj` hardcode (found while implementing ZTC-001, same user-facing fix, folded into the same mission per this project's own ticket-scoping rule); the Genome concurrent-refresh race condition (found while investigating Scenario G, fixed alongside it since ZTC-001 makes it materially more frequent) |
+| Blockers correctly escalated | 1 — **the single largest finding of this run**: Smart Intake (the entire pipeline this session and last improved) has zero frontend entry point — no lawyer can reach it through the app today. Not a wiring fix; a founder-level product/design decision. Full report: `decisions/2026-08-03_ZTC-FRONTEND_smart_intake_wiring_BLOCKER_REPORT.md` |
+| Regressions introduced | 0 — confirmed by a full-suite run at the end (2306 passed, 1 skipped, 0 failed; was 2289/1/0 before tonight) |
+| Test pass rate | 2306/2307 (99.96%) |
+| Beta blockers removed | 3 sub-capability gaps closed, all directly against the founder's own Zero-Touch Case success criterion (not yet reachable by a lawyer pending ZTC-000, but real once it ships): batch document uploads now produce one case instead of N; Case Genome no longer silently loses a large case's most recent documents; conflict-of-interest checking now runs automatically for document-first case creation |
+| Security findings resolved | 0 new SEC-XXX items — this run was product/workflow-focused. Note: the conflict-check auto-wiring (ZTC-003) is arguably closer to a compliance/ethical-duty fix than a security one — recorded here for completeness, not counted as a SEC-XXX closure since none was opened for it |
+| Founder decisions required | 1 — ZTC-000 (which of three frontend-wiring options to pursue; the report explicitly recommends this be brought to the founder before any UI is built) |
+
+**Notable pattern, third occurrence:** the "wrong value being reported, not no value at all" pattern
+from Operation Lawyer Zero (`LZ-001`, `LZ-002`) appeared again in `ZTC-002`: Case Genome's own
+"documents skipped" counter looked like a working truncation-visibility feature, but was computed
+from data the caller had already silently pre-truncated — so it read ~0 for exactly the cases where
+truncation was real. Three occurrences across two nights makes this worth treating as close to a
+standing law for this codebase: any "here's what we excluded/skipped/couldn't process" counter should
+be checked against the *true* upstream total, not an already-filtered intermediate, before being
+trusted.
+
+**New pattern, first occurrence this run:** the largest, most consequential finding of the night was
+not a bug in existing logic at all — it was the *absence* of any way to reach the logic in the first
+place. Two full nights of wiring fixes (LZ-001/002, ZTC-001/002/003) improved a pipeline's output
+quality without ever checking whether the pipeline's *input* (the upload button) was reachable from
+the product. Worth a standing check in any future mission of this shape: before deep-wiring a
+backend pipeline's internals, confirm the frontend actually calls it.
