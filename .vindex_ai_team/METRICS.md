@@ -330,3 +330,40 @@ operation without losing data, silent errors, or false conclusions?" (operationa
 questions are necessary and neither substitutes for the other — this mission's Beta Gate (8
 yes/no trust questions) is a categorically different, and stricter, bar than ICS/CIC connectivity
 scores alone.
+
+---
+
+## 2026-08-03 (Mission Atlas — AI Provenance & Decision Traceability)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (closes SENT-006 from Project Sentinel) + 6 new ATLAS-001..006 scoped |
+| Bugs fixed | 0 — this mission's charter was traceability infrastructure, not bug-fixing |
+| Discoveries | 1 major — migration 043's `ai_forensics` table + `security/ai_forensics.py`'s `ForensicsRecord`/`log_ai_call_sync` were fully designed (2026-07-07) but never called from any of ~130 AI call sites, confirmed by repo-wide grep; same "infrastructure exists but unconnected" pattern found repeatedly this engagement |
+| New code | `shared/ai_provenance.py` (context propagation, new file), `security/ai_forensics.py::log_provenance_from_wrapper` (new function, extends existing module), `shared/ai_client.py` (extends the existing SEC-003 patch point — same interception layer, not a parallel one), `case_context()` wired into 5 representative modules (Genome, Strategy Engine's 9 endpoints, Task Engine, Copilot's case-analysis handler, Briefing), migration 089 (drafted, NOT applied per standing rule) |
+| Regressions introduced | 0 — full suite re-run as final gate: 2329 passed, 1 skipped, 0 failed (unchanged from before this mission) |
+| Test pass rate | 2329/2330 (99.96%) |
+| Founder decisions required | 3 (`ATLAS-001` run migration 089, `ATLAS-004` correlation_id unification, `ATLAS-006` audit_reference cross-linking — depends on Sentinel's `SENT-004`) |
+
+**Four new metrics, all first-time baselines** (per the mission's own charter — none of these existed
+before today):
+- **Provenance Coverage**: 58% floor (all 53 AI call sites, structurally, zero exceptions) / 75% for the
+  5 explicitly-wired representative modules — up from a confirmed 0% at mission start. Target 100%.
+- **Replay Coverage**: ~65% for wired modules (input/model/prompt/output all answerable; confidence and
+  audit cross-reference are the remaining gaps) — up from ~10% (confidence+input-snapshot existed for
+  only 2 of 20+ features before). Target 100%.
+- **Wrapper Coverage**: **100%**, structurally proven (not estimated) — every AI call in the app goes
+  through one of 4 patched OpenAI SDK methods, the same interception layer SEC-003's own test suite
+  already validated. This is the strongest of the 4 new metrics because it was already half-proven by
+  existing infrastructure (SEC-003) before this mission started.
+- **Audit Link Coverage**: ~5-10% (Genome's `GENOME_UPDATED` only, and not yet cross-linked by ID) —
+  the weakest metric this mission introduces, correctly named as the top remaining gap (`ATLAS-006`,
+  depends on Sentinel's `SENT-004`).
+
+**Notable pattern, this run — a variant of the engagement's standing lesson**: the single highest-value
+action this mission took was not writing new code but *discovering that the mission's entire goal was
+already half-built and simply never connected* (`ai_forensics`/`security/ai_forensics.py`). This is the
+same "connect, don't build" principle that has driven every real fix since Project Nexus, applied here
+at the scale of an entire mission's scope rather than a single bug — the founder's own instruction
+("Ne pretpostavljaj. Potvrdi kodom") caught this before a single line of duplicate schema/wrapper code
+was written.
