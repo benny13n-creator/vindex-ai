@@ -621,6 +621,41 @@ async def finalize_intake_job(
                 logger.warning("[SMART_INTAKE] Genome auto-refresh greška: %s", ge)
         asyncio.create_task(_genome_bg())
 
+        # Operation Lawyer Zero, LZ-002 (2026-08-03): Evidence Vault's real
+        # classifier (routers/evidence.py::klasifikuj_i_sacuvaj -- richer
+        # tip_dokaza vocabulary, pravni_elementi, ai_tags, kljucne_cinjenice
+        # -> predmet_dokazi) was never auto-triggered on ingestion; its only
+        # entry point was the manual /reklasifikuj action. This also starved
+        # services/risk_engine.py's missing-document detector, the platform's
+        # sole deterministic "next action" algorithm (routers/matter_intel.py),
+        # which reads tip_dokaza and compares it against shared/constants.py's
+        # EXPECTED_DOCS -- and matters more than it first appears: the coarse
+        # tip_dokaza this finalize path already writes above (from
+        # shared/intake_classify.py's own classifier) uses a DIFFERENT
+        # vocabulary ("lawsuit"/"judgment"/etc.) than EXPECTED_DOCS expects
+        # ("sudska_odluka"/"podnesak"/etc.) -- so that field was already being
+        # populated, just with values that could never match. Same
+        # vocabulary-fragmentation defect shape as LZ-001's `vaznost` finding,
+        # one field over. klasifikuj_i_sacuvaj's own UPDATE (routers/evidence.py)
+        # corrects tip_dokaza to the right vocabulary and adds the richer
+        # fields, exactly matching the manual /reklasifikuj pattern -- no new
+        # classification logic written, only the missing auto-trigger added.
+        # Deliberately does NOT call UsageService.consume: this is a system-
+        # initiated background enrichment step, not a lawyer-initiated action,
+        # so it should not silently consume a billing credit the way the
+        # manual endpoint does.
+        async def _evidence_classify_bg():
+            try:
+                from routers.evidence import klasifikuj_i_sacuvaj
+                dokument_id = dok_ins.data[0]["id"]
+                await asyncio.to_thread(
+                    klasifikuj_i_sacuvaj, predmet_id, dokument_id,
+                    job.get("original_filename") or "dokument", text, uid,
+                )
+            except Exception as ce:
+                logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
+        asyncio.create_task(_evidence_classify_bg())
+
     await asyncio.to_thread(
         lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id}).eq("id", job_id).execute()
     )
