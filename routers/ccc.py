@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from shared.deps import _get_supa, get_current_user
 from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+from services.risk_engine import calculate_procesni_rizik
 
 logger = logging.getLogger("vindex.ccc")
 router = APIRouter(prefix="/api/ccc", tags=["ccc"])
@@ -43,7 +44,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
             "snaga,kategorija"
         ).eq("predmet_id", predmet_id).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status").eq(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select(
             "id,sud,datum,status,napomena"
@@ -117,11 +118,26 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     except Exception as exc:
         logger.debug("[CCC] klijenti greška: %s", exc)
 
-    # ── Nedostajući dokumenti (za smart chips) ───────────────────────────────
-    expected = _EXPECTED_DOCS.get(predmet.get("tip","ostalo"), _EXPECTED_DOCS["ostalo"])
+    # ── Nedostajući dokumenti + health_score ─────────────────────────────────
+    # Project Nexus (2026-08-03): ovaj blok je ranije RUČNO računao i
+    # "nedostajuci" (bez ikad selektovanog tip_dokaza -- gore sad ispravljeno
+    # -- pa je "nedostajuci" UVEK bio kompletna expected lista, bez obzira šta
+    # je stvarno otpremljeno) i sopstvenu kopiju health_score formule
+    # (_compute_health, ispod, uklonjena) koja je hardkodovala nedostajuci_count=0
+    # i imala svoj, nezavisno pokvaren naivni/svesni datetime bag (isti oblik
+    # kao bag ispravljen u services/risk_engine.py par misija ranije). Sad
+    # poziva ISTU deterministicku funkciju koju koristi Matter Intelligence
+    # (services/risk_engine.py::calculate_procesni_rizik) -- jedan izvor
+    # istine za "health_score"/"nedostajući dokazi" umesto dva koja mogu dati
+    # različit odgovor za isti predmet pod istim imenom polja.
     _dok_count_data = (dok_count_r.data if not isinstance(dok_count_r, Exception) else []) or []
-    postojeci_tipovi = {d.get("tip_dokaza") for d in _dok_count_data if d.get("tip_dokaza")}
-    nedostajuci = [t for t in expected if t not in postojeci_tipovi]
+    _rok_raw = (rok_r.data if not isinstance(rok_r, Exception) else []) or []
+    _rizik = calculate_procesni_rizik(
+        dokazi=dokazi, dokumenti=_dok_count_data, rocista=_rok_raw,
+        tip_predmeta=predmet.get("tip", "ostalo"), expected_docs=_EXPECTED_DOCS,
+    )
+    nedostajuci = _rizik["nedostajuci_dokazi"]
+    health_score = _rizik["health_score"]
 
     # Kritičan rok (najhitniji u narednih 7 dana)
     kritican_rok = None
@@ -130,9 +146,6 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         if dana is not None and 0 <= dana <= 7:
             kritican_rok = r
             break
-
-    # ── Matter Intelligence (brzo, bez GPT-a) ───────────────────────────────
-    health_score = _compute_health(dok_stats, predstojeći, len(dokazi))
 
     return {
         "predmet":          predmet,
@@ -147,34 +160,3 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         "nedostajuci":      nedostajuci,
         "kritican_rok":     kritican_rok,
     }
-
-
-def _compute_health(dok_stats: dict, predstojeći: int, ukupno_dokaza: int) -> int:
-    """Isti algoritam kao matter_intel.py — rizik_score → health."""
-    jaka   = dok_stats.get("jaka", 0)
-    srednja = dok_stats.get("srednja", 0)
-    slaba  = dok_stats.get("slaba", 0)
-    # Proceni snagu
-    if ukupno_dokaza == 0:
-        snaga = "Nema dokaza"
-    else:
-        jaka_pct = jaka / ukupno_dokaza
-        sred_pct = srednja / ukupno_dokaza
-        if jaka_pct >= 0.5:
-            snaga = "Jaka"
-        elif jaka_pct + sred_pct >= 0.6:
-            snaga = "Srednja"
-        else:
-            snaga = "Slaba"
-    nedostajuci_count = 0  # CCC ne računa nedostajuće ovde — konzervativna nula
-    kriticni = 1 if predstojeći > 0 else 0  # predstojeći ≤ 30 dana, tretiramo kao potencijalno kritično
-    # Rizik score (isti kao matter_intel)
-    rizik_score = 50
-    if ukupno_dokaza == 0:        rizik_score += 20
-    elif snaga == "Jaka":         rizik_score -= 20
-    elif snaga == "Slaba":        rizik_score += 15
-    if nedostajuci_count >= 3:    rizik_score += 15
-    if kriticni > 0 and predstojeći > 2: rizik_score += 20
-    elif kriticni > 0:            rizik_score += 5
-    health = 100 - rizik_score
-    return max(5, min(95, health))

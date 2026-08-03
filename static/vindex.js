@@ -17065,6 +17065,19 @@ async function _voice_refresh_case_dna(predmetId) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
     var dna = data.case_dna || {};
+    // Project Nexus (2026-08-03): a genuine backend failure (LLM timeout/
+    // error after all retries) returns HTTP 200 with {"greska": "..."} --
+    // by design, this is the platform's own fail-soft convention, not a
+    // bug in the backend. But this function never checked for it, so a
+    // lawyer would see a green "Procena ažurirana" success toast and then
+    // watch the panel silently show nothing (_caseDnaRender already
+    // correctly hides on dna.greska) -- a confusing, contradictory UX, not
+    // a clean error. Now checked explicitly before choosing the toast.
+    if (dna.greska) {
+      showToast('Procena predmeta nije uspela: ' + _friendlyErr(dna.greska), 'error');
+      _caseDnaRender(dna, predmetId);
+      return;
+    }
     var tip = dna.tip_spora || '';
     var snaga = dna.snaga_predmeta || '';
     var kontr = (dna.kontradikcije || []).length;

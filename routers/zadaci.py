@@ -531,10 +531,13 @@ async def ai_analiziraj_predmet(
         raise HTTPException(status_code=500, detail=str(e))
 
     # Dohvati relevantne podatke paralelno
-    docs_r, billing_r, zadaci_r, rokovi_r = await asyncio.gather(
+    # Project Nexus (2026-08-03): "tip_dokaza" dodat u docs select, plus dva
+    # nova upita (predmet_dokazi, rocista) -- vidi napomenu ispod gde se
+    # koriste, o razlogu.
+    docs_r, billing_r, zadaci_r, rokovi_r, dokazi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("naziv_fajla, status, created_at")
+                .select("naziv_fajla, status, created_at, tip_dokaza")
                 .eq("predmet_id", predmet_id)
                 .limit(30)
                 .execute()
@@ -562,6 +565,18 @@ async def ai_analiziraj_predmet(
                 .limit(5)
                 .execute()
         ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi")
+                .select("snaga, kategorija")
+                .eq("predmet_id", predmet_id)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("rocista")
+                .select("datum")
+                .eq("predmet_id", predmet_id)
+                .execute()
+        ),
         return_exceptions=True,
     )
 
@@ -569,6 +584,8 @@ async def ai_analiziraj_predmet(
     billing  = (billing_r.data if not isinstance(billing_r, Exception) else []) or []
     zadaci   = (zadaci_r.data  if not isinstance(zadaci_r, Exception)  else []) or []
     rokovi   = (rokovi_r.data  if not isinstance(rokovi_r, Exception)  else []) or []
+    dokazi   = (dokazi_r.data  if not isinstance(dokazi_r, Exception)  else []) or []
+    rocista  = (rocista_r.data if not isinstance(rocista_r, Exception) else []) or []
 
     # Pripremi kontekst za AI
     naziv_predmeta = predmet.get("naziv", "predmet")
@@ -588,6 +605,25 @@ async def ai_analiziraj_predmet(
     doc_nazivi = [d.get("naziv_fajla", "") for d in docs]
     zadaci_aktivni = [z.get("naziv", "") for z in zadaci]
 
+    # Project Nexus (2026-08-03): ovaj endpoint je bio 5. nezavisan,
+    # non-deterministicki (GPT) detektor "nedostajucih stavki" koji je
+    # zaobilazio services/risk_engine.py::identify_case_problems -- ovaj
+    # projekat sam sebe dokumentuje kao "jedini algoritam za sledecu akciju
+    # u celoj platformi" (Core Consolidation Sec 1.2). Umesto da GPT nagadja
+    # da li nedostaje dokument iz sirovih imena fajlova, sada dobija
+    # DETERMINISTICKI nalaz kao osnovu -- GPT i dalje odlucuje o zadacima
+    # koje deterministicka analiza ne pokriva (neaktivnost, nefakturisano),
+    # ali za dokumenta/rokove gradi na vec izracunatoj, proverljivoj analizi
+    # umesto da je duplira sopstvenim nezavisnim nagadjanjem.
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+
+    _rizik = calculate_procesni_rizik(
+        dokazi=dokazi, dokumenti=docs, rocista=rocista,
+        tip_predmeta=tip_predmeta or "ostalo", expected_docs=_EXPECTED_DOCS,
+    )
+    _otkriveni_problemi = identify_case_problems(_rizik, tip_predmeta or "ostalo")
+
     kontekst = (
         f"Predmet: {naziv_predmeta}\n"
         f"Tip: {tip_predmeta}\n"
@@ -597,6 +633,10 @@ async def ai_analiziraj_predmet(
         f"Nefakturisano: {nefakturisano_rsd:,.0f} RSD\n"
         f"Aktivni zadaci: {', '.join(zadaci_aktivni[:5]) or 'nema'}\n"
         f"Nadolazeći rokovi: {', '.join(r.get('naziv','') + ' ' + r.get('datum','') for r in rokovi[:3]) or 'nema'}\n"
+    ) + (
+        "POZNATI PROBLEMI (deterministička analiza, ne nagađaj suprotno): "
+        + "; ".join(f"[{p['ozbiljnost']}] {p['problem']}" for p in _otkriveni_problemi) + "\n"
+        if _otkriveni_problemi else ""
     )
 
     # AI analiza
@@ -617,10 +657,11 @@ async def ai_analiziraj_predmet(
                     + "\n\nVrati SAMO JSON listu zadataka koji treba kreirati:\n"
                     '[{"naziv": "...", "opis": "...", "prioritet": "hitno|visoko|normalan|nisko"}]\n\n'
                     "Pravila:\n"
-                    "- Ako nema punomoćja → zadatak 'Pribaviti punomoćje' (prioritet: visoko)\n"
+                    "- Za nedostajuće dokumente/dokaze i kritične rokove: koristi ISKLJUČIVO nalaze iz "
+                    "POZNATI PROBLEMI iznad (već su deterministički provereni) — ne nagađaj iz naziva "
+                    "fajlova da li dokument (npr. punomoćje) postoji ili ne, taj nalaz je gore ako je stvaran.\n"
                     "- Ako je predmet neaktivan >14 dana → zadatak 'Proveriti status predmeta' (normalan)\n"
                     "- Ako ima nefakturisanog >50000 RSD → zadatak 'Fakturisati nenaplaćene stavke' (visoko)\n"
-                    "- Ako nema dokumenata → zadatak 'Uneti dokumenta u predmet' (normalan)\n"
                     "- Max 5 zadataka. Ekavica. Samo konkretni, akcioni zadaci."
                 )
             }],
@@ -632,14 +673,22 @@ async def ai_analiziraj_predmet(
     except Exception as e:
         _sentry_capture(e)
         logger.warning("[ZADACI_AI] AI analiza nije uspela: %s", e)
-        # Fallback: heuristički zadaci
+        # Fallback: heuristički zadaci. Project Nexus (2026-08-03): document/
+        # deadline items now come from the same deterministic
+        # _otkriveni_problemi used above, instead of a separate, cruder
+        # "if not docs" ad hoc check -- one source of truth for this fallback
+        # path too, not a second independent guess.
         ai_zadaci = []
         if dana_neaktivnosti > 14:
             ai_zadaci.append({"naziv": "Proveriti status predmeta", "opis": f"Predmet je neaktivan {dana_neaktivnosti} dana.", "prioritet": "normalan"})
         if nefakturisano_rsd > 50000:
             ai_zadaci.append({"naziv": "Fakturisati nenaplaćene stavke", "opis": f"Nefakturisano: {nefakturisano_rsd:,.0f} RSD", "prioritet": "visoko"})
-        if not docs:
-            ai_zadaci.append({"naziv": "Uneti dokumenta u predmet", "opis": "Predmet nema priloženih dokumenata.", "prioritet": "normalan"})
+        for p in _otkriveni_problemi[:3]:
+            ai_zadaci.append({
+                "naziv": p["problem"][:200],
+                "opis": "Automatski otkriveno (deterministička analiza predmeta).",
+                "prioritet": "visoko" if p["ozbiljnost"] == "kritican" else "normalan",
+            })
 
     await UsageService.consume(uid, user.get("email", ""), "zadaci_ai")
 

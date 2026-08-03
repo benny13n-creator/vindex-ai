@@ -166,25 +166,119 @@ async def test_ccc_nedostajuci_radno():
     assert len(nedo) == 3
 
 
+# ── T6b: Project Nexus (2026-08-03) regression guard — the actual production
+# bug (T6 above cannot catch this: _make_chain's mock returns whatever data
+# was configured regardless of what fields .select() actually requested, so
+# it was structurally blind to a missing column in the real select string).
+# This asserts on the SELECT CALL ITSELF, not just the mocked return data.
+
+@pytest.mark.anyio
+async def test_ccc_documents_select_includes_tip_dokaza():
+    """Was previously "id,naziv_fajla,status" -- missing tip_dokaza entirely,
+    meaning Supabase would never actually return it for a real query,
+    silently making "nedostajuci" always the full expected-docs list
+    regardless of what was really uploaded. Fixed by adding the column to
+    the select string; this test guards against it being removed again."""
+    from routers.ccc import get_ccc
+
+    # _make_supa's side_effect builds a FRESH chain on every call.table(name)
+    # invocation -- calling supa.table("predmet_dokumenti") again after
+    # get_ccc returns would inspect an unrelated, never-called chain. Spy on
+    # the real call site instead: wrap supa.table itself and record the exact
+    # chain handed back the first time "predmet_dokumenti" is requested, so
+    # its .select.call_args reflects what the production code actually sent.
+    supa = _make_supa(_PREDMET)
+    real_table = supa.table.side_effect
+    captured = {}
+
+    def _spy_table(name):
+        chain = real_table(name)
+        if name == "predmet_dokumenti" and "chain" not in captured:
+            captured["chain"] = chain
+        return chain
+
+    supa.table.side_effect = _spy_table
+
+    with patch("routers.ccc._get_supa", return_value=supa):
+        await get_ccc(PID, _user())
+
+    select_call_args = captured["chain"].select.call_args
+    assert select_call_args is not None
+    selected_fields = select_call_args[0][0]
+    assert "tip_dokaza" in selected_fields
+
+
 # ── T7: health_score pad pri kritičnim rokovima ───────────────────────────────
+# Project Nexus (2026-08-03): _compute_health (a duplicate reimplementation
+# of Matter Intelligence's canonical formula, with a hardcoded
+# nedostajuci_count=0 that silently diverged from the real health_score
+# under the identical field name) was removed -- get_ccc now calls
+# services/risk_engine.py::calculate_procesni_rizik directly, the same
+# function routers/matter_intel.py uses, eliminating the duplicate. These
+# tests now exercise that behavior through get_ccc's real response instead
+# of importing a function that no longer exists.
 
 @pytest.mark.anyio
 async def test_ccc_health_score_drops_with_critical_deadline():
-    from routers.ccc import _compute_health
-    # Sa kritičnim rokovima → predstojeći > 2 → -15 od baseline
-    score_bez  = _compute_health({"jaka":2,"srednja":1,"slaba":0}, 0, 3)
-    score_sa   = _compute_health({"jaka":2,"srednja":1,"slaba":0}, 5, 3)
-    assert score_sa < score_bez
+    from routers.ccc import get_ccc
+    dokazi = [{"snaga": "jaka", "kategorija": "ugovor"}, {"snaga": "srednja", "kategorija": "dopis"}]
+
+    supa_bez = _make_supa(_PREDMET, dokazi=dokazi, rokovi=[])
+    with patch("routers.ccc._get_supa", return_value=supa_bez):
+        result_bez = await get_ccc(PID, _user())
+
+    sutra = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    rokovi_kriticni = [
+        {"id": f"r{i}", "naziv": "Ročište", "sud": "Sud", "datum": sutra, "status": "aktivan"}
+        for i in range(4)
+    ]
+    supa_sa = _make_supa(_PREDMET, dokazi=dokazi, rokovi=rokovi_kriticni)
+    with patch("routers.ccc._get_supa", return_value=supa_sa):
+        result_sa = await get_ccc(PID, _user())
+
+    assert result_sa["health_score"] < result_bez["health_score"]
 
 
 # ── T8: health_score je uvek u [0, 100] ───────────────────────────────────────
 
 @pytest.mark.anyio
 async def test_ccc_health_score_bounds():
-    from routers.ccc import _compute_health
-    # Ekstremi
-    assert 0 <= _compute_health({"jaka":0,"srednja":0,"slaba":10}, 10, 10) <= 100
-    assert 0 <= _compute_health({"jaka":10,"srednja":5,"slaba":0}, 0, 15)  <= 100
+    from routers.ccc import get_ccc
+
+    supa_low = _make_supa(_PREDMET, dokazi=[{"snaga": "slaba", "kategorija": "x"}] * 10)
+    with patch("routers.ccc._get_supa", return_value=supa_low):
+        result_low = await get_ccc(PID, _user())
+    assert 0 <= result_low["health_score"] <= 100
+
+    supa_high = _make_supa(_PREDMET, dokazi=[{"snaga": "jaka", "kategorija": "x"}] * 10)
+    with patch("routers.ccc._get_supa", return_value=supa_high):
+        result_high = await get_ccc(PID, _user())
+    assert 0 <= result_high["health_score"] <= 100
+
+
+# ── T9: health_score matches Matter Intelligence's canonical formula exactly
+# (the whole point of removing the duplicate) ────────────────────────────────
+
+@pytest.mark.anyio
+async def test_ccc_health_score_matches_canonical_risk_engine():
+    from routers.ccc import get_ccc
+    from services.risk_engine import calculate_procesni_rizik
+    from shared.constants import EXPECTED_DOCS
+
+    dokazi = [{"snaga": "srednja", "kategorija": "ugovor"}]
+    dokumenti = [{"tip_dokaza": "ugovor"}]
+    rokovi = []
+
+    supa = _make_supa(_PREDMET, dokazi=dokazi, dokumenti=dokumenti, rokovi=rokovi)
+    with patch("routers.ccc._get_supa", return_value=supa):
+        result = await get_ccc(PID, _user())
+
+    expected = calculate_procesni_rizik(
+        dokazi=dokazi, dokumenti=dokumenti, rocista=rokovi,
+        tip_predmeta="radno", expected_docs=EXPECTED_DOCS,
+    )
+    assert result["health_score"] == expected["health_score"]
+    assert result["nedostajuci"] == expected["nedostajuci_dokazi"]
 
 
 # ── T9: 404 kad predmet nije vlasništvo korisnika ────────────────────────────
