@@ -1597,6 +1597,9 @@
                   <button onclick="_voice_refresh_case_dna(activePredmetId);return false;" id="case-dna-refresh-btn" class="vx-btn vx-btn-secondary" style="width:100%;">Generiši / osveži procenu predmeta</button>
                   <div id="case-dna-refresh-hint" style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Obično traje 15–20 sekundi — AI čita sve dokumente predmeta.</div>
                   <div id="case-dna-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;"></div>
+                  <button onclick="_intelBriefingLoad(activePredmetId);return false;" id="intel-briefing-btn" class="vx-btn vx-btn-secondary" style="width:100%;margin-top:.6rem;">AI Briefing — sledeći korak</button>
+                  <div id="intel-briefing-hint" style="font-size:.66rem;color:rgba(255,255,255,.28);text-align:center;margin-top:.35rem;">Sintetizuje lekcije, Firm DNA, rizike i istoriju odluka u JEDNU preporuku (obično 10–15 sekundi).</div>
+                  <div id="intel-briefing-panel-mount" class="vx-card" style="display:none;margin-top:.6rem;padding:.75rem 1rem;"></div>
                 </div>
 
                 <!-- Asimetrican dvokolonski layout: agenti (glavna kolona) + uvid/unos (bocna, sticky) -->
@@ -3399,6 +3402,13 @@
                   <div class="settings-row-sub">Preuzmite sve vaše podatke (GDPR pravo na prenosivost)</div>
                 </div>
                 <button class="settings-btn" id="export-btn" onclick="exportSviPodaci()">Preuzmi ZIP</button>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-left">
+                  <div class="settings-row-label">Brisanje naloga</div>
+                  <div class="settings-row-sub">Trajna anonimizacija naloga (GDPR pravo na zaborav)</div>
+                </div>
+                <button class="settings-btn" id="delete-account-btn" onclick="obrisiNalogSelfService()" style="color:#ef4444;border-color:rgba(239,68,68,0.3);">Obriši nalog</button>
               </div>
             </div>
 

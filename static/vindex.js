@@ -817,6 +817,44 @@ async function exportSviPodaci() {
   }
 }
 
+// Operation Invisible Features, IF-001 (2026-08-03): routers/gdpr.py's
+// DELETE /api/gdpr/account existed and worked (profile anonymization,
+// immutable audit log entry, founder-account guard) but had zero frontend
+// callers -- static/bezbednosni-list.html:60 (the public security
+// whitepaper) explicitly promised "Samoususlužno dugme za ovu radnju je u
+// pripremi" (a self-service button for this is in preparation). This wires
+// the existing endpoint to that exact promise. Confirmed /api/gdpr/export
+// is NOT wired the same way -- it's a narrower duplicate of the already-
+// live /api/export/complete (exportSviPodaci above), not a gap -- so only
+// account deletion needed a new button, not export too.
+async function obrisiNalogSelfService() {
+  if (!currentSession) return;
+  if (!confirm(
+    'Obrisati vaš Vindex AI nalog?\n\n' +
+    'Email i ime biće trajno anonimizovani — ova akcija je NEPOVRATNA.\n' +
+    'Predmeti, klijenti i dokumenti se zadržavaju u skladu sa zakonskom ' +
+    'obavezom advokata da čuva spise predmeta (Zakon o advokaturi).\n\n' +
+    'Da li ste sigurni?'
+  )) return;
+  var btn = document.getElementById('delete-account-btn');
+  if (btn) { btn.textContent = 'Brišem...'; btn.disabled = true; }
+  try {
+    var r = await fetch(BASE_URL + '/api/gdpr/account', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) {
+      var d = await r.json().catch(function(){ return {}; });
+      throw new Error(d.detail || ('HTTP ' + r.status));
+    }
+    showToast('Nalog je anonimizovan. Odjavljujemo vas...', 'success');
+    setTimeout(doLogout, 1500);
+  } catch(e) {
+    showToast('Greška: ' + _friendlyErr(e), 'error');
+    if (btn) { btn.textContent = 'Obriši nalog'; btn.disabled = false; }
+  }
+}
+
 async function doLogout() {
   _sesijaStopHeartbeat();
   await _sesijaOdjavi();
@@ -17039,6 +17077,60 @@ async function _voice_refresh_case_dna(predmetId) {
     _caseDnaRefreshInProgress = false;
     if (btn) { btn.disabled = false; btn.textContent = origLbl; }
   }
+}
+
+// Operation Invisible Features, IF-002 (2026-08-03): routers/case_intelligence.py
+// existed, worked, and chains Lessons Learned + Firm DNA + Knowledge Profile +
+// Client Communication Profile + Case Patterns + Alerts + Decision Log into
+// ONE recommendation ("bez otvaranja deset ekrana", per its own docstring) --
+// but had zero frontend callers. Distinct from the CIO section below (that's
+// a cross-CASE daily portfolio view; this is scoped to the single open case,
+// same mount pattern as the Case DNA panel right above it).
+var _intelBriefingInProgress = false;
+async function _intelBriefingLoad(predmetId) {
+  if (!predmetId || _intelBriefingInProgress) return;
+  _intelBriefingInProgress = true;
+  var btn = document.getElementById('intel-briefing-btn');
+  var origLbl = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generišem briefing... (obično 10–15s)'; }
+  try {
+    var resp = await fetch(BASE_URL + '/api/intelligence/predmeti/' + predmetId + '/briefing', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : '') }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+    _intelBriefingRender(data.briefing || {}, data.izvori || {});
+  } catch(e) {
+    showToast('Greška pri generisanju AI briefinga', 'error');
+  } finally {
+    _intelBriefingInProgress = false;
+    if (btn) { btn.disabled = false; btn.textContent = origLbl; }
+  }
+}
+
+function _intelBriefingRender(b, izvori) {
+  var el = document.getElementById('intel-briefing-panel-mount');
+  if (!el) return;
+  if (!b || !b.sledeci_korak) { el.style.display = 'none'; return; }
+  var hitnostColor = b.hitnost === 'odmah' ? '#f87171' : (b.hitnost === 'ovu_nedelju' ? '#fbbf24' : '#4ade80');
+  var html = '';
+  html += '<div style="font-size:.6rem;color:rgba(255,255,255,.35);letter-spacing:.08em;margin-bottom:.4rem;">AI BRIEFING' + (izvori && izvori.pouzdanost_briefinga ? ' · pouzdanost: ' + escHtml(izvori.pouzdanost_briefinga) : '') + '</div>';
+  html += '<div style="font-size:.85rem;color:rgba(255,255,255,.9);font-weight:600;margin-bottom:.3rem;">' + escHtml(b.sledeci_korak) + '</div>';
+  if (b.razlog) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-bottom:.5rem;">' + escHtml(b.razlog) + '</div>';
+  if (b.hitnost) html += '<div style="font-size:.65rem;color:' + hitnostColor + ';margin-bottom:.4rem;">Hitnost: ' + escHtml(b.hitnost) + '</div>';
+  if ((b.kljucni_rizici || []).length) {
+    html += '<div style="font-size:.68rem;color:rgba(255,255,255,.45);margin-top:.4rem;">Ključni rizici:</div>';
+    html += '<ul style="margin:.2rem 0 0;padding-left:1.1rem;font-size:.7rem;color:rgba(255,255,255,.6);">';
+    b.kljucni_rizici.forEach(function(r){ html += '<li>' + escHtml(r) + '</li>'; });
+    html += '</ul>';
+  }
+  if (b.komunikacioni_savet) {
+    html += '<div style="font-size:.68rem;color:rgba(255,255,255,.45);margin-top:.5rem;">Komunikacioni savet:</div>';
+    html += '<div style="font-size:.7rem;color:rgba(255,255,255,.6);">' + escHtml(b.komunikacioni_savet) + '</div>';
+  }
+  el.innerHTML = html;
+  el.style.display = '';
 }
 
 // ═══════════════════════════════════════════════════════════════
