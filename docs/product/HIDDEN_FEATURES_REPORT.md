@@ -65,3 +65,33 @@ as a already-closed beta blocker (photo upload on the reachable path), 3 feature
 already-working-and-simply-uncatalogued (Litigation Intelligence, drafting, strategy generation), 1
 suspected duplicate resolved as intentionally-distinct (notes vs. comments), and a clear, evidence-
 backed list of what remains genuinely hidden or gapped for future prioritization.
+
+---
+
+## Update — Operation Beta Lockdown, 2026-08-03 (same day, third pass)
+
+A deeper tenant-isolation/audit/search sweep (`.vindex_ai_team/decisions/2026-08-03_beta_lockdown_isolation_audit_search_INVESTIGATION.md`)
+found one major new hidden feature and corrected one prior claim from this same report.
+
+### New hidden feature: the draft staging/approval pipeline
+`routers/drafting.py` already stages every AI-generated draft into `staging_memory` with a computed
+confidence score (`_stage_draft_for_review`, `:199-228`), and `POST /api/staging/{id}/approve`
+(`:300-309`) already promotes an approved draft into `predmet_dokumenti` — at which point it becomes
+searchable via the existing document-search branch with zero further work. **Zero frontend references
+to "staging" exist anywhere in `vindex.js`.** Same root shape as Smart Intake: a real, working,
+tested backend pipeline with no way for a lawyer to reach it. See `BLOCKER_REPORT.md`/`BLOCKER-3`.
+
+### Correction to this report's own earlier claim
+This report previously stated "no lawyer-facing audit log viewer exists" without qualification. More
+precise: **case-scoped** audit visibility DOES exist — `routers/intelligence_timeline.py`'s "life of
+the case" view (confirmed called from `vindex.js:18008`) aggregates `audit_immutable` among 6 sources.
+What's actually missing is an **account-wide, cross-case** activity view, and — a separate, larger
+finding — roughly 80% of the audit system's own defined action taxonomy (`AUDITABLE_ACTIONS`, 24 types)
+never fires in production code at all. Full detail in `BETA_LOCKDOWN_REPORT.md`.
+
+### Critical finding from the same sweep, not a "hidden feature" but load-bearing here
+`GET /api/zadaci/predmet/{predmet_id}` had zero ownership verification — a live, exploitable
+cross-tenant task-data leak, found by the same investigation pass that produced the corrections above.
+Fixed same night (`BL-001`). See `BLOCKER_REPORT.md` and `docs/product/BETA_LOCKDOWN_REPORT.md` for
+full detail — recorded here only because it was found via the same sweep, not filed as a "hidden
+feature" (it's a missing security check, not an undiscoverable capability).

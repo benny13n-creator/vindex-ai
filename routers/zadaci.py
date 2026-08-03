@@ -384,11 +384,32 @@ async def zadaci_za_predmet(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Svi zadaci vezani za dati predmet."""
+    """Svi zadaci vezani za dati predmet.
+
+    Operation Beta Lockdown (2026-08-03): ovaj endpoint je bio jedini u
+    ovom fajlu koji NIJE proveravao da li predmet_id iz URL-a pripada
+    pozivaocu pre citanja zadaci -- svaki drugi predmet_id-scoped endpoint
+    ovde (npr. ai_analiziraj_predmet, ~90 linija ispod) vec radi tacno ovu
+    proveru. Bez nje, bilo koji autentifikovan korisnik koji sazna tudj
+    predmet_id (curenje kroz URL, snimak ekrana, support tiket) je mogao
+    procitati kompletnu listu zadataka druge kancelarije -- nazive, rokove,
+    dodeljene osobe. Zivi, iskoristiv cross-tenant leak (IDOR), ne
+    teorijski rizik."""
     uid  = user["user_id"]
     supa = _get_supa()
 
     try:
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id")
+                .eq("id", predmet_id)
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+        if not pred_r.data:
+            raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
         r = await asyncio.to_thread(
             lambda: supa.table("zadaci")
                 .select("*")
@@ -398,6 +419,8 @@ async def zadaci_za_predmet(
                 .execute()
         )
         return {"zadaci": r.data or []}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

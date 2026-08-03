@@ -128,6 +128,21 @@ interruption found: `docs/product/WORKFLOW_INTERRUPTION_REPORT.md`. Hidden-featu
 | LD-005 | Duplicate-file detection on the reachable upload path | 5 | none | Small | TODO (P2, not implemented) | Smart Intake has exact-hash dedup; `api.py`'s reachable per-case upload does not. See Finding #4. |
 | LD-006 | Team comments (`predmet_komentari`) missing from global search | 6 | none | Small | TODO (P3, not implemented) | Confirmed NOT a duplicate of `predmet_beleske` (private notes) — both serve distinct, intentional purposes per the UI's own copy. Only the search-coverage gap is real. See Finding #8. |
 
+## Operation Beta Lockdown (2026-08-03) — BL missions
+
+Founder's Master Prompt (BETA-005): a comprehensive Beta-readiness audit — Feature Completion Matrix,
+full workflow tracing, tenant-isolation/audit/search sweep, workflow-fragmentation documentation, and a
+19-scenario Beta Acceptance Test. Full reports: `docs/product/BETA_LOCKDOWN_REPORT.md` (executive
+summary), `FEATURE_COMPLETION_MATRIX.md`, `BLOCKER_REPORT.md`, `WORKFLOW_GAPS.md`, `CURRENT_STATE.md`,
+`RELEASE_READINESS.md`. Investigation: `decisions/2026-08-03_beta_lockdown_isolation_audit_search_INVESTIGATION.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| BL-001 | Fix cross-tenant task-data leak (`GET /api/zadaci/predmet/{id}`, zero ownership check) | 1 | none | Small | **DONE** | Ownership check added mirroring an established in-file pattern. **Completed 2026-08-03** — see `decisions/2026-08-03_BL-001_zadaci_idor_MISSION_REVIEW.md`. Found via this mission's own tenant-isolation sweep, not externally reported — a live, exploitable IDOR, not theoretical. 4 new tests, one confirmed via negative control against the pre-fix code. 2315 total green. **This mission's own success-critical finding** — see `BETA_LOCKDOWN_REPORT.md`. |
+| BL-002 | Draft staging/approval pipeline has no frontend entry point | 2 | none | Medium | NEEDS_SCOPING — founder decision, same shape as ZTC-000/BLOCKER-2 | `routers/drafting.py`'s confidence-gated draft review/approval flow (which would make drafts permanently searchable) has zero frontend references. Newly found this mission. See `BLOCKER_REPORT.md`/`BLOCKER-3`. |
+| BL-003 | Audit-log coverage: ~80% of the defined action taxonomy never fires | 3 | none | Medium (spans many call sites) | TODO, not urgent | `shared/audit_immutable.py::AUDITABLE_ACTIONS` defines 24 action types; only ~5-8 actually trigger in production code, including a gap where `predmet_create` isn't logged for the real-world case-creation path (`intake_kreiraj`). See `WORKFLOW_GAPS.md` #7/#8. |
+| BL-004 | Genome background-refresh defense-in-depth hardening | 4 | none | Small | TODO, low priority | `_do_genome_refresh` doesn't hard-return on an ownership-check miss — not currently exploitable via any real call site, but worth an early `return` for defense-in-depth. See `WORKFLOW_GAPS.md` #11. |
+
 ## Dependency graph (for the "eligible" check)
 
 ```

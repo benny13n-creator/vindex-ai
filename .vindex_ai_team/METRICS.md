@@ -151,3 +151,29 @@ investigation this engagement has run (Night Shift, Lawyer Zero, Autonomous Law 
 Features) was individually careful — this mission's value came specifically from simulating the
 connected, cross-subsystem path a real user follows, which no single-subsystem investigation could have
 caught.
+
+---
+
+## 2026-08-03 (Operation Beta Lockdown, BETA-005)
+
+| Metric | Value |
+|---|---|
+| Missions completed | 1 (BL-001 — cross-tenant task-leak fix) |
+| Bugs fixed | 1 — but the most severe security finding of this entire multi-night engagement: a live, exploitable cross-tenant data leak, not a workflow gap |
+| New bugs discovered | 1 (the above) + 1 new hidden-feature finding sharing Smart Intake's exact shape (draft staging/approval pipeline, zero frontend callers) + confirmed ~80% of the defined audit-action taxonomy never fires in production |
+| Blockers correctly escalated | 5 — Smart Intake frontend (reconfirmed, not new), draft staging/approval frontend (new), client CSV import fragmentation (reconfirmed), WhatsApp fragmentation (reconfirmed), Memory Graph population strategy (reconfirmed) |
+| Regressions introduced | 0 — full suite run twice this mission (immediately after the fix, and as this mission's own final gate): 2315 passed, 1 skipped, 0 failed both times |
+| Test pass rate | 2315/2316 (99.96%) |
+| Beta blockers removed | 1 critical security finding — arguably the highest-severity single item removed in this entire engagement, since an undetected cross-tenant leak would have been disqualifying for Beta regardless of how complete every other feature was |
+| Security findings resolved | 1 — the `zadaci_za_predmet` IDOR, found and fixed same night, verified via negative control |
+| Founder decisions required | 0 new — the 5 escalated blockers were already identified by prior missions tonight; this mission reconfirmed rather than discovered them (except BL-002, newly found) |
+
+**Notable pattern, this run**: the most severe finding of the entire 6-operation engagement was found
+not by a security-focused mission, but by a *tenant-isolation spot-check* performed as one dimension of
+a broader completion audit. Worth generalizing: routine "does this look right" sweeps across
+high-traffic endpoints — not only dedicated security missions — are a legitimate and apparently
+necessary way to catch this bug class. Also worth noting: this exact defect shape (missing ownership
+check) was the subject of a prior, well-executed, *specifically security-focused* sweep (`SEC-001`,
+2026-07-23) that correctly and thoroughly covered every mutation endpoint — but declared its scope as
+mutations only, leaving an identically-shaped read-endpoint gap unexamined for two weeks. A scoped
+sweep's own stated boundary is exactly where the next instance of the same bug class tends to hide.
