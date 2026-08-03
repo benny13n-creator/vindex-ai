@@ -48,6 +48,20 @@ async def _pozovi_strategija_v2_api(oai, **kwargs):
     return await oai.chat.completions.create(**kwargs)
 
 
+def _audit_strategija_durably(user_id: str, modul: str) -> None:
+    """Mission Ledger (2026-08-03) — dodatni, TRAJNI (hash-chained) audit trag
+    pored postojećeg lakog _audit() (audit_log tabela, ne-trajna). Ne
+    zamenjuje _audit() -- oba služe različitoj svrsi (v. AUDITABLE_ACTIONS
+    komentar u shared/audit_immutable.py). correlation_id se automatski
+    čita iz shared/ai_provenance.py's kontekst (isti id koji AI Provenance
+    red za ovaj poziv već koristi -- Phase 4, Audit Link Completion)."""
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="strategija_generisana", user_id=user_id,
+        resource_type="strategija_modul", resource_id=modul,
+    ))
+
+
 class StrategijaRequest(BaseModel):
     tekst: str = Field(..., max_length=20000)
     tip_postupka: Optional[str] = Field(None, description="gradjansko|krivicno|upravno|privredno|radno")
@@ -75,6 +89,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "red_team", ""))
+    _audit_strategija_durably(user["user_id"], "red_team")
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
@@ -101,6 +116,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "litigation", ""))
+    _audit_strategija_durably(user["user_id"], "litigation")
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
@@ -126,6 +142,7 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
+    _audit_strategija_durably(user["user_id"], "ai_sudija")
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
@@ -166,6 +183,7 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
+    _audit_strategija_durably(user["user_id"], "due_diligence")
     _zakon_context = await _fetch_zakon_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
@@ -191,6 +209,7 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
+    _audit_strategija_durably(user["user_id"], "pravni_revizor")
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(module_name="strategija", operation_name="pravni_revizor"):
@@ -215,6 +234,7 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
+    _audit_strategija_durably(user["user_id"], "witness_analyzer")
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(module_name="strategija", operation_name="witness_analyzer"):
@@ -239,6 +259,7 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
     asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
+    _audit_strategija_durably(user["user_id"], "sudija_v2")
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(module_name="strategija", operation_name="sudija_v2"):
@@ -289,6 +310,7 @@ async def post_kompletna_analiza(
     email = user.get("email", "")
 
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
+    _audit_strategija_durably(uid, "kompletna_analiza")
 
     async def _run_analiza():
         begin_cost_tracking()
@@ -372,6 +394,7 @@ async def strategija_v2_analiza(
     uid   = user["user_id"]
     email = user.get("email", "")
     asyncio.create_task(_audit(uid, "strategija_v2", ""))
+    _audit_strategija_durably(uid, "strategija_v2")
 
     user_msg = f"Opis predmeta:\n{req.opis_predmeta}"
     if req.tip_predmeta:

@@ -513,33 +513,51 @@ async def _emit_genome_event(
     ponovo pri dispatch-u). Greska u upisu eventa NIKAD ne sme da obori glavni
     zahtev — isti princip kao _save_genome_history iznad.
 
-    correlation_id (Faza 1.2): generise se ovde, ne u bazi — Event dataclass u
-    services/event_bus.py ne nosi DB-generisani 'events.id' kroz dispatch, pa se
-    korelacija između outbox eventa i audit_immutable zapisa (1.2) pravi ovde,
-    jednom, i deli se u oba payload-a preko istog stringa. Vraca korelacioni ID
-    (koristan pozivaocu za logovanje/debug, nije obavezan da se koristi).
+    correlation_id (Faza 1.2): Mission Ledger (2026-08-03) — ranije se ovde
+    UVEK generisao nov uuid4, nezavisno od shared/ai_provenance.py's
+    request-scoped id (isti koji AI wrapper i log_action već koriste za ovaj
+    isti Genome poziv, s obzirom da routers/case_dna.py's _extract_genome
+    poziv je omotan u ai_provenance.case_context() od Mission Atlas-a) — dva
+    nezavisna "correlation_id" koncepta za JEDNU logičku operaciju (ranije
+    evidentirano kao ATLAS-004). Sada nasleđuje isti id ako postoji (isti
+    HTTP zahtev), i generise nov SAMO ako Genome refresh radi van bilo kog
+    poznatog konteksta (npr. pozadinski posao bez trenutnog zahteva).
+    Upisuje se i u 'events' tabelu (dedikovana kolona, migracija 090) i u
+    payload (nazad-kompatibilno sa čitaocima koji ga još čitaju odatle).
 
     verifikacija_odluka (Faza 1.3): approve/approve_with_warning/require_review
     iz shared/genome_validator.verify_genome() — prosledjuje se ovde umesto da
     1.3 pravi sopstveni audit poziv, produzava vec postojeci 1.1/1.2 cevovod.
     """
-    correlation_id = str(uuid.uuid4())
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("events").insert({
-                "event_type": EventType.GENOME_UPDATED.value,
-                "user_id": uid,
-                "predmet_id": predmet_id,
-                "payload": {
-                    "verzija": genome.get("verzija"),
-                    "prev_verzija": prev_verzija,
-                    "snaga_predmeta_procent": genome.get("snaga_predmeta_procent"),
-                    "trigger": trigger,
-                    "correlation_id": correlation_id,
-                    "verifikacija_odluka": verifikacija_odluka,
-                },
-            }).execute()
-        )
+        from shared.ai_provenance import current_correlation_id
+        correlation_id = current_correlation_id() or str(uuid.uuid4())
+    except Exception:
+        correlation_id = str(uuid.uuid4())
+    _row = {
+        "event_type": EventType.GENOME_UPDATED.value,
+        "user_id": uid,
+        "predmet_id": predmet_id,
+        "payload": {
+            "verzija": genome.get("verzija"),
+            "prev_verzija": prev_verzija,
+            "snaga_predmeta_procent": genome.get("snaga_predmeta_procent"),
+            "trigger": trigger,
+            "correlation_id": correlation_id,
+            "verifikacija_odluka": verifikacija_odluka,
+        },
+    }
+    try:
+        # Migracija 090 (drafted, not yet applied) dodaje dedikovanu
+        # 'correlation_id' kolonu na 'events' — pokušaj prvo sa njom, pa
+        # bez nje ako kolona još ne postoji (isti "probaj široko, padni na
+        # usko" obrazac kao security/ai_forensics.py::log_provenance_from_wrapper).
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("events").insert({**_row, "correlation_id": correlation_id}).execute()
+            )
+        except Exception:
+            await asyncio.to_thread(lambda: supa.table("events").insert(_row).execute())
     except Exception as exc:
         logger.warning("[GENOME] Event emit greška (nije kritično): %s", exc)
     return correlation_id

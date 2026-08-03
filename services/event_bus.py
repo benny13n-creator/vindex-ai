@@ -54,11 +54,18 @@ class EventType(str, Enum):
 
 @dataclass
 class Event:
-    type:       EventType
-    user_id:    str
-    predmet_id: str | None          = None
-    payload:    dict[str, Any]      = field(default_factory=dict)
-    timestamp:  datetime            = field(default_factory=lambda: datetime.now(timezone.utc))
+    type:           EventType
+    user_id:        str
+    predmet_id:     str | None       = None
+    payload:        dict[str, Any]   = field(default_factory=dict)
+    timestamp:      datetime         = field(default_factory=lambda: datetime.now(timezone.utc))
+    # Mission Ledger (2026-08-03): correlation_id je sada prvoklasno polje
+    # Event-a, ne samo nešto zakopano u payload-u (kako je GENOME_UPDATED
+    # ranije radio) — isti id koji shared/ai_provenance.py generiše po
+    # zahtevu i koji shared/audit_immutable.py::log_action/security/
+    # ai_forensics.py već koriste, tako da JEDAN id povezuje HTTP zahtev →
+    # Event Bus → AI Provenance → Audit (Phase 2, Correlation ID Continuity).
+    correlation_id: str | None       = None
 
 
 # ─── Predefinisani handleri ───────────────────────────────────────────────────
@@ -194,22 +201,31 @@ async def on_genome_updated(event: Event) -> None:
     """Faza 1.2 (90-dnevni plan, 2026-07-18) — prvi stvaran potrošač GENOME_UPDATED
     eventa. Upisuje audit_immutable red (hash-chain, nepromenjiv) za svaku Genome
     promenu — ko/kada su vec kolone log_action()-a, zasto/agent/pre-posle/
-    korelacija idu u metadata (log_action nema dedikovane kolone za njih)."""
+    korelacija idu u metadata (log_action nema dedikovane kolone za njih).
+
+    Mission Ledger (2026-08-03): correlation_id se sada eksplicitno prosleđuje
+    iz event.correlation_id (prvoklasno polje Event-a) umesto oslanjanja na
+    ai_provenance.py's kontekst — ovaj handler često radi kroz
+    dispatch_pending_events() poller, van bilo kog HTTP zahteva, gde taj
+    kontekst ne postoji. Metadata i dalje čuva istu vrednost radi
+    kompatibilnosti sa starijim čitaocima."""
     try:
         from shared.audit_immutable import log_action
         payload = event.payload or {}
+        _cid = event.correlation_id or payload.get("correlation_id")
         await log_action(
             action        = "genome_refresh",
             user_id       = event.user_id,
             resource_type = "predmet",
             resource_id   = event.predmet_id,
+            correlation_id = _cid,
             metadata      = {
                 "trigger":                 payload.get("trigger"),
                 "agent":                   "case_dna_extractor",
                 "verzija":                 payload.get("verzija"),
                 "prev_verzija":            payload.get("prev_verzija"),
                 "snaga_predmeta_procent":  payload.get("snaga_predmeta_procent"),
-                "correlation_id":          payload.get("correlation_id"),
+                "correlation_id":          _cid,
                 # Faza 1.3 — verify_genome() odluka (approve/approve_with_warning/
                 # require_review); require_review je status na sacuvanom Genome-u,
                 # ne blokada snimanja.
@@ -291,17 +307,31 @@ bus = EventBus()
 # ─── Helper funkcije ──────────────────────────────────────────────────────────
 
 def emit(
-    event_type: EventType,
-    user_id:    str,
-    predmet_id: str | None       = None,
-    payload:    dict[str, Any]   = None,
+    event_type:     EventType,
+    user_id:        str,
+    predmet_id:     str | None       = None,
+    payload:        dict[str, Any]   = None,
+    correlation_id: str | None       = None,
 ) -> None:
-    """Shortcut za bus.publish — kreira Event i objavljuje."""
+    """Shortcut za bus.publish — kreira Event i objavljuje.
+
+    Mission Ledger (2026-08-03): correlation_id se, ako nije eksplicitno
+    prosleđen, automatski čita iz shared/ai_provenance.py's request-scoped
+    konteksta (isti id koji log_action/AI wrapper već koriste) — pozivna
+    mesta (npr. routers/matter_intel.py's ROK_KRITICAN/HEALTH_SCORE_PROMENJEN)
+    dobijaju kontinuitet BESPLATNO, bez izmene sopstvenog koda."""
+    if correlation_id is None:
+        try:
+            from shared.ai_provenance import current_correlation_id
+            correlation_id = current_correlation_id()
+        except Exception:
+            correlation_id = None
     bus.publish(Event(
-        type       = event_type,
-        user_id    = user_id,
-        predmet_id = predmet_id,
-        payload    = payload or {},
+        type           = event_type,
+        user_id        = user_id,
+        predmet_id     = predmet_id,
+        payload        = payload or {},
+        correlation_id = correlation_id,
     ))
 
 
@@ -348,10 +378,11 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             continue
 
         event = Event(
-            type       = event_type,
-            user_id    = row.get("user_id") or "",
-            predmet_id = row.get("predmet_id"),
-            payload    = row.get("payload") or {},
+            type           = event_type,
+            user_id        = row.get("user_id") or "",
+            predmet_id     = row.get("predmet_id"),
+            payload        = row.get("payload") or {},
+            correlation_id = row.get("correlation_id"),
         )
         try:
             await bus.publish_async(event)

@@ -675,6 +675,14 @@ async def ai_analiziraj_predmet(
         raw = resp.choices[0].message.content or "[]"
         parsed = json.loads(raw)
         ai_zadaci = parsed if isinstance(parsed, list) else parsed.get("zadaci", [])
+        # Mission Ledger (2026-08-03) — Audit Link Completion: trajan audit
+        # trag, correlation_id automatski nasleđen iz current request context
+        # (isti id kao AI Provenance red za ovaj poziv, v. case_context iznad).
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            action="zadaci_ai_analiza_complete", user_id=uid,
+            resource_type="predmet", resource_id=predmet_id,
+        ))
     except Exception as e:
         _sentry_capture(e)
         logger.warning("[ZADACI_AI] AI analiza nije uspela: %s", e)

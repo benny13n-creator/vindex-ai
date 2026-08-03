@@ -215,6 +215,12 @@ Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. 
 
     ai_tekst = ai_resp.choices[0].message.content.strip()
 
+    # Mission Ledger (2026-08-03) — Audit Link Completion: trajan audit trag,
+    # correlation_id automatski nasleđen iz current request context (isti id
+    # kao AI Provenance red za ovaj poziv, v. case_context iznad).
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(action="briefing_generisan", user_id=uid, resource_type="briefing"))
+
     return {
         "datum": danas.isoformat(),
         "ai_briefing": ai_tekst,

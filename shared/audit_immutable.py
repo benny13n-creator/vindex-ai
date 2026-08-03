@@ -78,6 +78,14 @@ AUDITABLE_ACTIONS: set[str] = {
     "suspicious_access", "api_key_rotation",
     # KORAK B — Autonomni Background Action Agenti (2026-07-24)
     "AGENT_AUTONOMOUS_EXECUTION",
+    # Mission Ledger (2026-08-03) — Audit Link Completion (Phase 4). Ove
+    # akcije su već povezane u shared/ai_provenance.py's canonical wrapper
+    # (Mission Atlas) — dodavanje ovde zatvara poslednju kariku (Event/AI
+    # poziv → AI Provenance red → OVAJ audit red, isti correlation_id) bez
+    # menjanja bilo kog AI ponašanja. Ranije dokumentovano kao Project
+    # Sentinel's SENT-004 / Mission Atlas's ATLAS-006, sada zatvoreno.
+    "strategija_generisana", "copilot_analiza_predmeta",
+    "zadaci_ai_analiza_complete", "briefing_generisan",
 }
 
 
@@ -90,19 +98,33 @@ async def log_action(
     resource_id: Optional[str] = None,
     ip: Optional[str] = None,
     metadata: Optional[dict] = None,
+    correlation_id: Optional[str] = None,
 ) -> Optional[str]:
     """
     Upisuje nepromenjivi zapis u audit_immutable tabelu.
 
     Vraća ID upisanog zapisa, ili None ako upis nije uspeo.
     Greška u audit-u NIKAD ne blokira glavni zahtev.
+
+    correlation_id (Mission Ledger, 2026-08-03): ako nije eksplicitno
+    prosleđen, čita se iz shared/ai_provenance.py's request-scoped konteksta
+    — isti id koji Event Bus/AI Provenance već koriste za istu logičku
+    operaciju, tako da postojeći pozivi (bez izmene) automatski dobijaju
+    kontinuitet (Phase 2, Correlation ID Continuity).
     """
     if action not in AUDITABLE_ACTIONS:
         logger.debug("[AUDIT_IMMUTABLE] akcija=%s nije u skupu praćenih akcija — preskačem", action)
         return None
 
+    if correlation_id is None:
+        try:
+            from shared.ai_provenance import current_correlation_id
+            correlation_id = current_correlation_id()
+        except Exception:
+            correlation_id = None
+
     try:
-        entry = await asyncio.to_thread(_build_and_insert, action, user_id, resource_type, resource_id, ip, metadata)
+        entry = await asyncio.to_thread(_build_and_insert, action, user_id, resource_type, resource_id, ip, metadata, correlation_id)
         return entry
     except Exception as e:
         logger.warning("[AUDIT_IMMUTABLE] greška upisa (nije kritično): %s", e)
@@ -116,12 +138,19 @@ def log_action_sync(
     resource_id: Optional[str] = None,
     ip: Optional[str] = None,
     metadata: Optional[dict] = None,
+    correlation_id: Optional[str] = None,
 ) -> Optional[str]:
     """Sinhrona verzija za ne-async kontekste."""
     if action not in AUDITABLE_ACTIONS:
         return None
+    if correlation_id is None:
+        try:
+            from shared.ai_provenance import current_correlation_id
+            correlation_id = current_correlation_id()
+        except Exception:
+            correlation_id = None
     try:
-        return _build_and_insert(action, user_id, resource_type, resource_id, ip, metadata)
+        return _build_and_insert(action, user_id, resource_type, resource_id, ip, metadata, correlation_id)
     except Exception as e:
         logger.warning("[AUDIT_IMMUTABLE] sync greška (nije kritično): %s", e)
         return None
@@ -156,6 +185,17 @@ def _is_unique_violation(exc: Exception) -> bool:
     return "23505" in msg or "duplicate key" in msg
 
 
+def _is_missing_column_error(exc: Exception) -> bool:
+    """Mission Ledger (2026-08-03): Postgres undefined_column SQLSTATE
+    (42703) or its typical message shape — used to decide whether a
+    correlation_id-bearing insert should fall back to the pre-migration-090
+    column set. Deliberately narrow (unlike a bare `except Exception`) so a
+    genuine, unrelated DB error (connection reset, etc.) still propagates
+    immediately without a pointless extra attempt."""
+    msg = str(exc).lower()
+    return "42703" in msg or "does not exist" in msg
+
+
 def _build_and_insert(
     action: str,
     user_id: Optional[str],
@@ -163,6 +203,7 @@ def _build_and_insert(
     resource_id: Optional[str],
     ip: Optional[str],
     metadata: Optional[dict],
+    correlation_id: Optional[str] = None,
 ) -> Optional[str]:
     """Sinhrono gradi i upisuje zapis u bazu.
 
@@ -208,7 +249,20 @@ def _build_and_insert(
         }
 
         try:
-            result = supa.table("audit_immutable").insert(record).execute()
+            # Migracija 090 (drafted, not yet applied) dodaje 'correlation_id'
+            # kolonu — pokušaj prvo sa njom (van hash-a, ne utiče na
+            # _compute_entry_hash iznad, isti tretman kao 'metadata'). Padni
+            # na upis bez nje SAMO ako je greška specifično "kolona ne
+            # postoji" (_is_missing_column_error) — bilo koja druga greška
+            # (npr. konekcija) propagira odmah, bez besmislenog dodatnog
+            # pokušaja (isto ponašanje kao pre ove izmene za sve ostale
+            # slučajeve grešaka).
+            try:
+                result = supa.table("audit_immutable").insert({**record, "correlation_id": correlation_id}).execute()
+            except Exception as _wide_exc:
+                if not _is_missing_column_error(_wide_exc):
+                    raise
+                result = supa.table("audit_immutable").insert(record).execute()
             inserted = (result.data or [{}])[0]
             return inserted.get("id")
         except Exception as e:

@@ -383,6 +383,16 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         logger.error("[COPILOT-ANALIZA] OpenAI greška: %s", e)
         return {"tip": "ANALIZA_PREDMETA", "odgovor": "Greška pri generisanju analize."}
 
+    # Mission Ledger (2026-08-03) — Audit Link Completion (Phase 4): trajan
+    # audit trag za ovaj AI poziv, correlation_id automatski nasleđen iz istog
+    # case_context() koji je gore već omotao GPT poziv (isti id kao AI
+    # Provenance red za ovaj poziv).
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="copilot_analiza_predmeta", user_id=user_id,
+        resource_type="predmet", resource_id=predmet_id,
+    ))
+
     return {
         "tip":               "ANALIZA_PREDMETA",
         "predmet":           pred.get("naziv", ""),

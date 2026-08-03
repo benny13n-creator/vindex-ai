@@ -218,7 +218,31 @@ async def log_provenance_from_wrapper(
     error_message: Optional[str] = None,
 ) -> None:
     """Fail-soft, fire-and-forget insert — a provenance-logging bug must
-    never break a real AI call, same contract as every other function here."""
+    never break a real AI call, same contract as every other function here.
+
+    Mission Ledger (2026-08-03): audit_reference defaults to correlation_id
+    itself when the caller doesn't supply a more specific value — the shared
+    correlation_id IS the join key to the matching audit_immutable row (now
+    that shared/audit_immutable.py::log_action also stores it), so this
+    column documents that fact for a reader who doesn't already know to
+    look for correlation_id specifically, rather than pointing at a
+    would-be audit_immutable.id that may not exist yet at write time (audit
+    rows for the same logical action are often written slightly after this
+    one, from router code that runs after the AI call returns).
+
+    correlation_id itself also auto-fills from shared/ai_provenance.py's
+    current context if the caller doesn't supply one — shared/ai_client.py's
+    wrapper already does this before calling here, but defaulting it here
+    too means any OTHER future caller of this function gets the same
+    continuity guarantee for free, not just the canonical wrapper."""
+    if correlation_id is None:
+        try:
+            from shared.ai_provenance import current_correlation_id
+            correlation_id = current_correlation_id()
+        except Exception:
+            correlation_id = None
+    if audit_reference is None and correlation_id:
+        audit_reference = correlation_id
     record = {
         "user_id":                    user_id,
         "endpoint":                   module_name,          # legacy column, kept populated for BEFORE-migration compatibility

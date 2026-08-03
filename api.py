@@ -3167,16 +3167,27 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     # potvrđeno: run_case_pipeline je idempotentan po koraku (marker-based
     # dedup, npr. _step_ekstrakcija_rokova), pa čak i redak dupli dispatch ne
     # pravi duplirane redove.
+    # Mission Ledger (2026-08-03): correlation_id se sada upisuje i kao
+    # dedikovana kolona (migracija 090, drafted, not yet applied) — isti id
+    # koji shared/ai_provenance.py's set_request_context već postavio za ovaj
+    # HTTP zahtev (isti kao onaj koji AI wrapper/log_action koriste), tako da
+    # ceo lanac za "+ Novi predmet" deli JEDAN id od HTTP zahteva naovamo.
     try:
         from services.event_bus import EventType
-        await asyncio.to_thread(
-            lambda: _get_supa().table("events").insert({
-                "event_type": EventType.PREDMET_KREIRAN.value,
-                "user_id":    user.id,
-                "predmet_id": novi_predmet["id"],
-                "payload":    {"naziv": naziv, "tip": body.get("tip", "opsti")},
-            }).execute()
-        )
+        from shared.ai_provenance import current_correlation_id
+        _cid = current_correlation_id()
+        _evt_row = {
+            "event_type": EventType.PREDMET_KREIRAN.value,
+            "user_id":    user.id,
+            "predmet_id": novi_predmet["id"],
+            "payload":    {"naziv": naziv, "tip": body.get("tip", "opsti"), "correlation_id": _cid},
+        }
+        try:
+            await asyncio.to_thread(
+                lambda: _get_supa().table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
+            )
+        except Exception:
+            await asyncio.to_thread(lambda: _get_supa().table("events").insert(_evt_row).execute())
     except Exception as _pe:
         logger.warning("[PIPELINE] PredmetKreiran durable event upis greška: %s", _pe)
 
