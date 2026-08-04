@@ -391,6 +391,34 @@ informational-only until they have real baseline data; Agent 25 in a calibration
 | OLYMPUS-004 | Resolve Agent 16's cross-board sequencing gap (Consulted-relationship ordering in Phase G1) before operationalizing the pipeline for real | 4 | none | Small | TODO | Noted in the Director's own charter and `REVIEW_PIPELINE.md` — not blocking, but a real scoping gap for whoever wires this pipeline into an actual workflow. |
 | OLYMPUS-005 | Exercise Agent 21's untested sub-domains (cross-version stability, cross-module contradiction) on a real future case | 5 | none | Medium | TODO | Internal-consistency sub-domain is validated; the other two have zero historical exercise — first real invocation should treat findings as provisional. |
 
+## Program Alpha (2026-08-04) — Eliminate Entire Classes of Defects
+
+Founder's Master Prompt 001: "Eliminate Entire Classes of Defects" — not a bug-hunt, a search for the
+architectural patterns that let a given class of bug recur. 6 parallel domain investigations mapped 38
+business decisions platform-wide; 11 were confirmed duplicates. **6 duplicate classes eliminated this
+mission** (proactive alert creation, embedding-model identifier, Court Predictor confidence, AI-call audit
+trail, correlation ID, correlation-ID minting) — 30 combined duplicate/competing implementations reduced
+to 6 canonical ones. Net codebase change: 29 files, +331/-603 lines (net -272), 2 files deleted entirely.
+**First real, live exercise of the Mission Olympus governance layer** (Phase 9): 3 fresh agents
+(Architecture Review, Reliability & Chaos, Backend Engineering Review) reviewed the actual diff and found
+4 real, valid issues — all fixed in the same pass before this mission closed (an incomplete
+embedding-model migration missing 4 more live call sites; a misleading code comment overstating what 2 of
+3 Event Bus handlers' new `raise` actually does; a real reliability defect where the canonical alert
+function's internal retry could compound with the durable-outbox batch loop and cause duplicate
+processing under a sustained outage). Full report: `docs/architecture/CANONICAL_ARCHITECTURE_REPORT.md`.
+Also: `BUSINESS_LOGIC_INVENTORY.md`, `SOURCE_OF_TRUTH_REGISTRY.md`, `DUPLICATE_DECISION_REPORT.md`,
+`CANONICAL_MIGRATION_PLAN.md`, `SYSTEM_HARDENING_REPORT.md`, `ARCHITECTURAL_DEBT_REGISTER.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| ALPHA-001 | `api.py::_require_auth`'s request-context stamp is inert for 11 endpoints due to `asyncio.to_thread` context-isolation (empirically confirmed) | 1 | Benchmark `_verify_token`'s actual CPU cost first | Medium | TODO | Correlation-id still works for these endpoints (middleware sets it before the thread hop); `user_id`-in-context does not. Found during this mission's own item-8 implementation, not the original diagnostic. |
+| ALPHA-002 | SMTP connection/auth boilerplate (5 independent copies) — narrower, correctly-scoped version of the abandoned "consolidate all SMTP" item | 2 | none | Small-Medium | TODO | Message *construction* correctly differs per caller (attachments, Reply-To, multipart shape) and must stay caller-owned; only the `ehlo()`/`starttls()`/`login()` boilerplate is a genuine duplicate. |
+| ALPHA-003 | Two independent document-classification taxonomies (`shared/intake_classify.py` 13-type vs. `routers/evidence.py` 9-type), held together today only by write-order sequencing | 1 | Founder decision — which taxonomy wins, or a mapping layer | Large | NEEDS_SCOPING — founder decision | Critical-tier finding, correctly deferred: fragile under this mission's own stress-test framing (concurrent workers), but needs a real design decision, not a mechanical migration. |
+| ALPHA-004 | Two overlapping entity-extraction pipelines (`shared/intake_extract.py` vs. Evidence's `ai_tags`) | 3 | none | Medium | TODO | Lower priority than ALPHA-003 — no active correctness bug today, only duplicated AI cost and drift risk. |
+| ALPHA-005 | Two "firm memory for AI" implementations, one live-but-cruder, one dead-but-more-capable (`api.py::_fetch_firm_memory_context` vs. `routers/firm_memory.py::kontekst_za_ai`) | 1 | Founder decision — is expanding Copilot's context (judge/client memory) wanted now | Medium | NEEDS_SCOPING — founder decision | Critical-tier finding; correctly gated on a product decision since the fix is a real behavioral change (more AI context), not a pure refactor. |
+| ALPHA-006 | No canonical Pinecone namespace registry — a document can be ingested into a namespace nothing ever queries | 2 | Founder/design decision — constants module vs. DB-backed registry | Medium | NEEDS_SCOPING | Real "write success, permanently orphaned data" defect class, trivially reachable via `auto_discovery.py`'s free-text namespace field. |
+| ALPHA-007 | "Critical deadline" threshold duplicated with 2 different values across ≥6 files | 4 | Resolve `ccc.py`'s 30-day-window discrepancy first | Small-Medium | NEEDS_SCOPING | Needs a judgment call (deliberately different concept vs. real inconsistency) before mechanical extraction. |
+
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
 - Any change requiring a production schema migration (per this project's standing rule, migrations

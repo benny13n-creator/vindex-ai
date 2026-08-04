@@ -561,3 +561,37 @@ see `.vindex_ai_team/GOVERNANCE_METRICS.md` for the full methodology behind each
 ready for mandatory use now; 1 partially ready; 2 informational-only pending baseline data; 1 in a
 calibration period. **Full mandatory nightly use was explicitly deferred by the founder's own closing
 instruction pending this validation — this section is that validation, not a decision to enable.**
+
+---
+
+## Program Alpha (2026-08-04) — Eliminate Entire Classes of Defects
+
+| Metric | Value |
+|---|---|
+| Business decisions mapped platform-wide | 38, across 6 domains |
+| Already single-sourced (clean) | 17 (45%) |
+| Confirmed duplicates found | 11 |
+| Zero-deterministic-backing findings | 2 (raw LLM output presented as a decision) |
+| Duplicate classes eliminated this mission | 6 (proactive alert creation, embedding-model identifier, Court Predictor confidence, AI-call audit trail, correlation ID, correlation-ID minting) |
+| Combined duplicate/competing implementations → canonical | 30 → 6 |
+| Files changed | 29 (+331/-603 lines, net -272) |
+| Files deleted entirely | 2 (`app/services/audit_log.py`, `test_audit_b1.py`) |
+| Items diagnosed but correctly deferred | 7 (`ARCHITECTURAL_DEBT_REGISTER.md`) — 1 abandoned mid-implementation after the real code proved more divergent than diagnosed (SMTP), 6 requiring a founder/design decision |
+| New tests | 15 (`tests/test_program_alpha_canonical_architecture.py`) |
+| Full suite | 2,424 passed, 1 skipped, 0 failed (final, after all Phase 9 governance-review fixes) |
+
+**Phase 9 — first live use of the Mission Olympus governance layer**: 3 fresh agents (Architecture
+Review, Reliability & Chaos, Backend Engineering Review) reviewed the actual diff. **4 real, valid
+findings**, all fixed in the same pass before this mission closed: an incomplete embedding-model
+migration (missed 4 of 9 real live call sites), a misleading code comment overstating what 2 of 3 Event
+Bus handlers' new `raise` does, and a genuine reliability defect (the canonical alert function's internal
+retry could compound with the durable-outbox batch loop under a sustained outage, risking duplicate
+processing) — found independently by both the Reliability & Chaos and Backend Engineering reviews. **0
+vetoes** — no finding met any charter's Critical-severity trigger. Full outcome table:
+`docs/architecture/CANONICAL_ARCHITECTURE_REPORT.md`'s "Governance Review Outcome" section.
+
+**Success criteria — all 9 of this mission's own stated criteria met**, including the one (maintainability)
+that isn't 100% true and is reported as such (`ALPHA-001`, a newly-discovered `asyncio.to_thread`
+context-isolation gap affecting 11 endpoints, found during implementation, not fixed this pass). See
+`docs/architecture/CANONICAL_ARCHITECTURE_REPORT.md`'s own Success Criteria table for the full,
+per-criterion evidence.
