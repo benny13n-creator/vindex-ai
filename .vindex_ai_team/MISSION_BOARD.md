@@ -419,6 +419,54 @@ Also: `BUSINESS_LOGIC_INVENTORY.md`, `SOURCE_OF_TRUTH_REGISTRY.md`, `DUPLICATE_D
 | ALPHA-006 | No canonical Pinecone namespace registry — a document can be ingested into a namespace nothing ever queries | 2 | Founder/design decision — constants module vs. DB-backed registry | Medium | NEEDS_SCOPING | Real "write success, permanently orphaned data" defect class, trivially reachable via `auto_discovery.py`'s free-text namespace field. |
 | ALPHA-007 | "Critical deadline" threshold duplicated with 2 different values across ≥6 files | 4 | Resolve `ccc.py`'s 30-day-window discrepancy first | Small-Medium | NEEDS_SCOPING | Needs a judgment call (deliberately different concept vs. real inconsistency) before mechanical extraction. |
 
+## Program Beta (2026-08-04) — Deterministic AI & Evidence-First Architecture
+
+Founder's Master Prompt 002: "Eliminate Entire Classes of AI Reasoning Defects" — not a mission to improve
+AI, a mission to redefine its role. Core principle: "Model nije izvor istine. Model je samo izvršilac.
+Izvor istine je platforma." 5 parallel domain investigations inventoried every AI operation in the
+platform (Upload/OCR/Extraction, Genome/Memory/Firm Brain, Legal Reasoning/Strategy/Court Predictor,
+Copilot/Briefing/Drafting, Search/Tasks/Alerts/Dashboard). Single most severe finding: Strategy Engine's
+litigation-percentage has **4 independent, unreconciled raw-LLM percentage generators** for one
+conceptual value — worse than Court Predictor's own pre-fix state, and a materially more precise
+diagnosis of the pre-existing `KEYSTONE-004` entry (now superseded by `PROGBETA-001` below).
+
+**3 bounded canonicalizations implemented and shipped** (deterministic-derivation pattern, now proven
+4× independently in this repo): Evidence Vault `snaga` derived from `_lociraj_tvrdnju`'s already-computed
+grounding result instead of a hardcoded constant; Compare docs (the only AI call in the platform with
+zero provenance/evidence-validation/UI-trust-signal) wrapped in `case_context()` + a new
+`validate_dok_reference()` DOK-XX existence check + symmetric UI signal; Strategy Engine's cross-step
+`sistemsko_upozorenje` moved from LLM-decided to code-computed, overriding the LLM's output in both
+directions.
+
+**Second live exercise of the Mission Olympus governance layer** (Phase 10, the founder's own 9 mandatory
+named agents + Reliability & Chaos = 10 fresh, independent reviewers): 1 clean APPROVED (Security Review),
+8 APPROVED WITH CONDITIONS, 1 DEGRADED (AI Quality Auditor — independently corroborated by AI Grounding).
+Real, convergent findings across reviewers, all fixed in the same pass: Evidence Vault's `_snaga_iz_
+lokacije` could over-claim confidence for too-short (spurious match) or too-long (only-prefix-verified)
+claims — bounded to [20,100] chars; Strategy Engine's determinism fix had no guard against off-spec
+`confidence` values and conflated JSON-parse failures with genuine low-confidence signal — both fixed;
+Compare's evidence-check widened to cover `kontradikcije`/`razlike_kljucne`, not just `koji_je_jaci_dokaz`;
+`_evidence_check`'s shape normalized to match `verify_genome()`'s contract; the whole block moved inside
+its own fail-soft try/except after a real TypeError risk was found; Evidence Vault's UI gained a grounding
+tooltip and Compare's UI gained a positive `approve` confirmation, closing 2 real backend-correct-but-
+not-user-visible gaps. **One self-correction found by the review itself**: this mission's own deferred-item
+IDs (`BETA-001`..`005`) collided with unrelated missions' existing IDs in this file — renamed to
+`PROGBETA-00X` throughout. Full reports: `docs/architecture/AI_CANONICAL_ARCHITECTURE.md`,
+`AI_DECISION_GRAPH.md`, `EVIDENCE_CHAIN_REGISTRY.md`, `CONFIDENCE_MODEL_SPECIFICATION.md`,
+`AI_REASONING_PIPELINE.md`, `HALLUCINATION_ELIMINATION_REPORT.md`, `MODEL_INDEPENDENCE_REPORT.md`,
+`AI_SYSTEM_HARDENING_REPORT.md`. Deferred-item detail: `ARCHITECTURAL_DEBT_REGISTER.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| PROGBETA-001 | Strategy Engine's 4 independent litigation-percentage generators (supersedes `KEYSTONE-004`) | 1 | New signal wiring — VKS-specific search + `case_patterns` firm-history query, neither exists in `strategija.py` today | Large | TODO — highest-priority open item | A shared `compute_litigation_score()` (Court Predictor's proven pattern) consumed by all 4 call sites; blocked on adding the 2 missing deterministic input signals first. |
+| PROGBETA-002 | RAG provenance (`retrieval_meta`) never threaded into `case_context()`'s already-connected `retrieval_query`/`retrieved_context_ids` params, ~15+ call sites | 2 | none — mechanism exists end-to-end | Medium (wide, not deep) | TODO | Confirmed independently 3× same day (Program Alpha + 2 Program Beta forks). Highest-leverage single fix in the platform; deserves its own fully-tested pass given the number of heterogeneous call sites. |
+| PROGBETA-003 | `services/quality_gate.py`'s citation-verification mechanism not reused by Strategy Engine or Genome | 2 | Confirm portability against real integration code at both new call sites | Medium | NEEDS_SCOPING | Mechanism is generic by construction (operates on arbitrary text), but reuse-feasibility wasn't confirmed by reading actual integration code — don't assume, verify first. |
+| PROGBETA-004 | Genome `heatmap`/`najslabija_tacka.kriticnost` — no deterministic post-processing (same defect class `compute_snaga_score` was built to fix, unaddressed here) | 3 | Genome extraction schema redesign — no already-extracted per-dimension factor list exists to aggregate from | Medium-Large | NEEDS_SCOPING | Larger than the initial fork finding suggested: needs new extracted factors, not just a new post-processor function. |
+| PROGBETA-005 | Copilot akcija handlers (`_handle_akcija_rok` etc.) extract fact (`datum_iso`) and inference (`vaznost`) via one undifferentiated call, no source marker | 3 | JSON schema change across 4 handler functions | Medium | TODO | Writes directly to `predmet_hronologija` (system-of-record) — higher stakes than Strategy Engine's un-persisted prose, shouldn't be rushed. |
+| PROGBETA-006 | Evidence Vault `snaga` fix makes a previously-dead `risk_engine.py` risk-scoring branch reachable, no backfill for pre-fix `predmet_dokazi` rows | 2 | Founder decision — run a backfill job, or accept documented vintage-skew as self-healing | Small (as a migration) | NEEDS_SCOPING — found by Olympus Faza 10 governance review (Evidence Integrity) | Bounded, self-healing over time as documents are re-uploaded/re-classified — not a correctness bug, a consistency transition worth an explicit decision. |
+| PROGBETA-007 | `compare_docs`'s `dok_res` query has no explicit `.order()`; response labels assume alignment with `n1`/`n2` | 4 | none | Small | TODO — found by Olympus Faza 10 governance review (AI Grounding); pre-existing, not introduced by Program Beta | Doesn't affect `validate_dok_reference()`'s own correctness (set-based), but undermines the "known documents" trust story — one sort call away from closed. |
+| PROGBETA-008 | `DokazReq.snaga` has no enum/`Literal` constraint on manual entry | 5 | none | Small | TODO — found by Olympus Faza 10 governance review (Evidence Integrity); pre-existing, now more consequential | Simple fix (`Literal["jaka","srednja","slaba"]`) when picked up; only affects the low-volume manual-entry path. |
+
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
 - Any change requiring a production schema migration (per this project's standing rule, migrations

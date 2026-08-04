@@ -201,3 +201,139 @@ judgment call, not a mechanical extraction.
 Court Predictor's confidence percentage evidence-scoring formula (`_procenat_iz_score`) intentionally
 never claims 0% or 100% certainty (bounded 20-80%) — a deliberate, conservative design choice for a legal
 confidence estimate, not an oversight; worth preserving in any future related work.
+
+---
+
+# Program Beta (Masterprompt 002, 2026-08-04) — Deferred Items
+
+**ID namespace note (self-correction, found by Olympus Faza 10 governance review, Metrics Guardian):**
+this mission's docs originally used `BETA-001` through `BETA-005` for the items below. Those IDs were
+already in live use in `.vindex_ai_team/MISSION_BOARD.md` as Founder's Master Prompt IDs for 5 unrelated
+missions the day before (Zero-Touch Case, Invisible Features, Lawyer Day, Beta Readiness Audit, Expose-
+Complete-Polish). Renamed to `PROGBETA-00X` across all Program Beta docs to eliminate the collision.
+**Lesson for future missions**: check `MISSION_BOARD.md`'s existing ID usage before minting a new backlog
+prefix, not just `ARCHITECTURAL_DEBT_REGISTER.md`'s.
+
+## PROGBETA-001 — Strategy Engine's 4 independent litigation-percentage generators (Critical-tier, supersedes `KEYSTONE-004`)
+
+Updates and supersedes the `KEYSTONE-004` entry above with a materially more precise diagnosis: NOT one
+raw-LLM percentage but **4 independent, unreconciled generators** (`/litigation` prose, `/sudija-v2` ×2
+prose, `/v2/analiza` JSON, `/kompletna-analiza` JSON) — worse than Court Predictor's pre-fix state (2
+unreconciled authors). Court Predictor's proven pattern (deterministic score → level + %) is directly
+portable in principle, but Strategy Engine is missing 2 of its 4 input signals entirely: no VKS-specific
+search call anywhere in `strategija.py`, no `case_patterns` firm-history query (used by 6 other files
+platform-wide, never here) keyed on `tip_postupka`. RAG hit count IS already fetched but unscored.
+
+**Recommended direction**: a new `shared/litigation_confidence.py::compute_litigation_score()`, modeled on
+`_calc_confidence_nivo()`/`_procenat_iz_score()`, consumed by all 4 call sites. Requires first adding the
+2 missing signal calls (VKS search, `case_patterns` query) — this is why it's Phase 7 work, not a
+same-session patch to one endpoint (which would leave 3 other unreconciled generators in place).
+
+**Severity**: Critical — highest-priority open item from Program Beta.
+
+---
+
+## PROGBETA-002 — RAG provenance threading across ~15+ call sites (Medium-High)
+
+`app/services/retrieve.py`'s `retrieval_meta` (izvori, confidence) is returned by every call but never
+threaded into `shared/ai_provenance.py::case_context()`'s already-existing, already-connected
+`retrieval_query`/`retrieved_context_ids` parameters, by any of its ~15+ callers (Copilot, Strategy Engine,
+LRE, Drafting). Confirmed independently 3 times same day (Program Alpha's own domain audit + 2 Program
+Beta forks). Mechanism exists end-to-end (`ai_provenance.py` → `ai_client.py` → `security/ai_forensics.py`)
+— pure wiring, not new infrastructure.
+
+**Why not fixed this mission**: 15+ heterogeneous call sites carry real risk of inconsistent application
+(a missed site) if rushed inside an already-large mission — deserves its own fully-tested pass.
+
+**Severity**: Medium-High — single highest-leverage fix in the platform (benefits every RAG-based AI
+feature at once), but wide blast radius if done carelessly.
+
+---
+
+## PROGBETA-003 — `quality_gate` citation-verification generalization for Strategy Engine/Genome (Medium)
+
+`services/quality_gate.py`'s `_extract_article_citations`/`_verify_citation` already operate on arbitrary
+text (not Drafting-specific by construction) and verify every legal-article citation against the real
+indexed corpus. Neither Strategy Engine (9 endpoints, zero backend citation verification, purely
+prompt-instructed) nor Genome routes through it or an equivalent.
+
+**Why not fixed this mission**: portability was identified as plausible but NOT confirmed by reading the
+actual integration code at 2 new call sites — needs that confirmation before wiring, not an assumption.
+
+**Severity**: Medium — reuse candidate, not a new-mechanism build.
+
+---
+
+## PROGBETA-004 — Genome `heatmap`/`najslabija_tacka.kriticnost` deterministic scoring (Medium)
+
+Unlike `compute_snaga_score()` (which reuses already-extracted, case-specific `snaga_faktori`), these 2
+fields have no equivalent already-extracted per-dimension factor list to aggregate from.
+
+**Why not fixed this mission**: would require first redesigning Genome's extraction schema to return
+explicit per-dimension factors, THEN writing a `compute_*()` over them — a schema redesign, not just a
+post-processor addition. Larger than it looked from the initial fork finding.
+
+**Severity**: Medium — same defect class as `compute_snaga_score` was built to fix, unaddressed here.
+
+---
+
+## PROGBETA-005 — Copilot akcija handlers fact/inference schema separation (Medium)
+
+`_handle_akcija_rok` and siblings extract `datum_iso` (fact) and `vaznost` (inference/classification) via
+one undifferentiated GPT call, written to `predmet_hronologija` with no source-marker distinguishing the
+two. Requires a JSON schema change across 4 handler functions, not a prompt tweak.
+
+**Severity**: Medium — real Facts≠Inference violation, but writes to a system-of-record table (higher
+stakes than Strategy Engine's un-persisted prose), should not be rushed.
+
+---
+
+## PROGBETA-006 — Evidence Vault `snaga` fix makes a previously-dead `risk_engine.py` branch reachable, no backfill (NEW, found by Olympus Faza 10 governance review, Evidence Integrity)
+
+Program Beta's own `_snaga_iz_lokacije()` fix (implemented this mission) makes `services/risk_engine.py`'s
+`"Jaka"` branch (`jaka_pct >= 0.5` → `rizik_score -= 20`) reachable for the first time at scale — before
+this fix, `snaga` was hardcoded `"srednja"` for every AI-classified row, so that branch was structurally
+unreachable for the dominant (auto-classification) path. Existing `predmet_dokazi` rows written before this
+deploy stay frozen at the old default; only new rows can reach `"jaka"`. Consequence: a predmet's displayed
+`procesni_rizik`/`health_score` can shift purely from vintage (old vs. new documents), not from a real
+change in the case.
+
+**Why not fixed this mission**: a backfill (recompute `snaga` for all existing `predmet_dokazi` rows via
+`_lociraj_tvrdnju` against already-stored document text) is a genuine migration-shaped operation — its own
+bounded task, not an extension of this mission's 3 canonicalizations.
+
+**Recommended direction**: either run a one-time backfill job, or explicitly accept and document the
+vintage-skew as a known, bounded transitional artifact (resolves naturally as documents get re-uploaded/
+re-classified over time).
+
+**Severity**: Medium — real, but bounded and self-healing over time; not a correctness bug, a consistency
+transition.
+
+---
+
+## PROGBETA-007 — `compare_docs`'s `dok_res` query has no explicit ordering; response labels assume alignment with `n1`/`n2` (NEW, found by Olympus Faza 10 governance review, AI Grounding; PRE-EXISTING, not introduced by Program Beta)
+
+`routers/case_dna.py::compare_docs`: the `predmet_dokumenti.in_("redni_broj", [n1, n2])` query has no
+`.order()`; `parts` (sent to the LLM) are built from a locally re-sorted copy, but the response's
+`dok_1`/`dok_2` labels use the raw, unsorted `docs[0]`/`docs[1]`. Supabase gives no ordering guarantee on
+`.in_()` — the UI could theoretically label the wrong document under the wrong DOK number. Does not affect
+`validate_dok_reference()`'s correctness (set membership is order-independent), but undermines the
+"known documents" trust story Program Beta's evidence-check work builds on.
+
+**Why not fixed this mission**: pre-existing (not part of this session's 3 changes), flagged as non-blocking
+by the reviewing agent — fixing it means touching query/sort logic outside this mission's AI-reasoning
+scope.
+
+**Severity**: Low-Medium — real but narrow (2-document endpoint, single sort call away from a fix).
+
+---
+
+## PROGBETA-008 — `DokazReq.snaga` has no enum/`Literal` constraint (NEW, found by Olympus Faza 10 governance review, Evidence Integrity; PRE-EXISTING, adjacent, now more consequential)
+
+`routers/evidence.py`'s manual-entry `DokazReq.snaga: str = "srednja"` accepts any string — an arbitrary
+value silently falls out of `risk_engine.py::snaga_count`'s bucketing (neither `"jaka"` nor otherwise
+recognized). Pre-existing gap, not introduced by Program Beta, but more consequential now that `snaga` is a
+genuinely load-bearing risk-scoring input (see `PROGBETA-006`).
+
+**Severity**: Low — narrow (manual-entry path only), simple fix (`Literal["jaka","srednja","slaba"]`) when
+picked up.

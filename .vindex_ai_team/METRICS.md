@@ -595,3 +595,43 @@ that isn't 100% true and is reported as such (`ALPHA-001`, a newly-discovered `a
 context-isolation gap affecting 11 endpoints, found during implementation, not fixed this pass). See
 `docs/architecture/CANONICAL_ARCHITECTURE_REPORT.md`'s own Success Criteria table for the full,
 per-criterion evidence.
+
+---
+
+## Program Beta (2026-08-04) — Deterministic AI & Evidence-First Architecture
+
+**Methodology note**: per the founder's own explicit instruction, this mission's success is NOT measured
+by commit/line counts — the table below is exactly the 8 metrics the founder's own Masterprompt 002
+specified, no others substituted.
+
+| Metric | Value |
+|---|---|
+| AI operations inventoried platform-wide | ~35, across 5 domains (Upload/OCR/Extraction, Genome/Memory/Firm Brain, Legal Reasoning/Strategy/Court Predictor, Copilot/Briefing/Drafting, Search/Tasks/Alerts/Dashboard) |
+| AI error classes eliminated | 2 — "discarded already-computed grounding signal" (Evidence Vault + Compare); "AI operation with zero evidence/provenance/UI trust signal" (Compare — the only such case found anywhere in the platform) |
+| Non-deterministic decisions removed | 2 — Evidence Vault `snaga`, Strategy Engine `sistemsko_upozorenje` |
+| Canonical AI pipelines documented | 1 (`AI_REASONING_PIPELINE.md`) — names the deterministic-derivation pattern now proven 4× independently in this repo as a standing platform principle, not invented from scratch |
+| AI decisions moved to a provable Evidence Chain | 2 claim types (Evidence Vault `snaga`; Compare's citation-bearing fields, widened during governance review to cover 3 fields not 1) |
+| AI outputs made genuinely explainable (UI-visible, not just backend-correct) | 3 — Evidence Vault grounding tooltip, Compare's symmetric ⚠/✓ signal, Strategy Engine's breakdown message (NISKA / anomaly / technical-error, distinguished) — all 3 found missing only during Olympus Faza 10 governance review, not the original implementation pass |
+| AI outputs confirmed model-independent | 2 new functions (`_snaga_iz_lokacije`, `validate_dok_reference`) — pure Python, zero model coupling by construction |
+| AI heuristics removed (LLM executing a rule that should be code) | 1 — Strategy Engine's `sistemsko_upozorenje` cross-step aggregation |
+| "Magic" confidence values eliminated | 1 — Evidence Vault's fixed `"srednja"` constant |
+| Items diagnosed but correctly deferred | 8 (`ARCHITECTURAL_DEBT_REGISTER.md`, `PROGBETA-001`–`008`) — 5 identified during the original 5-domain investigation, 3 found only during Faza 10 governance review |
+| New/extended tests | 4 test files (`test_genome_validator.py`, `test_akcija2_faza4_2026_07_24.py`, `test_strategija_sistemsko_upozorenje.py`, `test_compare_docs_evidence_check.py` — new) |
+| Full suite | 2,443 passed, 1 skipped, 0 failed (final, after all Phase 10 governance-review fixes; was 2,424 going in) |
+
+**Phase 10 — second live use of the Mission Olympus governance layer, first time exercising the founder's
+own 9 explicitly-named AI-specific roles**: 10 fresh, independent agents (9 mandated + Reliability & Chaos,
+matching Program Alpha's own precedent). **Verdicts**: 1 APPROVED (Security Review, clean), 8 APPROVED
+WITH CONDITIONS, 1 DEGRADED (AI Quality Auditor — the same Evidence Vault over-claim risk independently
+also found by AI Grounding, the strongest convergence signal in this mission, mirroring Program Alpha's
+own "2 reviewers, same bug" pattern). **Every condition addressed** — fixed in this same pass, or logged
+as an explicit, reasoned `PROGBETA-00X` deferral. **0 vetoes.** One self-correction the review process
+itself produced: this mission's original deferred-item IDs collided with unrelated missions' existing IDs
+in `MISSION_BOARD.md` — caught by Metrics Guardian, renamed platform-wide before close.
+
+**Success criteria**: all 5 core principles (Facts Before AI, Facts≠Inference≠Recommendation, AI Cannot
+Invent Authority, Deterministic Core, Explainability By Design) verified against real, cited code — not
+asserted. Explicit mission prohibitions respected: no new AI functionality added, no prompt-only local
+patches where a systemic mechanism existed, no GPT-specific logic introduced, every confidence/percentage
+change has a documented mathematical or legal basis. Full detail: `docs/architecture/
+AI_CANONICAL_ARCHITECTURE.md`'s own Success Metrics table.
