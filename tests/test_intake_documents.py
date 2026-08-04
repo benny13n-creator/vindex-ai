@@ -247,3 +247,48 @@ async def test_write_processing_outcome_swallows_errors():
     supa.table = MagicMock(side_effect=Exception("db down"))
     with patch("shared.intake_documents._get_supa", return_value=supa):
         await idoc.write_processing_outcome("job-1", "judgment", 0.9, {}, 1200)  # must not raise
+
+
+@pytest.mark.anyio
+async def test_has_processing_outcome_true_when_row_exists():
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain({"intake_job_id": "job-1"}))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        assert await idoc.has_processing_outcome("job-1") is True
+
+
+@pytest.mark.anyio
+async def test_has_processing_outcome_false_when_no_row():
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain(None))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        assert await idoc.has_processing_outcome("job-1") is False
+
+
+@pytest.mark.anyio
+async def test_delete_partial_document_deletes_children_before_parent():
+    """Program Intake Sprint 001 -- redosled mora biti deca pre roditelja
+    (extracted_entities/intake_review_queue nemaju ON DELETE CASCADE na
+    intake_documents, migracija 074), inace bi FK constraint oborio
+    brisanje roditelja dok deca jos postoje."""
+    from shared import intake_documents as idoc
+    delete_order = []
+
+    def _table(name):
+        chain = _make_chain(None)
+        original_delete = chain.delete
+        def _tracked_delete(*a, **kw):
+            delete_order.append(name)
+            return original_delete(*a, **kw)
+        chain.delete = MagicMock(side_effect=_tracked_delete)
+        return chain
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        await idoc.delete_partial_document("doc-stale", "job-1")
+
+    assert delete_order.index("extracted_entities") < delete_order.index("intake_documents")
+    assert delete_order.index("intake_review_queue") < delete_order.index("intake_documents")

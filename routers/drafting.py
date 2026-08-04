@@ -314,6 +314,17 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
             "pinecone_namespace": owner_ns, "status": "indeksirano",
             "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
             "redni_broj": next_rn, "tekst_sadrzaj": tekst[:100_000],
+            # Program Intake Sprint 001 (2026-08-04) -- ovaj red je ranije
+            # ostajao SA tip_dokaza=NULL trajno (Fork 1 finding: nijedan
+            # background task ovde ne pokreće klasifikaciju, za razliku od
+            # ostalih pisaca predmet_dokumenti). Ne pokrećemo novi AI poziv
+            # da to popunimo (misija zabranjuje novu AI funkcionalnost) --
+            # umesto toga, deterministički postavljamo vrednost koju već
+            # 100% sa sigurnošću znamo iz konteksta ovog poziva: ovo je
+            # advokatov odobren nacrt podneska, tačno 'podnesak' iz
+            # POSTOJEĆEG dozvoljenog vokabulara (routers/evidence.py,
+            # isti taj koji stvarni klasifikator koristi) -- ne nova reč.
+            "tip_dokaza": "podnesak",
         }).execute()
     )
     return True

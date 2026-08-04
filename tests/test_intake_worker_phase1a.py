@@ -22,15 +22,54 @@ def _job(job_id="job-1", storage_path="u1/abc", original_filename="presuda.pdf",
 
 @pytest.mark.anyio
 async def test_process_skips_already_processed_job_idempotent():
+    """Dokument POSTOJI i processing_outcome POSTOJI -> posao je stvarno
+    zavrsen, pravi idempotentan skip (Program Intake Sprint 001: skip mora
+    biti uslovljen sa OBA signala, ne samo postojanjem dokumenta)."""
     from shared.intake_worker import IntakeWorker
     w = IntakeWorker()
 
     existing = {"document": {"id": "doc-1"}, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=existing)), \
+         patch("shared.intake_documents.has_processing_outcome", new=AsyncMock(return_value=True)), \
+         patch("shared.intake_documents.delete_partial_document", new=AsyncMock()) as mock_delete, \
          patch.object(w, "_download_and_decrypt", new=AsyncMock()) as mock_download:
         await w._process(_job())
 
     mock_download.assert_not_awaited()  # never re-downloaded — idempotency guard fired
+    mock_delete.assert_not_awaited()  # fully completed — nothing to clean up
+
+
+@pytest.mark.anyio
+async def test_process_partial_document_without_outcome_is_deleted_and_reprocessed():
+    """Program Intake Sprint 001 (2026-08-04) -- regresioni test za
+    "false success" bug: dokument POSTOJI ali processing_outcome NE
+    POSTOJI (prethodni pokusaj pao izmedju create_document() i
+    write_processing_outcome()). Stari kod bi ovde tiho vratio (bez
+    exception-a), _tick() bi pozvao mark_job_completed() na poslu bez
+    ijednog entiteta -- neraspoznatljivo od stvarnog uspeha. Nova ispravka
+    mora: obrisati nepotpuno stanje I obraditi ponovo od nule (redownload,
+    OCR, klasifikacija, novi create_document/insert_entities/outcome)."""
+    from shared.intake_worker import IntakeWorker
+    w = IntakeWorker()
+
+    partial = {"document": {"id": "doc-stale"}, "entities": [], "review": None}
+    with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=partial)), \
+         patch("shared.intake_documents.has_processing_outcome", new=AsyncMock(return_value=False)), \
+         patch("shared.intake_documents.delete_partial_document", new=AsyncMock()) as mock_delete, \
+         patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")) as mock_download, \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
+         patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-new")) as mock_create_doc, \
+         patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()), \
+         patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
+        await w._process(_job())
+
+    mock_delete.assert_awaited_once_with("doc-stale", "job-1")  # partial state cleaned up first
+    mock_download.assert_awaited_once()  # reprocessed from scratch, not silently skipped
+    mock_create_doc.assert_awaited_once()  # fresh document created, not silently treated as done
+    mock_outcome.assert_awaited_once()  # this run actually completes to the finish line
 
 
 @pytest.mark.anyio

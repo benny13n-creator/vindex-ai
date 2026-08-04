@@ -542,3 +542,93 @@ own charter is cautious about doing without a concrete trigger; recommended as t
   `case_pipeline.py::_step_strategija`, auto-fired at case creation, which also happens to be the sole
   satisfier of the Case Ready Score's "Strategija generisana" checklist item — the least rigorous of 5
   assessments is the one silently marked "done."
+
+---
+
+## Program Intake, Sprint 001 (2026-08-04) — Bulletproof Document Intake Foundation
+
+Full narrative, forks, and mission-closure self-check: `INTAKE_ARCHITECTURE_REPORT.md`. Fixed this sprint
+(tested, zero regressions across 2492 tests): Pipeline A original-file Storage preservation,
+`IntakeWorker._process()`'s silent false-success bug on crash-retry, `dokument_view` audit logging, explicit
+`status`/`tip_dokaza` at 3 previously-silent `predmet_dokumenti` writers. Items below are what this sprint
+found but deliberately did not implement.
+
+## INTAKE-001 — Pipeline C (`finalize_intake_job`) reports `"ok": true` even when the document insert fails after Pinecone ingest already succeeded (High)
+
+`routers/smart_intake.py:588-689`. The entire decrypt→OCR→chunk→Pinecone→DB block is wrapped in one broad
+`try/except Exception`; if all 3 fallback `predmet_dokumenti` insert variants fail, `doc_linked=False` is
+honestly computed and returned as `dokument_povezan: false` in the response body — but the finalize
+endpoint's overall response still says `"ok": true"` because the `predmet` (case) row and client
+links/hronologija were already created successfully earlier in the same call. The result: a Pinecone
+ghost-vector with zero corresponding DB row, inside an otherwise-successful case-creation response.
+
+**Why not a direct port of Project Sentinel's existing hard-fail pattern** (`api.py:4243-4247`, HTTP 500 on
+the identical failure shape): Sentinel's endpoint does exactly one thing — attach a document to an
+already-existing case — so a 500 there is an honest, unambiguous total failure the caller can safely retry.
+Pipeline C's endpoint does several things in one call (create case, link client, add hronologija/rok, attach
+document); hard-failing at the document-insert step would misreport a case that WAS genuinely, successfully
+created as a total failure, and a naive client retry of the whole finalize call risks creating a **second**
+case for the same job.
+
+**Recommended direction**: a real partial-success response contract (e.g. `"ok": true, "partial": true,
+"dokument_povezan": false` with a clear frontend affordance to retry just the document-attach step against
+the already-created `predmet_id`), or splitting case-creation from document-attachment into two separate
+calls entirely. Either is a genuine design decision, not a bounded reliability patch.
+
+**Why not fixed this mission**: the correct fix requires product/API-contract design work this sprint's
+"bounded implementation, no new capability" discipline does not license inventing unilaterally. Whether the
+frontend currently surfaces `dokument_povezan: false` to the lawyer was also not verified (backend-only
+scope this sprint).
+
+**Severity**: High — reachable on every live finalize call where the document-insert step fails.
+
+## INTAKE-002 — Orphaned encrypted Storage blobs on Pipeline B enqueue failure, no cleanup mechanism (Medium)
+
+`routers/smart_intake.py:129-156`. If the AES-GCM-encrypted upload to the `intake-dokumenti` bucket succeeds
+but the subsequent `enqueue_intake_job` RPC throws, the blob remains in the bucket permanently with zero
+reference anywhere — no `intake_jobs` row was ever created to point to it. A retry mints a fresh `uuid4()`
+key, so repeated failures silently accumulate orphaned blobs. No cleanup job or Storage lifecycle policy
+exists for this bucket anywhere in the codebase (grepped, confirmed zero matches).
+
+**Recommended direction**: either a scheduled cleanup job (compare bucket listing against `intake_jobs.
+storage_path` references, delete unreferenced objects older than N hours) or a Storage bucket lifecycle
+policy if Supabase Storage supports one directly.
+
+**Why not fixed this mission**: a cleanup job is new scheduled infrastructure, outside this sprint's
+"no new capability" bound. Does not cause tracked-document loss — nothing a user could see ever referenced
+these bytes.
+
+**Severity**: Medium — wasted storage, not data loss or a false-success condition.
+
+## INTAKE-003 — `intake_jobs.status`'s richer processing lineage is discarded entirely at Pipeline C finalize (Medium)
+
+Migration 073's `intake_jobs.status` enum (`received/preprocessing/classifying/extracting/matching/
+dedup_check/awaiting_review/completed/failed`) plus the Confidence Graph data captured during Phase 1A
+(OCR confidence, classification method, per-entity confidence, human corrections) has zero linkage to the
+`predmet_dokumenti` row created at finalize — `intake_job_id` appears nowhere in that insert's payload. Once
+finalized, this richer processing history becomes permanently unlinked from the case-file document.
+
+**Recommended direction**: add an `intake_job_id` FK column to `predmet_dokumenti` (nullable, populated only
+on Pipeline C writes) so future case-file views could surface "this document's OCR confidence was X,
+classification method was Y" if ever needed.
+
+**Why not fixed this mission**: a schema/migration decision with product implications (should lawyers ever
+see this data?) this sprint's document-intake-only, no-new-screens charter does not license deciding
+unilaterally.
+
+**Severity**: Medium — no functional defect today, a foreclosed-future-capability cost.
+
+## INTAKE-004 — `routers/copilot.py:804` misreports finished documents as eternally pending (Low-Medium, found but explicitly not touched — Copilot is a forbidden module this sprint)
+
+`status in ("na_cekanju", "greska")` is treated by Copilot as "still actionable/pending." `"greska"` is never
+written anywhere in the codebase (grepped, zero hits — a dead branch). `"na_cekanju"` is the DB default that,
+before this sprint's `INTAKE`-prefixed fixes, 2 writers silently fell through to forever; those 2 writers now
+set an explicit real status (`sacuvano`/`demo`), which incidentally *reduces* how often this Copilot
+mis-signal fires — but the underlying dead/misleading read in `copilot.py` itself is untouched, per this
+sprint's own explicit forbidden-module list.
+
+**Why not fixed this mission**: Copilot is named explicitly in this sprint's charter as a module to
+document, not fix, if a problem is found there.
+
+**Severity**: Low-Medium — a real UX inaccuracy (a lawyer's finished document shows as pending in Copilot),
+but self-contained to a module this sprint has no mandate to touch.

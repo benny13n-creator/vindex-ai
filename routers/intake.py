@@ -230,6 +230,16 @@ async def intake_kreiraj(
                 "user_id":     uid,
                 "naziv_fajla": dok.naziv_fajla[:500],
                 "velicina_kb": 1,
+                # Program Intake Sprint 001 (2026-08-04) -- bez ovoga red pada
+                # na DB default 'na_cekanju', koji lažno sugeriše da je
+                # dokument još u obradi zauvek (Fork 3 finding: dva pisca
+                # predmet_dokumenti nikad ne postavljaju status). Ovaj wizard
+                # korak samo POVEZUJE već otpremljen (session-based) dokument
+                # sa novim predmetom -- ne ponavlja OCR/indeksiranje ovde --
+                # pa 'sacuvano' je najhonestija vrednost iz postojećeg
+                # vokabulara (api.py koristi isto 'sacuvano' kad Pinecone
+                # indeksiranje nije (re)potvrđeno, ne izmišljena nova reč).
+                "status": "sacuvano",
             }
             try:
                 await asyncio.to_thread(

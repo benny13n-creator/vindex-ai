@@ -680,3 +680,36 @@ registry that didn't exist before now makes every known instance discoverable; t
 (DC-009) is proven a 3rd and 4th time; every remaining gap has a named severity, a named blocker, and a
 `GAMMA-00X` tracking entry — not a silent debt. Full detail: `docs/architecture/CANONICAL_DECISION_ENGINE.md`'s
 own Success Metrics table.
+
+## Program Intake, Sprint 001 (2026-08-04) — Bulletproof Document Intake Foundation
+
+**Methodology note**: measured against the mission's own 5 explicit closure-blocking conditions, not against
+commit/line counts — same discipline as Program Gamma.
+
+| Metric | Value |
+|---|---|
+| Pipelines forensically mapped, proven not assumed | 3 (Pipeline A synchronous, Pipeline B durable-queue, Pipeline C finalize) + 1 cross-cutting (Event Bus outbox) |
+| Fork factual contradictions found and personally resolved before implementation | 1 — Smart Intake frontend reachability, resolved by direct `vindex.js` grep, not left ambiguous |
+| Closure-blocking conditions fixed | 2 of 5 — "dokument može nestati" (Pipeline A Storage preservation) and "upload može prijaviti uspeh iako obrada nije bezbedno završena" (`IntakeWorker` false-success bug, the sprint's single most severe finding) |
+| Closure-blocking conditions honestly NOT fully closed | 1 — "više od jednog kanonskog pipeline-a postoji" remains true; full canonicalization explicitly out of scope this sprint (product decision, matches standing `2026-08-02_intake_convergence_DECISION_RECORD.md`) |
+| Independent `predmet_dokumenti` writers found | 6 (not 2, as `ALPHA-003` originally framed) — 3 now set explicit `status`/`tip_dokaza` that previously fell to a misleading default or stayed permanently NULL |
+| Independent document-type classifiers found | 4 (not 2) — 2 persist to DB and participate in the pre-existing classifier race (unchanged, `ALPHA-003`/Gamma Fork E), 2 are ephemeral/never persist (cost duplication only) |
+| OCR call sites found | 3 (corrects Program Alpha's own prior inventory of 1) — all 3 call one shared `extract()` core, so not 3 independent implementations |
+| Audit-trail call sites added | 1 (`dokument_view`) — plumbing (`AUDITABLE_ACTIONS`, UI label) already existed, only the call site was missing |
+| Bounded fixes implemented and tested | 5 — Pipeline A Storage preservation, `IntakeWorker` false-success fix, `dokument_view` audit logging, 2 writers gaining explicit `status`, 1 writer gaining deterministic `tip_dokaza` |
+| Deferred findings, each with named reasoning | 4 (`INTAKE-001` through `INTAKE-004`) — none silently dropped |
+| New/extended tests | 15 across 5 files (`test_intake_original_file_storage.py` new — 2; `test_intake_worker_phase1a.py` extended — 1 new + 1 updated; `test_intake_documents.py` extended — 3 new; `test_intake_dokument_view_audit.py` new — 2; `test_intake_status_writers.py` new — 3) |
+| Full suite | 2,492 passed, 1 skipped, 0 failed (was 2,487 going in) |
+
+**No Mission Olympus governance review phase this sprint** — by the mission's own explicit charter, only its
+5 named agents were active; this is a deliberate, documented deviation from the Alpha/Beta/Gamma pattern, not
+an oversight.
+
+**Success criteria**: the mission's own charter states closure is forbidden if even one of its 5 named
+conditions is true. One is: more than one canonical pipeline exists — still true, unresolved. This sprint
+therefore closes honestly as **bounded reliability hardening within the existing 3-pipeline topology**, not
+as a "mission complete, fully canonical" claim. The two conditions most directly named as forbidden outcomes
+(silent document loss, false-success reporting) are fixed and regression-tested; the topology-collapse
+condition was a pre-existing, already-decided-against product question this sprint's charter did not license
+reopening unilaterally. Full detail: `docs/architecture/INTAKE_ARCHITECTURE_REPORT.md`'s own §6 closure
+self-check.

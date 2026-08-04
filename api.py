@@ -4110,6 +4110,36 @@ async def predmet_upload_auto_analyze(
     if len(raw) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Fajl je preko 10MB")
 
+    # Program Intake Sprint 001 (2026-08-04) -- ovaj endpoint je ranije NIKAD
+    # nije čuvao originalni fajl bilo gde: tempfile se briše u finally bloku
+    # ispod, a storage_path upisan niže (_row) je bio string labela koja ne
+    # pokazuje ni na jedan stvaran objekat u Supabase Storage-u -- jedini
+    # trag koji preživi je isečen tekst_sadrzaj i Pinecone vektori. Za
+    # advokatski sistem evidencije, gubitak originalnog dokumenta (skenirana
+    # slika, potpisan PDF) je neprihvatljiv gubitak, ne kozmetički propust.
+    # Isti šifrovani-pre-upload obrazac kao Smart Intake (routers/
+    # smart_intake.py::_encrypt, koji sam prati klijenti/router.py Trezor) --
+    # reuse-ovan, ne ponovo izmišljen. Best-effort: ako storage upis padne,
+    # ostatak toka (OCR/Pinecone/DB) NIJE blokiran (bila bi regresija u
+    # dostupnosti za funkciju koja ranije nije ni postojala) -- storage_path
+    # ostaje na staroj labeli, jasno signalizirajuci da original NIJE sačuvan,
+    # umesto da tiho tvrdi suprotno.
+    _original_storage_path = None
+    try:
+        import uuid as _uuid
+        from routers.smart_intake import _encrypt as _si_encrypt, _STORAGE_BUCKET as _si_bucket
+        _storage_key = f"{user.id}/{predmet_id}/{_uuid.uuid4().hex}{suffix}"
+        _encrypted = await asyncio.to_thread(_si_encrypt, raw)
+        await asyncio.to_thread(
+            lambda: _get_supa().storage.from_(_si_bucket).upload(
+                path=_storage_key, file=_encrypted,
+                file_options={"content-type": "application/octet-stream", "upsert": "false"},
+            )
+        )
+        _original_storage_path = _storage_key
+    except Exception as _se:
+        logger.warning("[P1.1] Original fajl storage upis neuspesan (nastavljam bez cuvanja originala): %s", _se)
+
     # Extract text
     tmp_path = None
     try:
@@ -4212,7 +4242,13 @@ async def predmet_upload_auto_analyze(
             "predmet_id":          predmet_id,
             "user_id":             user.id,
             "naziv_fajla":         file.filename or "dokument",
-            "storage_path":        f"session/{session_id}",
+            # Program Intake Sprint 001: stvaran, dereferencibilan put u
+            # intake-dokumenti bucket-u kad je upis originala uspeo (iznad);
+            # inace stara "session/{id}" labela koja NIKAD nije pokazivala na
+            # stvaran objekat -- zadrzana kao fallback vrednost, ne kao
+            # tvrdnja da je original sacuvan (honestly reflects the gap,
+            # doesn't paper over it with a value that looks the same either way).
+            "storage_path":        _original_storage_path or f"session/{session_id}",
             # Deljeni namespace (v. napomena iznad) -- vise dokumenata istog
             # vlasnika deli isti namespace, razlikuju se preko predmet_id
             # metadata filtera, ne preko odvojenih namespace-ova.
@@ -4803,6 +4839,25 @@ async def predmet_dokument_preview(
         raise HTTPException(status_code=404, detail="Dokument nije pronađen")
 
     d = row.data
+
+    # Program Intake Sprint 001 (2026-08-04) -- 'dokument_view' je vec u
+    # AUDITABLE_ACTIONS (shared/audit_immutable.py) i vec ima UI labelu
+    # (routers/intelligence_timeline.py) -- samo je ovo pozivno mesto
+    # nedostajalo (Fork 3 finding #3: plumbing postoji na oba kraja, samo
+    # poziv fali). Isti fire-and-forget/best-effort obrazac kao
+    # 'dokument_upload' iznad -- greška u audit upisu ne sme oboriti pregled.
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "dokument_view",
+            user_id=uid,
+            resource_type="dokument",
+            resource_id=dok_id,
+            ip=request.client.host if request.client else None,
+            metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", "")},
+        ))
+    except Exception as _ae:
+        logger.warning("[AUDIT] dokument_view log greška: %s", _ae)
 
     # 1. Primaran izvor: tekst_sadrzaj u Supabase (trajno, ne ističe)
     tekst = (d.get("tekst_sadrzaj") or "").strip()

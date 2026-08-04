@@ -540,3 +540,47 @@ repo (verified, not assumed). Full reports: `docs/architecture/CANONICAL_DECISIO
 - Intake system convergence at the backend/API level — explicitly rejected by decision record
   (`decisions/2026-08-02_intake_convergence_DECISION_RECORD.md`); not reopened without a new
   founder-supplied reason to revisit.
+
+## Program Intake, Sprint 001 (2026-08-04) — Bulletproof Document Intake Foundation
+
+Founder's fourth Master Prompt of the night, narrower scope than Alpha/Beta/Gamma by design: only 5 named
+agents active (Chief Systems Architect, Reliability & Failure Recovery Engineer, Evidence & Consistency
+Auditor, Security & Trust Auditor, Code Quality/Refactoring Reviewer), everyone else STANDBY, no Mission
+Olympus governance review phase for this sprint. Goal: UPLOAD → OCR → VALIDACIJA → STORAGE becomes canonical,
+deterministic, verifiable, production-reliable — no new AI capability, screens, panels, or agents.
+
+**3 parallel forensic forks** confirmed, before any implementation, that **all three upload pipelines are
+live and reachable in production today** — a factual contradiction between two forks (whether Smart Intake's
+frontend wiring exists) was personally resolved by direct grep of `static/vindex.js`, not left ambiguous.
+This raised the real-world severity of every finding: nothing in this sprint's scope was theoretical.
+
+**2 critical fixes implemented and regression-tested** (2492 tests, zero regressions): Pipeline A now
+preserves the original uploaded file in encrypted Supabase Storage (was never stored anywhere before —
+tempfile deleted after OCR, `storage_path` a non-dereferenceable label); `IntakeWorker._process()`'s silent
+false-success bug fixed — a crash between `create_document()` and `write_processing_outcome()` used to cause
+a job to be marked `completed` with zero entities and zero review-queue escalation, indistinguishable from a
+genuine success, inside the exact subsystem Project Phoenix once called "the single most reliable
+AI-adjacent subsystem" in the engagement. **3 supporting fixes**: `dokument_view` audit logging wired
+(plumbing already existed on both ends, only the call site was missing); 2 `predmet_dokumenti` writers that
+silently fell to a misleading `na_cekanju` DB default forever now write explicit, honest `status` values;
+an approved-AI-draft promotion writer that left `tip_dokaza` permanently NULL now sets it deterministically
+(`"podnesak"`, reusing existing vocabulary — no new AI call).
+
+**Full canonicalization of the 3-pipeline topology was explicitly not attempted** — consistent with, and now
+doubly confirmed by, the standing exclusion above (`2026-08-02_intake_convergence_DECISION_RECORD.md`):
+Pipeline A and Pipeline B/C serve genuinely different live product flows; collapsing them is a product
+decision this sprint's charter does not license making unilaterally. What this sprint delivers is bounded
+reliability hardening within the existing topology, honestly characterized as such — not an inflated "fully
+canonical" claim.
+
+**8 required deliverables**: `docs/architecture/INTAKE_ARCHITECTURE_REPORT.md`, `INTAKE_FLOW_DIAGRAM.md`,
+`INTAKE_SOURCE_OF_TRUTH_MATRIX.md`, `INTAKE_FAILURE_RECOVERY_MATRIX.md`, `INTAKE_DUPLICATE_LOGIC_REGISTER.md`,
+`INTAKE_RISK_REGISTER.md`, `INTAKE_TEST_COVERAGE_REPORT.md`, and 4 new entries in
+`ARCHITECTURAL_DEBT_REGISTER.md` (`INTAKE-001` through `INTAKE-004`).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-001 | Pipeline C reports `"ok": true` even when the document insert fails after Pinecone ingest already succeeded (ghost vector) | 1 | Product/API-contract decision — partial-success response shape, or split case-creation from document-attach | Medium | NEEDS_SCOPING | Not a safe direct port of Sentinel's hard-fail pattern (case row already created earlier in the same call — a 500 would misreport genuine partial success and risk a duplicate-creating retry). |
+| INTAKE-002 | Orphaned encrypted Storage blobs on Pipeline B enqueue failure, no cleanup mechanism | 2 | none | Small-Medium | TODO | New scheduled-cleanup infrastructure, out of this sprint's "no new capability" bound; wastes space, does not lose a tracked document. |
+| INTAKE-003 | `intake_jobs.status`'s richer processing lineage discarded entirely at Pipeline C finalize | 3 | Schema/product decision — should case-file views ever surface OCR/classification lineage | Medium | NEEDS_SCOPING | No functional defect today, a foreclosed-future-capability cost. |
+| INTAKE-004 | `routers/copilot.py:804` misreports finished wizard-linked/demo documents as eternally pending | 4 | none — Copilot is explicitly forbidden to touch this sprint | Small | TODO | Documented only per this sprint's own forbidden-module list; not fixed. |

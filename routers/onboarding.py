@@ -274,6 +274,14 @@ async def kreiraj_demo_predmet(
             lambda: supa.table("predmet_dokumenti").insert({
                 "predmet_id": predmet_id, "user_id": uid,
                 "naziv_fajla": "Ugovor_o_isporuci_demo.pdf", "velicina_kb": 128,
+                # Program Intake Sprint 001 (2026-08-04) -- bez ovoga red
+                # pada na DB default 'na_cekanju' (Fork 3 finding). 'demo'
+                # je namerno RAZLIČITO od 'sacuvano'/'indeksirano' -- ovaj
+                # red nema stvaran fajl iza sebe (komentar iznad: "bez
+                # stvarnog fajla"), pa tvrditi da je "sačuvan" bilo bi lažno.
+                # 'demo' čitaocu (i budućem kodu) jasno kaže da je red
+                # sintetički, ne stvaran dokument koji je prošao pipeline.
+                "status": "demo",
             }).execute()
         )
     except Exception as e:

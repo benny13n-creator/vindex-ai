@@ -140,6 +140,35 @@ async def write_processing_outcome(
         logger.warning("[INTAKE_DOCUMENTS] processing_outcome upis neuspešan (non-fatal) za job=%s: %s", intake_job_id[:8], exc)
 
 
+async def has_processing_outcome(intake_job_id: str) -> bool:
+    """Da li je write_processing_outcome već upisan za ovaj posao — jedini
+    pouzdan signal da je _process() (shared/intake_worker.py) STVARNO
+    završio do kraja, jer je to poslednja linija u obe grane (OCR-failed i
+    normalni put). Program Intake Sprint 001 (2026-08-04) — korišćeno da
+    razlikuje "posao je gotov" od "posao je pao usred obrade", jer sama
+    provera "da li dokument postoji" (get_job_result) to ne razlikuje."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("intake_processing_outcomes").select("intake_job_id").eq("intake_job_id", intake_job_id).maybe_single().execute()
+    )
+    return bool(res.data if res else None)
+
+
+async def delete_partial_document(document_id: str, intake_job_id: str) -> None:
+    """Program Intake Sprint 001 (2026-08-04) — čisti tragove nepotpunog
+    pokušaja obrade (dokument postoji, ali processing_outcome ne, što znači
+    da je prethodni pokušaj pao negde između create_document() i
+    write_processing_outcome()) pre ponovne obrade od nule. Redosled
+    brisanja poštuje FK (extracted_entities i intake_review_queue
+    referenciraju intake_documents bez ON DELETE CASCADE — migracija
+    074_intake_phase1a.sql) — deca pre roditelja."""
+    supa = _get_supa()
+    await asyncio.to_thread(lambda: supa.table("extracted_entities").delete().eq("document_id", document_id).execute())
+    await asyncio.to_thread(lambda: supa.table("intake_review_queue").delete().eq("document_id", document_id).execute())
+    await asyncio.to_thread(lambda: supa.table("intake_documents").delete().eq("id", document_id).execute())
+    logger.warning("[INTAKE_DOCUMENTS] nepotpun dokument obrisan: document_id=%s job=%s (ponovna obrada od nule)", document_id[:8], intake_job_id[:8])
+
+
 async def get_job_result(intake_job_id: str) -> dict:
     """Vraća sve što UI treba da prikaže za jedan posao — dokument,
     entiteti (Confidence Graph), i da li čeka review. Jedan pogled, ne

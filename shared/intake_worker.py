@@ -136,8 +136,29 @@ class IntakeWorker:
 
         existing = await intake_documents.get_job_result(job_id)
         if existing["document"] is not None:
-            logger.info("[INTAKE_WORKER] job=%s već ima dokument (verovatno reap posle delimične obrade) — preskačem ponovnu obradu.", job_id[:8])
-            return
+            if await intake_documents.has_processing_outcome(job_id):
+                logger.info("[INTAKE_WORKER] job=%s već potpuno obrađen (idempotentan retry) — preskačem.", job_id[:8])
+                return
+            # Program Intake Sprint 001 (2026-08-04) -- dokument POSTOJI ali
+            # processing_outcome NE POSTOJI: prethodni pokušaj je pao negde
+            # IZMEĐU create_document() i write_processing_outcome() (ta
+            # linija je UVEK poslednja stvar koju _process() radi, u obe
+            # grane ispod). Stari kod je ovo tretirao kao "već gotovo" i
+            # tiho vraćao (bez exception-a) -- _tick() bi onda pozvao
+            # mark_job_completed() na poslu bez ijednog entiteta, bez
+            # review queue unosa, neraspoznatljivo od stvarnog uspeha,
+            # bez loga, bez dead-letter traga. Tačno "upload prijavljuje
+            # uspeh iako obrada nije bezbedno završena" -- Sprint 001
+            # eksplicitno zabranjeno stanje za zatvaranje misije. Ispravka:
+            # obriši nepotpuno stanje i obradi ponovo od nule -- tekst
+            # dokumenta se ionako nigde ne perzistira između koraka, pa
+            # "nastavak odakle je stao" bi ionako morao da ponovi OCR;
+            # čisto ponavljanje je jednostavnije i podjednako jeftino.
+            logger.warning(
+                "[INTAKE_WORKER] job=%s ima NEPOTPUN dokument (prethodni pokušaj pao usred obrade, processing_outcome nedostaje) — brišem i obrađujem ponovo od nule.",
+                job_id[:8],
+            )
+            await intake_documents.delete_partial_document(existing["document"]["id"], job_id)
 
         raw_bytes = await self._download_and_decrypt(job["storage_path"])
 
