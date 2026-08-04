@@ -1025,13 +1025,28 @@ class ConfidenceCheckRequest(BaseModel):
     dokazi: Optional[list[str]] = []
 
 
+_CONFIDENCE_MAX_SCORE = 9  # 3 (rag) + 3 (vks) + 2 (kancelarija) + 1 (dokazi)
+
+
+def _procenat_iz_score(score: int) -> int:
+    """Program Alpha (2026-08-04): deterministički izvodi procenat poverenja
+    iz istog `score`-a koji već odredjuje `nivo`, umesto da drugi, nezavisan
+    GPT poziv nagadja sopstveni broj. Pre ovoga, `nivo` i `procenat` su bila
+    DVA autora jedne percipirane vrednosti (Critical po Program Alpha's
+    sopstvenom pravilu "dva autora istog podatka") -- ništa nije sprečavalo
+    nivo="NISKO" da se prikaže pored procenat=78. Opseg 20-80% namerno nikad
+    ne tvrdi apsolutnu (0% ili 100%) sigurnost."""
+    score = max(0, min(_CONFIDENCE_MAX_SCORE, score))
+    return 20 + round((score / _CONFIDENCE_MAX_SCORE) * 60)
+
+
 def _calc_confidence_nivo(
     rag_hits: int,
     vks_hits: int,
     kancelarija_data: Optional[dict],
     dokazi_count: int,
-) -> tuple[str, str, list[str], list[str]]:
-    """Vraća (nivo, boja, faktori_plus, faktori_minus)."""
+) -> tuple[str, str, list[str], list[str], int]:
+    """Vraća (nivo, boja, faktori_plus, faktori_minus, score)."""
     score = 0
     faktori_plus: list[str] = []
     faktori_minus: list[str] = []
@@ -1075,11 +1090,11 @@ def _calc_confidence_nivo(
         faktori_minus.append("Dokazi nisu navedeni — nepotpuna analiza")
 
     if score >= 7:
-        return "VISOKO", "zelena", faktori_plus, faktori_minus
+        return "VISOKO", "zelena", faktori_plus, faktori_minus, score
     elif score >= 4:
-        return "SREDNJE", "žuta", faktori_plus, faktori_minus
+        return "SREDNJE", "žuta", faktori_plus, faktori_minus, score
     else:
-        return "NISKO", "crvena", faktori_plus, faktori_minus
+        return "NISKO", "crvena", faktori_plus, faktori_minus, score
 
 
 @llm_retry
@@ -1161,13 +1176,16 @@ async def confidence_check(
         _sentry_capture(e)
         logger.debug("[CONFIDENCE] case_patterns greška: %s", e)
 
-    # Korak 3: Nivo pouzdanosti
-    nivo, boja, faktori_plus, faktori_minus = _calc_confidence_nivo(
+    # Korak 3: Nivo pouzdanosti + deterministički procenat izveden IZ ISTOG
+    # score-a (Program Alpha, 2026-08-04) -- ranije je "procenat" bio drugi,
+    # nezavisan autor iste percipirane vrednosti (vidi _procenat_iz_score).
+    nivo, boja, faktori_plus, faktori_minus, _confidence_score = _calc_confidence_nivo(
         rag_hits, vks_hits, kancelarija_data, len(payload.dokazi or [])
     )
+    procenat = _procenat_iz_score(_confidence_score)
 
-    # Korak 4: GPT-4o-mini — kratka procena procenta
-    procenat   = 50
+    # Korak 4: GPT-4o-mini — SAMO kratko obrazloženje/rizik, NIKAD procenat
+    # (taj broj je sada isključivo deterministički, iznad).
     razlog     = ""
     kljucni_rizik = ""
     try:
@@ -1175,19 +1193,18 @@ async def confidence_check(
         oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         dokazi_txt = ", ".join(payload.dokazi[:5]) if payload.dokazi else "nisu navedeni"
         gpt_prompt = (
-            f"Proceni šansu uspeha za sledeći predmet ({payload.tip_spora}):\n\n"
+            f"Predmet ({payload.tip_spora}), procenjeni nivo poverenja: {nivo}.\n\n"
             f"{payload.opis_predmeta[:800]}\n\n"
             f"Dokazi: {dokazi_txt}\n"
             f"Sud: {payload.sud or 'nije naveden'}\n\n"
-            'Odgovori SAMO JSON-om: {"procenat": 65, "razlog_kratko": "...", "kljucni_rizik": "..."}\n'
-            "Ekavica. Max 30 reči za razlog."
+            'Odgovori SAMO JSON-om: {"razlog_kratko": "...", "kljucni_rizik": "..."}\n'
+            "Ekavica. Max 30 reči za razlog. NE navodi procenat ni broj — samo kratko obrazloženje i ključni rizik."
         )
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="confidence_check"):
             raw = await asyncio.to_thread(_pozovi_confidence_api, oai, gpt_prompt)
         import json as _json
         gpt_data    = _json.loads(raw)
-        procenat    = max(0, min(100, int(gpt_data.get("procenat", 50))))
         razlog      = gpt_data.get("razlog_kratko", "")
         kljucni_rizik = gpt_data.get("kljucni_rizik", "")
     except Exception as e:

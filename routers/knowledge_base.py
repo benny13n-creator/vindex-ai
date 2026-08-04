@@ -37,6 +37,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.services.retrieve import EMBEDDING_MODEL
 from shared.deps import _get_supa, get_current_user
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
@@ -52,7 +53,7 @@ router = APIRouter(tags=["knowledge_base"])
 def _pozovi_kb_embed_api(oai, text: str):
     """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
     backoff-om za rate-limit/5xx/timeout/connection greške."""
-    return oai.embeddings.create(model="text-embedding-3-large", input=text[:8000])
+    return oai.embeddings.create(model=EMBEDDING_MODEL, input=text[:8000])
 
 
 @llm_retry

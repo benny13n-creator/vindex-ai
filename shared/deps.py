@@ -302,8 +302,15 @@ async def get_current_user(
     # "who triggered this AI call" without any of the ~130 AI call sites
     # needing to pass user_id through explicitly.
     try:
-        from shared.ai_provenance import set_request_context
-        set_request_context(user_id=payload.get("sub"))
+        from shared.ai_provenance import set_request_context, current_correlation_id
+        # Program Alpha (2026-08-04): reuse the correlation_id
+        # api.py::correlation_id_middleware already set for this request
+        # (it runs earlier, before this dependency resolves) instead of
+        # overwriting it with a freshly-minted one -- set_request_context()
+        # replaces the whole context dict, so omitting this would silently
+        # orphan the id already returned to the client in the
+        # X-Correlation-ID response header.
+        set_request_context(user_id=payload.get("sub"), correlation_id=current_correlation_id())
     except Exception:
         pass
     return {"user_id": payload.get("sub"), "email": email}

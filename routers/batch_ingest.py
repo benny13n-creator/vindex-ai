@@ -18,6 +18,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from app.services.retrieve import EMBEDDING_MODEL
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -51,7 +52,7 @@ async def _require_admin(user: dict = Depends(get_current_user)) -> dict:
 def _embed(texts: list[str]) -> list[list[float]]:
     from openai import OpenAI
     client = OpenAI()
-    resp = client.embeddings.create(model="text-embedding-3-large", input=texts)
+    resp = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
     return [e.embedding for e in resp.data]
 
 

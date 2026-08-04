@@ -99,8 +99,16 @@ AUDITABLE_ACTIONS: set[str] = {
     # Recovery Validation. Zatvara pravu tihu izgubljenu-podatak rupu:
     # nightly proactive_alerts insert je ranije bio DEBUG-only log sa nula
     # pokušaja; sada ima retry + ovaj durable audit trag ako i posle
-    # ponavljanja ne uspe.
+    # ponavljanja ne uspe. SUPERSEDED (Program Alpha, 2026-08-04) — kept in
+    # this allowlist only so any already-written historical audit rows using
+    # this action name remain valid; no code path generates it anymore (see
+    # "proactive_alert_insert_failed" below, which generalizes this exact
+    # pattern to all 12 proactive_alerts call sites, not just the nightly one).
     "nightly_alert_insert_failed",
+    # Program Alpha (2026-08-04) — canonical shared/proactive_alerts.py::
+    # create_proactive_alert() generalizes Phoenix's nightly-only retry+audit
+    # pattern above to every proactive_alerts call site platform-wide.
+    "proactive_alert_insert_failed",
     # Phase 8 (Mission Migration remainder, closed by Project Phoenix
     # 2026-08-03 since its own reliability work touched these exact call
     # sites): main.py::ask_agent and Drafting's generate/analiza calls.

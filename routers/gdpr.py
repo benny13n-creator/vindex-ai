@@ -197,14 +197,6 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
             on_conflict="user_id",
         ).execute()
 
-        try:
-            from app.services import audit_log as _al
-            _al.log(uid, "gdpr_account_deleted", {
-                "original_email_hash": hashlib.sha256(email.encode()).hexdigest()[:16],
-            })
-        except Exception:
-            pass
-
     await asyncio.to_thread(_delete)
     logger.info("[GDPR] account deleted uid=%.8s", uid)
 

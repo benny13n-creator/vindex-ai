@@ -549,16 +549,15 @@ async def finalize_intake_job(
                 result = await _run_conflict_check(uid, klijent_ime, "", protivna_strana_val, "")
                 if result.get("conflict_detected"):
                     opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
-                    await asyncio.to_thread(
-                        lambda: supa.table("proactive_alerts").insert({
-                            "user_id": uid,
-                            "predmet_id": predmet_id,
-                            "naslov": "BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
-                            "opis": f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
-                            "tip": "sukob_interesa",
-                            "urgentnost": "hitna" if result.get("has_blocker") else "normalna",
-                            "procitana": False,
-                        }).execute()
+                    from shared.proactive_alerts import create_proactive_alert
+                    await create_proactive_alert(
+                        supa,
+                        user_id=uid,
+                        predmet_id=predmet_id,
+                        tip="sukob_interesa",
+                        naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
+                        opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+                        urgentnost="hitna" if result.get("has_blocker") else "normalna",
                     )
             except Exception as cce:
                 logger.warning("[SMART_INTAKE] Conflict-check greška (non-fatal) predmet=%s: %s", predmet_id, cce)

@@ -292,7 +292,14 @@ class TestNightlyAlertRetry:
     async def test_alert_insert_creates_durable_audit_entry_when_retries_exhausted(self):
         """The CRITICAL fix: a permanently-failing alert insert must no
         longer vanish with only a debug-level log -- it must produce a
-        durable, queryable audit trail of the loss."""
+        durable, queryable audit trail of the loss. Program Alpha
+        (2026-08-04): this retry+audit logic now lives in the canonical
+        shared/proactive_alerts.py::create_proactive_alert(), generalized
+        to all 12 proactive_alerts call sites platform-wide, not just this
+        one -- the action name changed from "nightly_alert_insert_failed"
+        to "proactive_alert_insert_failed" accordingly (the old name is
+        still in AUDITABLE_ACTIONS for historical rows, but no code path
+        generates it anymore)."""
         from routers.morning_briefing import nightly_intelligence_run
 
         audit_calls = []
@@ -339,7 +346,7 @@ class TestNightlyAlertRetry:
         await asyncio.sleep(0)  # let the fire-and-forget audit task run
 
         assert len(audit_calls) == 1
-        assert audit_calls[0]["action"] == "nightly_alert_insert_failed"
+        assert audit_calls[0]["action"] == "proactive_alert_insert_failed"
         assert audit_calls[0]["user_id"] == "u1"
 
 

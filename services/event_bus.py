@@ -84,19 +84,47 @@ async def on_rok_kritican(event: Event) -> None:
         )
 
         from shared.deps import _get_supa
+        from shared.proactive_alerts import create_proactive_alert
         supa = _get_supa()
         rok_naziv = event.payload.get("naziv", "Rok")
         rok_datum = event.payload.get("datum", "")
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id":    event.user_id,
-                "predmet_id": event.predmet_id,
-                "tip":        "rok_kritican",
-                "naslov":     f"Kritičan rok: {rok_naziv}",
-                "opis":       f"Rok ističe: {rok_datum}. Odmah proverite predmet.",
-                "urgentnost": "hitna",
-            }).execute()
+        _ok = await create_proactive_alert(
+            supa,
+            user_id=event.user_id,
+            predmet_id=event.predmet_id,
+            tip="rok_kritican",
+            naslov=f"Kritičan rok: {rok_naziv}",
+            opis=f"Rok ističe: {rok_datum}. Odmah proverite predmet.",
+            urgentnost="hitna",
+            # Mission Olympus governance review (2026-08-04, F-5), kept
+            # forward-compatible even though not currently load-bearing for
+            # THIS handler (see the corrected note below): if ROK_KRITICAN
+            # is ever converted to the durable outbox (SENT-001, still
+            # open), this same handler would then run inside
+            # dispatch_pending_events()'s batch loop, where the internal
+            # blocking retry would compound with the outer one and risk
+            # exceeding migration 091's stale-claim window.
+            retry_internally=False,
         )
+        if not _ok:
+            # CORRECTED (Mission Olympus governance review, 2026-08-04,
+            # Reliability & Chaos Agent's F-1 finding): this handler is
+            # currently invoked ONLY via the in-process emit()/bus.publish()
+            # path (routers/matter_intel.py) -- publish()'s own _run()
+            # wrapper (below in this file) catches every handler exception
+            # and only logs it, it never re-raises further. This `raise`
+            # does NOT currently reach dispatch_pending_events()'s outer
+            # retry/dead-letter mechanism the way on_document_job_failed's
+            # does (that one IS durable-outbox-connected) -- ROK_KRITICAN
+            # has no durable outbox row at all yet (SENT-001, unchanged,
+            # still open). This raise still has real, if smaller, value:
+            # it's caught by this handler's own outer except below and
+            # logged there, and keeps this handler's shape consistent with
+            # every other Event Bus handler's re-raise-after-log discipline
+            # (Project Phoenix) so it's automatically correct the day
+            # SENT-001 is finally closed. Do not read this as "dead-lettered
+            # if it fails" -- it is not, today.
+            raise RuntimeError(f"proactive_alert insert permanently failed: rok_kritican predmet={event.predmet_id}")
         logger.info("[EventBus] on_rok_kritican: predmet=%s rok=%s", event.predmet_id, rok_naziv)
     except Exception as exc:
         logger.warning("[EventBus] on_rok_kritican greška: %s", exc)
@@ -142,17 +170,20 @@ async def on_health_score_promenjen(event: Event) -> None:
         if score >= 30:
             return
         from shared.deps import _get_supa
+        from shared.proactive_alerts import create_proactive_alert
         supa = _get_supa()
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id":    event.user_id,
-                "predmet_id": event.predmet_id,
-                "tip":        "nizak_health_score",
-                "naslov":     f"Predmet u riziku — Health Score: {score}/100",
-                "opis":       "Predmet ima nizak health score. Proverite nedostajuće dokaze i rokove.",
-                "urgentnost": "visoka",
-            }).execute()
+        _ok = await create_proactive_alert(
+            supa,
+            user_id=event.user_id,
+            predmet_id=event.predmet_id,
+            tip="nizak_health_score",
+            naslov=f"Predmet u riziku — Health Score: {score}/100",
+            opis="Predmet ima nizak health score. Proverite nedostajuće dokaze i rokove.",
+            urgentnost="visoka",
+            retry_internally=False,  # see on_rok_kritican's own comment above
         )
+        if not _ok:
+            raise RuntimeError(f"proactive_alert insert permanently failed: nizak_health_score predmet={event.predmet_id}")
         logger.info("[EventBus] on_health_score: alert za score=%d predmet=%s", score, event.predmet_id)
     except Exception as exc:
         logger.warning("[EventBus] on_health_score_promenjen greška: %s", exc)
@@ -188,16 +219,29 @@ async def on_document_job_failed(event: Event) -> None:
             return
         naziv = (job.get("storage_path") or "dokument").rsplit("/", 1)[-1]
         greska = (job.get("last_error") or "")[:200]
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id":    uid,
-                "predmet_id": job.get("predmet_id"),
-                "tip":        "dokument_obrada_neuspesna",
-                "naslov":     f"Obrada dokumenta neuspešna: {naziv}",
-                "opis":       f"Dokument nije uspeo da se obradi posle svih pokušaja. Greška: {greska}. Otpremite dokument ponovo.",
-                "urgentnost": "visoka",
-            }).execute()
+        from shared.proactive_alerts import create_proactive_alert
+        _ok = await create_proactive_alert(
+            supa,
+            user_id=uid,
+            predmet_id=job.get("predmet_id"),
+            tip="dokument_obrada_neuspesna",
+            naslov=f"Obrada dokumenta neuspešna: {naziv}",
+            opis=f"Dokument nije uspeo da se obradi posle svih pokušaja. Greška: {greska}. Otpremite dokument ponovo.",
+            urgentnost="visoka",
+            # Mission Olympus governance review (2026-08-04, F-5) -- unlike
+            # on_rok_kritican/on_health_score_promenjen above, THIS handler
+            # genuinely IS invoked via the durable outbox: fail_intake_job
+            # (migrations/073_intake_foundations.sql) inserts a real
+            # DocumentJobFailed row into 'events', dispatched via
+            # dispatch_pending_events() -> bus.publish_async(). The `raise`
+            # below genuinely does reach that outer retry/dead-letter
+            # mechanism (Project Phoenix) for this handler specifically --
+            # retry_internally=False here avoids compounding this
+            # function's own blocking retry with that outer one.
+            retry_internally=False,
         )
+        if not _ok:
+            raise RuntimeError(f"proactive_alert insert permanently failed: dokument_obrada_neuspesna intake_job={job_id}")
         logger.info("[EventBus] on_document_job_failed: alert kreiran za intake_job=%s uid=%s", job_id, uid)
     except Exception as exc:
         logger.warning("[EventBus] on_document_job_failed greška: %s", exc)

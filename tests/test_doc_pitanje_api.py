@@ -28,7 +28,6 @@ _mock_main.ask_agent.return_value = {
     "top_law": "ugovor.docx",
 }
 sys.modules.setdefault("main", _mock_main)
-sys.modules.setdefault("app.services.audit_log", MagicMock())
 sys.modules.setdefault("templates.podnesci", MagicMock())
 sys.modules.setdefault("knowledge.vks_standards", MagicMock())
 sys.modules.setdefault("pinecone", MagicMock())

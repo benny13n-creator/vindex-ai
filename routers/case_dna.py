@@ -24,7 +24,6 @@ import asyncio
 import json
 import logging
 import os
-import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -435,20 +434,16 @@ async def _maybe_alert_require_review(
     stara_v = stari_genome.get("_verifikacija") or {} if isinstance(stari_genome, dict) else {}
     if nova_v.get("odluka") != "require_review" or stara_v.get("odluka") == "require_review":
         return
-    try:
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id": uid,
-                "predmet_id": predmet_id,
-                "naslov": f"Genome v{genome.get('verzija', 1)} zahteva pregled",
-                "opis": _verifikacija_alert_text(nova_v, genome.get("verzija", 1)),
-                "tip": "genome_verification_required",
-                "urgentnost": "visoka",
-                "procitana": False,
-            }).execute()
-        )
-    except Exception as ve:
-        logger.warning("[GENOME] Verifikacija alert greška: %s", ve)
+    from shared.proactive_alerts import create_proactive_alert
+    await create_proactive_alert(
+        supa,
+        user_id=uid,
+        predmet_id=predmet_id,
+        tip="genome_verification_required",
+        naslov=f"Genome v{genome.get('verzija', 1)} zahteva pregled",
+        opis=_verifikacija_alert_text(nova_v, genome.get("verzija", 1)),
+        urgentnost="visoka",
+    )
 
 
 async def _save_genome_history(
@@ -530,10 +525,15 @@ async def _emit_genome_event(
     1.3 pravi sopstveni audit poziv, produzava vec postojeci 1.1/1.2 cevovod.
     """
     try:
-        from shared.ai_provenance import current_correlation_id
-        correlation_id = current_correlation_id() or str(uuid.uuid4())
+        from shared.ai_provenance import current_correlation_id, new_correlation_id
+        correlation_id = current_correlation_id() or new_correlation_id()
     except Exception:
-        correlation_id = str(uuid.uuid4())
+        # Program Alpha (2026-08-04): use the same canonical minting function
+        # as the try-branch above, not a second, independent uuid.uuid4()
+        # call -- there is exactly one place a fresh correlation_id is ever
+        # minted in this codebase.
+        from shared.ai_provenance import new_correlation_id
+        correlation_id = new_correlation_id()
     _row = {
         "event_type": EventType.GENOME_UPDATED.value,
         "user_id": uid,
@@ -754,25 +754,24 @@ async def _do_genome_refresh(
             tekst = _delta_alert_text(delta_obj, verzija, trigger)
             snaga_d = abs(delta_obj.get("snaga_delta", 0))
             hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
-            try:
-                # Kolone potvrdjene naspram zive seme (Reality Validation batch,
-                # 2026-07-18): 'tekst_alerta'/'tip_alerta'/'hitnost' NISU postojali —
-                # stvarna sema je naslov/opis/tip/urgentnost (ista kao ostali
-                # proactive_alerts insert-i u services/event_bus.py). Feature je bio
-                # 100% neuspesan (PGRST204 na svakom pozivu) otkad je napisan.
-                await asyncio.to_thread(
-                    lambda: supa.table("proactive_alerts").insert({
-                        "user_id": uid,
-                        "predmet_id": predmet_id,
-                        "naslov": f"Genome ažuriran — v{verzija}",
-                        "opis": tekst,
-                        "tip": "genome_change",
-                        "urgentnost": hitnost,
-                        "procitana": False,
-                    }).execute()
-                )
-            except Exception as ae:
-                logger.warning("[GENOME] Alert insert greška: %s", ae)
+            # Kolone potvrdjene naspram zive seme (Reality Validation batch,
+            # 2026-07-18): 'tekst_alerta'/'tip_alerta'/'hitnost' NISU postojali —
+            # stvarna sema je naslov/opis/tip/urgentnost. Feature je bio 100%
+            # neuspesan (PGRST204 na svakom pozivu) otkad je napisan -- tacno
+            # klasa greske koju shared/proactive_alerts.py's kanonska funkcija
+            # (Program Alpha, 2026-08-04) sada strukturno sprecava (pogresno
+            # ime parametra postaje Python TypeError na mestu poziva, ne tiha
+            # Postgres neuslaglasenost seme).
+            from shared.proactive_alerts import create_proactive_alert
+            await create_proactive_alert(
+                supa,
+                user_id=uid,
+                predmet_id=predmet_id,
+                tip="genome_change",
+                naslov=f"Genome ažuriran — v{verzija}",
+                opis=tekst,
+                urgentnost=hitnost,
+            )
 
         # G-032 (D27) — require_review signal sada ima potrošača
         await _maybe_alert_require_review(supa, predmet_id, uid, stari_genome, genome)
@@ -914,19 +913,16 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
         alert_msg = _delta_alert_text(delta_obj, nova_verzija, "manual_refresh")
         snaga_d = abs(delta_obj.get("snaga_delta", 0))
         hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
-        try:
-            await asyncio.to_thread(
-                lambda: supa.table("proactive_alerts").insert({
-                    "user_id": uid, "predmet_id": predmet_id,
-                    "naslov": f"Genome ažuriran — v{nova_verzija}",
-                    "opis": alert_msg,
-                    "tip": "genome_change",
-                    "urgentnost": hitnost,
-                    "procitana": False,
-                }).execute()
-            )
-        except Exception:
-            pass
+        from shared.proactive_alerts import create_proactive_alert
+        await create_proactive_alert(
+            supa,
+            user_id=uid,
+            predmet_id=predmet_id,
+            tip="genome_change",
+            naslov=f"Genome ažuriran — v{nova_verzija}",
+            opis=alert_msg,
+            urgentnost=hitnost,
+        )
 
     # G-032 (D27) — require_review signal sada ima potrošača
     if _update_ok:

@@ -28,8 +28,9 @@ def _get_pinecone_index():
 
 def _get_embeddings_client():
     from langchain_openai import OpenAIEmbeddings
+    from app.services.retrieve import EMBEDDING_MODEL
     return OpenAIEmbeddings(
-        model="text-embedding-3-large",
+        model=EMBEDDING_MODEL,
         dimensions=3072,
         openai_api_key=os.environ["OPENAI_API_KEY"],
     )

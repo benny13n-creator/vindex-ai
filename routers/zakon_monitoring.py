@@ -260,20 +260,17 @@ async def _skeniraj_sl_glasnik(supa, dana_unazad: int = 7) -> dict:
                 f"Sazetak: {sazetak[:300]}\n\n"
                 f"Pogođeni predmeti ({len(predmeti)}): {predmeti_nazivi}"
             )
-            try:
-                await asyncio.to_thread(
-                    lambda u=uid, a=alert_opis, v=vaznost: supa.table("proactive_alerts").insert({
-                        "user_id":    u,
-                        "tip":        "zakon_promenjen",
-                        "naslov":     f"Promena zakona: {naziv[:80]}",
-                        "opis":       a[:1000],
-                        "urgentnost": "visoka" if v == "visoka" else "normalna",
-                        "procitana":  False,
-                    }).execute()
-                )
+            from shared.proactive_alerts import create_proactive_alert
+            _ok = await create_proactive_alert(
+                supa,
+                user_id=uid,
+                tip="zakon_promenjen",
+                naslov=f"Promena zakona: {naziv[:80]}",
+                opis=alert_opis[:1000],
+                urgentnost="visoka" if vaznost == "visoka" else "normalna",
+            )
+            if _ok:
                 alertovi += 1
-            except Exception as e:
-                logger.debug("[ZAKON] alert insert greška: %s", e)
 
         await asyncio.sleep(0.3)  # Rate limit prema OpenAI
 
@@ -543,20 +540,16 @@ async def impact_analiza(
         # Alert ako visok rizik
         alertova = 0
         if rizik == "visok":
-            try:
-                await asyncio.to_thread(
-                    lambda: supa.table("proactive_alerts").insert({
-                        "user_id":    uid,
-                        "tip":        "zakon_promenjen",
-                        "naslov":     f"Visok rizik: izmene zakona utiču na predmet '{predmet.get('naziv', '')[:60]}'",
-                        "opis":       ai_result.get("obrazlozenje", "")[:800],
-                        "urgentnost": "visoka",
-                        "procitana":  False,
-                    }).execute()
-                )
+            from shared.proactive_alerts import create_proactive_alert
+            if await create_proactive_alert(
+                supa,
+                user_id=uid,
+                tip="zakon_promenjen",
+                naslov=f"Visok rizik: izmene zakona utiču na predmet '{predmet.get('naziv', '')[:60]}'",
+                opis=ai_result.get("obrazlozenje", "")[:800],
+                urgentnost="visoka",
+            ):
                 alertova = 1
-            except Exception:
-                pass
 
         return {
             "predmet":           predmet,

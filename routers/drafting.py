@@ -22,7 +22,6 @@ import asyncio
 import json
 import logging
 import os
-import time as _time
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
@@ -40,7 +39,6 @@ from shared.llm_retry import llm_retry
 from main import ask_analiza, _skini_pii
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
-from app.services import audit_log as _al
 from templates.podnesci import (
     TIPOVI as PODNESAK_TIPOVI,
     EKSTRAKCIONI_PROMPTOVI,
@@ -545,8 +543,6 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
     try:
-        qh_nacrt = _q_hash(_skini_pii(req.opis))
-        t0 = _time.monotonic()
         # Project Phoenix (2026-08-03) — Phase 8: migrates the deep
         # generation call itself (previously only the router-level staging
         # step, _stage_draft_for_review, had audit/case-context wiring --
@@ -555,14 +551,6 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(predmet_id=req.predmet_id, module_name="drafting", operation_name="nacrt"):
             rezultat = await _pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis), user["user_id"])
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        _al.log_response(
-            endpoint="/api/nacrt",
-            query_hash=qh_nacrt,
-            tip=req.vrsta[:20],
-            response_text=rezultat.get("data", ""),
-            latency_ms=latency_ms,
-        )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         if isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
             from shared.audit_immutable import log_action
@@ -591,21 +579,12 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(Permis
     logger.info("Analiza [uid=%.8s] [q=%s]", user["user_id"], qh)
     asyncio.create_task(_audit(user["user_id"], "analiza", qh))
     try:
-        qh_analiza = _q_hash(_skini_pii(req.pitanje or req.tekst[:200]))
-        t0 = _time.monotonic()
         # Project Phoenix (2026-08-03) — Phase 8, same reasoning as nacrt()
         # above: no predmet_id by design (AnalizaReq has no case-scope
         # field), matching Strategy Engine's own precedent.
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(module_name="drafting", operation_name="analiza"):
             rezultat = await _pokreni(ask_analiza, req.tekst, req.pitanje)
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        _al.log_response(
-            endpoint="/api/analiza",
-            query_hash=qh_analiza,
-            response_text=rezultat.get("data", ""),
-            latency_ms=latency_ms,
-        )
         is_blocked = (rezultat.get("data") or "").startswith("[!] ANALIZA BLOKIRANA")
         if rezultat.get("status") == "success" and not is_blocked:
             preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")

@@ -23,7 +23,6 @@ os.environ.setdefault("FOUNDER_TOKEN", "test-admin-token-12345")
 
 _mock_main = MagicMock()
 sys.modules.setdefault("main", _mock_main)
-sys.modules.setdefault("app.services.audit_log", MagicMock())
 sys.modules.setdefault("templates.podnesci", MagicMock())
 sys.modules.setdefault("knowledge.vks_standards", MagicMock())
 sys.modules.setdefault("pinecone", MagicMock())

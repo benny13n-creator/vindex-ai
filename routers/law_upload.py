@@ -21,6 +21,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 
+from app.services.retrieve import EMBEDDING_MODEL
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -80,7 +81,7 @@ def _chunk(text: str) -> list[str]:
 
 def _embed(texts: list[str]) -> list[list[float]]:
     from openai import OpenAI
-    resp = OpenAI().embeddings.create(model="text-embedding-3-large", input=texts)
+    resp = OpenAI().embeddings.create(model=EMBEDDING_MODEL, input=texts)
     return [e.embedding for e in resp.data]
 
 

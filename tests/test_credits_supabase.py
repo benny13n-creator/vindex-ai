@@ -128,8 +128,7 @@ def test_pitanje_deduct_called_on_success():
     with patch.object(_api, "klasifikuj_pitanje", return_value="PARNICA"), \
          patch.object(_api, "_deduct_credit", return_value=5) as mock_deduct, \
          patch.object(_api, "_get_credits", return_value=5), \
-         patch.object(_api, "_audit", return_value=None), \
-         patch.object(_api._al, "log_response"):
+         patch.object(_api, "_audit", return_value=None):
         # Call the endpoint logic directly via helper reconstruction
         user = {"user_id": "uid-test", "email": "user@test.com", "credits_remaining": 6}
         uid = user["user_id"]

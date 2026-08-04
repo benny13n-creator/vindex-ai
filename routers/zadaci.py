@@ -117,21 +117,18 @@ async def _get_firma_info(supa, uid: str) -> dict:
 
 
 async def _posalji_notifikaciju(supa, dodeljen_uid: str, naziv: str, kreirao: str, prioritet: str) -> None:
-    """Kreira proactive_alert za dodelje_nog člana."""
-    try:
-        urgentnost = "hitna" if prioritet == "hitno" else ("visoka" if prioritet == "visoko" else "normalna")
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id":    dodeljen_uid,
-                "tip":        "novi_zadatak",
-                "naslov":     f"Novi zadatak: {naziv[:60]}",
-                "opis":       f"Zadatak [{prioritet.upper()}] dodelio/la vam je kolega/ica.",
-                "urgentnost": urgentnost,
-                "procitana":  False,
-            }).execute()
-        )
-    except Exception as e:
-        logger.debug("[ZADACI] notifikacija greška: %s", e)
+    """Kreira proactive_alert za dodelje_nog člana. Program Alpha (2026-08-04):
+    delegates to the canonical shared/proactive_alerts.py."""
+    urgentnost = "hitna" if prioritet == "hitno" else ("visoka" if prioritet == "visoko" else "normalna")
+    from shared.proactive_alerts import create_proactive_alert
+    await create_proactive_alert(
+        supa,
+        user_id=dodeljen_uid,
+        tip="novi_zadatak",
+        naslov=f"Novi zadatak: {naziv[:60]}",
+        opis=f"Zadatak [{prioritet.upper()}] dodelio/la vam je kolega/ica.",
+        urgentnost=urgentnost,
+    )
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────

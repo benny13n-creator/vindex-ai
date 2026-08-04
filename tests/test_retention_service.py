@@ -251,13 +251,21 @@ class TestExcludedTablesAreActuallyLive:
     (part of the GDPR data export!), routers/onboarding.py, routers/voice.py,
     api.py. `response_audit` genuinely has no migration in migrations/ (only
     in legacy supabase_setup.sql/supabase_migration_v3.sql -- a real
-    SEC-034-class untracked-schema instance) but IS written by
+    SEC-034-class untracked-schema instance) and WAS written by
     app/services/audit_log.py -- the original Bash grep for it failed due
     to shell-escaping, not because the call site doesn't exist.
 
-    These tests lock in the CORRECTED understanding: both tables are live,
-    excluded from this retention job only because their retention period
-    hasn't been decided yet -- not because they might be dead."""
+    UPDATE (Program Alpha, 2026-08-04): app/services/audit_log.py and its
+    5 call sites were removed -- response_audit was a duplicate audit
+    mechanism, superseded by ai_forensics (Mission Atlas), which already
+    captures the same data for the same calls. response_audit itself
+    stays excluded here (retention decision for its historical rows is a
+    separate, still-open question), but it no longer receives new writes.
+
+    These tests lock in the CORRECTED understanding: usage_events is live;
+    response_audit is now historical-only -- both remain excluded from
+    this retention job because their retention period hasn't been decided
+    yet, not because they might be dead."""
 
     def test_excluded_tables_never_targeted_by_delete_calls(self):
         """Whatever we know or don't know about these tables, this retention
@@ -286,7 +294,16 @@ class TestExcludedTablesAreActuallyLive:
         ]
         assert len(hits) >= 1, "usage_events no longer referenced anywhere -- if genuinely dead now, re-evaluate"
 
-    def test_response_audit_is_referenced_in_application_code(self):
+    def test_response_audit_no_longer_referenced_in_application_code(self):
+        """Program Alpha (2026-08-04): this used to assert the OPPOSITE (at
+        least one reference must exist) -- response_audit was a real,
+        actively-written duplicate of ai_forensics (Mission Atlas) for the
+        same per-AI-call data, confirmed write-only (zero readers) and
+        retired: app/services/audit_log.py and all 5 call sites
+        (drafting.py x2, api.py x3) were removed. This guard now protects
+        the opposite regression -- a future change accidentally
+        reintroducing a second, independent audit mechanism instead of
+        using the canonical shared/audit_immutable.py or ai_forensics."""
         from pathlib import Path
         repo_root = Path(__file__).resolve().parent.parent
         hits = [
@@ -294,7 +311,7 @@ class TestExcludedTablesAreActuallyLive:
             if "tests" not in f.parts and "__pycache__" not in f.parts
             and '.table("response_audit")' in f.read_text(encoding="utf-8", errors="replace")
         ]
-        assert len(hits) >= 1, "response_audit no longer referenced anywhere -- if genuinely dead now, re-evaluate"
+        assert hits == [], f"response_audit referenced again in {hits} -- was retired by Program Alpha (2026-08-04) as a duplicate of ai_forensics; if a new need genuinely requires it, use the canonical audit mechanisms instead of reviving this one"
 
 
 if __name__ == "__main__":

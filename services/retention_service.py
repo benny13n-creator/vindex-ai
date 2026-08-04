@@ -32,14 +32,19 @@ NIJE OBUHVAĆENO OVIM MODULOM, namerno:
         routers/voice.py, api.py.
       * response_audit -- NEMA migraciju u migrations/ (samo u legacy
         supabase_setup.sql/supabase_migration_v3.sql -- ovo JESTE prava
-        SEC-034-klasa netraćene šeme), ali JE aktivno korišćena
+        SEC-034-klasa netraćene šeme), i BILA JE aktivno korišćena
         (app/services/audit_log.py) -- originalna Bash grep komanda je
         promašila ovaj poziv zbog escaping problema u shell-u, ne zato
         što ne postoji.
-    Zaključak: obe tabele su NAMERNO izostavljene iz ovog cleanup-a, ali
-    razlog nije "možda su mrtve" nego "aktivno se koriste, nemaju još
-    definisan retention period" -- to je zaseban, budući scoping posao,
-    ne ova promena. Ne preimenovati u "dead" bilo gde u kodu/dokumentaciji.
+    AŽURIRANJE (Program Alpha, 2026-08-04): response_audit je od ove
+    misije PRESTALA da se piše -- app/services/audit_log.py::log_response
+    i svih 5 poziva (drafting.py x2, api.py x3) uklonjeni kao duplikat
+    izvor istine za podatke koje ai_forensics (Mission Atlas) već
+    pouzdano hvata za isti skup poziva. Tabela ostaje u bazi (schema drop
+    je van dometa ove misije -- Database Architect-ova nadležnost), ali
+    više nije "aktivno korišćena" -- samo istorijski redovi, bez novih
+    upisa otkad je ova napomena ažurirana. usage_events ostaje aktivno
+    korišćena, nepromenjeno.
 """
 from __future__ import annotations
 

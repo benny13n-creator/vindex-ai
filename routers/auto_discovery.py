@@ -54,6 +54,7 @@ from fastapi import (
 from pydantic import BaseModel, Field
 from pypdf import PdfReader
 
+from app.services.retrieve import EMBEDDING_MODEL
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -161,7 +162,7 @@ def _embed_chunks(chunks: list[str]) -> list[list[float]]:
         batch = chunks[i : i + _EMBED_BATCH]
         try:
             resp = oai.embeddings.create(
-                model="text-embedding-3-large",
+                model=EMBEDDING_MODEL,
                 input=batch,
             )
             svi_embeddings.extend([e.embedding for e in resp.data])

@@ -93,7 +93,6 @@ _ERR_LOG: list[float] = []  # timestamps 5xx grešaka
 from main import ask_agent, ask_nacrt, ask_analiza, ask_analiza_v2, _skini_pii, klasifikuj_pitanje
 from drafting.router import generate_draft as _drafting_generate
 from drafting.templates import get_types_list as _drafting_get_types
-from app.services import audit_log as _al
 from templates.podnesci import (
     TIPOVI as PODNESAK_TIPOVI,
     EKSTRAKCIONI_PROMPTOVI,
@@ -982,15 +981,28 @@ async def _check_user_rate_limit(user_id: str, path: str) -> bool:
     return True
 
 
-import uuid as _uuid
-import contextvars as _cv
-_correlation_id_var: _cv.ContextVar[str] = _cv.ContextVar("correlation_id", default="")
-
-
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
-    cid = request.headers.get("X-Correlation-ID") or str(_uuid.uuid4())
-    _correlation_id_var.set(cid)
+    """Program Alpha (2026-08-04): previously minted/stored the correlation_id
+    in its own, fully independent ContextVar (`_correlation_id_var`), with
+    zero readers anywhere else in the codebase — the ONE piece of correlation
+    infrastructure actually visible to a client (this header) was completely
+    disconnected from shared/ai_provenance.py's own request context, which 4
+    prior missions (Ledger, Migration, Phoenix, Keystone) spent real effort
+    wiring end-to-end into audit_immutable/ai_forensics/events. A lawyer or
+    support engineer taking this header's value and searching for it in any
+    of those tables would never find a match. Now sets the SAME canonical
+    context this whole codebase already uses, at the earliest point in the
+    request lifecycle (middleware runs before route dependencies/auth) --
+    shared/deps.py::get_current_user (the async, non-thread-offloaded auth
+    path used by the large majority of endpoints) reuses this same id via
+    current_correlation_id() rather than minting a second one."""
+    from shared.ai_provenance import set_request_context
+    # set_request_context() already implements "use the provided id, or mint
+    # a fresh one" internally (shared/ai_provenance.py::set_request_context)
+    # and returns whichever one is now in effect -- no separate minting logic
+    # needed here.
+    cid = set_request_context(correlation_id=request.headers.get("X-Correlation-ID"))
     response = await call_next(request)
     response.headers["X-Correlation-ID"] = cid
     return response
@@ -2036,10 +2048,11 @@ async def test_pinecone(x_admin_key: str = Header(default="")):
         try:
             from pinecone import Pinecone
             from langchain_openai import OpenAIEmbeddings
+            from app.services.retrieve import EMBEDDING_MODEL
             pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
             index = pc.Index("vindex-ai")
             stats = index.describe_index_stats()
-            emb = OpenAIEmbeddings(model="text-embedding-3-large")
+            emb = OpenAIEmbeddings(model=EMBEDDING_MODEL)
             vektor = emb.embed_query("ugovor o radu otkaz")
             test_results = index.query(
                 vector=vektor,
@@ -2111,7 +2124,8 @@ async def diagnose(x_admin_key: str = Header(default="")):
 
         try:
             from langchain_openai import OpenAIEmbeddings
-            emb = OpenAIEmbeddings(model="text-embedding-3-large")
+            from app.services.retrieve import EMBEDDING_MODEL
+            emb = OpenAIEmbeddings(model=EMBEDDING_MODEL)
             vec = emb.embed_query("test")
             result["embeddings"] = f"OK — dim={len(vec)}"
         except Exception as e:
@@ -2766,20 +2780,7 @@ async def bot_ask(req: PitanjeReq, request: Request, x_api_key: str = Header(def
     qh = _q_hash(req.pitanje)
     logger.info("Bot pitanje [q=%s]", qh)
     try:
-        t0 = _time.monotonic()
         rezultat = await pokreni(ask_agent, req.pitanje, None)
-        latency_ms = int((_time.monotonic() - t0) * 1000)
-        _al.log_response(
-            endpoint="/api/bot/ask",
-            query_hash=qh,
-            tip=None,
-            confidence=rezultat.get("confidence"),
-            top_score=rezultat.get("top_score"),
-            top_article=rezultat.get("top_article"),
-            top_law=rezultat.get("top_law"),
-            response_text=rezultat.get("data", ""),
-            latency_ms=latency_ms,
-        )
         return normalizuj_rezultat(rezultat)
     except Exception:
         logger.exception("Greška u /api/bot/ask [q=%s]", qh)
@@ -2910,24 +2911,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
         begin_cost_tracking()
-        t0 = _time.monotonic()
         _firma_ns = await _get_firma_namespace(user["user_id"])
         _extra_ns = [_firma_ns] if _firma_ns else None
         _mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
         rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
-        latency_ms = int((_time.monotonic() - t0) * 1000)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
-        _al.log_response(
-            endpoint="/api/pitanje",
-            query_hash=qh,
-            tip=tip,
-            confidence=rezultat.get("confidence"),
-            top_score=rezultat.get("top_score"),
-            top_article=rezultat.get("top_article"),
-            top_law=rezultat.get("top_law"),
-            response_text=rezultat.get("data", ""),
-            latency_ms=latency_ms,
-        )
         # UsageService.consume() already pre-deducted the credit above (same timing as the
         # old require_credits pre-deduction) — refund on cache-hit/blocked, exactly as before.
         if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
@@ -3013,13 +3001,11 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     async def _event_generator():
         # Commit 4/T1: Guard-complete pipeline — all Commits (1+2+3) run inside ask_agent
         # before the first byte is sent to the client. Old direct-LLM path removed.
-        t0 = _time.monotonic()
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
             _stream_mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
             rezultat = await pokreni(ask_agent, req.pitanje, history_obj, _stream_extra_ns, _stream_mem_ctx)
-            latency_ms = int((_time.monotonic() - t0) * 1000)
 
             if rezultat.get("status") == "success":
                 data_text = rezultat.get("data", "")
@@ -3027,19 +3013,6 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 data_text = rezultat.get(
                     "message", "Došlo je do greške. Pokušajte ponovo."
                 )
-
-            tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
-            _al.log_response(
-                endpoint="/api/pitanje/stream",
-                query_hash=qh,
-                tip=tip,
-                confidence=rezultat.get("confidence"),
-                top_score=rezultat.get("top_score"),
-                top_article=rezultat.get("top_article"),
-                top_law=rezultat.get("top_law"),
-                response_text=data_text,
-                latency_ms=latency_ms,
-            )
 
             # Stream the guard-verified response in 80-char chunks
             _CHUNK = 80
@@ -3123,9 +3096,21 @@ def _require_auth(authorization: Optional[str]) -> object:
 
     # Mission Atlas (2026-08-03) — same AI Provenance request-context stamp
     # as shared/deps.py::get_current_user, for api.py's own manual-auth style.
+    # Program Alpha (2026-08-04) — reuse the middleware's correlation_id, same
+    # reasoning as shared/deps.py::get_current_user. KNOWN LIMITATION, found
+    # during this same mission, not fixed here (see ARCHITECTURAL_DEBT_REGISTER.md):
+    # every caller of this function invokes it via
+    # `await asyncio.to_thread(_require_auth, authorization)` -- a contextvar
+    # mutation made *inside* a to_thread-offloaded function does not
+    # propagate back to the awaiting coroutine (confirmed empirically), so
+    # this call is currently inert from the calling endpoint's own context,
+    # unlike shared/deps.py::get_current_user (a genuine async dependency,
+    # resolved directly in the request's own coroutine, no thread hop).
+    # Left in place (harmless, and correctly reuses the id if the isolation
+    # issue is ever fixed by making this function async) rather than removed.
     try:
-        from shared.ai_provenance import set_request_context
-        set_request_context(user_id=payload.get("sub"))
+        from shared.ai_provenance import set_request_context, current_correlation_id
+        set_request_context(user_id=payload.get("sub"), correlation_id=current_correlation_id())
     except Exception:
         pass
 

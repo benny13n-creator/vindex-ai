@@ -35,6 +35,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.services.retrieve import EMBEDDING_MODEL
 from shared.deps import _get_supa, get_current_user, _is_founder
 from shared.rate import limiter
 
@@ -98,7 +99,7 @@ async def _test_openai() -> dict:
         from openai import AsyncOpenAI
         oai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
         r = await oai.embeddings.create(
-            model="text-embedding-3-large",
+            model=EMBEDDING_MODEL,
             input="test konekcije vindex",
         )
         dims = len(r.data[0].embedding) if r.data else 0

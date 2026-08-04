@@ -10,9 +10,10 @@ import os
 
 logger = logging.getLogger(__name__)
 
+from app.services.retrieve import EMBEDDING_MODEL as _EMBEDDING_MODEL
+
 _CHUNK_SIZE    = 500
 _CHUNK_OVERLAP = 50
-_EMBEDDING_MODEL = "text-embedding-3-large"
 _EMBEDDING_DIMS  = 3072
 _NS_PREFIX = "interni_stavovi_"
 

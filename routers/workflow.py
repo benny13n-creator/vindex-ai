@@ -73,19 +73,19 @@ async def _get_firma(supa, uid: str) -> dict:
 
 
 async def _notify(supa, uid: str, naslov: str, opis: str, urgentnost: str = "normalna") -> None:
-    try:
-        await asyncio.to_thread(
-            lambda: supa.table("proactive_alerts").insert({
-                "user_id":    uid,
-                "tip":        "workflow",
-                "naslov":     naslov[:100],
-                "opis":       opis[:500],
-                "urgentnost": urgentnost,
-                "procitana":  False,
-            }).execute()
-        )
-    except Exception as e:
-        logger.debug("[WF] Notifikacija greška: %s", e)
+    """Program Alpha (2026-08-04): delegates to the canonical
+    shared/proactive_alerts.py — this used to be its own independent
+    insert, one of 12 across the codebase with zero shared retry/failure
+    discipline. Signature kept unchanged (4 call sites in this file)."""
+    from shared.proactive_alerts import create_proactive_alert
+    await create_proactive_alert(
+        supa,
+        user_id=uid,
+        tip="workflow",
+        naslov=naslov[:100],
+        opis=opis[:500],
+        urgentnost=urgentnost,
+    )
 
 
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────
