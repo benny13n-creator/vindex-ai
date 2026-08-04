@@ -467,6 +467,69 @@ IDs (`BETA-001`..`005`) collided with unrelated missions' existing IDs in this f
 | PROGBETA-007 | `compare_docs`'s `dok_res` query has no explicit `.order()`; response labels assume alignment with `n1`/`n2` | 4 | none | Small | TODO — found by Olympus Faza 10 governance review (AI Grounding); pre-existing, not introduced by Program Beta | Doesn't affect `validate_dok_reference()`'s own correctness (set-based), but undermines the "known documents" trust story — one sort call away from closed. |
 | PROGBETA-008 | `DokazReq.snaga` has no enum/`Literal` constraint on manual entry | 5 | none | Small | TODO — found by Olympus Faza 10 governance review (Evidence Integrity); pre-existing, now more consequential | Simple fix (`Literal["jaka","srednja","slaba"]`) when picked up; only affects the low-volume manual-entry path. |
 
+## Program Gamma (2026-08-04) — Canonical Decision Engine
+
+Founder's Master Prompt 003: "Eliminate Entire Classes of Decision Fragmentation" — the third and most
+architecturally ambitious lens of the night. Not code duplication (Alpha), not AI-reasoning defects
+(Beta), but whether a BUSINESS OR LEGAL DECISION is independently produced by more than one module. 5
+parallel domain forks, explicitly built to walk the actual consumer layers Alpha's and Beta's own domain
+scoping never reached, found the single largest finding of this entire multi-mission session: "next
+recommended action" has **18 independent, unreconciled producers** platform-wide (full enumeration:
+`ARCHITECTURAL_DEBT_REGISTER.md`'s `GAMMA-001`), extending the founder's own already-open
+`G030_NEXT_ACTION_DECISION_MODEL.md` (2026-07-22, 3 known authorities) with 16 more, while also confirming
+one of G-030's original 3 (Matter Intel) was resolved by an intervening mission and no longer belongs on
+the list.
+
+**5 bounded fixes implemented** (one live production bug + 4 canonicalizations): `case_intelligence.py`'s
+"next step" endpoint was almost certainly 500ing on every call (wrong `proactive_alerts` column names,
+same mistake class already fixed once elsewhere) — fixed. The proven "referenced entity must exist in
+scope" Evidence Chain pattern (Program Beta's `validate_dok_reference`) was generalized to 2 new ID
+schemes and wired into 2 more AI-decision endpoints (`evidence_graph.py`, `case_commander.py`'s daily
+briefing) that had zero of the 3 Evidence Chain links. 2 "should have been impossible" gaps were closed:
+Strategy Engine's `detektovani_konflikti` field (left LLM-decided in the same function where its sibling
+field was fixed by Program Beta hours earlier the same day) and Court Predictor's `boja`/`pouzdanost_profila`
+(raw LLM output despite each prompt stating a checkable rule). A byte-identical inline formula duplicated
+twice in `case_dna.py` was deduplicated.
+
+**Second live exercise of Mission Olympus's full 10-agent governance board this mission** (10 fresh
+reviewers: Chief Systems Architect, Decision Consistency Auditor, Architecture Review, AI Governance,
+Evidence Integrity, Security, Reliability, Workflow Integrity, Legal Domain Expert, Metrics Guardian). No
+BLOCKED verdicts — 1 clean PASS, 1 clean APPROVED, 8 APPROVED WITH CONDITIONS. **Strongest convergence
+signal (3 independent reviewers converging on the same defect, automatically Critical per the mission's
+own rule)**: the Synthesis prompt still named the exact 2 conflict examples the new deterministic code
+hard-coded, risking duplicate-worded findings, and one of the 2 checks risked false positives on legally
+coherent scenarios — fixed (prompt updated mirroring Program Beta's own precedent, wording softened,
+litigation-vs-transactional category-error guard added). **Second convergence (2 reviewers)**:
+`_evidence_check` was computed for both new endpoints but never surfaced in the frontend — fixed (toast +
+inline marker + a persisted-reload bug where the flag was recoverable only for the instant right after
+generation, then permanently lost). Every other individual finding (an attribution-check gap, a
+numeric-string coercion gap, missing Sentry visibility, an internally-inconsistent "12+" producer count
+across 3 documents, a missing debt-register entry, an overclaimed "fully specified" design sketch) was
+fixed in the same pass. 38 new tests across 6 files, full suite green.
+
+**Headline deliverable**: `docs/architecture/DECISION_REGISTRY.md` — 13 canonical decisions formally
+catalogued with contracts for the first time (a pattern this codebase has organically re-invented 4 times
+since 2026-07-18), every known fragmented decision catalogued alongside them (not hidden), plus a
+registration-rule process convention + `tests/test_decision_registry_completeness.py` as the practical,
+honestly-scoped guardrail — explicitly NOT claiming a CI/static-analysis gate that doesn't exist in this
+repo (verified, not assumed). Full reports: `docs/architecture/CANONICAL_DECISION_ENGINE.md`,
+`DECISION_GRAPH.md`, `DECISION_CONTRACTS.md`, `DECISION_CONSUMER_MAP.md`, `DECISION_CONSISTENCY_REPORT.md`,
+`DECISION_MIGRATION_REPORT.md`, `DECISION_HARDENING_REPORT.md`.
+
+| ID | Mission | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| GAMMA-001 | "Next recommended action" has no single owner — 18 independent producers (full enumeration in `ARCHITECTURAL_DEBT_REGISTER.md`) | 1 | Founder product decision — which of 18 surfaces survive as distinct UI presentations of one shared answer | Large (product + implementation) | NEEDS_SCOPING — founder decision | Design fully specified (`CANONICAL_DECISION_ENGINE.md`'s `compute_next_action()` sketch, itself flagged by governance review as a starting shape not a complete per-producer spec) — implementation blocked on the founder call, not on design work. |
+| GAMMA-002 | `routers/cio.py:148` reads Genome's raw `nedostaje.hitnost` instead of canonical `identify_case_problems` | 3 | none | Small | TODO | Concrete instance of the registry's own registration-rule gap, found (not created) during Phase 6 consumer mapping. |
+| GAMMA-003 | `matter_intel.py`'s Uncertainty Dashboard + Pre-Flight Check don't use canonical risk engine, zero Evidence Chain | 2 | none | Medium | TODO | 2 of the 4 independent "case strength/readiness" producers found this mission, in the same file as the canonical source, not calling it. |
+| GAMMA-004 | Case Commander's other 3 endpoints (`/analiza`, `/quick-check`, `/checklist`) have zero Evidence Chain | 2 | none | Medium | TODO | Same DC-009 pattern proven cheap to close for `_cross_case_analiza`, just not yet done for these 3. |
+| GAMMA-005 | `case_intelligence.py::case_intelligence_briefing` has no provenance wrapping | 3 | none | Small | TODO | The live bug was fixed this mission; provenance wrapping was deliberately not added in the same pass to keep the fix bounded. |
+| GAMMA-006 | `ask_agent`'s recommendation is case-specific in fact, case-agnostic in the audit trail (`predmet_id=None`) | 3 | none | Small | TODO | Distinct from `PROGBETA-002` — about `predmet_id` itself, not RAG provenance. |
+| GAMMA-007 | No CI/static-analysis guardrail against a new undeclared decision | 3 | Confirm what CI (if any) exists on this repo first | Medium | NEEDS_SCOPING | Honestly scoped in `DECISION_HARDENING_REPORT.md` — a `scripts/audit_decision_registry.py` heuristic (same style as `audit_routers.py`) recommended, not a hard gate. |
+| GAMMA-008 | Case Pipeline step 6 is a free, automatic, unlabeled shadow of the paid `hearing_cc.py` Hearing Command Center | 2 | Product decision — label/reconcile/retire the lite version | Medium | NEEDS_SCOPING | Both paths reachable and both run today — worse than dead code, an unlabeled duplicate a lawyer could genuinely rely on. |
+| GAMMA-009 | Document/case readiness has 2 structurally incompatible representations (`quality_gate` vs. Pravni Revizor), no shared vocabulary | 2 | Design decision — which representation wins, or a mapping layer | Medium-Large | NEEDS_SCOPING | Reachable by an ordinary user workflow, not hypothetical. |
+| GAMMA-010 | "How urgent is this" has 6+ independently-defined vocabularies, incl. a literal field-name collision (Genome vs. Copilot PLAN `nedostaje`) | 3 | Vocabulary decision (which enum wins, or a mapping layer) | Medium | NEEDS_SCOPING | Same discipline as `ALPHA-003`'s taxonomy question — not a blind rename. |
+| GAMMA-011 | `shared/genome_validator.py`'s module docstring/name no longer matches its contents (3 of 6 functions are Genome-agnostic) | 5 | none | Small | TODO — found by Olympus Faza 10 governance review (Chief Systems Architect) | Recommended trigger: whenever a 4th caller of the reference-validation family appears, extract to `shared/reference_validation.py`. |
+
 ## Explicit exclusions from autonomous scope (per the Master Prompt's own Stop Conditions)
 
 - Any change requiring a production schema migration (per this project's standing rule, migrations

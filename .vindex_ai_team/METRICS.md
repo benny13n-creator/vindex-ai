@@ -635,3 +635,48 @@ asserted. Explicit mission prohibitions respected: no new AI functionality added
 patches where a systemic mechanism existed, no GPT-specific logic introduced, every confidence/percentage
 change has a documented mathematical or legal basis. Full detail: `docs/architecture/
 AI_CANONICAL_ARCHITECTURE.md`'s own Success Metrics table.
+
+---
+
+## Program Gamma (2026-08-04) — Canonical Decision Engine
+
+**Methodology note**: per the founder's own explicit instruction, success is measured by the 8 metrics
+Masterprompt 003 itself named — not commit/line counts.
+
+| Metric | Value |
+|---|---|
+| Eliminated parallel decisions | 4 — `case_intelligence.py`'s broken endpoint (0 working → 1 working), Strategy Engine's `detektovani_konflikti` (0 → 2 code-guaranteed categorical checks), Court Predictor's `boja`/`pouzdanost_profila` (raw → derived, counted as 1 item per DC-012's single registry row), Genome's alert-urgency formula (2 authors → 1) |
+| Migrated consumers | 2 — `evidence_graph.py::generisi_graf`, `case_commander.py::_cross_case_analiza`, onto the DC-009 evidence-check family |
+| Canonical decisions registered | 13 (`DECISION_REGISTRY.md`) — not newly built, formally catalogued for the first time |
+| Decision Contracts written | 13 (`DECISION_CONTRACTS.md`) |
+| Decisions with a provable Evidence Chain | +2 this mission (Evidence Graph, Case Commander) — 4 of 13 canonical decisions now have one |
+| Decisions with Audit + Provenance | +2 this mission (same 2 endpoints) |
+| AI decisions moved to a deterministic layer | 4 — same 4 counted under "eliminated parallel decisions," reframed: each moved a previously-raw-LLM categorical field to code-derived |
+| Architectural rules preventing future bypass | 2 — the registry's registration-rule process convention + `tests/test_decision_registry_completeness.py` (mechanical drift detector) — explicitly NOT claiming a CI/static-analysis gate that doesn't exist in this repo |
+| Decision-fragmentation instances found (not eliminated — diagnosed) | 18-producer "next action" fragmentation (largest in the multi-mission session), 5-producer litigation win-probability, 4-producer contradiction-detection, 4-producer case-strength, plus 8 more `GAMMA-00X` items, full enumeration `ARCHITECTURAL_DEBT_REGISTER.md` |
+| New/extended tests | 38, across 6 files (`test_case_intelligence_briefing_alerts_fix.py`, `test_gamma_evidence_check_wiring.py`, `test_court_predictor_deterministic_derived_fields.py`, `test_decision_registry_completeness.py` — all new; extensions to `test_genome_validator.py`, `test_strategija_sistemsko_upozorenje.py`) |
+| Full suite | 2,481 passed, 1 skipped, 0 failed (final, after all Phase 10 governance-review fixes; was 2,443 going in) |
+
+**Phase 10 — second live exercise of the Mission Olympus governance layer, first time exercising the
+founder's own 10 named Program-Gamma-specific roles**: 10 fresh, independent agents. No BLOCKED verdicts —
+1 clean PASS (Reliability), 1 clean APPROVED (Decision Consistency Auditor), 8 APPROVED WITH CONDITIONS.
+**Strongest convergence this mission (3 independent reviewers on one defect, automatically Critical per
+the mission's own rule)**: Workflow Integrity, AI Governance, and Legal Domain Expert each independently
+flagged that the Synthesis prompt still named the exact 2 conflict examples the new code hard-coded (risking
+duplicate-worded findings) and that one check risked false positives on legally coherent scenarios — fixed
+in one pass (prompt updated mirroring Program Beta's own same-day precedent for the sibling field, wording
+softened, a category-error guard added). **Second convergence (2 reviewers)**: Evidence Integrity and
+Security both independently found the new `_evidence_check` signal was computed but never surfaced to the
+user for 2 of 3 migrated endpoints — fixed. Every other individual finding (an attribution-check gap, a
+numeric-string coercion gap, missing Sentry visibility, an internally-inconsistent producer-count claim
+across 3 documents caught by Metrics Guardian, a missing debt-register entry, an overclaimed design-sketch
+completeness claim) fixed in the same pass. **0 vetoes.**
+
+**Success criteria**: the mission's own founder-mandated question ("does it become structurally impossible
+for two modules to reach different conclusions from the same facts without the system noticing") is
+answered honestly as NOT YET fully achieved — the scale found (18 producers for the single largest decision
+type) was never a one-session fix. What shipped instead, matching this session's own proven discipline: a
+registry that didn't exist before now makes every known instance discoverable; the reusable fix pattern
+(DC-009) is proven a 3rd and 4th time; every remaining gap has a named severity, a named blocker, and a
+`GAMMA-00X` tracking entry — not a silent debt. Full detail: `docs/architecture/CANONICAL_DECISION_ENGINE.md`'s
+own Success Metrics table.

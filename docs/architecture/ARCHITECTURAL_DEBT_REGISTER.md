@@ -337,3 +337,208 @@ genuinely load-bearing risk-scoring input (see `PROGBETA-006`).
 
 **Severity**: Low — narrow (manual-entry path only), simple fix (`Literal["jaka","srednja","slaba"]`) when
 picked up.
+
+---
+
+# Program Gamma (Masterprompt 003, 2026-08-04) — Deferred Items
+
+Founder's Master Prompt 003: "Canonical Decision Engine — Eliminate Entire Classes of Decision
+Fragmentation." Full context, contracts, and the design sketch for the largest item below:
+`docs/architecture/CANONICAL_DECISION_ENGINE.md`, `DECISION_CONSISTENCY_REPORT.md`.
+
+## GAMMA-001 — "Next recommended action" has no single owner: 18 independent, unreconciled producers (Critical, needs a founder product decision)
+
+The single largest finding of this multi-mission session. **Methodology, self-corrected after Olympus Faza
+10 governance review (Metrics Guardian found the mission's own original "12+" claim was internally
+inconsistent — 3 different sub-totals across 3 documents that didn't sum to 12, and an independent tally
+from the raw fork evidence suggested materially more).** The table below is the single reconciled
+enumeration; every other document (`CANONICAL_DECISION_ENGINE.md`, `DECISION_REGISTRY.md`) now cites this
+count rather than restating its own breakdown.
+
+| # | Producer | Field/output | Source fork(s) |
+|---|---|---|---|
+| 1 | Case Genome | `strategija`/`nedostaje`/`najslabija_tacka.preporuka` | A, B, C, D |
+| 2 | Strategy Engine `/kompletna-analiza` Synthesis | `strateski_stav` + `prioritetni_akcioni_plan` | B |
+| 3 | Strategy Engine `/kompletna-analiza` Due Diligence (internal, korak2) | `preporuka` | B |
+| 4 | Strategy Engine `/v2/analiza` | `sledeci_koraci` | B, C |
+| 5 | Court Predictor `/analiza` | `preporucena_strategija` | B |
+| 6 | Court Predictor `/battle-report` | prose "PREPORUCENA STRATEGIJA" section | B |
+| 7 | Court Predictor `/judge-profile` | `strateska_preporuka` | B |
+| 8 | Court Predictor `/argument-reputation` | `preporuka`/`preporuceni_redosled` | B |
+| 9 | Copilot PLAN intent | `koraci[].prioritet` + plan text | D |
+| 10 | Copilot PREDLOZI intent | `predlozi[]` | D |
+| 11 | Copilot `ask_agent` (via PRAVNO_PITANJE) | `brza_procena_koraci` | D |
+| 12 | Case Commander `/analiza` | "PREPORUCENI POTEZ" | A, C |
+| 13 | Case Commander `/quick-check` | "3 najhitnija upozorenja/akcije" | A, C |
+| 14 | Case Commander `/jutarnji` (cross-case) | `prioritet` (which ONE case today) | A, C |
+| 15 | Case Intelligence `/briefing` | `sledeci_korak` | A, C |
+| 16 | Case Pipeline step 5 (`_step_strategija`) | "Preporučena strategija"/"Sledeći koraci" | A, E |
+| 17 | Cockpit `prioritet` (G-029, pre-existing) | named as authority #1 in `G030_NEXT_ACTION_DECISION_MODEL.md` | D, citing G-030 |
+| 18 | Case Ready Score `copilot_preporuka` | named as authority #3 in G-030 | D, citing G-030 |
+
+**Note on G-030's original 3 authorities**: G-030 (2026-07-22) named Cockpit, Matter Intel, and Case Ready
+Score. Matter Intel is **not** included in the 18 above — Program Gamma's own regression check (Fork C)
+confirmed Matter Intel's main endpoint now correctly delegates to `services/risk_engine.py` (canonicalized
+by an intervening mission, Project Synapse, 2026-08-03, after G-030 was written) — one of G-030's original
+3 has since been resolved, not still open. The other 2 (Cockpit, Case Ready Score) remain open and are
+counted above (#17, #18).
+
+Task Engine (`zadaci.py::ai_analiziraj_predmet`) and Matter Intel's main endpoint are confirmed clean
+(share the canonical `identify_case_problems`/`calculate_procesni_rizik` root) and are correctly excluded
+from this count — they are the reference pattern, not part of the problem.
+
+None of the 18 producers read any of the others' output.
+
+**Why not fixed this mission**: a genuine product-identity decision (G-030's own framing: "dashboard with
+several AI opinions" vs. "one command center") — which of 18 existing product surfaces survive as distinct
+UI presentations of one shared answer, and which get retired, is not a technical call this mission is
+chartered to make unilaterally.
+
+**Recommended direction, fully designed**: `shared/recommendation_engine.py::compute_next_action()`, Tier 1
+(deterministic, reuse `identify_case_problems`) + Tier 2 (one constrained LLM reasoning pass over Tier 1's
+facts, the exact shape `zadaci.py::ai_analiziraj_predmet` already proves works) — every current producer
+becomes a consumer, formatted for its own UI surface. Full design: `CANONICAL_DECISION_ENGINE.md`.
+
+**Severity**: Critical — the platform's largest open decision-fragmentation class.
+
+## GAMMA-002 — `routers/cio.py:148` reads Genome's raw `nedostaje.hitnost` instead of the canonical `identify_case_problems` output (Medium)
+
+Aggregates a raw-GPT field into a portfolio-wide daily count, when the canonical deterministic source
+(DC-002) is available and already used by 6+ other consumers. A concrete instance of the exact gap
+`DECISION_REGISTRY.md`'s registration rule exists to prevent going forward, found (not created) during
+Phase 6 consumer mapping.
+
+**Severity**: Medium — not user-facing-broken, but a real "known-better source available, not used" gap.
+
+## GAMMA-003 — `matter_intel.py`'s Uncertainty Dashboard and Pre-Flight Check don't use the canonical risk engine, and have zero Evidence Chain (High)
+
+Both endpoints live in the same file as `calculate_procesni_rizik` (imported at the top, used correctly by
+the file's own main endpoint) but compute their own independent case-strength/readiness numbers — the
+Uncertainty Dashboard's `uncertainty_score` from 5 ad hoc heuristic dimensions plus a GPT prose gloss, the
+Pre-Flight Check's `status`/`score` fully raw GPT. Neither is provenance-wrapped.
+
+**Why not fixed this mission**: this is a DC-001 migration (a real behavioral change to what number the
+lawyer sees), not a DC-009 wiring fix like Evidence Graph/Case Commander received — needs its own bounded
+pass to verify the migration doesn't silently change what "risk" means for these 2 specific views.
+
+**Severity**: High — 2 of the 4 independent "case strength/readiness" producers found this mission, in the
+same file as the canonical source, not calling it.
+
+## GAMMA-004 — Case Commander's other 3 endpoints (`/analiza`, `/quick-check`, `/checklist`) have zero Evidence Chain (Medium-High)
+
+`_cross_case_analiza` (this mission's DC-009 migration target) is one of 4 AI-decision operations in this
+file; the other 3 remain unwrapped, unvalidated.
+
+**Why not fixed this mission**: different output shapes than `_cross_case_analiza` — wiring all 4 correctly
+in one pass risked exactly the rushed, under-verified pattern this session's discipline exists to prevent.
+
+**Severity**: Medium-High — same class as the fixed instance, proven cheap to close, just not yet done for
+these 3.
+
+## GAMMA-005 — `case_intelligence.py::case_intelligence_briefing` has no provenance wrapping (Medium)
+
+This mission fixed the live 500 bug (wrong `proactive_alerts` column names) in this endpoint but did not
+add `case_context()` provenance — adding both in one pass would have widened a bounded correctness fix into
+a second, riskier change.
+
+**Severity**: Medium — the endpoint now works; it still isn't audit-traceable.
+
+## GAMMA-006 — `ask_agent`'s recommendation is case-specific in fact but tagged case-agnostic in the audit trail (Medium)
+
+`routers/copilot.py::_handle_pravno_pitanje` prepends real predmet context to the question sent to
+`ask_agent`, producing a genuinely case-tailored `brza_procena_koraci` recommendation — but the
+`case_context()` call passes no `predmet_id`, on a rationale that conflates "the function signature has no
+predmet_id parameter" with "the output is not case-specific." Any future audit-log reconstruction of "what
+has the AI recommended about predmet X" will silently miss every `ask_agent`-sourced recommendation made
+through Copilot. Distinct from `PROGBETA-002` (RAG provenance) — this is about `predmet_id` itself.
+
+**Severity**: Medium — a real, previously-undocumented provenance gap, not user-facing.
+
+## GAMMA-007 — No CI/static-analysis guardrail against a new undeclared decision (Medium, honestly scoped)
+
+`DECISION_REGISTRY.md`'s registration rule is a process convention, not a technical control — no CI
+pipeline was confirmed to exist in this repository, and no AST-based static check was built to catch a new
+GPT call producing a decision-shaped output outside the registry.
+
+**Recommended direction**: `scripts/audit_decision_registry.py`, same style/limitations as the existing
+`scripts/audit_routers.py` (a heuristic flag for human review, not a hard gate).
+
+**Why not fixed this mission**: new infrastructure, out of scope for a mission whose own charter bars
+adding capability beyond what was diagnosed. Full reasoning: `DECISION_HARDENING_REPORT.md`.
+
+**Severity**: Medium — real gap, honestly named rather than papered over with an unverified claim.
+
+## GAMMA-008 — Case Pipeline's step 6 is a free, automatic, unlabeled shadow of the paid `hearing_cc.py` Hearing Command Center (High)
+
+`services/case_pipeline.py::_step_hcc` and `routers/hearing_cc.py` both literally use "HCC" as their
+name/tag and both answer "is the lawyer ready for this hearing" — one is PRO-only, 3 credits, `gpt-4o`,
+case-type-specific (5 prompt variants), 12-field structured brief with its own risk assessment; the other
+is free, automatic (fires for any predmet with a hearing in 90 days), `gpt-4o-mini`, single generic prompt,
+3-5 line note. Neither references the other. A lawyer could receive the free lite version's advice and
+never realize a materially deeper, paid analysis exists one click away.
+
+**Severity**: High — both paths are reachable and both actually run (unlike `ALPHA-005`'s dead-code case),
+unlabeled and unreconciled.
+
+## GAMMA-009 — Document/case readiness has 2 structurally incompatible representations, no shared vocabulary (High)
+
+`services/quality_gate.py::evaluate_draft_quality`'s `confidence_score` (deterministic float, calibrated,
+named 0.85 approval threshold) and Strategy Engine's Pravni Revizor `ocena` (pure GPT, zero RAG, 3-value
+categorical self-report) answer the identical question — "is this legal document ready to use" — for what
+can be the exact same text (nothing prevents pasting a Drafting-generated nacrt into Pravni Revizor's
+free-text field). No code link between the two features.
+
+**Recommended direction**: not simply "reuse `quality_gate`" — its citation-verification half generalizes
+(`PROGBETA-003`) but its completeness-scoring half is Drafting-shape-specific; needs a genuine design
+decision on which representation (calibrated float vs. categorical) becomes canonical, or a mapping layer.
+
+**Severity**: High — reachable by an ordinary user workflow, not hypothetical.
+
+## GAMMA-010 — "How urgent is this" has 6+ independently-defined vocabularies, plus a literal field-name collision (Medium)
+
+At least 6 unreconciled 3-value urgency taxonomies exist for one concept across Copilot's akcija handlers,
+Genome's `nedostaje[].hitnost`, Copilot PLAN's `nedostaje[].hitnost` (same field name, incompatible enum —
+`kriticno|vazno|pozeljno` vs. `visoka|srednja|niska`), Copilot PLAN's `koraci[].prioritet`, Copilot
+PREDLOZI's `predlozi[].prioritet`, and `ask_agent`'s `brza_procena_koraci[].prioritet`.
+
+**Why not fixed this mission**: fixing the field-name collision specifically requires a vocabulary decision
+(which enum wins, or a mapping layer) — the same discipline Program Alpha applied to `ALPHA-003`'s taxonomy
+question, not a blind rename.
+
+**Severity**: Medium — real Facts≠Inference-adjacent confusion risk, not yet observed causing a live
+incident.
+
+## GAMMA-011 — `shared/genome_validator.py`'s module docstring/name no longer matches its own contents (Low, found by Olympus Faza 10 governance review)
+
+By the end of Program Gamma, 3 of the module's 6 public functions (`validate_dok_reference`,
+`validate_graph_edge_references`, `validate_predmet_reference`) have nothing to do with Case Genome except
+by historical accident of file location — they are a generic "referenced entity must exist in scope"
+family, reused by Compare Docs, Evidence Graph, and Case Commander. The module's own docstring still opens
+"Genome Verification Layer." Chief Systems Architect's governance review noted the module's own docstring
+defends this ("a future third caller is legitimate use, not a scope violation") but observed that's a
+self-serving argument by the party doing the widening, not an independent architectural judgment — and
+that this is the one corner of this mission where a debt entry should have existed and didn't, until now.
+
+**Recommended direction**: extract the 3 reference-validation functions into `shared/reference_validation.py`
+(or similar), leaving `genome_validator.py` genuinely Genome-scoped. Not done this mission — a pure
+reorganization with no behavior change is exactly the kind of "refactoring for its own sake" this mission's
+own charter is cautious about doing without a concrete trigger; recommended as the trigger for whenever a
+4th caller of this family appears, not urgent standalone work.
+
+**Severity**: Low — no functional risk, a naming/documentation-accuracy debt only.
+
+## Carried forward, reframed (not new, sharpened this mission)
+
+- **`ALPHA-003`** (document classification, 2 taxonomies) — traced to the exact mechanism: `evidence.py`'s
+  correct-vocabulary classifier runs as an unawaited `asyncio.create_task` with silently-swallowed failure,
+  meaning its "win" over `intake_classify.py`'s wrong-vocabulary classifier is probabilistic, not
+  guaranteed — a sharper diagnosis of the same already-tracked item, not a new one.
+- **`ALPHA-005`** (firm memory, dead vs. live) — sharpened to name the specific orphaned decisions (judge
+  win-rate %, judge procedural preference, client settlement posture) and connect them to Court Predictor's
+  separate, ungrounded confidence number answering a related question with no real data at all — a
+  cross-mission linkage (`ALPHA-005` ↔ Program Alpha's Court Predictor finding) neither prior mission
+  documented.
+- **`PROGBETA-001`** (Strategy Engine's 4 litigation-percentage generators) — now confirmed to have a 5th:
+  `case_pipeline.py::_step_strategija`, auto-fired at case creation, which also happens to be the sole
+  satisfier of the Case Ready Score's "Strategija generisana" checklist item — the least rigorous of 5
+  assessments is the one silently marked "done."
