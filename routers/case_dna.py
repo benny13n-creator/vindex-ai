@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -36,7 +37,7 @@ from shared.usage import UsageService
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 from services.event_bus import EventType
-from shared.genome_validator import verify_genome, compute_snaga_score
+from shared.genome_validator import verify_genome, compute_snaga_score, validate_dok_reference
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -1050,14 +1051,53 @@ async def compare_docs(predmet_id: str, req: CompareDoksReq, request: Request, u
 
     try:
         from openai import AsyncOpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
         client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        raw = await _pozovi_compare_api(client, parts[0], parts[1])
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="case_dna", operation_name="compare_docs",
+                          knowledge_sources=[d.get("id") for d in docs]):
+            raw = await _pozovi_compare_api(client, parts[0], parts[1])
         analiza = json.loads(raw)
     except Exception as exc:
         _sentry_capture(exc)
         raise HTTPException(500, f"AI analiza greška: {exc}")
 
     await UsageService.consume(uid, user.get("email", ""), "case_dna")
+
+    # Program Beta (2026-08-04) -- compare_docs had zero evidence validation
+    # and zero provenance wrapping despite both mechanisms already existing
+    # in this file for Genome extraction (case_context above; the DOK-XX
+    # existence check below is genome_validator.validate_dok_reference, the
+    # same principle as _validate_kontradikcije_lokacije). Advisory only,
+    # same fail-soft convention as verify_genome -- never blocks the response.
+    #
+    # Olympus Faza 10 governance nalazi (2026-08-04): (Backend Reliability)
+    # ovaj blok je ranije bio van try/except i pretpostavljao da je `analiza`
+    # dict -- sada eksplicitno guard-ovan i u sopstvenom try/except (fail-soft,
+    # isti obrazac kao verify_genome -- greška ovde ne sme pretvoriti uspešan
+    # AI odgovor u lažni "AI analiza greška" 500). (AI Grounding) DOK-XX
+    # izmišljanje može da se pojavi i u kontradikcije/razlike_kljucne, ne samo
+    # u koji_je_jaci_dokaz -- sada se sve tri provere. (Architecture Review)
+    # oblik normalizovan da odgovara verify_genome()'s ugovoru
+    # (soft_flags/provereno_u_ms), ne poseban ad-hoc oblik.
+    try:
+        if isinstance(analiza, dict):
+            _ev_start = time.monotonic()
+            poznati_brojevi = {n1, n2}
+            hard_flags = list(validate_dok_reference(
+                analiza.get("koji_je_jaci_dokaz"), poznati_brojevi, "koji_je_jaci_dokaz",
+            ))
+            for polje in ("kontradikcije", "razlike_kljucne"):
+                for stavka in (analiza.get(polje) or []):
+                    hard_flags.extend(validate_dok_reference(stavka, poznati_brojevi, polje))
+            analiza["_evidence_check"] = {
+                "odluka": "require_review" if hard_flags else "approve",
+                "hard_flags": hard_flags,
+                "soft_flags": [],
+                "provereno_u_ms": round((time.monotonic() - _ev_start) * 1000, 2),
+            }
+    except Exception as exc_ev:
+        _sentry_capture(exc_ev)
+        logger.warning("[CASE_DNA] compare_docs evidence-check greška (nije fatalno): %s", exc_ev)
 
     return {
         "predmet_id": predmet_id,

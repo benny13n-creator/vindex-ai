@@ -10,7 +10,7 @@ baze/mreze.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from shared.genome_validator import verify_genome, compute_snaga_score
+from shared.genome_validator import verify_genome, compute_snaga_score, validate_dok_reference
 
 
 def _docs(*nazivi_i_brojevi):
@@ -276,6 +276,51 @@ def test_clan_broj_sa_stavom_dodaje_soft_napomenu():
     genome = {"pravna_teorija": {"relevantni_zakoni": ["Zakon o radu čl. 179 stav 2"]}}
     result = verify_genome(genome, [])
     assert any("stav" in f["razlog"].lower() for f in result["soft_flags"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Beta (2026-08-04) — validate_dok_reference (Compare's evidence check)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_validate_dok_reference_flags_dok_outside_known_set():
+    flags = validate_dok_reference("DOK-05 je jaci dokaz jer sadrzi original ugovor.", {1, 2})
+    assert len(flags) == 1
+    assert "DOK-05" in flags[0]["razlog"]
+
+
+def test_validate_dok_reference_passes_known_dok():
+    flags = validate_dok_reference("DOK-01 je jaci dokaz.", {1, 2})
+    assert flags == []
+
+
+def test_validate_dok_reference_no_dok_pattern_is_not_flagged():
+    """'ravnopravni' ili slobodan opis bez DOK-XX obrasca nije greska."""
+    flags = validate_dok_reference("Dokumenti su ravnopravni po dokaznoj snazi.", {1, 2})
+    assert flags == []
+
+
+def test_validate_dok_reference_empty_text_is_noop():
+    assert validate_dok_reference("", {1, 2}) == []
+    assert validate_dok_reference(None, {1, 2}) == []
+
+
+def test_validate_dok_reference_non_string_input_is_noop_not_typeerror():
+    """Olympus Faza 10 (2026-08-04, Backend Reliability nalaz): response_format=
+    json_object garantuje samo validan JSON objekat na vrhu, ne tip svakog polja
+    -- non-string ulaz (GPT vratio listu/dict/int umesto stringa) se tiho
+    ignorise, ne baca TypeError."""
+    assert validate_dok_reference(["DOK-05"], {1, 2}) == []
+    assert validate_dok_reference({"x": "DOK-05"}, {1, 2}) == []
+    assert validate_dok_reference(42, {1, 2}) == []
+
+
+def test_validate_dok_reference_custom_polje_naziv():
+    """Program Beta (2026-08-04, prosireno posle AI Grounding nalaza): funkcija
+    se sada poziva i za kontradikcije/razlike_kljucne stavke, ne samo
+    koji_je_jaci_dokaz -- polje ime u flag-u mora odraziti pravo poreklo."""
+    flags = validate_dok_reference("DOK-99 pominje nesto necuveno.", {1, 2}, polje="kontradikcije")
+    assert len(flags) == 1
+    assert flags[0]["polje"] == "kontradikcije"
 
 
 def test_clan_broj_bez_clana_ne_baca_ni_ne_flaguje():

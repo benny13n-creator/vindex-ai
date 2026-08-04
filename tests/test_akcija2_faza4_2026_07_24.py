@@ -243,6 +243,39 @@ def test_lociraj_tvrdnju_prazan_ulaz():
     assert _lociraj_tvrdnju("nešto", "")["stranica"] is None
 
 
+def test_snaga_iz_lokacije_jaka_kad_pronadjeno_i_duzina_u_opsegu():
+    """Program Beta (2026-08-04): snaga se vise ne hardkoduje na 'srednja'
+    bez obzira na lociraj_tvrdnju rezultat -- pronadjena (grounded) tvrdnja
+    razumne duzine dobija 'jaka'."""
+    from routers.evidence import _snaga_iz_lokacije
+    tvrdnja = "Tuzilac je pretrpeo stetu usled saobracajne nezgode."  # 20 < len <= 100
+    assert _snaga_iz_lokacije(tvrdnja, {"start_offset": 42, "end_offset": 60}) == "jaka"
+
+
+def test_snaga_iz_lokacije_srednja_kad_nije_pronadjeno():
+    """Neverifikovano (svi None) ostaje neutralno 'srednja' -- 'nije pronadjeno'
+    ne znaci nuzno 'netacno' (GPT je mogao parafrazirati)."""
+    from routers.evidence import _snaga_iz_lokacije
+    assert _snaga_iz_lokacije("Neka tvrdnja dovoljne duzine.", {"start_offset": None, "end_offset": None}) == "srednja"
+
+
+def test_snaga_iz_lokacije_srednja_kad_je_tvrdnja_prekratka():
+    """Olympus Faza 10 (2026-08-04, AI Grounding nalaz): prekratka/genericka
+    tvrdnja (npr. samo ime stranke) moze slucajno poklopiti nepovezano mesto
+    u tekstu -- pronadjeno poklapanje kratke tvrdnje NE dobija 'jaka'."""
+    from routers.evidence import _snaga_iz_lokacije
+    assert _snaga_iz_lokacije("Petar", {"start_offset": 5, "end_offset": 10}) == "srednja"
+
+
+def test_snaga_iz_lokacije_srednja_kad_je_tvrdnja_duza_od_probe_prozora():
+    """Olympus Faza 10 (2026-08-04, AI Quality Auditor nalaz): _lociraj_tvrdnju
+    proverava SAMO prvih 100 karaktera -- tvrdnja duza od toga ciji je REP
+    izmisljen/parafraziran ne sme dobiti 'jaka' na osnovu poklapanja prefiksa."""
+    from routers.evidence import _snaga_iz_lokacije
+    duga_tvrdnja = "A" * 150
+    assert _snaga_iz_lokacije(duga_tvrdnja, {"start_offset": 0, "end_offset": 100}) == "srednja"
+
+
 def test_klasifikuj_i_sacuvaj_salje_lokaciju_u_insert():
     """Integracioni test: klasifikuj_i_sacuvaj mora pozvati _lociraj_tvrdnju
     za svaku ključnu činjenicu i uključiti rezultat u insert red."""
@@ -274,6 +307,8 @@ def test_klasifikuj_i_sacuvaj_salje_lokaciju_u_insert():
     row = dokazi_table.insert.call_args[0][0][0]
     assert "start_offset" in row
     assert row["start_offset"] == tekst_dokumenta.find("Tužilac je pretrpeo")
+    # Program Beta (2026-08-04): grounded (pronadjena) tvrdnja dobija "jaka", ne vise fiksno "srednja".
+    assert row["snaga"] == "jaka"
 
 
 def test_klasifikuj_i_sacuvaj_degradira_na_legacy_insert_ako_kolone_ne_postoje():

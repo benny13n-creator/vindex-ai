@@ -17940,6 +17940,18 @@ async function _voice_compare_docs(predmetId, numbers) {
     }
     if (a.koji_je_jaci_dokaz) resultText += '**Jači dokaz:** '+a.koji_je_jaci_dokaz+'\n\n';
     if (a.preporuka_advokata) resultText += '**Preporuka:** '+a.preporuka_advokata+'\n';
+    // Program Beta (2026-08-04) -- surfacira _evidence_check (backend, genome_validator.validate_dok_reference)
+    // umesto da "jači dokaz" izgleda podjednako pouzdano bez obzira da li referencira stvaran dokument.
+    // Olympus Faza 10 (2026-08-04, Architecture Review nalaz): pozitivna potvrda na 'approve' takodje
+    // prikazana, ne samo upozorenje na 'require_review' -- simetrican trust signal, isti princip kao
+    // Genome _verifikacija bloka (i "✓ nema upozorenja" i amber upozorenje su vidljivi, ne samo jedno).
+    if (a._evidence_check) {
+      if (a._evidence_check.odluka === 'require_review' && (a._evidence_check.hard_flags||[]).length) {
+        resultText += '\n⚠ **Provera dokumenta:** ' + a._evidence_check.hard_flags.map(function(f){return f.razlog;}).join(' ') + '\n';
+      } else if (a._evidence_check.odluka === 'approve') {
+        resultText += '\n✓ AI provera: pominjani DOK-brojevi odgovaraju upoređenim dokumentima.\n';
+      }
+    }
 
     // Postavi u AI Analiza tab
     pred_subtabSwitch('agenti');
@@ -18298,8 +18310,15 @@ function evidence_load() {
       matDiv.innerHTML = '<div style="color:rgba(255,255,255,.2);font-size:.75rem;padding:.4rem 0;">Nema evidentiranih dokaza. Dodajte manuelno ili uploadujte dokument za automatsku ekstrakciju.</div>';
     } else {
       matDiv.innerHTML = dokazi.map(function(dz) {
+        // Olympus Faza 10 (2026-08-04, AI Explainability + Legal Domain Expert nalazi):
+        // 'snaga' tacka ranije nije objasnjavala NA OSNOVU CEGA je dodeljena, a "jaka" boja
+        // sama po sebi rizikuje da je advokat procita kao opstu dokaznu snagu (pravni pojam),
+        // ne kao usko "citat je pronadjen doslovno u dokumentu" sto ovo polje stvarno meri.
+        var _snagaTitle = (dz.snaga === 'jaka')
+          ? ('Pronađeno doslovno u dokumentu' + (dz.stranica ? (' (str. ' + dz.stranica + ')') : '') + ' — potvrđuje tačnost citata, ne opštu dokaznu snagu.')
+          : 'AI izvod — nije potvrđeno doslovno u izvornom dokumentu (može biti parafraza).';
         return '<div class="dokaz-row">'
-          + '<div class="dokaz-snaga-' + (dz.snaga||'srednja') + '"></div>'
+          + '<div class="dokaz-snaga-' + (dz.snaga||'srednja') + '" title="' + escHtml(_snagaTitle) + '"></div>'
           + '<div style="flex:1;">'
           + '<div style="font-size:.78rem;color:rgba(255,255,255,.8);">' + escHtml(dz.tvrdnja||'') + '</div>'
           + (dz.pravni_element ? '<div style="font-size:.65rem;color:rgba(255,255,255,0.45);margin-top:.1rem;">' + escHtml(dz.pravni_element) + '</div>' : '')

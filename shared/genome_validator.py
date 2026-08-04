@@ -7,6 +7,13 @@ Nula GPT/LLM poziva — cisto proverava strukturu i reference genoma naspram
 podataka koji su vec ucitani (dokumenti predmeta), ne AI kritičar. Design
 note: docs/architecture/PHASE_1_EXECUTION_CHECKLIST_2026-07-18.md, stavka 1.3.
 
+Scope napomena (Program Beta, 2026-08-04, Olympus Faza 10 governance nalaz --
+Architecture Review): modul je nastao Genome-specificno, ali `validate_dok_
+reference()` je generalizovan i namerno NIJE Genome-specifican -- koristi ga
+i `routers/case_dna.py::compare_docs` (Case Genome-adjacentna, ali odvojena
+funkcija). Buduci treci pozivalac van case_dna.py je legitimna upotreba, ne
+scope violation.
+
 Obrazac (arhitektonski, ne kod) preuzet iz analiza/validator.py: nikad ne
 baca izuzetak, uvek vraca validan dict, sumnjive stavke se premestaju u
 flag liste umesto da se tiho odbace. validate_law_refs se REUSE-uje
@@ -45,7 +52,7 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Any
+from typing import Any, Optional
 
 from analiza.validator import validate_law_refs
 
@@ -257,6 +264,37 @@ def _validate_snaga_konzistentnost(genome: dict) -> tuple[list[dict], list[dict]
                 })
 
     return hard, soft
+
+
+def validate_dok_reference(text: Optional[str], poznati_brojevi: set[int], polje: str = "koji_je_jaci_dokaz") -> list[dict]:
+    """Program Beta (2026-08-04) — generalization of _validate_kontradikcije_
+    lokacije's principle (a DOK-XX reference must point to a document that
+    actually exists in scope) for Compare's DOK-XX-bearing free-text fields
+    (`koji_je_jaci_dokaz`, and per Olympus Faza 10 governance nalaz --
+    AI Grounding -- also `kontradikcije`/`razlike_kljucne`, which use the
+    same convention but as list-of-string fields; caller iterates and passes
+    `polje` per item). Not Genome-specific: reusable by any caller with a
+    small known set of DOK-XX numbers. No DOK-XX pattern in the text (e.g.
+    "ravnopravni") is not an error — only a reference to a DOK-XX number
+    OUTSIDE the known set is flagged (an invented document).
+
+    Olympus Faza 10 governance nalaz (2026-08-04, Backend Reliability): ne
+    pretpostavlja da je `text` string samo zato sto prompt schema to trazi --
+    `response_format=json_object` garantuje samo validan JSON objekat na
+    vrhu, ne tip svakog polja. Non-string ulaz (npr. GPT vratio listu/dict
+    umesto stringa) se tiho ignorise (prazna lista), ne baca TypeError."""
+    if not isinstance(text, str) or not text:
+        return []
+    flags = []
+    for m in _DOK_PATTERN.finditer(text):
+        broj = int(m.group(1))
+        if broj not in poznati_brojevi:
+            flags.append({
+                "polje": polje,
+                "razlog": f"'{text}' referencira DOK-{broj:02d} koji nije medju uporedjenim dokumentima — moguc izmisljen dokument.",
+                "stavka": text,
+            })
+    return flags
 
 
 def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:

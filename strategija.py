@@ -581,9 +581,8 @@ OBAVEZNE DUŽNOSTI:
 1. Integriši sve nalaze u koherentnu stratešku preporuku. NE ponavljaj iste nalaze iz više koraka — ako se isti problem pojavi u Revizoru I u Red Team-u, navedi ga JEDNOM u akcionom planu.
 2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta.
 3. Prioritizuj akcije: hitno_crveno (mora odmah — naročito rokovi i procesne zamke), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje). Rok za tužbu (npr. 60 dana za radne sporove — ZR čl. 195) ide AUTOMATSKI u hitno_crveno ako je pomenut u analizama.
-4. Ako su 2 ili više RELEVANTNIH koraka imali confidence = NISKA, postavi sistemsko_upozorenje. VAŽNO: Witness Analyzer sa ocena_pouzdanosti = NIJE_PRIMENLJIVO se NE broji u ovu računicu.
-5. Konzervativna procena uvek — ne davaj lažni optimizam.
-6. executive_summary mora biti AKCIONI, ne deskriptivni: "Advokat mora da uradi X, Y, Z" — ne "Analiza je pokazala da...". Konkretno i brutalno iskreno.
+4. Konzervativna procena uvek — ne davaj lažni optimizam.
+5. executive_summary mora biti AKCIONI, ne deskriptivni: "Advokat mora da uradi X, Y, Z" — ne "Analiza je pokazala da...". Konkretno i brutalno iskreno.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
@@ -767,6 +766,53 @@ def orkestrator_kompletna_analiza_sync(
         temperature=0.15,
         max_tokens=2500,
     )
+
+    # Program Beta (2026-08-04) -- "≥2 relevantna koraka NISKA -> sistemsko_
+    # upozorenje" pravilo je ranije bilo IZVRŠAVANO od strane same Synthesis
+    # LLM instrukcije ("VAŽNO: ... postavi sistemsko_upozorenje"), ne
+    # izračunato u kodu -- čisto prebrojavanje preko 5 već postojećih
+    # confidence vrednosti, tačno onaj tip pravila koji Program Beta zahteva
+    # da bude deterministički ("LLM rezonuje, platforma računa"). Witness
+    # korak se izuzima iz brojanja kad je NIJE_PRIMENLJIVO, isto kao što je
+    # prompt sam pravilo definisao -- taj deo pravila NIJE promenjen, samo ko
+    # ga izvršava.
+    #
+    # Olympus Faza 10 governance nalaz (2026-08-04, Workflow Integrity):
+    # (1) bez provere da li je confidence jedna od dozvoljenih vrednosti
+    # (VISOKA/SREDNJA/NISKA), off-spec vrednost bi TIHO ispala iz brojanja
+    # (lažno negativan signal) -- sada se konzervativno računa kao anomalija
+    # koja podiže upozorenje. (2) _gpt_json-ov JSON-parse-failure fallback
+    # (linija ~641) sintetički vraća confidence=NISKA za TEHNIČKU grešku, ne
+    # pravnu analizu -- brojano identično sa stvarnom niskom pouzdanošću bi
+    # advokatu predstavilo API grešku kao pravni nalaz. Razdvojeno ovde.
+    _validne_confidence_vrednosti = {"VISOKA", "SREDNJA", "NISKA"}
+    _relevantni_koraci = [korak1, korak2, korak4, korak5]
+    if korak3.get("confidence") != "NIJE_PRIMENLJIVO":
+        _relevantni_koraci.append(korak3)
+
+    _greska_koraci = [k for k in _relevantni_koraci if k.get("error")]
+    _niska_koraci = [k for k in _relevantni_koraci if not k.get("error") and k.get("confidence") == "NISKA"]
+    _anomalija_koraci = [
+        k for k in _relevantni_koraci
+        if not k.get("error") and k.get("confidence") not in _validne_confidence_vrednosti
+    ]
+    _broj_niska = len(_niska_koraci) + len(_anomalija_koraci)
+
+    if _broj_niska >= 2 or _greska_koraci:
+        delovi = []
+        if _broj_niska >= 2:
+            delovi.append(
+                f"{_broj_niska} od {len(_relevantni_koraci)} relevantnih koraka ima nisku pouzdanost (confidence=NISKA)"
+            )
+        if _anomalija_koraci:
+            delovi.append(f"{len(_anomalija_koraci)} korak(a) vratio neočekivanu confidence vrednost")
+        if _greska_koraci:
+            delovi.append(
+                f"{len(_greska_koraci)} korak(a) imao tehničku grešku (JSON parsing) — preporučen retry, ne pravni nalaz"
+            )
+        sinteza["sistemsko_upozorenje"] = "Sistemsko upozorenje (izračunato): " + "; ".join(delovi) + "."
+    else:
+        sinteza["sistemsko_upozorenje"] = None
 
     return {
         "koraci": {
