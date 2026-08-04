@@ -555,7 +555,12 @@ Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica o
 
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     try:
-        raw = await asyncio.to_thread(_pozovi_cross_case_api, oai, prompt)
+        # Program Gamma (2026-08-04) -- ovaj poziv je bio jedan od 7 AI-odluka
+        # endpointa (4 fajla) bez ijedne provenance karike -- ista klasa koju
+        # je Program Beta popravio za compare_docs.
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        with _ai_case_ctx(module_name="case_commander", operation_name="cross_case_analiza"):
+            raw = await asyncio.to_thread(_pozovi_cross_case_api, oai, prompt)
         analiza = json.loads(raw)
     except Exception as exc:
         # CELINA 2 (2026-07-24): ovaj poziv ranije nije imao try/except --
@@ -576,6 +581,32 @@ Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica o
 
     nalazi  = analiza.get("nalazi", [])
 
+    # Program Gamma (2026-08-04) -- "kontradikcija" nalazi (i svi ostali) su
+    # ranije vraceni bez ijedne provere da li stvarno referenciraju jedan od
+    # predmeta koji su ANALIZIRANI -- isti "izmisljena referenca" rizik koji
+    # validate_dok_reference/validate_graph_edge_references vec pokrivaju za
+    # Compare/Evidence Graph, ovde prosiren na predmet_id_prefix referencu.
+    try:
+        from shared.genome_validator import validate_predmet_reference
+        # Olympus Faza 10 (Evidence Integrity nalaz): dict prefiks->naziv, ne
+        # goli set -- omogucava proveru da nalaz nije pogresno pripisan
+        # REALNOM prefiksu ali POGRESNOM predmetu (pomesan slucaj u portfoliju).
+        poznati = {p["id"][:8]: p.get("naziv", "") for p in predmeti}
+        hard_flags = []
+        for nalaz in nalazi:
+            hard_flags.extend(validate_predmet_reference(
+                nalaz.get("predmet_id_prefix"), poznati, nalaz.get("predmet_naziv"),
+            ))
+        prioritet_obj = analiza.get("prioritet") or {}
+        hard_flags.extend(validate_predmet_reference(
+            prioritet_obj.get("predmet_id_prefix"), poznati, prioritet_obj.get("predmet_naziv"),
+        ))
+        evidence_check = {"odluka": "require_review" if hard_flags else "approve", "hard_flags": hard_flags, "soft_flags": []}
+    except Exception as exc_ev:
+        _sentry_capture(exc_ev)
+        logger.warning("[COMMANDER] evidence-check greska (nije fatalno): %s", exc_ev)
+        evidence_check = None
+
     za_7  = (datetime.now().date() + timedelta(days=7)).isoformat()
     hitni = [r for p in predmeti for r in p["rokovi"] if r.get("datum", "") <= za_7]
 
@@ -584,6 +615,7 @@ Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica o
         "rezime":   analiza.get("rezime", ""),
         "nalazi":   nalazi,
         "prioritet": analiza.get("prioritet"),
+        "_evidence_check": evidence_check,
         "statistike": {
             "aktivnih":      n,
             "rizika":        sum(1 for f in nalazi if f["tip"] == "rizik"),

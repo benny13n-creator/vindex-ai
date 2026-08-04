@@ -402,6 +402,18 @@ def _delta_significant(delta: dict) -> bool:
     )
 
 
+def _delta_hitnost(delta: dict) -> str:
+    """Program Gamma (2026-08-04) -- ova formula je ranije bila inline-
+    duplirana bajt-identicno na 2 mesta u ovom fajlu (auto-refresh i
+    manual-refresh putanja) -- nije bio zivi bug (identican kod), ali je
+    tacno onaj obrazac ove misije: odluka o hitnosti alerta imala je dva
+    nezavisna autora, jednu izmenu daleko od tihog razilaska. Izdvojeno u
+    jednu deljenu funkciju, isti obrazac kao _delta_significant/
+    _delta_alert_text odmah iznad."""
+    snaga_d = abs(delta.get("snaga_delta", 0))
+    return "hitna" if snaga_d >= 15 or delta.get("kontr_nove", 0) > 1 else "normalna"
+
+
 def _verifikacija_alert_text(verifikacija: dict, verzija: int) -> str:
     """G-032 (D27) — formatira require_review razlog(e) u konkretan alert tekst.
     Koristi SAMO podatke koji vec postoje u verify_genome() rezultatu (hard_flags
@@ -753,8 +765,7 @@ async def _do_genome_refresh(
         if _delta_significant(delta_obj):
             verzija = genome.get("verzija", 1)
             tekst = _delta_alert_text(delta_obj, verzija, trigger)
-            snaga_d = abs(delta_obj.get("snaga_delta", 0))
-            hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
+            hitnost = _delta_hitnost(delta_obj)
             # Kolone potvrdjene naspram zive seme (Reality Validation batch,
             # 2026-07-18): 'tekst_alerta'/'tip_alerta'/'hitnost' NISU postojali —
             # stvarna sema je naslov/opis/tip/urgentnost. Feature je bio 100%
@@ -912,8 +923,7 @@ async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(Permi
     alert_msg = None
     if _delta_significant(delta_obj):
         alert_msg = _delta_alert_text(delta_obj, nova_verzija, "manual_refresh")
-        snaga_d = abs(delta_obj.get("snaga_delta", 0))
-        hitnost = "hitna" if snaga_d >= 15 or delta_obj.get("kontr_nove", 0) > 1 else "normalna"
+        hitnost = _delta_hitnost(delta_obj)
         from shared.proactive_alerts import create_proactive_alert
         await create_proactive_alert(
             supa,

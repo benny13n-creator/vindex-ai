@@ -297,6 +297,72 @@ def validate_dok_reference(text: Optional[str], poznati_brojevi: set[int], polje
     return flags
 
 
+def validate_graph_edge_references(nodes: list, edges: list) -> list[dict]:
+    """Program Gamma (2026-08-04) — same principle as validate_dok_reference
+    ("a referenced entity must actually exist in scope, not be invented"),
+    extended to Evidence Graph's node-id scheme (freeform strings like
+    'dok_ugovor', not DOK-NN numbers, so validate_dok_reference's regex does
+    not apply directly — the underlying check is identical: does the edge's
+    izvor/cilj match a real node.id in the same graph). Catches a GPT-invented
+    edge endpoint (e.g. an OSPORAVA contradiction edge pointing at a node.id
+    that was never actually extracted) — the same "hallucinated reference"
+    shape validate_dok_reference already proved out for Compare/Genome, not a
+    new invention. Never raises; malformed nodes/edges are skipped, not
+    fatal (same fail-soft convention as verify_genome)."""
+    try:
+        poznati_id = {n.get("id") for n in (nodes or []) if isinstance(n, dict) and n.get("id")}
+    except Exception:
+        return []
+    flags = []
+    for e in (edges or []):
+        if not isinstance(e, dict):
+            continue
+        for polje in ("izvor", "cilj"):
+            vrednost = e.get(polje)
+            if vrednost and vrednost not in poznati_id:
+                flags.append({
+                    "polje": f"edges.{polje}",
+                    "razlog": f"grana '{e.get('tip_veze','?')}' referencira cvor '{vrednost}' koji ne postoji medju ekstrahovanim entitetima — moguc izmisljen entitet.",
+                    "stavka": vrednost,
+                })
+    return flags
+
+
+def validate_predmet_reference(predmet_id_prefix: Optional[str], poznati: dict, predmet_naziv: Optional[str] = None) -> list[dict]:
+    """Program Gamma (2026-08-04) — same "referenced entity must exist in
+    scope" principle as validate_dok_reference/validate_graph_edge_references,
+    applied to Case Commander's cross-case findings, which reference a
+    predmet by its ID prefix (`nalaz.predmet_id_prefix`) rather than a DOK-NN
+    number or a graph node id. `poznati` maps prefix -> real naziv (not a
+    bare set) so a SECOND check is possible.
+
+    Olympus Faza 10 governance nalaz (2026-08-04, Evidence Integrity): the
+    original v1 only checked existence (prefix in known set) -- a finding
+    with a REAL prefix but a MISATTRIBUTED name/facts (GPT confused two
+    predmeti in the same portfolio) was architecturally invisible. Now also
+    checks predmet_naziv against the real naziv for that prefix when both
+    are present -- fuzzy (substring, case-insensitive) not exact, since
+    minor paraphrasing of a case name is not itself a defect."""
+    if not isinstance(predmet_id_prefix, str) or not predmet_id_prefix:
+        return []
+    if predmet_id_prefix not in poznati:
+        return [{
+            "polje": "predmet_id_prefix",
+            "razlog": f"nalaz referencira predmet ID prefiks '{predmet_id_prefix}' koji nije medju analiziranim predmetima — moguc izmisljen/pogresno pripisan nalaz.",
+            "stavka": predmet_id_prefix,
+        }]
+    stvarni_naziv = (poznati.get(predmet_id_prefix) or "").strip().lower()
+    if isinstance(predmet_naziv, str) and predmet_naziv.strip() and stvarni_naziv:
+        dati_naziv = predmet_naziv.strip().lower()
+        if dati_naziv not in stvarni_naziv and stvarni_naziv not in dati_naziv:
+            return [{
+                "polje": "predmet_naziv",
+                "razlog": f"nalaz referencira predmet ID prefiks '{predmet_id_prefix}' sa nazivom '{predmet_naziv}', ali stvaran naziv tog predmeta je '{poznati.get(predmet_id_prefix)}' — moguc pogresno pripisan nalaz (pomesan predmet).",
+                "stavka": predmet_naziv,
+            }]
+    return []
+
+
 def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:
     """Glavna ulazna tacka — Faza 1.3. Nula GPT poziva, nula I/O (docs je vec
     ucitan od strane pozivaoca). Nikad ne baca izuzetak — greska u jednoj

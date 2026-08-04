@@ -579,7 +579,7 @@ Dobio si rezultate 5 analiza: Pravni Revizor, Due Diligence, Witness Analyzer, R
 
 OBAVEZNE DUŽNOSTI:
 1. Integriši sve nalaze u koherentnu stratešku preporuku. NE ponavljaj iste nalaze iz više koraka — ako se isti problem pojavi u Revizoru I u Red Team-u, navedi ga JEDNOM u akcionom planu.
-2. Identifikuj KONFLIKTE između koraka. Primeri: Revizor kaže SPREMAN ZA UPOTREBU ali Red Team identifikuje VISOKA ranjivost zbog iste klauzule; Due Diligence kaže NEPRIHVATLJIV ali Sudija pretpostavlja valjanost dokumenta.
+2. Identifikuj KONFLIKTE između koraka — SEMANTIČKE, ne kategoričke. Dve specifične kombinacije (Revizor SPREMAN ZA UPOTREBU + Red Team VISOKA ranjivost; Due Diligence NEPRIHVATLJIV + Sudija TUZBA USVOJENA za litigacione predmete) se već DETERMINISTIČKI proveravaju u kodu posle tvog odgovora — NE navodi ih ponovo kao primer ako je jedini osnov kategorija sama po sebi. Fokusiraj se na konflikte koji zahtevaju STVARNO razumevanje teksta — npr. "Revizor i Red Team se ne slažu OKO ISTE KLAUZULE X" (kauzalna veza koju kategorija sama ne dokazuje), ili bilo koji drugi konflikt van te dve kombinacije.
 3. Prioritizuj akcije: hitno_crveno (mora odmah — naročito rokovi i procesne zamke), vazno_zuto (u narednih 30 dana), preporuceno_zeleno (poboljšanje). Rok za tužbu (npr. 60 dana za radne sporove — ZR čl. 195) ide AUTOMATSKI u hitno_crveno ako je pomenut u analizama.
 4. Konzervativna procena uvek — ne davaj lažni optimizam.
 5. executive_summary mora biti AKCIONI, ne deskriptivni: "Advokat mora da uradi X, Y, Z" — ne "Analiza je pokazala da...". Konkretno i brutalno iskreno.
@@ -813,6 +813,53 @@ def orkestrator_kompletna_analiza_sync(
         sinteza["sistemsko_upozorenje"] = "Sistemsko upozorenje (izračunato): " + "; ".join(delovi) + "."
     else:
         sinteza["sistemsko_upozorenje"] = None
+
+    # Program Gamma (2026-08-04) -- detektovani_konflikti je sistemski
+    # ISTOVETAN defekt kao sistemsko_upozorenje (Program Beta, isti dan, ista
+    # funkcija): Synthesis prompt sam kaže da 5 prethodnih koraka vraćaju
+    # mašinski-čitljive kategoričke vrednosti (korak1.ocena, korak4.ukupna_
+    # ranjivost, itd.) i da treba "identifikovati KONFLIKTE" među njima --
+    # ali je ta provera prepuštena isključivo LLM prozi, ne kodu, iako je
+    # strukturno proverljiva za tačno one primere prompt sam navodi. Kod OVDE
+    # ne zamenjuje LLM-ovu semantičku analizu (npr. "zbog iste klauzule" i
+    # dalje zahteva razumevanje teksta, ne samo enume) -- DODAJE garantovano
+    # uhvaćene kategoričke SIGNALE kao dopunu, isti "LLM rezonuje, platforma
+    # računa" princip primenjen tamo gde je stvarno moguć, ne tamo gde nije.
+    #
+    # Olympus Faza 10 governance nalaz (2026-08-04, Legal Domain Expert):
+    # (1) prompt-ov sopstveni primer za pravilo 1 kvalifikuje ga sa "zbog
+    # iste klauzule" -- kauzalnu vezu koju enum-poredjenje ne moze da proveri.
+    # Formulacija OVDE ublažena iz tvrdnje o kontradikciji u "moguća napetost,
+    # proverite" -- signal, ne presuda, da se izbegne obuka advokata da
+    # ignorišu funkciju kad se pojavi na pravno koherentnim slučajevima
+    # (dobro sastavljen dokument uz slab predmet po meritumu NIJE
+    # kontradikcija). (2) Korak 5 (AI Sudija) se izvršava BEZUSLOVNO za svaki
+    # poziv orkestratora, čak i za transakcione (ne-litigacione) predmete,
+    # gde "TUZBA USVOJENA/ODBIJENA" nije stvarno primenljivo (nema tužbe) --
+    # pravilo 2 sada OGRANIČENO samo na predmete gde je Due Diligence sam
+    # prepoznao litigacioni tip dokumenta (korak2.preporuka u litigacionom
+    # skupu), ne na transakcione (ugovor/sporazum) predmete gde bi poređenje
+    # sa fiktivnom presudom bilo greška kategorije, ne pravno neslaganje.
+    _litigacioni_tip = {"PODNETI", "ISPRAVITI_PA_PODNETI", "NE_PODNETI"}
+    _kategoricki_konflikti = []
+    if korak1.get("ocena") == "SPREMAN ZA UPOTREBU" and korak4.get("ukupna_ranjivost") == "VISOKA":
+        _kategoricki_konflikti.append(
+            "[Izračunato — proverite] Korak 1 (Pravni Revizor): SPREMAN ZA UPOTREBU, a Korak 4 (Red Team): "
+            "VISOKA ranjivost — moguća napetost (dokument može biti formalno spreman dok je pravna pozicija "
+            "koju podržava ranjiva po meritumu; proverite da li se odnosi na isti deo predmeta pre zaključka)."
+        )
+    if (
+        korak2.get("ukupna_ocena") == "NEPRIHVATLJIV"
+        and korak2.get("preporuka") in _litigacioni_tip
+        and (korak5.get("presuda") or {}).get("izreka") == "TUZBA USVOJENA"
+    ):
+        _kategoricki_konflikti.append(
+            "[Izračunato — proverite] Korak 2 (Due Diligence): NEPRIHVATLJIV, a Korak 5 (AI Sudija): "
+            "TUZBA USVOJENA — due diligence ocenjuje predmet neprihvatljivim dok sudijska procena pretpostavlja "
+            "uspeh tužbe."
+        )
+    if _kategoricki_konflikti:
+        sinteza["detektovani_konflikti"] = (sinteza.get("detektovani_konflikti") or []) + _kategoricki_konflikti
 
     return {
         "koraci": {

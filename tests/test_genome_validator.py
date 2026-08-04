@@ -10,7 +10,10 @@ baze/mreze.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from shared.genome_validator import verify_genome, compute_snaga_score, validate_dok_reference
+from shared.genome_validator import (
+    verify_genome, compute_snaga_score, validate_dok_reference,
+    validate_graph_edge_references, validate_predmet_reference,
+)
 
 
 def _docs(*nazivi_i_brojevi):
@@ -333,3 +336,80 @@ def test_clan_broj_nula_ili_negativan_je_hard_flag():
     genome = {"pravna_teorija": {"relevantni_zakoni": ["ZOO čl. 0"]}}
     result = verify_genome(genome, [])
     assert any("0" in f["stavka"] for f in result["hard_flags"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Gamma (2026-08-04) — validate_graph_edge_references (Evidence Graph)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_validate_graph_edge_references_flags_unknown_node():
+    nodes = [{"id": "lice_01"}, {"id": "dok_ugovor"}]
+    edges = [{"izvor": "lice_01", "cilj": "dok_nepostojeci", "tip_veze": "OSPORAVA"}]
+    flags = validate_graph_edge_references(nodes, edges)
+    assert len(flags) == 1
+    assert "dok_nepostojeci" in flags[0]["razlog"]
+
+
+def test_validate_graph_edge_references_passes_known_nodes():
+    nodes = [{"id": "lice_01"}, {"id": "dok_ugovor"}]
+    edges = [{"izvor": "lice_01", "cilj": "dok_ugovor", "tip_veze": "POMINJE"}]
+    assert validate_graph_edge_references(nodes, edges) == []
+
+
+def test_validate_graph_edge_references_empty_is_noop():
+    assert validate_graph_edge_references([], []) == []
+    assert validate_graph_edge_references(None, None) == []
+
+
+def test_validate_graph_edge_references_malformed_input_never_raises():
+    # nodes kao string ne baca izuzetak -- poznati_id ostaje prazan skup (fail-soft),
+    # edge sa izvor/cilj koji nisu stringovi se i dalje bezbedno obradjuje.
+    result = validate_graph_edge_references("nije lista", [{"izvor": 1, "cilj": 2}])
+    assert isinstance(result, list)
+    assert validate_graph_edge_references([{"id": "a"}], ["nije dict"]) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Gamma (2026-08-04) — validate_predmet_reference (Case Commander)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_validate_predmet_reference_flags_unknown_prefix():
+    poznati = {"11112222": "Predmet A", "33334444": "Predmet B"}
+    flags = validate_predmet_reference("abcd1234", poznati)
+    assert len(flags) == 1
+    assert "abcd1234" in flags[0]["razlog"]
+    assert flags[0]["polje"] == "predmet_id_prefix"
+
+
+def test_validate_predmet_reference_passes_known_prefix_no_naziv_given():
+    poznati = {"11112222": "Predmet A", "33334444": "Predmet B"}
+    assert validate_predmet_reference("11112222", poznati) == []
+
+
+def test_validate_predmet_reference_empty_is_noop():
+    poznati = {"11112222": "Predmet A"}
+    assert validate_predmet_reference("", poznati) == []
+    assert validate_predmet_reference(None, poznati) == []
+
+
+def test_validate_predmet_reference_flags_misattributed_naziv():
+    """Olympus Faza 10 (2026-08-04, Evidence Integrity nalaz): REALAN prefiks
+    ali POGRESAN naziv (GPT pomesao dva predmeta u istom portfoliju) mora
+    biti uhvacen -- ne samo puko postojanje prefiksa."""
+    poznati = {"11112222": "Petrović protiv Marković d.o.o.", "33334444": "Jovanović nasledstvo"}
+    flags = validate_predmet_reference("11112222", poznati, predmet_naziv="Jovanović nasledstvo")
+    assert len(flags) == 1
+    assert flags[0]["polje"] == "predmet_naziv"
+    assert "Jovanović nasledstvo" in flags[0]["razlog"]
+    assert "Petrović protiv Marković" in flags[0]["razlog"]
+
+
+def test_validate_predmet_reference_passes_matching_naziv_fuzzy():
+    """Fuzzy (substring, case-insensitive) match -- manja parafraza naziva nije greska."""
+    poznati = {"11112222": "Petrović protiv Marković d.o.o."}
+    assert validate_predmet_reference("11112222", poznati, predmet_naziv="petrović protiv marković") == []
+
+
+def test_validate_predmet_reference_no_naziv_check_when_naziv_not_given():
+    poznati = {"11112222": "Petrović protiv Marković d.o.o."}
+    assert validate_predmet_reference("11112222", poznati, predmet_naziv=None) == []

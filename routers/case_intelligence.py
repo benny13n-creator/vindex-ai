@@ -28,6 +28,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from routers.matter_intel import _d
 
 logger = logging.getLogger("vindex.case_intelligence")
 router = APIRouter(prefix="/api/intelligence", tags=["case_intelligence"])
@@ -82,15 +83,36 @@ Samo JSON. Srpski jezik. Budi konkretan, bez filozofisanja."""
 async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
     """Paralelno prikuplja podatke iz svih relevantnih tabela."""
 
-    predmet_row, lekcije_row, dna_row, patterns_row, alerts_row, decisions_row = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("predmeti")
-            .select("naziv, tip, status, oblast_prava, opis, klijent_id, case_dna")
-            .eq("id", predmet_id)
-            .eq("user_id", user_id)
-            .maybe_single()
-            .execute()
-        ),
+    # Program Gamma (2026-08-04) -- ranija verzija je (a) selektovala kolone
+    # koje ne postoje na proactive_alerts (tekst_alerta/tip_alerta/hitnost --
+    # stvarna sema je tip/naslov/opis/urgentnost, migrations/036_decision_
+    # log.sql:40-51 -- ISTA greska koja je nadjena i ispravljena na case_dna.py
+    # 2026-07-18, ovde nikad uhvacena) i (b) nije imala return_exceptions=True,
+    # pa bi ta jedna greska srusila CEO /briefing poziv (500) umesto da
+    # degradira samo alert sekciju.
+    #
+    # Olympus Faza 10 governance nalaz (2026-08-04, Security Review): vlasnicka
+    # provera (predmeti upit, jedina autorizacija u ovoj funkciji) je bila
+    # unutar fail-soft gather-a -- prolazna DB/mrezna greska na TOJ specificnoj
+    # podupit bi se tiho prijavila kao "Predmet nije pronadjen" (404) umesto
+    # kao stvarna greska (500), gubeci vidljivost. Izdvojena kao sopstveni
+    # awaited poziv PRE gather-a, isti obrazac kao evidence_graph.py:197-204.
+    # (Architecture Review): SimpleNamespace supstitucija je bila TRECI
+    # nezavisni idiom za "gather sa delimicnim neuspehom" u ovom repou --
+    # matter_intel.py::_d() vec postoji upravo za ovaj slucaj (Faza 2.2,
+    # 2026-07-18), sada reuse-ovana ovde umesto cetvrtog idioma.
+    predmet_row = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+        .select("naziv, tip, status, oblast_prava, opis, klijent_id, case_dna")
+        .eq("id", predmet_id)
+        .eq("user_id", user_id)
+        .maybe_single()
+        .execute()
+    )
+    predmet = predmet_row.data or {}
+    klijent_id = predmet.get("klijent_id")
+
+    _rezultati = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("lessons_learned")
             .select("sadrzaj, kategorija, pouzdanost, status_lekcije, broj_predmeta")
@@ -119,7 +141,7 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
         ),
         asyncio.to_thread(
             lambda: supa.table("proactive_alerts")
-            .select("tekst_alerta, tip_alerta, hitnost")
+            .select("tip, opis, urgentnost")
             .eq("user_id", user_id)
             .eq("predmet_id", predmet_id)
             .eq("procitana", False)
@@ -136,10 +158,13 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
             .limit(5)
             .execute()
         ),
+        return_exceptions=True,
     )
-
-    predmet = predmet_row.data or {}
-    klijent_id = predmet.get("klijent_id")
+    _nazivi = ("lessons_learned", "firm_dna", "case_patterns", "proactive_alerts", "decision_log")
+    for _naziv, _r in zip(_nazivi, _rezultati):
+        if isinstance(_r, Exception):
+            logger.warning("[CASE_INTELLIGENCE] Podupit '%s' neuspesan (degradiran, nije fatalan): %s", _naziv, _r)
+    lekcije, firm_dna_lista, case_patterns_lista, alertovi, odluke = (_d(r) for r in _rezultati)
 
     # Komunikacioni profil klijenta (ako postoji)
     komunikacioni_profil = {}
@@ -177,11 +202,11 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
 
     return {
         "predmet": predmet,
-        "lekcije": lekcije_row.data or [],
-        "firm_dna": dna_row.data or [],
-        "case_patterns": patterns_row.data or [],
-        "alertovi": alerts_row.data or [],
-        "odluke": decisions_row.data or [],
+        "lekcije": lekcije,
+        "firm_dna": firm_dna_lista,
+        "case_patterns": case_patterns_lista,
+        "alertovi": alertovi,
+        "odluke": odluke,
         "komunikacioni_profil": komunikacioni_profil,
         "knowledge_profili": knowledge_profili[:2],
     }
@@ -283,7 +308,7 @@ def _build_context_text(data: dict) -> str:
     if data["alertovi"]:
         lines.append("\nAKTIVNI ALERTOVI:")
         for a in data["alertovi"]:
-            lines.append(f"  ! [{a.get('hitnost','?')}] {a.get('tekst_alerta','')[:150]}")
+            lines.append(f"  ! [{a.get('urgentnost','?')}] {a.get('opis','')[:150]}")
 
     if data["odluke"]:
         lines.append("\nODLUKE NA PREDMETU:")

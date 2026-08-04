@@ -237,7 +237,26 @@ async def generisi_graf(
 
     # ── Izgradnja konteksta i GPT-4o poziv ───────────────────────────────────
     kontekst = _izgradj_kontekst(predmet, dokumenti, komentari, rokovi)
-    graf = await asyncio.to_thread(_pozovi_gpt, kontekst)
+    # Program Gamma (2026-08-04) -- generisi_graf je bio jedan od 4 fajla /
+    # 7 endpoint-a nadjenih bez ijedne od tri Evidence Chain karike (provenance/
+    # evidence-validacija/UI trust signal) -- ista klasa koju je Program Beta
+    # popravio za compare_docs, ovde nadjena na sirem obimu. case_context()
+    # ovde koristi isti obrazac kao case_dna.py.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(predmet_id=req.predmet_id, module_name="evidence_graph", operation_name="generisi_graf"):
+        graf = await asyncio.to_thread(_pozovi_gpt, kontekst)
+
+    try:
+        from shared.genome_validator import validate_graph_edge_references
+        hard_flags = validate_graph_edge_references(graf.get("nodes"), graf.get("edges"))
+        graf["_evidence_check"] = {
+            "odluka": "require_review" if hard_flags else "approve",
+            "hard_flags": hard_flags,
+            "soft_flags": [],
+        }
+    except Exception as exc_ev:
+        _sentry_capture(exc_ev)
+        logger.warning("[EG] evidence-check greska (nije fatalno): %s", exc_ev)
 
     # ── Cuvanje grafa u evidence_grafovi ────────────────────────────────────
     try:
@@ -260,6 +279,7 @@ async def generisi_graf(
         "edges":            graf.get("edges", []),
         "predmet_naziv":    predmet.get("naziv", ""),
         "credits_remaining": max(preostalo, 0),
+        "_evidence_check":  graf.get("_evidence_check"),
     }
 
 
@@ -308,6 +328,11 @@ async def get_graf(
         "nodes":         podaci.get("nodes", []),
         "edges":         podaci.get("edges", []),
         "predmet_naziv": pr.data[0].get("naziv", ""),
+        # Olympus Faza 10 (2026-08-04, Evidence Integrity nalaz): _evidence_check
+        # se RACUNA i CUVA u podaci (generisi_graf), ali se ranije gubio na
+        # svaki naredni GET (reload) poziv -- signal koji je postojao tacno
+        # jednom, odmah nakon generisanja, i nikad posle. Sada trajno vracen.
+        "_evidence_check": podaci.get("_evidence_check"),
     }
 
 

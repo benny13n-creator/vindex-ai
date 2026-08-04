@@ -1515,16 +1515,32 @@ async function _ccCaricaAiAnaliza(hdr) {
     var tipIkone = { rizik: '⚠', kontradikcija: '⇄', nepovezan_dokument: '⊡' };
     var tipKlasa = { rizik: 'cc-ni-rizik', kontradikcija: 'cc-ni-kontr', nepovezan_dokument: 'cc-ni-neakt' };
 
+    // Olympus Faza 10 (2026-08-04, Evidence Integrity nalaz): backend racuna
+    // _evidence_check (validate_predmet_reference) ali ga UI ranije nikad
+    // nije citao -- flagovan nalaz je prikazivan identicnom vizuelnom
+    // tezinom kao odobren, na platformi najveceg dnevnog saobracaja
+    // (jutarnji brifing). Skupljamo flagovane prefikse/nazive da bismo
+    // oznacili SAMO pogodjene stavke, ne generickim banerom preko svega.
+    var ev = data._evidence_check || {};
+    var flagovaniPrefiksi = {};
+    (ev.hard_flags || []).forEach(function(f) {
+      if (f.polje === 'predmet_id_prefix' || f.polje === 'predmet_naziv') {
+        flagovaniPrefiksi[f.stavka] = f.razlog;
+      }
+    });
+
     var html = '';
     nalazi.forEach(function(n) {
       var ikona = tipIkone[n.tip] || '•';
       var klasa = tipKlasa[n.tip]  || '';
+      var flagRazlog = flagovaniPrefiksi[n.predmet_id_prefix] || flagovaniPrefiksi[n.predmet_naziv];
       html += '<div class="cc-nalaz-item ' + klasa + '">';
       html += '<span class="cc-ni-ikona">' + ikona + '</span>';
       html += '<div class="cc-ni-txt">';
       html += '<span class="cc-ni-naziv">' + escHtml(n.predmet_naziv || '') + '</span>';
       if (n.naslov) html += '<span class="cc-ni-opis"> — ' + escHtml(n.naslov) + '</span>';
       if (n.opis)   html += '<div class="cc-ni-detail">' + escHtml(n.opis) + '</div>';
+      if (flagRazlog) html += '<div class="cc-ni-detail" style="color:#f59e0b;">⚠ AI provera: ' + escHtml(flagRazlog) + '</div>';
       html += '</div>';
       html += '</div>';
     });
@@ -22167,9 +22183,23 @@ async function evidenceGraph_generiši(predmetId) {
     if (!r.ok) { showToast(d.detail || 'Greška pri generisanju grafa.', 'error'); return; }
     _egGraf = d;
     evidenceGraph_renderSVG(d, 'eg-svg-container');
+    _eg_prikaziEvidenceCheck(d);
   } catch(e) {
     showToast('Mrežna greška — pokušajte ponovo.', 'error');
     if (canvas) canvas.innerHTML = '<div class="eg-err">Greška pri ucitavanju grafa.</div>';
+  }
+}
+
+// Olympus Faza 10 (2026-08-04, Evidence Integrity + Security nalaz): backend
+// racuna _evidence_check (validate_graph_edge_references) ali ga frontend
+// ranije nikad nije citao -- signal je postojao ali je bio mrtav. showToast
+// je vec ustanovljena konvencija u ova ista 2 poziv-mesta za greske/upozorenja.
+function _eg_prikaziEvidenceCheck(d) {
+  var ev = d && d._evidence_check;
+  if (!ev) return;
+  if (ev.odluka === 'require_review' && (ev.hard_flags || []).length) {
+    var poruka = ev.hard_flags.map(function(f){ return f.razlog; }).join(' ');
+    showToast('⚠ AI provera grafa: ' + poruka, 'warning');
   }
 }
 
@@ -22199,6 +22229,7 @@ async function evidenceGraph_load(predmetId) {
     }
     _egGraf = d;
     evidenceGraph_renderSVG(d, 'eg-svg-container');
+    _eg_prikaziEvidenceCheck(d);
   } catch(e) {
     showToast('Mrežna greška — pokušajte ponovo.', 'error');
     if (canvas) canvas.innerHTML = '<div class="eg-err">Greška pri ucitavanju grafa.</div>';

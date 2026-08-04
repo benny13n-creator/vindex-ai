@@ -679,6 +679,29 @@ async def argument_reputation(
         with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="argument_reputation"):
             raw = await asyncio.to_thread(_pozovi_arg_reputation_api, oai, user_msg)
         rezultat = json.loads(raw)
+        # Program Gamma (2026-08-04) -- prompt sam navodi proverljivo pravilo
+        # (linija ~593: "zelena" >=65 / "žuta" 35-64 / "crvena" <35) ali je
+        # 'boja' vracana sirova, nikad provezena protiv sopstvenog
+        # uspesnost_procena -- ista klasa koju je Program Beta popravio za
+        # sistemsko_upozorenje. Kod ovde racuna boju iz vec vracenog broja,
+        # ne trazi novi LLM poziv.
+        # Olympus Faza 10 governance nalaz (2026-08-04, AI Governance):
+        # response_format=json_object garantuje samo validan JSON na vrhu,
+        # ne da je uspesnost_procena STVARNO int (npr. GPT vratio "72" kao
+        # string) -- prethodna verzija je u tom slucaju tiho preskakala
+        # prevoznjenje i propustala sirovu (potencijalno neuskladjenu) boju.
+        # Sada se pokusava bezbedna koercija pre odustajanja.
+        for _a in (rezultat.get("argumenti_analiza") or []):
+            if not isinstance(_a, dict):
+                continue
+            _proc = _a.get("uspesnost_procena")
+            if isinstance(_proc, str):
+                try:
+                    _proc = float(_proc.strip())
+                except (ValueError, TypeError):
+                    _proc = None
+            if isinstance(_proc, (int, float)):
+                _a["boja"] = "zelena" if _proc >= 65 else ("žuta" if _proc >= 35 else "crvena")
     except Exception as e:
         _sentry_capture(e)
         logger.error("[ARG_REP] GPT greška: %s", e)
@@ -817,10 +840,17 @@ async def judge_profile(
             raw = await asyncio.to_thread(_pozovi_judge_profile_api, oai, user_msg)
         rezultat = json.loads(raw)
         rezultat["ukupno_odluka_analizirano"] = odluke_count
+        # Program Gamma (2026-08-04) -- prompt sam navodi proverljivo pravilo
+        # (linija ~747: "visoka" 10+/"srednja" 5-9/"niska" <5 ili nema RAG),
+        # ali srednji opseg (5-9) je ranije ispao iz if/elif-a i tiho ostajao
+        # na sirovoj GPT vrednosti -- jedini neproveren slucaj u inace vec
+        # deterministicki izracunatom polju. Zatvoreno eksplicitnim else.
         if not _RAG_AVAILABLE or odluke_count < 5:
             rezultat["pouzdanost_profila"] = "niska"
         elif odluke_count >= 10:
             rezultat["pouzdanost_profila"] = "visoka"
+        else:
+            rezultat["pouzdanost_profila"] = "srednja"
     except Exception as e:
         _sentry_capture(e)
         logger.error("[JUDGE_PROF] GPT greška: %s", e)
