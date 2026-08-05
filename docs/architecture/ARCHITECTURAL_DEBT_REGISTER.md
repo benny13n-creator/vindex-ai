@@ -1113,3 +1113,53 @@ semantics; building a rollback mechanism for a case that doesn't exist yet would
 
 **Severity**: Low — named for future awareness; revisit if/when an event with genuinely interdependent
 consequences is wired.
+
+---
+
+## Program Delta, Sprint 002 (2026-08-05) — Canonical Event Migration I
+
+Full narrative: `docs/delta/EVENT_MIGRATION_REPORT_SPRINT_002.md`, `docs/delta/RELIABILITY_VERIFICATION_REPORT_SPRINT_002.md`.
+Migrates 4 more events onto Sprint 001's canonical mechanism (`REVIEW_ACCEPTED`, `REVIEW_REJECTED`,
+`NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`). Hard 2-agent token budget honored throughout.
+
+## DELTA-001 — UPDATED: 5 of 8 mapped events now wired (was 1 of 8)
+
+`REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED` wired this sprint,
+joining `DOCUMENT_ACCEPTED` (Sprint 001). 3 events remain declared-not-wired: `DOCUMENT_MODIFIED`,
+`CONFIDENCE_DROPPED`, `MANUAL_CORRECTION_APPLIED` — no proven consequence gap for any of the three (see
+`CASE_EVOLUTION_REGISTRY.md`'s own per-event reasoning, unchanged from Sprint 001's own assessment, re-
+confirmed not re-derived this sprint).
+
+**Severity**: Low (downgraded from Medium) — the remaining 3 events all have an explicit "no proven need yet"
+reasoning, not merely "not gotten to it."
+
+## DELTA-002 — UPDATED: 2 of 4 found scattered call sites migrated (was 1 of 4 after Sprint 001... corrected: 0 of 4)
+
+Sprint 001 migrated Pipeline C's own Genome trigger (1 of what Sprint 001 identified as 4 scattered call
+sites, none of the other 3 migrated then). Sprint 002 migrates 2 more of the ORIGINAL 4 named in Sprint 001's
+own Task 3 table (Evidence Vault auto-classify, conflict-check) PLUS discovers and migrates a 5th call site
+Sprint 001 didn't name (`resolve_job_review`'s own direct `log_action` call). Remaining unmigrated: Pipeline
+A's own Genome trigger (`api.py::predmet_upload`), `routers/rocista.py`'s own Genome trigger — both a
+DIFFERENT feature surface (case upload / hearing scheduling) than any event named in Sprint 002's own charter,
+correctly deferred rather than expanded into.
+
+**Why not fixed this sprint**: both remaining call sites are mechanical migrations (same event type —
+`DOCUMENT_ACCEPTED` — same registry, same dispatcher, different emission point) but belong to a feature
+surface outside Sprint 002's own 4 named events; migrating them under this sprint's hard 2-agent budget would
+have meant not properly reliability-testing the 4 events the mission actually required.
+
+**Recommended direction**: a future Delta sprint scoped specifically to "Pipeline A + rocista.py Genome
+trigger migration" — mechanical, low-risk, no new design needed.
+
+**Severity**: Medium — real, still-open architectural debt (2 of 4 originally-named scattered call sites
+remain), but each is independently correct and safe today.
+
+## DELTA-004 — REVIEW_REJECTED's rollback is trivial-by-construction, not general-purpose (Low, by design)
+
+`REVIEW_REJECTED`'s own "rollback" satisfies the mission's Test 2 requirement only because no consequence was
+ever registered for it that mutates the case (deliberately — see `CASE_EVOLUTION_REGISTRY.md`'s "šta se
+poništava" field). This is NOT a general rollback mechanism (still absent, `DELTA-003` unchanged) — if a
+future event's rejection needs to undo an ALREADY-APPLIED consequence (not just prevent one from ever
+running), a real rollback mechanism would be needed then, not before.
+
+**Severity**: Low — named for future awareness, same reasoning as `DELTA-003`, no current need.

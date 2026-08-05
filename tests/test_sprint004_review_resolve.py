@@ -52,6 +52,13 @@ def _chain(data):
 
 @pytest.mark.anyio
 async def test_resolve_job_review_happy_path_resolves_and_logs_audit():
+    """Program Delta, Sprint 002 (2026-08-05): the old direct
+    `asyncio.create_task(log_action("dokument_review_resolved", ...))` call
+    was replaced by a durable REVIEW_ACCEPTED event emission -- the
+    Canonical Consequence Engine (services/case_evolution.py) now owns
+    writing that specific audit row as its own 'review_confirmation_audit'
+    consequence, not this endpoint directly. This test now asserts on the
+    EMISSION (event type + payload), not a direct log_action call."""
     from routers.smart_intake import resolve_job_review
 
     supa = MagicMock()
@@ -60,17 +67,20 @@ async def test_resolve_job_review_happy_path_resolves_and_logs_audit():
     with patch("routers.smart_intake._get_supa", return_value=supa), \
          patch("routers.smart_intake.intake_documents.resolve_review",
                new=AsyncMock(return_value={"review_resolved_now": True, "job_status_advanced": True})), \
-         patch("shared.audit_immutable.log_action", new=AsyncMock()) as mock_log:
+         patch("services.event_bus.emit_durable", new=AsyncMock()) as mock_emit:
         result = await resolve_job_review("job-1", _fake_request(), _fake_user())
-        await asyncio.sleep(0)  # let the fire-and-forget create_task run
 
     assert result["ok"] is True
     assert result["already_finalized"] is False
     assert result["review_resolved_now"] is True
     assert result["job_status_advanced"] is True
-    mock_log.assert_awaited_once()
-    assert mock_log.call_args.args[0] == "dokument_review_resolved"
-    assert mock_log.call_args.kwargs["resource_id"] == "job-1"
+    mock_emit.assert_awaited_once()
+    from services.event_bus import EventType
+    assert mock_emit.call_args.args[0] == EventType.REVIEW_ACCEPTED
+    assert mock_emit.call_args.args[1] == "00000000-0000-0000-0000-000000000001"
+    assert mock_emit.call_args.args[2] is None  # predmet_id -- job wasn't finalized yet
+    assert mock_emit.call_args.args[3]["intake_job_id"] == "job-1"
+    assert mock_emit.call_args.args[3]["review_resolved_now"] is True
 
 
 @pytest.mark.anyio
@@ -88,23 +98,34 @@ async def test_resolve_job_review_404_when_not_owned_or_missing():
 
 
 @pytest.mark.anyio
-async def test_resolve_job_review_already_finalized_returns_honest_noop():
-    """A review resolved after finalize already ran is safe but must not
-    silently pretend it unblocked a pipeline that already completed --
-    the response must say already_finalized: true, not just 'ok'."""
+async def test_resolve_job_review_already_finalized_still_resolves_and_wires_genome():
+    """Program Delta, Sprint 002 (2026-08-05): a review resolved AFTER
+    finalize already ran used to be a complete no-op (predmet_id set ->
+    early return, resolve_review() never even called) -- the
+    intake_review_queue row stayed unresolved FOREVER. Fixed this sprint
+    (belongs to the migrated REVIEW_ACCEPTED event's own Human Review
+    domain, fixable without a business decision): resolve_review() now
+    always runs (idempotent by construction), and the REVIEW_ACCEPTED event
+    still carries the job's own predmet_id -- exactly what lets the
+    Canonical Consequence Engine's genome_refresh/timeline_entry
+    consequences do REAL work for a post-finalize correction (the founder's
+    own worked example: 'Review Accepted -> Genome -> Timeline -> Audit')."""
     from routers.smart_intake import resolve_job_review
 
     supa = MagicMock()
     supa.table = MagicMock(return_value=_chain({"id": "job-1", "status": "completed", "predmet_id": "pred-999"}))
-    mock_resolve = AsyncMock()
+    mock_resolve = AsyncMock(return_value={"review_resolved_now": True, "job_status_advanced": False})
 
     with patch("routers.smart_intake._get_supa", return_value=supa), \
-         patch("routers.smart_intake.intake_documents.resolve_review", mock_resolve):
+         patch("routers.smart_intake.intake_documents.resolve_review", mock_resolve), \
+         patch("services.event_bus.emit_durable", new=AsyncMock()) as mock_emit:
         result = await resolve_job_review("job-1", _fake_request(), _fake_user())
 
     assert result["already_finalized"] is True
-    assert result["predmet_id"] == "pred-999"
-    mock_resolve.assert_not_awaited()  # nothing left to unblock
+    assert result["review_resolved_now"] is True
+    mock_resolve.assert_awaited_once()  # fixed: no longer skipped
+    mock_emit.assert_awaited_once()
+    assert mock_emit.call_args.args[2] == "pred-999"  # predmet_id -- genome/timeline can now do real work
 
 
 @pytest.mark.anyio
@@ -120,7 +141,7 @@ async def test_resolve_job_review_idempotent_on_double_call():
     with patch("routers.smart_intake._get_supa", return_value=supa), \
          patch("routers.smart_intake.intake_documents.resolve_review",
                new=AsyncMock(return_value={"review_resolved_now": False, "job_status_advanced": False})), \
-         patch("shared.audit_immutable.log_action", new=AsyncMock()):
+         patch("services.event_bus.emit_durable", new=AsyncMock()):
         result = await resolve_job_review("job-1", _fake_request(), _fake_user())
 
     assert result["ok"] is True

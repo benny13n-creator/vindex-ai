@@ -25,13 +25,17 @@ primitives don't provide: per-(event, consequence) completion tracking
 duplicate" and "crash after Timeline, retry, resumes where it left off"
 true by construction, not by convention.
 
-Scope, per this sprint's own hard token budget and explicit charter: only
-ONE event (DOCUMENT_ACCEPTED) has real, wired consequences. The other 7
-event types Task 1 required be mapped (services/event_bus.py::EventType)
-are declared — proving one canonical entry point exists — but deliberately
-left with an empty consequence list; see CASE_EVOLUTION_REGISTRY.md for
-each one's own reasoning. Never invented speculative consequences for an
-event with no proven need yet.
+Sprint 001 wired ONE event (DOCUMENT_ACCEPTED). Sprint 002 ("Canonical
+Event Migration I", 2026-08-05) migrates 4 more onto this SAME dispatcher:
+REVIEW_ACCEPTED, REVIEW_REJECTED, NEW_CLIENT_LINKED, NEW_EVIDENCE_
+REGISTERED — each replacing a direct, in-process, fire-and-forget call
+(genome/timeline/audit/conflict-check/evidence-classify) that used to be a
+scattered "what happens next" decision made independently by
+routers/smart_intake.py. 3 event types remain deliberately left with an
+empty consequence list (DOCUMENT_MODIFIED, CONFIDENCE_DROPPED, MANUAL_
+CORRECTION_APPLIED — no proven consequence gap yet); see
+CASE_EVOLUTION_REGISTRY.md for each one's own reasoning. Never invented
+speculative consequences for an event with no proven need yet.
 """
 from __future__ import annotations
 
@@ -158,19 +162,32 @@ async def _consequence_timeline_entry(event: Event) -> str:
     per-document), so this sprint doesn't introduce N-times-more Genome
     recomputes than before for a multi-document upload. Self-verifying: the
     insert's own response either returns a row (success, id is the
-    result_ref) or raises/returns nothing (failure, propagated)."""
+    result_ref) or raises/returns nothing (failure, propagated).
+
+    Program Delta, Sprint 002 (2026-08-05): reused UNCHANGED for
+    REVIEW_ACCEPTED too (a confirmed correction to an already-assimilated
+    document is, conceptually, the same "new confirmed information entered
+    the case" shape as a document being accepted) — an explicit
+    `event.payload["timeline_opis"]` overrides the default document-
+    acceptance wording so the Timeline entry reads correctly for whichever
+    event triggered it, without a second insert function."""
     predmet_id = event.predmet_id
     uid = event.user_id
     if not predmet_id:
         return "skipped_no_predmet_id"
 
-    dokumenti = (event.payload or {}).get("dokumenti") or []
-    if len(dokumenti) == 1:
-        opis = f"Dokument prihvaćen — {dokumenti[0]}"
-    elif dokumenti:
-        opis = f"{len(dokumenti)} dokumenata prihvaćeno — {', '.join(dokumenti[:5])}" + (" ..." if len(dokumenti) > 5 else "")
+    payload = event.payload or {}
+    opis_override = payload.get("timeline_opis")
+    if opis_override:
+        opis = opis_override
     else:
-        opis = "Dokument prihvaćen"
+        dokumenti = payload.get("dokumenti") or []
+        if len(dokumenti) == 1:
+            opis = f"Dokument prihvaćen — {dokumenti[0]}"
+        elif dokumenti:
+            opis = f"{len(dokumenti)} dokumenata prihvaćeno — {', '.join(dokumenti[:5])}" + (" ..." if len(dokumenti) > 5 else "")
+        else:
+            opis = "Dokument prihvaćen"
 
     supa = _get_supa()
     res = await asyncio.to_thread(
@@ -187,19 +204,196 @@ async def _consequence_timeline_entry(event: Event) -> str:
     return str(res.data[0]["id"])
 
 
+# ─── Consequence executors — REVIEW_ACCEPTED / REVIEW_REJECTED (Sprint 002) ──
+
+async def _consequence_review_confirmation_audit(event: Event) -> str:
+    """Domain-specific audit row for a confirmed human review — MIGRATES
+    what used to be a direct, in-process `asyncio.create_task(log_action(
+    "dokument_review_resolved", ...))` fire-and-forget call inside
+    routers/smart_intake.py::resolve_job_review into this canonical flow.
+    Distinct from the generic 'case_evolution_consequence_completed' row
+    handle_case_changed already writes after every consequence — this one
+    carries the intake-domain-specific metadata (prior_status,
+    job_status_advanced, review_resolved_now) that a review-audit consumer
+    actually needs, not just 'a consequence ran'. Verification: log_action
+    itself either succeeds or raises (shared/audit_immutable.py's own
+    established contract) — no separate before/after check needed, unlike
+    genome_refresh's self-swallowing target function."""
+    payload = event.payload or {}
+    from shared.audit_immutable import log_action
+    await log_action(
+        "dokument_review_resolved",
+        user_id=event.user_id,
+        resource_type="intake_job",
+        resource_id=payload.get("intake_job_id"),
+        correlation_id=event.correlation_id,
+        metadata={
+            "prior_status": payload.get("prior_status"),
+            "job_status_advanced": payload.get("job_status_advanced"),
+            "review_resolved_now": payload.get("review_resolved_now"),
+        },
+    )
+    return f"audit_logged:{payload.get('intake_job_id', '')}"
+
+
+async def _consequence_review_rejection_audit(event: Event) -> str:
+    """REVIEW_REJECTED's own canonical audit consequence — mirrors
+    _consequence_review_confirmation_audit's shape for the mutually-
+    exclusive alternate outcome. Deliberately the ONLY consequence
+    registered for REVIEW_REJECTED (see CASE_EVOLUTION_REGISTRY.md for the
+    full "šta se poništava / šta ostaje / šta se replanira" definition) —
+    no genome_refresh, no timeline_entry, because a rejection means nothing
+    was ever applied to the case in the first place (intake_jobs.status
+    never reaches 'completed', migration 097), so there is nothing for
+    Genome or Timeline to reflect."""
+    payload = event.payload or {}
+    from shared.audit_immutable import log_action
+    await log_action(
+        "dokument_review_rejected",
+        user_id=event.user_id,
+        resource_type="intake_job",
+        resource_id=payload.get("intake_job_id"),
+        correlation_id=event.correlation_id,
+        metadata={
+            "review_resolved_now": payload.get("review_resolved_now"),
+            "job_status_rejected": payload.get("job_status_rejected"),
+        },
+    )
+    return f"audit_logged:{payload.get('intake_job_id', '')}"
+
+
+# ─── Consequence executor — NEW_CLIENT_LINKED (Sprint 002) ───────────────────
+
+async def _consequence_conflict_check(event: Event) -> str:
+    """MIGRATES what used to be a direct, in-process
+    `asyncio.create_task(_conflict_check_bg())` call inside
+    routers/smart_intake.py::finalize_intake_job — reuses
+    routers/intake.py::_run_conflict_check and shared/proactive_alerts.py::
+    create_proactive_alert UNCHANGED (this sprint is explicitly forbidden
+    from modifying Genome/Alert *capability* — this is the same conflict
+    check, just no longer a fire-and-forget call with no retry on failure).
+    A genuine reliability improvement over the code it replaces: the old
+    in-process task silently dropped a failure forever (logged, never
+    retried); this executor's exception propagates to the canonical
+    dispatcher, which marks the consequence 'failed' and lets the Event
+    Bus's own proven retry/dead-letter mechanism take over — bounded
+    (MAX_DISPATCH_ATTEMPTS=5), not silent."""
+    payload = event.payload or {}
+    klijent_ime = payload.get("klijent_ime") or ""
+    protivna_strana = payload.get("protivna_strana") or ""
+    if not klijent_ime:
+        return "skipped_no_klijent_ime"
+
+    from routers.intake import _run_conflict_check
+    result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "")
+    if not result.get("conflict_detected"):
+        return "no_conflict"
+
+    opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
+    supa = _get_supa()
+    from shared.proactive_alerts import create_proactive_alert
+    ok = await create_proactive_alert(
+        supa,
+        user_id=event.user_id,
+        predmet_id=event.predmet_id,
+        tip="sukob_interesa",
+        naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
+        opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+        urgentnost="hitna" if result.get("has_blocker") else "normalna",
+        retry_internally=False,
+    )
+    if not ok:
+        raise RuntimeError(f"conflict_check: proactive_alert insert nije uspeo za predmet={event.predmet_id}")
+    return "conflict_alert_created"
+
+
+# ─── Consequence executor — NEW_EVIDENCE_REGISTERED (Sprint 002) ─────────────
+
+async def _consequence_evidence_classify(event: Event) -> str:
+    """MIGRATES what used to be a direct, in-process
+    `asyncio.create_task(asyncio.to_thread(klasifikuj_i_sacuvaj, ...))` call
+    inside routers/smart_intake.py::finalize_intake_job — reuses
+    routers/evidence.py::klasifikuj_i_sacuvaj UNCHANGED. Deliberately does
+    NOT carry the document's extracted text in the event payload (would
+    duplicate a potentially ~100KB blob into the durable outbox for every
+    document) — re-reads `tekst_sadrzaj` from the SAME predmet_dokumenti
+    row this event's own dokument_id already points to, the row finalize
+    just inserted moments before emitting this event. Verifies via
+    `klasifikovan_at`, not "no exception" — klasifikuj_i_sacuvaj's own
+    outer try/except (routers/evidence.py) logs internal failures but does
+    not always re-raise, the same self-report gap genome_refresh's own
+    verification exists to close."""
+    payload = event.payload or {}
+    dokument_id = payload.get("dokument_id")
+    if not dokument_id:
+        return "skipped_no_dokument_id"
+
+    supa = _get_supa()
+    before_res = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("naziv_fajla,tekst_sadrzaj,klasifikovan_at")
+            .eq("id", dokument_id).maybe_single().execute()
+    )
+    before_data = before_res.data if before_res else None
+    if not before_data:
+        return "skipped_document_not_found"
+    tekst = before_data.get("tekst_sadrzaj")
+    if not tekst:
+        return "skipped_no_tekst_sadrzaj"
+
+    naziv = payload.get("naziv") or before_data.get("naziv_fajla") or "dokument"
+    from routers.evidence import klasifikuj_i_sacuvaj
+    await asyncio.to_thread(klasifikuj_i_sacuvaj, event.predmet_id, dokument_id, naziv, tekst, event.user_id)
+
+    after_res = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti").select("klasifikovan_at").eq("id", dokument_id).maybe_single().execute()
+    )
+    after_data = after_res.data if after_res else None
+    if not after_data or not after_data.get("klasifikovan_at"):
+        raise RuntimeError(f"evidence_classification verifikacija neuspešna za dokument={dokument_id}: klasifikovan_at i dalje prazan")
+    return str(dokument_id)
+
+
 # ─── Canonical consequence registry ──────────────────────────────────────────
 # Program Delta, Sprint 001, Task 1's own explicit instruction: prove ONE
 # entry point exists for every event that changes a predmet's state, do not
-# implement all of them. Only DOCUMENT_ACCEPTED has a real, tested
-# consequence list this sprint — see CASE_EVOLUTION_REGISTRY.md for the
-# full per-event reasoning (owner/input/consequences/idempotency/audit/
-# retry/rollback/success-criterion) required by Task 4, including the 7
-# event types deliberately left empty here.
+# implement all of them. Sprint 002 ("Canonical Event Migration I") migrates
+# 4 more: REVIEW_ACCEPTED, REVIEW_REJECTED, NEW_CLIENT_LINKED,
+# NEW_EVIDENCE_REGISTERED — see CASE_EVOLUTION_REGISTRY.md for the full
+# per-event reasoning (owner/input/consequences/idempotency/audit/retry/
+# rollback/success-criterion) required by Task 4, including the 3 event
+# types still deliberately left empty (DOCUMENT_MODIFIED, CONFIDENCE_
+# DROPPED, MANUAL_CORRECTION_APPLIED — no proven consequence gap yet).
 
 CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.DOCUMENT_ACCEPTED: [
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
+    ],
+    EventType.REVIEW_ACCEPTED: [
+        # Reuses DOCUMENT_ACCEPTED's own genome_refresh/timeline_entry
+        # executors UNCHANGED — both already no-op gracefully
+        # ("skipped_no_predmet_id") when this review was resolved BEFORE
+        # the job's first finalize (the common case, no case exists yet to
+        # refresh/record against). Only a POST-finalize correction (the
+        # job's predmet_id already set) makes these do real work — exactly
+        # the founder's own worked example ("Review Accepted → Genome →
+        # Timeline → Audit").
+        ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+        ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
+        ConsequenceDef(name="review_confirmation_audit", executor=_consequence_review_confirmation_audit),
+    ],
+    EventType.REVIEW_REJECTED: [
+        # Deliberately ONLY an audit consequence — see
+        # _consequence_review_rejection_audit's own docstring for why no
+        # genome_refresh/timeline_entry is registered here.
+        ConsequenceDef(name="review_rejection_audit", executor=_consequence_review_rejection_audit),
+    ],
+    EventType.NEW_CLIENT_LINKED: [
+        ConsequenceDef(name="conflict_check", executor=_consequence_conflict_check),
+    ],
+    EventType.NEW_EVIDENCE_REGISTERED: [
+        ConsequenceDef(name="evidence_classification", executor=_consequence_evidence_classify),
     ],
 }
 

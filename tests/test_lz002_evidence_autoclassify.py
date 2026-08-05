@@ -78,7 +78,16 @@ def _make_supa(new_doc_id="dok-001"):
 
 @pytest.mark.anyio
 async def test_finalize_triggers_evidence_classification_in_background():
+    """Program Delta, Sprint 002 (2026-08-05): the direct
+    `asyncio.create_task(asyncio.to_thread(klasifikuj_i_sacuvaj, ...))` call
+    this test originally proved was replaced by a durable
+    NEW_EVIDENCE_REGISTERED emission -- services/case_evolution.py::
+    _consequence_evidence_classify now owns actually calling
+    klasifikuj_i_sacuvaj (tested in tests/test_delta_sprint002_event_
+    migration.py). This test now asserts on finalize's OWN responsibility:
+    emit the right event, with the right dokument_id, once."""
     from routers.smart_intake import finalize_intake_job, FinalizeReq
+    from services.event_bus import EventType
 
     mock_supa = _make_supa()
     job_result = {
@@ -87,12 +96,6 @@ async def test_finalize_triggers_evidence_classification_in_background():
         "review": None,
     }
 
-    captured_coros = []
-
-    def _capture_create_task(coro, *a, **kw):
-        captured_coros.append(coro)
-        return MagicMock()
-
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
          patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
          patch("shared.intake_segments._get_supa", return_value=mock_supa), \
@@ -103,43 +106,35 @@ async def test_finalize_triggers_evidence_classification_in_background():
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.evidence.klasifikuj_i_sacuvaj") as mock_classify, \
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
+         patch("services.event_bus.emit_durable", new=AsyncMock()) as mock_emit:
 
         result = await finalize_intake_job(
             "job-1", _fake_request(), FinalizeReq(), _fake_user(),
         )
 
-        assert captured_coros, "finalize must schedule at least one background task"
-        for coro in captured_coros:
-            try:
-                await coro
-            except Exception:
-                pass  # unrelated background tasks (genome refresh, analytics) may fail in this minimal mock -- not this test's concern
-
     assert result["predmet_id"] == "pred-001"
-    mock_classify.assert_called_once_with(
-        "pred-001", "dok-001", "presuda.pdf", "Presuda teksta ovde.",
-        "00000000-0000-0000-0000-000000000001",
-    )
+    evidence_calls = [c for c in mock_emit.call_args_list if c.args[0] == EventType.NEW_EVIDENCE_REGISTERED]
+    assert len(evidence_calls) == 1
+    call_args = evidence_calls[0].args
+    assert call_args[1] == "00000000-0000-0000-0000-000000000001"  # uid
+    assert call_args[2] == "pred-001"  # predmet_id
+    assert call_args[3]["dokument_id"] == "dok-001"
+    assert call_args[3]["naziv"] == "presuda.pdf"
 
 
 @pytest.mark.anyio
 async def test_finalize_evidence_classification_failure_does_not_break_response():
-    """Fire-and-forget: if the classifier raises, the case is still created
-    and the response already succeeded."""
+    """Program Delta, Sprint 002 (2026-08-05): fire-and-forget discipline
+    preserved through the migration -- if the durable NEW_EVIDENCE_REGISTERED
+    insert itself fails (a classifier failure now happens later, async, in
+    the Canonical Consequence Engine -- tested separately), the case must
+    still be created and the response must still succeed."""
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
     mock_supa = _make_supa()
     job_result = {"document": {"id": "dok-001", "document_type": "judgment"}, "entities": [], "review": None}
 
-    captured_coros = []
-
-    def _capture_create_task(coro, *a, **kw):
-        captured_coros.append(coro)
-        return MagicMock()
-
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
          patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
          patch("shared.intake_segments._get_supa", return_value=mock_supa), \
@@ -150,18 +145,11 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.evidence.klasifikuj_i_sacuvaj", side_effect=RuntimeError("classification boom")), \
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
+         patch("services.event_bus.emit_durable", new=AsyncMock(side_effect=RuntimeError("boom"))):
 
         result = await finalize_intake_job(
             "job-1", _fake_request(), FinalizeReq(), _fake_user(),
         )
-
-        for coro in captured_coros:
-            try:
-                await coro
-            except Exception:
-                pass
 
     assert result["predmet_id"] == "pred-001"

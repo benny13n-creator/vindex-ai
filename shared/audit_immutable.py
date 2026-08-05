@@ -132,6 +132,11 @@ AUDITABLE_ACTIONS: set[str] = {
     # case_evolution.py::handle_case_changed) completes gets its own audit
     # row — the mechanism Task 5 requires ("audit postoji" for every step).
     "case_evolution_consequence_completed",
+    # Program Delta, Sprint 002 (2026-08-05) — Canonical Event Migration I.
+    # REVIEW_REJECTED's own canonical definition (this sprint) requires a
+    # domain-specific audit row, same shape as "dokument_review_resolved"
+    # above but for the mutually-exclusive alternate outcome.
+    "dokument_review_rejected",
     # Program Intake Sprint 006 (2026-08-05) — Canonical Case Assimilation.
     # Phase 1 audit finding: finalize_intake_job (routers/smart_intake.py)
     # had ZERO audit calls for document-into-case registration, unlike

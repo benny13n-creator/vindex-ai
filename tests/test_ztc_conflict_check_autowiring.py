@@ -154,14 +154,17 @@ def _make_supa():
     return supa
 
 
-async def _run_finalize_and_drain(mock_supa, job_result, body, conflict_result):
+async def _run_finalize(mock_supa, job_result, body, emit_side_effect=None):
+    """Program Delta, Sprint 002 (2026-08-05): the conflict-check call is no
+    longer a direct in-process `asyncio.create_task(_conflict_check_bg())`
+    -- it's a durable NEW_CLIENT_LINKED event emission
+    (services/event_bus.py::emit_durable), captured here directly instead
+    of draining asyncio.create_task coroutines. Running the actual conflict
+    check + surfacing an alert is now services/case_evolution.py::
+    _consequence_conflict_check's own responsibility, tested in
+    tests/test_delta_sprint002_event_migration.py -- this harness verifies
+    only finalize's OWN responsibility: emit the right event, once."""
     from routers.smart_intake import finalize_intake_job
-
-    captured_coros = []
-
-    def _capture_create_task(coro, *a, **kw):
-        captured_coros.append(coro)
-        return MagicMock()
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
          patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
@@ -173,24 +176,23 @@ async def _run_finalize_and_drain(mock_supa, job_result, body, conflict_result):
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.evidence.klasifikuj_i_sacuvaj"), \
-         patch("routers.intake._run_conflict_check", new=AsyncMock(return_value=conflict_result)) as mock_cc, \
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
+         patch("services.event_bus.emit_durable", new=AsyncMock(side_effect=emit_side_effect)) as mock_emit:
 
         result = await finalize_intake_job("job-1", _fake_request(), body, _fake_user())
-        for coro in captured_coros:
-            try:
-                await coro
-            except Exception:
-                pass
 
-    return result, mock_cc
+    return result, mock_emit
 
 
 @pytest.mark.anyio
-async def test_finalize_surfaces_alert_when_conflict_detected():
+async def test_finalize_emits_new_client_linked_durably():
+    """Program Delta, Sprint 002: finalize must emit NEW_CLIENT_LINKED
+    exactly once with the correct predmet_id/klijent_ime/protivna_strana
+    payload, regardless of whether a conflict actually exists (finalize no
+    longer knows the outcome -- that decision moved to the Canonical
+    Consequence Engine)."""
     from routers.smart_intake import FinalizeReq
+    from services.event_bus import EventType
 
     mock_supa = _make_supa()
     job_result = {
@@ -201,87 +203,27 @@ async def test_finalize_surfaces_alert_when_conflict_detected():
             {"entity_type": "defendant", "value": "Ana Jović"},
         ],
     }
-    conflict_result = {
-        "conflict_detected": True, "has_blocker": True,
-        "conflicts": [{"opis": "Ana Jović je vaš postojeći klijent."}],
-        "preporuka": "Postoji BLOKIRAJUCI sukob interesa.",
-    }
 
-    captured_alerts = []
-    real_table = mock_supa.table.side_effect
-
-    def _spy_table(name):
-        t = real_table(name)
-        if name == "proactive_alerts":
-            orig_insert = t.insert
-            def _spy_insert(row):
-                captured_alerts.append(row)
-                return orig_insert(row)
-            t.insert = _spy_insert
-        return t
-    mock_supa.table.side_effect = _spy_table
-
-    result, mock_cc = await _run_finalize_and_drain(
-        mock_supa, job_result,
-        FinalizeReq(klijent_strana="defendant"),
-        conflict_result,
-    )
+    result, mock_emit = await _run_finalize(mock_supa, job_result, FinalizeReq(klijent_strana="defendant"))
 
     assert result["predmet_id"] == "pred-001"
-    mock_cc.assert_called_once()
-    call_args = mock_cc.call_args[0]
-    assert call_args[0] == "00000000-0000-0000-0000-000000000001"  # uid
-    assert call_args[1] == "Ana Jović"  # klijent_ime (the defendant side, per klijent_strana)
-    assert call_args[3] == "Marko Marković"  # protivna_strana (the other side)
-
-    assert len(captured_alerts) == 1
-    assert captured_alerts[0]["tip"] == "sukob_interesa"
-    assert captured_alerts[0]["urgentnost"] == "hitna"
-    assert captured_alerts[0]["predmet_id"] == "pred-001"
+    client_linked_calls = [c for c in mock_emit.call_args_list if c.args[0] == EventType.NEW_CLIENT_LINKED]
+    assert len(client_linked_calls) == 1
+    call_args = client_linked_calls[0].args
+    assert call_args[1] == "00000000-0000-0000-0000-000000000001"  # uid
+    assert call_args[2] == "pred-001"  # predmet_id
+    assert call_args[3]["klijent_ime"] == "Ana Jović"
+    assert call_args[3]["protivna_strana"] == "Marko Marković"
 
 
 @pytest.mark.anyio
-async def test_finalize_does_not_create_alert_when_no_conflict():
+async def test_finalize_emit_failure_does_not_break_case_creation():
+    """Fire-and-forget discipline preserved through the migration: if the
+    durable NEW_CLIENT_LINKED insert itself fails (DB error, not a conflict
+    check finding), the case must still be created — same guarantee the
+    old in-process background task provided, now proven at the emission
+    layer instead of at _run_conflict_check's own call site."""
     from routers.smart_intake import FinalizeReq
-
-    mock_supa = _make_supa()
-    job_result = {
-        "document": {"id": "dok-001", "document_type": "lawsuit"},
-        "review": None,
-        "entities": [
-            {"entity_type": "plaintiff", "value": "Marko Marković"},
-            {"entity_type": "defendant", "value": "Ana Jović"},
-        ],
-    }
-    conflict_result = {"conflict_detected": False, "has_blocker": False, "conflicts": [], "preporuka": ""}
-
-    captured_alerts = []
-    real_table = mock_supa.table.side_effect
-
-    def _spy_table(name):
-        t = real_table(name)
-        if name == "proactive_alerts":
-            orig_insert = t.insert
-            def _spy_insert(row):
-                captured_alerts.append(row)
-                return orig_insert(row)
-            t.insert = _spy_insert
-        return t
-    mock_supa.table.side_effect = _spy_table
-
-    result, mock_cc = await _run_finalize_and_drain(
-        mock_supa, job_result, FinalizeReq(klijent_strana="defendant"), conflict_result,
-    )
-
-    assert result["predmet_id"] == "pred-001"
-    assert captured_alerts == []
-
-
-@pytest.mark.anyio
-async def test_finalize_conflict_check_failure_does_not_break_case_creation():
-    """Fire-and-forget, same discipline as LZ-002's evidence classifier: if
-    the conflict check itself raises, the case must still be created."""
-    from routers.smart_intake import FinalizeReq, finalize_intake_job
 
     mock_supa = _make_supa()
     job_result = {
@@ -290,34 +232,9 @@ async def test_finalize_conflict_check_failure_does_not_break_case_creation():
         "entities": [{"entity_type": "plaintiff", "value": "Marko Marković"}],
     }
 
-    captured_coros = []
-
-    def _capture_create_task(coro, *a, **kw):
-        captured_coros.append(coro)
-        return MagicMock()
-
-    with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
-         patch("shared.intake_segments._get_supa", return_value=mock_supa), \
-         patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
-         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None)), \
-         patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \
-         patch("uploaded_doc.ingest.ingest_session", return_value=None), \
-         patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
-         patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.evidence.klasifikuj_i_sacuvaj"), \
-         patch("routers.intake._run_conflict_check", new=AsyncMock(side_effect=RuntimeError("boom"))), \
-         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
-
-        result = await finalize_intake_job(
-            "job-1", _fake_request(), FinalizeReq(klijent_strana="plaintiff"), _fake_user(),
-        )
-        for coro in captured_coros:
-            try:
-                await coro
-            except Exception:
-                pass
+    result, _mock_emit = await _run_finalize(
+        mock_supa, job_result, FinalizeReq(klijent_strana="plaintiff"),
+        emit_side_effect=RuntimeError("boom"),
+    )
 
     assert result["predmet_id"] == "pred-001"

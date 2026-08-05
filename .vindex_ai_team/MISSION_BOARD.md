@@ -896,6 +896,49 @@ plus 3 new debt entries in `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`
 
 | ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
-| DELTA-001 | Only `DOCUMENT_ACCEPTED` has wired consequences; 7 other mapped events do not | 2 | none — same registry, same dispatcher, per-event executors | Medium | NEEDS_SCOPING | Deliberate scope boundary (Task 1's own instruction: prove one entry point, don't implement all) |
-| DELTA-002 | 3 existing scattered "decide what's next" call sites (Pipeline A + `rocista.py` Genome triggers, Pipeline C Evidence Vault/conflict-check) not migrated | 2 | none — mechanical, one call site at a time | Medium | NEEDS_SCOPING | Hard 2-agent budget bounded this sprint to proving the mechanism on one call site first |
+| DELTA-001 | ~~Only `DOCUMENT_ACCEPTED` has wired consequences~~ — UPDATED Sprint 002: 5 of 8 wired, 3 remain (`DOCUMENT_MODIFIED`/`CONFIDENCE_DROPPED`/`MANUAL_CORRECTION_APPLIED`) | 3 | none | Low | NEEDS_SCOPING (downgraded) | Each remaining event has an explicit "no proven need yet" reasoning |
+| DELTA-002 | ~~3 scattered call sites~~ — UPDATED Sprint 002: 2 of the original 4 migrated (Evidence Vault, conflict-check) + 1 undiscovered-until-Sprint-002 site also migrated (`resolve_job_review`'s own audit call); Pipeline A + `rocista.py` Genome triggers remain | 2 | none — mechanical, different feature surface | Medium | NEEDS_SCOPING | A future Delta sprint scoped to "Pipeline A + rocista.py Genome migration" closes this |
 | DELTA-003 | No rollback mechanism for cross-consequence dependencies | 4 | an event whose consequences are NOT independently safe (none exists yet) | — | WONTFIX (no current need) | Speculative architecture for a case that doesn't exist in the platform today |
+| DELTA-004 | `REVIEW_REJECTED`'s own "rollback" is trivial-by-construction (no consequence was ever registered to undo), not a general mechanism | 4 | same as DELTA-003 | — | WONTFIX (no current need) | Only relevant if a future event's rejection needs to undo an ALREADY-APPLIED consequence |
+
+## Program Delta, Sprint 002 (2026-08-05) — Canonical Event Migration I: Human Decisions Become System Decisions
+
+Second Delta sprint, per the founder's own standing instruction: read only `docs/delta/*` at sprint start
+(followed). **Hard token budget**: max 2 active agents, no exceptions, no subagents, no parallel analysis —
+honored for the whole sprint. Migrates 4 more events onto Sprint 001's canonical mechanism:
+`REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`.
+
+**Headline finding**: `NEW_CLIENT_LINKED` and `NEW_EVIDENCE_REGISTERED` both replaced code using
+`asyncio.create_task(...)` fire-and-forget — a failure inside either was logged once and PERMANENTLY lost
+(no retry, no dead-letter, no durable trace). Migrating both is a genuine reliability improvement, not just
+an architectural one: failures now propagate to the Event Bus's own proven retry/dead-letter mechanism
+(`MAX_DISPATCH_ATTEMPTS=5`) instead of silently vanishing after one attempt.
+
+**Built**: `services/event_bus.py::emit_durable()` — Sprint 001's own single emission idiom factored into one
+shared function (used at all 5 emission call sites now, including `DOCUMENT_ACCEPTED`'s own retrofitted
+Sprint-001 site); 4 new consequence executors in `services/case_evolution.py`, all reusing existing functions
+UNCHANGED (`_run_conflict_check`, `klasifikuj_i_sacuvaj`, `log_action`) — REVIEW_ACCEPTED even reuses
+`DOCUMENT_ACCEPTED`'s own `genome_refresh`/`timeline_entry` executors directly (no duplication); `shared/
+intake_documents.py::reject_review()` + `POST /jobs/{job_id}/review/reject` — REVIEW_REJECTED's first-ever
+canonical definition, closing Program Intake Sprint 004's long-open `INTAKE-012`; migration 097 (additive
+`intake_jobs.status` CHECK widening for the new `'rejected'` terminal value).
+
+**1 real bug found and fixed as part of the migration, not a separate bug hunt** (belongs to the migrated
+`REVIEW_ACCEPTED` event's own Human Review domain, no business decision needed): `resolve_job_review` used to
+return early WITHOUT resolving the review at all whenever a job was already finalized — the
+`intake_review_queue` row for a post-finalize correction stayed "unresolved" forever. Fixed: `resolve_review()`
+now always runs (already idempotent), and the founder's own worked example ("Review Accepted → Genome →
+Timeline → Audit") now literally applies for exactly the case where it matters.
+
+**Mission's own success definition, proven by test not merely claimed**: all 6 required scenarios (Review
+Accepted → Genome → Timeline → Audit exactly once; Review Rejected → trivial-by-construction rollback, no
+duplicates; Client Linked replayed → same result; Evidence Added parallel → no race condition; crash after
+first consequence, retry → resumes; replay → same correlation_id/audit/result) proven in `tests/
+test_delta_sprint002_event_migration.py` (15 new tests, all passing). 4 existing test files updated (asserted
+the OLD direct-call behavior this sprint replaced, not discovered bugs). Full suite: **2,619 passed, 1 skipped,
+0 failed** (was 2,605) — zero regressions.
+
+**6 required deliverables**: updated `docs/delta/CASE_EVOLUTION_REGISTRY.md`, `EVENT_MIGRATION_REPORT_SPRINT_002.md`,
+updated `EVENT_FLOW_DIAGRAM.md`, `RELIABILITY_VERIFICATION_REPORT_SPRINT_002.md`, updated
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`DELTA-001`/`DELTA-002` updated, `DELTA-004` added),
+`SPRINT_002_MISSION_REPORT.md`.

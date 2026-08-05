@@ -85,7 +85,7 @@ def _make_supa(new_doc_id="dok-001"):
     return supa
 
 
-def _base_patches(mock_supa, job_result, mock_classify):
+def _base_patches(mock_supa, job_result):
     return (
         patch("routers.smart_intake._get_supa", return_value=mock_supa),
         patch("shared.intake_segments._get_supa", return_value=mock_supa),
@@ -97,35 +97,32 @@ def _base_patches(mock_supa, job_result, mock_classify):
         patch("uploaded_doc.session.generate_session_id", return_value="sess-001"),
         patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)),
         patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"),
-        patch("routers.evidence.klasifikuj_i_sacuvaj", mock_classify),
         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})),
     )
 
 
-async def _run_finalize_and_drain(mock_supa, job_result, mock_classify=None):
+async def _run_finalize_and_drain(mock_supa, job_result):
+    """Program Delta, Sprint 002 (2026-08-05): the direct
+    `routers.evidence.klasifikuj_i_sacuvaj` call this helper used to mock
+    was replaced by a durable NEW_EVIDENCE_REGISTERED emission -- returns
+    the emit_durable mock instead of a classify mock, so each test can
+    assert on WHETHER the event was emitted (the router's own
+    responsibility) rather than on the classifier itself (now
+    services/case_evolution.py's responsibility, tested separately)."""
     import contextlib
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
-    if mock_classify is None:
-        mock_classify = MagicMock()
-
-    captured_coros = []
-
-    def _capture_create_task(coro, *a, **kw):
-        captured_coros.append(coro)
-        return MagicMock()
-
     with contextlib.ExitStack() as stack:
-        for p in _base_patches(mock_supa, job_result, mock_classify):
+        for p in _base_patches(mock_supa, job_result):
             stack.enter_context(p)
-        stack.enter_context(patch("asyncio.create_task", side_effect=_capture_create_task))
+        mock_emit = stack.enter_context(patch("services.event_bus.emit_durable", new=AsyncMock()))
         result = await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), _fake_user())
-        for coro in captured_coros:
-            try:
-                await coro
-            except Exception:
-                pass
-    return result, mock_classify
+    return result, mock_emit
+
+
+def _evidence_registered_calls(mock_emit):
+    from services.event_bus import EventType
+    return [c for c in mock_emit.call_args_list if c.args[0] == EventType.NEW_EVIDENCE_REGISTERED]
 
 
 @pytest.mark.anyio
@@ -141,11 +138,11 @@ async def test_uncertain_classification_skips_evidence_overwrite_and_flags_respo
         "review": {"reason": "low_confidence_extraction", "low_confidence_fields": ["document_type", "deadline"]},
     }
 
-    result, mock_classify = await _run_finalize_and_drain(mock_supa, job_result)
+    result, mock_emit = await _run_finalize_and_drain(mock_supa, job_result)
 
     assert result["klasifikacija_nesigurna"] is True
     assert result["nesigurna_polja"] == ["document_type", "deadline"]
-    mock_classify.assert_not_called()  # the confidence-blind overwrite must never fire
+    assert _evidence_registered_calls(mock_emit) == []  # the confidence-blind overwrite must never fire
 
 
 @pytest.mark.anyio
@@ -161,11 +158,11 @@ async def test_confident_classification_still_gets_evidence_vocabulary_correctio
         "review": None,
     }
 
-    result, mock_classify = await _run_finalize_and_drain(mock_supa, job_result)
+    result, mock_emit = await _run_finalize_and_drain(mock_supa, job_result)
 
     assert result["klasifikacija_nesigurna"] is False
     assert result["nesigurna_polja"] == []
-    mock_classify.assert_called_once()
+    assert len(_evidence_registered_calls(mock_emit)) == 1
 
 
 @pytest.mark.anyio
@@ -180,10 +177,10 @@ async def test_review_present_but_document_type_not_flagged_still_allows_overwri
         "review": {"reason": "low_confidence_extraction", "low_confidence_fields": ["deadline"]},
     }
 
-    result, mock_classify = await _run_finalize_and_drain(mock_supa, job_result)
+    result, mock_emit = await _run_finalize_and_drain(mock_supa, job_result)
 
     assert result["klasifikacija_nesigurna"] is False
-    mock_classify.assert_called_once()
+    assert len(_evidence_registered_calls(mock_emit)) == 1
 
 
 @pytest.mark.anyio

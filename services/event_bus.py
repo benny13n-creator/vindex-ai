@@ -348,6 +348,14 @@ class EventBus:
         # Event/EventType from this module).
         from services.case_evolution import handle_case_changed
         self.subscribe(EventType.DOCUMENT_ACCEPTED, handle_case_changed)
+        # Program Delta, Sprint 002 (2026-08-05) — Canonical Event Migration
+        # I. 4 more event types now flow through the SAME dispatcher; each
+        # one's own consequence list (or deliberate lack thereof) lives in
+        # services/case_evolution.py::CONSEQUENCE_REGISTRY, never here.
+        self.subscribe(EventType.REVIEW_ACCEPTED,         handle_case_changed)
+        self.subscribe(EventType.REVIEW_REJECTED,         handle_case_changed)
+        self.subscribe(EventType.NEW_CLIENT_LINKED,       handle_case_changed)
+        self.subscribe(EventType.NEW_EVIDENCE_REGISTERED, handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""
@@ -437,6 +445,54 @@ def emit(
         payload        = payload or {},
         correlation_id = correlation_id,
     ))
+
+
+# ─── Canonical durable emission helper (Program Delta, Sprint 002) ───────────
+# Sprint 001 introduced ONE emission idiom (INSERT INTO events, tolerant of
+# correlation_id column missing pre-migration-090) at exactly one call site
+# (DOCUMENT_ACCEPTED). Sprint 002 migrates 4 more scattered call sites onto
+# the SAME idiom — factored out here so there is exactly ONE place that
+# knows how to durably emit an event, not 5 copies of the same try/except
+# fallback. Callers still wrap this in their own try/except (message context
+# — which predmet/dokument/job — differs per call site and belongs to the
+# caller, not this helper); this function re-raises anything that isn't the
+# known "correlation_id column not migrated yet" case.
+
+async def emit_durable(
+    event_type:     "EventType",
+    user_id:        str,
+    predmet_id:     str | None,
+    payload:        dict[str, Any],
+    supa=None,
+) -> None:
+    """Durably inserts one row into the 'events' outbox — the caller's own
+    state-changing work must already be committed BEFORE calling this (same
+    discipline as every existing emission site: the event represents
+    something that already happened, never a promise of something about to
+    happen). Fail-soft is the CALLER's responsibility (wrap in try/except),
+    matching PREDMET_KREIRAN/DOCUMENT_ACCEPTED's own established pattern —
+    this helper raises on any error that isn't the tolerated missing-column
+    case, it does not itself swallow anything."""
+    if supa is None:
+        from shared.deps import _get_supa
+        supa = _get_supa()
+    from shared.ai_provenance import current_correlation_id
+    _cid = current_correlation_id()
+    _evt_row = {
+        "event_type": event_type.value,
+        "user_id":    user_id,
+        "predmet_id": predmet_id,
+        "payload":    {**payload, "correlation_id": _cid},
+    }
+    from shared.audit_immutable import _is_missing_column_error
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
+        )
+    except Exception as _wide_exc:
+        if not _is_missing_column_error(_wide_exc):
+            raise
+        await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row).execute())
 
 
 # ─── Durable outbox dispatch (Faza 0, ADR-0001) ────────────────────────────────

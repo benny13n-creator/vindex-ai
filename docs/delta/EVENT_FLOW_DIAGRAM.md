@@ -1,4 +1,8 @@
-# Event Flow Diagram — Program Delta, Sprint 001 (2026-08-05)
+# Event Flow Diagram — Program Delta (living document, updated each sprint)
+
+Sprint 001 (2026-08-05) established the canonical flow below for `DOCUMENT_ACCEPTED`. Sprint 002 (2026-08-05,
+"Canonical Event Migration I") reuses the EXACT SAME flow for 4 more event types — no diagram change needed
+for the mechanism itself, only new concrete per-event flows (below).
 
 ## The canonical flow, for any event with a populated `CONSEQUENCE_REGISTRY` entry
 
@@ -40,11 +44,45 @@ flowchart LR
     TLv -- "no" --> TLf["failed → retry via Event Bus"]
 ```
 
+## The 4 events wired in Sprint 002, concretely
+
+```mermaid
+flowchart LR
+    subgraph RA["REVIEW_ACCEPTED"]
+        U1["resolve_job_review<br/>(routers/smart_intake.py)"] -->|"review confirmed"| EV1["events row:<br/>REVIEW_ACCEPTED"]
+        EV1 --> HCC1["handle_case_changed"]
+        HCC1 --> GR1["genome_refresh<br/>(REUSED from DOCUMENT_ACCEPTED —<br/>no-ops pre-finalize)"]
+        HCC1 --> TL1["timeline_entry<br/>(REUSED, payload-parameterized text)"]
+        HCC1 --> RCA["review_confirmation_audit<br/>dokument_review_resolved"]
+    end
+
+    subgraph RR["REVIEW_REJECTED"]
+        U2["reject_job_review<br/>(NEW endpoint)"] -->|"review rejected"| EV2["events row:<br/>REVIEW_REJECTED"]
+        EV2 --> HCC2["handle_case_changed"]
+        HCC2 --> RRA["review_rejection_audit<br/>dokument_review_rejected<br/>(ONLY consequence — no genome/timeline)"]
+    end
+
+    subgraph CL["NEW_CLIENT_LINKED"]
+        U3["finalize_intake_job<br/>(client linked)"] --> EV3["events row:<br/>NEW_CLIENT_LINKED"]
+        EV3 --> HCC3["handle_case_changed"]
+        HCC3 --> CC["conflict_check<br/>REUSES _run_conflict_check +<br/>create_proactive_alert, UNCHANGED"]
+    end
+
+    subgraph EA["NEW_EVIDENCE_REGISTERED"]
+        U4["finalize_intake_job<br/>(per accepted document)"] --> EV4["events row:<br/>NEW_EVIDENCE_REGISTERED"]
+        EV4 --> HCC4["handle_case_changed"]
+        HCC4 --> EC["evidence_classification<br/>REUSES klasifikuj_i_sacuvaj, UNCHANGED<br/>re-reads tekst_sadrzaj, verifies klasifikovan_at"]
+    end
+```
+
 ## What did NOT change
 
 The durable outbox (`events` table), the atomic claim (`claim_pending_events`, migration 091), the
 retry/dead-letter loop (`dispatch_pending_events`, `MAX_DISPATCH_ATTEMPTS=5`), and correlation_id propagation
-(`shared/ai_provenance.py`) are all **reused exactly as they existed before this sprint** — Program Delta adds
+(`shared/ai_provenance.py`) are all **reused exactly as they existed before Sprint 001** — Program Delta adds
 exactly one new layer (`services/case_evolution.py` + `case_evolution_consequences`, migration 096) on top of
-proven, already-hardened infrastructure, per this sprint's own "hard token budget" discipline (build the
-canonical orchestration mechanism, not a new event system).
+proven, already-hardened infrastructure. Sprint 002 adds one small refactor on top of that same layer —
+`services/event_bus.py::emit_durable()` — factoring Sprint 001's own single emission idiom into one shared
+function instead of copying its try/except/fallback boilerplate at each of the 4 new call sites (and
+retrofitting `DOCUMENT_ACCEPTED`'s own Sprint-001 emission site to use it too) — still no new retry/dead-letter
+machinery, just one fewer copy of the same code.

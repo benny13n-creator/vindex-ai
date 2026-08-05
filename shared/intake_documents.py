@@ -392,3 +392,53 @@ async def resolve_review(intake_job_id: str, resolved_by: str) -> dict:
         "review_resolved_now": review_resolved_now,
         "job_status_advanced": job_status_advanced,
     }
+
+
+async def reject_review(intake_job_id: str, resolved_by: str) -> dict:
+    """Program Delta, Sprint 002 (2026-08-05) -- kanonska definicija
+    REVIEW_REJECTED-a. Ranije nije postojala nijedna "odbij" akcija
+    (Program Intake Sprint 004's INTAKE-012, blokirano na founder odluci) --
+    ova funkcija JE ta odluka, namerno usko definisana:
+
+    Sta se ponistava: automatski nastavak koji bi accept omogucio.
+    intake_jobs.status NIKAD ne prelazi u 'completed' (umesto toga ide u
+    novo 'rejected', migracija 097) -- finalize-ov POSTOJECI status gate
+    ('Posao jos nije obradjen') ostaje trajno zatvoren za ovaj posao, sto
+    znaci: nijedan predmet/dokument/vektor se nikad nije ni pokusao da se
+    kreira za odbijeni posao -- "rollback" je ovde trivijalan po
+    konstrukciji (nema sta da se ponisti jer nista nije ni primenjeno).
+
+    Sta ostaje: originalna extracted_entities vrednost, NEPROMENJENA -- isti
+    princip kao correct_entity (nikad se ne brise, samo se dodaje
+    corrected_value).
+
+    Sta se replanira: NISTA automatski. Covek mora eksplicitno pozvati
+    POST /entities/{id}/correct sa ispravnom vrednoscu, ili ponovo
+    otpremiti dokument. Automatski re-OCR/re-klasifikacija namerno NIJE
+    izgradjen -- to bi bila nova sposobnost, van opsega ovog sprinta
+    (migracija postojeceg, ne prosirivanje).
+
+    Idempotentno na isti nacin kao resolve_review (ista
+    resolve_review_queue_for_job, isti .eq("status","awaiting_review")
+    guard na status upisu) -- ponovljen poziv nad vec-odbijenim poslom je
+    bezopasan no-op (review_resolved_now/job_status_rejected oba False)."""
+    review_resolved_now = await resolve_review_queue_for_job(intake_job_id, resolved_by)
+
+    supa = _get_supa()
+    status_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .update({"status": "rejected"})
+            .eq("id", intake_job_id)
+            .eq("status", "awaiting_review")
+            .execute()
+    )
+    job_status_rejected = bool(status_res.data)
+
+    logger.info(
+        "[INTAKE_DOCUMENTS] review rejected: job=%s od=%s (review_resolved_now=%s, job_status_rejected=%s)",
+        intake_job_id[:8], resolved_by, review_resolved_now, job_status_rejected,
+    )
+    return {
+        "review_resolved_now": review_resolved_now,
+        "job_status_rejected": job_status_rejected,
+    }

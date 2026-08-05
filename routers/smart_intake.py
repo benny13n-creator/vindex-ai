@@ -350,33 +350,112 @@ async def resolve_job_review(job_id: str, request: Request, user: dict = Depends
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     job = job_res.data
 
-    if job.get("predmet_id"):
-        # Vec finalizovano -- review razresenje posle finalizacije je i
-        # dalje bezopasno (istorijski zapis), ali nema vise nijedan status
-        # da "otkljuca" -- vrati jasnu, ne-zbunjujucu poruku umesto tihog
-        # no-op-a koji izgleda kao uspeh a nista se stvarno nije desilo.
-        return {"ok": True, "already_finalized": True, "predmet_id": job["predmet_id"]}
-
+    # Program Delta, Sprint 002 (2026-08-05): ranije se OVDE odmah vracalo
+    # bez ijednog upisa kad je posao vec finalizovan ("nema vise nijedan
+    # status da otkljuca") -- sto je znacilo da se intake_review_queue red
+    # za POST-finalize ispravku NIKAD nije markirao razresenim, trajno
+    # ostajao "neresen" (Human Review domen, resivo bez poslovne odluke --
+    # popravljeno odmah po ovog sprinta sopstvenom pravilu). resolve_review
+    # je vec idempotentna (`.is_("resolved_at","null")`) i njen status-upis
+    # vec cuva sopstveni `.eq("status","awaiting_review")` guard, pa poziv
+    # nad vec-finalizovanim poslom bezbedno ostavlja job_status_advanced=False
+    # a i dalje ispravno markira review_resolved_now=True tacno jednom.
+    already_finalized = bool(job.get("predmet_id"))
     result = await intake_documents.resolve_review(job_id, user.get("email", uid))
 
+    # ── REVIEW_ACCEPTED — Program Delta, Sprint 002 (2026-08-05) ────────────
+    # Canonical Event Migration I. Ovo JE bio direktan, u-procesu
+    # `asyncio.create_task(log_action("dokument_review_resolved", ...))`
+    # poziv -- ovaj endpoint je sam odlucivao "sta dalje" (samo audit, ranije
+    # nikad Genome/Timeline). Sada: jedna durable outbox emisija (isti
+    # obrazac kao DOCUMENT_ACCEPTED, ispod), Case Evolution Engine
+    # (services/case_evolution.py, registrovan za REVIEW_ACCEPTED) odlucuje
+    # posledice -- za PRE-finalize potvrdu (uobicajen slucaj, predmet_id
+    # jos ne postoji) genome_refresh/timeline_entry se bezbedno preskacu
+    # (nema predmeta jos), samo review_confirmation_audit stvarno radi; za
+    # POST-finalize ispravku (already_finalized=True) sve tri posledice
+    # rade -- tacno founder-ov sopstveni primer "Review Accepted -> Genome
+    # -> Timeline -> Audit".
     try:
-        from shared.audit_immutable import log_action
-        asyncio.create_task(log_action(
-            "dokument_review_resolved",
-            user_id=uid,
-            resource_type="intake_job",
-            resource_id=job_id,
-            ip=request.client.host if request.client else None,
-            metadata={
+        from services.event_bus import EventType, emit_durable
+        await emit_durable(
+            EventType.REVIEW_ACCEPTED,
+            uid,
+            job.get("predmet_id"),
+            {
+                "intake_job_id": job_id,
                 "prior_status": job.get("status"),
                 "job_status_advanced": result["job_status_advanced"],
                 "review_resolved_now": result["review_resolved_now"],
+                "trigger": "smart_intake_review_resolve",
             },
-        ))
-    except Exception as ae:
-        logger.warning("[SMART_INTAKE] dokument_review_resolved audit log greška: %s", ae)
+        )
+    except Exception as _ee:
+        # Fail-soft, matching DOCUMENT_ACCEPTED's own established pattern --
+        # a lost REVIEW_ACCEPTED event means the audit trail/possible Genome
+        # refresh for this confirmation don't fire, a real but non-fatal
+        # degradation, never a reason to fail the response itself (the
+        # actual review resolution above has already durably happened).
+        logger.warning("[SMART_INTAKE] REVIEW_ACCEPTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
 
-    return {"ok": True, "already_finalized": False, **result}
+    return {"ok": True, "already_finalized": already_finalized, **result}
+
+
+@router.post("/jobs/{job_id}/review/reject")
+@limiter.limit("30/minute")
+async def reject_job_review(job_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Program Delta, Sprint 002 (2026-08-05) -- REVIEW_REJECTED-ova jedina
+    ulazna kapija. Ranije nije postojala nijedna "odbij" akcija (Program
+    Intake Sprint 004's INTAKE-012, blokirano na founder odluci) -- vidi
+    shared/intake_documents.py::reject_review za punu kanonsku definiciju
+    (sta se ponistava/ostaje/replanira/ulazi u audit).
+
+    Namerno odbija odbijanje posle finalizacije (za razliku od accept-a,
+    koji posle Sprint 002 i dalje radi post-finalize) -- rollback vec
+    kreiranog predmeta/dokumenta je van opsega ovog sprinta (zahtevalo bi
+    poslovnu odluku o tome sta raditi sa vec upisanim podacima), tako da se
+    ovde eksplicitno odbija umesto da se cutke ne uradi nista."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    job_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .select("id, status, predmet_id")
+            .eq("id", job_id)
+            .eq("uploaded_by", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not job_res or not job_res.data:
+        raise HTTPException(status_code=404, detail="Posao nije pronađen.")
+    job = job_res.data
+
+    if job.get("predmet_id"):
+        raise HTTPException(
+            status_code=409,
+            detail="Posao je već finalizovan — odbijanje provere više nije moguće (predmet je već kreiran).",
+        )
+
+    result = await intake_documents.reject_review(job_id, user.get("email", uid))
+
+    # ── REVIEW_REJECTED — Program Delta, Sprint 002 (2026-08-05) ────────────
+    try:
+        from services.event_bus import EventType, emit_durable
+        await emit_durable(
+            EventType.REVIEW_REJECTED,
+            uid,
+            None,
+            {
+                "intake_job_id": job_id,
+                "review_resolved_now": result["review_resolved_now"],
+                "job_status_rejected": result["job_status_rejected"],
+                "trigger": "smart_intake_review_reject",
+            },
+        )
+    except Exception as _ee:
+        logger.warning("[SMART_INTAKE] REVIEW_REJECTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
+
+    return {"ok": True, **result}
 
 
 @router.post("/entities/{entity_id}/correct")
@@ -936,25 +1015,32 @@ async def finalize_intake_job(
             elif body.klijent_strana == "defendant":
                 protivna_strana_val = (value_map.get("plaintiff") or "").strip()
 
-            async def _conflict_check_bg():
-                try:
-                    from routers.intake import _run_conflict_check
-                    result = await _run_conflict_check(uid, klijent_ime, "", protivna_strana_val, "")
-                    if result.get("conflict_detected"):
-                        opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
-                        from shared.proactive_alerts import create_proactive_alert
-                        await create_proactive_alert(
-                            supa,
-                            user_id=uid,
-                            predmet_id=predmet_id,
-                            tip="sukob_interesa",
-                            naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
-                            opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
-                            urgentnost="hitna" if result.get("has_blocker") else "normalna",
-                        )
-                except Exception as cce:
-                    logger.warning("[SMART_INTAKE] Conflict-check greška (non-fatal) predmet=%s: %s", predmet_id, cce)
-            asyncio.create_task(_conflict_check_bg())
+            # ── NEW_CLIENT_LINKED — Program Delta, Sprint 002 (2026-08-05) ──
+            # Canonical Event Migration I. MIGRATES what used to be a direct,
+            # in-process `asyncio.create_task(_conflict_check_bg())` call --
+            # this endpoint deciding for itself "what happens after a client
+            # is linked" (a conflict-of-interest check). Same trigger
+            # condition as the code it replaces (`if klijent_ime:`,
+            # unconditional on whether the predmet_klijenti insert above
+            # actually succeeded — preserves existing behavior exactly, no
+            # new gating introduced). Case Evolution Engine (services/
+            # case_evolution.py, registered for NEW_CLIENT_LINKED) now OWNS
+            # deciding and executing the conflict-check consequence.
+            try:
+                from services.event_bus import EventType, emit_durable
+                await emit_durable(
+                    EventType.NEW_CLIENT_LINKED,
+                    uid,
+                    predmet_id,
+                    {
+                        "klijent_id": klijent_id,
+                        "klijent_ime": klijent_ime,
+                        "protivna_strana": protivna_strana_val,
+                        "trigger": "smart_intake_finalize",
+                    },
+                )
+            except Exception as _ee:
+                logger.warning("[SMART_INTAKE] NEW_CLIENT_LINKED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ee)
 
         # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
         rok_dodat = False
@@ -1220,17 +1306,33 @@ async def finalize_intake_job(
                 # the full "third state" reasoning) -- now correctly scoped
                 # per-document instead of to the whole (possibly multi-
                 # document) job.
+                # ── NEW_EVIDENCE_REGISTERED — Program Delta, Sprint 002 ─────
+                # (2026-08-05) Canonical Event Migration I. MIGRATES what
+                # used to be a direct, in-process
+                # `asyncio.create_task(asyncio.to_thread(klasifikuj_i_sacuvaj,
+                # ...))` call. Emitted per-document (unlike DOCUMENT_ACCEPTED,
+                # which is once-per-finalize-call) -- evidence classification
+                # is inherently per-document, matching the granularity of
+                # the call it replaces exactly. Deliberately does NOT carry
+                # `seg_text` in the event payload (see services/
+                # case_evolution.py::_consequence_evidence_classify's own
+                # docstring) -- the executor re-reads tekst_sadrzaj from the
+                # predmet_dokumenti row just inserted above.
                 if not classification_uncertain_i:
-                    async def _evidence_classify_bg(_predmet_id=predmet_id, _dokument_id=dokument_id_i, _text=seg_text):
-                        try:
-                            from routers.evidence import klasifikuj_i_sacuvaj
-                            await asyncio.to_thread(
-                                klasifikuj_i_sacuvaj, _predmet_id, _dokument_id,
-                                job.get("original_filename") or "dokument", _text, uid,
-                            )
-                        except Exception as ce:
-                            logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
-                    asyncio.create_task(_evidence_classify_bg())
+                    try:
+                        from services.event_bus import EventType, emit_durable
+                        await emit_durable(
+                            EventType.NEW_EVIDENCE_REGISTERED,
+                            uid,
+                            predmet_id,
+                            {
+                                "dokument_id": dokument_id_i,
+                                "naziv": job.get("original_filename") or "dokument",
+                                "trigger": "smart_intake_finalize",
+                            },
+                        )
+                    except Exception as _ee:
+                        logger.warning("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED durable event upis greška (non-fatal) dok=%s: %s", dokument_id_i, _ee)
                 else:
                     logger.info(
                         "[SMART_INTAKE] dok=%s klasifikacija nesigurna -- preskacem Evidence Vault auto-prepisivanje, ostaje Review Required",
@@ -1265,26 +1367,21 @@ async def finalize_intake_job(
     # as before (Genome does a full recompute regardless of how many
     # documents changed; N redundant triggers for N newly-linked documents
     # would be pure waste, unchanged reasoning from the code this replaces).
+    # Program Delta, Sprint 002: emisija sada ide kroz services/event_bus.py
+    # ::emit_durable, ista funkcija koju REVIEW_ACCEPTED/REVIEW_REJECTED/
+    # NEW_CLIENT_LINKED/NEW_EVIDENCE_REGISTERED koriste ispod -- JEDNO mesto
+    # zna kako se durable event upisuje, ne 5 kopija istog try/except
+    # fallback-a (isto "ne ostavljati skrivene orkestratore" nacelo
+    # primenjeno i na sam mehanizam emisije, ne samo na posledice).
     if genome_should_trigger:
         try:
-            from services.event_bus import EventType
-            from shared.ai_provenance import current_correlation_id
-            _cid = current_correlation_id()
-            _evt_row = {
-                "event_type": EventType.DOCUMENT_ACCEPTED.value,
-                "user_id":    uid,
-                "predmet_id": predmet_id,
-                "payload":    {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize", "correlation_id": _cid},
-            }
-            from shared.audit_immutable import _is_missing_column_error
-            try:
-                await asyncio.to_thread(
-                    lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
-                )
-            except Exception as _wide_exc:
-                if not _is_missing_column_error(_wide_exc):
-                    raise
-                await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row).execute())
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.DOCUMENT_ACCEPTED,
+                uid,
+                predmet_id,
+                {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize"},
+            )
         except Exception as _ee:
             # Fail-soft, matching every other durable-event emission in this
             # codebase (PREDMET_KREIRAN, GENOME_UPDATED) -- a lost

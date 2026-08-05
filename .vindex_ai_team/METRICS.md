@@ -918,3 +918,33 @@ The mission's own platform-wide closing claim ("no module in Vindex AI independe
 after a case changes anymore") is NOT yet fully true — 7 events unwired, 3 scattered call sites unmigrated,
 both honestly named as scope boundaries for future Delta sprints, not silently left incomplete. Full detail:
 `docs/delta/SPRINT_001_MISSION_REPORT.md`.
+
+## Program Delta, Sprint 002 (2026-08-05) — Canonical Event Migration I
+
+**Methodology note**: hard token budget this sprint (max 2 active agents, no exceptions, no subagents, no
+parallel analysis) — both roles executed directly. Per the founder's own standing instruction, only
+`docs/delta/*` was read at sprint start (not the full Nexus→Intake history).
+
+| Metric | Value |
+|---|---|
+| Events with wired consequences before this sprint | 1 of 8 (`DOCUMENT_ACCEPTED`) |
+| After this sprint | 5 of 8 (`+REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`) |
+| Scattered "decide what's next" call sites found across both sprints | 5 (Pipeline C Genome/Evidence Vault/conflict-check/review-audit, Pipeline A Genome, `rocista.py` Genome) — 1 more than Sprint 001 itself counted (its own Task 3 sweep missed the review-audit call site) |
+| Migrated to the canonical mechanism, cumulative | 4 of 5 (only Pipeline A + `rocista.py`'s shared Genome-trigger call site remains, a different feature surface than this sprint's 4 named events) |
+| Fire-and-forget call sites converted to retry-with-dead-letter (reliability improvement, not just architecture) | 2 (`NEW_CLIENT_LINKED`'s conflict-check, `NEW_EVIDENCE_REGISTERED`'s classify — both previously silently dropped a failure forever) |
+| Canonical event types with zero remaining direct-call bypass | `DOCUMENT_ACCEPTED`, `REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED` — all 5 confirmed via grep, no direct call to the underlying function remains outside `services/case_evolution.py` |
+| Real bugs found and fixed via this sprint's own migration work | 1 (`resolve_job_review`'s post-finalize early-return gap — review permanently unresolved for a post-finalize correction) |
+| Required scenarios proven by test | 6 of 6, mapped onto this sprint's 4 events |
+| New dedicated tests | 15 (`tests/test_delta_sprint002_event_migration.py`), all passing on first run |
+| Existing tests updated (not bugs — asserted OLD behavior this sprint replaced) | 10 across 4 files (2 in `test_sprint004_review_resolve.py`, 3 in `test_ztc_conflict_check_autowiring.py`, 2 in `test_lz002_evidence_autoclassify.py`, 3 in `test_sprint003_classification_review_required.py`) |
+| New debts found and named | 1 (`DELTA-004`, no-current-need); `DELTA-001`/`DELTA-002` updated (narrowed), not newly opened |
+| Full suite | 2,619 passed, 1 skipped, 0 failed (was 2,605 at end of Sprint 001; net +14 = +15 new, −1 removed test whose own assertion moved into `test_case_evolution`-style coverage) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Intake sprint before it; smallest possible team (2 agents, no standby 3rd, zero `Agent` tool calls).
+
+**Success criteria**: honestly met for this sprint's own bounded object — all 4 named events are proven, by
+test, to flow through the canonical mechanism with zero remaining direct-call bypass. The mission's own
+platform-wide closing claim is closer to true (5 of 8 events, 4 of 5 known call sites) but still not
+unconditionally true — 3 events and 1 call site remain, both honestly named as scope boundaries for a future
+Delta sprint. Full detail: `docs/delta/SPRINT_002_MISSION_REPORT.md`.
