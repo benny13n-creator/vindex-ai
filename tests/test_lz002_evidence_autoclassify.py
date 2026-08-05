@@ -77,6 +77,7 @@ async def test_finalize_triggers_evidence_classification_in_background():
     job_result = {
         "document": {"document_type": "judgment"},
         "entities": [],
+        "review": None,
     }
 
     captured_coros = []
@@ -123,7 +124,7 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
     mock_supa = _make_supa()
-    job_result = {"document": {"document_type": "judgment"}, "entities": []}
+    job_result = {"document": {"document_type": "judgment"}, "entities": [], "review": None}
 
     captured_coros = []
 

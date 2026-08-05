@@ -731,3 +731,89 @@ A doesn't) was correct; its named mechanism was wrong. Corrected in place in
   present and unapplied, confirmed this sprint to concretely affect intake's `DocumentJobFailed` handler
   specifically (duplicate `proactive_alerts` rows); still a founder action item, not something to implement
   around further.
+
+---
+
+## Program Intake, Sprint 003 (2026-08-05) — Canonical Document Understanding
+
+Full narrative and mission-closure self-check: `CLASSIFICATION_ARCHITECTURE_REPORT.md`. Fixed this sprint
+(tested, zero regressions across 2517 tests): Pipeline C finalize no longer lets a confidence-blind classifier
+silently overwrite an already-flagged-uncertain classification (the mission's own headline finding, found by
+Fork C); `GET /jobs/{job_id}` no longer silently presents a stale, contradictory classification as current
+after finalize (Fork A's confirmed defect). Designed but not yet adopted in code: a full canonical 10-category
+legal taxonomy (`CANONICAL_DOCUMENT_TAXONOMY.md`) and a grounding-verified confidence model
+(`CONFIDENCE_SPECIFICATION.md`). Items below are what this sprint found but deliberately did not implement.
+
+## INTAKE-008 — No confidence-gated review queue on Pipeline A or the 2 ephemeral classifiers (High)
+
+Only `shared/intake_classify.py` (Pipeline B) has a real confidence field and `AUTO_ACCEPT_THRESHOLD`-gated
+escape hatch. `routers/evidence.py::_klasifikuj_dokument` (Pipeline A's ONLY classifier, and Pipeline C's
+stage-2 vocabulary-correction classifier), `api.py::_detect_doc_type`, and `routers/dokument.py::
+_klasifikuj_dokaz` have no confidence field and no review-queue routing — all three silently default to
+`"ostalo"`/a fixed fallback bucket on uncertainty or error, with no signal anywhere that the guess might be
+wrong. This is the mission's own explicitly forbidden "third state" (silently guessed), still live on 3 of 5
+classifiers after this sprint's fix.
+
+**Why not fixed this mission**: giving these classifiers a genuine confidence-gated review path requires the
+full `CONFIDENCE_SPECIFICATION.md` design actually implemented (grounding verification, structural-marker
+signals, the full scoring formula) — a large, multi-file change, not a bounded patch. This sprint's own fix
+(preventing an already-correct uncertainty signal from being erased) was prioritized as the more severe,
+more bounded finding.
+
+**Recommended direction**: `CONFIDENCE_SPECIFICATION.md` §3's Path 1/Path 2 scoring, applied first to
+`evidence.py::_klasifikuj_dokument` since it's the classifier every pipeline eventually routes through.
+
+**Severity**: High — the majority of live classification volume (Pipeline A, plus Pipeline C's stage-2
+overwrite for confidently-classified documents) still has zero uncertainty handling.
+
+## INTAKE-009 — `/reklasifikuj` has a code-level concurrency defect: no lock, a double-click races itself (Medium)
+
+`routers/evidence.py::reklasifikuj` launches its classification via an unawaited `asyncio.create_task` with
+no per-document lock or compare-and-swap. Two rapid calls against the same document (double-click, two
+browser tabs, a retried slow request) launch two concurrent background tasks, each unconditionally
+`UPDATE`-ing `tip_dokaza` — whichever lands last silently wins. The exact same race shape Sprint 002 fixed
+for intake finalize, self-inflicted by the very action meant to fix a bad classification.
+
+**Why not fixed this mission**: lower frequency than the finalize race (an admin/manual action, not an
+automated high-volume path); the proper fix mirrors Sprint 002's `claim_intake_finalize` pattern (a real,
+bounded, well-precedented change) but was deprioritized behind this sprint's higher-severity finding.
+
+**Recommended direction**: an atomic claim RPC on the document row (or a simple in-process lock keyed by
+`dokument_id`, given this is a low-frequency admin action, not a distributed multi-worker concern), mirroring
+migration 092's `claim_intake_finalize` shape.
+
+**Severity**: Medium — real, code-level, provable, but low-frequency and doesn't corrupt data (the DB write
+itself is still atomic), only produces a nondeterministic-which-guess-wins outcome.
+
+## INTAKE-010 — No cross-row classification-consistency check for same-hash duplicate uploads (Medium)
+
+`source_sha256` is computed at 3 upload sites but queried back at zero — confirmed by exhaustive grep. If the
+same physical file is uploaded twice (through any combination of Pipeline A/B, or once into a case and once
+into Klijenti Trezor with a manually-typed different type), the system has no concept that these are "the
+same document" — each row's classification is decided, displayed, and consumed by downstream `EXPECTED_DOCS`
+matching completely independently, with no contradiction detection.
+
+**Why not fixed this mission**: building real cross-row consistency checking (a reconciliation pass matching
+on `source_sha256`) is a genuine new capability, not a bounded patch. No evidence of this having caused an
+actual production contradiction (out of this sprint's read-only scope to query live data) — a structural gap,
+not an observed incident.
+
+**Severity**: Medium — real gap, unconfirmed real-world impact.
+
+## INTAKE-011 — Phase 7 edge-case findings: classification-adjacent OCR/extraction gaps (Medium, explicitly OCR-adjacent per the mission's own "don't fix OCR" instruction)
+
+Full detail: `CLASSIFICATION_ARCHITECTURE_REPORT.md` §5. Confirmed defects: `ocr_confidence` is a hardcoded
+`0.6` constant (not a real measurement) and is never fed into any classifier at all — clean and barely-legible
+OCR text report identical confidence; zero rotation/orientation detection anywhere in the extractor; every
+classifier reads only the HEAD of a whole-file concatenated text string, so a multi-document combined PDF
+(lawsuit + exhibits) or a Serbian-practice "spis" bundle is always classified as if it were exactly one
+document, driven by whichever document happens to appear first in the scan; handwritten annotations on
+printed documents get no mixed-content handling, silently concatenated into the same OCR output as clean
+printed text with no reliability flag. One narrow additional finding: a born-digital PDF interleaved with
+several blank separator pages can be miscounted into the OCR fallback path unnecessarily.
+
+**Why not fixed this mission**: the mission's own explicit instruction — "Ne rešavati OCR. Dokazati ponašanje"
+(don't fix OCR, prove behavior) — this phase's job was diagnosis, not remediation.
+
+**Severity**: Medium — real, provable defects, but each requires OCR/extraction-layer work explicitly outside
+this sprint's charter.

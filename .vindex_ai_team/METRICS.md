@@ -746,3 +746,37 @@ closed by a derived-view recommendation (no migration needed), but the deeper cr
 **partially** provable — the case-file artifacts a lawyer needs are durably reconstructible; the forensic
 "prove exactly what happened and why" layer has real, now-documented gaps (`INTAKE-007`). Full detail:
 `docs/architecture/DOCUMENT_LIFECYCLE_ARCHITECTURE_REPORT.md`'s own §5 closure self-check.
+
+## Program Intake, Sprint 003 (2026-08-05) — Canonical Document Understanding
+
+**Methodology note**: measured against the mission's own success criteria (one canonical classification
+method, no competing classifications, every document has confidence + reason, no low-confidence
+auto-misclassification, review queue as sole alternative, zero regressions) — same discipline as Sprints
+001-002.
+
+| Metric | Value |
+|---|---|
+| Independent AI document classifiers found | 5 (not 4, as every prior session's tracking assumed) — 1 genuinely new finding (`api.py::_call_metapodaci`), invisible to prior `tip_dokaza`-scoped greps because it persists elsewhere (`predmet_istorija`) |
+| Classifiers with a genuine confidence-gated escape hatch | 1 of 5 (`shared/intake_classify.py`, Pipeline B only) — confirmed unchanged this sprint |
+| Existing vocabularies reconciled into the canonical taxonomy | 4 classifier vocabularies + the founder's own starting example, full mapping table, every edge case explicitly justified (not hand-waved) |
+| Genuine pre-existing defect found and corrected in the taxonomy design | 1 — `intake_classify.py`'s own `enforcement` keyword list conflates a party-submitted petition with a court-issued order under one label; canonical taxonomy splits them correctly |
+| Confidence model precedent instances (platform-wide pattern) | 4th confirmed instance of `CONFIDENCE_MODEL_SPECIFICATION.md`'s `compute_*()` pattern (`compute_snaga_score` → `_procenat_iz_score` → `sistemsko_upozorenje` → this) |
+| `EVIDENCE_CHAIN_REGISTRY.md` rows moved from Broken to designed | 1 (row #5, `tip_dokaza`/`pravni_elementi` grounding) |
+| Closure-blocking "third state" (silently guessed) fixed this sprint | 1 instance — the platform's ONE working confidence-gated classification was being silently overwritten by a confidence-blind second classifier on Pipeline C; now prevented |
+| Confirmed live user-visible classification contradiction found and disclosed | 1 — `GET /jobs/{job_id}` served a stale English-vocab label indefinitely after finalize, shown to lawyers via the frontend's own hardcoded translation map, permanently disagreeing with the real Serbian-vocab case-file value |
+| Bounded fixes implemented and tested | 2 — Pipeline C finalize overwrite-gating + response flag, `GET /jobs/{id}` staleness disclosure |
+| Deferred findings, each with named reasoning | 4 (`INTAKE-008` through `INTAKE-011`) — none silently dropped |
+| Pre-existing tests updated for the new `review` key contract | 3 files (`test_lz002_evidence_autoclassify.py`, `test_ztc_scenario_b_attach.py`, `test_ztc_conflict_check_autowiring.py`) — hand-rolled `job_result` mocks needed a `"review"` key to match `get_job_result`'s real return contract; no behavioral change to what they were already testing |
+| New/extended tests | 5, one new file (`test_sprint003_classification_review_required.py`) |
+| Full suite | 2,517 passed, 1 skipped, 0 failed (was 2,512 going in) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprints
+001-002, an even longer STANDBY list than either.
+
+**Success criteria**: honestly NOT fully met — this was never a one-sprint achievable goal given 5
+independent classifiers had accumulated over the platform's history. What shipped: the taxonomy and
+confidence model are fully designed and ready to adopt (not implemented); the single most severe ACTIVE
+defect — an already-correct uncertainty signal being silently destroyed on the platform's primary finalize
+path — is fixed and regression-tested; every other gap has a named severity, a named reason it wasn't fixed,
+and a tracking ID. Full detail: `docs/architecture/CLASSIFICATION_ARCHITECTURE_REPORT.md`'s own §6 closure
+self-check.

@@ -225,7 +225,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     provera ovde daje jasnu 404 poruku umesto praznog reda."""
     res = await asyncio.to_thread(
         lambda: _get_supa().table("intake_jobs")
-            .select("id, status, source, attempts, last_error, created_at, completed_at, original_filename")
+            .select("id, status, source, attempts, last_error, created_at, completed_at, original_filename, predmet_id")
             .eq("id", job_id)
             .eq("uploaded_by", user["user_id"])
             .maybe_single()
@@ -249,12 +249,34 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
         "corrected": e["reviewed"],
     } for e in entities]
 
+    # Program Intake Sprint 003 (2026-08-05) -- Sprint 003 Fork A confirmed
+    # a live, permanent, two-different-Serbian-labels contradiction: this
+    # endpoint keeps serving intake_documents.document_type (Pipeline B's
+    # ENGLISH-vocab staging value) indefinitely, even after finalize has
+    # already written the real, Serbian-vocab predmet_dokumenti.tip_dokaza
+    # for the case file -- and the frontend's own hardcoded translation map
+    # renders THIS stale value during Smart Intake review. There is no
+    # reliable join back to the specific predmet_dokumenti row from here
+    # (no intake_job_id FK exists on that table -- tracked, unchanged,
+    # INTAKE-003) to fetch and show the current canonical value directly,
+    # so rather than guess via a fragile filename/order heuristic, this
+    # response now honestly flags staleness and points the caller at the
+    # real source of truth (the case file) instead of presenting a
+    # possibly-superseded value as if it were still current.
+    already_finalized = bool(job.get("predmet_id"))
+
     return {
         "job": job,
         "dokument": {
             "tip": document["document_type"] if document else None,
             "tip_pouzdanost": document["classification_confidence"] if document else None,
             "ocr_koriscen": document["ocr_used"] if document else None,
+            "tip_moze_biti_zastareo": already_finalized,
+            "napomena": (
+                "Posao je vec finalizovan -- ovo je poslednja poznata klasifikacija PRE finalizacije, "
+                "koja moze biti zamenjena ili ispravljena u samom predmetu. Za trenutnu klasifikaciju "
+                "pogledajte dokument u predmetu (predmet_id ispod)."
+            ) if already_finalized else None,
         } if document else None,
         "entiteti": entiteti_view,
         "potrebna_provera": {
@@ -484,6 +506,21 @@ async def finalize_intake_job(
     entities = result["entities"]
     if not document:
         raise HTTPException(status_code=409, detail="Klasifikacija nije dostupna za ovaj posao.")
+
+    # Program Intake Sprint 003 (2026-08-05) -- result["review"] je ranije
+    # bio ucitan a NIKAD procitan (Sprint 003 Fork C §1.6a) -- finalize nije
+    # imao NIKAKAV nacin da zna da li je Pipeline B-ova klasifikacija bila
+    # ispod AUTO_ACCEPT_THRESHOLD. Ovo je tacno "trece stanje" koje misija
+    # zabranjuje: dokument tiho pogodjen umesto poslat u Review Required.
+    # classification_uncertain postaje ulaz u dve odluke ispod: (1) da li
+    # dozvoliti Evidence Vault-ovom confidence-slepom klasifikatoru da tiho
+    # prepise ovu vec-oznacenu-kao-nesigurnu vrednost (ne dozvoljavamo — v.
+    # napomenu kod _evidence_classify_bg), (2) da li ukljuciti eksplicitan
+    # signal u finalize odgovoru (ukljucujemo — jedini trenutak kad advokat
+    # sigurno gleda ovaj ekran).
+    review = result["review"]
+    low_confidence_fields = (review or {}).get("low_confidence_fields") or []
+    classification_uncertain = bool(review) and "document_type" in low_confidence_fields
 
     # Faza 2.1 instrumentacija (90-dnevni plan, 2026-07-18) — MERI, ne
     # pretpostavlja, da li advokat menja izvucene podatke pre finalize-a ili
@@ -798,17 +835,43 @@ async def finalize_intake_job(
         # initiated background enrichment step, not a lawyer-initiated action,
         # so it should not silently consume a billing credit the way the
         # manual endpoint does.
-        async def _evidence_classify_bg():
-            try:
-                from routers.evidence import klasifikuj_i_sacuvaj
-                dokument_id = dok_ins.data[0]["id"]
-                await asyncio.to_thread(
-                    klasifikuj_i_sacuvaj, predmet_id, dokument_id,
-                    job.get("original_filename") or "dokument", text, uid,
-                )
-            except Exception as ce:
-                logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
-        asyncio.create_task(_evidence_classify_bg())
+        # Program Intake Sprint 003 (2026-08-05) -- ovaj task se RANIJE
+        # pokretao bezuslovno, svaki put, bez obzira da li je Pipeline B-ova
+        # klasifikacija bila ispod AUTO_ACCEPT_THRESHOLD i vec cekala u
+        # intake_review_queue. To je znacilo da je jedina tacka u citavom
+        # sistemu koja ispravno prepoznaje "nisam siguran" (Confidence Graph)
+        # bila tiho prepisana klasifikatorom koji NEMA confidence polje
+        # uopste (routers/evidence.py::_klasifikuj_dokument — Sprint 003
+        # Fork C §1.2/§1.6b: potvrdjeno, nema numericku vrednost nigde u
+        # svom izlazu). Netacna posledica: cak i kad je sistem ispravno
+        # rekao "nisam siguran," ta neizvesnost NIKAD ne bi stigla do
+        # trajnog zapisa — tiho zamenjena "sigurnijim"-izgledajucim (ali
+        # jednako negrundovanim) nagadjanjem, tacno "trece stanje" koje
+        # ova misija zabranjuje. Sada: prepisivanje se preskace kad je
+        # document_type vec oznacen kao nesiguran — vrednost koju je
+        # finalize upisao iznad (Pipeline B-ov original) ostaje, i
+        # klasifikacija_nesigurna=True u odgovoru ispod cini tu neizvesnost
+        # vidljivom advokatu, umesto da je sakrije iza lazno-sigurnog
+        # drugog nagadjanja. LZ-002-ov ispravan cilj (engleski->srpski
+        # vokabular popravka za EXPECTED_DOCS) i dalje radi za VECINU
+        # dokumenata — samo za one vec-oznacene-kao-nesigurne se preskace.
+        if not classification_uncertain:
+            async def _evidence_classify_bg():
+                try:
+                    from routers.evidence import klasifikuj_i_sacuvaj
+                    dokument_id = dok_ins.data[0]["id"]
+                    await asyncio.to_thread(
+                        klasifikuj_i_sacuvaj, predmet_id, dokument_id,
+                        job.get("original_filename") or "dokument", text, uid,
+                    )
+                except Exception as ce:
+                    logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
+            asyncio.create_task(_evidence_classify_bg())
+        else:
+            logger.info(
+                "[SMART_INTAKE] dok=%s klasifikacija nesigurna (document_type u low_confidence_fields) -- preskacem Evidence Vault auto-prepisivanje, ostaje Review Required",
+                (dok_ins.data[0]["id"] if dok_ins and dok_ins.data else "?"),
+            )
 
     # Program Intake Sprint 002 -- ova linija je i dalje jedini upis koji
     # trajno "zatvara" finalizaciju (isti field kao pre), ali sada je
@@ -860,4 +923,11 @@ async def finalize_intake_job(
         "klijent_dodat": bool(klijent_ime),
         "rok_dodat":     rok_dodat,
         "dokument_povezan": doc_linked,
+        # Program Intake Sprint 003 (2026-08-05) -- eksplicitan signal da je
+        # tip_dokaza klasifikacija ispod AUTO_ACCEPT_THRESHOLD (Sprint 003
+        # Fork C's headline finding) -- "Review Required" mora biti vidljivo
+        # stanje, ne tiho zakopano u endpoint-u koji niko posle finalize-a
+        # ne posecuje (GET /jobs/{id}, jedini ranije citalac ovog signala).
+        "klasifikacija_nesigurna": classification_uncertain,
+        "nesigurna_polja": low_confidence_fields if classification_uncertain else [],
     }

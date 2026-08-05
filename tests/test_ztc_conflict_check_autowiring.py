@@ -185,6 +185,7 @@ async def test_finalize_surfaces_alert_when_conflict_detected():
     mock_supa = _make_supa()
     job_result = {
         "document": {"document_type": "lawsuit"},
+        "review": None,
         "entities": [
             {"entity_type": "plaintiff", "value": "Marko Marković"},
             {"entity_type": "defendant", "value": "Ana Jović"},
@@ -236,6 +237,7 @@ async def test_finalize_does_not_create_alert_when_no_conflict():
     mock_supa = _make_supa()
     job_result = {
         "document": {"document_type": "lawsuit"},
+        "review": None,
         "entities": [
             {"entity_type": "plaintiff", "value": "Marko Marković"},
             {"entity_type": "defendant", "value": "Ana Jović"},
@@ -274,6 +276,7 @@ async def test_finalize_conflict_check_failure_does_not_break_case_creation():
     mock_supa = _make_supa()
     job_result = {
         "document": {"document_type": "lawsuit"},
+        "review": None,
         "entities": [{"entity_type": "plaintiff", "value": "Marko Marković"}],
     }
 

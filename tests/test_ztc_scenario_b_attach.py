@@ -132,7 +132,7 @@ async def test_finalize_attaches_to_existing_predmet_instead_of_creating_new():
         existing_predmet={"id": "pred-EXISTING", "naziv": "Petrović protiv Markovića"},
         existing_redni_broj_rows=[{"redni_broj": 1}],
     )
-    job_result = {"document": {"document_type": "podnesak"}, "entities": []}
+    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
 
     result = await _run_finalize_and_drain(
         mock_supa, job_result, FinalizeReq(predmet_id="pred-EXISTING"),
@@ -157,7 +157,7 @@ async def test_finalize_404_when_attach_target_not_found_or_not_owned():
     from fastapi import HTTPException
 
     mock_supa = _make_supa(existing_predmet=None)
-    job_result = {"document": {"document_type": "podnesak"}, "entities": []}
+    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
 
     with pytest.raises(HTTPException) as exc_info:
         await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq(predmet_id="pred-GHOST"))
@@ -171,7 +171,7 @@ async def test_finalize_without_predmet_id_still_creates_new_case():
     from routers.smart_intake import FinalizeReq
 
     mock_supa = _make_supa(existing_redni_broj_rows=[])
-    job_result = {"document": {"document_type": "podnesak"}, "entities": []}
+    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
 
     result = await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq())
 
@@ -189,7 +189,7 @@ async def test_finalize_assigns_next_redni_broj_when_attaching_second_document()
         existing_predmet={"id": "pred-EXISTING", "naziv": "Predmet"},
         existing_redni_broj_rows=[{"redni_broj": 1}],
     )
-    job_result = {"document": {"document_type": "podnesak"}, "entities": []}
+    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
 
     captured_inserts = []
     real_table = mock_supa.table.side_effect
@@ -218,7 +218,7 @@ async def test_finalize_first_document_in_new_case_gets_redni_broj_1():
     from routers.smart_intake import FinalizeReq
 
     mock_supa = _make_supa(existing_redni_broj_rows=[])
-    job_result = {"document": {"document_type": "podnesak"}, "entities": []}
+    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
 
     captured_inserts = []
     real_table = mock_supa.table.side_effect

@@ -628,3 +628,55 @@ entries (`INTAKE-005` through `INTAKE-007`, checked against existing prefixes fi
 | INTAKE-005 | Pipeline A's own Pinecone-ghost-vector risk on DB-insert failure after Pinecone success (same root cause as INTAKE-001) | 1 | none — but a genuine new capability (cross-system compensating delete), not a bounded patch | Medium | TODO | Recommended direction: background reconciliation job diffing Pinecone vs. predmet_dokumenti; new scheduled infrastructure, out of this sprint's bound. |
 | INTAKE-006 | `intake_jobs.status`'s intermediate processing sub-states (classifying/extracting/matching/dedup_check) declared but never written | 3 | none — zero migration needed | Small | TODO | Real, bounded, optional — observability, not consistency; deferred so as not to dilute this sprint's 4 consistency fixes. |
 | INTAKE-007 | Production-replay forensic blind spots (no ocr_used column, no Pinecone→document FK, 2 disconnected fire-and-forget provenance systems, no truncation marker) | 3 | Durable-with-retry infrastructure or new schema columns | Medium | NEEDS_SCOPING | No document loss — a forensic-completeness gap, distinct from and lower-severity than a consistency defect. |
+
+## Program Intake, Sprint 003 (2026-08-05) — Canonical Document Understanding
+
+Founder's sixth Master Prompt of this multi-session Program Intake arc: pivots from "can the system read a
+document" (Sprints 001-002) to "does the system understand what it read." Same deliberately narrow charter
+shape, tighter still: only 5 named agents active (Chief Systems Architect, Legal Domain Expert, Evidence &
+Consistency Auditor, Reliability & Failure Recovery Engineer, Code Quality/Refactoring Reviewer), no Mission
+Olympus phase, an even longer STANDBY list than Sprint 001/002 (adds Metrics/Strategy/Voice/Analytics/
+Documentation Review to the usual forbidden set). Forbidden to implement: Timeline, Deadlines, Tasks, Alerts,
+Genome extensions, Briefing, Copilot, Decision Engine, Search, Firm Brain. Mission's own closing instruction:
+optimize for accuracy and trust, not for the count of auto-classified documents.
+
+**3 parallel forensic forks** (classification inventory + duplicate audit; canonical taxonomy + confidence
+model design; review-queue audit + edge-case validation) found the platform has **5 independent AI document
+classifiers, not 4** as every prior session's tracking assumed — a previously-uncounted 5th classifier
+(`api.py::_call_metapodaci`) escaped every earlier `tip_dokaza`-scoped grep because it persists into
+`predmet_istorija`, not the field prior forks searched for. **Headline finding**: only 1 of the 5 classifiers
+has a genuine confidence-gated escape hatch, and even that one classifier's correctly-flagged "I'm not sure"
+signal was being silently erased — Pipeline C's finalize let a SECOND, confidence-blind classifier
+unconditionally overwrite an already-flagged-uncertain classification, meaning the platform's one working
+instance of "admit uncertainty" never had a chance to reach the permanent case record.
+
+**2 fixes implemented and regression-tested** (2517 tests, zero regressions, was 2512 going in): (1) Pipeline
+C finalize no longer schedules the confidence-blind overwrite when Pipeline B's classification was flagged
+low-confidence — the honest, uncertain value survives instead of being replaced by an equally unfounded but
+more-confident-looking guess; finalize's own response now always surfaces `klasifikacija_nesigurna`/
+`nesigurna_polja` explicitly. (2) `GET /jobs/{job_id}` no longer silently presents a stale, pre-finalize
+classification as current — a confirmed, permanent, two-different-Serbian-labels contradiction the frontend's
+own hardcoded translation map was showing lawyers during Smart Intake review — now flags staleness honestly
+instead.
+
+**2 large designs produced, deliberately not adopted in code this sprint**: `CANONICAL_DOCUMENT_TAXONOMY.md`
+(10 parent categories reconciling all 4 existing classifier vocabularies + the founder's own example, full
+mapping table, every edge case explicitly justified — including a genuine correction to a pre-existing defect
+in `intake_classify.py`'s own `enforcement` keyword list) and `CONFIDENCE_SPECIFICATION.md` (a grounding-
+verified confidence model, the platform's 4th confirmed instance of the already-proven `compute_*()` pattern,
+closing `EVIDENCE_CHAIN_REGISTRY.md` row #5's previously-Broken status with a concrete design). Full adoption
+(schema migration + rewiring 5 classifiers to one canonical engine) is correctly out of this sprint's bounded
+scope — a large future undertaking, not attempted piecemeal.
+
+**8 required deliverables**: `docs/architecture/CANONICAL_DOCUMENT_TAXONOMY.md`,
+`CLASSIFICATION_ARCHITECTURE_REPORT.md`, `CLASSIFICATION_INVENTORY.md`, `CONFIDENCE_SPECIFICATION.md`,
+`REVIEW_QUEUE_SPECIFICATION.md`, `DUPLICATE_CLASSIFICATION_REPORT.md`, and 4 new
+`ARCHITECTURAL_DEBT_REGISTER.md` entries (`INTAKE-008` through `INTAKE-011`, checked against existing
+prefixes first — no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-008 | No confidence-gated review queue on Pipeline A or the 2 ephemeral classifiers (3 of 5 classifiers still silently default to "ostalo" on uncertainty) | 1 | `CONFIDENCE_SPECIFICATION.md` actually implemented | Large | TODO | Majority of live classification volume still has zero uncertainty handling — highest-priority follow-up. |
+| INTAKE-009 | `/reklasifikuj` has a code-level concurrency defect — no lock, a double-click races itself | 3 | none — mirrors migration 092's already-proven pattern | Small-Medium | TODO | Low-frequency admin action, doesn't corrupt data, just produces a nondeterministic winner. |
+| INTAKE-010 | No cross-row classification-consistency check for same-hash duplicate uploads | 3 | New reconciliation capability | Medium | NEEDS_SCOPING | source_sha256 computed at 3 sites, queried back at 0; no evidence of actual production impact. |
+| INTAKE-011 | Phase 7 edge-case findings: OCR-confidence decoupling, no rotation detection, no multi-document/"spis" boundary detection | 3 | OCR/extraction-layer work, explicitly out of this sprint's charter | Medium | NEEDS_SCOPING | "Ne rešavati OCR" — diagnosis only, per the mission's own instruction. |
