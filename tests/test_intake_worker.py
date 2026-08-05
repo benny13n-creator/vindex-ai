@@ -28,20 +28,52 @@ async def test_tick_processes_claimed_job_and_completes():
     # _process() is the Phase 1A pipeline (classify/extract/persist) — this
     # test is about tick/queue lifecycle, not pipeline internals, so _process
     # itself is mocked (see tests/test_intake_worker_phase1a.py for pipeline
-    # coverage).
+    # coverage). Program Intake Sprint 004: _process() now returns bool
+    # (needs_review) -- explicitly False here for the "confidently
+    # classified" path this test covers.
     with patch("shared.intake_worker.intake_queue.claim_next_job", new=AsyncMock(return_value=job)), \
-         patch.object(IntakeWorker, "_process", new=AsyncMock()), \
+         patch.object(IntakeWorker, "_process", new=AsyncMock(return_value=False)), \
          patch("shared.intake_worker.intake_queue.mark_job_completed", new=AsyncMock()) as mock_complete, \
+         patch("shared.intake_worker.intake_queue.mark_job_awaiting_review", new=AsyncMock()) as mock_awaiting, \
          patch("shared.intake_worker.intake_queue.mark_job_failed", new=AsyncMock()) as mock_failed, \
          patch("shared.intake_worker.intake_queue.record_heartbeat", new=AsyncMock()) as mock_hb:
         did_work = await w._tick()
 
     assert did_work is True
     mock_complete.assert_awaited_once_with("job-1")
+    mock_awaiting.assert_not_awaited()
     mock_failed.assert_not_awaited()
     assert w.jobs_processed == 1
     assert w.jobs_failed == 0
     mock_hb.assert_awaited_once_with("test-worker", 1, 0)
+
+
+@pytest.mark.anyio
+async def test_tick_marks_awaiting_review_instead_of_completed_when_needs_review():
+    """Program Intake Sprint 004 (2026-08-05) -- the sprint's central fix:
+    a job whose classification/extraction needed review must NOT be marked
+    'completed' (the old unconditional behavior, which produced two
+    disagreeing truths -- intake_jobs.status='completed' while a separate
+    intake_review_queue row said otherwise). It must go to
+    'awaiting_review' instead."""
+    from shared.intake_worker import IntakeWorker
+
+    w = IntakeWorker(worker_id="test-worker")
+    job = {"id": "job-1", "attempts": 0, "max_attempts": 5}
+
+    with patch("shared.intake_worker.intake_queue.claim_next_job", new=AsyncMock(return_value=job)), \
+         patch.object(IntakeWorker, "_process", new=AsyncMock(return_value=True)), \
+         patch("shared.intake_worker.intake_queue.mark_job_completed", new=AsyncMock()) as mock_complete, \
+         patch("shared.intake_worker.intake_queue.mark_job_awaiting_review", new=AsyncMock()) as mock_awaiting, \
+         patch("shared.intake_worker.intake_queue.mark_job_failed", new=AsyncMock()) as mock_failed, \
+         patch("shared.intake_worker.intake_queue.record_heartbeat", new=AsyncMock()):
+        did_work = await w._tick()
+
+    assert did_work is True
+    mock_awaiting.assert_awaited_once_with("job-1")
+    mock_complete.assert_not_awaited()
+    mock_failed.assert_not_awaited()
+    assert w.jobs_processed == 1  # awaiting_review is still a successful processing outcome, not a failure
 
 
 @pytest.mark.anyio

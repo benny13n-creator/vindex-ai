@@ -270,15 +270,63 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
     return {"entity_id": entity_id, "entity_type": entity["entity_type"], "corrected_value": corrected_value}
 
 
-async def resolve_review_queue_for_job(intake_job_id: str, resolved_by: str) -> None:
+async def resolve_review_queue_for_job(intake_job_id: str, resolved_by: str) -> bool:
     """Poziva se kad su sve niske-confidence stavke za jedan posao
-    ispravljene — markira review queue red kao rešen."""
+    ispravljene — markira review queue red kao rešen. Idempotentno:
+    `.is_("resolved_at", "null")` znači da drugi/treći poziv nad istim
+    poslom ne radi ništa (Postgres single-row UPDATE atomicity — isti
+    obrazac kao tip_dokaza race-safety iz Sprint 002/003, konkurentni
+    pozivi se sami prirodno serijalizuju na DB nivou).
+
+    Vraća True ako je OVAJ poziv stvarno razrešio nerazrešen red (koristi
+    se u resolve_review() ispod da razlikuje "ja sam upravo potvrdio" od
+    "neko je već potvrdio pre mene" — Program Intake Sprint 004)."""
     from datetime import datetime, timezone
     supa = _get_supa()
-    await asyncio.to_thread(
+    res = await asyncio.to_thread(
         lambda: supa.table("intake_review_queue")
             .update({"resolved_at": datetime.now(timezone.utc).isoformat(), "resolved_by": resolved_by})
             .eq("intake_job_id", intake_job_id)
             .is_("resolved_at", "null")
             .execute()
     )
+    return bool(res.data)
+
+
+async def resolve_review(intake_job_id: str, resolved_by: str) -> dict:
+    """Program Intake Sprint 004 (2026-08-05) -- kanonski i JEDINI nacin da
+    covek potvrdi nisko-pouzdanu klasifikaciju/ekstrakciju i da obrada
+    automatski nastavi. resolve_review_queue_for_job je postojala od
+    migracije 074 ali nikad nije bila pozvana nigde u kodu (Sprint 004
+    Fork A, potvrdjeno repo-wide grep-om) -- ovo je prva stvarna zicna
+    veza.
+
+    Dva upisa, namerno NE u jednoj RPC transakciji (Fork B Sprint 002 §3.2
+    -- supabase-py nema multi-statement atomicnost van RPC-a, a ovde nije
+    ni potrebna): ako PRVI upis (review resolved_at) uspe a DRUGI (job
+    status) padne, sledeci pokusaj ovog istog poziva je bezbedan -- prvi
+    upis je vec idempotentan no-op (resolved_at vise nije null), drugi
+    upis se prosto ponovo pokusa. Posao ostaje ispravno blokiran
+    (status i dalje 'awaiting_review') dok OBA upisa stvarno ne prodju --
+    fail-closed, ne fail-open (isti princip kao Sprint 002 Fork B §3.3-ovo
+    "self-healing bez transakcije" zapazanje)."""
+    review_resolved_now = await resolve_review_queue_for_job(intake_job_id, resolved_by)
+
+    supa = _get_supa()
+    status_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .update({"status": "completed"})
+            .eq("id", intake_job_id)
+            .eq("status", "awaiting_review")
+            .execute()
+    )
+    job_status_advanced = bool(status_res.data)
+
+    logger.info(
+        "[INTAKE_DOCUMENTS] review resolved: job=%s od=%s (review_resolved_now=%s, job_status_advanced=%s)",
+        intake_job_id[:8], resolved_by, review_resolved_now, job_status_advanced,
+    )
+    return {
+        "review_resolved_now": review_resolved_now,
+        "job_status_advanced": job_status_advanced,
+    }

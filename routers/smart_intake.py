@@ -286,6 +286,72 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     }
 
 
+@router.post("/jobs/{job_id}/review/resolve")
+@limiter.limit("30/minute")
+async def resolve_job_review(job_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Program Intake Sprint 004 (2026-08-05) -- kanonski i JEDINI nacin da
+    advokat potvrdi da je pregledao nisko-pouzdanu klasifikaciju/
+    ekstrakciju i da obrada sme automatski da nastavi (Faza 4: Automatic
+    Pipeline Resume). Pre ovog sprinta, shared/intake_documents.py::
+    resolve_review_queue_for_job je postojala ali je NIKAD nije pozivao
+    nijedan kod put (Fork A, potvrdjeno repo-wide grep-om) -- posao je
+    mogao zavrsiti u intake_review_queue-u i ostati tamo trajno, bez ijedne
+    kapije za izlazak. Ova ruta JE ta kapija.
+
+    Nastavak je AUTOMATSKI i IDEMPOTENTAN bez ijedne nove linije koda u
+    finalize_intake_job: resolve_review() vraca intake_jobs.status sa
+    'awaiting_review' na 'completed', sto finalize-ov VEC POSTOJECI status
+    gate ('Posao jos nije obradjen') prirodno propusta -- lekar ponovo
+    pozove POST /jobs/{job_id}/finalize (isti poziv kao i za bilo koji
+    drugi zavrsen posao) i on nastavi TACNO odakle je stao: ne ponavlja
+    OCR/klasifikaciju/ekstrakciju (vec upisani u intake_documents/
+    extracted_entities), ne pravi nov dokument, ne pravi nov predmet, ne
+    pravi nove vektore (finalize sam po sebi je vec idempotentan preko
+    claim_intake_finalize RPC-a iz Sprint 002)."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    job_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .select("id, status, predmet_id")
+            .eq("id", job_id)
+            .eq("uploaded_by", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not job_res or not job_res.data:
+        raise HTTPException(status_code=404, detail="Posao nije pronađen.")
+    job = job_res.data
+
+    if job.get("predmet_id"):
+        # Vec finalizovano -- review razresenje posle finalizacije je i
+        # dalje bezopasno (istorijski zapis), ali nema vise nijedan status
+        # da "otkljuca" -- vrati jasnu, ne-zbunjujucu poruku umesto tihog
+        # no-op-a koji izgleda kao uspeh a nista se stvarno nije desilo.
+        return {"ok": True, "already_finalized": True, "predmet_id": job["predmet_id"]}
+
+    result = await intake_documents.resolve_review(job_id, user.get("email", uid))
+
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "dokument_review_resolved",
+            user_id=uid,
+            resource_type="intake_job",
+            resource_id=job_id,
+            ip=request.client.host if request.client else None,
+            metadata={
+                "prior_status": job.get("status"),
+                "job_status_advanced": result["job_status_advanced"],
+                "review_resolved_now": result["review_resolved_now"],
+            },
+        ))
+    except Exception as ae:
+        logger.warning("[SMART_INTAKE] dokument_review_resolved audit log greška: %s", ae)
+
+    return {"ok": True, "already_finalized": False, **result}
+
+
 @router.post("/entities/{entity_id}/correct")
 @limiter.limit("60/minute")
 async def correct_entity(
@@ -318,6 +384,26 @@ async def correct_entity(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
+
+    # Program Intake Sprint 004 (2026-08-05) -- ranije NIJEDAN audit poziv
+    # ovde (Fork A §5, potvrdjeno) -- ovo JESTE covekova odluka (menja
+    # trajno stanje ekstrakcije), pa mora imati audit trag po Fazi 5.
+    # correlation_id se automatski nasledjuje iz request-scoped konteksta
+    # (log_action's default, isti middleware kao svuda drugde) -- nista
+    # dodatno nije potrebno da bi provenance nastavak radio.
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "entity_corrected",
+            user_id=user["user_id"],
+            resource_type="entity",
+            resource_id=entity_id,
+            ip=request.client.host if request.client else None,
+            metadata={"entity_type": result["entity_type"], "reason": reason},
+        ))
+    except Exception as ae:
+        logger.warning("[SMART_INTAKE] entity_corrected audit log greška: %s", ae)
+
     return result
 
 
@@ -466,6 +552,19 @@ async def finalize_intake_job(
         return {"ok": True, "predmet_id": job["predmet_id"], "already_finalized": True}
 
     if job["status"] != "completed":
+        # Program Intake Sprint 004 (2026-08-05) -- ovaj gate je vec
+        # postojao, ali poruka je bila ista za "jos se obradjuje" I za
+        # "obradjeno, ali ceka covekovu potvrdu" (status='awaiting_review')
+        # -- dve potpuno razlicite situacije za advokata (jedna: sacekaj;
+        # druga: idi razresi review). Sada jasno razlikuje, i navodi tacnu
+        # rutu (POST .../review/resolve) koja "otkljucava" nastavak --
+        # ovaj if-blok i dalje JE ceo mehanizam blokade, nijedna nova
+        # logika, samo precizna poruka.
+        if job["status"] == "awaiting_review":
+            raise HTTPException(
+                status_code=409,
+                detail="Klasifikacija/ekstrakcija zahteva potvrdu pre finalizacije — pozovite POST /api/smart-intake/jobs/{job_id}/review/resolve, zatim ponovo finalize.",
+            )
         raise HTTPException(status_code=409, detail=f"Posao još nije obrađen (status: {job['status']}).")
 
     # Program Intake Sprint 002 (2026-08-05) -- ovaj deo funkcije je ranije

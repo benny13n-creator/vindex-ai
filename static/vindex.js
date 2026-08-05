@@ -20946,6 +20946,15 @@ var _SI_STATUS_LABELS = {
   dedup_check: 'Provera duplikata...', awaiting_review: 'Čeka pregled',
   completed: 'Obrađeno', failed: 'Neuspešno',
 };
+// Program Intake Sprint 004 (2026-08-05) — Faza 3 (Unified Review Reasons):
+// svaka eskalacija ima deterministički razlog (migracija 074's CHECK
+// constraint na intake_review_queue.reason) — ovo mapira te 3 vrednosti na
+// jasnu poruku za advokata, umesto da se prikazuje samo lista polja.
+var _SI_REVIEW_REASON_LABELS = {
+  ocr_failed: 'Dokument nije čitljiv (OCR neuspeo)',
+  classification_uncertain: 'Nismo sigurni koji je tip dokumenta',
+  low_confidence_extraction: 'Neki izvučeni podaci nisu sigurni',
+};
 var _SI_ALLOWED_EXT = ['.pdf', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
 
 function siOtvori() {
@@ -21112,7 +21121,14 @@ function _siRenderProcessingList() {
 }
 
 function _siJobsStillActive() {
-  return _siFiles.filter(function (sf) { return sf.job_id && sf.status !== 'completed' && sf.status !== 'failed'; });
+  // Program Intake Sprint 004 (2026-08-05): 'awaiting_review' is a settled,
+  // non-transient outcome (low-confidence classification/OCR failure) --
+  // treating it as "still processing" would poll forever and the lawyer
+  // would never reach Step 3's review screen for exactly the documents
+  // that most need their attention.
+  return _siFiles.filter(function (sf) {
+    return sf.job_id && sf.status !== 'completed' && sf.status !== 'failed' && sf.status !== 'awaiting_review';
+  });
 }
 
 async function _siPollJobs() {
@@ -21135,7 +21151,11 @@ async function _siPollJobs() {
       var d = await r.json();
       sf.status = d.job.status;
       sf.lastError = d.job.last_error;
-      if (d.job.status === 'completed') {
+      // Program Intake Sprint 004: 'awaiting_review' jobs have already
+      // fully run OCR/classification/extraction (that's WHY a review entry
+      // exists) -- the same data fetch as 'completed' applies, so the
+      // lawyer's Step 3 screen can actually show what needs their review.
+      if (d.job.status === 'completed' || d.job.status === 'awaiting_review') {
         sf.docType = d.dokument ? d.dokument.tip : null;
         sf.docTypeConf = d.dokument ? d.dokument.tip_pouzdanost : null;
         sf.entities = d.entiteti || [];
@@ -21156,7 +21176,11 @@ async function _siPollJobs() {
 }
 
 async function _siFetchCompletedDetails() {
-  var need = _siFiles.filter(function (sf) { return sf.status === 'completed' && !sf.entities; });
+  // Program Intake Sprint 004: same widening as _siPollJobs above --
+  // 'awaiting_review' jobs already have entities/review data to show.
+  var need = _siFiles.filter(function (sf) {
+    return (sf.status === 'completed' || sf.status === 'awaiting_review') && !sf.entities;
+  });
   await Promise.all(need.map(async function (sf) {
     try {
       var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id, {
@@ -21174,7 +21198,14 @@ async function _siFetchCompletedDetails() {
 
 function _siRenderReview() {
   var body = document.getElementById('si-review-body');
-  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed'; });
+  // Program Intake Sprint 004 (2026-08-05): 'awaiting_review' documents
+  // were previously invisible here entirely -- matched neither 'completed'
+  // nor 'failed', so they never appeared on this screen at all (the exact
+  // "leaves a document without continuation" defect the mission's Phase 1
+  // audit targets, at the UI layer). They belong in the same list as
+  // 'completed' -- both have finished OCR/classification/extraction, this
+  // one just also needs the lawyer's attention before finalize proceeds.
+  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed' || sf.status === 'awaiting_review'; });
   var failed = _siFiles.filter(function (sf) { return sf.status === 'failed'; });
 
   var html = '';
@@ -21238,8 +21269,10 @@ function _siRenderReview() {
       html += '</div>';
     });
 
-    if (sf.review && sf.review.polja && sf.review.polja.length) {
-      html += '<div style="font-size:0.68rem;color:#fbbf24;margin-top:6px;">⚠ Proverite: ' + sf.review.polja.map(escHtml).join(', ') + '</div>';
+    if (sf.review) {
+      var reasonLabel = _SI_REVIEW_REASON_LABELS[sf.review.razlog] || 'Potrebna provera';
+      html += '<div style="font-size:0.68rem;color:#fbbf24;margin-top:6px;">⚠ ' + escHtml(reasonLabel)
+        + (sf.review.polja && sf.review.polja.length ? ' (' + sf.review.polja.map(escHtml).join(', ') + ')' : '') + '</div>';
     }
     html += '</div>';
   });
@@ -21303,6 +21336,23 @@ async function siFinalize() {
       if (klijentIme) body.klijent_ime_override = klijentIme;
     }
     try {
+      // Program Intake Sprint 004 (2026-08-05): finalize now blocks
+      // (HTTP 409) when this job's classification/extraction needed
+      // review and hasn't been resolved yet. The lawyer already saw this
+      // flagged on Step 3's review screen (sf.review, populated above) and
+      // had the chance to correct any fields there via the existing
+      // per-field "Ispravi" action -- clicking "Kreiraj predmet" from that
+      // screen IS the human confirmation the backend requires, so resolve
+      // it here rather than surfacing a confusing failure for something
+      // the lawyer already implicitly confirmed by proceeding.
+      if (sf.review) {
+        try {
+          await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id + '/review/resolve', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+          });
+        } catch (re) { /* best-effort -- finalize below will surface a clear error if this didn't unblock it */ }
+      }
       var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + sf.job_id + '/finalize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },

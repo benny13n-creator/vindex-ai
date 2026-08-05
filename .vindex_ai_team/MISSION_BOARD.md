@@ -680,3 +680,46 @@ prefixes first — no collision).
 | INTAKE-009 | `/reklasifikuj` has a code-level concurrency defect — no lock, a double-click races itself | 3 | none — mirrors migration 092's already-proven pattern | Small-Medium | TODO | Low-frequency admin action, doesn't corrupt data, just produces a nondeterministic winner. |
 | INTAKE-010 | No cross-row classification-consistency check for same-hash duplicate uploads | 3 | New reconciliation capability | Medium | NEEDS_SCOPING | source_sha256 computed at 3 sites, queried back at 0; no evidence of actual production impact. |
 | INTAKE-011 | Phase 7 edge-case findings: OCR-confidence decoupling, no rotation detection, no multi-document/"spis" boundary detection | 3 | OCR/extraction-layer work, explicitly out of this sprint's charter | Medium | NEEDS_SCOPING | "Ne rešavati OCR" — diagnosis only, per the mission's own instruction. |
+
+## Program Intake, Sprint 004 (2026-08-05) — Human Review Orchestration & Automatic Resumption
+
+Founder's seventh Master Prompt of this multi-session Program Intake arc. **Explicit charter departure from
+Sprints 001-003: not a research/documentation sprint** — every technical problem found that could be fixed
+without a new founder business decision had to be fixed in the same sprint, no backlog for fixable things.
+Smallest team yet: 4 agents (Chief Systems Architect, Legal Domain Expert, Reliability & Failure Recovery
+Engineer, Evidence & Consistency Auditor), longest STANDBY list yet. Forbidden to implement: OCR, Genome,
+Copilot, Strategy Engine, Timeline, Tasks, Search, Dashboard, Firm Brain, Alerts, Voice, Memory Graph.
+
+**Headline finding**: `shared/intake_documents.py::resolve_review_queue_for_job` — a fully-correct function
+that marks a review resolved, existing since Sprint 001-era migration 074 — had **zero call sites anywhere in
+the codebase**. A document flagged for human review could never leave that state through any live path.
+Compounding this: `intake_jobs.status='awaiting_review'` was declared in the schema from day one but never
+actually written — every job reached `status='completed'` unconditionally while a separate table
+simultaneously claimed the same job still needed review. Two disagreeing truths about the same fact, and
+`finalize_intake_job` never checked either signal — it created the case regardless.
+
+**12 findings fixed this sprint** (full list, `HUMAN_REVIEW_ARCHITECTURE_REPORT.md` §2), most consequentially:
+wired up the dead `resolve_review_queue_for_job` via a new canonical endpoint; corrected `IntakeWorker`'s
+`_tick()` to actually set `awaiting_review` (making finalize's PRE-EXISTING status gate block correctly, zero
+new blocking logic needed); added audit logging to both human-decision endpoints (`correct_entity`, the new
+resolve endpoint) which previously had none; and — found only as a direct consequence of shipping the backend
+fix responsibly — **3 frontend bugs that would have made low-confidence documents poll forever, never appear
+on the review screen, and have no button to act on even if they did.** All fixed in the same pass, per this
+sprint's own binding rule.
+
+**3 findings deliberately deferred as genuine business decisions** (`INTAKE-012` through `INTAKE-014`): what a
+"reject" action should concretely do (vs. the built "confirm as-is" path); direct document-type correction
+(blocked on Sprint 003's still-unadopted taxonomy decision); `staging_memory`'s own missing audit trail (a
+different subsystem, out of this sprint's object of study).
+
+**7 required deliverables**: `docs/architecture/HUMAN_REVIEW_ARCHITECTURE_REPORT.md`, updated
+`REVIEW_QUEUE_SPECIFICATION.md`, `RESUME_WORKFLOW_SPECIFICATION.md`, `AUDIT_PROVENANCE_VERIFICATION_REPORT.md`,
+`CONCURRENCY_VERIFICATION_REPORT.md`, `END_TO_END_FLOW_VERIFICATION.md`, `SPRINT_004_MISSION_REPORT.md` (the
+sprint's own required 3-section report), and 3 new `ARCHITECTURAL_DEBT_REGISTER.md` entries (`INTAKE-012`
+through `INTAKE-014`, checked against existing prefixes first — no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-012 | No "reject" action exists for a low-confidence classification, only "confirm as-is" | 1 | Founder decision — what should rejection concretely trigger | Medium | NEEDS_SCOPING | Real gap in the mission's own named test list; correctly deferred rather than guessed at. |
+| INTAKE-013 | No way to directly correct the AI-detected document TYPE itself (only 8 entity fields are correctable) | 2 | Which vocabulary a correction writes to — blocked on Sprint 003's taxonomy adoption decision | Medium | NEEDS_SCOPING | Confirm-as-is already unblocks processing; this only blocks changing an uncertain type. |
+| INTAKE-014 | `staging_memory`'s (AI-draft approval) approve/reject endpoints have zero audit logging | 3 | none — same pattern this sprint proved twice | Small | TODO | Different subsystem (drafting, not intake), out of this sprint's chartered scope. |

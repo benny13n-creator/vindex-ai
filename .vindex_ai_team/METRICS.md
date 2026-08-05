@@ -780,3 +780,30 @@ defect — an already-correct uncertainty signal being silently destroyed on the
 path — is fixed and regression-tested; every other gap has a named severity, a named reason it wasn't fixed,
 and a tracking ID. Full detail: `docs/architecture/CLASSIFICATION_ARCHITECTURE_REPORT.md`'s own §6 closure
 self-check.
+
+## Program Intake, Sprint 004 (2026-08-05) — Human Review Orchestration & Automatic Resumption
+
+**Methodology note**: this sprint's own charter explicitly forbids treating fixable technical problems as
+backlog — metrics here measure fixes actually shipped, not designs deferred.
+
+| Metric | Value |
+|---|---|
+| Dead, fully-implemented-but-never-called functions found and wired up | 1 (`resolve_review_queue_for_job`) — existed since Sprint 001-era migration 074, zero callers until this sprint |
+| Dormant schema-declared status values wired up | 1 (`intake_jobs.status='awaiting_review'`) — declared migration 073, never written by any code path before this sprint |
+| Contradicting "is this job done" truth sources eliminated | 2 → 1 |
+| New blocking logic added to `finalize_intake_job` itself | 0 lines — the fix works entirely by making a pre-existing status check finally see accurate data |
+| Human-decision endpoints gaining audit logging | 2 of 2 (`correct_entity`, new resolve endpoint) — both had zero before this sprint |
+| New deterministic review-escalation reason activated | 1 (`classification_uncertain`, declared migration 074, dormant until this sprint) |
+| Frontend bugs found as a direct consequence of the backend fix, fixed same-pass | 3 — jobs would have polled forever, been invisible on the review screen, and had no action button, if the backend fix had shipped alone |
+| Findings requiring a genuine business decision, deferred with named reasoning | 3 (`INTAKE-012` through `INTAKE-014`) |
+| New/extended tests | 20 across 5 files (`test_intake_worker.py`, `test_intake_worker_phase1a.py`, `test_intake_phase0.py`, `test_intake_documents.py` extended; `test_sprint004_review_resolve.py` new; `test_intake_e2e_restart.py` updated for the new `_process()` return contract) |
+| Full suite | 2,530 passed, 1 skipped, 0 failed (was 2,517 at end of Sprint 003) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprints
+001-003; smallest team of any sprint in this arc (4 agents, vs. 5 for Sprints 001-003).
+
+**Success criteria**: honestly met for this sprint's own bounded object (intake document review) — one
+canonical review queue, one escalation mechanism, one resume path, zero permanently-blockable documents,
+proven idempotent resume, full audit trail for both human-decision actions, zero regressions. Three genuine
+business decisions correctly named and deferred rather than resolved by guesswork. Full detail:
+`docs/architecture/SPRINT_004_MISSION_REPORT.md`.

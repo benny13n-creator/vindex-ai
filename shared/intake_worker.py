@@ -111,8 +111,24 @@ class IntakeWorker:
 
         job_id = job["id"]
         try:
-            await self._process(job)
-            await intake_queue.mark_job_completed(job_id)
+            needs_review = await self._process(job)
+            # Program Intake Sprint 004 (2026-08-05) -- ranije se OVDE
+            # bezuslovno zvao mark_job_completed(), bez obzira da li je
+            # _process() upravo napravio intake_review_queue red. Rezultat:
+            # intake_jobs.status='completed' I intake_review_queue.
+            # resolved_at=NULL istovremeno tvrde suprotne stvari o istom
+            # poslu -- dva izvora istine koji se ne slazu (Sprint 004 Fork
+            # A §6, potvrdjeno). Sada: nizak-confidence/OCR-neuspeh posao
+            # ide na 'awaiting_review' (vec deklarisan u CHECK constraint-u
+            # od migracije 073, ranije nikad pisan -- isti "dormant status"
+            # nalaz kao Sprint 002 Fork B), sto finalize_intake_job-ov VEC
+            # POSTOJECI status gate ('Posao jos nije obradjen') prirodno
+            # iskoristi da blokira finalizaciju dok covek ne potvrdi --
+            # bez ijedne nove linije koda u finalize-u samom.
+            if needs_review:
+                await intake_queue.mark_job_awaiting_review(job_id)
+            else:
+                await intake_queue.mark_job_completed(job_id)
             self.jobs_processed += 1
         except Exception as exc:
             self.jobs_failed += 1
@@ -125,12 +141,22 @@ class IntakeWorker:
         await intake_queue.record_heartbeat(self.worker_id, self.jobs_processed, self.jobs_failed)
         return True
 
-    async def _process(self, job: dict) -> None:
+    async def _process(self, job: dict) -> bool:
         """Faza 1A: decrypt+OCR → klasifikacija → ekstrakcija → review
         routing → processing_outcomes. Idempotentnost: ako je reap+retry
         pozvao ovo dvaput za isti posao (prethodni pokušaj je pao POSLE
         upisa dokumenta ali PRE mark_job_completed), rani izlaz — ne piše
-        drugi intake_documents/extracted_entities red za isti posao."""
+        drugi intake_documents/extracted_entities red za isti posao.
+
+        Vraća True ako je posao poslat u Review Required (nizak confidence
+        ili OCR neuspeh), False ako je pouzdano klasifikovan. Program
+        Intake Sprint 004 (2026-08-05) -- ovaj povratni signal je _tick()-u
+        potreban da bira izmedju mark_job_completed() i
+        mark_job_awaiting_review() -- ranije je SVAKI uspesno obradjen
+        posao (cak i nizak-confidence) zavrsavao na status='completed',
+        dok je SEPARATAN intake_review_queue red istovremeno tvrdio da
+        posao jos ceka covekovu potvrdu -- dva izvora istine koja se ne
+        slazu, tacno "trece skriveno stanje" koje ovaj sprint zabranjuje."""
         job_id = job["id"]
         t_start = time.monotonic()
 
@@ -138,7 +164,13 @@ class IntakeWorker:
         if existing["document"] is not None:
             if await intake_documents.has_processing_outcome(job_id):
                 logger.info("[INTAKE_WORKER] job=%s već potpuno obrađen (idempotentan retry) — preskačem.", job_id[:8])
-                return
+                # Program Intake Sprint 004: redak edge-case put (claim_next_job
+                # trazi status='received', pa se ovo obicno ne dostize dok je
+                # posao vec 'awaiting_review' -- ali ako je reaper vratio
+                # posao na 'received' pre nego sto je prethodni status upis
+                # stigao da se izvrsi, moramo ponovo proveriti da li
+                # nerazresen review i dalje postoji, ne slepo vratiti False.
+                return existing["review"] is not None
             # Program Intake Sprint 001 (2026-08-04) -- dokument POSTOJI ali
             # processing_outcome NE POSTOJI: prethodni pokušaj je pao negde
             # IZMEĐU create_document() i write_processing_outcome() (ta
@@ -197,7 +229,7 @@ class IntakeWorker:
                 job_id, "other", 0.0, {}, int((time.monotonic() - t_start) * 1000),
                 raise_on_error=True,
             )
-            return
+            return True
 
         classification = await self._classify(text)
         entities = await self._extract_entities(text)
@@ -219,7 +251,15 @@ class IntakeWorker:
         if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
             low_confidence_fields = ["document_type"] + low_confidence_fields
         if low_confidence_fields:
-            await intake_documents.create_review_queue_entry(job_id, document_id, "low_confidence_extraction", low_confidence_fields)
+            # Program Intake Sprint 004 -- 'classification_uncertain' je bio
+            # deklarisan u CHECK constraint-u (migracija 074) ali NIKAD
+            # stvarno upisivan -- svaka nesigurnost je padala pod generican
+            # 'low_confidence_extraction', bez razlike izmedju "par polja
+            # nejasno" i "sam TIP dokumenta nejasan" (ozbiljnije -- pogresan
+            # tip moze pokrenuti pogresan dalji tok). Sada: ako je
+            # document_type medju niskim poljima, razlog je precizniji.
+            reason = "classification_uncertain" if "document_type" in low_confidence_fields else "low_confidence_extraction"
+            await intake_documents.create_review_queue_entry(job_id, document_id, reason, low_confidence_fields)
 
         entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
         processing_time_ms = int((time.monotonic() - t_start) * 1000)
@@ -236,6 +276,7 @@ class IntakeWorker:
             "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",
             job_id[:8], classification["document_type"], classification["confidence"], low_confidence_fields, processing_time_ms,
         )
+        return bool(low_confidence_fields)
 
     async def _download_and_decrypt(self, storage_path: str) -> bytes:
         """Isti Trezor obrazac kao klijenti/router.py — preuzmi enkriptovan

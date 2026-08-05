@@ -198,6 +198,15 @@ def _wire_fake_supa(fake: FakeIntakeDB):
             if name == "events" and "dispatched_at" in payload:
                 # dispatch_pending_events updates one row by id via .eq("id", row_id)
                 pass
+            elif name == "intake_jobs" and "status" in payload:
+                # Program Intake Sprint 004: mark_job_awaiting_review is a
+                # bare (non-RPC) update, unlike enqueue/claim/complete/fail
+                # which all route through this fake's _rpc(). Model it here
+                # so restart-safety scenarios that hit the review-required
+                # path are faithfully represented, not silently no-op'd.
+                job_id = state["filters"].get("id")
+                if job_id and job_id in fake.jobs:
+                    fake.jobs[job_id]["status"] = payload["status"]
             return chain
 
         chain.eq = MagicMock(side_effect=_eq)
@@ -281,8 +290,12 @@ async def test_e2e_worker_crash_mid_processing_no_lost_events_effectively_once()
         # tested separately in test_intake_worker_phase1a.py) — this
         # scenario is about queue/outbox restart-safety, so _process is
         # mocked to a no-op here, matching this test's original Phase 0 scope.
+        # Program Intake Sprint 004: _process() now returns bool
+        # (needs_review) -- explicitly False, since this scenario is about
+        # a confidently-processed document reaching 'completed', not the
+        # review-required path.
         worker_b = IntakeWorker(worker_id="worker-B", reap_every_n_ticks=1000)
-        with patch.object(IntakeWorker, "_process", new=AsyncMock()):
+        with patch.object(IntakeWorker, "_process", new=AsyncMock(return_value=False)):
             did_work = await worker_b._tick()
         assert did_work is True
         assert fake.jobs[job_id]["status"] == "completed"

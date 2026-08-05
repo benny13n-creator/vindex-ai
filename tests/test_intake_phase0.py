@@ -161,6 +161,36 @@ async def test_mark_job_completed_calls_atomic_rpc():
 
 
 @pytest.mark.anyio
+async def test_mark_job_awaiting_review_updates_status_and_writes_audit():
+    """Program Intake Sprint 004 (2026-08-05) -- wires the previously-
+    dormant 'awaiting_review' status (declared in migration 073's CHECK
+    constraint, never written by any code path before this sprint)."""
+    from shared import intake_queue as iq
+
+    supa = MagicMock()
+    update_chain = _make_chain(None)
+    audit_chain = _make_chain(None)
+
+    def _table(name):
+        if name == "intake_jobs":
+            return update_chain
+        if name == "intake_audit_log":
+            return audit_chain
+        return _make_chain(None)
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        await iq.mark_job_awaiting_review("job-1")
+
+    update_chain.update.assert_called_once_with({"status": "awaiting_review"})
+    update_chain.eq.assert_any_call("id", "job-1")
+    audit_chain.insert.assert_called_once()
+    audit_payload = audit_chain.insert.call_args[0][0]
+    assert audit_payload["intake_job_id"] == "job-1"
+    assert audit_payload["event_type"] == "job_awaiting_review"
+
+
+@pytest.mark.anyio
 async def test_mark_job_failed_schedules_retry_below_max_attempts():
     from shared import intake_queue as iq
 

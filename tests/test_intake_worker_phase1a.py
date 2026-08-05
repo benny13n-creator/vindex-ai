@@ -84,13 +84,16 @@ async def test_process_ocr_failed_routes_to_review_fail_soft_not_exception():
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")) as mock_create_doc, \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()) as mock_review, \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
-        await w._process(_job())  # must NOT raise — OCR failure is fail-soft, not an exception
+        result = await w._process(_job())  # must NOT raise — OCR failure is fail-soft, not an exception
 
     mock_create_doc.assert_awaited_once()
     assert mock_create_doc.call_args[0][1] == "other"  # document_type fallback
     mock_review.assert_awaited_once()
     assert mock_review.call_args[0][2] == "ocr_failed"
     mock_outcome.assert_awaited_once()
+    # Program Intake Sprint 004: _process() must report needs_review=True
+    # so _tick() marks the job 'awaiting_review', not 'completed'.
+    assert result is True
 
 
 @pytest.mark.anyio
@@ -113,10 +116,11 @@ async def test_process_success_path_no_review_when_all_confident():
          patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()) as mock_review, \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
-        await w._process(_job())
+        result = await w._process(_job())
 
     mock_review.assert_not_awaited()  # everything above threshold — no review needed
     mock_outcome.assert_awaited_once()
+    assert result is False  # confidently classified -- _tick() must mark 'completed'
 
 
 @pytest.mark.anyio
@@ -141,7 +145,7 @@ async def test_process_low_confidence_field_routes_to_review_with_specific_field
          patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()) as mock_review, \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()):
-        await w._process(_job())
+        result = await w._process(_job())
 
     mock_review.assert_awaited_once()
     call_args = mock_review.call_args[0]
@@ -150,6 +154,7 @@ async def test_process_low_confidence_field_routes_to_review_with_specific_field
     # Exactly the 2 uncertain fields — NOT all 4 entities, matching the
     # product Definition of Done ("nesigurnost oko DVE stavke, ne dvadeset").
     assert set(low_confidence_fields) == {"deadline", "judge"}
+    assert result is True
 
 
 @pytest.mark.anyio
@@ -167,11 +172,17 @@ async def test_process_low_confidence_classification_adds_document_type_to_revie
          patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()) as mock_review, \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()):
-        await w._process(_job())
+        result = await w._process(_job())
 
     mock_review.assert_awaited_once()
-    low_confidence_fields = mock_review.call_args[0][3]
+    call_args = mock_review.call_args[0]
+    reason, low_confidence_fields = call_args[2], call_args[3]
     assert "document_type" in low_confidence_fields
+    # Program Intake Sprint 004: document_type itself uncertain -> the more
+    # specific 'classification_uncertain' reason, not the generic
+    # 'low_confidence_extraction' (Phase 3: unified, deterministic reasons).
+    assert reason == "classification_uncertain"
+    assert result is True
 
 
 @pytest.mark.anyio

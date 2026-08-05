@@ -310,3 +310,131 @@ async def test_delete_partial_document_deletes_children_before_parent():
 
     assert delete_order.index("extracted_entities") < delete_order.index("intake_documents")
     assert delete_order.index("intake_review_queue") < delete_order.index("intake_documents")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Intake Sprint 004 (2026-08-05) — resolve_review_queue_for_job /
+# resolve_review(). Before this sprint, resolve_review_queue_for_job existed
+# (migration 074) but had ZERO call sites anywhere in the codebase — a
+# review could be created but never resolved through any live path.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_resolve_review_queue_for_job_returns_true_when_row_resolved():
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([{"id": "rq-1", "resolved_at": "2026-08-05T00:00:00Z"}]))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        resolved = await idoc.resolve_review_queue_for_job("job-1", "advokat@vindex.rs")
+    assert resolved is True
+
+
+@pytest.mark.anyio
+async def test_resolve_review_queue_for_job_returns_false_when_already_resolved():
+    """Idempotent: a second call against an already-resolved row finds
+    zero matching rows (the WHERE resolved_at IS NULL clause excludes it)
+    and must report that honestly, not claim it resolved something."""
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([]))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        resolved = await idoc.resolve_review_queue_for_job("job-1", "advokat@vindex.rs")
+    assert resolved is False
+
+
+@pytest.mark.anyio
+async def test_resolve_review_advances_job_status_and_resolves_review():
+    from shared import intake_documents as idoc
+
+    def _table(name):
+        if name == "intake_review_queue":
+            return _make_chain([{"id": "rq-1"}])
+        if name == "intake_jobs":
+            return _make_chain([{"id": "job-1", "status": "completed"}])
+        return _make_chain(None)
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        result = await idoc.resolve_review("job-1", "advokat@vindex.rs")
+
+    assert result["review_resolved_now"] is True
+    assert result["job_status_advanced"] is True
+
+
+@pytest.mark.anyio
+async def test_resolve_review_simultaneous_approval_only_one_wins():
+    """Program Intake Sprint 004 Phase 6 (Concurrency Verification): two
+    users (or one user double-clicking) resolve the SAME review at
+    effectively the same time. Postgres single-row UPDATE with a
+    WHERE resolved_at IS NULL clause means only the first to actually
+    commit affects a row -- the second's UPDATE matches zero rows. This
+    test simulates that outcome (not real DB concurrency, which is out of
+    a unit test's reach) and proves resolve_review()'s CALLER-facing
+    contract handles it correctly: no duplication, no lost decision, no
+    contradictory status -- exactly one 'true' resolution, one honest
+    'already done' no-op."""
+    from shared import intake_documents as idoc
+
+    # First caller: review row still unresolved, job still awaiting_review.
+    call_count = {"review": 0, "job": 0}
+
+    def _table(name):
+        if name == "intake_review_queue":
+            call_count["review"] += 1
+            # First call resolves it (1 row affected); any subsequent call
+            # finds it already resolved (0 rows -- Postgres WHERE excludes it).
+            return _make_chain([{"id": "rq-1"}] if call_count["review"] == 1 else [])
+        if name == "intake_jobs":
+            call_count["job"] += 1
+            return _make_chain([{"id": "job-1"}] if call_count["job"] == 1 else [])
+        return _make_chain(None)
+
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        first = await idoc.resolve_review("job-1", "advokat1@vindex.rs")
+        second = await idoc.resolve_review("job-1", "advokat2@vindex.rs")
+
+    assert first["review_resolved_now"] is True
+    assert first["job_status_advanced"] is True
+    # The second caller's action is NOT an error and NOT a duplicate --
+    # it's an honest, safe no-op reporting nothing was left to resolve.
+    assert second["review_resolved_now"] is False
+    assert second["job_status_advanced"] is False
+
+
+@pytest.mark.anyio
+async def test_resolve_review_on_job_with_no_review_entry_is_a_safe_noop():
+    """Duplicate/misdirected call: resolving a job that was never flagged
+    for review at all (no intake_review_queue row ever created) must not
+    error -- it's a safe no-op, not a defect to guard against with an
+    exception."""
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_make_chain([]))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        result = await idoc.resolve_review("job-never-flagged", "advokat@vindex.rs")
+    assert result["review_resolved_now"] is False
+    assert result["job_status_advanced"] is False
+
+
+@pytest.mark.anyio
+async def test_resolve_review_idempotent_when_already_resolved_and_completed():
+    """Second call (already resolved, job already completed): both steps
+    are no-ops (empty result sets), reported honestly as such -- not an
+    error, and safe to call repeatedly (e.g. a lawyer double-clicking the
+    confirm button, or a retried request)."""
+    from shared import intake_documents as idoc
+
+    def _table(name):
+        return _make_chain([])
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        result = await idoc.resolve_review("job-1", "advokat@vindex.rs")
+
+    assert result["review_resolved_now"] is False
+    assert result["job_status_advanced"] is False

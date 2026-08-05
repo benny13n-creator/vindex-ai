@@ -817,3 +817,64 @@ several blank separator pages can be miscounted into the OCR fallback path unnec
 
 **Severity**: Medium — real, provable defects, but each requires OCR/extraction-layer work explicitly outside
 this sprint's charter.
+
+---
+
+## Program Intake, Sprint 004 (2026-08-05) — Human Review Orchestration & Automatic Resumption
+
+Full narrative and mission-closure self-check: `HUMAN_REVIEW_ARCHITECTURE_REPORT.md`. **This sprint's own
+binding rule, unlike Sprints 001-003: not a research sprint — every technical problem found that could be
+fixed without a new founder business decision was fixed in the same sprint.** 12 findings fixed this sprint
+(full list in the architecture report), headlined by wiring up `resolve_review_queue_for_job` — a fully-built
+function with zero call sites anywhere, meaning a document flagged for review could never leave that state
+through any live code path — and correcting `intake_jobs.status` to actually reach `awaiting_review` instead
+of unconditionally `completed`, closing a live "two sources of truth disagree" defect. Items below are the 3
+findings that genuinely required a business/product decision this sprint could not make unilaterally, plus 1
+adjacent gap found but out of this sprint's object of study.
+
+## INTAKE-012 — No "reject" action exists, only "confirm as-is" (High, business decision required)
+
+The mission's own test list names "rejection" as a scenario to prove; only the "resolve/confirm" path was
+built. A genuine reject action raises a real product question: does rejecting mean re-running classification
+from scratch (wasteful if the same input produces the same uncertain result), routing to fully-manual data
+entry (a bigger UX commitment), or something else entirely?
+
+**Why not fixed this mission**: each option has different UX and cost implications a founder needs to choose
+between — not a bounded technical gap this sprint could close by picking one unilaterally.
+
+**Recommended direction**: founder decision on what "reject" should concretely trigger, then implement as a
+sibling endpoint to `resolve_review()` following the same idempotency/audit patterns already proven this
+sprint.
+
+**Severity**: High — a real gap in the mission's own named success criteria, correctly deferred rather than
+implemented with a guessed-at behavior.
+
+## INTAKE-013 — No way for a lawyer to directly correct the AI-detected document TYPE itself (Medium, blocked on taxonomy adoption)
+
+`POST /entities/{id}/correct` covers 8 extraction fields; `document_type` is not among them. A lawyer can
+confirm-and-proceed with an uncertain type (via `resolve_review()`) or correct other fields, but cannot
+directly retype the classification.
+
+**Why not fixed this mission**: building this requires deciding which vocabulary a manual correction writes
+to — `intake_documents.document_type`'s existing 13-value English set, or the canonical Serbian taxonomy
+Sprint 003 designed but has not yet adopted into the schema. Genuinely blocked on that unresolved adoption
+decision (`CANONICAL_DOCUMENT_TAXONOMY.md` §6), not a bounded fix this sprint could make independently
+without contradicting Sprint 003's own explicit "not yet adopted" scoping.
+
+**Severity**: Medium — a real gap, but the confirm-as-is path already lets processing proceed; this only
+blocks *changing* an uncertain type, not resolving the document.
+
+## INTAKE-014 — `staging_memory`'s approve/reject endpoints have zero audit logging (Low, out of this sprint's object of study)
+
+Found while auditing this sprint's own two human-decision endpoints for parity. `routers/drafting.py`'s
+`staging_approve`/`staging_reject` have no `log_action` call at all — the same gap this sprint closed for
+`correct_entity`/`resolve_review()`, but for a genuinely different system (approving AI-drafted content, not
+reviewing uncertain input classification — see `REVIEW_QUEUE_SPECIFICATION.md` §3 for why these are kept
+separate).
+
+**Why not fixed this mission**: `staging_memory`/drafting is outside this sprint's object of study (intake
+document review specifically); fixing it here would be scope creep into a different subsystem this sprint's
+4-agent team was not chartered to touch.
+
+**Severity**: Low-Medium — a real audit gap, straightforward to fix with the exact pattern this sprint just
+proved twice, recommended as a quick follow-up for whichever future mission owns drafting/staging.

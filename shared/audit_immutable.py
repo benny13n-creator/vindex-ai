@@ -58,6 +58,14 @@ AUDITABLE_ACTIONS: set[str] = {
     "predmet_create", "predmet_update", "predmet_delete", "predmet_view",
     # Dokumenti
     "dokument_upload", "dokument_delete", "dokument_view", "dokument_download",
+    # Program Intake Sprint 004 (2026-08-05) — Human Review Orchestration.
+    # Svaka ljudska odluka u intake review toku mora imati audit zapis
+    # (misija Faza 5). "entity_corrected" pokriva 10-sekundnu ispravku
+    # (routers/smart_intake.py::correct_entity — ranije bez audit poziva
+    # uopšte, Sprint 004 Fork A §5); "dokument_review_resolved" pokriva
+    # kanonski resolve_review() poziv (ranije nije ni postojao poziv koji
+    # bi ovo trebalo da loguje — nova, jedina kapija za "review razrešen").
+    "entity_corrected", "dokument_review_resolved",
     # Klijenti
     "klijent_create", "klijent_delete",
     # Autentifikacija

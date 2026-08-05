@@ -118,6 +118,28 @@ async def mark_job_completed(job_id: str) -> None:
     logger.info("[INTAKE_QUEUE] completed: job=%s", job_id[:8])
 
 
+async def mark_job_awaiting_review(job_id: str) -> None:
+    """Program Intake Sprint 004 (2026-08-05) -- posao je uspesno obradjen
+    (OCR/klasifikacija/ekstrakcija sve zavrsene) ALI ispod je
+    AUTO_ACCEPT_THRESHOLD ili je OCR neuspeo -- status ide na
+    'awaiting_review' umesto 'completed'. Ovaj status je bio deklarisan u
+    CHECK constraint-u (migracija 073) od samog pocetka ali NIKAD stvarno
+    pisan nijednim kodom (isti "dormant status" oblik kao Sprint 002 Fork
+    B-ovo zapazanje za classifying/extracting/matching/dedup_check) --
+    finalize_intake_job-ov vec postojeci status gate ('Posao jos nije
+    obradjen') sada prirodno blokira finalizaciju dok resolve_review()
+    (shared/intake_documents.py) ovo ne vrati na 'completed'. Bez novog
+    RPC-a: ovo pise samo jedan worker koji vec drzi claim nad ovim redom
+    (claim_intake_job's SELECT...FOR UPDATE SKIP LOCKED), pa nema
+    konkurentskog rizika kakav je claim_intake_finalize resio za
+    HTTP-pozivan finalize (Sprint 002)."""
+    await asyncio.to_thread(
+        lambda: _get_supa().table("intake_jobs").update({"status": "awaiting_review"}).eq("id", job_id).execute()
+    )
+    await write_audit(job_id, "job_awaiting_review", "system", after={"status": "awaiting_review"})
+    logger.info("[INTAKE_QUEUE] awaiting_review: job=%s", job_id[:8])
+
+
 async def mark_job_failed(job_id: str, error: str, attempts: int, max_attempts: int) -> None:
     """Retry sa eksponencijalnim backoff-om (30s * 2^attempts, cap 1h) dok se
     ne dostigne max_attempts — posle toga status='failed' (dead-letter,
