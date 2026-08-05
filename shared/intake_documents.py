@@ -228,6 +228,60 @@ async def get_job_result(intake_job_id: str) -> dict:
     return {"document": document, "entities": entities, "review": review}
 
 
+async def get_job_documents(intake_job_id: str) -> list[dict]:
+    """Program Intake Sprint 006 (2026-08-05) — the list-returning sibling of
+    get_job_result(), needed because Sprint 005 (Canonical Document
+    Segmentation) can legitimately produce 2+ intake_documents rows under one
+    intake_job_id. get_job_result()'s own `.maybe_single()` call would RAISE
+    (postgrest's own ambiguity guard) the moment it ran against a segmented
+    job — confirmed as a live, structural incompatibility during this
+    sprint's own investigation (finalize_intake_job and GET /jobs/{job_id}
+    both still called get_job_result() unconditionally). This function never
+    uses `.maybe_single()` — a plain list query handles 0, 1, or N rows
+    uniformly, with no special-casing needed by either caller.
+
+    Ordered by `created_at` (each document's own insert order — for a
+    segmented job this matches segment_index/reading order, since
+    shared/intake_worker.py's _process_segments() creates them in that
+    sequence) so callers that need a single "anchor" document (e.g.
+    finalize_intake_job's case-naming logic) can deterministically use
+    documents[0] rather than an arbitrary row."""
+    supa = _get_supa()
+    doc_res = await asyncio.to_thread(
+        lambda: supa.table("intake_documents").select("*").eq("intake_job_id", intake_job_id).order("created_at").execute()
+    )
+    docs = doc_res.data or []
+    if not docs:
+        return []
+
+    results = []
+    for document in docs:
+        ent_res = await asyncio.to_thread(
+            lambda doc_id=document["id"]: supa.table("extracted_entities").select("*").eq("document_id", doc_id).execute()
+        )
+        entities = ent_res.data or []
+
+        # Scoped by document_id, not just intake_job_id -- a review entry for
+        # ONE document under a multi-document job must never be attached to
+        # a DIFFERENT document's result (the same ambiguity class get_job_result's
+        # own intake_job_id-only review query would have hit for a segmented job).
+        # Deliberately a plain list query, never `.maybe_single()`: a single
+        # document can carry 2+ simultaneous unresolved review reasons today
+        # (e.g. both 'segmentation_uncertain' and 'low_confidence_extraction'
+        # -- shared/intake_worker.py's _process_segments() can write both for
+        # the same segment), which would trip the identical ambiguity guard
+        # this function exists to avoid for the intake_job_id-level query.
+        review_res = await asyncio.to_thread(
+            lambda doc_id=document["id"]: supa.table("intake_review_queue").select("*").eq("intake_job_id", intake_job_id).eq("document_id", doc_id).is_("resolved_at", "null").execute()
+        )
+        reviews = review_res.data or []
+        review = reviews[0] if reviews else None
+
+        results.append({"document": document, "entities": entities, "review": review})
+
+    return results
+
+
 async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str, reason: Optional[str] = None, error_source: Optional[str] = None) -> dict:
     """Ovo je '10-sekundna ispravka' iz proizvodnog Definition of Done —
     original value se NIKAD ne briše (corrected_value je dodatak), reviewed

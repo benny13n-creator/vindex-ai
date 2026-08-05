@@ -145,17 +145,22 @@ async def test_claim_succeeds_proceeds_to_run_the_finalize_body():
         return c
     mock_supa.table = MagicMock(side_effect=_table)
 
-    mock_get_job_result = AsyncMock(return_value={"document": None, "entities": [], "review": None})
+    # Program Intake Sprint 006 (2026-08-05): get_job_result() was replaced by
+    # the list-returning get_job_documents() (Sprint 005 segmented jobs can
+    # have 2+ documents, which get_job_result's own .maybe_single() could not
+    # handle). An empty list is the equivalent "no classification available"
+    # signal this test exercises.
+    mock_get_job_documents = AsyncMock(return_value=[])
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "now"})), \
-         patch("routers.smart_intake.intake_documents.get_job_result", new=mock_get_job_result):
-        # document=None triggers a 409 further down the real function body --
-        # proves execution reached past the claim guard into real logic,
-        # not that the whole flow succeeds end-to-end (out of this test's scope).
+         patch("routers.smart_intake.intake_documents.get_job_documents", new=mock_get_job_documents):
+        # An empty document list triggers a 409 further down the real function
+        # body -- proves execution reached past the claim guard into real
+        # logic, not that the whole flow succeeds end-to-end (out of scope).
         with pytest.raises(HTTPException) as exc_info:
             await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), user=_fake_user())
 
-    mock_get_job_result.assert_awaited_once_with("job-1")
+    mock_get_job_documents.assert_awaited_once_with("job-1")
     assert exc_info.value.status_code == 409
     assert "klasifikacija" in exc_info.value.detail.lower()

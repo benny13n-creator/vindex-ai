@@ -63,6 +63,8 @@ def _make_supa(new_doc_id="dok-001"):
             t.insert.return_value.execute.return_value.data = [{}]
         elif name == "predmet_hronologija":
             t.insert.return_value.execute.return_value.data = [{}]
+        elif name == "intake_job_segments":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
         return t
 
     supa.table.side_effect = _table
@@ -75,7 +77,7 @@ async def test_finalize_triggers_evidence_classification_in_background():
 
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "judgment"},
+        "document": {"id": "dok-001", "document_type": "judgment"},
         "entities": [],
         "review": None,
     }
@@ -87,7 +89,8 @@ async def test_finalize_triggers_evidence_classification_in_background():
         return MagicMock()
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)), \
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
+         patch("shared.intake_segments._get_supa", return_value=mock_supa), \
          patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
          patch("uploaded_doc.extractor.extract", return_value=("Presuda teksta ovde.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \
@@ -124,7 +127,7 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
     mock_supa = _make_supa()
-    job_result = {"document": {"document_type": "judgment"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "judgment"}, "entities": [], "review": None}
 
     captured_coros = []
 
@@ -133,7 +136,8 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
         return MagicMock()
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)), \
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
+         patch("shared.intake_segments._get_supa", return_value=mock_supa), \
          patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
          patch("uploaded_doc.extractor.extract", return_value=("Presuda teksta ovde.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \

@@ -77,6 +77,8 @@ def _make_supa(new_doc_id="dok-001"):
             t.insert.return_value.execute.return_value.data = [{}]
         elif name == "predmet_hronologija":
             t.insert.return_value.execute.return_value.data = [{}]
+        elif name == "intake_job_segments":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
         return t
 
     supa.table.side_effect = _table
@@ -86,7 +88,8 @@ def _make_supa(new_doc_id="dok-001"):
 def _base_patches(mock_supa, job_result, mock_classify):
     return (
         patch("routers.smart_intake._get_supa", return_value=mock_supa),
-        patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)),
+        patch("shared.intake_segments._get_supa", return_value=mock_supa),
+        patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])),
         patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")),
         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None)),
         patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}),
@@ -100,6 +103,7 @@ def _base_patches(mock_supa, job_result, mock_classify):
 
 
 async def _run_finalize_and_drain(mock_supa, job_result, mock_classify=None):
+    import contextlib
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
     if mock_classify is None:
@@ -111,10 +115,10 @@ async def _run_finalize_and_drain(mock_supa, job_result, mock_classify=None):
         captured_coros.append(coro)
         return MagicMock()
 
-    patches = _base_patches(mock_supa, job_result, mock_classify)
-    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-         patches[6], patches[7], patches[8], patches[9], patches[10], \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
+    with contextlib.ExitStack() as stack:
+        for p in _base_patches(mock_supa, job_result, mock_classify):
+            stack.enter_context(p)
+        stack.enter_context(patch("asyncio.create_task", side_effect=_capture_create_task))
         result = await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), _fake_user())
         for coro in captured_coros:
             try:
@@ -132,7 +136,7 @@ async def test_uncertain_classification_skips_evidence_overwrite_and_flags_respo
     must say so explicitly."""
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "entities": [],
         "review": {"reason": "low_confidence_extraction", "low_confidence_fields": ["document_type", "deadline"]},
     }
@@ -152,7 +156,7 @@ async def test_confident_classification_still_gets_evidence_vocabulary_correctio
     scope, it does not remove its legitimate purpose."""
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "entities": [],
         "review": None,
     }
@@ -171,7 +175,7 @@ async def test_review_present_but_document_type_not_flagged_still_allows_overwri
     must not block the legitimate vocabulary-correction task."""
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "entities": [],
         "review": {"reason": "low_confidence_extraction", "low_confidence_fields": ["deadline"]},
     }
@@ -205,13 +209,13 @@ async def test_intake_job_status_flags_staleness_after_finalize():
     mock_supa.table.side_effect = _table
 
     job_result = {
-        "document": {"document_type": "lawsuit", "classification_confidence": 0.92, "ocr_used": False},
+        "document": {"id": "dok-001", "document_type": "lawsuit", "classification_confidence": 0.92, "ocr_used": False},
         "entities": [],
         "review": None,
     }
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)):
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])):
         result = await intake_job_status("job-1", _fake_request(), _fake_user())
 
     assert result["dokument"]["tip_moze_biti_zastareo"] is True
@@ -236,13 +240,13 @@ async def test_intake_job_status_no_staleness_flag_before_finalize():
     mock_supa.table.side_effect = _table
 
     job_result = {
-        "document": {"document_type": "lawsuit", "classification_confidence": 0.92, "ocr_used": False},
+        "document": {"id": "dok-001", "document_type": "lawsuit", "classification_confidence": 0.92, "ocr_used": False},
         "entities": [],
         "review": None,
     }
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)):
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])):
         result = await intake_job_status("job-1", _fake_request(), _fake_user())
 
     assert result["dokument"]["tip_moze_biti_zastareo"] is False

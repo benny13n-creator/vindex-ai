@@ -837,3 +837,30 @@ canonical engine, no page ever lost or duplicated, every segment identified befo
 failure isolated per-segment, the conservatism mandate implemented as a tested rule rather than a slogan, zero
 regressions. Three genuine scope/business decisions correctly named and deferred rather than resolved by
 guesswork or silently left unaddressed. Full detail: `docs/architecture/SPRINT_005_MISSION_REPORT.md`.
+
+## Program Intake, Sprint 006 (2026-08-05) — Canonical Case Assimilation
+
+**Methodology note**: same binding rule as Sprints 004/005 — fixable technical problems get fixed in-sprint,
+not filed as backlog. Metrics here measure what shipped.
+
+| Metric | Value |
+|---|---|
+| Mechanisms recognizing an incoming document belongs to an already-open case (by content) before this sprint | 0 |
+| Mechanisms after this sprint | 1 (`resolve_case_ownership`, exact case-number match, never fuzzy) |
+| Live bugs found and fixed | 2 — client-name matching (compared full name against a first-name-only column) and a false-success response (case marked finalized with 0 documents linked) |
+| Real bug found and fixed via this sprint's OWN test-writing | 1 — `looks_like_company()`'s dot-to-space tokenization shattered "d.o.o." into unmatchable single letters |
+| Structural incompatibility with the immediately-prior sprint's own output, found and fixed | 1 — `finalize_intake_job`/`GET /jobs/{job_id}` both still called the single-document `get_job_result()`, which would raise on any job Sprint 005 segmented into 2+ documents |
+| New audit call sites closing a zero-audit gap | 1 (`document_assimilated`, Pipeline C document-into-case registration) |
+| New lineage FK + DB-enforced uniqueness constraint | 1 (`predmet_dokumenti.source_intake_job_segment_id`, migration 094) — closes Sprint 001's `INTAKE-003` for every Sprint-005-segmented job |
+| New dedicated tests | 26 (19 `test_case_assimilation.py` + 7 `test_sprint006_finalize_assimilation.py`) |
+| Deferred findings, each with named reasoning | 3 (`INTAKE-018` through `INTAKE-020`) |
+| Full suite | 2,581 passed, 1 skipped, 0 failed (was 2,555 at end of Sprint 005) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprints
+001-005; smallest team yet of this sprint style (3 agents, vs. 5 for Sprints 001-003/005, 4 for Sprint 004).
+
+**Success criteria**: honestly met for this sprint's own bounded object (case/client Ownership Resolution for
+Pipeline C) — one canonical resolution authority, no wrong case/client link possible through any tested
+path, every ambiguous-evidence scenario correctly escalates rather than guesses, per-document failure
+isolation proven, zero regressions. Three genuine scope/architecture decisions correctly named and deferred.
+Full detail: `docs/architecture/SPRINT_006_MISSION_REPORT.md`.

@@ -127,6 +127,12 @@ AUDITABLE_ACTIONS: set[str] = {
     # narrower inventories both missed (both only traced copilot.py's
     # delegation into ask_agent).
     "dokument_pitanje",
+    # Program Intake Sprint 006 (2026-08-05) — Canonical Case Assimilation.
+    # Phase 1 audit finding: finalize_intake_job (routers/smart_intake.py)
+    # had ZERO audit calls for document-into-case registration, unlike
+    # Pipeline A's per-case upload (api.py), which always logged
+    # "dokument_upload". This closes that gap for the Smart Intake path.
+    "document_assimilated",
 }
 
 

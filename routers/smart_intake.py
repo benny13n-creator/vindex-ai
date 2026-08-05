@@ -49,7 +49,7 @@ from typing import Optional
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
-from shared import intake_documents, intake_queue
+from shared import intake_documents, intake_queue, intake_segments, case_assimilation
 
 logger = logging.getLogger("vindex.smart_intake")
 router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
@@ -235,19 +235,29 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     job = res.data
 
-    result = await intake_documents.get_job_result(job_id)
-    document = result["document"]
-    entities = result["entities"]
-    review = result["review"]
+    # Program Intake Sprint 006 (2026-08-05) -- get_job_result()'s own
+    # `.maybe_single()` call raises the moment a job has 2+ intake_documents
+    # rows, which Sprint 005 (Canonical Document Segmentation) can
+    # legitimately produce. get_job_documents() is the list-safe sibling
+    # (shared/intake_documents.py) -- this endpoint would otherwise crash
+    # with an unhandled 500 for any segmented job, a live gap found during
+    # this sprint's own Phase 1 audit.
+    all_documents = await intake_documents.get_job_documents(job_id)
+    document = all_documents[0]["document"] if all_documents else None
+    entities = all_documents[0]["entities"] if all_documents else []
+    review = all_documents[0]["review"] if all_documents else None
 
-    entiteti_view = [{
-        "entity_id": e["id"],
-        "entity_type": e["entity_type"],
-        "value": e.get("corrected_value") or e["value"],
-        "confidence": e["confidence"],
-        "needs_review": (not e["reviewed"]) and e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD,
-        "corrected": e["reviewed"],
-    } for e in entities]
+    def _entiteti_view(ents: list[dict]) -> list[dict]:
+        return [{
+            "entity_id": e["id"],
+            "entity_type": e["entity_type"],
+            "value": e.get("corrected_value") or e["value"],
+            "confidence": e["confidence"],
+            "needs_review": (not e["reviewed"]) and e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD,
+            "corrected": e["reviewed"],
+        } for e in ents]
+
+    entiteti_view = _entiteti_view(entities)
 
     # Program Intake Sprint 003 (2026-08-05) -- Sprint 003 Fork A confirmed
     # a live, permanent, two-different-Serbian-labels contradiction: this
@@ -283,6 +293,23 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
             "razlog": review["reason"],
             "polja": review["low_confidence_fields"],
         } if review else None,
+        # Program Intake Sprint 006 (2026-08-05) -- full multi-document view,
+        # additive alongside the fields above (which stay scoped to the
+        # first/anchor document for backward compatibility with existing
+        # callers). A job segmented by Sprint 005 into 2+ documents has every
+        # one of them here; a single-document job has exactly one entry,
+        # identical in content to "dokument"/"entiteti" above.
+        "dokumenti": [{
+            "document_id": d["document"]["id"],
+            "tip": d["document"]["document_type"],
+            "tip_pouzdanost": d["document"]["classification_confidence"],
+            "ocr_koriscen": d["document"]["ocr_used"],
+            "entiteti": _entiteti_view(d["entities"]),
+            "potrebna_provera": {
+                "razlog": d["review"]["reason"],
+                "polja": d["review"]["low_confidence_fields"],
+            } if d["review"] else None,
+        } for d in all_documents],
     }
 
 
@@ -474,6 +501,54 @@ def _deadline_to_iso(value: str) -> Optional[str]:
     return None
 
 
+async def _create_new_predmet_from_value_map(
+    uid: str, body: "FinalizeReq", value_map: dict, tip_labela: str, job: dict, case_number: Optional[str],
+) -> tuple[str, str]:
+    """Builds the naziv/opis exactly as finalize_intake_job always has, and
+    now additionally persists `broj_predmeta` (migration 094, Program Intake
+    Sprint 006) when Ownership Resolution extracted one -- this is what lets
+    a LATER incoming document auto-attach to this same case instead of
+    unconditionally creating a duplicate (shared/case_assimilation.py::
+    resolve_case_ownership). Returns (predmet_id, naziv)."""
+    if body.naziv and body.naziv.strip():
+        naziv = body.naziv.strip()[:200]
+    elif value_map.get("plaintiff") and value_map.get("defendant"):
+        naziv = f"{value_map['plaintiff']} protiv {value_map['defendant']}"[:200]
+    elif value_map.get("case_number"):
+        naziv = f"Predmet {value_map['case_number']}"[:200]
+    elif job.get("original_filename"):
+        naziv = Path(job["original_filename"]).stem[:200]
+    else:
+        naziv = f"Predmet iz dokumenta ({tip_labela})"
+
+    opis_delovi = [f"Kreirano iz dokumenta ({tip_labela}) putem Smart Intake."]
+    if value_map.get("case_number"):
+        opis_delovi.append(f"Broj predmeta: {value_map['case_number']}")
+    if value_map.get("court"):
+        opis_delovi.append(f"Sud/organ: {value_map['court']}")
+    if value_map.get("judge"):
+        opis_delovi.append(f"Sudija: {value_map['judge']}")
+    if value_map.get("law_cited"):
+        opis_delovi.append(f"Zakon: {value_map['law_cited']}")
+    if value_map.get("amount"):
+        opis_delovi.append(f"Iznos: {value_map['amount']}")
+
+    supa = _get_supa()
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").insert({
+            "user_id": uid,
+            "naziv":   naziv,
+            "opis":    "\n".join(opis_delovi),
+            "tip":     "opsti",
+            "status":  "aktivan",
+            "broj_predmeta": case_number,
+        }).execute()
+    )
+    if not pred_r.data:
+        raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
+    return pred_r.data[0]["id"], naziv
+
+
 class FinalizeReq(BaseModel):
     naziv: Optional[str] = Field(default=None, max_length=200)
     klijent_strana: Optional[str] = Field(default=None, max_length=20)  # "plaintiff" | "defendant" | None
@@ -600,10 +675,15 @@ async def finalize_intake_job(
             detail="Finalizacija je već u toku za ovaj posao — pokušajte ponovo za par sekundi.",
         )
 
-    result = await intake_documents.get_job_result(job_id)
-    document = result["document"]
-    entities = result["entities"]
-    if not document:
+    # Program Intake Sprint 006 (2026-08-05) -- get_job_result()'s own
+    # `.maybe_single()` call would RAISE the moment a job has 2+
+    # intake_documents rows, which Sprint 005 (Canonical Document
+    # Segmentation) can legitimately produce -- confirmed as a live,
+    # unhandled crash by this sprint's own Phase 1 audit (finalize had never
+    # been updated for Sprint 005's own multi-document output). Every
+    # document this job produced is now assimilated, not just the first.
+    documents = await intake_documents.get_job_documents(job_id)
+    if not documents:
         raise HTTPException(status_code=409, detail="Klasifikacija nije dostupna za ovaj posao.")
 
     # Program Intake Sprint 003 (2026-08-05) -- result["review"] je ranije
@@ -611,15 +691,55 @@ async def finalize_intake_job(
     # imao NIKAKAV nacin da zna da li je Pipeline B-ova klasifikacija bila
     # ispod AUTO_ACCEPT_THRESHOLD. Ovo je tacno "trece stanje" koje misija
     # zabranjuje: dokument tiho pogodjen umesto poslat u Review Required.
-    # classification_uncertain postaje ulaz u dve odluke ispod: (1) da li
-    # dozvoliti Evidence Vault-ovom confidence-slepom klasifikatoru da tiho
-    # prepise ovu vec-oznacenu-kao-nesigurnu vrednost (ne dozvoljavamo — v.
-    # napomenu kod _evidence_classify_bg), (2) da li ukljuciti eksplicitan
-    # signal u finalize odgovoru (ukljucujemo — jedini trenutak kad advokat
-    # sigurno gleda ovaj ekran).
-    review = result["review"]
+    # classification_uncertain (per document, Sprint 006) postaje ulaz u dve
+    # odluke ispod: (1) da li dozvoliti Evidence Vault-ovom confidence-slepom
+    # klasifikatoru da tiho prepise ovu vec-oznacenu-kao-nesigurnu vrednost
+    # (ne dozvoljavamo — v. napomenu kod _evidence_classify_bg), (2) da li
+    # ukljuciti eksplicitan signal u finalize odgovoru.
+    per_doc_value_maps = []
+    per_doc_uncertain = []
+    for d in documents:
+        vm = {
+            e["entity_type"]: (e.get("corrected_value") or e.get("value"))
+            for e in d["entities"]
+            if (e.get("corrected_value") or e.get("value"))
+        }
+        per_doc_value_maps.append(vm)
+        low_conf = (d["review"] or {}).get("low_confidence_fields") or []
+        per_doc_uncertain.append(bool(d["review"]) and "document_type" in low_conf)
+
+    # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- a
+    # genuinely multi-case bundle (2+ documents in the SAME upload carrying
+    # DIFFERENT case numbers) must never be silently assimilated as one case
+    # under whichever document happens to be read first. Real evidence of
+    # conflict routes to an explicit, actionable error instead of a guess.
+    conflicting = case_assimilation.find_conflicting_case_numbers(
+        [vm.get("case_number") for vm in per_doc_value_maps]
+    )
+    if conflicting:
+        await asyncio.to_thread(
+            lambda: supa.table("intake_jobs").update({"finalizing_at": None}).eq("id", job_id).execute()
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Otkriveno je više različitih brojeva predmeta u istom otpremanju "
+                f"({', '.join(sorted(conflicting))}) — ovo otpremanje verovatno sadrži "
+                f"dokumenta iz različitih predmeta. Potrebna je ručna provera pre kreiranja predmeta."
+            ),
+        )
+
+    # Anchor document (Sprint 005's own insert order = segment_index/reading
+    # order) drives case naming and the case/client Ownership Resolution
+    # inputs below -- reconciling MULTIPLE independent case/client signals
+    # across segments beyond the conflict check above is intentionally out
+    # of this sprint's bounded scope (see Mission Report, Deferred).
+    document = documents[0]["document"]
+    entities = documents[0]["entities"]
+    review = documents[0]["review"]
+    value_map = per_doc_value_maps[0]
+    classification_uncertain = per_doc_uncertain[0]
     low_confidence_fields = (review or {}).get("low_confidence_fields") or []
-    classification_uncertain = bool(review) and "document_type" in low_confidence_fields
 
     # Faza 2.1 instrumentacija (90-dnevni plan, 2026-07-18) — MERI, ne
     # pretpostavlja, da li advokat menja izvucene podatke pre finalize-a ili
@@ -627,13 +747,7 @@ async def finalize_intake_job(
     # dokaz za buducu odluku o auto-finalize. Ne blokira finalize ako
     # bilo koji deo ovoga padne.
     finalize_wait_s = _compute_finalize_wait_s(job)
-    entities_corrected = _count_corrected_entities(entities)
-
-    value_map = {
-        e["entity_type"]: (e.get("corrected_value") or e.get("value"))
-        for e in entities
-        if (e.get("corrected_value") or e.get("value"))
-    }
+    entities_corrected = sum(_count_corrected_entities(d["entities"]) for d in documents)
 
     doc_type = document.get("document_type") or "other"
     tip_labela = _DOC_TYPE_LABELS.get(doc_type, "dokument")
@@ -652,67 +766,76 @@ async def finalize_intake_job(
             raise HTTPException(status_code=404, detail="Predmet za prikačivanje nije pronađen.")
         predmet_id = existing_pred.data["id"]
         naziv = existing_pred.data.get("naziv") or ""
+        _new_case_number = None
     else:
-        # ── Naziv predmeta ───────────────────────────────────────────────
-        if body.naziv and body.naziv.strip():
-            naziv = body.naziv.strip()[:200]
-        elif value_map.get("plaintiff") and value_map.get("defendant"):
-            naziv = f"{value_map['plaintiff']} protiv {value_map['defendant']}"[:200]
-        elif value_map.get("case_number"):
-            naziv = f"Predmet {value_map['case_number']}"[:200]
-        elif job.get("original_filename"):
-            naziv = Path(job["original_filename"]).stem[:200]
+        # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- before
+        # this sprint, "no explicit predmet_id" meant ALWAYS create a brand-
+        # new predmet, even if the extracted case number exactly matches a
+        # case already open (Phase 1 audit finding: predmeti had no case-
+        # number column and no matching logic at all). Now: an unambiguous
+        # match to exactly one existing case auto-attaches; 2+ matches never
+        # guesses (mission's own absolute rule) and requires an explicit
+        # predmet_id on retry instead.
+        ownership = await case_assimilation.resolve_case_ownership(uid, value_map.get("case_number"))
+        if ownership["outcome"] == "review_required":
+            await asyncio.to_thread(
+                lambda: supa.table("intake_jobs").update({"finalizing_at": None}).eq("id", job_id).execute()
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Broj predmeta '{ownership.get('case_number')}' odgovara više postojećih predmeta "
+                    f"— potrebno je ručno izabrati predmet (predmet_id) pri ponovnom pozivu."
+                ),
+            )
+        if ownership["outcome"] == "attach":
+            predmet_id = ownership["predmet_id"]
+            naziv = ownership["naziv"]
+            _new_case_number = None
         else:
-            naziv = f"Predmet iz dokumenta ({tip_labela})"
-
-        opis_delovi = [f"Kreirano iz dokumenta ({tip_labela}) putem Smart Intake."]
-        if value_map.get("case_number"):
-            opis_delovi.append(f"Broj predmeta: {value_map['case_number']}")
-        if value_map.get("court"):
-            opis_delovi.append(f"Sud/organ: {value_map['court']}")
-        if value_map.get("judge"):
-            opis_delovi.append(f"Sudija: {value_map['judge']}")
-        if value_map.get("law_cited"):
-            opis_delovi.append(f"Zakon: {value_map['law_cited']}")
-        if value_map.get("amount"):
-            opis_delovi.append(f"Iznos: {value_map['amount']}")
-
-        pred_r = await asyncio.to_thread(
-            lambda: supa.table("predmeti").insert({
-                "user_id": uid,
-                "naziv":   naziv,
-                "opis":    "\n".join(opis_delovi),
-                "tip":     "opsti",
-                "status":  "aktivan",
-            }).execute()
-        )
-        if not pred_r.data:
-            raise HTTPException(status_code=500, detail="Kreiranje predmeta nije uspelo.")
-        predmet_id = pred_r.data[0]["id"]
+            _new_case_number = ownership.get("case_number")
+            predmet_id, naziv = await _create_new_predmet_from_value_map(
+                uid, body, value_map, tip_labela, job, _new_case_number,
+            )
 
     # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
+    # Program Intake Sprint 006 (2026-08-05) -- replaces the pre-Sprint-006
+    # `.ilike("ime", klijent_ime)` query, a confirmed live bug: klijent_ime is
+    # a full "Ime Prezime" string, but `klijenti.ime` is FIRST-NAME-ONLY --
+    # that query could essentially never match a real two-word name, and its
+    # `.limit(1)` with no disambiguation meant it would have silently picked
+    # an arbitrary row the one time it ever did over-match (the mission's own
+    # named "two clients, same surname" edge case). resolve_client_ownership()
+    # compares the correctly-concatenated full name and NEVER auto-picks
+    # between 2+ matches.
     klijent_ime = (body.klijent_ime_override or "").strip()
     if not klijent_ime and body.klijent_strana in ("plaintiff", "defendant"):
         klijent_ime = (value_map.get(body.klijent_strana) or "").strip()
+    klijent_nesiguran = False
+    klijent_kandidati: list[str] = []
     if klijent_ime:
         try:
-            existing = await asyncio.to_thread(
-                lambda: supa.table("klijenti")
-                    .select("id")
-                    .eq("user_id", uid)
-                    .ilike("ime", klijent_ime[:100])
-                    .neq("status", "soft_deleted")
-                    .limit(1)
-                    .execute()
-            )
-            if existing.data:
-                klijent_id = existing.data[0]["id"]
+            client_ownership = await case_assimilation.resolve_client_ownership(uid, klijent_ime)
+            if client_ownership["outcome"] == "ambiguous":
+                # Never guess between 2+ same-name clients -- surfaced in the
+                # response below (klijent_nesiguran), not silently resolved.
+                klijent_nesiguran = True
+                klijent_kandidati = [c["id"] for c in client_ownership["candidates"]]
+                logger.warning(
+                    "[SMART_INTAKE] klijent '%s' nejednoznacan (%d kandidata) predmet=%s -- ne povezujem automatski.",
+                    klijent_ime, len(klijent_kandidati), predmet_id,
+                )
+                klijent_id = None
+            elif client_ownership["outcome"] == "match":
+                klijent_id = client_ownership["klijent_id"]
             else:
                 kl_res = await asyncio.to_thread(
                     lambda: supa.table("klijenti").insert({
                         "user_id": uid,
-                        "ime":     klijent_ime[:100],
-                        "tip":     "fizicko_lice",
+                        "ime":     client_ownership["ime"] or klijent_ime[:100],
+                        "prezime": client_ownership["prezime"] or None,
+                        "firma":   client_ownership["firma"],
+                        "tip":     client_ownership["tip"],
                         "status":  "aktivan",
                     }).execute()
                 )
@@ -795,29 +918,89 @@ async def finalize_intake_job(
         except Exception as exc:
             logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
 
-    # ── Dokument: decrypt → tekst → chunk → Pinecone → predmet_dokumenti ────
-    doc_linked = False
-    try:
-        from uploaded_doc.chunker import chunk_document
-        from uploaded_doc.extractor import extract
-        from uploaded_doc.ingest import ingest_session
-        from uploaded_doc.session import generate_session_id
-        from shared.intake_worker import worker as _intake_worker
+    # ── Dokumenti: decrypt → (po dokumentu) tekst-isečak → chunk → Pinecone →
+    #    predmet_dokumenti ──────────────────────────────────────────────────
+    # Program Intake Sprint 006 (2026-08-05) -- rewritten from a single-
+    # document block into a per-document loop over `documents` (Phase 3:
+    # Evidence Registration stage of the Canonical Assimilation Pipeline).
+    # Each document gets its OWN try/except (Phase 5: Deterministic Failure
+    # Recovery -- one document's failure must never lose or block its
+    # siblings, the same per-segment isolation discipline Sprint 005 already
+    # proved for classification, now extended one stage further).
+    from uploaded_doc.chunker import chunk_document
+    from uploaded_doc.extractor import extract
+    from uploaded_doc.ingest import ingest_session
+    from uploaded_doc.session import generate_session_id
+    from shared.intake_worker import worker as _intake_worker
+    from shared.kancelarija_utils import get_kancelarija_id as _get_kid, rag_owner_namespace as _rag_ns
+    from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
+    from shared.audit_immutable import log_action
+    from shared.ai_provenance import case_context
 
+    suffix = Path(job.get("original_filename") or "").suffix.lower() or ".pdf"
+    text, pages, is_scanned, raw_bytes = "", None, False, b""
+    try:
         raw_bytes = await _intake_worker._download_and_decrypt(job["storage_path"])
-        suffix = Path(job.get("original_filename") or "").suffix.lower() or ".pdf"
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(raw_bytes)
             tmp_path = Path(tmp.name)
         try:
-            text, is_scanned, ocr_used, _pages = await asyncio.to_thread(extract, tmp_path)
+            text, is_scanned, ocr_used, pages = await asyncio.to_thread(extract, tmp_path)
         finally:
             try:
                 tmp_path.unlink()
             except Exception:
                 pass
+    except Exception as exc:
+        # Fail-soft at the WHOLE-JOB level (decrypt/extract touches the one
+        # shared underlying file, not per-document) -- every document below
+        # will correctly see empty text and report itself unlinked, rather
+        # than this raising and losing the predmet that was already created.
+        logger.warning("[SMART_INTAKE] dekripcija/ekstrakcija greška (nijedan dokument neće biti povezan) predmet=%s: %s", predmet_id, exc)
 
-        if text and text.strip():
+    _kancelarija_id = await _get_kid(supa, uid)
+    _owner_ns = _rag_ns(uid, _kancelarija_id)
+
+    # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario B):
+    # redni_broj must not collide across multiple documents landing on the
+    # SAME predmet (an already-open case, or several segments from one job)
+    # -- fetched ONCE before the loop and incremented locally, since this
+    # loop can add N rows in a single finalize call.
+    _postojeci_redni = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("redni_broj").eq("predmet_id", predmet_id)
+            .order("redni_broj", desc=True).limit(1).execute()
+    )
+    _sledeci_redni = ((_postojeci_redni.data or [{}])[0].get("redni_broj") or 0) + 1 \
+        if _postojeci_redni.data else 1
+
+    dokumenti_rezultat = []
+    doc_linked_count = 0
+    genome_should_trigger = False
+
+    for idx, doc_entry in enumerate(documents):
+        doc_row = doc_entry["document"]
+        doc_id = doc_row["id"]
+        doc_type_i = doc_row.get("document_type") or "other"
+        classification_uncertain_i = per_doc_uncertain[idx]
+
+        # Program Intake Sprint 006, Phase 4 (Lineage Verification) -- the
+        # one JOIN back to Sprint 005's own segment identity: None for a
+        # single-document job (no intake_job_segments rows exist at all,
+        # Sprint 005's own invariant), never an error.
+        segment_row = await intake_segments.get_segment_for_document(doc_id)
+        if segment_row and pages:
+            seg_text = "\n\n".join(pages[segment_row["start_page"] - 1: segment_row["end_page"]])
+        else:
+            seg_text = text
+
+        if not seg_text or not seg_text.strip():
+            dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "prazan_tekst"})
+            if segment_row:
+                await intake_segments.mark_assimilation_failed(segment_row["id"], "prazan tekst nakon ekstrakcije")
+            continue
+
+        try:
             source_meta = {
                 "source_filename": job.get("original_filename") or "dokument",
                 "source_format":   suffix.lstrip("."),
@@ -825,16 +1008,12 @@ async def finalize_intake_job(
                 "is_scanned":      is_scanned,
                 "session_id":      "__local__",
             }
-            manifest = await asyncio.to_thread(chunk_document, text, source_meta)
+            manifest = await asyncio.to_thread(chunk_document, seg_text, source_meta)
             session_id = generate_session_id()
             pinecone_ok = True
             # Institutional Learning & RAG Audit (2026-07-26) #1: isti
             # vlasnik-znanja namespace kao api.py's predmet upload (v. tamo
             # za punu napomenu) -- zamenjuje pred_{session_id}.
-            from shared.kancelarija_utils import get_kancelarija_id as _get_kid, rag_owner_namespace as _rag_ns
-            from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
-            _kancelarija_id = await _get_kid(supa, uid)
-            _owner_ns = _rag_ns(uid, _kancelarija_id)
             try:
                 await asyncio.to_thread(
                     ingest_session, manifest, session_id,
@@ -852,22 +1031,8 @@ async def finalize_intake_job(
                     },
                 )
             except Exception as pe:
-                logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s: %s", predmet_id, str(pe)[:150])
+                logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s dok=%s: %s", predmet_id, doc_id[:8], str(pe)[:150])
                 pinecone_ok = False
-
-            # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario B):
-            # bilo je hardkodovano na 1 -- bezopasno dok je svaki finalize
-            # uvek pravio NOV predmet (tacno jedan dokument po predmetu), ali
-            # cim je moguce prikaciti vise dokumenata na ISTI predmet (gore),
-            # svaki naredni dokument bi kolidirao na redni_broj=1, sto bi
-            # ucinilo Genome-ovo .order("redni_broj") sortiranje besmislenim.
-            _postojeci_redni = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokumenti")
-                    .select("redni_broj").eq("predmet_id", predmet_id)
-                    .order("redni_broj", desc=True).limit(1).execute()
-            )
-            _sledeci_redni = ((_postojeci_redni.data or [{}])[0].get("redni_broj") or 0) + 1 \
-                if _postojeci_redni.data else 1
 
             _dok_row_base = {
                 "predmet_id":         predmet_id,
@@ -876,19 +1041,26 @@ async def finalize_intake_job(
                 "storage_path":       f"session/{session_id}",
                 "pinecone_namespace": _owner_ns,
                 "status":             "indeksirano" if pinecone_ok else "sacuvano",
-                "velicina_kb":        max(1, len(raw_bytes) // 1024),
+                "velicina_kb":        max(1, len(seg_text.encode("utf-8")) // 1024),
                 "redni_broj":         _sledeci_redni,
+                # Program Intake Sprint 006, Phase 4/6 (Lineage Verification /
+                # Evidence Integrity) -- migration 094's new FK + unique
+                # constraint. NULL for a single-document job (nothing to
+                # link to, by Sprint 005's own design), never NULL by omission.
+                "source_intake_job_segment_id": segment_row["id"] if segment_row else None,
             }
-            # tip_dokaza/klasifikovan_at (migracija 016) i tekst_sadrzaj su
-            # opcioni po istom obrascu kao api.py predmet upload — probaj
-            # najbogatiju varijantu prvo, padaj na osnovnu ako kolone/migracija
-            # nedostaju, nikad ne izgubi ceo dokument zbog jedne kolone.
+            _sledeci_redni += 1
+
+            # tip_dokaza/klasifikovan_at (migracija 016), tekst_sadrzaj, i
+            # source_intake_job_segment_id (migracija 094) su svi opcioni po
+            # istom obrascu kao api.py predmet upload — probaj najbogatiju
+            # varijantu prvo, padaj postepeno ako kolone/migracija nedostaju,
+            # nikad ne izgubi ceo dokument zbog jedne kolone.
+            _variant_full = {**_dok_row_base, "tip_dokaza": doc_type_i, "klasifikovan_at": "now()", "tekst_sadrzaj": seg_text[:100_000]}
+            _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k != "source_intake_job_segment_id"}
+            _variant_base_no_lineage = {k: v for k, v in _dok_row_base.items() if k != "source_intake_job_segment_id"}
             dok_ins = None
-            for extra in (
-                {**_dok_row_base, "tip_dokaza": doc_type, "klasifikovan_at": "now()", "tekst_sadrzaj": text[:100_000]},
-                {**_dok_row_base, "tekst_sadrzaj": text[:100_000]},
-                _dok_row_base,
-            ):
+            for extra in (_variant_full, _variant_full_no_lineage, dict(_dok_row_base), _variant_base_no_lineage):
                 try:
                     dok_ins = await asyncio.to_thread(
                         lambda r=extra: supa.table("predmet_dokumenti").insert(r).execute()
@@ -896,12 +1068,67 @@ async def finalize_intake_job(
                     break
                 except Exception as dok_exc:
                     logger.debug("[SMART_INTAKE] predmet_dokumenti insert varijanta neuspešna, probam sledeću: %s", dok_exc)
-            doc_linked = bool(dok_ins and dok_ins.data)
-    except Exception as exc:
-        logger.warning("[SMART_INTAKE] dokument link/ingest greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+            doc_linked_i = bool(dok_ins and dok_ins.data)
+            if doc_linked_i:
+                dokument_id_i = dok_ins.data[0]["id"]
+                doc_linked_count += 1
+                genome_should_trigger = True
+
+                # Program Intake Sprint 006, Phase 1 finding -- finalize had
+                # ZERO audit/provenance calls for document-into-case
+                # registration (unlike Pipeline A's per-case upload, which
+                # always logged this). Now both pipelines leave a trace.
+                with case_context(predmet_id=predmet_id, document_id=dokument_id_i, module_name="smart_intake", operation_name="finalize_document_assimilation"):
+                    await log_action(
+                        "document_assimilated", uid, "predmet_dokumenti", dokument_id_i,
+                        metadata={"predmet_id": predmet_id, "source_intake_job_segment_id": segment_row["id"] if segment_row else None},
+                    )
+
+                if segment_row:
+                    await intake_segments.mark_assimilation_resolved(segment_row["id"])
+
+                # Operation Lawyer Zero, LZ-002 (2026-08-03) / Program Intake
+                # Sprint 003 (2026-08-05) -- Evidence Vault auto-classify,
+                # skipped when THIS document's own classification is
+                # uncertain (see original comment history in git blame for
+                # the full "third state" reasoning) -- now correctly scoped
+                # per-document instead of to the whole (possibly multi-
+                # document) job.
+                if not classification_uncertain_i:
+                    async def _evidence_classify_bg(_predmet_id=predmet_id, _dokument_id=dokument_id_i, _text=seg_text):
+                        try:
+                            from routers.evidence import klasifikuj_i_sacuvaj
+                            await asyncio.to_thread(
+                                klasifikuj_i_sacuvaj, _predmet_id, _dokument_id,
+                                job.get("original_filename") or "dokument", _text, uid,
+                            )
+                        except Exception as ce:
+                            logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
+                    asyncio.create_task(_evidence_classify_bg())
+                else:
+                    logger.info(
+                        "[SMART_INTAKE] dok=%s klasifikacija nesigurna -- preskacem Evidence Vault auto-prepisivanje, ostaje Review Required",
+                        dokument_id_i,
+                    )
+                dokumenti_rezultat.append({"document_id": doc_id, "povezan": True})
+            else:
+                if segment_row:
+                    await intake_segments.mark_assimilation_failed(segment_row["id"], "predmet_dokumenti insert neuspešan (sve varijante)")
+                dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "insert_neuspesan"})
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] dokument link/ingest greška (non-fatal, ostali dokumenti nastavljaju) predmet=%s dok=%s: %s", predmet_id, doc_id[:8], exc)
+            if segment_row:
+                await intake_segments.mark_assimilation_failed(segment_row["id"], str(exc)[:300])
+            dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "greska"})
+
+    doc_linked = doc_linked_count > 0  # backward-compatible single flag, response below
 
     # ── Case Genome auto-refresh (isti obrazac kao api.py predmet upload) ───
-    if doc_linked:
+    # Triggered ONCE per finalize call (not once per document) -- Genome does
+    # a full recompute over the whole case, so N redundant triggers for N
+    # newly-linked documents in the same call would be pure waste.
+    if genome_should_trigger:
         async def _genome_bg():
             await asyncio.sleep(3)
             try:
@@ -910,67 +1137,6 @@ async def finalize_intake_job(
             except Exception as ge:
                 logger.warning("[SMART_INTAKE] Genome auto-refresh greška: %s", ge)
         asyncio.create_task(_genome_bg())
-
-        # Operation Lawyer Zero, LZ-002 (2026-08-03): Evidence Vault's real
-        # classifier (routers/evidence.py::klasifikuj_i_sacuvaj -- richer
-        # tip_dokaza vocabulary, pravni_elementi, ai_tags, kljucne_cinjenice
-        # -> predmet_dokazi) was never auto-triggered on ingestion; its only
-        # entry point was the manual /reklasifikuj action. This also starved
-        # services/risk_engine.py's missing-document detector, the platform's
-        # sole deterministic "next action" algorithm (routers/matter_intel.py),
-        # which reads tip_dokaza and compares it against shared/constants.py's
-        # EXPECTED_DOCS -- and matters more than it first appears: the coarse
-        # tip_dokaza this finalize path already writes above (from
-        # shared/intake_classify.py's own classifier) uses a DIFFERENT
-        # vocabulary ("lawsuit"/"judgment"/etc.) than EXPECTED_DOCS expects
-        # ("sudska_odluka"/"podnesak"/etc.) -- so that field was already being
-        # populated, just with values that could never match. Same
-        # vocabulary-fragmentation defect shape as LZ-001's `vaznost` finding,
-        # one field over. klasifikuj_i_sacuvaj's own UPDATE (routers/evidence.py)
-        # corrects tip_dokaza to the right vocabulary and adds the richer
-        # fields, exactly matching the manual /reklasifikuj pattern -- no new
-        # classification logic written, only the missing auto-trigger added.
-        # Deliberately does NOT call UsageService.consume: this is a system-
-        # initiated background enrichment step, not a lawyer-initiated action,
-        # so it should not silently consume a billing credit the way the
-        # manual endpoint does.
-        # Program Intake Sprint 003 (2026-08-05) -- ovaj task se RANIJE
-        # pokretao bezuslovno, svaki put, bez obzira da li je Pipeline B-ova
-        # klasifikacija bila ispod AUTO_ACCEPT_THRESHOLD i vec cekala u
-        # intake_review_queue. To je znacilo da je jedina tacka u citavom
-        # sistemu koja ispravno prepoznaje "nisam siguran" (Confidence Graph)
-        # bila tiho prepisana klasifikatorom koji NEMA confidence polje
-        # uopste (routers/evidence.py::_klasifikuj_dokument — Sprint 003
-        # Fork C §1.2/§1.6b: potvrdjeno, nema numericku vrednost nigde u
-        # svom izlazu). Netacna posledica: cak i kad je sistem ispravno
-        # rekao "nisam siguran," ta neizvesnost NIKAD ne bi stigla do
-        # trajnog zapisa — tiho zamenjena "sigurnijim"-izgledajucim (ali
-        # jednako negrundovanim) nagadjanjem, tacno "trece stanje" koje
-        # ova misija zabranjuje. Sada: prepisivanje se preskace kad je
-        # document_type vec oznacen kao nesiguran — vrednost koju je
-        # finalize upisao iznad (Pipeline B-ov original) ostaje, i
-        # klasifikacija_nesigurna=True u odgovoru ispod cini tu neizvesnost
-        # vidljivom advokatu, umesto da je sakrije iza lazno-sigurnog
-        # drugog nagadjanja. LZ-002-ov ispravan cilj (engleski->srpski
-        # vokabular popravka za EXPECTED_DOCS) i dalje radi za VECINU
-        # dokumenata — samo za one vec-oznacene-kao-nesigurne se preskace.
-        if not classification_uncertain:
-            async def _evidence_classify_bg():
-                try:
-                    from routers.evidence import klasifikuj_i_sacuvaj
-                    dokument_id = dok_ins.data[0]["id"]
-                    await asyncio.to_thread(
-                        klasifikuj_i_sacuvaj, predmet_id, dokument_id,
-                        job.get("original_filename") or "dokument", text, uid,
-                    )
-                except Exception as ce:
-                    logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
-            asyncio.create_task(_evidence_classify_bg())
-        else:
-            logger.info(
-                "[SMART_INTAKE] dok=%s klasifikacija nesigurna (document_type u low_confidence_fields) -- preskacem Evidence Vault auto-prepisivanje, ostaje Review Required",
-                (dok_ins.data[0]["id"] if dok_ins and dok_ins.data else "?"),
-            )
 
     # Program Intake Sprint 002 -- ova linija je i dalje jedini upis koji
     # trajno "zatvara" finalizaciju (isti field kao pre), ali sada je
@@ -1005,23 +1171,55 @@ async def finalize_intake_job(
                 # Faza 2.1 instrumentacija — vidi komentar iznad. finalize_wait_s
                 # None ako completed_at nedostaje (ne pretpostavlja 0).
                 "finalize_wait_s": round(finalize_wait_s, 1) if finalize_wait_s is not None else None,
-                "entities_total": len(entities),
+                "entities_total": sum(len(d["entities"]) for d in documents),
                 "entities_corrected": entities_corrected,
+                "dokumenata_ukupno": len(documents),
+                "dokumenata_povezano": doc_linked_count,
             },
         ))
     except Exception:
         pass
 
-    logger.info("[SMART_INTAKE] finalize job=%s -> predmet=%s klijent=%s rok=%s dok=%s",
-                job_id[:8], predmet_id, bool(klijent_ime), rok_dodat, doc_linked)
+    logger.info("[SMART_INTAKE] finalize job=%s -> predmet=%s klijent=%s rok=%s dok=%d/%d",
+                job_id[:8], predmet_id, bool(klijent_ime), rok_dodat, doc_linked_count, len(documents))
+
+    # Program Intake Sprint 006, Phase 6 (Evidence Integrity) -- the false-
+    # success bug this sprint's own Phase 1 audit found: the pre-Sprint-006
+    # response returned ok:True unconditionally, never checking whether the
+    # document actually got linked (a case created/attached but containing
+    # ZERO of its source documents, indistinguishable from a real success).
+    # The predmet itself WAS genuinely created/attached (a real, useful side
+    # effect, not rolled back here), so this still returns ok:True -- but
+    # "dokument_povezan"/"dokumenti" now HONESTLY report per-document
+    # outcomes instead of a single optimistic flag, and a total failure
+    # (zero of N documents linked) is logged as an ERROR, not silently
+    # returned as an ordinary warning-level non-fatal path.
+    if documents and doc_linked_count == 0:
+        logger.error(
+            "[SMART_INTAKE] finalize job=%s -> predmet=%s KREIRAN/PRIKAČEN ALI 0/%d dokumenata povezano -- prazan predmet.",
+            job_id[:8], predmet_id, len(documents),
+        )
 
     return {
         "ok":          True,
         "predmet_id":  predmet_id,
         "naziv":       naziv,
-        "klijent_dodat": bool(klijent_ime),
+        "klijent_dodat": bool(klijent_ime) and not klijent_nesiguran,
+        # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- never
+        # silently guesses between 2+ same-name clients (mission's own named
+        # edge case). Surfaced explicitly instead of hidden inside a
+        # generic "klijent_dodat: false".
+        "klijent_nesiguran": klijent_nesiguran,
+        "klijent_kandidati": klijent_kandidati,
         "rok_dodat":     rok_dodat,
         "dokument_povezan": doc_linked,
+        # Program Intake Sprint 006 -- per-document assimilation outcome,
+        # replacing the single aggregate flag above for any caller that
+        # needs to know WHICH of N documents (Sprint 005 segmentation)
+        # actually made it into the case.
+        "dokumenti": dokumenti_rezultat,
+        "dokumenata_ukupno": len(documents),
+        "dokumenata_povezano": doc_linked_count,
         # Program Intake Sprint 003 (2026-08-05) -- eksplicitan signal da je
         # tip_dokaza klasifikacija ispod AUTO_ACCEPT_THRESHOLD (Sprint 003
         # Fork C's headline finding) -- "Review Required" mora biti vidljivo

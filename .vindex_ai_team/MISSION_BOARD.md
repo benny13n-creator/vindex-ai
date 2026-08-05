@@ -770,3 +770,50 @@ prefixes first — no collision).
 | INTAKE-015 | Segmentation only wired into Pipeline B, not Pipelines A/A-ephemeral/C | 2 | Founder decision — desired interactive UX for a synchronous upload path | Medium | NEEDS_SCOPING | The engine itself is already pipeline-agnostic; only the reaction to a multi-document result differs by pipeline. |
 | INTAKE-016 | No cross-run backoff/retry-claim system for segments, only bounded in-process retry | 3 | New architecture — a claim RPC mirroring `claim_intake_job`'s own pattern | Medium | NEEDS_SCOPING | A dead-lettered segment is visible/audited, just not auto-retried on a later tick. |
 | INTAKE-017 | No distinct `partially_failed` job status — collapsed into existing `awaiting_review` | 3 | Founder decision — may finalize ever proceed on an M-1-of-M segmented job | Small-Medium | NEEDS_SCOPING | Safe by default (fail-closed via the existing status gate); only a UX-precision gap today. |
+
+## Program Intake, Sprint 006 (2026-08-05) — Canonical Case Assimilation
+
+Ninth masterprompt of this multi-session Program Intake arc. Sprint 005 proved one PDF can contain multiple
+logical documents; this sprint proves each of those documents becomes part of a specific, correctly-
+identified case and client — deterministically, never a guess. Smallest team of this sprint style: 3 agents
+(Chief Systems Architect, Legal Domain Expert, Reliability & Failure Recovery Engineer). Same binding rule as
+Sprints 004/005: every technical problem found within scope that could be fixed without a new founder
+business decision was fixed in the same sprint. Governing rule with absolute priority throughout: a document
+assigned to the wrong case is a more serious problem than ten documents waiting for human confirmation.
+
+**Headline finding**: `predmeti` had NO structured case-number column at all, and no mechanism anywhere in the
+repo could recognize that an incoming document's case number matches an already-open case — every non-
+interactive intake either required an explicit `predmet_id` or unconditionally created a duplicate case. Also
+found: a live client-name-matching bug (`finalize_intake_job` compared a full "First Last" string against
+`klijenti.ime`, a first-name-only column, `.limit(1)` with no disambiguation — the mission's own named "two
+clients, same surname" failure mode, unmitigated), zero audit calls for document-into-case registration, a
+false-success bug (case marked finalized with 0 documents linked), and a structural incompatibility with
+Sprint 005's own multi-segment output (`finalize_intake_job` and `GET /jobs/{job_id}` both still called the
+single-document `get_job_result()`, which would raise on any segmented job).
+
+**Built**: `shared/case_assimilation.py` (Ownership Resolution — exact case-number match auto-attaches to an
+existing case, exact full-name match auto-links a client, anything ambiguous routes to Review Required, never
+a guess) + `predmeti.broj_predmeta` (migration 094) + `predmet_dokumenti.source_intake_job_segment_id`
+lineage FK with a DB-enforced UNIQUE constraint (Evidence Integrity) + `intake_job_segments.assimilation_
+status` (a second, orthogonal lifecycle from Sprint 005's own classification `status`). `finalize_intake_job`
+rewritten from a single-document function into a per-document loop, each with its own try/except (Phase 5
+isolation, extending Sprint 005's own per-segment pattern one stage further into assimilation) — every
+document Sprint 005 produces is now correctly assimilated, audited, and provenance-tracked, not just the
+first.
+
+**A real bug found and fixed during this sprint's own test-writing**: `looks_like_company()`'s first
+implementation replaced dots with spaces before tokenizing a party name, shattering "d.o.o." into meaningless
+single-letter tokens that never matched anything — fixed to strip dots per-token instead of using them as a
+word separator.
+
+**7 required deliverables**: `docs/architecture/CANONICAL_CASE_ASSIMILATION_ARCHITECTURE_REPORT.md`,
+`OWNERSHIP_RESOLUTION_SPECIFICATION.md`, `LINEAGE_VERIFICATION_REPORT.md`, `EVIDENCE_INTEGRITY_REPORT.md`,
+`CASE_ASSIMILATION_FAILURE_RECOVERY_REPORT.md`, `CASR_METRICS_REPORT.md`, `SPRINT_006_MISSION_REPORT.md`,
+plus 3 new `ARCHITECTURAL_DEBT_REGISTER.md` entries (`INTAKE-018` through `INTAKE-020`, checked against
+existing prefixes first — no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-018 | No segment-content-hash dedup across two different overall uploads | 3 | New architecture — a content-hash column + cross-job lookup | Medium | NEEDS_SCOPING | Not a wrong-case risk today, only a missed-duplicate-detection gap. |
+| INTAKE-019 | A partially-failed finalize has no automatic retry path once `predmet_id` is set | 2 | Founder/scoping decision — does "finalized" mean fully done or partially done | Medium | NEEDS_SCOPING | Failure is visible (per-document + segment status), just not self-healing yet. |
+| INTAKE-020 | Case number matching is exact-only, no format normalization beyond whitespace | 3 | none — deliberate conservatism choice | Small | TODO (low priority) | Safe direction by design (create-new, never mis-attach); a missed-attach-opportunity risk only. |

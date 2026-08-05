@@ -131,7 +131,10 @@ def _make_supa():
             t.insert.return_value.execute.return_value.data = [{"id": "dok-001"}]
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
-            t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.limit.return_value.execute.return_value.data = []
+            # Program Intake Sprint 006 -- resolve_client_ownership() queries
+            # .eq().ilike().neq().execute() (no .limit(), it fetches every
+            # candidate to detect ambiguity, never picks arbitrarily).
+            t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]
         elif name == "predmet_klijenti":
             t.insert.return_value.execute.return_value.data = [{}]
@@ -139,6 +142,8 @@ def _make_supa():
             t.insert.return_value.execute.return_value.data = [{}]
         elif name == "proactive_alerts":
             t.insert.return_value.execute.return_value.data = [{}]
+        elif name == "intake_job_segments":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
         return t
 
     supa.table.side_effect = _table
@@ -155,9 +160,10 @@ async def _run_finalize_and_drain(mock_supa, job_result, body, conflict_result):
         return MagicMock()
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)), \
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
+         patch("shared.intake_segments._get_supa", return_value=mock_supa), \
          patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
-         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \
          patch("uploaded_doc.ingest.ingest_session", return_value=None), \
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
@@ -184,7 +190,7 @@ async def test_finalize_surfaces_alert_when_conflict_detected():
 
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "review": None,
         "entities": [
             {"entity_type": "plaintiff", "value": "Marko Marković"},
@@ -236,7 +242,7 @@ async def test_finalize_does_not_create_alert_when_no_conflict():
 
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "review": None,
         "entities": [
             {"entity_type": "plaintiff", "value": "Marko Marković"},
@@ -275,7 +281,7 @@ async def test_finalize_conflict_check_failure_does_not_break_case_creation():
 
     mock_supa = _make_supa()
     job_result = {
-        "document": {"document_type": "lawsuit"},
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
         "review": None,
         "entities": [{"entity_type": "plaintiff", "value": "Marko Marković"}],
     }
@@ -287,9 +293,10 @@ async def test_finalize_conflict_check_failure_does_not_break_case_creation():
         return MagicMock()
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
-         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)), \
+         patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
+         patch("shared.intake_segments._get_supa", return_value=mock_supa), \
          patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
-         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \
          patch("uploaded_doc.ingest.ingest_session", return_value=None), \
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \

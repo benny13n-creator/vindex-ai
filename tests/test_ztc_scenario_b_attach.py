@@ -74,6 +74,11 @@ def _make_supa(existing_predmet=None, existing_redni_broj_rows=None, new_doc_id=
             t.insert.return_value.execute.return_value.data = [{}]
         elif name == "proactive_alerts":
             t.insert.return_value.execute.return_value.data = [{}]
+        elif name == "intake_job_segments":
+            # Program Intake Sprint 006 -- None simulates a single-document
+            # job (no intake_job_segments rows exist at all, Sprint 005's
+            # own invariant), matching every scenario this file exercises.
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
         return t
 
     supa.table.side_effect = _table
@@ -83,7 +88,8 @@ def _make_supa(existing_predmet=None, existing_redni_broj_rows=None, new_doc_id=
 def _patched(mock_supa, job_result):
     return (
         patch("routers.smart_intake._get_supa", return_value=mock_supa),
-        patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)),
+        patch("shared.intake_segments._get_supa", return_value=mock_supa),
+        patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])),
         patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")),
         patch("uploaded_doc.extractor.extract", return_value=("Drugi dokument teksta.", False, False, None)),
         patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}),
@@ -103,6 +109,7 @@ def _patched(mock_supa, job_result):
 
 
 async def _run_finalize_and_drain(mock_supa, job_result, body):
+    import contextlib
     from routers.smart_intake import finalize_intake_job
 
     captured_coros = []
@@ -111,10 +118,10 @@ async def _run_finalize_and_drain(mock_supa, job_result, body):
         captured_coros.append(coro)
         return MagicMock()
 
-    patches = _patched(mock_supa, job_result)
-    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-         patches[6], patches[7], patches[8], patches[9], patches[10], patches[11], \
-         patch("asyncio.create_task", side_effect=_capture_create_task):
+    with contextlib.ExitStack() as stack:
+        for p in _patched(mock_supa, job_result):
+            stack.enter_context(p)
+        stack.enter_context(patch("asyncio.create_task", side_effect=_capture_create_task))
         result = await finalize_intake_job("job-1", _fake_request(), body, _fake_user())
         for coro in captured_coros:
             try:
@@ -132,7 +139,7 @@ async def test_finalize_attaches_to_existing_predmet_instead_of_creating_new():
         existing_predmet={"id": "pred-EXISTING", "naziv": "Petrović protiv Markovića"},
         existing_redni_broj_rows=[{"redni_broj": 1}],
     )
-    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
 
     result = await _run_finalize_and_drain(
         mock_supa, job_result, FinalizeReq(predmet_id="pred-EXISTING"),
@@ -157,7 +164,7 @@ async def test_finalize_404_when_attach_target_not_found_or_not_owned():
     from fastapi import HTTPException
 
     mock_supa = _make_supa(existing_predmet=None)
-    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
 
     with pytest.raises(HTTPException) as exc_info:
         await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq(predmet_id="pred-GHOST"))
@@ -171,7 +178,7 @@ async def test_finalize_without_predmet_id_still_creates_new_case():
     from routers.smart_intake import FinalizeReq
 
     mock_supa = _make_supa(existing_redni_broj_rows=[])
-    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
 
     result = await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq())
 
@@ -189,7 +196,7 @@ async def test_finalize_assigns_next_redni_broj_when_attaching_second_document()
         existing_predmet={"id": "pred-EXISTING", "naziv": "Predmet"},
         existing_redni_broj_rows=[{"redni_broj": 1}],
     )
-    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
 
     captured_inserts = []
     real_table = mock_supa.table.side_effect
@@ -218,7 +225,7 @@ async def test_finalize_first_document_in_new_case_gets_redni_broj_1():
     from routers.smart_intake import FinalizeReq
 
     mock_supa = _make_supa(existing_redni_broj_rows=[])
-    job_result = {"document": {"document_type": "podnesak"}, "entities": [], "review": None}
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
 
     captured_inserts = []
     real_table = mock_supa.table.side_effect

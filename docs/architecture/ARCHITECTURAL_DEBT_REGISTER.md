@@ -947,3 +947,63 @@ partial data — genuinely a product question, not a bounded technical one.
 **Severity**: Low-Medium — safe by default (fail-closed: blocks finalization rather than risking an
 incomplete case file), but the UX of "why is this job stuck" for a lawyer is currently only as precise as the
 existing `awaiting_review` review-queue reasons, not a dedicated partial-failure message.
+
+---
+
+## Program Intake, Sprint 006 (2026-08-05) — Canonical Case Assimilation
+
+Full narrative: `CANONICAL_CASE_ASSIMILATION_ARCHITECTURE_REPORT.md` and siblings. Same binding rule as
+Sprints 004/005: every technical problem found within scope that could be fixed without a new founder
+business decision was fixed in the same sprint. Fixed this sprint: a live client-name-matching bug
+(`finalize_intake_job` compared a full "First Last" string against a first-name-only column, `.limit(1)` with
+no disambiguation), zero audit/provenance calls for document-into-case registration, a false-success bug
+(case marked finalized even when 0 of its documents linked), and finalize's structural incompatibility with
+Sprint 005's own multi-segment output (`get_job_result()`'s `.maybe_single()` would have raised on any
+segmented job reaching finalize or `GET /jobs/{job_id}`). A real tokenization bug in the new
+`looks_like_company()` heuristic was also found and fixed during this sprint's own test-writing (replacing
+dots with spaces shattered "d.o.o." into meaningless single-letter tokens).
+
+## INTAKE-018 — No segment-content-hash dedup across two different overall uploads (Medium, new architecture required)
+
+The same physical document (e.g. a punomoćje) re-scanned into two different bundled uploads produces two
+independent segments with no shared identity — nothing detects this as a duplicate today. Whole-file dedup
+(`idempotency_key`, Sprint 002) only catches an identical file re-uploaded verbatim, not the same page(s)
+appearing inside two different combined PDFs.
+
+**Why not fixed this mission**: needs a new per-segment content-hash column (`intake_job_segments` has none
+today) plus a cross-job lookup mechanism — genuinely new architecture, not a bounded fix.
+
+**Recommended direction**: add a `content_sha256` column to `intake_job_segments` (hash of the segment's own
+extracted text), populated at segmentation time, with a lookup at Ownership Resolution time.
+
+**Severity**: Medium — a real gap, but not a correctness risk today (worst case: a duplicate document filed
+under a case, not a WRONG case).
+
+## INTAKE-019 — A partially-failed finalize has no retry path once `predmet_id` is set (Medium, needs a scoping decision)
+
+If one document in a multi-document finalize call fails to link (Phase 5 isolation correctly keeps this from
+blocking siblings), `intake_jobs.predmet_id` is still set unconditionally at the end — a subsequent finalize
+call for the same job short-circuits to `already_finalized` and never retries the failed document.
+
+**Why not fixed this mission**: closing this requires deciding whether `predmet_id`-set should mean "fully
+done" or "at least partially done, may still need reconciliation" — a genuine scoping question (mirrors
+Sprint 005's own `INTAKE-017` `partially_failed`-status deferral) rather than a bounded technical fix.
+
+**Recommended direction**: a dedicated reconciliation endpoint/query (segments with `assimilation_status !=
+'resolved'` under an already-finalized job) rather than reopening finalize's own idempotency gate.
+
+**Severity**: Medium — the failure is visible (per-document `povezan: false` in the original response, and
+`assimilation_status='failed'` persisted on the segment row), just not self-healing without a new mechanism.
+
+## INTAKE-020 — Case number matching is exact-only, no normalization beyond whitespace (Low, deliberate scope boundary)
+
+`resolve_case_ownership()` does an exact string match on `broj_predmeta` after whitespace normalization —
+two representations of the same case number that differ in punctuation or spacing style (e.g. "П.100/24" vs.
+"П. бр. 100/24") would not match, correctly falling through to "create new" rather than guessing.
+
+**Why not fixed this mission**: any broader normalization (stripping "бр."/"br." tokens, punctuation
+variants) risks conflating two genuinely different case numbers that happen to share a prefix format — a
+judgment call the mission's own conservatism mandate argues against making unilaterally.
+
+**Severity**: Low — the safe direction (create a new case rather than mis-attach) is exactly what happens
+today; this is a missed-attach-opportunity risk, not a wrong-attach risk.

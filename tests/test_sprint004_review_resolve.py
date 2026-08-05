@@ -198,18 +198,18 @@ async def test_resolve_then_finalize_proceeds_without_repeating_processing():
         return _chain(None)
     supa.table = MagicMock(side_effect=_table)
 
-    job_result = {"document": None, "entities": [], "review": None}
-
     with patch("routers.smart_intake._get_supa", return_value=supa), \
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
-         patch("routers.smart_intake.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)) as mock_get_result:
+         patch("routers.smart_intake.intake_documents.get_job_documents", new=AsyncMock(return_value=[])) as mock_get_result:
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as exc_info:
             await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), _fake_user())
 
-    # document=None -> a DIFFERENT 409 (classification unavailable), proving
-    # execution passed the status gate and reached the real finalize body --
-    # not repeating any pipeline step, just resuming past the resolved gate.
+    # Empty document list -> a DIFFERENT 409 (classification unavailable),
+    # proving execution passed the status gate and reached the real finalize
+    # body -- not repeating any pipeline step, just resuming past the
+    # resolved gate. (Program Intake Sprint 006: get_job_result() -> the
+    # list-returning get_job_documents(), see routers/smart_intake.py.)
     assert exc_info.value.status_code == 409
     assert "Klasifikacija nije dostupna" in exc_info.value.detail
     mock_get_result.assert_awaited_once_with("job-1")

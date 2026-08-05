@@ -152,3 +152,58 @@ def any_segment_needs_attention(segment_rows: list[dict]) -> bool:
     true partially_failed status (and whether finalize_intake_job may ever
     create a case from one) is left as an open founder decision."""
     return any(r["status"] in ("awaiting_review", "failed") for r in segment_rows)
+
+
+# ─── Program Intake Sprint 006 (2026-08-05) — Ownership Resolution lifecycle ──
+#
+# assimilation_status (migration 094) is orthogonal to this file's own
+# classification-lifecycle `status` column above — a segment reaches
+# 'completed' (classification) before Ownership Resolution ever runs; these
+# 4 functions own ONLY the second, later question: does this classified
+# document belong to a specific case/client. Two-column, two-owner design,
+# same reasoning Sprint 005 itself used to keep identity fields off
+# intake_documents.
+
+async def get_segment_for_document(document_id: str) -> Optional[dict]:
+    """Program Intake Sprint 006 — the lineage lookup finalize_intake_job
+    needs to find a document's own page range (for per-segment text
+    slicing) and its intake_job_segments.id (for the new
+    predmet_dokumenti.source_intake_job_segment_id FK, migration 094).
+    Returns None for a single-document job (Sprint 005's own invariant: no
+    intake_job_segments rows exist at all when a job never segmented) —
+    callers must treat None as "this document has no segment lineage to
+    record," not as an error."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("intake_job_segments").select("*").eq("document_id", document_id).maybe_single().execute()
+    )
+    return res.data if res else None
+
+
+async def mark_assimilation_resolved(segment_id: str) -> None:
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("intake_job_segments").update({"assimilation_status": "resolved"}).eq("id", segment_id).execute()
+    )
+
+
+async def mark_assimilation_review_required(segment_id: str, reason: str) -> None:
+    """reason is logged, not persisted onto this row (this table has no
+    free-text reason column of its own for this lifecycle) — the actual
+    human-facing review reason lives on the intake_review_queue /
+    predmet_dokumenti / HTTP-response layer that raised this outcome; this
+    status flip only marks that this segment's OWNERSHIP (not classification)
+    needs a human decision."""
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("intake_job_segments").update({"assimilation_status": "review_required"}).eq("id", segment_id).execute()
+    )
+    logger.info("[INTAKE_SEGMENTS] segment=%s assimilation review_required: %s", segment_id[:8], reason)
+
+
+async def mark_assimilation_failed(segment_id: str, error: str) -> None:
+    supa = _get_supa()
+    await asyncio.to_thread(
+        lambda: supa.table("intake_job_segments").update({"assimilation_status": "failed", "last_error": str(error)[:500]}).eq("id", segment_id).execute()
+    )
+    logger.warning("[INTAKE_SEGMENTS] segment=%s assimilation failed: %s", segment_id[:8], error)
