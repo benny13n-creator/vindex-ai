@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -139,12 +140,26 @@ def _detect_ocr_lang() -> str:
     return "eng"
 
 
-def extract_pdf(path: Path) -> tuple[str, bool, bool]:
-    """Return (text, is_scanned, ocr_used).
+def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
+    """Return (text, is_scanned, ocr_used, pages).
 
     is_scanned=True  → PDF had no readable text and OCR also failed.
     ocr_used=True    → text came from OCR (scanned PDF successfully processed).
-    """
+
+    Program Intake Sprint 005 (2026-08-05) -- `pages` is the 4th element,
+    a per-page `list[str]` (1-indexed position = list index + 1), None only
+    when no usable page-level text exists at all (OCR totally failed).
+    Both code paths below already built this list internally before this
+    sprint -- it was computed and then discarded at the `"\n\n".join(...)`
+    return (Sprint 005 Fork A, `.vindex_ai_team/decisions/
+    2026-08-05_intake_sprint005_fork_segmentation_audit.md` §1) purely
+    because no caller needed page boundaries before Canonical Document
+    Segmentation existed. Deliberately kept UNFILTERED (including
+    zero-length pages) for the OCR path, unlike the old `ocr_text` join
+    which dropped empty pages -- callers doing segmentation need an
+    accurate page COUNT and POSITION (a blank-page separator is itself one
+    of the segmentation signals, `shared/intake_segment.py`), which the old
+    filtered join structurally could not provide."""
     import pypdf
 
     reader = pypdf.PdfReader(str(path))
@@ -163,7 +178,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
     is_scanned = avg_chars < 30 or total_chars < 80
 
     if not is_scanned:
-        return "\n\n".join(pages), False, False
+        return "\n\n".join(pages), False, False, pages
 
     # OCR fallback for scanned/unreadable PDFs
     try:
@@ -187,7 +202,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
         if len(ocr_text.strip()) > 100:
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
-            return ocr_text, False, True
+            return ocr_text, False, True, ocr_pages
         else:
             logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
             _log_ocr_error("insufficient_text", path.name)
@@ -198,10 +213,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool]:
         logger.error("[OCR] Neočekivana greška: %s", e)
         _log_ocr_error("unexpected_error", path.name)
 
-    return "", True, False
+    return "", True, False, None
 
 
-def extract_docx(path: Path) -> tuple[str, bool, bool]:
+def extract_docx(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     import docx as _docx
     from docx.oxml.ns import qn as _qn
     from docx.table import Table as _Table
@@ -229,12 +244,19 @@ def extract_docx(path: Path) -> tuple[str, bool, bool]:
                 if row_text.strip():
                     parts.append(row_text)
 
-    return "\n".join(parts), False, False
+    # Program Intake Sprint 005: DOCX (OOXML) has no first-class "page"
+    # object in the document model at all -- pagination is a rendering-time
+    # computation (font metrics, page size, margins), not stored data the
+    # way a PDF stores discrete page objects (Fork A, confirmed). `pages`
+    # is genuinely None here, not an oversight -- there is nothing to
+    # return. Segmentation for DOCX is out of this sprint's scope (see
+    # CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md).
+    return "\n".join(parts), False, False, None
 
 
-def extract_txt(path: Path) -> tuple[str, bool, bool]:
+def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     text = path.read_text(encoding="utf-8")
-    return text, False, False
+    return text, False, False, None
 
 
 # Suffixes extract_image() handles — a photographed/scanned document with no
@@ -244,16 +266,21 @@ def extract_txt(path: Path) -> tuple[str, bool, bool]:
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
 
 
-def extract_image(path: Path) -> tuple[str, bool, bool]:
-    """Return (text, is_scanned, ocr_used) for a standalone photographed/
-    scanned image — same return contract as extract_pdf, so callers (the
-    intake worker, api.py's auto-analyze upload) don't need to special-case
-    images. Every image goes through OCR (there is no "has a text layer"
-    case the way a born-digital PDF has); is_scanned=True only means OCR
-    itself failed to extract meaningful text, matching extract_pdf's own
-    <100-chars-total threshold exactly, so downstream code (the intake
-    worker's is_scanned branch, the review-queue routing) treats a failed
-    image OCR identically to a failed PDF OCR."""
+def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
+    """Return (text, is_scanned, ocr_used, pages) for a standalone
+    photographed/scanned image — same return contract as extract_pdf, so
+    callers (the intake worker, api.py's auto-analyze upload) don't need to
+    special-case images. Every image goes through OCR (there is no "has a
+    text layer" case the way a born-digital PDF has); is_scanned=True only
+    means OCR itself failed to extract meaningful text, matching
+    extract_pdf's own <100-chars-total threshold exactly, so downstream
+    code (the intake worker's is_scanned branch, the review-queue routing)
+    treats a failed image OCR identically to a failed PDF OCR.
+
+    Program Intake Sprint 005: `pages` is always None here -- a single
+    photographed page is inherently one page, by construction (Fork A:
+    "no multi-page ambiguity possible here"), so there is no list to
+    return, not a limitation to work around."""
     from PIL import Image
 
     try:
@@ -273,7 +300,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool]:
     except Exception as e:
         logger.warning("[OCR] Nevalidna slika %s: %s", path.name, e)
         _log_ocr_error("invalid_image", path.name)
-        return "", True, False
+        return "", True, False, None
 
     try:
         ocr_lang = _detect_ocr_lang()
@@ -283,22 +310,32 @@ def extract_image(path: Path) -> tuple[str, bool, bool]:
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — slika ne može biti obrađena", ie)
         _log_ocr_error("missing_dependencies", path.name)
-        return "", True, False
+        return "", True, False, None
     except Exception as e:
         logger.error("[OCR] Neočekivana greška: %s", e)
         _log_ocr_error("unexpected_error", path.name)
-        return "", True, False
+        return "", True, False, None
 
     if len(text) > 100:
         logger.info("[OCR] Uspešno — %d karaktera", len(text))
-        return text, False, True
+        return text, False, True, None
 
     logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(text))
     _log_ocr_error("insufficient_text", path.name)
-    return "", True, False
+    return "", True, False, None
 
 
-def extract(path: Path) -> tuple[str, bool, bool]:
+def extract(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
+    """Return (text, is_scanned, ocr_used, pages).
+
+    Program Intake Sprint 005 (2026-08-05): added `pages` as a 4th element
+    to this shared contract (all 4 call sites -- api.py, routers/dokument.py,
+    shared/intake_worker.py, routers/smart_intake.py -- destructure this
+    tuple identically, confirmed by repo-wide grep, Fork A). Only Pipeline
+    B's worker (shared/intake_worker.py) currently acts on `pages` (feeds
+    it to shared/intake_segment.py's canonical segmentation engine); the
+    other 3 call sites accept and ignore it, a deliberate, bounded scope
+    decision -- see CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return extract_pdf(path)

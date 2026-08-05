@@ -79,7 +79,7 @@ def test_ocr_success_returns_text_not_scanned(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
 
     assert is_scanned is False, "Successful OCR must set is_scanned=False"
     assert ocr_used is True, "Successful OCR must set ocr_used=True"
@@ -105,7 +105,7 @@ def test_ocr_short_output_still_unreadable(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
 
     assert is_scanned is True, "Short OCR output must still be flagged as unreadable"
     assert ocr_used is False, "Failed OCR must set ocr_used=False"
@@ -133,7 +133,7 @@ def test_ocr_exception_falls_through(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -159,7 +159,7 @@ def test_normal_pdf_skips_ocr(tmp_path):
 
     with patch("pypdf.PdfReader", return_value=reader), \
          patch.dict(sys.modules, {"fitz": mock_fitz}):
-        text, is_scanned, ocr_used = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
 
     assert is_scanned is False
     assert ocr_used is False

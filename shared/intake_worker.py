@@ -26,7 +26,8 @@ import time
 import uuid
 from pathlib import Path
 
-from shared import intake_documents, intake_queue
+from shared import intake_documents, intake_queue, intake_segments
+from shared.intake_segment import PageText, segment_document, uncertain_boundaries
 
 logger = logging.getLogger("vindex.intake_worker")
 
@@ -160,37 +161,51 @@ class IntakeWorker:
         job_id = job["id"]
         t_start = time.monotonic()
 
-        existing = await intake_documents.get_job_result(job_id)
-        if existing["document"] is not None:
-            if await intake_documents.has_processing_outcome(job_id):
-                logger.info("[INTAKE_WORKER] job=%s već potpuno obrađen (idempotentan retry) — preskačem.", job_id[:8])
-                # Program Intake Sprint 004: redak edge-case put (claim_next_job
-                # trazi status='received', pa se ovo obicno ne dostize dok je
-                # posao vec 'awaiting_review' -- ali ako je reaper vratio
-                # posao na 'received' pre nego sto je prethodni status upis
-                # stigao da se izvrsi, moramo ponovo proveriti da li
-                # nerazresen review i dalje postoji, ne slepo vratiti False.
-                return existing["review"] is not None
-            # Program Intake Sprint 001 (2026-08-04) -- dokument POSTOJI ali
-            # processing_outcome NE POSTOJI: prethodni pokušaj je pao negde
-            # IZMEĐU create_document() i write_processing_outcome() (ta
-            # linija je UVEK poslednja stvar koju _process() radi, u obe
-            # grane ispod). Stari kod je ovo tretirao kao "već gotovo" i
-            # tiho vraćao (bez exception-a) -- _tick() bi onda pozvao
-            # mark_job_completed() na poslu bez ijednog entiteta, bez
-            # review queue unosa, neraspoznatljivo od stvarnog uspeha,
-            # bez loga, bez dead-letter traga. Tačno "upload prijavljuje
-            # uspeh iako obrada nije bezbedno završena" -- Sprint 001
-            # eksplicitno zabranjeno stanje za zatvaranje misije. Ispravka:
-            # obriši nepotpuno stanje i obradi ponovo od nule -- tekst
-            # dokumenta se ionako nigde ne perzistira između koraka, pa
-            # "nastavak odakle je stao" bi ionako morao da ponovi OCR;
-            # čisto ponavljanje je jednostavnije i podjednako jeftino.
-            logger.warning(
-                "[INTAKE_WORKER] job=%s ima NEPOTPUN dokument (prethodni pokušaj pao usred obrade, processing_outcome nedostaje) — brišem i obrađujem ponovo od nule.",
-                job_id[:8],
-            )
-            await intake_documents.delete_partial_document(existing["document"]["id"], job_id)
+        # Program Intake Sprint 005 (2026-08-05) -- checked FIRST, and via a
+        # plain list query (never .maybe_single()): a segmented job can have
+        # 2+ intake_documents rows sharing this job_id, and
+        # intake_documents.get_job_result()'s own .maybe_single() call would
+        # raise on 2+ rows (postgrest's own ambiguity guard) if it ran first
+        # on a resumed segmented job. If this job already has segment rows,
+        # the OLD single-document idempotency check below never runs at all
+        # -- resuming a segmented job is _process_segments()'s own job (it
+        # reconciles against each segment's already-persisted status),
+        # exactly the way delete_partial_document()/has_processing_outcome()
+        # below reconcile a single-document job's own partial state.
+        existing_segment_rows = await intake_segments.get_segments_for_job(job_id)
+
+        if not existing_segment_rows:
+            existing = await intake_documents.get_job_result(job_id)
+            if existing["document"] is not None:
+                if await intake_documents.has_processing_outcome(job_id):
+                    logger.info("[INTAKE_WORKER] job=%s već potpuno obrađen (idempotentan retry) — preskačem.", job_id[:8])
+                    # Program Intake Sprint 004: redak edge-case put (claim_next_job
+                    # trazi status='received', pa se ovo obicno ne dostize dok je
+                    # posao vec 'awaiting_review' -- ali ako je reaper vratio
+                    # posao na 'received' pre nego sto je prethodni status upis
+                    # stigao da se izvrsi, moramo ponovo proveriti da li
+                    # nerazresen review i dalje postoji, ne slepo vratiti False.
+                    return existing["review"] is not None
+                # Program Intake Sprint 001 (2026-08-04) -- dokument POSTOJI ali
+                # processing_outcome NE POSTOJI: prethodni pokušaj je pao negde
+                # IZMEĐU create_document() i write_processing_outcome() (ta
+                # linija je UVEK poslednja stvar koju _process() radi, u obe
+                # grane ispod). Stari kod je ovo tretirao kao "već gotovo" i
+                # tiho vraćao (bez exception-a) -- _tick() bi onda pozvao
+                # mark_job_completed() na poslu bez ijednog entiteta, bez
+                # review queue unosa, neraspoznatljivo od stvarnog uspeha,
+                # bez loga, bez dead-letter traga. Tačno "upload prijavljuje
+                # uspeh iako obrada nije bezbedno završena" -- Sprint 001
+                # eksplicitno zabranjeno stanje za zatvaranje misije. Ispravka:
+                # obriši nepotpuno stanje i obradi ponovo od nule -- tekst
+                # dokumenta se ionako nigde ne perzistira između koraka, pa
+                # "nastavak odakle je stao" bi ionako morao da ponovi OCR;
+                # čisto ponavljanje je jednostavnije i podjednako jeftino.
+                logger.warning(
+                    "[INTAKE_WORKER] job=%s ima NEPOTPUN dokument (prethodni pokušaj pao usred obrade, processing_outcome nedostaje) — brišem i obrađujem ponovo od nule.",
+                    job_id[:8],
+                )
+                await intake_documents.delete_partial_document(existing["document"]["id"], job_id)
 
         raw_bytes = await self._download_and_decrypt(job["storage_path"])
 
@@ -199,7 +214,7 @@ class IntakeWorker:
             tmp.write(raw_bytes)
             tmp_path = Path(tmp.name)
         try:
-            text, is_scanned, ocr_used = await asyncio.to_thread(self._extract_text, tmp_path)
+            text, is_scanned, ocr_used, pages = await asyncio.to_thread(self._extract_text, tmp_path)
         finally:
             try:
                 tmp_path.unlink()
@@ -231,52 +246,220 @@ class IntakeWorker:
             )
             return True
 
-        classification = await self._classify(text)
-        entities = await self._extract_entities(text)
+        # Program Intake Sprint 005 (2026-08-05) -- Canonical Document
+        # Segmentation runs here, BEFORE classification, for every job that
+        # has a real per-page breakdown (pages is None for DOCX/TXT/image —
+        # a structural absence, see uploaded_doc/extractor.py). Governing
+        # principle (Fork C, adopted): a job that segments into exactly 1
+        # (implicit) segment must be byte-for-byte behaviorally identical
+        # to pre-Sprint-005 processing -- so segmentation always RUNS, but
+        # the intake_job_segments table (migration 093) is only ever
+        # written to when it actually found 2+ documents. The single-
+        # document branch below is the EXACT code this function ran before
+        # this sprint, untouched.
+        page_objs: list[PageText] = []
+        segments = []
+        uncertain_signals = []
+        if pages and len(pages) > 1:
+            page_objs = [PageText(page_number=i + 1, text=p, ocr_used=ocr_used) for i, p in enumerate(pages)]
+            segments = segment_document(page_objs)
+            uncertain_signals = uncertain_boundaries(page_objs)
 
-        document_id = await intake_documents.create_document(
-            job_id,
-            classification["document_type"],
-            classification["confidence"],
-            classification["method"],
-            ocr_confidence=(0.6 if ocr_used else None),  # OCR bez eksplicitnog skora danas — konzervativna fiksna vrednost dok extractor ne vraća pravi confidence (poznato ograničenje, ne skriveno)
-            ocr_used=ocr_used,
-        )
-        entity_rows = await intake_documents.insert_entities(document_id, entities)
+        if existing_segment_rows:
+            # Resuming a job that already segmented on a prior (crashed)
+            # attempt. Segmentation is a pure, deterministic function of the
+            # same bytes, so re-running it here reproduces the identical
+            # segments in the identical order -- we reconcile against the
+            # ALREADY-PERSISTED rows (by position) rather than inserting new
+            # ones, so already-completed segments are never reprocessed.
+            return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, segment_rows=existing_segment_rows)
 
-        low_confidence_fields = [
-            e["entity_type"] for e in entities
-            if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
-        ]
-        if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
-            low_confidence_fields = ["document_type"] + low_confidence_fields
-        if low_confidence_fields:
-            # Program Intake Sprint 004 -- 'classification_uncertain' je bio
-            # deklarisan u CHECK constraint-u (migracija 074) ali NIKAD
-            # stvarno upisivan -- svaka nesigurnost je padala pod generican
-            # 'low_confidence_extraction', bez razlike izmedju "par polja
-            # nejasno" i "sam TIP dokumenta nejasan" (ozbiljnije -- pogresan
-            # tip moze pokrenuti pogresan dalji tok). Sada: ako je
-            # document_type medju niskim poljima, razlog je precizniji.
-            reason = "classification_uncertain" if "document_type" in low_confidence_fields else "low_confidence_extraction"
-            await intake_documents.create_review_queue_entry(job_id, document_id, reason, low_confidence_fields)
+        if len(segments) <= 1:
+            classification = await self._classify(text)
+            entities = await self._extract_entities(text)
 
-        entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
-        processing_time_ms = int((time.monotonic() - t_start) * 1000)
-        # Program Intake Sprint 002: raise_on_error=True, same reasoning as
-        # the OCR-failed branch above -- this is the true completion signal
-        # has_processing_outcome() checks; a failure here must retry, not
-        # silently leave the job marked completed with no outcome row.
-        await intake_documents.write_processing_outcome(
-            job_id, classification["document_type"],
-            (0.6 if ocr_used else None), entity_confidence_map, processing_time_ms,
-            raise_on_error=True,
-        )
-        logger.info(
-            "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",
-            job_id[:8], classification["document_type"], classification["confidence"], low_confidence_fields, processing_time_ms,
-        )
-        return bool(low_confidence_fields)
+            document_id = await intake_documents.create_document(
+                job_id,
+                classification["document_type"],
+                classification["confidence"],
+                classification["method"],
+                ocr_confidence=(0.6 if ocr_used else None),  # OCR bez eksplicitnog skora danas — konzervativna fiksna vrednost dok extractor ne vraća pravi confidence (poznato ograničenje, ne skriveno)
+                ocr_used=ocr_used,
+            )
+            entity_rows = await intake_documents.insert_entities(document_id, entities)
+
+            low_confidence_fields = [
+                e["entity_type"] for e in entities
+                if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
+            ]
+            if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
+                low_confidence_fields = ["document_type"] + low_confidence_fields
+            if low_confidence_fields:
+                # Program Intake Sprint 004 -- 'classification_uncertain' je bio
+                # deklarisan u CHECK constraint-u (migracija 074) ali NIKAD
+                # stvarno upisivan -- svaka nesigurnost je padala pod generican
+                # 'low_confidence_extraction', bez razlike izmedju "par polja
+                # nejasno" i "sam TIP dokumenta nejasan" (ozbiljnije -- pogresan
+                # tip moze pokrenuti pogresan dalji tok). Sada: ako je
+                # document_type medju niskim poljima, razlog je precizniji.
+                reason = "classification_uncertain" if "document_type" in low_confidence_fields else "low_confidence_extraction"
+                await intake_documents.create_review_queue_entry(job_id, document_id, reason, low_confidence_fields)
+            if uncertain_signals:
+                # Program Intake Sprint 005 -- real evidence of a possible
+                # extra document was found (e.g. one lone strong signal, or
+                # 2+ corroborating with no strong signal) but it did not
+                # clear the auto-split bar. Mission mandate: never guess in
+                # either direction on thin evidence -- the document stays
+                # whole AND a human is asked to confirm that was right,
+                # rather than the engine silently doing nothing.
+                await intake_documents.create_review_queue_entry(
+                    job_id, document_id, "segmentation_uncertain",
+                    [f"strana {s.page_number}: {s.detail}" for s in uncertain_signals],
+                )
+
+            entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
+            processing_time_ms = int((time.monotonic() - t_start) * 1000)
+            # Program Intake Sprint 002: raise_on_error=True, same reasoning as
+            # the OCR-failed branch above -- this is the true completion signal
+            # has_processing_outcome() checks; a failure here must retry, not
+            # silently leave the job marked completed with no outcome row.
+            await intake_documents.write_processing_outcome(
+                job_id, classification["document_type"],
+                (0.6 if ocr_used else None), entity_confidence_map, processing_time_ms,
+                raise_on_error=True,
+            )
+            logger.info(
+                "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",
+                job_id[:8], classification["document_type"], classification["confidence"], low_confidence_fields, processing_time_ms,
+            )
+            return bool(low_confidence_fields) or bool(uncertain_signals)
+
+        return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals)
+
+    async def _process_segments(
+        self, job_id: str, t_start: float, pages: list[str], ocr_used: bool,
+        segments: list, uncertain_signals: list, segment_rows: list[dict] | None = None,
+    ) -> bool:
+        """Program Intake Sprint 005 -- canonical multi-document hand-off
+        (Phase 5 + Phase 6). Every segment enters the SAME classification/
+        extraction pipeline used above (Phase 5: no second classifier), each
+        wrapped in its OWN try/except so one segment's failure cannot abort
+        or lose its siblings (Phase 6: partial failure recovery, Fork C's
+        load-bearing fix -- the old code had ONE try/except around this
+        entire stretch; here each segment gets its own). A segment that
+        fails gets one immediate in-process retry (shared/intake_segments.py
+        ::DEFAULT_MAX_ATTEMPTS) before being dead-lettered -- a full cross-
+        run backoff/claim system is out of this sprint's bounded scope.
+
+        segment_rows: pre-existing rows when RESUMING a job that already
+        segmented on a prior attempt (caller: _process()'s idempotency
+        check) -- already-completed/awaiting_review/failed segments are
+        skipped, never reprocessed or duplicated. None (fresh job): rows
+        are created here, all starting 'pending'."""
+        resuming = segment_rows is not None
+        if segment_rows is None:
+            segment_rows = await intake_segments.create_segments(job_id, segments)
+
+        uncertain_by_segment_idx: dict[int, list] = {}
+        for sig in uncertain_signals:
+            for idx, seg in enumerate(segments):
+                if seg.start_page <= sig.page_number <= seg.end_page:
+                    uncertain_by_segment_idx.setdefault(idx, []).append(sig)
+                    break
+
+        job_needs_review = False
+        for idx, (seg, row) in enumerate(zip(segments, segment_rows)):
+            if resuming and row["status"] in ("completed", "awaiting_review", "failed"):
+                # Already resolved by a prior attempt (or permanently
+                # dead-lettered) -- never reprocessed. A dead-lettered or
+                # awaiting_review segment still means the JOB as a whole
+                # needs a human look, even though nothing more happens here.
+                if row["status"] in ("awaiting_review", "failed"):
+                    job_needs_review = True
+                logger.info(
+                    "[INTAKE_WORKER] job=%s segment=%d/%d već razrešen (status=%s) — preskačem (resume).",
+                    job_id[:8], idx + 1, len(segments), row["status"],
+                )
+                continue
+
+            segment_id = row["id"]
+            segment_text = "\n\n".join(pages[seg.start_page - 1:seg.end_page])
+            await intake_segments.mark_segment_processing(segment_id)
+
+            attempts = row.get("attempts", 0)
+            max_attempts = row.get("max_attempts", intake_segments.DEFAULT_MAX_ATTEMPTS)
+            while True:
+                document_id = None
+                try:
+                    classification = await self._classify(segment_text)
+                    entities = await self._extract_entities(segment_text)
+
+                    document_id = await intake_documents.create_document(
+                        job_id, classification["document_type"], classification["confidence"],
+                        classification["method"], ocr_confidence=(0.6 if ocr_used else None), ocr_used=ocr_used,
+                    )
+                    await intake_documents.insert_entities(document_id, entities)
+
+                    low_confidence_fields = [
+                        e["entity_type"] for e in entities
+                        if e["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD
+                    ]
+                    if classification["confidence"] < intake_documents.AUTO_ACCEPT_THRESHOLD:
+                        low_confidence_fields = ["document_type"] + low_confidence_fields
+                    needs_review_this_segment = bool(low_confidence_fields)
+                    if low_confidence_fields:
+                        reason = "classification_uncertain" if "document_type" in low_confidence_fields else "low_confidence_extraction"
+                        await intake_documents.create_review_queue_entry(job_id, document_id, reason, low_confidence_fields)
+                    if idx in uncertain_by_segment_idx:
+                        await intake_documents.create_review_queue_entry(
+                            job_id, document_id, "segmentation_uncertain",
+                            [f"strana {s.page_number}: {s.detail}" for s in uncertain_by_segment_idx[idx]],
+                        )
+                        needs_review_this_segment = True
+
+                    entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
+                    await intake_documents.write_processing_outcome(
+                        job_id, classification["document_type"], (0.6 if ocr_used else None),
+                        entity_confidence_map, int((time.monotonic() - t_start) * 1000),
+                        raise_on_error=True, segment_id=segment_id,
+                    )
+
+                    if needs_review_this_segment:
+                        await intake_segments.mark_segment_awaiting_review(segment_id, document_id)
+                        job_needs_review = True
+                    else:
+                        await intake_segments.mark_segment_completed(segment_id, document_id)
+                    logger.info(
+                        "[INTAKE_WORKER] job=%s segment=%d/%d obrađen: tip=%s (%dp-%dp) low_confidence=%s",
+                        job_id[:8], idx + 1, len(segments), classification["document_type"], seg.start_page, seg.end_page, low_confidence_fields,
+                    )
+                    break
+                except Exception as exc:
+                    if document_id is not None:
+                        # Program Intake Sprint 005 -- same orphan-document
+                        # shape Sprint 001 already fixed for the single-
+                        # document path (delete_partial_document): if
+                        # create_document()/insert_entities() succeeded but
+                        # a LATER step in this same attempt (review queue
+                        # write, write_processing_outcome) threw, an
+                        # immediate in-process retry must not leave that
+                        # partial document behind AND create a second one.
+                        try:
+                            await intake_documents.delete_partial_document(document_id, job_id)
+                        except Exception:
+                            logger.warning("[INTAKE_WORKER] job=%s segment=%d/%d: čišćenje delimičnog dokumenta neuspešno (nastavljam retry svejedno).", job_id[:8], idx + 1, len(segments))
+                    dead_lettered = await intake_segments.mark_segment_failed(segment_id, str(exc), attempts, max_attempts)
+                    attempts += 1
+                    if dead_lettered:
+                        job_needs_review = True
+                        logger.error(
+                            "[INTAKE_WORKER] job=%s segment=%d/%d trajno neuspešan (strane %d-%d): %s -- ostali segmenti nastavljaju obradu.",
+                            job_id[:8], idx + 1, len(segments), seg.start_page, seg.end_page, exc,
+                        )
+                        break
+                    # else: immediate in-process retry, same segment, next loop iteration
+
+        return job_needs_review
 
     async def _download_and_decrypt(self, storage_path: str) -> bytes:
         """Isti Trezor obrazac kao klijenti/router.py — preuzmi enkriptovan
@@ -317,7 +500,7 @@ class IntakeWorker:
         return ".pdf"  # najčešći slučaj u praksi (skenirane presude) — razuman podrazumevani izbor
 
     @staticmethod
-    def _extract_text(path: Path) -> tuple[str, bool, bool]:
+    def _extract_text(path: Path) -> tuple[str, bool, bool, list[str] | None]:
         from uploaded_doc.extractor import extract
         return extract(path)
 

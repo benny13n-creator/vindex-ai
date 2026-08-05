@@ -104,6 +104,7 @@ async def write_processing_outcome(
     correction_reason: Optional[str] = None,
     error_source: Optional[str] = None,
     raise_on_error: bool = False,
+    segment_id: Optional[str] = None,
 ) -> None:
     """Founder-ov eksplicitan zahtev — upisuje se posle SVAKOG obrađenog
     dokumenta. Best-effort po default-u: greška ovde ne sme da obori
@@ -134,7 +135,13 @@ async def write_processing_outcome(
     klasifikacija KOG SLOJA je stvarno kriv (ERROR_SOURCES) — fail-soft:
     nevalidna vrednost se loguje i tiho odbacuje (postaje None), ne obara
     upis, jer je constraint na DB nivou samo dodatna zaštita, ne treba da
-    obori proizvodni tok zbog jednog lošeg parametra."""
+    obori proizvodni tok zbog jednog lošeg parametra.
+
+    segment_id (Program Intake Sprint 005, 2026-08-05) — OPCIONO, nenulto
+    samo kad je posao segmentiran u 2+ dokumenta (shared/intake_segment.py).
+    Bez njega bi više segmenata jednog posla pisalo nerazlučive
+    processing_outcomes redove pod istim intake_job_id (isti job_id, nema
+    document_id kolone ovde) — segment_id je jedina stvar koja ih razdvaja."""
     if error_source is not None and error_source not in ERROR_SOURCES:
         logger.warning("[INTAKE_DOCUMENTS] nepoznat error_source '%s' za job=%s — odbačen", error_source, intake_job_id[:8])
         error_source = None
@@ -151,6 +158,7 @@ async def write_processing_outcome(
                 "correction_reason": correction_reason,
                 "error_source": error_source,
                 "processing_time_ms": processing_time_ms,
+                "segment_id": segment_id,
             }).execute()
         )
     except Exception as exc:

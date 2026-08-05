@@ -807,3 +807,33 @@ canonical review queue, one escalation mechanism, one resume path, zero permanen
 proven idempotent resume, full audit trail for both human-decision actions, zero regressions. Three genuine
 business decisions correctly named and deferred rather than resolved by guesswork. Full detail:
 `docs/architecture/SPRINT_004_MISSION_REPORT.md`.
+
+## Program Intake, Sprint 005 (2026-08-05) — Canonical Document Segmentation
+
+**Methodology note**: same binding rule as Sprint 004 — fixable technical problems get fixed in-sprint, not
+filed as backlog. Metrics here measure what shipped.
+
+| Metric | Value |
+|---|---|
+| Canonical multi-document segmentation systems in existence before this sprint | 0 (two unrelated systems existed for other purposes — sub-document clause segmentation in `analiza/segmenter.py`, and bulletin-format-specific RAG-corpus splitting in `scripts/ingest_bilten*.py` — neither applicable to case intake) |
+| Canonical multi-document segmentation systems after this sprint | 1 (`shared/intake_segment.py`) |
+| Pipelines wired to actually segment | 1 of 4 (Pipeline B, the durable queue worker) — the other 3 receive the preserved page data but don't yet act on it, a named deferred decision (`INTAKE-015`) |
+| Real false-positive bugs found and fixed via this sprint's own testing | 1 (substring-vs-word-boundary match on Serbian inflected forms) |
+| Pre-existing defect classes prevented from reappearing in new code | 2 — an orphan-document risk in the new per-segment retry loop (Sprint 001's pattern, reused not reinvented), and a `.maybe_single()` resume-ambiguity bug (found before it ever shipped) |
+| New table | `intake_job_segments` (migration 093) — reconciles 2 independently-proposed designs (identity-only vs. status-only) into 1 schema owning both |
+| Existing tables requiring new columns | 1 of 4 candidates (`intake_processing_outcomes.segment_id`) — the other 3 (`intake_documents`/`extracted_entities`/`intake_review_queue`) needed zero changes, already correctly scoped via `document_id` |
+| New review-queue reasons activated | 2 (`segmentation_uncertain`, `processing_failed`) |
+| Pre-existing tests rippled by the extractor contract change, found and fixed | 42, across 12 files |
+| New dedicated segmentation tests | 24 (18 pure-engine + 6 worker-integration) |
+| Full suite | 2,555 passed, 1 skipped, 0 failed |
+| Manual steps for a lawyer processing a genuinely bundled 2-document PDF (Pipeline B) | 6 → 1 (see `USER_AUTOMATION_GAIN_REPORT_SPRINT005.md`) |
+| Manual steps for an ordinary single-document upload | 0 → 0 (unchanged by design — the conservatism mandate, made measurable) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprints
+001-004; 5-agent team, matching Sprints 001-003's sizing.
+
+**Success criteria**: honestly met for this sprint's own bounded object (Pipeline B segmentation) — one
+canonical engine, no page ever lost or duplicated, every segment identified before classification, partial
+failure isolated per-segment, the conservatism mandate implemented as a tested rule rather than a slogan, zero
+regressions. Three genuine scope/business decisions correctly named and deferred rather than resolved by
+guesswork or silently left unaddressed. Full detail: `docs/architecture/SPRINT_005_MISSION_REPORT.md`.

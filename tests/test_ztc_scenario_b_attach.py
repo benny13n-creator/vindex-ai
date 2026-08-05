@@ -85,7 +85,7 @@ def _patched(mock_supa, job_result):
         patch("routers.smart_intake._get_supa", return_value=mock_supa),
         patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=job_result)),
         patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")),
-        patch("uploaded_doc.extractor.extract", return_value=("Drugi dokument teksta.", False, False)),
+        patch("uploaded_doc.extractor.extract", return_value=("Drugi dokument teksta.", False, False, None)),
         patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}),
         patch("uploaded_doc.ingest.ingest_session", return_value=None),
         patch("uploaded_doc.session.generate_session_id", return_value="sess-002"),

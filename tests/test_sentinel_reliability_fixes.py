@@ -194,7 +194,7 @@ async def test_upload_raises_honest_error_when_document_insert_fails_after_pinec
          patch("api._get_supa", return_value=supa), \
          patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
          patch("uploaded_doc.ingest.ingest_session", return_value=1):

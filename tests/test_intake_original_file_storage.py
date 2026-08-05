@@ -136,7 +136,7 @@ async def test_upload_stores_original_file_and_writes_real_storage_path():
          patch("api._get_supa", return_value=supa), \
          patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
          patch("uploaded_doc.ingest.ingest_session", return_value=1), \
@@ -173,7 +173,7 @@ async def test_upload_still_succeeds_and_falls_back_to_session_label_when_storag
          patch("api._get_supa", return_value=supa), \
          patch("api.PermissionService.require", return_value=_fake_permission_dependency), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
-         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None)), \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
          patch("uploaded_doc.ingest.ingest_session", return_value=1), \

@@ -43,7 +43,7 @@ def test_extract_image_jpeg_success(tmp_path):
     assert len(ocr_result) > 100
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract(ocr_result)}):
-        text, is_scanned, ocr_used = extract_image(path)
+        text, is_scanned, ocr_used, _pages = extract_image(path)
 
     assert is_scanned is False
     assert ocr_used is True
@@ -60,7 +60,7 @@ def test_extract_image_png_success(tmp_path):
     assert len(ocr_result) > 100
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract(ocr_result)}):
-        text, is_scanned, ocr_used = extract_image(path)
+        text, is_scanned, ocr_used, _pages = extract_image(path)
 
     assert ocr_used is True
     assert "zakupnine" in text
@@ -73,7 +73,7 @@ def test_extract_image_insufficient_text_treated_as_failed(tmp_path):
     _make_real_image(path)
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract("abc")}):
-        text, is_scanned, ocr_used = extract_image(path)
+        text, is_scanned, ocr_used, _pages = extract_image(path)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -86,7 +86,7 @@ def test_extract_image_corrupt_file_fails_cleanly(tmp_path):
     path = tmp_path / "not_really_an_image.jpg"
     path.write_bytes(b"this is not image data at all")
 
-    text, is_scanned, ocr_used = extract_image(path)
+    text, is_scanned, ocr_used, _pages = extract_image(path)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -127,6 +127,6 @@ def test_extract_dispatches_image_suffixes(tmp_path):
         path = tmp_path / f"doc{suffix}"
         _make_real_image(path)
         with patch.dict(sys.modules, {"pytesseract": _mock_tesseract("Član 5 ovog ugovora " * 10)}):
-            text, is_scanned, ocr_used = extract(path)
+            text, is_scanned, ocr_used, _pages = extract(path)
         assert ocr_used is True, f"extract() must route {suffix} through OCR"
         assert "ugovora" in text

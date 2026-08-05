@@ -723,3 +723,50 @@ through `INTAKE-014`, checked against existing prefixes first — no collision).
 | INTAKE-012 | No "reject" action exists for a low-confidence classification, only "confirm as-is" | 1 | Founder decision — what should rejection concretely trigger | Medium | NEEDS_SCOPING | Real gap in the mission's own named test list; correctly deferred rather than guessed at. |
 | INTAKE-013 | No way to directly correct the AI-detected document TYPE itself (only 8 entity fields are correctable) | 2 | Which vocabulary a correction writes to — blocked on Sprint 003's taxonomy adoption decision | Medium | NEEDS_SCOPING | Confirm-as-is already unblocks processing; this only blocks changing an uncertain type. |
 | INTAKE-014 | `staging_memory`'s (AI-draft approval) approve/reject endpoints have zero audit logging | 3 | none — same pattern this sprint proved twice | Small | TODO | Different subsystem (drafting, not intake), out of this sprint's chartered scope. |
+
+## Program Intake, Sprint 005 (2026-08-05) — Canonical Document Segmentation
+
+Founder's eighth Master Prompt of this multi-session Program Intake arc. One uploaded file is not always one
+legal document — a bundled PDF can contain a podnesak, presuda, prilozi, dokazi, and a punomoćje. This sprint
+builds the ONE system that decides how many separate legal documents a single upload actually contains,
+before classification runs. Smallest team of this sprint style: 5 agents (Chief Systems Architect, Legal
+Domain Expert, Evidence & Consistency Auditor, Reliability & Failure Recovery Engineer, Code Quality/
+Refactoring Reviewer). Same binding rule as Sprint 004: every technical problem found within scope that could
+be fixed without a new founder business decision was fixed in the same sprint. Governing rule with absolute
+priority throughout: never split a PDF incorrectly when there isn't enough evidence — a wrongly-split filing
+is worse than one correctly-unsplit bundle.
+
+**Headline finding + build**: `uploaded_doc/extractor.py::extract_pdf()` already built a per-page text list
+internally (both born-digital and OCR paths) and discarded it at the final join — the single prerequisite
+fact that made a canonical segmentation engine possible without touching how the extractor reads a PDF at
+all. Built `shared/intake_segment.py` (pure, zero-I/O, deterministic signal detection + a conservative
+combination rule: 2+ strong signals or 1 strong+corroborating auto-splits, thin evidence routes to human
+review, nothing silently guessed) and wired it into Pipeline B (`shared/intake_worker.py`, the durable Smart
+Intake queue worker) with full per-segment identity (new table `intake_job_segments`, migration `093`) and
+per-segment failure isolation (each segment gets its own try/except + bounded in-process retry, one segment's
+permanent failure never loses or blocks its siblings).
+
+**3 real bugs found and fixed during this sprint's own testing, not filed for later**: (1) `_find_heading_keyword`
+used substring containment, so Serbian inflection ("zahtevu") could falsely match a heading keyword
+("ZAHTEV") mid-word — fixed to word-boundary matching. (2) The new per-segment retry loop could have
+reintroduced Sprint 001's already-fixed orphan-document defect on a mid-attempt failure — fixed by reusing the
+existing `delete_partial_document()` cleanup. (3) The idempotency check's `.maybe_single()` call would have
+raised on a resumed segmented job with 2+ documents sharing one job id — fixed by checking segment existence
+first, via a plain list query.
+
+**42 pre-existing tests, rippled by the extractor's contract change** (3-tuple → 4-tuple, adding the
+preserved page list), found and fixed across 12 files — full regression suite green, zero unresolved
+failures.
+
+**7 required deliverables**: `docs/architecture/CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md`,
+`CANONICAL_SEGMENTATION_SIGNAL_SPECIFICATION.md`, `SEGMENT_IDENTITY_SPECIFICATION.md`,
+`SEGMENTATION_FAILURE_RECOVERY_REPORT.md`, `SEGMENTATION_EDGE_CASE_VALIDATION_REPORT.md`,
+`USER_AUTOMATION_GAIN_REPORT_SPRINT005.md`, `SPRINT_005_MISSION_REPORT.md`, plus 3 new
+`ARCHITECTURAL_DEBT_REGISTER.md` entries (`INTAKE-015` through `INTAKE-017`, checked against existing
+prefixes first — no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-015 | Segmentation only wired into Pipeline B, not Pipelines A/A-ephemeral/C | 2 | Founder decision — desired interactive UX for a synchronous upload path | Medium | NEEDS_SCOPING | The engine itself is already pipeline-agnostic; only the reaction to a multi-document result differs by pipeline. |
+| INTAKE-016 | No cross-run backoff/retry-claim system for segments, only bounded in-process retry | 3 | New architecture — a claim RPC mirroring `claim_intake_job`'s own pattern | Medium | NEEDS_SCOPING | A dead-lettered segment is visible/audited, just not auto-retried on a later tick. |
+| INTAKE-017 | No distinct `partially_failed` job status — collapsed into existing `awaiting_review` | 3 | Founder decision — may finalize ever proceed on an M-1-of-M segmented job | Small-Medium | NEEDS_SCOPING | Safe by default (fail-closed via the existing status gate); only a UX-precision gap today. |

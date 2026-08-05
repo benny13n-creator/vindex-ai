@@ -148,7 +148,7 @@ async def _run_with_patches(patches, **upload_kwargs):
 async def test_pinecone_failure_after_successful_storage_write_deletes_orphan_blob():
     supa = _supa_upload_succeeds()
     patches = _base_patches(
-        supa, extract_return=("Sadržaj dokumenta.", False, False),
+        supa, extract_return=("Sadržaj dokumenta.", False, False, None),
         ingest_side_effect=Exception("pinecone totally unreachable"),
     )
 
@@ -170,7 +170,7 @@ async def test_predmet_dokumenti_insert_failure_deletes_orphan_blob():
     already knew about (ghost vector, deferred INTAKE-001-shape), but the
     ORIGINAL FILE blob is a separate artifact this fix DOES clean up."""
     supa = _supa_upload_succeeds(insert_fails=True)
-    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False))
+    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False, None))
 
     with pytest.raises(HTTPException) as exc_info:
         await _run_with_patches(patches)
@@ -194,7 +194,7 @@ async def test_safety_limit_exceeded_deletes_orphan_blob():
 @pytest.mark.anyio
 async def test_empty_text_deletes_orphan_blob():
     supa = _supa_upload_succeeds()
-    patches = _base_patches(supa, extract_return=("   ", False, False))
+    patches = _base_patches(supa, extract_return=("   ", False, False, None))
 
     with pytest.raises(HTTPException) as exc_info:
         await _run_with_patches(patches)
@@ -208,7 +208,7 @@ async def test_successful_upload_never_triggers_cleanup():
     """The happy path must never call remove() -- the file is meant to
     stay, that's the whole point of Sprint 001's fix."""
     supa = _supa_upload_succeeds()
-    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False))
+    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False, None))
     patches += [
         patch("openai.OpenAI", return_value=MagicMock(chat=MagicMock(completions=MagicMock(
             create=MagicMock(return_value=MagicMock(choices=[MagicMock(message=MagicMock(content="{}"))]))
@@ -229,7 +229,7 @@ async def test_cleanup_failure_does_not_mask_the_original_error():
     supa = _supa_upload_succeeds()
     supa.storage.from_.return_value.remove = MagicMock(side_effect=Exception("bucket unreachable"))
     patches = _base_patches(
-        supa, extract_return=("Sadržaj dokumenta.", False, False),
+        supa, extract_return=("Sadržaj dokumenta.", False, False, None),
         ingest_side_effect=Exception("pinecone totally unreachable"),
     )
 

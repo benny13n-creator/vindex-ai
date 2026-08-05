@@ -878,3 +878,72 @@ document review specifically); fixing it here would be scope creep into a differ
 
 **Severity**: Low-Medium — a real audit gap, straightforward to fix with the exact pattern this sprint just
 proved twice, recommended as a quick follow-up for whichever future mission owns drafting/staging.
+
+---
+
+## Program Intake, Sprint 005 (2026-08-05) — Canonical Document Segmentation
+
+Full narrative: `CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md` and siblings. Per this sprint's own binding
+rule (matching Sprint 004's precedent): every technical problem found within segmentation scope that could be
+fixed without a new founder business decision was fixed in the same sprint. Fixed this sprint: a real
+substring-vs-word-boundary false-positive bug in `_find_heading_keyword` (Serbian inflection could misfire on
+a heading keyword mid-word), an orphan-document risk in the new per-segment retry loop (mirroring Sprint 001's
+already-fixed single-document version of the same defect), and a `.maybe_single()` ambiguity bug that would
+have raised on a resumed segmented job's idempotency check. Items below are the ones that genuinely required a
+business/product decision or new architecture this sprint could not close unilaterally.
+
+## INTAKE-015 — Segmentation only wired into Pipeline B (durable queue worker), not Pipelines A/A-ephemeral/C (Medium, business decision required)
+
+The extractor's contract change (`pages` as a 4th tuple element) reaches all 4 extraction call sites
+(`api.py`, `routers/dokument.py`, `shared/intake_worker.py`, `routers/smart_intake.py`), but only Pipeline B
+(`shared/intake_worker.py`) was wired this sprint to actually call `segment_document()` and act on the result.
+
+**Why not fixed this mission**: Pipeline A (`api.py`) is a synchronous HTTP request/response call — auto-
+fanning a single upload into N case-file entries inline, or interrupting the response to ask "we detected 3
+documents — confirm?", is a genuine product/UX decision with real interaction-design tradeoffs, not a bounded
+technical gap. The Phase 1 audit itself flagged this: each of the 4 call sites may legitimately want to react
+to a "multiple documents detected" result differently, given one is interactive and three are background jobs.
+
+**Recommended direction**: founder decision on the desired interactive UX for Pipeline A specifically (silent
+auto-split with a post-hoc summary vs. an explicit confirm-before-split step), then reuse `shared/
+intake_segment.py`'s existing pure engine unchanged — the engine itself is already pipeline-agnostic.
+
+**Severity**: Medium — the mission's own primary target (Pipeline B, the durable Smart Intake queue) is fully
+covered; this is a real scope gap for the other 3 upload paths, correctly named rather than silently left
+unaddressed.
+
+## INTAKE-016 — No cross-run backoff/retry-claim system for segments, only bounded in-process retry (Medium, new architecture required)
+
+A segment that fails gets up to `max_attempts` (default 2) immediate, in-process retries within the same
+worker tick, then dead-letters. There is no cross-run backoff scheduling (`next_retry_at`) or claim RPC
+(mirroring `claim_intake_job`'s `SELECT ... FOR UPDATE SKIP LOCKED`) for segments specifically — a
+dead-lettered segment stays `failed` until a human resolves it; it is not automatically retried on a later
+worker tick or after a `reap_stale_jobs`-style sweep.
+
+**Why not fixed this mission**: a full cross-run retry-claim system for a sub-unit of a job (not the job
+itself) is genuinely new architecture — the mission's own bounded-scope allowance for "functionality that
+requires a completely new architecture beyond this sprint's scope."
+
+**Recommended direction**: if dead-lettered segments prove common enough in practice to need it, extend
+`intake_job_segments` with `next_retry_at` and a dedicated claim RPC following `claim_intake_job`'s own
+proven pattern.
+
+**Severity**: Medium — bounded by design; a permanently-failed segment is still visible, audited, and does not
+block or lose its siblings — it simply requires a human resolve action instead of an automatic later retry.
+
+## INTAKE-017 — `partially_failed` job status not built; collapsed into existing `awaiting_review` (Low-Medium, business decision required)
+
+A job where some segments completed and one permanently failed routes to the existing `awaiting_review`
+status rather than a new, more precise `partially_failed` status. Whether `finalize_intake_job` should ever be
+allowed to create a case from an M-1-of-M segmented job is an open founder decision (mirroring Sprint 004's
+own `INTAKE-012` "reject" precedent) — until decided, such a job simply cannot finalize (blocked by the
+existing `status != 'completed'` gate), which is safe but may eventually need a more precise status/UX if
+partial failures turn out to be common.
+
+**Why not fixed this mission**: adding a new terminal job status requires touching `intake_jobs`'s CHECK
+constraint, `_tick()`'s dispatch logic, and (potentially) a decision on whether finalize may ever proceed on
+partial data — genuinely a product question, not a bounded technical one.
+
+**Severity**: Low-Medium — safe by default (fail-closed: blocks finalization rather than risking an
+incomplete case file), but the UX of "why is this job stuck" for a lawyer is currently only as precise as the
+existing `awaiting_review` review-queue reasons, not a dedicated partial-failure message.

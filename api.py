@@ -4161,7 +4161,7 @@ async def predmet_upload_auto_analyze(
                 tmp.write(raw)
                 tmp_path = _Path(tmp.name)
             try:
-                text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+                text, is_scanned, ocr_used, _pages = await asyncio.to_thread(extract, tmp_path)
             except DocumentSafetyLimitExceeded as _dsle:
                 logger.warning(
                     "[SEC-007] Upload odbijen (safety limit) predmet=%s filename=%r razlog=%s",

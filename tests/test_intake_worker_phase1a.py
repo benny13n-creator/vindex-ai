@@ -15,6 +15,18 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def _no_existing_segments():
+    """Program Intake Sprint 005 (2026-08-05) -- _process() now checks
+    intake_segments.get_segments_for_job() FIRST, before the pre-existing
+    single-document idempotency check this whole file exercises. None of
+    these tests are about segmentation/resume, so default every test in
+    this file to 'no segments exist yet' (the single-document code path
+    below is reached exactly as before)."""
+    with patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=[])):
+        yield
+
+
 def _job(job_id="job-1", storage_path="u1/abc", original_filename="presuda.pdf", mime_type="application/pdf"):
     return {"id": job_id, "storage_path": storage_path, "original_filename": original_filename,
             "mime_type": mime_type, "attempts": 0, "max_attempts": 5}
@@ -57,7 +69,7 @@ async def test_process_partial_document_without_outcome_is_deleted_and_reprocess
          patch("shared.intake_documents.has_processing_outcome", new=AsyncMock(return_value=False)), \
          patch("shared.intake_documents.delete_partial_document", new=AsyncMock()) as mock_delete, \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")) as mock_download, \
-         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-new")) as mock_create_doc, \
@@ -80,7 +92,7 @@ async def test_process_ocr_failed_routes_to_review_fail_soft_not_exception():
     no_existing = {"document": None, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"%PDF-fake-bytes")), \
-         patch.object(w, "_extract_text", return_value=("", True, False)), \
+         patch.object(w, "_extract_text", return_value=("", True, False, None)), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")) as mock_create_doc, \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()) as mock_review, \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
@@ -109,7 +121,7 @@ async def test_process_success_path_no_review_when_all_confident():
 
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("ТУЖБА текст...", False, False)), \
+         patch.object(w, "_extract_text", return_value=("ТУЖБА текст...", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=high_confidence_entities)), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
@@ -138,7 +150,7 @@ async def test_process_low_confidence_field_routes_to_review_with_specific_field
 
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "judgment", "confidence": 0.95, "method": "heuristic"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=mixed_entities)), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
@@ -165,7 +177,7 @@ async def test_process_low_confidence_classification_adds_document_type_to_revie
     no_existing = {"document": None, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("nejasan tekst", False, False)), \
+         patch.object(w, "_extract_text", return_value=("nejasan tekst", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "other", "confidence": 0.4, "method": "llm"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
@@ -197,7 +209,7 @@ async def test_process_normal_path_passes_raise_on_error_true_to_outcome_write()
     no_existing = {"document": None, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
@@ -217,7 +229,7 @@ async def test_process_ocr_failed_branch_passes_raise_on_error_true_to_outcome_w
     no_existing = {"document": None, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"%PDF-fake-bytes")), \
-         patch.object(w, "_extract_text", return_value=("", True, False)), \
+         patch.object(w, "_extract_text", return_value=("", True, False, None)), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
          patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()), \
          patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
@@ -239,7 +251,7 @@ async def test_process_propagates_outcome_write_failure_instead_of_swallowing():
     no_existing = {"document": None, "entities": [], "review": None}
     with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
          patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False, None)), \
          patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
          patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
