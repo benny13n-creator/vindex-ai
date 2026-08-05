@@ -1035,6 +1035,7 @@ async def finalize_intake_job(
     dokumenti_rezultat = []
     doc_linked_count = 0
     genome_should_trigger = False
+    accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
 
     for idx, doc_entry in enumerate(documents):
         doc_row = doc_entry["document"]
@@ -1197,6 +1198,7 @@ async def finalize_intake_job(
                 dokument_id_i = dok_ins.data[0]["id"]
                 doc_linked_count += 1
                 genome_should_trigger = True
+                accepted_doc_names.append(job.get("original_filename") or "dokument")
 
                 # Program Intake Sprint 006, Phase 1 finding -- finalize had
                 # ZERO audit/provenance calls for document-into-case
@@ -1247,19 +1249,51 @@ async def finalize_intake_job(
 
     doc_linked = doc_linked_count > 0  # backward-compatible single flag, response below
 
-    # ── Case Genome auto-refresh (isti obrazac kao api.py predmet upload) ───
-    # Triggered ONCE per finalize call (not once per document) -- Genome does
-    # a full recompute over the whole case, so N redundant triggers for N
-    # newly-linked documents in the same call would be pure waste.
+    # ── DOCUMENT_ACCEPTED — Program Delta, Sprint 001 (2026-08-05) ──────────
+    # Canonical Case Evolution Engine. This USED TO be a direct, in-process
+    # `asyncio.create_task(_genome_bg())` call -- finalize deciding for
+    # itself "what happens next" (a Genome refresh), exactly the scattered-
+    # decision pattern Program Delta exists to eliminate. Replaced with a
+    # single durable outbox emission (same idiom as api.py::kreiraj_predmet's
+    # own PREDMET_KREIRAN emission, Project Sentinel 2026-08-03) -- the
+    # Canonical Consequence Engine (services/case_evolution.py::
+    # handle_case_changed, registered for DOCUMENT_ACCEPTED) now OWNS
+    # deciding and executing what follows (currently: Genome refresh +
+    # Timeline entry, each independently idempotent/verified/audited), not
+    # this endpoint. Triggered ONCE per finalize call (not once per
+    # document) -- preserves the exact same Genome-recompute cost profile
+    # as before (Genome does a full recompute regardless of how many
+    # documents changed; N redundant triggers for N newly-linked documents
+    # would be pure waste, unchanged reasoning from the code this replaces).
     if genome_should_trigger:
-        async def _genome_bg():
-            await asyncio.sleep(3)
+        try:
+            from services.event_bus import EventType
+            from shared.ai_provenance import current_correlation_id
+            _cid = current_correlation_id()
+            _evt_row = {
+                "event_type": EventType.DOCUMENT_ACCEPTED.value,
+                "user_id":    uid,
+                "predmet_id": predmet_id,
+                "payload":    {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize", "correlation_id": _cid},
+            }
+            from shared.audit_immutable import _is_missing_column_error
             try:
-                from routers.case_dna import _run_genome_background
-                await _run_genome_background(predmet_id, uid, None, trigger="smart_intake_finalize")
-            except Exception as ge:
-                logger.warning("[SMART_INTAKE] Genome auto-refresh greška: %s", ge)
-        asyncio.create_task(_genome_bg())
+                await asyncio.to_thread(
+                    lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
+                )
+            except Exception as _wide_exc:
+                if not _is_missing_column_error(_wide_exc):
+                    raise
+                await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row).execute())
+        except Exception as _ee:
+            # Fail-soft, matching every other durable-event emission in this
+            # codebase (PREDMET_KREIRAN, GENOME_UPDATED) -- a lost
+            # DOCUMENT_ACCEPTED event means the case's Genome/Timeline don't
+            # auto-update for this finalize call, a real but non-fatal
+            # degradation (a lawyer can still manually refresh Genome),
+            # never a reason to fail the finalize response itself, which
+            # has already durably registered the actual documents.
+            logger.warning("[SMART_INTAKE] DOCUMENT_ACCEPTED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ee)
 
     # Program Intake Sprint 002 -- ova linija je i dalje jedini upis koji
     # trajno "zatvara" finalizaciju (isti field kao pre), ali sada je

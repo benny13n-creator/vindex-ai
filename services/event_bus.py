@@ -48,6 +48,24 @@ class EventType(str, Enum):
     DOCUMENT_JOB_ENQUEUED  = "DocumentJobEnqueued"
     DOCUMENT_JOB_COMPLETED = "DocumentJobCompleted"
     DOCUMENT_JOB_FAILED    = "DocumentJobFailed"
+    # Program Delta, Sprint 001 (2026-08-05) — "Canonical Case Evolution
+    # Engine". These 8 event types are Task 1's own required mapping of
+    # every event that changes a predmet's state — the mission's own
+    # explicit instruction is "prove ONE entry point exists," not
+    # "implement all of them." Only DOCUMENT_ACCEPTED has a registered
+    # consequence handler this sprint (services/case_evolution.py); the
+    # other 7 are declared here (a real, checkable "one entry point per
+    # event type" claim) and tracked as not-yet-wired in
+    # CASE_EVOLUTION_REGISTRY.md — never silently invented consequences for
+    # events with no proven need yet.
+    DOCUMENT_ACCEPTED           = "DocumentAccepted"
+    DOCUMENT_MODIFIED           = "DocumentModified"
+    NEW_CLIENT_LINKED           = "NewClientLinked"
+    NEW_EVIDENCE_REGISTERED     = "NewEvidenceRegistered"
+    CONFIDENCE_DROPPED          = "ConfidenceDropped"
+    MANUAL_CORRECTION_APPLIED   = "ManualCorrectionApplied"
+    REVIEW_ACCEPTED             = "ReviewAccepted"
+    REVIEW_REJECTED             = "ReviewRejected"
 
 
 # ─── Event dataclass ──────────────────────────────────────────────────────────
@@ -66,6 +84,17 @@ class Event:
     # ai_forensics.py već koriste, tako da JEDAN id povezuje HTTP zahtev →
     # Event Bus → AI Provenance → Audit (Phase 2, Correlation ID Continuity).
     correlation_id: str | None       = None
+    # Program Delta, Sprint 001 (2026-08-05) — the durable outbox row's own
+    # `events.id` (migration 073), populated by dispatch_pending_events()
+    # below. This is the identity services/case_evolution.py keys its own
+    # per-consequence idempotency on — NOT correlation_id, which can be
+    # (and often is) shared across multiple distinct operations in the same
+    # logical request. None for an event published purely in-process
+    # (bus.publish(), never durably logged) — the canonical consequence
+    # engine requires a durable event_id and will refuse to run without one
+    # (see handle_case_changed's own guard), by design: an in-process-only
+    # event offers no crash-survivable idempotency key to check against.
+    event_id:       str | None       = None
 
 
 # ─── Predefinisani handleri ───────────────────────────────────────────────────
@@ -312,6 +341,13 @@ class EventBus:
         self.subscribe(EventType.HEALTH_SCORE_PROMENJEN, on_health_score_promenjen)
         self.subscribe(EventType.GENOME_UPDATED,          on_genome_updated)
         self.subscribe(EventType.DOCUMENT_JOB_FAILED,     on_document_job_failed)
+        # Program Delta, Sprint 001 (2026-08-05) — the ONE canonical
+        # consequence dispatcher (services/case_evolution.py). Registered
+        # here, imported lazily inside _register_defaults' own call to
+        # avoid a module-level circular import (case_evolution imports
+        # Event/EventType from this module).
+        from services.case_evolution import handle_case_changed
+        self.subscribe(EventType.DOCUMENT_ACCEPTED, handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""
@@ -495,6 +531,10 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             predmet_id     = row.get("predmet_id"),
             payload        = row.get("payload") or {},
             correlation_id = row.get("correlation_id"),
+            # Program Delta, Sprint 001 -- the durable row's own id, the
+            # identity services/case_evolution.py keys per-consequence
+            # idempotency on (see Event.event_id's own docstring above).
+            event_id       = str(row_id),
         )
         try:
             await bus.publish_async(event)

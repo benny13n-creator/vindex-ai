@@ -127,6 +127,11 @@ AUDITABLE_ACTIONS: set[str] = {
     # narrower inventories both missed (both only traced copilot.py's
     # delegation into ask_agent).
     "dokument_pitanje",
+    # Program Delta, Sprint 001 (2026-08-05) — Canonical Case Evolution
+    # Engine. Every consequence the canonical dispatcher (services/
+    # case_evolution.py::handle_case_changed) completes gets its own audit
+    # row — the mechanism Task 5 requires ("audit postoji" for every step).
+    "case_evolution_consequence_completed",
     # Program Intake Sprint 006 (2026-08-05) — Canonical Case Assimilation.
     # Phase 1 audit finding: finalize_intake_job (routers/smart_intake.py)
     # had ZERO audit calls for document-into-case registration, unlike

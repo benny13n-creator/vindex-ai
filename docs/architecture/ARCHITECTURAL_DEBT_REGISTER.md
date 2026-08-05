@@ -1058,3 +1058,58 @@ human already decides whether to retry, and each retry is cheap/safe via the con
 
 **Severity**: Low — bounded by design; a permanently-failing document stays visible (never silently lost),
 just without an automatic ceiling on manual retries.
+
+---
+
+## Program Delta, Sprint 001 (2026-08-05) — Canonical Case Evolution Engine
+
+Full narrative: `docs/delta/CASE_EVOLUTION_REGISTRY.md` and siblings (future Delta sprints: read only
+`docs/delta/*`, not this whole file's history). New program — Program Intake (Sprints 001-007) made document
+intake bulletproof; Program Delta builds the canonical mechanism deciding what automatically follows once a
+case changes, so no module decides "what next" independently anymore. Hard token budget this sprint (2 active
+agents, no subagents, no parallel analysis) — both roles executed directly.
+
+## DELTA-001 — Only DOCUMENT_ACCEPTED has wired consequences; 7 other mapped events do not (Medium, deliberate scope boundary)
+
+Task 1 required mapping every event that changes a predmet's state (8 named examples); Task 1's own
+instruction was to prove one entry point exists, not implement all of them. Only `DOCUMENT_ACCEPTED` has a
+real `CONSEQUENCE_REGISTRY` entry this sprint.
+
+**Why not fixed this mission**: hard 2-agent token budget: this sprint proves the canonical mechanism works
+end-to-end for one real event before expanding to others — matching the mission's own explicit instruction
+("ne implementirati sve, samo dokazati da postoji jedan ulaz").
+
+**Recommended direction**: each of the other 7 events already has a real, checkable `EventType` enum member;
+wiring consequences for any of them is adding a `CONSEQUENCE_REGISTRY` entry + executor functions, reusing
+this sprint's exact dispatcher — no new architecture needed.
+
+**Severity**: Medium — a real scope boundary (most of Task 1's own named events have no automation yet), but
+not a regression; nothing that worked before this sprint stopped working.
+
+## DELTA-002 — 3 existing scattered "decide what's next" call sites not migrated to the canonical mechanism (Medium, deliberate scope boundary)
+
+Pipeline A's (`api.py::predmet_upload`) and `routers/rocista.py`'s own direct `_run_genome_background()` calls,
+plus Pipeline C's own Evidence-Vault-auto-classify and conflict-check direct calls, still decide "what
+happens next" independently — not yet migrated to emit through the canonical Consequence Engine.
+
+**Why not fixed this mission**: each is a real, additional, non-trivial migration (a new emission call site +
+verifying no behavior/cost regression) — the hard token budget bounded this sprint to proving the mechanism
+on ONE already-hardened call site (Pipeline C's Genome trigger) rather than migrating all 4 at once.
+
+**Recommended direction**: mechanical, one call site at a time, in a future Delta sprint — same registry, same
+dispatcher, different emission point.
+
+**Severity**: Medium — real architectural debt (the mission's own closing claim, "no module decides
+independently," is not yet fully true platform-wide), but each remaining call site is independently correct
+and safe today, not broken.
+
+## DELTA-003 — No rollback mechanism for a consequence sequence with genuine cross-consequence dependencies (Low, no current need)
+
+The Canonical Consequence Engine has no rollback concept — by design, since `DOCUMENT_ACCEPTED`'s own 2
+consequences (Genome refresh, Timeline entry) are independently safe to leave partially applied.
+
+**Why not fixed this mission**: no event registered yet has consequences that require all-or-nothing
+semantics; building a rollback mechanism for a case that doesn't exist yet would be speculative architecture.
+
+**Severity**: Low — named for future awareness; revisit if/when an event with genuinely interdependent
+consequences is wired.

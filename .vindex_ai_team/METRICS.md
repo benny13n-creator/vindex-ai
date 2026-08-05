@@ -890,3 +890,31 @@ no subagents spawned. Metrics measure what shipped against the mission's own 3 n
 number of times, interrupted at any point, retried any number of times, always converges on one document/one
 case/one lineage chain/one audit record") is proven by test, not merely asserted, for Pipeline C. Two scope
 boundaries (not gaps) correctly named and deferred. Full detail: `docs/architecture/SPRINT_007_MISSION_REPORT.md`.
+
+## Program Delta, Sprint 001 (2026-08-05) — Canonical Case Evolution Engine
+
+**Methodology note**: hard token budget this sprint (max 2 active agents, no exceptions, no subagents, no
+parallel analysis) — both roles executed directly. First sprint of a new program (Program Intake is closed).
+
+| Metric | Value |
+|---|---|
+| Events with a real, checkable `EventType` mapped this sprint | 8 (Task 1's full named list) |
+| Events with wired consequences | 1 of 8 (`DOCUMENT_ACCEPTED`) — deliberate scope boundary, not an oversight |
+| Per-consequence idempotency mechanisms before this sprint | 0 (a handler retry re-ran every step, succeeded or not) |
+| After this sprint | 1 (`case_evolution_consequences`, keyed by the Event Bus's own durable `event_id`) |
+| Existing scattered "decide what's next" call sites found (Task 3) | 4 (Pipeline C Genome + Evidence Vault + conflict-check, Pipeline A Genome, `rocista.py` Genome) |
+| Migrated to the canonical mechanism this sprint | 1 of 4 (Pipeline C's own Genome trigger) |
+| Required scenarios proven by test | 6 of 6 (new document exactly-once, crash-after-Genome retry, crash-after-Timeline retry, parallel events no cross-contamination, replay no new consequences, shared correlation_id audit) |
+| New dedicated tests | 10 (`tests/test_case_evolution.py`), all passing on first run |
+| New debts found and named | 3 (`DELTA-001`/`DELTA-002` scope boundaries, `DELTA-003` no-current-need) — none block the mission's own success criterion for `DOCUMENT_ACCEPTED` |
+| Full suite | 2,605 passed, 1 skipped, 0 failed (was 2,595 at end of Program Intake Sprint 007) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as most of
+Program Intake; smallest possible team (2 agents, no standby 3rd).
+
+**Success criteria**: honestly met for this sprint's own bounded object — the canonical mechanism is proven
+end-to-end, by test, for one real event (`DOCUMENT_ACCEPTED`) on one already-hardened pipeline (Pipeline C).
+The mission's own platform-wide closing claim ("no module in Vindex AI independently decides what happens
+after a case changes anymore") is NOT yet fully true — 7 events unwired, 3 scattered call sites unmigrated,
+both honestly named as scope boundaries for future Delta sprints, not silently left incomplete. Full detail:
+`docs/delta/SPRINT_001_MISSION_REPORT.md`.

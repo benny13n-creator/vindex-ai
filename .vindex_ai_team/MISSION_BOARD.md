@@ -860,3 +860,42 @@ formally CLOSED.
 |---|---|---|---|---|---|---|
 | INTAKE-021 | Dedup/retry mechanism only wired into Pipeline C, not A/A-ephemeral | 2 | none — mechanical extension of an already-pipeline-agnostic mechanism | Medium | NEEDS_SCOPING | Deliberate scope boundary (hard token budget), not an oversight — the mechanism itself needs no redesign to extend. |
 | INTAKE-022 | No automatic backoff/dead-letter ceiling for a document failing across repeated manual finalize retries | 3 | none — finalize is lawyer-initiated, not automatic | Small | TODO (low priority) | Each retry is cheap/safe via content-hash idempotency; only a missing ceiling on indefinite manual retry. |
+
+## Program Delta, Sprint 001 (2026-08-05) — Canonical Case Evolution Engine
+
+First masterprompt of a new program: Program Intake (Sprints 001-007) is finished; a document is no longer
+the goal, only an event. **Hard token budget**: max 2 active agents, no exceptions, no subagents, no parallel
+analysis (Enterprise Systems Architect, Reliability Engineer) — both roles executed directly, honored for
+the whole sprint. **Standing founder recommendation for all future Delta sprints**: read only
+`docs/delta/*` (this sprint's own deliverables), not the full Nexus→Intake history, to keep context focused.
+
+**Headline finding**: the pre-existing Event Bus (durable outbox, atomic claim, bounded retry/dead-letter,
+correlation_id — all mature before this sprint) had no idempotency AT THE PER-CONSEQUENCE level within one
+event handler — a multi-step handler's retry would re-run already-succeeded steps. Closed with exactly one
+new tracking table keyed off the outbox's OWN row id, not a new event system.
+
+**Built**: `services/case_evolution.py` — the one canonical `handle_case_changed` dispatcher (Case Changed →
+Determine Consequences → Execute → Verify → Audit → Complete), `CONSEQUENCE_REGISTRY` contract, wired for
+exactly one event this sprint (`DOCUMENT_ACCEPTED`, 2 consequences: `genome_refresh` — independently
+verified via `case_dna.verzija` before/after, never trusting `_run_genome_background`'s own silent-swallow
+self-report; `timeline_entry` — one row per finalize call, matching Genome's own coalescing);
+`case_evolution_consequences` table (migration 096, `UNIQUE(event_id, consequence_name)`); 8 new `EventType`
+values mapping every event Task 1 named; `finalize_intake_job`'s direct Genome-trigger call replaced with a
+durable event emission (Pipeline C only — the one pipeline already hardened by Sprint 007).
+
+**Mission's own success definition, proven by test not merely claimed**: all 6 required scenarios (new
+document — every consequence exactly once; crash after Genome, retry — no duplicate; crash after Timeline,
+retry — resumes as full no-op; two parallel events — no cross-contamination; replay — no new consequences;
+audit — every consequence shares one correlation_id) proven in `tests/test_case_evolution.py` (10 new tests,
+all passing). Full suite: **2,605 passed, 1 skipped, 0 failed** (was 2,595) — zero regressions.
+
+**6 required deliverables**: `docs/delta/CASE_EVOLUTION_REGISTRY.md`, `EVENT_FLOW_DIAGRAM.md`,
+`CANONICAL_CONSEQUENCE_ENGINE_SPECIFICATION.md`, `ARCHITECTURE_DIAGRAM.md`, `SPRINT_001_MISSION_REPORT.md`,
+plus 3 new debt entries in `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`DELTA-001`/`DELTA-002`/
+`DELTA-003` — checked against existing prefixes first, no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| DELTA-001 | Only `DOCUMENT_ACCEPTED` has wired consequences; 7 other mapped events do not | 2 | none — same registry, same dispatcher, per-event executors | Medium | NEEDS_SCOPING | Deliberate scope boundary (Task 1's own instruction: prove one entry point, don't implement all) |
+| DELTA-002 | 3 existing scattered "decide what's next" call sites (Pipeline A + `rocista.py` Genome triggers, Pipeline C Evidence Vault/conflict-check) not migrated | 2 | none — mechanical, one call site at a time | Medium | NEEDS_SCOPING | Hard 2-agent budget bounded this sprint to proving the mechanism on one call site first |
+| DELTA-003 | No rollback mechanism for cross-consequence dependencies | 4 | an event whose consequences are NOT independently safe (none exists yet) | — | WONTFIX (no current need) | Speculative architecture for a case that doesn't exist in the platform today |
