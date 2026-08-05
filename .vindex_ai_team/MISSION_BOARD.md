@@ -817,3 +817,46 @@ existing prefixes first — no collision).
 | INTAKE-018 | No segment-content-hash dedup across two different overall uploads | 3 | New architecture — a content-hash column + cross-job lookup | Medium | NEEDS_SCOPING | Not a wrong-case risk today, only a missed-duplicate-detection gap. |
 | INTAKE-019 | A partially-failed finalize has no automatic retry path once `predmet_id` is set | 2 | Founder/scoping decision — does "finalized" mean fully done or partially done | Medium | NEEDS_SCOPING | Failure is visible (per-document + segment status), just not self-healing yet. |
 | INTAKE-020 | Case number matching is exact-only, no format normalization beyond whitespace | 3 | none — deliberate conservatism choice | Small | TODO (low priority) | Safe direction by design (create-new, never mis-attach); a missed-attach-opportunity risk only. |
+
+## Program Intake, Sprint 007 (2026-08-05) — Intake Finalization – Bulletproof Intake
+
+Tenth masterprompt of this multi-session Program Intake arc, and the last one this arc scopes as
+"reliability hardening" — after this sprint, Intake is a closed subsystem future missions (Timeline, Genome,
+Case Evolution, Tasks, Alerts, Briefing, Copilot) build ON, not one that needs further architectural
+reconstruction. **Hard token budget**: max 3 agents, only 2 active at start (Reliability & Failure Recovery
+Engineer, Chief Systems Architect), 3rd (Code Quality/Refactoring Reviewer) STANDBY unless a written
+justification for scope-escape arose — none did; both roles executed directly, no subagents spawned, per the
+mission's own explicit minimal-footprint instruction. Scope: closes exactly the 3 debts Sprint 006 itself
+deferred (`INTAKE-018` through `INTAKE-020`) — nothing more.
+
+**Headline finding**: Sprint 006's own `INTAKE-019` was more severe than its description implied — the
+idempotency gate didn't just block retry of a soft partial failure, it also meant a HARD CRASH before the
+durable `predmet_id` write would let a retry run Ownership Resolution completely fresh and create a genuinely
+SECOND duplicate case. Also found: `normalize_case_number`'s own prefix character set (new this sprint) had a
+real gap for mixed-case two-letter Cyrillic prefixes ("Пж"/"Гж" — the actual shape Serbian court
+abbreviations use), caught via this sprint's own test-writing.
+
+**Built**: one deterministic content identity (`predmet_dokumenti.content_sha256`, migration 095, SHA-256 of
+extracted text, never filename/size/date) answering BOTH cross-upload duplicate detection AND retry
+idempotency with the same lookup; crash recovery via a generalized lineage FK
+(`predmet_dokumenti.source_intake_job_id`, extending Sprint 006's segment-only FK to every document); the
+atomic finalize claim itself widened (`claim_intake_finalize`'s WHERE clause: `predmet_id IS NULL` →
+`intake_jobs.assimilation_complete = false`) so both a hard crash and a soft partial failure remain correctly
+retryable; a real 3-part case-number canonical parser (prefix/number/year) replacing the whitespace-only
+placeholder.
+
+**Mission's own bulletproof definition, proven by test, not merely claimed**: same document uploaded twice,
+processing interrupted at any point (hard crash before OR soft failure after the completion marker), retried
+any number of times — always converges on one document, one case, one lineage chain, one audit/provenance
+record. 14 new tests, full suite 2,595 passed/1 skipped/0 failed (was 2,581).
+
+**7 required deliverables**: `docs/architecture/DUPLICATE_DETECTION_REPORT.md`, `RETRY_RELIABILITY_REPORT.md`,
+`CASE_NUMBER_NORMALIZATION_SPECIFICATION.md`, updated `INTAKE_ARCHITECTURE_REPORT.md`, updated
+`ARCHITECTURAL_DEBT_REGISTER.md`, `SPRINT_007_MISSION_REPORT.md`, plus 2 new debt entries (`INTAKE-021`,
+`INTAKE-022`, checked against existing prefixes first — no collision). `INTAKE-018` through `INTAKE-020`
+formally CLOSED.
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-021 | Dedup/retry mechanism only wired into Pipeline C, not A/A-ephemeral | 2 | none — mechanical extension of an already-pipeline-agnostic mechanism | Medium | NEEDS_SCOPING | Deliberate scope boundary (hard token budget), not an oversight — the mechanism itself needs no redesign to extend. |
+| INTAKE-022 | No automatic backoff/dead-letter ceiling for a document failing across repeated manual finalize retries | 3 | none — finalize is lawyer-initiated, not automatic | Small | TODO (low priority) | Each retry is cheap/safe via content-hash idempotency; only a missing ceiling on indefinite manual retry. |

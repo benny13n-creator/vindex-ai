@@ -65,7 +65,7 @@ async def test_claim_fails_and_predmet_already_set_returns_already_finalized():
     job_select_chain.data = job
 
     refetch_chain = MagicMock()
-    refetch_chain.data = {"predmet_id": "predmet-already-created-1"}
+    refetch_chain.data = {"predmet_id": "predmet-already-created-1", "assimilation_complete": True}
 
     mock_supa = MagicMock()
 

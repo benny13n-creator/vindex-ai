@@ -130,6 +130,10 @@ def _make_supa():
         elif name == "predmet_dokumenti":
             t.insert.return_value.execute.return_value.data = [{"id": "dok-001"}]
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+            # Program Intake Sprint 007 -- no cross-upload duplicate, no
+            # crash-recovery needed (fresh job, first finalize attempt).
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             # Program Intake Sprint 006 -- resolve_client_ownership() queries
             # .eq().ilike().neq().execute() (no .limit(), it fetches every

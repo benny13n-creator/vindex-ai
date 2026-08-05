@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Optional
 
 from shared.deps import _get_supa
@@ -47,17 +48,51 @@ _COMPANY_SUFFIX_TOKENS = (
     "ortačko", "ortacko",
 )
 
+# Program Intake Sprint 007 (Debt 3: Case Number Normalization) — parses a
+# Serbian case number into its 3 semantic parts (court-type prefix, main
+# number, year) regardless of which punctuation/spacing convention the
+# source used. A lawyer's own filing/registry/manual entry can render the
+# SAME case number as "P 123/25", "P-123/25", "P123/25", "P-123-25", or
+# "P 123 - 25" — none of these differences carry any legal meaning; they
+# are formatting variance, not distinct identities. Prefix character set
+# covers BOTH cases of Cyrillic (А-Я + Serbian-specific letters Ђ Ж Љ Њ Ћ Џ,
+# upper AND lower — a two-letter prefix like "Пж"/"Гж" mixes an uppercase
+# first letter with a lowercase second one) plus Latin Extended-A for
+# č/ć/đ/š/ž (needed for latinica prefixes like "Pž"). Deliberately a
+# broader class than shared/intake_extract.py's own extraction regex (that
+# module is classification/extraction-layer, out of this sprint's scope to
+# touch) — this function may also normalize a manually-entered case number
+# from a source other than AI extraction, so it is not bound by that
+# regex's own coverage.
+_CASE_NUMBER_PARSE_RE = re.compile(
+    r"^\s*([А-Яа-яЂЖЉЊЋЏђжљњћџA-Za-zČĆĐŠŽčćđšž]{1,3})\s*[.\-]?\s*(\d{1,6})\s*[/\-]\s*(\d{2,4})\s*$"
+)
+
 
 def normalize_case_number(raw: Optional[str]) -> Optional[str]:
-    """Whitespace-collapsed, trimmed — NOT case-folded (Serbian case-number
-    prefixes are conventionally uppercase already, and case-folding a
-    court-issued identifier risks conflating visually-distinct prefixes).
-    Returns None for empty/whitespace-only input so callers can treat "no
-    case number" uniformly whether the source was None or ''."""
+    """Canonical form: `{PREFIX}{NUMBER}/{YEAR}`, prefix upper-cased, no
+    separator between prefix and number, always a forward slash before the
+    year — regardless of which of the punctuation/spacing conventions above
+    the input used. Returns None for empty/whitespace-only input so callers
+    can treat "no case number" uniformly whether the source was None or ''.
+
+    Falls back to a whitespace-collapsed (but otherwise unmodified) form
+    when the input doesn't match the expected 3-part shape at all — an
+    unparseable string is not silently discarded (that would be indistin-
+    guishable from "no case number"), but it also isn't force-fit into a
+    canonical shape that might misrepresent it; it simply won't collide
+    with any correctly-parsed case number's canonical form, which is the
+    only property `resolve_case_ownership()` actually depends on."""
     if not raw:
         return None
-    normalized = " ".join(raw.split())
-    return normalized or None
+    collapsed = " ".join(raw.split())
+    if not collapsed:
+        return None
+    m = _CASE_NUMBER_PARSE_RE.match(collapsed)
+    if not m:
+        return collapsed
+    prefix, number, year = m.groups()
+    return f"{prefix.upper()}{number}/{year}"
 
 
 def looks_like_company(name: str) -> bool:

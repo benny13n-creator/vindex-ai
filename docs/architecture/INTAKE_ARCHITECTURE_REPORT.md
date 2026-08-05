@@ -176,3 +176,45 @@ Failure-mode analysis: `INTAKE_FAILURE_RECOVERY_MATRIX.md`. Duplicate inventory:
   own literal wording this blocks a "mission complete, fully canonical" declaration. This sprint closes as
   **bounded reliability hardening within the existing 3-pipeline topology**, not as full pipeline
   canonicalization. That distinction is the accurate, non-inflated characterization of what was achieved.
+
+---
+
+## 7. Update — Program Intake Sprint 007 (2026-08-05), "Intake Finalization – Bulletproof Intake"
+
+Sprints 002-006 built segmentation (one upload → N logical documents), classification confidence-gating, and
+Ownership Resolution (which case/client a document belongs to). Sprint 007 closes the 3 debts Sprint 006
+itself deferred (`INTAKE-018` cross-upload dedup, `INTAKE-019` partial-failure retry, `INTAKE-020` case-number
+normalization) — the last remaining gaps standing between "reliable" and the mission's own explicit
+definition of **bulletproof**: *the same document can be uploaded any number of times, processing can be
+interrupted at any point, the caller can retry any number of times, and the system always ends with exactly
+one correct document, one correct case, one lineage chain, one audit/provenance record.*
+
+**Scope discipline this sprint**: only Pipeline C (`finalize_intake_job`) was touched — Pipeline A/A-ephemeral/
+B were explicitly out of scope (mirrors Sprint 006's own `INTAKE-015` deferral: segmentation/assimilation
+correctness is proven end-to-end for Pipeline C first; extending the same content-identity mechanism to the
+other 3 pipelines is a separate, future, bounded piece of work, not attempted here).
+
+**What changed** (full detail: `DUPLICATE_DETECTION_REPORT.md`, `RETRY_RELIABILITY_REPORT.md`,
+`CASE_NUMBER_NORMALIZATION_SPECIFICATION.md`, `SPRINT_007_MISSION_REPORT.md`):
+
+1. **One deterministic content identity** (`predmet_dokumenti.content_sha256`, migration 095) answers BOTH
+   "was this exact content already assimilated anywhere" (Debt 1) and "did this segment's own insert already
+   happen" (Debt 2) — the same lookup, scoped differently by outcome (same-case match = idempotent no-op;
+   different-case match = review, never silently linked or silently dropped).
+2. **Crash recovery** (`predmet_dokumenti.source_intake_job_id`, migration 095, generalizing Sprint 006's own
+   segment-only lineage FK to every document) — a retried finalize call recovers an already-resolved
+   `predmet_id` from an already-inserted document instead of running Ownership Resolution fresh and creating a
+   second case.
+3. **The atomic finalize claim** (`claim_intake_finalize`, migration 092) now gates on a new
+   `intake_jobs.assimilation_complete` flag instead of `predmet_id IS NULL` — closing the gap where a job that
+   completed with SOME documents unlinked (a soft partial failure, not a hard crash) was previously stuck
+   "finalized" forever with no retry path.
+4. **Case number canonicalization** (`shared/case_assimilation.py::normalize_case_number`) — a real 3-part
+   parser (prefix/number/year) replacing the prior whitespace-collapse-only placeholder, so every
+   punctuation/spacing variant of the same case number resolves to one identity before comparison or storage.
+
+**Mission closure claim, checked against this sprint's own tests** (`tests/test_sprint007_bulletproof_intake.py`,
+`tests/test_case_assimilation.py`): the same document uploaded twice, a crash before the completion marker is
+written, a soft partial failure after it is written, and a retry of either — all converge on one document, one
+case, one lineage chain, one audit/provenance record. See `SPRINT_007_MISSION_REPORT.md` for the full
+Otkriveno/Popravljeno/Dokazano/Odloženo breakdown.

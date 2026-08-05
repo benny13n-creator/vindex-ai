@@ -56,6 +56,11 @@ def _make_supa(new_doc_id="dok-001"):
             t.insert.return_value.execute.return_value.data = [{"id": "pred-001"}]
         elif name == "predmet_dokumenti":
             t.insert.return_value.execute.return_value.data = [{"id": new_doc_id}]
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+            # Program Intake Sprint 007 -- no cross-upload duplicate, no
+            # crash-recovery needed (fresh job, first finalize attempt).
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.limit.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]

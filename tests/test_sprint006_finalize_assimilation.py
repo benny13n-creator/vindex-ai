@@ -83,6 +83,14 @@ def _make_supa(predmeti_matches=None, segment_map=None, fail_redni_broj=None):
                 return res
             t.insert.side_effect = _insert
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+            # Program Intake Sprint 007 -- default both new lookups to "no
+            # match found" (no crash-recovery needed, no content-hash
+            # duplicate found): the dedup check does .eq().eq().execute()
+            # (no .limit()); the crash-recovery check does
+            # .eq().eq().limit().execute() -- distinct attribute paths off
+            # the same shared .select.return_value.eq.return_value node.
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]
@@ -178,7 +186,11 @@ async def test_content_based_case_number_ambiguous_match_returns_409_not_a_guess
         await _run_finalize_and_drain(mock_supa, [doc], FinalizeReq())
 
     assert exc_info.value.status_code == 409
-    assert "П. 100/24" in exc_info.value.detail
+    # Program Intake Sprint 007 -- case numbers are now canonicalized
+    # (normalize_case_number) before comparison/storage/display: "П. 100/24"
+    # becomes "П100/24" (no separator before the number, slash before the
+    # year). See shared/case_assimilation.py + tests/test_case_number_normalization.py.
+    assert "П100/24" in exc_info.value.detail
 
 
 @pytest.mark.anyio
@@ -197,7 +209,8 @@ async def test_conflicting_case_numbers_across_bundle_blocks_before_creating_a_c
         await _run_finalize_and_drain(mock_supa, [doc_a, doc_b], FinalizeReq())
 
     assert exc_info.value.status_code == 409
-    assert "П. 100/24" in exc_info.value.detail and "П. 200/24" in exc_info.value.detail
+    # Program Intake Sprint 007 -- canonicalized form, see comment above.
+    assert "П100/24" in exc_info.value.detail and "П200/24" in exc_info.value.detail
     # No predmet must have been created -- the conflict check runs BEFORE
     # any predmeti.insert call.
     predmeti_insert_calls = [

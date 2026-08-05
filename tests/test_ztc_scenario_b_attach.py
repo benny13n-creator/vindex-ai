@@ -65,6 +65,10 @@ def _make_supa(existing_predmet=None, existing_redni_broj_rows=None, new_doc_id=
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = (
                 existing_redni_broj_rows if existing_redni_broj_rows is not None else []
             )
+            # Program Intake Sprint 007 -- no cross-upload duplicate, no
+            # crash-recovery needed (fresh job, first finalize attempt).
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.limit.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]

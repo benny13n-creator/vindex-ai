@@ -613,7 +613,7 @@ async def finalize_intake_job(
 
     job_res = await asyncio.to_thread(
         lambda: supa.table("intake_jobs")
-            .select("id, status, storage_path, original_filename, mime_type, predmet_id, completed_at")
+            .select("id, status, storage_path, original_filename, mime_type, predmet_id, completed_at, assimilation_complete")
             .eq("id", job_id)
             .eq("uploaded_by", uid)
             .maybe_single()
@@ -623,7 +623,15 @@ async def finalize_intake_job(
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     job = job_res.data
 
-    if job.get("predmet_id"):
+    # Program Intake Sprint 007 (Debt 2: Partial Failure Retry, migration
+    # 095) -- before this sprint, ANY set predmet_id meant "permanently
+    # done," even if some documents never actually linked (a soft partial
+    # failure that completed the function without a hard crash). Now the
+    # fast-exit requires assimilation_complete=true (only ever set once
+    # every document is confirmed linked) -- a job with predmet_id set but
+    # unresolved documents falls through to the resume path below instead
+    # of being stuck "finalized" forever with missing documents.
+    if job.get("predmet_id") and job.get("assimilation_complete"):
         return {"ok": True, "predmet_id": job["predmet_id"], "already_finalized": True}
 
     if job["status"] != "completed":
@@ -659,17 +667,17 @@ async def finalize_intake_job(
     # RPC (migracija 092), ne goli SELECT koji moze da se utrkuje sam sa sobom.
     claimed = await intake_queue.claim_finalize(job_id)
     if not claimed:
-        # Nula redova znaci: predmet_id je vec postavljen (vec finalizovano),
-        # ILI je drugi finalize poziv trenutno u toku (svez finalizing_at),
-        # ILI konkurentna transakcija trenutno drzi lock nad redom. Ova tri
-        # ishoda NISU isti odgovor -- moramo ponovo procitati red da ih
-        # razlikujemo, ne pretpostaviti.
+        # Nula redova znaci: assimilation_complete je vec true (Sprint 007 --
+        # vec stvarno zavrseno), ILI je drugi finalize poziv trenutno u toku
+        # (svez finalizing_at), ILI konkurentna transakcija trenutno drzi
+        # lock nad redom. Ova tri ishoda NISU isti odgovor -- moramo ponovo
+        # procitati red da ih razlikujemo, ne pretpostaviti.
         refetch = await asyncio.to_thread(
-            lambda: supa.table("intake_jobs").select("predmet_id").eq("id", job_id).maybe_single().execute()
+            lambda: supa.table("intake_jobs").select("predmet_id, assimilation_complete").eq("id", job_id).maybe_single().execute()
         )
-        existing_predmet_id = (refetch.data or {}).get("predmet_id") if refetch else None
-        if existing_predmet_id:
-            return {"ok": True, "predmet_id": existing_predmet_id, "already_finalized": True}
+        refetch_data = refetch.data if refetch else None
+        if refetch_data and refetch_data.get("assimilation_complete") and refetch_data.get("predmet_id"):
+            return {"ok": True, "predmet_id": refetch_data["predmet_id"], "already_finalized": True}
         raise HTTPException(
             status_code=409,
             detail="Finalizacija je već u toku za ovaj posao — pokušajte ponovo za par sekundi.",
@@ -752,171 +760,221 @@ async def finalize_intake_job(
     doc_type = document.get("document_type") or "other"
     tip_labela = _DOC_TYPE_LABELS.get(doc_type, "dokument")
 
-    # ── Predmet: prikaci na postojeci (Scenario B) ili napravi novi ─────────
-    attach_existing = bool(body.predmet_id)
-    if attach_existing:
-        existing_pred = await asyncio.to_thread(
-            lambda: supa.table("predmeti")
-                .select("id,naziv")
-                .eq("id", body.predmet_id)
-                .eq("user_id", uid)
-                .maybe_single().execute()
+    # Program Intake Sprint 007 (Debt 2: Partial Failure Retry) -- recover an
+    # already-resolved predmet_id if a PRIOR finalize attempt crashed after
+    # creating case-file documents but BEFORE writing intake_jobs.predmet_id
+    # (the durable completion marker, deliberately written LAST -- see
+    # migration 092's own claim_intake_finalize rationale: claim_finalize's
+    # WHERE clause only requires predmet_id IS NULL, so it correctly allows
+    # a fresh claim once the prior attempt's `finalizing_at` staleness
+    # window passes, WITHOUT knowing a predmet was already created). Without
+    # this recovery, a retried "create new case" job would create a SECOND
+    # new predmet -- exactly the duplicate this sprint eliminates. Scoped by
+    # user_id (defense in depth, matches every other lookup in this
+    # function); source_intake_job_id (migration 095) is set for EVERY
+    # document this sprint forward, segmented or not, so recovery works
+    # uniformly regardless of whether Sprint 005 segmented this job.
+    recovery_res = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("predmet_id")
+            .eq("source_intake_job_id", job_id)
+            .eq("user_id", uid)
+            .limit(1)
+            .execute()
+    )
+    recovered_predmet_id = (recovery_res.data or [{}])[0].get("predmet_id") if recovery_res.data else None
+    resuming = bool(recovered_predmet_id)
+
+    # ── Predmet: prikaci na postojeci (Scenario B), nastavi prekinuti pokusaj
+    #    (Sprint 007), ili napravi novi ────────────────────────────────────
+    if resuming:
+        predmet_id = recovered_predmet_id
+        pred_res = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("naziv").eq("id", predmet_id).maybe_single().execute()
         )
-        if not existing_pred or not existing_pred.data:
-            raise HTTPException(status_code=404, detail="Predmet za prikačivanje nije pronađen.")
-        predmet_id = existing_pred.data["id"]
-        naziv = existing_pred.data.get("naziv") or ""
-        _new_case_number = None
+        naziv = (pred_res.data or {}).get("naziv", "") if pred_res else ""
+        logger.warning(
+            "[SMART_INTAKE] finalize job=%s RESUME -- predmet=%s već kreiran u prethodnom (verovatno prekinutom) pokušaju; preskačem kreiranje predmeta/klijenta/roka, nastavljam samo dokumenta.",
+            job_id[:8], predmet_id,
+        )
     else:
-        # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- before
-        # this sprint, "no explicit predmet_id" meant ALWAYS create a brand-
-        # new predmet, even if the extracted case number exactly matches a
-        # case already open (Phase 1 audit finding: predmeti had no case-
-        # number column and no matching logic at all). Now: an unambiguous
-        # match to exactly one existing case auto-attaches; 2+ matches never
-        # guesses (mission's own absolute rule) and requires an explicit
-        # predmet_id on retry instead.
-        ownership = await case_assimilation.resolve_case_ownership(uid, value_map.get("case_number"))
-        if ownership["outcome"] == "review_required":
-            await asyncio.to_thread(
-                lambda: supa.table("intake_jobs").update({"finalizing_at": None}).eq("id", job_id).execute()
+        attach_existing = bool(body.predmet_id)
+        if attach_existing:
+            existing_pred = await asyncio.to_thread(
+                lambda: supa.table("predmeti")
+                    .select("id,naziv")
+                    .eq("id", body.predmet_id)
+                    .eq("user_id", uid)
+                    .maybe_single().execute()
             )
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Broj predmeta '{ownership.get('case_number')}' odgovara više postojećih predmeta "
-                    f"— potrebno je ručno izabrati predmet (predmet_id) pri ponovnom pozivu."
-                ),
-            )
-        if ownership["outcome"] == "attach":
-            predmet_id = ownership["predmet_id"]
-            naziv = ownership["naziv"]
+            if not existing_pred or not existing_pred.data:
+                raise HTTPException(status_code=404, detail="Predmet za prikačivanje nije pronađen.")
+            predmet_id = existing_pred.data["id"]
+            naziv = existing_pred.data.get("naziv") or ""
             _new_case_number = None
         else:
-            _new_case_number = ownership.get("case_number")
-            predmet_id, naziv = await _create_new_predmet_from_value_map(
-                uid, body, value_map, tip_labela, job, _new_case_number,
-            )
+            # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- before
+            # this sprint, "no explicit predmet_id" meant ALWAYS create a brand-
+            # new predmet, even if the extracted case number exactly matches a
+            # case already open (Phase 1 audit finding: predmeti had no case-
+            # number column and no matching logic at all). Now: an unambiguous
+            # match to exactly one existing case auto-attaches; 2+ matches never
+            # guesses (mission's own absolute rule) and requires an explicit
+            # predmet_id on retry instead.
+            ownership = await case_assimilation.resolve_case_ownership(uid, value_map.get("case_number"))
+            if ownership["outcome"] == "review_required":
+                await asyncio.to_thread(
+                    lambda: supa.table("intake_jobs").update({"finalizing_at": None}).eq("id", job_id).execute()
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Broj predmeta '{ownership.get('case_number')}' odgovara više postojećih predmeta "
+                        f"— potrebno je ručno izabrati predmet (predmet_id) pri ponovnom pozivu."
+                    ),
+                )
+            if ownership["outcome"] == "attach":
+                predmet_id = ownership["predmet_id"]
+                naziv = ownership["naziv"]
+                _new_case_number = None
+            else:
+                _new_case_number = ownership.get("case_number")
+                predmet_id, naziv = await _create_new_predmet_from_value_map(
+                    uid, body, value_map, tip_labela, job, _new_case_number,
+                )
 
     # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
-    # Program Intake Sprint 006 (2026-08-05) -- replaces the pre-Sprint-006
-    # `.ilike("ime", klijent_ime)` query, a confirmed live bug: klijent_ime is
-    # a full "Ime Prezime" string, but `klijenti.ime` is FIRST-NAME-ONLY --
-    # that query could essentially never match a real two-word name, and its
-    # `.limit(1)` with no disambiguation meant it would have silently picked
-    # an arbitrary row the one time it ever did over-match (the mission's own
-    # named "two clients, same surname" edge case). resolve_client_ownership()
-    # compares the correctly-concatenated full name and NEVER auto-picks
-    # between 2+ matches.
-    klijent_ime = (body.klijent_ime_override or "").strip()
-    if not klijent_ime and body.klijent_strana in ("plaintiff", "defendant"):
-        klijent_ime = (value_map.get(body.klijent_strana) or "").strip()
+    # Program Intake Sprint 007: skipped entirely on resume -- client linking
+    # and the conflict-check background task already ran (or were attempted)
+    # on the attempt that created this predmet; re-running them on every
+    # retry would risk duplicating a proactive_alerts conflict-check entry
+    # (that endpoint has no idempotency guard of its own). Document
+    # assimilation below is the only per-item work that genuinely needs to
+    # resume/retry -- it has its own per-document idempotency (content hash).
+    # Defaults below cover the resume path, where none of this block runs.
+    klijent_ime = ""
     klijent_nesiguran = False
     klijent_kandidati: list[str] = []
-    if klijent_ime:
-        try:
-            client_ownership = await case_assimilation.resolve_client_ownership(uid, klijent_ime)
-            if client_ownership["outcome"] == "ambiguous":
-                # Never guess between 2+ same-name clients -- surfaced in the
-                # response below (klijent_nesiguran), not silently resolved.
-                klijent_nesiguran = True
-                klijent_kandidati = [c["id"] for c in client_ownership["candidates"]]
-                logger.warning(
-                    "[SMART_INTAKE] klijent '%s' nejednoznacan (%d kandidata) predmet=%s -- ne povezujem automatski.",
-                    klijent_ime, len(klijent_kandidati), predmet_id,
-                )
-                klijent_id = None
-            elif client_ownership["outcome"] == "match":
-                klijent_id = client_ownership["klijent_id"]
-            else:
-                kl_res = await asyncio.to_thread(
-                    lambda: supa.table("klijenti").insert({
-                        "user_id": uid,
-                        "ime":     client_ownership["ime"] or klijent_ime[:100],
-                        "prezime": client_ownership["prezime"] or None,
-                        "firma":   client_ownership["firma"],
-                        "tip":     client_ownership["tip"],
-                        "status":  "aktivan",
-                    }).execute()
-                )
-                klijent_id = kl_res.data[0]["id"] if kl_res.data else None
-            if klijent_id:
-                # NAPOMENA (otkriveno 2026-07-16 pravim testom): predmet_klijenti
-                # NEMA kolonu user_id, iako je routers/intake.py (stari wizard,
-                # intake_kreiraj I intake_bulk_import) tu kolonu slao ovoj tabeli
-                # ovaj citav niz vremena — PGRST204 na svakom pozivu, cutke
-                # progutano. predmet_klijenti ima 0 redova u produkciji zbog
-                # ovoga. Ne diram routers/intake.py (eksplicitna instrukcija),
-                # ali OVAJ insert namerno ne salje user_id.
-                await asyncio.to_thread(
-                    lambda: supa.table("predmet_klijenti").insert({
-                        "predmet_id":     predmet_id,
-                        "klijent_id":     klijent_id,
-                        "uloga_klijenta": "stranka",
-                    }).execute()
-                )
-        except Exception as exc:
-            logger.warning("[SMART_INTAKE] klijent link greška (non-fatal) predmet=%s: %s", predmet_id, exc)
-
-        # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario 5):
-        # POST /api/intake/conflict-check (routers/intake.py) exists and
-        # works, but only in the older name-first CRM Intake Wizard flow --
-        # this document-first flow never called it, so a case could be
-        # created here with a conflict of interest never having been
-        # checked, silently, every time. Extracted party names ARE already
-        # available in value_map at exactly this point. Deliberately
-        # non-blocking (surfaces a proactive_alerts entry, does not fail or
-        # delay finalize) -- this endpoint is a promise of automatic case
-        # creation, and a false-positive name match should never silently
-        # block a lawyer from opening a real case. The lawyer sees the
-        # alert immediately inside the case that was just created either
-        # way; the actual "should I decline this client" judgment remains
-        # the lawyer's, per the existing endpoint's own BLOKIRAJUCI wording.
-        protivna_strana_val = ""
-        if body.klijent_strana == "plaintiff":
-            protivna_strana_val = (value_map.get("defendant") or "").strip()
-        elif body.klijent_strana == "defendant":
-            protivna_strana_val = (value_map.get("plaintiff") or "").strip()
-
-        async def _conflict_check_bg():
-            try:
-                from routers.intake import _run_conflict_check
-                result = await _run_conflict_check(uid, klijent_ime, "", protivna_strana_val, "")
-                if result.get("conflict_detected"):
-                    opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
-                    from shared.proactive_alerts import create_proactive_alert
-                    await create_proactive_alert(
-                        supa,
-                        user_id=uid,
-                        predmet_id=predmet_id,
-                        tip="sukob_interesa",
-                        naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
-                        opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
-                        urgentnost="hitna" if result.get("has_blocker") else "normalna",
-                    )
-            except Exception as cce:
-                logger.warning("[SMART_INTAKE] Conflict-check greška (non-fatal) predmet=%s: %s", predmet_id, cce)
-        asyncio.create_task(_conflict_check_bg())
-
-    # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
     rok_dodat = False
-    deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
-    if deadline_iso:
-        try:
-            await asyncio.to_thread(
-                lambda: supa.table("predmet_hronologija").insert({
-                    "predmet_id": predmet_id,
-                    "user_id":    uid,
-                    "dogadjaj":   f"Rok — {tip_labela}",
-                    "datum":      deadline_iso,
-                    "datum_iso":  deadline_iso,
-                    "vaznost":    "važan",
-                    "akter":      "Smart Intake",
-                }).execute()
-            )
-            rok_dodat = True
-        except Exception as exc:
-            logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+    if not resuming:
+        # Program Intake Sprint 006 (2026-08-05) -- replaces the pre-Sprint-006
+        # `.ilike("ime", klijent_ime)` query, a confirmed live bug: klijent_ime is
+        # a full "Ime Prezime" string, but `klijenti.ime` is FIRST-NAME-ONLY --
+        # that query could essentially never match a real two-word name, and its
+        # `.limit(1)` with no disambiguation meant it would have silently picked
+        # an arbitrary row the one time it ever did over-match (the mission's own
+        # named "two clients, same surname" edge case). resolve_client_ownership()
+        # compares the correctly-concatenated full name and NEVER auto-picks
+        # between 2+ matches.
+        klijent_ime = (body.klijent_ime_override or "").strip()
+        if not klijent_ime and body.klijent_strana in ("plaintiff", "defendant"):
+            klijent_ime = (value_map.get(body.klijent_strana) or "").strip()
+        klijent_nesiguran = False
+        klijent_kandidati: list[str] = []
+        if klijent_ime:
+            try:
+                client_ownership = await case_assimilation.resolve_client_ownership(uid, klijent_ime)
+                if client_ownership["outcome"] == "ambiguous":
+                    # Never guess between 2+ same-name clients -- surfaced in the
+                    # response below (klijent_nesiguran), not silently resolved.
+                    klijent_nesiguran = True
+                    klijent_kandidati = [c["id"] for c in client_ownership["candidates"]]
+                    logger.warning(
+                        "[SMART_INTAKE] klijent '%s' nejednoznacan (%d kandidata) predmet=%s -- ne povezujem automatski.",
+                        klijent_ime, len(klijent_kandidati), predmet_id,
+                    )
+                    klijent_id = None
+                elif client_ownership["outcome"] == "match":
+                    klijent_id = client_ownership["klijent_id"]
+                else:
+                    kl_res = await asyncio.to_thread(
+                        lambda: supa.table("klijenti").insert({
+                            "user_id": uid,
+                            "ime":     client_ownership["ime"] or klijent_ime[:100],
+                            "prezime": client_ownership["prezime"] or None,
+                            "firma":   client_ownership["firma"],
+                            "tip":     client_ownership["tip"],
+                            "status":  "aktivan",
+                        }).execute()
+                    )
+                    klijent_id = kl_res.data[0]["id"] if kl_res.data else None
+                if klijent_id:
+                    # NAPOMENA (otkriveno 2026-07-16 pravim testom): predmet_klijenti
+                    # NEMA kolonu user_id, iako je routers/intake.py (stari wizard,
+                    # intake_kreiraj I intake_bulk_import) tu kolonu slao ovoj tabeli
+                    # ovaj citav niz vremena — PGRST204 na svakom pozivu, cutke
+                    # progutano. predmet_klijenti ima 0 redova u produkciji zbog
+                    # ovoga. Ne diram routers/intake.py (eksplicitna instrukcija),
+                    # ali OVAJ insert namerno ne salje user_id.
+                    await asyncio.to_thread(
+                        lambda: supa.table("predmet_klijenti").insert({
+                            "predmet_id":     predmet_id,
+                            "klijent_id":     klijent_id,
+                            "uloga_klijenta": "stranka",
+                        }).execute()
+                    )
+            except Exception as exc:
+                logger.warning("[SMART_INTAKE] klijent link greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+
+            # Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario 5):
+            # POST /api/intake/conflict-check (routers/intake.py) exists and
+            # works, but only in the older name-first CRM Intake Wizard flow --
+            # this document-first flow never called it, so a case could be
+            # created here with a conflict of interest never having been
+            # checked, silently, every time. Extracted party names ARE already
+            # available in value_map at exactly this point. Deliberately
+            # non-blocking (surfaces a proactive_alerts entry, does not fail or
+            # delay finalize) -- this endpoint is a promise of automatic case
+            # creation, and a false-positive name match should never silently
+            # block a lawyer from opening a real case. The lawyer sees the
+            # alert immediately inside the case that was just created either
+            # way; the actual "should I decline this client" judgment remains
+            # the lawyer's, per the existing endpoint's own BLOKIRAJUCI wording.
+            protivna_strana_val = ""
+            if body.klijent_strana == "plaintiff":
+                protivna_strana_val = (value_map.get("defendant") or "").strip()
+            elif body.klijent_strana == "defendant":
+                protivna_strana_val = (value_map.get("plaintiff") or "").strip()
+
+            async def _conflict_check_bg():
+                try:
+                    from routers.intake import _run_conflict_check
+                    result = await _run_conflict_check(uid, klijent_ime, "", protivna_strana_val, "")
+                    if result.get("conflict_detected"):
+                        opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
+                        from shared.proactive_alerts import create_proactive_alert
+                        await create_proactive_alert(
+                            supa,
+                            user_id=uid,
+                            predmet_id=predmet_id,
+                            tip="sukob_interesa",
+                            naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
+                            opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+                            urgentnost="hitna" if result.get("has_blocker") else "normalna",
+                        )
+                except Exception as cce:
+                    logger.warning("[SMART_INTAKE] Conflict-check greška (non-fatal) predmet=%s: %s", predmet_id, cce)
+            asyncio.create_task(_conflict_check_bg())
+
+        # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
+        rok_dodat = False
+        deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
+        if deadline_iso:
+            try:
+                await asyncio.to_thread(
+                    lambda: supa.table("predmet_hronologija").insert({
+                        "predmet_id": predmet_id,
+                        "user_id":    uid,
+                        "dogadjaj":   f"Rok — {tip_labela}",
+                        "datum":      deadline_iso,
+                        "datum_iso":  deadline_iso,
+                        "vaznost":    "važan",
+                        "akter":      "Smart Intake",
+                    }).execute()
+                )
+                rok_dodat = True
+            except Exception as exc:
+                logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
 
     # ── Dokumenti: decrypt → (po dokumentu) tekst-isečak → chunk → Pinecone →
     #    predmet_dokumenti ──────────────────────────────────────────────────
@@ -1000,6 +1058,55 @@ async def finalize_intake_job(
                 await intake_segments.mark_assimilation_failed(segment_row["id"], "prazan tekst nakon ekstrakcije")
             continue
 
+        # Program Intake Sprint 007 (Debt 1: Cross-upload duplicate
+        # detection + Debt 2: Partial Failure Retry) -- ONE deterministic
+        # identity check answers both questions. Never filename/size/date
+        # (the mission's explicit instruction) -- content_sha256 is the
+        # SHA-256 of this document's own extracted text, the same content
+        # regardless of what the uploaded file was named or when it arrived.
+        content_hash = hashlib.sha256(seg_text.encode("utf-8")).hexdigest()
+        dup_res = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("id, predmet_id")
+                .eq("user_id", uid)
+                .eq("content_sha256", content_hash)
+                .execute()
+        )
+        dup_rows = dup_res.data or []
+        same_case_dup = next((r for r in dup_rows if r["predmet_id"] == predmet_id), None)
+        other_case_dup = next((r for r in dup_rows if r["predmet_id"] != predmet_id), None)
+
+        if same_case_dup:
+            # Idempotent no-op: this exact content already has a
+            # predmet_dokumenti row under THIS case -- a retry resuming an
+            # interrupted finalize (this segment's own prior attempt
+            # already succeeded), or a genuine re-upload of the identical
+            # content into the same case. Either way: no new document, no
+            # new lineage, no new audit, no new provenance -- reuse what
+            # already exists.
+            if segment_row:
+                await intake_segments.mark_assimilation_resolved(segment_row["id"])
+            doc_linked_count += 1
+            dokumenti_rezultat.append({"document_id": doc_id, "povezan": True, "razlog": "vec_obradjen_preskocen"})
+            logger.info(
+                "[SMART_INTAKE] job=%s dok=%s content_sha256 već postoji u OVOM predmetu (%s) -- preskačem (idempotentan retry/duplikat).",
+                job_id[:8], doc_id[:8], same_case_dup["id"][:8],
+            )
+            continue
+        if other_case_dup:
+            # Real evidence of a cross-case duplicate -- never guess which
+            # case it really belongs to (mission's own absolute rule);
+            # route to review instead of silently linking or silently
+            # skipping.
+            if segment_row:
+                await intake_segments.mark_assimilation_review_required(segment_row["id"], "duplicate_content_in_other_case")
+            dokumenti_rezultat.append({"document_id": doc_id, "povezan": False, "razlog": "duplikat_u_drugom_predmetu"})
+            logger.warning(
+                "[SMART_INTAKE] job=%s dok=%s content_sha256 već postoji u DRUGOM predmetu (%s) -- review required, ne povezujem automatski.",
+                job_id[:8], doc_id[:8], other_case_dup["predmet_id"][:8],
+            )
+            continue
+
         try:
             source_meta = {
                 "source_filename": job.get("original_filename") or "dokument",
@@ -1048,19 +1155,35 @@ async def finalize_intake_job(
                 # constraint. NULL for a single-document job (nothing to
                 # link to, by Sprint 005's own design), never NULL by omission.
                 "source_intake_job_segment_id": segment_row["id"] if segment_row else None,
+                # Program Intake Sprint 007 (migration 095) -- content_sha256
+                # is Debt 1/2's own identity check (computed above); source_
+                # intake_job_id is set for EVERY document, segmented or not
+                # (generalizing the segment-only FK above), enabling crash
+                # recovery to find this job's already-resolved predmet_id
+                # even for a single-document job.
+                "content_sha256":     content_hash,
+                "source_intake_job_id": job_id,
             }
             _sledeci_redni += 1
 
-            # tip_dokaza/klasifikovan_at (migracija 016), tekst_sadrzaj, i
-            # source_intake_job_segment_id (migracija 094) su svi opcioni po
-            # istom obrascu kao api.py predmet upload — probaj najbogatiju
-            # varijantu prvo, padaj postepeno ako kolone/migracija nedostaju,
-            # nikad ne izgubi ceo dokument zbog jedne kolone.
+            # tip_dokaza/klasifikovan_at (migracija 016), tekst_sadrzaj,
+            # source_intake_job_segment_id (migracija 094), i content_sha256/
+            # source_intake_job_id (migracija 095) su svi opcioni po istom
+            # obrascu kao api.py predmet upload — probaj najbogatiju varijantu
+            # prvo, padaj postepeno ako kolone/migracija nedostaju, nikad ne
+            # izgubi ceo dokument zbog jedne kolone.
             _variant_full = {**_dok_row_base, "tip_dokaza": doc_type_i, "klasifikovan_at": "now()", "tekst_sadrzaj": seg_text[:100_000]}
-            _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k != "source_intake_job_segment_id"}
-            _variant_base_no_lineage = {k: v for k, v in _dok_row_base.items() if k != "source_intake_job_segment_id"}
+            _drop_095 = ("content_sha256", "source_intake_job_id")
+            _drop_094 = ("source_intake_job_segment_id",)
+            _variant_full_no_095 = {k: v for k, v in _variant_full.items() if k not in _drop_095}
+            _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k not in _drop_095 + _drop_094}
+            _variant_base_no_095 = {k: v for k, v in _dok_row_base.items() if k not in _drop_095}
+            _variant_base_no_lineage = {k: v for k, v in _dok_row_base.items() if k not in _drop_095 + _drop_094}
             dok_ins = None
-            for extra in (_variant_full, _variant_full_no_lineage, dict(_dok_row_base), _variant_base_no_lineage):
+            for extra in (
+                _variant_full, _variant_full_no_095, _variant_full_no_lineage,
+                dict(_dok_row_base), _variant_base_no_095, _variant_base_no_lineage,
+            ):
                 try:
                     dok_ins = await asyncio.to_thread(
                         lambda r=extra: supa.table("predmet_dokumenti").insert(r).execute()
@@ -1149,9 +1272,19 @@ async def finalize_intake_job(
     # sledeci pokusaj sacheka >120s", sto pokriva dominantan trigger (dupli
     # klik / brz timeout-retry) bez pretvaranja u punu transakciju koju
     # supabase-py ne izlaze (v. Fork B §3.2).
+    # Program Intake Sprint 007 (Debt 2, migration 095) -- assimilation_complete
+    # is the REAL "permanently done" signal claim_intake_finalize now checks
+    # (predmet_id alone is not enough -- a job can have a predmet_id and
+    # still have unlinked documents after a soft partial failure). Only
+    # true when every one of this job's documents ended up linked; a job
+    # ending 0-of-N or M-of-N stays reclaimable so a later retry can finish
+    # the remaining documents without creating a second predmet.
     try:
         await asyncio.to_thread(
-            lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id}).eq("id", job_id).execute()
+            lambda: supa.table("intake_jobs").update({
+                "predmet_id": predmet_id,
+                "assimilation_complete": doc_linked_count == len(documents),
+            }).eq("id", job_id).execute()
         )
     except Exception as fe:
         logger.error(

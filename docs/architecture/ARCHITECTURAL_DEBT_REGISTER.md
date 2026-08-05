@@ -1007,3 +1007,54 @@ judgment call the mission's own conservatism mandate argues against making unila
 
 **Severity**: Low — the safe direction (create a new case rather than mis-attach) is exactly what happens
 today; this is a missed-attach-opportunity risk, not a wrong-attach risk.
+
+---
+
+## Program Intake, Sprint 007 (2026-08-05) — Intake Finalization – Bulletproof Intake
+
+Full narrative: `DUPLICATE_DETECTION_REPORT.md`, `RETRY_RELIABILITY_REPORT.md`,
+`CASE_NUMBER_NORMALIZATION_SPECIFICATION.md`, `SPRINT_007_MISSION_REPORT.md`. Closes all 3 debts Sprint 006
+deferred (`INTAKE-018` through `INTAKE-020`) — Intake is now the bulletproof, closed subsystem the mission's
+own closing instruction defines: the same document can be uploaded any number of times, processing can be
+interrupted at any point, retry can happen any number of times, and the system always converges on one
+document, one case, one lineage chain, one audit/provenance record. **INTAKE-018/019/020 are now CLOSED**
+(kept below, struck through in spirit, for historical continuity — not re-numbered).
+
+**~~INTAKE-018~~ — CLOSED.** Cross-upload duplicate detection built (`predmet_dokumenti.content_sha256`,
+migration 095) — never filename/size/date, exactly as the mission required.
+
+**~~INTAKE-019~~ — CLOSED.** Partial-failure retry built (`intake_jobs.assimilation_complete` +
+`claim_intake_finalize`'s widened WHERE clause + `predmet_dokumenti.source_intake_job_id` crash recovery,
+migration 095). A job with unresolved documents is now always retryable, and retry never creates a second
+case.
+
+**~~INTAKE-020~~ — CLOSED.** Case number normalization built (`shared/case_assimilation.py::
+normalize_case_number()`, a real 3-part canonical parser) — 30+ format variants of the same case number now
+resolve to one identity, verified by test.
+
+## INTAKE-021 — Cross-upload dedup/retry mechanism only wired into Pipeline C (Medium, deliberate scope boundary)
+
+`content_sha256`/`source_intake_job_id` are only checked/written by `finalize_intake_job`. Pipeline A
+(`api.py`'s synchronous per-case upload) and Pipeline A-ephemeral (`routers/dokument.py`) have no equivalent
+duplicate-detection or crash-recovery mechanism — a document uploaded twice via Pipeline A today still
+produces two `predmet_dokumenti` rows.
+
+**Why not fixed this mission**: the mission's own scope was explicitly "these three debts," and Pipeline C is
+where Sprint 005/006's segmentation and Ownership Resolution work already lives — extending the same
+mechanism to Pipeline A is a bounded, mechanical follow-up (the content-hash check itself is pipeline-
+agnostic), not attempted here to keep this sprint's own footprint minimal (hard token budget, 2 active agents).
+
+**Severity**: Medium — Pipeline A is the higher-traffic, interactive upload path; this gap is real but was a
+deliberate, named scope boundary, not an oversight.
+
+## INTAKE-022 — Dead-lettered documents have no automatic backoff/retry ceiling at the finalize layer (Low, deliberate scope boundary)
+
+A document that fails every fallback insert variant across multiple manual finalize retries has no
+cross-run backoff or permanent dead-letter marking specific to the assimilation stage (Sprint 005 has this
+for classification; Sprint 007 does not add an equivalent here).
+
+**Why not fixed this mission**: finalize is a lawyer-initiated action, not an automatic background loop — a
+human already decides whether to retry, and each retry is cheap/safe via the content-hash idempotency check.
+
+**Severity**: Low — bounded by design; a permanently-failing document stays visible (never silently lost),
+just without an automatic ceiling on manual retries.

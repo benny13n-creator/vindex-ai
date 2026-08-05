@@ -69,7 +69,9 @@ def test_find_conflicting_case_numbers_empty_when_only_one_has_a_number():
 
 def test_find_conflicting_case_numbers_detects_genuine_multi_case_bundle():
     conflicting = find_conflicting_case_numbers(["П. 100/24", "П. 200/24", None])
-    assert conflicting == {"П. 100/24", "П. 200/24"}
+    # Program Intake Sprint 007 -- canonicalized form (normalize_case_number
+    # is what find_conflicting_case_numbers applies internally).
+    assert conflicting == {"П100/24", "П200/24"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -91,7 +93,10 @@ async def test_resolve_case_ownership_zero_matches_creates_new():
     with patch("shared.case_assimilation._get_supa", return_value=mock_supa):
         result = await resolve_case_ownership("user-1", "П. 999/24")
     assert result["outcome"] == "create_new"
-    assert result["case_number"] == "П. 999/24"
+    # Program Intake Sprint 007 -- normalize_case_number now canonicalizes
+    # (no separator before the number, slash before the year), not just
+    # whitespace-collapses.
+    assert result["case_number"] == "П999/24"
 
 
 @pytest.mark.anyio

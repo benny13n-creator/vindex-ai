@@ -864,3 +864,29 @@ Pipeline C) — one canonical resolution authority, no wrong case/client link po
 path, every ambiguous-evidence scenario correctly escalates rather than guesses, per-document failure
 isolation proven, zero regressions. Three genuine scope/architecture decisions correctly named and deferred.
 Full detail: `docs/architecture/SPRINT_006_MISSION_REPORT.md`.
+
+## Program Intake, Sprint 007 (2026-08-05) — Intake Finalization – Bulletproof Intake
+
+**Methodology note**: hard token budget this sprint (max 3 agents, 2 active) — both roles executed directly,
+no subagents spawned. Metrics measure what shipped against the mission's own 3 named debts, nothing more.
+
+| Metric | Value |
+|---|---|
+| Deterministic cross-upload document identity mechanisms before this sprint | 0 (filename/size/date were the only signals — all explicitly forbidden) |
+| After this sprint | 1 (`content_sha256`, reused for both duplicate detection AND retry idempotency) |
+| Scenarios where a hard crash could create a duplicate case on retry | Present (unfixed) → Eliminated (crash recovery via `source_intake_job_id`) |
+| Scenarios where a soft partial failure permanently blocked retry | Present (Sprint 006's own `INTAKE-019`) → Eliminated (`assimilation_complete`-gated claim) |
+| Case number format variants proven to resolve to one identity | 1 (exact match only) → 30+ tested variants, including a real mixed-case-Cyrillic bug found and fixed via this sprint's own testing |
+| Real bugs found and fixed via this sprint's own test-writing | 1 (`normalize_case_number`'s prefix character set missing mixed-case Cyrillic) |
+| Debts closed | 3 of 3 (`INTAKE-018` through `INTAKE-020`, all CLOSED) |
+| New debts found and named | 2 (`INTAKE-021` scope boundary, `INTAKE-022` scope boundary) — neither blocks the mission's own success criterion |
+| New dedicated tests | 14 (`tests/test_sprint007_bulletproof_intake.py`) + 2 pre-existing assertions updated |
+| Full suite | 2,595 passed, 1 skipped, 0 failed (was 2,581 at end of Sprint 006) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprints
+001-006; smallest team yet of the entire Program Intake arc (2 active agents, 3rd never activated).
+
+**Success criteria**: honestly met — the mission's own literal closing claim ("same document uploaded any
+number of times, interrupted at any point, retried any number of times, always converges on one document/one
+case/one lineage chain/one audit record") is proven by test, not merely asserted, for Pipeline C. Two scope
+boundaries (not gaps) correctly named and deferred. Full detail: `docs/architecture/SPRINT_007_MISSION_REPORT.md`.
