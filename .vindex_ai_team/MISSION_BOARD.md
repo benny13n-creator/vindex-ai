@@ -1081,3 +1081,44 @@ mechanical migration.
 `AUTONOMOUS_OFFICE_WORKFLOW.md`, `OCR_AND_INTAKE_CAPACITY_REPORT.md`, `CASE_INTELLIGENCE_AUTOMATION_REPORT.md`,
 `OMEGA_SPRINT_001_REPORT.md`, plus updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`OMEGA-001`/`OMEGA-002` added).
+
+## Program Omega, Sprint 002 (2026-08-06) — Case Intelligence Aggregation Engine
+
+Second Omega sprint, closing Sprint 001's own named `OMEGA-001`. Mission's central question: "when 1, 10, or
+500 new documents arrive, does Vindex AI understand how the WHOLE CASE changed?" Phase 1's own mandatory
+forensic review (`docs/omega/OMEGA_CASE_INTELLIGENCE_ARCHITECTURE.md`) confirmed `OMEGA-001` was the ONE real
+duplicate-call risk in the system — no other hidden Genome triggers, no AI results without provenance
+(Genome's own `kontradikcije` already require `DOK-XX str.Y` sourcing, pre-existing discipline).
+
+**Built**: a new canonical event, `EventType.DOCUMENT_BATCH_COMPLETED`, emitted ONCE per unique `predmet_id`
+touched by `POST /jobs/finalize-batch` (not once per job) — closing `OMEGA-001` by making a 500-document
+single-case batch trigger exactly ONE Genome recompute instead of 500. Split into 2 consequences
+(`genome_refresh`, reused unchanged; `case_intelligence_summary`, new) rather than one monolithic function,
+specifically so a crash between them doesn't force a retry to redo the expensive GPT recompute (Phase 5's own
+Scenario 4 requirement). `refresh_case_intelligence(case_id, reason)` — the mission's own named canonical
+entry point — is `_consequence_case_intelligence_summary`, dispatched through the SAME `handle_case_changed`
+loop as every other consequence, no new orchestrator. Diffs Genome's own before/after `kontradikcije`/
+`datumi_kljucni` against a "before" snapshot the emitter captures BEFORE any refresh runs (durable, survives
+crash/retry unchanged); reuses Core Consolidation's own canonical `calculate_procesni_rizik`/
+`identify_case_problems` for risk/missing-evidence numbers (never a second competing algorithm). Writes one
+durable, sourced row per refresh to a new `case_intelligence_summaries` table (migration 098) — every number
+traceable to a real query or an already-verified upstream fact (Agent 3's own "no conclusion without source"
+rule).
+
+**All 5 required Phase 5 scenarios addressed, one explicitly named as NOT covered**: single-case 500-document
+batch (Genome called exactly once, proven by test); 5 separate upload sessions for the same case (5
+independent summaries, no cross-deduplication since they're legitimately different events, replay-safe);
+2 concurrent users same case (no cross-contamination, reusing Genome's own pre-existing in-flight coalescing —
+no new locking needed); crash after Genome/during summary (retry does not redo the expensive recompute).
+Scenario 5 (document reclassification) was explicitly NOT built — `DOCUMENT_MODIFIED` remains unwired, named
+as `OMEGA-003`, needs its own design decision, not attempted blind.
+
+**9 new tests** (`tests/test_omega_sprint002_case_intelligence.py`), all passing on first run. 3 pre-existing
+Program Delta certification tests updated (living-document drift detectors correctly caught that a 7th event
+was wired and a 21st `EventType` member added, without this sprint's own docs being updated yet — fixed same
+session). Full suite: **2,653 passed, 1 skipped, 0 failed** (was 2,644) — zero regressions.
+
+**7 required deliverables**: `docs/omega/OMEGA_CASE_INTELLIGENCE_ARCHITECTURE.md`, `CASE_REFRESH_ENGINE_SPEC.md`,
+`CASE_LEVEL_INTELLIGENCE_FLOW.md`, `BATCH_INTELLIGENCE_VALIDATION_REPORT.md`, `OMEGA_SPRINT_002_REPORT.md`,
+updated `docs/delta/CASE_EVOLUTION_REGISTRY.md` (7th wired event documented), updated
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-001` closed, `OMEGA-003`/`OMEGA-004` added).

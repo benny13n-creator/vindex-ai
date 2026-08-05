@@ -308,12 +308,13 @@ def test_one_owner_per_wired_event_type():
 
 def test_event_type_total_member_count_matches_documentation():
     """Sprint 003's own CASE_EVOLUTION_REGISTRY.md claimed 19 EventType
-    members -- this certification found the real count is 20 (DOCUMENT_
-    JOB_FAILED was described in prose but never given its own row in the
-    'other 10' table, undercounting by one). This test pins the true count
-    so it can never silently drift again without a documentation update
-    being forced to keep pace."""
-    assert len(list(EventType)) == 20
+    members -- Sprint 004's own certification found the real count was 20
+    (DOCUMENT_JOB_FAILED was described in prose but never given its own row
+    in the 'other 10' table, undercounting by one). Program Omega Sprint 002
+    (2026-08-06) added a 21st member (DOCUMENT_BATCH_COMPLETED). This test
+    pins the true count so it can never silently drift again without a
+    documentation update being forced to keep pace."""
+    assert len(list(EventType)) == 21
 
 
 def test_registry_100_percent_matches_event_bus_wiring():

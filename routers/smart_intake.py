@@ -1595,17 +1595,19 @@ async def finalize_intake_jobs_batch(
     emission per job (DOCUMENT_ACCEPTED/NEW_EVIDENCE_REGISTERED/
     NEW_CLIENT_LINKED, unchanged).
 
-    Honest about what this endpoint does NOT (and structurally cannot)
-    do synchronously: Case Genome's own analysis (kontradikcije, updated
-    risk/missing-evidence detection) runs ASYNCHRONOUSLY, via the
-    already-certified Case Evolution Engine (Program Delta, Sprint 004) —
-    reading it synchronously right here, in this loop, would mean either
-    blocking on the dispatch poller (slow, unpredictable for a large batch)
-    or calling Genome refresh directly from this endpoint, which would be
-    exactly the kind of hidden second orchestrator Program Delta spent 4
-    sprints certifying does NOT exist anywhere in this codebase. This
-    endpoint does not reopen that certification — Genome-derived numbers
-    are honestly deferred to "coming shortly", not faked or duplicated.
+    Program Omega, Sprint 002 (2026-08-06) — "Case Intelligence Aggregation
+    Engine": after every job is finalized, this endpoint emits ONE durable
+    `DOCUMENT_BATCH_COMPLETED` event PER UNIQUE predmet_id touched (never
+    per job) — the Case Evolution Engine's own `refresh_case_intelligence`
+    consequence then does ONE Genome recompute per case, not one per
+    document (Program Omega Sprint 001's own named, deferred `OMEGA-001`,
+    closed by this sprint). Genome-derived numbers (kontradikcije, missing
+    evidence, risk) are still honestly deferred to "coming shortly" in this
+    response — they run ASYNCHRONOUSLY via the already-certified Case
+    Evolution Engine (Program Delta, Sprint 004), and reading them
+    synchronously here would mean either stale data or calling Genome
+    directly from this endpoint (exactly the hidden second orchestrator
+    Program Delta spent 4 sprints certifying does not exist).
 
     One finalize failure does not abort the batch — every OTHER job_id is
     still attempted, matching the per-document failure-isolation principle
@@ -1614,6 +1616,9 @@ async def finalize_intake_jobs_batch(
     detalji: list[dict] = []
     predmeti_dokumenti_count: dict[str, int] = {}
     predmeti_nazivi: dict[str, str] = {}
+    predmeti_za_proveru: dict[str, int] = {}
+    predmeti_rokovi: dict[str, int] = {}
+    predmeti_job_ids: dict[str, list[str]] = {}
     uspesno = 0
     neuspesno = 0
     dokumenti_za_proveru = 0
@@ -1637,8 +1642,13 @@ async def finalize_intake_jobs_batch(
         predmet_id = result.get("predmet_id")
         if predmet_id:
             predmeti_dokumenti_count[predmet_id] = predmeti_dokumenti_count.get(predmet_id, 0) + (result.get("dokumenata_povezano") or 0)
+            predmeti_job_ids.setdefault(predmet_id, []).append(job_id)
             if result.get("naziv"):
                 predmeti_nazivi[predmet_id] = result["naziv"]
+            if result.get("klasifikacija_nesigurna"):
+                predmeti_za_proveru[predmet_id] = predmeti_za_proveru.get(predmet_id, 0) + 1
+            if result.get("rok_dodat"):
+                predmeti_rokovi[predmet_id] = predmeti_rokovi.get(predmet_id, 0) + 1
         if result.get("klasifikacija_nesigurna"):
             dokumenti_za_proveru += 1
         if result.get("rok_dodat"):
@@ -1650,13 +1660,54 @@ async def finalize_intake_jobs_batch(
             "dokumenata_povezano": result.get("dokumenata_povezano"),
         })
 
+    # ── DOCUMENT_BATCH_COMPLETED — jednom po JEDINSTVENOM predmetu ──────────
+    # Program Omega, Sprint 002: "pre" Genome snapshot (kontradikcije/
+    # datumi_kljucni brojevi) se hvata OVDE, PRE nego što se event uopšte
+    # emituje -- i putuje u samom (durable) payload-u eventa, ne kao
+    # zasebno stanje koje case_intelligence_summary mora da pogodi ili
+    # ponovo pročita usred izvršavanja. Ovo znači da je "pre" snapshot
+    # bezbedan i tačan čak i ako se dispatch prekine i ponovi znatno
+    # kasnije -- payload se ne menja.
+    refresh_zakazan_za: list[str] = []
+    supa = _get_supa()
+    for predmet_id, dok_count in predmeti_dokumenti_count.items():
+        try:
+            _pre_res = await asyncio.to_thread(
+                lambda pid=predmet_id: supa.table("predmeti").select("case_dna").eq("id", pid).maybe_single().execute()
+            )
+            _pre_dna = ((_pre_res.data if _pre_res else None) or {}).get("case_dna") or {}
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.DOCUMENT_BATCH_COMPLETED,
+                uid,
+                predmet_id,
+                {
+                    "reason": "DOCUMENT_BATCH_COMPLETED",
+                    "dokumenata_dodato": dok_count,
+                    "dokumenti_za_proveru": predmeti_za_proveru.get(predmet_id, 0),
+                    "rokovi_dodati": predmeti_rokovi.get(predmet_id, 0),
+                    "job_ids": predmeti_job_ids.get(predmet_id, []),
+                    "pre_verzija": _pre_dna.get("verzija"),
+                    "pre_kontradikcije": len(_pre_dna.get("kontradikcije") or []),
+                    "pre_dogadjaji": len(_pre_dna.get("datumi_kljucni") or []),
+                    "trigger": "smart_intake_finalize_batch",
+                },
+            )
+            refresh_zakazan_za.append(predmet_id)
+        except Exception as _ee:
+            logger.warning("[SMART_INTAKE] DOCUMENT_BATCH_COMPLETED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ee)
+
     logger.info(
-        "[SMART_INTAKE] batch-finalize: %d/%d uspešno, %d predmeta pogođeno, %d dokumenata za proveru",
-        uspesno, len(body.job_ids), len(predmeti_dokumenti_count), dokumenti_za_proveru,
+        "[SMART_INTAKE] batch-finalize: %d/%d uspešno, %d predmeta pogođeno, %d dokumenata za proveru, refresh zakazan za %d predmeta",
+        uspesno, len(body.job_ids), len(predmeti_dokumenti_count), dokumenti_za_proveru, len(refresh_zakazan_za),
     )
 
     return {
         "ok": True,
+        # Program Omega, Sprint 002, Phase 3's own literal example fields
+        # ("Batch: completed. Affected cases: 3. Documents added: 500.
+        # Refresh required: YES.").
+        "batch_status": "completed",
         "ukupno_poslato": len(body.job_ids),
         "uspesno_finalizovano": uspesno,
         "neuspesno": neuspesno,
@@ -1666,9 +1717,12 @@ async def finalize_intake_jobs_batch(
         # to se ovde vidi kao JEDAN red sa dokumenata=40, ne 40 odvojenih
         # "uspeha" bez konteksta.
         "predmeti_pogodjeni": [
-            {"predmet_id": pid, "naziv": predmeti_nazivi.get(pid, ""), "dokumenata": cnt}
+            {"predmet_id": pid, "naziv": predmeti_nazivi.get(pid, ""), "dokumenata": cnt,
+             "refresh_zakazan": pid in refresh_zakazan_za}
             for pid, cnt in predmeti_dokumenti_count.items()
         ],
+        "affected_cases": len(predmeti_dokumenti_count),
+        "refresh_required": bool(refresh_zakazan_za),
         "dokumenti_za_proveru": dokumenti_za_proveru,
         "rokovi_dodati": rokovi_dodati,
         "napomena_genome": (

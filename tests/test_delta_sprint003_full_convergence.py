@@ -84,10 +84,16 @@ def test_registry_100_percent_matches_event_bus_wiring():
 
 
 def test_registry_covers_exactly_the_6_events_wired_through_sprint_003():
+    """Named for when it was written (Sprint 003, 6 events) -- updated
+    Program Omega Sprint 002 (2026-08-06) to also include the 7th event
+    DOCUMENT_BATCH_COMPLETED wired that sprint. Kept as a living pin, not
+    frozen to a historical snapshot -- see test_delta_sprint004_certification.py
+    for the generic (non-count-frozen) registry<->wiring equivalence check."""
     from services.case_evolution import CONSEQUENCE_REGISTRY
     assert set(CONSEQUENCE_REGISTRY.keys()) == {
         EventType.DOCUMENT_ACCEPTED, EventType.REVIEW_ACCEPTED, EventType.REVIEW_REJECTED,
         EventType.NEW_CLIENT_LINKED, EventType.NEW_EVIDENCE_REGISTERED, EventType.ROCISTE_ZAKAZANO,
+        EventType.DOCUMENT_BATCH_COMPLETED,
     }
 
 

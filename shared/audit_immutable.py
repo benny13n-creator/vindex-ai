@@ -137,6 +137,12 @@ AUDITABLE_ACTIONS: set[str] = {
     # domain-specific audit row, same shape as "dokument_review_resolved"
     # above but for the mutually-exclusive alternate outcome.
     "dokument_review_rejected",
+    # Program Omega, Sprint 002 (2026-08-06) — Case Intelligence Aggregation
+    # Engine. Domain-specific audit row for refresh_case_intelligence(),
+    # carrying the full sourced summary (documents added, new contradictions,
+    # risks, deadlines) in metadata — distinct from the generic
+    # "case_evolution_consequence_completed" row every consequence gets.
+    "case_intelligence_refreshed",
     # Program Intake Sprint 006 (2026-08-05) — Canonical Case Assimilation.
     # Phase 1 audit finding: finalize_intake_job (routers/smart_intake.py)
     # had ZERO audit calls for document-into-case registration, unlike

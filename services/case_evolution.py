@@ -36,6 +36,16 @@ empty consequence list (DOCUMENT_MODIFIED, CONFIDENCE_DROPPED, MANUAL_
 CORRECTION_APPLIED — no proven consequence gap yet); see
 CASE_EVOLUTION_REGISTRY.md for each one's own reasoning. Never invented
 speculative consequences for an event with no proven need yet.
+
+Program Omega, Sprint 002 (2026-08-06) — "Case Intelligence Aggregation
+Engine". Adds ONE more event (DOCUMENT_BATCH_COMPLETED) and its own
+canonical entry point, `refresh_case_intelligence()`, which is what
+resolves Program Omega Sprint 001's own named, deferred `OMEGA-001`: a
+batch of N documents finalized into the SAME case now produces ONE
+case-level Genome refresh + intelligence summary, not N redundant ones.
+`refresh_case_intelligence` is still just another consequence executor,
+dispatched through the SAME `handle_case_changed` loop as every other one
+— no second orchestrator, no bypass.
 """
 from __future__ import annotations
 
@@ -354,6 +364,138 @@ async def _consequence_evidence_classify(event: Event) -> str:
     return str(dokument_id)
 
 
+# ─── Case Intelligence Aggregation Engine (Program Omega, Sprint 002) ────────
+#
+# Split into TWO independently-resumable consequences (genome_refresh reused
+# UNCHANGED from DOCUMENT_ACCEPTED, plus a NEW case_intelligence_summary
+# step) rather than one monolithic function, for the exact same reason
+# DOCUMENT_ACCEPTED itself is split: if a crash happens after Genome
+# completes but before the summary is written, a retry must NOT re-run the
+# (expensive, GPT-based) Genome recompute — it should resume with only the
+# summary step, matching the mission's own Scenario 4 requirement
+# ("nastavlja gde je stalo", not "restarts everything"). The "before" Genome
+# snapshot (kontradikcije/datumi_kljucni counts, needed for the summary's
+# own diff) is captured by the EMITTER (routers/smart_intake.py::
+# finalize_intake_jobs_batch) before genome_refresh ever runs, and travels
+# in the event's own durable payload — so it survives a crash/retry
+# perfectly, unlike a value read mid-consequence.
+
+async def _consequence_case_intelligence_summary(event: Event) -> str:
+    """THE canonical entry point Program Omega Sprint 002's own charter
+    names as `refresh_case_intelligence(case_id, reason)` — the SECOND half
+    of the pair (genome_refresh, reused unchanged from DOCUMENT_ACCEPTED,
+    is the first; the Event Bus's own sequential per-consequence loop in
+    `handle_case_changed` guarantees it already completed before this one
+    starts, within this same event dispatch). Answers the mission's own 4
+    questions:
+
+    - "Ko je vlasnik trenutnog stanja predmeta?" -- Case Genome
+      (predmeti.case_dna) remains the single source of truth; this function
+      only READS it (already refreshed by the prior consequence) and
+      records what changed.
+    - "Kada se Genome osvežava?" -- by the sibling `genome_refresh`
+      consequence, triggered by a durable DOCUMENT_BATCH_COMPLETED event
+      itself only emitted AFTER an entire finalize-batch operation's
+      document-linking work is done (never mid-batch).
+    - "Ko odlučuje da li je refresh potreban?" -- the EMITTER
+      (`finalize_intake_jobs_batch`) decides at emission time (only emits
+      for predmet_ids that actually got 1+ documents linked); this function
+      itself additionally refuses to summarize with zero new documents, as
+      a second, independent guard.
+    - "Kako znamo da je rezultat zasnovan na kompletnim podacima?" -- every
+      number here is either read fresh from the DB (Genome's own
+      `case_dna`, `predmet_dokazi`/`predmet_dokumenti`/`rocista` via the
+      SAME canonical `calculate_procesni_rizik`/`identify_case_problems`
+      Core Consolidation already established as the platform's one
+      algorithm for this question) or carried verbatim from the emitter's
+      own already-verified finalize results (`dokumenti_za_proveru`,
+      `rokovi_dodati`) — never invented, and persisted durably (migration
+      098, `case_intelligence_summaries`) so it stays inspectable after the
+      fact (Agent 3's own "no conclusion without source" rule)."""
+    payload = event.payload or {}
+    predmet_id = event.predmet_id
+    uid = event.user_id
+    if not predmet_id:
+        return "skipped_no_predmet_id"
+
+    dokumenata_dodato = int(payload.get("dokumenata_dodato") or 0)
+    if dokumenata_dodato <= 0:
+        return "skipped_no_new_documents"
+
+    supa = _get_supa()
+    after_res = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("case_dna,tip").eq("id", predmet_id).maybe_single().execute()
+    )
+    after_data = (after_res.data if after_res else None) or {}
+    after_dna = after_data.get("case_dna") or {}
+    after_verzija = after_dna.get("verzija")
+
+    before_kontradikcije = int(payload.get("pre_kontradikcije") or 0)
+    before_dogadjaji = int(payload.get("pre_dogadjaji") or 0)
+    kontradikcije_posle = after_dna.get("kontradikcije") or []
+    dogadjaji_posle = after_dna.get("datumi_kljucni") or []
+    nove_kontradikcije = max(0, len(kontradikcije_posle) - before_kontradikcije)
+    novi_dogadjaji = max(0, len(dogadjaji_posle) - before_dogadjaji)
+
+    # Core Consolidation's own jedini algoritam za "šta nedostaje / koji su
+    # rizici" -- isti kod koji routers/matter_intel.py već koristi, nikad
+    # duplirano ovde (namerno NE Genome-ov sopstveni odvojen "nedostaje"/
+    # "upozorenja" -- to bi vratilo tačno onu duplikaciju koju je Core
+    # Consolidation uklonio 2026-07-22).
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+    tip_predmeta = after_data.get("tip") or "ostalo"
+    dokazi_r, dok_r, rok_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
+        return_exceptions=True,
+    )
+    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
+    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
+    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+    rizik = calculate_procesni_rizik(dokazi=dokazi, dokumenti=dok_data, rocista=rok_data, tip_predmeta=tip_predmeta, expected_docs=_EXPECTED_DOCS)
+    problemi = identify_case_problems(rizik, tip_predmeta)
+    rizici_ozbiljni = [p for p in problemi if p.get("ozbiljnost") in ("kritican", "vazan")]
+
+    summary_row = {
+        "predmet_id": predmet_id,
+        "event_id": event.event_id,
+        "reason": payload.get("reason") or "DOCUMENT_BATCH_COMPLETED",
+        "correlation_id": event.correlation_id,
+        "dokumenata_dodato": dokumenata_dodato,
+        "novi_dokazi": dokumenata_dodato,  # svaki uspešno povezan dokument je i sam kandidat-dokaz (Evidence Vault klasifikacija radi po dokumentu, već sprovedena pre ovog koraka)
+        "novi_dogadjaji": novi_dogadjaji,
+        "kontradikcije_pronadjene": nove_kontradikcije,
+        "rizici_koji_zahtevaju_paznju": len(rizici_ozbiljni),
+        "novi_rokovi": int(payload.get("rokovi_dodati") or 0),
+        "dokumenti_niska_sigurnost": int(payload.get("dokumenti_za_proveru") or 0),
+        "genome_verzija_pre": payload.get("pre_verzija"),
+        "genome_verzija_posle": after_verzija,
+        "detalji": {
+            "kontradikcije": kontradikcije_posle[-nove_kontradikcije:] if nove_kontradikcije else [],
+            "nedostajuci_dokazi": rizik.get("nedostajuci_dokazi") or [],
+            "rizici": rizici_ozbiljni,
+            "job_ids": payload.get("job_ids") or [],
+        },
+    }
+    ins = await asyncio.to_thread(lambda: supa.table("case_intelligence_summaries").insert(summary_row).execute())
+    summary_id = (ins.data or [{}])[0].get("id") if ins and ins.data else None
+
+    try:
+        from shared.audit_immutable import log_action
+        await log_action(
+            "case_intelligence_refreshed",
+            user_id=uid, resource_type="predmet", resource_id=predmet_id,
+            correlation_id=event.correlation_id,
+            metadata={"summary_id": summary_id, **{k: v for k, v in summary_row.items() if k != "detalji"}},
+        )
+    except Exception as audit_exc:
+        logger.warning("[CASE_EVOLUTION] case_intelligence_refreshed audit upis neuspešan (non-fatal) predmet=%s: %s", predmet_id, audit_exc)
+
+    return str(summary_id) if summary_id else "completed_no_summary_id"
+
+
 # ─── Canonical consequence registry ──────────────────────────────────────────
 # Program Delta, Sprint 001, Task 1's own explicit instruction: prove ONE
 # entry point exists for every event that changes a predmet's state, do not
@@ -402,6 +544,18 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # No timeline_entry here: routers/rocista.py never produced one for
         # hearing creation before this sprint, so none is invented now.
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+    ],
+    EventType.DOCUMENT_BATCH_COMPLETED: [
+        # Program Omega, Sprint 002 — TWO consequences, in this exact order.
+        # genome_refresh REUSED unchanged from DOCUMENT_ACCEPTED (own
+        # idempotency, own verification) — handle_case_changed's own
+        # sequential per-consequence loop guarantees it completes before
+        # case_intelligence_summary starts, so a crash-then-retry never
+        # redoes the expensive Genome recompute once it has already
+        # succeeded (see _consequence_case_intelligence_summary's own
+        # docstring for the full reasoning).
+        ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+        ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),
     ],
 }
 

@@ -1162,26 +1162,23 @@ Omega sprint — Priority 1's own named scenario (500-document upload) drove a f
 was written; found and closed 2 real capacity breaks (upload-endpoint timeout risk, missing batch-finalize),
 named 2 more without attempting them.
 
-## OMEGA-001 — Case Genome recomputes once per finalize call, not once per case, within a same-case batch (Medium, deliberately deferred)
+## OMEGA-001 — CLOSED (Program Omega, Sprint 002, 2026-08-06): Case Genome now recomputes once per case per batch, not once per document
 
-If N documents finalized via `POST /jobs/finalize-batch` all resolve to the SAME `predmet_id`, each one's own
-`_finalize_intake_job_core` call still emits its own `DOCUMENT_ACCEPTED` event, and Case Evolution Engine
-still triggers a full Genome recompute per event — up to N full recomputes for what is conceptually "one case
-receiving N documents."
+Was: if N documents finalized via `POST /jobs/finalize-batch` all resolved to the SAME `predmet_id`, each
+one's own `_finalize_intake_job_core` call emitted its own `DOCUMENT_ACCEPTED` event, and Case Evolution
+Engine triggered a full Genome recompute per event — up to N full recomputes for what is conceptually "one
+case receiving N documents."
 
-**Why not fixed this sprint**: closing this properly requires changing WHEN `_finalize_intake_job_core` emits
-`DOCUMENT_ACCEPTED` (deferred, aggregated per unique `predmet_id`, emitted once after the whole batch's
-document-linking work completes) — a real change to Program Intake/Delta's own already-hardened, heavily-
-tested emission logic. Attempting it alongside the upload-timeout and batch-finalize fixes already made this
-sprint would have meant less careful testing of everything at once.
+**Closed by**: a new canonical event, `EventType.DOCUMENT_BATCH_COMPLETED`, emitted ONCE per unique
+`predmet_id` touched by a batch (not once per job) — per-job `DOCUMENT_ACCEPTED`/`NEW_EVIDENCE_REGISTERED`
+emissions are UNCHANGED (evidence classification/timeline entries still happen at document granularity,
+correctly), but the expensive Genome recompute now happens exactly once per case via the new event's own
+`genome_refresh` consequence (reused unchanged) + `case_intelligence_summary` consequence (new). See
+`docs/omega/CASE_REFRESH_ENGINE_SPEC.md` for the full mechanical detail and
+`tests/test_omega_sprint002_case_intelligence.py::test_scenario1_single_case_large_batch_produces_one_summary_with_correct_diffs`
+for the proof (Genome called exactly once for a 500-document single-case batch).
 
-**Recommended direction**: add an internal `suppress_document_accepted: bool` parameter to
-`_finalize_intake_job_core`; have `finalize_intake_jobs_batch` collect accepted document names per unique
-`predmet_id` across the whole batch and emit `DOCUMENT_ACCEPTED` once per case after the loop — generalizing
-Sprint 001's own existing per-call coalescing to a per-BATCH coalescing.
-
-**Severity**: Medium — a real performance/cost concern for the 500-same-case scenario specifically (not
-correctness-breaking; each recompute is still individually correct, just wastefully repeated).
+**Severity**: N/A (closed).
 
 ## OMEGA-002 — No automatic Task creation from document-acceptance-noticed problems (Medium, needs a business decision)
 
@@ -1199,6 +1196,46 @@ with a founder decision on which problem types warrant a task.
 
 **Severity**: Medium — the mission's own Priority 4 ("automatski rokovi i zadaci") is only half-closed
 (deadlines yes, tasks-from-noticed-problems no).
+
+---
+
+## Program Omega, Sprint 002 (2026-08-06) — Case Intelligence Aggregation Engine
+
+Full narrative: `docs/omega/OMEGA_SPRINT_002_REPORT.md`, `docs/omega/OMEGA_CASE_INTELLIGENCE_ARCHITECTURE.md`,
+`docs/omega/CASE_REFRESH_ENGINE_SPEC.md`, `docs/omega/CASE_LEVEL_INTELLIGENCE_FLOW.md`,
+`docs/omega/BATCH_INTELLIGENCE_VALIDATION_REPORT.md`. Closes `OMEGA-001` (see above) and builds the first
+real case-level intelligence summary, sourced and durable.
+
+## OMEGA-003 — Document reclassification (Scenario 5) has no defined consequence chain (Medium, needs a design decision)
+
+`DOCUMENT_MODIFIED` remains one of the 3 declared-but-not-wired `EventType` members (unchanged since Program
+Delta Sprint 001, re-confirmed by Sprint 004's own certification, unchanged by this sprint). Program Omega
+Sprint 002's own Phase 5 explicitly named Scenario 5 ("document changes classification — do Genome/Timeline/
+Evidence/Tasks stay synchronized?") as a required test, and it was NOT built or tested this sprint.
+
+**Why not fixed this sprint**: this mission's own charter was Case Intelligence AGGREGATION (batch → one
+refresh → one summary), not classification-change propagation — a genuinely different question requiring its
+own design pass (does reclassification need a full evidence re-classification? A Genome refresh? Does the OLD
+classification's own downstream effects — e.g. an evidence tag, a timeline entry — need to be reversed or
+just superseded?). Attempting it blind risks either doing too little (a silent gap) or too much (new AI
+capability, forbidden by this sprint's own "no new isolated functions" principle).
+
+**Recommended direction**: a dedicated future Omega sprint wiring `DOCUMENT_MODIFIED`, starting with an
+explicit design decision on what reclassification should actually trigger.
+
+**Severity**: Medium — a real, named gap in Phase 5's own required test coverage, not silently assumed
+covered.
+
+## OMEGA-004 — No read-API for `case_intelligence_summaries` (Low, deliberately deferred)
+
+The new `case_intelligence_summaries` table (migration 098) is durable and sourced, but no endpoint exposes it
+to a lawyer or frontend — the data exists, nothing reads it back out yet.
+
+**Why not fixed this sprint**: the mission's own "ZABRANJENO" list explicitly forbids new dashboard panels;
+building a bare read endpoint without a real consumer would be premature. A natural, low-risk follow-up once
+a UI surface for it is actually planned.
+
+**Severity**: Low — no correctness risk, just an unrealized value gap.
 
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 

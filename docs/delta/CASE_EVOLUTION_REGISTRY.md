@@ -1,15 +1,21 @@
-# Case Evolution Registry — Program Delta (living document, updated each sprint)
+# Case Evolution Registry — the canonical registry for `services/case_evolution.py` (living document, updated by whichever program extends the engine)
+
+Built by Program Delta (Sprints 001-004); extended by Program Omega starting Sprint 002 — the Case Evolution
+Engine itself is a shared, canonical piece of infrastructure, not owned exclusively by the program that built
+it. Any future program adding a wired event updates THIS file, the same way Delta's own sprints did.
 
 **Sprint 001** (2026-08-05) wired `DOCUMENT_ACCEPTED`. **Sprint 002** (2026-08-05, "Canonical Event Migration
 I") wired 4 more: `REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`.
 **Sprint 003** (2026-08-05, "Canonical Event Migration II — Complete Event Convergence") wires the last
 remaining event (`ROCISTE_ZAKAZANO`) and migrates the last 2 direct-orchestration call sites (Pipeline A's own
 Genome/Evidence triggers, `routers/rocista.py`'s own Genome trigger) — see `EVENT_MIGRATION_REPORT_SPRINT_003.md`
-and `ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md` for full detail. **6 of 6 events with a genuine reactive-
-consequence need are now wired** — this registry's own Task 3 audit (Sprint 003) confirmed the remaining
-`EventType` members are either dead (never emitted, no handler — out of Case Evolution's domain, see "Registry
-Audit" section below) or already owned by a different, established, pre-existing orchestrator (Case Pipeline,
-decision_log, proactive_alerts direct handlers) — not hidden Case Evolution bypasses.
+and `ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md` for full detail. Sprint 004 forensically CERTIFIED all 6
+events wired at that point had zero bypasses. **Program Omega, Sprint 002** (2026-08-06, "Case Intelligence
+Aggregation Engine") wires a 7th event, `DOCUMENT_BATCH_COMPLETED` — see its own WIRED section below and
+`docs/omega/CASE_REFRESH_ENGINE_SPEC.md` for full detail. This registry's own repeated Task-3-style audits
+have confirmed, every time, that the remaining `EventType` members are either dead (never emitted, no handler
+— out of Case Evolution's domain) or already owned by a different, established, pre-existing orchestrator
+(Case Pipeline, decision_log, proactive_alerts direct handlers) — not hidden Case Evolution bypasses.
 
 **Read this file first for any future Program Delta sprint** — per the founder's own closing instruction,
 future Delta work should read only `docs/delta/*` (this registry + prior sprint reports), not re-derive the
@@ -110,6 +116,20 @@ consequences for it.
 | Success kriterijum | `genome_refresh` completed with a verified `result_ref` (the new `case_dna.verzija`) |
 | Deliberately NOT migrated in the same pass | `routers/rocista.py::azuriraj_rociste` (PATCH, rescheduling) has NO current Genome trigger at all — adding one now would be a NEW consequence for an endpoint that never had it, forbidden under "migrate, don't extend"; `hearing_followup` writes its own `predmet_hronologija`/`predmet_beleske`/`predmet_istorija` rows directly and synchronously as its PRIMARY requested action (not a reactive consequence of a case-changing event — same category as `finalize_intake_job`'s own document-linking work), correctly left untouched |
 
+## DOCUMENT_BATCH_COMPLETED — WIRED (Program Omega, Sprint 002, 2026-08-06) — new event type, batch-scoped
+
+| Field | Value |
+|---|---|
+| Naziv | `DOCUMENT_BATCH_COMPLETED` (`services/event_bus.py::EventType.DOCUMENT_BATCH_COMPLETED`) — new this sprint, not a pre-existing dead declaration |
+| Vlasnik | `services/case_evolution.py::handle_case_changed` |
+| Ulaz | Emitted durably by `routers/smart_intake.py::finalize_intake_jobs_batch` (`POST /jobs/finalize-batch`), ONCE per unique `predmet_id` touched by the batch — never once per job/document. Payload carries the emitter's own already-verified batch facts (`dokumenata_dodato`, `dokumenti_za_proveru`, `rokovi_dodati`, `job_ids`) PLUS a "before" Genome snapshot (`pre_verzija`, `pre_kontradikcije`, `pre_dogadjaji`) captured at emission time, before any refresh runs — durable, so it survives a crash/retry unchanged |
+| Posledice (ordered) | 1. `genome_refresh` — REUSES `DOCUMENT_ACCEPTED`'s own executor UNCHANGED. 2. `case_intelligence_summary` — NEW; diffs `case_dna.kontradikcije`/`datumi_kljucni` against the payload's own "before" snapshot, calls Core Consolidation's own canonical `calculate_procesni_rizik`/`identify_case_problems` (never a second competing algorithm), writes one durable, sourced row to `case_intelligence_summaries` (migration 098) plus a domain-specific `case_intelligence_refreshed` audit row |
+| Idempotency pravila | Identical `(event_id, consequence_name)` mechanism. Ordering WITHIN one event's own consequence list is a hard sequential guarantee (`handle_case_changed`'s own for-loop) — `case_intelligence_summary` is guaranteed to run AFTER `genome_refresh` completes for the SAME event, so it always reads freshly-refreshed `case_dna` |
+| Retry / crash recovery | A crash after `genome_refresh` completes but before `case_intelligence_summary` finishes does NOT redo the Genome recompute on retry (already marked `completed`) — only the summary step reruns, matching the mission's own "nastavlja gde je stalo" requirement |
+| Why this closes `OMEGA-001` | Program Omega Sprint 001 found Genome recomputing once per finalize call within a same-case batch (up to N times for N documents). This event is emitted ONCE per case per batch (not per job), so a 500-document single-case batch now produces exactly ONE Genome recompute, not 500 |
+| Rollback ponašanje | None needed — each consequence is independently idempotent and safe to leave partially applied, same reasoning as every other wired event |
+| Success kriterijum | Both consequences `completed`; one `case_intelligence_summaries` row exists, every number in it traceable to a real underlying query or the emitter's own already-verified payload (Agent 3's own "no conclusion without source" rule) |
+
 ## The remaining 3 mapped events — still DECLARED, NOT WIRED
 
 | Event | Where it would originate | Why not wired yet |
@@ -118,15 +138,14 @@ consequences for it.
 | `CONFIDENCE_DROPPED` | A document/entity's confidence falls below `AUTO_ACCEPT_THRESHOLD` (Sprint 003's own Confidence Graph) | No consequence currently exists beyond the already-correct review-queue routing (Sprint 003/004) — nothing proven to be missing yet |
 | `MANUAL_CORRECTION_APPLIED` | `shared/intake_documents.py::correct_entity()` | Already writes its own `write_processing_outcome`/audit trail (Sprint 004) — no additional consequence identified as missing |
 
-## Registry Audit — every `EventType` member accounted for (corrected, Sprint 004)
+## Registry Audit — every `EventType` member accounted for (updated, Program Omega Sprint 002)
 
-`services/event_bus.py::EventType` has **20 members total** (Sprint 003's own version of this section said
-19 — an undercount caught by Sprint 004's Orchestration Certification: `DOCUMENT_JOB_FAILED` was described in
-this section's own prose but never given its own row, so the stated total didn't match the actual row count.
-Pinned going forward by `tests/test_delta_sprint004_certification.py::
+`services/event_bus.py::EventType` has **21 members total** (was 20 as of Program Delta Sprint 004's own
+certification; Program Omega Sprint 002, 2026-08-06, added `DOCUMENT_BATCH_COMPLETED`, the 21st — see its own
+WIRED section above). Pinned going forward by `tests/test_delta_sprint004_certification.py::
 test_event_type_total_member_count_matches_documentation`, which fails if the enum ever changes without this
-doc being updated). This registry documents the 6 that are wired to Case Evolution's own domain — a business
-event whose consequence is "what should automatically follow." The other 14 are explicitly NOT Case
+doc being updated. This registry documents the **7** that are wired to Case Evolution's own domain — a
+business event whose consequence is "what should automatically follow." The other 14 are explicitly NOT Case
 Evolution's domain, listed here so "100% match" means something precise rather than silently ignoring them:
 
 | Event | Real owner | Why it's NOT a Case Evolution gap |

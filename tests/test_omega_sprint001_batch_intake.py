@@ -148,7 +148,12 @@ async def test_finalize_batch_aggregates_multiple_jobs_into_one_case_summary():
                      "klasifikacija_nesigurna": False, "rok_dodat": False, "already_finalized": False}
         raise AssertionError(f"unexpected job_id {job_id}")
 
-    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)):
+    pre_supa = MagicMock()
+    pre_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {"case_dna": {}}
+
+    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)), \
+         patch("routers.smart_intake._get_supa", return_value=pre_supa), \
+         patch("services.event_bus.emit_durable", new=AsyncMock()) as mock_emit:
         result = await finalize_intake_jobs_batch(
             BatchFinalizeReq(job_ids=["job-1", "job-2", "job-3"]), _fake_request(), _fake_user(),
         )
@@ -164,6 +169,22 @@ async def test_finalize_batch_aggregates_multiple_jobs_into_one_case_summary():
     assert predmeti_by_id["pred-B"]["dokumenata"] == 2
     assert len(result["predmeti_pogodjeni"]) == 2  # not 3 -- pred-A deduplicated
     assert "napomena_genome" in result
+    # Program Omega, Sprint 002 -- one DOCUMENT_BATCH_COMPLETED emission per
+    # unique predmet_id, never per job (2 cases touched, not 3 jobs).
+    assert mock_emit.await_count == 2
+    from services.event_bus import EventType
+    emitted_predmeti = {c.args[2] for c in mock_emit.call_args_list}
+    assert emitted_predmeti == {"pred-A", "pred-B"}
+    assert all(c.args[0] == EventType.DOCUMENT_BATCH_COMPLETED for c in mock_emit.call_args_list)
+    pred_a_call = next(c for c in mock_emit.call_args_list if c.args[2] == "pred-A")
+    assert pred_a_call.args[3]["dokumenata_dodato"] == 2
+    assert pred_a_call.args[3]["dokumenti_za_proveru"] == 1
+    assert pred_a_call.args[3]["rokovi_dodati"] == 1
+    assert set(pred_a_call.args[3]["job_ids"]) == {"job-1", "job-2"}
+    assert result["batch_status"] == "completed"
+    assert result["affected_cases"] == 2
+    assert result["refresh_required"] is True
+    assert all(p["refresh_zakazan"] for p in result["predmeti_pogodjeni"])
 
 
 @pytest.mark.anyio
@@ -180,7 +201,12 @@ async def test_finalize_batch_one_failure_does_not_abort_the_rest():
         return {"ok": True, "predmet_id": "pred-A", "naziv": "Markovic", "dokumenata_povezano": 1,
                 "klasifikacija_nesigurna": False, "rok_dodat": False, "already_finalized": False}
 
-    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)):
+    pre_supa = MagicMock()
+    pre_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {"case_dna": {}}
+
+    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)), \
+         patch("routers.smart_intake._get_supa", return_value=pre_supa), \
+         patch("services.event_bus.emit_durable", new=AsyncMock()):
         result = await finalize_intake_jobs_batch(
             BatchFinalizeReq(job_ids=["job-1", "job-bad", "job-2"]), _fake_request(), _fake_user(),
         )
@@ -208,8 +234,13 @@ async def test_finalize_batch_does_not_hit_per_job_rate_limit():
         return {"ok": True, "predmet_id": f"pred-{job_id}", "naziv": "X", "dokumenata_povezano": 1,
                 "klasifikacija_nesigurna": False, "rok_dodat": False, "already_finalized": False}
 
+    pre_supa = MagicMock()
+    pre_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {"case_dna": {}}
+
     job_ids = [f"job-{i}" for i in range(30)]
-    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)):
+    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)), \
+         patch("routers.smart_intake._get_supa", return_value=pre_supa), \
+         patch("services.event_bus.emit_durable", new=AsyncMock()):
         result = await finalize_intake_jobs_batch(BatchFinalizeReq(job_ids=job_ids), _fake_request(), _fake_user())
 
     assert call_count["n"] == 30

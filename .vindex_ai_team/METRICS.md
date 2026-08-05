@@ -1038,3 +1038,33 @@ does and does NOT know synchronously, rather than fabricating Genome-derived num
 own prior work) and remain true, unaffected. Priority 4 (automatic deadlines/tasks) is honestly only half
 true — deadlines yes, tasks-from-noticed-problems no, named as `OMEGA-002`. Full detail:
 `docs/omega/OMEGA_SPRINT_001_REPORT.md`.
+
+## Program Omega, Sprint 002 (2026-08-06) — Case Intelligence Aggregation Engine
+
+**Methodology note**: Phase 1's own mandatory forensic review written before any code, confirming `OMEGA-001`
+was the one real duplicate-call risk before building the fix.
+
+| Metric | Value |
+|---|---|
+| Genome recomputes for a 500-document single-case batch, before this sprint | Up to 500 (once per finalize call) |
+| After this sprint | 1 (once per `DOCUMENT_BATCH_COMPLETED` event, proven by test) |
+| New canonical event types | 1 (`DOCUMENT_BATCH_COMPLETED`) — 7th event now wired to Case Evolution Engine (was 6 after Program Delta Sprint 004) |
+| New consequences | 1 (`case_intelligence_summary`) — `genome_refresh` reused unchanged, zero duplication |
+| New durable tables | 1 (`case_intelligence_summaries`, migration 098) — historical, never overwritten |
+| Phase 5 required scenarios addressed | 4 of 5 fully (single-case batch, 5-session batch, concurrent-users, crash-recovery); 1 explicitly named as NOT covered (Scenario 5, document reclassification — `OMEGA-003`) |
+| New dedicated tests | 9 (`tests/test_omega_sprint002_case_intelligence.py`), all passing on first run |
+| Pre-existing tests updated (drift detectors doing their job) | 3 (Program Delta Sprint 003/004's own registry-consistency tests, correctly caught the new 7th event/21st EventType member) |
+| Debts closed | 1 (`OMEGA-001`) |
+| New debts found and named | 2 (`OMEGA-003` Scenario 5 gap, `OMEGA-004` no read-API — neither silently left) |
+| Full suite | **2,653 passed, 1 skipped, 0 failed** (was 2,644 at end of Program Omega Sprint 001) — zero regressions |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: all 5 stated in the mission's own Definition of Done checked individually — "new
+document changes case intelligence" (✔, proven by the diff-based summary), "500 documents don't create 500
+isolated processings" (✔, exactly the `OMEGA-001` fix), "the case has one current state" (✔, `predmeti.
+case_dna` remains the single source of truth, `case_intelligence_summaries` is a history, never a competing
+copy), "every AI conclusion has provenance" (✔, every summary field traced to a real query or the emitter's
+own already-verified fact), "system interruption doesn't destroy continuity" (✔, Scenario 4's own 2 tests).
+Full detail: `docs/omega/OMEGA_SPRINT_002_REPORT.md`.

@@ -66,6 +66,13 @@ class EventType(str, Enum):
     MANUAL_CORRECTION_APPLIED   = "ManualCorrectionApplied"
     REVIEW_ACCEPTED             = "ReviewAccepted"
     REVIEW_REJECTED             = "ReviewRejected"
+    # Program Omega, Sprint 002 (2026-08-06) — "Case Intelligence Aggregation
+    # Engine". Fired ONCE per (predmet_id) touched by a finalize-batch
+    # operation (routers/smart_intake.py::finalize_intake_jobs_batch) — NOT
+    # once per document/job. This is the mechanism that turns "500 documents
+    # finalized" into "one case-level refresh" instead of N redundant Genome
+    # recomputes (Program Omega Sprint 001's own named, deferred `OMEGA-001`).
+    DOCUMENT_BATCH_COMPLETED    = "DocumentBatchCompleted"
 
 
 # ─── Event dataclass ──────────────────────────────────────────────────────────
@@ -362,6 +369,10 @@ class EventBus:
         # (confirmed by repo-wide grep) — now wired for the first time,
         # replacing routers/rocista.py's own direct Genome-refresh call.
         self.subscribe(EventType.ROCISTE_ZAKAZANO,        handle_case_changed)
+        # Program Omega, Sprint 002 (2026-08-06) — Case Intelligence
+        # Aggregation Engine. Same canonical dispatcher, no separate
+        # mechanism — see services/case_evolution.py::refresh_case_intelligence.
+        self.subscribe(EventType.DOCUMENT_BATCH_COMPLETED, handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""
