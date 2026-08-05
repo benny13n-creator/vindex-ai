@@ -4140,147 +4140,179 @@ async def predmet_upload_auto_analyze(
     except Exception as _se:
         logger.warning("[P1.1] Original fajl storage upis neuspesan (nastavljam bez cuvanja originala): %s", _se)
 
-    # Extract text
-    tmp_path = None
+    # Program Intake Sprint 002 (2026-08-05) -- ceo ostatak obrade (OCR ->
+    # Pinecone -> DB) je uvijen u ovaj try/except da bi orphan-blob nalaz
+    # (Sprint 002 Fork A §A2, "sirа od INTAKE-002, bez ikakve infrastrukture
+    # za pracenje") bio zatvoren KOMPENZUJUCIM brisanjem, ne samo dokumentovan.
+    # Ako je storage upis originala (iznad) uspeo, ali BILO KOJI od 5 raise
+    # mesta ispod pukne (safety limit, necitljiv sken, prazan tekst, Pinecone
+    # neuspeh, Sentinel hard-fail), enkriptovan blob bi ranije ostao trajno
+    # sirotce u intake-dokumenti bucket-u -- niko i nista ga vise ne
+    # referencira. Brisanje ovde je best-effort (ako i ono padne, samo se
+    # loguje, originalna HTTPException i dalje ide ka klijentu nepromenjena)
+    # i NE menja nijedan postojeci odgovor klijentu -- isti izuzetak se
+    # ponovo baca posle cišcenja (`raise` bez argumenata čuva originalni tip
+    # i poruku).
     try:
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(raw)
-            tmp_path = _Path(tmp.name)
+        # Extract text
+        tmp_path = None
         try:
-            text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
-        except DocumentSafetyLimitExceeded as _dsle:
-            logger.warning(
-                "[SEC-007] Upload odbijen (safety limit) predmet=%s filename=%r razlog=%s",
-                predmet_id, file.filename, _dsle.reason,
-            )
-            raise HTTPException(
-                status_code=413,
-                detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
-            )
-        if is_scanned:
-            raise HTTPException(
-                status_code=422,
-                detail="Tekst nije čitljiv ni optičkim prepoznavanjem (OCR). Probajte jasniju fotografiju/sken, digitalni PDF ili DOCX."
-            )
-    finally:
-        if tmp_path and tmp_path.exists():
-            try: tmp_path.unlink()
-            except Exception: pass
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                tmp.write(raw)
+                tmp_path = _Path(tmp.name)
+            try:
+                text, is_scanned, ocr_used = await asyncio.to_thread(extract, tmp_path)
+            except DocumentSafetyLimitExceeded as _dsle:
+                logger.warning(
+                    "[SEC-007] Upload odbijen (safety limit) predmet=%s filename=%r razlog=%s",
+                    predmet_id, file.filename, _dsle.reason,
+                )
+                raise HTTPException(
+                    status_code=413,
+                    detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+                )
+            if is_scanned:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Tekst nije čitljiv ni optičkim prepoznavanjem (OCR). Probajte jasniju fotografiju/sken, digitalni PDF ili DOCX."
+                )
+        finally:
+            if tmp_path and tmp_path.exists():
+                try: tmp_path.unlink()
+                except Exception: pass
 
-    if not text or not text.strip():
-        raise HTTPException(status_code=422, detail="Dokument je prazan ili nečitljiv.")
+        if not text or not text.strip():
+            raise HTTPException(status_code=422, detail="Dokument je prazan ili nečitljiv.")
 
-    if ocr_used:
-        logger.info("[OCR] Dokument %r procitat OCR-om (predmet=%s)", file.filename, predmet_id)
+        if ocr_used:
+            logger.info("[OCR] Dokument %r procitat OCR-om (predmet=%s)", file.filename, predmet_id)
 
-    # Phase 2.1 — detect document type for routing to specialized prompt
-    doc_type = _detect_doc_type(text)
-    logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
+        # Phase 2.1 — detect document type for routing to specialized prompt
+        doc_type = _detect_doc_type(text)
+        logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
 
-    # Chunk + ingest to Pinecone
-    source_meta = {
-        "source_filename": file.filename,
-        "source_format": suffix.lstrip("."),
-        "source_sha256": hashlib.sha256(raw).hexdigest(),
-        "is_scanned": ocr_used,
-        "session_id": "__local__",
-    }
-    manifest = await asyncio.to_thread(chunk_document, text, source_meta)
-    if manifest.total_chunks == 0:
-        raise HTTPException(status_code=422, detail="Dokument je prazan.")
-
-    session_id = generate_session_id()
-    # Predmet dokumenti su trajni -- koriste _owner_ns (kancelarija_{id}/
-    # user_{id}), ne 'pred_' + nasumičan session_id (v. napomena iznad).
-    # cleanup_expired i dalje briše samo 'tmp_*' namespace-ove, pa ovaj
-    # trajni namespace nikad neće biti obrisan njime.
-    _pinecone_ok = True
-    try:
-        from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
-        count = await asyncio.to_thread(
-            ingest_session, manifest, session_id,
-            namespace_override=_owner_ns,
-            extra_metadata={
-                "predmet_id": predmet_id,
-                "kancelarija_id": _kancelarija_id or "",
-                "type": "case_doc",
-                # Institutional Memory V2 (2026-07-26) STUB 2/3 -- v.
-                # shared/vector_origin.py za origin/decay semantiku.
-                "origin": ORIGIN_CLIENT_DOC,
-                "parent_id": "",
-                "origin_chain": [ORIGIN_CLIENT_DOC],
-                "created_at": _now_iso(),
-                "golden_template": False,
-            },
-        )
-    except Exception as _pe:
-        _pe_str = str(_pe)
-        if "429" in _pe_str or "storage" in _pe_str.lower() or "Too Many" in _pe_str:
-            logger.warning("[P1.1] Pinecone storage pun — dokument se cuva bez RAG indeksiranja: %s", _pe_str[:120])
-            _pinecone_ok = False
-            count = 0
-        else:
-            raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {_pe_str}")
-
-    # Record in predmet_dokumenti — tekst_sadrzaj se cuva za trajni preview
-    _dok_id = None
-    _tekst_preview = text[:100_000] if text else ""
-    try:
-        # Izracunaj sledeci redni_broj za DOK-01, DOK-02...
-        try:
-            _rn_res = _get_supa().table("predmet_dokumenti") \
-                .select("redni_broj") \
-                .eq("predmet_id", predmet_id) \
-                .order("redni_broj", desc=True) \
-                .limit(1).execute()
-            _max_rn = (_rn_res.data or [{}])[0].get("redni_broj") or 0
-            _next_rn = int(_max_rn) + 1
-        except Exception:
-            _next_rn = 1
-
-        _row = {
-            "predmet_id":          predmet_id,
-            "user_id":             user.id,
-            "naziv_fajla":         file.filename or "dokument",
-            # Program Intake Sprint 001: stvaran, dereferencibilan put u
-            # intake-dokumenti bucket-u kad je upis originala uspeo (iznad);
-            # inace stara "session/{id}" labela koja NIKAD nije pokazivala na
-            # stvaran objekat -- zadrzana kao fallback vrednost, ne kao
-            # tvrdnja da je original sacuvan (honestly reflects the gap,
-            # doesn't paper over it with a value that looks the same either way).
-            "storage_path":        _original_storage_path or f"session/{session_id}",
-            # Deljeni namespace (v. napomena iznad) -- vise dokumenata istog
-            # vlasnika deli isti namespace, razlikuju se preko predmet_id
-            # metadata filtera, ne preko odvojenih namespace-ova.
-            "pinecone_namespace":  _owner_ns,
-            "status":              "indeksirano" if _pinecone_ok else "sacuvano",
-            "velicina_kb":         max(1, len(raw) // 1024),
-            "redni_broj":          _next_rn,
+        # Chunk + ingest to Pinecone
+        source_meta = {
+            "source_filename": file.filename,
+            "source_format": suffix.lstrip("."),
+            "source_sha256": hashlib.sha256(raw).hexdigest(),
+            "is_scanned": ocr_used,
+            "session_id": "__local__",
         }
-        # Sačuvaj tekst ako kolona postoji (migration: ALTER TABLE predmet_dokumenti ADD COLUMN tekst_sadrzaj TEXT)
-        try:
-            _ins = _get_supa().table("predmet_dokumenti").insert({**_row, "tekst_sadrzaj": _tekst_preview}).execute()
-        except Exception:
-            _ins = _get_supa().table("predmet_dokumenti").insert(_row).execute()
-        _dok_id = (_ins.data or [{}])[0].get("id")
-    except Exception:
-        logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+        manifest = await asyncio.to_thread(chunk_document, text, source_meta)
+        if manifest.total_chunks == 0:
+            raise HTTPException(status_code=422, detail="Dokument je prazan.")
 
-    # Project Sentinel (2026-08-03): ako predmet_dokumenti insert nije uspeo
-    # (npr. Supabase greška odmah posle uspešnog Pinecone ingest-a iznad),
-    # dokument ne postoji u sistemu iz perspektive predmeta — nastavak na AI
-    # procenu/hronologiju/metapodatke bi proizveo kompletan HTTP 200 "uspeh"
-    # (auto_analyzed=true, procena_tekst, predmet_istorija unos) za dokument
-    # koji se nikad ne pojavljuje u case-ovoj sopstvenoj listi dokumenata —
-    # potvrđena lažna potvrda uspeha (Sentinel Phase 3, failure_recovery
-    # investigation §8). Pinecone vektor ostaje (best-effort cleanup nije
-    # implementiran ovde — vidi SENTINEL_PRE_BETA_CRITICAL_PATH.md), ali
-    # korisnik više ne dobija lažan signal uspeha niti AI analizu duha-dokumenta.
-    if not _dok_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Dokument je otpremljen, ali nije uspešno sačuvan u sistemu — analiza nije pokrenuta. Pokušajte ponovo.",
-        )
+        session_id = generate_session_id()
+        # Predmet dokumenti su trajni -- koriste _owner_ns (kancelarija_{id}/
+        # user_{id}), ne 'pred_' + nasumičan session_id (v. napomena iznad).
+        # cleanup_expired i dalje briše samo 'tmp_*' namespace-ove, pa ovaj
+        # trajni namespace nikad neće biti obrisan njime.
+        _pinecone_ok = True
+        try:
+            from shared.vector_origin import ORIGIN_CLIENT_DOC, now_iso as _now_iso
+            count = await asyncio.to_thread(
+                ingest_session, manifest, session_id,
+                namespace_override=_owner_ns,
+                extra_metadata={
+                    "predmet_id": predmet_id,
+                    "kancelarija_id": _kancelarija_id or "",
+                    "type": "case_doc",
+                    # Institutional Memory V2 (2026-07-26) STUB 2/3 -- v.
+                    # shared/vector_origin.py za origin/decay semantiku.
+                    "origin": ORIGIN_CLIENT_DOC,
+                    "parent_id": "",
+                    "origin_chain": [ORIGIN_CLIENT_DOC],
+                    "created_at": _now_iso(),
+                    "golden_template": False,
+                },
+            )
+        except Exception as _pe:
+            _pe_str = str(_pe)
+            if "429" in _pe_str or "storage" in _pe_str.lower() or "Too Many" in _pe_str:
+                logger.warning("[P1.1] Pinecone storage pun — dokument se cuva bez RAG indeksiranja: %s", _pe_str[:120])
+                _pinecone_ok = False
+                count = 0
+            else:
+                raise HTTPException(status_code=500, detail=f"Greška pri obradi dokumenta: {_pe_str}")
+
+        # Record in predmet_dokumenti — tekst_sadrzaj se cuva za trajni preview
+        _dok_id = None
+        _tekst_preview = text[:100_000] if text else ""
+        try:
+            # Izracunaj sledeci redni_broj za DOK-01, DOK-02...
+            try:
+                _rn_res = _get_supa().table("predmet_dokumenti") \
+                    .select("redni_broj") \
+                    .eq("predmet_id", predmet_id) \
+                    .order("redni_broj", desc=True) \
+                    .limit(1).execute()
+                _max_rn = (_rn_res.data or [{}])[0].get("redni_broj") or 0
+                _next_rn = int(_max_rn) + 1
+            except Exception:
+                _next_rn = 1
+
+            _row = {
+                "predmet_id":          predmet_id,
+                "user_id":             user.id,
+                "naziv_fajla":         file.filename or "dokument",
+                # Program Intake Sprint 001: stvaran, dereferencibilan put u
+                # intake-dokumenti bucket-u kad je upis originala uspeo (iznad);
+                # inace stara "session/{id}" labela koja NIKAD nije pokazivala na
+                # stvaran objekat -- zadrzana kao fallback vrednost, ne kao
+                # tvrdnja da je original sacuvan (honestly reflects the gap,
+                # doesn't paper over it with a value that looks the same either way).
+                "storage_path":        _original_storage_path or f"session/{session_id}",
+                # Deljeni namespace (v. napomena iznad) -- vise dokumenata istog
+                # vlasnika deli isti namespace, razlikuju se preko predmet_id
+                # metadata filtera, ne preko odvojenih namespace-ova.
+                "pinecone_namespace":  _owner_ns,
+                "status":              "indeksirano" if _pinecone_ok else "sacuvano",
+                "velicina_kb":         max(1, len(raw) // 1024),
+                "redni_broj":          _next_rn,
+            }
+            # Sačuvaj tekst ako kolona postoji (migration: ALTER TABLE predmet_dokumenti ADD COLUMN tekst_sadrzaj TEXT)
+            try:
+                _ins = _get_supa().table("predmet_dokumenti").insert({**_row, "tekst_sadrzaj": _tekst_preview}).execute()
+            except Exception:
+                _ins = _get_supa().table("predmet_dokumenti").insert(_row).execute()
+            _dok_id = (_ins.data or [{}])[0].get("id")
+        except Exception:
+            logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
+
+        # Project Sentinel (2026-08-03): ako predmet_dokumenti insert nije uspeo
+        # (npr. Supabase greška odmah posle uspešnog Pinecone ingest-a iznad),
+        # dokument ne postoji u sistemu iz perspektive predmeta — nastavak na AI
+        # procenu/hronologiju/metapodatke bi proizveo kompletan HTTP 200 "uspeh"
+        # (auto_analyzed=true, procena_tekst, predmet_istorija unos) za dokument
+        # koji se nikad ne pojavljuje u case-ovoj sopstvenoj listi dokumenata —
+        # potvrđena lažna potvrda uspeha (Sentinel Phase 3, failure_recovery
+        # investigation §8). Pinecone vektor ostaje (isti orphan-vektor nalaz
+        # kao Sprint 002 Fork A §A3 — deferred, INTAKE-001-shape, vidi
+        # ARCHITECTURAL_DEBT_REGISTER.md), ali korisnik više ne dobija lažan
+        # signal uspeha niti AI analizu duha-dokumenta.
+        if not _dok_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Dokument je otpremljen, ali nije uspešno sačuvan u sistemu — analiza nije pokrenuta. Pokušajte ponovo.",
+            )
+    except Exception:
+        if _original_storage_path:
+            try:
+                from routers.smart_intake import _STORAGE_BUCKET as _si_bucket_cleanup
+                await asyncio.to_thread(
+                    lambda: _get_supa().storage.from_(_si_bucket_cleanup).remove([_original_storage_path])
+                )
+                logger.info(
+                    "[P1.1] Orphan cleanup: obrisan originalni fajl iz storage-a posle neuspesne obrade (predmet=%s, key=%s)",
+                    predmet_id, _original_storage_path,
+                )
+            except Exception as _ce:
+                logger.warning(
+                    "[P1.1] Orphan cleanup neuspesan (blob moze ostati sirotce) predmet=%s, key=%s: %s",
+                    predmet_id, _original_storage_path, _ce,
+                )
+        raise
 
     # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — isti obrazac kao
     # predmet_create iznad. 'dokument_upload' je vec u AUDITABLE_ACTIONS.

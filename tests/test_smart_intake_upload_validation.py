@@ -47,6 +47,15 @@ def _mock_supa_and_queue():
     mock_supa = MagicMock()
     mock_supa.storage.from_.return_value.upload.return_value = None
     mock_supa.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock()
+    # Program Intake Sprint 002 (2026-08-05): upload_intake_documents now
+    # does a pre-check SELECT by idempotency_key before uploading (avoids
+    # orphaning a Storage blob on an ordinary duplicate resubmit). Without
+    # this, the chain's default MagicMock return would be truthy AND
+    # non-subscriptable, making every upload in these pre-existing tests
+    # crash on `_existing_job_data["id"]` instead of proceeding normally --
+    # configure it to report "no existing job" so these tests keep
+    # exercising the storage+enqueue path they were written for.
+    mock_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(data=None)
     return mock_supa
 
 

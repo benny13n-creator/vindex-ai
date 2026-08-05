@@ -250,6 +250,24 @@ async def test_write_processing_outcome_swallows_errors():
 
 
 @pytest.mark.anyio
+async def test_write_processing_outcome_raises_when_raise_on_error_true():
+    """Program Intake Sprint 002 (2026-08-05) -- shared/intake_worker.py::
+    _process() passes raise_on_error=True because this write is the ONLY
+    reliable completion signal has_processing_outcome() checks. Swallowing
+    a transient failure here (the default, correct_entity()'s own use case)
+    would silently let a job be marked completed with no outcome row --
+    exactly the bug shape Sprint 001 fixed, reopened through this door
+    (Sprint 002 Fork A §B1 / Fork B §3.3). Must propagate so _tick()'s
+    existing retry machinery handles it, same as every other failure."""
+    from shared import intake_documents as idoc
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=Exception("db down"))
+    with patch("shared.intake_documents._get_supa", return_value=supa):
+        with pytest.raises(Exception, match="db down"):
+            await idoc.write_processing_outcome("job-1", "judgment", 0.9, {}, 1200, raise_on_error=True)
+
+
+@pytest.mark.anyio
 async def test_has_processing_outcome_true_when_row_exists():
     from shared import intake_documents as idoc
     supa = MagicMock()

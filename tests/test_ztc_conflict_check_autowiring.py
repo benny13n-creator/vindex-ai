@@ -165,6 +165,7 @@ async def _run_finalize_and_drain(mock_supa, job_result, body, conflict_result):
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
          patch("routers.evidence.klasifikuj_i_sacuvaj"), \
          patch("routers.intake._run_conflict_check", new=AsyncMock(return_value=conflict_result)) as mock_cc, \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
          patch("asyncio.create_task", side_effect=_capture_create_task):
 
         result = await finalize_intake_job("job-1", _fake_request(), body, _fake_user())
@@ -293,6 +294,7 @@ async def test_finalize_conflict_check_failure_does_not_break_case_creation():
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
          patch("routers.evidence.klasifikuj_i_sacuvaj"), \
          patch("routers.intake._run_conflict_check", new=AsyncMock(side_effect=RuntimeError("boom"))), \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
          patch("asyncio.create_task", side_effect=_capture_create_task):
 
         result = await finalize_intake_job(

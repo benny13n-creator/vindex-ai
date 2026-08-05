@@ -98,6 +98,44 @@ async def test_claim_next_job_returns_none_when_empty():
     assert job is None
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# shared/intake_queue.py — claim_finalize (Program Intake Sprint 002, 2026-08-05)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_claim_finalize_returns_row_and_calls_rpc_with_defaults():
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    supa.rpc = MagicMock(return_value=_make_chain([{"id": "job-1", "finalizing_at": "now"}]))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        job = await iq.claim_finalize("job-1")
+    assert job["id"] == "job-1"
+    supa.rpc.assert_called_once_with("claim_intake_finalize", {"p_job_id": "job-1", "p_stale_after_seconds": 120})
+
+
+@pytest.mark.anyio
+async def test_claim_finalize_returns_none_when_already_finalized_or_in_progress():
+    """Zero rows means either predmet_id is already set, or a concurrent
+    finalize claim is still fresh, or the row is currently locked -- all 3
+    correctly surface as 'claim not won', for the caller to disambiguate."""
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    supa.rpc = MagicMock(return_value=_make_chain([]))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        job = await iq.claim_finalize("job-1")
+    assert job is None
+
+
+@pytest.mark.anyio
+async def test_claim_finalize_passes_custom_stale_after_seconds():
+    from shared import intake_queue as iq
+    supa = MagicMock()
+    supa.rpc = MagicMock(return_value=_make_chain([{"id": "job-1"}]))
+    with patch("shared.intake_queue._get_supa", return_value=supa):
+        await iq.claim_finalize("job-1", stale_after_seconds=30)
+    supa.rpc.assert_called_once_with("claim_intake_finalize", {"p_job_id": "job-1", "p_stale_after_seconds": 30})
+
+
 @pytest.mark.anyio
 async def test_claim_next_job_rejects_invalid_status():
     from shared import intake_queue as iq

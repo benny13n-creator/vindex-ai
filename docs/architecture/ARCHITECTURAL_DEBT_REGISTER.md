@@ -632,3 +632,102 @@ document, not fix, if a problem is found there.
 
 **Severity**: Low-Medium — a real UX inaccuracy (a lawyer's finished document shows as pending in Copilot),
 but self-contained to a module this sprint has no mandate to touch.
+
+---
+
+## Program Intake, Sprint 002 (2026-08-05) — Atomic Document Lifecycle
+
+Full narrative and mission-closure self-check: `DOCUMENT_LIFECYCLE_ARCHITECTURE_REPORT.md`. Fixed this sprint
+(tested, zero regressions across 2512 tests): Pipeline C finalize's duplicate-case race (atomic claim,
+migration 092, the sprint's #1 finding, independently confirmed by all 3 investigation forks the same day),
+`write_processing_outcome()`'s silent exception swallow (reopened Sprint 001's own false-success bug shape
+through a different door), Pipeline A's wider-than-known orphan-blob exposure (5 raise sites, compensating
+cleanup), Pipeline B's broader-than-scoped orphan-blob trigger (every ordinary duplicate resubmit, not only
+RPC failure — pre-check + compensating cleanup). Items below are what this sprint found but deliberately did
+not implement.
+
+## INTAKE-005 — Pipeline A's own Pinecone-ghost-vector risk on DB-insert failure after Pinecone success (High, same root cause as `INTAKE-001`)
+
+`api.py`'s upload handler ingests to Pinecone before the `predmet_dokumenti` insert; if Pinecone succeeds and
+the subsequent insert throws, Project Sentinel's existing hard-fail (`api.py:4279-4283`) gives the caller an
+honest 500 — but the Pinecone vector itself remains permanently indexed under the persistent, shared owner
+namespace, with `predmet_id` metadata pointing at a document nobody in the UI can ever see. The code's own
+in-line comment already acknowledges this gap explicitly ("Pinecone vektor ostaje... best-effort cleanup nije
+implementiran ovde — vidi SENTINEL_PRE_BETA_CRITICAL_PATH.md"). This is the same shape as the already-tracked
+`INTAKE-001` (Pipeline C's version of the identical problem), confirmed this sprint to be equally real and
+unmitigated on Pipeline A.
+
+**Why not fixed this mission**: no Pinecone-side delete/rollback call exists anywhere in either pipeline, and
+Pinecone offers no transactional coordination with Postgres — building a compensating cross-system delete is
+a genuine new capability, not a bounded reliability patch, and this sprint already landed 4 other fixes the
+same day. Recommended direction: a background reconciliation job that diffs Pinecone vector `predmet_id`
+metadata against `predmet_dokumenti` rows and deletes orphans — new scheduled infrastructure, out of this
+sprint's "no new capability" bound.
+
+**Severity**: High — reachable on every live upload where Pinecone succeeds and the DB insert fails; identical
+severity profile to `INTAKE-001`.
+
+## INTAKE-006 — `intake_jobs.status`'s intermediate processing sub-states are declared but never written (Medium)
+
+Migration 073's CHECK constraint already lists `classifying`/`extracting`/`matching`/`dedup_check` as valid
+`intake_jobs.status` values, but `shared/intake_worker.py::_process()` never actually transitions through them
+— it goes straight from `preprocessing` (set by the claim) to the terminal write, with zero intermediate
+visibility. An operator looking directly at `intake_jobs` cannot currently tell whether a stuck job is mid-OCR,
+mid-classification, or mid-extraction.
+
+**Recommended direction**: have `_process()` call intermediate status-update writes (bare, non-atomic — this
+is observability, not a consistency requirement, so it doesn't need RPC-level atomicity) between its own
+existing OCR/classify/extract steps.
+
+**Why not fixed this mission**: real and bounded, zero migration needed (the column and CHECK constraint
+already support it), but purely optional — it serves Phase 6 observability, not Phase 2 atomicity/consistency,
+and this sprint's own closing instruction is explicit that when new functionality and consistency compete,
+consistency wins; this item is neither necessary for consistency nor urgent enough to add alongside the 4
+consistency fixes already landed the same day.
+
+**Severity**: Medium — a real operability gap, not a correctness defect.
+
+## INTAKE-007 — Production-replay blind spots: forensic reconstruction gaps, not document-loss gaps (Medium)
+
+Phase 8 (production replay) walkthrough found a cluster of gaps that all share one root cause (fire-and-forget
+writes with no guarantee) rather than being independent bugs: (1) no `ocr_used`/`is_scanned` column on
+Pipeline A/C's `predmet_dokumenti` row itself; (2) no `document_id` FK from Pinecone chunk metadata back to
+the case-file row on either pipeline — multi-document cases can only be attributed via fuzzy filename/hash
+matching; (3) two independent, uncoordinated fire-and-forget provenance systems on the same journey
+(`audit_immutable` via `log_action`, `ai_forensics` via `case_context`) that can each silently no-op
+independently, meaning the correlation ID meant to unify a replay can end up recorded in neither; (4) no
+truncation marker on `tekst_sadrzaj` — a replay cannot distinguish a short document from a long one silently
+cut at 100k characters. Full detail: `REPLAY_VALIDATION_REPORT.md`.
+
+**Why not fixed this mission**: none of these cause document loss, duplication, or false success (the
+mission's own closure-blocking conditions) — the case-file artifacts a lawyer actually needs are durable and
+reconstructible on the happy path this sprint traced. Closing this gap fully requires either making
+`log_action`/`ai_forensics` durable-with-retry (new infrastructure) or adding several new schema columns —
+either is a genuine capability addition, not a bounded fix to stack onto this sprint's 4 already-landed
+consistency fixes.
+
+**Severity**: Medium — a real forensic/audit-completeness gap, distinct from and lower-severity than a
+consistency defect.
+
+## Documentation correction (not a new debt item)
+
+Sprint 001's own `INTAKE_FAILURE_RECOVERY_MATRIX.md` credited `intake_jobs.status='dedup_check'` as "real
+dedup infrastructure Pipeline A doesn't have." This sprint's Fork C proved `dedup_check` is a dead schema
+artifact — declared in the CHECK constraint and the frontend's label strings, but no code path anywhere ever
+transitions a job into it. The actual, real dedup mechanism live today is the `idempotency_key` UNIQUE index
+checked inside `enqueue_intake_job`. The matrix's conclusion (Pipeline B has real dedup infrastructure Pipeline
+A doesn't) was correct; its named mechanism was wrong. Corrected in place in
+`INTAKE_FAILURE_RECOVERY_MATRIX.md`, not filed as a separate backlog item.
+
+## Carried forward, unchanged (not re-litigated this sprint)
+
+- **`INTAKE-003`** (VERIFIED as a first-class state, `predmet_dokumenti`↔`intake_jobs` FK gap) — this sprint's
+  transaction-boundary and state-machine analysis confirms the gap is real (`STATE_MACHINE_SPECIFICATION.md`
+  §"cross-pipeline fragmentation") but adds no new urgency; still correctly a founder/product decision, not a
+  bounded reliability fix.
+- **`INTAKE-004`** (Copilot's dead-branch status read) — Copilot remains an explicitly forbidden module this
+  sprint too; untouched.
+- **`KEYSTONE-007`** (Event Bus migration 091 not run, live multi-worker duplicate-dispatch race) — reconfirmed
+  present and unapplied, confirmed this sprint to concretely affect intake's `DocumentJobFailed` handler
+  specifically (duplicate `proactive_alerts` rows); still a founder action item, not something to implement
+  around further.

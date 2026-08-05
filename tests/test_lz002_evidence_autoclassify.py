@@ -95,6 +95,7 @@ async def test_finalize_triggers_evidence_classification_in_background():
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
          patch("routers.evidence.klasifikuj_i_sacuvaj") as mock_classify, \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
          patch("asyncio.create_task", side_effect=_capture_create_task):
 
         result = await finalize_intake_job(
@@ -140,6 +141,7 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
          patch("routers.evidence.klasifikuj_i_sacuvaj", side_effect=RuntimeError("classification boom")), \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
          patch("asyncio.create_task", side_effect=_capture_create_task):
 
         result = await finalize_intake_job(

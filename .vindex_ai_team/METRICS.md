@@ -713,3 +713,36 @@ as a "mission complete, fully canonical" claim. The two conditions most directly
 condition was a pre-existing, already-decided-against product question this sprint's charter did not license
 reopening unilaterally. Full detail: `docs/architecture/INTAKE_ARCHITECTURE_REPORT.md`'s own §6 closure
 self-check.
+
+## Program Intake, Sprint 002 (2026-08-05) — Atomic Document Lifecycle
+
+**Methodology note**: measured against the mission's own success criteria (no ghost/orphan object can arise,
+single lifecycle state machine, rollback leaves no inconsistent state, retry is idempotent, replay is
+provable, zero regressions) — same discipline as Sprint 001.
+
+| Metric | Value |
+|---|---|
+| Investigation forks, and convergence | 3 (atomicity/orphan audit, transaction-boundary/state-machine, idempotency/replay) — all 3 independently found the identical root defect (Pipeline C finalize's duplicate-case race) the same day, the strongest internal-consistency signal this session's fork methodology produces |
+| Artifact-type × pipeline-surface combinations audited | 28 (7 artifact types × 4 pipeline surfaces, `ATOMICITY_VERIFICATION_REPORT.md`) — 4 real defects found, all 4 fixed; 2 pre-existing gaps reconfirmed and deferred with reasoning; 1 narrow open question flagged for awareness only |
+| Transaction-boundary claim corrected | Sprint 001's blanket "no multi-statement transaction exists" was proven half-right: true for every bare Supabase call, false for the 4 existing queue RPCs (which ARE genuinely atomic) — this sprint's own new RPC (`claim_intake_finalize`) is the 5th |
+| Closure-blocking conditions fixed this sprint | 2 of the mission's own 5 named conditions ("document can disappear" via 2 orphan-blob fixes; the duplicate-case shape via the atomic-claim fix) |
+| Bounded fixes implemented and tested | 4 — Pipeline C finalize atomic claim (new migration + RPC), `write_processing_outcome` false-completion-signal fix, Pipeline A orphan-blob compensating cleanup, Pipeline B orphan-blob pre-check + compensating cleanup |
+| New migrations drafted (not applied — founder runs migrations himself) | 1 — `092_finalize_atomic_claim.sql` (1 new column, 1 new RPC, mirrors the existing `claim_intake_job` pattern exactly) |
+| Deferred findings, each with named reasoning | 3 (`INTAKE-005` through `INTAKE-007`) — none silently dropped |
+| Documentation corrections (not new code defects) | 1 — Sprint 001's own Failure Recovery Matrix credited a dead schema artifact (`dedup_check`) as real infrastructure; corrected in place, conclusion was right, named mechanism was wrong |
+| Pre-existing tests updated for the new atomic-claim behavior | 3 files (`test_lz002_evidence_autoclassify.py`, `test_ztc_conflict_check_autowiring.py`, `test_ztc_scenario_b_attach.py`) — each needed only a new mock for `claim_finalize` winning the claim, no behavioral change to what they were already testing |
+| New/extended tests | 24 across 6 files (`test_sprint002_pipeline_b_orphan_prevention.py` new — 4; `test_sprint002_finalize_atomic_claim.py` new — 3; `test_sprint002_pipeline_a_orphan_cleanup.py` new — 6; `test_intake_phase0.py` extended — 3 new `claim_finalize` tests; `test_intake_documents.py` extended — 1 new `raise_on_error` test; `test_intake_worker_phase1a.py` extended — 3 new propagation tests) |
+| Full suite | 2,512 passed, 1 skipped, 0 failed (was 2,502 going in) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as Sprint 001,
+not an oversight; only the 5 named agents were active.
+
+**Success criteria**: 2 of the mission's own explicit success conditions are now provably true where they
+were not before (no ghost/orphan blob can arise from any of the 4 fixed pathways; retry of the finalize
+endpoint is now idempotent under concurrency, not just under sequential retry). The single-canonical-state-
+machine criterion is honestly reported as **designed, not fully implemented** — the representational gaps are
+closed by a derived-view recommendation (no migration needed), but the deeper cross-pipeline fragmentation
+(`INTAKE-003`) remains an open, correctly-deferred founder decision, unchanged from Sprint 001. Replay is
+**partially** provable — the case-file artifacts a lawyer needs are durably reconstructible; the forensic
+"prove exactly what happened and why" layer has real, now-documented gaps (`INTAKE-007`). Full detail:
+`docs/architecture/DOCUMENT_LIFECYCLE_ARCHITECTURE_REPORT.md`'s own §5 closure self-check.

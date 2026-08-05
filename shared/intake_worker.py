@@ -186,8 +186,16 @@ class IntakeWorker:
                 job_id, "other", 0.0, "heuristic", ocr_confidence=0.0, ocr_used=True,
             )
             await intake_documents.create_review_queue_entry(job_id, document_id, "ocr_failed", [])
+            # Program Intake Sprint 002: raise_on_error=True -- ovo je
+            # POSLEDNJI upis u obe grane ove funkcije, i has_processing_outcome()
+            # ga koristi kao jedini pouzdan signal da je _process() stvarno
+            # zavrsio (v. napomena na idempotentnost-proveri iznad). Ako OVAJ
+            # upis padne (tranzijentna DB greska, ne sam OCR neuspeh koji je
+            # vec fail-soft obradjen iznad), mora ici kroz isti retry put kao
+            # svaka druga greska u ovoj funkciji, ne biti tiho progutan.
             await intake_documents.write_processing_outcome(
                 job_id, "other", 0.0, {}, int((time.monotonic() - t_start) * 1000),
+                raise_on_error=True,
             )
             return
 
@@ -215,9 +223,14 @@ class IntakeWorker:
 
         entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
         processing_time_ms = int((time.monotonic() - t_start) * 1000)
+        # Program Intake Sprint 002: raise_on_error=True, same reasoning as
+        # the OCR-failed branch above -- this is the true completion signal
+        # has_processing_outcome() checks; a failure here must retry, not
+        # silently leave the job marked completed with no outcome row.
         await intake_documents.write_processing_outcome(
             job_id, classification["document_type"],
             (0.6 if ocr_used else None), entity_confidence_map, processing_time_ms,
+            raise_on_error=True,
         )
         logger.info(
             "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",

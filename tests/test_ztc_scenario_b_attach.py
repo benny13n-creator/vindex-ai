@@ -93,6 +93,12 @@ def _patched(mock_supa, job_result):
         patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"),
         patch("routers.evidence.klasifikuj_i_sacuvaj"),
         patch("routers.intake._run_conflict_check", new=AsyncMock(return_value={"conflict_detected": False})),
+        # Program Intake Sprint 002 (2026-08-05): finalize now atomically
+        # claims the finalize slot before running any side effects (migration
+        # 092, claim_intake_finalize RPC) -- mock it winning the claim so
+        # these pre-existing tests keep exercising the real function body,
+        # same as before this sprint's fix.
+        patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})),
     )
 
 
@@ -107,7 +113,7 @@ async def _run_finalize_and_drain(mock_supa, job_result, body):
 
     patches = _patched(mock_supa, job_result)
     with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-         patches[6], patches[7], patches[8], patches[9], patches[10], \
+         patches[6], patches[7], patches[8], patches[9], patches[10], patches[11], \
          patch("asyncio.create_task", side_effect=_capture_create_task):
         result = await finalize_intake_job("job-1", _fake_request(), body, _fake_user())
         for coro in captured_coros:

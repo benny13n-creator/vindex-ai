@@ -86,6 +86,27 @@ async def claim_next_job(from_status: str, to_status: str) -> Optional[dict]:
     return rows[0] if rows else None
 
 
+async def claim_finalize(job_id: str, stale_after_seconds: int = 120) -> Optional[dict]:
+    """Program Intake Sprint 002 -- atomic check-and-claim for
+    finalize_intake_job's own completion marker (predmet_id), via
+    claim_intake_finalize RPC (migration 092). Mirrors claim_next_job's own
+    SELECT...FOR UPDATE SKIP LOCKED shape exactly. Returns the claimed job
+    row if THIS call won the claim; returns None if predmet_id is already
+    set (already finalized) OR another finalize call's claim is still fresh
+    (genuinely in flight, not crashed) OR a concurrent transaction currently
+    holds the row lock. The caller must re-fetch the job row on a None
+    result to tell "already finalized" apart from "finalize in progress" --
+    those are different, both-honest outcomes."""
+    result = await asyncio.to_thread(
+        lambda: _get_supa().rpc("claim_intake_finalize", {
+            "p_job_id": job_id,
+            "p_stale_after_seconds": stale_after_seconds,
+        }).execute()
+    )
+    rows = result.data or []
+    return rows[0] if rows else None
+
+
 async def mark_job_completed(job_id: str) -> None:
     """Atomsko okončanje preko complete_intake_job RPC — status + audit +
     outbox event u jednoj transakciji (ne tri odvojena poziva kao u prvoj

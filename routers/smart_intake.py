@@ -124,6 +124,31 @@ async def upload_intake_documents(
             continue
 
         content_sha256 = hashlib.sha256(raw).hexdigest()
+        idempotency_key = f"{user['user_id']}:{content_sha256}"
+
+        # Program Intake Sprint 002 (2026-08-05) -- pre-check PRE storage
+        # upload-a, ne posle. Fork C ovog sprinta je dokazao da je stari kod
+        # sirotio novi enkriptovan blob na SVAKI obican sekvencijalni
+        # duplikatni resubmit (ne samo kad enqueue RPC pukne) -- storage upis
+        # bi uspeo pod svezim uuid4 kljucem, a onda bi enqueue_intake_job
+        # samo vratio VEC POSTOJECI job_id bez ikad zabelezenog novog bloba
+        # nigde (sirи od originalno-scope-ovanog INTAKE-002). Ovo je goli
+        # SELECT (bez pisanja), pa ne treba RPC-nivo atomicnost -- to je
+        # samo prečica da se izbegne uzaludan upload, ne stvarna zastita od
+        # duplikacije (idempotency_key UNIQUE indeks + enqueue_intake_job RPC
+        # ostaju stvarna zastita za pravu konkurentnu trku, obradjeno u
+        # except bloku ispod).
+        try:
+            _existing_job = await asyncio.to_thread(
+                lambda: supa.table("intake_jobs").select("id").eq("idempotency_key", idempotency_key).maybe_single().execute()
+            )
+        except Exception:
+            _existing_job = None
+        _existing_job_data = _existing_job.data if _existing_job else None
+        if _existing_job_data:
+            results.append({"filename": f.filename, "ok": True, "job_id": _existing_job_data["id"], "already_submitted": True})
+            continue
+
         storage_key = f"{user['user_id']}/{uuid.uuid4().hex}"
 
         try:
@@ -148,10 +173,21 @@ async def upload_intake_documents(
                 storage_path=storage_key,
                 uploaded_by=user["user_id"],
                 kancelarija_id=None,  # Faza 1: office-scoped review queue (dizajn review §26.9) — nije reseno ovde
-                idempotency_key=f"{user['user_id']}:{content_sha256}",
+                idempotency_key=idempotency_key,
             )
         except Exception as exc:
             logger.error("[SMART_INTAKE] enqueue greška za %s: %s", f.filename, exc)
+            # Program Intake Sprint 002: kompenzujuce brisanje -- storage
+            # upis iznad je vec uspeo, ali enqueue je pao (npr. prava
+            # konkurentna trka na idempotency_key UNIQUE indeks -- gubitnik
+            # ove trke prolazi kroz ovu granu, Fork C Faza 5 #2). Bez ovoga
+            # blob ostaje trajno sirotce (INTAKE-002). Best-effort: ako i
+            # brisanje padne, samo se loguje -- klijent i dalje dobija istu
+            # honest "ok: False" poruku kao pre.
+            try:
+                await asyncio.to_thread(lambda: bucket.remove([storage_key]))
+            except Exception as _ce:
+                logger.warning("[SMART_INTAKE] orphan cleanup neuspesan za %s (key=%s): %s", f.filename, storage_key, _ce)
             results.append({"filename": f.filename, "ok": False, "greska": "Greška pri prijemu dokumenta."})
             continue
 
@@ -381,7 +417,14 @@ async def finalize_intake_job(
     """Pretvara zavrsen Smart Intake posao u stvaran predmet — ovo je tacno
     obecanje iz UI-ja ("Otpremi tuzbu... i Vindex automatski kreira
     predmet"). Idempotentno: ako je posao vec finalizovan (intake_jobs.
-    predmet_id popunjen), vraca postojeci predmet umesto da pravi duplikat."""
+    predmet_id popunjen), vraca postojeci predmet umesto da pravi duplikat.
+
+    Program Intake Sprint 002 (2026-08-05): pre ove izmene, ta provera je
+    citala kolonu koja se pisala tek NA KRAJU funkcije, bez zastite od
+    konkurentnog poziva -- dva finalize poziva blizu jedan drugom su mogla
+    oba proci proveru i oba izvrsiti citavu funkciju, tiho duplirajuci ceo
+    predmet. Sada je zasticeno claim_intake_finalize() RPC-om (migracija
+    092), istim SELECT...FOR UPDATE SKIP LOCKED obrascem kao claim_intake_job."""
     uid = user["user_id"]
     supa = _get_supa()
 
@@ -402,6 +445,39 @@ async def finalize_intake_job(
 
     if job["status"] != "completed":
         raise HTTPException(status_code=409, detail=f"Posao još nije obrađen (status: {job['status']}).")
+
+    # Program Intake Sprint 002 (2026-08-05) -- ovaj deo funkcije je ranije
+    # bio jedini "idempotentnost" mehanizam za citavu ovu funkciju: docstring
+    # iznad tvrdi da je finalize idempotentan, ali provera "if job.get(
+    # 'predmet_id')" iznad (400-401) citala je kolonu koja se pise TEK NA
+    # KRAJU ove funkcije (posle predmet/klijent/rok/dokument/Pinecone upisa),
+    # bez try/except-a. Dva finalize poziva za ISTI job_id dovoljno blizu
+    # (dupli klik, ili frontend timeout retry dok prvi poziv jos radi na
+    # serveru -- ova funkcija traje nekoliko sekundi i radi Pinecone upis)
+    # oba citaju predmet_id=NULL, oba prolaze gornju proveru, i OBA izvrse
+    # celu funkciju nezavisno -- tiho duplirajuci ceo predmet (slucaj, klijent,
+    # rok, dokument, Pinecone vektori). Nezavisno potvrdjeno od STRANE 3 fork-a
+    # istog dana (Fork A §C-bonus, Fork B §3.4, Fork C Faza 5 #4) -- najozbiljniji
+    # nalaz ovog sprinta. Ispravka ogledava vec dokazan obrazac iz enqueue_
+    # intake_job/claim_intake_job (migracija 073): atomski "proveri-i-zauzmi"
+    # RPC (migracija 092), ne goli SELECT koji moze da se utrkuje sam sa sobom.
+    claimed = await intake_queue.claim_finalize(job_id)
+    if not claimed:
+        # Nula redova znaci: predmet_id je vec postavljen (vec finalizovano),
+        # ILI je drugi finalize poziv trenutno u toku (svez finalizing_at),
+        # ILI konkurentna transakcija trenutno drzi lock nad redom. Ova tri
+        # ishoda NISU isti odgovor -- moramo ponovo procitati red da ih
+        # razlikujemo, ne pretpostaviti.
+        refetch = await asyncio.to_thread(
+            lambda: supa.table("intake_jobs").select("predmet_id").eq("id", job_id).maybe_single().execute()
+        )
+        existing_predmet_id = (refetch.data or {}).get("predmet_id") if refetch else None
+        if existing_predmet_id:
+            return {"ok": True, "predmet_id": existing_predmet_id, "already_finalized": True}
+        raise HTTPException(
+            status_code=409,
+            detail="Finalizacija je već u toku za ovaj posao — pokušajte ponovo za par sekundi.",
+        )
 
     result = await intake_documents.get_job_result(job_id)
     document = result["document"]
@@ -734,9 +810,27 @@ async def finalize_intake_job(
                 logger.warning("[SMART_INTAKE] Evidence Vault auto-klasifikacija greška: %s", ce)
         asyncio.create_task(_evidence_classify_bg())
 
-    await asyncio.to_thread(
-        lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id}).eq("id", job_id).execute()
-    )
+    # Program Intake Sprint 002 -- ova linija je i dalje jedini upis koji
+    # trajno "zatvara" finalizaciju (isti field kao pre), ali sada je
+    # zasticena claim_intake_finalize() zauzecem iznad: ako OVAJ upis padne,
+    # finalizing_at ostaje postavljen i nijedan konkurentan poziv u sledecih
+    # ~120s nece moci ponovo da pokrene celu funkciju (claim ce vratiti 0
+    # redova, tretirano kao "u toku"). Tek posle isteka tog prozora bi novi
+    # pokusaj mogao da ponovi ceo tok -- suzeno sa "bilo kad, bilo koji
+    # konkurentan retry" (pre ove izmene) na "samo ako bas ovaj upis padne I
+    # sledeci pokusaj sacheka >120s", sto pokriva dominantan trigger (dupli
+    # klik / brz timeout-retry) bez pretvaranja u punu transakciju koju
+    # supabase-py ne izlaze (v. Fork B §3.2).
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id}).eq("id", job_id).execute()
+        )
+    except Exception as fe:
+        logger.error(
+            "[SMART_INTAKE] finalize marker upis neuspesan job=%s predmet=%s -- claim ostaje rezervisan ~120s, zatim ponovo obradiv: %s",
+            job_id[:8], predmet_id, fe,
+        )
+        raise
 
     try:
         from routers.analytics import _track_event

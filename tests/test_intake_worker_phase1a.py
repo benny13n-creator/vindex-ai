@@ -174,6 +174,71 @@ async def test_process_low_confidence_classification_adds_document_type_to_revie
     assert "document_type" in low_confidence_fields
 
 
+@pytest.mark.anyio
+async def test_process_normal_path_passes_raise_on_error_true_to_outcome_write():
+    """Program Intake Sprint 002 (2026-08-05) -- the normal (non-OCR-failed)
+    branch's write_processing_outcome call must request raise_on_error=True,
+    since this is the ONLY signal has_processing_outcome() trusts. Regression
+    guard against silently reverting to the default best-effort swallow."""
+    from shared.intake_worker import IntakeWorker
+    w = IntakeWorker()
+
+    no_existing = {"document": None, "entities": [], "review": None}
+    with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
+         patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
+         patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
+         patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()), \
+         patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
+        await w._process(_job())
+
+    assert mock_outcome.call_args.kwargs.get("raise_on_error") is True
+
+
+@pytest.mark.anyio
+async def test_process_ocr_failed_branch_passes_raise_on_error_true_to_outcome_write():
+    from shared.intake_worker import IntakeWorker
+    w = IntakeWorker()
+
+    no_existing = {"document": None, "entities": [], "review": None}
+    with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
+         patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"%PDF-fake-bytes")), \
+         patch.object(w, "_extract_text", return_value=("", True, False)), \
+         patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
+         patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()), \
+         patch("shared.intake_documents.write_processing_outcome", new=AsyncMock()) as mock_outcome:
+        await w._process(_job())
+
+    assert mock_outcome.call_args.kwargs.get("raise_on_error") is True
+
+
+@pytest.mark.anyio
+async def test_process_propagates_outcome_write_failure_instead_of_swallowing():
+    """The transient-DB-failure scenario itself: write_processing_outcome
+    raises (its own internal try/except now re-raises because
+    raise_on_error=True) -- _process() must NOT catch this itself; it must
+    propagate all the way out so _tick()'s existing mark_job_failed/retry
+    path handles it, exactly like every other failure in this function."""
+    from shared.intake_worker import IntakeWorker
+    w = IntakeWorker()
+
+    no_existing = {"document": None, "entities": [], "review": None}
+    with patch("shared.intake_documents.get_job_result", new=AsyncMock(return_value=no_existing)), \
+         patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
+         patch.object(w, "_extract_text", return_value=("tekst", False, False)), \
+         patch.object(w, "_classify", new=AsyncMock(return_value={"document_type": "lawsuit", "confidence": 0.95, "method": "heuristic"})), \
+         patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_document", new=AsyncMock(return_value="doc-1")), \
+         patch("shared.intake_documents.insert_entities", new=AsyncMock(return_value=[])), \
+         patch("shared.intake_documents.create_review_queue_entry", new=AsyncMock()), \
+         patch("shared.intake_documents.write_processing_outcome", new=AsyncMock(side_effect=RuntimeError("transient db error"))):
+        with pytest.raises(RuntimeError, match="transient db error"):
+            await w._process(_job())
+
+
 def test_guess_suffix_prefers_original_filename():
     from shared.intake_worker import IntakeWorker
     assert IntakeWorker._guess_suffix("presuda.docx", "application/pdf") == ".docx"

@@ -581,6 +581,50 @@ canonical" claim.
 | ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
 |---|---|---|---|---|---|---|
 | INTAKE-001 | Pipeline C reports `"ok": true` even when the document insert fails after Pinecone ingest already succeeded (ghost vector) | 1 | Product/API-contract decision — partial-success response shape, or split case-creation from document-attach | Medium | NEEDS_SCOPING | Not a safe direct port of Sentinel's hard-fail pattern (case row already created earlier in the same call — a 500 would misreport genuine partial success and risk a duplicate-creating retry). |
-| INTAKE-002 | Orphaned encrypted Storage blobs on Pipeline B enqueue failure, no cleanup mechanism | 2 | none | Small-Medium | TODO | New scheduled-cleanup infrastructure, out of this sprint's "no new capability" bound; wastes space, does not lose a tracked document. |
+| INTAKE-002 | Orphaned encrypted Storage blobs on Pipeline B enqueue failure, no cleanup mechanism | 2 | none | Small-Medium | **DONE (Sprint 002, 2026-08-05)** | Fixed via pre-upload idempotency_key check (skips the Storage write entirely on a known duplicate) + compensating delete on enqueue exception — Sprint 002 Fork C found the trigger was broader than originally scoped (every ordinary duplicate resubmit, not only RPC failure); both are now closed. |
 | INTAKE-003 | `intake_jobs.status`'s richer processing lineage discarded entirely at Pipeline C finalize | 3 | Schema/product decision — should case-file views ever surface OCR/classification lineage | Medium | NEEDS_SCOPING | No functional defect today, a foreclosed-future-capability cost. |
 | INTAKE-004 | `routers/copilot.py:804` misreports finished wizard-linked/demo documents as eternally pending | 4 | none — Copilot is explicitly forbidden to touch this sprint | Small | TODO | Documented only per this sprint's own forbidden-module list; not fixed. |
+
+## Program Intake, Sprint 002 (2026-08-05) — Atomic Document Lifecycle
+
+Founder's fifth Master Prompt of this multi-session Program Intake arc: "one document, one identity, one
+lifecycle, one truth." Same 5-agent-only, no-Olympus-phase pattern as Sprint 001 (Chief Systems Architect,
+Reliability & Failure Recovery Engineer, Evidence & Consistency Auditor, Security & Trust Auditor, Database &
+Transaction Integrity Reviewer). Same forbidden-module list (OCR quality, Genome, Decision Engine, Strategy,
+Copilot, Briefing, Timeline, Search, Alerts, Tasks, Dashboard, Firm Brain).
+
+**3 parallel forensic forks converged independently on the identical root defect** — Pipeline C's finalize
+endpoint had an exploitable check-then-act race that could silently duplicate a full legal case (case +
+client + deadline + document + Pinecone vectors) under concurrent retry. All 3 forks (atomicity/orphan audit,
+transaction-boundary/state-machine, idempotency/replay) found this independently the same day — the strongest
+possible internal-consistency signal this session's methodology produces.
+
+**4 fixes implemented and regression-tested** (2512 tests, zero regressions, was 2502 going in): (1) Pipeline
+C's duplicate-case race — fixed via `claim_intake_finalize` atomic RPC (migration 092, drafted not applied),
+mirroring `claim_intake_job`'s own proven `SELECT...FOR UPDATE SKIP LOCKED` pattern; (2)
+`write_processing_outcome()`'s silent exception swallow, which had quietly reopened Sprint 001's own
+false-success bug shape through a different door — fixed via a `raise_on_error` parameter used only by
+`IntakeWorker._process()`'s two call sites; (3) Pipeline A's orphan-blob exposure, proven wider than known (5
+distinct downstream raise sites, zero tracking infrastructure) — fixed via compensating cleanup; (4) Pipeline
+B's orphan-blob trigger, proven broader than `INTAKE-002`'s original scope (every ordinary duplicate resubmit,
+not only RPC failure) — fixed via a pre-upload existence check plus compensating cleanup on the narrower
+true-race case.
+
+**3 new findings deliberately deferred with reasoning** (`INTAKE-005` through `INTAKE-007`,
+`ARCHITECTURAL_DEBT_REGISTER.md`): Pipeline A's own Pinecone-ghost-vector risk (same root cause as
+`INTAKE-001`, a cross-system compensating action neither pipeline has); `intake_jobs`' dormant intermediate
+processing sub-states (real, zero-migration, but observability not consistency); a cluster of
+production-replay forensic gaps (no document loss, but real reconstruction blind spots). Also corrected a
+stale claim in Sprint 001's own `INTAKE_FAILURE_RECOVERY_MATRIX.md` (`dedup_check` was never real
+infrastructure — the actual dedup mechanism is the `idempotency_key` UNIQUE index).
+
+**7 required deliverables**: `docs/architecture/DOCUMENT_LIFECYCLE_ARCHITECTURE_REPORT.md`,
+`ATOMICITY_VERIFICATION_REPORT.md`, `STATE_MACHINE_SPECIFICATION.md`, `TRANSACTION_BOUNDARY_ANALYSIS.md`,
+`FAILURE_INJECTION_REPORT.md`, `REPLAY_VALIDATION_REPORT.md`, and 3 new `ARCHITECTURAL_DEBT_REGISTER.md`
+entries (`INTAKE-005` through `INTAKE-007`, checked against existing prefixes first — no collision).
+
+| ID | Finding | Priority | Depends on | Complexity | Status | Completion criteria |
+|---|---|---|---|---|---|---|
+| INTAKE-005 | Pipeline A's own Pinecone-ghost-vector risk on DB-insert failure after Pinecone success (same root cause as INTAKE-001) | 1 | none — but a genuine new capability (cross-system compensating delete), not a bounded patch | Medium | TODO | Recommended direction: background reconciliation job diffing Pinecone vs. predmet_dokumenti; new scheduled infrastructure, out of this sprint's bound. |
+| INTAKE-006 | `intake_jobs.status`'s intermediate processing sub-states (classifying/extracting/matching/dedup_check) declared but never written | 3 | none — zero migration needed | Small | TODO | Real, bounded, optional — observability, not consistency; deferred so as not to dilute this sprint's 4 consistency fixes. |
+| INTAKE-007 | Production-replay forensic blind spots (no ocr_used column, no Pinecone→document FK, 2 disconnected fire-and-forget provenance systems, no truncation marker) | 3 | Durable-with-retry infrastructure or new schema columns | Medium | NEEDS_SCOPING | No document loss — a forensic-completeness gap, distinct from and lower-severity than a consistency defect. |

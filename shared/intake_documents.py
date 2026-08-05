@@ -103,10 +103,27 @@ async def write_processing_outcome(
     fields_corrected: Optional[list[str]] = None,
     correction_reason: Optional[str] = None,
     error_source: Optional[str] = None,
+    raise_on_error: bool = False,
 ) -> None:
     """Founder-ov eksplicitan zahtev — upisuje se posle SVAKOG obrađenog
-    dokumenta. Best-effort: greška ovde ne sme da obori obradu (ovo je
-    podatak za buduće podešavanje, ne kritičan put).
+    dokumenta. Best-effort po default-u: greška ovde ne sme da obori
+    `correct_entity`-jev 10-sekundni ispravni tok (ispravka sama je vec
+    uspesno committed pre ovog poziva — ovaj upis je dodatna analitika, ne
+    sme dodati trenje na vec zavrsenu korisnicku akciju).
+
+    raise_on_error (Program Intake Sprint 002, 2026-08-05) — shared/
+    intake_worker.py::_process() prosledjuje True ovde, jer je JEDINO za taj
+    pozivaoca ovaj upis STVARNI signal zavrsetka (has_processing_outcome()
+    ga koristi da razlikuje "posao je gotov" od "posao je pao usred obrade").
+    Sprint 002 Fork A §B1 / Fork B §3.3 su nezavisno dokazali da tiho
+    gutanje ove greske ovde tiho ponovo otvara TACNO onaj bug oblik koji je
+    Sprint 001 zatvorio (has_processing_outcome/delete_partial_document) --
+    kroz druga vrata (upis sam padne, umesto pad PRE upisa). Kad
+    raise_on_error=True i upis padne, izuzetak sada ide gore do _tick()-ovog
+    vec dokazanog retry/dead-letter puta (mark_job_failed), koji na sledecem
+    pokusaju ispravno detektuje nepotpuno stanje i cisto obradjuje ponovo --
+    isti mehanizam koji Sprint 001 vec izgradio, samo sada primenjen i na
+    ovaj poslednji korak, ne samo na sve pre njega.
 
     correction_reason (Validation Sprint, drugi krug feedbacka) — OPCIONO
     slobodno objašnjenje "zašto", ne samo "šta" je ispravljeno ("Datum
@@ -137,7 +154,9 @@ async def write_processing_outcome(
             }).execute()
         )
     except Exception as exc:
-        logger.warning("[INTAKE_DOCUMENTS] processing_outcome upis neuspešan (non-fatal) za job=%s: %s", intake_job_id[:8], exc)
+        logger.warning("[INTAKE_DOCUMENTS] processing_outcome upis neuspešan za job=%s: %s", intake_job_id[:8], exc)
+        if raise_on_error:
+            raise
 
 
 async def has_processing_outcome(intake_job_id: str) -> bool:
