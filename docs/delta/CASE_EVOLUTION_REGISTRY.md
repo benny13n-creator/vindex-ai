@@ -118,12 +118,16 @@ consequences for it.
 | `CONFIDENCE_DROPPED` | A document/entity's confidence falls below `AUTO_ACCEPT_THRESHOLD` (Sprint 003's own Confidence Graph) | No consequence currently exists beyond the already-correct review-queue routing (Sprint 003/004) — nothing proven to be missing yet |
 | `MANUAL_CORRECTION_APPLIED` | `shared/intake_documents.py::correct_entity()` | Already writes its own `write_processing_outcome`/audit trail (Sprint 004) — no additional consequence identified as missing |
 
-## Registry Audit (Sprint 003, Task 3) — every `EventType` member accounted for
+## Registry Audit — every `EventType` member accounted for (corrected, Sprint 004)
 
-`services/event_bus.py::EventType` has 19 members total. This registry documents the 9 that are (or could
-legitimately become) Case Evolution's own domain — a business event whose consequence is "what should
-automatically follow." The other 10 are explicitly NOT Case Evolution's domain, listed here so "100% match"
-means something precise rather than silently ignoring them:
+`services/event_bus.py::EventType` has **20 members total** (Sprint 003's own version of this section said
+19 — an undercount caught by Sprint 004's Orchestration Certification: `DOCUMENT_JOB_FAILED` was described in
+this section's own prose but never given its own row, so the stated total didn't match the actual row count.
+Pinned going forward by `tests/test_delta_sprint004_certification.py::
+test_event_type_total_member_count_matches_documentation`, which fails if the enum ever changes without this
+doc being updated). This registry documents the 6 that are wired to Case Evolution's own domain — a business
+event whose consequence is "what should automatically follow." The other 14 are explicitly NOT Case
+Evolution's domain, listed here so "100% match" means something precise rather than silently ignoring them:
 
 | Event | Real owner | Why it's NOT a Case Evolution gap |
 |---|---|---|
@@ -135,14 +139,19 @@ means something precise rather than silently ignoring them:
 | `ANALIZA_ZAHTEVANA` | None | No handler, never emitted — fully dead |
 | `HEALTH_SCORE_PROMENJEN` | `services/event_bus.py::on_health_score_promenjen` → `shared/proactive_alerts.py` | Has its own registered handler; same durability profile as `ROK_KRITICAN` (`SENT-001`) |
 | `GENOME_UPDATED` | `services/event_bus.py::on_genome_updated` (writes audit) | Already durably emitted (`routers/case_dna.py`), already has its own dedicated handler since Faza 1.2 (2026-07-18) — its own established mechanism, not a gap |
-| `DOCUMENT_JOB_ENQUEUED` / `DOCUMENT_JOB_COMPLETED` | Intake job lifecycle markers (migration 073 RPCs) | Informational Smart Intake infrastructure events, not "a case changed, what follows" business events — `DOCUMENT_JOB_FAILED` (the one job-lifecycle event with a real consequence, an alert) already has its own handler since Project Sentinel |
+| `DOCUMENT_JOB_ENQUEUED` | Intake job lifecycle marker (migration 073 RPC) | Purely informational, no handler, reaches `dispatch_pending_events` and is marked dispatched with zero effect — not a "case changed, what follows" business event |
+| `DOCUMENT_JOB_COMPLETED` | Intake job lifecycle marker (migration 073 RPC) | Same reasoning as `DOCUMENT_JOB_ENQUEUED` |
+| `DOCUMENT_JOB_FAILED` | `services/event_bus.py::on_document_job_failed` | The one job-lifecycle event with a REAL consequence (a `proactive_alerts` row) — already has its own dedicated handler since Project Sentinel (2026-08-03), unrelated to Case Evolution's own 6 events |
+| `DOCUMENT_MODIFIED` | none — declared, not wired | Case Evolution's own domain, no proven consequence gap yet (see table above) |
+| `CONFIDENCE_DROPPED` | none — declared, not wired | Same |
+| `MANUAL_CORRECTION_APPLIED` | none — declared, not wired | Same |
 
 **Result: registry is accurate.** Every `EventType` with a genuine, currently-needed reactive consequence
-(6 of 19) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
+(6 of 20) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
 doesn't exist in code, and no wired consequence in code is undocumented (enforced by
-`tests/test_delta_sprint003_full_convergence.py::test_registry_100_percent_matches_event_bus_wiring` and
-`test_every_consequence_registry_event_documented_in_case_evolution_registry_md`, which will fail on future
-drift).
+`tests/test_delta_sprint004_certification.py::test_registry_100_percent_matches_event_bus_wiring` and
+`tests/test_delta_sprint003_full_convergence.py::test_every_consequence_registry_event_documented_in_case_evolution_registry_md`,
+both of which fail on future drift).
 
 ## Task 3 finding, historical: scattered "what happens next" call sites, ALL NOW MIGRATED
 

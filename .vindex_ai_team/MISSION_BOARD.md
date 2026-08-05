@@ -990,3 +990,43 @@ being carried forward.
 **Founder's own standing recommendation, honored**: per the sprint's own closing note, Program Epsilon is NOT
 opened next — a possible Delta Sprint 004 "Orchestration Certification" (forensic verification, not
 development) is named as the recommended next step, pending founder authorization.
+
+## Program Delta, Sprint 004 (2026-08-06) — Orchestration Certification
+
+Founder-authorized follow-on to Sprint 003's own recommendation. Forensic verification, not development —
+charter explicitly demanded proof, not assumptions ("Ne prihvatam pretpostavke... Ne prihvatam 'trebalo bi'").
+**Hard token budget**: exactly 2 active AI agents, no subagents — honored, zero `Agent` tool calls.
+
+**Central question, answered**: can any business change bypass the Canonical Case Evolution Engine? **No** —
+for all 6 events it owns, verified across 7 phases (Complete Event Census, Reverse Event Discovery,
+Consequence Certification, End-to-End Replay Certification, Hidden Orchestrator Hunt, Architectural
+Invariants, Self-Consistency Verification), none of which found a bypass.
+
+**Headline finding**: no prior sprint had ever proven the FULL chain from a raw `events` table row, through
+the REAL `dispatch_pending_events()` function, to a completed consequence — every Sprint 001-003 test
+hand-built an `Event` object and called `handle_case_changed()` directly, skipping the actual production
+wiring. 4 new tests close this gap (`tests/test_delta_sprint004_certification.py`), including replay,
+crash+retry, and correlation-continuity proofs at the raw-row level.
+
+**One real documentation drift found and fixed**: Sprint 003's own registry text claimed `EventType` has 19
+members; the real count is 20 (`DOCUMENT_JOB_FAILED` was described in prose but never tabulated). Corrected in
+`CASE_EVOLUTION_REGISTRY.md`, pinned by a new test so it cannot silently drift again.
+
+**One honest architectural mismatch surfaced, not silently reconciled**: the mission's own Scenario 4 example
+(Evidence Update → Genome → Strategy → Timeline) does not match the built architecture — `NEW_EVIDENCE_
+REGISTERED` never triggers Genome/Timeline/Strategy; those happen via the sibling `DOCUMENT_ACCEPTED` event or
+not at all (Strategy is never auto-triggered by any event). Building the cascade to match the example would
+violate this same sprint's own newly-certified Architectural Invariant 7 (consequences never cascade into
+further business events) — reported as `DELTA-005`, informational, not fixed.
+
+**Zero production code changes were needed** — the architecture held up under systematic adversarial review.
+Full suite: **2,638 passed, 1 skipped, 0 failed** (was 2,628) — exactly +10 new tests, zero regressions.
+
+**7 required deliverables**: `ORCHESTRATION_CERTIFICATION_REPORT.md`, `EVENT_COVERAGE_MATRIX.md`,
+`END_TO_END_EVENT_VERIFICATION.md`, `ARCHITECTURAL_INVARIANTS_REPORT.md`, updated
+`CASE_EVOLUTION_REGISTRY.md`, updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`DELTA-005` added),
+`DELTA_SPRINT_004_MISSION_REPORT.md`.
+
+**Certification verdict**: the Canonical Case Evolution Engine is certified for all 6 events it owns. Program
+Delta's own architectural thread is considered closed; any next step (Program Epsilon or otherwise) is the
+founder's own decision.

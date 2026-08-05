@@ -981,3 +981,31 @@ asserted, for every event with a genuine consequence need. 3 categories of code 
 Case Evolution Engine, each with a specific, defensible, named reason (primary actions, a different
 already-proven orchestrator, a synchronous user query) — not silently glossed over. Full detail:
 `docs/delta/SPRINT_003_MISSION_REPORT.md`.
+
+## Program Delta, Sprint 004 (2026-08-06) — Orchestration Certification
+
+**Methodology note**: forensic verification sprint, not a feature sprint — metrics below measure what was
+CHECKED and PROVEN, not what was built. Hard token budget: exactly 2 active agents, zero `Agent` tool calls.
+
+| Metric | Value |
+|---|---|
+| `EventType` members census (Phase 1) | 20 of 20 classified — zero unclassified |
+| Effect-based reverse-discovery call sites checked (Phase 2) | 12 `predmet_hronologija` inserts, 9 `create_proactive_alert` callers, 2 `zadaci` inserts, Firm Brain/Memory Graph/Dashboard mechanisms (confirmed none exist) |
+| Bypasses found | 0 |
+| Consequence Certification cells (Phase 3) | 54 (9 effect categories × 6 events), every DA cited to a function+test, every NE reasoned |
+| Required end-to-end scenarios proven (Phase 4) | 4 of 4, including 1 genuinely new proof (raw-row-through-real-dispatch chain, never tested before this program) |
+| New dedicated tests | 10 (`tests/test_delta_sprint004_certification.py`), all passing on first run |
+| Hidden orchestrators found (Phase 5) | 0 new; 1 already-known, out-of-scope, unchanged (`SENT-001`) |
+| Architectural invariants proven (Phase 6) | 7 of 7, including 1 newly-named this sprint (no cross-event cascading) |
+| Documentation drifts found and fixed (Phase 7) | 1 (`EventType` member count, 19→20) |
+| Production code changes required | 0 |
+| Full suite | **2,638 passed, 1 skipped, 0 failed** (was 2,628 at end of Sprint 003) — zero regressions |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Intake sprint before it.
+
+**Success criteria**: all 7 stated in the mission's own charter were checked individually and met — see
+`docs/delta/ORCHESTRATION_CERTIFICATION_REPORT.md`'s own criterion-by-criterion table. The mission's own
+closing instruction ("don't try to finish the sprint, try to knock the architecture down") was followed
+literally — the sprint is reported successful because the architecture survived the attempt, not because
+work was completed on schedule. Full detail: `docs/delta/DELTA_SPRINT_004_MISSION_REPORT.md`.

@@ -1142,6 +1142,34 @@ Full narrative: `docs/delta/EVENT_MIGRATION_REPORT_SPRINT_003.md`, `docs/delta/O
 sites (Pipeline A, `routers/rocista.py`) and wires the last event with a genuine consequence need
 (`ROCISTE_ZAKAZANO`). Hard 2-agent token budget honored throughout.
 
+---
+
+## Program Delta, Sprint 004 (2026-08-06) — Orchestration Certification
+
+Full narrative: `docs/delta/ORCHESTRATION_CERTIFICATION_REPORT.md`, `docs/delta/EVENT_COVERAGE_MATRIX.md`,
+`docs/delta/ARCHITECTURAL_INVARIANTS_REPORT.md`, `docs/delta/END_TO_END_EVENT_VERIFICATION.md`. Forensic
+verification sprint, not development — attempted to break the Case Evolution Engine's own claim of
+canonicity. Found zero bypasses, zero hidden orchestrators, zero duplicate ownership. One documentation
+undercount fixed (`EventType` has 20 members, not 19 as Sprint 003 stated). Hard 2-agent token budget honored.
+
+## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
+
+The mission's own Sprint 004 charter described a hypothetical evidence-update cascade into Genome/Strategy/
+Timeline. The real, certified architecture does not have this cascade — `NEW_EVIDENCE_REGISTERED`'s own
+consequence list is `evidence_classification` only; Genome/Timeline updates a lawyer observes "around the
+same time" come from the SIBLING `DOCUMENT_ACCEPTED` event, not from evidence registration triggering them.
+Strategy is never auto-triggered by any event, by any pipeline, anywhere in the platform.
+
+**Why not fixed**: there is nothing broken to fix — this is a documentation/expectation mismatch, not a code
+defect. Building an actual cascade (evidence event → triggers → genome/strategy) would be NEW orchestration
+capability (one event automatically triggering another), which Architectural Invariant 7 (see
+`ARCHITECTURAL_INVARIANTS_REPORT.md`) explicitly certifies does NOT happen anywhere in this engine by design
+— adding it now would violate the very invariant this sprint just certified, and is explicitly forbidden by
+every Delta sprint's own "migrate, don't extend" charter.
+
+**Severity**: Informational only — not a defect, not a regression, not left "for later." Recorded so the gap
+between the mission's own illustrative example and the real system is never silently assumed to be true.
+
 ## DELTA-002 — CLOSED (Sprint 003): all 7 found scattered call sites migrated, zero bypass remaining
 
 Sprint 001 migrated 1 (Pipeline C Genome). Sprint 002 migrated 3 more (Pipeline C Evidence Vault,
