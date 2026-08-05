@@ -1030,3 +1030,54 @@ Full suite: **2,638 passed, 1 skipped, 0 failed** (was 2,628) — exactly +10 ne
 **Certification verdict**: the Canonical Case Evolution Engine is certified for all 6 events it owns. Program
 Delta's own architectural thread is considered closed; any next step (Program Epsilon or otherwise) is the
 founder's own decision.
+
+## Program Omega, Master Sprint 001 (2026-08-06) — From Document Upload to Complete Case Intelligence
+
+New program, founder-authorized, Priority 1 an explicit real stakeholder request ("direktno Bojanov zahtev"):
+a lawyer uploads a chaotic folder of up to 500 scanned documents and gets one organized case with one outcome
+summary, not 500 manual clicks. Mission's own explicit sequencing followed: full-chain audit
+(`docs/omega/OMEGA_ARCHITECTURE_MAP.md`, INPUT→PROCESS→DECISION→CONSEQUENCE→USER VALUE per link) written
+BEFORE any code.
+
+**Headline finding**: the batch upload endpoint (`POST /api/smart-intake/documents`) processed every file in
+one batch SEQUENTIALLY and SYNCHRONOUSLY inside a single HTTP request — for 500 documents this was near-
+certain to exceed gunicorn's own 120s worker timeout, killing the connection mid-batch with no structured
+response. Separately, no batch-finalize mechanism existed at all — each of up to 500 uploaded files required
+its own manual `POST .../finalize` call, and the mission's own worked example summary output
+("Obrađeno 500 dokumenata. Pronađeno: 1 postojeći predmet...") had no code path that could produce it.
+
+**Built**: a 90s time-budget check in the upload loop that returns a clean, resumable
+`{"nastavlja": true, "preostali_fajlovi": [...]}` response before the real timeout hits, instead of an opaque
+connection failure. `POST /jobs/finalize-batch` — a new endpoint finalizing up to 1000 jobs as one operation,
+reusing `_finalize_intake_job_core` (extracted from `finalize_intake_job` via a pure, zero-logic-change
+refactor — necessary because looping the RATE-LIMITED decorated endpoint directly would have hit its own
+20/minute slowapi limit partway through any batch bigger than 20) per job, unchanged, and aggregating results
+into ONE summary — cases touched (deduplicated), documents needing review, deadlines added. Zero new AI
+capability, zero new Genome/Timeline/Evidence/Alert logic — pure orchestration on top of Program
+Intake/Delta's own already-hardened machinery, per the mission's own "Omega Principle."
+
+**Honest architectural boundary held, not compromised for a nicer response**: the batch-finalize summary does
+NOT include live Genome-derived numbers (contradictions, missing evidence) synchronously — Genome refresh is
+asynchronous by the Case Evolution Engine's own certified design (Program Delta Sprint 004), and reading it
+synchronously would mean either stale data or calling Genome directly from this endpoint (exactly the kind of
+hidden second orchestrator Program Delta spent 4 sprints certifying does not exist). An honest
+`napomena_genome` field explains the async timing instead.
+
+**Mission's own success definition, proven by test not merely claimed**: 10 new tests
+(`tests/test_omega_sprint001_batch_intake.py`) — time-budget break with a real elapsed-time-based test (not a
+mocked clock), unaffected small-batch behavior, cross-job aggregation with case-level deduplication, per-job
+failure isolation, and explicit proof the rate limit is genuinely bypassed (30-job batch, bigger than the
+single-job endpoint's own 20/minute limit). Full suite: **2,644 passed, 1 skipped, 0 failed** (was 2,638) —
+zero regressions.
+
+**2 real findings named and deliberately deferred, not silently left**: Genome recomputes once per finalize
+call rather than once per case within a same-case batch (`OMEGA-001`) — fixing it properly means changing
+WHEN `DOCUMENT_ACCEPTED` is emitted, a real change to already-hardened machinery correctly not attempted
+alongside 2 other fixes in the same sprint. No automatic Task creation from noticed problems (`OMEGA-002`) —
+needs a founder-level product decision on which detected problems warrant an auto-created task, not a
+mechanical migration.
+
+**6 required deliverables**: `OMEGA_ARCHITECTURE_MAP.md`, `DOCUMENT_TO_CASE_FLOW_SPEC.md`,
+`AUTONOMOUS_OFFICE_WORKFLOW.md`, `OCR_AND_INTAKE_CAPACITY_REPORT.md`, `CASE_INTELLIGENCE_AUTOMATION_REPORT.md`,
+`OMEGA_SPRINT_001_REPORT.md`, plus updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`OMEGA-001`/`OMEGA-002` added).

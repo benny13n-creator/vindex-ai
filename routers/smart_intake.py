@@ -39,6 +39,7 @@ import logging
 import os
 import re
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import List
@@ -56,6 +57,21 @@ router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
 
 _MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB, isti limit kao /api/dokument/upload
 _STORAGE_BUCKET = "intake-dokumenti"
+
+# Program Omega, Master Sprint 001 (2026-08-06) -- OCR_AND_INTAKE_CAPACITY_REPORT.md's
+# own headline finding: gunicorn.conf.py's worker timeout is 120s (`timeout = 120`),
+# but upload_intake_documents() processed every file in the batch SEQUENTIALLY and
+# SYNCHRONOUSLY (read -> encrypt -> Storage upload -> DB enqueue) inside one request,
+# with the response only returned after the ENTIRE batch finished. For the mission's
+# own named Priority 1 scenario (500 documents in one folder), this was near-certain
+# to exceed the worker timeout -- the connection gets killed mid-batch, already-
+# enqueued jobs are safe (durable, idempotency_key-protected) but the LAWYER never
+# sees which files got through, with no structured way to resume. `_UPLOAD_TIME_BUDGET_S`
+# leaves a deliberate safety margin under the real 120s limit so this function can
+# always return its own clean, honest partial-progress response BEFORE gunicorn ever
+# kills the connection -- turning an opaque connection-reset into an explicit
+# "processed N of M so far, resend the rest" contract the frontend can act on.
+_UPLOAD_TIME_BUDGET_S = 90.0
 
 # Mission 001 / Night Shift M-001 (2026-08-02): this endpoint previously did
 # NO suffix/extension validation at all -- any file was silently accepted,
@@ -105,8 +121,21 @@ async def upload_intake_documents(
 
     supa = _get_supa()
     results = []
+    _upload_started_at = time.monotonic()
+    _preostali: list[str] = []
 
-    for f in files:
+    for _idx, f in enumerate(files):
+        # Program Omega, Master Sprint 001 -- large-batch time budget (see
+        # _UPLOAD_TIME_BUDGET_S's own docstring above). Checked BEFORE
+        # starting a new file, never mid-file -- a file already in progress
+        # always finishes and is durably enqueued, never abandoned half-done.
+        if time.monotonic() - _upload_started_at > _UPLOAD_TIME_BUDGET_S:
+            _preostali = [ff.filename or "" for ff in files[_idx:]]
+            logger.warning(
+                "[SMART_INTAKE] batch upload: vremenski budžet dostignut posle %d/%d fajlova -- vraćam delimičan odgovor, %d fajlova ostaje za nastavak.",
+                _idx, len(files), len(_preostali),
+            )
+            break
         suffix = Path(f.filename or "").suffix.lower()
         if suffix not in _ALLOWED_UPLOAD_SUFFIXES:
             results.append({
@@ -211,7 +240,18 @@ async def upload_intake_documents(
         results.append({"filename": f.filename, "ok": True, "job_id": job_id})
 
     logger.info("[SMART_INTAKE] batch upload: %d fajlova, %d uspešno prijavljeno", len(files), sum(1 for r in results if r["ok"]))
-    return {"rezultati": results, "ukupno": len(files)}
+    # Program Omega, Master Sprint 001 -- `nastavlja`/`preostali_fajlovi` are
+    # ONLY ever populated when the time-budget break above actually fired
+    # (large-batch scenario). Every already-processed file's own
+    # idempotency_key means the frontend can safely resubmit `preostali_fajlovi`
+    # in a follow-up call to THIS SAME endpoint without risking a duplicate
+    # job for anything already accepted in this response's own `rezultati`.
+    return {
+        "rezultati": results,
+        "ukupno": len(files),
+        "nastavlja": bool(_preostali),
+        "preostali_fajlovi": _preostali,
+    }
 
 
 @router.get("/jobs/{job_id}")
@@ -675,6 +715,28 @@ async def finalize_intake_job(
     request: Request,
     body: FinalizeReq,
     user: dict = Depends(get_current_user),
+):
+    """Thin HTTP-rate-limited wrapper — see `_finalize_intake_job_core`'s own
+    docstring for the actual logic. Program Omega, Master Sprint 001
+    (2026-08-06): this function used to BE the whole implementation; split
+    into a decorated wrapper + an undecorated core so
+    `finalize_intake_jobs_batch` (below) can call the core directly for up
+    to 1000 jobs in one request without each call counting against THIS
+    endpoint's own 20/minute limit (slowapi's `@limiter.limit` genuinely
+    checks/increments its counter on every call to the decorated function,
+    not just requests routed through Starlette — confirmed by reading
+    `shared/rate.py` and slowapi's own `Limiter._check_request_limit`
+    before choosing this design over looping the decorated function
+    directly, which would have started failing with 429s partway through
+    any batch bigger than 20). Pure extraction — zero logic changed."""
+    return await _finalize_intake_job_core(job_id, request, body, user)
+
+
+async def _finalize_intake_job_core(
+    job_id: str,
+    request: Request,
+    body: FinalizeReq,
+    user: dict,
 ):
     """Pretvara zavrsen Smart Intake posao u stvaran predmet — ovo je tacno
     obecanje iz UI-ja ("Otpremi tuzbu... i Vindex automatski kreira
@@ -1491,4 +1553,128 @@ async def finalize_intake_job(
         # ne posecuje (GET /jobs/{id}, jedini ranije citalac ovog signala).
         "klasifikacija_nesigurna": classification_uncertain,
         "nesigurna_polja": low_confidence_fields if classification_uncertain else [],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Omega, Master Sprint 001 (2026-08-06) — "From Document Upload to
+# Complete Case Intelligence". Priority 1's own named scenario: a lawyer
+# uploads a folder of up to 500 documents and expects ONE outcome summary,
+# not 500 manual finalize clicks. Before this endpoint, no batch-finalize
+# path existed at all (confirmed by grep, see OCR_AND_INTAKE_CAPACITY_REPORT.md)
+# — every uploaded file became its own intake_job, and EACH had to be
+# finalized via its own separate POST .../jobs/{job_id}/finalize call, with
+# no aggregate view of what happened across the batch.
+#
+# Deliberately thin: reuses `_finalize_intake_job_core` UNCHANGED per job
+# (Ownership Resolution, per-document idempotency, Case Evolution event
+# emission — all Program Intake/Delta's own already-hardened machinery,
+# untouched here) and only AGGREGATES the results. No new AI capability, no
+# new Genome/Timeline/Evidence logic — pure orchestration on top of what
+# already exists, per the mission's own "Omega Principle" (no isolated new
+# functions; migrate into the existing flow, don't build a parallel one).
+# ═══════════════════════════════════════════════════════════════════════════
+
+class BatchFinalizeReq(BaseModel):
+    job_ids: List[str] = Field(..., min_length=1, max_length=1000)
+
+
+@router.post("/jobs/finalize-batch")
+@limiter.limit("5/minute")
+async def finalize_intake_jobs_batch(
+    body: BatchFinalizeReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Finalizes N intake jobs as ONE operation and returns ONE aggregate
+    summary — the mission's own explicit example shape ("Obrađeno 500
+    dokumenata. Pronađeno: 1 postojeći predmet, 3 nova dokumenta za
+    proveru..."). Each job is finalized via `_finalize_intake_job_core`
+    exactly as if the lawyer had clicked finalize on it individually —
+    same idempotency, same Ownership Resolution, same Case Evolution event
+    emission per job (DOCUMENT_ACCEPTED/NEW_EVIDENCE_REGISTERED/
+    NEW_CLIENT_LINKED, unchanged).
+
+    Honest about what this endpoint does NOT (and structurally cannot)
+    do synchronously: Case Genome's own analysis (kontradikcije, updated
+    risk/missing-evidence detection) runs ASYNCHRONOUSLY, via the
+    already-certified Case Evolution Engine (Program Delta, Sprint 004) —
+    reading it synchronously right here, in this loop, would mean either
+    blocking on the dispatch poller (slow, unpredictable for a large batch)
+    or calling Genome refresh directly from this endpoint, which would be
+    exactly the kind of hidden second orchestrator Program Delta spent 4
+    sprints certifying does NOT exist anywhere in this codebase. This
+    endpoint does not reopen that certification — Genome-derived numbers
+    are honestly deferred to "coming shortly", not faked or duplicated.
+
+    One finalize failure does not abort the batch — every OTHER job_id is
+    still attempted, matching the per-document failure-isolation principle
+    `finalize_intake_job` itself already uses internally."""
+    uid = user["user_id"]
+    detalji: list[dict] = []
+    predmeti_dokumenti_count: dict[str, int] = {}
+    predmeti_nazivi: dict[str, str] = {}
+    uspesno = 0
+    neuspesno = 0
+    dokumenti_za_proveru = 0
+    rokovi_dodati = 0
+    dokumenata_povezano_ukupno = 0
+
+    for job_id in body.job_ids:
+        try:
+            result = await _finalize_intake_job_core(job_id, request, FinalizeReq(), user)
+        except HTTPException as he:
+            neuspesno += 1
+            detalji.append({"job_id": job_id, "ok": False, "greska": he.detail})
+            continue
+        except Exception as exc:
+            neuspesno += 1
+            logger.error("[SMART_INTAKE] batch-finalize job=%s neočekivana greška: %s", job_id[:8], exc)
+            detalji.append({"job_id": job_id, "ok": False, "greska": "Neočekivana greška pri finalizaciji."})
+            continue
+
+        uspesno += 1
+        predmet_id = result.get("predmet_id")
+        if predmet_id:
+            predmeti_dokumenti_count[predmet_id] = predmeti_dokumenti_count.get(predmet_id, 0) + (result.get("dokumenata_povezano") or 0)
+            if result.get("naziv"):
+                predmeti_nazivi[predmet_id] = result["naziv"]
+        if result.get("klasifikacija_nesigurna"):
+            dokumenti_za_proveru += 1
+        if result.get("rok_dodat"):
+            rokovi_dodati += 1
+        dokumenata_povezano_ukupno += result.get("dokumenata_povezano") or 0
+        detalji.append({
+            "job_id": job_id, "ok": True, "predmet_id": predmet_id,
+            "already_finalized": result.get("already_finalized", False),
+            "dokumenata_povezano": result.get("dokumenata_povezano"),
+        })
+
+    logger.info(
+        "[SMART_INTAKE] batch-finalize: %d/%d uspešno, %d predmeta pogođeno, %d dokumenata za proveru",
+        uspesno, len(body.job_ids), len(predmeti_dokumenti_count), dokumenti_za_proveru,
+    )
+
+    return {
+        "ok": True,
+        "ukupno_poslato": len(body.job_ids),
+        "uspesno_finalizovano": uspesno,
+        "neuspesno": neuspesno,
+        "dokumenata_povezano_ukupno": dokumenata_povezano_ukupno,
+        # Jedan red po JEDINSTVENOM predmetu koji je ovaj batch dotakao —
+        # ako se 40 od 500 dokumenata svrstalo u ISTI vec postojeci predmet,
+        # to se ovde vidi kao JEDAN red sa dokumenata=40, ne 40 odvojenih
+        # "uspeha" bez konteksta.
+        "predmeti_pogodjeni": [
+            {"predmet_id": pid, "naziv": predmeti_nazivi.get(pid, ""), "dokumenata": cnt}
+            for pid, cnt in predmeti_dokumenti_count.items()
+        ],
+        "dokumenti_za_proveru": dokumenti_za_proveru,
+        "rokovi_dodati": rokovi_dodati,
+        "napomena_genome": (
+            "Case Genome analiza (kontradikcije, nedostajući dokazi, ažuriran rizik) "
+            "obrađuje se asinhrono za svaki pogođeni predmet i biće vidljiva na "
+            "stranici predmeta u narednih nekoliko trenutaka."
+        ),
+        "detalji": detalji,
     }

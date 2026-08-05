@@ -1009,3 +1009,32 @@ Delta/Intake sprint before it.
 closing instruction ("don't try to finish the sprint, try to knock the architecture down") was followed
 literally — the sprint is reported successful because the architecture survived the attempt, not because
 work was completed on schedule. Full detail: `docs/delta/DELTA_SPRINT_004_MISSION_REPORT.md`.
+
+## Program Omega, Master Sprint 001 (2026-08-06) — From Document Upload to Complete Case Intelligence
+
+**Methodology note**: first Omega sprint — mandatory full-chain audit written before any code, per the
+mission's own explicit sequencing.
+
+| Metric | Value |
+|---|---|
+| Chain links audited (Upload→...→Dashboard) | 17 of 17, each as INPUT→PROCESS→DECISION→CONSEQUENCE→USER VALUE |
+| Real capacity breaks found for the 500-document scenario | 2 (upload-endpoint timeout risk, missing batch-finalize) |
+| Breaks fixed this sprint | 2 of 2 |
+| Production code changes | 2 (upload time-budget check, `finalize_intake_job` extracted into a decorated wrapper + `_finalize_intake_job_core`) + 1 new endpoint (`POST /jobs/finalize-batch`) |
+| New AI/Genome/Timeline/Evidence/Alert capability introduced | 0 — pure orchestration reuse, per the mission's own "Omega Principle" |
+| New dedicated tests | 6 (`tests/test_omega_sprint001_batch_intake.py`), all passing on first run after 1 iteration (a mocked-clock test rewritten to use real elapsed time for robustness) |
+| Existing finalize-related tests re-verified after the core extraction | 10 files, 86 tests total, zero regressions |
+| New debts found and named | 2 (`OMEGA-001` Genome per-batch recompute cost, `OMEGA-002` no task-from-noticed-problem automation) — neither silently left, both need their own future scoped work |
+| Full suite | **2,644 passed, 1 skipped, 0 failed** (was 2,638 at end of Program Delta) — zero regressions |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Intake sprint before it.
+
+**Success criteria**: Priority 1 (500-document scenario) now has a real path from chaotic folder to organized
+case with ONE outcome summary — both structural breaks that made this impossible before this sprint are
+closed and tested. Priority 5 (transparency) honored explicitly — the batch summary states plainly what it
+does and does NOT know synchronously, rather than fabricating Genome-derived numbers. Priorities 2/3
+(automatic case-matching, automatic chronology) were already true before this sprint (Program Intake/Delta's
+own prior work) and remain true, unaffected. Priority 4 (automatic deadlines/tasks) is honestly only half
+true — deadlines yes, tasks-from-noticed-problems no, named as `OMEGA-002`. Full detail:
+`docs/omega/OMEGA_SPRINT_001_REPORT.md`.

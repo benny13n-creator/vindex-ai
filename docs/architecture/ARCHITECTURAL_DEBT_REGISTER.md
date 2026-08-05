@@ -1152,6 +1152,54 @@ verification sprint, not development — attempted to break the Case Evolution E
 canonicity. Found zero bypasses, zero hidden orchestrators, zero duplicate ownership. One documentation
 undercount fixed (`EventType` has 20 members, not 19 as Sprint 003 stated). Hard 2-agent token budget honored.
 
+---
+
+## Program Omega, Master Sprint 001 (2026-08-06) — From Document Upload to Complete Case Intelligence
+
+Full narrative: `docs/omega/OMEGA_SPRINT_001_REPORT.md`, `docs/omega/OMEGA_ARCHITECTURE_MAP.md`,
+`docs/omega/OCR_AND_INTAKE_CAPACITY_REPORT.md`, `docs/omega/CASE_INTELLIGENCE_AUTOMATION_REPORT.md`. First
+Omega sprint — Priority 1's own named scenario (500-document upload) drove a full-chain audit before any code
+was written; found and closed 2 real capacity breaks (upload-endpoint timeout risk, missing batch-finalize),
+named 2 more without attempting them.
+
+## OMEGA-001 — Case Genome recomputes once per finalize call, not once per case, within a same-case batch (Medium, deliberately deferred)
+
+If N documents finalized via `POST /jobs/finalize-batch` all resolve to the SAME `predmet_id`, each one's own
+`_finalize_intake_job_core` call still emits its own `DOCUMENT_ACCEPTED` event, and Case Evolution Engine
+still triggers a full Genome recompute per event — up to N full recomputes for what is conceptually "one case
+receiving N documents."
+
+**Why not fixed this sprint**: closing this properly requires changing WHEN `_finalize_intake_job_core` emits
+`DOCUMENT_ACCEPTED` (deferred, aggregated per unique `predmet_id`, emitted once after the whole batch's
+document-linking work completes) — a real change to Program Intake/Delta's own already-hardened, heavily-
+tested emission logic. Attempting it alongside the upload-timeout and batch-finalize fixes already made this
+sprint would have meant less careful testing of everything at once.
+
+**Recommended direction**: add an internal `suppress_document_accepted: bool` parameter to
+`_finalize_intake_job_core`; have `finalize_intake_jobs_batch` collect accepted document names per unique
+`predmet_id` across the whole batch and emit `DOCUMENT_ACCEPTED` once per case after the loop — generalizing
+Sprint 001's own existing per-call coalescing to a per-BATCH coalescing.
+
+**Severity**: Medium — a real performance/cost concern for the 500-same-case scenario specifically (not
+correctness-breaking; each recompute is still individually correct, just wastefully repeated).
+
+## OMEGA-002 — No automatic Task creation from document-acceptance-noticed problems (Medium, needs a business decision)
+
+Missing evidence, contradictions, and deadline risk are all already DETECTED (existing Risk Engine / Genome
+output) but never become an automatically-created task — confirmed via Program Delta Sprint 004's own
+Event Coverage Matrix (every one of the 6 Case Evolution events shows `NE` for "Tasks"), re-confirmed here.
+
+**Why not fixed this sprint**: which detected problems warrant an auto-created task (vs. staying a passive
+dashboard/case-page signal) is a real product decision, not a mechanical migration — building it blind risks
+either under-automating (missing the point) or over-automating (creating noisy, unwanted tasks a lawyer didn't
+ask for).
+
+**Recommended direction**: a future, dedicated Omega sprint scoped specifically to this question, starting
+with a founder decision on which problem types warrant a task.
+
+**Severity**: Medium — the mission's own Priority 4 ("automatski rokovi i zadaci") is only half-closed
+(deadlines yes, tasks-from-noticed-problems no).
+
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 
 The mission's own Sprint 004 charter described a hypothetical evidence-update cascade into Genome/Strategy/
