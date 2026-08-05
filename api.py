@@ -4330,31 +4330,53 @@ async def predmet_upload_auto_analyze(
         except Exception as _ae:
             logger.warning("[AUDIT] dokument_upload log greška: %s", _ae)
 
-    # Auto-classify document in background (Evidence Vault)
+    # ── NEW_EVIDENCE_REGISTERED / DOCUMENT_ACCEPTED — Program Delta, Sprint
+    # 003 (2026-08-05) — Canonical Event Migration II. This USED TO be two
+    # direct, in-process background tasks: `asyncio.create_task(asyncio.
+    # to_thread(klasifikuj_i_sacuvaj, ...))` and `asyncio.create_task(
+    # _genome_bg())` (the latter with a crude `asyncio.sleep(3)` heuristic,
+    # hoping classification finished writing tip_dokaza before Genome read
+    # it) — Pipeline A deciding for itself "what happens after a document is
+    # uploaded", the exact scattered-decision pattern Program Delta exists
+    # to eliminate, and the SAME pattern Sprints 001-002 already migrated
+    # for Pipeline C (Smart Intake). Replaced with two durable outbox
+    # emissions (services/event_bus.py::emit_durable, the SAME helper
+    # Pipeline C uses) — the Canonical Consequence Engine (services/
+    # case_evolution.py::handle_case_changed) now owns deciding and
+    # executing what follows, reusing its EXISTING NEW_EVIDENCE_REGISTERED/
+    # DOCUMENT_ACCEPTED consequence definitions UNCHANGED (no new Genome/
+    # Timeline/Evidence capability — Pipeline A's document-accept event now
+    # gets the exact same canonical treatment Pipeline C's already gets,
+    # including a Timeline entry Pipeline A never produced before — that is
+    # the intended effect of convergence, not scope creep). Emitted in this
+    # order (evidence first, genome second) so a single-worker/low-
+    # concurrency dispatch processes classification before the genome
+    # refresh reads tip_dokaza — an eventual-consistency ordering, not a
+    # hard guarantee, honestly no stronger than the sleep(3) heuristic it
+    # replaces (see Reliability Verification Report II).
     if _dok_id:
         try:
-            from routers.evidence import klasifikuj_i_sacuvaj
-            asyncio.create_task(asyncio.to_thread(
-                klasifikuj_i_sacuvaj, predmet_id, _dok_id,
-                file.filename or "dokument", text[:2000], user.id
-            ))
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.NEW_EVIDENCE_REGISTERED,
+                user.id,
+                predmet_id,
+                {"dokument_id": _dok_id, "naziv": file.filename or "dokument", "trigger": "pipeline_a_upload"},
+            )
         except Exception as _ce:
-            logger.warning("[EVIDENCE] Auto-classify task greška: %s", _ce)
+            logger.warning("[SMART_EVOLUTION] NEW_EVIDENCE_REGISTERED durable event upis greška (non-fatal) dok=%s: %s", _dok_id, _ce)
 
-    # Auto-refresh Case Genome u pozadini posle svakog novog dokumenta
     if _dok_id and predmet_id:
-        async def _genome_bg():
-            await asyncio.sleep(3)  # sacekaj da klasifikacija upisice tip_dokaza
-            try:
-                from routers.case_dna import _run_genome_background
-                _stari_g = _get_supa().table("predmeti").select("case_dna") \
-                    .eq("id", predmet_id).eq("user_id", str(user.id)).execute()
-                _sg = ((_stari_g.data or [{}])[0].get("case_dna") or {})
-                _sp = _sg.get("snaga_predmeta_procent") if isinstance(_sg, dict) else None
-                await _run_genome_background(predmet_id, str(user.id), _sp, trigger="upload_trigger")
-            except Exception as _ge:
-                logger.warning("[GENOME] Auto-refresh bg greška: %s", _ge)
-        asyncio.create_task(_genome_bg())
+        try:
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.DOCUMENT_ACCEPTED,
+                user.id,
+                predmet_id,
+                {"dokumenti": [file.filename or "dokument"], "trigger": "pipeline_a_upload"},
+            )
+        except Exception as _ge:
+            logger.warning("[SMART_EVOLUTION] DOCUMENT_ACCEPTED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ge)
 
     # ── AUTO ANALYSIS ──────────────────────────────────────────────────────────
     # Phase 2.1: choose prompt and text limit based on detected doc type

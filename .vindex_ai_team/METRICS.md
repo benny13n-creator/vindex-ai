@@ -948,3 +948,36 @@ test, to flow through the canonical mechanism with zero remaining direct-call by
 platform-wide closing claim is closer to true (5 of 8 events, 4 of 5 known call sites) but still not
 unconditionally true — 3 events and 1 call site remain, both honestly named as scope boundaries for a future
 Delta sprint. Full detail: `docs/delta/SPRINT_002_MISSION_REPORT.md`.
+
+## Program Delta, Sprint 003 (2026-08-05) — Canonical Event Migration II: Complete Event Convergence
+
+**Methodology note**: hard token budget this sprint (exactly 2 active agents, no exceptions, no subagents, no
+parallel review teams, no global analysis) — both roles executed directly. Per the founder's own standing
+instruction, only `docs/delta/*` was read at sprint start.
+
+| Metric | Value |
+|---|---|
+| Events with wired consequences before this sprint | 5 of 8 |
+| After this sprint | 6 of 6 events with a genuine consequence need (`+ROCISTE_ZAKAZANO`) — reframed denominator: 3 of the original 8 have an explicit "no proven need" reasoning, not a gap |
+| Scattered "decide what's next" call sites found across all 3 sprints | 7 total |
+| Migrated to the canonical mechanism, cumulative | 7 of 7 — **100%**, zero remaining, confirmed by an enforced regression test, not just a one-time grep |
+| Fire-and-forget call sites converted to retry-with-dead-letter this sprint | 2 (Pipeline A's own evidence-classify + genome-refresh — same reliability improvement Sprint 002 already proved for Pipeline C) |
+| `EventType` members registry-audited (Task 3) | 19 of 19 — 6 wired, 3 declared-not-wired in scope, 10 confirmed to belong to a different, already-established system |
+| Required tests proven | 7 of 7 (`tests/test_delta_sprint003_full_convergence.py`, 9 new tests) — including 2 NEW kinds of proof this sprint specifically demanded: registry↔code drift detection, and a repo-wide bypass-search regression test |
+| New dedicated tests | 9, all passing on first run (after 1 iteration to add the missing `ROCISTE_ZAKAZANO` registry-doc entry the drift test itself caught) |
+| Existing tests updated | 0 — the 2 migrated call sites (Pipeline A, `rocista.py`) had no test asserting on their OLD direct-call shape that needed updating |
+| Real bugs found and fixed via this sprint's own migration work | 0 (unlike Sprint 002's `resolve_job_review` gap — no equivalent gap found this sprint) |
+| Debts closed | 1 (`DELTA-002`) — first `DELTA-XXX` item in the whole program to reach CLOSED, not merely narrowed |
+| Full suite | **2,628 passed, 1 skipped, 0 failed** (was 2,619 at end of Sprint 002) — zero regressions; 1 unrelated pre-existing date-boundary flake confirmed passing in isolation and in the clean re-run |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Intake sprint before it; smallest possible team (2 agents, zero `Agent` tool calls).
+
+**Success criteria**: honestly met — the mission's own literal closing claim ("no legitimate business event
+independently orchestrates case state; all events go through one Case Evolution Engine, same Event Bus, same
+retry mechanism, same audit model, same provenance chain, same correlation_id; no hidden direct calls,
+parallel orchestrators, or duplicated business logic") is proven by test (Test 6/7 especially), not merely
+asserted, for every event with a genuine consequence need. 3 categories of code deliberately remain outside
+Case Evolution Engine, each with a specific, defensible, named reason (primary actions, a different
+already-proven orchestrator, a synchronous user query) — not silently glossed over. Full detail:
+`docs/delta/SPRINT_003_MISSION_REPORT.md`.

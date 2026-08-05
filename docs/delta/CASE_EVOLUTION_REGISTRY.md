@@ -1,7 +1,15 @@
 # Case Evolution Registry — Program Delta (living document, updated each sprint)
 
 **Sprint 001** (2026-08-05) wired `DOCUMENT_ACCEPTED`. **Sprint 002** (2026-08-05, "Canonical Event Migration
-I") wires 4 more: `REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`.
+I") wired 4 more: `REVIEW_ACCEPTED`, `REVIEW_REJECTED`, `NEW_CLIENT_LINKED`, `NEW_EVIDENCE_REGISTERED`.
+**Sprint 003** (2026-08-05, "Canonical Event Migration II — Complete Event Convergence") wires the last
+remaining event (`ROCISTE_ZAKAZANO`) and migrates the last 2 direct-orchestration call sites (Pipeline A's own
+Genome/Evidence triggers, `routers/rocista.py`'s own Genome trigger) — see `EVENT_MIGRATION_REPORT_SPRINT_003.md`
+and `ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md` for full detail. **6 of 6 events with a genuine reactive-
+consequence need are now wired** — this registry's own Task 3 audit (Sprint 003) confirmed the remaining
+`EventType` members are either dead (never emitted, no handler — out of Case Evolution's domain, see "Registry
+Audit" section below) or already owned by a different, established, pre-existing orchestrator (Case Pipeline,
+decision_log, proactive_alerts direct handlers) — not hidden Case Evolution bypasses.
 
 **Read this file first for any future Program Delta sprint** — per the founder's own closing instruction,
 future Delta work should read only `docs/delta/*` (this registry + prior sprint reports), not re-derive the
@@ -21,7 +29,7 @@ consequences for it.
 |---|---|
 | Naziv | `DOCUMENT_ACCEPTED` (`services/event_bus.py::EventType.DOCUMENT_ACCEPTED`) |
 | Vlasnik | `services/case_evolution.py::handle_case_changed` — the ONE canonical dispatcher; no other module decides consequences for this event type |
-| Ulaz | Emitted durably (`events` table insert, never in-process-only `emit()`) by `routers/smart_intake.py::finalize_intake_job`, once per finalize call, when 1+ documents were successfully linked into a case. Payload: `{"dokumenti": [filenames], "trigger": "smart_intake_finalize", "correlation_id": ...}` |
+| Ulaz | Emitted durably (`events` table insert, never in-process-only `emit()`) by `routers/smart_intake.py::finalize_intake_job`, once per finalize call, when 1+ documents were successfully linked into a case, AND, as of Sprint 003, by `api.py::predmet_upload_auto_analyze` (Pipeline A's own per-case upload, one document per call — replaces its own direct `asyncio.create_task(_genome_bg())`, which used a crude `asyncio.sleep(3)` heuristic this migration removes entirely). Payload: `{"dokumenti": [filenames], "trigger": "smart_intake_finalize"|"pipeline_a_upload", "correlation_id": ...}` — a real, intended side effect of convergence: Pipeline A uploads now ALSO produce a Timeline entry, which they never did before Sprint 003 (not new capability — the exact same canonical consequence set Pipeline C already gets) |
 | Posledice (ordered) | 1. `genome_refresh` — reuses `routers/case_dna.py::_run_genome_background()` unchanged; verified independently (not self-reported) by confirming `predmeti.case_dna.verzija` incremented. 2. `timeline_entry` — one `predmet_hronologija` row per event (not per document — matches Genome's own existing per-finalize-call coalescing) |
 | Idempotency pravila | Keyed by the event's own durable `events.id` (`event_id`), never `correlation_id` (which can span multiple distinct operations). One row per `(event_id, consequence_name)` in `case_evolution_consequences` (migration 096), `UNIQUE(event_id, consequence_name)` DB-enforced. A consequence already `completed` is never re-executed |
 | Audit | `log_action("case_evolution_consequence_completed", ...)` per consequence, carrying the event's own `correlation_id` — added to `AUDITABLE_ACTIONS` this sprint |
@@ -66,7 +74,7 @@ consequences for it.
 |---|---|
 | Naziv | `NEW_CLIENT_LINKED` (`services/event_bus.py::EventType.NEW_CLIENT_LINKED`) |
 | Vlasnik | `services/case_evolution.py::handle_case_changed` |
-| Ulaz | Emitted durably by `routers/smart_intake.py::finalize_intake_job`, same trigger condition as the direct call it replaces (`if klijent_ime:`, unconditional on whether the `predmet_klijenti` insert itself succeeded — exact behavior preserved). Payload: `{"klijent_id", "klijent_ime", "protivna_strana", "trigger"}` |
+| Ulaz | Emitted durably by `routers/smart_intake.py::finalize_intake_job`, same trigger condition as the direct call it replaces (`if klijent_ime:`, unconditional on whether the `predmet_klijenti` insert itself succeeded — exact behavior preserved). Payload: `{"klijent_id", "klijent_ime", "protivna_strana", "trigger"}`. Pipeline A (`api.py::predmet_upload_auto_analyze`) never had an equivalent client-link/conflict-check step of its own (confirmed by Sprint 003's own Task 1 sweep — it links a document to an ALREADY-existing case, never a new client), so this event remains Pipeline C-only, correctly not extended to Pipeline A (nothing there to migrate) |
 | Posledice | `conflict_check` — REUSES `routers/intake.py::_run_conflict_check` + `shared/proactive_alerts.py::create_proactive_alert` UNCHANGED (migrated from a direct in-process `asyncio.create_task(_conflict_check_bg())` call) |
 | Idempotency pravila | `(event_id, consequence_name)` keyed, same mechanism |
 | Audit | Generic `case_evolution_consequence_completed`; the underlying `proactive_alerts` insert (when a conflict is found) carries its own trace |
@@ -80,7 +88,7 @@ consequences for it.
 |---|---|
 | Naziv | `NEW_EVIDENCE_REGISTERED` (`services/event_bus.py::EventType.NEW_EVIDENCE_REGISTERED`) |
 | Vlasnik | `services/case_evolution.py::handle_case_changed` |
-| Ulaz | Emitted durably by `routers/smart_intake.py::finalize_intake_job`, PER DOCUMENT (unlike `DOCUMENT_ACCEPTED`'s once-per-call granularity — evidence classification is inherently per-document, matching the call it replaces). Payload deliberately does NOT carry the document's extracted text (would duplicate a ~100KB blob into the durable outbox per document) — `{"dokument_id", "naziv", "trigger"}` only |
+| Ulaz | Emitted durably by `routers/smart_intake.py::finalize_intake_job` (per document), AND, as of Sprint 003, by `api.py::predmet_upload_auto_analyze` (Pipeline A's own per-case upload, one document per call — replaces its own direct `asyncio.create_task(asyncio.to_thread(klasifikuj_i_sacuvaj, ...))`). Payload deliberately does NOT carry the document's extracted text (would duplicate a ~100KB blob into the durable outbox per document) — `{"dokument_id", "naziv", "trigger"}` only, `trigger` distinguishes `"smart_intake_finalize"` vs `"pipeline_a_upload"` |
 | Posledice | `evidence_classification` — REUSES `routers/evidence.py::klasifikuj_i_sacuvaj` UNCHANGED (migrated from a direct in-process `asyncio.create_task(asyncio.to_thread(...))` call). Re-reads `tekst_sadrzaj` from the SAME `predmet_dokumenti` row the event's own `dokument_id` points to, rather than trusting payload — the row finalize just inserted moments before emitting |
 | Idempotency pravila | `(event_id, consequence_name)` keyed, same mechanism. `event_id` differs per document (one durable outbox row per document), so no cross-document collision |
 | Audit | Generic `case_evolution_consequence_completed` |
@@ -88,6 +96,19 @@ consequences for it.
 | Verifikacija | Does NOT trust `klasifikuj_i_sacuvaj`'s own "no exception" — re-reads `predmet_dokumenti.klasifikovan_at` before/after and raises if still unset, same discipline as `genome_refresh`'s own `verzija` check |
 | Rollback ponašanje | None needed — classification is idempotent (re-running writes the same derived fields) |
 | Success kriterijum | `evidence_classification` completed with `result_ref` = the `dokument_id`, or a named `skipped_*` reason (`skipped_no_dokument_id`, `skipped_document_not_found`, `skipped_no_tekst_sadrzaj`) |
+
+## ROCISTE_ZAKAZANO — WIRED (Sprint 003) — first-ever consequence, event type pre-dates Program Delta
+
+| Field | Value |
+|---|---|
+| Naziv | `ROCISTE_ZAKAZANO` (`services/event_bus.py::EventType.ROCISTE_ZAKAZANO`) — existed in the Event Bus enum since before Program Delta but had ZERO handlers and was NEVER emitted anywhere (confirmed by repo-wide grep, Sprint 003's own Task 3 audit) — a genuinely dead event type until this sprint, not a previously-working mechanism |
+| Vlasnik | `services/case_evolution.py::handle_case_changed` |
+| Ulaz | Emitted durably by `routers/rocista.py::kreiraj_rociste` (`POST /api/rocista`), replacing its own direct `asyncio.create_task(_rociste_genome_bg())` (which used a crude `asyncio.sleep(2)` heuristic, now removed entirely). Payload: `{"sud", "datum", "trigger": "rociste_created"}` |
+| Posledice | ONLY `genome_refresh` — REUSES `DOCUMENT_ACCEPTED`'s own executor UNCHANGED (no new Genome capability). No `timeline_entry`: `kreiraj_rociste` never produced one before this sprint, so none is invented now (per Sprint 003's own "migrate, don't extend" mandate) |
+| Idempotency / Retry / Audit | Identical mechanism to every other wired event — `(event_id, consequence_name)` keyed, Event Bus retry/dead-letter, generic `case_evolution_consequence_completed` audit |
+| Rollback ponašanje | None needed — same reasoning as `DOCUMENT_ACCEPTED`'s own `genome_refresh` |
+| Success kriterijum | `genome_refresh` completed with a verified `result_ref` (the new `case_dna.verzija`) |
+| Deliberately NOT migrated in the same pass | `routers/rocista.py::azuriraj_rociste` (PATCH, rescheduling) has NO current Genome trigger at all — adding one now would be a NEW consequence for an endpoint that never had it, forbidden under "migrate, don't extend"; `hearing_followup` writes its own `predmet_hronologija`/`predmet_beleske`/`predmet_istorija` rows directly and synchronously as its PRIMARY requested action (not a reactive consequence of a case-changing event — same category as `finalize_intake_job`'s own document-linking work), correctly left untouched |
 
 ## The remaining 3 mapped events — still DECLARED, NOT WIRED
 
@@ -97,23 +118,51 @@ consequences for it.
 | `CONFIDENCE_DROPPED` | A document/entity's confidence falls below `AUTO_ACCEPT_THRESHOLD` (Sprint 003's own Confidence Graph) | No consequence currently exists beyond the already-correct review-queue routing (Sprint 003/004) — nothing proven to be missing yet |
 | `MANUAL_CORRECTION_APPLIED` | `shared/intake_documents.py::correct_entity()` | Already writes its own `write_processing_outcome`/audit trail (Sprint 004) — no additional consequence identified as missing |
 
-## Task 3 finding: existing scattered "what happens next" call sites
+## Registry Audit (Sprint 003, Task 3) — every `EventType` member accounted for
 
-Found by direct grep for `_run_genome_background`, `create_proactive_alert`, and inline task/alert-creation
-patterns, scoped to Agent 1's allowed systems (Intake, Human Review, Genome, Timeline, Event Bus) — repo-wide
-platform analysis explicitly out of scope:
+`services/event_bus.py::EventType` has 19 members total. This registry documents the 9 that are (or could
+legitimately become) Case Evolution's own domain — a business event whose consequence is "what should
+automatically follow." The other 10 are explicitly NOT Case Evolution's domain, listed here so "100% match"
+means something precise rather than silently ignoring them:
 
-| Call site | What it decides | Migrated? |
+| Event | Real owner | Why it's NOT a Case Evolution gap |
+|---|---|---|
+| `PREDMET_KREIRAN` | `services/event_bus.py::on_predmet_kreiran` → `services/case_pipeline.py::run_case_pipeline` | A separate, established, already-proven-idempotent orchestrator (Project Sentinel, 2026-08-03) — folding Case Pipeline into Case Evolution would be a major architecture change, correctly out of a 2-agent sprint's scope, not a hidden bypass |
+| `DOKUMENT_UPLOADOVAN` | `services/event_bus.py::on_dokument_uploadovan` (writes a `decision_log` entry) | Has a registered handler; confirmed by grep to be NEVER actually emitted anywhere in the repo — dead code, not a Case Evolution gap |
+| `ROK_DODAN` | No production handler | Appears ONLY in test files simulating a generic broken-handler scenario (`tests/test_phoenix_reliability_failure_recovery.py`); never emitted in real code |
+| `ROK_KRITICAN` | `services/event_bus.py::on_rok_kritican` → `shared/proactive_alerts.py` | Emitted in-process (`routers/matter_intel.py`) — Project Sentinel's own still-open `SENT-001` (durability gap), a KNOWN, previously-documented finding, not newly discovered here and not this sprint's scope to close |
+| `STRATEGIJA_GENERISANA` | None | No handler, never emitted — fully dead |
+| `ANALIZA_ZAHTEVANA` | None | No handler, never emitted — fully dead |
+| `HEALTH_SCORE_PROMENJEN` | `services/event_bus.py::on_health_score_promenjen` → `shared/proactive_alerts.py` | Has its own registered handler; same durability profile as `ROK_KRITICAN` (`SENT-001`) |
+| `GENOME_UPDATED` | `services/event_bus.py::on_genome_updated` (writes audit) | Already durably emitted (`routers/case_dna.py`), already has its own dedicated handler since Faza 1.2 (2026-07-18) — its own established mechanism, not a gap |
+| `DOCUMENT_JOB_ENQUEUED` / `DOCUMENT_JOB_COMPLETED` | Intake job lifecycle markers (migration 073 RPCs) | Informational Smart Intake infrastructure events, not "a case changed, what follows" business events — `DOCUMENT_JOB_FAILED` (the one job-lifecycle event with a real consequence, an alert) already has its own handler since Project Sentinel |
+
+**Result: registry is accurate.** Every `EventType` with a genuine, currently-needed reactive consequence
+(6 of 19) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
+doesn't exist in code, and no wired consequence in code is undocumented (enforced by
+`tests/test_delta_sprint003_full_convergence.py::test_registry_100_percent_matches_event_bus_wiring` and
+`test_every_consequence_registry_event_documented_in_case_evolution_registry_md`, which will fail on future
+drift).
+
+## Task 3 finding, historical: scattered "what happens next" call sites, ALL NOW MIGRATED
+
+Found by direct grep for `_run_genome_background`, `klasifikuj_i_sacuvaj`, `_run_conflict_check`,
+`create_proactive_alert`, and inline task/alert-creation patterns, across all 3 Delta sprints combined:
+
+| Call site | What it decided | Migrated? |
 |---|---|---|
 | `routers/smart_intake.py::finalize_intake_job` — Genome refresh | Direct `asyncio.create_task(_genome_bg())` | **Yes** (Sprint 001) — durable `DOCUMENT_ACCEPTED` |
 | `routers/smart_intake.py::finalize_intake_job` — Evidence Vault auto-classify | Direct `asyncio.create_task(_evidence_classify_bg())` | **Yes** (Sprint 002) — durable `NEW_EVIDENCE_REGISTERED` |
 | `routers/smart_intake.py::finalize_intake_job` — conflict-check | Direct `asyncio.create_task(_conflict_check_bg())` | **Yes** (Sprint 002) — durable `NEW_CLIENT_LINKED` |
 | `routers/smart_intake.py::resolve_job_review` — review-confirmation audit | Direct `asyncio.create_task(log_action("dokument_review_resolved", ...))` | **Yes** (Sprint 002) — durable `REVIEW_ACCEPTED` |
-| `api.py::predmet_upload` (Pipeline A, per-case upload) — Genome refresh | Direct `_run_genome_background()` call, same shape as the one migrated in Pipeline C | No — Pipeline A remains out of scope (mirrors Program Intake's own "Pipeline C first" precedent); a real, named follow-up (`DELTA-002`) |
-| `routers/rocista.py` (hearing scheduling) — Genome refresh trigger | Direct `_run_genome_background()` call | No — same reasoning, same follow-up (`DELTA-002`) |
+| `api.py::predmet_upload_auto_analyze` (Pipeline A) — Evidence Vault auto-classify | Direct `asyncio.create_task(asyncio.to_thread(klasifikuj_i_sacuvaj, ...))` | **Yes** (Sprint 003) — durable `NEW_EVIDENCE_REGISTERED` |
+| `api.py::predmet_upload_auto_analyze` (Pipeline A) — Genome refresh | Direct `asyncio.create_task(_genome_bg())`, `asyncio.sleep(3)` heuristic | **Yes** (Sprint 003) — durable `DOCUMENT_ACCEPTED` |
+| `routers/rocista.py::kreiraj_rociste` — Genome refresh | Direct `asyncio.create_task(_rociste_genome_bg())`, `asyncio.sleep(2)` heuristic | **Yes** (Sprint 003) — durable `ROCISTE_ZAKAZANO` |
 
-**Why Pipeline A/`rocista.py` still weren't migrated this sprint**: both are a DIFFERENT feature surface
-(case upload / hearing scheduling) than any of this sprint's 4 named events (Intake finalize, Human Review,
-client-linking, evidence-registration) — migrating them is mechanical (same event type, same registry,
-different emission call site) but correctly named as a bounded future Delta sprint rather than expanded into
-under this sprint's hard 2-agent budget.
+**Zero remaining direct-call bypass of the 3 functions Case Evolution's own executors wrap**
+(`_run_genome_background`, `klasifikuj_i_sacuvaj`, `_run_conflict_check`) — proven by repo-wide grep, enforced
+by `tests/test_delta_sprint003_full_convergence.py::test_no_new_direct_call_bypass_of_canonical_consequence_functions`.
+The ONE remaining direct caller of `_run_conflict_check` outside `services/case_evolution.py` is
+`routers/intake.py`'s own pre-existing `POST /api/intake/conflict-check` HTTP endpoint — a user-initiated,
+synchronous query-and-answer action (a lawyer explicitly asks "check now", gets an immediate response), not a
+reactive consequence of a case-changing event, deliberately NOT migrated (see Orchestrator Ownership Report).

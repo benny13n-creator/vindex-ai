@@ -1133,26 +1133,31 @@ confirmed not re-derived this sprint).
 **Severity**: Low (downgraded from Medium) — the remaining 3 events all have an explicit "no proven need yet"
 reasoning, not merely "not gotten to it."
 
-## DELTA-002 — UPDATED: 2 of 4 found scattered call sites migrated (was 1 of 4 after Sprint 001... corrected: 0 of 4)
+---
 
-Sprint 001 migrated Pipeline C's own Genome trigger (1 of what Sprint 001 identified as 4 scattered call
-sites, none of the other 3 migrated then). Sprint 002 migrates 2 more of the ORIGINAL 4 named in Sprint 001's
-own Task 3 table (Evidence Vault auto-classify, conflict-check) PLUS discovers and migrates a 5th call site
-Sprint 001 didn't name (`resolve_job_review`'s own direct `log_action` call). Remaining unmigrated: Pipeline
-A's own Genome trigger (`api.py::predmet_upload`), `routers/rocista.py`'s own Genome trigger — both a
-DIFFERENT feature surface (case upload / hearing scheduling) than any event named in Sprint 002's own charter,
-correctly deferred rather than expanded into.
+## Program Delta, Sprint 003 (2026-08-05) — Canonical Event Migration II: Complete Event Convergence
 
-**Why not fixed this sprint**: both remaining call sites are mechanical migrations (same event type —
-`DOCUMENT_ACCEPTED` — same registry, same dispatcher, different emission point) but belong to a feature
-surface outside Sprint 002's own 4 named events; migrating them under this sprint's hard 2-agent budget would
-have meant not properly reliability-testing the 4 events the mission actually required.
+Full narrative: `docs/delta/EVENT_MIGRATION_REPORT_SPRINT_003.md`, `docs/delta/ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md`,
+`docs/delta/RELIABILITY_VERIFICATION_REPORT_SPRINT_003.md`. Migrates the last 2 direct-orchestration call
+sites (Pipeline A, `routers/rocista.py`) and wires the last event with a genuine consequence need
+(`ROCISTE_ZAKAZANO`). Hard 2-agent token budget honored throughout.
 
-**Recommended direction**: a future Delta sprint scoped specifically to "Pipeline A + rocista.py Genome
-trigger migration" — mechanical, low-risk, no new design needed.
+## DELTA-002 — CLOSED (Sprint 003): all 7 found scattered call sites migrated, zero bypass remaining
 
-**Severity**: Medium — real, still-open architectural debt (2 of 4 originally-named scattered call sites
-remain), but each is independently correct and safe today.
+Sprint 001 migrated 1 (Pipeline C Genome). Sprint 002 migrated 3 more (Pipeline C Evidence Vault,
+conflict-check, review-audit). Sprint 003 migrates the LAST 2 (Pipeline A's own Genome + Evidence Vault
+triggers, `routers/rocista.py`'s own Genome trigger) and wires `ROCISTE_ZAKAZANO` — the last event type with a
+genuine consequence need. Repo-wide grep (`tests/test_delta_sprint003_full_convergence.py::
+test_no_new_direct_call_bypass_of_canonical_consequence_functions`, now an enforced regression test, not just
+a one-time manual check) confirms zero remaining direct callers of `_run_genome_background`,
+`klasifikuj_i_sacuvaj`, or `_run_conflict_check` outside `services/case_evolution.py` and each function's own
+definition (plus `routers/intake.py`'s own deliberately-unmigrated direct HTTP endpoint, a synchronous
+user-initiated query, not a reactive consequence — see `ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md`).
+
+**Closed, not merely narrowed** — this is the first `DELTA-XXX` item in the whole program to reach CLOSED
+status rather than being carried forward across sprints.
+
+**Severity**: N/A (closed).
 
 ## DELTA-004 — REVIEW_REJECTED's rollback is trivial-by-construction, not general-purpose (Low, by design)
 

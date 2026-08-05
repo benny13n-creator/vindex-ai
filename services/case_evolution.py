@@ -395,6 +395,14 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.NEW_EVIDENCE_REGISTERED: [
         ConsequenceDef(name="evidence_classification", executor=_consequence_evidence_classify),
     ],
+    EventType.ROCISTE_ZAKAZANO: [
+        # Reuses DOCUMENT_ACCEPTED's own genome_refresh executor UNCHANGED —
+        # a new hearing changes tactical context the same way a new
+        # document does, from Genome's own perspective (it just recomputes).
+        # No timeline_entry here: routers/rocista.py never produced one for
+        # hearing creation before this sprint, so none is invented now.
+        ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+    ],
 }
 
 

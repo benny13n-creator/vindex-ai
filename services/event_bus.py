@@ -356,6 +356,12 @@ class EventBus:
         self.subscribe(EventType.REVIEW_REJECTED,         handle_case_changed)
         self.subscribe(EventType.NEW_CLIENT_LINKED,       handle_case_changed)
         self.subscribe(EventType.NEW_EVIDENCE_REGISTERED, handle_case_changed)
+        # Program Delta, Sprint 003 (2026-08-05) — Canonical Event Migration
+        # II. ROCISTE_ZAKAZANO existed in this enum since before Program
+        # Delta but had ZERO handlers and was never emitted anywhere
+        # (confirmed by repo-wide grep) — now wired for the first time,
+        # replacing routers/rocista.py's own direct Genome-refresh call.
+        self.subscribe(EventType.ROCISTE_ZAKAZANO,        handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""

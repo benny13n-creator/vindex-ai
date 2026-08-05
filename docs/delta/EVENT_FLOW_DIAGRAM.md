@@ -1,8 +1,11 @@
 # Event Flow Diagram — Program Delta (living document, updated each sprint)
 
 Sprint 001 (2026-08-05) established the canonical flow below for `DOCUMENT_ACCEPTED`. Sprint 002 (2026-08-05,
-"Canonical Event Migration I") reuses the EXACT SAME flow for 4 more event types — no diagram change needed
-for the mechanism itself, only new concrete per-event flows (below).
+"Canonical Event Migration I") reused the EXACT SAME flow for 4 more event types. Sprint 003 (2026-08-05,
+"Canonical Event Migration II — Complete Event Convergence") migrates the LAST 2 direct-orchestration call
+sites (Pipeline A, `routers/rocista.py`) and wires the LAST event with a genuine consequence need
+(`ROCISTE_ZAKAZANO`) — no diagram change needed for the mechanism itself here either; only new concrete flows
+(below) and a "before/after, full picture" diagram showing zero remaining bypass paths.
 
 ## The canonical flow, for any event with a populated `CONSEQUENCE_REGISTRY` entry
 
@@ -75,6 +78,27 @@ flowchart LR
     end
 ```
 
+## The 2 events wired in Sprint 003, concretely
+
+```mermaid
+flowchart LR
+    subgraph PA["Pipeline A upload — DOCUMENT_ACCEPTED + NEW_EVIDENCE_REGISTERED"]
+        U1["predmet_upload_auto_analyze<br/>(api.py, per-case upload)"] -->|"1. evidence first"| EV1["events row:<br/>NEW_EVIDENCE_REGISTERED"]
+        U1 -->|"2. genome second"| EV2["events row:<br/>DOCUMENT_ACCEPTED"]
+        EV1 --> HCC1["handle_case_changed"]
+        EV2 --> HCC2["handle_case_changed"]
+        HCC1 --> EC["evidence_classification<br/>(REUSED from Sprint 002, unchanged)"]
+        HCC2 --> GR["genome_refresh (REUSED)"]
+        HCC2 --> TL["timeline_entry (REUSED —<br/>NEW for Pipeline A: it never<br/>produced one before)"]
+    end
+
+    subgraph RZ["ROCISTE_ZAKAZANO — first-ever wiring"]
+        U2["kreiraj_rociste<br/>(routers/rocista.py)"] --> EV3["events row:<br/>ROCISTE_ZAKAZANO"]
+        EV3 --> HCC3["handle_case_changed"]
+        HCC3 --> GR2["genome_refresh (REUSED,<br/>ONLY consequence — no timeline,<br/>this endpoint never had one)"]
+    end
+```
+
 ## What did NOT change
 
 The durable outbox (`events` table), the atomic claim (`claim_pending_events`, migration 091), the
@@ -85,4 +109,8 @@ proven, already-hardened infrastructure. Sprint 002 adds one small refactor on t
 `services/event_bus.py::emit_durable()` — factoring Sprint 001's own single emission idiom into one shared
 function instead of copying its try/except/fallback boilerplate at each of the 4 new call sites (and
 retrofitting `DOCUMENT_ACCEPTED`'s own Sprint-001 emission site to use it too) — still no new retry/dead-letter
-machinery, just one fewer copy of the same code.
+machinery, just one fewer copy of the same code. Sprint 003 uses `emit_durable()` at 2 more call sites
+(`api.py`, `routers/rocista.py`) and wires 2 EXISTING consequence executors (`genome_refresh`,
+`evidence_classification`) to a 6th event type (`ROCISTE_ZAKAZANO`) — zero new consequence logic, zero new
+Genome/Timeline/Evidence capability, zero new retry/audit/provenance machinery. Every reusable piece built in
+Sprints 001-002 was reused, not rebuilt, a 3rd consecutive sprint.

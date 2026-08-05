@@ -942,3 +942,51 @@ the OLD direct-call behavior this sprint replaced, not discovered bugs). Full su
 updated `EVENT_FLOW_DIAGRAM.md`, `RELIABILITY_VERIFICATION_REPORT_SPRINT_002.md`, updated
 `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`DELTA-001`/`DELTA-002` updated, `DELTA-004` added),
 `SPRINT_002_MISSION_REPORT.md`.
+
+## Program Delta, Sprint 003 (2026-08-05) — Canonical Event Migration II: Complete Event Convergence
+
+Third Delta sprint, per the founder's own standing instruction (read only `docs/delta/*` at sprint start).
+**Hard token budget**: exactly 2 active agents, no exceptions, no subagents, no parallel review teams, no
+global analysis — honored for the whole sprint. Closes the migration entirely: last 2 direct-orchestration
+call sites (Pipeline A, `routers/rocista.py`), last event with a genuine consequence need
+(`ROCISTE_ZAKAZANO`), registry↔code audit, orchestrator ownership verification.
+
+**Headline finding**: `EventType.ROCISTE_ZAKAZANO` existed in the Event Bus enum since before Program Delta
+but had ZERO handlers and was NEVER emitted anywhere (confirmed by repo-wide grep) — a genuinely dead event
+type, not a working mechanism being migrated. Wiring it this sprint is the first time it has ever done
+anything.
+
+**Built**: Pipeline A's own Evidence Vault auto-classify and Genome auto-refresh (`asyncio.create_task` calls,
+the latter with a crude `asyncio.sleep(3)` heuristic) migrated to durable `NEW_EVIDENCE_REGISTERED`/
+`DOCUMENT_ACCEPTED` emissions, reusing existing executors unchanged. `routers/rocista.py`'s own Genome trigger
+(`asyncio.sleep(2)` heuristic) migrated to a durable `ROCISTE_ZAKAZANO` emission, reusing `genome_refresh`
+unchanged — `rocista.py` no longer imports or calls `_run_genome_background` at all, per the mission's own
+literal instruction. `docs/delta/CASE_EVOLUTION_REGISTRY.md` gained a new "Registry Audit" section explicitly
+accounting for all 19 `EventType` members (6 wired, 3 declared-not-wired within scope, 10 belonging to a
+different, already-established system — Case Pipeline, decision_log, dead legacy types).
+
+**A real, intended side effect of convergence, not scope creep**: Pipeline A uploads now also produce a
+Timeline entry (part of `DOCUMENT_ACCEPTED`'s own canonical consequence set) — something Pipeline A never did
+before. This is the exact same treatment Pipeline C has had since Sprint 001, correctly applied uniformly, not
+a new capability.
+
+**Mission's own success definition, proven by test not merely claimed**: all 7 required tests
+(`tests/test_delta_sprint003_full_convergence.py`, 9 new tests) — including two NEW kinds of proof this
+sprint's own charter specifically demanded: a registry↔code drift test (`test_registry_100_percent_matches_
+event_bus_wiring`) and a repo-wide bypass-search regression test
+(`test_no_new_direct_call_bypass_of_canonical_consequence_functions`) that will fail on any FUTURE direct-call
+bypass, not just today's. Full suite: **2,628 passed, 1 skipped, 0 failed** (was 2,619) — zero regressions (one
+unrelated pre-existing date-boundary flake in `test_product_intelligence.py`, confirmed passing in isolation,
+not caused by this sprint).
+
+**`DELTA-002` CLOSED** — the first `DELTA-XXX` item in the whole program to reach CLOSED status rather than
+being carried forward.
+
+**7 required deliverables**: updated `docs/delta/CASE_EVOLUTION_REGISTRY.md`, `EVENT_MIGRATION_REPORT_SPRINT_003.md`,
+`ORCHESTRATOR_OWNERSHIP_REPORT_SPRINT_003.md`, `RELIABILITY_VERIFICATION_REPORT_SPRINT_003.md`, updated
+`EVENT_FLOW_DIAGRAM.md`, updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`DELTA-002` closed),
+`SPRINT_003_MISSION_REPORT.md`.
+
+**Founder's own standing recommendation, honored**: per the sprint's own closing note, Program Epsilon is NOT
+opened next — a possible Delta Sprint 004 "Orchestration Certification" (forensic verification, not
+development) is named as the recommended next step, pending founder authorization.

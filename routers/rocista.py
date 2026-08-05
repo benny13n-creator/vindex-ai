@@ -162,22 +162,33 @@ async def kreiraj_rociste(
     row["vreme"] = _norm_vreme(row.get("vreme"))
     logger.info("[ROCISTE] kreirano uid=%.8s predmet=%s datum=%s", uid, body.predmet_id, body.datum)
 
-    # Living Case: novo rociste menja takticki kontekst → refresh Genome u pozadini
-    _pred_id = body.predmet_id
-    _uid = uid
-    async def _rociste_genome_bg():
-        await asyncio.sleep(2)
-        try:
-            from routers.case_dna import _run_genome_background
-            _pred_r = await asyncio.to_thread(
-                lambda: supa.table("predmeti").select("case_dna")
-                .eq("id", _pred_id).eq("user_id", _uid).single().execute()
-            )
-            _sp = ((_pred_r.data or {}).get("case_dna") or {}).get("snaga_predmeta_procent")
-            await _run_genome_background(_pred_id, _uid, _sp, trigger="rociste_trigger")
-        except Exception as _e:
-            logger.debug("[ROCISTE] Genome bg greška: %s", _e)
-    asyncio.create_task(_rociste_genome_bg())
+    # ── ROCISTE_ZAKAZANO — Program Delta, Sprint 003 (2026-08-05) ───────────
+    # Canonical Event Migration II. This USED TO be a direct, in-process
+    # `asyncio.create_task(_rociste_genome_bg())` call (with a crude
+    # `asyncio.sleep(2)` heuristic) -- rocista.py deciding for itself "a new
+    # hearing changes the case's tactical context, refresh Genome". Per this
+    # sprint's own Task 2 ("rocista.py ne sme znati kako se osvežava
+    # Genome"), replaced with a durable ROCISTE_ZAKAZANO emission --
+    # rocista.py no longer imports or calls _run_genome_background at all.
+    # EventType.ROCISTE_ZAKAZANO existed since the original Event Bus
+    # (services/event_bus.py) but had ZERO handlers and was NEVER emitted
+    # anywhere in the repo (confirmed by grep) -- a genuinely dead event
+    # type until this sprint, not a previously-working mechanism being
+    # migrated. The Canonical Consequence Engine (services/case_evolution.py)
+    # now owns it, reusing the EXISTING genome_refresh executor UNCHANGED
+    # (no new Genome capability) -- exactly the same single consequence the
+    # code above produced, nothing added (no Timeline entry -- this endpoint
+    # never created one before, so none is invented now).
+    try:
+        from services.event_bus import EventType, emit_durable
+        await emit_durable(
+            EventType.ROCISTE_ZAKAZANO,
+            uid,
+            body.predmet_id,
+            {"sud": body.sud.strip(), "datum": body.datum, "trigger": "rociste_created"},
+        )
+    except Exception as _e:
+        logger.warning("[ROCISTE] ROCISTE_ZAKAZANO durable event upis greška (non-fatal) predmet=%s: %s", body.predmet_id, _e)
 
     return {"rociste": row, "ok": True}
 
