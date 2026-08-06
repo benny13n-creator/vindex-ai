@@ -2180,3 +2180,38 @@ DEBT, per the mission's own required closure format.
 addendum (forks exceeding their read-only brief, one pushing unsupervised) would recur. It didn't — every
 investigative fork stayed read-only as briefed; every fix was implemented, tested, and verified directly by
 the coordinator before being reported as done.
+
+## Program Lambda, Certification 003A (2026-08-06) — Regression Recovery & Green Baseline Certification
+
+**Mission type**: pure regression recovery, explicitly NOT feature development — no architecture changes, no
+optimization, no unrelated refactoring, sole objective a mathematically clean full-suite baseline before
+Certification 004 begins. Closes `LAMBDA003-TEST-001`, the one item Certification 003 left open (7 pre-
+existing test failures, root-caused but only partially mitigated by that sprint's own `teardown_module` fix).
+
+**Process**: strict "at least 2 independent investigations must agree on root cause before implementation"
+rule, matching this program's own standing discipline against trusting a single analysis. 2 parallel,
+read-only forks re-derived the root cause from scratch (explicitly instructed not to just accept the
+coordinator's own prior, demonstrably-incomplete conclusion) and converged: a `sys.modules["main"]` mock leak
+from `tests/test_doc_pitanje_api.py`/`test_uploaded_doc_api.py`, both installing a mock at module-COLLECTION
+time (before ANY test in the session executes) with no execution-scoped guard — explaining precisely why
+Certification 003's own `teardown_module` fix couldn't work (it fires after that file's own tests run, too
+late for the earlier-executing `test_akcija2_faza4_2026_07_24.py`). Both forks independently proved the
+mechanism via controlled experiments (removing the offending files eliminates the failure), not just tracing.
+
+**Fix**: moved the mock installation into a `setup_module(module)` hook in both files — the exact missing
+counterpart to `teardown_module`, deferring the mutation to immediately before each file's own first test
+runs. Verified safe because the one endpoint these tests actually exercise touching `main`
+(`routers/dokument.py::dokument_pitanje`) does its own function-body-local re-import, resolved fresh per
+request, independent of import order. A 3rd, dedicated forensic-review fork (Phase 7) tried to disprove the
+fix — checked standalone-file correctness, `-k`-filter correctness, absence of skip/xfail shortcuts, and
+absence of any other latent instance of the same bug class — and found no flaw.
+
+**Result**: full suite **2,991 passed, 1 skipped, 0 failed** (was 2,984/1/7) — exact +7/-0 delta, zero
+production code touched, zero collateral regressions anywhere in 2,992 collected tests. `LAMBDA003-TEST-001`
+closed (marked FIXED, not left open) in `ARCHITECTURAL_DEBT_REGISTER.md`. One honest open question preserved,
+not resolved by guessing: why an earlier full-suite run in this engagement's history didn't show this exact
+failure is unexplained by either investigation — flagged, not asserted as settled. 6 deliverables in
+`docs/lambda/`: `REGRESSION_FAILURE_INVENTORY.md`, `ROOT_CAUSE_ANALYSIS.md`, `FIX_JUSTIFICATION.md`,
+`REGRESSION_CERTIFICATION_REPORT.md`, `TEST_COVERAGE_IMPACT.md`, `SPRINT_003A_MISSION_REPORT.md`.
+
+Repository is in a clean, fully green, verified state — ready for Certification 004.

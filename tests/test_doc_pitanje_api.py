@@ -28,27 +28,45 @@ _mock_main.ask_agent.return_value = {
     "top_law": "ugovor.docx",
 }
 
-# Program Lambda, Certification 003 (2026-08-06): these setdefault() calls
-# run at COLLECTION time (module import), before any test in the whole
-# session executes -- and never got cleaned up, so the mocked "main" (and
-# the other 4 modules below) silently leaked into every LATER-executed test
-# file's own plain `import main`, for the rest of the pytest session. Found
-# as a byproduct of this sprint's own full-suite regression run:
-# test_akcija2_faza4_2026_07_24.py's tests started getting a MagicMock in
-# place of the real main._batch_segments_za_map. teardown_module (a
-# pytest/unittest-recognized hook, runs once after every test in THIS file
-# finishes, before the next file's tests start) restores exactly what was
-# in sys.modules before this file touched it.
-_PRE_EXISTING_MODULES = {
-    name: sys.modules.get(name)
-    for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
-}
+# Program Lambda, Certification 003A (2026-08-06): Certification 003's own
+# teardown_module (added below) was insufficient -- it restores sys.modules
+# only after THIS file's own tests finish executing, but the setdefault()
+# calls below ran at COLLECTION time (module import), which precedes
+# execution of every file in the whole pytest session, including
+# earlier-alphabetically-executing files. Root cause independently
+# re-confirmed by 2 separate investigations (Program Lambda, Certification
+# 003A): test_akcija2_faza4_2026_07_24.py's tests, which execute BEFORE this
+# file's own tests do, were already getting the mocked "main" by the time
+# they ran -- proven via a controlled experiment (removing this file from
+# collection eliminates the failure; teardown_module cannot help an
+# earlier-executing file since it hasn't fired yet).
+#
+# Fix: move the mutation into setup_module(), the pytest/unittest-recognized
+# hook that runs immediately before THIS file's own FIRST test executes --
+# not at collection/import time. This is safe for every test in this file:
+# the only endpoint under test that touches `main` (dokument_pitanje,
+# routers/dokument.py) does its own `from main import ask_agent` INSIDE the
+# function body, re-resolved fresh from sys.modules at each call (request)
+# time, not from some earlier-bound reference -- verified by reading the
+# handler directly, not assumed. `import api` below still runs at collection
+# time and may bind api.py's own top-level `from main import ask_agent, ...`
+# (api.py:94) to the real functions if `main` isn't mocked yet -- but no test
+# in this file exercises any code path using THOSE top-level-bound names,
+# only the local-reimport pattern above, so this is confirmed harmless here.
+_PRE_EXISTING_MODULES = {}
 
-sys.modules.setdefault("main", _mock_main)
-sys.modules.setdefault("templates.podnesci", MagicMock())
-sys.modules.setdefault("knowledge.vks_standards", MagicMock())
-sys.modules.setdefault("pinecone", MagicMock())
-sys.modules.setdefault("supabase", MagicMock())
+
+def setup_module(module):
+    global _PRE_EXISTING_MODULES
+    _PRE_EXISTING_MODULES = {
+        name: sys.modules.get(name)
+        for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
+    }
+    sys.modules.setdefault("main", _mock_main)
+    sys.modules.setdefault("templates.podnesci", MagicMock())
+    sys.modules.setdefault("knowledge.vks_standards", MagicMock())
+    sys.modules.setdefault("pinecone", MagicMock())
+    sys.modules.setdefault("supabase", MagicMock())
 
 
 def teardown_module(module):

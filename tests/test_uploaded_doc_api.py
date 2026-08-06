@@ -23,22 +23,32 @@ os.environ.setdefault("FOUNDER_TOKEN", "test-admin-token-12345")
 
 _mock_main = MagicMock()
 
-# Program Lambda, Certification 003 (2026-08-06): same leak this sprint
-# found and fixed in test_doc_pitanje_api.py -- these setdefault() calls run
-# at collection time and, unrestored, leak into every later-executed test
-# file's own plain `import main` for the rest of the pytest session.
-# teardown_module restores exactly what was in sys.modules before this file
-# touched it.
-_PRE_EXISTING_MODULES = {
-    name: sys.modules.get(name)
-    for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
-}
+# Program Lambda, Certification 003A (2026-08-06): Certification 003's own
+# teardown_module (added below) was insufficient -- see the matching, more
+# detailed comment in test_doc_pitanje_api.py for the full root-cause and
+# fix rationale (independently re-confirmed by 2 separate investigations).
+# Short version: these setdefault() calls ran at COLLECTION time, which
+# precedes execution of every file in the whole session -- teardown_module
+# can only clean up after THIS file's own tests run, too late for an
+# earlier-executing file. Moved into setup_module() (runs immediately before
+# this file's own first test, not at import time). Safe here: repo-wide grep
+# confirms zero references to `main.*`/`sys.modules["main"]` anywhere in this
+# file's own tests -- the mock exists only to avoid api.py's own import-time
+# overhead, not because any test here exercises main-backed behavior.
+_PRE_EXISTING_MODULES = {}
 
-sys.modules.setdefault("main", _mock_main)
-sys.modules.setdefault("templates.podnesci", MagicMock())
-sys.modules.setdefault("knowledge.vks_standards", MagicMock())
-sys.modules.setdefault("pinecone", MagicMock())
-sys.modules.setdefault("supabase", MagicMock())
+
+def setup_module(module):
+    global _PRE_EXISTING_MODULES
+    _PRE_EXISTING_MODULES = {
+        name: sys.modules.get(name)
+        for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
+    }
+    sys.modules.setdefault("main", _mock_main)
+    sys.modules.setdefault("templates.podnesci", MagicMock())
+    sys.modules.setdefault("knowledge.vks_standards", MagicMock())
+    sys.modules.setdefault("pinecone", MagicMock())
+    sys.modules.setdefault("supabase", MagicMock())
 
 
 def teardown_module(module):

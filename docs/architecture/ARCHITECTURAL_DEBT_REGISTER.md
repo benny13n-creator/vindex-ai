@@ -2917,7 +2917,7 @@ or role-inclusive?) applied consistently — a design choice, not a patch.
 
 **Severity**: Low today, Medium if left unaddressed as more admin-gated features are added.
 
-## LAMBDA003-TEST-001 — `sys.modules["main"]` mock leak between test files, pre-existing, unrelated to any security finding (test-infrastructure debt)
+## LAMBDA003-TEST-001 — `sys.modules["main"]` mock leak between test files (CLOSED — FIXED, Program Lambda Certification 003A)
 
 **Found by**: coordinator, during Program Lambda Certification 003's own full-regression verification (not a
 mission-charter finding — pytest hygiene, not a product or security defect).
@@ -2935,9 +2935,22 @@ and confirmed unrelated to any of this sprint's code changes (affected file pass
 `sys.modules` after their own tests finish — real protection for tests executing after them, but doesn't fix
 `test_akcija2_faza4_2026_07_24.py` since the pollution happens at collection time, before teardown can run.
 
-**Why not fully fixed this sprint**: a complete fix requires restructuring these 2 files' own mocking strategy
-(patching `api.py`'s bound `main` reference instead of replacing the module in `sys.modules` globally) — a
-larger, out-of-scope change to unrelated test infrastructure, not a security finding, against this sprint's
-own discipline against unrelated refactoring.
+**Why not fully fixed in Certification 003**: a complete fix appeared at the time to require restructuring
+these 2 files' own mocking strategy — a larger, out-of-scope change against that sprint's own discipline
+against unrelated refactoring, so it was correctly deferred rather than guessed at.
 
-**Severity**: Low — test-infrastructure only, zero production impact, zero relation to any security finding.
+**CLOSED in Program Lambda, Certification 003A (2026-08-06)**: a dedicated regression-recovery sprint, run
+under a strict "at least 2 independent investigations must agree on root cause before implementation" rule,
+found a smaller, lower-risk fix than the one originally estimated: moving the 5 `sys.modules.setdefault(...)`
+calls in both files from bare module level into a `setup_module(module)` hook — the exact missing counterpart
+to the `teardown_module` hook already added, deferring the mutation to immediately before each file's own
+first test executes instead of at collection time. Verified safe because the one endpoint under test that
+touches `main` (`routers/dokument.py::dokument_pitanje`) does its own function-body-local re-import, resolved
+fresh at call time, independent of `api.py`'s own top-level binding order. 2 independent investigations
+converged on the root cause; a 3rd, dedicated forensic-review fork tried to disprove the fix and found no
+flaw (verified standalone-file correctness, `-k`-filter correctness, no skip/xfail shortcuts, no other latent
+instance of the same bug class). Full suite: 2,991 passed, 1 skipped, 0 failed (was 2,984/1/7) — exact +7/-0
+delta, zero collateral regressions. Full detail: `docs/lambda/ROOT_CAUSE_ANALYSIS.md`,
+`docs/lambda/FIX_JUSTIFICATION.md`, `docs/lambda/REGRESSION_CERTIFICATION_REPORT.md`.
+
+**Severity**: was Low (test-infrastructure only, zero production impact) — now resolved, N/A.

@@ -1741,3 +1741,26 @@ ambiguous. Full detail: `docs/lambda/OWNERSHIP_CERTIFICATION_REPORT.md` and `doc
 things look fine, and this sprint found and closed the single worst security finding of the entire
 engagement. Every flow ends in FIXED / ACCEPTED RISK / ARCHITECTURAL DEBT, per the mission's own required
 closure format. Full detail: `docs/lambda/LAMBDA_003_CERTIFICATION.md` and `docs/lambda/ATTACK_MATRIX.md`.
+
+## Program Lambda, Certification 003A (2026-08-06) — Regression Recovery & Green Baseline Certification
+
+| Metric | Value |
+|---|---|
+| Mission type | Pure regression recovery — zero production code touched, zero architecture/feature/optimization work |
+| Failures at sprint start | 7 (all in `tests/test_akcija2_faza4_2026_07_24.py`, inherited from Certification 003's own `LAMBDA003-TEST-001`) |
+| Independent investigations required before implementation, per mission rule | 2 — both converged on the same root cause |
+| Root cause | `sys.modules["main"]` mock installed at module-COLLECTION time by 2 files, no execution-scoped guard — pre-existing since 2026-05-11, confirmed via `git log`/`git blame`, not introduced by Certification 002/003 |
+| Why the prior sprint's own fix (`teardown_module`) didn't work | Fires after that file's own tests execute; pollution happens at collection, before any test in the session runs — a lifecycle-phase mismatch, not a logic error |
+| Files changed | 2 (`tests/test_doc_pitanje_api.py`, `tests/test_uploaded_doc_api.py`) — 0 production files |
+| Fix | Added `setup_module(module)` hook to both, moving the existing mock-installation lines from module level into it — the exact missing counterpart to the already-present `teardown_module` |
+| Forensic review (Phase 7) | 1 dedicated fork tasked with disproving the fix — found no flaw across 5 specific attack angles (silent behavior change, order-dependency, mock masking under `-k`, false-green shortcuts, latent pollution elsewhere) |
+| Full suite before | 2,984 passed, 1 skipped, 7 failed |
+| Full suite after | **2,991 passed, 1 skipped, 0 failed** — exact +7/-0 delta |
+| Debt closed | `LAMBDA003-TEST-001` (marked FIXED, was open) |
+| New debt manufactured | 0 — mission explicitly forbade manufacturing debt; none found |
+| Open questions, honestly disclosed not guessed | 1 — why an earlier full-suite run in this engagement's history didn't show this exact failure is unexplained by either investigation |
+
+**Success criteria**: all met — zero failing tests, zero unexpected regressions (forensic-review-verified, not
+assumed), root cause identified with git evidence for the one cluster, the repair independently reviewed,
+full suite green, honest documentation including disclosed limitations. Full detail:
+`docs/lambda/SPRINT_003A_MISSION_REPORT.md` and `docs/lambda/REGRESSION_CERTIFICATION_REPORT.md`.
