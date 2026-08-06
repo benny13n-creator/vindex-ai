@@ -1180,6 +1180,20 @@ for the proof (Genome called exactly once for a 500-document single-case batch).
 
 **Severity**: N/A (closed).
 
+**Amendment (Program Omega, Sprint 003, 2026-08-06)**: the closure above was incomplete. Sprint 002's own new
+`DOCUMENT_BATCH_COMPLETED` event correctly added ONE additional `genome_refresh`, but never suppressed the
+PER-JOB `DOCUMENT_ACCEPTED` emission that `_finalize_intake_job_core` still fired unconditionally whenever
+`genome_should_trigger` was true — meaning a 500-document single-case batch was actually producing 501 Genome
+recomputes (500 per-job + 1 batch-level), not the claimed 1. Found via direct grep during this sprint's own
+Phase 1 forensic pass, not reported by anyone. Fixed by adding a keyword-only `emit_document_accepted: bool =
+True` parameter to `_finalize_intake_job_core` (default preserves the single-job endpoint's own behavior
+exactly), with `finalize_intake_jobs_batch` passing `False`. This also silently removed the per-job Timeline
+entry (previously produced by `DOCUMENT_ACCEPTED`'s own `timeline_entry` consequence) — caught before shipping
+and fixed by adding a `timeline_entry` consequence, reusing the same executor unchanged, to
+`DOCUMENT_BATCH_COMPLETED`'s own registry entry. Both fixes verified: the existing Sprint 001/002 regression
+suite passes unchanged, and the true "exactly 1 Genome recompute per case per batch" claim now actually holds
+end to end. Re-closed, this time genuinely.
+
 ## OMEGA-002 — No automatic Task creation from document-acceptance-noticed problems (Medium, needs a business decision)
 
 Missing evidence, contradictions, and deadline risk are all already DETECTED (existing Risk Engine / Genome
@@ -1236,6 +1250,99 @@ building a bare read endpoint without a real consumer would be premature. A natu
 a UI surface for it is actually planned.
 
 **Severity**: Low — no correctness risk, just an unrealized value gap.
+
+---
+
+## Program Omega, Sprint 003 (2026-08-06) — Autonomous Legal Office / Canonical Action Engine
+
+Full narrative: `docs/omega/OMEGA_SPRINT_003_REPORT.md`, `docs/omega/ACTION_PRODUCER_REGISTRY.md`,
+`docs/omega/CANONICAL_ACTION_ENGINE.md`, `docs/omega/ACTION_PRIORITY_MODEL.md`,
+`docs/omega/CASE_ACTION_LIFECYCLE.md`. Builds the first deterministic, non-GPT Action Engine
+(`services/case_evolution.py::_consequence_refresh_case_actions`, `case_actions` table, migration 099) and a
+Worklist read endpoint (`routers/case_actions.py`, Phase 6). Amends `OMEGA-001` (see above — found genuinely
+incomplete, now genuinely closed).
+
+## OMEGA-005 — "Client not contacted in N days" has no deterministic data source (Low, deliberately not implemented)
+
+The mission's own third worked example for a deterministic action rule. Grepped for
+`poslednji_kontakt`/`last_contact`/`zadnja_aktivnost`/`poslednja_aktivnost` across `services/`, `routers/`,
+`shared/` — no genuine "last client contact" tracking exists anywhere in the platform; only
+`predmeti.updated_at`-adjacent proxies in unrelated modules (`morning_briefing.py`, `sesije.py`,
+`wallet_provenance.py`), none of which represent client contact specifically.
+
+**Why not fixed this sprint**: approximating this from an unrelated timestamp would violate Agent 4's own "no
+conclusion without source" mandate for THIS specific sprint's own headline requirement (every action must have
+verifiable evidence) — a rule this engine cannot honestly ground does not ship half-grounded.
+
+**Recommended direction**: requires its own real feature (a genuine last-client-contact event/log — e.g. a
+"logged a call/email/meeting" action a lawyer explicitly records) before this rule can be added truthfully.
+
+**Severity**: Low — a named, honest gap in a nice-to-have rule, not a correctness risk in what shipped.
+
+## OMEGA-006 — `predmet_dokumenti` queries still omit `tip_dokaza` in 2 older callers (Low, pre-existing, not touched this sprint)
+
+`_compute_target_actions` (this sprint) fixed its OWN `predmet_dokumenti` select to include `tip_dokaza` — see
+`docs/omega/CANONICAL_ACTION_ENGINE.md`'s own "correctness fix made in-scope" section for why. Two
+already-existing callers were NOT touched and still carry the original G-028 gap:
+`routers/matter_intel.py:66` and `services/case_evolution.py::_consequence_case_intelligence_summary` (Sprint
+002). Both currently compute `nedostajuci_dokazi` as if EVERY expected document type is always missing,
+regardless of what's actually uploaded — a read-only display distortion, not a stateful false positive (unlike
+what `_compute_target_actions` would have inherited unfixed).
+
+**Why not fixed this sprint**: out of this sprint's own stated scope (Action Engine correctness); fixing
+`matter_intel.py` and the Sprint 002 summary executor is a 1-line change each but touches code this sprint
+didn't otherwise need to touch, and both already have their own established test coverage that would need
+re-verification.
+
+**Recommended direction**: a trivial follow-up — add `tip_dokaza` to both remaining selects, re-run their own
+existing test suites.
+
+**Severity**: Low — display-only distortion (`matter_intel.py`, case-page risk card) and a possibly-inflated
+`dokumenti_niska_sigurnost`-adjacent count in `case_intelligence_summaries` (Sprint 002), not a new stateful
+artifact.
+
+## OMEGA-007 — Action priority does not decay/escalate on a bare clock tick, only on a real event (Low, by design this sprint)
+
+A `PRIPREMITI_PODNESAK` action's priority is recomputed correctly every time `refresh_case_actions` runs for
+its case — but that only happens on `DOCUMENT_ACCEPTED`/`REVIEW_ACCEPTED`/`ROCISTE_ZAKAZANO`/
+`DOCUMENT_BATCH_COMPLETED`. A case that receives no new documents/reviews/hearings for weeks will show a
+priority computed as of its LAST real event, even as a deadline silently crosses from `medium` into `critical`
+territory purely by the calendar advancing.
+
+**Why not fixed this sprint**: the mission's own charter defines the engine as event-driven ("Event → Canonical
+Handler → Consequence → Audit"), not clock-driven; adding a daily re-tick job is a legitimately different
+mechanism (a new scheduled trigger, not a new consequence) and wasn't asked for.
+
+**Recommended direction**: a small future addition — a daily cron that calls `refresh_case_actions` for every
+case with at least one open action and an approaching `rok`, OR (simpler) compute priority display-side as
+`max(stored_priority, priority_by_days(rok))` at read time in the Worklist, without touching the stored row.
+
+**Severity**: Low — priority is never WRONG in a way that hides an action (it still shows, just possibly
+under-prioritized until the next event), and every `rok` date itself is always accurate.
+
+## OMEGA-008 — 5 independent "what should I focus on today" surfaces now exist, none aware of the others (High, needs a founder-level product decision)
+
+Phase 1's own forensic pass (`docs/omega/ACTION_PRODUCER_REGISTRY.md`) confirmed this sprint's new
+`GET /api/case-actions/worklist` is the **5th** independently-built answer to essentially the same question:
+Case Commander's `GET /api/commander/jutarnji` (self-described "srce platforme", GPT, cached daily),
+`routers/morning_briefing.py` (GPT, emailed daily), `routers/case_intelligence.py`'s briefing endpoint (GPT,
+explicitly aims to be "JEDNU preporuku"), and `routers/zadaci.py::ai_analiziraj_predmet` (hybrid, already
+grounded in `risk_engine.py`, writes real `zadaci` rows) all independently answer "what does this lawyer need
+to do." The new deterministic worklist does not replace, feed, or get fed by any of the other 4.
+
+**Why not fixed this sprint**: which of the 5 becomes the lawyer's actual daily entry point (or whether they
+get merged) is a product decision about trust and UX, not a mechanical migration — the new engine is
+deterministic and provable in a way none of the GPT-based 4 are, which is a genuine argument for it becoming
+primary, but that call is the founder's, not an autonomous sprint's.
+
+**Recommended direction**: a founder decision on which surface(s) survive, followed by a dedicated
+consolidation sprint. `routers/zadaci.py::ai_analiziraj_predmet` is the closest/cheapest to fold in first — it
+already reuses `risk_engine.py`, the same foundation `case_actions` reuses (see
+`docs/omega/ACTION_PRODUCER_REGISTRY.md`'s own Producer 5 entry and its "Preporuka za budući sprint" section).
+
+**Severity**: High — not a bug, but the single largest structural fragmentation this whole engagement has
+found in the "what should the lawyer do" space; left unresolved, a 6th independent surface is exactly the kind
+of thing a future sprint could accidentally build next.
 
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 

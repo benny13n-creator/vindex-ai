@@ -143,13 +143,16 @@ async def test_scenario1_review_accepted_genome_timeline_audit_exactly_once():
     assert rows[("evt-1", "genome_refresh")]["status"] == "completed"
     assert rows[("evt-1", "timeline_entry")]["status"] == "completed"
     assert rows[("evt-1", "review_confirmation_audit")]["status"] == "completed"
-    # One case_evolution_consequence_completed audit row per consequence (3)
-    # + one domain-specific dokument_review_resolved row from the
-    # review_confirmation_audit executor itself = 4 total log_action calls.
-    assert mock_log.await_count == 4
+    # One case_evolution_consequence_completed audit row per consequence (4,
+    # since Program Omega Sprint 003 appended refresh_case_actions) + one
+    # domain-specific dokument_review_resolved row from review_confirmation_
+    # audit + one domain-specific case_action_refreshed row from
+    # refresh_case_actions = 6 total log_action calls.
+    assert mock_log.await_count == 6
     actions = [c.args[0] for c in mock_log.await_args_list]
     assert actions.count("dokument_review_resolved") == 1
-    assert actions.count("case_evolution_consequence_completed") == 3
+    assert actions.count("case_action_refreshed") == 1
+    assert actions.count("case_evolution_consequence_completed") == 4
 
 
 @pytest.mark.anyio
@@ -527,8 +530,11 @@ async def test_scenario5_crash_after_first_review_accepted_consequence_retry_res
     genome_bg.assert_not_awaited()  # NOT re-executed
     assert rows[("evt-1", "timeline_entry")]["status"] == "completed"
     assert rows[("evt-1", "review_confirmation_audit")]["status"] == "completed"
+    assert rows[("evt-1", "refresh_case_actions")]["status"] == "completed"
     actions = [c.args[0] for c in mock_log.await_args_list]
-    assert actions.count("case_evolution_consequence_completed") == 2  # only the 2 newly-completed
+    # only the 3 newly-completed (genome_refresh already done pre-crash):
+    # timeline_entry, review_confirmation_audit, refresh_case_actions
+    assert actions.count("case_evolution_consequence_completed") == 3
 
 
 # ═══════════════════════════════════════════════════════════════════════════

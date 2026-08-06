@@ -1122,3 +1122,50 @@ session). Full suite: **2,653 passed, 1 skipped, 0 failed** (was 2,644) — zero
 `CASE_LEVEL_INTELLIGENCE_FLOW.md`, `BATCH_INTELLIGENCE_VALIDATION_REPORT.md`, `OMEGA_SPRINT_002_REPORT.md`,
 updated `docs/delta/CASE_EVOLUTION_REGISTRY.md` (7th wired event documented), updated
 `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-001` closed, `OMEGA-003`/`OMEGA-004` added).
+
+## Program Omega, Sprint 003 (2026-08-06) — Autonomous Legal Office / Canonical Action Engine
+
+Third Omega sprint. Mission's central question: after the last 2 sprints made Vindex AI understand a case,
+does it now tell the lawyer what to DO about it — deterministically, never as an LLM opinion? Phase 1's own
+mandatory forensic pass (`docs/omega/ACTION_PRODUCER_REGISTRY.md`) catalogued 10 existing producers of
+alerts/recommendations/next-actions platform-wide BEFORE any code — confirming `services/risk_engine.py`
+(Core Consolidation, 2026-07-22) was already the right foundation to build on, and surfacing that 4 OTHER
+GPT-based "what should I focus on today" surfaces already exist independently (Case Commander's `/jutarnji`,
+Morning Briefing, Case Intelligence's briefing, `zadaci.py::ai_analiziraj_predmet`) — named as `OMEGA-008`, a
+founder-level product decision, not fixed this sprint.
+
+**Built**: `case_actions` (migration 099) — the ONE canonical table for `{ID, Type, Reason, Evidence,
+Priority, Due Date, Status, Created By, Correlation ID, Audit Link, Confidence, Source Documents}`, a partial
+UNIQUE index `(predmet_id, dedupe_key) WHERE status='open'` as the real concurrency guarantee (no new locking).
+`refresh_case_actions(case_id)` — the mission's own named canonical entry point — is
+`_consequence_refresh_case_actions`, dispatched through the SAME `handle_case_changed` loop as every other Case
+Evolution consequence, wired LAST on 4 events (`DOCUMENT_ACCEPTED`, `REVIEW_ACCEPTED`, `ROCISTE_ZAKAZANO`,
+`DOCUMENT_BATCH_COMPLETED`) so it always reads freshly-refreshed facts. 5 deterministic rules
+(`_compute_target_actions`), each sourced from `risk_engine.py`'s own canonical `calculate_procesni_rizik`/
+`identify_case_problems` or a real DB row (`rocista`, `case_dna.kontradikcije`) — zero GPT calls, matching
+AR-01. Reconciliation is dedupe-key-based (create missing, update matching in place, close orphaned) — the
+mechanism that makes a deadline extension UPDATE the same action instead of close+reopen, and evidence added
+CLOSE a stale action automatically. Phase 6's Worklist: `GET /api/case-actions/worklist` (cross-case, grouped
+by predmet, priority-ordered) + `GET /api/case-actions/predmeti/{predmet_id}` (single-case) —
+`routers/case_actions.py`, registered in `api.py`.
+
+**A genuine `OMEGA-001` gap found and fixed**: Sprint 002's own "closed" claim was incomplete — per-job
+`DOCUMENT_ACCEPTED` emission was never suppressed during batch processing, so a 500-document single-case batch
+was still producing 501 Genome recomputes (500 per-job + 1 batch-level), not the claimed 1. Found via direct
+grep during this sprint's own Phase 1 pass, fixed via a new `emit_document_accepted` keyword-only parameter on
+`_finalize_intake_job_core`; `OMEGA-001` amended and genuinely re-closed. Fixing it also required adding a
+`timeline_entry` consequence to `DOCUMENT_BATCH_COMPLETED` (previously batch-processed documents would have
+gotten zero timeline entries once the per-job path was suppressed) — caught before shipping.
+
+**All 6 required Phase 5 scenarios proven** (`tests/test_omega_sprint003_action_engine.py`, 19 new tests, all
+passing on first run): 500 new documents → actions arise; evidence added → risk removed → action closes;
+deadline extended → same action updates in place, not close+reopen; document/fact removed → stale action
+closes; 2 concurrent refreshes → the partial unique index + a caught duplicate-key exception guarantee one
+consistent open row per fact; system restart → re-running against unchanged facts is a pure no-op (zero
+inserts, zero closes).
+
+**8 required/adjacent deliverables**: `docs/omega/ACTION_PRODUCER_REGISTRY.md`, `CANONICAL_ACTION_ENGINE.md`,
+`ACTION_PRIORITY_MODEL.md`, `CASE_ACTION_LIFECYCLE.md`, `OMEGA_SPRINT_003_REPORT.md`, updated
+`docs/delta/CASE_EVOLUTION_REGISTRY.md` (`refresh_case_actions` documented on all 4 events + the
+`emit_document_accepted` fix), updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-001` amended
+and re-closed; `OMEGA-005`/`OMEGA-006`/`OMEGA-007`/`OMEGA-008` added).

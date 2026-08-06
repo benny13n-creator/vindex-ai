@@ -140,11 +140,26 @@ def test_document_batch_completed_wired_to_canonical_dispatcher():
 
 
 def test_document_batch_completed_registry_is_genome_refresh_then_summary_in_order():
-    from services.case_evolution import CONSEQUENCE_REGISTRY, _consequence_genome_refresh, _consequence_case_intelligence_summary
+    """Program Omega, Sprint 003: timeline_entry was added between
+    genome_refresh and case_intelligence_summary, reused from
+    DOCUMENT_ACCEPTED, because the batch endpoint now suppresses its own
+    per-job DOCUMENT_ACCEPTED emission (which used to be the only source of
+    a Timeline entry for batch-processed documents). refresh_case_actions
+    was appended last (Sprint 003, Canonical Action Engine) so it always
+    reads a freshly-refreshed Genome/summary."""
+    from services.case_evolution import (
+        CONSEQUENCE_REGISTRY, _consequence_genome_refresh,
+        _consequence_timeline_entry, _consequence_case_intelligence_summary,
+        _consequence_refresh_case_actions,
+    )
     consequences = CONSEQUENCE_REGISTRY[EventType.DOCUMENT_BATCH_COMPLETED]
-    assert [c.name for c in consequences] == ["genome_refresh", "case_intelligence_summary"]
+    assert [c.name for c in consequences] == [
+        "genome_refresh", "timeline_entry", "case_intelligence_summary", "refresh_case_actions",
+    ]
     assert consequences[0].executor is _consequence_genome_refresh
-    assert consequences[1].executor is _consequence_case_intelligence_summary
+    assert consequences[1].executor is _consequence_timeline_entry
+    assert consequences[2].executor is _consequence_case_intelligence_summary
+    assert consequences[3].executor is _consequence_refresh_case_actions
 
 
 # ═══════════════════════════════════════════════════════════════════════════

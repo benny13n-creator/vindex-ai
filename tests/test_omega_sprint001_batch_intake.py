@@ -136,7 +136,7 @@ async def test_finalize_batch_aggregates_multiple_jobs_into_one_case_summary():
     separate 'successes' with no case-level context."""
     from routers.smart_intake import finalize_intake_jobs_batch, BatchFinalizeReq
 
-    async def _fake_core(job_id, request, body, user):
+    async def _fake_core(job_id, request, body, user, emit_document_accepted=True):
         if job_id == "job-1":
             return {"ok": True, "predmet_id": "pred-A", "naziv": "Markovic", "dokumenata_povezano": 1,
                      "klasifikacija_nesigurna": False, "rok_dodat": True, "already_finalized": False}
@@ -195,7 +195,7 @@ async def test_finalize_batch_one_failure_does_not_abort_the_rest():
     document, now proven at the batch level too."""
     from routers.smart_intake import finalize_intake_jobs_batch, BatchFinalizeReq
 
-    async def _fake_core(job_id, request, body, user):
+    async def _fake_core(job_id, request, body, user, emit_document_accepted=True):
         if job_id == "job-bad":
             raise HTTPException(status_code=404, detail="Posao nije pronađen.")
         return {"ok": True, "predmet_id": "pred-A", "naziv": "Markovic", "dokumenata_povezano": 1,
@@ -229,7 +229,7 @@ async def test_finalize_batch_does_not_hit_per_job_rate_limit():
     from routers.smart_intake import finalize_intake_jobs_batch, BatchFinalizeReq
 
     call_count = {"n": 0}
-    async def _fake_core(job_id, request, body, user):
+    async def _fake_core(job_id, request, body, user, emit_document_accepted=True):
         call_count["n"] += 1
         return {"ok": True, "predmet_id": f"pred-{job_id}", "naziv": "X", "dokumenata_povezano": 1,
                 "klasifikacija_nesigurna": False, "rok_dodat": False, "already_finalized": False}

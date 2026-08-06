@@ -160,7 +160,12 @@ async def test_full_chain_raw_event_row_through_real_dispatch_to_completed_conse
     assert "evt-real-1" in dispatched
     assert rows[("evt-real-1", "genome_refresh")]["status"] == "completed"
     assert rows[("evt-real-1", "timeline_entry")]["status"] == "completed"
-    assert mock_log.await_count == 2  # one audit row per consequence
+    assert rows[("evt-real-1", "refresh_case_actions")]["status"] == "completed"
+    # Program Omega Sprint 003 appended refresh_case_actions as a 3rd
+    # DOCUMENT_ACCEPTED consequence: one case_evolution_consequence_completed
+    # row per consequence (3) + refresh_case_actions's own domain-specific
+    # case_action_refreshed row = 4 total.
+    assert mock_log.await_count == 4
 
 
 @pytest.mark.anyio
@@ -174,6 +179,7 @@ async def test_full_chain_replay_same_row_produces_no_duplicate_work():
     supa, rows, _ = _make_full_chain_supa(existing_consequence_rows={
         ("evt-real-1", "genome_refresh"): {"status": "completed", "result_ref": "9"},
         ("evt-real-1", "timeline_entry"): {"status": "completed", "result_ref": "hron-real-1"},
+        ("evt-real-1", "refresh_case_actions"): {"status": "completed", "result_ref": "created=0 updated=0 closed=0"},
     })
     genome_bg = AsyncMock()
 
@@ -217,7 +223,11 @@ async def test_full_chain_crash_after_one_consequence_real_dispatch_retry_resume
     assert result["dispecovano"] == 1
     assert "evt-real-1" in dispatched  # retry completed successfully this time
     assert rows[("evt-real-1", "timeline_entry")]["status"] == "completed"
-    assert mock_log.await_count == 1  # only the newly-completed consequence
+    assert rows[("evt-real-1", "refresh_case_actions")]["status"] == "completed"
+    # 2 newly-completed consequences (timeline_entry, refresh_case_actions)
+    # -> 2 case_evolution_consequence_completed rows + refresh_case_actions's
+    # own domain-specific case_action_refreshed row = 3 total.
+    assert mock_log.await_count == 3
 
 
 @pytest.mark.anyio

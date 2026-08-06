@@ -1068,3 +1068,36 @@ case_dna` remains the single source of truth, `case_intelligence_summaries` is a
 copy), "every AI conclusion has provenance" (✔, every summary field traced to a real query or the emitter's
 own already-verified fact), "system interruption doesn't destroy continuity" (✔, Scenario 4's own 2 tests).
 Full detail: `docs/omega/OMEGA_SPRINT_002_REPORT.md`.
+
+## Program Omega, Sprint 003 (2026-08-06) — Autonomous Legal Office / Canonical Action Engine
+
+**Methodology note**: Phase 1's own mandatory forensic review (`docs/omega/ACTION_PRODUCER_REGISTRY.md`)
+written before the engine's own docs were finalized, cataloguing every existing action/alert/recommendation
+producer platform-wide — 10 confirmed, none migrated onto the new engine this sprint by design (Sprint 003's
+own job was building ONE new canonical engine, not migrating the other 9).
+
+| Metric | Value |
+|---|---|
+| Action types (deterministic rules) | 5 (`PRIPREMITI_PODNESAK`, `PRIBAVITI_DOKAZ`, `RAZRESITI_KONTRADIKCIJU`, `OJACATI_DOKAZE`, `PLANIRATI_ROKOVE`) — all sourced from `services/risk_engine.py`'s own canonical output or a real DB row (`rocista`, `case_dna.kontradikcije`), zero GPT calls |
+| New canonical table | 1 (`case_actions`, migration 099) — 1 writer (`_consequence_refresh_case_actions`), partial UNIQUE index `(predmet_id, dedupe_key) WHERE status='open'` as the concurrency safety net |
+| Events gaining `refresh_case_actions` | 4 (`DOCUMENT_ACCEPTED`, `REVIEW_ACCEPTED`, `ROCISTE_ZAKAZANO`, `DOCUMENT_BATCH_COMPLETED`) — always wired LAST |
+| New read endpoints (Phase 6, Worklist) | 2 (`GET /api/case-actions/worklist`, `GET /api/case-actions/predmeti/{predmet_id}`) — `routers/case_actions.py`, registered in `api.py` |
+| A genuine `OMEGA-001` gap found and fixed this sprint | `_finalize_intake_job_core` still emitted per-job `DOCUMENT_ACCEPTED` unconditionally during batch processing — a 500-document single-case batch was producing 501 Genome recomputes, not the previously-claimed 1. Fixed via a new `emit_document_accepted` keyword-only parameter; `OMEGA-001` amended and re-closed |
+| A correctness fix made in-scope | `_compute_target_actions`'s own `predmet_dokumenti` query now selects `tip_dokaza` (2 older callers still don't — `OMEGA-006`, deliberately not touched) — without it, `PRIBAVITI_DOKAZ` "Nedostaje X" actions would be a permanent false positive on every case |
+| Mission examples deliberately not implemented | 1 (`OMEGA-005`, "client not contacted in 45 days" — no deterministic data source exists anywhere in the platform, verified by grep, not approximated) |
+| New debts found and named | 4 (`OMEGA-005` no last-contact source, `OMEGA-006` 2 remaining `tip_dokaza`-omitting callers, `OMEGA-007` priority doesn't decay on a bare clock tick, `OMEGA-008` 5 independent "what should I do today" surfaces now exist) |
+| New dedicated tests | 19 (`tests/test_omega_sprint003_action_engine.py`) — registry wiring, all 5 rule families in isolation, all 6 mission-required scenarios, all passing on first run |
+| Pre-existing tests updated (drift detectors doing their job) | 6 across `tests/test_omega_sprint002_case_intelligence.py` (registry-order test, 4th consequence) and `tests/test_delta_sprint002_event_migration.py`/`test_delta_sprint004_certification.py` (exact `log_action` await-count assertions, now accounting for the new 3rd/4th consequence's own audit call) |
+| Full suite | **2,672 passed, 1 skipped, 0 failed** (was 2,653 at end of Program Omega Sprint 002) — net +19 = exactly the 19 new tests, zero regressions |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: 4 of 5 Definition of Done items proven by the new dedicated test suite (exactly one
+canonical Action Engine exists — no module writes to `case_actions` except `_consequence_refresh_case_actions`;
+every action has a verifiable `dokaz`/`izvor_dokumenti`; actions arise/change/close automatically on case-state
+change — Scenarios 1-4; the list stays consistent under concurrent refreshes and restart — Scenarios 5-6). The
+5th item ("no module generates its own disconnected actions anymore") is honestly qualified, not fully true
+platform-wide: Phase 1's own forensic pass found 9 OTHER producers still independent, unmigrated by design
+(`OMEGA-008`) — this sprint built the ONE new canonical engine and proved it internally consistent; it did not
+retire the other 9. Full detail: `docs/omega/OMEGA_SPRINT_003_REPORT.md`.

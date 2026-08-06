@@ -737,6 +737,8 @@ async def _finalize_intake_job_core(
     request: Request,
     body: FinalizeReq,
     user: dict,
+    *,
+    emit_document_accepted: bool = True,
 ):
     """Pretvara zavrsen Smart Intake posao u stvaran predmet — ovo je tacno
     obecanje iz UI-ja ("Otpremi tuzbu... i Vindex automatski kreira
@@ -1435,7 +1437,21 @@ async def _finalize_intake_job_core(
     # zna kako se durable event upisuje, ne 5 kopija istog try/except
     # fallback-a (isto "ne ostavljati skrivene orkestratore" nacelo
     # primenjeno i na sam mehanizam emisije, ne samo na posledice).
-    if genome_should_trigger:
+    # Program Omega, Sprint 003 (2026-08-06) — Forensic Discovery finding,
+    # fixed immediately (belongs to Program Delta/Omega's own domain, no
+    # business decision needed): Program Omega Sprint 002's own claim that
+    # `DOCUMENT_BATCH_COMPLETED` closed `OMEGA-001` ("a batch produces ONE
+    # Genome recompute, not N") was INCOMPLETE — this per-job DOCUMENT_
+    # ACCEPTED emission was never suppressed for the batch path, so a
+    # 500-document single-case batch was still firing 500 per-job
+    # genome_refresh triggers PLUS 1 more via DOCUMENT_BATCH_COMPLETED (501,
+    # not 1). `emit_document_accepted=False` (passed ONLY by
+    # `finalize_intake_jobs_batch`, below) suppresses this per-job emission
+    # during batch processing — the single-job HTTP endpoint
+    # (`finalize_intake_job`) keeps its own default `True`, unchanged
+    # behavior, since NEW_EVIDENCE_REGISTERED/NEW_CLIENT_LINKED (still
+    # correctly per-document/per-link) are NOT affected by this flag.
+    if genome_should_trigger and emit_document_accepted:
         try:
             from services.event_bus import EventType, emit_durable
             await emit_durable(
@@ -1627,7 +1643,13 @@ async def finalize_intake_jobs_batch(
 
     for job_id in body.job_ids:
         try:
-            result = await _finalize_intake_job_core(job_id, request, FinalizeReq(), user)
+            # emit_document_accepted=False -- see _finalize_intake_job_core's
+            # own docstring note (Program Omega Sprint 003): this batch's own
+            # DOCUMENT_BATCH_COMPLETED emission (below, once per unique
+            # predmet_id) is the ONLY Genome-refresh trigger for batch-linked
+            # documents now -- the per-job DOCUMENT_ACCEPTED would otherwise
+            # redundantly trigger its OWN genome_refresh per job too.
+            result = await _finalize_intake_job_core(job_id, request, FinalizeReq(), user, emit_document_accepted=False)
         except HTTPException as he:
             neuspesno += 1
             detalji.append({"job_id": job_id, "ok": False, "greska": he.detail})
@@ -1690,6 +1712,13 @@ async def finalize_intake_jobs_batch(
                     "pre_verzija": _pre_dna.get("verzija"),
                     "pre_kontradikcije": len(_pre_dna.get("kontradikcije") or []),
                     "pre_dogadjaji": len(_pre_dna.get("datumi_kljucni") or []),
+                    # Program Omega, Sprint 003 -- DOCUMENT_BATCH_COMPLETED's
+                    # own timeline_entry consequence (REUSED from
+                    # DOCUMENT_ACCEPTED) needs its own description, since the
+                    # per-job DOCUMENT_ACCEPTED that used to produce this
+                    # entry is now suppressed during batch processing (see
+                    # emit_document_accepted=False above).
+                    "timeline_opis": f"{dok_count} dokumenata prihvaćeno (batch obrada)" if dok_count != 1 else "Dokument prihvaćen (batch obrada)",
                     "trigger": "smart_intake_finalize_batch",
                 },
             )

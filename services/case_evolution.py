@@ -496,6 +496,260 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
     return str(summary_id) if summary_id else "completed_no_summary_id"
 
 
+# ─── Canonical Action Engine (Program Omega, Sprint 003) ─────────────────────
+#
+# refresh_case_actions(case_id) -- the mission's own named canonical entry
+# point. Implemented as ONE more consequence, appended to every event that
+# already refreshes Genome (DOCUMENT_ACCEPTED, REVIEW_ACCEPTED, ROCISTE_
+# ZAKAZANO, DOCUMENT_BATCH_COMPLETED) -- runs LAST, so it always reads
+# freshly-refreshed facts. No new orchestrator, no direct calls: same
+# Event → Canonical Handler → Consequence → Audit path as everything else.
+#
+# Deterministic, NEVER GPT: every rule below reads either
+# services/risk_engine.py's own canonical `calculate_procesni_rizik`/
+# `identify_case_problems` (Core Consolidation, 2026-07-22 — the ONE
+# established algorithm for "what's wrong with this case", never
+# duplicated) or a real DB row (rocista, case_dna.kontradikcije — the
+# latter already required to carry a "DOK-XX str.Y" source location by
+# Genome's own extraction prompt, unchanged). "Client not contacted in 45
+# days" (the mission's own third worked example) is deliberately NOT
+# implemented — no deterministic last-contact data source exists anywhere
+# in the platform (checked, not assumed) — named honestly as `OMEGA-005`
+# rather than approximated from an unrelated timestamp.
+
+_ACTION_TYPES = (
+    "PRIPREMITI_PODNESAK", "PRIBAVITI_DOKAZ", "RAZRESITI_KONTRADIKCIJU",
+    "OJACATI_DOKAZE", "PLANIRATI_ROKOVE",
+)
+
+
+def _priority_by_days(days_until: int) -> str:
+    if days_until <= 3:
+        return "critical"
+    if days_until <= 7:
+        return "high"
+    return "medium"
+
+
+def _stable_key(*parts: str) -> str:
+    import hashlib as _hashlib
+    return _hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:24]
+
+
+async def _compute_target_actions(predmet_id: str) -> list[dict]:
+    """Pure computation, no DB writes -- returns the FULL target set of
+    actions that SHOULD be open right now, each already carrying its own
+    dedupe_key/dokaz/prioritet. Separated from the reconciliation step
+    below so it can be unit-tested on its own."""
+    from datetime import date, datetime, timezone
+
+    supa = _get_supa()
+    pred_res = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("case_dna,tip").eq("id", predmet_id).maybe_single().execute()
+    )
+    pred_data = (pred_res.data if pred_res else None) or {}
+    case_dna = pred_data.get("case_dna") or {}
+    tip_predmeta = pred_data.get("tip") or "ostalo"
+
+    dokazi_r, dok_r, rok_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        # tip_dokaza included (unlike matter_intel.py's own read-only display
+        # caller, G-028) -- this query feeds a STATEFUL, persisted action
+        # ("Nedostaje X u spisu" -> PRIBAVITI_DOKAZ), so a permanently-empty
+        # tip_dokaza would make that action a permanent false positive on
+        # every case, violating Agent 4's "no conclusion without source" rule.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status,tip_dokaza").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista").select("id,sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
+        return_exceptions=True,
+    )
+    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
+    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
+    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
+    rizik = calculate_procesni_rizik(dokazi=dokazi, dokumenti=dok_data, rocista=rok_data, tip_predmeta=tip_predmeta, expected_docs=_EXPECTED_DOCS)
+    problemi = identify_case_problems(rizik, tip_predmeta)
+
+    actions: list[dict] = []
+    today = date.today()
+
+    # Rule 1 -- deadline (per rociste, sourced directly from `rocista`,
+    # never a GPT guess). Mission's own worked example:
+    # "Rok ističe za 5 dana -> Pripremiti podnesak".
+    for r in rok_data:
+        if r.get("status") != "zakazano":
+            continue
+        rok_datum_raw = r.get("datum")
+        if not rok_datum_raw:
+            continue
+        try:
+            rok_datum = datetime.fromisoformat(str(rok_datum_raw)[:10]).date()
+        except ValueError:
+            continue
+        dani = (rok_datum - today).days
+        if dani < 0 or dani > 30:
+            continue
+        actions.append({
+            "tip": "PRIPREMITI_PODNESAK",
+            "razlog": f"Ročište ({r.get('sud') or 'sud'}) za {dani} dan(a) — {rok_datum.isoformat()}",
+            "dokaz": {"rociste_id": r.get("id"), "sud": r.get("sud"), "datum": rok_datum.isoformat(), "dani_preostalo": dani},
+            "prioritet": _priority_by_days(dani),
+            "rok": rok_datum.isoformat(),
+            "dedupe_key": _stable_key("rociste", str(r.get("id"))),
+        })
+
+    # Rule 2/4/5 -- Core Consolidation's own canonical problem list, mapped
+    # to stable per-category keys (not per-count) so a changing count
+    # UPDATES the existing action instead of closing+reopening it.
+    for p in problemi:
+        text = p.get("problem") or ""
+        ozbiljnost = p.get("ozbiljnost")
+        if "kritičan rok" in text:
+            continue  # already covered, per-rociste, by Rule 1 above -- avoid a duplicate, less precise signal
+        if text.startswith("Nema uploadovanih dokaza"):
+            actions.append({
+                "tip": "PRIBAVITI_DOKAZ", "razlog": text,
+                "dokaz": {"izvor": "identify_case_problems", "problem": text},
+                "prioritet": "critical", "rok": None,
+                "dedupe_key": _stable_key("problem", "nema_dokaza"),
+            })
+        elif text.startswith("Nedostaje "):
+            actions.append({
+                "tip": "PRIBAVITI_DOKAZ", "razlog": text,
+                "dokaz": {"izvor": "identify_case_problems", "problem": text},
+                "prioritet": "high", "rok": None,
+                "dedupe_key": _stable_key("problem", "nedostaje", text),
+            })
+        elif "predstojećih rokova" in text:
+            actions.append({
+                "tip": "PLANIRATI_ROKOVE", "razlog": text,
+                "dokaz": {"izvor": "identify_case_problems", "problem": text, "predstojeći_rokovi": rizik.get("predstojeći_rokovi")},
+                "prioritet": "high", "rok": None,
+                "dedupe_key": _stable_key("problem", "predstojeci_rokovi"),
+            })
+        elif text.startswith("Dokazi slabe snage"):
+            actions.append({
+                "tip": "OJACATI_DOKAZE", "razlog": text,
+                "dokaz": {"izvor": "identify_case_problems", "problem": text},
+                "prioritet": "informational", "rok": None,
+                "dedupe_key": _stable_key("problem", "dokazi_slabi"),
+            })
+
+    # Rule 3 -- contradictions, sourced directly from Genome's own current
+    # case_dna.kontradikcije (already required to carry a "DOK-XX str.Y"
+    # source location by Genome's own extraction prompt).
+    _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
+    for k in (case_dna.get("kontradikcije") or []):
+        opis = k.get("opis") or ""
+        loc1 = k.get("lokacija_1") or ""
+        loc2 = k.get("lokacija_2") or ""
+        if not opis:
+            continue
+        actions.append({
+            "tip": "RAZRESITI_KONTRADIKCIJU", "razlog": opis,
+            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": k.get("tezina")},
+            "prioritet": _TEZINA_PRIORITET.get(k.get("tezina"), "medium"), "rok": None,
+            "dedupe_key": _stable_key("kontradikcija", opis, loc1, loc2),
+            "izvor_dokumenti": [x for x in (loc1, loc2) if x],
+        })
+
+    return actions
+
+
+async def _consequence_refresh_case_actions(event: Event) -> str:
+    """THE canonical entry point Program Omega Sprint 003's own charter
+    names `refresh_case_actions(case_id)`. Reconciles the CURRENT target
+    action set (`_compute_target_actions`, pure/deterministic) against
+    whatever is already open in `case_actions`:
+
+    - A target action not yet open -> CREATED (`status='open'`).
+    - An already-open action whose `dedupe_key` is still in the target set
+      -> UPDATED in place (razlog/dokaz/prioritet/rok refreshed) --
+      Scenario 3 ("rok produžen -> akcija se ažurira", not closed+reopened).
+    - An already-open action whose `dedupe_key` is NO LONGER in the target
+      set -> CLOSED (`status='closed', closed_at=now()`) -- Scenario 2
+      ("nov dokaz uklanja rizik -> akcija se zatvara") and Scenario 4
+      ("dokument obrisan -> zastarela akcija nestaje").
+
+    Concurrency (Scenario 5): the partial UNIQUE index on
+    `(predmet_id, dedupe_key) WHERE status='open'` (migration 099) is the
+    REAL safety net -- two concurrent refreshes racing to CREATE the same
+    action both attempt the same upsert; the DB constraint, not application
+    logic, guarantees exactly one open row per fact survives, matching
+    every other idempotency mechanism this whole engagement has used
+    (content_sha256, idempotency_key, case_evolution_consequences)."""
+    predmet_id = event.predmet_id
+    uid = event.user_id
+    if not predmet_id:
+        return "skipped_no_predmet_id"
+
+    supa = _get_supa()
+    target = await _compute_target_actions(predmet_id)
+    target_by_key = {a["dedupe_key"]: a for a in target}
+
+    existing_res = await asyncio.to_thread(
+        lambda: supa.table("case_actions").select("id,dedupe_key").eq("predmet_id", predmet_id).eq("status", "open").execute()
+    )
+    existing_rows = (existing_res.data if existing_res else None) or []
+    existing_by_key = {r["dedupe_key"]: r["id"] for r in existing_rows}
+
+    created, updated, closed = 0, 0, 0
+
+    for key, action in target_by_key.items():
+        row = {
+            "predmet_id": predmet_id,
+            "tip": action["tip"],
+            "razlog": action["razlog"][:2000],
+            "dokaz": action["dokaz"],
+            "prioritet": action["prioritet"],
+            "rok": action.get("rok"),
+            "dedupe_key": key,
+            "izvor_dokumenti": action.get("izvor_dokumenti") or [],
+            "event_id": event.event_id,
+            "correlation_id": event.correlation_id,
+        }
+        if key in existing_by_key:
+            await asyncio.to_thread(
+                lambda r=row, aid=existing_by_key[key]: supa.table("case_actions")
+                    .update({**r, "updated_at": "now()"}).eq("id", aid).execute()
+            )
+            updated += 1
+        else:
+            try:
+                await asyncio.to_thread(lambda r=row: supa.table("case_actions").insert(r).execute())
+                created += 1
+            except Exception as _ins_exc:
+                # Partial UNIQUE index violation -- another concurrent
+                # refresh already created this exact action (Scenario 5).
+                # Not an error: the fact now has exactly one open row,
+                # which is the actual goal.
+                if "duplicate key" not in str(_ins_exc).lower() and "unique" not in str(_ins_exc).lower():
+                    raise
+                logger.info("[CASE_EVOLUTION] case_action already created concurrently, skipping: predmet=%s key=%s", predmet_id, key)
+
+    for key, action_id in existing_by_key.items():
+        if key not in target_by_key:
+            await asyncio.to_thread(
+                lambda aid=action_id: supa.table("case_actions")
+                    .update({"status": "closed", "closed_at": "now()"}).eq("id", aid).execute()
+            )
+            closed += 1
+
+    try:
+        from shared.audit_immutable import log_action
+        await log_action(
+            "case_action_refreshed",
+            user_id=uid, resource_type="predmet", resource_id=predmet_id,
+            correlation_id=event.correlation_id,
+            metadata={"created": created, "updated": updated, "closed": closed, "open_total": len(target_by_key)},
+        )
+    except Exception as audit_exc:
+        logger.warning("[CASE_EVOLUTION] case_action_refreshed audit upis neuspešan (non-fatal) predmet=%s: %s", predmet_id, audit_exc)
+
+    return f"created={created} updated={updated} closed={closed}"
+
+
 # ─── Canonical consequence registry ──────────────────────────────────────────
 # Program Delta, Sprint 001, Task 1's own explicit instruction: prove ONE
 # entry point exists for every event that changes a predmet's state, do not
@@ -511,6 +765,11 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.DOCUMENT_ACCEPTED: [
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
+        # Program Omega, Sprint 003 — runs LAST, always reading freshly-
+        # refreshed Genome/risk-engine facts (handle_case_changed's own
+        # sequential per-consequence loop guarantees genome_refresh already
+        # completed for this same event).
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
     EventType.REVIEW_ACCEPTED: [
         # Reuses DOCUMENT_ACCEPTED's own genome_refresh/timeline_entry
@@ -524,6 +783,7 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="review_confirmation_audit", executor=_consequence_review_confirmation_audit),
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
     EventType.REVIEW_REJECTED: [
         # Deliberately ONLY an audit consequence — see
@@ -544,18 +804,35 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # No timeline_entry here: routers/rocista.py never produced one for
         # hearing creation before this sprint, so none is invented now.
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
     EventType.DOCUMENT_BATCH_COMPLETED: [
-        # Program Omega, Sprint 002 — TWO consequences, in this exact order.
-        # genome_refresh REUSED unchanged from DOCUMENT_ACCEPTED (own
-        # idempotency, own verification) — handle_case_changed's own
-        # sequential per-consequence loop guarantees it completes before
-        # case_intelligence_summary starts, so a crash-then-retry never
-        # redoes the expensive Genome recompute once it has already
-        # succeeded (see _consequence_case_intelligence_summary's own
-        # docstring for the full reasoning).
+        # Program Omega, Sprint 002 — genome_refresh + case_intelligence_
+        # summary, in this exact order. genome_refresh REUSED unchanged from
+        # DOCUMENT_ACCEPTED (own idempotency, own verification) —
+        # handle_case_changed's own sequential per-consequence loop
+        # guarantees it completes before case_intelligence_summary starts,
+        # so a crash-then-retry never redoes the expensive Genome recompute
+        # once it has already succeeded (see
+        # _consequence_case_intelligence_summary's own docstring for the
+        # full reasoning).
+        #
+        # Program Omega, Sprint 003 — timeline_entry ADDED (REUSED unchanged
+        # from DOCUMENT_ACCEPTED, parameterized via payload["timeline_opis"]).
+        # Forensic Discovery finding: `finalize_intake_jobs_batch` now
+        # suppresses its own per-job DOCUMENT_ACCEPTED emission (see
+        # routers/smart_intake.py::_finalize_intake_job_core's own
+        # `emit_document_accepted` parameter) so Genome only recomputes ONCE
+        # per case per batch, not once per document — but DOCUMENT_ACCEPTED
+        # was ALSO where the per-document Timeline entry came from. Without
+        # this addition, batch-processed documents would get NO timeline
+        # entry at all (neither per-job, now suppressed, nor batch-level,
+        # previously missing here) — a real regression this sprint closes
+        # before it ships.
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
+        ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
 }
 

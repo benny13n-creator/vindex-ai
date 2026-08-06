@@ -143,6 +143,11 @@ AUDITABLE_ACTIONS: set[str] = {
     # risks, deadlines) in metadata — distinct from the generic
     # "case_evolution_consequence_completed" row every consequence gets.
     "case_intelligence_refreshed",
+    # Program Omega, Sprint 003 (2026-08-06) — Canonical Action Engine.
+    # Domain-specific audit row for refresh_case_actions(), carrying
+    # created/updated/closed counts — every action lifecycle transition is
+    # traceable back to the event that caused it.
+    "case_action_refreshed",
     # Program Intake Sprint 006 (2026-08-05) — Canonical Case Assimilation.
     # Phase 1 audit finding: finalize_intake_job (routers/smart_intake.py)
     # had ZERO audit calls for document-into-case registration, unlike
