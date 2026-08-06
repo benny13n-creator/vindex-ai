@@ -22,11 +22,31 @@ os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 os.environ.setdefault("FOUNDER_TOKEN", "test-admin-token-12345")
 
 _mock_main = MagicMock()
+
+# Program Lambda, Certification 003 (2026-08-06): same leak this sprint
+# found and fixed in test_doc_pitanje_api.py -- these setdefault() calls run
+# at collection time and, unrestored, leak into every later-executed test
+# file's own plain `import main` for the rest of the pytest session.
+# teardown_module restores exactly what was in sys.modules before this file
+# touched it.
+_PRE_EXISTING_MODULES = {
+    name: sys.modules.get(name)
+    for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
+}
+
 sys.modules.setdefault("main", _mock_main)
 sys.modules.setdefault("templates.podnesci", MagicMock())
 sys.modules.setdefault("knowledge.vks_standards", MagicMock())
 sys.modules.setdefault("pinecone", MagicMock())
 sys.modules.setdefault("supabase", MagicMock())
+
+
+def teardown_module(module):
+    for name, prev in _PRE_EXISTING_MODULES.items():
+        if prev is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

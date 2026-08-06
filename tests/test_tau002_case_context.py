@@ -350,6 +350,64 @@ async def test_get_document_full_text_not_found_is_explicit_not_an_exception():
     assert result == {"found": False, "dokument_id": "does-not-exist"}
 
 
+@pytest.mark.anyio
+async def test_get_document_full_text_rejects_foreign_owner():
+    """Program Lambda, Certification 003 (2026-08-06) -- the AI Isolation
+    Auditor fork found get_document_full_text() accepted a `uid` parameter
+    but never used it in its query -- a document belonging to a DIFFERENT
+    user, for a predmet_id/dokument_id pair that happened to match, would
+    still be returned. Dormant (zero call sites anywhere in the repo at the
+    time of the finding), but this is the platform's own documented scale
+    safety-net (Layer 5), so it's fixed here before anything wires it in.
+
+    _FakeQuery (this file's shared fixture) intentionally no-ops every
+    .eq() except "id" for other tests' convenience, so it can't exercise a
+    real ownership mismatch -- this test uses a purpose-built minimal mock
+    instead, enforcing id + predmet_id + user_id genuinely, matching the
+    real Supabase query chain shape."""
+    from shared.case_context import get_document_full_text
+    from unittest.mock import MagicMock
+
+    class _OwnerCheckingQuery:
+        def __init__(self, row):
+            self._row = row
+            self._filters = {}
+
+        def select(self, *a, **k): return self
+        def eq(self, field, value):
+            self._filters[field] = value
+            return self
+        def maybe_single(self): return self
+        def execute(self):
+            row = self._row
+            matches = (
+                row is not None
+                and row.get("id") == self._filters.get("id")
+                and row.get("predmet_id") == self._filters.get("predmet_id")
+                and row.get("user_id") == self._filters.get("user_id")
+            )
+            return MagicMock(data=row if matches else None)
+
+    owned_row = {
+        "id": "dok-1", "predmet_id": "p1", "user_id": "u1",
+        "naziv_fajla": "ugovor.pdf", "tekst_sadrzaj": "Sadržaj.",
+        "tip_dokaza": "dokaz", "status": "sacuvano", "redni_broj": 1,
+        "created_at": "2026-08-01T00:00:00Z",
+    }
+
+    supa = MagicMock()
+    supa.table.return_value = _OwnerCheckingQuery(owned_row)
+
+    # Attacker: correct dokument_id + predmet_id, WRONG uid.
+    result = await get_document_full_text("p1", "u2-attacker", "dok-1", supa)
+    assert result == {"found": False, "dokument_id": "dok-1"}
+
+    # Legitimate owner: same lookup, correct uid -- must still work.
+    result_owner = await get_document_full_text("p1", "u1", "dok-1", supa)
+    assert result_owner["found"] is True
+    assert result_owner["tekst_sadrzaj"] == "Sadržaj."
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Determinism across simulated restarts + no cross-talk between parallel calls
 # ═══════════════════════════════════════════════════════════════════════════

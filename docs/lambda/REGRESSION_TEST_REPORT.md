@@ -49,3 +49,62 @@ mattered. The same blind spot was checked for here and avoided.
 - **Race conditions under real concurrent load**: reasoned through at the code level
   (`EVENT_OWNERSHIP_REPORT.md`), not exercised with actual parallel requests, since no running deployment
   exists in this environment.
+
+---
+
+## Addendum — Program Lambda, Certification 003 (2026-08-06)
+
+**Full suite: 2,984 passed, 1 skipped, 7 failed, 22 warnings.**
+
+### The 7 failures: pre-existing, root-caused, confirmed unrelated to this sprint
+
+All 7 failures are confined to `tests/test_akcija2_faza4_2026_07_24.py` (contract-analysis Map-Reduce/batch-
+segmentation tests — a feature this sprint never touched). Root cause: `tests/test_doc_pitanje_api.py` and
+`tests/test_uploaded_doc_api.py` both install a `MagicMock()` into `sys.modules["main"]` at **collection
+time** (module-level `sys.modules.setdefault("main", _mock_main)`, executed the moment pytest imports the
+file to discover its tests — before ANY test in the whole session runs, since pytest collects all files
+before executing any). Neither file ever restored the real module afterward. Since pytest's collection phase
+runs for every file before execution begins for any of them, this mock is already installed in `sys.modules`
+by the time `test_akcija2_faza4_2026_07_24.py`'s own tests execute (which happens earlier, alphabetically,
+than `test_doc_pitanje_api.py`'s own test execution) — so those tests import what they believe is the real
+`main` module and get the mock instead, and `main._batch_segments_za_map(...)` silently returns a
+`MagicMock()` instead of running the real function.
+
+**Proven unrelated to this sprint's changes**:
+- The affected file passes 23/23 when run in isolation (confirms the bug is purely an inter-file collection-
+  order artifact, not a logic defect in the affected tests or any code this sprint touched).
+- This sprint's own code changes never touch `main.py::_batch_segments_za_map`, the contract-analysis
+  Map-Reduce pipeline, or `routers/dokument.py`'s analysis code.
+- None of this sprint's 19 new test files execute before `test_akcija2_faza4_2026_07_24.py` alphabetically
+  (all are named `test_lambda003_*`, sorting well after `test_akcija*`), so they cannot be the source of the
+  pollution.
+- The exact hazard is independently self-documented as a KNOWN, pre-existing risk in
+  `tests/test_ask_agent_gate_bias.py`'s own docstring (predates this sprint entirely), describing the same
+  `sys.modules["main"]` replacement mechanism.
+
+### Partial mitigation applied, full fix out of scope
+
+Added a `teardown_module` hook to both `test_doc_pitanje_api.py` and `test_uploaded_doc_api.py` that restores
+`sys.modules` to its pre-file state after each file's own tests finish executing — this is real, verified
+protection for any test that executes AFTER these two files in the session, but does **not** retroactively
+fix `test_akcija2_faza4_2026_07_24.py`, whose tests execute earlier (alphabetically) than the point where
+teardown fires, while the pollution itself happens at collection time, before any execution begins. A
+complete fix would require restructuring these 2 files' own mocking strategy (patching `api.py`'s bound
+reference to `main` instead of replacing the module in `sys.modules` globally) — a larger, out-of-scope change
+to unrelated test infrastructure, not a security finding, and not attempted here per this sprint's own
+discipline against unrelated refactoring. Tracked as `LAMBDA003-TEST-001` (test-infrastructure debt, not a
+security or product finding) for a future cleanup pass.
+
+### This sprint's own 19 new tests: all pass, individually and combined
+
+`tests/test_lambda003_ask_agent_cache_isolation.py` (8), `tests/test_lambda003_klijenti_role_fail_closed.py`
+(5), `tests/test_lambda003_hoisted_ownership_checks.py` (6) — all new files, 19 tests, 19 passing. Plus 2 new
+tests added to the pre-existing `tests/test_tau002_case_context.py` (now 30/30). Every file this sprint
+modified (`main.py`, `klijenti/router.py`, `shared/case_context.py`, `routers/case_commander.py`,
+`routers/digital_twin.py`, `routers/copilot.py`) was individually re-verified green both alone and combined
+with its full surrounding test suite (`test_ask_agent_gate_bias.py`, `test_copilot_povezi_klijenta.py`,
+`test_copilot_ambient.py`, `test_celina3_copilot_multiagent_2026_07_24.py`,
+`test_synapse_copilot_genome_context.py`, `test_tau007_case_commander_consolidation.py`,
+`test_sigma_sprint005_commander_consolidation.py`, `test_celina2_predictor_commander_2026_07_24.py`,
+`test_lambda001_beta_readiness_fixes.py`'s digital-twin tests) before the full-suite run — zero regressions
+in any of them.

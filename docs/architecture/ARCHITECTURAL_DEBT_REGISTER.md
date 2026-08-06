@@ -2822,3 +2822,122 @@ whose job is finding and minimally fixing, not redesigning an integration's auth
 **Severity**: Medium — real and provably exploitable by anyone with `CLIO_WEBHOOK_SECRET`, but bounded to
 CREATE-only spurious-row pollution with no cross-tenant read/write of existing data, and gated behind a
 secret that is not broadly distributed (Clio integration is opt-in, not default-enabled).
+
+## LAMBDA003-AUTH-001 — auth fallback silently skips live revocation check on any Supabase-side exception (ACCEPTED RISK)
+
+**Found by**: Authorization Architect + Adversarial Certification, Program Lambda Certification 003.
+
+**What**: `shared/deps.py::_verify_token` (~line 216-244) tries a live `supa.auth.get_user(token)` call first
+(would immediately catch a server-revoked session), but on ANY exception (a bare `except Exception`, no type
+filtering, no re-raise) falls through to `verify_token_local(token)` — a function whose own docstring states
+it has no live revocation check and is "NOT sufficient for authorization" alone. `get_current_user()`, the
+dependency gating every protected route, uses exactly this fallback chain as its sole verification path — the
+documented safety invariant ("authorization is done exclusively by `get_current_user` further down the
+chain") is factually false, since `get_current_user` IS the described-as-insufficient fallback.
+
+**Reproduction trace**: revoke a user's Supabase session while their JWT is still unexpired → the next
+`auth.get_user()` call throws for any transient reason (network blip, Supabase-side hiccup) → local
+signature+expiry-only verification silently accepts the token, granting continued access for the remainder
+of the JWT's lifetime. **Not attacker-triggerable on demand** — requires an external fault condition on
+Supabase's own side.
+
+**Why ACCEPTED RISK, not fixed**: closing this is a genuine security-vs-availability policy decision. Failing
+closed on any Supabase outage (reject every request while `auth.get_user` is degraded) closes this narrow
+revocation-lag window but takes the whole platform down for EVERY user during any Supabase-side blip, not
+just revoked ones. The current fallback trades a narrow, external-fault-gated exposure window for platform
+availability. This is the founder's call, the same class of decision `LAMBDA-001` (Supabase timeout) was
+correctly deferred for — no production data exists on real Supabase fault frequency/duration to make this
+tradeoff concrete.
+
+**Severity**: Medium in theory, low in practice — requires an external fault the attacker cannot trigger, and
+is bounded to already-revoked-but-unexpired tokens (typical JWT lifetime, not indefinite).
+
+## LAMBDA003-EVT-001 — TOCTOU race in Canonical Consequence Engine's dedup check, same-tenant only (ARCHITECTURAL DEBT)
+
+**Found by**: Event Bus Isolation + Adversarial Certification, Program Lambda Certification 003.
+
+**What**: `services/case_evolution.py:1039-1052` — the per-(event, consequence) idempotency check is
+read-then-write across two separate round trips (`_get_consequence_status` read, then `_mark_pending`, an
+`upsert` that overwrites rather than blocking on an existing row), not one atomic claim. Under genuine
+concurrent redispatch of the SAME event (requires migration 091's atomic-claim RPC being unapplied live —
+`KEYSTONE-007` — OR a handler running longer than that RPC's own 30-second stale-claim window), two
+concurrent calls can both pass the read-check before either writes `pending`, and both then execute the
+consequence — gated only by whether that specific executor happens to be independently idempotent (only
+verified for `_consequence_genome_refresh`, not the full `CONSEQUENCE_REGISTRY`). Independently re-verified:
+the race stays strictly within one event's own `(event_id, consequence_name)` identity — no shared mutable
+state exists that could let this cross into a different user's/predmet's event.
+
+**Why not fixed this sprint**: the correct fix (a `INSERT ... ON CONFLICT DO NOTHING` claim for the fresh
+case, plus a conditional `UPDATE ... WHERE status IN ('failed', 'stale-pending')` reclaim for retry/crash
+-recovery cases — achievable via `supabase-py`'s `ignore_duplicates=True` upsert mode, no new migration
+needed since the table already has `created_at`/`updated_at` and a `UNIQUE(event_id, consequence_name)`
+constraint) requires choosing a staleness-cutoff NUMBER for "how long is a pending claim still legitimately
+running vs. abandoned." Choosing this without production data on real executor runtime distributions is the
+exact "guessing a number" pattern this engagement has repeatedly refused to do (`LAMBDA-001`'s own precedent).
+
+**Severity**: Low-Medium — same-tenant duplicate side-effect only (a duplicated notification/audit row, not a
+security leak), requires a narrow, hard-to-trigger concurrency window.
+
+## LAMBDA003-RLS-001 — `kancelarija_clanovi` RLS enabled with zero policies, recursively breaks 10 dependent policies (ARCHITECTURAL DEBT, confirmed not exploitable)
+
+**Found by**: Database Security + Adversarial Certification, Program Lambda Certification 003.
+
+**What**: `migrations/018_kancelarija.sql:48` enables RLS on `kancelarija_clanovi` with zero `CREATE POLICY`
+ever written for it. 10 policies across 9 tables (`firm_style_profile`, `zadaci`, `memory_entries`,
+`partner_profiles`, `judge_patterns`, `client_memory`, `memory_graph_edges`, `workflow_templates`,
+`workflow_instances`, `workflow_steps`) build a "user is a firm member" branch via a subquery against this
+table, which for `authenticated`/`anon` roles always returns 0 rows since the table itself has no policy to
+allow the read — permanently `false`-ing that branch, even for real firm members. No `SECURITY DEFINER
+is_member_of()` helper (the standard Postgres pattern avoiding this exact trap) exists anywhere in the repo.
+
+**Direction is over-restrictive, not under-restrictive — cannot leak data.** Confirmed not exploitable: the
+entire backend uses the service-role client (bypasses RLS entirely); the only anon-key client
+(`static/vindex.js`) touches none of the 9 affected tables.
+
+**Why not fixed this sprint**: a correct fix needs a new `SECURITY DEFINER is_member_of()` helper and 10
+policy updates — a real RLS-architecture decision, made non-urgent by RLS already being decorative for the
+actual request path (service-role bypass, per `migrations/059`'s own comment: "defense-in-depth, not real
+app logic").
+
+**Severity**: Low — not exploitable, purely a correctness/defense-in-depth gap.
+
+## LAMBDA003-AUTH-002 — "firm admin" defined inconsistently across `kancelarija.py` vs. `zadaci.py`/`workflow.py` (ARCHITECTURAL DEBT, drift risk not confirmed bypass)
+
+**Found by**: Vertical Privilege Escalation, Program Lambda Certification 003.
+
+**What**: `routers/kancelarija.py:66-68` (`_get_firma_for_admin`) treats only literal `kancelarije.admin_uid
+== uid` as admin. `routers/zadaci.py:83-112`/`routers/workflow.py:45-72` instead treat
+`uloga in ("admin", "partner")` as admin — a broader principal set. No evidence a "partner"-role member can
+currently reach a `kancelarija.py`-gated owner-only action (that file never consults
+`kancelarija_clanovi.uloga`), so this is not a confirmed bypass today — but it is real definitional drift that
+could become exploitable the next time a new admin-gated action reuses the wrong helper's notion of "admin."
+
+**Why not fixed this sprint**: unifying "admin" needs a single source-of-truth decision (strict owner-only,
+or role-inclusive?) applied consistently — a design choice, not a patch.
+
+**Severity**: Low today, Medium if left unaddressed as more admin-gated features are added.
+
+## LAMBDA003-TEST-001 — `sys.modules["main"]` mock leak between test files, pre-existing, unrelated to any security finding (test-infrastructure debt)
+
+**Found by**: coordinator, during Program Lambda Certification 003's own full-regression verification (not a
+mission-charter finding — pytest hygiene, not a product or security defect).
+
+**What**: `tests/test_doc_pitanje_api.py` and `tests/test_uploaded_doc_api.py` both install a `MagicMock()`
+into `sys.modules["main"]` at module-COLLECTION time (`sys.modules.setdefault("main", _mock_main)`), and
+never restored it. Since pytest collects every test file before executing any of them, this mock is already
+installed by the time any earlier-alphabetically-executing file's tests run — `tests/
+test_akcija2_faza4_2026_07_24.py`'s tests, which do a plain `import main`, silently get the mock instead of
+the real module, causing `main._batch_segments_za_map(...)` to return a `MagicMock()`. Confirmed pre-existing
+(the hazard is self-documented in `tests/test_ask_agent_gate_bias.py`'s own docstring, predating this sprint)
+and confirmed unrelated to any of this sprint's code changes (affected file passes 23/23 in isolation).
+
+**Partial mitigation applied this sprint**: added a `teardown_module` hook to both offending files, restoring
+`sys.modules` after their own tests finish — real protection for tests executing after them, but doesn't fix
+`test_akcija2_faza4_2026_07_24.py` since the pollution happens at collection time, before teardown can run.
+
+**Why not fully fixed this sprint**: a complete fix requires restructuring these 2 files' own mocking strategy
+(patching `api.py`'s bound `main` reference instead of replacing the module in `sys.modules` globally) — a
+larger, out-of-scope change to unrelated test infrastructure, not a security finding, against this sprint's
+own discipline against unrelated refactoring.
+
+**Severity**: Low — test-infrastructure only, zero production impact, zero relation to any security finding.

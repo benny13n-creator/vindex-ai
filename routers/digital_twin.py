@@ -135,15 +135,33 @@ class StaAkoRequest(BaseModel):
 
 async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
     """
-    Paralelno dohvata predmet + rokove + dokumente + komentare iz Supabase.
+    Dohvata predmet + rokove + dokumente + komentare iz Supabase.
     Baca 404 ako predmet ne postoji ili ne pripada korisniku.
-    """
-    predmet_r, rokovi_r, dokumenti_r, komentari_r = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("predmeti").select(
-                "id,naziv,tip,status,rizik,opis,created_at"
-            ).eq("id", predmet_id).eq("user_id", uid).execute()
-        ),
+
+    Lambda Certification 003 (2026-08-06) -- Horizontal Privilege Escalation
+    fork found (NEEDS-DEEPER-LOOK, not exploitable today, upheld by the
+    Adversarial Certification fork's own independent re-trace) that the
+    ownership-scoped `predmeti` query used to run INSIDE the same
+    asyncio.gather() as the 3 sibling queries below -- meaning another
+    tenant's full document names/hearing dates/comment text transited this
+    process's memory for every guessed predmet_id BEFORE the 404 check ran,
+    even though every caller already correctly discarded that data on a
+    404. The ownership check now runs first, alone; the sibling queries
+    only fire once ownership is confirmed -- same shape strategy_simulator.py
+    already used correctly."""
+    predmet_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select(
+            "id,naziv,tip,status,rizik,opis,created_at"
+        ).eq("id", predmet_id).eq("user_id", uid).execute()
+    )
+    predmet_data = predmet_r.data or []
+    if not predmet_data:
+        raise HTTPException(
+            status_code=404,
+            detail="Predmet nije pronadjen ili nije u vasem vlasnistvu.",
+        )
+
+    rokovi_r, dokumenti_r, komentari_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("rocista").select(
                 "sud,datum,status"
@@ -161,13 +179,6 @@ async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
         ),
         return_exceptions=True,
     )
-
-    predmet_data = (predmet_r.data if not isinstance(predmet_r, Exception) else []) or []
-    if not predmet_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Predmet nije pronadjen ili nije u vasem vlasnistvu.",
-        )
 
     return {
         "predmet":    predmet_data[0],

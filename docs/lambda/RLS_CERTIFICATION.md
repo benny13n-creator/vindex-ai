@@ -111,3 +111,61 @@ migrations are run by the founder, never auto-executed:
 
 Both are the single highest-priority action items from the entire sprint — run them together, they touch
 different objects and cannot conflict.
+
+---
+
+## Addendum — Program Lambda, Certification 003 (2026-08-06)
+
+**Agent**: Database Security. Scope this time: policy INTERACTION bugs (overlap, shadowing, recursive
+composition, ownership-inheritance JOIN correctness), not another individual-function grant audit.
+
+### Finding — NEEDS-DEEPER-LOOK, confirmed NOT exploitable: `kancelarija_clanovi` has RLS enabled with zero policies, recursively breaking 10 dependent policies
+
+`migrations/018_kancelarija.sql:48` enables RLS on `kancelarija_clanovi`; repo-wide search finds **no
+`CREATE POLICY` for this table anywhere**. Postgres RLS composes recursively: 10 policies across 9 tables
+(`firm_style_profile`, `zadaci`, `memory_entries`, `partner_profiles`, `judge_patterns`, `client_memory`,
+`memory_graph_edges`, `workflow_templates`, `workflow_instances`, `workflow_steps`) build their "user is a
+firm member" branch via a subquery against `kancelarija_clanovi` — which, for `authenticated`/`anon` roles,
+always returns 0 rows since the table itself has no policy to allow the read. No `SECURITY DEFINER` helper
+(e.g. an `is_member_of()` function — the standard Postgres pattern that avoids exactly this trap) exists
+anywhere in the repo.
+
+**Direction of the bug is over-restrictive, not under-restrictive — cannot leak data, can only hide data that
+should be visible.** Confirmed not exploitable, independently re-verified by Agent 8: the entire backend uses
+the service-role client (bypasses RLS entirely); the only anon-key client (`static/vindex.js`) touches exactly
+3 tables (`profiles`, `conversations`, `reported_errors`), none of the 9 affected. No other anon/user-scoped
+Supabase client construction site exists anywhere in the live HTTP attack surface (`scripts/`/`evaluation/`
+hits are offline tooling, not part of it).
+
+**Why not fixed this sprint**: closing this correctly requires designing a `SECURITY DEFINER is_member_of()`
+helper and updating 10 policies across 9 tables — a real RLS-architecture decision (which is itself explicitly
+"defense-in-depth, not real app logic" per `migrations/059`'s own comment, given the service-role bypass makes
+RLS decorative for the actual request path today), not urgent since confirmed non-exploitable. **Status:
+ARCHITECTURAL DEBT** (`LAMBDA003-RLS-001`).
+
+### Everything else — SAFE or re-confirmed pre-existing, not re-opened
+
+- `workflow_instances`/`workflow_steps` "duplicate" policy names: a correct `DROP POLICY IF EXISTS` +
+  `CREATE POLICY` supersede (migration 059 explicitly widens the earlier narrower policy), not shadowing.
+- `klijenti`/`predmet_komentari`/`predmet_klijenti` "duplicate" policies across a migration file and
+  `supabase_setup.sql`: byte-for-byte identical, `IF NOT EXISTS`-guarded, idempotent bootstrap duplication —
+  not a vulnerability.
+- `SEC-060` (`ingest_jobs`/`discovered_bilteni` misgranted to PUBLIC) and `SEC-019` (`zakoni_monitoring`/
+  `case_benchmarks` no RLS at all) — both re-confirmed still accurately described in source, not re-opened as
+  new. Neither table has user-scoped columns, so worst case is internal-ops exposure, not an IDOR.
+- 6 tables have RLS enabled with genuinely zero policies (`audit_log`, `email_notif_log`,
+  `kancelarija_clanovi` — see above, `law_docs`, `response_audit`, `security_events`): Postgres default-deny
+  for every non-bypassing role — the safe direction, not an exploit. None touched by the frontend's anon-key
+  client either.
+- Every cross-table ownership-inheritance policy found (`predmet_klijenti`, `predmet_health_log` →
+  `predmeti`; `predmet_saradnici`'s 4 direct-column policies) traced individually: every foreign-key column
+  involved is `NOT NULL` with a real FK constraint, so the classic NULL-foreign-key RLS bypass trap is
+  structurally impossible here. The root `predmeti` table's own policy is correctly scoped, so it doesn't
+  itself break the tables that depend on it (unlike `kancelarija_clanovi`).
+
+### Coverage summary
+
+151 tables created across 94 migration files; 148 have `ENABLE ROW LEVEL SECURITY` (3 gaps: the pre-existing
+`SEC-019` pair, correctly not re-opened); 142 have ≥1 policy; every multi-policy table checked for harmful
+overlap (none found); every cross-table policy dependency (13 policies across 11 tables) traced for recursive-
+RLS and NULL-handling correctness (1 new, non-exploitable recursive-composition bug found, above).

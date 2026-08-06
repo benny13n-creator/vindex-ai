@@ -328,11 +328,21 @@ async def get_document_full_text(predmet_id: str, uid: str, dokument_id: str, su
     deterministic lookup by id. Returns {"found": False} rather than raising
     if the document doesn't exist or doesn't belong to this predmet/user —
     callers decide how to handle that, this function doesn't assume."""
+    # Lambda Certification 003 (2026-08-06) -- ranije se `uid` parametar
+    # primao ali NIKAD nije korišćen u upitu, iako docstring ovde tvrdi
+    # "RLS-scoped" -- backend svuda koristi service-role klijenta koji RLS
+    # potpuno zaobilazi (shared/deps.py::_get_supa), pa je stvarna zaštita
+    # bila samo `predmet_id` filter. Dormant nalaz (nula poziva ovoj funkciji
+    # postoji igde u repou danas), ali upravo zato što je ovo dokumentovani
+    # "safety net" za skaliranje (Layer 5), ispravljeno pre nego što ga bilo
+    # koja buduća ruta poveže -- isti obrazac kao svaki drugi predmet_dokumenti
+    # upit u ovom fajlu.
     row = await asyncio.to_thread(
         lambda: supa.table("predmet_dokumenti")
             .select("id, naziv_fajla, tekst_sadrzaj, tip_dokaza, status, redni_broj, created_at")
             .eq("id", dokument_id)
             .eq("predmet_id", predmet_id)
+            .eq("user_id", uid)
             .maybe_single()
             .execute()
     )

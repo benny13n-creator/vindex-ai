@@ -318,8 +318,32 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     # Visibility Engine (shared/case_context.py) below can build real excerpts
     # -- genome/case_actions logic (Sigma Sprint 003/004) is unchanged, that
     # was not the gap this sprint found here.
-    pred_r, beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+    # Lambda Certification 003 (2026-08-06) -- Horizontal Privilege
+    # Escalation fork found (NEEDS-DEEPER-LOOK, not exploitable today,
+    # upheld by the Adversarial Certification fork's own independent
+    # re-trace) that the ownership-scoped `predmeti` query used to run
+    # INSIDE the same asyncio.gather() as the 4 sibling queries below --
+    # another tenant's full document text/notes/timeline transited this
+    # process's memory for every guessed predmet_id before the
+    # `if not pred:` check ran, even though it was already discarded on a
+    # miss. Ownership is now checked first, alone; siblings only fire once
+    # confirmed.
+    try:
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()
+        )
+        pred = pred_r.data or {}
+    except Exception:
+        # .single() raises (PostgREST 0-rows error) for a foreign/missing
+        # predmet_id -- same as the pre-fix return_exceptions=True path.
+        pred = {}
+    if not pred:
+        return {
+            "tip": "ANALIZA_PREDMETA",
+            "odgovor": "Predmet nije pronađen ili nemate pristup. Proverite da li ste otvorili predmet pre analize.",
+        }
+
+    beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(5).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").limit(8).execute()),
@@ -327,17 +351,10 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         return_exceptions=True,
     )
 
-    pred = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
     beleske = beleske_r.data if not isinstance(beleske_r, Exception) else []
     dok = dok_r.data if not isinstance(dok_r, Exception) else []
     hron = hron_r.data if not isinstance(hron_r, Exception) else []
     istorija = istorija_r.data if not isinstance(istorija_r, Exception) else []
-
-    if not pred:
-        return {
-            "tip": "ANALIZA_PREDMETA",
-            "odgovor": "Predmet nije pronađen ili nemate pristup. Proverite da li ste otvorili predmet pre analize.",
-        }
 
     # Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
     # Boundary". AI_DECISION_SURFACE_MAP.md found "slabosti" (risk, never
@@ -520,17 +537,25 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     # Program Tau, Master Sprint 002 (2026-08-06): same fix as
     # _handle_analiza_predmeta above -- real document text instead of
     # filenames only.
-    pred_r, beleske_r, dok_r, hron_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+    # Lambda Certification 003 (2026-08-06) -- same fix as
+    # _handle_analiza_predmeta above: ownership check hoisted out of the
+    # gather so sibling queries never fire for an unowned predmet_id.
+    try:
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()
+        )
+        pred = pred_r.data or {}
+    except Exception:
+        pred = {}
+    if not pred:
+        return {"tip": "PLAN", "odgovor": "Predmet nije pronađen. Otvorite predmet pre kreiranja plana."}
+
+    beleske_r, dok_r, hron_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(4).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
         return_exceptions=True,
     )
-
-    pred = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
-    if not pred:
-        return {"tip": "PLAN", "odgovor": "Predmet nije pronađen. Otvorite predmet pre kreiranja plana."}
 
     dok = dok_r.data if not isinstance(dok_r, Exception) else []
     hron = hron_r.data if not isinstance(hron_r, Exception) else []

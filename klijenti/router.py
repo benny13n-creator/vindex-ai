@@ -46,6 +46,17 @@ router = APIRouter(tags=["klijenti"])
 
 
 def _get_role(user_id: str, email: str) -> Role:
+    # Lambda Certification 003 (2026-08-06) -- ranije je i "nema role reda"
+    # (legitiman default za novog korisnika -> DEFAULT_ROLE/ADVOKAT, namerno)
+    # I "greška pri čitanju user_roles" (mrežni problem, RLS, connection pool)
+    # vraćalo IDENTIČAN rezultat -- svaki DB izuzetak je tiho tretiran kao
+    # "korisnik nema role red" umesto kao "ne znamo", tako da je bilo koji
+    # prolazni DB problem tokom autentifikovanog zahteva tiho davao ADVOKAT
+    # nivo (access_confidential/archive_client/view_conflict_results), isti
+    # obrazac koji `_get_firma_info`/`_verify_owns_klijent` u ovom fajlu
+    # ispravno izbegavaju (fail-closed na grešku). Sada: izuzetak vraća
+    # najniži nivo (SEKRETARICA), ne DEFAULT_ROLE -- "nema red" ostaje
+    # namerno ADVOKAT.
     if _is_founder(email):
         return Role.PARTNER
     try:
@@ -53,9 +64,10 @@ def _get_role(user_id: str, email: str) -> Role:
         res = supa.table("user_roles").select("rola").eq("user_id", user_id).execute()
         if res.data:
             return ROLE_STR.get(res.data[0].get("rola", ""), DEFAULT_ROLE)
+        return DEFAULT_ROLE
     except Exception as e:
         logger.warning("[PERMISSIONS] user_roles read greška: %s", e)
-    return DEFAULT_ROLE
+        return Role.SEKRETARICA
 
 
 async def _enrich_user(user: dict) -> dict:

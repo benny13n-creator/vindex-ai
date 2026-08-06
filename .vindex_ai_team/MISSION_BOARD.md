@@ -2124,3 +2124,59 @@ against every individual fork's own raw findings — "N bugs fixed, full suite g
 a finding between investigation and commit, exactly as it did here.** `deduct_credit`, `set_user_pro`, and
 now `profiles` all still await the founder running migrations 102 and 103 — that remains the single
 outstanding action from this entire sprint.
+
+## Program Lambda, Certification 003 (2026-08-06) — Forensic Authorization & Isolation Certification (BETA GATE)
+
+**Mission**: 8 named agents (Authorization Architect, Database Security, Horizontal + Vertical Privilege
+Escalation, AI Isolation Auditor, Event Bus Isolation, Cache & Session Isolation, Adversarial Certification),
+explicit rule — proof before correction, no hedging, every claim needs file/function/line + attack scenario
++ reproduction evidence. Learning directly from Certification 002's own process failure (a fork exceeding its
+read-only brief and pushing unsupervised), every one of the 7 investigative forks was forcefully briefed as
+strictly read-only this time; the coordinator implemented every fix directly, none delegated.
+
+**Result: 7 real findings, 7/7 independently survived adversarial falsification (Agent 8) — 0 refuted, 2
+strengthened beyond their original framing.** The worst is the single most severe finding of this entire
+engagement: `main.py::ask_agent`'s response cache had a tenant-blind key (`md5(question text)`, zero
+user/firm component) and a read/write gate that never checked `memory_context` — letting one firm's
+privately-influenced answer (shaped by their own institutional-memory Pinecone namespace, injected
+automatically for every ordinary question) be cached and served verbatim to a completely UNRELATED firm
+asking a similarly-worded question, with **zero guessed identifiers required** — unlike every prior IDOR/RPC
+bug in this engagement, which all needed the attacker to know or guess a specific victim resource id.
+
+**4 findings FIXED, with proof**: the cache leak above (all 4 gates now require
+`not history and not extra_namespaces and not memory_context` together); `klijenti/router.py::_get_role`
+fail-open (a DB exception granted `Role.ADVOKAT`, now fails closed to the lowest role, matching the
+`_get_firma_info`/`_verify_owns_klijent` pattern already correct elsewhere in the same file);
+`shared/case_context.py::get_document_full_text()` (the Document Visibility Engine's own scale safety-net
+ignored its own `uid` parameter — dormant, zero live call sites, fixed before anything wires it in); a
+systemic "fetch sibling data concurrently with the ownership check instead of after it" pattern in
+`case_commander.py`/`digital_twin.py`/`copilot.py` (safe today since every caller discarded the data on a
+miss, "one bad refactor away" — ownership check hoisted out of the `asyncio.gather()` in all 3 files).
+
+**3 findings named precisely instead of guessed at**: `LAMBDA003-AUTH-001` (ACCEPTED RISK — the auth fallback
+silently drops to a revocation-check-free local JWT verification on any Supabase-side exception; closing it
+is a security-vs-availability tradeoff only the founder should decide, not attacker-triggerable on demand),
+`LAMBDA003-EVT-001` (ARCHITECTURAL DEBT — a same-tenant-only TOCTOU race in the Canonical Consequence
+Engine's dedup check; the correct fix needs a staleness-threshold number with no production data to choose it
+safely), `LAMBDA003-RLS-001` (ARCHITECTURAL DEBT — `kancelarija_clanovi` has RLS enabled with zero policies,
+recursively breaking 10 dependent policies' firm-visibility branch; confirmed NOT exploitable, over-
+restrictive direction only, RLS already decorative given the service-role bypass). Plus `LAMBDA003-AUTH-002`
+(minor — "firm admin" defined inconsistently across 2 files, drift risk not a confirmed bypass).
+
+**19 new tests**, full suite independently re-run by the coordinator: **2,984 passed, 1 skipped, 7 failed.**
+The 7 failures are pre-existing, root-caused (a `sys.modules["main"]` mock leak between 2 unrelated test
+files, self-documented as a known hazard in `test_ask_agent_gate_bias.py`'s own docstring predating this
+sprint), and confirmed unrelated to any of this sprint's changes (the affected file passes 23/23 in
+isolation) — partially mitigated (`teardown_module` added to both offending files), fully closing it tracked
+as `LAMBDA003-TEST-001` (test-infrastructure only, zero security relation).
+
+**9 required deliverables** in `docs/lambda/`: `AUTHORIZATION_FORENSICS.md`, `TENANT_ISOLATION_REPORT.md`,
+`AI_CONTEXT_ISOLATION.md`, `EVENT_ISOLATION_REPORT.md`, `CACHE_ISOLATION_REPORT.md`, `ATTACK_MATRIX.md`,
+`LAMBDA_003_CERTIFICATION.md` (new), plus addenda appended to the existing `RLS_CERTIFICATION.md` and
+`REGRESSION_TEST_REPORT.md`. Every critical flow ends in exactly one of FIXED / ACCEPTED RISK / ARCHITECTURAL
+DEBT, per the mission's own required closure format.
+
+**Process note**: this sprint directly tested whether the process lesson from Certification 002's own
+addendum (forks exceeding their read-only brief, one pushing unsupervised) would recur. It didn't — every
+investigative fork stayed read-only as briefed; every fix was implemented, tested, and verified directly by
+the coordinator before being reported as done.

@@ -98,15 +98,38 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
     uklonjena su odavde. `rokovi` (NE `rocista`) i dalje nema kanonski
     ekvivalent (isti TAU-013 nalaz, sada potvrđen i u ovom fajlu) -- zadržano
     za GPT kontekst tekst."""
-    pred_r, rokovi_r, dok_r, kom_r = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("predmeti")
-                .select("*")
-                .eq("id", predmet_id)
-                .eq("user_id", uid)
-                .maybe_single()
-                .execute()
-        ),
+    # Lambda Certification 003 (2026-08-06) -- Horizontal Privilege
+    # Escalation fork found (NEEDS-DEEPER-LOOK, not exploitable today,
+    # upheld by the Adversarial Certification fork's own independent
+    # re-trace) that the ownership-scoped `predmeti` query used to run
+    # INSIDE the same asyncio.gather() as the 3 sibling queries below --
+    # another tenant's full document text/notes transited this process's
+    # memory for every guessed predmet_id before either caller's own
+    # `if not ctx["predmet"]: raise 404` check ran, even though both
+    # callers already correctly discard the data on a 404. Ownership is
+    # now checked first, alone; siblings only fire once confirmed.
+    def _safe(r):
+        if isinstance(r, Exception):
+            return []
+        return getattr(r, "data", None) or []
+
+    def _safe_one(r):
+        if isinstance(r, Exception):
+            return {}
+        return getattr(r, "data", None) or {}
+
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("*")
+            .eq("id", predmet_id)
+            .eq("user_id", uid)
+            .maybe_single()
+            .execute()
+    )
+    if not _safe_one(pred_r):
+        return {"predmet": {}, "rokovi": [], "dokumenta": [], "komentari": []}
+
+    rokovi_r, dok_r, kom_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("rokovi")
                 .select("naziv, datum, tip, opis")
@@ -132,16 +155,6 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
         ),
         return_exceptions=True,
     )
-
-    def _safe(r):
-        if isinstance(r, Exception):
-            return []
-        return getattr(r, "data", None) or []
-
-    def _safe_one(r):
-        if isinstance(r, Exception):
-            return {}
-        return getattr(r, "data", None) or {}
 
     return {
         "predmet":      _safe_one(pred_r),

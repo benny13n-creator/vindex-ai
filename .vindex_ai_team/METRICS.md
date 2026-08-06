@@ -1712,3 +1712,32 @@ izolacija ispravna" — was not met in the trivial "nothing found" sense; the sp
 mission's actual goal, which was to find out. Every critical ownership flow ends this sprint in exactly one
 of CERTIFIED / FIXED / ARCHITECTURAL DEBT, per the mission's own required closure format — no flow left
 ambiguous. Full detail: `docs/lambda/OWNERSHIP_CERTIFICATION_REPORT.md` and `docs/lambda/IDOR_MATRIX.md`.
+
+## Program Lambda, Certification 003 (2026-08-06) — Forensic Authorization & Isolation Certification (BETA GATE)
+
+| Metric | Value |
+|---|---|
+| Audit roles covered | 8 named agents (7 investigative forks, read-only, + 1 adversarial-falsification fork) |
+| Enforcement mechanisms audited (Agent 1) | Every `@require_auth`-style dependency + every ownership-check helper repo-wide, not endpoint sampling |
+| RLS policy interactions audited (Agent 2) | 151 tables, 148 with RLS enabled, 142 with ≥1 policy, 13 cross-table policy dependencies traced for recursion/NULL-handling |
+| Named features attacked horizontally (Agent 3) | 18 (incl. Case Genome, Workspace, Court Predictor, CIO, Digital Twin, Copilot, Morning Briefing, Commander, Strategy Simulator) |
+| Vertical role-ladder mechanisms audited (Agent 4) | Every `is_admin`/`_is_founder` branch, JWT claim usage, permission-cache usage, revocation-on-removal path |
+| AI prompt-building modules audited (Agent 5) | 12 named modules, prompt string traced end-to-end, not just the DB query |
+| Event Bus attack techniques applied (Agent 6) | 7 (replay, forge, duplicate, orphan, race, double-consequence, wrong-correlation) |
+| Cache/session mechanisms found and checked (Agent 7) | Every `lru_cache`/module-level dict/DB-backed cache in the repo — first-ever dedicated sweep of this surface |
+| Real findings, total | 7 |
+| Findings surviving adversarial falsification (Agent 8) | 7 of 7 (100%) — 0 refuted, 2 strengthened beyond original framing |
+| Findings FIXED, with proof | 4 of 7 |
+| Findings ACCEPTED RISK (explicit tradeoff, named) | 1 of 7 |
+| Findings ARCHITECTURAL DEBT (needs a design decision) | 2 of 7 |
+| Worst single finding, this sprint | `main.py::ask_agent` response cache — tenant-blind key + incomplete write gate let one firm's privately-influenced answer be served verbatim to an unrelated firm with **zero guessed identifiers** |
+| Worst single finding, entire engagement to date | Same as above — every prior IDOR/RPC bug (Certification 001/002) required the attacker to know or guess a specific victim resource id; this one didn't |
+| New tests | 19 (`test_lambda003_ask_agent_cache_isolation.py` 8, `test_lambda003_klijenti_role_fail_closed.py` 5, `test_lambda003_hoisted_ownership_checks.py` 6) + 2 added to `test_tau002_case_context.py` |
+| Full suite | **2,984 passed, 1 skipped, 7 failed** (was 2,971 at end of Certification 002) — the 7 failures are pre-existing, root-caused to an unrelated test-infrastructure mock leak (`LAMBDA003-TEST-001`), confirmed unrelated to this sprint's changes (affected file passes 23/23 in isolation); zero regressions in any of this sprint's own changed files or new tests |
+| Process outcome | Direct test of Certification 002's own standing lesson (audit forks before trusting them): all 7 investigative forks stayed read-only as forcefully re-briefed; zero unsupervised pushes; the coordinator implemented and independently verified every fix |
+| Outstanding action | None requiring the founder to run new SQL this sprint (no new migration) — `LAMBDA003-AUTH-001` (fallback auth policy decision) and `LAMBDA003-EVT-001`/`LAMBDA003-RLS-001` (design decisions, no live exposure) are the founder's own calls to make when ready, not blocking |
+
+**Success criteria**: met decisively — the mission's own charter was to prove a bypass exists, not confirm
+things look fine, and this sprint found and closed the single worst security finding of the entire
+engagement. Every flow ends in FIXED / ACCEPTED RISK / ARCHITECTURAL DEBT, per the mission's own required
+closure format. Full detail: `docs/lambda/LAMBDA_003_CERTIFICATION.md` and `docs/lambda/ATTACK_MATRIX.md`.

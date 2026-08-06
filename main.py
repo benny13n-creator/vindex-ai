@@ -3143,7 +3143,18 @@ def ask_agent(
     if not pitanje:
         return {"status": "error", "message": "Pitanje ne može biti prazno."}
 
-    if not history and not extra_namespaces:
+    # Lambda Certification 003 (2026-08-06) -- cache mora biti potpuno
+    # isključen kad god JEDAN OD TRI privatna izvora učestvuje u odgovoru
+    # (history, extra_namespaces -- firmin privatni Pinecone namespace --
+    # ili memory_context -- institucionalna memorija firme ubačena u system
+    # prompt). Ranije se proveravalo samo history+extra_namespaces na read
+    # strani i SAMO history na write strani -- memory_context se nikad nije
+    # proveravao ni na jednoj strani, što je omogućavalo da odgovor oblikovan
+    # privatnim sadržajem JEDNE firme bude keširan pod ključem izvedenim
+    # isključivo iz teksta pitanja (bez ikakve tenant komponente) i potom
+    # vraćen bilo kojoj DRUGOJ firmi koja postavi slično normalizovano
+    # pitanje -- cross-tenant leak bez potrebe da napadač pogodi ijedan ID.
+    if not history and not extra_namespaces and not memory_context:
         keš = _cache_get(pitanje)
         if keš:
             return {**keš, "from_cache": True}
@@ -3259,7 +3270,7 @@ def ask_agent(
                 "confidence": "LOW", "top_score": top_score,
                 "top_article": top_article, "top_law": top_law,
             }
-            if not history:
+            if not history and not extra_namespaces and not memory_context:
                 _cache_set(pitanje, rezultat)
             logger.info("LOW confidence refusal [q=%s]", log_id)
             return rezultat
@@ -3405,7 +3416,7 @@ def ask_agent(
                 "top_article": top_article, "top_law": top_law,
                 "confidence_detail": _conf_detail, "izvori": _izvori,
             }
-            if not history:
+            if not history and not extra_namespaces and not memory_context:
                 _cache_set(pitanje, rezultat)
             logger.info("MEDIUM LLM odgovor [tip=%s, q=%s]", tip, log_id)
             return rezultat
@@ -3514,7 +3525,7 @@ def ask_agent(
             "top_article": top_article, "top_law": top_law,
             "confidence_detail": _conf_detail, "izvori": _izvori,
         }
-        if not history:
+        if not history and not extra_namespaces and not memory_context:
             _cache_set(pitanje, rezultat)
 
         logger.info("Uspešan odgovor [confidence=%s, tip=%s, q=%s]", confidence, tip, log_id)

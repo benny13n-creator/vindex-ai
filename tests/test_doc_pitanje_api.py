@@ -27,11 +27,36 @@ _mock_main.ask_agent.return_value = {
     "top_article": "Član 3",
     "top_law": "ugovor.docx",
 }
+
+# Program Lambda, Certification 003 (2026-08-06): these setdefault() calls
+# run at COLLECTION time (module import), before any test in the whole
+# session executes -- and never got cleaned up, so the mocked "main" (and
+# the other 4 modules below) silently leaked into every LATER-executed test
+# file's own plain `import main`, for the rest of the pytest session. Found
+# as a byproduct of this sprint's own full-suite regression run:
+# test_akcija2_faza4_2026_07_24.py's tests started getting a MagicMock in
+# place of the real main._batch_segments_za_map. teardown_module (a
+# pytest/unittest-recognized hook, runs once after every test in THIS file
+# finishes, before the next file's tests start) restores exactly what was
+# in sys.modules before this file touched it.
+_PRE_EXISTING_MODULES = {
+    name: sys.modules.get(name)
+    for name in ("main", "templates.podnesci", "knowledge.vks_standards", "pinecone", "supabase")
+}
+
 sys.modules.setdefault("main", _mock_main)
 sys.modules.setdefault("templates.podnesci", MagicMock())
 sys.modules.setdefault("knowledge.vks_standards", MagicMock())
 sys.modules.setdefault("pinecone", MagicMock())
 sys.modules.setdefault("supabase", MagicMock())
+
+
+def teardown_module(module):
+    for name, prev in _PRE_EXISTING_MODULES.items():
+        if prev is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = prev
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
