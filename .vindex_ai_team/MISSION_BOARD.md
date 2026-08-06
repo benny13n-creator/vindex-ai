@@ -1671,3 +1671,46 @@ live GPT tool-calling loop; `strategija.py`'s `predmet_id` support is a new feat
 **6 required deliverables**, all in `docs/tau/`: `CONTEXT_BUILDER_REGISTRY.md`,
 `CANONICAL_CASE_CONTEXT_CONTRACT.md`, `DOCUMENT_VISIBILITY_ENGINE.md`, `AI_ENTRY_POINT_MIGRATION_REPORT.md`,
 `CONTEXT_PERFORMANCE_ANALYSIS.md`, `TAU_MASTER_SPRINT_002_REPORT.md`.
+
+## Program Tau, Master Sprint 003 (2026-08-06) — Canonical AI Decision Boundary
+
+**Mission**: Sprint 002 unified what AI *sees*; this sprint unifies what AI is *allowed to decide*. GPT is
+never the owner of business truth — canonical systems (Case Actions/Case Readiness/Gap Engine/Risk
+Engine/Genome/Evidence) remain owners; GPT explains/summarizes/reasons, never redefines.
+
+**Headline correction, found before any implementation**: an initial `vindex.js`-only grep suggested
+`case_intelligence.py`'s endpoints were dead (same shape as the pre-Sigma-005 Case Commander finding).
+**Wrong** — this app's real button markup lives in `index.html`, not `vindex.js`. Checked there:
+`case_intelligence.py`, `copilot.py`, and all 9 `strategija.py` endpoints are LIVE (real onclick handlers,
+real rendered elements); only `morning_briefing.py` is confirmed dead/no-UI. This determined the whole
+shape of Phase 3 — 3 of 4 files required preserving exact existing response field names (additive
+provenance only, no restructure), only `morning_briefing.py` was free to restructure.
+
+**Implemented**: `case_intelligence.py`/`copilot.py`'s `sledeci_korak` overrides are now unconditional (the
+exact TAU-002 gap — GPT's own guess used to survive whenever `case_actions` had nothing open) — an honest
+"nothing open" statement replaces it. `kljucni_rizici`/`slabosti`/`upozorenja` now read Gap Engine/Genome
+directly instead of asking GPT to invent risk. `copilot.py`'s `verovatnoca_uspeha` reads Genome's own
+`snaga_predmeta_procent` instead of an independently GPT-invented duplicate; `kriticni_rokovi` returns real
+`predmet_hronologija` rows instead of GPT's restatement of them. `morning_briefing.py`'s flagship
+`_generiši_briefing` now builds "Danas zahteva pažnju"/"Ključni rok"/"Preporuka za danas" entirely in code
+(ranked via `shared/attention_priority.py::canonical_sort_key`) — GPT is asked for exactly one opening
+sentence, structurally unable to reach the 3 decision-bearing sections (closing `TAU-003` for this call
+site). `strategija.py`'s 9 endpoints (no `predmet_id` exists anywhere — confirmed twice, independently, by
+Tau 002 and Tau 003) now attach `_ai_advisory` provenance reusing Sigma 005's own `commander_schema.py`
+idiom, since there's no canonical source to redirect to, only an honest label to add.
+
+**10 new tests** (`tests/test_tau003_decision_boundary.py` ×6, `test_tau002_morning_briefing_context.py`
+×3, `test_case_intelligence_briefing_alerts_fix.py` ×1, plus 2 existing tests renamed/re-asserted since
+they tested the OLD, now-deliberately-removed conditional-fallback behavior). Full suite: **2,838 passed,
+1 skipped, 0 failed** (was 2,828 at end of Tau Master Sprint 002) — zero regressions across all 4 touched
+modules.
+
+**Faza 4 forensic attack**: all 7 mission-named attack categories (invent priority/readiness/deadlines/
+missing-evidence/contradictions/next-action/legal-facts) fail against every migrated surface, each backed
+by a poisoned-response test, not an inference — see `docs/tau/AI_CERTIFICATION_REPORT.md`.
+
+**1 new debt item** (`TAU-010` — `today_focus`'s own GPT-vs-fallback inconsistency, named not fixed, DEAD/
+no-UI so no live risk). `TAU-002` and `TAU-003` (for the flagship call site) closed.
+
+**6 required deliverables**, all in `docs/tau/`: `AI_DECISION_SURFACE_MAP.md`, `AI_BOUNDARY_POLICY_V2.md`,
+`GPT_ADVISORY_REGISTRY.md`, `DECISION_OWNERSHIP_MATRIX.md`, `AI_CERTIFICATION_REPORT.md`, `SPRINT_003_REPORT.md`.

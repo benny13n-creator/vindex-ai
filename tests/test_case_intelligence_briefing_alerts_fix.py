@@ -113,10 +113,14 @@ async def test_briefing_survives_alerts_subquery_failure_instead_of_500():
 
     supa = _make_supa(alerts_raises=Exception('column "proactive_alerts.hitnost" does not exist'))
 
+    # Program Tau, Master Sprint 003 (2026-08-06): sledeci_korak/hitnost/razlog
+    # are no longer asked of GPT at all (see _BRIEFING_SYSTEM) -- they're
+    # computed unconditionally from case_actions in case_intelligence_briefing()
+    # itself, so the mocked GPT response here only needs the fields still
+    # actually requested.
     with patch.object(ci, "_get_supa", return_value=supa), \
          patch.object(ci, "_pozovi_briefing_api", new=AsyncMock(return_value=_resp(json.dumps({
-             "sledeci_korak": "Podneti odgovor na tuzbu", "hitnost": "ovu_nedelju", "razlog": "x",
-             "pouzdanost_briefinga": "SREDNJA",
+             "relevantne_lekcije": [], "komunikacioni_savet": "", "potvrdjeni_obrasci": [],
          })))), \
          patch.object(ci.UsageService, "consume", new=AsyncMock()), \
          patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
@@ -126,7 +130,9 @@ async def test_briefing_survives_alerts_subquery_failure_instead_of_500():
 
     # Degraded, not crashed -- alerts section is empty, everything else still works.
     assert result["izvori"]["alertova"] == 0
-    assert result["briefing"]["sledeci_korak"] == "Podneti odgovor na tuzbu"
+    # No open case_actions in this fixture -- sledeci_korak is now the honest
+    # "nothing open" statement, not a GPT-invented action (Tau 003's own fix).
+    assert result["briefing"]["sledeci_korak"] == "Nema otvorenih akcija u Case Actions za ovaj predmet."
 
 
 @pytest.mark.anyio
@@ -176,6 +182,49 @@ def test_context_text_includes_documents_evidence_actions_deadlines_program_tau_
     assert "3 ukupno" in text
     assert "Pribaviti ugovor" in text
     assert "Osnovni sud" in text
+
+
+@pytest.mark.anyio
+async def test_gpt_cannot_inject_fake_risks_or_confidence_program_tau_003():
+    """Program Tau, Master Sprint 003 (2026-08-06) forensic attack: even if
+    the mocked GPT response contains fabricated kljucni_rizici/napomena/
+    pouzdanost_briefinga (an old-shape/poisoned response), none of them can
+    reach the final output -- those 3 fields are computed deterministically
+    in case_intelligence_briefing() and GPT is no longer even asked for them
+    (see _BRIEFING_SYSTEM)."""
+    from routers import case_intelligence as ci
+
+    supa = _make_supa(alerts_data=[])
+
+    with patch.object(ci, "_get_supa", return_value=supa), \
+         patch.object(ci, "_pozovi_briefing_api", new=AsyncMock(return_value=_resp(json.dumps({
+             "relevantne_lekcije": [], "komunikacioni_savet": "", "potvrdjeni_obrasci": [],
+             # Poisoned: an old-shape response trying to smuggle GPT-invented
+             # values through fields the code no longer reads from GPT at all.
+             "kljucni_rizici": ["IZMISLJEN RIZIK OD GPT-A"],
+             "napomena": "GPT-OVA IZMISLJENA NAPOMENA",
+             "pouzdanost_briefinga": "visoka",  # GPT self-declaring max confidence
+             "sledeci_korak": "GPT-OVA IZMISLJENA AKCIJA",
+             "hitnost": "odmah",
+         })))), \
+         patch.object(ci.UsageService, "consume", new=AsyncMock()), \
+         patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
+        result = await ci.case_intelligence_briefing(
+            _req(), "predmet-1", user={"user_id": "u1", "email": "a@b.com"},
+        )
+
+    b = result["briefing"]
+    # GPT's poisoned risk never appears -- only real risk_engine findings do
+    # (this fixture has zero documents/evidence, a genuine deterministic
+    # finding, not a GPT invention).
+    assert "IZMISLJEN RIZIK OD GPT-A" not in b["kljucni_rizici"]
+    assert all("IZMISLJEN" not in r for r in b["kljucni_rizici"])
+    assert b["napomena"] != "GPT-OVA IZMISLJENA NAPOMENA"
+    assert b["sledeci_korak"] != "GPT-OVA IZMISLJENA AKCIJA"
+    assert b["sledeci_korak"] == "Nema otvorenih akcija u Case Actions za ovaj predmet."
+    # No open action + no genome -> deterministic heuristic says "niska", not
+    # GPT's own self-declared "visoka".
+    assert b["pouzdanost_briefinga"] == "niska"
 
 
 def test_context_text_omits_new_sections_when_case_context_missing():

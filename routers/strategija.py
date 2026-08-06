@@ -48,6 +48,31 @@ async def _pozovi_strategija_v2_api(oai, **kwargs):
     return await oai.chat.completions.create(**kwargs)
 
 
+# Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
+# Boundary". AI_DECISION_SURFACE_MAP.md/DECISION_OWNERSHIP_MATRIX.md found
+# NONE of this file's 9 endpoints has a `predmet_id` on any request model --
+# there is no case record to check any output against, so ~90% of this
+# module's fields are legitimately GPT Advisory BY CORRECT CLASSIFICATION,
+# not a defect. The fixable gap: nothing in the response shape told a reader
+# that. Every live endpoint's own frontend rendering (index.html's
+# stratPokreni()) reads specific known keys and is unaffected by an
+# unrecognized new one, so this is purely additive -- no response RESTRUCTURE
+# (which would need a matching frontend change), just an honest label,
+# reusing the same idiom Sigma Sprint 005 established for Case Commander
+# (shared/commander_schema.py) rather than inventing a new one.
+def _advisory_provenance(modul: str, model: str = "gpt-4o") -> dict:
+    from datetime import datetime, timezone
+    return {
+        "owner": "gpt_advisory",
+        "napomena": "Ova analiza je GPT-ova procena nad tekstom koji ste uneli -- nije provera protiv "
+                    "postojećeg, praćenog predmeta u sistemu (ovaj modul ne prima ID predmeta). "
+                    "Brojevi (npr. procenat uspeha) su subjektivna GPT procena, ne izračunata statistika.",
+        "generated_by": model,
+        "modul": modul,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def _audit_strategija_durably(user_id: str, modul: str) -> None:
     """Mission Ledger (2026-08-03) — dodatni, TRAJNI (hash-chained) audit trag
     pored postojećeg lakog _audit() (audit_log tabela, ne-trajna). Ne
@@ -103,7 +128,7 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("red_team")}
     except Exception:
         logger.exception("[F5] red_team greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -129,7 +154,7 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("litigation")}
     except Exception:
         logger.exception("[F5] litigation greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju simulacije. Pokušajte ponovo.")
@@ -155,7 +180,7 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("sudija")}
     except Exception:
         logger.exception("[F5] sudija greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -196,7 +221,7 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("due_diligence")}
     except Exception:
         logger.exception("[F5] due_diligence greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -221,7 +246,7 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("revizor")}
     except Exception:
         logger.exception("[F7] pravni_revizor greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju revizije. Pokušajte ponovo.")
@@ -246,7 +271,7 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0)}
+        return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("witness")}
     except Exception:
         logger.exception("[F9] witness_analyzer greška")
         raise HTTPException(status_code=500, detail="Greška pri analizi iskaza. Pokušajte ponovo.")
@@ -277,6 +302,7 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
             "presuda":  rezultat["presuda"],
             "modul":    "sudija_v2",
             "credits_remaining": max(preostalo, 0),
+            "_ai_advisory": _advisory_provenance("sudija_v2"),
         }
     except Exception:
         logger.exception("[F9] sudija_v2 greška")
@@ -327,7 +353,15 @@ async def post_kompletna_analiza(
         # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
         # Admin Console editabilno) — ne hardkoduje se ovde.
         await UsageService.consume(uid, email, "strategija")
-        return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6}
+        # NOTE: this response mixes 2 code-owned deterministic fields
+        # (sistemsko_upozorenje fully, detektovani_konflikti partially --
+        # see docs/tau/DECISION_OWNERSHIP_MATRIX.md, DC-010/DC-011) with
+        # otherwise-advisory synthesis (prioritetni_akcioni_plan/
+        # strateski_stav/opsta_confidence/executive_summary). _ai_advisory
+        # below describes the file-wide "no predmet_id" caveat; it does NOT
+        # claim every field here is GPT-authored -- see the ownership matrix
+        # for the per-field breakdown.
+        return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6, "_ai_advisory": _advisory_provenance("kompletna_analiza")}
 
     jid = create_job(uid, "kompletna_analiza")
     background_tasks.add_task(run_in_background, jid, _run_analiza)
@@ -368,7 +402,11 @@ faktori_plus: konkretne okolnosti koje povećavaju šanse (maks 4)
 faktori_minus: konkretne slabosti ili rizici koji umanjuju šanse (maks 4)
 Maksimalno 5 stavki po ostalim kategorijama.
 Budi konkretan i oslanjaj se na važeće srpsko pravo.
-Ne halucinuj zakone — ako nisi siguran, navedi to otvoreno."""
+Ne halucinuj zakone — ako nisi siguran, navedi to otvoreno.
+
+VAŽNO (Program Tau, Master Sprint 003): "procenat" nije izračunata statistika -- ti nemaš pristup
+stvarnom predmetu, dokazima niti sudskoj praksi specifičnoj za ovaj slučaj. To je tvoja subjektivna
+procena na osnovu opisanog teksta. Ne predstavljaj je kao preciznu ili proverenu."""
 
 
 class StrategijaV2Request(BaseModel):
@@ -426,6 +464,7 @@ async def strategija_v2_analiza(
             **analiza,
             "modul": "strategija_v2",
             "credits_remaining": preostalo,
+            "_ai_advisory": _advisory_provenance("strategija_v2"),
         }
     except _json.JSONDecodeError as je:
         _sentry_capture(je)

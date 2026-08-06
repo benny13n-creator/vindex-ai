@@ -2386,3 +2386,52 @@ Canonical Case Context Contract the way the other 3 mandatory Phase 5 modules no
 **Severity**: not a defect — `strategija.py` was apparently designed as a text-in/text-out tool
 deliberately. Tracked because 2 other debt items (`TAU-004`) depend on it being resolved first; a founder
 decision on whether a `predmet_id` mode is actually wanted is a prerequisite, not an engineering call.
+
+## Program Tau, Master Sprint 003 (2026-08-06) — Canonical AI Decision Boundary
+
+Full narrative: `docs/tau/SPRINT_003_REPORT.md` and its 5 sibling deliverables in `docs/tau/`. Closes
+`TAU-002` and `TAU-003` (see updated entries below). Confirms `TAU-004`'s own severity/blocker (`TAU-009`)
+still stands, unchanged. 1 new debt item.
+
+## TAU-002 — CLOSED (Program Tau, Master Sprint 003, 2026-08-06): was "case_intelligence.py/copilot.py's 'canonical override' is a GPT-fallback, not a removal"
+
+**UPDATE — Program Tau, Master Sprint 003 (2026-08-06):** Closed. Both files' `sledeci_korak` overrides
+are now unconditional — `case_intelligence.py`/`copilot.py::_handle_analiza_predmeta` no longer even ask
+GPT for this field; when `case_actions` has nothing open, an honest "Nema otvorenih akcija" statement
+replaces the old GPT fallback. Proven by
+`test_briefing_states_no_open_action_instead_of_falling_back_to_gpt_program_tau_003` and
+`test_analiza_predmeta_states_no_open_action_instead_of_falling_back_to_gpt_program_tau_003`. Original entry
+preserved below.
+
+**[CLOSED]** `case_intelligence.py`/`copilot.py`'s "canonical override" is a GPT-fallback, not a removal (Medium)
+
+## TAU-003 — CLOSED for the flagship call site (Program Tau, Master Sprint 003, 2026-08-06): was "morning_briefing.py has zero case_actions awareness"
+
+**UPDATE — Program Tau, Master Sprint 003 (2026-08-06):** Closed for `_generiši_briefing` (the flagship,
+highest-visibility call site — `GET /api/briefing/daily` + the cron job). "Danas zahteva pažnju"/"Ključni
+rok"/"Preporuka za danas" are now built entirely in code from `case_actions`/`rocista`/`rokovi`, ranked by
+`shared/attention_priority.py::canonical_sort_key` — GPT is asked for exactly one opening sentence,
+structurally incapable of reaching the 3 decision-bearing sections (proven by
+`test_gpt_cannot_inject_fake_actions_into_danas_zahteva_paznju_program_tau_003`, a direct poisoned-response
+attack). `_ai_prioritizacija_alertova` was already correctly scoped (unchanged). `today_focus` remains
+unmigrated — see `TAU-010` below. Original entry preserved below.
+
+**[CLOSED for `_generiši_briefing`]** `morning_briefing.py` has zero `case_actions` awareness (Medium-High)
+
+## TAU-010 — `morning_briefing.py::today_focus` still lets GPT pick freely, with an inconsistent fallback (Medium)
+
+**Found by**: Phase 1 forensic sweep (Program Tau Master Sprint 003), a "bonus finding" not part of the
+original TAU-003 scope.
+
+**What**: `today_focus`'s system prompt ("izaberi JEDNU najvazniju akciju") lets GPT choose freely among
+supplied candidates on the success path, with zero deterministic ranking beforehand. The EXCEPTION fallback
+path, by contrast, IS deterministic (`hitni_rokovi[0]`, earliest-deadline-first, since the underlying query
+uses `.order("datum")`) — meaning the two paths can legitimately disagree about what "most important" means,
+and nothing catches it. Not fixed this sprint (out of the flagship-call-site scope this sprint prioritized);
+the fix pattern is already established by `_generiši_briefing`'s own Tau 003 migration (reuse
+`top_open_action`/`canonical_sort_key`, apply the same "GPT phrases, doesn't decide" restructure here too).
+
+**Severity**: Medium — `today_focus` is, like the rest of `morning_briefing.py`, confirmed DEAD/no-UI
+(`docs/tau/AI_DECISION_SURFACE_MAP.md`'s own live-caller re-verification), so there is no live user-facing
+risk today; tracked so the inconsistency doesn't get inherited by a future feature that wires this endpoint
+into a real UI without first fixing it.

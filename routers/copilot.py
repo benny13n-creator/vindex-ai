@@ -339,14 +339,20 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
             "odgovor": "Predmet nije pronađen ili nemate pristup. Proverite da li ste otvorili predmet pre analize.",
         }
 
+    # Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
+    # Boundary". AI_DECISION_SURFACE_MAP.md found "slabosti" (risk, never
+    # cross-checked against identify_case_problems) and "verovatnoca_uspeha"
+    # (an independently GPT-invented case-strength number duplicating
+    # Genome's own snaga_predmeta_procent) had zero canonical owner. Both
+    # removed from what GPT is asked -- computed deterministically below from
+    # Genome instead (see the override block after the GPT call). "nedostaju"/
+    # "sledeci_korak" stay in the schema because they're still asked of GPT
+    # as a fallback shape, but are unconditionally overridden below too (Sigma
+    # 003/004's own overrides were conditional -- this sprint closes that gap).
     _SYNTH_SYSTEM = (
         "Ti si iskusni srpski pravni strateg. Sintetiši sve dostupne podatke i vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
         '{"procena": str (1 konkretna rečenica — ocena snage pozicije),\n'
-        ' "prednosti": [str] (max 4, konkretni faktori),\n'
-        ' "slabosti": [str] (max 4, konkretni rizici),\n'
-        ' "nedostaju": [str] (max 4, dokumenti/dokazi kojih nema),\n'
-        ' "sledeci_korak": {"opis": str, "rok": str, "prioritet": "hitan|normalan"},\n'
-        ' "verovatnoca_uspeha": int (0-100)}\n'
+        ' "prednosti": [str] (max 4, konkretni faktori)}\n'
         "Ne halucinuj zakone ni činjenice koje nisu u podacima. "
         "Ako je dole dat CASE GENOME (već izračunata analiza ovog predmeta), gradi na njemu — "
         "ne ponavljaj istu analizu iz nule i ne izmišljaj suprotnu ocenu bez razloga."
@@ -455,41 +461,47 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     from shared.gap_engine import missing_evidence_labels
     _genome_nedostaju = missing_evidence_labels(genome, limit=4)
 
-    # Program Sigma, Master Sprint 004 (2026-08-06) — same finding class as
-    # Sprint 003's own "nedostaju" fix above, applied to this handler's own
-    # "sledeci_korak" field: an INDEPENDENT GPT-generated single next-action
-    # (own "hitan|normalan" priority vocabulary), disconnected from
-    # case_actions — the platform's own canonical action-tracking table.
-    # Overridden with shared/case_readiness.py::top_open_action's own reading
-    # of case_actions whenever an open one exists for this predmet; falls
-    # back to the GPT's own guess only when case_actions has nothing open
-    # (e.g. Case Evolution hasn't run yet for this case).
-    _sledeci_korak = result.get("sledeci_korak", {})
-    try:
-        from shared.case_readiness import top_open_action
-        _oa_r = await asyncio.to_thread(
-            lambda: supa.table("case_actions").select("razlog,prioritet,rok,status")
-                .eq("predmet_id", predmet_id).eq("status", "open").execute()
-        )
-        _top = top_open_action(_oa_r.data or [])
-        if _top:
-            _sledeci_korak = {
-                "opis": _top.get("razlog") or "",
-                "rok": _top.get("rok") or "",
-                "prioritet": "hitan" if _top.get("prioritet") in ("critical", "high") else "normalan",
-            }
-    except Exception as _cae:
-        logger.warning("[COPILOT-ANALIZA] case_actions top-action override neuspešan (nastavlja sa GPT-ovim): %s", _cae)
+    # Program Tau, Master Sprint 003 (2026-08-06) -- Sigma 004's own override
+    # below was CONDITIONAL: GPT's own "hitan|normalan" guess survived
+    # whenever case_actions had nothing open. AI_DECISION_SURFACE_MAP.md
+    # named this the exact "GPT may never redefine" gap this sprint exists to
+    # close -- the override is now unconditional; an honest "no open action"
+    # state replaces the GPT fallback (GPT is no longer even asked for this
+    # field -- see the narrowed _SYNTH_SYSTEM above).
+    from shared.case_readiness import top_open_action
+    _oa_r = await asyncio.to_thread(
+        lambda: supa.table("case_actions").select("razlog,prioritet,rok,status")
+            .eq("predmet_id", predmet_id).eq("status", "open").execute()
+    )
+    _top = top_open_action(_oa_r.data or [])
+    if _top:
+        _sledeci_korak = {
+            "opis": _top.get("razlog") or "",
+            "rok": _top.get("rok") or "",
+            "prioritet": "hitan" if _top.get("prioritet") in ("critical", "high") else "normalan",
+        }
+    else:
+        _sledeci_korak = {"opis": "Nema otvorenih akcija u Case Actions za ovaj predmet.", "rok": "", "prioritet": "normalan"}
+
+    # "slabosti" (risk, was pure GPT invention, never cross-checked) and
+    # "verovatnoca_uspeha" (duplicated Genome's own snaga_predmeta_procent
+    # under a different name) -- both computed from Genome directly now,
+    # reusing shared/gap_engine.py rather than a new detector. Honestly empty/
+    # None when Genome hasn't run, never a GPT guess filling the gap.
+    from shared.gap_engine import gaps_from_contradictions, gaps_from_genome_nedostaje
+    _weakness_gaps = gaps_from_contradictions(genome) + gaps_from_genome_nedostaje(genome)
+    _slabosti = [g["razlog"] for g in _weakness_gaps[:4] if g.get("razlog")]
+    _verovatnoca_uspeha = genome.get("snaga_predmeta_procent") if genome and not genome.get("greska") else None
 
     return {
         "tip":               "ANALIZA_PREDMETA",
         "predmet":           pred.get("naziv", ""),
         "procena":           result.get("procena", ""),
         "prednosti":         result.get("prednosti", []),
-        "slabosti":          result.get("slabosti", []),
+        "slabosti":          _slabosti,
         "nedostaju":         _genome_nedostaju if _genome_nedostaju else result.get("nedostaju", []),
         "sledeci_korak":     _sledeci_korak,
-        "verovatnoca_uspeha": result.get("verovatnoca_uspeha", 0),
+        "verovatnoca_uspeha": _verovatnoca_uspeha,
     }
 
 
@@ -544,15 +556,22 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         _sentry_capture(_pe)
         logger.warning("[COPILOT-PLAN] praksa greška: %s", _pe)
 
+    # Program Tau, Master Sprint 003 (2026-08-06): "kriticni_rokovi" and
+    # "upozorenja" removed from the schema below. AI_DECISION_SURFACE_MAP.md
+    # found real predmet_hronologija rows (urgentni/nadolazeci, computed
+    # above) were already fetched into context but the field RETURNED to the
+    # caller was GPT's own restatement, not the real rows -- and "upozorenja"
+    # overlapped Genome's own upozorenja[]/nedostaje[] domain with zero
+    # cross-check. Both now computed deterministically below (see the
+    # override block after the GPT call), reusing the same rows/Genome
+    # fields already in this function rather than asking GPT to re-derive them.
     _PLAN_SYSTEM = (
         "Ti si srpski pravni strateg. Na osnovu stanja predmeta kreiraj konkretan akcioni plan. "
         "Vrati ISKLJUČIVO JSON bez teksta van JSON-a:\n"
         '{"cilj": str,\n'
         ' "faze": [{"naziv": str, "trajanje": str, "koraci": [\n'
         '   {"korak": str, "prioritet": "hitan|normalan|odlozen", "rok": str, "alat": "dokument|sud|klijent|praksa|interno"}]}],\n'
-        ' "kriticni_rokovi": [{"naziv": str, "datum": str, "posledica_propustanja": str}],\n'
-        ' "nedostaje": [{"stavka": str, "hitnost": "visoka|srednja|niska"}],\n'
-        ' "upozorenja": [str]}\n'
+        ' "nedostaje": [{"stavka": str, "hitnost": "visoka|srednja|niska"}]}\n'
         "Maks 3 faze, maks 4 koraka po fazi. Ne koristi generičke fraze — budi konkretan za ovaj predmet."
     )
 
@@ -619,9 +638,32 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     # Genome-blind, independently-generated GPT list (the 3rd of 3 competing
     # "what's missing" generators found this sprint). Fallback to GPT's own
     # result only when Genome hasn't run yet for this case.
-    from shared.gap_engine import missing_evidence_plan_items
+    from shared.gap_engine import missing_evidence_plan_items, gaps_from_contradictions, gaps_from_genome_nedostaje
     genome_pred = (pred.get("case_dna") or {}) if pred else {}
     _genome_nedostaje = missing_evidence_plan_items(genome_pred, limit=6)
+
+    # "kriticni_rokovi" -- was GPT's own restatement of rows already fetched
+    # above (urgentni/nadolazeci, both from predmet_hronologija). Now the real
+    # rows themselves, formatted, not a GPT paraphrase of them.
+    _rok_rows, _seen_dogadjaj = [], set()
+    for h in (urgentni + nadolazeci):
+        key = (h.get("dogadjaj"), h.get("datum_iso"))
+        if key in _seen_dogadjaj:
+            continue
+        _seen_dogadjaj.add(key)
+        _rok_rows.append({
+            "naziv": h.get("dogadjaj") or "Rok",
+            "datum": h.get("datum_iso") or "",
+            "posledica_propustanja": "Kritičan rok -- moguć gubitak prava/roka." if h.get("vaznost") == "kritičan" else "",
+        })
+    _kriticni_rokovi = _rok_rows[:5]
+
+    # "upozorenja" -- was GPT-invented, overlapping Genome's own
+    # upozorenja[]/nedostaje[]/kontradikcije[] domain with zero cross-check.
+    # Same Genome-derived treatment as _handle_analiza_predmeta's own
+    # "slabosti" fix above.
+    _upozorenja_gaps = gaps_from_contradictions(genome_pred) + gaps_from_genome_nedostaje(genome_pred)
+    _upozorenja = [g["razlog"] for g in _upozorenja_gaps[:4] if g.get("razlog")]
 
     return {
         "tip":              "PLAN",
@@ -629,9 +671,9 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         "alati_koristeni":  ["rokovi", "sudska_praksa_vks", "strategija"],
         "cilj":             result.get("cilj", ""),
         "faze":             result.get("faze", []),
-        "kriticni_rokovi":  result.get("kriticni_rokovi", []),
+        "kriticni_rokovi":  _kriticni_rokovi,
         "nedostaje":        _genome_nedostaje if _genome_nedostaje else result.get("nedostaje", []),
-        "upozorenja":       result.get("upozorenja", []),
+        "upozorenja":       _upozorenja,
     }
 
 

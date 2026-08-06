@@ -51,7 +51,18 @@ async def _pozovi_briefing_api(client, context_text: str):
 
 # ─── Prompt ───────────────────────────────────────────────────────────────────
 
-_BRIEFING_SYSTEM = """Ti si pravni AI asistent koji sintetizuje informacije iz vise izvora u jednu jasnu preporuku.
+# Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision Boundary".
+# Phase 1's own AI_DECISION_SURFACE_MAP.md found sledeci_korak/razlog/hitnost/
+# kljucni_rizici/napomena/pouzdanost_briefinga were either GPT-invented outright
+# or only conditionally overridden (falling through to GPT's own guess when
+# case_actions had nothing open -- exactly the "GPT may never redefine" gap
+# this sprint exists to close). All 6 are now computed deterministically in
+# case_intelligence_briefing() below, from case_actions/case_context, never
+# from GPT -- so they're removed from what GPT is even asked to produce.
+# relevantne_lekcije/komunikacioni_savet/potvrdjeni_obrasci stay: genuine
+# narrative synthesis over real fetched rows, no canonical decision they'd
+# compete with (see docs/tau/DECISION_OWNERSHIP_MATRIX.md).
+_BRIEFING_SYSTEM = """Ti si pravni AI asistent koji sintetizuje informacije iz vise izvora u kratke, korisne uvide za advokata.
 
 Data ti je analiza predmeta iz sledecih sistema:
 - Lekcije iz slicnih predmeta (Lessons Learned)
@@ -59,22 +70,16 @@ Data ti je analiza predmeta iz sledecih sistema:
 - Knowledge profili relevantnih oblasti
 - Komunikacioni profil klijenta
 - Obrasci iz slicnih predmeta (Case Patterns)
-- Aktivni alertovi i rizici
-- Istorija odluka na predmetu (Decision Log)
 
-Sintetizuj u JEDINSTVEN briefing. Budi hirurski precizan.
+NE odlucuj sledeci korak, prioritet, hitnost, kljucne rizike niti pouzdanost -- to racuna sistem iz
+case_actions/Genome/Gap Engine i dodaje se posle tvog odgovora. Tvoj posao je iskljucivo sinteza NARATIVNOG
+uvida iz podataka ispod.
 
 Vrati JSON:
 {
-  "sledeci_korak": "<JEDNA najhitnija konkretna akcija>",
-  "razlog": "<zasto je bas ova akcija prioritetna>",
-  "kljucni_rizici": ["<rizik1>", "<rizik2>"],
   "relevantne_lekcije": ["<lekcija1 iz slicnih predmeta>"],
   "komunikacioni_savet": "<kako pristupiti klijentu na osnovu profila>",
-  "potvrdjeni_obrasci": ["<pattern koji je relevantan>"],
-  "hitnost": "<odmah | ovu_nedelju | ovaj_mesec>",
-  "pouzdanost_briefinga": "<visoka | srednja | niska>",
-  "napomena": "<sta nedostaje ili nije moglo biti analizirano>"
+  "potvrdjeni_obrasci": ["<pattern koji je relevantan>"]
 }
 
 Samo JSON. Srpski jezik. Budi konkretan, bez filozofisanja."""
@@ -417,36 +422,61 @@ async def case_intelligence_briefing(request: Request, predmet_id: str, user=Dep
 
         briefing = json.loads(resp.choices[0].message.content)
 
-        # Program Sigma, Master Sprint 004 (2026-08-06) — Forensic Discovery
-        # finding, fixed immediately: "sledeci_korak"/"hitnost" above were an
-        # INDEPENDENT GPT-generated "most urgent action" + urgency tier,
-        # entirely disconnected from case_actions (the platform's own
-        # canonical, deterministic action-tracking table, migration 099) —
-        # exactly the "Copilot verzija / Strategy verzija / Case Commander
-        # verzija" duplication this sprint's own Phase 2 forbids. Overridden
-        # here with shared/case_readiness.py::top_open_action's own reading
-        # of case_actions — the SAME source Workspace already treats as
-        # canonical — whenever one exists; the GPT's own "kljucni_rizici"/
-        # "relevantne_lekcije"/"komunikacioni_savet"/"potvrdjeni_obrasci"
-        # fields are untouched (legitimately GPT-synthesized narrative/
-        # pattern-matching content, not a competing action source).
-        try:
-            from shared.case_readiness import top_open_action
-            _oa_r = await asyncio.to_thread(
-                lambda: supa.table("case_actions").select("razlog,prioritet,rok,dedupe_key,status")
-                    .eq("predmet_id", predmet_id).eq("status", "open").execute()
-            )
-            _top = top_open_action(_oa_r.data or [])
-            if _top:
-                _HITNOST_BY_PRIORITET = {
-                    "critical": "odmah", "high": "ovu_nedelju",
-                    "medium": "ovaj_mesec", "low": "ovaj_mesec", "informational": "ovaj_mesec",
-                }
-                briefing["sledeci_korak"] = _top.get("razlog") or briefing.get("sledeci_korak", "")
-                briefing["razlog"] = "Najviši prioritet u Case Actions (case_actions.dedupe_key=%s)." % (_top.get("dedupe_key") or "?")
-                briefing["hitnost"] = _HITNOST_BY_PRIORITET.get(_top.get("prioritet"), briefing.get("hitnost"))
-        except Exception as _cae:
-            logger.warning("[CASE_INTELLIGENCE] case_actions top-action override neuspešan (nastavlja sa GPT-ovom sopstvenom): %s", _cae)
+        # Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
+        # Boundary". AI_DECISION_SURFACE_MAP.md found Sigma 004's own fix below
+        # was CONDITIONAL -- when case_actions had nothing open, GPT's own raw
+        # guess (still asked for at the time) survived untouched. This sprint's
+        # own rule ("GPT may never redefine") makes that fallback itself the
+        # violation, so all 6 fields (sledeci_korak/razlog/hitnost/
+        # kljucni_rizici/napomena/pouzdanost_briefinga) are now computed here
+        # UNCONDITIONALLY -- GPT is no longer even asked for them (see
+        # _BRIEFING_SYSTEM above), so there is no GPT guess left to fall back
+        # to. An honest "nothing open" state replaces silent GPT invention.
+        case_context = data.get("case_context") or {}
+        _raw_actions = ((case_context.get("active_actions") or {}).get("value")) or []
+        from shared.case_readiness import top_open_action
+        _top = top_open_action(_raw_actions)
+        _HITNOST_BY_PRIORITET = {
+            "critical": "odmah", "high": "ovu_nedelju",
+            "medium": "ovaj_mesec", "low": "ovaj_mesec", "informational": "ovaj_mesec",
+        }
+        if _top:
+            briefing["sledeci_korak"] = _top.get("razlog") or ""
+            briefing["razlog"] = "Najviši prioritet u Case Actions (case_actions.dedupe_key=%s)." % (_top.get("dedupe_key") or "?")
+            briefing["hitnost"] = _HITNOST_BY_PRIORITET.get(_top.get("prioritet"), "ovaj_mesec")
+        else:
+            briefing["sledeci_korak"] = "Nema otvorenih akcija u Case Actions za ovaj predmet."
+            briefing["razlog"] = "Case Actions ne prati trenutno nijednu otvorenu stavku za ovaj predmet."
+            briefing["hitnost"] = "ovaj_mesec"
+
+        # kljucni_rizici -- was pure GPT invention with zero cross-check.
+        # Now sourced from case_context's own missing_evidence/contradictions
+        # (shared/gap_engine.py, reused not reinvented), capped to 4.
+        _missing = ((case_context.get("missing_evidence") or {}).get("value")) or []
+        _contra = ((case_context.get("contradictions") or {}).get("value")) or []
+        briefing["kljucni_rizici"] = [g.get("razlog") for g in (_contra + _missing)[:4] if g.get("razlog")]
+
+        # napomena -- was GPT's own free guess at "what's missing/couldn't be
+        # analyzed," overlapping Gap Engine's own domain. Now a deterministic
+        # completeness statement derived from case_context's own audit_metadata.
+        _genome_computed = ((case_context.get("audit_metadata") or {}).get("value") or {}).get("genome_computed")
+        if _genome_computed is False:
+            briefing["napomena"] = "Case Genome još nije izračunat za ovaj predmet -- procena je zasnovana samo na dostupnim beleškama/lekcijama."
+        elif not briefing["kljucni_rizici"]:
+            briefing["napomena"] = "Nema evidentiranih rizika ili nedostajućih dokaza za ovaj predmet."
+        else:
+            briefing["napomena"] = ""
+
+        # pouzdanost_briefinga -- was GPT self-declaring its OWN confidence, a
+        # structural violation (confidence must be assigned, not self-reported).
+        # Deterministic: "visoka" only when both Genome ran AND a real open
+        # action was found to anchor sledeci_korak in something canonical.
+        if _genome_computed and _top:
+            briefing["pouzdanost_briefinga"] = "visoka"
+        elif _genome_computed or _top:
+            briefing["pouzdanost_briefinga"] = "srednja"
+        else:
+            briefing["pouzdanost_briefinga"] = "niska"
 
         # Snimi u decision_log kao poseban tip
         try:
@@ -480,6 +510,29 @@ async def case_intelligence_briefing(request: Request, predmet_id: str, user=Dep
                 "odluka_na_predmetu": len(data["odluke"]),
                 "knowledge_profila": len(data["knowledge_profili"]),
                 "komunikacioni_profil_dostupan": bool(data["komunikacioni_profil"]),
+                # Frontend (index.html:1613) has always read izvori.pouzdanost_briefinga
+                # for the AI Briefing panel's own confidence badge -- the backend
+                # only ever wrote it into `briefing`, so that badge never populated.
+                # Fixed as a byproduct of this sprint's own switch to a
+                # deterministically-computed value: written to both places now,
+                # `briefing` for backward compatibility, `izvori` to actually
+                # match what the UI reads.
+                "pouzdanost_briefinga": briefing["pouzdanost_briefinga"],
+            },
+            # Program Tau, Master Sprint 003 -- non-breaking addition (existing
+            # `briefing`/`izvori` field names/shapes untouched, since both have
+            # live frontend consumers -- see docs/tau/AI_DECISION_SURFACE_MAP.md's
+            # own live-caller correction). Documents WHO owns each of the fields
+            # this sprint moved off raw GPT output, without requiring any
+            # frontend change to consume it.
+            "_ai_provenance": {
+                "sledeci_korak": {"owner": "case_actions" if _top else "human", "source": "shared.case_readiness.top_open_action", "generated_by": "deterministic"},
+                "kljucni_rizici": {"owner": "gap_engine", "source": "shared.case_context.build_case_context (missing_evidence + contradictions)", "generated_by": "deterministic"},
+                "napomena": {"owner": "genome", "source": "case_context.audit_metadata.genome_computed", "generated_by": "deterministic"},
+                "pouzdanost_briefinga": {"owner": "human", "source": "data-completeness heuristic (genome_computed + top_open_action presence)", "generated_by": "deterministic"},
+                "relevantne_lekcije": {"owner": "gpt_advisory", "source": "lessons_learned rows", "generated_by": "gpt-4o"},
+                "komunikacioni_savet": {"owner": "gpt_advisory", "source": None, "generated_by": "gpt-4o"},
+                "potvrdjeni_obrasci": {"owner": "gpt_advisory", "source": "case_patterns rows", "generated_by": "gpt-4o"},
             },
         }
 

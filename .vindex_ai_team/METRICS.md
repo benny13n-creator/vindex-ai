@@ -1446,3 +1446,30 @@ no permanently invisible document (proven at 500/1000-doc scale), no parallel co
 migrated modules (delivered — Layer 4 reuses `cross_doc.py`'s own sampler, not a new one), deterministic/
 auditable/performance-controlled context (delivered and test-proven), all existing tests passing (zero
 regressions). Full detail: `docs/tau/TAU_MASTER_SPRINT_002_REPORT.md`.
+
+## Program Tau, Master Sprint 003 (2026-08-06) — Canonical AI Decision Boundary
+
+**Methodology note**: an initial single-source (`vindex.js`-only) live-caller grep produced a WRONG
+conclusion (case_intelligence.py endpoints looked dead) — corrected by checking `index.html`, this app's
+actual button-markup source, before any Phase 3 code change was made. Same lesson as every prior sprint's
+own re-verification finding in this program: check the actual current state, don't extrapolate from one
+file's own grep result.
+
+| Metric | Value |
+|---|---|
+| GPT decision-shaped fields found across 4 files | 13 (`case_intelligence.py` 2 + 2 meta-fields, `copilot.py` 5 across both handlers, `morning_briefing.py` 4 across 3 call sites) |
+| Fields migrated to unconditional canonical ownership | 10 (`sledeci_korak`/`razlog`/`hitnost` ×2 files, `kljucni_rizici`, `napomena`, `pouzdanost_briefinga`, `slabosti`, `verovatnoca_uspeha`, `kriticni_rokovi`, `upozorenja`) |
+| Free-text sections restructured to be GPT-proof | 3 (`morning_briefing.py`'s "Danas zahteva pažnju"/"Ključni rok"/"Preporuka za danas" — GPT reduced to a single opening sentence, structurally excluded from the decision-bearing content) |
+| Endpoints given honest provenance labeling (no canonical source exists to redirect to) | 9 (`strategija.py`, all endpoints, via `_advisory_provenance`) |
+| Live-caller status corrected before implementation | 3 of 4 files (`case_intelligence.py`, `copilot.py`, `strategija.py` all found LIVE, not dead as an initial single-file grep suggested) |
+| Adversarial poisoned-response tests (Phase 4) | 4 dedicated (fake risk/confidence, fake action injection, fake priority ranking, Genome-derived weakness proof) |
+| New dedicated tests | 10 (6 new file + 3 + 1; plus 2 existing tests renamed/re-asserted for deliberately-changed behavior, not counted as new) |
+| Full suite | **2,838 passed, 1 skipped, 0 failed** (was 2,828 at end of Tau Master Sprint 002) — zero regressions confirmed directly |
+| Debt items closed / named | 2 closed (`TAU-002`, `TAU-003` for flagship call site) / 1 new (`TAU-010`) |
+
+**Success criteria**: the mission's own success criteria required every GPT response to carry owner/source/
+evidence/timestamp/confidence (delivered via additive provenance where live consumers require exact field
+preservation, via unconditional canonical computation where they don't), no GPT output changing business
+truth (proven adversarially, not asserted), no duplicated decision logic remaining for the fields this
+sprint scoped (delivered — every migrated field now reuses an existing canonical module, zero new detection
+algorithms), zero regressions (delivered). Full detail: `docs/tau/SPRINT_003_REPORT.md`.

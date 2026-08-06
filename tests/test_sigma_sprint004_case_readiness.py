@@ -211,15 +211,22 @@ async def test_briefing_overrides_gpt_next_action_with_case_actions_top_priority
 
 
 @pytest.mark.anyio
-async def test_briefing_falls_back_to_gpt_when_no_open_case_actions():
+async def test_briefing_states_no_open_action_instead_of_falling_back_to_gpt_program_tau_003():
+    """Supersedes this file's own prior test (same fixture, opposite
+    assertion): Program Tau, Master Sprint 003 (2026-08-06) found the
+    Sigma-004 override above was only CONDITIONAL -- GPT's own raw guess
+    survived whenever case_actions had nothing open, exactly the "GPT may
+    never redefine" gap Tau 003 exists to close. sledeci_korak/razlog/hitnost
+    are no longer even asked of GPT (see case_intelligence.py's own
+    _BRIEFING_SYSTEM) -- an honest "nothing open" statement now replaces the
+    old GPT fallback unconditionally."""
     from routers import case_intelligence as ci
 
     supa = _make_ci_supa(case_actions_data=[])
 
     with patch.object(ci, "_get_supa", return_value=supa), \
          patch.object(ci, "_pozovi_briefing_api", new=AsyncMock(return_value=_resp(json.dumps({
-             "sledeci_korak": "GPT-ova procena bez case_actions", "hitnost": "ovu_nedelju",
-             "razlog": "x", "pouzdanost_briefinga": "SREDNJA",
+             "relevantne_lekcije": [], "komunikacioni_savet": "", "potvrdjeni_obrasci": [],
          })))), \
          patch.object(ci.UsageService, "consume", new=AsyncMock()), \
          patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test"}):
@@ -227,8 +234,8 @@ async def test_briefing_falls_back_to_gpt_when_no_open_case_actions():
             _req(), "predmet-1", user={"user_id": "u1", "email": "a@b.com"},
         )
 
-    assert result["briefing"]["sledeci_korak"] == "GPT-ova procena bez case_actions"
-    assert result["briefing"]["hitnost"] == "ovu_nedelju"
+    assert result["briefing"]["sledeci_korak"] == "Nema otvorenih akcija u Case Actions za ovaj predmet."
+    assert result["briefing"]["hitnost"] == "ovaj_mesec"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -287,16 +294,17 @@ async def test_analiza_predmeta_overrides_sledeci_korak_with_case_actions_top_pr
 
 
 @pytest.mark.anyio
-async def test_analiza_predmeta_falls_back_to_gpt_sledeci_korak_when_no_open_actions():
+async def test_analiza_predmeta_states_no_open_action_instead_of_falling_back_to_gpt_program_tau_003():
+    """Supersedes this file's own prior test (same fixture, opposite
+    assertion): Program Tau, Master Sprint 003 (2026-08-06) found the Sigma-004
+    override below was only CONDITIONAL -- GPT's own raw sledeci_korak guess
+    survived whenever case_actions had nothing open. Now unconditional; an
+    honest "nothing open" statement replaces the GPT fallback."""
     from routers.copilot import _handle_analiza_predmeta
 
     predmet = {"naziv": "Test predmet", "opis": "Opis", "tip": "radno", "status": "aktivan", "case_dna": None}
     supa = _make_copilot_supa(predmet, case_actions_data=[])
-    gpt_payload = {
-        "procena": "x", "prednosti": [], "slabosti": [], "nedostaju": [],
-        "sledeci_korak": {"opis": "GPT-ova procena bez case_actions", "rok": "", "prioritet": "normalan"},
-        "verovatnoca_uspeha": 50,
-    }
+    gpt_payload = {"procena": "x", "prednosti": []}
 
     async def _fake_call(oai, **kwargs):
         return _fake_gpt_response(gpt_payload)
@@ -305,4 +313,4 @@ async def test_analiza_predmeta_falls_back_to_gpt_sledeci_korak_when_no_open_act
          patch("routers.copilot._pozovi_gpt4o_mini", new=_fake_call):
         result = await _handle_analiza_predmeta("Šanse?", "pred-1", "user-1")
 
-    assert result["sledeci_korak"]["opis"] == "GPT-ova procena bez case_actions"
+    assert result["sledeci_korak"]["opis"] == "Nema otvorenih akcija u Case Actions za ovaj predmet."

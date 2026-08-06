@@ -39,6 +39,8 @@ from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.case_context import build_case_context
+from shared.case_readiness import top_open_action
+from shared.attention_priority import canonical_sort_key
 
 logger = logging.getLogger("vindex.morning_briefing")
 router = APIRouter(tags=["morning-briefing"])
@@ -144,6 +146,12 @@ async def _generiši_briefing(uid: str, supa) -> dict:
     rocista_danas   = [r for r in rocista if str(r.get("datum", ""))[:10] == danas.isoformat()]
     rocista_sedmica = [r for r in rocista if str(r.get("datum", ""))[:10] != danas.isoformat()]
 
+    # Program Tau, Master Sprint 003 (2026-08-06): initialized here (not
+    # inside `if predmeti:` below) so it's always defined even for a
+    # zero-case user -- an honest empty list, not a NameError or a GPT guess
+    # filling the gap.
+    _kanonske_akcije = []
+
     # ── AI kontekst ────────────────────────────────────────────────────────────
     parts = []
     if rocista_danas:
@@ -190,6 +198,15 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             if isinstance(_r, Exception) or _r.get("error"):
                 continue
             _readiness_by_id[_p["id"]] = _r.get("readiness", {}).get("value", {})
+            _open_actions = ((_r.get("active_actions") or {}).get("value")) or []
+            _top = top_open_action(_open_actions)
+            if _top:
+                _kanonske_akcije.append({
+                    "predmet_naziv": _p.get("naziv", "Predmet"),
+                    "razlog": _top.get("razlog") or "",
+                    "prioritet": _top.get("prioritet"),
+                    "rok": _top.get("rok"),
+                })
 
         def _linija_predmeta(p: dict) -> str:
             base = f"- {p.get('naziv','Predmet')} | stranka: {p.get('stranka','N/A')}"
@@ -202,6 +219,18 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             f"AKTIVNI PREDMETI ({len(predmeti)}):\n" +
             "\n".join(_linija_predmeta(p) for p in _prikazani)
         )
+
+        # Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
+        # Boundary". AI_DECISION_SURFACE_MAP.md found "Danas zahteva pažnju"/
+        # "Preporuka za danas" were embedded in ONE unparsed GPT free-text
+        # completion with zero post-processing -- the readiness annotation
+        # Tau 002 added sat in the prompt as decoration, never enforced. This
+        # closes TAU-003: rank every case's own top open action by the same
+        # canonical order Sigma 005 uses across the whole platform
+        # (shared/attention_priority.py), take the top 4 -- GPT is told to
+        # PHRASE this exact list below, not decide it (see the narrowed
+        # prompt and the structural assembly after the GPT call).
+        _kanonske_akcije.sort(key=lambda a: (canonical_sort_key(a.get("prioritet")), a.get("rok") or "9999-99-99"))
     if rocista_sedmica:
         parts.append(
             f"ROČIŠTA OVE NEDELJE ({len(rocista_sedmica)}):\n" +
@@ -213,26 +242,49 @@ async def _generiši_briefing(uid: str, supa) -> dict:
 
     context = "\n\n".join(parts) if parts else "Nema hitnih stavki za danas."
 
+    # Program Tau, Master Sprint 003 (2026-08-06) -- "Canonical AI Decision
+    # Boundary", closes TAU-003. AI_DECISION_SURFACE_MAP.md found "Danas
+    # zahteva pažnju"/"Ključni rok"/"Preporuka za danas" were entirely
+    # GPT-invented, embedded in one unparsed free-text completion with zero
+    # post-processing. Built HERE, deterministically, from the same canonical
+    # sources every other migrated module in this program reads -- GPT is no
+    # longer asked to decide any of this, only to phrase ONE opening
+    # sentence. This is a structural fix (GPT's own output literally cannot
+    # reach these 3 sections), not a prompt-instruction request GPT could
+    # ignore.
+    if _kanonske_akcije:
+        _danas_zahteva_paznju = "\n".join(
+            f"- {a['predmet_naziv']}: {a['razlog']}" + (f" (rok: {a['rok']})" if a.get("rok") else "")
+            for a in _kanonske_akcije[:4]
+        )
+    else:
+        _danas_zahteva_paznju = "Nema otvorenih akcija u Case Actions ni za jedan predmet."
+
+    _kljucni_rok_kandidat = (rocista_danas[:1] or rokovi_hitni[:1] or rokovi_uskoro[:1] or [None])[0]
+    if _kljucni_rok_kandidat and _kljucni_rok_kandidat in rocista_danas:
+        _kljucni_rok = f"Ročište danas u {_kljucni_rok_kandidat.get('sud','N/A')} — {_kljucni_rok_kandidat.get('datum','')} {(_kljucni_rok_kandidat.get('vreme') or '')[:5]}. Pripremi se pre polaska."
+    elif _kljucni_rok_kandidat:
+        _kljucni_rok = f"{_kljucni_rok_kandidat.get('naziv','Rok')} — {_kljucni_rok_kandidat.get('datum','')}. Ne odlaži pripremu."
+    else:
+        _kljucni_rok = "Nema hitnih rokova u narednih 7 dana."
+
+    _preporuka_za_danas = (
+        f"{_kanonske_akcije[0]['predmet_naziv']}: {_kanonske_akcije[0]['razlog']}"
+        if _kanonske_akcije else
+        "Nema otvorene akcije sa najvišim prioritetom trenutno -- iskoristi vreme za pregled predmeta bez otvorenih obaveza."
+    )
+
     ai_prompt = f"""Ti si lični AI asistent advokata. Danas je {_danas_sr(danas)}.
 
-Na osnovu sledećih podataka iz sistema, napiši koncizan, profesionalan jutarnji briefing.
+Na osnovu sledećih podataka iz sistema, napiši JEDNU rečenicu za otvaranje jutarnjeg briefinga --
+kakav dan predstoji (mirno/zauzeto/kritično), na osnovu broja i prioriteta stavki ispod.
 
 {context}
 
-Napiši briefing u sledećem formatu:
+NAJVAŽNIJE: ne predlaži akcije, rokove niti preporuke -- to je već određeno od strane sistema i biće
+dodato posle tvog odgovora. Tvoj JEDINI zadatak je jedna rečenica tona/uvoda.
 
-**Dobro jutro.** [Jedna rečenica o tome kakav dan predstoji — mirno/zauzeto/kritično]
-
-**Danas zahteva pažnju:**
-[Lista 2-4 konkretne akcije, sa jasnim prioritetima. Budi specifičan — ne generički.]
-
-**Ključni rok:**
-[Najbitniji rok ili ročište sa konkretnom preporukom šta uraditi]
-
-**Preporuka za danas:**
-[Jedna konkretna akcija koja bi imala najveći uticaj na predmete]
-
-Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. Ekavica."""
+Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Ekavica."""
 
     from openai import OpenAI
     from shared.ai_provenance import case_context as _ai_case_ctx
@@ -247,11 +299,22 @@ Budi direktan, koncizan, kao iskusan kolega koji te brifuje. Bez praznih reči. 
             oai,
             model="gpt-4o",
             messages=[{"role": "user", "content": ai_prompt}],
-            max_tokens=600,
+            max_tokens=100,
             temperature=0.4,
         )
 
-    ai_tekst = ai_resp.choices[0].message.content.strip()
+    _otvaranje = ai_resp.choices[0].message.content.strip().strip('"')
+
+    ai_tekst = f"""**Dobro jutro.** {_otvaranje}
+
+**Danas zahteva pažnju:**
+{_danas_zahteva_paznju}
+
+**Ključni rok:**
+{_kljucni_rok}
+
+**Preporuka za danas:**
+{_preporuka_za_danas}"""
 
     # Mission Ledger (2026-08-03) — Audit Link Completion: trajan audit trag,
     # correlation_id automatski nasleđen iz current request context (isti id
