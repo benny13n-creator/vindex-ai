@@ -985,6 +985,39 @@ async def _finalize_intake_job_core(
                 predmet_id, naziv = await _create_new_predmet_from_value_map(
                     uid, body, value_map, tip_labela, job, _new_case_number,
                 )
+                # Program Sigma, Master Sprint 001 (2026-08-06) — Forensic
+                # Discovery finding, fixed immediately: PREDMET_KREIRAN (and
+                # therefore the whole 9-step Case Pipeline — mini-strategy,
+                # HCC pre-briefing, risk snapshot, Copilot's opening
+                # recommendation, creation-event istorija entry) was, until
+                # this fix, emitted from EXACTLY ONE place repo-wide —
+                # api.py's own manual "+ Novi predmet" endpoint. A case
+                # created via Smart Intake (the mission's own primary
+                # scenario: 500 chaotic documents → one organized case)
+                # never received any of those 5 steps. `DOCUMENT_ACCEPTED`/
+                # `DOCUMENT_BATCH_COMPLETED` (already emitted elsewhere in
+                # this function) separately cover Genome/Timeline/
+                # case_actions — this closes the gap for what only
+                # PREDMET_KREIRAN's own case_pipeline ever produced.
+                # `skip_pipeline_steps: ["ekstrakcija_rokova"]` — see
+                # services/case_pipeline.py::_step_ekstrakcija_rokova's own
+                # docstring: that step extracts deadlines from the predmet's
+                # own free-text opis, a coarser, independently-written
+                # source that would risk a real near-duplicate entry in
+                # predmet_hronologija (no DB-enforced dedup on that table)
+                # against the document-level deadline this same finalize
+                # call already captured.
+                try:
+                    from services.event_bus import EventType, emit_durable
+                    await emit_durable(
+                        EventType.PREDMET_KREIRAN,
+                        uid, predmet_id,
+                        {"naziv": naziv, "tip": "opsti", "trigger": "smart_intake_finalize",
+                         "skip_pipeline_steps": ["ekstrakcija_rokova"]},
+                        supa=supa,
+                    )
+                except Exception as _pke:
+                    logger.warning("[SMART_INTAKE] PredmetKreiran durable event upis greška (nastavlja): %s", _pke)
 
     # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
     # Program Intake Sprint 007: skipped entirely on resume -- client linking

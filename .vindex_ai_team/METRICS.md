@@ -1229,3 +1229,35 @@ honestly NOT fully met — `proactive_alerts`, email/SMS's own independent caden
 own scan remain legitimately independent channels (by design, not oversight), and 5 new, real duplicate-
 risk gaps were found in the course of trying to break the architecture rather than confirm it. Full detail:
 `docs/omega/OMEGA_FINAL_SPRINT_007_REPORT.md`.
+
+## Program Sigma, Master Sprint 001 (2026-08-06) — Autonomous Legal Matter Construction Engine
+
+**Methodology note**: this sprint discovered that a near-identical mission ("Program Omega, Master Sprint
+001") had already run once under a different program name — the correct methodology, applied here, was to
+RE-VERIFY that prior work's own findings against current code (catching one already-stale deferred item)
+rather than either blindly trusting it or re-deriving everything from zero. Future sprints should check for
+this kind of naming/scope overlap before assuming a mission is genuinely new territory.
+
+| Metric | Value |
+|---|---|
+| Prior overlapping mission found and reconciled against | 1 ("Program Omega, Master Sprint 001", commit `abc59fd`) — 1 of its own deferred items found already stale |
+| Real, previously-unknown chain break found AND fixed | 1 — `PREDMET_KREIRAN` never emitted from Smart Intake, the platform's own dominant case-creation path (5 Case Pipeline steps never ran: mini-strategy, HCC briefing, risk snapshot, Copilot recommendation, creation history) |
+| Secondary bug found and fixed alongside it | 1 — Case Pipeline Step 1 falsely reported FAILED for every Smart-Intake case (legacy marker never written by the newer Genome-based analysis path) |
+| Duplication risk identified and designed around BEFORE implementing (not found as a bug after) | 1 — `ekstrakcija_rokova` deliberately excluded from the new wiring to avoid a near-duplicate `predmet_hronologija` entry |
+| New parameter added to existing orchestrator (not a new orchestrator) | `run_case_pipeline(..., skip_steps=...)` — additive, default-empty, zero behavior change for the pre-existing manual-creation caller |
+| New dedicated tests | 12 (6 net-new coverage, 6 fixed a pre-existing shared test-harness gap discovered as a byproduct of this sprint's own Step 1 fix) |
+| Full suite | **2,731 passed, 1 skipped, 0 failed** (was 2,725 at end of Program Omega Final Sprint 007) — zero regressions confirmed directly |
+| New debts found and named (not fixed, judged out of safe scope) | 4 (`SIGMA-001` silent client-link failure, `SIGMA-002` Genome contradiction-diff text-prefix matching, `SIGMA-003` document-processing failures not surfaced in case view, `SIGMA-004` no DB-enforced uniqueness for client/case-number/document-content matching) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: the mission's own explicit "every safely-fixable problem must be fixed now" bar was
+met for the one genuinely new chain break found — fixed, tested, zero regressions, with the one real
+duplication risk it could have introduced deliberately designed around rather than discovered later. The
+mission's own strict Definition of Done ("dokazano... bez gubitka podataka, bez dupliranja... za sve
+činjenice") is honestly NOT fully certified — 4 new debt items (TOCTOU races, a silent failure, a diff
+precision gap) remain, and no live 500-1000-document load test against real infrastructure was run (not
+available in this dev environment, a scope boundary inherited from this whole engagement's own established
+testing discipline, stated plainly rather than glossed over). Full detail:
+`docs/sigma/SIGMA_MASTER_SPRINT_001_REPORT.md`.

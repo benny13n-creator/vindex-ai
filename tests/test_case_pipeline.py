@@ -40,7 +40,7 @@ TOMORROW = (date.today() + timedelta(days=1)).isoformat()
 def _chain(data):
     c = MagicMock()
     for m in ['select','eq','neq','gte','lte','like','limit','order','single',
-              'insert','update','execute','is_','in_']:
+              'insert','update','execute','is_','in_','maybe_single']:
         setattr(c, m, MagicMock(return_value=c))
     r = MagicMock(); r.data = data
     c.execute = MagicMock(return_value=r)
@@ -209,6 +209,37 @@ async def test_step1_failed_docs_not_analyzed():
     assert result.status == StepStatus.FAILED
 
 
+@pytest.mark.anyio
+async def test_step1_success_via_genome_no_legacy_marker():
+    """Program Sigma, Master Sprint 001 (2026-08-06): a case created via
+    Smart Intake never writes the legacy [Auto-analiza] marker -- its own
+    Genome refresh (services/case_evolution.py) is the real evidence
+    documents were analyzed. Without this, every Smart-Intake case would
+    wrongly report this step FAILED."""
+    from services.case_pipeline import _step_analiza_dokumenata, StepStatus
+    supa = _supa_by_table(
+        predmet_dokumenti=[{"id": "d1", "naziv_fajla": "doc.pdf"}],
+        predmet_istorija=[],
+        predmeti={"case_dna": {"verzija": 3, "snaga_predmeta_procent": 60}},
+    )
+    result = await _step_analiza_dokumenata(supa, PID, UID)
+    assert result.status == StepStatus.SUCCESS
+
+
+@pytest.mark.anyio
+async def test_step1_failed_when_genome_row_has_no_case_dna():
+    """Negative control for the fix above -- a predmeti row existing with a
+    NULL case_dna must not be mistaken for 'analyzed'."""
+    from services.case_pipeline import _step_analiza_dokumenata, StepStatus
+    supa = _supa_by_table(
+        predmet_dokumenti=[{"id": "d1", "naziv_fajla": "doc.pdf"}],
+        predmet_istorija=[],
+        predmeti={"case_dna": None},
+    )
+    result = await _step_analiza_dokumenata(supa, PID, UID)
+    assert result.status == StepStatus.FAILED
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 4. _step_auto_linking
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -240,6 +271,25 @@ async def test_step3_skipped_short_opis():
     supa = _supa_by_table(predmet_istorija=[])
     result = await _step_ekstrakcija_rokova(supa, PID, UID, {"naziv": "x", "opis": ""})
     assert result.status == StepStatus.SKIPPED
+
+
+@pytest.mark.anyio
+async def test_step3_skip_true_never_calls_gpt_or_inserts():
+    """Program Sigma, Master Sprint 001 (2026-08-06): skip=True (passed for
+    Smart-Intake-created cases) must short-circuit before any GPT call or
+    predmet_hronologija insert -- avoids a real near-duplicate deadline
+    entry against the document-level deadline Smart Intake's own finalize
+    path already captured."""
+    from services.case_pipeline import _step_ekstrakcija_rokova, StepStatus
+    supa = _supa_by_table(predmet_istorija=[])
+    with patch("services.case_pipeline.AsyncOpenAI") as mock_oai:
+        result = await _step_ekstrakcija_rokova(
+            supa, PID, UID,
+            {"naziv": "Test predmet", "opis": "Rok za dostavljanje dokumentacije je " + TOMORROW},
+            skip=True,
+        )
+    assert result.status == StepStatus.SKIPPED
+    mock_oai.assert_not_called()
 
 
 @pytest.mark.anyio
@@ -608,6 +658,84 @@ async def test_pipeline_returns_pipeline_result():
     assert isinstance(result.case_ready_score, int)
     assert 0 <= result.case_ready_score <= 100
     assert isinstance(result.checklist, list)
+
+
+@pytest.mark.anyio
+async def test_pipeline_skip_steps_marks_ekstrakcija_rokova_skipped_and_no_gpt_call():
+    """Program Sigma, Master Sprint 001 (2026-08-06): skip_steps={"ekstrakcija_rokova"}
+    (what services/event_bus.py::on_predmet_kreiran forwards for Smart-Intake-
+    created cases) must reach _step_ekstrakcija_rokova and skip it end to end
+    through the real orchestrator, not just the unit-level step function."""
+    from services.case_pipeline import run_case_pipeline, StepStatus
+
+    predmet_row = {"naziv": "Test predmet", "opis": "Rok za dostavljanje je " + TOMORROW,
+                   "tip": "radni", "status": "aktivan"}
+    supa = MagicMock()
+    pred_resp = MagicMock(); pred_resp.data = predmet_row
+    empty_resp = MagicMock(); empty_resp.data = []
+
+    def _table(name):
+        c = MagicMock()
+        for m in ['select','eq','neq','gte','lte','like','limit','order',
+                  'single','insert','execute','is_','in_','maybe_single']:
+            setattr(c, m, MagicMock(return_value=c))
+        resp = pred_resp if name == "predmeti" else empty_resp
+        c.execute = MagicMock(return_value=resp)
+        return c
+
+    supa.table = MagicMock(side_effect=_table)
+    oai = _oai_mock('{"nivo":"nizak","faktori_plus":[],"faktori_minus":[]}')
+
+    with patch("services.case_pipeline._get_supa", return_value=supa), \
+         patch("services.case_pipeline.AsyncOpenAI", return_value=oai) as mock_oai_cls:
+        result = await run_case_pipeline(PID, UID, skip_steps=frozenset({"ekstrakcija_rokova"}))
+
+    step3 = next(s for s in result.steps if s.step == "ekstrakcija_rokova")
+    assert step3.status == StepStatus.SKIPPED
+    assert "Preskočeno" in step3.poruka
+    # Confirm no GPT call was made FOR THIS STEP specifically -- other steps
+    # (strategija/hcc/risk_snapshot) legitimately call the mocked client, so
+    # assert on the actual prompt content instead of a blanket "never called".
+    all_system_prompts = [
+        m.get("content", "")
+        for call in mock_oai_cls.return_value.chat.completions.create.await_args_list
+        for m in call.kwargs.get("messages", [])
+        if m.get("role") == "system"
+    ]
+    assert not any("Ekstrahuj datume" in p for p in all_system_prompts)
+
+
+@pytest.mark.anyio
+async def test_on_predmet_kreiran_forwards_skip_pipeline_steps_from_payload():
+    """Program Sigma, Master Sprint 001 (2026-08-06): services/event_bus.py::
+    on_predmet_kreiran must forward event.payload['skip_pipeline_steps'] to
+    run_case_pipeline unchanged -- this is the wire connecting
+    routers/smart_intake.py's own new PREDMET_KREIRAN emission to
+    case_pipeline.py's own skip_steps parameter."""
+    from services.event_bus import on_predmet_kreiran, Event, EventType
+
+    with patch("services.case_pipeline.run_case_pipeline", new=AsyncMock()) as mock_run:
+        event = Event(type=EventType.PREDMET_KREIRAN, user_id="u1", predmet_id="p1",
+                       payload={"naziv": "X", "skip_pipeline_steps": ["ekstrakcija_rokova"]},
+                       correlation_id="c1")
+        await on_predmet_kreiran(event)
+
+    mock_run.assert_awaited_once_with("p1", "u1", skip_steps=frozenset({"ekstrakcija_rokova"}))
+
+
+@pytest.mark.anyio
+async def test_on_predmet_kreiran_defaults_to_empty_skip_steps():
+    """The original '+ Novi predmet' manual-creation caller (api.py) never
+    sets skip_pipeline_steps -- must default to an empty set, unchanged
+    behavior (every step still runs)."""
+    from services.event_bus import on_predmet_kreiran, Event, EventType
+
+    with patch("services.case_pipeline.run_case_pipeline", new=AsyncMock()) as mock_run:
+        event = Event(type=EventType.PREDMET_KREIRAN, user_id="u1", predmet_id="p1",
+                       payload={"naziv": "X"}, correlation_id="c1")
+        await on_predmet_kreiran(event)
+
+    mock_run.assert_awaited_once_with("p1", "u1", skip_steps=frozenset())
 
 
 @pytest.mark.anyio

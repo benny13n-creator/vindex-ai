@@ -170,12 +170,20 @@ async def on_rok_kritican(event: Event) -> None:
 
 
 async def on_predmet_kreiran(event: Event) -> None:
-    """Triggeruje case pipeline kad je predmet kreiran."""
+    """Triggeruje case pipeline kad je predmet kreiran.
+
+    Program Sigma, Master Sprint 001 (2026-08-06): `event.payload["skip_pipeline_steps"]`
+    (optional list of step names) is forwarded to `run_case_pipeline` unchanged --
+    lets a caller opt individual pipeline steps out without this handler needing
+    to know WHY (e.g. routers/smart_intake.py's own new PREDMET_KREIRAN emission
+    passes `["ekstrakcija_rokova"]`, see case_pipeline.py::_step_ekstrakcija_rokova's
+    own docstring)."""
     try:
         if not event.predmet_id:
             return
         from services.case_pipeline import run_case_pipeline
-        await run_case_pipeline(event.predmet_id, event.user_id)
+        skip_steps = frozenset((event.payload or {}).get("skip_pipeline_steps") or ())
+        await run_case_pipeline(event.predmet_id, event.user_id, skip_steps=skip_steps)
         logger.info("[EventBus] on_predmet_kreiran: pipeline pokrenut za %s", event.predmet_id)
     except Exception as exc:
         logger.warning("[EventBus] on_predmet_kreiran greška: %s", exc)

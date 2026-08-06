@@ -160,9 +160,19 @@ async def _step_analiza_dokumenata(supa, predmet_id: str, user_id: str) -> StepR
     """
     STEP 1: Check for documents. If docs exist and were already analyzed during
     upload, SUCCESS. If no docs, SKIP. If docs exist without analysis, FAILED.
+
+    Program Sigma, Master Sprint 001 (2026-08-06): also accepts a populated
+    Genome (`predmeti.case_dna`) as evidence of analysis, not just the
+    legacy `[Auto-analiza]` istorija marker. Smart Intake's own document
+    pipeline (services/case_evolution.py::_consequence_genome_refresh, fired
+    from DOCUMENT_ACCEPTED/DOCUMENT_BATCH_COMPLETED) never writes that
+    marker -- without this, every Smart-Intake-created case would report
+    this step FAILED even though its documents genuinely were analyzed,
+    just through the newer Case Evolution path instead of the older wizard
+    flow this marker was written for.
     """
     try:
-        docs_r, ist_r = await asyncio.gather(
+        docs_r, ist_r, pred_r = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
                 .select("id,naziv_fajla")
                 .eq("predmet_id", predmet_id)
@@ -174,15 +184,22 @@ async def _step_analiza_dokumenata(supa, predmet_id: str, user_id: str) -> StepR
                 .like("pitanje", "[Auto-analiza]%")
                 .limit(1)
                 .execute()),
+            asyncio.to_thread(lambda: supa.table("predmeti")
+                .select("case_dna")
+                .eq("id", predmet_id)
+                .maybe_single()
+                .execute()),
             return_exceptions=True,
         )
         docs    = _safe_data(docs_r)
         analize = _safe_data(ist_r)
+        pred    = pred_r.data if not isinstance(pred_r, Exception) and pred_r else None
+        genome_present = bool(pred and pred.get("case_dna"))
 
         if not docs:
             return StepResult("analiza_dokumenata", StepStatus.SKIPPED,
                               "Nema uploadovanih dokumenata")
-        if analize:
+        if analize or genome_present:
             return StepResult("analiza_dokumenata", StepStatus.SUCCESS,
                               f"{len(docs)} dok. analizirano",
                               {"dokumenti": len(docs)})
@@ -217,11 +234,29 @@ async def _step_auto_linking(supa, predmet_id: str, user_id: str,
 
 
 async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
-                                    predmet: dict) -> StepResult:
+                                    predmet: dict, skip: bool = False) -> StepResult:
     """
     STEP 3: Extract deadlines/dates from predmet opis using GPT-4o-mini.
     Idempotent: skips if [Pipeline:rokovi] marker exists or opis is too short.
+
+    Program Sigma, Master Sprint 001 (2026-08-06): `skip=True` for cases
+    created via Smart Intake. This step extracts deadlines from the
+    predmet's own free-text `opis` -- a genuinely DIFFERENT, coarser source
+    than the document-level deadline Smart Intake's own finalize path
+    already captured (routers/smart_intake.py's own initial-deadline
+    write) and the finer-grained extraction Case Evolution's own
+    case_actions Rule 1 performs per document. `predmet_hronologija` has no
+    DB-enforced dedup (see NOTIFICATION_DEDUPLICATION_REPORT.md's own
+    established finding for this exact table) -- running this step
+    unconditionally for Smart-Intake cases would risk a real, foreseeable
+    near-duplicate deadline entry for the mission's own primary scenario.
+    Left ENABLED (default) for the original "+ Novi predmet" manual-creation
+    caller, where opis is the ONLY deadline source and this step provides
+    real, non-duplicative value.
     """
+    if skip:
+        return StepResult("ekstrakcija_rokova", StepStatus.SKIPPED,
+                          "Preskočeno -- rokovi već ekstraktovani iz dokumenata (Smart Intake)")
     try:
         ist_r = await asyncio.to_thread(lambda: supa.table("predmet_istorija")
             .select("pitanje")
@@ -671,10 +706,19 @@ async def _step_istorija(supa, predmet_id: str, user_id: str,
 
 # ─── Main orchestrator ────────────────────────────────────────────────────────
 
-async def run_case_pipeline(predmet_id: str, user_id: str) -> PipelineResult:
+async def run_case_pipeline(
+    predmet_id: str, user_id: str, skip_steps: frozenset[str] = frozenset(),
+) -> PipelineResult:
     """
     Runs all 9 pipeline steps. Fault-tolerant: one failure does not stop others.
     Returns PipelineResult with Case Ready Score and checklist.
+
+    `skip_steps`: Program Sigma, Master Sprint 001 (2026-08-06) -- a
+    caller-provided set of step names to skip entirely (SKIPPED status,
+    not run). Currently only `_step_ekstrakcija_rokova` honors it -- see
+    that step's own docstring for why Smart-Intake-created cases pass
+    `{"ekstrakcija_rokova"}` here (services/event_bus.py::on_predmet_kreiran
+    forwards `event.payload["skip_pipeline_steps"]`).
     """
     supa = _get_supa()
 
@@ -701,7 +745,8 @@ async def run_case_pipeline(predmet_id: str, user_id: str) -> PipelineResult:
 
     # Batch 2: Independent GPT calls — run in parallel (~4 concurrent OpenAI calls)
     step3, step5, step6, step7 = await asyncio.gather(
-        _step_ekstrakcija_rokova(supa, predmet_id, user_id, predmet),
+        _step_ekstrakcija_rokova(supa, predmet_id, user_id, predmet,
+                                  skip="ekstrakcija_rokova" in skip_steps),
         _step_strategija(supa, predmet_id, user_id, predmet),
         _step_hcc(supa, predmet_id, user_id, predmet),
         _step_risk_snapshot(supa, predmet_id, user_id, predmet),

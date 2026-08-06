@@ -1384,3 +1384,44 @@ duplication now resolved.
 `FORENSIC_CERTIFICATION_REPORT.md`, `OMEGA_FINAL_SPRINT_007_REPORT.md`. Updated
 `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-020` amended, `OMEGA-023` through `OMEGA-027`
 added).
+
+## Program Sigma, Master Sprint 001 (2026-08-06) — Autonomous Legal Matter Construction Engine
+
+First Program Sigma sprint. Charter: prove Vindex AI can autonomously build a complete, consistent,
+operationally-ready legal case from 500 unorganized uploaded documents — Chaos → Knowledge → Legal Matter
+→ Operational Readiness. 9 phases (forensic user journey, end-to-end pipeline, case construction
+completeness, autonomous enrichment, fact consistency, legal knowledge graph, operational readiness,
+extreme testing, forensic certification), same no-deferral mandate as Omega Sprint 007.
+
+**Reconciled against, not rebuilt from scratch**: a prior "Program Omega, Master Sprint 001" (2026-08-06,
+commit `abc59fd`) already ran nearly the same Phase 1/2 audit — this sprint re-verified its findings
+against current code (one of its own deferred items, `OMEGA-001`, was already stale — closed by a later
+sprint) rather than re-deriving from zero.
+
+**Headline finding and fix**: `EventType.PREDMET_KREIRAN` — and the entire 9-step Case Pipeline
+(`services/case_pipeline.py`: mini-strategy, HCC briefing, risk snapshot, Copilot recommendation, creation
+history, plus 3 read-only checks) — was emitted from exactly ONE place repo-wide (`api.py`'s own manual
+"+ Novi predmet" endpoint). The mission's own primary scenario (500-document Smart Intake upload → case
+auto-created) never received any of the 5 write-producing steps. Fixed: `routers/smart_intake.py` now
+emits `PREDMET_KREIRAN` exactly once per genuinely-new case (same durable-outbox pattern as
+`DOCUMENT_ACCEPTED`), passing a new `skip_pipeline_steps: ["ekstrakcija_rokova"]` to deliberately avoid a
+real near-duplicate-deadline risk in the un-deduplicated `predmet_hronologija` table. Also fixed:
+`_step_analiza_dokumenata` falsely reported FAILED for every Smart-Intake case (only recognized a legacy
+istorija marker Smart Intake never writes; now also accepts a populated Genome as evidence of analysis).
+
+**12 new tests** (`tests/test_case_pipeline.py`), 6 of them net-new coverage (the rest fixed a pre-existing
+test-harness gap — `_supa_by_table`'s own `maybe_single` chain support, needed by this sprint's own Step 1
+fix, found and fixed as a byproduct). Full suite: **2,731 passed, 1 skipped, 0 failed** (was 2,725 at end
+of Omega Sprint 007).
+
+**4 new debt items found via a literal Phase 9 "assume it's not ready, try to break it" pass**
+(`SIGMA-001` client-linking failure silently swallowed, `SIGMA-002` Genome contradiction diff matches by
+text prefix not stable identity, `SIGMA-003` document processing failures never reach the case-detail
+"what's missing" view, `SIGMA-004` no DB-enforced uniqueness for client/case-number/document-content
+matching — the same TOCTOU race class as `OMEGA-023`/`026`) — named, not fixed, each with reasoning for
+why a rushed fix was judged riskier than the gap itself.
+
+**6 required deliverables**: `docs/sigma/END_TO_END_PIPELINE.md`, `CASE_CONSTRUCTION_ENGINE.md`,
+`LEGAL_KNOWLEDGE_FLOW.md`, `AUTONOMOUS_CASE_BUILDING_SPEC.md`, `SYSTEM_GAP_REPORT.md`,
+`SIGMA_MASTER_SPRINT_001_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`SIGMA-001` through `SIGMA-004` added).

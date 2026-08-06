@@ -1782,3 +1782,83 @@ future event's rejection needs to undo an ALREADY-APPLIED consequence (not just 
 running), a real rollback mechanism would be needed then, not before.
 
 **Severity**: Low — named for future awareness, same reasoning as `DELTA-003`, no current need.
+
+---
+
+## Program Sigma, Master Sprint 001 (2026-08-06) — Autonomous Legal Matter Construction Engine
+
+Full narrative: `docs/sigma/SIGMA_MASTER_SPRINT_001_REPORT.md`, `END_TO_END_PIPELINE.md`,
+`CASE_CONSTRUCTION_ENGINE.md`, `LEGAL_KNOWLEDGE_FLOW.md`, `AUTONOMOUS_CASE_BUILDING_SPEC.md`,
+`SYSTEM_GAP_REPORT.md`. Fixes the mission's own primary-scenario chain break (`PREDMET_KREIRAN` never
+emitted from Smart Intake — the platform's own dominant case-creation path never triggered mini-strategy/
+HCC briefing/risk snapshot/Copilot recommendation/creation history); adds `SIGMA-001` through `SIGMA-004`.
+
+## SIGMA-001 — Client-linking failure during Smart Intake finalize is silently swallowed (Medium)
+
+`routers/smart_intake.py:1002-1058`'s own call to `shared/case_assimilation.py::resolve_client_ownership`
+is wrapped in a bare, non-fatal try/except (line 1059) — a case can be fully complete by every other
+measure (documents, Genome, deadlines, case_actions) with ZERO linked client and nothing anywhere flags
+this as a failure vs. "genuinely no client mentioned in the uploaded documents."
+
+**Why not fixed this sprint**: correctly surfacing this needs a product decision on WHERE/HOW to flag it —
+a new Dashboard warning, a Case Ready Score deduction, an automatic retry, or a manual "link client" nudge
+are all different UX choices with different implementation shapes, not a single mechanical fix.
+
+**Recommended direction**: a founder-level decision on the right surfacing mechanism, then a small,
+well-scoped follow-up.
+
+**Severity**: Medium — real, silent data-completeness gap for a field the mission's own Phase 3 explicitly
+requires, but not a data-loss or duplication bug.
+
+## SIGMA-002 — Genome's contradiction diff matches by text prefix, not stable identity (Medium)
+
+`routers/case_dna.py::_compute_delta` (lines 323-324) matches `kontradikcije` entries between Genome
+refreshes by `opis[:60]` string-prefix set membership. Since each refresh is a full fresh GPT extraction
+(not a diff of the model's own prior output), a semantically-identical contradiction phrased even slightly
+differently between 2 calls registers as a false "1 eliminated + 1 new" churn rather than "unchanged."
+
+**Why not fixed this sprint**: this is a live, GPT-facing extraction/diff contract — changing the matching
+strategy (e.g. embedding similarity, or requiring the model to echo a stable per-contradiction ID) is a
+real algorithm change requiring its own design and live-browser verification, out of a certification
+sprint's own safe scope.
+
+**Severity**: Medium — affects alert accuracy (`_delta_significant`'s own gating) for the mission's own
+"Dodati dokument koji ruši prethodnu tvrdnju → Kontradikcija registrovana" scenario; the registration
+mechanism itself works, its precision across repeated calls is what's bounded.
+
+## SIGMA-003 — Document processing failures during finalize never reach the case-detail "what's missing" view (Low-Medium)
+
+`routers/smart_intake.py:1150-1167`'s own whole-job decrypt/extract failure fails soft, producing a
+per-document `povezan: false, razlog: "prazan_tekst"` entry ONLY in the finalize HTTP response itself — not
+surfaced anywhere in `GET /api/matter-intel`'s own "what's missing" payload a lawyer sees when later
+opening the case.
+
+**Why not fixed this sprint**: needs a new persisted "processing failures" field/query on the case, a real
+(if small) feature addition rather than a wiring connection.
+
+**Severity**: Low-Medium — a lawyer who doesn't watch the upload response closely has no later way to
+discover a specific document silently failed to process, directly relevant to the mission's own Phase 7
+"šta nedostaje" requirement.
+
+## SIGMA-004 — No DB-enforced uniqueness for client/case-number/document-content matching during intake (Medium)
+
+Confirmed via migration grep: zero unique indexes on `klijenti(user_id, ime, prezime)`,
+`predmeti(user_id, broj_predmeta)`, or `predmet_dokumenti(user_id, content_sha256)` —
+`migrations/095_intake_bulletproofing.sql:26-28` creates a non-unique index for the last one. All 3
+"find-or-create" mechanisms (`shared/case_assimilation.py`, `routers/smart_intake.py`'s own content-hash
+check) are SELECT-then-INSERT application logic — the same TOCTOU race class this program has now found
+repeatedly (`OMEGA-023`, `OMEGA-026`). Two truly concurrent finalize requests (e.g. 2 browser tabs) racing
+on the same new client/case-number/document content could each pass their own check and both insert.
+
+**Why not fixed this sprint**: each of the 3 tables needs its own schema review — `predmet_dokumenti` needs
+`deleted_at`-scoping and cross-case-review-path interaction confirmed first; `klijenti`/`predmeti`
+uniqueness needs product scoping decisions (case-insensitive matching? per-user only, or per-firm?) that
+aren't mechanical. A single batch-upload request (up to 500-1000 documents) is NOT exposed to this race —
+`finalize_intake_jobs_batch` calls `_finalize_intake_job_core` sequentially per job — only genuinely
+separate, concurrent requests are.
+
+**Recommended direction**: a dedicated future sprint, one migration + scoping decision per table, following
+the now-twice-proven `dedupe_key` + partial UNIQUE index pattern (migrations 099/101).
+
+**Severity**: Medium — real gap, bounded exposure (requires genuinely concurrent separate requests, not a
+single large batch), same severity class as `OMEGA-023`/`026`.
