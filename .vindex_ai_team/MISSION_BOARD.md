@@ -1467,3 +1467,42 @@ recommending a dedicated small cleanup sprint.
 `CANONICAL_FACT_ENGINE.md`, `CONTRADICTION_ENGINE_SPECIFICATION.md`, `TIMELINE_FORENSIC_REPORT.md`,
 `SIGMA_MASTER_SPRINT_002_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`SIGMA-002` closed, `SIGMA-005` through `SIGMA-011` added).
+
+## Program Sigma, Master Sprint 003 (2026-08-06) — Legal Gap & Missing Evidence Engine
+
+Third Program Sigma sprint. Charter: prove the platform can automatically recognize missing documents/
+evidence/procedural-actions/deadlines, broken event chains, inconsistent facts, and unconfirmed claims —
+shown as verifiable hypotheses, never asserted as fact — through one canonical mechanism, no parallel
+algorithms or per-module heuristics.
+
+**2 parallel forensic forks**: a repo-wide audit of every existing "missing X" reporting mechanism (found
+the mission's own clearest, most concrete violation — 3 independent GPT "missing evidence" generators, not
+just the expected 1), and a document-expectation/chain-completeness/hypothesis-status current-state audit
+(confirmed Phase 3/4's own concepts are genuinely unbuilt today; found a strong existing precedent for
+Phase 5's own status lifecycle in `lessons_learned.status_lekcije`, migration 039).
+
+**Headline fix**: `shared/gap_engine.py` (new) — ONE canonical aggregation point normalizing 3 already-
+existing sources (`identify_case_problems` deterministic findings, Genome's own `nedostaje[]`, Genome's own
+`kontradikcije[]`) into one Gap record shape (tip/izvor/razlog/pouzdanost/očekivano/pronađeno/zašto/
+hipoteza) — no new detection algorithm, pure normalization. Used to fix the live bug: `routers/copilot.py`
+had 2 fully independent GPT calls each generating their own "what's missing" list — one (`_handle_plan_predmeta`)
+with ZERO Genome awareness at all. Both now read Genome's own canonical list via the new module, matching
+`routers/case_intelligence.py`'s own AI Briefing (already correctly doing this).
+
+**A self-found and self-fixed duplication**: applying this sprint's own Phase 7 certification standard to
+its own new code (not just pre-existing code) found `shared/gap_engine.py`'s own first draft had
+independently re-derived the same text-classification cascade `services/case_evolution.py`'s own Rule 2
+already used — fixed in the same sprint by extracting one shared `classify_case_problem` function, a pure
+refactor proven zero-behavior-change by the full pre-existing `case_actions` test suite passing unchanged.
+
+**14 new tests**. Full suite: **2,759 passed, 1 skipped, 0 failed** (was 2,745 at end of Sigma Master Sprint
+002) — zero regressions. **6 new debt
+items** (`SIGMA-012` through `SIGMA-017`) — Legal Reasoning Engine's own discarded signal deliberately not
+wired (respects an explicit founder Phase 0 boundary), document-expectation and chain-completeness
+reasoning both confirmed genuinely unbuilt (real future work, not wiring gaps), a full hypothesis-status
+lifecycle designed but not implemented (depends on a stable-identity prerequisite).
+
+**6 required deliverables**: `docs/sigma/GAP_ENGINE_REGISTRY.md`, `DOCUMENT_EXPECTATION_ENGINE.md`,
+`CHAIN_COMPLETENESS_SPECIFICATION.md`, `LEGAL_HYPOTHESIS_ENGINE.md`, `FORENSIC_GAP_CERTIFICATION.md`,
+`SIGMA_MASTER_SPRINT_003_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`SIGMA-012` through `SIGMA-017` added).

@@ -1294,3 +1294,34 @@ Definition of Done ("jedinstvena vremenska linija... činjenice sledljive do izv
 honestly NOT fully met — evidence-to-timeline linkage and timeline revision semantics remain real,
 substantial gaps requiring new algorithmic work or product decisions, not mechanical fixes. Full detail:
 `docs/sigma/SIGMA_MASTER_SPRINT_002_REPORT.md`.
+
+## Program Sigma, Master Sprint 003 (2026-08-06) — Legal Gap & Missing Evidence Engine
+
+**Methodology note**: this sprint's own most instructive moment was applying its own Phase 7 forensic-
+certification standard to code IT ITSELF wrote earlier in the same sprint, not just to pre-existing code —
+finding and fixing a duplicate classification cascade its own new `shared/gap_engine.py` had introduced.
+Worth repeating as a standing practice: forensic certification of "did we just violate our own principle"
+should include the current sprint's own new code, not only the inherited codebase.
+
+| Metric | Value |
+|---|---|
+| Independent "missing evidence" generators confirmed | 3 (Genome's own `nedostaje[]` + 2 fully independent GPT calls inside `routers/copilot.py`, one with zero Genome awareness at all) |
+| New canonical shared module | 1 (`shared/gap_engine.py`) — normalizes 3 existing sources into 1 Gap record shape, invents no new detection algorithm |
+| Real, live bug found and fixed | Both `routers/copilot.py` handlers now read Genome's own canonical missing-evidence list instead of independently re-deriving |
+| Self-introduced duplication found and fixed in the same sprint | `gap_engine.py`'s own first-draft text-classification cascade duplicated `case_evolution.py`'s own Rule 2 — extracted to 1 shared `classify_case_problem` function, zero-behavior-change refactor (full pre-existing `case_actions` suite re-run unchanged) |
+| Existing precedent found for Phase 5's own status lifecycle | `lessons_learned.status_lekcije` (migration 039) — status + separate confidence + confirmer identity, already proven, not built from scratch |
+| New dedicated tests | 14, all in 1 new file |
+| Full suite | **2,759 passed, 1 skipped, 0 failed** (was 2,745 at end of Sigma Master Sprint 002) — zero regressions confirmed directly |
+| New debts found and named (not fixed, judged out of safe scope) | 6 — `SIGMA-012` (Legal Reasoning Engine signal, respects an explicit founder Phase 0 boundary), `SIGMA-013` (document-to-document expectation reasoning unbuilt), `SIGMA-014` (chain-completeness pairing checks unbuilt), `SIGMA-015` (Genome nedostaje[] has no stable identity), `SIGMA-016` (no persisted hypothesis-status lifecycle), `SIGMA-017` (no unified gap read endpoint) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega/prior-Sigma sprint before it.
+
+**Success criteria**: the mission's own explicit "svaki popravljivi problem... mora biti otklonjen" bar was
+met for the one concrete, live bug found (3 generators → 1) AND for a duplication this sprint introduced
+into its own new code, closed in the same sprint rather than left for a future one. The mission's own strict
+Definition of Done ("nedostajući elementi... sledljiv do konkretnih dokaza i pravila... prikazuje kao
+proverljiva hipoteza") is honestly NOT fully met — document-to-document expectation reasoning and chain-
+completeness checking (the mission's own headline "punomoćje nedostaje"/"nema dokaza o uručenju" worked
+examples) remain genuinely unbuilt, correctly not rushed given their real false-positive stakes for a legal
+product. Full detail: `docs/sigma/SIGMA_MASTER_SPRINT_003_REPORT.md`.

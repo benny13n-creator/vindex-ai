@@ -604,33 +604,46 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # Rule 2/4/5 -- Core Consolidation's own canonical problem list, mapped
     # to stable per-category keys (not per-count) so a changing count
     # UPDATES the existing action instead of closing+reopening it.
+    #
+    # Program Sigma, Master Sprint 003 (2026-08-06): the text->category
+    # classification below now calls shared/gap_engine.py::classify_case_problem
+    # -- the SAME classifier shared/gap_engine.py::gaps_from_case_problems
+    # uses. Previously this cascade was duplicated, independently, in both
+    # places (this function's own if/elif chain, and a near-identical one
+    # this sprint's own new gap_engine.py first introduced) -- a real,
+    # self-found violation of this program's own "no parallel algorithms"
+    # principle, fixed the same sprint it was introduced rather than left as
+    # a new debt item.
+    from shared.gap_engine import classify_case_problem, GAP_TIP_KRITICAN_ROK
     for p in problemi:
         text = p.get("problem") or ""
-        ozbiljnost = p.get("ozbiljnost")
-        if "kritičan rok" in text:
-            continue  # already covered, per-rociste, by Rule 1 above -- avoid a duplicate, less precise signal
-        if text.startswith("Nema uploadovanih dokaza"):
+        if not text:
+            continue
+        gap_tip = classify_case_problem(text)
+        if gap_tip is None or gap_tip == GAP_TIP_KRITICAN_ROK:
+            continue  # unrecognized text, or already covered per-rociste by Rule 1 above -- same silent-skip as before this refactor
+        if gap_tip == "NEMA_DOKAZA":
             actions.append({
                 "tip": "PRIBAVITI_DOKAZ", "razlog": text,
                 "dokaz": {"izvor": "identify_case_problems", "problem": text},
                 "prioritet": "critical", "rok": None,
                 "dedupe_key": _stable_key("problem", "nema_dokaza"),
             })
-        elif text.startswith("Nedostaje "):
+        elif gap_tip == "NEDOSTAJE_DOKUMENT":
             actions.append({
                 "tip": "PRIBAVITI_DOKAZ", "razlog": text,
                 "dokaz": {"izvor": "identify_case_problems", "problem": text},
                 "prioritet": "high", "rok": None,
                 "dedupe_key": _stable_key("problem", "nedostaje", text),
             })
-        elif "predstojećih rokova" in text:
+        elif gap_tip == "PREDSTOJECI_ROKOVI":
             actions.append({
                 "tip": "PLANIRATI_ROKOVE", "razlog": text,
                 "dokaz": {"izvor": "identify_case_problems", "problem": text, "predstojeći_rokovi": rizik.get("predstojeći_rokovi")},
                 "prioritet": "high", "rok": None,
                 "dedupe_key": _stable_key("problem", "predstojeci_rokovi"),
             })
-        elif text.startswith("Dokazi slabe snage"):
+        elif gap_tip == "DOKAZI_SLABI":
             actions.append({
                 "tip": "OJACATI_DOKAZE", "razlog": text,
                 "dokaz": {"izvor": "identify_case_problems", "problem": text},

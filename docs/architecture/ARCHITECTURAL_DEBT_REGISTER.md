@@ -1995,3 +1995,114 @@ depending on the exact column and Postgres version's error-handling), same reaso
 3 fixed instances, but unconfirmed against any one of these 7 specifically (no time was spent this sprint
 verifying each column's actual type or checking whether client_twin/knowledge_base/knowledge_transfer/sef
 have any test coverage that would need updating alongside the fix).
+
+---
+
+## Program Sigma, Master Sprint 003 (2026-08-06) — Legal Gap & Missing Evidence Engine
+
+Full narrative: `docs/sigma/SIGMA_MASTER_SPRINT_003_REPORT.md`, `GAP_ENGINE_REGISTRY.md`,
+`DOCUMENT_EXPECTATION_ENGINE.md`, `CHAIN_COMPLETENESS_SPECIFICATION.md`, `LEGAL_HYPOTHESIS_ENGINE.md`,
+`FORENSIC_GAP_CERTIFICATION.md`. Fixes a live bug: 3 independent "missing evidence" generators
+(`case_dna.nedostaje[]` plus 2 fully independent GPT calls inside `routers/copilot.py`) consolidated to 1,
+via new `shared/gap_engine.py`. Also fixes a duplication this sprint itself introduced (a 2nd independent
+text-classification cascade) in the same sprint it was written. Adds `SIGMA-012` through `SIGMA-017`.
+
+## SIGMA-012 — Legal Reasoning Engine's own unsatisfied-LegalElement signal is discarded, not surfaced (Medium, deliberately not wired)
+
+`services/legal_reasoning_engine.py::generate_reasoning_graph` only accepts a reasoning chain with
+`>=1 fact AND >=1 norm` — any `LegalElement` GPT considers unsupported is silently `continue`-skipped
+(lines ~328-332), never recorded anywhere. This is the one place in the codebase structurally positioned to
+detect "this legal element has zero supporting evidence."
+
+**Why not fixed this sprint**: the module's own docstring records an explicit, founder-stated Phase 0
+constraint (2026-07-23): "Wired to nothing: no automatic trigger, no downstream consumer reads this yet.
+Manual generation only." Surfacing this signal to the new Gap Engine would make it that module's first-ever
+downstream consumer, directly overriding a deliberate, documented architectural staging decision — not this
+sprint's call to make.
+
+**Recommended direction**: whichever future sprint the founder authorizes to open "Phase 1" of the Legal
+Reasoning Engine itself (the docstring's own language already anticipates this) should change the discard
+to a record, feeding `shared/gap_engine.py` as a 4th normalizer.
+
+**Severity**: Medium — real, valuable signal currently thrown away, but correctly gated behind an existing
+founder decision, not a bug.
+
+## SIGMA-013 — No document-to-document expectation reasoning exists (Medium-High)
+
+Confirmed: nothing reasons "this contract references Annex B, is it present?" / "this is an appeal, is
+there proof of filing?" — Genome's own `nedostaje[]` is holistic case-level judgment, `EXPECTED_DOCS` is
+case-TYPE-level, neither is document-to-document.
+
+**Why not fixed this sprint**: requires either a new GPT-prompt extension (Genome's own single extraction
+pass, reasoning about referenced-but-absent companions) or new deterministic text-pattern matching — real
+new algorithmic surface area needing live-browser verification before shipping, not a mechanical fix.
+
+**Recommended direction**: extend Genome's own existing extraction call (not a new GPT call) with a new
+output field for referenced-but-missing companions, normalized into `shared/gap_engine.py` as a new
+`GAP_TIP_OCEKIVANI_PRILOG` type. See `DOCUMENT_EXPECTATION_ENGINE.md` for the full design.
+
+**Severity**: Medium-High — this is the mission's own headline value proposition (the founder's own worked
+examples: "nema dokaza o uručenju," "postoji ugovor, ali nema aneksa") and remains unbuilt.
+
+## SIGMA-014 — No chain-completeness/pairing checks exist (decision↔delivery, appeal↔filing, punomoćje) (Medium-High)
+
+Confirmed: `routers/ugovor_zastupanja.py` has zero check for whether a case has a power of attorney linked;
+no file anywhere pairs a decision with a delivery receipt or an appeal with proof of filing.
+
+**Why not fixed this sprint**: each pairing is a real legal-domain rule with real false-positive risk (not
+every case needs a punomoćje; pairing appeal→filing-proof needs reliable document-pair classification) —
+needs a founder-level decision on acceptable false-positive tolerance before shipping, matching this
+program's own repeated discipline of not guessing at legal-correctness-sensitive product decisions.
+
+**Recommended direction**: punomoćje presence (the simplest, lowest-risk of the 4 examples) once case-type
+scoping is decided; document-pair chains share `SIGMA-013`'s own extraction-extension mechanism. See
+`CHAIN_COMPLETENESS_SPECIFICATION.md`.
+
+**Severity**: Medium-High — same headline-value-proposition reasoning as `SIGMA-013`.
+
+## SIGMA-015 — Genome's own `nedostaje[]` has no stable identity across refreshes (Medium)
+
+Unlike `kontradikcije[]` (fixed in Program Sigma Sprint 002 via `shared/contradiction_identity.py`),
+Genome's own missing-evidence list has no anchor comparable to `lokacija_1`/`lokacija_2` — 2 refreshes
+describing the same missing document in different words would be indistinguishable from 2 different
+findings.
+
+**Why not fixed this sprint**: unlike contradictions (which already had a formulaic citation field to
+anchor on), `nedostaje[]` items may not always carry an equally stable field — needs the same kind of
+careful design Sprint 002 did for contradictions, not assumed to be a trivial copy-paste of that fix.
+
+**Recommended direction**: audit whether `nedostaje[].dokument` (the expected document's own name/category)
+is stable enough to anchor on directly, or whether a new field needs adding to Genome's own extraction
+output first.
+
+**Severity**: Medium — a prerequisite for `SIGMA-016`'s own status lifecycle to mean anything reliable.
+
+## SIGMA-016 — No persisted hypothesis-status lifecycle for Gap records (Medium)
+
+`shared/gap_engine.py`'s own `hipoteza: bool` field satisfies the "never assert as fact" half of Phase 5's
+own requirement; there is no persisted OPEN/CONFIRMED/REJECTED/RESOLVED/SUPERSEDED status anywhere — every
+Gap is recomputed fresh on every read, no row records a lawyer having acted on one.
+
+**Why not fixed this sprint**: depends on `SIGMA-015` (a stable identity to attach status to); also needs an
+architecture decision (new `case_gaps` table vs. extending `case_actions.status`'s own CHECK constraint) —
+a real design choice, not mechanical.
+
+**Recommended direction**: a new `case_gaps` table modeled directly on the already-proven
+`lessons_learned.status_lekcije` pattern (migration 039) — same `status`/separate-`pouzdanost`/
+`potvrdio`/`potvrdjeno_at` shape — reconciled via the same target-vs-existing-diff idiom already proven 3
+times (`case_actions` migration 099, `notifications` migration 101). See `LEGAL_HYPOTHESIS_ENGINE.md`.
+
+**Severity**: Medium — real gap against the mission's own explicit Phase 5 requirement, bounded by the fact
+that the "never silently confirm" half is already satisfied.
+
+## SIGMA-017 — No unified read endpoint for the full Gap Engine aggregation (Low)
+
+`shared/gap_engine.py::collect_case_gaps` (all 3 sources, full record shape including `hipoteza`/
+`pouzdanost`) has no dedicated API endpoint — each existing consumer reads gap data through its own
+pre-existing channel instead.
+
+**Why not fixed this sprint**: mechanical, low-risk, but genuinely new API surface (route + response schema
++ frontend consideration) — deferred in favor of closing the live 3-generators bug within this sprint's own
+time budget.
+
+**Severity**: Low — no correctness risk, a real but non-urgent completeness gap.

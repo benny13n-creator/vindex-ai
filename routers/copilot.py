@@ -410,13 +410,30 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         resource_type="predmet", resource_id=predmet_id,
     ))
 
+    # Program Sigma, Master Sprint 003 (2026-08-06) — Forensic Discovery
+    # finding, fixed immediately: this handler's own "nedostaju" field was an
+    # INDEPENDENT GPT-generated list, the 2nd of 3 competing "what's missing"
+    # generators found this sprint (alongside Genome's own case_dna.nedostaje
+    # and _handle_plan_predmeta's own, below) — a live violation of this
+    # program's own "jedan mehanizam postaje vlasnik" rule. Genome's own
+    # nedostaje[] is already read into this prompt's own context (genome_ctx
+    # above) for the GPT-generated fields that legitimately benefit from it
+    # (procena/prednosti/slabosti/sledeci_korak) — but "nedostaju" itself is
+    # now sourced DIRECTLY from Genome via shared/gap_engine.py, matching
+    # routers/case_intelligence.py's own AI Briefing (already correctly reads
+    # genome.get("nedostaje") directly, never re-derives). Falls back to the
+    # GPT's own result only when Genome hasn't run yet for this case (no
+    # canonical source available) — never silently empty for an established case.
+    from shared.gap_engine import missing_evidence_labels
+    _genome_nedostaju = missing_evidence_labels(genome, limit=4)
+
     return {
         "tip":               "ANALIZA_PREDMETA",
         "predmet":           pred.get("naziv", ""),
         "procena":           result.get("procena", ""),
         "prednosti":         result.get("prednosti", []),
         "slabosti":          result.get("slabosti", []),
-        "nedostaju":         result.get("nedostaju", []),
+        "nedostaju":         _genome_nedostaju if _genome_nedostaju else result.get("nedostaju", []),
         "sledeci_korak":     result.get("sledeci_korak", {}),
         "verovatnoca_uspeha": result.get("verovatnoca_uspeha", 0),
     }
@@ -429,8 +446,13 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     """
     supa = _get_supa()
 
+    # Program Sigma, Master Sprint 003 (2026-08-06): case_dna added to this
+    # select -- this handler previously had ZERO Genome awareness (unlike
+    # _handle_analiza_predmeta above, which already reads it), making its own
+    # "nedostaje" field the 3rd fully-independent GPT "what's missing"
+    # generator found this sprint. Same fix as that handler: read below.
     pred_r, beleske_r, dok_r, hron_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
+        asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(4).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
@@ -517,6 +539,16 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         resource_type="predmet", resource_id=predmet_id,
     ))
 
+    # Program Sigma, Master Sprint 003 (2026-08-06) — same fix as
+    # _handle_analiza_predmeta above: "nedostaje" now sourced from Genome via
+    # shared/gap_engine.py instead of this handler's own previously fully
+    # Genome-blind, independently-generated GPT list (the 3rd of 3 competing
+    # "what's missing" generators found this sprint). Fallback to GPT's own
+    # result only when Genome hasn't run yet for this case.
+    from shared.gap_engine import missing_evidence_plan_items
+    genome_pred = (pred.get("case_dna") or {}) if pred else {}
+    _genome_nedostaje = missing_evidence_plan_items(genome_pred, limit=6)
+
     return {
         "tip":              "PLAN",
         "predmet":          pred.get("naziv", ""),
@@ -524,7 +556,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         "cilj":             result.get("cilj", ""),
         "faze":             result.get("faze", []),
         "kriticni_rokovi":  result.get("kriticni_rokovi", []),
-        "nedostaje":        result.get("nedostaje", []),
+        "nedostaje":        _genome_nedostaje if _genome_nedostaje else result.get("nedostaje", []),
         "upozorenja":       result.get("upozorenja", []),
     }
 
