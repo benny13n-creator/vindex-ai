@@ -5,7 +5,7 @@ Tests for /api/intake/ekstrakcija and /api/intake/kreiraj
 Mocks: OpenAI (ekstrakcija), Supabase (kreiraj)
 All tests run without live services.
 """
-import sys, os, json
+import sys, os, json, asyncio
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -388,3 +388,43 @@ async def test_intake_kreiraj_allows_same_name_outside_dedup_window():
 
     assert result["success"] is True
     assert result["predmet_id"] == "pred-new-1"
+
+
+@pytest.mark.anyio
+async def test_intake_kreiraj_writes_predmet_create_audit_entry():
+    """Program Lambda, Certification 005 (2026-08-07): an Audit Continuity
+    fork found this endpoint -- the Intake Wizard's own case-creation path --
+    left zero audit trail, unlike api.py::kreiraj_predmet (the OTHER
+    case-creation path), which already logs 'predmet_create'. A case created
+    through the wizard must be equally auditable."""
+    from routers.intake import IntakeKreirajReq, intake_kreiraj
+
+    new_predmet = {
+        "id": "pred-audit-1", "user_id": _fake_user()["user_id"],
+        "naziv": "Radni spor Petrović", "opis": "", "tip": "opsti", "status": "aktivan",
+    }
+    mock_supa = MagicMock()
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
+            t.insert.return_value.execute.return_value.data = [new_predmet]
+        return t
+    mock_supa.table.side_effect = _table
+
+    req = IntakeKreirajReq(klijent_id="kl-0001", naziv="Radni spor Petrović")
+
+    with patch("routers.intake._get_supa", return_value=mock_supa), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()) as mock_log:
+        result = await intake_kreiraj(req, _fake_request(), _fake_user())
+        # log_action is scheduled via asyncio.create_task -- give the loop a
+        # tick so the fire-and-forget task actually runs before asserting.
+        await asyncio.sleep(0)
+
+    assert result["success"] is True
+    mock_log.assert_awaited_once()
+    call_args = mock_log.await_args
+    assert call_args.args[0] == "predmet_create"
+    assert call_args.kwargs["resource_id"] == "pred-audit-1"
+    assert call_args.kwargs["user_id"] == _fake_user()["user_id"]

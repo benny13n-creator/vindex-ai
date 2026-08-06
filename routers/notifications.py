@@ -162,18 +162,28 @@ async def _generate_notifications(uid: str) -> int:
                 .limit(30)
                 .execute()),
             asyncio.to_thread(lambda: supa.table("predmeti")
-                .select("id, naziv")
+                .select("id, naziv, status")
                 .eq("user_id", uid)
                 .execute()),
             return_exceptions=True,
         )
         pred_map: dict[str, str] = {}
+        # Program Lambda, Certification 005 (2026-08-07): a closed/archived
+        # case's own predmet_hronologija rows (deadline events) never get
+        # cleaned up, so without this exclusion this block would keep
+        # generating "Hitan rok"/"Nadolazeći rok" notifications for a case
+        # the user already closed, forever -- the SAME status guard the
+        # neaktivnost block below already applies, just missing here.
+        closed_pids: set[str] = set()
         if not isinstance(predmeti_r, Exception) and predmeti_r.data:
             pred_map = {p["id"]: p.get("naziv", "") for p in predmeti_r.data}
+            closed_pids = {p["id"] for p in predmeti_r.data if p.get("status") in ("zatvoren", "arhiviran")}
 
         if not isinstance(rokovi_r, Exception):
             for r in (rokovi_r.data or []):
                 pid   = r.get("predmet_id", "")
+                if pid in closed_pids:
+                    continue
                 naziv = pred_map.get(pid, "Predmet")
                 datum = r.get("datum_iso", "")
                 hitan = datum <= in_2_iso

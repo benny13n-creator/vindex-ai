@@ -580,3 +580,124 @@ async def test_try_claim_consequence_does_not_reclaim_a_fresh_pending_row():
         won = await _try_claim_consequence("evt-x", "timeline_entry")
 
     assert won is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Lambda, Certification 005 (2026-08-07) -- handle_case_changed's own
+# claim-failure branch must distinguish "genuinely completed" (silent skip,
+# unchanged) from "claimed but not yet stale enough to reclaim" (raise, so
+# the OUTER Event Bus dispatch does NOT mark the event dispatched, keeping it
+# eligible for retry/dead-letter instead of a silent, permanent loss). Closes
+# the cross-layer staleness mismatch a Chaos Engineer fork found between
+# event_bus.py's own outer claim_pending_events (was 30s, now 120s) and this
+# module's own _CONSEQUENCE_STALE_PENDING_SECONDS (300s) -- a worker crash
+# landing in that gap used to strand a consequence at 'pending' forever with
+# zero trace anywhere.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_claim_failure_on_fresh_pending_row_raises_instead_of_silently_skipping():
+    """The CRITICAL bug this sprint closes: a consequence stuck 'pending'
+    from another (possibly crashed) claim, too fresh to be reclaimed as
+    stale, must NOT be silently skipped -- skipping it here means the outer
+    Event Bus marks the event dispatched and NOTHING ever revisits this
+    consequence again. It must raise so the event stays retry-eligible."""
+    from services.case_evolution import handle_case_changed, ConsequenceDef, ConsequenceClaimPending
+
+    genome_calls = []
+
+    async def _fake_genome(event):
+        genome_calls.append(event.event_id)
+        return "v2"
+
+    recent_ts = _now_iso_for_tests()
+    _table, rows, _ = _make_consequence_table(existing_rows={
+        ("evt-1", "genome_refresh"): {
+            "event_id": "evt-1", "consequence_name": "genome_refresh",
+            "status": "pending", "updated_at": recent_ts,
+        },
+    })
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa), \
+         patch("services.case_evolution.CONSEQUENCE_REGISTRY", {
+             EventType.DOCUMENT_ACCEPTED: [ConsequenceDef("genome_refresh", _fake_genome)]
+         }), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()):
+        # Must be the DISTINCT ConsequenceClaimPending type, not a bare
+        # RuntimeError -- event_bus.py's own dispatch loop isinstance-checks
+        # for exactly this type to decide whether to fast-clear claimed_at
+        # (see that exception's own docstring for why this distinction is
+        # load-bearing, not cosmetic).
+        with pytest.raises(ConsequenceClaimPending, match="claimed but not completed"):
+            await handle_case_changed(_event())
+
+    assert genome_calls == [], "must not execute -- another claim may still be live"
+    assert rows[("evt-1", "genome_refresh")]["status"] == "pending", "must not be silently marked done"
+
+
+@pytest.mark.anyio
+async def test_claim_failure_on_genuinely_completed_row_still_silently_skips():
+    """No regression: the ordinary retry-safe skip path (Scenario 2/3/5's
+    own guarantee) must still work exactly as before when the row really is
+    'completed' -- this must NOT raise."""
+    from services.case_evolution import handle_case_changed, ConsequenceDef
+
+    genome_calls = []
+
+    async def _fake_genome(event):
+        genome_calls.append(event.event_id)
+        return "v2"
+
+    _table, rows, _ = _make_consequence_table(existing_rows={
+        ("evt-1", "genome_refresh"): {
+            "event_id": "evt-1", "consequence_name": "genome_refresh",
+            "status": "completed", "result_ref": "v2",
+        },
+    })
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa), \
+         patch("services.case_evolution.CONSEQUENCE_REGISTRY", {
+             EventType.DOCUMENT_ACCEPTED: [ConsequenceDef("genome_refresh", _fake_genome)]
+         }), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()):
+        await handle_case_changed(_event())  # must NOT raise
+
+    assert genome_calls == []
+
+
+@pytest.mark.anyio
+async def test_claim_failure_on_stale_pending_row_reclaims_and_executes():
+    """The other half of the fix's own correctness: a GENUINELY stale
+    'pending' row must still be reclaimable and executed -- this fix must
+    not turn the crash-recovery path itself into a permanent raise loop."""
+    from services.case_evolution import handle_case_changed, ConsequenceDef, _CONSEQUENCE_STALE_PENDING_SECONDS
+
+    genome_calls = []
+
+    async def _fake_genome(event):
+        genome_calls.append(event.event_id)
+        return "v2"
+
+    old_ts = _iso_seconds_ago_for_tests(_CONSEQUENCE_STALE_PENDING_SECONDS + 60)
+    _table, rows, _ = _make_consequence_table(existing_rows={
+        ("evt-1", "genome_refresh"): {
+            "event_id": "evt-1", "consequence_name": "genome_refresh",
+            "status": "pending", "updated_at": old_ts,
+        },
+    })
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa), \
+         patch("services.case_evolution.CONSEQUENCE_REGISTRY", {
+             EventType.DOCUMENT_ACCEPTED: [ConsequenceDef("genome_refresh", _fake_genome)]
+         }), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()):
+        await handle_case_changed(_event())  # must NOT raise -- reclaims and runs
+
+    assert genome_calls == ["evt-1"]
+    assert rows[("evt-1", "genome_refresh")]["status"] == "completed"

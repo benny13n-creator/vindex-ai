@@ -229,6 +229,26 @@ async def intake_kreiraj(
     predmet    = pred_r.data[0]
     predmet_id = predmet["id"]
 
+    # Program Lambda, Certification 005 (2026-08-07) -- an Audit Continuity
+    # fork found this endpoint (the Intake Wizard's own case-creation path)
+    # had zero audit trail, unlike api.py::kreiraj_predmet (the OTHER
+    # case-creation path), which already logs "predmet_create" via this same
+    # already-shipped log_action/AUDITABLE_ACTIONS infrastructure -- a case
+    # created through the wizard was silently invisible to the audit chain.
+    # Reuses the identical action name/shape, not a new one.
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "predmet_create",
+            user_id=uid,
+            resource_type="predmet",
+            resource_id=predmet_id,
+            ip=request.client.host if request.client else None,
+            metadata={"naziv": body.naziv, "tip": body.tip, "source": "intake_wizard"},
+        ))
+    except Exception as _ae:
+        logger.warning("[INTAKE] predmet_create audit log greška: %s", _ae)
+
     # Program Lambda, Certification 004: Database Reliability fork found
     # this step's own outcome had no status field in the response, unlike
     # every OTHER optional step below (rok_dodat/docs_linked/billing_kreiran)

@@ -238,6 +238,91 @@ class TestEventBusRetryDetection:
         assert result["dispecovano"] == 1
         assert captured["event"].correlation_id == "cid-success"
 
+    @pytest.mark.anyio
+    async def test_consequence_claim_pending_does_not_fast_clear_claimed_at(self):
+        """Program Lambda, Certification 005 (2026-08-07) -- Adversarial
+        Re-Attack fork found the FIRST version of this sprint's own fix
+        (case_evolution.py raising a bare RuntimeError when a consequence
+        is claimed-but-not-stale) would have been dead-lettered by THIS
+        function's own fast claimed_at=None clear (~3s retry cadence x
+        MAX_DISPATCH_ATTEMPTS=5 = ~15-18s total budget) long before
+        case_evolution.py's own 300s inner staleness window could ever
+        legitimately elapse. The fix: ConsequenceClaimPending is a distinct
+        type this function must isinstance-check for and NOT fast-clear --
+        this test uses the RPC-SUCCESS path (claimed=True) specifically,
+        since every OTHER test in this file exercises the RPC-fallback
+        path where claimed_at reset is a no-op regardless (claimed=False),
+        which would never have caught this."""
+        from services.case_evolution import ConsequenceClaimPending
+        updates = []
+
+        def _table(name):
+            c = MagicMock()
+            if name == "events":
+                c.update = MagicMock(side_effect=lambda payload: updates.append(payload) or c)
+                c.eq.return_value = c
+                c.execute = MagicMock(return_value=MagicMock())
+            return c
+
+        supa = MagicMock()
+        supa.table = MagicMock(side_effect=_table)
+        # RPC SUCCEEDS -- claimed=True, the path where claimed_at reset is
+        # actually meaningful (unlike every other test in this file).
+        rpc_rows = [{
+            "id": "evt-1", "event_type": "rok_dodan", "user_id": "u1",
+            "predmet_id": "p1", "payload": {}, "dispatch_attempts": 0,
+        }]
+        supa.rpc = MagicMock(return_value=MagicMock(execute=MagicMock(return_value=MagicMock(data=rpc_rows))))
+
+        async def _pending_handler(event):
+            raise ConsequenceClaimPending("consequence claimed but not completed")
+
+        with patch("shared.deps._get_supa", return_value=supa), \
+             patch.object(eb.bus, "_handlers", {eb.EventType.ROK_DODAN: [_pending_handler]}):
+            result = await eb.dispatch_pending_events()
+
+        assert result["greske"] == 1
+        assert result["dead_letter"] == 0
+        assert len(updates) == 1
+        assert "claimed_at" not in updates[0], \
+            "ConsequenceClaimPending must NOT fast-clear claimed_at -- doing so exhausts MAX_DISPATCH_ATTEMPTS long before the 300s inner staleness window elapses"
+
+    @pytest.mark.anyio
+    async def test_ordinary_handler_failure_still_fast_clears_claimed_at(self):
+        """No regression: a GENUINE handler bug (not ConsequenceClaimPending)
+        must still get the fast claimed_at=None clear, so it keeps retrying
+        every ~3s as Project Phoenix's own tests already proved -- this
+        sprint's fix must be narrowly scoped to ConsequenceClaimPending
+        only, not accidentally slow down every other failure class too."""
+        updates = []
+
+        def _table(name):
+            c = MagicMock()
+            if name == "events":
+                c.update = MagicMock(side_effect=lambda payload: updates.append(payload) or c)
+                c.eq.return_value = c
+                c.execute = MagicMock(return_value=MagicMock())
+            return c
+
+        supa = MagicMock()
+        supa.table = MagicMock(side_effect=_table)
+        rpc_rows = [{
+            "id": "evt-1", "event_type": "rok_dodan", "user_id": "u1",
+            "predmet_id": "p1", "payload": {}, "dispatch_attempts": 0,
+        }]
+        supa.rpc = MagicMock(return_value=MagicMock(execute=MagicMock(return_value=MagicMock(data=rpc_rows))))
+
+        async def _broken_handler(event):
+            raise RuntimeError("genuinely broken handler")
+
+        with patch("shared.deps._get_supa", return_value=supa), \
+             patch.object(eb.bus, "_handlers", {eb.EventType.ROK_DODAN: [_broken_handler]}):
+            result = await eb.dispatch_pending_events()
+
+        assert result["greske"] == 1
+        assert len(updates) == 1
+        assert "claimed_at" in updates[0] and updates[0]["claimed_at"] is None
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. Nightly alert insert — retry + durable audit on exhaustion

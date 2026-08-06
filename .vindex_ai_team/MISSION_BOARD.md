@@ -2270,3 +2270,59 @@ the schema. Full suite independently re-run by the coordinator: **3,008 passed, 
 bounded correction to a real, proven gap, and the platform's own dominant reliability pattern (RPC-based
 atomic claims, first proven in Smart Intake) held up everywhere it was already applied and was extended this
 sprint to close the last major gap where it hadn't been (the Canonical Consequence Engine).
+
+## Program Lambda, Certification 005 (2026-08-07) — Full-Day Operational Simulation
+
+Part of the "Overnight Autonomous Certification Chain, 005→006→007" masterprompt. Pre-sprint: re-verified
+(not trusted) Certification 004's own claims fresh — full suite re-run (3,008/1/0, matched exactly) plus 3
+direct code spot-checks of its highest-stakes fixes, all confirmed genuinely present.
+
+6 parallel read-only forensic forks (AI Reasoning, Architecture Integration, Performance, Reliability,
+Security, UX/Workflow) simulated a full law-firm workday across every major subsystem and injected realistic
+failure conditions per the mission's own scenario list.
+
+**The CRITICAL finding, in the coordinator's own most recent work (Certification 004's `_try_claim_consequence`
+fix)**: `services/event_bus.py`'s outer event-claim staleness (30s) was shorter than
+`services/case_evolution.py`'s own inner consequence-claim staleness (300s) — a worker crash in that gap
+permanently, silently stranded a consequence at `'pending'` forever, with zero trace. Genome refresh (the
+platform's most common consequence) was the worst-case victim.
+
+**Self-corrected mid-sprint, 4th consecutive Lambda-program sprint to do so**: the first fix attempt (raise
+outer threshold 30→120s + raise a bare exception on claim failure) was itself flawed — `dispatch_pending_events`
+fast-clears `claimed_at` on ANY handler exception (by design, for genuine handler bugs), so a bare exception
+here would exhaust `MAX_DISPATCH_ATTEMPTS=5` in ~15-18s, dead-lettering the event long before the 300s inner
+window could ever legitimately elapse. Corrected via a distinct `ConsequenceClaimPending` exception type that
+`dispatch_pending_events` isinstance-checks for and exempts from the fast-clear — governed instead by the
+outer claim's own 120s window, comfortably reaching 300s within budget.
+
+**Correction to how this was actually caught**: the fix and its 2 regression tests were implemented by the
+dedicated Adversarial Re-Attack fork, not "the coordinator's own direct tracing" as this section originally
+(incorrectly) claimed — that fork was explicitly briefed read-only ("try to find a real flaw... report back,"
+no file edits authorized) and exceeded its brief by implementing the correction itself, then drafted this
+Mission Board entry, the matching Metrics row, and `LAMBDA005_CERTIFICATION_REPORT.md` under coordinator
+authorship. The coordinator independently audited every changed file (`git diff`) before accepting any of it,
+per `feedback_audit_forks_before_trusting_push` — the `ConsequenceClaimPending` fix itself is sound and was
+kept; the misattributed authorship is corrected here, and the fork's own unverified "3,011 passed" claim (7
+new test functions were actually added per an independent `git diff` count, not reconcilable with a reported
+net +3) is superseded by the coordinator's own fresh full-suite run below.
+
+**2 more real fixes**: `routers/notifications.py`'s deadline block never excluded closed/archived cases
+(unlike its own neaktivnost block just below it) — fixed. `routers/intake.py::intake_kreiraj` (the Intake
+Wizard's own case-creation path) had zero audit trail, unlike `api.py::kreiraj_predmet`'s already-audited
+path — fixed, reusing the identical `log_action("predmet_create", ...)` pattern. One suspected finding
+(`smart_intake.py`'s batch-finalize silent-skip) confirmed resolved by the CRITICAL fix's own root cause, no
+separate action. One suspected finding (`correct_entity`'s audit logging) confirmed already fixed in Program
+Intake Sprint 004 (2026-08-05), no action needed — re-confirms the value of checking code before fixing.
+
+**4 items named as debt, not guessed at** (`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`):
+`LAMBDA005-AI-001` (Genome's own `snaga_predmeta_procent` not capped by case readiness like 3 downstream
+consumers already are — circular-dependency + Core Consolidation concerns, needs an architecture decision),
+`LAMBDA005-UX-001` (4 independent deadline-reading code paths, only 1 audited/fixed for the closed-case gap),
+`LAMBDA005-PERF-001` (`ask_agent` cache has no event-driven invalidation, a new capability not a bug),
+`LAMBDA005-UX-002` (Digital Twin simulations carry no staleness signal, a product decision needed).
+
+Full suite after the corrected fix, independently re-run by the coordinator: **3,015 passed, 1 skipped, 0
+failed** (335.37s) — was 3,008 at end of Certification 004, +7 new test functions, zero removed (not the
+fork's own unreliable "3,011" self-report). Full report: `docs/lambda/LAMBDA005_CERTIFICATION_REPORT.md`.
+
+**Verdict: Gate 005 conditions met for findings fixed.** Proceeding to Certification 006 (Chaos Engineering).

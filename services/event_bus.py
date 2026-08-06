@@ -577,7 +577,19 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
         res = await asyncio.to_thread(
             lambda: supa.rpc(
                 "claim_pending_events",
-                {"p_batch_size": batch_size, "p_stale_claim_seconds": 30},
+                # Program Lambda, Certification 005 (2026-08-07): was 30s,
+                # shorter than case_evolution.py's own inner
+                # _CONSEQUENCE_STALE_PENDING_SECONDS (300s), creating a
+                # cross-layer staleness-mismatch window that could
+                # silently, permanently drop a consequence on a worker
+                # crash. Raised to 120s, reusing shared/intake_queue.py's
+                # own claim_finalize() stale_after_seconds=120 default as
+                # precedent -- also more realistic given llm_retry's own
+                # worst-case latency (3 attempts w/ backoff can approach
+                # 24s+ before counting actual call time). Paired with
+                # handle_case_changed's own claim-failure fix, which no
+                # longer silently skips a not-yet-completed consequence.
+                {"p_batch_size": batch_size, "p_stale_claim_seconds": 120},
             ).execute()
         )
     except Exception as _rpc_exc:
@@ -654,10 +666,28 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
                 # Claimed_at se čisti (samo kad je RPC put stvarno korišćen)
                 # da neuspešan-ali-ne-iscrpljen red ostane odmah ponovo
                 # dostupan za claim na SLEDEĆEM 3s pollu -- bez ovoga bi
-                # p_stale_claim_seconds prozor (30s) neopravdano usporio
+                # p_stale_claim_seconds prozor (120s) neopravdano usporio
                 # retry cadence koju je Project Phoenix već dokazao testovima.
+                #
+                # Program Lambda, Certification 005 (2026-08-07) -- EXCEPT for
+                # services.case_evolution.ConsequenceClaimPending. That
+                # exception is a "come back later" signal (a consequence
+                # another attempt claimed is not yet stale enough to
+                # reclaim, see its own docstring), not a genuinely broken
+                # handler -- clearing claimed_at for it would let this same
+                # fast ~3s retry loop re-fire immediately, exhausting
+                # MAX_DISPATCH_ATTEMPTS (5) in ~15-18s, nowhere near
+                # case_evolution.py's own 300s inner staleness window --
+                # dead-lettering an event whose consequence may simply
+                # still be legitimately in flight (or was, until a crash),
+                # exactly the false-permanent-loss shape this sprint's own
+                # fix exists to close. Leaving claimed_at untouched here
+                # means the retry cadence is instead governed by the OUTER
+                # claim's own 120s staleness window -- comfortably reaching
+                # 300s within the 5-attempt budget (~3 outer cycles).
+                from services.case_evolution import ConsequenceClaimPending
                 _update = {"dispatch_attempts": attempts, "last_error": str(exc)[:500]}
-                if claimed:
+                if claimed and not isinstance(exc, ConsequenceClaimPending):
                     _update["claimed_at"] = None
                 await asyncio.to_thread(
                     lambda: supa.table("events")

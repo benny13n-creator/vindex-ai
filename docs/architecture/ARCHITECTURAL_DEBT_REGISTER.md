@@ -3038,3 +3038,101 @@ mechanism), not a bounded fix.
 
 **Severity**: Low — worth revisiting only if worker-process count or Genome-refresh trigger frequency ever
 makes the race window practically relevant.
+
+## LAMBDA005-AI-001 — Genome's own `snaga_predmeta_procent` is not capped by case readiness, unlike 3 downstream consumers (Medium, architecture decision needed)
+
+**Found by**: AI Reasoning fork, Program Lambda Certification 005 (Full-Day Operational Simulation) — the
+mission's own explicit "assume the previous sprint was wrong" charter meant re-checking whether the
+deterministic-cap pattern (`_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}`, proven in
+`routers/court_predictor.py`, `routers/hearing_cc.py`, `routers/digital_twin.py`) had reached every GPT-
+adjacent confidence surface. It has not.
+
+**What**: `shared/genome_validator.py::compute_snaga_score()` computes the canonical `snaga_predmeta_procent`
+deterministically from `snaga_faktori` (not raw GPT self-report — already fixed by the 2026-07-18 Reliability
+Patch) plus a flat -15 penalty when `genome_kompletnost == "niska"`. It has zero awareness of
+`shared/case_readiness.py`'s own 5-state model (`compute_case_readiness`) — confirmed by grep, no reference
+to `case_readiness`/`CRITICAL_GAP`/`BLOCKED` anywhere in `routers/case_dna.py`. So a case with an open
+`case_actions` row at `prioritet == "critical"` (readiness = CRITICAL_GAP) can still show `snaga_predmeta_procent`
+as high as 100 if `snaga_faktori` sum positively — the exact class of overconfident number the cap pattern
+exists to prevent elsewhere. `routers/copilot.py::_handle_analiza_predmeta`'s own `verovatnoca_uspeha` simply
+reads this value directly from Genome (`genome.get("snaga_predmeta_procent")`), so it inherits the gap
+unchanged; so does every other consumer that reads `case_dna.snaga_predmeta_procent` (Case Intelligence AI
+Briefing, Workspace, etc.).
+
+**Why not fixed this sprint**: this is NOT the same shape as the 3 existing cap call sites. Those apply the
+cap locally, at the moment of their OWN GPT call, to their OWN returned value — cheap and local because
+`case_actions`/readiness data is already available to them at call time. Genome computation itself cannot do
+the same: `compute_case_readiness` requires `case_actions`, and `case_actions` rows are themselves populated
+by a pipeline stage that runs AFTER a Genome refresh — capping inside `compute_snaga_score` at genome-
+computation time would mean reading readiness data that, for a fresh case, doesn't exist yet (a circular
+dependency, not a bounded fix). The alternative — replicating the readiness pipeline
+(`calculate_procesni_rizik` + `identify_case_problems` + `collect_case_gaps` + `compute_case_readiness`)
+inline in `copilot.py` alone — would create a 4th independent, narrower reimplementation of logic
+`shared/case_context.py::build_case_context()` already assembles correctly, an active violation of this
+program's own "1 concept = 1 owner = 1 algorithm = 1 truth" Core Consolidation principle. The architecturally
+correct fix (migrate `_handle_analiza_predmeta` onto `build_case_context()` wholesale, or add a genuinely new
+post-hoc "cap the STORED value once case_actions exist" pass) is a larger, riskier change than this sprint's
+scope for a value that already IS deterministic and explainable, just not readiness-aware.
+
+**Recommended next step**: a founder/architecture decision on which of the 2 alternatives above is correct,
+then implement it as its own scoped sprint — not bundled into a certification sprint that found it.
+
+**Severity**: Medium — no confirmed user-facing incident; a real but narrower version of the same overconfidence
+class the cap pattern already closed for 3 other surfaces.
+
+## LAMBDA005-UX-001 — 4 independent code paths read/filter deadline data with no shared owner (Low-Medium, structural observation)
+
+**Found by**: UX/Workflow fork, Program Lambda Certification 005.
+
+**What**: `routers/kalendar.py`, `routers/notifications.py`, `routers/morning_briefing.py`, and Workspace's
+own canonical view each independently query and filter deadline/rok data for display — 4 parallel
+implementations of "what deadlines does this user need to see," not one canonical source with 4 renderings.
+This sprint's own notifications.py fix (excluding closed/archived cases from rok/hitan_rok notifications,
+see the code change in this same sprint) had to be applied to exactly ONE of these 4 paths — the other 3 were
+not audited for the identical gap as part of this fix, since confirming or fixing all 4 is a larger,
+cross-cutting consolidation, not a single bug fix.
+
+**Why not fixed this sprint**: the Core Consolidation principle (Program Tau, 2026-07-22) exists precisely
+for this shape of problem, but applying it here means designing one canonical deadline-reader (likely
+`shared/case_context.py`-adjacent) and migrating 4 call sites — out of scope for a certification sprint whose
+job is to find and fix bounded defects, not run a consolidation project.
+
+**Recommended next step**: audit `routers/kalendar.py` and `routers/morning_briefing.py` specifically for the
+same "no closed/archived case exclusion" gap just fixed in `notifications.py` — if confirmed present, that
+narrower fix (not a full consolidation) may be worth doing as its own bounded follow-up sprint.
+
+**Severity**: Low-Medium — the confirmed instance of this pattern (notifications.py) is fixed; the other 3
+paths are unaudited, not confirmed broken.
+
+## LAMBDA005-PERF-001 — `main.py`'s `ask_agent` cache has no content-based invalidation (Low-Medium, feature not a bug)
+
+**Found by**: Full-Day Operational Simulation fork, Program Lambda Certification 005.
+
+**What**: the tenant-scoped cache fixed in Certification 003 (`_CACHE_TTL = 6h`, `_CACHE_TTL_DB = 7 days`)
+is correctly scoped per-tenant/per-case now, but still purely time-based — a cached AI answer can reference
+stale case state (new documents uploaded, Genome refreshed) for up to its full TTL window with no hook into
+`services/event_bus.py`'s own durable event stream to purge affected cache keys when the underlying case
+actually changes.
+
+**Why not fixed this sprint**: this is a genuinely new capability (event-driven cache invalidation keyed by
+predmet_id), not a bug in the existing tenant-scoping fix — implementing it means touching the same
+recently-hardened cache code a second time this engagement without a specific proven incident driving it.
+
+**Severity**: Low-Medium — bounded by the existing TTLs (never permanently stale), no confirmed user-facing
+incident.
+
+## LAMBDA005-UX-002 — Digital Twin simulations are served without a staleness signal (Low, product decision needed)
+
+**Found by**: Full-Day Operational Simulation fork, Program Lambda Certification 005.
+
+**What**: `GET /api/twin/{predmet_id}` (`routers/digital_twin.py::dohvati_simulacija`) returns the most
+recently saved `twin_simulacije` row verbatim (`select("*")`, includes `created_at`), with no comparison
+against how much the underlying case has changed since that simulation was generated (new documents, Genome
+refresh, etc.) — a lawyer could be shown a simulation based on meaningfully outdated case facts with no
+signal that a re-run might change the outcome.
+
+**Why not fixed this sprint**: whether/how to signal staleness (an age threshold? a comparison against
+Genome's own `verzija`? an auto-regenerate trigger?) is a product decision, not an engineering bug — the raw
+data needed to build any of these (`created_at` is already returned) is already present.
+
+**Severity**: Low — no incorrect behavior, a missing product affordance.

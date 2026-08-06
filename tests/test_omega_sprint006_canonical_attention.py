@@ -183,6 +183,40 @@ async def test_hitan_rok_notification_gets_high_priority_not_the_old_broken_valu
     assert PRIORITY_ORDER[hitan_rows[0]["prioritet"]] < PRIORITY_ORDER["normal"]  # sorts ABOVE normal now
 
 
+@pytest.mark.anyio
+async def test_closed_case_deadline_does_not_generate_a_notification():
+    """Program Lambda, Certification 005 (2026-08-07): a Chaos Engineer fork
+    found the rokovi block had no status guard -- unlike the neaktivnost
+    block just below it, which already excludes zatvoren/arhiviran cases --
+    so a closed case's own leftover predmet_hronologija rows kept generating
+    'Hitan rok'/'Nadolazeći rok' notifications forever. Only the OPEN case's
+    deadline should produce a notification."""
+    from routers.notifications import _generate_notifications
+    from datetime import date
+
+    today = date.today().isoformat()
+    rokovi = [
+        {"predmet_id": "pred-closed", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"},
+        {"predmet_id": "pred-open", "dogadjaj": "Rok za odgovor", "datum_iso": today, "vaznost": "kritičan"},
+    ]
+    predmeti = [
+        {"id": "pred-closed", "naziv": "Zatvoren predmet", "status": "zatvoren"},
+        {"id": "pred-open", "naziv": "Aktivan predmet", "status": "aktivan"},
+    ]
+    insert_calls: list = []
+    supa = _make_notif_supa(rokovi=rokovi, predmeti=predmeti, insert_calls=insert_calls)
+
+    with patch("routers.notifications._get_supa", return_value=supa):
+        await _generate_notifications("user-1")
+
+    assert insert_calls, "expected at least one bulk insert() call"
+    all_rows = insert_calls[0]
+    rok_rows = [r for r in all_rows if r["tip"] in ("rok", "hitan_rok")]
+    predmet_ids = {r["predmet_id"] for r in rok_rows}
+    assert "pred-closed" not in predmet_ids
+    assert "pred-open" in predmet_ids
+
+
 def test_grupiraj_notifikacije_sorts_hitan_rok_before_ordinary_rok():
     """End-to-end proof of the actual user-visible symptom: with the fix,
     a hitan_rok notification sorts strictly before a plain rok one."""

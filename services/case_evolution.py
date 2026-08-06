@@ -63,6 +63,29 @@ from shared.deps import _get_supa
 logger = logging.getLogger("vindex.case_evolution")
 
 
+class ConsequenceClaimPending(RuntimeError):
+    """Program Lambda, Certification 005 (2026-08-07): raised by
+    handle_case_changed when a consequence is claimed by someone else but
+    not YET stale enough to reclaim (_CONSEQUENCE_STALE_PENDING_SECONDS,
+    300s) -- a "come back later" signal, categorically different from a
+    genuine executor failure (which uses a bare exception + _mark_failed).
+
+    Why this needs its own type, not a bare RuntimeError: services/
+    event_bus.py's own dispatch_pending_events() clears the OUTER event's
+    claimed_at immediately on ANY handler exception, specifically so a
+    genuinely-broken handler retries fast (~3s, the DispatchLoop's own poll
+    cadence) instead of waiting out the outer claim's own staleness window
+    -- correct for that case, but fatal here: with MAX_DISPATCH_ATTEMPTS=5
+    at a 3s cadence, that is only ~15-18s of total retry budget, nowhere
+    near enough to ever reach this 300s inner threshold -- every retry
+    would immediately re-fail the same way, and the event would be
+    DEAD-LETTERED long before the legitimately-in-flight (or crashed)
+    consequence could ever become reclaimable. event_bus.py checks for
+    this exact type and leaves claimed_at untouched instead, so the retry
+    cadence is governed by the OUTER claim's own staleness window (120s)
+    -- comfortably reaching 300s within MAX_DISPATCH_ATTEMPTS."""
+
+
 @dataclass(frozen=True)
 class ConsequenceDef:
     """One named, independently-idempotent, independently-auditable
@@ -1135,16 +1158,63 @@ async def handle_case_changed(event: Event) -> None:
         # read-then-write (_get_consequence_status then _mark_pending) was
         # a genuine TOCTOU race (LAMBDA003-EVT-001) -- see
         # _try_claim_consequence's own docstring for the full fix
-        # rationale. A False return covers both "already completed"
-        # (retry-safe, the same guarantee Scenario 2/3/5 rely on) and
-        # "another caller currently holds the live claim".
+        # rationale. A False return covers 2 DIFFERENT cases that must NOT
+        # be treated the same:
+        #   (a) genuinely 'completed' -- retry-safe, silently skip, the
+        #       guarantee Scenario 2/3/5 rely on.
+        #   (b) claimed by someone else but not yet stale enough to
+        #       reclaim -- could mean a live worker is still processing it
+        #       RIGHT NOW (fine to skip), OR it could mean that worker
+        #       crashed and this consequence is now silently stuck.
+        #
+        # Program Lambda, Certification 005 (2026-08-07) -- Chaos Engineer
+        # fork found (cross-layer, not visible to Certification 004's own
+        # unit tests, which never exercised the actual dispatch_pending_
+        # events() interaction): the OUTER event-claim staleness
+        # (claim_pending_events, 30s) is SHORTER than the INNER
+        # consequence-claim staleness (_CONSEQUENCE_STALE_PENDING_SECONDS,
+        # 300s). A worker crash landing in that 30-300s gap -- an entirely
+        # ordinary window for an OOM kill or a rolling deploy, not a rare
+        # edge case -- used to be treated as case (a): the loop silently
+        # `continue`d, the event was then marked dispatched by the OUTER
+        # caller (dispatch_pending_events), and since nothing ever
+        # re-invokes this specific (event_id, consequence_name) claim
+        # again, the consequence stayed stuck at 'pending' FOREVER, with
+        # zero error, zero retry, zero trace anywhere. For DOCUMENT_
+        # ACCEPTED (this platform's own single most frequent event type,
+        # 4 consequences including genome_refresh) this meant a case's
+        # Genome could silently, permanently miss a refresh.
+        #
+        # Fix: only case (a) -- confirmed via a fresh read -- is treated as
+        # a safe skip. Anything else raises ConsequenceClaimPending (see
+        # its own docstring above for exactly why this can't be a bare
+        # RuntimeError), so the outer dispatch layer does NOT mark this
+        # event fully handled -- it stays eligible for retry (governed by
+        # the OUTER claim's own 120s staleness window, not the fast ~3s
+        # DispatchLoop cadence) until the consequence either completes
+        # normally or becomes genuinely stale enough to reclaim (300s), or,
+        # if genuinely stuck well past that, is dead-lettered -- a VISIBLE,
+        # LOGGED, ALREADY-ESTABLISHED recovery state (services/event_bus.py's
+        # own MAX_DISPATCH_ATTEMPTS), never a silent one.
         won = await _try_claim_consequence(event.event_id, c.name)
         if not won:
-            logger.info(
-                "[CASE_EVOLUTION] event=%s posledica=%s već završena ili u toku, preskačem.",
-                event.event_id[:8], c.name,
+            existing = await _get_consequence_status(event.event_id, c.name)
+            if existing and existing.get("status") == "completed":
+                logger.info(
+                    "[CASE_EVOLUTION] event=%s posledica=%s već završena, preskačem (retry-safe).",
+                    event.event_id[:8], c.name,
+                )
+                continue
+            logger.warning(
+                "[CASE_EVOLUTION] event=%s posledica=%s nije završena a claim nije osvojen "
+                "(status=%s) -- tražim spoljni retry umesto tihog trajnog gubitka.",
+                event.event_id[:8], c.name, existing.get("status") if existing else None,
             )
-            continue
+            raise ConsequenceClaimPending(
+                f"case_evolution: consequence '{c.name}' for event {event.event_id[:8]} "
+                f"is claimed but not completed (status={existing.get('status') if existing else 'unknown'}) "
+                f"-- requesting outer retry instead of silently skipping"
+            )
 
         try:
             result_ref = await c.executor(event)
