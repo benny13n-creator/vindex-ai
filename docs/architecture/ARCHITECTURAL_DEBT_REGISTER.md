@@ -1579,30 +1579,32 @@ Full narrative: `docs/omega/OMEGA_FINAL_SPRINT_006_REPORT.md`, `ATTENTION_SURFAC
 `shared/attention_priority.py` (the one canonical priority model); retires a 4th, previously-uncatalogued
 alert system; fixes a real bug in `routers/notifications.py`; adds `OMEGA-020` through `OMEGA-022`.
 
-## OMEGA-020 — Up to 3 independent writes can still fire for the same real-world deadline fact (High, trigger-path redesign out of this sprint's safe scope)
+## OMEGA-020 — Up to 3 independent writes can still fire for the same real-world deadline fact (PARTIALLY CLOSED, Final Sprint 007 — corrected scope, `proactive_alerts` leg remains High)
 
-`case_actions` (Sprint 003's own Rule 1), `notifications.py::_generate_notifications` (its own `hitan_rok`
-branch), and `services/event_bus.py`'s own `ROK_KRITICAN` handler (→ `proactive_alerts`) each independently
-query `rocista`/`predmet_hronologija` and independently decide "this deadline is urgent" — for the SAME
-underlying hearing/deadline. This sprint canonicalized the VOCABULARY all 3 use to describe urgency
-(`shared/attention_priority.py`) but did NOT unify the WRITE paths — a lawyer could still, in principle, see
-this fact represented 3 times (Workspace, the notifications bell, and wherever `proactive_alerts` surfaces)
-with 3 different item ids, from 3 independent DB queries.
+**UPDATE — Program Omega, Final Sprint 007 (2026-08-06):** `case_actions` → `notifications` is now a single
+canonical write with a reconciled projection (`_consequence_project_case_actions_to_notifications`,
+`services/case_evolution.py`, migration 101's own `dedupe_key`/partial-UNIQUE-index pattern, mirroring
+migration 099). This closes the specific duplication this item originally warned about for the
+Workspace/bell-icon pair.
 
-**Why not fixed this sprint**: making `notifications`/`proactive_alerts` literally READ FROM `case_actions`
-instead of independently querying `rocista` is a real trigger-path redesign (new consumer relationships
-between existing systems) — the mission's own explicit charter for this sprint was "kanonizovati postojeće"
-(canonicalize existing), not restructure write paths, which is closer to new orchestration than
-consolidation and carries real regression risk for 3 live, already-tested systems.
+**Correction to this item's own original assumption**: the original text above proposed retiring
+`notifications.py`'s own deadline-detection branch entirely. Deeper investigation this sprint (tracing
+every writer of `predmet_hronologija`, and `kreiraj_rociste`'s own actual insert statements) found that
+assumption too narrow — `predmet_hronologija` is written by ~14 different files (contract deadlines,
+Genome-extracted deadlines, document-extracted deadlines, a dedicated deadline-chain feature) that
+`case_actions`' own Rule 1 never reads (it reads `rocista`, hearings only). Retiring `notifications.py`'s
+own detection would have been a real coverage regression. **`notifications.py`'s own `predmet_hronologija`
+detection was deliberately kept, unchanged** — see `docs/omega/CANONICAL_NOTIFICATION_ENGINE.md` for the
+full reasoning.
 
-**Recommended direction**: a dedicated future sprint — likely: `notifications.py`'s own deadline-detection
-branch and the `ROK_KRITICAN` handler both retired in favor of a NEW Case Evolution consequence that, when
-`case_actions` creates/updates a `PRIPREMITI_PODNESAK` action, also writes the corresponding `notifications`/
-`proactive_alerts` row — one decision, two projections, matching this sprint's own Phase 4 framing exactly,
-just not executed yet.
+**Remains open**: the `proactive_alerts` leg (`services/event_bus.py::on_rok_kritican`) is still an
+independent write for the hearing-deadline fact, not unified with `case_actions`/`notifications` this
+sprint — same original reasoning (different channel/consumer, not the same table) now formally documented
+rather than merged. Its OWN internal duplicate-insert risk is tracked separately as `OMEGA-023`.
 
-**Severity**: High — this is the literal, remaining instance of "dva mesta koja odlučuju o istom događaju"
-Phase 4 named as forbidden; found and precisely characterized, not fixed.
+**Severity**: downgraded from High to Medium for the remaining scope — the specific duplication Phase 4
+named as forbidden (Workspace vs. bell icon) is closed; the remaining `proactive_alerts` divergence is a
+different-channel design choice, not an unresolved duplicate of the same UI surface.
 
 ## OMEGA-021 — Deadline "critical/urgent" day-count thresholds disagree across systems (Medium, product decision needed)
 
@@ -1641,6 +1643,100 @@ update — low urgency, purely for naming clarity.
 
 **Severity**: Low — no functional bug, no user-facing confusion (the 2 endpoints are never shown side by
 side), purely a maintainer/architecture-reading clarity concern.
+
+---
+
+## Program Omega, Final Sprint 007 (2026-08-06) — Canonical Notification & Trigger Engine
+
+Full narrative: `docs/omega/OMEGA_FINAL_SPRINT_007_REPORT.md`, `TRIGGER_REGISTRY.md`,
+`CANONICAL_NOTIFICATION_ENGINE.md`, `EVENT_LIFECYCLE_SPECIFICATION.md`,
+`NOTIFICATION_DEDUPLICATION_REPORT.md`, `FORENSIC_CERTIFICATION_REPORT.md`. Fixes 2 real bugs
+(`notifications.prioritet` schema drift, `routers/sms.py` dedup); builds
+`_consequence_project_case_actions_to_notifications` (migration 101); amends `OMEGA-020` (partially
+closed); adds `OMEGA-023` through `OMEGA-027`.
+
+## OMEGA-023 — `proactive_alerts` has no DB-enforced dedup; its check-before-emit is a TOCTOU race (Medium, Final Sprint 007)
+
+`shared/proactive_alerts.py::create_proactive_alert` (Program Alpha, 2026-08-04) is the canonical WRITE
+PATH for `proactive_alerts` but performs an unconditional insert with no `dedupe_key`/unique-index concept.
+Dedup instead happens at the 2 CALLERS that emit `ROK_KRITICAN`/`HEALTH_SCORE_PROMENJEN`
+(`routers/matter_intel.py::_maybe_emit_health_and_deadline_events`, lines 145-171): each queries for an
+existing UNREAD alert of the same type before calling `emit()`. This is a real, application-level
+check-then-act race — 2 near-simultaneous case-opens for the same predmet could both pass the check before
+either insert lands, producing 2 alert rows.
+
+**Why not fixed this sprint**: a proper fix (a `dedupe_key` column + partial UNIQUE index on
+`proactive_alerts`, mirroring migrations 099/101, plus updating both emitting call sites) is a real, safely
+plannable change — but a new migration + 2 call-site updates, tested with the same rigor as this sprint's
+SMS fix, exceeded the remaining time budget once the primary mission target (the `notifications`
+projection) was proven correct.
+
+**Recommended direction**: migration N — `proactive_alerts` gets a `dedupe_key` column + partial UNIQUE
+index (`user_id, dedupe_key WHERE procitana=FALSE`), matching the now-2x-proven pattern; both emitters
+build a stable key (e.g. `f"rok_kritican:{predmet_id}"`) instead of a pre-insert SELECT.
+
+**Severity**: Medium — real race, but low practical frequency (requires near-simultaneous case-opens by
+the same user for the same case).
+
+## OMEGA-024 — `on_document_job_failed` has no consequence-ledger idempotency guard (Low, Final Sprint 007)
+
+Unlike every `CONSEQUENCE_REGISTRY`-registered consequence, `on_document_job_failed`
+(`services/event_bus.py:229-`) is a direct Event Bus subscriber with no `(event_id, consequence_name)`
+completion check. A duplicate `events` row for the same failed intake job (e.g. a retried
+`fail_intake_job` RPC call) could produce 2 `proactive_alerts` rows.
+
+**Why not fixed this sprint**: genuinely rare trigger condition (requires a duplicate terminal-failure
+event for the same job), and folding a direct Event Bus handler into the `CONSEQUENCE_REGISTRY` idiom
+would be a small architectural change warranting its own review, not a same-sprint drive-by edit.
+
+**Severity**: Low — rare trigger condition, single-alert consequence (not a cascading failure).
+
+## OMEGA-025 — Log-after-send pattern in email/SMS reminders is not crash-atomic (Low, Final Sprint 007)
+
+Both `email_notif.py` and `sms.py` send the message FIRST, then write the durable log row that prevents a
+resend. A crash between those 2 steps could cause a duplicate send on the next cron run. Pre-existing in
+both patterns; not introduced or worsened by this sprint's SMS fix (the fix closed the "2 separate,
+successful runs" gap, not the "crash mid-run" gap, which is a different and smaller risk).
+
+**Why not fixed this sprint**: closing this fully needs a different delivery architecture (log a "sending"
+state before dispatch, reconcile after) — a real redesign, not a canonicalization.
+
+**Severity**: Low — requires a crash in the exact window between send and log-write, on top of an already
+rare double-invocation scenario.
+
+## OMEGA-026 — `notification_log`/`email_notif_log` have no DB unique constraint (Medium, Final Sprint 007)
+
+Confirmed via `migrations/048_reliability_hardening.sql:108-127`: both tables have regular (non-unique)
+indexes only. Their own dedup (this sprint's SMS fix, and email's pre-existing pattern) is a
+SELECT-then-INSERT application-level check — safe against sequential re-invocations, not safe against 2
+truly concurrent invocations racing past the SELECT before either INSERT commits.
+
+**Why not fixed this sprint**: both tables intentionally allow multiple legitimate rows per user/day (e.g.
+a `deferred_quiet_hours` row followed later by a `sent` row for the same underlying reminder) — a naive
+unique constraint would break that legitimate pattern. Designing the correct constraint shape (e.g. unique
+on `(user_id, tip)` only among `delivery_status IN ('sent','deferred_quiet_hours')` rows) is a real schema
+decision needing care, not a mechanical canonicalization.
+
+**Recommended direction**: a partial UNIQUE index scoped correctly to "active" delivery statuses, once
+designed and reviewed.
+
+**Severity**: Medium — real gap, low practical exposure (both cron endpoints run on a fixed external
+schedule, not naturally concurrent; exposure is an overlapping manual re-run).
+
+## OMEGA-027 — `proactive_alerts.urgentnost` is a 4th, previously-uncatalogued priority vocabulary (Low, Final Sprint 007)
+
+Found during this sprint's own Forensic Certification pass (Phase 8): `proactive_alerts.urgentnost`
+(`hitna`/`normalna`/`visoka`, `shared/proactive_alerts.py`) is not among the 13 vocabularies Sprint 006's
+own `ATTENTION_SURFACE_REGISTRY.md` catalogued, and is not in `shared/attention_priority.py`'s own
+translation tables.
+
+**Why not fixed this sprint**: `proactive_alerts` is a different table/consumer from the canonical
+action-priority domain (see `OMEGA-023`'s own channel-separation reasoning) — merging its vocabulary in
+would be scope creep beyond this sprint's own notification/trigger focus, and is itself contingent on
+`OMEGA-023`'s own dedup fix landing first.
+
+**Severity**: Low — documentation gap, not a functional bug; named so a future sprint doesn't have to
+re-discover it.
 
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 

@@ -154,17 +154,28 @@ def _event(event_id="evt-1", predmet_id="pred-1", correlation_id="corr-1", user_
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Registry wiring — refresh_case_actions present, LAST, on all 4 events
+# Registry wiring — refresh_case_actions present on all 4 events, immediately
+# followed by project_notifications (Program Omega, Final Sprint 007 —
+# always projecting the JUST-refreshed case_actions rows, never a stale
+# read; see _consequence_project_case_actions_to_notifications's own
+# docstring). refresh_case_actions itself is no longer the literal last
+# entry, but its own invariant -- "runs after genome_refresh/summary,
+# before anything reads its output" -- still holds via this ordering.
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_refresh_case_actions_wired_last_on_all_four_events():
-    from services.case_evolution import CONSEQUENCE_REGISTRY, _consequence_refresh_case_actions
+    from services.case_evolution import (
+        CONSEQUENCE_REGISTRY, _consequence_refresh_case_actions,
+        _consequence_project_case_actions_to_notifications,
+    )
 
     for event_type in (EventType.DOCUMENT_ACCEPTED, EventType.REVIEW_ACCEPTED,
                         EventType.ROCISTE_ZAKAZANO, EventType.DOCUMENT_BATCH_COMPLETED):
         consequences = CONSEQUENCE_REGISTRY[event_type]
-        assert consequences[-1].name == "refresh_case_actions", event_type
-        assert consequences[-1].executor is _consequence_refresh_case_actions, event_type
+        assert consequences[-1].name == "project_notifications", event_type
+        assert consequences[-1].executor is _consequence_project_case_actions_to_notifications, event_type
+        assert consequences[-2].name == "refresh_case_actions", event_type
+        assert consequences[-2].executor is _consequence_refresh_case_actions, event_type
 
 
 def test_case_action_refreshed_is_auditable():

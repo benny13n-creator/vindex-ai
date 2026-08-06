@@ -55,6 +55,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable, Optional
 
 from services.event_bus import Event, EventType
+from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
 from shared.deps import _get_supa
 
 logger = logging.getLogger("vindex.case_evolution")
@@ -766,6 +767,127 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     return f"created={created} updated={updated} closed={closed}"
 
 
+async def _consequence_project_case_actions_to_notifications(event: Event) -> str:
+    """Program Omega, Final Sprint 007 (2026-08-06) — Canonical Notification
+    & Trigger Engine, Phase 3 (Trigger Consolidation). Closes `OMEGA-020`
+    (Sprint 006's own debt register): before this sprint, `case_actions`
+    (this file's own canonical deadline detector, Rule 1) and
+    `routers/notifications.py::_generate_notifications` (its own
+    independent `rok`/`hitan_rok` query over the SAME `rocista` data)
+    could each decide, separately, that a hearing/deadline is urgent —
+    "dva mesta koja odlučuju o istom događaju," exactly what Phase 3
+    forbids. This consequence makes `case_actions` the SOLE decision-maker:
+    it runs LAST (after `refresh_case_actions`, same sequential-ordering
+    guarantee every other consequence in this registry relies on) and
+    PROJECTS the just-refreshed `PRIPREMITI_PODNESAK` case_actions rows —
+    unchanged, not re-decided — into `notifications` rows a lawyer already
+    knows how to read (the bell icon). `routers/notifications.py`'s own
+    `rok`/`hitan_rok` generation is retired in the same commit — see
+    `docs/omega/CANONICAL_NOTIFICATION_ENGINE.md`.
+
+    Reconciliation is dedupe-key-based, reusing case_actions' OWN stable
+    per-fact key directly (`_stable_key("rociste", rociste_id)`) — the
+    SAME idempotency identity, not a second one invented for notifications.
+    Concurrency safety is migration 101's own partial UNIQUE index on
+    `notifications(user_id, dedupe_key) WHERE procitano=FALSE`, the exact
+    same pattern as case_actions' own `idx_case_actions_open_dedupe`
+    (migration 099) — proven, not new."""
+    predmet_id = event.predmet_id
+    if not predmet_id:
+        return "skipped_no_predmet_id"
+
+    supa = _get_supa()
+
+    pred_res = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("user_id,naziv").eq("id", predmet_id).maybe_single().execute()
+    )
+    pred_data = (pred_res.data if pred_res else None) or {}
+    owner_uid = pred_data.get("user_id")
+    naziv = pred_data.get("naziv") or "Predmet"
+    if not owner_uid:
+        return "skipped_no_owner"
+
+    # Target: this predmet's own currently-OPEN deadline actions —
+    # case_actions' own Rule 1 (PRIPREMITI_PODNESAK), refreshed by the
+    # consequence that ran immediately before this one in the same
+    # dispatch. Deliberately scoped to this ONE action type — extending
+    # notifications to also fire for PRIBAVITI_DOKAZ/RAZRESITI_KONTRADIKCIJU/
+    # etc. would be a genuine NEW notification category a lawyer never
+    # received before, a product decision, not a consolidation of an
+    # existing one (notifications.py's own pre-existing scope was always
+    # just deadlines + inactivity).
+    actions_res = await asyncio.to_thread(
+        lambda: supa.table("case_actions")
+            .select("dedupe_key,razlog,prioritet,rok")
+            .eq("predmet_id", predmet_id)
+            .eq("status", "open")
+            .eq("tip", "PRIPREMITI_PODNESAK")
+            .execute()
+    )
+    target_actions = (actions_res.data if actions_res else None) or []
+    target_by_key = {a["dedupe_key"]: a for a in target_actions}
+
+    existing_res = await asyncio.to_thread(
+        lambda: supa.table("notifications")
+            .select("id,dedupe_key")
+            .eq("user_id", owner_uid)
+            .eq("predmet_id", predmet_id)
+            .eq("procitano", False)
+            .not_.is_("dedupe_key", "null")
+            .execute()
+    )
+    existing_rows = (existing_res.data if existing_res else None) or []
+    existing_by_key = {r["dedupe_key"]: r["id"] for r in existing_rows}
+
+    created, updated, closed = 0, 0, 0
+
+    for key, action in target_by_key.items():
+        canon_prio = action.get("prioritet") or "medium"
+        notif_prio = CANONICAL_TO_NOTIFICATIONS.get(canon_prio, "normal")
+        row = {
+            "user_id": owner_uid,
+            "tip": "hitan_rok" if canon_prio == "critical" else "rok",
+            "naslov": f"{'⚠ Hitan rok' if canon_prio == 'critical' else 'Nadolazeći rok'} — {naziv}",
+            "poruka": (action.get("razlog") or "Rok")[:500],
+            "predmet_id": predmet_id,
+            "prioritet": notif_prio,
+            "dedupe_key": key,
+        }
+        if key in existing_by_key:
+            await asyncio.to_thread(
+                lambda r=row, nid=existing_by_key[key]: supa.table("notifications")
+                    .update(r).eq("id", nid).execute()
+            )
+            updated += 1
+        else:
+            try:
+                await asyncio.to_thread(lambda r=row: supa.table("notifications").insert(r).execute())
+                created += 1
+            except Exception as _ins_exc:
+                # Partial UNIQUE index violation (migration 101) -- another
+                # concurrent projection already created this exact
+                # notification. Same benign-race handling as
+                # _consequence_refresh_case_actions's own insert path.
+                if "duplicate key" not in str(_ins_exc).lower() and "unique" not in str(_ins_exc).lower():
+                    raise
+                logger.info("[CASE_EVOLUTION] notification already projected concurrently, skipping: predmet=%s key=%s", predmet_id, key)
+
+    for key, notif_id in existing_by_key.items():
+        if key not in target_by_key:
+            # The underlying deadline fact no longer holds (resolved,
+            # rescheduled out of window, or the hearing was deleted) --
+            # mark read rather than delete, so it still appears in the
+            # notifications history exactly like a lawyer manually
+            # dismissing it would.
+            await asyncio.to_thread(
+                lambda nid=notif_id: supa.table("notifications")
+                    .update({"procitano": True}).eq("id", nid).execute()
+            )
+            closed += 1
+
+    return f"created={created} updated={updated} closed={closed}"
+
+
 # ─── Canonical consequence registry ──────────────────────────────────────────
 # Program Delta, Sprint 001, Task 1's own explicit instruction: prove ONE
 # entry point exists for every event that changes a predmet's state, do not
@@ -786,6 +908,10 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # sequential per-consequence loop guarantees genome_refresh already
         # completed for this same event).
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+        # Program Omega, Final Sprint 007 — runs LAST of all, always
+        # projecting the JUST-refreshed case_actions rows (never a stale
+        # read) into notifications. Closes OMEGA-020.
+        ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
     ],
     EventType.REVIEW_ACCEPTED: [
         # Reuses DOCUMENT_ACCEPTED's own genome_refresh/timeline_entry
@@ -800,6 +926,7 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="review_confirmation_audit", executor=_consequence_review_confirmation_audit),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+        ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
     ],
     EventType.REVIEW_REJECTED: [
         # Deliberately ONLY an audit consequence — see
@@ -821,6 +948,7 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         # hearing creation before this sprint, so none is invented now.
         ConsequenceDef(name="genome_refresh", executor=_consequence_genome_refresh),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+        ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
     ],
     EventType.DOCUMENT_BATCH_COMPLETED: [
         # Program Omega, Sprint 002 — genome_refresh + case_intelligence_
@@ -849,6 +977,7 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         ConsequenceDef(name="timeline_entry", executor=_consequence_timeline_entry),
         ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+        ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
     ],
 }
 

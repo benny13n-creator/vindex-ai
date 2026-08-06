@@ -153,8 +153,13 @@ def test_document_batch_completed_registry_is_genome_refresh_then_summary_in_ord
         _consequence_refresh_case_actions,
     )
     consequences = CONSEQUENCE_REGISTRY[EventType.DOCUMENT_BATCH_COMPLETED]
+    # Program Omega, Final Sprint 007 appended project_notifications as the
+    # new trailing consequence, always reading the just-refreshed
+    # case_actions rows (never stale) -- see
+    # _consequence_project_case_actions_to_notifications's own docstring.
     assert [c.name for c in consequences] == [
-        "genome_refresh", "timeline_entry", "case_intelligence_summary", "refresh_case_actions",
+        "genome_refresh", "timeline_entry", "case_intelligence_summary",
+        "refresh_case_actions", "project_notifications",
     ]
     assert consequences[0].executor is _consequence_genome_refresh
     assert consequences[1].executor is _consequence_timeline_entry

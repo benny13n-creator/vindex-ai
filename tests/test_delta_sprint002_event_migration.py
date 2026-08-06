@@ -143,16 +143,19 @@ async def test_scenario1_review_accepted_genome_timeline_audit_exactly_once():
     assert rows[("evt-1", "genome_refresh")]["status"] == "completed"
     assert rows[("evt-1", "timeline_entry")]["status"] == "completed"
     assert rows[("evt-1", "review_confirmation_audit")]["status"] == "completed"
-    # One case_evolution_consequence_completed audit row per consequence (4,
-    # since Program Omega Sprint 003 appended refresh_case_actions) + one
-    # domain-specific dokument_review_resolved row from review_confirmation_
-    # audit + one domain-specific case_action_refreshed row from
-    # refresh_case_actions = 6 total log_action calls.
-    assert mock_log.await_count == 6
+    # One case_evolution_consequence_completed audit row per consequence (5,
+    # since Program Omega Sprint 003 appended refresh_case_actions and Final
+    # Sprint 007 appended project_notifications) + one domain-specific
+    # dokument_review_resolved row from review_confirmation_audit + one
+    # domain-specific case_action_refreshed row from refresh_case_actions =
+    # 7 total log_action calls. project_notifications itself skips silently
+    # (this harness's own predmeti fake has no user_id -> "skipped_no_owner")
+    # and does not add its own domain-specific audit row.
+    assert mock_log.await_count == 7
     actions = [c.args[0] for c in mock_log.await_args_list]
     assert actions.count("dokument_review_resolved") == 1
     assert actions.count("case_action_refreshed") == 1
-    assert actions.count("case_evolution_consequence_completed") == 4
+    assert actions.count("case_evolution_consequence_completed") == 5
 
 
 @pytest.mark.anyio
@@ -531,10 +534,12 @@ async def test_scenario5_crash_after_first_review_accepted_consequence_retry_res
     assert rows[("evt-1", "timeline_entry")]["status"] == "completed"
     assert rows[("evt-1", "review_confirmation_audit")]["status"] == "completed"
     assert rows[("evt-1", "refresh_case_actions")]["status"] == "completed"
+    assert rows[("evt-1", "project_notifications")]["status"] == "completed"
     actions = [c.args[0] for c in mock_log.await_args_list]
-    # only the 3 newly-completed (genome_refresh already done pre-crash):
-    # timeline_entry, review_confirmation_audit, refresh_case_actions
-    assert actions.count("case_evolution_consequence_completed") == 3
+    # only the 4 newly-completed (genome_refresh already done pre-crash):
+    # timeline_entry, review_confirmation_audit, refresh_case_actions,
+    # project_notifications (Final Sprint 007).
+    assert actions.count("case_evolution_consequence_completed") == 4
 
 
 # ═══════════════════════════════════════════════════════════════════════════

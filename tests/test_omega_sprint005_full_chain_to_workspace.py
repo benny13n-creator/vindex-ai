@@ -33,6 +33,26 @@ def anyio_backend():
     return "asyncio"
 
 
+class _NotFilter:
+    """Backs `.not_.is_(...)`/`.not_.in_(...)` -- Program Omega, Final
+    Sprint 007's own _consequence_project_case_actions_to_notifications
+    uses `.not_.is_("dedupe_key", "null")` (the same real supabase-py idiom
+    already used repo-wide, e.g. routers/benchmarking.py), which this fake
+    harness never needed to model before this sprint."""
+    def __init__(self, query):
+        self._query = query
+
+    def is_(self, col, val):
+        if val in ("null", None):
+            self._query._filtered = [r for r in self._query._filtered if r.get(col) is not None]
+        return self._query
+
+    def in_(self, col, vals):
+        vals = set(vals)
+        self._query._filtered = [r for r in self._query._filtered if r.get(col) not in vals]
+        return self._query
+
+
 class _FakeQuery:
     """Generic in-memory fake query builder -- same idiom as
     tests/test_omega_sprint004_case_to_workspace_flow.py, extended here
@@ -88,6 +108,10 @@ class _FakeQuery:
 
     def limit(self, _n):
         return self
+
+    @property
+    def not_(self):
+        return _NotFilter(self)
 
     def maybe_single(self):
         self._single = True

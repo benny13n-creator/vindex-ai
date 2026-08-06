@@ -1198,3 +1198,34 @@ alert systems" — 3 legitimate systems remain, 2 of them (`notifications`/`proa
 independently WRITE decisions for facts `case_actions` also tracks (`OMEGA-020`); "Workspace/Dashboard/
 Notification use the same source of truth" — true of the VOCABULARY, not yet true of the WRITE path.
 Both gaps precisely named, not hidden. Full detail: `docs/omega/OMEGA_FINAL_SPRINT_006_REPORT.md`.
+
+## Program Omega, Final Sprint 007 (2026-08-06) — Canonical Notification & Trigger Engine
+
+**Methodology note**: unlike every prior Omega sprint, this one's own charter explicitly forbade deferring
+any safely-fixable problem found along the way — both the SMS dedup bug and the `notifications.prioritet`
+schema drift were fixed in-sprint rather than only named, and 9 pre-existing tests were updated (not just
+re-passed) to genuinely reflect the new consequence's real behavior.
+
+| Metric | Value |
+|---|---|
+| Real, previously-unknown bugs found AND fixed | 2 — `routers/sms.py`'s own function-local dedup set (duplicate SMS/WhatsApp sends across separate cron invocations), and `notifications.prioritet`'s own schema-vs-code CHECK-constraint drift (likely silent insert failures) |
+| New canonical write path built | 1 — `_consequence_project_case_actions_to_notifications`, reusing `case_actions`' own `dedupe_key` identity, backed by a new partial UNIQUE index (migration 101, mirroring migration 099) |
+| A Sprint 006 assumption corrected before implementation | `OMEGA-020`'s own original "retire notifications.py's detection" recommendation — found too narrow after tracing all ~14 `predmet_hronologija` writers; detection kept, new projection made additive instead |
+| New migrations | 2 (`100_notifications_priority_alignment.sql`, `101_notifications_dedupe_key.sql`) — both drafted, neither applied (founder runs migrations) |
+| New dedicated tests | 17, across 4 new files (schema alignment 3, SMS dedup 3, projection consequence 8, concurrency attack 3) |
+| Existing tests updated for the new consequence | 9, across 5 files — each verified against actual new behavior, not blindly incremented |
+| Concurrency attack proof | 2-way and 10-way real `asyncio.gather` execution against a thread-lock-enforced partial-UNIQUE-index simulation — exactly 1 notification row survives in every run |
+| New debts found and named (not fixed, judged out of safe scope) | 5 (`OMEGA-023` `proactive_alerts` TOCTOU race, `OMEGA-024` missing consequence-ledger guard on `on_document_job_failed`, `OMEGA-025` non-atomic log-after-send, `OMEGA-026` no DB unique constraint on 2 log tables, `OMEGA-027` a 14th previously-uncatalogued priority vocabulary) |
+| Existing debt amended | `OMEGA-020` — PARTIALLY CLOSED, severity downgraded High→Medium for the specific duplication now resolved |
+| Full suite | **2,725 passed, 1 skipped, 0 failed** (was 2,705 at end of Program Omega Sprint 006) — zero regressions confirmed directly |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: the mission's own explicit "every safely-fixable problem must be fixed now" bar was
+met for everything found within scope — the SMS bug and the schema drift are both closed with tests, not
+just documented. The mission's own strict "if another notification/trigger source exists, not done" bar is
+honestly NOT fully met — `proactive_alerts`, email/SMS's own independent cadence, and `zastarelost.py`'s
+own scan remain legitimately independent channels (by design, not oversight), and 5 new, real duplicate-
+risk gaps were found in the course of trying to break the architecture rather than confirm it. Full detail:
+`docs/omega/OMEGA_FINAL_SPRINT_007_REPORT.md`.

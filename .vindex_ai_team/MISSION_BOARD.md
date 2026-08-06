@@ -1330,3 +1330,57 @@ failed (was 2,688) — zero regressions confirmed directly.
 `ALERT_CONSOLIDATION_REPORT.md`, `ATTENTION_FLOW_CERTIFICATION.md`, `OMEGA_FINAL_SPRINT_006_REPORT.md`.
 Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-020` through `OMEGA-022` added, plus
 a formatting fix to `OMEGA-013`'s own orphaned content).
+
+## Program Omega, Final Sprint 007 (2026-08-06) — Canonical Notification & Trigger Engine
+
+Seventh Program Omega sprint. Charter: prove exactly ONE canonical lifecycle of user attention exists —
+Business Event → Trigger → Priority → Active Notification → Resolution — and, unlike Sprint 006, an
+explicit "no deferral" mandate: every safely-fixable problem found had to be fixed in-sprint, not just
+named.
+
+**Found and fixed immediately**: (1) a schema-vs-code drift in `notifications.prioritet`'s own CHECK
+constraint (`migrations/009` never widened past `hitan/normalan/info`, while the app code always used a
+different 5-value vocabulary — likely silently failing most notification inserts, worsened by Sprint 006's
+own bug fix) — new `migrations/100_notifications_priority_alignment.sql`; (2) a real, previously-unknown
+duplicate-send bug in `routers/sms.py::posalji_podsetnike` — its own dedup set was function-local, reset
+every call, so 2 separate cron invocations on the same day sent the identical SMS/WhatsApp reminder twice,
+directly failing the mission's own mandatory Scenario 2 — fixed with a persistent, `notification_log`-
+backed cross-run check, matching `email_notif.py`'s own already-correct pattern.
+
+**Built**: `_consequence_project_case_actions_to_notifications` (`services/case_evolution.py`) — a new
+trailing consequence on `DOCUMENT_ACCEPTED`/`REVIEW_ACCEPTED`/`ROCISTE_ZAKAZANO`/
+`DOCUMENT_BATCH_COMPLETED` that projects `case_actions`' own canonical hearing-deadline actions into
+`notifications`, reusing the SAME `dedupe_key` identity and a new partial UNIQUE index
+(`migrations/101_notifications_dedupe_key.sql`, mirroring migration 099's own proven pattern) — one write,
+two consistent surfaces (Workspace + bell icon), closing the specific duplication Sprint 006's own
+`OMEGA-020` named.
+
+**Corrected a Sprint 006 assumption before implementing it**: `OMEGA-020` originally proposed retiring
+`notifications.py`'s own `predmet_hronologija`-based deadline detection entirely. Deeper investigation
+(tracing all ~14 writers of `predmet_hronologija`, confirming `kreiraj_rociste` never writes to it) showed
+this would have been a real coverage regression — `predmet_hronologija` and `rocista` are largely
+non-overlapping fact spaces. Kept `notifications.py`'s own detection unchanged; the new projection is
+additive, scoped to the hearing-deadline domain only.
+
+**17 new tests across 4 new files** — schema-alignment (3), SMS dedup fix incl. a direct reproduction of
+the found bug (3), the new projection consequence's own create/update/close/retry-100×/concurrent-race
+behavior (8), and a genuine `asyncio.gather` 2-way/10-way concurrency attack against the new dedupe-key
+path (3). **9 existing tests updated** (registry-order/call-count assertions across 5 files) to reflect the
+new trailing consequence — each verified against actual new behavior, not just incremented blindly. Full
+suite: **2,725 passed, 1 skipped, 0 failed** (was 2,705).
+
+**Honest Phase 8 forensic certification**: NOT a claim that every notification-adjacent system was merged
+into one — `proactive_alerts`, email/SMS's own independent cadence, and `zastarelost.py`'s own scan remain
+legitimately separate channels/facts. 5 new debt items found and named (not fixed, judged out of this
+sprint's safe time budget): `OMEGA-023` (`proactive_alerts`' own TOCTOU dedup race, no DB constraint),
+`OMEGA-024` (`on_document_job_failed` missing consequence-ledger guard), `OMEGA-025` (log-after-send is not
+crash-atomic, pre-existing), `OMEGA-026` (`notification_log`/`email_notif_log` have no DB unique
+constraint), `OMEGA-027` (`proactive_alerts.urgentnost`, a 14th previously-uncatalogued priority
+vocabulary). `OMEGA-020` updated to PARTIALLY CLOSED (severity downgraded High→Medium) for the specific
+duplication now resolved.
+
+**6 required deliverables**: `docs/omega/TRIGGER_REGISTRY.md`, `CANONICAL_NOTIFICATION_ENGINE.md`,
+`EVENT_LIFECYCLE_SPECIFICATION.md`, `NOTIFICATION_DEDUPLICATION_REPORT.md`,
+`FORENSIC_CERTIFICATION_REPORT.md`, `OMEGA_FINAL_SPRINT_007_REPORT.md`. Updated
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-020` amended, `OMEGA-023` through `OMEGA-027`
+added).

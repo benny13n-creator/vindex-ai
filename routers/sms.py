@@ -271,8 +271,42 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
             if uid_r:
                 rokovi_po_korisniku.setdefault(uid_r, []).append(rok)
 
-        # Deduplication set — (user_id, predmet_id, datum_iso)
+        # Program Omega, Final Sprint 007 (2026-08-06) — Canonical Notification
+        # & Trigger Engine, Scenario 2 ("Isti rok. Retry 100 puta. -> I dalje
+        # jedna aktivna notifikacija"). FOUND: `vec_poslato` below was a
+        # function-LOCAL Python set, reset on every call -- it only prevented
+        # 2 rokovi in the SAME batch from double-sending, never 2 SEPARATE
+        # invocations of this endpoint on the same day (an accidental duplicate
+        # cron trigger, a manual re-run, a GitHub Actions retry) from sending
+        # the identical SMS/WhatsApp reminder twice. `log_notification()`
+        # already wrote a durable audit row to `notification_log` on every
+        # send -- nothing ever read it back before sending again. Fixed:
+        # batch-fetch TODAY's own already-sent `rok_podsetnik:<datum>` log
+        # entries first (same "one batch query, not N" pattern already used
+        # for `svi_rokovi` above), and skip any (user, predmet, datum) already
+        # logged as sent/deferred today -- a real, persistent, cross-run
+        # dedup, matching routers/email_notif.py's own already-correct
+        # `email_notif_log` pattern exactly.
         vec_poslato: set[tuple] = set()
+        already_sent_today: set[tuple] = set()
+        try:
+            today_start_iso = f"{today_s}T00:00:00+00:00"
+            log_r = await asyncio.to_thread(
+                lambda: supa.table("notification_log")
+                    .select("user_id,ref_id,tip")
+                    .in_("user_id", user_ids)
+                    .like("tip", "rok_podsetnik:%")
+                    .in_("delivery_status", ["sent", "deferred_quiet_hours"])
+                    .gte("sent_at", today_start_iso)
+                    .execute()
+            )
+            for row in (log_r.data or []):
+                tip_val = row.get("tip") or ""
+                if ":" in tip_val:
+                    logged_datum = tip_val.split(":", 1)[1]
+                    already_sent_today.add((row.get("user_id"), row.get("ref_id"), logged_datum))
+        except Exception as e:
+            logger.warning("[SMS-CRON] notification_log dedup upit greška (nastavlja bez): %s", e)
 
         from shared.notify_quiet import is_quiet_now, log_notification
 
@@ -293,9 +327,13 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                 dedupe_key = (uid, predmet_id, datum_d)
 
                 if dedupe_key in vec_poslato:
-                    logger.debug("[SMS-CRON] Preskačem duplikat: %s", dedupe_key)
+                    logger.debug("[SMS-CRON] Preskačem duplikat (isti batch): %s", dedupe_key)
+                    continue
+                if dedupe_key in already_sent_today:
+                    logger.debug("[SMS-CRON] Preskačem duplikat (već poslato danas, notification_log): %s", dedupe_key)
                     continue
                 vec_poslato.add(dedupe_key)
+                log_tip = f"rok_podsetnik:{datum_d}"
 
                 dogadjaj = rok.get("dogadjaj", "Rok")
                 hitnost  = "SUTRA" if datum_d == in_24h else "Za 2 dana"
@@ -308,11 +346,11 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                 # Rok SUTRA je kritičan i sme da zaobiđe tihi period ako je dozvoljeno
                 critical = (hitnost == "SUTRA")
                 if is_quiet_now(profil, critical=critical):
-                    await log_notification(uid, channel, "rok_podsetnik", "deferred_quiet_hours", ref_id=predmet_id, message_text=poruka)
+                    await log_notification(uid, channel, log_tip, "deferred_quiet_hours", ref_id=predmet_id, message_text=poruka)
                     continue
                 try:
                     ok = await asyncio.to_thread(_send_sms, to_num, poruka)
-                    await log_notification(uid, channel, "rok_podsetnik", "sent" if ok else "failed",
+                    await log_notification(uid, channel, log_tip, "sent" if ok else "failed",
                                             ref_id=predmet_id, error_message=None if ok else "SMS slanje nije uspelo",
                                             message_text=poruka)
                     if ok:

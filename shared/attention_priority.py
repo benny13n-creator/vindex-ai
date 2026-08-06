@@ -103,6 +103,19 @@ VAZNOST_TO_CANONICAL: dict[str, str] = {
     "kritičan": CRITICAL, "bitan": HIGH, "normalan": MEDIUM, "ostalo": LOW,
 }
 
+# Program Omega, Final Sprint 007 (2026-08-06) — the reverse direction, needed once a canonical
+# writer (case_actions) needs to PROJECT into a consumer's own vocabulary instead of just reading
+# one. Used by services/case_evolution.py::_consequence_project_case_actions_to_notifications to
+# translate case_actions' own canonical prioritet into notifications.py's own NOTIF_TIPOVI/
+# PRIORITY_ORDER vocabulary when writing a projected notification row. Deliberately only covers the
+# canonical values case_actions' own Rule 1 (_priority_by_days) can actually produce (critical/high/
+# medium) plus low/informational for completeness — not a general N:1 inverse (NOTIFICATIONS_TO_
+# CANONICAL is not injective: "info" and no other word maps to INFORMATIONAL, so inversion is
+# unambiguous here, but would not be for a table with true many-to-one collisions).
+CANONICAL_TO_NOTIFICATIONS: dict[str, str] = {
+    CRITICAL: "urgent", HIGH: "high", MEDIUM: "normal", LOW: "low", INFORMATIONAL: "info",
+}
+
 
 def to_canonical(value: str | None, vocabulary: dict[str, str], default: str = MEDIUM) -> str:
     """Translate a source-vocabulary value to the canonical scale. Unknown/missing values fall back to
