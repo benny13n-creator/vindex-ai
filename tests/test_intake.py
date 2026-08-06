@@ -159,6 +159,9 @@ async def test_intake_kreiraj_without_rok():
 
     mock_supa = MagicMock()
     mock_supa.table.return_value.insert.return_value.execute.return_value.data = [new_predmet]
+    # Program Lambda, Certification 004: intake_kreiraj now checks for a
+    # recent duplicate before inserting -- empty result means "no duplicate found".
+    mock_supa.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
 
     req = IntakeKreirajReq(
         klijent_id="kl-id-0001",
@@ -197,6 +200,8 @@ async def test_intake_kreiraj_with_rok():
     def _table_side_effect(table_name):
         mock_t = MagicMock()
         mock_t.insert.return_value.execute.return_value.data = [new_predmet] if table_name == "predmeti" else []
+        # Program Lambda, Certification 004: recent-duplicate check before insert.
+        mock_t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
         insert_calls.append(table_name)
         return mock_t
 
@@ -239,6 +244,7 @@ async def test_intake_kreiraj_triggers_case_pipeline():
     }
     mock_supa = MagicMock()
     mock_supa.table.return_value.insert.return_value.execute.return_value.data = [new_predmet]
+    mock_supa.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
 
     req = IntakeKreirajReq(klijent_id="kl-pipeline-001", naziv="Radni spor Jovanović")
     mock_request = _fake_request()
@@ -278,6 +284,7 @@ async def test_intake_kreiraj_pipeline_failure_does_not_break_response():
     }
     mock_supa = MagicMock()
     mock_supa.table.return_value.insert.return_value.execute.return_value.data = [new_predmet]
+    mock_supa.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
 
     req = IntakeKreirajReq(klijent_id="kl-pipeline-002", naziv="Ugovorni spor")
     mock_request = _fake_request()
@@ -313,3 +320,71 @@ def test_intake_kreiraj_req_naziv_required():
 
     with pytest.raises(ValidationError):
         IntakeKreirajReq(klijent_id="kl-0001", naziv="X")  # 1 char — fails min_length=2
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Lambda, Certification 004 (2026-08-06) -- Chaos Engineer +
+# Database Reliability forks both independently found (Adversarial
+# Certification-confirmed) that intake_kreiraj had zero protection against
+# a double-click/duplicate submit: a bare INSERT, no idempotency key, no
+# recent-duplicate check. A near-simultaneous resubmit created 2 real
+# predmeti rows, each triggering its own Case Pipeline.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_intake_kreiraj_rejects_near_duplicate_submission():
+    """A second, near-simultaneous request with the same naziv (the
+    double-click scenario) must be rejected with a clean 409, not create a
+    second case."""
+    from fastapi import HTTPException
+    from routers.intake import IntakeKreirajReq, intake_kreiraj
+
+    mock_supa = MagicMock()
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            # A case with the same naziv, created 1 second ago -- inside
+            # the dedup window.
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = [
+                {"id": "pred-original", "created_at": "2026-08-06T12:00:00+00:00"}
+            ]
+        return t
+    mock_supa.table.side_effect = _table
+
+    req = IntakeKreirajReq(klijent_id="kl-0001", naziv="Radni spor Petrović")
+
+    with patch("routers.intake._get_supa", return_value=mock_supa):
+        with pytest.raises(HTTPException) as exc:
+            await intake_kreiraj(req, _fake_request(), _fake_user())
+
+    assert exc.value.status_code == 409
+
+
+@pytest.mark.anyio
+async def test_intake_kreiraj_allows_same_name_outside_dedup_window():
+    """No regression: a genuinely separate case creation (no recent
+    duplicate found -- the normal case) must still succeed."""
+    from routers.intake import IntakeKreirajReq, intake_kreiraj
+
+    new_predmet = {
+        "id": "pred-new-1", "user_id": _fake_user()["user_id"],
+        "naziv": "Radni spor Petrović", "opis": "", "tip": "opsti", "status": "aktivan",
+    }
+    mock_supa = MagicMock()
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
+            t.insert.return_value.execute.return_value.data = [new_predmet]
+        return t
+    mock_supa.table.side_effect = _table
+
+    req = IntakeKreirajReq(klijent_id="kl-0001", naziv="Radni spor Petrović")
+
+    with patch("routers.intake._get_supa", return_value=mock_supa):
+        result = await intake_kreiraj(req, _fake_request(), _fake_user())
+
+    assert result["success"] is True
+    assert result["predmet_id"] == "pred-new-1"

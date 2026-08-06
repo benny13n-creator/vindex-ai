@@ -122,6 +122,9 @@ def test_ask_analiza_v2_map_reduce_ne_gubi_rizicnu_klauzulu_na_kraju():
     assert data["findings"][0]["severity"] == "kritican"
     assert data["executive_summary"]["overall_risk_score"] == 100
     assert data["financial_exposure"]["max_total_exposure_rsd"] == 5000000
+    # No regression: a fully clean run must report no partial failure.
+    assert data["partial_failure"] is False
+    assert data["failed_batches"] == []
 
 
 def test_ask_analiza_v2_map_reduce_odbacuje_nevalidan_clause_ref():
@@ -215,6 +218,18 @@ def test_map_batch_neuspesan_ne_obara_celu_analizu():
         result = main.ask_analiza_v2(seg, "")
 
     assert result["status"] == "success", "pad jednog batch-a ne sme oboriti celu analizu"
+
+    # Program Lambda, Certification 004 (2026-08-06): pre ove ispravke, pali
+    # batch je tiho zamenjen praznim-ali-validnim rezultatom, nerazlučivim od
+    # batch-a koji je stvarno "nije ništa pronašao" -- advokat koji čita
+    # izveštaj nije imao nikakav signal da je deo dokumenta ispušten zbog
+    # prolazne GPT greške. Ova 2 polja sada čine tu razliku vidljivom.
+    # Which batch fails is non-deterministic (thread-pool completion order,
+    # not submission order) -- assert exactly one failure was recorded,
+    # not which specific index.
+    report = result["data"]
+    assert report["partial_failure"] is True
+    assert len(report["failed_batches"]) == 1
 
 
 # ─── 2. evidence.py::_lociraj_tvrdnju ──────────────────────────────────────

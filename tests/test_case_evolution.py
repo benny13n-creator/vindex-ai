@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import asyncio
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from services.event_bus import Event, EventType
@@ -27,6 +28,14 @@ from services.event_bus import Event, EventType
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def _now_iso_for_tests() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _iso_seconds_ago_for_tests(seconds: int) -> str:
+    return (datetime.now(timezone.utc) - timedelta(seconds=seconds)).isoformat()
 
 
 def _event(event_id="evt-1", predmet_id="pred-1", correlation_id="corr-1", dokumenti=None):
@@ -42,7 +51,17 @@ def _event(event_id="evt-1", predmet_id="pred-1", correlation_id="corr-1", dokum
 
 def _make_consequence_table(existing_rows=None):
     """existing_rows: dict[(event_id, consequence_name)] -> row dict, the
-    pre-existing state of case_evolution_consequences before this call."""
+    pre-existing state of case_evolution_consequences before this call.
+
+    Program Lambda, Certification 004 (2026-08-06): rewritten to model real
+    Postgres/PostgREST semantics for _try_claim_consequence's own atomic
+    claim (services/case_evolution.py) -- `upsert(..., ignore_duplicates=
+    True)` must NOT insert (and must return empty `.data`) when the
+    composite (event_id, consequence_name) key already exists, and a
+    conditional `.eq("status", prior_status)` on `.update(...)` must only
+    apply (and only return non-empty `.data`) when the row's CURRENT status
+    actually matches that precondition -- exactly the row-level compare-
+    and-swap behavior the real fix relies on for its own correctness."""
     existing_rows = dict(existing_rows or {})
     inserted_or_updated = []
 
@@ -63,30 +82,71 @@ def _make_consequence_table(existing_rows=None):
         if name == "case_evolution_consequences":
             t.select.return_value.eq.side_effect = _select_chain(None)
 
-            def _upsert(row, on_conflict=None):
-                key = (row["event_id"], row["consequence_name"])
-                existing_rows[key] = {**existing_rows.get(key, {}), **row}
-                inserted_or_updated.append(("upsert", dict(row)))
-                res = MagicMock()
-                res.data = [row]
-                return res
+            def _upsert(row, on_conflict=None, ignore_duplicates=False):
+                # supabase-py's own chain is .upsert(...).execute() -- must
+                # return an intermediate node with its OWN .execute(), not
+                # the result directly (an earlier version of this fix did
+                # exactly that, making res.execute() hit a fresh,
+                # always-truthy auto-mock instead of the configured result).
+                node = MagicMock()
+
+                def _execute():
+                    key = (row["event_id"], row["consequence_name"])
+                    res = MagicMock()
+                    if ignore_duplicates and key in existing_rows:
+                        res.data = []  # conflict -- real INSERT ... ON CONFLICT DO NOTHING inserts nothing
+                        return res
+                    existing_rows[key] = {**existing_rows.get(key, {}), **row}
+                    inserted_or_updated.append(("upsert", dict(row)))
+                    res.data = [row]
+                    return res
+                node.execute.side_effect = _execute
+                return node
             t.upsert.side_effect = _upsert
 
             def _update_chain(payload):
-                inner = MagicMock()
-                def _eq1(col, val):
-                    inner2 = MagicMock()
-                    def _eq2(col2, val2):
-                        key = (val, val2)
-                        existing_rows[key] = {**existing_rows.get(key, {}), **payload}
+                def _make_level(eq_filters: dict, lt_filters: dict):
+                    node = MagicMock()
+
+                    def _eq_next(col, val):
+                        return _make_level({**eq_filters, col: val}, lt_filters)
+                    node.eq.side_effect = _eq_next
+
+                    def _lt_next(col, val):
+                        return _make_level(eq_filters, {**lt_filters, col: val})
+                    node.lt.side_effect = _lt_next
+
+                    def _execute():
+                        res = MagicMock()
+                        key = (eq_filters.get("event_id"), eq_filters.get("consequence_name"))
+                        current = existing_rows.get(key, {})
+                        # event_id/consequence_name are always present in
+                        # this table's own keying; an optional `status`
+                        # eq-filter (compare-and-swap precondition) and/or
+                        # `updated_at` lt-filter (staleness gate for the
+                        # 'pending' reclaim path) are checked against the
+                        # row's CURRENT stored state, not blindly applied
+                        # -- real Postgres UPDATE...WHERE semantics.
+                        if "status" in eq_filters and current.get("status") != eq_filters["status"]:
+                            res.data = []
+                            return res
+                        if "updated_at" in lt_filters:
+                            # Missing updated_at defaults to "now" (matches
+                            # the real column's own DEFAULT now() on a
+                            # freshly-inserted row) -- always fails a
+                            # staleness check unless a test explicitly sets
+                            # an old value to simulate an abandoned claim.
+                            row_updated_at = current.get("updated_at") or _now_iso_for_tests()
+                            if not (row_updated_at < lt_filters["updated_at"]):
+                                res.data = []
+                                return res
+                        existing_rows[key] = {**current, **payload}
                         inserted_or_updated.append(("update", key, dict(payload)))
-                        leaf = MagicMock()
-                        leaf.execute.return_value = MagicMock()
-                        return leaf
-                    inner2.eq.side_effect = _eq2
-                    return inner2
-                inner.eq.side_effect = _eq1
-                return inner
+                        res.data = [existing_rows[key]]
+                        return res
+                    node.execute.side_effect = _execute
+                    return node
+                return _make_level({}, {})
             t.update.side_effect = _update_chain
         return t
 
@@ -393,3 +453,130 @@ async def test_genome_refresh_executor_succeeds_when_verzija_increments():
         result = await _consequence_genome_refresh(_event())
 
     assert result == "4"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Lambda, Certification 004 -- _try_claim_consequence's own atomic
+# claim (closes LAMBDA003-EVT-001, Certification 003's own TOCTOU finding,
+# given a broader confirmed real-world blast radius by this sprint's
+# Distributed Systems Engineer fork: 5 of 9 consequence executors would
+# have produced a visible duplicate row under the old read-then-write race).
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_fresh_key_wins():
+    from services.case_evolution import _try_claim_consequence
+    _table, rows, _ = _make_consequence_table()
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        won = await _try_claim_consequence("evt-x", "genome_refresh")
+
+    assert won is True
+    assert rows[("evt-x", "genome_refresh")]["status"] == "pending"
+
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_second_attempt_on_still_pending_row_loses():
+    """The exact race LAMBDA003-EVT-001 named: a second caller attempting
+    to claim the SAME (event_id, consequence_name) while the FIRST claim's
+    own row is still 'pending' (not yet completed or failed) must NOT also
+    win -- the old read-then-write upsert let this happen (both calls
+    would see 'not completed' on read, both would upsert to 'pending',
+    both would proceed to execute)."""
+    from services.case_evolution import _try_claim_consequence
+    _table, rows, _ = _make_consequence_table()
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        first = await _try_claim_consequence("evt-x", "timeline_entry")
+        second = await _try_claim_consequence("evt-x", "timeline_entry")
+
+    assert first is True
+    assert second is False, "a second claim attempt on a still-pending row must not also win"
+
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_reclaims_a_failed_row():
+    """A legitimate retry after a prior failure must still be able to
+    reclaim and re-execute -- this is NOT the race case, it's the
+    crash/failure-recovery guarantee the whole mechanism exists for."""
+    from services.case_evolution import _try_claim_consequence
+    _table, rows, _ = _make_consequence_table(
+        existing_rows={("evt-x", "conflict_check"): {
+            "event_id": "evt-x", "consequence_name": "conflict_check", "status": "failed", "error": "boom",
+        }}
+    )
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        won = await _try_claim_consequence("evt-x", "conflict_check")
+
+    assert won is True
+    assert rows[("evt-x", "conflict_check")]["status"] == "pending"
+
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_never_reclaims_a_completed_row():
+    """No regression to the core retry-safe guarantee: a genuinely
+    completed consequence must never be reclaimed/re-executed."""
+    from services.case_evolution import _try_claim_consequence
+    _table, rows, _ = _make_consequence_table(
+        existing_rows={("evt-x", "genome_refresh"): {
+            "event_id": "evt-x", "consequence_name": "genome_refresh", "status": "completed", "result_ref": "v4",
+        }}
+    )
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        won = await _try_claim_consequence("evt-x", "genome_refresh")
+
+    assert won is False
+    assert rows[("evt-x", "genome_refresh")]["status"] == "completed"
+
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_reclaims_a_stale_pending_row():
+    """Crash-recovery path: a consequence claimed by a worker that then
+    crashed (never reached 'completed' or 'failed') must eventually be
+    reclaimable, once the claim is old enough to be considered abandoned
+    -- otherwise it would be stuck at 'pending' forever."""
+    from services.case_evolution import _try_claim_consequence, _CONSEQUENCE_STALE_PENDING_SECONDS
+    old_ts = _iso_seconds_ago_for_tests(_CONSEQUENCE_STALE_PENDING_SECONDS + 60)
+    _table, rows, _ = _make_consequence_table(
+        existing_rows={("evt-x", "timeline_entry"): {
+            "event_id": "evt-x", "consequence_name": "timeline_entry", "status": "pending", "updated_at": old_ts,
+        }}
+    )
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        won = await _try_claim_consequence("evt-x", "timeline_entry")
+
+    assert won is True, "a genuinely stale pending claim must eventually be reclaimable"
+
+
+@pytest.mark.anyio
+async def test_try_claim_consequence_does_not_reclaim_a_fresh_pending_row():
+    """No regression / restates the race-closing test above with an
+    explicit, recent timestamp: a claim made moments ago must NOT be
+    reclaimable by a concurrent second caller."""
+    from services.case_evolution import _try_claim_consequence
+    recent_ts = _now_iso_for_tests()
+    _table, rows, _ = _make_consequence_table(
+        existing_rows={("evt-x", "timeline_entry"): {
+            "event_id": "evt-x", "consequence_name": "timeline_entry", "status": "pending", "updated_at": recent_ts,
+        }}
+    )
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("services.case_evolution._get_supa", return_value=mock_supa):
+        won = await _try_claim_consequence("evt-x", "timeline_entry")
+
+    assert won is False

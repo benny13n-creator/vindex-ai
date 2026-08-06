@@ -2215,3 +2215,58 @@ failure is unexplained by either investigation — flagged, not asserted as sett
 `REGRESSION_CERTIFICATION_REPORT.md`, `TEST_COVERAGE_IMPACT.md`, `SPRINT_003A_MISSION_REPORT.md`.
 
 Repository is in a clean, fully green, verified state — ready for Certification 004.
+
+## Program Lambda, Certification 004 (2026-08-06) — Enterprise Failure Survival Certification
+
+**Mission**: "Assume every external dependency, asynchronous process, AI component, database operation, and
+user action can fail. Prove what happens." The system tested as an enterprise platform, not a collection of
+working functions. Founder's own closing question: "Can a professional legal firm trust Vindex AI when
+something inevitably goes wrong?"
+
+**Method**: 6 named agents — 5 parallel read-only investigative forks (Reliability Architect, Distributed
+Systems Engineer, AI Systems Reliability Engineer, Database Reliability Engineer, Chaos Engineer) mapping the
+complete failure surface and injecting failures via code-level trace/mock simulation (no live deployment
+exists in this environment), then a 6th (Certification Auditor / Adversarial Re-Attack) launched sequentially
+after every fix landed, per this program's own standing discipline of never trusting a fork's self-report or
+a first implementation attempt without independent verification.
+
+**Result: 7 real reliability gaps found and fixed, 5 named as debt with reasoning, zero guessed at.** The
+worst finding: `routers/case_dna.py::_do_genome_refresh` was writing a GPT failure signal directly into the
+LIVE `predmeti.case_dna` column (a full-value JSON replace) instead of leaving existing Genome data untouched
+— a single transient OpenAI hiccup destroyed key facts, contradictions, deadlines, everything, for every
+downstream consumer (Court Predictor, Digital Twin, CIO, Copilot). Fixed: a unified early-return guard on
+failure, so nothing about the live case is touched. Also fixed: Map-Reduce contract analysis silently
+presenting a failed batch as "found nothing" (now surfaces `partial_failure`); a genuine TOCTOU race in the
+Canonical Consequence Engine's own dedup check (closes Certification 003's own `LAMBDA003-EVT-001`, found to
+affect 5 of 9 consequence executors, not previously quantified this precisely); zero double-submit protection
+on 2 case-creation entry points (`intake_kreiraj`/`kreiraj_predmet`, double-click created 2 real cases);
+zero optimistic-concurrency guard on case edits (stale-tab writes silently clobbered newer data); and
+`workspace.py`'s own daily operational board crashing entirely on a single sub-fetch hiccup instead of
+degrading gracefully like its own sibling code already did.
+
+**3 of 7 fixes were self-corrected during this sprint** — a genuine, working demonstration of this mission's
+own Phase 6 requirement ("a fix is accepted only if it survives attack"): the coordinator's own regression
+tests caught 2 flawed first attempts (Map-Reduce's fix targeting the wrong swallow point; the atomic-claim
+fix's own unconditional-pending-reclaim reintroducing a self-referential race) before either was reported
+done, and the dedicated adversarial-re-attack fork caught a 3rd (a 404-vs-409 message conflation in the
+optimistic-concurrency fix) after the coordinator's own tests had already passed.
+
+**5 items named as architectural debt, not guessed at**: `LAMBDA004-AI-001` (zero explicit OpenAI timeout
+across ~63 call sites — highest leverage, needs production latency data before choosing a number, not a
+blanket guess), `LAMBDA004-NOTIF-001` (a second, less-hardened notification system found alongside the
+already-proven `proactive_alerts` one), `LAMBDA004-DB-001` (a narrow, unconfirmed document-dedup TOCTOU),
+`LAMBDA004-EVT-002` (Event Bus dead-letter has no active paging — a new capability, not a bug fix),
+`LAMBDA004-MEM-001` (pre-existing, self-documented, no confirmed incident — Genome refresh doesn't coalesce
+across worker processes).
+
+**Zero new migrations needed** — every fix reused an existing column, constraint, or precedent already in
+the schema. Full suite independently re-run by the coordinator: **3,008 passed, 1 skipped, 0 failed** (was
+2,991 at the end of Certification 003A). 8 required deliverables in `docs/lambda/` (`LAMBDA004_FAILURE_MAP.md`,
+`LAMBDA004_CHAOS_TEST_REPORT.md`, `LAMBDA004_EVENT_SURVIVAL_REPORT.md`, `LAMBDA004_AI_FAILURE_REPORT.md`,
+`LAMBDA004_DATABASE_SURVIVAL_REPORT.md`, `LAMBDA004_FIX_REPORT.md`, `LAMBDA004_CERTIFICATION_REPORT.md`,
+`LAMBDA004_HANDOVER.md`).
+
+**Verdict: CERTIFIED.** No finding rose to "the platform cannot be trusted in production" — every fix was a
+bounded correction to a real, proven gap, and the platform's own dominant reliability pattern (RPC-based
+atomic claims, first proven in Smart Intake) held up everywhere it was already applied and was extended this
+sprint to close the last major gap where it hadn't been (the Canonical Consequence Engine).

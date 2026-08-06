@@ -61,6 +61,11 @@ def _capture_insert_mock(predmeti_id="pred-001", extra_tables=None):
         if name == "predmeti":
             t = MagicMock()
             t.insert.return_value.execute.return_value.data = [{"id": predmeti_id}]
+            # Program Lambda, Certification 004: intake_kreiraj's own
+            # recent-duplicate check before insert (post_from_template,
+            # the other caller of this shared helper, never reaches this
+            # chain, so configuring it here is inert for that test).
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
             return t
         elif name == "predmet_klijenti":
             return pk_table

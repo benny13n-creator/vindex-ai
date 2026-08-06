@@ -31,7 +31,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from starlette.datastructures import Headers
 from starlette.requests import Request as StarletteRequest
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 
 import api
 
@@ -74,13 +74,33 @@ def _req_json(body: dict, path: str = "/api/predmeti"):
     return StarletteRequest(scope=scope, receive=receive)
 
 
+def _predmeti_chain_with_insert(row: dict):
+    """Program Lambda, Certification 004: kreiraj_predmet now does a
+    recent-duplicate SELECT (must find nothing) before the INSERT (must
+    return the new row) -- unlike plain _chain(), this distinguishes the
+    two so the dup-check doesn't see the insert's own future result."""
+    c = MagicMock()
+    for m in ["select", "eq", "gte", "limit"]:
+        setattr(c, m, MagicMock(return_value=c))
+    empty = MagicMock(); empty.data = []
+    c.execute = MagicMock(return_value=empty)
+
+    def _insert(_payload):
+        ic = MagicMock()
+        r = MagicMock(); r.data = [row]
+        ic.execute = MagicMock(return_value=r)
+        return ic
+    c.insert = MagicMock(side_effect=_insert)
+    return c
+
+
 @pytest.mark.anyio
 async def test_kreiraj_predmet_writes_predmet_kreiran_to_durable_outbox():
     events_insert_calls = []
 
     def _table(name):
         if name == "predmeti":
-            return _chain([{"id": "novi-predmet-1", "naziv": "Test predmet", "status": "aktivan"}])
+            return _predmeti_chain_with_insert({"id": "novi-predmet-1", "naziv": "Test predmet", "status": "aktivan"})
         if name == "events":
             chain = MagicMock()
 
@@ -115,7 +135,7 @@ async def test_kreiraj_predmet_still_succeeds_if_durable_event_insert_fails():
     pipeline trigger must never fail the predmet-creation response itself."""
     def _table(name):
         if name == "predmeti":
-            return _chain([{"id": "novi-predmet-2", "naziv": "Test", "status": "aktivan"}])
+            return _predmeti_chain_with_insert({"id": "novi-predmet-2", "naziv": "Test", "status": "aktivan"})
         if name == "events":
             chain = MagicMock()
             chain.insert = MagicMock(side_effect=Exception("DB down"))
@@ -131,6 +151,130 @@ async def test_kreiraj_predmet_still_succeeds_if_durable_event_insert_fails():
         result = await api.kreiraj_predmet(req, "Bearer fake-token")
 
     assert result["predmet"]["id"] == "novi-predmet-2"
+
+
+@pytest.mark.anyio
+async def test_kreiraj_predmet_rejects_near_duplicate_submission():
+    """Program Lambda, Certification 004: a double-click / near-simultaneous
+    resubmit with the same naziv must be rejected with a clean 409, not
+    create a second predmet."""
+    def _table(name):
+        if name == "predmeti":
+            t = MagicMock()
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = [
+                {"id": "pred-original", "created_at": "2026-08-06T12:00:00+00:00"}
+            ]
+            return t
+        return _chain([])
+
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    req = _req_json({"naziv": "Test predmet", "tip": "opsti"})
+    with patch("api._get_supa", return_value=supa), \
+         patch("api._require_auth", return_value=_fake_user("user-1")):
+        with pytest.raises(HTTPException) as exc:
+            await api.kreiraj_predmet(req, "Bearer fake-token")
+
+    assert exc.value.status_code == 409
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# update_predmet — optimistic-concurrency guard (Certification 004)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _update_chain(matches: bool, row_exists: bool = True):
+    """update(...).eq(...).eq(...)[.eq("updated_at", ...)].execute() --
+    `matches` controls whether the final .execute() reports a row was
+    actually updated (real Postgres UPDATE...WHERE behavior: 0 rows back
+    when a precondition doesn't match the row's current state). Also
+    models the SEPARATE .select(...).maybe_single() existence-check
+    query the fix's own 404-vs-409 disambiguation added (Phase 6
+    adversarial re-attack finding): `row_exists` controls THAT query's
+    own result, independent of `matches`."""
+    c = MagicMock()
+    for m in ["update", "eq"]:
+        setattr(c, m, MagicMock(return_value=c))
+    r = MagicMock()
+    r.data = [{"id": "pred-1"}] if matches else []
+    c.execute = MagicMock(return_value=r)
+
+    exist_chain = MagicMock()
+    exist_chain.eq.return_value = exist_chain
+    exist_chain.maybe_single.return_value = exist_chain
+    exist_r = MagicMock()
+    exist_r.data = {"id": "pred-1"} if row_exists else None
+    exist_chain.execute = MagicMock(return_value=exist_r)
+    c.select = MagicMock(return_value=exist_chain)
+    return c
+
+
+@pytest.mark.anyio
+async def test_update_predmet_without_if_updated_at_behaves_exactly_as_before():
+    """No regression: a caller not sending if_updated_at gets the exact
+    prior unconditional-update behavior (opt-in only, no breakage for
+    existing frontends)."""
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_update_chain(matches=True))
+
+    req = _req_json({"naziv": "Novi naziv"}, path="/api/predmeti/pred-1")
+    with patch("api._get_supa", return_value=supa), \
+         patch("api._require_auth", return_value=_fake_user("user-1")):
+        result = await api.update_predmet("pred-1", req, "Bearer fake-token")
+
+    assert result == {"ok": True}
+
+
+@pytest.mark.anyio
+async def test_update_predmet_with_matching_if_updated_at_succeeds():
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_update_chain(matches=True))
+
+    req = _req_json({"naziv": "Novi naziv", "if_updated_at": "2026-08-06T10:00:00+00:00"}, path="/api/predmeti/pred-1")
+    with patch("api._get_supa", return_value=supa), \
+         patch("api._require_auth", return_value=_fake_user("user-1")):
+        result = await api.update_predmet("pred-1", req, "Bearer fake-token")
+
+    assert result == {"ok": True}
+
+
+@pytest.mark.anyio
+async def test_update_predmet_with_stale_if_updated_at_rejects_with_409():
+    """The core fix: a client editing a stale copy (its own if_updated_at
+    no longer matches the row's current updated_at, e.g. because another
+    tab already saved a change) must get a clean 409, not silently
+    clobber the newer data. (The row genuinely exists, per row_exists=True
+    default -- this is the disambiguation follow-up query's own OTHER
+    branch, see the paired 404 test below.)"""
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_update_chain(matches=False, row_exists=True))
+
+    req = _req_json({"naziv": "Stale naziv", "if_updated_at": "2026-08-06T09:00:00+00:00"}, path="/api/predmeti/pred-1")
+    with patch("api._get_supa", return_value=supa), \
+         patch("api._require_auth", return_value=_fake_user("user-1")):
+        with pytest.raises(HTTPException) as exc:
+            await api.update_predmet("pred-1", req, "Bearer fake-token")
+
+    assert exc.value.status_code == 409
+
+
+@pytest.mark.anyio
+async def test_update_predmet_with_nonexistent_predmet_rejects_with_404_not_409():
+    """Phase 6 adversarial re-attack finding: the original fix conflated
+    "0 rows updated because of a stale if_updated_at" with "0 rows updated
+    because predmet_id doesn't exist / isn't owned by this caller" -- the
+    latter must return 404 ('not found'), not the misleading 409 ('someone
+    else changed it') the first version of this fix would have returned."""
+    supa = MagicMock()
+    supa.table = MagicMock(return_value=_update_chain(matches=False, row_exists=False))
+
+    req = _req_json({"naziv": "X", "if_updated_at": "2026-08-06T09:00:00+00:00"}, path="/api/predmeti/pred-nonexistent")
+    with patch("api._get_supa", return_value=supa), \
+         patch("api._require_auth", return_value=_fake_user("user-1")):
+        with pytest.raises(HTTPException) as exc:
+            await api.update_predmet("pred-nonexistent", req, "Bearer fake-token")
+
+    assert exc.value.status_code == 404
 
 
 # ═══════════════════════════════════════════════════════════════════════════

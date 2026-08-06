@@ -311,7 +311,16 @@ async def test_run_genome_background_computes_and_threads_verifikacija():
 @pytest.mark.anyio
 async def test_run_genome_background_skips_verification_on_extraction_error():
     """Ako _extract_genome vrati gresku, nema smisla verifikovati prazan/
-    nepotpun rezultat — genome['_verifikacija'] se ne sme postaviti."""
+    nepotpun rezultat — genome['_verifikacija'] se ne sme postaviti.
+
+    Program Lambda, Certification 004 (2026-08-06): this test originally
+    only checked that verification was skipped, while the write to the
+    live predmeti.case_dna column, the history save, and the event emit
+    all still went through with the failure signal itself -- exactly the
+    bug that sprint found and fixed (a GPT extraction failure destroyed
+    the case's existing Genome data). On failure, _do_genome_refresh now
+    returns early before ANY of those steps run -- _emit_genome_event is
+    never called at all, not called-with-verification-absent."""
     from routers import case_dna as cd
 
     old_genome = {"verzija": 1}
@@ -329,13 +338,12 @@ async def test_run_genome_background_skips_verification_on_extraction_error():
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=AsyncMock(return_value={"greska": "OpenAI down"})), \
-         patch("routers.case_dna._save_genome_history", new=AsyncMock()), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_history, \
          patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
         await cd._run_genome_background("predmet-1", "user-1", None, trigger="upload_trigger")
 
-    passed_genome = mock_emit.call_args[0][3]
-    assert "_verifikacija" not in passed_genome
-    assert mock_emit.call_args.kwargs["verifikacija_odluka"] is None
+    mock_emit.assert_not_called()
+    mock_history.assert_not_called()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

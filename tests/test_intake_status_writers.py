@@ -64,11 +64,24 @@ async def test_intake_kreiraj_links_document_with_explicit_status():
 
     def _table(name):
         c = MagicMock()
-        for m in ["select", "eq", "insert", "execute", "order", "limit", "single"]:
+        for m in ["select", "eq", "insert", "execute", "order", "limit", "single", "gte"]:
             setattr(c, m, MagicMock(return_value=c))
         if name == "predmeti":
-            r = MagicMock(); r.data = [new_predmet]
-            c.execute = MagicMock(return_value=r)
+            # Program Lambda, Certification 004: intake_kreiraj now does a
+            # SELECT (recent-duplicate check, must find nothing) before the
+            # INSERT (must return the new predmet) -- .insert() routes to
+            # its own chain so .execute() can distinguish the two.
+            empty = MagicMock(); empty.data = []
+            c.execute = MagicMock(return_value=empty)
+
+            def _insert(payload):
+                ic = MagicMock()
+                for m in ["eq", "select", "order", "limit", "single"]:
+                    setattr(ic, m, MagicMock(return_value=ic))
+                r = MagicMock(); r.data = [new_predmet]
+                ic.execute = MagicMock(return_value=r)
+                return ic
+            c.insert = MagicMock(side_effect=_insert)
         elif name == "predmet_dokumenti":
             def _capture(payload):
                 captured_doc_inserts.append(payload)

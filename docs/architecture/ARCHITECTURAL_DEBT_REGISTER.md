@@ -2954,3 +2954,87 @@ delta, zero collateral regressions. Full detail: `docs/lambda/ROOT_CAUSE_ANALYSI
 `docs/lambda/FIX_JUSTIFICATION.md`, `docs/lambda/REGRESSION_CERTIFICATION_REPORT.md`.
 
 **Severity**: was Low (test-infrastructure only, zero production impact) — now resolved, N/A.
+
+## LAMBDA004-AI-001 — zero explicit OpenAI timeout across ~63 client construction sites (Medium-High, needs production data)
+
+**Found by**: AI Systems Reliability Engineer, Program Lambda Certification 004.
+
+**What**: no file passes `timeout=` to `OpenAI()`/`AsyncOpenAI()` construction or any individual `.create()`
+call, anywhere in the repo. SDK default (`openai==2.29.0`): up to 10 minutes per attempt, plus the SDK's own
+internal `max_retries=2` sitting underneath `shared/llm_retry.py`'s own 3 application-level attempts — a
+materially longer and less predictable worst-case latency than the retry decorator's own "max 3 attempts"
+framing implies.
+
+**Why not fixed this sprint**: choosing a single blanket timeout value across ~63 heterogeneous call sites
+(a quick classification call vs. a large Map-Reduce synthesis call have very different realistic latency
+profiles) without production latency-distribution data is the exact "guessing a number" pattern this
+engagement has repeatedly refused to do (`LAMBDA-001`'s own precedent for the Supabase client timeout).
+
+**Recommended next step**: instrument first (latency logging/metrics around the highest-traffic call sites),
+then set timeouts from real p99 data, likely tiered by call shape rather than one blanket value.
+
+**Severity**: Medium-High — the single most likely "found nothing until it's in production under load" gap
+this certification surfaced, but not independently confirmed to have caused any incident yet.
+
+## LAMBDA004-NOTIF-001 — `notifications` polling system lacks `proactive_alerts`'s own durability guarantees (Medium, product decision needed)
+
+**Found by**: Reliability Architect + Chaos Engineer, Program Lambda Certification 004.
+
+**What**: two parallel, independent notification-creation systems exist with different reliability
+guarantees. `shared/proactive_alerts.py::create_proactive_alert` (event-bus-driven) retries up to 3 attempts
+and writes a durable `proactive_alert_insert_failed` audit entry on exhaustion — a lost alert is never
+silent. `routers/notifications.py::_generate_notifications` (polling-driven, generates rok/neaktivnost
+alerts on page load) has no such protection — a bare `try/except: logger.error(...); return 0`, indistinguishable
+from "nothing new to notify."
+
+**Why not fixed this sprint**: a genuinely different, narrower-scoped system than the one first suspected
+(an earlier investigation pass named a dead function, `trigger_notifikacija`, before the live equivalent was
+found) — retrofitting it needs its own scoped decision (match `create_proactive_alert`'s own pattern, or
+consolidate the two systems onto one path), not a rushed patch bundled into this sprint.
+
+**Severity**: Medium — no confirmed production incident, a structural asymmetry found by audit.
+
+## LAMBDA004-DB-001 — `content_sha256` document dedup is application-level only, narrow TOCTOU (Low, unconfirmed exploitable)
+
+**Found by**: Database Reliability Engineer, Program Lambda Certification 004.
+
+**What**: `predmet_dokumenti.content_sha256` (migration 095) is backed by a plain, non-unique index — dedup
+enforced via a SELECT-then-INSERT check, not a DB constraint. Two finalize calls for identical document
+content, same user, within a narrow concurrent window, could theoretically both pass the check before either
+insert lands — structurally the same shape as the now-fixed `LAMBDA003-EVT-001`, narrower in practice
+(requires identical content + genuinely concurrent timing).
+
+**Why not fixed this sprint**: not verified exploitable, narrower and lower-priority than the confirmed
+findings this sprint actually fixed.
+
+**Severity**: Low.
+
+## LAMBDA004-EVT-002 — Event Bus dead-letter has no active alerting/paging (Low-Medium, new capability needed)
+
+**Found by**: Distributed Systems Engineer, Program Lambda Certification 004.
+
+**What**: `dispatch_pending_events` correctly stops retrying after `MAX_DISPATCH_ATTEMPTS=5`, writes an
+explicit `"DEAD_LETTER after N attempts"` marker, and logs at CRITICAL — durable and provable, never silent.
+But this is purely passive (queryable/log-visible only) — nothing actively pages a human, despite the log
+message's own text asserting manual intervention is needed.
+
+**Why not fixed this sprint**: closing this is a genuinely NEW capability (an alerting/paging integration),
+explicitly out of this sprint's "no new capabilities" charter, not a bug fix.
+
+**Severity**: Low-Medium — recoverability itself is not at risk, only operator visibility into WHEN manual
+intervention is actually needed.
+
+## LAMBDA004-MEM-001 — Genome background refresh doesn't coalesce across gunicorn worker processes (Low, pre-existing, self-documented)
+
+**Found by**: Reliability Architect, Program Lambda Certification 004 (re-confirmed, not newly discovered).
+
+**What**: `routers/case_dna.py::_run_genome_background`'s in-process coalescing (`_genome_refresh_inflight`
+sets) prevents a same-process lost-update race for concurrent triggers on the same case, but explicitly does
+NOT coalesce across separate gunicorn worker processes — the code's own docstring already names this gap.
+
+**Why not fixed this sprint**: pre-existing, self-documented, no confirmed incident from it; a genuinely
+larger cross-process coordination problem (would likely need a DB-level lock or a dedicated coordination
+mechanism), not a bounded fix.
+
+**Severity**: Low — worth revisiting only if worker-process count or Genome-refresh trigger frequency ever
+makes the race window practically relevant.

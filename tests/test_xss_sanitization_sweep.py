@@ -227,7 +227,10 @@ class TestApiPyPredmetiHandlersUseSanitizer:
     def test_kreiraj_predmet_sanitizes_naziv_and_opis(self, api_src):
         idx = api_src.find('async def kreiraj_predmet(')
         assert idx != -1
-        snippet = api_src[idx:idx + 700]
+        # Program Lambda, Certification 004 (2026-08-06) added a
+        # recent-duplicate check before the insert, pushing the sanitize
+        # calls further into the function -- window widened accordingly.
+        snippet = api_src[idx:idx + 2200]
         assert "sanitize_user_input" in snippet
         assert 'sanitize_user_input(body.get("opis"' in snippet
 

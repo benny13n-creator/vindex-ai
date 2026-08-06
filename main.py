@@ -3866,6 +3866,7 @@ def _map_analiziraj_batch(batch: list, doc_type: str, batch_idx: int, total_batc
         f"— segmenti: {', '.join(s.id for s in batch)}\n\n" + "\n\n".join(delovi)
     )
 
+    failed = False
     try:
         raw = _pozovi_openai(
             _SYSTEM_PROMPT_ANALIZA_MAP, user_content,
@@ -3877,17 +3878,27 @@ def _map_analiziraj_batch(batch: list, doc_type: str, batch_idx: int, total_batc
         logger.warning("[ANALIZA_V2/MAP] batch %d/%d neuspešan: %s", batch_idx, total_batches, exc)
         _sentry_capture(exc)
         parsed = {}
+        failed = True
 
     return {
         "findings": parsed.get("findings") or [],
         "financial_exposure_items": parsed.get("financial_exposure_items") or [],
         "litigation_readiness": parsed.get("litigation_readiness") or {},
         "attack_surface": parsed.get("attack_surface") or [],
+        # Program Lambda, Certification 004 (2026-08-06) -- this function
+        # itself never raises (by design -- "Nikad ne baca", see docstring),
+        # so the caller's own try/except around fut.result() could never
+        # actually observe a GPT-call failure here; that failure signal was
+        # being swallowed at exactly this point. This internal-only marker
+        # (popped by the caller before aggregation, never reaches the final
+        # report) is what makes the failure visible one level up.
+        "_batch_failed": failed,
     }
 
 
 def _reduce_analiza(stripped_doc, all_findings: list, all_fin_items: list,
-                     all_litigation: list, all_attack: list, pitanje_api: str) -> dict:
+                     all_litigation: list, all_attack: list, pitanje_api: str,
+                     failed_batches: list | None = None) -> dict:
     """Jedan REDUCE poziv -- sintetiše missing_clauses/legacy_text/finansijski
     rezime iz agregiranih MAP nalaza. Ne dodaje nove findings/clause_ref
     vrednosti (to bi zaobišlo grounding garantovan u MAP koraku)."""
@@ -3946,6 +3957,18 @@ def _reduce_analiza(stripped_doc, all_findings: list, all_fin_items: list,
         "attack_surface": all_attack,
         "low_confidence_findings": [],
         "legacy_text": parsed.get("legacy_text") or "",
+        # Program Lambda, Certification 004 (2026-08-06) -- AI Systems
+        # Reliability fork found (Adversarial Certification-confirmed): a
+        # batch that raised during MAP was silently substituted with an
+        # empty-but-valid-shaped result, indistinguishable from a batch that
+        # genuinely found nothing -- a lawyer reviewing the analysis had no
+        # way to know a segment was dropped due to a transient GPT failure
+        # rather than being clean. These 2 fields make that distinction
+        # visible in the response itself (not yet surfaced in the frontend --
+        # that's a separate, later decision -- but the signal now exists to
+        # surface, rather than being lost at the point of failure).
+        "partial_failure": bool(failed_batches),
+        "failed_batches": failed_batches or [],
     }
 
 
@@ -3966,6 +3989,7 @@ def _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api: str) -> dict:
     )
 
     ordered: list = [None] * total_batches
+    failed_batches: list[int] = []
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             executor.submit(_map_analiziraj_batch, batch, stripped_doc.doc_type, i + 1, total_batches): i
@@ -3978,6 +4002,7 @@ def _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api: str) -> dict:
             except Exception as exc:
                 logger.warning("[ANALIZA_V2/MAP] batch %d exception: %s", idx + 1, exc)
                 _sentry_capture(exc)
+                failed_batches.append(idx + 1)
                 ordered[idx] = {
                     "findings": [], "financial_exposure_items": [],
                     "litigation_readiness": {}, "attack_surface": [],
@@ -3986,6 +4011,13 @@ def _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api: str) -> dict:
     all_findings, all_fin_items, all_litigation, all_attack = [], [], [], []
     for i, r in enumerate(ordered):
         r = r or {"findings": [], "financial_exposure_items": [], "litigation_readiness": {}, "attack_surface": []}
+        # _map_analiziraj_batch never raises (by design), so a GPT-call
+        # failure inside it surfaces here as this internal-only marker, not
+        # as an exception from fut.result() above -- that's the actual
+        # swallow point this fix closes (see _map_analiziraj_batch's own
+        # comment). Popped here so it never reaches the aggregated report.
+        if r.pop("_batch_failed", False) and (i + 1) not in failed_batches:
+            failed_batches.append(i + 1)
         # Re-prefiksuj finding ID-jeve da budu jedinstveni preko batch-eva
         # (npr. "f1" iz batch-a 1 i "f1" iz batch-a 2 bi se inače sudarili).
         for f in r["findings"]:
@@ -4001,7 +4033,8 @@ def _ask_analiza_v2_map_reduce(stripped_doc, pitanje_api: str) -> dict:
         len(all_findings), len(all_fin_items), len(all_attack),
     )
 
-    return _reduce_analiza(stripped_doc, all_findings, all_fin_items, all_litigation, all_attack, pitanje_api)
+    return _reduce_analiza(stripped_doc, all_findings, all_fin_items, all_litigation, all_attack, pitanje_api,
+                            failed_batches=failed_batches)
 
 
 def ask_analiza_v2(

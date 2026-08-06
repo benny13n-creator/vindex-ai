@@ -64,6 +64,8 @@ class _FakeQuery:
         self._op = "select"
         self._payload = None
         self._single = False
+        self._ignore_duplicates = False
+        self._on_conflict = None
 
     def select(self, *_a, **_kw):
         self._op = "select"
@@ -79,9 +81,11 @@ class _FakeQuery:
         self._payload = payload
         return self
 
-    def upsert(self, row, on_conflict=None):
+    def upsert(self, row, on_conflict=None, ignore_duplicates=False):
         self._op = "upsert"
         self._payload = row
+        self._ignore_duplicates = ignore_duplicates
+        self._on_conflict = on_conflict
         return self
 
     def eq(self, col, val):
@@ -127,6 +131,20 @@ class _FakeQuery:
             res.data = [new_row]
         elif self._op == "upsert":
             new_row = dict(self._payload)
+            if self._ignore_duplicates and self._on_conflict:
+                # Program Lambda, Certification 004: real INSERT ... ON
+                # CONFLICT (cols) DO NOTHING inserts nothing (and returns
+                # no row) if a row already matches on the conflict
+                # columns -- needed for _try_claim_consequence's own
+                # atomic claim (services/case_evolution.py).
+                cols = [c.strip() for c in self._on_conflict.split(",")]
+                conflict = any(
+                    all(r.get(c) == new_row.get(c) for c in cols)
+                    for r in self._rows_ref
+                )
+                if conflict:
+                    res.data = []
+                    return res
             self._rows_ref.append(new_row)
             res.data = [new_row]
         elif self._op == "update":

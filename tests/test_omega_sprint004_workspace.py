@@ -287,3 +287,44 @@ async def test_predmeta_sa_akcijama_counts_unique_cases_with_active_items_only()
 
     assert result["predmeta_sa_akcijama"] == 1  # both actions are the same case
     assert result["ukupno_aktivnih"] == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Program Lambda, Certification 004 (2026-08-06) -- get_workspace's own
+# primary asyncio.gather() had no return_exceptions=True, unlike this same
+# file's own _fetch_recently_completed gather. A transient failure in ONE
+# of the 3 sub-fetches raised unhandled, taking down the whole board even
+# when the other two would have succeeded.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_get_workspace_survives_one_sub_fetch_failing():
+    """A transient failure in _fetch_open_actions alone must not crash the
+    whole endpoint -- the other 2 buckets (waiting zadaci, review jobs)
+    must still come through."""
+    from unittest.mock import AsyncMock
+    supa = _make_supa(predmeti=[{"id": "pred-1", "naziv": "A"}])
+
+    async def _boom(*a, **kw):
+        raise RuntimeError("transient DB hiccup")
+
+    with patch("routers.workspace._get_supa", return_value=supa), \
+         patch("routers.workspace._fetch_open_actions", new=_boom):
+        result = await get_workspace(_Req(), _user())
+
+    # Must not raise -- endpoint returns a real (partial) response.
+    assert result["ukupno_aktivnih"] == 0  # the failed bucket contributes nothing, not an error
+    assert "danas" in result and "kriticno" in result  # response shape intact
+
+
+@pytest.mark.anyio
+async def test_get_workspace_all_buckets_ok_when_no_sub_fetch_fails():
+    """No regression: with nothing failing, the endpoint behaves exactly
+    as before this fix."""
+    supa = _make_supa(predmeti=[{"id": "pred-1", "naziv": "A"}])
+
+    with patch("routers.workspace._get_supa", return_value=supa):
+        result = await get_workspace(_Req(), _user())
+
+    assert result["ukupno_aktivnih"] == 0
+    assert result["predmeta_sa_akcijama"] == 0

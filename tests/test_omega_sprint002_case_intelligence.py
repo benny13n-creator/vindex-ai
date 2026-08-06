@@ -38,25 +38,39 @@ def _make_combined_supa(existing_consequence_rows=None, case_dna_after=None, dok
             inner.eq.side_effect = _eq_name
             return inner
         t.select.return_value.eq.side_effect = _select_eq
-        def _upsert(row, on_conflict=None):
-            key = (row["event_id"], row["consequence_name"])
-            existing_rows[key] = {**existing_rows.get(key, {}), **row}
-            res = MagicMock(); res.data = [row]
-            return res
+        def _upsert(row, on_conflict=None, ignore_duplicates=False):
+            node = MagicMock()
+            def _execute():
+                key = (row["event_id"], row["consequence_name"])
+                res = MagicMock()
+                if ignore_duplicates and key in existing_rows:
+                    res.data = []
+                    return res
+                existing_rows[key] = {**existing_rows.get(key, {}), **row}
+                res.data = [row]
+                return res
+            node.execute.side_effect = _execute
+            return node
         t.upsert.side_effect = _upsert
         def _update_chain(payload):
-            inner = MagicMock()
-            def _eq1(col, val):
-                inner2 = MagicMock()
-                def _eq2(col2, val2):
-                    key = (val, val2)
-                    existing_rows[key] = {**existing_rows.get(key, {}), **payload}
-                    leaf = MagicMock(); leaf.execute.return_value = MagicMock()
-                    return leaf
-                inner2.eq.side_effect = _eq2
-                return inner2
-            inner.eq.side_effect = _eq1
-            return inner
+            def _make_level(filters: dict):
+                node = MagicMock()
+                def _eq_next(col, val):
+                    return _make_level({**filters, col: val})
+                node.eq.side_effect = _eq_next
+                def _execute():
+                    res = MagicMock()
+                    key = (filters.get("event_id"), filters.get("consequence_name"))
+                    current = existing_rows.get(key, {})
+                    if "status" in filters and current.get("status") != filters["status"]:
+                        res.data = []
+                        return res
+                    existing_rows[key] = {**current, **payload}
+                    res.data = [existing_rows[key]]
+                    return res
+                node.execute.side_effect = _execute
+                return node
+            return _make_level({})
         t.update.side_effect = _update_chain
         return t
 

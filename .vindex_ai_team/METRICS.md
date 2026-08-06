@@ -1764,3 +1764,25 @@ closure format. Full detail: `docs/lambda/LAMBDA_003_CERTIFICATION.md` and `docs
 assumed), root cause identified with git evidence for the one cluster, the repair independently reviewed,
 full suite green, honest documentation including disclosed limitations. Full detail:
 `docs/lambda/SPRINT_003A_MISSION_REPORT.md` and `docs/lambda/REGRESSION_CERTIFICATION_REPORT.md`.
+
+## Program Lambda, Certification 004 (2026-08-06) — Enterprise Failure Survival Certification
+
+| Metric | Value |
+|---|---|
+| Named agents | 6 (5 parallel read-only investigative forks + 1 sequential adversarial re-attack) |
+| Systems mapped (Phase 1) | 12 (Smart Intake, Document Processing, Case Creation, Case Evolution, Case Actions, Workspace, Notifications, AI Governance Layer, GPT integrations, background workers, audit system, memory systems) |
+| Named end-to-end scenarios tested (Phase 3) | 5 — all given a dedicated verdict |
+| Real reliability gaps found | 7 |
+| Gaps FIXED, with proof | 7 of 7 (100%) |
+| Fixes self-corrected during implementation after failing the coordinator's own or a dedicated adversarial fork's test | 3 of 7 |
+| Worst single finding | `routers/case_dna.py::_do_genome_refresh` — a GPT failure overwrote the LIVE `predmeti.case_dna` column with the failure signal itself, destroying all existing Genome data instead of leaving it untouched |
+| Debt named instead of guessed at | 5 (`LAMBDA004-AI-001` OpenAI timeout, `LAMBDA004-NOTIF-001` notification system asymmetry, `LAMBDA004-DB-001` document-dedup TOCTOU, `LAMBDA004-EVT-002` dead-letter alerting, `LAMBDA004-MEM-001` cross-process Genome coalescing) |
+| New migrations required | 0 — every fix reused an existing column/constraint/precedent already in the schema |
+| New/updated tests | ~30 new tests across 6 dedicated files + ~15 pre-existing test files' own mocks updated for new query/behavior shapes |
+| Full suite | **3,008 passed, 1 skipped, 0 failed** (was 2,991 at end of Certification 003A) — independently re-run by the coordinator, not cited from any fork |
+| Process outcome | 3rd consecutive sprint where adversarial verification (a fork, or the coordinator's own regression tests) caught a real flaw before it shipped — [[feedback_audit_forks_before_trusting_push]]'s principle holding as a repeatable practice, not a one-off |
+
+**Success criteria**: all 8 met — critical workflows survive realistic failures, no silent data corruption
+exists, retries are safe, events are recoverable, AI failures are contained, database failures don't create
+broken states, full suite green, every finding fixed or explicitly named as debt. Full detail:
+`docs/lambda/LAMBDA004_CERTIFICATION_REPORT.md`.

@@ -80,7 +80,7 @@ _validate_enc_key()
 
 import time as _time
 from collections import deque as _deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # ─── Performance ring buffers (in-memory, reset on restart) ──────────────────
 _PERF: dict[str, _deque] = {
@@ -3137,6 +3137,32 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
     naziv = sanitize_user_input((body.get("naziv") or "").strip()) or ""
     if not naziv:
         raise HTTPException(status_code=400, detail="naziv je obavezan")
+
+    # Program Lambda, Certification 004 (2026-08-06): Chaos Engineer +
+    # Database Reliability forks both independently found (Adversarial
+    # Certification-confirmed) this endpoint had zero protection against a
+    # double-click/duplicate submit -- same finding, same fix shape as
+    # routers/intake.py::intake_kreiraj (see that file's own comment for
+    # the full reasoning on why a 5s window, and why this is a check-then-
+    # insert mitigation, not a full atomic guarantee).
+    _cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
+    _dup_check = await asyncio.to_thread(
+        lambda: _get_supa().table("predmeti")
+            .select("id, created_at")
+            .eq("user_id", user.id).eq("naziv", naziv)
+            .gte("created_at", _cutoff_iso)
+            .limit(1).execute()
+    )
+    if _dup_check.data:
+        logger.warning(
+            "[API] dupliran zahtev odbijen — uid=%.8s naziv=%r već kreiran (predmet=%s)",
+            user.id, naziv, _dup_check.data[0]["id"],
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Predmet sa ovim nazivom je upravo kreiran. Ako ovo nije duplikat, sačekajte par sekundi i pokušajte ponovo.",
+        )
+
     row = _get_supa().table("predmeti").insert({
         "user_id": user.id,
         "naziv":   naziv,
@@ -3462,7 +3488,45 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     for _fld in ("naziv", "opis", "tuzilac", "tuzeni", "oblast"):
         if _fld in allowed:
             allowed[_fld] = sanitize_user_input(allowed[_fld])
-    _get_supa().table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id).execute()
+
+    # Program Lambda, Certification 004 (2026-08-06): Chaos Engineer fork
+    # found (Adversarial Certification-confirmed) this was a blind
+    # last-write-wins update with no version/updated_at precondition -- a
+    # stale write from one browser tab (editing a case already changed by
+    # another tab, or by a background process) silently clobbers newer
+    # data with no conflict ever surfaced to either side. `predmeti` has a
+    # real, trigger-refreshed `updated_at` column (supabase_setup.sql's own
+    # `update_predmeti_updated_at` trigger -- genuinely bumped on every
+    # UPDATE, not just a DEFAULT that only applies on INSERT), so an
+    # optional client-supplied `if_updated_at` can be used as an
+    # optimistic-concurrency token with no new migration needed. Opt-in and
+    # backward-compatible: a caller not yet sending it gets the exact prior
+    # behavior (unconditional update), so no existing frontend breaks.
+    if_updated_at = body.get("if_updated_at")
+    supa = _get_supa()
+    q = supa.table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id)
+    if if_updated_at:
+        q = q.eq("updated_at", if_updated_at)
+    result = q.execute()
+    if if_updated_at and not result.data:
+        # Phase 6 adversarial re-attack (same sprint) found this originally
+        # conflated 2 distinct causes of "0 rows updated": a genuine stale
+        # write (if_updated_at precondition didn't match) vs. predmet_id
+        # simply not existing/not owned by this caller -- the latter got
+        # the misleading "someone else changed it" message instead of
+        # "not found". A cheap follow-up existence check (ignoring
+        # if_updated_at) distinguishes them; ownership scoping is
+        # unaffected either way, this only changes which error message
+        # a caller sees.
+        exists = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
+        )
+        if not exists.data:
+            raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+        raise HTTPException(
+            status_code=409,
+            detail="Predmet je izmenjen u međuvremenu. Osvežite stranicu i pokušajte ponovo.",
+        )
     return {"ok": True}
 
 

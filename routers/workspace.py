@@ -175,11 +175,27 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in (predmeti_r.data or [])}
     predmet_ids = list(predmet_naziv.keys())
 
-    actions, zadaci_ceka, review_jobs = await asyncio.gather(
+    # Program Lambda, Certification 004 (2026-08-06): Reliability Architect
+    # fork found (Adversarial Certification-confirmed) this gather had no
+    # return_exceptions=True, unlike this same file's own
+    # _fetch_recently_completed gather (line ~151) -- a transient failure
+    # in ANY ONE of these 3 sub-fetches raised unhandled, taking down the
+    # WHOLE daily operational board (Today/Critical/Upcoming/Review/Waiting
+    # all lost together) even when only one data source hiccupped. Now
+    # degrades gracefully per-bucket, matching the sibling gather's own
+    # already-correct pattern.
+    _actions_r, _zadaci_r, _review_r = await asyncio.gather(
         _fetch_open_actions(supa, predmet_ids),
         _fetch_waiting_zadaci(supa, uid),
         _fetch_review_jobs(supa, uid),
+        return_exceptions=True,
     )
+    for _name, _res in (("open_actions", _actions_r), ("waiting_zadaci", _zadaci_r), ("review_jobs", _review_r)):
+        if isinstance(_res, Exception):
+            logger.warning("[WORKSPACE] %s fetch greška, taj deo table-a prazan: %s", _name, _res)
+    actions = _actions_r if not isinstance(_actions_r, Exception) else []
+    zadaci_ceka = _zadaci_r if not isinstance(_zadaci_r, Exception) else []
+    review_jobs = _review_r if not isinstance(_review_r, Exception) else []
     closed_actions, closed_zadaci = await _fetch_recently_completed(supa, predmet_ids, uid)
 
     danas_stavke: list[dict] = []

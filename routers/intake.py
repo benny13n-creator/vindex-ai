@@ -14,7 +14,7 @@ import logging
 import os
 import re
 import unicodedata
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -31,6 +31,26 @@ logger = logging.getLogger("vindex.intake")
 router = APIRouter(tags=["intake"])
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# Program Lambda, Certification 004 (2026-08-06): Chaos Engineer + Database
+# Reliability forks both independently found (Adversarial Certification-
+# confirmed) that this endpoint had zero protection against a double-click/
+# duplicate submit -- a bare INSERT with no idempotency key and no recent-
+# duplicate check, unlike smart_intake.py's own hardened case-creation path
+# (an atomic claim_intake_finalize RPC). A true atomic fix needs a
+# client-generated idempotency key (a frontend change, out of this
+# backend-only reliability sprint's scope) or a DB-level constraint shaped
+# around a time window (awkward -- Postgres UNIQUE doesn't express "same
+# user+name within N seconds" directly). This is a narrower, still-real
+# mitigation: reject an unmistakably-duplicate submission (same user, same
+# case name, within a few seconds) before it ever reaches the insert. 5
+# seconds comfortably covers a real double-click or an impatient repeat
+# button-press while never blocking two genuinely separate cases a user
+# creates minutes apart -- a check-then-insert, not a DB-level atomic
+# claim, so a residual race window remains for two requests landing within
+# the same instant; narrowing that further needs the idempotency-key
+# approach and is left as a named follow-up, not guessed at further here.
+_DUPLICATE_CASE_WINDOW_SECONDS = 5
 
 _EKSTRAKCIJA_SYSTEM = """Ti si pravni asistent za srpske advokate. Na osnovu opisa problema i opcionalnih nalaza iz analize dokumenta, ekstrahuj ključne podatke za otvaranje novog predmeta.
 
@@ -177,6 +197,24 @@ async def intake_kreiraj(
         opis_delovi.append(f"Vrednost spora: {body.vrednost_spora}")
     full_opis = "\n".join(opis_delovi)
 
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=_DUPLICATE_CASE_WINDOW_SECONDS)).isoformat()
+    dup_check = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id, created_at")
+            .eq("user_id", uid).eq("naziv", body.naziv)
+            .gte("created_at", cutoff_iso)
+            .limit(1).execute()
+    )
+    if dup_check.data:
+        logger.warning(
+            "[INTAKE] dupliran zahtev odbijen — uid=%.8s naziv=%r već kreiran pre <%ds (predmet=%s)",
+            uid, body.naziv, _DUPLICATE_CASE_WINDOW_SECONDS, dup_check.data[0]["id"],
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Predmet sa ovim nazivom je upravo kreiran. Ako ovo nije duplikat, sačekajte par sekundi i pokušajte ponovo.",
+        )
+
     pred_r = await asyncio.to_thread(
         lambda: supa.table("predmeti").insert({
             "user_id": uid,
@@ -191,6 +229,13 @@ async def intake_kreiraj(
     predmet    = pred_r.data[0]
     predmet_id = predmet["id"]
 
+    # Program Lambda, Certification 004: Database Reliability fork found
+    # this step's own outcome had no status field in the response, unlike
+    # every OTHER optional step below (rok_dodat/docs_linked/billing_kreiran)
+    # -- a rejected/failed client link was invisible to the caller, who saw
+    # success:True with no client attached and no way to know why short of
+    # opening the case later. klijent_povezan now reports it explicitly.
+    klijent_povezan = False
     try:
         klijent_ok = await asyncio.to_thread(
             lambda: supa.table("klijenti").select("id").eq("id", body.klijent_id).eq("user_id", uid).maybe_single().execute()
@@ -205,6 +250,7 @@ async def intake_kreiraj(
                     "uloga_klijenta": "stranka",
                 }).execute()
             )
+            klijent_povezan = True
     except Exception as e:
         logger.warning("[INTAKE] predmet_klijenti insert greška: %s", e)
 
@@ -373,6 +419,7 @@ async def intake_kreiraj(
         "success":          True,
         "predmet_id":       predmet_id,
         "predmet":          predmet,
+        "klijent_povezan":  klijent_povezan,
         "rok_dodat":        rok_dodat,
         "docs_linked":      docs_linked,
         "billing_kreiran":  billing_kreiran,

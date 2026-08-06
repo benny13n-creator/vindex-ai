@@ -52,6 +52,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable, Optional
 
 from services.event_bus import Event, EventType
@@ -85,16 +86,109 @@ async def _get_consequence_status(event_id: str, name: str) -> Optional[dict]:
     return res.data if res else None
 
 
-async def _mark_pending(event_id: str, name: str) -> None:
+_CONSEQUENCE_STALE_PENDING_SECONDS = 300  # same threshold as shared/intake_queue.py::reap_stale_jobs's own default -- reused, not re-guessed, for the identical "claimed but never completed" problem shape
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _iso_seconds_ago(seconds: int) -> str:
+    return (datetime.now(timezone.utc) - timedelta(seconds=seconds)).isoformat()
+
+
+async def _try_claim_consequence(event_id: str, name: str) -> bool:
+    """Atomically claims (event_id, name) for execution. Returns True if
+    THIS call won the claim (caller should proceed to execute), False if it
+    should skip (already completed, or another caller currently holds a
+    live claim).
+
+    Program Lambda, Certification 003's own LAMBDA003-EVT-001 (re-confirmed
+    and given a broader real-world blast radius by Certification 004's own
+    Distributed Systems Engineer fork -- 5 of 9 consequence executors would
+    produce a visible duplicate row under this exact race): the previous
+    `_get_consequence_status` (read) then `_mark_pending` (upsert, which
+    does NOT fail or block on an existing row -- it just overwrites) was a
+    genuine TOCTOU race. Two calls could both pass the read-check before
+    either wrote 'pending', and both then execute the consequence.
+
+    Fix, in 2 steps, each itself atomic at the single-row level (Postgres's
+    own row-level locking is the real mutual-exclusion mechanism, not
+    application logic):
+      1. A fresh INSERT with `ignore_duplicates=True` (PostgREST's
+         `INSERT ... ON CONFLICT (event_id, consequence_name) DO NOTHING`,
+         backed by the table's own existing `UNIQUE(event_id,
+         consequence_name)` constraint, migration 096 -- no new migration
+         needed). Returns the inserted row ONLY if there was no conflict;
+         wins the claim outright for the common "never attempted before"
+         case.
+      2. On conflict, read the existing row. 'completed' -> already done,
+         don't reclaim. 'failed' -> a conditional `UPDATE ... WHERE
+         status='failed'` reclaims it unconditionally (a genuinely
+         terminal state; Postgres guarantees at most one concurrent
+         UPDATE with that WHERE clause matches, since the first to commit
+         changes status away from 'failed'). 'pending' -> reclaimed ONLY
+         if `updated_at` is older than `_CONSEQUENCE_STALE_PENDING_SECONDS`
+         -- see below for why this can't be unconditional.
+
+    An earlier version of this fix reclaimed 'pending' unconditionally too
+    (reasoning: `handle_case_changed` is only re-entered when the OUTER
+    Event Bus dispatch already decided a retry is needed, so treating
+    'pending' as reclaimable seemed to just extend that same trust). A
+    regression test written immediately after
+    (test_try_claim_consequence_second_attempt_on_still_pending_row_loses)
+    proved this WRONG: reclaiming 'pending' by writing status='pending'
+    again is a self-referential transition -- the WHERE clause
+    `status='pending'` remains satisfied by the row's own post-reclaim
+    state, so a SECOND concurrent caller's identical reclaim attempt would
+    ALSO match and ALSO win, reproducing the exact race this function
+    exists to close. The staleness gate (reusing `reap_stale_jobs`'s own
+    already-shipped 300s threshold for the identical "claimed but never
+    finished" problem shape, not a newly-guessed number) fixes this: a
+    reclaim's own `WHERE updated_at < cutoff` becomes false the instant one
+    caller's reclaim commits (it stamps a fresh `updated_at`), so a second,
+    near-simultaneous caller's identical query no longer matches.
+    """
     supa = _get_supa()
-    await asyncio.to_thread(
+
+    ins = await asyncio.to_thread(
         lambda: supa.table("case_evolution_consequences")
             .upsert(
                 {"event_id": event_id, "consequence_name": name, "status": "pending", "error": None},
                 on_conflict="event_id,consequence_name",
+                ignore_duplicates=True,
             )
             .execute()
     )
+    if ins.data:
+        return True
+
+    existing = await _get_consequence_status(event_id, name)
+    if not existing or existing.get("status") == "completed":
+        return False
+
+    prior_status = existing.get("status")  # "failed" or "pending"
+    now_iso = _now_iso()
+
+    if prior_status == "failed":
+        upd = await asyncio.to_thread(
+            lambda: supa.table("case_evolution_consequences")
+                .update({"status": "pending", "error": None, "updated_at": now_iso})
+                .eq("event_id", event_id).eq("consequence_name", name).eq("status", "failed")
+                .execute()
+        )
+        return bool(upd.data)
+
+    # prior_status == "pending" -- only reclaim if stale.
+    cutoff_iso = _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS)
+    upd = await asyncio.to_thread(
+        lambda: supa.table("case_evolution_consequences")
+            .update({"status": "pending", "error": None, "updated_at": now_iso})
+            .eq("event_id", event_id).eq("consequence_name", name).eq("status", "pending")
+            .lt("updated_at", cutoff_iso)
+            .execute()
+    )
+    return bool(upd.data)
 
 
 async def _mark_completed(event_id: str, name: str, result_ref: Optional[str]) -> None:
@@ -1037,19 +1131,21 @@ async def handle_case_changed(event: Event) -> None:
         return
 
     for c in consequences:
-        existing = await _get_consequence_status(event.event_id, c.name)
-        if existing and existing.get("status") == "completed":
-            # Retry-safe by construction: an already-completed consequence
-            # is never re-executed, never re-audited, never re-verified —
-            # this is the mechanism Scenario 2/3/5 (crash-after-Genome,
-            # crash-after-Timeline, replay) all rely on.
+        # Program Lambda, Certification 004 (2026-08-06): the previous
+        # read-then-write (_get_consequence_status then _mark_pending) was
+        # a genuine TOCTOU race (LAMBDA003-EVT-001) -- see
+        # _try_claim_consequence's own docstring for the full fix
+        # rationale. A False return covers both "already completed"
+        # (retry-safe, the same guarantee Scenario 2/3/5 rely on) and
+        # "another caller currently holds the live claim".
+        won = await _try_claim_consequence(event.event_id, c.name)
+        if not won:
             logger.info(
-                "[CASE_EVOLUTION] event=%s posledica=%s već završena, preskačem (retry-safe).",
+                "[CASE_EVOLUTION] event=%s posledica=%s već završena ili u toku, preskačem.",
                 event.event_id[:8], c.name,
             )
             continue
 
-        await _mark_pending(event.event_id, c.name)
         try:
             result_ref = await c.executor(event)
         except Exception as exc:

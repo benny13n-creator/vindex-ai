@@ -423,6 +423,8 @@ async def test_intake_kreiraj_skips_linking_foreign_klijent():
         t = MagicMock()
         if name == "predmeti":
             t.insert.return_value.execute.return_value.data = [{"id": "pred-new", "user_id": _fake_user()["user_id"]}]
+            # Program Lambda, Certification 004: recent-duplicate check before insert.
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
         elif name == "predmet_klijenti":

@@ -134,6 +134,118 @@ async def test_do_genome_refresh_orders_docs_by_redni_broj_descending():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Program Lambda, Certification 004 -- a failed GPT extraction must never
+# overwrite the live case_dna column with the failure signal itself.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_do_genome_refresh_never_writes_case_dna_when_extraction_failed():
+    """AI Systems Reliability finding, independently re-confirmed by the
+    Certification Auditor: _extract_genome() returning {"greska": ...} on a
+    GPT failure used to still be written unconditionally to the live
+    predmeti.case_dna column a few lines later -- a full-value JSON replace
+    that destroyed every existing Genome field. The live update, history
+    save, delta/alert, and require-review steps must now all be skipped on
+    failure; only a log line should record it."""
+    from routers import case_dna as cd
+
+    supa = MagicMock()
+    update_calls = []
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = {
+                "case_dna": {
+                    "verzija": 3, "kljucne_cinjenice": ["postojeća činjenica koja ne sme biti obrisana"],
+                    "snaga_predmeta_procent": 70,
+                }
+            }
+
+            def _update(payload):
+                update_calls.append(payload)
+                m = MagicMock()
+                m.eq.return_value.eq.return_value.execute.return_value = MagicMock()
+                return m
+            t.update.side_effect = _update
+        elif name == "predmet_dokumenti":
+            t.select.return_value.eq.return_value.execute.return_value.count = 1
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [
+                {"id": "d1", "naziv_fajla": "d1", "redni_broj": 1, "tekst_sadrzaj": "t"}
+            ]
+        elif name == "predmet_dokazi":
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        return t
+    supa.table.side_effect = _table
+
+    async def _fake_extract_failing(docs, dokazi=None, ukupno_u_predmetu=None):
+        return {"greska": "OpenAI timeout"}
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=_fake_extract_failing), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_history, \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock()) as mock_emit, \
+         patch("routers.case_dna._maybe_alert_require_review", new=AsyncMock()) as mock_review, \
+         patch("routers.case_dna._sync_rokovi_to_hronologija", new=AsyncMock(return_value=0)):
+        await cd._do_genome_refresh("pred-1", "user-1", trigger="upload_trigger")
+
+    assert update_calls == [], "a failed extraction must never write to the live predmeti.case_dna column"
+    mock_history.assert_not_called()
+    mock_emit.assert_not_called()
+    mock_review.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_do_genome_refresh_still_writes_case_dna_on_success():
+    """No regression: a genuinely successful extraction must still write
+    through exactly as before this fix."""
+    from routers import case_dna as cd
+
+    supa = MagicMock()
+    update_calls = []
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = {
+                "case_dna": {"verzija": 1}
+            }
+
+            def _update(payload):
+                update_calls.append(payload)
+                m = MagicMock()
+                m.eq.return_value.eq.return_value.execute.return_value = MagicMock()
+                return m
+            t.update.side_effect = _update
+        elif name == "predmet_dokumenti":
+            t.select.return_value.eq.return_value.execute.return_value.count = 1
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = [
+                {"id": "d1", "naziv_fajla": "d1", "redni_broj": 1, "tekst_sadrzaj": "t"}
+            ]
+        elif name == "predmet_dokazi":
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        return t
+    supa.table.side_effect = _table
+
+    async def _fake_extract_ok(docs, dokazi=None, ukupno_u_predmetu=None):
+        return {"zakljucak": "ok", "kljucne_cinjenice": ["nova činjenica"]}
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=_fake_extract_ok), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_history, \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock()) as mock_emit, \
+         patch("routers.case_dna._maybe_alert_require_review", new=AsyncMock()) as mock_review, \
+         patch("routers.case_dna._sync_rokovi_to_hronologija", new=AsyncMock(return_value=0)):
+        await cd._do_genome_refresh("pred-1", "user-1", trigger="upload_trigger")
+
+    assert len(update_calls) == 1
+    assert update_calls[0]["case_dna"]["kljucne_cinjenice"] == ["nova činjenica"]
+    mock_history.assert_called_once()
+    mock_emit.assert_called_once()
+    mock_review.assert_called_once()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Scenario F — _run_genome_background coalesces concurrent triggers
 # ═══════════════════════════════════════════════════════════════════════════
 

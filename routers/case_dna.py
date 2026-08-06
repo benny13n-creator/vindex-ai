@@ -751,14 +751,44 @@ async def _do_genome_refresh(
                 predmet_id, genome["_genome_docs_preskoceno"], ukupno_dokumenata, len(docs),
             )
 
+        # Program Lambda, Certification 004 (2026-08-06) -- AI Systems Reliability
+        # fork found (Adversarial Certification-confirmed): a GPT extraction
+        # failure inside _extract_genome() correctly returns a bare
+        # {"greska": str(exc)} signal (never raises), but this function used to
+        # write THAT signal unconditionally to the live predmeti.case_dna column
+        # a few lines below -- a Postgres/PostgREST .update() on a JSON column is
+        # a full-value REPLACE, not a merge, so a single transient GPT failure
+        # destroyed every existing Genome field (kljucne_cinjenice,
+        # snaga_predmeta_procent, kontradikcije, nedostaje, deadlines, ...) for
+        # every downstream consumer (Court Predictor, Digital Twin, CIO, Copilot,
+        # build_case_context()) until the next successful refresh. The
+        # verification/hronologija-sync steps immediately below already had the
+        # correct `if not genome.get("greska")` guard -- the live write itself,
+        # history save, delta/alert, and require-review steps did not. All of
+        # them now share that same guard: on failure, nothing about the live
+        # case is touched, only a clear log line records the failure.
+        #
+        # Phase 6 adversarial re-attack (same sprint) found the guard used
+        # truthiness (`genome.get("greska")`) rather than key presence --
+        # an exception with an empty str(exc) (rare, but not provably
+        # impossible for every exception type _extract_genome's own broad
+        # except clause could ever catch) would make this falsy and fall
+        # through into the exact destructive write path this fix exists to
+        # close. Key-presence check closes that edge case at zero cost.
+        if "greska" in genome:
+            logger.warning(
+                "[GENOME] bg refresh predmet=%s NEUSPEŠAN -- postojeći case_dna (v%s) OSTAJE NEPROMENJEN: %s",
+                predmet_id, stari_verzija, genome.get("greska"),
+            )
+            return
+
         # Auto-versioning
         genome["verzija"] = stari_verzija + 1
 
         # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
-        if not genome.get("greska"):
-            genome["_verifikacija"] = verify_genome(genome, docs)
-            genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
-            await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
+        genome["_verifikacija"] = verify_genome(genome, docs)
+        genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+        await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
         # Snimi stari u istoriju
         await _save_genome_history(supa, predmet_id, uid, stari_genome, trigger)
