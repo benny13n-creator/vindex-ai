@@ -360,14 +360,21 @@ async def obrisi_zadatak(
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Briše zadatak (samo kreator ili admin kancelarije)."""
+    """Briše zadatak (samo kreator ili admin SVOJE kancelarije)."""
     uid  = user["user_id"]
     supa = _get_supa()
     firma = await _get_firma_info(supa, uid)
 
     try:
-        if firma.get("is_admin"):
-            q = supa.table("zadaci").delete().eq("id", zadatak_id)
+        # Lambda Certification 002 (2026-08-06) -- admin grana ranije nije
+        # imala kancelarija_id filter (API Penetration sweep, potvrdjeno):
+        # bilo koji korisnik moze samoposluzno kreirati SOPSTVENU kancelariju
+        # (routers/kancelarija.py::kreiraj) i time postati "is_admin", pa
+        # obrisati TUDJ zadatak iz bilo koje druge firme pogadjanjem UUID-a.
+        # "Admin kancelarije" mora znaciti admin SVOJE kancelarije, isti
+        # obrazac kao svaki drugi kancelarija_id-skopiran upit u ovom fajlu.
+        if firma.get("is_admin") and firma.get("kancelarija_id"):
+            q = supa.table("zadaci").delete().eq("id", zadatak_id).eq("kancelarija_id", firma["kancelarija_id"])
         else:
             q = supa.table("zadaci").delete().eq("id", zadatak_id).eq("kreirao_uid", uid)
 

@@ -3402,13 +3402,22 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     )
 
     # Fetch basic client info for linked klijenti
+    # Lambda Certification 002 (2026-08-06) -- ranije nije postojala
+    # user_id provera ovde (API Penetration sweep, potvrdjeno: konfirmovan
+    # cross-tenant PII leak ako se tudj klijent_id ubaci u predmet_klijenti,
+    # vidi predmet_confirm_links). Skopirano na row.data["user_id"] (stvarni
+    # vlasnik predmeta), NE na user.id posmatraca, jer delegirani pristup
+    # iznad namerno dozvoljava kolegi da vidi predmet vlasnika -- klijenti
+    # moraju ostati skopirani na PRAVOG vlasnika u oba slucaja.
     klijenti_linked = []
     if predmet_klijenti.data:
         klijent_ids = [r["klijent_id"] for r in predmet_klijenti.data]
+        predmet_owner_uid = row.data.get("user_id")
         try:
             kl_rows = await asyncio.to_thread(
                 lambda: supa.table("klijenti")
                     .select("id, ime, prezime, firma, tip, status")
+                    .eq("user_id", predmet_owner_uid)
                     .in_("id", klijent_ids)
                     .is_("deleted_at", "null")
                     .execute()
@@ -5332,7 +5341,25 @@ async def predmet_confirm_links(
     linked  = []
     rok_dodat = False
 
+    # Lambda Certification 002 (2026-08-06) -- ranije se klijent_ids iz
+    # tela zahteva vezivalo za predmet bez provere da li ti klijenti uopste
+    # pripadaju pozivaocu (API Penetration sweep, potvrdjeno: dvokorak
+    # cross-tenant PII leak preko get_predmet-a). Vlasnistvo nad SVAKIM
+    # id-jem se sada proverava pre vezivanja, isti obrazac kao svuda
+    # drugde u ovom fajlu (.eq("user_id", uid)).
+    own_kl = await asyncio.to_thread(
+        lambda: supa.table("klijenti")
+            .select("id")
+            .eq("user_id", uid)
+            .in_("id", (req.klijent_ids or [])[:5])
+            .execute()
+    )
+    own_kl_ids = {r["id"] for r in (own_kl.data or [])}
+
     for kl_id in (req.klijent_ids or [])[:5]:
+        if kl_id not in own_kl_ids:
+            logger.warning("[CONFIRM-LINKS] odbijen tudj klijent_id=%s od uid=%s", kl_id, uid)
+            continue
         try:
             existing = await asyncio.to_thread(
                 lambda _kid=kl_id: supa.table("predmet_klijenti")

@@ -1680,3 +1680,34 @@ judged unsafe. Every fix followed the mission's own explicit chain: dokaz → po
 → dokumentacija → commit → push. The founder's own stated decision rule ("ako ispliva ozbiljan arhitektonski
 nedostatak, prvo bih ga rešio do kraja, pa tek onda otvorio beta pristup") was explicitly evaluated against
 each of the 5 deferred findings — none met that bar. Full detail: `docs/lambda/BETA_READINESS_REPORT.md`.
+
+## Program Lambda, Certification 002 (2026-08-06) — Ownership & IDOR Certification
+
+**Methodology note**: 9 parallel forensic forks (API Penetration split a-m/n-z, Database & RLS, Background
+Worker, Storage, AI Context, Integration+Adversarial), each chartered to try to BREAK ownership, not confirm
+it — success measured by finding a bypass, not by a clean report. 2 forks' initial output was lost to an
+infrastructure issue mid-sprint and re-run from scratch rather than left unverified.
+
+| Metric | Value |
+|---|---|
+| Audit roles covered | 8 named roles via 9 forensic forks |
+| API endpoints checked (a-m sweep alone) | 287 (260 SAFE, 11 VULNERABLE→fixed, 17 NEEDS-DEEPER-LOOK triaged) |
+| Storage paths checked | 21 (19 SAFE, 2 NEEDS-DEEPER-LOOK, 0 VULNERABLE) |
+| Background workers checked | 13 (11 SAFE, 0 VULNERABLE, 2 NEEDS-DEEPER-LOOK) |
+| RLS policies sampled | 197 across 40+ migration files — individually correct, confirmed decorative for the real (service-role) request path |
+| RPC/`SECURITY DEFINER` functions checked | 19 (2 CONFIRMED VULNERABLE, 3 NEEDS-DEEPER-LOOK/defense-in-depth, 14 SAFE) |
+| Real ownership bugs found, total | 11 app/API-layer + 2 CRITICAL database-layer RPC = **13** |
+| Bugs fixed this sprint, with proof | 13 of 13 (100%) |
+| Worst single finding | `set_user_pro()` RPC — free, permanent PRO subscription upgrade for any authenticated user, zero payment, zero backend involvement |
+| Worst single API-layer finding | `zadaci.py` admin-delete — any self-service firm admin could delete ANY OTHER FIRM's task (vertical privilege escalation) |
+| New Architectural Debt items opened | 1 (`LAMBDA-OWN-001` — Clio webhook trusts client-supplied `vindex_user_id`) |
+| Pre-existing debt re-confirmed, not re-opened | 1 (`SEC-039` — dokument.py session model, independently hit by 2 different forks) |
+| New/updated tests | 20 new (`test_lambda002_ownership_idor_fixes.py` 12, `test_lambda002_multi_agent_context_leak.py` 4, `test_lambda002_rpc_ownership_lockdown.py` 4) + 3 pre-existing files' mocks updated (no test-count change) |
+| Full suite | **2,967 passed, 1 skipped, 0 failed** (was 2,947 at end of Master Sprint 001) — zero regressions, exact delta match (+20) |
+| Outstanding action | `migrations/102_lambda002_rpc_ownership_lockdown.sql` written, NOT yet applied to live Supabase — founder must run it; `deduct_credit`/`set_user_pro` remain live-exploitable until then |
+
+**Success criteria**: the mission's own explicit bar — "ako i posle toga ništa ne prođe, dobijaš dokaz da je
+izolacija ispravna" — was not met in the trivial "nothing found" sense; the sprint instead delivered on the
+mission's actual goal, which was to find out. Every critical ownership flow ends this sprint in exactly one
+of CERTIFIED / FIXED / ARCHITECTURAL DEBT, per the mission's own required closure format — no flow left
+ambiguous. Full detail: `docs/lambda/OWNERSHIP_CERTIFICATION_REPORT.md` and `docs/lambda/IDOR_MATRIX.md`.

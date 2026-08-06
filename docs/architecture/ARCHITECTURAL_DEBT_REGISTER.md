@@ -2794,3 +2794,31 @@ consolidation takes. Bundling this observation into the SAME future sprint rathe
 
 **Severity**: Low-Medium — no case in this platform's own current scale is anywhere near 1,000 cases per
 firm yet; a real but not urgent finding.
+
+## LAMBDA-OWN-001 — `routers/integracije.py::post_webhook_clio` trusts an attacker-controlled `vindex_user_id` in the webhook body (Medium, architecture decision needed)
+
+**Found by**: API Penetration Auditor, Program Lambda Certification 002 (Ownership & IDOR Certification).
+
+**What**: `POST /v1/webhook/clio` (`routers/integracije.py:275-314`) authenticates the REQUEST via a single
+shared `CLIO_WEBHOOK_SECRET` HMAC signature, then reads `user_id = payload.get("vindex_user_id")` straight
+from the attacker-controlled JSON body and inserts a `predmeti` row owned by that id (`:301-313`). The HMAC
+proves "this call came from someone who knows the platform-wide Clio secret" — it does NOT prove "this call
+is authorized to act as this specific Vindex user." Anyone holding `CLIO_WEBHOOK_SECRET` (any firm with Clio
+integration enabled, today) can create a `predmeti` row attributed to an ARBITRARY other Vindex user by
+setting `vindex_user_id` to their id. Impact is CREATE-only (no existing data is read, modified, or deleted)
+— a victim gets a spurious "Clio predmet" they didn't create, not a disclosure of their real data. The
+sibling endpoint `POST /v1/predmeti` (`:255-272`) is NOT affected — it correctly derives `user_id` from
+`key_row["user_id"]`, the caller's own resolved API-key identity, not a body field.
+
+**Why not fixed this sprint**: closing this properly means redesigning the Clio integration's own auth model
+— today it is ONE shared secret for the whole platform with a body field naming the target user; the correct
+shape is a PER-CONNECTION credential (an API key or OAuth token issued to one specific Vindex user's Clio
+connection, with `user_id` derived from THAT credential the same way `/v1/predmeti` already does it, never
+from the request body). That is a scoped but real architecture change to how Clio connections are
+provisioned/stored, not a one-line ownership filter — the mission's own "no guessing at a fix, no new
+capabilities" rule argues against inventing a per-connection credential scheme inside a certification sprint
+whose job is finding and minimally fixing, not redesigning an integration's auth model.
+
+**Severity**: Medium — real and provably exploitable by anyone with `CLIO_WEBHOOK_SECRET`, but bounded to
+CREATE-only spurious-row pollution with no cross-tenant read/write of existing data, and gated behind a
+secret that is not broadly distributed (Clio integration is opt-in, not default-enabled).

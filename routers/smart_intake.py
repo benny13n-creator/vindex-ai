@@ -522,7 +522,48 @@ async def correct_entity(
     vokabular kao evaluation/lec/ i evaluation/hall_of_shame/ anotacije,
     tako da se posle šest meseci realne upotrebe može agregirati "gde
     stvarno gubimo vreme" umesto da svaki correction_reason ostane
-    slobodan tekst koji se ne može grupisati."""
+    slobodan tekst koji se ne može grupisati.
+
+    Lambda Certification 002 (2026-08-06) -- ranije NIJEDNA ownership
+    provera nije postojala ovde (API Penetration sweep, potvrdjeno): bilo
+    koji autentifikovan korisnik je mogao ispraviti TUDJ extracted_entities
+    red navodjenjem njegovog entity_id. Lanac vlasnistva ide
+    extracted_entities.document_id -> intake_documents.intake_job_id ->
+    intake_jobs.uploaded_by, isti obrazac kao review/resolve i
+    review/reject iznad (.eq("uploaded_by", uid))."""
+    supa = _get_supa()
+    ent_res = await asyncio.to_thread(
+        lambda: supa.table("extracted_entities")
+            .select("id, document_id")
+            .eq("id", entity_id)
+            .maybe_single()
+            .execute()
+    )
+    if not ent_res or not ent_res.data:
+        raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
+    doc_id = ent_res.data.get("document_id")
+
+    doc_res = await asyncio.to_thread(
+        lambda: supa.table("intake_documents")
+            .select("id, intake_job_id")
+            .eq("id", doc_id)
+            .maybe_single()
+            .execute()
+    )
+    job_id = (doc_res.data if doc_res else None) or {}
+    job_id = job_id.get("intake_job_id")
+
+    job_res = await asyncio.to_thread(
+        lambda: supa.table("intake_jobs")
+            .select("id")
+            .eq("id", job_id)
+            .eq("uploaded_by", user["user_id"])
+            .maybe_single()
+            .execute()
+    )
+    if not job_res or not job_res.data:
+        raise HTTPException(status_code=404, detail="Stavka nije pronađena.")
+
     try:
         result = await intake_documents.correct_entity(
             entity_id, corrected_value, user.get("email", user["user_id"]),

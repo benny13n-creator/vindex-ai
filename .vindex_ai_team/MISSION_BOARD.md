@@ -2040,3 +2040,67 @@ Sprint 008) — zero regressions, exact delta match (+15).
 — recommendation: proceed toward closed beta, no finding this sprint rises to the founder's own stated
 "resolve first, then open beta" bar; `LAMBDA-004` named as the single highest-leverage next step if more
 certification is wanted first.
+
+## Program Lambda, Certification 002 (2026-08-06) — Ownership & IDOR Certification
+
+**Mission**: the founder's own explicit framing — "ne želimo da nađemo nekoliko propusta... cilj je da
+pokušamo da slomimo svaki ownership mehanizam u platformi." Directly executes `LAMBDA-004`'s own
+recommendation (Master Sprint 001): a real systematic IDOR sweep, not another spot-check. 8 named roles
+(Ownership Auditor lead, API Penetration, Database & RLS, Background Worker, Storage, AI Context,
+Integration, Adversarial Tester), executed as 9 parallel forensic forks (API Penetration split a-m / n-z).
+Every critical ownership flow required to end in exactly one of CERTIFIED / FIXED / ARCHITECTURAL DEBT — no
+ambiguous status allowed.
+
+**Result: the mission's own success condition — find a real bypass — was met, 11 times over**, spanning every
+audited layer:
+
+- **API layer (11 bugs)**: cross-tenant reads of case names/client PII/billing line items/hearing schedules
+  via `billing.py`, `memory_graph.py`, `multi_agent.py` (a genuine AI-context leak — foreign billing/deadline
+  data injected into a GPT prompt), and unverified-`predmet_id`-before-insert pollution across `copilot.py`
+  (4 sites), `intake.py` (2 sites), `evidence.py`, `court_predictor.py` (7 sites), `corrections.py`.
+- **Vertical privilege escalation**: `zadaci.py`'s admin-delete branch let any self-service firm admin delete
+  ANY OTHER FIRM's task by guessing a UUID — the most severe single API-layer finding this sprint.
+- **Cross-firm template disclosure**: `workflow.py` let any firm read/start another firm's private
+  workflow template by id.
+- **Zero-check endpoint**: `smart_intake.py::correct_entity` had no ownership check at all.
+- **Database layer, 2 CRITICAL**: `deduct_credit()` and `set_user_pro()` — `SECURITY DEFINER` RPC functions
+  callable directly via PostgREST by any authenticated user, completely bypassing the FastAPI backend. One
+  allowed a **free permanent PRO subscription upgrade with zero payment** — a monetary-impact bug, not just
+  a data-isolation one. Fixed via `migrations/102_lambda002_rpc_ownership_lockdown.sql` (REVOKE-from-PUBLIC
+  pattern already correctly used elsewhere in the repo since migration 073, never retrofitted onto these 2 —
+  a "declared control ≠ enforced control" gap, not a regression). **Not yet applied to live Supabase** —
+  per standing project rule, the founder runs migrations himself; this is the sprint's single highest-priority
+  outstanding action.
+
+**Everywhere else, the platform held**: Background Workers (11/13 SAFE, batch-ownership-drift specifically
+CERTIFIED via `finalize_intake_jobs_batch`'s per-item re-check), Storage (21/21 paths, 0 VULNERABLE — every
+real bucket combines unguessable uuid4 keys with an explicit ownership check), the canonical
+`build_case_context()` AI-context path (CERTIFIED for the 5th+ consecutive sprint), Event Bus
+(replay/forged/duplicate/reorder all CERTIFIED via durable idempotency + no client-writable event path),
+197 sampled RLS policies (individually correct, though confirmed decorative for the real request path given
+the service-role-key bypass — this app's actual enforcement layer is Python filtering, now more complete).
+
+**2 items closed as ARCHITECTURAL DEBT, not guessed at**: `LAMBDA-OWN-001` (new — `integracije.py`'s Clio
+webhook trusts an attacker-controlled `vindex_user_id`, needs a per-connection-credential auth redesign, not
+a filter; CREATE-only impact) and `SEC-039` (pre-existing, High, dokument.py's Pinecone session-based
+document Q&A has no `user_id` binding at all — independently re-confirmed by 2 different forks this sprint,
+not re-opened as a new finding).
+
+**20 new tests** across `tests/test_lambda002_ownership_idor_fixes.py` (12), `test_lambda002_multi_agent_context_leak.py`
+(4, asserts on the actual GPT prompt string, not just response shape), `test_lambda002_rpc_ownership_lockdown.py`
+(4, static guard on the SQL migration content). Full suite: **2,967 passed, 1 skipped, 0 failed** (was 2,947 —
+exact +20 delta, zero regressions). 1 pre-existing test infrastructure gap found and fixed as a byproduct:
+`test_sprint004_review_resolve.py` had never mocked Supabase at all for `correct_entity` (the endpoint
+previously made zero DB calls), which would have silently masked a real failure the moment any DB-touching
+fix landed there.
+
+**7 required deliverables**, all in `docs/lambda/`: `OWNERSHIP_CERTIFICATION_REPORT.md`, `IDOR_MATRIX.md`
+(every endpoint checked, one of CERTIFIED/FIXED/ARCHITECTURAL DEBT), `RLS_CERTIFICATION.md`,
+`STORAGE_SECURITY_REPORT.md`, `AI_CONTEXT_ISOLATION_REPORT.md`, `EVENT_OWNERSHIP_REPORT.md`,
+`REGRESSION_TEST_REPORT.md`. Verdict: platform-wide ownership isolation is now substantially stronger than
+it was 24 hours ago, but the sprint's own headline finding is that the single most severe vulnerability found
+in this entire multi-week engagement — a free-PRO-upgrade RPC reachable by any logged-in user, bypassing the
+backend entirely — sat live and undetected until a database-layer (not API-layer) auditor finally looked
+directly at RPC grants instead of trusting the application code's own request-handling logic. Recommend this
+as a standing lesson for future security work: app-layer IDOR sweeps, however thorough, cannot see database-
+layer privilege escalation that never touches the backend at all.

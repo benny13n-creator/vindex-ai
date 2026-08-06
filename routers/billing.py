@@ -221,6 +221,10 @@ async def billing_entry_create(
     uid  = user["user_id"]
     supa = _get_supa()
 
+    pred_check = await _db(lambda: supa.table("predmeti").select("id").eq("id", body.predmet_id).eq("user_id", uid).maybe_single().execute())
+    if not pred_check.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
     iznos        = body.iznos_rsd
     tarifa_naziv = None
     bodovi       = body.bodovi
@@ -361,6 +365,10 @@ async def timer_start(
 ):
     uid  = user["user_id"]
     supa = _get_supa()
+
+    pred_check = await _db(lambda: supa.table("predmeti").select("id").eq("id", body.predmet_id).eq("user_id", uid).maybe_single().execute())
+    if not pred_check.data:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
     existing = await _db(lambda: supa.table("timer_sessions").select("id,predmet_id,start_at").eq("user_id", uid).eq("aktivan", True).limit(1).execute())
     if existing.data:
@@ -982,6 +990,7 @@ async def billing_po_klijentu(
             .execute()),
         _db(lambda: supa.table("predmeti")
             .select("id,naziv,status")
+            .eq("user_id", uid)
             .in_("id", pred_ids)
             .execute()),
         return_exceptions=True,

@@ -192,13 +192,19 @@ async def intake_kreiraj(
     predmet_id = predmet["id"]
 
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("predmet_klijenti").insert({
-                "predmet_id":     predmet_id,
-                "klijent_id":     body.klijent_id,
-                "uloga_klijenta": "stranka",
-            }).execute()
+        klijent_ok = await asyncio.to_thread(
+            lambda: supa.table("klijenti").select("id").eq("id", body.klijent_id).eq("user_id", uid).maybe_single().execute()
         )
+        if not klijent_ok.data:
+            logger.warning("[INTAKE] predmet_klijenti insert odbijen — klijent_id %.8s ne pripada uid=%.8s", body.klijent_id, uid)
+        else:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_klijenti").insert({
+                    "predmet_id":     predmet_id,
+                    "klijent_id":     body.klijent_id,
+                    "uloga_klijenta": "stranka",
+                }).execute()
+            )
     except Exception as e:
         logger.warning("[INTAKE] predmet_klijenti insert greška: %s", e)
 
@@ -777,13 +783,17 @@ async def post_from_template(
     # Poveži klijenta ako je naveden
     if body.klijent_id:
         try:
-            await asyncio.to_thread(
-                lambda: supa.table("predmet_klijenti").insert({
-                    "predmet_id":     predmet_id,
-                    "klijent_id":     body.klijent_id,
-                    "uloga_klijenta": "stranka",
-                }).execute()
+            klijent_ok = await asyncio.to_thread(
+                lambda: supa.table("klijenti").select("id").eq("id", body.klijent_id).eq("user_id", uid).maybe_single().execute()
             )
+            if klijent_ok.data:
+                await asyncio.to_thread(
+                    lambda: supa.table("predmet_klijenti").insert({
+                        "predmet_id":     predmet_id,
+                        "klijent_id":     body.klijent_id,
+                        "uloga_klijenta": "stranka",
+                    }).execute()
+                )
         except Exception:
             pass  # non-blocking
 

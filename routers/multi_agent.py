@@ -423,6 +423,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
 
     # ── Dohvati kontekst predmeta ────────────────────────────────────────────
     predmet_ctx = ""
+    predmet_verifikovan = False
     if req.predmet_id:
         try:
             pr = await asyncio.to_thread(
@@ -431,6 +432,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 ).eq("id", req.predmet_id).eq("user_id", uid).execute()
             )
             if pr.data:
+                predmet_verifikovan = True
                 p = pr.data[0]
                 try:
                     dok_res = await asyncio.to_thread(
@@ -582,7 +584,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
 
     # ── Billing kontekst iz DB za Billing agenta ─────────────────────────────
     billing_ctx = ""
-    if agent_id == "billing" and req.predmet_id:
+    if agent_id == "billing" and req.predmet_id and predmet_verifikovan:
         try:
             from datetime import datetime as _dt
             be = await asyncio.to_thread(
@@ -609,7 +611,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
 
     # ── Stvarni rokovi iz predmeta za Deadline agenta ─────────────────────
     rokovi_ctx = ""
-    if agent_id == "deadline" and req.predmet_id:
+    if agent_id == "deadline" and req.predmet_id and predmet_verifikovan:
         try:
             from datetime import datetime, timezone as _tz
             rok_r = await asyncio.to_thread(

@@ -353,6 +353,14 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
     if not pr.data:
         raise HTTPException(status_code=404)
 
+    dokument_id = req.dokument_id
+    if dokument_id:
+        dok_ok = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("id").eq("id", dokument_id).eq("predmet_id", predmet_id).maybe_single().execute()
+        )
+        if not dok_ok.data:
+            dokument_id = None
+
     row = {
         "predmet_id":    predmet_id,
         "user_id":       uid,
@@ -361,7 +369,7 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
         "snaga":         req.snaga,
         "pravni_element": req.pravni_element,
         "napomena":      req.napomena,
-        "dokument_id":   req.dokument_id,
+        "dokument_id":   dokument_id,
     }
     res = await asyncio.to_thread(
         lambda: supa.table("predmet_dokazi").insert(row).execute()

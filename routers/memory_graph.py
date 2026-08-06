@@ -317,6 +317,7 @@ async def graf_preporuka(
             lambda: supa.table("predmeti")
                 .select("naziv, tip, status, opis")
                 .eq("id", predmet_id)
+                .eq("user_id", uid)
                 .maybe_single()
                 .execute()
         )

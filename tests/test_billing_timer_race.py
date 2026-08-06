@@ -50,7 +50,7 @@ def _req() -> StarletteRequest:
 
 def _chain(execute_return=None, execute_side_effect=None):
     m = MagicMock()
-    for method in ("select", "eq", "insert", "update", "limit"):
+    for method in ("select", "eq", "insert", "update", "limit", "maybe_single"):
         setattr(m, method, MagicMock(return_value=m))
     if execute_side_effect is not None:
         m.execute = MagicMock(side_effect=execute_side_effect)
@@ -59,17 +59,30 @@ def _chain(execute_return=None, execute_side_effect=None):
     return m
 
 
+def _owned_predmet_chain():
+    """timer_start's ownership pre-check (routers/billing.py:369) — predmet exists and belongs to the caller."""
+    return _chain(MagicMock(data={"id": "p1"}))
+
+
+def _table_router(predmeti_chain, timer_sessions_chains):
+    """Routes supa.table(name) calls by name: 'predmeti' always gets predmeti_chain,
+    'timer_sessions' gets the next chain from timer_sessions_chains in order."""
+    ts_iter = iter(timer_sessions_chains)
+
+    def _table(name):
+        if name == "predmeti":
+            return predmeti_chain
+        return next(ts_iter)
+
+    return _table
+
+
 def test_timer_start_no_existing_active_timer_succeeds():
     select_chain = _chain(MagicMock(data=[]))
     insert_chain = _chain(MagicMock(data=[{"id": "t1", "aktivan": True}]))
 
-    call_count = {"n": 0}
-    def _table(name):
-        call_count["n"] += 1
-        return select_chain if call_count["n"] == 1 else insert_chain
-
     supa = MagicMock()
-    supa.table.side_effect = _table
+    supa.table.side_effect = _table_router(_owned_predmet_chain(), [select_chain, insert_chain])
 
     req = billing.TimerStartReq(predmet_id="p1")
     with patch.object(billing, "_get_supa", return_value=supa):
@@ -83,7 +96,7 @@ def test_timer_start_existing_recent_active_timer_returns_409():
     recent = datetime.now(timezone.utc).isoformat()
     select_chain = _chain(MagicMock(data=[{"id": "t0", "predmet_id": "p1", "start_at": recent}]))
     supa = MagicMock()
-    supa.table.return_value = select_chain
+    supa.table.side_effect = _table_router(_owned_predmet_chain(), [select_chain])
 
     req = billing.TimerStartReq(predmet_id="p1")
     with patch.object(billing, "_get_supa", return_value=supa):
@@ -102,13 +115,8 @@ def test_timer_start_race_conflict_on_insert_returns_409_not_500():
     conflict_error = Exception('duplicate key value violates unique constraint "timer_sessions_one_active_per_user" 23505')
     insert_chain = _chain(execute_side_effect=conflict_error)
 
-    call_count = {"n": 0}
-    def _table(name):
-        call_count["n"] += 1
-        return select_chain if call_count["n"] == 1 else insert_chain
-
     supa = MagicMock()
-    supa.table.side_effect = _table
+    supa.table.side_effect = _table_router(_owned_predmet_chain(), [select_chain, insert_chain])
 
     req = billing.TimerStartReq(predmet_id="p1")
     with patch.object(billing, "_get_supa", return_value=supa):
@@ -122,13 +130,8 @@ def test_timer_start_unrelated_db_error_still_propagates():
     select_chain = _chain(MagicMock(data=[]))
     insert_chain = _chain(execute_side_effect=RuntimeError("connection reset"))
 
-    call_count = {"n": 0}
-    def _table(name):
-        call_count["n"] += 1
-        return select_chain if call_count["n"] == 1 else insert_chain
-
     supa = MagicMock()
-    supa.table.side_effect = _table
+    supa.table.side_effect = _table_router(_owned_predmet_chain(), [select_chain, insert_chain])
 
     req = billing.TimerStartReq(predmet_id="p1")
     with patch.object(billing, "_get_supa", return_value=supa):

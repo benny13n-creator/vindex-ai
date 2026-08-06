@@ -240,6 +240,27 @@ async def _dohvati_case_context_ako_postoji(predmet_id: Optional[str], uid: str,
         return None
 
 
+async def _verifikovan_predmet_id(predmet_id: Optional[str], uid: str, supa) -> Optional[str]:
+    """Program Lambda, Certification 002 (Ownership & IDOR): every one of this
+    file's own 7 analysis-persist inserts stored `predmet_id` verbatim from
+    the request body with no ownership check -- a caller could tag their own
+    `predictor_analize`/`hearing_briefovi` row with someone else's case id.
+    No cross-tenant READ resulted (every read of these tables is already
+    scoped by `user_id`), but the row itself was FK-pollution. Returns the id
+    back unchanged only if it actually belongs to `uid`, else None (same
+    "silently drop the untrusted id" shape already used for `dokument_id` in
+    `routers/evidence.py::add_dokaz`)."""
+    if not predmet_id:
+        return None
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
+        )
+        return predmet_id if r.data else None
+    except Exception:
+        return None
+
+
 @router.post("/api/predictor/analiza")
 @limiter.limit("10/minute")
 async def prediktuj_ishod(
@@ -336,10 +357,11 @@ ARGUMENTI SUPROTNE STRANE:
 
         # Sacuvaj analizu
         try:
+            _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
             await asyncio.to_thread(
                 lambda: supa.table("predictor_analize").insert({
                     "user_id":      uid,
-                    "predmet_id":   payload.predmet_id,
+                    "predmet_id":   _pid,
                     "tip_postupka": payload.tip_postupka,
                     "opis":         payload.opis_predmeta[:500],
                     "analiza":      analiza[:5000],
@@ -525,10 +547,11 @@ DOSTUPNI DOKAZI:
             report = await asyncio.to_thread(_pozovi_battle_report_api, oai, user_prompt)
 
         try:
+            _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
             await asyncio.to_thread(
                 lambda: supa.table("predictor_analize").insert({
                     "user_id":      uid,
-                    "predmet_id":   payload.predmet_id,
+                    "predmet_id":   _pid,
                     "tip_postupka": payload.tip_postupka,
                     "opis":         payload.opis_predmeta[:500],
                     "analiza":      report[:8000],
@@ -670,15 +693,17 @@ Tip: {payload.tip_postupka}
 
         if payload.predmet_id:
             try:
-                await asyncio.to_thread(
-                    lambda: supa.table("hearing_briefovi").insert({
-                        "user_id":       uid,
-                        "predmet_id":    payload.predmet_id,
-                        "rociste_naziv": payload.rociste_naziv,
-                        "datum":         payload.datum_rocista,
-                        "brief":         brief[:5000],
-                    }).execute()
-                )
+                _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
+                if _pid:
+                    await asyncio.to_thread(
+                        lambda: supa.table("hearing_briefovi").insert({
+                            "user_id":       uid,
+                            "predmet_id":    _pid,
+                            "rociste_naziv": payload.rociste_naziv,
+                            "datum":         payload.datum_rocista,
+                            "brief":         brief[:5000],
+                        }).execute()
+                    )
                 from shared.audit_immutable import log_action
                 asyncio.create_task(log_action(
                     action="court_predictor_analiza", user_id=uid,
@@ -911,10 +936,11 @@ async def argument_reputation(
         raise HTTPException(status_code=500, detail=f"Greška pri analizi: {str(e)}")
 
     try:
+        _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
         await asyncio.to_thread(
             lambda: supa.table("predictor_analize").insert({
                 "user_id":      uid,
-                "predmet_id":   payload.predmet_id,
+                "predmet_id":   _pid,
                 "tip_postupka": payload.tip_spora,
                 "opis":         "; ".join(payload.argumenti)[:500],
                 "analiza":      json.dumps(rezultat, ensure_ascii=False)[:8000],
@@ -1076,10 +1102,11 @@ async def judge_profile(
         raise HTTPException(status_code=500, detail=f"Greška pri profilisanju: {str(e)}")
 
     try:
+        _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
         await asyncio.to_thread(
             lambda: supa.table("predictor_analize").insert({
                 "user_id":      uid,
-                "predmet_id":   payload.predmet_id,
+                "predmet_id":   _pid,
                 "tip_postupka": payload.tip_postupka,
                 "opis":         f"Sud: {payload.sud} | Sudija: {payload.ime_sudije or 'N/A'}",
                 "analiza":      json.dumps(rezultat, ensure_ascii=False)[:8000],
@@ -1246,10 +1273,11 @@ async def opponent_intel(
         raise HTTPException(status_code=500, detail=f"Greška pri analizi protivnika: {str(e)}")
 
     try:
+        _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
         await asyncio.to_thread(
             lambda: supa.table("predictor_analize").insert({
                 "user_id":      uid,
-                "predmet_id":   payload.predmet_id,
+                "predmet_id":   _pid,
                 "tip_postupka": payload.tip_postupka,
                 "opis":         f"Protivnik: {payload.protivnik_naziv} | Adv: {payload.protivnicki_adv or 'N/A'}",
                 "analiza":      json.dumps(rezultat, ensure_ascii=False)[:8000],
@@ -1518,10 +1546,11 @@ async def confidence_check(
 
     # Sačuvaj u predictor_analize
     try:
+        _pid = await _verifikovan_predmet_id(payload.predmet_id, uid, supa)
         await asyncio.to_thread(
             lambda: supa.table("predictor_analize").insert({
                 "user_id":      uid,
-                "predmet_id":   payload.predmet_id,
+                "predmet_id":   _pid,
                 "tip_postupka": payload.tip_spora,
                 "opis":         payload.opis_predmeta[:500],
                 "analiza":      f"NIVO: {nivo} | PROCENAT: {procenat}% | {razlog}",

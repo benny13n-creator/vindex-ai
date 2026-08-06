@@ -221,6 +221,9 @@ async def test_confirm_links_finds_existing_link_and_skips_duplicate_insert():
         t = MagicMock()
         if name == "predmeti":
             t.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = {"id": "pred-001"}
+        elif name == "klijenti":
+            # Lambda 002 ownership-check query: kl-001 belongs to the caller.
+            t.select.return_value.eq.return_value.in_.return_value.execute.return_value.data = [{"id": "kl-001"}]
         elif name == "predmet_klijenti":
             # Simulate: (pred-001, kl-001) is already linked.
             t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{"predmet_id": "pred-001"}]

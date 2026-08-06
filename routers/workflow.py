@@ -212,13 +212,18 @@ async def pokreni_workflow(
     naziv_wf = payload.naziv or "Workflow"
 
     if payload.template_id:
-        tmpl_r = await asyncio.to_thread(
-            lambda: supa.table("workflow_templates")
-                .select("*")
-                .eq("id", payload.template_id)
-                .maybe_single()
-                .execute()
-        )
+        # Lambda Certification 002 (2026-08-06) -- ranije nije postojala
+        # vidljivost provera ovde (API Penetration sweep, potvrdjeno:
+        # cross-firm read TUDJE privatne workflow_templates preko
+        # pogadjanja/posmatranja id-ja). Ista pravilo vidljivosti kao
+        # template/lista iznad: sistemski predlozi (kancelarija_id NULL)
+        # + predlozi SOPSTVENE firme, nista drugo.
+        tq = supa.table("workflow_templates").select("*").eq("id", payload.template_id)
+        if kancelarija_id:
+            tq = tq.or_(f"kancelarija_id.is.null,kancelarija_id.eq.{kancelarija_id}")
+        else:
+            tq = tq.is_("kancelarija_id", "null")
+        tmpl_r = await asyncio.to_thread(lambda: tq.maybe_single().execute())
         if not tmpl_r.data:
             raise HTTPException(status_code=404, detail="Predložak nije pronađen.")
         tmpl = tmpl_r.data

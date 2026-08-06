@@ -155,7 +155,26 @@ async def test_correct_entity_endpoint_logs_audit_action():
     trace (mission Phase 5)."""
     from routers.smart_intake import correct_entity
 
-    with patch("routers.smart_intake.intake_documents.correct_entity",
+    def _table(name):
+        t = MagicMock()
+        if name == "extracted_entities":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
+                "id": "e-1", "document_id": "doc-1",
+            }
+        elif name == "intake_documents":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
+                "id": "doc-1", "intake_job_id": "job-1",
+            }
+        elif name == "intake_jobs":
+            # Lambda Certification 002 ownership-chain check: job-1 belongs to _fake_user().
+            t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {"id": "job-1"}
+        return t
+
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
+
+    with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
+         patch("routers.smart_intake.intake_documents.correct_entity",
                new=AsyncMock(return_value={"entity_id": "e-1", "entity_type": "deadline", "corrected_value": "15.12.2026"})), \
          patch("shared.audit_immutable.log_action", new=AsyncMock()) as mock_log:
         result = await correct_entity(

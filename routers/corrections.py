@@ -270,6 +270,14 @@ async def capture_correction(
     kancelarija_id = await _get_kancelarija_id(supa, uid)
     edit_dist = _edit_distance_approx(payload.original_output, payload.edited_output)
 
+    predmet_id = payload.predmet_id
+    if predmet_id:
+        pred_ok = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
+        )
+        if not pred_ok.data:
+            predmet_id = None
+
     # Semantička klasifikacija korekcije (background, ne blokira odgovor)
     tip_korekcije = await _klasifikuj_korekciju_async(
         payload.original_output, payload.edited_output
@@ -280,7 +288,7 @@ async def capture_correction(
             lambda: supa.table("ai_corrections").insert({
                 "user_id":        uid,
                 "kancelarija_id": kancelarija_id,
-                "predmet_id":     payload.predmet_id,
+                "predmet_id":     predmet_id,
                 "context_type":   payload.context_type[:50],
                 "original_output": payload.original_output[:8000],
                 "edited_output":   payload.edited_output[:8000],

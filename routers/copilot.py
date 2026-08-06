@@ -709,6 +709,11 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Naziv roka nije prepoznat. Pokušajte eksplicitno: 'Dodaj rok za pripremu do 15. jula.'"}
 
     supa = _get_supa()
+    pred_ok = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user_id).maybe_single().execute()
+    )
+    if not pred_ok.data:
+        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Predmet nije pronađen."}
     try:
         await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
             "predmet_id": predmet_id,
@@ -770,6 +775,11 @@ async def _handle_akcija_beleska(poruka: str, predmet_id: str, user_id: str) -> 
         return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Sadržaj beleške je prazan. Navedite šta želite da zabeležite."}
 
     supa = _get_supa()
+    pred_ok = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user_id).maybe_single().execute()
+    )
+    if not pred_ok.data:
+        return {"tip":"KREIRAJ_BELEŠKU","uspeh":False,"odgovor":"Predmet nije pronađen."}
     try:
         await asyncio.to_thread(lambda: supa.table("predmet_beleske").insert({
             "predmet_id": predmet_id,
@@ -825,6 +835,13 @@ async def _handle_akcija_povezi_klijenta(poruka: str, predmet_id: str, user_id: 
         return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Navedite ime klijenta kojeg treba da povežem sa predmetom."}
 
     supa = _get_supa()
+
+    pred_ok = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user_id).maybe_single().execute()
+    )
+    if not pred_ok.data:
+        return {"tip":"POVEZI_KLIJENTA","uspeh":False,"odgovor":"Predmet nije pronađen."}
+
     try:
         found_r = await asyncio.to_thread(
             lambda: supa.table("klijenti")
@@ -914,11 +931,15 @@ async def _handle_predlozi(predmet_id: str | None, user_id: str) -> dict:
 
     if predmet_id:
         # ── Predlozi za konkretan predmet ─────────────────────────────────────
-        pred_r, hron_r, dok_r, bel_r = await asyncio.gather(
-            asyncio.to_thread(lambda: supa.table("predmeti")
-                .select("naziv, opis, tip, status")
-                .eq("id", predmet_id).eq("user_id", user_id)
-                .single().execute()),
+        pred_r = await asyncio.to_thread(lambda: supa.table("predmeti")
+            .select("naziv, opis, tip, status")
+            .eq("id", predmet_id).eq("user_id", user_id)
+            .maybe_single().execute())
+        if not pred_r.data:
+            return {"tip": "PREDLOZI", "uspeh": False, "odgovor": "Predmet nije pronađen."}
+        pred = pred_r.data
+
+        hron_r, dok_r, bel_r = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_hronologija")
                 .select("dogadjaj, datum_iso, vaznost")
                 .eq("predmet_id", predmet_id)
@@ -935,7 +956,6 @@ async def _handle_predlozi(predmet_id: str | None, user_id: str) -> dict:
             return_exceptions=True,
         )
 
-        pred   = pred_r.data if not isinstance(pred_r, Exception) and pred_r.data else {}
         rokovi = hron_r.data if not isinstance(hron_r, Exception) else []
         dok    = dok_r.data if not isinstance(dok_r, Exception) else []
         bel    = bel_r.data if not isinstance(bel_r, Exception) else []
@@ -1135,7 +1155,11 @@ async def _handle_naplati_radnju(poruka: str, predmet_id: str | None, uid: str) 
         "obracunato":   False,
     }
     if predmet_id:
-        entry["predmet_id"] = predmet_id
+        pred_ok = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
+        )
+        if pred_ok.data:
+            entry["predmet_id"] = predmet_id
     if tarifa_sifra:
         entry["tarifa_sifra"] = tarifa_sifra
     if sati:
