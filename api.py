@@ -16,6 +16,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 BASE_DIR = Path(__file__).parent
 load_dotenv()
@@ -556,6 +557,12 @@ def _json_rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
 
 
 app.add_exception_handler(RateLimitExceeded, _json_rate_limit_handler)
+# Program Lambda, Master Sprint 001 (SEC-011): SlowAPIMiddleware was never
+# registered, meaning shared/rate.py's own `default_limits=["60/hour"]`
+# floor was very likely non-enforcing for any route without an explicit
+# @limiter.limit() decorator (SEC-010 found ~172 such routes). This is the
+# one-line fix the register itself already named as "trivial, P0."
+app.add_middleware(SlowAPIMiddleware)
 _setup_prometheus(app)
 
 # Klijenti CRM router (P1–P8, sve faze)

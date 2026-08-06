@@ -120,13 +120,30 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
     async def _skip():
         return None
 
+    # Program Lambda, Master Sprint 001 (Performance Auditor finding): this
+    # query used to select `tekst_sadrzaj` (full document text) for EVERY row
+    # matching predmet_id, unconditionally -- the 500/1000-document tests
+    # (test_tau002_case_context.py) only ever exercised _select_documents()
+    # directly on an in-memory list, never this SQL query itself, so they
+    # never proved this fetch scales. At 5,000-10,000 real document rows,
+    # this single query would pull that many full-text rows over the network
+    # before _select_documents()'s own bounding logic (MAX_DOCS_INCLUDED=15)
+    # ever runs. Fixed here, not by adding a row LIMIT (that would silently
+    # break the stride-sampler's own "visibility across the FULL set"
+    # guarantee for any case past the limit) -- instead, `tekst_sadrzaj` is
+    # dropped from THIS metadata-only query entirely and fetched separately,
+    # by build_case_context() below, ONLY for the ~15 documents
+    # _select_documents() actually selects. Every row is still visited here
+    # (so selection/recency/stride logic sees the true full set, unchanged
+    # behavior), just without the expensive text column for the ~99% of rows
+    # that won't be included anyway.
     dok_awaitable = (
         asyncio.to_thread(
             # order by redni_broj -- NOT the unordered fetch case_commander.py's
             # own pre-Tau-002 _dohvati_predmet_kontekst used, which is exactly
             # why the same static head-slice dominated forever on a growing case.
             lambda: supa.table("predmet_dokumenti")
-                .select("id, naziv_fajla, created_at, tekst_sadrzaj, tip_dokaza, status, redni_broj")
+                .select("id, naziv_fajla, created_at, tip_dokaza, status, redni_broj")
                 .eq("predmet_id", predmet_id)
                 .order("redni_broj")
                 .execute()
@@ -236,6 +253,31 @@ def _select_documents(dokumenti: list[dict]) -> tuple[list[dict], list[dict]]:
     return included, not_included
 
 
+async def _fetch_document_texts(dokument_ids: list[str], predmet_id: str, supa) -> dict[str, str]:
+    """Program Lambda, Master Sprint 001: the targeted 2nd-phase fetch that
+    makes the metadata-only query in _fetch_raw safe -- pulls `tekst_sadrzaj`
+    for ONLY the bounded set of documents _select_documents() already chose
+    (<= MAX_DOCS_INCLUDED), by id, in one query. Not a new context builder:
+    same table, same predmet_id scope, just a 2nd query instead of one
+    unconditionally-wide one. Fail-soft: a failure here degrades to empty
+    text for the affected documents (same as any other _fetch_raw field),
+    never raises."""
+    if not dokument_ids:
+        return {}
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("id, tekst_sadrzaj")
+                .eq("predmet_id", predmet_id)
+                .in_("id", dokument_ids)
+                .execute()
+        )
+        rows = getattr(r, "data", None) or []
+        return {row.get("id"): (row.get("tekst_sadrzaj") or "") for row in rows}
+    except Exception:
+        return {}
+
+
 def _excerpt(tekst: str, budget: int = DOC_EXCERPT_BUDGET_PER_DOC) -> tuple[str, bool]:
     """Layer 4 within-document sampling — reuses routers/cross_doc.py's own
     stride-based sampler (Program Celina, AKCIJA 2, 2026-07-24) rather than
@@ -340,6 +382,18 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
     top_action = top_open_action(raw["case_actions"])
 
     included_docs, not_included_docs = _select_documents(raw["dokumenti"]) if include_documents else ([], [])
+
+    # Program Lambda, Master Sprint 001: _fetch_raw's own predmet_dokumenti
+    # query no longer carries tekst_sadrzaj (metadata-only, see its own
+    # comment) -- fetch the actual text ONLY for the bounded `included_docs`
+    # set (<= MAX_DOCS_INCLUDED), never for the full per-case document count.
+    if included_docs:
+        tekst_by_id = await _fetch_document_texts(
+            [d.get("id") for d in included_docs if d.get("id")], predmet_id, supa
+        )
+        for d in included_docs:
+            d["tekst_sadrzaj"] = tekst_by_id.get(d.get("id"), "")
+
     excerpts = []
     sampled_within_doc = []
     for d in included_docs:

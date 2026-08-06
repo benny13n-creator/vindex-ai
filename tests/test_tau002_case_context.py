@@ -40,6 +40,7 @@ class _FakeQuery:
         self._data = data
         self._single = False
         self._id_filter = None
+        self._id_in_filter = None
 
     def select(self, *a, **k): return self
     def eq(self, field, value):
@@ -49,6 +50,18 @@ class _FakeQuery:
         # fixture's own table data is already scoped to the case under test.
         if field == "id":
             self._id_filter = value
+        return self
+    def in_(self, field, values):
+        # Program Lambda, Master Sprint 001: needed by
+        # shared/case_context.py::_fetch_document_texts's own targeted
+        # tekst_sadrzaj fetch (.in_("id", dokument_ids)) -- added when that
+        # code silently fell back to its own fail-soft empty-dict path
+        # against this fake (AttributeError swallowed, excerpts went empty,
+        # and NOTHING in this file's own existing tests asserted on excerpt
+        # CONTENT to catch it). Real supabase-py already supports .in_();
+        # this fake needed to catch up.
+        if field == "id":
+            self._id_in_filter = set(values)
         return self
     def is_(self, *a, **k): return self
     def order(self, *a, **k): return self
@@ -64,6 +77,8 @@ class _FakeQuery:
         data = self._data
         if self._id_filter is not None and isinstance(data, list):
             data = [row for row in data if row.get("id") == self._id_filter]
+        if self._id_in_filter is not None and isinstance(data, list):
+            data = [row for row in data if row.get("id") in self._id_in_filter]
         if self._single:
             return _FakeResult(data if isinstance(data, dict) else (data[0] if data else None))
         return _FakeResult(data)
@@ -382,6 +397,42 @@ async def test_include_documents_false_skips_document_fetch_but_keeps_field_shap
     # cheap fields must be completely unaffected by the lightweight flag
     assert result["readiness"]["value"]["status"]
     assert result["case_identity"]["value"]
+
+
+@pytest.mark.anyio
+async def test_included_document_excerpts_carry_real_text_content():
+    """Program Lambda, Master Sprint 001: _fetch_raw's own predmet_dokumenti
+    query no longer selects tekst_sadrzaj (metadata-only, for scaling --
+    see that function's own comment); build_case_context() now fetches text
+    for the selected documents in a 2nd, targeted query
+    (_fetch_document_texts). This is the one test in this file that actually
+    asserts on EXCERPT CONTENT rather than just count/id/naziv -- its own
+    absence previously let a real regression (excerpts silently going empty)
+    pass all 27 pre-existing tests in this file undetected."""
+    from shared.case_context import build_case_context
+    docs = _make_docs(5)
+    supa = _FakeSupa(_base_tables(dokumenti=docs))
+    result = await build_case_context("p1", "u1", supa, include_documents=True)
+    included = result["relevant_documents"]["value"]["included"]
+    assert len(included) == 5
+    for item in included:
+        assert item["excerpt"], f"excerpt for {item['naziv']} is empty -- text fetch did not work"
+        assert "Sadržaj dokumenta" in item["excerpt"]
+
+
+@pytest.mark.anyio
+async def test_document_metadata_query_no_longer_selects_tekst_sadrzaj():
+    """Structural proof of the fix itself: the predmet_dokumenti query in
+    _fetch_raw must not request tekst_sadrzaj -- that column is fetched
+    separately, only for the bounded selected subset."""
+    import inspect
+    from shared import case_context as mod
+    src = inspect.getsource(mod._fetch_raw)
+    # the metadata query's own .select(...) call, isolated by finding it
+    # before the first .eq("predmet_id"...) that follows "predmet_dokumenti"
+    idx = src.index('table("predmet_dokumenti")')
+    select_call = src[idx: idx + 300]
+    assert "tekst_sadrzaj" not in select_call
 
 
 @pytest.mark.anyio

@@ -1648,3 +1648,35 @@ agreement. Phase 7's "ako povećava cenu, objasni" was honored for a genuinely l
 increase (4→244 queries) rather than minimized, while still proving the mitigating cache/rate-limit
 infrastructure already existed and needed no changes. Full detail: `docs/tau/EXECUTIVE_CERTIFICATION.md` and
 `docs/tau/TAU_FINAL_HANDOVER.md`.
+
+## Program Lambda, Master Sprint 001 (2026-08-06) — Full Beta Readiness Certification
+
+**Methodology note**: 6 parallel forensic forks, one per audit-role cluster (Architecture+Integration, AI
+Reasoning, Security, Reliability, Performance, Legal Workflow+UX+Product), each with an explicit adversarial
+charter ("try to PROVE the platform is not ready") and a hard evidence requirement (file:line for every
+claim). Every "still open" claim about a pre-existing debt item was independently re-verified this sprint,
+not carried forward from its own prior text.
+
+| Metric | Value |
+|---|---|
+| Audit domains covered | 9 (via 6 forensic forks covering clustered concerns) |
+| Real, previously-unknown-or-unfixed problems found | 6 |
+| Problems fixed this sprint, with proof | 6 of 6 (100%) |
+| New Architectural Debt items opened | 5 (`LAMBDA-001` through `LAMBDA-005`) |
+| Pre-existing debt items re-confirmed accurate (not stale) | 2 (`KEYSTONE-007`, `SENT-001`) plus the `TAU-012` file list |
+| A genuine "false success" data-integrity bug found live | 1 (`client_portal.py`, closed) |
+| A "trivial, P0" security fix found never actually applied | 1 (`SEC-011`, closed) |
+| A live, paid GPT-boundary violation found, previously named but never implemented | 1 (`digital_twin.py`, closed) |
+| The mission's own explicitly-named scaling gap (5,000/10,000 documents) | Confirmed real, fixed, zero behavior change |
+| A test-suite blind spot found while proving the above fix | 1 (27 existing tests never asserted on excerpt content, only counts — closed) |
+| New/updated tests | 19 (13 in `test_lambda001_beta_readiness_fixes.py`, 2 new + fixture fix in `test_tau002_case_context.py`) |
+| Full suite | **2,947 passed, 1 skipped, 0 failed** (was 2,932 at end of Master Sprint 008) — zero regressions, exact delta match (+15) |
+| Findings deliberately NOT fixed, each with a stated reason | 5 — platform-wide blast radius w/o production data (1), no existing ground truth to check against (1), founder product decision needed (1), testing-infrastructure investment (1), bundled into an already-planned larger sprint (1) |
+
+**Success criteria**: the mission's own explicit success metric — "ne meri uspeh brojem izmena... uspeh se
+meri time koliko si ozbiljnih problema uspeo da pronađeš i eliminišeš" — is met by a 100% fix rate on
+everything judged safe to fix, and by explicit, reasoned deferral (not silence, not guessing) on everything
+judged unsafe. Every fix followed the mission's own explicit chain: dokaz → popravka → test → puna test-suite
+→ dokumentacija → commit → push. The founder's own stated decision rule ("ako ispliva ozbiljan arhitektonski
+nedostatak, prvo bih ga rešio do kraja, pa tek onda otvorio beta pristup") was explicitly evaluated against
+each of the 5 deferred findings — none met that bar. Full detail: `docs/lambda/BETA_READINESS_REPORT.md`.

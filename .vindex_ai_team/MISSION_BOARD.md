@@ -1985,3 +1985,58 @@ own independent scoring + GPT-decided recommendations, High, named not fixed).
 consolidation sprint: names `health_index.py` as the highest-priority remaining target, but argues the
 founder's own closing question ("does Vindex AI work as one system across a real 8-hour workday?") needs a
 full-day cross-feature simulation, not another single-file migration, as the actual next step.
+
+## Program Lambda, Master Sprint 001 (2026-08-06) — Full Beta Readiness Certification
+
+**Mission**: prove the platform is NOT ready for closed beta — 9 named audit roles (Architecture, Legal
+Workflow, AI Reasoning, Security, Performance, Reliability, UX, Product, Integration Auditor), explicitly
+forbidden from adding features, cosmetic refactoring, or unproven optimizations. First program in this
+engagement shaped as a pure adversarial certification sweep across the whole platform rather than a
+single-file consolidation.
+
+**Method**: 6 parallel forensic forks, one per audit cluster, each instructed to find hard evidence or
+explicitly report a clean check — not to pad findings. Every claim required file:line citation; every "still
+open" claim on a pre-existing debt item was independently re-verified, not assumed from its own prior text.
+
+**6 real problems found and fixed, one per audited domain except pure Security-process gaps**:
+1. **Integration** — `client_portal.py`'s upload endpoint returned a false "ok:True" to a client even when
+   the DB record insert failed after the storage upload succeeded; the lawyer would never see the document.
+   Fixed with the exact compensating-delete pattern `smart_intake.py` already uses for the identical race.
+2. **Security** — `SEC-011`'s own "trivial, P0" `SlowAPIMiddleware` registration had never actually been
+   applied; the platform's own rate-limit floor was very likely non-enforcing for ~172 undecorated routes.
+   One-line fix.
+3. **AI Reasoning** — `digital_twin.py`, a live paid feature, let GPT invent success probabilities with zero
+   grounding — explicitly predicted as a fix candidate in Tau 007's own handover, never implemented until
+   this sprint closed it with the same deterministic-cap mechanism proven for Court Predictor/Hearing CC.
+4. **Reliability** — `strategy_simulator.py` was the one GPT-calling file (of ~94) missing the platform's
+   own standard `@llm_retry` decorator.
+5. **Performance** — the mission's own explicitly-named gap (5,000/10,000-document scale) was real:
+   `shared/case_context.py`'s own document fetch had no row limit and pulled full text for every document
+   unconditionally. Fixed via a 2-phase fetch (cheap metadata for selection, targeted text fetch for only
+   the ~15 selected documents) with zero change to observable behavior. The fix's own proof process caught
+   a 2nd finding: the EXISTING 27-test suite for this file had never actually asserted on excerpt content,
+   only counts — a real, previously-invisible test blind spot, also closed this sprint.
+6. **UX/Product** — 2 adjacent "new case" buttons had near-identical tooltip promises with nothing
+   explaining which to use; fixed with a minimal, copy-only clarification (no redesign).
+
+**5 findings named as precise Architectural Debt, each with an explicit reason not to guess at a fix**:
+`LAMBDA-001` (Supabase's unexamined 120s default timeout, platform-wide blast radius, no production traffic
+data available), `LAMBDA-002` (`evidence_graph.py`'s truth-unvalidated contradiction claims, no existing
+ground truth to check against), `LAMBDA-003` (`onboarding.py`'s dead richer system vs. live thinner one — a
+founder product decision), `LAMBDA-004` (no systematic IDOR regression suite despite this exact bug class
+recurring repeatedly across this engagement's own history), `LAMBDA-005` (`health_index.py`/`dashboard.py`'s
+own unbounded `predmeti` fetch, bundled into `health_index.py`'s own already-planned larger sprint).
+
+**Also re-confirmed, not re-litigated**: `KEYSTONE-007` and `SENT-001` (both pre-existing, still open,
+neither improved nor regressed), the primary upload→Genome→notifications E2E path (solid), no fresh IDOR in
+a spot-check, no hardcoded secrets, Pinecone/Redis/worker failure handling all already correctly hardened.
+
+**19 new/updated tests**. Full suite: **2,947 passed, 1 skipped, 0 failed** (was 2,932 at end of Master
+Sprint 008) — zero regressions, exact delta match (+15).
+
+**6 required deliverables**, all in `docs/lambda/`: `LAMBDA_ARCHITECTURE_INTEGRATION_AUDIT.md`,
+`LAMBDA_AI_REASONING_AUDIT.md`, `LAMBDA_SECURITY_AUDIT.md`, `LAMBDA_RELIABILITY_AUDIT.md`,
+`LAMBDA_PERFORMANCE_AUDIT.md`, `LAMBDA_UX_WORKFLOW_AUDIT.md`, plus the flagship `BETA_READINESS_REPORT.md`
+— recommendation: proceed toward closed beta, no finding this sprint rises to the founder's own stated
+"resolve first, then open beta" bar; `LAMBDA-004` named as the single highest-leverage next step if more
+certification is wanted first.

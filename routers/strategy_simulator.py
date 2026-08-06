@@ -48,6 +48,7 @@ from shared.permissions import PermissionService
 from shared.usage import UsageService
 from shared.rate import limiter
 from shared.audit_immutable import log_action
+from shared.llm_retry import llm_retry
 
 logger = logging.getLogger("vindex.strategy_simulator")
 
@@ -88,8 +89,15 @@ class SledeciPotezRequest(BaseModel):
 
 # ─── Interni helperi ──────────────────────────────────────────────────────────
 
+@llm_retry
 def _pozovi_gpt(messages: list[dict]) -> dict:
-    """Sinhroni GPT-4o poziv — koristiti u asyncio.to_thread."""
+    """Sinhroni GPT-4o poziv — koristiti u asyncio.to_thread.
+
+    Program Lambda, Master Sprint 001 (Reliability Audit): ovo je bio jedini
+    GPT-pozivajući fajl u celom repou BEZ @llm_retry -- svaki prolazni
+    OpenAI hiccup (rate-limit, kratak timeout) koji svaki drugi AI endpoint
+    tiho apsorbuje kroz 3 pokušaja sa exponential backoff-om je ovde odmah
+    vraćao grešku korisniku, primoravajući ručni retry."""
     from openai import OpenAI
 
     oai = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))

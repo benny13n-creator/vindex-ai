@@ -42,6 +42,8 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared.case_context import build_case_context
+from shared.case_readiness import CRITICAL_GAP, BLOCKED
 
 logger = logging.getLogger("vindex.digital_twin")
 router = APIRouter(prefix="/api/twin", tags=["digital_twin"])
@@ -91,6 +93,11 @@ Odgovori SAMO validnim JSON-om u sledecem formatu:
   "optimalna_strategija": "..."
 }
 
+Ako je ispod dat blok "STVARNO STANJE PREDMETA U SISTEMU": to je kanonski izvor, koristi ga kao osnovu.
+Nijedan scenario ne sme tvrditi visoku verovatnocu uspeha (nad 50%) ako taj blok pokazuje kriticni
+nedostatak (readiness: CRITICAL_GAP ili BLOCKED) -- takav predmet strukturno ne moze imati optimisticki
+scenario sa visokom verovatnocom dok se nedostatak ne otkloni.
+
 Ekavica. Budi konkretan i direktan."""
 
 # ── GPT-4o sistem prompt za sta-ako analizu ──────────────────────────────────
@@ -104,6 +111,10 @@ Odgovori SAMO validnim JSON-om u sledecem formatu:
   "nova_verovatnoca_uspeha": 65,
   "preporucene_akcije": ["Prva konkretna akcija", "Druga konkretna akcija"]
 }
+
+Ako je ispod dat blok "STVARNO STANJE PREDMETA U SISTEMU": to je kanonski izvor, koristi ga kao osnovu.
+"nova_verovatnoca_uspeha" ne sme biti visoka (nad 50%) ako taj blok pokazuje kriticni nedostatak
+(readiness: CRITICAL_GAP ili BLOCKED).
 
 Ekavica. Budi konkretan i direktan."""
 
@@ -166,7 +177,46 @@ async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
     }
 
 
-def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -> str:
+# Program Lambda, Master Sprint 001 (AI Reasoning Auditor finding): GPT je do
+# sada nezavisno izmišljao "verovatnoca"/"nova_verovatnoca_uspeha" isključivo
+# iz sirovog konteksta iznad (predmeti/rokovi/dokumenti/komentari) -- nula
+# poziva build_case_context()-u, ista forma već zatvorena za court_predictor.py
+# (Tau 005) i hearing_cc.py (Tau 006), i eksplicitno predviđena za
+# digital_twin.py u docs/tau/TAU_007_HANDOVER.md ali nikad primenjena. Ovaj
+# sprint zatvara SAMO GPT granicu (deterministički cap), ne migrira ceo fajl
+# na kanonski kontekst kao Tau 006 (to bi bio poseban, veći Factory sprint) --
+# vidi docs/lambda/LAMBDA_ARCHITECTURE_AI_AUDIT.md za granicu obima. Isti
+# pragovi kao court_predictor.py/hearing_cc.py -- platformska doslednost, ne
+# novi izmišljeni brojevi.
+_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
+
+
+async def _dohvati_case_context_ako_postoji(predmet_id: str, uid: str, supa) -> Optional[dict]:
+    """Fail-soft kanonski dohvat -- isti obrazac kao court_predictor.py/
+    hearing_cc.py. Nikad ne baca, nikad ne blokira postojeće ponašanje."""
+    if not predmet_id:
+        return None
+    try:
+        return await build_case_context(predmet_id, uid, supa, include_documents=False)
+    except Exception as exc:
+        logger.warning("[TWIN] build_case_context greška (nastavlja bez kanonskog konteksta): %s", exc)
+        return None
+
+
+def _case_context_blok(cc: Optional[dict]) -> str:
+    """Minimalan formatter -- samo readiness, dovoljno da grounduje GPT
+    granicu ispod. Ne novi context builder: čita isključivo već izračunato
+    build_case_context()-ovo polje."""
+    if not cc or cc.get("error"):
+        return ""
+    readiness = (cc.get("readiness") or {}).get("value") or {}
+    status = readiness.get("status")
+    if not status:
+        return ""
+    return f"STVARNO STANJE PREDMETA U SISTEMU (kanonski izvor): readiness={status} — {readiness.get('razlog', '')}"
+
+
+def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None, case_context_blok: str = "") -> str:
     """Formatira kontekst predmeta u tekst za GPT."""
     predmet   = ctx["predmet"]
     rokovi    = ctx["rokovi"]
@@ -197,6 +247,9 @@ def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None) -
     if strategija_promena:
         tekst += f"\nPREDLOZENA PROMENA STRATEGIJE:\n{strategija_promena[:500]}\n"
 
+    if case_context_blok:
+        tekst += f"\n{case_context_blok}\n"
+
     return tekst
 
 
@@ -217,8 +270,12 @@ async def kreiraj_simulaciju(
     email = user.get("email", "")
     supa  = _get_supa()
 
-    ctx = await _dohvati_kontekst_predmeta(supa, req.predmet_id, uid)
-    kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena)
+    ctx, case_context = await asyncio.gather(
+        _dohvati_kontekst_predmeta(supa, req.predmet_id, uid),
+        _dohvati_case_context_ako_postoji(req.predmet_id, uid, supa),
+    )
+    case_context_blok = _case_context_blok(case_context)
+    kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena, case_context_blok)
 
     from openai import OpenAI
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -249,6 +306,20 @@ async def kreiraj_simulaciju(
     scenariji            = rezultat.get("scenariji", [])
     kljucne_tacke        = rezultat.get("kljucne_tacke", [])
     optimalna_strategija = rezultat.get("optimalna_strategija", "")
+
+    # Program Lambda, Master Sprint 001: deterministički cap -- GPT ne sme
+    # tvrditi visoku verovatnocu ni za jedan scenario ako je kanonski status
+    # CRITICAL_GAP/BLOCKED. Isti mehanizam kao court_predictor.py/hearing_cc.py,
+    # primenjen na SVAKI scenario (ne samo jedno polje).
+    if case_context and not case_context.get("error"):
+        _status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
+        _cap = _CAP_BY_READINESS.get(_status)
+        if _cap is not None and isinstance(scenariji, list):
+            for _sc in scenariji:
+                if isinstance(_sc, dict):
+                    _v = _sc.get("verovatnoca")
+                    if isinstance(_v, (int, float)) and _v > _cap:
+                        _sc["verovatnoca"] = _cap
 
     # Sacuvaj u twin_simulacije
     try:
@@ -297,8 +368,12 @@ async def sta_ako_analiza(
     if not req.hipoteza or len(req.hipoteza.strip()) < 5:
         raise HTTPException(status_code=422, detail="Hipoteza mora imati najmanje 5 karaktera.")
 
-    ctx = await _dohvati_kontekst_predmeta(supa, req.predmet_id, uid)
-    kontekst_tekst = _build_kontekst_tekst(ctx)
+    ctx, case_context = await asyncio.gather(
+        _dohvati_kontekst_predmeta(supa, req.predmet_id, uid),
+        _dohvati_case_context_ako_postoji(req.predmet_id, uid, supa),
+    )
+    case_context_blok = _case_context_blok(case_context)
+    kontekst_tekst = _build_kontekst_tekst(ctx, case_context_blok=case_context_blok)
     user_msg = f"{kontekst_tekst}\n\nHIPOTEZA ZA ANALIZU: {req.hipoteza[:1000]}"
 
     from openai import OpenAI
@@ -330,6 +405,13 @@ async def sta_ako_analiza(
     uticaj             = rezultat.get("uticaj", "")
     nova_verovatnoca   = rezultat.get("nova_verovatnoca_uspeha", 50)
     preporucene_akcije = rezultat.get("preporucene_akcije", [])
+
+    # Program Lambda, Master Sprint 001: isti deterministički cap kao gore.
+    if case_context and not case_context.get("error"):
+        _status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
+        _cap = _CAP_BY_READINESS.get(_status)
+        if _cap is not None and isinstance(nova_verovatnoca, (int, float)) and nova_verovatnoca > _cap:
+            nova_verovatnoca = _cap
 
     # Sacuvaj u twin_simulacije
     try:

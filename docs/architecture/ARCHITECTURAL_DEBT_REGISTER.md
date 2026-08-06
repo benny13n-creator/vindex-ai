@@ -2680,3 +2680,117 @@ discipline). Likely a larger migration effort than `cio.py` itself, since it req
 independent scoring model, not just swapping a context source — see `docs/tau/TAU_FINAL_HANDOVER.md` for
 why this is named as the single highest-priority target for any future consolidation work, not folded into
 a quick follow-on.
+
+## LAMBDA-001 — Supabase client has no explicit request timeout, inheriting the library's own 120-second default (Medium-High)
+
+**Found by**: Reliability Auditor, Program Lambda Master Sprint 001.
+
+**What**: `shared/deps.py::_get_supa` calls `create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)` with no
+`ClientOptions` — confirmed via direct package introspection that `supabase-py`'s own default
+(`postgrest_client_timeout=120`) applies, unexamined, to every single Supabase call this platform makes.
+Contrast: every GPT call in this codebase uses an explicit, deliberately short timeout (e.g. `timeout=25.0`
+on `_pozovi_*_api` functions across ~90+ files). If Supabase degrades (slow, not fully down), a request can
+hang for up to 2 minutes — indistinguishable from a frozen page to a lawyer waiting on it, and far worse
+than any other timeout in this codebase.
+
+**Why not fixed this sprint**: the blast radius is the entire platform — every single Supabase call, not
+one file. Choosing a safe replacement value requires knowing the real distribution of this app's own
+Supabase call durations in production (a large batch write, a bulk export, a big portfolio query could
+legitimately take longer than a typical request); guessing a number (e.g. "30 seconds") without that data
+risks introducing a NEW failure mode — legitimate slow-but-successful operations start failing that
+previously would have succeeded. This is exactly the kind of platform-wide, unverifiable-without-production-
+data change this program's own standing discipline (e.g. `TAU-015`'s own prompt-guard threshold, left
+untouched for the identical reason) says not to guess at.
+
+**Severity**: Medium-High — a real gap, not yet an incident, but the single largest "silent hang" risk
+found this sprint. Recommend: instrument actual Supabase call-duration distribution in production first
+(a metric, not a guess), then set an explicit, data-justified timeout (likely well under 120s for the vast
+majority of calls, with a small number of legitimately-longer operations carrying their own override).
+
+## LAMBDA-002 — `evidence_graph.py`'s GPT-asserted `OSPORAVA` (contradicts) edges are reference-validated but not truth-validated (Medium)
+
+**Found by**: AI Reasoning Auditor, Program Lambda Master Sprint 001.
+
+**What**: GPT decides which evidence nodes contradict each other (`OSPORAVA` edges). `validate_graph_edge_references`
+correctly checks that both referenced nodes actually exist (a real, working hallucination guard against
+inventing a fake node) — but nothing checks whether an asserted contradiction between two REAL nodes is
+actually a true contradiction. Structurally softer than the numeric-cap gaps this whole program has closed
+elsewhere (Court Predictor/Hearing CC/CIO/Digital Twin): there is no existing deterministic ground truth
+(no "these 2 facts canonically contradict" source) to check the claim against, unlike a readiness status
+that already exists independently of GPT's own output.
+
+**Why not fixed this sprint**: no safe fix exists without inventing a NEW verification mechanism (explicitly
+forbidden — "Zabranjeno: ... paralelna logika"), and this whole program's own standing discipline is to
+close gaps by reusing/grounding against an EXISTING canonical source, not to build a new one under sprint
+pressure. Closing this properly would require either a 2nd-pass GPT self-consistency check (a real design
+question: does that introduce its own hallucination-validation problem, the same category of risk this
+program has repeatedly avoided for other fields) or accepting it as a permanent, disclosed limitation of
+what evidence-graph contradiction detection can prove.
+
+**Severity**: Medium — no live exploit, a real but bounded epistemic gap (same category, lower severity,
+as `TAU-012`'s risk_engine family — a genuine gap named, not a fresh security hole).
+
+## LAMBDA-003 — `routers/onboarding.py`'s richer onboarding system sits fully dead behind a much thinner live one (Medium, product decision needed)
+
+**Found by**: Legal Workflow/UX/Product Auditor, Program Lambda Master Sprint 001.
+
+**What**: `routers/onboarding.py` (5 endpoints — `/stanje`, `/korak`, `/kompletiran`, `/demo-predmet`,
+`/checklist`) has zero callers anywhere in `static/vindex.js` or `index.html`, confirmed by direct grep, not
+the dead-route audit script's own claim. The LIVE onboarding mechanism is a separate, much simpler
+welcome-overlay (`onboardingCheck()`/`onboardingDismiss()`) gated by `localStorage`, posting to a completely
+different endpoint (`/api/auth/onboarding/complete`) outside this router entirely. The dead router's own
+`/demo-predmet` endpoint name suggests a demo-case auto-creation feature for new users — exactly the kind of
+thing that would help a first-day beta lawyer get oriented, currently unused.
+
+**Why not fixed this sprint**: this is real, un-invested backend capability sitting disconnected — but
+wiring it in is a PRODUCT decision (does the founder want a demo-case-driven onboarding flow before beta,
+or is the existing thin overlay sufficient?), not a bug fix. The mission's own explicit prohibition
+("dodavanje novih funkcionalnosti") forbids building new frontend wiring for this under this sprint's own
+adversarial-audit charter, even though the backend already exists. Flagging for a founder decision, not
+guessing at the answer.
+
+**Severity**: Medium — not broken (the live thin overlay works), but a real missed-value gap worth a
+deliberate yes/no before beta, not an accidental discovery after.
+
+## LAMBDA-004 (addendum to `SEC-004`) — no systematic cross-route ownership (IDOR) regression suite exists (Medium-High, process gap)
+
+**Found by**: Security Auditor, Program Lambda Master Sprint 001, re-confirming `SEC-004`'s own prior
+recommendation was never built.
+
+**What**: `tests/` has exactly 3 ownership-test files, each scoped to one PAST incident
+(`test_sec001_predmet_ownership.py`, `test_doc_templates_ownership.py`,
+`test_beta_lockdown_zadaci_predmet_idor.py`) — not a systematic sweep covering every `predmet_id`/
+`klijent_id`/`dokument_id`-scoped mutation route. This engagement's own history shows this exact bug class
+(a missing ownership check on a resource-scoped endpoint) recurring across many independent sprints (SEC-001
+→ `zadaci.py` (`BL-001`) → `copilot.py`, each found by a DIFFERENT reviewer looking at a DIFFERENT file) —
+the absence of a standing regression mechanism means the next instance will most likely be found by a beta
+user, not a test. This sprint's own spot-check (5-8 endpoints, including the recently-Tau-modified
+`hearing_cc.py`) found no NEW live instance — but a spot-check is not the same guarantee a systematic sweep
+would provide.
+
+**Why not fixed this sprint**: building a genuinely systematic, low-false-positive ownership-sweep test
+(one that enumerates every resource-scoped route automatically rather than being hand-written per incident)
+is itself a real testing-infrastructure investment, not a "found and fixed one bug" task — the mission's
+own "Zabranjeno: kozmetički refaktoring... optimizacije bez dokaza" bar argues against building new test
+infrastructure speculatively within an audit sprint whose own job was finding problems, not building
+prevention systems. Recommend as its own small, focused future task.
+
+**Severity**: Medium-High — a process gap with a proven track record of letting real bugs through, not a
+currently-known live vulnerability.
+
+## LAMBDA-005 (addendum to `TAU-018`) — `health_index.py`/`dashboard.py::command_center` fetch all of a user's own `predmeti` rows with no `.limit()` (Low-Medium)
+
+**Found by**: Performance Auditor, Program Lambda Master Sprint 001.
+
+**What**: Both endpoints fetch every `predmeti` row for a user unconditionally — `health_index.py`
+additionally selects the full `case_dna` JSONB blob per row. A real cost at 1,000+ cases for a single firm,
+distinct from `health_index.py`'s already-tracked `TAU-018` finding (independent scoring model + GPT-decided
+recommendations) — this is a scaling concern in the SAME file, not the same bug.
+
+**Why not fixed this sprint**: `health_index.py` is already named as this program's own #1 priority for a
+full future consolidation sprint (`TAU-018`) — bounding this ONE query in isolation, ahead of that larger
+migration, risks a throwaway fix that gets redone (or conflicts with) whatever shape the eventual
+consolidation takes. Bundling this observation into the SAME future sprint rather than patching it now.
+
+**Severity**: Low-Medium — no case in this platform's own current scale is anywhere near 1,000 cases per
+firm yet; a real but not urgent finding.

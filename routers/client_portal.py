@@ -567,9 +567,10 @@ async def client_portal_upload(
     storage_path = f"{advokat_uid}/{predmet_id}/{_uuid_mod.uuid4().hex}_{bezbedan_naziv}"
 
     # Upload u Supabase Storage
+    bucket = supa.storage.from_("portal-uploads")
     try:
         await asyncio.to_thread(
-            lambda: supa.storage.from_("portal-uploads").upload(
+            lambda: bucket.upload(
                 path=storage_path,
                 file=sadrzaj,
                 file_options={"content-type": content_type},
@@ -599,8 +600,24 @@ async def client_portal_upload(
         )
         upload_id = ins_r.data[0]["id"] if ins_r.data else None
     except Exception as exc:
-        logger.error("[PORTAL_UPLOAD] DB insert greška: %s — fajl u storage ali nema zapisa", exc)
-        upload_id = None
+        # Program Lambda, Master Sprint 001 (Architecture Auditor finding):
+        # ovaj blok je ranije nastavljao i vraćao ok:True/"uspešno
+        # dostavljen" klijentu i pored toga što nijedan zapis ne postoji --
+        # advokat nikad ne bi video ovaj upload (GET /uploads/{predmet_id}
+        # čita isključivo iz client_portal_uploads), a klijent bi verovao da
+        # je dokument stigao. Isti "storage uspeo, DB pao" rizik koji
+        # routers/smart_intake.py već ispravno rešava -- ista kompenzujuća
+        # obrada ovde: best-effort brisanje sirotčeta iz storage-a, iskreno
+        # ok:False nazad klijentu, ne lažni uspeh.
+        logger.error("[PORTAL_UPLOAD] DB insert greška: %s — fajl u storage, kompenzujem brisanjem", exc)
+        try:
+            await asyncio.to_thread(lambda: bucket.remove([storage_path]))
+        except Exception as _ce:
+            logger.warning("[PORTAL_UPLOAD] orphan cleanup neuspesan (path=%s): %s", storage_path, _ce)
+        raise HTTPException(
+            status_code=500,
+            detail="Greška pri čuvanju podataka o dokumentu. Pokušajte ponovo ili kontaktirajte advokata direktno."
+        )
 
     logger.info("[PORTAL_UPLOAD] predmet=%s velicina=%d naziv=%r", predmet_id, len(sadrzaj), bezbedan_naziv)
 
