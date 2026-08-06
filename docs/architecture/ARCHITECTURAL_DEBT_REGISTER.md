@@ -2212,7 +2212,20 @@ no new AI call added, per the mission's own explicit constraint. Six real findin
 deliberately NOT implemented this sprint, each scoped larger than a hygiene fix and each meriting its own
 dedicated future sprint the way Case Commander got in Sigma 005:
 
-## TAU-001 — No unified "complete case context" builder exists (High)
+## TAU-001 — CLOSED (Program Tau, Master Sprint 002, 2026-08-06): was "No unified 'complete case context' builder exists"
+
+**UPDATE — Program Tau, Master Sprint 002 (2026-08-06):** Closed. `shared/case_context.py::build_case_context()`
+is now the single canonical Case Context Contract (13 fields, each carrying `{value, source, owner,
+refresh, timestamp}`), and its Document Visibility Engine solves the "500 documents" problem directly:
+`test_select_documents_500_scale_every_document_accounted_for`/`..._1000_scale_...` prove every document
+is either in the bounded Layer 4 sample or listed with a working Layer 5 (`get_document_full_text`)
+retrieval path — set-equality proven, not asserted. 3 of the 4 mission-named mandatory modules
+(`copilot.py`, `case_intelligence.py`, `morning_briefing.py`'s flagship call site) now read from it; the
+4th (`strategija.py`) was found to not be a context builder at all (no `predmet_id` on any request model)
+and is correctly excluded, not silently skipped. See `docs/tau/CANONICAL_CASE_CONTEXT_CONTRACT.md`,
+`DOCUMENT_VISIBILITY_ENGINE.md`, `AI_ENTRY_POINT_MIGRATION_REPORT.md`. Original entry preserved below.
+
+**[CLOSED]** No unified "complete case context" builder exists (High)
 
 **Found by**: Agent 3 (Context Engineering), Program Tau Master Sprint 001.
 
@@ -2253,6 +2266,15 @@ own (2 files, already-identified fallback branches to remove).
 
 ## TAU-003 — `morning_briefing.py` has zero `case_actions` awareness (Medium-High)
 
+**UPDATE — Program Tau, Master Sprint 002 (2026-08-06):** Partially addressed, not closed. The flagship
+`_generiši_briefing` call site now shows each case's canonical `readiness.status` alongside its name
+(`shared/case_context.py::build_case_context(..., include_documents=False)`) — GPT is no longer reasoning
+about a fully blind case list. **The core finding below is still true**: "Danas zahteva pažnju"/"Preporuka
+za danas" are still GPT-authored, not read from `case_actions` — Tau 002's own mission was context
+*visibility*, not decision-*authorship* boundary (that remains this item's own open concern; see
+`docs/tau/AI_ENTRY_POINT_MIGRATION_REPORT.md`'s explicit scope-boundary note). Original entry below is
+otherwise unchanged and still accurate for the recommendation-authorship question.
+
 **Found by**: Agent 5 (Legal AI Governance) and Agent 3 (Context Engineering), Program Tau Master Sprint 001.
 
 **What**: `routers/morning_briefing.py`'s "Danas zahteva pažnju" (2-4 prioritized actions) and "Preporuka
@@ -2265,6 +2287,17 @@ independently-invented priority list is a direct instance of the exact risk this
 exists to close.
 
 ## TAU-004 — `strategija.py`'s `_V2_SYSTEM` independently invents risks/gaps/next-steps (Critical)
+
+**UPDATE — Program Tau, Master Sprint 002 (2026-08-06):** Scoping correction, finding otherwise unchanged.
+Tau 002's own forensic re-verification found `routers/strategija.py` has **no `predmet_id` field on any
+of its 7 request models** — it is a "paste your own case text" tool with zero DB access to real case
+records, not a case-ID-driven endpoint (`docs/tau/CONTEXT_BUILDER_REGISTRY.md`). This means a future fix
+for THIS item cannot simply redirect `_V2_SYSTEM`'s output to `case_actions`/`gap_engine` the way Case
+Commander was fixed in Sigma 005 — there is no `predmet_id` to look those up BY yet. Whoever picks up this
+item will need `TAU-009` (below) resolved first, or will need to scope the fix to only the (theoretical)
+future `predmet_id`-driven invocation mode. The underlying finding — GPT invents risks/gaps/next-steps in
+one JSON call with its own priority vocabulary — remains fully valid for however `strategija.py` is called
+today.
 
 **Found by**: Agent 5 (Legal AI Governance) and Agent 1 (AI Architecture Auditor), Program Tau Master
 Sprint 001.
@@ -2316,3 +2349,40 @@ source of truth. Building it is explicitly blocked on resolving `GPT51_INTEGRATI
 possibly-already-retired model would be wasted effort.
 
 **Severity**: Informational — correctly sequenced as blocked, not forgotten.
+
+## Program Tau, Master Sprint 002 (2026-08-06) — Canonical Case Context Engine
+
+Full narrative: `docs/tau/TAU_MASTER_SPRINT_002_REPORT.md` and its 5 sibling deliverables in `docs/tau/`.
+Closes `TAU-001` (see updated entry above). Partially addresses `TAU-003` (readiness context now visible;
+decision-authorship boundary still open). Amends `TAU-004`'s own scoping given the `strategija.py` finding
+below. 2 new debt items:
+
+## TAU-008 — Document Visibility Engine's Layer 5 is not wired into any live GPT tool-calling loop (Low)
+
+**Found by**: this sprint's own Phase 3 implementation, flagged explicitly rather than silently left
+implicit.
+
+**What**: `shared/case_context.py::get_document_full_text()` is implemented, tested, and proven to
+correctly retrieve any document not included in a given call's Layer 4 excerpt sample. It is not yet
+called automatically by any consumer's own GPT tool-calling loop when a lawyer's query names a document
+outside that sample — Tau Sprint 001 already found tool calling essentially unused in legal-reasoning
+call sites platform-wide, so wiring this live is a materially larger, separate change than proving the
+retrieval mechanism itself works.
+
+**Severity**: Low — the guarantee this sprint required ("no document permanently invisible, always
+retrievable on demand") holds structurally; this item is about making that retrieval automatic for an end
+user, not about a missing safety property.
+
+## TAU-009 — `routers/strategija.py` has no `predmet_id`-driven invocation mode (feature gap, not defect)
+
+**Found by**: Phase 1 forensic sweep (Program Tau Master Sprint 002), resolving an open question Tau
+Sprint 001 itself left unresolved.
+
+**What**: none of `strategija.py`'s 7 request models can reference an existing case by id — every call
+requires the caller to paste case text directly. This blocks `TAU-004`'s own eventual fix (there is no
+`predmet_id` to read `case_actions`/`gap_engine` findings BY) and blocks this module from ever using the
+Canonical Case Context Contract the way the other 3 mandatory Phase 5 modules now do.
+
+**Severity**: not a defect — `strategija.py` was apparently designed as a text-in/text-out tool
+deliberately. Tracked because 2 other debt items (`TAU-004`) depend on it being resolved first; a founder
+decision on whether a `predmet_id` mode is actually wanted is a prerequisite, not an engineering call.

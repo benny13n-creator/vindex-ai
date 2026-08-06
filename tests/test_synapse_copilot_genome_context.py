@@ -35,7 +35,7 @@ def _make_supa(predmet: dict):
         elif name == "predmet_beleske":
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
         elif name == "predmet_dokumenti":
-            t.select.return_value.eq.return_value.execute.return_value.data = []
+            t.select.return_value.eq.return_value.order.return_value.execute.return_value.data = []
         elif name == "predmet_hronologija":
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
         elif name == "predmet_istorija":
@@ -147,3 +147,50 @@ async def test_no_genome_section_when_case_dna_has_error():
 
     user_ctx = captured["messages"][1]["content"]
     assert "CASE GENOME" not in user_ctx
+
+
+@pytest.mark.anyio
+async def test_document_content_reaches_prompt_program_tau_002():
+    """Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
+    found this handler's own document query selected `naziv_fajla,status`
+    ONLY -- GPT knew a document existed but never saw a word of its content.
+    Proves the fix: real excerpted text, not just a filename, now reaches the
+    GPT-facing context string."""
+    from routers.copilot import _handle_analiza_predmeta
+
+    predmet = {"naziv": "Test predmet", "opis": "Opis", "tip": "radno", "status": "aktivan", "case_dna": None}
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value.data = predmet
+        elif name == "predmet_beleske":
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        elif name == "predmet_dokumenti":
+            t.select.return_value.eq.return_value.order.return_value.execute.return_value.data = [
+                {"id": "d1", "naziv_fajla": "ugovor.pdf", "created_at": "2026-08-01T00:00:00Z",
+                 "tekst_sadrzaj": "Član 1. Zakupodavac se obavezuje da preda nepokretnost u posed.",
+                 "status": "obradjen", "redni_broj": 1},
+            ]
+        elif name == "predmet_hronologija":
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        elif name == "predmet_istorija":
+            t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        return t
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    captured = {}
+
+    async def _capture_gpt(oai, **kwargs):
+        captured["messages"] = kwargs.get("messages")
+        return _fake_gpt_response()
+
+    with patch("routers.copilot._get_supa", return_value=supa), \
+         patch("routers.copilot._pozovi_gpt4o_mini", new=_capture_gpt):
+        await _handle_analiza_predmeta("Kakve su nam šanse?", "pred-1", "user-1")
+
+    user_ctx = captured["messages"][1]["content"]
+    assert "ugovor.pdf" in user_ctx
+    assert "Zakupodavac se obavezuje da preda nepokretnost u posed" in user_ctx

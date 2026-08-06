@@ -1621,3 +1621,53 @@ unconfirmed model target.
 **8 required deliverables**, all in `docs/tau/`: `AI_ARCHITECTURE_MAP.md`, `GPT51_INTEGRATION_ANALYSIS.md`,
 `CASE_CONTEXT_ARCHITECTURE.md`, `GPT51_SECURITY_REVIEW.md`, `LEGAL_AI_BOUNDARY_POLICY.md`,
 `GPT51_COST_OPTIMIZATION.md`, `GPT51_TEST_STRATEGY.md`, `GPT51_IMPLEMENTATION_ROADMAP.md`.
+
+## Program Tau, Master Sprint 002 (2026-08-06) — Canonical Case Context Engine
+
+**Mission**: build the single canonical `CaseContext` mechanism Tau Sprint 001 named as the platform's
+real GPT-5.1-readiness blocker — a case's documents, Genome facts, evidence, contradictions, gaps,
+deadlines, open actions, and readiness status in one deterministic, auditable structure, replacing the 4+
+fragmented, hand-rolled context builders Sprint 001 found. 2 parallel forensic forks for Phase 1 discovery,
+then direct implementation.
+
+**Headline finding**: `routers/strategija.py` — one of the mission's own 4 mandatory Phase 5 migration
+targets — turned out not to be a context builder at all. Direct re-verification found none of its 7
+request models has a `predmet_id` field; it never queries `predmet_dokumenti`/`predmet_dokazi`/`case_dna`/
+`case_actions` anywhere. Migrating it would mean adding a new `predmet_id`-driven invocation mode (a
+feature), not swapping a context builder (plumbing) — documented precisely rather than forced into the
+same migration shape as the other 3.
+
+**Built**: `shared/case_context.py::build_case_context()` — the Canonical Case Context Contract, 13 fields
+each carrying `{value, source, owner, refresh, timestamp}`, reading exclusively from existing canonical
+sources (`shared/gap_engine.py`, `shared/case_readiness.py`, `services/risk_engine.py`, `case_actions`,
+`rocista`, `predmet_hronologija`). The Document Visibility Engine (`_select_documents`/`_excerpt`/
+`get_document_full_text`) solves the mission's own named "500 documents" problem: a bounded, deterministic
+Layer 4 sample (5 always-recent + stride-sampled remainder, reusing `cross_doc.py`'s own proven sampler)
+plus a Layer 5 on-demand retrieval path for anything not sampled — proven by test that
+`included ∪ not_included` always equals every document that exists, at both 500- and 1000-document scale.
+An `include_documents=False` lightweight mode serves portfolio-wide callers without paying for a document
+fetch on every case.
+
+**Migrated (Phase 5)**: `copilot.py` (both handlers now send real document excerpts instead of filenames),
+`case_intelligence.py` (added documents/evidence/actions/deadlines it never had), `morning_briefing.py`
+(flagship `_generiši_briefing` now shows per-case canonical readiness; 2 metadata-only call sites
+explicitly marked LEGACY, not silently skipped, per the mission's own escape valve). `strategija.py`
+excluded per the headline finding above.
+
+**31 new tests**. Full suite: **2,828 passed, 1 skipped, 0 failed** (was 2,797 at end of Tau Master Sprint
+001) — zero regressions across all touched modules (copilot ×63, case_intelligence ×66, morning_briefing
+×32 pre-existing tests unchanged).
+
+**Faza 7 forensic attack**: all 5 mission-named attack vectors proven via direct test, not assertion — no
+permanently invisible document (set-equality proof at 500/1000-doc scale), no invisible contradiction/
+deadline/action (these fields never pass through the document layer at all), no non-deterministic result
+across restarts/input-order variation, Genome refresh reflected on the very next call (no cache layer,
+by design).
+
+**3 new debt items named, none rushed** (`TAU-003` deferred explicitly — this sprint fixed context
+*visibility*, not morning_briefing's own decision-*authorship* boundary; Layer 5 not yet wired into any
+live GPT tool-calling loop; `strategija.py`'s `predmet_id` support is a new feature, not migration debt).
+
+**6 required deliverables**, all in `docs/tau/`: `CONTEXT_BUILDER_REGISTRY.md`,
+`CANONICAL_CASE_CONTEXT_CONTRACT.md`, `DOCUMENT_VISIBILITY_ENGINE.md`, `AI_ENTRY_POINT_MIGRATION_REPORT.md`,
+`CONTEXT_PERFORMANCE_ANALYSIS.md`, `TAU_MASTER_SPRINT_002_REPORT.md`.

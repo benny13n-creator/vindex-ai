@@ -311,10 +311,17 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     # already been computed for the exact same case. This lets the one GPT
     # call below build on that existing analysis instead of re-deriving it
     # from raw rows blind to it -- purely additive context, no restructuring.
+    # Program Tau, Master Sprint 002 (2026-08-06) -- Phase 1's own
+    # CONTEXT_BUILDER_REGISTRY.md found this handler's document query selected
+    # `naziv_fajla,status` ONLY -- GPT knew filenames existed but never saw a
+    # single word of content. Extended to fetch real text so the Document
+    # Visibility Engine (shared/case_context.py) below can build real excerpts
+    # -- genome/case_actions logic (Sigma Sprint 003/004) is unchanged, that
+    # was not the gap this sprint found here.
     pred_r, beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(5).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").limit(8).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(2).execute()),
         return_exceptions=True,
@@ -366,11 +373,32 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         if _delovi:
             genome_ctx = "CASE GENOME (već izračunata analiza ovog predmeta):\n" + "\n".join(_delovi)
 
+    # Program Tau, Master Sprint 002 -- Document Visibility Engine reused
+    # (shared/case_context.py), not a parallel sampler: Layer 4 selection
+    # picks which documents to show (recency + stride sample across ALL of
+    # them, not a static head-slice), Layer 4 within-doc excerpting reuses
+    # cross_doc.py's own stride sampler. Any document not selected here is
+    # still individually retrievable via get_document_full_text -- never
+    # permanently invisible, just not in THIS prompt's bounded budget.
+    from shared.case_context import _select_documents, _excerpt
+    _dok_included, _dok_not_included = _select_documents(dok)
+    _dok_included = _dok_included[:5]  # copilot is a lightweight assistant, not a full case dossier -- smaller budget than case_commander's own
+    if _dok_included:
+        _dok_delovi = []
+        for _d in _dok_included:
+            _izvod, _ = _excerpt(_d.get("tekst_sadrzaj") or "", budget=800)
+            _dok_delovi.append(f"  - {_d.get('naziv_fajla','')}: {_izvod}" if _izvod else f"  - {_d.get('naziv_fajla','')} (bez teksta)")
+        dokumenti_blok = "Dokumenti u dosijeu:\n" + "\n".join(_dok_delovi)
+        if _dok_not_included:
+            dokumenti_blok += f"\n  (+ još {len(_dok_not_included)} dokumenata u dosijeu, nisu prikazani ovde)"
+    else:
+        dokumenti_blok = "Dokumenti u dosijeu: nema"
+
     ctx = "\n".join([
         f"Predmet: {pred.get('naziv','')} | Tip: {pred.get('tip','')} | Status: {pred.get('status','')}",
     ] + ([genome_ctx] if genome_ctx else []) + [
         f"Opis: {(pred.get('opis') or '')[:500]}",
-        f"Dokumenti u dosijeu: {', '.join(d.get('naziv_fajla','') for d in dok[:6]) or 'nema'}",
+        dokumenti_blok,
         f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:80] for b in beleske[:3]) or 'nema'}",
         f"Hronologija: {' | '.join((h.get('dogadjaj','') or '')[:80]+((' ('+h.get('datum_iso','')+')') if h.get('datum_iso') else '') for h in hron[:5]) or 'nema'}",
         f"Pitanje: {poruka}",
@@ -477,10 +505,13 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     # _handle_analiza_predmeta above, which already reads it), making its own
     # "nedostaje" field the 3rd fully-independent GPT "what's missing"
     # generator found this sprint. Same fix as that handler: read below.
+    # Program Tau, Master Sprint 002 (2026-08-06): same fix as
+    # _handle_analiza_predmeta above -- real document text instead of
+    # filenames only.
     pred_r, beleske_r, dok_r, hron_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("naziv,opis,tip,status,case_dna").eq("id", predmet_id).eq("user_id", user_id).single().execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(4).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
         return_exceptions=True,
     )
@@ -525,10 +556,27 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         "Maks 3 faze, maks 4 koraka po fazi. Ne koristi generičke fraze — budi konkretan za ovaj predmet."
     )
 
+    # Program Tau, Master Sprint 002 -- Document Visibility Engine reused
+    # (shared/case_context.py), see _handle_analiza_predmeta above for the
+    # same pattern and its own rationale comment.
+    from shared.case_context import _select_documents, _excerpt
+    _plan_dok_included, _plan_dok_not_included = _select_documents(dok)
+    _plan_dok_included = _plan_dok_included[:5]
+    if _plan_dok_included:
+        _plan_dok_delovi = []
+        for _d in _plan_dok_included:
+            _izvod, _ = _excerpt(_d.get("tekst_sadrzaj") or "", budget=800)
+            _plan_dok_delovi.append(f"  - {_d.get('naziv_fajla','')}: {_izvod}" if _izvod else f"  - {_d.get('naziv_fajla','')} (bez teksta)")
+        dokumenti_blok = "Dokumenti:\n" + "\n".join(_plan_dok_delovi)
+        if _plan_dok_not_included:
+            dokumenti_blok += f"\n  (+ još {len(_plan_dok_not_included)} dokumenata u dosijeu, nisu prikazani ovde)"
+    else:
+        dokumenti_blok = "Dokumenti: nema"
+
     ctx = "\n".join([
         f"Predmet: {pred.get('naziv','')} | Tip: {pred.get('tip','')} | Status: {pred.get('status','')}",
         f"Opis: {(pred.get('opis') or '')[:400]}",
-        f"Dokumenti: {', '.join(d.get('naziv_fajla','') for d in dok[:6]) or 'nema'}",
+        dokumenti_blok,
         f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:60] for b in beleske[:3]) or 'nema'}",
         f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or 'nema'}",
         f"Nadolazeći: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in nadolazeci[:5]) or 'nema'}",

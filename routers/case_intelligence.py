@@ -28,6 +28,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared.case_context import build_case_context
 from routers.matter_intel import _d
 
 logger = logging.getLogger("vindex.case_intelligence")
@@ -158,13 +159,25 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
             .limit(5)
             .execute()
         ),
+        # Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
+        # found this function had ZERO access to predmet_dokumenti/predmet_dokazi/
+        # case_actions/rocista -- the briefing synthesized lessons/firm-DNA/
+        # patterns/alerts/decisions with no view of the case's own documents,
+        # evidence, open actions, or deadlines. build_case_context() (the
+        # canonical Case Context Contract) closes that gap by reuse, not a new
+        # bespoke fetch -- one redundant `predmeti` row read (cheap, single
+        # indexed lookup) is an acceptable cost for not building a 2nd document
+        # sampler/evidence reader/action reader here.
+        build_case_context(predmet_id, user_id, supa),
         return_exceptions=True,
     )
-    _nazivi = ("lessons_learned", "firm_dna", "case_patterns", "proactive_alerts", "decision_log")
+    _nazivi = ("lessons_learned", "firm_dna", "case_patterns", "proactive_alerts", "decision_log", "case_context")
     for _naziv, _r in zip(_nazivi, _rezultati):
         if isinstance(_r, Exception):
             logger.warning("[CASE_INTELLIGENCE] Podupit '%s' neuspesan (degradiran, nije fatalan): %s", _naziv, _r)
-    lekcije, firm_dna_lista, case_patterns_lista, alertovi, odluke = (_d(r) for r in _rezultati)
+    lekcije, firm_dna_lista, case_patterns_lista, alertovi, odluke = (_d(r) for r in _rezultati[:5])
+    _cc_result = _rezultati[5]
+    case_context = {} if isinstance(_cc_result, Exception) else (_cc_result or {})
 
     # Komunikacioni profil klijenta (ako postoji)
     komunikacioni_profil = {}
@@ -209,6 +222,7 @@ async def _gather_case_data(supa, predmet_id: str, user_id: str) -> dict:
         "odluke": odluke,
         "komunikacioni_profil": komunikacioni_profil,
         "knowledge_profili": knowledge_profili[:2],
+        "case_context": case_context,
     }
 
 
@@ -286,6 +300,44 @@ def _build_context_text(data: dict) -> str:
             lines.append(f"  ! {u[:120]}")
         if genome.get("zakljucak"):
             lines.append(f"  Zaključak: {genome['zakljucak'][:200]}")
+        lines.append("")
+
+    # Program Tau, Master Sprint 002 (2026-08-06) -- documents/evidence/open
+    # actions/deadlines this briefing never saw before (see comment on the
+    # build_case_context() call in _gather_case_data above). Bounded to a
+    # modest budget (few documents, short excerpts) so this addition doesn't
+    # starve the lessons/firm-DNA/decisions sections below within the
+    # existing 10000-char total budget in _pozovi_briefing_api.
+    cc = data.get("case_context") or {}
+    rel_docs = ((cc.get("relevant_documents") or {}).get("value") or {})
+    included = rel_docs.get("included") or []
+    if included:
+        lines.append(f"DOKUMENTI U DOSIJEU ({rel_docs.get('total_documents', len(included))} ukupno):")
+        for d in included[:4]:
+            izvod = (d.get("excerpt") or "")[:500]
+            lines.append(f"  - {d.get('naziv','')}: {izvod}" if izvod else f"  - {d.get('naziv','')} (bez teksta)")
+        not_included = rel_docs.get("not_included_but_retrievable") or []
+        if not_included:
+            lines.append(f"  (+ još {len(not_included)} dokumenata u dosijeu, nisu prikazani ovde)")
+        lines.append("")
+
+    dokazi_graf = ((cc.get("evidence_graph") or {}).get("value") or {})
+    if dokazi_graf.get("ukupno_dokaza"):
+        lines.append(f"DOKAZI: {dokazi_graf['ukupno_dokaza']} ukupno, po kategoriji: {dokazi_graf.get('po_kategoriji')}")
+        lines.append("")
+
+    otvorene_akcije = ((cc.get("active_actions") or {}).get("value") or [])
+    if otvorene_akcije:
+        lines.append("OTVORENE AKCIJE (case_actions):")
+        for a in otvorene_akcije[:3]:
+            lines.append(f"  - [{a.get('prioritet','?')}] {a.get('razlog','')[:150]}" + (f" (rok: {a['rok']})" if a.get("rok") else ""))
+        lines.append("")
+
+    rokovi_cc = ((cc.get("deadlines") or {}).get("value") or [])
+    if rokovi_cc:
+        lines.append("ROČIŠTA/ROKOVI:")
+        for r in rokovi_cc[:3]:
+            lines.append(f"  - {r.get('sud','')} | {str(r.get('datum',''))[:10]} | {r.get('status','')}")
         lines.append("")
 
     if data["lekcije"]:

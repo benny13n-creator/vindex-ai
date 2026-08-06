@@ -1418,3 +1418,31 @@ it required a complete AI architecture map, known inputs/outputs, known value/no
 GPT-5.1, passing tests, and no security-principle regression. All 6 were met without touching a single
 `model=` literal, which is itself the correct outcome given Section 0's unresolved model-identity question.
 Full detail: `docs/tau/GPT51_IMPLEMENTATION_ROADMAP.md`.
+
+## Program Tau, Master Sprint 002 (2026-08-06) — Canonical Case Context Engine
+
+**Methodology note**: 2 forensic forks re-verified Tau Sprint 001's own "4 known context builders" framing
+rather than building directly on top of it — this caught that `routers/strategija.py`, one of the
+mission's own 4 named mandatory migration targets, is not a context builder at all (no `predmet_id` on any
+request model, confirmed by a full file read). Same discipline as every prior sprint's own re-verification
+finding in this program: a name/label from a prior sprint is a starting point, not a fact.
+
+| Metric | Value |
+|---|---|
+| Real context-assembly surfaces found | 7 (`case_commander.py`, `case_intelligence.py`, `copilot.py` ×2, `morning_briefing.py`, `multi_agent.py`, `evidence_graph.py`) — `strategija.py` confirmed NOT one of them |
+| Canonical Case Context Contract fields | 13, each carrying `{value, source, owner, refresh, timestamp}` |
+| New canonical shared module | 1 (`shared/case_context.py`) — `build_case_context()` + Document Visibility Engine (5 layers) |
+| Modules migrated (of 4 mandatory) | 3 full/partial (`copilot.py`, `case_intelligence.py`, `morning_briefing.py`'s flagship call site); 1 excluded with precise reasoning (`strategija.py`) |
+| Document-visibility proof scale | 500 and 1000 documents — `included ∪ not_included == all documents`, test-proven at both scales |
+| Determinism proof | same input → same output across simulated restarts, input-order variation, and repeated calls (5 dedicated tests) |
+| New dedicated tests | 31 (26 in `test_tau002_case_context.py`, 2 in `test_tau002_morning_briefing_context.py`, 1 in `test_synapse_copilot_genome_context.py`, 2 in `test_case_intelligence_briefing_alerts_fix.py`) |
+| Full suite | **2,828 passed, 1 skipped, 0 failed** (was 2,797 at end of Tau Master Sprint 001) — zero regressions confirmed directly |
+| Debt items named (none rushed) | 3 (`TAU-003` decision-boundary work explicitly deferred; Layer 5 tool-calling wiring; `strategija.py` `predmet_id` support as a future feature) |
+
+**Success criteria**: the mission's own Definition of Done required exactly one Case Context Contract
+(delivered), all critical AI flows using it (3 of 4 — the 4th correctly excluded, not silently skipped),
+documents+Genome+evidence+actions seen together (delivered, bounded by the Document Visibility Engine),
+no permanently invisible document (proven at 500/1000-doc scale), no parallel context builders for
+migrated modules (delivered — Layer 4 reuses `cross_doc.py`'s own sampler, not a new one), deterministic/
+auditable/performance-controlled context (delivered and test-proven), all existing tests passing (zero
+regressions). Full detail: `docs/tau/TAU_MASTER_SPRINT_002_REPORT.md`.

@@ -38,6 +38,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared.case_context import build_case_context
 
 logger = logging.getLogger("vindex.morning_briefing")
 router = APIRouter(tags=["morning-briefing"])
@@ -164,12 +165,42 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             "\n".join(f"- {r.get('naziv','Rok')} — {r['datum']}" for r in rokovi_uskoro)
         )
     if predmeti:
+        # Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
+        # found this function had ZERO access to case_dna/predmet_dokumenti/
+        # predmet_dokazi/case_actions -- the daily briefing's GPT call named
+        # cases with no readiness/open-action signal at all. Enriched here via
+        # build_case_context(..., include_documents=False) -- the lightweight
+        # mode, since this loops over multiple cases and document text isn't
+        # needed for a status line (Phase 6's own cost-control mandate).
+        # Bounded to the same 10 cases already displayed below, not all 20
+        # fetched, to keep the added query cost proportionate.
+        #
+        # NOTE (scope boundary, see docs/tau/AI_ENTRY_POINT_MIGRATION_REPORT.md):
+        # this closes the CONTEXT gap only. Whether GPT should still be the one
+        # authoring "Danas zahteva pažnju" at all is a decision-boundary
+        # question (TAU-003, Program Tau Master Sprint 001's own debt
+        # register), deliberately out of THIS sprint's scope.
+        _prikazani = predmeti[:10]
+        _readiness_rezultati = await asyncio.gather(
+            *[build_case_context(p["id"], uid, supa, include_documents=False) for p in _prikazani],
+            return_exceptions=True,
+        )
+        _readiness_by_id = {}
+        for _p, _r in zip(_prikazani, _readiness_rezultati):
+            if isinstance(_r, Exception) or _r.get("error"):
+                continue
+            _readiness_by_id[_p["id"]] = _r.get("readiness", {}).get("value", {})
+
+        def _linija_predmeta(p: dict) -> str:
+            base = f"- {p.get('naziv','Predmet')} | stranka: {p.get('stranka','N/A')}"
+            r = _readiness_by_id.get(p.get("id"))
+            if r and r.get("status"):
+                base += f" | readiness: {r['status']}"
+            return base
+
         parts.append(
             f"AKTIVNI PREDMETI ({len(predmeti)}):\n" +
-            "\n".join(
-                f"- {p.get('naziv','Predmet')} | stranka: {p.get('stranka','N/A')}"
-                for p in predmeti[:10]
-            )
+            "\n".join(_linija_predmeta(p) for p in _prikazani)
         )
     if rocista_sedmica:
         parts.append(

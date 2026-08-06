@@ -146,3 +146,50 @@ async def test_briefing_context_text_renders_real_alert_fields():
     assert "visoka" in text
     assert "Rok istice za 2 dana" in text
     assert "?" not in text.split("AKTIVNI ALERTOVI:")[1].split("\n")[1]
+
+
+def test_context_text_includes_documents_evidence_actions_deadlines_program_tau_002():
+    """Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
+    found this briefing had ZERO access to predmet_dokumenti/predmet_dokazi/
+    case_actions/rocista. Proves the fix: when build_case_context()'s own
+    output is present under data['case_context'], its documents/evidence/
+    open-actions/deadlines now render into the GPT-facing text."""
+    from routers import case_intelligence as ci
+
+    data = {
+        "predmet": {"naziv": "Test", "tip": "parnica", "status": "aktivan", "oblast_prava": "", "case_dna": {}},
+        "lekcije": [], "firm_dna": [], "case_patterns": [],
+        "alertovi": [], "odluke": [], "komunikacioni_profil": {}, "knowledge_profili": [],
+        "case_context": {
+            "relevant_documents": {"value": {
+                "included": [{"dokument_id": "d1", "naziv": "ugovor.pdf", "excerpt": "Član 1. Predaja u posed."}],
+                "not_included_but_retrievable": [], "total_documents": 1,
+            }},
+            "evidence_graph": {"value": {"ukupno_dokaza": 3, "po_kategoriji": {"pisani_dokaz": {"broj": 3}}}},
+            "active_actions": {"value": [{"prioritet": "high", "razlog": "Pribaviti ugovor", "rok": "2026-09-01"}]},
+            "deadlines": {"value": [{"sud": "Osnovni sud", "datum": "2026-09-15", "status": "zakazano"}]},
+        },
+    }
+    text = ci._build_context_text(data)
+    assert "ugovor.pdf" in text
+    assert "Član 1. Predaja u posed." in text
+    assert "3 ukupno" in text
+    assert "Pribaviti ugovor" in text
+    assert "Osnovni sud" in text
+
+
+def test_context_text_omits_new_sections_when_case_context_missing():
+    """Backward compatibility: no crash, no empty section headers, when
+    data['case_context'] is absent (e.g. build_case_context() itself failed
+    and was degraded to {} by _gather_case_data's own fail-soft handling)."""
+    from routers import case_intelligence as ci
+
+    data = {
+        "predmet": {"naziv": "Test", "tip": "parnica", "status": "aktivan", "oblast_prava": "", "case_dna": {}},
+        "lekcije": [], "firm_dna": [], "case_patterns": [],
+        "alertovi": [], "odluke": [], "komunikacioni_profil": {}, "knowledge_profili": [],
+    }
+    text = ci._build_context_text(data)
+    assert "DOKUMENTI U DOSIJEU" not in text
+    assert "DOKAZI:" not in text
+    assert "OTVORENE AKCIJE" not in text
