@@ -2478,7 +2478,20 @@ sprint: wiring `build_case_context()` (or a scoped subset) into 7 endpoints' exi
 logic, without regressing any of them, is a Sigma-005-scale project requiring its own dedicated sprint with
 full per-endpoint testing, not a Phase 9 patch.
 
-## TAU-012 — 15+ more case-linked files never migrated onto `build_case_context()` (High)
+## TAU-012 — 14+ more case-linked files never migrated onto `build_case_context()` (High)
+
+**UPDATE — Program Tau, Master Sprint 007 (2026-08-06):** `case_commander.py` is migrated (see
+`docs/tau/CASE_COMMANDER_CONSOLIDATION.md`) — not via the Factory's own context-injection template, but via
+the SECOND migration shape Tau 006's own simulation predicted: duplicate-computation-elimination.
+`case_commander.py` no longer independently calls `calculate_procesni_rizik`/`identify_case_problems`/
+`collect_case_gaps`/`compute_case_readiness` (structurally proven by an AST walk, not a string grep —
+`tests/test_tau007_case_commander_consolidation.py::test_no_direct_calls_to_duplicated_reasoning_functions`).
+Count revised from 15+ to 14+. `zadaci.py::ai_analiziraj_predmet` remains the one other confirmed instance
+of this specific duplicate-computation sub-case — see `docs/tau/REASONING_REGISTRY.md` and
+`docs/tau/PARALLEL_REASONING_AUDIT.md` (Tau 007's own broader reasoning census, which additionally found 3
+MORE modules in this same family not previously named here: `api.py::predmet_workspace`, `matter_intel.py`,
+`ccc.py`, `dashboard.py`). Next-sprint priority order: `docs/tau/TAU_008_HANDOVER.md` (supersedes
+`TAU_007_HANDOVER.md`, which proposed this exact migration and is now executed).
 
 **UPDATE — Program Tau, Master Sprint 006 (2026-08-06):** `hearing_cc.py` — this entry's own "sharpest
 instance" — is migrated (see `docs/tau/HEARING_CC_MIGRATION_REPORT.md`), via the newly-built and now-proven
@@ -2503,12 +2516,13 @@ otherwise unchanged and none of it was touched this sprint (out of scope by the 
 `multi_agent.py`, `digital_twin.py`, `decision_replay.py`, `strategy_simulator.py`, `health_index.py`,
 `outcome_intel.py`, `precedenti.py`, `zastarelost.py`, `evidence.py`, `doc_templates.py`, `zadaci.py` each
 has its own independent, bespoke `predmet_id`-keyed context fetch — confirmed via grep, none imports
-`shared.case_context`. `case_commander.py` and `zadaci.py::ai_analiziraj_predmet` are a genuinely different
-sub-case (Tau 006 finding): both independently call `services/risk_engine.py`/`shared/gap_engine.py`/
-`shared/case_readiness.py` directly — the SAME functions `build_case_context()` calls internally — meaning
-their own migration would eliminate duplicate computation, not just add missing fields. See
-`docs/tau/GPT_MODULE_CENSUS.md` for the fresh, endpoint-level census (Tau 006) superseding this list's own
-file-level granularity.
+`shared.case_context`. ~~`case_commander.py`~~ (migrated, Tau 007) and `zadaci.py::ai_analiziraj_predmet`
+are a genuinely different sub-case (Tau 006 finding, Tau 007 additionally found `api.py::predmet_workspace`/
+`matter_intel.py`/`ccc.py`/`dashboard.py` belong to the same sub-case): each independently calls
+`services/risk_engine.py`/`shared/gap_engine.py`/`shared/case_readiness.py` directly — the SAME functions
+`build_case_context()` calls internally — meaning their own migration eliminates duplicate computation, not
+just adds missing fields. See `docs/tau/GPT_MODULE_CENSUS.md` (Tau 006) and `docs/tau/REASONING_REGISTRY.md`
+(Tau 007) for the fresh, endpoint-level census superseding this list's own file-level granularity.
 
 **Severity**: High — this is the same fragmentation Tau 002 built `build_case_context()` to end, just not
 yet finished. A full migration of 17+ files is explicitly out of "fix everything safely fixable without
@@ -2605,3 +2619,25 @@ range-check only (catches an impossible article number for a given law type), no
 regressions), grouped here rather than as 3 separate entries since none is independently urgent enough to
 warrant its own dedicated sprint; worth revisiting together if a future sprint targets evidence-integrity
 or citation-grounding specifically.
+
+## TAU-017 — `routers/cio.py` GPT independently decides priority/risk with no deterministic grounding (Medium-High)
+
+**Found by**: Phase 5 GPT Boundary Audit, Program Tau Master Sprint 007 (`docs/tau/CANONICAL_REASONING_CERTIFICATION.md`).
+
+**What**: `cio.py`'s own system prompt asks GPT to independently invent `kriticnost` (a 0-100 urgency
+score), `najveci_rizik`, `kriticni_rok`, and `cio_preporuka` (a single recommended action for today) from
+raw portfolio signals — not from `case_actions`/`identify_case_problems`/`compute_case_readiness`, the
+platform's own canonical sources for exactly these concepts. This is not a new discovery — the file's own
+header comment already documents it as a deliberate, previously-escalated deferral (Program Omega Sprint
+004: "the canonical answer is `GET /api/workspace`; this module remains a supplementary strategic
+perspective... out of safe scope"). Re-confirmed still open, still real, during this sprint's own broader
+GPT Boundary Audit — named explicitly here (a formal, numbered debt item) rather than left as a comment
+only future readers of this one file would find.
+
+**Severity**: Medium-High — a genuine GPT Boundary Policy violation (Sigma 005's own principle, which
+`case_commander.py` itself now fully honors after Tau 007's own migration) in a LIVE, BILLED module. Not
+fixed by Tau 007 (out of that sprint's own named scope — `case_commander.py` specifically) or any prior
+sprint, deliberately: changing a live GPT prompt's own behavior/output shape carries real user-facing risk
+that deserves its own dedicated, careful sprint with live-traffic verification first (same discipline Tau
+005/006/007 each applied to their own single-file targets), not a bolt-on to an unrelated mission.
+Prioritized in `docs/tau/TAU_008_HANDOVER.md`.

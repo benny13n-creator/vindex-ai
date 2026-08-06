@@ -369,7 +369,14 @@ def test_cross_case_api_retry_na_rate_limit():
 
 def test_cross_case_analiza_fail_soft_na_potpun_neuspeh():
     """Ako GPT poziv potpuno propadne (posle svih retry pokušaja), jutarnji
-    brifing mora vratiti validnu strukturu sa greska=True, ne 500."""
+    brifing mora vratiti validnu strukturu sa greska=True, ne 500.
+
+    Program Tau, Master Sprint 007: _readiness mora biti eksplicitno READY
+    (kanonski poznato, iz build_case_context()-a) da bi ovaj test proverio
+    tačno ono što tvrdi ("nema DETERMINISTIČKIH nalaza, samo GPT-advisory
+    sloj je pao") -- bez toga, odsustvo _readiness ključa ispravno degradira
+    na UNKNOWN (docs/tau/CASE_COMMANDER_CONSOLIDATION.md), što bi samo po
+    sebi bio validan "nalaz" i pogrešno testiralo ovaj scenario."""
     from routers.case_commander import _cross_case_analiza
 
     podaci = {
@@ -377,6 +384,7 @@ def test_cross_case_analiza_fail_soft_na_potpun_neuspeh():
             "id": "abc12345", "naziv": "Test predmet", "opis": "opis",
             "tip_postupka": "gradjansko", "protivnik": "X", "sud": "Y",
             "rokovi": [], "dokumenti": [], "komentari": [],
+            "case_actions": [], "_readiness": {"status": "READY", "razlog": "", "izvor": []},
         }],
     }
 

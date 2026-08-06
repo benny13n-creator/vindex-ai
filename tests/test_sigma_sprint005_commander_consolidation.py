@@ -52,100 +52,169 @@ def test_gpt_explanation_field_points_at_original_source():
 
 # ═══════════════════════════════════════════════════════════════════════════
 # routers/case_commander.py::_kanonski_nalazi — per-case canonical findings
+#
+# Program Tau, Master Sprint 007 ("Canonical Reasoning Consolidation"):
+# _kanonski_nalazi no longer computes readiness/gaps itself (it read
+# `build_case_context()`'s own already-computed output) -- these tests now
+# mock `build_case_context` with a canonical-shaped dict instead of passing
+# raw case_actions/dokazi/rocista/dokumenta.
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _ctx(predmet=None, case_actions=None, dokazi=None, rocista=None, dokumenta=None):
+def _cc(readiness_status="READY", razlog="", izvor=None, missing=None, actions=None):
+    """Minimal valid build_case_context()-shaped mock dict, for the 3 fields
+    _kanonski_nalazi actually reads (readiness/missing_evidence/active_actions)."""
     return {
-        "predmet": predmet or {"naziv": "Test", "tip_postupka": "parnicno", "case_dna": {}},
-        "case_actions": case_actions or [],
-        "dokazi": dokazi or [],
-        "rocista": rocista or [],
-        "dokumenta": dokumenta or [],
-        "rokovi": [], "komentari": [],
+        "readiness": {"value": {"status": readiness_status, "razlog": razlog, "izvor": izvor or []}},
+        "missing_evidence": {"value": missing or []},
+        "active_actions": {"value": actions or []},
     }
 
 
-def test_kanonski_nalazi_preporuceni_potez_reads_case_actions_top_priority():
-    from routers.case_commander import _kanonski_nalazi
+PID = "pred-1"
+UID = "uid-1"
 
-    ctx = _ctx(case_actions=[
+
+@pytest.mark.anyio
+async def test_kanonski_nalazi_preporuceni_potez_reads_case_actions_top_priority():
+    from routers import case_commander as cc_mod
+
+    actions = [
         {"tip": "PRIBAVITI_DOKAZ", "razlog": "Pribaviti dokaz o uručenju", "prioritet": "high",
          "rok": None, "dedupe_key": "k1", "status": "open"},
         {"tip": "PLANIRATI_ROKOVE", "razlog": "manje bitno", "prioritet": "low",
          "rok": None, "dedupe_key": "k2", "status": "open"},
-    ])
-    result = _kanonski_nalazi(ctx)
+    ]
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(actions=actions))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert result["preporuceni_potez"]["value"] == "Pribaviti dokaz o uručenju"
     assert result["preporuceni_potez"]["source"] == "case_actions"
     assert result["preporuceni_potez"]["evidence"] == "k1"
     assert result["preporuceni_potez"]["generated_by"] == "deterministic"
 
 
-def test_kanonski_nalazi_no_open_actions_says_so_not_empty():
-    from routers.case_commander import _kanonski_nalazi
-    ctx = _ctx(
-        predmet={"naziv": "Test", "tip_postupka": "parnicno", "case_dna": {"verzija": 1}},
-        case_actions=[],
-    )
-    result = _kanonski_nalazi(ctx)
+@pytest.mark.anyio
+async def test_kanonski_nalazi_no_open_actions_says_so_not_empty():
+    from routers import case_commander as cc_mod
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="READY", actions=[]))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert "Nema otvorenih akcija" in result["preporuceni_potez"]["value"]
     assert result["readiness_status"] == "READY"
 
 
-def test_kanonski_nalazi_readiness_unknown_when_genome_never_ran():
+@pytest.mark.anyio
+async def test_kanonski_nalazi_readiness_unknown_when_genome_never_ran():
     """No case_dna at all AND no open actions -> genuinely not enough
-    signal, must be UNKNOWN, not a guessed READY."""
-    from routers.case_commander import _kanonski_nalazi
-    ctx = _ctx(predmet={"naziv": "Test", "tip_postupka": "parnicno", "case_dna": {}}, case_actions=[])
-    result = _kanonski_nalazi(ctx)
+    signal, must be UNKNOWN, not a guessed READY. (Readiness itself is now
+    computed inside build_case_context() -- this test proves _kanonski_nalazi
+    faithfully surfaces whatever status it returns, not that it re-derives
+    the UNKNOWN rule itself.)"""
+    from routers import case_commander as cc_mod
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="UNKNOWN", actions=[]))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert result["readiness_status"] == "UNKNOWN"
 
 
-def test_kanonski_nalazi_vremenski_pritisak_uses_nearest_deadline_action():
-    from routers.case_commander import _kanonski_nalazi
-    ctx = _ctx(case_actions=[
+@pytest.mark.anyio
+async def test_kanonski_nalazi_degrades_to_unknown_when_context_fetch_fails():
+    """New this sprint: build_case_context() raising must not crash the
+    endpoint -- degrades to UNKNOWN, fail-soft, same discipline as every
+    other Tau migration this program has done."""
+    from routers import case_commander as cc_mod
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(side_effect=Exception("db down"))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
+    assert result["readiness_status"] == "UNKNOWN"
+    assert result["nedostaje"] == []
+    assert result["rizici"] == []
+
+
+@pytest.mark.anyio
+async def test_kanonski_nalazi_vremenski_pritisak_uses_nearest_deadline_action():
+    from routers import case_commander as cc_mod
+    actions = [
         {"tip": "PRIPREMITI_PODNESAK", "razlog": "Kasniji rok", "prioritet": "high",
          "rok": "2026-12-01", "dedupe_key": "later", "status": "open"},
         {"tip": "PRIPREMITI_PODNESAK", "razlog": "Bliži rok", "prioritet": "critical",
          "rok": "2026-08-10", "dedupe_key": "sooner", "status": "open"},
-    ])
-    result = _kanonski_nalazi(ctx)
+    ]
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="CRITICAL_GAP", actions=actions))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert "sooner" == result["vremenski_pritisak"]["evidence"]
     assert "2026-08-10" in result["vremenski_pritisak"]["value"]
 
 
-def test_kanonski_nalazi_readiness_status_is_critical_gap_on_critical_action():
-    from routers.case_commander import _kanonski_nalazi
-    ctx = _ctx(case_actions=[
+@pytest.mark.anyio
+async def test_kanonski_nalazi_readiness_status_is_critical_gap_on_critical_action():
+    from routers import case_commander as cc_mod
+    actions = [
         {"tip": "PRIPREMITI_PODNESAK", "razlog": "Hitno", "prioritet": "critical",
          "rok": "2026-08-08", "dedupe_key": "k1", "status": "open"},
-    ])
-    result = _kanonski_nalazi(ctx)
+    ]
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="CRITICAL_GAP", actions=actions))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert result["readiness_status"] == "CRITICAL_GAP"
     assert "kritičan" in result["status_predmeta"]["value"].lower()
 
 
-def test_kanonski_nalazi_rizici_sourced_from_identify_case_problems():
-    from routers.case_commander import _kanonski_nalazi
-    # Case with zero evidence -> identify_case_problems fires "Nema uploadovanih dokaza"
-    ctx = _ctx(predmet={"naziv": "Test", "tip_postupka": "parnicno", "case_dna": {}},
-               case_actions=[], dokazi=[], dokumenta=[], rocista=[])
-    result = _kanonski_nalazi(ctx)
+@pytest.mark.anyio
+async def test_kanonski_nalazi_rizici_sourced_from_identify_case_problems():
+    """rizici is now reconstructed by filtering missing_evidence on its own
+    izvor=="identify_case_problems" tag, not a 2nd call to
+    identify_case_problems -- see PARALLEL_REASONING_AUDIT.md Finding 3."""
+    from routers import case_commander as cc_mod
+    missing = [
+        {"tip": "NEMA_DOKAZA", "izvor": "identify_case_problems", "razlog": "Nema uploadovanih dokaza za predmet.",
+         "pouzdanost": "visoka", "dedupe_key": None},
+    ]
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="PARTIALLY_READY", missing=missing))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
     assert any("dokaza" in r["value"].lower() for r in result["rizici"])
     assert all(r["source"] == "identify_case_problems" for r in result["rizici"])
     assert all(r["generated_by"] == "deterministic" for r in result["rizici"])
 
 
+@pytest.mark.anyio
+async def test_kanonski_nalazi_nedostaje_includes_genome_items_rizici_does_not():
+    """Program Tau, Master Sprint 007: nedostaje now includes ALL
+    missing_evidence (not the old narrower 3-of-5-type filter), while rizici
+    stays scoped to identify_case_problems-sourced items only -- proving the
+    2 fields are no longer accidentally near-duplicates of each other
+    (PARALLEL_REASONING_AUDIT.md Finding 2)."""
+    from routers import case_commander as cc_mod
+    missing = [
+        {"tip": "NEMA_DOKAZA", "izvor": "identify_case_problems", "razlog": "Nema dokaza.",
+         "pouzdanost": "visoka", "dedupe_key": "a"},
+        {"tip": "GENOME_NEDOSTAJE", "izvor": "genome_ekstrakcija", "razlog": "Nedostaje ugovor.",
+         "pouzdanost": "srednja", "dedupe_key": "b"},
+    ]
+    with patch.object(cc_mod, "build_case_context", new=AsyncMock(return_value=_cc(readiness_status="PARTIALLY_READY", missing=missing))):
+        result = await cc_mod._kanonski_nalazi(PID, UID, MagicMock())
+    assert len(result["nedostaje"]) == 2
+    assert len(result["rizici"]) == 1
+    assert result["rizici"][0]["value"] == "Nema dokaza."
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # routers/case_commander.py::_kanonski_prioritet_i_rizici — portfolio ranking
+#
+# Program Tau, Master Sprint 007: readiness is no longer computed inside this
+# function (it used to call compute_case_readiness(actions, []) with an
+# ALWAYS-EMPTY gaps list -- PARALLEL_REASONING_AUDIT.md Finding 4). Each
+# predmet dict must now carry a pre-attached "_readiness" key, the same shape
+# _dohvati_sve_predmete_za_analizu attaches from build_case_context() in
+# production. Fixtures below set it explicitly so these tests exercise
+# readiness-based ranking, not an incidental rok-date tiebreak.
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _readiness(status, razlog="", izvor=None):
+    return {"status": status, "razlog": razlog, "izvor": izvor or []}
+
 
 def test_kanonski_prioritet_ranks_critical_gap_case_first():
     from routers.case_commander import _kanonski_prioritet_i_rizici
 
     predmeti = [
-        {"id": "aaaaaaaa-1111", "naziv": "Case A (READY)", "case_actions": []},
-        {"id": "bbbbbbbb-2222", "naziv": "Case B (CRITICAL)", "case_actions": [
+        {"id": "aaaaaaaa-1111", "naziv": "Case A (READY)", "case_actions": [], "_readiness": _readiness("READY")},
+        {"id": "bbbbbbbb-2222", "naziv": "Case B (CRITICAL)", "_readiness": _readiness("CRITICAL_GAP"), "case_actions": [
             {"tip": "PRIPREMITI_PODNESAK", "razlog": "Hitno!", "prioritet": "critical",
              "rok": "2026-08-08", "dedupe_key": "crit-1", "status": "open"},
         ]},
@@ -159,10 +228,23 @@ def test_kanonski_prioritet_ranks_critical_gap_case_first():
 
 def test_kanonski_prioritet_none_when_all_cases_ready():
     from routers.case_commander import _kanonski_prioritet_i_rizici
-    predmeti = [{"id": "aaaaaaaa-1111", "naziv": "Case A", "case_actions": []}]
+    predmeti = [{"id": "aaaaaaaa-1111", "naziv": "Case A", "case_actions": [], "_readiness": _readiness("READY")}]
     prioritet, rizici = _kanonski_prioritet_i_rizici(predmeti)
     assert prioritet is None
     assert rizici == []
+
+
+def test_kanonski_prioritet_unknown_when_readiness_not_attached():
+    """New this sprint: if a predmet dict has no _readiness at all (e.g. its
+    own build_case_context() call failed in _dohvati_sve_predmete_za_analizu),
+    the safe default is UNKNOWN, not a guessed READY -- a real, deliberate
+    correctness improvement over the old code's own implicit
+    genome_computed=True default (see docs/tau/CASE_COMMANDER_CONSOLIDATION.md)."""
+    from routers.case_commander import _kanonski_prioritet_i_rizici
+    predmeti = [{"id": "aaaaaaaa-1111", "naziv": "Case A", "case_actions": []}]
+    prioritet, rizici = _kanonski_prioritet_i_rizici(predmeti)
+    assert prioritet is not None
+    assert prioritet["predmet_naziv"] == "Case A"
 
 
 def test_kanonski_prioritet_empty_portfolio():

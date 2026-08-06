@@ -46,8 +46,8 @@ from shared.usage import UsageService
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 from shared.commander_schema import canonical_field, gpt_advisory_field, gpt_explanation_field
-from shared.case_readiness import compute_case_readiness, top_open_action, READY, PARTIALLY_READY, BLOCKED, CRITICAL_GAP, UNKNOWN
-from shared.gap_engine import collect_case_gaps
+from shared.case_readiness import top_open_action, READY, PARTIALLY_READY, BLOCKED, CRITICAL_GAP, UNKNOWN
+from shared.case_context import build_case_context
 
 logger = logging.getLogger("vindex.case_commander")
 router = APIRouter(tags=["case-commander"])
@@ -83,17 +83,22 @@ class ChecklistRequest(BaseModel):
 # ── Helperi ───────────────────────────────────────────────────────────────────
 
 async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
-    """Paralelno dohvata sve podatke o predmetu.
+    """Paralelno dohvata podatke o predmetu potrebne za GPT-formatirani tekst
+    (naziv/opis/rokovi/dokumenta/beleške).
 
-    Program Sigma, Master Sprint 005 (2026-08-06): dodato `case_actions`
-    (otvorene, kanonski izvor za PREPORUCENI POTEZ/VREMENSKI PRITISAK),
-    `case_dna` (Genome, uvek deo `predmeti.*` -- eksplicitno navedeno ovde
-    radi jasnoće), `dokazi`/`dokumenta_tip` (za `identify_case_problems`,
-    kanonski izvor za RIZICI) i `rocista` (kanonski izvor za rokove, NE
-    `rokovi` tabela koju je ovaj fajl ranije jedini u repou koristio kao
-    jedini izvor rokova -- zadržano ispod za GPT kontekst tekst, ali više
-    NIJE jedini izvor "vremenskog pritiska")."""
-    pred_r, rokovi_r, dok_r, kom_r, actions_r, dokazi_r, rocista_r = await asyncio.gather(
+    Program Tau, Master Sprint 007 ("Canonical Reasoning Consolidation"):
+    `case_actions`/`dokazi`/`rocista` su ranije dohvatani ovde ISKLJUČIVO da
+    nahrane `_kanonski_nalazi`-jev sopstveni, DRUGI poziv
+    `calculate_procesni_rizik`/`identify_case_problems`/`collect_case_gaps`/
+    `compute_case_readiness` -- iste determinističke funkcije koje
+    `shared/case_context.py::build_case_context()` već poziva iznutra. Taj
+    duplirani poziv je uklonjen (`_kanonski_nalazi` sada čita
+    `build_case_context()`-ov već izračunat `readiness`/`missing_evidence`/
+    `active_actions` direktno), pa su ova 3 dohvata postala nepotrebna i
+    uklonjena su odavde. `rokovi` (NE `rocista`) i dalje nema kanonski
+    ekvivalent (isti TAU-013 nalaz, sada potvrđen i u ovom fajlu) -- zadržano
+    za GPT kontekst tekst."""
+    pred_r, rokovi_r, dok_r, kom_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmeti")
                 .select("*")
@@ -111,12 +116,6 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
                 .execute()
         ),
         asyncio.to_thread(
-            # CELINA 2 (2026-07-24): ranije je selektovan SAMO naziv_fajla --
-            # Case Commander je "video" da dokument postoji ali NIKAD njegov
-            # sadržaj, ni u ovom "kompletna analiza" putu ni u jutarnjem
-            # brifingu (_dohvati_sve_predmete_za_analizu ispod). Za "Chief of
-            # Staff" alat koji treba da kaže advokatu šta tačno nedostaje,
-            # ovo je bila potpuna slepa tačka -- dodato tekst_sadrzaj.
             lambda: supa.table("predmet_dokumenti")
                 .select("naziv_fajla, created_at, tekst_sadrzaj, tip_dokaza, status")
                 .eq("predmet_id", predmet_id)
@@ -129,26 +128,6 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
                 .eq("predmet_id", predmet_id)
                 .order("created_at", desc=True)
                 .limit(5)
-                .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("case_actions")
-                .select("tip, razlog, dokaz, prioritet, rok, dedupe_key, status")
-                .eq("predmet_id", predmet_id)
-                .eq("status", "open")
-                .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("predmet_dokazi")
-                .select("snaga, kategorija, pravni_element")
-                .eq("predmet_id", predmet_id)
-                .is_("deleted_at", "null")
-                .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("rocista")
-                .select("id, sud, datum, status")
-                .eq("predmet_id", predmet_id)
                 .execute()
         ),
         return_exceptions=True,
@@ -169,9 +148,6 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
         "rokovi":       _safe(rokovi_r),
         "dokumenta":    _safe(dok_r),
         "komentari":    _safe(kom_r),
-        "case_actions": _safe(actions_r),
-        "dokazi":       _safe(dokazi_r),
-        "rocista":      _safe(rocista_r),
     }
 
 
@@ -184,47 +160,68 @@ _READINESS_LABEL_SR = {
 }
 
 
-def _kanonski_nalazi(ctx: dict) -> dict:
-    """Program Sigma, Master Sprint 005 (2026-08-06) — gradi STATUS PREDMETA/
-    NEDOSTAJE/RIZICI/PREPORUCENI POTEZ/VREMENSKI PRITISAK isključivo iz već-
-    kanonskih izvora (case_actions, shared/gap_engine.py, shared/
-    case_readiness.py, services/risk_engine.py::identify_case_problems) --
-    nula GPT poziva. Svako polje umotano shared/commander_schema.py-jevim
-    kanonskim oblikom (Faza 3 -- CASE_COMMANDER_RESPONSE_SCHEMA)."""
-    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
-    from shared.constants import EXPECTED_DOCS
+async def _kanonski_nalazi(predmet_id: str, uid: str, supa) -> dict:
+    """Program Tau, Master Sprint 007 ("Canonical Reasoning Consolidation"):
+    gradi STATUS PREDMETA/NEDOSTAJE/RIZICI/PREPORUCENI POTEZ/VREMENSKI
+    PRITISAK isključivo čitajući `shared/case_context.py::build_case_context()`-
+    ov već izračunat `readiness`/`missing_evidence`/`active_actions` -- nula
+    GPT poziva, i (za razliku od Program Sigma Master Sprint 005-ove verzije
+    ovog fajla) nula DRUGOG, nezavisnog poziva
+    `calculate_procesni_rizik`/`identify_case_problems`/`collect_case_gaps`/
+    `compute_case_readiness` na sopstveno dohvaćenim podacima -- ISTE
+    determinističke funkcije koje `build_case_context()` već poziva iznutra
+    (Tau 006's own Phase 7 finding, docs/tau/FACTORY_CERTIFICATION.md).
+    Nema novog helper/wrapper-a: ovo je direktan `await build_case_context(...)`
+    poziv, sa inline fail-soft degradacijom, ne novi sistem.
 
-    p = ctx["predmet"]
-    case_dna = p.get("case_dna") or {}
-    open_actions = ctx["case_actions"]
-    tip = p.get("tip_postupka") or p.get("oblast") or "ostalo"
+    Svako polje umotano shared/commander_schema.py-jevim kanonskim oblikom
+    (Faza 3 -- CASE_COMMANDER_RESPONSE_SCHEMA), nepromenjeno u odnosu na
+    prethodnu verziju."""
+    try:
+        cc = await build_case_context(predmet_id, uid, supa, include_documents=False)
+    except Exception as exc:
+        logger.warning("[COMMANDER] build_case_context greška (degradira na UNKNOWN): %s", exc)
+        cc = None
 
-    rizik = calculate_procesni_rizik(
-        dokazi=ctx["dokazi"], dokumenti=ctx["dokumenta"], rocista=ctx["rocista"],
-        tip_predmeta=tip, expected_docs=EXPECTED_DOCS,
-    )
-    problemi = identify_case_problems(rizik, tip)
-    gaps = collect_case_gaps(problemi, case_dna if not case_dna.get("greska") else None)
+    if not cc or cc.get("error"):
+        readiness = {"status": UNKNOWN, "razlog": "Kanonski kontekst nije dostupan.", "izvor": []}
+        missing = []
+        open_actions = []
+    else:
+        readiness = (cc.get("readiness") or {}).get("value") or {"status": UNKNOWN, "razlog": "", "izvor": []}
+        missing = (cc.get("missing_evidence") or {}).get("value") or []
+        open_actions = (cc.get("active_actions") or {}).get("value") or []
 
-    readiness = compute_case_readiness(open_actions, gaps, genome_computed=bool(case_dna) and not case_dna.get("greska"))
     status_predmeta = canonical_field(
         _READINESS_LABEL_SR.get(readiness["status"], readiness["razlog"]),
         source="case_readiness", evidence=readiness.get("izvor"), confidence="visoka",
     )
 
+    # Program Tau, Master Sprint 007: `nedostaje` sada obuhvata SVE
+    # missing_evidence stavke (nije više uže filtrirano na 3 od 5
+    # gap_engine tip vrednosti kao pre migracije) -- ispravlja nenamerno
+    # isključivanje KRITICAN_ROK/PREDSTOJECI_ROKOVI stavki iz starije
+    # verzije (docs/tau/PARALLEL_REASONING_AUDIT.md Finding 2), ne novo
+    # ponašanje smišljeno ovaj sprint.
     nedostaje = [
         canonical_field(
             g["razlog"], source=g["izvor"], evidence=g.get("dedupe_key"),
             confidence=g["pouzdanost"],
         )
-        for g in gaps
-        if g["tip"] in ("NEMA_DOKAZA", "NEDOSTAJE_DOKUMENT", "GENOME_NEDOSTAJE")
+        for g in missing
     ]
 
+    # `rizici` rekonstruiše STARO ponašanje (samo identify_case_problems-ova
+    # stavke) filtriranjem već-izračunatog `missing_evidence`-a po njegovom
+    # sopstvenom `izvor` polju -- ne poziva identify_case_problems ponovo.
+    # Ovo takođe ispravlja Finding 3 (stari `rizici` je koristio bineran
+    # "kritican"->visoka/ostalo->srednja umesto gap_engine-ove kanonske
+    # {"kritican":visoka,"vazan":visoka,"info":srednja} mape -- sada
+    # dosledno sa `nedostaje`, ne dva različita pravila za isti nalaz).
     rizici = [
-        canonical_field(pr["problem"], source="identify_case_problems", evidence=None,
-                         confidence="visoka" if pr["ozbiljnost"] == "kritican" else "srednja")
-        for pr in problemi
+        canonical_field(g["razlog"], source=g["izvor"], evidence=g.get("dedupe_key"), confidence=g["pouzdanost"])
+        for g in missing
+        if g.get("izvor") == "identify_case_problems"
     ]
 
     top = top_open_action(open_actions)
@@ -362,12 +359,17 @@ async def commander_analiza(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    ctx = await _dohvati_predmet_kontekst(payload.predmet_id, uid, supa)
+    # Program Tau, Master Sprint 007, Phase 7 (Performance): the bespoke fetch
+    # and the canonical fetch are independent -- run concurrently instead of
+    # sequentially (found during this sprint's own performance measurement,
+    # fixed immediately rather than left as a named-but-unfixed finding).
+    ctx, kanonsko = await asyncio.gather(
+        _dohvati_predmet_kontekst(payload.predmet_id, uid, supa),
+        _kanonski_nalazi(payload.predmet_id, uid, supa),
+    )
 
     if not ctx["predmet"]:
         raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
-
-    kanonsko = _kanonski_nalazi(ctx)
 
     predmet_tekst = _formatiraj_kontekst(ctx, payload.dodatni_kontekst or "")
     model = "gpt-4o" if payload.tip_analize in ("kompletna", "rizici") else "gpt-4o-mini"
@@ -444,12 +446,17 @@ async def commander_quick_check(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    ctx = await _dohvati_predmet_kontekst(payload.predmet_id, uid, supa)
+    # Program Tau, Master Sprint 007, Phase 7 (Performance): the bespoke fetch
+    # and the canonical fetch are independent -- run concurrently instead of
+    # sequentially (found during this sprint's own performance measurement,
+    # fixed immediately rather than left as a named-but-unfixed finding).
+    ctx, kanonsko = await asyncio.gather(
+        _dohvati_predmet_kontekst(payload.predmet_id, uid, supa),
+        _kanonski_nalazi(payload.predmet_id, uid, supa),
+    )
 
     if not ctx["predmet"]:
         raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
-
-    kanonsko = _kanonski_nalazi(ctx)
     kandidati = [kanonsko["preporuceni_potez"]] + kanonsko["rizici"] + kanonsko["nedostaje"]
     upozorenja = [k for k in kandidati if k["value"]][:3]
 
@@ -545,9 +552,16 @@ async def commander_checklist(
 
 async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     """Paralelno dohvata sve aktivne predmete + rokove/dokumente/komentare iz
-    30/7 dana + (Program Sigma, Master Sprint 005) otvorene case_actions za
-    SVE te predmete u jednom batch upitu -- kanonski izvor za prioritet/rizik
-    umesto GPT-ovog sopstvenog nagađanja u _cross_case_analiza ispod."""
+    30/7 dana za GPT kontekst tekst, plus (Program Tau, Master Sprint 007)
+    kanonski `readiness`/otvorene akcije za SVAKI predmet preko
+    `build_case_context()` -- isti obrazac koji `morning_briefing.py` (Tau
+    002) već koristi za portfolio-wide digest (lightweight mode, petlja
+    preko prikazanih predmeta). Ranije je ovaj fajl sam pozivao
+    `compute_case_readiness(actions, [])` sa PRAZNOM listom gaps-ova (vidi
+    docs/tau/PARALLEL_REASONING_AUDIT.md Finding 4) -- portfolio prioritet
+    je bio jedini u čitavoj 6-modulnoj porodici koji NIJE bio svestan
+    Genome kontradikcija/nedostajućih dokaza. Migracija na
+    build_case_context() ispravlja i to, ne samo uklanja duplikaciju."""
     from datetime import datetime, timedelta
 
     danas     = datetime.now().date()
@@ -588,16 +602,7 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     dokumenti = _d(dokumenti_r)
     komentari = _d(komentari_r)
 
-    predmet_ids = [p["id"] for p in predmeti]
-    actions_r = (
-        await asyncio.to_thread(lambda: supa.table("case_actions")
-            .select("predmet_id, tip, razlog, prioritet, rok, dedupe_key, status")
-            .in_("predmet_id", predmet_ids).eq("status", "open").execute())
-        if predmet_ids else None
-    )
-    actions = _d(actions_r) if actions_r is not None else []
-
-    predmeti_map = {p["id"]: {**p, "rokovi": [], "dokumenti": [], "komentari": [], "case_actions": []} for p in predmeti}
+    predmeti_map = {p["id"]: {**p, "rokovi": [], "dokumenti": [], "komentari": [], "case_actions": [], "_readiness": {"status": UNKNOWN, "razlog": "Kanonski kontekst nije dostupan.", "izvor": []}} for p in predmeti}
     for r in rokovi:
         if r.get("predmet_id") in predmeti_map:
             predmeti_map[r["predmet_id"]]["rokovi"].append(r)
@@ -607,9 +612,17 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     for k in komentari:
         if k.get("predmet_id") in predmeti_map:
             predmeti_map[k["predmet_id"]]["komentari"].append(k)
-    for a in actions:
-        if a.get("predmet_id") in predmeti_map:
-            predmeti_map[a["predmet_id"]]["case_actions"].append(a)
+
+    if predmeti:
+        cc_results = await asyncio.gather(
+            *[build_case_context(p["id"], user_id, supa, include_documents=False) for p in predmeti],
+            return_exceptions=True,
+        )
+        for p, cc in zip(predmeti, cc_results):
+            if isinstance(cc, Exception) or not cc or cc.get("error"):
+                continue
+            predmeti_map[p["id"]]["case_actions"] = (cc.get("active_actions") or {}).get("value") or []
+            predmeti_map[p["id"]]["_readiness"] = (cc.get("readiness") or {}).get("value") or {"status": UNKNOWN, "razlog": "Kanonski kontekst nije dostupan.", "izvor": []}
 
     return {
         "predmeti":           list(predmeti_map.values()),
@@ -647,7 +660,14 @@ def _kanonski_prioritet_i_rizici(predmeti: list[dict]) -> tuple[Optional[dict], 
     forenzičkog foreka) determinističkim rangiranjem preko
     shared/case_readiness.py -- isti modul, ista logika koju case_actions/
     Workspace već koriste, ne novi algoritam. Takođe zamenjuje GPT-ovo
-    sopstveno "RIZICI" nalaženje čitanjem case_actions direktno."""
+    sopstveno "RIZICI" nalaženje čitanjem case_actions direktno.
+
+    Program Tau, Master Sprint 007: `readiness` se više NE računa ovde
+    pozivom `compute_case_readiness(actions, [])` (koji je uvek prosleđivao
+    PRAZNU listu gaps-ova -- Genome-slep prioritet, PARALLEL_REASONING_AUDIT.md
+    Finding 4) -- svaki `p` dict sada već nosi `_readiness`, izračunat JEDNOM
+    u `_dohvati_sve_predmete_za_analizu` preko `build_case_context()` (pravi
+    gaps, ne prazna lista). Ova funkcija samo čita, ne računa ponovo."""
     from shared.attention_priority import canonical_sort_key
 
     if not predmeti:
@@ -656,7 +676,7 @@ def _kanonski_prioritet_i_rizici(predmeti: list[dict]) -> tuple[Optional[dict], 
     ranked = []
     for p in predmeti:
         actions = p.get("case_actions") or []
-        readiness = compute_case_readiness(actions, [])
+        readiness = p.get("_readiness") or {"status": UNKNOWN, "razlog": "Kanonski kontekst nije dostupan.", "izvor": []}
         top = top_open_action(actions)
         rok = (top.get("rok") if top else None) or "9999-99-99"
         ranked.append((_READINESS_RANK.get(readiness["status"], 5), rok, p, readiness, top))

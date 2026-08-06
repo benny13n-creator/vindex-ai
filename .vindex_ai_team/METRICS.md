@@ -1576,3 +1576,39 @@ resulting template against 4 further modules of 2 genuinely different shapes (Ph
 7's 3 simulations), finding and immediately fixing exactly one template gap rather than deferring it. The
 mission's own "Ne nagađaj. Dokazati merenjima." (Phase 6) requirement was met with real `tiktoken` encoding
 of actual prompt strings, not an estimated token count. Full detail: `docs/tau/TAU_006_REPORT.md`.
+
+## Program Tau, Master Sprint 007 (2026-08-06) — Canonical Reasoning Consolidation
+
+**Methodology note**: Phase 1 used 2 parallel forensic forks split by REASONING CONCERN (risk/readiness/
+gaps/contradictions vs. priority/next-step/status/recommendation), not by file — a different split strategy
+than every prior Tau sprint's own alphabetical-file split, chosen because this mission's own subject was a
+cross-cutting concern (duplicate computation) rather than a per-file property. Phase 3's migration executed
+directly, informed by Tau 006's own Phase 7 simulation of the same file.
+
+| Metric | Value |
+|---|---|
+| Modules found independently recomputing canonical risk/gap/readiness functions | 6 (`case_commander.py` — 2 call sites, `zadaci.py`, `api.py::predmet_workspace`, `matter_intel.py`, `ccc.py`, `dashboard.py`) |
+| GPT-decided risk/readiness/contradiction/priority found in that family | 0 — all 6 call the same deterministic function, none reimplements the algorithm |
+| Modules migrated this sprint | 1 (`case_commander.py`, both its single-case AND portfolio-wide reasoning paths) |
+| Within-file findings specific to `case_commander.py` | 3 (`rizici`/`nedostaje` near-duplicate fields; a confidence-mapping disagreement between them for the same finding; portfolio-wide readiness computed with an always-empty gaps list) |
+| Cross-system drift risk found and fixed (Phase 4) | 1 (`court_predictor.py`/`hearing_cc.py` hardcoded readiness-status string literals instead of importing canonical constants) |
+| GPT Boundary violations found (Phase 5) | 1, pre-existing not fresh (`cio.py`'s own `kriticnost`/`cio_preporuka`) — formalized as `TAU-017`, not fixed this sprint (live, billed, needs its own dedicated sprint) |
+| GPT Boundary adversarial proof | 1 test: a poisoned advisory GPT response tries to smuggle a fake readiness/priority claim into the JSON response; proven inert (fields built before the GPT call, never re-read from its output) |
+| Token cost delta (measured via `git diff` on the unchanged prompt-building function) | $0 — provably unchanged, not estimated |
+| DB query count, single-case path | 7 → 10 (+3; `predmeti`/`komentari` now fetched twice, same accepted tradeoff as Tau 002/006) |
+| DB query count, portfolio-wide path, worst case (20 cases) | 5 (constant) → 124 (O(N)) — named plainly, justified by closing the always-empty-gaps correctness gap, currently zero real-world cost (endpoint confirmed dead in the live frontend) |
+| A same-phase performance fix made, not just measured | 1 (found the bespoke and canonical fetches ran sequentially instead of concurrently in the initial Phase 3 implementation; fixed via `asyncio.gather` before this report was written) |
+| New/updated tests | 14 new (`tests/test_tau007_case_commander_consolidation.py`) + 3 net-new + 1 fixture fix across 2 pre-existing files |
+| Full suite | **2,912 passed, 1 skipped, 0 failed** (was 2,895 at end of Master Sprint 006) — zero regressions, exact delta match (+17) |
+| Debt items updated | 1 (`TAU-012` count revised 15+ → 14+) |
+| Debt items added | 1 (`TAU-017`, `cio.py`'s GPT-decided priority, Medium-High) |
+
+**Success criteria**: the mission's own explicit prohibition on new helpers/builders/wrappers was honored
+literally — `_kanonski_nalazi` became a direct `await build_case_context(...)` call site with inline
+fail-soft handling, not a new function layer. The mission's own "ako dva modula daju isti rezultat
+različitim putem: to je nalaz" rule produced 2 concrete, previously-unnoticed findings (the `rizici`/
+`nedostaje` near-duplication and its own confidence-mapping bug) that a pure "remove duplicate DB calls"
+framing would have missed. The mission's own Phase 7 "ako povećava cenu, objasni; ako smanjuje, dokaži" rule
+was honored in both directions in the same report — token cost proven flat, query cost honestly reported as
+increased where it increased, with the correctness reason stated, not hidden behind an aggregate "faster"
+claim. Full detail: `docs/tau/CANONICAL_REASONING_CERTIFICATION.md` and `docs/tau/CASE_COMMANDER_CONSOLIDATION.md`.

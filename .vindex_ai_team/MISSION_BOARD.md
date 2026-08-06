@@ -1859,3 +1859,65 @@ regressions, exact delta match (+20).
 `GPT_MODULE_CENSUS.md`, `FACTORY_CERTIFICATION.md`, `HEARING_CC_MIGRATION_REPORT.md`, `TAU_007_HANDOVER.md`
 — the last one giving the next sprint a priority-ordered rollout plan (`case_commander.py` first, highest
 value) rather than a generic "migrate the rest" mandate.
+
+## Program Tau, Master Sprint 007 (2026-08-06) — Canonical Reasoning Consolidation
+
+**Mission**: remove parallel reasoning mechanisms platform-wide — one source of truth for every business
+fact and every piece of reasoning, not just context (Tau 006's own concern). 9 named roles (added Systems
+Integration Engineer to Tau 006's own 8). Executes `TAU_007_HANDOVER.md`'s own #1 priority: migrate
+`case_commander.py`, the highest-value remaining duplicate-computation target.
+
+**Headline finding**: Phase 1's own reasoning census (2 parallel forensic forks, split by reasoning concern
+not by file) found a 6-module family independently calling `services/risk_engine.py`'s canonical functions
+on their own fetches — `case_commander.py` (2 separate call sites in one file: single-case AND the portfolio
+digest), `zadaci.py`, `api.py::predmet_workspace`, `matter_intel.py`, `ccc.py`, `dashboard.py` — none
+reimplementing the algorithm (no GPT-decided risk/readiness found in this family), but each one a live drift
+risk: if any one of the 6 independent fetch queries ever changes without the other 5 changing identically,
+the same case could silently report different readiness under the same field name depending which endpoint
+is called. Phase 2's own deeper trace of `case_commander.py` itself found 3 MORE findings specific to that
+file: its own `rizici`/`nedostaje` fields substantially overlap (the same underlying finding described twice
+under 2 different field names), a real confidence-mapping bug between them (a `"vazan"`-severity finding
+disagreed with itself: `"srednja"` in one field, `"visoka"` in the other), and the portfolio-wide digest
+computed readiness with an ALWAYS-EMPTY gaps list — the least Genome-aware member of the whole 6-module
+family.
+
+**Migrated**: `routers/case_commander.py`, both its single-case path (`_kanonski_nalazi`) and its
+portfolio-wide path (`_kanonski_prioritet_i_rizici`/`_dohvati_sve_predmete_za_analizu`) — the first migration
+in this program to eliminate duplicate COMPUTATION, not just duplicate context-fetching (Tau 006's own
+predicted "2nd migration shape," now proven for real). Both prior-sprint bugs fixed as a byproduct of
+reading the canonical field wholesale rather than re-deriving it. Portfolio ranking is now genuinely
+Genome/gap-aware for the first time. A new, deliberate default: missing readiness data now degrades to
+`UNKNOWN`, not a guessed `READY` — a real correctness improvement over the old code's own implicit
+always-optimistic default, named explicitly not silently changed.
+
+**Cross-system verification (Phase 4)** found and fixed one real drift risk beyond `case_commander.py`
+itself: `court_predictor.py`/`hearing_cc.py` hardcoded `"CRITICAL_GAP"`/`"BLOCKED"` as raw string literals
+in their own deterministic caps instead of importing the canonical constants — fixed to import them,
+proven via a direct cross-system test feeding one mocked `build_case_context()` result through all 3
+modules' own interpretation logic. **GPT Boundary Audit (Phase 5)** confirmed the boundary holds everywhere
+touched this sprint (adversarially proven for `case_commander.py`: a poisoned advisory response tries to
+smuggle a fake readiness/priority claim into the JSON, proven inert) and named one real, pre-existing,
+still-open violation — `routers/cio.py`'s own GPT-decided `kriticnost`/`cio_preporuka` — formalized as
+`TAU-017`, not fixed this sprint (live, billed, needs its own dedicated risk-weighed sprint).
+
+**Performance (Phase 7), measured not guessed**: GPT token cost proven unchanged ($0 delta — `git diff`
+confirms the prompt-building function has zero diff). DB query count for a single `commander_analiza` call
+increased +3 (7→10, `predmeti`/`komentari` now fetched twice) — a concurrency bug in the initial
+implementation (sequential instead of parallel fetches) was found and fixed the same phase. Portfolio-wide
+query count increased substantially in the worst case (5→124 for a full 20-case portfolio) — named plainly,
+justified by a genuine correctness gain (Finding 4), and currently zero real-world cost since
+`commander_jutarnji` has no live frontend caller (re-verified directly this sprint, not assumed).
+
+**19 new/updated tests**: 14 in `tests/test_tau007_case_commander_consolidation.py` (endpoint wiring,
+adversarial GPT-boundary proof, concurrency, replay, stress at 100 gap items and a full 20-case portfolio,
+structural AST-based completeness proof) + 3 net-new in `tests/test_sigma_sprint005_commander_consolidation.py`
++ 1 fixture fix in `tests/test_celina2_predictor_commander_2026_07_24.py`. Full suite: **2,912 passed, 1
+skipped, 0 failed** (was 2,895 at end of Master Sprint 006) — zero regressions, exact delta match (+17).
+
+**Debt updated**: `TAU-012` (15+ → 14+, `case_commander.py` migrated). New: `TAU-017` (`cio.py`'s GPT-decided
+priority, Medium-High, named not fixed).
+
+**6 required deliverables**, all in `docs/tau/`: `REASONING_REGISTRY.md`, `PARALLEL_REASONING_AUDIT.md`,
+`CASE_COMMANDER_CONSOLIDATION.md`, `CANONICAL_REASONING_CERTIFICATION.md`, `PERFORMANCE_IMPACT.md`,
+`TAU_008_HANDOVER.md` — the last one prioritizing `api.py::predmet_workspace` next (closes both a Tau 006
+context-injection gap and a Tau 007 duplicate-computation gap in one file).

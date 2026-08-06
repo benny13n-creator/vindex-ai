@@ -29,6 +29,7 @@ from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.llm_retry import llm_retry
 from shared.case_context import build_case_context
+from shared.case_readiness import READY, CRITICAL_GAP, BLOCKED
 
 try:
     # CELINA 2 (2026-07-24): koristi javni retrieve_sudska_praksa (Celina 1 mu
@@ -320,7 +321,12 @@ ARGUMENTI SUPROTNE STRANE:
         # new scoring.
         if case_context and not case_context.get("error"):
             _readiness_status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
-            _CAP_BY_READINESS = {"CRITICAL_GAP": 50, "BLOCKED": 65}
+            # Program Tau, Master Sprint 007: imports the canonical status
+            # constants instead of hardcoded string literals (found during
+            # this sprint's own Phase 4 cross-system verification) -- a
+            # rename of shared/case_readiness.py's own status strings would
+            # otherwise silently desync this cap from the canonical source.
+            _CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
             _cap = _CAP_BY_READINESS.get(_readiness_status)
             if _cap is not None:
                 for _k in ("procenat_min", "procenat_max"):
@@ -1352,10 +1358,10 @@ def _calc_confidence_nivo(
         faktori_minus.append("Nema istorijata ove firme za ovaj tip spora")
 
     if readiness_status is not None:
-        if readiness_status == "READY":
+        if readiness_status == READY:
             score += 1
             faktori_plus.append("Predmet je kanonski spreman za postupak (readiness: READY)")
-        elif readiness_status in ("CRITICAL_GAP", "BLOCKED"):
+        elif readiness_status in (CRITICAL_GAP, BLOCKED):
             faktori_minus.append(f"Predmet ima kritičan nedostatak po kanonskom statusu (readiness: {readiness_status})")
         elif dokazi_count >= 4:
             score += 1
