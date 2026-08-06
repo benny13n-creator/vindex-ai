@@ -1673,6 +1673,11 @@ _dashRender = function(d, bd, inboxData) {
 // 'awaiting_review'). Nista se ovde ne racuna iznova -- ovo je cisto
 // prikazivanje vec-postojeceg, vec-testiranog backend odgovora.
 
+// Program Omega Sprint 006 (2026-08-06): these 5 hex values are now also
+// the canonical color mapping in shared/attention_priority.py::CANONICAL_COLOR
+// (Python) -- this JS object is the frontend's own copy of the SAME values,
+// since JS/Python can't literally share one constant. Keep both in sync by
+// hand if either changes; see docs/omega/CANONICAL_ATTENTION_MODEL.md.
 var _WS_PRIO_COLOR = {critical:'#ef4444', high:'#fb923c', medium:'#4aa8ff', low:'#94a3b8', informational:'#64748b'};
 var _WS_BUCKETS = [
   {key:'danas',        label:'Danas'},

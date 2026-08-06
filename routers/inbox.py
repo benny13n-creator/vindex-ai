@@ -31,13 +31,23 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Request
 
+from shared.attention_priority import INBOX_TO_CANONICAL, CANONICAL_ORDER
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.inbox")
 router = APIRouter(tags=["inbox"])
 
-_PRIORITET_ORDER = {"kriticno": 0, "visok": 1, "srednji": 2, "nizak": 3}
+# Program Omega Sprint 006 (2026-08-06): sort order now derived from the
+# canonical model (shared/attention_priority.py) via INBOX_TO_CANONICAL,
+# instead of this file keeping its own independent {word: number} ranking.
+# The API's own response shape (item["prioritet"] values) is UNCHANGED —
+# no frontend consumer reads that field for anything (confirmed: the
+# frontend's own Inbox rendering colors by item type, not priority,
+# static/vindex.js ~line 1642) — only the internal SORT decision moves
+# onto the shared model. Same public interface (`.get(value, default)`)
+# every call site below already uses.
+_PRIORITET_ORDER = {word: CANONICAL_ORDER[canon] for word, canon in INBOX_TO_CANONICAL.items()}
 
 
 @router.get("/api/inbox")

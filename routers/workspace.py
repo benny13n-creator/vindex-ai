@@ -37,6 +37,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Request
 
 from routers.case_actions import _fetch_open_actions, _PRIORITY_ORDER, _sort_key
+from shared.attention_priority import ZADACI_TO_CANONICAL as _ZADACI_PRIORITET_MAP
 from shared.deps import _get_supa, get_current_user
 
 logger = logging.getLogger("vindex.workspace")
@@ -46,8 +47,9 @@ router = APIRouter(prefix="/api/workspace", tags=["workspace"])
 # DIFFERENT wording for the same concept case_actions already uses
 # ("critical"/"high"/"medium"/"low"). Translated here, for THIS view only —
 # the underlying `zadaci` table/column is NOT touched, no migration needed.
-# See docs/omega/WORKSPACE_DATA_OWNERSHIP.md.
-_ZADACI_PRIORITET_MAP = {"hitno": "critical", "visoko": "high", "normalan": "medium", "nisko": "low"}
+# As of Program Omega Sprint 006, this local dict is an alias for
+# shared/attention_priority.py::ZADACI_TO_CANONICAL (the one shared copy) —
+# see docs/omega/CANONICAL_ATTENTION_MODEL.md.
 
 # How far back "recently completed" looks — an operational board shows what
 # JUST changed, not a full history (that already exists elsewhere: case_actions

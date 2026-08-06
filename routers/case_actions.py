@@ -26,15 +26,19 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from shared.attention_priority import CANONICAL_ORDER as _PRIORITY_ORDER
 from shared.deps import _get_supa, get_current_user
 
 logger = logging.getLogger("vindex.case_actions")
 router = APIRouter(prefix="/api/case-actions", tags=["case_actions"])
 
-# Program Omega Sprint 003's own Priority Engine — the ONE ordering, reused
-# verbatim by both endpoints below (never re-derived per view). See
-# docs/omega/ACTION_PRIORITY_MODEL.md.
-_PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "informational": 4}
+# Program Omega Sprint 003's own Priority Engine — the ONE ordering. As of
+# Program Omega Sprint 006 (2026-08-06, Canonical Attention Engine), this is
+# an alias for shared/attention_priority.py::CANONICAL_ORDER — case_actions'
+# own vocabulary IS the canonical one (see that module's own docstring for
+# why), so this file keeps the name `_PRIORITY_ORDER` for every existing
+# caller below, now backed by the single shared copy instead of a local
+# dict. See docs/omega/CANONICAL_ATTENTION_MODEL.md.
 
 
 def _sort_key(action: dict) -> tuple:

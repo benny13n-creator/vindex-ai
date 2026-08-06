@@ -1435,6 +1435,10 @@ fails, rather than 9 speculative fixes).
 faithfully-emulated) Postgres timestamptz column proving whether `'now()'` round-trips correctly; fix the 9
 call sites uniformly if it does not.
 
+**Severity**: Medium — if the literal genuinely fails, each affected column silently never got a valid
+timestamp (a latent data-quality gap, not a crash, since none of the other 9 sites currently `.gte()`-filter
+by the affected column the way this sprint's own Completed bucket does).
+
 ---
 
 ## Program Omega, Final Sprint 005 (2026-08-06) — Unified Operational Experience
@@ -1566,9 +1570,77 @@ budget after closing the larger Case→Action gap.
 **Severity**: Low — not a dead end (the information exists and is visible as text), just not yet one click
 away.
 
-**Severity**: Medium — if the literal genuinely fails, each affected column silently never got a valid
-timestamp (a latent data-quality gap, not a crash, since none of the other 9 sites currently `.gte()`-filter
-by the affected column the way this sprint's own Completed bucket does).
+---
+
+## Program Omega, Final Sprint 006 (2026-08-06) — Canonical Attention Engine
+
+Full narrative: `docs/omega/OMEGA_FINAL_SPRINT_006_REPORT.md`, `ATTENTION_SURFACE_REGISTRY.md`,
+`CANONICAL_ATTENTION_MODEL.md`, `ALERT_CONSOLIDATION_REPORT.md`, `ATTENTION_FLOW_CERTIFICATION.md`. Builds
+`shared/attention_priority.py` (the one canonical priority model); retires a 4th, previously-uncatalogued
+alert system; fixes a real bug in `routers/notifications.py`; adds `OMEGA-020` through `OMEGA-022`.
+
+## OMEGA-020 — Up to 3 independent writes can still fire for the same real-world deadline fact (High, trigger-path redesign out of this sprint's safe scope)
+
+`case_actions` (Sprint 003's own Rule 1), `notifications.py::_generate_notifications` (its own `hitan_rok`
+branch), and `services/event_bus.py`'s own `ROK_KRITICAN` handler (→ `proactive_alerts`) each independently
+query `rocista`/`predmet_hronologija` and independently decide "this deadline is urgent" — for the SAME
+underlying hearing/deadline. This sprint canonicalized the VOCABULARY all 3 use to describe urgency
+(`shared/attention_priority.py`) but did NOT unify the WRITE paths — a lawyer could still, in principle, see
+this fact represented 3 times (Workspace, the notifications bell, and wherever `proactive_alerts` surfaces)
+with 3 different item ids, from 3 independent DB queries.
+
+**Why not fixed this sprint**: making `notifications`/`proactive_alerts` literally READ FROM `case_actions`
+instead of independently querying `rocista` is a real trigger-path redesign (new consumer relationships
+between existing systems) — the mission's own explicit charter for this sprint was "kanonizovati postojeće"
+(canonicalize existing), not restructure write paths, which is closer to new orchestration than
+consolidation and carries real regression risk for 3 live, already-tested systems.
+
+**Recommended direction**: a dedicated future sprint — likely: `notifications.py`'s own deadline-detection
+branch and the `ROK_KRITICAN` handler both retired in favor of a NEW Case Evolution consequence that, when
+`case_actions` creates/updates a `PRIPREMITI_PODNESAK` action, also writes the corresponding `notifications`/
+`proactive_alerts` row — one decision, two projections, matching this sprint's own Phase 4 framing exactly,
+just not executed yet.
+
+**Severity**: High — this is the literal, remaining instance of "dva mesta koja odlučuju o istom događaju"
+Phase 4 named as forbidden; found and precisely characterized, not fixed.
+
+## OMEGA-021 — Deadline "critical/urgent" day-count thresholds disagree across systems (Medium, product decision needed)
+
+Confirmed via `docs/omega/ATTENTION_SURFACE_REGISTRY.md`'s own table: `case_actions` uses ≤3 days = critical;
+`routers/notifications.py` and `routers/dashboard.py` both use ≤2 days = urgent/hitan; the now-deleted
+`api.py::GET /api/notifications` used ≤3 days OR `vaznost=="kritičan"`. 3-4 different, independently-chosen
+thresholds for what "critical" means, still live in different systems.
+
+**Why not fixed this sprint**: changing a threshold changes WHEN a real lawyer sees an alert — a genuine
+behavior change, not a wording synonym. This sprint's own charter forbids introducing new logic/behavior
+changes blind; picking a "correct" threshold is a product decision, not a code cleanup.
+
+**Recommended direction**: a founder-level decision on the ONE correct day-count threshold for "critical,"
+applied uniformly once `OMEGA-020`'s own write-path unification happens (fixing the threshold without fixing
+the write-path duplication would just make 3 systems agree on a still-triplicated decision).
+
+**Severity**: Medium — no system is "wrong" per se (each is internally consistent), but 3-4 different
+answers to "how many days is urgent" is a real behavioral inconsistency a lawyer could notice.
+
+## OMEGA-022 — `GET /api/predmeti/{predmet_id}/workspace` name-collides with the canonical `GET /api/workspace` (Low, naming only, not functional)
+
+Found during this sprint's own Phase 1 pass: `api.py::predmet_workspace` (a real, live, per-CASE "everything
+about this case" aggregation — stranke, dokumenti, rokovi, komentari, istorija — the actual backend for the
+case-detail Cockpit panel) predates and is genuinely DIFFERENT IN SCOPE from Sprint 004/005's own portfolio-
+wide `GET /api/workspace` ("what needs attention across ALL my cases") — not a functional duplicate, verified
+by reading both. The NAME collision itself ("Case Workspace" vs. "Workspace") is a real clarity risk for
+anyone reading route lists or API docs without the historical context this debt register provides.
+
+**Why not fixed this sprint**: renaming a live, tested, `20/minute`-rate-limited route used by the case-detail
+page is a bigger, riskier change (URL contract change, frontend update required) than this sprint's own
+"canonicalize wording, don't restructure routes" scope.
+
+**Recommended direction**: a future sprint could rename `predmet_workspace`'s own route to something
+collision-free (e.g. `/api/predmeti/{id}/case-file` or `/api/predmeti/{id}/overview`) alongside a frontend
+update — low urgency, purely for naming clarity.
+
+**Severity**: Low — no functional bug, no user-facing confusion (the 2 endpoints are never shown side by
+side), purely a maintainer/architecture-reading clarity concern.
 
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 

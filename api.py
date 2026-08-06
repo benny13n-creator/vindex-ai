@@ -493,6 +493,7 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
 from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage, verify_token_local
+from shared.attention_priority import VAZNOST_TO_CANONICAL as _VAZNOST_TO_CANONICAL, CANONICAL_ORDER as _CANONICAL_ORDER
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
@@ -5192,11 +5193,16 @@ async def predmet_workspace(
         logger.warning("[WORKSPACE-RISK-HISTORY] greška: %s", _re)
 
     # Step 7: Rokovi po hitnosti
-    _VAZNOST_ORDER = {"kritičan": 0, "bitan": 1, "normalan": 2, "ostalo": 3}
+    # Program Omega Sprint 006 (2026-08-06): derived from the canonical
+    # model (shared/attention_priority.py::VAZNOST_TO_CANONICAL) instead of
+    # an independently-maintained {word: number} dict — same values as
+    # before (kritičan=0...ostalo=3), now provably a translation, not a
+    # 5th parallel copy. See docs/omega/CANONICAL_ATTENTION_MODEL.md.
+    _vaznost_order = {word: _CANONICAL_ORDER[canon] for word, canon in _VAZNOST_TO_CANONICAL.items()}
     rokovi_po_hitnosti = sorted(
         hronologija_r.data or [],
         key=lambda h: (
-            _VAZNOST_ORDER.get(h.get("vaznost", "ostalo"), 3),
+            _vaznost_order.get(h.get("vaznost", "ostalo"), 3),
             h.get("datum_iso") or "9999-12-31",
         ),
     )
@@ -5501,117 +5507,17 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
 
 
 # ── Notification Engine ────────────────────────────────────────────────────────
-
-@app.get("/api/notifications")
-@limiter.limit("30/minute")
-async def get_notifications(request: Request, user: dict = Depends(get_current_user)):
-    """
-    Computed notifications — bez novog DB table-a.
-    Tipovi: rok_blizu (7 dana), rizik_promena, predmet_bez_klijenta.
-    """
-    uid  = user["user_id"]
-    supa = _get_supa()
-
-    from datetime import date as _dtn, timedelta as _tdn, datetime as _dtn2
-    today_n  = _dtn.today().isoformat()
-    next7_n  = (_dtn.today() + _tdn(days=7)).isoformat()
-
-    preds_r, hron_n, risk_n, pk_n = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmeti")
-            .select("id,naziv,status")
-            .eq("user_id", uid)
-            .neq("status","zatvoren")
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id,dogadjaj,datum_iso,vaznost")
-            .eq("user_id", uid)
-            .gte("datum_iso", today_n)
-            .lte("datum_iso", next7_n)
-            .in_("vaznost", ["kritičan","bitan"])
-            .order("datum_iso")
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_istorija")
-            .select("predmet_id,odgovor,created_at")
-            .eq("user_id", uid)
-            .like("pitanje","[Rizik]%")
-            .order("created_at", desc=True)
-            .limit(120)
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_klijenti")
-            .select("predmet_id")
-            .execute()),
-        return_exceptions=True,
-    )
-
-    pred_map  = {p["id"]: p["naziv"] for p in (preds_r.data or [])}
-    has_kl    = set(r["predmet_id"] for r in (pk_n.data if not isinstance(pk_n, Exception) else []))
-    notifs    = []
-
-    # Type 1: upcoming rokovi
-    for h in (hron_n.data if not isinstance(hron_n, Exception) else []):
-        pid   = h.get("predmet_id","")
-        naziv = pred_map.get(pid,"")
-        if not naziv:
-            continue
-        days = None
-        try:
-            days = (_dtn2.strptime(h["datum_iso"],"%Y-%m-%d").date() - _dtn.today()).days
-        except Exception:
-            pass
-        prio = "visoka" if (days is not None and days<=3) or h.get("vaznost")=="kritičan" else "srednja"
-        notifs.append({
-            "id":             f"rok_{pid}_{h['datum_iso']}",
-            "tip":            "rok_blizu",
-            "prioritet":      prio,
-            "poruka":         f"{h.get('dogadjaj','Rok')}" + (f" — za {days} dana" if days is not None else ""),
-            "predmet_id":     pid,
-            "predmet_naziv":  naziv,
-            "datum":          h.get("datum_iso",""),
-        })
-
-    # Type 2: risk changes
-    import json as _jnn
-    risk_by_pred: dict = {}
-    for r in (risk_n.data if not isinstance(risk_n, Exception) else []):
-        pid = r.get("predmet_id","")
-        if pid in pred_map:
-            risk_by_pred.setdefault(pid,[]).append(r)
-    for pid, recs in risk_by_pred.items():
-        if len(recs) < 2:
-            continue
-        try:
-            lat = _jnn.loads(recs[0].get("odgovor","{}"))
-            prv = _jnn.loads(recs[1].get("odgovor","{}"))
-            if lat.get("nivo") and prv.get("nivo") and lat["nivo"] != prv["nivo"]:
-                arr = "↑" if lat["nivo"]=="visok" else ("↓" if lat["nivo"]=="nizak" else "→")
-                notifs.append({
-                    "id":            f"rizik_{pid}",
-                    "tip":           "rizik_promena",
-                    "prioritet":     "visoka" if lat["nivo"]=="visok" else "srednja",
-                    "poruka":        f"Rizik {arr} {prv['nivo']} → {lat['nivo']}",
-                    "predmet_id":    pid,
-                    "predmet_naziv": pred_map[pid],
-                    "datum":         (recs[0].get("created_at","") or "")[:10],
-                })
-        except Exception:
-            pass
-
-    # Type 3: predmeti bez klijenta
-    for pid, naziv in pred_map.items():
-        if pid not in has_kl:
-            notifs.append({
-                "id":            f"bez_kl_{pid}",
-                "tip":           "bez_klijenta",
-                "prioritet":     "niska",
-                "poruka":        "Predmet bez vezanog klijenta",
-                "predmet_id":    pid,
-                "predmet_naziv": naziv,
-                "datum":         "",
-            })
-
-    notifs.sort(key=lambda n: ({"visoka":0,"srednja":1,"niska":2}.get(n["prioritet"],3), n.get("datum","")))
-    return {"notifications": notifs[:25], "ukupno": len(notifs)}
-
+# Program Omega, Final Sprint 006 (2026-08-06) — Canonical Attention Engine:
+# `GET /api/notifications` (a 4th independent, fully-computed alert system —
+# "bez novog DB table-a", its own priority vocabulary "visoka"/"srednja"/
+# "niska", its own inline sort dict, its own risk-change detector duplicating
+# routers/dashboard.py's own trend logic) removed here — confirmed via a
+# repo-wide grep of static/vindex.js to have ZERO frontend callers (the
+# frontend's own `notif_load()` calls `GET /notifications`, a completely
+# different, DB-backed, live route — routers/notifications.py). Retiring a
+# fully dead, self-contained, side-effect-free endpoint is the safest
+# possible elimination this sprint's own Phase 4 asks for: nothing currently
+# depends on it. See docs/omega/ALERT_CONSOLIDATION_REPORT.md.
 
 # ── Usage Analytics ────────────────────────────────────────────────────────────
 

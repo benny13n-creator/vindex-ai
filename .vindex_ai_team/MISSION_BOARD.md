@@ -1282,3 +1282,51 @@ not done" instruction literally rather than selectively.
 `USER_JOURNEY_CERTIFICATION.md`, `SHADOW_WORKFLOW_AUDIT.md`, `CANONICAL_NAVIGATION_MAP.md`,
 `OMEGA_FINAL_SPRINT_005_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`OMEGA-012` closed; `OMEGA-014` through `OMEGA-019` added).
+
+## Program Omega, Final Sprint 006 (2026-08-06) — Canonical Attention Engine
+
+Sixth Program Omega sprint. Charter: exactly one canonical system decides Critical/High/Medium/Low/
+Completed platform-wide — canonicalize only, no new algorithm, no new AI logic, no new functions.
+
+**Found**: 13 independent priority vocabularies (not "8-9" as `OMEGA-018` estimated) — 3 newly
+uncatalogued: `routers/notifications.py`'s own row-level `"prioritet"` field (which disagreed with its
+own tip-based priority — a real bug, see below), `api.py::predmet_workspace`'s own `_VAZNOST_ORDER`, and
+a 4th, previously-uncatalogued alert system — `api.py::GET /api/notifications` ("Computed notifications
+— bez novog DB table-a"), confirmed zero frontend callers, fully dead.
+
+**Built**: `shared/attention_priority.py` — the one canonical model, anchored on `case_actions.
+prioritet`'s own existing, DB-enforced vocabulary (not invented). 5 mechanically-safe consumers
+(`case_actions.py`, `workspace.py`, `inbox.py`, `notifications.py`, `api.py::predmet_workspace`) now
+import from it directly or derive their own dict from it — every one proven byte-identical to its
+pre-Sprint-006 value (zero behavior change for any of them).
+
+**A real, previously-unknown bug found and fixed**: `notifications.py`'s own `_generate_notifications`
+wrote `"prioritet": "hitan"/"normalan"` — values that are NOT members of `PRIORITY_ORDER`'s own
+vocabulary. Because the sort key's own `n.get("prioritet") or ...` always took the truthy-but-wrong
+branch, every `hitan_rok` (urgent deadline) notification silently sorted as if "normal" priority — never
+actually surfacing above an ordinary reminder in the bell icon. Found as a direct side effect of building
+the canonical translation layer (the mismatch became impossible to miss once every vocabulary had to be
+written down in one place). Fixed: both call sites now derive from `NOTIF_TIPOVI[tip]["priority"]`, one
+source of truth.
+
+**Deleted the confirmed-dead 4th alert system** (~110 lines, `api.py`) — safest possible elimination,
+nothing depended on it. Also fixed a pre-existing formatting bug in the Debt Register itself, found while
+adding new content (an orphaned "Severity" paragraph, physically separated from its own `OMEGA-013`
+entry, moved back).
+
+**Honest Phase 7 re-certification**: NOT fully certified against the mission's own strict "if another
+source exists, not done" rule — `case_actions`/`notifications`/`proactive_alerts` can still independently
+WRITE a decision for the same real-world deadline fact (canonical vocabulary now agrees on how to
+describe it, but 3 systems still decide independently whether/when to fire) — named `OMEGA-020`, a
+trigger-path redesign judged too large/risky for a canonicalize-only sprint. Deadline urgency thresholds
+also still disagree across systems (`OMEGA-021`, needs a founder decision, not a code fix). A real but
+low-severity name collision (`GET /api/predmeti/{id}/workspace` vs. the canonical `GET /api/workspace` —
+verified NOT a functional duplicate) named as `OMEGA-022`.
+
+**20 new tests**, all passing on first run after fixture fixes; full suite 2,705 passed/1 skipped/0
+failed (was 2,688) — zero regressions confirmed directly.
+
+**5 required deliverables**: `docs/omega/ATTENTION_SURFACE_REGISTRY.md`, `CANONICAL_ATTENTION_MODEL.md`,
+`ALERT_CONSOLIDATION_REPORT.md`, `ATTENTION_FLOW_CERTIFICATION.md`, `OMEGA_FINAL_SPRINT_006_REPORT.md`.
+Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-020` through `OMEGA-022` added, plus
+a formatting fix to `OMEGA-013`'s own orphaned content).

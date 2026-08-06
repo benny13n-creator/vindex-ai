@@ -16,6 +16,7 @@ from datetime import date, datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from shared.attention_priority import NOTIFICATIONS_TO_CANONICAL, CANONICAL_ORDER
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
@@ -51,7 +52,11 @@ NOTIF_TIPOVI: dict[str, dict] = {
     "ai_analiza_gotova":{"label": "AI analiza završena", "priority": "normal",  "icon": "cpu"},
 }
 
-PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3, "info": 4}
+# Program Omega Sprint 006 (2026-08-06): derived from the canonical model
+# (shared/attention_priority.py) instead of an independently-maintained
+# {word: number} dict — same values as before (urgent=0...info=4), now
+# provably a translation, not a parallel copy.
+PRIORITY_ORDER = {word: CANONICAL_ORDER[canon] for word, canon in NOTIFICATIONS_TO_CANONICAL.items()}
 
 
 def _u_tihom_periodu() -> bool:
@@ -172,13 +177,27 @@ async def _generate_notifications(uid: str) -> int:
                 naziv = pred_map.get(pid, "Predmet")
                 datum = r.get("datum_iso", "")
                 hitan = datum <= in_2_iso
+                tip = "hitan_rok" if hitan else "rok"
                 new_notifs.append({
                     "user_id":    uid,
-                    "tip":        "hitan_rok" if hitan else "rok",
+                    "tip":        tip,
                     "naslov":     f"{'⚠ Hitan rok' if hitan else 'Nadolazeći rok'} — {naziv}",
                     "poruka":     f"{r.get('dogadjaj', '')} ({datum})",
                     "predmet_id": pid,
-                    "prioritet":  "hitan" if hitan else "normalan",
+                    # Program Omega Sprint 006 (2026-08-06): was hand-rolled
+                    # "hitan"/"normalan" -- neither is a member of
+                    # PRIORITY_ORDER's own vocabulary ("urgent"/"high"/
+                    # "normal"/"low"/"info"), so _grupiraj_notifikacije's own
+                    # sort (`n.get("prioritet") or NOTIF_TIPOVI...`) always
+                    # took the truthy-but-wrong "prioritet" branch and NEVER
+                    # fell through to the correct tip-based lookup -- every
+                    # hitan_rok notification silently sorted as if "normal"
+                    # (PRIORITY_ORDER.get("hitan", 2) == 2, the same default
+                    # as "normal"), never actually surfacing above ordinary
+                    # rokovi. Fixed: derive from the SAME NOTIF_TIPOVI table
+                    # trigger_notifikacija() itself already uses, one source
+                    # of truth (`tip`), not a second hand-typed value.
+                    "prioritet":  NOTIF_TIPOVI[tip]["priority"],
                 })
     except Exception as e:
         logger.error("[NOTIF-GEN] rokovi greška: %s", e)
@@ -219,7 +238,12 @@ async def _generate_notifications(uid: str) -> int:
                         "naslov":     f"Predmet bez aktivnosti — {p.get('naziv', '')}",
                         "poruka":     "Nema beleški ni događaja u poslednjih 30 dana.",
                         "predmet_id": p["id"],
-                        "prioritet":  "info",
+                        # Same fix as the rokovi block above -- was hardcoded
+                        # "info", which does not match NOTIF_TIPOVI["neaktivnost"]
+                        # ["priority"] ("low") -- a smaller-severity instance of
+                        # the same 2-fields-disagree bug (not a mis-sort into
+                        # "normal" like hitan_rok, but a mismatch nonetheless).
+                        "prioritet":  NOTIF_TIPOVI["neaktivnost"]["priority"],
                     })
     except Exception as e:
         logger.error("[NOTIF-GEN] neaktivnost greška: %s", e)

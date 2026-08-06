@@ -1165,3 +1165,36 @@ closed); "user can complete the daily journey without searching" (yes, `docs/ome
 USER_JOURNEY_CERTIFICATION.md`, all 6 mission-named questions answered on first load). Honestly NOT
 fully met: "no parallel workflows" — 4 GPT narrative widgets remain, demoted not removed (`OMEGA-017`),
 named plainly rather than claimed resolved. Full detail: `docs/omega/OMEGA_FINAL_SPRINT_005_REPORT.md`.
+
+## Program Omega, Final Sprint 006 (2026-08-06) — Canonical Attention Engine
+
+**Methodology note**: this sprint's own Phase 1 found 3 previously-uncatalogued attention surfaces even
+after 5 prior Omega sprints' own repeated forensic passes — evidence that "repo-wide, bez izuzetaka"
+searches need to vary their own search terms each time (this pass specifically targeted color/order/GPT-
+prompt/threshold categories the prior passes' own keyword searches hadn't covered), not just re-run the
+same grep.
+
+| Metric | Value |
+|---|---|
+| Independent priority/urgency vocabularies confirmed | 13 (was "8-9" per `OMEGA-018`'s own estimate) |
+| New, previously-uncatalogued alert system found | 1 (`api.py::GET /api/notifications`, "computed, no DB table," confirmed zero frontend callers) |
+| Alert systems eliminated (confirmed dead) | 1 of 4 (~110 lines deleted) |
+| New canonical shared module | 1 (`shared/attention_priority.py`) — anchored on `case_actions.prioritet`'s own existing DB-enforced vocabulary, not invented |
+| Consumers migrated onto the canonical model | 5 (`case_actions.py`, `workspace.py`, `inbox.py`, `notifications.py`, `api.py::predmet_workspace`) — every one proven byte-identical to its pre-Sprint-006 value |
+| A genuine, previously-unknown bug found and fixed | `routers/notifications.py`'s own row-level `"prioritet"` field used values outside `PRIORITY_ORDER`'s own vocabulary, silently sorting every urgent deadline reminder as "normal" priority — found as a direct side effect of building the canonical translation layer |
+| A pre-existing Debt Register formatting bug found and fixed | An orphaned "Severity" paragraph, physically separated from its own `OMEGA-013` entry, moved back to its correct place |
+| New debts found and named | 3 (`OMEGA-020` up to 3 independent writes for the same deadline fact, `OMEGA-021` disagreeing urgency thresholds, `OMEGA-022` a name collision, verified non-functional) |
+| New dedicated tests | 20, all passing on first run after fixture fixes |
+| Full suite | **2,705 passed, 1 skipped, 0 failed** (was 2,688 at end of Program Omega Sprint 005) — zero regressions confirmed directly |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: 4 of 6 Definition of Done items fully met (one canonical priority model for the
+deterministic domain; no screen computes its own priority independently, for every mechanical consumer
+found; all safely-fixable problems fixed immediately with full regression, including 2 bugs found along
+the way; the shadow alert system found this sprint is gone). 2 items honestly NOT fully met: "no shadow
+alert systems" — 3 legitimate systems remain, 2 of them (`notifications`/`proactive_alerts`) still
+independently WRITE decisions for facts `case_actions` also tracks (`OMEGA-020`); "Workspace/Dashboard/
+Notification use the same source of truth" — true of the VOCABULARY, not yet true of the WRITE path.
+Both gaps precisely named, not hidden. Full detail: `docs/omega/OMEGA_FINAL_SPRINT_006_REPORT.md`.
