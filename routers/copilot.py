@@ -427,6 +427,32 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     from shared.gap_engine import missing_evidence_labels
     _genome_nedostaju = missing_evidence_labels(genome, limit=4)
 
+    # Program Sigma, Master Sprint 004 (2026-08-06) — same finding class as
+    # Sprint 003's own "nedostaju" fix above, applied to this handler's own
+    # "sledeci_korak" field: an INDEPENDENT GPT-generated single next-action
+    # (own "hitan|normalan" priority vocabulary), disconnected from
+    # case_actions — the platform's own canonical action-tracking table.
+    # Overridden with shared/case_readiness.py::top_open_action's own reading
+    # of case_actions whenever an open one exists for this predmet; falls
+    # back to the GPT's own guess only when case_actions has nothing open
+    # (e.g. Case Evolution hasn't run yet for this case).
+    _sledeci_korak = result.get("sledeci_korak", {})
+    try:
+        from shared.case_readiness import top_open_action
+        _oa_r = await asyncio.to_thread(
+            lambda: supa.table("case_actions").select("razlog,prioritet,rok,status")
+                .eq("predmet_id", predmet_id).eq("status", "open").execute()
+        )
+        _top = top_open_action(_oa_r.data or [])
+        if _top:
+            _sledeci_korak = {
+                "opis": _top.get("razlog") or "",
+                "rok": _top.get("rok") or "",
+                "prioritet": "hitan" if _top.get("prioritet") in ("critical", "high") else "normalan",
+            }
+    except Exception as _cae:
+        logger.warning("[COPILOT-ANALIZA] case_actions top-action override neuspešan (nastavlja sa GPT-ovim): %s", _cae)
+
     return {
         "tip":               "ANALIZA_PREDMETA",
         "predmet":           pred.get("naziv", ""),
@@ -434,7 +460,7 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
         "prednosti":         result.get("prednosti", []),
         "slabosti":          result.get("slabosti", []),
         "nedostaju":         _genome_nedostaju if _genome_nedostaju else result.get("nedostaju", []),
-        "sledeci_korak":     result.get("sledeci_korak", {}),
+        "sledeci_korak":     _sledeci_korak,
         "verovatnoca_uspeha": result.get("verovatnoca_uspeha", 0),
     }
 

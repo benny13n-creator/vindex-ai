@@ -365,6 +365,37 @@ async def case_intelligence_briefing(request: Request, predmet_id: str, user=Dep
 
         briefing = json.loads(resp.choices[0].message.content)
 
+        # Program Sigma, Master Sprint 004 (2026-08-06) — Forensic Discovery
+        # finding, fixed immediately: "sledeci_korak"/"hitnost" above were an
+        # INDEPENDENT GPT-generated "most urgent action" + urgency tier,
+        # entirely disconnected from case_actions (the platform's own
+        # canonical, deterministic action-tracking table, migration 099) —
+        # exactly the "Copilot verzija / Strategy verzija / Case Commander
+        # verzija" duplication this sprint's own Phase 2 forbids. Overridden
+        # here with shared/case_readiness.py::top_open_action's own reading
+        # of case_actions — the SAME source Workspace already treats as
+        # canonical — whenever one exists; the GPT's own "kljucni_rizici"/
+        # "relevantne_lekcije"/"komunikacioni_savet"/"potvrdjeni_obrasci"
+        # fields are untouched (legitimately GPT-synthesized narrative/
+        # pattern-matching content, not a competing action source).
+        try:
+            from shared.case_readiness import top_open_action
+            _oa_r = await asyncio.to_thread(
+                lambda: supa.table("case_actions").select("razlog,prioritet,rok,dedupe_key,status")
+                    .eq("predmet_id", predmet_id).eq("status", "open").execute()
+            )
+            _top = top_open_action(_oa_r.data or [])
+            if _top:
+                _HITNOST_BY_PRIORITET = {
+                    "critical": "odmah", "high": "ovu_nedelju",
+                    "medium": "ovaj_mesec", "low": "ovaj_mesec", "informational": "ovaj_mesec",
+                }
+                briefing["sledeci_korak"] = _top.get("razlog") or briefing.get("sledeci_korak", "")
+                briefing["razlog"] = "Najviši prioritet u Case Actions (case_actions.dedupe_key=%s)." % (_top.get("dedupe_key") or "?")
+                briefing["hitnost"] = _HITNOST_BY_PRIORITET.get(_top.get("prioritet"), briefing.get("hitnost"))
+        except Exception as _cae:
+            logger.warning("[CASE_INTELLIGENCE] case_actions top-action override neuspešan (nastavlja sa GPT-ovom sopstvenom): %s", _cae)
+
         # Snimi u decision_log kao poseban tip
         try:
             await asyncio.to_thread(

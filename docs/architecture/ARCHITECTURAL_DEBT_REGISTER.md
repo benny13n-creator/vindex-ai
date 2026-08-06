@@ -2106,3 +2106,64 @@ pre-existing channel instead.
 time budget.
 
 **Severity**: Low — no correctness risk, a real but non-urgent completeness gap.
+
+---
+
+## Program Sigma, Master Sprint 004 (2026-08-06) — Legal Case Readiness & Action Planning Engine
+
+Full narrative: `docs/sigma/SIGMA_MASTER_SPRINT_004_REPORT.md`, `CASE_READINESS_MODEL.md`,
+`ACTION_OWNERSHIP_REGISTRY.md`, `ACTION_EVIDENCE_CHAIN.md`, `LEGAL_OPERATIONAL_FLOW.md`,
+`READINESS_FORENSIC_REPORT.md`. Fixes 2 live "AI-invented recommendation" bugs
+(`routers/case_intelligence.py`'s AI Briefing, `routers/copilot.py::_handle_analiza_predmeta`) via new
+`shared/case_readiness.py`. Builds the Legal Readiness Model (Phase 4) without becoming a 5th competing
+readiness system. Adds `SIGMA-018` and `SIGMA-019`.
+
+## SIGMA-018 — `routers/case_commander.py` is an entire module of 8 independent, evidence-less GPT recommendation generators (High, needs its own dedicated future sprint)
+
+Confirmed this sprint via direct forensic fork investigation: `_COMMANDER_SYSTEM` (lines 36-62) independently
+GPT-generates `NEDOSTAJE` (duplicates Gap Engine/Genome/`identify_case_problems`), `RIZICI` (duplicates
+`risk_engine`), `PREPORUCENI POTEZ` (duplicates `case_actions`' own next-best-action), and `VREMENSKI
+PRITISAK` (duplicates Rule 1/`rocista`) — from its own `_dohvati_predmet_kontekst` (lines 78-136), which
+reads `predmeti`/`rokovi`/`predmet_dokumenti`/`predmet_komentari` DIRECTLY, never `case_actions`, `case_dna`,
+or `identify_case_problems`. Also independently GPT-generating: `commander_quick_check` (line 282),
+`commander_checklist` (line 338), `_cross_case_analiza`'s own portfolio-level `"prioritet"` object (lines
+488-620, "koji JEDAN predmet treba da bude prioritet danas" — a 2nd fully independent portfolio-
+prioritization surface alongside `cio.py`'s own), and `commander_jutarnji` (line 630) — a 3rd. None of the 8
+surfaces has ANY evidence-chain discipline (`ACTION_EVIDENCE_CHAIN.md`'s own Phase 3 requirement) — no
+`dokaz`-equivalent field, no stable identity, no dedupe protection.
+
+**Why not fixed this sprint**: rewiring 8 independent GPT prompts to read canonical sources instead of raw
+data is not a same-sprint, safely-completable fix — each prompt needs its own live-browser verification
+pass (the exact discipline this whole engagement has applied to every GPT-facing change), and Case
+Commander is evidently a substantial, actively-maintained feature (multiple sub-endpoints, portfolio-wide
+analysis) whose behavior a rushed rewrite could visibly change for real users mid-sprint.
+
+**Recommended direction**: its own dedicated future sprint — likely structured exactly like this whole
+Program Sigma series (forensic audit already done here, fix in a focused follow-up), migrating each of the
+8 surfaces to read `case_actions`/`shared/gap_engine.py`/`shared/case_readiness.py` instead of independently
+re-deriving, one surface at a time with its own test coverage.
+
+**Severity**: High — the single largest, most concrete "parallel recommendation system" found in this
+entire program's own 4-sprint history to date.
+
+## SIGMA-019 — Workspace has no dedicated "ŠTA NEDOSTAJE" (missing-evidence) bucket (Medium)
+
+`GET /api/workspace` (`routers/workspace.py:164-238`) covers DANAS/BLOKIRA/ČEKA/ZAVRŠENO via its own 6
+buckets, but has no bucket surfacing `shared/gap_engine.py`'s own broader Gap Engine output directly —
+missing-evidence items today only appear indirectly via `PRIBAVITI_DOKAZ` `case_actions` rows mixed into
+the priority buckets; Gap Engine's own `hipoteza: True` (GPT-advisory, not yet backed by a deterministic
+action) findings are not surfaced anywhere in Workspace at all.
+
+**Why not fixed this sprint**: correctly building this requires a portfolio-wide fetch of Genome's own
+`case_dna` across every case in a lawyer's workspace (not just the currently-open one), a real new query
+pattern with genuine performance implications for a live, every-page-load endpoint — needs a load/latency
+check before shipping, not a mechanical bucket addition.
+
+**Recommended direction**: extend `routers/workspace.py::get_workspace` with a 7th bucket populated via
+`shared/gap_engine.py::collect_case_gaps`, filtered to exclude anything already represented by an open
+`PRIBAVITI_DOKAZ` action (avoiding double-display of the same fact) — the aggregation mechanism already
+exists; what's missing is the portfolio-wide fetch/filter logic and a performance verification pass.
+
+**Severity**: Medium — a real completeness gap against this sprint's own explicit Phase 6 requirement,
+bounded by the fact that missing-evidence items ARE still visible (just mixed into other buckets, not in
+their own dedicated one).

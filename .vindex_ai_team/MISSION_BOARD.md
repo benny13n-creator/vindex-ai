@@ -1506,3 +1506,42 @@ lifecycle designed but not implemented (depends on a stable-identity prerequisit
 `CHAIN_COMPLETENESS_SPECIFICATION.md`, `LEGAL_HYPOTHESIS_ENGINE.md`, `FORENSIC_GAP_CERTIFICATION.md`,
 `SIGMA_MASTER_SPRINT_003_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`SIGMA-012` through `SIGMA-017` added).
+
+## Program Sigma, Master Sprint 004 (2026-08-06) — Legal Case Readiness & Action Planning Engine
+
+Fourth Program Sigma sprint. Charter: build one canonical mechanism answering "what should the lawyer do
+now" — every action with reason/source/evidence/priority/status/owner/case-link — with an explicit
+architectural ban on building a new Task/Action/Priority/Recommendation system, reusing only Case Actions/
+Workspace/Event Bus/Genome/Gap Engine/Strategy Engine/Case Evolution.
+
+**2 parallel forensic forks**: a repo-wide action-generator map (found the largest single finding of the
+whole Sigma series — `routers/case_commander.py`, an entire module with 8 independent GPT recommendation
+surfaces, none reading any canonical source) and a workspace/evidence/priority/readiness discovery (found 4
+overlapping existing "readiness" concepts including a GPT-generated 3-state Pre-Flight status, confirmed
+`case_actions`' own evidence chain already clean, confirmed Workspace already covers 4 of 5 requested
+buckets).
+
+**Headline fix**: `shared/case_readiness.py` (new) — `top_open_action()`, the one canonical "what's next"
+reader over `case_actions`, and `compute_case_readiness()`, the Phase 4 Legal Readiness Model
+(READY/PARTIALLY_READY/BLOCKED/CRITICAL_GAP/UNKNOWN), built deliberately as a pure function over
+already-canonical signals so as NOT to become a 5th competing readiness system. Used to fix 2 live
+"AI-invented recommendation" bugs: `routers/case_intelligence.py`'s AI Briefing and
+`routers/copilot.py::_handle_analiza_predmeta` each independently GPT-generated their own "single most
+urgent action" + urgency tier, disconnected from `case_actions` — both now read `case_actions`' own
+canonical top-priority action instead, falling back to the GPT's own guess only when no canonical action
+exists yet.
+
+**The single largest, most severe finding in this whole 4-sprint program to date, named not rushed**:
+`routers/case_commander.py`'s own 8 independent, evidence-less GPT recommendation generators — confirmed
+via direct code reading, correctly NOT rewritten this sprint (8 separate GPT prompts each needing their own
+live-browser verification is its own dedicated future sprint, not a same-session fix).
+
+**16 new tests**. Full suite: **2,775 passed, 1 skipped, 0 failed** (was 2,759 at end of Sigma Master Sprint
+003) — zero regressions. **2 new debt
+items** (`SIGMA-018` Case Commander's own 8-surface violation, `SIGMA-019` Workspace missing a dedicated
+"what's missing" bucket, deferred pending a portfolio-wide performance check).
+
+**6 required deliverables**: `docs/sigma/CASE_READINESS_MODEL.md`, `ACTION_OWNERSHIP_REGISTRY.md`,
+`ACTION_EVIDENCE_CHAIN.md`, `LEGAL_OPERATIONAL_FLOW.md`, `READINESS_FORENSIC_REPORT.md`,
+`SIGMA_MASTER_SPRINT_004_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`SIGMA-018`/`019` added).
