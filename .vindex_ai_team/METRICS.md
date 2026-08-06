@@ -1356,3 +1356,33 @@ Definition of Done ("nijedna preporuka ne sme postojati bez porekla") is honestl
 wide — `routers/case_commander.py`'s own 8 surfaces remain a confirmed, large, unfixed violation, correctly
 not rushed into this same sprint given the real verification cost of touching 8 independent live GPT
 prompts. Full detail: `docs/sigma/SIGMA_MASTER_SPRINT_004_REPORT.md`.
+
+## Program Sigma, Master Sprint 005 (2026-08-06) — Case Commander Consolidation & Operational Brain Unification
+
+**Methodology note**: this sprint's own forensic re-verification directly contradicted a prior sprint's own
+written conclusion (`docs/omega/SHADOW_WORKFLOW_AUDIT.md`'s claim that Case Commander's backend endpoints
+"remain unaffected" by an earlier frontend dead-code removal) — repo-wide grep found zero live callers for
+any of the 8 surfaces. Worth repeating: a prior sprint's own stated conclusion is evidence, not proof —
+re-verify directly when a current sprint's own risk assessment depends on it, rather than inheriting the
+claim unchecked.
+
+| Metric | Value |
+|---|---|
+| Case Commander GPT surfaces confirmed with zero live frontend callers | 8 of 8 (all of them) — corrects a prior sprint's own claim |
+| Genuinely duplicated decision-making surfaces migrated to canonical reads | 6 (per-case NEDOSTAJE/RIZICI/PREPORUCENI POTEZ/VREMENSKI PRITISAK; portfolio-wide PRIORITET/RIZICI) |
+| New canonical shared module | 1 (`shared/commander_schema.py`) — the CASE_COMMANDER_RESPONSE_SCHEMA, enforced structurally not by convention |
+| Genuinely GPT-advisory surfaces kept, now structurally tagged | 3 (protivnikova strategija, sudska praksa, portfolio-wide kontradikcije/nepovezani dokumenti) — `source="gpt_advisory"`, `evidence=None` always |
+| Real bug found and fixed along the way | `_cross_case_analiza` returned an empty brief on ANY GPT hiccup, even after its own canonical findings became GPT-independent — now survives total GPT outage with real findings intact |
+| New dedicated tests | 16, all in 1 new file |
+| Full suite | **2,791 passed, 1 skipped, 0 failed** (was 2,775 at end of Sigma Master Sprint 004) — zero regressions confirmed directly |
+| Debt items closed | 1 (`SIGMA-018`) — no new debt items found this sprint |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega/prior-Sigma sprint before it.
+
+**Success criteria**: the mission's own explicit Definition of Done was fully met for the 4 categories it
+named (next action, priority, readiness status, missing-item findings) — each now reads one shared,
+canonical source across every Case Commander surface, structurally guaranteeing agreement rather than
+merely hoping for it. The 3 remaining GPT-advisory fields have no canonical equivalent to redirect to
+(genuinely different questions no deterministic system in the platform answers) and are now honestly,
+structurally labeled as opinion rather than fact. Full detail: `docs/sigma/SIGMA_005_REPORT.md`.

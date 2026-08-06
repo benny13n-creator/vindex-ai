@@ -2118,7 +2118,28 @@ Full narrative: `docs/sigma/SIGMA_MASTER_SPRINT_004_REPORT.md`, `CASE_READINESS_
 `shared/case_readiness.py`. Builds the Legal Readiness Model (Phase 4) without becoming a 5th competing
 readiness system. Adds `SIGMA-018` and `SIGMA-019`.
 
-## SIGMA-018 — `routers/case_commander.py` is an entire module of 8 independent, evidence-less GPT recommendation generators (High, needs its own dedicated future sprint)
+## SIGMA-018 — CLOSED (was: `routers/case_commander.py` is an entire module of 8 independent, evidence-less GPT recommendation generators)
+
+**UPDATE — Program Sigma, Master Sprint 005 (2026-08-06):** Closed. A dedicated follow-up sprint (exactly
+the "own dedicated future sprint" this item recommended) migrated all 6 genuinely-duplicated surfaces
+(NEDOSTAJE/RIZICI/PREPORUCENI POTEZ/VREMENSKI PRITISAK per-case, plus RIZICI/PRIORITET portfolio-wide) to
+read `case_actions`/`shared/gap_engine.py`/`shared/case_readiness.py` directly — see
+`docs/sigma/CASE_COMMANDER_DECISION_REGISTRY.md` for the full before/after. The 3 remaining GPT surfaces
+(protivnikova strategija, sudska praksa, portfolio-wide kontradikcije/nepovezani dokumenti) have no
+canonical equivalent to redirect to and are now structurally tagged `gpt_advisory` (never presented as
+fact) via new `shared/commander_schema.py`.
+
+**Why the originally-cited blocker ("each prompt needs its own live-browser verification pass") no longer
+applied**: this sprint's own forensic re-verification found ALL 8 surfaces have ZERO live frontend callers
+today (a correction to `docs/omega/SHADOW_WORKFLOW_AUDIT.md`'s own claim that the backend endpoints
+"remain unaffected" by an earlier dead-code removal) — meaning no live user could be affected by the
+migration, removing the exact risk that justified deferring this item in Sprint 004.
+
+**Original text preserved below for history.**
+
+---
+
+**[CLOSED]** `routers/case_commander.py` is an entire module of 8 independent, evidence-less GPT recommendation generators (High, needs its own dedicated future sprint)
 
 Confirmed this sprint via direct forensic fork investigation: `_COMMANDER_SYSTEM` (lines 36-62) independently
 GPT-generates `NEDOSTAJE` (duplicates Gap Engine/Genome/`identify_case_problems`), `RIZICI` (duplicates
@@ -2167,3 +2188,15 @@ exists; what's missing is the portfolio-wide fetch/filter logic and a performanc
 **Severity**: Medium — a real completeness gap against this sprint's own explicit Phase 6 requirement,
 bounded by the fact that missing-evidence items ARE still visible (just mixed into other buckets, not in
 their own dedicated one).
+
+---
+
+## Program Sigma, Master Sprint 005 (2026-08-06) — Case Commander Consolidation & Operational Brain Unification
+
+Full narrative: `docs/sigma/SIGMA_005_REPORT.md`, `CASE_COMMANDER_ARCHITECTURE_MAP.md`,
+`CASE_COMMANDER_DECISION_REGISTRY.md`, `GPT_BOUNDARY_POLICY.md`, `OPERATIONAL_BRAIN_CERTIFICATION.md`.
+Closes `SIGMA-018` — migrates `routers/case_commander.py` from independent GPT decision-making to reading
+`case_actions`/`shared/gap_engine.py`/`shared/case_readiness.py` directly, via new
+`shared/commander_schema.py` (the CASE_COMMANDER_RESPONSE_SCHEMA). No new debt items — the sprint's own
+forensic re-verification found the module has zero live frontend callers, removing the risk profile that
+justified Sprint 004's own deferral.

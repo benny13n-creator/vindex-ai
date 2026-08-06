@@ -1545,3 +1545,37 @@ items** (`SIGMA-018` Case Commander's own 8-surface violation, `SIGMA-019` Works
 `ACTION_EVIDENCE_CHAIN.md`, `LEGAL_OPERATIONAL_FLOW.md`, `READINESS_FORENSIC_REPORT.md`,
 `SIGMA_MASTER_SPRINT_004_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`SIGMA-018`/`019` added).
+
+## Program Sigma, Master Sprint 005 (2026-08-06) — Case Commander Consolidation & Operational Brain Unification
+
+Fifth Program Sigma sprint, a direct, dedicated follow-up to `SIGMA-018` (Sprint 004's own largest
+finding). Charter: Case Commander stops generating its own decisions and becomes the canonical operational
+interface — displaying `case_actions`/Gap Engine/Case Readiness Model truth, GPT restricted to explaining,
+never deciding.
+
+**2 parallel forensic forks, precise per-function mapping**: found ALL 8 Case Commander GPT recommendation
+surfaces have ZERO live frontend callers — a correction to a prior sprint's own claim
+(`docs/omega/SHADOW_WORKFLOW_AUDIT.md`) that the backend endpoints "remain unaffected" by an earlier
+dead-frontend-code removal. This meant the full migration this sprint performed carried zero live-user
+risk, resolving the exact concern that made Sprint 004 defer this item.
+
+**Built**: `shared/commander_schema.py` — the CASE_COMMANDER_RESPONSE_SCHEMA
+(`{value, source, evidence, confidence, generated_by, timestamp}`), enforced structurally via 3 functions
+(`canonical_field`/`gpt_advisory_field`/`gpt_explanation_field`). Migrated `commander_analiza`'s own 4 of 6
+sections, `commander_quick_check` (no GPT call left at all), and `_cross_case_analiza`'s own portfolio-wide
+`prioritet`/`RIZICI` (the live duplication Sprint 004's own forensic fork found) to read
+`case_actions`/`shared/gap_engine.py`/`shared/case_readiness.py` directly — the SAME functions Sprint 004
+built for `routers/case_intelligence.py`/`routers/copilot.py`, reused not reinvented. Also fixed a real
+bug found along the way: `_cross_case_analiza` used to return an EMPTY brief on any GPT hiccup, even though
+its own canonical findings no longer depend on GPT — now survives a total GPT outage with real,
+deterministic findings intact.
+
+**16 new tests**. Full suite: **2,791 passed, 1 skipped, 0 failed** (was 2,775 at end of Sigma Master
+Sprint 004) — zero regressions (one
+pre-existing test's own outdated assertion, testing the OLD "empty brief on GPT failure" behavior, now
+correctly passes against the improved semantics without needing modification). **`SIGMA-018` closed — no
+new debt items.**
+
+**5 required deliverables**: `docs/sigma/CASE_COMMANDER_ARCHITECTURE_MAP.md`,
+`CASE_COMMANDER_DECISION_REGISTRY.md`, `GPT_BOUNDARY_POLICY.md`, `OPERATIONAL_BRAIN_CERTIFICATION.md`,
+`SIGMA_005_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`SIGMA-018` closed).

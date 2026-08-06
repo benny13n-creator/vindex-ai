@@ -2,13 +2,31 @@
 """
 Vindex AI — routers/case_commander.py
 
-AI Case Commander: sveobuhvatna analiza predmeta, proaktivna upozorenja,
-preporuceni sledeci potez. Chief of Staff za advokata.
+Program Sigma, Master Sprint 005 (2026-08-06) — "Case Commander Consolidation
+& Operational Brain Unification". Case Commander is no longer a generator of
+its own decisions — it is the CANONICAL OPERATIONAL INTERFACE, displaying
+truth `case_actions`/`shared/gap_engine.py`/`shared/case_readiness.py` already
+computed, with GPT restricted to explaining/summarizing/rephrasing that truth
+(never deciding a new one) — see `docs/sigma/GPT_BOUNDARY_POLICY.md`. Every
+returned field carries `shared/commander_schema.py`'s own
+{value, source, evidence, confidence, generated_by, timestamp} shape — no
+field may exist without a traceable origin.
+
+Program Sigma, Master Sprint 004's own forensic fork found this module had 8
+independent GPT recommendation surfaces, none reading canonical sources
+(`SIGMA-018`, Architectural Debt Register). This sprint's own forensic
+re-verification (2 forks) additionally found NONE of them has a live frontend
+caller today (confirmed via repo-wide grep of `static/vindex.js` — the prior
+claim in `docs/omega/SHADOW_WORKFLOW_AUDIT.md` that the backend endpoints
+"remain unaffected" by the 2026-08-06 dead-frontend-code removal does not hold
+under direct re-verification). This made a full, careful rewrite safe to do
+in one sprint — no live user is affected by the change in shape.
 
 Endpoints:
-  POST /api/commander/analiza      — kompletna analiza predmeta (GPT-4o)
-  POST /api/commander/quick-check  — brza provera, 3 upozorenja (GPT-4o-mini)
-  POST /api/commander/checklist    — proceduralna checklist za predmet
+  POST /api/commander/analiza      — canonical case snapshot + GPT explanation of 2 genuinely-advisory sections
+  POST /api/commander/quick-check  — top canonical action + top canonical gaps, no independent GPT decision
+  POST /api/commander/checklist    — generic procedural checklist template (GPT-templated, never claims real completion)
+  GET  /api/commander/jutarnji     — portfolio-wide digest, delegates to _cross_case_analiza (now canonical-first)
 """
 from __future__ import annotations
 
@@ -27,39 +45,28 @@ from shared.rate import limiter
 from shared.usage import UsageService
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
+from shared.commander_schema import canonical_field, gpt_advisory_field, gpt_explanation_field
+from shared.case_readiness import compute_case_readiness, top_open_action, READY, PARTIALLY_READY, BLOCKED, CRITICAL_GAP, UNKNOWN
+from shared.gap_engine import collect_case_gaps
 
 logger = logging.getLogger("vindex.case_commander")
 router = APIRouter(tags=["case-commander"])
 
-# ── Sistem prompt ─────────────────────────────────────────────────────────────
+# ── Sistem prompt — Faza 4 (GPT Boundary Policy): GPT sme SAMO da objašnjava/
+# sažima/pretpostavlja o 2 polja koja nemaju kanonski izvor (protivnikova
+# strategija, sudska praksa) -- NIKAD da odlučuje status/nedostatak/rizik/
+# sledeći korak, koji su sada uvek čitani direktno iz case_actions/Gap
+# Engine/Case Readiness Model ispod. ────────────────────────────────────────
 
-_COMMANDER_SYSTEM = """Ti si AI Case Commander — licni pravni Chief of Staff za advokata.
+_ADVISORY_SYSTEM = """Ti si AI pravni asistent koji SAMO daje kontekstualnu procenu za 2 tačno određena pitanja o predmetu -- ništa drugo.
 
-Tvoj zadatak: Analiziraj ceo predmet i daj sveobuhvatan izvestaj koji advokatu govori TACNO sta treba da uradi sledece.
+Vrati ISKLJUČIVO JSON:
+{
+  "protivnikova_strategija": "<šta će protivna strana verovatno uraditi i zašto, 1-2 rečenice>",
+  "sudska_praksa": "<relevantan pattern u sličnim predmetima -- cituj SAMO ako si siguran, inače prazan string>"
+}
 
-Format izvestaja mora biti UVEK ovaj:
-
-**STATUS PREDMETA:** [Jedna recenica o trenutnom stanju]
-
-**NEDOSTAJE:**
-- [Lista dokumenata/dokaza/radnji koje nedostaju]
-
-**RIZICI:**
-- [Konkretni pravni rizici sa obrazlozenjem]
-
-**PROTIVNIKOVA STRATEGIJA:**
-[Sta ce protivna strana verovatno uraditi i zasto]
-
-**SUDSKA PRAKSA:**
-[Relevantni pattern u slicnim predmetima — cituj samo ako si siguran]
-
-**PREPORUCENI POTEZ:**
-[Jedna konkretna akcija sa obrazlozenjem — zasto bas ovo, zasto bas sada]
-
-**VREMENSKI PRITISAK:**
-[Da li postoji urgentnost — ako da, koji rok i koliko dana ostaje]
-
-Budi direktan kao iskusan kolega, ne kao AI. Ekavica. Bez uvodnih fraza tipa 'Naravno' ili 'Svakako'."""
+Ovo su procene, ne činjenice -- ne tvrdi da nešto nedostaje, ne predlaži sledeći korak, ne proceni rizik, ne odlučuj prioritet. Za to postoje drugi, deterministički izvori koje ne smeš da preformulišeš kao svoju sopstvenu odluku. Ekavica, direktan ton, bez uvodnih fraza."""
 
 # ── Modeli ────────────────────────────────────────────────────────────────────
 
@@ -76,8 +83,17 @@ class ChecklistRequest(BaseModel):
 # ── Helperi ───────────────────────────────────────────────────────────────────
 
 async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
-    """Paralelno dohvata sve podatke o predmetu."""
-    pred_r, rokovi_r, dok_r, kom_r = await asyncio.gather(
+    """Paralelno dohvata sve podatke o predmetu.
+
+    Program Sigma, Master Sprint 005 (2026-08-06): dodato `case_actions`
+    (otvorene, kanonski izvor za PREPORUCENI POTEZ/VREMENSKI PRITISAK),
+    `case_dna` (Genome, uvek deo `predmeti.*` -- eksplicitno navedeno ovde
+    radi jasnoće), `dokazi`/`dokumenta_tip` (za `identify_case_problems`,
+    kanonski izvor za RIZICI) i `rocista` (kanonski izvor za rokove, NE
+    `rokovi` tabela koju je ovaj fajl ranije jedini u repou koristio kao
+    jedini izvor rokova -- zadržano ispod za GPT kontekst tekst, ali više
+    NIJE jedini izvor "vremenskog pritiska")."""
+    pred_r, rokovi_r, dok_r, kom_r, actions_r, dokazi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmeti")
                 .select("*")
@@ -102,7 +118,7 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
             # Staff" alat koji treba da kaže advokatu šta tačno nedostaje,
             # ovo je bila potpuna slepa tačka -- dodato tekst_sadrzaj.
             lambda: supa.table("predmet_dokumenti")
-                .select("naziv_fajla, created_at, tekst_sadrzaj")
+                .select("naziv_fajla, created_at, tekst_sadrzaj, tip_dokaza, status")
                 .eq("predmet_id", predmet_id)
                 .limit(20)
                 .execute()
@@ -113,6 +129,26 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
                 .eq("predmet_id", predmet_id)
                 .order("created_at", desc=True)
                 .limit(5)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("case_actions")
+                .select("tip, razlog, dokaz, prioritet, rok, dedupe_key, status")
+                .eq("predmet_id", predmet_id)
+                .eq("status", "open")
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi")
+                .select("snaga, kategorija, pravni_element")
+                .eq("predmet_id", predmet_id)
+                .is_("deleted_at", "null")
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("rocista")
+                .select("id, sud, datum, status")
+                .eq("predmet_id", predmet_id)
                 .execute()
         ),
         return_exceptions=True,
@@ -129,10 +165,100 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
         return getattr(r, "data", None) or {}
 
     return {
-        "predmet":   _safe_one(pred_r),
-        "rokovi":    _safe(rokovi_r),
-        "dokumenta": _safe(dok_r),
-        "komentari": _safe(kom_r),
+        "predmet":      _safe_one(pred_r),
+        "rokovi":       _safe(rokovi_r),
+        "dokumenta":    _safe(dok_r),
+        "komentari":    _safe(kom_r),
+        "case_actions": _safe(actions_r),
+        "dokazi":       _safe(dokazi_r),
+        "rocista":      _safe(rocista_r),
+    }
+
+
+_READINESS_LABEL_SR = {
+    READY: "Predmet je spreman -- nema otvorenih akcija niti neotklonjenih praznina.",
+    PARTIALLY_READY: "Predmet je delimično spreman -- postoje otvorene stavke nižeg prioriteta.",
+    BLOCKED: "Predmet je blokiran -- nedostaje dokaz ili nerazrešena kontradikcija visokog prioriteta.",
+    CRITICAL_GAP: "Predmet ima kritičan nedostatak koji zahteva hitnu pažnju.",
+    UNKNOWN: "Nema dovoljno podataka da se proceni spremnost predmeta.",
+}
+
+
+def _kanonski_nalazi(ctx: dict) -> dict:
+    """Program Sigma, Master Sprint 005 (2026-08-06) — gradi STATUS PREDMETA/
+    NEDOSTAJE/RIZICI/PREPORUCENI POTEZ/VREMENSKI PRITISAK isključivo iz već-
+    kanonskih izvora (case_actions, shared/gap_engine.py, shared/
+    case_readiness.py, services/risk_engine.py::identify_case_problems) --
+    nula GPT poziva. Svako polje umotano shared/commander_schema.py-jevim
+    kanonskim oblikom (Faza 3 -- CASE_COMMANDER_RESPONSE_SCHEMA)."""
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS
+
+    p = ctx["predmet"]
+    case_dna = p.get("case_dna") or {}
+    open_actions = ctx["case_actions"]
+    tip = p.get("tip_postupka") or p.get("oblast") or "ostalo"
+
+    rizik = calculate_procesni_rizik(
+        dokazi=ctx["dokazi"], dokumenti=ctx["dokumenta"], rocista=ctx["rocista"],
+        tip_predmeta=tip, expected_docs=EXPECTED_DOCS,
+    )
+    problemi = identify_case_problems(rizik, tip)
+    gaps = collect_case_gaps(problemi, case_dna if not case_dna.get("greska") else None)
+
+    readiness = compute_case_readiness(open_actions, gaps, genome_computed=bool(case_dna) and not case_dna.get("greska"))
+    status_predmeta = canonical_field(
+        _READINESS_LABEL_SR.get(readiness["status"], readiness["razlog"]),
+        source="case_readiness", evidence=readiness.get("izvor"), confidence="visoka",
+    )
+
+    nedostaje = [
+        canonical_field(
+            g["razlog"], source=g["izvor"], evidence=g.get("dedupe_key"),
+            confidence=g["pouzdanost"],
+        )
+        for g in gaps
+        if g["tip"] in ("NEMA_DOKAZA", "NEDOSTAJE_DOKUMENT", "GENOME_NEDOSTAJE")
+    ]
+
+    rizici = [
+        canonical_field(pr["problem"], source="identify_case_problems", evidence=None,
+                         confidence="visoka" if pr["ozbiljnost"] == "kritican" else "srednja")
+        for pr in problemi
+    ]
+
+    top = top_open_action(open_actions)
+    if top:
+        preporuceni_potez = canonical_field(
+            top.get("razlog") or "", source="case_actions", evidence=top.get("dedupe_key"),
+            confidence="visoka",
+        )
+    else:
+        preporuceni_potez = canonical_field(
+            "Nema otvorenih akcija -- nije identifikovan sledeći korak.",
+            source="case_actions", evidence=None, confidence="visoka",
+        )
+
+    rokovi_sa_datumom = [a for a in open_actions if a.get("rok")]
+    if rokovi_sa_datumom:
+        najbliza = min(rokovi_sa_datumom, key=lambda a: a["rok"])
+        vremenski_pritisak = canonical_field(
+            f"Rok: {najbliza['rok']} -- {najbliza.get('razlog', '')}",
+            source="case_actions", evidence=najbliza.get("dedupe_key"), confidence="visoka",
+        )
+    else:
+        vremenski_pritisak = canonical_field(
+            "Nema evidentiranih rokova sa otvorenom akcijom.",
+            source="case_actions", evidence=None, confidence="visoka",
+        )
+
+    return {
+        "status_predmeta":    status_predmeta,
+        "readiness_status":   readiness["status"],
+        "nedostaje":          nedostaje,
+        "rizici":             rizici,
+        "preporuceni_potez":  preporuceni_potez,
+        "vremenski_pritisak": vremenski_pritisak,
     }
 
 
@@ -222,8 +348,16 @@ async def commander_analiza(
     user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
-    Kompletna AI analiza predmeta — Chief of Staff izvestaj.
-    GPT-4o, strukturiran format, proaktivna upozorenja.
+    Kompletna analiza predmeta — Chief of Staff izvestaj.
+
+    Program Sigma, Master Sprint 005 (2026-08-06): Case Commander više NE
+    odlučuje sam šta nedostaje/koji su rizici/koji je sledeći potez/da li
+    postoji vremenski pritisak — sve to sada čita direktno iz case_actions/
+    Gap Engine/Case Readiness Model (`_kanonski_nalazi`, nula GPT poziva za
+    ta polja). GPT poziv koji ostaje je namerno sužen na TAČNO 2 polja koja
+    nemaju kanonski izvor (protivnikova strategija, sudska praksa) — Faza 4
+    (GPT Boundary Policy). Svako vraćeno polje nosi shared/commander_schema.py's
+    own {value, source, evidence, confidence, generated_by, timestamp} oblik.
     """
     uid  = user["user_id"]
     supa = _get_supa()
@@ -233,25 +367,45 @@ async def commander_analiza(
     if not ctx["predmet"]:
         raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
 
-    predmet_tekst = _formatiraj_kontekst(ctx, payload.dodatni_kontekst or "")
+    kanonsko = _kanonski_nalazi(ctx)
 
-    from openai import OpenAI
-    oai   = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    predmet_tekst = _formatiraj_kontekst(ctx, payload.dodatni_kontekst or "")
     model = "gpt-4o" if payload.tip_analize in ("kompletna", "rizici") else "gpt-4o-mini"
 
+    protivnikova_strategija = gpt_advisory_field("", model)
+    sudska_praksa = gpt_advisory_field("", model)
     try:
-        analiza = await asyncio.to_thread(
+        from openai import OpenAI
+        oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        raw = await asyncio.to_thread(
             _pozovi_commander_api, oai, model,
             [
-                {"role": "system", "content": _COMMANDER_SYSTEM},
-                {"role": "user",   "content": f"Analiziraj sledeci predmet:\n\n{predmet_tekst}"},
+                {"role": "system", "content": _ADVISORY_SYSTEM},
+                {"role": "user",   "content": f"Predmet:\n\n{predmet_tekst}"},
             ],
-            1500, 0.3,
+            500, 0.3,
         )
+        advisory = json.loads(raw)
+        protivnikova_strategija = gpt_advisory_field(advisory.get("protivnikova_strategija", ""), model)
+        sudska_praksa = gpt_advisory_field(advisory.get("sudska_praksa", ""), model)
     except Exception as exc:
         _sentry_capture(exc)
-        logger.error("[COMMANDER] Analiza greška: %s", exc)
-        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
+        logger.warning("[COMMANDER] Advisory (protivnik/praksa) greška, nastavlja bez njih: %s", exc)
+
+    odgovor = {
+        "predmet_id":              payload.predmet_id,
+        "predmet_naziv":           ctx["predmet"].get("naziv", ""),
+        "tip_analize":             payload.tip_analize,
+        "model":                   model,
+        "status_predmeta":        kanonsko["status_predmeta"],
+        "readiness_status":       kanonsko["readiness_status"],
+        "nedostaje":              kanonsko["nedostaje"],
+        "rizici":                 kanonsko["rizici"],
+        "preporuceni_potez":      kanonsko["preporuceni_potez"],
+        "vremenski_pritisak":     kanonsko["vremenski_pritisak"],
+        "protivnikova_strategija": protivnikova_strategija,
+        "sudska_praksa":          sudska_praksa,
+    }
 
     # Sacuvaj analizu u bazu (ignorisi gresku ako tabela ne postoji)
     try:
@@ -259,7 +413,7 @@ async def commander_analiza(
             lambda: supa.table("commander_analize").insert({
                 "user_id":    uid,
                 "predmet_id": payload.predmet_id,
-                "analiza":    analiza[:8000],
+                "analiza":    json.dumps(odgovor, ensure_ascii=False, default=str)[:8000],
                 "tip":        payload.tip_analize,
             }).execute()
         )
@@ -268,13 +422,7 @@ async def commander_analiza(
 
     await UsageService.consume(uid, user.get("email", ""), "case_commander")
 
-    return {
-        "analiza":       analiza,
-        "predmet_id":    payload.predmet_id,
-        "predmet_naziv": ctx["predmet"].get("naziv", ""),
-        "tip_analize":   payload.tip_analize,
-        "model":         model,
-    }
+    return odgovor
 
 
 @router.post("/api/commander/quick-check")
@@ -285,8 +433,13 @@ async def commander_quick_check(
     user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
-    Brza provera predmeta — 3 najhitnija upozorenja za 15-20 sek.
-    Idealno za hover/tooltip pri otvaranju predmeta.
+    Brza provera predmeta — do 3 najhitnija nalaza.
+
+    Program Sigma, Master Sprint 005 (2026-08-06): više NE poziva GPT da
+    "izmisli" 3 upozorenja iz sirovog konteksta — čita ih direktno iz
+    `_kanonski_nalazi` (case_actions/Gap Engine, sortirano po kanonskom
+    prioritetu), isti izvor kao `commander_analiza`. Nema GPT poziva u ovom
+    endpoint-u uopšte -- brzo, deterministički, bez rizika od izmišljenog nalaza.
     """
     uid  = user["user_id"]
     supa = _get_supa()
@@ -296,33 +449,9 @@ async def commander_quick_check(
     if not ctx["predmet"]:
         raise HTTPException(status_code=404, detail="Predmet nije pronadjen.")
 
-    predmet_tekst = _formatiraj_kontekst(ctx)
-
-    from openai import OpenAI
-    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
-    try:
-        tekst = await asyncio.to_thread(
-            _pozovi_commander_api, oai, "gpt-4o-mini",
-            [{
-                "role": "user",
-                "content": (
-                    "Brza provera predmeta. Navedi TACNO 3 najhitnija upozorenja ili akcije. "
-                    "Format: numericana lista, svaka stavka maks 2 recenice. Direktan ton. Ekavica.\n\n"
-                    + predmet_tekst
-                ),
-            }],
-            300, 0.3,
-        )
-    except Exception as exc:
-        _sentry_capture(exc)
-        logger.error("[COMMANDER] Quick-check greška: %s", exc)
-        raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
-    upozorenja = [
-        u.strip().lstrip("123456789.-) ")
-        for u in tekst.split("\n")
-        if u.strip() and len(u.strip()) > 10
-    ][:3]
+    kanonsko = _kanonski_nalazi(ctx)
+    kandidati = [kanonsko["preporuceni_potez"]] + kanonsko["rizici"] + kanonsko["nedostaje"]
+    upozorenja = [k for k in kandidati if k["value"]][:3]
 
     await UsageService.consume(uid, user.get("email", ""), "case_commander")
 
@@ -384,13 +513,21 @@ async def commander_checklist(
         logger.error("[COMMANDER] Checklist greška: %s", exc)
         raise HTTPException(status_code=502, detail="AI servis trenutno nedostupan. Pokušajte ponovo.")
 
+    # Program Sigma, Master Sprint 005 (2026-08-06) — Faza 4 (GPT Boundary
+    # Policy): "completed" ranije uzimao GPT-ov sopstveni [x]/[ ] marker kao
+    # istinu — GPT nema NIKAKAV uvid u stvarno stanje predmeta (ovo je
+    # generički proceduralni template, ne per-fact nalaz), pa je tvrdnja
+    # "ovo je završeno" bila čista izmišljotina bez ijednog dokaza. Ovaj
+    # endpoint sada uvek vraća completed=False za SVAKU stavku — GPT sme da
+    # predloži KOJE korake predmet tipa X obično zahteva (objašnjenje/
+    # template), nikad da tvrdi da je jedan od njih već urađen.
     stavke = []
     for linija in checklist_tekst.split("\n"):
         l = linija.strip()
         if l.startswith("- [ ]") or l.startswith("- [x]") or l.startswith("- [X]"):
             stavke.append({
                 "text":      l[5:].strip(),
-                "completed": "[x]" in l.lower(),
+                "completed": False,
             })
 
     await UsageService.consume(uid, user.get("email", ""), "case_commander")
@@ -407,7 +544,10 @@ async def commander_checklist(
 # ── AI Command Center — Jutarnji brifing ──────────────────────────────────────
 
 async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
-    """Paralelno dohvata sve aktivne predmete + rokove/dokumente/komentare iz 30/7 dana."""
+    """Paralelno dohvata sve aktivne predmete + rokove/dokumente/komentare iz
+    30/7 dana + (Program Sigma, Master Sprint 005) otvorene case_actions za
+    SVE te predmete u jednom batch upitu -- kanonski izvor za prioritet/rizik
+    umesto GPT-ovog sopstvenog nagađanja u _cross_case_analiza ispod."""
     from datetime import datetime, timedelta
 
     danas     = datetime.now().date()
@@ -448,7 +588,16 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     dokumenti = _d(dokumenti_r)
     komentari = _d(komentari_r)
 
-    predmeti_map = {p["id"]: {**p, "rokovi": [], "dokumenti": [], "komentari": []} for p in predmeti}
+    predmet_ids = [p["id"] for p in predmeti]
+    actions_r = (
+        await asyncio.to_thread(lambda: supa.table("case_actions")
+            .select("predmet_id, tip, razlog, prioritet, rok, dedupe_key, status")
+            .in_("predmet_id", predmet_ids).eq("status", "open").execute())
+        if predmet_ids else None
+    )
+    actions = _d(actions_r) if actions_r is not None else []
+
+    predmeti_map = {p["id"]: {**p, "rokovi": [], "dokumenti": [], "komentari": [], "case_actions": []} for p in predmeti}
     for r in rokovi:
         if r.get("predmet_id") in predmeti_map:
             predmeti_map[r["predmet_id"]]["rokovi"].append(r)
@@ -458,6 +607,9 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
     for k in komentari:
         if k.get("predmet_id") in predmeti_map:
             predmeti_map[k["predmet_id"]]["komentari"].append(k)
+    for a in actions:
+        if a.get("predmet_id") in predmeti_map:
+            predmeti_map[a["predmet_id"]]["case_actions"].append(a)
 
     return {
         "predmeti":           list(predmeti_map.values()),
@@ -485,8 +637,78 @@ def _pozovi_cross_case_api(oai_client, prompt: str) -> str:
     return resp.choices[0].message.content.strip()
 
 
+_READINESS_RANK = {CRITICAL_GAP: 0, BLOCKED: 1, PARTIALLY_READY: 2, READY: 3, UNKNOWN: 4}
+
+
+def _kanonski_prioritet_i_rizici(predmeti: list[dict]) -> tuple[Optional[dict], list[dict]]:
+    """Program Sigma, Master Sprint 005 (2026-08-06) — zamenjuje GPT-ovo
+    sopstveno nagađanje "koji JEDAN predmet treba da bude prioritet danas"
+    (bilo `_cross_case_analiza`'s own item 4, live nalaz Sprinta 004's own
+    forenzičkog foreka) determinističkim rangiranjem preko
+    shared/case_readiness.py -- isti modul, ista logika koju case_actions/
+    Workspace već koriste, ne novi algoritam. Takođe zamenjuje GPT-ovo
+    sopstveno "RIZICI" nalaženje čitanjem case_actions direktno."""
+    from shared.attention_priority import canonical_sort_key
+
+    if not predmeti:
+        return None, []
+
+    ranked = []
+    for p in predmeti:
+        actions = p.get("case_actions") or []
+        readiness = compute_case_readiness(actions, [])
+        top = top_open_action(actions)
+        rok = (top.get("rok") if top else None) or "9999-99-99"
+        ranked.append((_READINESS_RANK.get(readiness["status"], 5), rok, p, readiness, top))
+    ranked.sort(key=lambda t: (t[0], t[1]))
+
+    prioritet = None
+    _, _, top_predmet, top_readiness, top_action = ranked[0]
+    if top_readiness["status"] != READY:
+        razlog = (top_action.get("razlog") if top_action else None) or top_readiness["razlog"]
+        if top_action and top_action.get("dedupe_key"):
+            evidence = top_action["dedupe_key"]
+        elif top_readiness.get("izvor"):
+            evidence = top_readiness["izvor"][0]
+        else:
+            evidence = None
+        prioritet = {
+            "predmet_naziv": top_predmet.get("naziv", ""),
+            "predmet_id_prefix": top_predmet["id"][:8],
+            "razlog": razlog,
+            "source": "case_readiness",
+            "evidence": evidence,
+        }
+
+    svi_open_actions = []
+    for p in predmeti:
+        for a in (p.get("case_actions") or []):
+            svi_open_actions.append((p, a))
+    svi_open_actions.sort(key=lambda pa: canonical_sort_key(pa[1].get("prioritet")))
+
+    rizici = []
+    for p, a in svi_open_actions[:5]:
+        rizici.append({
+            "tip": "rizik",
+            "predmet_naziv": p.get("naziv", ""),
+            "predmet_id_prefix": p["id"][:8],
+            "naslov": (a.get("razlog") or "")[:60],
+            "opis": (a.get("razlog") or "")[:200],
+            "source": "case_actions",
+            "evidence": a.get("dedupe_key"),
+        })
+
+    return prioritet, rizici
+
+
 async def _cross_case_analiza(podaci: dict, ime_korisnika: str) -> dict:
-    """GPT-4o cross-case analiza — rizici, kontradikcije, nepovezani dokumenti, prioritet."""
+    """Program Sigma, Master Sprint 005 (2026-08-06): PRIORITET i RIZICI su
+    sada isključivo deterministički (case_actions + shared/case_readiness.py,
+    vidi `_kanonski_prioritet_i_rizici` iznad) -- GPT-4o poziv koji ostaje je
+    namerno sužen na TAČNO 2 kategorije koje nemaju kanonski izvor
+    (kontradikcije između beleški/dokumenata, nepovezani dokumenti), obe
+    vraćene kao gpt_advisory (hipoteza, ne činjenica — vidi
+    shared/commander_schema.py). Faza 4 (GPT Boundary Policy)."""
     from datetime import datetime, timedelta
     from openai import OpenAI
 
@@ -501,6 +723,8 @@ async def _cross_case_analiza(podaci: dict, ime_korisnika: str) -> dict:
             "prioritet": None,
             "statistike": {"aktivnih": 0, "rizika": 0, "kontradikcija": 0, "nepovezanih": 0, "rokova_hitnih": 0},
         }
+
+    prioritet, rizik_nalazi = _kanonski_prioritet_i_rizici(predmeti)
 
     predmeti_txt = ""
     for p in predmeti:
@@ -521,37 +745,30 @@ async def _cross_case_analiza(podaci: dict, ime_korisnika: str) -> dict:
 
     danas_str = datetime.now().strftime("%d.%m.%Y")
 
-    prompt = f"""Analiziraj sledeće aktivne pravne predmete advokata {ime_korisnika} (datum: {danas_str}):
+    prompt = f"""Analiziraj sledeće aktivne pravne predmete advokata {ime_korisnika} (datum: {danas_str}), ISKLJUČIVO za 2 pitanja -- rizik i prioritet dolaze iz drugog, determinističkog izvora i ne treba da ih proceniš:
 
 {predmeti_txt}
 
 Identifikuj:
-1. RIZICI — stvari koje mogu negativno uticati na ishod (max 5)
-2. KONTRADIKCIJE — protivrečnosti unutar jednog predmeta ili između beleški i dokumenta (max 3)
-3. NEPOVEZANI DOKUMENTI — dokumenti uploadovani u poslednjih 7 dana koji nisu pomenuti u rokovima niti belešci (max 3)
-4. PRIORITET — koji JEDAN predmet treba da bude prioritet danas i zašto (konkretno)
+1. KONTRADIKCIJE — protivrečnosti unutar jednog predmeta ili između beleški i dokumenta (max 3)
+2. NEPOVEZANI DOKUMENTI — dokumenti uploadovani u poslednjih 7 dana koji nisu pomenuti u rokovima niti belešci (max 3)
 
 Odgovori SAMO validnim JSON-om:
 
 {{
   "nalazi": [
     {{
-      "tip": "rizik",
+      "tip": "kontradikcija" ili "nepovezan_dokument",
       "predmet_naziv": "naziv predmeta",
       "predmet_id_prefix": "prva 8 slova ID-a",
       "naslov": "kratak naslov nalaza (max 60 karaktera)",
-      "opis": "konkretan opis i šta treba uraditi (max 200 karaktera)"
+      "opis": "konkretan opis (max 200 karaktera)"
     }}
   ],
-  "prioritet": {{
-    "predmet_naziv": "naziv",
-    "predmet_id_prefix": "prva 8 slova",
-    "razlog": "konkretan razlog zašto baš ovaj predmet (max 150 karaktera)"
-  }},
   "rezime": "jedna rečenica koja opisuje opšte stanje svih predmeta (max 120 karaktera)"
 }}
 
-Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica obavezna. tip mora biti tačno: rizik | kontradikcija | nepovezan_dokument"""
+Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica obavezna. tip mora biti tačno: kontradikcija | nepovezan_dokument"""
 
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     try:
@@ -562,59 +779,64 @@ Pravila: Budi konkretan. Ako nema stvarnih nalaza, vrati praznu listu. Ekavica o
         with _ai_case_ctx(module_name="case_commander", operation_name="cross_case_analiza"):
             raw = await asyncio.to_thread(_pozovi_cross_case_api, oai, prompt)
         analiza = json.loads(raw)
+        gpt_nalazi = analiza.get("nalazi", [])
+        rezime = analiza.get("rezime", "")
+        gpt_greska = False
     except Exception as exc:
         # CELINA 2 (2026-07-24): ovaj poziv ranije nije imao try/except --
         # jutarnji brifing ("srce platforme", učitava se za svakog korisnika)
-        # bi pukao sa 500 na SVAKI prolazni GPT hiccup. Fail-soft: vrati
-        # prazan-ali-validan brifing sa eksplicitnom greška zastavicom umesto
-        # da obori ceo endpoint.
+        # bi pukao sa 500 na SVAKI prolazni GPT hiccup. Fail-soft: nastavlja
+        # sa kanonskim prioritet/rizik nalazima čak i ako GPT-ov sopstveni
+        # (sada opcioni) advisory sloj padne -- ranije je CEO brifing padao
+        # zbog OVOG poziva, iako je danas taj poziv odgovoran samo za 2 od
+        # ukupno 3 kategorije nalaza.
         _sentry_capture(exc)
-        logger.warning("[COMMANDER] Cross-case analiza greška: %s", exc)
-        return {
-            "nalazeni": False,
-            "greska": True,
-            "rezime": "AI analiza trenutno nedostupna — pokušajte ponovo za par minuta.",
-            "nalazi": [],
-            "prioritet": None,
-            "statistike": {"aktivnih": n, "rizika": 0, "kontradikcija": 0, "nepovezanih": 0, "rokova_hitnih": 0},
-        }
+        logger.warning("[COMMANDER] Cross-case GPT advisory greška (nastavlja sa kanonskim nalazima): %s", exc)
+        gpt_nalazi = []
+        rezime = ""
+        gpt_greska = True
 
-    nalazi  = analiza.get("nalazi", [])
-
-    # Program Gamma (2026-08-04) -- "kontradikcija" nalazi (i svi ostali) su
-    # ranije vraceni bez ijedne provere da li stvarno referenciraju jedan od
-    # predmeta koji su ANALIZIRANI -- isti "izmisljena referenca" rizik koji
-    # validate_dok_reference/validate_graph_edge_references vec pokrivaju za
-    # Compare/Evidence Graph, ovde prosiren na predmet_id_prefix referencu.
+    # Program Gamma (2026-08-04) -- "kontradikcija"/"nepovezan_dokument"
+    # nalazi su ranije vraceni bez ijedne provere da li stvarno referenciraju
+    # jedan od predmeta koji su ANALIZIRANI -- isti "izmisljena referenca"
+    # rizik koji validate_dok_reference/validate_graph_edge_references vec
+    # pokrivaju za Compare/Evidence Graph, ovde prosiren na predmet_id_prefix
+    # referencu. Sada primenjeno SAMO na preostale 2 GPT-only kategorije --
+    # prioritet/rizik su deterministicki i ne mogu "halucinirati" referencu.
+    hard_flags = []
     try:
         from shared.genome_validator import validate_predmet_reference
-        # Olympus Faza 10 (Evidence Integrity nalaz): dict prefiks->naziv, ne
-        # goli set -- omogucava proveru da nalaz nije pogresno pripisan
-        # REALNOM prefiksu ali POGRESNOM predmetu (pomesan slucaj u portfoliju).
         poznati = {p["id"][:8]: p.get("naziv", "") for p in predmeti}
-        hard_flags = []
-        for nalaz in nalazi:
+        for nalaz in gpt_nalazi:
             hard_flags.extend(validate_predmet_reference(
                 nalaz.get("predmet_id_prefix"), poznati, nalaz.get("predmet_naziv"),
             ))
-        prioritet_obj = analiza.get("prioritet") or {}
-        hard_flags.extend(validate_predmet_reference(
-            prioritet_obj.get("predmet_id_prefix"), poznati, prioritet_obj.get("predmet_naziv"),
-        ))
         evidence_check = {"odluka": "require_review" if hard_flags else "approve", "hard_flags": hard_flags, "soft_flags": []}
     except Exception as exc_ev:
         _sentry_capture(exc_ev)
         logger.warning("[COMMANDER] evidence-check greska (nije fatalno): %s", exc_ev)
         evidence_check = None
 
+    nalazi = list(rizik_nalazi) + [
+        {**nalaz, "source": "gpt_advisory", "evidence": None} for nalaz in gpt_nalazi
+    ]
+
     za_7  = (datetime.now().date() + timedelta(days=7)).isoformat()
     hitni = [r for p in predmeti for r in p["rokovi"] if r.get("datum", "") <= za_7]
 
+    # Program Sigma, Master Sprint 005 (2026-08-06): "nalazeni" now reflects
+    # actual content (any deterministic prioritet/rizik, or any surviving
+    # GPT-advisory nalaz) instead of unconditionally True whenever n>0 -- a
+    # real behavior IMPROVEMENT over the pre-sprint version: a total GPT
+    # outage no longer empties the whole brief, since prioritet/rizici are
+    # computed BEFORE the GPT call and don't depend on it. "greska" still
+    # separately flags whether the GPT-only advisory layer specifically failed.
     return {
-        "nalazeni": True,
-        "rezime":   analiza.get("rezime", ""),
+        "nalazeni": bool(prioritet or nalazi),
+        "greska": gpt_greska,
+        "rezime":   rezime,
         "nalazi":   nalazi,
-        "prioritet": analiza.get("prioritet"),
+        "prioritet": prioritet,
         "_evidence_check": evidence_check,
         "statistike": {
             "aktivnih":      n,
@@ -631,20 +853,25 @@ async def commander_jutarnji(
     user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
-    AI Command Center jutarnji brifing — GPT-generisana narativna perspektiva
-    na portfolio predmeta, NE kanonski operativni pogled.
+    AI Command Center jutarnji brifing — portfolio-wide pregled.
 
     Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace: ovaj
-    endpoint više nije "srce platforme" (stara samo-opisna tvrdnja, tačna do
-    ovog sprinta). Kanonski odgovor na "šta advokat vidi kada otvori Vindex
-    AI" je sada `GET /api/workspace` (deterministički, sourced,
-    services/case_evolution.py::_consequence_refresh_case_actions) — vidi
-    docs/omega/CANONICAL_WORKSPACE_SPEC.md. Ovaj endpoint OSTAJE, ali kao
-    dopunski, ne-kanonski AI narativni sloj (Responsibility Matrix odluka:
-    "postaje podmodul", docs/omega/UNIFIED_WORKSPACE_ARCHITECTURE.md).
+    endpoint više nije "srce platforme" (stara samo-opisna tvrdnja). Kanonski
+    odgovor na "šta advokat vidi kada otvori Vindex AI" je `GET /api/workspace`
+    (deterministički, sourced, services/case_evolution.py::
+    _consequence_refresh_case_actions) — vidi docs/omega/CANONICAL_WORKSPACE_SPEC.md.
+
+    Program Sigma, Master Sprint 005 (2026-08-06) — Case Commander Consolidation:
+    ovaj endpoint više NIJE čisto GPT-generisana narativna perspektiva —
+    delegira na `_cross_case_analiza`, čiji PRIORITET i RIZICI nalazi su sada
+    deterministički (case_actions + shared/case_readiness.py); jedino
+    KONTRADIKCIJE/NEPOVEZANI DOKUMENTI ostaju GPT-only, eksplicitno tagovani
+    kao gpt_advisory (hipoteza, ne činjenica). I dalje dopunski sloj uz
+    GET /api/workspace, ne njegova zamena.
 
     Keširan po korisniku za tekući dan. Analizira SVE aktivne predmete odjednom.
-    Pronalazi rizike, kontradikcije, nepovezane dokumente i preporučuje prioritet za danas.
+    Prioritet i rizici su sada čitani direktno iz case_actions; kontradikcije i
+    nepovezani dokumenti ostaju GPT procena.
     0 kredita — uključeno u pretplatu.
     """
     from datetime import datetime, date
