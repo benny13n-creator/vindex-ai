@@ -1227,3 +1227,58 @@ Intake's own frontend gap.
 `UNIFIED_WORKSPACE_ARCHITECTURE.md`, `WORKSPACE_DATA_OWNERSHIP.md`, `CANONICAL_WORKSPACE_SPEC.md`,
 `OMEGA_SPRINT_004_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-008`
 amended with the decision made; `OMEGA-010`/`011`/`012`/`013` added).
+
+## Program Omega, Final Sprint 005 (2026-08-06) — Unified Operational Experience
+
+Fifth and final Program Omega sprint. Charter: not a new feature — close `OMEGA-012` COMPLETELY, not
+partially. `GET /api/workspace` (Sprint 004) existed, was tested, had zero frontend references.
+
+**Found before any code**: Sprint 004's own `WORKSPACE_SURFACE_REGISTRY.md` had a real, if narrow,
+verification gap. `static/vindex.js` had TWO complete `_dashRender` implementations — an old
+`function _dashRender(){}` silently shadowed by a later `_dashRender = function(){}` ("FAZA 1.8")
+reassignment. Only the dead old version ever produced the DOM containers 3 widget-loaders
+(`loadBriefing`, `_ccCaricaAiAnaliza`, `_healthIndexLoad`) looked for — meaning Morning Briefing's
+in-app card, Case Commander's in-app findings, and Health Index were ALL invisible on the real home
+page, contrary to Sprint 004's own "confirmed live" classification (which only checked code/div-id
+existence somewhere in the file, not the actually-executing render path). Same exact shadowing pattern
+found a second time in `kalendarLoad`. Also found, new to this engagement: `routers/inbox.py`'s own
+`GET /api/inbox` was independently computing `rociste`/`rok` items on the SAME home page — a third,
+previously-uncatalogued alert computation, direct shadow-duplicate of `case_actions`' own Rule 1.
+
+**Built**: `wsLoad()`/`_wsRender()` (`static/vindex.js`) — the Workspace section, now the first
+substantive thing on the home page, right after Quick Actions. `routers/inbox.py`'s `rociste`/`rok`
+generation removed (case_actions wins); its own genuinely-unique categories (billing/inactivity/new-doc)
+kept, and a real pre-existing display bug fixed (they were computed but the frontend's own filter had
+ALWAYS excluded them, even before this sprint). `_predActionsLoad()` (new) — closes the one genuine
+navigation dead end found (`case-actions` had zero references anywhere in the frontend before this
+sprint): a case-detail "Otvorene akcije" panel reading Sprint 003's own existing per-case endpoint.
+`scripts/backfill_case_actions.py` (new, not run) addresses a found gap: pre-Sprint-003 cases have zero
+`case_actions` rows until their next qualifying event — named `OMEGA-014`.
+
+**Deleted ~480 lines of confirmed-dead code** (`_dashRender` v1 + exclusive helpers, `kalendarLoad` v1,
+`_kcPanelPreporuke`) — zero behavior change, since none of it was ever executing. Health Index's own
+container restored (Sprint 004 wanted it kept; its disappearance was an accidental refactor regression,
+not a decision). (Case Commander's/CIO Daily's/Morning Briefing's own docstring-only "no longer canonical"
+corrections were Sprint 004's own work, commit `4f6bad4` — unchanged, not repeated, this sprint.)
+
+**A real Sprint 003 bug found while building this sprint's own backfill script**: a circular-import
+fragility between `services.event_bus`/`services.case_evolution` (works everywhere else only because of
+import order, not structure) — worked around locally, named `OMEGA-015`, not fixed at the source.
+
+**All 6 mission-required scenarios proven**, including a NEW end-to-end test driving the REAL
+`dispatch_pending_events()` (not a shortcut) from a raw outbox row all the way through to a Workspace
+read (`tests/test_omega_sprint005_full_chain_to_workspace.py`). 22 new tests across 3 files; `test_inbox.py`
+had 6 now-invalid tests removed/rewritten. Full suite: 2,688 passed/1 skipped/0 failed — identical count
+to Sprint 004's own end, because +6 new Sprint 005 tests exactly offset -6 removed `test_inbox.py`
+tests; zero regressions confirmed directly, not just by the raw number matching.
+
+**Honest Phase 7 forensic re-verification**: certified within the deterministic action-tracking domain
+(no other writer to `case_actions`, no equivalent competing computation). NOT certified platform-wide —
+3 real, named gaps remain (`OMEGA-010` 3 alert tables, `OMEGA-017` 4 GPT narrative widgets still present,
+`OMEGA-018` 8-9 priority vocabularies, only 2 unified) — reported plainly, matching the "if it exists,
+not done" instruction literally rather than selectively.
+
+**5 required deliverables**: `docs/omega/WORKSPACE_INTEGRATION_REPORT.md`,
+`USER_JOURNEY_CERTIFICATION.md`, `SHADOW_WORKFLOW_AUDIT.md`, `CANONICAL_NAVIGATION_MAP.md`,
+`OMEGA_FINAL_SPRINT_005_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`OMEGA-012` closed; `OMEGA-014` through `OMEGA-019` added).

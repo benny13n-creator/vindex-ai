@@ -1135,3 +1135,33 @@ independently exist, formally demoted not removed (`OMEGA-012`); "the lawyer can
 immediately see what needs attention" — true of the backend, not yet true of what a lawyer actually sees,
 since the home page is not wired to the new endpoint. Both gaps are the SAME root cause (frontend wiring) and
 both are named, not hidden. Full detail: `docs/omega/OMEGA_SPRINT_004_REPORT.md`.
+
+## Program Omega, Final Sprint 005 (2026-08-06) — Unified Operational Experience
+
+**Methodology note**: this sprint's own Phase 1 found a real verification gap in Sprint 004's own
+methodology — "confirmed live" meant "code/div-id exists somewhere in the file," not "is in the
+actually-executing render path." Corrected here by tracing `dash_load()`'s actual call graph directly.
+
+| Metric | Value |
+|---|---|
+| Home-page widgets Sprint 004 believed were live but were actually 100% dead (shadowed `_dashRender`) | 3 (Morning Briefing card, Case Commander findings, Health Index) |
+| Lines of confirmed-dead code deleted | ~480 (`_dashRender` v1 + exclusive helpers, `kalendarLoad` v1, `_kcPanelPreporuke`) — zero behavior change |
+| New, previously-uncatalogued alert computation found and consolidated | 1 (`routers/inbox.py`'s own `rociste`/`rok` generation — a 3rd independent duplicate of `case_actions`' own Rule 1) |
+| Pre-existing display bug fixed alongside it | Inbox's own remaining categories (billing/inactivity/new-doc) were computed every load but a filter had ALWAYS excluded them from ever rendering, even before this sprint |
+| Navigation dead ends found in the mission's own named chain | 1 (Case→Action: `case-actions` had zero frontend references) — closed with a new case-detail panel reusing Sprint 003's own existing endpoint |
+| Onclick handlers / API paths audited for dead references | 104 onclick targets, 132 API path prefixes — 0 broken in either direction |
+| New debts found and named | 6 (`OMEGA-014` backfill gap, `OMEGA-015` circular import, `OMEGA-016` calendar predmeti fallback, `OMEGA-017` 4 GPT widgets still present, `OMEGA-018` 8-9 priority vocabularies not unified, `OMEGA-019` action→document not yet clickable) |
+| Debts closed | 1 (`OMEGA-012`, for its own literal scope — Workspace is genuinely wired now) |
+| New dedicated tests | 22 across 3 files (backfill script ×4, real end-to-end dispatch chain ×2, `test_inbox.py` rewritten: -6 invalid/+0 net since renamed, not counted as "new") |
+| Full suite | **2,688 passed, 1 skipped, 0 failed** — identical raw count to Sprint 004's own end, because +6 new Sprint 005 tests exactly offset -6 removed `test_inbox.py` tests (rociste/rok coverage removed along with the code); zero regressions confirmed directly |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: Definition of Done re-checked against actual shipped code, not intent — "one
+operational Workspace" (yes, proven); "no dead UI elements" (yes, ~480 lines removed, systematic
+onclick/API audit found nothing further); "no blind navigation" (yes, the one real dead end found is
+closed); "user can complete the daily journey without searching" (yes, `docs/omega/
+USER_JOURNEY_CERTIFICATION.md`, all 6 mission-named questions answered on first load). Honestly NOT
+fully met: "no parallel workflows" — 4 GPT narrative widgets remain, demoted not removed (`OMEGA-017`),
+named plainly rather than claimed resolved. Full detail: `docs/omega/OMEGA_FINAL_SPRINT_005_REPORT.md`.

@@ -4,6 +4,24 @@ Vindex OS — routers/inbox.py
 Faza: Vindex OS — PRIORITET 3
 
 GET /api/inbox  — Unified Inbox: agregirani, sortirani feed svih aktivnosti
+
+Program Omega, Sprint 005 (2026-08-06) — Unified Operational Experience:
+this endpoint used to ALSO independently generate "rociste"/"rok" items
+(hearing/deadline reminders) — a direct shadow-workflow duplicate of
+`services/case_evolution.py::_compute_target_actions`'s own Rule 1
+(`PRIPREMITI_PODNESAK`, sourced from the SAME `rocista`/deadline data),
+rendered on the SAME home page as Sprint 004's own `GET /api/workspace`.
+Both were live, both independently computed a priority-sorted "what needs
+attention" list from overlapping data, under 2 different vocabularies
+(this endpoint's own "kriticno/visok/srednji/nizak" vs. `case_actions`'
+own "critical/high/medium/low/informational") — confirmed via
+`docs/omega/SHADOW_WORKFLOW_AUDIT.md`. `case_actions`/Workspace is the
+newer, deterministic, sourced, lifecycle-managed engine — it wins;
+hearing/deadline items were removed from here. This endpoint's remaining,
+genuinely NOT-covered-elsewhere concepts stay: unbilled invoices,
+inactive-case nudges, and a lightweight "new document" ambient notice
+(distinct from Workspace's own "Review Required," which specifically
+means a document is BLOCKED pending human confirmation).
 """
 from __future__ import annotations
 
@@ -32,35 +50,18 @@ async def unified_inbox(
     supa = _get_supa()
 
     today      = date.today()
-    today_iso  = today.isoformat()
-    in_2_iso   = (today + timedelta(days=2)).isoformat()
-    in_7_iso   = (today + timedelta(days=7)).isoformat()
     ago_30_iso = (today - timedelta(days=30)).isoformat()
     ago_24h    = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     ago_7_iso  = (today - timedelta(days=7)).isoformat()
 
     # ── Batch fetch ───────────────────────────────────────────────────────────
-    (predmeti_r, rocista_r, rokovi_r,
-     dokumenti_r, billing_r, beleske_r, ist_r) = await asyncio.gather(
+    # Program Omega Sprint 005: rocista/predmet_hronologija fetches removed —
+    # hearing/deadline "what needs attention" signals now come exclusively
+    # from case_actions/Workspace (see module docstring).
+    (predmeti_r, dokumenti_r, billing_r, beleske_r, ist_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,status")
             .eq("user_id", uid)
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("rocista")
-            .select("id,predmet_id,sud,datum,vreme,status")
-            .eq("user_id", uid)
-            .gte("datum", today_iso)
-            .lte("datum", in_7_iso)
-            .order("datum")
-            .limit(50)
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id,dogadjaj,datum_iso,vaznost")
-            .eq("user_id", uid)
-            .gte("datum_iso", today_iso)
-            .lte("datum_iso", in_7_iso)
-            .order("datum_iso")
-            .limit(100)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("id,predmet_id,naziv_fajla,created_at")
@@ -100,43 +101,6 @@ async def unified_inbox(
     pred_by_id = {p["id"]: p for p in predmeti}
 
     items: list[dict] = []
-
-    # ── Ročišta (next 7 days) ─────────────────────────────────────────────────
-    for r in _safe(rocista_r):
-        datum = r.get("datum", "")
-        prioritet = "kriticno" if datum <= in_2_iso else "visok"
-        lbl = "DANAS" if datum == today_iso else datum
-        items.append({
-            "tip":           "rociste",
-            "prioritet":     prioritet,
-            "naslov":        f"Ročište — {r.get('sud', '—')}",
-            "opis":          f"{lbl} u {(r.get('vreme') or '?')[:5]}",
-            "predmet_id":    r.get("predmet_id", ""),
-            "predmet_naziv": pred_by_id.get(r.get("predmet_id", ""), {}).get("naziv", "—"),
-            "datum":         datum,
-            "id":            r.get("id", ""),
-        })
-
-    # ── Rokovi (next 7 days) ──────────────────────────────────────────────────
-    for h in _safe(rokovi_r):
-        datum    = h.get("datum_iso", "")
-        vaznost  = h.get("vaznost", "")
-        if datum <= in_2_iso or vaznost == "kritičan":
-            prioritet = "kriticno"
-        elif vaznost == "bitan":
-            prioritet = "visok"
-        else:
-            prioritet = "srednji"
-        items.append({
-            "tip":           "rok",
-            "prioritet":     prioritet,
-            "naslov":        h.get("dogadjaj", "Rok"),
-            "opis":          datum,
-            "predmet_id":    h.get("predmet_id", ""),
-            "predmet_naziv": pred_by_id.get(h.get("predmet_id", ""), {}).get("naziv", "—"),
-            "datum":         datum,
-            "id":            "",
-        })
 
     # ── Novi dokumenti (last 24h) ─────────────────────────────────────────────
     for d in _safe(dokumenti_r):

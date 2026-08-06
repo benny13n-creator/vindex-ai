@@ -1408,6 +1408,15 @@ widgets with a single Workspace panel.
 može otvoriti platformu i bez traženja odmah videti šta zahteva njegovu pažnju." The backend is done; the
 lawyer-visible outcome is not, yet.
 
+**Amendment (Program Omega, Final Sprint 005, 2026-08-06)**: CLOSED for the literal claim above. The
+founder's own Sprint 005 charter explicitly authorized the frontend pass this item asked for.
+`GET /api/workspace` is now wired into `dash_load()`/`_dashRender` (`static/vindex.js`, `wsLoad()`/
+`_wsRender()`), positioned as the first substantive section a lawyer sees, right after Quick Actions. What
+remains open is narrower and renamed `OMEGA-017` below: the 4 GPT narrative widgets (Command Center's own
+recap, Morning Briefing, Case Commander, CIO) are demoted (docstrings corrected, zero behavior change) but
+still independently exist and still render on the same page — Workspace did not replace them, it was added
+alongside them.
+
 ## OMEGA-013 — 9 other call sites still write the un-castable string literal `"now()"` to timestamp columns (Medium, unverified elsewhere)
 
 This sprint fixed `_consequence_refresh_case_actions`'s own 2 occurrences (real computed ISO timestamp instead
@@ -1425,6 +1434,137 @@ fails, rather than 9 speculative fixes).
 **Recommended direction**: a small, dedicated future task — write ONE integration test against a real (or
 faithfully-emulated) Postgres timestamptz column proving whether `'now()'` round-trips correctly; fix the 9
 call sites uniformly if it does not.
+
+---
+
+## Program Omega, Final Sprint 005 (2026-08-06) — Unified Operational Experience
+
+Full narrative: `docs/omega/OMEGA_FINAL_SPRINT_005_REPORT.md`, `WORKSPACE_INTEGRATION_REPORT.md`,
+`USER_JOURNEY_CERTIFICATION.md`, `SHADOW_WORKFLOW_AUDIT.md`, `CANONICAL_NAVIGATION_MAP.md`. Closes `OMEGA-012`
+(Workspace now wired into the frontend); adds `OMEGA-014` through `OMEGA-017` below.
+
+## OMEGA-014 — `case_actions` is empty for any case with no qualifying event since Sprint 003 shipped (Medium, script built not run)
+
+`case_actions` populates ONLY via 4 Case Evolution events (`DOCUMENT_ACCEPTED`, `REVIEW_ACCEPTED`,
+`ROCISTE_ZAKAZANO`, `DOCUMENT_BATCH_COMPLETED`) — correct by design (no new orchestrator), but it means any
+predmet that existed before Sprint 003 shipped, or simply hasn't had a triggering event since, has ZERO
+`case_actions` rows. Workspace shows that case as falsely clean, not because it has no risks/deadlines, but
+because nothing has "touched" it through the new engine yet.
+
+**Why not fixed this sprint**: fixing it means writing DATA (running the Action Engine's own logic against
+every existing predmet) — the same standing caution this project applies to SQL migrations (founder runs
+state-changing operations himself) applies here too.
+
+**Built, not run**: `scripts/backfill_case_actions.py` — a one-time script reusing
+`_consequence_refresh_case_actions` unchanged (no new algorithm), safe to re-run (already idempotent),
+supports `--dry-run` and `--user-id` for a staged rollout. 4 new tests
+(`tests/test_omega_sprint005_backfill_script.py`). This is WHY `_kcPanelRokovi` (the older, `case_actions`-
+independent deadline panel) was deliberately KEPT this sprint rather than retired — see
+`docs/omega/SHADOW_WORKFLOW_AUDIT.md`, item 5.
+
+**Severity**: Medium — no data is wrong, some real risks/deadlines on old cases are simply not yet visible
+in the new engine; the old panel remains as a safety net until the backfill runs.
+
+## OMEGA-015 — `services.case_evolution` cannot be the first of it/`services.event_bus` imported fresh in a process (Low, worked around locally, not fixed at the source)
+
+Found while writing this sprint's own backfill-script tests: `services/case_evolution.py` imports
+`services.event_bus` at module level; `services/event_bus.py`'s own module-level `bus = EventBus()`
+construction imports `handle_case_changed` back from `services.case_evolution` — a genuine circular import.
+It "works" everywhere else in this codebase purely because every existing caller happens to import
+`services.event_bus` (or something that does) before ever touching `services.case_evolution` directly — a
+fragile, undocumented import-order dependency, not a structural guarantee.
+
+**Why not fixed this sprint**: restructuring the module boundary between these 2 files is a real
+architecture change, well outside a docs-and-one-script addition; worked around locally in this sprint's own
+new test file (`tests/test_omega_sprint005_backfill_script.py`, explicit `import services.event_bus` first)
+instead.
+
+**Recommended direction**: move the `from services.case_evolution import handle_case_changed` call inside
+`EventBus._register_defaults()` to a lazy/deferred import already partially used elsewhere in that same
+function, or restructure so `event_bus.py` doesn't import `case_evolution` at construction time at all.
+
+**Severity**: Low — purely a robustness/DX issue for future code that imports these 2 modules in an
+unfamiliar order; no runtime behavior is wrong today.
+
+## OMEGA-016 — Live `kalendarLoad()` dropped its own predecessor's `/api/predmeti` fallback (Low, narrow)
+
+Found while removing the OLD, dead `kalendarLoad` (shadow-workflow cleanup, `docs/omega/SHADOW_WORKFLOW_AUDIT.md`
+item 2): the old version had a fallback `fetch('/api/predmeti')` for when the global `_predmeti` array isn't
+populated yet, feeding `_kalendarPredmeti` (used by the ročište-creation form's own predmet dropdown). The
+live version (kept, "FAZA 1.8"-era) only assigns from `_predmeti` if it's already populated — no fallback.
+
+**Why not fixed this sprint**: narrow, needs verifying whether `_predmeti` is reliably populated by the time
+a real user reaches the calendar tab in practice before deciding whether re-adding the fallback is even
+necessary — out of this sprint's Workspace-focused scope.
+
+**Severity**: Low — only affects the ročište-creation form's own predmet dropdown, only in a specific
+loading-order edge case.
+
+## OMEGA-017 — 4 independent GPT "what needs attention" widgets still live alongside Workspace (High, renamed from `OMEGA-012`'s own remaining scope, founder decision still needed)
+
+Now that `GET /api/workspace` is genuinely wired into the home page (this sprint), the remaining open
+question from `OMEGA-008`/`OMEGA-012` is narrower but unchanged in kind: Command Center's own recap,
+Morning Briefing, Case Commander, and CIO Daily are all still live, still independently compute their own
+version of "what's important," and still render on the same page as Workspace — added ALONGSIDE, not
+replacing them. Each already got a docstring correction in Sprint 004 (commit `4f6bad4`, no longer claims
+to be canonical) — unchanged, zero behavior change, this sprint.
+
+**Why not fixed this sprint**: same reasoning as `OMEGA-012`'s own original entry — rewriting or removing 3
+live, credit-metered GPT features' own prompts/behavior without live-browser verification available in this
+session is a real production risk this whole engagement consistently escalates rather than guesses at.
+
+**Recommended direction**: an explicit founder decision on whether/how to consolidate these 4 into, or
+underneath, Workspace — a product/UX call about which AI narrative (if any) survives as a companion to the
+now-canonical deterministic view, not a code decision.
+
+**Severity**: High — the last remaining piece of "one operational system, not six voices," now well down
+from "6 independent surfaces, 0 wired" (Sprint 004's own starting point) to "1 canonical view wired + 4
+demoted-but-present companions," but not fully resolved.
+
+## OMEGA-018 — 8-9 independent priority/urgency vocabularies confirmed platform-wide, only 2 unified (Medium, scope larger than Sprint 004's own original estimate)
+
+Phase 1's own fuller frontend audit this sprint (beyond Sprint 004's own "5+" estimate) confirmed, with new
+file:line evidence: the case-detail Cockpit panel's own risk badge (`pred_renderCockpit`,
+`static/vindex.js`, Serbian `nizak`/`srednji`/`visok` via a CSS-class-per-value convention), the Zadaci
+panel's own badge (`_ZADACI_PRIORITET_BADGE`, raw `hitno`/`visoko`/`normalan`/`nisko` printed as visible
+badge text), and at least 2 more independent `hitnost` vocabularies (`odmah`/`ovu_nedelju` in
+briefing/Genome-adjacent code; `kriticno`/`vazno` in Genome's own `nedostaje[].hitnost`) — each with its own
+hand-copied inline hex-color triplet repeated at multiple call sites rather than a shared constant. Combined
+with `OMEGA-011`'s own original 5, the real count across the whole platform is closer to 8-9, not "5+."
+
+**Partially addressed this sprint**: the new case-detail "Otvorene akcije" panel (`_predActionsLoad`,
+closing the Case→Action navigation gap) deliberately reuses Workspace's own `_WS_PRIO_COLOR` constant — so
+these 2 specific surfaces are now visually consistent with each other, a small proof that the translation-
+at-the-boundary pattern (`_ZADACI_PRIORITET_MAP`, Sprint 004) generalizes. The other 6-7 vocabularies found
+were NOT touched — unifying Cockpit's own badge rendering, the Zadaci panel's own badge, and Genome's own
+`hitnost` fields each touch a different, independently-styled, live UI surface; batch-converting all of them
+without live-browser verification in one pass was judged too large/risky for this sprint.
+
+**Recommended direction**: a dedicated future pass — likely CSS-level (one shared `--priority-critical`/
+`--priority-high`/etc. custom-property set) plus a small set of vocabulary-translation constants (mirroring
+`_ZADACI_PRIORITET_MAP`) for each of the remaining raw Serbian vocabularies, applied one surface at a time
+with visual verification.
+
+**Severity**: Medium — no functional bug (each surface renders its own priority correctly in isolation), a
+pure visual/lexical consistency gap, directly relevant to the mission's own Phase 4 ("ista stvar mora
+izgledati identično na celoj platformi") — named honestly as NOT fully achieved rather than claimed done.
+
+## OMEGA-019 — Action → Document is grounded in data but not yet a clickable UI link (Low, deliberately deferred)
+
+Every `case_actions` row already carries its own `dokaz`/`izvor_dokumenti` source reference (Sprint 003's
+own "no conclusion without source" grounding requirement, e.g. `"DOK-XX str.Y"` for contradiction actions)
+— the RAW data for "which document caused this action" is present and correct end-to-end, proven by Sprint
+003's own tests. Neither Workspace's own item rows nor the new case-detail "Otvorene akcije" panel
+(`OMEGA`/Sprint 005) render this as a clickable "open this document" action yet — see
+`docs/omega/CANONICAL_NAVIGATION_MAP.md`'s own "Deadline → Document" section.
+
+**Why not fixed this sprint**: needs a real UI decision (open the document viewer directly? scroll to a
+page? highlight a snippet?) plus wiring to whatever document-open mechanism the case-detail page already
+uses elsewhere — a small but real scoped addition, not attempted given this sprint's own remaining time
+budget after closing the larger Case→Action gap.
+
+**Severity**: Low — not a dead end (the information exists and is visible as text), just not yet one click
+away.
 
 **Severity**: Medium — if the literal genuinely fails, each affected column silently never got a valid
 timestamp (a latent data-quality gap, not a crash, since none of the other 9 sites currently `.gte()`-filter

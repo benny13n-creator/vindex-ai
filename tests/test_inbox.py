@@ -2,6 +2,15 @@
 """
 Tests for routers/inbox.py — Unified Inbox (Vindex OS PRIORITET 3).
 All tests run without live Supabase (mocked with table-name routing).
+
+Program Omega, Sprint 005 (2026-08-06): rociste/rok item generation was
+removed from routers/inbox.py (shadow-workflow duplicate of case_actions'
+own Rule 1 -- see the module's own updated docstring and
+docs/omega/SHADOW_WORKFLOW_AUDIT.md). Tests for those 2 item types
+(rociste today/future, rok kritican/bitan/ordinary, and the
+kriticno-sorts-first assertion, which depended on a rok item) removed
+below accordingly -- everything else (dokument/naplata/neaktivan,
+exception safety, router registration) is unchanged and still asserted.
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -83,99 +92,6 @@ async def test_inbox_empty_returns_zeros():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2. Ročišta items
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@pytest.mark.anyio
-async def test_inbox_rociste_today_is_kriticno():
-    from routers.inbox import unified_inbox
-    from datetime import date
-    today = date.today().isoformat()
-    preds = [{"id": PID, "naziv": "Test", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rocs  = [{"id": "r1", "predmet_id": PID, "sud": "Viši sud", "datum": today, "vreme": "10:00:00", "status": "zakazano"}]
-    supa  = _make_supa(predmeti=preds, rocista=rocs)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    roc_items = [i for i in result["stavke"] if i["tip"] == "rociste"]
-    assert len(roc_items) == 1
-    assert roc_items[0]["prioritet"] == "kriticno"
-    assert roc_items[0]["naslov"] == "Ročište — Viši sud"
-    assert result["kriticno"] == 1
-
-
-@pytest.mark.anyio
-async def test_inbox_rociste_future_is_visok():
-    from routers.inbox import unified_inbox
-    from datetime import date, timedelta
-    future = (date.today() + timedelta(days=6)).isoformat()
-    preds  = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rocs   = [{"id": "r1", "predmet_id": PID, "sud": "Sud", "datum": future, "vreme": "09:00:00", "status": "zakazano"}]
-    supa   = _make_supa(predmeti=preds, rocista=rocs)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    roc_items = [i for i in result["stavke"] if i["tip"] == "rociste"]
-    assert roc_items[0]["prioritet"] == "visok"
-
-
-@pytest.mark.anyio
-async def test_inbox_rociste_naziv_predmeta_resolved():
-    from routers.inbox import unified_inbox
-    from datetime import date
-    today = date.today().isoformat()
-    preds = [{"id": PID, "naziv": "Moj predmet", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rocs  = [{"id": "r1", "predmet_id": PID, "sud": "S", "datum": today, "vreme": "09:00", "status": "zakazano"}]
-    supa  = _make_supa(predmeti=preds, rocista=rocs)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    item = result["stavke"][0]
-    assert item["predmet_naziv"] == "Moj predmet"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 3. Rok items
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@pytest.mark.anyio
-async def test_inbox_rok_kritican_prioritet():
-    from routers.inbox import unified_inbox
-    from datetime import date
-    today = date.today().isoformat()
-    rokovi = [{"predmet_id": PID, "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"}]
-    supa   = _make_supa(rokovi=rokovi)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    rok_items = [i for i in result["stavke"] if i["tip"] == "rok"]
-    assert len(rok_items) == 1
-    assert rok_items[0]["prioritet"] == "kriticno"
-
-
-@pytest.mark.anyio
-async def test_inbox_rok_bitan_is_visok():
-    from routers.inbox import unified_inbox
-    from datetime import date, timedelta
-    future = (date.today() + timedelta(days=5)).isoformat()
-    rokovi = [{"predmet_id": PID, "dogadjaj": "Rok", "datum_iso": future, "vaznost": "bitan"}]
-    supa   = _make_supa(rokovi=rokovi)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    rok_items = [i for i in result["stavke"] if i["tip"] == "rok"]
-    assert rok_items[0]["prioritet"] == "visok"
-
-
-@pytest.mark.anyio
-async def test_inbox_rok_ordinary_is_srednji():
-    from routers.inbox import unified_inbox
-    from datetime import date, timedelta
-    future = (date.today() + timedelta(days=6)).isoformat()
-    rokovi = [{"predmet_id": PID, "dogadjaj": "Rok", "datum_iso": future, "vaznost": "normalan"}]
-    supa   = _make_supa(rokovi=rokovi)
-    with patch("routers.inbox._get_supa", return_value=supa):
-        result = await unified_inbox(request=_req(), user=_user())
-    rok_items = [i for i in result["stavke"] if i["tip"] == "rok"]
-    assert rok_items[0]["prioritet"] == "srednji"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # 4. Dokument items
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -254,30 +170,30 @@ async def test_inbox_zatvoren_predmet_not_neaktivan():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.anyio
-async def test_inbox_sorted_kriticno_first():
+async def test_inbox_sorted_srednji_before_nizak():
     from routers.inbox import unified_inbox
     from datetime import date
-    today = date.today().isoformat()
     preds   = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
+    docs    = [{"id": "d1", "predmet_id": PID, "naziv_fajla": "ugovor.pdf", "created_at": "2026-06-14T10:00:00"}]
     billing = [{"id": "b1", "predmet_id": PID, "opis": "Usluga", "iznos_rsd": 1000, "datum": "2026-01-01"}]
-    rokovi  = [{"predmet_id": PID, "dogadjaj": "Kritičan rok", "datum_iso": today, "vaznost": "kritičan"}]
-    supa    = _make_supa(predmeti=preds, rokovi=rokovi, billing=billing)
+    supa    = _make_supa(predmeti=preds, dokumenti=docs, billing=billing)
     with patch("routers.inbox._get_supa", return_value=supa):
         result = await unified_inbox(request=_req(), user=_user())
     items = result["stavke"]
     assert len(items) >= 2
-    assert items[0]["prioritet"] == "kriticno"
+    # "dokument" (srednji) sorts before "naplata" (nizak) -- proves the
+    # priority-order sort still works after rociste/rok removal.
+    assert items[0]["prioritet"] == "srednji"
+    assert items[0]["tip"] == "dokument"
 
 
 @pytest.mark.anyio
 async def test_inbox_counts_match_stavke():
     from routers.inbox import unified_inbox
     from datetime import date
-    today = date.today().isoformat()
     preds   = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rocs    = [{"id": "r1", "predmet_id": PID, "sud": "S", "datum": today, "vreme": "10:00", "status": "zakazano"}]
     billing = [{"id": "b1", "predmet_id": PID, "opis": "Usluga", "iznos_rsd": 1000, "datum": "2026-01-01"}]
-    supa    = _make_supa(predmeti=preds, rocista=rocs, billing=billing)
+    supa    = _make_supa(predmeti=preds, billing=billing)
     with patch("routers.inbox._get_supa", return_value=supa):
         result = await unified_inbox(request=_req(), user=_user())
     total = result["kriticno"] + result["visok"] + result["srednji"] + result["nizak"]

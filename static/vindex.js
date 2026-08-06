@@ -1225,8 +1225,20 @@ async function dash_load(){
     kcConstellationInit();
     _kcStartClock();
     notif_load();
-    loadBriefing(false);
-    _ccCaricaAiAnaliza(hdr);
+    // Program Omega, Sprint 005 (2026-08-06) -- Workspace (case_actions,
+    // Sprint 003/004's own deterministic Action Engine) is now the
+    // canonical "what needs attention" view, loaded first/asynchronously
+    // like every other dashboard widget. loadBriefing()/_ccCaricaAiAnaliza()
+    // were removed here (and their own now-fully-dead code deleted
+    // elsewhere in this file): both had ALREADY silently stopped rendering
+    // anything -- their own DOM containers, #briefing-card/#cc-ai-nalazi,
+    // were only ever produced by an older _dashRender implementation that
+    // a prior "FAZA 1.8" refactor had already fully superseded without
+    // removing -- calling them was a wasted round trip, not a working
+    // feature. Morning Briefing's own real remaining channel (the
+    // automatic daily email cron) and Case Commander's own on-demand
+    // /api/commander/analiza endpoint are both untouched.
+    wsLoad(hdr);
     _cioLoad(hdr);
     // Health Index — učitava se asinhrono, ne blokira dashboard
     _healthIndexLoad(hdr);
@@ -1356,449 +1368,13 @@ function _kcStartClock() {
 
 function _fmtRSD(v){var n=Math.round(v||0);if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'k';return String(n);}
 
-// ══════════════════════════════════════════════ AI COMMAND CENTER INTEL BRIFING
-
-function _ccBrifingHtml(d, uName) {
-  var aktivnih    = d.ukupno_aktivnih || 0;
-  var rizici      = d.predmeti_visok_rizik || [];
-  var kontr       = d.pad_procene || [];
-  var hitniRokovi = d.hitni_rokovi || [];
-  var neaktivni   = d.neaktivni_30_dana || [];
-  var rocista     = d.danasnja_rocista || [];
-  var preporuke   = d.ai_preporuke || [];
-
-  var nRizika   = rizici.length;
-  var nKontr    = kontr.length;
-  var nHitni    = hitniRokovi.length;
-  var nRocista  = rocista.length;
-
-  // Poruka zaglavlja
-  var pozdrav = _dashGreeting() + (uName ? ', ' + escHtml(uName) : '');
-  var nalazeni = nRizika + nKontr + neaktivni.length;
-  var analizaTxt;
-  if (aktivnih === 0) {
-    analizaTxt = 'Nema aktivnih predmeta za analizu.';
-  } else {
-    analizaTxt = 'Analizirao sam ' + aktivnih + ' aktivn' + (aktivnih === 1 ? 'i predmet' : aktivnih < 5 ? 'a predmeta' : 'ih predmeta') + '.';
-    if (nalazeni > 0) {
-      var delovi = [];
-      if (nRizika > 0)       delovi.push(nRizika + (nRizika === 1 ? ' rizik' : ' rizika'));
-      if (nKontr > 0)        delovi.push(nKontr + (nKontr === 1 ? ' promenu' : nKontr < 5 ? ' promene' : ' promena'));
-      if (neaktivni.length > 0) delovi.push(neaktivni.length + (neaktivni.length === 1 ? ' predmet bez aktivnosti' : ' predmeta bez aktivnosti'));
-      analizaTxt += ' Otkrio sam: ' + delovi.join(', ') + '.';
-    } else {
-      analizaTxt += ' Sve je u redu — nema kritičnih nalaza.';
-    }
-  }
-
-  // Prioritetni predmet
-  var prioPredmet = null;
-  if (rizici.length > 0) {
-    prioPredmet = { id: rizici[0].predmet_id, naziv: rizici[0].predmet_naziv || 'Predmet', razlog: (rizici[0].faktori || []).slice(0, 2).join(', ') || 'Visok rizik' };
-  } else if (hitniRokovi.length > 0) {
-    prioPredmet = { id: hitniRokovi[0].predmet_id, naziv: hitniRokovi[0].predmet_naziv || 'Predmet', razlog: hitniRokovi[0].dogadjaj || 'Hitan rok' };
-  } else if (preporuke.length > 0 && d.predmeti_visok_rizik && d.predmeti_visok_rizik[0]) {
-    prioPredmet = { id: d.predmeti_visok_rizik[0].predmet_id, naziv: d.predmeti_visok_rizik[0].predmet_naziv || 'Predmet', razlog: preporuke[0].substring(0, 80) };
-  }
-
-  var h = '';
-  h += '<div class="cc-intel-card" id="cc-intel-card">';
-
-  // Header
-  h += '<div class="cc-intel-header">';
-  h += '<div class="cc-intel-logo"><div class="cc-intel-hex">⬡</div><div class="cc-intel-pulse"></div></div>';
-  h += '<div class="cc-intel-heading">';
-  h += '<div class="cc-intel-title">Pregled predmeta</div>';
-  h += '<div class="cc-intel-sub">' + pozdrav + '. ' + escHtml(analizaTxt) + '</div>';
-  h += '</div>';
-  h += '<div class="cc-intel-live"><span class="cc-live-dot"></span>LIVE</div>';
-  h += '</div>';
-
-  if (aktivnih === 0) {
-    h += '<div class="cc-intel-empty">Dodajte predmet da biste aktivirali Command Center.</div>';
-    h += '</div>';
-    return h;
-  }
-
-  // Stats strip
-  h += '<div class="cc-intel-stats">';
-  h += '<div class="cc-intel-stat' + (nRizika > 0 ? ' cc-is-danger' : ' cc-is-ok') + '">';
-  h += '<span class="cc-is-val">' + nRizika + '</span><span class="cc-is-lbl">Rizika</span>';
-  h += '</div>';
-  h += '<div class="cc-intel-stat' + (nKontr > 0 ? ' cc-is-warn' : ' cc-is-ok') + '">';
-  h += '<span class="cc-is-val">' + nKontr + '</span><span class="cc-is-lbl">Promena</span>';
-  h += '</div>';
-  h += '<div class="cc-intel-stat' + (nHitni > 0 ? ' cc-is-danger' : ' cc-is-ok') + '">';
-  h += '<span class="cc-is-val">' + nHitni + '</span><span class="cc-is-lbl">Hitnih rokova</span>';
-  h += '</div>';
-  h += '<div class="cc-intel-stat' + (nRocista > 0 ? ' cc-is-warn' : '') + '">';
-  h += '<span class="cc-is-val">' + nRocista + '</span><span class="cc-is-lbl">Ročišta danas</span>';
-  h += '</div>';
-  h += '</div>';
-
-  // Nalazi
-  var imaListe = (rizici.length + kontr.length + neaktivni.length) > 0;
-  if (imaListe) {
-    h += '<div class="cc-intel-nalazi">';
-    h += '<div class="cc-intel-sec-lbl">Otkriveno</div>';
-
-    rizici.slice(0, 3).forEach(function(p) {
-      var faktori = (p.faktori || []).slice(0, 2).join(' · ');
-      h += '<div class="cc-nalaz-item cc-ni-rizik" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
-      h += '<span class="cc-ni-ikona">⚠</span>';
-      h += '<div class="cc-ni-txt">';
-      h += '<span class="cc-ni-naziv">' + escHtml(p.predmet_naziv || 'Predmet') + '</span>';
-      if (faktori) h += '<span class="cc-ni-opis"> — ' + escHtml(faktori) + '</span>';
-      h += '</div><span class="cc-ni-arrow">›</span>';
-      h += '</div>';
-    });
-
-    kontr.slice(0, 2).forEach(function(p) {
-      h += '<div class="cc-nalaz-item cc-ni-kontr" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
-      h += '<span class="cc-ni-ikona">⇄</span>';
-      h += '<div class="cc-ni-txt">';
-      h += '<span class="cc-ni-naziv">' + escHtml(p.predmet_naziv || 'Predmet') + '</span>';
-      h += '<span class="cc-ni-opis"> — prognoza: ' + escHtml(p.prethodni_rizik || '?') + ' → ' + escHtml(p.trenutni_rizik || '?') + '</span>';
-      h += '</div><span class="cc-ni-arrow">›</span>';
-      h += '</div>';
-    });
-
-    neaktivni.slice(0, 2).forEach(function(p) {
-      h += '<div class="cc-nalaz-item cc-ni-neakt" onclick="_dashGoToPredmet(\'' + escHtml(p.predmet_id) + '\')">';
-      h += '<span class="cc-ni-ikona">⊡</span>';
-      h += '<div class="cc-ni-txt">';
-      h += '<span class="cc-ni-naziv">' + escHtml(p.naziv || 'Predmet') + '</span>';
-      h += '<span class="cc-ni-opis"> — bez aktivnosti od ' + escHtml(p.poslednja_izmena || '—') + '</span>';
-      h += '</div><span class="cc-ni-arrow">›</span>';
-      h += '</div>';
-    });
-
-    h += '</div>';
-  }
-
-  // Prioritet
-  if (prioPredmet) {
-    h += '<div class="cc-intel-prioritet" onclick="_dashGoToPredmet(\'' + escHtml(prioPredmet.id) + '\')">';
-    h += '<div class="cc-prio-left">';
-    h += '<div class="cc-prio-label">Prioritet danas</div>';
-    h += '<div class="cc-prio-naziv">' + escHtml(prioPredmet.naziv) + '</div>';
-    if (prioPredmet.razlog) h += '<div class="cc-prio-razlog">' + escHtml(prioPredmet.razlog) + '</div>';
-    h += '</div>';
-    h += '<div class="cc-prio-cta">Otvori →</div>';
-    h += '</div>';
-  }
-
-  // AI Duboka analiza placeholder — puni se async posle rendera
-  h += '<div id="cc-ai-nalazi" class="cc-ai-nalazi-wrap hidden">';
-  h += '<div class="cc-intel-sec-lbl cc-ai-sec-lbl">Duboka analiza</div>';
-  h += '<div id="cc-ai-nalazi-lista"></div>';
-  h += '</div>';
-
-  h += '</div>'; // cc-intel-card
-  return h;
-}
-
-// ── AI Enrichment: async GPT-4o cross-case analiza ───────────────────────────
-async function _ccCaricaAiAnaliza(hdr) {
-  try {
-    var resp = await fetch(BASE_URL + '/api/commander/jutarnji', { headers: hdr });
-    if (!resp.ok) return;
-    var data = await resp.json();
-
-    var nalazi = data.nalazi || [];
-    if (!nalazi.length) return;
-
-    var sekcija = document.getElementById('cc-ai-nalazi');
-    var lista   = document.getElementById('cc-ai-nalazi-lista');
-    if (!sekcija || !lista) return;
-
-    var tipIkone = { rizik: '⚠', kontradikcija: '⇄', nepovezan_dokument: '⊡' };
-    var tipKlasa = { rizik: 'cc-ni-rizik', kontradikcija: 'cc-ni-kontr', nepovezan_dokument: 'cc-ni-neakt' };
-
-    // Olympus Faza 10 (2026-08-04, Evidence Integrity nalaz): backend racuna
-    // _evidence_check (validate_predmet_reference) ali ga UI ranije nikad
-    // nije citao -- flagovan nalaz je prikazivan identicnom vizuelnom
-    // tezinom kao odobren, na platformi najveceg dnevnog saobracaja
-    // (jutarnji brifing). Skupljamo flagovane prefikse/nazive da bismo
-    // oznacili SAMO pogodjene stavke, ne generickim banerom preko svega.
-    var ev = data._evidence_check || {};
-    var flagovaniPrefiksi = {};
-    (ev.hard_flags || []).forEach(function(f) {
-      if (f.polje === 'predmet_id_prefix' || f.polje === 'predmet_naziv') {
-        flagovaniPrefiksi[f.stavka] = f.razlog;
-      }
-    });
-
-    var html = '';
-    nalazi.forEach(function(n) {
-      var ikona = tipIkone[n.tip] || '•';
-      var klasa = tipKlasa[n.tip]  || '';
-      var flagRazlog = flagovaniPrefiksi[n.predmet_id_prefix] || flagovaniPrefiksi[n.predmet_naziv];
-      html += '<div class="cc-nalaz-item ' + klasa + '">';
-      html += '<span class="cc-ni-ikona">' + ikona + '</span>';
-      html += '<div class="cc-ni-txt">';
-      html += '<span class="cc-ni-naziv">' + escHtml(n.predmet_naziv || '') + '</span>';
-      if (n.naslov) html += '<span class="cc-ni-opis"> — ' + escHtml(n.naslov) + '</span>';
-      if (n.opis)   html += '<div class="cc-ni-detail">' + escHtml(n.opis) + '</div>';
-      if (flagRazlog) html += '<div class="cc-ni-detail" style="color:#f59e0b;">⚠ AI provera: ' + escHtml(flagRazlog) + '</div>';
-      html += '</div>';
-      html += '</div>';
-    });
-
-    lista.innerHTML = html;
-    sekcija.classList.remove('hidden');
-
-    // Ažuriraj header tekst sa AI reziméom ako postoji
-    if (data.rezime) {
-      var subEl = document.querySelector('.cc-intel-sub');
-      if (subEl && data.pozdrav) {
-        subEl.textContent = data.pozdrav + ' ' + data.poruka;
-      }
-    }
-
-  } catch(e) {
-    // Silent fail — statistički prikaz ostaje vidljiv
-  }
-}
-
-function _dashRender(d,bd,inboxData){
-  var today=new Date().toISOString().slice(0,10);
-  var p2=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
-  var html='';
-  var uName=currentUser?(currentUser.email||'').split('@')[0]:'';
-
-  var hitniCount=(d.hitni_rokovi||[]).length;
-  var rocistaCount=(d.danasnja_rocista||[]).length;
-  var visokRizikCount=(d.predmeti_visok_rizik||[]).length;
-  var neobracunato=bd?_fmtRSD(bd.neobracunato||0):'—';
-
-  // ── TOP BAR ────────────────────────────────────────────────────
-  html+='<div class="kc-topbar">';
-  html+='<div class="kc-topbar-left">';
-  html+='<div class="kc-greeting">'+_dashGreeting()+(uName?', '+escHtml(uName):'')+'. </div>';
-  html+='<div class="kc-date">'+_dashFormatDate()+'</div>';
-  html+='</div>';
-  html+='<div class="kc-topbar-right">';
-  html+='<div class="kc-search" title="Globalna pretraga — dolazi uskoro"><span class="kc-search-icon">⌕</span><span class="kc-search-ph">Pretraži predmete, klijente...</span><span class="kc-search-kbd">⌘K</span></div>';
-  html+='<button style="padding:.38rem .85rem;font-size:.78rem;border:1px solid rgba(74,168,255,.25);border-radius:7px;background:rgba(74,168,255,.07);color:#89c8ff;cursor:pointer;font-family:inherit;" onclick="mesecniIzvestajOtvori()" title="Mesečni operativni izveštaj">Izveštaj</button>';
-  html+='<button class="kc-new-btn" onclick="intakeOtvori()">+ Novi predmet</button>';
-  html+='</div></div>';
-
-  // ── LAW FIRM HEALTH INDEX — hero element, puni se async ───────
-  html += '<div id="hi-widget" style="display:none;margin-bottom:.9rem;"></div>';
-
-  // ── AI COMMAND CENTER INTEL BRIFING ────────────────────────────
-  html += _ccBrifingHtml(d, uName);
-
-  // ── 4 KPI KARTICE ──────────────────────────────────────────────
-  html+='<div class="kc-kpi-row">';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+(d.ukupno_aktivnih||0)+'</div><div class="kc-kpi-l">Aktivnih<br>predmeta</div></div>';
-  html+='<div class="kc-kpi'+(hitniCount>0?' warn':'')+'"><div class="kc-kpi-n'+(hitniCount>0?' warn':'')+'">'+hitniCount+'</div><div class="kc-kpi-l">Hitnih<br>rokova</div></div>';
-  html+='<div class="kc-kpi'+(rocistaCount>0?' warn':'')+'"><div class="kc-kpi-n'+(rocistaCount>0?' warn':'')+'">'+rocistaCount+'</div><div class="kc-kpi-l">Ročišta<br>danas</div></div>';
-  html+='<div class="kc-kpi"><div class="kc-kpi-n">'+neobracunato+'</div><div class="kc-kpi-l">Nenaplaćeno<br>RSD</div></div>';
-  html+='</div>';
-
-  // ── JUTARNJI BRIFING ──────────────────────────────────────────
-  html+='<div id="briefing-card" class="kc-briefing-card">';
-  html+='<div class="kc-briefing-header">';
-  html+='<div class="kc-briefing-title">Jutarnji brifing</div>';
-  html+='<div class="kc-briefing-actions">';
-  html+='<button onclick="posaljiBriefingEmail()" class="kc-briefing-btn-email" title="Pošalji brifing na email">✉ Email</button>';
-  html+='<button onclick="loadBriefing(true)" class="kc-briefing-btn-refresh" title="Osveži brifing">↻</button>';
-  html+='<button onclick="toggleBriefing()" class="kc-briefing-toggle" id="briefing-toggle-btn">▲</button>';
-  html+='</div></div>';
-  html+='<div id="briefing-content">';
-  html+='<div class="kc-briefing-skeleton"><div class="kc-sk-line"></div><div class="kc-sk-line short"></div><div class="kc-sk-line"></div></div>';
-  html+='</div></div>';
-
-  // ── 2-COLUMN MAIN ──────────────────────────────────────────────
-  html+='<div class="kc-two-col">';
-
-  // LEVA KOLONA: prioritetni predmeti + neaktivni + billing
-  html+='<div class="kc-col">';
-
-  var prioritetni=[];
-  (d.predmeti_visok_rizik||[]).slice(0,4).forEach(function(p){
-    prioritetni.push({id:p.predmet_id,naziv:p.predmet_naziv||'Predmet',sub:(p.faktori||[]).slice(0,2).join(' · '),dot:'hitan'});
-  });
-  (d.pad_procene||[]).slice(0,3).forEach(function(p){
-    prioritetni.push({id:p.predmet_id,naziv:p.predmet_naziv||'Predmet',sub:(p.prethodni_rizik||'?')+' → '+(p.trenutni_rizik||'?'),dot:'bitan'});
-  });
-
-  html+='<div class="kc-section"><div class="kc-section-hd"><span>Prioritetni predmeti</span><span class="kc-section-hd-count">'+prioritetni.length+'</span></div>';
-  if(!prioritetni.length){
-    html+='<div class="kc-empty">Nema predmeta koji zahtevaju hitnu pažnju</div>';
-  }else{
-    prioritetni.forEach(function(p){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')">';
-      html+='<div class="kc-row-dot '+p.dot+'"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.naziv)+'</div>';
-      if(p.sub)html+='<div class="kc-row-sub">'+escHtml(p.sub)+'</div>';
-      html+='</div><div class="kc-row-arrow">→</div></div>';
-    });
-  }
-  html+='</div>';
-
-  var neakt=(d.neaktivni_30_dana||[]).slice(0,4);
-  if(neakt.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>Bez aktivnosti 30+ dana</span><span class="kc-section-hd-count">'+neakt.length+'</span></div>';
-    neakt.forEach(function(p){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(p.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot bitan"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(p.naziv||'Predmet')+'</div><div class="kc-row-sub">Bez aktivnosti od '+escHtml(p.poslednja_izmena||'—')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
-
-  if(bd){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>Naplata — '+escHtml(bd.mesec||'')+'</span></div>';
-    html+='<div class="kc-billing-row">';
-    html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.ukupno_unoseno||0)+'</div><div class="billing-kc-l">Uneseno<br>RSD</div></div>';
-    html+='<div class="billing-kc-kpi"><div class="billing-kc-n'+(((bd.neobracunato||0)>0)?' warn':'')+'">'+_fmtRSD(bd.neobracunato||0)+'</div><div class="billing-kc-l">Nenaplaćeno<br>RSD</div></div>';
-    html+='<div class="billing-kc-kpi"><div class="billing-kc-n">'+_fmtRSD(bd.naplaceno||0)+'</div><div class="billing-kc-l">Naplaćeno<br>RSD</div></div>';
-    html+='</div></div>';
-  }
-  html+='</div>';
-
-  // DESNA KOLONA: rokovi 7 dana + ročišta + novi dokumenti
-  html+='<div class="kc-col">';
-
-  var rokovi7=d.rokovi_7_dana||[];
-  html+='<div class="kc-section"><div class="kc-section-hd"><span>Rokovi — 7 dana</span><span class="kc-section-hd-count">'+rokovi7.length+'</span></div>';
-  if(!rokovi7.length){
-    html+='<div class="kc-empty">Nema nadolazećih rokova</div>';
-  }else{
-    rokovi7.slice(0,8).forEach(function(r){
-      var isToday=r.datum_iso===today;
-      var isUrgent=r.datum_iso<=p2;
-      var dot=(isToday||isUrgent)?'hitan':(r.vaznost==='bitan'?'bitan':'info');
-      var datumLbl=isToday?'DANAS':r.datum_iso;
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot '+dot+'"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.dogadjaj||'')+'</div></div>';
-      html+='<div class="kc-row-datum">'+escHtml(datumLbl)+'</div><div class="kc-row-arrow">→</div></div>';
-    });
-  }
-  html+='</div>';
-
-  var rocista=d.danasnja_rocista||[];
-  if(rocista.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>Ročišta danas</span><span class="kc-section-hd-count">'+rocista.length+'</span></div>';
-    rocista.forEach(function(r){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot hitan"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</div><div class="kc-row-sub">'+escHtml(r.sud||'Sud nije navedeno')+(r.vreme?' — '+escHtml(r.vreme):'')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
-
-  var noviDok=(d.novi_dokumenti||[]).slice(0,4);
-  if(noviDok.length){
-    html+='<div class="kc-section"><div class="kc-section-hd"><span>Novi dokumenti (24h)</span><span class="kc-section-hd-count">'+noviDok.length+'</span></div>';
-    noviDok.forEach(function(dok){
-      html+='<div class="kc-row" onclick="_dashGoToPredmet(\''+escHtml(dok.predmet_id)+'\')">';
-      html+='<div class="kc-row-dot info"></div>';
-      html+='<div class="kc-row-main"><div class="kc-row-naziv">'+escHtml(dok.naziv_fajla||'Dokument')+'</div><div class="kc-row-sub">'+escHtml(dok.predmet_naziv||'—')+'</div></div>';
-      html+='<div class="kc-row-arrow">→</div></div>';
-    });
-    html+='</div>';
-  }
-
-  html+='</div>'; // end desna kolona
-  html+='</div>'; // end kc-two-col
-
-  // ── AI ALATI ──────────────────────────────────────────────────
-  html+='<div class="kc-ai-section">';
-  html+='<div class="kc-ai-section-hd">Pravni alati</div>';
-  html+='<div class="kc-ai-grid">';
-  html+='<div class="kc-ai-card" onclick="openAITool(\'q\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Istraživanje zakona</span></div>';
-  html+='<div class="kc-ai-card-desc">Postavi pravno pitanje. Dobij zakon, član i citat iz srpske pravne baze.</div>';
-  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
-  html+='<div class="kc-ai-card" onclick="openAITool(\'a\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Analiza dokumenta</span></div>';
-  html+='<div class="kc-ai-card-desc">Učitaj dokument. Automatski izvlači ključne klauzule, rizike i preporučene korake.</div>';
-  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
-  html+='<div class="kc-ai-card" onclick="openAITool(\'s\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Sudska praksa</span></div>';
-  html+='<div class="kc-ai-card-desc">Pretraži relevantne presude srpskih sudova za tvoj predmet.</div>';
-  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
-  html+='<div class="kc-ai-card pro" onclick="openAITool(\'n\')">';
-  html+='<div class="kc-ai-card-top"><span class="kc-ai-card-icon"></span><span class="kc-ai-card-title">Nacrti i podnesci</span></div>';
-  html+='<div class="kc-ai-card-desc">Automatski generiše tužbu, žalbu, ugovor ili drugi pravni dokument za predmet.</div>';
-  html+='<button class="kc-ai-card-cta">Otvori →</button></div>';
-  html+='</div></div>';
-
-  return html;
-}
-
-/* ── Morning Briefing ───────────────────────────────────────────── */
-var _briefingKolaps = false;
-
-async function loadBriefing(forceRefresh) {
-  if (!currentSession) return;
-  var card = document.getElementById('briefing-card');
-  var content = document.getElementById('briefing-content');
-  if (!card || !content) return;
-  content.innerHTML = '<div class="kc-briefing-skeleton"><div class="kc-sk-line"></div><div class="kc-sk-line short"></div><div class="kc-sk-line"></div></div>';
-  try {
-    var url = BASE_URL + '/api/briefing/daily' + (forceRefresh ? '?force=true' : '');
-    var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    var d = await r.json();
-    _renderBriefing(d, content);
-  } catch (e) {
-    content.innerHTML = '<div class="kc-briefing-err">Brifing nije dostupan. <span onclick="loadBriefing(true)" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
-  }
-}
-
-function _renderBriefing(d, content) {
-  var stat = d.statistike || {};
-  var html = '<div class="kc-briefing-stats">';
-  var hitniN = stat.rokovi_hitni || 0;
-  html += '<div class="kc-brf-stat'+(hitniN>0?' warn':'')+'"><div class="kc-brf-stat-n">'+hitniN+'</div><div class="kc-brf-stat-l">Hitnih rokova</div></div>';
-  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.rocista_danas||0)+'</div><div class="kc-brf-stat-l">Ročišta danas</div></div>';
-  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.aktivni_predmeti||0)+'</div><div class="kc-brf-stat-l">Aktivnih predmeta</div></div>';
-  html += '<div class="kc-brf-stat"><div class="kc-brf-stat-n">'+(stat.rokovi_uskoro||0)+'</div><div class="kc-brf-stat-l">Rokova (7 dana)</div></div>';
-  html += '</div>';
-  var hitni = d.hitni_rokovi || [];
-  if (hitni.length) {
-    html += '<div class="kc-briefing-hitni">';
-    hitni.slice(0, 3).forEach(function(r) {
-      html += '<div class="kc-briefing-hitni-item"><span class="kc-brf-hitni-ico">⚠</span>';
-      html += '<span class="kc-brf-hitni-text"><strong>'+escHtml(r.dogadjaj||r.naziv||'Rok')+'</strong>';
-      if (r.predmet_naziv) html += ' · '+escHtml(r.predmet_naziv);
-      html += '</span><span class="kc-brf-hitni-datum">'+escHtml(r.datum||'')+'</span></div>';
-    });
-    html += '</div>';
-  }
-  if (d.ai_briefing) {
-    html += '<div class="kc-briefing-ai-text">'+escHtml(d.ai_briefing).replace(/\n/g,'<br>')+'</div>';
-  }
-  content.innerHTML = html;
-}
-
-function toggleBriefing() {
-  _briefingKolaps = !_briefingKolaps;
-  var content = document.getElementById('briefing-content');
-  var btn = document.getElementById('briefing-toggle-btn');
-  if (content) content.style.display = _briefingKolaps ? 'none' : '';
-  if (btn) btn.textContent = _briefingKolaps ? '▼' : '▲';
-}
-
-async function posaljiBriefingEmail() {
-  if (!currentSession) return;
-  try {
-    var r = await fetch(BASE_URL + '/api/briefing/send-email', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + currentSession.access_token, 'Content-Type': 'application/json' },
-      body: '{}'
-    });
-    showToast(r.ok ? 'Brifing poslat na email!' : 'Greška pri slanju.', r.ok ? 'ok' : 'err');
-  } catch (e) { showToast('Greška pri slanju.', 'err'); }
-}
+// Program Omega, Sprint 005 (2026-08-06): removed ~440 lines of dead code here
+// (old, shadowed _dashRender implementation + its own exclusive helpers:
+// _ccBrifingHtml, _ccCaricaAiAnaliza, loadBriefing, _renderBriefing,
+// toggleBriefing, posaljiBriefingEmail -- all confirmed to have zero live
+// callers after the newer _dashRender (FAZA 1.8, below) replaced the
+// module-level _dashRender binding without anyone deleting the old body.
+// See docs/omega/SHADOW_WORKFLOW_AUDIT.md.
 
 /* ── FAZA 1 — Komandni centar panel components ─────────────────── */
 function _kcIco(name, cls) {
@@ -1912,40 +1488,11 @@ function _kcPanelRokovi(d) {
   return h;
 }
 
-function _kcPanelPreporuke(d) {
-  var preporuke = d.ai_preporuke || [];
-  var h = '<div class="kc-panel" id="kc-panel-preporuke">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('lightbulb')+'Preporuke</span>';
-  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">Vidi sve →</span></div>';
-  if (!preporuke.length) {
-    h += '<div class="kc-panel-empty">';
-    h += '<span class="kc-panel-empty-ico">'+_kcIco('check-circle')+'</span>';
-    h += '<span class="kc-panel-empty-title">Sve je pod kontrolom</span>';
-    h += '<span class="kc-panel-empty-sub">Nema hitnih preporuka.</span>';
-    h += '</div>';
-  } else {
-    preporuke.slice(0,3).forEach(function(p) {
-      var txt = p.toLowerCase();
-      var icoName, icoCls;
-      if (txt.indexOf('rizik') >= 0 || txt.indexOf('pogor') >= 0) {
-        icoName = 'alert-triangle'; icoCls = 'kc-ico-orange';
-      } else if (txt.indexOf('ročiš') >= 0 || txt.indexOf('rok') >= 0) {
-        icoName = 'calendar-clock'; icoCls = 'kc-ico-teal';
-      } else if (txt.indexOf('dokument') >= 0) {
-        icoName = 'file-text'; icoCls = 'kc-ico-teal';
-      } else {
-        icoName = 'scale'; icoCls = 'kc-ico-teal';
-      }
-      h += '<div class="kc-panel-row kc-panel-preporuka">';
-      h += '<span class="kc-row-ico '+icoCls+'">'+_kcIco(icoName)+'</span>';
-      h += '<div class="kc-panel-row-info">';
-      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv" style="white-space:normal;line-height:1.35">'+escHtml(p)+'</span></div>';
-      h += '</div></div>';
-    });
-  }
-  h += '</div>';
-  return h;
-}
+// Program Omega, Sprint 005 (2026-08-06): _kcPanelPreporuke ("Preporuke"
+// panel, rendered d.ai_preporuke -- a rule-based text rephrasing of the
+// same rokovi/rizik/dokumenti facts) removed here -- its only caller (the
+// panels grid below) now shows the Workspace section instead, sourced and
+// clickable per item, not a text summary. See docs/omega/SHADOW_WORKFLOW_AUDIT.md.
 
 function _kcPanelAktivnosti(d) {
   var acts = [];
@@ -2021,6 +1568,16 @@ _dashRender = function(d, bd, inboxData) {
   html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni analizu</div><div class="kc-qa-btn-desc">Analiziraj</div></div></button>';
   html += '</div>';
 
+  /* ── 2.5. WORKSPACE — Program Omega Sprint 005 (2026-08-06) ──
+     Kanonski operativni pogled (GET /api/workspace, Sprint 003/004's own
+     deterministic Action Engine + case_actions). Postavljen ODMAH posle
+     Quick Actions, PRE svega ostalog — ovo je sada PRVA stvar koju
+     advokat vidi kao odgovor na "šta zahteva pažnju", zatvara OMEGA-012. */
+  html += '<div id="workspace-section" class="kc-panel" style="margin-bottom:.9rem;"><div class="kc-loading">Učitavam Workspace...</div></div>';
+
+  /* ── 2.6. LAW FIRM HEALTH INDEX — hero element, puni se async ── */
+  html += '<div id="hi-widget" style="display:none;margin-bottom:.9rem;"></div>';
+
   /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
   html += '<div class="kc-sphere-wrap">';
   html += '<div class="kc-sphere">';
@@ -2052,11 +1609,15 @@ _dashRender = function(d, bd, inboxData) {
   html += '</div>'; /* kc-sphere */
   html += '</div>'; /* kc-sphere-wrap */
 
-  /* ── 4. PANELI — 4 kolone ──────────────────────────────────── */
-  html += '<div class="kc-panels-grid">';
+  /* ── 4. PANELI — 3 kolone ─────────────────────────────────────
+     Program Omega, Sprint 005: _kcPanelPreporuke ("Preporuke") i njegov
+     poziv uklonjeni — prikazivao je d.ai_preporuke, rule-based tekstualni
+     rekap istih cinjenica (rokovi/rizik/dokumenti) koje Workspace sekcija
+     iznad sada prikazuje sourced, sa prioritetom i klikom na predmet.
+     Vidi docs/omega/SHADOW_WORKFLOW_AUDIT.md. */
+  html += '<div class="kc-panels-grid" style="grid-template-columns:repeat(3,1fr);">';
   html += _kcPanelAktivni(d);
   html += _kcPanelRokovi(d);
-  html += _kcPanelPreporuke(d);
   html += _kcPanelAktivnosti(d);
   html += '</div>';
 
@@ -2067,32 +1628,33 @@ _dashRender = function(d, bd, inboxData) {
   html += '<span style="color:rgba(0,212,255,0.6);font-size:0.72rem;letter-spacing:0.06em;">CIO analizira portfelj kancelarije...</span>';
   html += '</div></div>';
 
-  /* ── 5. INBOX — Prioritetne stavke (kriticno + visok) ─────────── */
+  /* ── 5. INBOX — preostale stavke (naplata/neaktivnost/novi dokumenti) ──
+     Program Omega, Sprint 005 (2026-08-06): rociste/rok stavke (koje su
+     jedine ikad bile 'kriticno'/'visok') uklonjene su iz backend-a
+     (routers/inbox.py — case_actions/Workspace ih sada isključivo
+     pokriva). Ostale, i dalje jedinstvene, vrste (naplata/neaktivan/
+     dokument, uvek 'srednji'/'nizak') su ranije bile RAČUNATE ali NIKAD
+     prikazane ovde (stari filter je tražio SAMO kriticno/visok) — ispravljeno
+     da se stvarno vide, ne samo tiho odbace. */
   if (inboxData) {
-    var _hitne = (inboxData.stavke || []).filter(function(i) {
-      return i.prioritet === 'kriticno' || i.prioritet === 'visok';
-    }).slice(0, 6);
-    if (_hitne.length) {
-      var _tipIco = {rociste:'',rok:'',dokument:'',naplata:'',neaktivan:''};
-      var _kriticnoN = inboxData.kriticno || 0;
-      var _visokN    = inboxData.visok    || 0;
+    var _ostalo = (inboxData.stavke || []).slice(0, 6);
+    if (_ostalo.length) {
+      var _tipLabel = {dokument:'Novi dokument', naplata:'Naplata', neaktivan:'Neaktivan predmet'};
+      var _tipColor = {dokument:'#4aa8ff', naplata:'#94a3b8', neaktivan:'#94a3b8'};
       html += '<div class="kc-inbox-section">';
       html += '<div class="kc-inbox-hd">';
-      html += '<span class="kc-panel-title">'+_kcIco('inbox')+'Inbox — Prioritetne stavke</span>';
+      html += '<span class="kc-panel-title">'+_kcIco('inbox')+'Ostalo za pregled</span>';
       html += '<div style="display:flex;gap:6px;align-items:center;">';
-      if (_kriticnoN) html += '<span class="kc-inbox-tag kc-inbox-tag-red">'+_kriticnoN+' kritično</span>';
-      if (_visokN)    html += '<span class="kc-inbox-tag kc-inbox-tag-orange">'+_visokN+' visok</span>';
+      html += '<span class="kc-inbox-tag" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);">'+inboxData.ukupno+'</span>';
       html += '</div></div>';
       html += '<div class="kc-inbox-rows">';
-      _hitne.forEach(function(item) {
-        var ico    = _tipIco[item.tip] || '•';
-        var dotCls = item.prioritet === 'kriticno' ? 'kc-inbox-dot-red' : 'kc-inbox-dot-orange';
+      _ostalo.forEach(function(item) {
+        var color = _tipColor[item.tip] || '#94a3b8';
         html += '<div class="kc-inbox-row" onclick="_dashGoToPredmet(\''+escHtml(item.predmet_id)+'\')">';
-        html += '<div class="kc-inbox-dot '+dotCls+'"></div>';
-        html += '<div class="kc-inbox-ico">'+ico+'</div>';
+        html += '<div class="kc-inbox-dot" style="background:'+color+';"></div>';
         html += '<div class="kc-inbox-info">';
         html += '<div class="kc-inbox-naslov">'+escHtml(item.naslov)+'</div>';
-        html += '<div class="kc-inbox-sub">'+escHtml(item.predmet_naziv||'—')+'</div>';
+        html += '<div class="kc-inbox-sub">'+escHtml(_tipLabel[item.tip]||item.tip)+' · '+escHtml(item.predmet_naziv||'—')+'</div>';
         html += '</div>';
         html += '<div class="kc-inbox-datum">'+escHtml((item.datum||'').slice(5))+'</div>';
         html += '</div>';
@@ -2103,6 +1665,88 @@ _dashRender = function(d, bd, inboxData) {
 
   return html;
 };
+
+// ─── Workspace — Program Omega, Sprint 005 (2026-08-06) ─────────────────────
+// Kanonski operativni pogled: GET /api/workspace (routers/workspace.py,
+// Sprint 004), postojeći nad case_actions (Sprint 003's deterministicki
+// Action Engine), zadaci (status='ceka'), i intake_jobs (status=
+// 'awaiting_review'). Nista se ovde ne racuna iznova -- ovo je cisto
+// prikazivanje vec-postojeceg, vec-testiranog backend odgovora.
+
+var _WS_PRIO_COLOR = {critical:'#ef4444', high:'#fb923c', medium:'#4aa8ff', low:'#94a3b8', informational:'#64748b'};
+var _WS_BUCKETS = [
+  {key:'danas',        label:'Danas'},
+  {key:'kriticno',      label:'Kritično'},
+  {key:'predstojece',   label:'Predstojeće'},
+  {key:'za_pregled',    label:'Za pregled'},
+  {key:'na_cekanju',    label:'Na čekanju'}
+];
+
+async function wsLoad(hdr) {
+  var el = document.getElementById('workspace-section');
+  if (!el) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/workspace', {headers: hdr || {'Authorization':'Bearer '+currentSession.access_token}});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    var d = await r.json();
+    el.innerHTML = _wsRender(d);
+    if (window.lucide) lucide.createIcons();
+  } catch(e) {
+    el.innerHTML = '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('layout-grid')+'Workspace</span></div>'
+      + '<div class="kc-panel-empty">Workspace trenutno nije dostupan. <span onclick="wsLoad()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></div>';
+  }
+}
+
+function _wsRender(d) {
+  var h = '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('layout-grid')+'Workspace — šta zahteva pažnju</span></div>';
+  var ukupno = d.ukupno_aktivnih || 0;
+
+  if (!ukupno) {
+    h += '<div class="kc-panel-empty">';
+    h += '<span class="kc-panel-empty-ico">'+_kcIco('check-circle')+'</span>';
+    h += '<span class="kc-panel-empty-title">Sve je pod kontrolom</span>';
+    h += '<span class="kc-panel-empty-sub">Nema otvorenih akcija koje zahtevaju pažnju.</span>';
+    h += '</div>';
+  } else {
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.6rem;">';
+    _WS_BUCKETS.forEach(function(b) {
+      var n = (d[b.key]||[]).length;
+      if (!n) return;
+      h += '<span class="kc-inbox-tag" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.65);">'+n+' · '+b.label+'</span>';
+    });
+    h += '</div>';
+
+    h += '<div class="kc-inbox-rows">';
+    var shown = 0;
+    _WS_BUCKETS.forEach(function(b) {
+      (d[b.key]||[]).forEach(function(item) {
+        if (shown >= 8) return;
+        shown++;
+        var color = _WS_PRIO_COLOR[item.prioritet] || '#94a3b8';
+        h += '<div class="kc-inbox-row" onclick="_dashGoToPredmet(\''+escHtml(item.predmet_id||'')+'\')">';
+        h += '<div class="kc-inbox-dot" style="background:'+color+';"></div>';
+        h += '<div class="kc-inbox-info">';
+        h += '<div class="kc-inbox-naslov">'+escHtml(item.naslov||'—')+'</div>';
+        h += '<div class="kc-inbox-sub">'+escHtml(item.predmet_naziv||'—')+' · '+b.label+'</div>';
+        h += '</div>';
+        if (item.rok) h += '<div class="kc-inbox-datum">'+escHtml(String(item.rok).slice(5))+'</div>';
+        h += '</div>';
+      });
+    });
+    h += '</div>';
+
+    var preostalo = ukupno - shown;
+    if (preostalo > 0) {
+      h += '<div class="kc-panel-expand" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Još '+preostalo+' '+(preostalo===1?'stavka':'stavki')+' ▾</div>';
+    }
+
+    var zavrseno = (d.zavrseno_nedavno||[]).length;
+    if (zavrseno) {
+      h += '<div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-top:.5rem;padding-top:.5rem;border-top:1px solid rgba(255,255,255,.06);">✓ '+zavrseno+' završeno u poslednja 3 dana</div>';
+    }
+  }
+  return h;
+}
 
 /* Quick Actions za VINDEX CORE sfera (overlay preserved) */
 function _vx2_stub_start() { var html = ''; html += '<div class="vx2-core-wrap">';
@@ -10598,10 +10242,51 @@ function pred_select(id) {
   // Auto-load Matter Intelligence bar (u Pregledu)
   setTimeout(function(){ matter_intel_load(); }, 400);
   setTimeout(function(){ _stagingLoad(id); }, 400);
+  setTimeout(function(){ _predActionsLoad(id); }, 400);
   var terminal = document.querySelector('.terminal');
   if (terminal && window.innerWidth > 900) terminal.style.overflow = 'visible';
   // Prikaži FAB za brze akcije
   pred_fab_show();
+}
+
+// ─── Otvorene akcije (case_actions) — Program Omega, Final Sprint 005 ───────
+// Zatvara Case→Action navigacioni slepi kraj: case_actions (Sprint 003/004's
+// own deterministic, lifecycle-managed action list, isti izvor kao Workspace
+// na pocetnoj strani) do sada NIJE bio vidljiv unutar samog predmeta -- samo
+// na home Workspace-u. Ne racuna nista novo (GET /api/case-actions/predmeti/
+// {id}, vec postojeci, vec testiran endpoint iz Sprinta 003).
+async function _predActionsLoad(predmetId) {
+  var el = document.getElementById('pred-actions-section');
+  if (!el || !currentSession) return;
+  try {
+    var r = await fetch(BASE_URL + '/api/case-actions/predmeti/' + encodeURIComponent(predmetId), {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) { el.style.display = 'none'; return; }
+    var d = await r.json();
+    var akcije = d.akcije || [];
+    if (!akcije.length) { el.style.display = 'none'; return; }
+    var h = '<div class="kc-panel">';
+    h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('list-checks')+'Otvorene akcije ('+akcije.length+')</span></div>';
+    h += '<div class="kc-inbox-rows">';
+    akcije.slice(0, 6).forEach(function(a) {
+      var color = _WS_PRIO_COLOR[a.prioritet] || '#94a3b8';
+      h += '<div class="kc-inbox-row" style="cursor:default;">';
+      h += '<div class="kc-inbox-dot" style="background:'+color+';"></div>';
+      h += '<div class="kc-inbox-info">';
+      h += '<div class="kc-inbox-naslov">'+escHtml(a.razlog||a.tip||'—')+'</div>';
+      h += '<div class="kc-inbox-sub">'+escHtml(a.tip||'')+'</div>';
+      h += '</div>';
+      if (a.rok) h += '<div class="kc-inbox-datum">'+escHtml(String(a.rok).slice(5))+'</div>';
+      h += '</div>';
+    });
+    h += '</div></div>';
+    el.innerHTML = h;
+    el.style.display = 'block';
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    el.style.display = 'none';
+  }
 }
 
 function pred_updateIndicator() {
@@ -13689,43 +13374,18 @@ async function billing_csvDownload() {
 
 /* ── Faza 1: Kalendar + Ročišta JS ──────────────────────────────────────── */
 
-function kalendarLoad() {
-  var bodyEl   = document.getElementById('kal-body');
-  var loadEl   = document.getElementById('kal-loading');
-  var praznoEl = document.getElementById('kal-prazno');
-  if (!bodyEl) return;
-  bodyEl.innerHTML = '';
-  if (praznoEl) praznoEl.style.display = 'none';
-  if (loadEl) loadEl.style.display = '';
-
-  // Učitaj predmete za formu (koristimo globalni _predmeti ako postoji)
-  if (typeof _predmeti !== 'undefined' && _predmeti.length) {
-    _kalendarPredmeti = _predmeti;
-  } else {
-    fetch(BASE_URL + '/api/predmeti', { headers: { 'Authorization': 'Bearer ' + currentSession.access_token } })
-      .then(function(r) { return r.json(); })
-      .then(function(d) { _kalendarPredmeti = d.predmeti || []; })
-      .catch(function() {});
-  }
-
-  fetch(BASE_URL + '/api/kalendar/pregled', {
-    headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (loadEl) loadEl.style.display = 'none';
-    var eventi = data.dogadjaji || [];
-    if (!eventi.length) {
-      if (praznoEl) praznoEl.style.display = '';
-      return;
-    }
-    bodyEl.innerHTML = _kalendarRender(eventi);
-  })
-  .catch(function() {
-    if (loadEl) loadEl.style.display = 'none';
-    if (bodyEl) bodyEl.innerHTML = '<div class="kal-greska">Greška pri učitavanju kalendara.</div>';
-  });
-}
+// Program Omega, Sprint 005 (2026-08-06): the original kalendarLoad()
+// implementation removed here — shadowed (same "declared, then later
+// reassigned via plain `kalendarLoad = function(){}`" pattern as the old
+// _dashRender) by the live version further below, zero callers reach it.
+// _kalendarRender/_kalRenderActive/_kalRenderGrid etc. remain live (called
+// by the current implementation). See docs/omega/SHADOW_WORKFLOW_AUDIT.md.
+// NOTE (found, not fixed here — out of this sprint's Workspace-focused
+// scope): the live kalendarLoad() dropped the old version's own fallback
+// fetch('/api/predmeti') when the global _predmeti isn't populated yet,
+// which fed _kalendarPredmeti (used by the ročište-creation form's own
+// predmet dropdown, line ~13670-equivalent) — a real but narrow gap,
+// named for a future pass.
 
 var _kalendarPredmeti = [];
 
