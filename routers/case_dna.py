@@ -106,7 +106,8 @@ Vrati SAMO validan JSON (bez markdown):
   "najslabija_tacka": {
     "rizik": "Naziv rizika — sta je najslabije u predmetu (konkretno)",
     "kriticnost": 89,
-    "preporuka": "Konkretna akcija koja bi popravila ovu slabost"
+    "preporuka": "Konkretna akcija koja bi popravila ovu slabost",
+    "lokacija": "DOK-XX str.Y ili opis, ISTO pravilo kao kontradikcije.lokacija_1 ispod -- prazan string ako slabost nije vezana za jedan konkretan dokument"
   },
   "strategija": {
     "primarni_cilj": "Konkretno sta se pokusava postici (iznos, pravo, status...)",
@@ -144,6 +145,11 @@ STROGA PRAVILA:
   strana eksplicitno vidljiva u tekstu dokumenta. Ako strana nije jasna,
   navedi samo "DOK-XX" bez broja strane. Ako ni dokument nije jasan, ostavi
   polje prazno — NIKAD ne nagadjaj ili izmisljaj lokaciju.
+- najslabija_tacka.lokacija: ISTO pravilo kao kontradikcije.lokacija_1 iznad
+  (Program Tau, Master Sprint 004) — ako je slabost vezana za konkretan
+  dokument, navedi "DOK-XX str.Y" ili "DOK-XX"; ako je slabost holisticka
+  (npr. nedostatak svedoka, procesni rizik bez jednog dokumenta), ostavi
+  polje prazno. Prazno polje nije greska — izmisljena DOK-XX referenca jeste.
 - Srpski jezik. Ekavica obligatna — nikad ijekavica.
 - genome_kompletnost = visoka ako imas 3+ dokumenata sa jasnim cinjenicama."""
 

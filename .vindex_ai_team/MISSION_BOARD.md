@@ -1714,3 +1714,49 @@ no-UI so no live risk). `TAU-002` and `TAU-003` (for the flagship call site) clo
 
 **6 required deliverables**, all in `docs/tau/`: `AI_DECISION_SURFACE_MAP.md`, `AI_BOUNDARY_POLICY_V2.md`,
 `GPT_ADVISORY_REGISTRY.md`, `DECISION_OWNERSHIP_MATRIX.md`, `AI_CERTIFICATION_REPORT.md`, `SPRINT_003_REPORT.md`.
+
+## Program Tau, Master Sprint 004 (2026-08-06) — Canonical Legal Reasoning & GPT-5.5 Intelligence Layer
+
+**Mission**: first sprint to map the WHOLE platform's GPT reasoning pipeline (Tau 002/003 scoped to 4
+files). 7 named roles (Architect, Forensic Auditor, Legal Reasoning Engineer, GPT Integration Engineer,
+Performance Engineer, Test Engineer, Documentation Engineer), run via 5 parallel forensic forks.
+
+**Headline finding**: only 2 files (`case_intelligence.py`, `morning_briefing.py`) call the canonical
+`build_case_context()`. 17+ more case-linked files each run their own independent bespoke context fetch.
+The sharpest instance: `court_predictor.py`'s 7 live, paid endpoints all accept `predmet_id`, but use it
+exclusively for audit logging — never to fetch the case's actual Genome/documents/evidence. A lawyer's
+court-outcome prediction for a real, tracked case currently never consults that case's current state.
+
+**Legal Reasoning Verification (Phase 4)**: 3 of 5 GPT analysis surfaces have a real, verified
+Evidence→Reasoning→Conclusion chain. The most serious gap: Genome's `najslabija_tacka`/
+`snaga_predmeta_procent` had ZERO grounding requirement despite being treated as canonical platform truth
+downstream — the same trust level as the correctly-grounded `kontradikcije` field, with nothing
+distinguishing them.
+
+**Fixed this sprint**: `najslabija_tacka` now carries the same DOK-XX grounding requirement `kontradikcije`
+already had (`shared/genome_validator.py::_validate_najslabija_tacka_lokacija`, mirrors the existing
+`_validate_kontradikcije_lokacije` pattern field-for-field, wired into `verify_genome()`). `deadlines` now
+distinguishes past from upcoming hearings (`proslo` flag), closing a context-quality gap Phase 2 found.
+
+**Extreme scale (Phase 5)**: 300 deadlines, 50 contradictions, 20-year-old cases — all handled correctly,
+zero bugs found (Tau 002/003's foundations hold). **Adversarial (Phase 6)**: the established dense
+prompt-injection payload is still correctly blocked (no regression); a subtler single-phrase variant scored
+below the guard's own block threshold during exploratory testing — named as debt, not hastily patched,
+since tuning a security threshold needs its own false-positive test matrix. **Cost (Phase 7)**: highest
+single operation is `strategija.py`'s 8-call orchestrator (~$0.20/run); Genome extraction doesn't scale
+with document count (already capped at 25 docs); ≈$138/month estimated for a 1000-case firm under a stated
+assumption. **GPT-5.5 (Phase 8)**: top recommendation is prompt caching — near-zero engineering cost, no
+architecture change, ~90% cheaper on the static system-prompt tokens nearly every one of the ~130 call
+sites already uses.
+
+**16 new tests** (4 Genome grounding, 1 deadline labeling, 4 extreme-scale, 7 adversarial). Full suite:
+**2,854 passed, 1 skipped, 0 failed** (was 2,838 at end of Tau Master Sprint 003) — zero regressions.
+
+**6 new debt items, none rushed** (`TAU-011` `court_predictor.py`'s context gap, Critical — the clearest
+candidate for the next Sigma-005-scale sprint; `TAU-012` the 17+-file migration backlog; `TAU-013` 4
+context-quality items with data that exists but isn't wired into the canonical contract; `TAU-014`
+`court_predictor.py`'s ungrounded win-probability; `TAU-015` the prompt-guard threshold gap; `TAU-016` 3
+smaller adversarial gaps).
+
+**6 required deliverables**, all in `docs/tau/`: `TAU_004_REPORT.md`, `GPT_REASONING_CERTIFICATION.md`,
+`GPT_CONTEXT_MAP.md`, `GPT_COST_ANALYSIS.md`, `LEGAL_REASONING_VERIFICATION.md`, `TAU_005_HANDOVER.md`.

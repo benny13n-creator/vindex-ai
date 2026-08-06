@@ -78,6 +78,44 @@ def test_kontradikcije_ignores_non_dok_locations():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# najslabija_tacka.lokacija — Program Tau, Master Sprint 004 (2026-08-06):
+# this field had ZERO grounding requirement before this sprint, unlike
+# kontradikcije which already had this exact check. Same DOK-XX pattern,
+# same hard-flag shape, reused not reinvented.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_najslabija_tacka_flags_nonexistent_dok_reference():
+    genome = {"najslabija_tacka": {"rizik": "Nema dokaza o uručenju", "kriticnost": 80, "lokacija": "DOK-09 str.3"}}
+    docs = _docs(("a.pdf", 1))
+    result = verify_genome(genome, docs)
+    assert result["odluka"] == "require_review"
+    assert any("DOK-09" in f["razlog"] for f in result["hard_flags"])
+
+
+def test_najslabija_tacka_passes_when_dok_ref_exists():
+    genome = {"najslabija_tacka": {"rizik": "Nema dokaza o uručenju", "kriticnost": 80, "lokacija": "DOK-01"}}
+    docs = _docs(("a.pdf", 1))
+    result = verify_genome(genome, docs)
+    assert result["hard_flags"] == []
+
+
+def test_najslabija_tacka_empty_lokacija_is_not_an_error():
+    """A holistic weakness (no single grounding document) is legitimate --
+    only an invented DOK-XX reference is a bug, not an empty field."""
+    genome = {"najslabija_tacka": {"rizik": "Nedostatak svedoka", "kriticnost": 60, "lokacija": ""}}
+    docs = _docs(("a.pdf", 1))
+    result = verify_genome(genome, docs)
+    assert result["hard_flags"] == []
+
+
+def test_najslabija_tacka_missing_entirely_does_not_crash():
+    genome = {"kontradikcije": []}
+    docs = _docs(("a.pdf", 1))
+    result = verify_genome(genome, docs)
+    assert result["hard_flags"] == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # relevantni_zakoni — soft check, reuse analiza/validator.py
 # ═══════════════════════════════════════════════════════════════════════════
 

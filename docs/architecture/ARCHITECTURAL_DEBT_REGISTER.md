@@ -2435,3 +2435,116 @@ the fix pattern is already established by `_generiši_briefing`'s own Tau 003 mi
 (`docs/tau/AI_DECISION_SURFACE_MAP.md`'s own live-caller re-verification), so there is no live user-facing
 risk today; tracked so the inconsistency doesn't get inherited by a future feature that wires this endpoint
 into a real UI without first fixing it.
+
+## Program Tau, Master Sprint 004 (2026-08-06) — Canonical Legal Reasoning & GPT-5.5 Intelligence Layer
+
+Full narrative: `docs/tau/TAU_004_REPORT.md` and its 5 sibling deliverables in `docs/tau/`. 6 new debt
+items, none rushed — this sprint's own scope (the whole platform's GPT reasoning pipeline, not 4 files)
+surfaced findings far larger than one sprint could safely fix; each below is named precisely instead.
+
+## TAU-011 — `court_predictor.py`'s `predmet_id` is accepted but never used to fetch case context (Critical)
+
+**Found by**: Phase 1 forensic pipeline map, Program Tau Master Sprint 004 — the sprint's own single most
+surprising finding.
+
+**What**: all 7 endpoints (`prediktuj_ishod`, `battle_report`, `hearing_prep_brief`, `argument_reputation`,
+`judge_profile`, `opponent_intel`, `confidence_check`) accept `payload.predmet_id`, but it is used
+exclusively for audit/provenance plumbing (`_ai_case_ctx`, `decision_log` inserts) — never to query
+`predmeti`/`case_dna`/`predmet_dokazi`/`case_actions`. The actual reasoning input is whatever free text the
+caller supplies fresh in the request body every call. A lawyer passing a real, tracked case ID gets a
+prediction that never reflects that case's current Genome, documents, evidence, or open actions — if the
+case has since changed, these endpoints have no way to know.
+
+**Severity**: Critical — this is a live, paid, heavily-used feature family producing legal predictions that
+silently ignore the platform's own tracked truth about the case they claim to be about. Not fixed this
+sprint: wiring `build_case_context()` (or a scoped subset) into 7 endpoints' existing prompt-construction
+logic, without regressing any of them, is a Sigma-005-scale project requiring its own dedicated sprint with
+full per-endpoint testing, not a Phase 9 patch.
+
+## TAU-012 — 17+ more case-linked files never migrated onto `build_case_context()` (High)
+
+**Found by**: Phase 1 forensic pipeline map, Program Tau Master Sprint 004.
+
+**What**: `drafting.py`, `matter_intel.py`, `hearing_cc.py`, `evidence_graph.py`, `multi_agent.py`,
+`digital_twin.py`, `decision_replay.py`, `strategy_simulator.py`, `health_index.py`, `outcome_intel.py`,
+`precedenti.py`, `zastarelost.py`, `evidence.py`, `doc_templates.py`, `zadaci.py` each has its own
+independent, bespoke `predmet_id`-keyed context fetch — confirmed via grep, none imports
+`shared.case_context`. The sharpest instance: `hearing_cc.py::_load_all_context` is a genuinely rich
+7-table bespoke builder — a real 3rd independent "gather everything about a case" implementation
+(`case_commander.py`'s own pre-Tau-002 builder is the 2nd), never reconciled with the canonical one.
+
+**Severity**: High — this is the same fragmentation Tau 002 built `build_case_context()` to end, just not
+yet finished. A full migration of 17+ files is explicitly out of "fix everything safely fixable without
+changing architecture" — each file needs its own careful, tested migration (see Sigma 005's Case Commander
+treatment as the template), not a batch change.
+
+## TAU-013 — Case Context contract missing 4 checklist items with data that already exists elsewhere (Medium)
+
+**Found by**: Phase 2 context-quality audit, Program Tau Master Sprint 004, against the mission's own
+15-item checklist.
+
+**What**: OCR metadata (`intake_documents.ocr_confidence`, plus an unused real FK path via
+`predmet_dokumenti.source_intake_job_id`), Client history (`client_twin_profili`), Previous strategies
+(`case_patterns`/`lessons_learned`/`decision_log`) all have real, already-collected data that
+`case_intelligence.py` reads through its own separate extra queries — none is part of the canonical
+13-field `build_case_context()` contract itself. Separately: `deadlines` reads only `rocista`;
+`case_commander.py`'s own unmigrated builder still separately reads a 2nd table, `rokovi`, for the same
+"date the lawyer must act by" concept — never reconciled. (Judge history's own gap — `firm_memory.py`,
+dead — is the SAME pre-existing `ALPHA-005`, not counted as new here.)
+
+**Severity**: Medium — expanding the canonical contract's own schema is a real, valuable, and safe
+ADDITIVE change (new dict keys, no breaking change for existing consumers) — but deciding exactly how
+`case_intelligence.py`'s own redundant fetches should fold into the contract, and resolving `rokovi` vs
+`rocista`, deserves its own careful pass, not a rushed schema change appended to an already-large sprint.
+
+## TAU-014 — `court_predictor.py`'s win-probability cites no specific precedent (Medium)
+
+**Found by**: Phase 4 Legal Reasoning Verification, Program Tau Master Sprint 004
+(`docs/tau/LEGAL_REASONING_VERIFICATION.md`).
+
+**What**: `procenat_min`/`procenat_max`'s own prompt allows GPT to lean on retrieved sudska praksa, but the
+required JSON schema has no field for which specific retrieved precedent(s) informed the number, and the
+retrieved `decision_number` is never linked back to the returned percentage. A lawyer reading "55-70%" has
+no way to know whether any real precedent drove that number. Recommended fix (not implemented): add a
+`koriscena_praksa: [str]` field, reference-checked against the retrieved set the same way
+`validate_dok_reference` already checks a `DOK-XX` claim — same shape, new field, no new mechanism.
+
+**Severity**: Medium — deliberately bundled with `TAU-011` (both live in `court_predictor.py`, both need
+their own dedicated sprint) rather than patched in isolation mid-diagnosis of the bigger context-gap issue.
+Also cross-references the pre-existing `PROGBETA-001` 5-way win-probability fragmentation
+(`docs/architecture/DECISION_REGISTRY.md`) — even consolidating that fragmentation to one generator
+wouldn't close this specific gap unless that generator also starts citing its own sources.
+
+## TAU-015 — SEC-003 prompt guard's threshold may pass a subtler injection attempt (Medium-High)
+
+**Found by**: Phase 6 adversarial testing, Program Tau Master Sprint 004 (`tests/test_tau004_adversarial.py`).
+
+**What**: `shared/ai_client.py`'s prompt guard uses a cumulative risk-score threshold (`BLOCK_THRESHOLD =
+0.90`) that requires a dense, multi-pattern injection payload to trigger blocking — confirmed still
+correctly blocking the existing test suite's own proven "loud" payload (no regression), but a shorter,
+single-phrase injection attempt scored below threshold during exploratory testing and would reach the real
+API unblocked.
+
+**Severity**: Medium-High — not fixed this sprint. Tuning a security-relevant threshold (lowering it, or
+adding a new pattern) without extensive false-positive testing against real Serbian legal text (which can
+legitimately contain phrases like "ignoriši prethodnu presudu") risks over-blocking legitimate use — this
+needs its own dedicated security-focused pass with a proper test matrix, not a same-sprint reaction to one
+exploratory finding.
+
+## TAU-016 — 3 smaller adversarial gaps found, none exploited, all named (Low-Medium)
+
+**Found by**: Phase 6 adversarial testing, Program Tau Master Sprint 004.
+
+**What**: (1) two near-identical `predmet_dokazi` rows are silently double-counted by
+`shared/case_context.py::_group_dokazi` — no duplicate-detection exists. (2) `timeline`
+(`predmet_hronologija`) has zero chronological-plausibility validation — an event dated before its own
+logical predecessor passes through silently. (3) Statute/article citation grounding is sharply
+inconsistent: `services/legal_reasoning_engine.py` structurally cannot cite an ungrounded statute (SOURCE-n
+built only from real RAG retrieval), but `strategija.py`/`copilot.py`/`case_commander.py` have zero such
+mechanism, and `shared/genome_validator.py::_validate_clan_brojevi` is confirmed a soft plausibility
+range-check only (catches an impossible article number for a given law type), not a real existence check.
+
+**Severity**: Low-Medium each — none represents an active exploit today (all are honest gaps, not
+regressions), grouped here rather than as 3 separate entries since none is independently urgent enough to
+warrant its own dedicated sprint; worth revisiting together if a future sprint targets evidence-integrity
+or citation-grounding specifically.

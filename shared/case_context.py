@@ -245,6 +245,28 @@ def _excerpt(tekst: str, budget: int = DOC_EXCERPT_BUDGET_PER_DOC) -> tuple[str,
     return _uzorkuj_dokument(tekst or "", budget=budget)
 
 
+def _label_past_vs_upcoming(rocista: list[dict]) -> list[dict]:
+    """Program Tau, Master Sprint 004 (2026-08-06): `rocista` is fetched with
+    no date filter -- both past and future hearings are in the same list,
+    and Phase 2's own context-quality audit found nothing distinguishes them
+    (item #15, 'Previous hearings' -- present but undifferentiated). Adds a
+    `proslo` (bool) field per row, computed from `datum` vs. today -- so a
+    prompt built from this field can tell GPT "this hearing already
+    happened" vs "this is scheduled," without changing which table is read
+    or adding a second deadline source (only `rocista.status` existed as an
+    outcome signal before; still the only one -- this labels timing, not
+    outcome, which this platform doesn't track anywhere yet)."""
+    from datetime import date as _date
+    danas = _date.today().isoformat()
+    out = []
+    for r in rocista or []:
+        row = dict(r)
+        datum = str(r.get("datum") or "")[:10]
+        row["proslo"] = bool(datum) and datum < danas
+        out.append(row)
+    return out
+
+
 def _group_dokazi(dokazi: list[dict]) -> dict:
     grupe: dict[str, dict] = {}
     for d in dokazi or []:
@@ -392,7 +414,7 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
             refresh="real-time (pure function over already-fetched data)",
         ),
         "deadlines": context_field(
-            raw["rocista"], source="rocista", owner="rocista table",
+            _label_past_vs_upcoming(raw["rocista"]), source="rocista", owner="rocista table",
             refresh="real-time read-through (canonical deadline source since Sigma Sprint 005)",
         ),
         "active_actions": context_field(

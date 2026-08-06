@@ -203,6 +203,23 @@ async def test_contradictions_and_missing_evidence_are_disjoint():
 
 
 @pytest.mark.anyio
+async def test_deadlines_distinguish_past_from_upcoming_program_tau_004():
+    """Program Tau, Master Sprint 004 (2026-08-06): rocista has no date filter
+    -- past and future hearings were previously undifferentiated in the
+    deadlines field (Phase 2's own context-quality finding, item #15).
+    Proves the new `proslo` label is computed correctly per row."""
+    from shared.case_context import build_case_context
+    supa = _FakeSupa(_base_tables(rocista=[
+        {"id": "r1", "sud": "Osnovni sud", "datum": "2020-01-01", "status": "odrzano"},
+        {"id": "r2", "sud": "Osnovni sud", "datum": "2099-01-01", "status": "zakazano"},
+    ]))
+    result = await build_case_context("p1", "u1", supa)
+    rows = {r["id"]: r for r in result["deadlines"]["value"]}
+    assert rows["r1"]["proslo"] is True
+    assert rows["r2"]["proslo"] is False
+
+
+@pytest.mark.anyio
 async def test_readiness_reads_case_actions_critical_priority():
     from shared.case_context import build_case_context
     supa = _FakeSupa(_base_tables(case_actions=[

@@ -123,6 +123,36 @@ def _validate_kontradikcije_lokacije(genome: dict, docs: list[dict]) -> list[dic
     return flags
 
 
+def _validate_najslabija_tacka_lokacija(genome: dict, docs: list[dict]) -> list[dict]:
+    """Hard-flag: najslabija_tacka.lokacija's DOK-XX reference must match a
+    real document. Program Tau, Master Sprint 004 (2026-08-06) -- Legal
+    Reasoning Verification found najslabija_tacka/snaga_predmeta_procent were
+    the only 2 major Genome fields with zero grounding requirement at all
+    (unlike kontradikcije, which already had this exact check). Reuses
+    _validate_kontradikcije_lokacije's own pattern verbatim (same DOK_PATTERN,
+    same known-document-number set, same hard-flag shape) rather than
+    inventing a new mechanism, per this mission's own "no parallel systems"
+    rule. An EMPTY lokacija is not an error -- najslabija_tacka is often a
+    legitimately holistic judgment with no single grounding document; only a
+    reference to a DOK-XX number that doesn't exist is flagged."""
+    poznati_brojevi = {
+        int(d["redni_broj"]) for d in docs
+        if str(d.get("redni_broj") or "").isdigit()
+    }
+    vrednost = (genome.get("najslabija_tacka") or {}).get("lokacija") or ""
+    m = _DOK_PATTERN.search(vrednost)
+    if not m:
+        return []
+    broj = int(m.group(1))
+    if broj not in poznati_brojevi:
+        return [{
+            "polje": "najslabija_tacka.lokacija",
+            "razlog": f"'{vrednost}' referencira DOK-{broj:02d} koji ne postoji medju dokumentima predmeta",
+            "stavka": vrednost,
+        }]
+    return []
+
+
 def _validate_relevantni_zakoni(genome: dict) -> list[dict]:
     """Soft-flag: reuse analiza/validator.py validate_law_refs preko adaptera —
     Genome ima list[str], validate_law_refs ocekuje findings sa law_ref kljucem."""
@@ -379,6 +409,7 @@ def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:
     for fn, bucket in (
         (lambda: _validate_dokazi_rang(genome, docs), hard),
         (lambda: _validate_kontradikcije_lokacije(genome, docs), hard),
+        (lambda: _validate_najslabija_tacka_lokacija(genome, docs), hard),
         (lambda: _validate_relevantni_zakoni(genome), soft),
     ):
         try:

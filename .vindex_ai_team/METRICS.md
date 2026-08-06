@@ -1473,3 +1473,34 @@ preservation, via unconditional canonical computation where they don't), no GPT 
 truth (proven adversarially, not asserted), no duplicated decision logic remaining for the fields this
 sprint scoped (delivered — every migrated field now reuses an existing canonical module, zero new detection
 algorithms), zero regressions (delivered). Full detail: `docs/tau/SPRINT_003_REPORT.md`.
+
+## Program Tau, Master Sprint 004 (2026-08-06) — Canonical Legal Reasoning & GPT-5.5 Intelligence Layer
+
+**Methodology note**: 5 parallel forensic forks covered the mission's own 7 named roles across all 10
+phases in one pass, rather than one fork per phase — Legal Reasoning Verification and Cost Analysis forks
+wrote their own deliverable docs directly (self-contained audits), verified by the main thread re-running
+their test files before trusting the reported pass counts, not just reading the reports.
+
+| Metric | Value |
+|---|---|
+| Files calling the canonical `build_case_context()` | 2 of ~20 case-linked files with GPT calls (`case_intelligence.py`, `morning_briefing.py`) |
+| Case-linked files with independent bespoke context (not migrated) | 17+, confirmed via grep, none imports `shared.case_context` |
+| Context-quality checklist items (15 total) | 8 fully covered, 2 narrow slice, 4 exist elsewhere unwired, 1 doesn't exist anywhere |
+| Legal Reasoning Verification surfaces with a real evidence chain | 3 of 5 (`legal_reasoning_engine.py`, Genome `kontradikcije`, `evidence_graph.py` `OSPORAVA` edges) |
+| Legal Reasoning Verification surfaces with NO chain | 2 of 5 (Genome `najslabija_tacka`/`snaga_predmeta_procent` — 1 of 2 fixed this sprint; `court_predictor.py` win-probability — named, not fixed) |
+| Extreme-scale scenarios tested (Phase 5) | 3 (300 deadlines, 50 contradictions, 20-year-old case) — 0 bugs found, all pass |
+| Adversarial attack categories tested (Phase 6) | 4 (duplicate evidence, contradictory chronology, fabricated citations, malicious OCR) — established injection pattern still blocked; 1 real gap found (subtler injection scores below threshold), named not fixed |
+| Highest single-operation GPT cost found | ~$0.20/run (`strategija.py`'s 8-call `kompletna-analiza` orchestrator) |
+| Estimated 1000-case-firm monthly GPT spend | ≈$138/month (stated assumption, no real call-frequency telemetry exists to replace it) |
+| Top recommended unused GPT-5.5-era capability | Prompt caching — near-zero engineering cost, no architecture change, ~90% cheaper on static system-prompt tokens |
+| New dedicated tests | 16 (4 Genome grounding, 1 deadline past/upcoming labeling, 4 extreme-scale, 7 adversarial) |
+| Full suite | **2,854 passed, 1 skipped, 0 failed** (was 2,838 at end of Tau Master Sprint 003) — zero regressions confirmed directly |
+| Debt items named (none rushed) | 6 (`TAU-011` through `TAU-016`) |
+
+**Success criteria**: the mission's own explicit rule ("if a solution exists and is wrong, fix it — don't
+build a new one alongside it") was followed for both Phase 9 fixes (reused `_validate_kontradikcije_lokacije`'s
+exact pattern for the new Genome check; reused the existing `rocista` field for the new past/upcoming
+label, no new table). The mission's own completion bar ("every sprint must end with a better platform, no
+trivial bugs left") was met for what a single sprint could safely fix; the much larger platform-wide
+fragmentation this sprint discovered is named precisely, not glossed over, in `docs/tau/TAU_005_HANDOVER.md`.
+Full detail: `docs/tau/TAU_004_REPORT.md`.
