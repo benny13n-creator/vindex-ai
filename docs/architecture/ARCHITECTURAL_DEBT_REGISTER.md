@@ -2620,7 +2620,24 @@ regressions), grouped here rather than as 3 separate entries since none is indep
 warrant its own dedicated sprint; worth revisiting together if a future sprint targets evidence-integrity
 or citation-grounding specifically.
 
-## TAU-017 — `routers/cio.py` GPT independently decides priority/risk with no deterministic grounding (Medium-High)
+## TAU-017 — CLOSED (Program Tau, Master Sprint 008, 2026-08-06): was "routers/cio.py GPT independently decides priority/risk with no deterministic grounding"
+
+**UPDATE — Program Tau, Master Sprint 008 (2026-08-06):** Closed. `cio.py` migrated onto
+`build_case_context()` (`docs/tau/EXECUTIVE_CONSOLIDATION.md`) — every `_kompaktan_predmet` signal
+(readiness, gaps, contradictions, deadlines) now reads the canonical, gap_engine/case_readiness-normalized
+source instead of raw `case_dna` fields directly, closing a 3rd, previously-unknown deadline source
+(`case_dna.rokovi_kriticni`, alongside the already-known `rocista`/`rokovi` split) along the way.
+`portfolio_zdravlje.kriticnih_rizika` now uses the platform's own canonical CRITICAL_GAP/BLOCKED definition
+instead of Genome's own ad hoc kriticnost≥85 heuristic. GPT's own remaining latitude
+(`najveci_rizik`/`kriticni_rok`/etc.) is now checked, not trusted: every `predmet_id` GPT references is
+validated against the real portfolio (reusing `shared/genome_validator.py::validate_predmet_reference`,
+the same function `case_commander.py::_cross_case_analiza` already uses); `najveci_rizik.kriticnost` is
+capped when the referenced case's own canonical readiness is READY; `kriticni_rok` is cross-checked against
+that case's own real canonical deadlines. All 3 proven adversarially (poisoned GPT responses), plus a
+positive control confirming a real, canonically-backed claim survives unchanged. 20 new tests
+(`tests/test_tau008_cio_consolidation.py`). Original entry preserved below.
+
+**[CLOSED]** `routers/cio.py` GPT independently decides priority/risk with no deterministic grounding (Medium-High)
 
 **Found by**: Phase 5 GPT Boundary Audit, Program Tau Master Sprint 007 (`docs/tau/CANONICAL_REASONING_CERTIFICATION.md`).
 
@@ -2641,3 +2658,25 @@ sprint, deliberately: changing a live GPT prompt's own behavior/output shape car
 that deserves its own dedicated, careful sprint with live-traffic verification first (same discipline Tau
 005/006/007 each applied to their own single-file targets), not a bolt-on to an unrelated mission.
 Prioritized in `docs/tau/TAU_008_HANDOVER.md`.
+
+## TAU-018 — `routers/health_index.py` is a fully independent Firm Health Score + GPT-decided "Chief Partner" recommendation system (High)
+
+**Found by**: Phase 1 Executive Census, Program Tau Master Sprint 008 (`docs/tau/EXECUTIVE_INTELLIGENCE_MAP.md`).
+
+**What**: a complete, independent 6-component "Firm Health Score" (0-100) — Deadline Pressure / Case
+Strength / Billing / Client Engagement / Portfolio Risk / Caseload — entirely hand-rolled, zero use of any
+canonical engine. Case Strength reads Genome's own `case_dna.snaga_predmeta_procent` directly (the same
+bypass `cio.py` had before Tau 008); Portfolio Risk reads a raw `predmeti.rizik_nivo` column directly, never
+`calculate_procesni_rizik`. `_compute_chief_partner` asks GPT to independently generate "3 concrete actions
+a partner would take today," fed only by this file's own bespoke `alerts` list — never `case_actions`,
+never Workspace, never Case Commander. This is a live, GPT-decided, fully independent "what should the firm
+do today" recommendation system running alongside `case_actions`/Workspace, feeding on a wholly separate
+scoring model — the same class of violation `TAU-017` named for `cio.py`, in a different file, with its own
+additional independent scoring layer `cio.py` didn't have.
+
+**Severity**: High — confirmed live (`_healthIndexLoad`, wired in `dash_load()`). Not fixed this sprint
+(Tau 008's own named scope was `cio.py` specifically, per this whole program's "one file at a time"
+discipline). Likely a larger migration effort than `cio.py` itself, since it requires reconciling an entire
+independent scoring model, not just swapping a context source — see `docs/tau/TAU_FINAL_HANDOVER.md` for
+why this is named as the single highest-priority target for any future consolidation work, not folded into
+a quick follow-on.

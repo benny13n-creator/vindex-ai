@@ -1921,3 +1921,67 @@ priority, Medium-High, named not fixed).
 `CASE_COMMANDER_CONSOLIDATION.md`, `CANONICAL_REASONING_CERTIFICATION.md`, `PERFORMANCE_IMPACT.md`,
 `TAU_008_HANDOVER.md` — the last one prioritizing `api.py::predmet_workspace` next (closes both a Tau 006
 context-injection gap and a Tau 007 duplicate-computation gap in one file).
+
+## Program Tau, Master Sprint 008 (2026-08-06) — Canonical Executive Intelligence Consolidation
+
+**Mission**: migrate `cio.py`, the founder's own explicitly-named "possibly the last big AI sprint" before
+serious beta testing. 10 named roles (added Executive Intelligence Engineer to Tau 007's own 9). Directly
+closes `TAU-017` (Tau 007's own finding: `cio.py`'s GPT independently decides priority/risk).
+
+**Headline finding**: `cio.py`'s own portfolio builder (`_kompaktan_predmet`) read raw `case_dna` fields
+directly for EVERY signal — zero calls to `build_case_context()`, `case_actions`, `shared/case_readiness.py`,
+or `shared/gap_engine.py` anywhere in the file. Discovered a 3rd, previously unknown deadline source beyond
+the already-known `rocista`/`rokovi` split: `case_dna.rokovi_kriticni[]`, a list GPT extracts and embeds
+INTO the Genome object itself, never cross-checked against either DB table — `cio.py` was the only consumer
+found. A parallel forensic fork covering every OTHER executive surface (`morning_briefing.py`, `workspace.py`,
+`dashboard.py`, `portfolio.py`, `health_index.py`) surfaced an even bigger, out-of-scope finding:
+**`health_index.py`** is a fully independent 6-component "Firm Health Score" with its own GPT-decided
+"Chief Partner" recommendation system, disconnected from every canonical source — named as `TAU-018`, the
+new #1 priority for future consolidation, not migrated this sprint (mission named `cio.py` specifically).
+
+**Migrated**: `routers/cio.py`. `_kompaktan_predmet` now built from a per-case `build_case_context()` loop
+(same established portfolio pattern as `morning_briefing.py`/`case_commander.py`'s own jutarnji digest) —
+`rokovi_aktivni` now sourced from canonical `deadlines` (real `rocista` data) instead of Genome's own
+GPT-extracted list; `kontradikcije_kriticne`/`nedostaje_kriticno` now read gap_engine-normalized canonical
+fields instead of raw Genome filters; `portfolio_zdravlje.kriticnih_rizika` now uses the platform's own
+canonical CRITICAL_GAP/BLOCKED definition instead of Genome's own ad hoc kriticnost≥85 heuristic (proven
+with 2 cases whose Genome heuristic and canonical readiness deliberately disagree). `strategija_cilj`/
+`zakljucak` deliberately kept reading raw `case_dna` (no canonical equivalent field exists) — a named
+exception, not a gap worked around silently.
+
+**GPT Boundary (Phase 5), reusing existing mechanisms only**: every `predmet_id` GPT references across 7
+JSON blocks is now validated against the real portfolio via `shared/genome_validator.py::validate_predmet_reference`
+— the SAME function `case_commander.py::_cross_case_analiza` already uses for the identical check, not a new
+validator. `najveci_rizik.kriticnost` is capped when the referenced case's own canonical readiness is READY
+(the deterministic-cap mechanism now proven a 4th time, in a new direction — capping a risk score down for
+a GOOD case, vs. capping a success score down for a bad one in Court Predictor/Hearing CC). `kriticni_rok`
+is cross-checked against that case's own real canonical deadlines. All 3 proven adversarially with poisoned
+GPT responses, plus a positive control confirming a real claim survives unchanged.
+
+**Executive Consistency (Phase 4)**: a direct test feeds one mocked canonical result through CIO's own
+membership test, Court Predictor's own cap, Hearing CC's own cap, and Case Commander's own label/rank — all
+4 agree. A stronger test feeds the SAME mocked context into `cio.py`'s own portfolio loop AND
+`case_commander.py`'s own `_kanonski_nalazi` in one test, confirming both report the identical readiness for
+the identical case.
+
+**Performance (Phase 7), measured honestly both ways**: GPT token cost essentially flat (-2.1%, measured via
+real `tiktoken` encoding of a representative 10-case portfolio, not estimated). DB query count rises
+substantially in the worst case (4 → 244 for a full 40-case portfolio) — a real cost increase in a LIVE
+feature (unlike Tau 007's own dead-endpoint finding), named plainly, fully absorbed by the endpoint's own
+pre-existing 6-hour cache and 10/minute rate limit, justified by closing 3 concrete correctness gaps. A
+genuine latency bug (3 unrelated queries blocking the canonical loop unnecessarily) was found and fixed
+during this same measurement phase, implemented as 2 separate gathers specifically to avoid silently
+changing those 3 queries' own error-propagation behavior.
+
+**20 new tests** (`tests/test_tau008_cio_consolidation.py`). Full suite: **2,932 passed, 1 skipped, 0
+failed** (was 2,912 at end of Master Sprint 007) — zero regressions, exact delta match (+20).
+
+**Debt closed**: `TAU-017` (`cio.py`'s GPT-decided priority) — CLOSED. New: `TAU-018` (`health_index.py`'s
+own independent scoring + GPT-decided recommendations, High, named not fixed).
+
+**6 required deliverables**, all in `docs/tau/`: `EXECUTIVE_INTELLIGENCE_MAP.md`, `CIO_FORENSIC_REPORT.md`,
+`EXECUTIVE_CONSOLIDATION.md`, `EXECUTIVE_CERTIFICATION.md`, `PERFORMANCE_ANALYSIS.md`, `TAU_FINAL_HANDOVER.md`
+— the last one reframed per the founder's own explicit signal that this may be the last dedicated
+consolidation sprint: names `health_index.py` as the highest-priority remaining target, but argues the
+founder's own closing question ("does Vindex AI work as one system across a real 8-hour workday?") needs a
+full-day cross-feature simulation, not another single-file migration, as the actual next step.

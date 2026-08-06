@@ -36,6 +36,9 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared.case_context import build_case_context
+from shared.case_readiness import READY, CRITICAL_GAP, BLOCKED
+from shared.genome_validator import validate_predmet_reference
 
 logger = logging.getLogger("vindex.cio")
 router = APIRouter(prefix="/api/cio", tags=["cio"])
@@ -119,11 +122,30 @@ STROGA PRAVILA:
 
 # ── Portfolio builder ─────────────────────────────────────────────────────────
 
-def _kompaktan_predmet(p: dict, danas: date) -> Optional[dict]:
-    """Izvlaci kljucne signale iz jednog predmeta za CIO analizu."""
+def _kompaktan_predmet(p: dict, cc: Optional[dict], danas: date) -> Optional[dict]:
+    """Izvlaci kljucne signale iz jednog predmeta za CIO analizu.
+
+    Program Tau, Master Sprint 008 ("Canonical Executive Intelligence
+    Consolidation"): `cc` je `shared/case_context.py::build_case_context()`-ov
+    izlaz za OVAJ predmet (lightweight mode) -- svaka od signala ispod
+    (snaga/najslabija_tacka/rokovi_aktivni/kontradikcije_kriticne/
+    nedostaje_kriticno) sada čita KANONSKI, gap_engine/case_readiness-
+    normalizovan izvor umesto sirovog `case_dna` polja direktno
+    (docs/tau/CIO_FORENSIC_REPORT.md). `rokovi_aktivni` posebno prelazi sa
+    Genome-ovog sopstvenog GPT-ekstrahovanog `rokovi_kriticni[]` (treći,
+    ranije nepoznat izvor rokova, van `rocista`/`rokovi` podele koju
+    TAU-013 već imenuje) na kanonski `deadlines` (stvarna `rocista` tabela).
+
+    `strategija_cilj`/`zakljucak` nemaju kanonski ekvivalent (canonical
+    `key_facts` nosi samo `pravna_teorija`/`snaga_predmeta_procent`/
+    `najslabija_tacka` -- ne i `strategija`/`zakljucak`) -- zadržano
+    direktno iz `case_dna` kao namerni Korak-5 izuzetak
+    (docs/tau/MIGRATION_TEMPLATE.md), ne kao zaobilaznica migracije."""
     genome = p.get("case_dna") or {}
-    if not genome or genome.get("greska"):
-        return None
+    key_facts = (cc or {}).get("key_facts") or {}
+    kf = key_facts.get("value")
+    if not kf:
+        return None  # isti guard kao pre -- genome_computed=False znaci key_facts.value je None
 
     now = datetime.now(timezone.utc)
     upd = p.get("updated_at") or ""
@@ -136,41 +158,49 @@ def _kompaktan_predmet(p: dict, danas: date) -> Optional[dict]:
             pass
 
     rokovi_aktivni = []
-    for r in (genome.get("rokovi_kriticni") or []):
-        if r.get("status") == "aktivan" and r.get("datum"):
-            try:
-                rok_dt = date.fromisoformat(str(r["datum"])[:10])
-                dana_do = (rok_dt - danas).days
-                if 0 <= dana_do <= 60:
-                    rokovi_aktivni.append({
-                        "naziv": r.get("naziv", "")[:60],
-                        "datum": str(r["datum"])[:10],
-                        "dana_do": dana_do,
-                        "opis": (r.get("opis") or "")[:50],
-                    })
-            except Exception:
-                pass
+    for r in ((cc.get("deadlines") or {}).get("value") or []):
+        if r.get("proslo"):
+            continue
+        datum = r.get("datum")
+        if not datum:
+            continue
+        try:
+            rok_dt = date.fromisoformat(str(datum)[:10])
+            dana_do = (rok_dt - danas).days
+            if 0 <= dana_do <= 60:
+                rokovi_aktivni.append({
+                    "naziv": r.get("sud", "")[:60] or "Rok",
+                    "datum": str(datum)[:10],
+                    "dana_do": dana_do,
+                    "opis": (r.get("status") or "")[:50],
+                })
+        except Exception:
+            pass
 
-    nt = genome.get("najslabija_tacka") or {}
+    nt = kf.get("najslabija_tacka") or {}
     strat = genome.get("strategija") or {}
-    kontr_list = genome.get("kontradikcije") or []
-    kontr_kriticne = [k for k in kontr_list if k.get("tezina") == "kriticna"]
-    ned_kriticno = sum(1 for n in (genome.get("nedostaje") or []) if n.get("hitnost") == "kriticno")
+    kontr_kriticne = [
+        g for g in ((cc.get("contradictions") or {}).get("value") or [])
+        if g.get("pouzdanost") == "visoka"
+    ]
+    ned_kriticno = sum(
+        1 for g in ((cc.get("missing_evidence") or {}).get("value") or [])
+        if g.get("pouzdanost") == "visoka"
+    )
 
     return {
         "id":                   p.get("id"),
         "naziv":                p.get("naziv", ""),
         "oblast":               p.get("oblast_prava", ""),
-        "snaga":                genome.get("snaga_predmeta_procent"),
+        "snaga":                kf.get("snaga_predmeta_procent"),
         "dana_bez_aktivnosti":  dana_neakt,
-        "genome_verzija":       genome.get("verzija", 1),
         "najslabija_tacka":     {
             "rizik":      (nt.get("rizik") or "")[:80],
             "kriticnost": nt.get("kriticnost"),
         } if nt.get("rizik") else None,
         "rokovi_aktivni":       sorted(rokovi_aktivni, key=lambda x: x["dana_do"])[:3],
         "kontradikcije_kriticne": [
-            {"opis": (k.get("opis") or "")[:70]} for k in kontr_kriticne[:2]
+            {"opis": (g.get("razlog") or "")[:70]} for g in kontr_kriticne[:2]
         ],
         "nedostaje_kriticno":   ned_kriticno,
         "strategija_cilj":      (strat.get("primarni_cilj") or genome.get("strategija_osnova") or "")[:70],
@@ -198,51 +228,76 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
     """Skenira kompletni portfelj i generise dnevni CIO izvestaj."""
     danas = date.today()
 
-    # Paralelno prikupljanje
-    pred_r, fdna_r, lek_r, patt_r = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("predmeti")
-            .select("id,naziv,oblast_prava,updated_at,case_dna")
-            .eq("user_id", uid)
-            .in_("status", ["aktivan", "u_toku", "pending"])
-            .order("updated_at", desc=False)
-            .limit(40)
-            .execute()
+    # `predmeti` se mora dohvatiti PRVI -- kanonska petlja ispod zavisi od
+    # njegovih id-jeva. `firm_dna`/`lessons_learned`/`case_patterns` NEMAJU tu
+    # zavisnost -- Faza 7 (Performance) je zatekla da su ranije sve 4 bile u
+    # ISTOM gather-u, što je nepotrebno blokiralo kanonsku petlju da čeka na
+    # 3 upita koja joj ništa ne dostavljaju. Popravljeno odmah (Faza 8): ova
+    # 3 sada trče KONKURENTNO sa kanonskom petljom, ne pre nje.
+    pred_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+        .select("id,naziv,oblast_prava,updated_at,case_dna")
+        .eq("user_id", uid)
+        .in_("status", ["aktivan", "u_toku", "pending"])
+        .order("updated_at", desc=False)
+        .limit(40)
+        .execute()
+    )
+    predmeti_raw = pred_r.data or []
+
+    # Program Tau, Master Sprint 008: kanonski kontekst po predmetu (lightweight
+    # mode -- dokumenti nisu potrebni za portfolio-nivo signale), isti obrazac
+    # koji morning_briefing.py (Tau 002) i case_commander.py-ov jutarnji brifing
+    # (Tau 007) već koriste za portfolio-wide petlju. Fail-soft: neuspeh za
+    # JEDAN predmet ne ruši ceo CIO izveštaj -- taj predmet jednostavno biva
+    # isključen iz portfolija (isto ponašanje kao stari kod za predmete bez
+    # Genome modela). Trči konkurentno sa fdna/lek/patt ispod (Faza 8 popravka)
+    # -- 2 odvojena gather-a (ne 1 zajednički) da bi fdna/lek/patt zadržali
+    # svoje ORIGINALNO ponašanje (greška se propagira, ne guta se), dok
+    # cc_results ostaje fail-soft samo za sebe.
+    (fdna_r, lek_r, patt_r), cc_results = await asyncio.gather(
+        asyncio.gather(
+            asyncio.to_thread(
+                lambda: supa.table("firm_dna")
+                .select("pattern,frekvencija,uzoraka")
+                .eq("user_id", uid)
+                .eq("aktuelna", True)
+                .order("frekvencija", desc=True)
+                .limit(6)
+                .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supa.table("lessons_learned")
+                .select("sadrzaj,kategorija,pouzdanost,broj_predmeta")
+                .eq("user_id", uid)
+                .in_("status_lekcije", ["usvojena_praksa"])
+                .order("pouzdanost", desc=True)
+                .limit(8)
+                .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supa.table("case_patterns")
+                .select("tip_spora,faktor,pobede,porazi,ukupno")
+                .eq("user_id", uid)
+                .order("pobede", desc=True)
+                .limit(8)
+                .execute()
+            ),
         ),
-        asyncio.to_thread(
-            lambda: supa.table("firm_dna")
-            .select("pattern,frekvencija,uzoraka")
-            .eq("user_id", uid)
-            .eq("aktuelna", True)
-            .order("frekvencija", desc=True)
-            .limit(6)
-            .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("lessons_learned")
-            .select("sadrzaj,kategorija,pouzdanost,broj_predmeta")
-            .eq("user_id", uid)
-            .in_("status_lekcije", ["usvojena_praksa"])
-            .order("pouzdanost", desc=True)
-            .limit(8)
-            .execute()
-        ),
-        asyncio.to_thread(
-            lambda: supa.table("case_patterns")
-            .select("tip_spora,faktor,pobede,porazi,ukupno")
-            .eq("user_id", uid)
-            .order("pobede", desc=True)
-            .limit(8)
-            .execute()
+        asyncio.gather(
+            *[build_case_context(p["id"], uid, supa, include_documents=False) for p in predmeti_raw],
+            return_exceptions=True,
         ),
     )
-
-    predmeti_raw = pred_r.data or []
+    cc_by_id = {
+        p["id"]: cc for p, cc in zip(predmeti_raw, cc_results)
+        if not isinstance(cc, Exception) and cc and not cc.get("error")
+    }
 
     # Kompaktni portfolio za GPT
     portfolio = []
     for p in predmeti_raw:
-        komp = _kompaktan_predmet(p, danas)
+        komp = _kompaktan_predmet(p, cc_by_id.get(p["id"]), danas)
         if komp:
             portfolio.append(komp)
 
@@ -303,10 +358,58 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
     # Deterministicke statistike (ne GPT)
     jakih  = sum(1 for p in portfolio if (p["snaga"] or 0) >= 65)
     slabih = sum(1 for p in portfolio if (p["snaga"] or 0) < 40)
-    kriticnih_rizika = sum(1 for p in portfolio
-                           if (p.get("najslabija_tacka") or {}).get("kriticnost", 0) >= 85)
+    # Program Tau, Master Sprint 008: "kriticnih_rizika" je ranije brojao
+    # Genome-ovu sopstvenu ad hoc kriticnost>=85 heuristiku (najslabija_tacka)
+    # -- sada broji kanonski readiness.status in (CRITICAL_GAP, BLOCKED), isti
+    # prag koji Workspace/Commander/Court Predictor/Hearing CC već koriste za
+    # "ovaj predmet je kritičan" (docs/tau/EXECUTIVE_CONSOLIDATION.md).
+    kriticnih_rizika = sum(
+        1 for p in portfolio
+        if ((cc_by_id.get(p["id"]) or {}).get("readiness") or {}).get("value", {}).get("status") in (CRITICAL_GAP, BLOCKED)
+    )
     sa_kriticnim_rokovima = sum(1 for p in portfolio
                                 if any(r["dana_do"] <= 7 for r in (p.get("rokovi_aktivni") or [])))
+
+    # Program Tau, Master Sprint 008, Faza 5 (GPT Boundary): GPT bira KOJI
+    # predmet je najveci_rizik/kriticni_rok/itd. i izmislja kriticnost -- ovde
+    # se ta tvrdnja proverava protiv kanonskog stanja, ne prihvata bez provere.
+    # Ponovo koristi POSTOJEĆI validator (shared/genome_validator.py::
+    # validate_predmet_reference), ISTU funkciju koju case_commander.py's own
+    # _cross_case_analiza već koristi za identičnu proveru -- nema novog
+    # algoritma. Puni UUID se prosleđuje umesto 8-slovnog prefiksa (funkcija
+    # je generička nad bilo kojim identifikator-string ključem, samo joj je
+    # ime/poruka istorijski pisana za prefiks-oblik).
+    poznati = {p["id"]: p.get("naziv", "") for p in predmeti_raw}
+    readiness_by_id = {
+        pid: ((cc.get("readiness") or {}).get("value") or {}).get("status")
+        for pid, cc in cc_by_id.items()
+    }
+    _KRITICNOST_CAP_KAD_READY = 40
+
+    def _validan_predmet_id(blok: Optional[dict]) -> bool:
+        if not blok or not blok.get("predmet_id"):
+            return False
+        flags = validate_predmet_reference(blok.get("predmet_id"), poznati, blok.get("predmet_naziv"))
+        return not flags
+
+    for _kljuc in ("najveci_rizik", "najveca_prilika", "zapostavljen_predmet",
+                   "neprimecena_kontradikcija", "kriticni_rok", "suboptimalna_strategija", "slicni_predmet"):
+        _blok = izvestaj.get(_kljuc)
+        if _blok and not _validan_predmet_id(_blok):
+            izvestaj[_kljuc] = None
+
+    _nr = izvestaj.get("najveci_rizik")
+    if _nr and readiness_by_id.get(_nr.get("predmet_id")) == READY:
+        _k = _nr.get("kriticnost")
+        if isinstance(_k, (int, float)) and _k > _KRITICNOST_CAP_KAD_READY:
+            _nr["kriticnost"] = _KRITICNOST_CAP_KAD_READY
+
+    _kr = izvestaj.get("kriticni_rok")
+    if _kr and _kr.get("predmet_id"):
+        _prava_meta = next((p for p in portfolio if p["id"] == _kr["predmet_id"]), None)
+        _stvarni_rokovi = {r["datum"] for r in (_prava_meta.get("rokovi_aktivni") or [])} if _prava_meta else set()
+        if not _stvarni_rokovi or str(_kr.get("datum", ""))[:10] not in _stvarni_rokovi:
+            izvestaj["kriticni_rok"] = None
 
     izvestaj["portfolio_zdravlje"] = {
         "ukupno_aktivnih":      len(portfolio),

@@ -1612,3 +1612,39 @@ framing would have missed. The mission's own Phase 7 "ako povećava cenu, objasn
 was honored in both directions in the same report — token cost proven flat, query cost honestly reported as
 increased where it increased, with the correctness reason stated, not hidden behind an aggregate "faster"
 claim. Full detail: `docs/tau/CANONICAL_REASONING_CERTIFICATION.md` and `docs/tau/CASE_COMMANDER_CONSOLIDATION.md`.
+
+## Program Tau, Master Sprint 008 (2026-08-06) — Canonical Executive Intelligence Consolidation
+
+**Methodology note**: Phase 1 used 1 parallel forensic fork covering every executive surface OTHER than
+`cio.py` (the parent's own direct-forensics target), a division of labor by SCOPE (one named file vs.
+everything else) rather than by alphabet or by reasoning-concern, since this mission's own subject was one
+specific, already-identified file (`TAU-017`) plus a survey of what else might share its shape.
+
+| Metric | Value |
+|---|---|
+| Executive surfaces censused | 8 (`cio.py`, `morning_briefing.py`, `workspace.py`, `dashboard.py` — 2 endpoints, `portfolio.py`, `health_index.py`, `admin_dashboard.py`) |
+| Surfaces already canonical/architecturally exempt | 3 (`morning_briefing.py`, `workspace.py`, `portfolio.py`) |
+| New parallel-reasoning surface found, out of this sprint's own scope | 1 (`health_index.py` — independent 6-component scoring model + GPT-decided recommendations, named `TAU-018`) |
+| Independent deadline source found in `cio.py` (beyond the known rocista/rokovi split) | 1 new (`case_dna.rokovi_kriticni[]`, GPT-extracted, embedded in Genome, never cross-checked against either DB table) |
+| Modules migrated this sprint | 1 (`routers/cio.py`) |
+| GPT-boundary deterministic mechanisms reused (not invented) | 2 (`validate_predmet_reference` — 2nd reuse after `case_commander.py`; the `_CAP_BY_READINESS`-shaped cap pattern — 4th proven instance, 1st applied in the "cap a risk score down for a GOOD case" direction) |
+| Adversarial GPT-boundary proofs | 3 negative (hallucinated predmet_id, inflated kriticnost, fabricated deadline) + 1 positive control (a real claim survives) |
+| Token cost delta, representative 10-case portfolio (measured via real `tiktoken`, not estimated) | -40 tokens (-2.1%) |
+| DB query count, worst case (40-case portfolio) | 4 → 244 — a real increase in a LIVE feature, absorbed by pre-existing 6h cache + 10/min rate limit |
+| A same-phase latency fix made, not just measured | 1 (3 unrelated queries were blocking the canonical loop; restructured into 2 concurrent gathers, deliberately kept separate to preserve the unrelated queries' own original error-propagation behavior) |
+| New dedicated tests | 20 (`tests/test_tau008_cio_consolidation.py`) |
+| Full suite | **2,932 passed, 1 skipped, 0 failed** (was 2,912 at end of Master Sprint 007) — zero regressions, exact delta match (+20) |
+| Debt items closed | 1 (`TAU-017`) |
+| Debt items added | 1 (`TAU-018`, `health_index.py`, High) |
+
+**Success criteria**: the mission's own explicit prohibition on new helpers/builders/wrappers/algorithms was
+honored by reusing `validate_predmet_reference` for a 2nd, structurally identical cross-cutting concern
+rather than writing a new checker, and by reusing the deterministic-cap PATTERN (not code) for a genuinely
+new score-direction (risk-down-for-good-case vs. the prior sprints' own success-down-for-bad-case). The
+mission's own Phase 4 ("Workspace/Commander/CIO/Morning Briefing/Court Predictor/Hearing CC ne mogu dati
+kontradiktorne informacije") was proven directly, not just architecturally inferred — 2 tests feed identical
+mocked canonical data through multiple surfaces' own interpretation logic in the same test and assert
+agreement. Phase 7's "ako povećava cenu, objasni" was honored for a genuinely large, live-feature cost
+increase (4→244 queries) rather than minimized, while still proving the mitigating cache/rate-limit
+infrastructure already existed and needed no changes. Full detail: `docs/tau/EXECUTIVE_CERTIFICATION.md` and
+`docs/tau/TAU_FINAL_HANDOVER.md`.
