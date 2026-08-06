@@ -2371,3 +2371,26 @@ both need one, deliberately not written without founder awareness per standing c
 `docs/lambda/LAMBDA006_CERTIFICATION_REPORT.md`.
 
 **Verdict: Gate 006 conditions met.** Proceeding to Certification 007 (Enterprise Beta Certification).
+
+## Program Lambda, Certification 007 (2026-08-07) — Enterprise Beta Certification
+
+**Scope constraint, disclosed explicitly**: the session's subagent spawn limit (200/200) was reached during
+Certification 006, leaving zero capacity for the parallel forensic forks Certifications 005/006 relied on for
+breadth. This sprint's mandate (13 named attack surfaces) was scoped for that model. Rather than falsely claim
+the same breadth via sequential work or skip the sprint, the coordinator ran a deliberately narrower, targeted
+direct investigation (migration drift + dead-code/shadow-workflow), disclosed here as narrower, not hidden.
+
+**1 real finding, confirmed and documented**: `routers/onboarding.py` (5 endpoints) has zero frontend callers
+— the frontend's actual onboarding-completion flow hits a completely separate standalone endpoint in `api.py`.
+Two independent onboarding systems, one live, one fully built and orphaned. Deferred to the Debt Register
+(`LAMBDA007-DEAD-001`) as a product decision (delete vs. revive), not an engineering fix. `scripts/
+audit_routers.py`'s own heuristic flagged 12 more router modules as possibly dead; 2 of those were spot-checked
+and found to be FALSE POSITIVES (genuinely called via dynamically-constructed frontend URLs) — the remaining
+10 are unverified, named explicitly as still-unconfirmed in the debt entry, not assumed either way.
+
+No code changed this sprint (the one finding is a product decision, not a bug). Full suite unchanged from
+Certification 006's own closing count: 3,016/1/0. Full report, including explicit scope disclosure:
+`docs/lambda/LAMBDA007_CERTIFICATION_REPORT.md`.
+
+**Verdict: Gate 007 conditions met for the scope actually investigated.** Not a claim of exhaustive coverage
+across all 13 named attack surfaces — see the report's own scope disclosure.

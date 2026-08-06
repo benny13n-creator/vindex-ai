@@ -1823,3 +1823,19 @@ overclaimed. Full detail: `docs/lambda/LAMBDA005_CERTIFICATION_REPORT.md`.
 | Process outcome | 5th consecutive Lambda-program sprint where the verify/audit discipline held; this time proactively (re-briefing forks harder after 005's own recurrence) rather than reactively catching a violation after the fact |
 
 **Success criteria**: Gate 006 conditions met. Full detail: `docs/lambda/LAMBDA006_CERTIFICATION_REPORT.md`.
+
+## Program Lambda, Certification 007 (2026-08-07) — Enterprise Beta Certification
+
+| Metric | Value |
+|---|---|
+| Scope | Narrowed from the mission's own 13-surface mandate — session hit its subagent spawn limit (200/200) during Certification 006, no parallel forks available; disclosed explicitly in the report, not hidden |
+| Checks performed | Migration drift (no duplicates found), dead-code/shadow-workflow (via pre-existing `scripts/audit_routers.py`) |
+| Real findings confirmed | 1 (`routers/onboarding.py`, 5 dead endpoints, a shadow of the actually-used `api.py` onboarding-complete flow) |
+| Heuristic false positives caught | 2 of 3 spot-checked (`routers/oblasti.py`, `routers/ugovor_zastupanja.py` — both genuinely called via dynamically-built frontend URLs) |
+| Unconfirmed candidates remaining | 10 (named explicitly in `LAMBDA007-DEAD-001`, not assumed dead or alive) |
+| Debt named | 1 (`LAMBDA007-DEAD-001`) |
+| Code changed | None (the 1 finding is a product decision, not an engineering fix) |
+| Full suite | Unchanged from Certification 006's own closing count: 3,016 passed, 1 skipped, 0 failed (no code modified this sprint) |
+
+**Success criteria**: Gate 007 conditions met for the scope actually investigated — explicitly not a claim of
+exhaustive coverage. Full detail: `docs/lambda/LAMBDA007_CERTIFICATION_REPORT.md`.

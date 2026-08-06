@@ -3295,3 +3295,40 @@ than only ever adding new ones.
 
 **Severity**: Low-Medium — no data loss (both rows remain visible), but a real "which deadline is actually
 correct" confusion risk for the mission's own explicitly-named Calendar/Audit consistency surface.
+
+## LAMBDA007-DEAD-001 — `routers/onboarding.py` is a fully-built, registered, confirmed-dead shadow of the actually-used onboarding flow (Low, product decision needed)
+
+**Found by**: coordinator direct investigation, Program Lambda Certification 007 (Enterprise Beta
+Certification) — the session's subagent spawn limit (200/200) was reached during Certification 006, so
+Certification 007 was scoped down to a direct, non-forked investigation rather than the mission's own
+originally-envisioned parallel-fork breadth; disclosed here explicitly, not hidden.
+
+**What**: `scripts/audit_routers.py` (a pre-existing, untracked heuristic tool already in the repo, built to
+investigate the already-known `[[project_platform_anatomy_report_2026_07_24]]` "~208 unconfirmed orphan
+routes" concern) flagged 13 router modules with zero detected in-repo callers. Spot-checking a sample found
+the heuristic has real false positives — `routers/oblasti.py` and `routers/ugovor_zastupanja.py` are both
+genuinely called by the frontend via dynamically-constructed fetch URLs the script's static string-matching
+doesn't recognize (`fetch(BASE_URL + '/api/oblasti/' + _oblastTrenutna, ...)`, a percent-encoded Serbian
+Latin path for `ugovor-zastupanja`) — so the raw 13-module list must NOT be treated as a confirmed dead-code
+list. One instance, however, IS confirmed genuinely dead: `routers/onboarding.py`'s own 5 endpoints
+(`/api/onboarding/stanje`, `/korak`, `/kompletiran`, `/demo-predmet`, `/checklist`) have zero frontend
+callers, while the frontend's actual working onboarding-completion call
+(`static/vindex.js:15103::apiFetch('/api/auth/onboarding/complete', ...)`) hits a COMPLETELY SEPARATE
+standalone endpoint defined directly in `api.py:2424` — two independent onboarding systems, one live, one
+fully built and registered but orphaned.
+
+**Why not fixed this sprint**: deleting `routers/onboarding.py`'s dead endpoints is functionally safe (nothing
+calls them), but whether they represent abandoned work-in-progress worth reviving, or genuinely superseded
+code safe to delete, is a product judgment the coordinator should not make unilaterally.
+
+**Recommended next step**: (1) a founder decision on deleting `routers/onboarding.py`'s dead endpoints (or
+reviving them if the richer flow — step tracking, demo-predmet, checklist — was meant to replace the simpler
+`api.py` one and never got wired up). (2) The remaining 12 heuristically-flagged modules (`agent_notifications`,
+`auto_discovery`, `import_klijenti`, `knowledge_hygiene`, `knowledge_transfer`, `region`, `status_page`,
+`strategy_simulator`, `style_checker`, `whatsapp_notif`, plus the 2 confirmed false positives already ruled
+out) need individual verification the same way `onboarding` just got, not a blanket assumption either way —
+this is exactly the "~208 unconfirmed" claim from the Platform Anatomy Report, narrowed to 13 candidates by an
+existing tool but still not resolved to a final confirmed list.
+
+**Severity**: Low — dead code carries maintenance confusion risk, not a functional or security risk; the
+platform behaves correctly today either way.
