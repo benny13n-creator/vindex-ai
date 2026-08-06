@@ -62,7 +62,11 @@ def test_argument_reputation_koristi_retrieve_sudska_praksa_ne_niskonivoovski():
 def test_rag_praksa_blok_koristi_ispravan_metadata_kljuc():
     """Regresioni test za otkriveni bug: meta.get('tekst') (pogrešan ključ)
     i .page_content (ne postoji na Pinecone match objektima) su ranije UVEK
-    davali prazan tekst. Mora čitati meta['text']."""
+    davali prazan tekst. Mora čitati meta['text'].
+
+    Program Tau, Master Sprint 005 (2026-08-06): _rag_praksa_blok sada vraća
+    (tekst, lista) tuple -- lista je TAU-014's own fix (koriscena_praksa u
+    odgovoru, honestan izveštaj o stvarno pronadjenoj praksi)."""
     from routers.court_predictor import _rag_praksa_blok
 
     mock_match = MagicMock()
@@ -70,21 +74,22 @@ def test_rag_praksa_blok_koristi_ispravan_metadata_kljuc():
     del mock_match.page_content  # simulira pravi Pinecone match objekat (nema .page_content)
 
     with patch("routers.court_predictor.retrieve_sudska_praksa", return_value=[mock_match]):
-        blok = _rag_praksa_blok("otkazni rok", 5)
+        blok, lista = _rag_praksa_blok("otkazni rok", 5)
 
     assert "Stvaran tekst odluke o otkaznom roku." in blok
+    assert lista == [{"sud": "Osnovni sud", "broj": "P 1/2025"}]
 
 
 def test_rag_praksa_blok_prazno_kad_rag_nedostupan():
     from routers.court_predictor import _rag_praksa_blok
     with patch("routers.court_predictor._RAG_AVAILABLE", False):
-        assert _rag_praksa_blok("test", 5) == ""
+        assert _rag_praksa_blok("test", 5) == ("", [])
 
 
 def test_rag_praksa_blok_fail_soft_na_gresku():
     from routers.court_predictor import _rag_praksa_blok
     with patch("routers.court_predictor.retrieve_sudska_praksa", side_effect=Exception("boom")):
-        assert _rag_praksa_blok("test", 5) == ""
+        assert _rag_praksa_blok("test", 5) == ("", [])
 
 
 # ─── 1b. court_predictor.py: llm_retry na svih 7 poziva ───────────────────

@@ -204,8 +204,15 @@ class TestCourtPredictorWiringStructural:
         assert "log_action" in snippet, f"{fn_name} missing log_action audit wiring"
 
     def test_opponent_intel_references_case_context_and_log_action(self, source):
+        # Program Tau, Master Sprint 005 (2026-08-06): widened from a
+        # hardcoded idx+4000 to the same "next @router.post boundary" pattern
+        # the parametrized test above already uses -- opponent_intel's own
+        # function body grew past 4000 chars once real build_case_context()
+        # wiring (TAU-011's own fix) was added, which is a real, wanted
+        # change, not a regression this test should have caught.
         idx = source.find("async def opponent_intel(")
         assert idx != -1
-        snippet = source[idx: idx + 4000]
+        next_def = source.find("\n@router.post", idx + 1)
+        snippet = source[idx: next_def if next_def != -1 else idx + 8000]
         assert "case_context" in snippet
         assert "log_action" in snippet

@@ -1504,3 +1504,38 @@ label, no new table). The mission's own completion bar ("every sprint must end w
 trivial bugs left") was met for what a single sprint could safely fix; the much larger platform-wide
 fragmentation this sprint discovered is named precisely, not glossed over, in `docs/tau/TAU_005_HANDOVER.md`.
 Full detail: `docs/tau/TAU_004_REPORT.md`.
+
+## Program Tau, Master Sprint 005 (2026-08-06) — Court Predictor Canonical Context Reconstruction
+
+**Methodology note**: Phase 1 used 2 parallel forensic forks to independently re-derive `TAU-011` from
+scratch rather than trust Master Sprint 004's own written claim — both converged on the same result, plus
+one new detail (`judge_profile`'s missing case-description field) neither could have found without the
+re-derivation. All subsequent phases were direct implementation by the main thread, not forked, since the
+scope was a single file.
+
+| Metric | Value |
+|---|---|
+| Endpoints migrated onto `build_case_context()` | 7 of 7 (`prediktuj_ishod`, `battle_report`, `hearing_prep_brief`, `argument_reputation`, `judge_profile`, `opponent_intel`, `confidence_check`) |
+| Endpoints using full context mode (real document excerpts) | 2 of 7 (`prediktuj_ishod`, `battle_report`) |
+| Endpoints using lightweight mode | 4 of 7 |
+| Endpoints using consistency-check-only (no case-description field exists) | 1 of 7 (`judge_profile`) |
+| Context-quality checklist items (13 total) certified for the 2 flagship endpoints | 10 of 13 (OCR metadata and structured court data don't exist anywhere in the canonical contract yet — `TAU-013`, out of scope) |
+| Prior sprint's own written claim found false on re-verification | 1 (Master Sprint 004's "3-call chaining" claim — actually 1 GPT call per endpoint, all 7) |
+| Deterministic grounding mechanisms added | 2 (readiness-based percentage cap on `prediktuj_ishod`; readiness-replaces-evidence-count scoring rule on `confidence_check`, preserving DC-004's own score/max-score invariant) |
+| Adversarial poisoned-response test result | Cap holds — GPT's own claimed 85-95% forced down to 50% when canonical readiness is CRITICAL_GAP, with no prompt-level override possible |
+| `supa.table()` call sites audited for migration completeness | 100% of the file, line-by-line — 0 remaining single-case bespoke context fetches found |
+| Estimated monthly cost delta | ≈$40/month → ≈$42-48/month (concentrated in the 2 full-context endpoints) |
+| New dedicated tests | 21 (`tests/test_tau005_court_predictor_migration.py`), covering grounding, adversarial, concurrency, and replay-stability cases |
+| Full suite | **2,875 passed, 1 skipped, 0 failed** (was 2,854 at end of Master Sprint 004) — zero regressions confirmed directly |
+| Debt items closed | 2 (`TAU-011` Critical, `TAU-014` Medium) |
+| Debt items amended | 1 (`TAU-012`'s own count revised 17+ → 16+) |
+
+**Success criteria**: the mission's own explicit prohibitions (no new context builder, no new GPT wrapper,
+no new predictor, no parallel logic) were verified met by a full call-site inventory, not asserted — see
+`docs/tau/GPT_CONTEXT_USAGE_AUDIT.md`. The mission's own Phase 4 grounding requirement ("unsupported
+conclusion = bug") was satisfied with a concrete, adversarially-tested code mechanism, not just a prompt
+instruction. The founder's own explicit next-step framing — a "Canonical Context Migration Factory" instead
+of 16+ individually-scoped sprints — is directly addressed in `docs/tau/TAU_006_HANDOVER.md`, which
+extracts the now-twice-proven 3-part migration pattern (fail-soft fetch wrapper, local formatting function,
+explicit per-endpoint mode decision) as a reusable template and names `hearing_cc.py` as the recommended
+pilot. Full detail: `docs/tau/TAU_005_REPORT.md`.

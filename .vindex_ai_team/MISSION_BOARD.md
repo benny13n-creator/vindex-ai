@@ -1760,3 +1760,47 @@ smaller adversarial gaps).
 
 **6 required deliverables**, all in `docs/tau/`: `TAU_004_REPORT.md`, `GPT_REASONING_CERTIFICATION.md`,
 `GPT_CONTEXT_MAP.md`, `GPT_COST_ANALYSIS.md`, `LEGAL_REASONING_VERIFICATION.md`, `TAU_005_HANDOVER.md`.
+
+## Program Tau, Master Sprint 005 (2026-08-06) — Court Predictor Canonical Context Reconstruction
+
+**Mission**: a single, fully dedicated sprint (explicitly not mixed with other migrations) closing
+`TAU-011` — `court_predictor.py`'s 7 live, paid endpoints accepted `predmet_id` but never used it to fetch
+case state. 6 named roles (Architect, GPT Integration Engineer, Legal Reasoning Engineer, Forensic Auditor,
+Performance Engineer, Test Engineer), run via 2 parallel forensic forks for Phase 1, then direct
+implementation for Phases 2-9.
+
+**Headline finding**: Phase 1 did not assume `TAU-011` was correct — it re-derived the finding from scratch
+via 2 independent forks. Both confirmed it holds for all 7 endpoints, zero exceptions. One genuinely new
+detail: `judge_profile`'s own request model has no case-description field at all (same shape as
+`strategija.py`'s pre-existing no-case-linkage finding), requiring a lighter migration treatment than the
+other 6. A live-frontend read (`static/vindex.js`, not assumed) found the main "Predikcija ishoda" UI tool
+sends NO `predmet_id` at all — only `battle_report`'s own function conditionally does. This made the
+migration conditional-enrichment by design, not a forced requirement. Also corrected a false claim from
+Master Sprint 004's own `GPT_COST_ANALYSIS.md` (no 3-call chaining exists — all 7 endpoints make exactly
+one GPT call each).
+
+**Fixed this sprint**: all 7 endpoints now fetch case state exclusively via
+`shared/case_context.py::build_case_context()` (through a file-local fail-soft wrapper +
+formatting function — same pattern as Case Commander's own, not a new mechanism).
+`prediktuj_ishod`/`battle_report` use full context (real document excerpts, reusing Tau 002's Document
+Visibility Engine unmodified); the other 5 use lightweight mode sized to their own narrower reasoning task.
+A new deterministic grounding mechanism: `prediktuj_ishod`'s win-probability is hard-capped at 50%/65% when
+the canonical readiness status is `CRITICAL_GAP`/`BLOCKED` — GPT cannot override this via prompt-level
+persuasion, proven by a direct adversarial poisoned-response test. `confidence_check`'s scoring was extended
+with a readiness signal that REPLACES (not adds to) its existing evidence-count rule, deliberately
+preserving DC-004's own "one score, one nivo, one procenat" invariant. New `koriscena_praksa` field
+(`TAU-014`) honestly reports which precedent was actually retrieved, rather than asking GPT to self-cite.
+
+**21 new tests** (`tests/test_tau005_court_predictor_migration.py`), including the adversarial cap-override
+test, a concurrency test (2 different cases' predictions don't cross-contaminate), and a replay-stability
+test. Full suite: **2,875 passed, 1 skipped, 0 failed** (was 2,854 at end of Master Sprint 004) — zero
+regressions.
+
+**Debt closed**: `TAU-011` (Critical) and `TAU-014` (Medium) — both CLOSED. `TAU-012`'s own remaining count
+revised from 17+ to 16+ files.
+
+**6 required deliverables**, all in `docs/tau/`: `TAU_005_REPORT.md`, `COURT_PREDICTOR_CONTEXT_CERTIFICATION.md`,
+`COURT_PREDICTOR_FORENSIC_REPORT.md`, `GPT_CONTEXT_USAGE_AUDIT.md`, `PERFORMANCE_IMPACT_REPORT.md`,
+`TAU_006_HANDOVER.md` — the last one directly responding to the founder's own proposed next step, a
+"Canonical Context Migration Factory" (a repeatable migration template, not 16+ separate one-off sprints),
+naming `hearing_cc.py` as the recommended pilot target.

@@ -28,6 +28,7 @@ from shared.rate import limiter
 from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.llm_retry import llm_retry
+from shared.case_context import build_case_context
 
 try:
     # CELINA 2 (2026-07-24): koristi javni retrieve_sudska_praksa (Celina 1 mu
@@ -80,7 +81,12 @@ Odgovori ISKLJUČIVO validnim JSON-om (bez markdown fenci):
   "rizici": ["rizik 1", "rizik 2"]
 }
 
-procenat_min/procenat_max: 0-100, min <= max, nikad tacna jedna vrednost bez opsega."""
+procenat_min/procenat_max: 0-100, min <= max, nikad tacna jedna vrednost bez opsega.
+
+Ako je dole dat blok "STVARNO STANJE PREDMETA U SISTEMU" -- to je već izračunata, kanonska istina o
+ovom predmetu (readiness, Genome, nedostajući dokazi, kontradikcije). Uskladi svoju procenu sa njom --
+ne izmišljaj suprotnu ocenu snage predmeta bez razloga, i eksplicitno pomeni u kljucni_faktori_protiv
+svaki nedostajući dokaz ili kontradikciju koja je tamo navedena."""
 
 
 @llm_retry
@@ -101,22 +107,30 @@ def _pozovi_predictor_api(oai_client, user_prompt: str) -> str:
     return resp.choices[0].message.content or "{}"
 
 
-def _rag_praksa_blok(query: str, top_k: int) -> str:
+def _rag_praksa_blok(query: str, top_k: int) -> tuple[str, list[dict]]:
     """CELINA 2 (2026-07-24): zajednički helper -- pretražuje sudsku praksu
     preko retrieve_sudska_praksa (Celina 1: Cohere/GPT re-rank) i formatira
     je u tekstualni blok za prompt. Nikad ne baca -- vraća prazan string na
-    grešku, pozivalac dodaje napomenu da RAG nije dostupan."""
+    grešku, pozivalac dodaje napomenu da RAG nije dostupan.
+
+    Program Tau, Master Sprint 005 (2026-08-06) -- vraća i strukturovanu
+    listu retrieved odluka (TAU-014's own fix: `koriscena_praksa` u odgovoru
+    je sada STVARNO ono što je pretraženo/dostupno, ne GPT-ovo sopstveno
+    necitirano tvrdjenje o procentu). Ne trazi da GPT sam cituje broj odluke
+    (izbegava hallucination-grounding rizik) -- umesto toga posteno prikazuje
+    sta je STVARNO pronadjeno, pored procenta."""
     if not _RAG_AVAILABLE:
-        return ""
+        return "", []
     try:
         odluke = retrieve_sudska_praksa(query[:300], top_k)
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[PREDICTOR] RAG greška: %s", exc)
-        return ""
+        return "", []
     if not odluke:
-        return ""
+        return "", []
     delovi = []
+    lista = []
     for m in odluke:
         meta = getattr(m, "metadata", {}) or {}
         court = meta.get("court") or meta.get("sud") or "Sud"
@@ -124,7 +138,105 @@ def _rag_praksa_blok(query: str, top_k: int) -> str:
         tekst = (meta.get("text") or meta.get("parent_text") or "").strip()[:400]
         if tekst:
             delovi.append(f"[{court} {broj}] {tekst}")
-    return "\n\n".join(delovi)
+            lista.append({"sud": court, "broj": broj or None})
+    return "\n\n".join(delovi), lista
+
+
+def _case_context_blok(cc: Optional[dict]) -> str:
+    """Program Tau, Master Sprint 005 (2026-08-06) -- formats
+    shared/case_context.py::build_case_context()'s own canonical fields into
+    a text block for GPT context. Reused across every endpoint below that
+    accepts predmet_id -- NOT a new context source, this only presents the
+    ONE canonical builder's own already-fetched data (same idiom as
+    case_commander.py's own _formatiraj_kontekst / case_intelligence.py's
+    own _build_context_text, both pre-existing consumers of their own
+    canonical data)."""
+    if not cc or cc.get("error"):
+        return ""
+    delovi = []
+
+    readiness = (cc.get("readiness") or {}).get("value") or {}
+    if readiness.get("status"):
+        delovi.append(f"READINESS PREDMETA (kanonski status iz sistema): {readiness['status']} — {readiness.get('razlog','')}")
+
+    key_facts = (cc.get("key_facts") or {}).get("value")
+    if key_facts:
+        pt = key_facts.get("pravna_teorija") or {}
+        if isinstance(pt, dict) and pt.get("sustina_spora"):
+            delovi.append(f"GENOME — suština spora (već izračunato): {pt['sustina_spora']}")
+        if key_facts.get("snaga_predmeta_procent") is not None:
+            delovi.append(f"GENOME — snaga predmeta (već izračunata, ne izmišljaj novu): {key_facts['snaga_predmeta_procent']}%")
+        nt = key_facts.get("najslabija_tacka") or {}
+        if isinstance(nt, dict) and nt.get("rizik"):
+            delovi.append(f"GENOME — najslabija tačka: {nt['rizik']} (kritičnost {nt.get('kriticnost','?')})")
+
+    missing = ((cc.get("missing_evidence") or {}).get("value")) or []
+    if missing:
+        delovi.append("NEDOSTAJUĆI DOKAZI (kanonski, iz Gap Engine-a): " + "; ".join(
+            g.get("razlog", "") for g in missing[:5] if g.get("razlog")))
+
+    contra = ((cc.get("contradictions") or {}).get("value")) or []
+    if contra:
+        delovi.append("KONTRADIKCIJE U PREDMETU (kanonske, iz Genome-a): " + "; ".join(
+            g.get("razlog", "") for g in contra[:5] if g.get("razlog")))
+
+    actions = ((cc.get("active_actions") or {}).get("value")) or []
+    if actions:
+        delovi.append(f"OTVORENE AKCIJE U SISTEMU ({len(actions)}): " + "; ".join(
+            (a.get("razlog") or "")[:100] for a in actions[:5]))
+
+    deadlines = ((cc.get("deadlines") or {}).get("value")) or []
+    upcoming = [d for d in deadlines if not d.get("proslo")]
+    if upcoming:
+        delovi.append(f"PREDSTOJEĆA ROČIŠTA/ROKOVI ({len(upcoming)}): " + "; ".join(
+            f"{d.get('sud','')} {d.get('datum','')}" for d in upcoming[:5]))
+
+    participants = (cc.get("participants") or {}).get("value") or {}
+    if participants.get("stranka") or participants.get("protivnik"):
+        delovi.append(f"STRANKE (iz sistema, proveri protiv unetih): {participants.get('stranka','?')} protiv {participants.get('protivnik','?')}")
+
+    # Only populated when the caller passed include_documents=True
+    # (prediktuj_ishod/battle_report) -- Document Visibility Engine's own
+    # bounded excerpt set (Tau 002), reused as-is, not re-sampled here.
+    rel_docs = ((cc.get("relevant_documents") or {}).get("value")) or {}
+    included = rel_docs.get("included") or []
+    if included:
+        doc_delovi = [f"  - {d.get('naziv','')}: {(d.get('excerpt') or '')[:600]}" for d in included[:8]]
+        not_included_n = len(rel_docs.get("not_included_but_retrievable") or [])
+        delovi.append("DOKUMENTI U DOSIJEU (stvaran sadržaj, iz sistema):\n" + "\n".join(doc_delovi) + (
+            f"\n  (+ još {not_included_n} dokumenata u dosijeu, nisu prikazani ovde)" if not_included_n else ""))
+
+    if not delovi:
+        return ""
+    return "STVARNO STANJE PREDMETA U SISTEMU (kanonski izvor — koristi OVO kao osnovu, ne izmišljaj suprotno):\n" + "\n".join(delovi)
+
+
+async def _dohvati_case_context_ako_postoji(predmet_id: Optional[str], uid: str, supa, include_documents: bool = False) -> Optional[dict]:
+    """Program Tau, Master Sprint 005 -- thin, fail-soft wrapper around a
+    single build_case_context() call, reused by every endpoint below. Not a
+    new context builder (it calls the ONE canonical function directly and
+    does nothing else); exists only so 7 call sites don't each repeat the
+    same try/except. Returns None when predmet_id is absent (most live
+    calls today -- this whole file's own UI is primarily a "paste your case
+    text" tool, not always opened from a tracked case) or when the fetch
+    fails -- callers must already handle a missing case context gracefully
+    since that's the CURRENT, unmigrated behavior for every one of these
+    endpoints.
+
+    `include_documents` defaults False (lightweight -- readiness/Genome/gaps/
+    actions/deadlines only, no document fetch) since 5 of this file's own 7
+    endpoints don't center their reasoning on raw document text. Phase 3's
+    own context-certification found `prediktuj_ishod`/`battle_report`
+    specifically SHOULD see real evidence excerpts (their whole job is
+    analyzing the case's own strength) -- those 2 call sites pass True."""
+    if not predmet_id:
+        return None
+    try:
+        return await build_case_context(predmet_id, uid, supa, include_documents=include_documents)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[PREDICTOR] build_case_context greška (nastavlja bez kanonskog konteksta): %s", exc)
+        return None
 
 
 @router.post("/api/predictor/analiza")
@@ -152,7 +264,20 @@ async def prediktuj_ishod(
     # pretraživao praksu -- procena je bila isključivo iz opšteg znanja
     # modela. Sada stvarno pretražuje pre nego što tvrdi da je koristila.
     rag_query = f"{payload.tip_postupka} {payload.cinjenicni_opis}"[:600]
-    rag_kontekst = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+    rag_kontekst, koriscena_praksa = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+
+    # Program Tau, Master Sprint 005 (2026-08-06) -- TAU-011's own fix: when
+    # predmet_id is present, this is no longer a "paste your own text and
+    # get a prediction blind to the tracked case" call. See
+    # _dohvati_case_context_ako_postoji's own docstring for why this stays
+    # None (not an error) when predmet_id is absent -- most live calls to
+    # this specific endpoint today have no predmet_id at all (the shared
+    # Strategija-tab UI is a general-purpose tool, not always opened from a
+    # tracked case). include_documents=True -- this endpoint's whole job is
+    # analyzing the case's own evidentiary strength, so real document
+    # excerpts (not just readiness/Genome signals) belong in its prompt.
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa, include_documents=True)
+    case_context_blok = _case_context_blok(case_context)
 
     user_prompt = f"""PREDMET ZA ANALIZU:
 
@@ -173,6 +298,7 @@ ARGUMENTI SUPROTNE STRANE:
         f"\nRELEVANTNA SUDSKA PRAKSA:\n{rag_kontekst}\n"
         if rag_kontekst else
         "\nNapomena: nije pronađena relevantna sudska praksa u bazi — procena bazirana na opštem pravnom znanju.\n"
+    ) + (f"\n{case_context_blok}\n" if case_context_blok else ""
     ) + "\nAnaliziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
 
     try:
@@ -185,6 +311,22 @@ ARGUMENTI SUPROTNE STRANE:
         import json as _json
         rezultat = _json.loads(raw)
         analiza = (rezultat.get("analiza") or "").strip()
+
+        # Program Tau, Master Sprint 005 -- Phase 4 grounding requirement:
+        # a case in a canonically CRITICAL_GAP/BLOCKED readiness state must
+        # not structurally receive a confident high percentage that ignores
+        # that fact. Deterministic cap, not a 2nd GPT opinion -- reuses
+        # shared/case_readiness.py's own already-computed status, invents no
+        # new scoring.
+        if case_context and not case_context.get("error"):
+            _readiness_status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
+            _CAP_BY_READINESS = {"CRITICAL_GAP": 50, "BLOCKED": 65}
+            _cap = _CAP_BY_READINESS.get(_readiness_status)
+            if _cap is not None:
+                for _k in ("procenat_min", "procenat_max"):
+                    _v = rezultat.get(_k)
+                    if isinstance(_v, (int, float)) and _v > _cap:
+                        rezultat[_k] = _cap
 
         # Sacuvaj analizu
         try:
@@ -217,7 +359,15 @@ ARGUMENTI SUPROTNE STRANE:
             "preporucena_strategija": rezultat.get("preporucena_strategija", ""),
             "rizici":                 rezultat.get("rizici", []),
             "rag_dostupan":           bool(rag_kontekst),
+            # TAU-014 fix: the ACTUAL retrieved precedent set, not a GPT claim
+            # about which ones it used -- honest reporting, no new grounding
+            # mechanism needed since nothing here trusts a GPT-made citation.
+            "koriscena_praksa":       koriscena_praksa,
             "tip_postupka":           payload.tip_postupka,
+            # TAU-011 fix: whether this specific call actually consulted the
+            # tracked case's own canonical state (readiness/Genome/gaps),
+            # not just caller-typed text.
+            "kontekst_predmeta_koriscen": bool(case_context_blok),
             "credits_remaining":      preostalo,
         }
 
@@ -275,6 +425,12 @@ Ako je dostavljena SUDSKA PRAKSA ispod, oslanjaj se na konkretne odluke u
 sekciji ANALIZA SUDA / SUDIJE i KRITICNI FAKTORI; ako nije dostavljena, jasno
 navedi da je ta sekcija bazirana na opštem znanju, ne na konkretnoj praksi.
 
+Ako je dat blok "STVARNO STANJE PREDMETA U SISTEMU" — to je već izračunata,
+kanonska istina (readiness, Genome, nedostajući dokazi, kontradikcije, otvorene
+akcije). U sekciji GDE CE NAPADATI i KRITICNI FAKTORI eksplicitno uzmi u obzir
+svaki nedostajući dokaz/kontradikciju odatle — ne izmišljaj drugačiju sliku
+predmeta od one koju sistem već zna.
+
 Ekavica. Direktan ton. Bez uvoda i zakljucka — samo analiza."""
 
 
@@ -322,7 +478,17 @@ async def battle_report(
     # Report obećava analizu suda/sudije "na osnovu poznatih obrazaca", ali
     # ranije nikad nije pretraživao sudsku praksu.
     rag_query = f"{payload.tip_postupka} {payload.sud or ''} {payload.sudija or ''} {payload.opis_predmeta}"[:600]
-    rag_kontekst = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+    rag_kontekst, koriscena_praksa = await asyncio.to_thread(_rag_praksa_blok, rag_query, 6)
+
+    # Program Tau, Master Sprint 005 -- TAU-011 fix, same pattern as
+    # prediktuj_ishod above. This is the ONE endpoint in this file whose own
+    # live frontend caller (stratBattleReport) already sends predmet_id when
+    # available (activePredmetId) -- so this migration has immediate live
+    # effect, not just a dormant capability. include_documents=True for the
+    # same reason as prediktuj_ishod -- a battle-prep document needs real
+    # evidence, not just readiness/Genome signals.
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa, include_documents=True)
+    case_context_blok = _case_context_blok(case_context)
 
     user_prompt = f"""BATTLE REPORT — PRIPREMA ZA POSTUPAK
 
@@ -341,6 +507,7 @@ DOSTUPNI DOKAZI:
 """ + (
         f"\nSUDSKA PRAKSA:\n{rag_kontekst}\n" if rag_kontekst else
         "\nNapomena: nije pronađena relevantna sudska praksa u bazi.\n"
+    ) + (f"\n{case_context_blok}\n" if case_context_blok else ""
     ) + "\nNapravi kompletan Battle Report."
 
     try:
@@ -378,6 +545,8 @@ DOSTUPNI DOKAZI:
             "tip_postupka":       payload.tip_postupka,
             "sud":                payload.sud,
             "rag_dostupan":       bool(rag_kontekst),
+            "koriscena_praksa":   koriscena_praksa,
+            "kontekst_predmeta_koriscen": bool(case_context_blok),
             "credits_remaining":  preostalo,
         }
 
@@ -418,6 +587,9 @@ Format:
 
 ## NE ZABORAVI
 [Dokumenta, potvrde, overene kopije koje treba poneti]
+
+Ako je dat blok "STVARNO STANJE PREDMETA U SISTEMU" — u KLJUCNI ARGUMENTI eksplicitno pomeni otvorene
+akcije i nedostajuće dokaze odatle ako postoje relevantni za ovo ročište.
 
 Koncizan, direktan, praktican. Ekavica."""
 
@@ -460,11 +632,27 @@ async def hearing_prep_brief(
         if payload.poslednji_podnesak else ""
     )
 
+    # Program Tau, Master Sprint 005 -- TAU-011 fix, same pattern as the
+    # other endpoints. Also: a real, checkable cross-check that had no
+    # mechanism before -- does payload.datum_rocista actually match a real
+    # rociste this case has on file? A caller could type any date; this
+    # doesn't block the brief (still fail-soft, per this file's own
+    # convention), it just tells GPT the truth so it doesn't build false
+    # confidence into "STA OCEKIVATI DANAS."
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa)
+    case_context_blok = _case_context_blok(case_context)
+    rociste_potvrdjeno = False
+    if case_context and not case_context.get("error"):
+        _deadlines = ((case_context.get("deadlines") or {}).get("value")) or []
+        rociste_potvrdjeno = any(str(d.get("datum") or "")[:10] == payload.datum_rocista[:10] for d in _deadlines)
+        if case_context_blok and not rociste_potvrdjeno:
+            case_context_blok += f"\nNAPOMENA: datum ročišta ({payload.datum_rocista}) NE odgovara nijednom zabeleženom ročištu/roku za ovaj predmet u sistemu — proveri da li je datum tačan."
+
     user_msg = f"""PRIPREMA ZA ROCISTE: {payload.rociste_naziv}
 Datum: {payload.datum_rocista}
 Tip: {payload.tip_postupka}
 
-{payload.opis_predmeta}{podnesak_txt}"""
+{payload.opis_predmeta}{podnesak_txt}""" + (f"\n\n{case_context_blok}" if case_context_blok else "")
 
     try:
         from openai import OpenAI
@@ -500,6 +688,8 @@ Tip: {payload.tip_postupka}
             "brief":              brief,
             "rociste_naziv":      payload.rociste_naziv,
             "datum_rocista":      payload.datum_rocista,
+            "rociste_potvrdjeno_u_sistemu": rociste_potvrdjeno if case_context else None,
+            "kontekst_predmeta_koriscen": bool(case_context_blok),
             "credits_remaining":  preostalo,
         }
 
@@ -592,7 +782,9 @@ Pravila:
 - uspesnost_procena 0-100 (0=nikad ne prolazi, 100=uvek prolazi)
 - boja: "zelena" ako >=65, "žuta" ako 35-64, "crvena" ako <35
 - Ekavica strogo. Nema ijekavice.
-- Budi konkretan, ne generički."""
+- Budi konkretan, ne generički.
+- Ako je dat blok "STVARNO STANJE PREDMETA U SISTEMU" — argument koji se oslanja na dokaz koji je tamo
+  označen kao nedostajući mora dobiti nižu uspesnost_procena i to mora biti pomenuto u obrazloženje."""
 
 
 @llm_retry
@@ -661,13 +853,18 @@ async def argument_reputation(
 
     pouzdanost_napomena = "" if rag_kontekst else "\nNapomena: RAG nije dostupan — analiza bazirana samo na znanju modela."
 
+    # Program Tau, Master Sprint 005 -- TAU-011 fix, same pattern.
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa)
+    case_context_blok = _case_context_blok(case_context)
+
     user_msg = (
         f"Tip spora: {payload.tip_spora}\n"
         f"Sud: {payload.sud or 'nije naveden'}\n\n"
         f"ARGUMENTI ZA ANALIZU:\n" +
         "\n".join(f"- {a}" for a in payload.argumenti) +
         (f"\n\nRELEVANTNA SUDSKA PRAKSA:\n{rag_kontekst}" if rag_kontekst else "") +
-        pouzdanost_napomena
+        pouzdanost_napomena +
+        (f"\n\n{case_context_blok}" if case_context_blok else "")
     )
 
     from openai import OpenAI
@@ -733,6 +930,7 @@ async def argument_reputation(
         **rezultat,
         "tip_spora":         payload.tip_spora,
         "rag_dostupan":      _RAG_AVAILABLE and bool(rag_kontekst),
+        "kontekst_predmeta_koriscen": bool(case_context_blok),
         "credits_remaining": preostalo,
     }
 
@@ -821,6 +1019,21 @@ async def judge_profile(
             _sentry_capture(e)
             logger.warning("[JUDGE_PROF] RAG greška: %s", e)
 
+    # Program Tau, Master Sprint 005 -- TAU-011 fix. Per
+    # docs/tau/COURT_PREDICTOR_FORENSIC_REPORT.md's own finding, this
+    # endpoint's own request model has NO case-description field at all --
+    # it's architecturally about a court/judge, not a specific case, the
+    # same way strategija.py's own request models were found (Tau 002/003)
+    # to have no predmet_id at all. Full context injection doesn't fit here;
+    # the one legitimate, checkable thing case context adds is whether the
+    # caller-typed court name actually matches the tracked case's own court.
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa)
+    sud_neslaganje = None
+    if case_context and not case_context.get("error"):
+        _case_sud = ((case_context.get("case_identity") or {}).get("value") or {}).get("sud")
+        if _case_sud and payload.sud and _case_sud.strip().lower() != payload.sud.strip().lower():
+            sud_neslaganje = _case_sud
+
     user_msg = (
         f"Sud: {payload.sud}\n"
         f"Sudija: {payload.ime_sudije or 'nije naveden'}\n"
@@ -880,6 +1093,7 @@ async def judge_profile(
 
     return {
         **rezultat,
+        "sud_neslaganje_sa_predmetom": sud_neslaganje,
         "credits_remaining": preostalo,
     }
 
@@ -988,6 +1202,15 @@ async def opponent_intel(
             _sentry_capture(e)
             logger.warning("[OPP_INTEL] RAG greška: %s", e)
 
+    # Program Tau, Master Sprint 005 -- TAU-011 fix. The existing internal-
+    # history search above is cross-PORTFOLIO (other cases mentioning this
+    # opponent) -- a genuinely different shape than build_case_context()'s
+    # own single-case scope, kept as-is per the grounding-design spec (not
+    # replaced). This ADDS the current case's own canonical picture
+    # alongside it, when predmet_id is present.
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa)
+    case_context_blok = _case_context_blok(case_context)
+
     user_msg = (
         f"Protivnik: {payload.protivnik_naziv}\n"
         f"Advokatska kancelarija: {payload.protivnicki_adv or 'nije navedena'}\n"
@@ -997,6 +1220,7 @@ async def opponent_intel(
         + (f"\n{interni_kontekst}\n" if interni_kontekst else "")
         + (f"\n{rag_kontekst}" if rag_kontekst else
            "\nNapomena: Nema dostupnih podataka iz sudske prakse — analiza bazirana na opštem znanju.")
+        + (f"\n\n{case_context_blok}" if case_context_blok else "")
     )
 
     from openai import OpenAI
@@ -1041,6 +1265,7 @@ async def opponent_intel(
         **rezultat,
         "ima_internih_predmeta": bool(interni_kontekst),
         "rag_dostupan":          _RAG_AVAILABLE and bool(rag_kontekst),
+        "kontekst_predmeta_koriscen": bool(case_context_blok),
         "credits_remaining":     preostalo,
     }
 
@@ -1075,8 +1300,21 @@ def _calc_confidence_nivo(
     vks_hits: int,
     kancelarija_data: Optional[dict],
     dokazi_count: int,
+    readiness_status: Optional[str] = None,
 ) -> tuple[str, str, list[str], list[str], int]:
-    """Vraća (nivo, boja, faktori_plus, faktori_minus, score)."""
+    """Vraća (nivo, boja, faktori_plus, faktori_minus, score).
+
+    Program Tau, Master Sprint 005 (2026-08-06) -- `readiness_status` je novi,
+    OPCIONI parametar (default None -- postojeći poziv bez case context-a
+    ponasa se identicno kao pre). Kad je dostupan (predmet_id prisutan,
+    shared/case_readiness.py::compute_case_readiness vec izracunat), zamenjuje
+    caller-typed `dokazi_count` kao osnov za POSLEDNJU (1-poensku) komponentu
+    skora -- kanonski, sistemski poznat status je pouzdaniji signal od broja
+    stringova koje je pozivalac uneo u ovaj konkretan poziv. `_CONFIDENCE_MAX_SCORE`
+    OSTAJE 9 u oba slucaja -- ovo ne dodaje novu dimenziju skora, samo bira
+    boji izvor za postojecu, vec race namenjen "koliko je predmet potkovan"
+    signalu, ocuvavajuci DC-004's own "jedan skor, jedan nivo, jedan procenat"
+    invarijantu (Program Alpha, 2026-08-04) bez ikakve promene praga/max_score."""
     score = 0
     faktori_plus: list[str] = []
     faktori_minus: list[str] = []
@@ -1113,7 +1351,18 @@ def _calc_confidence_nivo(
     else:
         faktori_minus.append("Nema istorijata ove firme za ovaj tip spora")
 
-    if dokazi_count >= 4:
+    if readiness_status is not None:
+        if readiness_status == "READY":
+            score += 1
+            faktori_plus.append("Predmet je kanonski spreman za postupak (readiness: READY)")
+        elif readiness_status in ("CRITICAL_GAP", "BLOCKED"):
+            faktori_minus.append(f"Predmet ima kritičan nedostatak po kanonskom statusu (readiness: {readiness_status})")
+        elif dokazi_count >= 4:
+            score += 1
+            faktori_plus.append(f"Dobro dokumentovan predmet ({dokazi_count} dokaza)")
+        elif dokazi_count == 0:
+            faktori_minus.append("Dokazi nisu navedeni — nepotpuna analiza")
+    elif dokazi_count >= 4:
         score += 1
         faktori_plus.append(f"Dobro dokumentovan predmet ({dokazi_count} dokaza)")
     elif dokazi_count == 0:
@@ -1206,11 +1455,19 @@ async def confidence_check(
         _sentry_capture(e)
         logger.debug("[CONFIDENCE] case_patterns greška: %s", e)
 
+    # Program Tau, Master Sprint 005 -- TAU-011 fix. See _calc_confidence_nivo's
+    # own docstring for exactly how readiness_status participates in the
+    # SAME score (never a 2nd, competing signal).
+    case_context = await _dohvati_case_context_ako_postoji(payload.predmet_id, uid, supa)
+    readiness_status = None
+    if case_context and not case_context.get("error"):
+        readiness_status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
+
     # Korak 3: Nivo pouzdanosti + deterministički procenat izveden IZ ISTOG
     # score-a (Program Alpha, 2026-08-04) -- ranije je "procenat" bio drugi,
     # nezavisan autor iste percipirane vrednosti (vidi _procenat_iz_score).
     nivo, boja, faktori_plus, faktori_minus, _confidence_score = _calc_confidence_nivo(
-        rag_hits, vks_hits, kancelarija_data, len(payload.dokazi or [])
+        rag_hits, vks_hits, kancelarija_data, len(payload.dokazi or []), readiness_status=readiness_status,
     )
     procenat = _procenat_iz_score(_confidence_score)
 
@@ -1290,6 +1547,7 @@ async def confidence_check(
             "vks_presuda":     vks_hits,
         },
         "poruka_korisniku":   poruka,
+        "kontekst_predmeta_koriscen": readiness_status is not None,
         "credits_remaining":  preostalo,
     }
 

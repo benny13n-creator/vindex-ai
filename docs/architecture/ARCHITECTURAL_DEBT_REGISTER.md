@@ -2442,7 +2442,24 @@ Full narrative: `docs/tau/TAU_004_REPORT.md` and its 5 sibling deliverables in `
 items, none rushed — this sprint's own scope (the whole platform's GPT reasoning pipeline, not 4 files)
 surfaced findings far larger than one sprint could safely fix; each below is named precisely instead.
 
-## TAU-011 — `court_predictor.py`'s `predmet_id` is accepted but never used to fetch case context (Critical)
+## TAU-011 — CLOSED (Program Tau, Master Sprint 005, 2026-08-06): was "court_predictor.py's predmet_id is accepted but never used to fetch case context"
+
+**UPDATE — Program Tau, Master Sprint 005 (2026-08-06):** Closed. All 7 endpoints now call
+`shared/case_context.py::build_case_context()` (via a thin, fail-soft wrapper,
+`_dohvati_case_context_ako_postoji`) whenever `predmet_id` is present. `prediktuj_ishod`/`battle_report`
+use full mode (real document excerpts, since evidentiary strength is their whole job); the other 5 use
+lightweight mode. Re-proven fresh before any code changed (Phase 1's own forensic re-verification, not
+assumed from the original finding) — see `docs/tau/COURT_PREDICTOR_FORENSIC_REPORT.md`. A genuinely new
+finding from the deeper pass: the live frontend's own main "Predikcija ishoda" tool sends NO `predmet_id`
+at all (`stratPokreni()`'s own payload) — only `battle_report`'s own separate function conditionally sends
+one (`activePredmetId`, when available). The migration is therefore conditional by design: real case
+context is used when available, current (pre-migration) behavior is preserved exactly when it isn't — not
+a forced requirement that broke the tool's own general-purpose "paste your case text" use case. 21 new
+tests (`tests/test_tau005_court_predictor_migration.py`), including a direct adversarial proof that a
+canonically CRITICAL_GAP case cannot receive a confident high win-probability even when GPT itself returns
+one. Original entry preserved below.
+
+**[CLOSED]** `court_predictor.py`'s `predmet_id` is accepted but never used to fetch case context (Critical)
 
 **Found by**: Phase 1 forensic pipeline map, Program Tau Master Sprint 004 — the sprint's own single most
 surprising finding.
@@ -2461,7 +2478,15 @@ sprint: wiring `build_case_context()` (or a scoped subset) into 7 endpoints' exi
 logic, without regressing any of them, is a Sigma-005-scale project requiring its own dedicated sprint with
 full per-endpoint testing, not a Phase 9 patch.
 
-## TAU-012 — 17+ more case-linked files never migrated onto `build_case_context()` (High)
+## TAU-012 — 16+ more case-linked files never migrated onto `build_case_context()` (High)
+
+**UPDATE — Program Tau, Master Sprint 005 (2026-08-06):** `court_predictor.py` is migrated (`TAU-011`
+closed) and is no longer part of this count. Count revised from 17+ to 16+; the file list below is
+otherwise unchanged and none of it was touched this sprint (out of scope by the mission's own explicit
+"jedini cilj ovog sprinta je Court Predictor" instruction). Program Tau's own founder-stated intent for the
+next sprint is a **Canonical Context Migration Factory** — a standardized migration template so the
+remaining 16+ files can be migrated systematically rather than as 16+ separate bespoke projects; see
+`docs/tau/TAU_006_HANDOVER.md`.
 
 **Found by**: Phase 1 forensic pipeline map, Program Tau Master Sprint 004.
 
@@ -2497,7 +2522,20 @@ ADDITIVE change (new dict keys, no breaking change for existing consumers) — b
 `case_intelligence.py`'s own redundant fetches should fold into the contract, and resolving `rokovi` vs
 `rocista`, deserves its own careful pass, not a rushed schema change appended to an already-large sprint.
 
-## TAU-014 — `court_predictor.py`'s win-probability cites no specific precedent (Medium)
+## TAU-014 — CLOSED (Program Tau, Master Sprint 005, 2026-08-06): was "court_predictor.py's win-probability cites no specific precedent"
+
+**UPDATE — Program Tau, Master Sprint 005 (2026-08-06):** Closed, via the exact fix this entry's own
+original text recommended. `_rag_praksa_blok()` now returns `tuple[str, list[dict]]` — the existing text
+block plus a structured `[{"sud": ..., "broj": ...}, ...]` list of what was actually retrieved. Both
+`prediktuj_ishod` and `battle_report` now return this as `koriscena_praksa` in their own response. Deliberately
+does NOT ask GPT to self-cite which precedent it used (would introduce a new hallucination-grounding
+validation problem, closer to a parallel mechanism than this entry's own "same shape, new field, no new
+mechanism" recommendation) — instead honestly reports what was searched/found, letting the reader judge
+plausibility themselves. Proven by `test_prediktuj_ishod_koriscena_praksa_is_actual_rag_results_not_gpt_claim`
+in `tests/test_tau005_court_predictor_migration.py`. `PROGBETA-001`'s own broader 5-way win-probability
+fragmentation is unaffected — still open, still a separate concern. Original entry preserved below.
+
+**[CLOSED]** `court_predictor.py`'s win-probability cites no specific precedent (Medium)
 
 **Found by**: Phase 4 Legal Reasoning Verification, Program Tau Master Sprint 004
 (`docs/tau/LEGAL_REASONING_VERIFICATION.md`).
