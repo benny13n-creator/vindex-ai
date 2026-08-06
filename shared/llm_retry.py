@@ -23,6 +23,7 @@ from tenacity import (
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
+    wait_random,
     before_sleep_log,
 )
 
@@ -30,7 +31,17 @@ logger = logging.getLogger("vindex.llm_retry")
 
 llm_retry = retry(
     stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=8),
+    # Program Lambda, Certification 006 (2026-08-07) -- Chaos Engineer fork
+    # found the plain wait_exponential produced an IDENTICAL, deterministic
+    # backoff schedule (1s->2s->4s->8s) for every concurrent caller -- during
+    # a sustained OpenAI outage, every request that started retrying around
+    # the same wall-clock time would re-hit the API in near-lockstep the
+    # moment it recovers, a real thundering-herd risk. + wait_random(0, 2)
+    # adds 0-2s of jitter on top of the SAME exponential envelope (keeps the
+    # existing min=1/max=8 floor/ceiling, just spreads concurrent retries
+    # instead of synchronizing them) -- tenacity's own supported composition,
+    # not a new mechanism.
+    wait=wait_exponential(multiplier=1, min=1, max=8) + wait_random(0, 2),
     retry=retry_if_exception_type(
         (RateLimitError, InternalServerError, APITimeoutError, APIConnectionError)
     ),

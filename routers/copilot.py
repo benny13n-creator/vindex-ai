@@ -345,7 +345,16 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
 
     beleske_r, dok_r, hron_r, istorija_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(5).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
+        # Program Lambda, Certification 006 (2026-08-07) -- Chaos Engineer
+        # fork found this query pulled `tekst_sadrzaj` (full document text)
+        # for EVERY document in the case, unconditionally, before
+        # `_select_documents()` below ever bounds the set to ~5 -- the exact
+        # unbounded-resource-exhaustion pattern `shared/case_context.py::
+        # _fetch_raw` already fixed for its own callers (Lambda Master
+        # Sprint 001). Metadata-only here now; text is fetched separately,
+        # below, only for the bounded subset actually selected -- reusing
+        # that same fix's own `_fetch_document_texts` helper, not a new one.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").limit(8).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(2).execute()),
         return_exceptions=True,
@@ -403,13 +412,14 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     # cross_doc.py's own stride sampler. Any document not selected here is
     # still individually retrievable via get_document_full_text -- never
     # permanently invisible, just not in THIS prompt's bounded budget.
-    from shared.case_context import _select_documents, _excerpt
+    from shared.case_context import _select_documents, _excerpt, _fetch_document_texts
     _dok_included, _dok_not_included = _select_documents(dok)
     _dok_included = _dok_included[:5]  # copilot is a lightweight assistant, not a full case dossier -- smaller budget than case_commander's own
     if _dok_included:
+        _tekst_by_id = await _fetch_document_texts([d["id"] for d in _dok_included if d.get("id")], predmet_id, supa)
         _dok_delovi = []
         for _d in _dok_included:
-            _izvod, _ = _excerpt(_d.get("tekst_sadrzaj") or "", budget=800)
+            _izvod, _ = _excerpt(_tekst_by_id.get(_d.get("id"), ""), budget=800)
             _dok_delovi.append(f"  - {_d.get('naziv_fajla','')}: {_izvod}" if _izvod else f"  - {_d.get('naziv_fajla','')} (bez teksta)")
         dokumenti_blok = "Dokumenti u dosijeu:\n" + "\n".join(_dok_delovi)
         if _dok_not_included:
@@ -552,7 +562,10 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 
     beleske_r, dok_r, hron_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(4).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, tekst_sadrzaj, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
+        # Program Lambda, Certification 006 (2026-08-07) -- same fix as
+        # _handle_analiza_predmeta above: metadata-only, text fetched
+        # separately for the bounded selected subset only.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
         return_exceptions=True,
     )
@@ -603,13 +616,14 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     # Program Tau, Master Sprint 002 -- Document Visibility Engine reused
     # (shared/case_context.py), see _handle_analiza_predmeta above for the
     # same pattern and its own rationale comment.
-    from shared.case_context import _select_documents, _excerpt
+    from shared.case_context import _select_documents, _excerpt, _fetch_document_texts
     _plan_dok_included, _plan_dok_not_included = _select_documents(dok)
     _plan_dok_included = _plan_dok_included[:5]
     if _plan_dok_included:
+        _plan_tekst_by_id = await _fetch_document_texts([d["id"] for d in _plan_dok_included if d.get("id")], predmet_id, supa)
         _plan_dok_delovi = []
         for _d in _plan_dok_included:
-            _izvod, _ = _excerpt(_d.get("tekst_sadrzaj") or "", budget=800)
+            _izvod, _ = _excerpt(_plan_tekst_by_id.get(_d.get("id"), ""), budget=800)
             _plan_dok_delovi.append(f"  - {_d.get('naziv_fajla','')}: {_izvod}" if _izvod else f"  - {_d.get('naziv_fajla','')} (bez teksta)")
         dokumenti_blok = "Dokumenti:\n" + "\n".join(_plan_dok_delovi)
         if _plan_dok_not_included:

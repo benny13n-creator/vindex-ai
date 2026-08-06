@@ -239,7 +239,7 @@ async def test_resolve_then_finalize_proceeds_without_repeating_processing():
     supa.table = MagicMock(side_effect=_table)
 
     with patch("routers.smart_intake._get_supa", return_value=supa), \
-         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})), \
          patch("routers.smart_intake.intake_documents.get_job_documents", new=AsyncMock(return_value=[])) as mock_get_result:
         from fastapi import HTTPException
         with pytest.raises(HTTPException) as exc_info:

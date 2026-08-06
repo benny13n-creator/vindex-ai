@@ -2326,3 +2326,48 @@ failed** (335.37s) — was 3,008 at end of Certification 004, +7 new test functi
 fork's own unreliable "3,011" self-report). Full report: `docs/lambda/LAMBDA005_CERTIFICATION_REPORT.md`.
 
 **Verdict: Gate 005 conditions met for findings fixed.** Proceeding to Certification 006 (Chaos Engineering).
+
+## Program Lambda, Certification 006 (2026-08-07) — Chaos Engineering Certification
+
+6 forensic areas (Event Bus/background workers, Database/Storage/Cache, AI/OpenAI failure injection,
+Upload/Smart Intake/finalize, Genome/Workspace/Case Actions, Audit chain/ownership/AI boundary). First 5
+launched as strictly read-only forensic forks, explicitly re-briefed after Certification 005's own process
+failure — all 5 stayed within brief this time, zero violations. The 6th hit the session's subagent spawn
+limit (200/200) and was investigated directly by the coordinator instead.
+
+**21 areas traced and confirmed sound** (Event Bus batch-kill safety, no cross-process duplicate consequence
+execution, no queue starvation, no memory leak, `ask_agent` cache/rate-limiter/deadlock all sound, GPT-writing
+call sites not systemically unsafe, malformed-JSON handling correct, AI Governance provenance captured even on
+failure, Smart Intake process-restart already hardened, concurrent Genome refresh already coalesced, Workspace
+MVCC-safe reads, and more — full list in `LAMBDA006_CERTIFICATION_REPORT.md`).
+
+**3 real findings fixed**: (1) Smart Intake finalize's own final write (`routers/smart_intake.py`) had no
+compare-and-swap against the `finalizing_at` claim that authorized it — the SAME "claim without re-verifying
+ownership at write time" shape Certification 005 just closed in the Event Bus layer, here still open: a
+genuinely-slow (not crashed) worker could be overtaken by a reclaiming worker, and whichever's final write
+landed last silently won, orphaning the other's already-created predmet/client-link/documents. Fixed via a
+`.eq("finalizing_at", ...)` guard that now raises a 409 instead of silently succeeding. (2) `routers/copilot.py`'s
+`_handle_analiza_predmeta`/`_handle_plan_predmeta` both pulled full document text for EVERY document in a case
+unconditionally — the exact unbounded-fetch pattern `shared/case_context.py::_fetch_raw` already fixed
+elsewhere, never migrated to Copilot's own separate fetch. Fixed via the same 2-phase metadata-then-bounded-text
+pattern, reusing the existing `_fetch_document_texts` helper. (3) `shared/llm_retry.py`'s exponential backoff
+had zero jitter — every concurrent caller retried on an identical schedule, a thundering-herd risk under a
+sustained OpenAI outage. Fixed via `+ wait_random(0, 2)` composed onto the existing wait strategy.
+
+**6 items named as debt** (`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`): `LAMBDA006-EVT-001`
+(`_mark_completed`'s own bookkeeping write unprotected against a transient failure right after a successful
+executor — narrower than this sprint's own CRITICAL-shaped fix), `LAMBDA006-SEC-001` (`ai_cache` RLS policy
+exists only as a code comment, not a tracked migration), `LAMBDA006-INTAKE-001` (no unique constraint on
+`predmet_dokumenti(predmet_id, redni_broj)`, a TOCTOU under the mission's own named parallel-upload scenario —
+needs a migration), `LAMBDA006-GOV-001` (fire-and-forget `log_action`, 36 call sites, has no drain guarantee
+during an ordinary graceful shutdown, not just a crash), `LAMBDA006-PIPE-001` (Case Pipeline steps 3/5's
+marker-check is TOCTOU-safe for sequential retries but not genuine concurrent invocation), `LAMBDA006-GEN-001`
+(Genome deadline corrections don't supersede stale `predmet_hronologija` rows, only add new ones alongside
+them — needs a deadline-identity concept, a product decision).
+
+Full suite: **3,016 passed, 1 skipped, 0 failed** (387.15s) — was 3,015 at end of Certification 005 (+1 new
+CAS-guard regression test). Zero new migrations landed this sprint (`LAMBDA006-SEC-001`/`LAMBDA006-INTAKE-001`
+both need one, deliberately not written without founder awareness per standing convention). Full report:
+`docs/lambda/LAMBDA006_CERTIFICATION_REPORT.md`.
+
+**Verdict: Gate 006 conditions met.** Proceeding to Certification 007 (Enterprise Beta Certification).

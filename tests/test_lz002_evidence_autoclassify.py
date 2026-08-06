@@ -106,7 +106,7 @@ async def test_finalize_triggers_evidence_classification_in_background():
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})), \
          patch("services.event_bus.emit_durable", new=AsyncMock()) as mock_emit:
 
         result = await finalize_intake_job(
@@ -145,7 +145,7 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \
          patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)), \
          patch("shared.vector_origin.now_iso", return_value="2026-08-03T00:00:00Z"), \
-         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})), \
+         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})), \
          patch("services.event_bus.emit_durable", new=AsyncMock(side_effect=RuntimeError("boom"))):
 
         result = await finalize_intake_job(

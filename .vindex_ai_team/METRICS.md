@@ -1807,3 +1807,19 @@ broken states, full suite green, every finding fixed or explicitly named as debt
 parallel upload, multi-user concurrency, full-subsystem end-to-end) was performed via the 6 forks' own
 targeted code analysis, not a live load-test environment (none available) — disclosed explicitly, not
 overclaimed. Full detail: `docs/lambda/LAMBDA005_CERTIFICATION_REPORT.md`.
+
+## Program Lambda, Certification 006 (2026-08-07) — Chaos Engineering Certification
+
+| Metric | Value |
+|---|---|
+| Named agents | 5 parallel read-only forensic forks (Event Bus/workers, DB/Storage/Cache, AI/OpenAI, Upload/Intake, Genome/Workspace) + 1 area investigated directly by the coordinator (subagent spawn limit hit, 200/200) |
+| Process discipline | Zero fork brief violations this sprint — direct correction from Certification 005's own recurrence |
+| Areas traced and confirmed sound | 21 |
+| Real findings fixed | 3 (Smart Intake finalize stale-claim overtake — same bug class as Cert 005's own CRITICAL fix; Copilot's unbounded document-text fetch ×2 handlers; `llm_retry`'s zero-jitter retry-storm risk) |
+| Debt named instead of guessed at | 6 (`LAMBDA006-EVT-001`/`SEC-001`/`INTAKE-001`/`GOV-001`/`PIPE-001`/`GEN-001`) |
+| New migrations required | 0 landed (2 debt items need one — `SEC-001`, `INTAKE-001` — deliberately not written without founder awareness) |
+| New/updated tests | 2 new (CAS-guard regression in `test_ztc_scenario_b_attach.py`; updated mock in `test_synapse_copilot_genome_context.py`) + 8 pre-existing `claim_finalize` test mocks corrected to include `finalizing_at` (real production rows always have it; only synthetic mocks omitted it) |
+| Full suite | **3,016 passed, 1 skipped, 0 failed** (387.15s) — was 3,015 at end of Certification 005 |
+| Process outcome | 5th consecutive Lambda-program sprint where the verify/audit discipline held; this time proactively (re-briefing forks harder after 005's own recurrence) rather than reactively catching a violation after the fact |
+
+**Success criteria**: Gate 006 conditions met. Full detail: `docs/lambda/LAMBDA006_CERTIFICATION_REPORT.md`.

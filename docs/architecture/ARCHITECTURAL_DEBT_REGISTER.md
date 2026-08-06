@@ -3136,3 +3136,162 @@ Genome's own `verzija`? an auto-regenerate trigger?) is a product decision, not 
 data needed to build any of these (`created_at` is already returned) is already present.
 
 **Severity**: Low — no incorrect behavior, a missing product affordance.
+
+## LAMBDA006-EVT-001 — `_mark_completed`'s own bookkeeping write is unprotected against a transient failure right after a successful executor (Low-Medium, narrow window)
+
+**Found by**: Database Reliability fork, Program Lambda Certification 006 (Chaos Engineering Certification).
+
+**What**: `services/case_evolution.py::handle_case_changed` — `await _mark_completed(event.event_id, c.name,
+result_ref)` runs OUTSIDE the `try/except` that wraps `await c.executor(event)`. If the executor succeeds but
+the immediately-following `_mark_completed` write itself fails (a transient Supabase connection drop between
+the two calls — narrower and rarer than this sprint's own CRITICAL staleness-mismatch fix, but the same shape),
+the consequence row stays `'pending'`. A later retry (governed by the same `ConsequenceClaimPending`/staleness
+mechanism this sprint just hardened) re-invokes the executor from scratch. For an idempotent executor
+(`_consequence_genome_refresh`'s own before/after `verzija` check) this is merely wasteful. For a non-idempotent
+one — `_consequence_timeline_entry` does a plain `predmet_hronologija` INSERT with no dedup key — a second run
+produces a genuine duplicate row (a duplicate "document accepted" Timeline entry).
+
+**Why not fixed this sprint**: closing this properly needs either (a) making every executor idempotent
+(touches multiple executor implementations, a broader change than this single bookkeeping call site), or (b) a
+bounded retry specifically around `_mark_completed` itself (narrower, but risks its own new inconsistency if
+the retry ALSO fails — e.g. does the loop then treat it as a genuine executor failure via `_mark_failed`, which
+would be misleading since the executor itself didn't fail?). Neither is a small, obviously-safe edit under this
+sprint's own time budget, unlike this sprint's other 4 fixes.
+
+**Recommended next step**: scope this as its own small follow-up: add a bounded retry (2-3 attempts) around
+`_mark_completed` specifically, and give `_consequence_timeline_entry` (and any other non-idempotent executor)
+a dedup key the same way `case_evolution_consequences` itself already has one, closing the residual duplicate-
+row risk even if the bookkeeping write eventually gives up.
+
+**Severity**: Low-Medium — requires 2 independent, closely-timed failures (executor succeeds, THEN the very
+next write fails) to trigger, unlike the sprint's own CRITICAL finding which needed only one (a worker crash
+anywhere in a 30-300s window).
+
+## LAMBDA006-SEC-001 — `ai_cache`'s RLS policy exists only as a code comment, not a tracked migration (Low, unverifiable from code alone)
+
+**Found by**: Database Reliability fork, Program Lambda Certification 006.
+
+**What**: `main.py` (lines 168-180) documents an `ai_cache` RLS policy as a comment instructing "run this once
+in the SQL editor manually" — it is not a tracked file under `migrations/`. There is no repo-level evidence
+this was ever actually applied to production. Same "declared control ≠ enforced control" gap shape named
+elsewhere in this program's own governance work. Blast radius is limited (the cache holds only PII-stripped
+question/answer pairs, per `main.py`'s own cache-key design already re-verified sound this sprint), but the
+policy's actual live state is unverifiable from the repo alone.
+
+**Why not fixed this sprint**: converting this into a tracked migration file is straightforward, but per this
+project's own standing convention the coordinator never runs migration SQL — writing the file without founder
+awareness that a NEW migration now exists (separate from this sprint's other zero-migration fixes) risks it
+sitting unnoticed. Flagging for the founder to convert deliberately, matching how migrations 102/103 were
+handled in Certification 002.
+
+**Severity**: Low — narrow blast radius, but worth closing given how cheap the fix is once acknowledged.
+
+## LAMBDA006-INTAKE-001 — Full-day-of-work: no unique constraint on `predmet_dokumenti(predmet_id, redni_broj)`, a read-then-write TOCTOU under parallel upload (Medium, needs a migration)
+
+**Found by**: Upload/Intake Chaos fork, Program Lambda Certification 006, directly matching the mission's own
+"500 documents, parallel upload" scenario.
+
+**What**: document ordering (`redni_broj`) is computed via `SELECT MAX(redni_broj)... + 1` in Python
+(`api.py`, ~line 4328), then inserted as a separate statement — a classic read-then-write race. Confirmed via
+`migrations/` that `predmet_dokumenti` has no unique constraint on `(predmet_id, redni_broj)`. Under genuinely
+concurrent uploads for the same case (this mission's own explicit scenario), multiple requests can read the
+same MAX before any commits, producing silently duplicate `redni_broj` values — no error, just two documents
+both labeled "DOK-05," a real (if cosmetic-severity) confusion risk for evidence citations that reference a
+document by its number.
+
+**Why not fixed this sprint**: the correct fix is a DB-level unique constraint (`UNIQUE(predmet_id,
+redni_broj)`) plus a retry-on-conflict loop in the app code (mirroring the already-proven atomic-claim pattern
+used everywhere else in this program) — this needs a new migration, and per this project's own standing
+convention the coordinator never runs migration SQL. Writing the app-side retry loop without the DB constraint
+backing it would not actually close the race (same TOCTOU, just a narrower window).
+
+**Recommended next step**: a migration adding the unique constraint, paired with a small retry-on-
+`IntegrityError`/23505 loop around the insert (bounded, 2-3 attempts, reusing the exact numbering-conflict
+shape `_try_claim_consequence` and friends already established for other tables this program).
+
+**Severity**: Medium — real under the mission's own explicitly-named "parallel upload" scenario, but cosmetic
+in impact (duplicate labels, not lost/corrupted data).
+
+## LAMBDA006-GOV-001 — fire-and-forget `log_action` calls have no drain guarantee during an ordinary graceful shutdown (Low-Medium, architecture decision needed)
+
+**Found by**: coordinator direct investigation, Program Lambda Certification 006 (the 6th forensic fork slot
+could not be spawned — session hit its subagent limit — so this area was investigated directly instead of
+via fork).
+
+**What**: `shared/audit_immutable.py::log_action` is called via `asyncio.create_task(log_action(...))`
+(fire-and-forget) at 36 call sites across 16 files, including this sprint's own new `intake_kreiraj` audit
+call. `api.py`'s own `@app.on_event("shutdown")` handler (confirmed by reading it directly) only awaits 2
+NAMED background loops (`stop_worker()`, `stop_dispatch_loop()`) — it has no mechanism to track or await
+arbitrary orphaned tasks spawned from within request handlers elsewhere. This is not only a violent-crash
+risk: an ORDINARY graceful shutdown (SIGTERM, a routine deploy) can plausibly return an HTTP response to the
+client (the request handler's own coroutine completes) while its own `log_action` task is still in flight
+(e.g. waiting on a Supabase round-trip) — if the process's shutdown grace period expires before that
+orphaned task finishes, the audit entry is silently dropped even though the operation it was auditing already
+succeeded and was already returned to the caller.
+
+**Why not fixed this sprint**: closing this properly needs either (a) converting all 36 fire-and-forget call
+sites to `await` inline (changes the latency profile of every one of those request handlers, a broad and
+risky change to make under one sprint), or (b) a proper task-tracking/draining mechanism in the shutdown
+handler (a real, non-trivial engineering project — collecting every `asyncio.create_task` platform-wide into
+a tracked set, not a one-line fix).
+
+**Recommended next step**: an architecture decision on (a) vs (b) above, scoped as its own sprint — likely (b)
+for the small number of genuinely audit-critical call sites (case creation, ownership changes) while leaving
+best-effort telemetry-style logs as fire-and-forget.
+
+**Severity**: Low-Medium — requires unlucky timing (shutdown grace period expiring mid-flight on a specific
+background task) to trigger, and the operation itself is never lost, only its audit trail entry.
+
+## LAMBDA006-PIPE-001 — Case Pipeline steps 3/5's own marker-check is TOCTOU-safe for sequential retries but not concurrent invocation (Low-Medium, narrow trigger)
+
+**Found by**: Genome/Workspace/Case Actions Chaos fork, Program Lambda Certification 006.
+
+**What**: `services/case_pipeline.py::run_case_pipeline` has no lock/claim of its own; up to 4 call sites can
+invoke it for the same `predmet_id` (an automatic `PREDMET_KREIRAN` event handler — notably NOT routed through
+Case Evolution's own `_try_claim_consequence` atomic-claim layer, since it predates that mechanism — plus a
+manual re-run endpoint and 2 direct fire-and-forget calls in `routers/intake.py`). Steps 3
+(`_step_ekstrakcija_rokova`) and 5 (`_step_strategija`) each guard against re-running via a SELECT-then-INSERT
+marker check in `predmet_istorija` — safe for a sequential retry (the marker is already committed by the time
+a second attempt's SELECT runs), but a classic TOCTOU under genuine CONCURRENT invocation: 2 calls can both
+pass the "no marker yet" SELECT before either INSERTs, producing duplicate `predmet_hronologija`/
+`predmet_istorija` rows. Concrete trigger: a case auto-created via `intake.py` (background pipeline fires
+immediately) plus a user clicking "re-run pipeline" within the same few seconds, while step 3/5's own GPT call
+is still in flight. `api.py`'s own existing comment ("even a rare duplicate dispatch doesn't create duplicate
+rows") is accurate only for the sequential-retry case, not the concurrent one — the comment doesn't currently
+distinguish them.
+
+**Why not fixed this sprint**: the correct fix mirrors this program's own now-repeatedly-proven atomic-claim
+pattern (`_try_claim_consequence`, `claim_intake_finalize`, `claim_pending_events`) — routing the Case
+Pipeline's own step markers through an equivalent atomic check-and-claim rather than a SELECT-then-INSERT. This
+is the SAME shape of fix as this sprint's own CRITICAL finding and this sprint's Smart Intake finalize fix, but
+applying it here means touching a 4-call-site-invoked, older pipeline this sprint did not otherwise scope in —
+better done as its own deliberate follow-up than squeezed in at the end of an already-large sprint.
+
+**Severity**: Low-Medium — impact is bounded (duplicate rokovi/strategy entries, not data corruption or
+security), and the trigger window (concurrent pipeline invocation within seconds, not just any retry) is
+narrower than this sprint's own CRITICAL finding.
+
+## LAMBDA006-GEN-001 — Genome deadline corrections don't supersede stale `predmet_hronologija` rows, only add new ones (Low-Medium, product decision needed)
+
+**Found by**: Genome/Workspace/Case Actions Chaos fork, Program Lambda Certification 006.
+
+**What**: `routers/case_dna.py::_sync_rokovi_to_hronologija` is insert-only — it dedups against existing
+`predmet_hronologija` rows by an exact `(dogadjaj, datum_iso)` string-tuple match, and only ever adds new rows
+for tuples not already present. If a LATER Genome refresh corrects a previously-extracted deadline (a
+different date or wording for the same underlying real-world event — e.g. a corrected filing deadline after a
+better-quality document is uploaded), the old, now-wrong row is never updated or removed — it persists
+alongside the new, correct one with no supersession flag, so a stale and a current deadline coexist
+indistinguishably in the calendar/hronologija view.
+
+**Why not fixed this sprint**: whether/how to identify "this new deadline supersedes that old one" (same
+event, corrected date — vs. a genuinely NEW, additional deadline) is a product/domain decision requiring a
+stable identity concept for "the same underlying deadline" (analogous to `shared/contradiction_identity.py`'s
+own already-solved problem for contradictions, but not yet built for deadlines) — not a bounded engineering
+fix available this sprint.
+
+**Recommended next step**: a founder/architecture decision on whether to build a deadline-identity matcher
+(mirroring `contradiction_identity.py`'s own precedent) that lets a refresh mark a prior row superseded rather
+than only ever adding new ones.
+
+**Severity**: Low-Medium — no data loss (both rows remain visible), but a real "which deadline is actually
+correct" confusion risk for the mission's own explicitly-named Calendar/Audit consistency surface.

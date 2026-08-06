@@ -108,7 +108,7 @@ def _patched(mock_supa, job_result):
         # 092, claim_intake_finalize RPC) -- mock it winning the claim so
         # these pre-existing tests keep exercising the real function body,
         # same as before this sprint's fix.
-        patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})),
+        patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})),
     )
 
 
@@ -187,6 +187,46 @@ async def test_finalize_without_predmet_id_still_creates_new_case():
     result = await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq())
 
     assert result["predmet_id"] == "pred-NEW"
+
+
+@pytest.mark.anyio
+async def test_finalize_final_write_raises_when_finalizing_at_changed_underneath():
+    """Program Lambda, Certification 006 (2026-08-07) -- Chaos Engineer fork
+    found the final `intake_jobs` write (predmet_id/assimilation_complete)
+    had no compare-and-swap against the `finalizing_at` claim that
+    authorized it: a worker that stalls past the claim's own staleness
+    window (genuinely slow, not crashed) could be silently overtaken by a
+    second worker's reclaim, and whichever worker's final write landed last
+    used to win with no error -- the same 'claim without re-verifying
+    ownership at write time' shape Certification 005 fixed in the Event
+    Bus layer, here previously unprotected. This proves the fix: if
+    `finalizing_at` no longer matches what THIS call's own claim captured
+    (simulating exactly that overtake), the final write's own `.eq(...)`
+    compare-and-swap matches zero rows and the function must raise a 409
+    instead of silently reporting success."""
+    from routers.smart_intake import FinalizeReq
+    from fastapi import HTTPException
+
+    mock_supa = _make_supa(existing_redni_broj_rows=[])
+    job_result = {"document": {"id": "dok-001", "document_type": "podnesak"}, "entities": [], "review": None}
+
+    real_table = mock_supa.table.side_effect
+
+    def _lost_race_table(name):
+        t = real_table(name)
+        if name == "intake_jobs":
+            # The claim-authorized finalizing_at no longer matches (another
+            # worker's own reclaim overwrote it) -- the real RPC's own
+            # WHERE clause would match zero rows here, so PostgREST returns
+            # empty .data, exactly like a real lost compare-and-swap.
+            t.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
+        return t
+    mock_supa.table.side_effect = _lost_race_table
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _run_finalize_and_drain(mock_supa, job_result, FinalizeReq())
+
+    assert exc_info.value.status_code == 409
 
 
 @pytest.mark.anyio

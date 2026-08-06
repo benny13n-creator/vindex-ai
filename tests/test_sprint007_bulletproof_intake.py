@@ -132,7 +132,7 @@ def _patches(mock_supa, documents, extract_pages=None):
         patch("shared.vector_origin.now_iso", return_value="2026-08-05T00:00:00Z"),
         patch("routers.evidence.klasifikuj_i_sacuvaj"),
         patch("routers.intake._run_conflict_check", new=AsyncMock(return_value={"conflict_detected": False})),
-        patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1"})),
+        patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})),
         patch("shared.audit_immutable.log_action", new=AsyncMock()),
     )
 

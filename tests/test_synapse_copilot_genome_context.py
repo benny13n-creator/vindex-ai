@@ -167,10 +167,17 @@ async def test_document_content_reaches_prompt_program_tau_002():
         elif name == "predmet_beleske":
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
         elif name == "predmet_dokumenti":
+            # Program Lambda, Certification 006 (2026-08-07): copilot.py now
+            # does a 2-phase fetch (metadata-only via .order(), then real
+            # text via .in_() for the bounded selected subset, reusing
+            # shared/case_context.py::_fetch_document_texts) -- both chains
+            # share this same table mock, configured for each shape.
             t.select.return_value.eq.return_value.order.return_value.execute.return_value.data = [
                 {"id": "d1", "naziv_fajla": "ugovor.pdf", "created_at": "2026-08-01T00:00:00Z",
-                 "tekst_sadrzaj": "Član 1. Zakupodavac se obavezuje da preda nepokretnost u posed.",
                  "status": "obradjen", "redni_broj": 1},
+            ]
+            t.select.return_value.eq.return_value.in_.return_value.execute.return_value.data = [
+                {"id": "d1", "tekst_sadrzaj": "Član 1. Zakupodavac se obavezuje da preda nepokretnost u posed."},
             ]
         elif name == "predmet_hronologija":
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []

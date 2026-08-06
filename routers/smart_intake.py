@@ -1578,13 +1578,44 @@ async def _finalize_intake_job_core(
     # true when every one of this job's documents ended up linked; a job
     # ending 0-of-N or M-of-N stays reclaimable so a later retry can finish
     # the remaining documents without creating a second predmet.
+    # Program Lambda, Certification 006 (2026-08-07) -- Chaos Engineer fork
+    # found this write itself had no compare-and-swap against the
+    # `finalizing_at` claim that authorized it -- the exact "claim without
+    # re-verifying ownership at write time" shape Certification 005 just
+    # closed in the Event Bus/Case Evolution layer, but here still open. A
+    # worker that stalls (a genuinely slow Pinecone ingest, not a crash)
+    # past the 120s staleness window can be legitimately reclaimed by a
+    # SECOND worker while the first is still alive and about to finish --
+    # both then reach THIS write, and whichever wrote last used to silently
+    # win, with intake_jobs.predmet_id pointing to only one of the two now-
+    # real, now-duplicated predmet/client-link/document/Pinecone object
+    # graphs, the other orphaned with no intake_jobs row pointing back to
+    # it. The `.eq("finalizing_at", ...)` guard below makes this an honest,
+    # detected loss (raises, logged CRITICAL) instead of a silent one --
+    # it does not by itself prevent the duplicate WORK already done before
+    # reaching this line (that needs the whole multi-step flow to become
+    # per-step idempotent/resumable, a larger change -- named as debt,
+    # LAMBDA006-INTAKE-001).
     try:
-        await asyncio.to_thread(
+        _cas_res = await asyncio.to_thread(
             lambda: supa.table("intake_jobs").update({
                 "predmet_id": predmet_id,
                 "assimilation_complete": doc_linked_count == len(documents),
-            }).eq("id", job_id).execute()
+            }).eq("id", job_id).eq("finalizing_at", claimed["finalizing_at"]).execute()
         )
+        if not _cas_res.data:
+            logger.critical(
+                "[SMART_INTAKE] finalize marker upis izgubio trku job=%s predmet=%s -- "
+                "finalizing_at se promenio od zauzeca (drugi worker je reklamovao dok je OVAJ "
+                "jos radio) -- moguc duplikat predmeta, POTREBNA RUCNA PROVERA.",
+                job_id[:8], predmet_id,
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Finalizacija je preuzeta od strane drugog pokušaja dok je ova radila. Proverite da li je predmet već kreiran pre ponovnog pokušaja.",
+            )
+    except HTTPException:
+        raise
     except Exception as fe:
         logger.error(
             "[SMART_INTAKE] finalize marker upis neuspesan job=%s predmet=%s -- claim ostaje rezervisan ~120s, zatim ponovo obradiv: %s",
