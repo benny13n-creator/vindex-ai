@@ -1261,3 +1261,36 @@ precision gap) remain, and no live 500-1000-document load test against real infr
 available in this dev environment, a scope boundary inherited from this whole engagement's own established
 testing discipline, stated plainly rather than glossed over). Full detail:
 `docs/sigma/SIGMA_MASTER_SPRINT_001_REPORT.md`.
+
+## Program Sigma, Master Sprint 002 (2026-08-06) — Autonomous Evidence & Timeline Reconstruction Engine
+
+**Methodology note**: this sprint's own most valuable finding (the contradiction-identity bug) was found as
+a direct byproduct of designing a FIX for an already-known, previously-deferred debt item (`SIGMA-002`) —
+tracing exactly why the deferred fix seemed risky (a live GPT-prompt change) revealed the actual fix
+touches only downstream identity matching, not the prompt at all, AND that the identical flawed pattern
+existed in a second, live consumer (`case_actions`' own Rule 3) nobody had connected to `SIGMA-002`'s own
+scope. Worth repeating: re-examining a deferred debt item's own REASONING, not just re-attempting the same
+fix, can reveal it was more tractable (and more urgent) than originally assessed.
+
+| Metric | Value |
+|---|---|
+| Prior debt item closed for real (not just narrowed) | `SIGMA-002` (Sprint 001) — Genome contradiction diff's own text-prefix matching |
+| Real, previously-unknown LIVE bug found alongside it | `case_actions`' own `RAZRESITI_KONTRADIKCIJU` action flickering closed+reopened across Genome refreshes due to the identical root cause — found by re-examining `SIGMA-002`, not a separate hunt |
+| New shared module | 1 (`shared/contradiction_identity.py`) — used by both `routers/case_dna.py` and `services/case_evolution.py`, one identity function not two independent patches |
+| Additional real bugs found and fixed (same class, different bug) | 3 — `"now()"` literal timestamp, invalid for Postgres's timestamptz parser, in `predmet_dokazi.deleted_at` and `predmet_dokumenti.klasifikovan_at` (2 call sites, one of them the most consequential — a 6-variant fallback ladder in `routers/smart_intake.py` where 3 of 6 variants carried the bad value) |
+| Confirmed reason this bug class evaded detection until now | This whole engagement's test suite mocks Supabase with `MagicMock`, which accepts any value unconditionally — no test can catch a real Postgres type-cast rejection; a previously-acknowledged, now-concretely-illustrated scope boundary |
+| New dedicated tests | 14, across 2 new files |
+| Full suite | **2,745 passed, 1 skipped, 0 failed** (was 2,731 at end of Sigma Master Sprint 001) — zero regressions confirmed directly |
+| New debts found and named (not fixed, judged out of safe scope) | 7 — `SIGMA-005` (2-semantics-1-table), `SIGMA-006` (Legal Reasoning Engine not auto-wired), `SIGMA-007`/`008` (evidence↔timeline, evidence↔contradiction linkage missing), `SIGMA-009` (no timeline revision/void semantics), `SIGMA-010` (no SUPERSEDED-vs-UNKNOWN contradiction-closure distinction), `SIGMA-011` (7 more `"now()"` instances outside this sprint's own scope) |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega/prior-Sigma sprint before it.
+
+**Success criteria**: the mission's own explicit "every safely-fixable problem must be fixed now" bar was
+met for everything found within scope — 4 real, live bugs closed with tests, not just documented, including
+one (the `case_actions` flicker) found only because this sprint chose to re-examine a PRIOR sprint's own
+deferred reasoning rather than treat "already deferred once" as settled. The mission's own strict
+Definition of Done ("jedinstvena vremenska linija... činjenice sledljive do izvornog dokumenta...") is
+honestly NOT fully met — evidence-to-timeline linkage and timeline revision semantics remain real,
+substantial gaps requiring new algorithmic work or product decisions, not mechanical fixes. Full detail:
+`docs/sigma/SIGMA_MASTER_SPRINT_002_REPORT.md`.

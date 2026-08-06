@@ -1862,3 +1862,136 @@ the now-twice-proven `dedupe_key` + partial UNIQUE index pattern (migrations 099
 
 **Severity**: Medium — real gap, bounded exposure (requires genuinely concurrent separate requests, not a
 single large batch), same severity class as `OMEGA-023`/`026`.
+
+---
+
+## Program Sigma, Master Sprint 002 (2026-08-06) — Autonomous Evidence & Timeline Reconstruction Engine
+
+Full narrative: `docs/sigma/SIGMA_MASTER_SPRINT_002_REPORT.md`, `TIMELINE_REGISTRY.md`,
+`EVIDENCE_GRAPH_SPECIFICATION.md`, `CANONICAL_FACT_ENGINE.md`, `CONTRADICTION_ENGINE_SPECIFICATION.md`,
+`TIMELINE_FORENSIC_REPORT.md`. Fixes 4 real bugs: a contradiction-identity flicker (shared/
+contradiction_identity.py, closing `SIGMA-002`'s own precision gap for real) and 3 instances of an invalid
+`"now()"` literal timestamp (`predmet_dokazi.deleted_at`, `predmet_dokumenti.klasifikovan_at` ×2 call
+sites). Adds `SIGMA-005` through `SIGMA-010`.
+
+## SIGMA-002 — CLOSED (was: Genome contradiction diff matches by text prefix, not stable identity)
+
+**UPDATE — Program Sigma, Master Sprint 002 (2026-08-06):** Closed. `shared/contradiction_identity.py`
+(new) anchors identity on `(lokacija_1, lokacija_2)` — the document/page citations Genome's own extraction
+prompt already requires — instead of the free-text `opis`, used by both `routers/case_dna.py::_compute_delta`
+and `services/case_evolution.py`'s own Rule 3 (`RAZRESITI_KONTRADIKCIJU`). Closing this ALSO fixed a
+previously-unknown live bug in Rule 3 itself (see below) — the original deferral reasoning ("a live
+GPT-facing extraction-contract change") turned out to be based on an incomplete read of the fix's own scope:
+the actual fix touches only downstream identity matching on already-extracted fields, never the GPT prompt.
+11 new tests (`tests/test_sigma_sprint002_contradiction_identity.py`).
+
+## SIGMA-005 — `predmet_hronologija` conflates 2 different semantics under one schema (Low-Medium)
+
+`services/case_evolution.py::_consequence_timeline_entry` (the one Case-Evolution-owned writer) never sets
+`datum`/`datum_iso` — pure narrative log. All 14 other writers set `datum_iso` — dated-event entries. Same
+table, same schema, distinguished only by whether `datum_iso` happens to be null.
+
+**Why not fixed this sprint**: a schema split (2 tables, or a `tip` discriminator column + reader updates)
+is a real migration + read-path changes across ~25 confirmed projection sites, out of a
+certification-plus-targeted-fix sprint's own scope.
+
+**Severity**: Low-Medium — works correctly today (readers already handle both shapes), a clarity/
+maintainability concern more than a functional one.
+
+## SIGMA-006 — Legal Reasoning Engine's own Evidence Graph is never auto-triggered by Case Evolution (Medium)
+
+`migrations/076_legal_reasoning_engine.sql`'s own `reasoning_nodes`/`reasoning_edges`/`reasoning_evidence`
+schema, populated by `services/legal_reasoning_engine.py::generate_reasoning_graph`, is a complete, working
+evidence-to-claim graph — but only reachable via an explicit on-demand endpoint
+(`POST /{predmet_id}/reasoning-graph/generate`), never wired into `DOCUMENT_ACCEPTED`/
+`DOCUMENT_BATCH_COMPLETED`. A case built entirely through Smart Intake has zero reasoning-graph rows unless
+a lawyer separately requests one.
+
+**Why not fixed this sprint**: auto-firing a substantial GPT-driven graph-generation operation on every
+document acceptance is a genuine new automatic AI-cost/latency commitment per document — a product decision
+about cost/value tradeoff, not a mechanical wiring fix.
+
+**Severity**: Medium — real capability, real gap in autonomy for the mission's own stated goal.
+
+## SIGMA-007 — No FK linking evidence to the timeline point it belongs to (Medium-High)
+
+No table anywhere links a `predmet_dokazi` row to a specific `predmet_hronologija` entry. A lawyer cannot
+query "show me the evidence for THIS timeline event" — only the whole case's evidence and the whole case's
+timeline, separately.
+
+**Why not fixed this sprint**: requires new extraction/matching logic (matching evidence's own extracted
+date/context against nearby timeline entries) that doesn't exist anywhere to reuse — new algorithmic
+surface area, not a wiring connection, per this sprint's own founding principle against parallel algorithms.
+
+**Recommended direction**: a nullable FK on `predmet_dokazi` → `predmet_hronologija.id`, populated at
+evidence-classification time once a matching algorithm is designed.
+
+**Severity**: Medium-High — the most significant Phase 7 finding; directly relevant to the mission's own
+"jedinstvena vremenska linija" goal.
+
+## SIGMA-008 — No per-evidence contradiction linkage (Medium)
+
+Contradictions live only at the whole-case Genome level (`case_dna.kontradikcije`) — no column on
+`predmet_dokazi` records "this specific evidence item is contested by document Y." `klasifikuj_i_sacuvaj`
+performs whole-document classification, not cross-document contradiction comparison at the evidence-item
+level.
+
+**Why not fixed this sprint**: same reasoning as `SIGMA-007` — new matching logic, not existing-mechanism reuse.
+
+**Severity**: Medium.
+
+## SIGMA-009 — No revision/supersede/void semantics for `predmet_hronologija` entries (Medium)
+
+Strictly append-only, zero UPDATE/DELETE call sites confirmed repo-wide. A later document cannot modify,
+close, or void an earlier timeline entry — only add a new one.
+
+**Why not fixed this sprint**: a minimal additive schema extension is feasible (`status`, `superseded_by`,
+`voided_at` columns, default-active for existing rows) but the harder question — which lawyer/system action
+actually triggers a supersede/void, and how a lawyer discovers a prior entry was superseded — needs product
+input before implementation.
+
+**Recommended direction**: see `CANONICAL_FACT_ENGINE.md`'s own "Recommended direction" section — a
+starting schema sketch is already provided there.
+
+**Severity**: Medium — real gap against the mission's own explicit Phase 3 requirement, bounded by the fact
+that "never delete an old fact" is already satisfied by construction (append-only IS a valid, if minimal,
+way to never lose data).
+
+## SIGMA-010 — No SUPERSEDED-vs-UNKNOWN distinction when a contradiction stops being detected (Low-Medium)
+
+When Genome's latest extraction no longer contains a previously-flagged contradiction, `case_actions`'
+own `RAZRESITI_KONTRADIKCIJU` action closes — but nothing distinguishes "a lawyer resolved it," "a newer
+document superseded the disputed fact," or "Genome simply failed to re-detect it this refresh" (a false
+negative).
+
+**Why not fixed this sprint**: distinguishing these needs either a live GPT-prompt/contract change (Genome
+reasoning about ITS OWN resolution status per contradiction) or new deterministic cross-check logic that
+doesn't currently exist — both real future work, not a same-sprint mechanical fix.
+
+**Severity**: Low-Medium — the CLOSE itself is now stable and correctly identified (thanks to `SIGMA-002`'s
+own closure); only the WHY of the close is unresolved.
+
+## SIGMA-011 — 7 more `"now()"` literal-timestamp call sites exist outside the Evidence/Timeline domain (Medium, repo-wide sweep recommended)
+
+While fixing the 3 Evidence Graph instances of this bug class, a repo-wide grep for the literal pattern
+`"now()"` found 7 more call sites, all outside this sprint's own Timeline/Evidence/Contradiction scope:
+`routers/client_twin.py:205,326`, `routers/knowledge_base.py:317`, `routers/knowledge_hygiene.py:179`,
+`routers/knowledge_transfer.py:326,461`, `routers/sef.py:302`, `services/knowledge_hygiene.py:302,340` —
+all writing `updated_at`/`status` fields the same broken way.
+
+**Why not fixed this sprint**: none of these touch the Timeline/Evidence/Contradiction domain this sprint's
+own mission scoped work to — Client Twin, Knowledge Base/Hygiene/Transfer, and SEF integration are
+unrelated features. Fixing them requires the same care (confirm column type, confirm no test depends on the
+literal, verify no other consumer expects a specific broken-but-tolerated shape) this sprint gave its own 3
+fixes — bundling unrelated fixes into an already-large sprint risks both scope creep and under-verified
+changes.
+
+**Recommended direction**: a small, dedicated, mechanical cleanup sprint — same fix shape at each of the 7
+sites (`datetime.now(timezone.utc).isoformat()` in place of the string literal `"now()"`), following the
+now-4-times-proven pattern (Sprint 004's `case_actions.closed_at`, this sprint's 3 Evidence Graph fixes).
+
+**Severity**: Medium — each site is a plausible live bug (rejected update or unusable stored value,
+depending on the exact column and Postgres version's error-handling), same reasoning as this sprint's own
+3 fixed instances, but unconfirmed against any one of these 7 specifically (no time was spent this sprint
+verifying each column's actual type or checking whether client_twin/knowledge_base/knowledge_transfer/sef
+have any test coverage that would need updating alongside the fix).

@@ -56,6 +56,7 @@ from typing import Awaitable, Callable, Optional
 
 from services.event_bus import Event, EventType
 from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
+from shared.contradiction_identity import contradiction_dedupe_key
 from shared.deps import _get_supa
 
 logger = logging.getLogger("vindex.case_evolution")
@@ -640,6 +641,20 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # Rule 3 -- contradictions, sourced directly from Genome's own current
     # case_dna.kontradikcije (already required to carry a "DOK-XX str.Y"
     # source location by Genome's own extraction prompt).
+    #
+    # Program Sigma, Master Sprint 002 (2026-08-06) -- dedupe_key is now the
+    # ONE shared contradiction identity (shared/contradiction_identity.py),
+    # anchored on lokacija_1/lokacija_2 rather than the free-text `opis`.
+    # FOUND AND FIXED this sprint: the previous `_stable_key("kontradikcija",
+    # opis, loc1, loc2)` included GPT's own re-worded-every-refresh `opis` in
+    # the hash -- any rephrasing of the IDENTICAL underlying contradiction
+    # between 2 Genome refreshes changed the dedupe_key, so the reconcile
+    # loop below (target-vs-existing diff) would close the old action and
+    # create a new one: a live RAZRESITI_KONTRADIKCIJU action flickering
+    # closed+reopened on every refresh even when nothing real changed. Same
+    # root cause, same fix, as routers/case_dna.py::_compute_delta's own
+    # SIGMA-002 (Sprint 001 Debt Register) -- one shared identity function,
+    # not two independent patches.
     _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
     for k in (case_dna.get("kontradikcije") or []):
         opis = k.get("opis") or ""
@@ -651,7 +666,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
             "tip": "RAZRESITI_KONTRADIKCIJU", "razlog": opis,
             "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": k.get("tezina")},
             "prioritet": _TEZINA_PRIORITET.get(k.get("tezina"), "medium"), "rok": None,
-            "dedupe_key": _stable_key("kontradikcija", opis, loc1, loc2),
+            "dedupe_key": contradiction_dedupe_key(k),
             "izvor_dokumenti": [x for x in (loc1, loc2) if x],
         })
 

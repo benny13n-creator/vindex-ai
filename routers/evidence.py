@@ -207,11 +207,20 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
         rezultat = _klasifikuj_dokument(naziv, tekst)
 
     try:
+        # Program Sigma, Master Sprint 002 (2026-08-06) -- found and fixed:
+        # same bug class as this file's own delete_dokaz's own deleted_at
+        # fix (see that endpoint's own comment) -- the literal string
+        # "now()" is not a value Postgres's timestamptz parser recognizes.
+        # klasifikovan_at is the CANONICAL evidence-classification
+        # timestamp, written on every single document classification --
+        # this update either silently rejected the whole update or stored
+        # an unusable value since whenever this code was written.
+        from datetime import datetime as _dt, timezone as _tz
         supa.table("predmet_dokumenti").update({
             "tip_dokaza":      rezultat.get("tip_dokaza", "ostalo"),
             "pravni_elementi": rezultat.get("pravni_elementi", []),
             "ai_tags":         json.dumps(rezultat.get("ai_tags", {})),
-            "klasifikovan_at": "now()",
+            "klasifikovan_at": _dt.now(_tz.utc).isoformat(),
         }).eq("id", dokument_id).execute()
         logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
         # klasifikuj_i_sacuvaj is a plain sync function invoked via
@@ -364,10 +373,21 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
 @limiter.limit("20/minute")
 async def delete_dokaz(request: Request, predmet_id: str, dokaz_id: str, user=Depends(require_user)):
     import asyncio
+    from datetime import datetime, timezone
     supa = get_supa()
     uid = user["user_id"]
+    # Program Sigma, Master Sprint 002 (2026-08-06) -- found and fixed: the
+    # literal string "now()" (with parentheses) is NOT a value Postgres's
+    # timestamptz input parser recognizes (only the bare word "now" is a
+    # documented special value) -- same bug class Program Omega Sprint 004
+    # already found and fixed for case_actions.closed_at (see
+    # services/case_evolution.py's own comment). This endpoint's own soft
+    # delete was either rejected outright by Postgres or stored an unusable
+    # value on every call. Fixed: a real, computed ISO-8601 timestamp.
     await asyncio.to_thread(
-        lambda: supa.table("predmet_dokazi").update({"deleted_at": "now()"}).eq("id", dokaz_id).eq("user_id", uid).execute()
+        lambda: supa.table("predmet_dokazi")
+            .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
+            .eq("id", dokaz_id).eq("user_id", uid).execute()
     )
     return {"ok": True}
 

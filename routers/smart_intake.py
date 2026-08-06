@@ -1356,7 +1356,23 @@ async def _finalize_intake_job_core(
             # obrascu kao api.py predmet upload — probaj najbogatiju varijantu
             # prvo, padaj postepeno ako kolone/migracija nedostaju, nikad ne
             # izgubi ceo dokument zbog jedne kolone.
-            _variant_full = {**_dok_row_base, "tip_dokaza": doc_type_i, "klasifikovan_at": "now()", "tekst_sadrzaj": seg_text[:100_000]}
+            #
+            # Program Sigma, Master Sprint 002 (2026-08-06) -- found and
+            # fixed: klasifikovan_at was the literal string "now()", not a
+            # value Postgres's timestamptz parser recognizes (same bug class
+            # as routers/evidence.py's own delete_dokaz/klasifikuj_i_sacuvaj
+            # fixes, see their own comments). Because this variant-fallback
+            # loop below catches ANY insert exception and tries the next,
+            # narrower variant, this meant EVERY insert attempt containing
+            # klasifikovan_at (_variant_full, _variant_full_no_095,
+            # _variant_full_no_lineage -- 3 of the 6 variants) would fail on
+            # this one invalid value and silently fall through to
+            # dict(_dok_row_base), which carries neither tip_dokaza nor
+            # tekst_sadrzaj at all -- not a "migration not yet applied"
+            # degradation (what this fallback ladder exists for), an
+            # unrelated value bug masquerading as one.
+            from datetime import datetime as _dt_ki, timezone as _tz_ki
+            _variant_full = {**_dok_row_base, "tip_dokaza": doc_type_i, "klasifikovan_at": _dt_ki.now(_tz_ki.utc).isoformat(), "tekst_sadrzaj": seg_text[:100_000]}
             _drop_095 = ("content_sha256", "source_intake_job_id")
             _drop_094 = ("source_intake_job_segment_id",)
             _variant_full_no_095 = {k: v for k, v in _variant_full.items() if k not in _drop_095}

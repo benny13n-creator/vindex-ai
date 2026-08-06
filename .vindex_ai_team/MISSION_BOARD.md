@@ -1425,3 +1425,45 @@ why a rushed fix was judged riskier than the gap itself.
 `LEGAL_KNOWLEDGE_FLOW.md`, `AUTONOMOUS_CASE_BUILDING_SPEC.md`, `SYSTEM_GAP_REPORT.md`,
 `SIGMA_MASTER_SPRINT_001_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
 (`SIGMA-001` through `SIGMA-004` added).
+
+## Program Sigma, Master Sprint 002 (2026-08-06) — Autonomous Evidence & Timeline Reconstruction Engine
+
+Second Program Sigma sprint. Charter: prove every new document can automatically extract facts/events/
+dates/participants/evidence/procedural-actions/deadlines/contradictions and connect them into one unified
+case timeline — reusing only existing canonical mechanisms (Event Bus, Case Evolution Engine, Genome, Case
+Pipeline, Case Actions, Workspace), no parallel algorithms.
+
+**2 parallel forensic forks**: a repo-wide timeline-writer audit (found 15 confirmed `predmet_hronologija`
+writers, each canonical for its own distinct business event, not competing implementations; confirmed
+strictly append-only, no revision/void concept anywhere) and an evidence-graph/contradiction-state audit
+(mapped `predmet_dokazi`'s own 4 required linkages — source document EXISTS, supported-claim EXISTS
+conditionally via the on-demand Legal Reasoning Engine, timeline-point and disputing-document both MISSING;
+found the contradiction-identity bug below).
+
+**Headline fix**: `shared/contradiction_identity.py` (new) — ONE shared, stable identity function for a
+Genome-extracted contradiction, anchored on `(lokacija_1, lokacija_2)` document/page citations instead of
+free-text `opis`. Closes `SIGMA-002` (Sprint 001's own "Genome contradiction diff matches by text prefix"
+finding) for real — the original deferral assumed a live GPT-prompt change was required; the actual fix
+touches only downstream identity matching on already-extracted fields. Also fixed, same root cause, a
+previously-unknown LIVE bug: `case_actions`' own `RAZRESITI_KONTRADIKCIJU` action could flicker
+closed+reopened across every Genome refresh purely from GPT rephrasing, never a real change.
+
+**3 more real bugs found and fixed while auditing the Evidence Graph's own canonical writers**: the literal
+string `"now()"` (not a value Postgres's timestamptz parser recognizes — same bug class Program Omega
+Sprint 004 already fixed once for `case_actions.closed_at`) was being written to `predmet_dokazi.deleted_at`
+(`routers/evidence.py::delete_dokaz`) and `predmet_dokumenti.klasifikovan_at` (`routers/evidence.py::
+klasifikuj_i_sacuvaj`, the canonical evidence-classification function, AND `routers/smart_intake.py`'s own
+6-variant document-insert fallback ladder — the most consequential instance, since 3 of its 6 variants
+carried the bad literal, risking every Smart-Intake document silently falling through to a variant with
+neither `tip_dokaza` nor `tekst_sadrzaj`). All fixed with the same computed-ISO-timestamp pattern.
+
+**14 new tests** across 2 new files. Full suite: **2,745 passed, 1 skipped, 0 failed** (was 2,731 at end of
+Sigma Master Sprint 001) — zero regressions. **6 new debt items** (`SIGMA-005` through `SIGMA-010`) found via genuine forensic
+investigation, plus `SIGMA-011` recording 7 more instances of the same `"now()"` bug class found outside
+this sprint's own scope (Client Twin, Knowledge Base/Hygiene/Transfer, SEF) — deliberately not fixed,
+recommending a dedicated small cleanup sprint.
+
+**6 required deliverables**: `docs/sigma/TIMELINE_REGISTRY.md`, `EVIDENCE_GRAPH_SPECIFICATION.md`,
+`CANONICAL_FACT_ENGINE.md`, `CONTRADICTION_ENGINE_SPECIFICATION.md`, `TIMELINE_FORENSIC_REPORT.md`,
+`SIGMA_MASTER_SPRINT_002_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`
+(`SIGMA-002` closed, `SIGMA-005` through `SIGMA-011` added).

@@ -38,6 +38,7 @@ from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 from services.event_bus import EventType
 from shared.genome_validator import verify_genome, compute_snaga_score, validate_dok_reference
+from shared.contradiction_identity import contradiction_identity
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -313,15 +314,24 @@ async def _extract_genome(
 
 
 def _compute_delta(old_g: dict, new_g: dict) -> dict:
-    """Poredi stari i novi Genome. Vraca delta objekat za generisanje inteligentnog alerta."""
+    """Poredi stari i novi Genome. Vraca delta objekat za generisanje inteligentnog alerta.
+
+    Program Sigma, Master Sprint 002 (2026-08-06): kontradikcija set-membership
+    now uses shared/contradiction_identity.py's own stable (lokacija_1,
+    lokacija_2) identity instead of `opis[:60]` string-prefix matching
+    (SIGMA-002, Sprint 001 Debt Register) -- a rephrased-but-identical
+    contradiction between 2 refreshes no longer registers as a false
+    eliminated+new churn. Same shared function services/case_evolution.py's
+    own Rule 3 (RAZRESITI_KONTRADIKCIJU) uses -- one identity, not two
+    independent implementations."""
     if not old_g or old_g.get("greska") or not new_g or new_g.get("greska"):
         return {}
 
     stara_snaga = old_g.get("snaga_predmeta_procent") or 0
     nova_snaga  = new_g.get("snaga_predmeta_procent") or 0
 
-    stari_kontr = {(k.get("opis") or "")[:60] for k in (old_g.get("kontradikcije") or [])}
-    novi_kontr  = {(k.get("opis") or "")[:60] for k in (new_g.get("kontradikcije") or [])}
+    stari_kontr = {contradiction_identity(k) for k in (old_g.get("kontradikcije") or [])}
+    novi_kontr  = {contradiction_identity(k) for k in (new_g.get("kontradikcije") or [])}
 
     stara_nt = (old_g.get("najslabija_tacka") or {}).get("kriticnost") or 0
     nova_nt  = (new_g.get("najslabija_tacka") or {}).get("kriticnost") or 0
