@@ -631,7 +631,17 @@ async def commander_jutarnji(
     user: dict = Depends(PermissionService.require("case_commander")),
 ):
     """
-    AI Command Center jutarnji brifing — srce platforme.
+    AI Command Center jutarnji brifing — GPT-generisana narativna perspektiva
+    na portfolio predmeta, NE kanonski operativni pogled.
+
+    Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace: ovaj
+    endpoint više nije "srce platforme" (stara samo-opisna tvrdnja, tačna do
+    ovog sprinta). Kanonski odgovor na "šta advokat vidi kada otvori Vindex
+    AI" je sada `GET /api/workspace` (deterministički, sourced,
+    services/case_evolution.py::_consequence_refresh_case_actions) — vidi
+    docs/omega/CANONICAL_WORKSPACE_SPEC.md. Ovaj endpoint OSTAJE, ali kao
+    dopunski, ne-kanonski AI narativni sloj (Responsibility Matrix odluka:
+    "postaje podmodul", docs/omega/UNIFIED_WORKSPACE_ARCHITECTURE.md).
 
     Keširan po korisniku za tekući dan. Analizira SVE aktivne predmete odjednom.
     Pronalazi rizike, kontradikcije, nepovezane dokumente i preporučuje prioritet za danas.

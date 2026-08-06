@@ -684,6 +684,22 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     if not predmet_id:
         return "skipped_no_predmet_id"
 
+    # Program Omega, Sprint 004 (2026-08-06): a real, computed ISO-8601
+    # timestamp, not the string literal "now()" this function originally
+    # used (a pattern copied from elsewhere in the codebase, e.g.
+    # routers/evidence.py). Found during Sprint 004 because Workspace's own
+    # "recently completed" bucket filters case_actions by `closed_at` with
+    # `.gte()` -- Postgres's timestamptz input parser does not recognize the
+    # literal string "now()" (with parentheses) as its documented "now"
+    # special value, so a value written this way would have made every
+    # closed action's own closed_at either reject the update outright or
+    # store an unusable value, silently breaking that bucket. Fixed for
+    # THIS function only -- the 9 other pre-existing "now()" call sites
+    # elsewhere in the repo are unrelated, pre-existing code, unverified
+    # and untouched here (out of this sprint's scope).
+    from datetime import datetime as _dt, timezone as _tz
+    _now_iso = _dt.now(_tz.utc).isoformat()
+
     supa = _get_supa()
     target = await _compute_target_actions(predmet_id)
     target_by_key = {a["dedupe_key"]: a for a in target}
@@ -712,7 +728,7 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
         if key in existing_by_key:
             await asyncio.to_thread(
                 lambda r=row, aid=existing_by_key[key]: supa.table("case_actions")
-                    .update({**r, "updated_at": "now()"}).eq("id", aid).execute()
+                    .update({**r, "updated_at": _now_iso}).eq("id", aid).execute()
             )
             updated += 1
         else:
@@ -732,7 +748,7 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
         if key not in target_by_key:
             await asyncio.to_thread(
                 lambda aid=action_id: supa.table("case_actions")
-                    .update({"status": "closed", "closed_at": "now()"}).eq("id", aid).execute()
+                    .update({"status": "closed", "closed_at": _now_iso}).eq("id", aid).execute()
             )
             closed += 1
 

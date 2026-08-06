@@ -1169,3 +1169,61 @@ inserts, zero closes).
 `docs/delta/CASE_EVOLUTION_REGISTRY.md` (`refresh_case_actions` documented on all 4 events + the
 `emit_document_accepted` fix), updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-001` amended
 and re-closed; `OMEGA-005`/`OMEGA-006`/`OMEGA-007`/`OMEGA-008` added).
+
+## Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace
+
+Fourth Omega sprint. Mission's central question: not "add a feature" but "make one canonical answer to
+'what does the lawyer see when they open Vindex AI.'" Phase 1's own forensic pass
+(`docs/omega/WORKSPACE_SURFACE_REGISTRY.md`) found the problem was bigger than assumed: the home page
+(`dash_load()`, `static/vindex.js:1206`) already composes **6 independently-built widgets** (Command
+Center, Morning Briefing, Case Commander, CIO Daily — new, not in Sprint 003's own registry —
+Notifications — also new — Health Index), with at least 5 independent priority scales and 3 separate
+alert tables (`proactive_alerts`, `notifications`, `case_actions`). Sprint 003's own deterministic
+`case_actions` Worklist had **zero frontend references**.
+
+**Built**: `GET /api/workspace` (`routers/workspace.py`) — the canonical aggregation endpoint, 6
+buckets (Today/Critical/Upcoming/Review Required/Waiting/Completed), each sourced from an
+already-existing, already-owned table (`case_actions`, `zadaci` status='ceka', `intake_jobs`
+status='awaiting_review') — writes nothing, calls no LLM. A local priority-vocabulary translation
+(`_ZADACI_PRIORITET_MAP`) reconciles `case_actions`' and `zadaci`'s own differently-worded scales for
+this view only, without touching either source table.
+
+**Firm Responsibility Matrix decisions for all 12 surfaces found** (`docs/omega/
+UNIFIED_WORKSPACE_ARCHITECTURE.md`) — no surface left undecided: Workspace/`case_actions` becomes
+canonical; Command Center, Morning Briefing, Case Commander, and CIO Daily are demoted to "postaje
+podmodul" (their own docstrings updated this sprint — zero GPT/behavior changes, documentation only);
+Notifications, Health Index, `proactive_alerts`, and Zadaci's own team-task features stay as genuinely
+different functions; `GET /api/zadaci/moji` is marked superseded (zero frontend usage, code kept, no
+deletion risk for zero benefit).
+
+**A real bug found and fixed in Sprint 003's own code**: `_consequence_refresh_case_actions` wrote
+`closed_at`/`updated_at` as the string literal `"now()"` (with parentheses) — not PostgreSQL's own
+documented `'now'` special value. No Sprint 003 test caught this (all mock the DB client, none validate
+real Postgres timestamp parsing) — this sprint's own new "Completed" bucket is the first thing to
+`.gte()`-filter by that column, which would have surfaced the bug. Fixed: a real computed ISO timestamp,
+this call site only (9 other pre-existing `"now()"` sites elsewhere in the repo named as `OMEGA-013`,
+not touched).
+
+**All 6 required scenarios proven** (`tests/test_omega_sprint004_case_to_workspace_flow.py`, 6 tests,
+using ONE shared in-memory fake DB between the write side — Sprint 003's own consequence — and the read
+side — this sprint's new Workspace — proving a write through the real production path is immediately
+visible through the real production read path, no manual refresh, no cache): new document → action
+appears; new contradiction → new action; deadline extended → same action updates bucket, no
+duplicate; action resolved → disappears from active, appears in Completed with a real timestamp;
+restart → identical output, no duplicate rows; 500 documents → only 2 real signals surface, not noise.
+Plus 10 more tests for bucket/sort/translation logic (`tests/test_omega_sprint004_workspace.py`). Full
+suite: 0 regressions (124 directly-related tests re-verified; see METRICS.md for the full-suite count).
+
+**Honest Phase 6 forensic certification**: within the deterministic "operational action" domain,
+`case_actions`/Workspace is certified as the one source of truth (no other writer, no other equivalent
+computation, proven by test). At the broader "what does the lawyer see" level, **NOT certified** — 4
+GPT narrative surfaces still independently exist and compute their own version of "what's important,"
+now formally demoted but not removed. Named plainly as `OMEGA-012`, the single most consequential open
+item: the canonical backend exists and is tested, but has zero frontend wiring, matching the exact
+"named for founder authorization, not attempted blind" pattern this whole engagement used for Smart
+Intake's own frontend gap.
+
+**5 required deliverables**: `docs/omega/WORKSPACE_SURFACE_REGISTRY.md`,
+`UNIFIED_WORKSPACE_ARCHITECTURE.md`, `WORKSPACE_DATA_OWNERSHIP.md`, `CANONICAL_WORKSPACE_SPEC.md`,
+`OMEGA_SPRINT_004_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`OMEGA-008`
+amended with the decision made; `OMEGA-010`/`011`/`012`/`013` added).

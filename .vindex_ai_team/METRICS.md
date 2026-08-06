@@ -1101,3 +1101,37 @@ change — Scenarios 1-4; the list stays consistent under concurrent refreshes a
 platform-wide: Phase 1's own forensic pass found 9 OTHER producers still independent, unmigrated by design
 (`OMEGA-008`) — this sprint built the ONE new canonical engine and proved it internally consistent; it did not
 retire the other 9. Full detail: `docs/omega/OMEGA_SPRINT_003_REPORT.md`.
+
+## Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace
+
+**Methodology note**: Phase 1's own forensic pass (`docs/omega/WORKSPACE_SURFACE_REGISTRY.md`) traced the
+ACTUAL frontend (`static/vindex.js`'s own `dash_load()`) call by call before any code — the first time in this
+whole engagement a "what does the lawyer see" question was answered by reading the frontend directly rather
+than reasoning from backend endpoints alone.
+
+| Metric | Value |
+|---|---|
+| Independent "what needs attention" widgets found live on the home page | 6 (Command Center, Morning Briefing, Case Commander, CIO Daily, Notifications, Health Index) — was assumed 5 (Sprint 003's own `OMEGA-008`) before this sprint's fuller audit |
+| New surfaces found beyond Sprint 003's own registry | 2 (CIO Daily, Notification Engine) |
+| Independent priority vocabularies found | 5+ (`case_actions.prioritet`, `identify_case_problems.ozbiljnost`, `notifications.priority`, `zadaci.prioritet`, CIO's own 0-100 `kriticnost`) |
+| Independent alert/notification tables found | 3 (`proactive_alerts`, `notifications`, `case_actions`) |
+| Surfaces given a firm Responsibility Matrix decision | 12 of 12 — none left undecided |
+| New canonical read endpoint | 1 (`GET /api/workspace`, `routers/workspace.py`) — writes nothing, calls no LLM |
+| Existing tables reused as Workspace inputs (0 new tables) | 3 (`case_actions`, `zadaci`, `intake_jobs`) |
+| A genuine Sprint 003 bug found and fixed | `closed_at`/`updated_at` written as the un-castable string literal `"now()"` instead of a real timestamp — invisible to every Sprint 003 test (mocked DB), first surfaced by this sprint's own Completed bucket, which is the first real `.gte()` filter on that column |
+| New debts found and named | 4 (`OMEGA-010` 3 unreconciled alert tables, `OMEGA-011` 5+ priority scales, `OMEGA-012` zero frontend wiring — the most consequential, `OMEGA-013` 9 other unverified `"now()"` sites) |
+| Debts amended | 1 (`OMEGA-008` — the founder decision it asked for arrived as this sprint's own charter; decision made, frontend wiring still open) |
+| New dedicated tests | 16 (10 bucket/sort/translation unit tests + 6 full Case→Workspace flow scenario tests, all 6 mission-required scenarios, all passing on first run after fixture fixes) |
+| Full suite | **2,688 passed, 1 skipped, 0 failed** (was 2,672 at end of Program Omega Sprint 003) — net +16 = exactly the 16 new tests, zero regressions |
+
+**No Mission Olympus governance review phase this sprint** — same deliberate charter deviation as every
+Delta/Omega sprint before it.
+
+**Success criteria**: 3 of 5 Definition of Done items fully met (every surface has a clear decision or was
+removed — 12/12 decided; all case changes automatically end up in Workspace — proven by the 6 flow-scenario
+tests; a canonical operational view exists and is provably correct — `GET /api/workspace`, tested). 2 items
+honestly NOT fully met: "no parallel sources of truth for daily work" — 4 GPT narrative surfaces still
+independently exist, formally demoted not removed (`OMEGA-012`); "the lawyer can open the platform and
+immediately see what needs attention" — true of the backend, not yet true of what a lawyer actually sees,
+since the home page is not wired to the new endpoint. Both gaps are the SAME root cause (frontend wiring) and
+both are named, not hidden. Full detail: `docs/omega/OMEGA_SPRINT_004_REPORT.md`.

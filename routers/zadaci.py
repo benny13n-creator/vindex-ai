@@ -192,7 +192,15 @@ async def moji_zadaci(
     user: dict = Depends(get_current_user),
     status_filter: Optional[str] = None,
 ):
-    """Zadaci dodeljeni trenutnom korisniku."""
+    """Zadaci dodeljeni trenutnom korisniku.
+
+    Program Omega, Sprint 004 (2026-08-06): potvrđeno nula frontend referenci
+    (docs/omega/WORKSPACE_SURFACE_REGISTRY.md, Surface 8) — lični unakrsni-
+    predmet pregled zadataka sada pokriva `GET /api/workspace` (bucket
+    "na_cekanju" za status='ceka'). Endpoint OSTAJE (bezbedno, bez poznatih
+    spoljnih potrošača), ali više nije kandidat za kanonski lični pregled
+    (Responsibility Matrix: "postaje suvišan/retire kandidat", ne obrisano).
+    """
     uid  = user["user_id"]
     supa = _get_supa()
 

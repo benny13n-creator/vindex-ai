@@ -5,6 +5,13 @@ Vindex AI — routers/morning_briefing.py
 Daily Morning Briefing: personalizovani AI jutarnji izveštaj za svakog advokata.
 Šalje se automatski u 8:00 ili na zahtev.
 
+Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace: ovaj modul
+OSTAJE kao email/narativni digest kanal (genuinski drugačiji distribucioni
+kanal od in-app pregleda — GPT tekst poslat na mejl), ali NIJE kanonski
+operativni pogled. Kanonski, deterministički, sourced odgovor na "šta
+advokat treba danas da radi" je `GET /api/workspace` (Responsibility Matrix:
+"postaje podmodul" — docs/omega/UNIFIED_WORKSPACE_ARCHITECTURE.md).
+
 Endpoints:
   GET  /api/briefing/daily          — generiši briefing za trenutnog korisnika (on-demand)
   POST /api/briefing/cron           — admin endpoint, šalje svim korisnicima (poziva cron)

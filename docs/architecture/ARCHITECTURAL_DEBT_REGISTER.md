@@ -1344,6 +1344,92 @@ already reuses `risk_engine.py`, the same foundation `case_actions` reuses (see
 found in the "what should the lawyer do" space; left unresolved, a 6th independent surface is exactly the kind
 of thing a future sprint could accidentally build next.
 
+**Amendment (Program Omega, Sprint 004, 2026-08-06)**: the founder-level decision this item asked for arrived
+as this sprint's own charter. Phase 1's fuller forensic pass (`docs/omega/WORKSPACE_SURFACE_REGISTRY.md`) found
+2 MORE surfaces beyond the original 5 (CIO Daily, Notifications) — 6 independently-built widgets live on the
+SAME home page (`dash_load()`, `static/vindex.js:1206`), not 5 separate ones. The Responsibility Matrix
+(`docs/omega/UNIFIED_WORKSPACE_ARCHITECTURE.md`) now firmly decides all of them: the new `GET /api/workspace`
+(built this sprint, absorbing `case_actions`) is canonical; Command Center/Morning Briefing/Case Commander/CIO
+Daily are demoted to "postaje podmodul" (their own docstrings updated this sprint to say so, zero behavior
+change); Notifications/Health Index/`proactive_alerts` stay as genuinely different functions (FYI/portfolio-
+scope, not operational worklists). **The decision is made; the FRONTEND wiring that would make it visibly true
+to a lawyer is not done** — see `OMEGA-012` below, the direct continuation of this item.
+
+## OMEGA-010 — 3 independent alert/notification tables never reconciled (Medium, documented not merged)
+
+`proactive_alerts`, `notifications`, and `case_actions` each independently store "something needs attention" —
+confirmed genuinely different functions (operational vs. FYI) this sprint, not simple duplication, but no
+mechanism connects them (e.g. a `case_actions` critical item does not also produce a `notifications` bell
+entry). See `docs/omega/WORKSPACE_DATA_OWNERSHIP.md`, Finding 1.
+
+**Why not fixed this sprint**: merging or cross-wiring 3 live, separately-consumed tables/schemas is a real
+migration decision, not a read-side aggregation — outside Workspace's own safe, additive scope.
+
+**Recommended direction**: a future sprint should decide whether `proactive_alerts` becomes a lower-urgency
+Workspace input tier, and whether `notifications`' own independent deadline/inactivity computation should
+instead be triggered by Case Evolution events.
+
+**Severity**: Medium — no correctness risk (all 3 systems work correctly on their own), a coherence/
+completeness gap.
+
+## OMEGA-011 — At least 5 independent priority vocabularies platform-wide (Medium, locally translated not unified)
+
+`case_actions.prioritet`, `identify_case_problems.ozbiljnost`, `notifications.priority`, `zadaci.prioritet`,
+and CIO's own informal 0-100 `kriticnost` score all express the same underlying concept differently. See
+`docs/omega/WORKSPACE_DATA_OWNERSHIP.md`, Finding 2.
+
+**Why not fixed this sprint**: `routers/workspace.py::_ZADACI_PRIORITET_MAP` translates the 2 that collide
+inside the new Workspace view itself (`case_actions` + `zadaci`) — the other vocabularies belong to modules
+not touched this sprint.
+
+**Recommended direction**: a platform-wide canonical priority scale with per-system translation adapters (the
+same pattern already proven this sprint), applied to `notifications`/CIO/any future caller.
+
+**Severity**: Medium — a display-consistency gap, not a correctness bug.
+
+## OMEGA-012 — `/api/workspace` (and Sprint 003's own `/api/case-actions/worklist` before it) has zero frontend references (High, the single most consequential open item)
+
+Confirmed by Phase 1's own grep of `static/vindex.js`: neither Sprint 003's Worklist nor this sprint's new
+canonical `/api/workspace` is called anywhere in the frontend. The architecturally correct, deterministic,
+sourced answer to "what does the lawyer see when they open Vindex AI" exists and is tested, but a lawyer
+cannot currently see it without calling the API directly.
+
+**Why not fixed this sprint**: rewiring the home page's own `dash_load()` — a large, legacy, un-browser-tested
+function already composing 6 independent widgets — carries real production risk with no live-browser
+verification available in this autonomous session. Matches this whole engagement's own established precedent:
+Smart Intake's frontend gap was named and escalated for 3 full sessions before being explicitly authorized and
+built in "Operation Beta Closure," never attempted blind.
+
+**Recommended direction**: an explicit founder go-ahead for a dedicated frontend pass (with live-browser
+verification, per this project's own UI-change discipline), replacing or supplementing the 4 "postaje podmodul"
+widgets with a single Workspace panel.
+
+**Severity**: High — this is the actual, literal blocker on the mission's own Definition of Done item "advokat
+može otvoriti platformu i bez traženja odmah videti šta zahteva njegovu pažnju." The backend is done; the
+lawyer-visible outcome is not, yet.
+
+## OMEGA-013 — 9 other call sites still write the un-castable string literal `"now()"` to timestamp columns (Medium, unverified elsewhere)
+
+This sprint fixed `_consequence_refresh_case_actions`'s own 2 occurrences (real computed ISO timestamp instead
+of the string `"now()"`, which Postgres's `timestamptz` parser does not document as equivalent to its own
+special `'now'` value). 9 other files use the identical pattern (`routers/evidence.py`,
+`routers/smart_intake.py`, `routers/knowledge_base.py`, `routers/sef.py`,
+`routers/knowledge_transfer.py`, `routers/client_twin.py`, `services/knowledge_hygiene.py`,
+`routers/knowledge_hygiene.py`) — none verified against a real Postgres instance this sprint (no live DB
+available in this session). See `docs/omega/WORKSPACE_DATA_OWNERSHIP.md`, Finding 5.
+
+**Why not fixed this sprint**: out of Workspace's own scope; a repo-wide audit of 9 unrelated, live files needs
+its own verification pass (and ideally one real Postgres round-trip test settling whether `'now()'` actually
+fails, rather than 9 speculative fixes).
+
+**Recommended direction**: a small, dedicated future task — write ONE integration test against a real (or
+faithfully-emulated) Postgres timestamptz column proving whether `'now()'` round-trips correctly; fix the 9
+call sites uniformly if it does not.
+
+**Severity**: Medium — if the literal genuinely fails, each affected column silently never got a valid
+timestamp (a latent data-quality gap, not a crash, since none of the other 9 sites currently `.gte()`-filter
+by the affected column the way this sprint's own Completed bucket does).
+
 ## DELTA-005 — Scenario 4's own worked example (Evidence → Genome → Strategy → Timeline) does not match the built architecture (Informational, no fix needed)
 
 The mission's own Sprint 004 charter described a hypothetical evidence-update cascade into Genome/Strategy/

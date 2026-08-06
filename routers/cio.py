@@ -5,6 +5,16 @@ Vindex AI — Chief Intelligence Officer (CIO)
 Ne čeka pitanje. Svaki dan skenira kompletni portfelj kancelarije i
 pronalazi šta je najvažnije — i šta advokat JOŠ NIJE PRIMETIO.
 
+Program Omega, Sprint 004 (2026-08-06) — Unified Legal Workspace:
+`cio_preporuka` ("JEDNA konkretna akcija — danas") je GPT-generisana
+portfolio-nivo narativna procena, NE kanonski operativni izvor. Kanonski
+odgovor na "šta advokat treba danas da radi" je sada `GET /api/workspace`
+(deterministički, sourced po stavci — docs/omega/CANONICAL_WORKSPACE_SPEC.md).
+Ovaj modul OSTAJE kao dopunska strateška perspektiva (Responsibility Matrix
+odluka: "postaje podmodul", docs/omega/UNIFIED_WORKSPACE_ARCHITECTURE.md) —
+nije integrisan u case_actions/Workspace ovaj sprint (van bezbednog obima:
+GPT prompt/ponašanje ovog live, naplativog modula nije menjano).
+
 GET  /api/cio/daily    — dnevni CIO izveštaj (keširan 6h)
 POST /api/cio/run      — forsiraj regenerisanje
 GET  /api/cio/history  — poslednjih 7 dana
