@@ -2478,25 +2478,37 @@ sprint: wiring `build_case_context()` (or a scoped subset) into 7 endpoints' exi
 logic, without regressing any of them, is a Sigma-005-scale project requiring its own dedicated sprint with
 full per-endpoint testing, not a Phase 9 patch.
 
-## TAU-012 — 16+ more case-linked files never migrated onto `build_case_context()` (High)
+## TAU-012 — 15+ more case-linked files never migrated onto `build_case_context()` (High)
+
+**UPDATE — Program Tau, Master Sprint 006 (2026-08-06):** `hearing_cc.py` — this entry's own "sharpest
+instance" — is migrated (see `docs/tau/HEARING_CC_MIGRATION_REPORT.md`), via the newly-built and now-proven
+**Canonical Context Migration Factory** (`docs/tau/CANONICAL_CONTEXT_FACTORY.md` + `MIGRATION_TEMPLATE.md`).
+Count revised from 16+ to 15+. A fresh, from-source census (`docs/tau/GPT_MODULE_CENSUS.md`) found the
+remaining backlog is more precisely ~17 candidates at endpoint/module granularity (finer than this entry's
+original file-level count) — including 2 not on the original list at all (`api.py::predmet_workspace`,
+`api.py::predmet_ai_preporuka`). 3 further modules were simulated against the Factory (not migrated) this
+sprint — `case_commander.py`, `digital_twin.py`, `zadaci.py::ai_analiziraj_predmet` — see
+`docs/tau/FACTORY_CERTIFICATION.md`. Next-sprint priority order and rollout plan: `docs/tau/TAU_007_HANDOVER.md`
+(supersedes the prior sprint's own `TAU_006_HANDOVER.md`, which proposed building the Factory this sprint
+built).
 
 **UPDATE — Program Tau, Master Sprint 005 (2026-08-06):** `court_predictor.py` is migrated (`TAU-011`
 closed) and is no longer part of this count. Count revised from 17+ to 16+; the file list below is
 otherwise unchanged and none of it was touched this sprint (out of scope by the mission's own explicit
-"jedini cilj ovog sprinta je Court Predictor" instruction). Program Tau's own founder-stated intent for the
-next sprint is a **Canonical Context Migration Factory** — a standardized migration template so the
-remaining 16+ files can be migrated systematically rather than as 16+ separate bespoke projects; see
-`docs/tau/TAU_006_HANDOVER.md`.
+"jedini cilj ovog sprinta je Court Predictor" instruction).
 
 **Found by**: Phase 1 forensic pipeline map, Program Tau Master Sprint 004.
 
-**What**: `drafting.py`, `matter_intel.py`, `hearing_cc.py`, `evidence_graph.py`, `multi_agent.py`,
-`digital_twin.py`, `decision_replay.py`, `strategy_simulator.py`, `health_index.py`, `outcome_intel.py`,
-`precedenti.py`, `zastarelost.py`, `evidence.py`, `doc_templates.py`, `zadaci.py` each has its own
-independent, bespoke `predmet_id`-keyed context fetch — confirmed via grep, none imports
-`shared.case_context`. The sharpest instance: `hearing_cc.py::_load_all_context` is a genuinely rich
-7-table bespoke builder — a real 3rd independent "gather everything about a case" implementation
-(`case_commander.py`'s own pre-Tau-002 builder is the 2nd), never reconciled with the canonical one.
+**What**: `drafting.py`, `matter_intel.py`, ~~`hearing_cc.py`~~ (migrated, Tau 006), `evidence_graph.py`,
+`multi_agent.py`, `digital_twin.py`, `decision_replay.py`, `strategy_simulator.py`, `health_index.py`,
+`outcome_intel.py`, `precedenti.py`, `zastarelost.py`, `evidence.py`, `doc_templates.py`, `zadaci.py` each
+has its own independent, bespoke `predmet_id`-keyed context fetch — confirmed via grep, none imports
+`shared.case_context`. `case_commander.py` and `zadaci.py::ai_analiziraj_predmet` are a genuinely different
+sub-case (Tau 006 finding): both independently call `services/risk_engine.py`/`shared/gap_engine.py`/
+`shared/case_readiness.py` directly — the SAME functions `build_case_context()` calls internally — meaning
+their own migration would eliminate duplicate computation, not just add missing fields. See
+`docs/tau/GPT_MODULE_CENSUS.md` for the fresh, endpoint-level census (Tau 006) superseding this list's own
+file-level granularity.
 
 **Severity**: High — this is the same fragmentation Tau 002 built `build_case_context()` to end, just not
 yet finished. A full migration of 17+ files is explicitly out of "fix everything safely fixable without
@@ -2516,6 +2528,13 @@ treatment as the template), not a batch change.
 `case_commander.py`'s own unmigrated builder still separately reads a 2nd table, `rokovi`, for the same
 "date the lawyer must act by" concept — never reconciled. (Judge history's own gap — `firm_memory.py`,
 dead — is the SAME pre-existing `ALPHA-005`, not counted as new here.)
+
+**UPDATE — Program Tau, Master Sprint 006 (2026-08-06):** the `rokovi`/`rocista` split independently
+corroborated 3 more times this sprint's own Phase 1 census + Phase 7 simulation: `decision_replay.py`,
+`zadaci.py::ai_analiziraj_predmet`, and `digital_twin.py` all separately query `rokovi` alongside canonical
+`deadlines`' own `rocista` source — 4 independent files total now confirmed. `docs/tau/TAU_007_HANDOVER.md`
+recommends this now warrants its own small, focused future sprint (contract-expansion vs. `rokovi`
+deprecation decision) rather than continuing to accumulate as a side-finding of unrelated migrations.
 
 **Severity**: Medium — expanding the canonical contract's own schema is a real, valuable, and safe
 ADDITIVE change (new dict keys, no breaking change for existing consumers) — but deciding exactly how

@@ -1804,3 +1804,58 @@ revised from 17+ to 16+ files.
 `TAU_006_HANDOVER.md` — the last one directly responding to the founder's own proposed next step, a
 "Canonical Context Migration Factory" (a repeatable migration template, not 16+ separate one-off sprints),
 naming `hearing_cc.py` as the recommended pilot target.
+
+## Program Tau, Master Sprint 006 (2026-08-06) — Canonical Context Migration Factory
+
+**Mission**: build and PROVE a standardized migration process so the remaining 15+ GPT modules can migrate
+onto `build_case_context()` without re-inventing the approach each time — not migrate everything at once.
+8 named roles (Architect, GPT Integration Engineer, Forensic Auditor, Legal Reasoning Engineer, Performance
+Engineer, Test Engineer, Refactoring Engineer, Documentation Engineer) — expanded from Tau 005's own 6, per
+the founder's own explicit request, since this sprint shapes every future migration.
+
+**Headline finding**: a fresh, from-source census (`docs/tau/GPT_MODULE_CENSUS.md`, 52 files, 2 parallel
+forensic forks) confirmed only 3 real `build_case_context()` callers exist anywhere in the repo and found 17
+real migration candidates at endpoint granularity — plus a correction to this program's OWN immediately-
+prior handover, which had wrongly described `case_commander.py` as already migrated (it's consolidated onto
+canonical DECISION sources, a different axis than canonical CONTEXT — confirmed by direct grep, zero
+`build_case_context` hits). Comparing the 3 proven migrations (`case_intelligence.py`, `court_predictor.py`,
+`morning_briefing.py`) confirmed a genuine, independently-converged 6-dimension pattern — formalized as
+`docs/tau/CANONICAL_CONTEXT_FACTORY.md` + the operational `docs/tau/MIGRATION_TEMPLATE.md`.
+
+**Pilot migration**: `routers/hearing_cc.py` (the richest bespoke context builder found, 8 tables). 2 of 8
+old fetches cleanly replaced by canonical equivalents; 5 wholly new context dimensions added (Genome, gaps,
+actions, readiness) this module never had; 4 of 8 explicitly kept bespoke with a stated reason each (no
+canonical equivalent exists, or canonical is narrower than what's needed) — named per the Factory's own
+"don't work around a mismatch, name it" rule, not silently dropped. New deterministic cap on `hearing_score`
+reuses Court Predictor's own exact thresholds for platform-wide consistency. Dead `predmet_komentari` fetch
+removed.
+
+**Phase 7 validation — 3 more modules simulated, NONE migrated** (per the mission's own explicit
+instruction): found a 2nd, genuinely different migration shape beyond the pilot's own "add missing
+context" — `case_commander.py` and `zadaci.py::ai_analiziraj_predmet` independently call the SAME
+deterministic functions (`risk_engine.py`/`gap_engine.py`/`case_readiness.py`) `build_case_context()` already
+calls internally, meaning their own migration would eliminate duplicate COMPUTATION, not just add fields — a
+stronger consolidation win. `digital_twin.py` confirmed the deterministic-cap mechanism generalizes a 3rd
+time. This finding changed the Factory template itself (a new Step 0 check for duplicate computation,
+added within this same sprint, not deferred).
+
+**Adversarial (Phase 5)**: poisoned GPT response, nonexistent case, missing Genome, bare case, OCR-garbled
+text, concurrency, replay, restart/determinism — all held. Extreme scale (1000 documents/300 deadlines/50
+contradictions) deliberately not re-tested — already proven at the canonical layer itself, re-testing here
+would test `build_case_context()` a 2nd time, not this sprint's own change. **Token certification (Phase 6),
+measured via real `tiktoken` encoding, not estimated**: +1,339 tokens/call (+79.1%) for a representative
+case, +$0.0033/call at gpt-4o's own published input rate; worst case (15-document cap) 1,614 tokens for the
+canonical block alone.
+
+**19 new tests** (`tests/test_tau006_hearing_cc_migration.py`) + 34 pre-existing updated for the new shape
+(net +1). Full suite: **2,895 passed, 1 skipped, 0 failed** (was 2,875 at end of Master Sprint 005) — zero
+regressions, exact delta match (+20).
+
+**Debt updated**: `TAU-012` (16+ → 15+, `hearing_cc.py` migrated, census refreshed at endpoint granularity).
+`TAU-013` (rokovi/rocista split independently corroborated 3 more times this sprint — `decision_replay.py`,
+`zadaci.py`, `digital_twin.py` — 4 files total now, named as warranting its own future small sprint).
+
+**6 required deliverables**, all in `docs/tau/`: `CANONICAL_CONTEXT_FACTORY.md`, `MIGRATION_TEMPLATE.md`,
+`GPT_MODULE_CENSUS.md`, `FACTORY_CERTIFICATION.md`, `HEARING_CC_MIGRATION_REPORT.md`, `TAU_007_HANDOVER.md`
+— the last one giving the next sprint a priority-ordered rollout plan (`case_commander.py` first, highest
+value) rather than a generic "migrate the rest" mandate.

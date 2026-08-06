@@ -1539,3 +1539,40 @@ of 16+ individually-scoped sprints — is directly addressed in `docs/tau/TAU_00
 extracts the now-twice-proven 3-part migration pattern (fail-soft fetch wrapper, local formatting function,
 explicit per-endpoint mode decision) as a reusable template and names `hearing_cc.py` as the recommended
 pilot. Full detail: `docs/tau/TAU_005_REPORT.md`.
+
+## Program Tau, Master Sprint 006 (2026-08-06) — Canonical Context Migration Factory
+
+**Methodology note**: Phase 1 used 2 parallel forensic forks for a from-source census (not trusting any
+prior sprint's own file-level estimate) covering all 52 GPT-calling files in the repo. Phase 2's own pattern
+comparison and Phase 3's formalization were done directly by the main thread (a synthesis task, not
+parallelizable research). Phase 7's 3 module simulations were read-and-analyzed directly, explicitly not
+migrated, per the mission's own instruction.
+
+| Metric | Value |
+|---|---|
+| GPT-calling files censused (fresh, from source) | 52 (27 in an A-M half, 25 in an N-Z half, 2 parallel forensic forks, zero overlap confirmed) |
+| Confirmed `build_case_context()` callers, repo-wide | 3 (`case_intelligence.py`, `court_predictor.py`, `morning_briefing.py`) — verified by direct grep |
+| Real migration candidates found (endpoint granularity) | 17 (supersedes `TAU-012`'s own file-level "16+" estimate) |
+| New TAU-011-shape findings (predmet_id unused/absent) | 5, sharpest: `drafting/router.py::generate_draft()` has no `predmet_id` parameter in its signature at all |
+| Prior sprint's own claim corrected | 1 (`TAU_006_HANDOVER.md`'s own wrong claim that `case_commander.py` was already migrated onto canonical context — it wasn't) |
+| Modules migrated this sprint | 1 (`routers/hearing_cc.py`, the pilot) |
+| Modules simulated, not migrated (Factory validation) | 3 (`case_commander.py`, `digital_twin.py`, `zadaci.py::ai_analiziraj_predmet`) |
+| Genuinely different migration shapes found | 2 (context-injection vs. duplicate-computation-elimination) |
+| Factory template changes required | 1 (Step 0's new duplicate-computation check), made within this sprint |
+| Old bespoke fetches cleanly replaced by canonical (pilot) | 2 of 8 |
+| New context dimensions added (pilot, previously absent) | 5 (Genome, contradictions, missing evidence, active actions, readiness) |
+| Old bespoke fetches deliberately kept, reason stated (pilot) | 4 of 8 |
+| Token delta, representative case (measured via real `tiktoken`, not estimated) | +1,339 tokens/call (+79.1%), +$0.0033/call at gpt-4o's published input rate |
+| Worst-case token addition (15-document cap, all sections maxed) | 1,614 tokens for the canonical block alone |
+| GPT calls per invocation | 1, unchanged |
+| New dedicated tests | 19 (`tests/test_tau006_hearing_cc_migration.py`) + 34 pre-existing updated (net +1) |
+| Full suite | **2,895 passed, 1 skipped, 0 failed** (was 2,875 at end of Master Sprint 005) — zero regressions, exact delta match (+20) |
+| Debt items updated | 2 (`TAU-012` count revised 16+ → 15+; `TAU-013`'s rokovi/rocista split corroborated 3 more times, 4 files total) |
+| rokovi/rocista split independent corroborations this sprint | 3 new (`decision_replay.py`, `zadaci.py`, `digital_twin.py`) on top of the pre-existing `case_commander.py` instance |
+
+**Success criteria**: the mission's own explicit requirement — that a universal migration pattern be proven,
+not just asserted — was met by comparing 3 independently-built migrations (Phase 2) and then validating the
+resulting template against 4 further modules of 2 genuinely different shapes (Phase 4's real pilot + Phase
+7's 3 simulations), finding and immediately fixing exactly one template gap rather than deferring it. The
+mission's own "Ne nagađaj. Dokazati merenjima." (Phase 6) requirement was met with real `tiktoken` encoding
+of actual prompt strings, not an estimated token count. Full detail: `docs/tau/TAU_006_REPORT.md`.

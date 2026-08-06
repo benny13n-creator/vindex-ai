@@ -184,7 +184,6 @@ async def test_load_context_handles_exception():
     ctx = await _load_all_context(supa, UID, PID)
     assert ctx["predmet"] is None
     assert ctx["klijenti"] == []
-    assert ctx["dokumenti"] == []
 
 
 @pytest.mark.anyio
@@ -192,8 +191,13 @@ async def test_load_context_keys_present():
     from routers.hearing_cc import _load_all_context
     supa = _make_supa(predmet_data={"id": PID, "naziv": "X"})
     ctx = await _load_all_context(supa, UID, PID)
-    for key in ("predmet","klijenti","dokumenti","beleske","istorija","hronologija","komentari","rocista"):
+    # Program Tau, Master Sprint 006: dokumenti/hronologija/komentari removed --
+    # dokumenti/hronologija now come from build_case_context() (see
+    # tests/test_tau006_hearing_cc_migration.py), komentari was dead code.
+    for key in ("predmet", "klijenti", "beleske", "istorija", "rocista"):
         assert key in ctx
+    for key in ("dokumenti", "hronologija", "komentari"):
+        assert key not in ctx
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -206,11 +210,8 @@ def test_build_prompt_contains_tip():
         "predmet":     {"naziv": "Test", "opis": "opis", "status": "aktivan", "rizik": "SREDNJI",
                         "tuzilac": "A", "tuzeni": "B", "oblast": "Parnično"},
         "klijenti":    [],
-        "dokumenti":   [],
         "beleske":     [],
         "istorija":    [],
-        "hronologija": [],
-        "komentari":   [],
         "rocista":     [],
     }
     prompt = _build_prompt(ctx, "2026-07-15", "krivicni")
@@ -219,27 +220,35 @@ def test_build_prompt_contains_tip():
     assert "Test" in prompt
 
 
-def test_build_prompt_includes_hronologija():
+def test_build_prompt_includes_case_context_blok():
+    """Program Tau, Master Sprint 006: hronologija/dokumenti no longer come
+    from ctx -- they're part of the canonical case_context_blok, injected as
+    a separate parameter. See tests/test_tau006_hearing_cc_migration.py for
+    _case_context_blok's own formatting tests."""
     from routers.hearing_cc import _build_prompt
     ctx = {
-        "predmet":     {"naziv": "P", "opis": "", "status": "a", "rizik": "", "tuzilac":"","tuzeni":"","oblast":""},
-        "klijenti":    [],
-        "dokumenti":   [],
-        "beleske":     [],
-        "istorija":    [],
-        "hronologija": [{"datum_iso":"2025-01-01","dogadjaj":"Tužba","vaznost":"visoka"}],
-        "komentari":   [],
-        "rocista":     [],
+        "predmet":  {"naziv": "P", "opis": "", "status": "a", "rizik": "", "tuzilac": "", "tuzeni": "", "oblast": ""},
+        "klijenti": [], "beleske": [], "istorija": [], "rocista": [],
     }
-    prompt = _build_prompt(ctx, "2026-07-15", "gradjanski")
-    assert "Tužba" in prompt
-    assert "2025-01-01" in prompt
+    prompt = _build_prompt(ctx, "2026-07-15", "gradjanski", case_context_blok="STVARNO STANJE PREDMETA U SISTEMU: readiness READY")
+    assert "STVARNO STANJE PREDMETA U SISTEMU" in prompt
+    assert "readiness READY" in prompt
+
+
+def test_build_prompt_omits_case_context_section_when_empty():
+    from routers.hearing_cc import _build_prompt
+    ctx = {
+        "predmet":  {"naziv": "P", "opis": "", "status": "a", "rizik": "", "tuzilac": "", "tuzeni": "", "oblast": ""},
+        "klijenti": [], "beleske": [], "istorija": [], "rocista": [],
+    }
+    prompt = _build_prompt(ctx, "2026-07-15", "gradjanski", case_context_blok="")
+    assert "STVARNO STANJE PREDMETA" not in prompt
 
 
 def test_build_prompt_includes_json_schema():
     from routers.hearing_cc import _build_prompt, _JSON_SCHEMA
     ctx = {k: [] if k != "predmet" else {"naziv":"X","opis":"","status":"","rizik":"","tuzilac":"","tuzeni":"","oblast":""}
-           for k in ("predmet","klijenti","dokumenti","beleske","istorija","hronologija","komentari","rocista")}
+           for k in ("predmet","klijenti","beleske","istorija","rocista")}
     prompt = _build_prompt(ctx, "2026-07-15", "radni")
     assert "hearing_score" in prompt
     assert "executive_brief" in prompt
@@ -285,6 +294,7 @@ async def test_endpoint_success():
     oai_resp = _make_openai_resp(_BRIFING)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
@@ -323,6 +333,7 @@ async def test_endpoint_deducts_3_credits():
     oai_resp = _make_openai_resp(_BRIFING)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
@@ -353,6 +364,7 @@ async def test_endpoint_404_missing_predmet():
     supa = _make_supa(predmet_data=None)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"):
 
         body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="upravni")
@@ -376,6 +388,7 @@ async def test_endpoint_503_on_openai_error():
     supa = _make_supa(predmet_data=pred)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
@@ -404,6 +417,7 @@ async def test_endpoint_503_on_invalid_json():
     bad_resp = MagicMock(); bad_resp.choices = [bad_choice]
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("openai.AsyncOpenAI") as mock_oai_cls:
 
@@ -433,6 +447,7 @@ async def test_endpoint_all_tip_postupka(tip):
     oai_resp = _make_openai_resp(_BRIFING)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
@@ -479,6 +494,7 @@ async def test_brifing_has_all_12_sections():
     oai_resp = _make_openai_resp(_BRIFING)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
@@ -513,6 +529,7 @@ async def test_hearing_score_in_response():
     oai_resp = _make_openai_resp(brifing_high)
 
     with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
          patch("routers.hearing_cc.begin_cost_tracking"), \
          patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
          patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
