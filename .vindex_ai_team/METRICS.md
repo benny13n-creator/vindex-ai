@@ -1386,3 +1386,35 @@ canonical source across every Case Commander surface, structurally guaranteeing 
 merely hoping for it. The 3 remaining GPT-advisory fields have no canonical equivalent to redirect to
 (genuinely different questions no deterministic system in the platform answers) and are now honestly,
 structurally labeled as opinion rather than fact. Full detail: `docs/sigma/SIGMA_005_REPORT.md`.
+
+## Program Tau, Master Sprint 001 (2026-08-06) — GPT-5.1 Integration Readiness
+
+**Methodology note**: 7 agents ran as parallel forensic forks for Phase 1 (analysis only), each
+independently grepping/reading the current codebase rather than trusting prior sprints' own written
+claims — this directly caught 2 cases where a prior sprint's documentation had drifted from current code:
+Sigma 004/005's own "migrated" language for `case_intelligence.py`/`copilot.py` turned out to describe a
+GPT-fallback override, not a full removal (Agent 5, independently corroborated by Agent 1), and
+`docs/architecture/DECISION_REGISTRY.md`'s fragmentation table still listed "Case Commander (3)" as an
+unresolved fragmentation author two sprints after Sigma 005 closed it (Agent 7). Same lesson as Sigma
+005's own SHADOW_WORKFLOW_AUDIT.md correction: a prior sprint's stated conclusion is evidence, not proof.
+
+| Metric | Value |
+|---|---|
+| OpenAI call sites mapped | 138, across 56 files (grep-verified, close to `shared/ai_client.py`'s own `~130` docstring estimate — independently re-derived, not assumed) |
+| Distinct models in live use | 2 (`gpt-4o`, `gpt-4o-mini`) — zero `gpt-5`/`o1`/`o3` anywhere; confirmed a from-scratch integration, not a partial rollout |
+| Call sites structurally covered by the SDK-class-level security/audit guard | 138 of 138 (100%) — `shared/ai_client.py::_patch_prompt_guard`, confirmed model-agnostic by a new parametrized test this sprint |
+| New live-boundary-violation findings beyond Case Commander | 3 modules (`case_intelligence.py`/`copilot.py` GPT-fallback, `morning_briefing.py`, `strategija.py`'s 11-call-site 3-way duplicate) |
+| Context-completeness gap found | 4 independent, non-overlapping partial context builders; zero give GPT documents+Genome+evidence together; 490+ of a 500-doc case invisible to every one of them |
+| Model-identity blocker found | Yes — conflicting external signals on GPT-5.1's own API lifecycle, escalated to founder decision, not resolved by guessing |
+| Model strings changed this sprint | 0 (by design — blocked on the founder confirming the current model ID) |
+| New AI call sites added this sprint | 0 (by design — mission's own explicit constraint) |
+| Proven-necessary, low-risk fixes implemented | 4 (`ai_forensics.py` docstring, `shared/cost.py` fallback warning, `DECISION_REGISTRY.md`/`DECISION_CONTRACTS.md` DC-014/DC-015, model-agnostic guard test) |
+| New dedicated tests | 6 (4 parametrized guard cases + 2 DC-registry completeness tests) |
+| Full suite | **2,797 passed, 1 skipped, 0 failed** (was 2,791 at end of Sigma Master Sprint 005) — zero regressions |
+| New debt items named (none rushed) | 7 (`TAU-001`..`TAU-007`) |
+
+**Success criteria**: the mission's own explicit Definition of Done did not require an actual model swap —
+it required a complete AI architecture map, known inputs/outputs, known value/no-value boundaries for
+GPT-5.1, passing tests, and no security-principle regression. All 6 were met without touching a single
+`model=` literal, which is itself the correct outcome given Section 0's unresolved model-identity question.
+Full detail: `docs/tau/GPT51_IMPLEMENTATION_ROADMAP.md`.

@@ -41,12 +41,14 @@ complexity; it makes an already-real convention checkable.
 | Strategy Engine Synthesis categorical conflict detection (structurally-checkable subset) | inline in `orkestrator_kompletna_analiza_sync` (deterministic block) | `strategija.py` | Synthesis step (korak 6) | `DC-011` |
 | Court Predictor argument-color / profile-confidence derivation | inline in `argument_reputation` / `judge_profile` | `routers/court_predictor.py` | those 2 endpoints | `DC-012` |
 | Alert creation (single write path) | `create_proactive_alert` | `shared/proactive_alerts.py` | all alert-producing modules (Program Alpha canonicalization) | `DC-013` |
+| Case Commander per-case canonical findings (status/nedostaje/rizici/preporučeni potez/vremenski pritisak) | `_kanonski_nalazi` | `routers/case_commander.py` | `commander_analiza`, `commander_quick_check` | `DC-014` |
+| Case Commander portfolio-wide priority + risk ranking | `_kanonski_prioritet_i_rizici` | `routers/case_commander.py` | `_cross_case_analiza` (→ `commander_jutarnji`) | `DC-015` |
 
 ## Fragmented decisions (2+ independent authors — do NOT add a 3rd without reading `DECISION_CONSISTENCY_REPORT.md` first)
 
 | Decision | Known authors (not exhaustive — see report) | Severity |
 |---|---|---|
-| "Sledeći preporučeni korak" / strategic recommendation | ≥12 across Genome, Strategy Engine (2), Court Predictor (4), Copilot (3), Case Commander (3), Case Intelligence, Case Pipeline step 5 | Critical — largest fragmentation in the platform |
+| "Sledeći preporučeni korak" / strategic recommendation | ≥9 across Genome, Strategy Engine (2), Court Predictor (4), Copilot (3, override-with-GPT-fallback only — GPT still invents a next step when `case_actions` is empty), Case Intelligence (same fallback shape), Case Pipeline step 5. Case Commander's 3 were fully consolidated into `DC-014`/`DC-015` by Sigma Sprint 005 (2026-08-06) — no longer a fragmentation author, verified against current code by Program Tau (2026-08-06), not assumed from this row's prior text. | Critical — largest fragmentation in the platform |
 | Litigation win-probability percentage | `PROGBETA-001`'s 4 generators + Case Pipeline step 5 = 5 | Critical |
 | "Is this document/case ready" | `quality_gate.confidence_score` vs. Strategy Engine's Pravni Revizor `ocena` (2, incompatible representations) | High |
 | Case strength/readiness/risk (broader than procesni rizik) | `risk_engine`, Genome, Matter Intel Uncertainty Dashboard, Matter Intel Pre-Flight = 4 | High |

@@ -141,3 +141,21 @@ in code comments.
 - **Objašnjenje**: N/A (a write operation, not a reasoning decision) — included because it is the canonical single-write-path Program Alpha established, and every other decision contract in this file that produces an alert routes through it.
 - **Version**: `retry_internally` parameter added 2026-08-04 (Program Alpha Phase 9).
 - **Failure Behavior**: documented per caller — the exact defect class this parameter was added to prevent (retry compounding with the durable-outbox batch loop under sustained outage) is written up in `ARCHITECTURAL_DEBT_REGISTER.md`'s Program Alpha section.
+
+### DC-014 — Case Commander per-case canonical findings
+- **Function**: `routers/case_commander.py::_kanonski_nalazi`
+- **Ulazi**: `ctx` (the dict `_dohvati_predmet_kontekst` returns — `dokumenta`, `dokazi`, `rocista`, `case_actions`, `case_dna`, `tip_predmeta`).
+- **Algoritam**: `calculate_procesni_rizik` (DC-001) → `identify_case_problems` (DC-002) → `collect_case_gaps` (`shared/gap_engine.py`) → `compute_case_readiness` (`shared/case_readiness.py`) — zero GPT calls. Produces `status_predmeta`, `readiness_status`, `nedostaje`, `rizici`, `preporuceni_potez`, `vremenski_pritisak`, each wrapped in `canonical_field()` (`shared/commander_schema.py`).
+- **Dozvoljeni izlazi**: the 6 named fields above, each carrying `{value, source, evidence, confidence, generated_by="deterministic", timestamp}`.
+- **Objašnjenje**: this is a composition of DC-001/DC-002 plus Sigma Sprint 004's own `shared/case_readiness.py`/`shared/gap_engine.py` (not yet DC-numbered themselves, since those two modules are reused wholesale rather than reimplemented — see `docs/sigma/CASE_COMMANDER_DECISION_REGISTRY.md` for the full before/after) — registered here because Program Tau (2026-08-06) found this composition itself was missing from this registry, a pre-existing gap unrelated to GPT-5.1.
+- **Version**: added Program Sigma, Master Sprint 005 (2026-08-06); DC-registered Program Tau, Master Sprint 001 (2026-08-06).
+- **Failure Behavior**: pure function over already-fetched data — no network/GPT call, no failure mode beyond a missing/malformed `ctx` key, which is a caller bug, not a runtime degradation case. See `tests/test_sigma_sprint005_commander_consolidation.py`.
+
+### DC-015 — Case Commander portfolio-wide priority and risk ranking
+- **Function**: `routers/case_commander.py::_kanonski_prioritet_i_rizici`
+- **Ulazi**: `predmeti` (list of case dicts, each already carrying its own `case_actions` and readiness-relevant fields, from `_dohvati_sve_predmete_za_analizu`).
+- **Algoritam**: ranks cases by `(_READINESS_RANK[status], nearest_rok)` where status comes from `compute_case_readiness` (CRITICAL_GAP > BLOCKED > PARTIALLY_READY > READY > UNKNOWN, tiebreak via `top_open_action`); builds the portfolio-wide `rizici` list from the top-5 open `case_actions` rows across all cases sorted by `shared/attention_priority.py::canonical_sort_key`. Zero GPT calls.
+- **Dozvoljeni izlazi**: `prioritet` (one case, or `None` if the top case is already `READY`) and `rizik_nalazi` (≤5 rows), each field carrying full `canonical_field()` provenance.
+- **Objašnjenje**: replaces `_cross_case_analiza`'s own former GPT-invented portfolio-wide "which case matters most today" — the live duplication Sigma Sprint 004's forensic fork found and named `SIGMA-018`, closed by this function in Sigma Sprint 005.
+- **Version**: added Program Sigma, Master Sprint 005 (2026-08-06); DC-registered Program Tau, Master Sprint 001 (2026-08-06).
+- **Failure Behavior**: pure function; empty `predmeti` list returns `prioritet=None`, `rizik_nalazi=[]` (`test_kanonski_prioritet_empty_portfolio`), not an error.

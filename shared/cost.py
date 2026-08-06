@@ -48,7 +48,20 @@ def record_cost(model: str, prompt_tokens: int, completion_tokens: int) -> None:
 
 
 def estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    prices = _PRICES.get(model) or _PRICES["gpt-4o"]
+    prices = _PRICES.get(model)
+    if prices is None:
+        # Program Tau, Master Sprint 001 (2026-08-06): a model swap (e.g. to a
+        # GPT-5.1-class model) with no matching entry above used to fall back to
+        # gpt-4o pricing SILENTLY, so api_costs would misreport real spend with
+        # no signal anything was wrong. Keep the fallback (never crash a real
+        # AI call over a pricing-table gap) but make it observable.
+        logger.warning(
+            "estimate_cost: no pricing entry for model=%r, falling back to gpt-4o "
+            "rates -- api_costs will misreport actual spend for this call until "
+            "shared/cost.py's _PRICES table is updated.",
+            model,
+        )
+        prices = _PRICES["gpt-4o"]
     return round(
         prompt_tokens / 1000 * prices["input"] + completion_tokens / 1000 * prices["output"],
         6,

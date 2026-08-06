@@ -1579,3 +1579,45 @@ new debt items.**
 **5 required deliverables**: `docs/sigma/CASE_COMMANDER_ARCHITECTURE_MAP.md`,
 `CASE_COMMANDER_DECISION_REGISTRY.md`, `GPT_BOUNDARY_POLICY.md`, `OPERATIONAL_BRAIN_CERTIFICATION.md`,
 `SIGMA_005_REPORT.md`. Updated `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md` (`SIGMA-018` closed).
+
+## Program Tau, Master Sprint 001 (2026-08-06) — GPT-5.1 Integration Readiness
+
+**Mission**: full forensic analysis of the whole AI call surface, ahead of a possible GPT-5.1 adoption as
+a reasoning layer above the existing deterministic systems (Case Genome, Evidence Chain, Case Actions,
+Case Readiness, Decision Registry, Event Architecture, Audit Layer) — explicitly NOT a blanket model
+upgrade. 8 agents, 7 run as parallel forensic forks for Phase 1 (analysis only, no code), 1 (Implementation
+Planner) run as the synthesis/roadmap step after reading and verifying all 7.
+
+**Headline finding**: the platform's biggest GPT-5.1 readiness risk is architecture, not the model. Agent 3
+found there is no unified "complete case context" builder — 4 independent context-assembly functions each
+have a different blind spot (documents, Genome, or evidence missing from what GPT actually sees); at the
+mission's own named "500 documents" scale, 490+ documents are invisible to every one of them. Agents 1 and
+5, working independently, both found that 3 more live modules beyond Case Commander (`case_intelligence.py`
+/`copilot.py`'s GPT-fallback next-action, `morning_briefing.py`'s zero `case_actions` awareness,
+`strategija.py`'s 3-way GPT-invented risks/gaps/next-steps across 11 call sites) still let GPT invent
+facts/priority the way Case Commander did before Sigma 005 — named `TAU-002`/`TAU-003`/`TAU-004`.
+
+**Also found**: Agent 2's web search surfaced conflicting signals on whether GPT-5.1 itself is still
+current or already retired at the API layer — unresolved from repo state, escalated to the founder as a
+blocking prerequisite (`GPT51_INTEGRATION_ANALYSIS.md` §0) rather than guessed at.
+
+**Implemented this sprint (Phase 4, proven-necessary + model-choice-independent only — zero model strings
+changed, zero new AI calls added)**: corrected `security/ai_forensics.py`'s docstring overclaim ("full
+reconstruction" → accurate hash-only integrity description); `shared/cost.py::estimate_cost` now warns
+instead of silently misreporting spend on an unrecognized model string; added `DC-014`/`DC-015` to
+`docs/architecture/DECISION_REGISTRY.md`/`DECISION_CONTRACTS.md` for Sigma 005's own canonical functions
+(a registry-drift gap that predated this sprint); added a parametrized test proving
+`shared/ai_client.py`'s security/audit guard fires identically regardless of model string, including
+`"gpt-5.1"`.
+
+**6 new tests**. Full suite: **2,797 passed, 1 skipped, 0 failed** (was 2,791 at end of Sigma Master
+Sprint 005) — zero regressions.
+
+**7 new debt items named, none rushed** (`TAU-001` through `TAU-007`, full detail in
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s "Program Tau, Master Sprint 001" section) — same
+discipline as Sigma 004's own deferral of `SIGMA-018`: name the risk precisely, don't rush a fix into an
+unconfirmed model target.
+
+**8 required deliverables**, all in `docs/tau/`: `AI_ARCHITECTURE_MAP.md`, `GPT51_INTEGRATION_ANALYSIS.md`,
+`CASE_CONTEXT_ARCHITECTURE.md`, `GPT51_SECURITY_REVIEW.md`, `LEGAL_AI_BOUNDARY_POLICY.md`,
+`GPT51_COST_OPTIMIZATION.md`, `GPT51_TEST_STRATEGY.md`, `GPT51_IMPLEMENTATION_ROADMAP.md`.

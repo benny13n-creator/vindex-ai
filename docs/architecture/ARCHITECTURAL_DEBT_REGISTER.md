@@ -2200,3 +2200,119 @@ Closes `SIGMA-018` — migrates `routers/case_commander.py` from independent GPT
 `shared/commander_schema.py` (the CASE_COMMANDER_RESPONSE_SCHEMA). No new debt items — the sprint's own
 forensic re-verification found the module has zero live frontend callers, removing the risk profile that
 justified Sprint 004's own deferral.
+
+## Program Tau, Master Sprint 001 (2026-08-06) — GPT-5.1 Integration Readiness
+
+Full narrative: `docs/tau/GPT51_IMPLEMENTATION_ROADMAP.md` and the 7 other `docs/tau/*.md` analysis
+deliverables. 8-agent forensic analysis of the whole AI call surface (138 call sites, 56 files) ahead of a
+potential GPT-5.1 adoption. Implemented only proven-necessary, model-choice-independent hygiene fixes this
+sprint (`ai_forensics.py` docstring correction, `shared/cost.py` silent-fallback warning, 2 new DC entries
+for Sigma 005's own Case Commander functions, 1 new model-agnostic guard test) — no model string changed,
+no new AI call added, per the mission's own explicit constraint. Six real findings were proven but
+deliberately NOT implemented this sprint, each scoped larger than a hygiene fix and each meriting its own
+dedicated future sprint the way Case Commander got in Sigma 005:
+
+## TAU-001 — No unified "complete case context" builder exists (High)
+
+**Found by**: Agent 3 (Context Engineering), Program Tau Master Sprint 001.
+
+**What**: 4 independent, hand-rolled context-assembly functions feed GPT calls across the platform —
+`case_commander.py::_formatiraj_kontekst` (10 of ≤20 fetched documents, 2000 chars/doc, Genome/evidence
+fetched but never included in GPT-facing text), `case_intelligence.py::_build_context_text` (full Genome,
+zero documents, zero evidence), `copilot.py` (document filenames only, content column excluded from the
+query), `morning_briefing.py` (zero documents/Genome/evidence — metadata only). None gives GPT documents +
+Genome + evidence together. For the mission's own named "500 documents" scale scenario, 490+ documents are
+invisible to every one of these endpoints — not sampled, not summarized, never fetched.
+
+**Why it matters for GPT-5.1 specifically**: a stronger reasoning model does not compensate for missing
+input — it reasons more confidently over the same incomplete context, which is a bigger risk than a weaker
+model doing the same. Unifying/completing case context is a prerequisite for a genuine "reasoning layer
+above deterministic systems," not a follow-on nice-to-have.
+
+**Why deferred**: this is a context-engine design project (arguably reusing `cross_doc.py`'s existing
+stride-based sampler, which already solves the same problem in an unrelated endpoint family), not a
+hygiene fix. Rushing it risks exactly the kind of quality/testing shortfall the founder's "brutal
+precision" instruction exists to prevent.
+
+**Severity**: High — this is the anchor item any future GPT-5.1 reasoning-layer sprint should resolve
+first, per Agent 3/8's own recommendation.
+
+## TAU-002 — `case_intelligence.py`/`copilot.py`'s "canonical override" is a GPT-fallback, not a removal (Medium)
+
+**Found by**: Agent 5 (Legal AI Governance), Program Tau Master Sprint 001; independently corroborated by
+Agent 1.
+
+**What**: both modules' next-action logic calls `top_open_action(case_actions)` and uses it when an open
+action exists — but falls back to GPT's own invented guess when `case_actions` is empty. Prior sprints'
+own documentation described these as "migrated" (Sprint 004); this sprint found, from current code, that
+the GPT-invention path is dormant, not removed. Same problem class Sigma 005 fixed structurally in Case
+Commander via prompt narrowing, not applied here.
+
+**Severity**: Medium — narrower in scope than TAU-001/TAU-004, a plausible small follow-up sprint on its
+own (2 files, already-identified fallback branches to remove).
+
+## TAU-003 — `morning_briefing.py` has zero `case_actions` awareness (Medium-High)
+
+**Found by**: Agent 5 (Legal AI Governance) and Agent 3 (Context Engineering), Program Tau Master Sprint 001.
+
+**What**: `routers/morning_briefing.py`'s "Danas zahteva pažnju" (2-4 prioritized actions) and "Preporuka
+za danas" are built purely from raw context text (rokovi/predmeti/ročišta strings) with no `case_actions`
+read or override at all — the same shape of violation `case_commander.py` had before Sigma 005, in a
+module that was flagged as out-of-scope back in Sigma 004 and remains unfixed.
+
+**Severity**: Medium-High — a daily-digest surface a lawyer reads every morning presenting an
+independently-invented priority list is a direct instance of the exact risk this whole Sigma/Tau program
+exists to close.
+
+## TAU-004 — `strategija.py`'s `_V2_SYSTEM` independently invents risks/gaps/next-steps (Critical)
+
+**Found by**: Agent 5 (Legal AI Governance) and Agent 1 (AI Architecture Auditor), Program Tau Master
+Sprint 001.
+
+**What**: `strategija.py`'s `_V2_SYSTEM` prompt (~L349-371) asks GPT for `kljucni_rizici`,
+`nedostajuci_dokazi`, and `sledeci_koraci` (each carrying its own `prioritet`) in a single JSON call, with
+no `case_actions`/`gap_engine`/`identify_case_problems` read anywhere in the file — a 3-way independent
+duplicate of exactly the categories Sigma 005 consolidated in Case Commander. `strategija.py` also has the
+second-highest OpenAI call-site count in the codebase (11 sites, per Agent 1).
+
+**Severity**: Critical — the largest single remaining instance of the fragmentation class this whole
+Sigma/Tau program has been closing sprint by sprint. Strong candidate to be the next dedicated
+consolidation sprint after this one, using Case Commander's Sigma 005 migration as the direct template
+(reuse `shared/gap_engine.py`/`shared/case_readiness.py`/`shared/commander_schema.py`, do not reinvent).
+
+## TAU-005 — `ai_client.py`'s guard/provenance patch does not cover the Responses API (Low today, blocking if ever triggered)
+
+**Found by**: Agent 2 (OpenAI Integration) and Agent 4 (Security), Program Tau Master Sprint 001.
+
+**What**: `shared/ai_client.py::_patch_prompt_guard` patches `Completions.create`/`AsyncCompletions.create`
+at the SDK class level — it does not patch `openai.resources.responses`. Zero call sites use the Responses
+API today (grep-confirmed, zero hits for `.responses.create(`), so this is not a live gap. It becomes one
+the moment any future code — including a GPT-5.1 migration, if GPT-5.1's own API surface prefers
+Responses — adds a `client.responses.create(...)` call site without first extending the guard.
+
+**Severity**: Low today (dormant), but must be treated as a hard prerequisite — not an afterthought — the
+moment any Responses API call site is proposed. Not scheduled; tracked so it isn't forgotten.
+
+## TAU-006 — Strict structured outputs never enabled anywhere (Low, available lever)
+
+**Found by**: Agent 2 (OpenAI Integration), Program Tau Master Sprint 001.
+
+**What**: 60 call sites use loose `{"type": "json_object"}` mode (no schema conformance guarantee); the
+one call site using `"type": "json_schema"` (`main.py`) sets `"strict": False`. No call site anywhere uses
+OpenAI's `strict: True` structured-outputs mode or the SDK's `.parse()`/`response_model=` convenience path.
+
+**Severity**: Low — not a defect, an unused hallucination-reduction lever. Candidate for opt-in adoption
+per call site once a specific consumer is proven ready to depend on the stricter guarantee (Agent 7's
+test-strategy scope, not implemented here).
+
+## TAU-007 — No GPT-4o vs. GPT-5.1 shadow-comparison harness exists yet (Informational — blocked on Section 0)
+
+**Found by**: Agent 7 (Testing Strategy), Program Tau Master Sprint 001.
+
+**What**: Agent 7 designed (not implemented) a 3-stage methodology — shadow logging, offline replay,
+promotion gate — for safely comparing model output without letting the comparison itself become a new
+source of truth. Building it is explicitly blocked on resolving `GPT51_INTEGRATION_ANALYSIS.md`'s Section
+0 (confirming the actual current, non-deprecated model ID) — building a comparison harness against a
+possibly-already-retired model would be wasted effort.
+
+**Severity**: Informational — correctly sequenced as blocked, not forgotten.

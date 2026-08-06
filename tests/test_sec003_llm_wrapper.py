@@ -211,6 +211,24 @@ class TestMultimodalContentExtraction:
         assert _extract_user_text(messages) == ""
 
 
+class TestGuardIsModelAgnostic:
+    """Program Tau, Master Sprint 001 (2026-08-06) -- Agent 7's test strategy
+    flagged that this file never varied the model string, so nothing proved
+    the guard intercepts a future model (e.g. GPT-5.1-class) the same way it
+    does gpt-4o today. The patch lives on the SDK class (Completions.create),
+    not on any model-name branch, so this is a structural guarantee, not a
+    per-model one -- this test makes that guarantee explicit and checkable."""
+
+    @pytest.mark.parametrize("model", ["gpt-4o", "gpt-4o-mini", "gpt-5.1", "some-future-model"])
+    def test_injection_blocked_regardless_of_model_string(self, model):
+        client = OpenAI(api_key="sk-fake")
+        with pytest.raises(PromptInjectionBlocked):
+            client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": _INJECTION_PAYLOAD}],
+            )
+
+
 class TestGlobalExceptionHandlerFallback:
     """Ako pozivno mesto NE uhvati PromptInjectionBlocked eksplicitno, globalni
     FastAPI handler (api.py::global_exception_handler) mora vratiti čist 400,

@@ -98,20 +98,32 @@ def test_dc013_create_proactive_alert_canonical_source_exists():
     assert callable(create_proactive_alert)
 
 
+def test_dc014_kanonski_nalazi_canonical_source_exists():
+    from routers.case_commander import _kanonski_nalazi
+    assert callable(_kanonski_nalazi)
+
+
+def test_dc015_kanonski_prioritet_i_rizici_canonical_source_exists():
+    from routers.case_commander import _kanonski_prioritet_i_rizici
+    assert callable(_kanonski_prioritet_i_rizici)
+
+
 def test_registry_row_count_matches_this_files_test_count():
-    """Cheap drift detector: DECISION_REGISTRY.md's canonical table has 13
-    rows (DC-001..DC-013) as of this mission. If a future PR adds a 14th
-    canonical decision to the registry without a matching test here (or vice
-    versa), this is the tripwire that catches the mismatch -- not a
-    guarantee of correctness, just a reminder the two files are meant to
-    move together."""
+    """Cheap drift detector: DECISION_REGISTRY.md's canonical table has 15
+    rows (DC-001..DC-015) as of this mission (DC-014/DC-015 added Program
+    Tau, Master Sprint 001, 2026-08-06 -- Sigma Sprint 005's own Case
+    Commander functions existed in code since 2026-08-06 but were never
+    DC-registered until this sprint). If a future PR adds a 16th canonical
+    decision to the registry without a matching test here (or vice versa),
+    this is the tripwire that catches the mismatch -- not a guarantee of
+    correctness, just a reminder the two files are meant to move together."""
     import re
     registry_path = os.path.join(os.path.dirname(__file__), "..", "docs", "architecture", "DECISION_REGISTRY.md")
     with open(registry_path, encoding="utf-8") as f:
         content = f.read()
     dc_ids = set(re.findall(r"DC-\d{3}", content))
-    assert len(dc_ids) == 13, (
+    assert len(dc_ids) == 15, (
         f"DECISION_REGISTRY.md now lists {len(dc_ids)} canonical decision contracts, "
-        "but this test file was last updated for 13 (DC-001..DC-013). "
+        "but this test file was last updated for 15 (DC-001..DC-015). "
         "Add/remove the matching test_dcNNN_* function in this file."
     )

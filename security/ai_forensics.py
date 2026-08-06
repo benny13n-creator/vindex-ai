@@ -4,9 +4,21 @@ Vindex AI — security/ai_forensics.py
 
 AI Forensics — beleži svaki AI poziv sa svim relevantnim metapodacima.
 
-Svrha: Potpuna rekonstrukcija svakog AI odgovora čak i godinama kasnije.
-Odgovara na: Ko je zatražio analizu? Koji dokumenti su korišćeni?
-             Koja verzija modela je odgovorila? Kakav je bio prompt?
+Svrha: integritet-verifikacija svakog AI poziva čak i godinama kasnije --
+NIJE rekonstrukcija sadržaja (vidi niže). Odgovara na: Ko je zatražio
+analizu? Koji dokumenti su korišćeni? Koja verzija modela je odgovorila?
+
+VAŽNO (ispravljeno Program Tau, Master Sprint 001, 2026-08-06 -- Agent 4
+Security Review je pronašao da je prethodna formulacija ovog docstring-a
+("potpuna rekonstrukcija") netačna): ova tabela čuva SAMO SHA-256 heševe
+prompta/odgovora (`system_prompt_hash`, `user_prompt_hash`, `output_hash`),
+nikad sirov tekst. To znači da se može DOKAZATI da je poziv datog sadržaja
+zaista izvršen (re-hash + poređenje), ali se sirov prompt/odgovor NE MOŽE
+rekonstruisati unazad iz heša -- ako je ikad potrebna stvarna rekonstrukcija
+teksta (npr. spor sa klijentom, upit advokatske komore), ovaj mehanizam to
+ne pruža. Namerna dizajn odluka (bez druge kopije osetljivog sadržaja
+predmeta u forenzičkoj tabeli), ne propust -- ali docstring ranije nije to
+jasno govorio.
 
 Tabela: ai_forensics (videti SQL migraciju)
 Čitanje: SELECT * FROM ai_forensics WHERE user_id='...' ORDER BY started_at DESC
