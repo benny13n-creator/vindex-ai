@@ -12,7 +12,7 @@ This report covers the two places RLS is NOT decorative: the frontend's direct-t
 `SECURITY DEFINER` RPC functions (which run with the function owner's privileges regardless of who calls
 them or through what client).
 
-## Result: 2 CRITICAL, directly exploitable database-layer bypasses found
+## Result: 3 CRITICAL, directly exploitable database-layer bypasses found
 
 ### `deduct_credit(p_user_id UUID)` — CONFIRMED VULNERABLE
 
@@ -33,6 +33,26 @@ that. Any authenticated user could call `rpc("set_user_pro", {"p_email": "<own e
 for a free, permanent PRO upgrade with zero payment — a monetary-impact bug, not just a data-isolation one —
 or strip a victim's PRO status by supplying their email with `p_is_pro: false`. **Status: FIXED** via the
 same migration (not yet applied — see below).
+
+### `profiles` UPDATE policy — CONFIRMED VULNERABLE (missed by this sprint's own first triage pass)
+
+`supabase_setup.sql:38-41`. `CREATE POLICY "Korisnici azuriraju sopstveni profil" ON public.profiles FOR
+UPDATE USING (auth.uid() = id)` — no `WITH CHECK`, no column scope. RLS restricts which **row** a user may
+update, not which **columns**, so any authenticated user updating their own row (which this policy always
+allows) can set `is_pro`, `plan`, or `trial_kraj` (all added by migration 061) directly. `static/vindex.js`
+holds a public anon key and talks to Supabase directly for exactly this table (confirmed the only frontend
+write path, `vindex.js:702`, and it only ever sends `full_name`) — so a user can open devtools and run
+`supabase.from('profiles').update({is_pro:true}).eq('id', session.user.id)` for a free, permanent PRO
+upgrade, zero payment, zero backend involvement. Same monetary-impact shape as `set_user_pro` above, through
+a different door RLS row-scoping alone cannot close (column-level scoping requires a `GRANT`, not a policy).
+
+This finding was correctly reported by the Database & RLS Auditor fork during this sprint's own investigation
+phase, but was not carried into this document or `migrations/102` during the first triage/synthesis pass —
+caught and closed on a manual re-review after this sprint's first commit (`622c62e`), not by the original
+synthesis. **Status:
+FIXED** via `migrations/103_lambda002_profiles_column_lockdown.sql` — column-level `REVOKE UPDATE FROM
+authenticated/anon` + `GRANT UPDATE (full_name) TO authenticated` (not yet applied to live Supabase — see
+below; `is_pro`/`plan`/`trial_kraj`/`onboarding_done` remain backend-only, service-role writes, unaffected).
 
 ### 3 more functions, same missing-`REVOKE` pattern, defense-in-depth only
 
@@ -57,8 +77,9 @@ highest-impact functions.
 ## Everything else: SAFE and, where it matters, load-bearing
 
 - **`static/vindex.js`** is the only non-service-role Supabase client in the codebase (browser, end-user JWT).
-  It touches 3 tables directly: `profiles` (SAFE, `profiles_select_own`), `reported_errors` (SAFE,
-  insert-own policy), and — critically — **`conversations`**, where `loadChatHistory()` filters only by
+  It touches 3 tables directly: `profiles` (SELECT safe via `profiles_select_own`; UPDATE was NOT safe — see
+  the CRITICAL finding above, now fixed by migration 103), `reported_errors` (SAFE, insert-own policy), and
+  — critically — **`conversations`**, where `loadChatHistory()` filters only by
   `session_id`, relying entirely on the `conversations_own` policy (`auth.uid()=user_id`) to prevent
   cross-user chat-history reads via a guessed session id. This policy is correctly written and **is the sole
   guard** for this one table — the single place in the whole app where RLS is genuinely, not decoratively,
@@ -80,7 +101,13 @@ founder to confirm live in the Dashboard.
 
 ## Outstanding action
 
-`migrations/102_lambda002_rpc_ownership_lockdown.sql` exists on disk and is **not yet applied to live
-Supabase** — per this project's standing rule, migrations are run by the founder, never auto-executed. Until
-it runs, `deduct_credit` and `set_user_pro` remain exploitable in production exactly as described above. This
-is the single highest-priority action item from the entire sprint.
+Two migrations exist on disk and are **not yet applied to live Supabase** — per this project's standing rule,
+migrations are run by the founder, never auto-executed:
+
+- `migrations/102_lambda002_rpc_ownership_lockdown.sql` — until it runs, `deduct_credit` and `set_user_pro`
+  remain exploitable in production exactly as described above.
+- `migrations/103_lambda002_profiles_column_lockdown.sql` — until it runs, any authenticated user can grant
+  themselves free permanent PRO directly via the `profiles` table, independent of `set_user_pro`.
+
+Both are the single highest-priority action items from the entire sprint — run them together, they touch
+different objects and cannot conflict.

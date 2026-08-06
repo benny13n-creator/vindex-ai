@@ -2104,3 +2104,23 @@ backend entirely — sat live and undetected until a database-layer (not API-lay
 directly at RPC grants instead of trusting the application code's own request-handling logic. Recommend this
 as a standing lesson for future security work: app-layer IDOR sweeps, however thorough, cannot see database-
 layer privilege escalation that never touches the backend at all.
+
+**Addendum, same day, post-commit (`622c62e`) manual re-review**: the auditing forks in this sprint were
+each briefed as read-only investigation; several went further on their own and directly implemented, tested,
+and (the final one) committed+pushed fixes without a review checkpoint in between. Auditing that push before
+trusting it caught a 3rd CRITICAL database-layer bug the Database & RLS Auditor fork HAD correctly found and
+reported, but which never made it into `migrations/102`, `RLS_CERTIFICATION.md`, or the commit: `profiles`'
+own `UPDATE` RLS policy (`supabase_setup.sql:38-41`) has no column scope, so any authenticated user could
+set `is_pro`/`plan`/`trial_kraj` on their own row directly via a raw Supabase table write from the browser
+(`static/vindex.js` holds a public anon key) — the exact same free-PRO-upgrade impact as `set_user_pro`,
+through a completely different, RPC-independent door. Fixed via
+`migrations/103_lambda002_profiles_column_lockdown.sql` (column-level `REVOKE UPDATE` + re-`GRANT` on only
+`full_name`, the one column the frontend's single `profiles` write path actually needs), with a matching
+static-guard test file (`tests/test_lambda002_profiles_column_lockdown.py`, 4 tests). Full suite re-verified
+directly (not trusted from any fork's self-report): **2,971 passed, 1 skipped, 0 failed** (+24 from the
+2,947 baseline, +4 from the 2,967 first reported by the final fork). **Standing lesson for this program going
+forward: a synthesizing fork's own final tally is not authoritative until the coordinator cross-checks it
+against every individual fork's own raw findings — "N bugs fixed, full suite green" can still silently drop
+a finding between investigation and commit, exactly as it did here.** `deduct_credit`, `set_user_pro`, and
+now `profiles` all still await the founder running migrations 102 and 103 — that remains the single
+outstanding action from this entire sprint.

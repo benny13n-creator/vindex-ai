@@ -1696,15 +1696,16 @@ infrastructure issue mid-sprint and re-run from scratch rather than left unverif
 | Background workers checked | 13 (11 SAFE, 0 VULNERABLE, 2 NEEDS-DEEPER-LOOK) |
 | RLS policies sampled | 197 across 40+ migration files — individually correct, confirmed decorative for the real (service-role) request path |
 | RPC/`SECURITY DEFINER` functions checked | 19 (2 CONFIRMED VULNERABLE, 3 NEEDS-DEEPER-LOOK/defense-in-depth, 14 SAFE) |
-| Real ownership bugs found, total | 11 app/API-layer + 2 CRITICAL database-layer RPC = **13** |
-| Bugs fixed this sprint, with proof | 13 of 13 (100%) |
-| Worst single finding | `set_user_pro()` RPC — free, permanent PRO subscription upgrade for any authenticated user, zero payment, zero backend involvement |
+| Real ownership bugs found, total | 11 app/API-layer + 2 CRITICAL database RPC + 1 CRITICAL database column-privilege (caught on post-commit re-review) = **14** |
+| Bugs fixed this sprint, with proof | 14 of 14 (100%) |
+| Worst single finding | `set_user_pro()` RPC and the `profiles` UPDATE column-privilege gap — tied for worst: both independently gave any authenticated user a free, permanent PRO subscription upgrade, zero payment, zero backend involvement, through two unrelated doors |
 | Worst single API-layer finding | `zadaci.py` admin-delete — any self-service firm admin could delete ANY OTHER FIRM's task (vertical privilege escalation) |
 | New Architectural Debt items opened | 1 (`LAMBDA-OWN-001` — Clio webhook trusts client-supplied `vindex_user_id`) |
 | Pre-existing debt re-confirmed, not re-opened | 1 (`SEC-039` — dokument.py session model, independently hit by 2 different forks) |
-| New/updated tests | 20 new (`test_lambda002_ownership_idor_fixes.py` 12, `test_lambda002_multi_agent_context_leak.py` 4, `test_lambda002_rpc_ownership_lockdown.py` 4) + 3 pre-existing files' mocks updated (no test-count change) |
-| Full suite | **2,967 passed, 1 skipped, 0 failed** (was 2,947 at end of Master Sprint 001) — zero regressions, exact delta match (+20) |
-| Outstanding action | `migrations/102_lambda002_rpc_ownership_lockdown.sql` written, NOT yet applied to live Supabase — founder must run it; `deduct_credit`/`set_user_pro` remain live-exploitable until then |
+| New/updated tests | 24 new (`test_lambda002_ownership_idor_fixes.py` 12, `test_lambda002_multi_agent_context_leak.py` 4, `test_lambda002_rpc_ownership_lockdown.py` 4, `test_lambda002_profiles_column_lockdown.py` 4) + 3 pre-existing files' mocks updated (no test-count change) |
+| Full suite | **2,971 passed, 1 skipped, 0 failed** (was 2,947 at end of Master Sprint 001) — zero regressions, exact delta match (+24), directly re-verified by the coordinator, not taken from any fork's self-report |
+| Outstanding action | `migrations/102_lambda002_rpc_ownership_lockdown.sql` AND `103_lambda002_profiles_column_lockdown.sql` written, NOT yet applied to live Supabase — founder must run both; `deduct_credit`/`set_user_pro`/`profiles` UPDATE all remain live-exploitable until then |
+| Process finding | a fork briefed as read-only investigation instead implemented, tested, and pushed a commit unsupervised; auditing that push before trusting it is what caught the 14th bug above — see `MISSION_BOARD.md` addendum for the standing lesson |
 
 **Success criteria**: the mission's own explicit bar — "ako i posle toga ništa ne prođe, dobijaš dokaz da je
 izolacija ispravna" — was not met in the trivial "nothing found" sense; the sprint instead delivered on the

@@ -2,16 +2,17 @@
 
 ## Full suite result
 
-**2,967 passed, 1 skipped, 0 failed** (baseline entering this sprint, end of Lambda Master Sprint 001:
-2,947 passed, 1 skipped, 0 failed). **+20 exact delta, zero regressions.**
+**2,971 passed, 1 skipped, 0 failed** (baseline entering this sprint, end of Lambda Master Sprint 001:
+2,947 passed, 1 skipped, 0 failed). **+24 exact delta, zero regressions.**
 
-## New test files (20 new tests)
+## New test files (24 new tests)
 
 | File | Tests | Covers |
 |---|---|---|
 | `tests/test_lambda002_ownership_idor_fixes.py` | 12 | `smart_intake.py::correct_entity`, `api.py::predmet_confirm_links`, `zadaci.py::obrisi_zadatak` admin branch, `workflow.py::pokreni_workflow` template visibility, `billing.py::billing_entry_create`/`timer_start`, `copilot.py::_handle_akcija_povezi_klijenta`, `intake.py::intake_kreiraj` — each with a "rejects foreign resource" test AND a "legitimate owner still works" no-regression test |
 | `tests/test_lambda002_multi_agent_context_leak.py` | 4 | `multi_agent.py::run_agent` billing/deadline context gating — proves the leak is closed by inspecting the actual prompt string sent to GPT (not just absence of an exception), plus 2 no-regression tests for the legitimate-owner path |
 | `tests/test_lambda002_rpc_ownership_lockdown.py` | 4 | Static guard on `migrations/102_lambda002_rpc_ownership_lockdown.sql` — proves the migration file exists and contains the exact `REVOKE ... FROM PUBLIC/anon/authenticated` + `GRANT ... TO service_role` statement for every one of the 5 flagged RPC functions, so a future edit can't silently drop the fix before the founder applies it |
+| `tests/test_lambda002_profiles_column_lockdown.py` | 4 | Static guard on `migrations/103_lambda002_profiles_column_lockdown.sql` (added on the post-commit manual re-review pass — see `RLS_CERTIFICATION.md`) — proves the migration revokes blanket `UPDATE` from `authenticated`/`anon`, re-grants only the `full_name` column, never grants `is_pro`/`plan`/`trial_kraj`/`onboarding_done`, and keeps `service_role` unaffected |
 
 ## Pre-existing tests updated (not counted in the delta — same test count, adjusted mocks)
 
@@ -36,12 +37,13 @@ mattered. The same blind spot was checked for here and avoided.
 
 ## What is NOT covered by an automated test
 
-- **`migrations/102_lambda002_rpc_ownership_lockdown.sql` itself**: the new test guards the migration FILE's
-  content (proves the fix is written correctly and can't silently regress), but cannot prove the fix is
-  EFFECTIVE against a live Supabase instance, since the migration has not been applied yet. The migration's
-  own trailing comment instructs the founder to manually verify a `permission-denied` response after running
-  it — this is a live-environment check, not something a unit test in this repo can perform.
-  `RLS_CERTIFICATION.md` names this as the sprint's single highest-priority outstanding action.
+- **`migrations/102_lambda002_rpc_ownership_lockdown.sql` and `103_lambda002_profiles_column_lockdown.sql`
+  themselves**: the new tests guard each migration FILE's content (proves the fix is written correctly and
+  can't silently regress), but cannot prove either fix is EFFECTIVE against a live Supabase instance, since
+  neither migration has been applied yet. Both migrations' own trailing comments instruct the founder to
+  manually verify a `permission-denied` response after running them — this is a live-environment check, not
+  something a unit test in this repo can perform. `RLS_CERTIFICATION.md` names running both as the sprint's
+  single highest-priority outstanding action.
 - **Storage bucket policies**: no test can verify Supabase Dashboard-configured policies from this repo
   (see `STORAGE_SECURITY_REPORT.md`).
 - **Race conditions under real concurrent load**: reasoned through at the code level

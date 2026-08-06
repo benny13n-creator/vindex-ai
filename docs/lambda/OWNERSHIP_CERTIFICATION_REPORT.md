@@ -13,15 +13,20 @@ re-run from scratch rather than left unverified.
 
 ## Headline result
 
-**11 real ownership bugs were found and fixed this sprint** — the mission's own stated success condition
+**12 real ownership bugs were found and fixed this sprint** — the mission's own stated success condition
 ("ako i posle toga ništa ne prođe, dobijaš dokaz da je izolacija ispravna") was not met in the trivial sense;
-real bypasses existed, spanning the API layer, the database RPC layer, and cross-module ownership drift. All
-were fixed with minimal, targeted changes and covered by new regression tests. Two of the eleven —
-`deduct_credit()` and `set_user_pro()` — are database-layer `SECURITY DEFINER` RPC functions directly
-callable via PostgREST by any authenticated user, **completely bypassing the FastAPI backend, its rate
-limiting, and every one of this engagement's prior API-layer security work.** `set_user_pro` in particular
+real bypasses existed, spanning the API layer, the database RPC layer, database column-privilege layer, and
+cross-module ownership drift. All were fixed with minimal, targeted changes and covered by new regression
+tests. Three of the twelve — `deduct_credit()`, `set_user_pro()`, and the `profiles` table's own `UPDATE`
+column privilege — are database-layer bypasses reachable directly via PostgREST/Supabase-JS by any
+authenticated user (the first two via a `SECURITY DEFINER` RPC, the third via a raw table `UPDATE` from the
+browser's public anon key), **completely bypassing the FastAPI backend, its rate limiting, and every one of
+this engagement's prior API-layer security work.** Both `set_user_pro` and the `profiles` bug independently
 allowed a free, permanent PRO subscription upgrade with zero payment — a monetary-impact bug, not just a
-data-isolation one.
+data-isolation one. The `profiles` finding was reported by the Database & RLS Auditor fork during this
+sprint's own investigation but dropped during the first triage/synthesis pass — caught and closed on a
+manual re-review after this sprint's first commit (`622c62e`), in a direct follow-up commit; noted here in
+the interest of an honest record, not hidden.
 
 ## What was actually broken (see `IDOR_MATRIX.md` for the full per-endpoint table)
 
@@ -30,6 +35,7 @@ data-isolation one.
 | API (routers a-m) | API Penetration Auditor A | 6 fixed (billing.py, intake.py, memory_graph.py, multi_agent.py, copilot.py, evidence.py) + 7 more in court_predictor.py + 1 in corrections.py (write-side FK pollution, same sweep) | Cross-tenant read of another firm's case names, client PII, billing line items, and hearing schedule via `multi_agent.py`'s billing/deadline agent |
 | API (routers n-z + api.py) | API Penetration Auditor B | 4 fixed (smart_intake.py, api.py, zadaci.py, workflow.py) | Any self-service firm admin could delete **any other firm's task** by guessing/observing a UUID — vertical privilege escalation, not just horizontal |
 | Database / RPC | Database & RLS Auditor | 2 CRITICAL fixed via migration 102 (`deduct_credit`, `set_user_pro`) + 3 defense-in-depth | Free permanent PRO upgrade for any authenticated user; cross-account credit-drain DoS |
+| Database / column privilege | Database & RLS Auditor (missed in first triage, closed on manual re-review) | 1 CRITICAL fixed via migration 103 (`profiles` UPDATE) | Free permanent PRO upgrade via a direct browser-side table write, independent of `set_user_pro` |
 | Background workers | Background Worker Auditor | 0 exploitable found; 1 NEEDS-DEEPER-LOOK architectural note | `case_evolution.py`'s 5 event-consequence executors trust the outbox event's `user_id` without re-verifying at dispatch time — not exploitable today (no ownership-reassignment code path exists anywhere in the repo), but a latent gap for a future multi-user-firm-sharing feature |
 | Storage | Storage Auditor | 0 exploitable found across 21 examined paths | — |
 | AI context | (re-confirmed via API Penetration + prior Tau/Lambda sprints) | 1 fixed (`multi_agent.py` billing/deadline agent context leak, counted above) | — |
@@ -56,8 +62,9 @@ this sprint, by design:
 
 Every critical ownership flow ends this sprint in exactly one of the three states the mission requires:
 
-- **FIXED** (13 items — 11 app/DB-layer bugs + the RPC lockdown counted as 2 for `deduct_credit`/
-  `set_user_pro`, or 15 if the 3 defense-in-depth RPC lockdowns are counted individually)
+- **FIXED** (14 items — 11 app-layer bugs + 3 database-layer bugs: the RPC lockdown counted as 2 for
+  `deduct_credit`/`set_user_pro` plus 1 for the `profiles` column-privilege fix, or 16 if the 3
+  defense-in-depth RPC lockdowns are counted individually)
 - **ARCHITECTURAL DEBT** (2 items — `LAMBDA-OWN-001` new this sprint, `SEC-039` re-confirmed pre-existing)
 - **CERTIFIED** (everything else examined and found already correct — the large majority: 260/287 API
   endpoints in the a-m sweep alone, 19/21 storage paths, 11/13 background workers, 197 RLS policies sampled
@@ -68,11 +75,14 @@ No flow was left in an ambiguous or unverified state.
 
 ## Regression proof
 
-Full suite: **2,963 passed, 1 skipped, 0 failed** (baseline entering this sprint: 2,947 passed, 1 skipped —
-see `REGRESSION_TEST_REPORT.md`). +16 exact delta: 12 new tests in
-`tests/test_lambda002_ownership_idor_fixes.py` covering 7 of the app-layer fixes, 4 new tests in
-`tests/test_lambda002_rpc_ownership_lockdown.py` statically guarding the SQL migration content, 1 pre-existing
-test updated (not counted in the delta) to mock a new ownership-chain check.
+Full suite: **2,971 passed, 1 skipped, 0 failed** (baseline entering this sprint: 2,947 passed, 1 skipped —
+see `REGRESSION_TEST_REPORT.md`). +24 exact delta: `tests/test_lambda002_ownership_idor_fixes.py` (12 tests
+covering the app-layer fixes across `smart_intake.py`/`api.py`/`zadaci.py`/`workflow.py`/`billing.py`/
+`copilot.py`/`intake.py`), `tests/test_lambda002_multi_agent_context_leak.py`, `tests/test_lambda002_rpc_ownership_lockdown.py`
+(4 tests statically guarding migration 102), `tests/test_lambda002_profiles_column_lockdown.py` (4 tests
+statically guarding migration 103, added on the manual re-review pass), plus fixture updates (not counted in
+the delta) to `test_billing_timer_race.py`, `test_mission001_predmet_klijenti.py`, and
+`test_sprint004_review_resolve.py` for the new ownership-check call sites.
 
 ## What this sprint does NOT certify
 
@@ -84,6 +94,7 @@ test updated (not counted in the delta) to mock a new ownership-chain check.
   `EVENT_OWNERSHIP_REPORT.md`), not executed against a running deployment, since none exists in this
   environment. The one confirmed real TOCTOU race in this codebase (`billing.py::timer_start`) was already
   fixed in a prior sprint (migration 084) and re-verified, not newly found, here.
-- **Migration 102 has not been run against live Supabase.** Per this project's standing rule, migrations are
-  never auto-executed — the founder runs them. Until it runs, `deduct_credit` and `set_user_pro` remain
-  live-exploitable in production exactly as described above.
+- **Migrations 102 and 103 have not been run against live Supabase.** Per this project's standing rule,
+  migrations are never auto-executed — the founder runs them. Until they run, `deduct_credit`, `set_user_pro`,
+  and the `profiles` `UPDATE` column-privilege gap all remain live-exploitable in production exactly as
+  described above.
