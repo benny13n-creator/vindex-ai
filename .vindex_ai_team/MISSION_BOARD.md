@@ -2741,3 +2741,78 @@ every GPT call site. Criteria 3 and 5 honestly NOT met as platform-wide guarante
 score-provenance contract exists, and Team 4 found a live Criterion-5 violation (Case Genome's hero panel
 labels case-strength as "rizik", a different formula than the risk engine's own "rizik") that this mission
 did not fix. Full scorecard: `docs/singlebrain/SINGLE_BRAIN_MISSION_002_FINAL_CERTIFICATE.md`.
+
+---
+
+## Operation Singular Intelligence, Mission 001 — The Semantic Truth Layer (2026-08-07, CLOSED)
+
+Directly targeted Mission 002's own headline finding (Case Genome's hero panel mislabeling case-strength
+as "rizik") and Mission 002's own recommendation (Case Commander activation). Founder framing: build a
+Semantic Truth Layer where every displayed metric answers WHO OWNS THIS / HOW IS IT CALCULATED / WHAT
+DATA SUPPORTS IT / CAN IT CONTRADICT ANOTHER SCREEN — explicitly not a feature sprint, an architectural
+truth consolidation mission with its own Core Rules (no new intelligence, no new scoring engine, no
+replacing proven engines).
+
+**Phase 1 — 6 parallel forensic teams** (Semantic Mapping, AI Boundary Audit, Decision Architecture Audit,
+Frontend Truth Audit, Database Reality Audit, Red Team) re-audited from zero assumptions, each briefed to
+build on Mission 001/002's own extensive docs rather than re-derive them, then independently verify and
+hunt for what those missions missed. Team A found the mission's single most concrete finding: Command
+Center's home screen stacks 3 independently-computed "what should I do today" answers — the deterministic
+Workspace board, and 2 GPT narratives (Health Index's "Chief Partner" directive, CIO's "Preporuka za
+danas") that never read `case_actions` and were never cross-checked against each other or the board above
+them; `cio.py`'s own code comment admits this was a known, deliberately deferred scope decision. Team B
+found the mission's flagship AI-boundary gap — worse than any prior mission's — the Web3/MiCA compliance
+suite's 4 client-facing due-diligence scores had zero server-side guard, and the frontend silently
+rendered any unrecognized risk-level string as LOW risk, inverting the one signal a regulatory-compliance
+feature exists to give. Team C's Decision Architecture Audit corrected a premise both prior missions held:
+Case Commander isn't filling an empty UI slot — `case_intelligence.py`'s "AI Briefing" panel already
+independently converged on nearly the same design and is already live, meaning naive activation would add
+a 3rd voice, not consolidate one.
+
+**Phase 3 — 8 real fixes, each regression-tested**: `routers/zadaci.py`'s risk-formula input missing a
+soft-delete filter (live-reproduced divergence with Matter Intel/CCC); Firm Health Index's silent 1h-stale
+cache (now discloses `iz_kesa`/`generated_at`, matching `cio.py`'s own pattern); the Web3/MiCA suite's 4
+scores clamped/enum-guarded fail-safe in the correct direction per scale; the Genome hero panel vs.
+Copilot's "Verovatnoća uspeha" threshold/framing mismatch for the identical shared field (a 62% case
+showed green "success" and orange "risk" one click apart) aligned; the Genome manual-refresh endpoint's
+response no longer lies about a failed DB write (`case_dna_persisted` flag, honestly returns what's
+actually persisted); a ghost frontend field (`dna.tip_spora`, never existed in the schema since the first
+Genome commit) corrected; Court Predictor's always-0/0 recommendation-stats line hidden until real data
+could exist (the underlying `recommendation_log` pipeline is confirmed dead since inception — reactivating
+it named as debt, out of this mission's truth-fragmentation scope); Command Center's 2 undisclosed GPT
+recommendation surfaces now carry an explicit "AI predlog, nezavisan od Workspace" label. Full ledger:
+`docs/singular/DEPRECATION_PLAN.md`.
+
+**Phase 4 — all 4 mandated adversarial attacks executed and passed**: a forced high-risk/low-readiness/
+missing-evidence case where every canonical engine agrees; 1000-document determinism; a poison-GPT sweep
+(100%/fake certainty/fake risk score) against every guard this mission added, all failing safe; legacy-
+field injection, where `calculate_procesni_rizik` structurally cannot read a manually-injected field and a
+failed `case_dna` write now honestly reports the actually-persisted value instead of the unsaved one.
+
+**Shipped**: `shared/semantic_registry.py` (pure-lookup canonical-ownership registry, no new
+intelligence/scoring per this mission's own Core Rules 1-2) and `docs/singular/TRUTH_CONTRACT.md` (Owner/
+Input/Output/Forbidden for Risk, Readiness, Strength, Probability, Confidence, Health, Priority, and the
+newly-catalogued Recommendation concept).
+
+**Full suite: 3,195 passed, 1 skipped, 0 failed** (was 3,168 at Single Brain Mission 002's close, +27 new
+tests across `test_singular_intelligence_fixes.py`/`test_singular_intelligence_phase4_adversarial.py`,
+zero regressions). 2 of 3 full-suite runs during Phase 5 hung/slowed for environmental reasons
+(confirmed via process CPU-delta inspection, not code); the one clean completion's single failure
+(`test_doc_pitanje_api.py::test_pitanje_happy_path`, unrelated to any file touched this mission)
+re-confirmed passing in isolation immediately after — full honest disclosure in `docs/singular/
+SINGULAR_INTELLIGENCE_CERTIFICATE.md`.
+
+**12 findings named as debt** (`SINGULAR-DEBT-001` through `-012`) — headline `-001`: Recommendation's
+3-4 independent generators, INCLUDING the Case Commander/AI Briefing redundant-twin discovery, with a
+fully specified 2-path activation architecture already written (`docs/singular/DECISION_ARCHITECTURE.md`)
+so the next mission can execute directly rather than re-diagnose.
+
+**Verdict — 8 real fixes closed; scored honestly against all 6 stated Acceptance Criteria, not rounded
+up.** Criterion 1 (single ownership) met for Risk/Readiness/Strength/Priority, explicitly NOT met for
+Confidence/Recommendation BY DESIGN (genuinely multi-source concepts, unified by a guard contract not a
+forced merge). Criterion 2 (provenance) advanced for 3 specific surfaces, not platform-wide. Criterion 3
+(no disagreement) met for every reproduced case found. Criterion 4 (GPT cannot modify truth) met for all
+49 GPT call sites audited. Criterion 5 (deprecation marked) fully met — 9 items marked/fixed, 12 named,
+zero silent survivals. Criterion 6 (Case Commander activation-ready) — architecture proven safe, activation
+explicitly deferred after the premise correction revealed naive activation would duplicate, not
+consolidate. Full scorecard: `docs/singular/SINGULAR_INTELLIGENCE_CERTIFICATE.md`.

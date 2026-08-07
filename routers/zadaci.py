@@ -577,10 +577,17 @@ async def ai_analiziraj_predmet(
                 .limit(5)
                 .execute()
         ),
+        # Operation Singular Intelligence (2026-08-07), Truth Contract "Risk" §Forbidden: every
+        # other calculate_procesni_rizik caller (matter_intel.py, ccc.py, case_context.py,
+        # case_pipeline.py, case_evolution.py) excludes soft-deleted evidence; this one didn't --
+        # Red Team reproduced a real divergence, identical case data giving "Visok"/health=20 on
+        # Matter Intel/CCC vs "Srednji"/health=55 here, purely from a deleted predmet_dokazi row
+        # still being counted.
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
                 .select("snaga, kategorija")
                 .eq("predmet_id", predmet_id)
+                .is_("deleted_at", "null")
                 .execute()
         ),
         asyncio.to_thread(

@@ -66,7 +66,7 @@ def _make_supa(dokumenti=None, dokazi=None, rocista=None, billing=None, rokovi=N
         elif name == "rokovi":
             t.select.return_value.eq.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = rokovi or []
         elif name == "predmet_dokazi":
-            t.select.return_value.eq.return_value.execute.return_value.data = dokazi or []
+            t.select.return_value.eq.return_value.is_.return_value.execute.return_value.data = dokazi or []
         elif name == "rocista":
             t.select.return_value.eq.return_value.execute.return_value.data = rocista or []
         elif name == "kancelarije":

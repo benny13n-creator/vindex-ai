@@ -471,6 +471,35 @@ def _parsiraj_json_iz_odgovora(odgovor: str) -> dict:
     return {}
 
 
+# Operation Singular Intelligence (2026-08-07), Truth Contract "Probability" §Mandatory guard
+# contract: these 4 client-facing PRO due-diligence scores (MiCA Readiness, ZDI License Risk,
+# AML/KYC Compliance, Documentation Health) returned raw GPT JSON with zero server-side clamp or
+# enum validation -- AI Boundary Red Team found this is materially worse than any previously-fixed
+# gap, because the frontend's own rendering (static/vindex.js) silently treats any unrecognized
+# level string as the LOWEST-risk/BEST-compliance bucket, meaning an out-of-spec GPT response could
+# invert the one signal a regulatory-compliance feature exists to give. Guarded here at the root,
+# matching the clamp/enum-guard discipline already established platform-wide (BLACKSWAN-AI-003,
+# normalize_tezina, Genome heatmap/dokazi_rang).
+_WEB3_LEVELS = ("NIZAK", "SREDNJI", "VISOK")
+
+
+def _guard_web3_score(data: dict, score_key: str, level_key: str, *, risk_scale: bool) -> dict:
+    """Clamps `data[score_key]` to 0-100 and enum-validates `data[level_key]` against NIZAK/
+    SREDNJI/VISOK. `risk_scale=True` means higher = worse (e.g. rizik_nivo) -- unrecognized input
+    fails safe to VISOK (never silently downgrade an unclassifiable risk to "low"). `risk_scale=False`
+    means higher = better (e.g. skor_nivo/uskladenost_nivo, a readiness/compliance level) --
+    unrecognized input fails safe to NIZAK (never silently claim full compliance/readiness)."""
+    if not isinstance(data, dict):
+        return data
+    _v = data.get(score_key)
+    if isinstance(_v, (int, float)):
+        data[score_key] = max(0, min(100, _v))
+    _lvl = data.get(level_key)
+    if _lvl not in _WEB3_LEVELS:
+        data[level_key] = "VISOK" if risk_scale else "NIZAK"
+    return data
+
+
 # ── MiCA Readiness Score ──────────────────────────────────────────────────────
 
 _MICA_READINESS_SYSTEM = """Ti si ekspert za MiCA usklađenost (EU Regulation 2023/1114) i ZDI (Srbija).
@@ -518,7 +547,7 @@ def mica_readiness_score_sync(tekst_projekta: str, api_key: str) -> dict:
         ],
     )
     raw = (resp.choices[0].message.content or "").strip()
-    score_data = _parsiraj_json_iz_odgovora(raw)
+    score_data = _guard_web3_score(_parsiraj_json_iz_odgovora(raw), "ukupni_skor", "skor_nivo", risk_scale=False)
     objasnjenje = f"Ukupni skor: {score_data.get('ukupni_skor', '?')}/100 — {score_data.get('skor_nivo', '')}"
     return {"score_data": score_data, "objasnjenje": objasnjenje, "raw": raw}
 
@@ -575,6 +604,8 @@ def zdi_license_checker_sync(opis_aktivnosti: str, api_key: str) -> dict:
     )
     raw = (resp.choices[0].message.content or "").strip()
     license_data = _parsiraj_json_iz_odgovora(raw)
+    if isinstance(license_data, dict) and license_data.get("rizik_nivo") not in _WEB3_LEVELS:
+        license_data["rizik_nivo"] = "VISOK"  # risk_scale: unrecognized never silently downgrades to low
     dozvola = "POTREBNA" if license_data.get("dozvola_potrebna") else "NIJE POTREBNA"
     organ = license_data.get("nadlezni_organ", "")
     objasnjenje = f"Dozvola: {dozvola} | Nadležni organ: {organ} | Rizik: {license_data.get('rizik_nivo', '?')}"
@@ -635,7 +666,7 @@ def aml_kyc_auditor_sync(tekst_politike: str, api_key: str) -> dict:
         ],
     )
     raw = (resp.choices[0].message.content or "").strip()
-    audit_data = _parsiraj_json_iz_odgovora(raw)
+    audit_data = _guard_web3_score(_parsiraj_json_iz_odgovora(raw), "ukupna_uskladenost", "uskladenost_nivo", risk_scale=False)
     skor = audit_data.get("ukupna_uskladenost", "?")
     nivo = audit_data.get("uskladenost_nivo", "")
     objasnjenje = f"AML/KYC usklađenost: {skor}/100 — {nivo}"
@@ -706,7 +737,7 @@ def documentation_health_score_sync(opis_dokumentacije: str, api_key: str) -> di
         ],
     )
     raw = (resp.choices[0].message.content or "").strip()
-    health_data = _parsiraj_json_iz_odgovora(raw)
+    health_data = _guard_web3_score(_parsiraj_json_iz_odgovora(raw), "ukupni_skor", "skor_nivo", risk_scale=False)
     skor = health_data.get("ukupni_skor", "?")
     nivo = health_data.get("skor_nivo", "")
     objasnjenje = f"Spremnost dokumentacije: {skor}/100 — {nivo}"

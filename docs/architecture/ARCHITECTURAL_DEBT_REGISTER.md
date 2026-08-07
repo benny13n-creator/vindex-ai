@@ -4147,3 +4147,124 @@ or wiring a reader), not attempted this mission.
 confirmed live data-loss or crash risks. `-001`/`-002`/`-006` together point at the same next mission's
 natural starting point: wire up Case Commander, carefully, after first confirming it wouldn't create new
 visible contradictions against the systems this mission and Mission 001 already fixed.
+
+---
+
+# Operation Singular Intelligence, Mission 001 — Debt Register (2026-08-07)
+
+8 real fixes landed this mission (full ledger: `docs/singular/DEPRECATION_PLAN.md`), including the
+single worst AI-boundary gap found across this engagement's 3 prior Single Brain/Singular Intelligence
+missions (the Web3/MiCA compliance suite's risk-inversion bug). The 12 items below are what 6 forensic
+teams found that this mission did NOT close, each cited to its forensic source. See `docs/singular/
+SINGULAR_INTELLIGENCE_CERTIFICATE.md` for the honest scorecard against this mission's own 6 stated
+acceptance criteria.
+
+### SINGULAR-DEBT-001 — Recommendation has 3-4 independent generators, including a redundant Case Commander/AI Briefing twin (High, headline item)
+
+`shared/case_readiness.py::top_open_action()` (canonical) coexists with `services/case_pipeline.py::
+_step_copilot_preporuka` (independent, renders "Copilot preporuka" beside the Case Ready Score
+checklist), `routers/copilot.py::_handle_predlozi` (independent, granular items not rendered), and
+`routers/zastarelost.py`'s own thresholds (`SINGULAR-DEBT-004`). Additionally, Team C's Decision
+Architecture Audit found `routers/case_commander.py`'s canonical core is a REDUNDANT TWIN of
+`routers/case_intelligence.py`'s already-live "AI Briefing" panel (both independently converged on the
+same design: `build_case_context()` core + 2 quarantined GPT fields) — Case Commander is not filling an
+empty slot, wiring it up naively would add a 3rd voice, not consolidate. Full architecture with 2 safe
+activation paths (consolidate-first vs. activation-absorbs-consolidation): `docs/singular/
+DECISION_ARCHITECTURE.md`. Not implemented this mission — the single highest-leverage next step, with
+its diagnosis already complete.
+
+### SINGULAR-DEBT-002 — `strategy_simulator.py`'s `rizik_score`/`verovatnoca` unguarded (High, dead code)
+
+Red Team Attack 2: zero clamp/enum-guard, reproduced with a poisoned response (`rizik_score: 999999999`,
+a fabricated certainty enum) passing straight through. `/api/simulator/*` confirmed zero frontend
+callers today — same risk class as other confirmed-dead landmines (`SINGLEBRAIN-DEBT-009`,
+`matter_intel.py::preflight_check`). Not fixed (dead code, lower priority than live findings).
+
+### SINGULAR-DEBT-003 — `recommendation_log`'s dead insert path (Medium, structural)
+
+`services/learning_engine.py::log_recommendation` inserts columns `tip`/`tekst` against a table whose
+real columns (migration 037) are `tip_preporuke`/`tekst_preporuke` — every insert has always failed,
+masked by a bare `except Exception`. `log_recommendation` also has zero callers anywhere in the
+codebase. The platform's entire recommendation-outcome learning loop (`confidence_auditor.py`,
+`decision_replay.py`, Court Predictor's stats panel) has been permanently starved since inception.
+This mission fixed the one live UI consequence (the stats panel's misleading always-0/0 display, § Fix
+7) but did NOT reactivate the underlying pipeline — that is a feature-completion project (wire a real
+caller, fix the column names, decide what "accepted/rejected" means operationally), not a truth-
+fragmentation fix, and is out of this mission's scope by its own Core Rule 1.
+
+### SINGULAR-DEBT-004 — `routers/zastarelost.py`'s 2 different urgency-threshold ladders in the same file (Medium)
+
+`/guardian/analyze` (≤3/≤7/≤14 days) vs. `/guardian/scan` (≤2/≤5/≤14 days, different bottom label) —
+a 3-day-out deadline is "kritično" on one endpoint, only "hitno" on the other. Both confirmed zero
+frontend callers today — a landmine, not a live contradiction. Evidence: Team A's Semantic Mapping
+(independently found by 3 of 4 sub-forks).
+
+### SINGULAR-DEBT-005 — `predmeti.oblast` vs `predmeti.oblast_prava` duplicate pair, one orphaned (Medium)
+
+Two columns for the same fact ("area of law"). `oblast` is written (`api.py:3644-3660`) and read by 7
+modules; `oblast_prava` is read by 6 DIFFERENT AI modules (`cio.py`, `case_intelligence.py`,
+`precedents_radar.py`, `court_portal_watcher.py`, `decision_replay.py`, `knowledge_transfer.py`) but has
+**zero confirmed application-code writer** anywhere — those 6 modules are plausibly always reading an
+empty string. Mission 002 already flagged both as "shadow columns, zero migration provenance"
+(`SINGLEBRAIN2-DEBT-010`) but did not identify the duplicate-pair-with-orphan-writer structure. Evidence:
+Team E's Database Reality Audit.
+
+### SINGULAR-DEBT-006 — `predmeti.vrednost_spora` vs `case_dna.finansije.*` (Medium)
+
+Two unreconciled "money at stake in this case" sources — one manual (`api.py:3651`), one AI-extracted
+(`routers/case_dna.py:70-77`). Nothing reconciles them; several call sites defensively read
+`predmet.get("vrednost_spora") or predmet.get("vrednost")` where the bare `vrednost` key has no
+confirmed writer (likely dead residue of a pre-rename column). Evidence: Team E.
+
+### SINGULAR-DEBT-007 — `knowledge_profiles.ukupno_predmeta`/`win_rate`, same manual-override pattern as `predmeti.rizik` (Medium)
+
+A user types both directly at profile creation with no validation; a separate GPT extraction endpoint
+silently OVERWRITES the same columns whenever it returns a value, with no provenance flag for human-
+typed vs. AI-derived and no reconciliation. Structurally identical to the already-known `predmeti.rizik`
+pattern, found this mission on a table neither prior mission examined (migration 040). Evidence: Team E.
+
+### SINGULAR-DEBT-008 — `case_dna.py` refresh's cross-table staleness with `predmet_hronologija` (Low-Medium, partially mitigated)
+
+`_sync_rokovi_to_hronologija()` writes freshly-extracted deadlines into `predmet_hronologija`
+UNCONDITIONALLY, before the `case_dna` UPDATE, with no rollback on failure. This mission's Fix 5 stopped
+the endpoint's RESPONSE from lying about the outcome (`case_dna_persisted` flag, honest genome returned)
+but did not close the underlying gap: the real, UI-facing "Hitni rokovi" calendar can still show
+deadlines from a Genome version that was never actually saved to `predmeti.case_dna`, which itself still
+shows the old version. A full fix needs either a DB transaction wrapping both writes or a compensating
+rollback of the hronologija rows on `case_dna` UPDATE failure. Evidence: Team E, reproduced in
+`tests/test_singular_intelligence_phase4_adversarial.py::test_attack4_stale_case_dna_cache_cannot_override_failed_write`
+(proves the RESPONSE is now honest; does not prove the calendar rows were rolled back, because they
+aren't).
+
+### SINGULAR-DEBT-009 — Confidence remains ~16 legitimately-distinct mechanisms (Medium, carried forward + 1 new source)
+
+Unified only by this mission's Truth Contract GUARD requirement (enum-validate, fail-safe to least
+confident), not a shared formula — by design, not an oversight (see `TRUTH_CONTRACT.md` §Confidence).
+Carried forward from `SINGLEBRAIN2-DEBT-004`. New 16th source found this mission: `routers/
+firm_memory.py::_apply_trust`, a 0.0-1.0 trust float, currently backend-only (no frontend caller).
+
+### SINGULAR-DEBT-010 — `predmeti.status`'s 5-way classifier fragmentation (Medium, unchanged)
+
+Carried forward from `SINGLEBRAIN2-DEBT-007`, full specification in `docs/singlebrain/
+CASE_STATUS_CANONICAL_MODEL.md`, not re-attempted this mission.
+
+### SINGULAR-DEBT-011 — Readiness-tier cap still fails open on `build_case_context()` error (Medium, unchanged, 3rd mission in a row)
+
+Carried forward from `SINGLEBRAIN-DEBT-010`/`SINGLEBRAIN2-DEBT-005`, re-confirmed still open by Team B
+at all 7+ call sites (`court_predictor.py` now ×5 post this mission's own `argument_reputation` fix,
+`digital_twin.py` ×2, `hearing_cc.py` ×1). Not fixed for the same reason stated twice before: no safe
+default cap value without risking a different failure mode (understating a healthy case's probability
+due to an unrelated transient error).
+
+### SINGULAR-DEBT-012 — `health_score` naming collision across 3 unrelated domains (Low, unchanged)
+
+Firm-wide Health Index, `risk_engine.py`'s per-case inverse-of-risk field, and Web3's "Documentation
+Health Score" all share the literal field name — each internally single-sourced within its own domain,
+a naming trap not a data bug. Carried forward from `SINGLEBRAIN2-DEBT-008`, unchanged.
+
+**Severity summary across these 12 items**: 2 High (`-001`, `-002`), 6 Medium (`-003`, `-005`, `-006`,
+`-007`, `-009`, `-010`, `-011` — 7 items graded Medium), 2 Low/Low-Medium (`-004` graded Medium above,
+`-008`, `-012`). None are confirmed live data-loss or crash risks; `-008` is the closest (a UI-visible
+calendar/Genome mismatch is possible but requires a DB write failure to trigger, and the response no
+longer lies about it when it does). `-001` is the clear next-mission starting point, with its full
+architecture already specified — a future mission can execute directly rather than re-diagnose.

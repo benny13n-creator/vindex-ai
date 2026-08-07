@@ -1294,7 +1294,9 @@ function _healthIndexRender(d) {
 
   // Levo: veliki broj
   html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;position:relative;overflow:hidden;">';
-  html += '<div style="font-size:.58rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.4rem;font-weight:700;">Zdravlje kancelarije danas</div>';
+  html += '<div style="font-size:.58rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.4rem;font-weight:700;">Zdravlje kancelarije danas'
+        + (d.iz_kesa ? '<span style="color:rgba(255,255,255,.18);text-transform:none;letter-spacing:normal;"> · keširano</span>' : '')
+        + '</div>';
   html += '<div style="display:flex;align-items:flex-end;gap:.5rem;margin-bottom:.55rem;">';
   html += '<span style="font-size:3.2rem;font-weight:800;color:'+color+';line-height:1;letter-spacing:-.03em;">'+score+'</span>';
   html += '<span style="font-size:1rem;color:rgba(255,255,255,.3);margin-bottom:.35rem;">/100</span>';
@@ -1321,6 +1323,14 @@ function _healthIndexRender(d) {
   html += '<div style="background:linear-gradient(135deg,rgba(10,20,40,.9),rgba(13,27,50,.95));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:1.1rem 1rem;overflow:hidden;">';
   if (chief) {
     html += '<div style="font-size:.58rem;color:rgba(74,168,255,.6);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.55rem;font-weight:700;">Chief Partner — Direktiva za danas</div>';
+    // Operation Singular Intelligence (2026-08-07), Truth Contract "Recommendation" §Currently in
+    // violation, mitigated: this narrative is GPT-generated from a health-score/alerts summary and
+    // never reads case_actions -- it can disagree with the canonical Workspace board shown above it
+    // on this same screen, with nothing telling the lawyer these are 2 independent systems. Full
+    // consolidation deferred (SINGULAR-DEBT-001); this disclosure is the safe mitigation available
+    // now, matching the disclaimer precedent already established for other independent AI narratives
+    // (e.g. Court Predictor's Judge Profile statistics).
+    html += '<div style="font-size:.6rem;color:rgba(255,255,255,.28);margin-bottom:.5rem;">AI predlog, nezavisan od Workspace liste zadataka iznad.</div>';
     var lines = chief.split('\n').filter(function(l){ return l.trim(); });
     lines.forEach(function(line) {
       html += '<div style="font-size:.76rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;line-height:1.55;padding-left:.1rem;">'+_htmlEsc(line.trim())+'</div>';
@@ -2259,9 +2269,19 @@ async function learningStatsLoad() {
       return '<div class="crm-podaci-row"><span class="crm-podaci-lbl">' + _htmlEsc(p.tip) + '</span><span class="crm-podaci-val" style="color:' + c + ';">' + p.win_rate + '% (' + p.uzoraka + ' predmeta)</span></div>';
     }).join('');
 
+    // Operation Singular Intelligence (2026-08-07), Semantic Mapping Team finding: this line used
+    // to unconditionally render "Preporuke prihvaćeno: 0 · Odbijeno: 0" for every user, forever --
+    // the recommendation_log table has a confirmed dead insert path (column-name mismatch,
+    // silently swallowed) so these 2 numbers can never currently be anything but 0, making the
+    // line actively misleading rather than honestly empty. Sibling Confidence Audit panel
+    // (confidenceAuditLoad, below) already hides itself when there's no real data yet -- same
+    // discipline applied here: only render the recommendation-outcome line once it could be real.
+    var _prihOdb = (d.preporuke_prihvaceno || 0) + (d.preporuke_odbijeno || 0);
     wrap.innerHTML = '<div style="font-size:.72rem;color:rgba(255,255,255,0.35);margin-bottom:.6rem;line-height:1.5;">' + _htmlEsc(d.poruka || '') + '</div>'
       + rows
-      + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0) + ' · Preporuke prihvaćeno: ' + (d.preporuke_prihvaceno || 0) + ' · Odbijeno: ' + (d.preporuke_odbijeno || 0) + '</div>';
+      + '<div style="font-size:.65rem;color:rgba(255,255,255,.3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0)
+      + (_prihOdb > 0 ? ' · Preporuke prihvaćeno: ' + (d.preporuke_prihvaceno || 0) + ' · Odbijeno: ' + (d.preporuke_odbijeno || 0) : '')
+      + '</div>';
   } catch (e) {
     wrap.innerHTML = '<div style="color:rgba(255,120,120,0.6);font-size:.78rem;">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   }
@@ -16885,7 +16905,11 @@ async function _voice_refresh_case_dna(predmetId) {
       _caseDnaRender(dna, predmetId);
       return;
     }
-    var tip = dna.tip_spora || '';
+    // Operation Singular Intelligence (2026-08-07): dna.tip_spora has never existed in the Genome
+    // schema (real field is pravna_teorija.pravni_identitet, routers/case_dna.py:54) -- confirmed
+    // via git history to have been wrong since the very first Case Genome commit. `tip` was always
+    // "", silently omitting this segment from the post-refresh toast.
+    var tip = (dna.pravna_teorija && dna.pravna_teorija.pravni_identitet) || '';
     var snaga = dna.snaga_predmeta || '';
     var kontr = (dna.kontradikcije || []).length;
     var msg = 'Procena predmeta ažurirana' + (tip ? ': ' + tip : '') + (snaga ? ' | Snaga: ' + snaga : '') + (kontr ? ' | ⚠ ' + kontr + ' kontradikcija' : '');
@@ -17098,9 +17122,16 @@ function _cioRender(iz, meta) {
   }
 
   // CIO preporuka — najistaknutija stavka
+  // Operation Singular Intelligence (2026-08-07), Truth Contract "Recommendation" §Currently in
+  // violation, mitigated: this is a fully GPT-free-choice pick, deliberately never integrated into
+  // case_actions/Workspace by cio.py's own code comment ("van bezbednog obima"). Rendered on the same
+  // Command Center screen as the canonical Workspace board -- a lawyer had no way to tell this apart
+  // from the platform's single canonical answer. Full consolidation deferred (SINGULAR-DEBT-001);
+  // this disclosure is the safe mitigation available now.
   html += '<div style="padding:0.7rem 1rem;border-bottom:1px solid rgba(255,255,255,0.05);">';
   html += '<div style="color:rgba(255,255,255,0.3);font-size:0.59rem;letter-spacing:0.07em;margin-bottom:3px;">PREPORUKA ZA DANAS</div>';
   html += '<div style="color:#e2e8f0;font-size:0.78rem;font-weight:600;line-height:1.4;">'+escHtml(iz.cio_preporuka)+'</div>';
+  html += '<div style="color:rgba(255,255,255,.25);font-size:0.56rem;margin-top:3px;">AI predlog, nezavisan od Workspace liste zadataka.</div>';
   html += '</div>';
 
   // Grid: 3 kolone — Rizik | Zapostavljan | Rok
@@ -17203,12 +17234,21 @@ function _caseDnaRender(dna, predmetId) {
   // SLEDEĆI KORACI" sekcijama, samo se prva stavka svake prikazuje ovde
   // odmah, pre 9+ detaljnih sekcija. Founder: "Advokat prvo želi odgovor
   // 'Šta da radim?', ne 'Pokaži mi strukturu podataka.'"
+  // Operation Singular Intelligence (2026-08-07), Truth Contract "Strength" §Explicitly a
+  // DIFFERENT concept from Risk: this is snaga_predmeta_procent (argument/merits strength),
+  // the SAME field Copilot's "Verovatnoća uspeha" already renders (vindex.js ~11557-11563,
+  // aliased since Program Tau Sprint 003) -- but this panel used to label it with RISK
+  // vocabulary ("Visok rizik"/"Srednji rizik") at a different threshold (65/40 vs Copilot's
+  // 60/40), so the identical number could show green "success" in Copilot and orange "risk"
+  // one click away in the same session (Frontend Truth Team's reproduced finding). Aligned to
+  // Copilot's own thresholds and strength-framed (not risk-framed) labels -- no vocabulary
+  // collision with services/risk_engine.py's canonical "rizik" left on a strength score.
   var _sumProcent = dna.snaga_predmeta_procent;
   var _sumStatusTxt = null, _sumStatusColor = null;
   if (typeof _sumProcent === 'number') {
-    if (_sumProcent >= 65) { _sumStatusTxt = 'Povoljna pozicija'; _sumStatusColor = '#4ade80'; }
-    else if (_sumProcent >= 40) { _sumStatusTxt = 'Srednji rizik'; _sumStatusColor = '#fbbf24'; }
-    else { _sumStatusTxt = 'Visok rizik'; _sumStatusColor = '#f87171'; }
+    if (_sumProcent >= 60) { _sumStatusTxt = 'Povoljna pozicija'; _sumStatusColor = '#4ade80'; }
+    else if (_sumProcent >= 40) { _sumStatusTxt = 'Srednja pozicija'; _sumStatusColor = '#fbbf24'; }
+    else { _sumStatusTxt = 'Slaba pozicija'; _sumStatusColor = '#f87171'; }
   }
   var _sumFaktori = Array.isArray(dna.snaga_faktori) ? dna.snaga_faktori : [];
   var _sumNajjaci = null, _sumNajjaciVal = -Infinity;
@@ -17319,9 +17359,12 @@ function _caseDnaRender(dna, predmetId) {
   }
 
   // ── Snaga predmeta — progress bar sa historijom ───────────────────────────
+  // Threshold aligned to 60/40 (Fix 4 above, Copilot's own "Verovatnoća uspeha" boundary) so
+  // the identical snaga_predmeta_procent value never changes color between this bar and the
+  // hero summary/Copilot for the same case.
   var procent = dna.snaga_predmeta_procent;
   if (typeof procent === 'number') {
-    var barColor = procent >= 65 ? '#4ade80' : procent >= 40 ? '#fbbf24' : '#f87171';
+    var barColor = procent >= 60 ? '#4ade80' : procent >= 40 ? '#fbbf24' : '#f87171';
     html += '<div style="margin-bottom:0.5rem;">';
     html += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:3px;">';
     html += '<span style="color:rgba(255,255,255,0.45);font-size:0.62rem;letter-spacing:0.06em;">SNAGA PREDMETA</span>';

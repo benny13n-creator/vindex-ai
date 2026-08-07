@@ -1039,8 +1039,34 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
     if _update_ok:
         await _maybe_alert_require_review(supa, predmet_id, uid, stari_genome, genome)
 
-    logger.info("[GENOME] refresh predmet=%s docs=%d snaga=%s%% v%s",
-                predmet_id, len(docs), novi_procent, nova_verzija)
+    logger.info("[GENOME] refresh predmet=%s docs=%d snaga=%s%% v%s update_ok=%s",
+                predmet_id, len(docs), novi_procent, nova_verzija, _update_ok)
+
+    # Operation Singular Intelligence (2026-08-07), Database Reality Team finding: this response
+    # used to be built from the NEW `genome` dict and a "regenerisan" success message
+    # UNCONDITIONALLY, even when the `predmeti.case_dna` UPDATE above failed (_update_ok=False).
+    # A lawyer would see the new Genome and a success toast, then reload and find the OLD
+    # (unchanged) genome with no error ever surfaced -- the response lied about what was actually
+    # persisted. Now honestly reflects the real DB state: on failure, returns the genome that is
+    # ACTUALLY still in predmeti.case_dna (stari_genome) with an explicit failure signal, not the
+    # unsaved new one.
+    if not _update_ok:
+        return {
+            "predmet_id": predmet_id,
+            "predmet_naziv": pred_check.data.get("naziv"),
+            "case_dna": stari_genome,
+            "docs_analizirano": len(docs),
+            "snaga_procent": stari_genome.get("snaga_predmeta_procent") if isinstance(stari_genome, dict) else None,
+            "verzija": stari_verzija,
+            "intelligence_delta": None,
+            "snaga_promena": None,
+            "case_dna_persisted": False,
+            "poruka": (
+                f"Case Genome v{nova_verzija} je izračunat ali NIJE sačuvan zbog greške u bazi -- "
+                f"prikazan je prethodni sačuvani Genome (v{stari_verzija}). Pokušajte ponovo."
+            ),
+        }
+
     return {
         "predmet_id": predmet_id,
         "predmet_naziv": pred_check.data.get("naziv"),
@@ -1050,6 +1076,7 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
         "verzija": nova_verzija,
         "intelligence_delta": delta_obj if delta_obj else None,
         "snaga_promena": alert_msg,
+        "case_dna_persisted": True,
         "poruka": f"Case Genome v{nova_verzija} regenerisan iz {len(docs)} dokumenata.",
     }
 

@@ -475,9 +475,14 @@ async def get_health_index(
     uid = user["user_id"]
 
     # Cache hit
+    # Operation Singular Intelligence (2026-08-07), Truth Contract "Health" §Mandatory disclosure:
+    # this endpoint could silently serve a >=1h-stale verdict with no staleness signal reaching the
+    # frontend -- reproduced by Red Team: a stale "88/A/Sve je u redu" can win over a live
+    # "34/C/HITNO" recomputation for up to an hour. routers/cio.py already establishes the correct
+    # pattern (iz_kesa/generisano_u threaded to the UI, vindex.js:17067); applied here identically.
     cached = _CACHE.get(uid)
     if not force and cached and (datetime.utcnow() - cached["ts"]).total_seconds() < _CACHE_TTL:
-        return cached["data"]
+        return {**cached["data"], "iz_kesa": True}
 
     supa = _get_supa()
 
@@ -498,6 +503,7 @@ async def get_health_index(
         "weak_signals":     signals       if isinstance(signals,       list) else [],
         "inst_risks":       risks         if isinstance(risks,         list) else [],
         "generated_at":     datetime.utcnow().isoformat(),
+        "iz_kesa":          False,
     }
 
     _CACHE[uid] = {"ts": datetime.utcnow(), "data": result}
