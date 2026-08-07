@@ -84,7 +84,9 @@ from shared.constants import EXPECTED_DOCS
 from shared.case_readiness import compute_case_readiness, top_open_action
 from shared.gap_engine import collect_case_gaps
 
-CONTRACT_VERSION = "1.0.0"
+# Operation One Truth (2026-08-07): 1.0.0 -> 1.1.0, additive-only -- new "risk" field exposing
+# services/risk_engine.py's already-computed output (see that field's own comment below).
+CONTRACT_VERSION = "1.1.0"
 
 # Layer 4 budget — deliberately generous vs. case_commander.py's old 8000/2000
 # (which fed only 10 of up to 20 fetched documents, always the same 10): this
@@ -478,6 +480,15 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
                 "pravna_teorija": case_dna.get("pravna_teorija"),
                 "snaga_predmeta_procent": case_dna.get("snaga_predmeta_procent"),
                 "najslabija_tacka": case_dna.get("najslabija_tacka"),
+                # Operation One Truth (2026-08-07): shared/genome_validator.py::verify_genome()
+                # correctly DETECTS a bad Genome (hallucinated document reference, internally
+                # inconsistent score) via `_verifikacija.odluka`, but that decision was never
+                # exposed to any downstream consumer of this canonical context -- every AI
+                # module (Court Predictor, Hearing CC, CIO, Copilot) trusted a flagged-bad
+                # Genome identically to a clean one. Purely additive: exposes an already-stored
+                # field, does not change write/save behavior (still advisory, not blocking --
+                # that is a separate, larger AI-governance decision, not this mission's scope).
+                "genome_verifikacija_odluka": (case_dna.get("_verifikacija") or {}).get("odluka"),
             } if genome_computed else None,
             source="predmeti.case_dna (Genome)", owner="routers/case_dna.py (Genome extraction)",
             refresh="on Genome refresh (manual or auto-triggered)",
@@ -508,6 +519,19 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
         "readiness": context_field(
             readiness, source="shared/case_readiness.py::compute_case_readiness",
             owner="case_readiness.py", refresh="real-time (pure function over case_actions + gaps)",
+        ),
+        # Operation One Truth (2026-08-07): `rizik` was already computed above (line ~405) to
+        # feed identify_case_problems()/gaps internally, but was never exposed in this function's
+        # own public contract -- every consumer that needed a case's risk level had to either
+        # separately call calculate_procesni_rizik() itself (the correct pattern, used by
+        # routers/ccc.py, matter_intel.py) or fall back to the stale, manually-editable
+        # `predmeti.rizik` column (the bug this field's addition closes for digital_twin.py and
+        # hearing_cc.py). Purely additive -- exposes data already computed, zero new computation.
+        "risk": context_field(
+            {"nivo": rizik["nivo"], "health_score": rizik["health_score"], "kriticni_rokovi": rizik["kriticni_rokovi"]},
+            source="services/risk_engine.py::calculate_procesni_rizik",
+            owner="risk_engine.py (the single canonical risk source platform-wide)",
+            refresh="real-time (pure function over already-fetched dokazi/dokumenti/rocista)",
         ),
         "relevant_documents": context_field(
             {

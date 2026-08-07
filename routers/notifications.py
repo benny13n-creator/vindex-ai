@@ -309,6 +309,21 @@ async def _generate_notifications(uid: str) -> int:
         return 0
 
     # ── Briši stare neprocitane iste kategorije ───────────────────────────────
+    # Operation One Truth (2026-08-07): this delete used to match on user_id +
+    # procitano + tip ONLY -- with no awareness that services/case_evolution.py's
+    # own `_consequence_project_case_actions_to_notifications` (Program Omega,
+    # Final Sprint 007) ALSO writes rok/hitan_rok rows for this same user, via a
+    # dedupe-key-based upsert that is meant to be the durable, individually-
+    # reconciled record for each deadline. That module's own docstring claims
+    # "routers/notifications.py's own rok/hitan_rok generation is retired in the
+    # same commit" -- false; this block is still live (confirmed by tracing this
+    # code directly, not trusting that claim, per this mission's own Principle 0).
+    # Consequence: every time this function ran and found >=1 new notif, its
+    # blanket delete wiped out EVERY unread rok/hitan_rok/neaktivnost row for the
+    # user, including ones case_evolution.py had just correctly, individually
+    # reconciled seconds earlier -- silently discarding a dedupe-tracked deadline
+    # alert. Scoped now to only ever delete THIS function's own rows (which never
+    # set dedupe_key), never case_evolution.py's.
     tipovi = list({n["tip"] for n in new_notifs})
     try:
         await asyncio.to_thread(
@@ -317,6 +332,7 @@ async def _generate_notifications(uid: str) -> int:
                 .eq("user_id", uid)
                 .eq("procitano", False)
                 .in_("tip", tipovi)
+                .is_("dedupe_key", "null")
                 .execute()
         )
     except Exception as e:

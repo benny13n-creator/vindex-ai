@@ -227,18 +227,28 @@ def _case_context_blok(cc: Optional[dict]) -> str:
     return f"STVARNO STANJE PREDMETA U SISTEMU (kanonski izvor): readiness={status} — {readiness.get('razlog', '')}"
 
 
-def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None, case_context_blok: str = "") -> str:
+def _build_kontekst_tekst(ctx: dict, strategija_promena: Optional[str] = None, case_context_blok: str = "",
+                           case_context: Optional[dict] = None) -> str:
     """Formatira kontekst predmeta u tekst za GPT."""
     predmet   = ctx["predmet"]
     rokovi    = ctx["rokovi"]
     dokumenti = ctx["dokumenti"]
     komentari = ctx["komentari"]
 
+    # Operation One Truth (2026-08-07): this line used to read `predmeti.rizik`, a manually-set,
+    # never-recomputed column with a hardcoded "srednji" fallback -- completely bypassing
+    # services/risk_engine.py, the platform's single canonical risk source. Now reads the live
+    # value from build_case_context()'s own "risk" field (added this same mission) when
+    # available, falling back to the stale column only if the canonical fetch itself failed
+    # (fail-soft, matching this file's existing case_context pattern).
+    _risk_val = ((case_context or {}).get("risk") or {}).get("value") or {}
+    _risk_nivo = _risk_val.get("nivo") or predmet.get("rizik", "srednji")
+
     tekst = (
         f"PREDMET: {predmet.get('naziv', 'Nepoznato')}\n"
         f"Tip: {predmet.get('tip', 'ostalo')}\n"
         f"Status: {predmet.get('status', 'aktivan')}\n"
-        f"Rizik: {predmet.get('rizik', 'srednji')}\n"
+        f"Rizik: {_risk_nivo}\n"
         f"Opis: {(predmet.get('opis') or 'Nije unet opis.')[:1000]}\n"
     )
 
@@ -286,7 +296,7 @@ async def kreiraj_simulaciju(
         _dohvati_case_context_ako_postoji(req.predmet_id, uid, supa),
     )
     case_context_blok = _case_context_blok(case_context)
-    kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena, case_context_blok)
+    kontekst_tekst = _build_kontekst_tekst(ctx, req.strategija_promena, case_context_blok, case_context)
 
     from openai import OpenAI
     oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -384,7 +394,7 @@ async def sta_ako_analiza(
         _dohvati_case_context_ako_postoji(req.predmet_id, uid, supa),
     )
     case_context_blok = _case_context_blok(case_context)
-    kontekst_tekst = _build_kontekst_tekst(ctx, case_context_blok=case_context_blok)
+    kontekst_tekst = _build_kontekst_tekst(ctx, case_context_blok=case_context_blok, case_context=case_context)
     user_msg = f"{kontekst_tekst}\n\nHIPOTEZA ZA ANALIZU: {req.hipoteza[:1000]}"
 
     from openai import OpenAI

@@ -281,6 +281,64 @@ async def test_ccc_health_score_matches_canonical_risk_engine():
     assert result["nedostajuci"] == expected["nedostajuci_dokazi"]
 
 
+# ── T10: Operation One Truth (2026-08-07) — plain 10-char DATE strings (the
+# realistic Postgres DATE column shape) must be counted correctly, not silently
+# dropped by a naive-vs-aware TypeError. T4 above uses a full aware isoformat()
+# string, which never exercised the broken len(ds)==10 branch. ─────────────
+
+@pytest.mark.anyio
+async def test_ccc_kritican_rok_detected_plain_date_string():
+    from routers.ccc import get_ccc
+    plain_date = (datetime.now(timezone.utc) + timedelta(days=3)).date().isoformat()  # "YYYY-MM-DD", no time/tz
+    assert len(plain_date) == 10
+    rokovi = [{"id": "r10", "naziv": "Rok za odgovor", "sud": "Osnovni sud", "datum": plain_date, "status": "aktivan"}]
+    supa = _make_supa(_PREDMET, rokovi=rokovi)
+    with patch("routers.ccc._get_supa", return_value=supa):
+        result = await get_ccc(PID, _user())
+    assert result["kritican_rok"] is not None
+    assert result["kritican_rok"]["naziv"] == "Rok za odgovor"
+    assert result["predstojeći"] >= 1
+
+
+@pytest.mark.anyio
+async def test_ccc_predstojeci_and_kritican_rok_sourced_from_canonical_engine():
+    """predstojeći/kritican_rok must equal calculate_procesni_rizik's own output,
+    not a second, independently-derived count -- the exact defect Operation One
+    Truth's forensic pass found (canonical values computed, then discarded)."""
+    from routers.ccc import get_ccc
+    from services.risk_engine import calculate_procesni_rizik
+    from shared.constants import EXPECTED_DOCS
+
+    plain_date = (datetime.now(timezone.utc) + timedelta(days=5)).date().isoformat()
+    rokovi = [{"id": "r11", "naziv": "Ročište", "sud": "Osnovni sud", "datum": plain_date, "status": "aktivan"}]
+    supa = _make_supa(_PREDMET, rokovi=rokovi)
+    with patch("routers.ccc._get_supa", return_value=supa):
+        result = await get_ccc(PID, _user())
+
+    expected = calculate_procesni_rizik(
+        dokazi=[], dokumenti=[], rocista=rokovi,
+        tip_predmeta="radno", expected_docs=EXPECTED_DOCS,
+    )
+    assert result["predstojeći"] == expected["predstojeći_rokovi"]
+    assert result["kritican_rok"]["id"] in {r.get("id") for r in expected["kriticni_rocista"]}
+
+
+@pytest.mark.anyio
+async def test_ccc_overdue_hearing_surfaces_as_kritican_rok():
+    """BLACKSWAN-CRIT-002 established an overdue hearing is MORE urgent than one
+    still upcoming -- CCC's own kritican_rok selection must reflect that, not just
+    the canonical engine's aggregate count."""
+    from routers.ccc import get_ccc
+    overdue_date = (datetime.now(timezone.utc) - timedelta(days=2)).date().isoformat()
+    rokovi = [{"id": "r12", "naziv": "Propušteno ročište", "sud": "Osnovni sud", "datum": overdue_date, "status": "aktivan"}]
+    supa = _make_supa(_PREDMET, rokovi=rokovi)
+    with patch("routers.ccc._get_supa", return_value=supa):
+        result = await get_ccc(PID, _user())
+    assert result["kritican_rok"] is not None
+    assert result["kritican_rok"]["naziv"] == "Propušteno ročište"
+    assert result["kritican_rok"]["dana_ostalo"] < 0
+
+
 # ── T9: 404 kad predmet nije vlasništvo korisnika ────────────────────────────
 
 @pytest.mark.anyio

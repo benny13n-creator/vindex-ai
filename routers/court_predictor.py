@@ -929,7 +929,23 @@ async def argument_reputation(
                 except (ValueError, TypeError):
                     _proc = None
             if isinstance(_proc, (int, float)):
+                # Operation One Truth (2026-08-07): 'boja' was already correctly
+                # re-derived from this number (Program Gamma fix above), but the
+                # number itself was never clamped to its own documented 0-100 range
+                # -- unlike snaga_predmeta_procent's sibling clamp in case_dna.py, a
+                # fabricated out-of-range GPT claim here reached the lawyer's screen
+                # and predictor_analize (persisted, never re-validated on read).
+                _proc = max(0, min(100, _proc))
+                _a["uspesnost_procena"] = _proc
                 _a["boja"] = "zelena" if _proc >= 65 else ("žuta" if _proc >= 35 else "crvena")
+        _ukupna = rezultat.get("ukupna_snaga")
+        if isinstance(_ukupna, str):
+            try:
+                _ukupna = float(_ukupna.strip())
+            except (ValueError, TypeError):
+                _ukupna = None
+        if isinstance(_ukupna, (int, float)):
+            rezultat["ukupna_snaga"] = max(0, min(100, _ukupna))
     except Exception as e:
         _sentry_capture(e)
         logger.error("[ARG_REP] GPT greška: %s", e)
@@ -1096,6 +1112,20 @@ async def judge_profile(
             rezultat["pouzdanost_profila"] = "visoka"
         else:
             rezultat["pouzdanost_profila"] = "srednja"
+        # Operation One Truth (2026-08-07): fields like stopa_potvrdjivanja_zalbi
+        # ("appeal confirmation rate") and prosecno_trajanje_meseci are fully
+        # GPT-invented -- no per-judge outcome database is queried anywhere in
+        # this codebase (only general case-law RAG). Unlike ukupno_odluka_
+        # analizirano/pouzdanost_profila above, which ARE grounded in the real
+        # RAG hit count, these specific-sounding numbers were presented with no
+        # signal they aren't measured. Disclosed explicitly rather than removed
+        # (a founder product decision on whether to keep asking GPT for them at
+        # all is separate from this mission's honesty-of-labeling scope).
+        if isinstance(rezultat.get("profil"), dict):
+            rezultat["profil"]["napomena_procena"] = (
+                "Stopa potvrđivanja žalbi i prosečno trajanje su AI procene bazirane na opštem "
+                "obrascu iz sudske prakse, ne izmerene statistike za ovog konkretnog sudiju."
+            )
     except Exception as e:
         _sentry_capture(e)
         logger.error("[JUDGE_PROF] GPT greška: %s", e)

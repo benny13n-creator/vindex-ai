@@ -3244,6 +3244,12 @@ async function stratJudgeProfile() {
       // silently based on the wrong court, previously never shown to the lawyer.
       + (d.sud_neslaganje_sa_predmetom ? '<div style="font-size:.72rem;color:#fbbf24;margin-top:.5rem;padding:.5rem .6rem;background:rgba(251,191,36,.06);border-left:2px solid rgba(251,191,36,.4);">⚠ Predmet koji pratite vezan je za sud "' + _htmlEsc(d.sud_neslaganje_sa_predmetom) + '", ne za uneti sud — proverite da li je ovo namerno.</div>' : '')
       + (d.upozorenje ? '<div style="font-size:.66rem;color:rgba(255,255,255,.3);margin-top:.4rem;">' + _htmlEsc(d.upozorenje) + '</div>' : '')
+      // Operation One Truth (2026-08-07): p.napomena_procena discloses that
+      // stopa_potvrdjivanja_zalbi/prosecno_trajanje_meseci (not otherwise shown
+      // in this UI, but present in the API response) are AI estimates, not
+      // measured per-judge statistics -- rendered here so the disclaimer isn't
+      // silently absent from the one screen this profile reaches.
+      + (p.napomena_procena ? '<div style="font-size:.62rem;color:rgba(255,255,255,.25);margin-top:.3rem;">' + _htmlEsc(p.napomena_procena) + '</div>' : '')
       + '</div>';
   } catch (e) {
     wrapEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';

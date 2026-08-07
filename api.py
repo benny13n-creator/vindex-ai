@@ -3412,7 +3412,7 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
 
     from shared.attention_priority import canonical_sort_key, CANONICAL_ORDER
 
-    hron_r, risk_r, actions_r = await asyncio.gather(
+    hron_r, dokazi_r, dokumenti_r, rocista_r, actions_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
                 .select("predmet_id,datum_iso,dogadjaj,vaznost")
@@ -3421,12 +3421,33 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
                 .order("datum_iso")
                 .execute()
         ),
+        # Operation One Truth (2026-08-07): this endpoint used to read a CACHED risk
+        # snapshot (`predmet_istorija` rows tagged "[Rizik] {date}"), written once at
+        # case creation and only lazily refreshed if/when a lawyer happened to open
+        # that specific case's Workspace that day -- nothing in the platform's event
+        # system ever re-wrote it on the events that actually change the answer
+        # (new evidence, a newly-scheduled hearing). Red Team's own forensic pass
+        # constructed a full reproduction of this Dashboard showing a stale "low risk"
+        # badge for a case a hearing had since made urgent. Fixed by bulk-fetching the
+        # same 3 tables calculate_procesni_rizik needs and computing it LIVE per case
+        # below -- the same canonical engine every other risk surface already uses,
+        # with no cache to go stale.
         asyncio.to_thread(
-            lambda: supa.table("predmet_istorija")
-                .select("predmet_id,odgovor,created_at")
+            lambda: supa.table("predmet_dokazi")
+                .select("predmet_id,snaga,kategorija")
                 .in_("predmet_id", pred_ids)
-                .like("pitanje", "[Rizik]%")
-                .order("created_at", desc=True)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("predmet_id,tip_dokaza")
+                .in_("predmet_id", pred_ids)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("rocista")
+                .select("predmet_id,datum")
+                .in_("predmet_id", pred_ids)
                 .execute()
         ),
         # LAMBDA008-ARCH-002 fix: this endpoint used to compute its own hand-rolled
@@ -3445,19 +3466,30 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
         ),
     )
 
-    import json as _jd
     hron_map: dict = {}
     for h in (hron_r.data or []):
         hron_map.setdefault(h["predmet_id"], []).append(h)
 
+    dokazi_map: dict = {}
+    for d in (dokazi_r.data or []):
+        dokazi_map.setdefault(d["predmet_id"], []).append(d)
+    dokumenti_map: dict = {}
+    for d in (dokumenti_r.data or []):
+        dokumenti_map.setdefault(d["predmet_id"], []).append(d)
+    rocista_map: dict = {}
+    for r in (rocista_r.data or []):
+        rocista_map.setdefault(r["predmet_id"], []).append(r)
+
+    from services.risk_engine import calculate_procesni_rizik as _calc_rizik_dash
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS_DASH
     risk_map: dict = {}
-    for r in (risk_r.data or []):
-        pid = r["predmet_id"]
-        if pid not in risk_map:
-            try:
-                risk_map[pid] = _jd.loads(r.get("odgovor", "{}"))
-            except Exception:
-                pass
+    for p in predmeti:
+        pid = p["id"]
+        risk_map[pid] = _calc_rizik_dash(
+            dokazi=dokazi_map.get(pid, []), dokumenti=dokumenti_map.get(pid, []),
+            rocista=rocista_map.get(pid, []), tip_predmeta=p.get("tip", "ostalo"),
+            expected_docs=_EXPECTED_DOCS_DASH,
+        )
 
     # Most urgent OPEN action per case, as a canonical sort key (0=critical .. 4=informational).
     # A case with no open actions sorts after every case that has one.

@@ -325,12 +325,19 @@ async def get_uncertainty_dashboard(
     cinjenicna = min(100, int(nedostajuci_br / max(1, ukupno_ocekivanih) * 100))
 
     # ── 2. Procesna nesigurnost ───────────────────────────────────────────────
+    # Operation One Truth (2026-08-07): same naive-vs-aware datetime bug already
+    # found and fixed in services/risk_engine.py (Project Synapse) and
+    # routers/ccc.py (this same mission) -- comparing a naive datetime (from a
+    # plain "YYYY-MM-DD") against timezone-AWARE `now` raised a silently-swallowed
+    # TypeError, so kriticni_rokovi stayed 0 for any hearing stored as a plain
+    # date. Fixed to compare calendar dates, matching the canonical pattern.
     kriticni_rokovi = 0
     for r in rokovi:
         try:
             ds = r.get("datum","") or ""
-            dt = datetime.fromisoformat((ds + "T00:00:00") if len(ds) == 10 else ds.replace("Z","+00:00"))
-            if 0 <= (dt - now).days <= 7:
+            dana = (datetime.fromisoformat(ds).date() - now.date()).days if len(ds) == 10 \
+                else (datetime.fromisoformat(ds.replace("Z","+00:00")).date() - now.date()).days
+            if 0 <= dana <= 7:
                 kriticni_rokovi += 1
         except Exception:
             pass

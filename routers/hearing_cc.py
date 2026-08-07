@@ -300,15 +300,22 @@ def _case_context_blok(cc: Optional[dict]) -> str:
     return "\n".join(lines)
 
 
-def _build_prompt(ctx: dict, datum_rocista: str, tip_postupka: str, case_context_blok: str = "") -> str:
+def _build_prompt(ctx: dict, datum_rocista: str, tip_postupka: str, case_context_blok: str = "",
+                   case_context: dict | None = None) -> str:
     pred = ctx.get("predmet") or {}
+    # Operation One Truth (2026-08-07): this line used to read `predmeti.rizik`, a manually-set,
+    # never-recomputed column, bypassing services/risk_engine.py entirely. Now reads the live
+    # value from build_case_context()'s "risk" field (added this same mission) when available,
+    # falling back to the stale column only if the canonical fetch itself failed.
+    _risk_val = ((case_context or {}).get("risk") or {}).get("value") or {}
+    _risk_nivo = _risk_val.get("nivo") or pred.get("rizik", "—")
     lines = [
         f"TIP POSTUPKA: {tip_postupka.upper()}",
         f"DATUM ROČIŠTA: {datum_rocista}",
         "",
         f"PREDMET: {pred.get('naziv', '—')}",
         f"Opis: {(pred.get('opis') or '—')[:500]}",
-        f"Status: {pred.get('status', '—')} | Rizik: {pred.get('rizik', '—')}",
+        f"Status: {pred.get('status', '—')} | Rizik: {_risk_nivo}",
         f"Tužilac: {pred.get('tuzilac', '—')} | Tuženi: {pred.get('tuzeni', '—')}",
         f"Oblast: {pred.get('oblast', '—')}",
         "",
@@ -370,7 +377,7 @@ async def hearing_command_center(
 
     case_context_blok = _case_context_blok(case_context)
     system_prompt = _SYSTEM_PROMPTS[body.tip_postupka] + (_CASE_CONTEXT_ALIGNMENT_SUFFIX if case_context_blok else "")
-    user_prompt   = _build_prompt(ctx, body.datum_rocista, body.tip_postupka, case_context_blok)
+    user_prompt   = _build_prompt(ctx, body.datum_rocista, body.tip_postupka, case_context_blok, case_context)
 
     from openai import AsyncOpenAI
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)

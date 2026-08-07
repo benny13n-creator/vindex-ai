@@ -2576,3 +2576,59 @@ High-adjacent, one genuinely significant), not blocked (none of the 13 require a
 AI-governance/backend-architecture fix, and the 41 launch-relevant bugs fixed this sprint are exactly the
 silent-failure/silent-data-loss class that would have been embarrassing in a lawyer's hands during a beta).
 Full statement with all 12 scored dimensions: `docs/ironlawyer/UX_UI_CERTIFICATION_REPORT.md`.
+
+## Operation One Truth (2026-08-07) — "Canonical Legal Intelligence Consistency Certification"
+
+Last pre-beta architectural mission, directly targeting `IRONLAWYER-DEBT-003`: a single legal case must
+have exactly ONE canonical interpretation of every key state. 7 independent teams (Intelligence
+Consistency, Data Truth, AI Boundary, UX Trust, Product Architect, Database Integrity, Red Team) re-verified
+every prior "already consolidated" claim from scratch per this mission's own Principle 0, rather than
+trusting it — and found one false: `services/case_evolution.py`'s own docstring claimed a notification
+generator was "retired"; it was still live and could delete another system's correctly-tracked deadline
+alerts. Corrected in place.
+
+**Phase 1 finding**: 4 concept categories genuinely well-consolidated (risk formula, missing evidence/gaps,
+contradiction severity, priority vocabulary), 8 categories with 2+ unreconciled sources, 3 confirmed
+simultaneously live on the same case-detail screen. **1 root cause independently found by 5 of 7 teams**:
+the `predmeti.rizik` manual/stale field + a stale `predmet_istorija` risk-snapshot cache, both sitting
+beside the genuinely-unified `services/risk_engine.py`. Full maps: `docs/onetruth/
+INTELLIGENCE_SURFACE_MAP.md`, `docs/onetruth/ONE_TRUTH_ARCHITECTURE_MAP.md`.
+
+**Phase 2**: `docs/architecture/VINDEX_LEGAL_INTELLIGENCE_MODEL.md` — 7 core entities (Facts, Evidence,
+Risks, Gaps, Obligations, Actions, Strategy), each with a named canonical owner, governing "everything else
+is a VIEW" principle, and a concrete decision rule for future features.
+
+**Phase 3 — 12 defects fixed**: the mission's #1 priority (Red Team's own flagship reproduction) —
+`api.py::predmeti_dashboard` used to read a CACHED risk snapshot with no invalidation trigger, now computes
+`calculate_procesni_rizik` LIVE per case, no cache to go stale. `routers/ccc.py` and
+`routers/matter_intel.py::get_uncertainty_dashboard` both had the naive/aware-datetime bug (already fixed
+once elsewhere) silently discarding correctly-computed canonical values — fixed. `shared/case_context.py`
+gained a new canonical `"risk"` field (additive, contract 1.0.0→1.1.0); `digital_twin.py`/`hearing_cc.py`
+now read it instead of the stale `predmeti.rizik` column in their AI prompts. Genome's verification decision
+(`verify_genome()`, previously computed but invisible downstream) is now exposed via `key_facts`. Genome's
+`najslabija_tacka.kriticnost` and Court Predictor's `argument_reputation` scores are now clamped 0-100,
+matching the platform's existing defensive pattern for AI-authored numbers. The notification-deletion
+cross-system collision (above) is fixed. Judge Profile's fabricated statistics now carry an explicit
+disclaimer, frontend and backend.
+
+**Phase 4 — all 4 mandated adversarial scenarios executed and passed**: (1) GPT tries to change readiness →
+FAIL, confirmed (zero GPT calls in `case_readiness.py`, structural). (2) GPT gives a different risk score →
+FAIL, confirmed (zero GPT calls in `risk_engine.py`; poisoned Genome/cached-snapshot claims both rejected
+by executed tests). (3) Two modules read the same case → IDENTICAL truth, confirmed (`ccc.py`/
+`matter_intel.py` produce byte-identical output for identical input). (4) 1000 documents → SAME
+interpretation, confirmed (deterministic across repeated calls, input order, and 50 simultaneously-scored
+cases with zero cross-contamination).
+
+**Regression coverage**: 22 new tests (`tests/test_onetruth_phase3_migrations.py`,
+`tests/test_onetruth_phase4_adversarial.py`). Full suite: **3,106 passed, 1 skipped, 0 failed** (was 3,076,
++22 new tests, zero regressions).
+
+**12 findings named as debt** (`ONETRUTH-DEBT-001` through `-012`), none blocking — readiness/success-
+probability fragmentation (`-002`/`-003`, the same category of finding as this mission's fixed defect, one
+level up) are the standing recommendation for the next mission; a disaster-recovery migration-provenance gap
+(`-005`) needs a founder-run backfill migration.
+
+**Verdict**: the mission's own transition rule — FULL TEST SUITE GREEN + ONE TRUTH AUDIT PASSED + RED TEAM
+FAILED TO CREATE CONTRADICTION — is satisfied for the risk-consistency defect that motivated this mission.
+Full statement, including the honest scope note on Red Team re-verification: `docs/onetruth/
+ONE_TRUTH_CERTIFICATION_REPORT.md`.

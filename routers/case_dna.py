@@ -312,6 +312,18 @@ async def _extract_genome(
         result["snaga_predmeta_procent"] = skor["snaga_predmeta_procent"]
         result["snaga_predmeta"] = skor["snaga_predmeta"]
         result["snaga_faktori"] = skor["snaga_faktori"]
+        # Operation One Truth (2026-08-07): unlike its sibling field above
+        # (snaga_predmeta_procent), najslabija_tacka.kriticnost was never clamped --
+        # a fully GPT-authored 0-100 claim reaching the DB, this canonical context's
+        # key_facts, and proactive-alert urgency math (_compute_delta below)
+        # unchecked. Same defensive pattern already used platform-wide for GPT
+        # numeric claims (matter_intel.py/cio.py/hearing_cc.py's own score clamps).
+        _nt = result.get("najslabija_tacka")
+        if isinstance(_nt, dict) and "kriticnost" in _nt:
+            try:
+                _nt["kriticnost"] = max(0, min(100, int(_nt["kriticnost"])))
+            except (TypeError, ValueError):
+                _nt["kriticnost"] = 0
         return result
     except Exception as exc:
         _sentry_capture(exc)

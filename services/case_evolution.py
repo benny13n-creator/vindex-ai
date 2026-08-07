@@ -940,9 +940,23 @@ async def _consequence_project_case_actions_to_notifications(event: Event) -> st
     guarantee every other consequence in this registry relies on) and
     PROJECTS the just-refreshed `PRIPREMITI_PODNESAK` case_actions rows —
     unchanged, not re-decided — into `notifications` rows a lawyer already
-    knows how to read (the bell icon). `routers/notifications.py`'s own
-    `rok`/`hitan_rok` generation is retired in the same commit — see
-    `docs/omega/CANONICAL_NOTIFICATION_ENGINE.md`.
+    knows how to read (the bell icon).
+
+    CORRECTION (Operation One Truth, 2026-08-07): this docstring previously
+    claimed "routers/notifications.py's own rok/hitan_rok generation is
+    retired in the same commit" — verified FALSE by direct code trace, not
+    accepted on the strength of this comment (this mission's own Principle 0).
+    That generator (`_generate_notifications`'s rokovi/propušteni-rokovi
+    blocks) is still live, still reads `predmet_hronologija` (a broader
+    deadline calendar than `rocista`, including document-extracted deadlines
+    this projection doesn't cover), and was NOT retired. What WAS fixed this
+    mission: its own delete-then-regenerate cycle used to delete every unread
+    rok/hitan_rok row for the user regardless of source, including this
+    projection's own dedupe_key-tracked rows — now scoped to exclude any row
+    carrying a dedupe_key, so the two systems no longer destructively collide.
+    They still independently generate notifications for overlapping (not
+    identical) deadline sources — named as `IRONLAWYER`-style debt, not a
+    silent architecture claim.
 
     Reconciliation is dedupe-key-based, reusing case_actions' OWN stable
     per-fact key directly (`_stable_key("rociste", rociste_id)`) — the

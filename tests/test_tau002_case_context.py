@@ -154,19 +154,38 @@ async def test_build_case_context_predmet_not_found():
 
 
 @pytest.mark.anyio
-async def test_build_case_context_has_all_13_contract_fields():
+async def test_build_case_context_has_all_14_contract_fields():
     from shared.case_context import build_case_context
     supa = _FakeSupa(_base_tables())
     result = await build_case_context("p1", "u1", supa)
     expected = {
         "contract_version", "case_identity", "participants", "procedural_status",
         "timeline", "key_facts", "evidence_graph", "contradictions", "missing_evidence",
-        "deadlines", "active_actions", "readiness", "relevant_documents",
+        "deadlines", "active_actions", "readiness", "risk", "relevant_documents",
         "document_summaries", "audit_metadata",
     }
     assert expected.issubset(result.keys())
     for field in expected - {"contract_version"}:
         assert set(result[field].keys()) == {"value", "source", "owner", "refresh", "timestamp"}, field
+
+
+@pytest.mark.anyio
+async def test_build_case_context_risk_field_matches_canonical_engine():
+    """Operation One Truth (2026-08-07): the new 'risk' field must be exactly what
+    services/risk_engine.py::calculate_procesni_rizik computes for this case's own data --
+    not a re-derivation, the same call already made internally to build gaps/problems."""
+    from shared.case_context import build_case_context
+    from services.risk_engine import calculate_procesni_rizik
+    from shared.constants import EXPECTED_DOCS
+    supa = _FakeSupa(_base_tables())
+    result = await build_case_context("p1", "u1", supa)
+    tables = _base_tables()
+    expected_risk = calculate_procesni_rizik(
+        dokazi=tables.get("predmet_dokazi", []), dokumenti=tables.get("predmet_dokumenti", []),
+        rocista=tables.get("rocista", []), tip_predmeta="parnicno", expected_docs=EXPECTED_DOCS,
+    )
+    assert result["risk"]["value"]["nivo"] == expected_risk["nivo"]
+    assert result["risk"]["value"]["health_score"] == expected_risk["health_score"]
 
 
 def test_case_context_module_makes_zero_gpt_calls():

@@ -3770,3 +3770,121 @@ unreconciled-scores finding, independently found by 4 teams), 6 items graded Hig
 AI-governance, or backend-architecture change to close on their own — -001/-002/-004 are product/pricing
 decisions, -003/-009/-011/-012 are product/UX decisions, -005/-006/-007/-008 are real engineering work
 correctly not rushed, -010/-013 need backend cooperation outside this sprint's UI-only mandate.
+
+## Operation One Truth (2026-08-07) — "Canonical Legal Intelligence Consistency Certification"
+
+7 independent teams (Intelligence Consistency, Data Truth, AI Boundary, UX Trust, Product Architect,
+Database Integrity, Red Team) forensically audited the platform's #1 remaining pre-beta trust risk, first
+surfaced as `IRONLAWYER-DEBT-003`: does a single legal case have exactly ONE canonical interpretation of
+its own state, or can different modules claim different things about the same case? Full findings:
+`docs/onetruth/INTELLIGENCE_SURFACE_MAP.md`, `docs/onetruth/ONE_TRUTH_ARCHITECTURE_MAP.md`. 12 duplicate-
+truth/AI-boundary defects were fixed with test coverage this mission (see
+`docs/onetruth/ONE_TRUTH_CERTIFICATION_REPORT.md` for the full list); the following 12 require a product
+decision or are real engineering scope beyond a same-sprint safe patch, named here instead.
+
+### ONETRUTH-DEBT-001 — Genome verification (`verify_genome()`) is advisory-only, never blocks a write (High, AI-governance decision needed)
+
+Agent 3 (AI Boundary): `shared/genome_validator.py::verify_genome()` correctly DETECTS a bad Genome
+(hallucinated document reference, internally inconsistent score) via `_verifikacija.odluka`, but a
+`require_review` decision never blocks the write — the Genome still saves, version still increments. This
+mission exposed the decision downstream (`shared/case_context.py`'s new `key_facts.genome_verifikacija_
+odluka` field, so AI consumers CAN check it), but did not make verification enforcement itself block a
+write — that is a genuine product/AI-governance decision (does a flagged Genome get held for confirmation,
+or does the lawyer just see a warning badge?), not resolved unilaterally by a consistency-fix mission.
+
+### ONETRUTH-DEBT-002 — Case readiness has 2 live, unreconciled sources on the same screen (High, product decision needed)
+
+Agent 1: `shared/case_readiness.py::compute_case_readiness` (canonical, used to cap AI outputs across 5
+modules) and `services/case_pipeline.py::calculate_case_ready_score` (an independent weighted checklist —
+docs/klijenti/rokovi/strategija-tag/rizik-tag/rociste) both answer "is this case ready," using overlapping
+Serbian vocabulary ("spreman"/"ready"), rendered as adjacent widgets on the same case-detail page. Which
+checklist should be authoritative is a product decision about what "ready" actually means to a lawyer, not
+a technical merge.
+
+### ONETRUTH-DEBT-003 — Success-probability fragmentation across Digital Twin/Court Predictor/Hearing CC (High, product decision needed)
+
+Agent 1: 4 independently-prompted GPT percentages answer "will this case succeed" (Digital Twin's 2
+sub-features, Court Predictor's `prediktuj_ishod`, Hearing CC's `hearing_score`) — each readiness-capped at
+the extremes but never cross-checked against each other or against Genome's own `snaga_predmeta_procent`.
+Only Copilot's `ANALIZA_PREDMETA` has been fixed (aliased directly to Genome) — the model to replicate, but
+doing so for the other 4 means deciding whether Digital Twin/Court Predictor/Hearing CC should show
+Genome's number instead of generating their own, a product behavior change beyond a consistency patch.
+
+### ONETRUTH-DEBT-004 — Confidence/Pouzdanost has 7 independently-coded scales (Medium, architecture decision needed)
+
+Agent 1: the single most fragmented category found — Court Predictor's own 2 internal confidence scales, a
+fully dead `services/confidence_calibrator.py` (zero callers anywhere), Case Intelligence's own briefing-
+confidence formula, Judge Profile's odluke-count formula, Opponent Intel's mostly-GPT-self-declared scale,
+Genome's own `genome_kompletnost`, and `genome_validator.py::verify_genome`'s 3-state decision. None share
+a scale. Unlike risk/readiness/probability, none currently co-render in direct visible contradiction on one
+screen — lower urgency, but a real target for a future consolidation sprint.
+
+### ONETRUTH-DEBT-005 — `predmeti.case_dna`/`kanban_faza`/`oblast` have no migration provenance (High, disaster-recovery risk)
+
+Agent 6 (Database Integrity): these 3 columns are read/written by dozens of call sites but were never
+created by any file in `migrations/` — added directly to live Supabase outside the tracked migration
+system, the identical disease `migrations/105` already fixed once for `predmet_dokumenti` the same day. A
+fresh/disaster-recovery environment built from `migrations/` alone would have Kanban permanently break
+(every drag-move 500s) and Genome 500 on every read. A backfill migration declaring these columns (matching
+`migrations/105`'s own pattern) should be drafted and run by the founder — not attempted here per this
+project's standing convention that migrations are drafted, never run, by the coordinator.
+
+### ONETRUTH-DEBT-006 — `predmeti.oblast_prava` is read by 6 AI features but never written (Medium, needs per-file verification)
+
+Agent 6: `routers/cio.py`, `case_intelligence.py`, `decision_replay.py`, `services/agent_tasks/
+precedents_radar.py`, `court_portal_watcher.py` all read `predmeti.oblast_prava` for AI-context practice-
+area signals — no `predmeti` INSERT/UPDATE path anywhere ever writes it (the correctly-populated column for
+this concept is `predmeti.oblast`, a different name). A full repo grep found `oblast_prava` is ALSO a
+legitimate, correctly-populated column on several OTHER tables (`lessons_learned`, `case_benchmarks`,
+`confidence_audit` records, `style_checker` results) — meaning the naive fix ("just swap to `oblast`
+everywhere") is unsafe without verifying, file by file, which `.select()` calls actually target `predmeti`
+vs. a different table. Deferred rather than risk a rushed, under-verified swap across 5+ files.
+
+### ONETRUTH-DEBT-007 — Case-strength portfolio aggregation computed independently by Health Index and CIO (Medium)
+
+Agent 1: `routers/health_index.py::_compute_health` and `routers/cio.py::_generiši_cio_izvestaj` both
+independently loop over active cases averaging `case_dna.snaga_predmeta_procent`, with different
+case-inclusion criteria (Health Index's raw try/except vs. CIO's requirement that `build_case_context()`
+successfully computed `key_facts`) — can diverge for the same portfolio, both render on the dashboard.
+
+### ONETRUTH-DEBT-008 — Copilot's PREDLOZI intent bypasses both canonical priority and canonical next-action (Medium, narrow blast radius)
+
+Agent 1: `routers/copilot.py::_handle_predlozi` computes its own ad hoc priority (pure deadline proximity)
+and its own next-action suggestions directly from raw queries, bypassing both `shared/attention_priority.py`
+and `case_actions`/`shared/case_readiness.py::top_open_action` — a 6th priority vocabulary and a 4th
+next-action generator, live only in this one Copilot intent. Narrow scope (one chat intent), not fixed this
+mission given the broader fixes prioritized.
+
+### ONETRUTH-DEBT-009 — Notification generation still has 2 independent, non-identical sources (Medium, residual after this mission's fix)
+
+Agent 2 / this mission's own fix: `routers/notifications.py::_generate_notifications`'s rok/hitan_rok block
+(sourced from `predmet_hronologija`) and `services/case_evolution.py`'s canonical projection (sourced from
+`rocista` via `case_actions`) are NOT a strict subset relationship — `predmet_hronologija` includes
+document-extracted deadlines with no corresponding `rocista` row. This mission fixed the CONFIRMED
+CRITICAL bug (the two systems' generators destructively colliding — the delete-then-regenerate cycle used
+to wipe out the other system's dedupe-tracked rows) by scoping the delete to exclude dedupe_key-bearing
+rows. What remains, deferred: the two systems can still independently generate a notification for the same
+underlying rociste-derived deadline from two different queries, producing 2 visible bell-icon rows instead
+of 1 — a duplicate-visibility issue, not a data-loss/contradiction issue. Also corrected this mission:
+`services/case_evolution.py`'s own docstring falsely claimed this generator was "retired" — verified false
+by direct trace (this mission's Principle 0), corrected in place.
+
+### ONETRUTH-DEBT-010 — Case Commander + 9 more orphan routers, zero frontend entry point (carried forward, unchanged)
+
+Same finding as `IRONLAWYER-DEBT-001`/`-002` — re-confirmed still open by this mission's Agent 1 (Case
+Commander) and Agent 6 (the DB-layer symptom: `commander_analize`/`predictor_analize`/`hearing_briefovi`
+tables written on every AI call across 6+ call sites, never read back by anything — wasted OpenAI spend
+plus a false "history is tracked" signal for engineers). Not re-litigated here; still a product/backend
+decision, not a consistency-mission fix.
+
+### ONETRUTH-DEBT-011 — `services/confidence_calibrator.py` is fully dead code (Low)
+
+Agent 1: zero callers anywhere in the repo (confirmed by grep), a near-duplicate of Court Predictor's own
+live `_calc_confidence_nivo`/`_procenat_iz_score`. Safe to delete; not done this mission to keep the diff
+scoped to consistency fixes, not cleanup.
+
+**Severity summary across this mission's 12 debt items**: 3 High (`-001`, `-002`, `-003`, `-005` — 4 items
+graded High), remainder Medium/Low. None require an immediate fix to keep the platform safe to use — the
+CRITICAL live bugs this mission found (Dashboard's stale risk cache, the notification-deletion collision,
+CCC's discarded-canonical-value regression) were fixed directly, per the same STOP RULE discipline every
+prior certification in this program has followed.

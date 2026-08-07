@@ -76,18 +76,27 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         tip_stat[t] = tip_stat.get(t, 0) + 1
 
     # ── Rokovi (sledeći 30 dana) ─────────────────────────────────────────────
+    # Operation One Truth (2026-08-07): this per-row loop used to also compute
+    # `predstojeći`'s aggregate count by comparing a naive datetime (from a plain
+    # "YYYY-MM-DD" via +"T00:00:00") against timezone-AWARE `now` -- Python raises
+    # TypeError on that subtraction, silently swallowed by the bare except, so
+    # `dana` stayed None and `predstojeći` stayed 0 for every hearing stored as a
+    # plain date (the realistic Postgres DATE shape). The correct aggregate is
+    # already computed a few lines below via the canonical calculate_procesni_rizik
+    # (services/risk_engine.py, itself fixed for this exact bug by Project Synapse)
+    # -- this loop now ONLY builds per-row "dana_ostalo" for display, using the
+    # same calendar-date-diff fix, and no longer re-derives the aggregate count or
+    # picks the critical hearing independently; both come from the canonical
+    # engine's output below.
     now = datetime.now(timezone.utc)
     rokovi_data = []
-    predstojeći = 0
     for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
         dana = None
         try:
-            dt_str = r.get("datum", "")
-            if dt_str:
-                dt = datetime.fromisoformat((dt_str + "T00:00:00") if len(dt_str) == 10 else dt_str.replace("Z", "+00:00"))
-                dana = (dt - now).days
-                if 0 <= dana <= 30:
-                    predstojeći += 1
+            ds = r.get("datum", "") or ""
+            if ds:
+                dana = (datetime.fromisoformat(ds).date() - now.date()).days if len(ds) == 10 \
+                    else (datetime.fromisoformat(ds.replace("Z", "+00:00")).date() - now.date()).days
         except Exception:
             pass
         rokovi_data.append({**r, "dana_ostalo": dana})
@@ -139,13 +148,19 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     nedostajuci = _rizik["nedostajuci_dokazi"]
     health_score = _rizik["health_score"]
 
-    # Kritičan rok (najhitniji u narednih 7 dana)
+    # Operation One Truth (2026-08-07): both values below used to be re-derived by this
+    # module's own (buggy) loop above. Now sourced directly from the canonical engine's
+    # already-computed output -- `predstojeći` is the same count Matter Intel/Cockpit show
+    # for this case, and `kritican_rok` is picked from the canonical `kriticni_rocista` list
+    # (which, per BLACKSWAN-CRIT-002, correctly includes overdue hearings as MORE urgent,
+    # not excluded) rather than a second, narrower 0<=dana<=7-only window.
+    predstojeći = _rizik["predstojeći_rokovi"]
     kritican_rok = None
-    for r in sorted(rokovi_data, key=lambda x: (x.get("dana_ostalo") is None, x.get("dana_ostalo") or 9999)):
-        dana = r.get("dana_ostalo")
-        if dana is not None and 0 <= dana <= 7:
-            kritican_rok = r
-            break
+    _kriticni_ids = {r.get("id") for r in _rizik.get("kriticni_rocista") or [] if r.get("id")}
+    if _kriticni_ids:
+        _kriticni_rows = [r for r in rokovi_data if r.get("id") in _kriticni_ids]
+        if _kriticni_rows:
+            kritican_rok = sorted(_kriticni_rows, key=lambda x: x.get("dana_ostalo") if x.get("dana_ostalo") is not None else 9999)[0]
 
     return {
         "predmet":          predmet,
