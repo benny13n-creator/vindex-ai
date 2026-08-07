@@ -189,6 +189,14 @@ async def analiziraj_komunikacioni_profil(request: Request, klijent_id: str, use
 
         profil = json.loads(resp.choices[0].message.content)
 
+        # Operation Singular Intelligence, Mission 002 (Team 1, Confidence/Recommendation audit):
+        # "pouzdanost" was GPT self-declared with no enum-guard, unlike every sibling "visoka/
+        # srednja/niska" confidence field this mission and prior ones already validated (Opponent
+        # Intel, CIO, Genome's genome_kompletnost). Fail-safe to "niska", same conservative
+        # direction used throughout this engagement for an unrecognized confidence claim.
+        if isinstance(profil, dict) and profil.get("pouzdanost") not in ("visoka", "srednja", "niska"):
+            profil["pouzdanost"] = "niska"
+
         existing = await asyncio.to_thread(
             lambda: supa.table("client_twin_profili")
             .select("id")

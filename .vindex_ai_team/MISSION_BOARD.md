@@ -2816,3 +2816,53 @@ forced merge). Criterion 2 (provenance) advanced for 3 specific surfaces, not pl
 zero silent survivals. Criterion 6 (Case Commander activation-ready) — architecture proven safe, activation
 explicitly deferred after the premise correction revealed naive activation would duplicate, not
 consolidate. Full scorecard: `docs/singular/SINGULAR_INTELLIGENCE_CERTIFICATE.md`.
+
+## Operation Singular Intelligence, Master Mission 002, Part A — "Zero Fragmentation" (2026-08-07, CLOSED)
+
+8 read-only forensic teams re-audited the ENTIRE repo from zero (not trusting Mission 001's own
+conclusions), against an explicit target-term list (confidence/recommendation/readiness/priority/
+strength/risk/summary/reasoning/etc.) with a mandatory Red Team reproduction requirement — "every
+contradiction must be reproduced, not imagined."
+
+**12 real, reproduced contradictions fixed**, each with a genuine proof test (behavioral where the bug
+class demands it — 2 via real interleaving simulation on a stateful fake table, not code review):
+`"kljucan"`/`"info"` vaznost gap; 3 remaining `deleted_at` filter gaps + 1 `tip_dokaza` gap in evidence
+queries; CIO/Health Index/Digital Twin strength-threshold misalignments (Health Index's own Red-Team-
+reproduced 72%-scores-maximum bug); `client_twin.py`'s missing confidence enum-guard; **`case_actions`
+UPDATE/CLOSE lost-update race** (only CREATE had DB-level protection — now closed via optimistic
+concurrency on the existing `updated_at` column); **`matter_intel.py::preflight_check` could return
+"spreman" for a case with a canonical CRITICAL_GAP with zero mention of it** (3 teams + Red Team Attack
+3) — now deterministically cross-references canonical readiness regardless of what GPT said, without
+merging the two legitimately-different questions; `retrieve.py`'s dual confidence fields (HIGH vs.
+"veoma nisko" for the same query, both exposed raw in the API) now always travel together; evidence
+auto-classification's missing replay-idempotency guard; and **CIO `/daily`'s double-charge race** (two
+near-simultaneous requests could both generate and both charge) — closed via a 2-step DB claim reusing
+the table's own existing `UNIQUE(user_id,datum)` constraint, no new migration. Zero new algorithms
+invented — every fix reuses an existing canonical function/constant/DB constraint.
+
+**3 items formally deferred as debt** (`SINGULAR2-DEBT-001..003`): the `vaznost` narrow-filter
+fragmentation across 9+ files (too large a blast radius for a mechanical Part A fix); the
+`multi_agent.py`/`strategija.py` percentage-hedging philosophy difference (a product/tone decision, not
+a bug); full cross-worker serialization for the 2 races above (would need a stored-procedure migration,
+named not attempted per this engagement's standing rule the coordinator never runs migrations). CIO's
+`cio_preporuka` disconnection from `case_actions` re-confirmed already adequately mitigated (live
+"AI predlog, nezavisan od Workspace" disclosure label) — no further action, not re-litigated.
+`matter_intel.py`/`case_readiness.py`'s own split re-confirmed deliberate (`docs/sigma/
+CASE_READINESS_MODEL.md`), not merged — only the reproduced silent-omission harm was closed.
+
+**Full suite: 3,211 passed, 1 skipped, 0 failed** (was 3,195 at Singular Intelligence Mission 001's
+close, +16 new tests in `test_singular_intelligence_002_fixes.py`, zero regressions across every
+pre-existing suite touching the 8 modified files). `static/sw.js` bumped `vindex-v97` → `vindex-v98`
+for this mission's `vindex.js` edits (Fixes 4 and 6); the pre-existing pinned-literal regression test
+(`test_sw_cache_bumped`) updated in the same commit, not weakened.
+
+**STOP GATE: PASS** — all 6 self-declared acceptance criteria met (every reproduced finding fixed-
+with-proof or formally deferred-with-reasoning; zero regressions; no new duplicated logic; the
+mission's own flagged highest-severity class — concurrency — proven via real interleaving; debt named
+not dropped). Full report: `docs/singular2/MISSION_002_PART_A_REPORT.md`. **Part B (Operation Living
+System) is authorized but NOT started** — a separate, substantially larger undertaking (multi-day
+chaos simulation, 9 required deliverables), reported as its own next decision point rather than begun
+unilaterally in the same pass.
+
+**Still outstanding, 7th consecutive mission**: `SUPABASE_DB_URL` (read-only) requested to
+independently verify migrations 102/103's live effect — never provided, must keep being resurfaced.

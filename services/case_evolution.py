@@ -470,6 +470,16 @@ async def _consequence_evidence_classify(event: Event) -> str:
     if not tekst:
         return "skipped_no_tekst_sadrzaj"
 
+    # Operation Singular Intelligence, Mission 002 (Team 8, reproduced same bug class as
+    # _consequence_refresh_case_actions's own concurrency gap): a redelivered/retried event
+    # for the SAME dokument_id used to call klasifikuj_i_sacuvaj again unconditionally --
+    # its own predmet_dokazi insert has no dedup key, so every retry appended a fresh set of
+    # duplicate "kljucne_cinjenice" rows. klasifikovan_at is already this function's own
+    # completion marker (read into before_data above, checked below instead of ignored) --
+    # reusing it as the idempotency guard, no new column/table/algorithm.
+    if before_data.get("klasifikovan_at"):
+        return "skipped_already_classified"
+
     naziv = payload.get("naziv") or before_data.get("naziv_fajla") or "dokument"
     from routers.evidence import klasifikuj_i_sacuvaj
     await asyncio.to_thread(klasifikuj_i_sacuvaj, event.predmet_id, dokument_id, naziv, tekst, event.user_id)
@@ -566,7 +576,12 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
     tip_predmeta = after_data.get("tip") or "ostalo"
     dokazi_r, dok_r, rok_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq("predmet_id", predmet_id).execute()),
+        # Operation Singular Intelligence, Mission 002: tip_dokaza added -- Red Team's Attack 1
+        # reproduced this exact caller (of calculate_procesni_rizik, missing the column every
+        # sibling caller selects since the G-028 fix) computing "Srednji"/health=55/4 fabricated
+        # missing-doc findings for the identical case data ccc.py/case_pipeline.py compute as
+        # "Nizak"/health=70/[] for -- persisted into case_intelligence_summaries.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status,tip_dokaza").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
@@ -841,11 +856,25 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
 
     Concurrency (Scenario 5): the partial UNIQUE index on
     `(predmet_id, dedupe_key) WHERE status='open'` (migration 099) is the
-    REAL safety net -- two concurrent refreshes racing to CREATE the same
-    action both attempt the same upsert; the DB constraint, not application
-    logic, guarantees exactly one open row per fact survives, matching
-    every other idempotency mechanism this whole engagement has used
-    (content_sha256, idempotency_key, case_evolution_consequences)."""
+    real safety net for the CREATE path ONLY -- two concurrent refreshes
+    racing to CREATE the same action both attempt the same upsert; the DB
+    constraint, not application logic, guarantees exactly one open row per
+    fact survives. This was previously mis-stated as covering all 3 paths;
+    Operation Singular Intelligence Mission 002 (Team 8) reproduced, via an
+    isolated simulation, that the UPDATE and CLOSE paths had NO equivalent
+    protection -- two concurrent refreshes for the SAME predmet_id could
+    interleave so a stale CLOSE overwrote a fresher UPDATE's decision to
+    keep a row open. Both paths now carry optimistic-concurrency guards
+    (`.eq("status","open")` on both; `.eq("updated_at", snapshot)` on CLOSE
+    specifically) using only existing columns -- no migration, no new
+    infrastructure. This narrows the race to "whichever caller's write
+    reaches the DB last still wins" (a live, up-to-date write correctly
+    surviving), rather than fully eliminating a stale write's ability to
+    silently overwrite a fresher one under the old code. Full cross-worker
+    serialization would need a session/transaction-scoped Postgres lock,
+    which does not fit this client's per-call (not held-open-transaction)
+    execution model without moving the reconcile into a stored procedure --
+    named as debt, not attempted without live-DB verification."""
     predmet_id = event.predmet_id
     uid = event.user_id
     if not predmet_id:
@@ -871,11 +900,34 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     target = await _compute_target_actions(predmet_id)
     target_by_key = {a["dedupe_key"]: a for a in target}
 
+    # Operation Singular Intelligence, Mission 002 (Team 8, Cross-Module Concurrency, reproduced
+    # via isolated simulation): this snapshot-then-write sequence is NOT serialized per predmet_id
+    # across concurrent event handlers (only the CREATE path below has a real DB-level safety net,
+    # the partial UNIQUE index -- the docstring above only ever claimed that path was covered).
+    # Two events for the SAME case racing (e.g. DOCUMENT_ACCEPTED + ROCISTE_ZAKAZANO dispatched to
+    # different gunicorn workers within the same ~3s poll window) could previously interleave so a
+    # stale CLOSE overwrote a fresher concurrent UPDATE's decision to keep the row open -- a real
+    # lost update on the platform's own single source of truth for "what needs attention."
+    #
+    # A traditional Postgres advisory lock doesn't cleanly fit here: this client issues each
+    # .execute() as its own PostgREST call, not one held-open transaction, so a lock acquired in
+    # one call would already be released before the next call in this same function runs. Closing
+    # this properly with a session/transaction-scoped lock would mean moving the whole reconcile
+    # into a Postgres function (a real migration, needing the founder to run it and live-DB
+    # verification neither of which is available here) -- named as SINGULAR2-DEBT (see
+    # docs/singular2/ for the full spec), not attempted blind.
+    #
+    # What IS fixed here, with existing columns only, no migration: optimistic concurrency control.
+    # `updated_at` is captured in the same snapshot read and threaded into both the UPDATE and
+    # CLOSE calls' WHERE clause. If a concurrent, fresher call already touched the row since this
+    # snapshot was taken, this call's write now matches ZERO rows (a safe no-op) instead of
+    # silently overwriting the fresher decision -- whichever call actually reads the row's current
+    # state last still wins, but neither can silently clobber the other's already-applied result.
     existing_res = await asyncio.to_thread(
-        lambda: supa.table("case_actions").select("id,dedupe_key").eq("predmet_id", predmet_id).eq("status", "open").execute()
+        lambda: supa.table("case_actions").select("id,dedupe_key,updated_at").eq("predmet_id", predmet_id).eq("status", "open").execute()
     )
     existing_rows = (existing_res.data if existing_res else None) or []
-    existing_by_key = {r["dedupe_key"]: r["id"] for r in existing_rows}
+    existing_by_key = {r["dedupe_key"]: {"id": r["id"], "updated_at": r.get("updated_at")} for r in existing_rows}
 
     created, updated, closed = 0, 0, 0
 
@@ -893,9 +945,10 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
             "correlation_id": event.correlation_id,
         }
         if key in existing_by_key:
+            _existing = existing_by_key[key]
             await asyncio.to_thread(
-                lambda r=row, aid=existing_by_key[key]: supa.table("case_actions")
-                    .update({**r, "updated_at": _now_iso}).eq("id", aid).execute()
+                lambda r=row, aid=_existing["id"]: supa.table("case_actions")
+                    .update({**r, "updated_at": _now_iso}).eq("id", aid).eq("status", "open").execute()
             )
             updated += 1
         else:
@@ -911,12 +964,17 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
                     raise
                 logger.info("[CASE_EVOLUTION] case_action already created concurrently, skipping: predmet=%s key=%s", predmet_id, key)
 
-    for key, action_id in existing_by_key.items():
+    for key, existing in existing_by_key.items():
         if key not in target_by_key:
-            await asyncio.to_thread(
-                lambda aid=action_id: supa.table("case_actions")
-                    .update({"status": "closed", "closed_at": _now_iso}).eq("id", aid).execute()
+            _snapshot_updated_at = existing["updated_at"]
+            _close_query = (
+                supa.table("case_actions")
+                    .update({"status": "closed", "closed_at": _now_iso, "updated_at": _now_iso})
+                    .eq("id", existing["id"]).eq("status", "open")
             )
+            if _snapshot_updated_at is not None:
+                _close_query = _close_query.eq("updated_at", _snapshot_updated_at)
+            await asyncio.to_thread(_close_query.execute)
             closed += 1
 
     try:

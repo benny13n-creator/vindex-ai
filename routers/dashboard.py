@@ -129,9 +129,14 @@ async def command_center(
         # Operation Single Brain: the 3 tables calculate_procesni_rizik needs, bulk-fetched
         # once for the whole portfolio (same pattern as api.py::predmeti_dashboard's own fix)
         # so "visok rizik" reflects live current facts, not a stale snapshot.
+        # Operation Singular Intelligence, Mission 002: .is_("deleted_at","null") added -- 1 of 3
+        # remaining calculate_procesni_rizik callers still missing this filter (Team 7's Database
+        # Evidence Chains audit); a soft-deleted evidence row could inflate/deflate Command
+        # Center's own risk sphere/badges relative to Workspace/CCC for the same case.
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
             .select("predmet_id,snaga,kategorija")
             .eq("user_id", uid)
+            .is_("deleted_at", "null")
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("predmet_id,tip_dokaza")
@@ -415,8 +420,11 @@ async def matter_health_score(
             .select("id,tip_dokaza").eq("predmet_id", predmet_id).limit(200).execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("datum").eq("predmet_id", predmet_id).gte("datum", today_iso).limit(50).execute()),
+        # Operation Singular Intelligence, Mission 002: .is_("deleted_at","null") added -- 3rd of 3
+        # remaining calculate_procesni_rizik callers missing this filter (Team 7's audit).
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
-            .select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).limit(200).execute()),
+            .select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id)
+            .is_("deleted_at", "null").limit(200).execute()),
         return_exceptions=True,
     )
 

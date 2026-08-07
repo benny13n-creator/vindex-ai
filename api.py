@@ -3432,10 +3432,16 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
         # same 3 tables calculate_procesni_rizik needs and computing it LIVE per case
         # below -- the same canonical engine every other risk surface already uses,
         # with no cache to go stale.
+        # Operation Singular Intelligence, Mission 002: .is_("deleted_at","null") added -- Team 7's
+        # Database Evidence Chains audit found this was 1 of 3 remaining calculate_procesni_rizik
+        # callers (of 15+ total) still missing the soft-delete filter every other caller has had
+        # since earlier missions' fixes -- a soft-deleted evidence row still inflated/deflated this
+        # dashboard's own risk sort relative to Workspace/CCC/Matter Intel for the same case.
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
                 .select("predmet_id,snaga,kategorija")
                 .in_("predmet_id", pred_ids)
+                .is_("deleted_at", "null")
                 .execute()
         ),
         asyncio.to_thread(

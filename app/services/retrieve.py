@@ -694,6 +694,17 @@ def _calculate_confidence(top_score: float, n_results: int, query: str) -> dict:
         "skor": skor,
         "nivo": nivo,
         "upozorenje": top_score < 0.55,
+        # Operation Singular Intelligence, Mission 002 (Team 1, reproduced): this composite
+        # score also weighs result count + query specificity, so it can diverge sharply from
+        # get_confidence_level()'s top-match-only HIGH/MEDIUM/LOW label -- e.g. one excellent
+        # match with few total results can be top_score_confidence="HIGH" while nivo="veoma
+        # nisko". Both are legitimate, different questions (best-match trust vs. overall
+        # retrieval-quality trust), same precedent as case_readiness.py vs. matter_intel.py's
+        # preflight_check -- but api.py/main.py expose this dict raw to any consumer, so the
+        # canonical top-match label now always travels WITH the composite score. No consumer
+        # can read "nivo" in isolation and mistake a difference in what's being measured for
+        # a silent contradiction.
+        "top_score_confidence": get_confidence_level(top_score),
     }
 
 

@@ -4268,3 +4268,41 @@ a naming trap not a data bug. Carried forward from `SINGLEBRAIN2-DEBT-008`, unch
 calendar/Genome mismatch is possible but requires a DB write failure to trigger, and the response no
 longer lies about it when it does). `-001` is the clear next-mission starting point, with its full
 architecture already specified — a future mission can execute directly rather than re-diagnose.
+
+---
+
+## Operation Singular Intelligence, Master Mission 002 (Part A) — 2026-08-07
+
+Full report: `docs/singular2/MISSION_002_PART_A_REPORT.md`. 8 read-only teams re-audited the entire
+repo from zero; 12 real, reproduced contradictions fixed (each with a genuine proof test, none
+inventing a new algorithm — every fix reuses an existing canonical function/constant/DB constraint).
+3 items formally deferred as debt:
+
+### SINGULAR2-DEBT-001 — `vaznost` narrow-filter fragmentation (Medium)
+
+9+ files still do a bare `== "kritičan"` check on `predmet_hronologija.vaznost` instead of reading
+`shared/attention_priority.py::VAZNOST_TO_CANONICAL` (which Mission 002 itself just extended with
+`"kljucan"`/`"info"` — see Fix 1 in the mission report). Each site has its own existing,
+independently-reasoned threshold (cf. this register's own note above `SINGULAR2-DEBT` about
+`ATTENTION_SURFACE_REGISTRY.md`'s "3-4 different, independently-chosen thresholds for what
+'critical' means"). A blind mechanical find-replace across 9+ files without live-browser
+verification of each one's own product intent is a separate, larger piece of work than a Part A
+mechanical fix — not attempted this mission.
+
+### SINGULAR2-DEBT-002 — `multi_agent.py` vs. `strategija.py` percentage-hedging philosophy (Low)
+
+The two modules phrase GPT-generated success percentages with genuinely different confidence
+tones/hedging language for the same underlying kind of claim. This is a prompt-tone/methodology
+question, not a code defect — needs a founder/product decision on which philosophy is correct, not
+a mechanical merge. Not attempted this mission.
+
+### SINGULAR2-DEBT-003 — `case_actions`/CIO races narrowed, not fully eliminated (Low)
+
+Mission 002's own Fixes 8 (`services/case_evolution.py::_consequence_refresh_case_actions`) and 12
+(`routers/cio.py::cio_daily`) both close the reproduced lost-update/double-charge scenarios via
+optimistic concurrency using existing columns/constraints, but neither achieves full cross-worker
+serialization — a genuinely simultaneous write can still have "whichever call reaches the DB last
+wins" as its outcome (correct, not corrupting, but not literally impossible contention). Full
+elimination would need a session-scoped Postgres advisory lock, which means moving the reconcile
+logic into a stored procedure — a real migration needing founder execution + live-DB verification,
+neither available to the coordinator per this engagement's standing rule. Not attempted blind.

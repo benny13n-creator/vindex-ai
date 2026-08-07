@@ -98,9 +98,13 @@ def test_predmet_workspace_vaznost_translation_available_in_api_module():
     # Operation Single Brain (2026-08-07): "važan"/"informativan" added -- api.py's own GPT
     # extraction prompt and routers/intake.py both actively write these values; this table
     # previously had no key for either, silently mis-tiering them as MEDIUM.
+    # Operation Singular Intelligence, Mission 002 (2026-08-07): "kljucan"/"info" added --
+    # routers/rokovi_lanac.py/predmeti_close.py/ugovor_zastupanja.py actively write these,
+    # confirmed by 2 independent forensic teams; "kljucan" tags ZPP appeal-deadline chains.
     assert api._VAZNOST_TO_CANONICAL == {
         "kritičan": "critical", "bitan": "high", "važan": "high", "normalan": "medium",
         "ostalo": "low", "informativan": "informational",
+        "kljucan": "critical", "info": "informational",
     }
 
 

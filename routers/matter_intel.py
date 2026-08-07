@@ -20,6 +20,8 @@ from shared.permissions import PermissionService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+from shared.case_context import build_case_context
+from shared.case_readiness import CRITICAL_GAP, BLOCKED, UNKNOWN
 
 logger = logging.getLogger("vindex.matter_intel")
 router = APIRouter(prefix="/api/matter-intel", tags=["matter_intel"])
@@ -512,7 +514,23 @@ async def preflight_check(
     predmet = pr.data[0]
 
     # Paralelno dohvati kontekst predmeta
-    dok_r, rok_r, ist_r, hron_r = await asyncio.gather(
+    #
+    # Operation Singular Intelligence, Mission 002 (3 teams + Red Team Attack 3,
+    # reproduced): preflight_check's GPT-generated status ("spreman"/"potrebna_
+    # paznja"/"nije_spreman") answers a genuinely different question than
+    # shared/case_readiness.py::compute_case_readiness's canonical 5-state model
+    # (a specific upcoming action vs. general case health) -- docs/sigma/
+    # CASE_READINESS_MODEL.md already documents that split as deliberate, not a
+    # bug. The actual reproduced harm is narrower: a case with a canonical
+    # CRITICAL_GAP could return "spreman, 88/100" with ZERO mention of that gap,
+    # so a lawyer never even sees the two signals side by side. Fixed by fetching
+    # the canonical readiness (shared/case_context.py::build_case_context, the
+    # same call every other consumer already uses -- no new algorithm) and (a)
+    # feeding it into the GPT's own context so it isn't blind to the signal, and
+    # (b) deterministically forcing it into kriticna_upozorenja when it's
+    # CRITICAL_GAP/BLOCKED, so the cross-reference can never be silently absent
+    # regardless of what the GPT itself decides to mention.
+    dok_r, rok_r, ist_r, hron_r, cc = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
             "naziv_fajla,tip_dokaza"
         ).eq("predmet_id", predmet_id).execute()),
@@ -527,6 +545,7 @@ async def preflight_check(
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select(
             "dogadjaj,datum_iso,vaznost"
         ).eq("predmet_id", predmet_id).order("datum_iso", desc=True).limit(20).execute()),
+        build_case_context(predmet_id, uid, supa, include_documents=False),
         return_exceptions=True,
     )
 
@@ -534,6 +553,11 @@ async def preflight_check(
     rokovi    = _d(rok_r)
     istorija  = _d(ist_r)
     hronolog  = _d(hron_r)
+
+    if isinstance(cc, Exception) or not cc or cc.get("error"):
+        canonical_readiness = {"status": UNKNOWN, "razlog": "", "izvor": []}
+    else:
+        canonical_readiness = (cc.get("readiness") or {}).get("value") or {"status": UNKNOWN, "razlog": "", "izvor": []}
 
     # Formatiranje konteksta za GPT
     tip_label = {
@@ -569,6 +593,13 @@ async def preflight_check(
         ctx_lines.append("\nHRONOLOGIJA:")
         for h in hronolog[:5]:
             ctx_lines.append(f"  - {h.get('dogadjaj','')[:80]} ({h.get('datum_iso','')})")
+
+    if canonical_readiness["status"] in (CRITICAL_GAP, BLOCKED):
+        ctx_lines.append(
+            f"\nKANONSKA OPŠTA SPREMNOST PREDMETA: {canonical_readiness['status']} — "
+            f"{canonical_readiness['razlog']}. Ovo je već poznat, nerešen problem na nivou "
+            f"celog predmeta -- uzmi ga u obzir pri oceni spremnosti za ovu konkretnu radnju."
+        )
 
     kontekst = "\n".join(ctx_lines)
 
@@ -608,6 +639,19 @@ async def preflight_check(
         rezultat["score"] = max(0, min(100, _score))
         if rezultat.get("status") not in ("spreman", "potrebna_paznja", "nije_spreman"):
             rezultat["status"] = "potrebna_paznja"
+
+        # Deterministic floor, not GPT-decided: the canonical cross-reference is ALWAYS
+        # present when it applies, regardless of whether the GPT's own text happened to
+        # mention it -- this is what actually closes the reproduced contradiction.
+        if canonical_readiness["status"] in (CRITICAL_GAP, BLOCKED):
+            _upozorenja = rezultat.get("kriticna_upozorenja")
+            if not isinstance(_upozorenja, list):
+                _upozorenja = []
+            _upozorenja.append(
+                f"⚠️ Opšta spremnost predmeta (nezavisno od ove radnje): {canonical_readiness['status']} — "
+                f"{canonical_readiness['razlog']}"
+            )
+            rezultat["kriticna_upozorenja"] = _upozorenja
     except Exception as e:
         _sentry_capture(e)
         logger.error("[PREFLIGHT] AI greška: %s", e)

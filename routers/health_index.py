@@ -162,13 +162,20 @@ async def _compute_health(uid: str, supa) -> dict:
                 except Exception:
                     pass
 
+    # Operation Singular Intelligence, Mission 002 (Red Team Attack 4, reproduced): top-tier cutoff
+    # was 70 here vs shared/genome_validator.py::compute_snaga_score's own canonical ">=75 -> jaka"
+    # boundary -- at exactly 72%, Genome's own page correctly showed "srednja" (medium) while this
+    # component scored it the maximum 20/20 with zero alert, identical to a 100%/"jaka" case.
+    # Bottom-tier cutoff aligned 40->35 for the same reason (compute_snaga_score's own "<35 -> slaba"
+    # boundary). The middle 55 cutoff is this component's own extra granularity within Genome's
+    # single "srednja" bucket, not itself a canonical boundary -- left unchanged.
     if not snage:
         cs_score = 12  # neutralno ako nema genome podataka
     else:
         avg = sum(snage) / len(snage)
-        if avg >= 70:   cs_score = 20
+        if avg >= 75:   cs_score = 20
         elif avg >= 55: cs_score = 15; insights.append(f"Prosečna snaga predmeta: {avg:.0f}%")
-        elif avg >= 40: cs_score = 9;  alerts.append(f"⚠️ Prosečna snaga predmeta pala na {avg:.0f}%")
+        elif avg >= 35: cs_score = 9;  alerts.append(f"⚠️ Prosečna snaga predmeta pala na {avg:.0f}%")
         else:           cs_score = 4;  alerts.append(f"🔴 Prosečna snaga predmeta kritično niska: {avg:.0f}%")
         if slabi:
             alerts.append(f"⚠️ Slabi predmeti (<45%): {', '.join(slabi[:3])}")

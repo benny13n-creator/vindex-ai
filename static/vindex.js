@@ -17109,7 +17109,12 @@ function _cioRender(iz, meta) {
     var slabih = pg.slabih || 0;
     var srednje = pg.srednje || 0;
     var ukupno = pg.ukupno_aktivnih || 1;
-    var snagaColor = (pg.prosecna_snaga||0) >= 65 ? '#4ade80' : (pg.prosecna_snaga||0) >= 40 ? '#fbbf24' : '#f87171';
+    // Operation Singular Intelligence, Mission 002 (Team 5, UI Terminology Sweep): threshold
+    // aligned to 60/40 -- the same snaga_predmeta_procent-derived average this widget colors was
+    // already fixed to 60/40 at the Genome hero panel (:17241) and Copilot (:11576) in Mission 001,
+    // but this 3rd render site was missed, leaving a 60-64% average amber on Command Center's home
+    // page while showing green one click away in a case's own Genome panel.
+    var snagaColor = (pg.prosecna_snaga||0) >= 60 ? '#4ade80' : (pg.prosecna_snaga||0) >= 40 ? '#fbbf24' : '#f87171';
     html += '<div style="padding:0.5rem 1rem 0;display:flex;align-items:center;gap:0.8rem;">';
     html += '<div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;display:flex;overflow:hidden;">';
     html += '<div style="height:4px;width:'+(jakih/ukupno*100).toFixed(0)+'%;background:#4ade80;"></div>';
@@ -18673,7 +18678,12 @@ async function twinStaAkoPokreni() {
     var d = await res.json();
     wrap.innerHTML = '<div class="vx-card" style="padding:.7rem .8rem;">'
       + (d.uticaj ? '<div style="font-size:.78rem;color:rgba(255,255,255,.75);margin-bottom:.4rem;">' + _htmlEsc(d.uticaj) + '</div>' : '')
-      + (d.nova_verovatnoca_uspeha != null ? '<div style="font-size:.8rem;font-weight:700;color:#93c5fd;margin-bottom:.35rem;">Nova verovatnoća uspeha: ' + d.nova_verovatnoca_uspeha + '%</div>' : '')
+      // Operation Singular Intelligence, Mission 002 (Team 5): this rendered flat blue with no
+      // threshold coloring at all, unlike every other "Verovatnoća uspeha" surface in the app
+      // (Copilot, Genome, Court Predictor) -- a 15% and an 85% probability were visually
+      // indistinguishable here. Same 60/40 success-framed thresholds as Copilot's own render
+      // (vindex.js ~11557-11561) for the identical phrase.
+      + (d.nova_verovatnoca_uspeha != null ? '<div style="font-size:.8rem;font-weight:700;color:' + (d.nova_verovatnoca_uspeha>=60?'#7de0a0':d.nova_verovatnoca_uspeha>=40?'#ffbb70':'#ff9090') + ';margin-bottom:.35rem;">Nova verovatnoća uspeha: ' + d.nova_verovatnoca_uspeha + '%</div>' : '')
       + _stratListHtml('Preporučene akcije', d.preporucene_akcije, '#4ade80')
       + '</div>';
   } catch (e) {

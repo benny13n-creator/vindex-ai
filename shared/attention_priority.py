@@ -109,9 +109,21 @@ INBOX_TO_CANONICAL: dict[str, str] = {
 # distinct bottom tier. "važan" is the same concept as the existing "bitan" key (both mean
 # "important but not decisive") -> HIGH; "informativan" maps to the canonical INFORMATIONAL
 # tier that already exists for exactly this meaning, not the LOW tier "ostalo" uses.
+#
+# Operation Singular Intelligence, Mission 002 (2026-08-07): "kljucan" and "info" added --
+# confirmed by 2 independent forensic teams that 3 routers (rokovi_lanac.py, predmeti_close.py,
+# ugovor_zastupanja.py) actively write "kljucan" for ZPP appeal-deadline chains and case-closure/
+# representation-agreement milestones -- arguably the single most legally consequential deadline
+# type in the app -- and rokovi_lanac.py separately writes "info". Neither had a key here, so both
+# silently fell through to the same MEDIUM default as ordinary events: a "kljucan" ZPP appeal
+# deadline never appeared in client_portal.py's client-facing critical-deadline list and sorted
+# near the bottom of the lawyer's own urgency view in api.py's workspace endpoint. "kljucan"
+# ("key"/"crucial") maps to CRITICAL, the same tier as "kritičan" it's semantically synonymous
+# with; "info" maps to the existing INFORMATIONAL tier "informativan" already uses.
 VAZNOST_TO_CANONICAL: dict[str, str] = {
     "kritičan": CRITICAL, "bitan": HIGH, "važan": HIGH, "normalan": MEDIUM,
     "ostalo": LOW, "informativan": INFORMATIONAL,
+    "kljucan": CRITICAL, "info": INFORMATIONAL,
 }
 
 # Program Omega, Final Sprint 007 (2026-08-06) — the reverse direction, needed once a canonical

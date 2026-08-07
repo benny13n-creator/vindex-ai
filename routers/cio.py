@@ -484,6 +484,52 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
     except Exception:
         pass
 
+    # Operation Singular Intelligence, Mission 002 (Team 8, reproduced): the cache-check
+    # above and the charge/persist below are not atomic -- two near-simultaneous /daily
+    # calls for the same user (e.g. two open tabs both loading the dashboard) could both
+    # pass the cache-miss check before either one's row lands, both generate, and both
+    # call UsageService.consume -- a real double-charge for what the user experiences as
+    # one dashboard load. Fixed with a 2-step claim, reusing only existing columns/
+    # constraints (no new migration), same idiom as case_actions' CREATE path
+    # (services/case_evolution.py):
+    #   1. UPDATE today's row IF it exists but is stale (created_at older than the SAME
+    #      6h cutoff already used by the cache check above) -- a legitimate same-day
+    #      refresh after cache expiry takes over its own prior row.
+    #   2. If step 1 matched nothing (no row for today yet), INSERT a fresh placeholder,
+    #      relying on the table's own `UNIQUE (user_id, datum)` (migration 050) as the
+    #      real race-breaker: if a concurrent request's INSERT already won, this one's
+    #      INSERT fails with a unique violation -- that (and only that) is the genuine
+    #      lost-race case, distinct from "existing row is simply stale" above.
+    # A losing request still returns ITS OWN freshly-generated report to its own caller
+    # (no functional loss for that request), it just isn't the one charged or cached.
+    _stale_cutoff = (now.timestamp() - 21600)
+    claimed = False
+    try:
+        _upd = await asyncio.to_thread(
+            lambda: supa.table("cio_dnevni_izvestaj").update({
+                "izvestaj": {}, "predmeta_analizirano": 0, "created_at": now.isoformat(),
+            }).eq("user_id", uid).eq("datum", danes_iso).lt(
+                "created_at", datetime.fromtimestamp(_stale_cutoff, tz=timezone.utc).isoformat()
+            ).execute()
+        )
+        if _upd and _upd.data:
+            claimed = True
+    except Exception as _claim_exc:
+        logger.warning("[CIO] claim-update greška (nastavljam): %s", _claim_exc)
+
+    if not claimed:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("cio_dnevni_izvestaj").insert({
+                    "user_id": uid, "datum": danes_iso, "izvestaj": {}, "predmeta_analizirano": 0,
+                }).execute()
+            )
+            claimed = True
+        except Exception as _claim_exc:
+            if "duplicate key" not in str(_claim_exc).lower() and "unique" not in str(_claim_exc).lower():
+                logger.warning("[CIO] claim-insert greška (nastavljam bez keš-zaštite): %s", _claim_exc)
+                claimed = True  # nepoznata greška (npr. tabela nedostupna) -- ne blokiraj generisanje/naplatu
+
     # Generisi
     try:
         izvestaj = await _generiši_cio_izvestaj(uid, supa)
@@ -492,23 +538,31 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
         logger.error("[CIO] daily greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
 
+    if not claimed:
+        # Izgubljena trka za danasnji izvestaj -- neko drugi konkurentni poziv je vec
+        # naplatio i uskoro upisuje. Ne naplacuj ponovo, ne prepisuj njegov red.
+        return {
+            "izvestaj":             izvestaj,
+            "predmeta_analizirano": izvestaj.get("predmeta_analizirano", 0),
+            "iz_kesa":              False,
+            "generisano_u":         now.isoformat(),
+        }
+
     # _generiši_cio_izvestaj vraca rano (bez GPT poziva) kad portfolio nema Genome
     # modela — predmeta_analizirano ostaje 0 u tom slucaju, ne naplacuj kredit tada.
     if izvestaj.get("predmeta_analizirano"):
         await UsageService.consume(uid, user.get("email", ""), "cio")
 
-    # Snimi
+    # Snimi (azurira placeholder red koji je claim-insert upravo napravio)
     try:
         await asyncio.to_thread(
-            lambda: supa.table("cio_dnevni_izvestaj").upsert({
-                "user_id":             uid,
-                "datum":               danes_iso,
+            lambda: supa.table("cio_dnevni_izvestaj").update({
                 "izvestaj":            izvestaj,
                 "predmeta_analizirano": izvestaj.get("predmeta_analizirano", 0),
-            }, on_conflict="user_id,datum").execute()
+            }).eq("user_id", uid).eq("datum", danes_iso).execute()
         )
     except Exception as ue:
-        logger.warning("[CIO] upsert greška: %s", ue)
+        logger.warning("[CIO] update greška: %s", ue)
 
     return {
         "izvestaj":             izvestaj,
