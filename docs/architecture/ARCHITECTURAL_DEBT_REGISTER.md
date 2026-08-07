@@ -4414,20 +4414,23 @@ because it was deprioritized below `-013`/`-014` in the same file given fix-budg
 
 ### Concurrency/idempotency family
 
-**LIVINGSYS-DEBT-007 (High)** — case core-field inline-edit already has a working
-`if_updated_at` optimistic-concurrency guard in the backend (`api.py::update_predmet`), but the
-live frontend editor (`static/vindex.js::_predInlineEdit`) never sends it. This is a small,
-mechanical frontend fix (5 field call sites) — not done this mission purely due to time; flagged
-as a near-zero-risk quick win for next time since the backend half is already correct and tested.
+**LIVINGSYS-DEBT-007 — FIXED** (Program Phoenix, Mission 002, 2026-08-07).
+`_predInlineEdit`'s `doSave()` now sends `if_updated_at` from `window._predFull.predmet.
+updated_at`, handles a `409` with a clear message + span revert, and `update_predmet` now
+returns the new `updated_at` so the frontend's cache stays fresh for the next edit. Proof:
+`tests/test_phoenix_mission_002_concurrency_guards.py::test_pred_inline_edit_sends_if_updated_at`
++ 2 companion tests. Full report: `docs/phoenix/mission-002/`.
 
-**LIVINGSYS-DEBT-033 (Medium)** — `routers/learning.py`'s case-outcome endpoint (fired
-automatically right after case close) bypasses the `.neq("status", ...)` race guard its 2 sibling
-status-writers (`predmeti_close.py`) already carry, and writes no audit trail. A 1-line guard
-addition, same pattern as the 2 already-correct siblings — named for a future mission's quick-fix
-pass alongside `-007`.
+**LIVINGSYS-DEBT-033 — FIXED** (Program Phoenix, Mission 002, 2026-08-07). `learning.py`'s
+status write now carries `.neq("status", novi_status)` and writes a `predmet_hronologija` audit
+entry on a successful (non-raced) close, matching `predmeti_close.py`'s own siblings. Proof:
+`test_learning_outcome_guards_close_against_concurrent_reopen`.
 
-**LIVINGSYS-DEBT-034 (Medium-High)** — `zadaci` (manually-assigned staff tasks, a different table
-from the already-protected `case_actions`) has zero concurrency guard on status changes.
+**LIVINGSYS-DEBT-034 — FIXED** (Program Phoenix, Mission 002, 2026-08-07). `zadaci.py`'s
+`StatusUpdate` gained an optional `if_updated_at` field (same opt-in shape as
+`update_predmet`'s own); `azuriraj_status` applies it as a precondition and disambiguates
+404-vs-409. Frontend: a new `_zadaciCacheById` cache feeds `zadaci_setStatus`'s own
+`if_updated_at`. Proof: `test_azuriraj_status_rejects_stale_write_with_409`.
 
 **LIVINGSYS-DEBT-035 (Medium)** — client-info corrections can silently flow into AI-drafted
 document text via a stale browser-side snapshot (`window._predFull`) never re-fetched before

@@ -222,7 +222,10 @@ async def test_update_predmet_without_if_updated_at_behaves_exactly_as_before():
          patch("api._require_auth", return_value=_fake_user("user-1")):
         result = await api.update_predmet("pred-1", req, "Bearer fake-token")
 
-    assert result == {"ok": True}
+    # Program Phoenix, Mission 002: update_predmet now also returns the row's new updated_at
+    # (used by static/vindex.js::_predInlineEdit to keep its own if_updated_at precondition
+    # fresh for the NEXT edit -- LIVINGSYS-DEBT-007) -- additive, "ok": True is unchanged.
+    assert result == {"ok": True, "updated_at": None}  # mock's row has no updated_at column
 
 
 @pytest.mark.anyio
@@ -235,7 +238,7 @@ async def test_update_predmet_with_matching_if_updated_at_succeeds():
          patch("api._require_auth", return_value=_fake_user("user-1")):
         result = await api.update_predmet("pred-1", req, "Bearer fake-token")
 
-    assert result == {"ok": True}
+    assert result == {"ok": True, "updated_at": None}  # mock's row has no updated_at column
 
 
 @pytest.mark.anyio

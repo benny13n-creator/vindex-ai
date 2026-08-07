@@ -1915,3 +1915,15 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Pre-existing test corrections | 1 (a real design gap caught by an existing test, fixed by design correction not weakening) |
 | Full suite | **3,224 passed, 1 skipped, 0 failed** — was 3,220 at Living System's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 002 — Concurrency Guards Quick Wins (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 3 (`LIVINGSYS-DEBT-007, -033, -034`) |
+| Files touched | 3 (`api.py`, `routers/learning.py`, `routers/zadaci.py`) + `static/vindex.js` |
+| New algorithms invented | 0 — both fix patterns (`if_updated_at`, `.neq()`) reused verbatim |
+| Regression tests added | 7 (`tests/test_phoenix_mission_002_concurrency_guards.py`) |
+| Pre-existing test corrections | 2 (exact-dict-equality assertions updated for an intentional additive API field, not weakened) |
+| Full suite | **3,231 passed, 1 skipped, 0 failed** — was 3,224 at Mission 001's close |
+| STOP GATE | PASS |

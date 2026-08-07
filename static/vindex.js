@@ -11698,14 +11698,31 @@ function _predInlineEdit(spanId, field, inputType) {
     inp.remove();
     span.style.display = '';
 
+    // Program Phoenix, Mission 002 (LIVINGSYS-DEBT-007): the backend's real optimistic-
+    // concurrency guard (api.py::update_predmet's if_updated_at precondition, added by
+    // Program Lambda Certification 004) was never sent by this, its only live caller --
+    // declared protection, never enforced. window._predFull.predmet.updated_at is the last
+    // value this tab actually saw (set by pred_loadDetail's own workspace fetch).
     var body = {}; body[field] = val;
+    var _knownUpdatedAt = (window._predFull && window._predFull.predmet && window._predFull.predmet.updated_at) || null;
+    if (_knownUpdatedAt) body.if_updated_at = _knownUpdatedAt;
     try {
       var r = await fetch(BASE_URL+'/api/predmeti/'+encodeURIComponent(activePredmetId), {
         method:'PATCH',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
         body:JSON.stringify(body)
       });
+      if (r.status === 409) {
+        showToast('Predmet je izmenjen u međuvremenu. Osvežite stranicu i pokušajte ponovo.', 'error');
+        span.textContent = curText;  // revert the visible span to its pre-edit value
+        return;
+      }
       if (!r.ok) { showToast('Greška pri čuvanju.','error'); return; }
+      var _rj = await r.json().catch(function(){ return null; });
+      if (_rj && _rj.updated_at && window._predFull && window._predFull.predmet) {
+        window._predFull.predmet.updated_at = _rj.updated_at;  // keep the precondition fresh for the NEXT edit
+        window._predFull.predmet[field] = val;
+      }
       if (field === 'tip') {
         var lbl = _TIP_LABELS[val] || val; span.textContent = lbl || '—';
         var badge = document.getElementById('pred-detail-badge');
@@ -22440,10 +22457,17 @@ function _zadaciCardHtml(z, opts) {
     + '</div>';
 }
 
+// Program Phoenix, Mission 002 (LIVINGSYS-DEBT-034): id -> full row cache, populated at this
+// single render choke point (both zadaci_load and zadaci_g_load funnel through it) so
+// zadaci_setStatus can send the last-known updated_at as an optimistic-concurrency
+// precondition without a second fetch.
+var _zadaciCacheById = {};
+
 function _zadaciRenderBoard(containerId, zadaci, opts) {
   opts = opts || {};
   var el = document.getElementById(containerId);
   if (!el) return;
+  zadaci.forEach(function(z){ if (z && z.id) _zadaciCacheById[z.id] = z; });
   var vidljivi = zadaci.filter(function(z){ return z.status !== 'otkazano'; });
   if (!vidljivi.length) {
     vxGridEmpty(containerId, 'list-checks', 'Nema zadataka', opts.emptyHint || 'Dodajte prvi zadatak ili koristite AI analizu.');
@@ -22507,11 +22531,19 @@ async function zadaci_kreiraj() {
 async function zadaci_setStatus(id, noviStatus, isGlobal) {
   if (!currentSession) return;
   try {
+    var _cached = _zadaciCacheById[id];
+    var _body = { status: noviStatus };
+    if (_cached && _cached.updated_at) _body.if_updated_at = _cached.updated_at;
     var r = await fetch(BASE_URL + '/api/zadaci/' + encodeURIComponent(id) + '/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
-      body: JSON.stringify({ status: noviStatus })
+      body: JSON.stringify(_body)
     });
+    if (r.status === 409) {
+      showToast('Zadatak je izmenjen u međuvremenu — osvežavam prikaz.', 'error');
+      if (isGlobal) zadaci_g_load(); else zadaci_load(_zadaciPredmetId);
+      return;
+    }
     if (!r.ok) { showToast('Greška pri ažuriranju statusa.', 'error'); return; }
     if (isGlobal) zadaci_g_load(); else zadaci_load(_zadaciPredmetId);
   } catch(e) { showToast('Greška pri ažuriranju statusa.', 'error'); }

@@ -68,6 +68,11 @@ class ZadatakRequest(BaseModel):
 class StatusUpdate(BaseModel):
     status:   str
     komentar: Optional[str] = None
+    # Program Phoenix, Mission 002 (LIVINGSYS-DEBT-034): optional optimistic-concurrency
+    # precondition, same opt-in shape as api.py::update_predmet's if_updated_at -- a caller
+    # not yet sending it gets the exact prior (unconditional) behavior, so no existing
+    # frontend caller breaks.
+    if_updated_at: Optional[str] = None
 
 
 class DodeljivanjeUpdate(BaseModel):
@@ -303,21 +308,37 @@ async def azuriraj_status(
 
     try:
         # Provera vlasništva (dodeljen ili kreirao)
-        r = await asyncio.to_thread(
-            lambda: supa.table("zadaci")
-                .update(update_data)
-                .eq("id", zadatak_id)
-                .or_(f"dodeljen_uid.eq.{uid},kreirao_uid.eq.{uid}")
-                .execute()
-        )
+        q = supa.table("zadaci") \
+            .update(update_data) \
+            .eq("id", zadatak_id) \
+            .or_(f"dodeljen_uid.eq.{uid},kreirao_uid.eq.{uid}")
+        if payload.if_updated_at:
+            q = q.eq("updated_at", payload.if_updated_at)
+        r = await asyncio.to_thread(lambda: q.execute())
         if not (r.data or []):
+            if payload.if_updated_at:
+                # Distinguish "task doesn't exist/not yours" from "someone else changed it
+                # first" -- same 2 causes update_predmet's own if_updated_at guard already
+                # disambiguates.
+                exists = await asyncio.to_thread(
+                    lambda: supa.table("zadaci").select("id")
+                        .eq("id", zadatak_id)
+                        .or_(f"dodeljen_uid.eq.{uid},kreirao_uid.eq.{uid}")
+                        .maybe_single().execute()
+                )
+                if not exists.data:
+                    raise HTTPException(status_code=404, detail="Zadatak nije pronađen ili nemate pristup.")
+                raise HTTPException(
+                    status_code=409,
+                    detail="Zadatak je izmenjen u međuvremenu. Osvežite i pokušajte ponovo.",
+                )
             raise HTTPException(status_code=404, detail="Zadatak nije pronađen ili nemate pristup.")
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    return {"ok": True, "novi_status": payload.status}
+    return {"ok": True, "novi_status": payload.status, "updated_at": (r.data[0].get("updated_at") if r.data else None)}
 
 
 @router.patch("/{zadatak_id}/dodeli")

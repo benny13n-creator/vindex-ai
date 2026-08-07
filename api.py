@@ -3703,7 +3703,12 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
             status_code=409,
             detail="Predmet je izmenjen u međuvremenu. Osvežite stranicu i pokušajte ponovo.",
         )
-    return {"ok": True}
+    # Program Phoenix, Mission 002: the new updated_at is returned so a caller now sending
+    # if_updated_at (see LIVINGSYS-DEBT-007 fix, static/vindex.js::_predInlineEdit) can update
+    # its own cached value for the NEXT edit -- without this, a 2nd field edited moments after
+    # the 1st would spuriously 409 against an already-stale cached precondition.
+    _new_updated_at = (result.data[0].get("updated_at") if result.data else None)
+    return {"ok": True, "updated_at": _new_updated_at}
 
 
 @app.patch("/api/predmeti/{predmet_id}/kanban-faza")

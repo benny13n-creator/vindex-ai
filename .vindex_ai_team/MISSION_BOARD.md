@@ -2948,3 +2948,22 @@ routed around. 4 new tests (`tests/test_phoenix_mission_001_archived_case_visibi
 suite: **3,224 passed, 1 skipped, 0 failed** (was 3,220, +4 tests, zero regressions). Red Team
 self-check passed (verified `_fetch_open_actions` purely trusts its filtered input, no
 re-leak path). Full report: `docs/phoenix/mission-001/`. **STOP GATE: PASS.**
+
+### Mission 002 — Concurrency Guards Quick Wins (CLOSED)
+
+Closed `LIVINGSYS-DEBT-007` (case core-field inline-edit's real `if_updated_at` backend guard,
+built by Program Lambda Certification 004, was never sent by its only live frontend caller —
+declared protection, never enforced), `-033` (`learning.py`'s case-outcome endpoint bypassed
+the `.neq()` close-race guard + audit trail its 2 siblings in `predmeti_close.py` already
+carry), `-034` (`zadaci` status changes had zero concurrency guard). All 3 reuse the exact
+`if_updated_at`/`.neq()` patterns already proven in this codebase. `-007`'s fix required an
+additive backend change too (`update_predmet` now returns the row's new `updated_at` so the
+frontend's cache stays fresh for a 2nd edit moments after the 1st — without it, the fix would
+have introduced a NEW spurious-409 bug while closing the original one). 7 new tests
+(`tests/test_phoenix_mission_002_concurrency_guards.py`). 2 pre-existing tests corrected for
+the intentional additive API change (exact-dict-equality assertions updated to include the new
+field), not weakened. Full suite: **3,231 passed, 1 skipped, 0 failed** (was 3,224, +7 tests,
+zero regressions). Red Team self-check passed (verified the cache-refresh can't be poisoned by
+a failed write, the 404-vs-409 disambiguation stays ownership-scoped, the new `.neq()` guard is
+a no-op behavior change for the non-race case). Full report: `docs/phoenix/mission-002/`.
+**STOP GATE: PASS.**

@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -236,13 +237,39 @@ async def zabeleži_ishod(
     # (kanban, liste, pred_load) koje očekuje tačno "zatvoren".
     novi_status = "zatvoren"
     try:
-        await asyncio.to_thread(
+        # Program Phoenix, Mission 002 (LIVINGSYS-DEBT-033): this is a 3rd status-writer for
+        # `predmeti`, alongside routers/predmeti_close.py's two already-guarded ones
+        # (zatvori_predmet's own LAMBDA008-CONC-001 fix, bulk_promena_statusa's own
+        # BLACKSWAN-HIGH-006 fix) -- neither guard nor audit trail was ever ported here. Same
+        # .neq("status", novi_status) race guard: if a concurrent reopen already landed, this
+        # write now matches zero rows (a safe no-op) instead of silently reverting it with no
+        # trace. Non-fatal on conflict (logged, not raised) -- this endpoint's own purpose is
+        # recording a learning outcome, not primarily closing the case; a lost race here means
+        # the case is already in the state a colleague intended, not a fresh contradiction.
+        _close_res = await asyncio.to_thread(
             lambda: supa.table("predmeti")
                 .update({"status": novi_status})
                 .eq("id", req.predmet_id)
                 .eq("user_id", uid)
+                .neq("status", novi_status)
                 .execute()
         )
+        if _close_res.data:
+            try:
+                await asyncio.to_thread(
+                    lambda: supa.table("predmet_hronologija").insert({
+                        "predmet_id": req.predmet_id,
+                        "user_id":    uid,
+                        "dogadjaj":   f"Predmet zatvoren (ishod zabeležen: {req.ishod})",
+                        "datum_iso":  date.today().isoformat(),
+                        "vaznost":    "informativan",
+                        "akter":      "Learning Engine",
+                    }).execute()
+                )
+            except Exception as _he:
+                logger.warning("[LEARNING] hronologija upis greška (non-fatal): %s", _he)
+        else:
+            logger.info("[LEARNING] predmet status update preskočen (već zatvoren ili konkurentna izmena): %s", req.predmet_id)
     except Exception as e:
         logger.warning("[LEARNING] predmet status update greška: %s", e)
 
