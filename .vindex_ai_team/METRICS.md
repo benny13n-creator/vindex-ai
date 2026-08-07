@@ -2040,3 +2040,17 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 175 passed, 0 failed |
 | Full suite | **3,289 passed, 1 skipped, 0 failed** — was 3,284 at Mission 010's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 012 — Document/Event Duplication & Race Gaps (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 3 fully (`LIVINGSYS-DEBT-012` TOCTOU sub-item, `-021`, `-045`), 1 partially (`-046`) |
+| Files touched | 4 (`shared/usage.py`, `api.py`, `routers/case_dna.py`, `routers/cio.py`) |
+| New algorithms invented | 0 (reused existing UNIQUE constraints, `asyncio.Event`, established retry-on-conflict idiom) |
+| Regression tests added | 14 (`tests/test_phoenix_mission_012_duplication_race_gaps.py`) |
+| Pre-existing test corrections | 1 (`test_ztc_genome_scale_and_race.py`, deadlock-incident fix) |
+| Subsystem tests | 497 passed, 0 failed |
+| Full suite | **3,303 passed, 1 skipped, 0 failed** — was 3,289 at Mission 011's close |
+| Incident | 1 self-caught deadlock (unbounded wait), fixed + disclosed before certifying |
+| STOP GATE | PASS |

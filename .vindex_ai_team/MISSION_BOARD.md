@@ -3113,3 +3113,26 @@ corrected (mock data completion, no assertion weakened). Subsystem: 175/175 pass
 **3,289 passed, 1 skipped, 0 failed** (was 3,284, +5 tests, zero regressions). Red Team
 self-check passed (5 adversarial scenarios, no break found). Full report:
 `docs/phoenix/mission-011/`. **STOP GATE: PASS.**
+
+### Mission 012 — Document/Event Duplication & Race Gaps (CLOSED)
+
+Closed `LIVINGSYS-DEBT-012` (TOCTOU sub-item), `-021`, `-045` fully; `-046` partially (a
+residual, hard-to-close-without-new-coordination-machinery cost-only limitation on `/daily`
+remains open, as named). `-020` explicitly not attempted (blocked on a founder product
+decision); `-042` explicitly not attempted (needs new cron infrastructure per the register's own
+assessment, not a bounded mechanical fix). `-012`: new `_claim_cooldown_atomic` reuses
+`feature_usage`'s existing UNIQUE constraint for an atomic cooldown claim. `-021`: hronologija
+extraction gained per-field date validation + per-row (not bulk) insert. `-045`: Genome's
+coalescing guard's coalesced caller now waits for the in-flight run's completion instead of
+returning early. `-046`: `/run` gained the same 2-step claim `/daily` already has. **Incident,
+disclosed and resolved before certifying**: the first full-suite run for this mission hung for
+20+ minutes (not merely slow) — traced to `-045`'s fix making a coalesced caller wait
+UNBOUNDED, discovered via a pre-existing test's own now-invalid sequencing assumption. Fixed
+with a bounded 120s timeout (production code) plus 1 pre-existing test correction
+(`test_ztc_genome_scale_and_race.py`); full account in
+`docs/phoenix/mission-012/TEST_RESULTS.md`. 14 new tests
+(`tests/test_phoenix_mission_012_duplication_race_gaps.py`). Subsystem: 497/497 passed. Full
+suite: **3,303 passed, 1 skipped, 0 failed** (was 3,289, +14 tests, zero regressions, runtime
+347s — back to the normal ~6-minute baseline). Red Team self-check passed (4 adversarial
+scenarios, no further break found). Full report: `docs/phoenix/mission-012/`.
+**STOP GATE: PASS** (after 1 self-caught deadlock incident).

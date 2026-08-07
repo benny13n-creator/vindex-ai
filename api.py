@@ -81,7 +81,7 @@ _validate_enc_key()
 
 import time as _time
 from collections import deque as _deque
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 # ─── Performance ring buffers (in-memory, reset on restart) ──────────────────
 _PERF: dict[str, _deque] = {
@@ -4349,6 +4349,53 @@ _ALLOWED_MIMES = {
 _ALLOWED_SUFFIXES = {".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"}
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
+
+# Program Phoenix, Mission 012 (LIVINGSYS-DEBT-021): GPT chronology extraction
+# feeds directly into the urgent-deadline notification system with no human-
+# review gate -- a single malformed datum_iso used to drop the entire
+# extraction batch silently (one bulk .insert(rows) call, rejected atomically
+# by Postgres on the first bad value). These 2 helpers close that gap:
+# per-field validation before insert, and per-row (not bulk) persistence so
+# one bad row can never take its siblings down with it. Extracted as module-
+# level functions (not inlined in predmet_upload_auto_analyze below) so they
+# are independently unit-testable without mocking the whole upload endpoint.
+def _validate_hronologija_datum_iso(datum_iso, predmet_id: str) -> Optional[str]:
+    """Returns a well-formed ISO date string, or None if datum_iso is absent,
+    a known placeholder, or syntactically present but semantically invalid
+    (e.g. GPT hallucinating "2026-13-45") -- never raises, never fabricates a
+    replacement date."""
+    if not datum_iso:
+        return None
+    if len(str(datum_iso)) < 4 or str(datum_iso).lower() in ("null", "none", ""):
+        return None
+    try:
+        date.fromisoformat(str(datum_iso)[:10])
+    except (ValueError, TypeError):
+        logger.warning(
+            "[P2.2] Hronologija: nevalidan datum_iso=%r odbačen (dogadjaj sačuvan bez datuma) predmet=%s",
+            datum_iso, predmet_id,
+        )
+        return None
+    return datum_iso
+
+
+def _insert_hronologija_rows(rows: list, predmet_id: str) -> int:
+    """Persists each predmet_hronologija row independently -- a single row's
+    DB-level failure is logged and skipped, never dropping its siblings.
+    Returns the count of rows actually persisted."""
+    hron_count = 0
+    for _hrow in rows:
+        try:
+            _get_supa().table("predmet_hronologija").insert(_hrow).execute()
+            hron_count += 1
+        except Exception as _row_e:
+            logger.warning(
+                "[P2.2] Hronologija: red odbačen (dogadjaj=%r) predmet=%s: %s",
+                _hrow.get("dogadjaj", "")[:80], predmet_id, _row_e,
+            )
+    return hron_count
+
+
 @app.post("/api/predmeti/{predmet_id}/upload")
 @limiter.limit("10/minute")
 async def predmet_upload_auto_analyze(
@@ -4927,9 +4974,7 @@ async def predmet_upload_auto_analyze(
                 for ev in hron_data[:50]:
                     if not isinstance(ev, dict) or not ev.get("dogadjaj"):
                         continue
-                    datum_iso = ev.get("datum_iso") or None
-                    if datum_iso and (len(str(datum_iso)) < 4 or str(datum_iso).lower() in ("null", "none", "")):
-                        datum_iso = None
+                    datum_iso = _validate_hronologija_datum_iso(ev.get("datum_iso"), predmet_id)
                     vaznost = ev.get("vaznost", "informativan")
                     if vaznost not in _VALID_VAZNOST:
                         vaznost = "informativan"
@@ -4944,9 +4989,13 @@ async def predmet_upload_auto_analyze(
                         "vaznost":        vaznost,
                     })
                 if rows:
-                    _get_supa().table("predmet_hronologija").insert(rows).execute()
-                    hron_count = len(rows)
-                    logger.info("[P2.2] Hronologija: %d događaja sačuvano za predmet=%s", hron_count, predmet_id)
+                    # Program Phoenix, Mission 012 (LIVINGSYS-DEBT-021): per-row
+                    # insert (was one bulk .insert(rows)) so a single row's
+                    # DB-level failure (any other unforeseen malformed field)
+                    # can't silently drop every sibling event in the same
+                    # batch -- each event is now independently persisted.
+                    hron_count = _insert_hronologija_rows(rows, predmet_id)
+                    logger.info("[P2.2] Hronologija: %d/%d događaja sačuvano za predmet=%s", hron_count, len(rows), predmet_id)
         except Exception as _he:
             logger.warning("[P2.2] Hronologija greška: %s | raw[:150]=%r", _he, hron_raw[:150] if 'hron_raw' in dir() else "")
     else:

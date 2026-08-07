@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -124,6 +124,65 @@ async def _seconds_since_last_call(user_id: str, feature: str) -> Optional[float
     except Exception as exc:
         logger.warning("[USAGE] _seconds_since_last_call greška (non-fatal): %s", exc)
         return None
+
+
+# Program Phoenix, Mission 012 (LIVINGSYS-DEBT-012, TOCTOU sub-item): consume()
+# used to READ "seconds since last call" (_seconds_since_last_call, above) and
+# only much later — after limit/credit checks — WRITE the new call's timestamp
+# (_increment_usage/_log_usage_event, at the very end). Two concurrent requests
+# for the same user+feature landing between that read and that write both see
+# "cooldown satisfied" and both proceed, bypassing the cooldown entirely for
+# that race window. Reuses feature_usage's existing UNIQUE(user_id, feature_key,
+# dan) constraint (migration 064) — no new migration — to make the check-and-
+# claim a single atomic DB operation instead of a separate read then a later
+# write. Deliberate, disclosed behavior change: because the claim now happens
+# BEFORE the daily/monthly-limit and credit checks (moving it any later would
+# reopen the same race), a call that fails those LATER checks still consumes
+# this cooldown window — a strictly more conservative (never less safe)
+# outcome, and the only way to close the race without a migration.
+async def _claim_cooldown_atomic(user_id: str, feature: str, cooldown: float) -> bool:
+    today = _today_iso()
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=cooldown)).isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    def _try_update():
+        return (
+            _get_supa().table("feature_usage")
+            .update({"updated_at": now_iso})
+            .eq("user_id", user_id).eq("feature_key", feature).eq("dan", today)
+            .lt("updated_at", cutoff_iso)
+            .execute()
+        )
+    res = await asyncio.to_thread(_try_update)
+    if res.data:
+        return True  # atomically claimed: today's row existed and was stale enough
+
+    def _row_exists():
+        return (
+            _get_supa().table("feature_usage")
+            .select("id").eq("user_id", user_id).eq("feature_key", feature).eq("dan", today)
+            .maybe_single().execute()
+        )
+    exists = await asyncio.to_thread(_row_exists)
+    if exists.data:
+        return False  # row exists, updated_at too recent -- cooldown genuinely active
+
+    def _try_insert():
+        return (
+            _get_supa().table("feature_usage").insert({
+                "user_id": user_id, "feature_key": feature, "dan": today,
+                "mesec": _month_iso(), "broj_koriscenja": 0, "krediti_potroseni": 0,
+            }).execute()
+        )
+    try:
+        await asyncio.to_thread(_try_insert)
+        return True  # first call of the day -- claimed via insert
+    except Exception as exc:
+        if "23505" in str(exc) or "duplicate key" in str(exc).lower():
+            # Lost the race to insert today's first row -- a concurrent request
+            # just created it; treat conservatively as cooldown-not-yet-elapsed.
+            return False
+        raise
 
 
 async def _increment_usage(user_id: str, feature: str, credits_spent: float) -> None:
@@ -243,14 +302,16 @@ class UsageService:
             return FOUNDER_BALANCE
 
         if cooldown:
-            elapsed = await _seconds_since_last_call(user_id, feature)
-            if elapsed is not None and elapsed < cooldown:
+            claimed = await _claim_cooldown_atomic(user_id, feature, cooldown)
+            if not claimed:
+                elapsed = await _seconds_since_last_call(user_id, feature)
+                preostalo_cd = round(cooldown - elapsed) if elapsed is not None else round(cooldown)
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail={
                         "code": "COOLDOWN",
                         "feature": feature,
-                        "message": f"Sačekajte {round(cooldown - elapsed)}s pre sledećeg poziva ove funkcije.",
+                        "message": f"Sačekajte {preostalo_cd}s pre sledećeg poziva ove funkcije.",
                     },
                 )
 

@@ -4389,6 +4389,14 @@ component (reading "last call" before the corresponding insert commits) is a sep
 fix that could be done without a migration — named as a distinct sub-item for a future mission
 that doesn't need to wait on the migration to close at least that half.
 
+**LIVINGSYS-DEBT-012 (TOCTOU sub-item) — FIXED** (Program Phoenix, Mission 012, 2026-08-08). New
+`shared/usage.py::_claim_cooldown_atomic` reuses `feature_usage`'s existing `UNIQUE(user_id,
+feature_key, dan)` constraint (migration 064, no new migration) for an atomic conditional claim,
+closing the read-then-later-write gap. The `cooldown_seconds` migration seeding component
+remains open (still requires the founder-run migration). Proof:
+`tests/test_phoenix_mission_012_duplication_race_gaps.py::
+test_cooldown_claim_concurrent_calls_only_one_wins`. Full report: `docs/phoenix/mission-012/`.
+
 ### Drafting hallucination/quality family
 
 **LIVINGSYS-DEBT-013 — FIXED** (Program Phoenix, Mission 010, 2026-08-08). Ported
@@ -4489,15 +4497,27 @@ retries on a genuine conflict (bounded 3 attempts), same idiom as `billing.py`'s
 test_redni_broj_conflict_retries_with_next_number_and_succeeds` + 3 companion tests. Full
 report: `docs/phoenix/mission-011/`.
 
-**LIVINGSYS-DEBT-045 (Medium)** — Genome's in-process coalescing guard has a false-failure blind
-spot causing up to 3 redundant refreshes for 2 concurrent document uploads (wasted GPT cost,
-final `case_dna` content not corrupted). Fixing requires either awaiting the coalesced rerun
-properly or relaxing `_consequence_genome_refresh`'s verification to tolerate "someone else's
-concurrent run already advanced verzija" — a nuanced behavior change needing its own test matrix.
+**LIVINGSYS-DEBT-045 — FIXED** (Program Phoenix, Mission 012, 2026-08-08). Chose the first
+suggested option ("awaiting the coalesced rerun properly"): a coalesced caller now `await`s the
+in-flight run's completion event (new `asyncio.Event`-based `_genome_refresh_done_event`,
+deliberately separate from `refresh_case_dna`'s own plain-set `_genome_refresh_inflight` guard,
+untouched) instead of returning near-instantly — bounded to 120s
+(`_GENOME_COALESCE_WAIT_TIMEOUT`), falling back to pre-mission behavior on timeout. The bound was
+added after this mission's own full-suite run caught a real deadlock risk from an initially-
+unbounded wait (full incident account: `docs/phoenix/mission-012/TEST_RESULTS.md`). Proof:
+`tests/test_phoenix_mission_012_duplication_race_gaps.py::
+test_coalesced_caller_waits_for_inflight_run_to_complete` + 3 companion tests. Full report:
+`docs/phoenix/mission-012/`.
 
-**LIVINGSYS-DEBT-046 (Low/Medium)** — CIO `/daily`'s already-fixed credit-charge race still lets
-every concurrent requester pay the full GPT compute cost before losing the claim (cost-only, not
-correctness); `/run` (force regenerate) has no claim/lock at all, sharing `-012`'s exposure.
+**LIVINGSYS-DEBT-046 — PARTIALLY FIXED** (Program Phoenix, Mission 012, 2026-08-08). `/run`
+gained the same 2-step claim `/daily` already has (reusing `cio_dnevni_izvestaj`'s existing
+`UNIQUE(user_id, datum)` constraint, migration 050), with a short 5s race-detection window fitting
+`/run`'s "always regenerate" semantics. Proof:
+`tests/test_phoenix_mission_012_duplication_race_gaps.py::
+test_cio_run_concurrent_calls_charge_only_once`. **Still open**: `/daily`'s own residual
+cost-only issue (every concurrent requester still pays the GPT compute cost before losing the
+claim) — accepted as a known, hard-to-close-without-a-coordination-mechanism limitation, not
+attempted this mission.
 
 ### Silent failure / false success family (not yet fixed)
 
@@ -4550,13 +4570,18 @@ test_new_evidence_registered_now_includes_refresh_case_actions`. Full report:
 **LIVINGSYS-DEBT-020 (High)** — zero duplicate-content detection on Pipeline A's main document
 upload endpoint (`api.py`), unlike Smart Intake's own content-hash dedup. Needs a product decision
 (silently skip vs. surface "this looks like a duplicate, upload anyway?") before a mechanical fix
-— not purely technical.
+— not purely technical. **Program Phoenix, Mission 012 (2026-08-08): explicitly not attempted**
+— re-confirmed as blocked on the same product decision, which is the founder's call, not this
+coordinator's to make unilaterally. Standing recommendation for whichever future mission the
+founder's decision unblocks.
 
-**LIVINGSYS-DEBT-021 (High)** — unvalidated GPT chronology extraction feeds directly into the
-urgent-deadline notification system with no human-review gate, and a single malformed date drops
-an entire extraction batch silently. Fixing means either per-row insert (not bulk, so one bad row
-doesn't kill the batch) or a validation pass before insert — both plausible, bounded fixes for a
-future mission.
+**LIVINGSYS-DEBT-021 — FIXED** (Program Phoenix, Mission 012, 2026-08-08). Both suggested fixes
+applied together: `api.py` gained `_validate_hronologija_datum_iso` (drops only a semantically
+invalid date, keeps the narrative event) and `_insert_hronologija_rows` (per-row, not bulk,
+insert — a single row's DB-level failure can no longer drop its siblings). Proof:
+`tests/test_phoenix_mission_012_duplication_race_gaps.py::
+test_insert_hronologija_rows_persists_valid_rows_despite_one_bad_row` + 3 companion tests. Full
+report: `docs/phoenix/mission-012/`.
 
 **LIVINGSYS-DEBT-022 — PARTIALLY FIXED** (Program Phoenix, Mission 006, 2026-08-07). The
 "confidence gate" itself is closed: `_CLASSIFY_SYSTEM` now asks for `pouzdanost`

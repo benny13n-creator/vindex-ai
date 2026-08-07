@@ -272,12 +272,19 @@ async def test_concurrent_trigger_for_same_predmet_is_coalesced_not_dropped():
         task1 = asyncio.create_task(cd._run_genome_background("pred-race", "user-1"))
         await asyncio.wait_for(started.wait(), timeout=2)
 
-        # second trigger while the first is still in flight for the same case
-        await cd._run_genome_background("pred-race", "user-1")
+        # second trigger while the first is still in flight for the same case.
+        # Program Phoenix, Mission 012 (LIVINGSYS-DEBT-045): a coalesced call
+        # now WAITS for the in-flight run's own completion event (previously
+        # returned immediately) -- must be launched as its own task, not
+        # awaited directly here, or it deadlocks waiting on `release` before
+        # this test ever reaches the line below that sets it.
+        task2 = asyncio.create_task(cd._run_genome_background("pred-race", "user-1"))
+        await asyncio.sleep(0)  # let task2 run up to its own await point
         assert "pred-race" in cd._genome_refresh_rerun
 
         release.set()
         await asyncio.wait_for(task1, timeout=2)
+        await asyncio.wait_for(task2, timeout=2)
 
     assert call_count == 2  # ran once, then re-ran once for the coalesced trigger
     assert "pred-race" not in cd._genome_refresh_inflight

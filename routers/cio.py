@@ -579,6 +579,7 @@ async def cio_run(request: Request, user=Depends(PermissionService.require("cio"
     uid  = user["user_id"]
     supa = _get_supa()
     now  = datetime.now(timezone.utc)
+    danes_iso = date.today().isoformat()
 
     try:
         izvestaj = await _generiši_cio_izvestaj(uid, supa)
@@ -587,10 +588,55 @@ async def cio_run(request: Request, user=Depends(PermissionService.require("cio"
         logger.error("[CIO] run greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
 
+    # Program Phoenix, Mission 012 (LIVINGSYS-DEBT-046): /run had NO claim/lock at
+    # all, unlike /daily's own 2-step claim above -- two literally-concurrent
+    # force-regenerate calls (double-click, two tabs) both charged a credit. Reuses
+    # the exact same idiom and the same UNIQUE(user_id, datum) constraint (migration
+    # 050) /daily's claim already relies on, but with a SHORT (5s) staleness window
+    # instead of /daily's 6h one: /run's whole purpose is "regenerate right now, even
+    # if a cache exists," so a genuine repeat force-regenerate seconds/minutes later
+    # must still claim and charge normally -- only a literally-simultaneous double-
+    # click should lose the race.
+    _claim_window_seconds = 5
+    _stale_cutoff_iso = (now - timedelta(seconds=_claim_window_seconds)).isoformat()
+    claimed = False
+    try:
+        _upd = await asyncio.to_thread(
+            lambda: supa.table("cio_dnevni_izvestaj").update({
+                "created_at": now.isoformat(),
+            }).eq("user_id", uid).eq("datum", danes_iso).lt("created_at", _stale_cutoff_iso).execute()
+        )
+        if _upd and _upd.data:
+            claimed = True
+    except Exception as _claim_exc:
+        logger.warning("[CIO] run claim-update greška (nastavljam): %s", _claim_exc)
+
+    if not claimed:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("cio_dnevni_izvestaj").insert({
+                    "user_id": uid, "datum": danes_iso, "izvestaj": {}, "predmeta_analizirano": 0,
+                }).execute()
+            )
+            claimed = True
+        except Exception as _claim_exc:
+            if "duplicate key" not in str(_claim_exc).lower() and "unique" not in str(_claim_exc).lower():
+                logger.warning("[CIO] run claim-insert greška (nastavljam bez keš-zaštite): %s", _claim_exc)
+                claimed = True  # nepoznata greška -- ne blokiraj generisanje/naplatu
+
+    if not claimed:
+        # Izgubljena trka -- neko drugi konkurentni /run poziv je upravo naplatio i
+        # uskoro upisuje svoj rezultat. Ne naplaćuj ponovo, ne prepisuj njegov red.
+        return {
+            "izvestaj":             izvestaj,
+            "predmeta_analizirano": izvestaj.get("predmeta_analizirano", 0),
+            "iz_kesa":              False,
+            "generisano_u":         now.isoformat(),
+        }
+
     if izvestaj.get("predmeta_analizirano"):
         await UsageService.consume(uid, user.get("email", ""), "cio")
 
-    danes_iso = date.today().isoformat()
     try:
         await asyncio.to_thread(
             lambda: supa.table("cio_dnevni_izvestaj").upsert({

@@ -686,6 +686,16 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
 
 _genome_refresh_inflight: set = set()
 _genome_refresh_rerun: set = set()
+# Program Phoenix, Mission 012 (LIVINGSYS-DEBT-045): a SEPARATE dict from
+# _genome_refresh_inflight (which stays a plain set -- routers/case_dna.py's
+# own refresh_case_dna endpoint below also reads/writes it directly, as a
+# reject-if-busy guard, and must not be touched here). Only _run_genome_
+# background's own coalesced (early-return) callers wait on this.
+_genome_refresh_done_event: dict = {}
+# Program Phoenix, Mission 012 (LIVINGSYS-DEBT-045): module-level (not inlined)
+# so tests can patch it to a short value to deterministically exercise the
+# timeout-fallback path without a real 120s wait.
+_GENOME_COALESCE_WAIT_TIMEOUT = 120.0
 
 
 async def _run_genome_background(
@@ -704,11 +714,44 @@ async def _run_genome_background(
     same end state as running every trigger separately, minus the lost-
     update race and the redundant GPT calls. In-process only (a set, not a
     DB-level lock) -- does NOT coalesce across separate worker processes;
-    documented here as a real limitation, not claimed as a complete fix."""
+    documented here as a real limitation, not claimed as a complete fix.
+
+    Program Phoenix, Mission 012 (LIVINGSYS-DEBT-045): a coalesced
+    (early-return) caller used to return near-instantly, before the
+    in-flight run's own rerun loop had actually finished covering its
+    trigger. services/case_evolution.py::_consequence_genome_refresh reads
+    case_dna.verzija immediately after this function returns to verify the
+    refresh really happened -- for a coalesced caller reading THAT early,
+    verzija was frequently still unchanged, so a genuinely-in-progress
+    refresh was misreported as a failed one (root cause of up to 3
+    redundant refreshes for 2 concurrent uploads: 2 real GPT-cost runs plus
+    a 3rd wasted retry from the false failure). A coalesced caller now
+    waits for the in-flight run's completion event before returning, so
+    every caller's own downstream verification observes genuinely
+    completed work -- BOUNDED (120s: the single-call GPT timeout below is
+    60s, this covers one full retry/backoff cycle plus margin), never an
+    unbounded wait. Without this bound, a coalesced caller used to return
+    instantly regardless of how long the in-flight run took; making it wait
+    without a cap would mean one hung/slow underlying GPT call now also
+    blocks every OTHER concurrent trigger for the same case instead of
+    just its own -- a strictly worse failure mode than the one being fixed.
+    On timeout, falls back to the pre-mission behavior (return without
+    waiting further) rather than raising."""
     if predmet_id in _genome_refresh_inflight:
         _genome_refresh_rerun.add(predmet_id)
+        _done_event = _genome_refresh_done_event.get(predmet_id)
+        if _done_event is not None:
+            try:
+                await asyncio.wait_for(_done_event.wait(), timeout=_GENOME_COALESCE_WAIT_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "[GENOME] coalesced caller timed out waiting for in-flight refresh predmet=%s",
+                    predmet_id,
+                )
         return
     _genome_refresh_inflight.add(predmet_id)
+    _my_event = asyncio.Event()
+    _genome_refresh_done_event[predmet_id] = _my_event
     try:
         while True:
             _genome_refresh_rerun.discard(predmet_id)
@@ -718,6 +761,8 @@ async def _run_genome_background(
     finally:
         _genome_refresh_inflight.discard(predmet_id)
         _genome_refresh_rerun.discard(predmet_id)
+        _genome_refresh_done_event.pop(predmet_id, None)
+        _my_event.set()
 
 
 async def _do_genome_refresh(
