@@ -18227,10 +18227,18 @@ function evidence_load() {
 
 function evidence_reklasifikuj(dokId) {
   if (!activePredmetId || !currentSession) return;
+  showToast('Klasifikujem...', 'info');
+  // Program Phoenix, Mission 006 (LIVINGSYS-DEBT-009): backend now awaits classification
+  // synchronously (was fire-and-forget) so it can correctly skip billing on failure -- this
+  // response now arrives only once classification is actually done, and its own ok/poruka
+  // fields are real, not a generic "started" assumption.
   fetch('/api/evidence/predmeti/' + activePredmetId + '/reklasifikuj/' + dokId, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-  }).then(function(){ showToast('Klasifikacija pokrenuta...'); setTimeout(evidence_load, 3000); });
+  }).then(function(r){ return r.json(); }).then(function(d){
+    showToast(d.poruka || (d.ok ? 'Klasifikacija završena.' : 'Greška pri klasifikaciji.'), d.ok ? 'ok' : 'error');
+    evidence_load();
+  }).catch(function(){ showToast('Greška pri klasifikaciji.', 'error'); });
 }
 
 function evidence_addDokaz() {

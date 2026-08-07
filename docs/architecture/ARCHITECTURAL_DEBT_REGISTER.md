@@ -4487,12 +4487,14 @@ correctness); `/run` (force regenerate) has no claim/lock at all, sharing `-012`
 
 ### Silent failure / false success family (not yet fixed)
 
-**LIVINGSYS-DEBT-009 (High)** — evidence classification failures are silently laundered into a
-plausible fake success (`tip_dokaza:"ostalo"`, real `klasifikovan_at` timestamp); the manual
-"reklasifikuj" retry additionally charges a credit before the background task even starts, with
-no refund path. Needs a real failure-signal field (distinct from the fallback's own valid-looking
-output) threaded through `_klasifikuj_dokument` → `_consequence_evidence_classify`'s verification
-— a multi-layer change, not a single-function patch.
+**LIVINGSYS-DEBT-009 — FIXED** (Program Phoenix, Mission 006, 2026-08-07). A real failure signal
+(`ai_tags["_klasifikacija_greska"]`, existing JSONB column, no migration) is now threaded
+through `_klasifikuj_dokument` → `klasifikuj_i_sacuvaj` (now returns its result, was always
+`None`) → both `reklasifikuj` (now awaits synchronously and skips the charge on genuine
+failure, matching every other GPT-consuming endpoint's own request/response convention) and
+`_consequence_evidence_classify` (now logs a warning when the persisted classification is
+degraded). Proof: `tests/test_phoenix_mission_006_evidence_quality_signals.py::
+test_reklasifikuj_skips_charge_on_genuine_failure` + 3 companion tests.
 
 **LIVINGSYS-DEBT-048 — FIXED** (Program Phoenix, Mission 001, 2026-08-07). Added
 `.eq("status", "zakazano")` to `get_matter_intel`'s `rocista` query, matching `dashboard.py`/
@@ -4537,10 +4539,15 @@ an entire extraction batch silently. Fixing means either per-row insert (not bul
 doesn't kill the batch) or a validation pass before insert — both plausible, bounded fixes for a
 future mission.
 
-**LIVINGSYS-DEBT-022 (Medium)** — evidence-type (`tip_dokaza`) classification has no confidence
-gate, unlike Smart Intake's own document-type classifier. Would need a schema/prompt change to
-`_CLASSIFY_SYSTEM` plus a review-queue UX decision for low-confidence results — a smaller version
-of the same "review workflow" question Smart Intake already answered, portable but not copy-paste.
+**LIVINGSYS-DEBT-022 — PARTIALLY FIXED** (Program Phoenix, Mission 006, 2026-08-07). The
+"confidence gate" itself is closed: `_CLASSIFY_SYSTEM` now asks for `pouzdanost`
+(`"visoka"|"srednja"|"niska"`), enum-guarded fail-safe to `"niska"`, persisted into the
+existing `ai_tags` column. Proof:
+`test_klasifikuj_dokument_enum_guards_unrecognized_pouzdanost`. The review-queue UX (an
+accept/reject workflow for low-confidence results, mirroring Smart Intake's own) remains a
+SEPARATE, unattempted product decision — this fix makes the confidence signal exist and be
+trustworthy, not what a lawyer sees/does with a low-confidence result, which was never in this
+mission's minimum-risk scope.
 
 **LIVINGSYS-DEBT-055 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). The except block in
 `services/risk_engine.py`'s hearing-date loop now logs a warning (hearing id + malformed

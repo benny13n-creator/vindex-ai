@@ -28,6 +28,7 @@ _CLASSIFY_SYSTEM = """Ti si pravni asistent koji klasifikuje pravne dokumente.
 Za dati dokument (naziv + tekst izvod) vrati JSON objekat:
 {
   "tip_dokaza": "<tip>",
+  "pouzdanost": "visoka" | "srednja" | "niska",
   "pravni_elementi": ["<element1>", "<element2>"],
   "ai_tags": {
     "stranke": ["<stranka1>"],
@@ -38,6 +39,10 @@ Za dati dokument (naziv + tekst izvod) vrati JSON objekat:
   },
   "kljucne_cinjenice": ["<cinjenica1>", "<cinjenica2>", "<cinjenica3>"]
 }
+
+"pouzdanost" je TVOJA sopstvena procena koliko si siguran/na u dodeljeni tip_dokaza -- "niska"
+ako je dokument dvosmislen, delimično čitljiv, ili odgovara više od jedne kategorije podjednako
+dobro.
 
 Dozvoljeni tipovi za tip_dokaza:
 - sudska_odluka (presuda, rešenje, zaključak suda)
@@ -81,14 +86,37 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
         raw = (resp.choices[0].message.content or "").strip()
         if raw.startswith("```"):
             raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("```"))
-        return json.loads(raw)
+        rezultat = json.loads(raw)
+        # Program Phoenix, Mission 006 (LIVINGSYS-DEBT-022): "pouzdanost" was newly added to
+        # the prompt above with zero enum-guard, unlike every sibling GPT-declared confidence
+        # field this engagement already validates (client_twin.py's own pouzdanost, Genome's
+        # genome_kompletnost, CIO's top-level pouzdanost, ...). Same fail-safe direction: an
+        # unrecognized/missing value defaults to the least-confident bucket. Folded into
+        # ai_tags (existing JSONB column) rather than a top-level field so it's visible
+        # wherever ai_tags already is, no schema change.
+        if isinstance(rezultat, dict):
+            _pouzdanost = rezultat.get("pouzdanost")
+            if _pouzdanost not in ("visoka", "srednja", "niska"):
+                _pouzdanost = "niska"
+            if not isinstance(rezultat.get("ai_tags"), dict):
+                rezultat["ai_tags"] = {}
+            rezultat["ai_tags"]["_klasifikacija_pouzdanost"] = _pouzdanost
+        return rezultat
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[EVIDENCE] Klasifikacija greška: %s", exc)
+        # Program Phoenix, Mission 006 (LIVINGSYS-DEBT-009): this fallback used to be
+        # persisted (tip_dokaza="ostalo", klasifikovan_at stamped) completely
+        # indistinguishable from a genuine "ostalo" classification -- a real GPT failure was
+        # silently laundered into a plausible-looking success. tip_dokaza stays "ostalo" (a
+        # real, valid fallback value, so nothing downstream breaks), but ai_tags (an existing
+        # JSONB column, no migration) now carries an explicit failure flag any future reader
+        # can check -- the classification is no longer silently indistinguishable from a real
+        # one.
         return {
             "tip_dokaza": "ostalo",
             "pravni_elementi": [],
-            "ai_tags": {},
+            "ai_tags": {"_klasifikacija_greska": True},
             "kljucne_cinjenice": [],
         }
 
@@ -185,7 +213,7 @@ def _snaga_iz_lokacije(tvrdnja: str, lokacija: dict) -> str:
     return "jaka"
 
 
-def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> None:
+def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> dict:
     """Poziva se u pozadini posle uploada. Klasifikuje i upisuje u predmet_dokumenti.
 
     Reliability fix (2026-07-19, posle migracija 016/074): predmet_dokumenti
@@ -193,7 +221,13 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
     prvi pao (npr. buduci schema gap kao onaj koji je upravo ispravljen),
     drugi se NIKAD ne bi ni pokusao, iako su nezavisni upisi. Razdvojeno u
     dva bloka, isti obrazac kao vec dokazan u api.py-jevom document insert-u:
-    delimican neuspeh vise ne blokira sve."""
+    delimican neuspeh vise ne blokira sve.
+
+    Program Phoenix, Mission 006 (LIVINGSYS-DEBT-009): now returns `rezultat` (previously
+    always None) so a synchronous caller (routers/evidence.py::reklasifikuj) can check
+    rezultat["ai_tags"].get("_klasifikacija_greska") before deciding whether to charge --
+    existing fire-and-forget callers (asyncio.create_task) are unaffected, they already
+    ignore the return value."""
     import json
     supa = get_supa()
     # Mission Migration (2026-08-03) -- Canonical AI Infrastructure Adoption:
@@ -285,6 +319,8 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 )
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
+
+    return rezultat
 
 
 @router.get("/predmeti/{predmet_id}")
@@ -426,11 +462,22 @@ async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depe
     # reklasifikacija UVEK slala prazan string umesto stvarnog teksta
     # dokumenta -- efektivno nikad nije videla sadržaj koji treba da
     # reklasifikuje, samo naziv fajla.
-    asyncio.create_task(
-        asyncio.to_thread(
-            klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""),
-            d.get("tekst_sadrzaj", "") or "", uid,
-        )
+    #
+    # Program Phoenix, Mission 006 (LIVINGSYS-DEBT-009): this used to fire-and-forget
+    # (asyncio.create_task) and charge a credit immediately after, before the background
+    # task had even started -- if OpenAI was down, the credit was spent for a document that
+    # silently fell back to "ostalo" again, with no refund path. Now awaited synchronously
+    # (matching every other GPT-consuming endpoint in this codebase's own request/response
+    # convention -- this is a manual, occasional "fix a bad classification" action, not a
+    # hot path, so the extra latency of one GPT call is a reasonable, low-risk tradeoff for
+    # correct billing), and the charge is skipped when the classification genuinely failed.
+    rezultat = await asyncio.to_thread(
+        klasifikuj_i_sacuvaj, predmet_id, dok_id, d.get("naziv_fajla", ""),
+        d.get("tekst_sadrzaj", "") or "", uid,
     )
+    _greska = bool((rezultat or {}).get("ai_tags", {}).get("_klasifikacija_greska"))
+    if _greska:
+        return {"ok": False, "poruka": "Reklasifikacija nije uspela (AI greška). Pokušajte ponovo, kredit nije naplaćen."}
+
     await UsageService.consume(user["user_id"], user.get("email", ""), "evidence")
-    return {"ok": True, "poruka": "Reklasifikacija pokrenuta u pozadini."}
+    return {"ok": True, "poruka": "Reklasifikacija završena."}

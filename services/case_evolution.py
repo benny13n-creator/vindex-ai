@@ -482,7 +482,7 @@ async def _consequence_evidence_classify(event: Event) -> str:
 
     naziv = payload.get("naziv") or before_data.get("naziv_fajla") or "dokument"
     from routers.evidence import klasifikuj_i_sacuvaj
-    await asyncio.to_thread(klasifikuj_i_sacuvaj, event.predmet_id, dokument_id, naziv, tekst, event.user_id)
+    _klas_rezultat = await asyncio.to_thread(klasifikuj_i_sacuvaj, event.predmet_id, dokument_id, naziv, tekst, event.user_id)
 
     after_res = await asyncio.to_thread(
         lambda: supa.table("predmet_dokumenti").select("klasifikovan_at").eq("id", dokument_id).maybe_single().execute()
@@ -490,6 +490,20 @@ async def _consequence_evidence_classify(event: Event) -> str:
     after_data = after_res.data if after_res else None
     if not after_data or not after_data.get("klasifikovan_at"):
         raise RuntimeError(f"evidence_classification verifikacija neuspešna za dokument={dokument_id}: klasifikovan_at i dalje prazan")
+
+    # Program Phoenix, Mission 006 (LIVINGSYS-DEBT-009): klasifikovan_at above only proves a
+    # ROW was written, not that the classification itself succeeded -- klasifikuj_i_sacuvaj's
+    # own GPT-failure fallback ALSO stamps klasifikovan_at (a real, valid "ostalo" fallback
+    # value gets persisted either way). Its own ai_tags now carries an explicit failure flag
+    # (Mission 006's own fix to routers/evidence.py) -- logged here so a genuine AI failure on
+    # this, the most frequent event-driven classification path, is never silently
+    # indistinguishable from a real "ostalo" classification, matching this function's own
+    # "verify, don't just no-exception" standard for the completion marker above.
+    if isinstance(_klas_rezultat, dict) and _klas_rezultat.get("ai_tags", {}).get("_klasifikacija_greska"):
+        logger.warning(
+            "[CASE_EVOLUTION] evidence_classification: AI klasifikacija neuspešna za dokument=%s (fallback 'ostalo' upisan)",
+            dokument_id,
+        )
     return str(dokument_id)
 
 

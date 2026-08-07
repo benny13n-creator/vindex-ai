@@ -3009,3 +3009,19 @@ for an identical recent row using only existing columns (no migration). 5 new te
 (`tests/test_phoenix_mission_005_evidence_event_idempotency.py`). Full suite: **3,246 passed,
 1 skipped, 0 failed** (was 3,241, +5 tests, zero regressions). Red Team self-check passed. Full
 report: `docs/phoenix/mission-005/`. **STOP GATE: PASS.**
+
+### Mission 006 — Evidence Quality Signals (CLOSED)
+
+Closed `LIVINGSYS-DEBT-009` (a genuine GPT classification failure was silently laundered into
+a plausible fake "ostalo" success with zero signal; `reklasifikuj` charged a credit before its
+fire-and-forget background classification even started, no refund path) and `-022` (evidence-
+type classification had no confidence gate at all). `-009` fixed with a real failure signal in
+the existing `ai_tags` column, threaded through `klasifikuj_i_sacuvaj` (now returns its result)
+into both `reklasifikuj` (now synchronous, skips charging on genuine failure) and
+`_consequence_evidence_classify` (now logs the degradation). `-022` fixed with an enum-guarded
+`pouzdanost` field added to the classification prompt — the review-queue UX for low-confidence
+results explicitly NOT built (separate product decision, honestly scoped as partial). 8 new
+tests (`tests/test_phoenix_mission_006_evidence_quality_signals.py`). `static/sw.js` bumped
+`vindex-v99` → `vindex-v100` (this mission touched `vindex.js`). Full suite: **3,254 passed,
+1 skipped, 0 failed** (was 3,246, +8 tests, zero regressions). Red Team self-check passed. Full
+report: `docs/phoenix/mission-006/`. **STOP GATE: PASS.**
