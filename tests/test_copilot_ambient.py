@@ -118,11 +118,34 @@ def test_parsiraj_sugestije_drops_invalid_and_caps_at_three():
         '{"tip": "clan_zakona", "tekst": "E", "izvor": "6"}'
         ']}'
     )
-    sugestije = amb._parsiraj_sugestije(raw)
+    # LAMBDA008-AI-001: clan_zakona/sudska_praksa items are now also filtered
+    # by citation grounding -- pass a rag_kontekst covering every surviving
+    # item's izvor number so this test still isolates the type-validity/cap
+    # logic it was written for, not the separate grounding behavior (which
+    # has its own dedicated tests below).
+    rag_kontekst = "izvori: 1, 4, 6"
+    sugestije = amb._parsiraj_sugestije(raw, rag_kontekst)
     # "nepoznat_tip" (nevažeći tip) i prazan tekst su odbačeni pre sečenja na 3
     assert len(sugestije) == 3
     assert all(s["tip"] in ("clan_zakona", "sudska_praksa", "upozorenje") for s in sugestije)
     assert all(s["tekst"] for s in sugestije)
+
+
+def test_parsiraj_sugestije_drops_ungrounded_clan_zakona_and_sudska_praksa():
+    """LAMBDA008-AI-001: a clan_zakona/sudska_praksa suggestion whose citation
+    number never appeared in the RAG context we actually sent must be dropped
+    -- upozorenje items are exempt (they flag a problem in the paragraph
+    itself, not a legal citation, per the system prompt)."""
+    import services.ambient_analyzer as amb
+    raw = (
+        '{"sugestije": ['
+        '{"tip": "clan_zakona", "tekst": "A", "izvor": "čl. 999"},'
+        '{"tip": "upozorenje", "tekst": "B", "izvor": ""}'
+        ']}'
+    )
+    sugestije = amb._parsiraj_sugestije(raw, rag_kontekst="Zakon o radu, čl. 179...")
+    assert len(sugestije) == 1
+    assert sugestije[0]["tip"] == "upozorenje"
 
 
 def test_parsiraj_sugestije_malformed_json_returns_empty_list():

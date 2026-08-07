@@ -560,27 +560,43 @@ async def briefing_cron(request: Request):
     poslato = 0
     greske  = 0
 
-    for k in korisnici:
+    # LAMBDA008-PERF-003 fix: was a strictly sequential for-loop (up to 500 users,
+    # each 1 GPT call + SMTP send + an explicit 0.5s sleep) invoked directly by the
+    # external cron caller with NO internal timeout wrapper at all -- unlike
+    # workers/background_agents.py's own asyncio.wait_for(600s) cap, a stall here had
+    # no guardrail. Bounded concurrency (same idiom as that module's own fix) plus an
+    # outer timeout so a slow run degrades to "processed what it could in the window"
+    # instead of an unbounded-duration cron call.
+    _briefing_sem = asyncio.Semaphore(int(os.getenv("BRIEFING_CRON_CONCURRENCY", "5")))
+    _counts = {"poslato": 0, "greske": 0}
+
+    async def _process_one(k: dict) -> None:
         uid   = k.get("id")
         email = k.get("email", "")
         ime   = k.get("ime") or k.get("email", "").split("@")[0] or "Advokate"
-
         if not uid or not email:
-            continue
+            return
+        async with _briefing_sem:
+            try:
+                briefing = await _generiši_briefing(uid, supa)
+                sent     = await _pošalji_briefing_email(email, briefing, ime)
+                if sent:
+                    _counts["poslato"] += 1
+                else:
+                    _counts["greske"] += 1
+            except Exception as e:
+                logger.error("Cron briefing greška za %s: %s", email, e)
+                _counts["greske"] += 1
 
-        try:
-            briefing = await _generiši_briefing(uid, supa)
-            sent     = await _pošalji_briefing_email(email, briefing, ime)
-            if sent:
-                poslato += 1
-            else:
-                greske += 1
-        except Exception as e:
-            logger.error("Cron briefing greška za %s: %s", email, e)
-            greske += 1
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*(_process_one(k) for k in korisnici), return_exceptions=True),
+            timeout=540,
+        )
+    except asyncio.TimeoutError:
+        logger.error("Briefing cron: dostignut 540s limit, obrada prekinuta sa nekim korisnicima neobrađenim.")
 
-        await asyncio.sleep(0.5)
-
+    poslato, greske = _counts["poslato"], _counts["greske"]
     logger.info("Briefing cron završen: %d poslato, %d grešaka", poslato, greske)
     return {"ok": True, "poslato": poslato, "greske": greske, "ukupno": len(korisnici)}
 

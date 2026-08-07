@@ -607,8 +607,35 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
     rows = res.data or []
     dispatched, errored, unknown_type, dead_lettered = 0, 0, 0, 0
 
+    # LAMBDA008-EVT-001 fix: claim_pending_events() stamps the WHOLE batch with one
+    # claimed_at, but this loop processes it serially and some handlers are GPT-bound
+    # (run_case_pipeline, Genome refresh). If cumulative processing time exceeds the
+    # p_stale_claim_seconds window (120s) before reaching a later row, that row becomes
+    # reclaimable by another worker's next poll while this worker is still legitimately
+    # working through the same batch, causing duplicate handler execution. Heartbeat:
+    # after each row, push claimed_at forward for the rows still remaining in this
+    # batch, so the staleness window is measured from "since this worker last made
+    # progress," not "since the batch was claimed."
+    remaining_ids = [r["id"] for r in rows]
+
+    async def _heartbeat_remaining() -> None:
+        if not claimed or not remaining_ids:
+            return
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("events")
+                    .update({"claimed_at": datetime.now(timezone.utc).isoformat()})
+                    .in_("id", remaining_ids)
+                    .is_("dispatched_at", "null")
+                    .execute()
+            )
+        except Exception:
+            logger.debug("[EVENT_BUS] batch claim heartbeat failed (non-fatal)", exc_info=True)
+
     for row in rows:
         row_id = row["id"]
+        if row_id in remaining_ids:
+            remaining_ids.remove(row_id)
         raw_type = row.get("event_type")
         try:
             event_type = EventType(raw_type)
@@ -616,6 +643,7 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             logger.warning("[EVENT_BUS] dispatch: nepoznat event_type '%s' (red=%s) — markiram dispečovanim, nema handlera koji bi ga obradio.", raw_type, str(row_id)[:8])
             unknown_type += 1
             await _mark_dispatched(supa, row_id)
+            await _heartbeat_remaining()
             continue
 
         event = Event(
@@ -695,6 +723,8 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
                         .eq("id", row_id)
                         .execute()
                 )
+
+        await _heartbeat_remaining()
 
     if rows:
         logger.info("[EVENT_BUS] dispatch batch: %d obrađeno, %d dispečovano, %d nepoznat tip, %d grešaka, %d dead-lettered", len(rows), dispatched, unknown_type, errored, dead_lettered)

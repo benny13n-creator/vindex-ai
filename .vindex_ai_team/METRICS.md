@@ -1839,3 +1839,25 @@ overclaimed. Full detail: `docs/lambda/LAMBDA005_CERTIFICATION_REPORT.md`.
 
 **Success criteria**: Gate 007 conditions met for the scope actually investigated — explicitly not a claim of
 exhaustive coverage. Full detail: `docs/lambda/LAMBDA007_CERTIFICATION_REPORT.md`.
+
+## Program Lambda, Final Certification 008 (2026-08-07) — "The Final Gate"
+
+| Metric | Value |
+|---|---|
+| Session | Fresh — founder's own explicit choice after Cert 007's spawn-limit constraint; full parallel-fork budget available |
+| Named agents | 14 independent forensic teams (fully parallel) + Red Team (3 parallel adversarial clusters) = 17 total agent launches |
+| Substantive findings | 21 (19 survived Red Team review; 2 were dead-code-resolution items counted separately) |
+| Red Team survival rate | 19/19 (100%) — 0 falsified, 0 downgraded, 2 corrected to be more accurate (both strengthened) |
+| Real findings fixed with test coverage | 17 |
+| Findings architecturally deferred | 1 (`GAMMA-003`, re-confirmed still open) |
+| CRITICAL findings, re-confirmed not new | 1 (`LAMBDA008-SEC-001` — migrations 102/103 still unapplied to production) |
+| Dead router modules resolved | 9 confirmed dead (2 shadow-of-live), 1 mixed (`status_page.py`), 0 remain unconfirmed — closes the 10 Certification 007 left open |
+| Self-corrections during fix cycle | 4 (2 stale test fixtures in `test_billing_naplata.py`, 2 in `test_copilot_ambient.py` — all root-caused, fixed, re-verified before publication) |
+| New migrations drafted (NOT applied) | 2 (104 — `fakture_user_broj_unique`, 105 — `predmet_dokumenti` missing columns) |
+| New/updated tests | 19 new (`tests/test_lambda008_certification.py` ×17, `test_predmeti_close.py` +1, `test_copilot_ambient.py` +1) |
+| Full suite | **3,035 passed, 1 skipped, 0 failed** (399.87s) — was 3,016 at Certification 007's close |
+| Certification deliverables | 10/10 written per the mission's own required list, `docs/lambda/` |
+
+**Success criteria**: Gate 008 conditions met with an explicit NO-GO condition attached — see
+`docs/lambda/BETA_READINESS_FINAL.md`. Not certified ready for Operation Black Swan until migrations 102/103
+are applied to production; no other blocker found. Full detail: `docs/lambda/LAMBDA008_CERTIFICATION_REPORT.md`.

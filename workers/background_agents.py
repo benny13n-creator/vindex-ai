@@ -35,6 +35,15 @@ logger = logging.getLogger("vindex.background_agents")
 
 _AGENT_TIMEOUT_SECONDS = 90
 _MAX_AGENT_RUNS_PER_ORG_PER_DAY = int(os.getenv("AGENT_BUDGET_PER_ORG_DAILY", "40"))
+# LAMBDA008-PERF-002: run_background_agents() used to process (user, agent_type)
+# pairs strictly sequentially inside api.py's own 600s asyncio.wait_for cap around
+# the whole run -- as active-user count grows, later users in iteration order
+# silently got fewer/no agent runs within that window, with no rotation across days
+# (Red Team correction to the original finding: this cannot hang for hours, the
+# outer timeout already prevents that -- the real defect is coverage, not duration).
+# Bounded concurrency lets far more users fit inside the same 600s window without
+# uncapped fan-out against OpenAI/DB.
+_MAX_CONCURRENT_AGENT_RUNS = int(os.getenv("BACKGROUND_AGENTS_CONCURRENCY", "5"))
 
 
 def _agent_registry() -> dict[str, Callable]:
@@ -213,19 +222,28 @@ async def run_background_agents(run_id: str) -> dict:
     org_to_members = {org_key: members for org_key, members in user_to_org.values()}
     budzet_po_orgu = await _budget_used_by_org(org_to_members, supa)
 
-    for user_id in user_ids:
-        rezultat["korisnika_obradjeno"] += 1
-        org_key, members = user_to_org[user_id]
+    sem = asyncio.Semaphore(_MAX_CONCURRENT_AGENT_RUNS)
 
-        for agent_type, agent_fn in registry.items():
-            budzet_potrosen = budzet_po_orgu.setdefault(org_key, {}).get(agent_type, 0)
+    async def _process_one(user_id: str, agent_type: str, agent_fn) -> None:
+        org_key, _members = user_to_org[user_id]
+        async with sem:
+            # Reserve the budget slot BEFORE awaiting the agent call, not after --
+            # under concurrency, checking then incrementing only after the call
+            # returns would let multiple in-flight tasks for the same org all pass
+            # the check before any of them recorded usage (TOCTOU). This dict is
+            # only ever mutated between two consecutive `await`s of the SAME
+            # coroutine step (no `await` between the check and the increment
+            # below), which asyncio's single-threaded event loop makes atomic.
+            org_budget = budzet_po_orgu.setdefault(org_key, {})
+            budzet_potrosen = org_budget.get(agent_type, 0)
             if budzet_potrosen >= _MAX_AGENT_RUNS_PER_ORG_PER_DAY:
                 rezultat["org_budzet_iscrpljen"] += 1
                 logger.info(
                     "[BACKGROUND_AGENTS] budžet iscrpljen org=%s (%d/%d) — preskačem uid=%.8s agent=%s",
                     org_key, budzet_potrosen, _MAX_AGENT_RUNS_PER_ORG_PER_DAY, user_id[:8], agent_type,
                 )
-                continue
+                return
+            org_budget[agent_type] = budzet_potrosen + 1
 
             try:
                 ishod = await asyncio.wait_for(agent_fn(user_id, supa), timeout=_AGENT_TIMEOUT_SECONDS)
@@ -236,13 +254,13 @@ async def run_background_agents(run_id: str) -> dict:
                 )
                 rezultat["po_agentu"][agent_type]["greske"] += 1
                 rezultat["greske"] += 1
-                continue
+                return
             except Exception as e:
                 _sentry_capture(e)
                 logger.error("[BACKGROUND_AGENTS] agent=%s uid=%.8s greška: %s", agent_type, user_id[:8], e)
                 rezultat["po_agentu"][agent_type]["greske"] += 1
                 rezultat["greske"] += 1
-                continue
+                return
 
             ishod = ishod if isinstance(ishod, dict) else {}
             rezultat["po_agentu"][agent_type]["izvrsenja"] += 1
@@ -250,8 +268,13 @@ async def run_background_agents(run_id: str) -> dict:
             rezultat["po_agentu"][agent_type]["greske"] += int(ishod.get("greske", 0) or 0)
 
             await _log_execution(user_id, agent_type, {"run_id": run_id, "ishod": ishod, "org_key": org_key}, supa)
-            # Uvećaj LOKALNO (bez novog upita) da sledeća provera u ovom
-            # istom run-u vidi ažuran potrošeni budžet za ovu organizaciju.
-            budzet_po_orgu[org_key][agent_type] = budzet_po_orgu[org_key].get(agent_type, 0) + 1
+
+    rezultat["korisnika_obradjeno"] = len(user_ids)
+    tasks = [
+        _process_one(user_id, agent_type, agent_fn)
+        for user_id in user_ids
+        for agent_type, agent_fn in registry.items()
+    ]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     return rezultat

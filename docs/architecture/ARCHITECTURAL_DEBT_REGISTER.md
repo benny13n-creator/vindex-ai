@@ -2752,6 +2752,12 @@ guessing at the answer.
 **Severity**: Medium — not broken (the live thin overlay works), but a real missed-value gap worth a
 deliberate yes/no before beta, not an accidental discovery after.
 
+**Merged with `LAMBDA007-DEAD-001`** (Program Lambda, Final Certification 008, 2026-08-07): Certification
+007 independently rediscovered this exact finding — same 5 endpoints, same root cause, same live
+replacement at `api.py:2424` — under a separate ID, without cross-checking this already-open entry first.
+This is now the single tracked entry for `routers/onboarding.py`; `LAMBDA007-DEAD-001` below is kept only
+as a historical record pointing back here, not a second open item.
+
 ## LAMBDA-004 (addendum to `SEC-004`) — no systematic cross-route ownership (IDOR) regression suite exists (Medium-High, process gap)
 
 **Found by**: Security Auditor, Program Lambda Master Sprint 001, re-confirming `SEC-004`'s own prior
@@ -3296,7 +3302,12 @@ than only ever adding new ones.
 **Severity**: Low-Medium — no data loss (both rows remain visible), but a real "which deadline is actually
 correct" confusion risk for the mission's own explicitly-named Calendar/Audit consistency surface.
 
-## LAMBDA007-DEAD-001 — `routers/onboarding.py` is a fully-built, registered, confirmed-dead shadow of the actually-used onboarding flow (Low, product decision needed)
+## LAMBDA007-DEAD-001 — MERGED INTO `LAMBDA-003` (historical record only, not a second open item)
+
+**Merged by**: Program Lambda, Final Certification 008 (2026-08-07), Documentation Drift team — this entry
+independently rediscovered `LAMBDA-003` (same file, same 5 endpoints, same root cause) under a separate ID
+without cross-checking the debt register first. See `LAMBDA-003` above for the single tracked entry. Kept
+below verbatim as the historical record of how this was found the second time, not as an open action item.
 
 **Found by**: coordinator direct investigation, Program Lambda Certification 007 (Enterprise Beta
 Certification) — the session's subagent spawn limit (200/200) was reached during Certification 006, so
@@ -3332,3 +3343,75 @@ existing tool but still not resolved to a final confirmed list.
 
 **Severity**: Low — dead code carries maintenance confusion risk, not a functional or security risk; the
 platform behaves correctly today either way.
+
+---
+
+## Program Lambda, Final Certification 008 (2026-08-07) — "The Final Gate"
+
+Fresh session, full parallel-fork budget (the 200/200 spawn-limit constraint that scoped down
+Certifications 006/007 does not apply here). 14 independent forensic teams + 3 Red Team adversarial
+clusters. 21 substantive findings, 19/19 survived adversarial falsification (2 corrected on survival — see
+`docs/lambda/LAMBDA008_CERTIFICATION_REPORT.md` for full methodology and the complete findings ledger).
+Most findings were fixed directly this sprint (see commit history and `LAMBDA008_CERTIFICATION_REPORT.md`
+for the full fix list: dokument.py session ownership check, billing.py klijent_id filter + invoice-number
+race fix, predmeti_close.py/klijenti double-submit guards, /api/pitanje credit-refund-on-error,
+health_index.py dead-column fix, predmeti_dashboard canonical-priority migration, event_bus batch-claim
+heartbeat, case_commander.py/zakon_monitoring.py/multi_agent.py recency ordering, ambient_analyzer.py
+citation grounding, background_agents.py/morning_briefing.py bounded concurrency, 3 frontend soft-failure
+wiring fixes, SOURCE_OF_TRUTH_REGISTRY.md correction, LAMBDA-003/LAMBDA007-DEAD-001 merge). Items below are
+the ones NOT fixed this sprint — genuine product/architecture decisions or explicitly deferred.
+
+### LAMBDA008-SEC-001 — migrations 102/103 still not applied to live Supabase (CRITICAL, founder action required, not a code fix)
+
+**Found by**: Team 2 (Security & RLS), re-confirmed independently by Team 3 (Ownership/IDOR) and Team 13
+(Migration/Schema Drift); survived Red Team A adversarial review.
+
+**What**: `deduct_credit`/`set_user_pro` SECURITY DEFINER RPCs (`supabase_setup.sql:117-148`, `migrations/
+061_fix_missing_profiles_columns.sql:66-74`) have no ownership check and are callable by any authenticated
+user — a real, live credit-drain / free-permanent-PRO exploit. Same for `profiles`' own UPDATE RLS policy
+(no column scope). This is the SAME finding Certification 002 found and wrote fixes for
+(`migrations/102_lambda002_rpc_ownership_lockdown.sql`, `103_lambda002_profiles_column_lockdown.sql`) —
+this certification re-confirms, independently, that those migrations are still not applied.
+
+**Why not fixed this sprint**: per this repo's standing convention (`feedback_migrations` in project
+memory), migrations are never run by the coordinator/agent — the founder runs them.
+
+**Action required**: run migrations 102 and 103 against production Supabase. This is the single highest-
+priority item in this entire certification.
+
+### LAMBDA008-GAMMA-003-reconfirm — `routers/matter_intel.py`'s own missing-document % recompute (Medium, still open, unchanged from prior tracking)
+
+**Found by**: Team 8 (Canonical Decision Sources), re-verifying already-tracked `GAMMA-003`.
+
+**What**: `get_uncertainty_dashboard` (`routers/matter_intel.py:267`) independently recomputes a missing-
+document percentage via its own `_EXPECTED_DOCS` set-difference (lines 320-325), in the same file that
+already imports `calculate_procesni_rizik` for its main endpoint — a second, parallel implementation of
+logic `risk_engine.py` already owns. Confirmed genuinely still live and unfixed, not stale documentation.
+
+**Why not fixed this sprint**: consolidating this cleanly (feeding into the 5-dimension `uncertainty_score`
+blended with GPT prose) is more than a mechanical delegation — same class of scope decision the original
+`GAMMA-003` entry already deferred. Not attempted blind under this certification's own fix-cycle time
+budget.
+
+### LAMBDA008-DEAD-002 — 9 additional confirmed-dead router modules, beyond `onboarding.py` (Low, product decisions needed)
+
+**Found by**: Team 14 (Dead Code/Shadow Workflow), re-running `scripts/audit_routers.py` and resolving all
+10 modules Certification 007 left unconfirmed; survived Red Team C spot-check (0 false positives).
+
+**What**: `agent_notifications.py`, `auto_discovery.py` (admin-only by design), `knowledge_hygiene.py`,
+`knowledge_transfer.py`, `region.py`, `strategy_simulator.py`, `style_checker.py` — all confirmed zero
+frontend callers, genuinely dead. `import_klijenti.py` and `whatsapp_notif.py` are confirmed genuine
+shadows of live systems (already tracked as `IF-003`/`IF-004`, founder decision pending, status unchanged).
+`status_page.py` is MIXED: `GET /api/status/public` is live (Certification 007's own open follow-up, now
+resolved) but `GET/POST /api/status/incidents` + resolve endpoint are dead within the same module.
+
+**Why not fixed this sprint**: per this program's own established practice (`LAMBDA-003`/`LAMBDA007-DEAD-
+001` above), deleting confirmed-dead code is a product judgment (delete vs. revive), not a unilateral
+engineering fix — consistent with not guessing at `onboarding.py`'s fate either.
+
+**Recommended next step**: a single founder pass over this list plus `LAMBDA-003`/`onboarding.py` — either
+"delete all of these" or name which ones represent unfinished work worth reviving. `status_page.py`'s dead
+incident-management endpoints specifically may be worth reviving (an admin incident-reporting UI is a small,
+well-scoped addition if desired) rather than deleting outright.
+
+**Severity**: Low — dead code, no functional or security risk.

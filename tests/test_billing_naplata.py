@@ -182,7 +182,11 @@ async def test_naplata_status_handles_none_iznos():
 @pytest.mark.anyio
 async def test_po_klijentu_no_predmeti_returns_empty():
     from routers.billing import billing_po_klijentu
-    supa = _supa_by_table(predmet_klijenti=[])
+    # LAMBDA008-IDOR-001: billing_po_klijentu now checks klijent ownership
+    # before querying predmet_klijenti -- klijenti must be populated so this
+    # test genuinely isolates "owned klijent, zero linked predmeti", not the
+    # unrelated unowned-klijent short-circuit path.
+    supa = _supa_by_table(klijenti=[{"id": KID}], predmet_klijenti=[])
     with patch("routers.billing._get_supa", return_value=supa):
         result = await billing_po_klijentu(klijent_id=KID, request=_req(), user=_user())
     assert result["klijent_id"] == KID
@@ -210,7 +214,7 @@ async def test_po_klijentu_aggregates_correctly():
         {"id": PID,  "naziv": "A", "status": "aktivan"},
         {"id": PID2, "naziv": "B", "status": "aktivan"},
     ]
-    supa = _supa_by_table(predmet_klijenti=pk, billing_entries=entries,
+    supa = _supa_by_table(klijenti=[{"id": KID}], predmet_klijenti=pk, billing_entries=entries,
                           fakture=fakture, predmeti=predmeti)
     with patch("routers.billing._get_supa", return_value=supa):
         result = await billing_po_klijentu(klijent_id=KID, request=_req(), user=_user())
@@ -226,7 +230,7 @@ async def test_po_klijentu_aggregates_correctly():
 @pytest.mark.anyio
 async def test_po_klijentu_required_keys():
     from routers.billing import billing_po_klijentu
-    supa = _supa_by_table(predmet_klijenti=[])
+    supa = _supa_by_table(klijenti=[{"id": KID}], predmet_klijenti=[])
     with patch("routers.billing._get_supa", return_value=supa):
         result = await billing_po_klijentu(klijent_id=KID, request=_req(), user=_user())
     assert {"klijent_id","predmeti","stavke","fakture","ukupno_rsd","naplaceno","neizmireno"}.issubset(result.keys())
@@ -237,7 +241,7 @@ async def test_po_klijentu_single_predmet():
     from routers.billing import billing_po_klijentu
     pk      = [{"predmet_id": PID}]
     entries = [{"id": "e1", "predmet_id": PID, "iznos_rsd": 1000, "obracunato": False}]
-    supa    = _supa_by_table(predmet_klijenti=pk, billing_entries=entries,
+    supa    = _supa_by_table(klijenti=[{"id": KID}], predmet_klijenti=pk, billing_entries=entries,
                               fakture=[], predmeti=[{"id": PID, "naziv": "X", "status": "aktivan"}])
     with patch("routers.billing._get_supa", return_value=supa):
         result = await billing_po_klijentu(klijent_id=KID, request=_req(), user=_user())

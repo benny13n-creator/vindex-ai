@@ -138,10 +138,17 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
                 .limit(10)
                 .execute()
         ),
+        # LAMBDA008-CTX-001 fix: was an unordered .limit(20) — on a case with >20
+        # documents this permanently hid whichever 20 rows Postgres happened to
+        # return first, the exact "static slice on unordered fetch" bug
+        # shared/case_context.py's own docstring says it was built to prevent.
+        # Ordering by recency at least surfaces the newest documents first, matching
+        # that module's intent (not a full migration onto its stride-sampling here).
         asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                 .select("naziv_fajla, created_at, tekst_sadrzaj, tip_dokaza, status")
                 .eq("predmet_id", predmet_id)
+                .order("created_at", desc=True)
                 .limit(20)
                 .execute()
         ),

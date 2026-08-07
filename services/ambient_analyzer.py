@@ -21,6 +21,7 @@ uspe ili timeout-uje ne sme da obori LLM sugestiju, i obrnuto.
 import asyncio
 import json
 import logging
+import re
 import time
 from typing import Optional
 
@@ -114,7 +115,31 @@ async def _brzi_rag_kontekst(pasus: str) -> str:
         return ""
 
 
-def _parsiraj_sugestije(raw: str) -> list[dict]:
+def _izvor_potkrepljen(izvor: str, rag_kontekst: str) -> bool:
+    """LAMBDA008-AI-001: the system prompt tells GPT never to invent a citation
+    outside the given RAG context, but nothing downstream ever checked that --
+    ungrounded, guarded only by prompt instruction, exactly the gap ask_agent's
+    own hard-refusal (main.py) closes for the main Q&A path.
+
+    Not a full-string substring check -- GPT legitimately paraphrases the law's
+    name (e.g. "ZR čl. 179" for context that says "Zakon o radu, čl. 179"), and
+    requiring an exact substring match would reject correct, grounded citations
+    just as readily as fabricated ones. The concrete, checkable, hallucination-
+    prone part named in the system prompt is the NUMBER ("nikad ne izmišljaj
+    broj člana") -- every number token in `izvor` must actually appear in the
+    RAG text we sent. Falls back to a substring check only when `izvor` has no
+    numbers at all (e.g. a case name with no cited number)."""
+    izvor_norm = (izvor or "").strip().lower()
+    if not izvor_norm:
+        return False
+    kontekst_norm = (rag_kontekst or "").lower()
+    brojevi = re.findall(r"\d+[a-z]?", izvor_norm)
+    if brojevi:
+        return all(b in kontekst_norm for b in brojevi)
+    return izvor_norm in kontekst_norm
+
+
+def _parsiraj_sugestije(raw: str, rag_kontekst: str = "") -> list[dict]:
     try:
         parsed = json.loads(raw)
     except (TypeError, ValueError):
@@ -133,10 +158,18 @@ def _parsiraj_sugestije(raw: str) -> list[dict]:
         tekst = (s.get("tekst") or "").strip()
         if tip not in ("clan_zakona", "sudska_praksa", "upozorenje") or not tekst:
             continue
+        izvor = (s.get("izvor") or "").strip()[:120]
+        # "upozorenje" is explicitly RAG-independent per the system prompt (flags a
+        # problem in the paragraph itself); clan_zakona/sudska_praksa MUST cite
+        # something that was actually in the context we sent, or get dropped here
+        # rather than reaching a lawyer's live document ungrounded.
+        if tip in ("clan_zakona", "sudska_praksa") and not _izvor_potkrepljen(izvor, rag_kontekst):
+            logger.info("[AMBIENT] sugestija odbačena (nepotkrepljena) tip=%s izvor=%r", tip, izvor)
+            continue
         ocisceno.append({
             "tip": tip,
             "tekst": tekst[:300],
-            "izvor": (s.get("izvor") or "").strip()[:120],
+            "izvor": izvor,
         })
         if len(ocisceno) == 3:
             break
@@ -164,7 +197,7 @@ async def analyze_paragraph(
             asyncio.to_thread(_pozovi_sugestije_api, pasus, rag_kontekst, tip_dokumenta or ""),
             timeout=_LLM_TIMEOUT_SECONDS + 2,
         )
-        sugestije = _parsiraj_sugestije(raw)
+        sugestije = _parsiraj_sugestije(raw, rag_kontekst)
     except asyncio.TimeoutError:
         logger.info("[AMBIENT] LLM timeout uid=%.8s", (user_id or "")[:8])
         sugestije = []

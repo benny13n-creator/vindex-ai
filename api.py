@@ -2929,8 +2929,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         # UsageService.consume() already pre-deducted the credit above (same timing as the
-        # old require_credits pre-deduction) — refund on cache-hit/blocked, exactly as before.
-        if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
+        # old require_credits pre-deduction) — refund on cache-hit/blocked/genuine LLM
+        # failure (LAMBDA008-REL-001: ask_agent returns {"status":"error",...} rather than
+        # raising on exhausted-retry OpenAI failure, so this must be checked explicitly —
+        # otherwise a sustained outage burns a real credit on every failed request).
+        if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
             await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
             preostalo = preostalo + 1
 
@@ -3033,10 +3036,10 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
                 yield f"data: {chunk.replace(chr(10), chr(92) + 'n')}\n\n"
 
             # UsageService.consume() already pre-deducted the credit above (same timing as
-            # the old require_credits pre-deduction) — refund on cache-hit/blocked, exactly
-            # as before.
+            # the old require_credits pre-deduction) — refund on cache-hit/blocked/genuine
+            # LLM failure (LAMBDA008-REL-001, see /api/pitanje's identical fix above).
             preostalo = _stream_preostalo
-            if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
+            if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
                 await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                 preostalo = preostalo + 1
 
@@ -3302,7 +3305,9 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
     from datetime import date as _date, datetime as _dt
     today_iso = _date.today().isoformat()
 
-    hron_r, risk_r = await asyncio.gather(
+    from shared.attention_priority import canonical_sort_key, CANONICAL_ORDER
+
+    hron_r, risk_r, actions_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
                 .select("predmet_id,datum_iso,dogadjaj,vaznost")
@@ -3317,6 +3322,20 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
                 .in_("predmet_id", pred_ids)
                 .like("pitanje", "[Rizik]%")
                 .order("created_at", desc=True)
+                .execute()
+        ),
+        # LAMBDA008-ARCH-002 fix: this endpoint used to compute its own hand-rolled
+        # priority formula (_RISK_SCORE weights + urgentni*3 + days-to-next), a 4th
+        # independent priority algorithm bypassing the platform's canonical Attention
+        # Engine (shared/attention_priority.py, case_actions.prioritet — Core
+        # Consolidation §1.2). Now delegates: po_prioritetu sorts by each case's most
+        # urgent OPEN case_actions row, translated through canonical_sort_key, exactly
+        # like Workspace does.
+        asyncio.to_thread(
+            lambda: supa.table("case_actions")
+                .select("predmet_id,prioritet")
+                .in_("predmet_id", pred_ids)
+                .eq("status", "open")
                 .execute()
         ),
     )
@@ -3335,6 +3354,16 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
             except Exception:
                 pass
 
+    # Most urgent OPEN action per case, as a canonical sort key (0=critical .. 4=informational).
+    # A case with no open actions sorts after every case that has one.
+    _NO_ACTION_KEY = len(CANONICAL_ORDER)
+    action_prio_map: dict = {}
+    for a in (actions_r.data or []):
+        pid = a["predmet_id"]
+        key = canonical_sort_key(a.get("prioritet", ""))
+        if pid not in action_prio_map or key < action_prio_map[pid]:
+            action_prio_map[pid] = key
+
     _RISK_SCORE = {"visok": 4, "srednji": 2, "nizak": 1}
     enriched = []
     for p in predmeti:
@@ -3352,20 +3381,24 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
             except Exception:
                 pass
 
-        score = (
-            len(urgentni) * 3
-            + _RISK_SCORE.get(nivo, 0) * 2
-            + max(0, 30 - days_to_next)
-        )
         enriched.append({
             **p,
             "urgentni_rokovi_count": len(urgentni),
             "sledeci_rok":           sledeci,
             "rizik_nivo":            nivo,
-            "priority_score":        score,
+            "action_priority_key":   action_prio_map.get(pid, _NO_ACTION_KEY),
+            "_days_to_next":         days_to_next,
         })
 
-    po_prioritetu = sorted(enriched, key=lambda x: x["priority_score"], reverse=True)
+    # Primary: canonical action priority (lower = more urgent). Ties broken by the
+    # existing deadline-proximity signal, which is not itself a competing priority
+    # source — just a tiebreaker among cases at the same canonical urgency.
+    po_prioritetu = sorted(
+        enriched,
+        key=lambda x: (x["action_priority_key"], -max(0, 30 - x["_days_to_next"])),
+    )
+    for e in enriched:
+        e.pop("_days_to_next", None)
     po_riziku     = sorted(
         [e for e in enriched if e["rizik_nivo"] in ("visok","srednji","nizak")],
         key=lambda x: _RISK_SCORE.get(x["rizik_nivo"], 0),

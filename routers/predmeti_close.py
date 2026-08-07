@@ -115,16 +115,24 @@ async def zatvori_predmet(
     # Update predmet status and opis
     update_data: dict = {"status": "zatvoren", "opis": new_opis}
 
+    # LAMBDA008-CONC-001 fix: guard the write on the status this handler itself just read,
+    # not just the id/owner — closes the read-then-write race where two concurrent PATCHes
+    # both pass the "not yet closed" pre-check above and both apply the update, double-
+    # appending the closure note and double-firing the benchmark/hronologija side effects.
     updated_res = await asyncio.to_thread(
         lambda: supa.table("predmeti")
                     .update(update_data)
                     .eq("id", predmet_id)
                     .eq("user_id", uid)
+                    .neq("status", "zatvoren")
                     .execute()
     )
 
     if not updated_res.data:
-        raise HTTPException(status_code=500, detail="Ažuriranje predmeta nije uspelo.")
+        raise HTTPException(
+            status_code=409,
+            detail="Predmet je već zatvoren (konkurentan zahtev).",
+        )
 
     # Auto-doprinos anonimnom benchmarku (fire-and-forget, nikad ne blokira zatvaranje)
     async def _benchmark_doprinos():

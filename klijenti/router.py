@@ -22,7 +22,7 @@ import logging
 import os
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -230,6 +230,29 @@ async def create_klijent(
 
     supa = _get_supa()
     ip = get_client_ip(request)
+
+    # LAMBDA008-CONC-002 fix: same double-submit/double-click race class already
+    # mitigated on predmeti creation (api.py::kreiraj_predmet, Certification 004) and
+    # intake_kreiraj — klijenti creation had zero protection. Check-then-insert 5s
+    # window, not a full atomic guarantee (matches the precedent's own documented
+    # tradeoff), but closes the realistic double-click case.
+    _dedup_key = (req.ime.strip() + req.prezime.strip() + req.firma.strip()).lower()
+    if _dedup_key:
+        _cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
+        _dup_check = await asyncio.to_thread(
+            lambda: supa.table("klijenti")
+                .select("id, created_at, ime, prezime, firma")
+                .eq("user_id", user["user_id"])
+                .gte("created_at", _cutoff_iso)
+                .execute()
+        )
+        for _row in (_dup_check.data or []):
+            _existing_key = ((_row.get("ime") or "") + (_row.get("prezime") or "") + (_row.get("firma") or "")).strip().lower()
+            if _existing_key == _dedup_key:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Klijent sa ovim imenom je upravo kreiran. Ako ovo nije duplikat, sačekajte par sekundi i pokušajte ponovo.",
+                )
 
     # Enkriptuj CONFIDENTIAL polja pre upisa
     row = {

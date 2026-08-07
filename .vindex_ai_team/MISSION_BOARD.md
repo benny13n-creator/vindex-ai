@@ -2394,3 +2394,53 @@ Certification 006's own closing count: 3,016/1/0. Full report, including explici
 
 **Verdict: Gate 007 conditions met for the scope actually investigated.** Not a claim of exhaustive coverage
 across all 13 named attack surfaces — see the report's own scope disclosure.
+
+## Program Lambda, Final Certification 008 (2026-08-07) — "The Final Gate"
+
+Fresh session per the founder's own explicit choice after Certification 007 hit the prior session's 200/200
+subagent spawn limit — full parallel-fork budget actually available this time. Founder's own Master Prompt:
+the last independent certification before Operation Black Swan and closed beta, "assume every prior sprint
+could be wrong," "trust nothing but the code," maximum parallel agents, coordinator applies fixes directly
+(deviates from the masterprompt's literal "coordinator must not touch code" text — consistent with this
+program's actual operating practice across Certifications 004-007, disclosed not hidden).
+
+**15 teams**: 14 independent forensic teams (Architecture, Security/RLS, Ownership/IDOR, Event Bus,
+Concurrency, AI Governance, Canonical Context, Canonical Decision Sources, Performance, Reliability,
+Frontend/Backend, Documentation Drift, Migration/Schema Drift, Dead Code) launched fully in parallel, each
+explicitly briefed to distrust prior reports and cite only direct code evidence — plus Red Team, split into
+3 parallel adversarial clusters, tasked with falsifying every finding.
+
+**19 substantive findings, 19/19 survived adversarial Red Team review** (0 falsified, 0 downgraded; 2
+corrected to be MORE accurate — the `dokument.py` session exposure turned out permanent, not session-scoped;
+the `background_agents.py` finding turned out hard-capped at 600s, not unbounded, once Red Team found the
+existing timeout wrapper). **17 findings fixed with test coverage this sprint**: invoice-number race
+(billing.py, no unique constraint, dead atomic RPC — migration 104 drafted), `/api/pitanje` credit-loss-on-
+LLM-failure, `health_index.py` dead-column bug (silently zeroed 4 dashboard components), `dokument.py`
+cross-tenant document read via permanent session namespace, `predmeti_dashboard`'s 4th shadow priority
+formula, Event Bus batch-claim staleness race (per-row heartbeat fix), 3 frontend soft-failure-signals never
+shown to the lawyer, `background_agents.py`/`morning_briefing.py` cron fan-out (bounded concurrency),
+`predmet_dokumenti` untracked schema columns (migration 105 drafted), `case_commander.py`/
+`zakon_monitoring.py`/`multi_agent.py` canonical-context bypasses, `ambient_analyzer.py` ungrounded AI
+citations, `SOURCE_OF_TRUTH_REGISTRY.md` stale claims, `klijenti.py`/`predmeti_close.py` double-submit/race
+guards, `billing.py` ownership-filter hardening. **1 finding architecturally deferred** (`GAMMA-003`,
+re-confirmed still open). **1 finding is CRITICAL and re-confirmed, not new**: migrations 102/103
+(Certification 002's own credit-drain/free-PRO fix) are STILL not applied to production — the single
+highest-priority item in this entire report, founder action required, not a code fix.
+
+**Fix-cycle self-correction**: found and fixed 4 regressions in *existing* tests caused by this sprint's own
+new checks (2 in `test_billing_naplata.py`, 2 in `test_copilot_ambient.py`) — both root-caused to stale test
+fixtures predating the new ownership/grounding logic, not flaws in the fixes; both fixed before this report
+was written, consistent with this program's own "verify before trusting green" discipline.
+
+Full suite, independently re-run after all fixes: **3,035 passed, 1 skipped, 0 failed** (399.87s) — was
+3,016 at Certification 007's close, +19 new tests. Zero regressions carried into the final run. 10 full
+certification deliverables written per the mission's own required list, `docs/lambda/`:
+`FINAL_CERTIFICATION_REPORT.md`, `EXECUTIVE_RISK_REPORT.md`, `ARCHITECTURE_CERTIFICATION.md`,
+`SECURITY_CERTIFICATION.md`, `AI_CERTIFICATION.md`, `PERFORMANCE_CERTIFICATION.md`,
+`SCALABILITY_CERTIFICATION.md`, `RELIABILITY_CERTIFICATION.md`, `DOCUMENTATION_CERTIFICATION.md`,
+`BETA_READINESS_FINAL.md`. Full findings ledger and methodology: `docs/lambda/LAMBDA008_CERTIFICATION_REPORT.md`.
+
+**Verdict: NO-GO until migrations 102 and 103 are applied to production.** Once applied, this certification
+found no other reason to withhold a GO for Operation Black Swan — see `BETA_READINESS_FINAL.md` for the full
+statement, including this program's own standing, disclosed limitation (no live load-test numbers exist at
+any scale, unchanged since Certification 004).

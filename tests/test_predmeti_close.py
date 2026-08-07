@@ -27,8 +27,14 @@ def _fake_request():
     return StarletteRequest(scope=scope)
 
 
-def _build_supa(pred: dict | None, hron_rows: list[dict] | None = None):
-    """Build Supabase mock for predmeti + predmet_hronologija."""
+def _build_supa(pred: dict | None, hron_rows: list[dict] | None = None, update_wins: bool = True):
+    """Build Supabase mock for predmeti + predmet_hronologija.
+
+    update_wins=False simulates LAMBDA008-CONC-001's guarded race: the
+    .eq().eq().neq("status","zatvoren") update returns zero rows, as it would
+    for real if a concurrent request already closed the case between this
+    handler's own read and its write.
+    """
     mock = MagicMock()
 
     def _table(name):
@@ -41,10 +47,10 @@ def _build_supa(pred: dict | None, hron_rows: list[dict] | None = None):
             single_chain.execute.return_value.data = pred
             t.select.return_value.eq.return_value.eq.return_value.single.return_value = single_chain
             t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value = single_chain
-            # update() chain
+            # update() chain -- LAMBDA008-CONC-001 fix added a 3rd .neq() call.
             upd_chain = MagicMock()
-            upd_chain.execute.return_value.data = [pred] if pred else []
-            t.update.return_value.eq.return_value.eq.return_value = upd_chain
+            upd_chain.execute.return_value.data = ([pred] if pred else []) if update_wins else []
+            t.update.return_value.eq.return_value.eq.return_value.neq.return_value = upd_chain
         elif name == "predmet_hronologija":
             ins_chain = MagicMock()
             ins_chain.execute.return_value.data = [{}]
@@ -111,6 +117,29 @@ async def test_zatvori_not_found():
             await zatvori_predmet("nonexistent", body, _fake_request(), _fake_user())
 
     assert exc.value.status_code == 404
+
+
+# ─── T4: konkurentno zatvaranje (LAMBDA008-CONC-001) → 409, ne duplirano zatvaranje ──
+
+@pytest.mark.anyio
+async def test_zatvori_concurrent_race_returns_409_not_silent_double_close():
+    """Program Lambda, Final Certification 008 (LAMBDA008-CONC-001): two concurrent
+    PATCH requests both pass the pre-check (both read status='aktivan' before either
+    writes) -- the write itself must be guarded on the status this handler read, not
+    just id/owner, or both requests silently succeed (double closure note, double
+    hronologija/benchmark side effects). Simulates the SECOND request landing after a
+    concurrent one already flipped the status: the guarded update matches 0 rows."""
+    from fastapi import HTTPException
+    from routers.predmeti_close import ZatvoriReq, zatvori_predmet
+
+    pred = {"id": "pred-003", "naziv": "Race predmet", "status": "aktivan", "opis": ""}
+    body = ZatvoriReq(ishod="pobeda")
+
+    with patch("routers.predmeti_close._get_supa", return_value=_build_supa(pred, update_wins=False)):
+        with pytest.raises(HTTPException) as exc:
+            await zatvori_predmet("pred-003", body, _fake_request(), _fake_user())
+
+    assert exc.value.status_code == 409
 
 
 # ─── T4: validacija — pogrešan ishod ─────────────────────────────────────────

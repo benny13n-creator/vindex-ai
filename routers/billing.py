@@ -583,26 +583,51 @@ async def faktura_create(
     pdv_iznos     = round(iznos_bez_pdv * body.pdv_stopa / 100, 2)
     iznos_sa_pdv  = iznos_bez_pdv + pdv_iznos
 
-    auto_broj    = await _sledeci_broj_fakture(supa, uid)
-    broj_fakture = f"PRF-{auto_broj}" if body.is_proforma else auto_broj
     datum_dospeca = body.datum_dospeca or (date.today() + timedelta(days=30)).isoformat()
 
-    faktura_r = await _db(lambda: supa.table("fakture").insert({
-        "user_id":        uid,
-        "predmet_id":     body.predmet_id,
-        "broj_fakture":   broj_fakture,
-        "klijent_naziv":  body.klijent_naziv,
-        "klijent_adresa": body.klijent_adresa,
-        "klijent_pib":    body.klijent_pib,
-        "iznos_bez_pdv":  iznos_bez_pdv,
-        "pdv_iznos":      pdv_iznos,
-        "iznos_sa_pdv":   iznos_sa_pdv,
-        "napomena":       body.napomena,
-        "status":         "nacrt",
-        "is_proforma":    body.is_proforma,
-        "datum_dospeca":  datum_dospeca,
-    }).execute())
-    if not faktura_r.data:
+    # LAMBDA008-CONC-003 fix: _sledeci_broj_fakture's SELECT MAX+1 is not atomic —
+    # two concurrent faktura_create calls (double-click, two tabs) can both compute
+    # the same next number. Migration 104 (drafted, founder-applied per this repo's
+    # standing convention) adds a UNIQUE(user_id, broj_fakture) index; once applied,
+    # a genuine race surfaces as a 23505 here instead of silently producing two
+    # invoices with the identical legal invoice number — same retry-on-conflict idiom
+    # already established in this file's timer_sessions insert above. Bounded to 3
+    # attempts: a real race resolves on the very next number, this is not meant to
+    # paper over a systemic problem.
+    faktura_r = None
+    broj_fakture = ""
+    had_conflict = False
+    for _attempt in range(3):
+        auto_broj    = await _sledeci_broj_fakture(supa, uid)
+        broj_fakture = f"PRF-{auto_broj}" if body.is_proforma else auto_broj
+        try:
+            faktura_r = await _db(lambda: supa.table("fakture").insert({
+                "user_id":        uid,
+                "predmet_id":     body.predmet_id,
+                "broj_fakture":   broj_fakture,
+                "klijent_naziv":  body.klijent_naziv,
+                "klijent_adresa": body.klijent_adresa,
+                "klijent_pib":    body.klijent_pib,
+                "iznos_bez_pdv":  iznos_bez_pdv,
+                "pdv_iznos":      pdv_iznos,
+                "iznos_sa_pdv":   iznos_sa_pdv,
+                "napomena":       body.napomena,
+                "status":         "nacrt",
+                "is_proforma":    body.is_proforma,
+                "datum_dospeca":  datum_dospeca,
+            }).execute())
+            had_conflict = False
+            break
+        except Exception as e:
+            if "23505" in str(e) or "duplicate key" in str(e).lower():
+                logger.warning("[BILLING] broj_fakture konflikt (pokušaj %d/3) uid=%.8s broj=%s", _attempt + 1, uid, broj_fakture)
+                faktura_r = None
+                had_conflict = True
+                continue
+            raise
+    if had_conflict:
+        raise HTTPException(status_code=409, detail="Konflikt broja fakture, pokušajte ponovo.")
+    if not faktura_r or not faktura_r.data:
         raise HTTPException(status_code=500, detail="Kreiranje fakture nije uspelo.")
 
     faktura    = faktura_r.data[0]
@@ -965,6 +990,16 @@ async def billing_po_klijentu(
     """Billing stavke i fakture za sve predmete jednog klijenta."""
     uid  = user["user_id"]
     supa = _get_supa()
+
+    klijent_owned = await _db(lambda: supa.table("klijenti")
+                     .select("id")
+                     .eq("id", klijent_id)
+                     .eq("user_id", uid)
+                     .limit(1)
+                     .execute())
+    if not (klijent_owned.data or []):
+        return {"klijent_id": klijent_id, "predmeti": [], "stavke": [], "fakture": [],
+                "ukupno_rsd": 0.0, "naplaceno": 0.0, "neizmireno": 0.0}
 
     pk_r = await _db(lambda: supa.table("predmet_klijenti")
                      .select("predmet_id")

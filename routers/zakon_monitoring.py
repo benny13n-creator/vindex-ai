@@ -443,12 +443,14 @@ async def impact_analiza(
             raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
         predmet = pred_r.data
 
-        # Dokumenti predmeta (tekst sadrzaj)
+        # Dokumenti predmeta (tekst sadrzaj) — LAMBDA008-CTX-002 fix: was unordered,
+        # same static-slice defect as case_commander.py's own fix above.
         dok_r = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                 .select("naziv_fajla, tekst_sadrzaj")
                 .eq("predmet_id", predmet_id)
                 .not_.is_("tekst_sadrzaj", "null")
+                .order("created_at", desc=True)
                 .limit(5)
                 .execute()
         )

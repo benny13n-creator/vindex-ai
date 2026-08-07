@@ -154,6 +154,23 @@ def _fetch_session_tekst(session_id: str, namespace_prefix: str = "tmp_") -> str
         return ""
 
 
+async def _verify_pred_namespace_ownership(session_id: str, ns_prefix: str, uid: str) -> None:
+    """LAMBDA008-SEC-001 fix: pred_<predmet_id> Pinecone namespaces never expire
+    (see uploaded_doc/session.py::validate_session docstring), so validate_session
+    alone (namespace-existence + TTL only) lets any authenticated user read any
+    other firm's case documents forever by guessing/leaking a predmet_id. Raises
+    404 (not 403, to avoid confirming existence of another firm's case) if the
+    caller doesn't own the referenced predmet."""
+    if ns_prefix != "pred_":
+        return
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id").eq("id", session_id).eq("user_id", uid).limit(1).execute()
+    )
+    if not (r.data or []):
+        raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/api/dokument/upload")
@@ -351,6 +368,8 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
     if ns_prefix not in ("tmp_", "pred_"):
         ns_prefix = "tmp_"
 
+    await _verify_pred_namespace_ownership(body.session_id, ns_prefix, user["user_id"])
+
     session_valid = await asyncio.to_thread(validate_session, body.session_id, ns_prefix)
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
@@ -459,6 +478,10 @@ async def klasifikuj_sesiju(
 
     if not session_id:
         raise HTTPException(status_code=400, detail="session_id je obavezan.")
+    if namespace_prefix not in ("tmp_", "pred_"):
+        namespace_prefix = "tmp_"
+
+    await _verify_pred_namespace_ownership(session_id, namespace_prefix, user["user_id"])
 
     tekst = await asyncio.to_thread(_fetch_session_tekst, session_id, namespace_prefix)
     if not tekst:

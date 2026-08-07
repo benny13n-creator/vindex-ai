@@ -70,8 +70,14 @@ async def _compute_health(uid: str, supa) -> dict:
         hron_r,
         closed_r,
     ) = await asyncio.gather(
+        # LAMBDA008-ARCH-001 fix: "rizik_nivo" is not a column on predmeti (never created
+        # by any migration; the field is never read anywhere else in this file either) —
+        # PostgREST rejected this query on every call, silently swallowed by
+        # return_exceptions=True below, which zeroed out n_aktivni and cascaded an
+        # empty-state fallback into Case Strength/Portfolio Risk/Client Engagement/
+        # Caseload. Selecting only real, used columns restores this query.
         asyncio.to_thread(lambda: supa.table("predmeti")
-            .select("id,naziv,status,case_dna,rizik_nivo,created_at")
+            .select("id,naziv,status,case_dna,created_at")
             .eq("user_id", uid).execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("predmet_id,datum,status")

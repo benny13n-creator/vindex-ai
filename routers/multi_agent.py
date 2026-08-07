@@ -435,11 +435,15 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
                 predmet_verifikovan = True
                 p = pr.data[0]
                 try:
+                    # LAMBDA008-PERF-001 fix: was ascending redni_broj (oldest-first) —
+                    # on a case with >10 documents this stayed permanently stuck on the
+                    # original oldest 10 as the case grows, unlike shared/case_context.py's
+                    # recency-aware sampler. Descending surfaces the newest documents.
                     dok_res = await asyncio.to_thread(
                         lambda: supa.table("predmet_dokumenti")
                             .select("id,naziv_fajla,redni_broj,tekst_sadrzaj,velicina_kb")
                             .eq("predmet_id", req.predmet_id)
-                            .order("redni_broj").limit(10).execute()
+                            .order("redni_broj", desc=True).limit(10).execute()
                     )
                     dok_rows = dok_res.data or []
                     doc_count = len(dok_rows)

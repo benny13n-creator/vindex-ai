@@ -306,27 +306,40 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     except Exception:
         next_rn = 1
 
-    await asyncio.to_thread(
-        lambda: supa.table("predmet_dokumenti").insert({
-            "predmet_id": predmet_id, "user_id": user_id,
-            "naziv_fajla": f"AI Nacrt (odobren) — {naziv}",
-            "storage_path": f"draft/{session_id}",
-            "pinecone_namespace": owner_ns, "status": "indeksirano",
-            "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
-            "redni_broj": next_rn, "tekst_sadrzaj": tekst[:100_000],
-            # Program Intake Sprint 001 (2026-08-04) -- ovaj red je ranije
-            # ostajao SA tip_dokaza=NULL trajno (Fork 1 finding: nijedan
-            # background task ovde ne pokreće klasifikaciju, za razliku od
-            # ostalih pisaca predmet_dokumenti). Ne pokrećemo novi AI poziv
-            # da to popunimo (misija zabranjuje novu AI funkcionalnost) --
-            # umesto toga, deterministički postavljamo vrednost koju već
-            # 100% sa sigurnošću znamo iz konteksta ovog poziva: ovo je
-            # advokatov odobren nacrt podneska, tačno 'podnesak' iz
-            # POSTOJEĆEG dozvoljenog vokabulara (routers/evidence.py,
-            # isti taj koji stvarni klasifikator koristi) -- ne nova reč.
-            "tip_dokaza": "podnesak",
-        }).execute()
-    )
+    _dok_row = {
+        "predmet_id": predmet_id, "user_id": user_id,
+        "naziv_fajla": f"AI Nacrt (odobren) — {naziv}",
+        "storage_path": f"draft/{session_id}",
+        "pinecone_namespace": owner_ns, "status": "indeksirano",
+        "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
+        "redni_broj": next_rn, "tekst_sadrzaj": tekst[:100_000],
+        # Program Intake Sprint 001 (2026-08-04) -- ovaj red je ranije
+        # ostajao SA tip_dokaza=NULL trajno (Fork 1 finding: nijedan
+        # background task ovde ne pokreće klasifikaciju, za razliku od
+        # ostalih pisaca predmet_dokumenti). Ne pokrećemo novi AI poziv
+        # da to popunimo (misija zabranjuje novu AI funkcionalnost) --
+        # umesto toga, deterministički postavljamo vrednost koju već
+        # 100% sa sigurnošću znamo iz konteksta ovog poziva: ovo je
+        # advokatov odobren nacrt podneska, tačno 'podnesak' iz
+        # POSTOJEĆEG dozvoljenog vokabulara (routers/evidence.py,
+        # isti taj koji stvarni klasifikator koristi) -- ne nova reč.
+        "tip_dokaza": "podnesak",
+    }
+    try:
+        await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").insert(_dok_row).execute())
+    except Exception as _ie:
+        # LAMBDA008-SCHEMA-001 defense-in-depth: mirrors api.py/smart_intake.py's own
+        # column-may-not-exist fallback (migration 105 adds redni_broj/tekst_sadrzaj,
+        # applied by the founder per this repo's standing convention, not automatically)
+        # -- if it hasn't landed yet, don't lose the draft's Pinecone ingest (already
+        # done above) over a missing-column error on the DB bookkeeping row alone.
+        if "42703" in str(_ie) or "does not exist" in str(_ie).lower():
+            logger.warning("[STAGING_PROMOTE] predmet_dokumenti insert bez redni_broj/tekst_sadrzaj (kolona ne postoji): predmet=%s", predmet_id)
+            _dok_row.pop("redni_broj", None)
+            _dok_row.pop("tekst_sadrzaj", None)
+            await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").insert(_dok_row).execute())
+        else:
+            raise
     return True
 
 

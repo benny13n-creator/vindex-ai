@@ -3253,6 +3253,10 @@ async function stratJudgeProfile() {
       + _stratListHtml('Preferirani argumenti', p.preferirani_argumenti, '#4ade80')
       + _stratListHtml('Čega se kloniti', p.cega_se_kloniti, '#f87171')
       + (d.strateska_preporuka ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);">' + _htmlEsc(d.strateska_preporuka) + '</div>' : '')
+      // LAMBDA008-UI-002: backend computes this when a linked predmet_id's own tracked
+      // court doesn't match the court name typed here — a paid, GPT-billed profile
+      // silently based on the wrong court, previously never shown to the lawyer.
+      + (d.sud_neslaganje_sa_predmetom ? '<div style="font-size:.72rem;color:#fbbf24;margin-top:.5rem;padding:.5rem .6rem;background:rgba(251,191,36,.06);border-left:2px solid rgba(251,191,36,.4);">⚠ Predmet koji pratite vezan je za sud "' + _htmlEsc(d.sud_neslaganje_sa_predmetom) + '", ne za uneti sud — proverite da li je ovo namerno.</div>' : '')
       + (d.upozorenje ? '<div style="font-size:.66rem;color:rgba(255,255,255,.3);margin-top:.4rem;">' + _htmlEsc(d.upozorenje) + '</div>' : '')
       + '</div>';
   } catch (e) {
@@ -12733,18 +12737,24 @@ async function _cmdkFetch(q) {
       });
     });
     _cmdkFocusIdx = _cmdkResults.length ? 0 : -1;
-    cmdkRender(_cmdkResults);
+    // LAMBDA008-UI-003: routers/search.py's `nepotpuno` (Project Phoenix) exists
+    // specifically to distinguish "a sub-search failed" from "genuinely 0 results" --
+    // previously dropped here, showing an identical "Nema rezultata." either way.
+    cmdkRender(_cmdkResults, d.nepotpuno || []);
   } catch(e) { cmdkRender([]); }
 }
 
-function cmdkRender(items) {
+function cmdkRender(items, nepotpuno) {
   var el = document.getElementById('cmdk-results');
   if (!el) return;
+  var nepotpunoNotice = (nepotpuno && nepotpuno.length)
+    ? '<div style="padding:.4rem 1.2rem;font-size:.68rem;color:#fbbf24;">⚠ Deo pretrage nije uspeo (' + nepotpuno.length + ' kategorija) — rezultati mogu biti nepotpuni.</div>'
+    : '';
   if (!items.length) {
     var inp = document.getElementById('cmdk-input');
     var hasQuery = inp && inp.value.trim().length >= 2;
     if (hasQuery) {
-      el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata.</div>';
+      el.innerHTML = nepotpunoNotice + '<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata.</div>';
     } else {
       el.innerHTML = '<div style="padding:.5rem 1.2rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">Brze akcije</div>'
         + _CMDK_ACTIONS.map(function(a) {
@@ -12757,7 +12767,7 @@ function cmdkRender(items) {
     }
     return;
   }
-  var lastGroup = null, html = '';
+  var lastGroup = null, html = nepotpunoNotice;
   items.forEach(function(item, i) {
     if (item._skupina !== lastGroup) {
       var meta = _CMDK_ICONS[item.tip] || {label:item._skupina};
@@ -16128,6 +16138,11 @@ async function _voice_open_predmet(rawQuery) {
         var hits = d.predmeti || [];
         if (hits.length) {
           found = { id: hits[0].id, naziv: hits[0].naziv || hits[0].naziv || q };
+        } else if (d.nepotpuno && d.nepotpuno.length) {
+          // LAMBDA008-UI-003: pretraga nije genuinely vratila 0 rezultata -- deo
+          // pretrage je pao na backend-u (routers/search.py's `nepotpuno`). Bez ovoga,
+          // glasovna pretraga bi tiho pala na "nema rezultata" identično kao stvaran 0.
+          showToast('Deo pretrage nije uspeo, pokušajte ponovo', 'warn');
         }
       }
     } catch(e) { /* ignore, fall through to search modal */ }
@@ -20983,6 +20998,14 @@ async function siFinalize() {
 
   var predmetId = null;
   var errors = [];
+  // LAMBDA008-UI-001: the backend already computes honest soft-failure signals on
+  // every finalize response (dokument_povezan/dokumenata_povezano/dokumenata_ukupno/
+  // klijent_nesiguran/klijent_kandidati, routers/smart_intake.py) that this handler
+  // used to discard entirely — a lawyer saw "✓ Predmet kreiran!" even when 0 of N
+  // documents actually attached, or when the backend couldn't tell which of two
+  // same-named clients to link. Collected here and surfaced in the recap screen.
+  var siDocsUnlinked = 0;
+  var siClientUncertain = null;
 
   for (var i = 0; i < ok.length; i++) {
     var sf = ok[i];
@@ -21026,6 +21049,8 @@ async function siFinalize() {
       var d = await r.json();
       if (!r.ok) { errors.push(sf.filename + ': ' + ((d && d.detail) || 'greška')); continue; }
       if (!predmetId) predmetId = d.predmet_id;
+      if (d.dokument_povezan === false) siDocsUnlinked++;
+      if (d.klijent_nesiguran && !siClientUncertain) siClientUncertain = d.klijent_kandidati || [];
     } catch (e) {
       errors.push(sf.filename + ': ' + _friendlyErr(e));
     }
@@ -21044,7 +21069,7 @@ async function siFinalize() {
   }
 
   _siDirty = false;
-  _siShowRecap(predmetId, ok);
+  _siShowRecap(predmetId, ok, siDocsUnlinked, siClientUncertain);
 }
 
 // Operation Wow Factor (2026-08-03): "magic moment" recap -- built entirely
@@ -21057,7 +21082,7 @@ async function siFinalize() {
 // when the case opens is more honest than faking a synchronous wait, and
 // avoids introducing exactly the kind of extra polling/waiting this
 // mission's own friction-reduction task explicitly flags as a bug.
-function _siShowRecap(predmetId, okFiles) {
+function _siShowRecap(predmetId, okFiles, docsUnlinked, clientUncertain) {
   var typeCounts = {};
   okFiles.forEach(function (sf) {
     var lbl = _SI_DOC_TYPE_LABELS[sf.docType] || sf.docType || 'dokument';
@@ -21074,6 +21099,15 @@ function _siShowRecap(predmetId, okFiles) {
   html += '</ul>';
   if (needsReviewCount > 0) {
     html += '<div style="font-size:.74rem;color:#fbbf24;margin-bottom:.6rem;">⚠ ' + needsReviewCount + ' izvučeno polje je zahtevalo proveru — ispravke su već sačuvane u predmetu.</div>';
+  }
+  if (docsUnlinked > 0) {
+    html += '<div style="font-size:.74rem;color:#f87171;margin-bottom:.6rem;">⚠ ' + docsUnlinked + ' dokument(a) nije uspešno povezano sa predmetom — proverite predmet nakon otvaranja.</div>';
+  }
+  if (clientUncertain && clientUncertain.length) {
+    // routers/smart_intake.py::klijent_kandidati is a list of client-record IDs
+    // (ambiguous same-name match), not display names -- point the lawyer at the
+    // case's own client-link UI to resolve it, rather than showing raw IDs.
+    html += '<div style="font-size:.74rem;color:#fbbf24;margin-bottom:.6rem;">⚠ Nije sigurno koji od ' + clientUncertain.length + ' istoimenih klijenata je u pitanju — proverite vezu sa klijentom u predmetu.</div>';
   }
   html += '<div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-bottom:.9rem;">Case Genome i analiza dokaza se generišu u pozadini — biće spremni čim otvorite predmet.</div>';
   html += '<button class="intake-next-btn" style="width:100%;" onclick="siGoToPredmet(\'' + predmetId + '\')">Nastavi na predmet →</button>';
