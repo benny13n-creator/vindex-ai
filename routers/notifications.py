@@ -30,6 +30,11 @@ NOTIF_TIPOVI: dict[str, dict] = {
     # Rokovi
     "rok":          {"label": "Nadolazeći rok",         "priority": "normal",  "icon": "calendar"},
     "hitan_rok":    {"label": "Hitan rok",               "priority": "high",    "icon": "calendar-alert"},
+    # BLACKSWAN-CRIT-002 (Operation Black Swan, Mission 001, Scenario 15): a deadline
+    # that passed while the lawyer was away used to just vanish -- _generate_notifications
+    # only ever queried upcoming rokovi, then deleted every unread "rok"/"hitan_rok" row on
+    # its next regeneration, with nothing for a since-passed deadline to regenerate INTO.
+    "rok_propusten":{"label": "Propušten rok",           "priority": "urgent",  "icon": "alarm"},
     "rok_7":        {"label": "Rok za 7 dana",           "priority": "normal",  "icon": "calendar"},
     "rok_3":        {"label": "Rok za 3 dana",           "priority": "high",    "icon": "calendar-alert"},
     "rok_1":        {"label": "Rok SUTRA",               "priority": "urgent",  "icon": "alarm"},
@@ -211,6 +216,48 @@ async def _generate_notifications(uid: str) -> int:
                 })
     except Exception as e:
         logger.error("[NOTIF-GEN] rokovi greška: %s", e)
+
+    # ── 1b. Propušteni rokovi (BLACKSWAN-CRIT-002) — poslednjih 90 dana ───────
+    try:
+        pre_90_iso = (today - timedelta(days=90)).isoformat()
+        rokovi_propusteni_r, predmeti_r2 = await asyncio.gather(
+            asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("predmet_id, dogadjaj, datum_iso, vaznost")
+                .eq("user_id", uid)
+                .gte("datum_iso", pre_90_iso)
+                .lt("datum_iso", today_iso)
+                .order("datum_iso", desc=True)
+                .limit(30)
+                .execute()),
+            asyncio.to_thread(lambda: supa.table("predmeti")
+                .select("id, naziv, status")
+                .eq("user_id", uid)
+                .execute()),
+            return_exceptions=True,
+        )
+        pred_map2: dict[str, str] = {}
+        closed_pids2: set[str] = set()
+        if not isinstance(predmeti_r2, Exception) and predmeti_r2.data:
+            pred_map2 = {p["id"]: p.get("naziv", "") for p in predmeti_r2.data}
+            closed_pids2 = {p["id"] for p in predmeti_r2.data if p.get("status") in ("zatvoren", "arhiviran")}
+
+        if not isinstance(rokovi_propusteni_r, Exception):
+            for r in (rokovi_propusteni_r.data or []):
+                pid = r.get("predmet_id", "")
+                if pid in closed_pids2:
+                    continue
+                naziv = pred_map2.get(pid, "Predmet")
+                datum = r.get("datum_iso", "")
+                new_notifs.append({
+                    "user_id":    uid,
+                    "tip":        "rok_propusten",
+                    "naslov":     f"⚠ Propušten rok — {naziv}",
+                    "poruka":     f"{r.get('dogadjaj', '')} ({datum}) — proveriti da li je i dalje otvoreno.",
+                    "predmet_id": pid,
+                    "prioritet":  NOTIF_TIPOVI["rok_propusten"]["priority"],
+                })
+    except Exception as e:
+        logger.error("[NOTIF-GEN] propusteni rokovi greška: %s", e)
 
     # ── 2. Predmeti bez aktivnosti 30+ dana ───────────────────────────────────
     try:

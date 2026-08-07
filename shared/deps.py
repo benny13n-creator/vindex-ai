@@ -15,6 +15,7 @@ import asyncio
 import hashlib as _hashlib
 import logging
 import os
+import threading
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -67,17 +68,29 @@ def _is_pro(email: str, is_pro_db: bool = False) -> bool:
 
 # ─── Supabase klijent ────────────────────────────────────────────────────────
 _supa: Optional[SupabaseClient] = None
+# BLACKSWAN-HIGH-001 (Operation Black Swan, Mission 001, Scenario 1): the check-then-set
+# below is atomic only when every caller runs on the main asyncio event loop thread. 42+
+# call sites invoke _get_supa() from INSIDE an asyncio.to_thread(...) lambda, which runs
+# on a real OS thread from the default ThreadPoolExecutor -- there the check-then-set is
+# NOT atomic. Reproduced: a cold worker + 50 real concurrent threads produced 50 separate
+# create_client() calls / 50 distinct client objects instead of 1, under exactly the "many
+# lawyers hit a just-started worker" scenario this mission names. A plain threading.Lock
+# is correct and cheap here -- this function is called on both asyncio-loop and worker-
+# thread call sites, so an asyncio.Lock would not protect the thread-pool callers at all.
+_supa_lock = threading.Lock()
 
 
 def _get_supa() -> SupabaseClient:
     global _supa
     if _supa is None:
-        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-            raise RuntimeError(
-                "SUPABASE_URL i SUPABASE_SERVICE_KEY moraju biti postavljeni u .env fajlu."
-            )
-        logger.info("Supabase init: URL=%r", SUPABASE_URL)
-        _supa = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        with _supa_lock:
+            if _supa is None:
+                if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+                    raise RuntimeError(
+                        "SUPABASE_URL i SUPABASE_SERVICE_KEY moraju biti postavljeni u .env fajlu."
+                    )
+                logger.info("Supabase init: URL=%r", SUPABASE_URL)
+                _supa = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return _supa
 
 

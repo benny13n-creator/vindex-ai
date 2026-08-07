@@ -283,8 +283,12 @@ class TestEventBusRetryDetection:
 
         assert result["greske"] == 1
         assert result["dead_letter"] == 0
-        assert len(updates) == 1
-        assert "claimed_at" not in updates[0], \
+        # BLACKSWAN-EVT-001 added a pre-process claim-heartbeat update before the
+        # handler runs (updates[0], which DOES set claimed_at -- that's the whole
+        # point of the heartbeat); the ConsequenceClaimPending-specific assertion
+        # below is about the LAST update, the actual error-tracking one.
+        assert len(updates) == 2
+        assert "claimed_at" not in updates[-1], \
             "ConsequenceClaimPending must NOT fast-clear claimed_at -- doing so exhausts MAX_DISPATCH_ATTEMPTS long before the 300s inner staleness window elapses"
 
     @pytest.mark.anyio
@@ -320,8 +324,11 @@ class TestEventBusRetryDetection:
             result = await eb.dispatch_pending_events()
 
         assert result["greske"] == 1
-        assert len(updates) == 1
-        assert "claimed_at" in updates[0] and updates[0]["claimed_at"] is None
+        # BLACKSWAN-EVT-001 added a pre-process claim-heartbeat update before the
+        # handler runs (updates[0]); the fast-clear this test actually checks is
+        # the LAST update.
+        assert len(updates) == 2
+        assert "claimed_at" in updates[-1] and updates[-1]["claimed_at"] is None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

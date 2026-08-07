@@ -3415,3 +3415,211 @@ incident-management endpoints specifically may be worth reviving (an admin incid
 well-scoped addition if desired) rather than deleting outright.
 
 **Severity**: Low — dead code, no functional or security risk.
+
+---
+
+## Operation Black Swan, Mission 001 (2026-08-07) — "The Day Everything Goes Wrong"
+
+14 independent chaos teams, each instructed to actually RUN reproduction scripts (mocked I/O, real
+application code) rather than just read code, hunting for what breaks under 500-concurrent-lawyer load,
+bulk uploads, OpenAI degradation, DB blips, worker crashes, conflicting concurrent actions, long sessions,
+cross-tenant contention, 30-day abandonment, event floods, AI manipulation, and chaotic human usage — plus
+a dedicated cross-subsystem combined-stressor team. ~40 findings, most CONFIRMED via actual reproduction.
+Full findings ledger and methodology: `docs/blackswan/BLACK_SWAN_REPORT.md`. The 2 CRITICAL findings
+(orphan-invoice write path, systemic overdue-deadline invisibility across 3 code copies) and the highest-
+impact HIGH findings (~13 items: `_get_supa()` thread-safety, kanban lost-update, duplicate Genome refresh,
+3 AI-credit-refund gaps, bulk-status reopen race, unbounded `predmet_hronologija` fetch, silently-lost
+Case Pipeline trigger, 3 AI-output range-clamping gaps, hallucination-guard field-scope + ASCII bypass)
+were all fixed directly with test coverage this mission — see commit history and
+`docs/blackswan/BLACK_SWAN_REPORT.md`. Items below are the ones NOT fixed, each with a specific reason.
+
+### BLACKSWAN-DEBT-001 — Tenant-blind FIFO intake queue (Medium-High, architectural)
+
+**Found by**: Team 2 (Upload Storm), simulated 20 firms × 1000 documents across 4 workers.
+
+**What**: `claim_intake_job` (migration 073) claims strictly `ORDER BY created_at`, zero tenant/
+`kancelarija_id` partitioning; `intake_worker.py` processes exactly 1 job at a time per worker singleton
+(`WEB_CONCURRENCY=4` default → max 4 documents extracting system-wide at once). Simulated: the 20th firm's
+first document isn't claimed until 19,000 other firms' jobs drain — pure global FIFO, no per-tenant
+fairness.
+
+**Why not fixed**: a real fix needs either per-tenant round-robin claiming (a schema/RPC change to
+`claim_intake_job`) or a worker-pool-per-tenant model — both are architectural changes bigger than this
+mission's fix-cycle budget, not a contained bug fix.
+
+### BLACKSWAN-DEBT-002 — Deadline-extraction plausibility check missing (Medium-High)
+
+**Found by**: Team 2. `shared/intake_extract.py::extract_deadline` picks the first date near a legal
+keyword within a 100-char window with no plausibility check. Reproduced: a "valid until 2030" contract-
+expiry clause near "otkaz" auto-accepted (confidence 0.95, threshold 0.90) and filed as a real actionable
+court deadline. Same weak point Team 9's CRITICAL abandonment findings independently surfaced — deadline
+handling is this platform's single most recurring fragility across this mission.
+
+**Why not fixed**: needs new extraction-quality heuristics (date-type classification: statutory deadline
+vs. contract term vs. unrelated date) — new capability, not a contained fix, and risks false negatives
+(missing a real deadline) if rushed.
+
+### BLACKSWAN-DEBT-003 — Duplicate document detection scope (Medium)
+
+Team 2: dedup is exact-byte-hash + same-user only (grep-confirmed, no other logic exists). A rescanned
+copy, a resaved PDF, or the same document uploaded by a colleague at the same firm is not detected. Needs
+perceptual/content-similarity hashing (new capability) or at minimum firm-wide (not just same-user) hash
+scoping — a real product-tradeoff decision (false-positive risk), not fixed this mission.
+
+### BLACKSWAN-DEBT-004 — Corrupted-file wasteful retry (Low)
+
+Team 2: a corrupted (non-PDF-bytes) upload isn't fail-soft like OCR failure — it goes through the full
+exponential-backoff retry cycle before dead-lettering, despite being a deterministic failure that will
+never succeed on retry. Wasteful, not user-facing broken. Small, contained fix (classify `PdfStreamError`
+as non-retryable) — not done this mission purely due to fix-cycle time budget, safe to pick up next.
+
+### BLACKSWAN-DEBT-005 — Unbounded document/timeline fetches outside case_context.py (Medium-High, partially addressed)
+
+Team 2 (PLAUSIBLE-UNCONFIRMED, live Supabase cap unverifiable) + this mission's own fix to
+`shared/case_context.py`'s `predmet_hronologija`/`rocista` queries (now bounded, see BLACKSWAN-HIGH-007 in
+commit history). **Still open**: `routers/case_dna.py::_sync_rokovi_to_hronologija` and other direct
+`predmet_dokumenti`/`rocista` queries outside `case_context.py` remain unbounded — this mission fixed the
+single highest-traffic canonical path, not every call site.
+
+### BLACKSWAN-DEBT-006 — No Event Bus backlog/dead-letter monitoring (Medium)
+
+Team 7 + Team 10: drain capacity (~16.7 events/sec) vastly exceeds any single-lawyer rate and even a
+realistic bulk-upload burst self-recovers — but nothing in the codebase monitors or alerts on undispatched-
+row count or dead-letter count; `logger.critical` on dead-letter is the only signal, never aggregated into
+a dashboard. Needs real observability infrastructure (a metrics endpoint + alerting), out of a single
+mission's contained-fix scope.
+
+### BLACKSWAN-DEBT-007 — Case Genome carries no staleness signal (Medium)
+
+Team 9: `case_dna` has only an integer `verzija` counter, no timestamp anywhere in the payload or the GET
+response. A 30-day-old Genome displays with zero "last computed" indicator. Same shape as the already-
+tracked UI-perception note in `SOURCE_OF_TRUTH_REGISTRY.md` — needs a schema field addition + frontend
+display change, deliberately not rushed alongside this mission's other fixes.
+
+### BLACKSWAN-DEBT-008 — `agent_recommendations` has zero frontend consumer (Low, product decision)
+
+Team 9: `background_agents.py`'s own output table has no UI anywhere (grep-confirmed). 30 days of
+background AI work accumulates invisibly — wasted compute, not a bug. Same class as the already-tracked
+`LAMBDA008-DEAD-002` dead-router list — a founder decision (build the UI, or stop running these agents),
+not an engineering fix.
+
+### BLACKSWAN-DEBT-009 — Event Bus handler idempotency gaps (Medium)
+
+Team 4 + Team 5: `on_rok_kritican`/`on_predmet_kreiran`/`on_dokument_uploadovan`/`on_health_score_promenjen`
+have no per-event idempotency key — a `_mark_dispatched` blip after a handler already ran a real side
+effect causes a duplicate `proactive_alerts` INSERT on reclaim/retry. Reproduced (Team 4): handler fired
+twice for one durable event. Needs a dedupe key added to each handler's own insert (`create_proactive_alert`
+already supports one per Certification-era work elsewhere) — a real, contained fix, deferred only for fix-
+cycle time, not difficulty.
+
+### BLACKSWAN-DEBT-010 — Genome audit-trail gap on outbox-insert failure (Medium)
+
+Team 4 + Team 5 (2 independent confirmations): `_emit_genome_event`'s own try/except silently swallows a
+failed `events` insert by design ("never fail the main request") — the live Genome data is correct, but
+that version's `audit_immutable` hash-chain entry never gets written, and nothing reconciles `events`
+against `case_dna.verzija`. Compliance/audit-trail gap, not user-visible data loss. Needs the same
+reap-and-backfill pattern this mission already built for `BLACKSWAN-HIGH-008` (missing pipeline events),
+applied to Genome versions — a natural next mission, not done here due to time budget.
+
+### BLACKSWAN-DEBT-011 — Cross-worker-process Genome-refresh coalescing gap (Medium, self-disclosed pre-existing)
+
+Team 1 + Team 12 (2 independent confirmations): the in-process coalescing guard this mission just extended
+to the manual refresh endpoint (`BLACKSWAN-HIGH-003`) is plain in-memory Python state, inherently
+process-local under gunicorn's multiple worker processes — the code's own comment already discloses this.
+A full fix needs a DB-level advisory lock or claim row, a bigger change than the in-process guard extension
+done this mission.
+
+### BLACKSWAN-DEBT-012 — Duplicate-submission gaps on 4 more endpoints (Medium)
+
+Team 12: `routers/dokument.py::dokument_upload` (no idempotency check at all, unlike the well-hardened
+smart_intake upload path — double-bills real credits on retry), `routers/zadaci.py::kreiraj_zadatak`,
+`routers/rocista.py::kreiraj_rociste` (also emits a durable consequence-triggering event, doubling the
+downstream effect), `routers/evidence.py::add_dokaz` — all lack the 5s-window dedup pattern this mission's
+`billing.py`/`klijenti.py`/`predmeti` fixes already established elsewhere. Same fix shape, not applied here
+purely due to fix-cycle time budget (4 more call sites), not difficulty — a natural, low-risk follow-up.
+
+### BLACKSWAN-DEBT-013 — `klijenti/router.py::update_klijent` whole-form last-write-wins (Medium)
+
+Team 12: writes every non-None field from the request; the frontend (`crmSacuvaj`) always submits the
+complete form, never a diff. Two tabs editing different fields on the same client silently revert each
+other. Contrasts with `api.py::update_predmet`, which is correctly safe (whitelists only fields present in
+the request body). Fix is either a frontend diff-submission change or backend field-presence detection —
+deferred for fix-cycle time.
+
+### BLACKSWAN-DEBT-014 — Upload not blocked by a closing case (Medium)
+
+Team 6: `api.py::predmet_upload_auto_analyze`'s ownership check never filters on case status; racing an
+in-flight upload against `zatvori_predmet` lets the upload complete into an already-closed case with zero
+error. Needs a status check added to the upload path — small, contained, deferred for time budget.
+
+### BLACKSWAN-DEBT-015 — Genome-refresh response echoes stale case name (Low, cosmetic)
+
+Team 6: `refresh_case_dna` reads `naziv` once at entry purely to echo in the response; a rename landing
+mid-refresh means the response shows the pre-rename name even though the DB already has the new one. No
+data corruption, cosmetic only.
+
+### BLACKSWAN-DEBT-016 — Cross-tenant resource-contention noisy-neighbor (Medium-High, architectural)
+
+Team 14 (combined-stressor finding): every blocking call (OpenAI AND every Supabase `.execute()`) runs via
+`asyncio.to_thread`, sharing Python's single process-wide default `ThreadPoolExecutor` — zero per-tenant
+isolation, and Genome-refresh's own OpenAI call doesn't even touch the existing AI semaphore (only
+`ask_agent`'s `pokreni()` does). Reproduced: one firm's bulk-upload load pushed an unrelated firm's fast,
+unrelated read latency up 17.9x on a 20-core dev machine. Needs a dedicated thread pool sized/scoped per
+purpose (or per-tenant), or extending the AI semaphore's reach to cover the Genome-refresh path too — a
+real architectural change, correctly not attempted as a quick patch.
+
+### BLACKSWAN-DEBT-017 — Ordinary-concurrency TOCTOU on every 5s-window dedup check (Medium, architectural)
+
+Team 14: this mission's own (and prior sprints') 5s-window check-then-insert dedup pattern (predmeti,
+klijenti, intake, fakture) is defeated by ordinary concurrency alone — 2 simultaneous requests both see an
+empty dedup-check result and both insert, no DB blip needed. This is the same known, documented tradeoff
+this pattern's own prior-sprint comments already name ("a check-then-insert mitigation, not a full atomic
+guarantee") — re-confirmed real under this mission's own reproduction, not a new discovery, but flagged
+here as the item a future mission should close with real DB-level unique constraints + retry-on-conflict
+(the pattern this mission's own `BLACKSWAN-CRIT-001`/billing.py fix demonstrates), applied systematically.
+
+### BLACKSWAN-DEBT-018 — Semaphore hold-time coupled to LLM retry backoff (High, architectural)
+
+Team 14 (combined-stressor finding, the mission's own standout emergent bug): `api.py::pokreni()` holds its
+8-slot AI-concurrency semaphore for the entire `fn` duration, including `llm_retry`'s own up-to-3x backoff
+— OpenAI degradation directly multiplies semaphore hold time, which then couples into the 30s queue-wait
+timeout. Reproduced: 500 concurrent lawyers + degraded (not failed) OpenAI → 415/500 (83%) got a 503 purely
+from queue-timeout, though every simulated call eventually succeeded on its own. This mission's own credit-
+refund fixes (`BLACKSWAN-HIGH-004`) correctly ensure a 503 under this exact scenario no longer silently
+loses money — but the underlying capacity-collapse itself is unfixed. A real fix needs either releasing the
+semaphore slot during backoff sleep (letting another request's attempt use the freed capacity) or a
+separate, shorter-lived semaphore scoped to just the actual network call, not the whole retry sequence —
+correctly identified as a deeper architectural change, not attempted as a quick patch given the risk of
+introducing a new race in the retry/semaphore interaction without careful design.
+
+### BLACKSWAN-DEBT-019 — `court_predictor.py` has zero citation-verification code (High, AI governance)
+
+Team 11 (AI Attack): unlike `main.py::ask_agent`'s hard-refusal guard, `court_predictor.py::prediktuj_ishod`
+has no citation-verification code at all. Reproduced: a fabricated court decision citation absent from the
+retrieved context reached the API response verbatim. Needs the same T6-style guard `main.py` already has,
+adapted to this module's own citation shape (`koriscena_praksa`) — a real, scoped fix, deferred for fix-
+cycle time in this mission, not architectural difficulty. High priority for the next mission.
+
+### BLACKSWAN-DEBT-020 — Forensic Legal Audit validator doesn't verify claim-excerpt support (Medium-High, AI governance)
+
+Team 11: `analiza/validator.py::run_post_parse_validation` only checks that a cited `clause_excerpt` string
+is PRESENT in the source document text — never that the finding's own narrative claim is actually supported
+by that excerpt. Reproduced 2 ways: an empty-excerpt finding short-circuits validation entirely (survives
+unchecked, scored risk=100); a genuine verbatim excerpt paired with an invented narrative ("already 3 months
+in arrears") also survives. Needs either a second LLM-based support-verification pass (cost/complexity
+tradeoff) or a stricter structural rule (reject empty excerpts outright, require the narrative to quote/
+reference specific excerpt terms) — a design decision, not a mechanical fix, correctly deferred.
+
+### BLACKSWAN-DEBT-021 — Genome's `require_review` verdict is advisory, not blocking (Medium, product decision)
+
+Team 11: `verify_genome()` correctly DETECTS a fabricated `dokazi_rang` entry citing a nonexistent document,
+a `kontradikcije` entry pointing at a nonexistent document ID, and a fake law-article citation — but the
+`require_review` verdict never blocks the write; all three still land verbatim in the live `case_dna`
+column, gated only by a UI-rendered amber warning badge a lawyer could ignore. Whether a flagged Genome
+should be allowed to save at all (vs. held for confirmation) is a genuine product/UX decision — not
+guessed at unilaterally, same standing as this platform's other advisory-vs-blocking AI-governance
+questions (`PROGBETA-003`, `SENT-005`).
+
+**Severity summary across this mission's 21 debt items**: 1 High (`BLACKSWAN-DEBT-018`), 2 High-adjacent
+(`-016`, `-019`), remainder Medium/Medium-High/Low. None are CRITICAL — both CRITICAL findings this mission
+produced were fixed directly, per the mission's own STOP RULE.

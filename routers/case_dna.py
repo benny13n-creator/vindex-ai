@@ -872,7 +872,28 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
 @router.post("/{predmet_id}/case-dna/refresh")
 @limiter.limit("10/minute")
 async def refresh_case_dna(predmet_id: str, request: Request, user=Depends(PermissionService.require("case_dna"))):
-    """Regenerise Case Genome iz svih dokumenata predmeta."""
+    """Regenerise Case Genome iz svih dokumenata predmeta.
+
+    BLACKSWAN-HIGH-003 fix (Operation Black Swan, Mission 001, Scenario 8): this manual
+    endpoint used to reimplement _run_genome_background's own read-verzija -> GPT-extract
+    -> bump-verzija -> full-column-replace sequence from scratch, never touching that
+    function's _genome_refresh_inflight coalescing guard -- a second, fully unguarded path
+    to the same write. Reproduced: 2 concurrent manual refreshes on the same case -> 2
+    wasted GPT calls, BOTH wrote the same (duplicate) verzija number, and the LOSING
+    caller's own HTTP response claimed a snaga% value that did not match what actually
+    persisted -- a response that lies about what got saved. Now shares the exact same
+    in-process guard the background trigger path already uses, so a manual refresh and a
+    background-triggered one (or two manual ones) can never race each other."""
+    if predmet_id in _genome_refresh_inflight:
+        raise HTTPException(status_code=409, detail="Genome se već osvežava za ovaj predmet — sačekajte da se završi, pa pokušajte ponovo.")
+    _genome_refresh_inflight.add(predmet_id)
+    try:
+        return await _refresh_case_dna_body(predmet_id, request, user)
+    finally:
+        _genome_refresh_inflight.discard(predmet_id)
+
+
+async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dict:
     supa = _get_supa()
     uid = user["user_id"]
 

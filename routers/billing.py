@@ -633,11 +633,27 @@ async def faktura_create(
     faktura    = faktura_r.data[0]
     faktura_id = faktura["id"]
 
-    # Atomic update: filter by obracunato=False to detect concurrent race
-    update_r = await _db(lambda: supa.table("billing_entries").update({
-        "faktura_id":  faktura_id,
-        "obracunato":  True,
-    }).in_("id", body.entry_ids).eq("user_id", uid).eq("obracunato", False).execute())
+    # BLACKSWAN-CRIT-001 fix: the billing_entries update itself used to have no try/except
+    # at all -- a connection blip or worker crash landing on THIS call (after the fakture
+    # row above already committed) propagated straight out of the handler with zero
+    # compensating rollback, unlike the sibling logical-race branch below (which DOES roll
+    # back). Independently reproduced by 2 Black Swan teams (a raised ConnectionError, and
+    # a hard process-crash simulation) via 2 different trigger mechanisms, same root cause:
+    # a permanent orphan draft invoice with a burned legal invoice number and zero linked
+    # line items, while the underlying billed work stays eligible to be billed AGAIN later
+    # -- a real double-billing/audit risk on a financial/legal document. Atomic update:
+    # filter by obracunato=False to detect concurrent race.
+    try:
+        update_r = await _db(lambda: supa.table("billing_entries").update({
+            "faktura_id":  faktura_id,
+            "obracunato":  True,
+        }).in_("id", body.entry_ids).eq("user_id", uid).eq("obracunato", False).execute())
+    except Exception as _ue:
+        try:
+            await _db(lambda: supa.table("fakture").delete().eq("id", faktura_id).eq("user_id", uid).execute())
+        except Exception:
+            logger.error("[BILLING] faktura=%s uid=%.8s ORPHANED — billing_entries update failed (%s) AND rollback delete also failed. Requires manual cleanup.", faktura_id, uid, _ue)
+        raise HTTPException(status_code=500, detail="Kreiranje fakture nije uspelo (greška pri povezivanju stavki). Pokušajte ponovo.")
 
     updated_count = len(update_r.data or [])
     if updated_count < len(entries):
@@ -1128,3 +1144,49 @@ def _generate_pdf(faktura: dict, entries: list) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+# ── Orphan draft-invoice reap (BLACKSWAN-CRIT-001) ─────────────────────────────
+
+async def reap_orphan_fakture(stale_after_seconds: int = 3600) -> dict:
+    """Operation Black Swan, Mission 001: a worker crash landing between the `fakture`
+    INSERT and the `billing_entries` UPDATE in faktura_create() (see that function's own
+    comment) leaves a permanent orphan draft invoice -- a real legal invoice number
+    burned, zero linked line items, while the underlying billable work stays eligible to
+    be billed again. No in-process try/except can catch a hard process kill (unlike the
+    connection-error trigger that fix above handles), so this needs an out-of-band sweep,
+    the same shape `timer_sessions` already has for its own stale-row cleanup, which
+    `fakture` never had. Deliberately conservative: only reaps `nacrt` (draft, never
+    finalized/sent) rows past the staleness window with ZERO linked billing_entries --
+    the FakturaReq model requires at least 1 entry_id, so a genuine draft always has one
+    tied to it within the same request; a nacrt row with none past this window can only
+    be this exact interrupted-write shape, not a legitimate in-progress draft."""
+    from datetime import datetime, timedelta, timezone
+
+    supa = _get_supa()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_seconds)).isoformat()
+
+    candidates_r = await _db(lambda: supa.table("fakture")
+        .select("id, user_id, broj_fakture, created_at")
+        .eq("status", "nacrt")
+        .lt("created_at", cutoff)
+        .execute())
+    candidates = candidates_r.data or []
+
+    reaped = 0
+    for f in candidates:
+        fid, fuid = f["id"], f["user_id"]
+        try:
+            be_r = await _db(lambda fid=fid: supa.table("billing_entries").select("id").eq("faktura_id", fid).limit(1).execute())
+            if be_r.data or []:
+                continue
+            await _db(lambda fid=fid, fuid=fuid: supa.table("fakture").delete().eq("id", fid).eq("user_id", fuid).execute())
+            reaped += 1
+            logger.warning(
+                "[BILLING] reap: orphan draft faktura=%s broj=%s uid=%.8s deleted (created %s, zero linked entries — interrupted faktura_create)",
+                fid, f.get("broj_fakture"), fuid[:8], f.get("created_at"),
+            )
+        except Exception as e:
+            logger.error("[BILLING] reap: failed to check/delete candidate faktura=%s: %s", fid, e)
+
+    return {"checked": len(candidates), "reaped": reaped}

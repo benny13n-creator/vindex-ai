@@ -2444,3 +2444,76 @@ certification deliverables written per the mission's own required list, `docs/la
 found no other reason to withhold a GO for Operation Black Swan — see `BETA_READINESS_FINAL.md` for the full
 statement, including this program's own standing, disclosed limitation (no live load-test numbers exist at
 any scale, unchanged since Certification 004).
+
+## Operation Black Swan, Mission 001 (2026-08-07) — "The Day Everything Goes Wrong"
+
+Founder's own Master Prompt, run immediately after Certification 008 in the same session. Explicit departure
+from every prior Program Lambda certification's static-analysis method: "trust only execution, evidence,
+reproduction" — every team instructed to actually WRITE AND RUN throwaway reproduction scripts (mocked
+Supabase/OpenAI/Pinecone I/O, real unmodified application code, real `asyncio.gather`/threads for genuine
+concurrency), not just read code. 14 independent chaos teams (Concurrency Storm, Upload Storm, OpenAI Chaos,
+DB Chaos, Worker Crash, Chaos Actions, Long-Session Degradation, Cross-Tenant Leak, Abandonment/Staleness,
+Notification/Event Flood, AI Attack, Human Chaos Attack, Performance Measurement, Worst-Day Combined
+Simulation) covering the mission's 17 named scenarios plus dedicated AI-attack/human-attack/performance
+mandates.
+
+**~40 findings, most CONFIRMED via actual reproduction** (a few PLAUSIBLE-UNCONFIRMED, explicitly labeled;
+one hypothesis REFUTED by its own team's reproduction, surfacing a different real finding instead).
+
+**2 CRITICAL, both fixed with test coverage**: (1) `routers/billing.py::faktura_create` — a connection blip
+or worker crash between the `fakture` INSERT and `billing_entries` UPDATE left a permanent orphan invoice
+with a burned legal invoice number, independently confirmed by 2 teams via 2 different trigger mechanisms;
+fixed via a try/except+rollback for the in-request trigger and a new `reap_orphan_fakture` daily-cron sweep
+for the crash trigger neither try/except can catch. (2) Systemic overdue-deadline invisibility — an overdue
+court deadline was silently treated as "no deadline at all" across 3 independently-written code copies
+(`risk_engine.py`, `case_evolution.py`, `morning_briefing.py`) plus a 4th manifestation in notification
+regeneration that deleted evidence of a missed deadline instead of surfacing it — fixed in all 4 places.
+
+**~13 more HIGH findings fixed**: `_get_supa()`'s thread-unsafe singleton (reproduced 50 Supabase clients
+instead of 1 under concurrent load) — `threading.Lock` added to both copies (api.py, shared/deps.py);
+`update_kanban_faza`'s lost-update race (a losing caller's own response claimed false success) — `if_faza`
+optimistic-concurrency guard added, frontend updated to send it; manual Genome-refresh button bypassing the
+background trigger's own coalescing guard (duplicate GPT calls, duplicate version numbers, a response that
+lied about what was persisted) — now shares the same guard; 3 separate AI-credit-refund gaps (`pokreni()`'s
+own 30s queue-timeout exception, a 25s-per-attempt OpenAI timeout shorter than the mission's own slow-window
+scenario, and an entirely new call site in `copilot.py`'s chat orchestrator never covered by Certification
+008's identical fix) — all fixed; `bulk_promena_statusa`'s reopen-vs-close race (a self-contradictory
+permanent record: case reads open, hronologija permanently says closed) — `.neq()` guard added, same
+pattern as `predmeti_close.py`; `shared/case_context.py`'s unbounded `predmet_hronologija`/`rocista`
+queries (measured 101.7x row-fetch growth over one session) — bounded + recency-ordered; `kreiraj_predmet`'s
+silently-loseable Case Pipeline trigger on an events-outbox blip — retry + new `reap_missing_pipeline_events`
+daily-cron sweep; a residual gap in Certification 008's OWN event_bus heartbeat fix (the row currently being
+processed was never itself heartbeated, only the queued remainder) — pre-process heartbeat added; 3 AI-
+output range-clamping gaps (`matter_intel.py`/`cio.py`/`hearing_cc.py` — a fabricated GPT score like 250 on
+a 0-100 scale reached the lawyer's screen unclamped in 3 modules, following the same "readiness-based cap
+exists but has coverage gaps" pattern) — unconditional clamping added to all 3; `main.py`'s hallucination
+guard field-scope gap (only 3 of many rendered fields were ever checked) and ASCII-diacritic bypass (`Clan`
+vs `Član`) — guard now scans every string in the parsed JSON, regex accepts both forms.
+
+**~21 findings named as debt** with explicit per-item reasoning (architectural scope, product decision
+needed, or genuinely deferred for fix-cycle time on a well-understood low-risk follow-up) — see
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s "Operation Black Swan, Mission 001" section,
+`BLACKSWAN-DEBT-001` through `-021`. None graded CRITICAL. Highest-priority named follow-ups:
+`BLACKSWAN-DEBT-018` (semaphore hold-time coupled to LLM retry backoff — the mission's own standout combined-
+stressor finding: 500 concurrent lawyers + degraded OpenAI produced an 83% failure rate purely from queue-
+timeout, though OpenAI itself never permanently failed a call), `BLACKSWAN-DEBT-019` (`court_predictor.py`
+has zero citation-verification code, unlike `main.py`'s guard), `BLACKSWAN-DEBT-016` (cross-tenant resource
+contention via a shared default ThreadPoolExecutor — a real fairness gap, distinct from the data-leak
+question Team 8 separately and rigorously ruled out).
+
+**Fix-cycle self-correction**: found and fixed 4 regressions in 4 *pre-existing* tests
+(`test_keystone_readiness_validation.py` ×2, `test_phoenix_reliability_failure_recovery.py` ×2) caused by
+this mission's own new event_bus pre-process heartbeat adding a legitimate extra `.update()` call those
+tests' strict call-count assertions didn't anticipate — all root-caused, fixed (updated assertions to check
+the correct update in the sequence, not weakened), and re-verified before this report was written.
+
+Full regression suite, independently re-run after all fixes: **3,058 passed, 1 skipped, 0 failed** (475.67s)
+— was 3,035 at Certification 008's close, +23 new tests, zero regressions carried into the final run. 23 new
+tests in `tests/test_blackswan_mission001.py`. 7 full
+mission deliverables in `docs/blackswan/`: `BLACK_SWAN_REPORT.md`, `EXTREME_SCENARIO_REPORT.md`,
+`INCIDENT_SIMULATION_REPORT.md`, `SYSTEM_SURVIVABILITY_REPORT.md`, `STRESS_TEST_REPORT.md`,
+`DISASTER_RECOVERY_REPORT.md`, `FINAL_GO_NO_GO.md`.
+
+**Verdict: GO for closed beta**, carrying forward the same standing condition Certification 008 already
+named (migrations 102/103 must be applied — unchanged, not newly discovered here) plus the 21 named debt
+items, none blocking. Full statement: `docs/blackswan/FINAL_GO_NO_GO.md`.

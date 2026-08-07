@@ -10068,6 +10068,10 @@ async function kanban_drop(e, novaFaza) {
   _kanbanDragId = null;
   // Optimistic update
   var p = (typeof _predmeti !== 'undefined' ? _predmeti : []).find(function(x){ return x.id === id; });
+  // LAMBDA/BLACKSWAN-HIGH-002: capture the phase we THINK is current, before overwriting
+  // it locally, so the backend can detect (and reject, not silently overwrite) a
+  // concurrent drag that already moved this same card somewhere else.
+  var staraFaza = p ? (p.kanban_faza || 'inicijalna_procena') : '';
   if (p) p.kanban_faza = novaFaza;
   kanban_render();
   // Save
@@ -10075,9 +10079,12 @@ async function kanban_drop(e, novaFaza) {
     var r = await fetch(BASE_URL + '/api/predmeti/' + encodeURIComponent(id) + '/kanban-faza', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
-      body: JSON.stringify({ kanban_faza: novaFaza }),
+      body: JSON.stringify({ kanban_faza: novaFaza, if_faza: staraFaza }),
     });
-    if (!r.ok) { showToast('Greška pri čuvanju faze.', 'err'); }
+    if (!r.ok) {
+      if (r.status === 409 && p) { p.kanban_faza = staraFaza; kanban_render(); }
+      showToast(r.status === 409 ? 'Faza je izmenjena u međuvremenu — osvežite stranicu.' : 'Greška pri čuvanju faze.', 'err');
+    }
   } catch(err) {
     showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.', 'err');
   }

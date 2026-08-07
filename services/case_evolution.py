@@ -707,11 +707,25 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         except ValueError:
             continue
         dani = (rok_datum - today).days
-        if dani < 0 or dani > 30:
+        # BLACKSWAN-CRIT-002 fix (Operation Black Swan, Mission 001, Scenario 15): was
+        # `dani < 0 or dani > 30` -- an OVERDUE hearing (negative dani) got silently
+        # dropped from the target set entirely, identical to "no deadline at all."
+        # Reproduced: an open action for a hearing that passed while the lawyer was away
+        # sits frozen showing stale "za N dana" text, then on the NEXT reconciliation
+        # event (which treats "no longer in target set" as "resolved") gets silently
+        # CLOSED -- a missed court date becoming indistinguishable from "handled." An
+        # overdue rociste is only dropped from the target set once its own `status`
+        # actually changes (rescheduled/held), never merely by the clock passing 0.
+        if dani > 30:
             continue
+        razlog = (
+            f"Ročište ({r.get('sud') or 'sud'}) PROPUŠTENO pre {abs(dani)} dan(a) — {rok_datum.isoformat()}"
+            if dani < 0 else
+            f"Ročište ({r.get('sud') or 'sud'}) za {dani} dan(a) — {rok_datum.isoformat()}"
+        )
         actions.append({
             "tip": "PRIPREMITI_PODNESAK",
-            "razlog": f"Ročište ({r.get('sud') or 'sud'}) za {dani} dan(a) — {rok_datum.isoformat()}",
+            "razlog": razlog,
             "dokaz": {"rociste_id": r.get("id"), "sud": r.get("sud"), "datum": rok_datum.isoformat(), "dani_preostalo": dani},
             "prioritet": _priority_by_days(dani),
             "rok": rok_datum.isoformat(),

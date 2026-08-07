@@ -724,7 +724,11 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
         return True, "ok"
 
     # 1) Strict per-article check
-    citirani_raw = re.findall(r"[Čč]lan\s+(\d+[a-zA-Z]?)", odgovor)
+    # BLACKSWAN-AI-004 fix (Operation Black Swan, Mission 001, AI Attack): required the
+    # Č/č diacritic -- a plain-ASCII "Clan 999" (no diacritic, a real degradation GPT can
+    # and does produce) silently bypassed extraction entirely, since a citation the regex
+    # never even sees can't be checked against anything. Reproduced.
+    citirani_raw = re.findall(r"[ČčCc]lan\s+(\d+[a-zA-Z]?)", odgovor)
 
     # Deduplicate while preserving order
     vidjeni: set[str] = set()
@@ -2788,13 +2792,32 @@ def _parsiraj_strukturni_odgovor(
         logger.warning("[COMMIT3] JSON parse greška [tip=%s]: %s", tip, exc)
         return False, _format_halucination_block(f"JSON parse greška: {exc}")
 
-    # Build guard text from structured citation fields
-    guard_parts = [
-        data.get("citat_zakona", ""),
-        data.get("pravni_osnov", ""),
-        data.get("pravni_zakljucak", ""),
-    ]
-    guard_text = "\n".join(p for p in guard_parts if p)
+    # BLACKSWAN-AI-004 fix (Operation Black Swan, Mission 001, AI Attack): guard_text used
+    # to scan only 3 named fields (citat_zakona/pravni_osnov/pravni_zakljucak), but
+    # _json_ka_tekst (below) serializes MANY more free-text fields into what the lawyer
+    # actually sees (procesni_koraci, kada_ne_vazi, rizici_i_izuzeci, analiza_stete,
+    # analiza_uskladjenosti, analiza_poreske_obaveze, pravna_definicija, and others,
+    # varying by `tip`). A fabricated "Član 999" placed in any field OUTSIDE the original
+    # 3 reached the lawyer completely unchecked -- reproduced. Rather than keep manually
+    # enumerating fields here (and re-drifting every time _json_ka_tekst gains a new one),
+    # guard_text is now built from EVERY string value anywhere in the parsed JSON, so a
+    # citation is checked no matter which field the model puts it in.
+    def _collect_strings(obj) -> list[str]:
+        if isinstance(obj, str):
+            return [obj]
+        if isinstance(obj, dict):
+            out: list[str] = []
+            for v in obj.values():
+                out.extend(_collect_strings(v))
+            return out
+        if isinstance(obj, list):
+            out = []
+            for v in obj:
+                out.extend(_collect_strings(v))
+            return out
+        return []
+
+    guard_text = "\n".join(s for s in _collect_strings(data) if s)
 
     validan, razlog = _proveri_halucinaciju(guard_text, docs)
     if not validan:

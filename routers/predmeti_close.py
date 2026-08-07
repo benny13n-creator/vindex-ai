@@ -339,18 +339,38 @@ async def bulk_promena_statusa(
     if not za_update:
         return {"ok": True, "azurirano": 0, "poruka": "Svi predmeti su već u traženom statusu."}
 
-    await asyncio.to_thread(
+    # BLACKSWAN-HIGH-006 fix (Operation Black Swan, Mission 001, Scenario 6): was
+    # unconditional on id+user_id only, with the "already in target status" check done
+    # entirely at READ time above -- a concurrent zatvori_predmet() landing between that
+    # read and this write got silently overwritten by a reopen/archive here with zero
+    # awareness of the close that just happened. Reproduced: reopen (aktiviranje) racing
+    # zatvori_predmet on the same case both returned unqualified success, final state was
+    # status='aktivan' while predmet_hronologija PERMANENTLY recorded "Predmet zatvoren —
+    # Ishod: ..." and opis still carried the closure note -- a self-contradictory record.
+    # `.neq("status", novi_status)` re-checks atomically at write time (same idiom as
+    # zatvori_predmet's own `.neq("status","zatvoren")` guard) -- a row a concurrent
+    # request already moved to some OTHER status still updates correctly (that's a
+    # legitimate bulk-action use case); only a row already exactly at the target status
+    # (freshly landed there by a race) is now correctly skipped instead of silently
+    # reprocessed.
+    update_r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
             .update({"status": novi_status})
             .eq("user_id", uid)
             .in_("id", za_update)
+            .neq("status", novi_status)
             .execute()
     )
+    azurirano = len(update_r.data or [])
+    preskoceno_race = len(za_update) - azurirano
 
-    logger.info("[BULK] uid=%.8s akcija=%s azurirano=%d", uid, body.akcija, len(za_update))
+    logger.info("[BULK] uid=%.8s akcija=%s azurirano=%d preskoceno_race=%d", uid, body.akcija, azurirano, preskoceno_race)
+    poruka = f"{azurirano} predmet(a) — status promenjen na '{novi_status}'."
+    if preskoceno_race > 0:
+        poruka += f" {preskoceno_race} predmet(a) preskočeno (status promenjen u međuvremenu — osvežite stranicu)."
     return {
         "ok":        True,
-        "azurirano": len(za_update),
-        "poruka":    f"{len(za_update)} predmet(a) — status promenjen na '{novi_status}'.",
+        "azurirano": azurirano,
+        "poruka":    poruka,
         "novi_status": novi_status,
     }

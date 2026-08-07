@@ -636,6 +636,28 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
         row_id = row["id"]
         if row_id in remaining_ids:
             remaining_ids.remove(row_id)
+        # BLACKSWAN-EVT-001 fix (Operation Black Swan, Mission 001): the heartbeat above
+        # only ever refreshes claimed_at for rows still QUEUED (`remaining_ids`) -- the
+        # row about to be processed right here was just removed from that set, so its OWN
+        # claim goes unrefreshed for the entire duration of ITS OWN handler call, however
+        # long that takes. If cumulative time-already-elapsed-since-batch-claim plus this
+        # row's own processing time exceeds the staleness window, a second worker can
+        # reclaim and re-run this exact in-flight row. Reproduced (Black Swan Team 14):
+        # run_case_pipeline ran twice with overlapping wall-clock windows for the same
+        # event. Refresh THIS row's own claim immediately before starting its handler, so
+        # it gets the FULL staleness window from the moment its own processing begins, not
+        # whatever was left over from earlier rows in the same batch.
+        if claimed:
+            try:
+                await asyncio.to_thread(
+                    lambda row_id=row_id: supa.table("events")
+                        .update({"claimed_at": datetime.now(timezone.utc).isoformat()})
+                        .eq("id", row_id)
+                        .is_("dispatched_at", "null")
+                        .execute()
+                )
+            except Exception:
+                logger.debug("[EVENT_BUS] pre-process claim heartbeat failed (non-fatal)", exc_info=True)
         raw_type = row.get("event_type")
         try:
             event_type = EventType(raw_type)
@@ -799,3 +821,69 @@ def start_dispatch_loop() -> None:
 
 async def stop_dispatch_loop() -> None:
     await dispatch_loop.stop()
+
+
+# ── Missing-pipeline-event reconciliation (BLACKSWAN-HIGH-008) ─────────────────
+
+async def reap_missing_pipeline_events(min_age_minutes: int = 10, lookback_days: int = 7) -> dict:
+    """Operation Black Swan, Mission 001: api.py::kreiraj_predmet's own PREDMET_KREIRAN
+    durable-event insert now retries on transient failure (see that function's own
+    comment), but a genuinely sustained outage can still exhaust the retry and leave a
+    predmet with no pipeline run and no trace it was ever supposed to have one. This is
+    the out-of-band repair: find predmeti created more than `min_age_minutes` ago (so a
+    request still legitimately in flight is never touched) within the last
+    `lookback_days` (bounded, not a full-table scan forever) that have no `events` row of
+    type PREDMET_KREIRAN, and backfill one via the same durable-outbox insert the
+    original endpoint uses -- dispatch_pending_events() then runs the real Case Pipeline
+    on it normally, no special-casing needed downstream."""
+    from datetime import datetime, timedelta, timezone
+    from shared.deps import _get_supa
+
+    supa = _get_supa()
+    now = datetime.now(timezone.utc)
+    cutoff_new = (now - timedelta(minutes=min_age_minutes)).isoformat()
+    cutoff_old = (now - timedelta(days=lookback_days)).isoformat()
+
+    preds_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id, user_id, naziv, tip, created_at")
+            .gte("created_at", cutoff_old)
+            .lt("created_at", cutoff_new)
+            .execute()
+    )
+    predmeti = preds_r.data or []
+    if not predmeti:
+        return {"checked": 0, "backfilled": 0}
+
+    pred_ids = [p["id"] for p in predmeti]
+    evt_r = await asyncio.to_thread(
+        lambda: supa.table("events")
+            .select("predmet_id")
+            .eq("event_type", EventType.PREDMET_KREIRAN.value)
+            .in_("predmet_id", pred_ids)
+            .execute()
+    )
+    already_have_event = {e["predmet_id"] for e in (evt_r.data or [])}
+
+    backfilled = 0
+    for p in predmeti:
+        if p["id"] in already_have_event:
+            continue
+        try:
+            await asyncio.to_thread(
+                lambda p=p: supa.table("events").insert({
+                    "event_type": EventType.PREDMET_KREIRAN.value,
+                    "user_id":    p["user_id"],
+                    "predmet_id": p["id"],
+                    "payload":    {"naziv": p.get("naziv"), "tip": p.get("tip"), "backfilled": True},
+                }).execute()
+            )
+            backfilled += 1
+            logger.warning(
+                "[EVENT_BUS] reap: backfilled missing PREDMET_KREIRAN for predmet=%s (created %s, no event ever recorded)",
+                p["id"], p.get("created_at"),
+            )
+        except Exception as e:
+            logger.error("[EVENT_BUS] reap: failed to backfill predmet=%s: %s", p["id"], e)
+
+    return {"checked": len(predmeti), "backfilled": backfilled}

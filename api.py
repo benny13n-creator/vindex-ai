@@ -6,6 +6,7 @@ Vindex AI — FastAPI server sa Supabase autentifikacijom i kreditnim sistemom
 import logging
 import os
 import asyncio
+import threading
 from pathlib import Path
 from typing import Optional, List
 
@@ -149,17 +150,23 @@ def _is_pro(email: str, is_pro_db: bool = False) -> bool:
     return is_pro_db or (email or "").lower() in PRO_EMAILS
 
 _supa: Optional[SupabaseClient] = None
+# BLACKSWAN-HIGH-001 fix -- same thread-unsafe lazy-singleton bug as shared/deps.py's own
+# _get_supa() (this module keeps a SEPARATE singleton, a pre-existing duplication not
+# consolidated here). See that module's comment for the full reproduction.
+_supa_lock = threading.Lock()
 
 
 def _get_supa() -> SupabaseClient:
     global _supa
     if _supa is None:
-        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-            raise RuntimeError(
-                "SUPABASE_URL i SUPABASE_SERVICE_KEY moraju biti postavljeni u .env fajlu."
-            )
-        logger.info("Supabase init: URL=%r", SUPABASE_URL)
-        _supa = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        with _supa_lock:
+            if _supa is None:
+                if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+                    raise RuntimeError(
+                        "SUPABASE_URL i SUPABASE_SERVICE_KEY moraju biti postavljeni u .env fajlu."
+                    )
+                logger.info("Supabase init: URL=%r", SUPABASE_URL)
+                _supa = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return _supa
 
 
@@ -1806,6 +1813,48 @@ async def cron_daily(request: Request):
                                            "duration_ms": round((_time.monotonic() - _t_rt) * 1000)}
         _broj_grešaka += 1
 
+    # ── Modul 9a: BLACKSWAN-HIGH-008 — reap missing pipeline events ──────────
+    _t_mpe = _time.monotonic()
+    try:
+        from services.event_bus import reap_missing_pipeline_events
+        _mpe_r = await asyncio.wait_for(reap_missing_pipeline_events(), timeout=60)
+        _stavke_obradjene += int((_mpe_r or {}).get("backfilled", 0))
+        rezultati["reap_missing_pipeline_events"] = {
+            "status": "ok",
+            "checked": (_mpe_r or {}).get("checked", 0),
+            "backfilled": (_mpe_r or {}).get("backfilled", 0),
+            "duration_ms": round((_time.monotonic() - _t_mpe) * 1000),
+        }
+    except asyncio.TimeoutError:
+        rezultati["reap_missing_pipeline_events"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                                       "duration_ms": round((_time.monotonic() - _t_mpe) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _mpee:
+        rezultati["reap_missing_pipeline_events"] = {"status": "greska", "greska": str(_mpee)[:120],
+                                                       "duration_ms": round((_time.monotonic() - _t_mpe) * 1000)}
+        _broj_grešaka += 1
+
+    # ── Modul 9b: BLACKSWAN-CRIT-001 — reap orphan draft fakture ─────────────
+    _t_bf = _time.monotonic()
+    try:
+        from routers.billing import reap_orphan_fakture
+        _bf_r = await asyncio.wait_for(reap_orphan_fakture(), timeout=60)
+        _stavke_obradjene += int((_bf_r or {}).get("reaped", 0))
+        rezultati["reap_orphan_fakture"] = {
+            "status": "ok",
+            "checked": (_bf_r or {}).get("checked", 0),
+            "reaped": (_bf_r or {}).get("reaped", 0),
+            "duration_ms": round((_time.monotonic() - _t_bf) * 1000),
+        }
+    except asyncio.TimeoutError:
+        rezultati["reap_orphan_fakture"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                             "duration_ms": round((_time.monotonic() - _t_bf) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _bfe:
+        rezultati["reap_orphan_fakture"] = {"status": "greska", "greska": str(_bfe)[:120],
+                                             "duration_ms": round((_time.monotonic() - _t_bf) * 1000)}
+        _broj_grešaka += 1
+
     # ── Modul 10: KORAK B — Autonomni Background Action Agenti (2026-07-24) ─
     _t_ba = _time.monotonic()
     try:
@@ -2847,6 +2896,16 @@ async def _session_sacuvaj(supa, session_id: str, user_id: str, uloga: str, sadr
 @limiter.limit("30/minute")
 async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(PermissionService.require("ai_pravna_pitanja"))):
     """Pravno istraživanje — pretražuje bazu zakona."""
+    # BLACKSWAN-HIGH-004 fix (Operation Black Swan, Mission 001, Scenario 3): pokreni()'s
+    # AI-concurrency semaphore raises HTTPException(503) on a 30s queue-wait timeout (many
+    # requests piling up during slow OpenAI) -- the bare `except Exception:` below used to
+    # catch that too and downgrade it to a generic 500, but the refund check only ever ran
+    # on a NORMAL return from the try block, never in the except path. Credit stayed
+    # deducted with nothing to show for it. Reproduced (real semaphore, real pokreni()):
+    # consume_calls=2, refund_calls=0 across 2 concurrent calls where 1 hit the queue
+    # timeout. Tracked explicitly so the except block can refund exactly when consume()
+    # actually succeeded but nothing downstream did.
+    _credit_consumed = False
     try:
         qh = _q_hash(req.pitanje)
         logger.info("Pitanje [uid=%.8s] [q=%s]", user["user_id"], qh)
@@ -2855,6 +2914,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         # Atomično oduzmi kredit PRE agent poziva (isti timing kao stari require_credits
         # pre-deduction) — refunduje se ispod ako je odgovor iz keša ili blokiran.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+        _credit_consumed = True
 
         # ── Prompt injection detekcija ────────────────────────────────────────
         from security.prompt_guard import analyze as _guard_analyze
@@ -2936,6 +2996,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
             await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
             preostalo = preostalo + 1
+        _credit_consumed = False  # accounted for above; the except block must not double-refund
 
         # F5.4: persist Q&A turn to predmet_istorija
         if predmet_id and rezultat.get("status") == "success" and not rezultat.get("blocked"):
@@ -2963,9 +3024,19 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
             logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor — rezultat=%s", rezultat)
             resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
         return resp
+    except HTTPException:
+        # BLACKSWAN-HIGH-004: pokreni()'s own 503 (AI queue-timeout) is an intentional,
+        # already-logged signal, not an unexpected server error -- let it propagate with
+        # its real status code instead of being downgraded to a generic 500 below. The
+        # credit-refund handling is identical either way (see the bare except).
+        if _credit_consumed:
+            await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+        raise
     except Exception:
         _qh_safe = locals().get("qh", "?")
         logger.exception("Greška u /api/pitanje [q=%s]", _qh_safe)
+        if _credit_consumed:
+            await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
         return greska_odgovor(
             500,
             "Došlo je do greške na serveru. Pokušajte ponovo za nekoliko sekundi.",
@@ -3049,6 +3120,15 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         except Exception as _stream_exc:
             _sentry_capture(_stream_exc)
             logger.exception("Greška u /api/pitanje/stream [q=%s]", qh)
+            # BLACKSWAN-HIGH-004 fix (stream variant): the credit above is consumed
+            # unconditionally before this generator even starts -- an exception here
+            # (including pokreni()'s own 503 queue-timeout, Scenario 3) used to skip the
+            # refund entirely, since the refund-check logic only runs on the success path
+            # a few lines above. Same fix as the non-streaming /api/pitanje.
+            try:
+                await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+            except Exception:
+                logger.warning("[PITANJE_STREAM] refund nakon greške nije uspeo [q=%s]", qh)
             yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
             yield "data: [DONE]\n\n"
 
@@ -3212,16 +3292,41 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
         # (_is_missing_column_error), ne bare except -- v. shared/
         # audit_immutable.py's ista logika za obrazloženje.
         from shared.audit_immutable import _is_missing_column_error
-        try:
-            await asyncio.to_thread(
-                lambda: _get_supa().table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
-            )
-        except Exception as _wide_exc:
-            if not _is_missing_column_error(_wide_exc):
-                raise
-            await asyncio.to_thread(lambda: _get_supa().table("events").insert(_evt_row).execute())
+        # BLACKSWAN-HIGH-008 fix (Operation Black Swan, Mission 001, Scenario 5): a
+        # connection blip landing on THIS insert (after the predmet row above already
+        # committed and HTTP 200 already promised) used to be a single attempt, logged
+        # and silently dropped -- since dispatch_pending_events() is the ONLY trigger for
+        # the entire Case Pipeline (rokovi/mini-strategija/HCC briefing/risk snapshot),
+        # that case then NEVER got a pipeline run, forever, with nothing in the codebase
+        # scanning for a predmet with no matching PREDMET_KREIRAN event. A short retry
+        # closes the common transient-blip case (a blip lasting a few seconds, this
+        # mission's own named Scenario 5 shape) without a larger redesign; a genuinely
+        # sustained outage still needs the reconciliation sweep below.
+        _evt_insert_ok = False
+        _evt_last_exc: Exception | None = None
+        for _evt_attempt in range(3):
+            try:
+                await asyncio.to_thread(
+                    lambda: _get_supa().table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
+                )
+                _evt_insert_ok = True
+                break
+            except Exception as _wide_exc:
+                if not _is_missing_column_error(_wide_exc):
+                    _evt_last_exc = _wide_exc
+                    if _evt_attempt < 2:
+                        await asyncio.sleep(0.5 * (_evt_attempt + 1))
+                    continue
+                await asyncio.to_thread(lambda: _get_supa().table("events").insert(_evt_row).execute())
+                _evt_insert_ok = True
+                break
+        if not _evt_insert_ok:
+            raise _evt_last_exc or RuntimeError("events insert failed, unknown reason")
     except Exception as _pe:
-        logger.warning("[PIPELINE] PredmetKreiran durable event upis greška: %s", _pe)
+        logger.error(
+            "[PIPELINE] PredmetKreiran durable event upis TRAJNO neuspeo posle retry-a — predmet=%s ostaje bez Case Pipeline dok reap_missing_pipeline_events ne popravi: %s",
+            novi_predmet["id"], _pe,
+        )
 
     # D22 v1 (VINDEX_OPERATIONAL_GAP_REGISTER.md G-003) — minimalni audit trag:
     # ko je kreirao predmet, kada, preko kog API poziva. 'predmet_create' je vec
@@ -3573,8 +3678,33 @@ async def update_kanban_faza(predmet_id: str, request: Request, authorization: s
     _VALID = {"inicijalna_procena", "priprema", "aktivan_postupak", "ceka_odluku", "zavrsen"}
     if faza not in _VALID:
         raise HTTPException(status_code=400, detail="Nevalidna faza")
-    result = _get_supa().table("predmeti").update({"kanban_faza": faza}).eq("id", predmet_id).eq("user_id", user.id).execute()
+    supa = _get_supa()
+    # BLACKSWAN-HIGH-002 fix (Operation Black Swan, Mission 001, Scenario 7): was a bare
+    # unconditional update -- two concurrent drags of the same card (2 tabs, or 2
+    # lawyers) both returned "ok: True" while only one write actually survived, a
+    # classic lost update with zero conflict signal to either caller. Reproduced: caller
+    # A's own response claimed success for its target phase while the DB silently held
+    # caller B's phase instead. `if_faza` is optional (old frontend callers keep working
+    # unconditionally, same opt-in shape as update_predmet's own if_updated_at) but the
+    # frontend below IS updated to send it, so this closes the gap for real, not just in
+    # infrastructure nobody calls (the pre-existing if_updated_at protection on
+    # update_predmet has zero live frontend callers per this mission's own finding).
+    if_faza = (body.get("if_faza") or "").strip()
+    q = supa.table("predmeti").update({"kanban_faza": faza}).eq("id", predmet_id).eq("user_id", user.id)
+    if if_faza:
+        q = q.eq("kanban_faza", if_faza)
+    result = q.execute()
     if not (result.data):
+        if if_faza:
+            exists = await asyncio.to_thread(
+                lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
+            )
+            if not exists.data:
+                raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+            raise HTTPException(
+                status_code=409,
+                detail="Faza je izmenjena u međuvremenu. Osvežite stranicu i pokušajte ponovo.",
+            )
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     return {"ok": True, "kanban_faza": faza}
 

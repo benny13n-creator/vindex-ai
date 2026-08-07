@@ -236,7 +236,10 @@ async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, hist
                 action="copilot_pravno_pitanje", user_id=user.get("user_id"),
                 resource_type="pravno_pitanje", resource_id=None,
             ))
-        return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor}
+        # BLACKSWAN-HIGH-005: "uspesno" surfaced in the return dict (not just a local var)
+        # so copilot_chat can refund on a genuine ask_agent failure instead of charging a
+        # credit for a disclaimer message dressed up as a real answer, HTTP 200 either way.
+        return {"tip": "PRAVNO_PITANJE", "odgovor": odgovor, "uspesno": uspesno}
     except Exception as e:
         _sentry_capture(e)
         logger.error("[COPILOT] pravno_pitanje greška: %s", e)
@@ -1410,7 +1413,24 @@ async def copilot_chat(
     }
 
     handler = handlers.get(intent, handlers["OSTALO"])
-    result  = await handler()
+    # BLACKSWAN-HIGH-005 fix (Operation Black Swan, Mission 001, Scenario 4): credit is
+    # consumed above BEFORE routing, but there was no try/except around the handler call
+    # at all -- an uncaught exception propagated as an unhandled 500 with the credit
+    # already gone, and ZERO UsageService.refund call sites existed anywhere in this file
+    # (grep-confirmed). Reproduced 2 ways: an uncaught handler exception, and a handler
+    # that swallows a genuine ask_agent failure into a disclaimer-text HTTP 200 response
+    # (same underlying LAMBDA008-REL-001 shape as /api/pitanje, at a call site that fix
+    # never covered). The "uspesno" check below is opt-in per handler (only
+    # _handle_pravno_pitanje sets it so far) -- a handler that doesn't set it is treated
+    # as always successful, the same behavior as before this fix, no regression.
+    try:
+        result = await handler()
+    except Exception:
+        await UsageService.refund(uid, email, "copilot")
+        raise
+
+    if isinstance(result, dict) and result.get("uspesno") is False:
+        await UsageService.refund(uid, email, "copilot")
 
     return {
         "intent":        intent,

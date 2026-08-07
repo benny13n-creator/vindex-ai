@@ -1861,3 +1861,23 @@ exhaustive coverage. Full detail: `docs/lambda/LAMBDA007_CERTIFICATION_REPORT.md
 **Success criteria**: Gate 008 conditions met with an explicit NO-GO condition attached — see
 `docs/lambda/BETA_READINESS_FINAL.md`. Not certified ready for Operation Black Swan until migrations 102/103
 are applied to production; no other blocker found. Full detail: `docs/lambda/LAMBDA008_CERTIFICATION_REPORT.md`.
+
+## Operation Black Swan, Mission 001 (2026-08-07) — "The Day Everything Goes Wrong"
+
+| Metric | Value |
+|---|---|
+| Method | Departure from static analysis — every team required to actually EXECUTE reproduction scripts (mocked I/O, real application code) against live behavior, not read code |
+| Named agents | 14 independent chaos teams, fully parallel |
+| Substantive findings | ~40, most CONFIRMED via actual reproduction (a few PLAUSIBLE-UNCONFIRMED, labeled; 1 hypothesis REFUTED, surfacing a different real finding) |
+| CRITICAL findings | 2, both fixed with test coverage this mission (orphan draft invoices; systemic overdue-deadline invisibility across 4 code paths) |
+| HIGH findings fixed | ~13 (thread-unsafe Supabase singleton, Kanban lost-update, duplicate Genome refresh, 3 AI-credit-refund gaps, reopen/close race, unbounded SQL query, silently-loseable Case Pipeline trigger, event_bus heartbeat residual gap, 3 AI-output clamping gaps, hallucination-guard field-scope + ASCII bypass) |
+| Findings named as debt | ~21 (`BLACKSWAN-DEBT-001`..`-021`), each with explicit reasoning, 0 CRITICAL among them |
+| Self-corrections during fix cycle | 4 (2 pre-existing tests each in `test_keystone_readiness_validation.py` and `test_phoenix_reliability_failure_recovery.py`, broken by this mission's own new event_bus heartbeat call — all root-caused, fixed, re-verified before publication) |
+| New migrations | 0 (every fix this mission was pure application-code, zero schema changes needed) |
+| New tests | 23 (`tests/test_blackswan_mission001.py`) |
+| Full suite | **3,058 passed, 1 skipped, 0 failed** (475.67s) — was 3,035 at Certification 008's close |
+| Mission deliverables | 7/7 written per the mission's own required list, `docs/blackswan/` |
+
+**Success criteria**: STOP RULE satisfied (0 CRITICAL problems remain open) — mission's own verdict: GO for
+closed beta, carrying forward the same standing migrations-102/103 condition Certification 008 already
+named. Full detail: `docs/blackswan/BLACK_SWAN_REPORT.md` and `docs/blackswan/FINAL_GO_NO_GO.md`.

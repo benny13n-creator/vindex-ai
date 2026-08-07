@@ -576,6 +576,24 @@ async def preflight_check(
             ],
         )
         rezultat = _json.loads(resp.choices[0].message.content or "{}")
+        if not isinstance(rezultat, dict):
+            rezultat = {}
+        # BLACKSWAN-AI-001 fix (Operation Black Swan, Mission 001, AI Attack): "score" and
+        # "status" were returned to the caller and persisted DIRECTLY from the GPT response
+        # via **rezultat, with no clamping or enum validation -- unlike case_actions.
+        # prioritet and Genome's own snaga_predmeta_procent, which both correctly clamp/
+        # validate a GPT-influenced number before it's trusted. Reproduced: a 0-doc/0-
+        # hearing case returned status="spreman" (ready), score=250 (spec says 0-100) --
+        # BOTH reached the lawyer's screen AND got persisted with a hardcoded
+        # confidence="HIGH" tag, unchecked against the documented 0-100 range or the
+        # documented 3-value enum.
+        try:
+            _score = int(rezultat.get("score", 0))
+        except (TypeError, ValueError):
+            _score = 0
+        rezultat["score"] = max(0, min(100, _score))
+        if rezultat.get("status") not in ("spreman", "potrebna_paznja", "nije_spreman"):
+            rezultat["status"] = "potrebna_paznja"
     except Exception as e:
         _sentry_capture(e)
         logger.error("[PREFLIGHT] AI greška: %s", e)

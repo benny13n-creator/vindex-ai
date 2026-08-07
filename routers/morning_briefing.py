@@ -93,8 +93,15 @@ async def _generiši_briefing(uid: str, supa) -> dict:
     """
     danas   = date.today()
     za_7    = danas + timedelta(days=7)
+    # BLACKSWAN-CRIT-002 fix (Operation Black Swan, Mission 001, Scenario 15): this
+    # briefing only ever queried `.gte(danas)` -- a lawyer returning after any absence
+    # (30 days is this mission's own named scenario) got a briefing that silently omits
+    # every deadline that passed while they were away, identical to those deadlines never
+    # having existed. Bounded to 90 days back (not unbounded) so a genuinely ancient,
+    # long-resolved rociste doesn't clutter every future briefing forever.
+    pre_90 = danas - timedelta(days=90)
 
-    predmeti_r, rokovi_r, rocista_r, klijenti_r = await asyncio.gather(
+    predmeti_r, rokovi_r, rocista_r, klijenti_r, rokovi_propusteni_r, rocista_propustena_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmeti")
                 .select("id, naziv, status, stranka, protivnik, updated_at")
@@ -129,11 +136,34 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                 .limit(100)
                 .execute()
         ),
+        asyncio.to_thread(
+            lambda: supa.table("rokovi")
+                .select("id, naziv, datum, tip, predmet_id, opis")
+                .eq("user_id", uid)
+                .gte("datum", pre_90.isoformat())
+                .lt("datum", danas.isoformat())
+                .order("datum", desc=True)
+                .limit(20)
+                .execute()
+        ),
+        asyncio.to_thread(
+            lambda: supa.table("rocista")
+                .select("id, sud, datum, vreme, predmet_id, status")
+                .eq("user_id", uid)
+                .eq("status", "zakazano")
+                .gte("datum", pre_90.isoformat())
+                .lt("datum", danas.isoformat())
+                .order("datum", desc=True)
+                .limit(20)
+                .execute()
+        ),
     )
 
     predmeti = predmeti_r.data or []
     rokovi   = rokovi_r.data   or []
     rocista  = rocista_r.data  or []
+    rokovi_propusteni  = rokovi_propusteni_r.data  or []
+    rocista_propustena = rocista_propustena_r.data or []
 
     def _dani_do(datum_str: str) -> int:
         try:
@@ -154,6 +184,16 @@ async def _generiši_briefing(uid: str, supa) -> dict:
 
     # ── AI kontekst ────────────────────────────────────────────────────────────
     parts = []
+    # BLACKSWAN-CRIT-002: surfaced FIRST, most urgent -- a lawyer returning after any
+    # absence needs to see what was missed before anything upcoming.
+    if rokovi_propusteni or rocista_propustena:
+        propusteno_linije = (
+            [f"- Rok: {r.get('naziv','Rok')} — bio je {r['datum']}" for r in rokovi_propusteni] +
+            [f"- Ročište u {r.get('sud','N/A')} — bilo je {r.get('datum','')}" for r in rocista_propustena]
+        )
+        parts.append(
+            f"⚠ PROPUŠTENI ROKOVI/ROČIŠTA ({len(propusteno_linije)}):\n" + "\n".join(propusteno_linije)
+        )
     if rocista_danas:
         parts.append(
             f"ROČIŠTA DANAS ({len(rocista_danas)}):\n" +
@@ -331,11 +371,20 @@ Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Eka
             "rokova_hitnih":      len(rokovi_hitni),
             "rocista_danas":      len(rocista_danas),
             "rocista_sedmica":    len(rocista_sedmica),
+            # BLACKSWAN-CRIT-002: propušteni (missed, last 90 days) -- previously not
+            # queried at all, silently invisible to a lawyer returning after an absence.
+            "rokova_propustenih":  len(rokovi_propusteni),
+            "rocista_propustenih": len(rocista_propustena),
         },
         "rokovi_hitni":  [{"naziv": r.get("naziv"), "datum": r["datum"]} for r in rokovi_hitni],
+        "rokovi_propusteni": [{"naziv": r.get("naziv"), "datum": r["datum"]} for r in rokovi_propusteni],
         "rocista_danas": [
             {"naziv": f"Ročište - {r.get('sud','')}", "vreme": f"{r.get('datum','')} {(r.get('vreme') or '')[:5]}", "sud": r.get("sud")}
             for r in rocista_danas
+        ],
+        "rocista_propustena": [
+            {"naziv": f"Ročište - {r.get('sud','')}", "datum": r.get("datum"), "sud": r.get("sud")}
+            for r in rocista_propustena
         ],
         "generisano_u": datetime.now(timezone.utc).isoformat(),
     }

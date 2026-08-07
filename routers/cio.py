@@ -399,6 +399,18 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
             izvestaj[_kljuc] = None
 
     _nr = izvestaj.get("najveci_rizik")
+    if _nr:
+        # BLACKSWAN-AI-002 fix (Operation Black Swan, Mission 001, AI Attack): the READY-
+        # specific semantic cap below only ever fired for readiness==READY -- for every
+        # OTHER readiness state (e.g. PARTIALLY_READY), an out-of-spec GPT value reached
+        # the response completely unclamped. Reproduced: kriticnost=400 (spec 0-100) for a
+        # PARTIALLY_READY case reached the API response unchanged. Basic range sanity now
+        # applies unconditionally, independent of readiness state; the stricter
+        # READY-specific cap below is an ADDITIONAL semantic constraint on top of this,
+        # not a replacement for it.
+        _k0 = _nr.get("kriticnost")
+        if isinstance(_k0, (int, float)):
+            _nr["kriticnost"] = max(0, min(100, _k0))
     if _nr and readiness_by_id.get(_nr.get("predmet_id")) == READY:
         _k = _nr.get("kriticnost")
         if isinstance(_k, (int, float)) and _k > _KRITICNOST_CAP_KAD_READY:

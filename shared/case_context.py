@@ -168,6 +168,9 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
             lambda: supa.table("rocista")
                 .select("id, sud, datum, status")
                 .eq("predmet_id", predmet_id)
+                # BLACKSWAN-HIGH-007: bounded, same reasoning as predmet_hronologija below.
+                .order("datum", desc=True)
+                .limit(50)
                 .execute()
         ),
         asyncio.to_thread(
@@ -181,7 +184,24 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
             lambda: supa.table("predmet_hronologija")
                 .select("dogadjaj, datum_iso, vaznost")
                 .eq("predmet_id", predmet_id)
-                .order("datum_iso")
+                # BLACKSWAN-HIGH-007 fix (Operation Black Swan, Mission 001, Scenario 12):
+                # was unbounded -- unlike the sibling predmet_komentari query 2 lines below
+                # (which already has .limit(5)). Every case-changing event during a long
+                # session adds a row here; build_case_context() gets called on every AI-
+                # context build for the same active case, re-fetching the ENTIRE, ever-
+                # growing history each time even though every downstream consumer only
+                # uses the first several rows (e.g. hearing_cc.py's own `timeline[:8]`).
+                # SIMULATED (Black Swan Team 7): 500 sequential actions -> row fetch grew
+                # 5->500 (101.7x), 16.1x slower per call, 25,250 cumulative rows fetched
+                # across one session's context builds vs 800 if bounded to what's used.
+                # Switched to recency-first (desc) + bounded, consistent with this
+                # session's other document/event sampling fixes (case_commander.py,
+                # zakon_monitoring.py, multi_agent.py) -- the most recent events are the
+                # most relevant "what's the current state of this case" signal, and a
+                # downstream consumer wanting chronological-ascending display order can
+                # still reverse this bounded list cheaply in Python.
+                .order("datum_iso", desc=True)
+                .limit(50)
                 .execute()
         ),
         asyncio.to_thread(

@@ -105,9 +105,11 @@ class TestEventBusAtomicClaim:
         assert result["dispecovano"] == 1
         fake_handler.assert_awaited_once()
         # events.select(...) (the OLD unclaimed read path) must never have
-        # run -- only the mark-dispatched .update() call belongs here.
+        # run -- only .update() calls belong here (BLACKSWAN-EVT-001 added a
+        # pre-process claim-heartbeat update in addition to _mark_dispatched's
+        # own update, so 2 is now correct, not 1 -- neither is a select).
         select_calls = [c for c in table_calls if c == "events"]
-        assert len(select_calls) == 1  # the _mark_dispatched() update call
+        assert len(select_calls) == 2
 
     @pytest.mark.anyio
     async def test_dispatch_falls_back_to_plain_select_when_rpc_not_deployed(self):
@@ -211,8 +213,11 @@ class TestEventBusAtomicClaim:
             result = await eb.dispatch_pending_events()
 
         assert result["greske"] == 1
-        assert len(updates) == 1
-        assert updates[0]["claimed_at"] is None
+        # BLACKSWAN-EVT-001 added a pre-process claim-heartbeat update before the
+        # handler runs (updates[0]); the retry-clearing update this test actually
+        # checks is the LAST one, not necessarily the only one.
+        assert len(updates) == 2
+        assert updates[-1]["claimed_at"] is None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -399,6 +399,17 @@ async def hearing_command_center(
     except json.JSONDecodeError:
         raise HTTPException(status_code=503, detail="Neispravan odgovor AI servisa.")
 
+    # BLACKSWAN-AI-003 fix (Operation Black Swan, Mission 001, AI Attack): the readiness-
+    # based cap below only covers 2 of the readiness enum's values (CRITICAL_GAP, BLOCKED)
+    # -- for any OTHER status (e.g. PARTIALLY_READY), an out-of-spec GPT score reached the
+    # response completely unclamped. Reproduced: hearing_score=250 (spec 0-100) with
+    # readiness=PARTIALLY_READY reached brifing.hearing_score in the response returned to
+    # the lawyer. Basic range sanity now applies unconditionally; the stricter readiness-
+    # specific cap below is additional, not a replacement.
+    _score0 = brifing.get("hearing_score")
+    if isinstance(_score0, (int, float)):
+        brifing["hearing_score"] = max(0, min(100, _score0))
+
     # Factory Step 4 (GPT boundary) -- same deterministic cap Tau 005 proved
     # for court_predictor.py's win-probability, applied here to hearing_score:
     # GPT cannot claim a case is well-prepared for its hearing when the

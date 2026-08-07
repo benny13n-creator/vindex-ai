@@ -66,6 +66,7 @@ def calculate_procesni_rizik(
 
     predstojeći = 0
     kriticni = 0
+    zakasneli = 0
     kriticni_rocista: list[dict] = []
     for r in rocista:
         try:
@@ -87,7 +88,18 @@ def calculate_procesni_rizik(
                 dana = (datetime.fromisoformat(ds.replace("Z", "+00:00")).date() - now.date()).days
             if 0 <= dana <= 30:
                 predstojeći += 1
-            if 0 <= dana <= 7:
+            # BLACKSWAN-CRIT-002 fix (Operation Black Swan, Mission 001, Scenario 15):
+            # `0 <= dana <= 7` treated a NEGATIVE dana (an OVERDUE hearing) as neither
+            # upcoming nor critical -- identical to "no deadline at all." Reproduced: a
+            # hearing 5 days overdue scored IDENTICAL nivo/health to one 25 days out.
+            # An overdue hearing is MORE urgent than one still within the 7-day window,
+            # not less -- now always critical, and counted separately so a caller can
+            # distinguish "still time" from "already missed."
+            if dana < 0:
+                zakasneli += 1
+                kriticni += 1
+                kriticni_rocista.append(r)
+            elif dana <= 7:
                 kriticni += 1
                 kriticni_rocista.append(r)
         except Exception:
@@ -105,6 +117,10 @@ def calculate_procesni_rizik(
         rizik_score += 15
     if kriticni > 0:
         rizik_score += 20
+    if zakasneli > 0:
+        # An overdue deadline is a more severe signal than a merely-approaching one --
+        # additional escalation on top of the kriticni bump above.
+        rizik_score += 15
 
     if rizik_score <= 35:
         procesni_rizik = "Nizak"
@@ -130,6 +146,10 @@ def calculate_procesni_rizik(
         "nedostajuci_count": len(nedostajuci),
         "predstojeći_rokovi": predstojeći,
         "kriticni_rokovi": kriticni,
+        # BLACKSWAN-CRIT-002: overdue hearings, a subset of kriticni_rokovi/
+        # kriticni_rocista above -- surfaced separately so a caller can say "N rokova
+        # je već prekoračeno" instead of collapsing it into the generic critical count.
+        "zakasneli_rokovi": zakasneli,
         # Project Synapse (2026-08-03): the actual critical rociste rows, not
         # just the count above -- added so a caller can emit EventType.ROK_KRITICAN
         # (a real, already-wired proactive-alert handler, previously never
