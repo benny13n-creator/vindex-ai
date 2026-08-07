@@ -4334,24 +4334,28 @@ sample favor recently-active or highest-risk cases, not just "not oldest") — a
 trading one bias for another without founder input on which cases should represent the portfolio
 when not all can be shown.
 
-**LIVINGSYS-DEBT-036 (Medium-High)** — `routers/case_actions.py`'s operational worklist ("what
-must I do today") includes archived/closed cases' open actions — no consequence executor exists
-for case closure/archival that would close out lingering `case_actions` rows. Fixing this
-correctly means adding a new event type or a new consequence to the closure flow, not a query
-filter (a closed case's open action should be closed, not merely hidden) — a real feature, larger
-than a mechanical read-side filter like the 2 fixed leaks.
+**LIVINGSYS-DEBT-036 — PARTIALLY FIXED** (Program Phoenix, Mission 001, 2026-08-07). The
+lawyer-facing VISIBILITY harm is closed: `get_worklist`'s `predmeti` fetch now excludes
+archived/closed cases at the query level, so `_fetch_open_actions` is never even asked about
+them. Proof: `test_worklist_excludes_archived_case`. The underlying DATA HYGIENE gap remains
+OPEN and unattempted: no consequence executor exists for case closure/archival that would close
+out lingering `case_actions` rows in the database itself — a closed case's open action row still
+has `status='open'` forever, merely invisible on this one board now rather than actually
+resolved. Still real feature work for a future mission.
 
-**LIVINGSYS-DEBT-037 (Medium)** — `routers/zastarelost.py`'s AI Deadline Guardian scan has no
-`predmeti.status` filter. Lower priority than the fixed sites (on-demand endpoint, not a
-proactive push or the home tab) — named, not attempted, to keep this mission's fix budget on the
-higher-severity instances of the same bug class.
+**LIVINGSYS-DEBT-037 — FIXED** (Program Phoenix, Mission 001, 2026-08-07). `guardian_scan` now
+fetches `predmeti(id,status)` and excludes deadlines belonging to a positively-confirmed
+archived/closed case. Proof: `tests/test_phoenix_mission_001_archived_case_visibility.py::
+test_guardian_scan_excludes_deadline_on_archived_case`. Full report: `docs/phoenix/mission-001/`.
 
-**LIVINGSYS-DEBT-038 (Medium/High)** — `routers/kalendar.py` has 2 distinct issues: a 200-row cap
-with no truncation signal (Medium) and the same archived-case leak as the sites above (rolled
-into the same item since both live in `_aggr_events`). The silent-partial-failure variant (Red
-Team's independent finding — `return_exceptions=True` with no `degraded` flag) is rated HIGH
-since Calendar's entire job is "don't miss a hearing" — flagged as the standing next-mission
-priority for this file specifically.
+**LIVINGSYS-DEBT-038 — PARTIALLY FIXED** (Program Phoenix, Mission 001, 2026-08-07). The
+archived-case leak in `_aggr_events` is closed (both the `rocista` and `predmet_hronologija`
+loops now exclude positively-confirmed archived cases, while an unresolvable `predmet_id` still
+fails open per a pre-existing test's own proven requirement). Proof:
+`test_aggr_events_excludes_archived_case_hearing_and_deadline`. The 200-row cap with no
+truncation signal AND the silent-partial-failure variant (`return_exceptions=True` with no
+`degraded` flag) remain OPEN — not attempted this mission, still the standing next-mission
+priority for this file.
 
 ### AI-credit-charged-on-failure family
 
@@ -4480,11 +4484,11 @@ no refund path. Needs a real failure-signal field (distinct from the fallback's 
 output) threaded through `_klasifikuj_dokument` → `_consequence_evidence_classify`'s verification
 — a multi-layer change, not a single-function patch.
 
-**LIVINGSYS-DEBT-048 (High)** — Matter Intelligence's main endpoint has no hearing-status filter
-— a cancelled/completed hearing scores as a live "critical deadline" and persists a real false
-`proactive_alerts` row. A near-identical fix to Fixes L2/L7 (add `.eq("status","zakazano")`,
-matching `dashboard.py`/`health_index.py`'s own pattern) — not done this mission purely due to
-fix-budget limits; flagged as a strong quick-win candidate alongside `-007`/`-033`.
+**LIVINGSYS-DEBT-048 — FIXED** (Program Phoenix, Mission 001, 2026-08-07). Added
+`.eq("status", "zakazano")` to `get_matter_intel`'s `rocista` query, matching `dashboard.py`/
+`health_index.py`'s own pattern exactly. Proof:
+`test_matter_intel_rocista_query_filters_zakazano_status`. Full report:
+`docs/phoenix/mission-001/`.
 
 **LIVINGSYS-DEBT-047 (High)** — Court Predictor's `argument_reputation.relevantne_odluke` is
 fully hallucinated (no RAG grounding at all) for arguments 6-10, since only the first 5 of up to
@@ -4607,3 +4611,11 @@ real and traceable to their source report.
 (`-002, -005 through -012, -014 through -017, -020 through -022, -036, -038, -042, -047 through
 -049`), remainder Medium/Low. Zero silently dropped — every item traces to a specific reproduced
 finding in one of the 14 source reports under `docs/living_system/`.
+
+**Program Phoenix progress** (autonomous elimination program, began 2026-08-07 immediately after
+this ledger was written — see `docs/phoenix/` for full per-mission deliverables and
+`.vindex_ai_team/MISSION_BOARD.md` for the running program log): Mission 001 closed
+`LIVINGSYS-DEBT-037` and `-048` fully, and made partial (visibility-only, not data-hygiene)
+progress on `-036` and `-038`. This section's individual item entries above are updated in place
+as each is closed — check the item's own entry for current status rather than this summary line,
+which is not re-counted after every mission.

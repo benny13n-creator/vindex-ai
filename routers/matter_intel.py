@@ -74,9 +74,16 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
         # real health_score/nedostajuci_dokazi divergence this fix closes.
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
+        # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-048): no hearing-status filter here --
+        # a cancelled/completed hearing ("odrzano"/"otkazano") scored as a live "critical
+        # deadline" in calculate_procesni_rizik below and could persist a real false
+        # proactive_alerts row via _maybe_emit_health_and_deadline_events. dashboard.py/
+        # health_index.py both already filter .eq("status","zakazano") for the identical
+        # computation -- this file (the one calculate_procesni_rizik's own docstring says the
+        # algorithm was extracted FROM) was the outlier missing it.
         asyncio.to_thread(lambda: supa.table("rocista").select(
             "sud,datum,status"
-        ).eq("predmet_id", predmet_id).order("datum").execute()),
+        ).eq("predmet_id", predmet_id).eq("status", "zakazano").order("datum").execute()),
         return_exceptions=True,
     )
 

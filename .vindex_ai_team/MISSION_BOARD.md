@@ -2925,3 +2925,26 @@ merely being imperfect. Full deliverable set: `docs/living_system/` (`LIVING_SYS
 
 **Still outstanding, 8th consecutive mission**: `SUPABASE_DB_URL` (read-only) requested to
 independently verify migrations 102/103's live effect — never provided, must keep being resurfaced.
+
+## Program Phoenix — Autonomous Technical Debt Elimination (2026-08-07, IN PROGRESS)
+
+Multi-mission autonomous program: eliminate every `LIVINGSYS-DEBT-XXX` item (Operation Living
+System's own debt ledger) via small (3-8 item), architecture-clustered missions, each running
+the full Phase 1-7 lifecycle (reproduce → root cause → fix → regression test → rerun original
+scenario → subsystem tests → full suite) with a hard STOP GATE before the next mission begins.
+Founder explicitly authorized continuous cross-mission execution gated on each mission's own
+certification. Full deliverables per mission: `docs/phoenix/mission-NNN/`.
+
+### Mission 001 — Archived-Case Visibility Consolidation (CLOSED)
+
+Closed `LIVINGSYS-DEBT-037` (AI Deadline Guardian), `-048` (Matter Intelligence hearing-status
+filter), `-038` leak-part (Calendar archived-case leak), `-036` (case_actions worklist). All 4
+reused the exact status-filter patterns Operation Living System already proved this same week
+(`dashboard.py`'s 3-value exclusion set; `dashboard.py`/`health_index.py`'s
+`.eq("status","zakazano")` hearing filter) — zero new algorithms. One pre-existing test
+(`test_aggr_events_predmet_name_fallback`) caught a real design gap in the first fix draft (an
+unresolvable `predmet_id` must fail OPEN, not be silently hidden) — corrected before merge, not
+routed around. 4 new tests (`tests/test_phoenix_mission_001_archived_case_visibility.py`). Full
+suite: **3,224 passed, 1 skipped, 0 failed** (was 3,220, +4 tests, zero regressions). Red Team
+self-check passed (verified `_fetch_open_actions` purely trusts its filtered input, no
+re-leak path). Full report: `docs/phoenix/mission-001/`. **STOP GATE: PASS.**

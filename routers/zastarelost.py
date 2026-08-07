@@ -475,6 +475,18 @@ async def guardian_scan(
 
     await UsageService.consume(uid, user.get("email", ""), "zastarelost_guardian")
 
+    # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-037): this scan never filtered by
+    # predmeti.status -- a deadline belonging to an archived/closed case was scanned,
+    # classified "kritično"/"hitno", and returned in the prioritized list exactly like an
+    # active one. Same fix pattern as Operation Living System's own email-cron/Command-Center
+    # fixes, but only excluding a POSITIVELY-confirmed archived case (a predmet_id absent from
+    # this fetch -- an orphan reference, deleted case, etc. -- fails OPEN and is still scanned,
+    # matching kalendar.py's own "don't miss a deadline" fail-open convention).
+    predmeti_r = await asyncio.to_thread(
+        lambda: supa.table("predmeti").select("id,status").eq("user_id", uid).execute()
+    )
+    arhivirani_ids = {p["id"] for p in (predmeti_r.data or []) if p.get("status") in ("zatvoren", "arhiviran", "odbijen")}
+
     rokovi_r = await asyncio.to_thread(
         lambda: supa.table("rokovi")
             .select("id, naziv, datum, tip, predmet_id, opis")
@@ -485,7 +497,7 @@ async def guardian_scan(
             .execute()
     )
 
-    rokovi = rokovi_r.data or []
+    rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") not in arhivirani_ids]
     if not rokovi:
         return {"scan": [], "ukupno": 0, "kriticno": 0, "hitno": 0,
                 "period_dana": 30, "generirano": danas.isoformat(),

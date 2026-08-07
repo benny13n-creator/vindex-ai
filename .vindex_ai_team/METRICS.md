@@ -1903,3 +1903,15 @@ unconditionally (false success, silent failure, hallucinated citation categories
 live instances still open); PARTIALLY MET for conflicting-advice/concurrency (3 of 4 target
 scenarios closed). Not a GO/NO-GO gate mission by its own brief — a certification of current
 state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`.
+
+## Program Phoenix, Mission 001 — Archived-Case Visibility Consolidation (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 4 (`LIVINGSYS-DEBT-037, -048, -038` leak-part, `-036`) |
+| Files touched | 4 (`zastarelost.py`, `matter_intel.py`, `kalendar.py`, `case_actions.py`) |
+| New algorithms invented | 0 — both fix patterns reused verbatim from Operation Living System |
+| Regression tests added | 4 (`tests/test_phoenix_mission_001_archived_case_visibility.py`) |
+| Pre-existing test corrections | 1 (a real design gap caught by an existing test, fixed by design correction not weakening) |
+| Full suite | **3,224 passed, 1 skipped, 0 failed** — was 3,220 at Living System's close |
+| STOP GATE | PASS |

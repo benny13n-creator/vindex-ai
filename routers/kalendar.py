@@ -64,23 +64,37 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
             .limit(200)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmeti")
-            .select("id, naziv")
+            .select("id, naziv, status")
             .eq("user_id", uid)
             .execute()),
         return_exceptions=True,
     )
 
+    # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-038): neither event source below was
+    # filtered by predmeti.status -- a hearing/deadline belonging to an archived/closed case
+    # rendered on the firm-wide deadline Calendar exactly like an active one, the same
+    # archived-case-leak bug class Operation Living System already closed for the email cron
+    # and Command Center. Calendar's entire job is "don't let a lawyer miss a hearing" --
+    # this file was the last major proactive-surface leak of this class.
     pred_map: dict[str, str] = {}
+    arhivirani_ids: set[str] = set()
     if not isinstance(pred_r, Exception) and pred_r.data:
         pred_map = {p["id"]: p.get("naziv", "") for p in pred_r.data}
+        arhivirani_ids = {p["id"] for p in pred_r.data if p.get("status") in ("zatvoren", "arhiviran", "odbijen")}
 
     events: list[dict] = []
 
     if not isinstance(rocista_r, Exception):
         for r in (rocista_r.data or []):
+            pid = r.get("predmet_id", "")
+            # Only exclude a POSITIVELY-confirmed archived case -- a predmet_id absent from
+            # pred_map (lookup failure, cross-user edge case, etc.) fails OPEN and still
+            # renders (with its existing name-fallback behavior), consistent with this
+            # endpoint's "don't miss a hearing" purpose.
+            if pid in arhivirani_ids:
+                continue
             emoji = _STATUS_EMOJI.get(r.get("status", "zakazano"), "🏛")
             sud = r.get("sud", "")
-            pid = r.get("predmet_id", "")
             events.append({
                 "tip":           "rociste",
                 "datum":         r.get("datum", ""),
@@ -101,6 +115,8 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
     if not isinstance(hron_r, Exception):
         for h in (hron_r.data or []):
             pid   = h.get("predmet_id", "")
+            if pid in arhivirani_ids:
+                continue
             tip   = _klasifikuj_dogadjaj(h.get("dogadjaj", ""))
             emoj  = "⚠️" if h.get("vaznost") == "kritičan" else ("📋" if tip == "rok_dokument" else "⏰")
             events.append({

@@ -67,8 +67,16 @@ async def get_worklist(request: Request, user: dict = Depends(get_current_user))
     uid = user["user_id"]
     supa = _get_supa()
 
+    # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-036): this fetch never filtered by
+    # predmeti.status -- an archived/closed case's lingering open case_actions rows appeared
+    # on this daily 8:00 operational board exactly like an active case's. The underlying data
+    # hygiene issue (no consequence executor closes case_actions on archival) is separate,
+    # larger work (named debt, not attempted here) -- this closes the actual lawyer-facing
+    # visibility harm with the same minimum-risk read-side filter already proven for the
+    # email cron and Command Center this same week.
     predmeti_r = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid).execute()
+        lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid)
+            .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
     )
     predmeti_rows = list(predmeti_r.data or [])
     predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in predmeti_rows}
