@@ -2996,3 +2996,16 @@ tests (`tests/test_phoenix_mission_004_financial_credit_gating.py`), including a
 interleaving proof for the `-006` race (same technique as Part A's CIO proof). Full suite:
 **3,241 passed, 1 skipped, 0 failed** (was 3,237, +4 tests, zero regressions). Red Team
 self-check passed. Full report: `docs/phoenix/mission-004/`. **STOP GATE: PASS.**
+
+### Mission 005 — Evidence & Event Idempotency (CLOSED)
+
+Closed `LIVINGSYS-DEBT-010` (Smart Intake review resolve/reject emitted a durable event
+unconditionally, even on a genuine retry that changed nothing — a double-click could double
+GPT genome cost + write duplicate timeline/audit rows) and `-043` (`POST /api/rocista` had zero
+idempotency check, cascading into duplicate `ROCISTE_ZAKAZANO`). `-010` fixed by gating event
+emission on the already-existing `review_resolved_now` boolean (avoided porting
+`claim_finalize()`'s RPC, which would have needed a new migration). `-043` fixed by checking
+for an identical recent row using only existing columns (no migration). 5 new tests
+(`tests/test_phoenix_mission_005_evidence_event_idempotency.py`). Full suite: **3,246 passed,
+1 skipped, 0 failed** (was 3,241, +5 tests, zero regressions). Red Team self-check passed. Full
+report: `docs/phoenix/mission-005/`. **STOP GATE: PASS.**

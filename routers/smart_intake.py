@@ -416,27 +416,36 @@ async def resolve_job_review(job_id: str, request: Request, user: dict = Depends
     # POST-finalize ispravku (already_finalized=True) sve tri posledice
     # rade -- tacno founder-ov sopstveni primer "Review Accepted -> Genome
     # -> Timeline -> Audit".
-    try:
-        from services.event_bus import EventType, emit_durable
-        await emit_durable(
-            EventType.REVIEW_ACCEPTED,
-            uid,
-            job.get("predmet_id"),
-            {
-                "intake_job_id": job_id,
-                "prior_status": job.get("status"),
-                "job_status_advanced": result["job_status_advanced"],
-                "review_resolved_now": result["review_resolved_now"],
-                "trigger": "smart_intake_review_resolve",
-            },
-        )
-    except Exception as _ee:
-        # Fail-soft, matching DOCUMENT_ACCEPTED's own established pattern --
-        # a lost REVIEW_ACCEPTED event means the audit trail/possible Genome
-        # refresh for this confirmation don't fire, a real but non-fatal
-        # degradation, never a reason to fail the response itself (the
-        # actual review resolution above has already durably happened).
-        logger.warning("[SMART_INTAKE] REVIEW_ACCEPTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
+    # Program Phoenix, Mission 005 (LIVINGSYS-DEBT-010): this used to emit REVIEW_ACCEPTED
+    # unconditionally, even when result["review_resolved_now"] was False (a genuine retry/
+    # double-click -- resolve_review()'s own .is_("resolved_at","null") guard means the
+    # underlying resolution was a safe no-op, but a NEW durable event still fired, triggering
+    # a full new consequence chain: 2x genome_refresh (double GPT cost + spurious verzija
+    # bump), a duplicate timeline_entry, and a duplicate review_confirmation_audit row).
+    # Gating on review_resolved_now closes this at the point of emission -- no event, no
+    # consequence chain, for a call that changed nothing.
+    if result["review_resolved_now"]:
+        try:
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.REVIEW_ACCEPTED,
+                uid,
+                job.get("predmet_id"),
+                {
+                    "intake_job_id": job_id,
+                    "prior_status": job.get("status"),
+                    "job_status_advanced": result["job_status_advanced"],
+                    "review_resolved_now": result["review_resolved_now"],
+                    "trigger": "smart_intake_review_resolve",
+                },
+            )
+        except Exception as _ee:
+            # Fail-soft, matching DOCUMENT_ACCEPTED's own established pattern --
+            # a lost REVIEW_ACCEPTED event means the audit trail/possible Genome
+            # refresh for this confirmation don't fire, a real but non-fatal
+            # degradation, never a reason to fail the response itself (the
+            # actual review resolution above has already durably happened).
+            logger.warning("[SMART_INTAKE] REVIEW_ACCEPTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
 
     return {"ok": True, "already_finalized": already_finalized, **result}
 
@@ -479,21 +488,25 @@ async def reject_job_review(job_id: str, request: Request, user: dict = Depends(
     result = await intake_documents.reject_review(job_id, user.get("email", uid))
 
     # ── REVIEW_REJECTED — Program Delta, Sprint 002 (2026-08-05) ────────────
-    try:
-        from services.event_bus import EventType, emit_durable
-        await emit_durable(
-            EventType.REVIEW_REJECTED,
-            uid,
-            None,
-            {
-                "intake_job_id": job_id,
-                "review_resolved_now": result["review_resolved_now"],
-                "job_status_rejected": result["job_status_rejected"],
-                "trigger": "smart_intake_review_reject",
-            },
-        )
-    except Exception as _ee:
-        logger.warning("[SMART_INTAKE] REVIEW_REJECTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
+    # Program Phoenix, Mission 005 (LIVINGSYS-DEBT-010): same fix as resolve_job_review's own
+    # -- gate on review_resolved_now so a genuine retry (already rejected) doesn't emit a 2nd
+    # durable event / consequence chain.
+    if result["review_resolved_now"]:
+        try:
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.REVIEW_REJECTED,
+                uid,
+                None,
+                {
+                    "intake_job_id": job_id,
+                    "review_resolved_now": result["review_resolved_now"],
+                    "job_status_rejected": result["job_status_rejected"],
+                    "trigger": "smart_intake_review_reject",
+                },
+            )
+        except Exception as _ee:
+            logger.warning("[SMART_INTAKE] REVIEW_REJECTED durable event upis greška (non-fatal) job=%s: %s", job_id, _ee)
 
     return {"ok": True, **result}
 

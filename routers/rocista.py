@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from datetime import date as _date
@@ -151,6 +151,31 @@ async def kreiraj_rociste(
         "napomena":            (body.napomena or "").strip() or None,
         "status":              "zakazano",
     }
+
+    # Program Phoenix, Mission 005 (LIVINGSYS-DEBT-043): this endpoint had zero idempotency
+    # protection -- a client retry (perceived timeout, double-submit) created a 2nd physical
+    # `rocista` row AND fired a 2nd ROCISTE_ZAKAZANO event (double genome_refresh cost, plus
+    # refresh_case_actions/project_notifications running twice, same root-cause family as
+    # -010). `rocista` has no idempotency-key column (unlike shared/intake_queue.py's own,
+    # which would need a migration) -- reusing existing columns instead: an identical
+    # (predmet_id, sud, datum, vreme) row already inserted in the last 30s is treated as the
+    # same logical request, not a new hearing (2 genuinely distinct real hearings sharing the
+    # exact same court/date/time for the same case is not a realistic scenario this window
+    # would ever wrongly collapse).
+    _dup_r = await asyncio.to_thread(
+        lambda: supa.table("rocista").select("*")
+            .eq("predmet_id", body.predmet_id).eq("user_id", uid)
+            .eq("sud", payload["sud"]).eq("datum", payload["datum"])
+            .gte("created_at", (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat())
+            .execute()
+    )
+    _existing = next(
+        (r for r in (_dup_r.data or []) if (r.get("vreme") or None) == payload["vreme"]), None
+    )
+    if _existing:
+        logger.info("[ROCISTE] duplikat zahtev preskočen uid=%.8s predmet=%s datum=%s", uid, body.predmet_id, body.datum)
+        _existing["vreme"] = _norm_vreme(_existing.get("vreme"))
+        return {"rociste": _existing, "ok": True}
 
     r = await asyncio.to_thread(
         lambda: supa.table("rocista").insert(payload).execute()

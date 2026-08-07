@@ -4440,11 +4440,12 @@ document text via a stale browser-side snapshot (`window._predFull`) never re-fe
 draft generation — a data-quality risk in generated legal text, not outright data loss. Needs a
 product decision (re-fetch on every draft vs. a staleness warning) more than a mechanical fix.
 
-**LIVINGSYS-DEBT-010 (High)** — Smart Intake's review resolve/reject HTTP endpoints have no
-idempotency gate at the point of emission — a double-click emits 2 distinct durable events for
-one logical fact. The proven fix template (`claim_finalize()`'s RPC-based claim, already used by
-the sibling `_finalize_intake_job_core`) exists in the same codebase; porting it to these 2
-endpoints is real but bounded work, not attempted this mission due to fix-budget limits.
+**LIVINGSYS-DEBT-010 — FIXED** (Program Phoenix, Mission 005, 2026-08-07). Rather than porting
+`claim_finalize()`'s RPC (would need a new migration), both `resolve_job_review`/
+`reject_job_review` now gate their `emit_durable(...)` call on the already-existing
+`result["review_resolved_now"]` boolean — a genuine retry (already resolved) now emits zero
+new events. Proof: `tests/test_phoenix_mission_005_evidence_event_idempotency.py::
+test_resolve_job_review_skips_event_emission_on_retry` + 2 companion tests.
 
 **LIVINGSYS-DEBT-042 (High)** — 7 of 8 Case-Evolution event types have no reaper for a lost
 durable-outbox insert (only `PREDMET_KREIRAN` has one, `reap_missing_pipeline_events`). A single
@@ -4462,8 +4463,11 @@ directly reusable for at least 2 of the 5 (`genome_refresh` could check `verzija
 bump; `timeline_entry` could check for an existing identical row) — named as the concrete
 next-step template rather than attempted blind across all 5 in one pass.
 
-**LIVINGSYS-DEBT-043 (Medium)** — `POST /api/rocista` has no idempotency check, cascading into
-duplicate `ROCISTE_ZAKAZANO` on retry. Same root-cause family as `-010`.
+**LIVINGSYS-DEBT-043 — FIXED** (Program Phoenix, Mission 005, 2026-08-07). `kreiraj_rociste` now
+checks for an identical `(predmet_id, sud, datum, vreme)` row created in the last 30 seconds
+before inserting — reusing only existing columns, no migration. A match returns the existing
+row with no new insert and no duplicate event. Proof:
+`test_kreiraj_rociste_returns_existing_row_on_immediate_retry`.
 
 **LIVINGSYS-DEBT-044 (Medium)** — `redni_broj` (document sequence number, used in AI-generated
 DOK-XX citations) can collide under concurrent `finalize` calls to the same case — a citation-

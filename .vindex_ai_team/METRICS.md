@@ -1951,3 +1951,15 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Pre-existing test corrections | 0 |
 | Full suite | **3,241 passed, 1 skipped, 0 failed** — was 3,237 at Mission 003's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 005 — Evidence & Event Idempotency (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 2 (`LIVINGSYS-DEBT-010, -043`) |
+| Files touched | 2 (`routers/smart_intake.py`, `routers/rocista.py`) |
+| New algorithms invented | 0 |
+| Regression tests added | 5 (`tests/test_phoenix_mission_005_evidence_event_idempotency.py`) |
+| Pre-existing test corrections | 0 |
+| Full suite | **3,246 passed, 1 skipped, 0 failed** — was 3,241 at Mission 004's close |
+| STOP GATE | PASS |
