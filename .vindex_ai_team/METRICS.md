@@ -1881,3 +1881,25 @@ are applied to production; no other blocker found. Full detail: `docs/lambda/LAM
 **Success criteria**: STOP RULE satisfied (0 CRITICAL problems remain open) — mission's own verdict: GO for
 closed beta, carrying forward the same standing migrations-102/103 condition Certification 008 already
 named. Full detail: `docs/blackswan/BLACK_SWAN_REPORT.md` and `docs/blackswan/FINAL_GO_NO_GO.md`.
+
+## Operation Living System — "A Day in the Life of a Law Firm" (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Method | Full-day law-firm simulation (Day 1 golden path, Day 2 interruption/concurrency, Day 3 scale) + chaos engineering + sustained Red Team attack on all 20 named systems — not endpoint-level testing |
+| Named agents | 14 independent read-only teams, fully parallel across 5 waves |
+| Findings reproduced | ~70, all traced to file:line, none imagined |
+| CRITICAL findings | 2 (`LIVINGSYS-DEBT-003` CIO 40-case biased-sample-as-total; `LIVINGSYS-DEBT-013` drafting quick-draft hallucinated statute citation, zero RAG) — both named as debt, neither fixed this mission (both require a design decision or feature-scope work, not a mechanical patch) |
+| Fixed this mission | 7 (3 HIGH-financial-or-trust-critical: email-cron archived-case leak CRITICAL, billing TOCTOU, Client Portal broken collaborator token; plus Copilot readiness-cap, Copilot deadline-vocabulary break, Genome frontend false-success, Command Center archived-case leak) |
+| Findings named as debt | ~63 (`LIVINGSYS-DEBT-001`..`-063`), each with precise reasoning, 0 silently dropped |
+| Self-corrections during fix cycle | 2 (reminder-vocabulary test fixture needed a new table mock after Fix L2; a structural search-window widened after Fix L6 shifted target text — both root-caused and correctly repaired) |
+| New migrations | 0 (every fix this mission was pure application code; 2 debt items explicitly flagged as migration-blocked) |
+| New tests | 16 (`tests/test_living_system_fixes.py`) |
+| Full suite | **3,220 passed, 1 skipped, 0 failed** (390.20s) — was 3,211 at Singular Intelligence Mission 002 Part A's close, same day |
+| Mission deliverables | 8/8 core reports written (`docs/living_system/`) + `MISSION_BOARD.md`/`ARCHITECTURAL_DEBT_REGISTER.md` updates (this file) |
+
+**Success criteria**: honestly graded against the mission's own zero-tolerance list — NOT MET
+unconditionally (false success, silent failure, hallucinated citation categories all have real
+live instances still open); PARTIALLY MET for conflicting-advice/concurrency (3 of 4 target
+scenarios closed). Not a GO/NO-GO gate mission by its own brief — a certification of current
+state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`.

@@ -313,7 +313,7 @@ async def test_refresh_case_dna_body_reports_success_when_save_succeeds():
 
 def test_genome_refresh_toast_no_longer_reads_ghost_field():
     marker = "if (dna.greska) {"
-    block = VINDEX_JS.split(marker, 1)[1][:900]
+    block = VINDEX_JS.split(marker, 1)[1][:1500]
     assert "var tip = dna.tip_spora" not in block
     assert "var tip = (dna.pravna_teorija && dna.pravna_teorija.pravni_identitet) || '';" in block
 

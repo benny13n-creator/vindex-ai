@@ -224,6 +224,7 @@ async def generiši_portal_token(
     supa = _get_supa()
 
     # Primarno: proveri vlasništvo predmeta
+    owner_uid = uid
     pred_r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
             .select("id, naziv, status")
@@ -257,8 +258,17 @@ async def generiši_portal_token(
     if not pred_r.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
+    # Operation Living System (Wave 5, Client Portal Red Team, REPRODUCED HIGH): both the token
+    # payload and the DB row below used to be built with `uid` (the caller) even when ownership
+    # was resolved via the collaborator fallback above, where the real owner is `owner_uid`.
+    # _verifikuj_token/client_portal_view both look the case up by the REAL owner's user_id --
+    # a collaborator-generated token's HMAC was valid but the case lookup always 404'd, while
+    # this endpoint still reported ok:True and (if an email was given) actually emailed the
+    # client a link that would never work, with the real owner unable to see or revoke it
+    # (their own token-list/delete endpoints are scoped to their own user_id). Using owner_uid
+    # consistently closes both the false-success and the owner-visibility gap.
     exp_unix = int(time.time()) + body.valjanost_dana * 86400
-    token    = _generiši_token(predmet_id, uid, exp_unix)
+    token    = _generiši_token(predmet_id, owner_uid, exp_unix)
     t_hash   = _token_hash(token)
     exp_iso  = datetime.fromtimestamp(exp_unix, tz=timezone.utc).isoformat()
 
@@ -266,7 +276,7 @@ async def generiši_portal_token(
         r = await asyncio.to_thread(
             lambda: supa.table("client_portal_tokens").insert({
                 "predmet_id":    predmet_id,
-                "user_id":       uid,
+                "user_id":       owner_uid,
                 "token_hash":    t_hash,
                 "klijent_email": body.klijent_email,
                 "is_active":     True,

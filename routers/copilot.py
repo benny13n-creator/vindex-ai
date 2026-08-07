@@ -523,6 +523,21 @@ async def _handle_analiza_predmeta(poruka: str, predmet_id: str, user_id: str) -
     _slabosti = [g["razlog"] for g in _weakness_gaps[:4] if g.get("razlog")]
     _verovatnoca_uspeha = genome.get("snaga_predmeta_procent") if genome and not genome.get("greska") else None
 
+    # Operation Living System (Wave 1, AI reasoning chain, reproduced): unlike
+    # digital_twin.py/court_predictor.py/hearing_cc.py's own success-probability fields,
+    # this one was never capped to shared/case_readiness.py's CAP_BY_READINESS -- a case
+    # with an open critical case_actions row (canonical readiness=CRITICAL_GAP, capped at
+    # 50 everywhere else) could still show this field at Genome's own uncapped
+    # snaga_predmeta_procent (e.g. 82%), a direct, reproducible contradiction between two
+    # AI surfaces a lawyer would consult back-to-back for the same case. Reuses _oa_r
+    # (already fetched above for _sledeci_korak) -- no new query, no new algorithm.
+    if isinstance(_verovatnoca_uspeha, (int, float)):
+        from shared.case_readiness import compute_case_readiness, CAP_BY_READINESS
+        _readiness_status = compute_case_readiness(_oa_r.data or []).get("status")
+        _cap = CAP_BY_READINESS.get(_readiness_status)
+        if _cap is not None and _verovatnoca_uspeha > _cap:
+            _verovatnoca_uspeha = _cap
+
     return {
         "tip":               "ANALIZA_PREDMETA",
         "predmet":           pred.get("naziv", ""),
@@ -726,10 +741,17 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
     from datetime import date
 
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    # Operation Living System (Wave 5, Red Team, REPRODUCED HIGH): this prompt asked GPT for
+    # "kritičan|bitan|normalan", a vocabulary that does not match predmet_hronologija.vaznost's
+    # actual CHECK constraint ('kritičan','važan','informativan' -- supabase_setup.sql). 2 of the
+    # 3 possible GPT outputs, and this code's own literal fallback ("bitan"), always violated the
+    # constraint and threw on insert -- a guaranteed, not rare, failure for any deadline not
+    # phrased as critical. Prompt now asks for the real vocabulary; the insert below also
+    # enum-validates the result (fail-safe to "informativan") in case GPT still drifts.
     _EX_SYS = (
         "Iz srpskog teksta izvuci podatke o roku. Vrati ISKLJUČIVO JSON:\n"
         '{"dogadjaj": str (naziv/opis roka), "datum_iso": str|null (YYYY-MM-DD), '
-        '"vaznost": "kritičan|bitan|normalan"}\n'
+        '"vaznost": "kritičan|važan|informativan"}\n'
         f"Danas je {date.today().isoformat()}. Relativne datume pretvori u apsolutne."
     )
     try:
@@ -756,6 +778,9 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
     )
     if not pred_ok.data:
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Predmet nije pronađen."}
+    _vaznost = ext.get("vaznost")
+    if _vaznost not in ("kritičan", "važan", "informativan"):
+        _vaznost = "informativan"
     try:
         await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
             "predmet_id": predmet_id,
@@ -763,7 +788,7 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
             "dogadjaj":   ext["dogadjaj"][:200],
             "datum":      ext.get("datum_iso",""),
             "datum_iso":  ext.get("datum_iso",""),
-            "vaznost":    ext.get("vaznost","bitan"),
+            "vaznost":    _vaznost,
             "akter":      "Copilot (AI)",
         }).execute())
     except Exception as e:

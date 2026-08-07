@@ -287,6 +287,19 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
             if not to_addr:
                 continue
 
+            # Operation Living System (Wave 3, Portfolio Scale team, REPRODUCED CRITICAL): this
+            # cron never filtered by predmeti.status -- a deadline belonging to an archived/
+            # closed case (predmeti.status in "zatvoren"/"arhiviran"/"odbijen", same set
+            # routers/dashboard.py already uses) was emailed exactly like an active one. Unlike
+            # a dashboard the lawyer chooses to open, this is a proactive push straight to their
+            # inbox -- the single most trust-damaging instance of this bug class. Fetched once
+            # per user (not per dana_pre) to avoid 3x the query cost.
+            _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
+                .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+            _aktivni_ids = {p["id"] for p in (_aktivni_r.data or [])}
+            if not _aktivni_ids:
+                continue
+
             for dana_pre, target_date in targets.items():
                 col = f"dan_{dana_pre}"
                 if not profil.get(col, False):
@@ -307,7 +320,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     .eq("datum_iso", target_iso)
                     .execute()
                 )
-                rokovi = rokovi_r.data or []
+                rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
                 if not rokovi:
                     continue
 

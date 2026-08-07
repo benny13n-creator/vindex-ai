@@ -305,8 +305,19 @@ async def billing_entry_update(
     if not patch:
         raise HTTPException(status_code=422, detail="Nema podataka za izmenu.")
 
-    r = await _db(lambda: supa.table("billing_entries").update(patch).eq("id", entry_id).eq("user_id", uid).execute())
-    return {"success": True, "entry": r.data[0] if r.data else {}}
+    # Operation Living System (Wave 5, Billing Red Team, REPRODUCED HIGH): the obracunato
+    # check above and this write were 2 separate queries -- a concurrent faktura_create()
+    # could mark this entry obracunato=True in between, and this update would still
+    # succeed (filtered only on id+user_id), silently editing an amount already frozen
+    # into an invoice total sent to a client. faktura_create() itself already guards its
+    # own conflicting update with .eq("obracunato", False) (see below in this file) --
+    # applying the same guard here, now checked on the actual write, not just the
+    # earlier read.
+    r = await _db(lambda: supa.table("billing_entries").update(patch)
+        .eq("id", entry_id).eq("user_id", uid).eq("obracunato", False).execute())
+    if not r.data:
+        raise HTTPException(status_code=409, detail="Radnja je u međuvremenu fakturisana — izmena nije moguća.")
+    return {"success": True, "entry": r.data[0]}
 
 
 @router.delete("/entries/{entry_id}")
@@ -325,7 +336,12 @@ async def billing_entry_delete(
     if ex.data.get("obracunato"):
         raise HTTPException(status_code=409, detail="Radnja je fakturisana — brisanje nije moguće.")
 
-    await _db(lambda: supa.table("billing_entries").delete().eq("id", entry_id).eq("user_id", uid).execute())
+    # Same TOCTOU close as billing_entry_update above -- re-assert obracunato=False on the
+    # actual delete, not just the earlier read.
+    r = await _db(lambda: supa.table("billing_entries").delete()
+        .eq("id", entry_id).eq("user_id", uid).eq("obracunato", False).execute())
+    if not r.data:
+        raise HTTPException(status_code=409, detail="Radnja je u međuvremenu fakturisana — brisanje nije moguće.")
     return {"success": True}
 
 

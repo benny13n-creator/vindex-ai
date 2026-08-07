@@ -197,6 +197,15 @@ async def command_center(
         ))[:5]
     ]
 
+    # Operation Living System (Wave 3, Portfolio Scale team, REPRODUCED HIGH): neither of the
+    # 2 blocks below filtered by predmeti.status -- a hearing/deadline belonging to an
+    # archived/closed case rendered on the home-tab "today"/"next 7 days"/"<48h urgent" panels
+    # exactly like an active one, while the risk computation a few sections below in this SAME
+    # endpoint (`aktivni`, already computed above) correctly excludes them. Reused here, not a
+    # new query -- this is the app's actual home-tab endpoint, the worst place for a false
+    # "hitan rok" alert about a case the lawyer already closed.
+    aktivni_ids = {p["id"] for p in aktivni}
+
     # 1. Danasnja ročišta
     danasnja_rocista = [
         {
@@ -207,7 +216,7 @@ async def command_center(
             "vreme":         (r.get("vreme") or "")[:5],
             "status":        r.get("status", ""),
         }
-        for r in _safe(rocista_r)
+        for r in _safe(rocista_r) if r.get("predmet_id") in aktivni_ids
     ]
 
     # 2. Rokovi 7 dana + hitni (<48h)
@@ -224,7 +233,7 @@ async def command_center(
             "vaznost":       h.get("vaznost", ""),
             "izvor":         "predmet_hronologija",
         }
-        for h in _safe(rokovi_r)
+        for h in _safe(rokovi_r) if h.get("predmet_id") in aktivni_ids
     ] + [
         {
             "predmet_id":    g.get("predmet_id", ""),
@@ -234,7 +243,7 @@ async def command_center(
             "vaznost":       g.get("tip", ""),
             "izvor":         "rokovi",
         }
-        for g in _safe(rokovi_tabela_r)
+        for g in _safe(rokovi_tabela_r) if g.get("predmet_id") in aktivni_ids
     ]
     rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
     hitni_rokovi = [r for r in rokovi_7 if (r.get("datum_iso") or "9999") <= in_2_iso]

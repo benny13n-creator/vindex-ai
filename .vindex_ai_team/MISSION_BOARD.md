@@ -2866,3 +2866,62 @@ unilaterally in the same pass.
 
 **Still outstanding, 7th consecutive mission**: `SUPABASE_DB_URL` (read-only) requested to
 independently verify migrations 102/103's live effect — never provided, must keep being resurfaced.
+
+## Operation Living System — "A Day in the Life of a Law Firm" (2026-08-07, same day as Part A)
+
+Part B of the Singular Intelligence masterprompt, begun immediately after Part A's STOP GATE PASS.
+Explicit departure from endpoint-level testing: 14 read-only agents simulated a Serbian law firm's
+actual working days rather than auditing modules — Day 1 golden path (login → Workspace → Command
+Center → document intake → 4 AI reasoning surfaces back-to-back → drafting → billing → session
+end, split across 4 teams), Day 2 (interruption/concurrency, 2 teams), Day 3 (scale — ~1000 docs,
+~100 hearings, large portfolio, 1 team), extreme-events chaos engineering (infra/data-integrity/
+concurrency failure injection, 3 teams), and a Red Team sustained attack on all 20 named systems
+(4 teams). Coordinator alone implemented every fix, wrote every test, ran certification — same
+strict read-only-teams rule as Part A.
+
+**~70 findings reproduced across the 14 reports.** 7 fixed this mission, each following the
+mission's own DISCOVER→REPRODUCE→ROOT CAUSE→FIX→TEST→RERUN lifecycle one at a time (never batched):
+Copilot's `verovatnoca_uspeha` finally brought under `CAP_BY_READINESS` (the last of 4 AI
+reasoning surfaces to get it); **the email reminder cron discovered sending deadline alerts for
+ARCHIVED/CLOSED cases** (CRITICAL — an unsolicited inbox push, not a dashboard the lawyer opens by
+choice) — fixed, and the same archived-case leak independently fixed on Command Center's home-tab
+hearings/deadlines panels; Billing's `PATCH`/`DELETE /entries` TOCTOU (a concurrent invoice
+creation could still edit/delete an already-invoiced amount, corrupting a real invoice PDF's own
+totals); Copilot's natural-language "add deadline" feature found **structurally broken for most
+inputs** (GPT asked for a vocabulary the DB's own CHECK constraint rejects) — fixed; a
+collaborator-generated Client Portal link found permanently broken with the client silently
+emailed a dead URL and the real case owner unable to see or revoke it — fixed; Genome's frontend
+found to silently discard the backend's own honest save-failure signal, showing a green success
+toast for a save that didn't happen — fixed.
+
+**~63 findings formally deferred as debt** (`LIVINGSYS-DEBT-001` through `-063`,
+`docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s new section), each with precise reasoning —
+migration-blocked, requires a genuine feature/design decision, or fix-budget-exhausted-but-named.
+Headline items: `-013` (CRITICAL) — `/api/nacrt`'s quick-draft path asks GPT to invent a specific
+ZOO statute article number with **zero RAG grounding**, reachable in a real filed court document;
+`-003` (CRITICAL) — CIO's daily report silently truncates the portfolio to 40 oldest-updated cases
+and presents that biased sample as the true total; `-012` — near-universal absence of AI-feature
+cooldowns (3 of ~60 `feature_registry` rows), needs a migration; `-002/-006/-027` — 3 more
+confirmed AI-credit-charged-on-failure endpoints beyond what this mission's fix budget covered.
+
+**Full suite: 3,220 passed, 1 skipped, 0 failed** (was 3,211 at Part A's close same day, +9 tests,
+zero regressions — 2 pre-existing tests genuinely broken by the fixes, both root-caused and
+correctly repaired, not weakened: a reminder-vocabulary fixture needing a new table mock, and a
+structural search-window widened after Fix L6 shifted the target text). `static/sw.js` bumped
+`vindex-v98` → `vindex-v99` for the Genome frontend fix.
+
+**Verdict — honestly graded against the mission's own zero-tolerance list, NOT rounded up**: false
+success, silent failure, stale/duplicate UI, and hallucinated citation/confidence are each rated
+NOT MET (real live instances remain, named); conflicting-advice and race-condition categories are
+PARTIALLY MET (the flagship "4 AI surfaces contradict each other" scenario is now closed for 3 of
+4 surfaces, 1 remains — Battle Report, `-001`). Full graded certificate:
+`docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`. Standing recommendation for the next
+mission: close `-001` (Battle Report), `-002/-006/-027` (AI credit-on-failure family), and `-013`
+(drafting citation risk) before any "coherent single system" claim reaches an external audience —
+these three are the ones a lawyer or client would experience as the platform lying to them, not
+merely being imperfect. Full deliverable set: `docs/living_system/` (`LIVING_SYSTEM_REPORT.md`,
+`LAWYER_DAY_SIMULATION.md`, `MULTI_DAY_SIMULATION.md`, `CHAOS_RESULTS.md`, `FIX_LOG.md`,
+`REGRESSION_PROOF.md`, `SYSTEM_STABILITY_CERTIFICATE.md`, `FOUNDER_EXECUTIVE_REPORT.md`).
+
+**Still outstanding, 8th consecutive mission**: `SUPABASE_DB_URL` (read-only) requested to
+independently verify migrations 102/103's live effect — never provided, must keep being resurfaced.

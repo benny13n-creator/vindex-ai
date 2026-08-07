@@ -59,6 +59,14 @@ def _make_supa(rok_vaznost: str, target_iso: str):
             t.select.return_value.execute.return_value.data = [
                 {"id": "uid-001", "email": "advokat@vindex.rs"}
             ]
+        elif name == "predmeti":
+            # Operation Living System (Wave 3, archived-case leak fix): the cron now
+            # fetches the user's active predmet_ids first -- "pred-001" (the case the
+            # mocked deadline row belongs to) must be reported active for these tests
+            # to still exercise the vaznost-vocabulary logic they're actually testing.
+            t.select.return_value.eq.return_value.not_.in_.return_value.execute.return_value.data = [
+                {"id": "pred-001"}
+            ]
         elif name == "email_notif_log":
             # duplicate-check: nothing sent yet
             t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []

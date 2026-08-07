@@ -16905,6 +16905,16 @@ async function _voice_refresh_case_dna(predmetId) {
       _caseDnaRender(dna, predmetId);
       return;
     }
+    // Operation Living System (Wave 5, Genome Red Team, REPRODUCED HIGH): the backend already
+    // correctly detects a DB-write failure AFTER a successful GPT re-extraction (returns the OLD
+    // genome + case_dna_persisted:false + an explanatory poruka, routers/case_dna.py) -- but this
+    // function never read that signal, so a save that silently failed still showed the green
+    // "ažurirana" toast built from the (unchanged) old genome, as if the refresh had worked.
+    if (data.case_dna_persisted === false) {
+      showToast(data.poruka || 'Procena je izračunata ali nije sačuvana zbog greške u bazi.', 'error');
+      _caseDnaRender(dna, predmetId);
+      return;
+    }
     // Operation Singular Intelligence (2026-08-07): dna.tip_spora has never existed in the Genome
     // schema (real field is pravna_teorija.pravni_identitet, routers/case_dna.py:54) -- confirmed
     // via git history to have been wrong since the very first Case Genome commit. `tip` was always
