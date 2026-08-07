@@ -197,7 +197,7 @@ var _initialNavDone = false;
 var _cyrillicOn = false;
 var vxNavHistory = [];
 var _vxGoingBack = false;
-var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija'};
+var _vxTabLabels = {h:'Pregled dana',s:'Sudska praksa',p:'Predmeti',k:'Klijenti',kal:'Rokovi i ročišta',pi:'Product Intelligence',aiws:'Vindex Intelligence',dok:'Baza znanja',settings:'Podešavanja',fin:'Finansije',kanc:'Kancelarija','zadaci-g':'Zadatci'};
 var currentUserIsPro     = false;
 var currentUserIsFounder = false;
 var currentUserDigitalnaImovinaAktivirano = false;
@@ -475,6 +475,17 @@ async function wl_submit() {
 }
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && document.getElementById('wl-overlay').classList.contains('open')) wl_close();
+});
+// Iron Lawyer Sprint 001: generic Enter/Space activation for role="button" elements that use
+// onclick on a <div>/<span> instead of a real <button> (a real-world pattern in this codebase,
+// not something worth rewriting wholesale this sprint -- but a keyboard user with tabindex="0"
+// and no way to actually activate the control is worse than not being able to tab to it at all).
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  var el = e.target.closest && e.target.closest('[role="button"][tabindex]');
+  if (!el) return;
+  e.preventDefault();
+  el.click();
 });
 
 var _EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -1211,16 +1222,16 @@ async function dash_load(){
   body.innerHTML='<div class="kc-loading">Učitavam...</div>';
   try{
     var hdr={'Authorization':'Bearer '+currentSession.access_token};
-    var [r,br,inR]=await Promise.all([
+    // Iron Lawyer Sprint 001: /billing/pregled was fetched on every dashboard load but its
+    // result (bd) was never read anywhere in _dashRender -- a wasted round trip every morning.
+    var [r,inR]=await Promise.all([
       fetch(BASE_URL+'/api/dashboard/command-center',{headers:hdr}),
-      fetch(BASE_URL+'/billing/pregled',{headers:hdr}).catch(function(){return null;}),
       fetch(BASE_URL+'/api/inbox',{headers:hdr}).catch(function(){return null;})
     ]);
     if(!r.ok)throw new Error('HTTP '+r.status);
     var d=await r.json();
-    var bd=br&&br.ok?await br.json():null;
     var inboxData=inR&&inR.ok?await inR.json():null;
-    body.innerHTML=_dashRender(d,bd,inboxData);
+    body.innerHTML=_dashRender(d,null,inboxData);
     if(window.lucide)lucide.createIcons();
     kcConstellationInit();
     _kcStartClock();
@@ -1420,7 +1431,7 @@ function _kcPanelAktivni(d) {
       var rokIso  = rokByPredmet[p.id];
       var rokDays = rokIso ? _kcDaysUntil(rokIso) : null;
       var rokTxt  = rokDays !== null ? (rokDays <= 0 ? 'Danas' : 'Rok: ' + rokDays + (rokDays === 1 ? ' dan' : ' dana')) : '';
-      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')">';
+      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(p.id)+'\')" role="button" tabindex="0" aria-label="Otvori predmet '+escHtml(p.naziv||'')+'">';
       h += '<span class="kc-row-ico '+icoCls+'">'+_kcIco(icoName)+'</span>';
       h += '<div class="kc-panel-row-info">';
       h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(p.naziv||'—')+'</span>';
@@ -1438,55 +1449,10 @@ function _kcPanelAktivni(d) {
   return h;
 }
 
-function _kcPanelRokovi(d) {
-  var rocista  = (d.danasnja_rocista||[]).slice(0,3);
-  var hitniRok = (d.hitni_rokovi||[]).slice(0,3);
-  var rokovi7  = (d.rokovi_7_dana||[]).slice(0,3);
-  var hasData  = rocista.length || hitniRok.length || rokovi7.length;
-  var h = '<div class="kc-panel" id="kc-panel-rokovi">';
-  h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('calendar-clock')+'Današnji rokovi</span>';
-  h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">Vidi sve →</span></div>';
-  if (!hasData) {
-    h += '<div class="kc-panel-empty">';
-    h += '<span class="kc-panel-empty-ico">'+_kcIco('calendar-x')+'</span>';
-    h += '<span class="kc-panel-empty-title">Nema rokova danas.</span>';
-    h += '<span class="kc-panel-empty-sub">Odlično, sve je pod kontrolom.</span>';
-    h += '</div>';
-  } else {
-    rocista.forEach(function(r) {
-      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-      h += '<span class="kc-row-ico kc-ico-warn">'+_kcIco('gavel')+'</span>';
-      h += '<div class="kc-panel-row-info">';
-      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.predmet_naziv||'Predmet')+'</span>';
-      if (r.vreme) h += '<span class="kc-panel-row-ts">'+escHtml(r.vreme)+'</span>';
-      h += '</div>';
-      h += '<div class="kc-panel-row-meta">Ročište'+(r.sud?' · '+escHtml(r.sud):'')+'</div>';
-      h += '</div></div>';
-    });
-    hitniRok.forEach(function(r) {
-      h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-      h += '<span class="kc-row-ico kc-ico-danger">'+_kcIco('alert-triangle')+'</span>';
-      h += '<div class="kc-panel-row-info">';
-      h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</span>';
-      h += '<span class="kc-panel-row-ts">'+escHtml(r.datum_iso||'—')+'</span></div>';
-      h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+'</div>';
-      h += '</div></div>';
-    });
-    if (!rocista.length && !hitniRok.length) {
-      rokovi7.forEach(function(r) {
-        h += '<div class="kc-panel-row" onclick="_dashGoToPredmet(\''+escHtml(r.predmet_id)+'\')">';
-        h += '<span class="kc-row-ico kc-ico-teal">'+_kcIco('calendar-clock')+'</span>';
-        h += '<div class="kc-panel-row-info">';
-        h += '<div class="kc-panel-row-top"><span class="kc-panel-row-naziv">'+escHtml(r.dogadjaj||'Rok')+'</span>';
-        h += '<span class="kc-panel-row-ts">'+escHtml(r.datum_iso||'—')+'</span></div>';
-        h += '<div class="kc-panel-row-meta">'+escHtml(r.predmet_naziv||'—')+'</div>';
-        h += '</div></div>';
-      });
-    }
-  }
-  h += '</div>';
-  return h;
-}
+// Iron Lawyer Sprint 001: _kcPanelRokovi ("Današnji rokovi") removed -- see call-site comment
+// above. Today's ročišta reach the Workspace "Danas" bucket via case_actions Rule 1
+// (services/case_evolution.py, sourced directly from `rocista`), so no information this panel
+// showed is lost, only the duplicate/potentially-divergent second rendering of it.
 
 // Program Omega, Sprint 005 (2026-08-06): _kcPanelPreporuke ("Preporuke"
 // panel, rendered d.ai_preporuke -- a rule-based text rephrasing of the
@@ -1515,7 +1481,7 @@ function _kcPanelAktivnosti(d) {
     h += '</div>';
   } else {
     acts.forEach(function(a){
-      var clickAttr = a.id ? ' onclick="_dashGoToPredmet(\''+escHtml(a.id)+'\')"' : '';
+      var clickAttr = a.id ? ' onclick="_dashGoToPredmet(\''+escHtml(a.id)+'\')" role="button" tabindex="0"' : '';
       h += '<div class="kc-panel-row"'+clickAttr+'>';
       h += '<span class="kc-row-ico '+a.cls+'">'+_kcIco(a.ico)+'</span>';
       h += '<div class="kc-panel-row-info">';
@@ -1575,9 +1541,6 @@ _dashRender = function(d, bd, inboxData) {
      advokat vidi kao odgovor na "šta zahteva pažnju", zatvara OMEGA-012. */
   html += '<div id="workspace-section" class="kc-panel" style="margin-bottom:.9rem;"><div class="kc-loading">Učitavam Workspace...</div></div>';
 
-  /* ── 2.6. LAW FIRM HEALTH INDEX — hero element, puni se async ── */
-  html += '<div id="hi-widget" style="display:none;margin-bottom:.9rem;"></div>';
-
   /* ── 3. SFERA sa statistikama unutra ──────────────────────── */
   html += '<div class="kc-sphere-wrap">';
   html += '<div class="kc-sphere">';
@@ -1586,12 +1549,12 @@ _dashRender = function(d, bd, inboxData) {
   html += '<div class="kc-sphere-divv"></div>';
   html += '<div class="kc-sphere-divh"></div>';
   /* TL — Aktivnih predmeta */
-  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">';
+  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')" role="button" tabindex="0" aria-label="Otvori predmete">';
   html += '<div class="kc-sphere-ico">'+_kcIco('briefcase')+'</div>';
   html += '<div class="kc-sphere-num">'+aktivni+'</div>';
   html += '<div class="kc-sphere-lbl">Aktivnih<br>predmeta</div></div>';
   /* TR — Hitnih rokova */
-  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')">';
+  html += '<div class="kc-sphere-quad clickable" onclick="setTab(document.getElementById(\'tab-btn-kal\'),\'kal\')" role="button" tabindex="0" aria-label="Otvori rokove i ročišta">';
   html += '<div class="kc-sphere-ico'+(hitniRok>0?' warn':'')+'">'+_kcIco('clock')+'</div>';
   html += '<div class="kc-sphere-num'+(hitniRok>0?' warn':'')+'">'+hitniRok+'</div>';
   html += '<div class="kc-sphere-lbl">Hitnih<br>rokova</div></div>';
@@ -1609,17 +1572,27 @@ _dashRender = function(d, bd, inboxData) {
   html += '</div>'; /* kc-sphere */
   html += '</div>'; /* kc-sphere-wrap */
 
-  /* ── 4. PANELI — 3 kolone ─────────────────────────────────────
+  /* ── 4. PANELI — 2 kolone ─────────────────────────────────────
      Program Omega, Sprint 005: _kcPanelPreporuke ("Preporuke") i njegov
      poziv uklonjeni — prikazivao je d.ai_preporuke, rule-based tekstualni
      rekap istih cinjenica (rokovi/rizik/dokumenti) koje Workspace sekcija
      iznad sada prikazuje sourced, sa prioritetom i klikom na predmet.
-     Vidi docs/omega/SHADOW_WORKFLOW_AUDIT.md. */
-  html += '<div class="kc-panels-grid" style="grid-template-columns:repeat(3,1fr);">';
+     Vidi docs/omega/SHADOW_WORKFLOW_AUDIT.md.
+     Iron Lawyer Sprint 001: _kcPanelRokovi ("Današnji rokovi") uklonjen istim
+     razlogom — Workspace sekcija "Danas" bucket iznad je već izvor istine za
+     ovo, ovaj panel je bio nezavisno računat i mogao je da prikaže drugačiji
+     rezultat od Workspace-a za isti dan bez ikakvog objašnjenja zašto. */
+  html += '<div class="kc-panels-grid" style="grid-template-columns:repeat(2,1fr);">';
   html += _kcPanelAktivni(d);
-  html += _kcPanelRokovi(d);
   html += _kcPanelAktivnosti(d);
   html += '</div>';
+
+  /* ── 4.2. LAW FIRM HEALTH INDEX — hero element, puni se async.
+     Iron Lawyer Sprint 001: moved below the actionable urgent-items panels
+     (Workspace/Sphere/Aktivni/Aktivnosti) -- a composite firm-wellness score
+     isn't actionable the way "hearing at 10am" is, so it no longer occupies
+     the most valuable above-the-fold space ahead of concrete case data. ── */
+  html += '<div id="hi-widget" style="display:none;margin:.9rem 0;"></div>';
 
   /* ── 4.5. CIO — Chief Intelligence Officer ──────────────────── */
   html += '<div id="kc-cio-section" style="margin:1.2rem 0 0.4rem;">';
@@ -1728,7 +1701,20 @@ function _wsRender(d) {
         if (shown >= 8) return;
         shown++;
         var color = _WS_PRIO_COLOR[item.prioritet] || '#94a3b8';
-        h += '<div class="kc-inbox-row" onclick="_dashGoToPredmet(\''+escHtml(item.predmet_id||'')+'\')">';
+        // Iron Lawyer Sprint 001: 'review' items route to the actual Smart Intake review
+        // screen (some have no predmet_id yet). Everything else keeps the old case-navigate
+        // handler, but only when a predmet_id actually exists -- previously this always
+        // rendered as a clickable row even when empty, silently no-op'ing on click.
+        var clickAttr, rowStyle = '';
+        if (item.vrsta === 'review') {
+          clickAttr = 'siResumeReview(\''+escHtml(item.izvor && item.izvor.job_id || item.id || '')+'\',\''+escHtml((item.naslov||'').replace(/^Pregled potreban: /,''))+'\')';
+        } else if (item.predmet_id) {
+          clickAttr = '_dashGoToPredmet(\''+escHtml(item.predmet_id)+'\')';
+        } else {
+          clickAttr = null;
+          rowStyle = 'cursor:default;';
+        }
+        h += '<div class="kc-inbox-row"'+(clickAttr ? ' onclick="'+clickAttr+'"' : '')+(rowStyle ? ' style="'+rowStyle+'"' : '')+'>';
         h += '<div class="kc-inbox-dot" style="background:'+color+';"></div>';
         h += '<div class="kc-inbox-info">';
         h += '<div class="kc-inbox-naslov">'+escHtml(item.naslov||'—')+'</div>';
@@ -6542,39 +6528,39 @@ function formatResponse(rawText, ragMeta) {
     { key:'--- ANALIZA ŠTETE',                  cls:'resp-steta',       lbl:'Analiza štete',                 icon:'steta' },
     { key:'--- ANALIZA',                        cls:'resp-steta',       lbl:'Analiza',                       icon:'steta' },
     { key:'--- PROCENA VREDNOSTI ZAHTEVA',      cls:'resp-procena',     lbl:'Procena vrednosti zahteva',     icon:'' },
-    { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'📖 Citat zakona',            icon:'citat' },
+    { key:'--- CITAT ZAKONA',                   cls:'resp-citat',       lbl:'Citat zakona',            icon:'citat' },
     { key:'--- PRAVNI OSNOV',                   cls:'resp-pravni-osnov',lbl:'Pravni osnov',                  icon:'osnov' },
     // Specifičnije RIZICI sekcije pre generičke
-    { key:'--- RIZICI I ROKOVI',                cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',              icon:'rizici' },
-    { key:'--- PORESKI RIZICI',                 cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',               icon:'rizici' },
-    { key:'--- RIZICI I IZUZECI',               cls:'resp-rizici',      lbl:'⚠️ Rizici i izuzeci',             icon:'rizici' },
-    { key:'--- TAČKE RIZIKA',                   cls:'resp-kad-ne-vazi', lbl:'⛔ Tačke rizika',                  icon:'' },
-    { key:'--- KADA OVO NE VAŽI',               cls:'resp-kad-ne-vazi', lbl:'⛔ Tačke rizika',                  icon:'' },
+    { key:'--- RIZICI I ROKOVI',                cls:'resp-rizici',      lbl:'⚠ Rizici i rokovi',              icon:'rizici' },
+    { key:'--- PORESKI RIZICI',                 cls:'resp-rizici',      lbl:'⚠ Poreski rizici',               icon:'rizici' },
+    { key:'--- RIZICI I IZUZECI',               cls:'resp-rizici',      lbl:'⚠ Rizici i izuzeci',             icon:'rizici' },
+    { key:'--- TAČKE RIZIKA',                   cls:'resp-kad-ne-vazi', lbl:'⚠ Tačke rizika',                  icon:'' },
+    { key:'--- KADA OVO NE VAŽI',               cls:'resp-kad-ne-vazi', lbl:'⚠ Tačke rizika',                  icon:'' },
     // Procesni koraci — specifičnije pre generičkog
-    { key:'--- COMPLIANCE KORACI',              cls:'resp-procesni',    lbl:'✅ Compliance koraci',             icon:'procesni' },
-    { key:'--- PORESKE OBAVEZE — KORACI', cls:'resp-procesni',    lbl:'📋 Poreske obaveze — koraci',      icon:'procesni' },
-    { key:'--- PROCESNI KORACI',                cls:'resp-procesni',    lbl:'📋 Procesni koraci',               icon:'procesni' },
+    { key:'--- COMPLIANCE KORACI',              cls:'resp-procesni',    lbl:'✓ Compliance koraci',             icon:'procesni' },
+    { key:'--- PORESKE OBAVEZE — KORACI', cls:'resp-procesni',    lbl:'Poreske obaveze — koraci',      icon:'procesni' },
+    { key:'--- PROCESNI KORACI',                cls:'resp-procesni',    lbl:'Procesni koraci',               icon:'procesni' },
     // DEFINICIJA specifične sekcije
-    { key:'--- PRAVNA DEFINICIJA',              cls:'resp-pravna-def',  lbl:'📖 Pravna definicija',             icon:'citat' },
+    { key:'--- PRAVNA DEFINICIJA',              cls:'resp-pravna-def',  lbl:'Pravna definicija',             icon:'citat' },
     { key:'--- PRAKTIČAN PRIMER',               cls:'resp-edgecase',    lbl:'Praktičan primer',              icon:'' },
     { key:'--- KLJUČNO PITANJE',                cls:'resp-kljucno-parnica', lbl:'Ključno pitanje',          icon:'' },
-    { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'📌 Potrebne informacije',          icon:'' },
-    { key:'--- MIŠLJENJA MINISTARSTAVA',          cls:'resp-misljenje',   lbl:'📋 Mišljenja ministarstava',       icon:'' },
-    { key:'--- SUDSKA PRAKSA',                  cls:'resp-sudska-praksa', lbl:'⚖️ Sudska praksa',              icon:'' },
+    { key:'--- POTREBNE INFORMACIJE',           cls:'resp-potrebne',    lbl:'Potrebne informacije',          icon:'' },
+    { key:'--- MIŠLJENJA MINISTARSTAVA',          cls:'resp-misljenje',   lbl:'Mišljenja ministarstava',       icon:'' },
+    { key:'--- SUDSKA PRAKSA',                  cls:'resp-sudska-praksa', lbl:'Sudska praksa',              icon:'' },
     { key:'--- IZVOR',                          cls:'resp-izvor',       lbl:'Izvor',                           icon:'' },
     // ── v2.0 sekcije (emoji + mixed case) ──────────────────────────────────
     { key:'⚡ TL;DR',                      cls:'resp-tldr',        lbl:'TL;DR — Kratak zaključak', icon:'tldr' },
     { key:'⚖️ Pravni zaključak',           cls:'resp-zakljucak',   lbl:'Pravni zaključak',        icon:'zakljucak' },
-    { key:'📖 Citat zakona',               cls:'resp-citat',       lbl:'📖 Citat zakona',             icon:'citat' },
-    { key:'📖 Pravna definicija',          cls:'resp-zakljucak',   lbl:'📖 Pravna definicija',        icon:'zakljucak' },
-    { key:'🔗 Lanac rezonovanja',          cls:'resp-lanac',       lbl:'🔗 Lanac rezonovanja',        icon:'lanac' },
+    { key:'📖 Citat zakona',               cls:'resp-citat',       lbl:'Citat zakona',             icon:'citat' },
+    { key:'📖 Pravna definicija',          cls:'resp-zakljucak',   lbl:'Pravna definicija',        icon:'zakljucak' },
+    { key:'🔗 Lanac rezonovanja',          cls:'resp-lanac',       lbl:'Lanac rezonovanja',        icon:'lanac' },
     { key:'⚖ Pravni osnov',               cls:'resp-pravni-osnov',lbl:'Pravni osnov',             icon:'osnov' },
-    { key:'⚠️ Rizici i rokovi zastarelosti', cls:'resp-rizici',   lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
-    { key:'⚠️ Rizici i rokovi',            cls:'resp-rizici',      lbl:'⚠️ Rizici i rokovi',         icon:'rizici' },
-    { key:'⚠️ Poreski rizici',             cls:'resp-rizici',      lbl:'⚠️ Poreski rizici',          icon:'rizici' },
-    { key:'✅ Compliance koraci',          cls:'resp-procesni',    lbl:'✅ Compliance koraci',        icon:'procesni' },
-    { key:'📋 Poreske obaveze — koraci',   cls:'resp-procesni',    lbl:'📋 Poreske obaveze',         icon:'procesni' },
-    { key:'📋 Procesni koraci',            cls:'resp-procesni',    lbl:'📋 Procesni koraci',          icon:'procesni' },
+    { key:'⚠️ Rizici i rokovi zastarelosti', cls:'resp-rizici',   lbl:'⚠ Rizici i rokovi',         icon:'rizici' },
+    { key:'⚠️ Rizici i rokovi',            cls:'resp-rizici',      lbl:'⚠ Rizici i rokovi',         icon:'rizici' },
+    { key:'⚠️ Poreski rizici',             cls:'resp-rizici',      lbl:'⚠ Poreski rizici',          icon:'rizici' },
+    { key:'✅ Compliance koraci',          cls:'resp-procesni',    lbl:'✓ Compliance koraci',        icon:'procesni' },
+    { key:'📋 Poreske obaveze — koraci',   cls:'resp-procesni',    lbl:'Poreske obaveze',         icon:'procesni' },
+    { key:'📋 Procesni koraci',            cls:'resp-procesni',    lbl:'Procesni koraci',          icon:'procesni' },
     { key:'🎯 Pouzdanost',                 cls:'resp-pouzdanost',  lbl:'Pouzdanost',               icon:'pouzdanost' },
     { key:'🎯 Ključno pitanje',            cls:'resp-kljucno',     lbl:'Ključno pitanje',          icon:'kljucno' },
     { key:'💡 Praktičan primer',           cls:'resp-edgecase',    lbl:'Praktičan primer',         icon:'' },
@@ -6584,18 +6570,18 @@ function formatResponse(rawText, ragMeta) {
     { key:'HIJERARHIJA IZVORA:', cls:'resp-hijerarhija', lbl:'Hijerarhija izvora',   icon:'hijerarhija' },
     { key:'PRAVNI ZAKLJUČAK:',  cls:'resp-zakljucak',  lbl:'Pravni zaključak',    icon:'zakljucak' },
     { key:'ANALIZA ŠTETE:',     cls:'resp-steta',      lbl:'Analiza štete',         icon:'steta' },
-    { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
-    { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'📖 Citat zakona',          icon:'citat' },
+    { key:'CITAT ZAKONA:',      cls:'resp-citat',      lbl:'Citat zakona',          icon:'citat' },
+    { key:'CITAT IZ ZAKONA:',   cls:'resp-citat',      lbl:'Citat zakona',          icon:'citat' },
     { key:'PRAVNI OSNOV:',      cls:'resp-pravni-osnov',lbl:'Pravni osnov',            icon:'osnov' },
     { key:'POUZDANOST:',        cls:'resp-pouzdanost', lbl:'Pouzdanost',               icon:'pouzdanost' },
-    { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠️ Rizici i izuzeci',     icon:'rizici' },
-    { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'📍 Kada ovo ne važi',     icon:'edgecase' },
+    { key:'RIZICI I IZUZECI:',  cls:'resp-rizici',     lbl:'⚠ Rizici i izuzeci',     icon:'rizici' },
+    { key:'KADA OVO NE VAŽI:',  cls:'resp-edgecase',   lbl:'Kada ovo ne važi',     icon:'edgecase' },
     { key:'PROCESNI KORACI:',   cls:'resp-procesni',   lbl:'Procesni koraci',       icon:'procesni' },
     { key:'KLJUČNO PITANJE:',   cls:'resp-kljucno',    lbl:'Ključno pitanje',       icon:'kljucno' },
-    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'🔍 Potrebne informacije',  icon:'pitanja' },
+    { key:'DODATNA PITANJA:',   cls:'resp-pitanja',    lbl:'Potrebne informacije',  icon:'pitanja' },
     { key:'NACRT:',             cls:'resp-nacrt',      lbl:'Nacrt dokumenta',       icon:'' },
     { key:'ANALIZA:',           cls:'resp-analiza',    lbl:'Analiza',               icon:'' },
-    { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici', lbl:'⚠️ Identifikovani rizici', icon:'' },
+    { key:'IDENTIFIKOVANI RIZICI:', cls:'resp-rizici', lbl:'⚠ Identifikovani rizici', icon:'' },
     { key:'PREPORUKE:',         cls:'resp-preporuke',  lbl:'Preporuke',             icon:'' },
     { key:'ODGOVOR:',           cls:'resp-odgovor',    lbl:'Odgovor',               icon:'' },
     { key:'PRAVNA POSLEDICA:',  cls:'resp-posledica',  lbl:'Pravna posledica',      icon:'' },
@@ -6651,13 +6637,13 @@ function formatResponse(rawText, ragMeta) {
   if (isNewFmt) {
     trustBadge = '';
   } else if (pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1) {
-    trustBadge = '<div class="trust-badge trust-high">✅ Doslovno citiran — član direktno pronađen u bazi zakona RS.</div>';
+    trustBadge = '<div class="trust-badge trust-high">✓ Doslovno citiran — član direktno pronađen u bazi zakona RS.</div>';
   } else if (pouzdanostVal.indexOf('📝') !== -1 || pouzdanostVal.indexOf('Parafrazirano') !== -1) {
     trustBadge = '<div class="trust-badge trust-mid">Parafrazirano — sadržaj zakona potvrđen, nije doslovan citat.</div>';
   } else if (isV2) {
     trustBadge = '';
   } else {
-    trustBadge = '<div class="trust-badge trust-low">⚠️ Opšta pravna logika — nije pronađen direktan član, odgovor baziran na principima prava.</div>';
+    trustBadge = '<div class="trust-badge trust-low">⚠ Opšta pravna logika — nije pronađen direktan član, odgovor baziran na principima prava.</div>';
   }
 
     var isHigh = pouzdanostVal.indexOf('✅') !== -1 || pouzdanostVal.indexOf('Doslovno') !== -1 || pouzdanostVal.indexOf('Visoka') !== -1;
@@ -7168,9 +7154,9 @@ async function crmSacuvajTarifu() {
       if (rmBtn) rmBtn.style.display = 'inline-block';
     } else {
       var e = await r.json();
-      _tarifeStatus('crm-tarifa-status', e.detail||'Gre\u0161ka', false);
+      _tarifeStatus('crm-tarifa-status', e.detail||'\u010cuvanje tarife nije uspelo. Poku\u0161ajte ponovo.', false);
     }
-  } catch(e) { _tarifeStatus('crm-tarifa-status', 'Gre\u0161ka mre\u017ee', false); }
+  } catch(e) { _tarifeStatus('crm-tarifa-status', _friendlyErr(e), false); }
 }
 
 async function crmUkloniTarifu() {
@@ -8437,8 +8423,8 @@ function praksa_render_grupisano(data) {
 
   // Groups
   var groups = [
-    { key:'tuzilac', lbl:'Za tužioca — usvojen zahtev', icon:'✅', hdrCls:'pg-group-tuzilac', lblCls:'pg-group-lbl-tuzilac' },
-    { key:'tuzeni',  lbl:'Za tuženog — odbijen zahtev',  icon:'❌', hdrCls:'pg-group-tuzeni',  lblCls:'pg-group-lbl-tuzeni'  },
+    { key:'tuzilac', lbl:'Za tužioca — usvojen zahtev', icon:'✓', hdrCls:'pg-group-tuzilac', lblCls:'pg-group-lbl-tuzilac' },
+    { key:'tuzeni',  lbl:'Za tuženog — odbijen zahtev',  icon:'✗', hdrCls:'pg-group-tuzeni',  lblCls:'pg-group-lbl-tuzeni'  },
     { key:'mesovito',lbl:'Mešovit ishod',                icon:'≈',  hdrCls:'pg-group-mesovito',lblCls:'pg-group-lbl-mesovito'},
     { key:'nepoznato',lbl:'Ishod neodređen',             icon:'?',  hdrCls:'pg-group-nepoznato',lblCls:'pg-group-lbl-nepoznato'},
   ];
@@ -9465,7 +9451,7 @@ async function pred_load() {
     portfolio_load();
     notif_load();
     setTimeout(onboardingCheck, 1500);
-    if (!r.ok) return;
+    if (!r.ok) { _predListError(); return; }
     var d = await r.json();
     _predmeti = d.predmeti || [];
     if (rd.ok) {
@@ -9491,7 +9477,21 @@ async function pred_load() {
       }
     }
     pred_renderList();
-  } catch(e) {}
+  } catch(e) { _predListError(); }
+}
+
+// Iron Lawyer Sprint 001: pred_load() used to silently `return`/no-op on fetch failure,
+// leaving #pred-list (a <tbody>) empty with zero explanation -- visually identical to a
+// genuine zero-cases state, except the real (good) zero-cases onboarding UI never fires
+// either, since that only runs after a successful response. A row inside the existing
+// table (not a floating div) is used since #pred-list is a <tbody>.
+function _predListError() {
+  var tbody = document.getElementById('pred-list');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:1.2rem 0.5rem;">'
+    + '<div class="vx-error-inline">Nije moguće učitati predmete. Proverite internet konekciju.'
+    + ' <button type="button" class="vx-error-retry-btn" onclick="pred_load()">Pokušaj ponovo</button>'
+    + '</div></td></tr>';
 }
 
 function pred_setSort(mode) {
@@ -9860,6 +9860,27 @@ async function pred_bulkAkcija(akcija) {
   } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
+// Iron Lawyer Sprint 001: reopening a closed case used to only be reachable via list
+// bulk-select -> "Aktiviraj" -- zero affordance on the case detail screen itself, where a
+// lawyer who just closed a case by mistake is actually standing. Reuses the same bulk
+// endpoint (single-id array) rather than adding a new one.
+async function pred_reopen(id) {
+  if (!currentSession || !id) return;
+  if (!confirm('Ponovo otvoriti ovaj predmet?')) return;
+  try {
+    var r = await fetch(BASE_URL+'/api/predmeti/bulk', {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
+      body: JSON.stringify({predmet_ids: [id], akcija: 'aktiviranje'})
+    });
+    var d = await r.json();
+    if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
+    showToast('Predmet je ponovo otvoren.','ok');
+    pred_loadDetail(id);
+    if (typeof pred_fetchList === 'function') pred_fetchList();
+  } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
+}
+
 function pred_subtabSwitch(pane, btn) {
   var VALID = ['pregled','dokumenti','strategija','rokovi','naplata','komunikacija','saradnja','timeline','agenti','graf','zadaci','profitabilnost','workflow'];
   // Legacy/retired panes (ccc, ai-analiza, dokazi, timeline) mapiraju se na svog naslednika —
@@ -9969,7 +9990,10 @@ var _KANBAN_FAZE = [
   { id: 'priprema',           label: 'Priprema',           dot: 'rgba(167,139,250,.7)' },
   { id: 'aktivan_postupak',   label: 'Aktivan postupak',   dot: 'rgba(74,222,128,.7)' },
   { id: 'ceka_odluku',        label: 'Čeka odluku',        dot: 'rgba(251,191,36,.7)' },
-  { id: 'zavrsen',            label: 'Završen',            dot: 'rgba(100,116,139,.6)' },
+  // Iron Lawyer Sprint 001: relabeled from "Završen" -- this is a kanban WORKFLOW phase, a
+  // field independent of the case's own status (aktivan/zatvoren/arhiviran). The near-identical
+  // wording made dragging a card here read as if it closed the case, which it does not.
+  { id: 'zavrsen',            label: 'Završna faza (radni tok)', dot: 'rgba(100,116,139,.6)' },
 ];
 var _TIP_SR = {
   parnicno:'Parnično', krivicno:'Krivično', upravno:'Upravno',
@@ -10219,7 +10243,15 @@ function aicOtvoriPredmet(subtab) {
 function pred_select(id) {
   var predmetObj = _predmeti.find(function(p){ return p.id === id; }) || null;
   var naziv = predmetObj ? predmetObj.naziv : '';
-  if (id !== activePredmetId) _copilotHistory = [];
+  if (id !== activePredmetId) {
+    _copilotHistory = [];
+    // Iron Lawyer Sprint 001: the AI's own context (_copilotHistory) was already reset on
+    // case switch, but the visible transcript wasn't -- a lawyer switching cases saw the
+    // PREVIOUS case's chat messages still on screen while new replies were generated with
+    // no memory of them, misleadingly implying continuity that no longer existed.
+    var _copMsgs = document.getElementById('pred-copilot-messages');
+    if (_copMsgs) _copMsgs.innerHTML = '';
+  }
   // Case DNA panel je vezan za jedan static mount ("case-dna-panel-mount") koji
   // _caseDnaRender preimenuje u "case-dna-panel-{predmetId}" pri prvom renderu za
   // taj predmet (vidi _caseDnaRender). Pri promeni predmeta vrati mount na
@@ -10322,6 +10354,20 @@ function pred_updateIndicator() {
   });
 }
 
+// Iron Lawyer Sprint 001: the case's AI summary had no copy-to-clipboard affordance, unlike
+// every other AI output surface in the app (15+ existing navigator.clipboard.writeText call
+// sites) -- yet it's the one most naturally reused verbatim for a client status update.
+function pckCopySazetak(btn) {
+  var el = document.getElementById('pck-sazetak-text');
+  var text = el ? el.textContent.trim() : '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '✓';
+    setTimeout(function() { btn.innerHTML = orig; if (typeof lucide !== 'undefined') lucide.createIcons(); }, 1500);
+  }).catch(function() { showToast('Kopiranje nije uspelo.', 'err'); });
+}
+
 function pred_renderCockpit(cockpit, urgentni) {
   var loadEl = document.getElementById('pck-loading');
   var bodyEl = document.getElementById('pck-body');
@@ -10347,8 +10393,16 @@ function pred_renderCockpit(cockpit, urgentni) {
   }
   var listEl = document.getElementById('pck-akcija-list');
   if (listEl) {
-    listEl.innerHTML = problemi.slice(0, 3).map(function(p) {
-      return '<div>&middot; ' + escHtml(p.problem || '') + '</div>';
+    // Iron Lawyer Sprint 001: severity color-coding, full list (was silently capped to 3 with
+    // only a bare count shown elsewhere, no way to see the rest), and click-through to the
+    // relevant tab (text-matched client-side -- identify_case_problems has no category field
+    // and is out of this sprint's UI-only scope to change).
+    var _pckColor = {kritican:'#ff9090', vazan:'#ffbb70', info:'rgba(255,255,255,.5)'};
+    listEl.innerHTML = problemi.map(function(p) {
+      var txt = p.problem || '';
+      var target = /rok/i.test(txt) ? 'rokovi' : /dokaz/i.test(txt) ? 'agenti' : null;
+      var clickAttr = target ? ' onclick="pred_subtabSwitch(\''+target+'\')" style="cursor:pointer;"' : '';
+      return '<div' + clickAttr + '><span style="color:'+(_pckColor[p.ozbiljnost]||_pckColor.info)+';">&middot;</span> ' + escHtml(txt) + (target ? ' <span style="opacity:.5;">→</span>' : '') + '</div>';
     }).join('');
   }
   var prioEl = document.getElementById('pck-akcija-prio');
@@ -10399,7 +10453,15 @@ function pred_renderCockpit(cockpit, urgentni) {
   if (rkEl) {
     var ur = (urgentni || []).slice(0,3);
     if (!ur.length) {
-      rkEl.innerHTML = '<div style="font-size:.75rem;color:rgba(255,255,255,.28);">Nema hitnih rokova.</div>';
+      // Iron Lawyer Sprint 001: "Otkriveni problemi" (identify_case_problems, kriticni_rokovi
+      // incl. overdue) and "Hitni rokovi" (urgentni, excludes anything before today) are two
+      // independently-computed lists that can disagree -- this card used to flatly claim "no
+      // urgent deadlines" even when the adjacent card was reporting a critical one, which reads
+      // as false reassurance. If that's the case here, point to the Rokovi tab instead.
+      var _kriticniRokProblem = problemi.some(function(p){ return /kritičan rok/i.test(p.problem || ''); });
+      rkEl.innerHTML = _kriticniRokProblem
+        ? '<div style="font-size:.75rem;color:#ffbb70;cursor:pointer;" onclick="pred_subtabSwitch(\'rokovi\')">⚠ Otkriven je kritičan rok (možda već prošao) — proverite Rokovi tab →</div>'
+        : '<div style="font-size:.75rem;color:rgba(255,255,255,.28);">Nema hitnih rokova.</div>';
     } else {
       rkEl.innerHTML = ur.map(function(h){
         return '<div class="pck-rok-item">'+escHtml(h.dogadjaj||'')+(h.datum_iso?' ('+h.datum_iso+')':'')+'</div>';
@@ -10997,10 +11059,13 @@ function notif_render() {
     rok_blizu:'Rok', hitan_rok:'⚠ Hitan rok', rok:'Rok',
     rizik_promena:'⚠ Rizik', bez_klijenta:'Klijent', neaktivnost:'Neaktivnost'
   };
+  // Iron Lawyer Sprint 001: keys must match notifications.py's actual "priority" vocabulary
+  // (urgent/high/normal/low/info per shared/attention_priority.py's NOTIFICATIONS_TO_CANONICAL,
+  // renamed Program Omega Sprint 006) -- the old visoka/hitan/srednja/normalan/niska keys never
+  // matched, so every notification silently fell through to the dim default color.
   var _PRIO_COLOR = {
-    visoka:'#ff9090', hitan:'#ff9090',
-    srednja:'#ffbb70', normalan:'#ffbb70',
-    niska:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
+    urgent:'#ff9090', high:'#ff9090',
+    normal:'#ffbb70', low:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
   };
 
   var unreadCount = _notifData.filter(function(n){ return !_notifRead.has(n.id); }).length;
@@ -11058,8 +11123,8 @@ function mobNotifOtvori() {
       rizik_promena:'⚠ Rizik', bez_klijenta:'Klijent', neaktivnost:'Neaktivnost'
     };
     var _PRIO_COLOR = {
-      visoka:'#ff9090', hitan:'#ff9090', srednja:'#ffbb70',
-      normalan:'#ffbb70', niska:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
+      urgent:'#ff9090', high:'#ff9090',
+      normal:'#ffbb70', low:'rgba(255,255,255,.4)', info:'rgba(255,255,255,.4)'
     };
     var unreadCount = _notifData.filter(function(n){ return !_notifRead.has(n.id); }).length;
     var hdr = '<div style="padding:0.5rem 1rem 0.4rem;display:flex;justify-content:space-between;align-items:center;">'
@@ -11101,6 +11166,13 @@ function mobNotifZatvori() {
 function notif_click(el, id, predmetId) {
   _notifRead.add(id);
   localStorage.setItem('vx_notif_read', JSON.stringify([..._notifRead]));
+  // Iron Lawyer Sprint 001: this used to be localStorage-only. The backend's own periodic
+  // regeneration (routers/notifications.py) deletes+reinserts still-unread rows with new ids,
+  // so a read state the server never learned about would reappear as unread after regeneration.
+  // Best-effort, non-blocking -- the local Set already drives the visible UI immediately.
+  fetch(BASE_URL+'/notifications/'+encodeURIComponent(id)+'/read', {
+    method: 'PATCH', headers: { 'Authorization':'Bearer '+currentSession.access_token }
+  }).catch(function(){});
   el.style.opacity = '0.45';
   var badge = document.getElementById('notif-badge');
   var unread = _notifData.filter(function(n){ return !_notifRead.has(n.id); });
@@ -11118,6 +11190,9 @@ function notif_click(el, id, predmetId) {
 function notif_markAllRead() {
   _notifData.forEach(function(n){ _notifRead.add(n.id); });
   localStorage.setItem('vx_notif_read', JSON.stringify([..._notifRead]));
+  fetch(BASE_URL+'/notifications/read-all', {
+    method: 'PATCH', headers: { 'Authorization':'Bearer '+currentSession.access_token }
+  }).catch(function(){});
   var badge = document.getElementById('notif-badge');
   if (badge) badge.style.display = 'none';
   notif_render();
@@ -11252,7 +11327,7 @@ async function lanac_sacuvaj(tip, datum, btn) {
     if (d.sacuvano_u_predmet) {
       showToast('Rokovi sačuvani u hronologiju!', 'success');
       if (btn) { btn.textContent = '✓ Sačuvano'; btn.style.color = '#4ade80'; btn.style.borderColor = 'rgba(74,222,128,0.3)'; }
-      pred_loadHronologija(activePredmetId);
+      timeline_load();
     }
   } catch(e) {
     showToast('Greška pri čuvanju.', 'error');
@@ -11471,6 +11546,9 @@ function copilot_renderResponse(d) {
       var vc = d.verovatnoca_uspeha;
       var vcColor = vc>=60?'#7de0a0':vc>=40?'#ffbb70':'#ff9090';
       html += '<div style="margin-top:0.3rem;font-size:0.68rem;color:rgba(255,255,255,.4);">Verovatnoća uspeha: <span style="color:'+vcColor+';font-weight:700;">'+vc+'%</span></div>';
+      // Iron Lawyer Sprint 001: every other AI-generated probability surface in the app carries
+      // a disclaimer that it's an AI estimate, not a verified fact -- this one didn't.
+      html += '<div style="font-size:0.6rem;color:rgba(255,255,255,.28);margin-top:0.1rem;">AI procena, ne garantovan ishod.</div>';
     }
     copilot_appendMsg('bot', html || escHtml(d.odgovor||'Analiza završena.'));
     return;
@@ -11489,8 +11567,24 @@ function copilot_renderResponse(d) {
     return;
   }
 
-  // Default: text response
-  copilot_appendMsg('bot', '<div>'+escHtml(d.odgovor||d.poruka||JSON.stringify(d)).replace(/\n/g,'<br>')+'</div>');
+  // Default: text response.
+  // Iron Lawyer Sprint 001: this used to only escape+swap \n for <br>, leaving literal
+  // "**bold**" markdown visible (backend responses embed it, e.g. routers/copilot.py) despite
+  // _mdToHtml already existing and being used elsewhere in the app for the same job.
+  var _bodyHtml = '<div>' + _mdToHtml(d.odgovor || d.poruka || 'Odgovor primljen.') + '</div>';
+  // The backend computes a machine-readable "jump to module" hint (akcija) for several intents
+  // that was previously discarded entirely, leaving the lawyer to self-navigate after reading
+  // prose that told them where to go. Only wired for hints this sprint could safely verify the
+  // exact destination for.
+  var _COPILOT_AKCIJA = {
+    otvori_conflict_check: { label: 'Otvori proveru sukoba interesa', fn: 'crmCheckKonfliktOtvori()' },
+    otvori_hearing_cc:     { label: 'Otvori pripremu za ročište',     fn: 'pred_subtabSwitch(\'rokovi\')' },
+  };
+  var _akcijaDef = d.akcija && _COPILOT_AKCIJA[d.akcija];
+  if (_akcijaDef) {
+    _bodyHtml += '<button type="button" class="vx-btn vx-btn-secondary" style="margin-top:0.4rem;height:26px;padding:0 0.6rem;font-size:0.68rem;" onclick="'+_akcijaDef.fn+'">'+_akcijaDef.label+' →</button>';
+  }
+  copilot_appendMsg('bot', _bodyHtml);
 }
 
 async function pred_copilotSubmit() {
@@ -11705,6 +11799,12 @@ async function pred_loadDetail(id) {
             var _rn = dok.redni_broj || (_sorted.indexOf(dok) + 1);
             var _rnStr = String(_rn).padStart(2, '0');
             var _isLast = group === _groups[_groups.length - 1] && _i === group.items.length - 1;
+            // Iron Lawyer Sprint 001: classification/review status used to be invisible here --
+            // only visible in the separate "AI Analiza" tab's Evidence Matrix, even though this
+            // list already receives tip_dokaza (predmet_dokumenti.select("*"), api.py) unused.
+            var _tipDok = dok.tip_dokaza || 'neklasifikovan';
+            var _tipDokLabel = (typeof _TIP_DOKAZA_LABELS !== 'undefined' && _TIP_DOKAZA_LABELS[_tipDok]) || _tipDok;
+            var _tipDokBadge = '<span class="evidence-tip-badge evidence-tip-' + escHtml(_tipDok) + '" style="flex-shrink:0;font-size:.6rem;padding:.1rem .35rem;">' + escHtml(_tipDokLabel) + '</span>';
             html += '<div class="vx-tl-item">'
               + '<div class="vx-tl-dotcol"><div class="vx-tl-dot' + (_hasNs ? ' is-done' : '') + '"></div>' + (_isLast ? '' : '<div class="vx-tl-line"></div>') + '</div>'
               + '<div class="vx-tl-card pred-dok-card" id="cdrow-' + escHtml(dok.id || '') + '" data-dok-id="' + escHtml(dok.id || '') + '" data-dok-naziv="' + escHtml(dok.naziv_fajla || '') + '" data-dok-rn="' + _rn + '" '
@@ -11712,6 +11812,7 @@ async function pred_loadDetail(id) {
               + 'title="Klikni da učitaš u analizu" style="cursor:pointer;display:flex;align-items:center;gap:0.6rem;">'
               + '<span class="vx-badge vx-badge-accent" style="flex-shrink:0;font-family:var(--font-mono,monospace);">DOK-' + _rnStr + '</span>'
               + '<i data-lucide="file-text" style="width:15px;height:15px;flex-shrink:0;color:' + (_hasNs ? '#00d4ff' : 'rgba(255,255,255,0.35)') + ';"></i>'
+              + _tipDokBadge
               + '<div style="flex:1;min-width:0;">'
               + '<div class="vx-tl-title" style="' + (_hasNs ? '' : 'color:rgba(255,255,255,0.45);') + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(dok.naziv_fajla || '') + '</div>'
               + '<div class="vx-tl-sub">' + _kb + ' KB'
@@ -11846,7 +11947,6 @@ async function pred_loadDetail(id) {
     // Case Ready Score
     pred_renderCaseReadyScore(d.case_ready_score, d.checklist, d.copilot_preporuka);
 
-    pred_loadHronologija(id);
     ucitajKomentare(id);
     billing_load(id);
     pred_zatvoriRenderSection(d.predmet || null);
@@ -11864,45 +11964,11 @@ async function pred_loadDetail(id) {
   }
 }
 
-async function pred_loadHronologija(predmetId) {
-  var el = document.getElementById('pred-hronologija-list');
-  if (!el || !currentSession) return;
-  try {
-    var r = await fetch(BASE_URL + '/api/predmeti/' + predmetId + '/hronologija', {
-      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-    });
-    if (!r.ok) { el.innerHTML = ''; return; }
-    var d = await r.json();
-    var items = d.hronologija || [];
-    if (!items.length) {
-      el.innerHTML = '<div style="font-size:0.75rem;color:rgba(255,255,255,0.28);">Uploadujte dokument da biste generisali hronologiju.</div>';
-      return;
-    }
-    var html = '<div class="hron-timeline">';
-    items.forEach(function(ev) {
-      var v = ev.vaznost || 'informativan';
-      var cls = v === 'kritičan' ? 'kritican' : v === 'važan' ? 'vazan' : 'informativan';
-      var bdg = v === 'kritičan' ? 'KRITIČAN' : v === 'važan' ? 'VAŽAN' : 'INFO';
-      html += '<div class="hron-item ' + cls + '">';
-      if (ev.datum) {
-        html += '<div class="hron-item-date">' + escHtml(ev.datum)
-              + '<span class="hron-badge ' + cls + '">' + bdg + '</span>';
-        if (ev.dokument_naziv) {
-          html += ' <span style="font-size:0.6rem;color:rgba(255,255,255,0.22);">— ' + escHtml(ev.dokument_naziv) + '</span>';
-        }
-        html += '</div>';
-      }
-      html += '<div class="hron-item-event">' + escHtml(ev.dogadjaj) + '</div>';
-      if (ev.akter) html += '<div class="hron-item-akter">→ ' + escHtml(ev.akter) + '</div>';
-      html += '</div>';
-    });
-    html += '</div>';
-    html += '<button class="hron-export-btn" onclick="pred_exportHronologija()">↓ Izvezi PDF</button>';
-    el.innerHTML = html;
-  } catch(e) {
-    el.innerHTML = '';
-  }
-}
+// Iron Lawyer Sprint 001: pred_loadHronologija() and its target (#pred-hronologija-list,
+// wrapped in a permanently display:none #pred-hronologija-wrap) removed -- the wrapper was
+// never un-hidden by any code path, so this fetched a second, functionally identical copy of
+// the same data the visible Intelligence Timeline (timeline_load(), above) already renders,
+// on every case load and twice more per document upload, for zero visible effect.
 
 function pred_exportHronologija() {
   // Delegate to full PDF export (Phase 5.3)
@@ -12669,7 +12735,7 @@ async function billing_sendEmail(fakturaId) {
 
 var _cmdkOpenState = false;
 var _cmdkTimer     = null;
-var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing';
+var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci';
 var _cmdkResults   = [];
 var _cmdkFocusIdx  = -1;
 
@@ -12690,9 +12756,10 @@ var _CMDK_ICONS = {
   billing:     {bg:'rgba(255,255,255,0.05)', label:'Naplata'},
   hronologija: {bg:'rgba(200,100,255,0.10)', label:'Hronologija'},
   beleska:     {bg:'rgba(255,255,255,0.06)', label:'Beleška'},
+  zadatak:     {bg:'rgba(255,255,255,0.05)', label:'Zadatak'},
 };
-var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske'];
-var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska'};
+var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske','zadaci'];
+var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska',zadaci:'zadatak'};
 
 function cmdkOpen() {
   if (!currentSession) return;
@@ -12735,7 +12802,7 @@ async function _cmdkFetch(q) {
   try {
     var url = BASE_URL+'/api/search?q='+encodeURIComponent(q)+'&vrste='+encodeURIComponent(_cmdkVrste)+'&limit=8';
     var r   = await fetch(url, {headers:{'Authorization':'Bearer '+currentSession.access_token}});
-    if (!r.ok) { cmdkRender([]); return; }
+    if (!r.ok) { cmdkRender([], [], true); return; }
     var d = await r.json();
     _cmdkResults  = [];
     _CMDK_ORDER.forEach(function(skupina) {
@@ -12748,10 +12815,10 @@ async function _cmdkFetch(q) {
     // specifically to distinguish "a sub-search failed" from "genuinely 0 results" --
     // previously dropped here, showing an identical "Nema rezultata." either way.
     cmdkRender(_cmdkResults, d.nepotpuno || []);
-  } catch(e) { cmdkRender([]); }
+  } catch(e) { cmdkRender([], [], true); }
 }
 
-function cmdkRender(items, nepotpuno) {
+function cmdkRender(items, nepotpuno, failed) {
   var el = document.getElementById('cmdk-results');
   if (!el) return;
   var nepotpunoNotice = (nepotpuno && nepotpuno.length)
@@ -12760,8 +12827,17 @@ function cmdkRender(items, nepotpuno) {
   if (!items.length) {
     var inp = document.getElementById('cmdk-input');
     var hasQuery = inp && inp.value.trim().length >= 2;
-    if (hasQuery) {
-      el.innerHTML = nepotpunoNotice + '<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata.</div>';
+    // Iron Lawyer Sprint 001: a totally failed search (network/5xx) used to render the exact
+    // same "Nema rezultata." as a genuinely empty result set -- a lawyer had no way to tell
+    // "nothing matches" from "the search broke."
+    if (failed) {
+      el.innerHTML = '<div style="text-align:center;padding:2rem 1rem;font-size:0.78rem;color:#fbbf24;">⚠ Pretraga nije uspela. Proverite internet konekciju i pokušajte ponovo.</div>';
+    } else if (hasQuery) {
+      var _askAi = _CMDK_ACTIONS.filter(function(a){ return a.label === 'Pitaj AI'; })[0];
+      var _askAiHtml = _askAi ? '<div class="gs-item" onclick="cmdkClose();(function(){'+_askAi.action+'})()" style="display:flex;align-items:center;gap:.65rem;padding:.5rem 1.2rem;cursor:pointer;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-size:.82rem;color:#e2e8f0;">'+_askAi.label+'</div>'
+        +'<div style="font-size:.7rem;color:rgba(255,255,255,.35);">'+_askAi.sub+'</div></div></div>' : '';
+      el.innerHTML = nepotpunoNotice + '<div style="text-align:center;padding:1.2rem 1rem 0.4rem;font-size:0.78rem;color:rgba(255,255,255,0.2);">Nema rezultata.</div>' + _askAiHtml;
     } else {
       el.innerHTML = '<div style="padding:.5rem 1.2rem .2rem;font-size:.62rem;color:rgba(255,255,255,.22);text-transform:uppercase;letter-spacing:.1em;">Brze akcije</div>'
         + _CMDK_ACTIONS.map(function(a) {
@@ -13435,11 +13511,15 @@ function _kalendarRender(eventi) {
         detStr += det.sudnica ? ' · <span class="kal-ev-det">' + _kalEsc(det.sudnica) + '</span>' : '';
         var stCls = 'kal-st-' + (det.status || 'zakazano');
         detStr += ' <span class="kal-ev-status ' + stCls + '">' + _kalEsc(det.status || 'zakazano') + '</span>';
-        if (det.id) detStr += ' <button class="kal-ev-del" onclick="rocisteObrisi(\'' + _kalEsc(det.id) + '\')" title="Obriši">✕</button>';
+        if (det.id) detStr += ' <button class="kal-ev-del" onclick="event.stopPropagation();rocisteObrisi(\'' + _kalEsc(det.id) + '\')" title="Obriši">✕</button>';
       }
-      html += '<div class="kal-ev-row ' + tipCls + '">';
+      // Iron Lawyer Sprint 001: calendar entries used to be inert text -- notification-bell
+      // clicks already deep-link straight into the case (notif_click/pred_select), this didn't,
+      // so a lawyer had to remember the case name and manually find it in Predmeti.
+      var _kalClick = e.predmet_id ? ' onclick="_dashGoToPredmet(\'' + _kalEsc(e.predmet_id) + '\')" style="cursor:pointer;"' : '';
+      html += '<div class="kal-ev-row ' + tipCls + '"' + _kalClick + '>';
       html += '<div class="kal-ev-naslov">' + _kalEsc(e.naslov) + vremeStr + '</div>';
-      if (e.predmet_naziv) html += '<div class="kal-ev-pred">' + _kalEsc(e.predmet_naziv) + '</div>';
+      if (e.predmet_naziv) html += '<div class="kal-ev-pred">' + _kalEsc(e.predmet_naziv) + (e.predmet_id ? ' <span style="opacity:.5;">→</span>' : '') + '</div>';
       if (detStr) html += '<div class="kal-ev-detalji">' + detStr + '</div>';
       html += '</div>';
     });
@@ -13586,10 +13666,11 @@ function kalDayClick(iso) {
   evs.forEach(function(e) {
     var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : 'Rok';
     var col = e.tip === 'rociste' ? 'rgba(255,255,255,0.72)' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
-    html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);">';
+    var _kalDetClick = e.predmet_id ? ' onclick="_dashGoToPredmet(\'' + _kalEsc(e.predmet_id) + '\')" style="cursor:pointer;"' : '';
+    html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);"' + _kalDetClick + '>';
     html += '<div style="font-size:.72rem;color:' + col + ';margin-bottom:.1rem;">' + tipLabel + (e.vreme ? ' · ' + _kalEsc(e.vreme) : '') + '</div>';
     html += '<div style="font-weight:600;font-size:.82rem;color:#e2e8f0;">' + _kalEsc(e.naslov) + '</div>';
-    if (e.predmet_naziv) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.1rem;">' + _kalEsc(e.predmet_naziv) + '</div>';
+    if (e.predmet_naziv) html += '<div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.1rem;">' + _kalEsc(e.predmet_naziv) + (e.predmet_id ? ' <span style="opacity:.5;">→</span>' : '') + '</div>';
     if (e.detalji && e.detalji.sud) html += '<div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.1rem;">' + _kalEsc(e.detalji.sud) + (e.detalji.sudnica ? ' · ' + _kalEsc(e.detalji.sudnica) : '') + '</div>';
     html += '</div>';
   });
@@ -13990,6 +14071,12 @@ window.addEventListener('load', function() {
 function _updateAdminTabUI() {
   var btn = document.getElementById('tab-btn-pi');
   if (btn) btn.style.display = currentUserIsFounder ? '' : 'none';
+  // Iron Lawyer Sprint 001: tab-btn-pi (above) is an already-invisible (.vx-hidden-tab) helper
+  // element -- the actual VISIBLE sidebar nav item, tab-btn-pi-nav ("Portfolio kancelarije"),
+  // was never gated here, so every non-founder user saw this internal Vindex SaaS-metrics nav
+  // item and got a bare "access denied" on click.
+  var navBtn = document.getElementById('tab-btn-pi-nav');
+  if (navBtn) navBtn.style.display = currentUserIsFounder ? '' : 'none';
   var wlSection = document.getElementById('wl-admin-section');
   if (wlSection) {
     wlSection.style.display = currentUserIsFounder ? '' : 'none';
@@ -17129,7 +17216,15 @@ function _caseDnaRender(dna, predmetId) {
   var _sumHasContent = !!(_sumStatusTxt || _sumNajjaci || _sumSlabostTxt || _sumAkcijaTxt);
   html += '<div style="margin-bottom:0.7rem;padding-bottom:0.6rem;border-bottom:1px solid rgba(255,255,255,0.08);">';
   if (_sumHasContent) {
-    html += '<div style="color:rgba(255,255,255,0.32);font-size:0.58rem;letter-spacing:0.08em;margin-bottom:0.35rem;">PREGLED</div>';
+    // Iron Lawyer Sprint 001: no staleness indicator existed anywhere in the always-visible
+    // summary -- the version number was buried inside the collapsed detail section, and the
+    // actual date only reachable via a further click into "istorija". This Genome may not
+    // reflect facts added since it was last generated (new documents, new deadlines); a visible,
+    // clickable prompt to check is better than a lawyer never realizing to ask.
+    html += '<div style="color:rgba(255,255,255,0.32);font-size:0.58rem;letter-spacing:0.08em;margin-bottom:0.35rem;display:flex;justify-content:space-between;align-items:center;">'
+      + '<span>PREGLED'+(dna.verzija?' · v'+escHtml(String(dna.verzija)):'')+'</span>'
+      + '<span onclick="_genomHistoryOpen(\''+escHtml(predmetId||'')+'\')" style="cursor:pointer;color:rgba(0,212,255,0.45);text-transform:none;letter-spacing:0;" title="Kada je ova procena poslednji put generisana? Proverite pre nego što se oslonite na nju ako je predmet nedavno menjan.">kada je ažurirano? →</span>'
+      + '</div>';
     if (_sumStatusTxt) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Status: </span><span style="color:'+_sumStatusColor+';font-weight:700;">'+escHtml(_sumStatusTxt)+'</span></div>';
     if (_sumNajjaci) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Najveća snaga: </span><span style="color:rgba(255,255,255,0.78);">'+escHtml(_sumNajjaci.faktor||'')+'</span></div>';
     if (_sumSlabostTxt) html += '<div style="margin-bottom:3px;"><span style="color:rgba(255,255,255,0.4);font-size:0.62rem;">Najveća slabost: </span><span style="color:rgba(255,255,255,0.78);">'+escHtml(_sumSlabostTxt)+'</span></div>';
@@ -18002,7 +18097,10 @@ function evidence_load() {
           + '<div style="font-size:.78rem;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(doc.naziv_fajla||'') + '</div>'
           + (elementi ? '<div style="font-size:.67rem;color:rgba(255,255,255,.35);margin-top:.15rem;">' + escHtml(elementi) + '</div>' : '')
           + '</div>'
-          + (tip === 'neklasifikovan' ? '<button onclick="evidence_reklasifikuj(\'' + doc.id + '\')" style="font-size:.62rem;padding:.15rem .4rem;border:1px solid rgba(255,255,255,.15);border-radius:4px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;white-space:nowrap;">Klasifikuj</button>' : '')
+          // Iron Lawyer Sprint 001: this control used to disappear once ANY classification was
+          // assigned, right or wrong -- a wrong AI-assigned type became permanently
+          // uncorrectable from the UI. Always rendered now, with wording that reflects state.
+          + '<button onclick="evidence_reklasifikuj(\'' + doc.id + '\')" title="Ponovo pokreni AI klasifikaciju ovog dokumenta" style="font-size:.62rem;padding:.15rem .4rem;border:1px solid rgba(255,255,255,.15);border-radius:4px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;white-space:nowrap;">' + (tip === 'neklasifikovan' ? 'Klasifikuj' : 'Reklasifikuj') + '</button>'
           + '</div>';
       }).join('');
     }
@@ -19156,72 +19254,9 @@ function pred_fab_close() {
 function pred_fab_show() { var f = document.getElementById('pred-fab'); if (f) f.style.display = 'block'; }
 function pred_fab_hide() { var f = document.getElementById('pred-fab'); if (f) { f.style.display = 'none'; pred_fab_close(); } }
 
-/* ══════════════════════════════════════════════════
-   PROMENA 9 — Onboarding wizard JS
-   ══════════════════════════════════════════════════ */
-var _onboardStep = 0;
-var _onboardSteps = [
-  {
-    icon: '',
-    title: 'Dobrodošli u Vindex AI',
-    body: 'Vaš digitalni pravni asistent za srpsku advokaturу. Upravljajte predmetima, klijentima, rokovima i naplatom — sve na jednom mestu, bez papira.'
-  },
-  {
-    icon: '',
-    title: 'Korak 1: Dodajte klijenta',
-    body: 'Pre nego što kreirate predmet, dodajte klijenta. Kliknite <strong style="color:rgba(255,255,255,0.72);">Klijenti</strong> u levom meniju → dugme <strong style="color:rgba(255,255,255,0.72);">+ Novi klijent</strong>. Unesite ime, telefon i email. To je sve.'
-  },
-  {
-    icon: '',
-    title: 'Korak 2: Otvorite predmet',
-    body: 'Kliknite <strong style="color:rgba(255,255,255,0.72);">+ Novi predmet</strong> (gore desno ili u Predmeti tabu). Wizard će vas voditi korak po korak — naziv predmeta, klijent, oblast prava. Traje 2 minuta.'
-  },
-  {
-    icon: '',
-    title: 'Korak 3: Otpremite dokumente',
-    body: 'Unutar predmeta kliknite tab <strong style="color:rgba(255,255,255,0.72);">Dokumenti</strong>. Prevucite PDF ili DOCX fajl u zonu za upload. Sistem će automatski analizirati dokument i izvući ključne informacije.'
-  },
-  {
-    icon: '',
-    title: 'Korak 4: Postavljanje pitanja',
-    body: 'Kliknite tab <strong style="color:rgba(255,255,255,0.72);">Analiza</strong> unutar predmeta. Sistem će analizirati vaš predmet i predložiti strategiju. Ili koristite <strong style="color:rgba(255,255,255,0.72);">Pravni alati</strong> u levom meniju za pretragu zakona i sudske prakse.'
-  },
-  {
-    icon: '',
-    title: 'Korak 5: Pratite rokove i naplatite',
-    body: 'Tab <strong style="color:rgba(255,255,255,0.72);">Rokovi</strong> — unesite ročišta i ZPP rokovi se računaju automatski. Tab <strong style="color:rgba(255,255,255,0.72);">Naplata</strong> — uključite tajmer dok radite, dodajte stavke, kliknite Generiši fakturu.'
-  },
-  {
-    icon: '',
-    title: 'Saveti dok radite',
-    body: 'Svuda vidite obojene preporuke: 🔴 hitno, 🟡 pažnja, 🔵 informacija. Dugme <strong style="color:rgba(255,255,255,0.72);">Više ▾</strong> u tabovima predmeta otkriva još alata. Ako nešto nije jasno — kliknite ? u donjem levom uglu.'
-  },
-];
-function onboard_show() {
-  /* deaktivirano — onboardingCheck() je jedini onboarding flow */
-}
-function onboard_render() {
-  var s = _onboardSteps[_onboardStep];
-  var content = document.getElementById('onboard-step-content');
-  if (content) content.innerHTML =
-    '<div style="font-size:3rem;margin-bottom:1rem;">' + s.icon + '</div>' +
-    '<div style="font-size:1.2rem;font-weight:700;margin-bottom:.75rem;color:#fff;">' + s.title + '</div>' +
-    '<div style="font-size:14px;color:rgba(255,255,255,.65);line-height:1.7;">' + s.body + '</div>';
-  var dots = document.getElementById('onboard-dots');
-  if (dots) dots.innerHTML = _onboardSteps.map(function(_, i) {
-    return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' +
-      (i === _onboardStep ? '#00d4ff' : 'rgba(255,255,255,.2)') + ';margin:0 3px;"></span>';
-  }).join('');
-  var prev = document.getElementById('onboard-prev');
-  var next = document.getElementById('onboard-next');
-  if (prev) prev.style.display = _onboardStep > 0 ? 'inline-block' : 'none';
-  if (next) next.textContent = _onboardStep === _onboardSteps.length - 1 ? 'Počnimo! 🚀' : 'Nastavi →';
-}
-function onboard_next() {
-  if (_onboardStep < _onboardSteps.length - 1) { _onboardStep++; onboard_render(); }
-  else { localStorage.setItem('vx_onboarded', '1'); var el = document.getElementById('onboard-overlay'); if (el) el.style.display = 'none'; }
-}
-function onboard_prev() { if (_onboardStep > 0) { _onboardStep--; onboard_render(); } }
+// Iron Lawyer Sprint 001: dead onboarding wizard (var _onboardSteps, onboard_show/_render/
+// _next/_prev) removed -- onboard_show() was its only trigger and was already a hardcoded
+// no-op; onboardingCheck() (elsewhere in this file) is the one live onboarding flow.
 
 async function pred_dodajBelesku() {
   if (!activePredmetId || !currentSession) return;
@@ -19362,8 +19397,13 @@ async function pred_upload_doc(file) {
     }
     if (resEl) resEl.innerHTML = mainHtml + confirmHtml;
     pred_loadDetail(activePredmetId);
-    pred_loadHronologija(activePredmetId);
-    setTimeout(function(){ pred_loadHronologija(activePredmetId); }, 3500);
+    // Iron Lawyer Sprint 001: if the lawyer is already on the Rokovi tab when uploading, the
+    // visible Intelligence Timeline (timeline_load) used to only refresh on a subsequent tab
+    // switch -- newly-extracted chronology events from this upload wouldn't appear until they
+    // navigated away and back. (The old pred_loadHronologija() calls here fed a second,
+    // permanently display:none widget that was never visible -- removed, not replaced 1:1.)
+    var _rokoviPaneVisible = document.getElementById('pred-pane-rokovi');
+    if (_rokoviPaneVisible && _rokoviPaneVisible.style.display !== 'none') timeline_load();
     _genomeBackgroundWatch(_predmetIdZaWatch, _verzijaPreUploada);
   } catch(e) {
     if (loading) loading.style.display = 'none';
@@ -20326,7 +20366,7 @@ function _intakeRenderFileList() {
   _iFiles.forEach(function(f, i) {
     html += '<div class="intake-file-item">'
          +  '<span class="intake-file-name"> ' + f.name + ' <span style="color:rgba(255,255,255,0.3);font-size:0.7rem;">(' + f.chunks + ' segmenata)</span></span>'
-         +  '<button class="intake-file-rm" onclick="intakeRemoveFile(' + i + ')">✕</button>'
+         +  '<button class="intake-file-rm" onclick="intakeRemoveFile(' + i + ')" aria-label="Ukloni fajl" title="Ukloni fajl">✕</button>'
          +  '</div>';
   });
   document.getElementById('intake-files-list').innerHTML = html;
@@ -20662,6 +20702,34 @@ function siOtvori() {
   _siRenderStep();
 }
 
+// Iron Lawyer Sprint 001: Workspace's "za pregled" (vrsta==='review') items used to route
+// through the same generic _dashGoToPredmet(predmet_id) handler as every other item -- landing
+// on the case cockpit tab, NOT the actual Smart Intake review screen where the flagged
+// document gets resolved (and some review jobs have no predmet_id yet at all, so that handler
+// was a silent no-op for those). This resumes step 3 directly for the one flagged job.
+async function siResumeReview(jobId, filename) {
+  if (!currentSession || !jobId) return;
+  siOtvori();
+  _siFiles = [{ job_id: jobId, filename: filename || 'dokument', status: 'awaiting_review' }];
+  try {
+    var r = await fetch(BASE_URL + '/api/smart-intake/jobs/' + jobId, {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (r.ok) {
+      var d = await r.json();
+      var sf = _siFiles[0];
+      sf.status = d.job.status;
+      sf.docType = d.dokument ? d.dokument.tip : null;
+      sf.docTypeConf = d.dokument ? d.dokument.tip_pouzdanost : null;
+      sf.entities = d.entiteti || [];
+      sf.review = d.potrebna_provera;
+    }
+  } catch (e) { /* review screen still opens; per-field data best-effort */ }
+  _siStep = 3;
+  _siRenderStep();
+  _siRenderReview();
+}
+
 function siZatvori() {
   document.getElementById('si-overlay').classList.remove('open');
   if (_siPollTimer) { clearTimeout(_siPollTimer); _siPollTimer = null; }
@@ -20993,8 +21061,16 @@ async function siCorrectEntity(entityId) {
 }
 
 async function siFinalize() {
-  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed'; });
-  if (!ok.length) return;
+  // Iron Lawyer Sprint 001: must match _siRenderReview's filter exactly --
+  // 'awaiting_review' documents are shown and correctable on the review screen,
+  // but this filter used to exclude them from finalize entirely. That silently
+  // dropped them from the created case with no error (or, when ALL files were
+  // awaiting_review, made this button a no-op with zero feedback).
+  var ok = _siFiles.filter(function (sf) { return sf.status === 'completed' || sf.status === 'awaiting_review'; });
+  if (!ok.length) {
+    showToast('Nijedan dokument nije spreman za kreiranje predmeta.', 'error');
+    return;
+  }
 
   var nextBtn = document.getElementById('si-btn-next');
   nextBtn.disabled = true; nextBtn.textContent = 'Kreiram predmet...';
@@ -21450,6 +21526,22 @@ function pred_zatvoriOtvori() {
   var _zfEl = document.getElementById('pred-zatvori-form'); if(_zfEl) _zfEl.style.display = 'block';
   var _ztEl = document.getElementById('pred-zatvori-trigger'); if(_ztEl) _ztEl.style.display = 'none';
   var _zeEl = document.getElementById('pred-zatvori-err'); if(_zeEl) _zeEl.style.display = 'none';
+  // Iron Lawyer Sprint 001: closing a case used to give zero warning about unbilled time or
+  // open invoices sitting in Naplata for it -- the two features never talked to each other at
+  // the one moment it matters most for revenue. billing_load(id) already runs unconditionally
+  // in pred_loadDetail, so _billingEntries is already populated for the active case.
+  var _zwEl = document.getElementById('pred-zatvori-unbilled-warn');
+  if (_zwEl) {
+    var _neobr = (typeof _billingEntries !== 'undefined' && _billingPredmetId === activePredmetId)
+      ? _billingEntries.filter(function(e){ return !e.obracunato; }) : [];
+    if (_neobr.length) {
+      var _neobrSum = Math.round(_neobr.reduce(function(s,e){return s+(e.iznos_rsd||0);},0));
+      _zwEl.innerHTML = '⚠ ' + _neobr.length + ' nefakturisana stavka(e) u Naplati (' + _neobrSum.toLocaleString('sr-RS') + ' RSD) — zatvaranje predmeta ih ne fakturiše automatski.';
+      _zwEl.style.display = '';
+    } else {
+      _zwEl.style.display = 'none';
+    }
+  }
   var _ziEl = document.getElementById('pred-zatvori-ishod'); if(_ziEl) _ziEl.value = '';
   var _zzEl = document.getElementById('pred-zatvori-zakljucak'); if(_zzEl) _zzEl.value = '';
   var _fEl = document.getElementById('pred-zatvori-faktori');
@@ -21566,9 +21658,10 @@ function pred_zatvoriRenderSection(predmetData) {
       var opis = predmetData.opis || '';
       var ishod_match = opis.match(/Ishod: ([^\n]+)/);
       var ishod_str = ishod_match ? ishod_match[1].trim() : 'Zatvoreno';
-      dispEl.innerHTML = '<div style="display:flex;align-items:center;gap:.5rem;">'
+      dispEl.innerHTML = '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">'
         + '<span style="font-size:.85rem;">✓</span>'
         + '<span style="font-size:.78rem;color:rgba(255,255,255,0.5);">Predmet zatvoren — Ishod: <b style="color:#4ade80;">' + _htmlEsc(ishod_str) + '</b></span>'
+        + '<button type="button" class="vx-btn vx-btn-ghost" style="height:24px;padding:0 0.6rem;font-size:0.68rem;margin-left:auto;" onclick="pred_reopen(\'' + _htmlEsc(predmetData.id || activePredmetId) + '\')">↺ Ponovo otvori predmet</button>'
         + '</div>';
       dispEl.style.display = 'block';
     }

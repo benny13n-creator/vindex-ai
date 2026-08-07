@@ -3634,3 +3634,139 @@ questions (`PROGBETA-003`, `SENT-005`).
 **Severity summary across this mission's 21 debt items**: 1 High (`BLACKSWAN-DEBT-018`), 2 High-adjacent
 (`-016`, `-019`), remainder Medium/Medium-High/Low. None are CRITICAL — both CRITICAL findings this mission
 produced were fixed directly, per the mission's own STOP RULE.
+
+## Operation Iron Lawyer, Master Sprint 001 (2026-08-07) — "Human-Centered Operational Certification"
+
+21 independent teams (Alpha through Uniform) audited the LAWYER's experience using the platform (not the
+platform's correctness) via direct code tracing of static/vindex.js and index.html — no live browser tool
+was available in this environment, disclosed explicitly as a methodology constraint. Scope was
+constitutionally UI/UX-only per the mission's own FORBIDDEN list: no business logic, legal rules, AI
+reasoning, Genome, Event Bus, AI Governance, Security/RLS/Ownership, or Audit changes. 41 confirmed findings
+were fixed directly this sprint (see docs/ironlawyer/IRON_LAWYER_FINDINGS.md for the full list with
+file:line evidence); the following 13 require a founder/product decision or are too broad for a
+same-sprint safe patch and are named here instead.
+
+### IRONLAWYER-DEBT-001 — Case Commander: fully-built, billed feature with zero frontend entry point (High, product decision needed)
+
+Team Gamma: routers/case_commander.py implements 4 complete, permission-gated, billed endpoints
+(/api/commander/analiza, /quick-check, /checklist, /jutarnji), registered as a professional-tier,
+cost-tracked feature in the feature registry (migrations/064/065). Zero frontend code anywhere in
+static/vindex.js calls any of them — confirmed independently by 2 sibling forensic passes before this one
+(Program Sigma Sprint 005, Program Omega Sprint 005's own dead-code removal). A paying customer cannot ever
+trigger a feature they may be billed for. Two resolutions exist (wire up a UI trigger, or delist the feature
+from the sellable registry/pricing) — which one is a product decision, not unilaterally resolved here.
+
+### IRONLAWYER-DEBT-002 — 9 more backend routers follow the identical dead-feature pattern (Low-Medium, product decision needed)
+
+Team Romeo: routers/region.py, style_checker.py, knowledge_hygiene.py, knowledge_transfer.py,
+strategy_simulator.py, auto_discovery.py, agent_notifications.py, a second onboarding.py flow (distinct
+from the live one), and whatsapp_notif.py all have zero live frontend callers, verified by grep across
+every .html/.js file. Plus a fully-built duplicate CSV client-import wizard (routers/import_klijenti.py,
+richer column-mapping UX) sitting unused alongside the live, cruder klijenti/router.py import. Whether to
+wire these up or retire them as backend cleanup is a product decision spanning multiple sprints' worth of
+scope — named as a pattern here, not resolved feature-by-feature.
+
+### IRONLAWYER-DEBT-003 — 5-7 unreconciled "case strength/risk" scores on one screen (Critical/High, product decision needed — highest-priority item this sprint)
+
+Teams Bravo, Charlie, Mike, and Oscar independently converged on the same finding: a single case's "how is
+it going" is answered by CCC's health badge, Matter Intel's Ocena zdravlja, Cockpit's Procena rizika, a
+manually-editable Rizik field, Case Genome's Snaga predmeta %, Case Ready Score, Digital Twin's 3 scenario
+probabilities, and Copilot's Verovatnoća uspeha — 5-7 independently-sourced numbers, no shared label
+vocabulary, no cross-reference, all using similar %/badge visual language. A lawyer cannot answer "is this
+case actually strong?" without holding all of them in their head and guessing which is authoritative. Two
+small UI-only mitigations shipped this sprint (the manual Rizik field relabeled "Rizik (ručno)" with a
+pointer to the AI badge; Cockpit's problem list points to Rokovi/Dokazi) — but the real fix requires picking
+ONE canonical "case strength" surface and demoting the rest, a product decision on which surface wins,
+correctly not made unilaterally by a UX-fix sprint.
+
+### IRONLAWYER-DEBT-004 — AI prediction confidence-checking gated behind a paid credit (High, billing decision needed)
+
+Team Oscar: Court Predictor's base result shows a bare probability with no uncertainty framing; a
+reliability/confidence check only appears if the lawyer spends an additional credit on "Proveri pouzdanost
+predikcije." A lawyer who doesn't know to click that button sees a naked number with no warning it's an
+estimate. Changing what's billed vs. free is a business-logic/credit-consumption decision, out of this
+sprint's UI-only scope — flagged, not touched.
+
+### IRONLAWYER-DEBT-005 — Systemic lack of ARIA/keyboard accessibility across the dynamic app (High, needs a dedicated sprint)
+
+Team Quebec: zero aria-label/role/tabindex attributes anywhere in static/vindex.js (the file that renders
+the entire authenticated app); 63 div onclick/span onclick controls with no keyboard affordance at all,
+including the dashboard's own primary case-navigation rows. This sprint fixed the highest-value instance
+(kc-panel-row/kc-sphere-quad dashboard navigation — role="button" tabindex="0" plus a new delegated
+Enter/Space keydown handler) and one icon-only button's missing label, but full remediation across 63+
+instances plus a real audit of screen-reader flow is out of a same-sprint safe-patch budget. Also noted:
+button styling has only 12% adoption of the shared vx-btn component class (119 total buttons, 14 using it),
+and ~26 parallel one-off badge class families exist for what is conceptually one "status pill" component —
+a design-system consolidation opportunity, not a defect, named here for visibility.
+
+### IRONLAWYER-DEBT-006 — No request timeout/retry on ~300 fetch() call sites (High, needs a dedicated sprint)
+
+Team Uniform: zero AbortController/timeout wrapper exists anywhere in static/vindex.js — every fetch call
+can hang indefinitely on a stalled connection (e.g. a lawyer on 3G in a courthouse basement), with no escape
+except a browser-default multi-minute socket timeout or a force-quit. A shared fetchWithTimeout helper was
+NOT added this sprint (a systemic change across ~300 call sites is too large a surface for a same-sprint
+safe patch without risking subtle behavioral regressions on slow-but-legitimate requests) — named as the
+highest-value follow-up item from the Extreme Personas team's findings.
+
+### IRONLAWYER-DEBT-007 — Case list silently truncates at 200 of N with no indicator (High, needs a backend contract change)
+
+Team Uniform: pred_load() fetches /api/predmeti with no limit/offset; the backend defaults to 200. For a
+500-case lawyer, 300 cases are invisible with zero "showing 200 of 500" signal, no pagination, no in-list
+filter beyond 4 sort pills. A correct fix needs the backend to expose a total count and the frontend to add
+pagination/filtering — a real feature addition, not a copy/label fix, named as debt rather than guessed at
+with an unverified partial patch.
+
+### IRONLAWYER-DEBT-008 — No draft/progress persistence across reload or crash mid-flow (High, needs careful design)
+
+Team Uniform: zero beforeunload handler and zero sessionStorage persistence of in-progress wizard state
+anywhere in static/vindex.js. A lawyer 4 steps into Smart Intake (client picked, documents uploaded, AI
+analysis run) who gets interrupted (laptop sleeps, tab reloads, crash) loses everything with no warning and
+no recovery path. This is a real data-loss risk, not cosmetic — named as urgent debt rather than shipped as
+a rushed, undertested sessionStorage implementation this sprint's time budget couldn't properly verify.
+
+### IRONLAWYER-DEBT-009 — Case-detail "Pregled" tab is a 313-line kitchen-sink screen (Medium, structural redesign)
+
+Teams Bravo, Echo, and Hotel: the default case-detail landing tab mixes read state (status/risk/deadlines)
+with administrative actions (contract generation, client portal management, case closing) in one continuous
+scroll, with deadlines alone appearing in 5 separate widgets. A genuine information-architecture redesign
+(split "at a glance" from "admin actions"), not a same-sprint patch — named as debt, cross-referenced to
+IRONLAWYER-DEBT-003's score-consolidation question since the two overlap on the same screen.
+
+### IRONLAWYER-DEBT-010 — identify_case_problems wording doesn't disclose overdue items are folded into "next 7 days" (Medium, needs a backend string/field change)
+
+Team November: the deterministic risk engine's own problem text ("N kritičan rok(a) u narednih 7 dana")
+includes already-overdue deadlines (folded in by a prior mission's fix) but the string doesn't say so, and
+neither /workspace nor /matter-intel exposes a separate zakasneli_rokovi count to the frontend. This sprint
+added a UI-only fallback (Cockpit points to the Rokovi tab when the adjacent "Hitni rokovi" card would
+otherwise contradict a reported critical deadline) but the underlying wording ambiguity needs a backend
+text/field change, outside this sprint's UI-only mandate — flagged for handoff, not touched.
+
+### IRONLAWYER-DEBT-011 — No manual chronology entry exists (Medium, product decision needed)
+
+Team Lima: case chronology is exclusively AI/system-generated (document extraction, ZPP deadline-chain
+save, lifecycle events) — a lawyer cannot log "client called re: settlement, 5.8." directly. Adding manual
+entry is a new capability, not a UI polish item, and needs a product decision on scope (a full note-taking
+feature vs. a lightweight chronology-only add) before implementation.
+
+### IRONLAWYER-DEBT-012 — 3 of 5 case-creation code paths are dead/hidden (Medium, product decision needed)
+
+Team Delta: pred_kreiraj()/#pred-new-modal (a plain single-field quick-create), qiOtvori() (Quick Intake
+with client search), and bulkOtvori() (CSV bulk import) are fully implemented but have zero reachable
+trigger anywhere in the shipped UI — confirmed by grep. Whether to promote them to visible entry points
+(there's a real case for a fast single-field create path) or delete them as abandoned code is a product
+decision on the case-creation flow's intended shape, not resolved unilaterally here.
+
+### IRONLAWYER-DEBT-013 — Most AI response types render as undifferentiated text (Medium, incremental work)
+
+Teams Papa and Kilo: Copilot's structured-response renderer only special-cases 6 of ~20 backend intent
+types (this sprint upgraded the fallback to render markdown and a backend-provided deep-link button, a real
+improvement, but the other 14+ intents still don't get bespoke structured cards); SUDSKA_PRAKSA citations
+aren't clickable back to source documents. Both are incremental, well-scoped follow-up work for a future
+sprint, not blocking.
+
+**Severity summary across this mission's 13 debt items**: 1 Critical/High (IRONLAWYER-DEBT-003, the
+unreconciled-scores finding, independently found by 4 teams), 6 items graded High or High-adjacent (-001,
+-004, -005, -006, -007, -008), remainder Medium/Low-Medium. None require a business-logic, security,
+AI-governance, or backend-architecture change to close on their own — -001/-002/-004 are product/pricing
+decisions, -003/-009/-011/-012 are product/UX decisions, -005/-006/-007/-008 are real engineering work
+correctly not rushed, -010/-013 need backend cooperation outside this sprint's UI-only mandate.

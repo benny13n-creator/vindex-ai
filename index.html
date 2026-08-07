@@ -495,7 +495,7 @@
           <i data-lucide="building-2" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Kancelarija</span>
         </div>
-        <div class="t-tab" id="tab-btn-pi-nav" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
+        <div class="t-tab" id="tab-btn-pi-nav" style="display:none;" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
           <i data-lucide="bar-chart-3" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Portfolio kancelarije</span>
         </div>
@@ -543,7 +543,7 @@
         <span class="vx-topbar-logo-mobile">Vindex <em>AI</em></span>
         <div class="vx-global-search" onclick="cmdkOpen()" title="Globalna pretraga (⌘K)" style="cursor:pointer;">
           <span class="vx-search-icon">⌕</span>
-          <span class="vx-search-ph">Pretraži predmete, klijente, zakone...</span>
+          <span class="vx-search-ph">Pretraži predmete, klijente, dokumente, zadatke...</span>
           <span class="vx-search-kbd">⌘K</span>
         </div>
 
@@ -578,10 +578,6 @@
             <span class="nav-credit-pill" id="nav-credit-pill"><span id="nav-credits-num" class="cp-num">15</span></span>
             <span id="trial-badge" class="trial-badge hidden"></span>
           </div>
-          <!-- Pretraga -->
-          <button onclick="cmdkOpen()" title="Pretraži predmete, klijente, zakone (Ctrl+K)" style="padding:0.32rem 0.65rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;color:rgba(255,255,255,0.45);font-size:0.72rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:0.3rem;white-space:nowrap;" id="nav-search-btn">
-            <span style="display:none;" class="vx-kbd-hint"><kbd style="padding:0.05rem 0.35rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;font-size:0.6rem;font-family:inherit;">Ctrl K</kbd></span>
-          </button>
           <!-- Notifikacije -->
           <div id="notif-bell" onclick="notif_toggleDropdown()" style="display:flex;align-items:center;cursor:pointer;position:relative;" title="Obaveštenja">
             <i data-lucide="bell" class="vx-topbar-ico" style="color:rgba(255,255,255,0.32);"></i>
@@ -772,7 +768,7 @@
                   <button onclick="ccc_load()" class="vx-btn vx-btn-ghost" style="height:30px;padding:0 0.6rem;font-size:0.72rem;" title="Ponovo učitaj komandni centar">↺</button>
                   <button onclick="pred_print()" class="vx-btn vx-btn-ghost" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">Štampaj</button>
                   <button onclick="predmetPdfExport(this)" id="pred-pdf-export-btn" class="vx-btn vx-btn-secondary" style="height:30px;padding:0 0.7rem;font-size:0.72rem;">PDF</button>
-                  <button onclick="pred_zatvoriOtvori()" id="ccc-zatvori-btn" class="vx-btn vx-btn-danger" style="display:none;height:30px;padding:0 0.7rem;font-size:0.72rem;" title="Zatvori i arhiviraj predmet">✕ Zatvori</button>
+                  <button onclick="pred_zatvoriOtvori()" id="ccc-zatvori-btn" class="vx-btn vx-btn-danger" style="display:none;height:30px;padding:0 0.7rem;font-size:0.72rem;" title="Zatvori predmet (status: Zatvoren). Arhiviranje je posebna radnja, dostupna iz liste predmeta.">✕ Zatvori</button>
                 </div>
                 <div id="ccc-container">
                   <div style="color:rgba(255,255,255,.3);font-size:.8rem;text-align:center;padding:2rem;">Učitavam komandni centar...</div>
@@ -799,8 +795,8 @@
     <span id="pred-s-oblast" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-oblast','tip','oblast-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rizik</span>
-    <span id="pred-s-rizik" style="font-size:0.8rem;color:rgba(255,255,255,0.5);cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-rizik','rizik','rizik-select')">—</span>
+    <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Rizik (ručno)</span>
+    <span id="pred-s-rizik" style="font-size:0.8rem;color:rgba(255,255,255,0.5);cursor:pointer;" title="Ručno podešena procena — AI procenu vidite u kartici 'Procena rizika' niže. Kliknite za izmenu" onclick="_predInlineEdit('pred-s-rizik','rizik','rizik-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
     <span style="font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;">Nedostaju dokazi</span>
@@ -831,6 +827,7 @@
                   <div class="pck-sazetak-row">
                     <span class="pck-ai-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>
                     <span id="pck-sazetak-text" class="pck-sazetak-text"></span>
+                    <button type="button" class="vx-btn vx-btn-ghost" style="height:20px;width:20px;padding:0;flex-shrink:0;" title="Kopiraj sažetak" onclick="pckCopySazetak(this)"><i data-lucide="copy" style="width:11px;height:11px;"></i></button>
                   </div>
                   <div class="pck-cards">
                     <div class="pck-card">
@@ -946,6 +943,7 @@
                 <div id="pred-ishod-display" style="display:none;margin-bottom:.5rem;"></div>
                 <div id="pred-zatvori-form" style="display:none;">
                   <div style="font-size:.75rem;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.55rem;">Zatvaranje predmeta</div>
+                  <div id="pred-zatvori-unbilled-warn" style="display:none;margin-bottom:.55rem;padding:.4rem .55rem;background:rgba(255,187,112,0.08);border:1px solid rgba(255,187,112,0.25);border-radius:2px;font-size:.72rem;color:#ffbb70;"></div>
                   <label style="font-size:.72rem;color:rgba(255,255,255,0.4);display:block;margin-bottom:.2rem;">Ishod</label>
                   <select id="pred-zatvori-ishod" style="width:100%;padding:.45rem .6rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:#fff;font-size:.8rem;margin-bottom:.55rem;">
                     <option value="">— Izaberite ishod —</option>
@@ -1324,10 +1322,6 @@
                 <div id="timeline-container" style="margin-top:0.3rem;">
                   <div style="color:rgba(255,255,255,.3);font-size:.8rem;">Učitavam hronologiju...</div>
                 </div>
-                <div id="pred-hronologija-wrap" style="display:none;">
-                  <div id="pred-hronologija-list"></div>
-                </div>
-
                 <!-- ── ZPP Lanac Rokova ─────────────────────────────── -->
                 <div style="margin-top:0.9rem;">
                   <button onclick="lanac_toggleSection(this)" style="width:100%;text-align:left;background:rgba(13,17,23,0.4);border:1px solid var(--vx-border);border-radius:3px;padding:0.6rem 0.8rem;color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;">
@@ -1736,9 +1730,13 @@
                 </div>
 
                 <!-- Alati u kontekstu predmeta + Law Firm Brain — preseljeno iz bivseg orphaned pred-pane-ai-analiza -->
-                <div class="vx-section-lbl" style="margin:0 0 .4rem;">Alati u kontekstu predmeta</div>
+                <div class="vx-section-lbl" style="margin:0 0 .2rem;">Alati u kontekstu predmeta</div>
+                <div style="font-size:.66rem;color:rgba(255,255,255,.28);margin-bottom:.4rem;line-height:1.5;">
+                  Ovi alati su za privremenu/scratch analizu — ne čuvaju dokumente trajno u predmetu.
+                  Za trajno otpremanje dokumenta u predmet koristite tab <strong>Dokumenti</strong> → + Dodaj dokument.
+                </div>
                 <div class="pred-ai-tool-links" style="margin-bottom:1.2rem;">
-                  <button class="pred-ai-tool-btn" onclick="openAITool('a')">
+                  <button class="pred-ai-tool-btn" onclick="openAITool('a')" title="Privremena analiza — nije trajno sačuvana u predmetu">
                     <i data-lucide="file-search" style="width:16px;height:16px;flex-shrink:0;"></i>Analiza dokumenta
                   </button>
                   <button class="pred-ai-tool-btn" onclick="openAITool('s')">
@@ -4234,14 +4232,15 @@
   <div class="vx-modal vx-modal-palette" onclick="event.stopPropagation()">
     <div class="vx-cp-search">
       <span style="color:var(--vx-text-secondary);font-size:0.85rem;">⌕</span>
-      <input id="cmdk-input" type="text" placeholder="Pretraži predmete, klijente, dokumente, rokove..." autocomplete="off" spellcheck="false" oninput="cmdkQuery(this.value)">
+      <input id="cmdk-input" type="text" placeholder="Pretraži predmete, klijente, dokumente, zadatke, naplatu..." autocomplete="off" spellcheck="false" oninput="cmdkQuery(this.value)">
       <span class="vx-cp-kbd">Esc</span>
     </div>
     <div id="cmdk-filters" style="display:flex;gap:.35rem;padding:.5rem 1.2rem;border-bottom:1px solid var(--vx-border);flex-wrap:wrap;flex-shrink:0;">
-      <button class="vx-pill is-active" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="predmeti,klijenti,hronologija,beleske,dokumenti,billing" onclick="cmdkSetFilter(this)">Sve</button>
+      <button class="vx-pill is-active" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci" onclick="cmdkSetFilter(this)">Sve</button>
       <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="predmeti" onclick="cmdkSetFilter(this)">Predmeti</button>
       <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="klijenti" onclick="cmdkSetFilter(this)">Klijenti</button>
       <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="hronologija,beleske" onclick="cmdkSetFilter(this)">Rokovi</button>
+      <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="zadaci" onclick="cmdkSetFilter(this)">Zadaci</button>
       <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="dokumenti" onclick="cmdkSetFilter(this)">Dokumenti</button>
       <button class="vx-pill" style="height:24px;padding:0 .6rem;font-size:.65rem;" data-vrste="billing" onclick="cmdkSetFilter(this)">Naplata</button>
     </div>
@@ -4547,17 +4546,9 @@
   <button id="pred-fab-btn" onclick="pred_fab_toggle()" title="Brze akcije — dodaj dokument, rok, naplatu">+</button>
 </div>
 
-<!-- ══ Onboarding wizard — prikazuje se samo pri prvom loginu ════ -->
-<div id="onboard-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center;">
-  <div id="onboard-box" style="background:#111827;border:1px solid rgba(255,255,255,0.11);border-radius:4px;padding:2rem;max-width:460px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);">
-    <div id="onboard-step-content"></div>
-    <div style="display:flex;justify-content:center;gap:.75rem;margin-top:1.5rem;">
-      <button id="onboard-prev" onclick="onboard_prev()" style="padding:.55rem 1.2rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:2px;color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;font-family:inherit;display:none;">← Nazad</button>
-      <button id="onboard-next" onclick="onboard_next()" style="padding:.55rem 1.5rem;background:#00d4ff;border:none;border-radius:2px;color:#010308;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Nastavi →</button>
-    </div>
-    <div style="margin-top:1rem;" id="onboard-dots"></div>
-  </div>
-</div>
+<!-- Iron Lawyer Sprint 001: dead onboarding wizard overlay removed (id="onboard-overlay").
+     onboard_show() -- its only trigger -- was already a hardcoded no-op ("deaktivirano");
+     the live onboarding flow is #onboarding-overlay/onboardingCheck() elsewhere in this file. -->
 
 <!-- iOS PWA Install Instructions Modal -->
 <div id="ios-install-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">

@@ -2531,3 +2531,48 @@ restriction being checked by design. A safe, zero-risk, read-only verification p
 in favor of proceeding on the founder's own report. `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s
 `LAMBDA008-SEC-001` entry, `docs/lambda/BETA_READINESS_FINAL.md`, and `docs/blackswan/FINAL_GO_NO_GO.md` all
 carry the same update. **No remaining known blocker for closed beta as of this update.**
+
+## Operation Iron Lawyer, Master Sprint 001 (2026-08-07) — "Human-Centered Operational Certification"
+
+Mode switch from system-correctness certification (Lambda 008, Black Swan) to human-experience
+certification: does a LAWYER using this platform get confused, lose work, or hit dead ends? 21 independent
+teams (Alpha–Uniform) audited navigation, information architecture, cognitive load, case lifecycle,
+workspace, Smart Intake, Case Commander, morning workflow, search, notifications, document review,
+timeline/chronology, Case Genome presentation, risk-engine presentation, analytical tools, Copilot,
+accessibility/consistency, dead screens/duplicate features, empty states/errors, a full lawyer-day
+simulation, and 5 extreme personas — via direct code tracing (no live browser tool available in this
+environment, disclosed explicitly). Constitutional FORBIDDEN list enforced: no business logic, legal rules,
+AI reasoning, Genome, Event Bus, AI Governance, Security/RLS/Ownership, or Audit changes.
+
+**~90 findings, 41 fixed directly this sprint** (real bugs: Smart Intake finalize silently dropped
+flagged documents / dead "Kreiraj predmet" button on some batches; notification priority colors were
+completely dead due to a stale vocabulary mismatch; notification read-state never reached the server and
+got silently reversed by the backend's own regeneration cycle; Copilot chat showed a stale prior case's
+conversation after switching cases; a CSS class-name typo silently killed evidence "needs review" coloring;
+the case list rendered silently blank on fetch failure with zero explanation. Plus navigation/labeling
+fixes, dead-code removal — a second fully-built onboarding wizard wired to a hardcoded no-op, a dead
+duplicate search button, a duplicate dashboard deadlines panel — and design-convention compliance
+(decorative emoji removed from the highest-traffic AI-response screen, 3 incidental glow hover-effects
+removed, the dashboard's primary case-navigation made keyboard-reachable). Full list with file:line
+evidence: `docs/ironlawyer/IRON_LAWYER_FINDINGS.md`.
+
+**13 findings named as debt** (`IRONLAWYER-DEBT-001` through `-013`, `docs/architecture/
+ARCHITECTURAL_DEBT_REGISTER.md`), each with an explicit reason it wasn't fixed this sprint. Headline item:
+`IRONLAWYER-DEBT-003` — 4 independent teams found that a single case's "how is it going" is answered by
+5-7 unreconciled, independently-computed scores (CCC health, Matter Intel health, Cockpit risk, a manual
+risk field, Genome strength, Case Ready Score, Digital Twin probabilities, Copilot success %) with no shared
+vocabulary — the platform's clearest remaining UX weakness, requiring a product decision (which surface is
+canonical) that this UX-fix sprint correctly did not make unilaterally.
+
+**Regression coverage**: 18 new tests (`tests/test_iron_lawyer_frontend_fixes.py`) asserting each
+CRITICAL/HIGH real-bug fix's defect signature is gone and its fix is present — this repo has no JS unit-test
+framework (single-file vanilla JS, no build step), so this plus `node --check static/vindex.js` (confirmed
+passing) is the practical regression net available. Full backend suite: **3,076 passed, 1 skipped, 0
+failed** (was 3,058 before this sprint, +18 new tests, zero regressions). `static/sw.js` CACHE_NAME bumped
+`vindex-v92` → `vindex-v93` per standing convention.
+
+**Verdict: CERTIFIED WITH MINOR UX DEBT** — not an unqualified pass (13 real findings open, 6 High/
+High-adjacent, one genuinely significant), not blocked (none of the 13 require a business-logic/security/
+AI-governance/backend-architecture fix, and the 41 launch-relevant bugs fixed this sprint are exactly the
+silent-failure/silent-data-loss class that would have been embarrassing in a lawyer's hands during a beta).
+Full statement with all 12 scored dimensions: `docs/ironlawyer/UX_UI_CERTIFICATION_REPORT.md`.

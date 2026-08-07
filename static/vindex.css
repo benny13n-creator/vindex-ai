@@ -4336,7 +4336,7 @@ select.pro-input option { background: var(--surface); }
   display: flex;
   align-items: center;
 }
-.vx-land-nav-cta:hover { opacity: 0.85; box-shadow: 0 0 24px rgba(0,212,255,0.28); }
+.vx-land-nav-cta:hover { opacity: 0.85; }
 
 /* hero */
 .vx-land-hero {
@@ -4438,7 +4438,7 @@ select.pro-input option { background: var(--surface); }
   cursor: pointer;
   transition: opacity var(--t-fast), box-shadow var(--t-fast);
 }
-.vx-land-btn-primary:hover { opacity: 0.88; box-shadow: 0 0 30px rgba(0,212,255,0.30); }
+.vx-land-btn-primary:hover { opacity: 0.88; }
 .vx-land-btn-secondary {
   height: 44px;
   padding: 0 24px;
@@ -4588,7 +4588,7 @@ select.pro-input option { background: var(--surface); }
   font-family: inherit; letter-spacing: 0.02em;
   transition: opacity 0.18s, box-shadow 0.18s;
 }
-.wl-submit:hover { opacity: 0.88; box-shadow: 0 0 24px rgba(0,153,187,0.40); }
+.wl-submit:hover { opacity: 0.88; }
 .wl-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .wl-success {
   text-align: center; padding: 20px 0 10px;
@@ -7012,7 +7012,6 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 #pred-fab-menu button:hover { background:rgba(255,255,255,.08); }
 
 /* ── Onboarding overlay ───────────────────────────────────────── */
-#onboard-overlay { display:none; }
 .srch-chip { padding:0.2rem 0.6rem;border:1px solid rgba(255,255,255,0.1);border-radius:4px;font-size:0.75rem;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;transition:all 0.15s;user-select:none; }
 .srch-chip:hover { border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.55); }
 .srch-chip-active { border-color:rgba(0,212,255,0.28);color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.04); }
@@ -7073,7 +7072,7 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 .evidence-tip-ugovor          { background:rgba(255,200,60,.1); color:#ffcc50; border:1px solid rgba(255,200,60,.2); }
 .evidence-tip-dopis           { background:rgba(255,255,255,.06); color:rgba(255,255,255,.5); border:1px solid rgba(255,255,255,.1); }
 .evidence-tip-ostalo          { background:rgba(255,255,255,.04); color:rgba(255,255,255,.35); border:1px solid rgba(255,255,255,.08); }
-.evidence-tip-neklafikovan    { background:rgba(255,150,60,.08); color:#ffaa70; border:1px solid rgba(255,150,60,.18); }
+.evidence-tip-neklasifikovan  { background:rgba(255,150,60,.08); color:#ffaa70; border:1px solid rgba(255,150,60,.18); }
 .dokaz-row { display:flex; gap:.5rem; align-items:flex-start; padding:.4rem .5rem; border-radius:2px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05); margin-bottom:.3rem; }
 .dokaz-snaga-jaka   { width:6px; height:6px; border-radius:50%; background:#7de0a0; flex-shrink:0; margin-top:.35rem; }
 .dokaz-snaga-srednja{ width:6px; height:6px; border-radius:50%; background:#ffcc50; flex-shrink:0; margin-top:.35rem; }
