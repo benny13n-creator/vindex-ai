@@ -319,6 +319,26 @@ async def _consequence_timeline_entry(event: Event) -> str:
             opis = "Dokument prihvaćen"
 
     supa = _get_supa()
+
+    # Program Phoenix, Mission 007 (LIVINGSYS-DEBT-011): this executor had no inner
+    # idempotency guard beneath the outer claim -- a crash-then-reclaim within the SAME
+    # _CONSEQUENCE_STALE_PENDING_SECONDS window this module already reclaims on (the
+    # executor ran and inserted successfully, but the process died before _mark_completed)
+    # caused a genuine duplicate, user-visible Timeline row on reclaim. predmet_hronologija
+    # has no event_id/correlation_id column (would need a migration) -- reusing the same
+    # "identical content, recent window" idempotency shape already proven for
+    # LIVINGSYS-DEBT-043 (routers/rocista.py) instead: an identical (predmet_id, dogadjaj)
+    # row inserted within the same reclaim window is treated as the already-applied result
+    # of an earlier attempt, not a new event.
+    _dup_r = await asyncio.to_thread(
+        lambda: supa.table("predmet_hronologija").select("id")
+            .eq("predmet_id", predmet_id).eq("dogadjaj", opis)
+            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+            .limit(1).execute()
+    )
+    if _dup_r.data:
+        return str(_dup_r.data[0]["id"])
+
     res = await asyncio.to_thread(
         lambda: supa.table("predmet_hronologija").insert({
             "predmet_id": predmet_id,
@@ -1191,6 +1211,14 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     ],
     EventType.NEW_EVIDENCE_REGISTERED: [
         ConsequenceDef(name="evidence_classification", executor=_consequence_evidence_classify),
+        # Program Phoenix, Mission 007 (LIVINGSYS-DEBT-016): this event never triggered
+        # refresh_case_actions before -- case_actions/readiness (which _compute_target_actions
+        # derives partly from predmet_dokazi, the table evidence_classification just wrote to)
+        # could lag a live risk computation within the same build_case_context() response, a
+        # self-documented ordering gap (see _consequence_refresh_case_actions's own docstring).
+        # Reuses the SAME executor DOCUMENT_ACCEPTED/REVIEW_ACCEPTED/ROCISTE_ZAKAZANO already
+        # register unchanged -- no new consequence logic invented.
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
     EventType.ROCISTE_ZAKAZANO: [
         # Reuses DOCUMENT_ACCEPTED's own genome_refresh executor UNCHANGED —

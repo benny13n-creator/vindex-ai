@@ -3025,3 +3025,21 @@ tests (`tests/test_phoenix_mission_006_evidence_quality_signals.py`). `static/sw
 `vindex-v99` → `vindex-v100` (this mission touched `vindex.js`). Full suite: **3,254 passed,
 1 skipped, 0 failed** (was 3,246, +8 tests, zero regressions). Red Team self-check passed. Full
 report: `docs/phoenix/mission-006/`. **STOP GATE: PASS.**
+
+### Mission 007 — Case Evolution Consequence Chain Integrity (CLOSED)
+
+Closed `LIVINGSYS-DEBT-016` (`NEW_EVIDENCE_REGISTERED` never triggered `refresh_case_actions`,
+so case_actions/readiness could lag live risk) fully, and `LIVINGSYS-DEBT-011` (5 of 9
+consequence executors lack an inner idempotency guard beneath the outer claim) partially —
+`timeline_entry` closed, 4 remaining executors left open with explicit per-executor reasoning
+(schema-level snapshot needed for `genome_refresh`; hash-chain semantics for the 2 audit
+executors; missing-migration problem for `case_intelligence_summary`) rather than force a
+mechanical pattern that wouldn't actually be correct. `timeline_entry` fixed by reusing the
+exact "identical content, recent window" idiom already proven for `-043` (Mission 005), keyed
+on `(predmet_id, dogadjaj)` within the existing 300s stale-pending window. `-016` fixed by
+registering the existing `refresh_case_actions` executor, already used by 3 other event types,
+against `NEW_EVIDENCE_REGISTERED` — zero new logic. 3 new tests
+(`tests/test_phoenix_mission_007_case_evolution_chain_integrity.py`). Subsystem: 106/106
+passed. Full suite: **3,257 passed, 1 skipped, 0 failed** (was 3,254, +3 tests, zero
+regressions). Red Team self-check passed (4 adversarial scenarios, no break found). Full
+report: `docs/phoenix/mission-007/`. **STOP GATE: PASS.**

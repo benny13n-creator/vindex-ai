@@ -4454,14 +4454,16 @@ infrastructure (a new cron-invoked function), not a mechanical fix, and needs it
 pass on how to detect "should have emitted an event but didn't" per event type before
 implementation.
 
-**LIVINGSYS-DEBT-011 (Medium-High)** — 5 of 9 consequence executors (`genome_refresh`,
-`timeline_entry`, `review_confirmation_audit`, `review_rejection_audit`,
-`case_intelligence_summary`) lack an inner idempotency guard beneath the outer claim, vulnerable
-to the same crash-then-reclaim window Certification 004/005 deliberately built (300s). The
-established fix pattern (`evidence_classification`'s `klasifikovan_at` check-before-write) is
-directly reusable for at least 2 of the 5 (`genome_refresh` could check `verzija` didn't already
-bump; `timeline_entry` could check for an existing identical row) — named as the concrete
-next-step template rather than attempted blind across all 5 in one pass.
+**LIVINGSYS-DEBT-011 — PARTIALLY FIXED** (Program Phoenix, Mission 007, 2026-08-07).
+`timeline_entry` now checks for an identical `(predmet_id, dogadjaj)` row created within the
+existing `_CONSEQUENCE_STALE_PENDING_SECONDS` (300s) window before inserting — the same
+"identical content, recent window" idiom already proven for `-043`. No migration. Proof:
+`tests/test_phoenix_mission_007_case_evolution_chain_integrity.py::
+test_timeline_entry_skips_duplicate_insert_on_reclaim`. Full report: `docs/phoenix/mission-007/`.
+**Still open**: `genome_refresh` (needs a schema-level snapshot, not a mechanical port —
+reasoning in `docs/phoenix/mission-007/ROOT_CAUSE_ANALYSIS.md`), `review_confirmation_audit`/
+`review_rejection_audit` (append-only hash-chain semantics, needs a different guard shape),
+`case_intelligence_summary` (real fix is a missing `UNIQUE` migration, not application code).
 
 **LIVINGSYS-DEBT-043 — FIXED** (Program Phoenix, Mission 005, 2026-08-07). `kreiraj_rociste` now
 checks for an identical `(predmet_id, sud, datum, vreme)` row created in the last 30 seconds
@@ -4517,11 +4519,13 @@ recount during reproduction) `.order("vaznost")` call sites in `routers/firm_mem
 test_kontekst_za_ai_returns_high_importance_memories_first`. Full report:
 `docs/phoenix/mission-003/`.
 
-**LIVINGSYS-DEBT-016 (High)** — `NEW_EVIDENCE_REGISTERED` never triggers `refresh_case_actions`,
-so `case_actions`/readiness can lag a live risk computation within the same `build_case_context()`
-response — a self-documented ordering gap (the code's own comment already admits no guarantee).
-Fixing means adding `refresh_case_actions` to `NEW_EVIDENCE_REGISTERED`'s own consequence chain —
-plausible, bounded work, deferred for fix-budget reasons.
+**LIVINGSYS-DEBT-016 — FIXED** (Program Phoenix, Mission 007, 2026-08-07). Added
+`ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions)` to
+`CONSEQUENCE_REGISTRY[EventType.NEW_EVIDENCE_REGISTERED]`, reusing the exact same executor
+`DOCUMENT_ACCEPTED`/`REVIEW_ACCEPTED`/`ROCISTE_ZAKAZANO` already register. Proof:
+`tests/test_phoenix_mission_007_case_evolution_chain_integrity.py::
+test_new_evidence_registered_now_includes_refresh_case_actions`. Full report:
+`docs/phoenix/mission-007/`.
 
 **LIVINGSYS-DEBT-017 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). Added a
 `PROBABILITY` `ConceptOwnership` entry to `shared/semantic_registry.py`, mirroring

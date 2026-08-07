@@ -1975,3 +1975,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Pre-existing test corrections | 0 |
 | Full suite | **3,254 passed, 1 skipped, 0 failed** — was 3,246 at Mission 005's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 007 — Case Evolution Consequence Chain Integrity (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 2 (`LIVINGSYS-DEBT-016` fully, `-011` partially — `timeline_entry` closed, 4 executors left open with per-executor reasoning) |
+| Files touched | 1 (`services/case_evolution.py`) |
+| New algorithms invented | 0 (reused `-043`'s idiom and the existing `refresh_case_actions` executor) |
+| Regression tests added | 3 (`tests/test_phoenix_mission_007_case_evolution_chain_integrity.py`) |
+| Pre-existing test corrections | 0 |
+| Subsystem tests | 106 passed, 0 failed |
+| Full suite | **3,257 passed, 1 skipped, 0 failed** — was 3,254 at Mission 006's close |
+| STOP GATE | PASS |
