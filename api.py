@@ -5240,7 +5240,7 @@ async def predmet_workspace(
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     # Step 2: Parallel fetch of all related data
-    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r, dokazi_ws_r) = await asyncio.gather(
+    (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r, dokazi_ws_r, case_actions_ws_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(30).execute()),
         # Operation Single Brain (2026-08-07): tip_dokaza added -- this select fed directly
@@ -5257,6 +5257,10 @@ async def predmet_workspace(
         # ranije se ovde selektovalo samo 'id' jer je CRS koristio samo broj rocista.
         asyncio.to_thread(lambda: supa.table("rocista").select("id,datum").eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        # Operation Single Brain, Mission 002: feeds compute_case_readiness() below so the
+        # Case Ready Score checklist can be capped by the canonical readiness engine --
+        # see docs/singlebrain/READINESS_AUTHORITY_SPEC.md.
+        asyncio.to_thread(lambda: supa.table("case_actions").select("prioritet,tip,status,razlog,dedupe_key").eq("predmet_id", predmet_id).eq("status", "open").execute()),
     )
 
     # Step 3: Resolve linked klijenti
@@ -5516,15 +5520,21 @@ async def predmet_workspace(
     _ws_ist_full = (istorija_r.data or []) if not isinstance(istorija_r, Exception) else []
     try:
         from services.case_pipeline import calculate_case_ready_score as _calc_crs
+        from shared.case_readiness import compute_case_readiness as _compute_readiness_ws
+        _ws_readiness = _compute_readiness_ws(
+            (case_actions_ws_r.data or []) if not isinstance(case_actions_ws_r, Exception) else []
+        )
         _crs, _checklist = _calc_crs(
             dokumenti=dokumenti_r.data or [],
             klijenti=_ws_klijenti,
             rokovi=hronologija_r.data or [],
             istorija=_ws_ist_full,
             rocista=_ws_rocista,
+            readiness=_ws_readiness,
         )
     except Exception:
         _crs, _checklist = 0, []
+        _ws_readiness = None
 
     return {
         "predmet":            pred.data,
@@ -5564,6 +5574,9 @@ async def predmet_workspace(
         },
         "case_ready_score":   _crs,
         "checklist":          _checklist,
+        # Operation Single Brain, Mission 002: the CANONICAL_OWNER's own verdict, alongside
+        # the checklist score it may have capped -- see docs/singlebrain/READINESS_AUTHORITY_SPEC.md.
+        "readiness_status":   (_ws_readiness or {}).get("status"),
         "statistike": {
             "dokumenti_count":    len(dokumenti_r.data or []),
             "beleske_count":      len(beleske_r.data or []),

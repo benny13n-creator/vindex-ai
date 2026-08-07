@@ -4028,3 +4028,122 @@ DECISION_DEPENDENCY_GRAPH.md` §"Success Probability" note.
 bugs this mission found (stale Command Center risk cache, dead Health Index sub-score, missing-evidence
 false positives, the client-portal deadline query matching zero rows) were fixed directly, per the same
 STOP RULE discipline every prior certification in this program has followed.
+
+---
+
+# Operation Single Brain, Mission 002 — Debt Register (2026-08-07)
+
+5 real fixes landed this mission (full ledger: `docs/singlebrain/FRAGMENTATION_ELIMINATION_REPORT.md`),
+closing the specific reproduced contradiction that motivated the mission plus the most serious unguarded-
+AI-output finding across both Single Brain missions. The 12 items below are what 6 forensic teams found
+that this mission did NOT close, each cited to its specific forensic source. See `docs/singlebrain/
+SINGLE_BRAIN_MISSION_002_FINAL_CERTIFICATE.md` for the honest scorecard against this mission's own 5
+stated acceptance criteria.
+
+### SINGLEBRAIN2-DEBT-001 — Next Action has 3-4 independent generators (High)
+
+`shared/case_readiness.py::top_open_action()` (canonical) coexists with `services/case_pipeline.py::
+_step_copilot_preporuka` (independently re-derives "what to do" via `identify_case_problems()`, rendered
+directly beside the Case Ready Score checklist on the same screen area as the AI Briefing panel's
+`top_open_action()`-derived answer elsewhere), `routers/copilot.py::_handle_predlozi` (own ad hoc
+priority/next-step generator bypassing `case_actions` entirely — its granular items aren't rendered, only
+a summary count, narrowing but not eliminating the exposure), and `routers/zastarelost.py` (its own
+independent deadline-urgency thresholds, parallel to but not sharing `case_evolution.py::_priority_by_days`
+— currently harmless only because the cutoffs happen to coincide today). A genuinely new category Mission
+001 never separately mapped as its own concept. Evidence: `docs/singlebrain/SINGLE_BRAIN_DECISION_MAP.md`
+§"Next Action", Team 1's Decision Authority Map.
+
+### SINGLEBRAIN2-DEBT-002 — Case Genome's case-strength score surfaces unlabeled as a de facto "risk"/"success" metric (High — clearest remaining Criterion 5 violation)
+
+`case_dna.snaga_predmeta_procent` (case-strength, argument quality) surfaces in 3 lawyer-facing places
+that read like a DIFFERENT metric than `risk_engine.py`'s own "rizik": CIO's portfolio panel, Copilot's
+"Verovatnoća uspeha", and — most directly — the Case Genome hero panel's own thresholds
+(`static/vindex.js:17202-17207`) which label the case "Visok rizik"/"Srednji rizik"/"Povoljna pozicija"
+straight from this score, one click from the Pregled tab where the deterministic risk badge lives. Same
+word, two unrelated formulas. Likely the fastest of the 12 deferred items to fix (a labeling change plus
+a staleness timestamp, not a data-flow rewrite) — named as the 2nd highest-leverage starting point for
+the next mission. Evidence: Team 4's Frontend Truth Audit, Team 6's UX walkthrough (both independently
+found this).
+
+### SINGLEBRAIN2-DEBT-003 — Portfolio case-strength aggregation still diverges (Medium, carried forward unchanged from SINGLEBRAIN-DEBT-003)
+
+`health_index.py` and `cio.py` still use different population filters when averaging `snaga_predmeta_
+procent` across the portfolio. Re-confirmed unchanged by Team 1. Evidence: `docs/singlebrain/
+SINGLE_BRAIN_DECISION_MAP.md` §"Case Strength".
+
+### SINGLEBRAIN2-DEBT-004 — Confidence means 4 different things on one case page (Medium)
+
+RAG source-grounding confidence, Genome completeness-as-confidence proxy, the Sveobuhvatna Procena
+report's own independent confidence verdict, and firm-wide historical calibration bands all coexist —
+none share a scale. Evidence: Team 4's Frontend Truth Audit.
+
+### SINGLEBRAIN2-DEBT-005 — Readiness-tier cap still fails open on context-fetch error (Medium, = SINGLEBRAIN-DEBT-010, unchanged)
+
+Re-confirmed still open by Team 3 at all 7 call sites (`court_predictor.py` ×4 post this mission's own
+fix, `digital_twin.py` ×2, `hearing_cc.py` ×1) — `_dohvati_case_context_ako_postoji()` swallows any
+`build_case_context()` exception and returns `None`, silently skipping the tier cap (the separate
+unconditional 0-100 clamp still applies as a floor/ceiling). Not fixed this mission for the same reason
+Mission 001 named: no safe default cap value could be picked without risking a different failure mode
+(a healthy case's probability wrongly understated by an unrelated transient error).
+
+### SINGLEBRAIN2-DEBT-006 — Case Commander remains dead code (High leverage, not a bug)
+
+`routers/case_commander.py` is, by design, the platform's most architecturally correct consumer of all 8
+decision concepts this mission mapped — zero independent GPT decisions, reads `build_case_context()`
+exclusively. Confirmed zero live frontend callers (Team 1). The best-designed consolidation is invisible
+to lawyers while the fragmented sources are what's actually rendered. This mission's own #1 recommendation
+for the next mission — wiring it up would directly address `SINGLEBRAIN2-DEBT-001` and Mission 001's still-
+open `SINGLEBRAIN-DEBT-001` — but explicitly NOT attempted here, since doing so before finishing this
+mission's own readiness-cap fix would have created a new, immediately-visible 3-way collision instead of
+resolving one.
+
+### SINGLEBRAIN2-DEBT-007 — `predmeti.status` classifier fragmentation, 5-way (Medium)
+
+5 different modules classify "is this case active" with non-identical predicate logic; only 2 values
+(`"aktivan"`/`"zatvoren"`) are ever actually written, so currently low-risk, but a landmine the day a
+3rd status value is introduced. Full specification for the fix: `docs/singlebrain/
+CASE_STATUS_CANONICAL_MODEL.md`. Not implemented this mission — evidence: Team 5's Database Truth Audit.
+
+### SINGLEBRAIN2-DEBT-008 — `health_score` naming collision across 3 unrelated domains (Low)
+
+Firm-wide Health Index score, `risk_engine.py`'s per-case inverse-of-risk number, and Web3's AML
+documentation-completeness score all share the literal field name `health_score`. Each is internally
+single-sourced within its own domain (no live data divergence found) — a naming trap for future
+engineers, not a duplicate-truth bug. Not fixed (rename would touch many call sites for a naming-only
+issue). Evidence: Team 1's Decision Authority Map.
+
+### SINGLEBRAIN2-DEBT-009 — DB CHECK constraints missing on readiness-adjacent columns (Medium)
+
+No CHECK constraint on `predmeti.status`, `predmeti.rizik`, `predmeti.kanban_faza` (unconfirmable live),
+`case_actions.confidence` (no 0.0-1.0 range check, currently constant-by-accident not by guarantee),
+`predmet_istorija.confidence` (~8 independent insert sites using literal `"LOW"/"MEDIUM"/"HIGH"` strings,
+no shared constant). The one clean counter-example (`case_actions.tip`/`prioritet`/`status`, migration
+099) proves the pattern is achievable. Requires migrations — per this engagement's standing convention,
+drafted but never run by the coordinator; the founder runs migrations. Evidence: Team 5's Database Truth
+Audit.
+
+### SINGLEBRAIN2-DEBT-010 — Shadow columns, zero migration provenance (Medium, carried forward unchanged)
+
+`predmeti.kanban_faza`, `case_dna`, `oblast`, `oblast_prava` have no provenance in `migrations/*.sql` nor
+`supabase_setup.sql`/`supabase_migration*.sql` — independently re-confirmed by Team 5, matching Operation
+One Truth's own prior finding (`docs/onetruth/INTELLIGENCE_SURFACE_MAP.md`). Separately: `predmeti`,
+`predmet_istorija` themselves DO have real provenance, but only in `supabase_setup.sql`, which `scripts/
+audit_state.py`'s own live-vs-migration checker doesn't scan (only globs `migrations/`) — a blind spot in
+the audit tooling itself, distinct from the shadow-column risk.
+
+### SINGLEBRAIN2-DEBT-011 — `GET /api/portfolio` stale cache + `matter_intel.py`'s dead uncertainty dashboard (Low, carried forward unchanged)
+
+Both confirmed still dead/orphaned (zero frontend callers, re-verified by Team 5 and Team 2 respectively)
+— low practical risk, but each is a live landmine via direct API call. Not fixed this mission.
+
+### SINGLEBRAIN2-DEBT-012 — `predmet_health_log.rizik_label` confirmed dead (Low)
+
+Write-only column — written daily alongside `health_score` but the one SELECT that exists against this
+table explicitly excludes it. Independently re-confirmed by Team 5. Schema cleanup (dropping the column
+or wiring a reader), not attempted this mission.
+
+**Severity summary across these 12 items**: 2 High (`-001`, `-002`), 5 Medium (`-003`, `-004`, `-005`,
+`-007`, `-009`), 1 High-leverage-not-a-bug (`-006`), 4 Low (`-008`, `-010`, `-011`, `-012`). None are
+confirmed live data-loss or crash risks. `-001`/`-002`/`-006` together point at the same next mission's
+natural starting point: wire up Case Commander, carefully, after first confirming it wouldn't create new
+visible contradictions against the systems this mission and Mission 001 already fixed.

@@ -62,7 +62,55 @@ output" (no such direct overwrite was found anywhere) — the actual pattern is 
 sub-fields inside otherwise well-guarded features slip through because the clamping discipline visible
 elsewhere in the same codebase was applied per-field, not systematically.
 
-## Certification verdict
+## Certification verdict (Mission 001)
 
-**NOT YET CERTIFIED as of Phase 1 findings.** See `docs/singlebrain/FINAL_SINGLE_BRAIN_CERTIFICATE.md` for
-which of these 8 gaps were closed in Phase 3 and which remain as named debt.
+All 8 gaps above were closed in Mission 001's own Phase 3 (see `docs/singlebrain/
+FINAL_SINGLE_BRAIN_CERTIFICATE.md`'s ledger, gaps #1-2 via `normalize_tezina()`, #3-5 via
+unconditional clamps, #7 via evidence-tiering, #8 via enum-normalization). Gap #6 (the
+compounding readiness-tier-cap-fails-open issue) was explicitly deferred as `SINGLEBRAIN-DEBT-010`
+rather than fixed, for the reason stated in that mission's own debt register entry.
+
+---
+
+## Mission 002 update (2026-08-07) — Team 3 re-verification + new findings
+
+Team 3 independently re-verified all 8 Mission 001 gaps against current code (not cited from the
+prior report) and confirms all 8 still hold closed. Re-confirmed `SINGLEBRAIN-DEBT-002` and
+`SINGLEBRAIN-DEBT-010` were both still genuinely open at the start of Mission 002.
+
+**Closed this mission:**
+
+- **`SINGLEBRAIN-DEBT-002` — `court_predictor.py::argument_reputation`** now applies the same
+  `CAP_BY_READINESS` tier cap its sibling `prediktuj_ishod` already had — both the per-argument
+  `uspesnost_procena` and the overall `ukupna_snaga` are readiness-capped, not just range-clamped.
+
+**New gap found and closed — the single most direct violation of Acceptance Criterion 2 found in
+either mission**: `strategija.py`'s F10 orchestrator "AI Sudija" verdict step
+(`orkestrator_kompletna_analiza_sync`, korak 5) had **zero server-side clamp or validation** on
+`procena_uspeha_tuzilac` (documented 0-100, returned raw), `izreka` (documented 3-value enum,
+returned raw), or `confidence` (documented 3-value enum, returned raw). The frontend only clamped
+the progress-bar *width*, never the displayed number text. Reproduced with an actual poisoned
+response (`procena_uspeha_tuzilac: 9999`, `izreka: "TUZBA SIGURNO USVOJENA STOPOSTOTNO"`) proven to
+reach the live, UI-wired `POST /api/strategija/kompletna-analiza` response unmodified. Now
+clamped/enum-guarded, fail-safe toward the non-extreme values on the same "don't overstate
+certainty" philosophy used throughout this engagement.
+
+**New gap found and closed — the sibling-field pattern recurring a 3rd time**: Genome's `heatmap`
+and `dokazi_rang[].snaga_score` sub-fields had never been clamped, even though the headline
+`snaga_predmeta_procent`/`kriticnost`/`genome_kompletnost` fields on the SAME extraction call were
+already guarded (Mission 001). `dokazi_rang[].snaga_score` specifically also drives a `<70` "weak
+evidence" filter downstream — an unclamped raw value could silently misclassify evidence strength.
+Now clamped identically to the headline fields.
+
+**Remaining open, unchanged**: `SINGLEBRAIN-DEBT-010` (readiness-tier cap fails open on
+`build_case_context()` error) — still not fixed, for the same reason Mission 001 named: no safe
+default cap value could be picked without guessing at product intent, and applying an unconditional
+cap on ANY context-fetch error risks a different failure mode (understating a healthy case's
+probability due to an unrelated transient error).
+
+## Certification verdict (Mission 002)
+
+**Every concretely-reproduced AI-boundary gap found across both missions is now closed**, except
+`SINGLEBRAIN-DEBT-010`, which remains open and named rather than silently dropped. See
+`docs/singlebrain/SINGLE_BRAIN_MISSION_002_FINAL_CERTIFICATE.md` for the full honest verdict against
+this mission's own stricter acceptance criteria.

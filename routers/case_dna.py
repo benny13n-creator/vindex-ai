@@ -324,6 +324,27 @@ async def _extract_genome(
                 _nt["kriticnost"] = max(0, min(100, int(_nt["kriticnost"])))
             except (TypeError, ValueError):
                 _nt["kriticnost"] = 0
+        # Operation Single Brain, Mission 002 (Team 3 finding): heatmap and dokazi_rang[].
+        # snaga_score were never clamped -- only the headline snaga_predmeta_procent/
+        # kriticnost/genome_kompletnost fields got this discipline in prior missions, the
+        # exact "guarded the headline, missed the sibling field" pattern the platform has
+        # hit repeatedly. Rendered raw at static/vindex.js:17368-17370 (heatmap bars +
+        # literal "N%" text) and :17383-17636 (dokazi_rang's raw snaga_score, also used to
+        # filter "weak evidence" at <70 -- only the DERIVED star rating was separately
+        # clamped 1-5, not the underlying number this filter reads).
+        _hm = result.get("heatmap")
+        if isinstance(_hm, dict):
+            for _k, _v in list(_hm.items()):
+                try:
+                    _hm[_k] = max(0, min(100, int(_v)))
+                except (TypeError, ValueError):
+                    _hm[_k] = 0
+        for _d in (result.get("dokazi_rang") or []):
+            if isinstance(_d, dict) and "snaga_score" in _d:
+                try:
+                    _d["snaga_score"] = max(0, min(100, int(_d["snaga_score"])))
+                except (TypeError, ValueError):
+                    _d["snaga_score"] = 0
         return result
     except Exception as exc:
         _sentry_capture(exc)

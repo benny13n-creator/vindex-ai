@@ -87,7 +87,7 @@ async def pipeline_status(
     if not (pred_r.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
-    docs_r, pk_r, hron_r, ist_r, roc_r = await asyncio.gather(
+    docs_r, pk_r, hron_r, ist_r, roc_r, ca_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("id").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti")
@@ -100,6 +100,11 @@ async def pipeline_status(
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("id").eq("predmet_id", predmet_id)
             .eq("user_id", uid).execute()),
+        # Operation Single Brain, Mission 002: see calculate_case_ready_score's own
+        # docstring / docs/singlebrain/READINESS_AUTHORITY_SPEC.md.
+        asyncio.to_thread(lambda: supa.table("case_actions")
+            .select("prioritet,tip,status,razlog,dedupe_key")
+            .eq("predmet_id", predmet_id).eq("status", "open").execute()),
         return_exceptions=True,
     )
 
@@ -109,15 +114,22 @@ async def pipeline_status(
         return r.data or []
 
     from services.case_pipeline import calculate_case_ready_score
+    from shared.case_readiness import compute_case_readiness
+    _readiness = compute_case_readiness(_safe(ca_r))
     score, checklist = calculate_case_ready_score(
         dokumenti=_safe(docs_r),
         klijenti=_safe(pk_r),
         rokovi=_safe(hron_r),
         istorija=_safe(ist_r),
         rocista=_safe(roc_r),
+        readiness=_readiness,
     )
     return {
         "predmet_id":       predmet_id,
         "case_ready_score": score,
         "checklist":        checklist,
+        # Operation Single Brain, Mission 002: exposes the CANONICAL_OWNER's own verdict
+        # alongside the checklist score it may have capped, so a caller/UI can explain
+        # a capped score rather than showing a lower number with no context.
+        "readiness_status": _readiness.get("status"),
     }

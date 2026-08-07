@@ -963,6 +963,26 @@ async def argument_reputation(
                 _ukupna = None
         if isinstance(_ukupna, (int, float)):
             rezultat["ukupna_snaga"] = max(0, min(100, _ukupna))
+
+        # Operation Single Brain, Mission 002 (SINGLEBRAIN-DEBT-002 closure): this endpoint
+        # was range-clamped (above) but never readiness-capped, unlike its sibling
+        # prediktuj_ishod in this same file -- a CRITICAL_GAP/BLOCKED case could still show
+        # a confident, uncapped argument-success percentage here while every other success-
+        # probability surface on the same case was already capped. Same CAP_BY_READINESS
+        # constant, same pattern, 6th consumer now.
+        if case_context and not case_context.get("error"):
+            _readiness_status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
+            _cap = CAP_BY_READINESS.get(_readiness_status)
+            if _cap is not None:
+                for _a in (rezultat.get("argumenti_analiza") or []):
+                    if isinstance(_a, dict):
+                        _p = _a.get("uspesnost_procena")
+                        if isinstance(_p, (int, float)) and _p > _cap:
+                            _a["uspesnost_procena"] = _cap
+                            _a["boja"] = "zelena" if _cap >= 65 else ("žuta" if _cap >= 35 else "crvena")
+                _uk = rezultat.get("ukupna_snaga")
+                if isinstance(_uk, (int, float)) and _uk > _cap:
+                    rezultat["ukupna_snaga"] = _cap
     except Exception as e:
         _sentry_capture(e)
         logger.error("[ARG_REP] GPT greška: %s", e)

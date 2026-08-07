@@ -10509,8 +10509,12 @@ function pred_renderCaseReadyScore(score, checklist, copilotPreporuka) {
     var items = Array.isArray(checklist) ? checklist : [];
     clEl.innerHTML = items.map(function(it) {
       var done = it.done || it.ok;
-      var color = done ? 'rgba(125,224,160,.75)' : 'rgba(255,255,255,.28)';
-      var icon  = done ? '✓' : '○';
+      // Operation Single Brain, Mission 002: `blokira` marks the item explaining why the
+      // canonical readiness engine capped this score (services/case_pipeline.py::
+      // calculate_case_ready_score) -- rendered as a warning, not a plain unchecked item,
+      // so the cap is explained rather than blending into ordinary incomplete checklist rows.
+      var color = it.blokira ? 'rgba(255,144,144,.85)' : (done ? 'rgba(125,224,160,.75)' : 'rgba(255,255,255,.28)');
+      var icon  = it.blokira ? '⚠' : (done ? '✓' : '○');
       return '<span style="font-size:.7rem;color:'+color+';display:inline-flex;align-items:center;gap:.22rem;">'
            + '<span>'+icon+'</span><span>'+escHtml(it.stavka||it.label||it.naziv||'')+'</span></span>';
     }).join('');

@@ -747,6 +747,28 @@ def orkestrator_kompletna_analiza_sync(
         temperature=0.1,
         max_tokens=2000,
     )
+    # Operation Single Brain, Mission 002 (Team 3 finding, reproduced): this "AI Sudija"
+    # verdict step had ZERO server-side clamp or validation on ANY of its 3 GPT-controlled
+    # values -- procena_uspeha_tuzilac (documented 0-100 but returned raw), izreka
+    # (documented 3-value enum but returned raw), confidence (documented 3-value enum but
+    # returned raw). The frontend only clamps the progress-BAR WIDTH, never the displayed
+    # number text -- a poisoned response (e.g. procena_uspeha_tuzilac=9999, izreka="TUZBA
+    # SIGURNO USVOJENA STOPOSTOTNO") was proven to reach POST /api/strategija/kompletna-
+    # analiza's real, UI-wired response unmodified. This is the single most direct
+    # violation found of this mission's own Acceptance Criterion 2 ("no lawyer-facing UI
+    # displays an unsupported AI-generated decision"). Same clamp/enum-guard discipline
+    # already applied elsewhere in this codebase (BLACKSWAN-AI-003, normalize_tezina),
+    # not a new algorithm.
+    if isinstance(presuda_json, dict):
+        _puk = presuda_json.get("procena_uspeha_tuzilac")
+        if isinstance(_puk, (int, float)):
+            presuda_json["procena_uspeha_tuzilac"] = max(0, min(100, _puk))
+        elif _puk is not None:
+            presuda_json["procena_uspeha_tuzilac"] = None
+        if presuda_json.get("izreka") not in ("TUZBA USVOJENA", "TUZBA DELIMICNO USVOJENA", "TUZBA ODBIJENA"):
+            presuda_json["izreka"] = "TUZBA DELIMICNO USVOJENA"
+        if presuda_json.get("confidence") not in ("VISOKA", "SREDNJA", "NISKA"):
+            presuda_json["confidence"] = "NISKA"
     korak5 = {
         "tuzilac": tuzilac_txt,
         "branilac": branilac_txt,

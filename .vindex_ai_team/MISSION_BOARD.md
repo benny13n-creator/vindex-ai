@@ -2688,3 +2688,56 @@ probability generators → frontend) is now a single, cycle-free, consistently-g
 remaining contradiction, re-verified at extreme scale and under adversarial input. Full statement, including
 the honest scope note distinguishing this mission's own coordinator self-verification from a genuine fresh
 Red Team pass: `docs/singlebrain/FINAL_SINGLE_BRAIN_CERTIFICATE.md`.
+
+---
+
+## Operation Single Brain, Mission 002 — Case Readiness Unification & Decision Authority Engine (2026-08-07, CLOSED)
+
+Directly targeted Mission 001's own headline debt item, `SINGLEBRAIN-DEBT-001`. Founder mandate set the
+highest bar of the engagement: *"A lawyer looking at the same case from any module must receive the same
+operational truth... even one cross-module contradiction fails the mission."*
+
+**Phase 1 — 6 parallel forensic teams** (Architecture Authority, Case Readiness Forensics, AI Boundary Red
+Team, Frontend Truth, Database Truth, UX/Product Reality) re-audited from zero assumptions, each
+independently re-verifying Mission 001's own docs rather than citing them. Team 2 both proved the headline
+disagreement with a real reproduction AND corrected Mission 001's own framing (it was never "2 badges on
+one screen" — the 3 frontend render sites all show the SAME `case_pipeline.py` value; the real exposure is
+cross-screen: a green checklist score while GPT probability tabs elsewhere silently get capped, unexplained).
+Team 3 found the mission's single most serious result: `strategija.py`'s AI Sudija verdict step had zero
+server-side guard on any of its 3 GPT-controlled fields, reproduced with an actual poisoned response proven
+to reach the live UI unmodified.
+
+**Phase 3 — 5 real fixes, each regression-tested**: the headline fix (`services/case_pipeline.py::
+calculate_case_ready_score` now capped by the canonical `shared/case_readiness.py` engine via the SAME
+`CAP_BY_READINESS` constant already governing 4 GPT generators — a 5th consumer, not a new number —
+wired into all 3 real callers, with the blocking reason surfaced as a visible ⚠ checklist item instead of a
+silent cap); `court_predictor.py::argument_reputation` gained the readiness-tier cap it was missing
+(`SINGLEBRAIN-DEBT-002` closed); `strategija.py`'s AI Sudija verdict clamped/enum-guarded; Genome's
+`heatmap`/`dokazi_rang[].snaga_score` clamped (a 3rd recurrence of "guarded the headline, missed the
+sibling field"); `routers/ccc.py`'s hearing query un-limited to match `matter_intel.py` exactly, closing a
+concrete same-screen divergence risk for heavy-docket cases. Full ledger:
+`docs/singlebrain/FRAGMENTATION_ELIMINATION_REPORT.md`.
+
+**Phase 4 — Team 7 Chaos & Regression, all 6 mandated scenarios executed and passed**: 1000 documents, 100
+contradictions, a GPT poisoned-response sweep across every guard this mission touched, 50 concurrent calls
+with zero cross-contamination, stale-cache-cannot-bypass-the-cap, frontend/backend field-name consistency.
+No contradiction survived.
+
+**Full suite: 3,168 passed, 1 skipped, 0 failed** (was 3,145 at Mission 001's close, +23 new tests across
+`test_singlebrain2_readiness_unification.py`/`test_singlebrain2_phase4_chaos.py`, zero regressions).
+
+**12 findings named as debt** (`SINGLEBRAIN2-DEBT-001` through `-012`) — most prominently `-001` (Next
+Action's 3-4 independent generators) and `-006` (Case Commander, the platform's best-designed
+consolidation of all 8 decision concepts, remains dead code with zero live frontend callers) — together
+the standing recommendation for the next mission: wire Case Commander into the UI, carefully, only after
+confirming it wouldn't create new visible contradictions against what this mission and Mission 001 already
+fixed.
+
+**Verdict — 5 real fixes closed; scored honestly against all 5 stated Acceptance Criteria, not rounded
+up.** Criteria 1 and 4 met for what was addressed (the proven contradiction can no longer occur; every
+untouched duplicate is now explicitly named as debt). Criterion 2 substantially advanced (the single worst
+unguarded-AI-output finding of either Single Brain mission is closed) but not exhaustively verified across
+every GPT call site. Criteria 3 and 5 honestly NOT met as platform-wide guarantees — no universal
+score-provenance contract exists, and Team 4 found a live Criterion-5 violation (Case Genome's hero panel
+labels case-strength as "rizik", a different formula than the risk engine's own "rizik") that this mission
+did not fix. Full scorecard: `docs/singlebrain/SINGLE_BRAIN_MISSION_002_FINAL_CERTIFICATE.md`.

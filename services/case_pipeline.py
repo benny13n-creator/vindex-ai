@@ -91,10 +91,30 @@ def calculate_case_ready_score(
     rokovi:     list,
     istorija:   list,
     rocista:    list,
+    readiness:  Optional[dict] = None,
 ) -> tuple[int, list[dict]]:
     """
-    Computes Case Ready Score 0–100 and a checklist from raw Supabase data.
+    Computes Case Ready Score 0-100 and a checklist from raw Supabase data.
     Called both from pipeline and workspace endpoint.
+
+    Operation Single Brain, Mission 002 (2026-08-07): `readiness` is the optional
+    result of `shared/case_readiness.py::compute_case_readiness()` -- the platform's
+    CANONICAL_OWNER for "is this case ready" (deterministic, case_actions-sourced,
+    zero GPT calls). This checklist score answers a genuinely different question
+    ("has the case's SETUP been completed" -- docs/clients/deadlines/strategy/hearing),
+    which is legitimate and NOT being replaced or duplicated here.
+
+    What was a real bug (Mission 002's own headline reproduction, see
+    docs/singlebrain/READINESS_AUTHORITY_SPEC.md): this checklist could show 100/100
+    "Predmet spreman za rad" on the SAME case where the canonical engine had already
+    found a blocking CRITICAL_GAP -- the checklist had no way to know that. When the
+    caller supplies a CRITICAL_GAP/BLOCKED readiness, this score is now capped by the
+    exact same `CAP_BY_READINESS` constant already governing 4 GPT probability
+    generators (not a new number invented for this purpose -- the 5th consumer of an
+    existing pattern), and the checklist gains a visible item naming the blocking
+    reason so the cap is explained, not silent. A caller that passes no readiness (or
+    a READY/PARTIALLY_READY/UNKNOWN one) gets the pre-mission, uncapped behavior
+    unchanged -- this is additive, not a breaking signature change.
     """
     score = 0
     checklist: list[dict] = []
@@ -134,6 +154,25 @@ def calculate_case_ready_score(
     if has_rociste:
         score += 10
     checklist.append({"stavka": "Ročište evidentirano", "ok": has_rociste, "poen": 10})
+
+    # Operation Single Brain, Mission 002: readiness-tier cap, see docstring above. The
+    # blocking-reason item is surfaced whenever the canonical engine reports CRITICAL_GAP/
+    # BLOCKED, even on the rarer occasions the checklist score was already at or below the
+    # cap -- a lawyer should see WHY the case is blocked regardless of whether that fact
+    # happened to also lower this particular number.
+    if readiness:
+        from shared.case_readiness import CAP_BY_READINESS
+        _status = readiness.get("status")
+        _cap = CAP_BY_READINESS.get(_status)
+        if _cap is not None:
+            if score > _cap:
+                score = _cap
+            checklist.append({
+                "stavka": f"Kanonska spremnost predmeta: {_status} — {readiness.get('razlog', '')}".strip(" —"),
+                "ok": False,
+                "poen": 0,
+                "blokira": True,
+            })
 
     return score, checklist
 
@@ -764,7 +803,7 @@ async def run_case_pipeline(
     result.steps = [step1, step2, step3, step4, step5, step6, step7, step8, step9]
 
     # Compute Case Ready Score from current DB state
-    docs_r, pk_r, hron_r, ist_r, roc_r = await asyncio.gather(
+    docs_r, pk_r, hron_r, ist_r, roc_r, ca_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("id").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti")
@@ -777,8 +816,21 @@ async def run_case_pipeline(
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("id").eq("predmet_id", predmet_id)
             .eq("user_id", user_id).execute()),
+        # Operation Single Brain, Mission 002: fetched so the checklist score below can
+        # be capped by the canonical readiness engine -- see calculate_case_ready_score's
+        # own docstring and docs/singlebrain/READINESS_AUTHORITY_SPEC.md.
+        asyncio.to_thread(lambda: supa.table("case_actions")
+            .select("prioritet,tip,status,razlog,dedupe_key")
+            .eq("predmet_id", predmet_id).eq("status", "open").execute()),
         return_exceptions=True,
     )
+
+    # genome_computed defaults True here (not re-fetching case_dna for this) -- it only
+    # distinguishes UNKNOWN vs READY when there are zero open actions, neither of which
+    # this cap applies to (CAP_BY_READINESS only keys CRITICAL_GAP/BLOCKED, both derived
+    # purely from case_actions.prioritet/tip regardless of genome_computed).
+    from shared.case_readiness import compute_case_readiness
+    _readiness = compute_case_readiness(_safe_data(ca_r))
 
     result.case_ready_score, result.checklist = calculate_case_ready_score(
         dokumenti=_safe_data(docs_r),
@@ -786,6 +838,7 @@ async def run_case_pipeline(
         rokovi=_safe_data(hron_r),
         istorija=_safe_data(ist_r),
         rocista=_safe_data(roc_r),
+        readiness=_readiness,
     )
     result.copilot_preporuka = step8.data.get("preporuka", "")
 

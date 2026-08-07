@@ -53,9 +53,18 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
+        # Operation Single Brain, Mission 002 (Team 6 finding): the `.limit(10)` here was
+        # the ONLY difference between this query and matter_intel.py's own unbounded
+        # equivalent, even though BOTH feed the identical calculate_procesni_rizik() call
+        # below -- for a case with more hearings than the cap (ordered by nearest date
+        # ASCENDING with no future-only filter, so a docket with several past hearings
+        # could push upcoming ones past the cutoff entirely), this endpoint's health/
+        # risk badge could diverge from Matter Intel's for the same case, and a genuinely
+        # critical upcoming hearing could be invisible to both risk calc and display.
+        # Unbounded now, matching matter_intel.py exactly -- one input set, not two.
         asyncio.to_thread(lambda: supa.table("rocista").select(
             "id,sud,datum,status,napomena"
-        ).eq("predmet_id", predmet_id).order("datum").limit(10).execute()),
+        ).eq("predmet_id", predmet_id).order("datum").execute()),
         asyncio.to_thread(lambda: supa.table("billing_entries").select(
             "iznos,obracunato"
         ).eq("predmet_id", predmet_id).execute()),
