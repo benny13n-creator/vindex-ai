@@ -2982,3 +2982,17 @@ fixes, zero new algorithms. 6 new tests
 (`tests/test_phoenix_mission_003_institutional_memory.py`). Full suite: **3,237 passed, 1
 skipped, 0 failed** (was 3,231, +6 tests, zero regressions). Red Team self-check passed. Full
 report: `docs/phoenix/mission-003/`. **STOP GATE: PASS.**
+
+### Mission 004 — Financial Credit-Gating Consolidation (CLOSED)
+
+Closed `LIVINGSYS-DEBT-006` (Case Commander `/jutarnji` had the exact unprotected double-charge
+race CIO `/daily` was fixed for in Part A the same day — now claims via `INSERT` against the
+same `UNIQUE(user_id,datum)` constraint), `-002` (`/api/nacrt` charged unconditionally
+regardless of generation failure — now gated on `status=="success"`, matching the sibling
+`analiza()`'s own already-correct pattern), `-027` (`/api/podnesak` always charged even when
+entity extraction — the sub-step whose failure matters most — silently degraded to empty). All
+3 reuse already-proven patterns from elsewhere in this engagement, zero new algorithms. 4 new
+tests (`tests/test_phoenix_mission_004_financial_credit_gating.py`), including a real
+interleaving proof for the `-006` race (same technique as Part A's CIO proof). Full suite:
+**3,241 passed, 1 skipped, 0 failed** (was 3,237, +4 tests, zero regressions). Red Team
+self-check passed. Full report: `docs/phoenix/mission-004/`. **STOP GATE: PASS.**

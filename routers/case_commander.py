@@ -949,13 +949,31 @@ async def commander_jutarnji(
     else:
         pozdrav_prefix = "Dobro veče"
 
+    # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-006): this cache-check-then-generate-then-
+    # charge sequence was not atomic -- two near-simultaneous /jutarnji calls for the same user
+    # (e.g. two open tabs both loading the dashboard) could both pass the cache-miss check above
+    # before either one's row lands, both generate, and both call UsageService.consume -- the
+    # exact double-charge race routers/cio.py::cio_daily was fixed for in Part A the same day.
+    # Simpler here than CIO's own fix: this table's cache has no time-based staleness window
+    # (a row for today is always fresh), so no "claim a stale row" step is needed -- only
+    # "claim today's row via INSERT, relying on the table's own UNIQUE(user_id,datum)
+    # (migration 057) as the real race-breaker."
+    claimed = True
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("commander_jutarnji").insert({
+                "user_id": uid, "datum": danas, "brifing": {},
+            }).execute()
+        )
+    except Exception as _claim_exc:
+        if "duplicate key" not in str(_claim_exc).lower() and "unique" not in str(_claim_exc).lower():
+            logger.warning("[COMMANDER] claim-insert greška (nastavljam bez keš-zaštite): %s", _claim_exc)
+        else:
+            claimed = False
+
     podaci  = await _dohvati_sve_predmete_za_analizu(uid)
     n       = len(podaci["predmeti"])
     analiza = await _cross_case_analiza(podaci, ime)
-
-    # _cross_case_analiza vraca rano (bez GPT poziva) kada n == 0 — ne naplacuj kredit tada.
-    if n > 0:
-        await UsageService.consume(uid, user.get("email", ""), "case_commander")
 
     if n == 0:
         poruka = "Još uvek nemaš aktivnih predmeta. Dodaj prvi predmet da bi AI Command Center počeo da radi."
@@ -972,11 +990,21 @@ async def commander_jutarnji(
         **analiza,
     }
 
+    if not claimed:
+        # Izgubljena trka za današnji brifing -- neko drugi konkurentni poziv je već naplatio
+        # i uskoro upisuje. Ne naplaćuj ponovo, ne prepisuj njegov red -- vrati sopstveni
+        # sveže generisani brifing pozivaocu (nema funkcionalnog gubitka za NJEGA).
+        return brifing
+
+    # _cross_case_analiza vraca rano (bez GPT poziva) kada n == 0 — ne naplacuj kredit tada.
+    if n > 0:
+        await UsageService.consume(uid, user.get("email", ""), "case_commander")
+
     try:
         await asyncio.to_thread(
             lambda: supa.table("commander_jutarnji")
-                .upsert({"user_id": uid, "datum": danas, "brifing": brifing},
-                        on_conflict="user_id,datum")
+                .update({"brifing": brifing})
+                .eq("user_id", uid).eq("datum", danas)
                 .execute()
         )
     except Exception:

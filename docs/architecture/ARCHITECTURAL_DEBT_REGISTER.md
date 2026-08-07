@@ -4359,24 +4359,27 @@ priority for this file.
 
 ### AI-credit-charged-on-failure family
 
-**LIVINGSYS-DEBT-002 (High, financial)** — `/api/nacrt` (`drafting/router.py::generate_draft` +
-`routers/drafting.py::nacrt`) charges a credit unconditionally regardless of
-`rezultat.get("status")`, even though the sibling `/api/analiza` 35 lines below it in the same
-file correctly gates on success. Not fixed this mission: the correct fix (gate + refund) needs to
-be verified against every one of `generate_draft`'s internal failure paths (12+ document types,
-each with its own extraction schema) to avoid a partial fix that still misses a status value —
-deferred to keep this mission's fixes narrowly scoped and individually provable, per its own
-minimum-risk rule, rather than a broad multi-file sweep in the time remaining.
+**LIVINGSYS-DEBT-002 — FIXED** (Program Phoenix, Mission 004, 2026-08-07). `nacrt()` now gates
+`UsageService.consume(...)` on `rezultat.get("status")=="success" and rezultat.get("data")`,
+calling `UsageService.balance(...)` on failure instead — the exact pattern the sibling
+`analiza()` already used. `generate_draft()`'s failure paths all converge on the same
+`{"status":"error",...}` shape (verified: gating on `status` alone, not per-document-type
+logic, correctly covers every failure path since none of them raise or return a different
+shape). Proof: `tests/test_phoenix_mission_004_financial_credit_gating.py::
+test_nacrt_does_not_charge_on_generation_failure` + `test_nacrt_charges_on_genuine_success`.
 
-**LIVINGSYS-DEBT-006 (High)** — `routers/case_commander.py::/jutarnji` has the exact unprotected
-double-charge race `routers/cio.py::/daily` was fixed for in Part A (same day, earlier mission) —
-never received the same fix. The fix pattern is already proven and could be ported directly; not
-done this mission purely due to fix-budget exhaustion, not technical difficulty — the clearest
-"do this first" item for a follow-up pass.
+**LIVINGSYS-DEBT-006 — FIXED** (Program Phoenix, Mission 004, 2026-08-07). `commander_jutarnji`
+now claims today's row via `INSERT` before generating/charging, relying on the table's existing
+`UNIQUE(user_id, datum)` (migration 057) as the race-breaker — same idiom as CIO `/daily`'s own
+fix, simplified since this table's cache has no time-based staleness window (no "claim a stale
+row" step needed). Proof: `test_commander_jutarnji_concurrent_calls_charge_only_once` (real
+interleaving via a stateful fake table).
 
-**LIVINGSYS-DEBT-027 (Medium, financial)** — `/api/podnesak` always charges even when all 3
-internal GPT steps (entity extraction, RAG retrieval, enrichment) silently degrade to empty
-defaults — output is never literally zero (unlike `/api/nacrt`), so rated one tier lower.
+**LIVINGSYS-DEBT-027 — FIXED** (Program Phoenix, Mission 004, 2026-08-07). `podnesak()` now
+gates the charge on `entiteti` (extracted facts) being non-empty — the one sub-step whose
+complete failure makes the draft closest to worthless; RAG/VKS/enrichment degrading
+individually still charges, matching this item's own "Medium, not High" distinction from
+`-002`. Proof: `test_podnesak_skips_charge_only_when_entiteti_empty`.
 
 **LIVINGSYS-DEBT-012 (High)** — near-universal absence of `cooldown_seconds` (3 of ~60
 `feature_registry` rows have one) plus a real TOCTOU race in `UsageService.consume()` for the few

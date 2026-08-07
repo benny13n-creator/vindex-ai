@@ -1939,3 +1939,15 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Pre-existing test corrections | 0 |
 | Full suite | **3,237 passed, 1 skipped, 0 failed** — was 3,231 at Mission 002's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 004 — Financial Credit-Gating Consolidation (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 3 (`LIVINGSYS-DEBT-006, -002, -027`) |
+| Files touched | 2 (`routers/case_commander.py`, `routers/drafting.py`) |
+| New algorithms invented | 0 |
+| Regression tests added | 4 (`tests/test_phoenix_mission_004_financial_credit_gating.py`) |
+| Pre-existing test corrections | 0 |
+| Full suite | **3,241 passed, 1 skipped, 0 failed** — was 3,237 at Mission 003's close |
+| STOP GATE | PASS |

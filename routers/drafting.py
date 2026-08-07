@@ -575,8 +575,14 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(predmet_id=req.predmet_id, module_name="drafting", operation_name="nacrt"):
             rezultat = await _pokreni(_drafting_generate, req.vrsta, _skini_pii(req.opis), user["user_id"])
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
-        if isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data"):
+        # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-002): this used to charge a credit
+        # unconditionally regardless of rezultat.get("status") -- generate_draft() never raises
+        # on failure (OpenAI timeout/error/unknown vrsta all become {"status":"error",...}), so
+        # every one of those failure paths still charged the lawyer for zero output. The
+        # sibling analiza() 35 lines below already gates correctly -- same pattern applied here.
+        _ok = isinstance(rezultat, dict) and rezultat.get("status") == "success" and rezultat.get("data")
+        if _ok:
+            preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
             from shared.audit_immutable import log_action
             asyncio.create_task(log_action(
                 action="drafting_nacrt", user_id=user["user_id"],
@@ -585,6 +591,8 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
             ))
             if req.predmet_id:
                 asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.vrsta, req.vrsta, rezultat["data"]))
+        else:
+            preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
     except Exception as _exc:
         _sentry_capture(_exc)
@@ -843,7 +851,18 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
     nacrt = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
 
-    await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
+    # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
+    # when entity extraction (the step whose failure makes the draft closest to worthless --
+    # a template with no real case facts filled in, just placeholders) silently degraded to
+    # an empty dict. Output here is never literally zero (unlike /api/nacrt's own failure
+    # mode, LIVINGSYS-DEBT-002), so this only skips the charge for the specific worst case,
+    # not for RAG/VKS/enrichment individually degrading -- those still produce a
+    # substantially useful draft and are still charged, matching this debt item's own
+    # "Medium, not High" severity distinction from -002.
+    if entiteti:
+        await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
+    else:
+        logger.warning("Podnesak: naplata preskočena, ekstrakcija entiteta potpuno neuspešna [q=%s]", log_id)
 
     if req.predmet_id and nacrt:
         asyncio.create_task(_stage_draft_for_review(user, req.predmet_id, req.tip, PODNESAK_TIPOVI[req.tip], nacrt))
