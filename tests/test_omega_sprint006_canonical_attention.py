@@ -95,8 +95,12 @@ def test_notifications_priority_order_matches_pre_sprint006_values_exactly():
 
 def test_predmet_workspace_vaznost_translation_available_in_api_module():
     import api
+    # Operation Single Brain (2026-08-07): "važan"/"informativan" added -- api.py's own GPT
+    # extraction prompt and routers/intake.py both actively write these values; this table
+    # previously had no key for either, silently mis-tiering them as MEDIUM.
     assert api._VAZNOST_TO_CANONICAL == {
-        "kritičan": "critical", "bitan": "high", "normalan": "medium", "ostalo": "low",
+        "kritičan": "critical", "bitan": "high", "važan": "high", "normalan": "medium",
+        "ostalo": "low", "informativan": "informational",
     }
 
 

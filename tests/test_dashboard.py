@@ -46,7 +46,8 @@ def _make_chain(data):
 
 
 def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
-                  beleske=None, dokumenti=None, ist_recent=None, rokovi_tabela=None):
+                  beleske=None, dokumenti=None, ist_recent=None, rokovi_tabela=None,
+                  dokazi=None):
     """
     Route by table name — safe for concurrent asyncio.gather calls.
     predmet_istorija is queried twice; discriminated by select() fields:
@@ -57,6 +58,12 @@ def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
     2026-07-24) — distinct from "rokovi" the local variable name (which
     historically held predmet_hronologija rows; kept as-is to avoid
     touching every existing call site in this file).
+
+    dokazi: predmet_dokazi rows (Operation Single Brain, 2026-08-07) -- feeds the
+    LIVE calculate_procesni_rizik call now used for "current" risk (predmeti_visok_rizik);
+    `dokumenti`/`rocista` are also reused for that live computation (this mock doesn't
+    apply real column-selection/date filtering, so the same rows answer every query
+    against that table name).
     """
     supa = MagicMock()
     risk_data    = risks      or []
@@ -69,6 +76,7 @@ def _make_cc_supa(predmeti=None, rocista=None, rokovi=None, risks=None,
         "predmet_beleske":     beleske       or [],
         "predmet_dokumenti":   dokumenti     or [],
         "rokovi":              rokovi_tabela or [],
+        "predmet_dokazi":      dokazi        or [],
     }
 
     def _table(name):
@@ -223,10 +231,13 @@ async def test_cc_rokovi_7_merges_both_sources_without_dropping_either():
 
 @pytest.mark.anyio
 async def test_cc_visok_rizik_detection():
+    """Operation Single Brain (2026-08-07): 'current' risk is now computed LIVE via
+    calculate_procesni_rizik, not read from the predmet_istorija cache -- a case with zero
+    uploaded evidence and zero documents is deterministically 'Visok' by that engine's own
+    formula (ukupno==0 -> +20 to rizik_score), same as every other live risk surface."""
     from routers.dashboard import command_center
     preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    risks = [{"predmet_id": PID, "odgovor": json.dumps({"nivo": "visok", "faktori_minus": ["nema dokaza"]}), "created_at": "2026-06-01T10:00:00"}]
-    supa  = _make_cc_supa(predmeti=preds, risks=risks)
+    supa  = _make_cc_supa(predmeti=preds, dokazi=[], dokumenti=[], rocista=[])
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await command_center(request=_req(), user=_user())
     assert len(result["predmeti_visok_rizik"]) == 1
@@ -235,18 +246,38 @@ async def test_cc_visok_rizik_detection():
 
 @pytest.mark.anyio
 async def test_cc_pad_procene():
+    """Operation Single Brain (2026-08-07): pad_procene now compares the LIVE current risk
+    against the most recent HISTORICAL snapshot (not two historical snapshots against each
+    other) -- the exact fix for the stale-cache bug Red Team reproduced on this endpoint.
+    Case has zero evidence/documents (-> live 'Visok', same as the test above); the cache's
+    only entry says the case was 'nizak' as of its last snapshot -- a genuine risk increase."""
     from routers.dashboard import command_center
     preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
     risks = [
-        {"predmet_id": PID, "odgovor": json.dumps({"nivo": "visok"}), "created_at": "2026-06-10"},
         {"predmet_id": PID, "odgovor": json.dumps({"nivo": "nizak"}), "created_at": "2026-06-01"},
     ]
-    supa = _make_cc_supa(predmeti=preds, risks=risks)
+    supa = _make_cc_supa(predmeti=preds, risks=risks, dokazi=[], dokumenti=[], rocista=[])
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await command_center(request=_req(), user=_user())
     assert len(result["pad_procene"]) == 1
     assert result["pad_procene"][0]["prethodni_rizik"] == "nizak"
     assert result["pad_procene"][0]["trenutni_rizik"] == "visok"
+
+
+@pytest.mark.anyio
+async def test_cc_visok_rizik_reflects_live_data_not_stale_cache():
+    """The Red Team's own flagship reproduction, restated as a regression test on THIS endpoint
+    specifically (a sibling of api.py::predmeti_dashboard, which Operation One Truth already
+    fixed -- this one was missed until Operation Single Brain). A stale cache claiming 'nizak'
+    must not suppress a live-computed 'visok'."""
+    from routers.dashboard import command_center
+    preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
+    stale_cache = [{"predmet_id": PID, "odgovor": json.dumps({"nivo": "nizak"}), "created_at": "2020-01-01"}]
+    supa = _make_cc_supa(predmeti=preds, risks=stale_cache, dokazi=[], dokumenti=[], rocista=[])
+    with patch("routers.dashboard._get_supa", return_value=supa):
+        result = await command_center(request=_req(), user=_user())
+    assert len(result["predmeti_visok_rizik"]) == 1
+    assert result["predmeti_visok_rizik"][0]["rizik_nivo"] == "visok"
 
 
 @pytest.mark.anyio

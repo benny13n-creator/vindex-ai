@@ -43,7 +43,7 @@ from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.case_context import build_case_context
-from shared.case_readiness import CRITICAL_GAP, BLOCKED
+from shared.case_readiness import CRITICAL_GAP, BLOCKED, CAP_BY_READINESS
 
 logger = logging.getLogger("vindex.digital_twin")
 router = APIRouter(prefix="/api/twin", tags=["digital_twin"])
@@ -199,7 +199,11 @@ async def _dohvati_kontekst_predmeta(supa, predmet_id: str, uid: str) -> dict:
 # vidi docs/lambda/LAMBDA_ARCHITECTURE_AI_AUDIT.md za granicu obima. Isti
 # pragovi kao court_predictor.py/hearing_cc.py -- platformska doslednost, ne
 # novi izmišljeni brojevi.
-_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
+#
+# Operation Single Brain (2026-08-07): now sourced from shared/case_readiness.py's
+# CAP_BY_READINESS, the single definition this file/hearing_cc.py/court_predictor.py
+# all import instead of each redeclaring the identical dict.
+_CAP_BY_READINESS = CAP_BY_READINESS
 
 
 async def _dohvati_case_context_ako_postoji(predmet_id: str, uid: str, supa) -> Optional[dict]:
@@ -328,6 +332,21 @@ async def kreiraj_simulaciju(
     kljucne_tacke        = rezultat.get("kljucne_tacke", [])
     optimalna_strategija = rezultat.get("optimalna_strategija", "")
 
+    # Operation Single Brain (2026-08-07), matching hearing_cc.py's own BLACKSWAN-AI-003 fix:
+    # the readiness-tier cap below only fires for CRITICAL_GAP/BLOCKED -- for any other status
+    # (including when case_context itself failed to fetch, see the `if case_context` guard
+    # right below), an out-of-spec GPT probability (e.g. 9000, -40) reached the response and
+    # the persisted twin_simulacije row completely unclamped. This mission's Team 4 (AI
+    # Boundary) confirmed this was the only one of the 4 success-probability generators
+    # missing hearing_cc.py's unconditional range clamp. Basic 0-100 sanity now applies
+    # unconditionally, before and independent of the stricter readiness-specific cap.
+    if isinstance(scenariji, list):
+        for _sc in scenariji:
+            if isinstance(_sc, dict):
+                _v0 = _sc.get("verovatnoca")
+                if isinstance(_v0, (int, float)):
+                    _sc["verovatnoca"] = max(0, min(100, _v0))
+
     # Program Lambda, Master Sprint 001: deterministički cap -- GPT ne sme
     # tvrditi visoku verovatnocu ni za jedan scenario ako je kanonski status
     # CRITICAL_GAP/BLOCKED. Isti mehanizam kao court_predictor.py/hearing_cc.py,
@@ -426,6 +445,11 @@ async def sta_ako_analiza(
     uticaj             = rezultat.get("uticaj", "")
     nova_verovatnoca   = rezultat.get("nova_verovatnoca_uspeha", 50)
     preporucene_akcije = rezultat.get("preporucene_akcije", [])
+
+    # Operation Single Brain (2026-08-07): unconditional range sanity, same as
+    # kreiraj_simulacija above -- see that comment for why this was missing.
+    if isinstance(nova_verovatnoca, (int, float)):
+        nova_verovatnoca = max(0, min(100, nova_verovatnoca))
 
     # Program Lambda, Master Sprint 001: isti deterministički cap kao gore.
     if case_context and not case_context.get("error"):

@@ -398,6 +398,15 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
         if _blok and not _validan_predmet_id(_blok):
             izvestaj[_kljuc] = None
 
+    # Operation Single Brain (2026-08-07), AI Boundary gap: the top-level "pouzdanost"
+    # (GPT's own self-declared confidence in the WHOLE briefing) was never enum-validated --
+    # unlike the per-block predmet_id references just above, which already go through
+    # validate_predmet_reference(). Same guard pattern applied elsewhere this mission
+    # (routers/court_predictor.py's opponent_intel pouzdanost, shared/genome_validator.py's
+    # genome_kompletnost): unrecognized input fails safe toward "niska", not passed through.
+    _p = izvestaj.get("pouzdanost")
+    izvestaj["pouzdanost"] = _p if _p in ("visoka", "srednja", "niska") else "niska"
+
     _nr = izvestaj.get("najveci_rizik")
     if _nr:
         # BLACKSWAN-AI-002 fix (Operation Black Swan, Mission 001, AI Attack): the READY-

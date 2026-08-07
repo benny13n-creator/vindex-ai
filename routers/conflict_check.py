@@ -93,7 +93,14 @@ def _conflict_reason(termin: str, matched_val: str, score: int, context: str) ->
 
 # ── Statusi ───────────────────────────────────────────────────────────────────
 
-_AKTIVNI_STATUSI  = {"aktivan", "u toku", "priprema", "odložen", "žalba"}
+# Operation Single Brain (2026-08-07): "u_toku" (underscore) added -- routers/cio.py,
+# routers/morning_briefing.py, and klijenti/router.py all already treat "u_toku" as an
+# active predmeti.status literal (`.in_("status", ["aktivan", "u_toku", "pending"])`), but
+# this set only had "u toku" (space) -- a case actually stored with the underscore variant
+# silently fell through conflict screening as "not active", the opposite of what a conflict-
+# of-interest check should ever silently do. Both spellings now recognized; no other module
+# needed to change.
+_AKTIVNI_STATUSI  = {"aktivan", "u toku", "u_toku", "priprema", "odložen", "žalba"}
 _ZATVORENI_STATUSI = {"zatvoren", "rešen", "povučen", "odbačen", "arhiviran"}
 
 

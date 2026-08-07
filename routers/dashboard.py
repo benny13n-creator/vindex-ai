@@ -52,9 +52,10 @@ async def command_center(
     # "rokovi" tabelom. Rok upisan preko tih puteva se nikad nije pojavljivao
     # ovde. rokovi_tabela_r dodaje TAJ isti izvor u postojeći paralelni batch
     # (bez izmene write putanja bilo kog modula) -- v. spajanje ispod.
-    (predmeti_r, rocista_r, rokovi_r, risk_r,
+    (predmeti_r, rocista_r, rokovi_r, risk_hist_r,
      beleske_r, dokumenti_r, ist_recent_r,
-     fakture_r, rocista_buduci_r, rokovi_tabela_r) = await asyncio.gather(
+     fakture_r, rocista_buduci_r, rokovi_tabela_r,
+     dokazi_all_r, dokumenti_all_r, rocista_all_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,updated_at")
             .eq("user_id", uid)
@@ -73,6 +74,13 @@ async def command_center(
             .order("datum_iso")
             .limit(100)
             .execute()),
+        # Operation Single Brain (2026-08-07): kept ONLY for the "risk changed since last look"
+        # diff feature below (pad_procene) -- a legitimate historical comparison, not a source
+        # of CURRENT risk anymore. This is the app's actual home-tab endpoint; it used to treat
+        # this same cache as authoritative for "current" risk too (predmeti_visok_rizik), up to
+        # 24h+ stale, the exact bug class this mission's Red Team reproduced and Operation One
+        # Truth already fixed on the sibling /api/predmeti/dashboard endpoint -- this one was
+        # missed. Renamed risk_r -> risk_hist_r to make the historical-only role explicit.
         asyncio.to_thread(lambda: supa.table("predmet_istorija")
             .select("predmet_id,odgovor,created_at")
             .eq("user_id", uid)
@@ -117,6 +125,22 @@ async def command_center(
             .lte("datum", in_7_iso)
             .order("datum")
             .limit(100)
+            .execute()),
+        # Operation Single Brain: the 3 tables calculate_procesni_rizik needs, bulk-fetched
+        # once for the whole portfolio (same pattern as api.py::predmeti_dashboard's own fix)
+        # so "visok rizik" reflects live current facts, not a stale snapshot.
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi")
+            .select("predmet_id,snaga,kategorija")
+            .eq("user_id", uid)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+            .select("predmet_id,tip_dokaza")
+            .eq("user_id", uid)
+            .execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+            .select("predmet_id,datum")
+            .eq("user_id", uid)
+            .eq("status", "zakazano")
             .execute()),
         return_exceptions=True,
     )
@@ -210,38 +234,65 @@ async def command_center(
     rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
     hitni_rokovi = [r for r in rokovi_7 if (r.get("datum_iso") or "9999") <= in_2_iso]
 
-    # 3. Visok rizik + pad procene (from risk history)
-    risk_by_pred: dict[str, list] = {}
-    for r in _safe(risk_r):
+    # 3. Visok rizik (LIVE, canonical) + pad procene (current live value vs. the most recent
+    # historical snapshot). Operation Single Brain (2026-08-07): "trenutni" risk is no longer
+    # read from the potentially-stale cache -- it's computed fresh, per case, from the same
+    # canonical engine every other risk surface uses. Only the PREVIOUS value (for the "risk
+    # increased since last look" diff) legitimately needs history, so risk_hist_r is still used
+    # for that one purpose, exactly as api.py's own workspace endpoint already does.
+    from services.risk_engine import calculate_procesni_rizik as _calc_rizik_cc
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS_CC
+
+    dokazi_map_cc: dict[str, list] = {}
+    for d in _safe(dokazi_all_r):
+        pid = d.get("predmet_id")
+        if pid:
+            dokazi_map_cc.setdefault(pid, []).append(d)
+    dokumenti_map_cc: dict[str, list] = {}
+    for d in _safe(dokumenti_all_r):
+        pid = d.get("predmet_id")
+        if pid:
+            dokumenti_map_cc.setdefault(pid, []).append(d)
+    rocista_map_cc: dict[str, list] = {}
+    for r in _safe(rocista_all_r):
         pid = r.get("predmet_id")
-        if pid and len(risk_by_pred.get(pid, [])) < 2:
+        if pid:
+            rocista_map_cc.setdefault(pid, []).append(r)
+
+    prev_risk_by_pred: dict[str, str] = {}
+    for r in _safe(risk_hist_r):
+        pid = r.get("predmet_id")
+        if pid and pid not in prev_risk_by_pred:
             try:
-                risk_by_pred.setdefault(pid, []).append(json.loads(r.get("odgovor", "{}")))
+                prev_risk_by_pred[pid] = (json.loads(r.get("odgovor", "{}")) or {}).get("nivo", "")
             except Exception:
                 pass
 
     predmeti_visok_rizik: list[dict] = []
     pad_procene: list[dict] = []
-    for pid, risks in risk_by_pred.items():
-        if not risks:
-            continue
-        nivo = risks[0].get("nivo", "")
+    for p in aktivni:
+        pid = p["id"]
+        live = _calc_rizik_cc(
+            dokazi=dokazi_map_cc.get(pid, []), dokumenti=dokumenti_map_cc.get(pid, []),
+            rocista=rocista_map_cc.get(pid, []), tip_predmeta=p.get("tip", "ostalo"),
+            expected_docs=_EXPECTED_DOCS_CC,
+        )
+        nivo = (live.get("nivo") or "").lower()
         if nivo == "visok":
             predmeti_visok_rizik.append({
                 "predmet_id":    pid,
                 "predmet_naziv": pred_by_id.get(pid, {}).get("naziv", "—"),
                 "rizik_nivo":    nivo,
-                "faktori":       risks[0].get("faktori_minus", [])[:3],
+                "faktori":       [],
             })
-        if len(risks) >= 2:
-            prev_nivo = risks[1].get("nivo", "")
-            if _RISK_LEVEL.get(nivo, 0) > _RISK_LEVEL.get(prev_nivo, 0):
-                pad_procene.append({
-                    "predmet_id":      pid,
-                    "predmet_naziv":   pred_by_id.get(pid, {}).get("naziv", "—"),
-                    "prethodni_rizik": prev_nivo,
-                    "trenutni_rizik":  nivo,
-                })
+        prev_nivo = prev_risk_by_pred.get(pid, "")
+        if prev_nivo and _RISK_LEVEL.get(nivo, 0) > _RISK_LEVEL.get(prev_nivo, 0):
+            pad_procene.append({
+                "predmet_id":      pid,
+                "predmet_naziv":   pred_by_id.get(pid, {}).get("naziv", "—"),
+                "prethodni_rizik": prev_nivo,
+                "trenutni_rizik":  nivo,
+            })
 
     # 4. Neaktivni predmeti (>30 dana)
     active_pids = (

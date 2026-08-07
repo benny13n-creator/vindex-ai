@@ -11902,9 +11902,16 @@ async function pred_loadDetail(id) {
     if (oblEl && d.predmet) oblEl.textContent = (_TIP_LABELS && _TIP_LABELS[d.predmet.tip]) || d.predmet.tip || '—';
     var rizikEl = document.getElementById('pred-s-rizik');
     if (rizikEl) {
-      var rn = (d.predmet && d.predmet.rizik) || (d.cockpit && d.cockpit.procena_rizika && d.cockpit.procena_rizika.nivo) || '';
-      rizikEl.textContent = rn ? rn.charAt(0).toUpperCase()+rn.slice(1) : '—';
-      rizikEl.style.color = rn==='visok'?'#ff9090':rn==='srednji'?'#ffbb70':rn==='nizak'?'#7de0a0':'rgba(255,255,255,.5)';
+      // Operation Single Brain (2026-08-07): this field is labeled "Rizik (ručno)" -- a
+      // lawyer's own manual note, distinct from the AI-computed Cockpit badge two inches
+      // below it. It used to silently fall back to showing the AI value whenever the manual
+      // field was empty (the default state for every case), meaning the "(ručno)" label was
+      // false for most cases -- Red Team's own flagship reproduction of this mission traced
+      // exactly this substitution. Now shows ONLY what was actually manually set; the
+      // canonical value has exactly one display slot (the Cockpit badge), not two.
+      var rn = (d.predmet && d.predmet.rizik) || '';
+      rizikEl.textContent = rn ? rn.charAt(0).toUpperCase()+rn.slice(1) : 'Nije podešeno';
+      rizikEl.style.color = rn==='visok'?'#ff9090':rn==='srednji'?'#ffbb70':rn==='nizak'?'#7de0a0':'rgba(255,255,255,.35)';
     }
     var dozEl = document.getElementById('pred-s-dokazi');
     if (dozEl) dozEl.textContent = d.statistike ? d.statistike.dokumenti_count+' dok.' : '—';
@@ -19552,10 +19559,18 @@ function pred_renderProcena(tekst) {
 
     if (x.s.special === 'rizik') {
       // Determine header color from split risks — use highest severity
+      // Operation Single Brain (2026-08-07): this used to also call _pred_setRizik(), which
+      // directly overwrote the case-header "Rizik" field (#pred-s-rizik, the same manually-
+      // editable slot as the Status panel) with a risk word regex-matched out of THIS
+      // document analysis's own free-text GPT output -- a third, fully unvalidated source
+      // silently hijacking the case's canonical/manual risk display, found independently of
+      // this mission's other risk-consistency fixes. The color badge below is still scoped
+      // to (and only describes) this specific document analysis section, which is correct;
+      // it no longer reaches outside itself to overwrite the case header.
       var _rizikLevel = /VISOK/i.test(body) ? 'VISOK' : (/SREDNJI/i.test(body) ? 'SREDNJI' : 'NIZAK');
-      if (_rizikLevel === 'VISOK')        { extraCls = ' risk-visok';   _pred_setRizik('VISOK'); }
-      else if (_rizikLevel === 'SREDNJI') { extraCls = ' risk-srednji'; _pred_setRizik('SREDNJI'); }
-      else                               { extraCls = ' risk-nizak';   _pred_setRizik('NIZAK'); }
+      if (_rizikLevel === 'VISOK')        { extraCls = ' risk-visok'; }
+      else if (_rizikLevel === 'SREDNJI') { extraCls = ' risk-srednji'; }
+      else                               { extraCls = ' risk-nizak'; }
       // Render split risk lines with colored badges
       var rLines = body.split('\n').map(function(ln) {
         var rM = ln.match(/^(Rizik za (?:tužioca|tuženog)):\s*(NIZAK|SREDNJI|VISOK)\s*[—-]\s*(.+)/i);
@@ -19886,7 +19901,10 @@ function pred_renderPresuda(tekst) {
       if (/\bVISOK\b/.test(body))   { ocena = 'VISOK';   extraCls = ' risk-visok'; }
       else if (/\bSREDNJI\b/.test(body)) { ocena = 'SREDNJI'; extraCls = ' risk-srednji'; }
       else if (/\bNIZAK\b/.test(body))   { ocena = 'NIZAK';   extraCls = ' risk-nizak'; }
-      _pred_setRizik(ocena || 'SREDNJI');
+      // Operation Single Brain (2026-08-07): same fix as the sibling analysis renderer above --
+      // no longer overwrites the case-header #pred-s-rizik with a value regex-matched out of
+      // this "appeal outlook" ("izgled žalbe") section's own free-text GPT output. The badge
+      // below remains, correctly scoped to this judgment analysis only.
       if (ocena) {
         var bg, cl, bc;
         if (ocena === 'VISOK')        { bg='rgba(74,222,128,0.12)';  cl='#4ade80'; bc='rgba(74,222,128,0.35)'; }
@@ -19906,12 +19924,6 @@ function pred_renderPresuda(tekst) {
   return html;
 }
 
-function _pred_setRizik(val) {
-  var el = document.getElementById('pred-s-rizik');
-  if (!el) return;
-  var cls = val === 'NIZAK' ? 'risk-nizak' : val === 'VISOK' ? 'risk-visok' : 'risk-srednji';
-  el.innerHTML = '<span class="'+cls+'">'+val+'</span>';
-}
 function _pred_setDokazi(n) {
   var el = document.getElementById('pred-s-dokazi');
   if (el) el.textContent = n > 0 ? n : '—';
@@ -20614,7 +20626,11 @@ function _intakeShowPipelineResult(pr) {
   scoreArc.style.strokeDashoffset = String(circumference - (circumference * score / 100));
   scoreArc.style.stroke = score >= 70 ? '#00d4ff' : score >= 40 ? '#f0ad4e' : '#e05252';
 
-  var statusMap = {70:'Predmet spreman za rad', 40:'Predmet delimično spreman', 0:'Predmet u pripremi'};
+  // Operation Single Brain (2026-08-07): the <40 bucket used to read "Predmet u pripremi"
+  // here but "Predmet zahteva dopunu" on the Status panel (pred-crs-status, above) for the
+  // IDENTICAL case_ready_score value -- two different labels for the same score on two
+  // screens. Aligned to the Status panel's wording (more actionable/specific).
+  var statusMap = {70:'Predmet spreman za rad', 40:'Predmet delimično spreman', 0:'Predmet zahteva dopunu'};
   var statusKey = score >= 70 ? 70 : score >= 40 ? 40 : 0;
   scoreStatus.textContent = 'Case Ready Score: ' + score + '% — ' + statusMap[statusKey];
 

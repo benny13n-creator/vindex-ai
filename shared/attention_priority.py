@@ -99,8 +99,19 @@ INBOX_TO_CANONICAL: dict[str, str] = {
 # predmet_hronologija.vaznost — read independently by api.py::predmet_workspace (its own
 # _VAZNOST_ORDER), routers/dashboard.py, routers/notifications.py, and api.py's own (retired this
 # sprint) GET /api/notifications. The underlying COLUMN is unchanged; this is the read-side translation.
+#
+# Operation Single Brain (2026-08-07): "važan" and "informativan" added -- api.py's own GPT
+# extraction prompt (the write path, ~api.py:4148: 'vaznost mora biti tačno jedna od: "kritičan",
+# "važan", "informativan"') and routers/intake.py's static event templates both actively write
+# these 2 values, but this table had no matching key for either -- every "važan"/"informativan"
+# row silently fell through .get(vaznost, MEDIUM) to the same MEDIUM bucket as genuinely-normal
+# events, understating "važan" (should rank alongside "bitan") and losing "informativan"'s own
+# distinct bottom tier. "važan" is the same concept as the existing "bitan" key (both mean
+# "important but not decisive") -> HIGH; "informativan" maps to the canonical INFORMATIONAL
+# tier that already exists for exactly this meaning, not the LOW tier "ostalo" uses.
 VAZNOST_TO_CANONICAL: dict[str, str] = {
-    "kritičan": CRITICAL, "bitan": HIGH, "normalan": MEDIUM, "ostalo": LOW,
+    "kritičan": CRITICAL, "bitan": HIGH, "važan": HIGH, "normalan": MEDIUM,
+    "ostalo": LOW, "informativan": INFORMATIONAL,
 }
 
 # Program Omega, Final Sprint 007 (2026-08-06) — the reverse direction, needed once a canonical

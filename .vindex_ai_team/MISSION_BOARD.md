@@ -2632,3 +2632,59 @@ level up) are the standing recommendation for the next mission; a disaster-recov
 FAILED TO CREATE CONTRADICTION — is satisfied for the risk-consistency defect that motivated this mission.
 Full statement, including the honest scope note on Red Team re-verification: `docs/onetruth/
 ONE_TRUTH_CERTIFICATION_REPORT.md`.
+
+---
+
+## Operation Single Brain, Mission 001 — Canonical Legal Truth Engine (2026-08-07, CLOSED)
+
+Founder mandate directly targeted `IRONLAWYER-DEBT-003`'s standing recommendation, escalated:
+*"Pretpostavi da nijedna dosadašnja odluka nije tačna... Ako pronađeš makar jednu situaciju gde dva modula
+različito tumače isti predmet, misija NIJE uspešna."* No new AI capabilities, no new algorithms, no new
+databases — existing logic only, eliminate duplicate truth sources.
+
+**Phase 1 — 10 parallel forensic teams** (Truth Registry, Decision Graph, Duplicate Computation, AI
+Boundary, Cross-Module Consistency, API Consistency, Database Truth, Evidence Provenance, Red Team, Founder
+Certification) re-audited the platform from zero assumptions, independently of Operation One Truth's own
+same-day registry. Found substantially MORE fragmentation than One Truth had counted (Confidence: 15
+sources not 7; 2 entirely new categories, Importance and Status-classifier-logic, not examined before) —
+full inventory in `docs/singlebrain/TRUTH_REGISTRY.md`, `DECISION_DEPENDENCY_GRAPH.md`,
+`CROSS_MODULE_CONSISTENCY_REPORT.md`, `AI_BOUNDARY_CERTIFICATION.md`.
+
+**Phase 3 — 20 real fixes, each regression-tested**: the case-header risk field's silent AI-value fallback
+(Red Team's own flagship reproduction) plus a second, previously-uncaught hijack of the same DOM slot;
+`dashboard.py::command_center`'s (the app's actual home tab) stale up-to-24h risk cache; 3 execution-tested
+bugs in the canonical risk pipeline (2× missing `tip_dokaza` column, 1× missing `deleted_at` filter);
+Health Index's permanently-dead Portfolio Risk sub-component; unvalidated `tezina`/`genome_kompletnost`/
+Opponent-Intel-`pouzdanost`/CIO-`pouzdanost` GPT fields now enum-guarded fail-safe toward the conservative
+bucket; 3 GPT success-probability generators (`digital_twin.py` ×2, `court_predictor.py`) gained the
+unconditional 0-100 clamp `hearing_cc.py` already had, plus a `min<=max` ordering guard; `_CAP_BY_READINESS`
+consolidated from 3 copy-pasted dicts to 1 shared constant; a conflict-of-interest screening spelling
+landmine (`"u toku"`/`"u_toku"`) closed; `client_portal.py`'s client-facing "upcoming critical deadlines"
+query — confirmed to match ZERO real rows in practice (hardcoded wrong-spelling literals no writer ever
+produces) — fixed alongside the root cause (`VAZNOST_TO_CANONICAL` missing keys for 2 actively-written
+values); Case Ready Score's own 2-render-site label mismatch closed. Full ledger with fix+test citations:
+`docs/singlebrain/DUPLICATE_TRUTH_ELIMINATION_REPORT.md`.
+
+**Phase 4 — extreme scale (1000 documents, 500 hearings, 100 contradictions, 100 open actions) confirmed
+deterministic; adversarial poisoned-value testing found and fixed one more real bug** (`normalize_tezina()`
+crashing on a non-string GPT value, not merely a hypothesis — found by executing the adversarial test, not
+by inspection).
+
+**Full suite: 3,145 passed, 1 skipped, 0 failed** (was 3,106 at One Truth's close, +37 new tests across
+`test_singlebrain_phase3_fixes.py`/`test_singlebrain_phase4_scale_and_adversarial.py`, zero regressions —
+2 pre-existing tests updated to match new, more-correct behavior, not weakened).
+
+**14 findings named as debt** (`SINGLEBRAIN-DEBT-001` through `-014`) — most prominently `-001`, Case
+Readiness's 2 live co-rendered sources (`case_readiness.py` vs `case_pipeline.py::
+calculate_case_ready_score`), the standing recommendation for the next mission if platform-wide
+zero-fragmentation remains the goal.
+
+**Verdict — CERTIFIED FOR THE DETERMINISTIC CORE, NOT A ZERO-FRAGMENTATION CERTIFICATION.** Read literally,
+the founder's own stop condition ("zero fragmentation," "even one contradiction fails the mission") is
+honestly NOT met — the 14 deferred items include real, still-live situations where two modules can disagree
+about the same case. What IS certifiable: the deterministic backbone (`risk_engine.py` →
+`case_evolution.py`/`case_actions` → `case_readiness.py` → `CAP_BY_READINESS` → the 3 GPT success-
+probability generators → frontend) is now a single, cycle-free, consistently-guarded pipeline with no known
+remaining contradiction, re-verified at extreme scale and under adversarial input. Full statement, including
+the honest scope note distinguishing this mission's own coordinator self-verification from a genuine fresh
+Red Team pass: `docs/singlebrain/FINAL_SINGLE_BRAIN_CERTIFICATE.md`.

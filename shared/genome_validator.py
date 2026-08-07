@@ -232,7 +232,24 @@ def compute_snaga_score(genome: dict) -> dict:
     raw_faktori = genome.get("snaga_faktori")
     faktori = list(raw_faktori) if isinstance(raw_faktori, list) else []
 
-    if genome.get("genome_kompletnost") == "niska":
+    # Operation Single Brain (2026-08-07), AI Boundary gap #8: the exact-string check
+    # this replaced (`== "niska"`) only fired for the literal value "niska" -- Genome's
+    # own prompt asks for exactly "visoka|srednja|niska" but nothing validated GPT
+    # actually returned one of those 3. A synonym/typo ("vrlo niska", wrong case, a
+    # stray int) silently skipped the -15 penalty, i.e. treated genuinely-uncertain
+    # completeness as if it were fine -- overstating case strength. A genuinely ABSENT
+    # field (genome_kompletnost not in the dict at all) is left alone, matching this
+    # function's pre-existing, tested baseline-with-no-penalty behavior -- that's a
+    # "we don't have a signal" state already priced into the neutral 50 baseline, not
+    # a corrupted signal.
+    _raw_kompletnost = genome.get("genome_kompletnost")
+    if _raw_kompletnost not in (None, ""):
+        _s = str(_raw_kompletnost).strip().lower()
+        _kompletnost = _s if _s in ("visoka", "srednja", "niska") else "niska"
+    else:
+        _kompletnost = None
+
+    if _kompletnost == "niska":
         faktori.append({
             "faktor": "Kompletnost dokaznog materijala",
             "uticaj": "-15",

@@ -26,7 +26,7 @@ from shared.usage import UsageService
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.rate import limiter
 from shared.case_context import build_case_context
-from shared.case_readiness import CRITICAL_GAP, BLOCKED
+from shared.case_readiness import CRITICAL_GAP, BLOCKED, CAP_BY_READINESS
 
 logger = logging.getLogger("vindex.hearing_cc")
 router = APIRouter(tags=["hearing_cc"])
@@ -115,15 +115,13 @@ Tvoj "missing_evidence" ne sme da protivreci već poznatim nedostajućim dokazim
 ne izmišljaj suprotno. Tvoj "hearing_score" mora biti niži ako blok pokazuje kritičan nedostatak (readiness:
 CRITICAL_GAP ili BLOCKED) -- takav predmet ne može biti visoko ocenjen kao "spreman za ročište"."""
 
-# Deterministic ceiling on hearing_score when the canonical readiness status
-# is CRITICAL_GAP/BLOCKED -- same thresholds Program Tau Master Sprint 005
-# already established for court_predictor.py's win-probability cap. Reused
-# deliberately (platform-wide consistency for what these 2 statuses mean),
-# not a newly-invented number for this module. Keys import the canonical
-# status constants (Program Tau, Master Sprint 007's own Phase 4
-# cross-system verification finding) rather than hardcoded string literals,
-# so a rename at the source can't silently desync this cap.
-_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
+# Deterministic ceiling on hearing_score when the canonical readiness status is
+# CRITICAL_GAP/BLOCKED -- shared/case_readiness.py::CAP_BY_READINESS, the single
+# definition 3 GPT success-probability generators (this file, digital_twin.py,
+# court_predictor.py) now import instead of each redeclaring their own copy
+# (Operation Single Brain, 2026-08-07 -- 3 independently-pasted copies of the
+# identical dict was itself a duplicate-truth finding this mission targets).
+_CAP_BY_READINESS = CAP_BY_READINESS
 
 _JSON_SCHEMA = """{
   "executive_brief": "string — sažetak 3-5 rečenica za ročište",

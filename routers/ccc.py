@@ -41,9 +41,16 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         hron_r,
         kl_r,
     ) = await asyncio.gather(
+        # Operation Single Brain (2026-08-07): .is_("deleted_at","null") added -- this query
+        # was the only one of 4 canonical-risk consumers (matter_intel.py, api.py::predmet_
+        # workspace, shared/case_context.py all already exclude soft-deleted evidence) that
+        # counted a deleted predmet_dokazi row into the risk formula. Execution-tested by
+        # this mission's Team 6: in one scenario this bug and the tip_dokaza bug (fixed
+        # alongside this one) happened to cancel out to a coincidentally-matching health_score
+        # between two endpoints, masking both real defects.
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
             "snaga,kategorija"
-        ).eq("predmet_id", predmet_id).execute()),
+        ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select(

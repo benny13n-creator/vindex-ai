@@ -42,6 +42,17 @@ from pydantic import BaseModel, EmailStr, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.attention_priority import VAZNOST_TO_CANONICAL, CRITICAL, HIGH
+
+# Operation Single Brain (2026-08-07): the raw literals this query filters predmet_
+# hronologija.vaznost on used to be hardcoded as ["kritican", "vazno"] -- neither spelling
+# any real writer of that column actually produces (routers/intake.py, services/case_pipeline.py,
+# routers/onboarding.py etc. all write "kritičan" WITH the ć diacritic, and "bitan"/"važan", never
+# "kritican" or "vazno"). This filter matched zero real rows in practice, so this client-facing
+# "upcoming critical deadlines" section was silently empty for every case. Now derived from
+# shared/attention_priority.py's own VAZNOST_TO_CANONICAL -- the same canonical translation table
+# api.py already uses to read this exact column -- instead of a 4th independently-typed vocabulary.
+_KLIJENT_VAZNI_VAZNOST = [w for w, canon in VAZNOST_TO_CANONICAL.items() if canon in (CRITICAL, HIGH)]
 
 try:
     from routers.email_notif import _smtp_send as _smtp_send_email
@@ -434,7 +445,7 @@ async def client_portal_view(
                 .eq("user_id", advokat_uid)
                 .gte("datum_iso", date.today().isoformat())
                 .lte("datum_iso", (date.today() + timedelta(days=30)).isoformat())
-                .in_("vaznost", ["kritican", "vazno"])
+                .in_("vaznost", _KLIJENT_VAZNI_VAZNOST)
                 .order("datum_iso", desc=False)
                 .limit(10)
                 .execute()

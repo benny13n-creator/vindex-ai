@@ -70,3 +70,32 @@ def contradiction_dedupe_key(k: dict) -> str:
     (services/case_evolution.py)."""
     a, b = contradiction_identity(k)
     return hashlib.sha256(f"kontradikcija|{a}|{b}".encode("utf-8")).hexdigest()[:24]
+
+
+_VALID_TEZINE = ("kriticna", "vazna", "manja")
+
+
+def normalize_tezina(raw) -> str:
+    """Operation Single Brain (2026-08-07), AI Boundary gap #1-2: `tezina` is a raw
+    GPT classification (Genome's extraction prompt asks for exactly "kriticna|vazna|
+    manja") that TWO independent consumers each mapped onward with their own silent
+    "unrecognized -> middle bucket" default (`services/case_evolution.py`'s Rule 3 ->
+    case_actions.prioritet, `shared/gap_engine.py` -> Gap.pouzdanost) -- neither
+    validated the raw string was actually one of the 3 values GPT was asked for before
+    trusting it. A GPT paraphrase or synonym for "kriticna" (e.g. "ozbiljna",
+    "vrlo vazna") would silently fall through BOTH mappings to the neutral/medium
+    bucket, keeping a genuinely critical contradiction out of BLOCKED readiness
+    (shared/case_readiness.py requires prioritet=="high" for that path) and out of
+    the "visoka" confidence gap bucket -- invisibly, not loudly.
+
+    One canonical normalizer, used by every consumer: unrecognized input is treated
+    as "kriticna" (the most conservative bucket, not the middle one) -- for a legal
+    risk signal, under-flagging is the worse failure mode than over-flagging.
+
+    Also tolerates a non-string `raw` (Phase 4 adversarial testing found `(raw or "").
+    strip()` crashes outright if GPT's JSON ever puts a bare number/bool/list where a
+    string was asked for -- not hypothetical for un-schema-enforced JSON output)."""
+    if not isinstance(raw, str):
+        return "kriticna"
+    t = raw.strip().lower()
+    return t if t in _VALID_TEZINE else "kriticna"

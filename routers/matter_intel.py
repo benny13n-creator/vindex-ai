@@ -63,7 +63,14 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
             "snaga,kategorija,pravni_element"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status").eq(
+        # Operation Single Brain (2026-08-07): this select was missing tip_dokaza --
+        # calculate_procesni_rizik's missing-evidence detection reads exactly that column
+        # (postojeci_tipovi = {d.get("tip_dokaza") ...}), so with it absent this endpoint
+        # ALWAYS reported every expected document type as missing, regardless of what was
+        # actually uploaded. Execution-tested (not just read) by this mission's Team 6
+        # against routers/ccc.py's correct query for the identical case data, confirming a
+        # real health_score/nedostajuci_dokazi divergence this fix closes.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select(
             "sud,datum,status"

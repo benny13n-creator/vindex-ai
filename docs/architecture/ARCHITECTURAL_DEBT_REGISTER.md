@@ -3888,3 +3888,143 @@ graded High), remainder Medium/Low. None require an immediate fix to keep the pl
 CRITICAL live bugs this mission found (Dashboard's stale risk cache, the notification-deletion collision,
 CCC's discarded-canonical-value regression) were fixed directly, per the same STOP RULE discipline every
 prior certification in this program has followed.
+
+---
+
+# Operation Single Brain, Mission 001 — Debt Register (2026-08-07)
+
+20 real fixes landed this mission (full ledger: `docs/singlebrain/DUPLICATE_TRUTH_ELIMINATION_REPORT.md`).
+The 14 items below are what Phase 1's 10 forensic teams found that this mission did NOT close, each with
+its citation back to the specific forensic report. See `docs/singlebrain/FINAL_SINGLE_BRAIN_CERTIFICATE.md`
+for why the mission's own "zero fragmentation" bar is honestly not met while these remain open.
+
+### SINGLEBRAIN-DEBT-001 — Case Readiness has 2 live, co-rendered sources (High)
+
+`shared/case_readiness.py::compute_case_readiness` (canonical, deterministic, zero GPT) and `services/
+case_pipeline.py::calculate_case_ready_score` (an independent 0-100 weighted checklist) are both live,
+both rendered on the case screen (`static/vindex.js:10543`, `:11954`), and never cross-checked against each
+other. The single highest-value remaining item — most likely of everything in this register to visibly
+contradict itself in front of a lawyer on the same screen. Not attempted this mission: consolidating these
+is a genuine design decision (which becomes the canonical 0-100/5-state source, what happens to the other's
+existing callers) larger than a mechanical fix. Evidence: `docs/singlebrain/DECISION_DEPENDENCY_GRAPH.md`
+§"Case Readiness — two independent, live, unreconciled systems".
+
+### SINGLEBRAIN-DEBT-002 — `court_predictor.py::argument_reputation` is range-clamped but not readiness-capped (Medium)
+
+Unlike the 4 other success-probability generators this mission hardened, `argument_reputation`'s scores are
+confirmed range-clamped (0-100) but never checked against `CAP_BY_READINESS` — a `CRITICAL_GAP` case could
+still see an uncapped-by-readiness argument-reputation score. Evidence: `docs/singlebrain/
+DECISION_DEPENDENCY_GRAPH.md` Success Probability table.
+
+### SINGLEBRAIN-DEBT-003 — Portfolio Case-Strength Aggregation diverges between health_index.py and cio.py (Medium)
+
+Two independently-coded portfolio-level averages of the same underlying per-case strength value, different
+inclusion filters — confirmed not fixed this mission. Evidence: `docs/singlebrain/TRUTH_REGISTRY.md` §5,
+`DECISION_DEPENDENCY_GRAPH.md` duplicate-computation red flag #5.
+
+### SINGLEBRAIN-DEBT-004 — 12 of 15 Confidence mechanisms remain unreconciled (Medium-High, bundle)
+
+This mission closed 3 of 15 (Opponent Intel's `pouzdanost`, CIO's top-level `pouzdanost`, `genome_
+kompletnost`). Not closed: `services/confidence_calibrator.py` (fully dead code, near-duplicate of Court
+Predictor's live logic); the Confidence Audit/Brier-score calibration subsystem (structurally dead — its
+own dependency column `recommendation_log.confidence_band` is never written by any code path); Client
+Twin's `pouzdanost` (GPT self-declared, rule stated only in prompt text, never enforced); Lessons-Learned's
+`pouzdanost` (deterministic but its own distinct thresholds, not reconciled with the others); Gap Engine's
+per-gap `pouzdanost` (a `hitnost→pouzdanost` lookup, separate scale); RAG/Precedent retrieval computing 2
+different confidence formulas inside the same function call (`app/services/retrieve.py:663-669` and
+`:672-697`, one English 3-tier, one Serbian 4-tier); Document Intake's 3-layer OCR/classification/
+extraction confidence sub-pipeline (raw 0.0-1.0 float, a 14th distinct vocabulary); Document Auto-Link's ad
+hoc matching confidence (only 2 possible values, 95/74). Large enough in aggregate to warrant its own scoped
+mission per `FINAL_SINGLE_BRAIN_CERTIFICATE.md`'s own recommendation, not a bundled fix here. Evidence:
+`docs/singlebrain/TRUTH_REGISTRY.md` §4.
+
+### SINGLEBRAIN-DEBT-005 — `routers/copilot.py::_handle_predlozi` bypasses the canonical priority engine (Medium)
+
+Computes its own ad hoc 3-value priority directly from deadline proximity instead of `shared/
+attention_priority.py` or `case_actions.prioritet` — a confirmed-live bypass, narrow scope (one chat
+intent). Evidence: `docs/singlebrain/DECISION_DEPENDENCY_GRAPH.md` §"Confidence, Priority, Gaps...".
+
+### SINGLEBRAIN-DEBT-006 — `predmet_istorija`'s `"[Rizik] {date}"` cache tag still has 2 independent writers (Low)
+
+`api.py:5426-5459` and `services/case_pipeline.py:535-598` both write this historical snapshot,
+unaware of each other. Currently low-risk: every live reader this mission touched or verified correctly
+treats the tag as historical-only (never "current"), so the dual-writer situation cannot currently produce
+a visible contradiction — but it remains 2 sources for what should be 1 write path. Evidence: `docs/
+singlebrain/DECISION_DEPENDENCY_GRAPH.md` duplicate-computation red flag #9.
+
+### SINGLEBRAIN-DEBT-007 — `GET /api/portfolio`'s stale risk cache pattern is confirmed dead/orphaned (Low)
+
+Same stale-cache bug class as the now-fixed `command_center`, but this endpoint has zero confirmed frontend
+callers — no live user impact, kept unfixed to avoid touching dead code this mission didn't need to.
+Evidence: `docs/singlebrain/DECISION_DEPENDENCY_GRAPH.md` Risk Level §"Displays".
+
+### SINGLEBRAIN-DEBT-008 — Strategy's `_advisory_provenance()` disclosure object is computed but never rendered (Low)
+
+Every `routers/strategija.py` GPT response carries a transparency/disclosure object; confirmed by direct
+grep of `static/vindex.js` that it is never displayed anywhere. A "missing UX," not a truth conflict — no
+lawyer currently sees two different answers, they just don't see the disclosure that exists. Evidence:
+`docs/singlebrain/DECISION_DEPENDENCY_GRAPH.md` §"Strategy".
+
+### SINGLEBRAIN-DEBT-009 — `routers/matter_intel.py::preflight_check`/`get_uncertainty_dashboard` remain a live landmine (Low-Medium)
+
+Confirmed zero frontend callers (dead in normal use), but both are GPT-native and reachable via direct API
+call — `preflight_check`'s own `status`/`score` ARE already clamped/enum-validated (`BLACKSWAN-AI-001`), so
+the live risk is narrower than "unguarded GPT output," but the endpoint's mere existence as an unreconciled
+3rd readiness-adjacent system (Team 2's "2C — Dead" classification) is itself the debt. Evidence: `docs/
+singlebrain/DECISION_DEPENDENCY_GRAPH.md` §"Case Readiness" 2C.
+
+### SINGLEBRAIN-DEBT-010 — Readiness-tier cap silently no-ops when `build_case_context()` throws (Medium)
+
+Compounding gap across the 3 sites this mission added unconditional 0-100 clamps to
+(`digital_twin.py` ×2, `court_predictor.py::prediktuj_ishod`): `if case_context and not
+case_context.get("error"):` skips the readiness-tier cap entirely on a transient DB/context-fetch failure.
+The unconditional clamp added this mission is a genuine, verified mitigation (a wild GPT number can no
+longer escape 0-100 even during a context-fetch failure) but a genuinely `CRITICAL_GAP` case could still
+see up to 100% instead of the tier-appropriate 50% during that failure window. Not fixed this mission: no
+safe default cap value could be picked without guessing at product intent (capping unconditionally on ANY
+context-fetch error, even for a healthy case, risks the opposite failure mode — understating a strong
+case's real probability due to an unrelated transient error). Evidence: `docs/singlebrain/
+AI_BOUNDARY_CERTIFICATION.md` gap #6.
+
+### SINGLEBRAIN-DEBT-011 — Kanban board's closed-case visibility not investigated this mission (Unknown severity)
+
+Carried forward from this mission's own TIER 2 triage list, never independently verified true or false this
+session — named here so it isn't silently dropped, not because it's confirmed. Needs its own dedicated
+investigation before any fix is attempted (risk of behavior change to a visible, frequently-used board).
+
+### SINGLEBRAIN-DEBT-012 — CIO's `neprimecena_kontradikcija` re-hallucinates an already-computable fact (Medium)
+
+`routers/cio.py`'s prompt asks GPT to find "a critical contradiction not yet addressed" purely from raw
+context, even though this is mechanically computable by filtering `case_dna.kontradikcije[]` for
+`tezina=="kriticna"` (now normalized via `normalize_tezina()`, closed this mission) cross-referenced against
+whether a `RAZRESITI_KONTRADIKCIJU` action is still open. `validate_predmet_reference` mitigates by
+nullifying the block if the named case isn't real, but does not verify the named case actually HAS an open
+critical contradiction. Not fixed this mission: would require new cross-portfolio aggregation logic, closer
+to "new algorithm" territory than a mechanical guard — a scope call, not an oversight. Evidence: `docs/
+singlebrain/TRUTH_REGISTRY.md` §12 (revises Operation One Truth's own prior "no fix needed" verdict on this
+exact field).
+
+### SINGLEBRAIN-DEBT-013 — `predmeti.status` classifier fragmentation beyond the `u_toku` fix (Medium)
+
+This mission closed one specific, confirmed landmine (`conflict_check.py`'s `"u toku"`/`"u_toku"` spelling
+gap). The broader fragmentation remains: `analytics.py`/`copilot.py` treat closed as `("zatvoren",
+"arhiviran")`; `dashboard.py` treats active as "not in a 3-value closed set"; `cio.py`/`morning_briefing.py`/
+`zakon_monitoring.py` filter active as a 3-value allow-list. Currently low-risk only because no writer
+produces any value outside `{"aktivan","zatvoren"}` today — a landmine for the day a richer status value is
+introduced, not a live bug now. Evidence: `docs/singlebrain/TRUTH_REGISTRY.md` §14.
+
+### SINGLEBRAIN-DEBT-014 — Court Predictor's own capped `procenat_min`/`procenat_max` never actually rendered (Low)
+
+The ordering/clamp fix this mission made to `prediktuj_ishod` is correct groundwork, but Team 2 confirmed
+the computed-and-capped number structurally never reaches the lawyer through the single-module `/analiza`
+UI flow (only free-text narrative renders there) — a "wasted work" finding, not a truth-inconsistency, but
+worth naming since it means the fix's real-world visibility is currently zero outside the "Kompletna
+Analiza" orchestrator view, which shows a different percentage. Evidence: `docs/singlebrain/
+DECISION_DEPENDENCY_GRAPH.md` §"Success Probability" note.
+
+**Severity summary across these 14 items**: 1 High (`-001`), 6 Medium (`-002`, `-003`, `-005`, `-010`,
+`-012`, `-013`), 1 Medium-High bundle (`-004`), 5 Low (`-006`, `-007`, `-008`, `-009`, `-014`), 1 Unknown
+(`-011`, not investigated). None are confirmed live data-loss or crash risks — the CRITICAL-adjacent live
+bugs this mission found (stale Command Center risk cache, dead Health Index sub-score, missing-evidence
+false positives, the client-portal deadline query matching zero rows) were fixed directly, per the same
+STOP RULE discipline every prior certification in this program has followed.

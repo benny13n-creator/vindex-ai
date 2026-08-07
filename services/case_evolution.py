@@ -57,7 +57,7 @@ from typing import Awaitable, Callable, Optional
 
 from services.event_bus import Event, EventType
 from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
-from shared.contradiction_identity import contradiction_dedupe_key
+from shared.contradiction_identity import contradiction_dedupe_key, normalize_tezina
 from shared.deps import _get_supa
 
 logger = logging.getLogger("vindex.case_evolution")
@@ -806,10 +806,17 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         loc2 = k.get("lokacija_2") or ""
         if not opis:
             continue
+        # Operation Single Brain (2026-08-07): raw k.get("tezina") is a free-form GPT
+        # classification -- normalize_tezina() validates it against the 3 values Genome's
+        # own extraction prompt actually asks for, fail-safe toward "kriticna" for anything
+        # unrecognized (see shared/contradiction_identity.py's docstring). Previously this
+        # dict's own .get(..., "medium") default silently downgraded an out-of-enum tezina
+        # to medium priority -- invisible under-flagging of a possibly-critical contradiction.
+        _tez = normalize_tezina(k.get("tezina"))
         actions.append({
             "tip": "RAZRESITI_KONTRADIKCIJU", "razlog": opis,
-            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": k.get("tezina")},
-            "prioritet": _TEZINA_PRIORITET.get(k.get("tezina"), "medium"), "rok": None,
+            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": _tez},
+            "prioritet": _TEZINA_PRIORITET[_tez], "rok": None,
             "dedupe_key": contradiction_dedupe_key(k),
             "izvor_dokumenti": [x for x in (loc1, loc2) if x],
         })

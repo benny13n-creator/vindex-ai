@@ -38,7 +38,7 @@ one vocabulary, not two.
 """
 from __future__ import annotations
 
-from shared.contradiction_identity import contradiction_dedupe_key
+from shared.contradiction_identity import contradiction_dedupe_key, normalize_tezina
 
 # ─── Canonical gap types — reuses case_actions' own vocabulary where a 1:1 mapping
 # exists (migrations/099_case_actions.sql), extended only for gap types
@@ -164,7 +164,11 @@ def gaps_from_contradictions(case_dna: dict | None) -> list[dict]:
         loc2 = k.get("lokacija_2") or ""
         out.append(_gap(
             tip=GAP_TIP_KONTRADIKCIJA, izvor="genome_kontradikcije", razlog=opis,
-            pouzdanost=_TEZINA_TO_POUZDANOST.get(k.get("tezina"), "srednja"),
+            # Operation Single Brain (2026-08-07): normalize_tezina() validates the raw
+            # GPT value the same way services/case_evolution.py's Rule 3 now does -- one
+            # canonical enum check, not two independently lenient defaults (see
+            # shared/contradiction_identity.py).
+            pouzdanost=_TEZINA_TO_POUZDANOST[normalize_tezina(k.get("tezina"))],
             ocekivano="Usaglašene činjenice između dokumenata",
             pronadjeno=f"{loc1} vs {loc2}".strip(" vs") or "izvor nije citiran",
             zasto=f"Kontradikcija između {loc1 or '?'} i {loc2 or '?'}.",

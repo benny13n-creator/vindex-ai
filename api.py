@@ -5243,7 +5243,13 @@ async def predmet_workspace(
     (beleske_r, istorija_r, dokumenti_r, hronologija_r, komentari_r, pk_r, rocista_ws_r, dokazi_ws_r) = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_beleske").select("*").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").select("pitanje,odgovor,confidence,created_at").eq("predmet_id", predmet_id).order("created_at", desc=True).limit(30).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at,pinecone_namespace,redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
+        # Operation Single Brain (2026-08-07): tip_dokaza added -- this select fed directly
+        # into calculate_procesni_rizik below (_deterministic_risk) without it, so the
+        # Cockpit's own "Otkriveni problemi" card could tell a lawyer a document type was
+        # missing even when it was fully uploaded (missing-evidence detection reads exactly
+        # this column). Execution-tested by this mission's Team 6 against routers/ccc.py's
+        # correct query for identical case data, confirming a real divergence this closes.
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,velicina_kb,created_at,pinecone_namespace,redni_broj,tip_dokaza").eq("predmet_id", predmet_id).order("redni_broj").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("*").eq("predmet_id", predmet_id).order("datum_iso", desc=False).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_komentari").select("*").eq("predmet_id", predmet_id).order("kreirano", desc=True).limit(50).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_klijenti").select("klijent_id,uloga_klijenta,napomena").eq("predmet_id", predmet_id).execute()),

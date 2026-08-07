@@ -29,7 +29,7 @@ from shared.usage import UsageService
 from shared.sentry import capture_exception as _sentry_capture
 from shared.llm_retry import llm_retry
 from shared.case_context import build_case_context
-from shared.case_readiness import READY, CRITICAL_GAP, BLOCKED
+from shared.case_readiness import READY, CRITICAL_GAP, BLOCKED, CAP_BY_READINESS
 
 try:
     # CELINA 2 (2026-07-24): koristi javni retrieve_sudska_praksa (Celina 1 mu
@@ -334,6 +334,18 @@ ARGUMENTI SUPROTNE STRANE:
         rezultat = _json.loads(raw)
         analiza = (rezultat.get("analiza") or "").strip()
 
+        # Operation Single Brain (2026-08-07): unconditional range sanity, applied
+        # regardless of readiness status (and even if case_context itself failed to
+        # fetch, unlike the conditional cap below) -- matches hearing_cc.py's own
+        # BLACKSWAN-AI-003 fix. This mission's Team 4 (AI Boundary) confirmed this
+        # endpoint previously returned procenat_min/procenat_max raw whenever
+        # readiness wasn't at an extreme, with no floor/ceiling and no min<=max
+        # ordering check at all.
+        for _k in ("procenat_min", "procenat_max"):
+            _v0 = rezultat.get(_k)
+            if isinstance(_v0, (int, float)):
+                rezultat[_k] = max(0, min(100, _v0))
+
         # Program Tau, Master Sprint 005 -- Phase 4 grounding requirement:
         # a case in a canonically CRITICAL_GAP/BLOCKED readiness state must
         # not structurally receive a confident high percentage that ignores
@@ -342,18 +354,23 @@ ARGUMENTI SUPROTNE STRANE:
         # new scoring.
         if case_context and not case_context.get("error"):
             _readiness_status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
-            # Program Tau, Master Sprint 007: imports the canonical status
-            # constants instead of hardcoded string literals (found during
-            # this sprint's own Phase 4 cross-system verification) -- a
-            # rename of shared/case_readiness.py's own status strings would
-            # otherwise silently desync this cap from the canonical source.
-            _CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
-            _cap = _CAP_BY_READINESS.get(_readiness_status)
+            # Operation Single Brain (2026-08-07): sourced from shared/case_readiness.py's
+            # CAP_BY_READINESS -- this file, digital_twin.py, and hearing_cc.py all import
+            # the same dict now instead of each redeclaring an identical copy.
+            _cap = CAP_BY_READINESS.get(_readiness_status)
             if _cap is not None:
                 for _k in ("procenat_min", "procenat_max"):
                     _v = rezultat.get(_k)
                     if isinstance(_v, (int, float)) and _v > _cap:
                         rezultat[_k] = _cap
+
+        # Operation Single Brain (2026-08-07): the prompt instructs GPT to keep
+        # min<=max but nothing enforced it -- Team 4 found no ordering check existed.
+        # If GPT (or the cap above, in a pathological case) inverted the pair, swap
+        # them rather than shipping a nonsensical "min > max" range to the lawyer.
+        _pmin, _pmax = rezultat.get("procenat_min"), rezultat.get("procenat_max")
+        if isinstance(_pmin, (int, float)) and isinstance(_pmax, (int, float)) and _pmin > _pmax:
+            rezultat["procenat_min"], rezultat["procenat_max"] = _pmax, _pmin
 
         # Sacuvaj analizu
         try:
@@ -1229,6 +1246,7 @@ async def opponent_intel(
 
     # Interna istorija sa ovim protivnikom
     interni_kontekst = ""
+    _interni_hit_count = 0
     try:
         hist_r = await asyncio.to_thread(
             lambda: supa.table("predmeti")
@@ -1239,6 +1257,7 @@ async def opponent_intel(
                 .execute()
         )
         if hist_r.data:
+            _interni_hit_count = len(hist_r.data)
             interni_kontekst = "INTERNI PREDMETI SA OVIM PROTIVNIKOM:\n" + "\n".join(
                 f"- {p.get('naziv','?')} [{p.get('status','?')}]: {(p.get('opis') or '')[:150]}"
                 for p in hist_r.data
@@ -1249,11 +1268,13 @@ async def opponent_intel(
 
     # RAG pretraga
     rag_kontekst = ""
+    _rag_hit_count = 0
     if _RAG_AVAILABLE:
         try:
             query = f"{payload.protivnik_naziv} {payload.protivnicki_adv or ''} {payload.tip_postupka}".strip()
             odluke = await asyncio.to_thread(retrieve_sudska_praksa, query[:300], 8)
             if odluke:
+                _rag_hit_count = len(odluke)
                 delovi = []
                 for m in odluke:
                     meta = getattr(m, "metadata", {}) or {}
@@ -1295,8 +1316,25 @@ async def opponent_intel(
         with _ai_case_ctx(predmet_id=payload.predmet_id, module_name="court_predictor", operation_name="opponent_intel"):
             raw = await asyncio.to_thread(_pozovi_opponent_intel_api, oai, user_msg)
         rezultat = json.loads(raw)
-        if not rag_kontekst and not interni_kontekst:
-            rezultat["pouzdanost"] = "niska"
+
+        # Operation Single Brain (2026-08-07), AI Boundary gap #7: "pouzdanost" was mostly
+        # GPT self-declared -- forced to "niska" only when data was literally zero, meaning
+        # a single thin RAG hit let GPT freely claim "visoka" unchecked (Team 4's own
+        # reproduction). Two fixes, same evidence-volume-tiering pattern this file already
+        # uses for judge_profile's pouzdanost_profila a few hundred lines up (not a new
+        # algorithm, the same one applied here):
+        # 1. Enum-validate the raw value first -- an out-of-spec GPT string no longer
+        #    silently bypasses the tiering below.
+        # 2. A "visoka" claim needs real evidence volume behind it (>=3 combined hits),
+        #    not just >0 -- one weak RAG hit can no longer buy an unchallenged "visoka".
+        _total_hits = _rag_hit_count + _interni_hit_count
+        _p = rezultat.get("pouzdanost")
+        _p = _p if _p in ("visoka", "srednja", "niska") else "niska"
+        if _total_hits == 0:
+            _p = "niska"
+        elif _total_hits < 3 and _p == "visoka":
+            _p = "srednja"
+        rezultat["pouzdanost"] = _p
     except Exception as e:
         _sentry_capture(e)
         logger.error("[OPP_INTEL] GPT greška: %s", e)

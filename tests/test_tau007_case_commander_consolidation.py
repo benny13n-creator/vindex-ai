@@ -332,19 +332,23 @@ def test_readiness_cap_dicts_use_canonical_constants_not_string_literals():
     importing shared/case_readiness.py's own constants -- a silent-drift
     risk if the source strings were ever renamed. Fixed this sprint. This
     test proves the fix: the dict keys are identically the SAME objects as
-    the canonical constants, in all 3 consuming modules."""
-    from shared.case_readiness import CRITICAL_GAP, BLOCKED
+    the canonical constants, in all 3 consuming modules.
+
+    Operation Single Brain (2026-08-07) went one step further: the {CRITICAL_GAP:
+    50, BLOCKED: 65} dict itself was independently copy-pasted into 3 files (a
+    duplicate-truth finding). Now all 3 import shared/case_readiness.py's own
+    CAP_BY_READINESS instead of each redeclaring it -- updated below to match."""
+    from shared.case_readiness import CRITICAL_GAP, BLOCKED, CAP_BY_READINESS
     import routers.court_predictor as cp
     import routers.hearing_cc as hc
 
     assert set(hc._CAP_BY_READINESS.keys()) == {CRITICAL_GAP, BLOCKED}
-    # court_predictor.py's own cap dict is built inline (not module-level) --
-    # confirm the import exists and the module's own source references the
-    # imported names, not new hardcoded literals, at its cap call site.
+    assert hc._CAP_BY_READINESS is CAP_BY_READINESS
     assert cp.CRITICAL_GAP == CRITICAL_GAP
     assert cp.BLOCKED == BLOCKED
     source = open(cp.__file__, encoding="utf-8").read()
-    assert '_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}' in source
+    assert "from shared.case_readiness import READY, CRITICAL_GAP, BLOCKED, CAP_BY_READINESS" in source
+    assert '_CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}' not in source
 
 
 def test_case_commander_readiness_rank_covers_all_5_canonical_states():

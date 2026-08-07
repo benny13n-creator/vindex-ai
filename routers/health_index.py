@@ -69,6 +69,9 @@ async def _compute_health(uid: str, supa) -> dict:
         billing_r,
         hron_r,
         closed_r,
+        dokazi_all_r,
+        dokumenti_all_r,
+        rocista_all_r,
     ) = await asyncio.gather(
         # LAMBDA008-ARCH-001 fix: "rizik_nivo" is not a column on predmeti (never created
         # by any migration; the field is never read anywhere else in this file either) —
@@ -77,7 +80,7 @@ async def _compute_health(uid: str, supa) -> dict:
         # empty-state fallback into Case Strength/Portfolio Risk/Client Engagement/
         # Caseload. Selecting only real, used columns restores this query.
         asyncio.to_thread(lambda: supa.table("predmeti")
-            .select("id,naziv,status,case_dna,created_at")
+            .select("id,naziv,status,case_dna,created_at,tip")
             .eq("user_id", uid).execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("predmet_id,datum,status")
@@ -94,6 +97,22 @@ async def _compute_health(uid: str, supa) -> dict:
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,case_dna,tip")
             .eq("user_id", uid).eq("status", "zatvoren").execute()),
+        # Operation Single Brain (2026-08-07): the same LAMBDA008-ARCH-001 fix above removed
+        # `rizik_nivo` from the SELECT (correctly -- the column doesn't exist), but nobody
+        # updated the "PORTFOLIO RIZIK" component below, which still reads that now-always-
+        # absent field -- silently scoring its maximum (15/15) regardless of actual portfolio
+        # risk, for as long as this fix has existed. Independently confirmed by 3 of this
+        # mission's 10 forensic teams. Bulk-fetched here so risk can be computed LIVE per case
+        # via the canonical engine, the same pattern used by api.py/routers/dashboard.py.
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi")
+            .select("predmet_id,snaga,kategorija")
+            .eq("user_id", uid).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+            .select("predmet_id,tip_dokaza")
+            .eq("user_id", uid).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+            .select("predmet_id,datum")
+            .eq("user_id", uid).eq("status", "zakazano").execute()),
         return_exceptions=True,
     )
 
@@ -102,6 +121,9 @@ async def _compute_health(uid: str, supa) -> dict:
     billing   = [] if isinstance(billing_r,  Exception) else (billing_r.data  or [])
     hron      = [] if isinstance(hron_r,     Exception) else (hron_r.data     or [])
     closed    = [] if isinstance(closed_r,   Exception) else (closed_r.data   or [])
+    dokazi_all     = [] if isinstance(dokazi_all_r, Exception) else (dokazi_all_r.data or [])
+    dokumenti_all  = [] if isinstance(dokumenti_all_r, Exception) else (dokumenti_all_r.data or [])
+    rocista_all    = [] if isinstance(rocista_all_r, Exception) else (rocista_all_r.data or [])
 
     aktivni   = [p for p in predmeti if p.get("status") != "zatvoren"]
     n_aktivni = len(aktivni)
@@ -179,7 +201,35 @@ async def _compute_health(uid: str, supa) -> dict:
         ce_score = 3;  alerts.append(f"🔴 {neaktivni} predmeta zanemareno 30+ dana")
 
     # ── 5. PORTFOLIO RIZIK (15 bodova) ───────────────────────────────────────
-    visok_rizik = sum(1 for p in aktivni if p.get("rizik_nivo") in ("visok", "kritican"))
+    # Operation Single Brain (2026-08-07): computed LIVE via the canonical risk engine --
+    # see the fetch-block comment above for why the old `rizik_nivo` read was silently dead.
+    from services.risk_engine import calculate_procesni_rizik as _calc_rizik_hi
+    from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS_HI
+    _dokazi_map_hi: dict = {}
+    for d in dokazi_all:
+        pid = d.get("predmet_id")
+        if pid:
+            _dokazi_map_hi.setdefault(pid, []).append(d)
+    _dokumenti_map_hi: dict = {}
+    for d in dokumenti_all:
+        pid = d.get("predmet_id")
+        if pid:
+            _dokumenti_map_hi.setdefault(pid, []).append(d)
+    _rocista_map_hi: dict = {}
+    for r in rocista_all:
+        pid = r.get("predmet_id")
+        if pid:
+            _rocista_map_hi.setdefault(pid, []).append(r)
+    visok_rizik = 0
+    for p in aktivni:
+        _pid = p.get("id")
+        _r = _calc_rizik_hi(
+            dokazi=_dokazi_map_hi.get(_pid, []), dokumenti=_dokumenti_map_hi.get(_pid, []),
+            rocista=_rocista_map_hi.get(_pid, []), tip_predmeta=p.get("tip", "ostalo"),
+            expected_docs=_EXPECTED_DOCS_HI,
+        )
+        if (_r.get("nivo") or "").lower() == "visok":
+            visok_rizik += 1
     if n_aktivni == 0:
         pr_score = 15
     else:

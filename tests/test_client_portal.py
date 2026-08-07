@@ -317,6 +317,46 @@ async def test_client_view_filtrira_interne_beleske():
 
 
 @pytest.mark.anyio
+async def test_client_view_kriticni_rokovi_filter_uses_real_writer_spelling():
+    """Operation Single Brain (2026-08-07): this query used to filter vaznost on
+    ["kritican", "vazno"] -- spellings no real writer of predmet_hronologija.vaznost
+    produces (they write "kritičan" with the ć diacritic, "bitan"/"važan"), so this
+    client-facing 'upcoming critical deadlines' section silently matched zero rows.
+    Now derived from shared/attention_priority.py's own canonical translation table."""
+    from routers.client_portal import client_portal_view
+
+    tok  = _valid_token()
+    supa = _build_supa(token_row={"id": "t-1", "is_active": True, "expires_at": "2026-07-17T10:00:00+00:00"})
+
+    # _build_supa's mock.table.side_effect builds a fresh MagicMock per call, so grabbing
+    # the "predmet_hronologija" chain here and patching .in_ on it only sticks if every
+    # subsequent supa.table("predmet_hronologija") call returns the SAME object -- memoize.
+    _orig_side_effect = supa.table.side_effect
+    _cache = {}
+    def _memoized(name):
+        if name not in _cache:
+            _cache[name] = _orig_side_effect(name)
+        return _cache[name]
+    supa.table.side_effect = _memoized
+
+    captured = {}
+    eq2 = supa.table("predmet_hronologija").select.return_value.eq.return_value.eq.return_value
+    real_in_result = eq2.gte.return_value.lte.return_value.in_.return_value
+
+    def _capture(col, vals):
+        captured["vaznost"] = list(vals)
+        return real_in_result
+    eq2.gte.return_value.lte.return_value.in_ = MagicMock(side_effect=_capture)
+
+    with patch("routers.client_portal._get_supa", return_value=supa):
+        await client_portal_view(_fake_request(), x_portal_token=tok)
+
+    assert "kritičan" in captured["vaznost"]
+    assert "kritican" not in captured["vaznost"]
+    assert "vazno" not in captured["vaznost"]
+
+
+@pytest.mark.anyio
 async def test_client_view_filtrira_otkazana_rocista():
     """Otkazana ročišta se ne prikazuju klijentu."""
     from routers.client_portal import client_portal_view

@@ -67,6 +67,15 @@ UNKNOWN          = "UNKNOWN"
 
 READINESS_STATES = (READY, PARTIALLY_READY, BLOCKED, CRITICAL_GAP, UNKNOWN)
 
+# Operation Single Brain (2026-08-07): this exact dict -- {CRITICAL_GAP: 50, BLOCKED: 65}
+# -- was independently copy-pasted into 3 GPT success-probability generators
+# (routers/hearing_cc.py, routers/digital_twin.py, routers/court_predictor.py), each with
+# its own comment explaining it "reuses the same threshold as the other 2 files". A future
+# threshold change would need 3 synchronized edits with no compiler/test signal if one was
+# missed -- the definition of a duplicate truth this mission's mandate targets. One shared
+# constant now; the 3 routers import this instead of redeclaring it.
+CAP_BY_READINESS = {CRITICAL_GAP: 50, BLOCKED: 65}
+
 _BLOCKING_TIPOVI = {"PRIBAVITI_DOKAZ", "RAZRESITI_KONTRADIKCIJU"}
 
 
