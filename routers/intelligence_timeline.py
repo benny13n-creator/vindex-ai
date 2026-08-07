@@ -128,11 +128,14 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
         logger.warning("[ITL] rocista: %s", e)
 
     # 4) Hronologija (AI-generisana iz dokumenata)
+    _zatvaranje_vec_u_hronologiji = False
     try:
         hron_r = supa.table("predmet_hronologija").select(
             "dogadjaj,akter,datum,datum_iso,vaznost"
         ).eq("predmet_id", predmet_id).eq("user_id", uid).order("datum_iso").execute()
         for h in hron_r.data or []:
+            if (h.get("dogadjaj") or "").startswith("Predmet zatvoren"):
+                _zatvaranje_vec_u_hronologiji = True
             iso_h = h.get("datum_iso") or h.get("datum") or ""
             vaznost = h.get("vaznost") or "informativan"
             boja = "#ff6060" if vaznost == "kritican" else "#ffaa40" if vaznost == "vazan" else "#4aa8ff"
@@ -215,7 +218,12 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
         logger.warning("[ITL] audit_immutable: %s", e)
 
     # 7) Predmet zatvoren
-    if predmet.get("status") == "zatvoren":
+    # Program Phoenix, Mission 008 (LIVINGSYS-DEBT-051): predmeti_close.py already writes a
+    # "Predmet zatvoren -- Ishod: ..." row into predmet_hronologija (step 4 above surfaces it),
+    # so synthesizing a 2nd "Predmet zatvoren" entry here unconditionally produced a duplicate
+    # Timeline row for every case closed through the normal flow. Only synthesize when no such
+    # row was found (e.g. status flipped to "zatvoren" through a path that doesn't write one).
+    if predmet.get("status") == "zatvoren" and not _zatvaranje_vec_u_hronologiji:
         all_tmp = sorted(events, key=_sort_key)
         last_iso = all_tmp[-1]["datum_iso"] if all_tmp else cr
         events.append({

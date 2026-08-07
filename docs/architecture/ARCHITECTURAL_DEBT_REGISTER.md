@@ -4558,24 +4558,35 @@ mission's minimum-risk scope.
 `datum`) before continuing — behavior (silent exclusion) explicitly unchanged, only visibility
 added. Proof: `test_risk_engine_logs_malformed_hearing_date`.
 
-**LIVINGSYS-DEBT-050 (Medium)** — notification read-state is client-`localStorage`-only, never
-reconciled against the server's own `procitano` field — cross-device badge-count drift. Needs a
-frontend read to actually use the already-correct server field instead of (or merged with) local
-storage — a real but bounded frontend change.
+**LIVINGSYS-DEBT-050 — FIXED** (Program Phoenix, Mission 008, 2026-08-07). `notif_load()` now
+merges the server's own `procitano` field into `_notifRead` on every load (additive-only, never
+un-reads a locally-known-read id), so read-state reconciles across devices instead of staying
+`localStorage`-only. No migration, no new backend surface. Proof:
+`tests/test_phoenix_mission_008_notification_timeline_calendar_consistency.py::
+test_notif_load_merges_server_procitano_into_local_read_set`. Full report:
+`docs/phoenix/mission-008/`.
 
-**LIVINGSYS-DEBT-051 (Medium)** — case closure renders as 2 duplicate Timeline entries (one from
-`predmet_hronologija`, one synthesized unconditionally by `intelligence_timeline.py`'s own step 7
-whenever `status=="zatvoren"`). Fix: skip the synthesized entry when a matching hronologija row
-already exists — bounded, not attempted this mission for fix-budget reasons.
+**LIVINGSYS-DEBT-051 — FIXED** (Program Phoenix, Mission 008, 2026-08-07).
+`intelligence_timeline.py`'s step 7 now skips the synthesized "Predmet zatvoren" entry when
+step 4's hronologija scan already found a matching row (reuses `hron_r.data`, no 2nd query);
+the defensive fallback for closure paths that don't write a hronologija row is preserved. Proof:
+`tests/test_phoenix_mission_008_notification_timeline_calendar_consistency.py::
+test_intelligence_timeline_skips_synthesized_closure_when_hronologija_already_has_one`.
 
 **LIVINGSYS-DEBT-052 — FIXED** (Program Phoenix, Mission 003, 2026-08-07).
 `routers/memory_graph.py` now imports `shared/kancelarija_utils.py::get_kancelarija_id`
 (aliased `_get_firma_id`, all 4 call sites unchanged); the local duplicate is removed. Proof:
 `test_memory_graph_reuses_canonical_kancelarija_helper`.
 
-**LIVINGSYS-DEBT-053 (Medium)** — non-deadline narrative entries (case-closure notes, hearing
-follow-ups) render on the firm-wide Calendar tagged identically to real filing deadlines. Needs a
-3rd classification bucket in `_klasifikuj_dogadjaj` — small, bounded.
+**LIVINGSYS-DEBT-053 — FIXED** (Program Phoenix, Mission 008, 2026-08-07). Added a `napomena`
+bucket to `_klasifikuj_dogadjaj`, matched by the 3 known narrative-source prefixes ("Predmet
+zatvoren", "Follow-up ročište", "Ugovor o zastupanju zaključen") — bounded prefix match, a
+genuine unmatched deadline text still safely defaults to `rok_dokument`. Wired through
+`kalendar.py`'s emoji logic and `vindex.js`'s list/grid/day-detail renderers plus a new
+`.kal-ev-napomena` CSS rule. Proof:
+`tests/test_phoenix_mission_008_notification_timeline_calendar_consistency.py::
+test_klasifikuj_dogadjaj_case_closure_is_napomena` + 2 companion tests. Full report:
+`docs/phoenix/mission-008/`.
 
 **LIVINGSYS-DEBT-054 (Medium)** — `faktura_create` never validates `predmet_id` matches the
 billed entries' actual case — any of a user's own entries can be invoiced under an arbitrary case

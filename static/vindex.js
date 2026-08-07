@@ -11061,6 +11061,12 @@ async function notif_load() {
     if (!r.ok) return;
     var d  = await r.json();
     _notifData = d.notifications || [];
+    // Program Phoenix, Mission 008 (LIVINGSYS-DEBT-050): reconcile local read-state with the
+    // server's own procitano field -- localStorage alone caused cross-device badge-count drift
+    // (a notification marked read on one device stayed "unread" forever on another). Additive
+    // only: never removes an id this device already knows is read.
+    _notifData.forEach(function(n){ if (n.procitano) _notifRead.add(n.id); });
+    localStorage.setItem('vx_notif_read', JSON.stringify([..._notifRead]));
     notif_render();
   } catch(e) {}
 }
@@ -13556,6 +13562,7 @@ function _kalendarRender(eventi) {
     grupe.forEach(function(e) {
       var tipCls = e.tip === 'rociste' ? 'kal-ev-rociste'
                  : e.tip === 'rok_zastarelost' ? 'kal-ev-zast'
+                 : e.tip === 'napomena' ? 'kal-ev-napomena'
                  : 'kal-ev-dok';
       var vremeStr = e.vreme ? '<span class="kal-ev-vreme">' + _kalEsc(e.vreme) + '</span>' : '';
       var detStr = '';
@@ -13685,7 +13692,7 @@ function _kalRenderGrid(eventi) {
     if (evs.length) {
       html += '<div class="kal-grid-dots">';
       evs.slice(0, 3).forEach(function(e) {
-        var col = e.tip === 'rociste' ? '#00d4ff' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+        var col = e.tip === 'rociste' ? '#00d4ff' : e.tip === 'rok_zastarelost' ? '#f87171' : e.tip === 'napomena' ? '#8a8f98' : '#fbbf24';
         html += '<span class="kal-grid-dot" style="background:' + col + ';"></span>';
       });
       if (evs.length > 3) html += '<span style="font-size:.52rem;color:rgba(255,255,255,.35);">+' + (evs.length - 3) + '</span>';
@@ -13718,8 +13725,8 @@ function kalDayClick(iso) {
 
   var html = '';
   evs.forEach(function(e) {
-    var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : 'Rok';
-    var col = e.tip === 'rociste' ? 'rgba(255,255,255,0.72)' : e.tip === 'rok_zastarelost' ? '#f87171' : '#fbbf24';
+    var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : e.tip === 'napomena' ? 'Napomena' : 'Rok';
+    var col = e.tip === 'rociste' ? 'rgba(255,255,255,0.72)' : e.tip === 'rok_zastarelost' ? '#f87171' : e.tip === 'napomena' ? '#8a8f98' : '#fbbf24';
     var _kalDetClick = e.predmet_id ? ' onclick="_dashGoToPredmet(\'' + _kalEsc(e.predmet_id) + '\')" style="cursor:pointer;"' : '';
     html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);"' + _kalDetClick + '>';
     html += '<div style="font-size:.72rem;color:' + col + ';margin-bottom:.1rem;">' + tipLabel + (e.vreme ? ' · ' + _kalEsc(e.vreme) : '') + '</div>';

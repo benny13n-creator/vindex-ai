@@ -3043,3 +3043,20 @@ against `NEW_EVIDENCE_REGISTERED` — zero new logic. 3 new tests
 passed. Full suite: **3,257 passed, 1 skipped, 0 failed** (was 3,254, +3 tests, zero
 regressions). Red Team self-check passed (4 adversarial scenarios, no break found). Full
 report: `docs/phoenix/mission-007/`. **STOP GATE: PASS.**
+
+### Mission 008 — Notification/Timeline/Calendar Display Consistency (CLOSED)
+
+Closed `LIVINGSYS-DEBT-050` (notification read-state was `localStorage`-only, causing
+cross-device badge drift), `-051` (case closure rendered as 2 duplicate Timeline entries), and
+`-053` (case-closure notes and hearing follow-ups rendered on the Calendar tagged identically to
+real filing deadlines) — all 3. `-050` fixed by merging the server's own `procitano` field into
+the local read-state set on every load (additive-only). `-051` fixed by skipping
+`intelligence_timeline.py`'s synthesized closure entry when the hronologija scan already found a
+matching row (reuses the already-fetched data, no 2nd query). `-053` fixed with a bounded 3rd
+`napomena` classification bucket matched by the 3 known narrative-source prefixes, wired through
+both `kalendar.py` and `vindex.js`'s renderers. `static/sw.js` bumped `vindex-v100` →
+`vindex-v101` (this mission touched `vindex.js`/`vindex.css`). 9 new tests
+(`tests/test_phoenix_mission_008_notification_timeline_calendar_consistency.py`). Subsystem:
+126/126 passed. Full suite: **3,266 passed, 1 skipped, 0 failed** (was 3,257, +9 tests, zero
+regressions). Red Team self-check passed (4 adversarial scenarios, no break found). Full report:
+`docs/phoenix/mission-008/`. **STOP GATE: PASS.**

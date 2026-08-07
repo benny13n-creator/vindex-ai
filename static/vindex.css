@@ -1320,6 +1320,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kal-ev-rociste{border-left:3px solid #00d4ff;}
 .kal-ev-zast{border-left:3px solid #f87171;}
 .kal-ev-dok{border-left:3px solid #94a3b8;}
+.kal-ev-napomena{border-left:3px solid #5c6370;opacity:0.82;}
 .kal-ev-naslov{font-size:0.9rem;color:#e2e8f0;font-weight:500;}
 .kal-ev-vreme{margin-left:8px;background:rgba(0,212,255,0.14);color:rgba(155,225,255,0.80);border-radius:4px;padding:1px 6px;font-size:0.75rem;}
 .kal-ev-pred{font-size:0.78rem;color:rgba(255,255,255,0.42);margin-top:2px;}

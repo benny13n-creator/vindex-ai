@@ -1988,3 +1988,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 106 passed, 0 failed |
 | Full suite | **3,257 passed, 1 skipped, 0 failed** — was 3,254 at Mission 006's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 008 — Notification/Timeline/Calendar Display Consistency (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 3 (`LIVINGSYS-DEBT-050`, `-051`, `-053`, all fully) |
+| Files touched | 4 (`static/vindex.js`, `static/vindex.css`, `routers/intelligence_timeline.py`, `routers/kalendar.py`) + `static/sw.js` cache bump |
+| New algorithms invented | 0 (reused existing `procitano`/`hron_r.data`/classifier shape) |
+| Regression tests added | 9 (`tests/test_phoenix_mission_008_notification_timeline_calendar_consistency.py`) |
+| Pre-existing test corrections | 1 (`test_iron_lawyer_frontend_fixes.py`'s pinned `sw.js` cache-version literal) |
+| Subsystem tests | 126 passed, 0 failed |
+| Full suite | **3,266 passed, 1 skipped, 0 failed** — was 3,257 at Mission 007's close |
+| STOP GATE | PASS |

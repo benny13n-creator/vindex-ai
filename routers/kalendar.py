@@ -35,10 +35,19 @@ def _norm_vreme(v: Optional[str]) -> Optional[str]:
     return v[:5] if len(v) >= 5 else v
 
 
+# Program Phoenix, Mission 008 (LIVINGSYS-DEBT-053): these are narrative hronologija entries,
+# not deadlines -- rendering them tagged identically to a real filing deadline made a lawyer's
+# "what's actually due" scan of the Calendar unreliable. Matched by known prefix rather than a
+# generic heuristic, so a genuine deadline text never gets misclassified as a note.
+_NAPOMENA_PREFIKSI = ("Predmet zatvoren", "Follow-up ročište", "Ugovor o zastupanju zaključen")
+
+
 def _klasifikuj_dogadjaj(dogadjaj: str) -> str:
     d = dogadjaj.lower()
     if "zastarelost" in d or "zastarelos" in d:
         return "rok_zastarelost"
+    if dogadjaj.startswith(_NAPOMENA_PREFIKSI):
+        return "napomena"
     return "rok_dokument"
 
 
@@ -118,7 +127,12 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
             if pid in arhivirani_ids:
                 continue
             tip   = _klasifikuj_dogadjaj(h.get("dogadjaj", ""))
-            emoj  = "⚠️" if h.get("vaznost") == "kritičan" else ("📋" if tip == "rok_dokument" else "⏰")
+            if tip == "napomena":
+                emoj = "🗒"
+            elif h.get("vaznost") == "kritičan":
+                emoj = "⚠️"
+            else:
+                emoj = "📋" if tip == "rok_dokument" else "⏰"
             events.append({
                 "tip":           tip,
                 "datum":         h.get("datum_iso", ""),
