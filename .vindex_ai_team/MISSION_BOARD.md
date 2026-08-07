@@ -3097,3 +3097,19 @@ disable RAG (avoid a real network call, no assertion weakened). Subsystem: 240/2
 suite: **3,284 passed, 1 skipped, 0 failed** (was 3,274, +10 tests, zero regressions). Red Team
 self-check passed (5 adversarial scenarios, no break found). Full report:
 `docs/phoenix/mission-010/`. **STOP GATE: PASS.**
+
+### Mission 011 — Billing & Reference Integrity (CLOSED)
+
+Closed `LIVINGSYS-DEBT-054` (`faktura_create` never validated `predmet_id` matched the billed
+entries' actual case) and `LIVINGSYS-DEBT-044` (`redni_broj` document sequence numbers could
+collide under concurrent `finalize` calls to the same case, this app's 4 gunicorn workers making
+the cross-request race real) — both fully. `-054` fixed with a straightforward reference-match
+gate before billing. `-044` fixed with a new migration (`UNIQUE(predmet_id, redni_broj)`,
+migration 106, drafted not applied) plus a retry-on-conflict wrapper reusing `billing.py`'s own
+established `LAMBDA008-CONC-003` idiom — an application-level lock was explicitly rejected since
+it would not protect against this deployment's actual multi-process topology. 5 new tests
+(`tests/test_phoenix_mission_011_billing_reference_integrity.py`), 3 pre-existing tests
+corrected (mock data completion, no assertion weakened). Subsystem: 175/175 passed. Full suite:
+**3,289 passed, 1 skipped, 0 failed** (was 3,284, +5 tests, zero regressions). Red Team
+self-check passed (5 adversarial scenarios, no break found). Full report:
+`docs/phoenix/mission-011/`. **STOP GATE: PASS.**

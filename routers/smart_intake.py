@@ -1387,7 +1387,6 @@ async def _finalize_intake_job_core(
                 "pinecone_namespace": _owner_ns,
                 "status":             "indeksirano" if pinecone_ok else "sacuvano",
                 "velicina_kb":        max(1, len(seg_text.encode("utf-8")) // 1024),
-                "redni_broj":         _sledeci_redni,
                 # Program Intake Sprint 006, Phase 4/6 (Lineage Verification /
                 # Evidence Integrity) -- migration 094's new FK + unique
                 # constraint. NULL for a single-document job (nothing to
@@ -1402,7 +1401,6 @@ async def _finalize_intake_job_core(
                 "content_sha256":     content_hash,
                 "source_intake_job_id": job_id,
             }
-            _sledeci_redni += 1
 
             # tip_dokaza/klasifikovan_at (migracija 016), tekst_sadrzaj,
             # source_intake_job_segment_id (migracija 094), i content_sha256/
@@ -1426,25 +1424,54 @@ async def _finalize_intake_job_core(
             # degradation (what this fallback ladder exists for), an
             # unrelated value bug masquerading as one.
             from datetime import datetime as _dt_ki, timezone as _tz_ki
-            _variant_full = {**_dok_row_base, "tip_dokaza": doc_type_i, "klasifikovan_at": _dt_ki.now(_tz_ki.utc).isoformat(), "tekst_sadrzaj": seg_text[:100_000]}
             _drop_095 = ("content_sha256", "source_intake_job_id")
             _drop_094 = ("source_intake_job_segment_id",)
-            _variant_full_no_095 = {k: v for k, v in _variant_full.items() if k not in _drop_095}
-            _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k not in _drop_095 + _drop_094}
-            _variant_base_no_095 = {k: v for k, v in _dok_row_base.items() if k not in _drop_095}
-            _variant_base_no_lineage = {k: v for k, v in _dok_row_base.items() if k not in _drop_095 + _drop_094}
+
+            # Program Phoenix, Mission 011 (LIVINGSYS-DEBT-044): redni_broj was
+            # fetched ONCE before the outer document loop and incremented only
+            # in-process -- correct within a single finalize call (this loop's
+            # own concern), but 2 concurrent finalize calls to the SAME
+            # predmet_id (2 jobs, or a retried request landing on a different
+            # gunicorn worker -- this app runs 4) could both compute the same
+            # next number, producing 2 documents that cite as the same DOK-NN.
+            # Migration 106 (drafted, founder-applied per this repo's standing
+            # convention) adds a UNIQUE(predmet_id, redni_broj) index; a
+            # genuine race now surfaces as a 23505 here instead of silently
+            # colliding -- same retry-on-conflict idiom already established
+            # for billing.py's broj_fakture (LAMBDA008-CONC-003). An in-process
+            # lock would NOT protect against the cross-worker case, so this
+            # (not an application-level lock) is the only correct fix in this
+            # deployment's actual multi-worker topology.
             dok_ins = None
-            for extra in (
-                _variant_full, _variant_full_no_095, _variant_full_no_lineage,
-                dict(_dok_row_base), _variant_base_no_095, _variant_base_no_lineage,
-            ):
-                try:
-                    dok_ins = await asyncio.to_thread(
-                        lambda r=extra: supa.table("predmet_dokumenti").insert(r).execute()
-                    )
+            for _redni_attempt in range(3):
+                _base_rn = {**_dok_row_base, "redni_broj": _sledeci_redni}
+                _variant_full = {**_base_rn, "tip_dokaza": doc_type_i, "klasifikovan_at": _dt_ki.now(_tz_ki.utc).isoformat(), "tekst_sadrzaj": seg_text[:100_000]}
+                _variant_full_no_095 = {k: v for k, v in _variant_full.items() if k not in _drop_095}
+                _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k not in _drop_095 + _drop_094}
+                _variant_base_no_095 = {k: v for k, v in _base_rn.items() if k not in _drop_095}
+                _variant_base_no_lineage = {k: v for k, v in _base_rn.items() if k not in _drop_095 + _drop_094}
+                _redni_conflict = False
+                for extra in (
+                    _variant_full, _variant_full_no_095, _variant_full_no_lineage,
+                    dict(_base_rn), _variant_base_no_095, _variant_base_no_lineage,
+                ):
+                    try:
+                        dok_ins = await asyncio.to_thread(
+                            lambda r=extra: supa.table("predmet_dokumenti").insert(r).execute()
+                        )
+                        break
+                    except Exception as dok_exc:
+                        if ("23505" in str(dok_exc) or "duplicate key" in str(dok_exc).lower()) and "redni" in str(dok_exc).lower():
+                            _redni_conflict = True
+                            break
+                        logger.debug("[SMART_INTAKE] predmet_dokumenti insert varijanta neuspešna, probam sledeću: %s", dok_exc)
+                _sledeci_redni += 1
+                if dok_ins and dok_ins.data:
                     break
-                except Exception as dok_exc:
-                    logger.debug("[SMART_INTAKE] predmet_dokumenti insert varijanta neuspešna, probam sledeću: %s", dok_exc)
+                if not _redni_conflict:
+                    break
+                logger.warning("[SMART_INTAKE] redni_broj konflikt (pokušaj %d/3) predmet=%s", _redni_attempt + 1, predmet_id)
+                dok_ins = None
 
             doc_linked_i = bool(dok_ins and dok_ins.data)
             if doc_linked_i:

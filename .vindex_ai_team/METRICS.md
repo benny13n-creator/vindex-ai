@@ -2027,3 +2027,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 240 passed, 0 failed |
 | Full suite | **3,284 passed, 1 skipped, 0 failed** — was 3,274 at Mission 009's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 011 — Billing & Reference Integrity (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 2 (`LIVINGSYS-DEBT-054`, `-044`, both fully) |
+| Files touched | 2 (`routers/billing.py`, `routers/smart_intake.py`) + 1 new migration (`106`) |
+| New algorithms invented | 0 (reused `billing.py`'s own retry-on-conflict idiom) |
+| Regression tests added | 5 (`tests/test_phoenix_mission_011_billing_reference_integrity.py`) |
+| Pre-existing test corrections | 3 (mock data completion: added `predmet_id` to `billing_entries` rows) |
+| Subsystem tests | 175 passed, 0 failed |
+| Full suite | **3,289 passed, 1 skipped, 0 failed** — was 3,284 at Mission 010's close |
+| STOP GATE | PASS |

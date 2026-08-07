@@ -70,7 +70,7 @@ def _faktura_body():
 def test_faktura_create_retries_on_broj_fakture_conflict_then_succeeds():
     import routers.billing as billing
 
-    entries_chain = _chain(MagicMock(data=[{"id": "e1", "iznos_rsd": 1000, "obracunato": False}]))
+    entries_chain = _chain(MagicMock(data=[{"id": "e1", "predmet_id": "p1", "iznos_rsd": 1000, "obracunato": False}]))
     broj_select_chain = _chain(MagicMock(data=[]))  # _sledeci_broj_fakture: no prior invoices
     conflict_err = Exception('duplicate key value violates unique constraint "fakture_user_broj_unique" 23505')
     insert_conflict_chain = _chain(execute_side_effect=conflict_err)
@@ -121,7 +121,7 @@ def test_faktura_create_retries_on_broj_fakture_conflict_then_succeeds():
 def test_faktura_create_exhausts_retries_returns_409_not_500():
     import routers.billing as billing
 
-    entries_chain = _chain(MagicMock(data=[{"id": "e1", "iznos_rsd": 1000, "obracunato": False}]))
+    entries_chain = _chain(MagicMock(data=[{"id": "e1", "predmet_id": "p1", "iznos_rsd": 1000, "obracunato": False}]))
     broj_select_chain = _chain(MagicMock(data=[]))
     conflict_err = Exception('duplicate key value violates unique constraint "fakture_user_broj_unique" 23505')
 

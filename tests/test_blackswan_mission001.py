@@ -68,7 +68,7 @@ def _faktura_body():
 def test_faktura_create_rolls_back_on_billing_entries_update_exception():
     import routers.billing as billing
 
-    entries_chain = _chain(MagicMock(data=[{"id": "e1", "iznos_rsd": 1000, "obracunato": False}]))
+    entries_chain = _chain(MagicMock(data=[{"id": "e1", "predmet_id": "p1", "iznos_rsd": 1000, "obracunato": False}]))
     broj_select_chain = _chain(MagicMock(data=[]))
     insert_ok_chain = _chain(MagicMock(data=[{"id": "f1", "broj_fakture": "2026/0001"}]))
     delete_chain = _chain(MagicMock(data=[{"id": "f1"}]))

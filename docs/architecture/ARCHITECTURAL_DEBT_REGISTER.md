@@ -4479,11 +4479,15 @@ before inserting — reusing only existing columns, no migration. A match return
 row with no new insert and no duplicate event. Proof:
 `test_kreiraj_rociste_returns_existing_row_on_immediate_retry`.
 
-**LIVINGSYS-DEBT-044 (Medium)** — `redni_broj` (document sequence number, used in AI-generated
-DOK-XX citations) can collide under concurrent `finalize` calls to the same case — a citation-
-ambiguity risk, not data loss. Would need either a DB sequence/unique constraint (migration) or a
-per-`predmet_id` application-level lock — deferred pending a decision on which mechanism fits
-this codebase's existing concurrency idioms.
+**LIVINGSYS-DEBT-044 — FIXED** (Program Phoenix, Mission 011, 2026-08-08). Chose the DB
+constraint option (not an app-level lock, which would not protect against this deployment's
+actual 4-worker gunicorn topology): migration 106 (drafted, not applied) adds
+`UNIQUE(predmet_id, redni_broj)` on `predmet_dokumenti`; `smart_intake.py`'s finalize loop now
+retries on a genuine conflict (bounded 3 attempts), same idiom as `billing.py`'s own
+`LAMBDA008-CONC-003` fix. Proof:
+`tests/test_phoenix_mission_011_billing_reference_integrity.py::
+test_redni_broj_conflict_retries_with_next_number_and_succeeds` + 3 companion tests. Full
+report: `docs/phoenix/mission-011/`.
 
 **LIVINGSYS-DEBT-045 (Medium)** — Genome's in-process coalescing guard has a false-failure blind
 spot causing up to 3 redundant refreshes for 2 concurrent document uploads (wasted GPT cost,
@@ -4599,9 +4603,12 @@ genuine unmatched deadline text still safely defaults to `rok_dokument`. Wired t
 test_klasifikuj_dogadjaj_case_closure_is_napomena` + 2 companion tests. Full report:
 `docs/phoenix/mission-008/`.
 
-**LIVINGSYS-DEBT-054 (Medium)** — `faktura_create` never validates `predmet_id` matches the
-billed entries' actual case — any of a user's own entries can be invoiced under an arbitrary case
-ID, silently corrupting per-case reporting (not the invoice amount itself).
+**LIVINGSYS-DEBT-054 — FIXED** (Program Phoenix, Mission 011, 2026-08-08). `faktura_create` now
+rejects (400) if any billed entry's own `predmet_id` doesn't match the invoice's claimed
+`predmet_id`, checked before the `already_billed` gate. Proof:
+`tests/test_phoenix_mission_011_billing_reference_integrity.py::
+test_faktura_create_rejects_entry_from_different_case`. Full report:
+`docs/phoenix/mission-011/`.
 
 **LIVINGSYS-DEBT-023 (Low)** — no OCR quality/confidence signal (garbled-but-nonempty scans are
 indistinguishable from clean extractions). Would need real work with `pytesseract`'s

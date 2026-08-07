@@ -591,6 +591,16 @@ async def faktura_create(
     if not entries:
         raise HTTPException(status_code=404, detail="Radnje nisu pronađene.")
 
+    # Program Phoenix, Mission 011 (LIVINGSYS-DEBT-054): body.predmet_id was
+    # written straight into the fakture row with zero check that the billed
+    # entries actually belong to that case -- any of a user's own entries
+    # (from any of their cases) could be invoiced under an arbitrary
+    # predmet_id, silently corrupting per-case profitability/naplativost
+    # reporting (not the invoice amount itself, which is still correct).
+    mismatched_predmet = [e["id"] for e in entries if e.get("predmet_id") != body.predmet_id]
+    if mismatched_predmet:
+        raise HTTPException(status_code=400, detail="Neke od odabranih radnji ne pripadaju navedenom predmetu.")
+
     already_billed = [e["id"] for e in entries if e.get("obracunato")]
     if already_billed:
         raise HTTPException(status_code=409, detail=f"{len(already_billed)} radnja/e su već na drugoj fakturi.")
