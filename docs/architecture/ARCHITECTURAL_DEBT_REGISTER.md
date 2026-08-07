@@ -4391,15 +4391,18 @@ that doesn't need to wait on the migration to close at least that half.
 
 ### Drafting hallucination/quality family
 
-**LIVINGSYS-DEBT-013 (CRITICAL)** — `/api/nacrt`'s quick-draft path (`drafting/templates.py`,
-`drafting/router.py::generate_draft`) asks GPT to invent a specific ZOO/ZR statute article number
-with zero RAG retrieval and zero critique pass, embedded directly into real legal document text.
-The mission's single most severe finding. Not fixed this mission: the sibling `/api/podnesak`
-path already has both RAG retrieval (`_izvori_kontekst`) and a critique pass
-(`_critique_and_refine_draft`) — porting that infrastructure into the quick-draft path is a real
-feature-scope change (new retrieval calls, new latency budget, new prompt engineering), not a
-minimum-risk mechanical fix. Standing #1 recommendation for the next mission, with the exact
-reusable infrastructure already named.
+**LIVINGSYS-DEBT-013 — FIXED** (Program Phoenix, Mission 010, 2026-08-08). Ported
+`/api/podnesak`'s RAG retrieval + critique-pass infrastructure into `generate_draft()`: a new
+`shared/drafting_grounding.py` module (`izvori_kontekst`, `CRITIQUE_SYSTEM`) is now the single
+canonical owner both drafting surfaces import (proven via `is`-identity tests, not just value
+equality); `generate_draft` gained a `_RAG_AVAILABLE`-guarded retrieval step feeding the
+extraction prompt, and a new sync `_kriticki_pregled()` critique pass (same prompt/schema/
+fallback as Mission 009's `_critique_and_refine_draft`, sync because `generate_draft` stays
+sync) run on the AI-generated text before the deterministic compliance report is appended.
+`critique_applied` surfaces on `/api/nacrt`'s response exactly like `/api/podnesak`'s. Proof:
+`tests/test_phoenix_mission_010_drafting_rag_grounding.py::
+test_generate_draft_critique_neutralizes_hallucinated_article_number` (flagship reproduction) +
+9 companion tests. Full report: `docs/phoenix/mission-010/`.
 
 **LIVINGSYS-DEBT-014 (High)** — both drafting paths' extraction prompts explicitly instruct GPT
 to return `""` (not omit the key) for unmentioned fields, which defeats `_popuni_sablon`'s

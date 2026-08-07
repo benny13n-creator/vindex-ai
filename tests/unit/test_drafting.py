@@ -389,16 +389,19 @@ _FAKE_FIELDS_NEODREDJENO = json.dumps({
 
 
 def test_generate_draft_neodredjeno_success():
-    with patch("drafting.router._call_openai", return_value=_FAKE_FIELDS_NEODREDJENO):
+    with patch("drafting.router._call_openai", return_value=_FAKE_FIELDS_NEODREDJENO), \
+         patch("drafting.router._RAG_AVAILABLE", False):
         result = generate_draft("ugovor_neodredjeno", "TechCorp zapošljava Anu Anić")
     assert result["status"] == "success"
     assert "TechCorp" in result["data"]
     assert "Ana Anić" in result["data"]
     assert "NAPOMENA SISTEMA" in result["data"]
+    assert result["critique_applied"] is True
 
 
 def test_generate_draft_includes_compliance():
-    with patch("drafting.router._call_openai", return_value=_FAKE_FIELDS_NEODREDJENO):
+    with patch("drafting.router._call_openai", return_value=_FAKE_FIELDS_NEODREDJENO), \
+         patch("drafting.router._RAG_AVAILABLE", False):
         result = generate_draft("ugovor_neodredjeno", "TechCorp zapošljava Anu Anić")
     assert result["status"] == "success"
     assert "VINDEX COMPLIANCE" in result["data"]
@@ -420,7 +423,8 @@ def test_generate_draft_sporazumni_raskid():
         "datum": "11.05.2026.",
         "mesto": "Beograd",
     })
-    with patch("drafting.router._call_openai", return_value=fake):
+    with patch("drafting.router._call_openai", return_value=fake), \
+         patch("drafting.router._RAG_AVAILABLE", False):
         result = generate_draft("sporazumni_raskid", "Raskid sa Petrom")
     assert result["status"] == "success"
     assert "LogiTech" in result["data"]
@@ -440,7 +444,8 @@ def test_generate_draft_punomocje():
         "datum": "11.05.2026.",
         "mesto": "Beograd",
     })
-    with patch("drafting.router._call_openai", return_value=fake):
+    with patch("drafting.router._call_openai", return_value=fake), \
+         patch("drafting.router._RAG_AVAILABLE", False):
         result = generate_draft("punomocje", "Jovana ovlašćuje Milana")
     assert result["status"] == "success"
     assert "Jovana Marković" in result["data"]

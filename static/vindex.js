@@ -7432,9 +7432,10 @@ async function execQuery() {
           '<span class="popuniti">[$1 — POPUNITI]</span>');
         previewBody.innerHTML = highlighted;
         previewEl.style.display = 'block';
-        // Program Phoenix, Mission 009 (LIVINGSYS-DEBT-015): critique_applied is only present
-        // on /api/podnesak responses (the pass that checks citations against RAG sources) --
-        // undefined (e.g. /api/nacrt, which has no critique pass) never shows this warning.
+        // Program Phoenix, Mission 009 (LIVINGSYS-DEBT-015) + Mission 010 (LIVINGSYS-DEBT-013):
+        // critique_applied is now present on BOTH /api/podnesak and /api/nacrt responses (Mission
+        // 010 ported the same RAG+critique pass into generate_draft) -- undefined only for a
+        // response shape that predates either mission.
         var _critiqueWarnEl = document.getElementById('podnesak-preview-critique-warn');
         if (_critiqueWarnEl) _critiqueWarnEl.style.display = (d.critique_applied === false) ? 'flex' : 'none';
         // Resetuj edit tracker za correction capture + merimo vreme od AI odgovora do akcije

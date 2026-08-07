@@ -3077,3 +3077,23 @@ for the additive shape change. Subsystem: 173/173 passed. Full suite: **3,274 pa
 skipped, 0 failed** (was 3,266, +8 tests, zero regressions). Red Team self-check passed (4
 adversarial scenarios, no break found). Full report: `docs/phoenix/mission-009/`.
 **STOP GATE: PASS.**
+
+### Mission 010 — Drafting RAG Grounding, CRITICAL (CLOSED)
+
+Closed `LIVINGSYS-DEBT-013`, the debt register's own "single most severe finding": `/api/nacrt`'s
+quick-draft path asked GPT to invent a specific ZOO/ZR statute article number with zero RAG
+retrieval and zero critique pass, embedded directly into real legal document text. Ported the
+sibling `/api/podnesak` path's proven RAG+critique infrastructure into `generate_draft()` —
+extracted the shared logic (`izvori_kontekst`, `CRITIQUE_SYSTEM`) into a new canonical
+`shared/drafting_grounding.py` both surfaces now import (proven `is`-identical, not just
+value-equal), added a `_RAG_AVAILABLE`-guarded retrieval step, and a synchronous critique pass
+(`_kriticki_pregled`, same prompt/schema/fallback as Mission 009's async twin) run on the
+AI-generated text before the deterministic compliance report is appended. `critique_applied` now
+surfaces on `/api/nacrt`'s response exactly like `/api/podnesak`'s. `-014` (separate "blank vs.
+omit field" prompt-engineering debt) deliberately not touched, per the register's own scope
+boundary. `static/sw.js` bumped `vindex-v102` → `vindex-v103`. 10 new tests
+(`tests/test_phoenix_mission_010_drafting_rag_grounding.py`), 5 pre-existing tests updated to
+disable RAG (avoid a real network call, no assertion weakened). Subsystem: 240/240 passed. Full
+suite: **3,284 passed, 1 skipped, 0 failed** (was 3,274, +10 tests, zero regressions). Red Team
+self-check passed (5 adversarial scenarios, no break found). Full report:
+`docs/phoenix/mission-010/`. **STOP GATE: PASS.**

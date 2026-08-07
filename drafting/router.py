@@ -30,6 +30,7 @@ from string import Formatter
 from openai import OpenAI
 
 from shared.llm_retry import llm_retry
+from shared.drafting_grounding import izvori_kontekst, CRITIQUE_SYSTEM
 
 from .compliance import formatiraj_violations, proveri_uskladjenost
 from .templates import TEMPLATES
@@ -37,6 +38,19 @@ from .templates import TEMPLATES
 logger = logging.getLogger(__name__)
 
 _client: OpenAI | None = None
+
+# Program Phoenix, Mission 010 (LIVINGSYS-DEBT-013): this quick-draft path
+# used to ask GPT to invent a specific ZOO/ZR statute article number
+# (pravni_osnov_clan, pravni_osnov, zakonski_clan fields) with zero RAG
+# retrieval and zero critique pass, embedded directly into real legal
+# document text -- the sibling /api/podnesak path already had both. Same
+# availability-guard shape as routers/court_predictor.py's _RAG_AVAILABLE.
+try:
+    from app.services.retrieve import retrieve_documents
+    _RAG_AVAILABLE = True
+except Exception:
+    retrieve_documents = None
+    _RAG_AVAILABLE = False
 
 
 def _get_client() -> OpenAI:
@@ -47,11 +61,11 @@ def _get_client() -> OpenAI:
 
 
 @llm_retry
-def _call_openai(system: str, user: str, max_tokens: int = 2000) -> str:
+def _call_openai(system: str, user: str, max_tokens: int = 2000, response_format: dict | None = None) -> str:
     """FAZA 2 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
     backoff-om za rate-limit/5xx/timeout/connection greške; 400/401 se
     NE ponavljaju."""
-    r = _get_client().chat.completions.create(
+    kwargs = dict(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": system},
@@ -61,6 +75,9 @@ def _call_openai(system: str, user: str, max_tokens: int = 2000) -> str:
         max_tokens=max_tokens,
         timeout=30.0,
     )
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    r = _get_client().chat.completions.create(**kwargs)
     return (r.choices[0].message.content or "").strip()
 
 
@@ -401,6 +418,50 @@ def _pripremi_fields(fields: dict, vrsta: str) -> dict:
     return {k: (v if v is not None else "") for k, v in fields.items()}
 
 
+def _kriticki_pregled(nacrt: str, kontekst: str, tip_naziv: str) -> tuple[str, bool]:
+    """Drugi, brz LLM prolaz nad već generisanim nacrtom: proverava izmišljene
+    članove zakona van [IZVOR-n] konteksta i obavezne formalne elemente
+    dokumenta, i ispravlja ih ako postoje. Program Phoenix, Mission 010
+    (LIVINGSYS-DEBT-013): sinhrona verzija routers/drafting.py::
+    _critique_and_refine_draft -- generate_draft ostaje sync (već se izvršava
+    unutar asyncio.to_thread iz routers/drafting.py::nacrt), pa je ovaj prolaz
+    napisan sinhrono umesto da se generate_draft menja u async. Isti prompt
+    (shared/drafting_grounding.py::CRITIQUE_SYSTEM), ista JSON šema, ista
+    fallback logika, ista (nacrt, critique_applied) semantika kao Mission
+    009's LIVINGSYS-DEBT-015 fix. Nikad ne baca: svaka greška pada nazad na
+    originalni nacrt."""
+    try:
+        user_msg = (
+            f"VRSTA PODNESKA: {tip_naziv}\n\n"
+            f"IZVORI (RAG kontekst sa oznakama):\n"
+            f"{kontekst or '(nema dostavljenih izvora -- oslanjaj se samo na opšte pravno znanje)'}\n\n"
+            f"NACRT ZA PROVERU:\n{nacrt}"
+        )
+        raw = _call_openai(CRITIQUE_SYSTEM, user_msg, max_tokens=4000, response_format={"type": "json_object"})
+        kritika = _ekstraktuj_json(raw)
+
+        izmisljeni = kritika.get("izmisljeni_navodi") or []
+        nedostaje = kritika.get("nedostaju_elementi") or []
+        ima_problema = bool(kritika.get("ima_izmisljenih_navoda")) or bool(izmisljeni) or bool(nedostaje)
+
+        if not ima_problema:
+            return nacrt, True
+
+        ispravljen = (kritika.get("ispravljen_tekst") or "").strip()
+        if not ispravljen:
+            logger.warning("Critique pass (nacrt) prijavio probleme ali nije vratio ispravljen tekst")
+            return nacrt, False
+
+        logger.info(
+            "Critique pass (nacrt) ispravio nacrt: izmisljeni_navodi=%s nedostaju_elementi=%s",
+            izmisljeni, nedostaje,
+        )
+        return ispravljen, True
+    except Exception as exc:
+        logger.warning("Critique pass (nacrt) neuspešan: %s -- vraćam originalni nacrt", exc)
+        return nacrt, False
+
+
 def generate_draft(vrsta: str, opis: str, user_id: str = "") -> dict:
     """
     Generiše strukturiran nacrt dokumenta.
@@ -435,9 +496,23 @@ def generate_draft(vrsta: str, opis: str, user_id: str = "") -> dict:
             except Exception:
                 logger.warning("[PLAYBOOK] pretraga neuspešna — nastavljam bez playbook-a")
 
+        # ── 0.5 RAG pretraga (Program Phoenix, Mission 010, LIVINGSYS-DEBT-013) ─
+        kontekst = ""
+        if _RAG_AVAILABLE:
+            try:
+                rag_upit = f"{tpl['label']}: {opis[:400]}"
+                docs, _retrieval_meta = retrieve_documents(rag_upit, 5)
+                kontekst = izvori_kontekst(docs)
+            except Exception as exc:
+                logger.warning("[NACRT RAG] pretraga neuspešna [vrsta=%s]: %s -- nastavljam bez konteksta", vrsta, exc)
+                kontekst = ""
+
         # ── 1. Ekstrakcija polja ─────────────────────────────────────────────
         system_p = tpl["ekstrakcioni_prompt"]
-        user_p = f"OPIS:\n{opis}{playbook_blok}"
+        user_p = (
+            f"OPIS:\n{opis}{playbook_blok}"
+            + (f"\n\nZAKONSKI KONTEKST (RAG):\n{kontekst}" if kontekst else "")
+        )
         raw_json = _call_openai(system_p, user_p, max_tokens=800)
         fields = _ekstraktuj_json(raw_json)
 
@@ -454,7 +529,13 @@ def generate_draft(vrsta: str, opis: str, user_id: str = "") -> dict:
         sablon = tpl["sablon"]
         nacrt_tekst = _popuni_sablon(sablon, fields_ready)
 
-        # ── 6. Compliance check ──────────────────────────────────────────────
+        # ── 6. Critique & self-correction pass (Mission 010, LIVINGSYS-DEBT-013) ─
+        # Proverava SAMO AI-generisani tekst, pre nego što se doda deterministički
+        # compliance izveštaj ispod (taj izveštaj nije GPT-generisan, ne treba
+        # critique proveru).
+        nacrt_tekst, critique_applied = _kriticki_pregled(nacrt_tekst, kontekst, tpl["label"])
+
+        # ── 7. Compliance check ──────────────────────────────────────────────
         compliance_tip = tpl.get("compliance_tip")
         violations: list[dict] = []
         if compliance_tip == "ugovor_o_radu":
@@ -464,6 +545,7 @@ def generate_draft(vrsta: str, opis: str, user_id: str = "") -> dict:
         return {
             "status": "success",
             "data": nacrt_tekst + compliance_tekst,
+            "critique_applied": critique_applied,
         }
 
     except Exception:

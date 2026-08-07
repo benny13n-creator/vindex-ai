@@ -2014,3 +2014,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 173 passed, 0 failed |
 | Full suite | **3,274 passed, 1 skipped, 0 failed** — was 3,266 at Mission 008's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 010 — Drafting RAG Grounding, CRITICAL (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 1 (`LIVINGSYS-DEBT-013`, CRITICAL, fully) |
+| Files touched | 3 (`drafting/router.py`, `routers/drafting.py`, `static/vindex.js`) + 1 new (`shared/drafting_grounding.py`) + `static/sw.js` cache bump |
+| New algorithms invented | 0 (ported existing `/api/podnesak` RAG+critique infra) |
+| Regression tests added | 10 (`tests/test_phoenix_mission_010_drafting_rag_grounding.py`) |
+| Pre-existing test corrections | 5 (`tests/unit/test_drafting.py`, RAG disabled to avoid real network calls) |
+| Subsystem tests | 240 passed, 0 failed |
+| Full suite | **3,284 passed, 1 skipped, 0 failed** — was 3,274 at Mission 009's close |
+| STOP GATE | PASS |
