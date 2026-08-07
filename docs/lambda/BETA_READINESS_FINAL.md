@@ -1,5 +1,16 @@
 # BETA_READINESS_FINAL — Program Lambda, Certification 008
 
+> **UPDATE (2026-08-07, later same day)**: migrations 102 and 103 have been run against production per the
+> founder's own report. This resolves the NO-GO condition below. **This update is based on the founder's
+> report, not independent technical verification** — the coordinator does not have the credentials
+> (`SUPABASE_DB_URL` or an anon-level key) needed to check the live grant state directly from this
+> environment; only the service-role key is available, which bypasses the exact restrictions being verified.
+> A safe, read-only verification path was offered and the founder chose to proceed on their own report
+> instead — recorded exactly as that. See `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s
+> `LAMBDA008-SEC-001` entry and `docs/blackswan/FINAL_GO_NO_GO.md` for the same update. The rest of this
+> document is preserved as originally written (2026-08-07, before the fix) for an accurate record of what
+> the certification actually found and concluded at the time.
+
 ## Success criterion, as the mission itself defined it
 
 "Nemoj pokušavati da dokažeš da je Vindex AI spreman. Pokušaj da dokažeš da nije spreman." This

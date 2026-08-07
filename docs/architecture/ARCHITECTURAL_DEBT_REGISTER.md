@@ -3361,23 +3361,34 @@ citation grounding, background_agents.py/morning_briefing.py bounded concurrency
 wiring fixes, SOURCE_OF_TRUTH_REGISTRY.md correction, LAMBDA-003/LAMBDA007-DEAD-001 merge). Items below are
 the ones NOT fixed this sprint — genuine product/architecture decisions or explicitly deferred.
 
-### LAMBDA008-SEC-001 — migrations 102/103 still not applied to live Supabase (CRITICAL, founder action required, not a code fix)
+### LAMBDA008-SEC-001 — migrations 102/103 (RESOLVED 2026-08-07, founder-reported, not independently technically verified)
 
 **Found by**: Team 2 (Security & RLS), re-confirmed independently by Team 3 (Ownership/IDOR) and Team 13
-(Migration/Schema Drift); survived Red Team A adversarial review.
+(Migration/Schema Drift); survived Red Team A adversarial review. Re-confirmed still open as of Operation
+Black Swan, Mission 001 (same day).
 
-**What**: `deduct_credit`/`set_user_pro` SECURITY DEFINER RPCs (`supabase_setup.sql:117-148`, `migrations/
-061_fix_missing_profiles_columns.sql:66-74`) have no ownership check and are callable by any authenticated
-user — a real, live credit-drain / free-permanent-PRO exploit. Same for `profiles`' own UPDATE RLS policy
-(no column scope). This is the SAME finding Certification 002 found and wrote fixes for
-(`migrations/102_lambda002_rpc_ownership_lockdown.sql`, `103_lambda002_profiles_column_lockdown.sql`) —
-this certification re-confirms, independently, that those migrations are still not applied.
+**What it was**: `deduct_credit`/`set_user_pro` SECURITY DEFINER RPCs (`supabase_setup.sql:117-148`,
+`migrations/061_fix_missing_profiles_columns.sql:66-74`) had no ownership check and were callable by any
+authenticated user — a real, live credit-drain / free-permanent-PRO exploit. Same for `profiles`' own UPDATE
+RLS policy (no column scope). Fixes existed since Certification 002
+(`migrations/102_lambda002_rpc_ownership_lockdown.sql`, `103_lambda002_profiles_column_lockdown.sql`) but
+were confirmed still unapplied across 3 separate certifications/missions (002 → Lambda 008 → Black Swan 001,
+all same day, 2026-08-07).
 
-**Why not fixed this sprint**: per this repo's standing convention (`feedback_migrations` in project
-memory), migrations are never run by the coordinator/agent — the founder runs them.
+**Resolution**: founder reports both migrations were run against production Supabase later on 2026-08-07.
+**This status update is based on the founder's own report, not independent technical verification** — the
+coordinator does not have `SUPABASE_DB_URL` (direct Postgres connection, would allow a read-only catalog-
+privilege check) or an anon-level key (would allow testing the actual PostgREST-level rejection) in this
+environment; only the service-role key is available, which bypasses RLS/GRANT restrictions by design and so
+cannot distinguish "locked down" from "still open" by calling anything with it. The founder was offered a
+safe, read-only verification path (share `SUPABASE_DB_URL` for a catalog-only query, zero risk to
+production data) and explicitly chose to proceed on their own report instead. Recorded here exactly as that
+— a founder-reported resolution, not a coordinator-verified one — consistent with this program's own
+evidence-honesty discipline (name the actual confidence level, don't round up).
 
-**Action required**: run migrations 102 and 103 against production Supabase. This is the single highest-
-priority item in this entire certification.
+**If this is ever revisited**: the exact read-only verification query and the exact PostgREST-level
+rejection test are both described in migrations 102/103's own trailing comments ("KRITIČNO — RUČNA PROVERA
+POSLE OVE MIGRACIJE").
 
 ### LAMBDA008-GAMMA-003-reconfirm — `routers/matter_intel.py`'s own missing-document % recompute (Medium, still open, unchanged from prior tracking)
 

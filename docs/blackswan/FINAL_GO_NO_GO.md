@@ -1,5 +1,14 @@
 # FINAL_GO_NO_GO — Operation Black Swan, Mission 001
 
+> **UPDATE (2026-08-07, later same day)**: migrations 102 and 103 have been run against production per the
+> founder's own report — condition 1 below is now resolved. **Founder-reported, not independently
+> technically verified by the coordinator** (no `SUPABASE_DB_URL`/anon-key access in this environment to
+> check the live grant state directly; the available service-role key bypasses the exact restriction being
+> checked, so it cannot distinguish "locked down" from "still open"). A safe, read-only verification option
+> was offered and declined in favor of proceeding on the founder's own report — recorded as such. Conditions
+> 2 and 3 below are unaffected and still stand. See `docs/architecture/ARCHITECTURAL_DEBT_REGISTER.md`'s
+> `LAMBDA008-SEC-001` entry for the same update.
+
 ## Success criterion, as the mission itself defined it
 
 "Nemoj pokušavati da dokažeš da Vindex AI radi. Pokušaj da dokažeš da će se raspasti." (Don't try to prove
