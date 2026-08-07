@@ -29,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
+from shared.kancelarija_utils import get_kancelarija_id as _get_firma_id
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
@@ -52,28 +53,12 @@ _VALID_RELACIJE = {"koristio_argument", "pobedio_pred", "izgubio_pred",
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-async def _get_firma_id(supa, uid: str) -> Optional[str]:
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("kancelarije")
-                .select("id")
-                .eq("admin_uid", uid)
-                .maybe_single()
-                .execute()
-        )
-        if r.data:
-            return r.data["id"]
-        r2 = await asyncio.to_thread(
-            lambda: supa.table("kancelarija_clanovi")
-                .select("kancelarija_id")
-                .eq("user_id", uid)
-                .eq("status", "ACTIVE")
-                .maybe_single()
-                .execute()
-        )
-        return (r2.data or {}).get("kancelarija_id")
-    except Exception:
-        return None
+# Program Phoenix, Mission 003 (LIVINGSYS-DEBT-052): this used to be a byte-identical local
+# copy of shared/kancelarija_utils.py::get_kancelarija_id -- the exact duplicate the 2026-07-26
+# Institutional Learning & RAG Audit consolidated firm_memory.py/corrections.py to prevent, but
+# missed this file. Now imported directly (aliased to keep every existing call site unchanged)
+# so a future rule change to "which firm am I in" updates this file automatically instead of
+# silently drifting from its sibling.
 
 
 # ─── Pydantic modeli ──────────────────────────────────────────────────────────

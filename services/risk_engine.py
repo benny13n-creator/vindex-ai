@@ -14,8 +14,11 @@ formula ispravno pratila stvarne podatke.
 Logika je 1:1 prenesena iz routers/matter_intel.py (bila je inline u ruti) —
 ponasanje NAMERNO nepromenjeno, ovo je ekstrakcija, ne redizajn formule.
 """
+import logging
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger("vindex.risk_engine")
 
 
 def calculate_procesni_rizik(
@@ -102,8 +105,17 @@ def calculate_procesni_rizik(
             elif dana <= 7:
                 kriticni += 1
                 kriticni_rocista.append(r)
-        except Exception:
-            pass
+        except Exception as _e:
+            # Program Phoenix, Mission 003 (LIVINGSYS-DEBT-055): this exact loop has already
+            # hidden 2 real bugs behind a silent except before (naive/aware datetime mismatch,
+            # then the negative-dana overdue-hearing bug -- see the 2 comments above). A
+            # malformed/unparseable `datum` is silently excluded from risk scoring exactly like
+            # "no hearing exists" -- now logged (not raised, behavior unchanged) so a 3rd
+            # instance of this pattern doesn't go undetected for months like the first two did.
+            logger.warning(
+                "[RISK_ENGINE] rociste sa nevalidnim datumom preskočen u proračunu rizika (id=%s, datum=%r): %s",
+                r.get("id"), r.get("datum"), _e,
+            )
 
     # ── Procesni rizik ───────────────────────────────────────────────────────
     rizik_score = 50

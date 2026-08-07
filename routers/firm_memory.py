@@ -48,6 +48,13 @@ router = APIRouter(prefix="/api/firma-memorija", tags=["firma-memorija"])
 _ENTITY_TYPES = {"partner", "klijent", "sudija", "firma", "predmet"}
 _MEMORY_TIPS  = {"preferencija", "odbijanje", "obrazac", "napomena"}
 _VAZNOSTI     = {"visoka", "normalna", "niska"}
+# Program Phoenix, Mission 003 (LIVINGSYS-DEBT-008): every .order("vaznost") call site below
+# used Supabase's default ascending sort -- alphabetically "niska" < "normalna" < "visoka", so
+# LOW-importance memories sorted BEFORE high-importance ones. Combined with each query's own
+# .limit(), a firm with more memories than the limit could have its most important entries
+# (a judge/client "NIKAD prihvata nagodbu"-type fact) silently pushed out while low-importance
+# ones survived -- backwards from intent, worst at /kontekst-za-ai (fed directly into the AI
+# system prompt). Fixed to .order("vaznost", desc=True) at all 5 call sites.
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -225,7 +232,7 @@ async def pretrazi_memoriju(
             qb = qb.eq("entity_id", entity_id)
 
         r = await asyncio.to_thread(
-            lambda: qb.order("vaznost").order("created_at", desc=True).limit(min(limit, 100)).execute()
+            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(min(limit, 100)).execute()
         )
         memorije = r.data or []
 
@@ -280,7 +287,7 @@ async def kontekst_za_ai(
                     .eq("entity_id", entity_id)
                     .eq("entity_type", entity_type)
                     .eq("aktivan", True)
-                    .order("vaznost")
+                    .order("vaznost", desc=True)
                     .limit(10)
                     .execute()
             )
@@ -414,7 +421,7 @@ async def get_sudija_profil(
                 .ilike("entity_id", f"%{sudija_ime}%")
                 .eq("entity_type", "sudija")
                 .eq("aktivan", True)
-                .order("vaznost")
+                .order("vaznost", desc=True)
                 .limit(20)
                 .execute()
         )
@@ -512,7 +519,7 @@ async def get_klijent_profil(
                     .eq("entity_type", "klijent")
                     .ilike("entity_id", f"%{klijent_ime}%")
                     .eq("aktivan", True)
-                    .order("vaznost")
+                    .order("vaznost", desc=True)
                     .limit(20)
                     .execute()
             ),
@@ -675,7 +682,7 @@ async def sve_memorije(
             qb = qb.eq("entity_type", entity_type)
 
         r = await asyncio.to_thread(
-            lambda: qb.order("vaznost").order("created_at", desc=True).limit(min(limit, 200)).execute()
+            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(min(limit, 200)).execute()
         )
         memorije = _apply_trust(r.data or [], _get_supa(), kancelarija_id)
 

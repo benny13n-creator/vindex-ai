@@ -2967,3 +2967,18 @@ zero regressions). Red Team self-check passed (verified the cache-refresh can't 
 a failed write, the 404-vs-409 disambiguation stays ownership-scoped, the new `.neq()` guard is
 a no-op behavior change for the non-race case). Full report: `docs/phoenix/mission-002/`.
 **STOP GATE: PASS.**
+
+### Mission 003 — Institutional Memory & Canonical Registry Cleanup (CLOSED)
+
+Closed `LIVINGSYS-DEBT-008` (`firm_memory.py`'s `.order("vaznost")` sorted alphabetically —
+LOW importance before HIGH — at all 5 call sites including the one feeding the AI system
+prompt directly), `-052` (`memory_graph.py` had a byte-identical duplicate of
+`shared/kancelarija_utils.py`'s canonical tenant-resolution helper, missed by the 2026-07-26
+consolidation), `-017` (`shared/semantic_registry.py` had no entry for "Probability" despite
+`TRUTH_CONTRACT.md` documenting 4 named generators), `-055` (a bare except in the Risk Engine's
+hearing-date loop had already hidden 2 real bugs before — now logs instead of silently
+swallowing, behavior otherwise unchanged). All 4 are additive/behavior-preserving/pure-reuse
+fixes, zero new algorithms. 6 new tests
+(`tests/test_phoenix_mission_003_institutional_memory.py`). Full suite: **3,237 passed, 1
+skipped, 0 failed** (was 3,231, +6 tests, zero regressions). Red Team self-check passed. Full
+report: `docs/phoenix/mission-003/`. **STOP GATE: PASS.**

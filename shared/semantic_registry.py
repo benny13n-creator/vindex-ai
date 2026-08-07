@@ -123,6 +123,23 @@ HEALTH_PER_CASE = ConceptOwnership(
     truth_contract_ref="#health",
 )
 
+PROBABILITY = ConceptOwnership(
+    concept="probability",
+    owner=None,  # legitimately 4 independent GPT generators, unified only by a shared guard contract
+    input_description="varies per generator (case facts + canonical readiness context)",
+    output_shape="int 0-100 (success/outcome probability)",
+    allowed_values=None,
+    forbidden="A probability number reaching lawyer-facing UI without BOTH: (1) an unconditional 0-100 "
+              "range clamp, (2) shared/case_readiness.py::CAP_BY_READINESS tier cap applied when "
+              "readiness is CRITICAL_GAP/BLOCKED. Known generators: court_predictor.py::prediktuj_ishod, "
+              "court_predictor.py::argument_reputation, digital_twin.py (x2), hearing_cc.py::"
+              "hearing_score, copilot.py's verovatnoca_uspeha (LIVINGSYS Wave 1, both guards added "
+              "2026-08-07). routers/strategy_simulator.py currently violates this (dead code, named "
+              "debt per TRUTH_CONTRACT.md, not fixed).",
+    deprecated_aliases=(),
+    truth_contract_ref="#probability-successoutcome",
+)
+
 CONFIDENCE = ConceptOwnership(
     concept="confidence",
     owner=None,  # legitimately ~16 distinct mechanisms, no single owner -- see Truth Contract
@@ -152,7 +169,7 @@ WEB3_COMPLIANCE_SCORES = ConceptOwnership(
 
 ALL_CONCEPTS: tuple[ConceptOwnership, ...] = (
     RISK, READINESS, STRENGTH, PRIORITY, RECOMMENDATION, HEALTH_FIRM, HEALTH_PER_CASE,
-    CONFIDENCE, WEB3_COMPLIANCE_SCORES,
+    PROBABILITY, CONFIDENCE, WEB3_COMPLIANCE_SCORES,
 )
 
 

@@ -1927,3 +1927,15 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Pre-existing test corrections | 2 (exact-dict-equality assertions updated for an intentional additive API field, not weakened) |
 | Full suite | **3,231 passed, 1 skipped, 0 failed** — was 3,224 at Mission 001's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 003 — Institutional Memory & Canonical Registry Cleanup (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 4 (`LIVINGSYS-DEBT-008, -052, -017, -055`) |
+| Files touched | 4 (`firm_memory.py`, `memory_graph.py`, `semantic_registry.py`, `risk_engine.py`) |
+| New algorithms invented | 0 |
+| Regression tests added | 6 (`tests/test_phoenix_mission_003_institutional_memory.py`) |
+| Pre-existing test corrections | 0 |
+| Full suite | **3,237 passed, 1 skipped, 0 failed** — was 3,231 at Mission 002's close |
+| STOP GATE | PASS |

@@ -4502,12 +4502,11 @@ plausible quick win for a future mission.
 
 ### Data quality / trust family (not yet fixed)
 
-**LIVINGSYS-DEBT-008 (High)** — `firm_memory.py`'s `.order("vaznost")` sorts alphabetically
-ascending at all 4 call sites (LOW before HIGH importance), silently starving the AI-context
-query specifically once a firm exceeds the query limit. A 1-line fix (`.order("vaznost",
-desc=True)` plus verifying the 3-value enum's alphabetical-vs-intended order truly inverts
-correctly) — not done this mission purely due to time; among the cheapest fixes in this entire
-debt ledger, flagged as the top quick-win.
+**LIVINGSYS-DEBT-008 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). All 5 (not 4, per a
+recount during reproduction) `.order("vaznost")` call sites in `routers/firm_memory.py` now use
+`desc=True`. Proof: `tests/test_phoenix_mission_003_institutional_memory.py::
+test_kontekst_za_ai_returns_high_importance_memories_first`. Full report:
+`docs/phoenix/mission-003/`.
 
 **LIVINGSYS-DEBT-016 (High)** — `NEW_EVIDENCE_REGISTERED` never triggers `refresh_case_actions`,
 so `case_actions`/readiness can lag a live risk computation within the same `build_case_context()`
@@ -4515,12 +4514,10 @@ response — a self-documented ordering gap (the code's own comment already admi
 Fixing means adding `refresh_case_actions` to `NEW_EVIDENCE_REGISTERED`'s own consequence chain —
 plausible, bounded work, deferred for fix-budget reasons.
 
-**LIVINGSYS-DEBT-017 (Medium-High)** — `shared/semantic_registry.py` (this week's own Truth
-Contract index) has no entry for "Probability," a concept with 4 named generators and a known
-unfixed violator (`strategy_simulator.py`) in the human-readable contract it's supposed to mirror.
-A registry-completeness gap in a tool built by the immediately-preceding mission — the fix is
-purely additive (add the `PROBABILITY` constant + its 4 owners) but was found late in this
-mission's own investigation phase, after fix budget was already committed elsewhere.
+**LIVINGSYS-DEBT-017 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). Added a
+`PROBABILITY` `ConceptOwnership` entry to `shared/semantic_registry.py`, mirroring
+`CONFIDENCE`'s multi-owner shape and naming all known generators including the unfixed
+`strategy_simulator.py` violator. Proof: `test_semantic_registry_has_probability_concept`.
 
 **LIVINGSYS-DEBT-020 (High)** — zero duplicate-content detection on Pipeline A's main document
 upload endpoint (`api.py`), unlike Smart Intake's own content-hash dedup. Needs a product decision
@@ -4538,10 +4535,10 @@ gate, unlike Smart Intake's own document-type classifier. Would need a schema/pr
 `_CLASSIFY_SYSTEM` plus a review-queue UX decision for low-confidence results — a smaller version
 of the same "review workflow" question Smart Intake already answered, portable but not copy-paste.
 
-**LIVINGSYS-DEBT-055 (Medium)** — bare `except: pass` in `calculate_procesni_rizik`'s hearing-date
-loop silently drops malformed-date hearings from risk scoring, with prior history (per the
-function's own comments) of exactly this loop hiding real bugs twice before. A minimal fix (log +
-counter, don't change behavior) is low-risk and cheap — flagged as another quick-win candidate.
+**LIVINGSYS-DEBT-055 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). The except block in
+`services/risk_engine.py`'s hearing-date loop now logs a warning (hearing id + malformed
+`datum`) before continuing — behavior (silent exclusion) explicitly unchanged, only visibility
+added. Proof: `test_risk_engine_logs_malformed_hearing_date`.
 
 **LIVINGSYS-DEBT-050 (Medium)** — notification read-state is client-`localStorage`-only, never
 reconciled against the server's own `procitano` field — cross-device badge-count drift. Needs a
@@ -4553,10 +4550,10 @@ storage — a real but bounded frontend change.
 whenever `status=="zatvoren"`). Fix: skip the synthesized entry when a matching hronologija row
 already exists — bounded, not attempted this mission for fix-budget reasons.
 
-**LIVINGSYS-DEBT-052 (Medium)** — `memory_graph.py` has a byte-identical tenant-resolution
-duplicate of `firm_memory.py`'s logic, missed by the 2026-07-26 consolidation that extracted
-`shared/kancelarija_utils.py` specifically to prevent this. A pure import-and-delete fix — cheap,
-flagged as a quick win.
+**LIVINGSYS-DEBT-052 — FIXED** (Program Phoenix, Mission 003, 2026-08-07).
+`routers/memory_graph.py` now imports `shared/kancelarija_utils.py::get_kancelarija_id`
+(aliased `_get_firma_id`, all 4 call sites unchanged); the local duplicate is removed. Proof:
+`test_memory_graph_reuses_canonical_kancelarija_helper`.
 
 **LIVINGSYS-DEBT-053 (Medium)** — non-deadline narrative entries (case-closure notes, hearing
 follow-ups) render on the firm-wide Calendar tagged identically to real filing deadlines. Needs a
