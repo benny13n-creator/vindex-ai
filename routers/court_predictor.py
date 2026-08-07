@@ -873,6 +873,12 @@ async def argument_reputation(
 
     # RAG pretraga za svaki argument
     rag_kontekst = ""
+    # Program Phoenix, Mission 009 (LIVINGSYS-DEBT-047): only the first 5 of up to 10 allowed
+    # arguments ever get a real retrieval pass below -- arguments 6-10's "relevantne_odluke"
+    # claim is pure model output with zero grounding. Extending retrieval to all 10 is real
+    # added latency/cost; this tracks which arguments actually got a grounded pass so the
+    # response can disclose it per-argument instead of silently presenting all 10 the same way.
+    _grounded_argumenti: set[str] = set()
     if _RAG_AVAILABLE:
         try:
             rag_delovi = []
@@ -880,6 +886,7 @@ async def argument_reputation(
                 query = f"{payload.tip_spora} {arg} {payload.sud or ''}"
                 odluke = await asyncio.to_thread(retrieve_sudska_praksa, query.strip()[:300], 4)
                 if odluke:
+                    _grounded_argumenti.add(arg)
                     tekstovi = []
                     for m in odluke:
                         meta = getattr(m, "metadata", {}) or {}
@@ -939,6 +946,11 @@ async def argument_reputation(
         for _a in (rezultat.get("argumenti_analiza") or []):
             if not isinstance(_a, dict):
                 continue
+            # Program Phoenix, Mission 009 (LIVINGSYS-DEBT-047): disclose whether this specific
+            # argument's "relevantne_odluke"/uspesnost_procena claim had a real retrieval pass
+            # behind it -- a text-match miss (model paraphrased the argument back) fails safe
+            # to False rather than overclaiming grounding.
+            _a["rag_grounded"] = (_a.get("argument") or "").strip() in _grounded_argumenti
             _proc = _a.get("uspesnost_procena")
             if isinstance(_proc, str):
                 try:

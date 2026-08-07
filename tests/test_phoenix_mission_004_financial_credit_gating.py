@@ -152,7 +152,7 @@ async def test_nacrt_charges_on_genuine_success():
 
 def test_podnesak_skips_charge_only_when_entiteti_empty():
     src = open(os.path.join(REPO_ROOT, "routers", "drafting.py"), encoding="utf-8").read()
-    marker = "nacrt = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)"
+    marker = "nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)"
     block = src.split(marker, 1)[1][:1200]
     assert "if entiteti:" in block
     assert 'await UsageService.consume(user["user_id"]' in block

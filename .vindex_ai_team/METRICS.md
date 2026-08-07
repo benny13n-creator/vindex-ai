@@ -2001,3 +2001,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 126 passed, 0 failed |
 | Full suite | **3,266 passed, 1 skipped, 0 failed** — was 3,257 at Mission 007's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 009 — Hallucination Disclosure Mitigations (2026-08-07)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 2 (`LIVINGSYS-DEBT-047`, `-015`, both fully) |
+| Files touched | 4 (`routers/court_predictor.py`, `routers/drafting.py`, `static/vindex.js`, `static/index.html`) + `static/sw.js` cache bump |
+| New algorithms invented | 0 (disclosure-only, reused existing retrieval/critique data) |
+| Regression tests added | 8 (`tests/test_phoenix_mission_009_hallucination_disclosure.py`) |
+| Pre-existing test corrections | 6 (5 in `test_faza3_drafting_engine_2026_07_24.py`, 1 marker fix in Mission 004's own test) |
+| Subsystem tests | 173 passed, 0 failed |
+| Full suite | **3,274 passed, 1 skipped, 0 failed** — was 3,266 at Mission 008's close |
+| STOP GATE | PASS |

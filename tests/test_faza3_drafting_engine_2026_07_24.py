@@ -88,7 +88,7 @@ def test_critique_vraca_original_kad_nema_problema():
         MockOAI.return_value.chat.completions.create.return_value = fake_resp
         out = asyncio.run(_run_critique("ORIGINALNI NACRT"))
 
-    assert out == "ORIGINALNI NACRT"
+    assert out == ("ORIGINALNI NACRT", True)
 
 
 def test_critique_ispravlja_halucinaciju():
@@ -104,7 +104,7 @@ def test_critique_ispravlja_halucinaciju():
         MockOAI.return_value.chat.completions.create.return_value = fake_resp
         out = asyncio.run(_run_critique("NACRT SA IZMIŠLJENIM ČL. 999"))
 
-    assert out == "ISPRAVLJEN NACRT BEZ HALUCINACIJE"
+    assert out == ("ISPRAVLJEN NACRT BEZ HALUCINACIJE", True)
 
 
 def test_critique_dopunjava_nedostajuce_elemente():
@@ -120,7 +120,7 @@ def test_critique_dopunjava_nedostajuce_elemente():
         MockOAI.return_value.chat.completions.create.return_value = fake_resp
         out = asyncio.run(_run_critique("NACRT BEZ DOKAZNOG PREDLOGA"))
 
-    assert out == "NACRT SA DODATIM DOKAZNIM PREDLOGOM"
+    assert out == ("NACRT SA DODATIM DOKAZNIM PREDLOGOM", True)
 
 
 def test_critique_fallback_na_original_ako_poziv_ne_uspe():
@@ -132,7 +132,7 @@ def test_critique_fallback_na_original_ako_poziv_ne_uspe():
         MockOAI.return_value.chat.completions.create.side_effect = Exception("mrežna greška")
         out = asyncio.run(_run_critique("ORIGINALNI NACRT"))
 
-    assert out == "ORIGINALNI NACRT"
+    assert out == ("ORIGINALNI NACRT", False)
 
 
 def test_critique_fallback_ako_nedostaje_ispravljen_tekst():
@@ -150,4 +150,4 @@ def test_critique_fallback_ako_nedostaje_ispravljen_tekst():
         MockOAI.return_value.chat.completions.create.return_value = fake_resp
         out = asyncio.run(_run_critique("ORIGINALNI NACRT"))
 
-    assert out == "ORIGINALNI NACRT"
+    assert out == ("ORIGINALNI NACRT", False)

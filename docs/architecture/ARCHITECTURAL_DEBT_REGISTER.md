@@ -4410,10 +4410,15 @@ every one of ~12 templates in `templates/podnesci.py` plus `drafting/templates.p
 multi-file prompt-engineering pass needing its own verification budget, not a single-function
 patch.
 
-**LIVINGSYS-DEBT-015 (High)** — `_critique_and_refine_draft`'s exception handler silently returns
-the unreviewed draft with no field indicating the critique pass didn't run. A minimal fix (add a
-`critique_applied: bool` field to the response) is plausible for a future mission; not done here
-because it was deprioritized below `-013`/`-014` in the same file given fix-budget limits.
+**LIVINGSYS-DEBT-015 — FIXED** (Program Phoenix, Mission 009, 2026-08-07).
+`_critique_and_refine_draft` now returns `(nacrt, critique_applied)` instead of a bare string —
+`critique_applied` is `False` for both silent-degradation paths (exception; problem reported but
+no fix text returned), `True` only when the pass genuinely verified the draft clean or fixed it.
+`/api/podnesak`'s response gained the field; the frontend shows a conditional warning banner when
+`False`. Proof: `tests/test_phoenix_mission_009_hallucination_disclosure.py::
+test_critique_and_refine_draft_signals_false_on_exception` + 3 companion tests. Full report:
+`docs/phoenix/mission-009/`. (`-013`/`-014`, the deeper RAG-grounding gap this pass checks
+against, remain open for Mission 010.)
 
 ### Concurrency/idempotency family
 
@@ -4504,12 +4509,15 @@ test_reklasifikuj_skips_charge_on_genuine_failure` + 3 companion tests.
 `test_matter_intel_rocista_query_filters_zakazano_status`. Full report:
 `docs/phoenix/mission-001/`.
 
-**LIVINGSYS-DEBT-047 (High)** — Court Predictor's `argument_reputation.relevantne_odluke` is
-fully hallucinated (no RAG grounding at all) for arguments 6-10, since only the first 5 of up to
-10 arguments get a real retrieval pass. Fixing requires either extending RAG retrieval to all 10
-arguments (real added latency/cost) or explicitly disclosing per-argument grounding status
-(smaller fix, same "make the gap visible" pattern as Part A's Fix 9/10) — the latter is a
-plausible quick win for a future mission.
+**LIVINGSYS-DEBT-047 — FIXED** (Program Phoenix, Mission 009, 2026-08-07). Took the disclosure
+path named as the plausible quick win: each `argumenti_analiza` item now carries
+`"rag_grounded": bool`, tracked from which of the first 5 arguments' retrieval calls actually
+returned decision matches (text-matched, fails safe to `False`). Frontend shows a ⚠ note under
+any argument marked ungrounded. RAG retrieval scope itself is unchanged (still only the first 5
+of up to 10 — extending it remains a real latency/cost tradeoff, not attempted here). Proof:
+`tests/test_phoenix_mission_009_hallucination_disclosure.py::
+test_argument_reputation_arguments_beyond_fifth_never_grounded`. Full report:
+`docs/phoenix/mission-009/`.
 
 ### Data quality / trust family (not yet fixed)
 

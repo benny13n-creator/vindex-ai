@@ -3338,6 +3338,7 @@ async function stratArgumentReputation() {
       var bh = bojaHex[a.boja] || '#9ca3af';
       return '<div style="padding:.6rem .7rem;border-left:2px solid ' + bh + ';background:rgba(255,255,255,.02);margin-bottom:.4rem;">'
         + '<div style="display:flex;justify-content:space-between;gap:.5rem;"><span style="font-size:.8rem;color:rgba(255,255,255,.85);flex:1;">' + _htmlEsc(a.argument || '') + '</span><span style="font-size:.85rem;font-weight:800;color:' + bh + ';flex-shrink:0;">' + (a.uspesnost_procena != null ? a.uspesnost_procena + '%' : '?') + '</span></div>'
+        + (a.rag_grounded === false ? '<div style="font-size:.65rem;color:rgba(255,187,112,.75);margin-top:.2rem;">⚠ procena bez direktne potvrde iz sudske prakse</div>' : '')
         + (a.obrazlozenje ? '<div style="font-size:.74rem;color:rgba(255,255,255,.5);margin-top:.25rem;">' + _htmlEsc(a.obrazlozenje) + '</div>' : '')
         + (a.preporuka ? '<div style="font-size:.74rem;color:rgba(155,225,255,.8);margin-top:.25rem;">→ ' + _htmlEsc(a.preporuka) + '</div>' : '')
         + '</div>';
@@ -7431,6 +7432,11 @@ async function execQuery() {
           '<span class="popuniti">[$1 — POPUNITI]</span>');
         previewBody.innerHTML = highlighted;
         previewEl.style.display = 'block';
+        // Program Phoenix, Mission 009 (LIVINGSYS-DEBT-015): critique_applied is only present
+        // on /api/podnesak responses (the pass that checks citations against RAG sources) --
+        // undefined (e.g. /api/nacrt, which has no critique pass) never shows this warning.
+        var _critiqueWarnEl = document.getElementById('podnesak-preview-critique-warn');
+        if (_critiqueWarnEl) _critiqueWarnEl.style.display = (d.critique_applied === false) ? 'flex' : 'none';
         // Resetuj edit tracker za correction capture + merimo vreme od AI odgovora do akcije
         window._podnesakEdited = false;
         window._aiResponseTimestamp = Date.now();

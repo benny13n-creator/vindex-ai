@@ -3060,3 +3060,20 @@ both `kalendar.py` and `vindex.js`'s renderers. `static/sw.js` bumped `vindex-v1
 126/126 passed. Full suite: **3,266 passed, 1 skipped, 0 failed** (was 3,257, +9 tests, zero
 regressions). Red Team self-check passed (4 adversarial scenarios, no break found). Full report:
 `docs/phoenix/mission-008/`. **STOP GATE: PASS.**
+
+### Mission 009 — Hallucination Disclosure Mitigations (CLOSED)
+
+Closed `LIVINGSYS-DEBT-047` (Court Predictor's argument-reputation grounding claim was
+undisclosed for arguments 6-10, which never get a RAG retrieval pass) and `-015`
+(`_critique_and_refine_draft`'s 2 silent-degradation paths gave zero signal that the anti-
+hallucination check on a drafted podnesak didn't reliably run) — both fully, via the exact
+"make the gap visible" disclosure pattern the debt register itself named for both. `-047`: each
+argument-reputation item now carries `rag_grounded: bool`. `-015`: `_critique_and_refine_draft`
+now returns `(nacrt, critique_applied)`, threaded into `/api/podnesak`'s response and a
+conditional frontend warning banner. `static/sw.js` bumped `vindex-v101` → `vindex-v102` (this
+mission touched `vindex.js`/`index.html`). 8 new tests
+(`tests/test_phoenix_mission_009_hallucination_disclosure.py`), 6 pre-existing tests corrected
+for the additive shape change. Subsystem: 173/173 passed. Full suite: **3,274 passed, 1
+skipped, 0 failed** (was 3,266, +8 tests, zero regressions). Red Team self-check passed (4
+adversarial scenarios, no break found). Full report: `docs/phoenix/mission-009/`.
+**STOP GATE: PASS.**

@@ -427,13 +427,18 @@ async def _pozovi_kriticara(oai_client, nacrt: str, kontekst: str, tip_naziv: st
     return json.loads(raw)
 
 
-async def _critique_and_refine_draft(nacrt: str, kontekst: str, tip: str, log_id: str) -> str:
+async def _critique_and_refine_draft(nacrt: str, kontekst: str, tip: str, log_id: str) -> tuple[str, bool]:
     """Drugi, brz LLM prolaz nad već generisanim nacrtom: proverava izmišljene
     članove zakona van [IZVOR-n] konteksta i obavezne formalne elemente
     podneska, i ispravlja ih ako postoje. Ako je nacrt besprekoran, vraća ga
     NEIZMENJEN (ignoriše model's "ispravljen_tekst" kad model sam prijavi da
     nema problema -- izbegava suvišno prepisivanje/drift). Nikad ne baca:
-    svaka greška pada nazad na originalni nacrt umesto da blokira odgovor."""
+    svaka greška pada nazad na originalni nacrt umesto da blokira odgovor.
+
+    Vraća (nacrt, critique_applied). Program Phoenix, Mission 009 (LIVINGSYS-DEBT-015):
+    critique_applied=False znači da critique pass NIJE pouzdano potvrdio ovaj nacrt (exception,
+    ili je model prijavio problem ali nije vratio ispravku) -- pre ove izmene oba slučaja su
+    tiho vraćala neizmenjen nacrt sa nula signala da anti-halucinacija provera nije uspela."""
     try:
         from openai import OpenAI as _OAI
         oai_client = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -445,24 +450,24 @@ async def _critique_and_refine_draft(nacrt: str, kontekst: str, tip: str, log_id
         ima_problema = bool(kritika.get("ima_izmisljenih_navoda")) or bool(izmisljeni) or bool(nedostaje)
 
         if not ima_problema:
-            return nacrt
+            return nacrt, True
 
         ispravljen = (kritika.get("ispravljen_tekst") or "").strip()
         if not ispravljen:
             logger.warning(
                 "Critique pass prijavio probleme ali nije vratio ispravljen tekst [q=%s]", log_id
             )
-            return nacrt
+            return nacrt, False
 
         logger.info(
             "Critique pass ispravio nacrt [q=%s]: izmisljeni_navodi=%s nedostaju_elementi=%s",
             log_id, izmisljeni, nedostaje,
         )
-        return ispravljen
+        return ispravljen, True
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("Critique pass neuspešan [q=%s]: %s — vraćam originalni nacrt", log_id, exc)
-        return nacrt
+        return nacrt, False
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -849,7 +854,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         obogacivanje = {}
 
     nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
-    nacrt = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+    nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
 
     # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
     # when entity extraction (the step whose failure makes the draft closest to worthless --
@@ -872,6 +877,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         "odgovor": nacrt,
         "tip":     req.tip,
         "naziv":   PODNESAK_TIPOVI[req.tip],
+        "critique_applied": critique_applied,
     }
 
 
