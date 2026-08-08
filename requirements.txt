@@ -35,3 +35,8 @@ pdf2image>=1.16.3
 httpx>=0.27.0
 defusedxml>=0.7.1
 websockets>=13.0
+# Test-only plugin, but CI installs requirements.txt and the suite has heavy
+# process-global coupling (dependency_overrides, sys.modules swaps, module-level
+# caches). Order independence was never actually verified: every '-p no:randomly'
+# flag used up to now was a no-op because no such plugin was installed.
+pytest-randomly==4.1.0

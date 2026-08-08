@@ -52,4 +52,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pytest
-        run: pytest tests/ -q
+        # -rs: report SKIPPED with reasons. Without it the 59 real-PostgreSQL
+        # tests covering migrations 107 and 108 -- the credit-race closure the
+        # Beta GO was made conditional on -- collapse into a row of bare 's'
+        # characters, and CI reports green having verified none of them. The
+        # skip conditions are honest; their invisibility was the defect.
+        run: pytest tests/ -q -rs
