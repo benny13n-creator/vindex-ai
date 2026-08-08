@@ -17,8 +17,20 @@ import os
 import sys
 
 import pytest
+from starlette.requests import Request as StarletteRequest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _real_request(path="/api/multi-agent/pipeline"):
+    """slowapi's @limiter.limit rejects anything that is not a genuine
+    starlette Request, so these handlers cannot be driven with a MagicMock."""
+    from unittest.mock import MagicMock
+    return StarletteRequest(scope={
+        "type": "http", "method": "POST", "headers": [], "query_string": b"",
+        "path": path, "client": ("127.0.0.1", 1234),
+        "app": MagicMock(), "state": MagicMock(),
+    })
 
 
 @pytest.fixture
@@ -156,3 +168,89 @@ def test_frontend_still_handles_the_non_retry_status_codes():
     for marker in ("r.status === 401", "r.status === 402", "r.status === 403", "r.status === 429"):
         assert marker in body, f"{marker} handling lost"
     assert "showPaywall()" in body, "402 must still open the paywall"
+
+
+# ── P1-A2: /multi-agent/pipeline discarded already-paid steps ───────────────
+
+@pytest.mark.anyio
+async def test_pipeline_returns_paid_steps_when_a_later_step_is_rejected():
+    """run_agent() charges as each step runs. The handler's `except
+    HTTPException: raise` therefore threw away finished, already-billed steps
+    whenever step 2+ hit a 402/429 — the lawyer paid for step 1 and received
+    nothing at all. Charged-and-delivered-nothing is the one outcome this
+    codebase refunds for everywhere else."""
+    from fastapi import HTTPException
+    from unittest.mock import AsyncMock, MagicMock, patch
+    import routers.multi_agent as ma
+
+    calls = {"n": 0}
+
+    async def _fake_run_agent(inner_req, request, user):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"odgovor": "Analiza prvog koraka.", "rag_korišćen": False}
+        raise HTTPException(status_code=402, detail={"code": "NO_CREDITS"})
+
+    body = ma.PipelineReq(opis="Spor oko ugovora", pipeline=["intake", "research"], predmet_id=None)
+    user = {"user_id": "u1", "email": "a@b.rs"}
+
+    with patch.object(ma, "run_agent", new=_fake_run_agent), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()):
+        out = await ma.run_pipeline(body, _real_request(), user)
+
+    # The paid step survives.
+    assert out["koraci"] == 2
+    assert out["rezultati"][0]["output"] == "Analiza prvog koraka."
+    assert not out["rezultati"][0].get("greska")
+
+    # And the caller can still see it was cut short, and why.
+    assert out["kompletan"] is False
+    assert out["prekid"]["status"] == 402
+    assert out["prekid"]["korak"] == 2
+
+
+@pytest.mark.anyio
+async def test_pipeline_still_raises_when_the_first_step_is_rejected():
+    """No regression: nothing has been charged yet at step 1, so propagating
+    the 402 is correct — an empty 200 would hide the paywall from the client."""
+    from fastapi import HTTPException
+    from unittest.mock import MagicMock, patch
+    import routers.multi_agent as ma
+
+    async def _always_402(inner_req, request, user):
+        raise HTTPException(status_code=402, detail={"code": "NO_CREDITS"})
+
+    body = ma.PipelineReq(opis="Spor", pipeline=["intake", "research"], predmet_id=None)
+
+    with patch.object(ma, "run_agent", new=_always_402), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()):
+        with pytest.raises(HTTPException) as exc:
+            await ma.run_pipeline(body, _real_request(), {"user_id": "u1", "email": "a@b.rs"})
+
+    assert exc.value.status_code == 402
+
+
+@pytest.mark.anyio
+async def test_pipeline_kompletan_is_false_when_the_last_step_fails():
+    """`kompletan` must not be derived from the step COUNT alone: a failure on
+    the final step still produces len(results) == len(pipeline)."""
+    from unittest.mock import MagicMock, patch
+    import routers.multi_agent as ma
+
+    calls = {"n": 0}
+
+    async def _fail_last(inner_req, request, user):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"odgovor": "ok", "rag_korišćen": False}
+        raise RuntimeError("provider down")
+
+    body = ma.PipelineReq(opis="Spor", pipeline=["intake", "research"], predmet_id=None)
+
+    with patch.object(ma, "run_agent", new=_fail_last), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()), \
+         patch.object(ma, "_sentry_capture", MagicMock()):
+        out = await ma.run_pipeline(body, _real_request(), {"user_id": "u1", "email": "a@b.rs"})
+
+    assert len(out["rezultati"]) == len(body.pipeline)
+    assert out["kompletan"] is False

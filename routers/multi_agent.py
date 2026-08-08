@@ -837,6 +837,7 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
 
     results = []
     accumulated_ctx = req.opis
+    _prekid: dict | None = None  # set when the pipeline stopped on an HTTP error
 
     for step, agent_id in enumerate(pipeline):
         try:
@@ -862,8 +863,33 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
                 f"{req.opis}\n\n"
                 f"[{_AGENTS[agent_id]['naziv'].upper()} — PRETHODNI KORAK]:\n{odgovor[:2000]}"
             )
-        except HTTPException:
-            raise
+        except HTTPException as _he:
+            # P1-A2 (2026-08-08): this used to be a bare `raise`. Each step is
+            # charged by run_agent() as it runs, so on a 402/429/5xx at step 3
+            # the lawyer had already paid for steps 1 and 2 -- and re-raising
+            # threw that finished, paid-for work away and returned nothing.
+            # Charged-and-delivered-nothing is the exact failure this codebase
+            # refunds for everywhere else.
+            #
+            # Step 1 is different: nothing has been charged yet, so propagating
+            # is both correct and cleaner than an empty 200.
+            if step == 0:
+                raise
+            logger.warning(
+                "[PIPELINE] uid=%s prekinut na koraku %d/%d (HTTP %s) — vraćam %d već naplaćen(ih) koraka.",
+                uid[:8], step + 1, len(pipeline), _he.status_code, len(results),
+            )
+            _prekid = {
+                "status": _he.status_code,
+                "detail": _he.detail,
+                "korak":  step + 1,
+            }
+            results.append({
+                "korak": step + 1, "agent": agent_id,
+                "naziv": _AGENTS[agent_id]["naziv"], "ikona": _AGENTS[agent_id]["ikona"],
+                "output": f"Korak nije izvršen (HTTP {_he.status_code}).", "greska": True,
+            })
+            break
         except Exception as exc:
             _sentry_capture(exc)
             logger.error("[PIPELINE] agent=%s korak=%d greška: %s", agent_id, step+1, exc)
@@ -883,4 +909,15 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
         "predmet_id": req.predmet_id,
         "koraci":     len(results),
         "rezultati":  results,
+        # P1-A2: the caller must be able to tell a complete pipeline from one
+        # that stopped early, and to act on the reason (402 -> paywall, 429 ->
+        # back off) without losing the steps already paid for and returned.
+        # A failed LAST step still yields len(results) == len(pipeline), so the
+        # count alone is not enough — every step must also have succeeded.
+        "kompletan":  (
+            _prekid is None
+            and len(results) == len(pipeline)
+            and not any(r.get("greska") for r in results)
+        ),
+        "prekid":     _prekid,
     }
