@@ -185,43 +185,60 @@ async def _claim_cooldown_atomic(user_id: str, feature: str, cooldown: float) ->
         raise
 
 
-async def _increment_usage(user_id: str, feature: str, credits_spent: float) -> None:
+async def _increment_usage(
+    user_id: str, feature: str, credits_spent: float, dnevni_limit: Optional[int] = None
+) -> int:
+    """Atomically count one use of `feature` for `user_id` today.
+
+    Returns the new daily count, or -1 when `dnevni_limit` was already
+    reached (in which case NOTHING was counted and the caller must reject).
+
+    B1/B2 (second-order audit, 2026-08-08): this used to be a
+    read-modify-write across two PostgREST round-trips —
+        SELECT broj_koriscenja  ->  UPDATE broj_koriscenja = <read> + 1
+    Two concurrent calls for the same (user_id, feature, dan) both read N and
+    both wrote N+1, permanently losing one use in the user's favour. Worse, on
+    the day's FIRST call both would INSERT, one would hit
+    UNIQUE (user_id, feature_key, dan), and the 23505 was swallowed by the
+    bare except below and logged non-fatal — that use was never counted at all.
+
+    This is not a cosmetic counter: `dnevni_limit`/`mesecni_limit` are checked
+    against it, and for the two features priced at ZERO credits
+    (copilot_ambient dnevni 200, morning_briefing dnevni 5) it is the ONLY
+    budget protection that exists.
+
+    Migration 108's increment_feature_usage does check-and-increment in ONE
+    statement, so passing `dnevni_limit` here also closes the separate
+    check-then-act window in consume() (the limit was read at the top and the
+    counter written an entire AI call later).
+    """
     today = _today_iso()
     mesec = _month_iso()
 
-    def _upsert():
-        supa = _get_supa()
-        existing = (
-            supa.table("feature_usage")
-            .select("broj_koriscenja, krediti_potroseni")
-            .eq("user_id", user_id)
-            .eq("feature_key", feature)
-            .eq("dan", today)
-            .maybe_single()
-            .execute()
-        )
-        if existing.data:
-            supa.table("feature_usage").update({
-                "broj_koriscenja": (existing.data.get("broj_koriscenja") or 0) + 1,
-                "krediti_potroseni": float(existing.data.get("krediti_potroseni") or 0) + credits_spent,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }).eq("user_id", user_id).eq("feature_key", feature).eq("dan", today).execute()
-        else:
-            supa.table("feature_usage").insert({
-                "user_id": user_id,
-                "feature_key": feature,
-                "dan": today,
-                "mesec": mesec,
-                "broj_koriscenja": 1,
-                "krediti_potroseni": credits_spent,
-            }).execute()
+    def _rpc() -> int:
+        res = _get_supa().rpc("increment_feature_usage", {
+            "p_user_id": user_id,
+            "p_feature": feature,
+            "p_dan": today,
+            "p_mesec": mesec,
+            "p_credits": float(credits_spent or 0),
+            "p_dnevni_limit": dnevni_limit,
+        }).execute()
+        return res.data if res.data is not None else -1
 
     try:
-        await asyncio.to_thread(_upsert)
+        return await asyncio.to_thread(_rpc)
     except Exception as exc:
-        # Ne blokiraj korisnika zbog greške u brojanju upotrebe — kredit je već
-        # (ili nije) potrošen preko atomičnog RPC-a, to je izvor istine za novac.
-        logger.warning("[USAGE] _increment_usage greška (non-fatal): %s", exc)
+        # Fail SOFT and fail OPEN, deliberately: the credit itself was already
+        # settled by deduct_n_credits, which is the source of truth for money.
+        # Blocking a paying lawyer because a usage COUNTER could not be written
+        # would be a worse outcome than an uncounted use. Logged on its own
+        # marker so a missing migration 108 is visible rather than silent.
+        logger.warning(
+            "[USAGE] increment_feature_usage RPC failed for feature=%s (migration 108 applied?) "
+            "— use not counted, request allowed: %s", feature, exc,
+        )
+        return 0
 
 
 async def _log_usage_event(
@@ -315,6 +332,10 @@ class UsageService:
                     },
                 )
 
+        # Fast, friendly pre-check. NOT the enforcement mechanism -- it is a
+        # check-then-act read and races by definition. The authoritative daily
+        # gate is the atomic increment further down (migration 108), which
+        # refuses to count a use that would exceed the limit and returns -1.
         if dnevni_limit is not None:
             row = await _get_usage_row(user_id, feature)
             used_today = (row or {}).get("broj_koriscenja") or 0
@@ -351,6 +372,27 @@ class UsageService:
         # up front keeps that case behaving exactly as it always has (no
         # charge, no error) while making p_n <= 0 unreachable from the app.
         # The database rejects it independently anyway; this is defence in depth.
+        # ── AUTHORITATIVE DAILY GATE ──────────────────────────────────────
+        # B2: this runs BEFORE the charge, on purpose. The two features whose
+        # daily limit is the only budget protection (copilot_ambient,
+        # morning_briefing) are priced at ZERO credits, so for exactly the
+        # cases where the limit matters there is no charge that can fail after
+        # this point. For priced features the credit pre-check above already
+        # rejects the common insufficient-balance case, so counting a use whose
+        # charge then loses a race is a narrow, documented over-count against
+        # the user rather than a silent free use against the business — the
+        # same conservative trade-off already accepted for _claim_cooldown_atomic.
+        _usage_count = await _increment_usage(user_id, feature, credits, dnevni_limit)
+        if _usage_count < 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "code": "DAILY_LIMIT",
+                    "feature": feature,
+                    "message": "Dostigli ste dnevni limit korišćenja za ovu funkciju. Pokušajte sutra.",
+                },
+            )
+
         n_credits = int(credits)
         if n_credits > 0:
             trenutno = await asyncio.to_thread(_get_credits, user_id)

@@ -39,7 +39,7 @@ async def test_consume_uses_registry_credit_multiplier_by_default():
          patch("shared.usage._is_founder", return_value=False), \
          patch("shared.usage._get_credits", return_value=100), \
          patch("shared.usage._deduct_n_credits", return_value=88) as mock_deduct, \
-         patch("shared.usage._increment_usage", new_callable=AsyncMock), \
+         patch("shared.usage._increment_usage", new_callable=AsyncMock, return_value=1), \
          patch("shared.usage._log_usage_event", new_callable=AsyncMock), \
          patch("shared.usage._seconds_since_last_call", new_callable=AsyncMock, return_value=None), \
          patch("shared.usage._get_usage_row", new_callable=AsyncMock, return_value=None), \
@@ -62,7 +62,7 @@ async def test_consume_explicit_multiplier_overrides_registry():
          patch("shared.usage._is_founder", return_value=False), \
          patch("shared.usage._get_credits", return_value=100), \
          patch("shared.usage._deduct_n_credits", return_value=97) as mock_deduct, \
-         patch("shared.usage._increment_usage", new_callable=AsyncMock), \
+         patch("shared.usage._increment_usage", new_callable=AsyncMock, return_value=1), \
          patch("shared.usage._log_usage_event", new_callable=AsyncMock), \
          patch("shared.usage._seconds_since_last_call", new_callable=AsyncMock, return_value=None), \
          patch("shared.usage._get_usage_row", new_callable=AsyncMock, return_value=None), \
@@ -84,7 +84,7 @@ async def test_consume_explicit_multiplier_1_overrides_registry_down():
          patch("shared.usage._is_founder", return_value=False), \
          patch("shared.usage._get_credits", return_value=100), \
          patch("shared.usage._deduct_n_credits", return_value=97) as mock_deduct, \
-         patch("shared.usage._increment_usage", new_callable=AsyncMock), \
+         patch("shared.usage._increment_usage", new_callable=AsyncMock, return_value=1), \
          patch("shared.usage._log_usage_event", new_callable=AsyncMock), \
          patch("shared.usage._seconds_since_last_call", new_callable=AsyncMock, return_value=None), \
          patch("shared.usage._get_usage_row", new_callable=AsyncMock, return_value=None), \
@@ -111,7 +111,7 @@ async def test_consume_no_multiplier_field_defaults_to_1():
          patch("shared.usage._is_founder", return_value=False), \
          patch("shared.usage._get_credits", return_value=100), \
          patch("shared.usage._deduct_n_credits", return_value=95) as mock_deduct, \
-         patch("shared.usage._increment_usage", new_callable=AsyncMock), \
+         patch("shared.usage._increment_usage", new_callable=AsyncMock, return_value=1), \
          patch("shared.usage._log_usage_event", new_callable=AsyncMock), \
          patch("shared.usage._seconds_since_last_call", new_callable=AsyncMock, return_value=None), \
          patch("shared.usage._get_usage_row", new_callable=AsyncMock, return_value=None), \

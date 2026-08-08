@@ -172,7 +172,23 @@ def test_deps_deduct_n_credits_exception_returns_sentinel_not_zero():
 async def test_consume_rejects_when_deduct_n_credits_signals_insufficient():
     """Simulates the TOCTOU race: the pre-check (_get_credits) saw enough
     balance, but the atomic RPC lost the race and reports -1. consume() must
-    raise 402 and must NOT record usage for a charge that never happened."""
+    raise 402 and must not bill the user.
+
+    ORDERING CHANGED DELIBERATELY (migration 108, findings B1/B2): the daily
+    usage counter is now incremented BEFORE the charge, because that counter
+    is the atomic enforcement point for `dnevni_limit` — it has to claim the
+    slot before anything else can. The consequence, accepted and documented in
+    shared/usage.py, is that a request which passes the daily gate and then
+    loses the credit race has consumed one unit of its own daily allowance
+    without being charged money.
+
+    That trade-off is deliberately in the conservative direction. The two
+    features whose daily limit is their only budget protection
+    (copilot_ambient, morning_briefing) are priced at ZERO credits, so for
+    exactly those there is no charge that can fail after the increment. What
+    must never happen is the reverse — a use that costs money without being
+    counted — and that is what this test now pins.
+    """
     from fastapi import HTTPException
     from shared.usage import UsageService
 
@@ -182,7 +198,7 @@ async def test_consume_rejects_when_deduct_n_credits_signals_insufficient():
          patch("shared.usage._is_founder", return_value=False), \
          patch("shared.usage._get_credits", return_value=12), \
          patch("shared.usage._deduct_n_credits", return_value=-1) as mock_deduct, \
-         patch("shared.usage._increment_usage", new_callable=AsyncMock) as mock_incr_usage, \
+         patch("shared.usage._increment_usage", new_callable=AsyncMock, return_value=1) as mock_incr_usage, \
          patch("shared.usage._log_usage_event", new_callable=AsyncMock) as mock_log, \
          patch("shared.usage._seconds_since_last_call", new_callable=AsyncMock, return_value=None), \
          patch("shared.usage._get_usage_row", new_callable=AsyncMock, return_value=None), \
@@ -193,5 +209,12 @@ async def test_consume_rejects_when_deduct_n_credits_signals_insufficient():
     assert exc_info.value.status_code == 402
     assert exc_info.value.detail["code"] == "NO_CREDITS"
     mock_deduct.assert_called_once()
-    mock_incr_usage.assert_not_called()
+
+    # The daily gate ran first and claimed its slot — see the docstring.
+    mock_incr_usage.assert_called_once()
+    assert mock_incr_usage.call_args.args[3] is None, "dnevni_limit must be passed through"
+
+    # The money is what matters: no billing telemetry is written for a charge
+    # that never happened, and the caller is rejected.
+    mock_log.assert_not_called()
     mock_log.assert_not_called()
