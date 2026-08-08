@@ -256,6 +256,31 @@ async def _consequence_genome_refresh(event: Event) -> str:
         return "skipped_no_predmet_id"
 
     supa = _get_supa()
+
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-011 remainder): a crash-then-reclaim
+    # within _CONSEQUENCE_STALE_PENDING_SECONDS (the executor ran and _do_genome_refresh
+    # already wrote a new predmet_genome_history row + bumped verzija, but the process
+    # died before _mark_completed) used to re-trigger a full 2nd GPT recompute on
+    # reclaim -- wasted cost, and since GPT output isn't deterministic, a real risk of 2
+    # DIFFERENT genome results for what was conceptually one trigger. _do_genome_refresh
+    # (routers/case_dna.py::_save_genome_history) already writes trigger_event on every
+    # successful refresh -- reused as the dedup key, but scoped to THIS event's own
+    # event_id (not the old hardcoded, shared-across-all-callers literal) so 2 genuinely
+    # DIFFERENT events for the same predmet within the same window (e.g. a document
+    # accepted, then separately a hearing scheduled) are never conflated -- only a
+    # reclaim of the SAME event_id is treated as a duplicate. static/vindex.js's genome
+    # history renderer maps the "case_evolution:" prefix to a friendly label, same
+    # pattern already used there for 'upload_trigger'/'manual_refresh'.
+    _trigger = f"case_evolution:{event.event_id}"
+    _dup_g = await asyncio.to_thread(
+        lambda: supa.table("predmet_genome_history").select("verzija")
+            .eq("predmet_id", predmet_id).eq("trigger_event", _trigger)
+            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+            .order("created_at", desc=True).limit(1).execute()
+    )
+    if _dup_g.data:
+        return f"skipped_duplicate_refresh_v{_dup_g.data[0].get('verzija')}"
+
     before_res = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("case_dna").eq("id", predmet_id).maybe_single().execute()
     )
@@ -263,7 +288,7 @@ async def _consequence_genome_refresh(event: Event) -> str:
     before_verzija = (before_data or {}).get("case_dna", {}).get("verzija") if before_data else None
 
     from routers.case_dna import _run_genome_background
-    await _run_genome_background(predmet_id, uid, before_verzija, trigger="case_evolution_document_accepted")
+    await _run_genome_background(predmet_id, uid, before_verzija, trigger=_trigger)
 
     after_res = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("case_dna").eq("id", predmet_id).maybe_single().execute()
@@ -367,14 +392,32 @@ async def _consequence_review_confirmation_audit(event: Event) -> str:
     actually needs, not just 'a consequence ran'. Verification: log_action
     itself either succeeds or raises (shared/audit_immutable.py's own
     established contract) — no separate before/after check needed, unlike
-    genome_refresh's self-swallowing target function."""
+    genome_refresh's self-swallowing target function.
+
+    Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-011 remainder): a crash-then-
+    reclaim within _CONSEQUENCE_STALE_PENDING_SECONDS (log_action succeeded but
+    the process died before _mark_completed) used to append a 2nd, misleading
+    "review resolved" audit row for the same job. Appending is always safe for
+    an immutable hash-chained log (skipping never touches a prior entry), so a
+    plain recent-match check before the insert is enough -- no chain-integrity
+    concern, unlike deleting/editing would be."""
     payload = event.payload or {}
+    job_id = payload.get("intake_job_id")
     from shared.audit_immutable import log_action
+    supa = _get_supa()
+    _dup_a = await asyncio.to_thread(
+        lambda: supa.table("audit_immutable").select("id")
+            .eq("action", "dokument_review_resolved").eq("resource_id", job_id)
+            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+            .limit(1).execute()
+    )
+    if _dup_a.data:
+        return f"skipped_duplicate_audit:{job_id or ''}"
     await log_action(
         "dokument_review_resolved",
         user_id=event.user_id,
         resource_type="intake_job",
-        resource_id=payload.get("intake_job_id"),
+        resource_id=job_id,
         correlation_id=event.correlation_id,
         metadata={
             "prior_status": payload.get("prior_status"),
@@ -382,7 +425,7 @@ async def _consequence_review_confirmation_audit(event: Event) -> str:
             "review_resolved_now": payload.get("review_resolved_now"),
         },
     )
-    return f"audit_logged:{payload.get('intake_job_id', '')}"
+    return f"audit_logged:{job_id or ''}"
 
 
 async def _consequence_review_rejection_audit(event: Event) -> str:
@@ -394,21 +437,35 @@ async def _consequence_review_rejection_audit(event: Event) -> str:
     no genome_refresh, no timeline_entry, because a rejection means nothing
     was ever applied to the case in the first place (intake_jobs.status
     never reaches 'completed', migration 097), so there is nothing for
-    Genome or Timeline to reflect."""
+    Genome or Timeline to reflect.
+
+    Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-011 remainder): same
+    crash-then-reclaim duplicate-audit-row guard as
+    _consequence_review_confirmation_audit above."""
     payload = event.payload or {}
+    job_id = payload.get("intake_job_id")
     from shared.audit_immutable import log_action
+    supa = _get_supa()
+    _dup_a = await asyncio.to_thread(
+        lambda: supa.table("audit_immutable").select("id")
+            .eq("action", "dokument_review_rejected").eq("resource_id", job_id)
+            .gte("created_at", _iso_seconds_ago(_CONSEQUENCE_STALE_PENDING_SECONDS))
+            .limit(1).execute()
+    )
+    if _dup_a.data:
+        return f"skipped_duplicate_audit:{job_id or ''}"
     await log_action(
         "dokument_review_rejected",
         user_id=event.user_id,
         resource_type="intake_job",
-        resource_id=payload.get("intake_job_id"),
+        resource_id=job_id,
         correlation_id=event.correlation_id,
         metadata={
             "review_resolved_now": payload.get("review_resolved_now"),
             "job_status_rejected": payload.get("job_status_rejected"),
         },
     )
-    return f"audit_logged:{payload.get('intake_job_id', '')}"
+    return f"audit_logged:{job_id or ''}"
 
 
 # ─── Consequence executor — NEW_CLIENT_LINKED (Sprint 002) ───────────────────
@@ -586,6 +643,20 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
         return "skipped_no_new_documents"
 
     supa = _get_supa()
+
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-011 remainder): a crash-then-
+    # reclaim within _CONSEQUENCE_STALE_PENDING_SECONDS used to insert a 2nd
+    # summary row for the same batch. The row already carries this exact
+    # event's own event_id (below) -- an exact match is a more precise dedup
+    # key than a recent-window heuristic and needs no migration (no new
+    # UNIQUE constraint), just an application-level check-before-insert.
+    _dup_s = await asyncio.to_thread(
+        lambda: supa.table("case_intelligence_summaries").select("id")
+            .eq("event_id", event.event_id).limit(1).execute()
+    )
+    if _dup_s.data:
+        return str(_dup_s.data[0]["id"])
+
     after_res = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("case_dna,tip").eq("id", predmet_id).maybe_single().execute()
     )

@@ -211,3 +211,153 @@ async def test_get_ishod_active_predmet():
 
     assert result["zatvoren"] is False
     assert result["ishod"] is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-036 remainder): closing a case
+# must also close its own lingering open case_actions rows, not just hide
+# them from the worklist query (Mission 001's earlier, visibility-only fix).
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_supa_with_case_actions(pred: dict | None, update_wins: bool = True):
+    mock = MagicMock()
+    case_actions_calls = []
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            single_chain = MagicMock()
+            single_chain.execute.return_value.data = pred
+            t.select.return_value.eq.return_value.eq.return_value.single.return_value = single_chain
+            t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value = single_chain
+            upd_chain = MagicMock()
+            upd_chain.execute.return_value.data = ([pred] if pred else []) if update_wins else []
+            t.update.return_value.eq.return_value.eq.return_value.neq.return_value = upd_chain
+        elif name == "predmet_hronologija":
+            ins_chain = MagicMock()
+            ins_chain.execute.return_value.data = [{}]
+            t.insert.return_value = ins_chain
+        elif name == "case_actions":
+            def _update(payload):
+                node = MagicMock()
+                def _eq(col, val):
+                    case_actions_calls.append((col, val))
+                    return node
+                node.eq.side_effect = _eq
+                node.execute.return_value = MagicMock(data=[{"id": "ca-1"}])
+                return node
+            t.update.side_effect = _update
+        return t
+
+    mock.table.side_effect = _table
+    return mock, case_actions_calls
+
+
+@pytest.mark.anyio
+async def test_zatvori_predmet_closes_lingering_open_case_actions():
+    from routers.predmeti_close import ZatvoriReq, zatvori_predmet
+
+    pred = {"id": "pred-005", "naziv": "Test", "status": "aktivan", "opis": ""}
+    body = ZatvoriReq(ishod="pobeda")
+    supa, case_actions_calls = _build_supa_with_case_actions(pred)
+
+    with patch("routers.predmeti_close._get_supa", return_value=supa):
+        result = await zatvori_predmet("pred-005", body, _fake_request(), _fake_user())
+
+    assert result["ok"] is True
+    # predmet_id, user_id, and status='open' were all applied as filters
+    filter_cols = [c for c, _ in case_actions_calls]
+    assert "predmet_id" in filter_cols
+    assert "user_id" in filter_cols
+    assert "status" in filter_cols
+
+
+@pytest.mark.anyio
+async def test_zatvori_predmet_survives_case_actions_update_failure():
+    """The case_actions bulk-close is best-effort -- a failure there must
+    never block or fail the case closure itself (same non-blocking contract
+    as the hronologija insert)."""
+    from routers.predmeti_close import ZatvoriReq, zatvori_predmet
+
+    pred = {"id": "pred-006", "naziv": "Test", "status": "aktivan", "opis": ""}
+    body = ZatvoriReq(ishod="poraz")
+    supa, _ = _build_supa_with_case_actions(pred)
+
+    _orig_side_effect = supa.table.side_effect
+    def _wrapped(name):
+        if name == "case_actions":
+            t = MagicMock()
+            t.update.side_effect = RuntimeError("db unavailable")
+            return t
+        return _orig_side_effect(name)
+    supa.table.side_effect = _wrapped
+
+    with patch("routers.predmeti_close._get_supa", return_value=supa):
+        result = await zatvori_predmet("pred-006", body, _fake_request(), _fake_user())
+
+    assert result["ok"] is True  # closure itself still succeeded
+
+
+@pytest.mark.anyio
+async def test_bulk_zatvaranje_closes_case_actions_for_updated_predmeti_only():
+    from routers.predmeti_close import BulkAkcijaReq, bulk_promena_statusa
+
+    case_actions_calls = []
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.in_.return_value.execute.return_value = \
+                MagicMock(data=[{"id": "p1", "status": "aktivan"}, {"id": "p2", "status": "aktivan"}])
+            t.update.return_value.eq.return_value.in_.return_value.neq.return_value.execute.return_value = \
+                MagicMock(data=[{"id": "p1"}])  # p2 lost a race, only p1 actually updated
+        elif name == "case_actions":
+            def _update(payload):
+                node = MagicMock()
+                def _eq(col, val):
+                    return node
+                def _in_(col, vals):
+                    case_actions_calls.append(list(vals))
+                    return node
+                node.eq.side_effect = _eq
+                node.in_.side_effect = _in_
+                node.execute.return_value = MagicMock(data=[])
+                return node
+            t.update.side_effect = _update
+        return t
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    body = BulkAkcijaReq(predmet_ids=["p1", "p2"], akcija="zatvaranje")
+    with patch("routers.predmeti_close._get_supa", return_value=supa):
+        result = await bulk_promena_statusa(body, _fake_request(), _fake_user())
+
+    assert result["azurirano"] == 1
+    assert case_actions_calls == [["p1"]]  # only the actually-updated predmet, not p2
+
+
+@pytest.mark.anyio
+async def test_bulk_aktiviranje_does_not_touch_case_actions():
+    """Reopening a case must not close/touch its case_actions -- exempt scope."""
+    from routers.predmeti_close import BulkAkcijaReq, bulk_promena_statusa
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.in_.return_value.execute.return_value = \
+                MagicMock(data=[{"id": "p1", "status": "zatvoren"}])
+            t.update.return_value.eq.return_value.in_.return_value.neq.return_value.execute.return_value = \
+                MagicMock(data=[{"id": "p1"}])
+        elif name == "case_actions":
+            raise AssertionError("case_actions must not be touched on aktiviranje")
+        return t
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    body = BulkAkcijaReq(predmet_ids=["p1"], akcija="aktiviranje")
+    with patch("routers.predmeti_close._get_supa", return_value=supa):
+        result = await bulk_promena_statusa(body, _fake_request(), _fake_user())
+
+    assert result["azurirano"] == 1

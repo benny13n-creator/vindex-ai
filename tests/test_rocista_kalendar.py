@@ -437,7 +437,7 @@ async def test_aggr_events_rociste_classified():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert len(events) == 1
     assert events[0]["tip"] == "rociste"
@@ -473,7 +473,7 @@ async def test_aggr_events_hronologija_zastarelost():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert len(events) == 1
     assert events[0]["tip"] == "rok_zastarelost"
@@ -508,7 +508,7 @@ async def test_aggr_events_hronologija_rok_dokument():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert events[0]["tip"] == "rok_dokument"
 
@@ -545,7 +545,7 @@ async def test_aggr_events_sorted_by_date():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert len(events) == 2
     assert events[0]["datum"] < events[1]["datum"]
@@ -570,7 +570,7 @@ async def test_aggr_events_empty():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert events == []
 
@@ -864,7 +864,7 @@ async def test_aggr_events_predmet_name_fallback():
     supa.table.side_effect = table_side
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
+        events, _meta = await _aggr_events("uid-1", "2026-07-01", "2026-12-31")
 
     assert len(events) == 1
     # Falls back to empty string when predmet not found in map

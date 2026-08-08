@@ -97,6 +97,10 @@ def _make_combined_supa(existing_consequence_rows=None, case_dna_after=None, dok
 
     def _cis_table():
         t = MagicMock()
+        # Phoenix Closure (LIVINGSYS-DEBT-011 remainder): case_intelligence_summary
+        # checks for an existing row with this event's own event_id before inserting
+        # -- this fixture models the fresh (non-reclaim) path, so no duplicate exists.
+        t.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         def _insert(row):
             row = dict(row)
             row["id"] = f"summary-{len(inserted_summaries) + 1}"
@@ -104,6 +108,13 @@ def _make_combined_supa(existing_consequence_rows=None, case_dna_after=None, dok
             res = MagicMock(); res.data = [row]
             return res
         t.insert.side_effect = _insert
+        return t
+
+    def _genome_history_table():
+        # Phoenix Closure (LIVINGSYS-DEBT-011 remainder): genome_refresh's own
+        # crash-then-reclaim dedup check -- no recent duplicate in this fixture.
+        t = MagicMock()
+        t.select.return_value.eq.return_value.eq.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
         return t
 
     def _table(name):
@@ -119,6 +130,8 @@ def _make_combined_supa(existing_consequence_rows=None, case_dna_after=None, dok
             return _simple_select_table(rocista)
         if name == "case_intelligence_summaries":
             return _cis_table()
+        if name == "predmet_genome_history":
+            return _genome_history_table()
         t = MagicMock()
         t.insert.return_value.execute.return_value.data = [{"id": "row-1"}]
         return t

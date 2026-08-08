@@ -103,7 +103,7 @@ async def test_aggr_events_excludes_archived_case_hearing_and_deadline():
     supa.table.side_effect = _table
 
     with patch("routers.kalendar._get_supa", return_value=supa):
-        events = await _aggr_events("u1", "2026-08-01", "2026-08-31")
+        events, _meta = await _aggr_events("u1", "2026-08-01", "2026-08-31")
 
     pids = {e["predmet_id"] for e in events}
     assert "pred-active" in pids

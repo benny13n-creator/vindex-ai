@@ -2100,3 +2100,17 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 345 passed, 0 failed |
 | Full suite | **3,332 passed, 1 skipped, 0 failed** — was 3,318 at Mission 014's close |
 | STOP GATE | PASS |
+
+## Phoenix Closure, Phase 3 — 8 Partially-Fixed Items (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Items fixed | 6 fully (`-011, -022, -036, -038, -046`, `-041` timeout half), 1 remainder deferred (`-041` progress-bar half) |
+| Items reclassified (not fixed, register corrected) | 2 (`-003` re-confirmed founder decision; `-012` framing corrected — no migration needed, only a business-values decision remains) |
+| Files touched | 5 (`services/case_evolution.py`, `routers/predmeti_close.py`, `routers/kalendar.py`, `routers/cio.py`, `static/vindex.js`) + `static/sw.js` cache bump |
+| New algorithms invented | 0 (reused existing `trigger_event`/`event_id` columns, existing Admin Feature Console, existing `_fetchWithTimeout` helper, Mission 012's own coalescing pattern) |
+| Regression tests added | 21 (17 in `tests/test_phoenix_closure_partial_items.py`, 4 in `tests/test_predmeti_close.py`) |
+| Pre-existing test corrections | 7, across 5 files (`test_case_evolution.py`, `test_delta_sprint002_event_migration.py`, `test_omega_sprint002_case_intelligence.py`, `test_phoenix_mission_001_archived_case_visibility.py`, `test_rocista_kalendar.py`) — all mock-shape only, root-caused to intentional new query calls, none weakened |
+| Subsystem sweep | 305 passed, 0 failed |
+| Full suite | **3,353 passed, 1 skipped, 0 failed** — was 3,332 at Mission 015's close |
+| PARTIAL STOP GATE | PASS |

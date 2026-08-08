@@ -51,8 +51,17 @@ def _klasifikuj_dogadjaj(dogadjaj: str) -> str:
     return "rok_dokument"
 
 
-async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
-    """Agregira ročišta i predmet_hronologija u zadatom opsegu datuma."""
+async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> tuple[list[dict], dict]:
+    """Agregira ročišta i predmet_hronologija u zadatom opsegu datuma.
+
+    Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-038 remainder): the 200-row cap
+    on each source and the return_exceptions=True fallback below used to be
+    completely silent -- a lawyer viewing an incomplete Calendar had no way to
+    tell "genuinely nothing due" from "a query failed" or "there are more than
+    200 hearings this range and some are missing". Now returns a 2nd `meta`
+    dict alongside the events, same disclosure pattern already proven for
+    Mission 014's CIO `truncated` and Mission 015's Timeline `degraded_sources`.
+    """
     supa = _get_supa()
 
     rocista_r, hron_r, pred_r = await asyncio.gather(
@@ -78,6 +87,19 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
             .execute()),
         return_exceptions=True,
     )
+
+    degraded_sources: list[str] = []
+    if isinstance(rocista_r, Exception):
+        degraded_sources.append("rocista")
+    if isinstance(hron_r, Exception):
+        degraded_sources.append("hronologija")
+    if isinstance(pred_r, Exception):
+        degraded_sources.append("predmeti")
+    truncated = (
+        (not isinstance(rocista_r, Exception) and len(rocista_r.data or []) >= 200)
+        or (not isinstance(hron_r, Exception) and len(hron_r.data or []) >= 200)
+    )
+    meta = {"degraded_sources": degraded_sources, "truncated": truncated}
 
     # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-038): neither event source below was
     # filtered by predmeti.status -- a hearing/deadline belonging to an archived/closed case
@@ -147,7 +169,7 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> list[dict]:
             })
 
     events.sort(key=lambda e: (e["datum"], e["vreme"] or ""))
-    return events
+    return events, meta
 
 
 @router.get("/api/kalendar/pregled")
@@ -172,12 +194,15 @@ async def kalendar_pregled(
     if (do_date - od_date).days > 365:
         raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana")
 
-    events = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
+    events, meta = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
     return {
         "dogadjaji": events,
         "ukupno":    len(events),
         "od":        od_date.isoformat(),
         "do":        do_date.isoformat(),
+        # Phoenix Closure (LIVINGSYS-DEBT-038 remainder): empty list / False on full success.
+        "degraded_sources": meta["degraded_sources"],
+        "truncated":        meta["truncated"],
     }
 
 
@@ -202,7 +227,7 @@ async def kalendar_ics_export(
     if (do_date - od_date).days > 365:
         raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana")
 
-    events = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
+    events, _meta = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
 
     ics_eventi = []
     for e in events:

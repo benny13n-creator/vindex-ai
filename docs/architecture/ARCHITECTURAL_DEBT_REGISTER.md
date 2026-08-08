@@ -4335,30 +4335,36 @@ tradeoff, and re-ordering needs a founder decision on which cases should represe
 partial sample; neither attempted, both remain the founder's call. Proof:
 `tests/test_phoenix_mission_014_cio_truncation_disclosure.py::
 test_cio_report_discloses_truncation_when_over_cap` + 5 companion tests. Full report:
-`docs/phoenix/mission-014/`.
+`docs/phoenix/mission-014/`. **Phoenix Closure (2026-08-08): re-confirmed still correctly
+blocked** — `routers/cio.py:265`'s `.order("updated_at", desc=False)` re-verified; both the cap
+size (cost tradeoff) and ordering choice remain genuine founder decisions, not invented. Full
+detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
-**LIVINGSYS-DEBT-036 — PARTIALLY FIXED** (Program Phoenix, Mission 001, 2026-08-07). The
-lawyer-facing VISIBILITY harm is closed: `get_worklist`'s `predmeti` fetch now excludes
-archived/closed cases at the query level, so `_fetch_open_actions` is never even asked about
-them. Proof: `test_worklist_excludes_archived_case`. The underlying DATA HYGIENE gap remains
-OPEN and unattempted: no consequence executor exists for case closure/archival that would close
-out lingering `case_actions` rows in the database itself — a closed case's open action row still
-has `status='open'` forever, merely invisible on this one board now rather than actually
-resolved. Still real feature work for a future mission.
+**LIVINGSYS-DEBT-036 — FIXED** (Program Phoenix, Mission 001, 2026-08-07 + Phoenix Closure,
+2026-08-08). The lawyer-facing VISIBILITY harm is closed: `get_worklist`'s `predmeti` fetch now
+excludes archived/closed cases at the query level, so `_fetch_open_actions` is never even asked
+about them. Proof: `test_worklist_excludes_archived_case`. **Phoenix Closure**: the underlying
+DATA HYGIENE gap is now also closed — `routers/predmeti_close.py`'s `zatvori_predmet` (single) and
+`bulk_promena_statusa` (bulk zatvaranje/arhiviranje) now bulk-close lingering `status='open'`
+`case_actions` rows for the closed predmet(s), best-effort/non-blocking, matching the hronologija
+insert's own established non-blocking contract. `aktiviranje` (reopen) explicitly exempt. Proof:
+`tests/test_predmeti_close.py::test_zatvori_predmet_closes_lingering_open_case_actions` + 3
+companion tests. Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-037 — FIXED** (Program Phoenix, Mission 001, 2026-08-07). `guardian_scan` now
 fetches `predmeti(id,status)` and excludes deadlines belonging to a positively-confirmed
 archived/closed case. Proof: `tests/test_phoenix_mission_001_archived_case_visibility.py::
 test_guardian_scan_excludes_deadline_on_archived_case`. Full report: `docs/phoenix/mission-001/`.
 
-**LIVINGSYS-DEBT-038 — PARTIALLY FIXED** (Program Phoenix, Mission 001, 2026-08-07). The
-archived-case leak in `_aggr_events` is closed (both the `rocista` and `predmet_hronologija`
-loops now exclude positively-confirmed archived cases, while an unresolvable `predmet_id` still
-fails open per a pre-existing test's own proven requirement). Proof:
-`test_aggr_events_excludes_archived_case_hearing_and_deadline`. The 200-row cap with no
-truncation signal AND the silent-partial-failure variant (`return_exceptions=True` with no
-`degraded` flag) remain OPEN — not attempted this mission, still the standing next-mission
-priority for this file.
+**LIVINGSYS-DEBT-038 — FIXED** (Program Phoenix, Mission 001, 2026-08-07 + Phoenix Closure,
+2026-08-08). The archived-case leak in `_aggr_events` is closed (both the `rocista` and
+`predmet_hronologija` loops now exclude positively-confirmed archived cases, while an unresolvable
+`predmet_id` still fails open per a pre-existing test's own proven requirement). Proof:
+`test_aggr_events_excludes_archived_case_hearing_and_deadline`. **Phoenix Closure**: `_aggr_events`
+now returns `(events, meta)` with `degraded_sources`/`truncated` disclosure fields (same pattern as
+`-003`/Timeline), wired into `kalendar_pregled`'s JSON response. Proof:
+`tests/test_phoenix_closure_partial_items.py::test_aggr_events_meta_flags_truncated_at_200_cap` +
+3 companion tests. Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 ### AI-credit-charged-on-failure family
 
@@ -4386,11 +4392,13 @@ individually still charges, matching this item's own "Medium, not High" distinct
 
 **LIVINGSYS-DEBT-012 (High)** — near-universal absence of `cooldown_seconds` (3 of ~60
 `feature_registry` rows have one) plus a real TOCTOU race in `UsageService.consume()` for the few
-that do. **Requires a migration** (seeding `cooldown_seconds` values for ~57 rows) — outside the
-coordinator's authority per this engagement's standing "founder runs migrations" rule. The TOCTOU
-component (reading "last call" before the corresponding insert commits) is a separate, smaller
-fix that could be done without a migration — named as a distinct sub-item for a future mission
-that doesn't need to wait on the migration to close at least that half.
+that do. ~~Requires a migration~~ **Phoenix Closure (2026-08-08) correction**: NO migration is
+needed — `routers/admin_dashboard.py`'s founder-gated Admin Feature Console (`PATCH
+/feature-registry/{feature_key}`) already supports setting `cooldown_seconds` per feature live, no
+schema change, cache-invalidated immediately. What remains is a genuine business judgment call
+(the actual cooldown duration per ~57 individually-different features), exercised through
+already-existing infrastructure — outside this program's authority to invent, but not blocked on
+engineering work of any kind. Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-012 (TOCTOU sub-item) — FIXED** (Program Phoenix, Mission 012, 2026-08-08). New
 `shared/usage.py::_claim_cooldown_atomic` reuses `feature_usage`'s existing `UNIQUE(user_id,
@@ -4475,16 +4483,22 @@ infrastructure (a new cron-invoked function), not a mechanical fix, and needs it
 pass on how to detect "should have emitted an event but didn't" per event type before
 implementation.
 
-**LIVINGSYS-DEBT-011 — PARTIALLY FIXED** (Program Phoenix, Mission 007, 2026-08-07).
-`timeline_entry` now checks for an identical `(predmet_id, dogadjaj)` row created within the
-existing `_CONSEQUENCE_STALE_PENDING_SECONDS` (300s) window before inserting — the same
-"identical content, recent window" idiom already proven for `-043`. No migration. Proof:
+**LIVINGSYS-DEBT-011 — FIXED** (Program Phoenix, Mission 007, 2026-08-07 + Phoenix Closure,
+2026-08-08). `timeline_entry` now checks for an identical `(predmet_id, dogadjaj)` row created
+within the existing `_CONSEQUENCE_STALE_PENDING_SECONDS` (300s) window before inserting — the
+same "identical content, recent window" idiom already proven for `-043`. No migration. Proof:
 `tests/test_phoenix_mission_007_case_evolution_chain_integrity.py::
 test_timeline_entry_skips_duplicate_insert_on_reclaim`. Full report: `docs/phoenix/mission-007/`.
-**Still open**: `genome_refresh` (needs a schema-level snapshot, not a mechanical port —
-reasoning in `docs/phoenix/mission-007/ROOT_CAUSE_ANALYSIS.md`), `review_confirmation_audit`/
-`review_rejection_audit` (append-only hash-chain semantics, needs a different guard shape),
-`case_intelligence_summary` (real fix is a missing `UNIQUE` migration, not application code).
+**Phoenix Closure**: all 3 remaining executors also closed, none needed a migration after all —
+`genome_refresh` checks `predmet_genome_history` for a recent, event_id-scoped duplicate (the
+`trigger_event` column, confirmed reusable, is embedded with the event's own `event_id` so 2
+genuinely different events are never conflated); `review_confirmation_audit`/
+`review_rejection_audit` check `audit_immutable` for a recent `(action, resource_id)` duplicate
+before appending (safe for an append-only hash chain — skipping never touches a prior entry);
+`case_intelligence_summary` checks for an exact `event_id` match on `case_intelligence_summaries`
+(the row already carried its own `event_id`, an even more precise key than a migration-backed
+UNIQUE constraint would give). Proof: `tests/test_phoenix_closure_partial_items.py` (8 tests). Full
+detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-043 — FIXED** (Program Phoenix, Mission 005, 2026-08-07). `kreiraj_rociste` now
 checks for an identical `(predmet_id, sud, datum, vreme)` row created in the last 30 seconds
@@ -4514,15 +4528,20 @@ unbounded wait (full incident account: `docs/phoenix/mission-012/TEST_RESULTS.md
 test_coalesced_caller_waits_for_inflight_run_to_complete` + 3 companion tests. Full report:
 `docs/phoenix/mission-012/`.
 
-**LIVINGSYS-DEBT-046 — PARTIALLY FIXED** (Program Phoenix, Mission 012, 2026-08-08). `/run`
-gained the same 2-step claim `/daily` already has (reusing `cio_dnevni_izvestaj`'s existing
-`UNIQUE(user_id, datum)` constraint, migration 050), with a short 5s race-detection window fitting
-`/run`'s "always regenerate" semantics. Proof:
+**LIVINGSYS-DEBT-046 — FIXED** (Program Phoenix, Mission 012, 2026-08-08 + Phoenix Closure,
+2026-08-08). `/run` gained the same 2-step claim `/daily` already has (reusing
+`cio_dnevni_izvestaj`'s existing `UNIQUE(user_id, datum)` constraint, migration 050), with a short
+5s race-detection window fitting `/run`'s "always regenerate" semantics. Proof:
 `tests/test_phoenix_mission_012_duplication_race_gaps.py::
-test_cio_run_concurrent_calls_charge_only_once`. **Still open**: `/daily`'s own residual
-cost-only issue (every concurrent requester still pays the GPT compute cost before losing the
-claim) — accepted as a known, hard-to-close-without-a-coordination-mechanism limitation, not
-attempted this mission.
+test_cio_run_concurrent_calls_charge_only_once`. **Phoenix Closure**: `/daily`'s residual cost-only
+issue closed for the common same-process case — a losing claim attempt now checks for an
+in-process winner already generating (`_cio_daily_inflight`/`_cio_daily_done_event`, the identical
+coalescing shape Mission 012 already proved for Genome refresh) and waits, bounded 60s, to reuse
+its persisted report instead of paying its own GPT cost. A cross-process race (no in-process
+marker) honestly falls through to the pre-fix behavior — disclosed, not silently claimed as fully
+solved. Proof: `tests/test_phoenix_closure_partial_items.py::
+test_cio_daily_loser_waits_and_reuses_winners_report_no_duplicate_gpt_call` + 2 companion tests.
+Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 ### Silent failure / false success family (not yet fixed)
 
@@ -4588,15 +4607,18 @@ insert — a single row's DB-level failure can no longer drop its siblings). Pro
 test_insert_hronologija_rows_persists_valid_rows_despite_one_bad_row` + 3 companion tests. Full
 report: `docs/phoenix/mission-012/`.
 
-**LIVINGSYS-DEBT-022 — PARTIALLY FIXED** (Program Phoenix, Mission 006, 2026-08-07). The
-"confidence gate" itself is closed: `_CLASSIFY_SYSTEM` now asks for `pouzdanost`
+**LIVINGSYS-DEBT-022 — FIXED** (Program Phoenix, Mission 006, 2026-08-07 + Phoenix Closure,
+2026-08-08). The "confidence gate" itself is closed: `_CLASSIFY_SYSTEM` now asks for `pouzdanost`
 (`"visoka"|"srednja"|"niska"`), enum-guarded fail-safe to `"niska"`, persisted into the
 existing `ai_tags` column. Proof:
-`test_klasifikuj_dokument_enum_guards_unrecognized_pouzdanost`. The review-queue UX (an
-accept/reject workflow for low-confidence results, mirroring Smart Intake's own) remains a
-SEPARATE, unattempted product decision — this fix makes the confidence signal exist and be
-trustworthy, not what a lawyer sees/does with a low-confidence result, which was never in this
-mission's minimum-risk scope.
+`test_klasifikuj_dokument_enum_guards_unrecognized_pouzdanost`. **Phoenix Closure**: rather than
+building a full accept/reject review-queue workflow (a genuinely bigger product decision, still not
+invented), the practical gap — a lawyer had no visual signal for WHICH documents deserve the
+ALREADY-EXISTING Reklasifikuj button — is closed with a ⚠ "niska pouzdanost" badge next to any
+document whose persisted confidence is low. Proof:
+`tests/test_phoenix_closure_partial_items.py::
+test_evidence_document_card_renders_low_confidence_badge`. Full detail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-055 — FIXED** (Program Phoenix, Mission 003, 2026-08-07). The except block in
 `services/risk_engine.py`'s hearing-date loop now logs a warning (hearing id + malformed
@@ -4674,13 +4696,16 @@ existing `return_exceptions=True` fallback handling, no new call-site logic need
 test_gather_with_timeout_returns_timeout_placeholders_on_hang` + 8 companion tests. Full report:
 `docs/phoenix/mission-013/`.
 
-**LIVINGSYS-DEBT-041 — PARTIALLY FIXED** (Program Phoenix, Mission 013, 2026-08-08). The
-app-level-timeout half: new `_fetchWithTimeout()` (`AbortController`, 90s) wired into
-`pred_upload_doc` (the primary case-document upload flow), with an honest, distinct error
-message on timeout. **Still open**: the visual progress-indicator half (would need
-`XMLHttpRequest.upload.onprogress`, a real UI addition) and extending the timeout pattern to
-this frontend's other 5+ upload call sites — both named as future-mission scope, not attempted
-here to keep this mission's blast radius bounded to the single highest-traffic path.
+**LIVINGSYS-DEBT-041 — PARTIALLY FIXED** (Program Phoenix, Mission 013, 2026-08-08 + Phoenix
+Closure, 2026-08-08). The app-level-timeout half: new `_fetchWithTimeout()` (`AbortController`,
+90s) wired into `pred_upload_doc` (the primary case-document upload flow), with an honest,
+distinct error message on timeout. **Phoenix Closure**: the timeout pattern now extended to ALL 9
+`FormData()` upload sites in `static/vindex.js` (the other 8 were raw `fetch()` with no timeout).
+Proof: `tests/test_phoenix_closure_partial_items.py::
+test_all_formdata_upload_sites_use_fetch_with_timeout`. **Still open**: the visual
+progress-indicator half (would need `XMLHttpRequest.upload.onprogress`, a real UI addition) — a
+genuine design investment, correctly not attempted. Full detail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 ### Consolidated low-severity items
 

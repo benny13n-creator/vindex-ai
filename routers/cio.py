@@ -43,6 +43,15 @@ from shared.genome_validator import validate_predmet_reference
 logger = logging.getLogger("vindex.cio")
 router = APIRouter(prefix="/api/cio", tags=["cio"])
 
+# Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-046 remainder): in-process-only
+# coalescing state for cio_daily's claim-loser wait, same shape as
+# routers/case_dna.py's _genome_refresh_inflight/_genome_refresh_done_event.
+# A plain dict/set (not cross-process) -- helps the common same-worker race,
+# honestly does not close a cross-worker race (disclosed, not silently claimed).
+_cio_daily_inflight: set = set()
+_cio_daily_done_event: dict = {}
+_CIO_DAILY_COALESCE_WAIT_TIMEOUT = 60.0
+
 # ── CIO sistem prompt ─────────────────────────────────────────────────────────
 
 _CIO_SYSTEM = """Ti si Chief Intelligence Officer (CIO) pravne kancelarije.
@@ -580,6 +589,41 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
                 logger.warning("[CIO] claim-insert greška (nastavljam bez keš-zaštite): %s", _claim_exc)
                 claimed = True  # nepoznata greška (npr. tabela nedostupna) -- ne blokiraj generisanje/naplatu
 
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-046 remainder): a losing request
+    # used to unconditionally pay its own full GPT generation cost before even
+    # checking the claim result -- wasteful for the common same-process case (2
+    # tabs, 1 gunicorn worker). If an in-process winner is already generating for
+    # this exact (uid, datum), wait (bounded) for it and return ITS persisted
+    # report instead of generating a 2nd one. Same coalescing shape Mission 012
+    # already proved for Genome refresh (case_dna.py's _genome_refresh_inflight/
+    # _genome_refresh_done_event) -- in-process only (a plain dict/set), so a
+    # cross-worker race still falls through to the pre-fix behavior below,
+    # honestly, not silently claimed as fully solved.
+    _coalesce_key = f"{uid}:{danes_iso}"
+    if not claimed and _coalesce_key in _cio_daily_inflight:
+        _done_event = _cio_daily_done_event.get(_coalesce_key)
+        if _done_event is not None:
+            try:
+                await asyncio.wait_for(_done_event.wait(), timeout=_CIO_DAILY_COALESCE_WAIT_TIMEOUT)
+                _fresh = await asyncio.to_thread(
+                    lambda: supa.table("cio_dnevni_izvestaj")
+                        .select("izvestaj,predmeta_analizirano,created_at")
+                        .eq("user_id", uid).eq("datum", danes_iso).single().execute()
+                )
+                if _fresh.data and _fresh.data.get("izvestaj"):
+                    return {
+                        "izvestaj":             _fresh.data["izvestaj"],
+                        "predmeta_analizirano": _fresh.data.get("predmeta_analizirano", 0),
+                        "iz_kesa":              True,
+                        "generisano_u":         _fresh.data.get("created_at", now.isoformat()),
+                    }
+            except (asyncio.TimeoutError, Exception) as _coalesce_exc:
+                logger.warning("[CIO] coalesce-wait greška/timeout (nastavljam sa sopstvenom generacijom): %s", _coalesce_exc)
+
+    if claimed:
+        _cio_daily_inflight.add(_coalesce_key)
+        _cio_daily_done_event[_coalesce_key] = asyncio.Event()
+
     # Generisi
     try:
         izvestaj = await _generiši_cio_izvestaj(uid, supa)
@@ -587,6 +631,12 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
         _sentry_capture(e)
         logger.error("[CIO] daily greška: %s", e)
         raise HTTPException(500, f"CIO greška: {e}")
+    finally:
+        if claimed:
+            _my_event = _cio_daily_done_event.pop(_coalesce_key, None)
+            _cio_daily_inflight.discard(_coalesce_key)
+            if _my_event is not None:
+                _my_event.set()
 
     if not claimed:
         # Izgubljena trka za danasnji izvestaj -- neko drugi konkurentni poziv je vec

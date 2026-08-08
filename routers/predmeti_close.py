@@ -199,6 +199,23 @@ async def zatvori_predmet(
     except Exception as e:
         logger.warning("[ZATVORI] hronologija insert greška: %s", e)
 
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-036 remainder): closing a case
+    # updated predmeti.status and (Mission 001) hid its case_actions from the
+    # worklist at query level, but never closed the underlying case_actions rows
+    # themselves -- an open action for a closed case stayed status='open' in the
+    # DB forever, real data hygiene debt even though no longer user-visible.
+    # Best-effort, non-blocking (same pattern as the hronologija insert above):
+    # never lets a case_actions write failure block the closure itself.
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("case_actions")
+                .update({"status": "closed"})
+                .eq("predmet_id", predmet_id).eq("user_id", uid).eq("status", "open")
+                .execute()
+        )
+    except Exception as e:
+        logger.warning("[ZATVORI] case_actions bulk-close greška: %s", e)
+
     logger.info("[ZATVORI] predmet=%s uid=%.8s ishod=%s", predmet_id, uid, body.ishod)
 
     return {
@@ -363,6 +380,26 @@ async def bulk_promena_statusa(
     )
     azurirano = len(update_r.data or [])
     preskoceno_race = len(za_update) - azurirano
+
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-036 remainder): same
+    # data-hygiene gap as zatvori_predmet's own fix above, for the bulk path.
+    # Only reopening ("aktiviranje") is exempt -- reopening a case doesn't
+    # imply its already-closed actions should reopen too, a separate concern
+    # not in scope here. Scoped to the ids that ACTUALLY updated (update_r.data),
+    # not the full za_update list, so a row that lost the race above doesn't
+    # get its case_actions closed despite the predmet itself staying open.
+    if body.akcija in ("zatvaranje", "arhiviranje") and azurirano:
+        _closed_ids = [row["id"] for row in (update_r.data or []) if row.get("id")]
+        if _closed_ids:
+            try:
+                await asyncio.to_thread(
+                    lambda: supa.table("case_actions")
+                        .update({"status": "closed"})
+                        .eq("user_id", uid).in_("predmet_id", _closed_ids).eq("status", "open")
+                        .execute()
+                )
+            except Exception as e:
+                logger.warning("[BULK] case_actions bulk-close greška: %s", e)
 
     logger.info("[BULK] uid=%.8s akcija=%s azurirano=%d preskoceno_race=%d", uid, body.akcija, azurirano, preskoceno_race)
     poruka = f"{azurirano} predmet(a) — status promenjen na '{novi_status}'."

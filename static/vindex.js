@@ -4041,11 +4041,11 @@ async function playbookUploadFajlove(files) {
     var formData = new FormData();
     formData.append('file', file);
     try {
-      var res = await fetch(BASE_URL + '/api/playbook/upload', {
+      var res = await _fetchWithTimeout(BASE_URL + '/api/playbook/upload', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
         body: formData
-      });
+      }, 90000);
       if (res.ok) {
         uspešno++;
       } else {
@@ -4663,11 +4663,11 @@ async function crmCsvPosalji() {
   try {
     var fd = new FormData();
     fd.append('fajl', _csvFajl);
-    var r = await fetch(BASE_URL + '/klijenti/import-csv', {
+    var r = await _fetchWithTimeout(BASE_URL + '/klijenti/import-csv', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
       body: fd,
-    });
+    }, 90000);
     var d = await r.json();
     if (!r.ok) {
       res.innerHTML = '<span style="color:#f87171;">⚠ Greška: ' + _htmlEsc(d.detail || 'Nepoznata greška') + '</span>';
@@ -5293,11 +5293,11 @@ async function web3CsvUvoz() {
   try {
     var fd = new FormData();
     fd.append('file', fajl);
-    var res = await fetch('/csv-import/analiziraj', {
+    var res = await _fetchWithTimeout('/csv-import/analiziraj', {
       method: 'POST',
       headers: _web3AuthHeaders(),
       body: fd
-    });
+    }, 90000);
     if (!res.ok) { var errData = {}; try { errData = await res.json(); } catch(e2) {} throw new Error((errData.detail) || ('Server greška: ' + res.status)); }
     var d = await res.json();
     var html = '<div class="strat-label" style="margin-bottom:.4rem;">Platforma: ' + _htmlEsc(d.platforma_detektovana) + ' • Ukupno transakcija: ' + d.ukupno_transakcija + '</div>';
@@ -8597,7 +8597,7 @@ async function doc_upload_file(file) {
   try {
     var fd = new FormData();
     fd.append('file', file);
-    var r = await fetch(BASE_URL + '/api/dokument/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentSession.access_token }, body: fd });
+    var r = await _fetchWithTimeout(BASE_URL + '/api/dokument/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + currentSession.access_token }, body: fd }, 90000);
     if (r.status === 422) {
       var _e422 = await r.json().catch(function(){ return {}; });
       _doc_show_error(_e422.detail || 'Dokument nije čitljiv. Pokušajte sa digitalnim PDF-om (300 DPI skeniranje ili dokument iz Word-a).');
@@ -13291,11 +13291,11 @@ async function portal_uploadFajl() {
   if (napomena) fd.append('napomena', napomena);
 
   try {
-    var r = await fetch(BASE_URL + '/api/client-portal/dokument', {
+    var r = await _fetchWithTimeout(BASE_URL + '/api/client-portal/dokument', {
       method: 'POST',
       headers: {'X-Portal-Token': _portalToken},
       body: fd,
-    });
+    }, 90000);
     var d = await r.json();
     if (!r.ok) {
       if (errEl) { errEl.style.display = 'block'; errEl.textContent = d.detail || 'Greška pri slanju.'; }
@@ -14711,11 +14711,11 @@ async function lawUploadRun() {
   _lawStatus('Uploadujem i pokrećem ingest...', '#c9a84c');
 
   try {
-    var r = await fetch('/api/admin/law/upload', {
+    var r = await _fetchWithTimeout('/api/admin/law/upload', {
       method: 'POST',
       headers: {'Authorization': 'Bearer ' + currentSession.access_token},
       body: formData
-    });
+    }, 90000);
     var d = await r.json();
     if (!r.ok) { _lawStatus(d.detail || 'Radnja nije uspela. Pokušajte ponovo.', '#f87171'); }
     else {
@@ -17716,7 +17716,7 @@ async function _genomHistoryOpen(predmetId) {
       var sc = h.snaga_procent;
       var snagaC = sc >= 65 ? '#4ade80' : sc >= 40 ? '#fbbf24' : (sc != null ? '#f87171' : '#64748b');
       var when = (h.created_at||'').slice(0,16).replace('T',' ');
-      var trigger = h.trigger_event === 'upload_trigger' ? 'upload' : h.trigger_event === 'manual_refresh' ? 'refresh' : h.trigger_event || '';
+      var trigger = h.trigger_event === 'upload_trigger' ? 'upload' : h.trigger_event === 'manual_refresh' ? 'refresh' : (h.trigger_event||'').indexOf('case_evolution:') === 0 ? 'automatski' : h.trigger_event || '';
       hHtml += '<div style="display:flex;gap:0.4rem;align-items:center;margin-bottom:2px;font-size:0.65rem;">';
       hHtml += '<span style="color:rgba(255,255,255,0.35);min-width:1.6rem;">v'+h.verzija+'</span>';
       hHtml += '<span style="color:'+snagaC+';font-weight:700;min-width:2.5rem;">'+escHtml(snaga)+'</span>';
@@ -18230,8 +18230,15 @@ function evidence_load() {
         var tip = doc.tip_dokaza || 'neklasifikovan';
         var tipLabel = _TIP_DOKAZA_LABELS[tip] || tip;
         var elementi = (doc.pravni_elementi || []).slice(0,3).join(', ');
+        // Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-022 remainder): the
+        // classification confidence signal (ai_tags._klasifikacija_pouzdanost)
+        // was computed and persisted (Mission 006) but never rendered anywhere
+        // -- a lawyer had no visual cue for which documents' AI classification
+        // deserves a second look via the ALREADY-EXISTING Reklasifikuj button.
+        var niskaPouzdanost = (doc.ai_tags || {})._klasifikacija_pouzdanost === 'niska';
         return '<div class="evidence-dok-card">'
           + '<span class="evidence-tip-badge evidence-tip-' + tip + '">' + tipLabel + '</span>'
+          + (niskaPouzdanost ? '<span title="AI klasifikacija niske pouzdanosti — preporučuje se provera" style="font-size:.62rem;color:#ffcc50;margin-left:.3rem;">⚠ niska pouzdanost</span>' : '')
           + '<div style="flex:1;min-width:0;">'
           + '<div style="font-size:.78rem;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(doc.naziv_fajla||'') + '</div>'
           + (elementi ? '<div style="font-size:.67rem;color:rgba(255,255,255,.35);margin-top:.15rem;">' + escHtml(elementi) + '</div>' : '')
@@ -20505,11 +20512,11 @@ async function intakeUploadFile(file) {
   try {
     var fd = new FormData();
     fd.append('file', file);
-    var r = await fetch(BASE_URL + '/api/dokument/upload', {
+    var r = await _fetchWithTimeout(BASE_URL + '/api/dokument/upload', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
       body: fd
-    });
+    }, 90000);
     document.getElementById('intake-file-input').value = '';
     if (!r.ok) {
       var err = await r.json().catch(function(){ return {}; });
@@ -21012,11 +21019,11 @@ async function siUploadAndProceed() {
   _siFiles.forEach(function (sf) { fd.append('files', sf.file, sf.filename); });
 
   try {
-    var r = await fetch(BASE_URL + '/api/smart-intake/documents', {
+    var r = await _fetchWithTimeout(BASE_URL + '/api/smart-intake/documents', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
       body: fd,
-    });
+    }, 90000);
     var d = await r.json();
     if (!r.ok) throw new Error((d && d.detail) || ('HTTP ' + r.status));
     (d.rezultati || []).forEach(function (res, i) {

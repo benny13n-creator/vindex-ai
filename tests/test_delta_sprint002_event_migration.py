@@ -117,6 +117,18 @@ def _make_combined_supa(existing_consequence_rows=None, verzija_start=3):
         t.insert.return_value.execute.return_value.data = [{"id": "hron-1"}]
         return t
 
+    def _dedup_check_table():
+        # Phoenix Closure (LIVINGSYS-DEBT-011 remainder): genome_refresh/
+        # review_confirmation_audit/review_rejection_audit/case_intelligence_summary
+        # each check for a recent duplicate before proceeding -- this whole
+        # fixture models the fresh (non-reclaim) path, so no duplicate exists.
+        t = MagicMock()
+        t.select.return_value.eq.return_value.eq.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        t.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value.data = []
+        t.select.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+        t.insert.return_value.execute.return_value.data = [{"id": "row-1"}]
+        return t
+
     def _table(name):
         if name == "case_evolution_consequences":
             return _cec_table()
@@ -124,6 +136,8 @@ def _make_combined_supa(existing_consequence_rows=None, verzija_start=3):
             return _predmeti_table()
         if name == "predmet_hronologija":
             return _hronologija_table()
+        if name in ("predmet_genome_history", "audit_immutable", "case_intelligence_summaries"):
+            return _dedup_check_table()
         t = MagicMock()
         t.insert.return_value.execute.return_value.data = [{"id": "row-1"}]
         return t

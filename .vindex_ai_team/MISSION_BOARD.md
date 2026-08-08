@@ -3228,3 +3228,36 @@ resolved?"): **NO** — stated with full reasoning, not rounded to a beautiful n
 founder-dependent migration-102/103 verifications (Operation Black Swan, still blocked on
 `SUPABASE_DB_URL` after 7+ missions) are explicitly named as still unresolved, not fabricated as
 closed. Full certificate: `docs/phoenix/PHOENIX_FINAL_CERTIFICATE.md`.
+
+## Phoenix Closure — Partial + Open Debt Elimination (2026-08-08)
+
+Follow-on operation targeting everything the Final Certificate left non-FIXED (8 PARTIALLY FIXED
++ 12 OPEN, 20 items total). Ledger + full evidence trail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
+
+### Phase 3 — 8 PARTIALLY FIXED items (CLOSED)
+
+Re-investigated every remainder against CURRENT code rather than trusting prior write-ups —
+several turned out MORE resolvable than previously assessed (existing idempotency keys/columns,
+existing admin tooling, existing-but-hardcoded values). **6 fully FIXED**: `-011` (all 3 remaining
+consequence executors — `genome_refresh`/`review_confirmation_audit`/`review_rejection_audit`/
+`case_intelligence_summary` — now dedupe crash-then-reclaim duplicates, no migration, contradicting
+the register's earlier "needs schema-level snapshot" framing), `-022` (low-confidence ⚠ badge next
+to the already-existing Reklasifikuj button), `-036` (case closure/archival now bulk-closes
+lingering open `case_actions` rows), `-038` (kalendar `_aggr_events` gained `degraded_sources`/
+`truncated` disclosure, same pattern as `-003`/Timeline), `-046` (CIO `/daily`'s losing claim
+attempt now waits, bounded, for an in-process winner instead of unconditionally paying its own GPT
+cost — same coalescing shape as Mission 012's Genome refresh fix). **1 partially FIXED**: `-041`
+(timeout wiring extended to all 9 upload sites, was 1/9; visual progress-indicator half correctly
+still deferred, real UI work). **2 reclassified but not fixed** (`-003`, `-012` — both genuine
+founder decisions, `-012`'s register framing corrected: no migration needed at all, an existing
+Admin Feature Console already supports the fix, only the business judgment call on values remains).
+`static/sw.js` bumped `vindex-v106` → `vindex-v107`. 17 new tests
+(`tests/test_phoenix_closure_partial_items.py`) + 4 more in `tests/test_predmeti_close.py`. 7
+pre-existing test corrections across 5 files (all mock-shape only, root-caused to intentional new
+query calls: `_aggr_events`'s new `(events, meta)` return tuple broke 7 call sites across 2 files;
+2 case_evolution executor tests and 2 shared fixtures needed the new dedup-check queries
+configured). Targeted subsystem sweep: 305/305 passed. Full suite: **3,353 passed, 1 skipped, 0
+failed** (was 3,332, +21 tests, zero regressions, runtime 341.26s — normal baseline). Full report:
+`docs/phoenix_closure/PARTIAL_DEBT_CERTIFICATE.md`.
+**PARTIAL STOP GATE: PASS.**

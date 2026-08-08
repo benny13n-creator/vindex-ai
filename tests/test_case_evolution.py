@@ -421,12 +421,22 @@ async def test_genome_refresh_executor_verifies_verzija_actually_changed():
     sprint)."""
     from services.case_evolution import _consequence_genome_refresh
 
+    def _table(name):
+        t = MagicMock()
+        if name == "predmet_genome_history":
+            # Phoenix Closure (LIVINGSYS-DEBT-011 remainder): no recent duplicate for
+            # this event_id, so the executor proceeds to the real before/after check below.
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        elif name == "predmeti":
+            # Both before and after reads return the SAME verzija -- simulates a
+            # genome refresh that silently failed internally.
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
+                "case_dna": {"verzija": 3},
+            }
+        return t
+
     mock_supa = MagicMock()
-    # Both before and after reads return the SAME verzija -- simulates a
-    # genome refresh that silently failed internally.
-    mock_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
-        "case_dna": {"verzija": 3},
-    }
+    mock_supa.table.side_effect = _table
 
     with patch("services.case_evolution._get_supa", return_value=mock_supa), \
          patch("routers.case_dna._run_genome_background", new=AsyncMock()):
@@ -439,14 +449,23 @@ async def test_genome_refresh_executor_succeeds_when_verzija_increments():
     from services.case_evolution import _consequence_genome_refresh
 
     call_state = {"n": 0}
-    mock_supa = MagicMock()
 
     def _fake_execute():
         call_state["n"] += 1
         res = MagicMock()
         res.data = {"case_dna": {"verzija": 3 if call_state["n"] == 1 else 4}}
         return res
-    mock_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.side_effect = _fake_execute
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmet_genome_history":
+            t.select.return_value.eq.return_value.eq.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+        elif name == "predmeti":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.side_effect = _fake_execute
+        return t
+
+    mock_supa = MagicMock()
+    mock_supa.table.side_effect = _table
 
     with patch("services.case_evolution._get_supa", return_value=mock_supa), \
          patch("routers.case_dna._run_genome_background", new=AsyncMock()):
