@@ -46,7 +46,7 @@ from shared.deps import (
     _get_credits,
     _get_supa,
     _is_founder,
-    _refund_one_credit,
+    _refund_n_credits,
 )
 from shared.feature_registry import get_policy
 
@@ -340,9 +340,21 @@ class UsageService:
                     },
                 )
 
-        if credits > 0:
+        # Beta Gate Blocker Closure (2026-08-08): the charge amount is resolved
+        # to a whole number ONCE, here, and every branch below keys off it.
+        # Previously the branch condition was `credits > 0` with an inner
+        # `credits == 1` check, which meant a fractional registry price
+        # (0 < krediti*multiplier < 1) fell into the n-credit path as
+        # `int(0.5) == 0`. Migration 107 now correctly rejects p_n <= 0 with
+        # -1 ("not charged"), which the caller turns into a 402 -- so a
+        # fractional-priced feature would start failing outright. Resolving n
+        # up front keeps that case behaving exactly as it always has (no
+        # charge, no error) while making p_n <= 0 unreachable from the app.
+        # The database rejects it independently anyway; this is defence in depth.
+        n_credits = int(credits)
+        if n_credits > 0:
             trenutno = await asyncio.to_thread(_get_credits, user_id)
-            if trenutno < credits:
+            if trenutno < n_credits:
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
                     detail={
@@ -355,10 +367,17 @@ class UsageService:
                         "credits_remaining": trenutno,
                     },
                 )
-            if credits == 1:
+            # NOTE: the pre-check above is an optimisation for the common case
+            # (fast, friendly 402 with the real balance). It is NOT the safety
+            # mechanism -- it is a check-then-act read and races by definition.
+            # The authoritative guard is the atomic conditional UPDATE inside
+            # deduct_credit / deduct_n_credits (migration 107): a caller that
+            # loses the race gets -1 back and is rejected below, regardless of
+            # what the pre-check saw.
+            if n_credits == 1:
                 preostalo = await asyncio.to_thread(_deduct_credit, user_id, email)
             else:
-                preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, int(credits))
+                preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
             if preostalo < 0:
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -386,11 +405,32 @@ class UsageService:
         return await asyncio.to_thread(_get_credits, user_id)
 
     @staticmethod
-    async def refund(user_id: str, email: str, feature: str) -> None:
-        """Best-effort refund (npr. greška u generisanju posle uspešnog consume())."""
+    async def refund(user_id: str, email: str, feature: str, *, multiplier: Optional[int] = None) -> None:
+        """Best-effort refund (npr. greška u generisanju posle uspešnog consume()).
+
+        Beta Gate Blocker Closure (2026-08-08) — two defects fixed here:
+
+        1. ASYMMETRY: this used to refund `krediti` while consume() charges
+           `krediti * credit_multiplier`. For a 6x feature (strategija) a
+           failed operation charged 12 and refunded 2 -- the user silently
+           lost 10 credits for work they never received. The multiplier is now
+           resolved with the SAME rule consume() uses, so charge and refund
+           are symmetric by construction rather than by coincidence.
+           `multiplier=` mirrors consume()'s own escape hatch for runtime-
+           computed factors (e.g. multi_agent's actual agent count); a caller
+           that charged with an explicit multiplier must refund with the same
+           one.
+
+        2. N ROUND-TRIPS -> 1: it looped `_refund_one_credit` once per credit,
+           i.e. 12 separate non-atomic increments for a 6x feature, each its
+           own race window. Now a single atomic refund_n_credits call
+           (migration 107).
+        """
         if _is_founder(email):
             return
         policy = await get_policy(feature)
-        credits = int(policy.get("krediti") or 0)
-        for _ in range(max(credits, 0)):
-            await asyncio.to_thread(_refund_one_credit, user_id)
+        effective_multiplier = multiplier if multiplier is not None else policy.get("credit_multiplier", 1)
+        credits = int(float(policy.get("krediti") or 0) * max(float(effective_multiplier or 1), 1))
+        if credits <= 0:
+            return
+        await asyncio.to_thread(_refund_n_credits, user_id, credits)

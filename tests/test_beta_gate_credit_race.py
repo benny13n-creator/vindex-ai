@@ -39,12 +39,23 @@ def _policy(krediti=2, credit_multiplier=6, **extra):
 
 # ─── SQL guard present in the migration file ──────────────────────────────
 
-def test_deduct_n_credits_migration_has_balance_guard():
-    path = os.path.join(os.path.dirname(__file__), "..", "migrations", "smart_contract_analyses.sql")
+def _migration_107() -> str:
+    path = os.path.join(
+        os.path.dirname(__file__), "..", "migrations", "107_beta_gate_credit_race_closure.sql"
+    )
     with open(path, encoding="utf-8") as f:
-        sql = f.read()
+        return f.read()
+
+
+def test_deduct_n_credits_migration_has_balance_guard():
+    """Beta Gate Blocker Closure (2026-08-08): this assertion originally
+    targeted migrations/smart_contract_analyses.sql. That was the bug -- the
+    fix had been written into a migration already applied on 2026-06-11, so
+    there was no new artifact for the operator to run and the guard never
+    reached production, while this test stayed green the whole time. The
+    authoritative definition now lives in its own numbered migration."""
+    sql = _migration_107()
     assert "CREATE OR REPLACE FUNCTION public.deduct_n_credits" in sql
-    # Extract just the function body to avoid false-passing on unrelated text.
     body = sql.split("CREATE OR REPLACE FUNCTION public.deduct_n_credits", 1)[1]
     assert "credits_remaining >= p_n" in body, (
         "deduct_n_credits must gate the UPDATE on sufficient balance, "
@@ -55,6 +66,60 @@ def test_deduct_n_credits_migration_has_balance_guard():
         "'succeeded' regardless of balance"
     )
     assert "RETURN -1" in body, "insufficient-balance/no-row case must return a distinguishable sentinel"
+
+
+def test_migration_107_rejects_non_positive_amounts():
+    """A negative p_n under the pre-107 body INCREASED the balance."""
+    body = _migration_107().split("CREATE OR REPLACE FUNCTION public.deduct_n_credits", 1)[1]
+    assert "p_n IS NULL OR p_n <= 0" in body
+
+
+def test_migration_107_hardens_search_path():
+    """SECURITY DEFINER without an explicit search_path is a privilege-
+    escalation vector; deduct_credit already sets it, deduct_n_credits did not."""
+    body = _migration_107().split("CREATE OR REPLACE FUNCTION public.deduct_n_credits", 1)[1]
+    assert "SET search_path = public" in body.split("$$", 1)[0]
+
+
+def test_migration_107_defines_atomic_refund_functions():
+    """refund_one_credit was called by shared/deps.py but defined in NO
+    migration, so every refund fell through to a read-modify-write fallback
+    that could erase a concurrent charge."""
+    sql = _migration_107()
+    assert "CREATE OR REPLACE FUNCTION public.refund_n_credits" in sql
+    assert "CREATE OR REPLACE FUNCTION public.refund_one_credit" in sql
+    refund_body = sql.split("CREATE OR REPLACE FUNCTION public.refund_n_credits", 1)[1]
+    assert "credits_remaining + p_n" in refund_body, "refund must be a single atomic statement"
+
+
+def test_migration_107_reasserts_privilege_lockdown():
+    """CREATE OR REPLACE preserves ACLs, but the two NEW functions would
+    otherwise inherit Postgres's EXECUTE-to-PUBLIC default."""
+    sql = _migration_107()
+    for fn_sig in (
+        "public.deduct_n_credits(UUID, INTEGER)",
+        "public.refund_n_credits(UUID, INTEGER)",
+        "public.refund_one_credit(UUID)",
+    ):
+        assert f"REVOKE ALL ON FUNCTION {fn_sig} FROM PUBLIC;" in sql
+        assert f"REVOKE ALL ON FUNCTION {fn_sig} FROM anon;" in sql
+        assert f"REVOKE ALL ON FUNCTION {fn_sig} FROM authenticated;" in sql
+        assert f"GRANT EXECUTE ON FUNCTION {fn_sig} TO service_role;" in sql
+
+
+def test_superseded_migration_no_longer_defines_the_function():
+    """smart_contract_analyses.sql must not contain an executable
+    deduct_n_credits definition: filename ordering puts 107_* BEFORE
+    smart_contract_analyses.sql, so on a fresh rebuild a definition left there
+    would silently overwrite the fixed one and reintroduce the vulnerability."""
+    path = os.path.join(os.path.dirname(__file__), "..", "migrations", "smart_contract_analyses.sql")
+    with open(path, encoding="utf-8") as f:
+        sql = f.read()
+    executable = "\n".join(
+        line for line in sql.splitlines() if not line.lstrip().startswith("--")
+    )
+    assert "CREATE OR REPLACE FUNCTION public.deduct_n_credits" not in executable
+    assert "107_beta_gate_credit_race_closure.sql" in sql, "must point to its successor"
 
 
 # ─── shared/deps.py::_deduct_n_credits propagates the sentinel ────────────

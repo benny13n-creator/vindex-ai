@@ -49,41 +49,41 @@ END $$;
 GRANT SELECT, INSERT, DELETE ON public.smart_contract_analyses TO service_role;
 
 
--- ─── 2. deduct_n_credits RPC ──────────────────────────────────────────────────
--- Atomically deducts p_n credits for a user IF AND ONLY IF the balance covers
--- it (matches deduct_credit's own WHERE-guard pattern). Used by every
--- multiplier feature (strategija 6-module, multi_agent, strategy_simulator,
--- digital_twin, smart contract analyzer, ...).
+-- ─── 2. deduct_n_credits RPC — SUPERSEDED, DEFINITION MOVED ──────────────────
 --
--- FIX (Final Beta Gate F5, CRITICAL): the prior version had NO WHERE guard —
--- it always succeeded via GREATEST(0, ...) regardless of balance, so two
--- concurrent requests near/at exhaustion could both "succeed" (free AI
--- usage under this app's real 4-gunicorn-worker topology). The guard below
--- makes the UPDATE itself atomically conditional on sufficient balance; the
--- Python caller (shared/deps.py::_deduct_n_credits) MUST treat a -1 return
--- as "not charged, insufficient balance" — never trust a floor-at-0 value
--- as proof of success.
-
-CREATE OR REPLACE FUNCTION public.deduct_n_credits(p_user_id UUID, p_n INTEGER)
-RETURNS INTEGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  new_balance INTEGER;
-BEGIN
-  UPDATE public.user_credits
-    SET credits_remaining = credits_remaining - p_n
-  WHERE user_id = p_user_id
-    AND credits_remaining >= p_n
-  RETURNING credits_remaining INTO new_balance;
-
-  IF NOT FOUND THEN
-    RETURN -1;
-  END IF;
-
-  RETURN new_balance;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.deduct_n_credits(UUID, INTEGER) TO service_role;
+-- ⚠ THE AUTHORITATIVE DEFINITION OF deduct_n_credits IS NOW
+--   migrations/107_beta_gate_credit_race_closure.sql
+--
+-- History (recorded accurately rather than rewritten):
+--
+-- This file was first applied on 2026-06-11 and originally defined
+-- deduct_n_credits with an unguarded body:
+--
+--     UPDATE public.user_credits
+--       SET credits_remaining = GREATEST(0, credits_remaining - p_n)
+--     WHERE user_id = p_user_id
+--     RETURNING credits_remaining INTO new_balance;
+--     RETURN COALESCE(new_balance, 0);
+--
+-- That body has no balance predicate, so it succeeds unconditionally and
+-- floors at zero — concurrent requests at exhaustion each read a
+-- non-negative return and are all treated as charged (Final Beta Gate
+-- finding F5, CRITICAL).
+--
+-- On 2026-08-08 the Beta Gate fix was written by EDITING THIS FILE IN PLACE.
+-- That was the wrong mechanism: this migration had already been applied two
+-- months earlier, so editing it produced no new artifact for the operator to
+-- run, and the fix never reached production. Read-only catalog verification
+-- on 2026-08-08 proved the original unguarded body was still live.
+--
+-- The executable definition has therefore been REMOVED from this file rather
+-- than corrected in place, for two reasons:
+--   1. this file must continue to reflect what was actually applied on
+--      2026-06-11 — it is a historical record, not a live spec;
+--   2. leaving ANY deduct_n_credits definition here is an active hazard: on a
+--      fresh rebuild, filename ordering puts "107_…" BEFORE
+--      "smart_contract_analyses.sql", so a definition here would silently
+--      overwrite the fixed one and reintroduce the vulnerability.
+--
+-- The table in section 1 above is unchanged and remains the purpose of this
+-- migration.

@@ -597,21 +597,40 @@ def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
         return -1
 
 
+def _refund_n_credits(user_id: str, n: int) -> int:
+    """Atomically refund n credits (compensating transaction after a charged
+    operation failed downstream). Best-effort — never raises.
+
+    Returns the new balance, or -1 if nothing was refunded.
+
+    Migration 107 defines refund_n_credits as a single-statement increment, so
+    concurrent refunds — and a refund racing a deduction — cannot lose an
+    update.
+    """
+    if n <= 0:
+        return -1
+    try:
+        result = _get_supa().rpc("refund_n_credits", {"p_user_id": user_id, "p_n": int(n)}).execute()
+        return result.data if result.data is not None else -1
+    except Exception as exc:
+        # Beta Gate Blocker Closure (2026-08-08): this used to fall back to a
+        # read-modify-write (SELECT credits_remaining -> UPDATE value+1), which
+        # is a lost-update race. Worse than losing a refund: a refund that read
+        # the balance BEFORE a concurrent charge would write that stale value
+        # back and erase the charge entirely -- free AI usage through the
+        # refund door. A failed refund under-credits the user (bounded, and
+        # loudly logged); a racy refund can silently corrupt the balance. The
+        # fallback is therefore deliberately gone, not replaced.
+        logger.error(
+            "[CREDITS] refund_n_credits RPC failed uid=%.8s n=%d -- credits NOT refunded "
+            "(migration 107 applied?): %s", user_id, n, exc,
+        )
+        return -1
+
+
 def _refund_one_credit(user_id: str) -> None:
     """Refund 1 credit (e.g. cache hit pre-deducted). Best-effort — never raises."""
-    try:
-        _get_supa().rpc("refund_one_credit", {"p_user_id": user_id}).execute()
-    except Exception:
-        # Fallback: raw increment if RPC not found
-        try:
-            supa = _get_supa()
-            cur = supa.table("user_credits").select("credits_remaining").eq("user_id", user_id).single().execute()
-            if cur.data:
-                supa.table("user_credits").update({
-                    "credits_remaining": cur.data["credits_remaining"] + 1
-                }).eq("user_id", user_id).execute()
-        except Exception as e2:
-            logger.warning("[CREDITS] _refund_one_credit fallback failed uid=%.8s: %s", user_id, e2)
+    _refund_n_credits(user_id, 1)
 
 
 async def require_credits(user: dict = Depends(get_current_user)) -> dict:
