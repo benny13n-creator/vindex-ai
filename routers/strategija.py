@@ -379,7 +379,7 @@ async def post_kompletna_analiza(
     Ovo sprečava HTTP timeout na Render (60s) — analiza traje 30-90s.
     """
     from fastapi import BackgroundTasks as _BT
-    from routers.jobs import create_job, run_in_background
+    from routers.jobs import create_job_deduped, run_in_background
 
     uid   = user["user_id"]
     email = user.get("email", "")
@@ -412,8 +412,23 @@ async def post_kompletna_analiza(
         # for the per-field breakdown.
         return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6, "_ai_advisory": _advisory_provenance("kompletna_analiza")}
 
-    jid = create_job(uid, "kompletna_analiza")
-    background_tasks.add_task(run_in_background, jid, _run_analiza)
+    # P1-A (2026-08-08): 6 credits are charged from inside _run_analiza once the
+    # work completes. Without a dedupe key a double-click, an impatient re-submit
+    # or any client retry of the 202 started a second full analysis and billed a
+    # second 6 credits for one lawyer action. The key is the request content, so
+    # a genuinely different analysis is never suppressed.
+    import hashlib as _hashlib
+    _dedupe = _hashlib.sha256(
+        "\x1f".join([
+            req.opis_predmeta or "",
+            repr(req.dokumenti or []),
+            repr(req.iskazi_svedoka or []),
+        ]).encode("utf-8")
+    ).hexdigest()
+
+    jid, _reused = create_job_deduped(uid, "kompletna_analiza", dedupe_key=_dedupe)
+    if not _reused:
+        background_tasks.add_task(run_in_background, jid, _run_analiza)
 
     from fastapi.responses import JSONResponse
     return JSONResponse(
@@ -421,8 +436,15 @@ async def post_kompletna_analiza(
         content={
             "job_id":   jid,
             "status":   "pending",
-            "poruka":   "Analiza pokrenuta. Pratite napredak na GET /api/jobs/" + jid,
+            "poruka":   (
+                "Ista analiza je već u toku — pratite napredak na GET /api/jobs/" + jid
+                if _reused else
+                "Analiza pokrenuta. Pratite napredak na GET /api/jobs/" + jid
+            ),
             "poll_url": f"/api/jobs/{jid}",
+            # So the caller can tell "started" from "already running" and does
+            # not report two runs to the lawyer.
+            "vec_u_toku": _reused,
         },
     )
 

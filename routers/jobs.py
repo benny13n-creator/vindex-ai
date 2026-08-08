@@ -33,11 +33,55 @@ def _cleanup():
         del _jobs[jid]
 
 
-def create_job(user_id: str, tip: str) -> str:
-    """Kreira novi posao i vraća job_id."""
+def create_job(user_id: str, tip: str, dedupe_key: Optional[str] = None) -> str:
+    """Kreira novi posao i vraća job_id.
+
+    P1-A (2026-08-08): with `dedupe_key`, an identical request that is already
+    pending or running returns THAT job instead of starting a second one.
+
+    Why this endpoint shape needs it: /kompletna-analiza answers 202 instantly
+    and charges 6 credits from inside the background task, once the work
+    finishes. A double-click, an impatient re-submit, or any client retry of the
+    202 therefore started a second full analysis and billed a second 6 credits
+    for one lawyer action -- 12 credits, two identical answers, no way to tell
+    afterwards that it happened.
+
+    SCOPE, stated honestly: _jobs is per-process. This dedupes within one worker
+    only. That is not a weaker guarantee than the feature it protects -- the job
+    store itself is per-process, so GET /api/jobs/{id} can only ever be answered
+    by the worker that created the job. Whatever makes polling work makes this
+    work. A cross-worker guarantee needs the DB-backed dedupe_key pattern used
+    in migrations 099/101, which is a schema change and deliberately not bundled
+    in here.
+    """
+    return create_job_deduped(user_id, tip, dedupe_key)[0]
+
+
+def create_job_deduped(user_id: str, tip: str, dedupe_key: Optional[str] = None) -> tuple[str, bool]:
+    """As create_job, but also reports whether an existing job was reused.
+
+    The caller MUST know: on a reuse it must not schedule the background task a
+    second time, or the dedupe accomplishes nothing.
+    """
     _cleanup()
+
+    if dedupe_key:
+        for j in _jobs.values():
+            if (
+                j["user_id"] == user_id
+                and j["tip"] == tip
+                and j.get("dedupe_key") == dedupe_key
+                and j["status"] in ("pending", "running")
+            ):
+                logger.info(
+                    "[JOB] dedupe pogodak %s tip=%s user=%s — vraćam postojeći posao umesto novog",
+                    j["id"][:8], tip, user_id[:8],
+                )
+                return j["id"], True
+
     jid = str(uuid.uuid4())
     _jobs[jid] = {
+        "dedupe_key": dedupe_key,
         "id":         jid,
         "user_id":    user_id,
         "tip":        tip,
@@ -48,7 +92,7 @@ def create_job(user_id: str, tip: str) -> str:
         "updated_at": time.time(),
     }
     logger.info("[JOB] kreiran %s tip=%s user=%s", jid[:8], tip, user_id[:8])
-    return jid
+    return jid, False
 
 
 def update_job(jid: str, status: str, result: Any = None, error: str = None):

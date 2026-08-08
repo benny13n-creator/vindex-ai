@@ -813,6 +813,40 @@ class PipelineReq(BaseModel):
     predmet_id: Optional[str] = None
     opis:       str
     pipeline:   list  # npr. ["intake", "research", "drafting"]
+    # P1-A (2026-08-08): opt-in retry safety. Every step charges as it runs, so
+    # re-submitting a pipeline after a timeout or a dropped connection bills the
+    # completed steps a second time. With this set, a repeat of the SAME key
+    # returns the first run's result and charges nothing more.
+    #
+    # Client-supplied on purpose. The server cannot tell an accidental retry
+    # from a lawyer deliberately re-running the same analysis, and guessing
+    # wrong in that direction silently withholds work someone asked for.
+    idempotency_key: Optional[str] = None
+
+
+# (user_id, idempotency_key) -> (timestamp, response). In-process, like the job
+# store next door: this makes a retry that reaches the SAME worker free. It is
+# not a distributed guarantee, and the response says so via `iz_kesa`.
+_PIPELINE_RESULTS: dict[tuple, tuple] = {}
+_PIPELINE_TTL_S = 900  # 15 min — long enough for a client retry, short enough
+                       # that "run it again in a while" still means run it again
+
+
+def _pipeline_cached(uid: str, key: Optional[str]):
+    if not key:
+        return None
+    import time as _t
+    now = _t.time()
+    for k in [k for k, (ts, _) in _PIPELINE_RESULTS.items() if now - ts > _PIPELINE_TTL_S]:
+        _PIPELINE_RESULTS.pop(k, None)
+    hit = _PIPELINE_RESULTS.get((uid, key))
+    return hit[1] if hit else None
+
+
+def _pipeline_store(uid: str, key: Optional[str], payload: dict) -> None:
+    if key:
+        import time as _t
+        _PIPELINE_RESULTS[(uid, key)] = (_t.time(), payload)
 
 
 @router.post("/pipeline")
@@ -830,6 +864,11 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
     supa = _get_supa()
     uid   = user["user_id"]
     email = user.get("email", "")
+
+    _cached = _pipeline_cached(uid, req.idempotency_key)
+    if _cached is not None:
+        logger.info("[PIPELINE] idempotency pogodak uid=%s — vraćam prethodni rezultat, bez naplate", uid[:8])
+        return {**_cached, "iz_kesa": True}
 
     # Kredit provera: svaki korak poziva run_agent() interno, koji sam
     # naplaćuje preko UsageService.consume() — nema posebne naplate ovde
@@ -903,7 +942,7 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
     logger.info("[PIPELINE] uid=%s pipeline=%s predmet=%s koraci=%d",
                 uid[:8], pipeline, req.predmet_id or "-", len(results))
 
-    return {
+    _payload = {
         "tip":        "pipeline",
         "pipeline":   pipeline,
         "predmet_id": req.predmet_id,
@@ -920,4 +959,9 @@ async def run_pipeline(req: PipelineReq, request: Request, user=Depends(Permissi
             and not any(r.get("greska") for r in results)
         ),
         "prekid":     _prekid,
+        "iz_kesa":    False,
     }
+    # Store even an interrupted run: those steps were charged, and a retry must
+    # not pay for them twice just because the pipeline stopped early.
+    _pipeline_store(uid, req.idempotency_key, _payload)
+    return _payload

@@ -254,3 +254,208 @@ async def test_pipeline_kompletan_is_false_when_the_last_step_fails():
 
     assert len(out["rezultati"]) == len(body.pipeline)
     assert out["kompletan"] is False
+
+
+# ── P1-A: idempotency / double-charge ──────────────────────────────────────
+
+def test_job_dedupe_returns_the_running_job_instead_of_starting_a_second():
+    """/kompletna-analiza answers 202 instantly and charges 6 credits from
+    inside the background task once the work finishes. A double-click or any
+    client retry of that 202 started a SECOND full analysis and billed a second
+    6 credits for one lawyer action."""
+    import routers.jobs as jobs
+    jobs._jobs.clear()
+
+    jid1, reused1 = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+    jid2, reused2 = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+
+    assert reused1 is False and reused2 is True
+    assert jid1 == jid2, "an identical in-flight request must not start a second job"
+    assert len(jobs._jobs) == 1
+
+
+def test_job_dedupe_does_not_suppress_a_genuinely_different_request():
+    """The key is the request content. A different analysis must always run."""
+    import routers.jobs as jobs
+    jobs._jobs.clear()
+
+    jid1, _ = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+    jid2, reused = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="different")
+
+    assert reused is False
+    assert jid1 != jid2
+
+
+def test_job_dedupe_is_scoped_to_one_user():
+    import routers.jobs as jobs
+    jobs._jobs.clear()
+
+    jid1, _ = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+    jid2, reused = jobs.create_job_deduped("u2", "kompletna_analiza", dedupe_key="abc")
+
+    assert reused is False, "one lawyer's request must never be served another's job"
+    assert jid1 != jid2
+
+
+def test_job_dedupe_releases_once_the_job_finished():
+    """Dedupe covers an in-flight duplicate, not "never run this again". Once
+    the analysis is delivered, asking for it a second time is a real request."""
+    import routers.jobs as jobs
+    jobs._jobs.clear()
+
+    jid1, _ = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+    jobs.update_job(jid1, "done", result={"ok": True})
+
+    jid2, reused = jobs.create_job_deduped("u1", "kompletna_analiza", dedupe_key="abc")
+    assert reused is False and jid2 != jid1
+
+
+def test_create_job_without_a_key_never_dedupes():
+    """No regression for the callers that pass no key (outcome_intel, batch)."""
+    import routers.jobs as jobs
+    jobs._jobs.clear()
+
+    a = jobs.create_job("u1", "outcome_intel")
+    b = jobs.create_job("u1", "outcome_intel")
+    assert a != b and isinstance(a, str)
+
+
+@pytest.mark.anyio
+async def test_pipeline_idempotency_key_replays_without_charging_again():
+    """Every pipeline step charges as it runs, so re-submitting after a timeout
+    or a dropped connection bills the completed steps a second time."""
+    from unittest.mock import MagicMock, patch
+    import routers.multi_agent as ma
+    ma._PIPELINE_RESULTS.clear()
+
+    calls = {"n": 0}
+
+    async def _count_calls(inner_req, request, user):
+        calls["n"] += 1
+        return {"odgovor": f"korak {calls['n']}", "rag_korišćen": False}
+
+    body = ma.PipelineReq(opis="Spor", pipeline=["intake", "research"],
+                          predmet_id=None, idempotency_key="req-42")
+    user = {"user_id": "u1", "email": "a@b.rs"}
+
+    with patch.object(ma, "run_agent", new=_count_calls), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()):
+        first  = await ma.run_pipeline(body, _real_request(), user)
+        second = await ma.run_pipeline(body, _real_request(), user)
+
+    assert calls["n"] == 2, "the retry must not re-run (and re-charge) any agent"
+    assert first["rezultati"] == second["rezultati"]
+    assert first["iz_kesa"] is False and second["iz_kesa"] is True
+
+
+@pytest.mark.anyio
+async def test_pipeline_without_a_key_behaves_exactly_as_before():
+    """Opt-in on purpose: the server cannot tell an accidental retry from a
+    lawyer deliberately re-running the same analysis, and guessing wrong there
+    silently withholds work someone asked for."""
+    from unittest.mock import MagicMock, patch
+    import routers.multi_agent as ma
+    ma._PIPELINE_RESULTS.clear()
+
+    calls = {"n": 0}
+
+    async def _count_calls(inner_req, request, user):
+        calls["n"] += 1
+        return {"odgovor": "ok", "rag_korišćen": False}
+
+    body = ma.PipelineReq(opis="Spor", pipeline=["intake"], predmet_id=None)
+    user = {"user_id": "u1", "email": "a@b.rs"}
+
+    with patch.object(ma, "run_agent", new=_count_calls), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()):
+        await ma.run_pipeline(body, _real_request(), user)
+        await ma.run_pipeline(body, _real_request(), user)
+
+    assert calls["n"] == 2, "without a key both runs must execute"
+
+
+@pytest.mark.anyio
+async def test_pipeline_replays_an_interrupted_run_too():
+    """Those steps were charged. A retry must not pay for them twice just
+    because the pipeline stopped early."""
+    from fastapi import HTTPException
+    from unittest.mock import MagicMock, patch
+    import routers.multi_agent as ma
+    ma._PIPELINE_RESULTS.clear()
+
+    calls = {"n": 0}
+
+    async def _fail_second(inner_req, request, user):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"odgovor": "prvi korak", "rag_korišćen": False}
+        raise HTTPException(status_code=402, detail={"code": "NO_CREDITS"})
+
+    body = ma.PipelineReq(opis="Spor", pipeline=["intake", "research"],
+                          predmet_id=None, idempotency_key="req-99")
+    user = {"user_id": "u1", "email": "a@b.rs"}
+
+    with patch.object(ma, "run_agent", new=_fail_second), \
+         patch.object(ma, "_get_supa", return_value=MagicMock()):
+        first  = await ma.run_pipeline(body, _real_request(), user)
+        second = await ma.run_pipeline(body, _real_request(), user)
+
+    assert calls["n"] == 2, "the interrupted run must not be re-executed"
+    assert second["iz_kesa"] is True
+    assert second["kompletan"] is False
+    assert second["prekid"]["status"] == 402
+
+
+@pytest.mark.anyio
+async def test_kompletna_analiza_double_submit_schedules_the_work_once():
+    """Wiring test, not a helper test. create_job_deduped returning `reused`
+    only helps if the endpoint acts on it -- scheduling the background task on
+    a reuse would run (and charge) the analysis twice while both callers polled
+    the same job id, which is worse than no dedupe at all."""
+    from unittest.mock import MagicMock, patch
+    import routers.jobs as jobs
+    import routers.strategija as st
+    jobs._jobs.clear()
+
+    body = st.OrkestratorRequest(opis_predmeta="A" * 120)
+    user = {"user_id": "u1", "email": "a@b.rs"}
+    bt = MagicMock()
+
+    with patch.object(st, "_audit", new=lambda *a, **k: _noop()), \
+         patch.object(st, "_audit_strategija_durably", MagicMock()):
+        r1 = await st.post_kompletna_analiza(body, _real_request("/strategija/kompletna-analiza"), bt, user)
+        r2 = await st.post_kompletna_analiza(body, _real_request("/strategija/kompletna-analiza"), bt, user)
+
+    import json
+    j1 = json.loads(r1.body); j2 = json.loads(r2.body)
+    assert j1["job_id"] == j2["job_id"], "the duplicate submit must join the running job"
+    assert j1["vec_u_toku"] is False and j2["vec_u_toku"] is True
+    assert bt.add_task.call_count == 1, (
+        "the analysis must be scheduled once — scheduling it twice charges twice"
+    )
+
+
+async def _noop():
+    return None
+
+
+@pytest.mark.anyio
+async def test_kompletna_analiza_different_input_still_runs():
+    from unittest.mock import MagicMock, patch
+    import routers.jobs as jobs
+    import routers.strategija as st
+    jobs._jobs.clear()
+
+    user = {"user_id": "u1", "email": "a@b.rs"}
+    bt = MagicMock()
+
+    with patch.object(st, "_audit", new=lambda *a, **k: _noop()), \
+         patch.object(st, "_audit_strategija_durably", MagicMock()):
+        await st.post_kompletna_analiza(
+            st.OrkestratorRequest(opis_predmeta="A" * 120),
+            _real_request("/strategija/kompletna-analiza"), bt, user)
+        await st.post_kompletna_analiza(
+            st.OrkestratorRequest(opis_predmeta="B" * 120),
+            _real_request("/strategija/kompletna-analiza"), bt, user)
+
+    assert bt.add_task.call_count == 2, "a genuinely different analysis must never be suppressed"
