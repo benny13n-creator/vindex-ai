@@ -63,7 +63,7 @@ async def test_ordinary_multi_page_upload_creates_no_segment_rows_stays_one_docu
 
     text = _PAGE_1 + "\n\n" + _PAGE_2
     with patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=(text, False, False, [_PAGE_1, _PAGE_2])), \
+         patch.object(w, "_extract_text", return_value=(text, False, False, [_PAGE_1, _PAGE_2], None)), \
          patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=[])), \
          patch.object(w, "_classify", new=AsyncMock(return_value=_classification())), \
          patch.object(w, "_extract_entities", new=AsyncMock(return_value=[])), \
@@ -97,7 +97,7 @@ async def test_two_bundled_documents_produce_two_segments_and_two_documents():
         return _classification("lawsuit")
 
     with patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages)), \
+         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages, None)), \
          patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=[])), \
          patch("shared.intake_worker.intake_segments.create_segments", new=AsyncMock(return_value=seg_rows)) as mock_create_segments, \
          patch.object(w, "_classify", new=AsyncMock(side_effect=_classify_side_effect)), \
@@ -145,7 +145,7 @@ async def test_one_segment_permanently_failing_does_not_lose_or_block_its_siblin
         return _classification("lawsuit")
 
     with patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages)), \
+         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages, None)), \
          patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=[])), \
          patch("shared.intake_worker.intake_segments.create_segments", new=AsyncMock(return_value=seg_rows)), \
          patch.object(w, "_classify", new=AsyncMock(side_effect=_classify_side_effect)), \
@@ -183,7 +183,7 @@ async def test_resume_skips_already_completed_segment_only_processes_pending_one
     ]
 
     with patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages)), \
+         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages, None)), \
          patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=existing_rows)), \
          patch("shared.intake_worker.intake_segments.create_segments", new=AsyncMock()) as mock_create_segments, \
          patch.object(w, "_classify", new=AsyncMock(return_value=_classification("judgment"))), \
@@ -215,7 +215,7 @@ async def test_thin_segmentation_evidence_routes_to_review_without_splitting():
 
     pages = [_PAGE_1, _PAGE_2_UNCERTAIN]
     with patch.object(w, "_download_and_decrypt", new=AsyncMock(return_value=b"bytes")), \
-         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages)), \
+         patch.object(w, "_extract_text", return_value=("\n\n".join(pages), False, False, pages, None)), \
          patch("shared.intake_worker.intake_segments.get_segments_for_job", new=AsyncMock(return_value=[])), \
          patch("shared.intake_worker.intake_segments.create_segments", new=AsyncMock()) as mock_create_segments, \
          patch.object(w, "_classify", new=AsyncMock(return_value=_classification())), \

@@ -52,6 +52,42 @@ router = APIRouter()
 
 _MAX_PLAYBOOK_BYTES = 2 * 1024 * 1024  # 2 MB
 
+# Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031) / Phoenix Closure
+# (LIVINGSYS-DEBT-028): shared window for "treat a 2nd identical-shape request
+# within this many seconds as the same retry, not a new one" -- was
+# _stage_draft_for_review's own function-local constant, hoisted here so the
+# NEW pre-GPT-call check below (LIVINGSYS-DEBT-028) reuses the exact same
+# value instead of guessing a 2nd one.
+_STAGING_RETRY_WINDOW_SECONDS = 30
+
+
+async def _recent_generation_exists(user_id: str, predmet_id: str, tip: str) -> bool:
+    """Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-028): distinct from
+    _stage_draft_for_review's own duplicate check below (-031, Mission 015),
+    which only guards the STAGING insert AFTER the GPT call already ran. This
+    checks the SAME staging_memory table for the SAME (user_id, predmet_id,
+    tip) recent-window match, but BEFORE the expensive GPT generation call
+    even starts -- a user-triggered retry (double-click, "Generiši" again
+    after a network hiccup) no longer pays for a 2nd full generation just to
+    have -031's own guard discard it a moment later. Fail-open on any DB
+    error (never block a legitimate generation over a transient read glitch)."""
+    if not predmet_id:
+        return False
+    try:
+        supa = _get_supa()
+        from datetime import datetime as _dt_stg, timedelta as _td_stg, timezone as _tz_stg
+        _recent_cutoff = (_dt_stg.now(_tz_stg.utc) - _td_stg(seconds=_STAGING_RETRY_WINDOW_SECONDS)).isoformat()
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("staging_memory").select("id")
+                .eq("user_id", user_id).eq("predmet_id", predmet_id).eq("tip", tip)
+                .gte("created_at", _recent_cutoff)
+                .limit(1).execute()
+        )
+        return bool(_dup_r.data)
+    except Exception as _exc:
+        logger.warning("[DRAFTING] _recent_generation_exists provera neuspešna (nastavljam): %s", _exc)
+        return False
+
 
 @llm_retry
 def _pozovi_drafting_api(client, **kwargs):
@@ -220,8 +256,8 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
         # isn't deterministic, so the "identical text" dedup idiom used elsewhere
         # in this codebase (rocista.py, case_evolution.py) doesn't directly apply;
         # instead, treat a 2nd (predmet_id, tip) staging entry within a short
-        # window as the same retry, not a new draft.
-        _STAGING_RETRY_WINDOW_SECONDS = 30
+        # window as the same retry, not a new draft. (_STAGING_RETRY_WINDOW_SECONDS
+        # is now a module-level constant, shared with _recent_generation_exists.)
         from datetime import datetime as _dt_stg, timedelta as _td_stg, timezone as _tz_stg
         _recent_cutoff = (_dt_stg.now(_tz_stg.utc) - _td_stg(seconds=_STAGING_RETRY_WINDOW_SECONDS)).isoformat()
         _dup_r = await asyncio.to_thread(
@@ -559,6 +595,22 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
     logger.info("Nacrt [uid=%.8s] vrsta=%s", user["user_id"], req.vrsta)
     asyncio.create_task(_audit(user["user_id"], f"nacrt:{req.vrsta}", ""))
     try:
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-028): a user-triggered
+        # retry (double-click, "Generiši" again after a slow response) used to
+        # pay for a full 2nd GPT generation only to have -031's own staging
+        # guard silently discard the result a moment later. Checked BEFORE the
+        # generation call, scoped identically to -031 (only when predmet_id is
+        # set -- the case-less/ad-hoc path is intentionally left alone).
+        if req.predmet_id and await _recent_generation_exists(user["user_id"], req.predmet_id, req.vrsta):
+            _staged = await asyncio.to_thread(
+                lambda: _get_supa().table("staging_memory").select("tekst")
+                    .eq("user_id", user["user_id"]).eq("predmet_id", req.predmet_id).eq("tip", req.vrsta)
+                    .order("created_at", desc=True).limit(1).execute()
+            )
+            _tekst = (_staged.data or [{}])[0].get("tekst") if _staged.data else None
+            if _tekst:
+                _preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
+                return _normalizuj_rezultat({"status": "success", "data": _tekst}, credits_remaining=max(_preostalo, 0))
         # Project Phoenix (2026-08-03) — Phase 8: migrates the deep
         # generation call itself (previously only the router-level staging
         # step, _stage_draft_for_review, had audit/case-context wiring --
@@ -723,6 +775,26 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     log_id = _q_hash(req.opis)
     logger.info("Podnesak [uid=%.8s] tip=%s sud=%s [q=%s]",
                 user["user_id"], req.tip, req.sud_naziv or "-", log_id)
+
+    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-028): same reasoning as
+    # nacrt()'s own pre-check above -- /api/podnesak is the MORE expensive of
+    # the 2 (2 sequential GPT calls: extraction + RAG-grounded enrichment),
+    # making a wasted retry here more costly, not less.
+    if req.predmet_id and await _recent_generation_exists(user["user_id"], req.predmet_id, req.tip):
+        _staged = await asyncio.to_thread(
+            lambda: _get_supa().table("staging_memory").select("tekst")
+                .eq("user_id", user["user_id"]).eq("predmet_id", req.predmet_id).eq("tip", req.tip)
+                .order("created_at", desc=True).limit(1).execute()
+        )
+        _tekst = (_staged.data or [{}])[0].get("tekst") if _staged.data else None
+        if _tekst:
+            return {
+                "status":  "success",
+                "odgovor": _tekst,
+                "tip":     req.tip,
+                "naziv":   PODNESAK_TIPOVI[req.tip],
+                "critique_applied": None,
+            }
 
     oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
     opis_api = _skini_pii(req.opis)

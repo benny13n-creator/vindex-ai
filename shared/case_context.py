@@ -86,7 +86,9 @@ from shared.gap_engine import collect_case_gaps
 
 # Operation One Truth (2026-08-07): 1.0.0 -> 1.1.0, additive-only -- new "risk" field exposing
 # services/risk_engine.py's already-computed output (see that field's own comment below).
-CONTRACT_VERSION = "1.1.0"
+# Phoenix Closure (2026-08-08): 1.1.0 -> 1.2.0, additive-only -- new "top_open_action" field
+# (LIVINGSYS-DEBT-026, see that field's own comment below).
+CONTRACT_VERSION = "1.2.0"
 
 # Layer 4 budget — deliberately generous vs. case_commander.py's old 8000/2000
 # (which fed only 10 of up to 20 fetched documents, always the same 10): this
@@ -515,6 +517,20 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
         "active_actions": context_field(
             raw["case_actions"], source="case_actions", owner="services/case_evolution.py (writer)",
             refresh="event-driven (written on Genome/document/deadline change)",
+        ),
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-026): top_action was already
+        # computed above for audit_metadata's own dedupe_key, but the full object
+        # was thrown away before reaching any consumer. Digital Twin's and Court
+        # Predictor's own AI-generated recommendations are never cross-checked
+        # against it (the register's own finding: "no concrete reproduced
+        # contradiction", a mechanism gap, not something to invent a reconciler
+        # for). This is disclosure only -- surfacing the canonical top action as
+        # read-only context alongside an AI recommendation so a human can compare
+        # them, not an automated reconciliation.
+        "top_open_action": context_field(
+            top_action, source="shared/case_context.py::top_open_action(case_actions)",
+            owner="case_context.py (reuses the same case_actions already fetched above)",
+            refresh="real-time (pure function over already-fetched case_actions)",
         ),
         "readiness": context_field(
             readiness, source="shared/case_readiness.py::compute_case_readiness",

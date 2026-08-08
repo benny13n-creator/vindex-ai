@@ -395,6 +395,20 @@ async def kreiraj_simulaciju(
         "kljucne_tacke":        kljucne_tacke,
         "optimalna_strategija": optimalna_strategija,
         "credits_remaining":    preostalo,
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-026): the canonical
+        # top_open_action, surfaced read-only alongside this AI-generated
+        # strategy so a human can compare them -- NOT an automated
+        # reconciliation (the register's own finding: no concrete reproduced
+        # contradiction exists to reconcile against, a mechanism gap this
+        # disclosure closes without inventing one).
+        "top_open_action":      ((case_context or {}).get("top_open_action") or {}).get("value"),
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-025): only Case Commander
+        # carries full field-level provenance (shared/commander_schema.py's
+        # bespoke schema) -- retrofitting that here is a real, contract-
+        # breaking infra change, correctly not attempted. This additive marker
+        # closes the narrower, binary gap: a user had no way to tell this
+        # content is AI-advisory at all.
+        "ai_generated":         True,
     }
 
 
@@ -500,6 +514,10 @@ async def sta_ako_analiza(
         "nova_verovatnoca_uspeha": nova_verovatnoca,
         "preporucene_akcije":      preporucene_akcije,
         "credits_remaining":       preostalo,
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-026): see kreiraj_simulacija's own note above.
+        "top_open_action":         ((case_context or {}).get("top_open_action") or {}).get("value"),
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-025): see kreiraj_simulacija's own note above.
+        "ai_generated":            True,
     }
 
 

@@ -887,3 +887,77 @@ async def reap_missing_pipeline_events(min_age_minutes: int = 10, lookback_days:
             logger.error("[EVENT_BUS] reap: failed to backfill predmet=%s: %s", p["id"], e)
 
     return {"checked": len(predmeti), "backfilled": backfilled}
+
+
+async def reap_missing_rociste_events(min_age_minutes: int = 10, lookback_days: int = 7) -> dict:
+    """Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-042 sub-item): the identical
+    reaper shape as reap_missing_pipeline_events above, for the one other event
+    type whose "should have happened" signal is the same simple 1:1 comparison
+    (a `rocista` row exists vs. a ROCISTE_ZAKAZANO event exists for it) --
+    `routers/rocista.py::kreiraj_rociste`'s own emit_durable call is already
+    wrapped in a non-fatal try/except (a genuinely sustained outage can leave a
+    hearing with no event and no trace it was ever supposed to have one, same
+    failure shape PREDMET_KREIRAN's reaper already closes). The remaining 6
+    Case-Evolution event types (document/review-level) are each conditional on
+    a different sub-entity action and need their own per-type detection design
+    -- not attempted here, correctly left as genuine infrastructure work."""
+    from datetime import datetime, timedelta, timezone
+    from shared.deps import _get_supa
+
+    supa = _get_supa()
+    now = datetime.now(timezone.utc)
+    cutoff_new = (now - timedelta(minutes=min_age_minutes)).isoformat()
+    cutoff_old = (now - timedelta(days=lookback_days)).isoformat()
+
+    roc_r = await asyncio.to_thread(
+        lambda: supa.table("rocista")
+            .select("id, user_id, predmet_id, sud, datum, created_at")
+            .gte("created_at", cutoff_old)
+            .lt("created_at", cutoff_new)
+            .execute()
+    )
+    rocista = roc_r.data or []
+    if not rocista:
+        return {"checked": 0, "backfilled": 0}
+
+    evt_r = await asyncio.to_thread(
+        lambda: supa.table("events")
+            .select("predmet_id, payload")
+            .eq("event_type", EventType.ROCISTE_ZAKAZANO.value)
+            .in_("predmet_id", [r["predmet_id"] for r in rocista])
+            .execute()
+    )
+    # ROCISTE_ZAKAZANO's own payload carries no rociste-row id -- it's emitted
+    # per rociste creation, keyed by (predmet_id, sud, datum), the same
+    # (predmet_id, sud, datum, vreme)-adjacent fields -043's own dedup already
+    # keys on. predmet_id alone would be too coarse (2 hearings for the same
+    # case); (sud, datum) alone would be too broad (2 unrelated cases sharing a
+    # court date is a real, not-impossibly-rare coincidence) -- all 3 together.
+    evt_keys = set()
+    for e in (evt_r.data or []):
+        p = e.get("payload") or {}
+        evt_keys.add((e.get("predmet_id"), p.get("sud"), p.get("datum")))
+
+    backfilled = 0
+    for r in rocista:
+        key = (r.get("predmet_id"), r.get("sud"), r.get("datum"))
+        if key in evt_keys:
+            continue
+        try:
+            await asyncio.to_thread(
+                lambda r=r: supa.table("events").insert({
+                    "event_type": EventType.ROCISTE_ZAKAZANO.value,
+                    "user_id":    r["user_id"],
+                    "predmet_id": r["predmet_id"],
+                    "payload":    {"sud": r.get("sud"), "datum": r.get("datum"), "trigger": "rociste_created", "backfilled": True},
+                }).execute()
+            )
+            backfilled += 1
+            logger.warning(
+                "[EVENT_BUS] reap: backfilled missing ROCISTE_ZAKAZANO for rociste=%s predmet=%s (created %s, no event ever recorded)",
+                r["id"], r["predmet_id"], r.get("created_at"),
+            )
+        except Exception as e:
+            logger.error("[EVENT_BUS] reap: failed to backfill rociste=%s: %s", r["id"], e)
+
+    return {"checked": len(rocista), "backfilled": backfilled}

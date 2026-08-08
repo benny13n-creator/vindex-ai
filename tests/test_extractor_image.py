@@ -22,10 +22,28 @@ def _make_real_image(path, size=(200, 100), color=(255, 255, 255)):
     img.save(path)
 
 
-def _mock_tesseract(ocr_text: str):
+def _fake_image_to_data(ocr_text: str, conf: float = 95.0) -> dict:
+    """Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): _ocr_image now calls
+    pytesseract.image_to_data (not image_to_string) to also get per-word
+    confidence -- builds the same Output.DICT shape from a plain multi-line
+    string, one line = one (block,par,line) group, all words at `conf`."""
+    text_col, conf_col, block_col, par_col, line_col = [], [], [], [], []
+    for line_idx, line in enumerate(ocr_text.split("\n")):
+        for word in line.split():
+            text_col.append(word)
+            conf_col.append(conf)
+            block_col.append(1)
+            par_col.append(1)
+            line_col.append(line_idx)
+    return {"text": text_col, "conf": conf_col, "block_num": block_col, "par_num": par_col, "line_num": line_col}
+
+
+def _mock_tesseract(ocr_text: str, conf: float = 95.0):
     m = MagicMock()
     m.get_languages.return_value = []  # → _detect_ocr_lang() falls back to "eng"
-    m.image_to_string.return_value = ocr_text
+    m.image_to_string.return_value = ocr_text  # kept for any incidental caller, no longer used by _ocr_image
+    m.image_to_data.return_value = _fake_image_to_data(ocr_text, conf)
+    m.Output.DICT = "dict"
     return m
 
 
@@ -43,7 +61,7 @@ def test_extract_image_jpeg_success(tmp_path):
     assert len(ocr_result) > 100
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract(ocr_result)}):
-        text, is_scanned, ocr_used, _pages = extract_image(path)
+        text, is_scanned, ocr_used, _pages, _conf = extract_image(path)
 
     assert is_scanned is False
     assert ocr_used is True
@@ -60,7 +78,7 @@ def test_extract_image_png_success(tmp_path):
     assert len(ocr_result) > 100
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract(ocr_result)}):
-        text, is_scanned, ocr_used, _pages = extract_image(path)
+        text, is_scanned, ocr_used, _pages, _conf = extract_image(path)
 
     assert ocr_used is True
     assert "zakupnine" in text
@@ -73,7 +91,7 @@ def test_extract_image_insufficient_text_treated_as_failed(tmp_path):
     _make_real_image(path)
 
     with patch.dict(sys.modules, {"pytesseract": _mock_tesseract("abc")}):
-        text, is_scanned, ocr_used, _pages = extract_image(path)
+        text, is_scanned, ocr_used, _pages, _conf = extract_image(path)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -86,7 +104,7 @@ def test_extract_image_corrupt_file_fails_cleanly(tmp_path):
     path = tmp_path / "not_really_an_image.jpg"
     path.write_bytes(b"this is not image data at all")
 
-    text, is_scanned, ocr_used, _pages = extract_image(path)
+    text, is_scanned, ocr_used, _pages, _conf = extract_image(path)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -127,6 +145,6 @@ def test_extract_dispatches_image_suffixes(tmp_path):
         path = tmp_path / f"doc{suffix}"
         _make_real_image(path)
         with patch.dict(sys.modules, {"pytesseract": _mock_tesseract("Član 5 ovog ugovora " * 10)}):
-            text, is_scanned, ocr_used, _pages = extract(path)
+            text, is_scanned, ocr_used, _pages, _conf = extract(path)
         assert ocr_used is True, f"extract() must route {suffix} through OCR"
         assert "ugovora" in text

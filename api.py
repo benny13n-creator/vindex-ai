@@ -1834,6 +1834,28 @@ async def cron_daily(request: Request):
                                                        "duration_ms": round((_time.monotonic() - _t_mpe) * 1000)}
         _broj_grešaka += 1
 
+    # ── Modul 9a2: Phoenix Closure (LIVINGSYS-DEBT-042 sub-item) — reap missing
+    # ROCISTE_ZAKAZANO events, same shape as reap_missing_pipeline_events above ──
+    _t_mre = _time.monotonic()
+    try:
+        from services.event_bus import reap_missing_rociste_events
+        _mre_r = await asyncio.wait_for(reap_missing_rociste_events(), timeout=60)
+        _stavke_obradjene += int((_mre_r or {}).get("backfilled", 0))
+        rezultati["reap_missing_rociste_events"] = {
+            "status": "ok",
+            "checked": (_mre_r or {}).get("checked", 0),
+            "backfilled": (_mre_r or {}).get("backfilled", 0),
+            "duration_ms": round((_time.monotonic() - _t_mre) * 1000),
+        }
+    except asyncio.TimeoutError:
+        rezultati["reap_missing_rociste_events"] = {"status": "timeout", "greska": "Prekoraceno 60s",
+                                                      "duration_ms": round((_time.monotonic() - _t_mre) * 1000)}
+        _broj_grešaka += 1
+    except Exception as _mree:
+        rezultati["reap_missing_rociste_events"] = {"status": "greska", "greska": str(_mree)[:120],
+                                                      "duration_ms": round((_time.monotonic() - _t_mre) * 1000)}
+        _broj_grešaka += 1
+
     # ── Modul 9b: BLACKSWAN-CRIT-001 — reap orphan draft fakture ─────────────
     _t_bf = _time.monotonic()
     try:
@@ -4499,7 +4521,7 @@ async def predmet_upload_auto_analyze(
                 tmp.write(raw)
                 tmp_path = _Path(tmp.name)
             try:
-                text, is_scanned, ocr_used, _pages = await asyncio.to_thread(extract, tmp_path)
+                text, is_scanned, ocr_used, _pages, _ocr_conf = await asyncio.to_thread(extract, tmp_path)
             except DocumentSafetyLimitExceeded as _dsle:
                 logger.warning(
                     "[SEC-007] Upload odbijen (safety limit) predmet=%s filename=%r razlog=%s",
@@ -4530,13 +4552,34 @@ async def predmet_upload_auto_analyze(
         logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
 
         # Chunk + ingest to Pinecone
+        _content_sha256 = hashlib.sha256(raw).hexdigest()
         source_meta = {
             "source_filename": file.filename,
             "source_format": suffix.lstrip("."),
-            "source_sha256": hashlib.sha256(raw).hexdigest(),
+            "source_sha256": _content_sha256,
             "is_scanned": ocr_used,
             "session_id": "__local__",
         }
+
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-020): Pipeline A had zero
+        # duplicate-content detection, unlike Smart Intake's own content_sha256
+        # dedup (routers/smart_intake.py, migration 095's predmet_dokumenti
+        # column, already applied). Non-blocking, informational only -- the
+        # register's "silently skip vs surface a warning" product decision is
+        # correctly NOT invented here; this doesn't change upload behavior at
+        # all, it only tells the caller "you've uploaded this exact content
+        # before" so a human can decide. Fail-soft: a lookup failure never
+        # blocks the upload.
+        _mozda_duplikat = False
+        try:
+            _dup_check = await asyncio.to_thread(
+                lambda: _get_supa().table("predmet_dokumenti")
+                    .select("id").eq("user_id", user.id).eq("content_sha256", _content_sha256)
+                    .limit(1).execute()
+            )
+            _mozda_duplikat = bool(_dup_check.data)
+        except Exception as _dup_exc:
+            logger.warning("[P1.1] duplicate-content provera neuspešna (nastavljam): %s", _dup_exc)
         manifest = await asyncio.to_thread(chunk_document, text, source_meta)
         if manifest.total_chunks == 0:
             raise HTTPException(status_code=422, detail="Dokument je prazan.")
@@ -4608,12 +4651,24 @@ async def predmet_upload_auto_analyze(
                 "status":              "indeksirano" if _pinecone_ok else "sacuvano",
                 "velicina_kb":         max(1, len(raw) // 1024),
                 "redni_broj":          _next_rn,
+                # Phoenix Closure (LIVINGSYS-DEBT-020): reuses the existing
+                # content_sha256 column (migration 095, already applied --
+                # Smart Intake already writes/reads it) so a FUTURE upload can
+                # find THIS one as a duplicate match.
+                "content_sha256":      _content_sha256,
             }
             # Sačuvaj tekst ako kolona postoji (migration: ALTER TABLE predmet_dokumenti ADD COLUMN tekst_sadrzaj TEXT)
             try:
                 _ins = _get_supa().table("predmet_dokumenti").insert({**_row, "tekst_sadrzaj": _tekst_preview}).execute()
             except Exception:
-                _ins = _get_supa().table("predmet_dokumenti").insert(_row).execute()
+                try:
+                    _ins = _get_supa().table("predmet_dokumenti").insert(_row).execute()
+                except Exception:
+                    # content_sha256 (migration 095) somehow unavailable in this
+                    # environment -- fall back to the pre-020 row shape rather
+                    # than losing the document entirely over an optional column.
+                    _row_no_hash = {k: v for k, v in _row.items() if k != "content_sha256"}
+                    _ins = _get_supa().table("predmet_dokumenti").insert(_row_no_hash).execute()
             _dok_id = (_ins.data or [{}])[0].get("id")
         except Exception:
             logger.warning("[P1.1] predmet_dokumenti insert failed for predmet=%s", predmet_id)
@@ -5087,6 +5142,9 @@ async def predmet_upload_auto_analyze(
         "hronologija_count":   hron_count,
         "metadata":            metapodaci,
         "predlozi_povezivanja": predlozi_povezivanja,
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-020): informational only,
+        # does not block or alter the upload -- see the content_sha256 check above.
+        "mozda_duplikat":      _mozda_duplikat,
     }
 
 

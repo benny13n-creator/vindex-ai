@@ -4430,7 +4430,13 @@ to return `""` (not omit the key) for unmentioned fields, which defeats `_popuni
 fix is prompt-level (stop instructing "or blank," start instructing "omit unknown fields") across
 every one of ~12 templates in `templates/podnesci.py` plus `drafting/templates.py` — a real
 multi-file prompt-engineering pass needing its own verification budget, not a single-function
-patch.
+patch. **Phoenix Closure (2026-08-08): re-investigated, re-confirmed genuinely blocked.**
+`drafting/router.py:187-211` (`_popuni_sablon`)'s own docstring states the current empty-string
+handling is INTENTIONAL, not an oversight. Flipping it globally (treat `""` like an absent key)
+risks turning every GPT-correctly-blank field into an incorrect placeholder across all ~12
+templates simultaneously — this would be inventing an unsafe blanket behavior change to close a
+debt item, which this operation explicitly forbids. Disposition: C (infrastructure/design
+dependency). Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-015 — FIXED** (Program Phoenix, Mission 009, 2026-08-07).
 `_critique_and_refine_draft` now returns `(nacrt, critique_applied)` instead of a bare string —
@@ -4476,12 +4482,19 @@ on this product decision.
 new events. Proof: `tests/test_phoenix_mission_005_evidence_event_idempotency.py::
 test_resolve_job_review_skips_event_emission_on_retry` + 2 companion tests.
 
-**LIVINGSYS-DEBT-042 (High)** — 7 of 8 Case-Evolution event types have no reaper for a lost
-durable-outbox insert (only `PREDMET_KREIRAN` has one, `reap_missing_pipeline_events`). A single
-generic reaper (parameterized by event type) could plausibly cover all 7 — this is genuine new
-infrastructure (a new cron-invoked function), not a mechanical fix, and needs its own design
-pass on how to detect "should have emitted an event but didn't" per event type before
-implementation.
+**LIVINGSYS-DEBT-042 — PARTIALLY FIXED** (Phoenix Closure, 2026-08-08). 7 of 8 Case-Evolution
+event types have no reaper for a lost durable-outbox insert (only `PREDMET_KREIRAN` had one,
+`reap_missing_pipeline_events`). Investigated per-type: `ROCISTE_ZAKAZANO` shares the identical
+simple 1:1 detection shape (`rocista` row exists vs. event exists), so a new
+`reap_missing_rociste_events` (`services/event_bus.py`) was added following the exact same
+template, wired into the daily cron alongside the original. The other 6 types (document/
+review-level) are each conditional on a different sub-entity action, needing a materially
+different per-type query shape — confirmed genuinely NOT a cheap parameterization, still correctly
+requiring its own design pass, not attempted. Proof:
+`tests/test_phoenix_closure_open_items.py::test_reap_missing_rociste_events_backfills_orphan_hearing`
++ 3 companion tests (including one proving the dedup key must be `(predmet_id, sud, datum)`, not
+`(sud, datum)` alone — a false-positive risk self-caught during implementation). Full detail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-011 — FIXED** (Program Phoenix, Mission 007, 2026-08-07 + Phoenix Closure,
 2026-08-08). `timeline_entry` now checks for an identical `(predmet_id, dogadjaj)` row created
@@ -4591,13 +4604,14 @@ test_new_evidence_registered_now_includes_refresh_case_actions`. Full report:
 `CONFIDENCE`'s multi-owner shape and naming all known generators including the unfixed
 `strategy_simulator.py` violator. Proof: `test_semantic_registry_has_probability_concept`.
 
-**LIVINGSYS-DEBT-020 (High)** — zero duplicate-content detection on Pipeline A's main document
-upload endpoint (`api.py`), unlike Smart Intake's own content-hash dedup. Needs a product decision
-(silently skip vs. surface "this looks like a duplicate, upload anyway?") before a mechanical fix
-— not purely technical. **Program Phoenix, Mission 012 (2026-08-08): explicitly not attempted**
-— re-confirmed as blocked on the same product decision, which is the founder's call, not this
-coordinator's to make unilaterally. Standing recommendation for whichever future mission the
-founder's decision unblocks.
+**LIVINGSYS-DEBT-020 — FIXED** (Phoenix Closure, 2026-08-08). Reclassified: a 3rd option existed
+beyond "silently skip vs. surface a blocking warning" that needed no product decision —
+non-blocking disclosure. `api.py::predmet_upload_auto_analyze` now computes `content_sha256`
+(reusing Smart Intake's own migration-095 column, no new migration), checks for an existing match
+before insert, and returns a `"mozda_duplikat": bool` field in the response — purely
+informational, zero change to upload behavior. Proof:
+`tests/test_phoenix_closure_open_items.py::test_pipeline_a_dup_check_runs_before_pinecone_ingest`
++ 4 companion tests. Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 **LIVINGSYS-DEBT-021 — FIXED** (Program Phoenix, Mission 012, 2026-08-08). Both suggested fixes
 applied together: `api.py` gained `_validate_hronologija_datum_iso` (drops only a semantically
@@ -4662,10 +4676,22 @@ rejects (400) if any billed entry's own `predmet_id` doesn't match the invoice's
 test_faktura_create_rejects_entry_from_different_case`. Full report:
 `docs/phoenix/mission-011/`.
 
-**LIVINGSYS-DEBT-023 (Low)** — no OCR quality/confidence signal (garbled-but-nonempty scans are
-indistinguishable from clean extractions). Would need real work with `pytesseract`'s
-`image_to_data` confidence output — a new capability, not a fix. **Program Phoenix, Mission 013
-(2026-08-08): explicitly not attempted**, re-confirmed as new-capability work.
+**LIVINGSYS-DEBT-023 — FIXED** (Phoenix Closure, 2026-08-08). Reclassified: `pytesseract` was
+already a dependency, and `shared/intake_worker.py` already threaded an `ocr_confidence`
+parameter through to a real, already-applied `intake_documents` column — every call site just
+hardcoded it to a fixed `0.6`/`0.0` placeholder with an existing comment disclosing this as a
+known limitation. `uploaded_doc/extractor.py::_ocr_image` now calls `pytesseract.image_to_data`
+(was `image_to_string`), computing a real mean word-confidence (0.0-1.0, excluding unrecognized
+words) while preserving the same line-based text structure. Threaded through `extract_pdf`/
+`extract_image`/`extract`'s shared return contract (5th element, `None` for non-OCR paths) into
+`intake_worker.py`'s `create_document`/`write_processing_outcome` calls, replacing every hardcoded
+placeholder. Scoped to the Smart Intake pipeline, where the persistence column was confirmed to
+already exist — Pipeline A's separate OCR path (`api.py`/`routers/dokument.py`) has no equivalent
+column and is out of scope, named as a future extension. Proof:
+`tests/test_phoenix_closure_open_items.py::test_ocr_image_computes_real_mean_confidence` + 6
+companion tests, plus `tests/test_extractor_ocr.py`/`tests/test_extractor_image.py` (both updated
+to mock `image_to_data`, matching real pytesseract output shape). Full detail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
 ### Reachability / product-scope family (real, but currently zero live user impact)
 
@@ -4673,16 +4699,25 @@ indistinguishable from clean extractions). Would need real work with `pytesserac
 CRUD/query surface (judge profiles, client profiles, partner profiles, graph queries/
 recommendations) has zero UI entry points. Real, substantial engineering investment with no
 current lawyer-facing risk since it's unreachable — a product/roadmap decision (build the UI, or
-formally retire the backend), not a bug fix.
+formally retire the backend), not a bug fix. **Phoenix Closure (2026-08-08): re-confirmed.**
+`routers/memory_graph.py` (4 routes) and `routers/firm_memory.py` (11 routes) confirmed registered
+and healthy — no broken code, purely an absent frontend. Disposition: B (product decision), not
+attempted. Full detail: `docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
 
-**LIVINGSYS-DEBT-005 (High)** — Service Worker's `controllerchange` handler force-reloads the
-page on every deploy with zero check for in-progress form state (Intake Wizard, drafting) and no
-`beforeunload` warning anywhere in the 23,000-line frontend. A real fix needs a firm-wide
-autosave/state-persistence architecture decision (what gets persisted, to `localStorage` or a
-draft-recovery endpoint, and for how long) — explicitly the kind of new-system design this
-mission's own rules say not to invent blind under a "minimum-risk fix" mandate. **Program
-Phoenix, Mission 013 (2026-08-08): explicitly not attempted**, re-confirmed as blocked on this
-architecture decision.
+**LIVINGSYS-DEBT-005 — PARTIALLY FIXED** (Phoenix Closure, 2026-08-08, tracked with `-030`). The
+full firm-wide autosave/state-persistence architecture decision remains correctly deferred — a
+real design decision (what gets persisted, to `localStorage` or a draft-recovery endpoint, and for
+how long), not invented here. A much smaller, bounded version was found and implemented: a single
+`window._hasUnsavedWork` in-memory flag (event-delegated on genuine user `input` events in the 3
+known drafting fields, never fired by `_predAutoFill`'s own programmatic auto-fill), checked by a
+new `beforeunload` warning and by the SW `controllerchange` handler (defers the reload instead of
+force-reloading mid-draft; `_swRefreshing` stays unset so a later reload still happens normally).
+No persistence, no new architecture. Proof: `tests/test_phoenix_closure_open_items.py::
+test_beforeunload_warns_on_unsaved_work_or_wizard_in_progress` + 3 companion tests. Full detail:
+`docs/phoenix_closure/PHOENIX_CLOSURE_LEDGER.md`.
+
+**LIVINGSYS-DEBT-030 — PARTIALLY FIXED** (Phoenix Closure, 2026-08-08). Same fix as `-005` above —
+tracked together, same root cause, same remainder (full autosave architecture) still deferred.
 
 ### Infra/reliability family
 
@@ -4730,28 +4765,40 @@ notes: `docs/phoenix/PHOENIX_MISSION_015_REPORT.md`.
   50); `tests/test_singlebrain_phase3_fixes.py`'s 2 source-window clamp-order tests widened
   (2000→3200, 700→1200 chars) to keep matching after this fix's added explanatory comments pushed
   the cap check past the old fixed window.
-- **`-025` — DEFERRED (disposition E).** Disclosure-label inconsistency across the 4 AI surfaces —
-  only Case Commander carries full field-level provenance (`shared/commander_schema.py`'s bespoke
-  `{value, source, evidence, confidence, generated_by, timestamp}` shape, built by a dedicated
-  prior mission). Retrofitting it onto Digital Twin/Court Predictor/hearing_cc would be a real,
-  response-contract-breaking infrastructure change, not a bounded fix.
-- **`-026` — DEFERRED (disposition D).** Digital Twin's/Court Predictor's recommended actions
-  never cross-checked against `case_actions`/`top_open_action`. The source report itself frames
-  this as a mechanism gap with "no concrete reproduced contradiction" — not actionable without
-  inventing a reconciliation design.
-- **`-028` — DEFERRED.** No server-side cooldown/dedup for drafting generation itself (distinct
-  from `-031`'s staging-insert dedup, fixed below). Same root cause and same architecture-decision
-  block as the already-tracked, migration-blocked `-012` — not separately actionable this
-  mission.
+- **`-025` — PARTIALLY FIXED** (Phoenix Closure, 2026-08-08). Full field-level provenance parity
+  with Case Commander (`shared/commander_schema.py`'s bespoke schema) remains correctly deferred —
+  a real, response-contract-breaking infrastructure change, not attempted. A narrower version was
+  found: a single additive `"ai_generated": true` marker added to Digital Twin's (both endpoints),
+  Court Predictor's, and hearing_cc's (both endpoints) existing response dicts — zero existing key
+  touched, closes the binary "can a user tell this is AI-advisory" gap without full parity. Proof:
+  `tests/test_phoenix_closure_open_items.py::test_ai_surface_response_includes_disclosure_keys`
+  (parametrized over 5 endpoints).
+- **`-026` — FIXED** (Phoenix Closure, 2026-08-08). Reclassified: the register's "not actionable"
+  framing was correct for RECONCILING the two AI surfaces (still not invented, no mechanism
+  exists), but disclosure-only was achievable — `shared/case_context.py` already computed
+  `top_open_action` for `audit_metadata`'s own dedupe key but discarded the full object; it's now
+  a top-level `context_field` (contract version 1.1.0 → 1.2.0, additive). Digital Twin (both
+  endpoints) and Court Predictor now surface it read-only alongside their own AI-generated
+  recommendation — a human can compare, not an automated reconciliation. Proof:
+  `tests/test_phoenix_closure_open_items.py::test_build_case_context_exposes_top_open_action_field`
+  + 4 companion tests.
+- **`-028` — FIXED** (Phoenix Closure, 2026-08-08). Reclassified: the register conflated this with
+  `-012`'s migration-blocked cooldown mechanism, but `-028`'s actual concern (wasting a GPT call on
+  a retry) is a separate gap `-031`'s own fix (staging-insert dedup, AFTER the GPT call) doesn't
+  close. The identical recent-duplicate check now also runs at the TOP of `nacrt()`/`podnesak()`,
+  before the GPT call fires — reusing the same `staging_memory` table, same 30s window (hoisted to
+  a shared module constant, `_recent_generation_exists`), same `predmet_id`-gated scope as `-031`.
+  Proof: `tests/test_phoenix_closure_open_items.py::
+  test_nacrt_checks_for_recent_duplicate_before_generation_call` + 5 companion tests.
 - **`-029` — FIXED.** Workspace "Today" board's `zadaci` filter only matched `status="ceka"`,
   hiding tasks in `otvoreno`/`u_toku` due today. `routers/workspace.py::_fetch_waiting_zadaci` now
   uses the same `.not_.in_(["zavrseno","otkazano"])` "any non-terminal status is active" filter
   `routers/zadaci.py` already applies 5 other places. Proof: same file's tests;
   `tests/test_omega_sprint004_workspace.py`'s pre-existing mock corrected to handle the new query
   shape (was hard-coded to only the old `.eq("status","ceka")` chain).
-- **`-030` — DEFERRED.** Zero autosave/unload-warning anywhere in the frontend. Same
-  architecture-decision block as the already-deferred `-005` (needs a firm-wide persistence
-  design decision) — not a second, independently actionable item.
+- **`-030` — PARTIALLY FIXED** (Phoenix Closure, 2026-08-08). See `-005`'s own updated entry above
+  — same bounded fix (a single unsaved-work flag + beforeunload + deferred SW reload), full
+  autosave architecture still correctly deferred.
 - **`-031` — FIXED.** No idempotency guard on user-triggered drafting-staging retries
   (`staging_memory` insert had no dedupe key). `routers/drafting.py::_stage_draft_for_review` now
   skips the insert (logs only) if an identical `user_id`+`predmet_id`+`tip` staging row was
@@ -4759,9 +4806,11 @@ notes: `docs/phoenix/PHOENIX_MISSION_015_REPORT.md`.
 - **`-032` — FIXED.** Service Worker's `offline: true` flag on the offline-fallback JSON response
   was dead code (nothing read it; the frontend generically reads `error`). Removed from
   `static/sw.js`. Proof: same file's SW test.
-- **`-039` — DEFERRED.** Dashboard's historical "risk worsened since last look" diff can silently
-  lose coverage at scale (300-row global cap). Same class of perf/cost tradeoff as `-003`'s own
-  cap dilemma — needs a product decision on acceptable cost, not a code fix.
+- **`-039` — FIXED** (Phoenix Closure, 2026-08-08). Same split as `-003`: the cap itself (perf/cost
+  tradeoff) remains the founder's call, untouched. `routers/dashboard.py::command_center` now
+  returns a `"pad_procene_truncated": bool` disclosure field alongside `pad_procene` so the UI at
+  least knows when its "risk worsened" diff is incomplete. Proof:
+  `tests/test_phoenix_closure_open_items.py::test_command_center_pad_procene_truncated_at_300_cap`.
 - **`-056` through `-063` — PARTIALLY ADDRESSED.** These 8 IDs consolidate ~15 original findings,
   of which only 5 categories are concretely named in any surviving source document (per
   `CHAOS_RESULTS.md` line 63): dead endpoints, cosmetic labeling gaps, `profitabilnost.py`'s

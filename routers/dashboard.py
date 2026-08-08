@@ -377,6 +377,12 @@ async def command_center(
         "danasnja_rocista":     danasnja_rocista,
         "predmeti_visok_rizik":   predmeti_visok_rizik,
         "pad_procene":            pad_procene,
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-039): risk_hist_r's own
+        # .limit(300) can silently drop older history at scale, understating
+        # "risk worsened" coverage with zero signal. Same split as -003
+        # (Mission 014): the cap itself is a genuine cost tradeoff, unchanged
+        # and still the founder's call -- this is disclosure only.
+        "pad_procene_truncated":  len(_safe(risk_hist_r)) >= 300,
         "novi_dokumenti":         novi_dokumenti,
         "ai_preporuke":           preporuke,
         "top_aktivni_predmeti":   top_aktivni_predmeti,

@@ -71,7 +71,7 @@ class _FakeManifest:
 def _do_upload(client, klasifikuj_mock=None):
     fake_manifest = _FakeManifest()
 
-    with patch("uploaded_doc.extractor.extract", return_value=("Tekst dokumenta.", False, False, None)), \
+    with patch("uploaded_doc.extractor.extract", return_value=("Tekst dokumenta.", False, False, None, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value=fake_manifest), \
          patch("uploaded_doc.ingest.ingest_session", return_value=3), \
          patch("uploaded_doc.cleanup.cleanup_expired", return_value={"deleted": 0}), \

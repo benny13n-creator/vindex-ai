@@ -414,6 +414,15 @@ ARGUMENTI SUPROTNE STRANE:
             # not just caller-typed text.
             "kontekst_predmeta_koriscen": bool(case_context_blok),
             "credits_remaining":      preostalo,
+            # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-026): read-only
+            # disclosure, same reasoning as routers/digital_twin.py's own note.
+            "top_open_action":        ((case_context or {}).get("top_open_action") or {}).get("value"),
+            # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-025): additive
+            # AI-advisory marker, same narrow disclosure as Digital Twin's own
+            # (routers/digital_twin.py) -- see that file's note for full
+            # reasoning on why full Case Commander schema parity is out of
+            # bounded-fix scope.
+            "ai_generated":           True,
         }
 
     except HTTPException:

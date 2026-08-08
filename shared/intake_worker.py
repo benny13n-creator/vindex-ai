@@ -214,7 +214,7 @@ class IntakeWorker:
             tmp.write(raw_bytes)
             tmp_path = Path(tmp.name)
         try:
-            text, is_scanned, ocr_used, pages = await asyncio.to_thread(self._extract_text, tmp_path)
+            text, is_scanned, ocr_used, pages, ocr_confidence = await asyncio.to_thread(self._extract_text, tmp_path)
         finally:
             try:
                 tmp_path.unlink()
@@ -272,7 +272,7 @@ class IntakeWorker:
             # segments in the identical order -- we reconcile against the
             # ALREADY-PERSISTED rows (by position) rather than inserting new
             # ones, so already-completed segments are never reprocessed.
-            return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, segment_rows=existing_segment_rows)
+            return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, segment_rows=existing_segment_rows, ocr_confidence=ocr_confidence)
 
         if len(segments) <= 1:
             classification = await self._classify(text)
@@ -283,7 +283,11 @@ class IntakeWorker:
                 classification["document_type"],
                 classification["confidence"],
                 classification["method"],
-                ocr_confidence=(0.6 if ocr_used else None),  # OCR bez eksplicitnog skora danas — konzervativna fiksna vrednost dok extractor ne vraća pravi confidence (poznato ograničenje, ne skriveno)
+                # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): real
+                # measured confidence from uploaded_doc/extractor.py's own
+                # pytesseract.image_to_data call, no longer a hardcoded
+                # placeholder. None when OCR wasn't used or recognized zero words.
+                ocr_confidence=ocr_confidence,
                 ocr_used=ocr_used,
             )
             entity_rows = await intake_documents.insert_entities(document_id, entities)
@@ -325,7 +329,7 @@ class IntakeWorker:
             # silently leave the job marked completed with no outcome row.
             await intake_documents.write_processing_outcome(
                 job_id, classification["document_type"],
-                (0.6 if ocr_used else None), entity_confidence_map, processing_time_ms,
+                ocr_confidence, entity_confidence_map, processing_time_ms,
                 raise_on_error=True,
             )
             logger.info(
@@ -334,11 +338,12 @@ class IntakeWorker:
             )
             return bool(low_confidence_fields) or bool(uncertain_signals)
 
-        return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals)
+        return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, ocr_confidence=ocr_confidence)
 
     async def _process_segments(
         self, job_id: str, t_start: float, pages: list[str], ocr_used: bool,
         segments: list, uncertain_signals: list, segment_rows: list[dict] | None = None,
+        ocr_confidence: float | None = None,
     ) -> bool:
         """Program Intake Sprint 005 -- canonical multi-document hand-off
         (Phase 5 + Phase 6). Every segment enters the SAME classification/
@@ -396,7 +401,10 @@ class IntakeWorker:
 
                     document_id = await intake_documents.create_document(
                         job_id, classification["document_type"], classification["confidence"],
-                        classification["method"], ocr_confidence=(0.6 if ocr_used else None), ocr_used=ocr_used,
+                        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): real
+                        # measured confidence (see the single-document branch's
+                        # own note above), threaded through from _process().
+                        classification["method"], ocr_confidence=ocr_confidence, ocr_used=ocr_used,
                     )
                     await intake_documents.insert_entities(document_id, entities)
 
@@ -419,7 +427,7 @@ class IntakeWorker:
 
                     entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
                     await intake_documents.write_processing_outcome(
-                        job_id, classification["document_type"], (0.6 if ocr_used else None),
+                        job_id, classification["document_type"], ocr_confidence,
                         entity_confidence_map, int((time.monotonic() - t_start) * 1000),
                         raise_on_error=True, segment_id=segment_id,
                     )
@@ -500,7 +508,7 @@ class IntakeWorker:
         return ".pdf"  # najčešći slučaj u praksi (skenirane presude) — razuman podrazumevani izbor
 
     @staticmethod
-    def _extract_text(path: Path) -> tuple[str, bool, bool, list[str] | None]:
+    def _extract_text(path: Path) -> tuple[str, bool, bool, list[str] | None, float | None]:
         from uploaded_doc.extractor import extract
         return extract(path)
 

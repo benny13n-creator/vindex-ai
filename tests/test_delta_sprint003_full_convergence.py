@@ -180,7 +180,7 @@ async def test_pipeline_a_upload_endpoint_emits_both_events_durably():
     from services.event_bus import EventType as ET
 
     supa = _supa_upload_succeeds()
-    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False, None))
+    patches = _base_patches(supa, extract_return=("Sadržaj dokumenta.", False, False, None, None))
     patches += [
         patch("openai.OpenAI", return_value=MagicMock(chat=MagicMock(completions=MagicMock(
             create=MagicMock(return_value=MagicMock(choices=[MagicMock(message=MagicMock(content="{}"))]))

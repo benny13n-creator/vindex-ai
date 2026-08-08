@@ -3261,3 +3261,58 @@ configured). Targeted subsystem sweep: 305/305 passed. Full suite: **3,353 passe
 failed** (was 3,332, +21 tests, zero regressions, runtime 341.26s — normal baseline). Full report:
 `docs/phoenix_closure/PARTIAL_DEBT_CERTIFICATE.md`.
 **PARTIAL STOP GATE: PASS.**
+
+### Phase 4 — 12 OPEN items (CLOSED)
+
+Re-investigated all 12 against CURRENT code per the operation's own rule ("OPEN does not mean
+optional — if technically solvable, you are REQUIRED to solve it"). **9 of 12 fully or partially
+FIXED, 2 correctly re-confirmed blocked, 1 confirmed product-scope with nothing to fix**:
+
+- `-042` **PARTIALLY FIXED** — `ROCISTE_ZAKAZANO` shares `PREDMET_KREIRAN`'s exact reaper shape;
+  new `reap_missing_rociste_events` (`services/event_bus.py`) added, wired into the daily cron.
+  Remaining 6 event types confirmed genuinely needing per-type design, not a cheap
+  parameterization — correctly not attempted.
+- `-035` **FIXED** — `static/vindex.js::_buildPredmetKontekst` now re-fetches fresh predmet+stranke
+  data (same endpoint `pred_loadDetail` already uses) before building AI-drafting context, instead
+  of trusting a snapshot loaded once when the case was first opened.
+- `-028` **FIXED** — reclassified from "same blocker as `-012`": the actual gap (wasted GPT call on
+  a retry) is separate from `-012`'s cooldown mechanism. `-031`'s existing recent-duplicate check
+  now also runs BEFORE the GPT call in `nacrt()`/`podnesak()`, not just after it.
+- `-025` **PARTIALLY FIXED** — full Case Commander schema parity stays deferred (real infra work);
+  a narrow additive `"ai_generated": true` marker added to all 5 relevant AI-surface response
+  dicts (Digital Twin ×2, Court Predictor, hearing_cc ×2).
+- `-026` **FIXED** — reclassified: `shared/case_context.py` already computed `top_open_action` for
+  internal use, now exposed as a real contract field (1.1.0 → 1.2.0); Digital Twin/Court Predictor
+  surface it read-only alongside their own recommendation — disclosure, not reconciliation.
+- `-020` **FIXED** — `api.py`'s Pipeline A upload now computes/persists `content_sha256` (reusing
+  Smart Intake's own migration-095 column) and returns a non-blocking `"mozda_duplikat"` field.
+- `-039` **FIXED** — same disclosure split as `-003`: `routers/dashboard.py::command_center` gained
+  `"pad_procene_truncated"`, cap itself untouched.
+- `-005` / `-030` **PARTIALLY FIXED** — full autosave architecture stays deferred; a bounded
+  `window._hasUnsavedWork` flag (event-delegated on real user input, never fired by the existing
+  auto-fill) now gates a new `beforeunload` warning and defers the SW `controllerchange` reload.
+- `-023` **FIXED** — reclassified: `pytesseract` was already a dependency, and `intake_worker.py`
+  already threaded an `ocr_confidence` param into an already-applied DB column, just hardcoded to
+  `0.6`/`0.0`. `uploaded_doc/extractor.py::_ocr_image` now calls `pytesseract.image_to_data`
+  (was `image_to_string`) for a real mean word-confidence, threaded through `extract`'s shared
+  5-tuple contract into every intake_worker.py call site. Scoped to Smart Intake; Pipeline A's
+  separate OCR path has no equivalent column, named as a future extension.
+- `-014` **re-confirmed blocked** — `drafting/router.py::_popuni_sablon`'s empty-string handling is
+  explicitly documented as intentional; flipping it globally risks turning every GPT-correctly-
+  blank field into an incorrect placeholder across ~12 templates. Genuinely needs the per-field
+  work the register always said it did.
+- `-049` **re-confirmed blocked** — Memory Graph/Firm Memory backends confirmed registered and
+  healthy, zero frontend entry points; purely a product/roadmap decision, nothing broken to fix.
+
+`static/sw.js` bumped `vindex-v107` → `vindex-v108`. 38 new tests
+(`tests/test_phoenix_closure_open_items.py`). Extensive pre-existing test corrections from the
+`-023` extractor return-shape change (4-tuple → 5-tuple, a genuinely wide-blast-radius shared
+contract): ~30 call sites across 18 test files updated to match, including one file
+(`test_sprint002_pipeline_a_orphan_cleanup.py`) that was silently passing for the WRONG reason
+(a `ValueError` from bad unpacking masquerading as the test's intended failure trigger) until
+caught by re-running it explicitly rather than trusting an earlier, now-stale pass. Full report:
+`docs/phoenix_closure/OPEN_ITEMS_CERTIFICATE.md`. Full suite: **3,391 passed, 1 skipped, 0 failed**
+(was 3,353, +38 tests, zero regressions, runtime 363.72s — normal baseline; first run's 2 failures
+were confirmed timing artifacts from concurrent doc edits, not real regressions, isolated reruns
+passed immediately).
+**STOP GATE: PASS.**

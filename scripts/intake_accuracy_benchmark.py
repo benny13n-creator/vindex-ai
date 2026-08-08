@@ -140,7 +140,7 @@ async def _run_one(doc: dict) -> dict:
     if not path.exists():
         return {**meta, "error": f"fajl nije pronađen: {filename}"}
 
-    text, is_scanned, ocr_used = await asyncio.to_thread(extract_text, path)
+    text, is_scanned, ocr_used, _pages, _ocr_conf = await asyncio.to_thread(extract_text, path)
     if is_scanned:
         return {**meta, "error": "OCR neuspešan — dokument izostavljen iz merenja tačnosti (to je zaseban KPI, ne accuracy)"}
 

@@ -443,6 +443,9 @@ async def hearing_command_center(
         "brifing":                   brifing,
         "krediti_preostalo":         preostalo,
         "kontekst_predmeta_koriscen": bool(case_context_blok),
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-025): see
+        # routers/digital_twin.py's note on this same additive disclosure marker.
+        "ai_generated":              True,
     }
 
 
@@ -542,6 +545,9 @@ Odgovori ISKLJUČIVO na srpskom jeziku."""
         "pitanja":                   pitanja,
         "krediti_preostalo":         preostalo,
         "kontekst_predmeta_koriscen": bool(case_context_blok),
+        # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-025): see
+        # routers/digital_twin.py's note on this same additive disclosure marker.
+        "ai_generated":              True,
     }
 
 

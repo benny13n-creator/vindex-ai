@@ -9394,8 +9394,27 @@ var _copilotHistory   = [];  // last 5 copilot exchanges {q, a} for multi-turn c
 var _predIstorijaData = [];
 
 // Gradi kontekst string iz aktivnog predmeta za auto-fill AI polja
-function _buildPredmetKontekst() {
+async function _buildPredmetKontekst() {
   var pf = window._predFull;
+  // Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-035): window._predFull is only
+  // ever loaded ONCE, when pred_loadDetail() first opens a case -- a client-
+  // info correction made afterward (e.g. via the inline-edit control) never
+  // reached this in-memory snapshot, so it could silently flow stale data
+  // into text a lawyer is about to send to an AI drafting/strategy generator.
+  // Re-fetch the same endpoint pred_loadDetail already uses right before
+  // building the context; fail-soft to the existing snapshot on any error so
+  // a transient network hiccup never blocks the auto-fill this replaces.
+  if (activePredmetId && currentSession) {
+    try {
+      var _r = await fetch(BASE_URL + '/api/predmeti/' + activePredmetId + '/workspace', {
+        headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+      });
+      if (_r.ok) {
+        var _fresh = await _r.json();
+        if (_fresh && _fresh.predmet) { window._predFull = _fresh; pf = _fresh; }
+      }
+    } catch (e) { /* fail-soft: keep using the existing snapshot below */ }
+  }
   if (!pf || !pf.predmet) return '';
   var p = pf.predmet;
   var lines = [];
@@ -9447,14 +9466,42 @@ function _buildPredmetKontekst() {
   return lines.join('\n');
 }
 
+// Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-005/-030): zero unsaved-work
+// tracking existed anywhere -- an SW deploy force-reloaded mid-draft with no
+// warning, and there was no beforeunload guard for the same case. A full
+// autosave/draft-recovery architecture is a genuine, out-of-scope product
+// decision (still correctly deferred); this is the much smaller bounded
+// version -- a single in-memory flag, set only on genuine user typing
+// (event delegation on 'input', never fired by _predAutoFill's own
+// programmatic .value assignment above) in the 3 known AI-drafting fields,
+// checked by 2 existing browser APIs. No persistence, no new architecture.
+window._hasUnsavedWork = false;
+document.addEventListener('input', function(e) {
+  var id = e.target && e.target.id;
+  if (id === 'strat-tekst' || id === 'podnesak-opis' || id === 'aitxt') {
+    window._hasUnsavedWork = true;
+  }
+});
+window.addEventListener('beforeunload', function(e) {
+  // _siStep (Smart Intake Wizard, defined below) > 1 means files are already
+  // staged/uploaded mid-wizard -- reusing that existing state marker rather
+  // than inventing a 2nd flag for the same "work in progress" concept.
+  var _wizardInProgress = (typeof _siStep !== 'undefined') && _siStep > 1;
+  if (window._hasUnsavedWork || _wizardInProgress) {
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
 // Auto-puni polje kontekstom predmeta. force=true uvek puni (za osvezi dugme).
-function _predAutoFill(fieldId, force) {
+async function _predAutoFill(fieldId, force) {
   var el = document.getElementById(fieldId);
   if (!el || !activePredmetId || !window._predFull) return;
   var samePred = (el.dataset.predId === activePredmetId);
   // Ne prepisuj ako je korisnik ručno uneo tekst za isti predmet
   if (!force && el.value && samePred) return;
-  var kontekst = _buildPredmetKontekst();
+  var kontekst = await _buildPredmetKontekst();
   if (!kontekst) return;
   el.value = kontekst;
   el.dataset.predId = activePredmetId;
@@ -15965,7 +16012,16 @@ if ('serviceWorker' in navigator) {
   // Reload kada novi SW preuzme kontrolu (npr. posle deploya dok je PWA bila u pozadini)
   var _swRefreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function() {
-    if (!_swRefreshing) { _swRefreshing = true; window.location.reload(); }
+    if (_swRefreshing) return;
+    // Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-005): don't force-reload
+    // out from under in-progress work -- defer. _swRefreshing stays false
+    // (not set here) so a LATER controllerchange, once the flag clears
+    // (submit completed / wizard finished), or the next natural page load,
+    // still picks up the new SW normally -- this only skips THIS reload.
+    var _wizardInProgress = (typeof _siStep !== 'undefined') && _siStep > 1;
+    if (window._hasUnsavedWork || _wizardInProgress) return;
+    _swRefreshing = true;
+    window.location.reload();
   });
 
   window.addEventListener('load', function() {

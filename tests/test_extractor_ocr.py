@@ -24,11 +24,28 @@ def _sparse_pypdf_reader():
     return reader
 
 
-def _build_fitz_mock(ocr_pages: list[str]):
+def _fake_image_to_data(ocr_text: str, conf: float = 95.0) -> dict:
+    """Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): _ocr_image now calls
+    pytesseract.image_to_data (not image_to_string) to also get per-word
+    confidence -- builds the same Output.DICT shape from a plain multi-line
+    string, one line = one (block,par,line) group, all words at `conf`."""
+    text_col, conf_col, block_col, par_col, line_col = [], [], [], [], []
+    for line_idx, line in enumerate(ocr_text.split("\n")):
+        for word in line.split():
+            text_col.append(word)
+            conf_col.append(conf)
+            block_col.append(1)
+            par_col.append(1)
+            line_col.append(line_idx)
+    return {"text": text_col, "conf": conf_col, "block_num": block_col, "par_num": par_col, "line_num": line_col}
+
+
+def _build_fitz_mock(ocr_pages: list[str], conf: float = 95.0):
     """Return (mock_fitz_module, mock_tesseract_module, mock_pil_image_module, mock_pil).
 
     mock_fitz.open() returns a document whose pages produce pixmaps.
-    mock_tesseract.image_to_string() cycles through ocr_pages values.
+    mock_tesseract.image_to_data() cycles through ocr_pages values (converted
+    to the same Output.DICT shape pytesseract itself would produce).
     """
     mock_pixmap = MagicMock()
     mock_pixmap.tobytes.return_value = b"\x89PNG\r\n\x1a\n"  # fake PNG bytes
@@ -46,7 +63,8 @@ def _build_fitz_mock(ocr_pages: list[str]):
     mock_fitz.open.return_value = mock_doc
 
     mock_tesseract = MagicMock()
-    mock_tesseract.image_to_string.side_effect = ocr_pages
+    mock_tesseract.image_to_data.side_effect = [_fake_image_to_data(p, conf) for p in ocr_pages]
+    mock_tesseract.Output.DICT = "dict"
 
     mock_image_module = MagicMock()
     mock_image_module.open.return_value = MagicMock()
@@ -79,7 +97,7 @@ def test_ocr_success_returns_text_not_scanned(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages, _conf = extract_pdf(dummy)
 
     assert is_scanned is False, "Successful OCR must set is_scanned=False"
     assert ocr_used is True, "Successful OCR must set ocr_used=True"
@@ -105,7 +123,7 @@ def test_ocr_short_output_still_unreadable(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages, _conf = extract_pdf(dummy)
 
     assert is_scanned is True, "Short OCR output must still be flagged as unreadable"
     assert ocr_used is False, "Failed OCR must set ocr_used=False"
@@ -133,7 +151,7 @@ def test_ocr_exception_falls_through(tmp_path):
              "PIL": mock_pil,
              "PIL.Image": mock_image_module,
          }):
-        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages, _conf = extract_pdf(dummy)
 
     assert is_scanned is True
     assert ocr_used is False
@@ -159,7 +177,7 @@ def test_normal_pdf_skips_ocr(tmp_path):
 
     with patch("pypdf.PdfReader", return_value=reader), \
          patch.dict(sys.modules, {"fitz": mock_fitz}):
-        text, is_scanned, ocr_used, _pages = extract_pdf(dummy)
+        text, is_scanned, ocr_used, _pages, _conf = extract_pdf(dummy)
 
     assert is_scanned is False
     assert ocr_used is False

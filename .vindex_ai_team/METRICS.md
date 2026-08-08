@@ -2114,3 +2114,18 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem sweep | 305 passed, 0 failed |
 | Full suite | **3,353 passed, 1 skipped, 0 failed** — was 3,332 at Mission 015's close |
 | PARTIAL STOP GATE | PASS |
+
+## Phoenix Closure, Phase 4 — 12 Open Items (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Items fixed (fully or partially) | 9 of 12: `-020, -023, -026, -028, -035, -039` fully; `-005/-030, -025, -042` partially |
+| Items reclassified from a prior "not actionable" framing, with new evidence | 4 (`-020, -023, -026, -028`) |
+| Items re-confirmed genuinely blocked | 2 (`-014, -049`) + 6/7 sub-items of `-042` |
+| Files touched | 12 (`services/event_bus.py`, `api.py`, `shared/case_context.py`, `routers/digital_twin.py`, `routers/court_predictor.py`, `routers/hearing_cc.py`, `routers/drafting.py`, `routers/dashboard.py`, `static/vindex.js`, `static/sw.js`, `uploaded_doc/extractor.py`, `shared/intake_worker.py`) |
+| New algorithms invented | 0 (reused existing migration-095 column, existing `top_open_action`/`context_field` pattern, existing `_stage_draft_for_review` dedup idiom, existing `reap_missing_pipeline_events` template, existing `pytesseract.image_to_data` API) |
+| Regression tests added | 38 (`tests/test_phoenix_closure_open_items.py`) |
+| Pre-existing test corrections | Extensive — `-023`'s `extract()` 4-tuple → 5-tuple shared-contract change touched ~30 call sites across 18 test files; 1 file (`test_sprint002_pipeline_a_orphan_cleanup.py`) found silently passing for the wrong reason (a `ValueError` masquerading as the intended test failure) until explicitly rerun |
+| Targeted subsystem sweep | 792 passed, 0 failed |
+| Full suite | **3,391 passed, 1 skipped, 0 failed** — was 3,353 at Phase 3's close |
+| STOP GATE | PASS |

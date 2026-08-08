@@ -170,7 +170,7 @@ async def _run_finalize(mock_supa, job_result, body, emit_side_effect=None):
          patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])), \
          patch("shared.intake_segments._get_supa", return_value=mock_supa), \
          patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw bytes")), \
-         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None)), \
+         patch("uploaded_doc.extractor.extract", return_value=("Tuzba teksta ovde.", False, False, None, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}), \
          patch("uploaded_doc.ingest.ingest_session", return_value=None), \
          patch("uploaded_doc.session.generate_session_id", return_value="sess-001"), \

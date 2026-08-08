@@ -1240,7 +1240,7 @@ async def _finalize_intake_job_core(
             tmp.write(raw_bytes)
             tmp_path = Path(tmp.name)
         try:
-            text, is_scanned, ocr_used, pages = await asyncio.to_thread(extract, tmp_path)
+            text, is_scanned, ocr_used, pages, _ocr_conf = await asyncio.to_thread(extract, tmp_path)
         finally:
             try:
                 tmp_path.unlink()

@@ -194,7 +194,7 @@ def test_upload_rejects_unsupported_mime():
 # ─── Test 9: scanned PDF rejected ────────────────────────────────────────────
 
 def test_upload_rejects_scanned_pdf():
-    with patch("uploaded_doc.extractor.extract", return_value=("", True, False, None)):
+    with patch("uploaded_doc.extractor.extract", return_value=("", True, False, None, None)):
         with open(UGOVOR_PDF, "rb") as f:
             resp = client.post(
                 "/api/dokument/upload",
@@ -219,7 +219,7 @@ def test_upload_rejects_empty_chunks():
         token_p10=0, token_p50=0, token_p90=0,
         chunks=[],
     )
-    with patch("uploaded_doc.extractor.extract", return_value=("some text", False, False, None)), \
+    with patch("uploaded_doc.extractor.extract", return_value=("some text", False, False, None, None)), \
          patch("uploaded_doc.chunker.chunk_document", return_value=empty_manifest):
         with open(UGOVOR_DOCX, "rb") as f:
             resp = client.post(

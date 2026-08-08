@@ -101,24 +101,59 @@ MAX_PDF_PAGES = 500
 MAX_IMAGE_PIXELS = 40_000_000  # ~40MP — comfortably above any real phone/scanner photo (typical: 8-24MP)
 
 
-def _ocr_image(img, ocr_lang: str) -> str:
+def _ocr_image(img, ocr_lang: str) -> tuple[str, Optional[float]]:
     """Shared OCR call — used by both extract_pdf's scanned-page loop and
     extract_image, so the two never silently drift (same preprocessing, same
     language fallback, same timeout). Caller passes an already-opened PIL
-    Image; this does not open/close files."""
+    Image; this does not open/close files.
+
+    Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): now returns
+    (text, confidence) instead of a bare string. `pytesseract.image_to_data`
+    (vs. the old image_to_string) gives per-word confidence (0-100, -1 for
+    unrecognized) alongside line/paragraph position -- text is reconstructed
+    by joining words within the same (block, paragraph, line) and joining
+    lines with '\\n', preserving the same line-based structure
+    image_to_string produced. confidence is the mean of all recognized
+    (non -1) word confidences, normalized to 0.0-1.0; None if OCR produced
+    no recognized words at all (mirrors the old "" return for that case)."""
     import pytesseract
 
     img = img.convert("L")
     from PIL import ImageEnhance, ImageFilter
     img = ImageEnhance.Contrast(img).enhance(2.0)
     img = img.filter(ImageFilter.MedianFilter(size=3))
+
+    def _run(lang: str, timeout: int) -> tuple[str, Optional[float]]:
+        data = pytesseract.image_to_data(img, lang=lang, timeout=timeout, output_type=pytesseract.Output.DICT)
+        n = len(data.get("text", []))
+        line_order: list[tuple] = []
+        line_words: dict[tuple, list[str]] = {}
+        confs: list[float] = []
+        for i in range(n):
+            word = (data["text"][i] or "").strip()
+            if word:
+                key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
+                if key not in line_words:
+                    line_words[key] = []
+                    line_order.append(key)
+                line_words[key].append(word)
+            try:
+                conf_val = float(data["conf"][i])
+            except (TypeError, ValueError):
+                continue
+            if conf_val >= 0:
+                confs.append(conf_val)
+        text = "\n".join(" ".join(line_words[k]) for k in line_order).strip()
+        confidence = (sum(confs) / len(confs) / 100.0) if confs else None
+        return text, confidence
+
     try:
-        return pytesseract.image_to_string(img, lang=ocr_lang, timeout=45).strip()
+        return _run(ocr_lang, 45)
     except Exception:
         try:
-            return pytesseract.image_to_string(img, lang="eng", timeout=30).strip()
+            return _run("eng", 30)
         except Exception:
-            return ""
+            return "", None
 
 
 def _detect_ocr_lang() -> str:
@@ -140,11 +175,13 @@ def _detect_ocr_lang() -> str:
     return "eng"
 
 
-def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
-    """Return (text, is_scanned, ocr_used, pages).
+def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
+    """Return (text, is_scanned, ocr_used, pages, ocr_confidence).
 
     is_scanned=True  → PDF had no readable text and OCR also failed.
     ocr_used=True    → text came from OCR (scanned PDF successfully processed).
+    ocr_confidence   → None when OCR wasn't used; a real 0.0-1.0 mean word-
+                       confidence when it was (Phoenix Closure, LIVINGSYS-DEBT-023).
 
     Program Intake Sprint 005 (2026-08-05) -- `pages` is the 4th element,
     a per-page `list[str]` (1-indexed position = list index + 1), None only
@@ -178,7 +215,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     is_scanned = avg_chars < 30 or total_chars < 80
 
     if not is_scanned:
-        return "\n\n".join(pages), False, False, pages
+        return "\n\n".join(pages), False, False, pages, None
 
     # OCR fallback for scanned/unreadable PDFs
     try:
@@ -191,18 +228,26 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
 
         doc = fitz.open(str(path))
         ocr_pages: list[str] = []
+        ocr_confs: list[float] = []
         for page_num, page in enumerate(doc):
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            page_text = _ocr_image(img, ocr_lang)
+            page_text, page_conf = _ocr_image(img, ocr_lang)
             if not page_text:
                 logger.warning("[OCR] Stranica %d neuspešna", page_num + 1)
             ocr_pages.append(page_text)
+            if page_conf is not None:
+                ocr_confs.append(page_conf)
+        # Phoenix Closure (LIVINGSYS-DEBT-023): mean confidence across pages
+        # that actually recognized at least one word -- a page that failed
+        # OCR entirely (page_conf=None) correctly doesn't drag the average
+        # down as if it were a genuinely low-confidence recognition.
+        ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
         if len(ocr_text.strip()) > 100:
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
-            return ocr_text, False, True, ocr_pages
+            return ocr_text, False, True, ocr_pages, ocr_confidence
         else:
             logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
             _log_ocr_error("insufficient_text", path.name)
@@ -213,10 +258,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
         logger.error("[OCR] Neočekivana greška: %s", e)
         _log_ocr_error("unexpected_error", path.name)
 
-    return "", True, False, None
+    return "", True, False, None, None
 
 
-def extract_docx(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
+def extract_docx(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     import docx as _docx
     from docx.oxml.ns import qn as _qn
     from docx.table import Table as _Table
@@ -251,12 +296,14 @@ def extract_docx(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     # is genuinely None here, not an oversight -- there is nothing to
     # return. Segmentation for DOCX is out of this sprint's scope (see
     # CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md).
-    return "\n".join(parts), False, False, None
+    # ocr_confidence is None -- no OCR involved, the concept doesn't apply
+    # (Phoenix Closure, LIVINGSYS-DEBT-023).
+    return "\n".join(parts), False, False, None, None
 
 
-def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
+def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     text = path.read_text(encoding="utf-8")
-    return text, False, False, None
+    return text, False, False, None, None
 
 
 # Suffixes extract_image() handles — a photographed/scanned document with no
@@ -266,8 +313,8 @@ def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
 
 
-def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
-    """Return (text, is_scanned, ocr_used, pages) for a standalone
+def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
+    """Return (text, is_scanned, ocr_used, pages, ocr_confidence) for a standalone
     photographed/scanned image — same return contract as extract_pdf, so
     callers (the intake worker, api.py's auto-analyze upload) don't need to
     special-case images. Every image goes through OCR (there is no "has a
@@ -300,33 +347,33 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     except Exception as e:
         logger.warning("[OCR] Nevalidna slika %s: %s", path.name, e)
         _log_ocr_error("invalid_image", path.name)
-        return "", True, False, None
+        return "", True, False, None, None
 
     try:
         ocr_lang = _detect_ocr_lang()
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
         with Image.open(path) as img:
-            text = _ocr_image(img, ocr_lang)
+            text, confidence = _ocr_image(img, ocr_lang)
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — slika ne može biti obrađena", ie)
         _log_ocr_error("missing_dependencies", path.name)
-        return "", True, False, None
+        return "", True, False, None, None
     except Exception as e:
         logger.error("[OCR] Neočekivana greška: %s", e)
         _log_ocr_error("unexpected_error", path.name)
-        return "", True, False, None
+        return "", True, False, None, None
 
     if len(text) > 100:
         logger.info("[OCR] Uspešno — %d karaktera", len(text))
-        return text, False, True, None
+        return text, False, True, None, confidence
 
     logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(text))
     _log_ocr_error("insufficient_text", path.name)
-    return "", True, False, None
+    return "", True, False, None, None
 
 
-def extract(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
-    """Return (text, is_scanned, ocr_used, pages).
+def extract(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
+    """Return (text, is_scanned, ocr_used, pages, ocr_confidence).
 
     Program Intake Sprint 005 (2026-08-05): added `pages` as a 4th element
     to this shared contract (all 4 call sites -- api.py, routers/dokument.py,
@@ -335,7 +382,14 @@ def extract(path: Path) -> tuple[str, bool, bool, Optional[list[str]]]:
     B's worker (shared/intake_worker.py) currently acts on `pages` (feeds
     it to shared/intake_segment.py's canonical segmentation engine); the
     other 3 call sites accept and ignore it, a deliberate, bounded scope
-    decision -- see CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md."""
+    decision -- see CANONICAL_SEGMENTATION_ARCHITECTURE_REPORT.md.
+
+    Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-023): added `ocr_confidence`
+    as a 5th element -- None for non-OCR paths (has a real text layer, DOCX,
+    TXT) or a total OCR failure; a real 0.0-1.0 mean word-confidence when OCR
+    ran and recognized at least one word. Same "every call site destructures
+    identically, only intake_worker.py currently acts on it" shape as
+    `pages` above -- the other 3 call sites accept and ignore it."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return extract_pdf(path)
