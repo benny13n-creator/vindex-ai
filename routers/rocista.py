@@ -85,6 +85,11 @@ class RocistePatchReq(BaseModel):
     broj_predmeta_suda: Optional[str] = Field(None, max_length=100)
     status:             Optional[str] = Field(None, max_length=20)
     napomena:           Optional[str] = Field(None, max_length=2000)
+    # Final Beta Gate F17 (MEDIUM): optional optimistic-concurrency token,
+    # same opt-in/backward-compatible shape as api.py::update_predmet's own
+    # if_updated_at (Program Lambda Cert 004) -- a caller not yet sending it
+    # gets the exact prior unconditional-update behavior.
+    if_updated_at:      Optional[str] = Field(None, max_length=64)
 
     @field_validator("datum")
     @classmethod
@@ -234,6 +239,23 @@ async def lista_rocista(
     q = supa.table("rocista").select("*").eq("user_id", uid)
     if predmet_id:
         q = q.eq("predmet_id", predmet_id)
+    else:
+        # Final Beta Gate F27 (MEDIUM): the Calendar view (static/vindex.js's
+        # kalendarLoad) calls this endpoint with no predmet_id -- "every
+        # upcoming hearing across all my cases" -- but this query never
+        # filtered by predmeti.status, so a hearing belonging to a case
+        # closed today still rendered on the Calendar tomorrow. Only applied
+        # in the no-predmet_id (cross-case) branch: a lawyer explicitly
+        # viewing one specific (possibly closed) case's own hearing history
+        # from that case's own page must still see it -- same distinction
+        # already drawn by kalendar.py/email_notif.py's own active-case
+        # filters.
+        _aktivni_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("user_id", uid)
+                .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+        )
+        _aktivni_ids = [p["id"] for p in (_aktivni_r.data or [])]
+        q = q.in_("predmet_id", _aktivni_ids) if _aktivni_ids else q.eq("predmet_id", "__none__")
     if status:
         q = q.eq("status", status)
 
@@ -256,23 +278,60 @@ async def izmeni_rociste(
     supa = _get_supa()
 
     updates = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    if_updated_at = updates.pop("if_updated_at", None)
     if not updates:
         raise HTTPException(status_code=422, detail="Nema polja za izmenu")
 
+    # Final Beta Gate F26 (HIGH): a hearing's datum/vreme/status materially
+    # affects what Dashboard (reads `rocista` live) and Workspace (reads
+    # `case_actions`, only updated by the SAME 3 consequences hearing
+    # CREATION already triggers) show as "today's hearing" -- before this
+    # fix, a reschedule updated only the raw row and fired NOTHING
+    # downstream, so Workspace/notifications kept showing the OLD date/
+    # status until an unrelated event happened to touch the case. Captured
+    # before the write so the emitted event reflects what actually changed.
+    _materially_changed = bool({"datum", "vreme", "status"} & updates.keys())
+
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    r = await asyncio.to_thread(
-        lambda: supa.table("rocista")
-            .update(updates)
-            .eq("id", rociste_id)
-            .eq("user_id", uid)
-            .execute()
-    )
+    # Final Beta Gate F17 (MEDIUM): optimistic-concurrency guard, same
+    # opt-in shape as api.py::update_predmet -- `rocista` already has a
+    # live, trigger-refreshed updated_at column (used immediately below),
+    # so no migration is needed. A caller not sending if_updated_at gets
+    # the exact prior unconditional-update behavior.
+    q = supa.table("rocista").update(updates).eq("id", rociste_id).eq("user_id", uid)
+    if if_updated_at:
+        q = q.eq("updated_at", if_updated_at)
+    r = await asyncio.to_thread(lambda: q.execute())
+
+    if if_updated_at and not r.data:
+        exists = await asyncio.to_thread(
+            lambda: supa.table("rocista").select("id").eq("id", rociste_id).eq("user_id", uid).maybe_single().execute()
+        )
+        if not exists.data:
+            raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
+        raise HTTPException(
+            status_code=409,
+            detail="Ročište je izmenjeno u međuvremenu. Osvežite stranicu i pokušajte ponovo.",
+        )
     if not r.data:
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
 
     row = r.data[0]
     row["vreme"] = _norm_vreme(row.get("vreme"))
+
+    if _materially_changed:
+        try:
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.ROCISTE_ZAKAZANO,
+                uid,
+                row.get("predmet_id"),
+                {"sud": row.get("sud"), "datum": row.get("datum"), "trigger": "rociste_updated"},
+            )
+        except Exception as _e:
+            logger.warning("[ROCISTE] ROCISTE_ZAKAZANO (update) durable event upis greška (non-fatal) rociste=%s: %s", rociste_id, _e)
+
     return {"rociste": row, "ok": True}
 
 

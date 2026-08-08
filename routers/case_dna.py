@@ -1027,18 +1027,46 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
                       knowledge_sources=[d.get("id") for d in docs]):
         genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
 
-    if not genome.get("greska"):
-        await UsageService.consume(uid, user.get("email", ""), "case_dna")
+    # Final Beta Gate F2 (HIGH): this MANUAL refresh path used to lack the
+    # same guard _run_genome_background already has (see the long comment on
+    # that function, Program Lambda Cert 004 + its own Phase 6 key-presence
+    # hardening) -- a GPT extraction failure returns a bare {"greska": ...}
+    # signal, and this endpoint used to write THAT over the live case_dna
+    # column regardless (a JSON-column .update() is a full-value REPLACE),
+    # silently wiping the whole Genome while still reporting
+    # "case_dna_persisted": true with a success toast. Same key-presence
+    # check as the background path, applied here for the first time.
+    if "greska" in genome:
+        logger.warning(
+            "[GENOME] manual refresh predmet=%s NEUSPEŠAN -- postojeći case_dna (v%s) OSTAJE NEPROMENJEN: %s",
+            predmet_id, stari_verzija, genome.get("greska"),
+        )
+        return {
+            "predmet_id": predmet_id,
+            "predmet_naziv": pred_check.data.get("naziv"),
+            "case_dna": stari_genome,
+            "docs_analizirano": len(docs),
+            "snaga_procent": stari_procent,
+            "verzija": stari_verzija,
+            "intelligence_delta": None,
+            "snaga_promena": None,
+            "case_dna_persisted": False,
+            "poruka": (
+                f"Case Genome osvežavanje nije uspelo (greška u AI ekstrakciji) -- "
+                f"prikazan je prethodni sačuvani Genome (v{stari_verzija}). Pokušajte ponovo."
+            ),
+        }
+
+    await UsageService.consume(uid, user.get("email", ""), "case_dna")
 
     # Auto-versioning
     nova_verzija = stari_verzija + 1
     genome["verzija"] = nova_verzija
 
     # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
-    if not genome.get("greska"):
-        genome["_verifikacija"] = verify_genome(genome, docs)
-        genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
-        await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
+    genome["_verifikacija"] = verify_genome(genome, docs)
+    genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+    await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
     # Snimi stari Genome u istoriju
     await _save_genome_history(supa, predmet_id, uid, stari_genome, "manual_refresh")

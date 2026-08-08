@@ -4972,6 +4972,21 @@ async def predmet_upload_auto_analyze(
     # potpoziva iznad broje se kao JEDNA upotreba ove funkcije, ne tri).
     await UsageService.consume(_entitlement_user["user_id"], _entitlement_user["email"], "predmet_upload_ai")
 
+    # Final Beta Gate F6 (HIGH): if ALL 3 GPT calls failed (e.g. a sustained
+    # OpenAI outage), this endpoint still returns HTTP 200 with
+    # auto_analyzed: false and zero AI value produced -- but the credit above
+    # was already charged. Refund it, mirroring the established
+    # consume-then-refund-on-failure pattern /api/pitanje already uses
+    # (UsageService.refund calls a few hundred lines up). A partial failure
+    # (1 or 2 of 3 calls succeeded) still produced real value and is NOT
+    # refunded, matching that same feature's existing partial-success billing.
+    if isinstance(_pr, Exception) and isinstance(_hr, Exception) and isinstance(_meta, Exception):
+        await UsageService.refund(_entitlement_user["user_id"], _entitlement_user["email"], "predmet_upload_ai")
+        logger.warning(
+            "[P1.1] Sva 3 AI poziva neuspešna za predmet=%s — kredit refundovan (procena=%s, hronologija=%s, metapodaci=%s)",
+            predmet_id, _pr, _hr, _meta,
+        )
+
     # ── Process procena ───────────────────────────────────────────────────────
     procena_tekst = ""
     if not isinstance(_pr, Exception):
@@ -5145,6 +5160,14 @@ async def predmet_upload_auto_analyze(
         # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-020): informational only,
         # does not block or alter the upload -- see the content_sha256 check above.
         "mozda_duplikat":      _mozda_duplikat,
+        # Final Beta Gate F7 (MEDIUM): storage upload of the ORIGINAL file
+        # (see the try/except a few hundred lines up) is best-effort and was
+        # never disclosed to the caller -- a lawyer whose signed original
+        # failed to persist saw an identical success screen to one whose
+        # original was safely stored. False when the storage write failed,
+        # even though the rest of the upload (OCR/Pinecone/DB) still
+        # succeeded by design.
+        "original_preserved":  bool(_original_storage_path),
     }
 
 

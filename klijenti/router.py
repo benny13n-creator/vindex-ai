@@ -551,6 +551,20 @@ async def delete_klijent(
         user_role=user.get("role_str", "advokat"), akcija=Akcija.SOFT_DELETE,
         entitet_id=klijent_id, ip_adresa=ip,
     ))
+    # Final Beta Gate F12 (HIGH): "klijent_delete" has been declared in
+    # shared.audit_immutable.AUDITABLE_ACTIONS since that allowlist was
+    # written, implying every client deletion is hash-chain tamper-evident
+    # logged (GDPR čl. 32 / ZZPL čl. 50) -- but log_action() was never
+    # actually called from this, the ONLY real delete path. klijenti/audit.py's
+    # own log_event above writes to a separate, mutable klijenti_audit table
+    # only. Both calls are kept (klijenti_audit is the existing UI-facing
+    # activity log; audit_immutable is the compliance-grade chain) -- this
+    # closes the false compliance claim, it doesn't replace the existing log.
+    from shared.audit_immutable import log_action
+    asyncio.create_task(log_action(
+        action="klijent_delete", user_id=user["user_id"],
+        resource_type="klijenti", resource_id=klijent_id, ip=ip,
+    ))
     return {"status": "obrisan"}
 
 

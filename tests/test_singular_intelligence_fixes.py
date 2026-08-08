@@ -306,6 +306,72 @@ async def test_refresh_case_dna_body_reports_success_when_save_succeeds():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Final Beta Gate F2 (HIGH): the manual refresh endpoint used to lack the
+# same "greska in genome -> don't touch the live column" guard the
+# background path already has -- a GPT extraction failure would still get
+# written over the good, existing Genome (full-column REPLACE), while still
+# claiming case_dna_persisted: true with a success message.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_refresh_case_dna_body_does_not_overwrite_good_genome_on_extraction_failure():
+    from routers import case_dna as cd
+
+    stari_genome = {"snaga_predmeta_procent": 40, "verzija": 3, "kljucne_cinjenice": ["real fact"]}
+    failed_genome = {"greska": "OpenAI timeout"}
+
+    def _chain_select(data):
+        c = MagicMock()
+        for m in ("select", "eq", "order", "limit", "maybe_single"):
+            setattr(c, m, MagicMock(return_value=c))
+        r = MagicMock(); r.data = data; r.count = len(data) if isinstance(data, list) else None
+        c.execute = MagicMock(return_value=r)
+        return c
+
+    def _table(name):
+        if name == "predmeti":
+            t = MagicMock()
+            sel = _chain_select({"id": "p1", "naziv": "X", "case_dna": stari_genome})
+            t.select.return_value = sel
+            upd = MagicMock()
+            # If the fix regresses and the endpoint tries to write anyway,
+            # this raises so the test fails loudly instead of silently
+            # accepting a destructive write.
+            upd.eq.return_value.eq.return_value.execute = MagicMock(
+                side_effect=AssertionError("must not write over case_dna on extraction failure")
+            )
+            t.update.return_value = upd
+            return t
+        if name == "predmet_dokumenti":
+            return _chain_select([{"id": "d1", "naziv_fajla": "a.pdf", "redni_broj": 1,
+                                    "tekst_sadrzaj": "sadrzaj", "velicina_kb": 5, "pravni_elementi": []}])
+        return _chain_select([])
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    req = MagicMock()
+
+    with patch("routers.case_dna._get_supa", return_value=supa), \
+         patch("routers.case_dna._extract_genome", new=AsyncMock(return_value=dict(failed_genome))), \
+         patch("routers.case_dna._fetch_dokazi_kontekst", new=AsyncMock(return_value=[])), \
+         patch("routers.case_dna.verify_genome", return_value={"odluka": "ok"}), \
+         patch("routers.case_dna._compute_analiza_osnov", new=AsyncMock(return_value={})), \
+         patch("routers.case_dna._sync_rokovi_to_hronologija", new=AsyncMock(return_value=0)), \
+         patch("routers.case_dna._save_genome_history", new=AsyncMock(return_value=None)), \
+         patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value=None)), \
+         patch("routers.case_dna._maybe_alert_require_review", new=AsyncMock(return_value=None)), \
+         patch("routers.case_dna.UsageService.consume", new=AsyncMock(return_value=None)) as mock_consume:
+        result = await cd._refresh_case_dna_body("p1", req, {"user_id": "u1", "email": "x@vindex.rs"})
+
+    assert result["case_dna_persisted"] is False
+    assert result["case_dna"] == stari_genome
+    assert result["verzija"] == 3
+    assert "AI ekstrakciji" in result["poruka"]
+    mock_consume.assert_not_called(), "must not charge a credit for a failed extraction"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Fix 6 (Red Team Attack 4, reproduced): dna.tip_spora has never existed in the
 # Genome schema -- the real field is pravna_teorija.pravni_identitet. Confirmed
 # via git history to have been wrong since the first Case Genome commit.

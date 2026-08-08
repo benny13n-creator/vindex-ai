@@ -185,8 +185,18 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     # timeout degrades to an empty case-name map (predmet_ids=[]), which the
     # rest of this function already treats as a valid, empty-board input
     # (see _fetch_recently_completed's own existing predmet_ids-empty branch).
+    #
+    # Final Beta Gate F18 (CRITICAL): this query had no status filter at all,
+    # so a closed/archived case's still-open case_actions rows kept showing
+    # up on the daily Workspace board -- the ONE screen a lawyer checks every
+    # morning. The sibling endpoint get_worklist (routers/case_actions.py)
+    # already carries this exact filter (Phoenix Mission 001,
+    # LIVINGSYS-DEBT-036) -- this applies the same fix here.
     predmeti_r = await single_with_timeout(
-        asyncio.to_thread(lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid).execute()),
+        asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid)
+                .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+        ),
         label="workspace.predmeti",
     )
     predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in (predmeti_r.data or [])}

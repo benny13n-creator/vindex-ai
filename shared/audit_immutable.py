@@ -55,8 +55,20 @@ def _normalize_ts_for_hash(ts: str) -> str:
 # Akcije koje se UVEK beleže u immutable log
 AUDITABLE_ACTIONS: set[str] = {
     # Predmeti
+    # Final Beta Gate F13 (MEDIUM): "predmet_delete" is a RESERVED entry --
+    # confirmed via exhaustive @router.delete/@app.delete grep (2026-08-08)
+    # that no case-delete endpoint exists anywhere in the codebase today.
+    # Left in the allowlist (harmless -- log_action() only inserts when
+    # explicitly called with this action string) so a future delete
+    # endpoint doesn't need to remember to add it here too; if one is ever
+    # added, it MUST call log_action("predmet_delete", ...) itself, the
+    # same gap this mission just closed for klijent_delete.
     "predmet_create", "predmet_update", "predmet_delete", "predmet_view",
     # Dokumenti
+    # "dokument_delete" is the same kind of reserved entry -- no document-
+    # delete endpoint exists today either (only evidence-item delete,
+    # routers/evidence.py, and note delete, api.py -- neither is "the
+    # document").
     "dokument_upload", "dokument_delete", "dokument_view", "dokument_download",
     # Program Intake Sprint 004 (2026-08-05) — Human Review Orchestration.
     # Svaka ljudska odluka u intake review toku mora imati audit zapis

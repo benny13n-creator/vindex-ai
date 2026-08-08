@@ -1159,6 +1159,41 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
         "status": "approved",
     }
 
+    # Final Beta Gate F16 (HIGH): claim the row FIRST, atomically, BEFORE any
+    # Pinecone promotion -- a double-click or slow-UI retry used to let 2
+    # concurrent requests both read status='pending', both pass the
+    # confidence check below, and both independently call
+    # _promote_staged_draft_to_pinecone (which has no dedup of its own),
+    # permanently ingesting 2 duplicate vectors into the firm's real
+    # Pinecone knowledge base plus 2 duplicate predmet_dokumenti rows -- a
+    # silent, permanent corruption of an institutional-memory asset other
+    # cases' retrieval depends on. The UPDATE below is conditioned on status
+    # still being 'pending' (the table's own DEFAULT/CHECK, migration 088)
+    # -- only the request that actually flips pending -> approved may
+    # promote; a losing concurrent request gets a clear "already processed"
+    # response instead of silently promoting a second time.
+    claim_res = await asyncio.to_thread(
+        lambda: supa.table("staging_memory")
+            .update(update_fields)
+            .eq("id", staging_id)
+            .eq("user_id", user["user_id"])
+            .eq("status", "pending")
+            .execute()
+    )
+    if not claim_res.data:
+        current = await asyncio.to_thread(
+            lambda: supa.table("staging_memory")
+                .select("status,pinecone_indexed")
+                .eq("id", staging_id).eq("user_id", user["user_id"])
+                .maybe_single().execute()
+        )
+        cur = current.data or {}
+        return {
+            "status": cur.get("status", "approved"),
+            "indexed": bool(cur.get("pinecone_indexed")),
+            "poruka": "Ovaj nacrt je već obrađen (odobren ili odbijen).",
+        }
+
     promoted = False
     if float(staging_row.get("confidence_score") or 0) >= _APPROVAL_CONFIDENCE_THRESHOLD:
         try:
@@ -1168,9 +1203,8 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
             logger.warning("[STAGING_APPROVE] promocija neuspešna staging_id=%s: %s", staging_id, exc)
             promoted = False
 
-    update_fields["pinecone_indexed"] = promoted
     await asyncio.to_thread(
-        lambda: supa.table("staging_memory").update(update_fields).eq("id", staging_id).execute()
+        lambda: supa.table("staging_memory").update({"pinecone_indexed": promoted}).eq("id", staging_id).execute()
     )
 
     if promoted:

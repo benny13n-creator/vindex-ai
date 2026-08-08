@@ -378,6 +378,107 @@ async def test_endpoint_404_missing_predmet():
 # 8. Endpoint — OpenAI error → 503
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Final Beta Gate F11 (MEDIUM-HIGH) -- risk_breakdown.overall had zero
+# validation, unlike its sibling field hearing_score. Guarded/reconciled
+# against the canonical platform risk (services/risk_engine.py, surfaced via
+# build_case_context's "risk" field), with an explicit independent-estimate
+# disclosure -- never silently overwritten when well-formed.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _pred(rizik=""):
+    return {"id": PID, "naziv": "T", "opis": "", "status": "a",
+            "rizik": rizik, "tuzilac": "", "tuzeni": "", "oblast": ""}
+
+
+@pytest.mark.anyio
+async def test_risk_breakdown_overall_well_formed_is_preserved_and_disclosed():
+    from routers.hearing_cc import hearing_command_center, HearingCCReq
+
+    supa = _make_supa(predmet_data=_pred())
+    brifing = dict(_BRIFING, risk_breakdown={"overall": "srednji", "factors": ["x"]})
+    oai_resp = _make_openai_resp(brifing)
+    case_context = {"risk": {"value": {"nivo": "Nizak"}}, "readiness": {"value": {"status": "READY"}}}
+
+    with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=case_context), \
+         patch("routers.hearing_cc.begin_cost_tracking"), \
+         patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
+         patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=97), \
+         patch("openai.AsyncOpenAI") as mock_oai_cls:
+        mock_oai = MagicMock()
+        mock_oai.chat.completions.create = AsyncMock(return_value=oai_resp)
+        mock_oai_cls.return_value = mock_oai
+
+        body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="gradjanski")
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
+
+    rb = result["brifing"]["risk_breakdown"]
+    # Case-insensitive GPT output normalized, but NOT silently overwritten to
+    # match the canonical value even though they disagree (Nizak vs SREDNJI).
+    assert rb["overall"] == "SREDNJI"
+    assert rb["platform_risk_nivo"] == "Nizak"
+    assert rb["independent_estimate"] is True
+
+
+@pytest.mark.anyio
+async def test_risk_breakdown_overall_malformed_fails_safe_to_canonical_risk():
+    from routers.hearing_cc import hearing_command_center, HearingCCReq
+
+    supa = _make_supa(predmet_data=_pred())
+    brifing = dict(_BRIFING, risk_breakdown={"overall": "EKSTREMNO", "factors": []})  # out-of-spec value
+    oai_resp = _make_openai_resp(brifing)
+    case_context = {"risk": {"value": {"nivo": "Visok"}}, "readiness": {"value": {"status": "READY"}}}
+
+    with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=case_context), \
+         patch("routers.hearing_cc.begin_cost_tracking"), \
+         patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
+         patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=97), \
+         patch("openai.AsyncOpenAI") as mock_oai_cls:
+        mock_oai = MagicMock()
+        mock_oai.chat.completions.create = AsyncMock(return_value=oai_resp)
+        mock_oai_cls.return_value = mock_oai
+
+        body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="gradjanski")
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
+
+    rb = result["brifing"]["risk_breakdown"]
+    assert rb["overall"] == "VISOK"  # fell back to the canonical platform value
+
+
+@pytest.mark.anyio
+async def test_risk_breakdown_overall_malformed_and_no_case_context_fails_safe_to_visok():
+    """Most conservative fallback when even the canonical value is unavailable."""
+    from routers.hearing_cc import hearing_command_center, HearingCCReq
+
+    supa = _make_supa(predmet_data=_pred())
+    brifing = dict(_BRIFING, risk_breakdown={"overall": None, "factors": []})
+    oai_resp = _make_openai_resp(brifing)
+
+    with patch("routers.hearing_cc._get_supa", return_value=supa), \
+         patch("routers.hearing_cc.build_case_context", new_callable=AsyncMock, return_value=None), \
+         patch("routers.hearing_cc.begin_cost_tracking"), \
+         patch("routers.hearing_cc.log_cost_to_db", new_callable=AsyncMock), \
+         patch("routers.hearing_cc._audit", new_callable=AsyncMock), \
+         patch("routers.hearing_cc.UsageService.consume", new_callable=AsyncMock, return_value=97), \
+         patch("openai.AsyncOpenAI") as mock_oai_cls:
+        mock_oai = MagicMock()
+        mock_oai.chat.completions.create = AsyncMock(return_value=oai_resp)
+        mock_oai_cls.return_value = mock_oai
+
+        body = HearingCCReq(predmet_id=PID, datum_rocista="2026-07-15", tip_postupka="gradjanski")
+        result = await hearing_command_center(body=body, request=_req(), user=_user())
+
+    rb = result["brifing"]["risk_breakdown"]
+    assert rb["overall"] == "VISOK"
+    assert rb["platform_risk_nivo"] is None
+    assert rb["independent_estimate"] is True
+
+
 @pytest.mark.anyio
 async def test_endpoint_503_on_openai_error():
     from routers.hearing_cc import hearing_command_center, HearingCCReq

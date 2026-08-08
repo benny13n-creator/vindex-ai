@@ -9,7 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.fixture
@@ -150,3 +150,62 @@ async def _fake_actions(predmet_ids):
     # proves the archived case never even reaches _fetch_open_actions.
     assert predmet_ids == ["pred-active"]
     return [{"predmet_id": "pred-active", "prioritet": "critical", "rok": "2026-08-10", "razlog": "test"}]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Final Beta Gate F18 (CRITICAL) — get_workspace (the daily "Today" board, a
+# DIFFERENT endpoint than get_worklist above) had no status filter at all on
+# its own predmeti query -- an archived/closed case's still-open case_actions
+# kept appearing on the actual Workspace board a lawyer checks every morning.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_workspace_board_excludes_archived_case():
+    import asyncio as _asyncio
+    import routers.workspace as workspace
+
+    def _req():
+        from starlette.requests import Request as StarletteRequest
+        scope = {"type": "http", "method": "GET", "path": "/", "headers": [],
+                  "query_string": b"", "app": MagicMock(), "state": MagicMock(),
+                  "client": ("127.0.0.1", 1234)}
+        return StarletteRequest(scope=scope)
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            t.select.return_value.eq.return_value.not_.in_.return_value.execute.return_value.data = [
+                {"id": "pred-active", "naziv": "Aktivan predmet"},
+            ]
+        return t
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    async def _real_gather(*coros, **kw):
+        return await _asyncio.gather(*coros, return_exceptions=True)
+
+    async def _fake_open_actions(supa, predmet_ids):
+        # Proves the archived case's id never reaches the case_actions query --
+        # the filter must happen at the predmeti query, not after the fact.
+        assert predmet_ids == ["pred-active"]
+        return []
+
+    async def _fake_recently_completed(supa, predmet_ids, uid):
+        assert predmet_ids == ["pred-active"]
+        return [], []
+
+    with patch.object(workspace, "_get_supa", return_value=supa), \
+         patch.object(workspace, "gather_with_timeout", new=_real_gather), \
+         patch.object(workspace, "_fetch_open_actions", new=_fake_open_actions), \
+         patch.object(workspace, "_fetch_waiting_zadaci", new=AsyncMock(return_value=[])), \
+         patch.object(workspace, "_fetch_review_jobs", new=AsyncMock(return_value=[])), \
+         patch.object(workspace, "_fetch_recently_completed", new=_fake_recently_completed):
+        result = await _asyncio.wait_for(
+            workspace.get_workspace(_req(), {"user_id": "u1"}), timeout=3.0
+        )
+
+    # The real assertion is inside _fake_open_actions/_fake_recently_completed above:
+    # if the archived case's id had leaked through, predmet_ids would be
+    # ["pred-active", "pred-archived"] and those asserts would fail the test.
+    assert result["ukupno_aktivnih"] == 0

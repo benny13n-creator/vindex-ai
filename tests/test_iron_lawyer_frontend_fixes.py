@@ -178,4 +178,14 @@ def test_sw_cache_bumped():
     """Standing convention: static/sw.js CACHE_NAME must increment whenever static/vindex.js
     changes, or returning users silently keep serving the stale cached bundle."""
     sw_js = (REPO_ROOT / "static" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE_NAME = "vindex-v109";' in sw_js
+    assert 'const CACHE_NAME = "vindex-v113";' in sw_js
+
+
+def test_upload_surfaces_original_preserved_and_duplicate_disclosure():
+    """Final Beta Gate F7/F20: api.py's predmet_upload_auto_analyze response carries
+    original_preserved (storage-write honesty) and mozda_duplikat (Phoenix Closure -020), but
+    neither had ANY frontend consumer -- a lawyer whose signed original failed to persist to
+    Storage saw an identical success screen to one whose original was safely stored."""
+    assert "if (d.original_preserved === false) {" in VINDEX_JS
+    assert "if (d.mozda_duplikat) {" in VINDEX_JS
+    assert "resEl.innerHTML = mainHtml + warnHtml + confirmHtml;" in VINDEX_JS

@@ -26,6 +26,7 @@ import html
 import logging
 import os
 import smtplib
+import types
 from datetime import date, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -497,35 +498,58 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             if dup.data:
                 continue
 
+            # Final Beta Gate F27 (MEDIUM): neither query below filtered by
+            # predmeti.status -- a case closed today still showed up in next
+            # Monday's digest email listing its hearing/deadline next week,
+            # the same trust-damaging bug class posalji_podsetnike (the
+            # DAILY reminder, ~200 lines up in this same file) was already
+            # fixed for. Same aktivni_ids idiom, applied here for the first
+            # time. Skips both queries entirely (no `.in_("predmet_id", [])`
+            # edge case) when the user has zero active cases -- billing/
+            # other digest content is unaffected either way.
+            _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
+                .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+            _aktivni_ids = [p["id"] for p in (_aktivni_r.data or [])]
+
             # Fetch this user's deadlines for the next 7 days
-            rokovi_r  = (supa.table("predmet_hronologija")
-                             .select("dogadjaj,datum_iso,vaznost")
-                             .eq("user_id", uid)
-                             .gte("datum_iso", today_iso)
-                             .lte("datum_iso", in_7)
-                             .order("datum_iso")
-                             .limit(20)
-                             .execute())
-            rocista_r = (supa.table("rocista")
-                             .select("sud,datum,vreme,status")
-                             .eq("user_id", uid)
-                             .gte("datum", today_iso)
-                             .lte("datum", in_7)
-                             .order("datum")
-                             .limit(10)
-                             .execute())
+            if _aktivni_ids:
+                rokovi_r  = (supa.table("predmet_hronologija")
+                                 .select("dogadjaj,datum_iso,vaznost,predmet_id")
+                                 .eq("user_id", uid)
+                                 .in_("predmet_id", _aktivni_ids)
+                                 .gte("datum_iso", today_iso)
+                                 .lte("datum_iso", in_7)
+                                 .order("datum_iso")
+                                 .limit(20)
+                                 .execute())
+                rocista_r = (supa.table("rocista")
+                                 .select("sud,datum,vreme,status")
+                                 .eq("user_id", uid)
+                                 .in_("predmet_id", _aktivni_ids)
+                                 .gte("datum", today_iso)
+                                 .lte("datum", in_7)
+                                 .order("datum")
+                                 .limit(10)
+                                 .execute())
+            else:
+                rokovi_r = types.SimpleNamespace(data=[])
+                rocista_r = types.SimpleNamespace(data=[])
             billing_r = (supa.table("billing_entries")
                              .select("iznos_rsd")
                              .eq("user_id", uid)
                              .eq("obracunato", False)
                              .execute())
-            hitnih_r  = (supa.table("predmet_hronologija")
-                             .select("predmet_id")
-                             .eq("user_id", uid)
-                             .eq("vaznost", "kritičan")
-                             .gte("datum_iso", today_iso)
-                             .lte("datum_iso", in_7)
-                             .execute())
+            if _aktivni_ids:
+                hitnih_r  = (supa.table("predmet_hronologija")
+                                 .select("predmet_id")
+                                 .eq("user_id", uid)
+                                 .in_("predmet_id", _aktivni_ids)
+                                 .eq("vaznost", "kritičan")
+                                 .gte("datum_iso", today_iso)
+                                 .lte("datum_iso", in_7)
+                                 .execute())
+            else:
+                hitnih_r = types.SimpleNamespace(data=[])
 
             rokovi     = rokovi_r.data or []
             rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])]

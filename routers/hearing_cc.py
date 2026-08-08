@@ -123,6 +123,12 @@ CRITICAL_GAP ili BLOCKED) -- takav predmet ne može biti visoko ocenjen kao "spr
 # identical dict was itself a duplicate-truth finding this mission targets).
 _CAP_BY_READINESS = CAP_BY_READINESS
 
+# Final Beta Gate F11 (MEDIUM-HIGH): risk_breakdown.overall enum + canonical
+# risk mapping. See the guard applied right after hearing_score's own clamp
+# in hearing_command_center below.
+_VALID_RISK_OVERALL = {"NIZAK", "SREDNJI", "VISOK"}
+_CANONICAL_RISK_TO_OVERALL = {"nizak": "NIZAK", "srednji": "SREDNJI", "visok": "VISOK"}
+
 _JSON_SCHEMA = """{
   "executive_brief": "string — sažetak 3-5 rečenica za ročište",
   "timeline": ["string — 'YYYY-MM-DD — opis događaja'"],
@@ -427,6 +433,36 @@ async def hearing_command_center(
             _score = brifing.get("hearing_score")
             if isinstance(_score, (int, float)) and _score > _cap:
                 brifing["hearing_score"] = _cap
+
+    # Final Beta Gate F11 (MEDIUM-HIGH): risk_breakdown.overall is a SECOND,
+    # independent GPT risk read in this same JSON object -- unlike its
+    # sibling field hearing_score (clamped just above), it had ZERO
+    # validation, so a malformed/out-of-spec value reached the lawyer
+    # verbatim as a prominent colored badge with no disclosure that it's an
+    # independent AI estimate (unlike cio.py's cio_preporuka, which DOES
+    # carry that disclosure). 4th recurrence of the "guarded headline field,
+    # missed sibling field" pattern (Genome heatmap, dokazi_rang,
+    # argument_reputation were the first 3). Deliberately NOT silently
+    # overwritten to match the canonical value when both are well-formed --
+    # a hearing-specific risk read can legitimately diverge from the case's
+    # overall risk -- but the platform value + explicit disclosure are
+    # always attached so the lawyer can see them disagree instead of
+    # silently trusting whichever one rendered first.
+    _rb = brifing.get("risk_breakdown")
+    if isinstance(_rb, dict):
+        _canonical_risk_nivo = None
+        if case_context and not case_context.get("error"):
+            _canonical_risk_nivo = ((case_context.get("risk") or {}).get("value") or {}).get("nivo")
+        _overall = _rb.get("overall")
+        if not isinstance(_overall, str) or _overall.strip().upper() not in _VALID_RISK_OVERALL:
+            # Fail safe to the canonical platform risk when GPT's own value is
+            # missing/malformed; if even that is unavailable, fail safe to the
+            # most conservative value (VISOK), never to a validation gap.
+            _rb["overall"] = _CANONICAL_RISK_TO_OVERALL.get((_canonical_risk_nivo or "").lower(), "VISOK")
+        else:
+            _rb["overall"] = _overall.strip().upper()
+        _rb["platform_risk_nivo"] = _canonical_risk_nivo
+        _rb["independent_estimate"] = True
 
     preostalo = await UsageService.consume(uid, email, "hearing_prep")
     asyncio.create_task(log_cost_to_db(uid, "hearing_command_center"))

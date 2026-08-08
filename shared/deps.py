@@ -576,16 +576,25 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 
 
 def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
-    """Atomically deduct n credits. Founder guard applied."""
+    """Atomically deduct n credits. Founder guard applied.
+
+    Returns -1 when the deduction did NOT happen (insufficient balance per
+    the RPC's own WHERE guard, or the RPC call itself failed) — callers
+    MUST treat any negative return as "not charged", never as a valid
+    balance. Monthly usage is only incremented when the deduction actually
+    succeeded, so a rejected/failed deduction doesn't count against limits.
+    """
     if _is_founder(email):
         return 9999
     try:
         result = _get_supa().rpc("deduct_n_credits", {"p_user_id": user_id, "p_n": n}).execute()
-        _increment_monthly_usage(user_id)
-        return result.data if result.data is not None else 0
+        new_balance = result.data if result.data is not None else -1
+        if new_balance is not None and new_balance >= 0:
+            _increment_monthly_usage(user_id)
+        return new_balance
     except Exception:
         logger.exception("[F12] Greška pri oduzimanju %d kredita za uid=%s", n, user_id)
-        return 0
+        return -1
 
 
 def _refund_one_credit(user_id: str) -> None:

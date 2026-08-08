@@ -203,6 +203,31 @@ def test_pred_auto_fill_awaits_the_async_context_builder():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Final Beta Gate F19 (HIGH) -- pred_loadDetail (the ACTUAL primary path that
+# loads window._predFull, per its own comment) had NO case-switch guard at
+# all -- the same bug class -035's adversarial fix closed one call site over
+# (_buildPredmetKontekst), still open on the function it was modeled on.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_pred_load_detail_guards_against_case_switch_during_fetch():
+    """Fast case-switching (open A -> open B before A's response lands) must
+    not let A's stale in-flight response overwrite B's Workspace cockpit."""
+    vindex_js = _vindex_js()
+    marker = "async function pred_loadDetail(id) {"
+    assert marker in vindex_js
+    block = vindex_js.split(marker, 1)[1][:2200]
+    assert "var d = await r.json();" in block
+    assert "if (id !== activePredmetId) {" in block
+    guard_pos = block.find("if (id !== activePredmetId) {")
+    fetch_pos = block.find("var d = await r.json();")
+    assign_pos = block.find("window._predFull = d;")
+    assert fetch_pos < guard_pos < assign_pos, (
+        "the case-switch guard must run right after the fetch resolves and "
+        "BEFORE window._predFull is overwritten, not after"
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # LIVINGSYS-DEBT-028 -- no server-side cooldown/dedup on drafting GENERATION
 # itself (distinct from -031's already-fixed staging-insert dedup, which
 # only guards the step AFTER the GPT call). Endpoint-level integration tests

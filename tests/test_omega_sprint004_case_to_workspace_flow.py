@@ -62,6 +62,13 @@ class _FakeQuery:
         self._filtered = [r for r in self._filtered if r.get(col) in vals]
         return self
 
+    @property
+    def not_(self):
+        # supabase-py's real .not_.in_(...) negates the very next filter --
+        # Final Beta Gate F18's get_workspace fix uses this to exclude
+        # zatvoren/arhiviran/odbijen cases.
+        return _NotFilter(self)
+
     def is_(self, col, val):
         if val in ("null", None):
             self._filtered = [r for r in self._filtered if r.get(col) is None]
@@ -97,6 +104,22 @@ class _FakeQuery:
         else:
             res.data = (self._filtered[0] if self._filtered else None) if self._single else list(self._filtered)
         return res
+
+
+class _NotFilter:
+    """Mirrors supabase-py's PostgrestFilterBuilder.not_ -- wraps the parent
+    query and negates whichever filter method is called next."""
+    def __init__(self, query: "_FakeQuery"):
+        self._query = query
+
+    def in_(self, col, vals):
+        vals = set(vals)
+        self._query._filtered = [r for r in self._query._filtered if r.get(col) not in vals]
+        return self._query
+
+    def eq(self, col, val):
+        self._query._filtered = [r for r in self._query._filtered if r.get(col) != val]
+        return self._query
 
 
 class _FakeSupa:

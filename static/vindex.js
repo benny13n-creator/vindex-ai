@@ -11851,6 +11851,17 @@ async function pred_loadDetail(id) {
     var r = await fetch(BASE_URL+'/api/predmeti/'+id+'/workspace', { headers: { 'Authorization':'Bearer '+currentSession.access_token } });
     if (!r.ok) { if (loadEl) loadEl.style.display='none'; return; }
     var d = await r.json();
+    // Final Beta Gate F19 (HIGH): pred_loadDetail is, by design, THE ONE place
+    // window._predFull is loaded -- but until this fix it had no guard against
+    // the user switching to a DIFFERENT case while this fetch was in flight.
+    // Fast case-switching (open A -> open B before A's response lands) could
+    // silently overwrite the ENTIRE Workspace cockpit (documents list, client
+    // hub, badge, Case DNA, timer bar) with case A's stale data while the
+    // header correctly showed case B. Same guard shape Phoenix Closure already
+    // proved out on _buildPredmetKontekst's own equivalent race (LIVINGSYS-
+    // DEBT-035 Phase 5 adversarial re-attack) -- applied here, to the actual
+    // primary load path, for the first time.
+    if (id !== activePredmetId) { if (loadEl) loadEl.style.display = 'none'; return; }
     window._predFull = d; // globalni snapshot za auto-fill generatora
     // Auto-fill svih AI polja kontekstom novog predmeta
     _predAutoFill('podnesak-opis', false);
@@ -14133,9 +14144,15 @@ function hccRenderBrifing(el, b, krediti) {
   html += _sec('', 'Izvršni sažetak', _txt(b.executive_brief));
 
   // Risk breakdown
+  // Final Beta Gate F11: risk_breakdown.overall is an independent AI estimate for
+  // THIS hearing, not the platform's own canonical risk (shared/risk_engine.py) --
+  // same disclosure precedent as CIO's "AI predlog, nezavisan..." line. Shown even
+  // when they agree, so a lawyer never has to guess which case they're in.
+  var _rbDisclosure = '<div style="color:rgba(255,255,255,.35);font-size:0.6rem;margin-top:0.35rem;">AI procena za ovo ročište, nezavisna od ukupnog rizika predmeta'
+    + (rb.platform_risk_nivo ? (' (platforma: ' + _esc(rb.platform_risk_nivo) + ')') : '') + '.</div>';
   html += _sec('⚠', 'Procena rizika',
     '<span style="font-weight:700;color:' + rbColor + ';font-size:0.8rem;">' + _esc(rb.overall||'?') + '</span>'
-    + _list(rb.factors));
+    + _list(rb.factors) + _rbDisclosure);
 
   // Win/lose matrix
   html += _sec('', 'Matrica pobede / poraza',
@@ -19625,6 +19642,18 @@ async function pred_upload_doc(file) {
     } else {
       mainHtml = '<div style="color:rgba(255,255,255,0.4);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
     }
+    // Final Beta Gate F7/F20: original_preserved/mozda_duplikat were backend
+    // disclosure fields with no frontend consumer -- a lawyer whose signed
+    // original failed to persist to Storage saw an identical success screen
+    // to one whose original was safely stored, with no way to know the
+    // difference.
+    var warnHtml = '';
+    if (d.original_preserved === false) {
+      warnHtml += '<div style="color:#e0a030;font-size:0.75rem;padding:0.3rem 0;">⚠ Originalni fajl nije sačuvan u trezoru (tekst i analiza su OK) — pokušajte ponovni upload ako vam je bitan skenirani original.</div>';
+    }
+    if (d.mozda_duplikat) {
+      warnHtml += '<div style="color:#e0a030;font-size:0.75rem;padding:0.3rem 0;">⚠ Moguć duplikat — dokument sličnog sadržaja je već u ovom predmetu.</div>';
+    }
     // Wall 4: confirm card for auto-link suggestions
     var confirmHtml = '';
     var hasPredlozi = d.predlozi_povezivanja && d.predlozi_povezivanja.length > 0;
@@ -19632,7 +19661,7 @@ async function pred_upload_doc(file) {
     if (hasPredlozi || hasDatumi) {
       confirmHtml = pred_renderConfirmCard(d.predlozi_povezivanja || [], d.metadata || {});
     }
-    if (resEl) resEl.innerHTML = mainHtml + confirmHtml;
+    if (resEl) resEl.innerHTML = mainHtml + warnHtml + confirmHtml;
     pred_loadDetail(activePredmetId);
     // Iron Lawyer Sprint 001: if the lawyer is already on the Rokovi tab when uploading, the
     // visible Intelligence Timeline (timeline_load) used to only refresh on a subsequent tab
@@ -21515,6 +21544,14 @@ function _stagingRender(mount, stavke) {
 }
 
 async function stagingApprove(stagingId) {
+  // Final Beta Gate F16 (HIGH): this button had no disabled-state guard, so
+  // a double-click or slow-network retry could fire 2 concurrent approve
+  // requests -- the backend now rejects the loser atomically (see
+  // routers/drafting.py::staging_approve), but disabling the button here
+  // too avoids sending the redundant second request at all.
+  var btn = (typeof event !== 'undefined' && event) ? event.target : null;
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Odobravam...'; }
   try {
     var r = await fetch(BASE_URL + '/api/staging/' + stagingId + '/approve', {
       method: 'POST',
@@ -21526,6 +21563,7 @@ async function stagingApprove(stagingId) {
     if (activePredmetId) _stagingLoad(activePredmetId);
   } catch (e) {
     showToast('Greška: ' + _friendlyErr(e), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Odobri'; }
   }
 }
 

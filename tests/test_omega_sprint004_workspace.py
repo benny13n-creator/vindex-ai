@@ -31,6 +31,9 @@ def _make_supa(predmeti=None, case_actions=None, zadaci=None, intake_jobs=None, 
     def _predmeti_table():
         t = MagicMock()
         t.select.return_value.eq.return_value.execute.return_value = MagicMock(data=predmeti)
+        # Final Beta Gate F18: get_workspace's predmeti query now excludes
+        # zatvoren/arhiviran/odbijen cases via .not_.in_("status", [...]).
+        t.select.return_value.eq.return_value.not_.in_.return_value.execute.return_value = MagicMock(data=predmeti)
         return t
 
     def _case_actions_table():
