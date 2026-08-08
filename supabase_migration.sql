@@ -61,19 +61,33 @@ CREATE POLICY "feedback_service_all" ON public.feedback
   WITH CHECK (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');
 
 -- 5. RPC funkcija za atomično oduzimanje jednog kredita
-CREATE OR REPLACE FUNCTION public.deduct_credit(p_user_id UUID)
-RETURNS INTEGER AS $$
-DECLARE
-  new_credits INTEGER;
-BEGIN
-  UPDATE public.profiles
-  SET credits_remaining = GREATEST(credits_remaining - 1, 0)
-  WHERE id = p_user_id
-    AND credits_remaining > 0
-  RETURNING credits_remaining INTO new_credits;
-  RETURN COALESCE(new_credits, -1);  -- -1 znači: krediti su već bili 0
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+--
+-- ⚠ SOA-004 (second-order audit, 2026-08-08) — DEFINITION REMOVED, NOT MOVED.
+--
+-- This file used to define public.deduct_credit(UUID) a SECOND time, with a
+-- body that CONTRADICTS the one in supabase_setup.sql on three points:
+--
+--     UPDATE public.profiles                  -- ← different TABLE
+--     SET credits_remaining = GREATEST(credits_remaining - 1, 0)
+--     WHERE id = p_user_id AND credits_remaining > 0
+--     RETURN COALESCE(new_credits, -1);       -- ← different SENTINEL
+--     $$ LANGUAGE plpgsql SECURITY DEFINER;   -- ← no SET search_path
+--
+-- Same signature, so whichever file ran LAST silently won. If this one had
+-- won, every deduction would have hit profiles.credits_remaining — a column
+-- _ensure_profile (shared/deps.py) never reads — meaning user_credits was
+-- never decremented for anyone and the entire product was free.
+--
+-- Read-only catalog verification of production on 2026-08-08 established that
+-- the supabase_setup.sql version (public.user_credits, COALESCE(...,0)) is the
+-- one actually deployed, so this variant never took effect in production. It is
+-- deleted rather than corrected because a duplicate definition of a
+-- money-handling function is itself the defect: the canonical charging
+-- primitive is public.deduct_n_credits (migrations/107_*.sql), which is now the
+-- only function any application code calls.
+--
+-- Do not re-add a deduct_credit definition here. If deduct_credit ever needs to
+-- change, do it in a NEW numbered migration.
 
 -- ─── 6. CONVERSATIONS tabela (istorija četa po sesijama) ──────────────────────
 CREATE TABLE IF NOT EXISTS public.conversations (

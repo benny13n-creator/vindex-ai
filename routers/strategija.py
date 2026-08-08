@@ -129,6 +129,13 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("red_team")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F5] red_team greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -155,6 +162,13 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("litigation")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F5] litigation greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju simulacije. Pokušajte ponovo.")
@@ -181,6 +195,13 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("sudija")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F5] sudija greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -222,6 +243,13 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("due_diligence")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F5] due_diligence greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju analize. Pokušajte ponovo.")
@@ -247,6 +275,13 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("revizor")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F7] pravni_revizor greška")
         raise HTTPException(status_code=500, detail="Greška pri generisanju revizije. Pokušajte ponovo.")
@@ -272,6 +307,13 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
         return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("witness")}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F9] witness_analyzer greška")
         raise HTTPException(status_code=500, detail="Greška pri analizi iskaza. Pokušajte ponovo.")
@@ -304,6 +346,13 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
             "credits_remaining": max(preostalo, 0),
             "_ai_advisory": _advisory_provenance("sudija_v2"),
         }
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
+    # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
+    # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
+    # paywall handler keys on 402 and never fired -- the user saw "server error"
+    # instead of "buy credits", while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("[F9] sudija_v2 greška")
         raise HTTPException(status_code=500, detail="Greška pri simulaciji debate. Pokušajte ponovo.")
@@ -470,6 +519,12 @@ async def strategija_v2_analiza(
         _sentry_capture(je)
         logger.error("[V2] JSON parse greška: %s", je)
         raise HTTPException(status_code=500, detail="Greška pri parsiranju AI odgovora.")
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[V2] strategija_v2 greška")

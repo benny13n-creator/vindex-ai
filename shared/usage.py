@@ -371,13 +371,38 @@ class UsageService:
             # (fast, friendly 402 with the real balance). It is NOT the safety
             # mechanism -- it is a check-then-act read and races by definition.
             # The authoritative guard is the atomic conditional UPDATE inside
-            # deduct_credit / deduct_n_credits (migration 107): a caller that
-            # loses the race gets -1 back and is rejected below, regardless of
-            # what the pre-check saw.
-            if n_credits == 1:
-                preostalo = await asyncio.to_thread(_deduct_credit, user_id, email)
-            else:
-                preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
+            # deduct_n_credits (migration 107): a caller that loses the race
+            # gets -1 back and is rejected below, regardless of what the
+            # pre-check saw.
+            #
+            # CREDIT-CONSUME-001 (CRITICAL, adversarial review 2026-08-08):
+            # this used to route n_credits == 1 to _deduct_credit instead.
+            # That function IS atomic (its UPDATE carries
+            # `AND credits_remaining > 0`), but its RETURN CONTRACT is wrong:
+            # production's body (supabase_setup.sql:139) ends its NOT-FOUND
+            # branch with `RETURN COALESCE(new_credits, 0)` -- it returns the
+            # CURRENT BALANCE, never a negative. So `preostalo < 0` below was
+            # unreachable on that branch, the 402 never fired, and the paid
+            # operation was delivered anyway. Reproduced against real
+            # PostgreSQL: balance 1, 40 concurrent consume() calls -> 37
+            # granted, 36 of them free.
+            #
+            # n == 1 is the DOMINANT price in feature_registry
+            # (ai_pravna_pitanja, copilot, strategija at multiplier=1, ~25
+            # more), so this was the widest credit hole in the product -- and
+            # it survived the migration-107 work because 107 only ever
+            # touched deduct_n_credits.
+            #
+            # Fixed by removing the special case entirely: every charge, of
+            # every size including 1, now goes through the single function
+            # whose contract is defined and tested (>=0 charged, -1 not
+            # charged). Chosen over patching deduct_credit's return value
+            # because it needs no further production migration, and because
+            # one charging primitive cannot drift from another. Note the repo
+            # contains two CONTRADICTORY deduct_credit definitions
+            # (supabase_migration.sql:74 returns -1, supabase_setup.sql:139
+            # returns 0) -- exactly the drift this removes reliance on.
+            preostalo = await asyncio.to_thread(_deduct_n_credits, user_id, email, n_credits)
             if preostalo < 0:
                 raise HTTPException(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -405,7 +430,14 @@ class UsageService:
         return await asyncio.to_thread(_get_credits, user_id)
 
     @staticmethod
-    async def refund(user_id: str, email: str, feature: str, *, multiplier: Optional[int] = None) -> None:
+    async def refund(
+        user_id: str,
+        email: str,
+        feature: str,
+        *,
+        multiplier: Optional[int] = None,
+        credits: Optional[int] = None,
+    ) -> None:
         """Best-effort refund (npr. greška u generisanju posle uspešnog consume()).
 
         Beta Gate Blocker Closure (2026-08-08) — two defects fixed here:
@@ -428,9 +460,26 @@ class UsageService:
         """
         if _is_founder(email):
             return
-        policy = await get_policy(feature)
-        effective_multiplier = multiplier if multiplier is not None else policy.get("credit_multiplier", 1)
-        credits = int(float(policy.get("krediti") or 0) * max(float(effective_multiplier or 1), 1))
+
+        # CREDIT-REFUND-002 (HIGH, adversarial review 2026-08-08):
+        # recomputing the amount from the registry is only symmetric with
+        # consume() when the caller ALSO let consume() use the registry
+        # multiplier. Three routers deliberately override it
+        # (routers/strategija.py passes multiplier=1 against a registry
+        # credit_multiplier of 6; digital_twin 3; strategy_simulator 2), so a
+        # recomputed refund would return 6 for a 1-credit charge -- MINTING 5
+        # credits per failure. Reproduced against the real database.
+        #
+        # `credits=` is therefore the preferred call form: pass the exact
+        # amount consume() actually charged and no recomputation happens at
+        # all. `multiplier=` remains for callers that know their runtime
+        # factor. The registry fallback is kept only for the (majority)
+        # callers that charge at the registry price, where it is exact.
+        if credits is None:
+            policy = await get_policy(feature)
+            effective_multiplier = multiplier if multiplier is not None else policy.get("credit_multiplier", 1)
+            credits = int(float(policy.get("krediti") or 0) * max(float(effective_multiplier or 1), 1))
+        credits = int(credits)
         if credits <= 0:
             return
         await asyncio.to_thread(_refund_n_credits, user_id, credits)

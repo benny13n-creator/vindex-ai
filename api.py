@@ -2986,6 +2986,16 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 ip=request.client.host if request.client else None,
                 metadata={"score": _guard_result.risk_score, "flags": _guard_result.flags[:5]},
             ))
+            # SOA-006 (second-order audit, 2026-08-08): this is a NORMAL return,
+            # so neither `except` handler below runs, and it sits ABOVE the
+            # cache-hit/blocked refund check -- the credit consumed a few lines
+            # earlier was simply kept. Zero AI work happened. A lawyer whose
+            # case description trips a prompt-guard false positive paid for
+            # every attempt. (The comment at the consume() call promises a
+            # refund when "blokiran", but that refers to rezultat["blocked"]
+            # from the agent, a different flag entirely.)
+            await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+            _credit_consumed = False
             return greska_odgovor(400, "Zahtev sadrži neodgovarajući sadržaj i nije obrađen.")
 
         # Ograniči veličinu pre slanja AI-u
@@ -3139,6 +3149,17 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
     async def _event_generator():
         # Commit 4/T1: Guard-complete pipeline — all Commits (1+2+3) run inside ask_agent
         # before the first byte is sent to the client. Old direct-LLM path removed.
+        #
+        # SOA-012 (second-order audit, 2026-08-08): the credit is consumed
+        # ABOVE this generator, but every refund path lived inside
+        # `except Exception`. When the client disconnects mid-stream Starlette
+        # closes the generator, which raises GeneratorExit / CancelledError --
+        # both BaseException, NOT Exception -- so no refund ran at all.
+        # Closing the browser tab on a slow answer silently cost a credit.
+        # `_refunded` makes the refund idempotent across the three paths
+        # (success-path condition, Exception, BaseException) so adding the
+        # BaseException handler cannot double-refund.
+        _refunded = False
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
@@ -3164,7 +3185,11 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             preostalo = _stream_preostalo
             if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
                 await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
-                preostalo = preostalo + 1
+                _refunded = True
+                # SOA-016: the displayed balance used to be hardcoded `+ 1`,
+                # which is wrong for any feature priced above 1 credit. Read
+                # the real post-refund balance instead of guessing.
+                preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
 
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
@@ -3177,12 +3202,29 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             # (including pokreni()'s own 503 queue-timeout, Scenario 3) used to skip the
             # refund entirely, since the refund-check logic only runs on the success path
             # a few lines above. Same fix as the non-streaming /api/pitanje.
-            try:
-                await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
-            except Exception:
-                logger.warning("[PITANJE_STREAM] refund nakon greške nije uspeo [q=%s]", qh)
+            if not _refunded:
+                try:
+                    await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+                    _refunded = True
+                except Exception:
+                    logger.warning("[PITANJE_STREAM] refund nakon greške nije uspeo [q=%s]", qh)
             yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
             yield "data: [DONE]\n\n"
+
+        except BaseException:
+            # SOA-012: client disconnect / task cancellation arrives as
+            # GeneratorExit or CancelledError, which are BaseException and so
+            # slip past the handler above. Refund here, then re-raise so
+            # cancellation semantics are preserved exactly (this handler must
+            # never swallow). Awaiting during aclose() is permitted -- what is
+            # forbidden is yielding, and nothing is yielded below.
+            if not _refunded:
+                try:
+                    await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+                    _refunded = True
+                except Exception:
+                    logger.warning("[PITANJE_STREAM] refund nakon prekida veze nije uspeo [q=%s]", qh)
+            raise
 
     return StreamingResponse(
         _event_generator(),

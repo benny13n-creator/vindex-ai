@@ -740,6 +740,141 @@ async def test_consume_fractional_price_still_charges_nothing(pg_dsn, make_user,
 
 
 @pytest.mark.anyio
+async def test_consume_at_one_credit_does_not_route_to_deduct_credit(pg_dsn, make_user, monkeypatch, consume_against_real_db):
+    """CREDIT-CONSUME-001 (CRITICAL) regression.
+
+    consume() used to send n_credits == 1 to deduct_credit, whose production
+    body returns COALESCE(new_credits, 0) on its NOT-FOUND branch -- the
+    CURRENT BALANCE, never a negative. `preostalo < 0` was therefore
+    unreachable, no 402 fired, and the operation was delivered free.
+
+    _RealPgSupabaseShim routes "deduct_credit" to deduct_credit_shim, which is
+    a VERBATIM copy of that vulnerable production body. If consume() ever
+    routes a 1-credit charge there again, the underfunded case below silently
+    succeeds instead of raising 402 and this test fails.
+    """
+    from fastapi import HTTPException
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(1, 1))
+
+    uid = make_user(0)                       # underfunded: 0 credits, price 1
+    with pytest.raises(HTTPException) as exc:
+        await usage.UsageService.consume(uid, "advokat@vindex.rs", "ai_pravna_pitanja")
+
+    assert exc.value.status_code == 402
+    assert _balance(pg_dsn, uid) == 0
+
+
+@pytest.mark.anyio
+async def test_concurrent_consume_at_one_credit_cannot_overdraw(pg_dsn, make_user, monkeypatch, consume_against_real_db):
+    """The reproduction the adversarial review used: balance 1, 40 concurrent
+    1-credit consume() calls. Before the fix this granted ~37 of them.
+
+    n == 1 is the dominant price in feature_registry (ai_pravna_pitanja,
+    copilot, strategija at multiplier=1, ~25 more), so this is the widest
+    credit path in the product -- and it was the one branch the previous
+    migration-107 work never exercised."""
+    import asyncio as _asyncio
+    from fastapi import HTTPException
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(1, 1))
+
+    uid = make_user(1)
+
+    async def one():
+        try:
+            await usage.UsageService.consume(uid, "advokat@vindex.rs", "ai_pravna_pitanja")
+            return "SUCCESS"
+        except HTTPException as e:
+            return "INSUFFICIENT" if e.status_code == 402 else f"ERROR:{e.status_code}"
+
+    results = await _asyncio.gather(*[one() for _ in range(40)])
+    granted = results.count("SUCCESS")
+
+    assert granted == 1, f"exactly one 1-credit charge may be funded by a 1-credit balance, got {granted}"
+    assert _balance(pg_dsn, uid) == 0
+    assert granted * 1 + _balance(pg_dsn, uid) == 1
+
+
+@pytest.mark.anyio
+async def test_negative_control_deduct_credit_reports_success_when_it_charged_nothing(
+    pg_dsn, make_user, monkeypatch, consume_against_real_db
+):
+    """NEGATIVE CONTROL for CREDIT-CONSUME-001.
+
+    Proves the branch consume() used to take is genuinely unsafe, so the
+    regression tests above are not passing vacuously. deduct_credit_shim is a
+    verbatim copy of production's body; called for a user with ZERO credits it
+    charges nothing yet returns 0 -- and 0 is not < 0, so consume()'s only
+    failure check could never fire. That single missing minus sign is the
+    whole defect."""
+    import shared.deps as deps
+
+    uid = make_user(0)
+    got = deps._get_supa().rpc("deduct_credit", {"p_user_id": uid}).execute().data
+
+    assert got == 0, f"expected the vulnerable contract to report 0, got {got}"
+    assert got >= 0, (
+        "deduct_credit never returns a negative -- so `if preostalo < 0` in consume() "
+        "was unreachable and the 402 could never fire"
+    )
+    assert _balance(pg_dsn, uid) == 0, "nothing was charged, yet the return value said success"
+
+    # Contrast: the function consume() now uses gets the identical case right.
+    assert _deduct(pg_dsn, uid, 1) == -1
+
+
+@pytest.mark.anyio
+async def test_consume_never_calls_deduct_credit_for_any_amount(pg_dsn, make_user, monkeypatch, consume_against_real_db):
+    """Structural half of CREDIT-CONSUME-001: there must be exactly ONE
+    charging primitive. Two primitives with different return contracts is
+    what produced the defect."""
+    import shared.deps as deps
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(1, 1))
+
+    called = []
+    real_shim = deps._get_supa()
+
+    class _Spy:
+        def rpc(self, name, params):
+            called.append(name)
+            return real_shim.rpc(name, params)
+
+    monkeypatch.setattr(deps, "_get_supa", lambda: _Spy())
+
+    uid = make_user(5)
+    await usage.UsageService.consume(uid, "advokat@vindex.rs", "ai_pravna_pitanja")
+
+    assert "deduct_credit" not in called, f"consume() must not use deduct_credit: {called}"
+    assert "deduct_n_credits" in called
+    assert _balance(pg_dsn, uid) == 4
+
+
+@pytest.mark.anyio
+async def test_refund_with_explicit_credits_cannot_mint(pg_dsn, make_user, monkeypatch, consume_against_real_db):
+    """CREDIT-REFUND-002 (HIGH) regression. A caller that charged at an
+    explicit multiplier=1 against a registry credit_multiplier of 6 (exactly
+    what routers/strategija.py does) previously got 6 credits back for a
+    1-credit charge -- minting 5 per failure."""
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(1, 6))
+
+    uid = make_user(20)
+    await usage.UsageService.consume(uid, "advokat@vindex.rs", "strategija", multiplier=1)
+    assert _balance(pg_dsn, uid) == 19, "charged exactly 1"
+
+    # The safe call form: refund exactly what was charged.
+    await usage.UsageService.refund(uid, "advokat@vindex.rs", "strategija", credits=1)
+    assert _balance(pg_dsn, uid) == 20, "refund must not mint"
+
+    # And the matching-multiplier form is equally exact.
+    await usage.UsageService.consume(uid, "advokat@vindex.rs", "strategija", multiplier=1)
+    await usage.UsageService.refund(uid, "advokat@vindex.rs", "strategija", multiplier=1)
+    assert _balance(pg_dsn, uid) == 20
+
+
+@pytest.mark.anyio
 async def test_concurrent_consume_through_real_python_path_cannot_overdraw(pg_dsn, make_user, monkeypatch, consume_against_real_db):
     """The full stack under contention: 20 concurrent UsageService.consume()
     calls for a 12-credit feature against a 60-credit balance. At most 5 may

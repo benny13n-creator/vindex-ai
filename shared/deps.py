@@ -593,7 +593,21 @@ def _deduct_n_credits(user_id: str, email: str, n: int) -> int:
             _increment_monthly_usage(user_id)
         return new_balance
     except Exception:
-        logger.exception("[F12] Greška pri oduzimanju %d kredita za uid=%s", n, user_id)
+        # CREDIT-LOSTREPLY-003 (MEDIUM, adversarial review 2026-08-08): this
+        # cannot distinguish "the charge never executed" from "the charge
+        # COMMITTED but the reply was lost" (connection reset, PostgREST
+        # timeout). It must pick one, and failing CLOSED is correct -- the
+        # alternative would deliver paid work on an unknown billing state.
+        # But the second case silently bills the user for nothing, so it is
+        # logged on its own marker for manual reconciliation rather than
+        # folded into generic error noise. Closing this properly needs an
+        # idempotency key on the charge, which the product deliberately does
+        # not have (see test_retry_charges_twice_by_design_and_stays_consistent).
+        logger.exception(
+            "[CREDIT_RECONCILE] deduct_n_credits RPC raised for uid=%s n=%d -- treating as NOT "
+            "charged and failing closed; if the transaction actually committed the user was "
+            "billed without delivery and needs manual reconciliation", user_id, n,
+        )
         return -1
 
 
@@ -659,8 +673,21 @@ async def require_credits(user: dict = Depends(get_current_user)) -> dict:
         )
 
     # Atomično pre-deductuj 1 kredit — eliminiše race condition na concurrent zahteve.
-    # deduct_credit RPC je atomic na DB nivou: second concurrent request dobija -1.
-    preostalo = await asyncio.to_thread(_deduct_credit, user["user_id"], email)
+    #
+    # CREDIT-CONSUME-001 (CRITICAL, adversarial review 2026-08-08): the
+    # comment here used to claim "deduct_credit RPC je atomic na DB nivou:
+    # second concurrent request dobija -1". The UPDATE is atomic, but the
+    # claim about -1 is FALSE for the deployed body: production's
+    # deduct_credit ends its NOT-FOUND branch with
+    # `RETURN COALESCE(new_credits, 0)` (supabase_setup.sql:139), so it
+    # returns the current balance and never a negative -- making the
+    # `preostalo < 0` check below unreachable, exactly as in
+    # UsageService.consume. This dependency currently has ZERO
+    # `Depends(require_credits)` call sites (verified by grep), so it was
+    # never live, but it is left correct rather than left as a trap for
+    # whoever re-adopts it. Routed through the one primitive whose contract
+    # is defined and tested (migration 107): >=0 charged, -1 not charged.
+    preostalo = await asyncio.to_thread(_deduct_n_credits, user["user_id"], email, 1)
     if preostalo < 0:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,

@@ -70,6 +70,12 @@ async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dic
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "web3_pretraga", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] web3_pretraga greška")
@@ -89,6 +95,12 @@ async def post_compliance_check(req: StrategijaRequest, request: Request, user: 
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "compliance_check", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] compliance_check greška")
@@ -108,6 +120,12 @@ async def post_whitepaper_check(req: StrategijaRequest, request: Request, user: 
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_whitepaper_analysis")
         return {"rezultat": rezultat, "modul": "whitepaper_check", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] whitepaper_check greška")
@@ -132,6 +150,12 @@ async def post_mica_score(req: StrategijaRequest, request: Request, user: dict =
             "modul": "mica_score",
             "credits_remaining": max(preostalo, 0),
         }
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] mica_score greška")
@@ -156,6 +180,12 @@ async def post_license_check(req: StrategijaRequest, request: Request, user: dic
             "modul": "license_check",
             "credits_remaining": max(preostalo, 0),
         }
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] license_check greška")
@@ -180,6 +210,12 @@ async def post_aml_audit(req: StrategijaRequest, request: Request, user: dict = 
             "modul": "aml_audit",
             "credits_remaining": max(preostalo, 0),
         }
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] aml_audit greška")
@@ -204,6 +240,12 @@ async def post_documentation_health_score(req: StrategijaRequest, request: Reque
             "modul": "health_score",
             "credits_remaining": max(preostalo, 0),
         }
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] health_score greška")
@@ -223,6 +265,12 @@ async def post_reporting_simulator(req: StrategijaRequest, request: Request, use
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_reporting_simulator")
         return {"rezultat": rezultat, "modul": "reporting_simulator", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] reporting_simulator greška")
@@ -242,6 +290,12 @@ async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, use
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "carf_dac8_readiness", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] carf_dac8_readiness greška")
@@ -268,6 +322,12 @@ async def post_jurisdikcija_analiza(req: StrategijaRequest, request: Request, us
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
         return {"rezultat": rezultat, "modul": "jurisdikcija_analiza", "credits_remaining": max(preostalo, 0)}
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F11] jurisdikcija_analiza greška")
@@ -578,6 +638,12 @@ async def post_analiziraj_ugovor(
             {"role": "user",   "content": user_msg},
         ]
         raw_content, tokens_used = await asyncio.to_thread(_call_gpt, messages)
+    # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
+    # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
+    # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
+    # never fired, while the cooldown claim had already been spent.
+    except HTTPException:
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("[F12] GPT poziv neuspešan")

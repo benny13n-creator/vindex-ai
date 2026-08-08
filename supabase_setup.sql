@@ -145,7 +145,26 @@ $$;
 
 -- Allow service_role and authenticated to call this RPC via PostgREST
 GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO service_role;
-GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO authenticated;
+
+-- SOA-003 (second-order audit, 2026-08-08): the line that used to stand here,
+--     GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO authenticated;
+-- is the exact live exploit migration 102 exists to close: deduct_credit is
+-- SECURITY DEFINER and trusts its p_user_id argument with no auth.uid() check,
+-- so any logged-in user could POST /rest/v1/rpc/deduct_credit with a VICTIM's
+-- uuid and drain that account one credit per call, entirely outside the
+-- backend. Migration 102 revoked it, and read-only catalog verification of
+-- production on 2026-08-08 confirms the revoke is live
+-- (proacl = {postgres=X/postgres,service_role=X/postgres}, authenticated=false).
+--
+-- But THIS file was never amended, and shared/deps.py:426 instructs operators
+-- to re-run it whenever credits look broken (">>> Proverite da li je
+-- supabase_setup.sql pokrenut u Supabase Dashboard! <<<"). One such re-run
+-- would have silently re-opened the hole. The GRANT is therefore deleted and
+-- replaced with the REVOKEs, so re-running this file now CONVERGES on the
+-- locked-down state instead of undoing migration 102.
+REVOKE ALL ON FUNCTION public.deduct_credit(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.deduct_credit(UUID) FROM anon;
+REVOKE ALL ON FUNCTION public.deduct_credit(UUID) FROM authenticated;
 
 
 -- ─── 5. AUDIT_LOG TABLE ──────────────────────────────────────────────────────

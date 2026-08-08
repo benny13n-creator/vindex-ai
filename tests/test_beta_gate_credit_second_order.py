@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+"""
+Beta Gate Credit System Closure — second-order audit regressions.
+
+Findings SOA-003, SOA-004, SOA-006, SOA-009, SOA-012, SOA-016. Each is a way
+the credit system charged a user for nothing, or hid a paywall behind a
+generic 500, or left a re-runnable SQL file that would undo a security
+migration.
+"""
+import ast
+import inspect
+import os
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+# ── SOA-003 / SOA-004: re-runnable SQL must not undo the lockdown ───────────
+
+def test_setup_sql_no_longer_grants_deduct_credit_to_authenticated():
+    """supabase_setup.sql is the file shared/deps.py tells operators to re-run
+    when credits look broken. It used to end with
+        GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO authenticated;
+    which is precisely the live exploit migration 102 exists to close: any
+    logged-in user could POST /rest/v1/rpc/deduct_credit with a VICTIM's uuid
+    and drain that account. One re-run would silently reopen it."""
+    sql = (REPO_ROOT / "supabase_setup.sql").read_text(encoding="utf-8")
+    executable = "\n".join(l for l in sql.splitlines() if not l.lstrip().startswith("--"))
+    assert "GRANT EXECUTE ON FUNCTION public.deduct_credit(UUID) TO authenticated" not in executable
+    assert "REVOKE ALL ON FUNCTION public.deduct_credit(UUID) FROM authenticated" in executable
+    assert "REVOKE ALL ON FUNCTION public.deduct_credit(UUID) FROM anon" in executable
+
+
+def test_only_one_deduct_credit_definition_exists_in_the_repo():
+    """supabase_migration.sql defined a SECOND deduct_credit with the same
+    signature but against public.profiles (not user_credits) and a different
+    sentinel. Whichever file ran last won; if that one had, user_credits was
+    never decremented for anyone and the product was free."""
+    defining = []
+    for path in list(REPO_ROOT.glob("*.sql")) + list((REPO_ROOT / "migrations").glob("*.sql")):
+        executable = "\n".join(
+            l for l in path.read_text(encoding="utf-8").splitlines()
+            if not l.lstrip().startswith("--")
+        )
+        if "CREATE OR REPLACE FUNCTION public.deduct_credit" in executable:
+            defining.append(path.name)
+    assert defining == ["supabase_setup.sql"], (
+        f"exactly one file may define deduct_credit, found: {defining}"
+    )
+
+
+def test_only_one_deduct_n_credits_definition_exists_in_the_repo():
+    defining = []
+    for path in list(REPO_ROOT.glob("*.sql")) + list((REPO_ROOT / "migrations").glob("*.sql")):
+        executable = "\n".join(
+            l for l in path.read_text(encoding="utf-8").splitlines()
+            if not l.lstrip().startswith("--")
+        )
+        if "CREATE OR REPLACE FUNCTION public.deduct_n_credits" in executable:
+            defining.append(path.name)
+    assert defining == ["107_beta_gate_credit_race_closure.sql"], (
+        f"deduct_n_credits must have exactly one definition, found: {defining}"
+    )
+
+
+# ── SOA-006: prompt-guard block charged and never refunded ──────────────────
+
+def test_prompt_guard_block_refunds_the_credit():
+    """The guard-blocked branch is a NORMAL return, so neither except handler
+    runs and it sits above the cache-hit refund check -- the credit consumed
+    moments earlier was simply kept, for zero AI work."""
+    import api
+
+    src = inspect.getsource(api.pitanje)
+    head, _, tail = src.partition("if _guard_result.blocked:")
+    assert tail, "guard-blocked branch not found"
+    blocked_branch = tail.split("return greska_odgovor(400")[0]
+    assert "UsageService.refund" in blocked_branch, (
+        "a prompt-guard rejection does no AI work and must refund the credit"
+    )
+    assert "_credit_consumed = False" in blocked_branch, (
+        "must clear the flag so the except handlers cannot double-refund"
+    )
+
+
+# ── SOA-012: SSE client disconnect skipped the refund entirely ──────────────
+
+def test_stream_refunds_on_client_disconnect():
+    """Starlette closes the generator on disconnect, raising GeneratorExit /
+    CancelledError -- BaseException, not Exception -- so every refund path
+    was skipped. Closing the tab on a slow answer cost a credit for nothing."""
+    import api
+
+    src = inspect.getsource(api.pitanje_stream)
+    assert "except BaseException:" in src, (
+        "an except BaseException handler is required; except Exception cannot "
+        "catch GeneratorExit/CancelledError"
+    )
+    base_branch = src.split("except BaseException:")[1]
+    assert "UsageService.refund" in base_branch
+    assert "raise" in base_branch, "must re-raise -- cancellation must not be swallowed"
+
+
+def test_stream_refund_is_idempotent_across_all_three_paths():
+    """Adding the BaseException handler must not create a double refund."""
+    import api
+
+    src = inspect.getsource(api.pitanje_stream)
+    assert "_refunded = False" in src
+    assert src.count("if not _refunded:") >= 2, (
+        "both the Exception and BaseException handlers must be guarded by the flag"
+    )
+
+
+def test_stream_does_not_hardcode_plus_one_for_refund_display():
+    """SOA-016: the displayed balance was `preostalo + 1`, wrong for any
+    feature priced above 1 credit."""
+    import api
+
+    src = inspect.getsource(api.pitanje_stream)
+    assert "preostalo = preostalo + 1" not in src
+    assert "UsageService.balance" in src, "read the real balance instead of guessing"
+
+
+# ── SOA-009: genuine 402/429 masked as a generic 500 ────────────────────────
+
+def _masking_sites_without_guard(path: Path):
+    """Finds `except Exception` handlers that raise HTTPException(500) with no
+    preceding `except HTTPException: raise` in the same try statement."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    bad = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        names = []
+        for h in node.handlers:
+            n = ""
+            if isinstance(h.type, ast.Name):
+                n = h.type.id
+            elif isinstance(h.type, ast.Tuple):
+                n = ",".join(e.id for e in h.type.elts if isinstance(e, ast.Name))
+            names.append(n)
+        for idx, h in enumerate(node.handlers):
+            if names[idx] != "Exception":
+                continue
+            raises500 = any(
+                isinstance(s, ast.Raise) and "500" in ast.dump(s) for s in ast.walk(h)
+            )
+            if raises500 and "HTTPException" not in names[:idx]:
+                bad.append(h.lineno)
+    return bad
+
+
+@pytest.mark.parametrize("relpath", ["routers/strategija.py", "routers/web3.py"])
+def test_consume_402_is_not_masked_as_500(relpath):
+    """HTTPException subclasses Exception, so consume()'s 402 NO_CREDITS /
+    429 COOLDOWN was converted to 500 and the frontend paywall (which keys on
+    402) never fired -- while the cooldown claim had already been spent."""
+    bad = _masking_sites_without_guard(REPO_ROOT / relpath)
+    assert bad == [], (
+        f"{relpath}: `except Exception` -> HTTPException(500) with no preceding "
+        f"`except HTTPException: raise` at lines {bad}"
+    )
