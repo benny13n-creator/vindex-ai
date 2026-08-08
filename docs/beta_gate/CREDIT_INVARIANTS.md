@@ -40,11 +40,15 @@ proves nothing. Each of these was run with the fix reverted, and failed:
 
 Stated plainly rather than left to be discovered:
 
-- **Retry idempotency.** No invariant asserts that repeating a request charges
-  once. It does not: `/multi-agent/pipeline`, `/kompletna-analiza` and the other
-  202-job endpoints re-charge completed work on retry. Closing this needs a
-  request-level idempotency key; the repo already has the pattern
-  (`idempotency_key` + partial UNIQUE + RPC, migration 073).
+- **Retry idempotency — PARTLY CLOSED 2026-08-08 (P1-A).** `/kompletna-analiza`
+  now dedupes an in-flight duplicate by request-content key, and `/pipeline`
+  accepts an opt-in `idempotency_key` that replays the stored response without
+  re-charging. Both are per-process, exactly like the job store they sit beside
+  — which is not a weaker guarantee than the feature being protected, since
+  `GET /api/jobs/{id}` can only be answered by the worker that created the job.
+  A cross-worker guarantee still needs the DB-backed `dedupe_key` pattern
+  (migrations 099/101). The other 202-job endpoints (`outcome_intel`, batch)
+  pass no key and remain un-deduped.
 - **Charge-on-failure beyond the four endpoints fixed.** Roughly 48 of ~50
   routers charge up front with no refund path.
 - **INV-005 in production — CORRECTED 2026-08-08.** An earlier revision of this
