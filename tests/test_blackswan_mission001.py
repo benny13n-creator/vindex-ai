@@ -257,15 +257,73 @@ async def test_morning_briefing_surfaces_missed_deadlines():
     async def _fake_log_action(*a, **k):
         return None
 
+    # CI-RED-003 (2026-08-08): this test used to mock NOTHING here and issued a
+    # real, billed gpt-4o request on every run -- passing locally only because
+    # the developer's .env holds a live key, and 401'ing in CI. Worse, its final
+    # assertion ("propušten" in ai_briefing) depended on the exact wording gpt-4o
+    # chose at temperature 0.4, so it could fail at random with a valid key too.
+    #
+    # The real question is whether the missed-deadline data REACHES the narrative
+    # step. Capture the prompt and assert on that -- deterministic, offline, and
+    # a strictly stronger claim than pattern-matching a model's paraphrase.
+    _sent = {}
+
+    def _fake_ai(client, **kwargs):
+        _sent.update(kwargs)
+        resp = MagicMock()
+        resp.choices[0].message.content = "Dan pred vama traži pažnju."
+        return resp
+
     with patch.object(mb, "_get_supa", return_value=supa), \
+         patch.object(mb, "_pozovi_briefing_sync_api", new=_fake_ai), \
          patch("shared.audit_immutable.log_action", new=_fake_log_action):
         briefing = await mb._generiši_briefing("u1", supa)
 
     assert briefing["statistike"]["rokova_propustenih"] == 1
     assert any(r["naziv"] == "Odgovor na tužbu" for r in briefing["rokovi_propusteni"])
-    # The raw "PROPUŠTENI ROKOVI" section feeds into a narrative-generation step (template
-    # or GPT-like) that paraphrases it -- assert on the semantic content actually reaching
-    # the lawyer, not the literal section header.
+
+    _prompt = _sent["messages"][0]["content"]
+    assert "PROPUŠTENI" in _prompt
+    assert "Odgovor na tužbu" in _prompt, "the missed deadline must reach the narrative step"
+
+
+@pytest.mark.anyio
+async def test_morning_briefing_survives_an_openai_outage():
+    """CI-RED-003: gpt-4o writes exactly ONE decorative opening sentence here;
+    every other section is computed deterministically before the call. The call
+    had no except path, so an outage, an exhausted @llm_retry, or an expired key
+    500'd the whole briefing -- taking the missed-deadline warning, the one
+    time-critical part of the screen, down with it."""
+    import routers.morning_briefing as mb
+
+    propusteni_rok = {"id": "rok1", "naziv": "Odgovor na tužbu", "datum": "2026-06-01",
+                      "tip": "odgovor", "predmet_id": "p1", "opis": ""}
+
+    def _table(name):
+        if name == "rokovi":
+            c = _chain(MagicMock(data=[]))
+            c.lt = MagicMock(return_value=_chain(MagicMock(data=[propusteni_rok])))
+            return c
+        return _chain(MagicMock(data=[]))
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+
+    async def _fake_log_action(*a, **k):
+        return None
+
+    def _boom(client, **kwargs):
+        raise RuntimeError("openai is down")
+
+    with patch.object(mb, "_get_supa", return_value=supa), \
+         patch.object(mb, "_pozovi_briefing_sync_api", new=_boom), \
+         patch("shared.audit_immutable.log_action", new=_fake_log_action):
+        briefing = await mb._generiši_briefing("u1", supa)
+
+    # Delivered, not raised — and the deterministic payload is intact.
+    assert briefing["statistike"]["rokova_propustenih"] == 1
+    assert any(r["naziv"] == "Odgovor na tužbu" for r in briefing["rokovi_propusteni"])
+    # The fallback opening must still lead with what the lawyer has to act on.
     assert "propušten" in briefing["ai_briefing"].lower()
 
 

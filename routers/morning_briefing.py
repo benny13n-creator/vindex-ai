@@ -326,24 +326,53 @@ dodato posle tvog odgovora. Tvoj JEDINI zadatak je jedna rečenica tona/uvoda.
 
 Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Ekavica."""
 
-    from openai import OpenAI
-    from shared.ai_provenance import case_context as _ai_case_ctx
-    oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    # CI-RED-003 (2026-08-08): this call had no failure path. GPT contributes
+    # exactly ONE opening sentence -- every other section of the briefing
+    # (_danas_zahteva_paznju, _kljucni_rok, _preporuka_za_danas, all statistics
+    # and the propušteni-rokovi list) is already fully computed above and needs
+    # no AI at all. Yet an OpenAI outage, a rate limit surviving @llm_retry's 3
+    # attempts, or an expired key propagated straight out of _generiši_briefing
+    # and 500'd the entire morning briefing -- the lawyer lost the missed-
+    # deadline warning, which is the one part of this screen that is
+    # time-critical, because a decorative sentence could not be written.
+    #
+    # Degrade to a deterministic opening instead. Same rule GPT is being asked
+    # to apply, computed from the counts we already have.
+    _otvaranje = ""
+    try:
+        from openai import OpenAI
+        from shared.ai_provenance import case_context as _ai_case_ctx
+        oai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
-    with _ai_case_ctx(
-        module_name="morning_briefing", operation_name="daily_briefing",
-        knowledge_sources=[p.get("id") for p in predmeti],
-    ):
-        ai_resp = await asyncio.to_thread(
-            _pozovi_briefing_sync_api,
-            oai,
-            model="gpt-4o",
-            messages=[{"role": "user", "content": ai_prompt}],
-            max_tokens=100,
-            temperature=0.4,
+        with _ai_case_ctx(
+            module_name="morning_briefing", operation_name="daily_briefing",
+            knowledge_sources=[p.get("id") for p in predmeti],
+        ):
+            ai_resp = await asyncio.to_thread(
+                _pozovi_briefing_sync_api,
+                oai,
+                model="gpt-4o",
+                messages=[{"role": "user", "content": ai_prompt}],
+                max_tokens=100,
+                temperature=0.4,
+            )
+        _otvaranje = (ai_resp.choices[0].message.content or "").strip().strip('"')
+    except Exception as _ai_exc:
+        logger.warning(
+            "[MORNING_BRIEFING] AI uvodna rečenica nedostupna (%s) — briefing se isporučuje bez nje.",
+            _ai_exc,
         )
 
-    _otvaranje = ai_resp.choices[0].message.content.strip().strip('"')
+    if not _otvaranje:
+        _n_propusteno = len(rokovi_propusteni) + len(rocista_propustena)
+        if _n_propusteno:
+            _otvaranje = f"Imate {_n_propusteno} propušten{'u stavku' if _n_propusteno == 1 else 'ih stavki'} — pregledajte ih pre svega ostalog."
+        elif rocista_danas:
+            _otvaranje = f"Danas vas čeka {len(rocista_danas)} ročište — dan je zauzet."
+        elif rokovi_hitni:
+            _otvaranje = f"Nema ročišta danas, ali {len(rokovi_hitni)} rok(ova) ističe uskoro."
+        else:
+            _otvaranje = "Nema hitnih obaveza za danas — miran dan."
 
     ai_tekst = f"""**Dobro jutro.** {_otvaranje}
 
