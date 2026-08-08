@@ -47,7 +47,14 @@ Stated plainly rather than left to be discovered:
   (`idempotency_key` + partial UNIQUE + RPC, migration 073).
 - **Charge-on-failure beyond the four endpoints fixed.** Roughly 48 of ~50
   routers charge up front with no refund path.
-- **INV-005 in production.** It depends on `migrations/108_atomic_usage_counters.sql`,
-  which is READY BUT NOT APPLIED. Until the founder runs it, the counters are
-  the pre-108 read-modify-write on the live database, and the P1-C call falls
-  through to an in-memory counter.
+- **INV-005 in production — CORRECTED 2026-08-08.** An earlier revision of this
+  file said migration 108 was not applied. That was wrong. Both
+  `increment_feature_usage` and `increment_monthly_usage` are present in the
+  production database with exactly migration 108's signatures, proven by an
+  execution-free probe (correct argument names + an invalid UUID aborts at
+  argument casting with SQLSTATE 22P02 before any function body runs; positive
+  control `deduct_n_credits` -> 22P02, negative control -> PGRST202), and
+  `migrations/108_atomic_usage_counters.sql` is the only file in the repo that
+  defines either function. What remains unproven from outside the database is
+  the function BODY; `docs/beta_gate/VERIFY_MIGRATION_108_READONLY.sql` closes
+  that and needs a DB session to run.
