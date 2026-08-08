@@ -130,7 +130,19 @@ def test_detect_intent_uspeva_normalno_bez_greske():
     assert intent == "ZASTARELOST"
 
 
-def test_detect_intent_nepoznata_rec_pada_na_ostalo():
+def test_detect_intent_nepoznata_rec_pada_na_pravno_pitanje():
+    """UPDATED by NIGHT-008 (2026-08-09). This test previously asserted the
+    fallback was OSTALO, which encoded the defect as the contract.
+
+    PRAVNO_PITANJE routes to ask_agent: confidence gating, LOW-confidence
+    refusal, the citation structural guard, _verifikuj_pravne_greske and the
+    mandatory DISCLAIMER. OSTALO is bare gpt-4o-mini with none of that. An
+    unparseable classifier reply is exactly the case where you do NOT know the
+    question was harmless, so falling to the unguarded branch was backwards --
+    a garbled classification on a genuine legal question produced an ungrounded
+    answer, possibly with an invented article number, visually identical to a
+    guarded one. The except branch in the same function already failed toward
+    PRAVNO_PITANJE; only the success branch defaulted the other way."""
     from routers.copilot import _detect_intent
 
     with patch("openai.AsyncOpenAI") as MockCls:
@@ -139,7 +151,7 @@ def test_detect_intent_nepoznata_rec_pada_na_ostalo():
         )
         intent = asyncio.run(_detect_intent("random poruka"))
 
-    assert intent == "OSTALO"
+    assert intent == "PRAVNO_PITANJE"
 
 
 # ─── 1c. copilot.py: Sentry sweep — strukturna provera ─────────────────────

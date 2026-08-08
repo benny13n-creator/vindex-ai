@@ -185,6 +185,32 @@ _CACHE_TTL_DB  = timedelta(days=7)
 _CACHE_MAX     = 500
 
 
+# NIGHT-007 (2026-08-09): sentinels that mark a question as carrying PRIVILEGED,
+# case-derived content rather than a generic legal question.
+#
+# ai_cache is keyed on the normalized question text alone — it has no user_id,
+# no kancelarija_id, and no tenant column. ask_agent's cache guard covers three
+# private channels (history, extra_namespaces, memory_context) but not a fourth:
+# api.py:3041 builds `pitanje_za_agenta = "KONTEKST PREDMETA:\n<beleške +
+# istorija>\n\nPITANJE: ..."` and routers/copilot.py prepends "[Predmet: ...]".
+# For a lawyer with no firm namespace, extra_namespaces is None, so that
+# case-laden string went through the cache like any public question.
+#
+# Reading it back out requires reproducing the same case notes verbatim, so the
+# practical cross-tenant read is remote. The durable problem is the write: a
+# client's privileged case material was persisted for 7 days into a shared table
+# that nothing expires, that GDPR erasure does not touch, and that
+# retention_service does not know about.
+#
+# Cheapest correct answer: do not cache these at all. They are per-case by
+# construction and would essentially never produce a cache hit anyway.
+_PRIVATNI_KONTEKST_MARKERI = ("KONTEKST PREDMETA:", "[Predmet:")
+
+
+def _sadrzi_privatni_kontekst(pitanje: str) -> bool:
+    return any(m in (pitanje or "") for m in _PRIVATNI_KONTEKST_MARKERI)
+
+
 def _cache_kljuc(pitanje: str) -> str:
     # usedforsecurity=False: MD5 se ovde koristi samo kao cache ključ
     # (dedup/lookup), ne za bezbednosnu svrhu — Bandit B324 false-positive
@@ -233,6 +259,8 @@ def _supa_cache_set(kljuc: str, rezultat: dict) -> None:
 def _cache_get(pitanje: str) -> dict | None:
     if os.getenv("VINDEX_CACHE_BYPASS") == "1":
         return None
+    if _sadrzi_privatni_kontekst(pitanje):
+        return None  # NIGHT-007 — see _PRIVATNI_KONTEKST_MARKERI
     kljuc = _cache_kljuc(pitanje)
     # L1 — memorija
     if kljuc in _CACHE:
@@ -251,6 +279,14 @@ def _cache_get(pitanje: str) -> dict | None:
 
 
 def _cache_set(pitanje: str, rezultat: dict) -> None:
+    if _sadrzi_privatni_kontekst(pitanje):
+        # NIGHT-007: never persist a case-derived answer into the shared,
+        # tenant-less ai_cache table. This is the half that matters — nothing
+        # expires those rows, GDPR erasure does not reach them, and
+        # retention_service does not know the table exists.
+        logger.info("Cache SKIP — pitanje nosi privatni kontekst predmeta [q=%s]",
+                    _hash_za_log(pitanje))
+        return
     kljuc = _cache_kljuc(pitanje)
     if len(_CACHE) >= _CACHE_MAX:
         najstariji = min(_CACHE.keys(), key=lambda k: _CACHE[k][1])

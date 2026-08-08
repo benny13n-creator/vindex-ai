@@ -180,7 +180,18 @@ async def _detect_intent(poruka: str) -> str:
             max_tokens=20,
         )
         intent = (r.choices[0].message.content or "").strip().upper()
-        return intent if intent in _INTENT_CHOICES else "OSTALO"
+        # NIGHT-008 (2026-08-09): this used to default to "OSTALO" — the LEAST
+        # guarded branch. PRAVNO_PITANJE routes to ask_agent, which has
+        # confidence gating, LOW-confidence refusal, the citation structural
+        # guard, _verifikuj_pravne_greske and the mandatory DISCLAIMER. OSTALO
+        # is bare gpt-4o-mini with none of that. So a garbled or truncated
+        # classifier reply on a genuine legal question produced an ungrounded
+        # answer, possibly with an invented article number, no source block and
+        # no legal notice — visually identical to a guarded answer.
+        #
+        # The except branch below already fails toward PRAVNO_PITANJE; the
+        # success branch defaulted the opposite way. Both now fail safe.
+        return intent if intent in _INTENT_CHOICES else "PRAVNO_PITANJE"
     except Exception as e:
         _sentry_capture(e)
         logger.warning("[COPILOT] intent detection greška: %s — fallback PRAVNO_PITANJE", e)
