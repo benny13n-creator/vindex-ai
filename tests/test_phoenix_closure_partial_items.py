@@ -727,3 +727,88 @@ async def test_cio_daily_loser_falls_back_to_own_generation_without_inflight_mar
     mock_usage.consume.assert_not_called()  # still a loser, must not charge
     assert result["predmeta_analizirano"] == 5  # got its OWN freshly-generated report
     assert result["iz_kesa"] is False
+
+
+@pytest.mark.anyio
+async def test_cio_daily_loser_falls_back_when_inflight_winner_crashes():
+    """Phase 5 adversarial re-attack: the winner's own generation can genuinely
+    raise (not just time out). The finally block must still release the
+    waiting loser, and the loser must correctly detect the placeholder
+    (never-updated) row and fall back to its own generation, not return a
+    broken/empty response."""
+    import routers.cio as cio
+    from datetime import date
+
+    danes_iso = date.today().isoformat()
+    coalesce_key = f"u-crash:{danes_iso}"
+    select_calls = {"n": 0}
+    # The row stays a placeholder forever -- the winner never reaches its
+    # own "Snimi" update step because _generiši_cio_izvestaj raises first.
+    placeholder_row = {"izvestaj": {}, "predmeta_analizirano": 0, "created_at": "irrelevant"}
+
+    def _table(name):
+        assert name == "cio_dnevni_izvestaj"
+        t = MagicMock()
+
+        def _select(*a, **kw):
+            node = MagicMock()
+            node.eq.return_value = node
+            node.single.return_value = node
+            def _execute():
+                select_calls["n"] += 1
+                res = MagicMock()
+                res.data = None if select_calls["n"] == 1 else dict(placeholder_row)
+                return res
+            node.execute.side_effect = _execute
+            return node
+        t.select.side_effect = _select
+
+        def _update(payload):
+            node = MagicMock()
+            node.eq.return_value = node
+            node.lt.return_value = node
+            node.execute.return_value = MagicMock(data=[])
+            return node
+        t.update.side_effect = _update
+
+        def _insert(payload):
+            node = MagicMock()
+            def _execute():
+                raise Exception('duplicate key value violates unique constraint "cio_dnevni_izvestaj_user_id_datum_key"')
+            node.execute.side_effect = _execute
+            return node
+        t.insert.side_effect = _insert
+        return t
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+    user = {"user_id": "u-crash", "email": "a@b.com"}
+
+    cio._cio_daily_inflight.add(coalesce_key)
+    done_event = asyncio.Event()
+    cio._cio_daily_done_event[coalesce_key] = done_event
+
+    async def _crash_winner_shortly():
+        await asyncio.sleep(0.05)
+        # Simulate the winner's OWN call crashing and its finally block
+        # releasing the loser -- the row is never updated past the placeholder.
+        done_event.set()
+
+    loser_generiši_mock = AsyncMock(return_value={"predmeta_analizirano": 42})
+    try:
+        with patch.object(cio, "_get_supa", return_value=supa), \
+             patch.object(cio, "_generiši_cio_izvestaj", new=loser_generiši_mock), \
+             patch.object(cio, "UsageService") as mock_usage:
+            mock_usage.consume = AsyncMock(return_value=100)
+            release_task = asyncio.create_task(_crash_winner_shortly())
+            result = await cio.cio_daily(_req(), user)
+            await release_task
+    finally:
+        cio._cio_daily_inflight.discard(coalesce_key)
+        cio._cio_daily_done_event.pop(coalesce_key, None)
+
+    # The loser correctly detected the still-empty placeholder and generated
+    # its own report, rather than returning a broken empty response.
+    loser_generiši_mock.assert_called_once()
+    assert result["predmeta_analizirano"] == 42
+    mock_usage.consume.assert_not_called()  # a loser (claimed=False) never charges

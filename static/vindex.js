@@ -9405,13 +9405,20 @@ async function _buildPredmetKontekst() {
   // building the context; fail-soft to the existing snapshot on any error so
   // a transient network hiccup never blocks the auto-fill this replaces.
   if (activePredmetId && currentSession) {
+    var _fetchedForId = activePredmetId;
     try {
-      var _r = await fetch(BASE_URL + '/api/predmeti/' + activePredmetId + '/workspace', {
+      var _r = await fetch(BASE_URL + '/api/predmeti/' + _fetchedForId + '/workspace', {
         headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
       });
       if (_r.ok) {
         var _fresh = await _r.json();
-        if (_fresh && _fresh.predmet) { window._predFull = _fresh; pf = _fresh; }
+        // Phase 5 adversarial re-attack (2026-08-08): the user can navigate to a
+        // DIFFERENT case while this fetch is in flight -- activePredmetId (and
+        // window._predFull) would already correctly reflect the NEW case by the
+        // time this resolves. Without this guard, an in-flight response for the
+        // OLD case would overwrite the NEW case's just-loaded data with stale,
+        // wrong-case content -- worse than the bug this fix exists to close.
+        if (_fresh && _fresh.predmet && activePredmetId === _fetchedForId) { window._predFull = _fresh; pf = _fresh; }
       }
     } catch (e) { /* fail-soft: keep using the existing snapshot below */ }
   }

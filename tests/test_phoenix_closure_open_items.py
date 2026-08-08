@@ -171,11 +171,27 @@ def test_build_predmet_kontekst_is_async_and_refetches_workspace():
     vindex_js = _vindex_js()
     marker = "async function _buildPredmetKontekst() {"
     assert marker in vindex_js, "_buildPredmetKontekst must be async to re-fetch before use"
-    block = vindex_js.split(marker, 1)[1][:1200]
-    assert "/api/predmeti/' + activePredmetId + '/workspace'" in block
+    block = vindex_js.split(marker, 1)[1][:2000]
+    assert "/api/predmeti/' + _fetchedForId + '/workspace'" in block
     assert "window._predFull = _fresh" in block
     # fail-soft: a fetch failure must not throw out of the whole function
     assert "catch (e)" in block
+
+
+def test_build_predmet_kontekst_guards_against_case_switch_during_fetch():
+    """Phase 5 adversarial re-attack: if the user navigates to a different
+    case while this fetch is in flight, the in-flight response for the OLD
+    case must NOT overwrite the NEW case's already-loaded window._predFull."""
+    vindex_js = _vindex_js()
+    marker = "async function _buildPredmetKontekst() {"
+    block = vindex_js.split(marker, 1)[1][:2000]
+    assert "var _fetchedForId = activePredmetId;" in block
+    assert "activePredmetId === _fetchedForId" in block
+    # the guard must be part of the SAME condition that gates the overwrite,
+    # not a separate check that could be bypassed
+    assign_pos = block.find("window._predFull = _fresh")
+    guard_pos = block.rfind("activePredmetId === _fetchedForId", 0, assign_pos)
+    assert guard_pos != -1, "the case-switch guard must precede the window._predFull overwrite"
 
 
 def test_pred_auto_fill_awaits_the_async_context_builder():
