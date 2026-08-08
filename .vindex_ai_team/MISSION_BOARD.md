@@ -3316,3 +3316,45 @@ caught by re-running it explicitly rather than trusting an earlier, now-stale pa
 were confirmed timing artifacts from concurrent doc edits, not real regressions, isolated reruns
 passed immediately).
 **STOP GATE: PASS.**
+
+### Phase 5 — Adversarial Re-Attack (CLOSED)
+
+Attempted to DISPROVE every Phase 3/4 closure, not confirm it. Found and fixed 1 real regression:
+`_buildPredmetKontekst`'s (`-035`) re-fetch had no guard against the user navigating to a different
+case while the fetch was in flight — a stale in-flight response could overwrite the currently-
+active case's `window._predFull` with wrong-case content, arguably worse than the staleness bug
+`-035` itself closed. Fixed by capturing the target predmet_id at fetch-start and gating the
+overwrite on it still matching `activePredmetId` on resolve. Also closed 1 test-coverage gap
+(`-046`'s winner-crashes-mid-generation path was already correct by construction, just untested)
+and reasoned through 2 more theoretical risks, confirming both already safe by the fixes' own
+design (documented with evidence, not just asserted). `static/sw.js` bumped `vindex-v108` →
+`vindex-v109`. Full report: `docs/phoenix_closure/ADVERSARIAL_REATTACK_REPORT.md`.
+
+### Phase 6 — Double Full Regression Gate (CLOSED)
+
+Two independent full-suite runs, back to back, zero file edits between them: Pass 1 **3,393
+passed, 1 skipped, 0 failed**; Pass 2 **3,393 passed, 1 skipped, 0 failed** — exact match, no
+nondeterminism.
+
+### Phase 7 — Second-Order Audit (CLOSED)
+
+Audited all 15 Phase 3/4 fixes against second-order questions (duplicate business logic, new truth
+source, bypassed canonical engine, weakened security, altered billing, new race, stale cache,
+changed API contract, GPT over-authority, removed validation, failure-looks-like-success, query
+cost, new migration requirement). No new regression found beyond the one Phase 5 already caught.
+Full report: `docs/phoenix_closure/SECOND_ORDER_AUDIT.md`.
+
+### Phase 8 — Final Certification (CLOSED)
+
+**PHOENIX CLOSURE = CERTIFIED.** Exact accounting: 11 FIXED, 6 PRODUCT DECISION (spanning 5
+distinct decisions), 3 INFRASTRUCTURE BLOCKED, 0 OBSOLETE, 0 FALSE POSITIVE, 0 NOT
+RECONSTRUCTABLE — sums to the original 20. 1 new finding discovered and fixed during Phase 5. Zero
+migrations required anywhere in this operation. All 17 Final Certification Gate criteria verified.
+Full report: `docs/phoenix_closure/PHOENIX_CLOSURE_FINAL_REPORT.md`.
+
+**PHOENIX CLOSURE OPERATION: COMPLETE.** Standing follow-on: `docs/phoenix_closure/
+PHOENIX_CLOSURE_FINAL_REPORT.md`'s own "Product decisions still required" / "Infrastructure still
+required" sections are now the founder-facing punch list — 5 decisions across 6 debt IDs, 3
+infrastructure items. Per the masterprompt's own explicit instruction, Final Beta Gate is a
+SEPARATE mission not started here — this operation's own STOP GATE having passed only means Beta
+Gate is now *eligible* to begin, as its own distinct piece of work.

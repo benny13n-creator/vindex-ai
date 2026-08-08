@@ -2129,3 +2129,21 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Targeted subsystem sweep | 792 passed, 0 failed |
 | Full suite | **3,391 passed, 1 skipped, 0 failed** — was 3,353 at Phase 3's close |
 | STOP GATE | PASS |
+
+## Phoenix Closure — Final Certification (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Original items in scope | 20 (8 partially-fixed + 12 open) |
+| FIXED | 11 (`-011, -020, -022, -023, -026, -028, -035, -036, -038, -039, -046`) |
+| PRODUCT DECISION | 6 IDs / 5 distinct decisions (`-003, -005, -012, -030, -041, -049`) |
+| INFRASTRUCTURE BLOCKED | 3 (`-014, -025, -042`) |
+| OBSOLETE / FALSE POSITIVE / NOT RECONSTRUCTABLE | 0 / 0 / 0 |
+| New findings discovered (Phase 5/7) | 1 (`-035`'s own case-switch race) |
+| New findings fixed | 1 (same phase) |
+| Migrations required | 0 (every fix re-verified to reuse an already-applied column/table) |
+| Regression tests added this operation | 61 (21 Phase 3 + 38 Phase 4 + 2 Phase 5) |
+| Full suite, Pass 1 (Phase 6) | 3,393 passed, 1 skipped, 0 failed |
+| Full suite, Pass 2 (Phase 6) | 3,393 passed, 1 skipped, 0 failed — exact match |
+| Final Certification Gate | 17/17 criteria met |
+| Verdict | **PHOENIX CLOSURE = CERTIFIED** |
