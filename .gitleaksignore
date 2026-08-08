@@ -1,0 +1,60 @@
+# Accepted gitleaks findings. One line per finding, each with a justification.
+# Adding a line here is a claim that a human read the value at that commit and
+# confirmed it is not a credential. Do not add one to make the build green.
+#
+# Verified 2026-08-08 by reading each value out of its recorded commit blob.
+
+# ── CI placeholders ────────────────────────────────────────────────────────
+# FIELD_ENCRYPTION_KEY in the workflows: the literal repeated hex string
+# "0123456789abcdef" four times. A deliberately fake 32-byte key so the suite
+# can import api.py, which sys.exit(1)s without one.
+cabd4c46f465b171cef471cc5d0c3d98f5693e07:.github/workflows/production-runtime.yml:generic-api-key:158
+cabd4c46f465b171cef471cc5d0c3d98f5693e07:.github/workflows/production-runtime.yml:generic-api-key:103
+0b6f349ed28f75724dd7819c1253e9067b1c1746:.github/workflows/tests.yml:generic-api-key:40
+
+# ── Test fixtures ──────────────────────────────────────────────────────────
+# "test-secret-key-za-testove-128bit" — its own name says what it is.
+a1242da5b6af42616b709d49ec382715ef7105b7:tests/test_client_portal.py:generic-api-key:10
+780c9380af4e3a82a69a54548b00a36b7441e11f:tests/test_lambda001_beta_readiness_fixes.py:generic-api-key:10
+622c62e061aa8cf7899a1820dcdd02be8a0499be:tests/test_lambda002_ownership_idor_fixes.py:generic-api-key:23
+d1be4ce762c75c3f805d2b6518fb0e544b9c5089:tests/test_living_system_fixes.py:generic-api-key:8
+# "vndx_testkey12345" / "validApiKey15678" — integration-test stand-ins.
+c86d82df963a1be254ede4e6adce32bda9956ea0:tests/test_integracije.py:generic-api-key:31
+1dd21fad6995d97aff5bbf417c69acc293765c2f:tests/test_sef.py:generic-api-key:230
+
+# ── Not credentials at all ─────────────────────────────────────────────────
+# A UI label: { key: 'korak_2_due_diligence', label: 'Korak 2 — Due Diligence' }.
+# The rule matched the word "key" next to a long string.
+8808061cf5eb95e8ab18eef9336b49a364df336f:static/vindex.js:generic-api-key:2992
+
+# ── Supabase publishable key ───────────────────────────────────────────────
+# An `sb_publishable_` key, shipped to the browser on purpose in index.html and
+# vindex.js. Publishable/anon keys are designed to be public; what protects the
+# data is RLS, not the secrecy of this string. NOTE: that makes RLS coverage the
+# real control here — a separate audit from this one.
+57426cf26788e48e2727471686fb6cce514330a4:index.html:generic-api-key:983
+605b7604be34e6f3bf2dba3e453a5abd324ec02c:static/vindex.js:generic-api-key:164
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DELIBERATELY NOT SUPPRESSED — the one real finding
+# ═══════════════════════════════════════════════════════════════════════════
+# A real OpenAI project key (sk-proj-, 164 chars) was committed to .env in the
+# repo's FIRST commit, dc29b764 "prva verzija agenta", 2026-03-29 13:03, and
+# removed 17 minutes later. The blob remains reachable in history, and this
+# repository is PUBLIC — so it has been publicly fetchable since then.
+#
+# The key is NOT the one currently in .env (different sha256), so it was
+# replaced at some point. That is not the same as REVOKED: an unused key that
+# was never revoked still works and still bills.
+#
+# secret-scan therefore stays RED, on purpose, for exactly this one finding.
+# Silencing it before revocation is confirmed would be suppressing a live
+# credential to make a dashboard green.
+#
+# TO CLEAR, after revoking the key at platform.openai.com, uncomment the line
+# below and record the revocation date in the comment:
+#
+# revoked YYYY-MM-DD at platform.openai.com; blob remains in history and cannot
+# be removed without a history rewrite, which does not substitute for revocation
+# because the blob may already be mirrored or cached.
+# dc29b7641c0afeb996b94b3c8c0ff19b660fdc5d:.env:openai-api-key:1

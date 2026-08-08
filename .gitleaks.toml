@@ -1,0 +1,41 @@
+# Gitleaks configuration — Vindex AI
+#
+# The Security Checks / secret-scan job has been failing. Root cause, 2026-08-08:
+# 888 findings over the full history (the workflow uses fetch-depth: 0). One is a
+# real leaked credential; 887 are noise, and with nothing to suppress the noise
+# the job could never go green, so nobody read it.
+#
+# This file removes the noise ONLY. It does not, and must not, hide the real
+# finding — see .gitleaksignore.
+#
+# 875 of the 887 are the same thing: `theme_token` inside scraped court HTML.
+# That is the Drupal CSS/JS aggregation token of the Serbian Supreme Court's
+# PUBLIC website, captured verbatim by the scraper. It is third-party, public,
+# and not a credential. Ignoring these one fingerprint at a time would also be
+# wrong operationally: every new ingest commit brings fresh scraped HTML and
+# would break CI again. A path allowlist is the durable answer.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+Scraped third-party corpora. data/ holds court decisions, bulletins and portal
+HTML fetched from public Serbian legal sources — no first-party credential has
+ever been written here, and nothing in this tree is deployed. Detection on all
+first-party code (api.py, routers/, shared/, services/, static/, tests/,
+migrations/, .github/) is unaffected.
+"""
+paths = [
+    '''^data/''',
+    '''^vindex_scraper_output/''',
+]
+
+[[allowlists]]
+description = """
+Editor/scratch backups. Never deployed, never imported; if one is ever tracked
+by accident that is a .gitignore bug to fix at the source, not a secret.
+"""
+paths = [
+    '''\.bak$''',
+]

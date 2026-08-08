@@ -5,7 +5,20 @@ name: Security Checks
 # docs/security/SECURITY_GAP_REGISTER.md (SEC-036 CI/CD security gap).
 #
 # Enforcement policy (deliberate, not an oversight):
-#   - secret-scan   : BLOCKING. No accepted baseline for secrets — any hit is real.
+#   - secret-scan   : BLOCKING. The comment here used to read "No accepted baseline
+#                     for secrets — any hit is real." That was false and it is why
+#                     this job stayed red and unread: the full-history scan
+#                     (fetch-depth: 0) returns 888 findings, of which 887 are noise
+#                     — 875 are a Drupal `theme_token` from the Supreme Court's own
+#                     public website, captured verbatim by the scraper into data/.
+#                     A job that can never be green teaches everyone to ignore it.
+#                     Noise is now removed by path allowlist in .gitleaks.toml, and
+#                     individually-justified findings by fingerprint in
+#                     .gitleaksignore. Every entry there needs a written reason, and
+#                     adding one to make the build green is a misuse of the file.
+#                     As of 2026-08-08 exactly ONE finding remains unsuppressed and
+#                     this job is red for it alone: a real OpenAI key committed in
+#                     the first commit of a PUBLIC repo. See .gitleaksignore.
 #   - sast-core     : BLOCKING, but scoped to live request-serving code
 #                     (api.py, main.py, routers/, shared/, security/, services/,
 #                     app/) and only on HIGH severity. A full bandit sweep of the
@@ -61,6 +74,10 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gitleaks auto-discovers .gitleaks.toml from the source root, but
+          # the action is more predictable when told. .gitleaksignore is read
+          # from the root automatically.
+          GITLEAKS_CONFIG: .gitleaks.toml
 
   sast-core:
     runs-on: ubuntu-latest
