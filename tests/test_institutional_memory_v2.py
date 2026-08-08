@@ -12,6 +12,7 @@ report this implements.
 import asyncio
 import os
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -31,6 +32,39 @@ os.environ.setdefault("FOUNDER_EMAILS", "founder@example.com")
 
 def _iso_years_ago(years: float) -> str:
     return (datetime.now(timezone.utc) - timedelta(days=int(years * 365.25))).isoformat()
+
+
+@contextmanager
+def _stub_retrieve_llm():
+    """Stub the OpenAI chat client used throughout retrieve.py.
+
+    retrieve_documents() unconditionally fires several gpt-4o-mini calls that
+    have nothing to do with Pinecone: _dekomponuj_query / decompose_query and
+    _generiši_hyde (both in a ThreadPoolExecutor), _prosiri_query_gpt_wrapper,
+    _gpt_rerank when Cohere is unavailable, and _oceni_relevantnost in the
+    CRAG loop. All of them build their client through retrieve._get_client(),
+    which the TestTimeDecayRanking / TestMatchBreakdown cases below never
+    patched -- so mocking _get_index/_get_embeddings/_get_cohere still left
+    real, billed requests going out on every call.
+
+    The stub returns an empty completion, which drives each call site down
+    its own documented empty/neutral branch: no sub-queries, no HyDE text, no
+    GPT expansion, rerank falls back to the internal score order, CRAG treats
+    the docs as RELEVANTNO and stops. The time-decay and origin-weight
+    ranking under test is a property of that internal scoring, so it is now
+    measured against a deterministic ordering rather than against whatever a
+    live gpt-4o-mini reranker happened to return.
+    """
+    fake_message = MagicMock()
+    fake_message.content = ""
+    fake_choice = MagicMock()
+    fake_choice.message = fake_message
+    fake_resp = MagicMock()
+    fake_resp.choices = [fake_choice]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_resp
+    with patch("app.services.retrieve._get_client", return_value=fake_client):
+        yield
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -377,7 +411,8 @@ class TestTimeDecayRanking:
         mock_cohere = MagicMock()
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
-        with patch("app.services.retrieve._get_index", return_value=mock_index), \
+        with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
             _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")
@@ -410,7 +445,8 @@ class TestTimeDecayRanking:
         mock_cohere = MagicMock()
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
-        with patch("app.services.retrieve._get_index", return_value=mock_index), \
+        with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
             docs, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")
@@ -434,7 +470,8 @@ class TestMatchBreakdown:
         mock_cohere = MagicMock()
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
-        with patch("app.services.retrieve._get_index", return_value=mock_index), \
+        with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
             docs, meta = retrieve_documents("Kakvi su uslovi otkaza?")
@@ -465,7 +502,8 @@ class TestMatchBreakdown:
         mock_cohere = MagicMock()
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
-        with patch("app.services.retrieve._get_index", return_value=mock_index), \
+        with _stub_retrieve_llm(), \
+             patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
             _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")

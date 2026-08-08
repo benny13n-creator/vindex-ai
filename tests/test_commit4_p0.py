@@ -42,6 +42,22 @@ _API_SRC = open(
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _offline_side_pipelines():
+    """ask_agent runs two side retrieval pipelines (KORAK 1.6 sudska praksa,
+    KORAK 1.7 mišljenja) before any of the blocked=True paths under test.
+    Both embed the question through the real OpenAI client
+    (retrieve.py::_ugradi_query), so T7-T10 were each issuing a billed
+    embeddings request even though every other collaborator was mocked.
+
+    Stubbed to empty — the same result production sees when nothing matches.
+    Neither pipeline feeds the guard decisions these tests assert on.
+    """
+    with patch.object(_m, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_m, "retrieve_misljenja", return_value=[]):
+        yield
+
+
 def _docs_stub() -> list[str]:
     """Three docs with enough content to pass _filtriraj_kontekst."""
     base = "Zakon o obligacionim odnosima, Član 100: Tekst člana za testiranje. " * 12

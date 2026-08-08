@@ -25,6 +25,35 @@ def _mock_usage_service():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _mock_rag():
+    """The research/litigation agents build a RAG context by calling
+    app.services.retrieve.retrieve_documents (routers/multi_agent.py's "RAG
+    kontekst za Research + Litigation agenta" block, and the equivalent in
+    run_parallel). That is the full pipeline: real OpenAI embeddings, real
+    Pinecone, real gpt-4o-mini query expansion. These tests mocked
+    openai.OpenAI for the AGENT call but nothing for the retrieval call, so
+    every `agent="research"` case here made billed requests.
+
+    Returns the real (docs, meta) tuple contract with one plausible passage,
+    so the rag_ctx block downstream is exercised with content rather than
+    skipped. Nothing here asserts on retrieval — the assertions are on the
+    agent id, the mocked LLM's answer, and the prompt's predmet context.
+    """
+    _docs = [
+        "Zakon o obligacionim odnosima, Član 376: Potraživanje naknade "
+        "prouzrokovane štete zastareva za tri godine od kada je oštećenik "
+        "doznao za štetu i za lice koje je štetu učinilo."
+    ]
+    _meta = {
+        "confidence": "HIGH", "top_score": 0.82,
+        "top_article": "Član 376", "top_law": "zakon o obligacionim odnosima",
+        "doc_passages": [], "praksa_matches": [],
+    }
+    with patch("app.services.retrieve.retrieve_documents", return_value=(_docs, _meta)):
+        yield
+
+
 def _user():
     return {"user_id": "dddd0000-0000-0000-0000-000000000004", "email": "test@vindex.rs"}
 

@@ -95,8 +95,27 @@ def test_t1_retrieve_sudska_praksa_returns_metadata():
     m1 = _make_match("Гж 123/2022", "Apelacioni sud u Beogradu", 0.61)
     m2 = _make_match("Кж 456/2023", "Vrhovni sud", 0.55)
 
+    # retrieve_sudska_praksa does not stop at _pretraga_praksa: it re-ranks
+    # the candidates through _cohere_rerank, which falls back to _gpt_rerank
+    # (a real gpt-4o-mini call via retrieve._get_client) whenever Cohere is
+    # unconfigured. Neither client was mocked, so this test made a billed
+    # request and, worse, let a live model decide the ORDER that the
+    # results[0]/results[1] assertions below depend on.
+    #
+    # Cohere forced off and the chat client stubbed with an empty completion,
+    # so _gpt_rerank takes its documented fallback -- kandidati[:k], i.e. the
+    # incoming Pinecone order. The assertions are unchanged and now
+    # deterministic.
+    _empty_completion = MagicMock()
+    _empty_completion.choices = [MagicMock()]
+    _empty_completion.choices[0].message.content = ""
+    _fake_client = MagicMock()
+    _fake_client.chat.completions.create.return_value = _empty_completion
+
     with patch("app.services.retrieve._pretraga_praksa", return_value=[m1, m2]) as mock_p:
-        with patch("app.services.retrieve._ugradi_query", return_value=[0.1] * 3072):
+        with patch("app.services.retrieve._ugradi_query", return_value=[0.1] * 3072), \
+             patch("app.services.retrieve._get_cohere", return_value=None), \
+             patch("app.services.retrieve._get_client", return_value=_fake_client):
             results = _retrieve_sp("zabrana konkurencije", top_k=10)
 
     assert len(results) == 2

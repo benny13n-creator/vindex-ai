@@ -21,6 +21,7 @@ Pokriveno:
      PromptInjectionBlocked u čist 400 odgovor, ne 500.
 """
 import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -154,22 +155,45 @@ class TestBenignContentPassesThrough:
     stiže do prave (mock-ovane) OpenAI SDK metode, ne do mreže."""
 
     def test_benign_question_not_blocked_by_real_guard(self):
-        """Sa punim guard-om aktivnim (bez monkeypatch-a), benigno pitanje ne
-        sme podići PromptInjectionBlocked — jedina greška koja sme da izađe
-        je mrežna/auth greška ka pravom OpenAI-u (fake API key, bez interneta
-        ovaj test i dalje prolazi jer httpx baca pre nego što bilo šta stigne
-        do OpenAI-a; bitno je da to NIJE PromptInjectionBlocked)."""
+        """Sa punim guard-om aktivnim (bez monkeypatch-a na guard), benigno
+        pitanje ne sme podići PromptInjectionBlocked — mora stići do prave
+        SDK metode.
+
+        Ranije se ovaj test oslanjao na to da poziv IPAK ode na mrežu i pukne
+        (fake ključ + timeout=0.001) — što je značilo pravi, naplativ HTTP
+        zahtev ka api.openai.com na svakom pokretanju, i "prolaz" koji je
+        zavisio od toga da mreža zakaže. Umesto toga presrećemo
+        shared.ai_client._orig_create — nezakrpljenu SDK metodu koju
+        _guarded_create poziva TEK POŠTO guard propusti sadržaj (isti
+        _orig_create monkeypatch obrazac koji opisuje docstring ovog modula).
+
+        Ovim test postaje stroži, ne slabiji: umesto "neka greška se desila,
+        samo ne PromptInjectionBlocked", sada se pozitivno dokazuje da je
+        guard prosledio poziv sloju ispod sebe."""
+        _reached = {"n": 0}
+
+        def _fake_orig_create(_self, *args, **kwargs):
+            _reached["n"] += 1
+            resp = MagicMock()
+            resp.choices = [MagicMock()]
+            resp.choices[0].message.content = "Rok za žalbu je 15 dana."
+            resp.model = kwargs.get("model", "gpt-4o")
+            resp.usage = MagicMock(prompt_tokens=42, completion_tokens=17)
+            return resp
+
         client = OpenAI(api_key="sk-fake")
-        try:
-            client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": _BENIGN_QUESTION}],
-                timeout=0.001,  # ne čekaj pravi mrežni round-trip u testu
-            )
-        except PromptInjectionBlocked:
-            pytest.fail("Benigno pitanje je pogrešno blokirano od strane guard-a.")
-        except Exception:
-            pass  # očekivano — fake ključ/bez mreže, guard je ispravno propustio poziv dalje
+        with patch("shared.ai_client._orig_create", _fake_orig_create):
+            try:
+                client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": _BENIGN_QUESTION}],
+                )
+            except PromptInjectionBlocked:
+                pytest.fail("Benigno pitanje je pogrešno blokirano od strane guard-a.")
+
+        assert _reached["n"] == 1, (
+            "Guard je propustio poziv, ali on nikad nije stigao do prave SDK metode."
+        )
 
 
 class TestMultimodalContentExtraction:

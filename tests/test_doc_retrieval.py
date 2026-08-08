@@ -3,9 +3,43 @@
 
 import sys
 import os
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+@contextmanager
+def _stub_retrieve_llm():
+    """Stub the OpenAI chat client used throughout retrieve.py.
+
+    retrieve_documents() unconditionally fires several gpt-4o-mini calls that
+    have nothing to do with Pinecone: _dekomponuj_query / decompose_query and
+    _generiši_hyde (both in a ThreadPoolExecutor), _prosiri_query_gpt_wrapper,
+    _gpt_rerank when Cohere is unavailable, and _oceni_relevantnost in the
+    CRAG loop. Every one of them builds its client through
+    retrieve._get_client(), which these tests never patched — so mocking
+    _get_index/_get_embeddings/_get_cohere still left real, billed requests
+    going out on each call.
+
+    The stub returns an empty completion, which drives each of those call
+    sites down its own documented empty/neutral branch: no sub-queries, no
+    HyDE text, no GPT expansion, rerank falls back to the internal score
+    order, CRAG treats the docs as RELEVANTNO and stops. That is exactly the
+    path the tests were already exercising whenever the model returned
+    nothing useful — only now it is deterministic instead of depending on a
+    live model's output.
+    """
+    fake_message = MagicMock()
+    fake_message.content = ""
+    fake_choice = MagicMock()
+    fake_choice.message = fake_message
+    fake_resp = MagicMock()
+    fake_resp.choices = [fake_choice]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_resp
+    with patch("app.services.retrieve._get_client", return_value=fake_client):
+        yield
 
 
 # ─── Test 1: retrieve_documents default behavior unchanged ───────────────────
@@ -23,7 +57,8 @@ def test_retrieve_documents_default_no_extra_ns():
     mock_cohere = MagicMock()
     mock_cohere.rerank.side_effect = Exception("no cohere")
 
-    with patch("app.services.retrieve._get_index", return_value=mock_index), \
+    with _stub_retrieve_llm(), \
+         patch("app.services.retrieve._get_index", return_value=mock_index), \
          patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
          patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
         docs, meta = retrieve_documents("Kakvi su uslovi otkaza?")
@@ -69,7 +104,8 @@ def test_retrieve_documents_with_extra_ns():
     mock_cohere = MagicMock()
     mock_cohere.rerank.side_effect = Exception("no cohere")
 
-    with patch("app.services.retrieve._get_index", return_value=mock_index), \
+    with _stub_retrieve_llm(), \
+         patch("app.services.retrieve._get_index", return_value=mock_index), \
          patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
          patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
         docs, meta = retrieve_documents(
@@ -97,7 +133,8 @@ def test_retrieve_documents_empty_extra_ns():
     mock_cohere = MagicMock()
     mock_cohere.rerank.side_effect = Exception("no cohere")
 
-    with patch("app.services.retrieve._get_index", return_value=mock_index), \
+    with _stub_retrieve_llm(), \
+         patch("app.services.retrieve._get_index", return_value=mock_index), \
          patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
          patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
         docs, meta = retrieve_documents("Test", extra_namespaces=[])

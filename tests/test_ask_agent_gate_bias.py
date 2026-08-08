@@ -12,6 +12,8 @@ import sys
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
 os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 
@@ -22,6 +24,31 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import main as _real_main
 ask_agent = _real_main.ask_agent
 del sys.modules["main"]
+
+
+@pytest.fixture(autouse=True)
+def _offline_side_pipelines():
+    """ask_agent's KORAK 1.6 (sudska praksa) and KORAK 1.7 (mišljenja) run
+    before the doc gate bias block and each embed the question through the
+    real OpenAI client. Some tests below already stubbed praksa but none
+    stubbed mišljenja, so every one of them made a billed embeddings call.
+
+    Stubbed to empty — the same result production sees when nothing matches.
+    The gate-bias decision depends only on doc_passages scores, so no
+    assertion here is affected.
+
+    The response cache is neutralised for the same reason it is in
+    test_hallucination_guard.py: the no-extra-namespaces case consults the
+    SHARED ai_cache on the real Supabase project, and a HIT there returns
+    before the gate bias block runs, making the result depend on what an
+    earlier run left behind.
+    """
+    with patch.object(_real_main, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_real_main, "retrieve_misljenja", return_value=[]), \
+         patch.object(_real_main, "_cache_get", return_value=None), \
+         patch.object(_real_main, "_cache_set"):
+        yield
+
 
 # ─── Shared helpers ──────────────────────────────────────────────────────────
 

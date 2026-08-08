@@ -13,6 +13,8 @@ import sys
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
 os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
 
@@ -30,6 +32,34 @@ ask_agent = _real_main.ask_agent
 del sys.modules["main"]
 if _stashed_mock is not None:
     sys.modules["main"] = _stashed_mock
+
+
+@pytest.fixture(autouse=True)
+def _offline_side_pipelines():
+    """ask_agent runs two side retrieval pipelines (KORAK 1.6 sudska praksa,
+    KORAK 1.7 mišljenja) before the guard under test. Both embed the question
+    through the real OpenAI client, so these tests were issuing billed
+    embeddings requests even though the guard itself never needs them.
+
+    Stubbed to empty — the production code's own no-match result. The guard's
+    behaviour (refusal text, chunk injection, whether _pozovi_openai is
+    called) does not depend on praksa/mišljenja, so nothing asserted here
+    changes.
+
+    Also neutralises the response cache. These questions carry no private
+    context, so ask_agent consults the SHARED ai_cache table on the real
+    Supabase project — and earlier runs of these very tests wrote their
+    answers into it. A cache HIT returns early, before _pozovi_openai is
+    ever reached, which made "the LLM must/must not be called" assertions
+    depend on what a previous run happened to leave in a production table.
+    Forcing a miss and swallowing the write makes the guard the only thing
+    under test.
+    """
+    with patch.object(_real_main, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_real_main, "retrieve_misljenja", return_value=[]), \
+         patch.object(_real_main, "_cache_get", return_value=None), \
+         patch.object(_real_main, "_cache_set"):
+        yield
 
 
 # ═══════════════════════════════════════════════════════════════════════════

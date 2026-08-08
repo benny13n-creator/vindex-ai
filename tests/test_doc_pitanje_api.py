@@ -142,10 +142,29 @@ _HAPPY_RESPONSE = {
 }
 
 
+def _owned_tmp_index():
+    """Fake Pinecone index for _verify_pred_namespace_ownership (routers/dokument.py).
+
+    That check runs before validate_session and queries the real Pinecone
+    index for the tmp_ namespace's owner_user_id. It fails closed, so with no
+    stub the 404 tests below passed for the WRONG reason -- the ownership
+    lookup blew up on the network and raised 404 itself, so validate_session,
+    the thing they name, was never reached. Returning a vector owned by this
+    file's own _FAKE_USER lets ownership pass and puts the assertion back on
+    session validation.
+    """
+    idx = MagicMock()
+    idx.query.return_value = MagicMock(
+        matches=[MagicMock(metadata={"owner_user_id": _FAKE_USER["user_id"]})]
+    )
+    return idx
+
+
 # ─── Test 1: session not found → 404 ─────────────────────────────────────────
 
 def test_pitanje_session_not_found():
-    with patch("uploaded_doc.session.validate_session", return_value=False):
+    with patch("uploaded_doc.session.validate_session", return_value=False), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=_owned_tmp_index()):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": "doesNotExist",
             "pitanje": _VALID_PITANJE,
@@ -157,7 +176,8 @@ def test_pitanje_session_not_found():
 # ─── Test 2: expired session → 404 ───────────────────────────────────────────
 
 def test_pitanje_expired_session():
-    with patch("uploaded_doc.session.validate_session", return_value=False):
+    with patch("uploaded_doc.session.validate_session", return_value=False), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=_owned_tmp_index()):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": "expiredSession",
             "pitanje": _VALID_PITANJE,
@@ -168,16 +188,25 @@ def test_pitanje_expired_session():
 # ─── Test 3: happy path → 200 with data ──────────────────────────────────────
 
 def test_pitanje_happy_path():
-    sys.modules["main"].ask_agent.return_value = _HAPPY_RESPONSE
-
+    # `sys.modules["main"].ask_agent.return_value = ...` (the previous line
+    # here) only worked when setup_module's setdefault had actually installed
+    # _mock_main. Whenever anything imported the REAL main first -- api.py at
+    # this module's own import time does exactly that -- setdefault was a
+    # no-op, and the statement merely bolted a `.return_value` attribute onto
+    # the real ask_agent function object, which changes nothing. The endpoint
+    # then ran the genuine RAG pipeline: real embeddings, real Pinecone, a
+    # real gpt-4o answer, and the test "passed" on the length of whatever the
+    # model said. patch("main.ask_agent", ...) is the correct target -- the
+    # handler does `from main import ask_agent` inside its own body, so the
+    # name is re-resolved per request (same technique as
+    # test_pitanje_passes_extra_namespace_to_ask_agent below).
+    #
     # Final Beta Gate F1: _verify_pred_namespace_ownership now checks tmp_
     # namespaces too, via a Pinecone metadata lookup (owner_user_id) --
     # matches this file's own _FAKE_USER["user_id"].
-    fake_index = MagicMock()
-    fake_index.query.return_value = MagicMock(matches=[MagicMock(metadata={"owner_user_id": "test-user-id"})])
-
-    with patch("uploaded_doc.session.validate_session", return_value=True), \
-         patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index), \
+    with patch("main.ask_agent", MagicMock(return_value=_HAPPY_RESPONSE)), \
+         patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=_owned_tmp_index()), \
          patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,

@@ -24,6 +24,24 @@ def _mock_usage_service():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _mock_praksa_rag():
+    """The endpoint's "Sudska praksa (RAG lookup)" block embeds the predmet
+    naziv through the real OpenAI client and then queries Pinecone. It is
+    wrapped in `except Exception`, so with a live key it silently issued a
+    billed request on every one of these tests and with no key it just logged.
+
+    Stubbed to an empty praksa result — the same shape the block sees when
+    nothing matches. No test here asserts on `sudska_praksa` nodes, so the
+    node/edge counts under test are unaffected. Patched on the retrieve
+    module itself because the router imports these names inside the function
+    body, at call time.
+    """
+    with patch("app.services.retrieve._ugradi_query", return_value=[0.01] * 1536), \
+         patch("app.services.retrieve._pretraga_praksa", return_value=[]):
+        yield
+
+
 def _user():
     return {"user_id": "ffff0000-0000-0000-0000-000000000006", "email": "test@vindex.rs"}
 

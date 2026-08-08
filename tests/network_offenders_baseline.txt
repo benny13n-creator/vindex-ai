@@ -1,69 +1,34 @@
 # Tests known to reach a PAID inference API (OpenAI / Pinecone / Cohere / …)
 # instead of mocking the client. Recorded 2026-08-08.
 #
-# WHY A BASELINE AND NOT A FIX
-# Fifty-three tests have this defect. Each needs its own correct mock at its own
-# layer, which is real work and cannot be done safely in one pass. The guard in
-# tests/conftest.py therefore lets exactly these through and BLOCKS EVERYTHING
-# ELSE, so the count can only go down. Deleting a line here is the fix; adding
-# one should require an argument.
+# THIS LIST IS NOW EMPTY. That is the goal state, not a broken file: all 53
+# original entries were fixed on 2026-08-08 by adding the missing mock at the
+# layer that was actually escaping, and the guard in tests/conftest.py now
+# blocks paid-API traffic from the whole suite with no exceptions at all.
 #
-# What it costs while a name stays on this list: a real billed request on every
+# WHY THE FILE STAYS
+# It is the guard's allowlist. Keeping it (empty) documents the rule and gives
+# a future offender somewhere to be recorded deliberately rather than by
+# switching the guard off. tests/test_network_offenders_baseline.py pins the
+# maximum at 0, so adding a line here fails the suite until someone raises that
+# number on purpose, with an argument.
+#
+# What it costs while a name sits on this list: a real billed request on every
 # CI run and every local run, against whichever key is in the environment, plus
-# a nondeterministic result whenever the assertion touches model output.
+# a nondeterministic result whenever the assertion touches model output. Two of
+# the fixed tests were worse than billed -- they ran the production Pinecone
+# tmp_* namespace cleanup, which DELETES data.
+#
+# WHAT THE 53 TURNED OUT TO BE
+#   * ask_agent tests that mocked retrieve_documents but not the sudska-praksa
+#     and mišljenja side pipelines, which embed the question before the path
+#     under test is reached.
+#   * retrieve_documents tests that mocked _get_index/_get_embeddings/_get_cohere
+#     but not _get_client, leaving the query-decomposition, HyDE, GPT-expansion,
+#     GPT-rerank and CRAG calls live.
+#   * A handful of endpoint tests whose mock never took effect at all (see
+#     test_doc_pitanje_api.py::test_pitanje_happy_path) or that reached Pinecone
+#     through an ownership/cleanup path nobody had noticed.
 #
 # tests/test_network_offenders_baseline.py fails if an entry no longer exists,
 # so this file cannot rot into a list of tests nobody has.
-tests/test_ask_agent_gate_bias.py::test_gate_bias_low_to_medium
-tests/test_ask_agent_gate_bias.py::test_gate_bias_medium_to_high
-tests/test_ask_agent_gate_bias.py::test_no_bias_when_doc_passages_empty
-tests/test_ask_agent_gate_bias.py::test_no_bias_when_doc_score_below_threshold
-tests/test_ask_agent_gate_bias.py::test_no_bias_when_no_extra_namespaces
-tests/test_beta_gate_upload_refund.py::test_upload_does_not_refund_on_partial_ai_success
-tests/test_beta_gate_upload_refund.py::test_upload_refunds_credit_when_all_three_ai_calls_fail
-tests/test_c7a_praksa.py::test_t1_retrieve_sudska_praksa_returns_metadata
-tests/test_commit4_p0.py::test_t10_high_pravna_greska_blocked
-tests/test_commit4_p0.py::test_t7_korak15_hard_refusal_blocked
-tests/test_commit4_p0.py::test_t8_medium_guard_block_blocked
-tests/test_commit4_p0.py::test_t9_medium_pravna_greska_blocked
-tests/test_cron_daily_failclosed_auth.py::TestCronDailyFailsClosed::test_secret_configured_and_header_matches_passes_auth
-tests/test_delta_sprint003_full_convergence.py::test_pipeline_a_upload_endpoint_emits_both_events_durably
-tests/test_doc_pitanje_api.py::test_pitanje_expired_session
-tests/test_doc_pitanje_api.py::test_pitanje_happy_path
-tests/test_doc_pitanje_api.py::test_pitanje_session_not_found
-tests/test_doc_retrieval.py::test_retrieve_documents_default_no_extra_ns
-tests/test_doc_retrieval.py::test_retrieve_documents_empty_extra_ns
-tests/test_doc_retrieval.py::test_retrieve_documents_with_extra_ns
-tests/test_faza1_bugfixes_2026_07_24.py::test_retrieve_documents_vraca_tuple_docs_i_meta
-tests/test_hallucination_guard.py::TestHardRefusal::test_existing_article_injects_chunks_and_upgrades_confidence
-tests/test_hallucination_guard.py::TestHardRefusal::test_existing_article_not_refused
-tests/test_hallucination_guard.py::TestHardRefusal::test_missing_article_high_number_zr
-tests/test_hallucination_guard.py::TestHardRefusal::test_missing_article_returns_refusal_text
-tests/test_hallucination_guard.py::TestHardRefusal::test_no_article_reference_skips_guard
-tests/test_institutional_memory_v2.py::TestMatchBreakdown::test_match_breakdown_fields_for_kancelarija_passage
-tests/test_institutional_memory_v2.py::TestMatchBreakdown::test_match_breakdown_present_and_shaped
-tests/test_institutional_memory_v2.py::TestTimeDecayRanking::test_ai_generated_origin_never_surfaces_even_if_present
-tests/test_institutional_memory_v2.py::TestTimeDecayRanking::test_deprecated_document_ranks_below_fresh_valid_one
-tests/test_institutional_rag_upgrade.py::TestCrossCaseRetrieval::test_current_case_is_prioritized_despite_lower_raw_score
-tests/test_institutional_rag_upgrade.py::TestCrossCaseRetrieval::test_no_kancelarija_namespace_behaves_exactly_as_before
-tests/test_institutional_rag_upgrade.py::TestCrossCaseRetrieval::test_returns_document_from_past_case_in_same_kancelarija
-tests/test_intake_original_file_storage.py::test_upload_still_succeeds_and_falls_back_to_session_label_when_storage_upload_fails
-tests/test_intake_original_file_storage.py::test_upload_stores_original_file_and_writes_real_storage_path
-tests/test_knowledge_graph.py::test_kg_document_nodes
-tests/test_knowledge_graph.py::test_kg_empty_predmet_single_node
-tests/test_knowledge_graph.py::test_kg_predmet_doc_edge
-tests/test_knowledge_graph.py::test_kg_predmet_node_exists
-tests/test_knowledge_graph.py::test_kg_response_structure
-tests/test_knowledge_graph.py::test_kg_rok_nodes
-tests/test_lambda003_ask_agent_cache_isolation.py::test_cache_read_skipped_when_extra_namespaces_present
-tests/test_lambda003_ask_agent_cache_isolation.py::test_cache_read_skipped_when_memory_context_present
-tests/test_lambda003_ask_agent_cache_isolation.py::test_cache_read_still_used_when_no_private_context
-tests/test_lambda003_ask_agent_cache_isolation.py::test_low_confidence_not_cached_when_extra_namespaces_present
-tests/test_lambda003_ask_agent_cache_isolation.py::test_low_confidence_not_cached_when_history_present
-tests/test_lambda003_ask_agent_cache_isolation.py::test_low_confidence_not_cached_when_memory_context_present
-tests/test_lambda003_ask_agent_cache_isolation.py::test_low_confidence_still_cached_when_no_private_context
-tests/test_multi_agent.py::test_run_agent_known
-tests/test_multi_agent.py::test_run_agent_openai_error_503
-tests/test_reliability_hardening.py::test_cron_daily_module_failure_does_not_block_heartbeat
-tests/test_sec003_llm_wrapper.py::TestBenignContentPassesThrough::test_benign_question_not_blocked_by_real_guard
-tests/test_sprint002_pipeline_a_orphan_cleanup.py::test_successful_upload_never_triggers_cleanup

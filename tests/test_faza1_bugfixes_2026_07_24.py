@@ -11,9 +11,39 @@ Regression tests — Faza 1: Popravka Kritičnih Bugova i Async Blokada (2026-07
 """
 import sys
 import os
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+@contextmanager
+def _stub_retrieve_llm():
+    """Stub the OpenAI chat client used throughout retrieve.py.
+
+    retrieve_documents() unconditionally fires several gpt-4o-mini calls that
+    have nothing to do with Pinecone: _dekomponuj_query / decompose_query and
+    _generiši_hyde (both in a ThreadPoolExecutor), _prosiri_query_gpt_wrapper,
+    _gpt_rerank when Cohere is unavailable, and _oceni_relevantnost in the
+    CRAG loop. All build their client through retrieve._get_client(), which
+    the tuple-contract test below never patched -- so mocking
+    _get_index/_get_embeddings/_get_cohere still left real, billed requests
+    going out.
+
+    The stub returns an empty completion, which drives each call site down
+    its own documented empty/neutral branch. The test asserts the SHAPE of
+    the return value, which is unaffected either way.
+    """
+    fake_message = MagicMock()
+    fake_message.content = ""
+    fake_choice = MagicMock()
+    fake_choice.message = fake_message
+    fake_resp = MagicMock()
+    fake_resp.choices = [fake_choice]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_resp
+    with patch("app.services.retrieve._get_client", return_value=fake_client):
+        yield
 
 
 # ─── Bug #1: RAG kontekst tuple-unpacking (routers/drafting.py) ───────────────
@@ -30,7 +60,8 @@ def test_retrieve_documents_vraca_tuple_docs_i_meta():
     mock_cohere = MagicMock()
     mock_cohere.rerank.side_effect = Exception("no cohere")
 
-    with patch("app.services.retrieve._get_index", return_value=mock_index), \
+    with _stub_retrieve_llm(), \
+         patch("app.services.retrieve._get_index", return_value=mock_index), \
          patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
          patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
         result = retrieve_documents("Uslovi raskida ugovora o radu")

@@ -156,7 +156,16 @@ async def test_cron_daily_module_failure_does_not_block_heartbeat(monkeypatch):
 
     supa = _make_supa()
 
+    # cron_daily's retention module calls uploaded_doc.cleanup.cleanup_expired(),
+    # which opens a real Pinecone client, lists namespaces and DELETES the
+    # expired tmp_* ones -- against whatever PINECONE_HOST/PINECONE_API_KEY the
+    # environment holds, i.e. the production index on a developer machine.
+    # This test is about per-module error isolation, not retention, so the
+    # cleanup is stubbed with the summary dict a clean real run returns.
+    _clean_run = {"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}
+
     with patch("api._get_supa", return_value=supa), \
+         patch("uploaded_doc.cleanup.cleanup_expired", return_value=_clean_run), \
          patch("routers.workflow._check_escalations", new=AsyncMock(side_effect=RuntimeError("boom"))), \
          patch("routers.zakon_monitoring._skeniraj_sl_glasnik", new=AsyncMock(return_value={"pronadjeno": 0, "promena": 0})), \
          patch("routers.portal_monitoring.cron_proveri", new=AsyncMock(return_value={"provereno": 0, "promena": 0})):

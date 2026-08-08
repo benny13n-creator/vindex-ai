@@ -29,6 +29,7 @@ legitimate cache's own purpose.
 """
 import sys
 import os
+from contextlib import contextmanager
 from unittest.mock import patch
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-fake")
@@ -40,6 +41,23 @@ import main as _real_main  # noqa: E402
 ask_agent = _real_main.ask_agent
 if "main" in sys.modules:
     del sys.modules["main"]
+
+
+@contextmanager
+def _offline_side_pipelines():
+    """Stub the two side retrieval pipelines that ask_agent runs BEFORE the
+    LOW-confidence exit (KORAK 1.6 sudska praksa, KORAK 1.7 mišljenja).
+
+    Both embed the question through the real OpenAI client
+    (retrieve.py::_ugradi_query), so leaving them live meant every one of
+    these cache-isolation tests issued a billed embeddings request. Neither
+    feeds the LOW path or the cache gates under test — an empty result is
+    exactly what the production code sees when nothing matches — so nothing
+    these tests assert is weakened by stubbing them.
+    """
+    with patch.object(_real_main, "retrieve_sudska_praksa", return_value=[]), \
+         patch.object(_real_main, "retrieve_misljenja", return_value=[]):
+        yield
 
 
 def _low_confidence_meta():
@@ -57,7 +75,8 @@ def _low_confidence_meta():
 
 def _ask(pitanje, **kwargs):
     docs, meta = _low_confidence_meta()
-    with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+    with _offline_side_pipelines(), \
+         patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
          patch.object(_real_main, "_cache_get", return_value=None) as mock_get, \
          patch.object(_real_main, "_cache_set") as mock_set:
         result = ask_agent(pitanje, **kwargs)
@@ -117,7 +136,8 @@ def test_cache_read_skipped_when_memory_context_present():
     cached answer shaped by a DIFFERENT firm's memory_context could be
     served here."""
     docs, meta = _low_confidence_meta()
-    with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+    with _offline_side_pipelines(), \
+         patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
          patch.object(_real_main, "_cache_get") as mock_get, \
          patch.object(_real_main, "_cache_set"):
         ask_agent("Koliko traje probni rad?", memory_context="Firma Y: interna praksa...")
@@ -126,7 +146,8 @@ def test_cache_read_skipped_when_memory_context_present():
 
 def test_cache_read_skipped_when_extra_namespaces_present():
     docs, meta = _low_confidence_meta()
-    with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+    with _offline_side_pipelines(), \
+         patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
          patch.object(_real_main, "_cache_get") as mock_get, \
          patch.object(_real_main, "_cache_set"):
         ask_agent("Koliko traje probni rad?", extra_namespaces=["kancelarija_firma-y"])
@@ -137,7 +158,8 @@ def test_cache_read_still_used_when_no_private_context():
     """No-regression: a genuinely generic question must still consult the
     cache, exactly as before this fix."""
     docs, meta = _low_confidence_meta()
-    with patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
+    with _offline_side_pipelines(), \
+         patch.object(_real_main, "retrieve_documents", return_value=(docs, meta)), \
          patch.object(_real_main, "_cache_get", return_value=None) as mock_get, \
          patch.object(_real_main, "_cache_set"):
         ask_agent("Koliko traje probni rad?")

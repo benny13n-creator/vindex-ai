@@ -82,6 +82,26 @@ def _patch_supa():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _patch_pinecone_tmp_cleanup():
+    """The one test below that gets PAST auth runs the whole cron_daily
+    dispatcher, and its retention module calls
+    uploaded_doc.cleanup.cleanup_expired() -- which opens a real Pinecone
+    client, lists namespaces and DELETES the expired tmp_* ones. PINECONE_HOST
+    is only setdefault'ed above, so on any machine with the real host in its
+    environment (a developer laptop, or CI with the deployment secrets) this
+    auth test was issuing destructive writes against the production index.
+
+    Stubbed with the summary dict the real function returns on a clean run.
+    _cleanup_pinecone_tmp_buffers only reads counters off it, and this file
+    asserts on the HTTP status code, so the auth boundary under test is
+    untouched.
+    """
+    _clean_run = {"namespaces_deleted": 0, "chunks_deleted": 0, "namespaces_inspected": 0}
+    with patch("uploaded_doc.cleanup.cleanup_expired", return_value=_clean_run):
+        yield
+
+
 class TestCronDailyFailsClosed:
     def test_missing_secret_env_and_missing_header_returns_401(self, monkeypatch):
         """Glavni regresioni test za nalaz iz izveštaja: BRIEFING_CRON_SECRET

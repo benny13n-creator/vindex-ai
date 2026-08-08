@@ -16,9 +16,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "tests" / "network_offenders_baseline.txt"
 
-# Recorded 2026-08-08. This number must only ever go DOWN. Lowering it is the
-# whole point; raising it means a new test started calling a paid API for real.
-MAX_ALLOWED = 53
+# Recorded 2026-08-08 at 53. This number must only ever go DOWN. Lowering it is
+# the whole point; raising it means a new test started calling a paid API for
+# real.
+#
+# 2026-08-08, same day: driven to 0. All 53 entries were given a real mock at
+# the layer that was escaping, so the baseline is empty and the guard in
+# tests/conftest.py now blocks paid-API traffic from the suite without a single
+# exception. Pinned here at 0 so re-opening the hole takes a deliberate edit to
+# this line, with an argument attached.
+MAX_ALLOWED = 0
 
 
 def _entries():
@@ -41,7 +48,11 @@ def test_every_baseline_entry_still_exists():
     that no longer exists, and would silently cover any future test that lands
     on the same node id."""
     entries = _entries()
-    assert entries, "the baseline should not be empty while offenders remain"
+    if not entries:
+        # An empty baseline is the goal state, not a broken file: it means every
+        # test that used to call a paid API for real has been given a proper
+        # mock, and the guard now blocks everything without exception.
+        return
 
     out = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "tests/", "-p", "no:randomly"],
