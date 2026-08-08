@@ -445,6 +445,79 @@ def test_concurrent_duplicate_requests_cannot_overdraw(pg_dsn, make_user):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# §6 / §13 — Migration hygiene: idempotency + privilege preservation.
+#
+# §13 explicitly forbids ASSUMING migration 102's lockdown survives
+# CREATE OR REPLACE FUNCTION. These execute it and check.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_EXPECTED_ACL = "{postgres=X/postgres,service_role=X/postgres}"
+
+
+def _acl(conn, sig="public.deduct_n_credits(uuid,integer)"):
+    return conn.execute(
+        "SELECT proacl::text FROM pg_proc WHERE oid = %s::regprocedure", (sig,)
+    ).fetchone()[0]
+
+
+def _privs(conn, sig="public.deduct_n_credits(uuid,integer)"):
+    return {
+        r: conn.execute(
+            "SELECT has_function_privilege(%s, %s, 'EXECUTE')", (r, sig)
+        ).fetchone()[0]
+        for r in ("anon", "authenticated", "service_role")
+    }
+
+
+def test_migration_107_produces_the_verified_production_acl(pg_dsn):
+    """The ACL migration 107 produces must be byte-identical to the state
+    read out of production on 2026-08-08 for the migration-102 lockdown:
+    only the owner and service_role, no PUBLIC entry."""
+    with psycopg.connect(pg_dsn, autocommit=True) as c:
+        assert _acl(c) == _EXPECTED_ACL
+        assert _privs(c) == {"anon": False, "authenticated": False, "service_role": True}
+
+
+def test_migration_107_is_idempotent(pg_dsn):
+    """Re-running the whole migration changes nothing (it is labelled
+    idempotent, and operators do re-run migrations)."""
+    with psycopg.connect(pg_dsn, autocommit=True) as c:
+        c.execute(MIGRATION_107.read_text(encoding="utf-8"))
+        assert _acl(c) == _EXPECTED_ACL
+        assert _privs(c) == {"anon": False, "authenticated": False, "service_role": True}
+        # and the function still behaves
+    uid = str(uuid.uuid4())
+    with psycopg.connect(pg_dsn, autocommit=True) as c:
+        c.execute("INSERT INTO public.user_credits (user_id, credits_remaining) VALUES (%s, 5)", (uid,))
+    assert _deduct(pg_dsn, uid, 6) == -1
+    assert _deduct(pg_dsn, uid, 5) == 0
+
+
+def test_bare_create_or_replace_does_not_reopen_execute_privileges(pg_dsn):
+    """The specific §13 concern: replacing the function body WITHOUT any
+    accompanying GRANT/REVOKE must not silently restore Postgres's
+    EXECUTE-to-PUBLIC default. If this ever fails, every CREATE OR REPLACE in
+    this repo is a latent privilege regression."""
+    sql = MIGRATION_107.read_text(encoding="utf-8")
+    body = sql.split("-- ─── 2.")[0].split("CREATE OR REPLACE FUNCTION public.deduct_n_credits", 1)[1]
+    with psycopg.connect(pg_dsn, autocommit=True) as c:
+        c.execute("CREATE OR REPLACE FUNCTION public.deduct_n_credits" + body)
+        assert _acl(c) == _EXPECTED_ACL, "CREATE OR REPLACE reopened the ACL"
+        assert _privs(c)["anon"] is False
+        assert _privs(c)["authenticated"] is False
+        assert _privs(c)["service_role"] is True
+
+
+def test_new_refund_functions_are_locked_down_too(pg_dsn):
+    """The two functions created by 107 would otherwise inherit
+    EXECUTE-to-PUBLIC."""
+    with psycopg.connect(pg_dsn, autocommit=True) as c:
+        for sig in ("public.refund_n_credits(uuid,integer)", "public.refund_one_credit(uuid)"):
+            p = _privs(c, sig)
+            assert p == {"anon": False, "authenticated": False, "service_role": True}, f"{sig}: {p}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # NEGATIVE CONTROL — proof this harness actually detects the defect.
 #
 # A test suite that passes against both the vulnerable and the fixed body

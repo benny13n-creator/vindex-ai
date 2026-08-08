@@ -37,7 +37,12 @@ WITH fn(sig) AS (
            ('public.set_user_pro(text, boolean)'),
            ('public.deduct_n_credits(uuid, integer)'),
            ('public.get_activity_averages(uuid)'),
-           ('public.get_next_broj_fakture(uuid)')
+           ('public.get_next_broj_fakture(uuid)'),
+           -- added by migration 107; before it, refund_one_credit did not
+           -- exist at all and refund_n_credits had never been conceived, so
+           -- both rows read INCONCLUSIVE until 107 is applied.
+           ('public.refund_n_credits(uuid, integer)'),
+           ('public.refund_one_credit(uuid)')
 ),
 fnres AS (
     SELECT f.sig, to_regprocedure(f.sig) AS proc FROM fn f
@@ -107,6 +112,21 @@ SELECT '3 · F5 credit-race body',
        left(replace(COALESCE(
               pg_get_functiondef(to_regprocedure('public.deduct_n_credits(uuid, integer)')),
               'n/a'), E'\n', ' '), 600)
+
+UNION ALL
+SELECT '3b · refund atomicity (mig 107)',
+       'public.refund_n_credits(uuid, integer)',
+       CASE
+         WHEN to_regprocedure('public.refund_n_credits(uuid, integer)') IS NULL
+              THEN 'FAIL - refund_n_credits missing (migration 107 NOT applied); refunds race'
+         WHEN pg_get_functiondef(to_regprocedure('public.refund_n_credits(uuid, integer)'))
+              LIKE '%credits_remaining + p_n%'
+              THEN 'PASS - atomic single-statement refund deployed'
+         ELSE 'INCONCLUSIVE - body differs from expected'
+       END,
+       CASE WHEN to_regprocedure('public.refund_one_credit(uuid)') IS NULL
+            THEN 'refund_one_credit: MISSING (shared/deps.py calls it on every refund)'
+            ELSE 'refund_one_credit: present' END
 
 UNION ALL
 SELECT '4 · profiles RLS (context only)',

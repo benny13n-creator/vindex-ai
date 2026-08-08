@@ -2628,20 +2628,45 @@ async def credits_debug(user: dict = Depends(get_current_user)):
     except Exception as exc:
         out["_ensure_profile"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
 
-    # 5. Test deduct_credit RPC (dry-run: oduzima 0 — proverava samo da li RPC postoji)
+    # 5. Provera kredit-RPC-a — STVARNO NEDESTRUKTIVNO.
+    #
+    # Beta Gate Credit System Closure (2026-08-08) — CRITICAL, reachable by
+    # ANY authenticated user with no rate limit:
+    #
+    # This step used to call deduct_credit (a REAL -1 deduction, despite the
+    # old comment claiming "dry-run: oduzima 0") and then "restore" the
+    # balance with a blind ABSOLUTE write of a value read back in step 4:
+    #     update({"credits_remaining": profil["credits_remaining"]})
+    # That is a lost update by construction. Any charge committed between
+    # step 4's read and this write was silently ERASED, so calling this
+    # endpoint in a loop while running expensive AI operations restored the
+    # pre-charge balance again and again -- unlimited free AI usage without
+    # touching authentication. The same write also destroyed credits: if
+    # step 4 raised, `profil` was unbound, the write raised NameError inside
+    # a bare `except: pass`, and the user silently lost a credit per call.
+    #
+    # Migration 107 makes a genuinely non-destructive probe possible:
+    # deduct_n_credits(uid, 0) hits the function's own `p_n <= 0` guard,
+    # returns -1 and mutates NOTHING. Liveness is proven without touching a
+    # single credit -- and, as a bonus, the return value distinguishes the
+    # guarded body from the pre-107 one, so this endpoint now doubles as the
+    # application-visible contract-drift detector whose absence let a
+    # vulnerable function body sit in production while CI stayed green.
     try:
-        r = supa.rpc("deduct_credit", {"p_user_id": user_id}).execute()
-        out["deduct_credit_rpc"] = f"OK — vrati: {r.data}"
-        # Odmah vrati oduzeti kredit da test bude nedestruktivan
-        try:
-            supa.table("user_credits").update(
-                {"credits_remaining": profil.get("credits_remaining", 0) if isinstance(profil, dict) else 0}
-            ).eq("user_id", user_id).execute()
-            out["deduct_credit_rpc"] += " (kredit vraćen — test je bio nedestruktivan)"
-        except Exception:
-            pass
+        r = supa.rpc("deduct_n_credits", {"p_user_id": user_id, "p_n": 0}).execute()
+        if r.data == -1:
+            out["credit_rpc"] = (
+                "OK — deduct_n_credits postoji i ispravno odbija p_n=0 "
+                "(ništa nije naplaćeno; migracija 107 je primenjena)"
+            )
+        else:
+            out["credit_rpc"] = (
+                f"KRITIČNO: deduct_n_credits(p_n=0) vratio {r.data!r}, očekivano -1 — "
+                "migracija 107 NIJE primenjena, stara nezaštićena verzija je živa "
+                "(trka za kredite je otvorena)"
+            )
     except Exception as exc:
-        out["deduct_credit_rpc"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
+        out["credit_rpc"] = f"GREŠKA: {type(exc).__name__}: {str(exc)[:300]}"
 
     # 6. Dijagnoza
     diag = []
@@ -2649,8 +2674,13 @@ async def credits_debug(user: dict = Depends(get_current_user)):
         diag.append("KRITIČNO: user_credits tabela ne postoji — pokrenite supabase_setup.sql u Supabase Dashboard")
     elif "NEMA REDA" in str(out.get("user_credits_row", "")):
         diag.append("UPOZORENJE: user_credits tabela postoji ali korisnik nema red — trigger nije radio ili SQL nije pokrenut")
-    if "GREŠKA" in str(out.get("deduct_credit_rpc", "")):
-        diag.append("KRITIČNO: deduct_credit RPC ne postoji — pokrenite supabase_setup.sql")
+    if "GREŠKA" in str(out.get("credit_rpc", "")):
+        diag.append("KRITIČNO: deduct_n_credits RPC ne postoji — pokrenite supabase_setup.sql + migracije")
+    elif "KRITIČNO" in str(out.get("credit_rpc", "")):
+        diag.append(
+            "KRITIČNO: migracija 107 nije primenjena — trka za kredite je otvorena u produkciji "
+            "(pokrenite migrations/107_beta_gate_credit_race_closure.sql)"
+        )
     if not diag:
         diag.append("Sve izgleda ispravno.")
     out["dijagnoza"] = diag
