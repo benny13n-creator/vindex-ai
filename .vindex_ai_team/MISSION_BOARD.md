@@ -3155,3 +3155,23 @@ failed** (was 3,303, +9 tests, zero regressions, runtime 353.88s — normal base
 under a hard shell-level timeout wrapper as an extra precaution after Mission 012's incident).
 Red Team self-check passed (4 adversarial scenarios, no break found). Full report:
 `docs/phoenix/mission-013/`. **STOP GATE: PASS.**
+
+### Mission 014 — CIO Portfolio Truncation Disclosure, CRITICAL (CLOSED)
+
+Closed `LIVINGSYS-DEBT-003` partially — 1 of only 2 CRITICAL items in the whole register (the
+other, `-013`, closed in Mission 010), untouched by all 13 prior missions because its 2 named
+fix options (raise/remove the 40-case cap; change the oldest-first ordering) both require a
+founder decision. This mission closes the 3rd, narrower gap the debt item itself named: zero
+`total_in_db`/`truncated` disclosure anywhere. New fail-soft `count="exact"` query gives the
+true active-case total; `portfolio_zdravlje` now carries `ukupno_u_bazi`/`truncated`, surfaced
+in the CIO widget. The cap and ordering themselves remain unchanged, the founder's call. An
+earlier implementation draft accidentally wrapped the CORE `predmeti` fetch in
+`return_exceptions=True` too (would have silently turned a real DB outage into a false "0 active
+cases" report) — caught and corrected during this mission's own implementation, before any test
+was written, now permanently guarded by its own regression test. `static/sw.js` bumped
+`vindex-v104` → `vindex-v105`. 6 new tests
+(`tests/test_phoenix_mission_014_cio_truncation_disclosure.py`), zero pre-existing tests needed
+modification. Subsystem: 101/101 passed. Full suite: **3,318 passed, 1 skipped, 0 failed** (was
+3,312, +6 tests, zero regressions, runtime 361.26s — normal baseline, no hang). Red Team
+self-check passed (4 adversarial scenarios, no break found). Full report:
+`docs/phoenix/mission-014/`. **STOP GATE: PASS.**

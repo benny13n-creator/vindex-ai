@@ -234,6 +234,29 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
     # ISTOM gather-u, što je nepotrebno blokiralo kanonsku petlju da čeka na
     # 3 upita koja joj ništa ne dostavljaju. Popravljeno odmah (Faza 8): ova
     # 3 sada trče KONKURENTNO sa kanonskom petljom, ne pre nje.
+    # Program Phoenix, Mission 014 (LIVINGSYS-DEBT-003): the 40-case cap and its
+    # oldest-first ordering are unchanged (raising/removing the cap is a genuine
+    # perf tradeoff at scale, and re-ordering needs a founder product decision on
+    # which cases should represent a truncated portfolio -- neither attempted
+    # here). This mission closes ONLY the disclosure gap: the report used to
+    # present the capped, biased sample as the true portfolio total with zero
+    # signal anywhere that it was truncated. A cheap count-only query (no row
+    # data) now makes that fact visible in the response.
+    # pred_r keeps its ORIGINAL fail-hard behavior (a genuine DB error here must
+    # still propagate and become the caller's existing 500, not be silently
+    # reinterpreted as "0 active cases" -- that would be a new silent-failure
+    # bug of exactly the class this whole program exists to close). count_r is
+    # a disclosure nice-to-have, not core data, and fails soft on its own --
+    # launched concurrently (asyncio.create_task) so this disclosure doesn't
+    # add sequential latency to the report's own critical path.
+    _count_task = asyncio.create_task(asyncio.to_thread(
+        lambda: supa.table("predmeti")
+        .select("id", count="exact")
+        .eq("user_id", uid)
+        .in_("status", ["aktivan", "u_toku", "pending"])
+        .limit(1)
+        .execute()
+    ))
     pred_r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
         .select("id,naziv,oblast_prava,updated_at,case_dna")
@@ -244,6 +267,13 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
         .execute()
     )
     predmeti_raw = pred_r.data or []
+    try:
+        count_r = await _count_task
+        total_aktivnih_u_bazi = count_r.count if isinstance(count_r.count, int) else len(predmeti_raw)
+    except Exception as _count_exc:
+        logger.warning("[CIO] count upit neuspešan (nastavljam bez truncated signala): %s", _count_exc)
+        total_aktivnih_u_bazi = len(predmeti_raw)
+    portfolio_truncated = total_aktivnih_u_bazi > len(predmeti_raw)
 
     # Program Tau, Master Sprint 008: kanonski kontekst po predmetu (lightweight
     # mode -- dokumenti nisu potrebni za portfolio-nivo signale), isti obrazac
@@ -305,7 +335,10 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
         return {
             "datum":              danas.isoformat(),
             "cio_preporuka":      "Nema aktivnih predmeta sa Case Genome modelom. Generišite Genome za aktivne predmete.",
-            "portfolio_zdravlje": {"ukupno_aktivnih": len(predmeti_raw), "sa_genomom": 0},
+            "portfolio_zdravlje": {
+                "ukupno_aktivnih": len(predmeti_raw), "sa_genomom": 0,
+                "ukupno_u_bazi": total_aktivnih_u_bazi, "truncated": portfolio_truncated,
+            },
             "predmeta_analizirano": 0,
             "pouzdanost":         "niska",
         }
@@ -440,6 +473,12 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
         "prosecna_snaga":       prosecna_snaga,
         "kriticnih_rizika":     kriticnih_rizika,
         "kriticnih_rokova_7d":  sa_kriticnim_rokovima,
+        # Program Phoenix, Mission 014 (LIVINGSYS-DEBT-003): disclosure-only fix
+        # -- the 40-case cap and its oldest-first ordering are unchanged, but the
+        # report no longer presents that capped, biased sample as the true
+        # portfolio total with zero signal that it's truncated.
+        "ukupno_u_bazi":        total_aktivnih_u_bazi,
+        "truncated":            portfolio_truncated,
     }
     izvestaj["datum"]               = danas.isoformat()
     izvestaj["predmeta_analizirano"] = len(portfolio)

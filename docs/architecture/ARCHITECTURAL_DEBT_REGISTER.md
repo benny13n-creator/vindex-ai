@@ -4325,14 +4325,17 @@ fix cycle, not by theme — grouped by theme below for readability.
 
 ### Archived-case leak family (same root cause as 2 already-fixed sites)
 
-**LIVINGSYS-DEBT-003 (CRITICAL)** — CIO's daily portfolio report hard-caps at 40 cases, ordered
-oldest-updated-first (the most-neglected cases), and presents the truncated, biased sample as the
-true portfolio total with no `total_in_db`/`truncated` disclosure anywhere in the response or UI.
-Not fixed this mission: raising or removing the cap changes real query cost at scale (a genuine
-perf tradeoff, not a one-line fix) and the *ordering* bias needs a product decision (should the
-sample favor recently-active or highest-risk cases, not just "not oldest") — a blind fix risked
-trading one bias for another without founder input on which cases should represent the portfolio
-when not all can be shown.
+**LIVINGSYS-DEBT-003 — PARTIALLY FIXED** (Program Phoenix, Mission 014, 2026-08-08). The
+disclosure-only sub-fix: a new lightweight `count="exact"` query (fail-soft, doesn't affect the
+core report if it fails) gives the true active-case total; `portfolio_zdravlje` now carries
+`ukupno_u_bazi` and `truncated`, surfaced in the CIO widget's header ("prikazano N/M") when the
+40-case cap actually truncates the portfolio. **Still open**: the cap itself and its oldest-
+first ordering are unchanged — raising/removing the cap is a genuine query-cost-at-scale
+tradeoff, and re-ordering needs a founder decision on which cases should represent a necessarily
+partial sample; neither attempted, both remain the founder's call. Proof:
+`tests/test_phoenix_mission_014_cio_truncation_disclosure.py::
+test_cio_report_discloses_truncation_when_over_cap` + 5 companion tests. Full report:
+`docs/phoenix/mission-014/`.
 
 **LIVINGSYS-DEBT-036 — PARTIALLY FIXED** (Program Phoenix, Mission 001, 2026-08-07). The
 lawyer-facing VISIBILITY harm is closed: `get_worklist`'s `predmeti` fetch now excludes

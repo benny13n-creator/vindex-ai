@@ -17139,6 +17139,10 @@ function _cioRender(iz, meta) {
   html += '<div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.72);"></div>';
   html += '<span style="color:rgba(255,255,255,0.65);font-size:0.65rem;font-weight:700;letter-spacing:0.1em;">CHIEF INTELLIGENCE OFFICER</span>';
   if (pg.ukupno_aktivnih) html += '<span style="color:rgba(255,255,255,0.25);font-size:0.6rem;">· '+pg.ukupno_aktivnih+' predmeta</span>';
+  // Program Phoenix, Mission 014 (LIVINGSYS-DEBT-003): pg.truncated discloses when
+  // the report's own 40-case cap left cases out -- without this, the lawyer had no
+  // way to know the shown portfolio wasn't the whole firm's active caseload.
+  if (pg.truncated) html += '<span style="color:#fbbf24;font-size:0.58rem;" title="Prikazano '+pg.ukupno_aktivnih+' od ukupno '+pg.ukupno_u_bazi+' aktivnih predmeta (najstariji nisu prikazani)."> · prikazano '+pg.ukupno_aktivnih+'/'+pg.ukupno_u_bazi+'</span>';
   if (izKesa) html += '<span style="color:rgba(255,255,255,0.18);font-size:0.58rem;"> · keširano</span>';
   html += '</div>';
   html += '<button onclick="_cioLoad(null,true)" style="font-size:0.6rem;color:rgba(0,212,255,0.28);background:none;border:1px solid rgba(0,212,255,0.10);border-radius:4px;padding:2px 7px;cursor:pointer;font-family:inherit;">Osvezi</button>';

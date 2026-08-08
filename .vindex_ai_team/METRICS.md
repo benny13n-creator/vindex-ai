@@ -2067,3 +2067,17 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Subsystem tests | 200 passed, 0 failed |
 | Full suite | **3,312 passed, 1 skipped, 0 failed** — was 3,303 at Mission 012's close |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 014 — CIO Portfolio Truncation Disclosure, CRITICAL (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 1 partially (`LIVINGSYS-DEBT-003`, CRITICAL — disclosure-only sub-fix) |
+| Files touched | 2 (`routers/cio.py`, `static/vindex.js`) |
+| New algorithms invented | 0 (reused an existing `count="exact"` query idiom) |
+| Regression tests added | 6 (`tests/test_phoenix_mission_014_cio_truncation_disclosure.py`) |
+| Pre-existing test corrections | 0 |
+| Subsystem tests | 101 passed, 0 failed |
+| Full suite | **3,318 passed, 1 skipped, 0 failed** — was 3,312 at Mission 013's close |
+| Self-caught issue | An implementation draft's over-broad `return_exceptions=True` corrected before any test was written |
+| STOP GATE | PASS |
