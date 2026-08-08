@@ -355,21 +355,28 @@ def _get_monthly_usage(user_id: str) -> int:
 def _increment_monthly_usage(user_id: str) -> None:
     month = _get_current_month()
     try:
-        row = _get_supa().table("user_credits") \
-            .select("mesecno_korisceno, mesec") \
-            .eq("user_id", user_id) \
-            .maybe_single() \
-            .execute()
-        if row.data:
-            curr_month = row.data.get("mesec", "")
-            new_count = (row.data.get("mesecno_korisceno", 0) + 1) if curr_month == month else 1
-            _get_supa().table("user_credits").update({
-                "mesecno_korisceno": new_count,
-                "mesec": month,
-            }).eq("user_id", user_id).execute()
+        # P1-C (2026-08-08): this was a SELECT-then-UPDATE. Two charges landing
+        # together both read the same mesecno_korisceno and both wrote read+1,
+        # so one of them vanished -- a lost update on a quota counter, executing
+        # on every AI request in the product (this runs inside _deduct_n_credits,
+        # which is underneath every UsageService.consume call).
+        #
+        # migrations/108_atomic_usage_counters.sql shipped increment_monthly_usage
+        # precisely to close this, but the Python caller was never switched over,
+        # so the fix sat unused in the database. It does the whole read-add-write
+        # in one statement, including the month rollover.
+        res = _get_supa().rpc("increment_monthly_usage", {
+            "p_user_id": user_id,
+            "p_mesec":   month,
+        }).execute()
+        # The RPC returns -1 when the user has no user_credits row. That is the
+        # same condition the old code's `if row.data:` handled by falling
+        # through to the in-memory counter, so keep falling through -- treating
+        # -1 as success would silently stop counting those users entirely.
+        if isinstance(res.data, int) and res.data >= 0:
             return
     except Exception as e:
-        logger.warning("[CREDITS] _increment_monthly_usage DB failed: %s", e)
+        logger.warning("[CREDITS] _increment_monthly_usage RPC failed: %s", e)
     # Fallback na in-memory ako DB padne
     entry = _mesecna_upotreba.get(user_id, {})
     if entry.get("month") != month:
