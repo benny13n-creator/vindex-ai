@@ -23,6 +23,104 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- QUERY A — CONSOLIDATED SINGLE-RUN VERDICT  ◄── RUN THIS ONE FIRST
+--
+-- The Supabase SQL Editor displays only the LAST statement's result set when
+-- a multi-statement file is run, so the individual blocks further down were
+-- silently discarded on the first attempt. This block returns every check as
+-- rows of ONE result set: run it alone, paste the whole table back.
+-- Still 100% read-only.
+-- ═══════════════════════════════════════════════════════════════════════════
+WITH fn(sig) AS (
+    VALUES ('public.deduct_credit(uuid)'),
+           ('public.set_user_pro(text, boolean)'),
+           ('public.deduct_n_credits(uuid, integer)'),
+           ('public.get_activity_averages(uuid)'),
+           ('public.get_next_broj_fakture(uuid)')
+),
+fnres AS (
+    SELECT f.sig, to_regprocedure(f.sig) AS proc FROM fn f
+),
+col(name, upd) AS (
+    SELECT c.column_name,
+           has_column_privilege('authenticated', 'public.profiles', c.column_name, 'UPDATE')
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public' AND c.table_name = 'profiles'
+)
+SELECT '0 · roles exist' AS check_id,
+       'anon / authenticated / service_role' AS target,
+       CASE WHEN (SELECT count(*) FROM pg_roles
+                  WHERE rolname IN ('anon','authenticated','service_role')) = 3
+            THEN 'PASS' ELSE 'INCONCLUSIVE' END AS verdict,
+       'found ' || (SELECT count(*) FROM pg_roles
+                    WHERE rolname IN ('anon','authenticated','service_role'))::text || '/3' AS evidence
+
+UNION ALL
+SELECT '1 · mig102 privilege',
+       r.sig,
+       CASE
+         WHEN r.proc IS NULL THEN 'INCONCLUSIVE - function not found'
+         WHEN has_function_privilege('anon', r.proc, 'EXECUTE')
+           OR has_function_privilege('authenticated', r.proc, 'EXECUTE')
+              THEN 'FAIL - client role can still execute'
+         WHEN NOT has_function_privilege('service_role', r.proc, 'EXECUTE')
+              THEN 'FAIL - service_role lacks EXECUTE'
+         ELSE 'PASS'
+       END,
+       'proacl=' || COALESCE((SELECT p.proacl::text FROM pg_proc p WHERE p.oid = r.proc), 'NULL')
+         || ' | anon=' || COALESCE(has_function_privilege('anon', r.proc, 'EXECUTE')::text, '?')
+         || ' auth='   || COALESCE(has_function_privilege('authenticated', r.proc, 'EXECUTE')::text, '?')
+         || ' svc='    || COALESCE(has_function_privilege('service_role', r.proc, 'EXECUTE')::text, '?')
+FROM fnres r
+
+UNION ALL
+SELECT '2 · mig103 columns',
+       'public.profiles UPDATE grants for authenticated',
+       CASE
+         WHEN to_regclass('public.profiles') IS NULL THEN 'INCONCLUSIVE - table not found'
+         WHEN COALESCE((SELECT upd FROM col WHERE name = 'is_pro'), FALSE)
+              THEN 'FAIL - authenticated can write is_pro (free PRO reachable)'
+         WHEN NOT COALESCE((SELECT upd FROM col WHERE name = 'full_name'), FALSE)
+              THEN 'FAIL - authenticated cannot write full_name (Settings would break)'
+         WHEN (SELECT count(*) FROM col WHERE upd AND name <> 'full_name') > 0
+              THEN 'FAIL - writable columns beyond full_name'
+         ELSE 'PASS'
+       END,
+       'authenticated-writable: '
+         || COALESCE((SELECT string_agg(name, ', ' ORDER BY name) FROM col WHERE upd), '(none)')
+
+UNION ALL
+SELECT '3 · F5 credit-race body',
+       'public.deduct_n_credits(uuid, integer)',
+       CASE
+         WHEN to_regprocedure('public.deduct_n_credits(uuid, integer)') IS NULL
+              THEN 'INCONCLUSIVE - function not found'
+         WHEN pg_get_functiondef(to_regprocedure('public.deduct_n_credits(uuid, integer)'))
+              LIKE '%credits_remaining >= p_n%'
+              THEN 'PASS - balance guard deployed'
+         WHEN pg_get_functiondef(to_regprocedure('public.deduct_n_credits(uuid, integer)'))
+              LIKE '%GREATEST(0, credits_remaining - p_n)%'
+              THEN 'FAIL - old unguarded body still live (credit race OPEN)'
+         ELSE 'INCONCLUSIVE - body matches neither known version'
+       END,
+       left(replace(COALESCE(
+              pg_get_functiondef(to_regprocedure('public.deduct_n_credits(uuid, integer)')),
+              'n/a'), E'\n', ' '), 600)
+
+UNION ALL
+SELECT '4 · profiles RLS (context only)',
+       'public.profiles',
+       CASE WHEN (SELECT c.relrowsecurity FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE n.nspname='public' AND c.relname='profiles')
+            THEN 'INFO - RLS enabled' ELSE 'INFO - RLS disabled' END,
+       'policies: ' || COALESCE((SELECT string_agg(policyname || '/' || cmd, ', ' ORDER BY policyname)
+                                 FROM pg_policies
+                                 WHERE schemaname='public' AND tablename='profiles'), '(none)')
+ORDER BY 1, 2;
+
+
 -- ───────────────────────────────────────────────────────────────────────────
 -- QUERY 0 — PRECONDITION: the three Supabase roles must exist.
 -- If any row is missing, every later has_*_privilege() call would error and
