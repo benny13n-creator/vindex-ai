@@ -3160,6 +3160,9 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         # (success-path condition, Exception, BaseException) so adding the
         # BaseException handler cannot double-refund.
         _refunded = False
+        # NIGHT-005: set once the answer bytes have left the server. See the
+        # disconnect handler at the bottom of this generator.
+        _delivered = False
         try:
             history_obj = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
 
@@ -3178,6 +3181,10 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             for i in range(0, len(data_text), _CHUNK):
                 chunk = data_text[i:i + _CHUNK]
                 yield f"data: {chunk.replace(chr(10), chr(92) + 'n')}\n\n"
+
+            # NIGHT-005: the answer has now left the server. Anything that goes
+            # wrong from here is not something the user should be refunded for.
+            _delivered = True
 
             # UsageService.consume() already pre-deducted the credit above (same timing as
             # the old require_credits pre-deduction) — refund on cache-hit/blocked/genuine
@@ -3218,12 +3225,23 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             # cancellation semantics are preserved exactly (this handler must
             # never swallow). Awaiting during aclose() is permitted -- what is
             # forbidden is yielding, and nothing is yielded below.
-            if not _refunded:
+            # NIGHT-005 (2026-08-09): `and not _delivered`. On the SUCCESS path
+            # _refunded was still False when this handler ran, so a client that
+            # read the entire answer and then dropped the connection before
+            # [DONE] received the full gpt-4o answer AND got its credit back.
+            # Repeatable at the 10/min limit, and refund_n_credits has no cap and
+            # no link to a charge, so the balance simply climbs back each time.
+            # It also fired unintentionally whenever a flaky mobile connection
+            # dropped on the last chunk. Only refund a disconnect that actually
+            # cost the user something.
+            if not _refunded and not _delivered:
                 try:
                     await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                     _refunded = True
                 except Exception:
                     logger.warning("[PITANJE_STREAM] refund nakon prekida veze nije uspeo [q=%s]", qh)
+            elif _delivered:
+                logger.info("[PITANJE_STREAM] veza prekinuta NAKON isporuke odgovora — bez refunda [q=%s]", qh)
             raise
 
     return StreamingResponse(

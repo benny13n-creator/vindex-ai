@@ -117,8 +117,27 @@ def test_stream_refund_is_idempotent_across_all_three_paths():
 
     src = inspect.getsource(api.pitanje_stream)
     assert "_refunded = False" in src
-    assert src.count("if not _refunded:") >= 2, (
-        "both the Exception and BaseException handlers must be guarded by the flag"
+    # UPDATED by NIGHT-005 (2026-08-09). The BaseException (disconnect) handler
+    # is now guarded by `if not _refunded and not _delivered:` rather than
+    # `if not _refunded:`, so the literal count dropped to 1 and this assertion
+    # started failing on a STRICTER version of the code.
+    #
+    # The reason for the extra condition: on the SUCCESS path _refunded was
+    # still False when the disconnect handler ran, so a client that read the
+    # whole answer and then dropped the connection before [DONE] received the
+    # full gpt-4o answer AND got its credit back — repeatable at the 10/min
+    # limit, with refund_n_credits having no cap and no link to a charge.
+    #
+    # What this test is actually for — no double refund — is unchanged, so
+    # assert that property instead of one particular spelling of it.
+    _guards = src.count("if not _refunded:") + src.count("if not _refunded and not _delivered:")
+    assert _guards >= 2, (
+        "both the Exception and BaseException handlers must be guarded by the "
+        f"_refunded flag; found {_guards} guarded branches"
+    )
+    assert "_delivered = True" in src, (
+        "the disconnect handler must be able to tell a pre-delivery abort from "
+        "a post-delivery one, or it refunds work that was delivered"
     )
 
 
