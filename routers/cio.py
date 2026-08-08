@@ -529,7 +529,14 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
             .single()
             .execute()
         )
-        if cached.data:
+        # NIGHT-003 (2026-08-09): the claim step below used to blank `izvestaj`
+        # to {} AND refresh created_at before generating. This read tested only
+        # freshness, so a concurrent request -- or every request for the next 6
+        # hours after a failed generation -- was served {} as a genuine cached
+        # report, destroying the real one. The claim no longer blanks the
+        # column; this guard is the second half, and covers rows already
+        # poisoned in production by the old behaviour.
+        if cached.data and cached.data.get("izvestaj"):
             ts_str = cached.data.get("created_at", "")
             if ts_str:
                 ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
@@ -567,8 +574,11 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
     claimed = False
     try:
         _upd = await asyncio.to_thread(
+            # Claim by moving created_at only -- never wipe a valid report to
+            # take a lock on it. /run at the bottom of this file already does it
+            # this way; /daily did not.
             lambda: supa.table("cio_dnevni_izvestaj").update({
-                "izvestaj": {}, "predmeta_analizirano": 0, "created_at": now.isoformat(),
+                "created_at": now.isoformat(),
             }).eq("user_id", uid).eq("datum", danes_iso).lt(
                 "created_at", datetime.fromtimestamp(_stale_cutoff, tz=timezone.utc).isoformat()
             ).execute()

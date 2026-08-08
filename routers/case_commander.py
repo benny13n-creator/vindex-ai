@@ -928,7 +928,12 @@ async def commander_jutarnji(
             .limit(1)
             .execute()
     )
-    if cached.data:
+    # NIGHT-003: the claim below inserts {"brifing": {}} as a placeholder before
+    # generating. This table has NO staleness window -- "a row for today is
+    # always fresh" -- so if generation raised, or the worker was recycled, that
+    # empty placeholder was returned as the briefing for the REST OF THE DAY,
+    # with no recovery path. An empty payload is a cache miss, not a briefing.
+    if cached.data and cached.data[0].get("brifing"):
         return cached.data[0]["brifing"]
 
     korisnik_r = await asyncio.to_thread(

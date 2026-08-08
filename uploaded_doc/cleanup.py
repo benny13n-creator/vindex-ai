@@ -55,15 +55,34 @@ def cleanup_expired(dry_run: bool = False) -> dict:
         )
         matches = result.get("matches", [])
         if not matches:
-            # Namespace has stat entry but no vectors — clean it up
-            if not dry_run:
-                index.delete(delete_all=True, namespace=ns)
-                logger.info("[CLEANUP] Deleted empty namespace %s", ns)
-            namespaces_deleted += 1
+            # NIGHT-004 (2026-08-09): this used to be `index.delete(delete_all=True)`
+            # on the theory that "stat entry but no vectors = junk". Pinecone
+            # serverless is EVENTUALLY CONSISTENT: query and describe_index_stats
+            # do not converge at the same instant, so a namespace written seconds
+            # ago legitimately answers an empty query while its vectors exist.
+            #
+            # That would be tolerable in a nightly job. It is not tolerable here:
+            # routers/dokument.py and api.py both fire cleanup_expired() as a
+            # background task on EVERY upload, so one lawyer's upload could
+            # destroy another lawyer's document that had just been indexed — the
+            # owner's next question about it returning "session not found", 24h
+            # early, with no error on their side.
+            #
+            # An empty namespace costs nothing to leave alone. Count it, skip it.
+            logger.info("[CLEANUP] Namespace %s returned no vectors — preskačem "
+                        "(prazan upit nije dokaz da je namespace prazan).", ns)
             continue
 
         expires_at = matches[0].get("metadata", {}).get("expires_at", "")
-        if not expires_at or is_expired(expires_at):
+        if not expires_at:
+            # NIGHT-004: missing metadata is UNKNOWN, not EXPIRED. Deleting on a
+            # blank expires_at meant any vector written by a path that does not
+            # set that field took its whole namespace down with it.
+            logger.warning("[CLEANUP] Namespace %s nema expires_at metapodatak — "
+                           "ne brišem (nepoznato != isteklo).", ns)
+            continue
+
+        if is_expired(expires_at):
             vector_count = info.get("vector_count", 0)
             chunks_deleted += vector_count
             namespaces_deleted += 1
