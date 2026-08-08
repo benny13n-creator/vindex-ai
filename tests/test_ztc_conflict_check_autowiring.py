@@ -185,6 +185,52 @@ async def _run_finalize(mock_supa, job_result, body, emit_side_effect=None):
 
 
 @pytest.mark.anyio
+async def test_new_client_linked_still_emitted_when_client_lookup_fails():
+    """CI-RED-002 (2026-08-08). `klijent_id` was assigned only INSIDE the
+    client-link try block, and resolve_client_ownership() is that block's very
+    first statement. Any failure there (DB down, network, timeout) left the
+    name unbound, so the NEW_CLIENT_LINKED emit below -- which reads it -- died
+    with UnboundLocalError straight into its own `except Exception`, logged as
+    "non-fatal".
+
+    The event was therefore silently NOT emitted, and the conflict-of-interest
+    check that Case Evolution owns as its consequence silently never ran. A
+    transient DB blip meant a case was opened with no conflict check and no
+    signal to anyone -- the same false-clear class as SOA2-006, arrived at from
+    the other direction.
+
+    This test fails with UnboundLocalError against the pre-fix code."""
+    from routers.smart_intake import FinalizeReq
+    from services.event_bus import EventType
+
+    mock_supa = _make_supa()
+    job_result = {
+        "document": {"id": "dok-001", "document_type": "lawsuit"},
+        "review": None,
+        "entities": [
+            {"entity_type": "plaintiff", "value": "Marko Marković"},
+            {"entity_type": "defendant", "value": "Ana Jović"},
+        ],
+    }
+
+    with patch("shared.case_assimilation.resolve_client_ownership",
+               new=AsyncMock(side_effect=RuntimeError("[Errno 11001] getaddrinfo failed"))):
+        result, mock_emit = await _run_finalize(
+            mock_supa, job_result, FinalizeReq(klijent_strana="defendant")
+        )
+
+    assert result["predmet_id"] == "pred-001", "the case must still be created"
+    client_linked_calls = [c for c in mock_emit.call_args_list if c.args[0] == EventType.NEW_CLIENT_LINKED]
+    assert len(client_linked_calls) == 1, (
+        "NEW_CLIENT_LINKED must fire even when the client link itself failed — "
+        "it is what triggers the conflict-of-interest check"
+    )
+    payload = client_linked_calls[0].args[3]
+    assert payload["klijent_id"] is None, "no client was linked, and the payload must say so"
+    assert payload["klijent_ime"] == "Ana Jović", "the name is what the conflict check needs"
+
+
+@pytest.mark.anyio
 async def test_finalize_emits_new_client_linked_durably():
     """Program Delta, Sprint 002: finalize must emit NEW_CLIENT_LINKED
     exactly once with the correct predmet_id/klijent_ime/protivna_strana

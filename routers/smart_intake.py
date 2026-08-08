@@ -1128,6 +1128,16 @@ async def _finalize_intake_job_core(
             klijent_ime = (value_map.get(body.klijent_strana) or "").strip()
         klijent_nesiguran = False
         klijent_kandidati: list[str] = []
+        # CI-RED-002 (2026-08-08): klijent_id used to be assigned ONLY inside the
+        # try below. resolve_client_ownership() is its first statement, so any
+        # failure there (DB down, network, timeout) left klijent_id unbound --
+        # and the NEW_CLIENT_LINKED emit further down reads it. The result was an
+        # UnboundLocalError swallowed by that emit's own `except Exception`, so
+        # the event never fired and the conflict-of-interest check it owns was
+        # silently skipped. Exactly the failure mode that block's comment claims
+        # it avoids ("unconditional on whether the insert above succeeded").
+        # Bound here so the emit is genuinely unconditional.
+        klijent_id = None
         if klijent_ime:
             try:
                 client_ownership = await case_assimilation.resolve_client_ownership(uid, klijent_ime)
