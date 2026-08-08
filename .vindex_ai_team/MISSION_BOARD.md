@@ -3358,3 +3358,51 @@ required" sections are now the founder-facing punch list — 5 decisions across 
 infrastructure items. Per the masterprompt's own explicit instruction, Final Beta Gate is a
 SEPARATE mission not started here — this operation's own STOP GATE having passed only means Beta
 Gate is now *eligible* to begin, as its own distinct piece of work.
+
+---
+
+## OPERATION: BETA GATE — CREDIT SYSTEM CLOSURE (2026-08-08) — BLOCKER STILL OPEN
+
+Follow-on to Final Beta Gate, triggered by its own CONDITIONAL-GO blocker.
+
+**What actually happened, in order:**
+
+1. Read-only production catalog verification (founder-executed, coordinator-authored
+   script) proved migrations **102 and 103 ARE applied** — the first independent
+   verification of those in this project's history, replacing a founder-reported
+   status that had stood since 2026-08-07.
+2. The same verification proved the **F5 credit-race fix was NOT deployed**. Root
+   cause: the Final Beta Gate fix had been written by editing
+   `migrations/smart_contract_analyses.sql`, applied 2026-06-11. Editing an
+   already-applied migration produces no artifact to run. The full suite stayed
+   green throughout because every credit test mocked the RPC — mocks validate the
+   contract the code expects, never the contract the database offers.
+3. Fix re-issued as **migration 107** (new, numbered). `smart_contract_analyses.sql`
+   restored to as-applied content with the executable definition removed (filename
+   ordering puts `107_*` first, so leaving it would silently clobber the fix on a
+   rebuild).
+4. A **second race** found in the same sweep: `refund_one_credit` was called by
+   `shared/deps.py` but defined in NO migration, so every refund fell through to a
+   Python read-modify-write that could erase a concurrent charge.
+5. Two independent reviewers then attacked the result. The SQL held under
+   everything (1700 concurrent ops, SERIALIZABLE, deadlock, INT_MIN/INT_MAX). They
+   found **two more CRITICALs in the surrounding code**: the `n_credits == 1`
+   branch (the dominant price) routed to `deduct_credit`, whose failure return is
+   `0` not `-1`, making the 402 unreachable; and `/api/credits-debug`, callable by
+   any authenticated user with no rate limit, deducted then blind-wrote a stale
+   balance — unlimited free usage.
+6. All fixed in code (no further migration required). 8 more findings fixed,
+   9 deferred with written justification.
+
+**STOP GATE: NOT PASSED.** Migration 107 is founder-reported applied but not yet
+independently verified against the production catalog. Per Rule 1 of this
+operation, a report of execution is not evidence.
+
+**Full suite: 3,500 passed / 1 skipped / 0 failed, twice consecutively.**
+
+Deliverables: `docs/beta_gate/` — `BETA_GATE_BLOCKER_CLOSURE_REPORT.md`,
+`CREDIT_SYSTEM_FORENSIC_AUDIT.md`, `CREDIT_RACE_TEST_MATRIX.md`,
+`CREDIT_REFUND_CHAOS_REPORT.md`, `CREDIT_SECOND_ORDER_AUDIT.md`,
+`PRODUCTION_MIGRATION_107_VERIFICATION.md`.
+
+**BETA GATE = NO-GO** until `PRODUCTION_MIGRATION_107_VERIFICATION.md` shows PASS.

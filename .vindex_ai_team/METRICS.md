@@ -2147,3 +2147,28 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Full suite, Pass 2 (Phase 6) | 3,393 passed, 1 skipped, 0 failed — exact match |
 | Final Certification Gate | 17/17 criteria met |
 | Verdict | **PHOENIX CLOSURE = CERTIFIED** |
+
+## Beta Gate — Credit System Closure (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Migrations independently verified applied (first time ever) | 2 (102, 103) |
+| Migrations proven NOT applied by verification | 1 (F5 fix — never deployed) |
+| New migrations issued | 1 (107) |
+| CRITICAL findings | 3 (F5 redeployment, CREDIT-CONSUME-001, CREDIT-DEBUG-001) |
+| HIGH findings | 4 (CREDIT-REFUND-001, -002, SOA-003, SOA-004) |
+| MEDIUM findings | 6 |
+| LOW findings | 5 |
+| Findings fixed this operation | 13 |
+| Findings deferred with written justification | 9 |
+| Independent reviewers used | 2 (adversarial DB, second-order code) |
+| Reviewer-found CRITICALs the implementer missed | 2 |
+| Real-PostgreSQL tests added | 36 |
+| Other regression tests added | 21 |
+| Negative controls (prove harness detects the defect) | 2 |
+| Mandated concurrency scenarios passed | 5/5 (A–E) |
+| Max concurrency proven | 1700 ops on balance 1000 → charged exactly 1000 |
+| Full suite, run 1 | 3,500 passed / 1 skipped / 0 failed |
+| Full suite, run 2 | 3,500 passed / 1 skipped / 0 failed — exact match |
+| Production verification of 107 | **OUTSTANDING** |
+| Verdict | **NO-GO** — evidence incomplete |

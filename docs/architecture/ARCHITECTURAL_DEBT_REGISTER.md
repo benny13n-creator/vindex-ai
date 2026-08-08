@@ -3361,6 +3361,41 @@ citation grounding, background_agents.py/morning_briefing.py bounded concurrency
 wiring fixes, SOURCE_OF_TRUTH_REGISTRY.md correction, LAMBDA-003/LAMBDA007-DEAD-001 merge). Items below are
 the ones NOT fixed this sprint — genuine product/architecture decisions or explicitly deferred.
 
+### LAMBDA008-SEC-001 — migrations 102/103 (RESOLVED 2026-08-07 · **INDEPENDENTLY VERIFIED 2026-08-08**)
+
+> **STATUS UPGRADE, 2026-08-08.** The "founder-reported, not independently
+> verified" caveat below is now **discharged by direct evidence**. A read-only
+> PostgreSQL catalog query (`docs/beta_gate/VERIFY_MIGRATIONS_102_103_READONLY.sql`,
+> QUERY A) was executed against production and returned:
+>
+> - **Migration 102** — all five locked-down RPCs (`deduct_credit`,
+>   `set_user_pro`, `deduct_n_credits`, `get_activity_averages`,
+>   `get_next_broj_fakture`): `proacl = {postgres=X/postgres,service_role=X/postgres}`,
+>   `anon=false authenticated=false service_role=true`. No PUBLIC entry. A
+>   never-modified function would show `proacl = NULL`; none did. **PASS.**
+> - **Migration 103** — `authenticated`-writable columns on `public.profiles`
+>   = `full_name` **only**. `is_pro`, `plan`, `trial_kraj` not writable. **PASS.**
+>
+> This closes the verification gap recorded below — the coordinator did not need
+> `SUPABASE_DB_URL` after all, because catalog inspection via the SQL Editor is
+> sufficient and requires no production write. The `set_user_pro` free-PRO
+> exploit and the `deduct_credit` cross-account drain are confirmed closed at
+> the database layer.
+>
+> **Two latent re-openers found and fixed the same day** (they did not affect
+> the verified live state, but would have undone it):
+> `supabase_setup.sql` still carried `GRANT EXECUTE ON FUNCTION
+> public.deduct_credit(UUID) TO authenticated` — and `shared/deps.py:426`
+> instructs operators to re-run that file when credits look broken (SOA-003).
+> `supabase_migration.sql` carried a *second*, conflicting `deduct_credit`
+> definition against `public.profiles` (SOA-004). Both removed; a repo-wide
+> test now enforces exactly one definition per credit function.
+>
+> Separately: migration **107** (credit race) is **NOT** covered by this entry
+> and remains unverified — see `docs/beta_gate/PRODUCTION_MIGRATION_107_VERIFICATION.md`.
+
+**Original entry, retained unaltered:**
+
 ### LAMBDA008-SEC-001 — migrations 102/103 (RESOLVED 2026-08-07, founder-reported, not independently technically verified)
 
 **Found by**: Team 2 (Security & RLS), re-confirmed independently by Team 3 (Ownership/IDOR) and Team 13

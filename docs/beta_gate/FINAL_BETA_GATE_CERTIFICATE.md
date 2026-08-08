@@ -1,5 +1,48 @@
 # FINAL BETA GATE CERTIFICATE
 
+> ## ⚠ SUPERSEDED IN PART — 2026-08-08
+>
+> The §1 verdict below (**CONDITIONAL GO**) is **withdrawn**. Current status:
+>
+> # BETA GATE = NO-GO
+>
+> Read-only production catalog verification on 2026-08-08 established that the
+> F5 credit-race fix this certificate treated as "code complete, pending one
+> migration" was **never deployed** — the fix had been written into an
+> already-applied migration, which produces no artifact for an operator to
+> run. The vulnerable function body was confirmed live in production.
+>
+> Subsequent adversarial and second-order review then found the fix, once
+> written correctly, still left the **dominant** code path open
+> (`n_credits == 1` → `deduct_credit`, whose failure return is `0`, never
+> `-1`, making the 402 unreachable), plus a second unlimited free-credit
+> primitive reachable by any authenticated user (`/api/credits-debug`).
+>
+> All are now fixed in code. What remains outstanding is **evidence**:
+> migration 107 has been reported applied but not yet independently verified
+> against the production catalog.
+>
+> | Item | Verified |
+> |---|---|
+> | Migration 102 (RPC lockdown) | ✅ independently verified, catalog |
+> | Migration 103 (profiles columns) | ✅ independently verified, catalog |
+> | Migration 107 (credit race) | ❌ founder-reported only |
+>
+> Authoritative current documents:
+> `BETA_GATE_BLOCKER_CLOSURE_REPORT.md` · `CREDIT_SYSTEM_FORENSIC_AUDIT.md` ·
+> `CREDIT_RACE_TEST_MATRIX.md` · `CREDIT_REFUND_CHAOS_REPORT.md` ·
+> `CREDIT_SECOND_ORDER_AUDIT.md` · `PRODUCTION_MIGRATION_107_VERIFICATION.md`
+>
+> The sections below are retained unaltered as the historical record of the
+> 2026-08-08 Final Beta Gate operation. They are not rewritten to pretend the
+> blocker never existed. Sequence actually observed:
+> `DISCOVERED → FIXED IN CODE (wrong mechanism) → NOT DEPLOYED → PRODUCTION
+> VERIFIED FAIL → FIXED IN NEW MIGRATION → ADVERSARIALLY ATTACKED → 2 MORE
+> CRITICALS FOUND → FIXED → awaiting PRODUCTION VERIFICATION → BLOCKER CLOSED`
+
+---
+
+
 **Operation:** Final Beta Gate — Zero-Trust / Production Readiness
 **Date:** 2026-08-08
 **Scope:** Vindex AI, full codebase, post-Program Phoenix / Phoenix Closure
