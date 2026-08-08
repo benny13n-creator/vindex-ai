@@ -3406,3 +3406,20 @@ Deliverables: `docs/beta_gate/` — `BETA_GATE_BLOCKER_CLOSURE_REPORT.md`,
 `PRODUCTION_MIGRATION_107_VERIFICATION.md`.
 
 **BETA GATE = NO-GO** until `PRODUCTION_MIGRATION_107_VERIFICATION.md` shows PASS.
+
+### UPDATE, same day — MIGRATION 107 VERIFIED IN PRODUCTION
+
+Read-only catalog verification returned **6/6 USPEH**: balance guard present,
+`p_n <= 0` rejected, `search_path` hardened, both refund functions present and
+atomic, and `anon`/`authenticated` still unable to execute any of them (which
+also proves `CREATE OR REPLACE` did not reopen migration 102's lockdown).
+
+**The credit-race blocker is CLOSED at the database layer, on evidence.**
+
+Remaining before an unconditional Beta GO: confirm the DEPLOYED BUILD includes
+`0561e6c`. Three CRITICAL/HIGH findings from this operation are application-code
+fixes, and CREDIT-CONSUME-001 (the 1-credit path routing to `deduct_credit`,
+whose failure return is `0` not `-1`) stays exploitable on an older build even
+with 107 applied. One-step check: `GET /api/credits-debug` on production —
+a `credit_rpc` key means the fixed build is live; the old `deduct_credit_rpc`
+key means it is not.

@@ -1,10 +1,31 @@
 # FINAL BETA GATE CERTIFICATE
 
-> ## ⚠ SUPERSEDED IN PART — 2026-08-08
+> ## ⚠ SUPERSEDED IN PART — 2026-08-08 (updated same day)
 >
 > The §1 verdict below (**CONDITIONAL GO**) is **withdrawn**. Current status:
 >
-> # BETA GATE = NO-GO
+> # CREDIT-RACE BLOCKER = CLOSED (database verified) · BETA = GO ELIGIBLE pending one build check
+>
+> **Migration 107 is independently verified applied in production** — 6/6
+> read-only catalog checks, 2026-08-08. The credit race is closed at the
+> database layer, the atomic refund functions exist, and `CREATE OR REPLACE`
+> did not reopen the migration-102 lockdown.
+>
+> **One item remains before an unconditional GO**, and it is deliberately not
+> rounded away: three CRITICAL/HIGH findings from this operation are
+> **application-code** fixes (`0561e6c`, `4e6e4f1`), not SQL. Chief among them,
+> `consume()` used to route the *dominant* 1-credit price to `deduct_credit`,
+> whose failure return is `0` and never `-1` — so if production runs a build
+> older than `0561e6c`, that path stays exploitable **despite** migration 107.
+> Verified by opening `GET /api/credits-debug` on production: a `credit_rpc`
+> key means the fixed build is live; the old `deduct_credit_rpc` key means it
+> is not. See `PRODUCTION_MIGRATION_107_VERIFICATION.md`.
+>
+> The historical NO-GO reasoning is retained below for the record.
+>
+> ---
+>
+> ### (historical, 2026-08-08 earlier) BETA GATE = NO-GO
 >
 > Read-only production catalog verification on 2026-08-08 established that the
 > F5 credit-race fix this certificate treated as "code complete, pending one

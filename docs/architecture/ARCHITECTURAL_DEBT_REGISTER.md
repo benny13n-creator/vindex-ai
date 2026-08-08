@@ -3391,8 +3391,20 @@ the ones NOT fixed this sprint — genuine product/architecture decisions or exp
 > definition against `public.profiles` (SOA-004). Both removed; a repo-wide
 > test now enforces exactly one definition per credit function.
 >
-> Separately: migration **107** (credit race) is **NOT** covered by this entry
-> and remains unverified — see `docs/beta_gate/PRODUCTION_MIGRATION_107_VERIFICATION.md`.
+> Separately: migration **107** (credit race) is now **ALSO INDEPENDENTLY
+> VERIFIED APPLIED** (2026-08-08, 6/6 read-only catalog checks): balance
+> guard present, non-positive amounts rejected, `search_path` hardened,
+> `refund_n_credits`/`refund_one_credit` present and atomic, and
+> `anon`/`authenticated` still cannot execute any of them — proving
+> `CREATE OR REPLACE` did not reopen the 102 lockdown. Evidence:
+> `docs/beta_gate/PRODUCTION_MIGRATION_107_VERIFICATION.md`.
+>
+> **Still open (application layer, not database):** three CRITICAL/HIGH
+> findings from the same operation are code fixes (commits `4e6e4f1`,
+> `0561e6c`) — most importantly CREDIT-CONSUME-001, where `consume()`
+> routed the dominant 1-credit price to `deduct_credit`, whose failure
+> return is `0` and never `-1`. Until the deployed build includes
+> `0561e6c`, that path remains exploitable DESPITE migration 107.
 
 **Original entry, retained unaltered:**
 
