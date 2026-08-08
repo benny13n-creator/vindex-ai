@@ -53,13 +53,15 @@ def _doc_entry(doc_id):
 
 def _make_supa(
     job_predmet_id=None, job_assimilation_complete=False,
-    recovery_predmet_id=None, dup_rows=None, segment_map=None,
+    recovery_predmet_id=None, dup_rows=None, segment_map=None, job_doc_count=0,
 ):
     """job_predmet_id/job_assimilation_complete: the intake_jobs row's own
     state at the top of finalize. recovery_predmet_id: what the
     source_intake_job_id crash-recovery lookup finds (None = nothing to
     recover). dup_rows: what the content_sha256 dedup lookup finds (list of
-    {"id":..., "predmet_id":...} dicts)."""
+    {"id":..., "predmet_id":...} dicts). job_doc_count: what the F9
+    already-finalized fast-exit's own document-count query (also
+    source_intake_job_id-scoped) reports."""
     segment_map = segment_map or {}
     dup_rows = dup_rows if dup_rows is not None else []
     supa = MagicMock()
@@ -94,7 +96,10 @@ def _make_supa(
             t.insert.side_effect = _insert
             t.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value.data = []
             # Dedup lookup: .select(...).eq("user_id",...).eq("content_sha256",...).execute()
+            # F9's own already-finalized document-count query shares this exact chain shape
+            # (.select(...).eq(...).eq(...).execute()) -- .count configured alongside .data.
             t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = dup_rows
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value.count = job_doc_count
             # Crash-recovery lookup: .select(...).eq("source_intake_job_id",...).eq("user_id",...).limit(1).execute()
             recovery_data = [{"predmet_id": recovery_predmet_id}] if recovery_predmet_id else []
             t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = recovery_data
@@ -323,12 +328,12 @@ async def test_fully_complete_job_still_takes_the_fast_exit_path():
     case."""
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
-    mock_supa = _make_supa(job_predmet_id="pred-DONE", job_assimilation_complete=True)
+    mock_supa = _make_supa(job_predmet_id="pred-DONE", job_assimilation_complete=True, job_doc_count=2)
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa):
         result = await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), _fake_user())
 
-    assert result == {"ok": True, "predmet_id": "pred-DONE", "already_finalized": True}
+    assert result == {"ok": True, "predmet_id": "pred-DONE", "already_finalized": True, "dokumenata_povezano": 2}
 
 
 @pytest.mark.anyio

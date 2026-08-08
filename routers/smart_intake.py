@@ -829,7 +829,25 @@ async def _finalize_intake_job_core(
     # unresolved documents falls through to the resume path below instead
     # of being stuck "finalized" forever with missing documents.
     if job.get("predmet_id") and job.get("assimilation_complete"):
-        return {"ok": True, "predmet_id": job["predmet_id"], "already_finalized": True}
+        # Final Beta Gate F9 (LOW/MEDIUM): this fast-path used to return no
+        # count fields at all -- correct for NOT re-doing the (idempotent)
+        # side effects, but batch-finalize's own aggregation
+        # (dokumenata_povezano_ukupno += result.get("dokumenata_povezano") or
+        # 0) then silently treated a retry-after-partial-success as "0
+        # documents linked," undercounting the lawyer-facing summary for
+        # documents that really were attached in an earlier, crashed
+        # attempt. source_intake_job_id (migration 095) is set on every
+        # document this job ever linked, so the real count is one cheap
+        # exact-count query away.
+        _cnt = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("id", count="exact")
+                .eq("source_intake_job_id", job_id).eq("user_id", uid).execute()
+        )
+        return {
+            "ok": True, "predmet_id": job["predmet_id"], "already_finalized": True,
+            "dokumenata_povezano": _cnt.count if _cnt.count is not None else 0,
+        }
 
     if job["status"] != "completed":
         # Program Intake Sprint 004 (2026-08-05) -- ovaj gate je vec
@@ -874,7 +892,16 @@ async def _finalize_intake_job_core(
         )
         refetch_data = refetch.data if refetch else None
         if refetch_data and refetch_data.get("assimilation_complete") and refetch_data.get("predmet_id"):
-            return {"ok": True, "predmet_id": refetch_data["predmet_id"], "already_finalized": True}
+            # Final Beta Gate F9: same reasoning as the fast-path above.
+            _cnt = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti")
+                    .select("id", count="exact")
+                    .eq("source_intake_job_id", job_id).eq("user_id", uid).execute()
+            )
+            return {
+                "ok": True, "predmet_id": refetch_data["predmet_id"], "already_finalized": True,
+                "dokumenata_povezano": _cnt.count if _cnt.count is not None else 0,
+            }
         raise HTTPException(
             status_code=409,
             detail="Finalizacija je već u toku za ovaj posao — pokušajte ponovo za par sekundi.",

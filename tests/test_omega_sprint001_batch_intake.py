@@ -188,6 +188,35 @@ async def test_finalize_batch_aggregates_multiple_jobs_into_one_case_summary():
 
 
 @pytest.mark.anyio
+async def test_finalize_batch_counts_documents_from_an_already_finalized_retry():
+    """Final Beta Gate F9: a retry-after-partial-success job that hits the
+    already_finalized fast-exit must still contribute its real document
+    count to the batch aggregate -- before this fix, the fast-exit returned
+    no dokumenata_povezano field at all, silently zeroing this job's real
+    contribution in the lawyer-facing summary."""
+    from routers.smart_intake import finalize_intake_jobs_batch, BatchFinalizeReq
+
+    async def _fake_core(job_id, request, body, user, emit_document_accepted=True):
+        if job_id == "job-1":
+            return {"ok": True, "predmet_id": "pred-A", "naziv": "Markovic", "dokumenata_povezano": 3,
+                     "klasifikacija_nesigurna": False, "rok_dodat": False, "already_finalized": True}
+        raise AssertionError(f"unexpected job_id {job_id}")
+
+    pre_supa = MagicMock()
+    pre_supa.table.return_value.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {"case_dna": {}}
+
+    with patch("routers.smart_intake._finalize_intake_job_core", new=AsyncMock(side_effect=_fake_core)), \
+         patch("routers.smart_intake._get_supa", return_value=pre_supa), \
+         patch("services.event_bus.emit_durable", new=AsyncMock()):
+        result = await finalize_intake_jobs_batch(
+            BatchFinalizeReq(job_ids=["job-1"]), _fake_request(), _fake_user(),
+        )
+
+    assert result["dokumenata_povezano_ukupno"] == 3
+    assert result["predmeti_pogodjeni"][0]["dokumenata"] == 3
+
+
+@pytest.mark.anyio
 async def test_finalize_batch_one_failure_does_not_abort_the_rest():
     """A single bad job_id (404, or any other finalize-time error) must not
     prevent the OTHER jobs in the batch from being finalized -- same
