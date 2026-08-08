@@ -25,3 +25,15 @@ os.environ.setdefault(
     "FIELD_ENCRYPTION_KEY",
     base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
 )
+
+# CI-RED-001 (2026-08-08): the .env load above is best-effort — in CI there IS
+# no .env file, and .github/workflows/tests.yml never supplied FOUNDER_EMAILS.
+# shared/deps.py raises RuntimeError at IMPORT time when it is missing, so
+# every test that imports it errored during collection and the "Test Suite"
+# workflow had been failing on EVERY commit for the entire visible history
+# (25+ runs). A permanently-red pipeline is a pipeline nobody reads — which is
+# how the PROD-SYNTAX-001 outage shipped past it.
+#
+# setdefault, so a real value from .env or from the CI environment always wins;
+# this only guarantees the suite is self-sufficient wherever it runs.
+os.environ.setdefault("FOUNDER_EMAILS", "test-founder@vindex.test")
