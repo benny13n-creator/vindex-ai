@@ -519,13 +519,31 @@ async def cross_examination(
     case_context = await _dohvati_case_context_ako_postoji(body.predmet_id, uid, supa, include_documents=False)
     case_context_blok = _case_context_blok(case_context)
 
+    # PROD-SYNTAX-001 (2026-08-08): this block used to be built INLINE inside
+    # the f-string below, as
+    #     {("\n" + case_context_blok + "\n...\n") if case_context_blok else ""}
+    # A backslash inside an f-string EXPRESSION is a SyntaxError on Python
+    # 3.11 and only became legal in 3.12 (PEP 701). Local dev runs 3.13, so it
+    # parsed here and the whole test suite passed; production runs
+    # python:3.11-slim (Dockerfile) and could not even IMPORT the module --
+    # api.py's router import failed, gunicorn workers exited 3, and the
+    # service never booted. Hoisted out of the f-string so the expression
+    # part contains no backslash and the string is valid on both versions.
+    _ctx_prompt_blok = ""
+    if case_context_blok:
+        _ctx_prompt_blok = (
+            "\n" + case_context_blok
+            + "\nAko je gornji blok dat, iskoristi poznate kontradikcije/nedostajuće "
+              "dokaze da izoštriš pitanja koja tačno tim ciljaju.\n"
+        )
+
     prompt = f"""Si iskusni parničar sa 25 godina iskustva. Pripremaš pitanja za unakrsno ispitivanje svedoka.
 
 TIP POSTUPKA: {body.tip_postupka.upper()}
 NAŠA POZICIJA: {body.nasa_pozicija}
 SVEDOK (ko je, šta zna, kakva je njegova uloga): {body.svedok_opis}
 TEMA SVEDOČENJA (o čemu svedoči, šta tvrdi): {body.tema}
-{("\n" + case_context_blok + "\nAko je gornji blok dat, iskoristi poznate kontradikcije/nedostajuće dokaze da izoštriš pitanja koja tačno tim ciljaju.\n") if case_context_blok else ""}
+{_ctx_prompt_blok}
 Generiši listu od 15-20 preciznih pitanja za unakrsno ispitivanje ovog svedoka.
 
 ## Pitanja za utvrđivanje kredibiliteta svedoka
