@@ -7363,12 +7363,23 @@ async function execQuery() {
 
       console.log('[Vindex] execQuery: odgovor status =', r.status, '| pokušaj', _attempt+1);
 
-      // Cold-start / gateway retry
-      if ((r.status === 502 || r.status === 503) && _attempt < _maxRetries) {
-        _attempt++;
-        btnLbl.textContent = 'Uspostavljanje veze sa serverom...';
-        await new Promise(function(res){ setTimeout(res, 4000); });
-        continue;
+      // SOA2-A1 (second-order audit, 2026-08-08): this used to auto-retry the
+      // identical body up to twice on 502/503. Every endpoint reachable here
+      // (/api/pitanje, /api/nacrt, /api/podnesak, /api/analiza) CHARGES
+      // CREDITS, and none of them has an idempotency key — so one lawyer
+      // action could be billed up to 3 times.
+      //
+      // A 502/503 does not mean the backend stopped: gunicorn's worker
+      // timeout (120s) and graceful_timeout (30s) both surface as 502 while
+      // the request has already been charged and may still be completing.
+      // The client cannot distinguish that from a genuine cold start where
+      // nothing was charged, so retrying automatically is a coin flip with
+      // the user's money. We stop and let the human decide.
+      if (r.status === 502 || r.status === 503) {
+        resp.classList.add('show'); rb.style.whiteSpace = 'pre-wrap';
+        rb.textContent = 'Server trenutno nije dostupan. Zahtev je možda već obrađen — '
+          + 'proverite stanje pre nego što pokušate ponovo, da ne biste bili naplaćeni dvaput.';
+        return;
       }
 
       if (r.status === 401) { closeModal(); openModal(); return; }
@@ -7389,14 +7400,13 @@ async function execQuery() {
       // Content-type guard — server vratio HTML (cold start, nginx greška)
       var _ct = r.headers.get('content-type');
       if (!_ct || !_ct.includes('application/json')) {
-        if (_attempt < _maxRetries) {
-          _attempt++;
-          btnLbl.textContent = 'Uspostavljanje veze sa serverom...';
-          await new Promise(function(res){ setTimeout(res, 4000); });
-          continue;
-        }
+        // SOA2-A1: same reasoning as the 502/503 branch above — a gateway HTML
+        // error page (Cloudflare 504/524, nginx) is exactly what a
+        // timed-out-but-already-charged request looks like from here. No
+        // silent re-POST of a charged body.
         resp.classList.add('show'); rb.style.whiteSpace='pre-wrap';
-        rb.textContent = 'Server se pokreće, pokušajte za 5 sekundi...';
+        rb.textContent = 'Server nije vratio očekivani odgovor. Zahtev je možda već obrađen i naplaćen — '
+          + 'osvežite stranicu i proverite pre ponovnog pokušaja.';
         return;
       }
 

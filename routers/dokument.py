@@ -430,6 +430,22 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
             action="dokument_pitanje", user_id=user.get("user_id"),
             resource_type="dokument_pitanje", resource_id=body.session_id,
         ))
+    # SOA2-004 (second-order audit, 2026-08-08): ask_agent never raises — a
+    # provider failure comes back as {"status":"error","message":"Sistem je
+    # trenutno zauzet..."}. The predicate three lines above ALREADY computes
+    # exactly that condition, and was used only to decide whether to write an
+    # audit row; the charge below ran unconditionally. The lawyer paid 2
+    # credits for an HTTP 200 whose entire body is "the system is busy".
+    # Same gate, now also governing the money — this codebase's canonical
+    # semantics are charge-for-a-delivered-result (see drafting.py:628-634,
+    # api.py:5049-5060, evidence.py:479-480).
+    if isinstance(rezultat, dict) and rezultat.get("status") == "error":
+        logger.warning(
+            "[DOC_PITANJE] AI nije vratio rezultat (status=error) — kredit NIJE naplaćen uid=%.8s",
+            user["user_id"],
+        )
+        return rezultat
+
     await UsageService.consume(user["user_id"], user.get("email", ""), "document_analysis")
     return rezultat
 

@@ -776,8 +776,26 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     # Pokreni sve agente istovremeno
     rezultati = await _aio.gather(*[_pozovi_agenta(a) for a in agenti_ids])
 
-    # Oduzmi kredite — N kredita, jedan po agentu
-    await UsageService.consume(uid, email, "multi_agent", multiplier=n_needed)
+    # Oduzmi kredite — N kredita, jedan po agentu KOJI JE STVARNO USPEO.
+    #
+    # SOA2-001 (second-order audit, 2026-08-08): _pozovi_agenta swallows every
+    # exception into {"greska": ..., "odgovor": ""}, so gather() ALWAYS
+    # succeeds and this charged multiplier=n_needed — the number of agents
+    # ATTEMPTED, not delivered. With OpenAI down the lawyer paid 3 credits for
+    # an HTTP 200 containing three empty answers, and this file has no refund
+    # path at all (grep: zero UsageService.refund call sites).
+    #
+    # Charging per delivered agent matches the partial-success rule already
+    # documented for the sibling case in api.py:5055-5057 (partial value is
+    # charged, total failure is not).
+    _uspesni = [r for r in rezultati if isinstance(r, dict) and not r.get("greska")]
+    if _uspesni:
+        await UsageService.consume(uid, email, "multi_agent", multiplier=len(_uspesni))
+    else:
+        logger.warning(
+            "[PARA] svi agenti neuspešni (%d/%d) — kredit NIJE naplaćen uid=%.8s",
+            len(rezultati), n_needed, uid,
+        )
 
     logger.info("[PARA] uid=%s agenti=%s predmet=%s", uid[:8], agenti_ids, req.predmet_id or "-")
 

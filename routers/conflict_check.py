@@ -336,7 +336,32 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
     srednji = [k for k in konflikti if k.get("sever") == "SREDNJI"]
     aktivni = [k for k in konflikti if _is_active(k.get("predmet_status",""))]
 
-    if not konflikti:
+    # SOA2-006 (second-order audit, 2026-08-08) — SAFETY, not just billing.
+    # All three search layers swallow their own exceptions into
+    # sloj_status[...] = "greška" (lines ~202, ~287, ~332) and simply
+    # contribute no hits. With every layer down, `konflikti` is empty for the
+    # same reason it is empty when there genuinely is no conflict — and the
+    # endpoint then told the lawyer "Nije pronađen konflikt interesa. Možete
+    # prihvatiti klijenta." A database outage therefore produced a
+    # professional-ethics FALSE CLEAR on the exact question the Kodeks
+    # profesionalne etike makes the lawyer personally responsible for.
+    #
+    # "No evidence of a conflict" and "we could not look" must never render as
+    # the same answer. An incomplete check degrades to `review` (an existing
+    # status the frontend already handles conservatively) and is NOT charged,
+    # matching this codebase's canonical semantics: no delivered result, no
+    # credit.
+    _slojevi_greska = sorted(k for k, v in sloj_status.items() if v == "greška")
+    _provera_potpuna = not _slojevi_greska
+
+    if not konflikti and not _provera_potpuna:
+        final_status = "review"
+        poruka = (
+            "⚠️ PROVERA NIJE POTPUNA — pretraga nije uspela za: "
+            f"{', '.join(_slojevi_greska)}. Odsustvo rezultata NE znači da konflikta nema. "
+            "Ponovite proveru pre nego što donesete odluku o prihvatanju klijenta."
+        )
+    elif not konflikti:
         final_status = "clear"
         poruka = "Nije pronađen konflikt interesa. Možete prihvatiti klijenta."
     elif visoki and aktivni:
@@ -355,10 +380,14 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
     logger.info("[CONFLICT] user=%s termini=%s status=%s konflikata=%d visoki=%d rapidfuzz=%s",
                 uid[:8], termini, final_status, len(konflikti), len(visoki), _RAPIDFUZZ)
 
-    await UsageService.consume(uid, user.get("email", ""), "conflict_check")
+    # Only charge for a check that actually ran. See the SOA2-006 note above.
+    if _provera_potpuna:
+        await UsageService.consume(uid, user.get("email", ""), "conflict_check")
 
     return {
-        "status":    final_status,
+        "status":          final_status,
+        "provera_potpuna": _provera_potpuna,
+        "slojevi_greska":  _slojevi_greska,
         "konflikti": konflikti,
         "poruka":    poruka,
         "pretraga":  termini,
