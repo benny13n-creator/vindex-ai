@@ -82,7 +82,16 @@ def pg_dsn():
                 c.execute(f'CREATE ROLE "{role}" NOLOGIN')
         c.execute(f'CREATE DATABASE "{dbname}"')
 
-    target = admin.replace("dbname=postgres", f"dbname={dbname}")
+    # A plain str.replace() only works for keyword DSNs. With a URL DSN
+    # ("postgresql://user@host:port/postgres") it silently matched nothing, so
+    # `target` stayed pointed at the admin database and the whole schema below
+    # was created in `postgres` itself -- which then made every subsequent run
+    # die with DuplicateTable and, worse, left the throwaway schema behind in a
+    # real database. Parse the DSN instead of pattern-matching it.
+    _info = psycopg.conninfo.conninfo_to_dict(admin)
+    _info["dbname"] = dbname
+    target = psycopg.conninfo.make_conninfo(**_info)
+    assert dbname in target, "the test database must not be the admin database"
     try:
         with psycopg.connect(target, autocommit=True) as c:
             # Real shape of the two tables the migration touches, including the
@@ -351,3 +360,99 @@ def test_negative_control_read_modify_write_loses_updates(pg_dsn):
     uid2 = _uid()
     _hammer(lambda i: _bump(pg_dsn, uid2), 50)
     assert _count(pg_dsn, uid2)[0] == 50
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# P1-C — shared/deps.py::_increment_monthly_usage must actually USE the RPC
+# ═══════════════════════════════════════════════════════════════════════════
+# test_negative_control_read_modify_write_loses_updates above proves the SQL
+# pattern is unsafe, and the tests before it prove the RPC is safe. Neither
+# proved the PRODUCT reaches the RPC -- and for four days it did not: migration
+# 108 shipped increment_monthly_usage, but shared/deps.py kept doing its own
+# SELECT-then-UPDATE, so the fix sat unused in the database while the racy path
+# ran on every AI request in the product (via _deduct_n_credits).
+#
+# A test that mocked _get_supa could not have caught that either; it would have
+# asserted the call shape the code already had. So this drives the real Python
+# function against the real database, concurrently.
+
+class _RpcShim:
+    """Minimal supabase-client stand-in: routes .rpc(name, params).execute()
+    to the real PostgreSQL server and nothing else."""
+
+    def __init__(self, dsn):
+        self._dsn = dsn
+
+    def rpc(self, name, params):
+        dsn = self._dsn
+
+        class _Call:
+            def execute(self_inner):
+                with psycopg.connect(dsn, autocommit=True) as c:
+                    val = c.execute(
+                        f"SELECT public.{name}(%s,%s)",
+                        (params["p_user_id"], params["p_mesec"]),
+                    ).fetchone()[0]
+                out = type("R", (), {})()
+                out.data = val
+                return out
+
+        return _Call()
+
+    def table(self, *a, **k):  # pragma: no cover - must never be reached
+        raise AssertionError(
+            "_increment_monthly_usage fell back to a direct table read-modify-write; "
+            "it must go through the increment_monthly_usage RPC"
+        )
+
+
+def _monthly_row(dsn, uid):
+    with psycopg.connect(dsn, autocommit=True) as c:
+        return c.execute(
+            "SELECT mesecno_korisceno, mesec FROM public.user_credits WHERE user_id=%s", (uid,)
+        ).fetchone()
+
+
+def test_P1C_increment_monthly_usage_goes_through_the_rpc(pg_dsn, credit_user, monkeypatch):
+    import shared.deps as deps
+
+    uid = credit_user()
+    monkeypatch.setattr(deps, "_get_supa", lambda: _RpcShim(pg_dsn))
+
+    deps._increment_monthly_usage(uid)          # .table() would raise here
+    count, mesec = _monthly_row(pg_dsn, uid)
+    assert count == 1
+    assert mesec == deps._get_current_month()
+
+
+def test_P1C_fifty_concurrent_charges_count_as_exactly_fifty(pg_dsn, credit_user, monkeypatch):
+    """The lost update, at the layer the product actually runs. Under the old
+    SELECT-then-UPDATE body this lands well below 50 (see
+    test_negative_control_read_modify_write_loses_updates for that pattern
+    measured directly)."""
+    import shared.deps as deps
+
+    uid = credit_user()
+    monkeypatch.setattr(deps, "_get_supa", lambda: _RpcShim(pg_dsn))
+
+    res = _hammer(lambda i: deps._increment_monthly_usage(uid), 50)
+    assert all(r is None for r in res), f"worker errors: {[r for r in res if r is not None]}"
+    assert _monthly_row(pg_dsn, uid)[0] == 50, "every charge must be counted exactly once"
+
+
+def test_P1C_missing_credit_row_falls_back_instead_of_counting_a_phantom(pg_dsn, monkeypatch):
+    """The RPC returns -1 for a user with no user_credits row. Treating that as
+    a successful count would silently stop counting those users; the function
+    must fall through to its in-memory counter, as the pre-RPC code did."""
+    import shared.deps as deps
+
+    uid = _uid()  # deliberately never inserted into user_credits
+    monkeypatch.setattr(deps, "_get_supa", lambda: _RpcShim(pg_dsn))
+    deps._mesecna_upotreba.pop(uid, None)
+
+    deps._increment_monthly_usage(uid)
+
+    assert deps._mesecna_upotreba.get(uid, {}).get("count") == 1, (
+        "a -1 from the RPC must fall through to the in-memory counter, not be "
+        "mistaken for a successful increment"
+    )

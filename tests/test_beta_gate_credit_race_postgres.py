@@ -665,7 +665,13 @@ def consume_against_real_db(pg_dsn, monkeypatch):
     monkeypatch.setattr(deps, "_increment_monthly_usage", lambda *a, **k: None)
     monkeypatch.setattr(usage, "_is_founder", lambda *a, **k: False)
     monkeypatch.setattr(usage, "_get_credits", lambda uid: _balance(pg_dsn, uid) or 0)
-    monkeypatch.setattr(usage, "_increment_usage", AsyncMock())
+    # return_value is NOT optional here. Since migration 108 consume() runs the
+    # daily-counter increment BEFORE the charge and compares its result against
+    # 0 to detect a rejected daily limit. A bare AsyncMock() returns a mock, and
+    # `mock < 0` raises TypeError -- which every concurrency test below would
+    # report as an unexplained worker error rather than a failed invariant.
+    # Nobody caught it because these tests skip without a PostgreSQL server.
+    monkeypatch.setattr(usage, "_increment_usage", AsyncMock(return_value=1))
     monkeypatch.setattr(usage, "_log_usage_event", AsyncMock())
 
     def _policy(krediti, multiplier=1):
@@ -905,3 +911,63 @@ async def test_concurrent_consume_through_real_python_path_cannot_overdraw(pg_ds
     assert granted <= 5, f"{granted} grants funded by 60 credits at 12 each"
     assert _balance(pg_dsn, uid) == 60 - 12 * granted
     assert _balance(pg_dsn, uid) >= 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# INV-006 — a REJECTED charge must never consume monthly quota
+# ═══════════════════════════════════════════════════════════════════════════
+# The consume_against_real_db fixture stubs _increment_monthly_usage to a
+# no-op, which is right for the balance-accounting tests above but means no
+# test in this file ever observed it. That left INV-006 proven only by a
+# mocked unit test (test_beta_gate_credit_race.py::test_deps_deduct_n_credits_
+# propagates_insufficient_sentinel), which asserts what the code intends
+# rather than what the database does.
+#
+# The failure it guards against is not theoretical: monthly usage is what
+# enforces mesecni_limit. If a 402'd request still burned a month-slot, a user
+# who ran out of credits mid-month would ALSO lose monthly allowance they never
+# received anything for -- charged twice for nothing, in two different
+# currencies.
+
+@pytest.mark.anyio
+async def test_INV006_rejected_charge_does_not_consume_monthly_quota(
+    pg_dsn, make_user, monkeypatch, consume_against_real_db
+):
+    from fastapi import HTTPException
+    import shared.deps as deps
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(2, 6))
+
+    seen: list[str] = []
+    monkeypatch.setattr(deps, "_increment_monthly_usage", lambda uid, *a, **k: seen.append(uid))
+
+    uid = make_user(5)  # 5 < 12 required — the real RPC will return -1
+    with pytest.raises(HTTPException) as exc:
+        await usage.UsageService.consume(uid, "advokat@vindex.rs", "strategija")
+
+    assert exc.value.status_code == 402
+    assert _balance(pg_dsn, uid) == 5, "money untouched"
+    assert seen == [], (
+        "a charge the database refused must not consume monthly quota — "
+        f"_increment_monthly_usage was called {len(seen)} time(s)"
+    )
+
+
+@pytest.mark.anyio
+async def test_INV006_accepted_charge_does_consume_monthly_quota(
+    pg_dsn, make_user, monkeypatch, consume_against_real_db
+):
+    """The other half — without this, INV-006 could be satisfied by never
+    incrementing monthly usage at all, and mesecni_limit would stop working."""
+    import shared.deps as deps
+    import shared.usage as usage
+    monkeypatch.setattr(usage, "get_policy", consume_against_real_db(2, 6))
+
+    seen: list[str] = []
+    monkeypatch.setattr(deps, "_increment_monthly_usage", lambda uid, *a, **k: seen.append(uid))
+
+    uid = make_user(20)
+    await usage.UsageService.consume(uid, "advokat@vindex.rs", "strategija")
+
+    assert _balance(pg_dsn, uid) == 8
+    assert seen == [uid], "a successful charge must consume exactly one month-slot"
