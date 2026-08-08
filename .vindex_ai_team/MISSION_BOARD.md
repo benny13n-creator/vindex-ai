@@ -3175,3 +3175,42 @@ modification. Subsystem: 101/101 passed. Full suite: **3,318 passed, 1 skipped, 
 3,312, +6 tests, zero regressions, runtime 361.26s — normal baseline, no hang). Red Team
 self-check passed (4 adversarial scenarios, no break found). Full report:
 `docs/phoenix/mission-014/`. **STOP GATE: PASS.**
+
+### Mission 015 — Low-Severity Debt Sweep & Final Pre-Certification Hardening (CLOSED)
+
+Reconstructed 17 individual items from the ORIGINAL 8 source docs under `docs/living_system/`
+(not just the register's consolidated summary) — 11 individually-named (`LIVINGSYS-DEBT-018,
+-019, -024 through -026, -028 through -032, -039`) plus 5 categories split out of the
+`-056`-through-`-063` family, which `CHAOS_RESULTS.md` itself states covers ~15 original findings
+of which only these 5 are concretely named anywhere. **8 fixed**: notification frontend field
+gaps (`-018`), CIO zero-case empty-state wording (`-019`), Digital Twin's readiness cap silently
+disabling itself on `case_context` fetch failure instead of degrading to the conservative bound
+(`-024`, both `kreiraj_simulacija`+`sta_ako_analiza`), Workspace "Today" board's `zadaci` filter
+missing `otvoreno`/`u_toku` tasks (`-029`), no dedup guard on user-retried drafting-staging
+inserts (`-031`), Service Worker's dead `offline: true` flag (`-032`), Intelligence Timeline's and
+Health Index's per-source silent-failure gaps now surfaced as `degraded_sources`/a disclosure
+signal instead of only logged server-side. **1 false positive**: `profitabilnost.py`'s
+"RLS-reliant tenant filter" — all 4 call sites already apply explicit app-level `.eq("user_id",
+uid)`; the real gap is live DB RLS-policy verification, same standing block as the
+multi-mission-outstanding `SUPABASE_DB_URL` request. **5 deferred** (product decision):
+`-026` (source itself: "no concrete reproduced contradiction"), `-028` (same root cause as
+migration-blocked `-012`), `-030` (same architecture block as `-005`), `-039` (perf/cost tradeoff,
+same class as `-003`), Case Commander's `hard_flags` (moot — zero live callers per
+`SINGLEBRAIN2-DEBT-001`). **1 blocked** (new infrastructure): `-025` (would require retrofitting
+Case Commander's bespoke `commander_schema.py` response shape onto 3 unrelated endpoints). **2 not
+reconstructable**: "dead endpoints" and "cosmetic labeling gaps" — named only as categories in
+`CHAOS_RESULTS.md`, no individual instance identified in any source doc; left undispositioned
+rather than invented. `static/sw.js` bumped `vindex-v105` → `vindex-v106`. 14 new tests
+(`tests/test_phoenix_mission_015_low_severity_sweep.py`). **6 pre-existing test corrections across
+4 files**, all root-caused to this mission's own intentional query/comment changes, none weakened:
+`test_lambda001_beta_readiness_fixes.py` (1 assertion literally encoded the `-024` bug, corrected
+to the fixed conservative value), `test_omega_sprint004_workspace.py` (mock only handled the old
+`.eq("status","ceka")` chain, added the new `.not_.in_(...)` shape), `test_singlebrain_phase3_fixes.py`
+(2 fixed-size source-slice windows widened after this mission's own added comments pushed the
+target text past the old boundary), `test_institutional_memory_v2.py` (2 `staging_memory` mocks
+missing the new duplicate-check `.select(...)` chain, defaulting to a truthy unconfigured
+`MagicMock` that was misread as "duplicate found"). Targeted subsystem sweep: 345/345 passed. Full
+suite: **3,332 passed, 1 skipped, 0 failed** (was 3,318, +14 tests, zero regressions, runtime
+356.49s — normal baseline, no hang, 2 full runs required to reach green after the 2nd round of
+pre-existing-test corrections). Full report: `docs/phoenix/PHOENIX_MISSION_015_REPORT.md`.
+**STOP GATE: PASS.**

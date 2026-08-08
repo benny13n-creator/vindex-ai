@@ -59,12 +59,14 @@ def _make_supa(predmeti=None, case_actions=None, zadaci=None, intake_jobs=None, 
 
             def _eq_status(col2, val2):
                 leaf = MagicMock()
-                if val2 == "ceka":
-                    leaf.execute.return_value = MagicMock(data=zadaci)
-                elif val2 == "zavrseno":
+                if val2 == "zavrseno":
                     leaf.gte.return_value.execute.return_value = MagicMock(data=closed_zadaci)
                 return leaf
             inner.eq.side_effect = _eq_status
+            # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-029): _fetch_waiting_zadaci
+            # now queries .not_.in_("status", ["zavrseno","otkazano"]) instead of
+            # .eq("status","ceka") -- see routers/workspace.py.
+            inner.not_.in_.return_value.execute.return_value = MagicMock(data=zadaci)
             return inner
         t.select.return_value.eq.side_effect = _eq_dodeljen
         return t

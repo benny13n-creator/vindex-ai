@@ -212,6 +212,31 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
             logger.warning("[STAGING] predmet_id=%s ne pripada korisniku — preskočeno", predmet_id)
             return
 
+        # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031): a user-triggered retry
+        # (double-click, or a genuine "Generiši" retry after a network hiccup) fires
+        # this fire-and-forget staging insert again with no idempotency check --
+        # 2 near-duplicate drafts of the SAME type for the SAME case land in the
+        # lawyer's review queue for what was conceptually one action. GPT output
+        # isn't deterministic, so the "identical text" dedup idiom used elsewhere
+        # in this codebase (rocista.py, case_evolution.py) doesn't directly apply;
+        # instead, treat a 2nd (predmet_id, tip) staging entry within a short
+        # window as the same retry, not a new draft.
+        _STAGING_RETRY_WINDOW_SECONDS = 30
+        from datetime import datetime as _dt_stg, timedelta as _td_stg, timezone as _tz_stg
+        _recent_cutoff = (_dt_stg.now(_tz_stg.utc) - _td_stg(seconds=_STAGING_RETRY_WINDOW_SECONDS)).isoformat()
+        _dup_r = await asyncio.to_thread(
+            lambda: supa.table("staging_memory").select("id")
+                .eq("user_id", user["user_id"]).eq("predmet_id", predmet_id).eq("tip", tip)
+                .gte("created_at", _recent_cutoff)
+                .limit(1).execute()
+        )
+        if _dup_r.data:
+            logger.info(
+                "[STAGING] predmet=%s tip=%s -- duplikat unutar %ds prozora, preskočeno (id=%s)",
+                predmet_id, tip, _STAGING_RETRY_WINDOW_SECONDS, _dup_r.data[0]["id"],
+            )
+            return
+
         from services.quality_gate import evaluate_draft_quality
         from shared.kancelarija_utils import get_kancelarija_id
 

@@ -11133,12 +11133,32 @@ function notif_render() {
         + (isRead ? '' : '<span style="position:absolute;left:5px;top:1rem;width:5px;height:5px;border-radius:50%;background:#00d4ff;"></span>')
         +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.22rem;padding-left:'+(isRead?'0':'0.6rem')+';">'
         +'<span style="font-size:0.62rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
-        +'<span class="vx-caption" style="margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
+        +'<span class="vx-caption" style="margin-left:auto;">'+escHtml(_notifDatumBadge(n))+'</span>'
         +'</div>'
         +'<div style="font-size:0.78rem;color:rgba(255,255,255,.85);margin-bottom:0.2rem;line-height:1.45;padding-left:'+(isRead?'0':'0.6rem')+';">'+escHtml(bodyTxt)+'</div>'
-        +(n.predmet_naziv?'<div class="vx-caption" style="display:flex;align-items:center;justify-content:space-between;margin-top:.15rem;padding-left:'+(isRead?'0':'0.6rem')+';">'+escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#00d4ff;font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
+        +(_notifPredmetNaziv(n)?'<div class="vx-caption" style="display:flex;align-items:center;justify-content:space-between;margin-top:.15rem;padding-left:'+(isRead?'0':'0.6rem')+';">'+escHtml(_notifPredmetNaziv(n))+(n.predmet_id?'<span style="color:#00d4ff;font-size:.68rem;">Otvori →</span>':'')+'</div>':'')
         +'</div>';
     }).join('');
+}
+
+// Program Phoenix, Mission 015 (LIVINGSYS-DEBT-018): the notification row's
+// own DB columns never included `datum`/`predmet_naziv` -- this frontend
+// read them anyway, so the date badge and case-name sub-line were always
+// empty. No migration: `created_at` (already sent) substitutes for the
+// date badge; the case name is looked up client-side from the already-
+// loaded `_predmeti` cache via `predmet_id` (also already sent), the same
+// pattern this file already uses elsewhere (e.g. pred_openFromNotif-style
+// lookups against `_predmeti`).
+function _notifDatumBadge(n) {
+  var d = n.datum || n.created_at || '';
+  return d ? String(d).slice(5, 10) : '';
+}
+
+function _notifPredmetNaziv(n) {
+  if (n.predmet_naziv) return n.predmet_naziv;
+  if (!n.predmet_id) return '';
+  var p = _predmeti.find(function(pr){ return pr.id === n.predmet_id; });
+  return p ? (p.naziv || '') : '';
 }
 
 function notif_toggleDropdown() {
@@ -11186,11 +11206,11 @@ function mobNotifOtvori() {
           +' style="padding:0.7rem 1rem;cursor:pointer;border-top:1px solid var(--vx-border);opacity:'+(isRead?'0.5':'1')+';">'
           +'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">'
           +'<span style="font-size:0.65rem;color:'+pColor+';font-weight:700;">'+escHtml(tipLbl)+'</span>'
-          +'<span class="vx-caption" style="margin-left:auto;">'+escHtml((n.datum||'').slice(5))+'</span>'
+          +'<span class="vx-caption" style="margin-left:auto;">'+escHtml(_notifDatumBadge(n))+'</span>'
           +'</div>'
           +'<div style="font-size:0.82rem;color:rgba(255,255,255,.85);line-height:1.45;">'+escHtml(n.poruka)+'</div>'
-          +(n.predmet_naziv ? '<div class="vx-caption" style="margin-top:0.2rem;display:flex;justify-content:space-between;">'
-            +escHtml(n.predmet_naziv)+(n.predmet_id?'<span style="color:#00d4ff;">Otvori →</span>':'')+'</div>' : '')
+          +(_notifPredmetNaziv(n) ? '<div class="vx-caption" style="margin-top:0.2rem;display:flex;justify-content:space-between;">'
+            +escHtml(_notifPredmetNaziv(n))+(n.predmet_id?'<span style="color:#00d4ff;">Otvori →</span>':'')+'</div>' : '')
           +'</div>';
       }).join('');
     }
@@ -18030,11 +18050,20 @@ function timeline_load() {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
   }).then(function(r) { return r.json(); }).then(function(d) {
     var events = d.events || [];
+    // Program Phoenix, Mission 015 (LIVINGSYS-DEBT-056-063): degraded_sources
+    // discloses when one of the 6 independent sources failed server-side --
+    // without this, an incomplete Timeline (e.g. hearings missing because that
+    // one query failed) was indistinguishable from "this case genuinely has no
+    // hearings."
+    var _degradedWarn = (d.degraded_sources && d.degraded_sources.length)
+      ? '<div style="color:#fbbf24;font-size:.68rem;padding:.4rem .6rem;margin-bottom:.5rem;background:rgba(251,191,36,.06);border-radius:3px;">⚠ Neki podaci trenutno nisu dostupni (' + escHtml(d.degraded_sources.join(', ')) + ') — hronologija može biti nepotpuna.</div>'
+      : '';
     if (!events.length) {
-      container.innerHTML = '<div class="itl-empty">Nema zabeleženih događaja.<br><span style="font-size:.72rem;">Uploadujte dokument da biste pokrenuli hronologiju.</span></div>';
+      container.innerHTML = _degradedWarn + '<div class="itl-empty">Nema zabeleženih događaja.<br><span style="font-size:.72rem;">Uploadujte dokument da biste pokrenuli hronologiju.</span></div>';
       return;
     }
     _itlRender(container, events);
+    if (_degradedWarn) container.insertAdjacentHTML('afterbegin', _degradedWarn);
   }).catch(function(e) {
     container.innerHTML = '<div style="color:#ff9090;font-size:.8rem;">Greška: ' + escHtml(_friendlyErr(e)) + '</div>';
   });

@@ -366,7 +366,16 @@ async def test_digital_twin_sta_ako_caps_nova_verovatnoca_when_blocked():
 @pytest.mark.anyio
 async def test_digital_twin_degrades_gracefully_without_case_context():
     """build_case_context() failing must not break either endpoint --
-    fail-soft, same discipline as every other Tau/Lambda migration."""
+    fail-soft, same discipline as every other Tau/Lambda migration.
+
+    Program Phoenix, Mission 015 (LIVINGSYS-DEBT-024): this assertion used to
+    encode the bug itself ("uncapped, no context available") -- when canonical
+    context is unavailable, the platform doesn't KNOW the case isn't actually
+    CRITICAL_GAP/BLOCKED, so an uncapped high probability could reach the
+    lawyer for a case that genuinely needed capping. "Fail-soft" now means
+    "doesn't crash, degrades to the conservative CRITICAL_GAP cap" -- not
+    "doesn't crash, skips the cap entirely." Corrected, not weakened: the
+    endpoint still never raises."""
     from routers.digital_twin import kreiraj_simulaciju, SimulacijaRequest
 
     payload = {
@@ -387,7 +396,7 @@ async def test_digital_twin_degrades_gracefully_without_case_context():
             SimulacijaRequest(predmet_id="pred-1"), _twin_req(), _twin_user(),
         )
 
-    assert result["scenariji"][0]["verovatnoca"] == 90  # uncapped, no context available
+    assert result["scenariji"][0]["verovatnoca"] == 50  # capped conservatively, not left uncapped
 
 
 # ═══════════════════════════════════════════════════════════════════════════

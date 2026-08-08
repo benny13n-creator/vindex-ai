@@ -143,6 +143,11 @@ class TestStagingNeverAutoIndexes:
                     MagicMock(data={"id": "pred-1"})
             elif name == "staging_memory":
                 m.insert.return_value = staging_insert_mock
+                # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031): _stage_draft_for_review
+                # now checks for a recent duplicate before inserting -- empty data means
+                # "no duplicate found", so the insert path below still runs.
+                m.select.return_value.eq.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value = \
+                    MagicMock(data=[])
             return m
 
         supa.table.side_effect = _table
@@ -175,6 +180,9 @@ class TestStagingNeverAutoIndexes:
                     r.execute.return_value = MagicMock(data=[{"id": "stg-1"}])
                     return r
                 m.insert.side_effect = _insert
+                # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-031): see same note above.
+                m.select.return_value.eq.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value = \
+                    MagicMock(data=[])
             return m
 
         supa.table.side_effect = _table

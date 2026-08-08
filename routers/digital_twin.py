@@ -351,15 +351,25 @@ async def kreiraj_simulaciju(
     # tvrditi visoku verovatnocu ni za jedan scenario ako je kanonski status
     # CRITICAL_GAP/BLOCKED. Isti mehanizam kao court_predictor.py/hearing_cc.py,
     # primenjen na SVAKI scenario (ne samo jedno polje).
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-024): canonical context
+    # unavailable (build_case_context() threw, _dohvati_case_context_ako_postoji's own
+    # fail-soft catch) used to mean "skip the cap entirely" -- an uncapped, unverified
+    # high probability could reach the user for a case that MIGHT genuinely be
+    # CRITICAL_GAP/BLOCKED; we simply don't know, because the fetch failed. Fails
+    # toward the conservative bound instead (the same CRITICAL_GAP cap), matching
+    # this platform's established "unknown fails safe to the least-confident state"
+    # pattern -- never toward "no bound at all."
     if case_context and not case_context.get("error"):
         _status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
         _cap = _CAP_BY_READINESS.get(_status)
-        if _cap is not None and isinstance(scenariji, list):
-            for _sc in scenariji:
-                if isinstance(_sc, dict):
-                    _v = _sc.get("verovatnoca")
-                    if isinstance(_v, (int, float)) and _v > _cap:
-                        _sc["verovatnoca"] = _cap
+    else:
+        _cap = _CAP_BY_READINESS[CRITICAL_GAP]
+    if _cap is not None and isinstance(scenariji, list):
+        for _sc in scenariji:
+            if isinstance(_sc, dict):
+                _v = _sc.get("verovatnoca")
+                if isinstance(_v, (int, float)) and _v > _cap:
+                    _sc["verovatnoca"] = _cap
 
     # Sacuvaj u twin_simulacije
     try:
@@ -452,11 +462,15 @@ async def sta_ako_analiza(
         nova_verovatnoca = max(0, min(100, nova_verovatnoca))
 
     # Program Lambda, Master Sprint 001: isti deterministički cap kao gore.
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-024): same conservative-default
+    # fix as kreiraj_simulacija above -- see that comment for full reasoning.
     if case_context and not case_context.get("error"):
         _status = ((case_context.get("readiness") or {}).get("value") or {}).get("status")
         _cap = _CAP_BY_READINESS.get(_status)
-        if _cap is not None and isinstance(nova_verovatnoca, (int, float)) and nova_verovatnoca > _cap:
-            nova_verovatnoca = _cap
+    else:
+        _cap = _CAP_BY_READINESS[CRITICAL_GAP]
+    if _cap is not None and isinstance(nova_verovatnoca, (int, float)) and nova_verovatnoca > _cap:
+        nova_verovatnoca = _cap
 
     # Sacuvaj u twin_simulacije
     try:

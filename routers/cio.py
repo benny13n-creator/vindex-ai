@@ -332,9 +332,20 @@ async def _generiši_cio_izvestaj(uid: str, supa) -> dict:
             portfolio.append(komp)
 
     if not portfolio:
+        # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-019): the single message below
+        # used to fire for BOTH "you have zero active cases" and "you have active
+        # cases but none has a Genome model yet" -- worded only for the 2nd, so a
+        # brand-new user with literally no cases saw "Generišite Genome za aktivne
+        # predmete" (generate Genome for your active cases), implying cases exist
+        # that don't.
+        _cio_preporuka = (
+            "Nemate aktivnih predmeta. Kreirajte predmet da biste dobili CIO uvid."
+            if not predmeti_raw else
+            "Nema aktivnih predmeta sa Case Genome modelom. Generišite Genome za aktivne predmete."
+        )
         return {
             "datum":              danas.isoformat(),
-            "cio_preporuka":      "Nema aktivnih predmeta sa Case Genome modelom. Generišite Genome za aktivne predmete.",
+            "cio_preporuka":      _cio_preporuka,
             "portfolio_zdravlje": {
                 "ukupno_aktivnih": len(predmeti_raw), "sa_genomom": 0,
                 "ukupno_u_bazi": total_aktivnih_u_bazi, "truncated": portfolio_truncated,

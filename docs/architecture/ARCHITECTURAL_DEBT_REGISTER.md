@@ -4684,17 +4684,82 @@ here to keep this mission's blast radius bounded to the single highest-traffic p
 
 ### Consolidated low-severity items
 
-**LIVINGSYS-DEBT-018 through -019, -024 through -026, -028 through -032, -039, -056 through -063**
-— ~20 additional LOW/cosmetic findings (notification frontend field gaps, CIO empty-state
-wording, Digital Twin fail-soft cap bypass, disclosure-label inconsistency across AI surfaces,
-Digital Twin's dead `GET /api/twin/{id}` endpoint, Case Commander's computed-but-unenforced
-`hard_flags` — moot while that router itself has zero live callers per prior missions' own
-confirmed finding, `billing.py::profitabilnost.py`'s RLS-reliant tenant filter needing live-DB
-verification, per-source silent-failure gaps in Health Index's weak-signals block, Dashboard's
-historical risk-diff coverage at scale, drafting's missing server-side cooldown). Full individual
-detail in each Wave's own report under `docs/living_system/`; not itemized further here to keep
-this register's own length proportionate to severity — none are correctness-critical, all are
-real and traceable to their source report.
+**Program Phoenix, Mission 015 (2026-08-08)** reconstructed this whole family from the ORIGINAL
+8 source docs under `docs/living_system/` (not just this register's prior summary) and gave each
+item an individual disposition. Full reconstruction table, evidence, and adversarial-verification
+notes: `docs/phoenix/PHOENIX_MISSION_015_REPORT.md`.
+
+- **`-018` — FIXED.** Notifications dropdown/mobile-sheet read `n.datum`/`n.predmet_naziv`, fields
+  the backend never sends. New `_notifDatumBadge()`/`_notifPredmetNaziv()` (`static/vindex.js`)
+  derive both client-side from already-present fields + the existing `_predmeti` lookup array.
+  Proof: `tests/test_phoenix_mission_015_low_severity_sweep.py` (notification helper tests).
+- **`-019` — FIXED.** CIO's zero-case empty state reused the "no Genome yet" message. `routers/
+  cio.py` now distinguishes zero-portfolio from has-cases-but-no-Genome. Proof: same file, CIO
+  tests.
+- **`-024` — FIXED (2 sites).** Digital Twin's readiness cap silently skipped entirely when
+  `build_case_context()` threw, instead of degrading toward the conservative bound like Case
+  Commander does. `routers/digital_twin.py` (`kreiraj_simulacija` + `sta_ako_analiza`) now falls
+  back to `_CAP_BY_READINESS[CRITICAL_GAP]` on context failure. Proof: same file, digital_twin
+  cap tests; `tests/test_lambda001_beta_readiness_fixes.py`'s pre-existing degrade-gracefully test
+  corrected (its old assertion literally encoded the bug — uncapped 90 — now asserts the capped
+  50); `tests/test_singlebrain_phase3_fixes.py`'s 2 source-window clamp-order tests widened
+  (2000→3200, 700→1200 chars) to keep matching after this fix's added explanatory comments pushed
+  the cap check past the old fixed window.
+- **`-025` — DEFERRED (disposition E).** Disclosure-label inconsistency across the 4 AI surfaces —
+  only Case Commander carries full field-level provenance (`shared/commander_schema.py`'s bespoke
+  `{value, source, evidence, confidence, generated_by, timestamp}` shape, built by a dedicated
+  prior mission). Retrofitting it onto Digital Twin/Court Predictor/hearing_cc would be a real,
+  response-contract-breaking infrastructure change, not a bounded fix.
+- **`-026` — DEFERRED (disposition D).** Digital Twin's/Court Predictor's recommended actions
+  never cross-checked against `case_actions`/`top_open_action`. The source report itself frames
+  this as a mechanism gap with "no concrete reproduced contradiction" — not actionable without
+  inventing a reconciliation design.
+- **`-028` — DEFERRED.** No server-side cooldown/dedup for drafting generation itself (distinct
+  from `-031`'s staging-insert dedup, fixed below). Same root cause and same architecture-decision
+  block as the already-tracked, migration-blocked `-012` — not separately actionable this
+  mission.
+- **`-029` — FIXED.** Workspace "Today" board's `zadaci` filter only matched `status="ceka"`,
+  hiding tasks in `otvoreno`/`u_toku` due today. `routers/workspace.py::_fetch_waiting_zadaci` now
+  uses the same `.not_.in_(["zavrseno","otkazano"])` "any non-terminal status is active" filter
+  `routers/zadaci.py` already applies 5 other places. Proof: same file's tests;
+  `tests/test_omega_sprint004_workspace.py`'s pre-existing mock corrected to handle the new query
+  shape (was hard-coded to only the old `.eq("status","ceka")` chain).
+- **`-030` — DEFERRED.** Zero autosave/unload-warning anywhere in the frontend. Same
+  architecture-decision block as the already-deferred `-005` (needs a firm-wide persistence
+  design decision) — not a second, independently actionable item.
+- **`-031` — FIXED.** No idempotency guard on user-triggered drafting-staging retries
+  (`staging_memory` insert had no dedupe key). `routers/drafting.py::_stage_draft_for_review` now
+  skips the insert (logs only) if an identical `user_id`+`predmet_id`+`tip` staging row was
+  created in the last 30s. Proof: same file's duplicate-skip + normal-insert regression tests.
+- **`-032` — FIXED.** Service Worker's `offline: true` flag on the offline-fallback JSON response
+  was dead code (nothing read it; the frontend generically reads `error`). Removed from
+  `static/sw.js`. Proof: same file's SW test.
+- **`-039` — DEFERRED.** Dashboard's historical "risk worsened since last look" diff can silently
+  lose coverage at scale (300-row global cap). Same class of perf/cost tradeoff as `-003`'s own
+  cap dilemma — needs a product decision on acceptable cost, not a code fix.
+- **`-056` through `-063` — PARTIALLY ADDRESSED.** These 8 IDs consolidate ~15 original findings,
+  of which only 5 categories are concretely named in any surviving source document (per
+  `CHAOS_RESULTS.md` line 63): dead endpoints, cosmetic labeling gaps, `profitabilnost.py`'s
+  RLS-reliant tenant filter, Timeline/Health Index per-source silent-failure gaps, Case
+  Commander's computed-but-unenforced `hard_flags`. Mission 015 disposition per category:
+  - Timeline per-source silent-failure gap — **FIXED**. `routers/intelligence_timeline.py` now
+    collects `degraded_sources` (which of its 6 independent try/except blocks failed) into the
+    response instead of only logging server-side. Proof: same file's tests.
+  - Health Index weak-signals per-source silent-failure gap — **FIXED**. `routers/
+    health_index.py::_compute_weak_signals` now surfaces a disclosure signal when its
+    hronologija/ishod query fails, instead of silently omitting that signal. Proof: same file's
+    tests.
+  - `profitabilnost.py`'s RLS-reliant tenant filter — **FALSE POSITIVE (disposition C)**. All 4
+    call sites confirmed to already apply explicit app-level `.eq("user_id", uid)` filtering; the
+    "RLS-reliant... needing verification" framing is about live database RLS-*policy*
+    configuration, not application code. Same standing blocker as the 7+-mission-outstanding
+    `SUPABASE_DB_URL` (read-only) request — not a new actionable finding.
+  - Case Commander's `hard_flags` — **not attempted**, moot per prior missions' own confirmed
+    finding that `case_commander.py` has zero live frontend callers (see `SINGLEBRAIN2-DEBT-001`).
+  - Dead endpoints, remaining cosmetic labeling gaps, and the remainder of the ~15 original
+    findings — **NOT RECONSTRUCTABLE** from available source evidence per this mission's own rule
+    against inventing scope beyond what the original reports document. Left as-is; not fabricated
+    as either fixed or itemized.
 
 **Severity summary across all 63 Living System items**: 2 CRITICAL (`-003`, `-013`), 15 High
 (`-002, -005 through -012, -014 through -017, -020 through -022, -036, -038, -042, -047 through

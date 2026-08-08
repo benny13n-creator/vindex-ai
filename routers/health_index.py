@@ -347,6 +347,7 @@ async def _compute_weak_signals(uid: str, supa) -> list[dict]:
     # predmetu (jedan upit za sve zatvorene predmete, ne N+1).
     closed_ids = [p["id"] for p in closed if p.get("id")]
     ishod_po_predmetu: dict = {}
+    signals_ishod_degraded = False
     if closed_ids:
         try:
             # Sortiranje po created_at (TIMESTAMPTZ, insert-redosled), NE po
@@ -372,6 +373,17 @@ async def _compute_weak_signals(uid: str, supa) -> list[dict]:
                 ishod_po_predmetu[pid] = dogadjaj.split("Ishod:", 1)[1].strip().lower()
         except Exception as exc:
             logger.warning("[HealthIndex] weak_signals ishod upit greška: %s", exc)
+            # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-056-063 category "per-source
+            # silent-failure gaps ... Health Index's weak-signals block"): this failure
+            # used to silently continue with ishod_po_predmetu empty, so Signal 1 below
+            # always computed a 0% loss rate for every case type -- a genuinely bad
+            # pattern would silently never surface, indistinguishable from "no bad
+            # pattern exists." Reuses the existing signals list itself (already the
+            # disclosure surface shown to the lawyer) rather than inventing a new
+            # response field/contract -- appended once outcome-derived signals are
+            # skipped below, not here, so it doesn't get lost if other signals append
+            # first.
+            signals_ishod_degraded = True
 
     # Labele iz routers/predmeti_close.py::_ISHOD_LABEL, lowercased -- "poraz" i
     # "tužba odbačena" su jedini nedvosmisleno nepovoljni ishodi. Nagodba/
@@ -419,6 +431,15 @@ async def _compute_weak_signals(uid: str, supa) -> list[dict]:
                 "icon": "📈",
                 "tekst": f"Broj novih predmeta raste — poslednja 3 meseca: {trend[0]}, {trend[1]}, {trend[2]}. Proverite kapacitet."
             })
+
+    if signals_ishod_degraded:
+        # Inserted at position 0 (not appended) so it survives the [:4] cap below --
+        # this disclosure matters more than losing it to an unrelated signal filling
+        # the last slot.
+        signals.insert(0, {
+            "icon": "⚠️",
+            "tekst": "Analiza ishoda zatvorenih predmeta trenutno nije dostupna — signal o uspešnosti po tipu predmeta može biti nepotpun.",
+        })
 
     return signals[:4]
 

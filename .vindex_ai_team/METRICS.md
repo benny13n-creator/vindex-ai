@@ -2081,3 +2081,22 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Full suite | **3,318 passed, 1 skipped, 0 failed** — was 3,312 at Mission 013's close |
 | Self-caught issue | An implementation draft's over-broad `return_exceptions=True` corrected before any test was written |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 015 — Low-Severity Debt Sweep & Final Pre-Certification Hardening (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items reconstructed from original sources | 17 |
+| Reproduced against current code | 15 |
+| Fixed | 8 (`LIVINGSYS-DEBT-018, -019, -024, -029, -031, -032`, + Timeline/Health Index silent-failure sub-items of `-056..-063`) |
+| False positive / mischaracterized | 1 (`profitabilnost.py` tenant filter — already app-level filtered, real gap is live DB RLS-policy verification) |
+| Deferred (product decision) | 5 (`-026, -028, -030, -039`, Case Commander `hard_flags`) |
+| Blocked (new infrastructure) | 1 (`-025`) |
+| Not reconstructable from available evidence | 2 ("dead endpoints", "cosmetic labeling gaps") |
+| Files touched | 6 routers (`cio.py`, `digital_twin.py`, `workspace.py`, `drafting.py`, `intelligence_timeline.py`, `health_index.py`) + `static/vindex.js` + `static/sw.js` |
+| New algorithms invented | 0 (reused `_CAP_BY_READINESS`, existing `_predmeti` lookup, existing "non-terminal status" filter idiom, existing recent-window dedup idiom) |
+| Regression tests added | 14 (`tests/test_phoenix_mission_015_low_severity_sweep.py`) |
+| Pre-existing test corrections | 6, across 4 files (`test_lambda001_beta_readiness_fixes.py`, `test_omega_sprint004_workspace.py`, `test_singlebrain_phase3_fixes.py`, `test_institutional_memory_v2.py`) — all root-caused to this mission's own intentional changes, none weakened |
+| Subsystem tests | 345 passed, 0 failed |
+| Full suite | **3,332 passed, 1 skipped, 0 failed** — was 3,318 at Mission 014's close |
+| STOP GATE | PASS |

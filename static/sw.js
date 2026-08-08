@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v105";
+const CACHE_NAME = "vindex-v106";
 
 const PRECACHE = [
   "/offline",
@@ -60,8 +60,12 @@ self.addEventListener("fetch", event => {
   ) {
     event.respondWith(
       fetch(event.request).catch(() =>
+        // Program Phoenix, Mission 015 (LIVINGSYS-DEBT-032): offline:true was
+        // dead -- confirmed zero readers anywhere in static/vindex.js; each
+        // fetch call's own generic error.error handling already covers this
+        // response adequately. Removed rather than left as a flag nothing reads.
         new Response(
-          JSON.stringify({ error: "Nema internet konekcije.", offline: true }),
+          JSON.stringify({ error: "Nema internet konekcije." }),
           { status: 503, headers: { "Content-Type": "application/json" } }
         )
       )

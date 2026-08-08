@@ -118,11 +118,19 @@ async def _fetch_review_jobs(supa, uid: str) -> list[dict]:
 
 
 async def _fetch_waiting_zadaci(supa, uid: str) -> list[dict]:
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-029): was .eq("status", "ceka")
+    # only -- zadaci.py's own valid vocabulary is {otvoreno, u_toku, ceka, zavrseno,
+    # otkazano}, and a freshly-created task defaults to "otvoreno" (routers/
+    # zadaci.py's own create endpoint). A task in "otvoreno"/"u_toku" due TODAY was
+    # invisible on this canonical daily board. Reuses the exact "any non-terminal
+    # status counts as active" filter zadaci.py itself already applies 5 other
+    # places (.not_.in_(["zavrseno","otkazano"])) instead of a narrower single-value
+    # match.
     res = await asyncio.to_thread(
         lambda: supa.table("zadaci")
             .select("id,naziv,opis,prioritet,status,rok_datum,predmet_id,kreirao_uid,created_at")
             .eq("dodeljen_uid", uid)
-            .eq("status", "ceka")
+            .not_.in_("status", ["zavrseno", "otkazano"])
             .execute()
     )
     return list(res.data or [])

@@ -313,7 +313,10 @@ def test_opponent_intel_pouzdanost_is_enum_validated_and_evidence_tiered():
 def test_digital_twin_kreiraj_simulacija_has_unconditional_probability_clamp():
     src = open(os.path.join(REPO_ROOT, "routers", "digital_twin.py"), encoding="utf-8").read()
     marker = 'scenariji            = rezultat.get("scenariji", [])'
-    block = src.split(marker, 1)[1][:2000]
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-024) widened this window from
+    # 2000 -- its own explanatory comment for the conservative-cap-on-fetch-failure
+    # fix pushed _CAP_BY_READINESS.get(_status) past the old boundary.
+    block = src.split(marker, 1)[1][:3200]
     assert '_sc["verovatnoca"] = max(0, min(100, _v0))' in block
     # unconditional clamp must run before the readiness-tier cap, not replace it
     assert block.index('_v0))') < block.index('_CAP_BY_READINESS.get(_status)')
@@ -322,7 +325,9 @@ def test_digital_twin_kreiraj_simulacija_has_unconditional_probability_clamp():
 def test_digital_twin_sta_ako_has_unconditional_probability_clamp():
     src = open(os.path.join(REPO_ROOT, "routers", "digital_twin.py"), encoding="utf-8").read()
     marker = 'nova_verovatnoca   = rezultat.get("nova_verovatnoca_uspeha", 50)'
-    block = src.split(marker, 1)[1][:700]
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-024): widened from 700, same
+    # reason as kreiraj_simulacija's window above.
+    block = src.split(marker, 1)[1][:1200]
     assert 'nova_verovatnoca = max(0, min(100, nova_verovatnoca))' in block
     assert block.index('max(0, min(100') < block.index('_CAP_BY_READINESS.get(_status)')
 

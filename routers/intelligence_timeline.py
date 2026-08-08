@@ -66,6 +66,14 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
     predmet = pr.data[0]
 
     events: list[dict] = []
+    # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-056-063 category "per-source
+    # silent-failure gaps in Timeline"): each of the 6 sources below independently
+    # try/excepts its own query -- correct for isolation (one source's failure must
+    # not blank the whole Timeline), but a failed source's own events were dropped
+    # with only a backend log, zero signal in the response. A lawyer viewing an
+    # incomplete Timeline had no way to tell "this case genuinely has no hearings"
+    # from "the ročišta query just failed."
+    _degraded_sources: list[str] = []
 
     # 1) Predmet otvoren
     cr = predmet.get("created_at") or ""
@@ -101,6 +109,7 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             })
     except Exception as e:
         logger.warning("[ITL] dokumenti: %s", e)
+        _degraded_sources.append("dokumenti")
 
     # 3) Ročišta
     try:
@@ -126,6 +135,7 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             })
     except Exception as e:
         logger.warning("[ITL] rocista: %s", e)
+        _degraded_sources.append("rocista")
 
     # 4) Hronologija (AI-generisana iz dokumenata)
     _zatvaranje_vec_u_hronologiji = False
@@ -151,6 +161,7 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             })
     except Exception as e:
         logger.warning("[ITL] hronologija: %s", e)
+        _degraded_sources.append("hronologija")
 
     # 5) Genome promene (consecutive deltas iz genome_history)
     try:
@@ -186,6 +197,7 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             })
     except Exception as e:
         logger.warning("[ITL] genome_history: %s", e)
+        _degraded_sources.append("genome_history")
 
     # 6) Audit trail (hash-lančani, compliance-relevantan log) — Core
     # Consolidation Sec 1.6 (2026-07-22). resource_id za "predmet_*" akcije
@@ -216,6 +228,7 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             })
     except Exception as e:
         logger.warning("[ITL] audit_immutable: %s", e)
+        _degraded_sources.append("audit_immutable")
 
     # 7) Predmet zatvoren
     # Program Phoenix, Mission 008 (LIVINGSYS-DEBT-051): predmeti_close.py already writes a
@@ -244,4 +257,8 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
             "status": predmet.get("status"),
         },
         "ukupno": len(events_sorted),
+        # Program Phoenix, Mission 015 (LIVINGSYS-DEBT-056-063): which of the 6
+        # independent sources (if any) failed and are missing from this response --
+        # empty when everything succeeded, matching pre-mission response shape.
+        "degraded_sources": _degraded_sources,
     }
