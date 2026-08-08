@@ -224,9 +224,7 @@ practice. Mission 015 was not expanded into a new forensic expedition.
   — 2 window-size constants; `test_institutional_memory_v2.py` — 2 mock chains for the new
   duplicate-check query), **6 individual test corrections** total
 - Final full-suite result: **3,332 passed, 1 skipped, 0 failed** (was 3,318, +14 tests, 0 regressions)
-- Commit hash: see `.vindex_ai_team/MISSION_BOARD.md`'s Mission 015 entry / `git log` (this
-  document is written before the commit that includes it; the commit message cites this file by
-  path)
+- Commit hash: `0c6179c` (pushed to `main`)
 
 Do not read "8 fixed" as "all debt resolved" — 6 items remain genuinely deferred/blocked on
 decisions outside this mission's authority, and 2 could not be reconstructed at all from available
