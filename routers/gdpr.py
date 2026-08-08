@@ -29,7 +29,37 @@ logger = logging.getLogger("vindex.gdpr")
 router = APIRouter(tags=["gdpr"])
 
 _APP_URL  = "https://vindex.rs"
-_SECRET   = (os.getenv("UNSUBSCRIBE_SECRET") or os.getenv("SUPABASE_JWT_SECRET", "vindex-unsub-key")).encode()
+
+
+def _resolve_unsub_secret() -> bytes:
+    """Final Beta Gate F14 (LOW): this used to fall back to a literal,
+    source-visible string ("vindex-unsub-key") when BOTH UNSUBSCRIBE_SECRET
+    and SUPABASE_JWT_SECRET were unset -- bounded impact (forging only lets
+    an attacker unsubscribe someone else's email, not access data), but a
+    fixed fallback baked into the repo should never silently become the real
+    secret in any deployment. Now generates a random per-process secret
+    instead (never a source-visible constant) and logs CRITICAL so a
+    misconfigured deployment is loud, not silent -- deliberately NOT raising,
+    since that would crash the entire app over one non-critical feature.
+    Factored into its own function (rather than inline at module scope) so
+    tests can exercise the fallback logic directly without reloading this
+    whole router module -- a reload re-runs every @limiter.limit(...)
+    decorator below, which re-registers rate-limit rules against slowapi's
+    shared, process-global state and was observed to pollute unrelated
+    tests hitting the same endpoint later in the same test session."""
+    env = os.getenv("UNSUBSCRIBE_SECRET") or os.getenv("SUPABASE_JWT_SECRET")
+    if env:
+        return env.encode()
+    import secrets as _secrets_mod
+    logging.getLogger("vindex.gdpr").critical(
+        "[GDPR] UNSUBSCRIBE_SECRET i SUPABASE_JWT_SECRET oba nedostaju -- "
+        "koristim nasumičan po-procesu ključ (nevalidan posle restarta, "
+        "nikad fiksna vrednost iz repo-a). Postavite UNSUBSCRIBE_SECRET."
+    )
+    return _secrets_mod.token_bytes(32)
+
+
+_SECRET = _resolve_unsub_secret()
 
 
 # ─── Token helpers ────────────────────────────────────────────────────────────

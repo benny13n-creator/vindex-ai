@@ -63,7 +63,7 @@ def test_notification_read_state_persisted_to_server():
     """Juliet F2 (CRITICAL): read state was localStorage-only; the backend's own periodic
     regeneration deletes+reinserts unread rows with new ids, silently reverting a lawyer's
     'read' dismissal. notif_click/notif_markAllRead must now also call the PATCH endpoints."""
-    notif_click_body = VINDEX_JS.split("function notif_click(el, id, predmetId) {", 1)[1][:700]
+    notif_click_body = VINDEX_JS.split("function notif_click(el, id, predmetId) {", 1)[1][:1600]
     assert "/notifications/'+encodeURIComponent(id)+'/read'" in notif_click_body
     assert "PATCH" in notif_click_body
 
@@ -178,7 +178,47 @@ def test_sw_cache_bumped():
     """Standing convention: static/sw.js CACHE_NAME must increment whenever static/vindex.js
     changes, or returning users silently keep serving the stale cached bundle."""
     sw_js = (REPO_ROOT / "static" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE_NAME = "vindex-v113";' in sw_js
+    assert 'const CACHE_NAME = "vindex-v116";' in sw_js
+
+
+def test_digital_twin_has_persistent_ai_disclosure():
+    """Final Beta Gate F22 (HIGH): twinSimulirajPokreni/twinStaAkoPokreni rendered scenario
+    probabilities/strategy with only a transient loading string, no persistent AI-disclosure --
+    unlike every other AI surface (CIO, Court Predictor, Genome)."""
+    marker1 = "async function twinSimulirajPokreni() {"
+    assert marker1 in VINDEX_JS
+    block1 = VINDEX_JS.split(marker1, 1)[1][:3000]
+    assert "AI simulacija, procena verovatnoće nije garancija ishoda." in block1
+
+    marker2 = "async function twinStaAkoPokreni() {"
+    assert marker2 in VINDEX_JS
+    block2 = VINDEX_JS.split(marker2, 1)[1][:3000]
+    assert "AI simulacija, procena verovatnoće nije garancija ishoda." in block2
+
+
+def test_kalendar_surfaces_degraded_sources_and_truncated_disclosure():
+    """Final Beta Gate F20: kalendar.py's degraded_sources/truncated fields had zero frontend
+    consumer -- a partial data outage looked identical to 'no events, nothing wrong'."""
+    marker = "kalendarLoad = function() {"
+    assert marker in VINDEX_JS
+    block = VINDEX_JS.split(marker, 1)[1][:2200]
+    assert "data.degraded_sources" in block
+    assert "data.truncated" in block
+    assert "kal-degraded-warn" in block
+
+
+def test_dashboard_surfaces_pad_procene_truncated_disclosure():
+    assert "if (d.pad_procene_truncated) {" in VINDEX_JS
+
+
+def test_notif_click_marks_whole_group_read_not_just_representative():
+    """Final Beta Gate F21 (MEDIUM): clicking a grouped notification used to only PATCH the
+    representative row's id -- the other N-1 rows stayed unread server-side."""
+    marker = "function notif_click(el, id, predmetId) {"
+    assert marker in VINDEX_JS
+    block = VINDEX_JS.split(marker, 1)[1][:1600]
+    assert "/notifications/read-group" in block
+    assert "_n.ids" in block
 
 
 def test_upload_surfaces_original_preserved_and_duplicate_disclosure():

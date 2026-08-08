@@ -944,6 +944,13 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
         "predmet_naziv": row.data.get("naziv"),
         "case_dna": genome,
         "ima_dna": bool(genome and not genome.get("greska")),
+        # Final Beta Gate F4 (MEDIUM): case_dna had no ai_generated marker in
+        # its JSON response, unlike digital_twin/court_predictor/hearing_cc/
+        # cio since Phoenix Closure's LIVINGSYS-DEBT-025. At the response
+        # level (not inside `genome` itself, which is the exact dict persisted
+        # to predmeti.case_dna -- adding fields there would pollute the
+        # stored column).
+        "ai_generated": bool(genome and not genome.get("greska")),
     }
 
 
@@ -1151,6 +1158,7 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
         "snaga_promena": alert_msg,
         "case_dna_persisted": True,
         "poruka": f"Case Genome v{nova_verzija} regenerisan iz {len(docs)} dokumenata.",
+        "ai_generated": True,
     }
 
 

@@ -1484,6 +1484,12 @@ function _kcPanelAktivnosti(d) {
   var h = '<div class="kc-panel" id="kc-panel-aktivnosti">';
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('activity')+'Poslednje aktivnosti</span>';
   h += '<span class="kc-panel-hd-cta" onclick="setTab(document.getElementById(\'tab-btn-p\'),\'p\')">Vidi sve →</span></div>';
+  // Final Beta Gate F20: pad_procene_truncated (Phoenix Closure LIVINGSYS-DEBT-039) was a
+  // backend disclosure field with zero frontend consumer -- at scale, the risk-worsened
+  // history query silently drops older rows, understating "risk worsened" coverage with no signal.
+  if (d.pad_procene_truncated) {
+    h += '<div style="color:rgba(255,180,0,0.6);font-size:0.6rem;padding:0.1rem 0.6rem;">⚠ Prikaz pada procene ograničen na skoriju istoriju.</div>';
+  }
   if (!acts.length) {
     h += '<div class="kc-panel-empty">';
     h += '<span class="kc-panel-empty-ico">'+_kcIco('activity')+'</span>';
@@ -11281,15 +11287,31 @@ function mobNotifZatvori() {
 }
 
 function notif_click(el, id, predmetId) {
-  _notifRead.add(id);
+  // Final Beta Gate F21 (MEDIUM): a grouped notification ("3 × Hitan rok") collapses N
+  // same-tip rows onto ONE representative id for display -- clicking it used to only ever
+  // mark THAT one id read server-side. The other N-1 rows stayed unread in the DB (the group
+  // just re-collapsed onto the same representative on the next load, so it LOOKED read) until
+  // the next <=6h regen cycle silently deleted/reinserted them. _notifData still carries the
+  // full "ids" list from _grupiraj_notifikacije (routers/notifications.py) -- use it when present.
+  var _n = (_notifData || []).find(function(x){ return x.id === id; });
+  var _allIds = (_n && Array.isArray(_n.ids) && _n.ids.length > 1) ? _n.ids : [id];
+
+  _allIds.forEach(function(i){ _notifRead.add(i); });
   localStorage.setItem('vx_notif_read', JSON.stringify([..._notifRead]));
   // Iron Lawyer Sprint 001: this used to be localStorage-only. The backend's own periodic
   // regeneration (routers/notifications.py) deletes+reinserts still-unread rows with new ids,
   // so a read state the server never learned about would reappear as unread after regeneration.
   // Best-effort, non-blocking -- the local Set already drives the visible UI immediately.
-  fetch(BASE_URL+'/notifications/'+encodeURIComponent(id)+'/read', {
-    method: 'PATCH', headers: { 'Authorization':'Bearer '+currentSession.access_token }
-  }).catch(function(){});
+  if (_allIds.length > 1) {
+    fetch(BASE_URL+'/notifications/read-group', {
+      method: 'PATCH', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+      body: JSON.stringify({ ids: _allIds })
+    }).catch(function(){});
+  } else {
+    fetch(BASE_URL+'/notifications/'+encodeURIComponent(id)+'/read', {
+      method: 'PATCH', headers: { 'Authorization':'Bearer '+currentSession.access_token }
+    }).catch(function(){});
+  }
   el.style.opacity = '0.45';
   var badge = document.getElementById('notif-badge');
   var unread = _notifData.filter(function(n){ return !_notifRead.has(n.id); });
@@ -13856,6 +13878,22 @@ kalendarLoad = function() {
   .then(function(data) {
     if (loadEl) loadEl.style.display = 'none';
     _kalAllEvents = data.dogadjaji || [];
+    // Final Beta Gate F20: degraded_sources/truncated (Phoenix Mission 015) were
+    // backend disclosure fields with zero frontend consumer -- a partial data
+    // outage (one of rocista/hronologija/predmeti failing server-side) looked
+    // identical to "everything's fine, just no events" with no signal at all.
+    var _existingWarn = document.getElementById('kal-degraded-warn');
+    if (_existingWarn) _existingWarn.remove();
+    var _degraded = data.degraded_sources || [];
+    if ((_degraded.length || data.truncated) && bodyEl && bodyEl.parentNode) {
+      var _w = document.createElement('div');
+      _w.id = 'kal-degraded-warn';
+      _w.style.cssText = 'color:#e0a030;font-size:0.72rem;padding:0.4rem 0.6rem;margin-bottom:0.5rem;border-left:2px solid #e0a030;background:rgba(224,160,48,0.06);';
+      _w.textContent = _degraded.length
+        ? ('⚠ Kalendar možda nepotpun -- neki izvori trenutno nedostupni (' + _degraded.join(', ') + ').')
+        : '⚠ Prikazan je deo događaja -- previše je za prikaz odjednom.';
+      bodyEl.parentNode.insertBefore(_w, bodyEl);
+    }
     if (!_kalAllEvents.length) {
       if (praznoEl) praznoEl.style.display = '';
       return;
@@ -18819,7 +18857,11 @@ async function twinSimulirajPokreni() {
     }).join('');
     wrap.innerHTML = scenarijiHtml
       + _stratListHtml('Ključne tačke odlučivanja', d.kljucne_tacke, '#93c5fd')
-      + (d.optimalna_strategija ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);"><b>Optimalna strategija:</b> ' + _htmlEsc(d.optimalna_strategija) + '</div>' : '');
+      + (d.optimalna_strategija ? '<div style="margin-top:.5rem;padding:.6rem .7rem;background:rgba(0,212,255,.06);border-left:2px solid rgba(0,212,255,.4);font-size:.8rem;color:rgba(255,255,255,.8);"><b>Optimalna strategija:</b> ' + _htmlEsc(d.optimalna_strategija) + '</div>' : '')
+      // Final Beta Gate F22 (HIGH): Digital Twin rendered scenario probabilities/strategy with
+      // only a transient loading string, no PERSISTENT AI-disclosure -- unlike _cioRender's own
+      // "AI predlog, nezavisan..." line. Same disclosure precedent, applied here for the first time.
+      + '<div style="color:rgba(255,255,255,.28);font-size:.6rem;margin-top:.5rem;">AI simulacija, procena verovatnoće nije garancija ishoda.</div>';
   } catch (e) {
     wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
@@ -18854,6 +18896,8 @@ async function twinStaAkoPokreni() {
       // (vindex.js ~11557-11561) for the identical phrase.
       + (d.nova_verovatnoca_uspeha != null ? '<div style="font-size:.8rem;font-weight:700;color:' + (d.nova_verovatnoca_uspeha>=60?'#7de0a0':d.nova_verovatnoca_uspeha>=40?'#ffbb70':'#ff9090') + ';margin-bottom:.35rem;">Nova verovatnoća uspeha: ' + d.nova_verovatnoca_uspeha + '%</div>' : '')
       + _stratListHtml('Preporučene akcije', d.preporucene_akcije, '#4ade80')
+      // Final Beta Gate F22: same persistent AI-disclosure as twinSimulirajPokreni above.
+      + '<div style="color:rgba(255,255,255,.28);font-size:.6rem;margin-top:.4rem;">AI simulacija, procena verovatnoće nije garancija ishoda.</div>'
       + '</div>';
   } catch (e) {
     wrap.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';

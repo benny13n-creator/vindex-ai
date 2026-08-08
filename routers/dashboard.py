@@ -25,6 +25,10 @@ router = APIRouter(tags=["dashboard"])
 
 _RISK_LEVEL = {"nizak": 1, "srednji": 2, "visok": 3}
 
+# Final Beta Gate F25: explicit cap for the primary case-list query -- see the
+# comment at its call site (command_center's gather_with_timeout fan-out).
+_DASHBOARD_PREDMETI_CAP = 1000
+
 
 # ─── Command Center ───────────────────────────────────────────────────────────
 
@@ -63,9 +67,18 @@ async def command_center(
      beleske_r, dokumenti_r, ist_recent_r,
      fakture_r, rocista_buduci_r, rokovi_tabela_r,
      dokazi_all_r, dokumenti_all_r, rocista_all_r) = await gather_with_timeout(
+        # Final Beta Gate F25 (LOW-MEDIUM): this query had NO .order()/.limit() at
+        # all, unlike the capped-and-disclosed pattern used elsewhere (e.g. cio.py's
+        # own 20-case cap + `truncated` field, Mission 014) -- it relied entirely on
+        # PostgREST's own implicit default row cap. That's worse than a declared cap:
+        # at genuinely large scale (>1000 cases) aktivni_count/top_aktivni_predmeti
+        # could silently compute over an incomplete, ARBITRARILY-ordered dataset,
+        # invisible even on inspection. Explicit order + limit + disclosure below.
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,updated_at")
             .eq("user_id", uid)
+            .order("updated_at", desc=True)
+            .limit(_DASHBOARD_PREDMETI_CAP)
             .execute()),
         asyncio.to_thread(lambda: supa.table("rocista")
             .select("id,predmet_id,sud,datum,vreme,status")
@@ -166,6 +179,10 @@ async def command_center(
     pred_by_id = {p["id"]: p for p in predmeti}
     aktivni    = [p for p in predmeti if p.get("status") not in ("zatvoren", "arhiviran", "odbijen")]
     aktivni_count = len(aktivni)
+    # Final Beta Gate F25: disclosure companion to the explicit cap above --
+    # same "cap is a genuine cost tradeoff, disclosure only" reasoning as
+    # -039/-003 (pad_procene_truncated / cio.py's own truncated field).
+    predmeti_truncated = len(predmeti) >= _DASHBOARD_PREDMETI_CAP
 
     # Neplaćene fakture (nacrt + izdata)
     neplaceno_fakture_rsd = sum(
@@ -369,6 +386,7 @@ async def command_center(
         # Backward compatible with existing /portfolio/dashboard consumer
         "ukupno_predmeta":   len(predmeti),
         "ukupno_aktivnih":   aktivni_count,
+        "predmeti_truncated": predmeti_truncated,
         "rokovi_7_dana":     rokovi_7,
         "hitni_rokovi":      hitni_rokovi,
         "neaktivni_30_dana": neaktivni_predmeti,

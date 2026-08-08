@@ -5,6 +5,7 @@ Vindex AI — Notification Engine
 GET    /notifications               — lista obaveštenja (auto-refresh > 6h)
 POST   /notifications/refresh       — forsiraj regeneraciju
 PATCH  /notifications/{id}/read     — označi kao pročitano
+PATCH  /notifications/read-group    — označi SVE stavke grupisane notifikacije kao pročitane
 PATCH  /notifications/read-all      — označi sva kao pročitana
 """
 from __future__ import annotations
@@ -15,6 +16,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from shared.attention_priority import NOTIFICATIONS_TO_CANONICAL, CANONICAL_ORDER
 from shared.deps import _get_supa, get_current_user
@@ -93,6 +95,16 @@ def _grupiraj_notifikacije(notifs: list[dict]) -> list[dict]:
                 "naslov": f"{len(items)} × {tip_label}",
                 "grouped_count": len(items),
                 "grouped_items": [i.get("naslov", "") for i in items[:5]],
+                # Final Beta Gate F21 (MEDIUM): mark-read only ever PATCHed
+                # items[0].id (the representative row this dict is spread
+                # from) -- the other N-1 rows never got procitano=true
+                # server-side. The group re-collapsed onto the same item[0]
+                # on the next load so it LOOKED read, but a lawyer dismissing
+                # "3 × Hitan rok" never individually saw the other 2
+                # deadlines, whose rows stayed unread until the next ≤6h
+                # regen cycle silently deleted/reinserted them. Frontend now
+                # PATCHes every id in this list, not just the representative one.
+                "ids": [i.get("id") for i in items if i.get("id")],
             }
             result.append(grouped_item)
 
@@ -444,6 +456,39 @@ async def mark_all_read(
         )
         return {"ok": True}
     except Exception as e:
+        raise HTTPException(status_code=500, detail="Greška pri ažuriranju.")
+
+
+class MarkGroupReadReq(BaseModel):
+    ids: list[str] = Field(..., min_length=1, max_length=50)
+
+
+@router.patch("/notifications/read-group")
+@limiter.limit("120/minute")
+async def mark_group_read(
+    body: MarkGroupReadReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Final Beta Gate F21 (MEDIUM): grouped notifications (see
+    _grupiraj_notifikacije's own "ids" field above) collapse N same-tip rows
+    onto ONE representative dict for display -- clicking that group used to
+    only ever PATCH the representative row's own id via mark_read below. The
+    other N-1 rows stayed procitano=false server-side (the group merely
+    re-collapsed onto the same visible representative on the next load, so
+    it LOOKED read). This marks every id in the group in one call."""
+    uid  = user["user_id"]
+    supa = _get_supa()
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("notifications")
+                .update({"procitano": True})
+                .in_("id", body.ids)
+                .eq("user_id", uid)
+                .execute()
+        )
+        return {"ok": True}
+    except Exception:
         raise HTTPException(status_code=500, detail="Greška pri ažuriranju.")
 
 

@@ -170,7 +170,14 @@ def test_pitanje_expired_session():
 def test_pitanje_happy_path():
     sys.modules["main"].ask_agent.return_value = _HAPPY_RESPONSE
 
+    # Final Beta Gate F1: _verify_pred_namespace_ownership now checks tmp_
+    # namespaces too, via a Pinecone metadata lookup (owner_user_id) --
+    # matches this file's own _FAKE_USER["user_id"].
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[MagicMock(metadata={"owner_user_id": "test-user-id"})])
+
     with patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index), \
          patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,
@@ -207,10 +214,13 @@ def test_pitanje_passes_extra_namespace_to_ask_agent():
     """Endpoint must call ask_agent with extra_namespaces=[f'tmp_{session_id}']."""
     from unittest.mock import MagicMock as _MM
     mock_ask = _MM(return_value=_HAPPY_RESPONSE)
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[MagicMock(metadata={"owner_user_id": "test-user-id"})])
     # Patch main.ask_agent directly — the handler does `from main import ask_agent`
     # inside the function body, so patching main.ask_agent is the correct target.
     with patch("main.ask_agent", mock_ask), \
          patch("uploaded_doc.session.validate_session", return_value=True), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index), \
          patch("shared.usage.UsageService.consume", new_callable=AsyncMock, return_value=10):
         resp = client.post("/api/dokument/pitanje", json={
             "session_id": _VALID_SESSION,

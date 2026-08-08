@@ -244,7 +244,11 @@ class TestDokumentPitanjeMigrated:
             captured_ctx.update(kw)
             return real_case_context(*a, **kw)
 
+        fake_index = MagicMock()
+        fake_index.query.return_value = MagicMock(matches=[MagicMock(metadata={"owner_user_id": "u1"})])
+
         with patch("uploaded_doc.session.validate_session", return_value=True), \
+             patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index), \
              patch("main.ask_agent", return_value={"status": "success", "data": "Odgovor na pitanje"}), \
              patch("shared.usage.UsageService.consume", new=AsyncMock()), \
              patch("shared.ai_provenance.case_context", side_effect=_spy_case_context), \
@@ -279,7 +283,11 @@ class TestDokumentPitanjeMigrated:
         async def _fake_log_action(**kwargs):
             audit_calls.append(kwargs)
 
+        fake_index = MagicMock()
+        fake_index.query.return_value = MagicMock(matches=[MagicMock(metadata={"owner_user_id": "u1"})])
+
         with patch("uploaded_doc.session.validate_session", return_value=True), \
+             patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index), \
              patch("main.ask_agent", return_value={"status": "error", "message": "LOW_CONFIDENCE"}), \
              patch("shared.usage.UsageService.consume", new=AsyncMock()), \
              patch("shared.audit_immutable.log_action", side_effect=_fake_log_action):

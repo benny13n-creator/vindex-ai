@@ -216,16 +216,89 @@ async def test_verify_pred_namespace_ownership_allows_owned_predmet():
 
 
 @pytest.mark.anyio
-async def test_verify_pred_namespace_ownership_skips_check_for_tmp_prefix():
+async def test_verify_pred_namespace_ownership_tmp_prefix_never_queries_predmeti_table():
+    """The tmp_ path is verified via Pinecone vector metadata (owner_user_id),
+    not the predmeti table -- confirms it stays that way even after F1's fix."""
     from routers.dokument import _verify_pred_namespace_ownership
 
     supa = MagicMock()
     supa.table.return_value = _chain(MagicMock(data=[]))
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[
+        MagicMock(metadata={"owner_user_id": "u1"})
+    ])
 
-    with patch("routers.dokument._get_supa", return_value=supa) as get_supa:
-        await _verify_pred_namespace_ownership("some-session-id", "tmp_", "u1")
+    with patch("routers.dokument._get_supa", return_value=supa) as get_supa, \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index):
+        await _verify_pred_namespace_ownership("some-session-id", "tmp_", "u1")  # must not raise
 
     get_supa.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Final Beta Gate F1 (MEDIUM) — tmp_ namespaces previously had NO ownership
+# check at all (the test above used to assert exactly that as correct
+# behavior). A leaked session_id (browser history/logs/shared screenshot)
+# let ANY authenticated user query another user's uploaded document for the
+# rest of its 24h TTL via /api/dokument/pitanje.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_verify_tmp_namespace_ownership_rejects_other_users_session():
+    from routers.dokument import _verify_pred_namespace_ownership
+
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[
+        MagicMock(metadata={"owner_user_id": "someone-else"})
+    ])
+
+    with patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index):
+        with pytest.raises(HTTPException) as exc:
+            await _verify_pred_namespace_ownership("leaked-session-id", "tmp_", "attacker-uid")
+
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_verify_tmp_namespace_ownership_allows_owning_user():
+    from routers.dokument import _verify_pred_namespace_ownership
+
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[
+        MagicMock(metadata={"owner_user_id": "u1"})
+    ])
+
+    with patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index):
+        await _verify_pred_namespace_ownership("my-session-id", "tmp_", "u1")  # must not raise
+
+
+@pytest.mark.anyio
+async def test_verify_tmp_namespace_ownership_fails_closed_on_legacy_vector_without_owner():
+    """A vector ingested before this fix carries no owner_user_id -- must
+    fail closed (404), not trust an unverifiable legacy vector as owned."""
+    from routers.dokument import _verify_pred_namespace_ownership
+
+    fake_index = MagicMock()
+    fake_index.query.return_value = MagicMock(matches=[
+        MagicMock(metadata={"origin": "client_doc"})  # no owner_user_id at all
+    ])
+
+    with patch("uploaded_doc.ingest._get_pinecone_index", return_value=fake_index):
+        with pytest.raises(HTTPException) as exc:
+            await _verify_pred_namespace_ownership("pre-fix-session-id", "tmp_", "u1")
+
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_verify_tmp_namespace_ownership_fails_closed_on_pinecone_error():
+    from routers.dokument import _verify_pred_namespace_ownership
+
+    with patch("uploaded_doc.ingest._get_pinecone_index", side_effect=RuntimeError("pinecone down")):
+        with pytest.raises(HTTPException) as exc:
+            await _verify_pred_namespace_ownership("some-session-id", "tmp_", "u1")
+
+    assert exc.value.status_code == 404
 
 
 # ═══════════════════════════════════════════════════════════════════════════

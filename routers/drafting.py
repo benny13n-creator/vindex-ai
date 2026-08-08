@@ -218,6 +218,12 @@ def _normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None
     # not-verified warning /api/podnesak already gained in Mission 009.
     if isinstance(rezultat, dict) and "critique_applied" in rezultat:
         resp["critique_applied"] = rezultat["critique_applied"]
+    # Final Beta Gate F4 (MEDIUM): drafting had no ai_generated marker in its
+    # JSON response (only an in-DOCX footer, not visible pre-export) -- other
+    # AI surfaces (digital_twin, court_predictor, hearing_cc) already carry
+    # this disclosure since Phoenix Closure's LIVINGSYS-DEBT-025.
+    if isinstance(rezultat, dict) and rezultat.get("status") == "success":
+        resp["ai_generated"] = True
     return resp
 
 
@@ -794,6 +800,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
                 "tip":     req.tip,
                 "naziv":   PODNESAK_TIPOVI[req.tip],
                 "critique_applied": None,
+                "ai_generated": True,
             }
 
     oai = _OAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -937,6 +944,7 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
         "tip":     req.tip,
         "naziv":   PODNESAK_TIPOVI[req.tip],
         "critique_applied": critique_applied,
+        "ai_generated": True,
     }
 
 

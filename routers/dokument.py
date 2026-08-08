@@ -160,14 +160,44 @@ async def _verify_pred_namespace_ownership(session_id: str, ns_prefix: str, uid:
     alone (namespace-existence + TTL only) lets any authenticated user read any
     other firm's case documents forever by guessing/leaking a predmet_id. Raises
     404 (not 403, to avoid confirming existence of another firm's case) if the
-    caller doesn't own the referenced predmet."""
-    if ns_prefix != "pred_":
+    caller doesn't own the referenced predmet.
+
+    Final Beta Gate F1 (MEDIUM): tmp_ namespaces got the identical class of
+    check here for the first time -- previously this function explicitly
+    no-op'd for anything other than "pred_" (deliberately, per the prior fix's
+    own comment), leaving tmp_ gated by session_id entropy alone (a real
+    uuid4, not a guessable id -- lower risk than pred_'s sequential-feeling
+    ids, but not zero: a leaked session_id, e.g. via browser history/logs/a
+    shared screenshot, let ANY authenticated user query another user's
+    uploaded document for the rest of its 24h TTL). Vectors ingested before
+    this fix carry no owner_user_id -- fails closed (404) on a missing/
+    mismatched owner rather than trusting an unverifiable legacy vector; the
+    24h TTL bounds this to a one-time transition window, not a standing gap."""
+    if ns_prefix not in ("pred_", "tmp_"):
         return
-    supa = _get_supa()
-    r = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("id").eq("id", session_id).eq("user_id", uid).limit(1).execute()
-    )
-    if not (r.data or []):
+    if ns_prefix == "pred_":
+        supa = _get_supa()
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("id").eq("id", session_id).eq("user_id", uid).limit(1).execute()
+        )
+        if not (r.data or []):
+            raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+        return
+
+    # ns_prefix == "tmp_"
+    try:
+        from uploaded_doc.ingest import _get_pinecone_index
+        index = await asyncio.to_thread(_get_pinecone_index)
+        result = await asyncio.to_thread(
+            lambda: index.query(
+                vector=[0.0] * 3072, top_k=1, namespace=f"tmp_{session_id}", include_metadata=True,
+            )
+        )
+        matches = result.matches if hasattr(result, "matches") else result.get("matches", [])
+    except Exception:
+        logger.exception("[SEC] tmp_ namespace ownership check greška za session=%s", session_id)
+        raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
+    if not matches or (matches[0].metadata or {}).get("owner_user_id") != uid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
 
@@ -256,7 +286,14 @@ async def dokument_upload(
             from shared.vector_origin import ORIGIN_CLIENT_DOC
             count = await asyncio.to_thread(
                 ingest_session, manifest, session_id, ttl_hours,
-                extra_metadata={"origin": ORIGIN_CLIENT_DOC},
+                # Final Beta Gate F1 (MEDIUM): tmp_ namespaces are session-based
+                # (a real uuid4, not a guessable id) but had NO ownership check at
+                # all -- unlike pred_ namespaces (_verify_pred_namespace_ownership
+                # above). If a session_id ever leaks (browser history, logs, a
+                # shared screenshot), ANY authenticated user could query another
+                # user's uploaded document via /api/dokument/pitanje. owner_user_id
+                # lets that check happen now -- see _verify_pred_namespace_ownership.
+                extra_metadata={"origin": ORIGIN_CLIENT_DOC, "owner_user_id": user["user_id"]},
             )
         except Exception as e:
             _es = str(e)

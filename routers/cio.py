@@ -539,6 +539,8 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
                         "predmeta_analizirano": cached.data.get("predmeta_analizirano", 0),
                         "iz_kesa":              True,
                         "generisano_u":         ts_str,
+                        # Final Beta Gate F4 (MEDIUM): see note on the winner-path return below.
+                        "ai_generated":         True,
                     }
     except Exception:
         pass
@@ -616,6 +618,7 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
                         "predmeta_analizirano": _fresh.data.get("predmeta_analizirano", 0),
                         "iz_kesa":              True,
                         "generisano_u":         _fresh.data.get("created_at", now.isoformat()),
+                        "ai_generated":         True,
                     }
             except (asyncio.TimeoutError, Exception) as _coalesce_exc:
                 logger.warning("[CIO] coalesce-wait greška/timeout (nastavljam sa sopstvenom generacijom): %s", _coalesce_exc)
@@ -646,6 +649,10 @@ async def cio_daily(request: Request, user=Depends(PermissionService.require("ci
             "predmeta_analizirano": izvestaj.get("predmeta_analizirano", 0),
             "iz_kesa":              False,
             "generisano_u":         now.isoformat(),
+            # Final Beta Gate F4 (MEDIUM): CIO's daily report had no ai_generated
+            # marker in its JSON response, unlike digital_twin/court_predictor/
+            # hearing_cc since Phoenix Closure's LIVINGSYS-DEBT-025.
+            "ai_generated":         True,
         }
 
     # _generiši_cio_izvestaj vraca rano (bez GPT poziva) kad portfolio nema Genome
@@ -732,6 +739,10 @@ async def cio_run(request: Request, user=Depends(PermissionService.require("cio"
             "predmeta_analizirano": izvestaj.get("predmeta_analizirano", 0),
             "iz_kesa":              False,
             "generisano_u":         now.isoformat(),
+            # Final Beta Gate F4 (MEDIUM): CIO's daily report had no ai_generated
+            # marker in its JSON response, unlike digital_twin/court_predictor/
+            # hearing_cc since Phoenix Closure's LIVINGSYS-DEBT-025.
+            "ai_generated":         True,
         }
 
     if izvestaj.get("predmeta_analizirano"):

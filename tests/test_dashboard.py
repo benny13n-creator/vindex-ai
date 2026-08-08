@@ -135,6 +135,53 @@ async def test_cc_returns_required_keys():
 
 
 @pytest.mark.anyio
+async def test_cc_predmeti_query_is_capped_and_ordered():
+    """Final Beta Gate F25 (LOW-MEDIUM): the predmeti query used to have no
+    .order()/.limit() at all, relying entirely on PostgREST's own implicit
+    default cap -- invisible even on inspection. Now explicit."""
+    from routers import dashboard
+
+    # _make_cc_supa builds a FRESH chain per supa.table(name) call (no
+    # caching), so a second supa.table("predmeti") call in the assertion
+    # below would inspect a different mock than the one command_center
+    # actually used -- cache by name here instead, same shape otherwise.
+    _chains: dict = {}
+
+    def _table(name):
+        if name not in _chains:
+            _chains[name] = _make_chain(
+                [{"id": PID, "naziv": "Test", "status": "aktivan", "updated_at": "2026-01-01"}]
+                if name == "predmeti" else []
+            )
+        return _chains[name]
+
+    supa = MagicMock()
+    supa.table = MagicMock(side_effect=_table)
+
+    with patch.object(dashboard, "_get_supa", return_value=supa):
+        result = await dashboard.command_center(request=_req(), user=_user())
+
+    _chains["predmeti"].order.assert_any_call("updated_at", desc=True)
+    _chains["predmeti"].limit.assert_any_call(dashboard._DASHBOARD_PREDMETI_CAP)
+    assert result["predmeti_truncated"] is False
+
+
+@pytest.mark.anyio
+async def test_cc_discloses_predmeti_truncated_when_cap_reached():
+    from routers import dashboard
+
+    fake_cap = 3
+    preds = [{"id": f"p{i}", "naziv": f"P{i}", "status": "aktivan", "updated_at": "2026-01-01"} for i in range(fake_cap)]
+    supa = _make_cc_supa(predmeti=preds)
+
+    with patch.object(dashboard, "_get_supa", return_value=supa), \
+         patch.object(dashboard, "_DASHBOARD_PREDMETI_CAP", fake_cap):
+        result = await dashboard.command_center(request=_req(), user=_user())
+
+    assert result["predmeti_truncated"] is True
+
+
+@pytest.mark.anyio
 async def test_cc_empty_state():
     from routers.dashboard import command_center
     supa = _make_cc_supa()
