@@ -137,6 +137,54 @@ def test_no_pep695_type_parameter_syntax():
     )
 
 
+def test_ci_runs_a_real_production_runtime_gate():
+    """The structural fix for PROD-SYNTAX-001.
+
+    The heuristics in this module can only catch patterns someone thought to
+    encode. The actual guarantee is a CI job that executes on the real
+    production interpreter. This asserts that job exists and still targets
+    the production image — if someone deletes it or downgrades it to
+    setup-python, this fails."""
+    wf = REPO_ROOT / ".github" / "workflows" / "production-runtime.yml"
+    assert wf.exists(), "production-runtime.yml CI workflow is missing"
+    text = wf.read_text(encoding="utf-8")
+
+    assert text.count("container: python:3.11-slim") >= 2, (
+        "the compile and import gates must run INSIDE python:3.11-slim, "
+        "not on a setup-python toolchain"
+    )
+    assert "compileall" in text, "must byte-compile the tree on the production interpreter"
+    assert "import api" in text, "must prove api:app actually imports, not merely compiles"
+    assert "docker build" in text, "must also build the real production Dockerfile"
+    assert "py311_incident_canary" in text, (
+        "the gate must self-test against the historical incident"
+    )
+
+
+def test_ci_main_suite_runs_on_production_python():
+    """The main pytest job must include 3.11. It ran only 3.13 when the
+    incident shipped."""
+    wf = (REPO_ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    assert '"3.11"' in wf, "the test matrix must include production's Python 3.11"
+
+
+def test_incident_canary_still_contains_the_defect():
+    """The canary is only useful while it still reproduces the defect. Guards
+    against someone 'cleaning up' the fixture and silently neutering the CI
+    gate that depends on it."""
+    canary = REPO_ROOT / "tests" / "fixtures" / "py311_incident_canary.txt"
+    assert canary.exists(), "CI's production-runtime gate depends on this fixture"
+    text = canary.read_text(encoding="utf-8")
+    assert 'f"""' in text, "canary must contain an f-string"
+    assert '{("\\n" + case_context_blok' in text, (
+        "canary no longer contains a backslash inside an f-string expression — "
+        "it would compile on Python 3.11 and the CI gate would pass vacuously"
+    )
+    assert canary.suffix == ".txt", (
+        "must stay .txt so compileall and the AST scanner skip it"
+    )
+
+
 def test_hearing_cc_cross_exam_prompt_is_hoisted():
     """Regression pin on the specific site that caused the outage."""
     src = (REPO_ROOT / "routers" / "hearing_cc.py").read_text(encoding="utf-8")

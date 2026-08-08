@@ -9,6 +9,17 @@ on:
 
 jobs:
   pytest:
+    # PROD PARITY (2026-08-08, incident PROD-SYNTAX-001): this job used to run
+    # ONLY on 3.13. Production is python:3.11-slim, so a construct that is
+    # legal on 3.12+ and a SyntaxError on 3.11 passed CI and then took
+    # production down. 3.11 is now the primary, production-matching target;
+    # 3.13 is kept because that is what developers run locally, so a
+    # regression in either direction is caught.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
       # Fake credentials — the test suite mocks Supabase/OpenAI/Pinecone throughout
@@ -25,7 +36,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install dependencies

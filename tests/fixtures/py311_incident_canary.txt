@@ -1,0 +1,33 @@
+# PRODUCTION RUNTIME CANARY — DO NOT "FIX" THIS FILE.
+#
+# This is a verbatim reconstruction of the construct that took Vindex AI
+# production down on 2026-08-08 (incident PROD-SYNTAX-001).
+#
+# It is stored as .txt, NOT .py, so that:
+#   * `compileall` over the repo does not try to compile it, and
+#   * the repo-wide AST scanner in tests/test_python311_production_compat.py
+#     does not flag it (it globs *.py).
+#
+# The CI job `compile-on-production-python` copies it to a temporary .py and
+# REQUIRES `python -m py_compile` to FAIL with a message mentioning
+# "backslash", on the real python:3.11-slim interpreter.
+#
+# Expected behaviour:
+#   Python 3.11  -> SyntaxError: f-string expression part cannot include a backslash
+#   Python 3.12+ -> compiles fine (PEP 701 lifted the restriction)
+#
+# That asymmetry is the whole point: it is exactly why local Python 3.13 and a
+# 3.13 CI both reported green while production could not import the module.
+#
+# If this file ever compiles on the CI interpreter, the gate has stopped
+# protecting the thing it was built for and CI fails loudly rather than
+# passing quietly.
+
+case_context_blok = "kontekst"
+
+prompt = f"""Si iskusni parnicar.
+
+TEMA: nesto
+{("\n" + case_context_blok + "\nAko je gornji blok dat, iskoristi ga.\n") if case_context_blok else ""}
+Generisi listu pitanja.
+"""

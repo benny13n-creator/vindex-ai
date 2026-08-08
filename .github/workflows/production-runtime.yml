@@ -1,0 +1,164 @@
+name: Production Runtime Parity
+
+# WHY THIS WORKFLOW EXISTS
+#
+# On 2026-08-08 production went fully down: gunicorn workers exited 3 in a
+# crash loop and no HTTP port ever opened, because routers/hearing_cc.py
+# contained a backslash inside an f-string expression. That is legal on
+# Python 3.12+ (PEP 701) and a SyntaxError on 3.11.
+#
+#   local dev + CI : Python 3.13  -> parsed fine, 3,500 tests green
+#   production     : python:3.11-slim (Dockerfile) -> could not IMPORT the app
+#
+# The gap was never test coverage. Nothing ever compiled the code on the
+# interpreter production actually runs. These jobs close that: they execute
+# on the REAL production runtime, not on a heuristic.
+#
+# tests/test_python311_production_compat.py stays as defence-in-depth (it
+# runs on every developer machine), but it can only catch patterns someone
+# thought to encode. These jobs catch the class.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: prod-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────
+  # GATE 1 — the fast, always-run compile gate.
+  # Runs INSIDE python:3.11-slim, the exact base image the Dockerfile uses.
+  # No dependencies installed: a SyntaxError is a compile-time failure and
+  # needs nothing but the interpreter, so this gate is seconds, not minutes,
+  # and cannot be skipped for being slow.
+  # ───────────────────────────────────────────────────────────────────────
+  compile-on-production-python:
+    name: Byte-compile on production Python (3.11)
+    runs-on: ubuntu-latest
+    container: python:3.11-slim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Confirm we are actually on the production interpreter
+        run: |
+          python -V
+          python -c "import sys; assert sys.version_info[:2] == (3, 11), sys.version; print('OK: running Python 3.11')"
+
+      - name: Byte-compile every module (this is what production does on import)
+        run: |
+          python -m compileall -q -f \
+            -x '(^|/)(\.venv|venv|node_modules|data|vindex_scraper_output|\.git)/' \
+            . 2>&1 | tee /tmp/compile.log
+          if grep -qiE "error|Sorry" /tmp/compile.log; then
+            echo "::error::Byte-compilation failed on Python 3.11 — production would not boot"
+            cat /tmp/compile.log
+            exit 1
+          fi
+          echo "OK: every module compiles on the production interpreter"
+
+      # PROOF THAT THIS GATE ACTUALLY WORKS.
+      # A gate nobody has seen fail is not a gate. This compiles the exact
+      # construct that took production down and REQUIRES it to fail. If a
+      # future Python makes it legal, or the step silently stops running,
+      # this fails loudly instead of going quietly green.
+      - name: Prove the gate detects the 2026-08-08 incident
+        run: |
+          cp tests/fixtures/py311_incident_canary.txt /tmp/canary.py
+          if python -m py_compile /tmp/canary.py 2>/tmp/canary.err; then
+            echo "::error::CANARY COMPILED — this gate can no longer detect the incident it exists for"
+            exit 1
+          fi
+          if ! grep -q "backslash" /tmp/canary.err; then
+            echo "::error::Canary failed for the WRONG reason:"
+            cat /tmp/canary.err
+            exit 1
+          fi
+          echo "OK: gate correctly rejects the historical incident:"
+          cat /tmp/canary.err
+
+  # ───────────────────────────────────────────────────────────────────────
+  # GATE 2 — real imports + full suite on the production interpreter.
+  # A module can compile and still fail to IMPORT (bad dependency pin,
+  # removed stdlib API, C-extension incompatibility). Only an actual import
+  # of api:app proves what gunicorn does at boot.
+  # ───────────────────────────────────────────────────────────────────────
+  import-and-test-on-production-python:
+    name: Import app + full suite on production Python (3.11)
+    runs-on: ubuntu-latest
+    container: python:3.11-slim
+    env:
+      SUPABASE_URL: https://fake.supabase.co
+      SUPABASE_ANON_KEY: fake-anon-key
+      SUPABASE_SERVICE_KEY: fake-service-key
+      SUPABASE_JWT_SECRET: fake-jwt-secret-longer-than-32-chars-ok
+      OPENAI_API_KEY: sk-fake
+      PINECONE_API_KEY: fake-pinecone
+      PINECONE_HOST: https://fake.pinecone.io
+      FOUNDER_EMAILS: ci@example.com
+      FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages the Dockerfile also installs
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends gcc g++ tesseract-ocr poppler-utils
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Import the ASGI app exactly as gunicorn does
+        run: |
+          python -c "import api; assert hasattr(api, 'app'); print('OK: api:app imported on Python 3.11')"
+
+      - name: Full test suite on the production interpreter
+        run: pytest tests/ -q
+
+  # ───────────────────────────────────────────────────────────────────────
+  # GATE 3 — the real production build path.
+  # Gates 1 and 2 use the same BASE image; this builds the actual Dockerfile
+  # Render builds, then compiles and imports inside the resulting image. It
+  # catches anything the Dockerfile itself introduces (missing system libs,
+  # COPY/layer ordering, a dependency that only breaks in the final image).
+  # ───────────────────────────────────────────────────────────────────────
+  production-docker-build:
+    name: Build production image and boot-check it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the production image
+        run: docker build -t vindex-prod-check:ci .
+
+      - name: Byte-compile inside the production image
+        run: |
+          docker run --rm vindex-prod-check:ci \
+            python -m compileall -q -f \
+              -x '(^|/)(\.venv|venv|node_modules|data|vindex_scraper_output|\.git)/' /app
+
+      - name: Import api:app inside the production image
+        run: |
+          docker run --rm \
+            -e SUPABASE_URL=https://fake.supabase.co \
+            -e SUPABASE_ANON_KEY=fake-anon-key \
+            -e SUPABASE_SERVICE_KEY=fake-service-key \
+            -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok \
+            -e OPENAI_API_KEY=sk-fake \
+            -e PINECONE_API_KEY=fake-pinecone \
+            -e PINECONE_HOST=https://fake.pinecone.io \
+            -e FOUNDER_EMAILS=ci@example.com \
+            -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            vindex-prod-check:ci \
+            python -c "import api; assert hasattr(api,'app'); print('OK: api:app imports inside the production image')"
+
+      - name: Confirm the image really is Python 3.11
+        run: |
+          docker run --rm vindex-prod-check:ci python -c "import sys; assert sys.version_info[:2]==(3,11), sys.version; print('OK', sys.version.split()[0])"
