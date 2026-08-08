@@ -4,7 +4,33 @@
 >
 > The §1 verdict below (**CONDITIONAL GO**) is **withdrawn**. Current status:
 >
-> # CREDIT-RACE BLOCKER = CLOSED (database verified) · BETA = GO ELIGIBLE pending one build check
+> # BETA = GO
+>
+> **Full evidence chain closed 2026-08-08.** Git commit → Render deployment →
+> running production → live code → migration 107, every link directly
+> evidenced:
+>
+> | Link | Evidence |
+> |---|---|
+> | Production boots | `GET /health` → `200 {"status":"ok","redis":true,"workers":1}` on both hosts |
+> | Deployed frontend == HEAD | `static/vindex.js` fetched cache-busted from origin (`cf-cache-status: MISS`): **1 211 053 bytes, sha256 `002162bc3a40eb1e…` — byte-identical to local HEAD** |
+> | Deployed backend == HEAD | `PATCH /notifications/read-group` (route introduced in `c1f582b`) → **401** (exists, auth required); control `PATCH /notifications/ne-postoji-xyz` → **404**. The new route is live. |
+> | Credit fixes are live | `c1f582b` contains `8bf3d46` (git ancestry), whose f-string crashes Python 3.11. Production boots ⇒ it must contain `5888d5a` (the only fix) ⇒ and `5888d5a` contains `0561e6c` (CREDIT-CONSUME-001), by ancestry. |
+> | Migration 107 in the DB | Read-only catalog query, 6/6 `USPEH`: balance guard, `p_n <= 0` rejection, `search_path`, `refund_n_credits`, `refund_one_credit`, privileges |
+> | Runtime | `Dockerfile` `python:3.11-slim`, `runtime.txt` `3.11`; PROD-SYNTAX-001 fixed and guarded by 5 permanent tests |
+> | Regression | 3 468 passed / 0 failed after the hotfix |
+>
+> **Not performed:** the authenticated `GET /api/credits-debug` call. It needs a
+> user JWT; minting one from the project secret would forge a session and could
+> auto-create a `user_credits` row — a production write, explicitly out of
+> bounds. Its two purposes are both independently satisfied above by stronger
+> evidence: the deployed build is proven byte-identically, and the live RPC
+> body was read straight out of the production catalog rather than inferred
+> from an endpoint that merely probes it.
+>
+> `X-Build` is unusable for build identification: `python:3.11-slim` has no
+> `git` binary, so `_get_git_hash()` falls back to a timestamp (observed
+> `211151`). Recorded so nobody mistakes it for a commit SHA later.
 >
 > **Migration 107 is independently verified applied in production** — 6/6
 > read-only catalog checks, 2026-08-08. The credit race is closed at the
