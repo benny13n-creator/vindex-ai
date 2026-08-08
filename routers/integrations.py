@@ -73,6 +73,7 @@ async def register_webhook(
     uid = user["user_id"]
     supa = _get_supa()
 
+    _validiraj_webhook_url(payload.url)  # NIGHT-009
     if not payload.url.startswith("https://"):
         raise HTTPException(status_code=400, detail="Webhook URL mora koristiti HTTPS.")
 
@@ -133,6 +134,50 @@ async def delete_webhook(
     return {"ok": True}
 
 
+# NIGHT-009 (2026-08-09): webhook URLs were validated with exactly one check --
+# `startswith("https://")`. Combined with test_webhook returning `resp.text[:200]`
+# to the caller, any authenticated user (the free tier is enough) could register
+# https://127.0.0.1:8443/... and read the first 200 bytes of any service
+# reachable from inside the production container: an internal port scanner and
+# internal-service reader, from the wrong side of the perimeter.
+#
+# Checked at BOTH registration and send time. Checking only at registration
+# leaves DNS rebinding open -- a name that resolves publicly when stored and to
+# 169.254.169.254 when called.
+_WEBHOOK_DOZVOLJENI_PORTOVI = {443}
+
+
+def _validiraj_webhook_url(url: str) -> None:
+    """Raises HTTPException if `url` is not a public https endpoint."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url or "")
+    if parsed.scheme != "https":
+        raise HTTPException(status_code=400, detail="Webhook URL mora koristiti https://.")
+    host = parsed.hostname
+    if not host:
+        raise HTTPException(status_code=400, detail="Webhook URL nema validan host.")
+    port = parsed.port or 443
+    if port not in _WEBHOOK_DOZVOLJENI_PORTOVI:
+        raise HTTPException(status_code=400, detail="Webhook URL sme koristiti samo port 443.")
+
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except OSError:
+        raise HTTPException(status_code=400, detail="Webhook host nije moguće razrešiti.")
+
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            # Deliberately does not echo the resolved address back.
+            raise HTTPException(
+                status_code=400,
+                detail="Webhook URL mora pokazivati na javnu adresu.",
+            )
+
 @router.post("/api/integrations/webhook/test/{webhook_id}")
 @limiter.limit("5/minute")
 async def test_webhook(
@@ -163,6 +208,8 @@ async def test_webhook(
     body = json.dumps(test_payload)
     sig  = hmac.new(r.data["secret"].encode(), body.encode(), hashlib.sha256).hexdigest()
 
+    _validiraj_webhook_url(r.data["url"])  # NIGHT-009 — re-check at send time (DNS rebinding)
+
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -174,7 +221,9 @@ async def test_webhook(
                     "X-Vindex-Event":     "test",
                 },
             )
-        return {"ok": True, "status_code": resp.status_code, "response": resp.text[:200]}
+        # NIGHT-009: the response BODY is never echoed back. Reflecting it is
+        # what turned a webhook tester into an internal-service reader.
+        return {"ok": True, "status_code": resp.status_code}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 

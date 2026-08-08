@@ -70,7 +70,14 @@ def record_request(user_id: str, endpoint: str, ip: str, is_ai: bool) -> None:
     now = time.time()
     _last_seen[user_id] = now
     key_hr = f"{user_id}:hr"
-    key_day = f"{user_id}:day"
+    # NIGHT-010 (2026-08-09): the key was the LITERAL string ":day", not a date,
+    # so the "unique IPs seen today" set never rotated -- it accumulated for as
+    # long as the process lived. Production runs one long-lived uvicorn process
+    # (verified: 24/24 requests answered by the same pid), so "today" meant
+    # "since the last deploy". A lawyer on rotating carrier IPs would eventually
+    # cross ABS_IP_DAILY_LIMIT and be flagged as a compromised account purely
+    # from process uptime.
+    key_day = f"{user_id}:{datetime.now(timezone.utc).date().isoformat()}"
 
     if is_ai:
         _hourly_ai[key_hr].append(now)
@@ -91,7 +98,14 @@ async def check_anomaly(user_id: str, ip: Optional[str] = None) -> AnomalySignal
     score = 0.0
     reasons: list[str] = []
     key_hr  = f"{user_id}:hr"
-    key_day = f"{user_id}:day"
+    # NIGHT-010 (2026-08-09): the key was the LITERAL string ":day", not a date,
+    # so the "unique IPs seen today" set never rotated -- it accumulated for as
+    # long as the process lived. Production runs one long-lived uvicorn process
+    # (verified: 24/24 requests answered by the same pid), so "today" meant
+    # "since the last deploy". A lawyer on rotating carrier IPs would eventually
+    # cross ABS_IP_DAILY_LIMIT and be flagged as a compromised account purely
+    # from process uptime.
+    key_day = f"{user_id}:{datetime.now(timezone.utc).date().isoformat()}"
 
     # ── In-memory provere (brze) ─────────────────────────────────────────────
     ai_count  = len(_hourly_ai.get(key_hr, []))
@@ -154,7 +168,14 @@ async def update_daily_profile(user_id: str) -> None:
     Upisuje broj AI poziva, API poziva i unikatnih IP-ova za tekući dan.
     """
     key_hr  = f"{user_id}:hr"
-    key_day = f"{user_id}:day"
+    # NIGHT-010 (2026-08-09): the key was the LITERAL string ":day", not a date,
+    # so the "unique IPs seen today" set never rotated -- it accumulated for as
+    # long as the process lived. Production runs one long-lived uvicorn process
+    # (verified: 24/24 requests answered by the same pid), so "today" meant
+    # "since the last deploy". A lawyer on rotating carrier IPs would eventually
+    # cross ABS_IP_DAILY_LIMIT and be flagged as a compromised account purely
+    # from process uptime.
+    key_day = f"{user_id}:{datetime.now(timezone.utc).date().isoformat()}"
 
     try:
         from api import _get_supa
