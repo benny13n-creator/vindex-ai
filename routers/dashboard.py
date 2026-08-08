@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared.query_timeout import gather_with_timeout
 
 logger = logging.getLogger("vindex.dashboard")
 router = APIRouter(tags=["dashboard"])
@@ -52,10 +53,16 @@ async def command_center(
     # "rokovi" tabelom. Rok upisan preko tih puteva se nikad nije pojavljivao
     # ovde. rokovi_tabela_r dodaje TAJ isti izvor u postojeći paralelni batch
     # (bez izmene write putanja bilo kog modula) -- v. spajanje ispod.
+    # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): this fan-out had no
+    # overall timeout -- bounded to 15s (gather_with_timeout), a genuine
+    # fast-fail instead of relying on the client library's own ~120s implicit
+    # ceiling. On timeout every result is a TimeoutError, which the existing
+    # return_exceptions=True fallback machinery below (_safe()) already
+    # handles identically to a real per-query failure -- no new code paths.
     (predmeti_r, rocista_r, rokovi_r, risk_hist_r,
      beleske_r, dokumenti_r, ist_recent_r,
      fakture_r, rocista_buduci_r, rokovi_tabela_r,
-     dokazi_all_r, dokumenti_all_r, rocista_all_r) = await asyncio.gather(
+     dokazi_all_r, dokumenti_all_r, rocista_all_r) = await gather_with_timeout(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,naziv,tip,status,updated_at")
             .eq("user_id", uid)
@@ -147,7 +154,7 @@ async def command_center(
             .eq("user_id", uid)
             .eq("status", "zakazano")
             .execute()),
-        return_exceptions=True,
+        label="dashboard.command_center",
     )
 
     def _safe(r):
@@ -418,7 +425,9 @@ async def matter_health_score(
     ago_7_iso = (today - timedelta(days=7)).isoformat()
 
     # Verify ownership + parallel fetch
-    pred_r, bel_r, kom_r, dok_r, roc_r, dokaz_r = await asyncio.gather(
+    # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): bounded to 15s (see
+    # command_center's own identical fix above for full reasoning).
+    pred_r, bel_r, kom_r, dok_r, roc_r, dokaz_r = await gather_with_timeout(
         asyncio.to_thread(lambda: supa.table("predmeti")
             .select("id,status,tip").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_beleske")
@@ -434,9 +443,13 @@ async def matter_health_score(
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
             .select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id)
             .is_("deleted_at", "null").limit(200).execute()),
-        return_exceptions=True,
+        label="dashboard.matter_health_score",
     )
 
+    # A timeout on pred_r specifically must never be misreported as "case doesn't
+    # exist" (404) -- that's a real, distinct, actionable-differently condition.
+    if isinstance(pred_r, asyncio.TimeoutError):
+        raise HTTPException(status_code=503, detail="Upit je predugo trajao. Pokušajte ponovo.")
     if isinstance(pred_r, Exception) or not (pred_r.data if not isinstance(pred_r, Exception) else []):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 

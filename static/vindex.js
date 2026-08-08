@@ -19443,6 +19443,21 @@ function _genomeBackgroundWatch(predmetId, verzijaPre) {
   }, 15000);
 }
 
+// Program Phoenix, Mission 013 (LIVINGSYS-DEBT-041): fetch() has no built-in
+// timeout -- a hung/very slow upload left the user staring at a spinner
+// forever with no escape and no explicit error. AbortController-based
+// explicit timeout, generous enough for a real (if slow) large-file upload
+// plus AI analysis, but bounded instead of unbounded.
+async function _fetchWithTimeout(url, options, timeoutMs) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+  try {
+    return await fetch(url, Object.assign({}, options || {}, { signal: controller.signal }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function pred_upload_doc(file) {
   if (!file || !activePredmetId || !currentSession) return;
   var _predmetIdZaWatch = activePredmetId;
@@ -19468,11 +19483,11 @@ async function pred_upload_doc(file) {
   try {
     var fd = new FormData();
     fd.append('file', file);
-    var r = await fetch(BASE_URL + '/api/predmeti/' + activePredmetId + '/upload', {
+    var r = await _fetchWithTimeout(BASE_URL + '/api/predmeti/' + activePredmetId + '/upload', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
       body: fd
-    });
+    }, 90000);
     if (loading) loading.style.display = 'none';
     if (zone) zone.style.display = '';
     if (inp) inp.value = '';
@@ -19527,7 +19542,10 @@ async function pred_upload_doc(file) {
   } catch(e) {
     if (loading) loading.style.display = 'none';
     if (zone) zone.style.display = '';
-    if (errEl) { errEl.textContent = 'Nema veze sa serverom. Proverite konekciju.'; errEl.style.display = 'block'; }
+    var _timeoutMsg = (e && e.name === 'AbortError')
+      ? 'Otpremanje je predugo trajalo. Pokušajte ponovo.'
+      : 'Nema veze sa serverom. Proverite konekciju.';
+    if (errEl) { errEl.textContent = _timeoutMsg; errEl.style.display = 'block'; }
     if (resEl) resEl.innerHTML = '';
   }
 }

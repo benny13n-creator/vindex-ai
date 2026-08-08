@@ -2054,3 +2054,16 @@ state. Full graded verdict: `docs/living_system/SYSTEM_STABILITY_CERTIFICATE.md`
 | Full suite | **3,303 passed, 1 skipped, 0 failed** — was 3,289 at Mission 011's close |
 | Incident | 1 self-caught deadlock (unbounded wait), fixed + disclosed before certifying |
 | STOP GATE | PASS |
+
+## Program Phoenix, Mission 013 — Infra Reliability (2026-08-08)
+
+| Metric | Value |
+|---|---|
+| Debt items closed | 1 fully (`LIVINGSYS-DEBT-040`), 1 partially (`-041`) |
+| Files touched | 3 (`routers/dashboard.py`, `routers/workspace.py`, `static/vindex.js`) + 1 new (`shared/query_timeout.py`) |
+| New algorithms invented | 0 (`asyncio.wait_for`/`AbortController`, both stdlib/browser-native primitives) |
+| Regression tests added | 9 (`tests/test_phoenix_mission_013_infra_reliability.py`) |
+| Pre-existing test corrections | 0 |
+| Subsystem tests | 200 passed, 0 failed |
+| Full suite | **3,312 passed, 1 skipped, 0 failed** — was 3,303 at Mission 012's close |
+| STOP GATE | PASS |

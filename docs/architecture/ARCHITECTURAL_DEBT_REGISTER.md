@@ -4455,6 +4455,8 @@ entry on a successful (non-raced) close, matching `predmeti_close.py`'s own sibl
 document text via a stale browser-side snapshot (`window._predFull`) never re-fetched before
 draft generation — a data-quality risk in generated legal text, not outright data loss. Needs a
 product decision (re-fetch on every draft vs. a staleness warning) more than a mechanical fix.
+**Program Phoenix, Mission 013 (2026-08-08): explicitly not attempted**, re-confirmed as blocked
+on this product decision.
 
 **LIVINGSYS-DEBT-010 — FIXED** (Program Phoenix, Mission 005, 2026-08-07). Rather than porting
 `claim_finalize()`'s RPC (would need a new migration), both `resolve_job_review`/
@@ -4637,7 +4639,8 @@ test_faktura_create_rejects_entry_from_different_case`. Full report:
 
 **LIVINGSYS-DEBT-023 (Low)** — no OCR quality/confidence signal (garbled-but-nonempty scans are
 indistinguishable from clean extractions). Would need real work with `pytesseract`'s
-`image_to_data` confidence output — a new capability, not a fix.
+`image_to_data` confidence output — a new capability, not a fix. **Program Phoenix, Mission 013
+(2026-08-08): explicitly not attempted**, re-confirmed as new-capability work.
 
 ### Reachability / product-scope family (real, but currently zero live user impact)
 
@@ -4652,18 +4655,29 @@ page on every deploy with zero check for in-progress form state (Intake Wizard, 
 `beforeunload` warning anywhere in the 23,000-line frontend. A real fix needs a firm-wide
 autosave/state-persistence architecture decision (what gets persisted, to `localStorage` or a
 draft-recovery endpoint, and for how long) — explicitly the kind of new-system design this
-mission's own rules say not to invent blind under a "minimum-risk fix" mandate.
+mission's own rules say not to invent blind under a "minimum-risk fix" mandate. **Program
+Phoenix, Mission 013 (2026-08-08): explicitly not attempted**, re-confirmed as blocked on this
+architecture decision.
 
-### Infra/reliability family (not yet fixed)
+### Infra/reliability family
 
-**LIVINGSYS-DEBT-040 (Medium)** — Dashboard/Workspace Supabase calls have no per-call timeout
-(bounded by the client library's own ~120s default, not infinite, but no fast-fail). Would need
-`asyncio.wait_for` wrapping across the highest-traffic endpoints' 10+ parallel queries each —
-bounded but broad, deferred.
+**LIVINGSYS-DEBT-040 — FIXED** (Program Phoenix, Mission 013, 2026-08-08). New
+`shared/query_timeout.py` (`gather_with_timeout`, `single_with_timeout`) bounds
+`command_center`/`matter_health_score`/`get_workspace`'s query fan-outs to 15s — on timeout,
+every result becomes a `TimeoutError` placeholder flowing through each endpoint's already-
+existing `return_exceptions=True` fallback handling, no new call-site logic needed.
+`matter_health_score` additionally distinguishes a timeout from a genuine 404. Proof:
+`tests/test_phoenix_mission_013_infra_reliability.py::
+test_gather_with_timeout_returns_timeout_placeholders_on_hang` + 8 companion tests. Full report:
+`docs/phoenix/mission-013/`.
 
-**LIVINGSYS-DEBT-041 (Low-Medium)** — no upload progress indicator or explicit app-level timeout
-for slow/large file uploads. A frontend UX addition (`XMLHttpRequest.upload.onprogress` or
-similar), not a correctness fix.
+**LIVINGSYS-DEBT-041 — PARTIALLY FIXED** (Program Phoenix, Mission 013, 2026-08-08). The
+app-level-timeout half: new `_fetchWithTimeout()` (`AbortController`, 90s) wired into
+`pred_upload_doc` (the primary case-document upload flow), with an honest, distinct error
+message on timeout. **Still open**: the visual progress-indicator half (would need
+`XMLHttpRequest.upload.onprogress`, a real UI addition) and extending the timeout pattern to
+this frontend's other 5+ upload call sites — both named as future-mission scope, not attempted
+here to keep this mission's blast radius bounded to the single highest-traffic path.
 
 ### Consolidated low-severity items
 

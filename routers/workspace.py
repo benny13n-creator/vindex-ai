@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, Request
 from routers.case_actions import _fetch_open_actions, _PRIORITY_ORDER, _sort_key
 from shared.attention_priority import ZADACI_TO_CANONICAL as _ZADACI_PRIORITET_MAP
 from shared.deps import _get_supa, get_current_user
+from shared.query_timeout import gather_with_timeout, single_with_timeout
 
 logger = logging.getLogger("vindex.workspace")
 router = APIRouter(prefix="/api/workspace", tags=["workspace"])
@@ -148,7 +149,10 @@ async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str) -> l
             .gte("zavrseno_u", since)
             .execute()
     )
-    actions_res, zadaci_res = await asyncio.gather(closed_actions_task, closed_zadaci_task, return_exceptions=True)
+    # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): bounded to 15s.
+    actions_res, zadaci_res = await gather_with_timeout(
+        closed_actions_task, closed_zadaci_task, label="workspace.recently_completed"
+    )
     closed_actions = (actions_res.data if not isinstance(actions_res, Exception) else []) or []
     closed_zadaci = (zadaci_res.data if not isinstance(zadaci_res, Exception) else []) or []
     return closed_actions, closed_zadaci
@@ -169,8 +173,13 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     supa = _get_supa()
     danas = date.today().isoformat()
 
-    predmeti_r = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid).execute()
+    # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): bounded to 15s -- a
+    # timeout degrades to an empty case-name map (predmet_ids=[]), which the
+    # rest of this function already treats as a valid, empty-board input
+    # (see _fetch_recently_completed's own existing predmet_ids-empty branch).
+    predmeti_r = await single_with_timeout(
+        asyncio.to_thread(lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid).execute()),
+        label="workspace.predmeti",
     )
     predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in (predmeti_r.data or [])}
     predmet_ids = list(predmet_naziv.keys())
@@ -184,11 +193,12 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     # all lost together) even when only one data source hiccupped. Now
     # degrades gracefully per-bucket, matching the sibling gather's own
     # already-correct pattern.
-    _actions_r, _zadaci_r, _review_r = await asyncio.gather(
+    # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): bounded to 15s.
+    _actions_r, _zadaci_r, _review_r = await gather_with_timeout(
         _fetch_open_actions(supa, predmet_ids),
         _fetch_waiting_zadaci(supa, uid),
         _fetch_review_jobs(supa, uid),
-        return_exceptions=True,
+        label="workspace.main",
     )
     for _name, _res in (("open_actions", _actions_r), ("waiting_zadaci", _zadaci_r), ("review_jobs", _review_r)):
         if isinstance(_res, Exception):

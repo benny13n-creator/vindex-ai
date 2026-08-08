@@ -3136,3 +3136,22 @@ suite: **3,303 passed, 1 skipped, 0 failed** (was 3,289, +14 tests, zero regress
 347s — back to the normal ~6-minute baseline). Red Team self-check passed (4 adversarial
 scenarios, no further break found). Full report: `docs/phoenix/mission-012/`.
 **STOP GATE: PASS** (after 1 self-caught deadlock incident).
+
+### Mission 013 — Infra Reliability (CLOSED)
+
+Closed `LIVINGSYS-DEBT-040` fully, `-041` partially (app-level timeout half; visual progress-
+indicator half + remaining upload call sites deferred). `-005`, `-035`, `-023` all explicitly
+not attempted — each re-confirmed as blocked on a founder architecture/product decision or
+genuine new-capability work, not a bounded mechanical fix, consistent with `-020`/`-042`'s
+treatment in prior missions. `-040`: new `shared/query_timeout.py` (`gather_with_timeout`,
+`single_with_timeout`) bounds `command_center`/`matter_health_score`/`get_workspace`'s query
+fan-outs to 15s, reusing each endpoint's already-existing `return_exceptions=True` fallback
+handling for the timeout case with zero new call-site logic. `-041`: new `_fetchWithTimeout()`
+(90s, `AbortController`) wired into the primary case-document upload flow. `static/sw.js` bumped
+`vindex-v103` → `vindex-v104`. 9 new tests
+(`tests/test_phoenix_mission_013_infra_reliability.py`), zero pre-existing tests needed
+modification. Subsystem: 200/200 passed (8.31s). Full suite: **3,312 passed, 1 skipped, 0
+failed** (was 3,303, +9 tests, zero regressions, runtime 353.88s — normal baseline, no hang; run
+under a hard shell-level timeout wrapper as an extra precaution after Mission 012's incident).
+Red Team self-check passed (4 adversarial scenarios, no break found). Full report:
+`docs/phoenix/mission-013/`. **STOP GATE: PASS.**
