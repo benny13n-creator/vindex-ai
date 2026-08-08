@@ -472,6 +472,14 @@ async def dokument_analiza(
 
     tekst = body.tekst
     if not tekst and body.session_id:
+        # NIGHT-002 (2026-08-09): validate_session only proves the namespace
+        # exists and has not expired -- it says nothing about WHO owns it. The
+        # ownership check was added to /pitanje and /klasifikuj-sesija (Final
+        # Beta Gate F1, LAMBDA008-SEC-001) and missed here, so any authenticated
+        # user holding a leaked session_id (browser history, a support
+        # screenshot, a copied URL) could read the full analysis of another
+        # firm's document through this endpoint.
+        await _verify_pred_namespace_ownership(body.session_id, "tmp_", user["user_id"])
         session_ok = await asyncio.to_thread(validate_session, body.session_id)
         if not session_ok:
             raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
@@ -554,6 +562,14 @@ async def dokument_rokovi(body: RokoviRequest, request: Request, user: dict = De
 
     if not tekst and body.session_id:
         from uploaded_doc.session import validate_session
+        # NIGHT-002 (2026-08-09): validate_session only proves the namespace
+        # exists and has not expired -- it says nothing about WHO owns it. The
+        # ownership check was added to /pitanje and /klasifikuj-sesija (Final
+        # Beta Gate F1, LAMBDA008-SEC-001) and missed here, so any authenticated
+        # user holding a leaked session_id (browser history, a support
+        # screenshot, a copied URL) could read the full analysis of another
+        # firm's document through this endpoint.
+        await _verify_pred_namespace_ownership(body.session_id, "tmp_", user["user_id"])
         session_ok = await asyncio.to_thread(validate_session, body.session_id)
         if not session_ok:
             raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")

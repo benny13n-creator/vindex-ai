@@ -458,7 +458,21 @@ class UsageService:
         else:
             preostalo = await asyncio.to_thread(_get_credits, user_id)
 
-        await _increment_usage(user_id, feature, credits)
+        # NIGHT-001 (2026-08-09): the pre-charge _increment_usage above at the
+        # daily-gate is the ONLY increment. This second call was left behind by
+        # the migration-108 change that moved counting BEFORE the charge, and
+        # every successful consume() was therefore counted twice:
+        # increment_feature_usage adds 1 to broj_koriscenja and p_credits to
+        # krediti_potroseni on each call.
+        #
+        # Consequences, all silent: every dnevni_limit was effectively halved
+        # (copilot_ambient 200->100, morning_briefing 5->3), every mesecni_limit
+        # likewise, and GET /api/plans/status told users they had spent twice
+        # what their balance actually dropped by.
+        #
+        # No test caught it because every existing test mocks _increment_usage
+        # and none asserts how many times it is called. The regression test
+        # added with this fix asserts exactly that.
         await _log_usage_event(
             user_id, feature, credits, ai_model, est_cost,
             tokens_prompt, tokens_completion, latency_ms,
