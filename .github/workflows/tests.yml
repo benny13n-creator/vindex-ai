@@ -32,11 +32,11 @@ jobs:
       PINECONE_API_KEY: fake-pinecone
       PINECONE_HOST: https://fake.pinecone.io
       # CI-RED-001: shared/deps.py raises RuntimeError at IMPORT time without
-      # this, so collection failed and this workflow had been red on every
-      # commit for its entire visible history. tests/conftest.py also
-      # setdefault()s it now; both, so neither a missing .env nor a missing
-      # CI var can make the suite un-runnable again.
-      FOUNDER_EMAILS: ci-founder@vindex.test
+      # FOUNDER_EMAILS, so collection failed and this workflow had been red on
+      # every commit for its entire visible history. tests/conftest.py now
+      # setdefault()s it, which is why it is NOT set here: a job-level value
+      # would win over conftest, and 13 tests assert founder-only behaviour
+      # against specific addresses. One owner for that value — conftest.
       FIELD_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     steps:
       - uses: actions/checkout@v4

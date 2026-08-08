@@ -36,4 +36,16 @@ os.environ.setdefault(
 #
 # setdefault, so a real value from .env or from the CI environment always wins;
 # this only guarantees the suite is self-sufficient wherever it runs.
-os.environ.setdefault("FOUNDER_EMAILS", "test-founder@vindex.test")
+#
+# The VALUE matters, not just its presence: 13 tests across
+# test_business_groups / test_tier_config / test_feature_type /
+# test_product_intelligence / test_ztc_conflict_check_autowiring assert
+# founder-only behaviour using hard-coded addresses, and until now they were
+# silently passing on whatever happened to be in the developer's own .env.
+# Pinning the value here makes the suite deterministic and identical in CI,
+# in a fresh clone, and on a laptop.
+#
+# (Follow-up worth doing separately: have those tests patch FOUNDER_EMAILS or
+# _is_founder themselves instead of depending on ambient configuration. That
+# is a 13-file change and is deliberately not bundled into a CI fix.)
+os.environ.setdefault("FOUNDER_EMAILS", "benny13.n@gmail.com,founder@test.rs")

@@ -99,7 +99,11 @@ jobs:
       OPENAI_API_KEY: sk-fake
       PINECONE_API_KEY: fake-pinecone
       PINECONE_HOST: https://fake.pinecone.io
-      FOUNDER_EMAILS: ci@example.com
+      # NOTE: FOUNDER_EMAILS is deliberately NOT set at job level. A job-level
+      # value wins over tests/conftest.py's setdefault(), and 13 tests assert
+      # founder-only behaviour against specific addresses. conftest owns that
+      # value for anything running under pytest; the bare-import step below,
+      # which never loads conftest, sets its own.
       FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     steps:
       - uses: actions/checkout@v4
@@ -116,6 +120,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Import the ASGI app exactly as gunicorn does
+        env:
+          # shared/deps.py raises at import time when this is unset, and no
+          # conftest is loaded here — this is a bare interpreter, like gunicorn.
+          FOUNDER_EMAILS: ci@example.com
         run: |
           python -c "import api; assert hasattr(api, 'app'); print('OK: api:app imported on Python 3.11')"
 
