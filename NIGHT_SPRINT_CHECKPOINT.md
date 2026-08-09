@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `b545661c`
+CURRENT_HEAD: `b6a8b286`
 WORKTREE: clean
 
 ## Mission status
@@ -19,7 +19,8 @@ WORKTREE: clean
 | V7-M02 | Refund caller integrity | **NO-FINDING** (no double refund) | — |
 | V8-M01 | Generator/cancellation exceptions | **NO-FINDING** (runtime) | — |
 | V8-M02 | Duplicate / retry billing | **NO-FINDING** (runtime) | — |
-| V8-M03..M15 | not started | — | — |
+| V9-M09 | AI tenant isolation (cache-key probe only) | **NO-FINDING** (partial) | — |
+| V9-M01..M08,M10..M15 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -282,3 +283,21 @@ branch; they did NOT need separate treatment.
 
 V8-M04 — services/ UsageService integrity, then M06/M07 authorization and IDOR
 through services. services/ and app/ remain untouched after eight campaigns.
+
+## V9-M09 — cache-key probe only, NOT the full mission
+
+Enumerated every cache-key construction in shared/, services/, app/:
+
+- `app/services/retrieve.py:611` `_embed_cache.set(query, vec)` — keyed on the
+  query text with no user_id. NOT a tenant leak: an embedding is a pure function
+  of its input text, and retrieval requires supplying the identical query, so
+  there is no path by which user B obtains user A's data.
+- `shared/deps.py` `_JWKS_CACHE` — public signing keys, global by design.
+- `shared/business_groups.py:64` `_CACHE[group_key]` — configuration, not user data.
+- `court_portal_watcher.py:159`, `precedents_radar.py:145` — dedup keys scoped to
+  a predmet id, which is owner-scoped upstream.
+
+**Scope warning:** this probe covered CACHE KEYS ONLY. M09 also requires auditing
+retrieval filters, prompt construction, and Pinecone namespace scoping with two
+isolated users at runtime. None of that was performed. Do not read this as
+"AI tenant isolation verified".
