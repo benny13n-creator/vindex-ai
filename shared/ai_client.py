@@ -265,6 +265,35 @@ def _capture_embedding_provenance(self, kwargs: dict, response, latency_ms: int,
         logger.debug("[AI_PROVENANCE] embedding capture greška (nije kritično): %s", exc)
 
 
+# ── S1-2 (2026-08-09): default per-request timeout ─────────────────────────
+# 111 OpenAI/AsyncOpenAI constructions exist in application code and NOT ONE
+# sets `timeout=` (verified by grep). The installed SDK's default is
+# Timeout(connect=5, read=600) with max_retries=2 -- so one logical call could
+# occupy up to 3 x 600s of wall time before @llm_retry even began its own 3
+# attempts.
+#
+# That matters more here than it would elsewhere: production runs ONE uvicorn
+# process (measured -- 24/24 parallel /health requests, same pid, workers:1),
+# and the sync GPT calls are dispatched through asyncio.to_thread into the
+# default executor, which is the SAME pool the ~1,500 Supabase call sites use.
+# A degraded provider could therefore hold every worker thread and stop the app
+# from serving anything at all.
+#
+# Applied HERE rather than at the 111 construction sites: every call already
+# funnels through this patch, so one edit covers all of them and cannot be
+# missed by a new call site added later.
+#
+# Overridable per call -- an explicit timeout= in kwargs always wins, so a
+# deliberately long-running call can still opt out.
+_DEFAULT_LLM_TIMEOUT_S = float(os.getenv("VINDEX_LLM_TIMEOUT_S", "60"))
+
+
+def _with_timeout(kwargs: dict) -> dict:
+    if "timeout" not in kwargs or kwargs.get("timeout") is None:
+        kwargs["timeout"] = _DEFAULT_LLM_TIMEOUT_S
+    return kwargs
+
+
 def _patch_prompt_guard() -> None:
     """
     SEC-003 — presreće Completions.create/AsyncCompletions.create na nivou
@@ -316,7 +345,7 @@ def _patch_prompt_guard() -> None:
         import time
         _t0 = time.monotonic()
         try:
-            response = _orig_create(self, *args, **kwargs)
+            response = _orig_create(self, *args, **_with_timeout(kwargs))
         except Exception as exc:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
@@ -337,7 +366,7 @@ def _patch_prompt_guard() -> None:
         import time
         _t0 = time.monotonic()
         try:
-            response = await _orig_acreate(self, *args, **kwargs)
+            response = await _orig_acreate(self, *args, **_with_timeout(kwargs))
         except Exception as exc:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
