@@ -3121,6 +3121,15 @@ async function stratPokreni() {
             + '<div style="font-family:var(--vx-mono,monospace);font-size:.75rem;opacity:.7;">PROCENA ISHODA (provereni raspon)</div>'
             + '<div style="font-family:var(--vx-mono,monospace);font-size:1.4rem;">'
             + data.procenat_min + '% – ' + data.procenat_max + '%</div>'
+            // S5-1: the number must never appear without saying WHOSE it is.
+            // The backend had no field for the side the lawyer represents, so
+            // the model inferred it from the case description — and a defence
+            // lawyer could read the plaintiff's chance as their own.
+            + '<div style="font-family:var(--vx-mono,monospace);font-size:.7rem;opacity:.75;margin-top:.25rem;">'
+            + (data.procenat_znacenje
+                 ? 'Odnosi se na: ' + String(data.procenat_znacenje).replace(/</g, '&lt;')
+                 : 'Strana na koju se procenat odnosi nije određena.')
+            + '</div>'
             + '</div>';
         }
         bodyEl.innerHTML = _pctBlok + stratFormatirajRezultat(data.analiza);

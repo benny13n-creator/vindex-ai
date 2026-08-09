@@ -47,10 +47,59 @@ logger = logging.getLogger("vindex.court_predictor")
 router = APIRouter(tags=["court-predictor"])
 
 
+_STRANA_LABELE = {
+    "tuzilac":    "TUŽIOCA (strana koju advokat zastupa)",
+    "tuzeni":     "TUŽENOG (strana koju advokat zastupa)",
+    "podnosilac": "PODNOSIOCA (strana koju advokat zastupa)",
+    "protivnik":  "PROTIVNE STRANE u odnosu na podnosioca (strana koju advokat zastupa)",
+}
+
+
+def _strana_instrukcija(strana: Optional[str]) -> str:
+    """S5-1: makes the SUBJECT of the percentage explicit in the prompt.
+
+    Without this the model decided for itself whose chance it was estimating,
+    and the answer reached the lawyer as "šansa za uspeh" with no subject
+    attached to it.
+    """
+    label = _STRANA_LABELE.get((strana or "").strip().lower())
+    if label:
+        return (
+            "\n\nAnaliziraj i daj strukturisano predvidjanje ishoda. "
+            f"procenat_min i procenat_max moraju biti VEROVATNOCA USPEHA ZA {label}, "
+            "a ne za suprotnu stranu. U tekstu analize eksplicitno napisi na koju "
+            "se stranu procenat odnosi."
+        )
+    # No side supplied: do not let the model pick one silently.
+    return (
+        "\n\nAnaliziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
+        "\nVAZNO: strana koju advokat zastupa NIJE navedena. U tekstu analize MORAS "
+        "eksplicitno napisati na koju se stranu procenat odnosi (npr. 'procenat se "
+        "odnosi na tuzioca'), jer se inace ne moze znati ciji je broj."
+    )
+
+
 class PredictorRequest(BaseModel):
     opis_predmeta: str
     tip_postupka: str                          # gradjansko|krivicno|radno|upravno|privredno
     cinjenicni_opis: str
+    # S5-1 (2026-08-09): WHOSE chance is this percentage?
+    #
+    # There was no such field. The prompt asked for "procenat sanse za uspeh"
+    # and for "kontra-argumente koje suprotna strana moze koristiti" -- implying
+    # the reader is a party -- but never established WHICH party. The model
+    # therefore inferred the side from the free-text description, and a case
+    # description naturally reads from the claimant's perspective.
+    #
+    # So a defence lawyer could be shown "70%" that is the PLAINTIFF's chance
+    # and read it as their own. A number whose subject is undefined is worse
+    # than no number, and PROGBETA-001 has just made this one prominent in the
+    # UI, which raises the stakes rather than lowering them.
+    #
+    # Optional, because existing clients do not send it. When it is absent the
+    # response says so explicitly instead of letting the reader assume the
+    # number is theirs.
+    strana: Optional[str] = None               # tuzilac|tuzeni|podnosilac|protivnik|None
     dokazi: Optional[list[str]] = []
     suprotna_strana_argumenti: Optional[str] = None
     sud: Optional[str] = None
@@ -321,7 +370,7 @@ ARGUMENTI SUPROTNE STRANE:
         if rag_kontekst else
         "\nNapomena: nije pronađena relevantna sudska praksa u bazi — procena bazirana na opštem pravnom znanju.\n"
     ) + (f"\n{case_context_blok}\n" if case_context_blok else ""
-    ) + "\nAnaliziraj i daj strukturisano predvidjanje ishoda sa procentom sanse za uspeh."
+    ) + _strana_instrukcija(payload.strana)
 
     try:
         from openai import OpenAI
@@ -399,6 +448,14 @@ ARGUMENTI SUPROTNE STRANE:
             "analiza":                analiza,
             "procenat_min":           rezultat.get("procenat_min"),
             "procenat_max":           rezultat.get("procenat_max"),
+            # S5-1: the number now travels with its subject. None means the
+            # caller did not say which side they represent, and the UI must say
+            # so rather than implying the percentage is theirs.
+            "procenat_strana":        (payload.strana or "").strip().lower() or None,
+            "procenat_znacenje":      (
+                _STRANA_LABELE.get((payload.strana or "").strip().lower())
+                or "Strana nije navedena — u tekstu analize piše na koju se stranu procenat odnosi."
+            ),
             "kljucni_faktori_za":     rezultat.get("kljucni_faktori_za", []),
             "kljucni_faktori_protiv": rezultat.get("kljucni_faktori_protiv", []),
             "preporucena_strategija": rezultat.get("preporucena_strategija", ""),
