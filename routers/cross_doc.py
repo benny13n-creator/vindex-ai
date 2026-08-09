@@ -270,6 +270,12 @@ async def cross_doc_analiza(
         )
         await UsageService.consume(user["user_id"], user.get("email", ""), "cross_doc")
         return result
+    except HTTPException:
+        # F-6J-002 (Sprint 6J forensics): HTTPException nasleđuje Exception, pa
+        # su naplatne greške iz UsageService.consume (iznad) padale u granu
+        # ispod i vraćale se kao generički 500. consume diže 402 (nema kredita)
+        # i 429 (cooldown/dnevni/mesečni limit) -- oba sada stižu netaknuta.
+        raise
     except Exception:
         logger.exception("Greška u /api/analiza/cross-doc")
         return JSONResponse(
@@ -384,6 +390,12 @@ async def cross_doc_predmet(
             )
         await UsageService.consume(user["user_id"], user.get("email", ""), "cross_doc")
         return result
+    except HTTPException:
+        # F-6J-003, isto kao gore. Autorizacija ovde nije pogođena: vlasnički
+        # filter .eq("predmet_id").eq("user_id") i njegov 422 ishod za tuđi
+        # predmet dižu se IZNAD ovog try bloka, pa nikada nisu ni bili gutani.
+        # Unutar bloka jedino consume diže HTTPException.
+        raise
     except Exception:
         logger.exception("Greška u /api/analiza/cross-doc/predmet")
         return JSONResponse(
