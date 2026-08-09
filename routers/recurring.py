@@ -253,13 +253,20 @@ async def delete_recurring(
             detail="Najpre deaktivirajte šablon (aktivan=false) pre brisanja."
         )
 
-    await _db(
+    r = await _db(
         lambda: supa.table("recurring_templates")
         .delete()
         .eq("id", template_id)
         .eq("user_id", uid)
         .execute()
     )
+    # F-V36-001: rezultat DELETE-a se ranije odbacivao. SELECT iznad dokazuje da
+    # je red postojao i da je pozivaočev, ali NE dokazuje da je obrisan -- između
+    # njih postoji prozor u kojem red može nestati, a handler bi svejedno vratio
+    # uspeh. Isti guard nose rocista/knowledge_base/zadaci i, od V31,
+    # komentari/integrations. Owner predikat i SELECT guard su nedirnuti.
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Šablon nije pronađen.")
 
 
 # ─── POST /billing/recurring/{id}/generisi ───────────────────────────────────

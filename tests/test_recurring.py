@@ -80,7 +80,12 @@ def _make_supa_recurring(tpl=None, tpl_list=None, faktura_row=None):
             tpl_data = tpl or SAMPLE_TPL
             tbl.insert.return_value.execute.return_value  = MagicMock(data=[tpl_data])
             tbl.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[tpl_data])
-            tbl.delete.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            # V36-B: ranije MagicMock(data=[]) -- "nije nas briga za ishod DELETE-a",
+            # što je bilo tačno dok je delete_recurring odbacivao rezultat. Otkad
+            # handler ima zero-row guard, prazan data znači "nijedan red nije
+            # obrisan" i daje 404. Uspešan DELETE vraća obrisani red, kao u
+            # fixture-ima ostalih ruta sa istim guardom.
+            tbl.delete.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[tpl_data])
             sel.eq.return_value.order.return_value.execute.return_value  = MagicMock(data=tpl_list or [SAMPLE_TPL])
             sel.eq.return_value.order.return_value.eq.return_value.execute.return_value = MagicMock(data=tpl_list or [SAMPLE_TPL])
             sel.eq.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=tpl_data)
