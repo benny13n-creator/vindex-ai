@@ -342,6 +342,15 @@ async def billing_entry_delete(
         .eq("id", entry_id).eq("user_id", uid).eq("obracunato", False).execute())
     if not r.data:
         raise HTTPException(status_code=409, detail="Radnja je u međuvremenu fakturisana — brisanje nije moguće.")
+
+    # V36: audit posle DELETE guarda, NE posle SELECT-a iznad. Taj SELECT je
+    # samo provera vlasništva i preduslova (obracunato), ne poslovni događaj --
+    # između njega i DELETE-a stavka može biti fakturisana, pa DELETE nosi
+    # `.eq("obracunato", False)` i tada vraća 0 redova.
+    from shared.audit_immutable import log_action
+    await log_action("billing_entry_delete", user_id=uid,
+                     resource_type="billing_entry", resource_id=entry_id)
+
     return {"success": True}
 
 
