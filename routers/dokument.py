@@ -144,11 +144,24 @@ def _fetch_session_tekst(session_id: str, namespace_prefix: str = "tmp_") -> str
             texts = [(m.metadata or {}).get("text", "") for m in matches_sorted]
             return "\n\n".join(t for t in texts if t.strip())
 
-        tekst = _query_ns(f"{namespace_prefix}{session_id}")
-        if not tekst:
-            other = "pred_" if namespace_prefix == "tmp_" else "tmp_"
-            tekst = _query_ns(f"{other}{session_id}")
-        return tekst
+        # S6B Phase A (2026-08-09): DECLARED namespace must equal ACTUAL namespace.
+        #
+        # This used to fall back to the OTHER prefix when the declared one
+        # returned nothing. tmp_<id> and pred_<id> are different ID spaces --
+        # tmp_ is an ephemeral uuid4 upload session with a 24h TTL and no row
+        # anywhere, pred_ is a real predmeti.id -- so the fallback could hand an
+        # AI call text from a namespace the request never asked for.
+        #
+        # That is an audit-integrity defect, not a convenience: once a caller
+        # binds provenance to the declared namespace, a silent cross-read means
+        # the record can claim the AI worked on case X while the text came from
+        # somewhere else. Better an empty result with a truthful identity than a
+        # populated one with a false subject.
+        #
+        # Fail closed: return empty and let the caller's existing 404/422 handle
+        # it, exactly as it already does when a namespace is genuinely empty.
+        # The error contract is unchanged; only the silent cross-read is gone.
+        return _query_ns(f"{namespace_prefix}{session_id}")
     except Exception:
         logger.exception("[ROKOVI] Greška pri čitanju chunks iz Pinecone za session=%s", session_id)
         return ""
@@ -416,8 +429,33 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
     # (both only traced routers/copilot.py's delegation) -- same flat
     # single-wrap-point shape as copilot.py::_handle_pravno_pitanje, migrated
     # here using the identical proven pattern.
+    # S6B Phase B (2026-08-09): bind the subject, but ONLY where one truthfully
+    # exists.
+    #
+    # For ns_prefix == "pred_", body.session_id IS predmeti.id -- not a session
+    # id that resembles one. _verify_pred_namespace_ownership above proved it
+    # with .eq("id", session_id).eq("user_id", uid), raising 404 otherwise, so
+    # by this line it is an authoritative, owned predmet_id. No mapping is
+    # invented and no new semantics are introduced.
+    #
+    # For ns_prefix == "tmp_", the subject stays NULL. The semantic trace found
+    # NO deterministic mapping from a tmp_ session id to predmet_dokumenti.id:
+    # it is a uuid4 that is never written to any table, has no PK, no FK and no
+    # unique constraint. Writing it into document_id would manufacture an audit
+    # identity that joins to nothing. A truthful NULL is the correct record, and
+    # leaving it NULL is a PASS here, not a coverage gap.
+    #
+    # Note also that this endpoint does NOT go through _fetch_session_tekst --
+    # it passes the namespace straight to ask_agent -- so the cross-prefix
+    # fallback closed in Phase A never applied to this binding in the first
+    # place. Phase A stands on its own as an integrity fix for the other callers.
     from shared.ai_provenance import case_context as _ai_case_ctx
-    with _ai_case_ctx(module_name="ask_agent", operation_name="dokument_pitanje"):
+    _subject_predmet_id = body.session_id if ns_prefix == "pred_" else None
+    with _ai_case_ctx(
+        predmet_id=_subject_predmet_id,
+        module_name="ask_agent",
+        operation_name="dokument_pitanje",
+    ):
         rezultat = await asyncio.to_thread(
             ask_agent,
             body.pitanje,
