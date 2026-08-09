@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `77cdcf9f`
+CURRENT_HEAD: `ba421916`
 WORKTREE: clean
 
 ## Mission status
@@ -15,7 +15,9 @@ WORKTREE: clean
 | V5-M01 | ask_agent execution semantics | **GREEN — SOURCE-PROVEN** | — |
 | V6-M01..M04 | Streaming harness + matrix | **BLOCKED** — no budget for a valid harness | — |
 | V6-M07 | Refund integrity | **GREEN — SOURCE-PROVEN** | — |
-| V6-M05,06,08..15 | not started | — | — |
+| V7-M01 | Streaming harness | **GREEN — RUNTIME VERIFIED** | — |
+| V7-M02 | Refund caller integrity | **NO-FINDING** (no double refund) | — |
+| V7-M03..M12 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -214,3 +216,39 @@ Building the streaming harness needs several iterations. Two harnesses tonight
 were contaminated by environment (missing .env in a fresh worktree, missing
 FOUNDER_EMAILS) and produced results that looked like findings but were not. An
 improvised harness here yields false proof, not weak proof. Not attempted.
+
+## V7-M01 — /api/pitanje/stream RUNTIME VERIFIED (first time)
+
+Harness lives in scratchpad, not the repo. Env (FOUNDER_EMAILS, OPENAI_API_KEY,
+SUPABASE_*) is set BEFORE import -- that was the exact contamination that
+invalidated two harnesses earlier. The test user is deliberately NOT a founder;
+founders bypass billing and would make every ledger assertion vacuous.
+
+Patch target that mattered: api.py does `from main import ask_agent`, so the name
+is bound in api's namespace. `patch("main.ask_agent")` does NOTHING -- the first
+run showed provider=0 in three scenarios and refund=1 even on success, which
+looked like a finding and was not. Correct target is
+`patch.object(api, "ask_agent", ...)`.
+
+| Scenario | consume | provider | refund | credits | result |
+|---|---|---|---|---|---|
+| S1 success | 1 | 1 | 0 | 50->49 | 7 chunks |
+| S2 provider failure | 1 | 1 | 1 | 50->50 | compensated |
+| S6 cancel mid-chunk (V5-C1) | 1 | 1 | 1 | 50->50 | refund IS issued |
+| S10 no credits | 0 | 0 | 0 | 50->50 | HTTP 402 |
+
+**Invariants proven at runtime:**
+- billing rejection precedes the provider (S10: provider=0, credits untouched)
+- successful operation charges exactly once (S1)
+- provider failure is fully compensated (S2)
+- `refund_count <= 1` in every path -- the caller's `_refunded` guard does hold,
+  even though the primitive is not idempotent (closes V7-M02: no double refund)
+
+**V5-C1 CONFIRMED, class A:** disconnect after the first chunk really does
+refund, although the provider completed in full and part of the answer was
+delivered. Still POLICY-REQUIRED -- same decision as F-6O-001..003. Not touched.
+
+## Next mission
+
+V7-M03 — services/ billing failure sweep (services/, app/ still untouched by
+seven campaigns).
