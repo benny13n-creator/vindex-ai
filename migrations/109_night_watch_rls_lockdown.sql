@@ -1,3 +1,15 @@
+-- ⚠ SUPERSEDED — DO NOT RUN. See migrations/110_rls_lockdown_idempotent.sql.
+--
+-- This file aborted on 2026-08-09 with:
+--     ERROR: 42P01: relation "public.discovered_bilteni" does not exist
+-- It assumed all five target tables exist; discovered_bilteni does not exist in
+-- this database (migration 017 was evidently never applied here). 110 carries
+-- the identical intent, guards every table with to_regclass, and is idempotent,
+-- so it lands correctly whether or not this file's earlier statements committed
+-- before the abort.
+--
+-- Only this comment block was added. No SQL statement below was modified.
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 109 — Night Watch (2026-08-09): close two RLS/GRANT holes reachable with the
 --       public anon key that is shipped in static/vindex.js.
