@@ -23,9 +23,24 @@ c86d82df963a1be254ede4e6adce32bda9956ea0:tests/test_integracije.py:generic-api-k
 1dd21fad6995d97aff5bbf417c69acc293765c2f:tests/test_sef.py:generic-api-key:230
 
 # ── Not credentials at all ─────────────────────────────────────────────────
-# A UI label: { key: 'korak_2_due_diligence', label: 'Korak 2 — Due Diligence' }.
-# The rule matched the word "key" next to a long string.
+# A dropdown option in the UI: an object whose identifier field holds the
+# literal string korak_2_due_diligence, alongside its Serbian display label.
+# The rule matched the word "key" sitting next to a long quoted string.
+#
+# NOTE: this justification deliberately DESCRIBES the line instead of quoting
+# it. The original wording reproduced the identifier/value pair verbatim, and
+# gitleaks matched it here too -- so the file explaining a false positive
+# became a second false positive.
 8808061cf5eb95e8ab18eef9336b49a364df336f:static/vindex.js:generic-api-key:2992
+
+# This file, at the commit that introduced it. The justification above used to
+# quote the offending line verbatim, so the comment matched the same rule and
+# THIS FILE became a second false positive. The wording is fixed in the working
+# tree, but the scan runs over full history (fetch-depth: 0), so the original
+# blob still matches. History is not rewritten for a non-secret, and this is
+# the only other way to clear it -- one fingerprint, for one line, in one
+# commit. Verified with gitleaks 8.30.1: the working tree is clean of it.
+1073198f493f1bb135e123472c29f6d2f132af58:.gitleaksignore:generic-api-key:26
 
 # ── Supabase publishable key ───────────────────────────────────────────────
 # An `sb_publishable_` key, shipped to the browser on purpose in index.html and
