@@ -466,6 +466,15 @@ async def webhook_brisi(
     )
     if not r.data:
         raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
+
+    # V34: resource_type je "user_webhook", NE "webhook" -- ova ruta briše iz
+    # user_webhooks, a integrations.py::delete_webhook iz webhooks. Dve tabele
+    # dele prostor ID-eva, pa bi zajednički resource_type dao forenzički
+    # nerazlučive zapise.
+    from shared.audit_immutable import log_action
+    await log_action("user_webhook_delete", user_id=uid,
+                     resource_type="user_webhook", resource_id=webhook_id)
+
     return {"success": True, "id": webhook_id}
 
 

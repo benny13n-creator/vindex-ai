@@ -407,6 +407,14 @@ async def obrisi_zadatak(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # V34: NAMERNO izvan try bloka iznad -- unutar njega bi `except Exception`
+    # pretvorio neuspeh audita u HTTP 500 i prekršio best-effort ugovor.
+    # Vlasništvo je već sprovedeno u samoj DELETE naredbi (kancelarija_id za
+    # admina svoje firme, inače kreirao_uid), pa je uspeh ovde dokazan.
+    from shared.audit_immutable import log_action
+    await log_action("zadatak_delete", user_id=uid,
+                     resource_type="zadatak", resource_id=zadatak_id)
+
     return {"ok": True}
 
 

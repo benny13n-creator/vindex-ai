@@ -393,4 +393,12 @@ async def knowledge_delete(
 
     asyncio.create_task(_delete_from_pinecone())
 
+    # V34: poslovni događaj je DB brisanje iz user_knowledge, ne Pinecone
+    # čišćenje -- ono je fire-and-forget i njegov neuspeh ne poništava
+    # brisanje. Audit je izvan try bloka iznad iz istog razloga kao u
+    # zadaci.py: tamošnji `except Exception` bi ga pretvorio u 500.
+    from shared.audit_immutable import log_action
+    await log_action("knowledge_delete", user_id=uid,
+                     resource_type="knowledge", resource_id=entry_id)
+
     return {"ok": True, "id": entry_id}

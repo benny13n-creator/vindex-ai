@@ -474,4 +474,11 @@ async def obrisi_rociste(
     if not r.data:
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
 
+    # V34: audit tek POSLE zero-row guarda -- 0 obrisanih redova znači 404 i
+    # nijedan zapis. log_action je best-effort po sopstvenom ugovoru, pa
+    # neuspeh audita ne menja ishod brisanja.
+    from shared.audit_immutable import log_action
+    await log_action("rociste_delete", user_id=uid,
+                     resource_type="rociste", resource_id=rociste_id)
+
     return {"ok": True}
