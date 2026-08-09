@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `6f9ceb38`
+CURRENT_HEAD: `85e885ec`
 WORKTREE: clean
 
 ## Mission status
@@ -12,7 +12,8 @@ WORKTREE: clean
 | V3-M01 | Policy-lock verification | **POLICY-REQUIRED** (re-confirmed) | — |
 | V3-M02 | Streaming/retry billing | **UNPROVEN** — see below | — |
 | V4-M01 | Streaming billing integrity | **BLOCKED** — M01-A done, harness not built | — |
-| V4-M02..M06 | not started | — | — |
+| V5-M01 | ask_agent execution semantics | **GREEN — SOURCE-PROVEN** | — |
+| V5-M02..M15 | not started (harness) | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -134,3 +135,46 @@ depends on frontend retry behaviour, which was not inspected.
 M01-A (source mapping) is complete and recorded above. M01-B (harness), M01-C
 (10-scenario matrix) and M01-D (adversarial) were NOT performed. No runtime
 evidence exists for this endpoint. Do not record it as verified.
+
+## V5-M01 — RESOLVED. /api/pitanje/stream is not a stream.
+
+PROVEN by AST over main.py: `ask_agent` is a plain `def` (not async, not a
+generator), 0 yield/yield-from, 17 value returns. It returns a dict.
+
+api.py L3190-3203:
+
+```
+rezultat  = await pokreni(ask_agent, ...)      # provider completes ENTIRELY
+data_text = rezultat.get("data", "")           # the whole answer
+for i in range(0, len(data_text), 80):         # slicing a FINISHED string
+    yield f"data: {chunk}..."
+```
+
+The V4-M01-A hypothesis is CONFIRMED: **S3, S5 and S9 are structurally
+unreachable.** There is no partial provider output and no server-side partial
+state for a reconnect to resume. The mission matrix drops from 10 scenarios to 7,
+and the survivors are simpler, because by the first yield the billable work is
+already 100% done.
+
+### CANDIDATE V5-C1 — over-refund on mid-slice disconnect (POLICY-ADJACENT)
+
+Derived from the above, SOURCE-PROVEN / RUNTIME-UNPROVEN:
+
+`_delivered = True` is set at L3207, i.e. AFTER the slicing loop finishes. A
+client disconnect during the loop raises CancelledError/GeneratorExit, which the
+BaseException handler at L3241 catches with `if not _refunded and not
+_delivered:` -> it REFUNDS.
+
+But the provider already ran to completion at L3190 and was fully paid for, and
+the user has already received part of the answer. So this path refunds work that
+was performed and partially delivered.
+
+This is the INVERSE of credit loss -- it favours the user, not the vendor -- so
+it is not a security or user-harm defect. Whether it is a defect at all depends
+on the same billing policy that F-6O-001..003 are waiting on. NOT fixed, NOT
+decided. Runtime proof requires the M02 harness.
+
+## Next mission
+
+V5-M02 — build the streaming harness (7 scenarios, not 10) and runtime-verify
+V5-C1 first, since it is the only candidate the source map produced.
