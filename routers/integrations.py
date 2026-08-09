@@ -128,9 +128,15 @@ async def delete_webhook(
     """Ukloni webhook."""
     uid = user["user_id"]
     supa = _get_supa()
-    await asyncio.to_thread(
+    r = await asyncio.to_thread(
         lambda: supa.table("webhooks").delete().eq("id", webhook_id).eq("user_id", uid).execute()
     )
+    # V31: isto kao komentari.py -- rezultat se odbacivao, pa je {"ok": True}
+    # stizao i za nepostojeći i za tuđi webhook. Sestrinska ruta
+    # integracije.py::webhook_brisi (tabela user_webhooks) već ima ovaj guard.
+    if not r.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
     return {"ok": True}
 
 

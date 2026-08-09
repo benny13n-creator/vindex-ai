@@ -136,11 +136,19 @@ async def delete_komentar(
 ):
     """F8.1 — Obriši komentar (samo vlasnik)."""
     supa = _get_supa()
-    await asyncio.to_thread(
+    r = await asyncio.to_thread(
         lambda: supa.table("predmet_komentari")
                     .delete()
                     .eq("id", komentar_id)
                     .eq("user_id", user["user_id"])
                     .execute()
     )
+    # V31: rezultat DELETE-a se ranije odbacivao, pa je ruta vraćala
+    # {"status": "obrisan"} i za nepostojeći i za tuđi komentar -- odgovor koji
+    # tvrdi brisanje koje se nije desilo. Owner predikat je uvek držao (ništa
+    # tuđe nije brisano), ali handler nije razlikovao "obrisano" od "ništa nije
+    # poklopljeno". Isti guard koriste rocista/knowledge_base/recurring/zadaci.
+    if not r.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Komentar nije pronađen.")
     return {"status": "obrisan"}
