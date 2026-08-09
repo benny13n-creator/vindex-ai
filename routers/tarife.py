@@ -215,6 +215,15 @@ async def put_klijent_tarifa(
                 # Red je postojao u SELECT-u ali ga DELETE nije zatekao --
                 # jedini slučaj u kome bi removed:True bila neistina.
                 raise HTTPException(status_code=404, detail="Tarifa klijenta nije pronađena.")
+            # V40-B2: audit tek POSLE zero-row guarda -- jedina tačka na kojoj
+            # je brisanje dokazano. Stoji unutar `if existing` jer se samo tu
+            # nešto stvarno obrisalo; idempotentna grana ispod nema poslovni
+            # događaj da prijavi. Nije u try/except: log_action po ugovoru ne
+            # diže, a ovde ionako nema hvatača koji bi ga pretvorio u 500.
+            from shared.audit_immutable import log_action
+            await log_action("tarifa_delete", user_id=uid,
+                             resource_type="tarifa", resource_id=existing["id"],
+                             metadata={"klijent_id": klijent_id})
         # Grana `existing is None` NAMERNO ostaje nepromenjena: PUT sa null
         # znači "ne postoji tarifa za ovog klijenta", pa je brisanje nepostojeće
         # tarife idempotentan no-op, a ne greška. Menjanje ovog odgovora bilo bi

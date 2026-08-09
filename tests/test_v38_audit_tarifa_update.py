@@ -177,8 +177,16 @@ def test_6_audit_sink_failure_does_not_break_update():
 def test_7_removal_branch_emits_no_tarifa_update():
     """F-V38-001: uklanjanje tarife je zaseban događaj, nije tarifa_update.
 
-    Grana ima rani return i odbačen DELETE rezultat, pa uspeh nije dokaziv.
     Emitovanje `tarifa_update` ovde tvrdilo bi izmenu iznosa koja se nije desila.
+
+    V40-B2 ISPRAVKA TVRDNJE (ne slabljenje): originalna verzija je tvrdila
+    `au.calls == []`, tj. "nula audita uopšte". To je bilo tačno samo dok grana
+    brisanja nije imala SVOJ audit -- vezivalo je test za tadašnje stanje
+    implementacije umesto za trajni invarijant. Kad je V40-B2 dodao
+    `tarifa_delete`, tvrdnja je pukla iako se ništa što ovaj test štiti nije
+    pokvarilo. Trajni invarijant je: grana brisanja ne sme emitovati
+    `tarifa_update`. Isti obrazac greške zabeležen je i u V31->V35 i
+    V36-B->V36-C; istorija je sačuvana u git-u.
     """
     import routers.tarife as m
 
@@ -190,7 +198,9 @@ def test_7_removal_branch_emits_no_tarifa_update():
 
     assert out.get("removed") is True
     assert TARIFA_ID in st.deleted, "red JESTE obrisan"
-    assert au.calls == [], "uklanjanje ne sme emitovati tarifa_update"
+    assert [c for c in au.calls if c["action"] == "tarifa_update"] == [], (
+        "uklanjanje ne sme emitovati tarifa_update"
+    )
 
 
 def test_8_cardinality_one_event_one_audit():
