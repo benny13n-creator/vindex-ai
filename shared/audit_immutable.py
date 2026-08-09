@@ -185,6 +185,15 @@ AUDITABLE_ACTIONS: set[str] = {
     "client_portal_upload_delete", "billing_entry_delete", "faktura_create",
     "recurring_template_delete", "user_webhook_delete",
     "integration_webhook_delete", "tarifa_update",
+    # V39-A2 (2026-08-10) — ispravka V32/V33 plana. V33 je izostavio
+    # "saradnik_uklonjen" na osnovu tvrdnje da akcija "već postoji"; ta tvrdnja
+    # je bila tačna za klijent_create i predmet_create, ali NE i za ovu. Bez
+    # unosa ovde log_action("saradnik_uklonjen", ...) tiho vraća None, pa bi
+    # poziv u routers/saradnja.py::ukloni_saradnika izgledao implementirano a u
+    # produkciji ne bi upisao ništa. Registracija ostaje inertna dok V39-B ne
+    # doda poziv; postojeći domenski zapis u `saradnja_audit` je nezavisan i
+    # ostaje netaknut (OPTION A: log_action se DODAJE, ne zamenjuje).
+    "saradnik_uklonjen",
 }
 
 
