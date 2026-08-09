@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `bac22eb9`
+CURRENT_HEAD: `6f9ceb38`
 WORKTREE: clean
 
 ## Mission status
@@ -11,7 +11,8 @@ WORKTREE: clean
 | V2-M01 | Authorization gate sweep | **NO-FINDING** | — |
 | V3-M01 | Policy-lock verification | **POLICY-REQUIRED** (re-confirmed) | — |
 | V3-M02 | Streaming/retry billing | **UNPROVEN** — see below | — |
-| V3-M03..M15 | not started | — | — |
+| V4-M01 | Streaming billing integrity | **BLOCKED** — M01-A done, harness not built | — |
+| V4-M02..M06 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -91,3 +92,45 @@ was not built. Do not record this endpoint as clean until that harness exists.
 
 V3-M02 — build the streaming billing harness, then V3-M03 ownership/IDOR
 sweep with a detector that follows ownership THROUGH helpers.
+
+## V4-M01-A — execution map (PROVEN by source, api.py)
+
+```
+L3167  consume                      OUTSIDE the generator, before StreamingResponse
+L3169  async def _event_generator()
+L3182  _refunded = False
+L3185  _delivered = False
+L3190  ask_agent                    provider — produces the WHOLE answer here
+L3203  yield chunk ...              chunking happens AFTER the answer exists
+L3207  _delivered = True
+L3214  refund  -> _refunded = True  cache-hit / blocked path
+L3224  except Exception   -> if not _refunded: refund (its own try/except)
+L3241  except BaseException -> if not _refunded and not _delivered: refund
+L3264  elif _delivered: no refund, logged only
+```
+
+Two consequences that change the remaining work — both derived from the map,
+neither runtime-verified:
+
+1. **This is not a token stream.** `ask_agent` at L3190 returns the complete
+   answer and the generator chunks it afterwards. Scenarios S3/S5/S9 ("provider
+   failure after partial output", "disconnect after partial output",
+   "reconnect after partial stream") may be structurally unreachable: either the
+   whole answer exists or none of it does. Verify this before spending a harness
+   on them — it removes 3 of the 10 scenarios.
+
+2. **Refund failure is silently swallowed** (L3230, L3247: `except Exception:
+   logger.warning`). A failed refund leaves the credit spent with only a log
+   line. That is the documented best-effort semantics of `UsageService.refund`,
+   NOT a new finding — but it is the point where the streaming invariant can
+   break without any signal, and it is what a harness should measure first.
+
+**Open question, likely POLICY not defect:** each HTTP request runs its own
+`consume` at L3167. Whether a client reconnect is a second billable operation
+depends on frontend retry behaviour, which was not inspected.
+
+## V4-M01 status: BLOCKED — INSUFFICIENT CONTEXT BUDGET
+
+M01-A (source mapping) is complete and recorded above. M01-B (harness), M01-C
+(10-scenario matrix) and M01-D (adversarial) were NOT performed. No runtime
+evidence exists for this endpoint. Do not record it as verified.
