@@ -232,8 +232,11 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
 
     # Zabeleži brisanje u nepromenjivi audit log — ne može biti obrisano
     from shared.audit_immutable import log_action as _imm_log
+    from shared.bg import spawn as _spawn_bg
     ip = request.client.host if request.client else None
-    asyncio.create_task(_imm_log(
+    # S1-1: an unreferenced task for the ONE audit record that proves an erasure
+    # request was honoured. Lost on any redeploy in that window, silently.
+    _spawn_bg(_imm_log(
         "gdpr_erasure",
         user_id=uid,
         resource_type="account",

@@ -864,6 +864,20 @@ async def _stop_smart_intake_background_loops():
     except Exception as exc:
         logger.warning("[SHUTDOWN] Smart Intake pozadinske petlje nisu čisto zaustavljene: %s", exc)
 
+    # S1-1 (2026-08-09): this handler drained exactly two long-lived loops. The
+    # other 135 asyncio.create_task(...) calls in the codebase were killed with
+    # no grace on every SIGTERM -- on Render, every redeploy -- and nothing
+    # reconciled them, because the existing reapers look for a missing durable
+    # EVENT ROW, not for a task that died. Tasks registered through
+    # shared/bg.py::spawn now get a bounded chance to finish.
+    try:
+        from shared.bg import drain as _drain_bg
+        _left = await _drain_bg(timeout=10.0)
+        if _left:
+            logger.warning("[SHUTDOWN] %d pozadinskih taskova prekinuto pri gašenju.", _left)
+    except Exception as exc:
+        logger.warning("[SHUTDOWN] drenaža pozadinskih taskova nije uspela: %s", exc)
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -884,7 +898,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         )
         try:
             from shared.audit_immutable import log_action as _imm_log
-            asyncio.create_task(_imm_log(
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(_imm_log(
                 "injection_attempt_blocked",
                 user_id="unknown",  # SDK-nivo patch nema pristup autentifikovanom user_id-ju
                 resource_type=request.url.path,
@@ -2466,8 +2481,13 @@ async def register(req: RegisterReq, request: Request):
 
     try:
         result = await asyncio.to_thread(_do_register)
-        asyncio.create_task(asyncio.to_thread(send_welcome_email, result["user_id"], req.email))
-        asyncio.create_task(_setup_trial(_get_supa(), result["user_id"]))
+        # S1-1: both were unreferenced fire-and-forget. A redeploy in the seconds
+        # after signup left the user permanently with no plan, no trial_kraj and
+        # onboarding_done unset, with nothing to reconcile it.
+        from shared.bg import spawn as _spawn_bg
+        _spawn_bg(asyncio.to_thread(send_welcome_email, result["user_id"], req.email),
+                  name="register:welcome_email")
+        _spawn_bg(_setup_trial(_get_supa(), result["user_id"]), name="register:setup_trial")
         return result
     except HTTPException:
         raise
