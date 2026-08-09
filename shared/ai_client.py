@@ -209,8 +209,15 @@ def _capture_chat_provenance(self, kwargs: dict, response, latency_ms: int, erro
 
         coro = log_provenance_from_wrapper(**record_kwargs)
         try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(coro)
+            asyncio.get_running_loop()
+            # S3-1 (2026-08-09): this was loop.create_task(coro) -- unreferenced,
+            # so the AI provenance row could be garbage-collected before it was
+            # written, and any failure inside log_provenance_from_wrapper was
+            # never observed. The audit trail was written through the exact
+            # pattern S1-1 exists to remove, which means every coverage figure
+            # for AI auditing was conditional on tasks nobody was holding.
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(coro, name="ai_provenance:write")
         except RuntimeError:
             asyncio.run(coro)
     except Exception as exc:
@@ -257,8 +264,15 @@ def _capture_embedding_provenance(self, kwargs: dict, response, latency_ms: int,
             error_message=str(error)[:500] if error else None,
         )
         try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(coro)
+            asyncio.get_running_loop()
+            # S3-1 (2026-08-09): this was loop.create_task(coro) -- unreferenced,
+            # so the AI provenance row could be garbage-collected before it was
+            # written, and any failure inside log_provenance_from_wrapper was
+            # never observed. The audit trail was written through the exact
+            # pattern S1-1 exists to remove, which means every coverage figure
+            # for AI auditing was conditional on tasks nobody was holding.
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(coro, name="ai_provenance:write")
         except RuntimeError:
             asyncio.run(coro)
     except Exception as exc:

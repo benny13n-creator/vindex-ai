@@ -78,7 +78,11 @@ class ForensicsRecord:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         self._data["finished_at"] = _utcnow()
         self._data["latency_ms"]  = int((time.monotonic() - self._start) * 1000)
-        asyncio.create_task(_persist(self._data.copy()))
+        # S3-1: was an unreferenced create_task -- the forensics row for a
+        # completed AI call could be dropped before it was persisted, and a
+        # failure inside _persist was never observed.
+        from shared.bg import spawn as _spawn_bg
+        _spawn_bg(_persist(self._data.copy()), name="ai_forensics:persist")
         return False   # ne guta izuzetke
 
     def set_prompt(
