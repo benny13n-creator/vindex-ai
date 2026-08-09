@@ -137,6 +137,15 @@ async def delete_webhook(
     if not r.data:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
+
+    # V35: resource_type je "webhook" -- ova ruta briše iz tabele `webhooks`.
+    # Sestrinska integracije.py::webhook_brisi briše iz `user_webhooks` i nosi
+    # "user_webhook" (V34). Tabele dele prostor ID-eva, pa je resource_type
+    # jedino što forenzički razlikuje ta dva zapisa.
+    from shared.audit_immutable import log_action
+    await log_action("integration_webhook_delete", user_id=uid,
+                     resource_type="webhook", resource_id=webhook_id)
+
     return {"ok": True}
 
 

@@ -164,12 +164,21 @@ def test_6_webhook_foreign_owner_is_404_and_row_survives():
 
 # ── V31 ne sme uvesti audit ───────────────────────────────────────────────
 
-def test_7_no_audit_introduced():
-    """Guard je HTTP ugovor, ne audit. V32 radi audit odvojeno."""
+def test_7_zero_row_guard_survives():
+    """Guard mora ostati prisutan i posle kasnijih izmena istih handlera.
+
+    ISTORIJA OVE TVRDNJE: u V31 je glasila "log_action ne sme postojati u ovim
+    handlerima" -- ispravno za obim V31, koji je namerno razdvojio HTTP guard od
+    audita. V35 je audit dodao po planu, pa je ta formulacija istekla. Nije
+    obrisana da bi test prošao: zamenjena je invarijantom koja trajno vredi --
+    da guard koji V31 uvodi i dalje stoji. Originalna tvrdnja je sačuvana u git
+    istoriji commita 621526bd.
+    """
     import inspect
     import routers.integrations as ig
     import routers.komentari as k
 
     for fn in (k.delete_komentar, ig.delete_webhook):
         src = inspect.getsource(fn)
-        assert "log_action" not in src, f"{fn.__name__} ne sme dobiti audit u V31"
+        assert "if not r.data" in src, f"{fn.__name__} je izgubio zero-row guard"
+        assert "404" in src, f"{fn.__name__} više ne vraća 404 na zero-row"

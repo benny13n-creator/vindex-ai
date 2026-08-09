@@ -151,4 +151,11 @@ async def delete_komentar(
     if not r.data:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Komentar nije pronađen.")
+
+    # V35: audit tek posle V31 zero-row guarda. Handler nema try/except omotač,
+    # pa poziv ide direktno -- log_action je best-effort po sopstvenom ugovoru.
+    from shared.audit_immutable import log_action
+    await log_action("komentar_delete", user_id=user["user_id"],
+                     resource_type="komentar", resource_id=komentar_id)
+
     return {"status": "obrisan"}
