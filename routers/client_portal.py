@@ -782,13 +782,23 @@ async def client_portal_obrisi_upload(
             logger.warning("[PORTAL_DELETE] Storage brisanje nije uspelo: %s", exc)
 
     # Briši iz DB
-    await asyncio.to_thread(
+    r = await asyncio.to_thread(
         lambda: supa.table("client_portal_uploads")
             .delete()
             .eq("id", upload_id)
             .eq("advokat_user_id", uid)
             .execute()
     )
+    # F-V36-002: rezultat DELETE-a se ranije odbacivao, pa je ruta vraćala
+    # {"ok": True} i kad nijedan red nije poklopljen. SELECT iznad dokazuje da je
+    # red postojao i da je pozivaočev, ne i da je obrisan.
+    #
+    # ARHITEKTONSKO OGRANIČENJE, namerno NEPROMENJENO u ovom sprintu: storage
+    # brisanje se izvršava PRE ovog DELETE-a, pa 404 ovde može stići pošto je
+    # fajl već uklonjen. Ne uvodim distribuiranu transakciju niti menjam
+    # redosled -- ovaj commit samo čini ishod DB mutacije vidljivim.
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Upload nije pronađen.")
 
     logger.info("[PORTAL_DELETE] upload_id=%s uid=%.8s", upload_id, uid)
     return {"ok": True, "upload_id": upload_id}
