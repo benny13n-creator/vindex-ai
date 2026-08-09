@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `85e885ec`
+CURRENT_HEAD: `77cdcf9f`
 WORKTREE: clean
 
 ## Mission status
@@ -13,7 +13,9 @@ WORKTREE: clean
 | V3-M02 | Streaming/retry billing | **UNPROVEN** — see below | — |
 | V4-M01 | Streaming billing integrity | **BLOCKED** — M01-A done, harness not built | — |
 | V5-M01 | ask_agent execution semantics | **GREEN — SOURCE-PROVEN** | — |
-| V5-M02..M15 | not started (harness) | — | — |
+| V6-M01..M04 | Streaming harness + matrix | **BLOCKED** — no budget for a valid harness | — |
+| V6-M07 | Refund integrity | **GREEN — SOURCE-PROVEN** | — |
+| V6-M05,06,08..15 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -178,3 +180,37 @@ decided. Runtime proof requires the M02 harness.
 
 V5-M02 — build the streaming harness (7 scenarios, not 10) and runtime-verify
 V5-C1 first, since it is the only candidate the source map produced.
+
+## V6-M07 — refund integrity (SOURCE-PROVEN / RUNTIME-UNPROVEN)
+
+`UsageService.refund`, shared/usage.py L489-541:
+
+- **Contains no try/except.** It does NOT swallow its own errors; an exception
+  from `_refund_n_credits` propagates to the caller.
+- **One atomic write:** `await asyncio.to_thread(_refund_n_credits, user_id, credits)`.
+- **NOT idempotent by itself.** Calling it twice refunds twice. Every guard that
+  makes refunding idempotent lives in the CALLER (`_refunded` in the stream
+  generator, `_credit_consumed` in /api/pitanje).
+
+Two consequences worth carrying forward:
+
+1. The swallowing observed in the streaming endpoint (`except Exception:
+   logger.warning`) is at the CALL SITE, not inside refund. A failed refund
+   leaving the credit spent with only a log line is the caller's choice, not the
+   primitive's.
+2. Because the primitive is not idempotent, **each of the 4 refund call sites
+   carries double-refund risk independently**, and a 5th caller added without a
+   guard would mint credits. That is an architectural fact, not a current bug --
+   all 4 existing sites are guarded. Worth knowing before anyone adds a fifth.
+
+Prior real defect already closed here and visible in the source: CREDIT-REFUND-002
+(2026-08-08) -- recomputing the refund from the registry minted 5 credits per
+failure for the three routers that override the multiplier. Fixed; `credits=` is
+now the preferred call form.
+
+## V6-M01..M04 — BLOCKED
+
+Building the streaming harness needs several iterations. Two harnesses tonight
+were contaminated by environment (missing .env in a fresh worktree, missing
+FOUNDER_EMAILS) and produced results that looked like findings but were not. An
+improvised harness here yields false proof, not weak proof. Not attempted.
