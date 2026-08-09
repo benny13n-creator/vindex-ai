@@ -423,7 +423,20 @@ async def sef_posalji(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("[SEF] dedup provera greška: %s", e)
+        # S1-4 (2026-08-09): this used to log a warning and FALL THROUGH -- i.e.
+        # a transient error reading sef_log meant the invoice was filed with the
+        # tax authority anyway, with no idea whether it had already been filed.
+        #
+        # Filing an e-invoice with SEF is not reversible from here: a duplicate
+        # is undone by a manual storno procedure with the tax authority. A
+        # duplicate filing is strictly worse than a failed send the lawyer can
+        # retry, so this check fails CLOSED.
+        logger.error("[SEF] dedup provera nije uspela — NE šaljem (fail-closed): %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="Ne mogu da proverim da li je faktura već poslata na SEF. "
+                   "Slanje je zaustavljeno da se izbegne dupla prijava. Pokušajte ponovo.",
+        )
 
     # Generate UBL XML
     from sef_ubl import generiši_ubl_xml

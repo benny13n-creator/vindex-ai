@@ -822,19 +822,58 @@ async def upload_klijent_dokument(
     naziv_encrypted = await asyncio.to_thread(encrypt_field, original_name)
 
     # Upiši metadata u klijent_dokumenti
-    meta_res = await asyncio.to_thread(
-        lambda: supa.table("klijent_dokumenti").insert({
-            "klijent_id":        klijent_id,
-            "predmet_id":        predmet_id,
-            "storage_key":       storage_key,
-            "tip_dokumenta":     tip_dokumenta,
-            "naziv_fajla_encrypted": naziv_encrypted,
-            "mime_type":         mime_type,
-            "velicina":          len(raw),
-            "uploaded_by":       user["user_id"],
-        }).execute()
-    )
+    #
+    # S1-3 (2026-08-09): this insert had no try/except and its result was not
+    # checked. `doc = meta_res.data[0] if meta_res.data else {}` swallowed both
+    # an exception (which propagated as an opaque 500 AFTER the blob was
+    # written) and an empty result -- and on the empty path execution continued
+    # to a 200 response reading {"status": "uploadovan", "doc_id": None}.
+    #
+    # The lawyer is told the client's document is in the Trezor. There is no row,
+    # so it appears in no list and can never be downloaded, and the encrypted
+    # blob is a permanent orphan in storage. For a client document vault that is
+    # silent data loss with a success message on top.
+    #
+    # Compensating delete + hard failure, mirroring the pattern already used for
+    # predmet_dokumenti at api.py:4776-4795.
+    async def _obrisi_orphan_blob() -> None:
+        try:
+            await asyncio.to_thread(lambda: bucket.remove([storage_key]))
+            logger.info("[TREZOR] orphan blob obrisan: %s", storage_key[:24])
+        except Exception as _rm_exc:
+            logger.error("[TREZOR] orphan blob NIJE obrisan (%s): %s", storage_key[:24], _rm_exc)
+
+    try:
+        meta_res = await asyncio.to_thread(
+            lambda: supa.table("klijent_dokumenti").insert({
+                "klijent_id":        klijent_id,
+                "predmet_id":        predmet_id,
+                "storage_key":       storage_key,
+                "tip_dokumenta":     tip_dokumenta,
+                "naziv_fajla_encrypted": naziv_encrypted,
+                "mime_type":         mime_type,
+                "velicina":          len(raw),
+                "uploaded_by":       user["user_id"],
+            }).execute()
+        )
+    except Exception as _ins_exc:
+        logger.error("[TREZOR] klijent_dokumenti insert greška: %s", _ins_exc)
+        await _obrisi_orphan_blob()
+        raise HTTPException(
+            status_code=500,
+            detail="Dokument nije sačuvan — pokušajte ponovo. Ništa nije naplaćeno.",
+        )
+
     doc = meta_res.data[0] if meta_res.data else {}
+    if not doc.get("id"):
+        # Zero rows: an RLS filter or a silently rejected write. Same outcome for
+        # the user as an exception, so it must fail the same way.
+        logger.error("[TREZOR] klijent_dokumenti insert vratio 0 redova (klijent=%s)", klijent_id)
+        await _obrisi_orphan_blob()
+        raise HTTPException(
+            status_code=500,
+            detail="Dokument nije sačuvan — pokušajte ponovo. Ništa nije naplaćeno.",
+        )
 
     asyncio.create_task(log_event(
         supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),

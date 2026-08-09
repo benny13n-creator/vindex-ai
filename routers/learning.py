@@ -163,7 +163,21 @@ async def zabeleži_ishod(
             }, on_conflict="predmet_id").execute()
         )
     except Exception as e:
-        logger.warning("[LEARNING] outcome_log upsert greška (tabela možda ne postoji): %s", e)
+        # S1-5 (2026-08-09): this swallowed the ONE write the endpoint exists to
+        # perform, then carried on to close the case and return
+        # "Čestitamo! Iskustvo sa ovim predmetom sada pomaže budućim analizama."
+        #
+        # The lawyer sees success, the case is closed, and the outcome row does
+        # not exist -- so the feedback form is no longer reachable, benchmarks
+        # and AI-Sudija calibration never see it, and the one datum the entire
+        # learning product is built on is lost with no way to re-enter it.
+        #
+        # Fail instead. The case stays open, so the lawyer can retry.
+        logger.error("[LEARNING] outcome_log upsert nije uspeo — prekidam: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="Ishod predmeta nije sačuvan. Predmet NIJE zatvoren — pokušajte ponovo.",
+        )
 
     # 2. Update case_patterns za svaki faktor
     je_pobeda = req.ishod == "pobeda"

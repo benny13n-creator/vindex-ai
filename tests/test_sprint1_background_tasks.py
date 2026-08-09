@@ -270,3 +270,68 @@ def test_the_timeout_default_is_configurable_but_bounded():
     import shared.ai_client as ac
     assert isinstance(ac._DEFAULT_LLM_TIMEOUT_S, float)
     assert 0 < ac._DEFAULT_LLM_TIMEOUT_S <= 300
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Sprint 1, items 3-5 — "success" must mean the write happened
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_trezor_upload_deletes_the_blob_and_fails_when_the_row_is_not_written():
+    """The klijent_dokumenti insert had no try/except and its result was not
+    checked: `doc = meta_res.data[0] if meta_res.data else {}` swallowed both an
+    exception and an empty result, and on the empty path execution continued to
+    HTTP 200 {"status": "uploadovan", "doc_id": None}.
+
+    The lawyer is told the client's document is in the Trezor. No row exists, so
+    it appears in no list and can never be downloaded, and the encrypted blob is
+    a permanent orphan. Silent data loss with a success message on top."""
+    import inspect
+    import klijenti.router as kr
+
+    src = inspect.getsource(kr)
+    idx = src.index('supa.table("klijent_dokumenti").insert(')
+    before = src[max(0, idx - 1200):idx]
+    after = src[idx:idx + 1800]
+
+    assert "_obrisi_orphan_blob" in before, "a compensating delete must be defined"
+    assert 'if not doc.get("id")' in after, "an empty insert result must be treated as failure"
+    assert after.count("raise HTTPException") >= 2, (
+        "both the exception path and the zero-rows path must fail the request"
+    )
+
+
+def test_sef_dedup_check_fails_closed():
+    """Filing an e-invoice with SEF is not reversible from the app: a duplicate
+    is undone by a manual storno with the tax authority. The dedup check used to
+    catch Exception, log a warning and FALL THROUGH -- so a transient error
+    reading sef_log meant the invoice was filed again."""
+    import inspect
+    import routers.sef as sef
+
+    src = inspect.getsource(sef)
+    idx = src.index("dedup provera")
+    window = src[idx:idx + 1400]
+    assert "raise HTTPException" in window, "a failed dedup check must stop the send"
+    assert "503" in window
+    # And it must not be the old warn-and-continue.
+    assert 'logger.warning("[SEF] dedup provera greška' not in src
+
+
+def test_learning_outcome_failure_does_not_report_success():
+    """outcome_log is the one write this endpoint exists to perform. It was
+    wrapped in `except Exception: logger.warning`, after which the handler closed
+    the case and returned "Čestitamo! ... sada pomaže budućim analizama."
+
+    The case then sits closed, the feedback form is unreachable, and the datum
+    the whole learning product is built on is gone with no way to re-enter it."""
+    import inspect
+    import routers.learning as lr
+
+    src = inspect.getsource(lr)
+    idx = src.index('supa.table("outcome_log").upsert(')
+    after = src[idx:idx + 2000]
+    assert "raise HTTPException" in after, "a failed outcome write must fail the request"
+    assert "NIJE zatvoren" in after, (
+        "the message must tell the lawyer the case is still open, so they retry"
+    )
+    assert 'logger.warning("[LEARNING] outcome_log upsert greška' not in src
