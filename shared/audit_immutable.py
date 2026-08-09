@@ -194,6 +194,14 @@ AUDITABLE_ACTIONS: set[str] = {
     # doda poziv; postojeći domenski zapis u `saradnja_audit` je nezavisan i
     # ostaje netaknut (OPTION A: log_action se DODAJE, ne zamenjuje).
     "saradnik_uklonjen",
+    # V40-B1 (2026-08-10) — F-V38-001 posledica. `tarifa_update` pokriva samo
+    # UPDATE i INSERT granu put_klijent_tarifa; uklanjanje tarife je zaseban
+    # destruktivni poslovni događaj sa sopstvenim ranim return-om, i do V40-A
+    # njegov uspeh uopšte nije bio dokaziv (DELETE rezultat se odbacivao).
+    # Emitovanje "tarifa_update" za brisanje tvrdilo bi izmenu iznosa koja se
+    # nije desila, pa je zasebna akcija jedina istinita opcija. Registracija je
+    # inertna dok V40-B2 ne doda poziv.
+    "tarifa_delete",
 }
 
 
