@@ -221,6 +221,22 @@ async def ukloni_saradnika(
         raise HTTPException(status_code=500, detail="Greška pri uklanjanju saradnika.")
 
     await _audit_log(supa, predmet_id, uid, "saradnik_uklonjen", {"saradnik_user_id": saradnik_user_id})
+    # V39-B: kanonski audit se DODAJE uz postojeći domenski `saradnja_audit`
+    # zapis iznad, ne zamenjuje ga -- to su dva različita sinka sa različitom
+    # svrhom (saradnja_audit je korisniku vidljiva istorija predmeta preko
+    # GET /api/saradnja/audit/{predmet_id}; audit_immutable je hash-ulančani
+    # forenzički trag). Poziv stoji IZVAN try bloka: unutar njega bi ga
+    # `except Exception` pretvorio u HTTP 500 i tako oborio poslovno uspešno
+    # uklanjanje. resource_id je ID SAMOG REDA VEZE iz rezultata DELETE-a, ne
+    # predmet_id -- predmet nije obrisan, obrisana je saradnja. predmet_id i
+    # saradnik_user_id idu u metadata jer bez njih je ID obrisanog reda
+    # forenzički neupotrebljiv (red više ne postoji da bi se rezolvovao).
+    from shared.audit_immutable import log_action
+    await log_action("saradnik_uklonjen", user_id=uid,
+                     resource_type="predmet_saradnik",
+                     resource_id=r.data[0]["id"],
+                     metadata={"predmet_id": predmet_id,
+                               "saradnik_user_id": saradnik_user_id})
     logger.info("[SARADNJA] Saradnik uklonjen: predmet=%s saradnik=%.8s", predmet_id, saradnik_user_id)
     return {"ok": True, "predmet_id": predmet_id, "saradnik_user_id": saradnik_user_id}
 
