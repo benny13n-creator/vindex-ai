@@ -489,6 +489,16 @@ async def voice_tts(req: VoiceTtsReq, request: Request, user=Depends(PermissionS
         await UsageService.consume(user["user_id"], user.get("email", ""), "voice")
         return _Resp(content=resp.content, media_type="audio/mpeg",
                      headers={"Cache-Control": "no-store"})
+    except HTTPException:
+        # F-6J-001 (Sprint 6J forensics): HTTPException nasleđuje Exception, pa
+        # su namerne naplatne greške iz UsageService.consume (iznad) padale u
+        # granu ispod i vraćale se kao 204 -- prazan USPEH. Korisnik bez kredita
+        # nije dobijao ni grešku, nego tišinu koju klijent čita kao ispravan
+        # odgovor. consume diže 402 (nema kredita) i 429 (cooldown/dnevni/
+        # mesečni limit); oba sada stižu do klijenta netaknuta.
+        # Pravi TTS kvarovi i dalje idu na 204 zbog browser fallback-a niže --
+        # jedino consume u ovom bloku diže HTTPException.
+        raise
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[VOICE/TTS] OpenAI TTS greška: %s", exc)
