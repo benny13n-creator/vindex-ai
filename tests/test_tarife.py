@@ -194,7 +194,12 @@ async def test_put_satnica_insert():
     for attr in ['table','select','eq','is_','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     none_result = MagicMock(); none_result.data = None
-    ok_result   = MagicMock(); ok_result.data   = [{"tarifa_po_satu": 5500}]
+    # V38: PostgREST UPDATE/INSERT vraća ceo red (returning=representation je
+    # podrazumevano u supabase-py), a `id` je PK tabele `tarife` -- isti
+    # obrazac koristi billing.py::faktura_create sa faktura_r.data[0]["id"].
+    # Fixture je ranije vraćao samo polje koje je stari kod čitao; audit u
+    # V38 čita r.data[0]["id"], pa red mora biti modelovan potpunije.
+    ok_result   = MagicMock(); ok_result.data   = [{"id": "tarifa-1", "tarifa_po_satu": 5500}]
 
     call_count = [0]
     def execute_side():
@@ -286,7 +291,9 @@ async def test_put_klijent_tarifa_set():
     for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
     none_result = MagicMock(); none_result.data = None
-    ok_result   = MagicMock(); ok_result.data   = [{"tarifa_po_satu": 9000}]
+    # V38: INSERT/UPDATE vraća ceo red uključujući PK `id` (isti obrazac kao
+    # billing.py::faktura_create). Audit u V38 čita r.data[0]["id"].
+    ok_result   = MagicMock(); ok_result.data   = [{"id": "tarifa-1", "tarifa_po_satu": 9000}]
 
     call_count = [0]
     def execute_side():

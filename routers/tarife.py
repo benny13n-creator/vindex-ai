@@ -218,6 +218,19 @@ async def put_klijent_tarifa(
     if not r.data:
         raise HTTPException(status_code=500, detail="Greška pri čuvanju tarife klijenta.")
 
+    # V38: audit posle `if not r.data` guarda -- jedina tačka na kojoj su i
+    # UPDATE i INSERT grana dokazano uspele. resource_id je ID SAME TARIFE iz
+    # rezultata mutacije, ne klijent_id: klijent je vlasnik odnosa, a promenjen
+    # resurs je red u `tarife`.
+    #
+    # Grana `tarifa_po_satu is None` (uklanjanje tarife) NAMERNO nije ovde --
+    # ona ima sopstveni rani return, briše red, i njen DELETE rezultat se
+    # odbacuje, pa uspeh nije dokaziv. To je zaseban poslovni događaj koji
+    # traži sopstvenu akciju i sopstveni guard (F-V38-001).
+    from shared.audit_immutable import log_action
+    await log_action("tarifa_update", user_id=uid,
+                     resource_type="tarifa", resource_id=r.data[0]["id"])
+
     logger.info("[TARIFA] klijent uid=%.8s klijent=%.8s iznos=%.2f", uid, klijent_id, body.tarifa_po_satu)
     return {"ok": True, "klijent_id": klijent_id, "tarifa_po_satu": float(r.data[0]["tarifa_po_satu"])}
 
