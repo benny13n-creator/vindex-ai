@@ -356,13 +356,32 @@ async def cross_doc_predmet(
             detail="Nije moguće rekonstruisati tekst za dovoljno dokumenata. Proverite da li su dokumenti pravilno indeksirani.",
         )
 
+    # S6-P3 (2026-08-09): bind the AI operation to the case it belongs to.
+    #
+    # This file had ZERO case_context declarations, so every cross-document
+    # analysis produced a provenance row with predmet_id NULL — the audit trail
+    # could not answer which case an AI comparison of two client documents was
+    # performed for.
+    #
+    # req.predmet_id is authoritative here, not asserted: the document fetch
+    # above filters .eq("predmet_id", req.predmet_id).eq("user_id", user_id) and
+    # raises 422 unless at least two rows come back, so a predmet belonging to
+    # another user yields no rows and the request fails BEFORE this point. The
+    # ownership check is the existing one; nothing about authorization changed.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+
     try:
-        result = await asyncio.to_thread(
-            _cross_doc_sync,
-            dokumenti,
-            req.pravno_pitanje,
-            None,
-        )
+        with _ai_case_ctx(
+            predmet_id=req.predmet_id,
+            module_name="cross_doc",
+            operation_name="cross_doc_predmet",
+        ):
+            result = await asyncio.to_thread(
+                _cross_doc_sync,
+                dokumenti,
+                req.pravno_pitanje,
+                None,
+            )
         await UsageService.consume(user["user_id"], user.get("email", ""), "cross_doc")
         return result
     except Exception:
