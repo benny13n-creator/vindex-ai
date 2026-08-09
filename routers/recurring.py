@@ -268,6 +268,13 @@ async def delete_recurring(
     if not r.data:
         raise HTTPException(status_code=404, detail="Šablon nije pronađen.")
 
+    # V36-C: audit posle zero-row guarda iz V36-B. Do njega je uspeh bio
+    # nedokaziv -- SELECT iznad dokazuje samo da je red postojao i da je
+    # pozivaočev, ne i da je obrisan. Ruta je 204, pa handler ovde i završava.
+    from shared.audit_immutable import log_action
+    await log_action("recurring_template_delete", user_id=uid,
+                     resource_type="recurring_template", resource_id=template_id)
+
 
 # ─── POST /billing/recurring/{id}/generisi ───────────────────────────────────
 

@@ -154,8 +154,20 @@ def test_5_active_template_still_409():
     assert any(r["id"] == "t-A" for r in st.rows)
 
 
-def test_6_no_audit_added_by_this_commit():
-    """V36-B je HTTP ugovor. Audit dolazi kada uspeh postane dokaziv."""
+def test_6_zero_row_guard_survives():
+    """Guard mora ostati prisutan i posle kasnijih izmena handlera.
+
+    ISTORIJA: u V36-B je glasila "log_action ne sme postojati" -- tačno za taj
+    commit, koji je namerno razdvojio HTTP guard od audita. V36-C je audit dodao
+    po planu, pa je formulacija istekla. Zamenjena je invarijantom koja traje:
+    guard koji V36-B uvodi i dalje stoji. Original je u istoriji na eed65e75.
+
+    Ovo je drugi put da je "nema audita" tvrdnja vezana za handler umesto za
+    commit (prvi: test_v31_zero_row_guard). Buduće guard-only faze treba da
+    tvrde prisustvo guarda, ne odsustvo audita.
+    """
     import inspect
     import routers.recurring as m
-    assert "log_action" not in inspect.getsource(m.delete_recurring)
+    src = inspect.getsource(m.delete_recurring)
+    assert "if not r.data" in src, "delete_recurring je izgubio zero-row guard"
+    assert "404" in src, "delete_recurring više ne vraća 404 na zero-row"
