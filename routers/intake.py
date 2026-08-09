@@ -942,6 +942,12 @@ async def intake_bulk_import(
 
     uspeh: list[dict] = []
     greske: list[dict] = []
+    # V39-C: audit događaji se SAKUPLJAJU ovde, a emituju tek posle petlje.
+    # Razlog: telo svakog reda je umotano u `except Exception -> greske.append`,
+    # pa bi log_action pozvan unutar petlje, ako bi ikada digao, pretvorio
+    # uspešan red u prijavljenu grešku -- audit bi menjao poslovni ishod.
+    # Emitovanje izvan petlje čini to strukturno nemogućim.
+    audit_dogadjaji: list[dict] = []
 
     for i, red in enumerate(body.redovi):
         try:
@@ -974,6 +980,17 @@ async def intake_bulk_import(
                 if not kl_res.data:
                     raise ValueError("Kreiranje klijenta nije uspelo")
                 klijent_id = kl_res.data[0]["id"]
+                # Klijent je ovde definitivno kreiran i NIJE podložan poništenju:
+                # kompenzujući DELETE ispod briše samo `predmeti`, nikad klijenta.
+                # Zato red koji kasnije padne i dalje ostavlja ovog klijenta u
+                # bazi -- audit koji bi se tada izostavio lagao bi izostankom.
+                # Grana ponovnog korišćenja postojećeg klijenta (email pogodak
+                # iznad) NIJE create i namerno ne emituje ništa.
+                audit_dogadjaji.append({
+                    "action": "klijent_create", "resource_type": "klijent",
+                    "resource_id": klijent_id,
+                    "metadata": {"source": "bulk_import", "red": i + 1},
+                })
 
             # Kreiraj predmet
             pr_res = await asyncio.to_thread(
@@ -1005,10 +1022,34 @@ async def intake_bulk_import(
                 )
                 raise
 
+            # Tek ovde je predmet dokazano preživeo: INSERT sam po sebi nije
+            # dokaz jer ga gornji `except` poništava kompenzujućim DELETE-om.
+            # Emitovanje odmah posle INSERT-a tvrdilo bi kreiranje predmeta koji
+            # u bazi više ne postoji. Ista akcija/oblik kao postojeća dva
+            # producera (intake wizard, api.py::kreiraj_predmet), samo drugi
+            # `source`. `klijent_id` u metadata je ONAJ stvarno upisan u
+            # predmet_klijenti -- postojeći ili novi, zavisno od grane iznad.
+            audit_dogadjaji.append({
+                "action": "predmet_create", "resource_type": "predmet",
+                "resource_id": predmet_id,
+                "metadata": {"naziv": red.naziv_predmeta, "tip": red.tip or "opsti",
+                             "source": "bulk_import", "klijent_id": klijent_id},
+            })
+
             uspeh.append({"red": i + 1, "predmet_id": predmet_id, "naziv": red.naziv_predmeta})
 
         except Exception as e:
             greske.append({"red": i + 1, "naziv": red.naziv_predmeta, "greska": str(e)[:200]})
+
+    # Jedan zapis po STVARNOM poslovnom događaju, nikad jedan agregatni po
+    # importu. Redosled emitovanja prati redosled redova.
+    from shared.audit_immutable import log_action
+    _ip = request.client.host if request.client else None
+    for _dog in audit_dogadjaji:
+        await log_action(_dog["action"], user_id=uid,
+                         resource_type=_dog["resource_type"],
+                         resource_id=_dog["resource_id"],
+                         ip=_ip, metadata=_dog["metadata"])
 
     logger.info("[BULK-IMPORT] uid=%.8s uspeh=%d greske=%d", uid, len(uspeh), len(greske))
     return {
