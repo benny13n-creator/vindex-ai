@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `14a71439`
+CURRENT_HEAD: `bac22eb9`
 WORKTREE: clean
 
 ## Mission status
@@ -9,7 +9,9 @@ WORKTREE: clean
 | ID | Mission | Result | Commit |
 |----|---------|--------|--------|
 | V2-M01 | Authorization gate sweep | **NO-FINDING** | — |
-| V2-M02..M15 | not started | — | — |
+| V3-M01 | Policy-lock verification | **POLICY-REQUIRED** (re-confirmed) | — |
+| V3-M02 | Streaming/retry billing | **UNPROVEN** — see below | — |
+| V3-M03..M15 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -61,6 +63,31 @@ could be applied without the owner's decision.
 F-6H-001, F-6J-001..005 — closed in sprints 6I, 6K, 6L, 6M. The upgraded V1-M02
 analyzer no longer sees any of them, which is the regression check for all five.
 
+## V3-M01 evidence
+
+`git diff 14a71439 HEAD -- routers/profitabilnost.py routers/voice.py routers/web3.py`
+is EMPTY. All three files are byte-identical to the Sprint 6O baseline, so the
+6O source+runtime proof stands unchanged. No new wrapper alters the conclusion.
+
+## V3-M02 — UNPROVEN, not NO-FINDING
+
+`/api/pitanje/stream` (api.py L3167+) already carries explicit, commented
+hardening for exactly the scenarios M02 asks about:
+
+- `UsageService.consume` runs ABOVE the generator (pre-deduction).
+- `_refunded` makes the refund idempotent across three exit paths.
+- SOA-012 (2026-08-08) fixed the case where client disconnect raises
+  `asyncio.CancelledError` / `GeneratorExit` -- both BaseException, not
+  Exception -- so no refund ran at all.
+- `_delivered` guards the refund exploit (NIGHT-005).
+
+That is source evidence of PRIOR closure. It is NOT proof that the 10-scenario
+matrix (reconnect, partial stream, retry+failure, consume failure, refund
+failure) holds today. Producing that matrix needs a controlled async-generator
+harness that drives disconnect and reconnect against a mocked provider, which
+was not built. Do not record this endpoint as clean until that harness exists.
+
 ## Next mission
 
-V2-M02 — subject propagation / IDOR sweep.
+V3-M02 — build the streaming billing harness, then V3-M03 ownership/IDOR
+sweep with a detector that follows ownership THROUGH helpers.
