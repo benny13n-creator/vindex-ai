@@ -202,7 +202,23 @@ async def put_klijent_tarifa(
 
     if body.tarifa_po_satu is None:
         if existing:
-            await _db(lambda: supa.table("tarife").delete().eq("id", existing["id"]).execute())
+            # F-V38-001: rezultat DELETE-a se ranije odbacivao, a `user_id` je
+            # postojao samo u SELECT-u iznad -- ruta je vraćala removed:True i
+            # kad nijedan red nije poklopljen. Owner predikat je sada UNUTAR
+            # same naredbe (jedna atomična naredba, bez TOCTOU prozora), a
+            # rezultat se hvata i proverava.
+            del_r = await _db(lambda: supa.table("tarife").delete()
+                              .eq("id", existing["id"])
+                              .eq("user_id", uid)
+                              .execute())
+            if not del_r.data:
+                # Red je postojao u SELECT-u ali ga DELETE nije zatekao --
+                # jedini slučaj u kome bi removed:True bila neistina.
+                raise HTTPException(status_code=404, detail="Tarifa klijenta nije pronađena.")
+        # Grana `existing is None` NAMERNO ostaje nepromenjena: PUT sa null
+        # znači "ne postoji tarifa za ovog klijenta", pa je brisanje nepostojeće
+        # tarife idempotentan no-op, a ne greška. Menjanje ovog odgovora bilo bi
+        # izmena API ugovora (F-V40-001, zabeleženo, nije promenjeno).
         return {"ok": True, "removed": True}
 
     if existing:
