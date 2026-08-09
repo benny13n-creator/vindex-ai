@@ -67,7 +67,24 @@ def _is_expired(expires_at) -> bool:
             expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
         return expires_at < datetime.now(timezone.utc)
     except Exception:
-        logger.warning("[PERMISSIONS] Ne mogu da parsiram subscription_expires_at=%r", expires_at)
+        # S4-1 (2026-08-09): direction deliberately UNCHANGED, visibility fixed.
+        #
+        # An unparsable value here is our own data, written by our own code --
+        # corruption or a schema change, never a user action. Both directions
+        # are wrong: failing closed silently drops a paying lawyer to basic
+        # mid-case, failing open silently grants Professional to a lapsed legacy
+        # account. Locking a lawyer out of their own case file is the worse of
+        # the two, so the direction stays.
+        #
+        # The actual defect was that it was INVISIBLE: logger.warning in a
+        # system with no alerting is a message nobody reads. ERROR, with the
+        # offending value, so it can be found and fixed at the source.
+        logger.error(
+            "[PERMISSIONS] NEPARSIV subscription_expires_at=%r — tretiram kao "
+            "NEISTEKAO (fail-open na entitlement). Podatak je pokvaren i treba "
+            "ga ispraviti u bazi.",
+            expires_at,
+        )
         return False
 
 

@@ -3294,7 +3294,35 @@ def ask_agent(
         _ref_docs: list[str] = []
         _ref_label, _ref_zakon = ekstrakcija_clana(pitanje_api)
         if _ref_label is not None:
-            _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon)
+            # S4-3 (2026-08-09): this used to call _direktan_fetch_clana plainly,
+            # so a Pinecone outage returned [] -- the same value as "the article
+            # genuinely is not in the corpus" -- and the branch below rendered it
+            # as a HARD REFUSAL telling the lawyer the article does not exist.
+            #
+            # A provider outage was therefore presented to a lawyer as a fact
+            # about Serbian law. "We could not check" and "it is not there" are
+            # not the same answer, and only one of them is ours to assert.
+            try:
+                from app.services.retrieve import RetrievalUnavailable as _RetrUnavail
+                _ref_matches = _direktan_fetch_clana(_ref_label, _ref_zakon, raise_on_error=True)
+            except _RetrUnavail as _ru:
+                logger.error(
+                    "[HALUCINATION_GUARD] Pretraga korpusa nedostupna za clan %s (%s) — "
+                    "NE tvrdim da clan ne postoji [q=%s]: %s",
+                    _ref_label, _ref_zakon, log_id, _ru,
+                )
+                return {
+                    "status": "error",
+                    "blocked": False,
+                    "data": "Sistem trenutno ne može da proveri pravni korpus. "
+                            "Ovo NIJE tvrdnja da traženi član ne postoji — "
+                            "pokušajte ponovo za koji trenutak.",
+                    "confidence": "LOW",
+                    "top_score": top_score,
+                    "top_article": _ref_label,
+                    "top_law": _ref_zakon or top_law,
+                    "retrieval_unavailable": True,
+                }
             if not _ref_matches:
                 logger.warning(
                     "[HALUCINATION_GUARD] Clan %s (%s) nije u korpusu — hard refusal [q=%s]",

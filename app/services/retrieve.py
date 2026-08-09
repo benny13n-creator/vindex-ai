@@ -860,7 +860,26 @@ def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Option
         return []
 
 
-def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list:
+
+class RetrievalUnavailable(Exception):
+    """Retrieval could not be performed — NOT the same as "nothing found".
+
+    S4-3 (2026-08-09). _direktan_fetch_clana returned [] both when an article
+    genuinely is not in the corpus and when Pinecone was unreachable. Two
+    consumers turn that [] into a statement about Serbian law:
+
+      * main.py's hallucination guard renders it as a hard refusal telling the
+        lawyer the article is not in the corpus;
+      * services/quality_gate.py renders it as citations_verified: 0, which
+        reads as "the AI invented these articles".
+
+    So a provider outage was presented to a lawyer as a legal fact. This is
+    opt-in via raise_on_error= so the ~15 existing callers, most of them
+    diagnostic scripts, keep their current behaviour exactly.
+    """
+
+
+def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None, raise_on_error: bool = False) -> list:
     """
     Strict deterministic lookup by clan (int) + zakon (short code).
     PATH B: real embedding + metadata filter — chunk IDs are UUIDs so index.list/fetch
@@ -895,6 +914,10 @@ def _direktan_fetch_clana(label_clana: str, zakon: Optional[str] = None) -> list
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u direktnom fetchu člana %s", label_clana)
+        if raise_on_error:
+            # S4-3: the caller makes a legal claim from this result, so it must
+            # be able to tell "not in the corpus" from "we could not look".
+            raise RetrievalUnavailable(str(_exc)) from _exc
         return []
 
 

@@ -9,7 +9,7 @@ import logging
 import zipfile
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from shared.deps import _get_supa, get_current_user
 
@@ -37,12 +37,29 @@ Prava: Imate pravo na prenosivost podataka prema ZZPL čl. 36 i GDPR čl. 20.
 """
 
 
-async def _fetch(supa, table: str, uid: str, order: str = "created_at") -> list:
+class ExportIncomplete(Exception):
+    """One or more tables could not be read for a portability export.
+
+    S4-4 (2026-08-09). _fetch swallowed every read error into [], and the
+    endpoint shipped the ZIP regardless. So a transient database error meant the
+    data subject received an export that was MISSING ENTIRE TABLES, labelled by
+    its own README as a complete ZZPL čl. 36 / GDPR čl. 20 portability export.
+
+    An incomplete export presented as complete is worse than no export: the
+    recipient has no way to know what is absent, and completeness is the entire
+    point of the right being exercised. Fail instead, and name the tables.
+    """
+
+
+async def _fetch(supa, table: str, uid: str, order: str = "created_at",
+                 errors: list | None = None) -> list:
     try:
         r = supa.table(table).select("*").eq("user_id", uid).order(order).execute()
         return r.data or []
     except Exception as e:
-        logger.warning("[EXPORT] %s greška: %s", table, e)
+        logger.error("[EXPORT] %s greška — export je NEPOTPUN: %s", table, e)
+        if errors is not None:
+            errors.append(table)
         return []
 
 
@@ -84,9 +101,22 @@ async def export_complete(user=Depends(get_current_user)):
         readme = _README.format(datum=now.replace("T", " "), email=email)
         zf.writestr("README.txt", readme)
 
+        _failed: list[str] = []
         for table, fname, order in tables:
-            data = await _fetch(supa, table, uid, order)
+            data = await _fetch(supa, table, uid, order, errors=_failed)
             zf.writestr(fname, json.dumps(data, ensure_ascii=False, indent=2, default=str))
+
+    # S4-4: never hand the data subject a partial archive that calls itself
+    # complete. The ZIP is discarded rather than shipped.
+    if _failed:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Export nije kompletan — podaci iz sledećih tabela nisu mogli da se "
+                f"pročitaju: {', '.join(_failed)}. Nepotpun export vam nije poslat "
+                "jer bi izgledao kao potpun. Pokušajte ponovo za koji minut."
+            ),
+        )
 
     buf.seek(0)
     filename = f"vindex-export-{now}.zip"

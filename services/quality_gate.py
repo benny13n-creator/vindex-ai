@@ -48,10 +48,19 @@ def _extract_article_citations(tekst: str) -> list[str]:
 
 
 async def _verify_citation(broj_clana: str) -> bool:
-    from app.services.retrieve import _direktan_fetch_clana
+    from app.services.retrieve import RetrievalUnavailable, _direktan_fetch_clana
     try:
-        matches = await asyncio.to_thread(_direktan_fetch_clana, f"Član {broj_clana}")
+        matches = await asyncio.to_thread(
+            lambda: _direktan_fetch_clana(f"Član {broj_clana}", raise_on_error=True)
+        )
         return bool(matches)
+    except RetrievalUnavailable as exc:
+        # S4-3: propagate "could not verify" instead of collapsing it into
+        # False. False here means "this citation is not in the corpus", which
+        # the caller renders as an invented citation -- a serious accusation to
+        # make because Pinecone was briefly unreachable.
+        logger.error("[QUALITY_GATE] Provera citata 'Član %s' NIJE MOGUĆA: %s", broj_clana, exc)
+        raise
     except Exception as exc:
         logger.warning("[QUALITY_GATE] Provera citata 'Član %s' neuspešna: %s", broj_clana, exc)
         return False
