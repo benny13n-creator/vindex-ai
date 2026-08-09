@@ -1,7 +1,7 @@
 # NIGHT SPRINT — CHECKPOINT
 
 START_HEAD: `14a71439`
-CURRENT_HEAD: `ba421916`
+CURRENT_HEAD: `b545661c`
 WORKTREE: clean
 
 ## Mission status
@@ -17,7 +17,9 @@ WORKTREE: clean
 | V6-M07 | Refund integrity | **GREEN — SOURCE-PROVEN** | — |
 | V7-M01 | Streaming harness | **GREEN — RUNTIME VERIFIED** | — |
 | V7-M02 | Refund caller integrity | **NO-FINDING** (no double refund) | — |
-| V7-M03..M12 | not started | — | — |
+| V8-M01 | Generator/cancellation exceptions | **NO-FINDING** (runtime) | — |
+| V8-M02 | Duplicate / retry billing | **NO-FINDING** (runtime) | — |
+| V8-M03..M15 | not started | — | — |
 | V1-M01 | Class C billing remediation | **POLICY_REQUIRED** | — |
 | V1-M02 | HTTPException swallowing sweep #2 | **NO-FINDING** (18 FP) | — |
 | V1-M06 | Double-charge forensics | **NO-FINDING** (10 FP) | — |
@@ -252,3 +254,31 @@ delivered. Still POLICY-REQUIRED -- same decision as F-6O-001..003. Not touched.
 
 V7-M03 — services/ billing failure sweep (services/, app/ still untouched by
 seven campaigns).
+
+## V8-M01/M02 — four more runtime-proven streaming invariants
+
+| Scenario | consume | provider | refund | credits | verdict |
+|---|---|---|---|---|---|
+| M01-a CancelledError mid-stream | 1 | 1 | 1 | 50->50 | same as GeneratorExit; refund <= 1 |
+| M01-b full drain then aclose | 1 | 1 | **0** | 50->49 | delivered answer is NOT refunded |
+| M02 duplicate request | 2 | 2 | 0 | 50->48 | two requests = two operations |
+| M02-b retry after provider failure | 2 | 1 refund | — | 50->49 | failed attempt refunded, only success charged |
+
+**M01-b sharpens V5-C1 and is the most valuable of the four.** `_delivered`
+works: a fully delivered answer is never refunded. So V5-C1 is NOT "any
+disconnect over-refunds" -- it is specifically "disconnect DURING delivery".
+That narrows the policy question from every hang-up to the mid-delivery window
+only, and makes it a much smaller decision than it looked.
+
+M02 is NOT a defect: two distinct HTTP questions are two billable operations,
+and there is no dedup layer on this endpoint by design. M02-b proves the retry
+path is already correct -- the failed attempt is compensated and only the
+successful one is charged.
+
+CancelledError and GeneratorExit are handled identically by the BaseException
+branch; they did NOT need separate treatment.
+
+## Next mission
+
+V8-M04 — services/ UsageService integrity, then M06/M07 authorization and IDOR
+through services. services/ and app/ remain untouched after eight campaigns.
