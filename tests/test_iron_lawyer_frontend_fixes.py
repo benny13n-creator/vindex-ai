@@ -178,7 +178,7 @@ def test_sw_cache_bumped():
     """Standing convention: static/sw.js CACHE_NAME must increment whenever static/vindex.js
     changes, or returning users silently keep serving the stale cached bundle."""
     sw_js = (REPO_ROOT / "static" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE_NAME = "vindex-v117";' in sw_js
+    assert 'const CACHE_NAME = "vindex-v118";' in sw_js
 
 
 def test_digital_twin_has_persistent_ai_disclosure():

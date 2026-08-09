@@ -280,3 +280,50 @@ def test_anomaly_daily_ip_key_rotates_with_the_date():
     assert any(k.endswith(today) for k in ad._daily_ips), (
         f"expected a key ending in {today}, got {list(ad._daily_ips)[:3]}"
     )
+
+
+# ── PROGBETA-001 — the readiness cap protected a field nobody displayed ────
+
+def _vindex_js():
+    from pathlib import Path
+    return (Path(__file__).resolve().parent.parent / "static" / "vindex.js").read_text(encoding="utf-8")
+
+
+def test_court_predictor_request_carries_predmet_id():
+    """CAP_BY_READINESS is the readiness cap shared by court_predictor,
+    digital_twin and hearing_cc. It is applied only `if case_context and not
+    case_context.get("error")`, and case_context comes from payload.predmet_id.
+
+    The frontend never sent predmet_id on this path, so case_context was always
+    None and the cap could never fire -- while Battle Report, in the same tab,
+    DID send it. The same case therefore produced a capped Battle Report and an
+    uncapped prediction."""
+    js = _vindex_js()
+    idx = js.index("_stratAktivniModul === 'court_predictor'")
+    body = js[idx:idx + 900]
+    assert "predmet_id" in body, (
+        "the court_predictor request must carry predmet_id or the readiness cap "
+        "is unreachable"
+    )
+
+
+def test_clamped_percentage_range_is_actually_rendered():
+    """The backend clamps procenat_min/procenat_max and caps them by readiness.
+    Nothing in the frontend read either field -- so every clamp and every cap
+    guarded a value the lawyer never saw, while the number they DID read sat
+    unguarded inside the GPT prose blob."""
+    js = _vindex_js()
+    assert "data.procenat_min" in js and "data.procenat_max" in js, (
+        "the clamped range must reach the UI; otherwise the guards are decorative"
+    )
+    # And it must be rendered ahead of the prose, not appended after it.
+    assert js.index("data.procenat_min") < js.index("bodyEl.innerHTML = _pctBlok")
+
+
+def test_backend_still_returns_the_clamped_fields():
+    """No regression on the producing side."""
+    import inspect
+    import routers.court_predictor as cp
+    src = inspect.getsource(cp)
+    assert '"procenat_min":' in src and '"procenat_max":' in src
+    assert "CAP_BY_READINESS" in src

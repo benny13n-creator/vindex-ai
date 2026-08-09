@@ -3056,7 +3056,13 @@ async function stratPokreni() {
     var tipVal = tipEl ? tipEl.value : 'gradjansko';
     var reqBody;
     if (_stratAktivniModul === 'court_predictor') {
-      reqBody = { opis_predmeta: tekst, cinjenicni_opis: tekst, tip_postupka: tipVal };
+      // PROGBETA-001 (2026-08-09): predmet_id was never sent, so the backend's
+      // case_context was always None and CAP_BY_READINESS -- the readiness cap
+      // shared by court_predictor, digital_twin and hearing_cc -- could never
+      // fire on this path. Battle Report DID send it, so the same case produced
+      // a capped Battle Report and an uncapped prediction.
+      reqBody = { opis_predmeta: tekst, cinjenicni_opis: tekst, tip_postupka: tipVal,
+                  predmet_id: (typeof activePredmetId !== 'undefined' ? activePredmetId : null) };
     } else {
       reqBody = { tekst: tekst };
       if (_stratAktivniModul === 'red_team' || _stratAktivniModul === 'litigation') {
@@ -3105,7 +3111,19 @@ async function stratPokreni() {
     } else if (data.analiza) {
       // Court predictor format
       if (bodyEl) {
-        bodyEl.innerHTML = stratFormatirajRezultat(data.analiza);
+        // PROGBETA-001: procenat_min/procenat_max are the CLAMPED, readiness-capped
+        // values. Until now nothing in the frontend read them -- grep returned zero
+        // consumers -- so every clamp and every cap protected a field the lawyer
+        // never saw, while the number they DID read sat unguarded inside GPT prose.
+        var _pctBlok = '';
+        if (typeof data.procenat_min === 'number' && typeof data.procenat_max === 'number') {
+          _pctBlok = '<div class="vx-panel" style="margin-bottom:.75rem;padding:.6rem .8rem;">'
+            + '<div style="font-family:var(--vx-mono,monospace);font-size:.75rem;opacity:.7;">PROCENA ISHODA (provereni raspon)</div>'
+            + '<div style="font-family:var(--vx-mono,monospace);font-size:1.4rem;">'
+            + data.procenat_min + '% – ' + data.procenat_max + '%</div>'
+            + '</div>';
+        }
+        bodyEl.innerHTML = _pctBlok + stratFormatirajRezultat(data.analiza);
         if (_stratAktivniModul === 'court_predictor') {
           bodyEl.innerHTML += '<div id="strat-battle-report-wrap" style="margin-top:1rem;">'
             + '<button id="strat-battle-report-btn" class="vx-btn vx-btn-secondary" onclick="stratBattleReport()" style="width:100%;">Generiši Battle Report — kompletna priprema za ročište (3 kredita)</button>'
