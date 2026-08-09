@@ -867,95 +867,118 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
                     pass
         return {}
 
-    try:
-        ekstr_resp = await asyncio.to_thread(
-            _pozovi_drafting_api,
-            oai,
-            model="gpt-4o-mini",
-            temperature=0,
-            max_tokens=900,
-            messages=[
-                {"role": "system", "content": ekstr_prompt},
-                {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}{sud_ctx}"},
-            ],
-        )
-        raw_json = (ekstr_resp.choices[0].message.content or "").strip()
-        entiteti: dict = _parse_json_safe(raw_json)
-        if not entiteti:
-            logger.warning("Ekstrakcija vratila prazan JSON [q=%s] — retry sa gpt-4o", log_id)
-            ekstr_resp2 = await asyncio.to_thread(
+    # S6C-2 (2026-08-09): ONE case_context scope over the WHOLE AI sequence.
+    #
+    # Pre-flight found this endpoint makes FIVE provider-touching calls, not
+    # one: two _pozovi_drafting_api extractions, retrieve_documents (which runs
+    # its own embedding + query-decomposition LLM calls), the enrichment call,
+    # and _critique_and_refine_draft. All five belong to the SAME predmet, so a
+    # single scope is correct and per-call wrapping would be both noisier and
+    # easier to leave incomplete.
+    #
+    # That is why this diff re-indents a block instead of adding one line: the
+    # scope has to span the sequence. No logic inside it changed -- the diff is
+    # indentation plus this comment.
+    #
+    # req.predmet_id is VERIFIED, not merely present: _proveri_vlasnistvo_predmeta
+    # ran at the top of this handler (S6C-1) and raises 404 unless the predmet
+    # belongs to the caller. predmet_id=None keeps its existing behaviour and
+    # stays unbound -- no fake subject is invented for the ad-hoc path.
+    from shared.ai_provenance import case_context as _ai_case_ctx
+    with _ai_case_ctx(
+        predmet_id=req.predmet_id,
+        module_name="drafting",
+        operation_name="podnesak",
+    ):
+        try:
+            ekstr_resp = await asyncio.to_thread(
                 _pozovi_drafting_api,
                 oai,
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 temperature=0,
                 max_tokens=900,
                 messages=[
                     {"role": "system", "content": ekstr_prompt},
-                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}\n\nVrati ISKLJUČIVO validan JSON objekat, bez ikakvog drugog teksta."},
+                    {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}{sud_ctx}"},
                 ],
             )
-            entiteti = _parse_json_safe(ekstr_resp2.choices[0].message.content or "")
-    except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
-        entiteti = {}
-
-    rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
-    try:
-        from app.services.retrieve import retrieve_documents
-        # BUG FIX (2026-07-24): retrieve_documents vraća tuple[list[str], dict]
-        # (docs, retrieval_meta), ne samu listu -- pre ove izmene je "docs"
-        # bio ceo tuple, "\n\n".join(docs[:4]) je pucao sa TypeError na dict
-        # elementu, spoljašnji except je to tiho gutao i kontekst je UVEK bio
-        # prazan string. Svaki podnesak generisan pre ove izmene je pisan bez
-        # ijednog stvarnog RAG zakonskog citata, uprkos promptu koji to
-        # eksplicitno traži.
-        docs, _retrieval_meta = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
-        kontekst = _izvori_kontekst(docs)
-    except Exception as exc:
-        _sentry_capture(exc)
-        logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
-        kontekst = ""
-
-    vks_analiza = ""
-    vks_kontekst_blok = ""
-    if req.tip == "tuzba_naknada_stete":
-        try:
-            vks = vks_preporuci(entiteti)
-            vks_kontekst_blok = f"\n\nVKS ORIJENTACIONI KRITERIJUMI:\n{vks['kontekst_tekst']}"
-            vks_analiza = vks["analiza_tekst"]
+            raw_json = (ekstr_resp.choices[0].message.content or "").strip()
+            entiteti: dict = _parse_json_safe(raw_json)
+            if not entiteti:
+                logger.warning("Ekstrakcija vratila prazan JSON [q=%s] — retry sa gpt-4o", log_id)
+                ekstr_resp2 = await asyncio.to_thread(
+                    _pozovi_drafting_api,
+                    oai,
+                    model="gpt-4o",
+                    temperature=0,
+                    max_tokens=900,
+                    messages=[
+                        {"role": "system", "content": ekstr_prompt},
+                        {"role": "user",   "content": f"OPIS SLUČAJA:\n{opis_api}\n\nVrati ISKLJUČIVO validan JSON objekat, bez ikakvog drugog teksta."},
+                    ],
+                )
+                entiteti = _parse_json_safe(ekstr_resp2.choices[0].message.content or "")
         except Exception as exc:
             _sentry_capture(exc)
-            logger.warning("VKS preporuka neuspešna [q=%s]: %s", log_id, exc)
+            logger.warning("Ekstrakcija entiteta neuspešna [q=%s]: %s", log_id, exc)
+            entiteti = {}
 
-    obog_prompt = OBOGACIVANJE_PROMPTOVI[req.tip]
-    obog_user = (
-        f"EKSTRAKTOVANI PODACI (JSON):\n{json.dumps(entiteti, ensure_ascii=False)}"
-        f"{vks_kontekst_blok}\n\n"
-        f"ZAKONSKI KONTEKST (RAG):\n{kontekst or 'Nije pronađen relevantan kontekst.'}"
-    )
-    try:
-        obog_resp = await asyncio.to_thread(
-            _pozovi_drafting_api,
-            oai,
-            model="gpt-4o",
-            temperature=0,
-            max_tokens=2500,
-            messages=[
-                {"role": "system", "content": obog_prompt},
-                {"role": "user",   "content": obog_user},
-            ],
+        rag_upit = f"{PODNESAK_TIPOVI[req.tip]}: {opis_api[:400]}"
+        try:
+            from app.services.retrieve import retrieve_documents
+            # BUG FIX (2026-07-24): retrieve_documents vraća tuple[list[str], dict]
+            # (docs, retrieval_meta), ne samu listu -- pre ove izmene je "docs"
+            # bio ceo tuple, "\n\n".join(docs[:4]) je pucao sa TypeError na dict
+            # elementu, spoljašnji except je to tiho gutao i kontekst je UVEK bio
+            # prazan string. Svaki podnesak generisan pre ove izmene je pisan bez
+            # ijednog stvarnog RAG zakonskog citata, uprkos promptu koji to
+            # eksplicitno traži.
+            docs, _retrieval_meta = await asyncio.to_thread(retrieve_documents, rag_upit, 5)
+            kontekst = _izvori_kontekst(docs)
+        except Exception as exc:
+            _sentry_capture(exc)
+            logger.warning("RAG neuspešan za podnesak [q=%s]: %s", log_id, exc)
+            kontekst = ""
+
+        vks_analiza = ""
+        vks_kontekst_blok = ""
+        if req.tip == "tuzba_naknada_stete":
+            try:
+                vks = vks_preporuci(entiteti)
+                vks_kontekst_blok = f"\n\nVKS ORIJENTACIONI KRITERIJUMI:\n{vks['kontekst_tekst']}"
+                vks_analiza = vks["analiza_tekst"]
+            except Exception as exc:
+                _sentry_capture(exc)
+                logger.warning("VKS preporuka neuspešna [q=%s]: %s", log_id, exc)
+
+        obog_prompt = OBOGACIVANJE_PROMPTOVI[req.tip]
+        obog_user = (
+            f"EKSTRAKTOVANI PODACI (JSON):\n{json.dumps(entiteti, ensure_ascii=False)}"
+            f"{vks_kontekst_blok}\n\n"
+            f"ZAKONSKI KONTEKST (RAG):\n{kontekst or 'Nije pronađen relevantan kontekst.'}"
         )
-        raw_obog = (obog_resp.choices[0].message.content or "").strip()
-        raw_obog = raw_obog.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        obogacivanje: dict = json.loads(raw_obog)
-    except (json.JSONDecodeError, Exception) as exc:
-        _sentry_capture(exc)
-        logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
-        obogacivanje = {}
+        try:
+            obog_resp = await asyncio.to_thread(
+                _pozovi_drafting_api,
+                oai,
+                model="gpt-4o",
+                temperature=0,
+                max_tokens=2500,
+                messages=[
+                    {"role": "system", "content": obog_prompt},
+                    {"role": "user",   "content": obog_user},
+                ],
+            )
+            raw_obog = (obog_resp.choices[0].message.content or "").strip()
+            raw_obog = raw_obog.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            obogacivanje: dict = json.loads(raw_obog)
+        except (json.JSONDecodeError, Exception) as exc:
+            _sentry_capture(exc)
+            logger.warning("Obogaćivanje neuspešno [q=%s]: %s", log_id, exc)
+            obogacivanje = {}
 
-    nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
-    nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
+        nacrt = popuni_sablon(req.tip, entiteti, obogacivanje, vks_analiza=vks_analiza)
+        nacrt, critique_applied = await _critique_and_refine_draft(nacrt, kontekst, req.tip, log_id)
 
     # Program Phoenix, Mission 004 (LIVINGSYS-DEBT-027): this charged unconditionally even
     # when entity extraction (the step whose failure makes the draft closest to worthless --
