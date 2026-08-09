@@ -607,6 +607,33 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         # guard silently discard the result a moment later. Checked BEFORE the
         # generation call, scoped identically to -031 (only when predmet_id is
         # set -- the case-less/ad-hoc path is intentionally left alone).
+        # S6C-1 (2026-08-09): AUTHORIZATION BEFORE ANYTHING ELSE TOUCHES predmet_id.
+        #
+        # req.predmet_id is Optional[str] = Field(None, max_length=100) -- a free
+        # string from the request body. Until now nothing verified it belonged to
+        # the caller before the GPT call, and the only ownership check in this
+        # file lives inside _stage_draft_for_review, which runs AFTER generation
+        # and as a fire-and-forget task.
+        #
+        # The order was SUBJECT (unverified) -> AI -> OWNERSHIP. So the
+        # case_context binding below recorded provenance against a predmet the
+        # caller had not been shown to own: user B could send user A's predmet
+        # UUID and write audit rows attributed to A's case. No data leaked --
+        # the AI only ever sees req.opis, text the caller supplied -- but the
+        # audit trail is exactly the thing that must not be forgeable.
+        #
+        # Reuses the existing canonical check rather than adding another one:
+        # routers/copilot_ambient.py::_proveri_vlasnistvo_predmeta, whose own
+        # docstring names the pattern ("predmet_id iz zahteva se NIKAD ne
+        # prihvata bez provere da pripada pozivaocu"). Imported lazily, as this
+        # codebase does elsewhere, to avoid an import cycle between routers.
+        #
+        # predmet_id=None keeps its existing behaviour untouched: the case-less
+        # ad-hoc drafting path is legitimate and stays unverified AND unbound.
+        if req.predmet_id:
+            from routers.copilot_ambient import _proveri_vlasnistvo_predmeta
+            await _proveri_vlasnistvo_predmeta(req.predmet_id, user["user_id"])
+
         if req.predmet_id and await _recent_generation_exists(user["user_id"], req.predmet_id, req.vrsta):
             _staged = await asyncio.to_thread(
                 lambda: _get_supa().table("staging_memory").select("tekst")
@@ -786,6 +813,14 @@ async def podnesak(req: PodnesakReq, request: Request, user: dict = Depends(Perm
     # nacrt()'s own pre-check above -- /api/podnesak is the MORE expensive of
     # the 2 (2 sequential GPT calls: extraction + RAG-grounded enrichment),
     # making a wasted retry here more costly, not less.
+    # S6C-1: same authorization precondition as nacrt() above. /api/podnesak
+    # produces a court filing, so an audit row attributed to the wrong case is
+    # worse here, not better. Same canonical check, same lazy import, same
+    # untouched behaviour when predmet_id is absent.
+    if req.predmet_id:
+        from routers.copilot_ambient import _proveri_vlasnistvo_predmeta
+        await _proveri_vlasnistvo_predmeta(req.predmet_id, user["user_id"])
+
     if req.predmet_id and await _recent_generation_exists(user["user_id"], req.predmet_id, req.tip):
         _staged = await asyncio.to_thread(
             lambda: _get_supa().table("staging_memory").select("tekst")
