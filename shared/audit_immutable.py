@@ -166,6 +166,25 @@ AUDITABLE_ACTIONS: set[str] = {
     # Pipeline A's per-case upload (api.py), which always logged
     # "dokument_upload". This closes that gap for the Smart Intake path.
     "document_assimilated",
+    # Night War Room V11-V32 (2026-08-09) — destruktivne poslovne operacije.
+    # F-V11-001: 18 destruktivnih ruta nije dospevalo ni u kanonski
+    # audit_immutable (nijedna nije zvala log_action) ni u middleware access log
+    # (allowlist u shared/audit.py je pisan protiv "/api/billing", a billing
+    # router ima prefiks "/billing" -- startswith nikad ne pogađa). Cela klasa
+    # "korisnik je obrisao poslovni zapis" nije postojala u registru.
+    #
+    # Ovaj commit SAMO registruje akcije; pozivi se dodaju po grupama (V34-V39)
+    # tek pošto je za svaku rutu source-dokazano gde tačno leži uspeh poslovne
+    # mutacije. log_action() ionako tiho vraća None za neregistrovanu akciju, pa
+    # registracija bez poziva ne menja nijedno postojeće ponašanje.
+    #
+    # user_webhook_delete vs integration_webhook_delete su NAMERNO dve akcije:
+    # rute brišu iz dve različite tabele (user_webhooks / webhooks) sa istim
+    # prostorom ID-eva, pa bi jedna akcija dala forenzički nerazlučive zapise.
+    "rociste_delete", "komentar_delete", "zadatak_delete", "knowledge_delete",
+    "client_portal_upload_delete", "billing_entry_delete", "faktura_create",
+    "recurring_template_delete", "user_webhook_delete",
+    "integration_webhook_delete", "tarifa_update",
 }
 
 
