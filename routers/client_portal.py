@@ -800,6 +800,18 @@ async def client_portal_obrisi_upload(
     if not r.data:
         raise HTTPException(status_code=404, detail="Upload nije pronađen.")
 
+    # V36-F: audit posle zero-row guarda iz V36-E. Dokaz poslovnog uspeha je
+    # neprazan r.data -- guard iznad je jedina tačka na kojoj handler zna da je
+    # red zaista obrisan.
+    #
+    # Namerno NE uslovljavam audit ishodom storage brisanja: ono je ne-fatalno
+    # po postojećoj semantici (try/except iznad), pa bi vezivanje audita za
+    # njega izmislilo distribuiranu transakciju koju ovaj kod nema. Audit
+    # predstavlja postojeću definiciju uspeha rute, ne novu.
+    from shared.audit_immutable import log_action
+    await log_action("client_portal_upload_delete", user_id=uid,
+                     resource_type="client_portal_upload", resource_id=upload_id)
+
     logger.info("[PORTAL_DELETE] upload_id=%s uid=%.8s", upload_id, uid)
     return {"ok": True, "upload_id": upload_id}
 
