@@ -1432,10 +1432,17 @@ async def copilot_chat(
     email    = user.get("email", "")
     predmet_ctx = ""
 
-    await UsageService.consume(uid, email, "copilot")
-
+    # Sprint 6G: authorization PRE naplate. Sprint 6E je kapiju postavio ispod
+    # consume(), pa je tuđi ili nepostojeći predmet_id naplaćivao kredit i
+    # vraćao 404 bez ijednog provider poziva -- naplata za posao koji se nije
+    # desio. Refund grane niže pokrivaju samo handler(), koji je iza kapije.
+    # Redosled je zato ispravljen umesto dodavanja trećeg refund poziva:
+    # "authorize, then charge" ne ostavlja prolazno stanje koje refund može da
+    # promaši. Ovo je i dalje JEDINA tačka naplate u fajlu.
     if req.predmet_id:
         predmet_ctx = await _load_predmet_context(req.predmet_id, uid)
+
+    await UsageService.consume(uid, email, "copilot")
 
     intent = await _detect_intent(req.poruka)
     logger.info("[COPILOT] uid=%.8s intent=%s predmet=%s", uid, intent, req.predmet_id or "-")
