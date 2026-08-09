@@ -140,12 +140,22 @@ def test_4_audit_sink_failure_does_not_break_mutation(name, call, table, action,
     """Otkaz u sinku ISPOD log_action -- pravi guard se izvršava."""
     import shared.audit_immutable as ai
 
-    async def _boom_sink(*a, **k):
+    # F-V39-002: injector MORA biti sinhron. log_action zove
+    # `await asyncio.to_thread(_build_and_insert, ...)`, pa async zamena u
+    # radnoj niti samo VRATI coroutine objekat i nikad ne digne -- log_action
+    # tada ide SUCCESS granom i vraca taj coroutine kao da je upis uspeo.
+    # Dokazano: async injector telo se izvrsi 0 puta. `raised` ispod tvrdi
+    # da je otkaz stvarno nastupio, pa test vise ne moze proci prazan.
+    raised = []
+
+    def _boom_sink(*a, **k):
+        raised.append(1)
         raise RuntimeError("audit DB down")
 
     st = _store_for(table)
     with patch.object(ai, "_build_and_insert", _boom_sink):
         code = _run(call, st, ai.log_action, "res-A", A)
+    assert raised, "sink otkaz se nije ni desio -- test bi bio prazan"
     assert code == 200, f"{name}: pad audit sinka ne sme dati {code}"
     assert not [r for r in st.rows if r["id"] == "res-A"], "red mora ostati obrisan"
 

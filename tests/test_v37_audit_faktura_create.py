@@ -184,12 +184,22 @@ def test_4_partial_update_conflict_emits_no_audit():
 def test_5_audit_sink_failure_does_not_break_faktura():
     import shared.audit_immutable as ai
 
-    async def _boom(*a, **k):
+    # F-V39-002: injector MORA biti sinhron. log_action zove
+    # `await asyncio.to_thread(_build_and_insert, ...)`, pa async zamena u
+    # radnoj niti samo VRATI coroutine objekat i nikad ne digne -- log_action
+    # tada ide SUCCESS granom i vraca taj coroutine kao da je upis uspeo.
+    # Dokazano: async injector telo se izvrsi 0 puta. `raised` ispod tvrdi
+    # da je otkaz stvarno nastupio, pa test vise ne moze proci prazan.
+    raised = []
+
+    def _boom(*a, **k):
+        raised.append(1)
         raise RuntimeError("audit DB down")
 
     st = _Store(_entries())
     with patch.object(ai, "_build_and_insert", _boom):
         code = _run(st, ai.log_action)
+    assert raised, "sink otkaz se nije ni desio -- test bi bio prazan"
     assert code == 200, f"pad audit sinka ne sme dati {code}"
     assert st.fakture, "faktura mora ostati kreirana"
     assert st.deleted_fakture == [], "ne sme biti rollbacka"
