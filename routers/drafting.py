@@ -711,6 +711,14 @@ async def analiza(req: AnalizaReq, request: Request, user: dict = Depends(Permis
         else:
             preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
+    except HTTPException:
+        # F-6J-004 (Sprint 6J forensics): HTTPException nasleđuje Exception, pa
+        # su naplatne greške iz UsageService.consume (iznad) padale u granu
+        # ispod i vraćale se kao generički 500. consume diže 402 (nema kredita)
+        # i 429 (cooldown/dnevni/mesečni limit) i jedini je izvor HTTPException
+        # u ovom bloku -- balance ne diže nijednu, a AnalizaReq nema predmet_id
+        # pa nema ni vlasničke provere koju bi ovo moglo da promeni.
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Neočekivana greška u /api/analiza")
@@ -774,6 +782,11 @@ async def sazmi(req: SazmiReq, request: Request, user: dict = Depends(Permission
         tekst = resp.choices[0].message.content.strip()
         await UsageService.consume(user["user_id"], user.get("email", ""), "drafting")
         return {"status": "ok", "sazetak": tekst, "format": req.format}
+    except HTTPException:
+        # F-6J-005, isto kao /api/analiza gore. SazmiReq nosi samo odgovor+format
+        # -- nema subjekta ni vlasničke provere, pa je consume jedini izvor
+        # HTTPException u ovom bloku.
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u /api/sazmi")
