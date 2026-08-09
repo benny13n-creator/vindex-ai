@@ -62,14 +62,18 @@ c86d82df963a1be254ede4e6adce32bda9956ea0:tests/test_integracije.py:generic-api-k
 # replaced at some point. That is not the same as REVOKED: an unused key that
 # was never revoked still works and still bills.
 #
-# secret-scan therefore stays RED, on purpose, for exactly this one finding.
-# Silencing it before revocation is confirmed would be suppressing a live
-# credential to make a dashboard green.
+# secret-scan stayed RED, on purpose, for exactly this one finding until the key
+# was confirmed inactive. Silencing it before then would have been suppressing a
+# live credential to make a dashboard green.
 #
-# TO CLEAR, after revoking the key at platform.openai.com, uncomment the line
-# below and record the revocation date in the comment:
+# CLOSED 2026-08-09. The founder confirmed the incident key is inactive; the
+# forensic pass separately established that the current production credential is
+# a different key which has never appeared anywhere in Git history, and that no
+# other OpenAI credential exists in the repository's 1,327 commits.
 #
-# revoked YYYY-MM-DD at platform.openai.com; blob remains in history and cannot
-# be removed without a history rewrite, which does not substitute for revocation
-# because the blob may already be mirrored or cached.
-# dc29b7641c0afeb996b94b3c8c0ff19b660fdc5d:.env:openai-api-key:1
+# The blob itself stays in history and cannot be removed without a history
+# rewrite -- which is not a substitute for revocation anyway, since a public
+# repository's blob may already be mirrored or cached elsewhere. Revocation is
+# what makes it harmless; this line only stops re-reporting a finding that has
+# been dealt with.
+dc29b7641c0afeb996b94b3c8c0ff19b660fdc5d:.env:openai-api-key:1
