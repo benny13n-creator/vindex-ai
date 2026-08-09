@@ -205,6 +205,37 @@ async def _connect_openai_realtime():
     request/response chat.completions poziv nego trajna sesija)."""
     import websockets
 
+    # S2-2 (2026-08-09): FAIL CLOSED when the deployment is configured for
+    # Azure / EU data residency.
+    #
+    # shared/ai_client.py redirects every OpenAI SDK call to the Azure endpoint
+    # when AZURE_OPENAI_KEY and AZURE_OPENAI_ENDPOINT are set. This module does
+    # not use the SDK -- it opens a raw WebSocket to a hardcoded
+    # wss://api.openai.com/v1/realtime -- so it silently ignored that redirect.
+    #
+    # A firm on the EU-residency configuration believes all AI traffic stays in
+    # the EU. Vindex Live carries the lawyer's spoken, privileged client
+    # conversation plus its whisper transcription. Sending that to OpenAI US
+    # while the rest of the product honours the redirect is not a degraded
+    # experience; it is a false statement about where the data went.
+    #
+    # Refusing the session is the honest outcome. Adding Azure realtime support
+    # is new transport work (different URL shape, different auth) and is not a
+    # hardening fix.
+    _azure_key = os.getenv("AZURE_OPENAI_KEY", "").strip()
+    _azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip()
+    if _azure_key and _azure_endpoint:
+        logger.error(
+            "[VOICE_RT] Azure/EU konfiguracija je aktivna, a Realtime API ide "
+            "iskljucivo na OpenAI US — odbijam sesiju umesto da tiho posaljem "
+            "poverljiv razgovor van EU."
+        )
+        raise RuntimeError(
+            "Vindex Live nije dostupan na EU konfiguraciji: Realtime sesija bi "
+            "isla van EU. Koristite tekstualne module dok se ne uvede Azure "
+            "Realtime transport."
+        )
+
     api_key = os.environ["OPENAI_API_KEY"]
     url = f"{_REALTIME_URL}?model={_REALTIME_MODEL}"
     try:

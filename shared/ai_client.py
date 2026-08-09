@@ -409,6 +409,63 @@ def _patch_prompt_guard() -> None:
     except Exception as exc:
         logger.warning("[AI_PROVENANCE] Embeddings provenance patch neuspešan (nije kritično): %s", exc)
 
+    # ── S2-1 (2026-08-09): audio.* was not intercepted at all ──────────────
+    # The patch covered Completions and Embeddings. It did NOT cover
+    # audio.transcriptions.create or audio.speech.create, which routers/voice.py
+    # calls directly (_pozovi_whisper_api, _pozovi_tts_api). Those two produced
+    # ZERO provenance rows and carried no default timeout -- a whole modality
+    # outside the audit surface, invisible to every coverage count because the
+    # inventory regex looked for chat/embedding call shapes.
+    #
+    # What this does and does not give you, stated precisely:
+    #   * provenance + timeout: yes, both paths, success and failure.
+    #   * prompt-guard on Whisper: NOT APPLICABLE -- the input is audio bytes,
+    #     not text. Guarding the resulting TRANSCRIPT is response-side work and
+    #     belongs to the Response Firewall question, not here.
+    #   * prompt-guard on TTS input: the text is produced by our own code paths,
+    #     which are themselves already guarded upstream.
+    try:
+        from openai.resources.audio.speech import AsyncSpeech, Speech
+        from openai.resources.audio.transcriptions import AsyncTranscriptions, Transcriptions
+
+        _orig_stt = Transcriptions.create
+        _orig_astt = AsyncTranscriptions.create
+        _orig_tts = Speech.create
+        _orig_atts = AsyncSpeech.create
+
+        def _make_tracked_audio(orig, is_async: bool):
+            if is_async:
+                async def _tracked(self, *args, **kwargs):
+                    import time
+                    _t0 = time.monotonic()
+                    try:
+                        response = await orig(self, *args, **_with_timeout(kwargs))
+                    except Exception as exc:
+                        _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+                        raise
+                    _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
+                    return response
+                return _tracked
+
+            def _tracked(self, *args, **kwargs):
+                import time
+                _t0 = time.monotonic()
+                try:
+                    response = orig(self, *args, **_with_timeout(kwargs))
+                except Exception as exc:
+                    _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
+                    raise
+                _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
+                return response
+            return _tracked
+
+        Transcriptions.create      = _make_tracked_audio(_orig_stt,  False)
+        AsyncTranscriptions.create = _make_tracked_audio(_orig_astt, True)
+        Speech.create              = _make_tracked_audio(_orig_tts,  False)
+        AsyncSpeech.create         = _make_tracked_audio(_orig_atts, True)
+    except Exception as exc:
+        logger.warning("[AI_PROVENANCE] Audio provenance patch neuspešan (nije kritično): %s", exc)
+
     _guard_patched = True
     logger.info(
         "[AI_GUARD] Prompt Guard presreo Completions.create/AsyncCompletions.create "

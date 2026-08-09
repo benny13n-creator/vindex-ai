@@ -17,6 +17,7 @@ import logging
 import threading
 import time
 from typing import Optional
+import contextvars
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 
 from dotenv import load_dotenv
@@ -1707,9 +1708,17 @@ def retrieve_documents(
     if _decomp_fn is decompose_query:
         logger.info("[FIX1] Aktivirana intent-aware dekompozicija za query='%.60s'", query)
 
+    # S2-4 (2026-08-09): a raw ThreadPoolExecutor does NOT propagate contextvars.
+    # _decomp_fn and _generiši_hyde both make LLM calls, so without this the
+    # provenance rows they produce lose user_id AND correlation_id -- even when
+    # the request context was correctly set upstream. That silently breaks the
+    # audit chain on the single busiest AI path in the product.
+    #
+    # A separate copy per submit: Context.run() raises if the same context is
+    # already entered, and these two run in parallel.
     with ThreadPoolExecutor(max_workers=2) as qte:
-        f_multi = qte.submit(_decomp_fn, query)
-        f_hyde  = qte.submit(_generiši_hyde, query)
+        f_multi = qte.submit(contextvars.copy_context().run, _decomp_fn, query)
+        f_hyde  = qte.submit(contextvars.copy_context().run, _generiši_hyde, query)
 
     sub_queries: list[str] = []
     hyde_text = ""
@@ -1741,12 +1750,16 @@ def retrieve_documents(
 
     # GPT ekspanzija (background, max 3s)
     with ThreadPoolExecutor(max_workers=1) as gpe:
-        gpt_fut = gpe.submit(_prosiri_query_gpt_wrapper, query)
+        # S2-4: same contextvars loss — this one is an LLM call too.
+        gpt_fut = gpe.submit(contextvars.copy_context().run, _prosiri_query_gpt_wrapper, query)
     try:
         prosireni = gpt_fut.result(timeout=3.0)
         vidjeni = {m.id for m in matchevi}
         with ThreadPoolExecutor(max_workers=4) as ee:
-            efuts = [ee.submit(_semanticka_pretraga, eq, 3) for eq in prosireni[:3]]
+            # S2-4: _semanticka_pretraga embeds the query, which is a provider
+            # call and therefore a provenance row of its own.
+            efuts = [ee.submit(contextvars.copy_context().run, _semanticka_pretraga, eq, 3)
+                     for eq in prosireni[:3]]
             for f in as_completed(efuts, timeout=2.0):
                 try:
                     for m in f.result():
