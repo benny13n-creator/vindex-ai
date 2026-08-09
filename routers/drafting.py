@@ -671,6 +671,15 @@ async def nacrt(req: NacrtReq, request: Request, user: dict = Depends(Permission
         else:
             preostalo = await UsageService.balance(user["user_id"], user.get("email", ""))
         return _normalizuj_rezultat(rezultat, credits_remaining=max(preostalo, 0))
+    except HTTPException:
+        # F-6H-001 (Sprint 6H forensics): HTTPException nasleđuje Exception, pa
+        # je 404 iz _proveri_vlasnistvo_predmeta (iznad, u istom try bloku) padao
+        # u generičku granu ispod i vraćao se kao 500 "greška na serveru".
+        # Odbijanje autorizacije je i dalje bilo fail-closed -- ni provider ni
+        # consume nisu dosezani jer oba leže iza tačke podizanja -- ali je napad
+        # izgledao kao sopstveni kvar i punio Sentry preko logger.exception.
+        # Namerne HTTP greške propagiraju netaknute; sve ostalo ide kao i pre.
+        raise
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u /api/nacrt")
