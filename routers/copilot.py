@@ -199,7 +199,19 @@ async def _detect_intent(poruka: str) -> str:
 
 
 async def _load_predmet_context(predmet_id: str, user_id: str) -> str:
-    """Učitava naziv+opis predmeta za kontekst copilota."""
+    """Učitava naziv+opis predmeta za kontekst copilota.
+
+    AUTHORIZATION GATE (Sprint 6E). Ranije je ova funkcija na neuspeh vraćala ""
+    i izvršavanje je nastavljalo do _detect_intent i do handler AI poziva --
+    filter konteksta, ne kapija. Tuđi predmet nije curio sadržaj, ali je tuđi
+    predmet_id trošio model i proizvodio audit trag za predmet čije vlasništvo
+    nikada nije dokazano.
+
+    Podizanje je NAMERNO izvan try bloka: HTTPException nasleđuje Exception, pa
+    bi ga `except Exception` ispod progutao i vratio "" -- popravka bi tiho
+    ostala fail-open.
+    """
+    d = None
     try:
         supa = _get_supa()
         r = await asyncio.to_thread(
@@ -210,28 +222,30 @@ async def _load_predmet_context(predmet_id: str, user_id: str) -> str:
                 .single()
                 .execute()
         )
-        if r.data:
-            d = r.data
-            return f"[Predmet: {d.get('naziv','')} | {d.get('tip','')} | {d.get('status','')}]\n{d.get('opis','')}"
+        d = r.data
     except Exception as e:
+        # .single() diže izuzetak i kada red ne postoji, pa tuđi predmet stiže
+        # ovde a ne u granu ispod -- odluka se zato donosi na jednom mestu.
         _sentry_capture(e)
-    return ""
+    if not d:
+        # Nepostojeći i tuđi predmet daju identičan odgovor -- bez orakla koji
+        # bi razlikovao "ne postoji" od "nije tvoj".
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+    return f"[Predmet: {d.get('naziv','')} | {d.get('tip','')} | {d.get('status','')}]\n{d.get('opis','')}"
 
 
-async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, history: list | None = None) -> dict:
+async def _handle_pravno_pitanje(poruka: str, predmet_ctx: str, user: dict, history: list | None = None, predmet_id: str | None = None) -> dict:
     """Poziva RAG zakon pipeline direktno. ask_agent interno radi retrieve — ne pre-fetchujemo."""
     from main import ask_agent as _ask
     from shared.ai_provenance import case_context as _ai_case_ctx
     try:
         q = f"{predmet_ctx}\n\n{poruka}".strip() if predmet_ctx else poruka
-        # Project Phoenix (2026-08-03) — Phase 8: main.py::ask_agent was one
-        # of Mission Migration's 3 deferred items ("too deep/large to
-        # migrate safely"); re-verified this mission as a single flat
-        # function, no case scope by design (matches Strategy Engine's own
-        # precedent of calling case_context() with predmet_id=None) --
-        # migrated here since Phoenix's own reliability work touched this
-        # exact call site.
-        with _ai_case_ctx(module_name="ask_agent", operation_name="pravno_pitanje"):
+        # Sprint 6E: predmet_id je None za pozivaoce koji nemaju predmet (PREDLOZI
+        # i ambient tokovi prosleđuju predmet_ctx=""), a kada ga ima, prošao je
+        # kroz _load_predmet_context koji sada obara zahtev ako vlasništvo nije
+        # dokazano. Sadržaj predmeta ulazi u `q` iznad, pa subjekat opisuje ono
+        # nad čim model zaista radi.
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="ask_agent", operation_name="pravno_pitanje"):
             rezultat = await asyncio.to_thread(_ask, q, history or None)
         if isinstance(rezultat, dict):
             odgovor = rezultat.get("data") or rezultat.get("message") or ""
@@ -1149,14 +1163,17 @@ async def _handle_predlozi(predmet_id: str | None, user_id: str) -> dict:
         }
 
 
-async def _handle_ostalo(poruka: str, predmet_ctx: str) -> dict:
+async def _handle_ostalo(poruka: str, predmet_ctx: str, predmet_id: str | None = None) -> dict:
     """Generalni odgovor bez RAG — kratki savet."""
     from openai import AsyncOpenAI
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     ctx_line = f"\nKontekst predmeta: {predmet_ctx}" if predmet_ctx else ""
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="copilot", operation_name="ostalo"):
+        # Sprint 6E: predmet_ctx ulazi u system prompt (ctx_line iznad), pa kada
+        # predmet postoji subjekat je tačan; None ostaje None za pozivaoce bez
+        # predmeta.
+        with _ai_case_ctx(predmet_id=predmet_id, module_name="copilot", operation_name="ostalo"):
             r = await _pozovi_gpt4o_mini(
                 oai,
                 model="gpt-4o-mini",
@@ -1425,7 +1442,7 @@ async def copilot_chat(
 
     _hist = (req.history or [])[-5:]
     handlers = {
-        "PRAVNO_PITANJE":   lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
+        "PRAVNO_PITANJE":   lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist, req.predmet_id),
         "SUDSKA_PRAKSA":    lambda: _handle_sudska_praksa(req.poruka),
         "NACRT":            lambda: _handle_nacrt(req.poruka, predmet_ctx, user),
         "ANALIZA_PREDMETA": lambda: _handle_analiza_predmeta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
@@ -1433,7 +1450,7 @@ async def copilot_chat(
         "DODAJ_ROK":        lambda: _handle_akcija_rok(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "KREIRAJ_BELEŠKU":  lambda: _handle_akcija_beleska(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
         "POVEZI_KLIJENTA":  lambda: _handle_akcija_povezi_klijenta(req.poruka, req.predmet_id, uid) if req.predmet_id else _handle_ostalo(req.poruka, predmet_ctx),
-        "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist),
+        "ROKOVI":           lambda: _handle_pravno_pitanje(req.poruka, predmet_ctx, user, _hist, req.predmet_id),
         "ZASTARELOST":      lambda: _handle_zastarelost(req.poruka, predmet_ctx, user, _hist),
         "CONFLICT_CHECK":   lambda: _handle_conflict_check(req.poruka, req.predmet_id, uid),
         "BILLING_SAVET":    lambda: _handle_billing_savet(req.poruka),
@@ -1445,7 +1462,7 @@ async def copilot_chat(
         "PREDLOZI":         lambda: _handle_predlozi(req.predmet_id, uid),
         "NAPLATI_RADNJU":   lambda: _handle_naplati_radnju(req.poruka, req.predmet_id, uid),
         "PRIKAŽI_TARIFU":   lambda: _handle_prikazi_tarifu(req.poruka),
-        "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx),
+        "OSTALO":           lambda: _handle_ostalo(req.poruka, predmet_ctx, req.predmet_id),
     }
 
     handler = handlers.get(intent, handlers["OSTALO"])
