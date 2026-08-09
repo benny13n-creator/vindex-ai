@@ -702,6 +702,21 @@ async def faktura_create(
             detail=f"Konflikt: {len(entries) - updated_count} radnja/e su u međuvremenu naplaćene. Osvežite stranicu i pokušajte ponovo."
         )
 
+    # V37: audit tek OVDE -- posle updated_count guarda. Ranije tačke nisu dokaz
+    # poslovnog uspeha: INSERT fakture prolazi i u granama koje se kasnije
+    # rollbackuju (except -> DELETE fakture -> 500, i updated_count < len(entries)
+    # -> DELETE fakture -> 409). Obe te grane dižu izuzetak, pa je audit na njima
+    # strukturno nedostižan. ORPHANED grana (rollback DELETE i sam padne) takođe
+    # završava u raise 500 -- bez audita, jer faktura tada postoji ali stavke
+    # nisu povezane i poslovni događaj nije uspeo.
+    #
+    # Jedan zapis po fakturi, ne po stavci: N billing_entries su tehnički redovi
+    # jednog poslovnog događaja, što dokazuje sam rollback -- ako UPDATE stavki
+    # padne, faktura se briše.
+    from shared.audit_immutable import log_action
+    await log_action("faktura_create", user_id=uid,
+                     resource_type="faktura", resource_id=faktura_id)
+
     logger.info("[BILLING] faktura=%s uid=%.8s iznos=%.2f proforma=%s", faktura_id, uid, iznos_sa_pdv, body.is_proforma)
     return {"success": True, "faktura": faktura, "stavke": updated_count}
 
