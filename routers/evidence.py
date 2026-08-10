@@ -428,11 +428,18 @@ async def delete_dokaz(request: Request, predmet_id: str, dokaz_id: str, user=De
     # services/case_evolution.py's own comment). This endpoint's own soft
     # delete was either rejected outright by Postgres or stored an unusable
     # value on every call. Fixed: a real, computed ISO-8601 timestamp.
-    await asyncio.to_thread(
+    # F-V41-002: rezultat soft-delete-a se odbacivao i ruta je bezuslovno
+    # vraćala {"ok": True} -- i za nepostojeći dokaz_id i za tuđi dokaz.
+    # Korisnik dobija potvrdu da je dokaz uklonjen iz predmeta iako u bazi
+    # nijedan red nije dirnut. Owner predikat je oduvek u samoj naredbi, pa
+    # tuđi dokaz nije mogao biti obrisan; lažan je bio odgovor.
+    r = await asyncio.to_thread(
         lambda: supa.table("predmet_dokazi")
             .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
             .eq("id", dokaz_id).eq("user_id", uid).execute()
     )
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Dokaz nije pronađen.")
     return {"ok": True}
 
 
