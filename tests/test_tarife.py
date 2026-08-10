@@ -398,7 +398,11 @@ async def test_put_stavka_reset():
     chain = MagicMock()
     for attr in ['table','select','eq','limit','maybe_single','insert','update','delete']:
         setattr(chain, attr, MagicMock(return_value=chain))
-    del_result = MagicMock(); del_result.data = []
+    # F-V40-001: fixture je vracao data=[] za DELETE, tj. modelovao je brisanje
+    # koje NIJE pogodilo nijedan red -- a test se zove "reset", sto znaci da
+    # korisnik ima sopstveni override i ponistava ga. Fixture je bio u
+    # suprotnosti sa scenarijem koji test tvrdi; sada vraca obrisani red.
+    del_result = MagicMock(); del_result.data = [{"id": "st-1", "kod": "T01"}]
     chain.execute.return_value = del_result
     supa.table = MagicMock(return_value=chain)
 

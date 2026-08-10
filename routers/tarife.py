@@ -201,33 +201,34 @@ async def put_klijent_tarifa(
     existing = _first(ex_r)
 
     if body.tarifa_po_satu is None:
-        if existing:
-            # F-V38-001: rezultat DELETE-a se ranije odbacivao, a `user_id` je
-            # postojao samo u SELECT-u iznad -- ruta je vraćala removed:True i
-            # kad nijedan red nije poklopljen. Owner predikat je sada UNUTAR
-            # same naredbe (jedna atomična naredba, bez TOCTOU prozora), a
-            # rezultat se hvata i proverava.
-            del_r = await _db(lambda: supa.table("tarife").delete()
-                              .eq("id", existing["id"])
-                              .eq("user_id", uid)
-                              .execute())
-            if not del_r.data:
-                # Red je postojao u SELECT-u ali ga DELETE nije zatekao --
-                # jedini slučaj u kome bi removed:True bila neistina.
-                raise HTTPException(status_code=404, detail="Tarifa klijenta nije pronađena.")
-            # V40-B2: audit tek POSLE zero-row guarda -- jedina tačka na kojoj
-            # je brisanje dokazano. Stoji unutar `if existing` jer se samo tu
-            # nešto stvarno obrisalo; idempotentna grana ispod nema poslovni
-            # događaj da prijavi. Nije u try/except: log_action po ugovoru ne
-            # diže, a ovde ionako nema hvatača koji bi ga pretvorio u 500.
-            from shared.audit_immutable import log_action
-            await log_action("tarifa_delete", user_id=uid,
-                             resource_type="tarifa", resource_id=existing["id"],
-                             metadata={"klijent_id": klijent_id})
-        # Grana `existing is None` NAMERNO ostaje nepromenjena: PUT sa null
-        # znači "ne postoji tarifa za ovog klijenta", pa je brisanje nepostojeće
-        # tarife idempotentan no-op, a ne greška. Menjanje ovog odgovora bilo bi
-        # izmena API ugovora (F-V40-001, zabeleženo, nije promenjeno).
+        # F-V40-001 (odluka vlasnika, 2026-08-10): nepostojeća tarifa više NE
+        # vraća 200 removed:true. Odgovor mora da razlikuje "brisanje se desilo"
+        # od "resurs nije postojao"; ista granica koja je uvedena u V36/V38/V41.
+        # Ovo je JEDINA promena ugovora ove rute -- uspešno brisanje vraća
+        # nepromenjeno telo.
+        if not existing:
+            raise HTTPException(status_code=404, detail="Tarifa klijenta nije pronađena.")
+
+        # F-V38-001: rezultat DELETE-a se ranije odbacivao, a `user_id` je
+        # postojao samo u SELECT-u iznad -- ruta je vraćala removed:True i kad
+        # nijedan red nije poklopljen. Owner predikat je sada UNUTAR same
+        # naredbe (jedna atomična naredba, bez TOCTOU prozora), a rezultat se
+        # hvata i proverava.
+        del_r = await _db(lambda: supa.table("tarife").delete()
+                          .eq("id", existing["id"])
+                          .eq("user_id", uid)
+                          .execute())
+        if not del_r.data:
+            # Red je postojao u SELECT-u ali ga DELETE nije zatekao.
+            raise HTTPException(status_code=404, detail="Tarifa klijenta nije pronađena.")
+
+        # V40-B2: audit tek POSLE zero-row guarda -- jedina tačka na kojoj je
+        # brisanje dokazano. Nije u try/except: log_action po ugovoru ne diže, a
+        # ovde ionako nema hvatača koji bi ga pretvorio u 500.
+        from shared.audit_immutable import log_action
+        await log_action("tarifa_delete", user_id=uid,
+                         resource_type="tarifa", resource_id=existing["id"],
+                         metadata={"klijent_id": klijent_id})
         return {"ok": True, "removed": True}
 
     if existing:
@@ -327,11 +328,20 @@ async def put_stavka(
         raise HTTPException(status_code=404, detail=f"Tarifa '{kod}' ne postoji.")
 
     if body.iznos is None and body.naziv is None:
-        await _db(lambda: supa.table("tarifne_stavke_custom")
-                  .delete()
-                  .eq("user_id", uid)
-                  .eq("kod", kod)
-                  .execute())
+        # F-V40-001 (odluka vlasnika, 2026-08-10): rezultat DELETE-a se
+        # odbacivao i ruta je bezuslovno tvrdila removed:true -- i za korisnika
+        # koji nikada nije imao custom override za ovaj kod, i za tuđi red.
+        # Owner predikat je oduvek bio u samoj naredbi (`user_id` + `kod`), pa
+        # tuđi red nije mogao biti obrisan; curio je lažan success ODGOVOR.
+        # Uspešno brisanje vraća nepromenjeno telo.
+        del_r = await _db(lambda: supa.table("tarifne_stavke_custom")
+                          .delete()
+                          .eq("user_id", uid)
+                          .eq("kod", kod)
+                          .execute())
+        if not del_r.data:
+            raise HTTPException(status_code=404,
+                                detail=f"Nemate sopstvenu izmenu tarife '{kod}'.")
         return {"ok": True, "removed": True, "kod": kod}
 
     ex_r = await _db(lambda: supa.table("tarifne_stavke_custom")

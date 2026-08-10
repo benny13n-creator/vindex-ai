@@ -12,11 +12,11 @@ TRI DEFEKTA U JEDNOJ GRANI
 Test 4 vozi TOCTOU prozor koji je to činio vidljivim: SELECT nađe red, DELETE
 ne zatekne nijedan, ruta je i dalje tvrdila da je tarifa uklonjena.
 
-ŠTA NAMERNO NIJE PROMENJENO
-Grana bez ijedne tarife (`existing is None`) i dalje vraća removed:True. PUT sa
-null znači "neka ne postoji tarifa", pa je brisanje nepostojeće idempotentan
-no-op. 404 bi ovde bio izmena API ugovora (F-V40-001). Test 5 to zaključava da
-neko kasnije ne bi "popravio" i to.
+ODLUKA VLASNIKA (F-V40-001, 2026-08-10)
+Grana bez ijedne tarife vraćala je removed:True kao idempotentan no-op. Vlasnik
+je odlučio da odgovor MORA da razlikuje "brisanje se desilo" od "resurs nije
+postojao", pa ta grana sada vraća 404. Testovi 3, 5 i 6 su prepisani na taj
+ugovor; njihove tvrdnje o odsustvu mutacije nisu promenjene.
 """
 import asyncio
 import os
@@ -129,11 +129,11 @@ def test_2_owner_predicate_is_inside_the_delete_statement():
     assert st.deletes[0].get("id") == T
 
 
-def test_3_foreign_tarifa_is_never_reached():
-    """B ne vidi tarifu korisnika A u SELECT-u -> nema šta da briše."""
+def test_3_foreign_tarifa_is_404_and_never_reaches_delete():
+    """B ne vidi tarifu korisnika A u SELECT-u -> 404, bez ijednog DELETE-a."""
     st = _Store()
     out, code = _remove(st, uid=B)
-    assert code == 200 and out["removed"] is True
+    assert code == 404, f"tuđa tarifa mora dati 404, dobijeno {code}"
     assert st.deletes == [], "tuđa tarifa ne sme ni doći do DELETE-a"
     assert any(r["_t"] == "tarife" for r in st.rows), "tuđa tarifa mora ostati"
 
@@ -146,15 +146,12 @@ def test_4_toctou_zero_row_delete_is_now_404():
     assert out is None
 
 
-def test_5_no_tarifa_at_all_stays_idempotent_200():
-    """NAMERNO nepromenjeno (F-V40-001): PUT null nad nepostojećom tarifom.
-
-    Nije greška nego no-op; 404 bi ovde bio izmena API ugovora.
-    """
+def test_5_no_tarifa_at_all_is_404():
+    """F-V40-001 (odluka vlasnika): nepostojeća tarifa nije uspešno brisanje."""
     st = _Store(rows=[])
     out, code = _remove(st)
-    assert code == 200
-    assert out == {"ok": True, "removed": True}
+    assert code == 404, f"nepostojeća tarifa mora dati 404, dobijeno {code}"
+    assert out is None
     assert st.deletes == [], "nema šta da se briše"
 
 
@@ -163,8 +160,8 @@ def test_6_second_removal_cannot_report_a_second_success():
     _, code1 = _remove(st)
     assert code1 == 200
     out2, code2 = _remove(st)
-    # Red više ne postoji -> SELECT prazan -> idempotentna grana, bez DELETE-a.
-    assert code2 == 200
+    # Red više ne postoji -> SELECT prazan -> 404, bez drugog DELETE-a.
+    assert code2 == 404, "drugi poziv ne sme prijaviti drugo uspešno brisanje"
     assert len(st.deletes) == 1, "drugi poziv ne sme izvršiti drugi DELETE"
 
 

@@ -6,9 +6,10 @@ ZAŠTO ZASEBNA AKCIJA, A NE tarifa_update
 Uklanjanje tarife ima sopstveni rani return i ne menja iznos -- emitovanje
 `tarifa_update` tvrdilo bi izmenu koja se nije desila. Test 9 drži tu granicu.
 
-ZAŠTO AUDIT STOJI UNUTAR `if existing`
-Idempotentna grana (nema tarife) vraća removed:True ali NIJE poslovni događaj:
-ništa nije obrisano. Audit tamo bi izmislio brisanje. Test 4 to zaključava.
+NEMA TARIFE -> NEMA DOGAĐAJA
+Od odluke vlasnika (F-V40-001) grana bez tarife vraća 404 umesto removed:true.
+Invarijant koji ovaj fajl štiti je nepromenjen: bez obrisanog reda nema audita.
+Test 4 sada tvrdi 404 + nula zapisa umesto 200 + nula zapisa.
 
 GRANICA USPEHA
 Zero-row guard iz V40-A (F-V38-001). Pre njega uspeh nije bio dokaziv, pa audit
@@ -141,18 +142,18 @@ def test_3_toctou_zero_row_emits_no_audit():
     assert au.calls == [], "nepotvrđeno brisanje ne sme proizvesti audit"
 
 
-def test_4_idempotent_no_tarifa_emits_no_audit():
-    """removed:True bez ijednog obrisanog reda NIJE poslovni događaj."""
+def test_4_no_tarifa_is_404_and_emits_no_audit():
+    """Bez obrisanog reda nema poslovnog događaja -- ni odgovora o uspehu."""
     st, au = _Store(rows=[]), _Audit()
     out, code = _remove(st, au)
-    assert code == 200 and out["removed"] is True
+    assert code == 404
     assert au.calls == [], "ništa nije obrisano -> nema šta da se auditira"
 
 
 def test_5_foreign_tarifa_emits_no_audit_and_survives():
     st, au = _Store(), _Audit()
     out, code = _remove(st, au, uid=B)
-    assert code == 200
+    assert code == 404
     assert au.calls == []
     assert any(r["_t"] == "tarife" for r in st.rows), "tuđa tarifa mora ostati"
 
@@ -179,8 +180,9 @@ def test_7_second_removal_emits_no_second_audit():
     st, au = _Store(), _Audit()
     _remove(st, au)
     assert len(au.calls) == 1
-    _remove(st, au)
-    assert len(au.calls) == 1, "idempotentni drugi poziv ne sme dodati audit"
+    _, code2 = _remove(st, au)
+    assert code2 == 404
+    assert len(au.calls) == 1, "drugi poziv ne sme dodati audit"
 
 
 def test_8_namespace_and_correlation():
