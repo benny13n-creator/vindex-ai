@@ -1444,17 +1444,30 @@ def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 
 # ─── Cache busting ────────────────────────────────────────────────────────────
 import re as _re
-import subprocess as _subprocess
 
 def _get_git_hash() -> str:
-    try:
-        return _subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(BASE_DIR), stderr=_subprocess.DEVNULL, timeout=3
-        ).decode().strip()
-    except Exception:
-        import time
-        return str(int(time.time()))[-6:]
+    """Vrednost za `?v=` u index.html — sada iz jedinog vlasnika identiteta.
+
+    P0-A: ranija implementacija je zvala `git rev-parse --short HEAD` kroz
+    subprocess, a na grešci vraćala `str(int(time.time()))[-6:]`. Dva problema:
+
+      1. `python:3.11-slim` NEMA `git` binarni fajl, pa je u produkciji ta
+         grana uvek padala na fallback. Mehanizam nikad nije radio tamo gde je
+         bio potreban.
+      2. Fallback je vraćao šestocifren broj koji IZGLEDA kao skraćen hash.
+         Vrednost koja se lažno predstavlja kao identitet je gora od izostanka
+         identiteta -- neko bi se na nju pozvao kao na dokaz koji build je živ.
+
+    `shared/build_info.py` razrešava SHA iz platformskih promenljivih ili iz
+    `.git` direktorijuma, bez subprocess-a i bez `git` binarnog fajla. Kada
+    identitet nije dokazan, prefiks `nover-` čini to očiglednim na prvi pogled.
+    """
+    from shared.build_info import get_build_info
+    short = get_build_info().get("commit_short")
+    if short:
+        return short
+    import time
+    return "nover-" + str(int(time.time()))[-6:]
 
 _GIT_HASH: str = _get_git_hash()
 _INDEX_HTML_BYTES: bytes = b""
@@ -1537,11 +1550,53 @@ def pricing_page():
 @app.head("/health")
 def health():
     import os as _os
+    from shared.build_info import APP_NAME as _APP, get_build_info as _bi
+    _b = _bi()
     return {
         "status": "ok",
+        # P0-A: `app` i `commit` su ovde da bi odgovor sam sebe identifikovao.
+        # Bez njih je HTTP 200 sa /health neupotrebljiv kao dokaz da se vrti
+        # Vindex -- tacno ta greska je proizvela lazan nalaz u TASK-3D.
+        "app": _APP,
+        "commit": _b["commit_short"],
         "pid": _os.getpid(),
         "redis": bool(_REDIS_URL),
         "workers": int(_os.getenv("WEB_CONCURRENCY", 1)),
+    }
+
+
+@app.get("/api/version")
+@app.head("/api/version")
+def api_version():
+    """Identitet build-a koji opslužuje ovaj zahtev (P0-A / BTM-P0-04).
+
+    Javno, namerno. Repozitorijum je javan, pa commit SHA ne otkriva ništa što
+    već nije dostupno, a bez javnog pristupa ovaj endpoint ne bi mogao da
+    posluži svrsi: da se sa strane, bez pristupa serveru, dokaže KOJI build
+    opslužuje korisnika.
+
+    Ne izlaže putanje, `pid`, broj worker-a niti bilo šta o infrastrukturi --
+    to ostaje na `/health` i `/metrics`.
+
+    `identity_proven: false` znači da SHA nije razrešen ni iz jedne
+    platformske promenljive ni iz `.git`. Tada se odgovor NE sme koristiti kao
+    dokaz da je bilo koja popravka deployovana.
+    """
+    from shared.build_info import build_identity_proven as _proven, get_build_info as _bi
+    b = _bi()
+    return {
+        "app": b["app"],
+        "commit": b["commit"],
+        "commit_short": b["commit_short"],
+        "commit_source": b["commit_source"],
+        "identity_proven": _proven(),
+        "branch": b["branch"],
+        "built_at": b["built_at"],
+        "started_at": b["started_at"],
+        "environment": b["environment"],
+        "environment_declared": b["environment_declared"],
+        "python": b["python"],
+        "sw_cache": b["sw_cache"],
     }
 
 

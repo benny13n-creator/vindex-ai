@@ -88,7 +88,12 @@ corpus_coverage*
 ingest_*.py
 verify_*.py
 retest_*.py
-build_*.py
+# P0-A: usidreno na koren. Bez vodece kose crte je hvatalo BILO KOJU dubinu,
+# pa je tiho gutalo i shared/build_info.py i docs/brochure/build_brochure.py.
+# Namera bloka su jednokratne skripte na korenu, ne moduli u paketima.
+# Provereno: jedini build_*.py na disku su 3 na korenu (i dalje ignorisani)
+# i ta dva u poddirektorijumima.
+/build_*.py
 smoke_*.py
 run_30q_prod.py
 run_*_prod.py
