@@ -3875,6 +3875,24 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     # its own cached value for the NEXT edit -- without this, a 2nd field edited moments after
     # the 1st would spuriously 409 against an already-stale cached precondition.
     _new_updated_at = (result.data[0].get("updated_at") if result.data else None)
+
+    # V41-B: kanonski audit tek POSLE `if not result.data` guarda -- pre njega
+    # uspeh mutacije nije bio dokaziv (F-V41-001), zato su guard i audit
+    # razdvojeni sprintovi. Middleware u shared/audit.py već upisuje ovaj PATCH
+    # u `audit_log`, ali kao string "PATCH:<uuid>" bez resource_type i bez hash
+    # lanca; kanonski zapis se DODAJE uz njega, ne zamenjuje ga (isti OPTION A
+    # obrazac kao saradnik_uklonjen).
+    #
+    # metadata nosi SAMO IMENA izmenjenih polja, nikad vrednosti: `audit_immutable`
+    # je append-only sa BEFORE UPDATE OR DELETE trigerom, pa bi upis sadržaja
+    # predmeta (naziv/opis/tuzilac/tuzeni) trajno duplirao lične podatke u
+    # ledger iz kog se ne mogu obrisati.
+    from shared.audit_immutable import log_action
+    await log_action("predmet_update", user_id=user.id,
+                     resource_type="predmet", resource_id=predmet_id,
+                     ip=request.client.host if request.client else None,
+                     metadata={"polja": sorted(allowed.keys())})
+
     return {"ok": True, "updated_at": _new_updated_at}
 
 
