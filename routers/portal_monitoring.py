@@ -378,16 +378,31 @@ async def portal_health(request: Request, user: dict = Depends(get_current_user)
 async def ukloni_praceni(praceni_id: str, user: dict = Depends(get_current_user)):
     """Deaktivira praćenje predmeta."""
     supa = _get_supa()
+    # V45 / F-V41-002: ruta je imala DVA nezavisna puta do lažnog uspeha --
+    # (1) rezultat mutacije se odbacivao, pa je nepostojeći ili tuđi praceni_id
+    # vraćao {"ok": True} bez ijednog dirnutog reda, i (2) `except Exception` je
+    # gutao stvarni otkaz baze i takođe vraćao {"ok": True}.
+    #
+    # Oba ishoda su izvedena iz konvencije SAMOG OVOG FAJLA, ne iz opšteg
+    # obrasca: dodaj_praceni (direktni parnjak ove rute) na otkaz diže
+    # HTTPException(500), kao i endpoint za metrike; graciozno degradiranje na
+    # prazan odgovor rezervisano je za ČITANJA (lista, log). Ovo je bila jedina
+    # mutacija u fajlu koja guta sopstveni izuzetak.
     try:
-        await asyncio.to_thread(
+        r = await asyncio.to_thread(
             lambda: supa.table("praceni_predmeti")
                 .update({"aktivan": False})
                 .eq("id", praceni_id)
                 .eq("user_id", user["user_id"])
                 .execute()
         )
+        if not r.data:
+            raise HTTPException(status_code=404, detail="Praćeni predmet nije pronađen.")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("[PORTAL] Brisanje greška: %s", e)
+        raise HTTPException(status_code=500, detail="Greška pri uklanjanju sa liste praćenja.")
     return {"ok": True}
 
 
