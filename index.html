@@ -4022,8 +4022,10 @@
                 <span>Odgovor - Vindex AI</span>
                 <span id="rag-confidence-badge" style="display:none;font-size:.65rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;letter-spacing:.04em;"></span>
               </div>
-              <div id="rag-source-info" style="display:none;font-size:.72rem;color:rgba(255,255,255,.38);margin-bottom:.4rem;"></div>
               <div class="resp-body" id="rb"></div>
+              <!-- Pravni izvori: ispod odgovora, jer citat sledi tvrdnju.
+                   Popunjava _vxRenderIzvori(); skriven dok nema validnih izvora. -->
+              <div id="rag-source-info" class="vx-izvori" style="display:none;"></div>
             </div>
           </div>
           <!-- ANALIZA WORKFLOW DUGMAD — prikazuju se posle rezultata analize -->

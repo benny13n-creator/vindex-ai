@@ -9628,3 +9628,50 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   overflow: hidden;
   cursor: pointer;
 }
+
+/* ─── Pravni izvori ─────────────────────────────────────────────────────────
+   Citat propisa ispod AI odgovora. Koristi postojeće Vindex tokene; ne uvodi
+   drugi design system. Nije interaktivno -- deep-link ka propisu ne postoji,
+   pa nema hover stanja ni kursora koji bi obećavali klik. */
+.vx-izvori {
+  margin-top: 1.15rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--vx-border, rgba(255,255,255,0.08));
+}
+.vx-izvori-nas {
+  margin: 0 0 .55rem;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--vx-text-secondary, rgba(255,255,255,0.55));
+}
+.vx-izvori-lista { margin: 0; padding: 0; list-style: none; }
+.vx-izvor {
+  display: flex;
+  flex-wrap: wrap;            /* dugi nazivi zakona prelamaju se, ne prelivaju */
+  align-items: baseline;
+  gap: .15rem .6rem;
+  padding: .32rem 0;
+}
+.vx-izvor + .vx-izvor {
+  border-top: 1px solid var(--vx-border, rgba(255,255,255,0.05));
+}
+.vx-izvor-zakon {
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--vx-text-primary, rgba(255,255,255,0.92));
+  overflow-wrap: anywhere;    /* bez horizontalnog skrola na mobilnom */
+}
+.vx-izvor-clan {
+  font-size: .74rem;
+  line-height: 1.45;
+  white-space: nowrap;
+  color: var(--accent, #00d4ff);
+}
+@media (max-width: 640px) {
+  /* Na uskom ekranu naziv i clan idu jedan ispod drugog: kad dele red, naziv
+     pojede sirinu i clan se zalepi uz njega bez razmaka. */
+  .vx-izvor { flex-direction: column; gap: .15rem; }
+  .vx-izvor-clan { white-space: normal; }
+}

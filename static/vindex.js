@@ -910,6 +910,56 @@ function initChatSession() {
   }
 }
 
+// ─── Pravni izvori ───────────────────────────────────────────────────────────
+// Prikazuje `izvori` iz /api/pitanje: naziv zakona i član na kojima odgovor
+// počiva. Backend contract se NE menja -- polje već stiže do klijenta, samo se
+// do sada nije iscrtavalo.
+//
+// `score` je interna retrieval metrika i NAMERNO se ne prikazuje: korisniku ne
+// znači ništa kao pravni dokaz, a broj pored citata sugeriše preciznost koju
+// sistem ne meri.
+//
+// Bez linkova: deep-link ka propisu ne postoji u contractu, pa bi klikabilan
+// citat obećavao putanju koje nema.
+function _vxRenderIzvori(d) {
+  var el = document.getElementById('rag-source-info');
+  if (!el) return;
+
+  // Reset pri SVAKOM odgovoru -- bez ovoga izvori prethodnog odgovora ostaju
+  // vidljivi uz odgovor koji ih nema.
+  el.innerHTML = '';
+  el.style.display = 'none';
+
+  var lista = (d && d.izvori) || [];
+  if (!Array.isArray(lista) || !lista.length) return;
+
+  var stavke = [];
+  for (var i = 0; i < lista.length; i++) {
+    var iz = lista[i] || {};
+    var zakon = (iz.zakon || '').trim();
+    if (!zakon) continue;                      // bez naziva propisa nema citata
+    var clan = (iz.clan || '').trim();
+    stavke.push(
+      '<li class="vx-izvor">' +
+        '<span class="vx-izvor-zakon">' + _vxEsc(zakon) + '</span>' +
+        (clan ? '<span class="vx-izvor-clan">' + _vxEsc(clan) + '</span>' : '') +
+      '</li>'
+    );
+  }
+  if (!stavke.length) return;                  // svi elementi nevalidni
+
+  el.innerHTML =
+    '<h3 class="vx-izvori-nas">Pravni izvori</h3>' +
+    '<ul class="vx-izvori-lista">' + stavke.join('') + '</ul>';
+  el.style.display = '';
+}
+
+function _vxEsc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 function newChat() {
   // Čisti ekran i polja
   document.getElementById('resp').classList.remove('show');
@@ -7510,6 +7560,9 @@ async function execQuery() {
               }
               if (_cyrillicOn) cirilicaElement(rb);
             }
+            // Pravni izvori -- jedan poziv posle obe grane iscrtavanja, da se
+            // logika ne duplira i da obe daju identičan prikaz.
+            _vxRenderIzvori(d);
             // Auto-čitanje kada je pitanje postavljeno glasom
             if (window._vxLastInputWasVoice) {
               window._vxLastInputWasVoice = false;
