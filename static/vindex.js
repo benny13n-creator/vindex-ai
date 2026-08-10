@@ -4764,7 +4764,14 @@ async function crmCsvPosalji() {
         html += '</ul>';
       }
       res.innerHTML = html;
-      if (d.kreiran > 0) { crm_load(); showToast('Uvezeno ' + d.kreiran + ' klijenata', 'ok'); }
+      // P0-B: bilo `crm_load()` -- funkcija koja ne postoji u repou (nikad nije;
+      // `git log -S` je prazan). Ista klasa kao `apiFetch`. Posledica: posle
+      // USPESNOG uvoza bacao se ReferenceError, pa se toast na istoj liniji
+      // nikad nije prikazao i lista klijenata se nije osvezavala -- korisnik je
+      // video "Uvezeno: N" u panelu, a listu bez novih klijenata.
+      // Ispravno ime je `ucitajKlijente` (:4314); dokaz je `crmSacuvaj` (:4669)
+      // koji posle uspesnog upisa radi bas `else ucitajKlijente();`.
+      if (d.kreiran > 0) { ucitajKlijente(); showToast('Uvezeno ' + d.kreiran + ' klijenata', 'ok'); }
     }
     if (res) res.style.display = '';
   } catch(e) {
@@ -10039,7 +10046,15 @@ async function pred_bulkAkcija(akcija) {
     showToast(d.poruka,'ok');
     _selectedPredmeti.clear();
     pred_updateBulkBar();
-    pred_fetchList();
+    // P0-B: bilo `pred_fetchList()` -- ne postoji u repou. Isti razred kao
+    // `apiFetch`/`crm_load`. Ovaj je bio najpodmukliji: poziv je NEZASTICEN i
+    // stoji POSLE uspesnog PATCH-a, pa je ReferenceError padao u `catch` ispod
+    // i prikazivao "Veza sa serverom nije uspela" -- iako je bulk akcija na
+    // serveru VEC PROSLA. Korisnik je dobio poruku o gresci za radnju koja je
+    // uspela, i listu koja to ne pokazuje.
+    // Ispravno ime je `pred_load` (:9626); isti poziv na :10063 je bio
+    // slucajno bezopasan jer ga stiti `typeof ... === 'function'`.
+    pred_load();
   } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
@@ -10060,7 +10075,7 @@ async function pred_reopen(id) {
     if (!r.ok) { showToast(d.detail||'Radnja nije uspela. Pokušajte ponovo.','err'); return; }
     showToast('Predmet je ponovo otvoren.','ok');
     pred_loadDetail(id);
-    if (typeof pred_fetchList === 'function') pred_fetchList();
+    pred_load();
   } catch(e) { showToast('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','err'); }
 }
 
@@ -15470,18 +15485,74 @@ async function docTplSacuvaj() {
 
 // ── Onboarding Welcome Flow ──────────────────────────────────────────────────
 
-function onboardingCheck() {
+// P0-B (BTM-P0-11): ceo onboarding je bio mrtav od rođenja.
+//
+// Commit c659042f (2026-06-28) uveo je DVA poziva funkcije `apiFetch` i nijednu
+// njenu definiciju. `git log -S "function apiFetch"` je prazan — funkcija nikad
+// nije postojala. Posledica nije bila tiha: `onboardingStep()` u prvoj liniji
+// zove `onboardingDismiss()`, koji je pogađao `apiFetch` i bacao ReferenceError
+// SINHRONO, sa mesta poziva. Priloženi `.catch()` ga zato nije mogao uhvatiti
+// (catch hvata odbijeno obećanje, ne grešku pri razrešavanju imena), pa se
+// `onboardingStep` prekidao PRE navigacije. Overlay bi nestao i ništa se ne bi
+// desilo — sva četiri CTA.
+//
+// Ovde se NE definiše `apiFetch`. Definisati je da bi greška nestala značilo bi
+// uvesti jedinu apstrakciju te vrste u ~22.000 linija ovog fajla; ostatak koda
+// svuda koristi sirov `fetch` sa ručnim Bearer headerom (v. `/api/me` na :309).
+// Poziv se prepisuje u ustaljeni oblik.
+//
+// DUBLJI UZROK, koji se takođe zatvara: navigacija je bila spregnuta sa
+// knjigovodstvom. `onboardingStep` je zavisio od toga da `onboardingDismiss`
+// uspe. Ta sprega je pravi defekt — bez nje bi nedostajuća funkcija bila tiha
+// greška u konzoli umesto mrtvog prvog ekrana. Zato je dismiss sada izolovan.
+
+async function _vxTrialStatus() {
+  // Vraća isparsiran objekat ili null. Nikad ne diže — pozivaoci su UI putanje.
+  if (!currentSession) return null;
+  try {
+    var r = await fetch(BASE_URL + '/api/auth/trial/status', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+function _vxTrialBadge(st) {
+  var badge = document.getElementById('trial-badge');
+  if (!badge || !st) return;
+  if (st.trial_aktivan && st.dani_ostalo !== null && st.dani_ostalo !== undefined) {
+    badge.textContent = 'Trial: ' + st.dani_ostalo + 'd';
+    badge.classList.remove('hidden');
+    if (st.dani_ostalo <= 3) badge.classList.add('trial-badge-urgent');
+  }
+}
+
+async function onboardingCheck() {
   if (!currentSession || !currentUser) return;
   var uid = currentUser.id || currentUser.user_id || '';
   var key = 'vx_onboarded_' + uid.slice(0, 8);
+
+  // Status se dovlači UVEK, pre svake odluke. Ranije je stajao na kraju
+  // funkcije, iza `if (localStorage.getItem(key)) return`, pa se za svakog
+  // korisnika koji je ikad video overlay trial provera nije ni pokušavala —
+  // a `#trial-badge` nema nijednu drugu putanju popune u celom repou.
+  var st = await _vxTrialStatus();
+  _vxTrialBadge(st);
+
   if (localStorage.getItem(key)) return;
+
+  // Baza je izvor istine, localStorage je samo keš. Bez ovoga se onboarding
+  // vraćao u svakom novom browseru/incognito prozoru, iako je
+  // `profiles.onboarding_done` odavno `true` — polje se upisivalo, a nikad
+  // nije čitalo na frontendu.
+  if (st && st.onboarding_done) { localStorage.setItem(key, '1'); return; }
+
   var createdAt = currentUser.created_at || '';
   var isNew = !createdAt || (Date.now() - new Date(createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
   if (!isNew) { localStorage.setItem(key, '1'); return; }
   var overlay = document.getElementById('onboarding-overlay');
   if (overlay) overlay.style.display = 'flex';
-  // Also check trial status for badge
-  checkTrialStatus();
 }
 
 function onboardingDismiss() {
@@ -15490,25 +15561,30 @@ function onboardingDismiss() {
   if (!currentUser) return;
   var uid = currentUser.id || currentUser.user_id || '';
   localStorage.setItem('vx_onboarded_' + uid.slice(0, 8), '1');
-  // Notify backend that onboarding is done
-  apiFetch('/api/auth/onboarding/complete', { method: 'POST', body: JSON.stringify({}) }).catch(function(){});
+  if (!currentSession) return;
+  fetch(BASE_URL + '/api/auth/onboarding/complete', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + currentSession.access_token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({})
+  }).catch(function(){});
 }
 
 async function checkTrialStatus() {
-  try {
-    var r = await apiFetch('/api/auth/trial/status');
-    if (!r) return;
-    var badge = document.getElementById('trial-badge');
-    if (badge && r.trial_aktivan && r.dani_ostalo !== null && r.dani_ostalo !== undefined) {
-      badge.textContent = 'Trial: ' + r.dani_ostalo + 'd';
-      badge.classList.remove('hidden');
-      if (r.dani_ostalo <= 3) badge.classList.add('trial-badge-urgent');
-    }
-  } catch(e) { /* ignoriši */ }
+  _vxTrialBadge(await _vxTrialStatus());
 }
 
 function onboardingStep(step) {
-  onboardingDismiss();
+  // Knjigovodstvo (localStorage + POST) ne sme da odluči da li se navigacija
+  // izvršava. Korisnik je kliknuo zbog navigacije; upis je sporedan efekat.
+  try { onboardingDismiss(); } catch (e) {
+    // Overlay mora da nestane čak i ako je dismiss pukao — inače korisnik
+    // ostaje zaključan iza modala koji je upravo pokušao da zatvori.
+    var _ov = document.getElementById('onboarding-overlay');
+    if (_ov) _ov.style.display = 'none';
+  }
   if (step === 1) {
     var tabBtn = document.getElementById('tab-btn-k');
     if (tabBtn) setTab(tabBtn, 'k');
