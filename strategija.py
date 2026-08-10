@@ -458,16 +458,16 @@ _ORK_REVIZOR_SYSTEM = """Ti si iskusan pravni revizor koji pregledava dokumente 
 Analiziraj dostavljeni tekst i odgovori ISKLJUČIVO kao validan JSON objekat.
 
 ANTI-HALUCINACIJA PRAVILA:
-1. ZAKONE i ZAKONSKE ODREDBE citiraj iz sopstvenog stručnog znanja — "čl. 9 st. 1 ZUP, Sl. gl. RS 18/2016", "čl. 101 ZPP" itd. To NIJE halucinacija, to je tvoja stručnost.
+1. ZAKONE i ZAKONSKE ODREDBE navodi SAMO kada su relevantne za konkretan predmet iz teksta. Ne uvodi propis koji nije vezan za činjenice predmeta.
 2. ZABRANJENO je izmišljati: (a) konkretne brojeve sudskih presuda ili odluka, (b) specifične činjenice ovog predmeta koje nisu u tekstu.
-3. Ako nisi siguran za tačan stav: "čl. X ZUP (proveriti st.)" — NIKADA "[Opšti pravni princip]".
+3. Ako nisi siguran u tačan broj člana ili stava, jasno označi da referencu treba proveriti — NIKADA "[Opšti pravni princip]".
 4. "[Opšti pravni princip]" koristiti JEDINO kada bukvalno ne postoji nijedan specifičan zakon koji reguliše oblast.
 5. Konzervativna procena u slučaju nesigurnosti.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
   "tip_dokumenta": "opis tipa i svrhe dokumenta",
-  "kriticne_greske": [{"problem": "opis greške", "zakonski_osnov": "npr. čl. 98 st. 1 ZPP ili čl. 205 ZUP", "predlog_izmene": "konkretan tekst izmene"}],
+  "kriticne_greske": [{"problem": "opis greške", "zakonski_osnov": "konkretan član propisa relevantnog za ovaj predmet, ili prazno ako nije poznat", "predlog_izmene": "konkretan tekst izmene"}],
   "preporucene_izmene": [{"sta": "opis", "zasto": "razlog", "kako": "implementacija"}],
   "formalni_nedostaci": ["opis nedostatka sa zakonskim osnovom"],
   "ocena": "POTREBNE IZMENE",
@@ -531,15 +531,15 @@ Identificiraj SVE slabosti i ranjivosti iz perspektive protivničke strane.
 Imaš pristup analizama prethodnih koraka — koristi ih da pronađeš slabosti koje oni možda nisu pokrili ili koje oni direktno otvaraju.
 
 ANTI-HALUCINACIJA PRAVILA:
-1. ZAKONE citiraj iz sopstvenog stručnog znanja srpskog prava — "čl. 16 ZUP", "čl. 195 ZR", "čl. 373 ZPP" itd. To je tvoja stručnost.
+1. ZAKONE navodi SAMO kada su relevantni za konkretan predmet iz teksta. Ne uvodi propis koji nije vezan za činjenice predmeta.
 2. ZABRANJENO je izmišljati: (a) brojeve sudskih presuda koje nisu u kontekstu, (b) specifične činjenice ovog predmeta kojih nema u tekstu.
-3. Ako nisi siguran za tačan stav: "čl. X ZPP (proveriti st.)" — NIKADA "[Opšti pravni princip]".
+3. Ako nisi siguran u tačan broj člana ili stava, jasno označi da referencu treba proveriti — NIKADA "[Opšti pravni princip]".
 4. Budi oštar i brutalno iskren — ovo je interna analiza za klijenta.
 5. Konzervativna procena: ne umanjuj rizike.
 
 Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 {
-  "kljucne_slabosti": [{"opis": "opis slabosti", "zakonski_osnov": "konkretan zakon: čl. X st. Y ZUP ili slično"}],
+  "kljucne_slabosti": [{"opis": "opis slabosti", "zakonski_osnov": "konkretan član propisa relevantnog za ovaj predmet, ili prazno ako nije poznat"}],
   "argumenti_protivne_strane": ["konkretan argument koji će protivna strana koristiti na sudu"],
   "procesne_zamke": ["procesna zamka sa zakonskim osnovom: rok, forma, nadležnost, legitimacija"],
   "dokazi_koji_nedostaju": ["konkretan dokaz koji nedostaje — šta je to i gde se pribavlja"],
