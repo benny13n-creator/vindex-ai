@@ -38,7 +38,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Optional, Protocol, runtime_checkable
 
@@ -494,13 +494,58 @@ class ProviderRegistry:
 
 # ─── Gateway — jedina ulazna tačka ────────────────────────────────────────────
 
+MAX_PROMPT_CHARS = int(os.getenv("AI_FABRIC_MAX_PROMPT_CHARS", "400000"))
+
+
+class GovernanceRejection(AIInvalidRequestError):
+    """Kapija je odbila zahtev PRE nego što je provajder dodirnut.
+
+    Nasleđuje AIInvalidRequestError da bi domen imao jedan skup grešaka --
+    pozivalac ne mora da zna da li je odbio Vindex ili provajder.
+    """
+
+
+def _govern_request(request: AIRequest) -> AIRequest:
+    """Provider-neutralna ULAZNA kapija. Radi PRE registry-ja i adaptera.
+
+    Namerno NE duplira `_patch_prompt_guard`: taj monkey-patch ostaje legacy
+    safety net za 99 nemigriranih poziva. Ovde je isti ugovor izražen na
+    domenskom nivou, tako da važi za SVAKI provajder, ne samo za OpenAI SDK.
+    """
+    if not request.task or not str(request.task).strip():
+        raise GovernanceRejection("AIRequest.task je obavezan -- bez njega nema "
+                                  "ni rutiranja ni upotrebljive telemetrije.")
+    if not request.prompt or not str(request.prompt).strip():
+        raise GovernanceRejection("Prazan prompt se ne šalje provajderu.", )
+    if len(request.prompt) > MAX_PROMPT_CHARS:
+        raise GovernanceRejection(
+            f"Prompt {len(request.prompt)} znakova prelazi granicu "
+            f"{MAX_PROMPT_CHARS} -- odbijeno pre naplativog poziva.")
+    if request.timeout_s <= 0:
+        raise GovernanceRejection("timeout_s mora biti pozitivan.")
+
+    # Identity provenance: `user_id` je ovde SAMO za trag. Fabric ga nikad ne
+    # koristi kao ovlašćenje -- autorizacija je već obavljena u ruteru, isto kao
+    # u ostatku Vindexa. Ova provera hvata format, ne pravo pristupa.
+    if request.user_id is not None and not isinstance(request.user_id, str):
+        raise GovernanceRejection("user_id mora biti string ako je prisutan.")
+
+    # Postojeći prompt guard iz security sloja -- REUSE, ne nova implementacija.
+    try:
+        from security.prompt_guard import sanitize_prompt  # type: ignore
+        request.prompt = sanitize_prompt(request.prompt)
+    except ImportError:
+        pass
+    return request
+
+
 class AIGateway:
     """caller -> governance -> registry -> adapter -> normalizovan odgovor.
 
-    Governance je provider-neutralna: correlation_id se izvodi iz postojeće
-    Vindex infrastrukture (`shared.ai_provenance.current_correlation_id`), a
-    telemetrija ide u postojeći audit sloj -- bez druge korelacione šeme i bez
-    DB migracije (Hard Rules 12 i 20).
+    Governance je provider-neutralna i stoji PRE adaptera, pa novi kanonski put
+    ne zavisi od monkey-patch mehanizma. Korelacija i audit koriste POSTOJEĆU
+    Vindex infrastrukturu (`shared.ai_provenance`, `shared.audit_immutable`) --
+    bez druge korelacione šeme i bez DB migracije (Hard Rules 12 i 20).
     """
 
     def __init__(self, registry: Optional[ProviderRegistry] = None):
@@ -515,33 +560,62 @@ class AIGateway:
                 request.correlation_id = None
         return request
 
-    def generate(self, request: AIRequest) -> AIResponse:
-        request = self._correlate(request)
+    def generate(self, request: AIRequest, shadow: Optional[str] = None) -> AIResponse:
+        request = self._correlate(_govern_request(request))
         adapter = self.registry.resolve(request)
         pol = self.registry.policy(request.task)
         if request.timeout_s == 60.0 and pol.timeout_s != 60.0:
             request.timeout_s = pol.timeout_s
         if request.model is None and request.provider is None and pol.preferred_model:
             request.model = pol.preferred_model
+
         try:
             response = adapter.generate(request)
         except AIError as err:
             self._telemetry(request, None, err)
             raise
         self._telemetry(request, response, None)
+
+        # Shadow ide POSLE primarnog i njegov ishod se odbacuje. Ne može da
+        # promeni ono što je pozivalac dobio -- primarni `response` je već
+        # izračunat i vraća se bez obzira na shadow.
+        shadow_name = shadow or os.getenv("AI_FABRIC_SHADOW_PROVIDER") or None
+        if shadow_name and shadow_name != response.provider:
+            self._run_shadow(request, shadow_name)
         return response
 
+    def _run_shadow(self, request: AIRequest, shadow_name: str) -> None:
+        """Nikad ne diže i nikad ne vraća vrednost -- struktura garantuje da
+        shadow ne može uticati na primarni rezultat (test to zaključava)."""
+        try:
+            sh = self.registry.get(shadow_name)
+            if not sh.is_configured():
+                return
+            shadow_req = replace(
+                request,
+                provider=shadow_name, model=None,
+                timeout_s=min(request.timeout_s, float(os.getenv("AI_FABRIC_SHADOW_TIMEOUT_S", "20"))),
+            )
+            sh_resp = sh.generate(shadow_req)
+            self._telemetry(shadow_req, sh_resp, None, mode="shadow")
+        except Exception as exc:
+            logger.info("[AI_FABRIC] shadow=%s neuspeh (ignorisano): %s",
+                        shadow_name, str(exc)[:200])
+
     def _telemetry(self, request: AIRequest, response: Optional[AIResponse],
-                   error: Optional[AIError]) -> None:
+                   error: Optional[AIError], mode: str = "gateway") -> None:
         """Best-effort, kao svaki audit put u Vindexu -- otkaz telemetrije ne
-        sme oboriti AI poziv koji je uspeo."""
+        sme oboriti AI poziv koji je uspeo.
+
+        `mode` razdvaja novi kanonski put (`gateway`) od shadow-a; legacy pozivi
+        nemaju ovaj marker, pa su dva puta razlučiva u logu i auditu.
+        """
+        provider = response.provider if response else (error.provider if error else "?")
+        model = response.model if response else (error.model if error else "?")
         try:
             logger.info(
-                "[AI_FABRIC] task=%s provider=%s model=%s ok=%s in=%s out=%s ms=%s corr=%s",
-                request.task,
-                response.provider if response else (error.provider if error else "?"),
-                response.model if response else (error.model if error else "?"),
-                error is None,
+                "[AI_FABRIC] mode=%s task=%s provider=%s model=%s ok=%s in=%s out=%s ms=%s corr=%s",
+                mode, request.task, provider, model, error is None,
                 response.input_tokens if response else None,
                 response.output_tokens if response else None,
                 response.latency_ms if response else None,
@@ -549,6 +623,43 @@ class AIGateway:
             )
         except Exception:
             pass
+        self._audit(request, response, error, mode, provider, model)
+
+    def _audit(self, request: AIRequest, response: Optional[AIResponse],
+               error: Optional[AIError], mode: str, provider: str, model: str) -> None:
+        """Upis u POSTOJEĆI `audit_immutable` preko postojećeg `log_action`.
+
+        Bez nove tabele i bez migracije: `metadata` je već `jsonb`, a
+        `correlation_id` se auto-izvodi ako ga ne prosledimo. Akcija
+        `ai_fabric_call` mora biti u AUDITABLE_ACTIONS -- ako nije, log_action
+        tiho vrati None, pa ovaj poziv ostaje bezopasan dok se registruje.
+
+        METADATA NE SME NOSITI SADRŽAJ: ni prompt ni odgovor ne ulaze u
+        append-only ledger. Samo ko/šta/koliko.
+        """
+        try:
+            import asyncio
+            from shared.audit_immutable import log_action_sync
+            meta = {
+                "mode": mode, "task": request.task, "provider": provider, "model": model,
+                "ok": error is None,
+                "latency_ms": response.latency_ms if response else None,
+                "input_tokens": response.input_tokens if response else None,
+                "output_tokens": response.output_tokens if response else None,
+                "provider_request_id": response.provider_request_id if response else None,
+                "error_class": type(error).__name__ if error else None,
+                "feature": request.feature,
+            }
+            log_action_sync(
+                "ai_fabric_call",
+                user_id=request.user_id,
+                resource_type="predmet" if request.predmet_id else "ai_call",
+                resource_id=request.predmet_id,
+                metadata={k: v for k, v in meta.items() if v is not None},
+                correlation_id=request.correlation_id,
+            )
+        except Exception as exc:
+            logger.debug("[AI_FABRIC] audit upis preskočen: %s", str(exc)[:200])
 
 
 _gateway: Optional[AIGateway] = None

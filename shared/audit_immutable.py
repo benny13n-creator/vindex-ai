@@ -202,6 +202,13 @@ AUDITABLE_ACTIONS: set[str] = {
     # nije desila, pa je zasebna akcija jedina istinita opcija. Registracija je
     # inertna dok V40-B2 ne doda poziv.
     "tarifa_delete",
+    # Provider Fabric V1.1 (2026-08-10) — kanonski AI poziv kroz AIGateway.
+    # Bez ovog unosa log_action tiho vraća None, pa bi telemetrija fabrica bila
+    # no-op (isti obrazac koji je F-V39-001 već jednom otkrio kod
+    # saradnik_uklonjen). Metadata nosi SAMO ko/šta/koliko -- provider, model,
+    # task, tokeni, latencija, klasa greške. Ni prompt ni odgovor NIKAD ne ulaze
+    # u append-only ledger iz kog se sadržaj ne može obrisati.
+    "ai_fabric_call",
 }
 
 
