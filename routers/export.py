@@ -92,13 +92,21 @@ async def get_api_kljucevi(user: dict = Depends(require_pro)):
 async def delete_api_kljuc(kljuc_id: str, user: dict = Depends(get_current_user)):
     """F6.3 — Opozovi API ključ (označava kao neaktivan)."""
     supa = _get_supa()
-    await asyncio.to_thread(
+    # F-V41-002: rezultat UPDATE-a se odbacivao i ruta je bezuslovno vraćala
+    # {"status": "opozvan"} -- i za nepostojeći i za tuđi kljuc_id. Ovde je to
+    # teža tvrdnja nego kod običnog resursa: korisnik dobija potvrdu da je
+    # KREDENCIJAL opozvan i prestaje da ga tretira kao aktivan. Owner predikat
+    # je oduvek u samoj naredbi, pa tuđi ključ nije mogao biti promenjen; lažan
+    # je bio odgovor.
+    r = await asyncio.to_thread(
         lambda: supa.table("api_kljucevi")
                     .update({"aktivan": False})
                     .eq("id", kljuc_id)
                     .eq("user_id", user["user_id"])
                     .execute()
     )
+    if not r.data:
+        raise HTTPException(status_code=404, detail="API ključ nije pronađen.")
     return {"status": "opozvan"}
 
 
