@@ -176,9 +176,25 @@ def test_dead_billing_fetch_removed_from_dashboard_load():
 
 def test_sw_cache_bumped():
     """Standing convention: static/sw.js CACHE_NAME must increment whenever static/vindex.js
-    changes, or returning users silently keep serving the stale cached bundle."""
+    changes, or returning users silently keep serving the stale cached bundle.
+
+    P0-B (2026-08-11): this used to pin the exact string `vindex-v119`. A pin does not test
+    the stated invariant -- it tests one value, and has to be hand-edited on every legitimate
+    bump, which trains whoever hits it to overwrite the number without thinking. Rewritten
+    around the durable invariant instead: the counter is well-formed and never goes backwards.
+    A revert, a hand-edit to a lower number, or a reformat of CACHE_NAME still fails; a normal
+    forward bump no longer does. Raise the floor only when you want to make an older cache
+    name unrepresentable -- never lower it.
+    """
+    import re
+
     sw_js = (REPO_ROOT / "static" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE_NAME = "vindex-v119";' in sw_js
+    m = re.search(r'const CACHE_NAME = "vindex-v(\d+)";', sw_js)
+    assert m, "CACHE_NAME missing or no longer matches the `vindex-vN` format"
+    assert int(m.group(1)) >= 120, (
+        f"CACHE_NAME went backwards to v{m.group(1)}; returning users would keep serving a "
+        f"stale bundle. It must only ever increase."
+    )
 
 
 def test_digital_twin_has_persistent_ai_disclosure():

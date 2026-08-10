@@ -480,7 +480,20 @@ async def commander_quick_check(
     kandidati = [kanonsko["preporuceni_potez"]] + kanonsko["rizici"] + kanonsko["nedostaje"]
     upozorenja = [k for k in kandidati if k["value"]][:3]
 
-    await UsageService.consume(uid, user.get("email", ""), "case_commander")
+    # P0-C: naplata uklonjena. Sprint 005 je (v. docstring iznad) uklonio GPT poziv
+    # iz ovog endpoint-a, ali je `UsageService.consume(..., "case_commander")` ostao
+    # — 2 kredita za dva DB upita i `[:3]` isečak liste.
+    #
+    # Zašto se NE popravlja u feature_registry-ju kao ostali phantom-naplate:
+    # ključ `case_commander` dele ČETIRI naplatna mesta u ovom fajlu, i dva od njih
+    # (`commander_analiza` :445, `commander_checklist` :560) stvarno zovu GPT, kao i
+    # `commander_jutarnji` (:1006) posredno. Postavljanje `krediti=0` za ključ bi
+    # poklonilo i tu stvarnu potrošnju — skuplja greška od one koja se ispravlja.
+    # Zato se uklanja poziv sa ne-AI endpointa, a cena ključa ostaje netaknuta.
+    # Vidi `migrations/111_phantom_ai_charges.sql`, odeljak o grupi B.
+    #
+    # `PermissionService.require("case_commander")` NAMERNO ostaje: pristup modulu
+    # je i dalje `professional`, samo se ne naplaćuje po pozivu.
 
     return {
         "upozorenja":    upozorenja,

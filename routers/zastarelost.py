@@ -473,7 +473,21 @@ async def guardian_scan(
     danas     = _date.today()
     za_30d    = danas + _td(days=30)
 
-    await UsageService.consume(uid, user.get("email", ""), "zastarelost_guardian")
+    # P0-C: naplata uklonjena. Ovaj endpoint nema nijedan AI poziv — cela funkcija
+    # su dva Supabase upita, razlika skupova, `_srpski_praznici()` (čista aritmetika
+    # datuma) i sortiranje. Jedini AI u fajlu je u DRUGOM endpoint-u,
+    # `deadline_guardian` (:374/:423), koji deli isti `feature_key`.
+    #
+    # Naplata je uz to bila PRVA naredba u telu — kredit se skidao pre nego što bi
+    # se ijedan upit izvršio, pa je i pad na prvom upitu ostavljao korisnika bez
+    # kredita i bez rezultata.
+    #
+    # Zašto ne kroz feature_registry: `zastarelost_guardian` je deljen ključ, a
+    # `deadline_guardian` (:442) STVARNO zove GPT. `krediti=0` bi poklonio i tu
+    # potrošnju. Vidi `migrations/111_phantom_ai_charges.sql`, grupa B.
+    #
+    # `PermissionService.require("zastarelost_guardian")` ostaje — pristup je i
+    # dalje gejtovan, samo se skeniranje ne naplaćuje.
 
     # Program Phoenix, Mission 001 (LIVINGSYS-DEBT-037): this scan never filtered by
     # predmeti.status -- a deadline belonging to an archived/closed case was scanned,
