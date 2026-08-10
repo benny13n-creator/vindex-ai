@@ -3845,7 +3845,13 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     if if_updated_at:
         q = q.eq("updated_at", if_updated_at)
     result = q.execute()
-    if if_updated_at and not result.data:
+    # F-V41-001 (2026-08-10): guard je bio uslovljen OPCIONIM `if_updated_at`
+    # tokenom, pa je pozivalac koji ga ne šalje -- a to je svaki stariji klijent
+    # -- dobijao {"ok": True} i za predmet koji ne postoji ili nije njegov.
+    # Success odgovor bez ijednog izmenjenog reda. Ugovor za "nije pronađen"
+    # već je definisan ispod, samo je bio nedostižan bez tokena; uslov se sada
+    # veže za stvarni ishod mutacije, ne za prisustvo opcionog polja.
+    if not result.data:
         # Phase 6 adversarial re-attack (same sprint) found this originally
         # conflated 2 distinct causes of "0 rows updated": a genuine stale
         # write (if_updated_at precondition didn't match) vs. predmet_id

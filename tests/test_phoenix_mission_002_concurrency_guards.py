@@ -39,9 +39,14 @@ def test_pred_inline_edit_refreshes_cached_updated_at_on_success():
 
 
 def test_update_predmet_returns_new_updated_at_for_frontend_cache():
-    src = open(os.path.join(os.path.dirname(__file__), "..", "api.py"), encoding="utf-8").read()
-    marker = "async def update_predmet("
-    block = src.split(marker, 1)[1][:4000]
+    # V41 ISPRAVKA MERENJA (ne slabljenje tvrdnje): ranije je ovo secilo fiksni
+    # prozor od 4000 znakova posle markera, pa je svaki dodati komentar u
+    # handleru gurao `return` van isecka i rusio test bez ijedne promene
+    # ponasanja. Guard uveden u F-V41-001 je upravo to izazvao. Tvrdnja je ista,
+    # ali se sada meri nad CELIM telom funkcije umesto nad brojem znakova.
+    import inspect
+    import api as m
+    block = inspect.getsource(m.update_predmet)
     assert '"updated_at": _new_updated_at' in block
 
 
