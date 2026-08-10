@@ -117,13 +117,22 @@ async def put_komentar(
     """F8.1 — Izmeni komentar (samo vlasnik)."""
     supa = _get_supa()
     now = _dt.now(_tz.utc).isoformat()
-    await asyncio.to_thread(
+    # V48 / F-V41-002: rezultat UPDATE-a se odbacivao i ruta je bezuslovno
+    # vraćala {"status": "izmenjeno"} -- doslovno tvrdnju da je komentar
+    # izmenjen -- i za nepostojeći i za tuđi komentar_id. Owner predikat je
+    # oduvek u samoj naredbi, pa tuđi komentar nije mogao biti prepisan; lažan
+    # je bio odgovor. 404 je preuzet od SUSEDA U OVOM FAJLU: delete_komentar
+    # ispod ima isti guard nad istom tabelom i istim oblikom id-a (V31).
+    r = await asyncio.to_thread(
         lambda: supa.table("predmet_komentari")
                     .update({"tekst": req.tekst.strip(), "izmenjeno": now})
                     .eq("id", komentar_id)
                     .eq("user_id", user["user_id"])
                     .execute()
     )
+    if not r.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Komentar nije pronađen.")
     return {"status": "izmenjeno"}
 
 
