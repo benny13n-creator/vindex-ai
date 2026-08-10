@@ -755,7 +755,6 @@ footer {
     <div class="lp-logo">Vindex <em>AI</em></div>
     <ul class="lp-nav-links">
       <li><a href="#funkcije">Funkcije</a></li>
-      <li><a href="#cenovnik">Cenovnik</a></li>
       <li><a href="#funkcije">Web3</a></li>
       <li><a href="#funkcije">Dokumentacija</a></li>
     </ul>
@@ -779,7 +778,6 @@ footer {
     <a href="#funkcije" class="mobile-nav-link" onclick="mobileMenuClose()">Funkcije</a>
     <a href="#kako" class="mobile-nav-link" onclick="mobileMenuClose()">Kako radi</a>
     <a href="#zasto" class="mobile-nav-link" onclick="mobileMenuClose()">Zašto Vindex</a>
-    <a href="#cenovnik" class="mobile-nav-link" onclick="mobileMenuClose()">Cenovnik</a>
     <a href="/app#register" class="mobile-drawer-cta" onclick="mobileMenuClose()">Počni besplatno →</a>
   </div>
 </div>
@@ -859,7 +857,7 @@ footer {
       <div class="kako-step">
         <span class="step-num">03</span>
         <div class="step-title">Donosite odluke sa više informacija</div>
-        <p class="step-body">Pre nego što uđete u sudnicu, znate sve slabe tačke svog stanovišta i verovatnoću ishoda. Strategic Orchestrator prolazi kroz svih 6 alata u jednom pipeline-u i daje kompletan strateški pregled predmeta.</p>
+        <p class="step-body">Pre nego što uđete u sudnicu, imate pregled slabih tačaka svog stanovišta i mogućih scenarija. Strategic Orchestrator prolazi kroz svih 6 alata u jednom pipeline-u i daje kompletan strateški pregled predmeta.</p>
       </div>
     </div>
   </div>
@@ -894,7 +892,7 @@ footer {
 
       <div class="fn-card">
         <span class="fn-card-tag">Rokovi</span>
-        <div class="fn-card-title">Nikad više propuštenih rokova.</div>
+        <div class="fn-card-title">Svi rokovi na jednom mestu.</div>
         <div class="fn-card-body">Pregled svih rokova po predmetima. Sistem automatski označava hitne rokove (do 3 dana) i prikazuje ih na Komandnom centru.</div>
       </div>
 
@@ -931,7 +929,7 @@ footer {
           </div>
           <div class="fn-sub-item">
             <div class="fn-sub-arrow">—</div>
-            <div><div class="fn-sub-name">Litigation Simulator</div><div class="fn-sub-desc">Simulacija sudskog postupka i verovatnoće ishoda na osnovu srpske sudske prakse i konkretnih okolnosti vašeg predmeta.</div></div>
+            <div><div class="fn-sub-name">Litigation Simulator</div><div class="fn-sub-desc">Analiza mogućih scenarija u postupku, na osnovu srpske sudske prakse i konkretnih okolnosti vašeg predmeta.</div></div>
           </div>
           <div class="fn-sub-item">
             <div class="fn-sub-arrow">—</div>
@@ -999,104 +997,40 @@ footer {
 </section>
 
 <!-- ── CENOVNIK ── -->
-<section id="cenovnik">
-  <div class="container">
-    <div class="cen-head">
-      <span class="section-label">Cenovnik</span>
-      <h2>Jednostavno. Transparentno.</h2>
-    </div>
-    <!-- Mesečno / Godišnje toggle -->
-    <div class="cen-toggle-wrap">
-      <span class="cen-toggle-lbl active" id="lbl-mesecno">Mesečno</span>
-      <label class="cen-toggle" aria-label="Godišnja naplata">
-        <input type="checkbox" id="cenToggle" onchange="cenSwitchBilling()">
-        <div class="cen-toggle-track"></div>
-        <div class="cen-thumb-wrap"><div class="cen-toggle-thumb"></div></div>
-      </label>
-      <span class="cen-toggle-lbl" id="lbl-godisnje">Godišnje</span>
-      <span class="cen-save-badge">Uštedi 20%</span>
-    </div>
-    <div class="cen-grid">
+    <!-- P0-F: sekcija `cenovnik` uklonjena 2026-08-11.
 
-      <!-- BESPLATNO -->
-      <div class="cen-card free">
-        <div class="cen-plan">Besplatno</div>
-        <div class="cen-price">€0<span>/mes</span></div>
-        <div class="cen-price-sub">Zauvek besplatno</div>
-        <div class="cen-divider"></div>
-        <ul class="cen-features">
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>15 AI upita mesečno</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>5 predmeta</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Istraživanje zakona</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sudska praksa (ograničeno)</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Predmeti, Klijenti, Rokovi</li>
-        </ul>
-        <button class="cen-btn" onclick="window.location='/app#register'">Počni besplatno</button>
-      </div>
+         Prodavala je 4 plana (Besplatno €0 / Advokat €49 / Pro €89 / Firma €59-po-korisniku).
+         Backend zna 3 (basic €29 / professional €79 / enterprise €249), a CHECK constraint u
+         migrations/063_entitlement_system.sql:31 fizicki zabranjuje cetvrtu vrednost. Aplikacija
+         posle registracije prikazuje DRUGE nazive i DRUGE cene (static/vindex.js:7856 cita
+         /api/plan/info). Uz to:
 
-      <!-- ADVOKAT -->
-      <div class="cen-card">
-        <div class="cen-plan">Advokat</div>
-        <div class="cen-price" id="price-advokat">€49<span>/mes</span></div>
-        <div class="cen-price-sub" id="sub-advokat">ili €39/mes godišnje</div>
-        <div class="cen-divider"></div>
-        <ul class="cen-features">
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>100 AI upita mesečno</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Neograničeni predmeti</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>10 analiza dokumenata</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Istraživanje zakona i prakse</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Nacrti i podnesci</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Naplata i fakture</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Kalendar i rokovi</li>
-        </ul>
-        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa Advokat</button>
-      </div>
+           - plan "Advokat €49" je prodavao "10 analiza dokumenata" i "Nacrti i podnesci",
+             a backend obe gejtuje na `professional` -> kupac bi dobio 403 na obe
+           - "Due Diligence" pod Pro trazi zaseban `digital_assets` addon -> 403
+           - "Audit log + Export" pod Pro je `enterprise` -> 403
+           - "N AI upita mesecno" nema mehanizam obnove: 15 kredita se dodeli jednom pri
+             registraciji i samo trosi (api.py:2492); nema `pg_cron`, nema reset joba
+           - prekoracenje €0.15/€0.50/€1.50 se ne naplacuje -- shared/usage.py:396 vraca 402
+           - "SLA 99.9%" se ne meri nigde u repou
+           - nijedan plan se ne moze kupiti: STRIPE_URL="" (static/vindex.js:124), sva dugmad
+             vode na /app#register koji dodeljuje `basic`; tarifa se menja iskljucivo rucnim
+             SQL-om nad bazom
 
-      <!-- PRO -->
-      <div class="cen-card pro">
-        <div class="cen-badge">Najpopularnije</div>
-        <div class="cen-plan">Pro</div>
-        <div class="cen-price" id="price-pro">€89<span>/mes</span></div>
-        <div class="cen-price-sub" id="sub-pro">ili €74/mes godišnje</div>
-        <div class="cen-divider"></div>
-        <ul class="cen-features">
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>300 AI upita mesečno</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sve Advokat funkcije +</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Neograničene analize dok.</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>5 Strategija mesečno</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Red Team analiza</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>AI Sudija (3 runde debate)</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Witness Analyzer</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Due Diligence</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Strategic Orchestrator</li>
-          <li><span class="cen-check"><svg viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Audit log + Export</li>
-        </ul>
-        <button class="cen-btn" onclick="window.location='/app#register'">Počni sa Pro</button>
-      </div>
+         Uklonjeno je po dokumentovanoj nameri projekta, ne po proceni. Pet nezavisnih
+         dokumenata od 2026-08-10 dolaze do istog zakljucka:
+           docs/website/VINDEX_AI_CURRENT_PUBLIC_CLAIMS_AUDIT.md:15   "UKLONITI do odluke"
+           docs/website/VINDEX_AI_FINAL_WEBSITE_READINESS.md:63       "DISCARD ... ceo cenovnik"
+           docs/website/VINDEX_AI_WEBSITE_DISCOVERY_REPORT.md:198     "ne praviti sada"
+           docs/website/VINDEX_AI_WEBSITE_CONTENT_MATRIX.md:19        "ne praviti sada"
+           docs/website/VINDEX_AI_WEBSITE_IMPLEMENTATION_RISKS.md:50  "odsustvo je prednost"
 
-      <!-- FIRMA -->
-      <div class="cen-card firma">
-        <div class="cen-plan">Firma</div>
-        <div class="cen-price" id="price-firma">€59<span>/seat/mes</span></div>
-        <div class="cen-price-sub" id="sub-firma">ili €49/seat godišnje · min. 3 korisnika</div>
-        <div class="cen-divider"></div>
-        <ul class="cen-features">
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>200 AI upita / seat</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Sve Pro funkcije</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>20 analiza dok. / seat</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>10 Strategija / seat</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Admin panel + timski dashboard</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Prioritetna podrška</li>
-          <li><span class="cen-check purple"><svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>SLA 99.9% + dedikovani onboarding</li>
-        </ul>
-        <div class="cen-overage">Prekoračenje: €0.15/upit · €0.50/analiza · €1.50/strategija</div>
-        <button class="cen-btn" onclick="window.location='mailto:hello@vindex.ai?subject=Firma plan'">Kontaktirajte nas</button>
-      </div>
+         Vraca se jednim `git revert`. Cena se ponovo objavljuje tek kad postoji nacin da se
+         plati i kad se svaka stavka poklapa sa `feature_registry`.
 
-    </div>
-    <p class="cen-note">Otkazivanje u bilo kom trenutku. 15 upita besplatno — bez kreditne kartice.</p>
-  </div>
-</section>
+         Nedirano: tvrdnja "15 upita bez kartice" (:789, :1106) -- provereno tacna,
+         `BESPLATNI_KREDITI = 15` u api.py:356, registracija ne trazi karticu.
+    -->
 
 <!-- ── CTA ── -->
 <section id="cta">
@@ -1147,7 +1081,6 @@ footer {
         <div class="footer-col-title">Vindex</div>
         <ul class="footer-links">
           <li><a href="#">O nama</a></li>
-          <li><a href="#cenovnik">Cenovnik</a></li>
           <li><a href="#">Kontakt</a></li>
         </ul>
       </div>
@@ -1281,17 +1214,6 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') mobileMenuClose();
 });
 
-function cenSwitchBilling() {
-  var godisnje = document.getElementById('cenToggle').checked;
-  document.getElementById('lbl-mesecno').classList.toggle('active', !godisnje);
-  document.getElementById('lbl-godisnje').classList.toggle('active', godisnje);
-  document.getElementById('price-advokat').innerHTML = godisnje ? '€39<span>/mes</span>' : '€49<span>/mes</span>';
-  document.getElementById('sub-advokat').textContent  = godisnje ? 'naplaćuje se godišnje (€468/god)' : 'ili €39/mes godišnje';
-  document.getElementById('price-pro').innerHTML      = godisnje ? '€74<span>/mes</span>' : '€89<span>/mes</span>';
-  document.getElementById('sub-pro').textContent      = godisnje ? 'naplaćuje se godišnje (€888/god)' : 'ili €74/mes godišnje';
-  document.getElementById('price-firma').innerHTML    = godisnje ? '€49<span>/seat/mes</span>' : '€59<span>/seat/mes</span>';
-  document.getElementById('sub-firma').textContent    = godisnje ? 'naplaćuje se godišnje · min. 3 korisnika' : 'ili €49/seat godišnje · min. 3 korisnika';
-}
 </script>
 </body>
 </html>
