@@ -1584,8 +1584,25 @@ def api_version():
     """
     from shared.build_info import build_identity_proven as _proven, get_build_info as _bi
     b = _bi()
+
+    # Governance Wave 4: da li su AI kontrole STVARNO žive u ovom procesu.
+    #
+    # Do sada se to nije moglo utvrditi spolja. `_guard_patched` se postavljao
+    # na True i kada patch nije uspeo, pa je proces bez ijednog prompt guard-a i
+    # bez Response Firewall-a izgledao identično ispravnom. Ovo je najmanja
+    # tačka izlaganja koja postoji — `/api/version` već postoji zbog P0-A i već
+    # je namenjen tvrdnjama o identitetu ovog build-a.
+    #
+    # Ne izlaže ništa osetljivo: dve zastavice i ime klase greške.
+    try:
+        from shared.ai_client import governance_status as _gs
+        gov = _gs()
+    except Exception:
+        gov = {"attempted": None, "active": None, "failure_reason": "status nedostupan"}
+
     return {
         "app": b["app"],
+        "governance": gov,
         "commit": b["commit"],
         "commit_short": b["commit_short"],
         "commit_source": b["commit_source"],

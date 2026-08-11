@@ -32,6 +32,34 @@ logger = logging.getLogger("vindex.ai_client")
 _patched = False
 _guard_patched = False
 
+# Governance Wave 4 — RAZDVOJENE DVE RAZLIČITE TVRDNJE.
+#
+# `_guard_patched` je oduvek značio „ne pokušavaj ponovo" (idempotencija). Ali
+# se postavljao na True i kada patch NIJE uspeo (`:340`), pa je ista promenljiva
+# tvrdila i „pokušano" i „aktivno". Posledica koja je merena, ne pretpostavljena:
+# ako uvoz SDK klasa pukne, aplikacija se podigne bez ijednog prompt guard-a,
+# bez Response Firewall-a, bez provenance-a i bez timeout-a — a jedini pokazatelj
+# stanja tvrdi da je sve u redu. Nijedan health check to nije mogao da razlikuje.
+#
+# `_guard_active` nosi ISTINU: patch je stvarno instaliran i kontrole se
+# izvršavaju. `governance_status()` ga izlaže, a `/api/version` ga objavljuje.
+_guard_active = False
+_guard_failure_reason: str | None = None
+
+
+def governance_status() -> dict:
+    """Stvarno stanje AI governance sloja, za health/verifikaciju.
+
+    Ovo je jedina javna tvrdnja o tome da li su kontrole žive. Namerno vraća i
+    razlog neuspeha — „nije aktivno" bez razloga ne može da se dijagnostikuje
+    na produkciji gde se log možda ne čita.
+    """
+    return {
+        "attempted": _guard_patched,
+        "active": _guard_active,
+        "failure_reason": _guard_failure_reason,
+    }
+
 
 def _patch_openai_module() -> None:
     """
@@ -326,7 +354,8 @@ def _patch_prompt_guard() -> None:
     princip kao SEC-003, primenjen na sledljivost umesto bezbednosti. Ovo je
     NAMERNO isti patch point, ne paralelan mehanizam.
     """
-    global _guard_patched, _orig_create, _orig_acreate, _orig_embed, _orig_aembed
+    global _guard_patched, _guard_active, _guard_failure_reason
+    global _orig_create, _orig_acreate, _orig_embed, _orig_aembed
     if _guard_patched:
         return
 
@@ -337,7 +366,13 @@ def _patch_prompt_guard() -> None:
         )
     except Exception as exc:
         logger.error("[AI_GUARD] Nisam mogao da uvezem OpenAI Completions klase, guard NIJE aktivan: %s", exc)
+        # `_guard_patched = True` sprečava beskonačno ponavljanje pokušaja.
+        # `_guard_active` OSTAJE False — to je jedina tvrdnja koja sme da kaže
+        # da li kontrole rade. Razdvajanje je uvedeno u Wave 4 jer je jedna
+        # promenljiva ranije tvrdila oboje, pa je neuspeh izgledao kao uspeh.
         _guard_patched = True
+        _guard_active = False
+        _guard_failure_reason = f"import OpenAI Completions klasa nije uspeo: {type(exc).__name__}"
         return
 
     from security.prompt_guard import PromptInjectionBlocked
@@ -526,7 +561,13 @@ def _patch_prompt_guard() -> None:
     except Exception as exc:
         logger.warning("[AI_PROVENANCE] Audio provenance patch neuspešan (nije kritično): %s", exc)
 
+    # Tek OVDE su chat klase stvarno zamenjene. Embeddings/audio grane iznad su
+    # namerno ne-kritične (`logger.warning`, nastavlja) — one nose provenance, ne
+    # zaštitu, pa njihov neuspeh ne obara tvrdnju o aktivnom guard-u. Da nose
+    # zaštitu, ovaj red bi morao da zavisi i od njih.
     _guard_patched = True
+    _guard_active = True
+    _guard_failure_reason = None
     logger.info(
         "[AI_GUARD] Prompt Guard presreo Completions.create/AsyncCompletions.create "
         "— svi GPT pozivi u aplikaciji sada strukturno zaštićeni (SEC-003) i "
