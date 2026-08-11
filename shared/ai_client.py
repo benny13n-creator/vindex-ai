@@ -336,6 +336,75 @@ _orig_astt = None
 _orig_tts = None
 _orig_atts = None
 
+# Wave 11 (G1) — ULAZNI GUARD SE MERI POSLEDICOM, NE OPALJIVANJEM.
+#
+# `security.prompt_guard.analyze` je bio uvezen JEDNOM i vezan u zatvorenju
+# wrappera (`from ... import analyze as _analyze`, pa `result = _analyze(text)`).
+# Posledica je izmerena, ne pretpostavljena: nijedan test nije mogao da zameni
+# analizator špijunom a da pritom ne deinstalira ceo guard. Zato su sve dosadašnje
+# tvrdnje bile posredne — „injection nije stigao do provajdera", što bi bilo
+# tačno i da poziv nije stigao dotle iz nekog sasvim drugog razloga (pad u
+# `_extract_user_text`, izuzetak pre `_orig_create`, pogrešno postavljen mok).
+# Negativna kontrola (benigni tekst prolazi) sužava tu rupu, ali je ne zatvara.
+#
+# Rešenje je JEDAN nivo indirekcije, isti onaj koji `_orig_create` već ima i
+# zbog kog je on testabilan (v. komentar iznad): modulska referenca koju wrapper
+# čita PRI SVAKOM pozivu. Nije uveden novi mehanizam — primenjen je postojeći.
+#
+# INDIREKCIJA NE SME DA POSTANE RUPA. Prazna referenca NIJE dozvola da poziv
+# prođe neproveren. `_dohvati_analizator()` ispod definiše tačno dva ishoda:
+# analizator postoji (poziv se PROVERAVA) ili ga nigde nema (poziv se ODBIJA,
+# `GovernanceUnavailable`). Trećeg ishoda — „nema analizatora, pusti dalje" —
+# nema, i `tests/test_wave11_guard_and_provenance.py::test_g1_c1/c2` mere baš to.
+_analyze_ref = None
+
+
+def _dohvati_analizator():
+    """Analizator za TEKUĆI poziv, ili `None` ako ga nigde nema.
+
+    Redosled je namerno ovakav:
+
+      1. modulska referenca `_analyze_ref` — postavlja je `_patch_prompt_guard`,
+         i ona je jedina tačka koju test može da zameni špijunom (G1);
+      2. ako je prazna — JEDAN pokušaj kanonskog uvoza.
+
+    ZAŠTO KORAK 2 POSTOJI, IZMERENO A NE PRETPOSTAVLJENO. Prva verzija ove
+    izmene je imala samo korak 1 i odbijala svaki poziv na praznoj referenci.
+    Posledica: 12 dotad zelenih testova je palo sa `GovernanceUnavailable`
+    (`test_wave9_governance.py::test_c3_*`, ceo `test_gov3_response_firewall.py`,
+    `test_gov2_runtime_interception.py::test_c/test_ng`). Uzrok NIJE test-šum
+    nego stvarna fragilnost koju bi izmena unela u produkcioni modul:
+    `_uninstall_prompt_guard()` čisti referencu, a `Completions.create` je
+    OBJEKAT koji pozivalac može nezavisno da snimi i vrati — što dve fixture u
+    repou i rade, po obrascu koji docstring `_uninstall_prompt_guard()`-a
+    izričito blagosilja. Wrapper se tako vrati na klasu bez svoje reference i
+    AI granica ostane mrtva do kraja procesa, bez ijedne poruke o razlogu.
+    To je ista klasa kvara (stanje raspoređeno na dva mesta koja se mogu
+    razići) koju Wave 4 i Wave 9 već jednom čiste u ovom fajlu.
+
+    KORAK 2 NIJE OMEKŠAVANJE. Bezbednosna tvrdnja je „nijedan neproveren poziv
+    ne prolazi", a ne „referenca mora biti popunjena". Kroz korak 2 poziv i
+    dalje ide kroz `security.prompt_guard.analyze` — dakle proveren je. Ako ni
+    uvoz ne uspe (modul pokvaren, ciklična zavisnost, obrisan `analyze`),
+    analizatora nema i poziv se ODBIJA.
+
+    Rezultat se NAMERNO ne kešira nazad u `_analyze_ref`: referenca mora da
+    ostane verno ogledalo onoga što je `_patch_prompt_guard`/
+    `_uninstall_prompt_guard` u nju upisao, inače bi „počisti referencu" bila
+    tvrdnja koja se sama poništava pri prvom sledećem pozivu.
+    """
+    if _analyze_ref is not None:
+        return _analyze_ref
+    try:
+        from security.prompt_guard import analyze as _a
+        return _a
+    except Exception as exc:
+        logger.error(
+            "[AI_GUARD] ulazni analizator nije dostupan (%s) — poziv će biti odbijen",
+            type(exc).__name__,
+        )
+        return None
+
 
 def _capture_chat_provenance(self, kwargs: dict, response, latency_ms: int, error: Exception | None = None) -> None:
     """Gradi i (fire-and-forget, fail-soft) upisuje provenance zapis za JEDAN
@@ -515,6 +584,7 @@ def _patch_prompt_guard() -> None:
     global _guard_patched, _guard_active, _guard_failure_reason
     global _orig_create, _orig_acreate, _orig_embed, _orig_aembed
     global _orig_stt, _orig_astt, _orig_tts, _orig_atts
+    global _analyze_ref
     if _guard_patched:
         return
 
@@ -548,6 +618,13 @@ def _patch_prompt_guard() -> None:
         # kontrole. Sada se AI granica zatvara.
         _install_ai_kill_switch(_guard_failure_reason)
         return
+
+    # Wave 11 (G1): referenca se postavlja ODMAH po uspešnom uvozu, PRE provere
+    # idempotencije ispod. Da stoji niže, putanja „klase su već obavijene →
+    # ranije se vrati" ostavila bi referencu praznom, a wrapperi koji na klasama
+    # već stoje bi od tog trenutka odbijali svaki poziv. Ovde je invarijanta
+    # prosta i doslovna: ako je uvoz prošao, analizator je dostupan.
+    _analyze_ref = _analyze
 
     # Wave 9 (C2) — STRUKTURNA IDEMPOTENCIJA.
     #
@@ -633,9 +710,21 @@ def _patch_prompt_guard() -> None:
     _orig_acreate = AsyncCompletions.create
 
     def _guarded_create(self, *args, **kwargs):
+        # Wave 11 (G1): analizator se razrešava PRI SVAKOM pozivu, kroz
+        # `_dohvati_analizator()` (v. njegov docstring). Nema analizatora →
+        # nema poziva. `GovernanceUnavailable` je namerno isti tip koji ovaj
+        # modul već koristi za zatvorenu AI granicu (nasleđuje `RuntimeError`,
+        # pa ga `shared/llm_retry.py` ne ponavlja u krug).
+        _analiziraj = _dohvati_analizator()
+        if _analiziraj is None:
+            raise GovernanceUnavailable(
+                "Ulazni prompt guard nije dostupan — poziv je odbijen pre nego "
+                "što je ijedan token poslat provajderu. Ovo je namerna "
+                "fail-closed brana, ne kvar provajdera."
+            )
         text = _extract_user_text(kwargs.get("messages"))
         if text:
-            result = _analyze(text)
+            result = _analiziraj(text)
             if result.blocked:
                 logger.warning(
                     "[AI_GUARD] BLOCKED (sync) caller=%s score=%.2f flags=%d",
@@ -653,10 +742,20 @@ def _patch_prompt_guard() -> None:
         return _enforce_response(kwargs, response)
 
     async def _guarded_acreate(self, *args, **kwargs):
+        # Ista indirekcija i ista fail-closed brana kao u sync grani — async
+        # putanja ne sme da bude slabija od sync putanje, jer je u ovom repou
+        # brojnija (`AsyncOpenAI` je podrazumevani klijent u rutama).
+        _analiziraj = _dohvati_analizator()
+        if _analiziraj is None:
+            raise GovernanceUnavailable(
+                "Ulazni prompt guard nije dostupan — poziv je odbijen pre nego "
+                "što je ijedan token poslat provajderu. Ovo je namerna "
+                "fail-closed brana, ne kvar provajdera."
+            )
         text = _extract_user_text(kwargs.get("messages"))
         if text:
             import asyncio
-            result = await asyncio.to_thread(_analyze, text)
+            result = await asyncio.to_thread(_analiziraj, text)
             if result.blocked:
                 logger.warning(
                     "[AI_GUARD] BLOCKED (async) caller=%s score=%.2f flags=%d",
@@ -847,6 +946,7 @@ def _uninstall_prompt_guard() -> None:
     global _guard_patched, _guard_active, _guard_failure_reason
     global _orig_create, _orig_acreate, _orig_embed, _orig_aembed
     global _orig_stt, _orig_astt, _orig_tts, _orig_atts
+    global _analyze_ref
 
     def _vrati(uvoz_putanja: str, imena_klasa: tuple, originali: tuple) -> None:
         try:
@@ -872,6 +972,12 @@ def _uninstall_prompt_guard() -> None:
 
     _orig_create = _orig_acreate = _orig_embed = _orig_aembed = None
     _orig_stt = _orig_astt = _orig_tts = _orig_atts = None
+    # Wave 11 (G1): i referenca na analizator je deo instaliranog stanja, pa je
+    # teardown mora počistiti. Ostavljena referenca ne bi bila bezopasna: modul
+    # bi tvrdio `active=False` a i dalje držao živ pokazivač na kontrolu koja
+    # više nigde ne stoji — tačno ona vrsta polovičnog stanja zbog koje
+    # `_uninstall_prompt_guard()` uopšte postoji (v. docstring iznad).
+    _analyze_ref = None
     _guard_patched = False
     _guard_active = False
     _guard_failure_reason = None

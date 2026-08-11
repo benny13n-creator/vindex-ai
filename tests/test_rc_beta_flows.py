@@ -229,6 +229,37 @@ def stend():
 
 
 @pytest.fixture(autouse=True)
+def _cist_job_store():
+    """Wave 11 / Z2 — `routers.jobs._jobs` je MODULSKI globalan dict i preživljava
+    test koji ga je napunio.
+
+    Nije kozmetika nego uslov da testovi mere ono što tvrde. `test_d4` namerno
+    ostavlja posao u trajnom `pending` stanju (`_dvostruki_zahtev` zamenjuje
+    `run_in_background` funkcijom koja posao samo zabeleži i nikad ga ne
+    pokrene). Telo zahteva je isto konstantno `_TEKST + " " + _TEKST`, a
+    `dedupe_key` je sha256 baš tog tela — pa se svaki kasniji test koji šalje
+    isti opis (`test_d3`, `test_c2::kompletna-analiza`) DEDUPLIKUJE na taj mrtvi
+    posao: dobije 202 sa tuđim `job_id`-em, grana koju meri se uopšte ne
+    izvrši, a tvrdnja padne iz razloga koji nema veze sa proizvodom.
+
+    Izmereno pre popravke:
+        pytest ...::test_d4 ...::test_d3   -> 1 failed
+        pytest ...::test_d3 ...::test_d4   -> 2 passed
+    a `pytest-randomly` je aktivan bez fiksiranog seed-a, pa je fajl padao na
+    6 od 7 probanih seed-ova.
+
+    Čisti se I PRE I POSLE: „pre" štiti ovaj fajl od tuđeg ostatka, „posle"
+    štiti ostatak sesije od njegovog. Nijedna tvrdnja nijednog testa se ne
+    menja — briše se samo stanje između testova, koje nijedan test ne deli
+    namerno.
+    """
+    import routers.jobs as _jobs_modul
+    _jobs_modul._jobs.clear()
+    yield
+    _jobs_modul._jobs.clear()
+
+
+@pytest.fixture(autouse=True)
 def _okruzenje(stend, monkeypatch):
     """Sve što ruta dodiruje osim onoga što se meri.
 

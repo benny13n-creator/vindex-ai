@@ -120,7 +120,75 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
     entirely -- for a portfolio-wide caller looping over many cases
     (morning_briefing.py), paying for a document fetch + excerpt pass on
     every case every morning is real, avoidable cost for signal that digest
-    doesn't need (Phase 6's own cost-control mandate)."""
+    doesn't need (Phase 6's own cost-control mandate).
+
+    Wave 11 (2026-08-11) -- vlasnistvo se utvrdjuje PRE nego sto se ostalih 6
+    upita uopste lansira. Ranije je svih 7 upita islo u jednom `asyncio.gather`,
+    a samo je onaj nad `predmeti` nosio `.eq("user_id", uid)`; ostalih 6
+    (`predmet_dokumenti`, `predmet_dokazi`, `rocista`, `case_actions`,
+    `predmet_hronologija`, `predmet_komentari`) filtriralo je ISKLJUCIVO po
+    `predmet_id`. Za tudji `predmet_id` tudji nazivi fajlova, datumi rocista i
+    tekst komentara stvarno su se dovlacili iz baze -- u odgovor nisu dospevali
+    (`build_case_context` nize vraca `{"error": "predmet_not_found"}`), ali
+    jedina stvarna kontrola bila je gate-first na nivou rutera.
+
+    ZASTO GATE-FIRST, A NE `.eq("user_id", uid)` NA SVIH 6
+
+    Zato sto to za jednu od njih NIJE MOGUCE: `case_actions` nema kolonu
+    `user_id` (`migrations/099_case_actions.sql:14-48`; ni njen jedini pisac,
+    `services/case_evolution.py:1037-1048`, je ne upisuje). Dodavanje filtera
+    na tabelu koja tu kolonu nema tiho bi ispraznilo `active_actions`/
+    `readiness`/`top_open_action` -- tacno onaj kvar koji je `predmet_klijenti`
+    vec jednom napravio ovom projektu. Preostalih 5 tabela JESU nose `user_id`,
+    ali kad se vlasnistvo utvrdi pre lansiranja, ti filteri vise nemaju sta da
+    zaustave, a nose sopstveni rizik (svaki red ciji `user_id` iz bilo kog
+    istorijskog razloga ne odgovara vlasniku predmeta tiho bi nestao iz
+    konteksta). Ovo je zato jedna strukturna izmena umesto pet filtera.
+
+    CENA: broj round-trip-ova je nepromenjen (7 upita za vlasnika), ali se
+    `predmeti` vise ne izvrsava paralelno sa ostalima -- ukupno cekanje je sada
+    2 serijska kruga umesto 1, tj. +1 round-trip latencije po pozivu. Za tudji
+    ili nepostojeci predmet cena je NEGATIVNA: 1 upit umesto 7. Isti obrazac
+    (provera vlasnistva izdvojena da ide prva) vec je zatvorio ovaj razred
+    nalaza u `routers/digital_twin.py` (Lambda Certification 003) i vec ga
+    koristi `routers/copilot.py:801`."""
+    def _safe(r):
+        if isinstance(r, Exception):
+            return []
+        return getattr(r, "data", None) or []
+
+    def _safe_one(r):
+        if isinstance(r, Exception):
+            return {}
+        return getattr(r, "data", None) or {}
+
+    # Kapija. Isti upit kao ranije (isti `select`, isti filteri, isti
+    # `maybe_single`), samo izvrsen sam i prvi. `try/except` cuva fail-soft
+    # semantiku koju je ranije davao `return_exceptions=True`.
+    try:
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("*")
+                .eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
+        )
+    except Exception as exc:
+        pred_r = exc
+
+    predmet = _safe_one(pred_r)
+    if not predmet:
+        # Oblik povratne vrednosti je nepromenjen -- `build_case_context` na
+        # `not predmet` ionako odmah vraca `predmet_not_found`, pa nijedan
+        # potrosac ne vidi razliku. Razlika je iskljucivo u tome sto se 6
+        # upita nad tudjim podacima vise NE IZVRSAVA.
+        return {
+            "predmet":      {},
+            "dokumenti":    [],
+            "dokazi":       [],
+            "rocista":      [],
+            "case_actions": [],
+            "hronologija":  [],
+            "komentari":    [],
+        }
+
     async def _skip():
         return None
 
@@ -155,11 +223,7 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
         if include_documents else _skip()
     )
 
-    (pred_r, dok_r, dokazi_r, rocista_r, actions_r, hron_r, kom_r) = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("predmeti").select("*")
-                .eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
-        ),
+    (dok_r, dokazi_r, rocista_r, actions_r, hron_r, kom_r) = await asyncio.gather(
         dok_awaitable,
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
@@ -219,18 +283,8 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
         return_exceptions=True,
     )
 
-    def _safe(r):
-        if isinstance(r, Exception):
-            return []
-        return getattr(r, "data", None) or []
-
-    def _safe_one(r):
-        if isinstance(r, Exception):
-            return {}
-        return getattr(r, "data", None) or {}
-
     return {
-        "predmet":      _safe_one(pred_r),
+        "predmet":      predmet,
         "dokumenti":    _safe(dok_r),
         "dokazi":       _safe(dokazi_r),
         "rocista":      _safe(rocista_r),

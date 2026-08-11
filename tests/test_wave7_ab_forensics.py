@@ -293,19 +293,101 @@ async def test_e_konkurentni_A_B_A_B_se_ne_mesaju():
 
 # ─── 4. DEDUPE NE SME SPOJITI RAZLIČITE PREDMETE ───────────────────────────
 
-def test_f_isti_tekst_razlicit_predmet_daje_razlicit_dedupe():
+async def _dedupe_kljuc_iz_rute(predmet_id):
+    """Vraća `dedupe_key` koji je STVARNA ruta poslala u `create_job_deduped`.
+
+    Ključ se ne računa ovde — `routers/strategija.py:706-716` ga gradi, a ovde
+    se samo presreće na jedinoj tački kroz koju prolazi (`create_job_deduped`
+    kwarg). Sve što bi promenilo sastav ključa u produkciji odmah menja i ono
+    što ova funkcija vrati.
+
+    Mock-uje se isključivo ono što nije predmet merenja: vlasnička kapija,
+    audit, tarifa/bilans i sam registar poslova. Izgradnja ključa se ne dira.
+    """
+    from fastapi import BackgroundTasks
+
+    import routers.copilot_ambient as ca
+    import routers.jobs as jobs
+    import routers.strategija as rs
+    import shared.permissions as perms
+
+    uhvaceni = []
+
+    def _lazni_create(uid, tip, *a, dedupe_key=None, **kw):
+        uhvaceni.append(dedupe_key)
+        return f"job-{len(uhvaceni)}", False
+
+    async def _bez_kapije(pid, uid):
+        return None
+
+    async def _bez_audita(*a, **k):
+        return None
+
+    # `@limiter.limit` (slowapi) omotava rutu `functools.wraps`-om; `__wrapped__`
+    # je sama funkcija endpointa. Rate limiter nije predmet ovog dokaza, a bez
+    # zaobilaženja bi tražio pravi `Request` sa klijentskom adresom.
+    ruta = getattr(rs.post_kompletna_analiza, "__wrapped__", rs.post_kompletna_analiza)
+
+    with patch.object(jobs, "create_job_deduped", _lazni_create), \
+         patch.object(ca, "_proveri_vlasnistvo_predmeta", _bez_kapije), \
+         patch.object(rs, "_audit", _bez_audita), \
+         patch.object(rs, "_audit_strategija_durably", lambda *a, **k: None), \
+         patch.object(perms, "_is_founder", lambda *a, **k: True):
+        zahtev = rs.OrkestratorRequest(opis_predmeta=_OPIS, predmet_id=predmet_id)
+        odgovor = await ruta(
+            zahtev,
+            MagicMock(),
+            BackgroundTasks(),
+            user={"user_id": UID_A, "email": "advokat@vindex.rs"},
+        )
+
+    assert odgovor.status_code == 202, "ruta nije stigla do kreiranja posla"
+    assert len(uhvaceni) == 1, f"create_job_deduped pozvan {len(uhvaceni)} puta"
+    kljuc = uhvaceni[0]
+    assert isinstance(kljuc, str) and len(kljuc) == 64, (
+        f"dedupe ključ nije sha256 heks-niz: {kljuc!r} — ruta je promenila oblik "
+        "identiteta posla, pa tvrdnje ispod više ne mere ono što misle"
+    )
+    return kljuc
+
+
+@pytest.mark.asyncio
+async def test_f_isti_tekst_razlicit_predmet_daje_razlicit_dedupe():
     """Isti opis nad različitim predmetima mora dati različit identitet posla.
 
     Da `predmet_id` nije u ključu, drugi zahtev bi dobio rezultat prvog — a
-    kontekst je različit. Runtime provera, ne čitanje izvora.
-    """
-    import hashlib
-    def _kljuc(pid):
-        return hashlib.sha256("\x1f".join([_OPIS, repr([]), repr([]), pid or ""]).encode()).hexdigest()
+    kontekst je različit.
 
-    assert _kljuc(ALFA_ID) != _kljuc(BETA_ID), "dedupe ključ ne razlikuje predmete"
-    assert _kljuc(ALFA_ID) == _kljuc(ALFA_ID)
-    assert _kljuc(None) != _kljuc(ALFA_ID)
+    WAVE 11 (2026-08-11) — ŠTA JE OVDE BILO PRE I ZAŠTO SE MENJA
+
+    Raniji oblik ovog testa je u sopstvenom telu REIMPLEMENTIRAO sha256 formulu
+    (`hashlib.sha256("\\x1f".join([_OPIS, repr([]), repr([]), pid or ""]))`) i
+    poredio dve svoje kopije. Nikad nije dodirnuo `routers/strategija.py`, gde
+    se ključ stvarno gradi. Da produkcija sutra izbaci `req.predmet_id` iz
+    ključa, test bi ostao zelen — merio bi sopstvenu kopiju, ne original.
+    Docstring je pritom tvrdio „Runtime provera, ne čitanje izvora", što nije
+    bilo tačno ni u jednom smislu: nije čitao izvor, ali nije ni izvršavao
+    produkcioni kod.
+
+    Tvrdnje su iste tri, samo se sada mere nad ključem koji ruta STVARNO
+    proizvede. Ime testa je zadržano jer se na njega poziva
+    `tests/test_rc_beta_flows.py::test_d5` (koji istu stvar meri na nivou
+    ponašanja rute — dva job_id-a).
+    """
+    alfa = await _dedupe_kljuc_iz_rute(ALFA_ID)
+    beta = await _dedupe_kljuc_iz_rute(BETA_ID)
+    bez_predmeta = await _dedupe_kljuc_iz_rute(None)
+
+    assert alfa != beta, (
+        "dedupe ključ koji produkcija gradi ne razlikuje predmete — druga "
+        "analiza istog opisa nad DRUGIM predmetom bi vratila rezultat prve"
+    )
+    assert alfa == await _dedupe_kljuc_iz_rute(ALFA_ID), (
+        "isti zahtev daje različit ključ — dedupe uopšte ne bi hvatao dvoklik"
+    )
+    assert bez_predmeta != alfa, (
+        "analiza bez predmeta i analiza nad predmetom dele ključ"
+    )
 
 
 # ─── 5. NEGATIVNE KONTROLE NAD SAMIM HARNESS-om ────────────────────────────

@@ -156,7 +156,15 @@ run_30q_prod.py
 run_*_prod.py
 smoke_results_*.json
 *_stdout.txt
+# Wave 11 (freeze higijena) — `*.html.bak` je pokrivao samo HTML, a u radnom
+# stablu stoji `static/vindex.js.bak`. `static/` je JAVNO MONTIRAN
+# (`api.py:817`), pa bi commit-ovan `.bak` bio posluživan na
+# `/static/vindex.js.bak` — stara verzija fronta dostupna svakome ko pogodi ime.
+# Trenutno je netrekovan pa se ne deployuje; ovaj obrazac sprečava da se to
+# promeni slučajnim `git add`-om.
 *.html.bak
+*.js.bak
+*.css.bak
 diag_*.json
 
 # CELINA 5 (2026-07-24): scripts/verify_backup_restore.py je STALNI DR alat

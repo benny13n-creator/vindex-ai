@@ -23,6 +23,35 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 # ─── In-memory store ──────────────────────────────────────────────────────────
 _JOB_TTL_S = 3600  # 60 minuta
 
+# Wave 11 / Z1 — gornja granica starosti za PONOVNU UPOTREBU posla u `pending`.
+#
+# KVAR KOJI OVO ZATVARA: `pending` je stanje SAMO između `create_job` i prve
+# linije `run_in_background` (`update_job(jid, "running")`, :177). U normalnom
+# radu traje milisekunde. Ako pozadinski zadatak nikad ne bude pokrenut
+# (`background_tasks.add_task` se ne izvrši, worker padne između `create_job` i
+# `update_job`), red ostaje `pending` do isteka `_JOB_TTL_S`. Bez ove granice
+# svaki identičan zahtev narednih 60 minuta dobija 202 sa `vec_u_toku: true` i
+# `job_id` posla koji se nikad neće završiti — korisnik nema ni način da ponovi
+# ni signal da nešto nije u redu.
+#
+# IZMERENI BROJEVI na osnovu kojih je izabrano 180 s:
+#   * `routers/strategija.py:556` — kompletna analiza traje 30–90 s (8 GPT-4o
+#     poziva). To je vreme provedeno u `running`, ne u `pending`.
+#   * `static/vindex.js:3628-3629` — `strat_job_poll` poluje na 4 s i odustaje
+#     na `elapsed < 180`, dakle posle 180 s ispisuje „Analiza traje duže nego
+#     obično… pokušajte ponovo" (`:3662`). Posle te tačke nijedan klijent više
+#     ne poluje taj `job_id`, pa mu ponovna upotreba ne može ničim pomoći —
+#     može samo da mu blokira ponovni pokušaj koji mu je frontend upravo
+#     predložio.
+#   * `_JOB_TTL_S = 3600` — 20x duže od klijentovog praga strpljenja; TTL je
+#     čistač memorije, nikad nije bio granica upotrebljivosti.
+#
+# 180 s je istovremeno 2x duže od najgoreg dokumentovanog trajanja analize i
+# ~3 reda veličine duže od trajanja stanja koje ograničava, pa nijedno realno
+# kašnjenje u zakazivanju ne može da padne preko njega. Zaštita od duplog
+# klika (P1-A) ostaje netaknuta — prozor dvostrukog klika je nekoliko sekundi.
+_PENDING_MAX_REUSE_S = 180
+
 _jobs: dict[str, dict] = {}
 
 
@@ -66,6 +95,7 @@ def create_job_deduped(user_id: str, tip: str, dedupe_key: Optional[str] = None)
     _cleanup()
 
     if dedupe_key:
+        sada = time.time()
         for j in _jobs.values():
             if (
                 j["user_id"] == user_id
@@ -73,6 +103,28 @@ def create_job_deduped(user_id: str, tip: str, dedupe_key: Optional[str] = None)
                 and j.get("dedupe_key") == dedupe_key
                 and j["status"] in ("pending", "running")
             ):
+                # Wave 11 / Z1: granica starosti važi SAMO za `pending`.
+                #
+                # `running` znači da je `run_in_background` stvarno startovao —
+                # taj posao radi i sam njegov status je dokaz da je worker živ.
+                # Ista granica nad njim bi pokrenula DRUGU kompletnu analizu
+                # dok prva još traje, i naplatila drugih 6 kredita za jednu
+                # advokatovu radnju — tačno kvar koji P1-A dedupe i postoji da
+                # spreči. Trajanje u `running` legitimno ume da probije 90 s:
+                # `routers/strategija.py:47` radi eksponencijalni backoff na
+                # rate-limit/5xx greške provajdera. Posao koji je stvarno
+                # zaglavljen u `running` hvata `_JOB_TTL_S`, a njegov ishod
+                # (`done`/`error`) ionako oslobađa dedupe.
+                if (
+                    j["status"] == "pending"
+                    and sada - j["created_at"] > _PENDING_MAX_REUSE_S
+                ):
+                    logger.warning(
+                        "[JOB] dedupe PRESKOČEN: %s stoji u `pending` %.0f s (> %s s) — "
+                        "pozadinski zadatak očigledno nikad nije pokrenut; pravim nov posao",
+                        j["id"][:8], sada - j["created_at"], _PENDING_MAX_REUSE_S,
+                    )
+                    continue
                 logger.info(
                     "[JOB] dedupe pogodak %s tip=%s user=%s — vraćam postojeći posao umesto novog",
                     j["id"][:8], tip, user_id[:8],

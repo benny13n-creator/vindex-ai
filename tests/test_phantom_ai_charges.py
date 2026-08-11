@@ -327,6 +327,21 @@ def test_g_settings_ekran_ne_sme_naplacivati():
     `settingsLoad` (vindex.js:2265) bezuslovno zove `confidenceAuditLoad`.
     Dokle god je tako, `confidence_audit` mora biti besplatan -- ili se poziv
     mora učiniti uslovnim. Ovaj test pada ako se ijedno od to dvoje pokvari.
+
+    WAVE 11 (2026-08-11) -- ŠTA JE OVDE BILO PRE I ZAŠTO SE MENJA
+
+    Poslednji korak je bio `pytest.skip("...ugovor je zatvoren drugim putem")`.
+    To je bio izlaz u prazno: da `settingsLoad` prestane da zove
+    `confidenceAuditLoad`, test bi se tiho isključio, niko ne bi proverio KAKO
+    je ugovor zatvoren, a suite bi ostao zelen. Skip nije bio činjenica o
+    okruženju (nedostupan server, nema psycopg) -- bio je činjenica o KODU, a
+    takva se meri, ne preskače.
+
+    Sada su to dve odvojene tvrdnje:
+      1. cena je nula u Registry-ju (migracija 111) -- važi bezuslovno,
+      2. veza `settingsLoad -> confidenceAuditLoad` i dalje postoji.
+    Ako veza nestane, test PADA sa uputstvom -- promena je svesna i neko je
+    mora potvrditi, umesto da test nestane sam.
     """
     sql = open(_MIGRACIJA, encoding="utf-8").read()
     assert "'confidence_audit'" in sql and "krediti    = 0" in sql
@@ -334,5 +349,17 @@ def test_g_settings_ekran_ne_sme_naplacivati():
     js = open(os.path.join(_KOREN, "static", "vindex.js"), encoding="utf-8").read()
     m = re.search(r"function settingsLoad\s*\([^)]*\)\s*\{(.*?)\n\}", js, re.S)
     assert m, "settingsLoad nije pronađen"
-    if "confidenceAuditLoad()" not in m.group(1):
-        pytest.skip("settingsLoad više ne zove confidenceAuditLoad -- ugovor je zatvoren drugim putem")
+    assert "confidenceAuditLoad()" in m.group(1), (
+        "settingsLoad više ne zove confidenceAuditLoad.\n"
+        "Ovo NIJE samo po sebi kvar -- ugovor „otvaranje Podešavanja je besplatno\" "
+        "možda je zatvoren drugim putem (poziv je postao uslovan, iza dugmeta, ili "
+        "je uklonjen). Ali dok se to ne potvrdi, niko ne zna KOJI put danas čuva "
+        "ugovor, a ovaj test je prestao da meri išta.\n"
+        "PROVERITI, pa izmeniti OVAJ test da meri novi put:\n"
+        "  1. odakle se sada zove `confidenceAuditLoad` (static/vindex.js) i da li "
+        "je taj poziv posledica advokatove svesne radnje ili se dešava sam;\n"
+        "  2. da li `GET /api/audit/kalibracija` i dalje zove "
+        "`UsageService.consume(..., \"confidence_audit\")`;\n"
+        "  3. da li `confidence_audit` i dalje ima krediti=0 u feature_registry.\n"
+        "Ako je poziv i dalje automatski, cena MORA ostati 0."
+    )

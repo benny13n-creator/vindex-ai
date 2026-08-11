@@ -27,25 +27,48 @@ Ovaj fajl zatvara tačno te rupe i ništa više. Njegov jedini metod je:
 ŠTA JE OVDE „PRAVI LANAC"
 ─────────────────────────
 Sve migracije repoa koje DDL-om ili podacima diraju `feature_registry` ili
-`feature_usage_log`, izvršene redom kojim ih vlasnik pokreće:
+`feature_usage_log`, izvršene redom kojim ih vlasnik pokreće, uz 043 na čelu:
 
-    064 → 065 → 066 → 069 → 070 → 071 → 075 → 083 → (107, 108) → 111 → 112
+    043 → 064 → 065 → 066 → 069 → 070 → 071 → 075 → 083 → (107, 108) → 111 → 112
 
 Migracije 067/068/073 su izostavljene jer te dve tabele ne dodiruju uopšte
 (provereno grepom: pominju ih samo u komentarima). 107 i 108 se dodaju jer bez
 njih `UsageService.consume` nema `deduct_n_credits` ni `increment_feature_usage`,
 pa se naplatna strana ne bi mogla meriti nad pravom bazom.
 
-DVA LOKALNA ŠIMA, OBA IMENOVANA
+ZAŠTO JE 043 DODATA (Wave 11, 2026-08-11)
+─────────────────────────────────────────
+`migrations/043_security_bulletproof.sql:33-52` je JEDINO mesto u repou gde
+postoji `trg_protect_audit_immutable` — trigger na kome počiva tvrdnja „upisan
+red u `audit_immutable` se ne može ni izmeniti ni obrisati". Do Wave 11 ta
+migracija nije bila ni u jednom lancu i nije se izvršavala nigde u suite-u:
+tvrdnja je počivala isključivo na tome što `.sql` fajl postoji u repou. Da je
+neko trigger obrisao, ništa u suite-u ne bi palo.
+
+043 ne dira ni `feature_registry` ni `feature_usage_log`, pa je van originalnog
+kriterijuma ovog fajla — ali ovo je jedini fajl koji lanac migracija stvarno
+izvršava nad pravim PostgreSQL-om, pa je i jedino mesto gde se ta tvrdnja može
+IZMERITI umesto pročitati. Stoji na čelu lanca (odgovara njenom stvarnom
+redosledu: „obavezno posle 042"). Blok G0 ispod meri njen efekat.
+
+TRI LOKALNA ŠIMA, SVA IMENOVANA
   1. `auth.role()` / `auth.uid()` — šema `auth` postoji samo u Supabase-u, a
-     RLS politike migracija 064/065 je zovu. Bez šima lanac ne bi mogao ni da
-     se primeni lokalno. Ne utiče na semantiku: migracije se i na produkciji
-     pokreću kao vlasnik u SQL Editor-u, gde RLS ne važi.
+     RLS politike migracija 064/065 (i `ai_forensics` politika iz 043) je zovu.
+     Bez šima lanac ne bi mogao ni da se primeni lokalno. Ne utiče na semantiku:
+     migracije se i na produkciji pokreću kao vlasnik u SQL Editor-u, gde RLS ne
+     važi.
   2. `public.user_credits` — prava definicija (`supabase_setup.sql:53`) ima FK
      na `auth.users(id)`, tabelu koju lokalni klaster nema. Koristi se ista
      minimalna definicija koju već koriste `test_wave9_billing_invariant.py` i
      `test_beta_gate_credit_race_postgres.py`, da bi 107/108 imali nad čim da
      rade.
+  3. `public.audit_log` — 043:124-146 dodaje tri kolone POSTOJEĆOJ `audit_log`
+     tabeli, koju ne pravi nijedna migracija nego `supabase_setup.sql:172`.
+     Bez nje 043 pukne na `ALTER TABLE audit_log` (42P01). Definicija je
+     doslovno prepisana iz `supabase_setup.sql:172-178`; nijedan test je ne
+     meri, služi samo da 043 ima nad čim da izvrši svoj `DO` blok.
+     Šim NE dodaje `resource_type`/`resource_id`/`ip_hash` — njih dodaje sama
+     043, pa se ta grana stvarno izvršava.
 
 OTKRIVANJE SERVERA
 ──────────────────
@@ -124,6 +147,8 @@ pytestmark = pytest.mark.skipif(
 # ═══════════════════════════════════════════════════════════════════════════
 
 _LANAC_PRE_111 = [
+    # 043 nosi `audit_immutable` + `trg_protect_audit_immutable` (v. zaglavlje).
+    "043_security_bulletproof.sql",
     "064_feature_registry.sql",
     "065_feature_registry_v2.sql",
     "066_digital_twin_feature.sql",
@@ -155,6 +180,18 @@ CREATE TABLE public.user_credits (
   mesec             TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+# Šim #3 — doslovno iz `supabase_setup.sql:172-178`. Migracija 043 je proširuje
+# (`ALTER TABLE audit_log ADD COLUMN ...`), a ne pravi; bez nje 043 pukne.
+_AUDIT_LOG_DDL = """
+CREATE TABLE IF NOT EXISTS public.audit_log (
+  id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID        NOT NULL,
+  akcija  VARCHAR(50),
+  q_hash  VARCHAR(16),
+  ts      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
 
@@ -196,6 +233,7 @@ def sablon():
         with psycopg.connect(_dsn_za(dbname), autocommit=True) as c:
             c.execute(_AUTH_SIM)
             c.execute(_USER_CREDITS_DDL)
+            c.execute(_AUDIT_LOG_DDL)
             for ime in _LANAC_PRE_111:
                 c.execute((MIGRATIONS_DIR / ime).read_text(encoding="utf-8"))
         # Konekcija MORA biti zatvorena — CREATE DATABASE ... TEMPLATE odbija
@@ -310,6 +348,134 @@ def _snimak_loga(dsn) -> list:
         dsn,
         "SELECT id, user_id, feature_key, krediti_potroseni, ai_model, latency_ms, "
         "created_at FROM public.feature_usage_log ORDER BY id",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# G0 — APPEND-ONLY ZAŠTITA `audit_immutable` (migracija 043)
+# ═══════════════════════════════════════════════════════════════════════════
+# Wave 11. Do sada NIJEDAN test nije izvršio migraciju 043 — tvrdnja „upisan red
+# audita se ne može obrisati" bila je potkrepljena samo postojanjem `.sql` fajla
+# u repou. Ovde se meri nad pravim PostgreSQL-om: INSERT prolazi, UPDATE i
+# DELETE dižu izuzetak koji baca `protect_audit_immutable()` (043:33-52).
+
+_GENESIS = "0" * 64
+
+
+def _ubaci_audit_red(dsn) -> str:
+    """Jedan validan red u `audit_immutable`; vraća njegov `id`."""
+    with psycopg.connect(dsn, autocommit=True) as c:
+        red = c.execute(
+            "INSERT INTO public.audit_immutable "
+            "(prev_hash, entry_hash, user_id, action, resource_type, resource_id) "
+            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (_GENESIS, "a" * 64, str(uuid.uuid4()), "kompletna_analiza",
+             "predmet", "RC-043"),
+        ).fetchone()
+    return str(red[0])
+
+
+def _audit_snimak(dsn) -> list:
+    return _upit(
+        dsn,
+        "SELECT id, seq, prev_hash, entry_hash, user_id, action, resource_type, "
+        "resource_id FROM public.audit_immutable ORDER BY seq",
+    )
+
+
+def test_G0_insert_u_audit_immutable_prolazi(baza):
+    """Pozitivna strana ugovora: append MORA raditi.
+
+    Bez ove tvrdnje bi trigger koji odbija baš sve prolazio testove ispod, a u
+    produkciji bi oborio svaki audit upis.
+    """
+    rid = _ubaci_audit_red(baza)
+    redovi = _audit_snimak(baza)
+    assert len(redovi) == 1, f"INSERT u audit_immutable nije prošao: {redovi}"
+    assert str(redovi[0]["id"]) == rid
+    assert redovi[0]["prev_hash"] == _GENESIS
+
+
+def test_G0_update_reda_audita_dize_izuzetak(baza):
+    """`trg_protect_audit_immutable` na UPDATE (043:39-41)."""
+    _ubaci_audit_red(baza)
+    pre = _audit_snimak(baza)
+
+    with pytest.raises(psycopg.errors.RaiseException) as greska:
+        with psycopg.connect(baza, autocommit=True) as c:
+            c.execute("UPDATE public.audit_immutable SET action = 'izmenjeno'")
+
+    assert "UPDATE nije dozvoljen" in str(greska.value), (
+        f"izuzetak ne dolazi iz protect_audit_immutable(): {greska.value}"
+    )
+    assert _audit_snimak(baza) == pre, "red audita je ipak izmenjen"
+
+
+def test_G0_delete_reda_audita_dize_izuzetak(baza):
+    """`trg_protect_audit_immutable` na DELETE (043:42-44)."""
+    _ubaci_audit_red(baza)
+    pre = _audit_snimak(baza)
+
+    with pytest.raises(psycopg.errors.RaiseException) as greska:
+        with psycopg.connect(baza, autocommit=True) as c:
+            c.execute("DELETE FROM public.audit_immutable")
+
+    assert "DELETE nije dozvoljen" in str(greska.value), (
+        f"izuzetak ne dolazi iz protect_audit_immutable(): {greska.value}"
+    )
+    assert _audit_snimak(baza) == pre, "red audita je ipak obrisan"
+
+
+def test_G0_ng_nezasticena_tabela_prima_i_update_i_delete(baza):
+    """POZITIVNA KONTROLA — bez nje bi dve tvrdnje iznad prolazile i da baza
+    odbija SVAKU izmenu (nedostajuća privilegija, read-only transakcija,
+    pogrešan DSN). `security_events` pravi ista migracija 043, ali NEMA trigger.
+    """
+    with psycopg.connect(baza, autocommit=True) as c:
+        rid = c.execute(
+            "INSERT INTO public.security_events (event_type, ip_hash) "
+            "VALUES ('rate_limit', 'abc123') RETURNING id"
+        ).fetchone()[0]
+        c.execute(
+            "UPDATE public.security_events SET event_type = 'csp_violation' WHERE id = %s",
+            (rid,),
+        )
+        posle = c.execute(
+            "SELECT event_type FROM public.security_events WHERE id = %s", (rid,)
+        ).fetchone()
+        assert posle[0] == "csp_violation", "UPDATE ne radi ni na NEZAŠTIĆENOJ tabeli"
+        c.execute("DELETE FROM public.security_events WHERE id = %s", (rid,))
+        assert c.execute("SELECT count(*) FROM public.security_events").fetchone()[0] == 0, (
+            "DELETE ne radi ni na NEZAŠTIĆENOJ tabeli — merenje iznad ne dokazuje trigger"
+        )
+
+
+def test_G0_trigger_je_stvarno_iz_migracije_043(baza):
+    """Zaštita se mora zvati onako kako je 043 imenuje i pokrivati OBE operacije.
+
+    Ponašanje iznad bi zadovoljio i RULE, i GRANT, i pogrešno imenovan trigger —
+    a sledeći koji ga potraži po imenu (npr. da ga privremeno onemogući za
+    migraciju podataka) ne bi ga našao.
+    """
+    redovi = _upit(
+        baza,
+        "SELECT t.tgname, t.tgtype, p.proname "
+        "  FROM pg_trigger t "
+        "  JOIN pg_class c ON c.oid = t.tgrelid "
+        "  JOIN pg_proc p ON p.oid = t.tgfoid "
+        " WHERE c.relname = 'audit_immutable' AND NOT t.tgisinternal",
+    )
+    imena = {r["tgname"] for r in redovi}
+    assert "trg_protect_audit_immutable" in imena, (
+        f"trigger iz 043:49-52 ne postoji nad audit_immutable; nađeno: {sorted(imena)}"
+    )
+    trg = next(r for r in redovi if r["tgname"] == "trg_protect_audit_immutable")
+    assert trg["proname"] == "protect_audit_immutable"
+    # pg_trigger.tgtype bitovi: 1=ROW, 2=BEFORE, 8=DELETE, 16=UPDATE
+    assert trg["tgtype"] & 1, "trigger nije FOR EACH ROW — na 0 pogođenih redova ne bi ni pucao"
+    assert trg["tgtype"] & 2, "trigger nije BEFORE — izmena bi se desila pa tek onda odbila"
+    assert trg["tgtype"] & 8 and trg["tgtype"] & 16, (
+        "trigger ne pokriva i UPDATE i DELETE"
     )
 
 

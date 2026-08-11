@@ -41,6 +41,42 @@ router = APIRouter(prefix="/strategija")
 logger = __import__("logging").getLogger("vindex.api")
 
 
+# ── WAVE 11 (G2) — NAPLATA ZNA NAD KOJIM JE PREDMETOM IZVRŠENA ──────────────
+#
+# IZMERENO STANJE PRE OVE IZMENE: `feature_usage_log.predmet_id` je bio NULL u
+# 100% redova. Migracija 112 je primenjena, kolona postoji, `shared/usage.py`
+# ima i `_kanonski_uuid` guard i „probaj široko pa usko" fallback — ali se ništa
+# od toga nije izvršavalo na živoj putanji: nijedan od 138 poziva
+# `UsageService.consume(` u repou nije prosleđivao `predmet_id=`. Contextvar
+# putanja je takođe bila mrtva: `consume` čita `shared/ai_provenance._case_ctx`,
+# koji `case_context` VRAĆA na staru vrednost pri izlasku iz `with` bloka, a
+# naplata u ovom fajlu stoji IZVAN tog bloka (namerno — v. `_run_analiza`).
+#
+# Posledica: pitanje zbog kog je kolona i uvedena — „zašto mi je naplaćeno 6
+# kredita na ovom predmetu" — moglo se odgovoriti samo tranzitivno, spajanjem
+# preko `correlation_id`-a kroz `ai_provenance`. To radi samo dok GPT poziv
+# stvarno upiše provenance red; naplata i njen predmet nisu bili povezani
+# direktno nigde.
+#
+# ŠTA OVA IZMENA JESTE: jedan keyword-only argument na 9 postojećih poziva.
+# ŠTA NIJE: ne menja iznos, ne menja gejtovanje, ne menja `multiplier`, ne dira
+# `shared/usage.py`. `predmet_id` u `consume` ne učestvuje ni u jednom izrazu
+# koji računa cenu (`credits = policy['krediti'] * multiplier`) — koristi se
+# isključivo u `_log_usage_event`, koji je ceo fail-soft.
+#
+# ZAŠTO JE VREDNOST POUZDANA: na svih 8 pojedinačnih modula `predmet_id` je
+# prošao `_gate_i_kontekst` → `_proveri_vlasnistvo_predmeta`, a na
+# `/kompletna-analiza` istu proveru u samoj ruti. Tuđ ili nepostojeći id nikad
+# ne stigne do naplate — digne 404 pre nje. U telemetriju zato ulazi samo id
+# koji je dokazano korisnikov.
+#
+# `_ctx_blok` se NAMERNO ne koristi kao uslov: on odgovara na pitanje „da li je
+# analiza bila utemeljena u spisu" (to već pošteno prijavljuje
+# `_advisory_provenance`), a ovde je pitanje „za koji predmet je advokat
+# potrošio kredite". Analiza koja je naplaćena, a kontekst joj nije uspeo da se
+# učita, i dalje je potrošena NAD tim predmetom.
+
+
 @llm_retry
 async def _pozovi_strategija_v2_api(oai, **kwargs):
     """CELINA 4 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential
@@ -226,7 +262,10 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("red_team", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -263,7 +302,10 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("litigation", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -300,7 +342,10 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("sudija", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -357,7 +402,10 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("due_diligence", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -397,7 +445,10 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("revizor", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -437,7 +488,10 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0),
                 "_ai_advisory": _advisory_provenance("witness", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
@@ -473,7 +527,10 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, user.get("email", ""), "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {
             "tuzilac":  rezultat["tuzilac"],
             "branilac": rezultat["branilac"],
@@ -672,7 +729,13 @@ async def post_kompletna_analiza(
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
         # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
         # Admin Console editabilno) — ne hardkoduje se ovde.
-        await UsageService.consume(uid, email, "strategija")
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu
+        # fajla. Ovde je dobitak najveći: ovo je jedini naplatni poziv u fajlu
+        # koji košta 6 kredita, izvršava se u POZADINSKOM poslu (druga vremenska
+        # osa od HTTP odgovora) i vlasništvo mu je provereno u ruti, pa je
+        # „za koji predmet je skinuto 6 kredita" do sada bilo najskuplje pitanje
+        # bez direktnog odgovora.
+        await UsageService.consume(uid, email, "strategija", predmet_id=req.predmet_id)
         # NOTE: this response mixes 2 code-owned deterministic fields
         # (sistemsko_upozorenje fully, detektovani_konflikti partially --
         # see docs/tau/DECISION_OWNERSHIP_MATRIX.md, DC-010/DC-011) with
@@ -849,7 +912,10 @@ async def strategija_v2_analiza(
         analiza = _json.loads(resp.choices[0].message.content or "{}")
         asyncio.create_task(log_cost_to_db(uid, "strategija_v2"))
         # Pojedinačan poziv (bazna cena) — vidi napomenu iznad o multiplier=1 override-u.
-        preostalo = await UsageService.consume(uid, email, "strategija", multiplier=1)
+        # Wave 11 (G2): `predmet_id=` je čista telemetrija — v. napomenu na vrhu fajla.
+        preostalo = await UsageService.consume(
+            uid, email, "strategija", multiplier=1, predmet_id=req.predmet_id,
+        )
         return {
             **analiza,
             "modul": "strategija_v2",
