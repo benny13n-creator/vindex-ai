@@ -3213,6 +3213,45 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
 
     qh = _q_hash(req.pitanje)
     logger.info("PitanjeStream [uid=%.8s] [q=%s]", user["user_id"], qh)
+
+    # ── Prompt injection detekcija ────────────────────────────────────────────
+    # Governance Wave 2. Sestrinski `/api/pitanje` radi ovu proveru na :3045-3064;
+    # streaming blizanac je nije imao i oslanjao se isključivo na SDK monkey-patch
+    # (`shared/ai_client.py`) koji opali tek na samom GPT pozivu. Dve merene
+    # posledice tog oslanjanja:
+    #
+    #   1. Napadački prompt bi PRE blokade bio embedovan i poslat Pinecone-u
+    #      (`app/services/retrieve.py:610`) — `_tracked_embed` radi provenance,
+    #      ali NE poziva `analyze()`. Sadržaj bi dakle već napustio sistem.
+    #   2. Blokada sa nivoa SDK patch-a nema pristup autentifikovanom identitetu,
+    #      pa fallback na `api.py:893-905` upisuje `user_id="unknown"`. Pokušaj
+    #      injekcije ostajao je bez traga koji se može pripisati korisniku.
+    #
+    # Provera stoji PRE svakog dovlačenja i pre naplate, pa blokiran pokušaj ne
+    # troši ni kredit ni embedding poziv.
+    from security.prompt_guard import analyze as _guard_analyze_s
+    from shared.audit_immutable import log_action as _imm_log_s
+
+    _guard_s = await asyncio.to_thread(_guard_analyze_s, req.pitanje)
+    if _guard_s.blocked:
+        logger.warning(
+            "[GUARD] BLOCKED pitanje/stream uid=%.8s score=%.2f",
+            user["user_id"], _guard_s.risk_score,
+        )
+        asyncio.create_task(_imm_log_s(
+            "injection_attempt_blocked",
+            user_id=user["user_id"],
+            resource_type="pitanje_stream",
+            ip=request.client.host if request.client else None,
+            metadata={"score": _guard_s.risk_score, "flags": _guard_s.flags[:5]},
+        ))
+        # 400 pre otvaranja SSE toka, ne greška unutar njega: klijent proverava
+        # `res.ok` pre nego što počne da čita, pa poruka stiže kao poruka a ne
+        # kao komad odgovora koji izgleda kao pravni sadržaj.
+        return JSONResponse(
+            status_code=400,
+            content={"greska": "Zahtev je odbijen iz bezbednosnih razloga."},
+        )
     asyncio.create_task(_audit(user["user_id"], "pitanje_stream", qh))
     _stream_firma_ns = await _get_firma_namespace(user["user_id"])
     _stream_extra_ns = [_stream_firma_ns] if _stream_firma_ns else None

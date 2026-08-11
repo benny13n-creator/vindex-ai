@@ -194,9 +194,12 @@ def test_e_izlazna_kontrola_ne_postoji_kao_sloj():
     pokrivenosti, ne obrisati.
     """
     import subprocess
+    # `:(exclude)tests/` je nužno: ovi testovi sami pominju imena kontrola u
+    # docstring-ovima, pa bi bez izuzimanja tvrdnja padala na sopstvenoj
+    # dokumentaciji. Tvrdnja je o PRODUKCIONOM kodu.
     r = subprocess.run(
         ["git", "grep", "-lE", "response_firewall|output_guard|sanitize_response|_proveri_odgovor",
-         "--", "*.py"],
+         "--", "*.py", ":(exclude)tests/"],
         cwd=_KOREN, capture_output=True, text=True,
     )
     nadjeno = [l for l in r.stdout.splitlines() if l.strip()]
