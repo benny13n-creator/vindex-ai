@@ -3551,7 +3551,28 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrato
 }
 
 // Kompletna strateška analiza — orkestrator svih 6 modula
+// Wave 8: zaštita od dvostrukog pokretanja, deljena za SVE ulazne tačke.
+//
+// `#strat-ork-btn` se zaključava sa `disabled` (`:3591`), ali analiza ima još
+// četiri ulaza koji taj atribut ne diraju: `index.html:782`, `index.html:1138`
+// (klikabilan `<div>`, bez ikakvog guard-a), `index.html:1596` i CMD-K paleta
+// (`vindex.js:13070`). Sa njih su dva paralelna posla bila moguća, jer
+// `stratOrkestratorPokreni` nikad nije proveravao `orkBtn.disabled` pre nego
+// što krene.
+//
+// Dedupe na backendu (`create_job_deduped`) to hvata, ali je to POSLEDNJA
+// odbrana i radi samo unutar jednog worker procesa (`routers/jobs.py:48-55`
+// to izričito priznaje). Ovo je prva odbrana, na mestu gde je klik nastao.
+//
+// Zastavica se postavlja PRE prvog `await`, pa između provere i postavljanja
+// nema tačke prekida — JS je jednonitni, poziv ne može biti prekinut sinhrono.
+var _stratOrkUToku = false;
+
 async function stratOrkestratorPokreni() {
+  if (_stratOrkUToku) {
+    showToast('Analiza je već u toku — sačekajte da se završi.', 'warn');
+    return;
+  }
   var tekstEl  = document.getElementById('strat-tekst');
   var orkBtn   = document.getElementById('strat-ork-btn');
   var wrapEl   = document.getElementById('strat-rezultat-wrap');
@@ -3593,6 +3614,11 @@ async function stratOrkestratorPokreni() {
   if (naslovEl) naslovEl.textContent = 'Kompletna strateška analiza';
   if (bodyEl) bodyEl.innerHTML = _strat6ModuliHtml(0, false);
 
+  // Postavlja se tek OVDE — posle svih ranih `return` grana (nije prijavljen,
+  // nije PRO, tekst prekratak). Da stoji na vrhu, odbijen pokušaj bi zaključao
+  // dugme dok se stranica ne osveži.
+  _stratOrkUToku = true;
+
   piTrack('strategija','kompletna_analiza',{});
   piTrack('ai_analysis','started',{tip:'kompletna'});
   try {
@@ -3632,6 +3658,10 @@ async function stratOrkestratorPokreni() {
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
+    // `finally`, ne kraj `try` bloka: zastavica se mora osloboditi i kad
+    // analiza pukne, inače bi jedan neuspeh trajno zaključao funkciju do
+    // osvežavanja stranice.
+    _stratOrkUToku = false;
     if (orkBtn) { orkBtn.disabled = false; orkBtn.textContent = _resetLabel; }
     piTrack('ai_analysis','completed',{tip:'kompletna'});
   }
