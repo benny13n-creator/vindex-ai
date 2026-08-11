@@ -136,3 +136,102 @@ if os.environ.get("VINDEX_TEST_ALLOW_NETWORK") != "1":
         return _real_getaddrinfo(host, *a, **k)
 
     _socket.getaddrinfo = _guarded_getaddrinfo
+
+
+# ── Wave 9: brana ka PRODUKCIONOJ bazi ──────────────────────────────────────
+#
+# NALAZ, IZMEREN A NE PRETPOSTAVLJEN.
+#
+# `.env` na razvojnoj mašini nosi žive `SUPABASE_URL` i `SUPABASE_SERVICE_KEY`,
+# a `conftest.py` ih učitava (`_load_dotenv` iznad) da bi `FOUNDER_EMAILS` i
+# `FIELD_ENCRYPTION_KEY` bili dostupni. Posledica koju je sonda potvrdila:
+# `_get_supa()` u test procesu vraća PRAV klijent uperen u produkcioni projekat,
+# i jedan poziv `security/ai_forensics.py::log_provenance_from_wrapper` bez moka
+# upiše STVARAN red u produkcionu `ai_provenance` tabelu.
+#
+# Zašto je ovo teže od potrošenog novca: `audit_immutable` je append-only iza
+# BEFORE UPDATE/DELETE trigera i hash-lančan. Red koji test upiše NE MOŽE da se
+# obriše — svaki forenzički dokaz koji ovaj program koristi tako dobija smeće
+# nepoznatog porekla. Isti razred štete je već jednom pogodio ovaj repo, kad su
+# testovi brisali vektore iz produkcionog Pinecone-a.
+#
+# Postojeća brana iznad namerno pokriva samo NAPLATIVE hostove — njen komentar
+# to izričito kaže („blocks exactly what costs money"). Cena, međutim, nikad
+# nije bila jedina šteta.
+#
+# OBIM: blokira se TAČNO host iz `SUPABASE_URL`, ne ceo `supabase.co`. Testovi
+# koji fail-soft gađaju izmišljeni Supabase host nastavljaju da rade
+# nepromenjeno — nisu ni bili problem, ništa ne dodiruju.
+#
+# ESCAPE: `VINDEX_TEST_ALLOW_PROD_DB=1` za namerno pokretanje protiv prave baze.
+#
+# Ista `NetworkAccessBlocked` klasa i isti `getaddrinfo` hook kao gore, iz istog
+# razloga: `connect()` dobija već razrešen IP, pa provera imena tamo ne hvata
+# ništa — što je tačno greška zbog koje je prva verzija gornje brane prijavljivala
+# potpuno zelen suite dok su pozivi i dalje odlazili.
+if (
+    os.environ.get("VINDEX_TEST_ALLOW_PROD_DB") != "1"
+    and os.environ.get("VINDEX_TEST_ALLOW_NETWORK") != "1"
+):
+    import socket as _socket_db
+    from urllib.parse import urlparse as _urlparse
+
+    _PROD_DB_HOST = ""
+    try:
+        _u = (os.environ.get("SUPABASE_URL") or "").strip()
+        if _u:
+            _PROD_DB_HOST = (_urlparse(_u).hostname or "").lower()
+    except Exception:
+        _PROD_DB_HOST = ""
+
+    # ZABELEŽENI PRESTUPNICI — isti mehanizam koji gornja brana već koristi.
+    #
+    # Merenje: 115 testova u ~40 fajlova danas dodiruje produkcionu bazu. Brana
+    # koja ih sve obori biva ISKLJUČENA umesto poštovana — to obrazloženje je
+    # autor prethodne brane već zapisao i ono i dalje važi. Zato se zatečeno
+    # stanje ZAMRZAVA, a svaki NOV prestupnik pada odmah i imenuje se.
+    #
+    # Stanje je SADRŽANO, ne zatvoreno. `tests/prod_db_offenders_baseline.txt`
+    # nosi tačan spisak i cenu, a `tests/test_prod_db_offenders_baseline.py`
+    # fiksira maksimum tako da lista može samo da se smanjuje.
+    _DB_BASELINE_PATH = os.path.join(os.path.dirname(__file__),
+                                     "prod_db_offenders_baseline.txt")
+    try:
+        with open(_DB_BASELINE_PATH, encoding="utf-8") as _fdb:
+            _DB_ALLOWED_NODEIDS = {
+                ln.strip() for ln in _fdb
+                if ln.strip() and not ln.lstrip().startswith("#")
+            }
+    except OSError:
+        _DB_ALLOWED_NODEIDS = set()
+
+    if _PROD_DB_HOST:
+        _real_gai_db = _socket_db.getaddrinfo
+
+        class ProductionDatabaseAccessBlocked(BaseException):
+            """BaseException, ne Exception — namerno.
+
+            Svaki upisni put u ovom kodu je fail-soft („a provenance-logging bug
+            must never break a real AI call"). Obična `Exception` bi bila
+            progutana, test bi ostao zelen, a red bi već bio upisan u produkciju.
+            Kao `BaseException` probija fail-soft handlere i imenuje krivca.
+            """
+
+        def _guarded_gai_db(host, *a, **k):
+            if isinstance(host, (bytes, bytearray)):
+                host = host.decode("ascii", "ignore")
+            if (
+                isinstance(host, str)
+                and host.lower() == _PROD_DB_HOST
+                and _CURRENT_NODEID["id"] not in _DB_ALLOWED_NODEIDS
+            ):
+                raise ProductionDatabaseAccessBlocked(
+                    "Test je pokušao poziv ka PRODUKCIONOJ bazi. Upis odavde je "
+                    "nepovratan (audit tabele su append-only iza trigera), a "
+                    "čitanje čini test nedeterminističnim. Mokuj Supabase klijent. "
+                    "VINDEX_TEST_ALLOW_PROD_DB=1 samo za namerno pokretanje protiv "
+                    "prave baze."
+                )
+            return _real_gai_db(host, *a, **k)
+
+        _socket_db.getaddrinfo = _guarded_gai_db

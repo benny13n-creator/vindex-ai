@@ -199,9 +199,69 @@ POTPISATI / PREGOVARATI / ODBITI / DOPUNITI — sa kratkim obrazloženjem.
 Na kraju: **Ukupna ocena: BEZBEDAN / RIZIČAN / NEPRIHVATLJIV**"""
 
 
+# ── Kanonski kontekst predmeta u pojedinačnim modulima ────────────────────────
+#
+# Wave 9. Orkestrator (`/kompletna-analiza`) je od P0-D jedini modul koji vidi
+# stvarni predmet; preostalih 8 endpointa rezonovalo je isključivo nad tekstom
+# koji je advokat nalepio. Isti blok koji `_sastavi_dokaznu_osnovu` već utkiva u
+# orkestrator sada može da uđe i u njih.
+#
+# OBRAZAC JE PREUZET, NE IZMIŠLJEN: blok se dodaje kao ZASEBAN, već označen
+# odeljak na kraju korisničke poruke — nikad se ne umeće u sredinu advokatovog
+# teksta. `render_case_context_block` sam emituje svoje oznake
+# (`[IDENTITET PREDMETA]`, `[DOKAZ IZ PREDMETA …]`, `[IZVEDENO IZ BAZE …]`), pa
+# poreklo ostaje razlučivo bez ijedne nove oznake.
+#
+# KAD BLOKA NEMA, PORUKA JE BAJT-IDENTIČNA STAROJ. To je namerno i testirano:
+# `predmet_id` je opcion, a 100% današnjeg saobraćaja ide bez njega.
+
+_KONTEKST_DOPUNSKI_UVOD = (
+    "[DOPUNSKI KONTEKST PREDMETA — pozadina, nije predmet ove analize]\n"
+    "Blok ispod opisuje predmet u koji je gornji tekst smešten (stranke, faza postupka, "
+    "rokovi, ostali dokumenti u spisu, izračunat rizik). Koristi ga kao poznate činjenice "
+    "predmeta — za proveru saglasnosti i za kontekst. Predmet analize ostaje ISKLJUČIVO "
+    "gornji tekst; ne recenziraj sadržaj ovog bloka."
+)
+
+
+def _uz_kontekst_predmeta(
+    tekst: str,
+    case_context_blok: str | None,
+    *,
+    dopunski: bool = False,
+) -> str:
+    """Dodaje kanonski kontekst predmeta na kraj korisničke poruke.
+
+    `dopunski=False` — moduli čiji JESTE predmet primarni subjekt (Red Team,
+    Litigation, AI Sudija, AI Sudija v2). Blok stoji ravnopravno uz opis.
+
+    `dopunski=True` — moduli čiji je primarni subjekt DOKUMENT ili ISKAZ koji je
+    advokat nalepio (Due Diligence, Pravni Revizor, Witness Analyzer). Bez
+    izričitog uvoda model ume da počne da recenzira dokumente iz spisa umesto
+    onog koji mu je dat; uvod to zaključava, a i dalje mu daje poznate činjenice
+    predmeta protiv kojih iskaz/dokument može da proveri.
+
+    Prazan ili beo blok ne dodaje NIŠTA — nikad naslov bez sadržaja, po istom
+    pravilu koje `_sastavi_dokaznu_osnovu` primenjuje na prazne dokumente.
+    """
+    if not case_context_blok or not case_context_blok.strip():
+        return tekst
+    blok = case_context_blok.strip()
+    if dopunski:
+        return f"{tekst}\n\n{_KONTEKST_DOPUNSKI_UVOD}\n{blok}"
+    return f"{tekst}\n\n{blok}"
+
+
 # ── Sinhroni pozivi GPT-4o ────────────────────────────────────────────────────
 
-def red_team_analiza_sync(opis_predmeta: str, api_key: str, pinecone_context: str = "", tip_postupka: str = "gradjansko") -> str:
+def red_team_analiza_sync(
+    opis_predmeta: str,
+    api_key: str,
+    pinecone_context: str = "",
+    tip_postupka: str = "gradjansko",
+    *,
+    case_context_blok: str | None = None,
+) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     system_prompt = _RED_TEAM_PROMPTS.get(tip_postupka.lower(), _RED_TEAM_SYSTEM)
@@ -215,13 +275,22 @@ def red_team_analiza_sync(opis_predmeta: str, api_key: str, pinecone_context: st
         timeout=90.0,
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": f"Tip postupka: {tip_label}\n\nPredmet za red team analizu:{ctx_block}\n\n{opis_predmeta}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Tip postupka: {tip_label}\n\nPredmet za red team analizu:{ctx_block}\n\n{opis_predmeta}",
+                case_context_blok,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
 
 
-def litigation_simulator_sync(opis_predmeta: str, api_key: str, pinecone_context: str = "") -> str:
+def litigation_simulator_sync(
+    opis_predmeta: str,
+    api_key: str,
+    pinecone_context: str = "",
+    *,
+    case_context_blok: str | None = None,
+) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRelevantna sudska praksa iz baze:\n{pinecone_context}\n" if pinecone_context else ""
@@ -233,13 +302,22 @@ def litigation_simulator_sync(opis_predmeta: str, api_key: str, pinecone_context
         timeout=90.0,
         messages=[
             {"role": "system", "content": _LITIGATION_SYSTEM},
-            {"role": "user",   "content": f"Predmet za simulaciju:{ctx_block}\n{opis_predmeta}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Predmet za simulaciju:{ctx_block}\n{opis_predmeta}",
+                case_context_blok,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
 
 
-def ai_judge_mode_sync(opis_predmeta: str, api_key: str, pinecone_context: str = "") -> str:
+def ai_judge_mode_sync(
+    opis_predmeta: str,
+    api_key: str,
+    pinecone_context: str = "",
+    *,
+    case_context_blok: str | None = None,
+) -> str:
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRelevantna sudska praksa iz baze (uzeti u obzir pri analizi):\n{pinecone_context}\n" if pinecone_context else ""
@@ -251,13 +329,29 @@ def ai_judge_mode_sync(opis_predmeta: str, api_key: str, pinecone_context: str =
         timeout=90.0,
         messages=[
             {"role": "system", "content": _JUDGE_SYSTEM},
-            {"role": "user",   "content": f"Predmet na razmatranje:{ctx_block}\n\n{opis_predmeta}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Predmet na razmatranje:{ctx_block}\n\n{opis_predmeta}",
+                case_context_blok,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
 
 
-def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str, pinecone_context: str = "") -> str:
+def due_diligence_analiza_sync(
+    tekst_dokumenta: str,
+    api_key: str,
+    pinecone_context: str = "",
+    *,
+    case_context_blok: str | None = None,
+) -> str:
+    """Due diligence NAD DOKUMENTOM. Predmet je dopunski kontekst, ne subjekt.
+
+    Zato `dopunski=True`: primarni subjekt ostaje tekst koji je advokat nalepio.
+    Kontekst predmeta služi da se dokument proveri protiv onoga što je u spisu
+    (stranke, faza, rokovi, ostali dokumenti) — isto što orkestratorov Korak 2
+    već ima kroz `_sastavi_dokaznu_osnovu`.
+    """
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     ctx_block = f"\nRELEVANTNI ZAKONI IZ BAZE (citiraj konkretne odredbe):\n{pinecone_context}\n" if pinecone_context else ""
@@ -269,7 +363,11 @@ def due_diligence_analiza_sync(tekst_dokumenta: str, api_key: str, pinecone_cont
         timeout=90.0,
         messages=[
             {"role": "system", "content": _DUE_DILIGENCE_SYSTEM},
-            {"role": "user",   "content": f"Dokument za due diligence:{ctx_block}\n\n{tekst_dokumenta}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Dokument za due diligence:{ctx_block}\n\n{tekst_dokumenta}",
+                case_context_blok,
+                dopunski=True,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
@@ -297,7 +395,19 @@ Budi konkretan — navedi tačne delove teksta koji se menjaju i predloži novi 
 Ne teorišite — daj gotove formulacije za izmene."""
 
 
-def pravni_revizor_sync(tekst_dokumenta: str, api_key: str) -> str:
+def pravni_revizor_sync(
+    tekst_dokumenta: str,
+    api_key: str,
+    *,
+    case_context_blok: str | None = None,
+) -> str:
+    """Revizija NACRTA. Predmet je dopunski kontekst, ne subjekt revizije.
+
+    `dopunski=True` iz istog razloga kao kod Due Diligence-a: recenzira se tekst
+    koji je advokat nalepio. Kontekst predmeta je ovde ipak stvaran dobitak —
+    „FORMALNI NEDOSTACI" i „KRITIČNE GREŠKE" zavise od činjenica koje žive u
+    spisu (sud, stranke, protekli rokovi), a ne u nacrtu.
+    """
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     resp = _pozovi_strategija_api(
@@ -308,7 +418,11 @@ def pravni_revizor_sync(tekst_dokumenta: str, api_key: str) -> str:
         timeout=90.0,
         messages=[
             {"role": "system", "content": _REVIZOR_SYSTEM},
-            {"role": "user",   "content": f"Dokument za reviziju:\n\n{tekst_dokumenta}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Dokument za reviziju:\n\n{tekst_dokumenta}",
+                case_context_blok,
+                dopunski=True,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
@@ -342,7 +456,20 @@ Struktura odgovora (obavezna):
 Budi konkretan — citiraj tačne delove iskaza (u navodnicima) kad identifikuješ problem."""
 
 
-def witness_analyzer_sync(tekst_iskaza: str, api_key: str) -> str:
+def witness_analyzer_sync(
+    tekst_iskaza: str,
+    api_key: str,
+    *,
+    case_context_blok: str | None = None,
+) -> str:
+    """Analiza ISKAZA. Predmet daje „poznate činjenice" protiv kojih se proverava.
+
+    Ovo je modul koji najviše dobija: sopstveni sistemski prompt traži
+    „neslaganja sa poznatim činjenicama", a bez konteksta predmeta model nije
+    imao NIJEDNU poznatu činjenicu — mogao je da nađe samo unutrašnje
+    kontradikcije unutar samog iskaza. `dopunski=True` jer subjekt analize i
+    dalje ostaje iskaz, ne spis.
+    """
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
     resp = _pozovi_strategija_api(
@@ -353,7 +480,11 @@ def witness_analyzer_sync(tekst_iskaza: str, api_key: str) -> str:
         timeout=90.0,
         messages=[
             {"role": "system", "content": _WITNESS_SYSTEM},
-            {"role": "user",   "content": f"Iskaz/svedočenje za analizu:\n\n{tekst_iskaza}"},
+            {"role": "user",   "content": _uz_kontekst_predmeta(
+                f"Iskaz/svedočenje za analizu:\n\n{tekst_iskaza}",
+                case_context_blok,
+                dopunski=True,
+            )},
         ],
     )
     return (resp.choices[0].message.content or "").strip()
@@ -407,17 +538,33 @@ Struktura (obavezna):
 Završi sa jednom rečenicom koja jasno kaže ko je pobedio i zašto."""
 
 
-def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
-    """3-round debate: tužilac → branilac → sudija donosi odluku."""
+def ai_judge_v2_sync(
+    opis_predmeta: str,
+    api_key: str,
+    *,
+    case_context_blok: str | None = None,
+) -> dict:
+    """3-round debate: tužilac → branilac → sudija donosi odluku.
+
+    Kontekst predmeta se sastavlja JEDNOM, u `_predmet_sa_kontekstom`, i koristi
+    u sva tri kruga. Ovo je namerno lokalna promenljiva, a ne tri odvojena
+    poziva helpera: P0-D je zamalo isporučen sa `NameError` baš u ovoj funkciji,
+    jer je `replace_all` nad izrazom `f"Predmet:\\n\\n{opis_predmeta}"` pogodio i
+    krugove koji tu promenljivu nisu imali (v. `tests/test_p0d_case_context_
+    integrity.py::test_n_nema_nedefinisanih_imena`). Jedno mesto sastavljanja =
+    jedno mesto koje može da omane, i pyflakes ga vidi.
+    """
     from openai import OpenAI as _OAI
     client = _OAI(api_key=api_key)
+
+    _predmet_sa_kontekstom = _uz_kontekst_predmeta(opis_predmeta, case_context_blok)
 
     r1 = _pozovi_strategija_api(
         client,
         model="gpt-4o", temperature=0.3, max_tokens=1500, timeout=90.0,
         messages=[
             {"role": "system", "content": _JUDGE_V2_TUZILAC},
-            {"role": "user",   "content": f"Predmet:\n\n{opis_predmeta}"},
+            {"role": "user",   "content": f"Predmet:\n\n{_predmet_sa_kontekstom}"},
         ],
     )
     tuzilac = (r1.choices[0].message.content or "").strip()
@@ -428,7 +575,7 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
         messages=[
             {"role": "system", "content": _JUDGE_V2_BRANILAC},
             {"role": "user",   "content": (
-                f"Predmet:\n\n{opis_predmeta}\n\n"
+                f"Predmet:\n\n{_predmet_sa_kontekstom}\n\n"
                 f"Argumenti tužioca:\n\n{tuzilac}"
             )},
         ],
@@ -441,7 +588,7 @@ def ai_judge_v2_sync(opis_predmeta: str, api_key: str) -> dict:
         messages=[
             {"role": "system", "content": _JUDGE_V2_PRESUDA},
             {"role": "user",   "content": (
-                f"Predmet:\n\n{opis_predmeta}\n\n"
+                f"Predmet:\n\n{_predmet_sa_kontekstom}\n\n"
                 f"Argumenti tužioca:\n\n{tuzilac}\n\n"
                 f"Argumenti tuženog/branioca:\n\n{branilac}"
             )},

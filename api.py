@@ -1594,11 +1594,22 @@ def api_version():
     # je namenjen tvrdnjama o identitetu ovog build-a.
     #
     # Ne izlaže ništa osetljivo: dve zastavice i ime klase greške.
+    #
+    # Governance Wave 9 (§8): status sada nosi i `ai_blocked` — razliku između
+    # „kontrole ne rade, a AI i dalje radi neupravljano" (neprihvatljivo) i
+    # „kontrole ne rade, pa je AI granica zatvorena" (fail-closed). Bez tog
+    # polja se ta dva stanja spolja ne razlikuju, a samo jedno je bezbedno.
     try:
         from shared.ai_client import governance_status as _gs
         gov = _gs()
     except Exception:
-        gov = {"attempted": None, "active": None, "failure_reason": "status nedostupan"}
+        # `ai_blocked: None` = nepoznato. Namerno NIJE False: tvrdnja „AI nije
+        # blokiran" bez izvora bila bi izmišljena.
+        gov = {
+            "attempted": None, "active": None, "ai_blocked": None,
+            "ai_block_method": None, "ai_block_reason": None,
+            "failure_reason": "status nedostupan",
+        }
 
     return {
         "app": b["app"],

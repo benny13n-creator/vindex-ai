@@ -3099,6 +3099,21 @@ async function stratPokreni() {
   var tekst = tekstEl ? tekstEl.value.trim() : '';
   var modul = STRAT_MODULI[_stratAktivniModul];
 
+  // Wave 9 (§5) — svih 7 pojedinačnih modula sada može da rezonuje nad
+  // PRAĆENIM predmetom, ne samo nad pasusom koji je advokat nalepio.
+  //
+  // ID se hvata OVDE, pre prvog `await`, i to iz POREKLA SAMOG TEKSTA:
+  // `_predAutoFill` upisuje `dataset.predId` na polje kad ga popuni iz predmeta.
+  //
+  // Zašto ne `activePredmetId`: ta promenljiva se menja čim advokat otvori drugi
+  // predmet. `dataset.predId` prati TEKST, ne UI izbor — ako je tekst nalepljen
+  // ručno, atributa nema i analiza se ispravno ne vezuje ni za jedan predmet.
+  // `_vxProveriVezuSaPredmetom` već briše atribut kad se tekst zameni u celini.
+  //
+  // Isti izvor koji `stratOrkestratorPokreni` koristi za `/kompletna-analizu`
+  // (P0-D2) — jedan mehanizam vezivanja za obe naplative putanje.
+  var _predIdZaAnalizu = (tekstEl && tekstEl.dataset && tekstEl.dataset.predId) || null;
+
   if (!currentUser) { openModal(); return; }
 
   if (!currentUserIsPro) {
@@ -3143,7 +3158,14 @@ async function stratPokreni() {
       if (_stratAktivniModul === 'red_team' || _stratAktivniModul === 'litigation') {
         reqBody.tip_postupka = tipVal;
       }
+      // Šalje se SAMO kad postoji. Bez njega endpoint radi tačno kao pre —
+      // `predmet_id` je opciono polje na `StrategijaRequest`, ne obavezno.
+      if (_predIdZaAnalizu) reqBody.predmet_id = _predIdZaAnalizu;
     }
+    // NAPOMENA o `court_predictor` grani iznad: ona namerno i dalje čita
+    // `activePredmetId`. Tako je postavljeno u PROGBETA-001 da bi readiness cap
+    // mogao da opali, i menjanje tog vezivanja ovde bi diralo bezbednosnu
+    // granicu van obima ovog sprinta. Razlika je svesna i zabeležena, ne previd.
     var res = await fetch(BASE_URL + modul.endpoint, {
       method: 'POST',
       headers: {

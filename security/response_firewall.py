@@ -196,6 +196,122 @@ def inspect_chat_response(
     return Verdict(ALLOW)
 
 
+# ─── Audit odluke (Wave 9, §11) ─────────────────────────────────────────────
+#
+# Do Wave 9 su BLOCK i ESCALATE samo LOGOVANI. Log se rotira, ne može se
+# dokazati trećoj strani i ne vezuje se za korisnika — pa je „firewall je
+# odbio odgovor" bila tvrdnja bez traga.
+#
+# MODEL KOJI JE IZABRAN I ZAŠTO (asimetričan, namerno):
+#
+#   BLOCK / ESCALATE → trajni append-only ledger (`shared/audit_immutable.py`)
+#   ALLOW            → deterministički strukturisan log + POSTOJEĆI AI
+#                      Provenance red (`security/ai_forensics.py`), koji
+#                      `shared/ai_client.py::_capture_chat_provenance` već
+#                      upisuje za SVAKI poziv sa istim `correlation_id`,
+#                      provajderom, modelom, korisnikom i statusom
+#
+# Razlog nije štednja radi štednje. `audit_immutable` je hash-lanac: svaki upis
+# čita poslednji hash pa upisuje, i migracija 081 namerno pravi UNIQUE(prev_hash)
+# da bi konkurentni upisi sudarali i ponavljali se. ALLOW se dešava na SVAKOM
+# AI pozivu; vezivanje lanca za tu frekvenciju bi pretvorilo normalan saobraćaj
+# u trajni izvor prev_hash sudara i usporilo bi upis BLOCK zapisa — dakle
+# oslabilo bi baš one zapise zbog kojih ledger postoji. ALLOW pritom NIJE bez
+# traga: njegov deterministički red već postoji u AI Provenance tabeli, vezan
+# istim `correlation_id`-em, pa se „koliko je poziva prošlo i čijih" i dalje
+# odgovara iz baze, ne iz loga.
+#
+# ŠTA SE NIKAD NE UPISUJE: sirov odgovor modela, sadržaj dokumenta, tekst
+# prompta. Samo ko/šta/zašto — i naši sopstveni, deterministički razlozi.
+_AUDIT_AKCIJA = "ai_response_firewall_decision"
+
+
+def _ledger_dozvoljen() -> bool:
+    """Da li smemo da pišemo u PRODUKCIONI append-only ledger.
+
+    Test proces se namerno izuzima. Ovo nije kozmetika: `.env` na razvojnoj
+    mašini nosi žive Supabase kredencijale, a `audit_immutable` je INSERT-only
+    hash-lanac iz kog se red ne može obrisati bez lomljenja lanca. Bez ove
+    provere bi svako pokretanje `tests/test_gov3_response_firewall.py` (5 BLOCK
+    verdikata) trajno ubacilo smeće u produkcioni forenzički trag. Odluka
+    firewall-a se u testu i dalje u potpunosti izvršava i loguje — izostaje
+    samo upis u tuđu, živu bazu.
+    """
+    import os
+    return not os.getenv("PYTEST_CURRENT_TEST")
+
+
+def _audit_odluku(
+    *,
+    decision: str,
+    razlozi: list[str],
+    degradacije: list[str],
+    operation: str,
+    provider: str,
+    model: str,
+    correlation_id: Optional[str],
+    user_id: Optional[str],
+) -> None:
+    """Best-effort trag o odluci. NIKAD ne diže — ali NIKAD i ne guta odluku.
+
+    Poziva se PRE nego što `enforce` digne `ResponseBlocked`, pa neuspeh
+    upisa ne može da pretvori BLOCK u prolaz: dizanje je van ovog poziva.
+    """
+    from datetime import datetime, timezone
+
+    zapis = {
+        "decision": decision,
+        "operation": operation or "unknown",
+        "provider": provider or "unknown",
+        "model": model or "unknown",
+        "correlation_id": correlation_id,
+        "user_id": user_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        # Naši sopstveni, deterministički kodovi — nikad tekst modela.
+        "razlozi": list(razlozi or []),
+        "degradacije": list(degradacije or []),
+    }
+
+    # Deterministički trag za SVE tri odluke, uključujući ALLOW.
+    logger.info("[RESP_FW_AUDIT] %s", zapis)
+
+    if decision == ALLOW:
+        return
+    if not _ledger_dozvoljen():
+        return
+
+    try:
+        import asyncio
+
+        from shared.audit_immutable import log_action, log_action_sync
+
+        polja = dict(
+            action=_AUDIT_AKCIJA,
+            user_id=user_id,
+            resource_type="ai_response",
+            resource_id=(operation or "")[:255] or None,
+            metadata=zapis,
+            correlation_id=correlation_id,
+        )
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # kontrola toka: nema event loop-a → sinhroni upis. Ovo NIJE
+            # hvatanje greške; `get_running_loop()` je jedini način da se
+            # postojanje loop-a utvrdi, a odsustvo loop-a nije kvar.
+            log_action_sync(**polja)
+        else:
+            # U async kontekstu upis mora u pozadinu — `log_action_sync` bi
+            # blokirao event loop mrežnim upisom. Isti obrazac koji
+            # `_capture_chat_provenance` već koristi.
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(log_action(**polja), name="response_firewall:audit")
+    except Exception as exc:
+        # Audit je best-effort: gubitak zapisa ne sme da obori AI poziv.
+        # Odluka firewall-a je već doneta i biće izvršena bez obzira na ovo.
+        logger.warning("[RESP_FW_AUDIT] upis odluke nije uspeo (nije kritično): %s", exc)
+
+
 def enforce(
     response: Any,
     *,
@@ -227,9 +343,20 @@ def enforce(
         )
     except Exception as exc:
         logger.error("[RESP_FW] provera nije uspela (fail-closed): %s", exc)
-        raise ResponseBlocked(
-            [f"provera odgovora nije uspela: {type(exc).__name__}"], operation, model,
-        ) from exc
+        razlog = f"provera odgovora nije uspela: {type(exc).__name__}"
+        # I fail-closed grana je odluka i mora imati zapis — inače je jedini
+        # ishod bez traga upravo onaj u kome firewall nije mogao da odluči.
+        _audit_odluku(
+            decision=BLOCK, razlozi=[razlog], degradacije=[], operation=operation,
+            provider=provider, model=model, correlation_id=correlation_id, user_id=user_id,
+        )
+        raise ResponseBlocked([razlog], operation, model) from exc
+
+    _audit_odluku(
+        decision=v.decision, razlozi=v.razlozi, degradacije=v.degradacije,
+        operation=operation, provider=provider, model=model,
+        correlation_id=correlation_id, user_id=user_id,
+    )
 
     if v.decision == BLOCK:
         logger.warning(

@@ -46,6 +46,43 @@ _guard_patched = False
 _guard_active = False
 _guard_failure_reason: str | None = None
 
+# Governance Wave 9 (§8) — FAIL-CLOSED NA AI GRANICI.
+#
+# Wave 4 je razdvojio „pokušano" od „aktivno" i pošteno objavljivao
+# `active=false`. Ali je ponašanje ostalo isto kao pre: patch padne → log →
+# aplikacija nastavlja da izvršava AI pozive potpuno neupravljano (bez prompt
+# guard-a, bez Response Firewall-a, bez provenance-a, bez timeout-a). Mandat
+# izričito zabranjuje stanje „patch failed → log error → continue AI execution".
+#
+# ZAŠTO NE RUŠIMO PROCES: uvicorn koji padne zbog neuspelog uvoza SDK klase
+# obara i login, i naplatu, i pregled predmeta — governance kvar bi postao
+# potpuni ispad. Fail-closed NA AI GRANICI daje istu bezbednosnu garanciju
+# (nijedan neupravljan AI poziv se ne izvršava) uz očuvanu dostupnost svega
+# ostalog u aplikaciji.
+#
+# KAKO: jedini način da se AI poziv desi jeste preko `openai` klijenta. Ako ne
+# možemo da presretnemo `Completions.create`, možemo da sprečimo da klijent
+# uopšte postoji — zamenom `openai.OpenAI`/`AsyncOpenAI` (i Azure parnjaka)
+# klasama koje pri KONSTRUKCIJI dižu `GovernanceUnavailable`. Ista tehnika
+# (patch na modul, ne na pozivno mesto) koju `_patch_openai_module` već koristi
+# za Azure redirect. Ako ni `import openai` ne uspe, nijedan poziv ionako nije
+# moguć — inherentno fail-closed.
+_ai_blocked = False
+_ai_block_reason: str | None = None
+_ai_block_method: str | None = None
+# Snimak originalnih konstruktora, da `_uninstall_prompt_guard()` može da vrati
+# modul u prethodno stanje (v. C2 — testovi moraju moći da očiste za sobom).
+_orig_openai_ctors: dict | None = None
+
+
+class GovernanceUnavailable(RuntimeError):
+    """AI granica je zatvorena jer governance sloj nije aktivan.
+
+    Nasleđuje `RuntimeError` (ne `openai.APIError`) namerno: `shared/llm_retry.py`
+    ponavlja samo provajderske greške, a ponavljanje ovoga bi bilo beskonačno
+    petljanje oko stanja koje se ne menja samo od sebe.
+    """
+
 
 def governance_status() -> dict:
     """Stvarno stanje AI governance sloja, za health/verifikaciju.
@@ -53,12 +90,111 @@ def governance_status() -> dict:
     Ovo je jedina javna tvrdnja o tome da li su kontrole žive. Namerno vraća i
     razlog neuspeha — „nije aktivno" bez razloga ne može da se dijagnostikuje
     na produkciji gde se log možda ne čita.
+
+    Wave 9: `ai_blocked` razdvaja dva bitno različita stanja koja su do sada
+    oba izgledala kao `active=false`:
+
+        active=false, ai_blocked=false → AI radi NEUPRAVLJANO (neprihvatljivo)
+        active=false, ai_blocked=true  → guard nije aktivan, ali nijedan AI
+                                         poziv ne može da se izvrši (fail-closed)
     """
     return {
         "attempted": _guard_patched,
         "active": _guard_active,
+        "ai_blocked": _ai_blocked,
+        "ai_block_method": _ai_block_method,
+        "ai_block_reason": _ai_block_reason,
         "failure_reason": _guard_failure_reason,
     }
+
+
+def _napravi_otrovnu_klasu(ime: str, poruka: str):
+    """Vraća klasu koja pri konstrukciji diže `GovernanceUnavailable`.
+
+    Zadržava originalno ime klase (`__name__`) da bi stack trace i log na
+    produkciji i dalje pokazivali KOJI je klijent pokušan.
+    """
+
+    def __init__(self, *args, **kwargs):  # noqa: N807
+        raise GovernanceUnavailable(poruka)
+
+    return type(ime, (object,), {"__init__": __init__, "_vindex_poisoned": True})
+
+
+def _install_ai_kill_switch(razlog: str) -> None:
+    """Zatvara AI granicu kada instalacija guard-a nije uspela.
+
+    Best-effort po dizajnu NIJE opcija ovde: ako i ovaj korak padne, to se
+    zapisuje kao poseban razlog u `governance_status()` i loguje kao CRITICAL,
+    jer tada AI granica OSTAJE otvorena i to mora da bude vidljivo spolja.
+    """
+    global _ai_blocked, _ai_block_reason, _ai_block_method, _orig_openai_ctors
+
+    poruka = (
+        "AI pozivi su zaustavljeni jer AI governance sloj nije aktivan "
+        f"({razlog}). Ovo je namerna fail-closed brana, ne kvar provajdera."
+    )
+
+    try:
+        import openai
+    except Exception as exc:
+        # Ako `import openai` ne uspe, nijedan AI poziv nije ni moguć — granica
+        # je zatvorena samom nemogućnošću uvoza, ne našom branom.
+        _ai_blocked = True
+        _ai_block_method = "openai_uvoz_nemoguc"
+        _ai_block_reason = (
+            f"{razlog}; `import openai` takođe nije uspeo ({type(exc).__name__}) — "
+            "nijedan AI poziv nije ni moguć"
+        )
+        logger.error("[AI_GUARD] %s", _ai_block_reason)
+        return
+
+    try:
+        _orig_openai_ctors = {
+            ime: getattr(openai, ime, None)
+            for ime in ("OpenAI", "AsyncOpenAI", "AzureOpenAI", "AsyncAzureOpenAI")
+        }
+        # Azure parnjaci su OBAVEZNI, ne kozmetika: `langchain_openai`
+        # (chat_models/azure.py:690, embeddings/azure.py:210, llms/azure.py:179)
+        # konstruiše preko `openai.AzureOpenAI` / `openai.AsyncAzureOpenAI`, pa
+        # bi otrov samo nad `OpenAI`/`AsyncOpenAI` ostavio živu zaobilaznicu.
+        for ime in ("OpenAI", "AsyncOpenAI", "AzureOpenAI", "AsyncAzureOpenAI"):
+            if getattr(openai, ime, None) is not None:
+                setattr(openai, ime, _napravi_otrovnu_klasu(ime, poruka))
+        _ai_blocked = True
+        _ai_block_method = "otrovane_klijent_klase"
+        _ai_block_reason = razlog
+        logger.error(
+            "[AI_GUARD] FAIL-CLOSED: guard nije aktivan (%s) — AI granica je "
+            "zatvorena, konstrukcija OpenAI/Azure klijenta sada diže "
+            "GovernanceUnavailable. Ostatak aplikacije radi normalno.",
+            razlog,
+        )
+    except Exception as exc:
+        _ai_blocked = False
+        _ai_block_method = None
+        _ai_block_reason = (
+            f"{razlog}; instalacija fail-closed brane NIJE uspela "
+            f"({type(exc).__name__}) — AI granica je OTVORENA"
+        )
+        logger.critical("[AI_GUARD] %s", _ai_block_reason)
+
+
+def _restore_openai_ctors() -> None:
+    """Vraća `openai.*` konstruktore na stanje pre fail-closed brane."""
+    global _orig_openai_ctors, _ai_blocked, _ai_block_reason, _ai_block_method
+    if _orig_openai_ctors:
+        try:
+            import openai
+            for ime, klasa in _orig_openai_ctors.items():
+                if klasa is not None:
+                    setattr(openai, ime, klasa)
+        except Exception as exc:  # pragma: no cover — samo dijagnostika
+            logger.warning("[AI_GUARD] vraćanje openai konstruktora nije uspelo: %s", exc)
+    _orig_openai_ctors = None
+    _ai_blocked = False
+    _ai_block_reason = None
+    _ai_block_method = None
 
 
 def _patch_openai_module() -> None:
@@ -152,6 +288,21 @@ def _caller_hint(depth: int = 2) -> str:
         return "unknown"
 
 
+def _process_provider_name() -> str:
+    """Provajder na nivou PROCESA ('azure' ako je Azure redirect aktivan).
+
+    Manje precizno od `_client_provider_name(self)`, koji čita stvarnog
+    roditeljskog klijenta — ali `_enforce_response(kwargs, response)` nema
+    `self`, a njegov potpis je zaključan tvrdnjom u
+    `tests/test_gov2_runtime_interception.py::test_e_...` (broji tačan tekst
+    `return _enforce_response(kwargs, response)`). Po-pozivni identitet
+    provajdera ionako već postoji u AI Provenance redu, koji `self` ima.
+    """
+    if os.getenv("AZURE_OPENAI_KEY", "").strip() and os.getenv("AZURE_OPENAI_ENDPOINT", "").strip():
+        return "azure"
+    return "openai"
+
+
 def _client_provider_name(self) -> str:
     """'azure' ako je resurs vezan za AzureOpenAI/AsyncAzureOpenAI klijenta,
     inace 'openai' — cita se preko resursa._client, standardni openai SDK
@@ -177,6 +328,13 @@ _orig_create = None
 _orig_acreate = None
 _orig_embed = None
 _orig_aembed = None
+# Wave 9 (C2): audio originali su ranije bili lokali unutar `_patch_prompt_guard`,
+# pa ih `_uninstall_prompt_guard()` nije mogao vratiti — teardown bi ostavio
+# audio klase trajno obavijene i sledeći patch bi ih obavio drugi put.
+_orig_stt = None
+_orig_astt = None
+_orig_tts = None
+_orig_atts = None
 
 
 def _capture_chat_provenance(self, kwargs: dict, response, latency_ms: int, error: Exception | None = None) -> None:
@@ -356,27 +514,63 @@ def _patch_prompt_guard() -> None:
     """
     global _guard_patched, _guard_active, _guard_failure_reason
     global _orig_create, _orig_acreate, _orig_embed, _orig_aembed
+    global _orig_stt, _orig_astt, _orig_tts, _orig_atts
     if _guard_patched:
         return
 
+    # Wave 9 (§8): SVI uvozi od kojih zavisi chat guard su u JEDNOM try bloku.
+    # Ranije je samo uvoz SDK klasa bio zaštićen; da je `security.prompt_guard`
+    # ili `security.response_firewall` pukao (sintaksna greška, ciklična
+    # zavisnost), izuzetak bi propagirao iz `_patch_prompt_guard()` koji se zove
+    # na nivou modula u `api.py:28` — i oborio ceo uvicorn na uvozu. Sada je
+    # ishod isti kao za bilo koji drugi neuspeh guard-a: fail-closed na AI
+    # granici, ostatak aplikacije radi.
     try:
         from openai.resources.chat.completions.completions import (
             AsyncCompletions,
             Completions,
         )
+        from security.prompt_guard import PromptInjectionBlocked
+        from security.prompt_guard import analyze as _analyze
+        # Governance Wave 3 — CANONICAL RESPONSE FIREWALL (v. komentar niže).
+        from security.response_firewall import enforce as _fw_enforce
     except Exception as exc:
-        logger.error("[AI_GUARD] Nisam mogao da uvezem OpenAI Completions klase, guard NIJE aktivan: %s", exc)
+        logger.error("[AI_GUARD] Nisam mogao da uvezem governance zavisnosti, guard NIJE aktivan: %s", exc)
         # `_guard_patched = True` sprečava beskonačno ponavljanje pokušaja.
         # `_guard_active` OSTAJE False — to je jedina tvrdnja koja sme da kaže
         # da li kontrole rade. Razdvajanje je uvedeno u Wave 4 jer je jedna
         # promenljiva ranije tvrdila oboje, pa je neuspeh izgledao kao uspeh.
         _guard_patched = True
         _guard_active = False
-        _guard_failure_reason = f"import OpenAI Completions klasa nije uspeo: {type(exc).__name__}"
+        _guard_failure_reason = f"import governance zavisnosti nije uspeo: {type(exc).__name__}"
+        # Wave 9: OVDE je razlika u odnosu na Wave 4. Ranije se ovde samo
+        # vraćalo i aplikacija je nastavljala da izvršava AI pozive bez ijedne
+        # kontrole. Sada se AI granica zatvara.
+        _install_ai_kill_switch(_guard_failure_reason)
         return
 
-    from security.prompt_guard import PromptInjectionBlocked
-    from security.prompt_guard import analyze as _analyze
+    # Wave 9 (C2) — STRUKTURNA IDEMPOTENCIJA.
+    #
+    # `_guard_patched` je bila JEDINA brana protiv dvostrukog patch-ovanja. To
+    # nije bila hipoteza nego izmeren kvar: test fixture je resetovao samo
+    # zastavice, pa je drugi poziv patch-ovao VEĆ PATCH-OVANE klase —
+    # `_orig_create` je postao već-obavijen `_guarded_create`, wrapper se
+    # ugnezdio u samog sebe i oborio `tests/test_uploaded_doc_api.py`.
+    #
+    # Zastavica je tvrdnja O NAMERI. Atribut na samoj metodi je tvrdnja O
+    # STANJU — i ostaje tačan i kada neko zaobiđe zastavicu.
+    if getattr(Completions.create, "_vindex_guarded", False):
+        # Guard JESTE aktivan (wrapper stoji na klasi), pa fail-closed brana —
+        # ako je neki raniji pokušaj nju instalirao — više nema osnov i mora se
+        # skloniti. Bez ovoga bi uspešan guard ostao sa otrovanim
+        # konstruktorima i AI bi bio mrtav bez razloga.
+        if _ai_blocked:
+            _restore_openai_ctors()
+        _guard_patched = True
+        _guard_active = True
+        _guard_failure_reason = None
+        logger.debug("[AI_GUARD] chat klase su već obavijene — preskačem (bez ugnežđivanja)")
+        return
 
     # Governance Wave 3 — CANONICAL RESPONSE FIREWALL.
     #
@@ -392,7 +586,8 @@ def _patch_prompt_guard() -> None:
     # NE pokriva: sirov WebSocket (`services/voice_orchestrator.py`) i Cohere
     # SDK (`app/services/retrieve.py`). Te dve putanje ga mogu zaobići i to je
     # deo ugovora, ne propust — v. `security/response_firewall.py`.
-    from security.response_firewall import enforce as _fw_enforce
+    # (`from security.response_firewall import enforce` je izvršen gore, u
+    # zajedničkom fail-closed try bloku.)
 
     def _enforce_response(kwargs, response):
         """Primeni firewall, sa identitetom iz već postojećeg konteksta.
@@ -400,6 +595,17 @@ def _patch_prompt_guard() -> None:
         `correlation_id` i `user_id` se čitaju iz `shared/ai_provenance`, koji
         je isti izvor koji `_capture_chat_provenance` već koristi — bez novog
         mehanizma i bez novog izvora istine.
+
+        Wave 9 (C3) — ISPRAVKA IZMERENE GREŠKE: `user_id` se čitao preko
+        `_prov.current_request_context()`, funkcije koja u
+        `shared/ai_provenance.py` NE POSTOJI. `hasattr` je tiho vraćao False,
+        pa je `uid` bio None na SVAKOM pozivu — uključujući potpuno
+        autentifikovane zahteve. Posledica: firewall je svaki odgovor
+        proglašavao ESCALATE („user_id nedostaje"), pa je degradacija bila
+        konstantna i time bezvredna kao signal, a nijedan audit zapis nije
+        mogao da se pripiše korisniku. Ispravan izvor je `current_context()`,
+        koji spaja request i case kontekst — isti dict iz kog
+        `_capture_chat_provenance` već čita `user_id` (`:227`).
         """
         cid = None
         uid = None
@@ -407,8 +613,7 @@ def _patch_prompt_guard() -> None:
             import shared.ai_provenance as _prov
             _ctx = _prov.current_context() or {}
             cid = _ctx.get("correlation_id")
-            uid = (_prov.current_request_context() or {}).get("user_id") \
-                if hasattr(_prov, "current_request_context") else None
+            uid = _ctx.get("user_id")
         except Exception:
             # Nedostatak identiteta je DEGRADACIJA, ne razlog za rušenje poziva —
             # firewall to prijavljuje kao ESCALATE. Zato ova grana sme da bude
@@ -418,7 +623,7 @@ def _patch_prompt_guard() -> None:
             response,
             kwargs=kwargs,
             operation=_caller_hint(),
-            provider="openai",
+            provider=_process_provider_name(),
             model=(kwargs or {}).get("model", ""),
             correlation_id=cid,
             user_id=uid,
@@ -468,20 +673,48 @@ def _patch_prompt_guard() -> None:
         _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
         return _enforce_response(kwargs, response)
 
+    # Wave 9 (C2): marker STANJA na samim wrapperima. `_guard_patched` opisuje
+    # nameru i može se resetovati spolja; ovo se ne može, jer živi na objektu
+    # koji je zaista postavljen na SDK klasu.
+    _guarded_create._vindex_guarded = True
+    _guarded_acreate._vindex_guarded = True
+
     Completions.create = _guarded_create
     AsyncCompletions.create = _guarded_acreate
 
     try:
         from openai.resources.embeddings import AsyncEmbeddings, Embeddings
 
+        if getattr(Embeddings.create, "_vindex_guarded", False):
+            raise RuntimeError("embeddings su već obavijeni — ne ugnežđujem")
+
         _orig_embed = Embeddings.create
         _orig_aembed = AsyncEmbeddings.create
 
+        # ── Wave 9 (C5): embeddings grana je bila JEDINA bez `_with_timeout` ──
+        # Chat (`:642`) i audio (`:737,:749`) su prosleđivali podrazumevani
+        # timeout; embeddings nije, pa je za njih važio SDK default
+        # (read=600s, max_retries=2 → do 3×600s zauzeća niti po jednom
+        # logičkom pozivu). To je ista rupa zbog koje S1-2 postoji, samo na
+        # putanji koja se izvršava na SVAKI upload dokumenta i SVAKI RAG upit.
+        #
+        # ULAZNI GUARD NAMERNO NIJE DODAT. Embeddings ulaz je tekst pravnog
+        # dokumenta koji se pretvara u vektor — model ne izvršava instrukcije
+        # iz njega, nema izlaza koji bi injection mogao da preusmeri. Blokiranje
+        # po injection score-u bi obaralo legitimno indeksiranje: pravni
+        # podnesci, presude i ugovori prirodno sadrže citirane naredbe
+        # („zanemari prethodno navedeno", „postupi po nalogu suda"), a
+        # `security/prompt_guard.py` ih ocenjuje po obrascu, ne po nameri.
+        # Cena lažno pozitivnog je trajno neindeksiran dokaz u predmetu; korist
+        # je nula, jer nema instrukcijskog kanala koji bi se zloupotrebio.
+        # Ista logika zabranjuje i „firewall nad odgovorom": vektor nije
+        # odgovor, nema `choices[0].message` oblik (v. test_e2 u
+        # tests/test_gov2_runtime_interception.py).
         def _tracked_embed(self, *args, **kwargs):
             import time
             _t0 = time.monotonic()
             try:
-                response = _orig_embed(self, *args, **kwargs)
+                response = _orig_embed(self, *args, **_with_timeout(kwargs))
             except Exception as exc:
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                 raise
@@ -492,13 +725,15 @@ def _patch_prompt_guard() -> None:
             import time
             _t0 = time.monotonic()
             try:
-                response = await _orig_aembed(self, *args, **kwargs)
+                response = await _orig_aembed(self, *args, **_with_timeout(kwargs))
             except Exception as exc:
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
                 raise
             _capture_embedding_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
             return response
 
+        _tracked_embed._vindex_guarded = True
+        _tracked_aembed._vindex_guarded = True
         Embeddings.create = _tracked_embed
         AsyncEmbeddings.create = _tracked_aembed
     except Exception as exc:
@@ -523,6 +758,9 @@ def _patch_prompt_guard() -> None:
         from openai.resources.audio.speech import AsyncSpeech, Speech
         from openai.resources.audio.transcriptions import AsyncTranscriptions, Transcriptions
 
+        if getattr(Transcriptions.create, "_vindex_guarded", False):
+            raise RuntimeError("audio klase su već obavijene — ne ugnežđujem")
+
         _orig_stt = Transcriptions.create
         _orig_astt = AsyncTranscriptions.create
         _orig_tts = Speech.create
@@ -540,6 +778,7 @@ def _patch_prompt_guard() -> None:
                         raise
                     _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
                     return response
+                _tracked._vindex_guarded = True
                 return _tracked
 
             def _tracked(self, *args, **kwargs):
@@ -552,6 +791,7 @@ def _patch_prompt_guard() -> None:
                     raise
                 _capture_embedding_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000))
                 return response
+            _tracked._vindex_guarded = True
             return _tracked
 
         Transcriptions.create      = _make_tracked_audio(_orig_stt,  False)
@@ -565,6 +805,14 @@ def _patch_prompt_guard() -> None:
     # namerno ne-kritične (`logger.warning`, nastavlja) — one nose provenance, ne
     # zaštitu, pa njihov neuspeh ne obara tvrdnju o aktivnom guard-u. Da nose
     # zaštitu, ovaj red bi morao da zavisi i od njih.
+    # Wave 9: ako je raniji pokušaj zatvorio AI granicu (fail-closed brana), a
+    # ovaj je uspeo, brana se MORA skloniti — inače bi uspešan guard i dalje
+    # imao otrovane konstruktore i AI bi ostao mrtav bez razloga. Ovo je jedina
+    # putanja koja sme da otvori granicu: aktivan guard.
+    if _ai_blocked:
+        logger.info("[AI_GUARD] guard je sada aktivan — sklanjam fail-closed branu sa AI granice")
+        _restore_openai_ctors()
+
     _guard_patched = True
     _guard_active = True
     _guard_failure_reason = None
@@ -573,3 +821,57 @@ def _patch_prompt_guard() -> None:
         "— svi GPT pozivi u aplikaciji sada strukturno zaštićeni (SEC-003) i "
         "beleže AI Provenance (Mission Atlas)"
     )
+
+
+def _uninstall_prompt_guard() -> None:
+    """Vraća SVE zamenjene SDK metode na originale i resetuje globalno stanje.
+
+    ZAŠTO OVO POSTOJI U PRODUKCIONOM MODULU, A NE U TEST FIXTURE-U (C2):
+
+    Fixture u `tests/test_gov4_patch_lifecycle.py` je prvo resetovao samo
+    zastavice. Pošto je `_patch_prompt_guard()` idempotentan preko
+    `_guard_patched`, drugi poziv je onda patch-ovao VEĆ PATCH-OVANE klase:
+    `_orig_create` je postao već-obavijen `_guarded_create`, wrapper se ugnezdio
+    u samog sebe, i to se prelilo na kasnije testove u istoj sesiji — oborilo je
+    dva nevezana, dotad zelena testa u `tests/test_uploaded_doc_api.py`.
+
+    Zaključak koji je ovde primenjen: fixture ne sme da mora da poznaje interne
+    detalje modula (koje su tačno četiri klase patch-ovane, kojim redom, i šta
+    je snimljeno gde). Modul koji zna da se instalira mora da zna i da se
+    deinstalira. Strukturna idempotencija (`_vindex_guarded`) je druga polovina
+    iste odluke: čak i ako neko zaobiđe i zastavicu i ovu funkciju, ugnežđivanje
+    je nemoguće.
+
+    Bezbedno je pozvati je i kada patch nikad nije instaliran.
+    """
+    global _guard_patched, _guard_active, _guard_failure_reason
+    global _orig_create, _orig_acreate, _orig_embed, _orig_aembed
+    global _orig_stt, _orig_astt, _orig_tts, _orig_atts
+
+    def _vrati(uvoz_putanja: str, imena_klasa: tuple, originali: tuple) -> None:
+        try:
+            import importlib
+            modul = importlib.import_module(uvoz_putanja)
+            for ime_klase, original in zip(imena_klasa, originali):
+                if original is None:
+                    continue
+                setattr(getattr(modul, ime_klase), "create", original)
+        except Exception as exc:  # pragma: no cover — samo dijagnostika
+            logger.warning("[AI_GUARD] deinstalacija (%s) nije uspela: %s", uvoz_putanja, exc)
+
+    _vrati(
+        "openai.resources.chat.completions.completions",
+        ("Completions", "AsyncCompletions"),
+        (_orig_create, _orig_acreate),
+    )
+    _vrati("openai.resources.embeddings", ("Embeddings", "AsyncEmbeddings"), (_orig_embed, _orig_aembed))
+    _vrati("openai.resources.audio.transcriptions", ("Transcriptions", "AsyncTranscriptions"), (_orig_stt, _orig_astt))
+    _vrati("openai.resources.audio.speech", ("Speech", "AsyncSpeech"), (_orig_tts, _orig_atts))
+
+    _restore_openai_ctors()
+
+    _orig_create = _orig_acreate = _orig_embed = _orig_aembed = None
+    _orig_stt = _orig_astt = _orig_tts = _orig_atts = None
+    _guard_patched = False
+    _guard_active = False
+    _guard_failure_reason = None

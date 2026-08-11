@@ -209,6 +209,24 @@ AUDITABLE_ACTIONS: set[str] = {
     # task, tokeni, latencija, klasa greške. Ni prompt ni odgovor NIKAD ne ulaze
     # u append-only ledger iz kog se sadržaj ne može obrisati.
     "ai_fabric_call",
+    # Governance Wave 9 (2026-08-11), §11 — odluka Response Firewall-a.
+    # Do sada su BLOCK i ESCALATE samo LOGOVANI: log se rotira, ne vezuje se za
+    # korisnika i ne može se pokazati trećoj strani, pa „firewall je odbio
+    # odgovor modela" nije bila dokaziva tvrdnja. Bez ovog unosa log_action
+    # tiho vraća None (isti obrazac koji je F-V39-001 već otkrio kod
+    # saradnik_uklonjen), pa bi ceo mehanizam izgledao implementirano a ne bi
+    # upisivao ništa.
+    #
+    # NAMERNO SAMO BLOCK/ESCALATE dolaze ovde. ALLOW se dešava na svakom AI
+    # pozivu, a ovaj ledger je hash-lanac sa UNIQUE(prev_hash) (migracija 081):
+    # vezivanje za tu frekvenciju bi normalan saobraćaj pretvorilo u trajni
+    # izvor prev_hash sudara i usporilo baš upis BLOCK zapisa. ALLOW ima svoj
+    # deterministički red u AI Provenance tabeli, sa istim correlation_id-em.
+    #
+    # Metadata nosi SAMO odluku, naše sopstvene razloge, operaciju, provajdera,
+    # model, correlation_id i vreme — nikad sirov odgovor modela, sadržaj
+    # dokumenta ni tekst prompta.
+    "ai_response_firewall_decision",
 }
 
 

@@ -241,24 +241,119 @@ async def _increment_usage(
         return 0
 
 
+def _nedostaje_kolona(exc: Exception) -> bool:
+    """Da li greška znači „ta kolona još ne postoji" (migracija 112 nije
+    pokrenuta), a ne stvarni kvar (pad konekcije, timeout)?
+
+    Šire je od `shared/audit_immutable._is_missing_column_error`, koje se
+    oslanja na Postgres SQLSTATE 42703 / „does not exist". Supabase klijent ne
+    priča direktno sa Postgres-om nego sa PostgREST-om, koji za nepoznatu
+    kolonu u INSERT payload-u vraća PGRST204 sa porukom oblika
+    „Could not find the 'predmet_id' column of 'feature_usage_log' in the
+    schema cache" — u njoj NEMA ni „42703" ni „does not exist". Oslanjanje
+    samo na postojeći helper bi zato promašilo baš onaj slučaj zbog kog ovaj
+    fallback postoji.
+
+    Namerno usko (a ne `except Exception`): stvarni kvar baze mora da propagira
+    odmah, bez drugog osuđenog pokušaja upisa.
+    """
+    try:
+        from shared.audit_immutable import _is_missing_column_error
+        if _is_missing_column_error(exc):
+            return True
+    except Exception:
+        pass
+    msg = str(exc).lower()
+    return "pgrst204" in msg or "schema cache" in msg or "42703" in msg
+
+
+def _provenance_polja(predmet_id: Optional[str] = None) -> dict:
+    """Čita `correlation_id`/`predmet_id` iz `shared/ai_provenance` contextvar-a.
+
+    IZMERENO STANJE (Wave 9, §17) — ne pretpostavka:
+
+      * `correlation_id` JESTE dostupan u trenutku naplate. Postavlja ga
+        `set_request_context` na auth chokepoint-u (`api.py:3450`,
+        `shared/deps.py:326`) pozivom `.set()` BEZ restore-a, pa važi za ceo
+        request; sonda potvrđuje da preživi i `asyncio.to_thread` i
+        `asyncio.create_task` (pozadinski poslovi).
+
+      * `predmet_id` NIJE dostupan. Živi u `_case_ctx`, koji `case_context`
+        vraća na prethodnu vrednost pri izlasku iz `with` bloka. AST merenje
+        svih poziva `UsageService.consume` u repou: **0 od 113** leži unutar
+        `with case_context(...)` — svi se zovu POSLE bloka (npr.
+        `routers/strategija.py:581` je izvan `with _ai_case_ctx`). Zato se
+        čitanje iz konteksta ovde zadržava samo kao ispravan fallback za
+        buduće pozivaoce, a stvarni put za predmet je eksplicitan
+        `consume(predmet_id=...)` — keyword-only, sa default-om, pa nijedan od
+        153 postojeća pozivaoca ne mora da se menja.
+
+    Praktična posledica: i kad je `predmet_id` NULL, predmet je i dalje
+    dobavljiv TRANZITIVNO, jer `ai_forensics` nosi i `correlation_id` i
+    `predmet_id` (JOIN opisan u migraciji 112).
+
+    STROGO fail-soft: bilo koja greška → prazan dict, upis ide kao i do sada.
+    """
+    polja: dict = {}
+    try:
+        from shared.ai_provenance import current_context
+        ctx = current_context() or {}
+        if ctx.get("correlation_id"):
+            polja["correlation_id"] = ctx["correlation_id"]
+        if ctx.get("predmet_id"):
+            polja["predmet_id"] = ctx["predmet_id"]
+    except Exception as exc:
+        # Telemetrija nikad ne sme da obori naplatu — ni čitanjem konteksta.
+        logger.debug("[USAGE] provenance kontekst nedostupan (non-fatal): %s", exc)
+    # Eksplicitan argument je jači od konteksta: pozivalac zna svoj predmet
+    # pouzdanije nego contextvar koji je u 113/113 slučajeva već resetovan.
+    if predmet_id:
+        polja["predmet_id"] = predmet_id
+    return polja
+
+
 async def _log_usage_event(
     user_id: str, feature: str, credits_spent: float, ai_model: Optional[str],
     estimated_cost_usd: Optional[float], tokens_prompt: Optional[int],
     tokens_completion: Optional[int], latency_ms: Optional[int],
+    predmet_id: Optional[str] = None,
 ) -> None:
-    def _insert():
-        _get_supa().table("feature_usage_log").insert({
-            "user_id": user_id,
-            "feature_key": feature,
-            "krediti_potroseni": credits_spent,
-            "ai_model": ai_model,
-            "estimated_cost_usd": estimated_cost_usd,
-            "tokens_prompt": tokens_prompt,
-            "tokens_completion": tokens_completion,
-            "latency_ms": latency_ms,
-        }).execute()
+    osnovni = {
+        "user_id": user_id,
+        "feature_key": feature,
+        "krediti_potroseni": credits_spent,
+        "ai_model": ai_model,
+        "estimated_cost_usd": estimated_cost_usd,
+        "tokens_prompt": tokens_prompt,
+        "tokens_completion": tokens_completion,
+        "latency_ms": latency_ms,
+    }
+    prov = _provenance_polja(predmet_id)
+
+    def _insert(payload: dict):
+        _get_supa().table("feature_usage_log").insert(payload).execute()
+
     try:
-        await asyncio.to_thread(_insert)
+        if prov:
+            # „Probaj široko, pa usko" — isti idiom koji repo već koristi za
+            # kolone koje čekaju migraciju (`security/ai_forensics.py:310-321`,
+            # `shared/audit_immutable.py:401-406`).
+            #
+            # BEZ ovog fallback-a bi dodavanje kolona bilo REGRESIJA: migraciju
+            # 112 vlasnik pokreće ručno, pa bi do tada PostgREST odbijao ceo
+            # INSERT zbog nepoznate kolone, spoljni `except` bi to progutao na
+            # debug nivou, i SVAKI red telemetrije naplate bi tiho nestajao.
+            try:
+                await asyncio.to_thread(_insert, {**osnovni, **prov})
+                return
+            except Exception as sirok_exc:
+                if not _nedostaje_kolona(sirok_exc):
+                    raise
+                logger.debug(
+                    "[USAGE] provenance kolone ne postoje (migracija 112 pokrenuta?) "
+                    "— upisujem bez njih: %s", sirok_exc,
+                )
+        await asyncio.to_thread(_insert, osnovni)
     except Exception as exc:
         # Analitika je best-effort — nikad ne blokira korisnika (migracija 065
         # možda još nije pokrenuta na ovom okruženju).
@@ -276,6 +371,7 @@ class UsageService:
         tokens_prompt: Optional[int] = None,
         tokens_completion: Optional[int] = None,
         latency_ms: Optional[int] = None,
+        predmet_id: Optional[str] = None,
     ) -> int:
         """
         multiplier: za operacije koje su N puta skuplje od registrovane bazne
@@ -302,6 +398,14 @@ class UsageService:
         tokens_prompt/tokens_completion/latency_ms su OPCIONI — endpoint ih
         prosleđuje ako ih ima (za feature_analytics), izostavljanje ne menja
         gejtovanje.
+
+        predmet_id (Wave 9, §17) je OPCION i keyword-only — dodat je tako da
+        nijedan od 153 postojeća pozivaoca ne mora da se menja, i NE UTIČE na
+        gejtovanje, cenu ni na bilo koji deo naplatne semantike. Koristi se
+        isključivo za telemetriju: upisuje se u `feature_usage_log.predmet_id`
+        (migracija 112) da bi se lanac naplata → predmet mogao dokazati
+        spajanjem. Prosleđuje ga onaj pozivalac koji predmet zna; ostali ga
+        izostavljaju i kolona ostaje NULL, tačno kao pre ove izmene.
 
         Vraća preostali broj kredita. Baca HTTPException(402/429) ako nema
         budžeta ili je cooldown aktivan.
@@ -476,6 +580,7 @@ class UsageService:
         await _log_usage_event(
             user_id, feature, credits, ai_model, est_cost,
             tokens_prompt, tokens_completion, latency_ms,
+            predmet_id,
         )
         return preostalo
 

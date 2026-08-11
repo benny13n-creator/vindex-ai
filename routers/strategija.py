@@ -60,6 +60,14 @@ async def _pozovi_strategija_v2_api(oai, **kwargs):
 # (which would need a matching frontend change), just an honest label,
 # reusing the same idiom Sigma Sprint 005 established for Case Commander
 # (shared/commander_schema.py) rather than inventing a new one.
+#
+# WAVE 9 (2026-08-11) -- the premise of the paragraph above is now HISTORICAL.
+# All 9 endpoints accept an optional `predmet_id`; when one is supplied AND the
+# canonical context actually loads, the analysis IS built over a tracked case
+# record. The classification is therefore no longer file-wide but PER REQUEST,
+# and `_advisory_provenance` reports which of the two actually happened. The
+# older paragraph is kept, not deleted: it records why the honest-label idiom
+# exists at all, and the "samo_opis" branch it describes is still the default.
 def _advisory_provenance(
     modul: str,
     model: str = "gpt-4o",
@@ -136,6 +144,41 @@ def _audit_strategija_durably(user_id: str, modul: str, predmet_id: Optional[str
 class StrategijaRequest(BaseModel):
     tekst: str = Field(..., max_length=20000)
     tip_postupka: Optional[str] = Field(None, description="gradjansko|krivicno|upravno|privredno|radno")
+    # Wave 9 — opciono i namerno, tačno kao na `OrkestratorRequest`. Bez njega
+    # se svih 6 modula koji dele ovaj model ponašaju BAJT-IDENTIČNO staroj
+    # verziji: nema kapije, nema upita u bazu, nema izmene prompta.
+    #
+    # Vrednost NIJE „trenutno otvoreni predmet". Frontend je čita iz porekla
+    # teksta (`dataset.predId`, v. `tests/test_p0d2_user_path_binding.py`) —
+    # `activePredmetId` je mutabilan i do kraja analize se može promeniti.
+    predmet_id: Optional[str] = Field(None, description="Opciono: povezuje analizu sa predmetom i dovlači kanonski kontekst")
+
+
+async def _gate_i_kontekst(predmet_id: Optional[str], uid: str) -> str:
+    """GATE-FIRST vlasništvo → kanonski kontekst. Jedina tačka za 7 modula.
+
+    Redosled i razlozi su DOSLOVNO isti kao u `post_kompletna_analiza:470-494`;
+    tamošnji komentar je merodavan i ne ponavlja se ovde. Sažeto, tri razloga
+    zašto kapija ide PRVA i sinhrono:
+
+      1. `shared/case_context.py:158` lansira svih 7 upita ODJEDNOM, pre svoje
+         interne provere vlasništva — tuđi redovi prođu kroz memoriju procesa.
+      2. `build_case_context` na tuđi id vraća dict sa `"error"`, ne 404; bez
+         kapije bi tuđ id bio nerazlučiv od „nije prosleđen", pa bi advokat
+         dobio punu, NAPLAĆENU analizu bez ijednog signala da je id odbijen.
+      3. Naplata (`UsageService.consume`) je posle AI poziva — kapija mora da
+         stoji pre oba.
+
+    Izdvojeno u helper jer se ista sekvenca ponavlja na 7 mesta. Sedmo mesto
+    (`/v2/analiza`) je zove ručno jer gradi prompt inline, bez sync funkcije.
+    Orkestrator je NAMERNO ne koristi: on kapiju drži u ruti, a kontekst gradi
+    tek unutar pozadinskog posla — druga vremenska osa, ista pravila.
+    """
+    if not predmet_id:
+        return ""
+    from routers.copilot_ambient import _proveri_vlasnistvo_predmeta
+    await _proveri_vlasnistvo_predmeta(predmet_id, uid)   # diže 404 za tuđ/nepostojeći
+    return await _kanonski_kontekst_blok(predmet_id, uid)
 
 
 async def _fetch_praksa_ctx(tekst: str, k: int = 3) -> str:
@@ -159,22 +202,33 @@ async def post_red_team(req: StrategijaRequest, request: Request, user: dict = D
     """F5.1 — Red Team analiza predmeta iz perspektive protivne strane (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "red_team", ""))
-    _audit_strategija_durably(user["user_id"], "red_team")
+    uid = user["user_id"]
+    # Kapija stoji ISPRED audita, Pinecone dohvata, AI poziva i naplate.
+    # Provera dužine ostaje iznad nje namerno: ona je čista, u-procesu validacija
+    # ulaza bez ijednog čitanja podataka — isti redosled kao na orkestratoru, gde
+    # Pydantic `min_length=100` po definiciji odradi posao pre tela rute.
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)
+    asyncio.create_task(_audit(uid, "red_team", ""))
+    _audit_strategija_durably(uid, "red_team", req.predmet_id)
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="red_team"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="red_team"):
             rezultat = await asyncio.to_thread(
                 red_team_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
-                req.tip_postupka or "gradjansko"
+                req.tip_postupka or "gradjansko",
+                # KEYWORD-ONLY. Prva četiri argumenta zadržavaju poziciju i
+                # redosled — nijedan stariji poziv ne može da veže vrednost na
+                # pogrešan parametar.
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("red_team")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "red_team", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("red_team", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -193,21 +247,25 @@ async def post_litigation(req: StrategijaRequest, request: Request, user: dict =
     """F5.2 — Litigation Simulator — procena ishoda sa % verovatnoće (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "litigation", ""))
-    _audit_strategija_durably(user["user_id"], "litigation")
+    uid = user["user_id"]
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
+    asyncio.create_task(_audit(uid, "litigation", ""))
+    _audit_strategija_durably(uid, "litigation", req.predmet_id)
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="litigation"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="litigation"):
             rezultat = await asyncio.to_thread(
-                litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+                litigation_simulator_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("litigation")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "litigation", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("litigation", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -226,21 +284,25 @@ async def post_sudija(req: StrategijaRequest, request: Request, user: dict = Dep
     """F5.3 — AI Sudija — neutralna sudska perspektiva (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 50 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "ai_sudija", ""))
-    _audit_strategija_durably(user["user_id"], "ai_sudija")
+    uid = user["user_id"]
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
+    asyncio.create_task(_audit(uid, "ai_sudija", ""))
+    _audit_strategija_durably(uid, "ai_sudija", req.predmet_id)
     _praksa_context = await _fetch_praksa_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="ai_sudija"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="ai_sudija"):
             rezultat = await asyncio.to_thread(
-                ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context
+                ai_judge_mode_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _praksa_context,
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("sudija")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "sudija", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("sudija", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -274,21 +336,30 @@ async def post_due_diligence(req: StrategijaRequest, request: Request, user: dic
     """F5.4 — Due Diligence analiza dokumenta sa RAG zakonskim kontekstom (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "due_diligence", ""))
-    _audit_strategija_durably(user["user_id"], "due_diligence")
+    uid = user["user_id"]
+    # KLASIFIKACIJA: primarni subjekt ovog modula je DOKUMENT koji je advokat
+    # nalepio, ne predmet. Kontekst predmeta je zato DOPUNSKI (v. `dopunski=True`
+    # u `strategija.due_diligence_analiza_sync`) — nikad ne postaje ono što se
+    # recenzira. Relevantan jeste: ista logička analiza kao Korak 2 orkestratora,
+    # koji kanonski kontekst već dobija kroz `_sastavi_dokaznu_osnovu`.
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)
+    asyncio.create_task(_audit(uid, "due_diligence", ""))
+    _audit_strategija_durably(uid, "due_diligence", req.predmet_id)
     _zakon_context = await _fetch_zakon_ctx(req.tekst)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="due_diligence"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="due_diligence"):
             rezultat = await asyncio.to_thread(
-                due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context
+                due_diligence_analiza_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""), _zakon_context,
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("due_diligence")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "due_diligence", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("due_diligence", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -307,20 +378,28 @@ async def post_revizor(req: StrategijaRequest, request: Request, user: dict = De
     """F7.1 — AI Pravni Revizor — pregled dokumenta sa predlozima izmena (PRO)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Tekst dokumenta mora imati najmanje 100 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "pravni_revizor", ""))
-    _audit_strategija_durably(user["user_id"], "pravni_revizor")
+    uid = user["user_id"]
+    # KLASIFIKACIJA: kao i Due Diligence — recenzira se NACRT, ne predmet, pa je
+    # kontekst dopunski. Dobitak je stvaran: „formalni nedostaci" i „kritične
+    # greške" nacrta zavise od činjenica koje žive u spisu (sud, stranke,
+    # protekli rokovi), a njih nacrt sam po sebi ne sadrži.
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)
+    asyncio.create_task(_audit(uid, "pravni_revizor", ""))
+    _audit_strategija_durably(uid, "pravni_revizor", req.predmet_id)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="pravni_revizor"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="pravni_revizor"):
             rezultat = await asyncio.to_thread(
-                pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+                pravni_revizor_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""),
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("revizor")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "revizor", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("revizor", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -339,20 +418,28 @@ async def post_witness(req: StrategijaRequest, request: Request, user: dict = De
     """F9.1 — AI Witness Analyzer — analiza iskaza/svedočenja (PRO)."""
     if len(req.tekst.strip()) < 50:
         raise HTTPException(status_code=422, detail="Iskaz mora imati najmanje 50 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "witness_analyzer", ""))
-    _audit_strategija_durably(user["user_id"], "witness_analyzer")
+    uid = user["user_id"]
+    # KLASIFIKACIJA: subjekt je ISKAZ, ali je dobitak ovde najveći od svih 8.
+    # `_WITNESS_SYSTEM` traži „neslaganja sa poznatim činjenicama" — a bez
+    # konteksta predmeta model nije imao NIJEDNU poznatu činjenicu, pa je taj deo
+    # prompta bio neizvršiv i mogao je da nađe samo kontradikcije unutar iskaza.
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)
+    asyncio.create_task(_audit(uid, "witness_analyzer", ""))
+    _audit_strategija_durably(uid, "witness_analyzer", req.predmet_id)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="witness_analyzer"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="witness_analyzer"):
             rezultat = await asyncio.to_thread(
-                witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+                witness_analyzer_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""),
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
-        return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0), "_ai_advisory": _advisory_provenance("witness")}
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
+        return {"rezultat": rezultat, "modul": "witness", "credits_remaining": max(preostalo, 0),
+                "_ai_advisory": _advisory_provenance("witness", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok))}
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
     # COOLDOWN was caught below and re-raised as a generic 500. The frontend's
@@ -371,26 +458,31 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
     """F9.2 — AI Judge v2 — tužilac vs branilac → sudija (PRO, 3-round chain)."""
     if len(req.tekst.strip()) < 100:
         raise HTTPException(status_code=422, detail="Opis predmeta mora imati najmanje 100 karaktera.")
-    asyncio.create_task(_audit(user["user_id"], "sudija_v2", ""))
-    _audit_strategija_durably(user["user_id"], "sudija_v2")
+    uid = user["user_id"]
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)   # kapija pre svakog posla
+    asyncio.create_task(_audit(uid, "sudija_v2", ""))
+    _audit_strategija_durably(uid, "sudija_v2", req.predmet_id)
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="sudija_v2"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="sudija_v2"):
             rezultat = await asyncio.to_thread(
-                ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", "")
+                ai_judge_v2_sync, req.tekst, os.getenv("OPENAI_API_KEY", ""),
+                case_context_blok=_ctx_blok,
             )
         # Ovi moduli su pojedinačni pozivi (bazna cena) — kompletna_analiza je
         # jedina varijanta koja koristi feature_registry.credit_multiplier (6x,
         # pokreće svih 6 modula odjednom), pa multiplier=1 mora biti eksplicitan
         # override ovde da ne bi tiho nasledio 6x od deljenog "strategija" feature_key-a.
-        preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "strategija", multiplier=1)
+        preostalo = await UsageService.consume(uid, user.get("email", ""), "strategija", multiplier=1)
         return {
             "tuzilac":  rezultat["tuzilac"],
             "branilac": rezultat["branilac"],
             "presuda":  rezultat["presuda"],
             "modul":    "sudija_v2",
             "credits_remaining": max(preostalo, 0),
-            "_ai_advisory": _advisory_provenance("sudija_v2"),
+            "_ai_advisory": _advisory_provenance(
+                "sudija_v2", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok),
+            ),
         }
     # SOA-009 (second-order audit, 2026-08-08): HTTPException is a subclass of
     # Exception, so UsageService.consume()'s genuine 402 NO_CREDITS / 429
@@ -416,9 +508,11 @@ async def _kanonski_kontekst_blok(predmet_id: Optional[str], uid: str) -> str:
     koristi 8 modula. `include_documents=True` jer je cela svrha P0-D da
     rezonovanje vidi stvarni dokazni materijal predmeta.
 
-    VLASNIŠTVO SE OVDE NE PROVERAVA — provereno je u ruti, PRE nego što je
-    posao uopšte pokrenut (v. `post_kompletna_analiza`). Ovde je samo obrada
-    greške, po uzoru na `routers/court_predictor.py:284-289`.
+    VLASNIŠTVO SE OVDE NE PROVERAVA — provereno je ranije, PRE nego što je posao
+    uopšte pokrenut: u `post_kompletna_analiza` direktno, a za ostalih 7 modula
+    u `_gate_i_kontekst`, koji kapiju i ovaj poziv drži u jednom, neraskidivom
+    redosledu. Ovde je samo obrada greške, po uzoru na
+    `routers/court_predictor.py:284-289`.
     """
     if not predmet_id:
         return ""
@@ -675,10 +769,31 @@ stvarnom predmetu, dokazima niti sudskoj praksi specifičnoj za ovaj slučaj. To
 procena na osnovu opisanog teksta. Ne predstavljaj je kao preciznu ili proverenu."""
 
 
+# `_V2_SYSTEM` iznad bezuslovno tvrdi modelu: „ti nemaš pristup stvarnom
+# predmetu, dokazima niti sudskoj praksi specifičnoj za ovaj slučaj". Kad je
+# kanonski kontekst prosleđen, ta rečenica postaje NETAČNA — a netačna
+# instrukcija je gora od nikakve: model bi umanjivao sopstvene nalaze pozivajući
+# se na podatke koje je upravo dobio.
+#
+# Zato se `_V2_SYSTEM` ne menja (putanja bez predmeta ostaje bajt-identična),
+# nego se dopisuje izričita ispravka SAMO kad kontekst stvarno postoji. Ograda o
+# procentu se namerno ponavlja — ona važi u oba slučaja i ne sme da otpadne uz
+# ispravku.
+_V2_KONTEKST_ISPRAVKA = """
+
+ISPRAVKA GORNJE NAPOMENE (važi samo za ovaj poziv): uz opis predmeta dostavljen
+ti je i kanonski kontekst praćenog predmeta iz sistema — njegovi dokumenti,
+dokazi, rokovi i izračunat rizik. Tvrdnja da nemaš pristup stvarnom predmetu NE
+važi za ono što je pokriveno tim blokom; oslanjaj se na njega kao na činjenice
+predmeta. Sve van tog bloka i dalje je tvoja procena, a "procenat" ostaje
+subjektivna procena, ne izračunata statistika."""
+
+
 class StrategijaV2Request(BaseModel):
     opis_predmeta: str = Field(..., min_length=50, max_length=8000)
     tip_predmeta: Optional[str] = Field(default=None, max_length=100)
     stranke: Optional[str] = Field(default=None, max_length=500)
+    predmet_id: Optional[str] = Field(None, description="Opciono: povezuje analizu sa predmetom i dovlači kanonski kontekst")
 
 
 @router.post("/v2/analiza")
@@ -697,20 +812,29 @@ async def strategija_v2_analiza(
 
     uid   = user["user_id"]
     email = user.get("email", "")
+    # Kapija pre audita, pre AI poziva, pre naplate. Ovaj modul nema sync
+    # funkciju u `strategija.py` — prompt gradi ovde — pa se `_gate_i_kontekst`
+    # zove ručno, ali po istim pravilima kao ostalih 6.
+    _ctx_blok = await _gate_i_kontekst(req.predmet_id, uid)
     asyncio.create_task(_audit(uid, "strategija_v2", ""))
-    _audit_strategija_durably(uid, "strategija_v2")
+    _audit_strategija_durably(uid, "strategija_v2", req.predmet_id)
 
     user_msg = f"Opis predmeta:\n{req.opis_predmeta}"
     if req.tip_predmeta:
         user_msg = f"Tip predmeta: {req.tip_predmeta}\n{user_msg}"
     if req.stranke:
         user_msg += f"\n\nStranke: {req.stranke}"
+    # Blok ide kao zaseban, već označen odeljak na kraju — isti obrazac kao u
+    # `strategija._uz_kontekst_predmeta`, nikad umetanje u advokatov tekst.
+    if _ctx_blok:
+        user_msg += f"\n\n{_ctx_blok.strip()}"
+    _system_msg = _V2_SYSTEM + (_V2_KONTEKST_ISPRAVKA if _ctx_blok else "")
 
     oai = AsyncOpenAI(api_key=_os.getenv("OPENAI_API_KEY", ""))
     try:
         begin_cost_tracking()
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="strategija_v2"):
+        with _ai_case_ctx(predmet_id=req.predmet_id, module_name="strategija", operation_name="strategija_v2"):
             resp = await _pozovi_strategija_v2_api(
                 oai,
                 model="gpt-4o",
@@ -718,7 +842,7 @@ async def strategija_v2_analiza(
                 max_tokens=3000,
                 response_format={"type": "json_object"},
                 messages=[
-                    {"role": "system", "content": _V2_SYSTEM},
+                    {"role": "system", "content": _system_msg},
                     {"role": "user",   "content": user_msg},
                 ],
             )
@@ -730,7 +854,9 @@ async def strategija_v2_analiza(
             **analiza,
             "modul": "strategija_v2",
             "credits_remaining": preostalo,
-            "_ai_advisory": _advisory_provenance("strategija_v2"),
+            "_ai_advisory": _advisory_provenance(
+                "strategija_v2", predmet_id=req.predmet_id, kontekst_ucitan=bool(_ctx_blok),
+            ),
         }
     except _json.JSONDecodeError as je:
         _sentry_capture(je)

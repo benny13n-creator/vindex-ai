@@ -63,3 +63,66 @@ def test_guard_leaves_unrelated_hosts_alone():
         assert type(exc).__name__ != "NetworkAccessBlocked", (
             "the guard must not extend to non-billed hosts"
         )
+
+
+# ── Wave 9: kanarinac za branu ka PRODUKCIONOJ bazi ─────────────────────────
+#
+# Ista logika kao gore, drugi razlog. Sonda je izmerila da test proces sa živim
+# `.env`-om upisuje STVARAN red u produkcionu `ai_provenance` tabelu — a te
+# tabele su append-only iza trigera, pa se taj red ne može ukloniti.
+#
+# Brana bez kanarinca je nedokaziva: prva verzija gornje brane je mesecima
+# prijavljivala zelen suite ne radeći ništa.
+import os as _os
+from urllib.parse import urlparse as _urlparse
+
+_PROD_HOST = ""
+try:
+    _PROD_HOST = (_urlparse((_os.environ.get("SUPABASE_URL") or "").strip()).hostname or "")
+except Exception:
+    _PROD_HOST = ""
+
+_DB_GUARD_ENABLED = (
+    bool(_PROD_HOST)
+    and _os.environ.get("VINDEX_TEST_ALLOW_PROD_DB") != "1"
+    and _os.environ.get("VINDEX_TEST_ALLOW_NETWORK") != "1"
+)
+
+
+@pytest.mark.skipif(not _DB_GUARD_ENABLED,
+                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
+def test_db_guard_blocks_the_production_project_host():
+    with pytest.raises(BaseException) as exc:
+        socket.getaddrinfo(_PROD_HOST, 443)
+    assert type(exc.value).__name__ == "ProductionDatabaseAccessBlocked", (
+        f"brana ka produkcionoj bazi nije opalila — dobijeno {type(exc.value).__name__}"
+    )
+
+
+@pytest.mark.skipif(not _DB_GUARD_ENABLED,
+                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
+def test_db_guard_is_not_an_ordinary_exception():
+    """Svaki upisni put je fail-soft — `Exception` bi bila progutana, test bi
+    ostao zelen, a red bi već bio u produkciji."""
+    with pytest.raises(BaseException) as exc:
+        socket.getaddrinfo(_PROD_HOST, 443)
+    assert not isinstance(exc.value, Exception), (
+        "obična Exception se guta u fail-soft handlerima koje ova brana treba da probije"
+    )
+
+
+@pytest.mark.skipif(not _DB_GUARD_ENABLED,
+                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
+def test_db_guard_does_not_block_other_supabase_hosts():
+    """Negativna kontrola obima.
+
+    Blokira se TAČNO produkcioni projekat, ne ceo `supabase.co`. Testovi koji
+    fail-soft gađaju izmišljeni host nisu ni bili problem — ništa ne dodiruju —
+    i brana koja bi ih oborila bila bi isključena umesto poštovana.
+    """
+    try:
+        socket.getaddrinfo("nepostojeci-projekat-vindex-test.supabase.co", 443)
+    except BaseException as exc:
+        assert type(exc).__name__ != "ProductionDatabaseAccessBlocked", (
+            "brana je preširoka — pogodila je host koji nije produkcioni projekat"
+        )

@@ -32,6 +32,38 @@ env/
 .env.production
 !.env.example
 
+# Wave 9 (§20) — secrets.json i srodni oblici.
+#
+# ANCHORING — svesna odluka, ne previd. Lekcija iz P0-A bug-a (`build_*.py`,
+# vidi blok nize): neanchored obrazac SA WILDCARD-om je opasan jer wildcard
+# moze da pogodi legitiman modul u poddirektorijumu (tada je pojeo
+# shared/build_info.py i oborio produkcioni start).
+#
+# Ovde je slucaj drugaciji i zato je izbor drugaciji:
+#
+#   `secrets.json` — TACNO IME, bez wildcard-a. Fajl sa tim imenom je secret
+#   na BILO KOJOJ dubini, ne samo na korenu, i ne postoji legitiman izvorni
+#   fajl koji se tako zove. Zato NAMERNO bez `/` prefiksa — anchoring bi ovde
+#   ostavio rupu (npr. `config/secrets.json` bi prosao).
+#
+#   `secrets.*.json` i `*.secrets.json` — IMAJU wildcard, pa nose isti razred
+#   rizika kao `build_*.py`. Ostaju neanchored (secret je secret na svakoj
+#   dubini), ali su template/example oblici eksplicitno vraceni negacijom
+#   ispod, jer bi `secrets.*.json` inace progutao `secrets.example.json` —
+#   tacno ona greska koju P0-A opisuje.
+#
+# Provereno pre dodavanja: `secrets.json` nije tracked, nije na disku i nikad
+# nije dodat u istoriji (`git log --all --diff-filter=A`). Nijedan trenutno
+# tracked fajl ne odgovara ovim obrascima.
+secrets.json
+secrets.*.json
+*.secrets.json
+!secrets.example.json
+!secrets.template.json
+!secrets.sample.json
+!*.secrets.example.json
+!*.secrets.template.json
+
 # Logs / runtime artifacts
 *.log
 
@@ -68,14 +100,19 @@ data/sudska_praksa/chunked/
 /score_capture_err.txt
 /test_q5.py
 /test_smoke.py
-cat >> .gitignore << 'EOF'
+# Wave 9 (§20) — uklonjena greška kopiranja iz shell-a.
+# Ovde su doslovno stajali redovi `cat >> .gitignore << 'EOF'` i `EOF`, zalepljeni
+# zajedno sa sadržajem koji su trebali da upišu. `EOF` je bio STVARAN aktivan
+# obrazac (`git check-ignore --no-index src/EOF` je davao pogodak) — danas
+# bezopasan jer takav fajl ne postoji, ali smeće u sigurnosno relevantnom fajlu
+# je razlog zašto se ovakva greška ne primeti dok ne proguta nešto važno.
+# Sami obrasci ispod su legitimni i zadržani nepromenjeni.
 
 # Diagnostic artifacts
 diag_*.json
 corpus_coverage*.json
 corpus_coverage*.md
 query.json
-EOF
 
 # Ad-hoc ingest i diagnostic skripte (one-off)
 ingest_*_cl*.py
@@ -85,8 +122,28 @@ corpus_coverage*
 *_diff.txt
 
 # Sprint artifacts (P1.4 / P2.6 / crypto vertical / chunker fix)
-ingest_*.py
-verify_*.py
+#
+# Wave 9 (§20): `ingest_*.py` i `verify_*.py` su USIDRENI na koren, iz istog
+# razloga kao `/build_*.py` ispod (P0-A). Bez vodece kose crte su gutali
+# TRACKED module u paketima -- izmereno `git ls-files | git check-ignore
+# --no-index --stdin`:
+#
+#     scripts/ingest_carf_dac8.py       scripts/ingest_ofac_sdn.py
+#     scripts/ingest_case_law.py        scripts/ingest_web3_addendum.py
+#
+# Ta cetiri fajla su u gitu (neko ih je morao dodati sa `git add -f`), ali ih
+# je .gitignore i dalje poklapao -- latentna mina: prvi `git rm --cached` +
+# `git add` bi ih tiho izbrisao iz repoa. `verify_*.py` je istu ranu vec
+# napravio jednom, pa je zakrpljena pojedinacnom negacijom
+# (`!scripts/verify_backup_restore.py` nize) umesto uzroka; usidrenje resava
+# razred, ne pojedinacan slucaj. Negacija je zadrzana kao dvostruka zastita.
+#
+# Namera bloka je bila „jednokratne sprint skripte NA KORENU", ne moduli u
+# paketima -- usidrenje ignore skup samo SUZAVA, sto je bezbedan smer:
+# najgori ishod je neki neocekivani untracked fajl u `git status`, dok je
+# suprotan smer (preširok obrazac) vec jednom oborio produkcioni start.
+/ingest_*.py
+/verify_*.py
 retest_*.py
 # P0-A: usidreno na koren. Bez vodece kose crte je hvatalo BILO KOJU dubinu,
 # pa je tiho gutalo i shared/build_info.py i docs/brochure/build_brochure.py.

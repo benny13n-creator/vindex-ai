@@ -197,6 +197,30 @@ class TestApiIntegration:
         import importlib
 
         import shared.rate as rate_module
+
+        # Wave 9 — CURENJE GLOBALNOG STANJA, izmereno a ne pretpostavljeno.
+        #
+        # `importlib.reload` ponovo izvršava telo modula, pa red
+        # `limiter = build_limiter(...)` (shared/rate.py:88) pravi NOV objekat.
+        # Modul `shared.rate` ostaje isti, ali atribut `limiter` pokazuje na
+        # drugu instancu.
+        #
+        # Problem: svaki ruter je uradio `from shared.rate import limiter` PRI
+        # SVOM UVOZU i drži referencu na STARU instancu — a `@limiter.limit(...)`
+        # dekorator je vezan baš za nju. Posle ovog testa dakle postoje dve žive
+        # instance: ona koju rute stvarno koriste, i ona koju `shared.rate.limiter`
+        # vraća svakom sledećem pozivaocu.
+        #
+        # Posledica koja je stvarno izmerena: test koji ugasi limiter preko
+        # `from shared.rate import limiter` gasi POGREŠNU instancu, rute i dalje
+        # broje, i 84 testa u `tests/test_wave9_strategy_context.py` padaju sa
+        # HTTP 429 — ali samo kad se pokrene ceo suite, jer izolovano bafer ne
+        # stigne da se napuni. Klasičan test koji „radi kod mene".
+        #
+        # Zato se originalna instanca čuva i vraća. Tvrdnje ovog testa se ne
+        # menjaju — on i dalje dokazuje isto o `build_limiter`.
+        _originalni_limiter = rate_module.limiter
+
         importlib.reload(rate_module)
         try:
             assert rate_module._REDIS_URL == "redis://localhost:1/0"
@@ -206,3 +230,4 @@ class TestApiIntegration:
         finally:
             monkeypatch.delenv("REDIS_URL", raising=False)
             importlib.reload(rate_module)  # vrati modul na in-memory stanje za ostale testove
+            rate_module.limiter = _originalni_limiter

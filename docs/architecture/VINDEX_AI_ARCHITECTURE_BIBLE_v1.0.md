@@ -248,11 +248,22 @@ kod, ne samo dokumentovana namera.
 
 **Security** — `shared/permissions.py` (PermissionService po feature-u),
 rate-limit + anomaly detection middleware (`api.py:855-942`), CSP header +
-report endpoint (`api.py:977-988`), 9 modula u `security/` (prompt_guard,
-ai_forensics, data_classification, agent_isolation, anomaly_detection,
+report endpoint (`api.py:977-988`), 8 modula u `security/` (prompt_guard,
+ai_forensics, agent_isolation, anomaly_detection,
 chain_anchor, sbom_check, compute_sri, crypto). Migracije 043/044 postoje u
 repo-u; da li su pokrenute na produkcionoj bazi je DB stanje, ne repo stanje —
 ne pretpostavljati, proveriti direktno pre oslanjanja na njih.
+
+> **Wave 9 (§18), 2026-08-11 — `data_classification` uklonjen iz ove liste.**
+> Modul `security/data_classification.py` je bio potpuno implementiran
+> (`get_classification`, `can_send_to_ai`, `sanitize_for_ai`,
+> `require_classification`, `classify_decorator`), ali je imao **nula
+> importera** u celom repou — ni produkcionih ni testovnih. Nikad se nije
+> izvršio. Dok je stajao u ovoj listi, dokumentacija je tvrdila zaštitu koja
+> ne postoji u runtime-u (SEC-055, W0 „declaration only"). Umesto da se
+> zadrži kao dekorativni security sloj, obrisan je; ožičavanje klasifikacije
+> u AI chokepoint je posebna, otvorena stavka. Ovaj red je ispravljen da bi
+> lista opisivala stvarno stanje, a ne nameru.
 
 **GDPR** — `routers/gdpr.py`: export, brisanje naloga, unsubscribe sa
 potpisanim tokenima. Nema retention/auto-expiry politike — samo on-demand.
