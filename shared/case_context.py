@@ -579,3 +579,105 @@ async def build_case_context(predmet_id: str, uid: str, supa, include_documents:
             refresh="generated fresh every call",
         ),
     }
+
+
+# ── Serijalizacija u tekst za prompt ────────────────────────────────────────
+
+# Oznake sekcija. Namerno su doslovne i neponovljive u prirodnom tekstu — služe
+# i modelu (da razlikuje vrste izvora) i testovima (da dokažu da je sekcija
+# stvarno stigla do prompta, umesto da se pogađa po podnizu).
+CTX_MARKER_DOKAZ = "[DOKAZ IZ PREDMETA — dokument koji je advokat priložio]"
+CTX_MARKER_IZVEDENO = "[IZVEDENO IZ BAZE — izračunao sistem, nije iskaz stranke]"
+CTX_MARKER_IDENTITET = "[IDENTITET PREDMETA]"
+
+
+def render_case_context_block(cc: dict, *, doc_budget: int = 1200, max_docs: int = 12) -> str:
+    """Kanonski kontekst → označen tekstualni blok za prompt.
+
+    ZAŠTO OVDE, A NE JOŠ JEDAN SERIJALIZATOR U POZIVAOCU
+
+    Četiri modula već imaju sopstveni `_case_context_blok`
+    (`routers/court_predictor.py:195`, `hearing_cc.py:246`, `digital_twin.py:221`,
+    `case_intelligence.py:234`). Peti bi bio peta verzija istine o tome kako
+    kontekst izgleda modelu. Ovaj stoji u kanonskom modulu da bi novi potrošači
+    imali gde da dođu; postojeća četiri se namerno NE diraju u ovom sprintu
+    (to bi bio širok refaktor, ne P0-D).
+
+    ŠTA OVAJ SERIJALIZATOR RADI DRUGAČIJE OD TA ČETIRI
+
+    Čuva POREKLO. Svi postojeći rade `(cc.get("X") or {}).get("value")` i
+    formatiraju samo vrednost, pa model ne može da razlikuje šta je advokat
+    priložio od onoga što je sistem izračunao. Ovde su tri vrste izvora
+    razdvojene doslovnim oznakama, jer je „dovučeno znanje mora ostati
+    razlučivo od korisničkog dokaza" kriterijum prihvatanja P0-D, ne ukras.
+
+    Prazan/`error` kontekst vraća prazan string — pozivalac tada radi tačno ono
+    što je radio i pre P0-D.
+    """
+    if not cc or cc.get("error"):
+        return ""
+
+    def v(kljuc):
+        polje = cc.get(kljuc)
+        return polje.get("value") if isinstance(polje, dict) else None
+
+    delovi = []
+
+    ident = v("case_identity") or {}
+    ucesnici = v("participants") or {}
+    if ident.get("naziv") or ident.get("tip_postupka"):
+        red = [CTX_MARKER_IDENTITET]
+        if ident.get("naziv"):
+            red.append(f"Naziv: {ident['naziv']}")
+        if ident.get("tip_postupka"):
+            red.append(f"Vrsta postupka: {ident['tip_postupka']}")
+        if ident.get("sud"):
+            red.append(f"Sud: {ident['sud']}")
+        if ucesnici.get("stranka"):
+            red.append(f"Stranka: {ucesnici['stranka']}")
+        if ucesnici.get("protivnik"):
+            red.append(f"Protivna strana: {ucesnici['protivnik']}")
+        delovi.append("\n".join(red))
+
+    # Dokumenti — jedino što je STVARNI korisnički dokaz u ovom bloku.
+    dokumenti = (v("relevant_documents") or {}).get("included") or []
+    if dokumenti:
+        blok = [CTX_MARKER_DOKAZ]
+        for d in dokumenti[:max_docs]:
+            naziv = (d.get("naziv") or "bez naziva").strip()
+            izvod = (d.get("excerpt") or "").strip()
+            if not izvod:
+                continue
+            if len(izvod) > doc_budget:
+                izvod = izvod[:doc_budget] + " […]"
+            blok.append(f"--- {naziv} ---\n{izvod}")
+        if len(blok) > 1:
+            delovi.append("\n".join(blok))
+
+    # Sve ostalo je IZVEDENO — sistem ga je izračunao. Model to ne sme čitati
+    # kao tvrdnju stranke.
+    izvedeno = []
+    rizik = v("risk") or {}
+    if rizik.get("nivo"):
+        izvedeno.append(f"Procesni rizik: {rizik['nivo']} (health score {rizik.get('health_score')})")
+    spremnost = v("readiness") or {}
+    if spremnost.get("status"):
+        izvedeno.append(f"Spremnost predmeta: {spremnost['status']} — {spremnost.get('razlog', '')}".strip(" —"))
+    kontradikcije = v("contradictions") or []
+    for k in kontradikcije[:5]:
+        opis = k.get("opis") or k.get("tekst") or ""
+        if opis:
+            izvedeno.append(f"Kontradikcija: {opis}")
+    nedostaje = v("missing_evidence") or []
+    for m in nedostaje[:5]:
+        opis = m.get("opis") or m.get("tekst") or ""
+        if opis:
+            izvedeno.append(f"Nedostajući dokaz: {opis}")
+    rokovi = v("deadlines") or []
+    for r in rokovi[:5]:
+        if r.get("datum") and not r.get("proslo"):
+            izvedeno.append(f"Predstojeći rok: {r['datum']} ({r.get('sud') or ''})".strip())
+    if izvedeno:
+        delovi.append(CTX_MARKER_IZVEDENO + "\n" + "\n".join(f"- {i}" for i in izvedeno))
+
+    return "\n\n".join(delovi)

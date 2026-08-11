@@ -601,15 +601,67 @@ Odgovori ISKLJUČIVO sledećim JSON formatom (bez teksta van JSON-a):
 Dozvoljene vrednosti — strateski_stav: NASTAVITI_TUZBU | PREGOVARATI_NAGODBU | OJACATI_ODBRANU | DOPUNITI_DOKUMENTACIJU | ODUSTATI; opsta_confidence: VISOKA | SREDNJA | NISKA; sistemsko_upozorenje: null ili string sa objašnjenjem"""
 
 
+# Oznake dokazne osnove. Moraju se doslovno poklapati sa
+# `shared/case_context.py::CTX_MARKER_*` — ali se ovde pišu kao literali, a NE
+# uvoze, jer `strategija.py` namerno ima samo jedan import (`shared.llm_retry`)
+# i izvršava se u `asyncio.to_thread` bez pristupa bazi. Poklapanje čuva test
+# `test_p0d_markeri_se_poklapaju_sa_kanonskim`.
+_OSNOVA_OPIS = "[OPIS PREDMETA — naveo advokat]"
+_OSNOVA_DOKAZ = "[DOKAZ IZ PREDMETA — dokument koji je advokat priložio]"
+
+
+def _sastavi_dokaznu_osnovu(
+    opis_predmeta: str,
+    dokumenti: list | None,
+    case_context_blok: str | None,
+) -> str:
+    """Sve što sistem zna o predmetu, u jednom označenom bloku.
+
+    P0-D. Pre ovoga je bilo `dokumenti if dokumenti else opis_predmeta` — dakle
+    ISKLJUČIVO ILI. Čim bi dokumenti postojali, opis predmeta bi nestao, i to
+    tiho: nijedan korak u celom lancu nikada nije video i opis i dokumente
+    istovremeno. Red Team, obe strane debate, presuda i sinteza rezonovali su o
+    predmetu čije dokumente nisu videli.
+
+    Tri izvora ostaju ODVOJENO OZNAČENA, ne slepljena. Model mora da razlikuje
+    šta je advokat tvrdio, šta je priložio kao dokaz, i šta je sistem izračunao
+    — inače sopstveni izračun sistema čita kao iskaz stranke.
+
+    Prazan ulaz ne proizvodi praznu oznaku: ako dokumenata nema, sekcija se ne
+    pojavljuje uopšte, umesto da model dobije naslov bez sadržaja i popuni ga
+    pretpostavkom.
+    """
+    delovi = []
+    if opis_predmeta and opis_predmeta.strip():
+        delovi.append(f"{_OSNOVA_OPIS}\n{opis_predmeta.strip()}")
+    if dokumenti:
+        tekstovi = [d.strip() for d in dokumenti if d and d.strip()]
+        if tekstovi:
+            delovi.append(_OSNOVA_DOKAZ + "\n" + "\n\n---\n\n".join(tekstovi))
+    if case_context_blok and case_context_blok.strip():
+        delovi.append(case_context_blok.strip())
+    return "\n\n".join(delovi)
+
+
 def orkestrator_kompletna_analiza_sync(
     opis_predmeta: str,
     api_key: str,
     dokumenti: list | None = None,
     iskazi_svedoka: list | None = None,
+    *,
+    case_context_blok: str | None = None,
 ) -> dict:
     """
     F10 — Strateški Orkestrator: 6 logičkih koraka, 8 GPT-4o poziva ukupno.
     Svaki korak prima akumulirani kontekst svih prethodnih. Vraća kompletan strukturovani dict.
+
+    `case_context_blok` je KEYWORD-ONLY namerno (`*` iznad njega). Jedini
+    produkcioni pozivalac, `routers/strategija.py:394-400`, prosleđuje prva
+    četiri argumenta POZICIJSKI, kroz `asyncio.to_thread`, u background job-u
+    obavijenom širokim `except Exception`. Da je novi parametar dodat kao
+    pozicioni, stari poziv bi mu tiho vezao pogrešnu vrednost i otkazao bi
+    NEVIDLJIVO u produkciji — svih 13 postojećih testova koristi keyword pozive
+    i to ne bi uhvatilo. Sa `*` je takvo vezivanje sintaksno nemoguće.
     """
     import json as _json
     from openai import OpenAI as _OAI
@@ -663,21 +715,24 @@ def orkestrator_kompletna_analiza_sync(
 
     kontekst = ""
 
+    # P0-D: jedna dokazna osnova za CEO lanac. Ranije je svaki korak sam birao
+    # svoj ulaz, pa su Koraci 1 i 2 gledali samo dokumente, a Koraci 4-6 samo
+    # opis. Sada svi vide isto — i ništa se ne gubi zato što nešto drugo postoji.
+    _osnova = _sastavi_dokaznu_osnovu(opis_predmeta, dokumenti, case_context_blok)
+
     # ── Korak 1: Pravni Revizor ───────────────────────────────────────────────
-    tekst_za_revizor = "\n\n---\n\n".join(dokumenti) if dokumenti else opis_predmeta
     korak1 = _gpt_json(
         _ORK_REVIZOR_SYSTEM,
-        f"Tekst za reviziju:\n\n{tekst_za_revizor}",
+        f"Tekst za reviziju:\n\n{_osnova}",
         temperature=0.15,
         max_tokens=2000,
     )
     kontekst += f"\n\n=== KORAK 1 — PRAVNI REVIZOR ===\n{_json.dumps(korak1, ensure_ascii=False)}"
 
     # ── Korak 2: Due Diligence ────────────────────────────────────────────────
-    tekst_za_due = "\n\n---\n\n".join(dokumenti) if dokumenti else opis_predmeta
     korak2 = _gpt_json(
         _ORK_DUE_DILIGENCE_SYSTEM,
-        f"Opis predmeta / Dokument za due diligence:\n\n{tekst_za_due}\n\nKontekst prethodnih analiza:{kontekst}",
+        f"Opis predmeta / Dokument za due diligence:\n\n{_osnova}\n\nKontekst prethodnih analiza:{kontekst}",
         temperature=0.1,
         max_tokens=2000,
     )
@@ -688,7 +743,7 @@ def orkestrator_kompletna_analiza_sync(
         tekst_iskaza = "\n\n---\n\n".join(iskazi_svedoka)
         witness_user = (
             f"Iskazi svedoka:\n\n{tekst_iskaza}\n\n"
-            f"Osnovni opis predmeta:\n\n{opis_predmeta}\n\n"
+            f"Osnovni opis predmeta:\n\n{_osnova}\n\n"
             f"Kontekst prethodnih analiza:{kontekst}"
         )
         korak3 = _gpt_json(
@@ -714,7 +769,7 @@ def orkestrator_kompletna_analiza_sync(
     # ── Korak 4: Red Team ─────────────────────────────────────────────────────
     korak4 = _gpt_json(
         _ORK_RED_TEAM_SYSTEM,
-        f"Opis predmeta:\n\n{opis_predmeta}\n\nAnalize prethodnih koraka:{kontekst}",
+        f"Opis predmeta:\n\n{_osnova}\n\nAnalize prethodnih koraka:{kontekst}",
         temperature=0.3,
         max_tokens=2000,
     )
@@ -723,14 +778,14 @@ def orkestrator_kompletna_analiza_sync(
     # ── Korak 5: AI Judge v2 (3 interna poziva: tužilac → branilac → presuda JSON)
     tuzilac_txt = _gpt_text(
         _JUDGE_V2_TUZILAC,
-        f"Predmet:\n\n{opis_predmeta}\n\nKontekst svih prethodnih analiza:{kontekst}",
+        f"Predmet:\n\n{_osnova}\n\nKontekst svih prethodnih analiza:{kontekst}",
         temperature=0.3,
         max_tokens=1500,
     )
     branilac_txt = _gpt_text(
         _JUDGE_V2_BRANILAC,
         (
-            f"Predmet:\n\n{opis_predmeta}\n\n"
+            f"Predmet:\n\n{_osnova}\n\n"
             f"Argumenti tužioca:\n\n{tuzilac_txt}\n\n"
             f"Kontekst svih prethodnih analiza:{kontekst}"
         ),
@@ -740,7 +795,7 @@ def orkestrator_kompletna_analiza_sync(
     presuda_json = _gpt_json(
         _ORK_PRESUDA_SYSTEM,
         (
-            f"Predmet:\n\n{opis_predmeta}\n\n"
+            f"Predmet:\n\n{_osnova}\n\n"
             f"Argumenti tužioca:\n\n{tuzilac_txt}\n\n"
             f"Argumenti tuženog/branioca:\n\n{branilac_txt}\n\n"
             f"Kontekst svih prethodnih analiza:{kontekst}"
@@ -785,7 +840,7 @@ def orkestrator_kompletna_analiza_sync(
     # ── Korak 6: Synthesis Engine ─────────────────────────────────────────────
     sinteza = _gpt_json(
         _ORK_SYNTHESIS_SYSTEM,
-        f"Opis predmeta:\n\n{opis_predmeta}\n\nSvi nalazi prethodnih koraka:{kontekst}",
+        f"Opis predmeta:\n\n{_osnova}\n\nSvi nalazi prethodnih koraka:{kontekst}",
         temperature=0.15,
         max_tokens=2500,
     )

@@ -18,7 +18,7 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.deps import _audit
+from shared.deps import _audit, _get_supa
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.sentry import capture_exception as _sentry_capture
@@ -358,10 +358,47 @@ async def post_sudija_v2(req: StrategijaRequest, request: Request, user: dict = 
         raise HTTPException(status_code=500, detail="Greška pri simulaciji debate. Pokušajte ponovo.")
 
 
+async def _kanonski_kontekst_blok(predmet_id: Optional[str], uid: str) -> str:
+    """`predmet_id` → kanonski kontekst → označen tekstualni blok. Fail-soft.
+
+    P0-D. Kontekst se gradi OVDE, u async ruti sa punim pristupom bazi, a ne
+    unutar orkestratora — on se izvršava u `asyncio.to_thread` i namerno nema
+    nijednu zavisnost osim `shared.llm_retry`. Preko granice niti prelazi samo
+    gotov string, nikad Supabase klijent ni sesija.
+
+    Ne pravi novi izvor konteksta: zove istu `build_case_context` koju već
+    koristi 8 modula. `include_documents=True` jer je cela svrha P0-D da
+    rezonovanje vidi stvarni dokazni materijal predmeta.
+
+    VLASNIŠTVO SE OVDE NE PROVERAVA — provereno je u ruti, PRE nego što je
+    posao uopšte pokrenut (v. `post_kompletna_analiza`). Ovde je samo obrada
+    greške, po uzoru na `routers/court_predictor.py:284-289`.
+    """
+    if not predmet_id:
+        return ""
+    try:
+        from shared.case_context import build_case_context, render_case_context_block
+        cc = await build_case_context(predmet_id, uid, _get_supa(), include_documents=True)
+        if not cc or cc.get("error"):
+            logger.info("[F10] kanonski kontekst prazan (%s) — analiza bez njega",
+                        (cc or {}).get("error"))
+            return ""
+        return render_case_context_block(cc)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[F10] kanonski kontekst nedostupan (nastavlja bez njega): %s", exc)
+        return ""
+
+
 class OrkestratorRequest(BaseModel):
     opis_predmeta: str = Field(..., min_length=100, max_length=30000)
     dokumenti: Optional[List[str]] = Field(None, description="Opcioni tekstovi dokumenata za Pravni Revizor i Due Diligence")
     iskazi_svedoka: Optional[List[str]] = Field(None, description="Opcioni iskazi svedoka za Witness Analyzer")
+    # P0-D: opciono i namerno. Bez njega orkestrator radi tačno kao pre — nad
+    # onim što je advokat nalepio. Sa njim rezonovanje vidi i stvarne dokumente
+    # predmeta, dokaze, rokove i izračunat rizik, umesto da o predmetu zaključuje
+    # iz jednog polja teksta.
+    predmet_id: Optional[str] = Field(None, description="Opciono: povezuje analizu sa predmetom i dovlači kanonski kontekst")
 
 
 @router.post("/kompletna-analiza")  # F10
@@ -384,11 +421,40 @@ async def post_kompletna_analiza(
     uid   = user["user_id"]
     email = user.get("email", "")
 
+    # P0-D / GATE-FIRST. Vlasništvo se proverava SINHRONO, pre kreiranja posla,
+    # naplate i bilo kakvog dovlačenja konteksta. Tri razloga, sva tri merena:
+    #
+    #  1. `shared/case_context.py:158` lansira svih 7 upita ODJEDNOM, pre svoje
+    #     interne provere vlasništva. Tuđi redovi (nazivi dokumenata, datumi
+    #     ročišta, tekst komentara) prođu kroz memoriju procesa iako ne dospeju
+    #     u odgovor. Taj isti nalaz je već jednom klasifikovan i zatvoren u
+    #     `routers/digital_twin.py:140-152` (Lambda Certification 003) tako što
+    #     je provera izdvojena da ide prva. Ovde se ne sme otvoriti ponovo.
+    #
+    #  2. `build_case_context` na tuđi id vraća OBIČAN dict sa `"error"`, ne
+    #     404. Bez kapije, tuđ `predmet_id` bi bio nerazlučiv od „predmet nije
+    #     prosleđen": advokat bi dobio punu analizu, naplaćenu 6 kredita, bez
+    #     ikakvog signala da je id odbijen.
+    #
+    #  3. Analiza je u pozadinskom poslu sa širokim `except Exception` — 404
+    #     dignut unutra ne bi stigao do korisnika.
+    #
+    # Helper je iz `copilot_ambient` jer je to već uspostavljen cross-module
+    # obrazac (`routers/drafting.py:634`), pokriven sopstvenim testovima.
+    # Redosled je preuzet od `routers/matter_intel.py:514-521` — jedinog
+    # potrošača kanonskog konteksta u repou koji radi pravi gate-first.
+    if req.predmet_id:
+        from routers.copilot_ambient import _proveri_vlasnistvo_predmeta
+        await _proveri_vlasnistvo_predmeta(req.predmet_id, uid)
+
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
     _audit_strategija_durably(uid, "kompletna_analiza")
 
     async def _run_analiza():
         begin_cost_tracking()
+        # P0-D: kontekst se gradi PRE prelaska u nit. Unutra nema ni Supabase
+        # klijenta ni event loop-a.
+        _ctx_blok = await _kanonski_kontekst_blok(req.predmet_id, uid)
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(module_name="strategija", operation_name="kompletna_analiza"):
             rezultat = await asyncio.to_thread(
@@ -397,6 +463,10 @@ async def post_kompletna_analiza(
                 os.getenv("OPENAI_API_KEY", ""),
                 req.dokumenti,
                 req.iskazi_svedoka,
+                # KEYWORD-ONLY. Prva četiri argumenta ostaju pozicijska i u
+                # nepromenjenom redosledu — nijedan stariji poziv ne može da
+                # veže vrednost na pogrešan parametar.
+                case_context_blok=_ctx_blok,
             )
         asyncio.create_task(log_cost_to_db(uid, "kompletna_analiza"))
         # multiplier čita se iz feature_registry.credit_multiplier (migracija 069,
@@ -423,6 +493,10 @@ async def post_kompletna_analiza(
             req.opis_predmeta or "",
             repr(req.dokumenti or []),
             repr(req.iskazi_svedoka or []),
+            # P0-D: `predmet_id` MORA ući u ključ. Bez njega bi dve analize
+            # istog opisa nad RAZLIČITIM predmetima bile proglašene duplikatom,
+            # pa bi druga vratila rezultat prvog — a kontekst je sada različit.
+            req.predmet_id or "",
         ]).encode("utf-8")
     ).hexdigest()
 
