@@ -88,6 +88,10 @@ def create_job_deduped(user_id: str, tip: str, dedupe_key: Optional[str] = None)
         "status":     "pending",
         "result":     None,
         "error":      None,
+        # Wave 9 / G1: strukturisana pratnja uz `error`. `error` ostaje ljudski
+        # tekst koji stari frontend čita; ova dva polja su DODATNA i mašinska.
+        "error_status": None,
+        "error_code":   None,
         "created_at": time.time(),
         "updated_at": time.time(),
     }
@@ -95,10 +99,31 @@ def create_job_deduped(user_id: str, tip: str, dedupe_key: Optional[str] = None)
     return jid, False
 
 
-def update_job(jid: str, status: str, result: Any = None, error: str = None):
+def update_job(
+    jid: str,
+    status: str,
+    result: Any = None,
+    error: str = None,
+    error_status: Optional[int] = None,
+    error_code: Optional[str] = None,
+):
+    """Upisuje ishod posla.
+
+    `error_status` / `error_code` su DODATNA polja (Wave 9 / G1). Pozivaoci koji
+    ih ne prosleđuju ponašaju se identično kao ranije — polja se resetuju na
+    None, isto kao `result` i `error`, pa nijedan ishod ne nasledi ostatke
+    prethodnog stanja.
+    """
     if jid not in _jobs:
         return
-    _jobs[jid].update({"status": status, "result": result, "error": error, "updated_at": time.time()})
+    _jobs[jid].update({
+        "status":       status,
+        "result":       result,
+        "error":        error,
+        "error_status": error_status,
+        "error_code":   error_code,
+        "updated_at":   time.time(),
+    })
     logger.info("[JOB] %s → %s", jid[:8], status)
 
 
@@ -111,15 +136,71 @@ def get_job(jid: str, user_id: str) -> Optional[dict]:
 
 # ─── Runner ───────────────────────────────────────────────────────────────────
 
+def _raspakuj_http_gresku(exc: HTTPException) -> tuple[str, Optional[str]]:
+    """Iz `HTTPException` izvlači (ljudska_poruka, masinski_kod).
+
+    Konvencija koju ruteri već koriste (npr. `routers/strategija.py:588`):
+        HTTPException(402, detail={"code": "NO_CREDITS", "message": "..."})
+
+    Kad `detail` NIJE takav dict, vraća se `str(exc)` — tačno onaj string koji
+    je i ranije završavao u `job["error"]`. Time se format za sve postojeće
+    slučajeve ne menja; menja se samo tamo gde postoji prava ljudska poruka.
+    Ništa iz predmeta/prompta se ne dira — čita se isključivo `detail`.
+    """
+    detail = getattr(exc, "detail", None)
+    kod: Optional[str] = None
+    poruka: Optional[str] = None
+
+    if isinstance(detail, dict):
+        sirovi_kod = detail.get("code")
+        if sirovi_kod is not None and str(sirovi_kod).strip():
+            kod = str(sirovi_kod)
+        sirova_poruka = detail.get("message")
+        if isinstance(sirova_poruka, str) and sirova_poruka.strip():
+            poruka = sirova_poruka
+
+    if poruka is None:
+        poruka = str(exc)
+
+    return poruka, kod
+
+
 async def run_in_background(jid: str, coro_factory: Callable, *args, **kwargs):
-    """Pokreće korutinu i upisuje rezultat/grešku u job store."""
+    """Pokreće korutinu i upisuje rezultat/grešku u job store.
+
+    Poslovni neuspeh (`HTTPException`: 402 nema kredita, 429 cooldown, 403/404)
+    razlikuje se od tehničkog. Oba ostaju `status="error"` — nijedan neuspeh ne
+    sme da postane `done` niti da nosi `result`. Razlika je samo u tome što
+    poslovni slučaj dobija mašinski čitljiv par (`error_status`, `error_code`)
+    da frontend zna da prikaže paywall umesto tehničke poruke.
+    """
     update_job(jid, "running")
     try:
         result = await coro_factory(*args, **kwargs)
         update_job(jid, "done", result=result)
+    except HTTPException as exc:
+        poruka, kod = _raspakuj_http_gresku(exc)
+        # Namerno `warning`, ne `exception`: ovo je očekivan poslovni ishod
+        # (nema kredita / cooldown), ne kvar. Loguje se samo status i kod —
+        # nikad `detail` u celini, da poruka ne odvuče sadržaj predmeta u log.
+        logger.warning(
+            "[JOB] %s poslovna greška: HTTP %s kod=%s", jid[:8], exc.status_code, kod or "-",
+        )
+        update_job(jid, "error", error=poruka, error_status=exc.status_code, error_code=kod)
     except Exception as exc:
         logger.exception("[JOB] %s greška: %s", jid[:8], exc)
-        update_job(jid, "error", error=str(exc))
+        # Neki izuzeci nemaju poruku — `str(asyncio.TimeoutError())` je PRAZAN
+        # string. Bez ovog fallback-a posao završava sa `error=""`, pa klijent
+        # prikaže prazan okvir umesto greške; korisniku to izgleda kao da se
+        # ništa nije desilo. Upisuje se samo ime klase izuzetka — nikad sadržaj
+        # predmeta ni prompta.
+        poruka = str(exc).strip() or f"Tehnička greška ({type(exc).__name__})."
+        # 500, ne None: klijentu treba jednoznačan diskriminator. `None` se ne
+        # razlikuje od „polje ne postoji" (stari zapis, drugi worker), pa bi
+        # frontend morao da nagađa. 500 nikada ne može da se pomeša sa poslovnom
+        # odlukom (402/429/403/404), pa pravilo „paywall samo za 402" ostaje
+        # sigurno. `error_code` ostaje None — mašinski kod se NE izmišlja.
+        update_job(jid, "error", error=poruka, error_status=500, error_code=None)
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -129,17 +210,25 @@ async def poll_job(job_id: str, user=Depends(get_current_user)):
     """
     Poluje status posla.
     Response:
-      { id, tip, status: pending|running|done|error, result?, error?, elapsed_s }
+      { id, tip, status: pending|running|done|error,
+        result?, error?, error_status?, error_code?, elapsed_s }
+
+    `error` je nepromenjen ugovor — ljudski tekst koji stari klijent prikazuje.
+    `error_status` (HTTP kod poslovnog neuspeha, 500 za tehnički) i `error_code`
+    (npr. "NO_CREDITS") su dodati u Wave 9 i uvek su None kad status nije error.
     """
     j = get_job(job_id, user["user_id"])
     if not j:
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     elapsed = round(time.time() - j["created_at"], 1)
+    je_greska = j["status"] == "error"
     return {
         "id":       j["id"],
         "tip":      j["tip"],
         "status":   j["status"],
         "result":   j["result"] if j["status"] == "done"  else None,
-        "error":    j["error"]  if j["status"] == "error" else None,
+        "error":    j["error"]  if je_greska else None,
+        "error_status": j.get("error_status") if je_greska else None,
+        "error_code":   j.get("error_code")   if je_greska else None,
         "elapsed_s": elapsed,
     }

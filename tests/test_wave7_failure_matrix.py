@@ -203,28 +203,42 @@ async def test_c_prazan_odgovor_obara_posao_a_ne_naplacuje():
     assert r["gpt_poziva"] == 2
 
 
-# ─── ZABELEŽEN NALAZ: semantika greške se gubi ─────────────────────────────
+# ─── NALAZ ZATVOREN: 402 stiže strukturisano ───────────────────────────────
 
 @pytest.mark.asyncio
-async def test_d_402_degradira_u_genericki_error_ZABELEZENO():
-    """MERENJE zatečenog ponašanja — i ISPRAVKA ranije klasifikacije.
+async def test_d_402_stize_strukturisano_do_klijenta():
+    """Wave 9 (§4) — prepisan test, nalaz zatvoren. NIJE obrisan.
 
-    Wave 2 i Wave 6 su ovo prijavili kao „402/429 degradiraju u generički error
-    string", uz zaključak da paywall handler ne može da opali. Merenje pokazuje
-    da je ta ocena bila PREOŠTRA.
+    ISTORIJA, da izmena ne izgleda kao brisanje neugodnog testa:
 
-    `run_in_background` (`routers/jobs.py:120`) upisuje `error=str(exc)`, a
-    `str(HTTPException(402, {...}))` daje doslovno:
+    Wave 2 i Wave 6 su prijavili „402/429 degradiraju u generički error string"
+    i zaključili da paywall handler ne može da opali. Wave 7 je to IZMERIO i
+    ocenu OSLABIO: `str(HTTPException(402, {...}))` daje doslovno
+    `"402: {'code': 'NO_CREDITS', 'message': 'nema'}"`, pa i statusni kod i kod
+    greške PREŽIVE. Informacija se nije gubila — nije bila strukturisana.
+    Klasifikacija je time pala sa P1 na P2 (UX/format).
 
-        "402: {'code': 'NO_CREDITS', 'message': 'nema'}"
+    Wave 7 verzija ovog testa je fiksirala to zatečeno stanje i završavala se
+    tvrdnjom koja je doslovno nalagala šta uraditi kad se stanje promeni:
+    *„greška je sada strukturisana — zameni ovaj test testom koji dokazuje da
+    paywall handler može da opali, nemoj ga obrisati"*. Tačno to se ovde radi.
 
-    Dakle i statusni kod i kod greške PREŽIVE. Informacija se ne gubi — nije
-    strukturisana. Frontend (`strat_job_poll`, `static/vindex.js:3530`) prikazuje
-    `j.error` sirovo, pa korisnik vidi tehnički string umesto paywall poruke.
+    ŠTA SE PROMENILO U PRODUKCIJI
 
-    Prava klasifikacija je dakle UX/format, ne gubitak informacije. Ostaje P2, a
-    ne P1 kako je ranije zabeleženo. Test fiksira to stanje da bi promena bila
-    primetna.
+    `run_in_background` sada razlikuje `HTTPException` od ostalih izuzetaka i
+    upisuje `error_status` (broj) i `error_code` (mašinski kod) pored
+    postojećeg `error` polja.
+
+    TRAJNA INVARIJANTA koju ovaj test čuva — tri stvari odjednom:
+      1. poslovna odluka se može RAZLIKOVATI od tehničkog kvara bez parsiranja
+         teksta (`error_status == 402`, ne `"402" in error`),
+      2. mašinski kod stiže netaknut (`error_code == "NO_CREDITS"`),
+      3. staro polje `error` i dalje nosi upotrebljiv LJUDSKI tekst — jer
+         `static/vindex.js` ga renderuje sirovo i ne parsira; da je uklonjeno,
+         stari klijent bi prikazao prazan okvir.
+
+    Treća tvrdnja je najvažnija: ona je razlog zašto je ovo popravka a ne
+    restrukturiranje odgovora.
     """
     from fastapi import HTTPException
 
@@ -262,14 +276,24 @@ async def test_d_402_degradira_u_genericki_error_ZABELEZENO():
         posao = dict(_jobs["job-2"])
 
     assert posao["status"] == "error"
-    greska = str(posao["error"])
 
-    # ZATEČENO STANJE, izmereno: informacija PREŽIVI, ali kao goli string.
-    assert "402" in greska, "statusni kod je izgubljen — to bi bio stvarni P1"
-    assert "NO_CREDITS" in greska, "kod greške je izgubljen — to bi bio stvarni P1"
-
-    # Ono što NE postoji: strukturisan oblik koji frontend može da grana.
-    assert not isinstance(posao["error"], dict), (
-        "greška je sada strukturisana — zameni ovaj test testom koji dokazuje "
-        "da paywall handler može da opali, nemoj ga obrisati"
+    # 1. Poslovna odluka je razlučiva BEZ parsiranja teksta.
+    assert posao["error_status"] == 402, (
+        "paywall handler ne može da opali — `error_status` ne nosi 402, pa bi "
+        "frontend morao da pogađa iz stringa"
     )
+    # 2. Mašinski kod stiže netaknut.
+    assert posao["error_code"] == "NO_CREDITS", (
+        "mašinski kod greške je izgubljen na granici pozadinskog posla"
+    )
+    # 3. Staro polje i dalje nosi LJUDSKI tekst — `static/vindex.js` ga
+    #    renderuje sirovo i ne parsira ga. Da je uklonjeno, stari klijent bi
+    #    prikazao prazan okvir. Ovo je granica između popravke i restrukturiranja.
+    assert isinstance(posao["error"], str) and posao["error"].strip(), (
+        "polje `error` je prazno ili više nije string — stari klijent koji čita "
+        "samo njega prikazuje prazan okvir umesto greške"
+    )
+
+    # Negativna kontrola za ovaj nalaz (tehnički kvar NE sme da dobije poslovni
+    # kod) živi u `tests/test_wave9_failure_semantics.py` — tamo se izvršava
+    # cela matrica od 9 ishoda, pa se ovde namerno ne duplira.

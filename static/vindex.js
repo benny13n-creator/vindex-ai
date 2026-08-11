@@ -3069,7 +3069,27 @@ function stratIzaberiModul(modul, btn) {
   }
 }
 
+// Wave 9 (§7) — druga naplativa putanja dobija isti concurrency guard.
+//
+// `stratOrkestratorPokreni` je u Wave 8 dobio `_stratOrkUToku`. `stratPokreni`
+// pokreće svih 8 pojedinačnih modula (uključujući `court_predictor`) i naplaćuje
+// 1-2 kredita po pozivu, a jedina odbrana mu je bila `submitBtn.disabled`.
+//
+// Zašto to nije dovoljno iako funkcija danas ima samo jedan ulaz
+// (`index.html:3120`): `disabled` je svojstvo DUGMETA, ne funkcije. Štiti samo
+// dok je klik jedini put do nje. Wave 8 je izmerio tačno taj razred greške na
+// orkestratoru — dugme je bilo zaključano, a četiri druga ulaza (klikabilan
+// `<div>`, CMD-K, dve kartice u predmetu) su ga zaobilazila. Guard koji živi u
+// funkciji važi za svaki budući ulaz, uključujući onaj koji još ne postoji.
+//
+// Mandat §7 to izričito traži: „Ne oslanjaj se samo na button.disabled."
+var _stratModulUToku = false;
+
 async function stratPokreni() {
+  if (_stratModulUToku) {
+    showToast('Analiza je već u toku — sačekajte da se završi.', 'warn');
+    return;
+  }
   var tekstEl   = document.getElementById('strat-tekst');
   var submitBtn = document.getElementById('strat-submit-btn');
   var wrapEl    = document.getElementById('strat-rezultat-wrap');
@@ -3094,6 +3114,11 @@ async function stratPokreni() {
     if (naslovEl) naslovEl.textContent = modul.naziv;
     return;
   }
+
+  // Postavlja se tek OVDE — posle svih ranih `return` grana (nije prijavljen,
+  // nije PRO, tekst prekratak). Da stoji na vrhu funkcije, odbijen pokušaj bi
+  // zaključao analizu dok se stranica ne osveži.
+  _stratModulUToku = true;
 
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Analiziram...'; }
   if (wrapEl) wrapEl.style.display = 'block';
@@ -3141,6 +3166,24 @@ async function stratPokreni() {
       return;
     }
 
+    // Wave 9 (§4) — direktna (ne-202) putanja je gubila poslovnu semantiku.
+    //
+    // `stratOrkestratorPokreni` je 402 i 429 obrađivao još ranije (:3644-3653),
+    // ali `stratPokreni` — koji pokreće svih 8 pojedinačnih modula — nije: svaki
+    // ne-OK odgovor je postajao `Server greška: 402`. Advokat bez kredita je
+    // dobijao poruku koja izgleda kao kvar servera, iako je odluka poslovna.
+    //
+    // Grana se po `res.status`, dakle po pravom HTTP kodu, ne po tekstu.
+    if (res.status === 402 || res.status === 429) {
+      var _err = await res.json().catch(function(){ return {}; });
+      var _det = _err && _err.detail;
+      var _por = (_det && typeof _det === 'object' ? _det.message : _det)
+                 || (res.status === 402
+                       ? 'Nemate dovoljno kredita za ovu analizu.'
+                       : 'Previše zahteva — sačekajte trenutak pa pokušajte ponovo.');
+      if (bodyEl) bodyEl.innerHTML = _stratGreskaHtml({ error: _por, error_status: res.status });
+      return;
+    }
     if (!res.ok) throw new Error('Server greška: ' + res.status);
 
     var data = await res.json();
@@ -3218,6 +3261,10 @@ async function stratPokreni() {
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(_friendlyErr(e)) + '</div>';
   } finally {
+    // `finally`, ne kraj `try` bloka: zastavica se mora osloboditi i kad analiza
+    // pukne, inače bi jedan neuspeh trajno zaključao funkciju do osvežavanja
+    // stranice — gori kvar od onog koji se rešava.
+    _stratModulUToku = false;
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Pokreni analizu'; }
   }
 }
@@ -3506,6 +3553,51 @@ function _quickAiLoadingStop(handle) {
   if (handle) clearInterval(handle);
 }
 
+// Wave 9 (§4) — poslovni neuspeh pozadinskog posla dobija svoju poruku.
+//
+// ŠTA JE BILO: `strat_job_poll` je prikazivao `j.error` sirovo. Kad korisniku
+// ponestane kredita usred kompletne analize, `UsageService.consume` digne
+// HTTPException(402), pozadinski posao ga upiše, a advokat na ekranu vidi
+//     Greška: 402: {'code': 'NO_CREDITS', 'message': '...'}
+// Informacija nikad nije nestajala (Wave 7 je to izmerio i nalaz oslabio sa P1
+// na P2) — nedostajao je oblik u kome frontend može da odluči ŠTA da prikaže,
+// bez parsiranja teksta greške.
+//
+// ŠTA JE SADA: `routers/jobs.py` uz `error` upisuje i `error_status` (broj) i
+// `error_code` (mašinski kod). Grananje ide ISKLJUČIVO po njima.
+//
+// ZAŠTO NE PO SADRŽAJU STRINGA: `j.error` je prezentacioni tekst, ne ugovor.
+// Grananje po podnizu „402" bi opalilo i na poruci koja slučajno sadrži tu
+// cifru, i pukla bi čim se tekst prevede ili preformuliše.
+//
+// FAIL-SAFE: nepoznat ili odsutan `error_status` (stariji zapis posla, drugi
+// worker, starija verzija backend-a) pada u poslednju granu i prikazuje se
+// tačno kao i do sada. Odsustvo koda nikad ne znači uspeh.
+function _stratGreskaHtml(j) {
+  var st   = j && typeof j.error_status === 'number' ? j.error_status : null;
+  var tekst = (j && j.error) || 'Nepoznata greška';
+
+  if (st === 402) {
+    return '<div class="strat-error"><strong>Nema dovoljno kredita.</strong><br>'
+      + _htmlEsc(tekst)
+      + '<br><small>Analiza NIJE naplaćena — krediti se oduzimaju tek kad se posao završi.</small></div>';
+  }
+  if (st === 429) {
+    return '<div class="strat-error"><strong>Previše zahteva.</strong><br>'
+      + _htmlEsc(tekst)
+      + '<br><small>Sačekajte trenutak pa pokušajte ponovo.</small></div>';
+  }
+  if (st === 403) {
+    return '<div class="strat-pro-gate">' + _htmlEsc(tekst)
+      + '<br><small>Ova analiza zahteva viši paket.</small></div>';
+  }
+  if (st === 404) {
+    return '<div class="strat-error"><strong>Predmet nije pronađen.</strong><br>'
+      + _htmlEsc(tekst) + '</div>';
+  }
+  return '<div class="strat-error">Greška: ' + _htmlEsc(tekst) + '</div>';
+}
+
 // Polling za async AI poslove (HTTP 202 pattern)
 async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrator) {
   var _resetLabel = resetLabel || 'Pokreni analizu';
@@ -3527,7 +3619,7 @@ async function strat_job_poll(jobId, bodyEl, submitBtn, resetLabel, isOrkestrato
         return;
       }
       if (j.status === 'error') {
-        if (bodyEl) bodyEl.innerHTML = '<div class="strat-error">Greška: ' + _htmlEsc(j.error || 'Nepoznata greška') + '</div>';
+        if (bodyEl) bodyEl.innerHTML = _stratGreskaHtml(j);
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = _resetLabel; }
         return;
       }

@@ -56,6 +56,139 @@ _SYSTEM_INSTRUCTIONS = (
 )
 
 
+# ─── Wave 9 / D2: tvrda entitlement kapija na sirovom WSS chokepoint-u ──────
+#
+# Voice je VLASNIČKOM ODLUKOM van bete. Mandat zabranjuje stanje "voice ugašen
+# u UI-ju, a sirov WSS endpoint i dalje upotrebljiv". Kapija u
+# `routers/voice_realtime.py::_authenticate` je merena i JESTE fail-closed, ali
+# je to kapija JEDNOG pozivnog mesta. Sirova WSS konekcija ka OpenAI Realtime
+# API-ju otvara se OVDE, u `start()`, i do sada nije imala nijednu sopstvenu
+# proveru -- verovala je pozivaocu. Svaki budući pozivalac (novi ruter, pozadinski
+# posao, alat) otvorio bi privilegovani kanal bez ijedne provere.
+#
+# Zato je provera spuštena na mesto gde se konekcija stvarno otvara. Ne uvodi se
+# nova politika: čitaju se ISTI `feature_registry` red i ISTI helperi iz
+# `shared/permissions.py` koje koristi i HTTP putanja.
+_VOICE_KILL_ENV = "VINDEX_VOICE_KILL"
+_KILL_TRUE = {"1", "true", "yes", "on", "da"}
+
+
+class VoiceEntitlementError(RuntimeError):
+    """Sesija je odbijena. Namerno je RuntimeError, ne HTTPException — ovaj
+    modul nema HTTP kontekst, a pozivalac (WS ruter) ionako zatvara kanal."""
+
+
+async def proveri_voice_dozvolu(user: dict) -> None:
+    """FAIL-CLOSED provera prava na glasovnu sesiju. Diže izuzetak ili ćuti.
+
+    Redosled je namerno isti kao na HTTP putanji:
+      1. env kill switch  (`VINDEX_VOICE_KILL`) — radi i kad je baza nedostupna
+      2. kill switch u bazi (`feature_registry.voice.aktivno`)
+      3. `status` (DEPRECATED/COMING_SOON/INTERNAL) — founder izuzetak
+      4. `minimum_plan` (`professional`) — founder izuzetak
+
+    DEFAULT DISABLED: `aktivno` se čita sa podrazumevanom vrednošću **False**,
+    ne True. Ako red u `feature_registry`-ju nedostaje, `get_policy` diže
+    RuntimeError i završava u `except` ispod — takođe odbijanje. Nijedan put
+    kroz ovu funkciju ne vodi u "propusti jer ne znam".
+
+    BILO KOJI neočekivani izuzetak (pad baze, nedostupan registry, greška u
+    profilu) znači ODBIJANJE. Za kanal koji nosi izgovoreni privilegovani
+    razgovor advokata sa klijentom, i koji je jedini AI put bez telemetrije
+    sadržaja, "ne mogu da proverim" ne sme da znači "puštam".
+    """
+    email = (user or {}).get("email") or ""
+    uid = (user or {}).get("user_id") or ""
+
+    if (os.getenv(_VOICE_KILL_ENV) or "").strip().lower() in _KILL_TRUE:
+        logger.warning("[VOICE_RT] odbijeno: %s je aktivan (kill switch)", _VOICE_KILL_ENV)
+        raise VoiceEntitlementError(
+            "Glasovni asistent je isključen prekidačem VINDEX_VOICE_KILL."
+        )
+
+    try:
+        from shared.deps import _is_founder
+        from shared.feature_registry import get_policy
+        from shared.permissions import _ensure_profile, _tier_satisfies, effective_tier
+
+        policy = await get_policy("voice")
+        is_founder = _is_founder(email)
+
+        if not policy.get("aktivno", False):
+            raise VoiceEntitlementError("Glasovni asistent je privremeno onemogućen.")
+
+        if policy.get("status") in ("DEPRECATED", "COMING_SOON", "INTERNAL") and not is_founder:
+            raise VoiceEntitlementError("Funkcija nije dostupna.")
+
+        minimum_plan = policy.get("minimum_plan")
+        if minimum_plan and not is_founder:
+            profil = await _ensure_profile(uid)
+            if not _tier_satisfies(effective_tier(profil), minimum_plan):
+                raise VoiceEntitlementError(
+                    "Glasovni asistent zahteva Professional tarifu."
+                )
+    except VoiceEntitlementError:
+        raise
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error(
+            "[VOICE_RT] provera prava nije mogla da se izvrši (%s) — kanal se ZATVARA",
+            type(e).__name__,
+        )
+        raise VoiceEntitlementError(
+            "Provera prava za glasovni asistent nije uspela — sesija je odbijena."
+        ) from e
+
+
+def _uknjizi_voice_sesiju_provenance(user: dict, status: str = "success",
+                                     error: Optional[Exception] = None) -> None:
+    """Provenance trag da je sirova WSS sesija ka OpenAI-ju OTVORENA.
+
+    Ne rešava BP-01 u celini — sadržaj razgovora i dalje ne prolazi kroz
+    `ai_forensics` jer sirov WSS ne vidi monkey-patch iz `shared/ai_client.py`.
+    Ali uklanja gore stanje: do sada nije postojao NIJEDAN red koji svedoči da
+    je sesija uopšte postojala, pa je i founder/admin izuzetak bio potpuno
+    nevidljiv. Sada postoji red po sesiji (ko, kada, koji model, koji
+    `correlation_id`), bez ijednog karaktera sadržaja.
+
+    Fail-soft: greška u knjiženju nikad ne obara sesiju.
+    """
+    try:
+        from shared import ai_provenance as _prov
+        from security.ai_forensics import log_provenance_from_wrapper
+
+        ctx = _prov.current_context()
+        cid = ctx.get("correlation_id") or _prov.new_correlation_id()
+        uid = (user or {}).get("user_id") or ctx.get("user_id")
+
+        logger.warning(
+            "[VOICE_RT/PROVENANCE] sirova WSS sesija provider=openai-realtime "
+            "model=%s correlation_id=%s user_id=%.8s status=%s",
+            _REALTIME_MODEL, cid, str(uid or "?"), status,
+        )
+
+        coro = log_provenance_from_wrapper(
+            module_name="services.voice_orchestrator",
+            operation_name="voice_realtime_session",
+            model_provider="openai-realtime-raw-wss",
+            model_name=_REALTIME_MODEL,
+            correlation_id=cid,
+            user_id=uid,
+            tenant_id=ctx.get("tenant_id"),
+            status=status,
+            error_message=str(error)[:500] if error else None,
+        )
+        # Isti obrazac kao `shared/ai_client.py:238-250` — ne nov mehanizam.
+        try:
+            asyncio.get_running_loop()
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(coro, name="voice_session_provenance:write")
+        except RuntimeError:
+            asyncio.run(coro)
+    except Exception as exc:  # pragma: no cover — fail-soft po ugovoru
+        logger.debug("[VOICE_RT/PROVENANCE] knjiženje nije uspelo: %s", exc)
+
+
 class VoiceOrchestratorSession:
     def __init__(self, client_ws: Any, user: dict, openai_ws_factory=None):
         self.client_ws = client_ws
@@ -65,8 +198,12 @@ class VoiceOrchestratorSession:
         self._pending_confirmations: dict[str, dict] = {}
 
     async def start(self) -> None:
+        # Wave 9 / D2: kapija PRE konekcije. Ako provera padne, `self.upstream`
+        # ostaje None i nijedan bajt ne odlazi ka OpenAI Realtime API-ju.
+        await proveri_voice_dozvolu(self.user)
         self.upstream = await self._connect()
         await self._send_session_config()
+        _uknjizi_voice_sesiju_provenance(self.user)
 
     async def close(self) -> None:
         if self.upstream is not None:

@@ -506,9 +506,52 @@ def _pozovi_chat_api(client, **kwargs):
     return client.chat.completions.create(**kwargs)
 
 
+# ─── Wave 9 / D1: eksplicitna izolacija Cohere-a ─────────────────────────────
+#
+# Cohere je JEDINI provajder izlaznih podataka u ovom modulu koji NE prolazi
+# kroz kanonski chokepoint iz `shared/ai_client.py::_patch_prompt_guard`. Taj
+# patch se kači na KLASE OpenAI SDK-a (Completions.create, AsyncCompletions.
+# create, Embeddings.create, audio.*), pa Cohere SDK fizički ne vidi: ni prompt
+# guard, ni ai_forensics, ni provenance.
+#
+# Cohere JESTE reranker, ne generator -- ali mu se šalju korisnikov upit i do
+# 1000 karaktera po isečku dokumenta/sudske prakse. To je izlaz podataka ka
+# neupravljanom provajderu, bez obzira što je izlaz samo redosled.
+#
+# Zato aktivacija traži TRI nezavisna uslova ISTOVREMENO. Dva uslova (paket +
+# ključ) su ranije postojala, ali su oba "slučajna": `pip install cohere` u
+# nekom tuđem requirements lancu, ili ključ koji je neko dodao u .env "za
+# svaki slučaj", tiho bi otvorili putanju. Treći uslov je EKSPLICITAN opt-in
+# koji niko ne postavlja slučajno -- postoji samo zato da bi neko morao da
+# donese odluku.
+_COHERE_OPT_IN_ENV = "VINDEX_COHERE_RERANK"
+_COHERE_OPT_IN_TRUE = {"1", "true", "yes", "on", "da"}
+_COHERE_RERANK_MODEL = "rerank-multilingual-v3.0"
+
+
+def _cohere_dozvoljen() -> bool:
+    """Jedini uslov aktivacije Cohere grane. Podrazumevano ISKLJUČENO.
+
+    Vraća True samo ako su ispunjena SVA tri uslova:
+      1. paket `cohere` je instaliran (`_COHERE_AVAILABLE`)
+      2. `COHERE_API_KEY` je postavljen i nije prazan
+      3. `VINDEX_COHERE_RERANK` je eksplicitno uključen
+
+    Uslov 3 je taj koji sprečava da slučajna instalacija paketa ili slučajno
+    postavljen ključ ožive neupravljan put. Kad bilo koji uslov padne, poziv
+    deterministički ide na `_gpt_rerank` -- upravljan OpenAI poziv kroz
+    patch-ovan SDK -- bez izuzetka i bez degradacije kvaliteta pretrage.
+    """
+    if not _COHERE_AVAILABLE:
+        return False
+    if not (os.getenv("COHERE_API_KEY") or "").strip():
+        return False
+    return (os.getenv(_COHERE_OPT_IN_ENV) or "").strip().lower() in _COHERE_OPT_IN_TRUE
+
+
 def _get_cohere():
     global _COHERE_CLIENT
-    if not _COHERE_AVAILABLE:
+    if not _cohere_dozvoljen():
         return None
     if _COHERE_CLIENT is None:
         api_key = os.getenv("COHERE_API_KEY")
@@ -516,6 +559,73 @@ def _get_cohere():
             return None
         _COHERE_CLIENT = _cohere_lib.Client(api_key)
     return _COHERE_CLIENT
+
+
+def _uknjizi_cohere_provenance(
+    query: str,
+    broj_dokumenata: int,
+    latency_ms: int,
+    status: str = "success",
+    error: Optional[Exception] = None,
+) -> None:
+    """Provenance trag da su podaci OTIŠLI ka Cohere-u.
+
+    Koristi POSTOJEĆU javnu funkciju `security/ai_forensics.py::
+    log_provenance_from_wrapper` -- istu koju kanonski wrapper zove za OpenAI
+    pozive -- pa Cohere red završava u istoj `ai_forensics` tabeli, sa istim
+    `correlation_id`-jem iz `shared/ai_provenance.py`. Nema nove apstrakcije,
+    nema izmene `shared/*` ni `security/*`.
+
+    NIKAD se ne beleži sadržaj: upit ide kao SHA-256, dokumenti samo kao broj.
+
+    Fail-soft: greška u knjiženju ne sme da obori pretragu. Ali za razliku od
+    tihe putanje pre ove izmene, ovde postoji i strukturisan `logger.warning`,
+    pa čak i kad baza ne primi red ostaje trag u aplikativnom logu.
+    """
+    try:
+        import asyncio
+        from shared import ai_provenance as _prov
+
+        ctx = _prov.current_context()
+        cid = ctx.get("correlation_id") or _prov.new_correlation_id()
+
+        # Strukturisan log — jedini deo koji radi i kad je baza nedostupna.
+        logger.warning(
+            "[COHERE/PROVENANCE] izlaz podataka ka neupravljanom provajderu "
+            "provider=cohere model=%s correlation_id=%s user_id=%s "
+            "documents=%d query_sha256=%s status=%s latency_ms=%d",
+            _COHERE_RERANK_MODEL, cid, ctx.get("user_id"),
+            broj_dokumenata, _prov.sha256_text(query), status, latency_ms,
+        )
+
+        from security.ai_forensics import log_provenance_from_wrapper
+
+        coro = log_provenance_from_wrapper(
+            module_name="app.services.retrieve",
+            operation_name="cohere_rerank",
+            model_provider="cohere",
+            model_name=_COHERE_RERANK_MODEL,
+            user_prompt_hash=_prov.sha256_text(query),
+            latency_ms=latency_ms,
+            correlation_id=cid,
+            parent_event_id=ctx.get("parent_event_id"),
+            user_id=ctx.get("user_id"),
+            tenant_id=ctx.get("tenant_id"),
+            predmet_id=ctx.get("predmet_id"),
+            document_id=ctx.get("document_id"),
+            knowledge_sources=["pinecone"],
+            status=status,
+            error_message=str(error)[:500] if error else None,
+        )
+        # Isti obrazac kao `shared/ai_client.py:238-250` — ne nov mehanizam.
+        try:
+            asyncio.get_running_loop()
+            from shared.bg import spawn as _spawn_bg
+            _spawn_bg(coro, name="cohere_provenance:write")
+        except RuntimeError:
+            asyncio.run(coro)
+    except Exception as exc:  # pragma: no cover — fail-soft po ugovoru modula
+        logger.debug("[COHERE/PROVENANCE] knjiženje nije uspelo (nije kritično): %s", exc)
 
 
 # ─── Pomoćne funkcije ─────────────────────────────────────────────────────────
@@ -1249,8 +1359,17 @@ def _gpt_rerank(query: str, matches: list, k: int = 3) -> list:
 def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
     """
     Rerangira Pinecone rezultate Cohere modelom.
-    Fallback: GPT-4o-mini reranker ako Cohere nije dostupan ili vrati grešku.
+    Fallback: GPT-4o-mini reranker ako Cohere nije dozvoljen ili vrati grešku.
+
+    Wave 9 / D1: naziv funkcije je zadržan (4 pozivna mesta + testovi), ali je
+    podrazumevano ponašanje sada GPT reranker. Cohere grana se ulazi SAMO kad
+    `_cohere_dozvoljen()` vrati True -- v. obrazloženje uz tu funkciju. Provera
+    je NAMERNO pre `_get_cohere()`: kad izolacija važi, Cohere klijent se ni ne
+    instancira, pa nema ni teorijske šanse da se otvori konekcija.
     """
+    if not _cohere_dozvoljen():
+        return _gpt_rerank(query, matches, k)
+
     co = _get_cohere()
     if not co or not matches:
         return _gpt_rerank(query, matches, k)
@@ -1261,18 +1380,26 @@ def _cohere_rerank(query: str, matches: list, k: int = 3) -> list:
         tekst = meta.get("parent_text") or meta.get("text", "")
         docs.append(tekst[:1000])
 
+    _t0 = time.time()
     try:
         res = co.rerank(
-            model="rerank-multilingual-v3.0",
+            model=_COHERE_RERANK_MODEL,
             query=query,
             documents=docs,
             top_n=k,
         )
         reranked = [matches[r.index] for r in res.results]
         logger.debug("[COHERE] Reranked top-%d", k)
+        _uknjizi_cohere_provenance(query, len(docs), int((time.time() - _t0) * 1000))
         return reranked
     except Exception as e:
         _sentry_capture(e)
+        # Podaci su VEĆ otišli ka Cohere-u i pre nego što je poziv pukao, pa se
+        # provenance red piše i u grani greške -- inače bi neuspeli pozivi bili
+        # jedina rupa u tragu.
+        _uknjizi_cohere_provenance(
+            query, len(docs), int((time.time() - _t0) * 1000), status="error", error=e,
+        )
         logger.warning("[COHERE] Reranking nije uspeo: %s — fallback na GPT reranker", e)
         return _gpt_rerank(query, matches, k)
 

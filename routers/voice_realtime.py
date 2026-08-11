@@ -31,7 +31,7 @@ from shared.deps import _verify_token
 from shared.feature_registry import get_policy
 from shared.deps import _is_founder
 from shared.sentry import capture_exception as _sentry_capture
-from services.voice_orchestrator import VoiceOrchestratorSession
+from services.voice_orchestrator import VoiceEntitlementError, VoiceOrchestratorSession
 
 logger = logging.getLogger("vindex.voice_realtime")
 router = APIRouter(prefix="/api/voice/realtime", tags=["voice-realtime"])
@@ -69,7 +69,14 @@ async def _authenticate(websocket: WebSocket) -> Optional[dict]:
         await websocket.close(code=_UPSTREAM_UNAVAILABLE_CODE, reason="Servis trenutno nije dostupan.")
         return None
     is_founder = _is_founder(email)
-    if not policy.get("aktivno", True):
+    # Wave 9 (§13) — DEFAULT DISABLED. Bilo je `policy.get("aktivno", True)`:
+    # red koji postoji ali nema kolonu `aktivno` (nepotpuna migracija, ručna
+    # izmena u Dashboard-u) propuštao je kanal. To je jedini fail-open sliver u
+    # inače fail-closed kapiji — sve ostale grane ovde zatvaraju na grešku.
+    # Kapija u `services/voice_orchestrator.py::proveri_voice_dozvolu` čita istu
+    # vrednost sa podrazumevanim False; dve kapije moraju govoriti isto, inače
+    # jedna tiho poništava drugu.
+    if not policy.get("aktivno", False):
         await websocket.close(code=_POLICY_VIOLATION_CODE, reason="Glasovni asistent je privremeno onemogućen.")
         return None
     if policy.get("status") in ("DEPRECATED", "COMING_SOON") and not is_founder:
@@ -148,6 +155,21 @@ async def voice_realtime_ws(websocket: WebSocket) -> None:
 
     try:
         await session.start()
+    # Wave 9 (§13) — POLITIKA I ISPAD NISU ISTA STVAR.
+    #
+    # `session.start()` sada prvo proverava dozvolu (`proveri_voice_dozvolu`).
+    # Odbijanje po politici je stizalo korisniku kao 1011 „servis trenutno nije
+    # dostupan" — što se čita kao kvar sistema, iako je odluka namerna. Advokat
+    # bi čekao da se „servis oporavi" umesto da vidi da mu funkcija nije
+    # odobrena, a podrška bi tražila ispad koji ne postoji.
+    #
+    # Ova grana MORA biti iznad generičke: `VoiceEntitlementError` nasleđuje
+    # `RuntimeError`, pa bi je `except Exception` progutao.
+    except VoiceEntitlementError as e:
+        logger.info("[VOICE_RT] sesija odbijena po politici uid=%.8s: %s", uid[:8] if uid else "?", e)
+        await websocket.close(code=_POLICY_VIOLATION_CODE, reason=str(e)[:120])
+        _active_sessions[uid] = max(0, _active_sessions.get(uid, 1) - 1)
+        return
     except Exception as e:
         _sentry_capture(e)
         logger.error("[VOICE_RT] upstream konekcija neuspešna uid=%.8s: %s", uid[:8] if uid else "?", e)

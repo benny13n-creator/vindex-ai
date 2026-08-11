@@ -171,9 +171,32 @@ def test_cohere_rerank_falls_back_to_gpt_when_no_cohere():
     assert result[0].id == "m2"
 
 
-def test_cohere_rerank_falls_back_to_gpt_on_exception():
+# Wave 9 (§14) — Cohere je izolovan iza eksplicitnog opt-in-a.
+#
+# Do sada je bilo dovoljno patch-ovati `_get_cohere` da bi se Cohere grana
+# aktivirala. To je upravo ono što izolacija ukida: `_cohere_rerank` sada prvo
+# pita `_cohere_dozvoljen()`, kome trebaju SVA TRI uslova — instaliran paket,
+# `COHERE_API_KEY`, i eksplicitan `VINDEX_COHERE_RERANK`.
+#
+# Dva testa ispod ZADRŽAVAJU svoje originalne tvrdnje netaknute; menja im se
+# samo priprema, da bi ponovo merili ono što tvrde da mere. Bez opt-in-a
+# `test_..._on_exception` bi i dalje prolazio, ali IZ POGREŠNOG RAZLOGA
+# („grana nije dozvoljena" umesto „Cohere je pukao") — a test koji prolazi iz
+# pogrešnog razloga je lažno zelen.
+def _pun_cohere_opt_in(monkeypatch):
+    """Sva tri uslova aktivacije, na jednom mestu."""
+    import app.services.retrieve as _r
+    monkeypatch.setattr(_r, "_COHERE_AVAILABLE", True)
+    monkeypatch.setenv("COHERE_API_KEY", "co-test")
+    monkeypatch.setenv("VINDEX_COHERE_RERANK", "1")
+    monkeypatch.setattr(_r, "_uknjizi_cohere_provenance", MagicMock())
+
+
+def test_cohere_rerank_falls_back_to_gpt_on_exception(monkeypatch):
     """_cohere_rerank poziva _gpt_rerank kad Cohere baci grešku."""
     from app.services.retrieve import _cohere_rerank
+
+    _pun_cohere_opt_in(monkeypatch)
 
     co_mock = MagicMock()
     co_mock.rerank.side_effect = Exception("Cohere API down")
@@ -182,13 +205,16 @@ def test_cohere_rerank_falls_back_to_gpt_on_exception():
          patch("app.services.retrieve._gpt_rerank", return_value=[_MATCHES[0]]) as mock_gpt:
         result = _cohere_rerank("prevara", _MATCHES, k=1)
 
+    co_mock.rerank.assert_called_once(), "Cohere nije ni pozvan — test meri pogrešnu granu"
     mock_gpt.assert_called_once()
     assert result[0].id == "m1"
 
 
-def test_cohere_rerank_uses_cohere_when_available():
-    """_cohere_rerank koristi Cohere kad je dostupan (GPT se ne poziva)."""
+def test_cohere_rerank_uses_cohere_when_available(monkeypatch):
+    """_cohere_rerank koristi Cohere kad je PUN opt-in prisutan (GPT se ne poziva)."""
     from app.services.retrieve import _cohere_rerank
+
+    _pun_cohere_opt_in(monkeypatch)
 
     rerank_res = MagicMock()
     rerank_res.results = [MagicMock(index=2), MagicMock(index=0)]
