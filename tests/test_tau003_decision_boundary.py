@@ -46,13 +46,26 @@ def test_all_9_strategija_endpoints_attach_ai_advisory_provenance():
     """Structural proof (source inspection, same idiom as
     tests/test_decision_registry_completeness.py's own regex-based
     completeness check): every one of the 9 known strategija.py response
-    dicts includes _ai_advisory, not just some of them."""
+    dicts includes _ai_advisory, not just some of them.
+
+    P0-D2 (2026-08-11): the pattern used to be `_advisory_provenance\\("mod"\\)` --
+    it pinned the exact single-argument call shape, not the invariant. When
+    `/kompletna-analiza` started passing `predmet_id=` and `kontekst_ucitan=`
+    (so the notice can distinguish an analysis genuinely grounded in a tracked
+    case from one over pasted text), the call became multi-line and this test
+    failed -- despite the change STRENGTHENING what the test exists to protect.
+
+    Rewritten around the invariant itself: the module name must be the first
+    argument to `_advisory_provenance`, with any further arguments allowed. A
+    module that stops attaching provenance still fails; a module that attaches
+    richer provenance no longer does.
+    """
     import routers.strategija as strat
     src = open(strat.__file__, encoding="utf-8").read()
     moduli = ["red_team", "litigation", "sudija", "due_diligence", "revizor",
               "witness", "sudija_v2", "kompletna_analiza", "strategija_v2"]
     for modul in moduli:
-        pattern = re.compile(r'_advisory_provenance\("%s"\)' % re.escape(modul))
+        pattern = re.compile(r'_advisory_provenance\(\s*"%s"\s*[,)]' % re.escape(modul))
         assert pattern.search(src), f"{modul} does not attach _ai_advisory provenance"
 
 

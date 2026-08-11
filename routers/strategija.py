@@ -60,30 +60,76 @@ async def _pozovi_strategija_v2_api(oai, **kwargs):
 # (which would need a matching frontend change), just an honest label,
 # reusing the same idiom Sigma Sprint 005 established for Case Commander
 # (shared/commander_schema.py) rather than inventing a new one.
-def _advisory_provenance(modul: str, model: str = "gpt-4o") -> dict:
+def _advisory_provenance(
+    modul: str,
+    model: str = "gpt-4o",
+    *,
+    predmet_id: Optional[str] = None,
+    kontekst_ucitan: bool = False,
+) -> dict:
+    """Napomena o poreklu analize, uz odgovor.
+
+    P0-D2: do sada je tekst bezuslovno tvrdio „ovaj modul ne prima ID predmeta".
+    Za `/kompletna-analiza` to VIŠE NIJE TAČNO kad je `predmet_id` prosleđen —
+    analiza tada jeste izgrađena nad praćenim predmetom, sa njegovim dokumentima
+    i izračunatim rizikom. Ostavljanje starog teksta značilo bi da sistem
+    potcenjuje sopstvenu utemeljenost, što je ista vrsta neistine kao i
+    precenjivanje.
+
+    Obrnuto i važnije: kad `predmet_id` NIJE prosleđen, ili je prosleđen a
+    kontekst se nije mogao izgraditi, to mora ostati vidljivo. Tiha degradacija
+    na „samo opis" je tačno ono lažno-zeleno ponašanje koje ovaj program
+    uklanja.
+
+    Novi parametri su KEYWORD-ONLY — 7 postojećih pozivalaca (`:131`, `:164` …)
+    prosleđuje samo `modul` pozicijski i ostaje nepromenjeno.
+    """
     from datetime import datetime, timezone
+    if kontekst_ucitan:
+        napomena = (
+            "Ova analiza je izgrađena nad praćenim predmetom u sistemu — uključeni su "
+            "njegovi dokumenti, dokazi, rokovi i izračunat procesni rizik, pored teksta "
+            "koji ste uneli. Brojevi (npr. procenat uspeha) su i dalje subjektivna GPT "
+            "procena, ne izračunata statistika."
+        )
+    else:
+        napomena = (
+            "Ova analiza je GPT-ova procena nad tekstom koji ste uneli -- nije provera protiv "
+            "postojećeg, praćenog predmeta u sistemu. "
+            "Brojevi (npr. procenat uspeha) su subjektivna GPT procena, ne izračunata statistika."
+        )
     return {
         "owner": "gpt_advisory",
-        "napomena": "Ova analiza je GPT-ova procena nad tekstom koji ste uneli -- nije provera protiv "
-                    "postojećeg, praćenog predmeta u sistemu (ovaj modul ne prima ID predmeta). "
-                    "Brojevi (npr. procenat uspeha) su subjektivna GPT procena, ne izračunata statistika.",
+        "napomena": napomena,
+        "kontekst_predmeta": "kanonski" if kontekst_ucitan else "samo_opis",
+        "predmet_id": predmet_id if kontekst_ucitan else None,
         "generated_by": model,
         "modul": modul,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
-def _audit_strategija_durably(user_id: str, modul: str) -> None:
+def _audit_strategija_durably(user_id: str, modul: str, predmet_id: Optional[str] = None) -> None:
     """Mission Ledger (2026-08-03) — dodatni, TRAJNI (hash-chained) audit trag
     pored postojećeg lakog _audit() (audit_log tabela, ne-trajna). Ne
     zamenjuje _audit() -- oba služe različitoj svrsi (v. AUDITABLE_ACTIONS
     komentar u shared/audit_immutable.py). correlation_id se automatski
     čita iz shared/ai_provenance.py's kontekst (isti id koji AI Provenance
-    red za ovaj poziv već koristi -- Phase 4, Audit Link Completion)."""
+    red za ovaj poziv već koristi -- Phase 4, Audit Link Completion).
+
+    P0-D2: `predmet_id` ide kroz POSTOJEĆE `metadata` polje. Time hash-chained,
+    append-only ledger beleži NAD KOJIM PREDMETOM je analiza pokrenuta — što
+    do sada nijedan trajan zapis nije znao. Hash lanac se ne dira:
+    `_compute_entry_hash` ne uključuje `metadata`.
+
+    Upisuje se samo ID, nikad sadržaj predmeta — `audit_immutable` je iza
+    BEFORE UPDATE/DELETE trigera, pa bi tekst predmeta upisan ovde bio van
+    domašaja zahteva za brisanje podataka."""
     from shared.audit_immutable import log_action
     asyncio.create_task(log_action(
         action="strategija_generisana", user_id=user_id,
         resource_type="strategija_modul", resource_id=modul,
+        metadata={"predmet_id": predmet_id} if predmet_id else None,
     ))
 
 
@@ -448,7 +494,7 @@ async def post_kompletna_analiza(
         await _proveri_vlasnistvo_predmeta(req.predmet_id, uid)
 
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
-    _audit_strategija_durably(uid, "kompletna_analiza")
+    _audit_strategija_durably(uid, "kompletna_analiza", req.predmet_id)
 
     async def _run_analiza():
         begin_cost_tracking()
@@ -456,7 +502,24 @@ async def post_kompletna_analiza(
         # klijenta ni event loop-a.
         _ctx_blok = await _kanonski_kontekst_blok(req.predmet_id, uid)
         from shared.ai_provenance import case_context as _ai_case_ctx
-        with _ai_case_ctx(module_name="strategija", operation_name="kompletna_analiza"):
+        # P0-D2: `predmet_id` se prosleđuje provenance kontekstu.
+        #
+        # Bez ovoga sistem radi ispravno ali to NE MOŽE DA DOKAŽE: `ai_forensics`
+        # ima kolonu `predmet_id` (`security/ai_forensics.py:284`), puni se iz
+        # ovog context manager-a (`shared/ai_client.py:201`) — a ostajala je
+        # `NULL`, jer je `routers/strategija.py` bio jedini fajl koji `case_context`
+        # zove bez `predmet_id`. Court Predictor, Copilot, Case DNA, Drafting i
+        # Evidence ga svi prosleđuju (14+ mesta).
+        #
+        # Time svih 8 GPT poziva ove analize upiše red sa `predmet_id`,
+        # `user_id` i `correlation_id`. Kroz taj isti `correlation_id` red se
+        # spaja sa `audit_immutable` zapisom o pokrenutoj analizi — pa je
+        # „rezonovani predmet" trajno dokaziv, bez nove tabele i bez migracije.
+        with _ai_case_ctx(
+            predmet_id=req.predmet_id,
+            module_name="strategija",
+            operation_name="kompletna_analiza",
+        ):
             rezultat = await asyncio.to_thread(
                 orkestrator_kompletna_analiza_sync,
                 req.opis_predmeta,
@@ -480,7 +543,21 @@ async def post_kompletna_analiza(
         # below describes the file-wide "no predmet_id" caveat; it does NOT
         # claim every field here is GPT-authored -- see the ownership matrix
         # for the per-field breakdown.
-        return {**rezultat, "modul": "kompletna_analiza", "credits_deducted": 6, "_ai_advisory": _advisory_provenance("kompletna_analiza")}
+        # P0-D2: `_ctx_blok` je neprazan SAMO ako je vlasništvo prošlo i ako je
+        # `build_case_context` vratio upotrebljiv kontekst. Zato je on jedini
+        # pošten pokazatelj da li je analiza stvarno utemeljena u predmetu --
+        # `req.predmet_id` sam po sebi to ne dokazuje (mogao je proći kapiju a
+        # kontekst pasti na praznom predmetu ili grešci baze).
+        return {
+            **rezultat,
+            "modul": "kompletna_analiza",
+            "credits_deducted": 6,
+            "_ai_advisory": _advisory_provenance(
+                "kompletna_analiza",
+                predmet_id=req.predmet_id,
+                kontekst_ucitan=bool(_ctx_blok),
+            ),
+        }
 
     # P1-A (2026-08-08): 6 credits are charged from inside _run_analiza once the
     # work completes. Without a dedupe key a double-click, an impatient re-submit

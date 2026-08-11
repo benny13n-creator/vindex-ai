@@ -3572,6 +3572,21 @@ async function stratOrkestratorPokreni() {
     return;
   }
 
+  // P0-D2: ID predmeta se hvata OVDE, u trenutku klika, i to iz POREKLA samog
+  // teksta — `_predAutoFill` (:9617) upisuje `dataset.predId` na polje kad ga
+  // popuni iz predmeta.
+  //
+  // Zašto ne `activePredmetId`: ta promenljiva je mutabilna i menja se čim
+  // korisnik otvori drugi predmet. Analiza koja traje 60-90 s završila bi
+  // vezana za predmet koji korisnik u međuvremenu otvori, iako je tekst i dalje
+  // iz prvog. `dataset.predId` prati TEKST, ne UI izbor — ako je korisnik
+  // sopstveni tekst nalepio ručno, atributa nema i analiza se ispravno ne
+  // vezuje ni za jedan predmet.
+  //
+  // Čita se pre prvog `await`, pa nijedan asinhroni korak ne može da ga
+  // promeni ispod ruke.
+  var _predIdZaAnalizu = (tekstEl && tekstEl.dataset && tekstEl.dataset.predId) || null;
+
   var _resetLabel = 'Pokreni kompletnu analizu (6 kredita)';
   if (orkBtn) { orkBtn.disabled = true; orkBtn.textContent = 'Analiziram (6 modula)...'; }
   if (wrapEl) wrapEl.style.display = 'block';
@@ -3587,7 +3602,11 @@ async function stratOrkestratorPokreni() {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + (currentSession ? currentSession.access_token : ''),
       },
-      body: JSON.stringify({ opis_predmeta: tekst }),
+      body: JSON.stringify(
+        _predIdZaAnalizu
+          ? { opis_predmeta: tekst, predmet_id: _predIdZaAnalizu }
+          : { opis_predmeta: tekst }
+      ),
     });
 
     if (res.status === 202) {
@@ -3637,6 +3656,31 @@ function renderKompletnaAnaliza(data) {
   var presuda = (k5.presuda && typeof k5.presuda === 'object') ? k5.presuda : {};
   var uspeha = presuda.procena_uspeha_tuzilac;
   var html = '';
+
+  // P0-D2: poreklo konteksta, na vrhu rezultata.
+  //
+  // Backend od sinoć razlikuje analizu izgrađenu nad praćenim predmetom (sa
+  // njegovim dokumentima, dokazima i rokovima) od analize nad golim tekstom
+  // koji je advokat nalepio. Ta razlika je bila nevidljiva — `_ai_advisory` se
+  // do sada NIJE renderovao nigde u frontendu, isto kao `izvori` pre Task 1.
+  //
+  // Bez ovoga sistem izgleda identično u oba slučaja, a to je tačno lažno-zeleno
+  // ponašanje koje program uklanja: advokat ne bi znao da li je AI video spis
+  // ili samo njegov opis.
+  var _adv = data._ai_advisory || {};
+  if (_adv.kontekst_predmeta === 'kanonski') {
+    html += '<div class="strat-ctx-note strat-ctx-ok" style="padding:.5rem .7rem;margin-bottom:.8rem;'
+          + 'border-left:2px solid rgba(74,222,128,.55);background:rgba(74,222,128,.06);'
+          + 'font-size:.72rem;color:rgba(255,255,255,.62);line-height:1.5;">'
+          + '✓ Analiza je izgrađena nad praćenim predmetom — uključeni su njegovi dokumenti, '
+          + 'dokazi, rokovi i izračunat procesni rizik.</div>';
+  } else {
+    html += '<div class="strat-ctx-note strat-ctx-warn" style="padding:.5rem .7rem;margin-bottom:.8rem;'
+          + 'border-left:2px solid rgba(251,191,36,.55);background:rgba(251,191,36,.06);'
+          + 'font-size:.72rem;color:rgba(255,255,255,.62);line-height:1.5;">'
+          + '⚠ Analiza je rađena samo nad unetim tekstom — dokumenti i dokazi predmeta nisu uključeni. '
+          + 'Otvorite predmet i upotrebite dugme za osvežavanje konteksta da analiza obuhvati i spis.</div>';
+  }
 
   // ── Sinteza na vrhu ────────────────────────────────────────────────────────
   var stavMap = {
@@ -9590,8 +9634,33 @@ document.addEventListener('input', function(e) {
   var id = e.target && e.target.id;
   if (id === 'strat-tekst' || id === 'podnesak-opis' || id === 'aitxt') {
     window._hasUnsavedWork = true;
+    _vxProveriVezuSaPredmetom(e.target);
   }
 });
+
+// P0-D2: veza polja sa predmetom mora prestati da važi kad tekst više nije
+// tekst tog predmeta.
+//
+// `_predAutoFill` upisuje `dataset.predId` kad popuni polje iz predmeta, i to
+// je ispravan izvor identiteta za analizu. Ali atribut se do sada NIKAD nije
+// brisao. Posledica je bila gora od problema koji rešava: advokat otvori
+// predmet A (polje se autofiluje), pa označi sve i nalepi tekst predmeta B —
+// zahtev nosi `predmet_id` predmeta A uz opis predmeta B. Backend bi spojio
+// dokumente jednog predmeta sa opisom drugog, a poruka o poreklu bi to
+// potvrdila kao ispravno utemeljenu analizu.
+//
+// Potpis je prvih 40 znakova onoga što je autofill upisao. Dopisivanje detalja
+// čuva vezu (prefiks ostaje), a zamena celog teksta je prekida. Ne pogađa se
+// nikakva sličnost — poredi se doslovan prefiks.
+function _vxProveriVezuSaPredmetom(el) {
+  if (!el || !el.dataset || !el.dataset.predId) return;
+  var potpis = el.dataset.predSig || '';
+  if (!potpis) return;
+  if ((el.value || '').indexOf(potpis) !== 0) {
+    delete el.dataset.predId;
+    delete el.dataset.predSig;
+  }
+}
 window.addEventListener('beforeunload', function(e) {
   // _siStep (Smart Intake Wizard, defined below) > 1 means files are already
   // staged/uploaded mid-wizard -- reusing that existing state marker rather
@@ -9615,6 +9684,8 @@ async function _predAutoFill(fieldId, force) {
   if (!kontekst) return;
   el.value = kontekst;
   el.dataset.predId = activePredmetId;
+  // P0-D2: potpis autofilovanog teksta — v. `_vxProveriVezuSaPredmetom`.
+  el.dataset.predSig = kontekst.slice(0, 40);
   // Ažuriraj char counter ako postoji (npr. strat-chars)
   var charsId = fieldId === 'strat-tekst' ? 'strat-chars' : null;
   if (charsId) { var chEl = document.getElementById(charsId); if (chEl) chEl.textContent = el.value.length; }
