@@ -421,7 +421,12 @@ async def test_kompletna_analiza_double_submit_schedules_the_work_once():
     user = {"user_id": "u1", "email": "a@b.rs"}
     bt = MagicMock()
 
+    # Wave 6: ruta sada radi pre-flight proveru bilansa PRE nego što pokrene 8
+    # GPT-4o poziva. Ovi testovi mere DEDUPE i ožičenje, ne kredite — dovoljan
+    # bilans je preduslov, ne predmet merenja. Dodavanje preduslova nije
+    # slabljenje testa; bez njega bi merili 402 umesto dedupe-a.
     with patch.object(st, "_audit", new=lambda *a, **k: _noop()), \
+         patch("shared.deps._get_credits", return_value=999), \
          patch.object(st, "_audit_strategija_durably", MagicMock()):
         r1 = await st.post_kompletna_analiza(body, _real_request("/strategija/kompletna-analiza"), bt, user)
         r2 = await st.post_kompletna_analiza(body, _real_request("/strategija/kompletna-analiza"), bt, user)
@@ -449,7 +454,12 @@ async def test_kompletna_analiza_different_input_still_runs():
     user = {"user_id": "u1", "email": "a@b.rs"}
     bt = MagicMock()
 
+    # Wave 6: ruta sada radi pre-flight proveru bilansa PRE nego što pokrene 8
+    # GPT-4o poziva. Ovi testovi mere DEDUPE i ožičenje, ne kredite — dovoljan
+    # bilans je preduslov, ne predmet merenja. Dodavanje preduslova nije
+    # slabljenje testa; bez njega bi merili 402 umesto dedupe-a.
     with patch.object(st, "_audit", new=lambda *a, **k: _noop()), \
+         patch("shared.deps._get_credits", return_value=999), \
          patch.object(st, "_audit_strategija_durably", MagicMock()):
         await st.post_kompletna_analiza(
             st.OrkestratorRequest(opis_predmeta="A" * 120),

@@ -382,6 +382,7 @@ async def test_m_ruta_prosledjuje_bas_req_predmet_id():
          patch("routers.copilot_ambient._proveri_vlasnistvo_predmeta", new=AsyncMock()), \
          patch("routers.jobs.create_job_deduped", return_value=("job-1", False)), \
          patch("routers.strategija._audit", new=AsyncMock()), \
+         patch("shared.deps._get_credits", return_value=999), \
          patch("routers.strategija._audit_strategija_durably", new=MagicMock()), \
          patch("routers.strategija.orkestrator_kompletna_analiza_sync",
                return_value={"koraci": {}, "sinteza": {}}), \

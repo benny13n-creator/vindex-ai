@@ -496,6 +496,50 @@ async def post_kompletna_analiza(
     asyncio.create_task(_audit(uid, "kompletna_analiza", ""))
     _audit_strategija_durably(uid, "kompletna_analiza", req.predmet_id)
 
+    # Wave 6 — PRE-FLIGHT PROVERA BILANSA.
+    #
+    # Nalaz: `_run_analiza` izvršava svih 8 GPT-4o poziva, pa TEK ONDA zove
+    # `UsageService.consume` (`:537`). Ako korisnik nema dovoljno kredita,
+    # `consume` digne 402, `run_in_background` (`routers/jobs.py:120`) to uhvati
+    # i upiše `status="error"` — a AI rad je već obavljen i plaćen provajderu.
+    #
+    # Posledica, merena iz koda: `professional` korisnik sa 0 kredita mogao je
+    # da pokrene 8 GPT-4o poziva, dobije grešku, i ponovi to do granice rate
+    # limita (`10/hour`, `:368`). Osamdeset GPT-4o poziva na sat po nalogu, bez
+    # ijednog naplaćenog kredita.
+    #
+    # `PermissionService.require("strategija")` ovo ne hvata — on proverava
+    # TARIFU, ne bilans. Bilans proverava tek `consume`.
+    #
+    # Ovo NIJE zamena za `consume`. Atomični odbitak ostaje posle posla, pa
+    # ugovor „ne naplaćuj ako AI padne" ostaje netaknut. Ovo je samo troškovna
+    # kapija ispred skupog posla. Namerno je TOCTOU-tolerantna: između provere i
+    # odbitka bilans se može promeniti, ali jedini izvor istine ostaje atomični
+    # `deduct_n_credits` (`migrations/107`).
+    _CENA_KOMPLETNE = 6  # feature_registry: krediti=1 x credit_multiplier=6 (migracija 069)
+    try:
+        from shared.deps import _get_credits
+        from shared.permissions import _is_founder
+        if not _is_founder(email):
+            _bilans = await asyncio.to_thread(_get_credits, uid)
+            if _bilans < _CENA_KOMPLETNE:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "code": "NO_CREDITS",
+                        "message": f"Za kompletnu analizu je potrebno {_CENA_KOMPLETNE} kredita, "
+                                   f"a na raspolaganju {max(_bilans, 0)}.",
+                    },
+                )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Greška u čitanju bilansa NE sme da blokira analizu — atomični odbitak
+        # posle posla je i dalje autoritativan i uhvatiće nedostatak kredita.
+        # Ovo je troškovna optimizacija, ne bezbednosna kontrola.
+        _sentry_capture(exc)
+        logger.warning("[F10] pre-flight provera bilansa nije uspela (nastavlja): %s", exc)
+
     async def _run_analiza():
         begin_cost_tracking()
         # P0-D: kontekst se gradi PRE prelaska u nit. Unutra nema ni Supabase
