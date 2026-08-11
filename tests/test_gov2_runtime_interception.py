@@ -139,13 +139,23 @@ def test_ng_bezopasan_prompt_prolazi(patched, monkeypatch):
 
     stiglo = {"da": False}
 
-    class _Odgovor:
-        usage = None
-        choices = []
+    # Odgovor mora biti REALAN. Prva verzija je imala `choices = []`, i posle
+    # uvođenja Response Firewall-a ju je firewall ispravno odbio kao pokvaren
+    # odgovor. Fixture koji ne liči na stvarni odgovor ne testira ništa.
+    from unittest.mock import MagicMock as _MM
 
     def _detektor(self, *a, **k):
         stiglo["da"] = True
-        return _Odgovor()
+        r = _MM()
+        r.usage = None
+        r.model = k.get("model", "gpt-4o-mini")
+        poruka = _MM()
+        poruka.content = "Rok za žalbu je 15 dana."
+        poruka.tool_calls = None
+        izbor = _MM()
+        izbor.message = poruka
+        r.choices = [izbor]
+        return r
 
     monkeypatch.setattr(ac, "_orig_create", _detektor, raising=False)
 
@@ -182,31 +192,64 @@ def test_d_neuspeh_patcha_ostavlja_zastavicu_iskrenom(patched):
 
 # ─── 4. IZLAZNA STRANA — NALAZ, NE POPRAVKA ─────────────────────────────────
 
-def test_e_izlazna_kontrola_ne_postoji_kao_sloj():
-    """Namerno POZITIVNA tvrdnja o odsustvu.
+def test_e_izlazni_sloj_je_ozicen_na_kanonsku_tacku(patched):
+    """Naslednik tvrdnje o ODSUSTVU izlaznog sloja.
 
-    Misija je pretpostavila da je „Response Firewall uveden". U ovom
-    repozitorijumu ne postoji: pretraga za `response_firewall`, `output_guard`,
-    `sanitize_response` i `_proveri_odgovor` daje nula pogodaka.
+    Prethodna verzija ovog testa bila je namerno pozitivna tvrdnja da Response
+    Firewall NE postoji — sa uputstvom da se, kad se uvede, zameni testom
+    POKRIVENOSTI umesto da se obriše. Wave 3 ga je uveo, test je pao, i ovo je
+    ta zamena.
 
-    Test postoji da odsustvo ne bi ostalo prećutano. Kada izlazni sloj bude
-    uveden, OVAJ TEST PADA — i to je znak da ga treba zameniti testom
-    pokrivenosti, ne obrisati.
+    Ne proverava da modul postoji. Proverava da je ožičen na tačku kroz koju
+    poziv MORA proći: `_enforce_response` mora biti pozvan iz oba wrappera
+    (`_guarded_create` i `_guarded_acreate`), a ne sa pojedinačnih pozivnih
+    mesta koja se mogu preskočiti.
     """
-    import subprocess
-    # `:(exclude)tests/` je nužno: ovi testovi sami pominju imena kontrola u
-    # docstring-ovima, pa bi bez izuzimanja tvrdnja padala na sopstvenoj
-    # dokumentaciji. Tvrdnja je o PRODUKCIONOM kodu.
-    r = subprocess.run(
-        ["git", "grep", "-lE", "response_firewall|output_guard|sanitize_response|_proveri_odgovor",
-         "--", "*.py", ":(exclude)tests/"],
-        cwd=_KOREN, capture_output=True, text=True,
+    import inspect
+    izvor = inspect.getsource(patched._patch_prompt_guard)
+
+    assert "from security.response_firewall import enforce" in izvor, (
+        "firewall nije uvezen u kanonsku tačku"
     )
-    nadjeno = [l for l in r.stdout.splitlines() if l.strip()]
-    assert not nadjeno, (
-        "izlazni governance sloj je uveden u: " + ", ".join(nadjeno) +
-        " — zameni ovaj test testom POKRIVENOSTI (koje putanje prolaze kroz njega), "
-        "nemoj ga obrisati"
+    # Oba wrappera moraju vraćati PROVERENU vrednost, ne sirov `response`.
+    assert izvor.count("return _enforce_response(kwargs, response)") == 2, (
+        "jedan od wrappera (sync/async) vraća neproveren odgovor — polovična "
+        "pokrivenost je gora od nikakve, jer izgleda kao puna"
+    )
+    # Tvrdnja je o CHAT wrapperima. `_tracked_embed` i audio wrapperi
+    # legitimno vraćaju sirov odgovor — firewall V1 pokriva chat-completion
+    # oblik (`choices[0].message`), koji embeddings i audio nemaju. To je
+    # izmerena granica pokrivenosti, ne propust, i stoji u izveštaju.
+    for ime in ("_guarded_create", "_guarded_acreate"):
+        pocetak = izvor.index(f"def {ime}(")
+        telo = izvor[pocetak:izvor.index("\n    def ", pocetak + 10)] \
+            if "\n    def " in izvor[pocetak + 10:] else izvor[pocetak:]
+        telo = telo.split("Completions.create =")[0]
+        assert "return response" not in telo, (
+            f"{ime} ima granu koja vraća sirov odgovor zaobilazeći firewall"
+        )
+        assert "_enforce_response(kwargs, response)" in telo
+
+
+def test_e2_embeddings_i_audio_NISU_firewall_ovani(patched):
+    """Izmerena granica pokrivenosti, zapisana kao tvrdnja.
+
+    Firewall V1 proverava chat-completion oblik (`choices[0].message.content`).
+    Embeddings vraćaju vektore, audio vraća bajtove — nijedan nema taj oblik,
+    pa ih firewall ne dodiruje.
+
+    Ovo NIJE propust koji treba tiho popraviti proširivanjem firewall-a na sve.
+    Ovo je granica koja mora biti vidljiva: kad neko sutra kaže „izlaz je
+    pokriven", ovaj test kaže tačno šta jeste a šta nije.
+    """
+    import inspect
+    izvor = inspect.getsource(patched._patch_prompt_guard)
+    for ime in ("_tracked_embed", "_tracked_aembed"):
+        assert f"def {ime}(" in izvor
+    assert "_enforce_response" not in izvor.split("def _tracked_embed(")[1].split("Embeddings.create =")[0], (
+        "embeddings su provučeni kroz chat firewall — on proverava oblik koji "
+        "embeddings odgovor nema, pa bi ili uvek prolazio (besmisleno) ili uvek "
+        "padao (obara 8 LangChain putanja)"
     )
 
 

@@ -343,6 +343,52 @@ def _patch_prompt_guard() -> None:
     from security.prompt_guard import PromptInjectionBlocked
     from security.prompt_guard import analyze as _analyze
 
+    # Governance Wave 3 — CANONICAL RESPONSE FIREWALL.
+    #
+    # Ulazna strana (SEC-003) štiti šta ODLAZI provajderu. Do sada ništa nije
+    # proveravalo šta se VRAĆA: izlazna kontrola je pokrivala 2 od 93
+    # produkcione AI putanje (`main.py::_proveri_halucinaciju`, samo RAG).
+    #
+    # Firewall se veže ovde, a ne na 93 pojedinačna mesta, iz jednog merenog
+    # razloga: zamenjuje se metoda SDK KLASE, pa i direktan
+    # `client.chat.completions.create(...)` iz proizvoljnog fajla prolazi kroz
+    # wrapper. Nema pozivnog mesta koje ga može slučajno preskočiti.
+    #
+    # NE pokriva: sirov WebSocket (`services/voice_orchestrator.py`) i Cohere
+    # SDK (`app/services/retrieve.py`). Te dve putanje ga mogu zaobići i to je
+    # deo ugovora, ne propust — v. `security/response_firewall.py`.
+    from security.response_firewall import enforce as _fw_enforce
+
+    def _enforce_response(kwargs, response):
+        """Primeni firewall, sa identitetom iz već postojećeg konteksta.
+
+        `correlation_id` i `user_id` se čitaju iz `shared/ai_provenance`, koji
+        je isti izvor koji `_capture_chat_provenance` već koristi — bez novog
+        mehanizma i bez novog izvora istine.
+        """
+        cid = None
+        uid = None
+        try:
+            import shared.ai_provenance as _prov
+            _ctx = _prov.current_context() or {}
+            cid = _ctx.get("correlation_id")
+            uid = (_prov.current_request_context() or {}).get("user_id") \
+                if hasattr(_prov, "current_request_context") else None
+        except Exception:
+            # Nedostatak identiteta je DEGRADACIJA, ne razlog za rušenje poziva —
+            # firewall to prijavljuje kao ESCALATE. Zato ova grana sme da bude
+            # tolerantna, za razliku od same provere odgovora.
+            pass
+        return _fw_enforce(
+            response,
+            kwargs=kwargs,
+            operation=_caller_hint(),
+            provider="openai",
+            model=(kwargs or {}).get("model", ""),
+            correlation_id=cid,
+            user_id=uid,
+        )
+
     _orig_create = Completions.create
     _orig_acreate = AsyncCompletions.create
 
@@ -364,7 +410,7 @@ def _patch_prompt_guard() -> None:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
         _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
-        return response
+        return _enforce_response(kwargs, response)
 
     async def _guarded_acreate(self, *args, **kwargs):
         text = _extract_user_text(kwargs.get("messages"))
@@ -385,7 +431,7 @@ def _patch_prompt_guard() -> None:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
         _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
-        return response
+        return _enforce_response(kwargs, response)
 
     Completions.create = _guarded_create
     AsyncCompletions.create = _guarded_acreate
