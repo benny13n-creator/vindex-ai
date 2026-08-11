@@ -1,151 +1,37 @@
-# Testovi koji u toku izvrsavanja dodiruju PRODUKCIONU Supabase bazu umesto da
-# mokuju klijent. Zabelezeno 2026-08-11 (Wave 9).
+# Testovi koji dodiruju PRODUKCIONU Supabase bazu umesto da mokuju klijent.
 #
-# ODAKLE OVA LISTA
-# `.env` na razvojnoj masini nosi zive `SUPABASE_URL` i `SUPABASE_SERVICE_KEY`, a
-# `tests/conftest.py` ih ucitava (potrebni su za `FOUNDER_EMAILS` i
-# `FIELD_ENCRYPTION_KEY`). Sonda je IZMERILA da `_get_supa()` u test procesu vraca
-# PRAV klijent uperen u produkcioni projekat, i da jedan nemokovan poziv
-# `security/ai_forensics.py::log_provenance_from_wrapper` upise STVARAN red u
-# produkcionu `ai_provenance` tabelu.
+# LISTA JE PRAZNA. To je ciljno stanje, ne pokvaren fajl.
 #
-# STA OVO KOSTA DOK IMENA STOJE NA LISTI
-# Svako pokretanje suite-a -- lokalno i u CI-ju -- cita i pise u produkcionu bazu.
-# Za obicne tabele to znaci nedeterministicne testove i smece u podacima. Za
-# `audit_immutable` i `ai_provenance` je gore: one su append-only iza BEFORE
-# UPDATE/DELETE trigera i hash-lancane, pa se upisan red NE MOZE obrisati.
-# Forenzicki dokazi na koje se ceo ovaj program poziva tako dobijaju zapise
-# nepoznatog porekla.
+# ISTORIJA, da se ne izgubi zasto fajl uopste postoji.
+# Wave 9 (2026-08-11) je izmerio da 115 testova iz ~40 fajlova dodiruje
+# produkcionu bazu, i zamrznuo ih ovde kao "SADRZANO, NE ZATVORENO". Uzrok je
+# bio to sto `tests/conftest.py` ucitava `.env` (zbog `FOUNDER_EMAILS` i
+# `FIELD_ENCRYPTION_KEY`), pa su zivi `SUPABASE_URL` i `SUPABASE_SERVICE_KEY`
+# ulazili u test proces i `_get_supa()` je vracao PRAV klijent ka produkciji.
 #
-# ISTI RAZRED STETE JE OVAJ REPO VEC PRETRPEO: pre te liste su testovi brisali
-# vektore iz produkcionog Pinecone-a (v. `network_offenders_baseline.txt`).
+# Wave 10 (2026-08-11) je problem resio na nivou KONFIGURACIJE umesto na nivou
+# DNS-a: `.env` DB kredencijali se vise ne uvoze u test proces, a izricito
+# izvezena produkciona konfiguracija obara suite pre prvog testa
+# (`tests/prod_db_guard.py`).
 #
-# ZASTO SU IMENA ZABELEZENA A NE POPRAVLJENA ISTE NOCI
-# 115 testova u ~40 fajlova. Prepisivanje svih u jednoj noci je churn sa realnim
-# rizikom regresije, a brana koja obori 115 testova biva ISKLJUCENA umesto
-# postovana -- isto obrazlozenje koje je autor prethodne brane vec zapisao.
-# Lista zamrzava zateceno stanje; svaki NOV test koji dodirne produkciju pada
-# odmah i imenuje se.
+# MERENJE POSLE TE PROMENE: od 455 testova u tih 42 fajla pada TACNO JEDAN --
+# `tests/test_ztc_scenario_b_attach.py::test_finalize_without_predmet_id_still_creates_new_case`,
+# koji je kroz `routers/smart_intake.py:1525` -> `audit_immutable.log_action`
+# -> `_get_last_hash(supa)` stvarno citao i pisao u produkcioni hash-lancani
+# ledger. On je popravljen (mokovan `audit_immutable`), i lista je prazna.
 #
-# STANJE: SADRZANO, NE ZATVORENO. Lista sme samo da se SMANJUJE.
-# `tests/test_prod_db_offenders_baseline.py` fiksira maksimum; dodavanje imena
-# obara suite dok neko svesno ne podigne broj, uz obrazlozenje.
+# Ostalih 114 je produkciju dodirivalo iskljucivo kroz fail-soft putanje koje se
+# identicno ponasaju i kad hosta nema. Allowlist im dakle nikad nije ni trebao --
+# bio je posledica toga sto se problem resavao na pogresnom sloju.
 #
-# KAKO SE IME SKIDA SA LISTE: mokovati Supabase klijent u tom testu
-# (`patch("shared.deps._get_supa", return_value=MagicMock())` ili odgovarajuci
-# modul-lokalni `_get_supa`), pa obrisati red odavde.
-tests/test_ai_fabric_contract.py::test_14_gateway_emits_telemetry_on_failure_and_reraises
-tests/test_ai_fabric_governance.py::test_11_shadow_is_off_by_default
-tests/test_ai_fabric_governance.py::test_12_shadow_runs_but_never_changes_primary_result
-tests/test_ai_fabric_governance.py::test_13_shadow_failure_does_not_break_primary
-tests/test_ai_fabric_governance.py::test_14_unconfigured_shadow_is_skipped_silently
-tests/test_akcija2_faza4_2026_07_24.py::test_klasifikuj_i_sacuvaj_degradira_na_legacy_insert_ako_kolone_ne_postoje
-tests/test_akcija2_faza4_2026_07_24.py::test_klasifikuj_i_sacuvaj_salje_lokaciju_u_insert
-tests/test_beta_gate_upload_refund.py::test_upload_does_not_refund_on_partial_ai_success
-tests/test_beta_gate_upload_refund.py::test_upload_refunds_credit_when_all_three_ai_calls_fail
-tests/test_case_dna_events.py::test_dispatch_pending_events_recognizes_genome_updated_type
-tests/test_copilot_ambient.py::test_analyze_rejects_empty_tekst
-tests/test_copilot_ambient.py::test_analyze_rejects_oversized_tekst
-tests/test_copilot_ambient.py::test_analyze_with_owned_predmet_id_succeeds
-tests/test_copilot_ambient.py::test_analyze_with_unowned_predmet_id_returns_404
-tests/test_copilot_ambient.py::test_analyze_without_predmet_id_succeeds
-tests/test_copilot_ambient.py::test_daily_limit_exceeded_propagates_as_429
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsAllModules::test_email_reminder_failure_does_not_block_retention
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsAllModules::test_nedeljni_sazetak_is_ok_or_skipped_never_crashes
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsAllModules::test_response_includes_all_new_modules
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsAllModules::test_retention_module_failure_does_not_block_heartbeat
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsBackgroundAgents::test_background_agents_failure_does_not_block_other_modules
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsBackgroundAgents::test_background_agents_timeout_reported_not_crashed
-tests/test_cron_daily_dispatcher.py::TestCronDailyCallsBackgroundAgents::test_response_includes_background_agents_module
-tests/test_cron_daily_failclosed_auth.py::TestCronDailyFailsClosed::test_secret_configured_and_header_matches_passes_auth
-tests/test_doc_pitanje_api.py::test_pitanje_expired_session
-tests/test_doc_pitanje_api.py::test_pitanje_happy_path
-tests/test_doc_pitanje_api.py::test_pitanje_invalid_shape
-tests/test_doc_pitanje_api.py::test_pitanje_oversized
-tests/test_doc_pitanje_api.py::test_pitanje_passes_extra_namespace_to_ask_agent
-tests/test_doc_pitanje_api.py::test_pitanje_session_not_found
-tests/test_dokument_upload_async_classification.py::test_upload_response_does_not_include_synchronous_klasifikacija
-tests/test_dokument_upload_async_classification.py::test_upload_schedules_classification_as_background_task
-tests/test_dokument_upload_async_classification.py::test_upload_succeeds_even_when_background_classification_fails
-tests/test_evidence_klasifikacija.py::test_both_succeed_normally_no_regression
-tests/test_evidence_klasifikacija.py::test_no_predmet_dokazi_insert_when_no_kljucne_cinjenice
-tests/test_evidence_klasifikacija.py::test_predmet_dokumenti_update_happens_even_if_predmet_dokazi_insert_fails
-tests/test_extractor_image.py::test_extract_image_corrupt_file_fails_cleanly
-tests/test_extractor_image.py::test_extract_image_insufficient_text_treated_as_failed
-tests/test_extractor_ocr.py::test_ocr_exception_falls_through
-tests/test_extractor_ocr.py::test_ocr_short_output_still_unreadable
-tests/test_extractor_pdf_empty.py::test_empty_pdf_flagged_as_scanned
-tests/test_extractor_pdf_empty.py::test_near_empty_pdf_flagged_as_scanned
-tests/test_extractor_pdf_empty.py::test_whitespace_only_pdf_flagged_as_scanned
-tests/test_faza1_bugfixes_2026_07_24.py::test_semanticka_pretraga_hvata_gresku_embeddinga
-tests/test_faza2_resilience_sentry_2026_07_24.py::test_semanticka_pretraga_zove_sentry_capture_na_gresku
-tests/test_gov2_runtime_interception.py::test_ng_bezopasan_prompt_prolazi
-tests/test_gov3_response_firewall.py::test_a_ispravan_odgovor_stize_do_pozivaoca
-tests/test_gov3_response_firewall.py::test_b_pokvaren_odgovor_NE_STIZE_do_pozivaoca[prazan string-odg2]
-tests/test_gov3_response_firewall.py::test_b_pokvaren_odgovor_NE_STIZE_do_pozivaoca[prazna lista izbora-odg0]
-tests/test_gov3_response_firewall.py::test_b_pokvaren_odgovor_NE_STIZE_do_pozivaoca[sadr/u017eaj None bez tool_calls-odg1]
-tests/test_gov3_response_firewall.py::test_c_trazen_json_a_odgovor_nije_json_JE_BLOKIRAN
-tests/test_gov3_response_firewall.py::test_d_tool_calls_bez_sadrzaja_PROLAZE
-tests/test_gov3_response_firewall.py::test_ng_lazni_provajder_se_stvarno_koristi
-tests/test_gov3_response_firewall.py::test_ng_validan_json_prolazi
-tests/test_intake_original_file_storage.py::test_upload_still_succeeds_and_falls_back_to_session_label_when_storage_upload_fails
-tests/test_intake_original_file_storage.py::test_upload_stores_original_file_and_writes_real_storage_path
-tests/test_lambda002_ownership_idor_fixes.py::test_obrisi_zadatak_admin_can_delete_own_firm_task
-tests/test_lambda008_certification.py::test_faktura_create_retries_on_broj_fakture_conflict_then_succeeds
-tests/test_lz002_evidence_autoclassify.py::test_finalize_evidence_classification_failure_does_not_break_response
-tests/test_lz002_evidence_autoclassify.py::test_finalize_triggers_evidence_classification_in_background
-tests/test_mission001_predmet_klijenti.py::test_bulk_import_compensating_delete_on_link_failure
-tests/test_mission001_predmet_klijenti.py::test_bulk_import_does_not_send_user_id_and_succeeds
-tests/test_phase1_3.py::test_parallel_retrieval_returns_empty_on_error
-tests/test_phoenix_mission_011_billing_reference_integrity.py::test_faktura_create_succeeds_when_all_entries_match_predmet_id
-tests/test_phoenix_mission_011_billing_reference_integrity.py::test_non_conflict_insert_failure_does_not_trigger_redni_retry
-tests/test_phoenix_mission_011_billing_reference_integrity.py::test_redni_broj_conflict_exhausts_retries_without_crashing
-tests/test_phoenix_mission_011_billing_reference_integrity.py::test_redni_broj_conflict_retries_with_next_number_and_succeeds
-tests/test_recurring.py::test_delete_inactive_recurring_204
-tests/test_reliability_hardening.py::test_cron_daily_module_failure_does_not_block_heartbeat
-tests/test_rocista_kalendar.py::test_izmeni_rociste_success
-tests/test_rocista_kalendar.py::test_kreiraj_rociste_success
-tests/test_rocista_kalendar.py::test_obrisi_rociste_success
-tests/test_rocista_kalendar.py::test_obrisi_rociste_user_isolation
-tests/test_saradnja.py::test_ukloni_saradnika_uspesno
-tests/test_sec003_llm_wrapper.py::TestBenignContentPassesThrough::test_benign_question_not_blocked_by_real_guard
-tests/test_sigma_sprint002_timestamp_literal_bugs.py::test_klasifikuj_i_sacuvaj_writes_a_real_timestamp_for_klasifikovan_at
-tests/test_sprint002_pipeline_a_orphan_cleanup.py::test_successful_upload_never_triggers_cleanup
-tests/test_sprint006_finalize_assimilation.py::test_content_based_case_number_match_auto_attaches_to_existing_case
-tests/test_sprint006_finalize_assimilation.py::test_document_assimilation_writes_an_audit_entry
-tests/test_sprint006_finalize_assimilation.py::test_lineage_fk_set_from_matching_segment_per_document
-tests/test_sprint006_finalize_assimilation.py::test_one_document_insert_failure_does_not_lose_or_block_sibling
-tests/test_sprint006_finalize_assimilation.py::test_single_document_job_has_no_lineage_fk_by_design
-tests/test_sprint007_bulletproof_intake.py::test_crash_recovery_reuses_existing_predmet_not_a_new_one
-tests/test_sprint007_bulletproof_intake.py::test_identical_content_same_case_is_not_duplicated_isti_pdf
-tests/test_sprint007_bulletproof_intake.py::test_partial_retry_resumes_only_the_unresolved_segment
-tests/test_sprint007_bulletproof_intake.py::test_same_content_after_retry_isti_sadrzaj_posle_retry
-tests/test_sprint007_bulletproof_intake.py::test_same_content_different_case_routes_to_review_not_guessed
-tests/test_sprint007_bulletproof_intake.py::test_same_content_different_filename_still_detected_isto_ime_drugo
-tests/test_sprint007_bulletproof_intake.py::test_same_content_different_upload_isti_sadrzaj_drugi_upload
-tests/test_sprint007_bulletproof_intake.py::test_soft_partial_failure_job_is_not_treated_as_already_finalized
-tests/test_tarife.py::test_put_klijent_tarifa_remove
-tests/test_tarife.py::test_put_klijent_tarifa_set
-tests/test_uploaded_doc_api.py::test_upload_docx_happy_path
-tests/test_uploaded_doc_api.py::test_upload_pdf_happy_path
-tests/test_uploaded_doc_api.py::test_upload_rejects_empty_chunks
-tests/test_uploaded_doc_api.py::test_upload_rejects_oversized
-tests/test_uploaded_doc_api.py::test_upload_rejects_scanned_pdf
-tests/test_uploaded_doc_api.py::test_upload_rejects_unsupported_mime
-tests/test_v31_zero_row_guard.py::test_1_komentar_success
-tests/test_v31_zero_row_guard.py::test_4_webhook_success
-tests/test_v36b_recurring_zero_row_guard.py::test_1_own_template_deleted
-tests/test_v36e_client_portal_zero_row_guard.py::test_1_own_upload_deleted
-tests/test_v36e_client_portal_zero_row_guard.py::test_5_storage_failure_remains_non_fatal
-tests/test_v40a_tarifa_removal_guard.py::test_1_successful_removal_deletes_the_row
-tests/test_v40a_tarifa_removal_guard.py::test_2_owner_predicate_is_inside_the_delete_statement
-tests/test_v40a_tarifa_removal_guard.py::test_6_second_removal_cannot_report_a_second_success
-tests/test_v40a_tarifa_removal_guard.py::test_7_update_branch_unaffected
-tests/test_ztc_conflict_check_autowiring.py::test_finalize_emit_failure_does_not_break_case_creation
-tests/test_ztc_conflict_check_autowiring.py::test_finalize_emits_new_client_linked_durably
-tests/test_ztc_conflict_check_autowiring.py::test_new_client_linked_still_emitted_when_client_lookup_fails
-tests/test_ztc_scenario_b_attach.py::test_finalize_assigns_next_redni_broj_when_attaching_second_document
-tests/test_ztc_scenario_b_attach.py::test_finalize_attaches_to_existing_predmet_instead_of_creating_new
-tests/test_ztc_scenario_b_attach.py::test_finalize_final_write_raises_when_finalizing_at_changed_underneath
-tests/test_ztc_scenario_b_attach.py::test_finalize_first_document_in_new_case_gets_redni_broj_1
-tests/test_ztc_scenario_b_attach.py::test_finalize_without_predmet_id_still_creates_new_caseTask exception was never retrieved
+# ZASTO FAJL OSTAJE
+# On je allowlist brane iz `tests/conftest.py`. Prazan dokumentuje pravilo i daje
+# buducem prestupniku mesto da bude zabelezen NAMERNO, umesto da neko ugasi branu.
+# `tests/test_prod_db_offenders_baseline.py` fiksira maksimum na 0, pa dodavanje
+# imena obara suite dok neko svesno ne podigne broj, uz obrazlozenje.
+#
+# STA BI KOSTALO DA IME STOJI OVDE
+# Svako pokretanje suite-a -- lokalno i u CI-ju -- citalo bi i pisalo u
+# produkcionu bazu. Za `audit_immutable` i `ai_provenance` je nepovratno: one su
+# append-only iza BEFORE UPDATE/DELETE trigera i hash-lancane, pa se upisan red
+# NE MOZE obrisati.

@@ -29,23 +29,23 @@ klaster koji testovi **sami pronađu** — oni probaju `127.0.0.1:55432` i `:554
 Blokada nije bila tehnička nego dokumentaciona: `test_beta_gate_credit_race_postgres.py:35`
 upućuje na „setup u closure report-u", a taj dokument setup ne sadrži. Zato ovo ovde stoji.
 
-### Procedura (ne-elevirani PowerShell — `initdb` odbija Administrator sesiju)
+### Procedura — ZASTARELA, v. `docs/beta_war/TEST_DB_BOOTSTRAP.md`
+
+Wave 10 (2026-08-11) je ovu ručnu proceduru zamenio kanonskom skriptom. Ručna
+verzija je ostavljena samo kao istorijski trag jer se **razišla** od stvarnog
+ponašanja: `pg_ctl -m immediate stop` + bezuslovni `Remove-Item` brišu klaster i
+kad je bio u upotrebi, a `pg_ctl start` sa nasleđenim pipe-om se zaglavi na
+Windows-u (mereno: >180 s bez povratka).
 
 ```powershell
-$PGBIN = "C:\Program Files\PostgreSQL\17\bin"
-$A = "$env:TEMP\vindex_pg_55432"; $B = "$env:TEMP\vindex_pg_55433"
-
-& "$PGBIN\initdb.exe" -D $A -U postgres --auth=trust --encoding=UTF8
-& "$PGBIN\initdb.exe" -D $B -U postgres --auth=trust --encoding=UTF8
-& "$PGBIN\pg_ctl.exe" -D $A -o "-p 55432 -h 127.0.0.1" -l "$env:TEMP\pg_a.log" start
-& "$PGBIN\pg_ctl.exe" -D $B -o "-p 55433 -h 127.0.0.1" -l "$env:TEMP\pg_b.log" start
-
-pytest tests/test_beta_gate_credit_race_postgres.py tests/test_atomic_usage_counters_postgres.py -q
-
-& "$PGBIN\pg_ctl.exe" -D $A -m immediate stop
-& "$PGBIN\pg_ctl.exe" -D $B -m immediate stop
-Remove-Item -Recurse -Force $A, $B
+python scripts/test_db.py up       # idempotentno, ne dira postojeće podatke
+python scripts/test_db.py verify   # 7 kriterijuma, fail-closed
+pytest -q
+python scripts/test_db.py down
 ```
+
+Bez podignutog klastera testovi se **tiho preskaču** — najvredniji dokazi o
+naplati nestaju bez ijedne crvene linije. Zato `status` na to izričito upozorava.
 
 **NE postavljati `VINDEX_TEST_PG_DSN`.** Auto-discovery koristi keyword formu DSN-a i time
 zaobilazi `P0E-001` (dole). Kontrola pre pokretanja: mora biti `59 collected, 0 skipped`.

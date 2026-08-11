@@ -29,6 +29,7 @@ identično prethodnom ponašanju, nema Redis zavisnosti da otkaže.
 """
 import logging
 import os
+import time
 from typing import Callable
 
 from slowapi import Limiter
@@ -58,12 +59,15 @@ def _get_real_ip(request: Request) -> str:
 
 def build_limiter(key_func: Callable[[Request], str], default_limits: list[str] | None = None) -> Limiter:
     """
-    Fabrika koja gradi identično konfigurisan Limiter za api.py i za
-    shared.rate — dve odvojene Limiter instance i dalje postoje u ovom kodu
-    (api.py poziva `build_limiter(_get_real_ip)` da napravi svoju, umesto da
-    uvozi `limiter` odavde direktno — arhitektonska duplikacija, poznata,
-    van obima SEC-005; obe sad koriste isti `_get_real_ip` key_func i istu
-    Redis+fail-open konfiguraciju, samo kroz dve odvojene instance).
+    Fabrika koja gradi konfigurisan Limiter (Redis + fail-open ako REDIS_URL
+    postoji, inače čist in-memory).
+
+    Wave 10 (2026-08-11): ranije je api.py zvao ovu fabriku da napravi
+    SOPSTVENU, drugu instancu pored `shared.rate.limiter`, pa su postojala
+    dva odvojena skupa brojača. Ta duplikacija je uklonjena — api.py sada
+    uvozi `limiter` odavde. Ova fabrika ostaje javna jer je i dalje jedini
+    ispravan način da se napravi IZOLOVANA instanca (testovi fail-open
+    ponašanja grade svoju po testu, umesto da diraju kanonsku).
     """
     limits = default_limits or _DEFAULT_LIMITS
     if _REDIS_URL:
@@ -86,4 +90,66 @@ def build_limiter(key_func: Callable[[Request], str], default_limits: list[str] 
     return Limiter(key_func=key_func, default_limits=limits)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# KANONSKA INSTANCA — jedina u procesu.
+#
+# Svi ruteri rade `from shared.rate import limiter` i dekorišu rute sa
+# `@limiter.limit(...)`, `api.py` je stavlja u `app.state.limiter` odakle je
+# `SlowAPIMiddleware` koristi za podrazumevani limit. Jedan objekat, jedan
+# storage, jedan lifecycle.
+#
+# NE PRAVITI drugu instancu ovog objekta na nivou modula i NE raditi
+# `importlib.reload(shared.rate)` — reload ponovo izvrši ovaj red i napravi
+# NOV objekat, dok dekoratori u ruterima i dalje drže staru referencu. Tada
+# gašenje/reset preko `shared.rate.limiter` tiho promašuje instancu koju rute
+# stvarno koriste. Ako treba izolovana instanca, koristi `build_limiter()`.
+# ═══════════════════════════════════════════════════════════════════════════
 limiter = build_limiter(_get_real_ip)
+
+
+def reset_limiter_state(target: Limiter | None = None) -> None:
+    """Vraća limiter na deterministički početno stanje — BRIŠE BROJAČE.
+
+    Nije test-only hack: isti postupak treba i produkciji kada se limiter mora
+    ručno rasteretiti (npr. posle incidenta u kome je pogrešan `key_func`
+    nagomilao brojače pod jednim identitetom), i posle oporavka Redis-a kada
+    in-memory fallback brojači treba da se odbace.
+
+    Šta tačno briše (provereno nad instaliranim slowapi 0.1.9 / limits 5.8.0,
+    ne pretpostavljeno):
+      - `Limiter._storage` — glavni storage (`MemoryStorage` ili `RedisStorage`).
+        `.reset()` na `MemoryStorage` prazni `storage/expirations/events/locks`;
+        na Redis-u briše ključeve limitera. Gašenje `enabled` NIJE dovoljno —
+        brojači bi ostali i limit bi se odmah ponovo aktivirao.
+      - `Limiter._fallback_storage` — postoji SAMO kada je
+        `in_memory_fallback_enabled=True`; poseban `MemoryStorage` sa svojim
+        brojačima, koji `_storage.reset()` ne dodiruje.
+      - `Limiter._storage_dead` + interni brojači provere backend-a
+        (`_Limiter__check_backend_count`, `_Limiter__last_check_backend`) —
+        bez ovoga bi instanca ostala „zaglavljena" u fallback režimu.
+      - `Limiter.enabled` → `True` (podrazumevano iz `Limiter.__init__`).
+
+    Namerno NE dira `_route_limits` / `_dynamic_route_limits` / `_default_limits`:
+    to je KONFIGURACIJA (koja ruta ima koji limit), ne stanje. Njihovo brisanje
+    bi razoružalo rate limiting umesto da ga resetuje.
+
+    `target` je opcion — podrazumevano se resetuje kanonska instanca.
+    """
+    lim = limiter if target is None else target
+
+    for storage in (getattr(lim, "_storage", None), getattr(lim, "_fallback_storage", None)):
+        if storage is None:
+            continue
+        try:
+            storage.reset()
+        except Exception as e:  # noqa: BLE001 — reset nikad ne sme oboriti pozivaoca
+            logger.warning("[RATE] reset storage-a %s nije uspeo: %s", type(storage).__name__, e)
+
+    lim._storage_dead = False
+    # name-mangled atributi iz Limiter.__init__ — pisani doslovno jer im je
+    # to stvarno ime u `vars(limiter)`; getattr/setattr sa istim imenom.
+    if hasattr(lim, "_Limiter__check_backend_count"):
+        setattr(lim, "_Limiter__check_backend_count", 0)
+    if hasattr(lim, "_Limiter__last_check_backend"):
+        setattr(lim, "_Limiter__last_check_backend", time.time())
+    lim.enabled = True

@@ -220,19 +220,16 @@ def _okruzenje(brojac_konteksta):
     Pinecone, a mrežna brana iz `conftest.py` diže `BaseException` koja probija
     njihov fail-soft `except Exception`.
     """
-    # Wave 9 — gasi se limiter koji RUTA STVARNO KORISTI, ne onaj koji
-    # `shared.rate` trenutno izlaže. Odbrana u dubinu uz popravku u
-    # `tests/test_sec005_failopen_limiter.py`.
+    # Wave 9 je ovde gasio DVE instance jer su tada stvarno postojale dve:
+    # ona koju `routers/strategija.py` koristi (`from shared.rate import limiter`,
+    # na koju je `@limiter.limit("5/minute")` trajno vezan) i posebna koju je
+    # `api.py:554` gradio za `app.state.limiter` / `SlowAPIMiddleware`.
     #
-    # `routers/strategija.py` je uradio `from shared.rate import limiter` pri
-    # svom uvozu, pa `@limiter.limit("5/minute")` drži referencu na TU instancu.
-    # Ako je neko u međuvremenu uradio `importlib.reload(shared.rate)`,
-    # `shared.rate.limiter` je nova instanca, a rute i dalje broje kroz staru —
-    # gašenje preko `shared.rate` bi tiho promašilo cilj.
-    #
-    # `api.app.state.limiter` je treća, posebna instanca (`api.py:554`), koju
-    # `SlowAPIMiddleware` koristi za podrazumevani `60/hour` limit. I ona mora
-    # da se ugasi, inače je bafer zajednički za ceo suite.
+    # Wave 10 je tu duplikaciju uklonio — `api.py` sada uvozi kanonsku instancu
+    # iz `shared.rate`, pa je ovo jedan te isti objekat i petlja ispod skuplja
+    # tačno jedan. Petlja i `assert` se ZADRŽAVAJU namerno: ako neko ikada opet
+    # uvede drugu instancu, ovaj fixture je i dalje gasi, a `test_d` u
+    # `tests/test_wave10_rate_limiter_isolation.py` je ta koja regresiju prijavi.
     _limiteri = []
     for _kandidat in (getattr(rs, "limiter", None),
                       getattr(api.app.state, "limiter", None)):

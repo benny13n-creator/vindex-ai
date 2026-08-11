@@ -50,7 +50,17 @@ def _candidate_dsns():
     return [
         "host=127.0.0.1 port=55433 user=postgres dbname=postgres",
         "host=127.0.0.1 port=55432 user=postgres dbname=postgres",
-        "host=127.0.0.1 port=5432 user=postgres dbname=postgres",
+        # Wave 10 — FALLBACK NA 5432 UKLONJEN.
+        #
+        # Izmereno: 5432 na ovoj mašini je TRAJAN PostgreSQL servis koji sluša na
+        # 0.0.0.0 i nosi stvarne podatke. Ovi testovi PRAVE i BRIŠU baze — na
+        # throwaway klasteru je to bezopasno, na trajnom servisu nije.
+        # „Loopback" nije isto što i „potrošno".
+        #
+        # Posledica uklanjanja: ako klasteri nisu podignuti, test se preskače
+        # umesto da tiho koristi pogrešnu bazu. Podizanje je jedna komanda:
+        #     python scripts/test_db.py up
+        # (v. docs/beta_war/TEST_DB_BOOTSTRAP.md)
     ]
 
 

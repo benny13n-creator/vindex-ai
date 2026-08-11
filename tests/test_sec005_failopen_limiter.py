@@ -185,49 +185,46 @@ class TestNoRedisUrlUnchangedBehavior:
 
 
 class TestApiIntegration:
-    """Integracioni test preko prave FastAPI app — dokazuje da ovaj fix
-    stvarno utiče na to kako api.py rute reaguju, ne samo izolovani Limiter."""
+    """Konfiguracija fabrike kojom app STVARNO gradi svoj limiter na startu —
+    `shared.rate.build_limiter`, ista funkcija koju `shared/rate.py` poziva za
+    kanonsku instancu koju uvoze i `api.py` i svi ruteri."""
 
-    def test_app_health_endpoint_survives_broken_redis_url(self, monkeypatch):
-        """Postavlja REDIS_URL na nedostupan host PRE importa api.py i
-        potvrđuje da app i dalje ispravno startuje i odgovara (health
-        endpoint nije rate-limited, ali dokazuje da build_limiter() sa
-        loše konfigurisanim REDIS_URL ne baca na import-u/startu)."""
-        monkeypatch.setenv("REDIS_URL", "redis://localhost:1/0")
-        import importlib
+    def test_build_limiter_with_broken_redis_url_is_failopen_configured(self, monkeypatch):
+        """Sa nedostupnim REDIS_URL, `build_limiter()` mora vratiti Limiter
+        koji je konfigurisan fail-open (in-memory fallback + swallow_errors) i
+        ne sme baciti pri samoj konstrukciji — to je putanja kojom app startuje
+        kada je Redis pogrešno konfigurisan ili mrtav.
 
+        Wave 10 — RANIJA VERZIJA OVOG TESTA JE RADILA `importlib.reload(shared.rate)`
+        i to je bio izvor curenja globalnog stanja: reload ponovo izvrši telo
+        modula i red `limiter = build_limiter(...)` napravi NOV objekat, dok
+        svaki ruter (`from shared.rate import limiter` pri svom uvozu) i dalje
+        drži staru referencu na koju je `@limiter.limit(...)` trajno vezan.
+        Posle ovog testa `shared.rate.limiter` je pokazivao na instancu koju
+        nijedna ruta ne koristi, pa je svaki kasniji test koji preko njega gasi
+        ili resetuje limiter tiho promašivao cilj — izmereno: 84 pada sa HTTP 429
+        u punom suite-u, zeleno izolovano.
+
+        Wave 9 je to zakrpio čuvanjem i vraćanjem objekta. Wave 10 uklanja uzrok:
+        `_REDIS_URL` se čita iz modula pri konstrukciji, pa je dovoljno privremeno
+        zameniti TU vrednost (monkeypatch vraća original automatski) — reload
+        više nije potreban i modulski `limiter` objekat se ne dodiruje uopšte.
+        Tvrdnje testa su nepromenjene.
+        """
         import shared.rate as rate_module
 
-        # Wave 9 — CURENJE GLOBALNOG STANJA, izmereno a ne pretpostavljeno.
-        #
-        # `importlib.reload` ponovo izvršava telo modula, pa red
-        # `limiter = build_limiter(...)` (shared/rate.py:88) pravi NOV objekat.
-        # Modul `shared.rate` ostaje isti, ali atribut `limiter` pokazuje na
-        # drugu instancu.
-        #
-        # Problem: svaki ruter je uradio `from shared.rate import limiter` PRI
-        # SVOM UVOZU i drži referencu na STARU instancu — a `@limiter.limit(...)`
-        # dekorator je vezan baš za nju. Posle ovog testa dakle postoje dve žive
-        # instance: ona koju rute stvarno koriste, i ona koju `shared.rate.limiter`
-        # vraća svakom sledećem pozivaocu.
-        #
-        # Posledica koja je stvarno izmerena: test koji ugasi limiter preko
-        # `from shared.rate import limiter` gasi POGREŠNU instancu, rute i dalje
-        # broje, i 84 testa u `tests/test_wave9_strategy_context.py` padaju sa
-        # HTTP 429 — ali samo kad se pokrene ceo suite, jer izolovano bafer ne
-        # stigne da se napuni. Klasičan test koji „radi kod mene".
-        #
-        # Zato se originalna instanca čuva i vraća. Tvrdnje ovog testa se ne
-        # menjaju — on i dalje dokazuje isto o `build_limiter`.
-        _originalni_limiter = rate_module.limiter
+        _kanonski = rate_module.limiter
 
-        importlib.reload(rate_module)
-        try:
-            assert rate_module._REDIS_URL == "redis://localhost:1/0"
-            limiter = rate_module.build_limiter(rate_module._get_real_ip)
-            assert limiter._in_memory_fallback_enabled is True
-            assert limiter._swallow_errors is True
-        finally:
-            monkeypatch.delenv("REDIS_URL", raising=False)
-            importlib.reload(rate_module)  # vrati modul na in-memory stanje za ostale testove
-            rate_module.limiter = _originalni_limiter
+        monkeypatch.setenv("REDIS_URL", "redis://localhost:1/0")
+        monkeypatch.setattr(rate_module, "_REDIS_URL", "redis://localhost:1/0")
+
+        limiter = rate_module.build_limiter(rate_module._get_real_ip)
+        assert limiter._in_memory_fallback_enabled is True
+        assert limiter._swallow_errors is True
+        assert limiter is not _kanonski, "fabrika mora vratiti novu, izolovanu instancu"
+
+        # Kanonska instanca je netaknuta — ni identitet ni storage.
+        assert rate_module.limiter is _kanonski, (
+            "test je zamenio kanonsku instancu limitera — tačno curenje koje je "
+            "Wave 9 morao da krpi; nijedan test ne sme menjati shared.rate.limiter"
+        )

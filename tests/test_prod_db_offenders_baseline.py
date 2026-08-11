@@ -13,12 +13,12 @@ odigrao za naplative API-je i tamo se broj spustio sa 53 na 0.
 """
 import os
 
-# Zatečeno stanje na dan 2026-08-11, izmereno diferencijalom dva puna prolaza
-# suite-a (prvi bez brane: 4575 passed / 0 failed; drugi sa branom: 115 failed).
-# Svih 115 padova je uzrokovala brana — nijedan nije bio postojeći kvar.
+# Wave 9 je ovde zamrznuo 115 imena. Wave 10 je problem rešio na nivou
+# konfiguracije umesto na nivou DNS-a i IZMERIO da od 455 testova u tih 42 fajla
+# pada TAČNO JEDAN — koji je popravljen. Lista je time prazna.
 #
-# OVAJ BROJ SME SAMO DA SE SMANJUJE.
-MAKSIMUM = 115
+# OVAJ BROJ SME SAMO DA SE SMANJUJE. Sada je na dnu: svako novo ime obara suite.
+MAKSIMUM = 0
 
 _PUTANJA = os.path.join(os.path.dirname(__file__), "prod_db_offenders_baseline.txt")
 
@@ -59,7 +59,7 @@ def test_zaglavlje_objasnjava_cenu():
     """Lista bez razloga postaje lista koju niko ne skraćuje."""
     tekst = open(_PUTANJA, encoding="utf-8").read()
     assert "append-only" in tekst, "zaglavlje ne objašnjava zašto je upis nepovratan"
-    assert "SADRZANO, NE ZATVORENO" in tekst, (
-        "zaglavlje mora izričito reći da nalaz NIJE zatvoren — inače sledeći "
-        "izveštaj lako proglasi problem rešenim"
+    assert "LISTA JE PRAZNA" in tekst, (
+        "zaglavlje mora reći da je lista prazna i zašto — prazan fajl bez "
+        "objašnjenja izgleda kao greška i neko ga obriše zajedno sa branom"
     )

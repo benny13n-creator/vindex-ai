@@ -65,64 +65,92 @@ def test_guard_leaves_unrelated_hosts_alone():
         )
 
 
-# ── Wave 9: kanarinac za branu ka PRODUKCIONOJ bazi ─────────────────────────
+# ── Kanarinac za branu ka PRODUKCIONOJ bazi ────────────────────────────────
 #
-# Ista logika kao gore, drugi razlog. Sonda je izmerila da test proces sa živim
-# `.env`-om upisuje STVARAN red u produkcionu `ai_provenance` tabelu — a te
-# tabele su append-only iza trigera, pa se taj red ne može ukloniti.
+# Ista logika kao gore, drugi razlog. Sonda je u Wave 9 izmerila da test proces
+# sa živim `.env`-om upisuje STVARAN red u produkcionu `ai_provenance` tabelu — a
+# te tabele su append-only iza trigera, pa se taj red ne može ukloniti.
 #
-# Brana bez kanarinca je nedokaziva: prva verzija gornje brane je mesecima
-# prijavljivala zelen suite ne radeći ništa.
+# PREPISANO U WAVE 10 — ŠTA SE PROMENILO I ZAŠTO
+#
+# Wave 9 verzija je izvodila blokirani host iz `SUPABASE_URL`:
+#     _PROD_HOST = urlparse(os.environ["SUPABASE_URL"]).hostname
+# i tvrdila da `getaddrinfo(_PROD_HOST)` puca.
+#
+# Ta tvrdnja je bila tačna samo dok je test proces DRŽAO produkcione
+# kredencijale. Wave 10 je upravo to uklonio: `tests/conftest.py` više ne uvozi
+# `.env` DB vrednosti, pa je `SUPABASE_URL` sada `fake.supabase.co`. Stari
+# kanarinac bi time tvrdio da brana treba da blokira LAŽNI host — tačno suprotno
+# od onoga što se želi.
+#
+# NOVA, TRAJNA INVARIJANTA: brana blokira KLASU hostova upravljanih baza, bez
+# obzira šta je u konfiguraciji. Time hvata i modul koji bi zaobišao
+# `shared/deps.py` i sam sklopio produkcioni URL.
+#
+# Tvrdnje nisu oslabljene — ojačane su: stara je pokrivala jedan host, nova
+# pokriva klasu, i uz to ima negativnu kontrolu obima.
 import os as _os
-from urllib.parse import urlparse as _urlparse
-
-_PROD_HOST = ""
-try:
-    _PROD_HOST = (_urlparse((_os.environ.get("SUPABASE_URL") or "").strip()).hostname or "")
-except Exception:
-    _PROD_HOST = ""
 
 _DB_GUARD_ENABLED = (
-    bool(_PROD_HOST)
-    and _os.environ.get("VINDEX_TEST_ALLOW_PROD_DB") != "1"
+    _os.environ.get("VINDEX_TEST_ALLOW_PROD_DB") != "1"
     and _os.environ.get("VINDEX_TEST_ALLOW_NETWORK") != "1"
 )
 
+# Predstavnici klase: Supabase projekat, Supabase pooler, AWS RDS.
+_PROD_KLASA = (
+    "abcdefghijklmnopqrst.supabase.co",
+    "aws-0-eu-central-1.pooler.supabase.com",
+    "moja-baza.eu-west-1.rds.amazonaws.com",
+)
 
-@pytest.mark.skipif(not _DB_GUARD_ENABLED,
-                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
-def test_db_guard_blocks_the_production_project_host():
+
+@pytest.mark.skipif(not _DB_GUARD_ENABLED, reason="brana je namerno isključena")
+@pytest.mark.parametrize("host", _PROD_KLASA)
+def test_db_guard_blocks_managed_database_hosts(host):
     with pytest.raises(BaseException) as exc:
-        socket.getaddrinfo(_PROD_HOST, 443)
+        socket.getaddrinfo(host, 443)
     assert type(exc.value).__name__ == "ProductionDatabaseAccessBlocked", (
-        f"brana ka produkcionoj bazi nije opalila — dobijeno {type(exc.value).__name__}"
+        f"brana nije opalila za {host} — dobijeno {type(exc.value).__name__}"
     )
 
 
-@pytest.mark.skipif(not _DB_GUARD_ENABLED,
-                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
+@pytest.mark.skipif(not _DB_GUARD_ENABLED, reason="brana je namerno isključena")
 def test_db_guard_is_not_an_ordinary_exception():
     """Svaki upisni put je fail-soft — `Exception` bi bila progutana, test bi
     ostao zelen, a red bi već bio u produkciji."""
     with pytest.raises(BaseException) as exc:
-        socket.getaddrinfo(_PROD_HOST, 443)
+        socket.getaddrinfo(_PROD_KLASA[0], 443)
     assert not isinstance(exc.value, Exception), (
         "obična Exception se guta u fail-soft handlerima koje ova brana treba da probije"
     )
 
 
-@pytest.mark.skipif(not _DB_GUARD_ENABLED,
-                    reason="SUPABASE_URL nije postavljen ili je brana namerno isključena")
-def test_db_guard_does_not_block_other_supabase_hosts():
-    """Negativna kontrola obima.
+@pytest.mark.skipif(not _DB_GUARD_ENABLED, reason="brana je namerno isključena")
+@pytest.mark.parametrize("host", ["fake.supabase.co", "test-only.invalid", "127.0.0.1"])
+def test_db_guard_does_not_block_sanctioned_test_hosts(host):
+    """Negativna kontrola obima, i najvažnija u ovom bloku.
 
-    Blokira se TAČNO produkcioni projekat, ne ceo `supabase.co`. Testovi koji
-    fail-soft gađaju izmišljeni host nisu ni bili problem — ništa ne dodiruju —
-    i brana koja bi ih oborila bila bi isključena umesto poštovana.
+    Bez nje bi gornji testovi prolazili i da brana blokira SVE — uključujući
+    sankcionisani `fake.supabase.co`, koji ceo suite koristi. Tačno ta greška je
+    napravljena u prvoj verziji Wave 10 promene i oborila je 115 testova.
     """
     try:
-        socket.getaddrinfo("nepostojeci-projekat-vindex-test.supabase.co", 443)
+        socket.getaddrinfo(host, 443)
     except BaseException as exc:
         assert type(exc).__name__ != "ProductionDatabaseAccessBlocked", (
-            "brana je preširoka — pogodila je host koji nije produkcioni projekat"
+            f"brana je preširoka — pogodila je sankcionisani test host {host}"
         )
+
+
+@pytest.mark.skipif(not _DB_GUARD_ENABLED, reason="brana je namerno isključena")
+def test_db_guard_config_gate_is_the_primary_defence():
+    """Brana je DRUGI sloj. Prvi je to što produkcioni kredencijali uopšte ne
+    ulaze u test proces — bez njih klijent ka produkciji ne može ni da nastane."""
+    import sys as _sys
+    _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+    from prod_db_guard import proveri_konfiguraciju
+
+    assert proveri_konfiguraciju(_os.environ) == [], (
+        "test proces drži produkcionu konfiguraciju — primarna kapija je "
+        "zaobiđena, a brana je samo dubinska odbrana"
+    )

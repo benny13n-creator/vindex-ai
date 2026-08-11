@@ -13,6 +13,45 @@ import base64
 import os
 import secrets
 
+# ── Wave 10, Faza 1-2: PRODUKCIONA BAZA NE ULAZI U TEST PROCES ─────────────
+#
+# DOKAZAN RIZIK (Wave 9, izmeren sondom — ne hipoteza)
+# `.env` nosi žive `SUPABASE_URL` i `SUPABASE_SERVICE_KEY`. Učitavaju se ovde
+# jer su `FOUNDER_EMAILS` i `FIELD_ENCRYPTION_KEY` iz istog fajla. Posledica:
+# `shared/deps.py::_get_supa()` u test procesu vraća PRAV klijent uperen u
+# produkcioni projekat. Jedan nemokovan poziv upiše STVARAN red u produkcionu
+# bazu — a `audit_immutable` i `ai_provenance` su append-only iza BEFORE
+# UPDATE/DELETE trigera i hash-lančane, pa se taj red NE MOŽE obrisati.
+#
+# Najčistiji dokaz da nije teorijski: `tests/test_ztc_scenario_b_attach.py`
+# je kroz `routers/smart_intake.py:1525` → `audit_immutable.log_action` →
+# `_get_last_hash(supa)` čitao i pisao u produkcioni lanac na SVAKOM pokretanju
+# suite-a.
+#
+# ZAŠTO SE `.env` KREDENCIJALI ODBACUJU, A NE „PREBACUJU"
+# `.env` je konfiguracija APLIKACIJE, ne testova. Odbijanje da se uveze nije
+# „pametno prebacivanje na drugu bazu" — posle njega baze prosto NEMA. Vrednosti
+# koje se postavljaju umesto njih (`fake.supabase.co`) nisu druga baza nego
+# domen koji ne postoji; to je i postojeća konvencija ovog repoa, koju 24 test
+# fajla već koriste preko `os.environ.setdefault(...)`. Ta konvencija je do sada
+# bila NEDELOTVORNA baš zato što je `.env` učitan prvi, pa `setdefault` nije
+# imao šta da postavi.
+#
+# ŠTA SE DEŠAVA AKO NEKO IZRIČITO IZVEZE PRODUKCIONE KREDENCIJALE
+# To je namerna radnja i tretira se kao takva: suite se GASI pre prvog testa
+# (v. `pytest_configure` na dnu ovog fajla). Ne upozorenje, ne log, ne fallback.
+_DB_ENV_KLJUCEVI = (
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_KEY",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_KEY",
+    "SUPABASE_DB_URL",
+    "DATABASE_URL",
+)
+
+# Šta je bilo u okruženju PRE `.env` — samo to je izričita namera korisnika.
+_DB_IZ_OKRUZENJA = {k: os.environ.get(k) for k in _DB_ENV_KLJUCEVI}
+
 # Load .env so that FOUNDER_EMAILS and other vars are available when
 # shared/deps.py is imported directly (e.g. by routers.web3 tests).
 try:
@@ -20,6 +59,43 @@ try:
     _load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"), override=False)
 except ImportError:
     pass
+
+# Sve što je `.env` doneo za bazu se poništava — vraća se tačno ono što je u
+# okruženju stvarno stajalo pre učitavanja (najčešće: ništa).
+for _k, _stara in _DB_IZ_OKRUZENJA.items():
+    if _stara is None:
+        os.environ.pop(_k, None)
+    else:
+        os.environ[_k] = _stara
+
+# Sankcionisane test vrednosti. `.invalid` je rezervisan TLD (RFC 2606) i po
+# standardu se NIKAD ne razrešava — dakle nije „druga baza" nego garantovan
+# ćorsokak. `fake.supabase.co` se zadržava jer 24 test fajla već grade svoje
+# fixture-e oko tog imena.
+os.environ.setdefault("SUPABASE_URL", "https://fake.supabase.co")
+os.environ.setdefault("SUPABASE_SERVICE_KEY", "test-only-service-key-not-a-real-jwt")
+os.environ.setdefault("SUPABASE_ANON_KEY", "test-only-anon-key")
+os.environ.setdefault("SUPABASE_JWT_SECRET", "test-only-jwt-secret-longer-than-32-chars")
+
+# KAPIJA. Izvršava se PRE ijednog uvoza produkcionog modula i pre prvog testa,
+# dakle pre bilo kakvog write-a. Ako je konfiguracija i posle poništavanja `.env`
+# produkciona, neko ju je izričito izvezao u shell-u — to je namerna radnja i
+# odbija se glasno.
+#
+# `RuntimeError` na nivou modula, ne `pytest.exit()`: `conftest.py` se uvozi pre
+# nego što su pytest hook-ovi dostupni, a i inače — izuzetak ovde obara
+# kolekciju, što je tačno ono što se traži. Nijedan test se ne izvršava.
+if os.environ.get("VINDEX_TEST_ALLOW_PROD_DB") != "1":
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from prod_db_guard import PORUKA as _PORUKA_PROD
+    from prod_db_guard import proveri_konfiguraciju as _proveri_prod
+
+    _razlozi = _proveri_prod(os.environ)
+    if _razlozi:
+        raise RuntimeError(
+            _PORUKA_PROD.format(razlozi="\n".join(f"  - {r}" for r in _razlozi))
+        )
 
 os.environ.setdefault(
     "FIELD_ENCRYPTION_KEY",
@@ -159,6 +235,12 @@ if os.environ.get("VINDEX_TEST_ALLOW_NETWORK") != "1":
 # to izričito kaže („blocks exactly what costs money"). Cena, međutim, nikad
 # nije bila jedina šteta.
 #
+# WAVE 10 — OVA BRANA VIŠE NIJE PRVA ODBRANA, NEGO DUBINSKA.
+# Primarna zaštita je sada kapija na vrhu ovog fajla: produkcioni kredencijali
+# uopšte ne ulaze u test proces, pa `_get_supa()` ne može ni da napravi klijent
+# ka produkciji. Brana ostaje kao drugi sloj — hvata slučaj u kome bi neki modul
+# zaobišao `shared/deps.py` i sam sklopio produkcioni URL.
+#
 # OBIM: blokira se TAČNO host iz `SUPABASE_URL`, ne ceo `supabase.co`. Testovi
 # koji fail-soft gađaju izmišljeni Supabase host nastavljaju da rade
 # nepromenjeno — nisu ni bili problem, ništa ne dodiruju.
@@ -176,24 +258,35 @@ if (
     import socket as _socket_db
     from urllib.parse import urlparse as _urlparse
 
-    _PROD_DB_HOST = ""
-    try:
-        _u = (os.environ.get("SUPABASE_URL") or "").strip()
-        if _u:
-            _PROD_DB_HOST = (_urlparse(_u).hostname or "").lower()
-    except Exception:
-        _PROD_DB_HOST = ""
+    # WAVE 10 — ISPRAVLJEN IZVOR ISTINE.
+    #
+    # Do sada je brana blokirala TAČNO host iz `SUPABASE_URL`. Otkako kapija na
+    # vrhu ovog fajla postavlja sankcionisanu test vrednost, taj host je
+    # `fake.supabase.co` — pa bi brana blokirala baš lažni host, a pravi
+    # produkcioni pustila. Merenje je to i pokazalo: 115 testova je odjednom
+    # palo na hostu koji ne postoji.
+    #
+    # Sada se blokira KLASA: svaki host upravljane baze koji nije sankcionisani
+    # test target. Time brana dobija stvarnu preostalu ulogu — hvata modul koji
+    # bi zaobišao `shared/deps.py` i sam sklopio produkcioni URL.
+    from prod_db_guard import _UPRAVLJANI_SUFIKSI as _UPR_SUF
+    from prod_db_guard import _host_je_testni as _host_testni
 
-    # ZABELEŽENI PRESTUPNICI — isti mehanizam koji gornja brana već koristi.
+    # ZABELEŽENI PRESTUPNICI — LISTA JE PRAZNA, I TO JE CILJNO STANJE.
     #
-    # Merenje: 115 testova u ~40 fajlova danas dodiruje produkcionu bazu. Brana
-    # koja ih sve obori biva ISKLJUČENA umesto poštovana — to obrazloženje je
-    # autor prethodne brane već zapisao i ono i dalje važi. Zato se zatečeno
-    # stanje ZAMRZAVA, a svaki NOV prestupnik pada odmah i imenuje se.
+    # Wave 9 je ovde imenovao 115 testova iz ~40 fajlova kao „sadržano, ne
+    # zatvoreno". Wave 10 je to IZMERIO: kad produkcioni kredencijali ne uđu u
+    # test proces, od 455 testova u tih 42 fajla pada TAČNO JEDAN
+    # (`test_ztc_scenario_b_attach.py`, koji je kroz `smart_intake.py:1525`
+    # stvarno pisao u produkcioni hash-lančani ledger). Ostalih 114 je produkciju
+    # dodirivalo isključivo kroz fail-soft putanje koje se identično ponašaju i
+    # kad hosta nema.
     #
-    # Stanje je SADRŽANO, ne zatvoreno. `tests/prod_db_offenders_baseline.txt`
-    # nosi tačan spisak i cenu, a `tests/test_prod_db_offenders_baseline.py`
-    # fiksira maksimum tako da lista može samo da se smanjuje.
+    # Drugim rečima: allowlist nikad nije bio potreban — bio je posledica toga
+    # što se problem rešavao na nivou DNS-a umesto na nivou konfiguracije.
+    # Zadržava se prazan, po uzoru na `network_offenders_baseline.txt`, da bi
+    # budući prestupnik imao gde da bude zabeležen NAMERNO umesto da neko ugasi
+    # branu.
     _DB_BASELINE_PATH = os.path.join(os.path.dirname(__file__),
                                      "prod_db_offenders_baseline.txt")
     try:
@@ -205,7 +298,7 @@ if (
     except OSError:
         _DB_ALLOWED_NODEIDS = set()
 
-    if _PROD_DB_HOST:
+    if True:
         _real_gai_db = _socket_db.getaddrinfo
 
         class ProductionDatabaseAccessBlocked(BaseException):
@@ -220,9 +313,10 @@ if (
         def _guarded_gai_db(host, *a, **k):
             if isinstance(host, (bytes, bytearray)):
                 host = host.decode("ascii", "ignore")
+            _h = host.lower() if isinstance(host, str) else ""
             if (
-                isinstance(host, str)
-                and host.lower() == _PROD_DB_HOST
+                _h.endswith(_UPR_SUF)
+                and not _host_testni(_h)
                 and _CURRENT_NODEID["id"] not in _DB_ALLOWED_NODEIDS
             ):
                 raise ProductionDatabaseAccessBlocked(
@@ -235,3 +329,35 @@ if (
             return _real_gai_db(host, *a, **k)
 
         _socket_db.getaddrinfo = _guarded_gai_db
+
+
+# ── Wave 10, Faza 6: izolacija rate-limiter stanja između testova ──────────
+#
+# DOKAZAN PROBLEM (Wave 9, izmeren): jedan test koji napuni bafer obarao je
+# sledeći sa HTTP 429 iz razloga koji nema veze sa njegovim predmetom — 84 pada
+# u punom suite-u, dok je izolovano sve bilo zeleno. Klasičan „radi kod mene".
+#
+# Wave 10 je uzrok uklonio na dva nivoa:
+#   1. `api.py` više ne gradi sopstvenu `Limiter` instancu nego uvozi kanonsku
+#      iz `shared/rate.py`. Ranije su postojale DVE (a posle
+#      `importlib.reload` i TRI), pa je gašenje limitera preko `shared.rate`
+#      gasilo instancu koju rute uopšte ne koriste.
+#   2. `shared/rate.py::reset_limiter_state()` — produkciona funkcija koja
+#      prazni brojače, `_fallback_storage`, i vraća instancu iz „storage je
+#      mrtav" režima.
+#
+# Ova fixture je treći nivo: garantuje da svaki test počinje sa praznim
+# brojačima, bez obzira šta je prethodni radio.
+#
+# NAPOMENA O `enabled`: reset vraća `enabled = True`. Test koji se OSLANJA na to
+# da je limiter ostao ugašen iz prethodnog testa (a sam ga ne gasi) posle ovoga
+# pada — i to je ispravan nalaz, ne regresija.
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _izolovan_rate_limiter():
+    from shared.rate import reset_limiter_state
+    reset_limiter_state()
+    yield
+    reset_limiter_state()

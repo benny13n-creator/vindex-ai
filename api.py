@@ -549,9 +549,18 @@ logger.info("OPENAI_API_KEY set   : %s", bool(os.getenv("OPENAI_API_KEY", "")))
 # configured, so request.client.host is the proxy's address, not the real
 # client's — get_remote_address was very likely bucketing all traffic behind
 # the same proxy under one shared identity instead of limiting per client.
-from shared.rate import _REDIS_URL, _get_real_ip, build_limiter
+#
+# Wave 10 (2026-08-11): api.py je do sada gradio SOPSTVENU Limiter instancu
+# (`limiter = build_limiter(...)`), dok su svi ruteri radili
+# `from shared.rate import limiter` i dekorisali rute onom iz shared.rate.
+# Rezultat su bile DVE žive instance sa dva odvojena skupa brojača: jedna
+# koju dekoratori stvarno koriste, druga u `app.state.limiter` koju koristi
+# SlowAPIMiddleware za podrazumevani `60/hour`. Sada se koristi jedna
+# kanonska instanca iz `shared.rate` — jedan lifecycle, jedan storage,
+# jedan reset. `key_func` je i dalje `_get_real_ip` (gradi ga
+# `shared.rate.build_limiter`), pa se semantika limitiranja ne menja.
+from shared.rate import _REDIS_URL, limiter
 logger.info("Rate limiter: %s (REDIS_URL=%s)", "Redis fail-open" if _REDIS_URL else "in-memory", bool(_REDIS_URL))
-limiter = build_limiter(_get_real_ip)
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
 

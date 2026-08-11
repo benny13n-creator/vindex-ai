@@ -117,8 +117,34 @@ class TestApiPyUsesRealIp:
         )
         assert "build_limiter(get_remote_address)" not in api_src
 
-    def test_build_limiter_called_with_get_real_ip(self, api_src):
-        assert "build_limiter(_get_real_ip)" in api_src
+    def test_app_limiter_uses_real_ip_key_func(self):
+        """Nalaz A, mereno nad OBJEKTOM umesto nad tekstom izvora.
+
+        STARA TVRDNJA (Wave 10 je zamenio ovu liniju):
+            `assert "build_limiter(_get_real_ip)" in api_src`
+
+        Zasto je zamenjena: ta tvrdnja je vezivala test za JEDNU sintaksnu
+        formu -- za to da api.py sam poziva fabriku. Wave 10 je uklonio
+        duplikaciju Limiter instanci: api.py vise ne gradi svoju, nego uvozi
+        kanonsku iz shared.rate (koja se i dalje gradi sa `_get_real_ip`).
+        Semantika koju je Nalaz A trazio -- da limitiranje ide po pravom IP-u
+        klijenta iza proxy-ja, a ne po adresi proxy-ja -- nepromenjena je;
+        promenio se samo gde stoji poziv fabrike.
+
+        Nova tvrdnja je trajna invarijanta: limiter koji app STVARNO koristi
+        ima `_get_real_ip` kao `key_func`. Ona vazi bez obzira na to gde se i
+        kojom sintaksom instanca gradi, i za razliku od stare bi uhvatila i
+        regresiju u kojoj tekst ostane a objekat se zameni.
+        """
+        from dotenv import load_dotenv
+        load_dotenv()
+        import api
+        from shared.rate import _get_real_ip
+
+        assert api.app.state.limiter._key_func is _get_real_ip, (
+            "limiter koji app koristi ne limitira po X-Forwarded-For klijentu "
+            "(Nalaz A) -- sav saobracaj iza Render proxy-ja bi delio jedan brojac"
+        )
 
     def test_verify_token_local_imported(self, api_src):
         assert "verify_token_local" in api_src

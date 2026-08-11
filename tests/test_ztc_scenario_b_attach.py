@@ -109,6 +109,25 @@ def _patched(mock_supa, job_result):
         # these pre-existing tests keep exercising the real function body,
         # same as before this sprint's fix.
         patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})),
+        # Wave 10 — JEDINI test u repou koji je stvarno pisao u PRODUKCIJU.
+        #
+        # `_patched` mokuje `routers.smart_intake._get_supa`, ali NE i
+        # `shared.audit_immutable`. Taj modul svog klijenta uzima nezavisno
+        # (`shared/deps.py::_get_supa`), pa je `smart_intake.py:1525` →
+        # `log_action("document_assimilated", …)` → `_get_last_hash(supa)` išao
+        # pravom mrežnom rutom do produkcione baze — i to na append-only,
+        # hash-lančanu tabelu iza BEFORE UPDATE/DELETE trigera, gde se upisan red
+        # NE MOŽE obrisati.
+        #
+        # Wave 9 je ovaj test zabeležio kao jednog od 115 „prestupnika". Merenje u
+        # Wave 10 je pokazalo da je od svih 115 ovo JEDINI koji je stvarno
+        # zavisio od produkcije — ostali su je dodirivali kroz fail-soft putanje.
+        #
+        # Mok ne slabi nijednu tvrdnju ovog fajla: on testira da li se dokument
+        # zakači na postojeći predmet ili se pravi nov, a ne sadržaj audit traga.
+        # Sam audit poziv je pokriven u `tests/test_sprint006_finalize_assimilation.py`.
+        patch("shared.audit_immutable.log_action", new=AsyncMock(return_value=None)),
+        patch("shared.audit_immutable.log_action_sync", return_value=None),
     )
 
 
