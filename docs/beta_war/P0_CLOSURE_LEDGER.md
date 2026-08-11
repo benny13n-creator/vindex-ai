@@ -10,7 +10,7 @@ Stanja se **ne sabijaju**: `IMPLEMENTED` ≠ `TESTED` ≠ `VERIFIED` ≠ `CLOSED
 | **A** | Identitet build-a | ✔ | ✔ 20 | ✖ | **PRODUCTION VERIFICATION PENDING OWNER** |
 | **B** | Mrtav onboarding | ✔ | ✔ 10 | ✖ | **IMPLEMENTED + TESTED** (nema browser QA) |
 | **C** | Naplata bez AI poziva | ✔ kod | ✔ 11 | ✖ | **MIGRATION PENDING OWNER** (111) |
-| **D** | Integritet konteksta predmeta | ✖ | ✖ | ✖ | **MAPPED, NOT IMPLEMENTED** |
+| **D** | Integritet konteksta predmeta | ✔ | ✔ 33+40 | ✔ adversarijalno | **CLOSED (kod)** — v. dole |
 | **E** | Provera naplatnog sloja nad bazom | ✔ | ✔ **59** | ✔ | **CLOSED (kod)** / produkcija: 108 telo neprovereno |
 | **F** | Javni cenovnik | ✔ | n/a | ✔ | **CLOSED** |
 | **§9** | Voice van beta površine | ✔ | ✔ 6 | ✖ | **MIGRATION PENDING OWNER** (112 nije pisana — v. dole) |
@@ -83,9 +83,34 @@ ostaje `UNVERIFIED — REQUIRES DB`.
 
 ---
 
-## P0-D — mapiran do kraja, **nije implementiran**
+## P0-D — ZATVOREN 2026-08-11 (`0bb847be`, `d35497ba`)
 
-Ovo je jedina stavka sa P0 table koju noć nije zatvorila. Ne prijavljujem je kao urađenu.
+> **Status ažuriran.** Odeljak ispod je zadržan kao zapis onoga što je bilo utvrđeno pre
+> implementacije — mapa je bila tačna i implementacija ju je pratila bez odstupanja.
+>
+> **Šta je urađeno:** `predmet_id` je uveden kao opcion na `/kompletna-analiza`; kanonski
+> kontekst se gradi u ruti preko `build_case_context(..., include_documents=True)` i prosleđuje
+> orkestratoru kao **keyword-only** `case_context_blok`; `if/else` na `:666,676` zamenjen je
+> jednom dokaznom osnovom koju vidi **svih 8 GPT poziva**. Vlasništvo se proverava **sinhrono u
+> ruti, pre kreiranja posla** (gate-first, po `matter_intel.py:514-521`).
+>
+> **Adversarijalno dokazano:** svaka od 5 namernih mutacija (gubitak opisa, gubitak kanonskog
+> konteksta, nizvodni korak vraćen na samo-opis, pozicioni peti parametar, uklonjena kapija)
+> obara tačno očekivane testove. Sve vraćeno, 4072 passed / 1 skipped / 0 failed.
+>
+> **Greška uhvaćena u sopstvenom radu:** `replace_all` je pogodio i `ai_judge_v2_sync` (druga
+> funkcija, bez `_osnova`) — `NameError` na živoj putanji AI Sudije. `py_compile` to ne vidi.
+> Zatvoreno testom koji vrti `pyflakes` F821 nad tri modula.
+>
+> **Kontaminacija promptova** (`d35497ba`): preostala 3 prompta očišćena; `_ORK_PRESUDA_SYSTEM`
+> uopšte nije imao anti-halucinacioni blok — dodat. Detektor prebačen sa nedovršive liste
+> skraćenica (propuštala `ZOO`, 6 pojava, i `ZR ` sa razmakom) na regex koji traži **broj**.
+>
+> **Ostaje otvoreno:** ostalih 8 strategija endpointa i dalje nema `predmet_id` (samo
+> `/kompletna-analiza` je migriran); frontend još ne šalje `predmet_id` — polje je spremno,
+> UI wiring je zaseban zadatak.
+
+### Zapis stanja pre implementacije
 
 ### Šta je dokazano
 
