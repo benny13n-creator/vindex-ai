@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tehnologija — Vindex AI</title>
+<meta name="description" content="Model je komponenta koju platforma koristi, ne sam proizvod. Šest slojeva kroz koje zahtev prolazi, i šta se dešava kada model navede član koji ne postoji.">
+<link rel="canonical" href="https://vindex.rs/tehnologija">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vindex.rs/tehnologija">
+<meta property="og:title" content="Tehnologija — Vindex AI">
+<meta property="og:description" content="Model je komponenta koju platforma koristi, ne sam proizvod. Šest slojeva, i šta se dešava kada model navede član koji ne postoji.">
+<meta property="og:locale" content="sr_RS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Tehnologija — Vindex AI">
+<meta name="twitter:description" content="Model je komponenta koju platforma koristi, ne sam proizvod.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+
+<a class="vw-sr" href="#glavni">Preskoči na sadržaj</a>
+
+<header class="vw-header">
+  <div class="vw-header__inner">
+    <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+    <button class="vw-nav-toggle" type="button" aria-expanded="false" aria-controls="vw-nav">Meni</button>
+    <nav class="vw-nav" id="vw-nav" aria-label="Glavna navigacija">
+      <a href="/kako-radi">Kako radi</a>
+      <a href="/sposobnosti">Sposobnosti</a>
+      <a href="/bezbednost">Bezbednost</a>
+      <a href="/za-advokate">Za advokate</a>
+      <a href="/vizija">Vizija</a>
+      <a href="/app">Prijava</a>
+      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/beta">Prijavite se za betu</a>
+    </nav>
+  </div>
+</header>
+
+<main id="glavni">
+
+  <!-- ── UVOD ── odgovor na dva pitanja koja ovu stranicu i traže:
+       „koji model" i „šta ako izmisli". Nijedna tehnologija se ne imenuje da
+       bi stranica izgledala tehnički — imenovan je samo Python, jer je deo
+       dokazane rečenice o proverama pri izmeni koda. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Tehnologija</p>
+      <h1>Model je komponenta.<br>Nije proizvod.</h1>
+      <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+        Vindex koristi jednog dobavljača modela, a model je komponenta koju
+        platforma koristi — ne sam proizvod. Sve što stoji ispod opisuje gde je
+        model u sistemu i šta radi ostatak sistema oko njega.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── SLOJEVI ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Arhitektura</p>
+      <h2>Šest slojeva</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Model sedi u četvrtom sloju. Tri sloja iznad njega pripremaju ono što
+           mu se šalje, dva ispod beleže šta je urađeno i gde podaci stoje.</p>
+      </div>
+
+      <figure class="vw-figure">
+        <svg viewBox="0 0 900 450" role="img" aria-labelledby="dia-slojevi-t">
+          <title id="dia-slojevi-t">Dijagram slojeva: web aplikacija, sloj predmeta i dokumenata, sloj upravljanja AI-jem, provajder modela, sloj porekla i evidencije, i sloj podataka.</title>
+
+          <rect class="vw-dia-box" x="0" y="4" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="37">WEB APLIKACIJA</text>
+          <text class="vw-dia-sub" x="430" y="26">radni prostor predmeta koji u jednom pozivu vraća</text>
+          <text class="vw-dia-sub" x="430" y="44">stranke, dokumente, rokove, praksu i rizik</text>
+          <path class="vw-dia-line" d="M200 58 V 80"/>
+
+          <rect class="vw-dia-box" x="0" y="80" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="113">SLOJ PREDMETA I DOKUMENATA</text>
+          <text class="vw-dia-sub" x="430" y="102">isti deterministički opis predmeta za sve module,</text>
+          <text class="vw-dia-sub" x="430" y="120">sastavljen bez ijednog poziva modela</text>
+          <path class="vw-dia-line" d="M200 134 V 156"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="0" y="156" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="189">UPRAVLJANJE AI-JEM</text>
+          <text class="vw-dia-sub" x="430" y="178">ulazna provera, izlazna provera i zatvaranje kapije —</text>
+          <text class="vw-dia-sub" x="430" y="196">u samom sloju koji poziva model</text>
+          <path class="vw-dia-line" d="M200 210 V 232"/>
+
+          <rect class="vw-dia-box" x="0" y="232" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="265">PROVAJDER</text>
+          <text class="vw-dia-sub" x="430" y="254">jedan dobavljač modela</text>
+          <text class="vw-dia-sub" x="430" y="272">model je komponenta, ne proizvod</text>
+          <path class="vw-dia-line" d="M200 286 V 308"/>
+
+          <rect class="vw-dia-box" x="0" y="308" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="341">POREKLO I EVIDENCIJA</text>
+          <text class="vw-dia-sub" x="430" y="330">model, trajanje i identifikator zahteva za svaki poziv;</text>
+          <text class="vw-dia-sub" x="430" y="348">od pitanja i odgovora samo kriptografski otisak</text>
+          <path class="vw-dia-line" d="M200 362 V 384"/>
+
+          <rect class="vw-dia-box" x="0" y="384" width="400" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="417">PODACI</text>
+          <text class="vw-dia-sub" x="430" y="406">razdvojeni po nalogu; originalni fajl se šifruje</text>
+          <text class="vw-dia-sub" x="430" y="424">pre nego što se sačuva</text>
+        </svg>
+        <figcaption>Konceptualni prikaz slojeva — nije snimak ekrana</figcaption>
+      </figure>
+
+      <p class="vw-small" style="margin-top:var(--vw-sp-5)">
+        Treći i peti sloj su opisani u celini na stranici
+        <a href="/bezbednost">Bezbednost</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── DETERMINISTIČKI DEO ── razlog zbog kog stranica uopšte postoji ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Deterministički deo</p>
+      <h2>Brojeve računa program</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Brojeve koje vidite — nivo rizika, ocenu spremnosti predmeta, otkrivene
+           probleme — računa program po formuli; AI sme da ih objasni, ali ne i da
+           ih odredi.</p>
+        <p>AI moduli ne čitaju vaš spis svaki na svoj način — svi dobijaju isti
+           deterministički opis predmeta, koji se sastavlja bez ijednog poziva
+           modela.</p>
+        <p>Uz svaku procenu stoji napomena da je reč o proceni modela, a ne o
+           izračunatoj statistici.</p>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-5)">
+        <li>Ovo znači da brojeve računa program, a AI ih obrazlaže. Ne znači da AI
+            nigde u sistemu ne formuliše zaključak — zato uz svaku procenu i stoji
+            napomena da je procena modela.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── KADA MODEL POGREŠI ── ovo je pitanje zbog kog tehnički čitalac dolazi ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Kada model pogreši</p>
+      <h2>Izmišljen broj člana se ne propušta</h2>
+
+      <div class="vw-grid vw-grid--2" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <h3>U odgovoru — blokada</h3>
+          <p>Citiran član mora postojati u tekstu koji je sistem stvarno dohvatio —
+             u suprotnom se odgovor blokira. Isto pravilo važi za brojeve presuda.</p>
+        </div>
+        <div>
+          <h3>U nacrtu — zamena oznakom</h3>
+          <p>Kada AI u nacrtu navede broj člana koji ne postoji u priloženim
+             izvorima, drugi prolaz ga zamenjuje oznakom „proveriti relevantan
+             član" — nikad drugim brojem.</p>
+        </div>
+      </div>
+
+      <p style="margin-top:var(--vw-sp-5);max-width:var(--vw-measure)">
+        U nacrtu svaki citat nosi oznaku izvora iz kog je stvarno došao, a
+        dodeljivanje te oznake navodu koji izvor ne potkrepljuje izričito je
+        zabranjeno.
+      </p>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-5)">
+        <li>Reč je o dva različita mehanizma. Blokada odgovora i zamena oznakom u
+            nacrtu ne rade istu stvar i ne pokrivaju iste putanje.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── PRETRAGA ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Pretraga</p>
+      <h2>Po smislu pitanja, ne po ključnoj reči</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Vindex pretražuje propise po smislu pitanja, a kada izričito navedete
+           član, povlači ga doslovno umesto da nagađa.</p>
+        <p>Memorija kancelarije je u pretraživačkom indeksu razdvojena tvrdom
+           pregradom — svaka kancelarija ima sopstveni prostor.</p>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-5)">
+        <li>Po smislu se pretražuju propisi i sudska praksa. Slične ranije predmete
+            iste kancelarije Vindex pronalazi poređenjem po vrsti spora i pravnoj
+            oblasti, a ne po smislu činjenica.</li>
+        <li>Kada postavite pravno pitanje, Vindex pretražuje propise i sudsku
+            praksu, ne i vaše ranije predmete.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── JEDAN DOBAVLJAČ ── uz jedinu ROADMAP rečenicu na ovoj stranici,
+       vidno označenu kao nepostojeću. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Dobavljač modela</p>
+      <h2>Jedan, ne tri</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Vindex koristi jednog dobavljača modela.
+           <a href="/ai-disclosure">Izjava o upotrebi veštačke inteligencije</a>
+           javno je dostupna.</p>
+      </div>
+
+      <div style="margin-top:var(--vw-sp-6);border-left:2px solid var(--vw-warn);padding-left:var(--vw-sp-5);max-width:var(--vw-measure)">
+        <p class="vw-status vw-status--warn">Ne postoji danas</p>
+        <h3 style="margin-top:var(--vw-sp-3)">Sloj za više dobavljača</h3>
+        <p style="margin-top:var(--vw-sp-3)">Sloj za rad sa više dobavljača AI modela je implementiran i
+           testiran; nijedna funkcija još ne ide kroz taj sloj.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PROVERE PRI IZMENI KODA ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Izmene koda</p>
+      <h2>Šta se izvršava pri svakoj izmeni</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Kod svake izmene koda izvršavaju se testovi na istoj verziji Pythona
+           koju koristi produkcija i više nezavisnih unutrašnjih bezbednosnih
+           provera.</p>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-5)">
+        <li>Te provere su unutrašnje. Nezavisne bezbednosne revizije i sertifikata
+            nema; mehanizmi postoje i opisani su, potvrde treće strane ne.</li>
+        <li>Tačnost pojedinih funkcija još nije merena, pa se nijedan procenat
+            tačnosti ni ušteda vremena ne navodi.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── CTA ── -->
+  <section class="vw-section vw-section--cta">
+    <div class="vw-wrap">
+      <div style="border-left:2px solid var(--vw-accent);padding-left:var(--vw-sp-5)">
+        <p class="vw-eyebrow">Stanje</p>
+        <h2>Vindex je pred zatvorenim testiranjem</h2>
+        <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+          Nema korisnika, nema preporuka i nema objavljenih rezultata merenja.
+          Prijava za zatvoreno testiranje ide preko forme na sajtu; broj mesta je
+          ograničen.
+        </p>
+        <p style="margin-top:var(--vw-sp-6);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+          <a class="vw-btn vw-btn--primary" href="/beta">Prijavite se za zatvoreno testiranje</a>
+          <a class="vw-btn vw-btn--ghost" href="/vizija">Šta danas ne radi</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="vw-footer">
+  <div class="vw-wrap">
+    <div class="vw-footer__grid">
+      <div>
+        <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+        <p class="vw-small" style="margin-top:var(--vw-sp-3);max-width:34ch">
+          Platforma za rad sa pravnim predmetima, dokumentima i izvorima.
+        </p>
+      </div>
+      <div>
+        <h4>Proizvod</h4>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/sposobnosti">Sposobnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/tehnologija" aria-current="page">Tehnologija</a></li>
+          <li><a href="/vizija">Vizija</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Poverenje</h4>
+        <ul>
+          <li><a href="/bezbednost">Bezbednost</a></li>
+          <li><a href="/security">Bezbednosne mere</a></li>
+          <li><a href="/static/Vindex-AI-Bezbednosni-List.pdf">Bezbednosni list (PDF)</a></li>
+          <li><a href="/ai-disclosure">Upotreba veštačke inteligencije</a></li>
+          <li><a href="/status">Status sistema</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Pravno</h4>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Obrada podataka</a></li>
+          <li><a href="/kontakt">Kontakt</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="vw-footer__bottom">
+      <span>&copy; MMXXVI Vindex AI</span>
+      <span>Vindex AI ne pruža pravne savete. Sadržaj koji sistem generiše mora pregledati advokat.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Mobilna navigacija. Isti skup stavki kao desktop — zatečeni landing ima dva
+   različita menija, i to se ne nasleđuje. */
+(function () {
+  var dugme = document.querySelector('.vw-nav-toggle');
+  var nav = document.getElementById('vw-nav');
+  if (!dugme || !nav) return;
+  dugme.addEventListener('click', function () {
+    var otvoren = nav.getAttribute('data-otvoren') === '1';
+    nav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+    dugme.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+  });
+  nav.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { nav.setAttribute('data-otvoren', '0'); dugme.setAttribute('aria-expanded', 'false'); dugme.focus(); }
+  });
+})();
+
+/* Ulazna animacija — samo `opacity`/`transform`, i samo ako korisnik nije
+   tražio smanjen pokret. Bez skrol-parallaxa i bez beskonačnih animacija. */
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  var meta = document.querySelectorAll('.vw-section > .vw-wrap > *');
+  var io = new IntersectionObserver(function (unosi) {
+    unosi.forEach(function (u) {
+      if (u.isIntersecting) { u.target.setAttribute('data-vidljivo', '1'); io.unobserve(u.target); }
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  meta.forEach(function (el) { el.classList.add('vw-reveal'); io.observe(el); });
+})();
+</script>
+
+</body>
+</html>

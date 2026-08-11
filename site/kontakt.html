@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kontakt — Vindex AI</title>
+<meta name="description" content="Kontakt sa Vindex AI ide preko obrasca na ovoj stranici. Nema podrške ni prodajnog tima — jedini kanal je direktan.">
+<link rel="canonical" href="https://vindex.rs/kontakt">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vindex.rs/kontakt">
+<meta property="og:title" content="Kontakt — Vindex AI">
+<meta property="og:description" content="Kontakt ide preko obrasca. Nema podrške ni prodajnog tima — jedini kanal je direktan.">
+<meta property="og:locale" content="sr_RS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Vindex AI — kontakt">
+<meta name="twitter:description" content="Kontakt ide preko obrasca na sajtu.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+
+<a class="vw-sr" href="#glavni">Preskoči na sadržaj</a>
+
+<header class="vw-header">
+  <div class="vw-header__inner">
+    <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+    <button class="vw-nav-toggle" type="button" aria-expanded="false" aria-controls="vw-nav">Meni</button>
+    <nav class="vw-nav" id="vw-nav" aria-label="Glavna navigacija">
+      <a href="/kako-radi">Kako radi</a>
+      <a href="/sposobnosti">Sposobnosti</a>
+      <a href="/bezbednost">Bezbednost</a>
+      <a href="/za-advokate">Za advokate</a>
+      <a href="/vizija">Vizija</a>
+      <a href="/app">Prijava</a>
+      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/beta">Prijavite se za betu</a>
+    </nav>
+  </div>
+</header>
+
+<main id="glavni">
+
+  <!-- ── UVOD ──────────────────────────────────────────────────────────────
+       Pravni identitet firme (naziv pravnog lica, PIB, matični broj, adresa)
+       ne postoji u repozitorijumu i ovde se NE izmišlja. Stranica je zato
+       obrazac i ništa više. Adrese e-pošte se takođe ne navode ovde: postojeće
+       javne pravne strane koriste `vindex.ai`, a produkcija radi na `vindex.rs`
+       (CONTENT_TRUTH_MAP.md §4.4, stavka 2) — dok se to ne usaglasi, stranica
+       upućuje na same pravne strane umesto da ponavlja adresu. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Kontakt</p>
+      <h1>Pišite direktno</h1>
+      <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+        Nema podrške ni prodajnog tima. Jedini kanal je direktan — poruka stiže
+        osobi koja gradi proizvod.
+      </p>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
+        <li>Ako se prijavljujete za zatvoreno testiranje, koristite obrazac na
+            stranici <a href="/beta">Prijava za zatvoreno testiranje</a> — tamo
+            stoji i šta se od učesnika traži.</li>
+        <li>Ako ste već korisnik, prijava u aplikaciju je na <a href="/app">/app</a>.</li>
+        <li>Zahteve po propisima o zaštiti podataka o ličnosti primaju adrese
+            navedene u <a href="/privacy">Politici privatnosti</a> i
+            <a href="/dpa">Ugovoru o obradi podataka</a>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── FORMA ─────────────────────────────────────────────────────────────
+       Isti endpoint kao Beta prijava: `POST /waitlist/prijava`.
+
+       NAPOMENA KOJU OSNIVAČ MORA ZNATI: kontakt poruke ulaze u ISTU tabelu
+       `waitlist` i istu admin listu (`GET /waitlist/admin/lista`) kao prijave
+       za betu. Jedina razlika je prefiks `[KONTAKT] ` u polju `poruka`. Kad se
+       pojavi pravi kontakt kanal, ovo se razdvaja — do tada je prefiks jedini
+       nosilac razlike i ne sme se ukloniti.
+
+       Tri polja: `ime`, `email`, `poruka`. `firma` i `telefon` se ne šalju i
+       server im dodeljuje "". ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Poruka</p>
+      <h2>Tri polja</h2>
+
+      <form id="vw-prijava" novalidate style="margin-top:var(--vw-sp-6)">
+        <div class="vw-field" data-polje="ime">
+          <label for="polje-ime">Ime i prezime</label>
+          <input id="polje-ime" name="ime" type="text" maxlength="120"
+                 autocomplete="name" aria-describedby="greska-ime">
+          <span class="vw-field__err" id="greska-ime">Unesite ime i prezime.</span>
+        </div>
+
+        <div class="vw-field" data-polje="email">
+          <label for="polje-email">E-pošta</label>
+          <input id="polje-email" name="email" type="email" maxlength="254"
+                 inputmode="email" autocomplete="email" aria-describedby="greska-email">
+          <span class="vw-field__err" id="greska-email">Unesite ispravnu adresu e-pošte.</span>
+        </div>
+
+        <!-- `poruka` se na serveru seče na 500 znakova UKLJUČUJUĆI prefiks
+             `[KONTAKT] ` (10 znakova), pa je granica polja 490 — inače bi se
+             kraj teksta tiho izgubio. -->
+        <div class="vw-field" data-polje="poruka">
+          <label for="polje-poruka">Poruka</label>
+          <textarea id="polje-poruka" name="poruka" maxlength="490"
+                    aria-describedby="greska-poruka"></textarea>
+          <span class="vw-field__err" id="greska-poruka">Napišite poruku.</span>
+        </div>
+
+        <p class="vw-small" style="max-width:480px">
+          Slanjem poruke prihvatate <a href="/privacy">Politiku privatnosti</a>.
+        </p>
+
+        <p style="margin-top:var(--vw-sp-4)">
+          <button class="vw-btn vw-btn--primary vw-btn--inline" type="submit" id="vw-dugme">Pošaljite poruku</button>
+        </p>
+
+        <div class="vw-form__msg" id="vw-poruka" role="status" aria-live="polite"></div>
+
+        <noscript>
+          <div class="vw-form__msg vw-form__msg--warn" data-vidljivo="1">
+            Obrazac za slanje traži JavaScript. Ako je isključen, adresa e-pošte
+            za kontakt navedena je u
+            <a href="/privacy">Politici privatnosti</a> i
+            <a href="/terms">Uslovima korišćenja</a>.
+          </div>
+        </noscript>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── POSLE SLANJA ── FOUNDING_PARTNER.md §7. Bez roka i bez vremena
+       odgovora. Bez ijedne reči o poslatom mejlu: obaveštenje e-poštom se tiho
+       preskače kada SMTP nije podešen (routers/waitlist.py:91-93). ── -->
+  <section class="vw-section vw-section--cta">
+    <div class="vw-wrap">
+      <div style="border-left:2px solid var(--vw-accent);padding-left:var(--vw-sp-5)">
+        <p class="vw-eyebrow">Šta se dešava posle slanja</p>
+        <h2>Javljamo se lično.<br>Nema automatskih poruka.</h2>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="vw-footer">
+  <div class="vw-wrap">
+    <div class="vw-footer__grid">
+      <div>
+        <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+        <p class="vw-small" style="margin-top:var(--vw-sp-3);max-width:34ch">
+          Platforma za rad sa pravnim predmetima, dokumentima i izvorima.
+        </p>
+      </div>
+      <div>
+        <h4>Proizvod</h4>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/sposobnosti">Sposobnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/vizija">Vizija</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Poverenje</h4>
+        <ul>
+          <li><a href="/bezbednost">Bezbednost</a></li>
+          <li><a href="/security">Bezbednosne mere</a></li>
+          <li><a href="/static/Vindex-AI-Bezbednosni-List.pdf">Bezbednosni list (PDF)</a></li>
+          <li><a href="/ai-disclosure">Upotreba veštačke inteligencije</a></li>
+          <li><a href="/status">Status sistema</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Pravno</h4>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Obrada podataka</a></li>
+          <li><a href="/kontakt">Kontakt</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="vw-footer__bottom">
+      <span>&copy; MMXXVI Vindex AI</span>
+      <span>Vindex AI ne pruža pravne savete. Sadržaj koji sistem generiše mora pregledati advokat.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Mobilna navigacija — isti skup stavki kao desktop. */
+(function () {
+  var dugme = document.querySelector('.vw-nav-toggle');
+  var nav = document.getElementById('vw-nav');
+  if (!dugme || !nav) return;
+  dugme.addEventListener('click', function () {
+    var otvoren = nav.getAttribute('data-otvoren') === '1';
+    nav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+    dugme.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+  });
+  nav.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { nav.setAttribute('data-otvoren', '0'); dugme.setAttribute('aria-expanded', 'false'); dugme.focus(); }
+  });
+})();
+
+/* Ulazna animacija — samo `opacity`/`transform`, i samo ako korisnik nije
+   tražio smanjen pokret. */
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  var meta = document.querySelectorAll('.vw-section > .vw-wrap > *');
+  var io = new IntersectionObserver(function (unosi) {
+    unosi.forEach(function (u) {
+      if (u.isIntersecting) { u.target.setAttribute('data-vidljivo', '1'); io.unobserve(u.target); }
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  meta.forEach(function (el) { el.classList.add('vw-reveal'); io.observe(el); });
+})();
+
+/* ── KONTAKT PORUKA ────────────────────────────────────────────────────────
+   Isti endpoint kao Beta prijava. Šalju se `ime`, `email` i `poruka`;
+   `firma` i `telefon` se ne šalju.
+
+   Poruka se prefiksira sa `[KONTAKT] ` jer kontakt poruke ulaze u istu tabelu
+   `waitlist` kao Beta prijave — prefiks je jedina stvar koja ih razlikuje u
+   admin listi.
+
+   TRI PRAVILA KOJA DOLAZE IZ SAMOG ENDPOINTA:
+   1. Uspeh se UVEK ispisuje porukom sa servera. Endpoint vraća 200 u tri
+      različite varijante (nov unos / e-pošta već na listi / nalog već aktivan)
+      — fiksan tekst forme bi u dva od tri slučaja lagao.
+   2. Telo 422 odgovora je engleski Pydantic ispis bez ključa `poruka`, pa se
+      nikad ne prikazuje. Validacija se zato radi ovde, na klijentu.
+   3. Nijedna reč o poslatom mejlu. Obaveštenje e-poštom se tiho preskače kada
+      SMTP nije podešen (`routers/waitlist.py:91-93`), a korisnik i tada dobija
+      200 — „proverite inboks" bi bilo neistinito.               */
+(function () {
+  var forma = document.getElementById('vw-prijava');
+  if (!forma) return;
+
+  var dugme  = document.getElementById('vw-dugme');
+  var poruka = document.getElementById('vw-poruka');
+  var salje  = false;   /* sprečava dvostruko slanje; oslobađa se u `finally` */
+
+  var PREFIKS = '[KONTAKT] ';   /* jedini nosilac razlike između dva toka */
+
+  function polje(ime) { return forma.querySelector('[data-polje="' + ime + '"]'); }
+
+  function oznaciGresku(ime, ima) {
+    var omot = polje(ime);
+    if (!omot) return;
+    var unos = omot.querySelector('input, textarea');
+    if (ima) {
+      omot.classList.add('vw-field--invalid');
+      if (unos) unos.setAttribute('aria-invalid', 'true');
+    } else {
+      omot.classList.remove('vw-field--invalid');
+      if (unos) unos.removeAttribute('aria-invalid');
+    }
+  }
+
+  function prikaziPoruku(tekst, upozorenje) {
+    poruka.textContent = tekst;
+    if (upozorenje) { poruka.classList.add('vw-form__msg--warn'); }
+    else { poruka.classList.remove('vw-form__msg--warn'); }
+    poruka.setAttribute('data-vidljivo', '1');
+  }
+
+  function sakrijPoruku() {
+    poruka.removeAttribute('data-vidljivo');
+    poruka.textContent = '';
+  }
+
+  function vrednost(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  /* Namerno labav oblik: server ima poslednju reč (`EmailStr`). Ovde se hvata
+     samo očigledna greška, da korisnik ne dobije engleski 422. */
+  function ispravanEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+  forma.addEventListener('submit', async function (dog) {
+    dog.preventDefault();
+    if (salje) return;
+
+    var ime   = vrednost('polje-ime');
+    var email = vrednost('polje-email');
+    var tekst = vrednost('polje-poruka');
+
+    var imeLose    = (ime.length === 0 || ime.length > 120);
+    var emailLose  = !ispravanEmail(email);
+    /* Prazna poruka bi u admin listi ostavila red sa samim prefiksom, bez
+       ijednog podatka o tome zašto je neko pisao. */
+    var porukaLose = (tekst.length === 0);
+
+    oznaciGresku('ime', imeLose);
+    oznaciGresku('email', emailLose);
+    oznaciGresku('poruka', porukaLose);
+
+    if (imeLose || emailLose || porukaLose) {
+      sakrijPoruku();
+      var prviId = imeLose ? 'polje-ime' : (emailLose ? 'polje-email' : 'polje-poruka');
+      var prvi = document.getElementById(prviId);
+      if (prvi) prvi.focus();
+      return;
+    }
+
+    salje = true;
+    var prvobitniTekst = dugme.textContent;
+    dugme.disabled = true;
+    dugme.setAttribute('aria-busy', 'true');
+    dugme.textContent = 'Šalje se…';
+    sakrijPoruku();
+
+    try {
+      var odgovor = await fetch('/waitlist/prijava', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ime:    ime,
+          email:  email,
+          poruka: (PREFIKS + tekst).slice(0, 500)
+        })
+      });
+
+      if (!odgovor.ok) {
+        /* Ovde padaju i 422 i 429 i 500. Telo 422 odgovora je engleski Pydantic
+           ispis i namerno se ne prikazuje. */
+        prikaziPoruku(
+          odgovor.status === 429
+            ? 'Previše pokušaja u kratkom roku. Sačekajte i pokušajte ponovo.'
+            : 'Poruka nije prošla. Pokušajte ponovo za koji trenutak.',
+          true
+        );
+        return;
+      }
+
+      var podaci = null;
+      try { podaci = await odgovor.json(); } catch (e) { podaci = null; }
+
+      var saServera = (podaci && typeof podaci.poruka === 'string') ? podaci.poruka.trim() : '';
+      if (!saServera) {
+        /* Bez poruke sa servera nema šta da se prikaže — fiksan tekst forme bi
+           ovde bio tvrdnja koju niko ne pokriva. */
+        prikaziPoruku('Odgovor servera nije prepoznat. Pokušajte ponovo.', true);
+        return;
+      }
+
+      prikaziPoruku(saServera, false);
+      forma.reset();
+      oznaciGresku('ime', false);
+      oznaciGresku('email', false);
+      oznaciGresku('poruka', false);
+    } catch (greska) {
+      prikaziPoruku('Veza sa serverom nije uspostavljena. Pokušajte ponovo.', true);
+    } finally {
+      salje = false;
+      dugme.disabled = false;
+      dugme.removeAttribute('aria-busy');
+      dugme.textContent = prvobitniTekst;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

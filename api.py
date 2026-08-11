@@ -1497,13 +1497,87 @@ logger.info("Cache busting: ?v=%s", _GIT_HASH)
 
 # ─── Rute ─────────────────────────────────────────────────────────────────────
 
-@app.get("/")
-@app.head("/")
+# ─── Javni sajt (site/) ───────────────────────────────────────────────────────
+# Svaka stranica je zasebna ruta -> zaseban HTML fajl -> FileResponse sa
+# eksplicitnim Cache-Control. Namerno se NE montira `site/` preko StaticFiles:
+# `static/` je vec ceo montiran, pa je npr. `static/security.html` javan na dve
+# putanje sa razlicitim kesiranjem -- taj obrazac se ovde ne ponavlja.
+#
+# max-age=300 (a ne 3600): HTML nema hash u imenu ni build korak, pa je HTTP kes
+# jedina poluga za brzu ispravku teksta. Sat vremena bi znacio sat vremena bez
+# ikakvog nacina da se ispravka ubrza.
+
+@app.get("/", include_in_schema=False)
+@app.head("/", include_in_schema=False)
 def root():
-    path = BASE_DIR / "landing.html"
+    path = BASE_DIR / "site" / "index.html"
     if path.exists():
-        return FileResponse(path)
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
     return {"status": "ok", "servis": "Vindex AI"}
+
+
+@app.get("/kako-radi", include_in_schema=False)
+def site_kako_radi():
+    path = BASE_DIR / "site" / "kako-radi.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/sposobnosti", include_in_schema=False)
+def site_sposobnosti():
+    path = BASE_DIR / "site" / "sposobnosti.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/za-advokate", include_in_schema=False)
+def site_za_advokate():
+    path = BASE_DIR / "site" / "za-advokate.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/bezbednost", include_in_schema=False)
+def site_bezbednost():
+    path = BASE_DIR / "site" / "bezbednost.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/vizija", include_in_schema=False)
+def site_vizija():
+    path = BASE_DIR / "site" / "vizija.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/tehnologija", include_in_schema=False)
+def site_tehnologija():
+    path = BASE_DIR / "site" / "tehnologija.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/beta", include_in_schema=False)
+def site_beta():
+    path = BASE_DIR / "site" / "beta.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
+@app.get("/kontakt", include_in_schema=False)
+def site_kontakt():
+    path = BASE_DIR / "site" / "kontakt.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
 
 
 @app.get("/privacy")
@@ -1547,12 +1621,10 @@ def terms_of_service():
     return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
 
 
-@app.get("/pricing", include_in_schema=False)
-def pricing_page():
-    path = BASE_DIR / "pricing.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=3600"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+# Ruta /pricing je uklonjena zajedno sa pricing.html: nijedan od reklamiranih
+# planova nije bio kupljiv (STRIPE_URL je prazan), krediti se ne obnavljaju, a
+# deo prodavanih funkcija je gejtovan stroze nego sto je stranica tvrdila.
+# Cene se saopstavaju kroz /kontakt dok naplata ne postoji.
 
 
 @app.get("/health")
@@ -2326,11 +2398,68 @@ async def diagnose(x_admin_key: str = Header(default="")):
     return await asyncio.to_thread(_run_checks)
 
 
+# Javne stranice koje ulaze u sitemap. Redosled je i redosled u XML-u.
+# Prvi element para je putanja, drugi je prioritet.
+_SITEMAP_PUTANJE: list[tuple[str, str]] = [
+    ("/", "1.0"),
+    ("/kako-radi", "0.9"),
+    ("/sposobnosti", "0.9"),
+    ("/za-advokate", "0.9"),
+    ("/bezbednost", "0.8"),
+    ("/vizija", "0.7"),
+    ("/tehnologija", "0.7"),
+    ("/beta", "0.8"),
+    ("/kontakt", "0.6"),
+    # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
+    ("/privacy", "0.4"),
+    ("/terms", "0.4"),
+    ("/security", "0.4"),
+    ("/dpa", "0.3"),
+    ("/ai-disclosure", "0.3"),
+    ("/bezbednosni-list", "0.3"),
+]
+
+
+def _sajt_osnovni_url(request: Request) -> str:
+    """Osnovni URL bez zavrsne kose crte, izveden iz zahteva.
+
+    Domen se namerno NE hardkoduje: isti kod tada radi i na vindex.rs i na
+    staging domenu, bez izmene konfiguracije kad se domen promeni.
+    """
+    return str(request.base_url).rstrip("/")
+
+
 @app.get("/robots.txt")
-def robots():
+def robots(request: Request):
+    osnovni = _sajt_osnovni_url(request)
     return PlainTextResponse(
-        "User-agent: *\nAllow: /\nDisallow: /api/\n",
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /api/\n"
+        f"\nSitemap: {osnovni}/sitemap.xml\n",
         media_type="text/plain",
+    )
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap(request: Request):
+    osnovni = _sajt_osnovni_url(request)
+    stavke = "".join(
+        f"  <url><loc>{osnovni}{putanja}</loc>"
+        f"<changefreq>weekly</changefreq>"
+        f"<priority>{prioritet}</priority></url>\n"
+        for putanja, prioritet in _SITEMAP_PUTANJE
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{stavke}"
+        "</urlset>\n"
+    )
+    return PlainTextResponse(
+        xml,
+        media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 

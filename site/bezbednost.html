@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bezbednost — Vindex AI</title>
+<meta name="description" content="Mehanizmi zaštite oko AI-ja, evidencija koju baza odbija da izmeni, i javan spisak onoga što ne tvrdimo: nezavisne revizije i sertifikata nema.">
+<link rel="canonical" href="https://vindex.rs/bezbednost">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vindex.rs/bezbednost">
+<meta property="og:title" content="Bezbednost — Vindex AI">
+<meta property="og:description" content="Mehanizmi postoje i opisani su. Potvrde treće strane ne. Spisak onoga što ne tvrdimo je javan.">
+<meta property="og:locale" content="sr_RS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Bezbednost — Vindex AI">
+<meta name="twitter:description" content="Mehanizmi postoje i opisani su. Potvrde treće strane ne.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+
+<a class="vw-sr" href="#glavni">Preskoči na sadržaj</a>
+
+<header class="vw-header">
+  <div class="vw-header__inner">
+    <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+    <button class="vw-nav-toggle" type="button" aria-expanded="false" aria-controls="vw-nav">Meni</button>
+    <nav class="vw-nav" id="vw-nav" aria-label="Glavna navigacija">
+      <a href="/kako-radi">Kako radi</a>
+      <a href="/sposobnosti">Sposobnosti</a>
+      <a href="/bezbednost" aria-current="page">Bezbednost</a>
+      <a href="/za-advokate">Za advokate</a>
+      <a href="/vizija">Vizija</a>
+      <a href="/app">Prijava</a>
+      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/beta">Prijavite se za betu</a>
+    </nav>
+  </div>
+</header>
+
+<main id="glavni">
+
+  <!-- ── UVOD ── uvod odmah kaže i šta ne tvrdimo. Ako „nemamo nezavisnu
+       reviziju" dođe tek na dnu, posle osam sekcija hvale, čita se kao
+       skrivanje. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Bezbednost</p>
+      <h1>Mehanizmi postoje i opisani su.<br>Potvrde treće strane ne.</h1>
+      <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+        Nezavisne bezbednosne revizije i sertifikata nema. Ova stranica zato ne
+        opisuje prideve nego mehanizme — svaki se može imenovati, i uz svaki
+        stoji dokle seže.
+      </p>
+      <p style="margin-top:var(--vw-sp-6);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+        <a class="vw-btn vw-btn--ghost" href="/static/Vindex-AI-Bezbednosni-List.pdf" download>Preuzmite bezbednosni list (PDF)</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── DEO A — MEHANIZMI ──
+       Lanac je opisan istim jezikom kao „Kako radi". Svaka karika nosi tačno
+       jednu rečenicu iz mape istine.
+
+       Šta je provereno u kodu pre pisanja ove sekcije, i šta je zbog toga
+       izostavljeno:
+         · „i to pre naplate" uz ulaznu kapiju — IZBAČENO. Ta redosledna
+           tvrdnja važi samo za jednu od dve rute; na drugoj se kredit vraća
+           refundom. Neto ishod je isti, ali rečenica o redosledu nije tačna
+           doslovno, pa se ne piše.
+         · vezivanje AI poziva za predmet — IZOSTAVLJENO. Proširenje šeme nije
+           potvrđeno na produkciji, pa se u bazu upisuje uži skup polja. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Mehanizmi</p>
+      <h2>Šest karika, ne šest prideva</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Zahtev koji sadrži tekst vašeg klijenta prolazi kroz šest tačaka pre
+           nego što se vrati kao odgovor. Svaka od njih je mesto u kodu, ne
+           obećanje u ugovoru.</p>
+      </div>
+
+      <figure class="vw-figure">
+        <svg viewBox="0 0 900 450" role="img" aria-labelledby="dia-lanac-t">
+          <title id="dia-lanac-t">Dijagram lanca: zahtev prolazi kroz proveru vlasništva, ulaznu kapiju koja odbija ubacivanje naloga, poziv provajderu modela, izlaznu proveru odgovora, upis porekla poziva i upis u nepromenljivu evidenciju.</title>
+
+          <rect class="vw-dia-box" x="0" y="4" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="37">ZAHTEV</text>
+          <text class="vw-dia-sub" x="352" y="26">vlasništvo se proverava pre nego što ijedan upit nad</text>
+          <text class="vw-dia-sub" x="352" y="44">podacima uopšte krene</text>
+          <path class="vw-dia-line" d="M160 58 V 80"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="0" y="80" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="113">ULAZNA KAPIJA</text>
+          <text class="vw-dia-sub" x="352" y="102">odbija pokušaj ubacivanja naloga u pitanje pre nego</text>
+          <text class="vw-dia-sub" x="352" y="120">što vaš tekst ode modelu</text>
+          <path class="vw-dia-line" d="M160 134 V 156"/>
+
+          <rect class="vw-dia-box" x="0" y="156" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="189">PROVAJDER</text>
+          <text class="vw-dia-sub" x="352" y="178">zaštita je u sloju koji poziva model, ne u pozivnom mestu</text>
+          <text class="vw-dia-sub" x="352" y="196">glasovni kanal i ponovno rangiranje su imenovani izuzeci</text>
+          <path class="vw-dia-line" d="M160 210 V 232"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="0" y="232" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="265">PROVERA ODGOVORA</text>
+          <text class="vw-dia-sub" x="352" y="254">odgovor modela prolazi izlaznu proveru pre nego što</text>
+          <text class="vw-dia-sub" x="352" y="272">stigne do vas; ako provera otkaže, poziv pada</text>
+          <path class="vw-dia-line" d="M160 286 V 308"/>
+
+          <rect class="vw-dia-box" x="0" y="308" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="341">POREKLO</text>
+          <text class="vw-dia-sub" x="352" y="330">koji je model korišćen, koliko je trajao, pod kojim</text>
+          <text class="vw-dia-sub" x="352" y="348">identifikatorom zahteva — bez teksta pitanja i odgovora</text>
+          <path class="vw-dia-line" d="M160 362 V 384"/>
+
+          <rect class="vw-dia-box" x="0" y="384" width="320" height="54" rx="2"/>
+          <text class="vw-dia-label" x="20" y="417">EVIDENCIJA</text>
+          <text class="vw-dia-sub" x="352" y="406">ulančana kriptografskim otiskom; baza fizički odbija</text>
+          <text class="vw-dia-sub" x="352" y="424">da je izmeni ili obriše</text>
+        </svg>
+        <figcaption>Konceptualni prikaz lanca — nije snimak ekrana</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ── KARIKE, JEDNA PO JEDNA ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Karika po karika</p>
+      <h2>Šta svaka od njih radi</h2>
+
+      <div class="vw-grid vw-grid--2" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 01 — Zahtev</p>
+          <h3>Predmet A ne ulazi u predmet B</h3>
+          <p>Podaci jednog predmeta ne mogu ući u analizu drugog — vlasništvo se
+             proverava pre nego što ijedan upit nad podacima uopšte krene.</p>
+          <p>Tuđi predmet daje odbijenicu pre ijednog upita u bazu, pre poziva
+             modela i pre naplate.</p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 02 — Ulazna kapija</p>
+          <h3>Nalog ubačen u pitanje se odbija</h3>
+          <p>Pre nego što vaš tekst ode modelu, prolazi kroz ulaznu proveru koja
+             odbija pokušaj ubacivanja naloga u pitanje.</p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 03 — Provajder</p>
+          <h3>Kapija se ne može zaobići</h3>
+          <p>Zaštita nije ugrađena u svako pozivno mesto nego u sam sloj koji
+             poziva model, pa nijedan tekstualni poziv ne može da je zaobiđe;
+             glasovni kanal i ponovno rangiranje rezultata su imenovani izuzeci
+             koji kroz tu kapiju ne prolaze.</p>
+          <p>Kada bezbednosna kapija oko AI-ja ne može da se podigne, AI poziv se
+             ne izvršava — sistem se zatvara, ne propušta.</p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 04 — Provera odgovora</p>
+          <h3>Otkaz provere obara poziv</h3>
+          <p>Odgovor modela prolazi kroz izlaznu proveru pre nego što stigne do
+             vas; ako sama ta provera otkaže, poziv pada umesto da prođe
+             neproveren.</p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 05 — Poreklo</p>
+          <h3>Trag koji se ne ožičava ručno</h3>
+          <p>Za svaki AI poziv beleži se koji je model korišćen, koliko je trajao
+             i pod kojim identifikatorom zahteva — bez ijednog ručnog ožičenja na
+             pozivnim mestima.</p>
+          <p>Tekst vašeg pitanja i tekst odgovora ne upisuju se u tu evidenciju —
+             čuva se samo kriptografski otisak.</p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Karika 06 — Evidencija</p>
+          <h3>Baza odbija izmenu</h3>
+          <p>Radnje u sistemu upisuju se u evidenciju ulančanu kriptografskim
+             otiskom, koju baza fizički odbija da izmeni ili obriše — provereno
+             izvršavanjem migracije nad pravom bazom podataka.</p>
+        </div>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
+        <li>Za tu evidenciju još ne postoji ekran na kome biste je pregledali —
+            mehanizam je dokazan, korisnički prikaz dolazi kasnije.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── PODACI U MIROVANJU I PRISTUP ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Podaci i pristup</p>
+      <h2>Gde stoje i ko im prilazi</h2>
+
+      <div class="vw-grid vw-grid--3" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <h3>Razdvajanje po nalogu</h3>
+          <p>Podaci su razdvojeni po nalogu, provera vlasništva se izvršava u
+             svakom upitu nad podacima, i ta granica je pokrivena testovima.</p>
+        </div>
+        <div>
+          <h3>Pregrada u indeksu</h3>
+          <p>Memorija kancelarije je u pretraživačkom indeksu razdvojena tvrdom
+             pregradom — svaka kancelarija ima sopstveni prostor.</p>
+        </div>
+        <div>
+          <h3>Originalni fajl</h3>
+          <p>Originalni fajl se šifruje pre nego što se sačuva.</p>
+        </div>
+        <div>
+          <h3>Matični podaci klijenta</h3>
+          <p>Matični podaci klijenta se dešifruju samo ovlašćenim ulogama i svako
+             otkrivanje se upisuje u evidenciju.</p>
+        </div>
+        <div>
+          <h3>Uloge u kancelariji</h3>
+          <p>Prava unutar kancelarije razdvojena su po ulogama; radnja bez
+             ovlašćenja se odbija.</p>
+        </div>
+        <div>
+          <h3>Provere pri izmeni koda</h3>
+          <p>Kod svake izmene koda izvršavaju se testovi na istoj verziji Pythona
+             koju koristi produkcija i više nezavisnih unutrašnjih bezbednosnih
+             provera.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DEO B — ŠTA NEMAMO ──
+       Najvredniji deo stranice, i namerno javan. U kategoriji u kojoj svaki
+       konkurent tvrdi neodrživ superlativ o bezbednosti, spisak onoga što se
+       NE tvrdi je jedini razlog da se ostatku veruje. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Šta nemamo</p>
+      <h2>Spisak onoga što ne tvrdimo</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Ova sekcija postoji da bi tvrdnje ispod ostale nemoguće. Dok je javna,
+           nijedna od njih se ne može tiho vratiti u prodajni razgovor.</p>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-5)">
+        <li>Nezavisne bezbednosne revizije i sertifikata nema; mehanizmi postoje i
+            opisani su, potvrde treće strane ne.</li>
+        <li>Razdvajanje je po nalogu i pokriveno testovima. To nije zaštita na
+            nivou baze i tako se ne predstavlja.</li>
+        <li>Bezbednosne provere pri izmeni koda su unutrašnje. Nijedna od njih
+            nije revizija treće strane i ne prikazuje se kao takva.</li>
+        <li>Spisak izvora navodi propis i član. Ne vodi klikom do teksta propisa,
+            ne pokazuje na dokument iz vašeg spisa i ne navodi stranu u njemu —
+            do samog člana idete sami.</li>
+        <li>Spisak izvora prati pravno istraživanje. Analiza dokumenta i izrada
+            nacrta ne vraćaju spisak izvora.</li>
+        <li>Za nepromenljivu evidenciju još ne postoji ekran na kome biste je
+            pregledali — mehanizam je dokazan, korisnički prikaz dolazi kasnije.</li>
+        <li>Dokument koji je jednom ušao u spis ne briše se — u proizvodu ne
+            postoji radnja brisanja dokumenta.</li>
+        <li>Brisanjem naloga anonimizuju se vaši lični podaci, dok spisi ostaju
+            sačuvani zbog obaveze čuvanja dokumentacije.</li>
+        <li>Tačnost pojedinih funkcija još nije merena, pa se nijedan procenat
+            tačnosti ni ušteda vremena ne navodi.</li>
+      </ul>
+
+      <p class="vw-small" style="margin-top:var(--vw-sp-5)">
+        Pun spisak onoga što danas ne radi, uz ono što je namera, stoji na
+        stranici <a href="/vizija">Vizija</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── ŠTA JESTE DOKAZANO ── rekapitulacija sa ✓, posle spiska granica.
+       Redosled je namerno ovakav: prvo granica, pa tvrdnja. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Šta jeste dokazano</p>
+      <h2>Tri stvari koje se ne oslanjaju na poverenje</h2>
+      <ul class="vw-limits vw-limits--ok" style="margin-top:var(--vw-sp-6)">
+        <li>Kada bezbednosna kapija oko AI-ja ne može da se podigne, AI poziv se
+            ne izvršava — sistem se zatvara, ne propušta.</li>
+        <li>Odgovor modela prolazi kroz izlaznu proveru pre nego što stigne do
+            vas; ako sama ta provera otkaže, poziv pada umesto da prođe
+            neproveren.</li>
+        <li>Radnje u sistemu upisuju se u evidenciju ulančanu kriptografskim
+            otiskom, koju baza fizički odbija da izmeni ili obriše — provereno
+            izvršavanjem migracije nad pravom bazom podataka.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── DOKUMENTA ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Dokumenta</p>
+      <h2>Sve je javno, ništa iza forme</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Politika privatnosti, uslovi korišćenja, ugovor o obradi podataka,
+           izjava o upotrebi AI-ja, bezbednosni pregled i bezbednosni list javno
+           su dostupni. Nijedan od njih ne traži da ostavite podatke pre čitanja.</p>
+      </div>
+
+      <div class="vw-grid vw-grid--3" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <h3><a href="/security">Bezbednosne mere</a></h3>
+          <p>Tehnički pregled mera, namenjen onome ko procenjuje dobavljača.</p>
+        </div>
+        <div>
+          <h3><a href="/dpa">Ugovor o obradi podataka</a></h3>
+          <p>Uslovi pod kojima se obrađuju podaci vaših klijenata.</p>
+        </div>
+        <div>
+          <h3><a href="/ai-disclosure">Upotreba veštačke inteligencije</a></h3>
+          <p>Šta se šalje modelu i pod kojim uslovima.</p>
+        </div>
+        <div>
+          <h3><a href="/static/Vindex-AI-Bezbednosni-List.pdf" download>Bezbednosni list (PDF)</a></h3>
+          <p>Pregled za prilog uz internu proveru dobavljača.</p>
+        </div>
+        <div>
+          <h3><a href="/privacy">Politika privatnosti</a></h3>
+          <p>Koji se lični podaci obrađuju i po kom osnovu.</p>
+        </div>
+        <div>
+          <h3><a href="/terms">Uslovi korišćenja</a></h3>
+          <p>Pravila korišćenja platforme.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA ── -->
+  <section class="vw-section vw-section--cta">
+    <div class="vw-wrap">
+      <div style="border-left:2px solid var(--vw-accent);padding-left:var(--vw-sp-5)">
+        <p class="vw-eyebrow">Stanje</p>
+        <h2>Vindex je pred zatvorenim testiranjem</h2>
+        <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+          Nema korisnika, nema preporuka i nema objavljenih rezultata merenja.
+          Ono što postoji su mehanizmi opisani gore i spisak onoga što nemamo.
+        </p>
+        <p style="margin-top:var(--vw-sp-6);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+          <a class="vw-btn vw-btn--primary" href="/beta">Prijavite se za zatvoreno testiranje</a>
+          <a class="vw-btn vw-btn--ghost" href="/static/Vindex-AI-Bezbednosni-List.pdf" download>Preuzmite bezbednosni list (PDF)</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="vw-footer">
+  <div class="vw-wrap">
+    <div class="vw-footer__grid">
+      <div>
+        <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+        <p class="vw-small" style="margin-top:var(--vw-sp-3);max-width:34ch">
+          Platforma za rad sa pravnim predmetima, dokumentima i izvorima.
+        </p>
+      </div>
+      <div>
+        <h4>Proizvod</h4>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/sposobnosti">Sposobnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/tehnologija">Tehnologija</a></li>
+          <li><a href="/vizija">Vizija</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Poverenje</h4>
+        <ul>
+          <li><a href="/bezbednost" aria-current="page">Bezbednost</a></li>
+          <li><a href="/security">Bezbednosne mere</a></li>
+          <li><a href="/static/Vindex-AI-Bezbednosni-List.pdf">Bezbednosni list (PDF)</a></li>
+          <li><a href="/ai-disclosure">Upotreba veštačke inteligencije</a></li>
+          <li><a href="/status">Status sistema</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Pravno</h4>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Obrada podataka</a></li>
+          <li><a href="/kontakt">Kontakt</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="vw-footer__bottom">
+      <span>&copy; MMXXVI Vindex AI</span>
+      <span>Vindex AI ne pruža pravne savete. Sadržaj koji sistem generiše mora pregledati advokat.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Mobilna navigacija. Isti skup stavki kao desktop — zatečeni landing ima dva
+   različita menija, i to se ne nasleđuje. */
+(function () {
+  var dugme = document.querySelector('.vw-nav-toggle');
+  var nav = document.getElementById('vw-nav');
+  if (!dugme || !nav) return;
+  dugme.addEventListener('click', function () {
+    var otvoren = nav.getAttribute('data-otvoren') === '1';
+    nav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+    dugme.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+  });
+  nav.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { nav.setAttribute('data-otvoren', '0'); dugme.setAttribute('aria-expanded', 'false'); dugme.focus(); }
+  });
+})();
+
+/* Ulazna animacija — samo `opacity`/`transform`, i samo ako korisnik nije
+   tražio smanjen pokret. Bez skrol-parallaxa i bez beskonačnih animacija. */
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  var meta = document.querySelectorAll('.vw-section > .vw-wrap > *');
+  var io = new IntersectionObserver(function (unosi) {
+    unosi.forEach(function (u) {
+      if (u.isIntersecting) { u.target.setAttribute('data-vidljivo', '1'); io.unobserve(u.target); }
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  meta.forEach(function (el) { el.classList.add('vw-reveal'); io.observe(el); });
+})();
+</script>
+
+</body>
+</html>
