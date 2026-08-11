@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid as _uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -267,6 +268,48 @@ def _nedostaje_kolona(exc: Exception) -> bool:
     return "pgrst204" in msg or "schema cache" in msg or "42703" in msg
 
 
+def _kanonski_uuid(vrednost) -> Optional[str]:
+    """Vraća `vrednost` u kanonskom UUID obliku, ili None ako to nije UUID.
+
+    RC-112-DEBT-001 — IZMERENO nad pravim PostgreSQL-om, nije pretpostavka:
+
+      `feature_usage_log.predmet_id` je tipa `uuid` (migracija 112:51, jer je
+      `predmeti.id` UUID). Upis vrednosti koja nije UUID (npr. „PRED-42") obara
+      INSERT sa SQLSTATE 22P02 `invalid input syntax for type uuid: "PRED-42"`.
+      Ta poruka NE sadrži ni „42703", ni „does not exist", ni „PGRST204", ni
+      „schema cache" — pa `_nedostaje_kolona` vraća False, uski fallback u
+      `_log_usage_event` se NE aktivira, izuzetak stiže do spoljnog `except`-a i
+      CEO red telemetrije naplate tiho nestaje: ne samo `predmet_id`, nego i
+      `user_id`, `feature_key` i `krediti_potroseni`.
+
+      Danas je to nedostižno — nijedan od 137 pozivalaca u `routers/` ne
+      prosleđuje `consume(predmet_id=...)`. Postaje dostižno čim prvi počne, a
+      to je tačno ono zbog čega je taj keyword argument i dodat.
+
+    ZAŠTO OVDE, A NE PROŠIRENJEM `_nedostaje_kolona` NA 22P02
+      * 22P02 znači „vrednost je pogrešnog oblika", ne „kolona ne postoji".
+        Helper bi time lagao o sopstvenom imenu i docstring-u.
+      * Taj fallback odbacuje OBA provenance polja. Ovde se odbacuje samo
+        neupotrebljiv `predmet_id`, dok `correlation_id` (tip `text`, bez
+        ograničenja) preživi — a baš on nosi tranzitivni JOIN do predmeta preko
+        `ai_forensics` (v. zaglavlje migracije 112). Sačuva se dakle VIŠE
+        telemetrije, ne manje.
+      * Loša vrednost nikad ne stigne do Postgres-a, pa nema ni drugog
+        osuđenog upisa — namera „usko, bez drugog pokušaja" iz
+        `_nedostaje_kolona` ostaje netaknuta.
+
+    Vraća se KANONSKI oblik (`str(uuid.UUID(...))`), ne original: Python
+    prihvata i zapise koje Postgres odbija (npr. `urn:uuid:` prefiks), pa bi
+    propuštanje originala ostavilo usku verziju istog defekta.
+
+    Naplata se ovim NE dira ni u jednoj grani — ovo je isključivo telemetrija.
+    """
+    try:
+        return str(_uuid.UUID(str(vrednost)))
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
 def _provenance_polja(predmet_id: Optional[str] = None) -> dict:
     """Čita `correlation_id`/`predmet_id` iz `shared/ai_provenance` contextvar-a.
 
@@ -295,20 +338,44 @@ def _provenance_polja(predmet_id: Optional[str] = None) -> dict:
     STROGO fail-soft: bilo koja greška → prazan dict, upis ide kao i do sada.
     """
     polja: dict = {}
+
+    def _upisi_predmet(vrednost, izvor: str) -> None:
+        """RC-112-DEBT-001: samo validan UUID sme u `uuid` kolonu.
+
+        Odbacivanje jednog neupotrebljivog metapodatka je uvek bolje od gubitka
+        celog reda telemetrije naplate — v. `_kanonski_uuid`.
+        """
+        kanonski = _kanonski_uuid(vrednost)
+        if kanonski is not None:
+            polja["predmet_id"] = kanonski
+            return
+        # Neispravan EKSPLICITAN argument briše i vrednost pročitanu iz
+        # konteksta. Pad na contextvar bi upisao DRUGI predmet od onog koji je
+        # pozivalac imenovao — pogrešna atribucija naplate je gora od NULL-a,
+        # jer NULL znači „nije zabeleženo", a pogrešan UUID tvrdi neistinu
+        # (v. COMMENT ON COLUMN u migraciji 112).
+        polja.pop("predmet_id", None)
+        logger.warning(
+            "[USAGE] predmet_id iz izvora %s nije UUID — izostavljen iz telemetrije "
+            "da bi red naplate ipak bio upisan (feature_usage_log.predmet_id je tipa uuid, "
+            "migracija 112); correlation_id ostaje i vodi do predmeta preko ai_forensics",
+            izvor,
+        )
+
     try:
         from shared.ai_provenance import current_context
         ctx = current_context() or {}
         if ctx.get("correlation_id"):
             polja["correlation_id"] = ctx["correlation_id"]
         if ctx.get("predmet_id"):
-            polja["predmet_id"] = ctx["predmet_id"]
+            _upisi_predmet(ctx["predmet_id"], "contextvar")
     except Exception as exc:
         # Telemetrija nikad ne sme da obori naplatu — ni čitanjem konteksta.
         logger.debug("[USAGE] provenance kontekst nedostupan (non-fatal): %s", exc)
     # Eksplicitan argument je jači od konteksta: pozivalac zna svoj predmet
     # pouzdanije nego contextvar koji je u 113/113 slučajeva već resetovan.
     if predmet_id:
-        polja["predmet_id"] = predmet_id
+        _upisi_predmet(predmet_id, "argument consume(predmet_id=...)")
     return polja
 
 

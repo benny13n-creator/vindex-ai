@@ -183,12 +183,39 @@ def test_d_consume_i_dalje_stoji_POSLE_AI_posla():
     src = re.sub(r'"""(?:.|\n)*?"""', "", src)
     src = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
 
+    # ── RC-BILLING-002 (Release Candidate gate) — OVAJ TEST JE BIO VAKUUMSKI ──
+    #
+    # Merio je `src.index("asyncio.to_thread(")` kao „mesto AI posla". Kad je
+    # test pisan to je bilo tačno — prvi `to_thread` u ovoj funkciji JESTE bio
+    # orkestrator. Ali pre-flight kapija, dodata u ISTOM Wave 6 sprintu, uvela je
+    # RANIJI `asyncio.to_thread(_get_credits, uid)`. Od tada `poz_thread` pokazuje
+    # na čitanje bilansa, a ne na AI posao.
+    #
+    # Posledica, izmerena a ne pretpostavljena: pošto kapija po konstrukciji
+    # uvek prethodi naplati, uslov `poz_thread < poz_consume` bio je zadovoljen
+    # BEZ OBZIRA gde AI posao stoji. Mutacija koja premesti `consume` ispred
+    # orkestratora oborila je 8 drugih testova — a ovaj, jedini napisan baš za
+    # taj redosled, prošao je zeleno.
+    #
+    # Wave 6 popravka je tako razoružala sopstveni Wave 6 test.
+    #
+    # Sada se meri POZICIJA STVARNOG AI POSLA — poziv orkestratora — a ne prvi
+    # `to_thread` na koji se naiđe. Tvrdnja nije oslabljena nego pooštrena:
+    # ranija je mogla da prođe slučajno, ova ne može.
     poz_preflight = src.index("_CENA_KOMPLETNE")
-    poz_thread = src.index("asyncio.to_thread(")
+    poz_ai = src.index("orkestrator_kompletna_analiza_sync")
     poz_consume = src.index("UsageService.consume")
 
-    assert poz_preflight < poz_thread, "pre-flight nije ispred skupog posla"
-    assert poz_thread < poz_consume, (
+    # Negativna kontrola samog merenja: ako `poz_ai` ikad ponovo počne da
+    # pokazuje na nešto što nije AI posao, ova tvrdnja pada pre ostalih.
+    assert "asyncio.to_thread(" in src, "oblik poziva se promenio — proveri merenje"
+    assert src.index("asyncio.to_thread(") <= poz_ai, (
+        "orkestrator se više ne poziva kroz `asyncio.to_thread` — merenje pozicije "
+        "AI posla je zastarelo, prepiši ga oko novog oblika poziva"
+    )
+
+    assert poz_preflight < poz_ai, "pre-flight nije ispred skupog posla"
+    assert poz_ai < poz_consume, (
         "atomični odbitak je premešten ISPRED AI posla — time se gubi ugovor "
         "'ne naplaćuj ako AI padne'"
     )

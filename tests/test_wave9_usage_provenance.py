@@ -97,6 +97,32 @@ def cist_kontekst():
     prov._case_ctx.reset(t_case)
 
 
+# ── RC-TEST-DEBT-001 (Release Candidate gate) — PRODUKCIONO-REALNE VREDNOSTI ──
+#
+# Ovi testovi su koristili `"PRED-42"` kao `predmet_id`. Nad lažnim Supabase
+# klijentom to prolazi, ali PRODUKCIONA šema to ODBIJA: `predmeti.id` je UUID
+# (`supabase_setup.sql:301`), a `feature_usage_log.predmet_id` je `uuid`
+# (migracija 112). PostgreSQL na takvu vrednost diže 22P02
+# `invalid input syntax for type uuid`.
+#
+# Posledica je bila teža nego gubitak jednog polja: `shared/usage._nedostaje_kolona()`
+# ne prepoznaje 22P02, pa se uzak fallback ne aktivira i CEO red naplatne
+# telemetrije tiho nestaje — zajedno sa `user_id`, `feature_key` i
+# `krediti_potroseni`.
+#
+# `shared/usage.py` sada validira UUID pre upisa i odbacuje samo neispravnu
+# vrednost umesto celog reda. Ovi testovi zato koriste vrednosti koje produkcija
+# stvarno prihvata. TVRDNJE SU NEPROMENJENE — menja se samo ulaz, tako da test
+# meri ono što tvrdi da meri.
+#
+# Ponašanje za NEISPRAVAN `predmet_id` (polje se odbacuje, red i naplata ostaju)
+# pokriveno je u `tests/test_rc_billing_gate.py` (U7), nad pravim PostgreSQL-om.
+UUID_PREDMETA = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa"
+UUID_DRUGOG = "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb"
+UUID_IZ_KONTEKSTA = "cccccccc-3333-4333-8333-cccccccccccc"
+UUID_EKSPLICITAN = "dddddddd-4444-4444-8444-dddddddddddd"
+
+
 def _pozovi_log(**kw):
     osnova = dict(
         user_id="u-1", feature="strategija", credits_spent=6,
@@ -112,7 +138,7 @@ def _pozovi_log(**kw):
 def test_sa_case_context_upisuje_obe_vrednosti(supa):
     async def _scenario():
         set_request_context(user_id="u-1", correlation_id="CID-TEST-1")
-        with case_context(predmet_id="PRED-42", module_name="strategija"):
+        with case_context(predmet_id=UUID_PREDMETA, module_name="strategija"):
             await usage._log_usage_event(
                 "u-1", "strategija", 6, "gpt-4o", 0.02, 100, 50, 1200,
             )
@@ -121,7 +147,7 @@ def test_sa_case_context_upisuje_obe_vrednosti(supa):
 
     assert len(supa.payloads) == 1
     red = supa.payloads[0]
-    assert red["predmet_id"] == "PRED-42"
+    assert red["predmet_id"] == UUID_PREDMETA
     assert red["correlation_id"] == "CID-TEST-1"
     # Naplatna polja netaknuta.
     assert red["krediti_potroseni"] == 6
@@ -131,24 +157,24 @@ def test_sa_case_context_upisuje_obe_vrednosti(supa):
 def test_eksplicitan_predmet_id_argument_radi_i_bez_case_context(supa):
     """Stvarni put za 113 postojećih poziva: `consume(predmet_id=...)`."""
     set_request_context(user_id="u-1", correlation_id="CID-2")
-    _pozovi_log(predmet_id="PRED-99")
+    _pozovi_log(predmet_id=UUID_DRUGOG)
 
     red = supa.payloads[0]
-    assert red["predmet_id"] == "PRED-99"
+    assert red["predmet_id"] == UUID_DRUGOG
     assert red["correlation_id"] == "CID-2"
 
 
 def test_eksplicitan_argument_ima_prednost_nad_kontekstom(supa):
     async def _scenario():
         set_request_context(user_id="u-1", correlation_id="CID-3")
-        with case_context(predmet_id="IZ-KONTEKSTA"):
+        with case_context(predmet_id=UUID_IZ_KONTEKSTA):
             await usage._log_usage_event(
                 "u-1", "strategija", 6, None, None, None, None, None,
-                predmet_id="EKSPLICITAN",
+                predmet_id=UUID_EKSPLICITAN,
             )
 
     asyncio.run(_scenario())
-    assert supa.payloads[0]["predmet_id"] == "EKSPLICITAN"
+    assert supa.payloads[0]["predmet_id"] == UUID_EKSPLICITAN
 
 
 # ─── 2. IZMERENO STANJE: predmet_id nije dostupan izvan bloka ───────────────
