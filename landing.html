@@ -999,20 +999,25 @@ footer {
 <!-- ── CENOVNIK ── -->
     <!-- P0-F: sekcija `cenovnik` uklonjena 2026-08-11.
 
-         Prodavala je 4 plana (Besplatno €0 / Advokat €49 / Pro €89 / Firma €59-po-korisniku).
-         Backend zna 3 (basic €29 / professional €79 / enterprise €249), a CHECK constraint u
+         Prodavala je 4 plana kojih u bazi nema.
+
+         NAPOMENA (Wave 5): konkretni iznosi su namerno UKLONJENI i iz ovog
+         komentara. Strana je javna, a komentar je čitljiv kroz "prikaži izvor" —
+         stare cene tu nemaju šta da traže ni kao objašnjenje. Detalji su u
+         commit poruci `3381d59f` i u docs/website/.
+         Backend zna 3 (basic / professional / enterprise), a CHECK constraint u
          migrations/063_entitlement_system.sql:31 fizicki zabranjuje cetvrtu vrednost. Aplikacija
          posle registracije prikazuje DRUGE nazive i DRUGE cene (static/vindex.js:7856 cita
          /api/plan/info). Uz to:
 
-           - plan "Advokat €49" je prodavao "10 analiza dokumenata" i "Nacrti i podnesci",
+           - jedan placeni plan je prodavao "10 analiza dokumenata" i "Nacrti i podnesci",
              a backend obe gejtuje na `professional` -> kupac bi dobio 403 na obe
            - "Due Diligence" pod Pro trazi zaseban `digital_assets` addon -> 403
            - "Audit log + Export" pod Pro je `enterprise` -> 403
            - "N AI upita mesecno" nema mehanizam obnove: 15 kredita se dodeli jednom pri
              registraciji i samo trosi (api.py:2492); nema `pg_cron`, nema reset joba
-           - prekoracenje €0.15/€0.50/€1.50 se ne naplacuje -- shared/usage.py:396 vraca 402
-           - "SLA 99.9%" se ne meri nigde u repou
+           - prekoracenje se ne naplacuje -- shared/usage.py:396 vraca 402
+           - obecani SLA se ne meri nigde u repou
            - nijedan plan se ne moze kupiti: STRIPE_URL="" (static/vindex.js:124), sva dugmad
              vode na /app#register koji dodeljuje `basic`; tarifa se menja iskljucivo rucnim
              SQL-om nad bazom
