@@ -55,17 +55,10 @@ _SVE_SIRINE = _SIRINE_DESKTOP + _SIRINE_MOBILNE
 #     zapis obriše. Zapis ne može da preživi svoju popravku.
 #   · opšti invarianti ispod izuzimaju isključivo ove `id`-jeve; svaka nova
 #     kontrola u istom stanju i dalje obara test.
-_EVIDENTIRANI_KVAROVI = {
-    "mic-qi": (
-        "P0F-001 — `#vx-mobile-fab` (Novi predmet; `bottom:76px; right:18px`, "
-        "52×52) pluta preko mikrofona za diktiranje u polju za pravni upit. "
-        "Na 375px prekriva ga potpuno, na 390px 48%. Dodir namenjen diktatu "
-        "pokreće kreiranje predmeta. "
-        "Nije popravljeno u P0 sprintu jer popravka traži pomeranje mobilnog "
-        "FAB-a ili prelom polja za upit — dakle izmenu mobilnog rasporeda, ne "
-        "jednu poziciju. Isti razred kao O-001, zaseban zahvat."
-    ),
-}
+# PRAZNO. `mic-qi` je bio jedini zapis i zatvoren je u P0F-001 sprintu
+# (`tests/test_p0f001_mobile_collision.py`) — zato je i obrisan odavde, kako
+# `test_evidentirani_kvarovi_se_i_dalje_reprodukuju` i nalaže.
+_EVIDENTIRANI_KVAROVI = {}
 
 
 @pytest.fixture(scope="module")

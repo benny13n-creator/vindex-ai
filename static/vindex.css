@@ -3799,6 +3799,30 @@ select.pro-input option { background: var(--surface); }
   #vx-voice-fab svg { width: 22px; height: 22px; }
   /* Iznad glasovnog dugmeta, ista strana: 72 + 52 + 10 */
   #feedback-fab { bottom: 134px; left: 23px; right: auto; }
+
+  /* ── P0F-001: SUDAR RADNJI U DONJOJ ZONI ────────────────────────────────
+     `.mic-input-wrap` poravnava mikrofon na `flex-end`, pa je dugme za diktat
+     sedelo na DNU kompozera — tačno u pojasu koji drži `#vx-mobile-fab`
+     (Novi predmet; `right:18px; bottom:76px`, 52×52).
+
+     Izmereno pre popravke:
+       375px — `#mic-qi` [309,733,44,44] vs FAB [305,732,52,52] → 0/49 tačaka
+               dostupno, dugme POTPUNO prekriveno
+       390px — 21/49 dostupno (43%)
+       412px — 21/49 dostupno (43%)
+
+     Posledica nije bila „mikrofon se ne vidi" nego POGREŠNA RADNJA: dodir
+     namenjen diktatu pokretao je kreiranje predmeta.
+
+     Popravka je namerno lokalna za sadržaj, a ne još jedno pomeranje
+     plutajućih dugmadi: mikrofon se na uskim ekranima poravnava uz VRH
+     kompozera i time izlazi iz pojasa. Ostaje isto dugme, isti rukovalac,
+     ista veličina, isto mesto u DOM-u.
+
+     Pomeranje `#vx-mobile-fab` bi jednako uklonilo sudar (dokazano mutacijom
+     u `test_p0f001_mobile_collision.py`), ali dira globalni sistem plutajućih
+     dugmadi koji je već menjan u P0-2 — a manja izmena je ovde dovoljna. */
+  .mic-input-wrap { align-items: flex-start; }
 }
 
 /* Auth tabs */
