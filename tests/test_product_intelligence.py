@@ -50,7 +50,33 @@ def _ev(uid, feature, action, dt_str):
     return {"user_id": uid, "feature": feature, "action": action, "created_at": dt_str}
 
 
-today = date.today()
+# DETERMINIZAM (nadjeno u dead-code prolazu, 2026-08-13):
+# `TODAY` se racuna pri IMPORTU modula, a `routers/product_intelligence.py:199`
+# racuna `date.today()` u trenutku POZIVA. Kad suite predje ponoc izmedju to
+# dvoje -- a puna regresija traje ~8 minuta -- test dobija dogadjaje datirane
+# juce i ocekuje da se broje kao danasnji. Pao je tacno tako u prolazu koji je
+# poceo 2026-08-12 a zavrsio 2026-08-13.
+#
+# Vreme se zato zamrzava za ceo modul: obe strane sada koriste ISTI dan.
+import datetime as _dt
+from unittest.mock import patch as _patch
+
+_ZAMRZNUT_DAN = date.today()
+
+
+class _FiksniDatum(date):
+    @classmethod
+    def today(cls):
+        return _ZAMRZNUT_DAN
+
+
+@pytest.fixture(autouse=True)
+def _zamrzni_dan():
+    with _patch("routers.product_intelligence.date", _FiksniDatum):
+        yield
+
+
+today = _ZAMRZNUT_DAN
 TODAY = today.isoformat()
 T30   = (today - timedelta(days=30)).isoformat()
 T60   = (today - timedelta(days=60)).isoformat()

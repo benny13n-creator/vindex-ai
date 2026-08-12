@@ -7951,10 +7951,17 @@ function analizaPrikaziWorkflow(tekst) {
   if (wf) wf.style.display = 'block';
 }
 
-function _analizaSwitchTab(t) {
-  var btn = document.querySelector('.t-tab[onclick*="\'' + t + '\'"]');
-  if (btn) setTab(btn, t);
-}
+// DEAD-CODE FORENSICS (2026-08-12): `_analizaSwitchTab` uklonjena.
+//
+// Trazila je `.t-tab` cija `onclick` niska sadrzi `'n'` odnosno `'t'`. Ti tabovi
+// su zamenjeni sistemom modova (`_AIWS_MODES`), pa je funkcija tiho padala u
+// prazno. Njena poslednja dva pozivaoca (`analizaGenerisiNacrt`,
+// `analizaDodajUStrategiju`) prevedeni su na `openAITool()` u Fazi 2.1 -- ovim
+// je ostala bez ijednog pozivaoca.
+//
+// Dokaz: 0 poziva u index.html, 0 u vindex.js (druga pojava imena je komentar),
+// 0 kao niska, 0 kroz `window[...]`, nikad pozvana u runtime prolazu kroz 12
+// tabova, 12 podtabova i 10 modala.
 
 // FAZA 2.1 / STAVKA 2 -- REWIRE na kanonski tok kreiranja predmeta.
 //
@@ -15697,9 +15704,14 @@ function _doctplRenderLista() {
   }).join('');
 }
 
-function docTplGetAktivniIdx() {
-  return _doctplAktivni ? _doctplSabloni.indexOf(_doctplAktivni) : -1;
-}
+// DEAD-CODE FORENSICS (2026-08-12): `docTplGetAktivniIdx` uklonjena.
+//
+// Trolinijski getter (`_doctplAktivni ? _doctplSabloni.indexOf(...) : -1`) bez
+// ijednog pozivaoca. Nema korisnicku semantiku -- nije funkcija bez vrata nego
+// pomocna koja se nikad nije koristila.
+//
+// Dokaz: 1 pojava imena u celom repou (sopstvena definicija), 0 u HTML-u,
+// 0 kao niska, nikad pozvana u runtime prolazu.
 
 function docTplIzaberi(idx) {
   _doctplAktivni = _doctplSabloni[idx];
