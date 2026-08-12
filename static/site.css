@@ -412,3 +412,102 @@ em { font-style: italic; color: var(--vw-accent); }
   .vw-header, .vw-nav-toggle { display: none; }
   body { background: #fff; color: #000; }
 }
+
+/* ============================================================================
+   POLISH SPRINT — dopune
+   ----------------------------------------------------------------------------
+   Nijedan postojeći token nije promenjen. Sve ispod se oslanja na `--vw-*`
+   definisane na vrhu fajla.
+   ========================================================================= */
+
+/* ── OKVIR ZA SNIMAK PROIZVODA ────────────────────────────────────────────
+   Komponenta je spremna, ali se NE KORISTI dok ne postoji stvaran snimak
+   aplikacije. U repou danas nema nijednog: `screenshot_login.png` prikazuje
+   STARI landing i nosi tvrdnje koje smo uklonili („POČNI BESPLATNO", „Paketi",
+   „za manje od 10 sekundi", „trenirana isključivo na srpskim zakonima").
+   Upotreba tog snimka bi vizuelno vratila sve što je tekstualno uklonjeno.
+
+   Kada stvarni snimci stignu: `<figure class="vw-shot">` sa `<img loading="lazy"
+   decoding="async" width height>` i obaveznim `<figcaption>`. */
+.vw-shot { margin: var(--vw-sp-6) 0 0; }
+.vw-shot__frame {
+  border: 1px solid var(--vw-line-2);
+  border-radius: var(--vw-radius);
+  background: var(--vw-surface);
+  overflow: hidden;
+}
+/* Traka prozora — signal „ovo je stvaran ekran proizvoda", bez lažnih dugmadi. */
+.vw-shot__bar {
+  display: flex; align-items: center; gap: var(--vw-sp-2);
+  padding: var(--vw-sp-2) var(--vw-sp-3);
+  border-bottom: 1px solid var(--vw-line);
+  font-family: var(--vw-font-data); font-size: 0.68rem;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--vw-text-2);
+}
+.vw-shot__frame img { display: block; width: 100%; height: auto; }
+.vw-shot figcaption {
+  font-family: var(--vw-font-data); font-size: 0.68rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--vw-text-2); margin-top: var(--vw-sp-3);
+}
+
+/* ── ISTAKNUT BLOK ────────────────────────────────────────────────────────
+   Zamenjuje inline `style="border-left:2px solid…"` koji se ponavljao na
+   četiri mesta. */
+.vw-callout {
+  border-left: 2px solid var(--vw-accent);
+  padding-left: var(--vw-sp-5);
+}
+.vw-callout--warn { border-left-color: var(--vw-warn); }
+
+/* ── PUTANJA RAZVOJA (vizija) ─────────────────────────────────────────────
+   Vertikalni niz koraka sa linijom. Svaki korak nosi oznaku faze; oznaka je
+   OBAVEZNA jer razdvaja ono što postoji od pravca razvoja. */
+.vw-path { list-style: none; padding: 0; margin: var(--vw-sp-6) 0 0; position: relative; }
+.vw-path::before {
+  content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px;
+  width: 1px; background: var(--vw-line-2);
+}
+.vw-path > li { position: relative; padding: 0 0 var(--vw-sp-5) var(--vw-sp-6); }
+.vw-path > li::before {
+  content: ""; position: absolute; left: 3px; top: 7px;
+  width: 9px; height: 9px; background: var(--vw-bg);
+  border: 1px solid var(--vw-line-2);
+}
+.vw-path > li[data-sada]::before { border-color: var(--vw-accent); background: var(--vw-accent); }
+.vw-path h3 { margin-bottom: var(--vw-sp-2); }
+.vw-path p { color: var(--vw-text-2); }
+.vw-path__tag {
+  font-family: var(--vw-font-data); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--vw-text-2); display: block; margin-bottom: var(--vw-sp-2);
+}
+.vw-path__tag--sada { color: var(--vw-accent); }
+
+/* ── SLOJEVITA KOMPOZICIJA ────────────────────────────────────────────────
+   Dva stuba: tekst levo, vizuel desno. Na mobilnom vizuel ide ISPOD teksta —
+   nikad se ne skuplja u nečitljivu širinu. */
+.vw-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vw-sp-7); align-items: start; }
+.vw-split--wide { grid-template-columns: 5fr 7fr; }
+
+/* ── TABELA PODATAKA ──────────────────────────────────────────────────────
+   Svaka ćelija sa brojem, oznakom ili rutom je monospace — obavezujuće pravilo. */
+.vw-table { width: 100%; border-collapse: collapse; margin-top: var(--vw-sp-5); }
+.vw-table th, .vw-table td {
+  text-align: left; padding: var(--vw-sp-3) var(--vw-sp-3) var(--vw-sp-3) 0;
+  border-bottom: 1px solid var(--vw-line); vertical-align: top;
+}
+.vw-table th {
+  font-family: var(--vw-font-data); font-size: 0.68rem; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--vw-text-2);
+}
+.vw-table td { color: var(--vw-text-2); }
+.vw-table td:first-child { color: var(--vw-text); }
+
+@media (max-width: 1023px) {
+  .vw-split, .vw-split--wide { grid-template-columns: 1fr; gap: var(--vw-sp-6); }
+}
+@media (max-width: 639px) {
+  .vw-callout { padding-left: var(--vw-sp-4); }
+  .vw-path > li { padding-left: var(--vw-sp-5); }
+  .vw-table th, .vw-table td { padding-right: var(--vw-sp-2); font-size: 0.9rem; }
+}

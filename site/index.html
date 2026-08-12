@@ -13,9 +13,14 @@
 <meta property="og:title" content="Vindex AI — odgovor sa navedenim propisom, ili nikakav odgovor">
 <meta property="og:description" content="Platforma za rad sa pravnim predmetima. Kaže vam na kojim propisima počiva odgovor — i ćuti kada pouzdan izvor ne postoji.">
 <meta property="og:locale" content="sr_RS">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://vindex.rs/static/og-vindex.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Vindex AI — odgovor sa navedenim propisom, ili nikakav odgovor">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Vindex AI">
 <meta name="twitter:description" content="Odgovor sa navedenim propisom. Ili nikakav odgovor.">
+<meta name="twitter:image" content="https://vindex.rs/static/og-vindex.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,6 +46,27 @@
     </nav>
   </div>
 </header>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     REDOSLED SEKCIJA
+     hero → problem → kako radi → zašto verovati → kako to izgleda →
+     šta radi danas → izvori i poverenje → kontrole → stanje
+
+     „Zašto verovati" NAMERNO ostaje iznad nabrajanja funkcija (odluka iz Faze
+     B). „Kako to izgleda" je nova sekcija koja crta korake 2 i 3 umesto da ih
+     ponovo opiše.
+
+     VIZUALI. U repou ne postoji nijedan upotrebljiv snimak aplikacije
+     (`screenshot_login.png` prikazuje STARI landing sa tvrdnjama koje su
+     uklonjene). Zato je svaki vizuel inline SVG i svaki nosi `<figcaption>`
+     koji kaže da je konceptualni prikaz. `vw-shot` okvir se NE koristi.
+
+     MOBILNI. SVG sa `width:100%` skalira i tekst — dijagram od 900 jedinica na
+     telefonu daje slova od ~4px. Zato svaki nov dijagram ima dve verzije:
+     `data-vizuel="sirok"` (viewBox ~900) i `data-vizuel="uzak"` (viewBox 360,
+     vertikalno preslagan). Skripta na dnu bira jednu; bez JavaScripta ostaje
+     široka, što je ispravno stanje za desktop i čitljivo na tabletu.
+     ═══════════════════════════════════════════════════════════════════════ -->
 
 <main id="glavni">
 
@@ -134,7 +160,7 @@
     </div>
   </section>
 
-  <!-- ── ZAŠTO VERUJETI ── redovi 12–14. Namerno IZNAD nabrajanja funkcija. ── -->
+  <!-- ── ZAŠTO VEROVATI ── redovi 12–14. Namerno IZNAD nabrajanja funkcija. ── -->
   <section class="vw-section">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Zašto verovati</p>
@@ -168,29 +194,217 @@
     </div>
   </section>
 
-  <!-- ── IZVORI I POVERENJE ── redovi 43–47. Redovi 46 i 47 su OBAVEZNI:
-       bez njih sekcija laže. ── -->
+  <!-- ── KAKO TO IZGLEDA ────────────────────────────────────────────────────
+       Nove kompozicije. Ne uvode nijednu novu tvrdnju: dijagram 2 crta red 9,
+       dijagram 3 crta redove 24 i 16. Tekst pored njih je isti sadržaj u
+       drugom ritmu, sa ogradama koje ostaju u samoj rečenici. ── -->
   <section class="vw-section">
     <div class="vw-wrap">
-      <p class="vw-eyebrow">Izvori i poverenje</p>
-      <h2>Kada izvora nema, nema ni odgovora</h2>
-      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
-        <p>Kada Vindex ne pronađe pouzdan izvor za vaše pitanje, on ne odgovara —
-           u tom slučaju se model uopšte ne poziva. Ne dobijate slabiji odgovor
-           koji morate da prepoznate kao slab; ne dobijate nikakav.</p>
-        <p>Ispod odgovora na pravno pitanje stoji spisak propisa i članova na
-           kojima odgovor počiva — do pet stavki, u obliku naziv propisa i broj
-           člana. Uz svaki odgovor stoji oznaka pouzdanosti pronađenih izvora —
-           visoka, srednja ili niska.</p>
+      <p class="vw-eyebrow">Kako to izgleda</p>
+      <h2>Od dokumenta do predmeta</h2>
+
+      <div class="vw-split vw-split--wide" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <h3>Dokument postaje polja predmeta</h3>
+          <p style="margin-top:var(--vw-sp-3)">Iz dokumenata se izvlače broj
+             predmeta, sud, sudija, stranke, rok i iznos — svako polje sa svojom
+             pouzdanošću.</p>
+          <p>Polje ispod praga sigurnosti se ne upisuje samo: dokument čeka vašu
+             potvrdu.</p>
+        </div>
+
+        <div>
+          <!-- ŠIROKA VERZIJA — dve kolone, viewBox 640 -->
+          <figure class="vw-figure" data-vizuel="sirok">
+            <svg viewBox="0 0 640 348" role="img" aria-labelledby="dia2s-t">
+              <title id="dia2s-t">Dijagram: iz jednog dokumenta izvlače se broj predmeta, sud, sudija, stranke, rok i iznos. Prvih pet polja je upisano, a iznos čeka potvrdu korisnika jer je ispod praga sigurnosti.</title>
+
+              <text class="vw-dia-sub" x="1" y="14">DOKUMENT</text>
+              <rect class="vw-dia-box" x="1" y="26" width="169" height="290" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="50" width="118" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="74" width="132" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="98" width="104" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="122" width="138" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="146" width="96" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="170" width="130" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="194" width="112" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="218" width="74" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="250" width="126" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="274" width="110" height="6" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="298" width="84" height="6" rx="2"/>
+
+              <path class="vw-dia-line" d="M170 171 H 210 M210 55 V 295 M210 55 H 240 M210 103 H 240 M210 151 H 240 M210 199 H 240 M210 247 H 240 M210 295 H 240"/>
+
+              <rect class="vw-dia-box" x="240" y="38" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="60">BROJ PREDMETA</text>
+              <text class="vw-dia-ok" x="440" y="60">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="240" y="86" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="108">SUD</text>
+              <text class="vw-dia-ok" x="440" y="108">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="240" y="134" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="156">SUDIJA</text>
+              <text class="vw-dia-ok" x="440" y="156">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="240" y="182" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="204">STRANKE</text>
+              <text class="vw-dia-ok" x="440" y="204">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="240" y="230" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="252">ROK</text>
+              <text class="vw-dia-ok" x="440" y="252">✓ UPISANO</text>
+
+              <rect class="vw-dia-box vw-dia-box--accent" x="240" y="278" width="399" height="34" rx="2"/>
+              <text class="vw-dia-label" x="254" y="300">IZNOS</text>
+              <text class="vw-dia-sub" x="440" y="300">⚠ ČEKA VAŠU POTVRDU</text>
+
+              <text class="vw-dia-sub" x="240" y="336">ispod praga sigurnosti polje se ne upisuje samo</text>
+            </svg>
+            <figcaption>Konceptualni prikaz izvlačenja podataka — nije snimak ekrana</figcaption>
+          </figure>
+
+          <!-- USKA VERZIJA — vertikalno preslagano, viewBox 360 -->
+          <figure class="vw-figure" data-vizuel="uzak" hidden>
+            <svg viewBox="0 0 360 476" role="img" aria-labelledby="dia2u-t">
+              <title id="dia2u-t">Isti dijagram, preslagan za uži ekran: iz dokumenta se izvlače broj predmeta, sud, sudija, stranke, rok i iznos; iznos čeka potvrdu korisnika.</title>
+
+              <text class="vw-dia-sub" x="1" y="12">DOKUMENT</text>
+              <rect class="vw-dia-box" x="1" y="20" width="358" height="100" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="36" width="200" height="5" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="52" width="240" height="5" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="68" width="180" height="5" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="84" width="250" height="5" rx="2"/>
+              <rect class="vw-dia-box" x="17" y="100" width="150" height="5" rx="2"/>
+
+              <path class="vw-dia-line" d="M180 120 V 146"/>
+
+              <rect class="vw-dia-box" x="1" y="152" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="170">BROJ PREDMETA</text>
+              <text class="vw-dia-ok" x="14" y="186">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="1" y="202" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="220">SUD</text>
+              <text class="vw-dia-ok" x="14" y="236">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="1" y="252" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="270">SUDIJA</text>
+              <text class="vw-dia-ok" x="14" y="286">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="1" y="302" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="320">STRANKE</text>
+              <text class="vw-dia-ok" x="14" y="336">✓ UPISANO</text>
+
+              <rect class="vw-dia-box" x="1" y="352" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="370">ROK</text>
+              <text class="vw-dia-ok" x="14" y="386">✓ UPISANO</text>
+
+              <rect class="vw-dia-box vw-dia-box--accent" x="1" y="402" width="358" height="42" rx="2"/>
+              <text class="vw-dia-label" x="14" y="420">IZNOS</text>
+              <text class="vw-dia-sub" x="14" y="436">⚠ ČEKA VAŠU POTVRDU</text>
+
+              <text class="vw-dia-sub" x="1" y="464">ispod praga sigurnosti polje se ne upisuje samo</text>
+            </svg>
+            <figcaption>Konceptualni prikaz izvlačenja podataka — nije snimak ekrana</figcaption>
+          </figure>
+        </div>
       </div>
 
-      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
-        <li>Spisak izvora navodi propis i član. Ne vodi klikom do teksta propisa,
-            ne pokazuje na dokument iz vašeg spisa i ne navodi stranu u njemu —
-            do samog člana idete sami.</li>
-        <li>Spisak izvora prati pravno istraživanje. Analiza dokumenta i izrada
-            nacrta ne vraćaju spisak izvora.</li>
-      </ul>
+      <div style="margin-top:var(--vw-sp-8);max-width:var(--vw-measure)">
+        <h3>Više dokumenata postaje jedan predmet</h3>
+        <p style="margin-top:var(--vw-sp-3)">Po broju predmeta i imenu stranke
+           sistem prepozna kom postojećem predmetu dokument pripada; kada nije
+           siguran, pita vas umesto da pogađa.</p>
+        <p>Radni prostor predmeta u jednom pozivu vraća stranke, dokumente,
+           rokove, beleške, praksu, procenu rizika i ocenu spremnosti, uz
+           hronologiju spojenu iz šest izvora.</p>
+      </div>
+
+      <!-- ŠIROKA VERZIJA — puna širina, viewBox 900 -->
+      <figure class="vw-figure" data-vizuel="sirok">
+        <svg viewBox="0 0 900 300" role="img" aria-labelledby="dia3s-t">
+          <title id="dia3s-t">Dijagram: četiri dokumenta istog spisa slivaju se u jedan predmet, iz kojeg se granaju stranke, hronologija, dokumenti i rokovi.</title>
+
+          <text class="vw-dia-sub" x="1" y="14">DOKUMENTI JEDNOG SPISA</text>
+          <rect class="vw-dia-box" x="1" y="30" width="148" height="40" rx="2"/>
+          <text class="vw-dia-label" x="15" y="55">DOKUMENT 01</text>
+          <rect class="vw-dia-box" x="1" y="82" width="148" height="40" rx="2"/>
+          <text class="vw-dia-label" x="15" y="107">DOKUMENT 02</text>
+          <rect class="vw-dia-box" x="1" y="134" width="148" height="40" rx="2"/>
+          <text class="vw-dia-label" x="15" y="159">DOKUMENT 03</text>
+          <rect class="vw-dia-box" x="1" y="186" width="148" height="40" rx="2"/>
+          <text class="vw-dia-label" x="15" y="211">DOKUMENT 04</text>
+
+          <path class="vw-dia-line" d="M149 50 H 250 M149 102 H 250 M149 154 H 250 M149 206 H 250 M250 50 V 206 M250 167 H 340"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="340" y="140" width="180" height="54" rx="2"/>
+          <text class="vw-dia-label" x="358" y="172">PREDMET</text>
+          <text class="vw-dia-sub" x="340" y="216">po broju predmeta i imenu stranke</text>
+          <text class="vw-dia-sub" x="340" y="232">kada nije siguran, pita vas</text>
+
+          <path class="vw-dia-line" d="M520 167 H 590 M590 48 V 246 M590 48 H 620 M590 114 H 620 M590 180 H 620 M590 246 H 620"/>
+
+          <text class="vw-dia-sub" x="620" y="14">RADNI PROSTOR PREDMETA</text>
+          <rect class="vw-dia-box" x="620" y="26" width="278" height="44" rx="2"/>
+          <text class="vw-dia-label" x="634" y="53">STRANKE</text>
+
+          <rect class="vw-dia-box" x="620" y="92" width="278" height="44" rx="2"/>
+          <text class="vw-dia-label" x="634" y="112">HRONOLOGIJA</text>
+          <text class="vw-dia-sub" x="634" y="127">spojena iz šest izvora</text>
+
+          <rect class="vw-dia-box" x="620" y="158" width="278" height="44" rx="2"/>
+          <text class="vw-dia-label" x="634" y="178">DOKUMENTI</text>
+          <text class="vw-dia-sub" x="634" y="193">original se čuva šifrovan</text>
+
+          <rect class="vw-dia-box" x="620" y="224" width="278" height="44" rx="2"/>
+          <text class="vw-dia-label" x="634" y="244">ROKOVI</text>
+          <text class="vw-dia-sub" x="634" y="259">prepoznati pri unosu</text>
+        </svg>
+        <figcaption>Konceptualni prikaz strukture predmeta — nije snimak ekrana</figcaption>
+      </figure>
+
+      <!-- USKA VERZIJA — vertikalno preslagano, viewBox 360 -->
+      <figure class="vw-figure" data-vizuel="uzak" hidden>
+        <svg viewBox="0 0 360 424" role="img" aria-labelledby="dia3u-t">
+          <title id="dia3u-t">Isti dijagram, preslagan za uži ekran: četiri dokumenta jednog spisa slivaju se u jedan predmet, iz kojeg se granaju stranke, hronologija, dokumenti i rokovi.</title>
+
+          <text class="vw-dia-sub" x="1" y="12">DOKUMENTI JEDNOG SPISA</text>
+          <rect class="vw-dia-box" x="1" y="20" width="80" height="34" rx="2"/>
+          <text class="vw-dia-label" x="33" y="42">01</text>
+          <rect class="vw-dia-box" x="91" y="20" width="80" height="34" rx="2"/>
+          <text class="vw-dia-label" x="123" y="42">02</text>
+          <rect class="vw-dia-box" x="181" y="20" width="80" height="34" rx="2"/>
+          <text class="vw-dia-label" x="213" y="42">03</text>
+          <rect class="vw-dia-box" x="271" y="20" width="80" height="34" rx="2"/>
+          <text class="vw-dia-label" x="303" y="42">04</text>
+
+          <path class="vw-dia-line" d="M41 54 V 70 M131 54 V 70 M221 54 V 70 M311 54 V 70 M41 70 H 311 M180 70 V 94"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="60" y="94" width="240" height="46" rx="2"/>
+          <text class="vw-dia-label" x="76" y="123">PREDMET</text>
+
+          <path class="vw-dia-line" d="M180 140 V 150 M20 150 H 180 M20 150 V 349 M20 181 H 50 M20 237 H 50 M20 293 H 50 M20 349 H 50"/>
+
+          <rect class="vw-dia-box" x="50" y="158" width="309" height="46" rx="2"/>
+          <text class="vw-dia-label" x="64" y="186">STRANKE</text>
+
+          <rect class="vw-dia-box" x="50" y="214" width="309" height="46" rx="2"/>
+          <text class="vw-dia-label" x="64" y="234">HRONOLOGIJA</text>
+          <text class="vw-dia-sub" x="64" y="249">spojena iz šest izvora</text>
+
+          <rect class="vw-dia-box" x="50" y="270" width="309" height="46" rx="2"/>
+          <text class="vw-dia-label" x="64" y="290">DOKUMENTI</text>
+          <text class="vw-dia-sub" x="64" y="305">original se čuva šifrovan</text>
+
+          <rect class="vw-dia-box" x="50" y="326" width="309" height="46" rx="2"/>
+          <text class="vw-dia-label" x="64" y="346">ROKOVI</text>
+          <text class="vw-dia-sub" x="64" y="361">prepoznati pri unosu</text>
+
+          <text class="vw-dia-sub" x="1" y="396">po broju predmeta i imenu stranke</text>
+          <text class="vw-dia-sub" x="1" y="412">kada nije siguran, pita vas</text>
+        </svg>
+        <figcaption>Konceptualni prikaz strukture predmeta — nije snimak ekrana</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -242,10 +456,171 @@
     </div>
   </section>
 
-  <!-- ── STANJE ── poštenje kao pozicija, ne kao izvinjenje ── -->
+  <!-- ── IZVORI I POVERENJE ── redovi 43–48. Redovi 46 i 47 su OBAVEZNI:
+       bez njih sekcija laže. Tabela je red 47 razložen po radnjama — isti
+       sadržaj, samo pregledniji. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Izvori i poverenje</p>
+      <h2>Kada izvora nema, nema ni odgovora</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Kada Vindex ne pronađe pouzdan izvor za vaše pitanje, on ne odgovara —
+           u tom slučaju se model uopšte ne poziva. Ne dobijate slabiji odgovor
+           koji morate da prepoznate kao slab; ne dobijate nikakav.</p>
+        <p>Ispod odgovora na pravno pitanje stoji spisak propisa i članova na
+           kojima odgovor počiva — do pet stavki, u obliku naziv propisa i broj
+           člana. Uz svaki odgovor stoji oznaka pouzdanosti pronađenih izvora —
+           visoka, srednja ili niska.</p>
+      </div>
+
+      <table class="vw-table">
+        <caption class="vw-sr">Koje radnje vraćaju spisak izvora, a koje ne</caption>
+        <thead>
+          <tr><th scope="col">Radnja</th><th scope="col">Spisak izvora</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pravno istraživanje</td>
+            <td>propis i član, do pet stavki, uz oznaku pouzdanosti</td>
+          </tr>
+          <tr>
+            <td>Analiza dokumenta</td>
+            <td>ne vraća spisak izvora</td>
+          </tr>
+          <tr>
+            <td>Izrada nacrta</td>
+            <td>ne vraća spisak izvora; umesto njega svaki citat nosi oznaku
+                izvora iz kog je stvarno došao</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
+        <li>Spisak izvora navodi propis i član. Ne vodi klikom do teksta propisa,
+            ne pokazuje na dokument iz vašeg spisa i ne navodi stranu u njemu —
+            do samog člana idete sami.</li>
+        <li>Spisak izvora prati pravno istraživanje. Analiza dokumenta i izrada
+            nacrta ne vraćaju spisak izvora.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── KONTROLE ── redovi 49, 51, 53, 54, 55, 56, 88.
+       Red 50 (zaštita u sloju koji poziva model) NIJE ovde: on je
+       PARTIALLY_VERIFIED i nosi ogradu o imenovanim izuzecima koja mora stajati
+       u istoj rečenici. Ta rečenica sa ogradom živi na `/bezbednost`. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Kontrole</p>
+      <h2>Šta se dešava oko poziva modela</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Pre nego što vaš tekst ode modelu, prolazi kroz ulaznu proveru koja
+           odbija pokušaj ubacivanja naloga u pitanje — i to pre naplate. Odgovor
+           modela prolazi kroz izlaznu proveru pre nego što stigne do vas; ako
+           sama ta provera otkaže, poziv pada umesto da prođe neproveren.</p>
+        <p>Za svaki AI poziv beleži se koji je model korišćen, koliko je trajao i
+           pod kojim identifikatorom zahteva. Tekst vašeg pitanja i tekst odgovora
+           ne upisuju se u tu evidenciju — čuva se samo kriptografski otisak.</p>
+      </div>
+
+      <!-- ŠIROKA VERZIJA — lanac sleva nadesno, viewBox 900 -->
+      <figure class="vw-figure" data-vizuel="sirok">
+        <svg viewBox="0 0 900 204" role="img" aria-labelledby="dia4s-t">
+          <title id="dia4s-t">Dijagram lanca: zahtev prolazi kroz ulaznu kapiju, poziv provajderu modela, proveru odgovora, upis porekla poziva i upis u evidenciju; posle provere odgovor stiže do korisnika.</title>
+
+          <rect class="vw-dia-box" x="1" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="15" y="58">ZAHTEV</text>
+          <text class="vw-dia-sub" x="15" y="76">vaše pitanje</text>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="153" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="167" y="58">ULAZNA KAPIJA</text>
+          <text class="vw-dia-sub" x="167" y="76">odbija ubacivanje</text>
+          <text class="vw-dia-sub" x="167" y="90">naloga u pitanje</text>
+          <text class="vw-dia-sub" x="167" y="104">pre naplate</text>
+
+          <rect class="vw-dia-box" x="305" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="319" y="58">PROVAJDER</text>
+          <text class="vw-dia-sub" x="319" y="76">poziv modela</text>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="457" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="471" y="58">PROVERA ODGOVORA</text>
+          <text class="vw-dia-sub" x="471" y="76">otkaže li provera,</text>
+          <text class="vw-dia-sub" x="471" y="90">poziv pada</text>
+
+          <rect class="vw-dia-box" x="609" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="623" y="58">POREKLO</text>
+          <text class="vw-dia-sub" x="623" y="76">model, trajanje,</text>
+          <text class="vw-dia-sub" x="623" y="90">identifikator</text>
+          <text class="vw-dia-sub" x="623" y="104">zahteva</text>
+
+          <rect class="vw-dia-box" x="761" y="30" width="137" height="84" rx="2"/>
+          <text class="vw-dia-label" x="775" y="58">EVIDENCIJA</text>
+          <text class="vw-dia-sub" x="775" y="76">ulančana otiskom,</text>
+          <text class="vw-dia-sub" x="775" y="90">bez teksta pitanja</text>
+
+          <path class="vw-dia-line" d="M138 72 H 153 M290 72 H 305 M442 72 H 457 M594 72 H 609 M746 72 H 761 M525 114 V 148"/>
+
+          <rect class="vw-dia-box" x="430" y="148" width="250" height="42" rx="2"/>
+          <text class="vw-dia-ok" x="444" y="174">✓ ODGOVOR STIŽE DO VAS</text>
+        </svg>
+        <figcaption>Konceptualni prikaz lanca — nije snimak ekrana</figcaption>
+      </figure>
+
+      <!-- USKA VERZIJA — lanac odozgo nadole, viewBox 360 -->
+      <figure class="vw-figure" data-vizuel="uzak" hidden>
+        <svg viewBox="0 0 360 464" role="img" aria-labelledby="dia4u-t">
+          <title id="dia4u-t">Isti lanac, preslagan za uži ekran: zahtev, ulazna kapija, provajder, provera odgovora, poreklo i evidencija; posle provere odgovor stiže do korisnika.</title>
+
+          <rect class="vw-dia-box" x="1" y="8" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="30">ZAHTEV</text>
+          <text class="vw-dia-sub" x="15" y="46">vaše pitanje</text>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="1" y="72" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="94">ULAZNA KAPIJA</text>
+          <text class="vw-dia-sub" x="15" y="110">odbija ubacivanje naloga, pre naplate</text>
+
+          <rect class="vw-dia-box" x="1" y="136" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="158">PROVAJDER</text>
+          <text class="vw-dia-sub" x="15" y="174">poziv modela</text>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="1" y="200" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="222">PROVERA ODGOVORA</text>
+          <text class="vw-dia-sub" x="15" y="238">ako sama provera otkaže, poziv pada</text>
+
+          <rect class="vw-dia-box" x="1" y="264" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="286">POREKLO</text>
+          <text class="vw-dia-sub" x="15" y="302">model, trajanje, identifikator zahteva</text>
+
+          <rect class="vw-dia-box" x="1" y="328" width="330" height="54" rx="2"/>
+          <text class="vw-dia-label" x="15" y="350">EVIDENCIJA</text>
+          <text class="vw-dia-sub" x="15" y="366">ulančana otiskom, bez teksta pitanja</text>
+
+          <path class="vw-dia-line" d="M30 62 V 72 M30 126 V 136 M30 190 V 200 M30 254 V 264 M30 318 V 328 M331 227 H 345 M345 227 V 400 M345 400 H 180 M180 400 V 410"/>
+
+          <rect class="vw-dia-box" x="1" y="410" width="330" height="44" rx="2"/>
+          <text class="vw-dia-ok" x="15" y="437">✓ ODGOVOR STIŽE DO VAS</text>
+        </svg>
+        <figcaption>Konceptualni prikaz lanca — nije snimak ekrana</figcaption>
+      </figure>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
+        <li>Za tu evidenciju još ne postoji ekran na kome biste je pregledali —
+            mehanizam je dokazan, korisnički prikaz dolazi kasnije.</li>
+        <li>Nezavisne bezbednosne revizije i sertifikata nema; mehanizmi postoje i
+            opisani su, potvrde treće strane ne.</li>
+      </ul>
+
+      <p style="margin-top:var(--vw-sp-5)">
+        <a class="vw-btn vw-btn--ghost vw-btn--inline" href="/bezbednost">Bezbednost u celini</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── STANJE ── poštenje kao pozicija, ne kao izvinjenje.
+       Inline `border-left` zamenjen klasom `vw-callout`. ── -->
   <section class="vw-section vw-section--cta">
     <div class="vw-wrap">
-      <div style="border-left:2px solid var(--vw-accent);padding-left:var(--vw-sp-5)">
+      <div class="vw-callout">
         <p class="vw-eyebrow">Stanje</p>
         <h2>Vindex još nema korisnike.<br>Tražimo prve.</h2>
         <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
@@ -323,6 +698,33 @@
   nav.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') { nav.setAttribute('data-otvoren', '0'); dugme.setAttribute('aria-expanded', 'false'); dugme.focus(); }
   });
+})();
+
+/* Izbor verzije dijagrama.
+   `.vw-figure svg` ima `width:100%`, pa se sa širinom skalira i tekst u SVG-u:
+   dijagram od 900 jedinica na telefonu daje slova od oko 4px. Zato svaki nov
+   dijagram postoji u dve verzije — široka (viewBox ~900) i uska (viewBox 360,
+   vertikalno preslagana) — i vidljiva je tačno jedna.
+
+   Prag je 760px: iznad njega široka verzija ima najmanje ~700px prostora, ispod
+   njega uska verzija stoji blizu svoje prirodne veličine. Bez JavaScripta
+   ostaje široka verzija, što je ispravno stanje za desktop.
+
+   Ovo NIJE animacija — nema prelaza, nema pokreta, pa `prefers-reduced-motion`
+   ovde nema šta da gasi. */
+(function () {
+  if (!window.matchMedia) return;
+  var upit = window.matchMedia('(max-width: 760px)');
+  var siroki = document.querySelectorAll('[data-vizuel="sirok"]');
+  var uski = document.querySelectorAll('[data-vizuel="uzak"]');
+  function primeni() {
+    var uzak = upit.matches;
+    Array.prototype.forEach.call(siroki, function (el) { el.hidden = uzak; });
+    Array.prototype.forEach.call(uski, function (el) { el.hidden = !uzak; });
+  }
+  primeni();
+  if (upit.addEventListener) { upit.addEventListener('change', primeni); }
+  else if (upit.addListener) { upit.addListener(primeni); }
 })();
 
 /* Ulazna animacija — samo `opacity`/`transform`, i samo ako korisnik nije
