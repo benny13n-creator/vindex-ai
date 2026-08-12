@@ -3620,10 +3620,17 @@ select.pro-input option { background: var(--surface); }
 /* ── Vindex Live — glasovna komanda (FAB + modal, 2026-07-25) ────────────
    Levi donji ugao namerno -- #vx-mobile-fab i #pred-fab su desno (v.
    6804/5887 niže), da se izbegne preklapanje na svim ekranima. */
+/* POZICIJA: donji DESNI ugao.
+   Bila je `left: 1.5rem`, pa je dugme od 56px sedelo preko dna leve bočne
+   trake i prekrivalo kontrole koje korisnik mora da vidi. Sidebar je uz levu
+   ivicu po celoj visini, tako da je donji levi ugao jedino mesto na ekranu koje
+   je zauzeto — a donji desni je slobodan (nijedan drugi `position: fixed`
+   element ne stoji tamo; provereno u ovom fajlu).
+   Rešeno pomeranjem samog dugmeta, ne pomeranjem stavki sidebara. */
 #vx-voice-fab {
   position: fixed;
   bottom: 1.5rem;
-  left: 1.5rem;
+  right: 1.5rem;
   width: 56px;
   height: 56px;
   border-radius: 2px;
@@ -9674,4 +9681,26 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
      pojede sirinu i clan se zalepi uz njega bez razmaka. */
   .vx-izvor { flex-direction: column; gap: .15rem; }
   .vx-izvor-clan { white-space: normal; }
+}
+
+
+/* Voice dugme na uskim ekranima — donji desni ugao ostaje slobodan i tada
+   (sidebar prelazi u traku pune širine na vrhu, v. `@media(max-width:900px)`).
+   Manje dugme i manji odmak, da ne pokrije sadržaj ispod. */
+@media (max-width: 640px) {
+  #vx-voice-fab { bottom: 1rem; right: 1rem; width: 48px; height: 48px; }
+  #vx-voice-fab svg { width: 20px; height: 20px; }
+}
+
+/* Oznaka prezentacionog prikaza (`?prikaz=demo`).
+   Diskretna, ali prisutna — monospace, prigušena, ispod sfere. Ne pokriva
+   nijedan broj i ne menja geometriju sfere. */
+.kc-demo-oznaka {
+  margin-top: .6rem;
+  text-align: center;
+  font-family: var(--font-mono, monospace);
+  font-size: .62rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(240, 180, 41, 0.75);
 }

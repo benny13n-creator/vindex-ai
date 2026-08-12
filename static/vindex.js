@@ -1563,6 +1563,29 @@ function _kcPanelAktivnosti(d) {
 }
 
 /* ── FAZA 1.8 — Komandni centar: Sphere-inside + greeting + 4-col */
+/* ── PRIKAZ ZA PREZENTACIJU ───────────────────────────────────────────────
+   Četiri broja u sferi su STVARNO STANJE NALOGA: `ukupno_aktivnih`,
+   `hitni_rokovi.length`, `statistike.novi_dokumenti` i
+   `statistike.predmeti_visok_rizik` — sve iz `GET /api/dashboard`.
+
+   Za snimke ekrana su tražene kontrolisane vrednosti. Hardkodovanje bi značilo
+   da SVAKI korisnik gleda izmišljeno stanje svoje kancelarije — dakle da mu
+   proizvod laže o njegovim rokovima i rizicima. To se ne radi.
+
+   Umesto toga: režim koji se uključuje ISKLJUČIVO eksplicitnim parametrom u
+   adresi (`?prikaz=demo`), ne pamti se, ne postoji podrazumevano, i ne dodiruje
+   ni bazu ni jedan zahtev. Menja samo ono što se iscrtava, i to vidno označeno.
+
+   Oznaka je namerno diskretna ali PRISUTNA: ko je iseče iz snimka, čini to
+   svesno. To je jedino mesto gde ta odluka sme da stoji. */
+var _PRIKAZ_DEMO_VREDNOSTI = { aktivni: 19, hitniRok: 1, noviDok: 6, visokRiz: 3 };
+
+function _prikazDemoUkljucen() {
+  try {
+    return new URLSearchParams(window.location.search).get('prikaz') === 'demo';
+  } catch (e) { return false; }
+}
+
 _dashRender = function(d, bd, inboxData) {
   var aktivni  = d.ukupno_aktivnih || 0;
   var hitniRok = (d.hitni_rokovi||[]).length;
@@ -1570,6 +1593,14 @@ _dashRender = function(d, bd, inboxData) {
                    ? d.statistike.novi_dokumenti : (d.novi_dokumenti||[]).length;
   var visokRiz = (d.statistike && d.statistike.predmeti_visok_rizik != null)
                    ? d.statistike.predmeti_visok_rizik : (d.predmeti_visok_rizik||[]).length;
+
+  var _demo = _prikazDemoUkljucen();
+  if (_demo) {
+    aktivni  = _PRIKAZ_DEMO_VREDNOSTI.aktivni;
+    hitniRok = _PRIKAZ_DEMO_VREDNOSTI.hitniRok;
+    noviDok  = _PRIKAZ_DEMO_VREDNOSTI.noviDok;
+    visokRiz = _PRIKAZ_DEMO_VREDNOSTI.visokRiz;
+  }
 
   var html = '';
   var _dn = localStorage.getItem('vindex_display_name') || (currentUser ? (currentUser.email||'').split('@')[0] : '');
@@ -1636,6 +1667,9 @@ _dashRender = function(d, bd, inboxData) {
   html += '<div class="kc-sphere-lbl">Visok<br>rizik</div></div>';
   html += '</div>'; /* kc-sphere-inner */
   html += '</div>'; /* kc-sphere */
+  if (_demo) {
+    html += '<div class="kc-demo-oznaka">Prikaz za prezentaciju — vrednosti nisu stanje ovog naloga</div>';
+  }
   html += '</div>'; /* kc-sphere-wrap */
 
   /* ── 4. PANELI — 2 kolone ─────────────────────────────────────
