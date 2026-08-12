@@ -381,39 +381,10 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="pred-new-modal" onclick="if(event.target===this)pred_closeNewModal()">
-  <div class="modal" style="max-width:420px;">
-    <button class="modal-close" onclick="pred_closeNewModal()">&#x2715;</button>
-    <div class="modal-title" style="font-size:1.3rem;margin-bottom:0.5rem;">Novi predmet</div>
-    <p class="modal-sub" style="margin-bottom:1.2rem;">Unesite osnovne informacije. Detalje možete dodati naknadno.</p>
-    <div style="display:flex;flex-direction:column;gap:0.8rem;">
-      <div>
-        <label class="t-label" style="display:block;margin-bottom:6px;">Naziv predmeta</label>
-        <input class="modal-input" type="text" id="pred-new-naziv" placeholder="Npr. Tužba za naknadu štete" autocomplete="off">
-      </div>
-      <div>
-        <label class="t-label" style="display:block;margin-bottom:6px;">Tip postupka</label>
-        <select class="modal-input pro-input" id="pred-new-tip">
-          <option value="">— Izaberite tip —</option>
-          <option value="parnicni">Parnični postupak</option>
-          <option value="krivicni">Krivični postupak</option>
-          <option value="upravni">Upravni postupak</option>
-          <option value="izvrsni">Izvršni postupak</option>
-          <option value="vanparnicni">Vanparnični postupak</option>
-          <option value="arbitrazni">Arbitražni postupak</option>
-          <option value="savetovanje">Savetovanje / Konsultacija</option>
-          <option value="ostalo">Ostalo</option>
-        </select>
-      </div>
-      <div>
-        <label class="t-label" style="display:block;margin-bottom:6px;">Opis (opciono)</label>
-        <textarea class="modal-input" id="pred-new-opis" placeholder="Kratki opis predmeta..." style="min-height:70px;resize:vertical;"></textarea>
-      </div>
-      <div id="pred-new-err" style="display:none;color:#f87171;font-size:0.75rem;"></div>
-      <button class="modal-btn" onclick="pred_kreiraj()">Kreiraj predmet</button>
-    </div>
-  </div>
-</div>
+<!-- FAZA 2 / REMOVE: `#pred-new-modal` uklonjen. Jedini ulaz
+     (`pred_openNewModal`) nije imao nijednog pozivaoca -- ni statickog, ni
+     dinamickog, ni u runtime-u. Intake carobnjak pokriva isti posao i uz to
+     vezuje klijenta, rok i dokumente. -->
 
 <!-- ═══ PROGRESSIVE DISCLOSURE — modal za otključavanje novih mogućnosti ═══ -->
 <div id="vx-unlock-overlay" onclick="_vxPdCloseModal()" style="display:none;position:fixed;inset:0;z-index:9998;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);">

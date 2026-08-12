@@ -12566,33 +12566,19 @@ async function predmetPdfExport(btn) {
   }
 }
 
-function pred_openNewModal() {
-  if (!currentSession) { openModal(); return; }
-  var m = document.getElementById('pred-new-modal');
-  if (m) { m.classList.add('open'); document.getElementById('pred-new-naziv').value=''; document.getElementById('pred-new-opis').value=''; document.getElementById('pred-new-err').style.display='none'; }
-}
-function pred_closeNewModal() {
-  var m = document.getElementById('pred-new-modal'); if (m) m.classList.remove('open');
-}
-async function pred_kreiraj() {
-  var naziv = (document.getElementById('pred-new-naziv').value || '').trim();
-  var errEl = document.getElementById('pred-new-err');
-  if (!naziv) { if (errEl) { errEl.textContent='Naziv je obavezan.'; errEl.style.display='block'; } return; }
-  try {
-    var r = await fetch(BASE_URL+'/api/predmeti', {
-      method:'POST', headers:_predAuthHdr(),
-      body: JSON.stringify({ naziv: naziv, opis: document.getElementById('pred-new-opis').value, tip: document.getElementById('pred-new-tip').value })
-    });
-    var d = await r.json();
-    if (!r.ok) { if (errEl) { errEl.textContent=d.detail||'Radnja nije uspela. Pokušajte ponovo.'; errEl.style.display='block'; } return; }
-    pred_closeNewModal();
-    await pred_load();
-    if (d.predmet) pred_select(d.predmet.id, d.predmet.naziv);
-    setTab(document.getElementById('tab-btn-p'), 'p');
-  } catch(e) {
-    if (errEl) { errEl.textContent='Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.'; errEl.style.display='block'; }
-  }
-}
+// FAZA 2 / REMOVE (2026-08-12): uklonjeni `pred_openNewModal`,
+// `pred_closeNewModal` i `pred_kreiraj`, zajedno sa modalom `#pred-new-modal`
+// (index.html 384-416) i njegovih 5 ID-jeva.
+//
+// Dokaz zatvorenog ostrva -- nista spolja nije doticalo nijedan deo:
+//   `pred_openNewModal`   0 poziva u index.html, 0 u vindex.js, 0 kao niska
+//   `pred_closeNewModal`  pozivan iskljucivo iz samog modala
+//   `pred_kreiraj`        pozivan iskljucivo iz samog modala
+//   runtime               `pred_openNewModal()` nikad pozvan tokom prolaza
+//                         kroz svih 12 tabova, 12 podtabova i 9 modala
+//
+// Funkcionalno je bio i zastareo: slao je na `POST /api/predmeti` bez vezivanja
+// klijenta, roka i dokumenata -- posao koji Intake carobnjak radi kompletno.
 
 // ─── Mod-showcase: 7-modular animated terminal preview ───────────────────────
 (function() {
@@ -19982,8 +19968,15 @@ function pred_print() {
   var allPanes = document.querySelectorAll('.pred-subtab-pane');
   var prev = [];
   allPanes.forEach(function(p) { prev.push(p.style.display); p.style.display = 'none'; });
-  var ccc = document.getElementById('pred-pane-ccc');
-  if (ccc) ccc.style.display = 'block';
+  // FAZA 2 / REWIRE: `#pred-pane-ccc` je penzionisan. Naslednik NIJE izabran
+  // procenom -- deklarisan je u samom kodu, u `pred_subtabSwitch`:
+  //     var _legacyMap = { ccc:'pregled', 'ai-analiza':'agenti', ... }
+  // Dok je referenca pokazivala na nepostojeci pane, `if (ccc)` je preskakao
+  // otkrivanje, pa je `window.print()` stampao stranicu na kojoj su SVI paneli
+  // sakriveni -- prazan predmet. Zastita je cutala, korisnik je dobio prazan
+  // papir umesto obavestenja.
+  var zaStampu = document.getElementById('pred-pane-pregled');
+  if (zaStampu) zaStampu.style.display = 'block';
   window.print();
   allPanes.forEach(function(p, i) { p.style.display = prev[i]; });
 }
