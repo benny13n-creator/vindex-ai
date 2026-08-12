@@ -7956,25 +7956,62 @@ function _analizaSwitchTab(t) {
   if (btn) setTab(btn, t);
 }
 
+// FAZA 2.1 / STAVKA 2 -- REWIRE na kanonski tok kreiranja predmeta.
+//
+// Ranije: prelazak na tab Predmeti pa klik na `#pred-novi-btn`. Taj ID vise ne
+// postoji, a OBA rezervna selektora (`[onclick*="predmetNovi"]`,
+// `[onclick*="noviPredmet"]`) pogadjaju 0 elemenata -- provereno. Dugme je
+// prebacivalo korisnika na Predmete i tu se zaustavljalo, bez ijedne poruke.
+//
+// Kanonski pisac NIJE biran procenom. Intake carobnjak je jedini tok koji radi
+// pun lanac (`_intakeKreiraj`):
+//     POST /api/intake/conflict-check
+//     POST /api/intake/kreiraj              <- vezuje klijenta
+//     POST /api/predmeti/{id}/pipeline
+// Uklonjeni `pred_kreiraj` je radio go `POST /api/predmeti` bez klijenta, roka
+// i dokumenata -- upravo greska zbog koje je ostrvo i uklonjeno. Zato se ovde
+// NE otvara nikakav paralelni tok kreiranja.
+//
+// Analiza se prenosi u opis; korisnik potvrdjuje korake carobnjaka i kreiranje
+// ide kanonskim putem.
 function analizaSacuvajUPredmet() {
-  _analizaSwitchTab('p');
+  if (typeof intakeOtvori !== 'function') return;
+  intakeOtvori();
   setTimeout(function() {
-    var btn = document.getElementById('pred-novi-btn') ||
-              document.querySelector('[onclick*="predmetNovi"], [onclick*="noviPredmet"]');
-    if (btn) btn.click();
-  }, 300);
+    var opis = document.getElementById('intake-opis');
+    if (!opis || !_poslednja_analiza_tekst) return;
+    // Zastita „ne gazi korisnikov unos" ovde NE stoji: `intakeOtvori()` po svom
+    // ugovoru resetuje sva polja carobnjaka (otvara NOV predmet). Provera bi
+    // bila mrtav kod -- test je to i pokazao.
+    opis.value = _poslednja_analiza_tekst.substring(0, 4000);
+    opis.dispatchEvent(new Event('input'));   // brojac znakova i `_iDirty`
+  }, 250);
 }
 
+// FAZA 2.1 / STAVKA 4 -- REWIRE. Tabovi `n` i `t` vise ne postoje u DOM-u;
+// nasledio ih je sistem modova unutar Vindex Intelligence, i to je deklarisano
+// u samom kodu:
+//     var _AIWS_MODES = { q:'zakon', a:'analiza', n:'nacrti', t:'strategija', ob:'oblasti' };
+// `openAITool()` je kanonski ulaz -- prebacuje na `aiws` i postavlja mod, a uz
+// to CUVA PRO kapiju za `n` i `t`. `_analizaSwitchTab` je trazila `.t-tab` sa
+// `onclick` koji sadrzi `'n'`; takvog taba nema, pa je funkcija cutke padala u
+// prazno i tekst se upisivao u element koji ne postoji.
 function analizaGenerisiNacrt() {
-  _analizaSwitchTab('n');
-  var nacrtInput = document.querySelector('#tab-n textarea');
-  if (nacrtInput && _poslednja_analiza_tekst) {
-    nacrtInput.value = _poslednja_analiza_tekst.substring(0, 500);
-  }
+  if (typeof openAITool !== 'function') return;
+  openAITool('n');
+  setTimeout(function() {
+    var opis = document.getElementById('podnesak-opis');
+    if (opis && _poslednja_analiza_tekst && !opis.value.trim()) {
+      opis.value = _poslednja_analiza_tekst.substring(0, 500);
+    }
+  }, 250);
 }
 
 function analizaDodajUStrategiju() {
-  _analizaSwitchTab('t');
+  // Isto kao gore: `t` -> mod `strategija`. Tekst se i ranije upisivao u
+  // `#strat-tekst` (koji postoji), ali korisnik nikad nije bio odveden tamo,
+  // pa je izgledalo kao da dugme ne radi nista.
+  if (typeof openAITool === 'function') openAITool('t');
   var stratTekst = document.getElementById('strat-tekst');
   if (stratTekst && _poslednja_analiza_tekst) {
     stratTekst.value = _poslednja_analiza_tekst.substring(0, 1000);
@@ -16986,16 +17023,28 @@ function voice_doAction(action, params) {
 
     case 'generate_document':
       if (!activePredmetId) { showToast('Najpre otvorite predmet', 'warn'); break; }
-      pred_subtabSwitch('nacrti');
-      // Ako je tip specificiran, pokušaj pre-selekciju
+      // FAZA 2.1 / STAVKA 3 -- REWIRE.
+      // Ranije: `pred_subtabSwitch('nacrti')` -- ali `'nacrti'` NIJE u VALID
+      // listi te funkcije niti u `_legacyMap`, pa je tiho padalo na `pregled`.
+      // Korisnik je dobijao poruku „Otvaram generator dokumenata", a otvarao mu
+      // se Pregled predmeta. Poruka je bila netacna, ne samo neprecizna.
+      // Kanonski ulaz je `openAITool('n')` -> AIWS mod `nacrti`.
+      openAITool('n');
+      // Pre-selekcija tipa: `#tip-podneska` je zamenjen skrivenim `#podnesak-tip`
+      // uz 24 dugmeta sa `data-value`. Vrednost se NE postavlja direktno --
+      // kanonski postavljac je `_selectPodnesakOption()`, koji uz vrednost
+      // azurira i izabrano dugme i objasnjenje ispod njega.
       if (params.tip) {
         setTimeout(function() {
-          var sel = document.getElementById('tip-podneska');
-          if (sel) {
-            var opt = Array.from(sel.options).find(function(o) {
-              return o.value.toLowerCase().includes(params.tip.toLowerCase());
+          var trazeno = String(params.tip).toLowerCase();
+          var dugme = Array.prototype.find.call(
+            document.querySelectorAll('.podnesak-option'),
+            function(b) {
+              return (b.dataset.value || '').toLowerCase().indexOf(trazeno) !== -1
+                  || (b.textContent || '').toLowerCase().indexOf(trazeno) !== -1;
             });
-            if (opt) { sel.value = opt.value; sel.dispatchEvent(new Event('change')); }
+          if (dugme && typeof _selectPodnesakOption === 'function') {
+            _selectPodnesakOption(dugme.dataset.value);
           }
         }, 400);
       }

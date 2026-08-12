@@ -71,9 +71,11 @@ Polje za upit zauzima ceo donji pojas punom širinom, pa **svako** plutajuće
 dugme u tom pojasu pada preko njega. Pomeranje bilo kog dugmeta samo bira koji
 će ugao biti pogođen.
 
-Dodatno: panel se ne skroluje (`scrollHeight 795 < clientHeight 804`), pa
-`padding-bottom` ne pomera sadržaj naviše — samo dodaje prazan prostor ispod.
-Provereno.
+ISPRAVKA (re-audit, 2026-08-12): ranija verzija ovog zapisa je tvrdila da se
+panel „ne skroluje". To je bilo **netačno** — merio se `.vx-body`. Stvarni skrol
+kontejner je `.vx-panels-wrap` (`scrollHeight 1147` vs `clientHeight 726`).
+Zaključak o odloženosti se ne menja: na vrhu skrola kompozer i dalje zauzima ceo
+donji pojas, pa svako plutajuće dugme u njemu pada preko polja.
 
 ## Uslov zatvaranja
 
@@ -99,11 +101,67 @@ invariant, ne pregled koda.
 
 ---
 
+# F2-001 — 23 mrtve DOM reference iz obrisane landing stranice
+
+| | |
+|---|---|
+| **Status** | `DEFERRED` · `VERIFIED` |
+| **Vlasnik** | founder — odobrenje zasebnog dead-code prolaza |
+| **Nađeno** | 2026-08-12, Faza 2 (forensic cleanup) |
+| **Poreklo** | `landing.html` obrisan u Website sprintu (`f1865d4b`), init rutine ostale u `vindex.js` |
+| **Težina** | **nema korisničkog uticaja** — tehnički dug, ne kvar |
+| **Zaključano testom** | `tests/test_deferred_defects.py::test_odlozeni_kvar_se_i_dalje_reprodukuje[F2-001]` |
+
+## Šta je dokazano
+
+23 `getElementById` / `querySelector` reference ka ID-jevima koji ne postoje ni
+statički ni dinamički:
+
+```
+hero · nav · ni · tog · p1 · p2 · pp1 · pp2 · demo · demoConf · demoTxt
+hamburger · mobile-menu · sphereCanvas · sphereWrap · para-canvas
+srp-content · srp-typing · modBody · modLabel · modShowcase · modTabs
+aic3-btn · aic3-q · aic3-result · vx-topbar-settings-btn
+```
+
+Sve imaju **nula dostižnosti** do `index.html` (provereno rekurzivno kroz lanac
+pozivalaca, dubina 4) i **nula pojava kao niska** (`window['ime']`).
+
+Kod se izvršava, vraća `null`, i tu se zaustavlja. **Nijedna kontrola ne zavisi
+od njega** — zato je ovo dug, ne kvar.
+
+## Zašto nije obrisano odmah
+
+Brisanje traži uklanjanje ~8 funkcija (`toggleMenu`, `focusInput`,
+`toggleAnnual`, `_setPrices`, `aic3_submit`, `pred_submitProcena`, …) i
+nekoliko blokova na najvišem nivou.
+
+**Presedan je skup i svež.** U P0-0 je uklanjanje „zasenčenog mrtvog koda"
+(`kalendarLoad`) ostavilo red koji ga čita — `ReferenceError` na najvišem nivou
+oborio je izvršavanje **9.469 od 23.681 reda**, a nijedan statički audit to nije
+video jer se deklaracije funkcija podižu.
+
+Masovno brisanje samo da bi brojač `UNRESOLVED` pao na nulu bilo bi tačno ona
+greška koju ovaj program lovi.
+
+## Uslov zatvaranja
+
+> Zaseban **DEAD-CODE FORENSICS** prolaz koji za **svaku funkciju posebno**
+> dokazuje: nula statičkih pozivalaca, nula dinamičkih, nula u runtime-u — pa je
+> ukloni i pokrene punu regresiju uz proveru da `static/vindex.js` i dalje nema
+> **nijednu** grešku pri učitavanju.
+
+Brava meri broj mrtvih referenci; kad padne ispod 20, test pada i tera brisanje
+zapisa.
+
+---
+
 # ISTORIJA REGISTRA
 
 | Datum | Šifra | Događaj |
 |---|---|---|
 | 2026-08-12 | P0F-002 | otvoren, `DEFERRED / VERIFIED / OUT-OF-SCOPE` |
+| 2026-08-12 | F2-001 | otvoren, `DEFERRED / VERIFIED` |
 
 Zatvaranje zapisa se ne upisuje ručno: kad kvar prestane da se reprodukuje,
 brava pada i zapis se briše iz `_ODLOZENI` i odavde u istom commit-u.

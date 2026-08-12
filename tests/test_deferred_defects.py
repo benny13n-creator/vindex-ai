@@ -44,6 +44,47 @@ playwright_api = pytest.importorskip(
 # ═══════════════════════════════════════════════════════════════════════════
 
 _ODLOZENI = {
+    "F2-001": {
+        "naslov": "23 mrtve DOM reference iz obrisane landing stranice",
+        "status": "DEFERRED / VERIFIED",
+        "vlasnik": "founder — odobrenje zasebnog dead-code prolaza",
+        "nadjeno": "2026-08-12, Faza 2 (forensic cleanup)",
+        "poreklo": (
+            "`landing.html` je obrisan u Website sprintu (`f1865d4b`), ali su "
+            "njegove init rutine ostale u `static/vindex.js`."
+        ),
+        "opis": (
+            "23 `getElementById`/`querySelector` reference ka ID-jevima koji ne "
+            "postoje ni statički ni dinamički: `hero`, `nav`, `ni`, `tog`, "
+            "`p1`, `p2`, `pp1`, `pp2`, `demo*`, `hamburger`, `mobile-menu`, "
+            "`sphereCanvas`, `sphereWrap`, `para-canvas`, `srp-*`, `mod*`, "
+            "`aic3-*`, `vx-topbar-settings-btn`. Sve imaju NULA dostižnosti do "
+            "`index.html` i nula pojava kao niska."
+        ),
+        "tezina": (
+            "NEMA korisničkog uticaja. Kod se izvršava, vraća `null`, i tu se "
+            "zaustavlja — nijedna kontrola ne zavisi od njega. Ovo je tehnički "
+            "dug, ne kvar."
+        ),
+        "zasto_odlozeno": (
+            "Brisanje traži uklanjanje ~8 funkcija i nekoliko blokova na "
+            "najvišem nivou. Posle P0-0 — gde je uklanjanje „zasenčenog mrtvog "
+            "koda ostavilo red koji ga čita i oborilo izvršavanje 9.469 "
+            "redova — takva operacija zaslužuje sopstveni prolaz sa mutacijom "
+            "PO FUNKCIJI. Masovno brisanje da bi brojač `UNRESOLVED` pao na "
+            "nulu bilo bi tačno ona greška koju ovaj program lovi."
+        ),
+        "uslov_zatvaranja": (
+            "Zaseban DEAD-CODE FORENSICS prolaz koji za SVAKU funkciju posebno "
+            "dokazuje: nula statičkih pozivalaca, nula dinamičkih, nula u "
+            "runtime-u, pa je ukloni i pokrene punu regresiju uz proveru da "
+            "`static/vindex.js` i dalje nema nijednu grešku pri učitavanju."
+        ),
+        "reprodukcija": {
+            "vrsta": "mrtve-dom-reference",
+            "najmanje": 20,
+        },
+    },
     "P0F-002": {
         "naslov": "Leva kolona plutajućih dugmadi pada preko polja za pravni upit",
         "status": "DEFERRED / VERIFIED / OUT-OF-SCOPE",
@@ -200,6 +241,26 @@ def test_odlozeni_kvar_se_i_dalje_reprodukuje(browser, server, sifra):
     """
     zapis = _ODLOZENI[sifra]
     rep = zapis["reprodukcija"]
+
+    # Neki odlozeni kvarovi nisu geometrijski. `F2-001` su mrtve DOM reference —
+    # mere se nad izvorom, ne u pregledacu. Brava je ista: zapis mora ostati
+    # istinit, inace pada.
+    if rep.get("vrsta") == "mrtve-dom-reference":
+        import re as _re
+        js = open(os.path.join(_KOREN, "static", "vindex.js"), encoding="utf-8").read()
+        html = open(os.path.join(_KOREN, "index.html"), encoding="utf-8").read()
+        trazeni = set(_re.findall(r"""getElementById\(\s*['"]([^'"]+)['"]\s*\)""", js))
+        trazeni |= set(_re.findall(r"""querySelector(?:All)?\(\s*['"]#([A-Za-z0-9_-]+)""", js))
+        staticki = set(_re.findall(r'id="([^"]+)"', html))
+        dinamicki = set(_re.findall(r"""id=[\]?["']([A-Za-z0-9_-]+)""", js))
+        dinamicki |= set(_re.findall(r"""\.id\s*=\s*['"]([A-Za-z0-9_-]+)['"]""", js))
+        mrtvi = trazeni - staticki - dinamicki
+        assert len(mrtvi) >= rep["najmanje"], (
+            f"{sifra} SE VISE NE REPRODUKUJE: mrtvih referenci ima {len(mrtvi)}, "
+            f"a zapis tvrdi najmanje {rep['najmanje']}. Ako je dead-code prolaz "
+            f"uradjen — obrisite zapis iz `_ODLOZENI` i iz DEFERRED_DEFECTS.md."
+        )
+        return
 
     potvrdjeno_na = []
     for sirina in rep["sirine"]:
