@@ -1100,9 +1100,15 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .crm-section-lbl:first-child{margin-top:0;}
 @media(max-width:540px){.crm-panel{width:100vw;}}
 /* ── Intake Wizard ───────────────────────────────────────────────────────── */
-.intake-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:2100;}
+/* P0-3 (UX Forensics 2026-08-12): z-index je bio 2100/2101, a `#vx-mobile-nav`
+   je 9999 — na 390px je traka od 60px potpuno prekrivala „Dalje →", pa se
+   čarobnjak Novi predmet na telefonu nije mogao odvesti dalje od koraka 1.
+   Aplikacija već ima konvenciju „modal iznad trake" (`#mob-more-sheet` 10001,
+   `#dok-preview-overlay` 10001); intake je bio jedini izuzetak. Vrednosti su
+   izabrane iznad navigacije (9999) a ispod glasovnog modala (10010). */
+.intake-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10004;}
 .intake-overlay.open{display:block;}
-.intake-panel{position:fixed;top:0;right:0;height:100vh;width:580px;max-width:100vw;background:#0d1117;border-left:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:2101;}
+.intake-panel{position:fixed;top:0;right:0;height:100vh;width:580px;max-width:100vw;background:#0d1117;border-left:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);z-index:10005;}
 .intake-overlay.open .intake-panel{transform:translateX(0);}
 .intake-panel-header{flex-shrink:0;padding:16px 22px 12px;border-bottom:1px solid rgba(255,255,255,0.07);}
 .intake-panel-title{font-size:0.95rem;font-weight:700;color:#e6edf3;margin-bottom:10px;}
@@ -3617,16 +3623,27 @@ select.pro-input option { background: var(--surface); }
   font-family: var(--font-mono);
 }
 
-/* ── Vindex Live — glasovna komanda (FAB + modal, 2026-07-25) ────────────
-   Levi donji ugao namerno -- #vx-mobile-fab i #pred-fab su desno (v.
-   6804/5887 niže), da se izbegne preklapanje na svim ekranima. */
-/* POZICIJA: donji DESNI ugao.
-   Bila je `left: 1.5rem`, pa je dugme od 56px sedelo preko dna leve bočne
-   trake i prekrivalo kontrole koje korisnik mora da vidi. Sidebar je uz levu
-   ivicu po celoj visini, tako da je donji levi ugao jedino mesto na ekranu koje
-   je zauzeto — a donji desni je slobodan (nijedan drugi `position: fixed`
-   element ne stoji tamo; provereno u ovom fajlu).
-   Rešeno pomeranjem samog dugmeta, ne pomeranjem stavki sidebara. */
+/* ── DONJI DESNI NIZ PLUTAJUĆIH DUGMADI ───────────────────────────────────
+   JEDINI izvor istine za pozicije `#vx-voice-fab` i `#feedback-fab`.
+
+   Istorija, da se ne ponovi:
+   1. Dugme je prvo stajalo u donjem LEVOM uglu, preko dna bočne trake.
+   2. Dashboard Polish (2026-08-10) ga je pomerio desno i ostavio komentar da je
+      desni ugao „slobodan — provereno u ovom fajlu". Provera je bila iskrena i
+      promašila iz dva razloga:
+        · `#feedback-fab` je bio pozicioniran INLINE u `index.html:214`, pa ga
+          pretraga ovog fajla nije mogla videti;
+        · pravilo u `@media (max-width: 768px)` je zadržalo `left: 18px`. Kad su
+          zadati i `left` i `right` uz fiksnu širinu, `left` pobeđuje — pa je na
+          telefonu i dalje važila stara, leva pozicija.
+      Rezultat: `#feedback-fab` je bio nedostupan na SVAKOJ širini (49/49 tačaka
+      blokirano), a `#vx-voice-fab` je na 390px ležao ispod mobilne navigacije.
+   3. P0-2 (UX Forensics 2026-08-12): sve pozicije su sada ovde, niz je složen
+      vertikalno, i svaka širina ostavlja mobilnu navigaciju (60px) slobodnom.
+
+   PRAVILO: nijedno plutajuće dugme ne sme dobiti poziciju izvan ovog bloka.
+   Invariant koji ovo čuva je u `tests/test_p0_hit_area_invariant.py` — meri stvarne
+   pravougaonike i `elementFromPoint`, ne deklaracije. */
 #vx-voice-fab {
   position: fixed;
   bottom: 1.5rem;
@@ -3644,6 +3661,18 @@ select.pro-input option { background: var(--surface); }
   justify-content: center;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   transition: opacity .15s;
+}
+/* `#feedback-fab` (index.html:214). Pozicija je do P0-2 stajala INLINE u HTML-u,
+   zbog čega je bila nevidljiva svakoj proveri koja gleda ovaj fajl — i zbog čega
+   je dugme završilo tačno ispod `#vx-voice-fab`. Sada stoji ovde, u nizu.
+   Desktop: glasovno dugme drži 24..80px, ovo ide odmah iznad (24 + 56 + 12).
+   Vodoravno je centrirano na širinu glasovnog: 24 + (56 − 42) / 2 = 31. */
+#feedback-fab {
+  position: fixed;
+  bottom: 92px;
+  right: 31px;
+  left: auto;
+  z-index: 9991;
 }
 #vx-voice-fab:hover { opacity: 0.9; }
 #vx-voice-fab:active { opacity: 0.8; }
@@ -3758,8 +3787,18 @@ select.pro-input option { background: var(--surface); }
 .vx-voice-stop-btn { width: 100%; margin-top: 4px; }
 
 @media (max-width: 768px) {
-  #vx-voice-fab { bottom: 76px; left: 18px; width: 52px; height: 52px; }
+  /* LEVA strana je ovde NAMERNA, ne zaostatak: `#vx-mobile-fab` („Novi
+     predmet", 6132) drži desni ugao na telefonu — `bottom:76px; right:18px`,
+     52×52. Prva verzija P0-2 popravke je oba dugmeta prebacila desno i time
+     napravila novi sudar; invariant iz `test_p0_hit_area_invariant.py` ga je
+     odmah prijavio (`#vx-voice-fab` 0% jezgra, presreće `vx-mobile-fab`).
+     Bočne trake na ovoj širini nema, pa levi ugao jeste slobodan.
+     Ono što JESTE bio kvar je odmak odozdo: `bottom` je držao dugme preko
+     `#vx-mobile-nav` (0..60px). Zato se menja samo odmak, ne i strana. */
+  #vx-voice-fab { bottom: 72px; left: 18px; right: auto; width: 52px; height: 52px; }
   #vx-voice-fab svg { width: 22px; height: 22px; }
+  /* Iznad glasovnog dugmeta, ista strana: 72 + 52 + 10 */
+  #feedback-fab { bottom: 134px; left: 23px; right: auto; }
 }
 
 /* Auth tabs */
@@ -7167,8 +7206,19 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
 
 /* ── 3. Panels wrap ── */
 @media (max-width: 640px) {
+  /* PAŽNJA: ovo `padding: 0 !important` poništava
+     `.vx-panels-wrap { padding-bottom: 68px !important }` iz bloka za 768px
+     (gore, uz komentar „Push main content above bottom nav"). Ista
+     specifičnost, kasnije pravilo pobeđuje — pa je odmak koji je sadržaj držao
+     iznad donje trake nestajao tačno na telefonskim širinama. */
   .vx-panels-wrap { padding: 0 !important; }
-  .vx-panels-wrap > div { padding: 10px 12px !important; }
+  /* P0-2 (UX Forensics 2026-08-12): donji odmak je bio 10px, a `#vx-mobile-nav`
+     je visok 60px — pa je svaka kontrola na dnu pane-a završavala ISPOD trake.
+     Izmereno na 390px: `#exec-btn` („Pretraži pravnu bazu", 233×44) primao je
+     0 od 49 tačaka klika, a `#mic-qi` 21 od 49. Dugme je bilo iscrtano,
+     vidljivo i potpuno neupotrebljivo.
+     72px = 60px trake + 12px vazduha. */
+  .vx-panels-wrap > div { padding: 10px 12px 72px !important; }
 }
 
 /* ── 4. Predmet lista na mobilnom ── */
@@ -9688,8 +9738,13 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
    (sidebar prelazi u traku pune širine na vrhu, v. `@media(max-width:900px)`).
    Manje dugme i manji odmak, da ne pokrije sadržaj ispod. */
 @media (max-width: 640px) {
-  #vx-voice-fab { bottom: 1rem; right: 1rem; width: 48px; height: 48px; }
+  /* `bottom: 1rem` je držao dugme na 16..64px, a `#vx-mobile-nav` zauzima 0..60 —
+     91,7% dugmeta je bilo ispod navigacije. Menja se odmak; strana ostaje leva
+     iz istog razloga kao u pravilu za 768px (desno je `#vx-mobile-fab`). */
+  #vx-voice-fab { bottom: 72px; left: 16px; right: auto; width: 48px; height: 48px; }
   #vx-voice-fab svg { width: 20px; height: 20px; }
+  /* Iznad glasovnog dugmeta: 72 + 48 + 10 */
+  #feedback-fab { bottom: 130px; left: 19px; right: auto; }
 }
 
 /* Oznaka prezentacionog prikaza (`?prikaz=demo`).
@@ -9703,4 +9758,18 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   letter-spacing: .14em;
   text-transform: uppercase;
   color: rgba(240, 180, 41, 0.75);
+}
+
+/* ── P0-4: VIDLJIV FOKUS NA GLAVNOJ NAVIGACIJI ────────────────────────────
+   `.t-tab` ima `outline: none !important` (v. ~2929) iz vremena kad tabovi
+   nisu ni bili fokusabilni. Čim su dobili `tabindex="0"`, to pravilo je
+   postalo zamka: tab prima fokus, a korisnik ne vidi gde se nalazi.
+   Zato ovo pravilo mora nositi `!important` i stajati na kraju fajla — svaka
+   slabija varijanta bi bila tiho nadjačana.
+   `:focus-visible`, ne `:focus`: prsten se pokazuje pri kretanju tastaturom,
+   a ne posle svakog klika mišem. */
+.t-tab:focus-visible {
+  outline: 2px solid var(--blue) !important;
+  outline-offset: -2px !important;
+  background: rgba(0,212,255,0.06) !important;
 }

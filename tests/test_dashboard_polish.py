@@ -131,7 +131,25 @@ def test_voice_dugme_ostaje_dostupno_na_uskim_ekranima():
     )
     assert blok, "nema mobilnog pravila za voice dugme"
     assert "display: none" not in blok, "dugme je sakriveno na mobilnom"
-    assert "right" in blok, "na mobilnom nije zakačeno za desnu ivicu"
+
+    # ISPRAVKA (P0-2, UX Forensics 2026-08-12).
+    # Ovde je stajalo `assert "right" in blok`. Ta tvrdnja je bila pogrešna iz
+    # DVA razloga, i oba su propustila stvaran kvar:
+    #   1. Na mobilnom dugme NE TREBA da bude desno — tamo je `#vx-mobile-fab`
+    #      („Novi predmet"). Leva strana je namerna.
+    #   2. Provera prisustva reči `right` prolazi i za `right: auto`, i prolazila
+    #      je dok je isti selektor u bloku za 768px držao `left: 18px` — a `left`
+    #      pobeđuje nad `right` uz fiksnu širinu. Test je merio deklaraciju koja
+    #      ne odlučuje, dok je dugme na 390px ležalo 91,7% ispod donje trake.
+    # Ono što se STVARNO mora garantovati je odmak iznad `#vx-mobile-nav` (60px).
+    m_bottom = re.search(r"#vx-voice-fab\s*\{[^}]*?bottom:\s*(\d+)px", blok)
+    assert m_bottom, "mobilno pravilo ne postavlja `bottom` u pikselima"
+    assert int(m_bottom.group(1)) >= 60, (
+        f"`bottom: {m_bottom.group(1)}px` je unutar donje navigacije (60px) — "
+        f"dugme završava ispod trake"
+    )
+    # Pun dokaz (stvarni pravougaonici + `elementFromPoint`, sve širine) je u
+    # `tests/test_p0_hit_area_invariant.py`. Ovaj fajl čuva samo lokalno pravilo.
 
 
 def test_voice_dugme_zadrzava_ponasanje():

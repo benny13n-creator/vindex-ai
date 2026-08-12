@@ -132,7 +132,18 @@ def test_dead_duplicate_search_button_removed():
 def test_portfolio_kancelarije_nav_gated_to_founders():
     """Alpha finding (HIGH): the internal Vindex SaaS-metrics nav item ('Portfolio kancelarije')
     was shown to every user regardless of role, dead-ending in an 'access denied' for non-founders."""
-    assert 'id="tab-btn-pi-nav" style="display:none;"' in INDEX_HTML
+    # Prva verzija je tražila `id="tab-btn-pi-nav" style="display:none;"` kao
+    # jednu nisku, dakle ATRIBUTE JEDAN DO DRUGOG. Kad je P0-4 (UX Forensics
+    # 2026-08-12) između njih ubacio `role`/`tabindex`/`aria-selected` zbog
+    # pristupačnosti, test je pao iako kapija nije ni taknuta.
+    # Sada se meri svojstvo: oznaka tog taba mora nositi `display:none`.
+    import re as _re
+    oznaka = _re.search(r'<div[^>]*id="tab-btn-pi-nav"[^>]*>', INDEX_HTML)
+    assert oznaka, "`#tab-btn-pi-nav` je nestao iz index.html"
+    assert "display:none" in oznaka.group(0).replace(" ", ""), (
+        "interna Vindex SaaS-metrika (Portfolio kancelarije) više nije "
+        "sakrivena podrazumevano — vraćen je nalaz Alpha (HIGH)"
+    )
     admin_ui_body = VINDEX_JS.split("function _updateAdminTabUI() {", 1)[1][:600]
     assert "tab-btn-pi-nav" in admin_ui_body
 

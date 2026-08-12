@@ -361,3 +361,31 @@ def _izolovan_rate_limiter():
     reset_limiter_state()
     yield
     reset_limiter_state()
+
+
+@_pytest.fixture(autouse=True)
+def _izolovan_ai_kontekst():
+    """Čisti korelacioni kontekst između testova.
+
+    `shared/ai_provenance.py` drži `_request_ctx` i `_case_ctx` kao
+    `ContextVar`-ove koje `set_request_context()` postavlja BEZ vraćanja na
+    staro — to je namerno u produkciji (v. komentar u modulu i u
+    `test_mission_atlas_ai_provenance.py:54`), jer svaki HTTP zahtev dobija svoj
+    kontekst. U testovima, međutim, svi dele isti kontekst procesa, pa je
+    vrednost iz jednog testa curela u sve naredne.
+
+    Posledica je bila pad koji se vidi SAMO pod određenim redosledom:
+    `test_case_dna_events.py::test_emit_genome_event_inserts_row_with_correct_payload`
+    je dobijao tuđi `correlation_id` umesto sveže generisanog UUID-a
+    (`assert 6 == 36`, vrednost `'corr-9'`), jer `routers/case_dna.py:591` uzima
+    `current_correlation_id() or new_correlation_id()`.
+
+    Isti obrazac i isti razlog kao `_izolovan_rate_limiter` iznad: globalno
+    stanje se resetuje s obe strane testa, ne samo pre.
+    """
+    from shared import ai_provenance as _ap
+    _ap._request_ctx.set({})
+    _ap._case_ctx.set({})
+    yield
+    _ap._request_ctx.set({})
+    _ap._case_ctx.set({})

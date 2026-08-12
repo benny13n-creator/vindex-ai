@@ -2014,8 +2014,14 @@ function setTab(el,t){
     vxNavHistory.push(activeTab);
     if (vxNavHistory.length > 20) vxNavHistory.shift();
   }
-  document.querySelectorAll('.t-tab').forEach(function(x){x.classList.remove('active');});
+  document.querySelectorAll('.t-tab').forEach(function(x){
+    x.classList.remove('active');
+    // P0-4: `aria-selected` mora da prati `active`. Bez toga citac ekrana
+    // kaze da je izabran tab koji vise nije otvoren.
+    x.setAttribute('aria-selected', 'false');
+  });
   el.classList.add('active');
+  el.setAttribute('aria-selected', 'true');
   ['h','s','p','k','kal','pi','aiws','dok','settings','zadaci-g','fin','kanc'].forEach(function(id){var el2=document.getElementById('tab-'+id);if(el2)el2.style.display='none';});
   document.getElementById('tab-'+t).style.display='block';
   activeTab=t;
@@ -14208,9 +14214,33 @@ function kalDayClick(iso) {
   detEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Override kalendarLoad to store events + render grid
-var _kalendarLoad_orig = kalendarLoad;
-kalendarLoad = function() {
+// P0-0 (UX Forensics 2026-08-12) — OVDE JE `vindex.js` PUCAO PRI UČITAVANJU.
+//
+// Program Omega, Sprint 005 (2026-08-06) je uklonio originalnu
+// `function kalendarLoad()` kao zasenčen mrtav kod (v. komentar ~14003 i
+// docs/omega/SHADOW_WORKFLOW_AUDIT.md). Uklonjena je definicija, ali je ostao
+// red koji je tu funkciju ČITAO:
+//
+//     var _kalendarLoad_orig = kalendarLoad;   // ← ReferenceError
+//
+// Pošto identifikator više nije bio deklarisan nigde, ovo je bacalo
+// `ReferenceError: kalendarLoad is not defined` na najvišem nivou skripte —
+// a to zaustavlja izvršavanje CELOG ostatka fajla (9.469 od 23.681 reda).
+//
+// Posledice, izmerene u čistom Chromium-u bez ijednog stuba:
+//   · `kalendarLoad` nikad nije bio dodeljen → `vindex.js:2036`
+//     (`if (t==='kal') kalendarLoad()`) je pucao na svaki otvor Kalendara;
+//   · 79 top-level `var` dodela se nikad nije izvršilo — među njima
+//     `_iStep`, `_INTAKE_STEP_LABELS`, `_genomeDnaCache`;
+//   · 4 top-level `addEventListener` registracije nisu postojale.
+//
+// Aplikacija je i dalje „radila" jer se deklaracije funkcija podižu (hoisting),
+// pa je svako dugme imalo svog rukovaoca — zbog čega su i statičke provere
+// prijavljivale „0 mrtvih dugmadi". Kvar se vidi samo u izvršavanju.
+//
+// `_kalendarLoad_orig` je bio dodeljen jednom i NIKAD pročitan (provereno: 1
+// pojava u fajlu), pa se uklanja umesto da se čuva prazna referenca.
+var kalendarLoad = function() {
   var bodyEl   = document.getElementById('kal-body');
   var loadEl   = document.getElementById('kal-loading');
   var praznoEl = document.getElementById('kal-prazno');
@@ -22757,7 +22787,13 @@ var _egGraf = null; // { nodes, edges }
 var _egPredmetId = null;
 
 async function evidenceGraph_generiši(predmetId) {
-  // POST /api/evidence-graph/generiši
+  // POST /api/evidence-graph/generisi
+  // P0-5 (UX Forensics 2026-08-12): ovde je pisalo `generiši`, a poziv ispod je
+  // slao `generi%C5%A1i`. Backend sluša `/generisi` (evidence_graph.py:178), pa
+  // je zahtev padao na `GET /{predmet_id}` i vraćao 405 — oba dugmeta za graf
+  // dokaza su bila mrtva. Susedni modul `ugovor_zastupanja.py:283` je definisao
+  // rutu SA slovom `š`, pa je isti obrazac poziva tamo radio; frontend je oba
+  // pozvao isto i tačno jedan promašio.
   var canvas = document.getElementById('eg-svg-container');
   if (!document.getElementById('eg-modal')) {
     evidenceGraph_otvoriModal(predmetId);
@@ -22766,7 +22802,7 @@ async function evidenceGraph_generiši(predmetId) {
   _egPredmetId = predmetId;
   if (canvas) canvas.innerHTML = '<div class="eg-loading"><div class="eg-spinner"></div><span>Generisanje grafa u toku...</span></div>';
   try {
-    var r = await fetch(BASE_URL + '/api/evidence-graph/generi%C5%A1i', {
+    var r = await fetch(BASE_URL + '/api/evidence-graph/generisi', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -23679,3 +23715,29 @@ async function portalUkloni(praceniId) {
     portalUcitajListu();
   } catch(e) { showToast('Radnja nije uspela. Pokušajte ponovo.', 'error'); }
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P0-4 (UX Forensics 2026-08-12) — TASTATURA ZA GLAVNU NAVIGACIJU
+//
+// 15 stavki glavne navigacije su `<div class="t-tab" onclick=...>`. Bez `role`
+// i `tabindex` do njih se nije moglo doći tastaturom: izmereno je 60 pritisaka
+// `Tab` i 0 zaustavljanja. Korisnik bez miša nije mogao da pređe ni na jedan
+// ekran aplikacije — a to je prva radnja posle prijave.
+//
+// `role="tab"`, `tabindex="0"` i `aria-selected` dodati su u `index.html`, a
+// `setTab()` održava `aria-selected`. Ostaje ono što atribut ne rešava:
+// `<div>` ne aktivira `onclick` na `Enter` ni `Space` — to radi samo `<button>`.
+// Zato ovaj delegirani rukovalac. Tabovi nisu pretvoreni u `<button>` jer
+// `.t-tab` nosi 6 CSS pravila sa `!important` pisanih za `div`, pa bi promena
+// oznake bila veći zahvat od same pristupačnosti.
+//
+// `Space` se mora sprečiti u `keydown` — inače stranica skroluje pre nego što
+// se tab otvori.
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+  var tab = e.target && e.target.closest && e.target.closest('.t-tab');
+  if (!tab) return;
+  e.preventDefault();
+  tab.click();
+});

@@ -212,7 +212,12 @@
 
 <!-- Feedback — plutajuće dugme + modal -->
 <button id="feedback-fab" onclick="feedbackOpen()" title="Pošaljite feedback"
-  style="position:fixed;right:18px;bottom:18px;z-index:7000;width:42px;height:42px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.35);color:rgba(200,210,255,.85);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.35);">💬</button>
+  aria-label="Pošaljite povratnu informaciju"
+  style="width:42px;height:42px;border-radius:50%;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.35);color:rgba(200,210,255,.85);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.35);">💬</button>
+<!-- P0-2: pozicija (position/right/bottom/z-index) je namerno IZMEŠTENA u
+     static/vindex.css, uz #vx-voice-fab. Dok je stajala ovde, nijedna provera
+     koja gleda CSS fajl nije mogla da je vidi — i dugme je bilo nedostupno na
+     svih 7 testiranih širina. Ne vraćati pozicione osobine u ovaj atribut. -->
 
 <div class="modal-overlay" id="feedback-modal" onclick="if(event.target===this)feedbackClose()">
   <div class="modal" style="max-width:420px;">
@@ -438,22 +443,22 @@
       <div class="vx-logo-wrap">
         <span class="vx-logo-mark">Vindex <em>AI</em></span>
       </div>
-      <nav class="vx-nav" id="t-tabs-el">
+      <nav class="vx-nav" id="t-tabs-el" role="tablist" aria-label="Glavna navigacija">
         <!-- ── Grupa 1: Dnevni rad ── -->
         <div class="vx-nav-group-lbl" id="nav-grp-1" style="margin-top:10px !important;">Dnevni rad</div>
-        <div class="t-tab" id="tab-btn-h" onclick="setTab(this,'h')">
+        <div class="t-tab" id="tab-btn-h" role="tab" tabindex="0" aria-selected="true" onclick="setTab(this,'h')">
           <i data-lucide="layout-dashboard" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Pregled dana</span>
         </div>
-        <div class="t-tab" id="tab-btn-p" onclick="setTab(this,'p')">
+        <div class="t-tab" id="tab-btn-p" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'p')">
           <i data-lucide="briefcase" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Predmeti</span>
         </div>
-        <div class="t-tab" id="tab-btn-k" onclick="setTab(this,'k')">
+        <div class="t-tab" id="tab-btn-k" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'k')">
           <i data-lucide="users" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Klijenti</span>
         </div>
-        <div class="t-tab" id="tab-btn-kal" onclick="setTab(this,'kal');setTimeout(function(){if(typeof kalSetView==='function')kalSetView('list');},120)">
+        <div class="t-tab" id="tab-btn-kal" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'kal');setTimeout(function(){if(typeof kalSetView==='function')kalSetView('list');},120)">
           <i data-lucide="clock" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Rokovi</span>
         </div>
@@ -461,21 +466,21 @@
 
         <!-- ── Grupa 2: Znanje i AI ── -->
         <div class="vx-nav-group-lbl" id="nav-grp-2">Znanje i AI</div>
-        <div class="t-tab" id="tab-btn-aiws" onclick="setTab(this,'aiws')">
+        <div class="t-tab" id="tab-btn-aiws" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'aiws')">
           <i data-lucide="sparkles" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Vindex Intelligence</span>
         </div>
-        <div class="t-tab" id="tab-btn-s" onclick="setTab(this,'s')">
+        <div class="t-tab" id="tab-btn-s" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'s')">
           <i data-lucide="scale" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Sudska praksa</span>
         </div>
-        <div class="t-tab" id="tab-btn-dok" onclick="setTab(this,'dok')">
+        <div class="t-tab" id="tab-btn-dok" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'dok')">
           <i data-lucide="library" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Dokumenti</span>
         </div>
         <!-- Nacrti podnesaka/Analiza dokumenta se ne dupliraju ovde (Faza beta-audit) —
              vec dostupni u Vindex Intelligence, izbegava "dva mesta za istu stvar". -->
-        <div class="t-tab" id="tab-btn-doctpl" onclick="docTplOpen()">
+        <div class="t-tab" id="tab-btn-doctpl" role="tab" tabindex="0" aria-selected="false" onclick="docTplOpen()">
           <i data-lucide="file-plus" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Šabloni dokumenata</span>
         </div>
@@ -483,32 +488,32 @@
 
         <!-- ── Grupa 3: Poslovanje ── -->
         <div class="vx-nav-group-lbl" id="nav-grp-3">Poslovanje</div>
-        <div class="t-tab" id="tab-btn-zadaci-g" onclick="setTab(this,'zadaci-g')">
+        <div class="t-tab" id="tab-btn-zadaci-g" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'zadaci-g')">
           <i data-lucide="check-square" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Zadatci</span>
         </div>
-        <div class="t-tab" id="tab-btn-fin" onclick="setTab(this,'fin')">
+        <div class="t-tab" id="tab-btn-fin" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'fin')">
           <i data-lucide="banknote" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Finansije</span>
         </div>
-        <div class="t-tab" id="tab-btn-kanc" onclick="setTab(this,'kanc')">
+        <div class="t-tab" id="tab-btn-kanc" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'kanc')">
           <i data-lucide="building-2" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Kancelarija</span>
         </div>
-        <div class="t-tab" id="tab-btn-pi-nav" style="display:none;" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
+        <div class="t-tab" id="tab-btn-pi-nav" role="tab" tabindex="0" aria-selected="false" style="display:none;" onclick="setTab(document.getElementById('tab-btn-pi'),'pi')" title="Pregled poslovanja — prihodi, produktivnost i KPI kancelarije">
           <i data-lucide="bar-chart-3" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Portfolio kancelarije</span>
         </div>
         <div class="vx-nav-sep" id="nav-sep-3"></div>
 
-        <div class="t-tab" id="tab-btn-settings" onclick="setTab(this,'settings')">
+        <div class="t-tab" id="tab-btn-settings" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'settings')">
           <i data-lucide="settings" class="vx-tab-ico"></i>
           <span class="vx-tab-lbl">Podešavanja</span>
         </div>
         <!-- Skriveni tabovi — funkcionalnost sačuvana, dostupna iz predmeta ili podešavanja -->
-        <div class="t-tab vx-hidden-tab" id="tab-btn-notif" onclick="notif_toggleDropdown()"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-notif" role="tab" tabindex="0" aria-selected="false" onclick="notif_toggleDropdown()"></div>
         <!-- Hidden tabs — all functionality preserved -->
-        <div class="t-tab vx-hidden-tab" id="tab-btn-pi" onclick="setTab(this,'pi')"></div>
+        <div class="t-tab vx-hidden-tab" id="tab-btn-pi" role="tab" tabindex="0" aria-selected="false" onclick="setTab(this,'pi')"></div>
       </nav>
       <!-- ── Progres do sledećeg otključavanja ─────────────────── -->
       <div id="vx-pd-progress" style="display:none;padding:.7rem .9rem .4rem;border-top:1px solid rgba(255,255,255,.06);">
@@ -1090,6 +1095,17 @@
                 </div>
                 <div id="pred-upload-loading" style="display:none;text-align:center;padding:0.75rem 0;color:rgba(255,255,255,0.55);font-size:.85rem;"><span class="upload-spinner"></span>Analiziram predmet...</div>
                 <div id="pred-upload-error" style="display:none;padding:.65rem .85rem;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.22);border-radius:2px;color:#ff9090;font-size:.8rem;margin-top:.45rem;"></div>
+                <!-- P0-1 (UX Forensics 2026-08-12): odrediste rezultata uploada.
+                     Ovaj kontejner je ziveo u `#pred-pane-ai-analiza` i nestao je sa tim
+                     panelom u `010082aa` (AI Analiza flagship showcase). `pred_upload_doc()`
+                     je nastavio da pise u njega, ali ga `if (resEl)` zastita tiho preskace --
+                     pa su bez ijedne poruke nestajali AI procena dokumenta, sve greske,
+                     kartica za auto-povezivanje i, najgore, F7/F20 upozorenje da originalni
+                     fajl NIJE sacuvan u trezoru. Upload je izgledao kao potpun uspeh.
+                     Odrediste je ovde, a ne nazad u stari panel: zona, ucitavanje i greska
+                     (iznad) su jedina tri preostala brata ovog toka i korisnik posle uploada
+                     gleda upravo u njih. -->
+                <div id="pred-procena-result" style="margin-top:0.45rem;"></div>
                 <div class="pred-section-lbl" style="margin-top:0.75rem;">Dokumenti predmeta</div>
                 <div id="pred-dok-lista" style="margin-top:0.3rem;"></div>
 
@@ -2499,7 +2515,7 @@
           </div>
 
           <!-- Intake Template Modal -->
-          <div id="intake-tpl-overlay" onclick="if(event.target===this)intakeTemplateClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;">
+          <div id="intake-tpl-overlay" onclick="if(event.target===this)intakeTemplateClose()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10006;display:none;align-items:center;justify-content:center;">
             <div onclick="event.stopPropagation()" style="width:min(560px,94vw);max-height:80vh;background:#0c0e14;border:1px solid rgba(255,255,255,0.09);border-radius:3px;box-shadow:0 24px 80px rgba(0,0,0,0.8);display:flex;flex-direction:column;overflow:hidden;">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.08);">
                 <div style="font-size:0.9rem;font-weight:700;color:#e2e8f0;">Šabloni predmeta</div>
