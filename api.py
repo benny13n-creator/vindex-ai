@@ -1540,6 +1540,20 @@ def site_za_advokate():
     return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
 
 
+@app.get("/web3", include_in_schema=False)
+def site_web3():
+    """Digitalna imovina i usklađenost.
+
+    Ruta je `/web3` jer je to termin po kome je posetilac traži, ali je vidljivi
+    naziv modula „Digitalna imovina" — tako ga zove i sam kod (`migrations/060`).
+    Obim je usklađenost i provera porekla digitalne imovine; nikad trgovanje.
+    """
+    path = BASE_DIR / "site" / "web3.html"
+    if path.exists():
+        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+
+
 @app.get("/bezbednost", include_in_schema=False)
 def site_bezbednost():
     path = BASE_DIR / "site" / "bezbednost.html"
@@ -2405,6 +2419,7 @@ _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/kako-radi", "0.9"),
     ("/sposobnosti", "0.9"),
     ("/za-advokate", "0.9"),
+    ("/web3", "0.9"),
     ("/bezbednost", "0.8"),
     ("/vizija", "0.7"),
     ("/tehnologija", "0.7"),

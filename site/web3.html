@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Digitalna imovina — Vindex AI</title>
+<meta name="description" content="Web3 obim u Vindexu je usklađenost i provera porekla digitalne imovine: Zakon o digitalnoj imovini i MiCA, sankciona provera adresa protiv OFAC SDN liste, uvoz izvoda sa berzi i pravna analiza pametnog ugovora.">
+<link rel="canonical" href="https://vindex.rs/web3">
+<meta name="robots" content="index, follow">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vindex.rs/web3">
+<meta property="og:title" content="Digitalna imovina — Vindex AI">
+<meta property="og:description" content="Usklađenost i provera porekla digitalne imovine — za advokatske kancelarije, banke i compliance timove.">
+<meta property="og:locale" content="sr_RS">
+<meta property="og:image" content="https://vindex.rs/static/og-vindex.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Vindex AI — odgovor sa navedenim propisom, ili nikakav odgovor">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Digitalna imovina — Vindex AI">
+<meta name="twitter:description" content="Usklađenost i provera porekla digitalne imovine — za advokatske kancelarije, banke i compliance timove.">
+<meta name="twitter:image" content="https://vindex.rs/static/og-vindex.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+
+<a class="vw-sr" href="#glavni">Preskoči na sadržaj</a>
+
+<header class="vw-header">
+  <div class="vw-header__inner">
+    <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+    <button class="vw-nav-toggle" type="button" aria-expanded="false" aria-controls="vw-nav">Meni</button>
+    <nav class="vw-nav" id="vw-nav" aria-label="Glavna navigacija">
+      <a href="/kako-radi">Kako radi</a>
+      <a href="/sposobnosti">Sposobnosti</a>
+      <a href="/za-advokate">Za advokate</a>
+      <a href="/web3" aria-current="page">Digitalna imovina</a>
+      <a href="/bezbednost">Bezbednost</a>
+      <a href="/vizija">Vizija</a>
+      <a class="vw-btn vw-btn--ghost vw-btn--inline" href="/beta">Beta</a>
+      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/app#login">Uđi u aplikaciju</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     IZVOR SVAKE TVRDNJE: `docs/website/WEB3_TRUTH_MAP.md`.
+     Na stranicu je ušlo isključivo ono što je tamo označeno kao `PRODUCTION`,
+     i to formulacijama koje mapa navodi kao bezbedne.
+
+     ŠTA JE NAMERNO IZOSTAVLJENO I ZAŠTO:
+       · Provera porekla novčanika (Wallet Provenance) — status `UNVERIFIED`
+         (bez spoljnog ključa ruta vraća grešku). Ne pojavljuje se kao
+         samostalna sposobnost, nego samo kao OPCIONA sekcija dosijea, uz
+         izričit uslov, i sa sva četiri ograničenja u sekciji „Granice".
+       · Kleros arbitraža, obrada blockchain događaja (`vindex_web3/`,
+         `web3_integracija/`) — `DEAD` kod, nula uvoza iz proizvoda. Ne sme
+         ni kao „mapa puta".
+       · Cene (79 / 39 EUR) — Stripe nije integrisan, aktivacija je ručna, pa
+         stranica ne obećava ni cenu ni kupovinu.
+       · Trading, DeFi, prinosi, vrednost portfolija — van obima proizvoda.
+
+     NAZIV: ruta je `/web3`, ali vidljivo ime je „Digitalna imovina" — tako se
+     modul zove u samom proizvodu (`migrations/060`), i tako ga čita publika
+     kojoj je namenjen (banke, compliance timovi).
+
+     MOBILNI: dijagrami postoje u dve verzije (`data-vizuel="sirok"` viewBox
+     ~900 i `data-vizuel="uzak"` viewBox 360). Skripta na dnu bira jednu na
+     pragu od 760px; bez JavaScripta ostaje široka.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<main id="glavni">
+
+  <!-- ── HERO ── naslov je doslovno iz proizvoda (`index.html:3215`) ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Digitalna imovina</p>
+      <h1>Digitalna imovina —<br>usklađenost i provera porekla</h1>
+      <p class="vw-lead" style="margin-top:var(--vw-sp-4)">
+        Due diligence, regulatorna provera, sankciona provera adresa i
+        dokumentacija o poreklu sredstava — za advokatske kancelarije, banke i
+        compliance timove.
+      </p>
+      <div style="margin-top:var(--vw-sp-5);max-width:var(--vw-measure)">
+        <p>Modul je za onoga ko mora da dokaže odakle su sredstva, da utvrdi da
+           li neka aktivnost sa digitalnom imovinom traži dozvolu, ili da razume
+           šta pametni ugovor pravno znači.</p>
+        <p>Obim je uzak i određen: usklađenost i provera porekla. Modul ne prati
+           tržište, ne preporučuje kupovinu ni prodaju i ne prikazuje vrednost
+           imovine.</p>
+      </div>
+      <p style="margin-top:var(--vw-sp-6);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+        <a class="vw-btn vw-btn--primary" href="/kontakt">Zatražite aktivaciju</a>
+        <a class="vw-btn vw-btn--ghost" href="#sta-radi-danas">Šta modul radi danas</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ── 1. PROBLEM ── opisno, bez ijedne brojke ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Problem</p>
+      <h2>Pitanje stiže spolja, a odgovor mora biti dokumentovan</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Banka pita odakle su sredstva. Dokumentacija postoji, ali razbacana:
+           izvodi sa berzi, prepiske, adrese novčanika, papiri o sticanju — i
+           niko unapred ne zna koja je karika najslabija dok pitanje ne stigne.</p>
+        <p>Aktivnost sa digitalnom imovinom ili povlači dozvolu, ili ne povlači.
+           Odgovor zavisi od klasifikacije same imovine i od toga koji je organ
+           nadležan, a greška u tom prvom koraku se kasnije ne ispravlja.</p>
+        <p>Sankcione liste se ne pamte. Adresa se mora proveriti prema zvaničnom
+           izvoru, a nalaz mora nositi datum liste prema kojoj je proveren.</p>
+        <p>Obaveze izveštavanja o kripto imovini pišu se u međunarodnim okvirima
+           koji se ne primenjuju svuda i ne u isto vreme — pa je prvo pitanje
+           uvek da li se na konkretnu jurisdikciju uopšte odnose.</p>
+        <p>Ugovor je napisan u kodu, a pravna posledica u kodu nije vidljiva: ko
+           sme da zaustavi sredstva, ko sme da izda još tokena i ko sme da
+           promeni pravila posle potpisa.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. ŠTA MOŽE DANAS ──
+       Grupisanje nije marketinška konstrukcija: to je stvarna struktura ekrana
+       u proizvodu (`DIM_CARDS`, `static/vindex.js:2137`). Svaki red je jedna
+       ruta sa statusom `PRODUCTION` iz mape istine. ── -->
+  <section class="vw-section" id="sta-radi-danas">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Šta radi danas</p>
+      <h2>Pet celina, ne spisak dugmadi</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Podela ispod je stvarna struktura modula, ne naknadno grupisanje za
+           sajt. Sve navedeno postoji i radi danas; ono što ne radi ili zavisi od
+           uslova stoji u sekciji „Granice", ne ovde.</p>
+      </div>
+
+      <h3 style="margin-top:var(--vw-sp-7)">Due diligence dokumentacije</h3>
+      <table class="vw-table">
+        <caption class="vw-sr">Due diligence dokumentacije — šta radi i zašto je važno</caption>
+        <thead>
+          <tr><th scope="col">Šta radi</th><th scope="col">Zašto je važno</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ocena spremnosti dokumentacije o digitalnoj imovini za upit banke,
+                regulatora ili poreske uprave, po šest kategorija — KYC, istorija
+                sa berzi, bankovni trag, evidencija novčanika, poreska rezidentnost
+                i dokazi o sticanju.</td>
+            <td>Sistem imenuje najveći pojedinačni rizik, pa se zna odakle se
+                kreće. Ovo je procena organizacione spremnosti dokumentacije, ne
+                poresko ni pravno mišljenje.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:var(--vw-sp-7)">Regulatorna provera — Zakon o digitalnoj imovini i MiCA</h3>
+      <table class="vw-table">
+        <caption class="vw-sr">Regulatorna provera — šta radi i zašto je važno</caption>
+        <thead>
+          <tr><th scope="col">Šta radi</th><th scope="col">Zašto je važno</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pretraga teksta Zakona o digitalnoj imovini i EU MiCA uredbe.</td>
+            <td>Broj člana se citira samo kada se taj broj doslovno nalazi u
+                pronađenom tekstu propisa; u suprotnom se odredba navodi opisno,
+                bez broja.</td>
+          </tr>
+          <tr>
+            <td>Provera da li opisana aktivnost sa digitalnom imovinom povlači
+                obavezu dozvole po Zakonu o digitalnoj imovini ili autorizacije
+                po MiCA.</td>
+            <td>Rezultat je pravna analiza kao polazna tačka za advokata, ne
+                pravni savet.</td>
+          </tr>
+          <tr>
+            <td>Klasifikacija digitalne imovine — virtuelna valuta ili digitalni
+                token — i utvrđivanje nadležnog organa: Narodna banka Srbije ili
+                Komisija za hartije od vrednosti.</td>
+            <td>Kada sistem ne može pouzdano da odredi nivo rizika, po pravilu ga
+                prijavljuje kao visok — nikada ga ne spušta prećutno.</td>
+          </tr>
+          <tr>
+            <td>Numerička ocena spremnosti projekta za MiCA po pet kategorija:
+                usklađenost belog papira, zahtevi za pružaoce usluga, AML i KYC,
+                rezerve i zabrana zloupotrebe tržišta.</td>
+            <td>Ocenu izračunava i ograničava backend. Vrednost van dozvoljenog
+                opsega se odbacuje, a neprepoznat nivo se tumači kao najniža
+                spremnost, nikad kao „spremno".</td>
+          </tr>
+          <tr>
+            <td>Provera belog papira ili opisa token projekta prema zahtevima za
+                sadržinu iz Zakona o digitalnoj imovini i MiCA uredbe.</td>
+            <td>Dobijate listu onoga što je pokriveno i onoga što nedostaje, a ne
+                ocenu „dobro" ili „loše".</td>
+          </tr>
+          <tr>
+            <td>Revizija interne AML/KYC politike prema Zakonu o digitalnoj
+                imovini, Zakonu o sprečavanju pranja novca i FATF standardima,
+                po osam kategorija.</td>
+            <td>Izlaz je lista nedostataka u sopstvenom dokumentu — materijal za
+                doradu politike, ne potvrda usklađenosti.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:var(--vw-sp-7)">Obaveze izveštavanja — CARF i DAC8</h3>
+      <table class="vw-table">
+        <caption class="vw-sr">Obaveze izveštavanja — šta radi i zašto je važno</caption>
+        <thead>
+          <tr><th scope="col">Šta radi</th><th scope="col">Zašto je važno</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pitanja o obavezama izveštavanja iz OECD CARF okvira i EU
+                direktive DAC8, uz citiranje isključivo onih odredaba koje su u
+                bazi.</td>
+            <td>Baza sadrži ključne sekcije oba dokumenta, ne njihov integralni
+                tekst — i stranica to kaže umesto da se pravi da je tekst pun.</td>
+          </tr>
+          <tr>
+            <td>Pregled 81 jurisdikcije koje su preuzele obavezu CARF razmene
+                podataka o kripto imovini, po talasima primene.</td>
+            <td>Srbija se ne nalazi ni na jednoj od tih lista — trenutno formalno
+                nema CARF obavezu izveštavanja. To je podatak ugrađen u proizvod,
+                bez poziva modela.</td>
+          </tr>
+          <tr>
+            <td>Objašnjenje šta CARF status pojedine jurisdikcije praktično
+                znači.</td>
+            <td>Sistem odgovara isključivo na osnovu zvanične OECD liste ugrađene
+                u proizvod i izričito kaže kada jurisdikcija nije na listi.</td>
+          </tr>
+          <tr>
+            <td>Edukativna simulacija: koje kategorije kripto transakcija
+                međunarodni okviri izveštavanja tipično posmatraju.</td>
+            <td>Sistem je programski sprečen da citira konkretan član CARF ili
+                DAC8 teksta — to je opšta regulatorna edukacija, ne poreski savet.</td>
+          </tr>
+          <tr>
+            <td>Uvoz zvaničnog CSV izvoda sa Binance-a (Transaction History) i
+                Kraken-a (Ledger History) i razvrstavanje transakcija u kategorije
+                relevantne za CARF i DAC8.</td>
+            <td>Format se prepoznaje po tačnim nazivima kolona. Kraken trade-ovi
+                se grupišu po identifikatoru para pre klasifikacije, da se
+                kupovina za fiat ne bi pogrešno prikazala kao zamena kripto za
+                kripto.</td>
+          </tr>
+          <tr>
+            <td>Spisak trenutno podržanih izvoza sa berzi, sa uputstvom
+                korak-po-korak.</td>
+            <td>Podržani su Binance i Kraken. Šta nije podržano piše na istom
+                mestu, pre otpremanja fajla.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:var(--vw-sp-7)">Sankciona provera adresa</h3>
+      <table class="vw-table">
+        <caption class="vw-sr">Sankciona provera adresa — šta radi i zašto je važno</caption>
+        <thead>
+          <tr><th scope="col">Šta radi</th><th scope="col">Zašto je važno</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Provera adresa digitalne imovine protiv zvanične OFAC SDN liste —
+                trenutno 916 adresa iz zvaničnog OFAC izvora, do 25 adresa
+                odjednom.</td>
+            <td>Za svaku sankcionisanu adresu prikazuju se entitet, imovina,
+                sankcioni programi i OFAC identifikator.</td>
+          </tr>
+          <tr>
+            <td>Uz svaki rezultat prikazuje se izvor liste i datum poslednjeg
+                osvežavanja baze.</td>
+            <td>Nalaz bez datuma liste prema kojoj je proveren nije upotrebljiv u
+                dokumentaciji. Odsustvo poklapanja se nikada ne prikazuje kao
+                potvrda da su sredstva bez rizika.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:var(--vw-sp-7)">Poreklo sredstava</h3>
+      <table class="vw-table">
+        <caption class="vw-sr">Poreklo sredstava — šta radi i zašto je važno</caption>
+        <thead>
+          <tr><th scope="col">Šta radi</th><th scope="col">Zašto je važno</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Jedan PDF dosije o poreklu sredstava za banku ili regulatora:
+                ocena spremnosti dokumentacije, kontekst obaveza izveštavanja i —
+                opciono, kada je ta provera konfigurisana — provera porekla
+                novčanika.</td>
+            <td>Ograničenja analize štampaju se na vrhu izveštaja, pre svakog
+                nalaza, a ne u fusnoti. Kada provera novčanika nije dostupna,
+                dosije se svejedno generiše, bez te sekcije.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Flagship. Jedina Web3 sposobnost sa 26 testova — sme se braniti u
+           razgovoru sa tehničkim kupcem. -->
+      <div class="vw-callout" style="margin-top:var(--vw-sp-8)">
+        <p class="vw-eyebrow">Pojedinačno najjača funkcija</p>
+        <h3>Pravna analiza pametnog ugovora — bez čitanja koda</h3>
+        <div style="margin-top:var(--vw-sp-3)">
+          <p>Nalepite Solidity izvorni kod i dobijate pravni prikaz, ne tehnički:
+             koje poslovne funkcije ugovor obavlja, ko ima privilegovana
+             ovlašćenja i šta ta ovlašćenja pravno znače, kolika je
+             centralizacija, kako se token klasifikuje, koji rizici iz svega toga
+             proizlaze i koje odredbe propisa aktiviraju.</p>
+          <p>Tri rizika — nadogradivost ugovora, zaključana sredstva bez
+             mehanizma izlaza i neograničeno izdavanje tokena bez gornjeg limita
+             ponude — proverava sam kod, nezavisno od AI modela, i dodaje ih u
+             izveštaj i kada ih model propusti.</p>
+          <p><strong>Ovo nije bezbednosni audit koda.</strong></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. KAKO RADI ── dva stvarna toka, oba izvedena iz arhitekture ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Kako radi</p>
+      <h2>Dva toka koja završavaju dokumentom</h2>
+
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <h3>Dosije o poreklu sredstava</h3>
+        <p style="margin-top:var(--vw-sp-3)">Dosije spaja tri stvari u jedan PDF
+           koji se nosi banci ili regulatoru. Sekcija o poreklu novčanika je
+           opciona: kada ta provera nije konfigurisana, preskače se, a dosije se
+           i dalje generiše.</p>
+        <p>Ograničenja analize se u dokumentu štampaju pre bilo kog nalaza.</p>
+      </div>
+
+      <!-- ŠIROKA VERZIJA — sleva nadesno, viewBox 900 -->
+      <figure class="vw-figure" data-vizuel="sirok">
+        <svg viewBox="0 0 900 330" role="img" aria-labelledby="dia-dos-s-t">
+          <title id="dia-dos-s-t">Dijagram: opis dokumentacije o digitalnoj imovini ulazi u tri paralelne obrade — ocenu spremnosti dokumentacije po šest kategorija, kontekst obaveza izveštavanja po CARF i DAC8, i opcionu proveru porekla novčanika — koje se spajaju u jedan PDF dosije za banku ili regulatora, sa ograničenjima odštampanim na vrhu izveštaja.</title>
+
+          <rect class="vw-dia-box" x="1" y="120" width="170" height="70" rx="2"/>
+          <text class="vw-dia-label" x="15" y="150">OPIS DOKUMENTACIJE</text>
+          <text class="vw-dia-sub" x="15" y="170">o digitalnoj imovini</text>
+
+          <path class="vw-dia-line" d="M171 155 H 220 M220 61 V 249 M220 61 H 300 M220 155 H 300 M220 249 H 300"/>
+
+          <rect class="vw-dia-box" x="300" y="30" width="330" height="62" rx="2"/>
+          <text class="vw-dia-label" x="316" y="54">OCENA SPREMNOSTI DOKUMENTACIJE</text>
+          <text class="vw-dia-sub" x="316" y="72">šest kategorija, sa najvećim pojedinačnim rizikom</text>
+
+          <rect class="vw-dia-box" x="300" y="124" width="330" height="62" rx="2"/>
+          <text class="vw-dia-label" x="316" y="148">KONTEKST OBAVEZA IZVEŠTAVANJA</text>
+          <text class="vw-dia-sub" x="316" y="166">CARF i DAC8, bez citiranja konkretnog člana</text>
+
+          <rect class="vw-dia-box" x="300" y="218" width="330" height="62" rx="2"/>
+          <text class="vw-dia-label" x="316" y="240">PROVERA POREKLA NOVČANIKA</text>
+          <text class="vw-dia-sub" x="316" y="257">⚠ opciono — preskače se kada nije konfigurisana</text>
+          <text class="vw-dia-sub" x="316" y="272">Ethereum, direktni (1-hop) kontakti</text>
+
+          <path class="vw-dia-line" d="M630 61 H 690 M630 155 H 690 M630 249 H 690 M690 61 V 249 M690 155 H 740"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="740" y="118" width="158" height="74" rx="2"/>
+          <text class="vw-dia-label" x="756" y="148">PDF DOSIJE</text>
+          <text class="vw-dia-sub" x="756" y="168">za banku ili regulatora</text>
+
+          <text class="vw-dia-sub" x="300" y="312">ograničenja analize štampaju se na vrhu izveštaja, pre svakog nalaza</text>
+        </svg>
+        <figcaption>Konceptualni prikaz toka — nije snimak ekrana</figcaption>
+      </figure>
+
+      <!-- USKA VERZIJA — odozgo nadole, viewBox 360 -->
+      <figure class="vw-figure" data-vizuel="uzak" hidden>
+        <svg viewBox="0 0 360 436" role="img" aria-labelledby="dia-dos-u-t">
+          <title id="dia-dos-u-t">Isti tok, preslagan za uži ekran: opis dokumentacije, ocena spremnosti po šest kategorija, kontekst obaveza izveštavanja i opciona provera porekla novčanika spajaju se u PDF dosije, sa ograničenjima odštampanim na vrhu izveštaja.</title>
+
+          <rect class="vw-dia-box" x="1" y="8" width="358" height="48" rx="2"/>
+          <text class="vw-dia-label" x="14" y="30">OPIS DOKUMENTACIJE</text>
+          <text class="vw-dia-sub" x="14" y="46">o digitalnoj imovini</text>
+
+          <path class="vw-dia-line" d="M180 56 V 74"/>
+
+          <rect class="vw-dia-box" x="1" y="74" width="358" height="64" rx="2"/>
+          <text class="vw-dia-label" x="14" y="96">OCENA SPREMNOSTI</text>
+          <text class="vw-dia-sub" x="14" y="112">dokumentacije, šest kategorija</text>
+          <text class="vw-dia-sub" x="14" y="128">sa najvećim pojedinačnim rizikom</text>
+
+          <path class="vw-dia-line" d="M180 138 V 152"/>
+
+          <rect class="vw-dia-box" x="1" y="152" width="358" height="64" rx="2"/>
+          <text class="vw-dia-label" x="14" y="174">KONTEKST IZVEŠTAVANJA</text>
+          <text class="vw-dia-sub" x="14" y="190">CARF i DAC8 — bez citiranja</text>
+          <text class="vw-dia-sub" x="14" y="206">konkretnog člana</text>
+
+          <path class="vw-dia-line" d="M180 216 V 230"/>
+
+          <rect class="vw-dia-box" x="1" y="230" width="358" height="80" rx="2"/>
+          <text class="vw-dia-label" x="14" y="252">PROVERA POREKLA NOVČANIKA</text>
+          <text class="vw-dia-sub" x="14" y="268">⚠ opciono — preskače se kada</text>
+          <text class="vw-dia-sub" x="14" y="284">nije konfigurisana</text>
+          <text class="vw-dia-sub" x="14" y="300">Ethereum, direktni (1-hop) kontakti</text>
+
+          <path class="vw-dia-line" d="M180 310 V 324"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="1" y="324" width="358" height="60" rx="2"/>
+          <text class="vw-dia-label" x="14" y="348">PDF DOSIJE</text>
+          <text class="vw-dia-sub" x="14" y="366">za banku ili regulatora</text>
+
+          <text class="vw-dia-sub" x="1" y="406">ograničenja se štampaju na vrhu</text>
+          <text class="vw-dia-sub" x="1" y="424">izveštaja, pre svakog nalaza</text>
+        </svg>
+        <figcaption>Konceptualni prikaz toka — nije snimak ekrana</figcaption>
+      </figure>
+
+      <div style="margin-top:var(--vw-sp-8);max-width:var(--vw-measure)">
+        <h3>Pravna analiza pametnog ugovora</h3>
+        <p style="margin-top:var(--vw-sp-3)">Analiza ima dva izvora koji se ne
+           oslanjaju jedan na drugi: AI čita ugovor kao poslovni dokument, a sam
+           kod, regularnim izrazima, traži tri imenovana rizika. Ako model neki
+           od njih propusti, backend ga sam dodaje u izveštaj.</p>
+        <p>Kada je nadogradivost ugovora otkrivena, nivo pouzdanosti nalaza se
+           obara — automatski, bez pitanja modelu.</p>
+      </div>
+
+      <!-- ŠIROKA VERZIJA — sleva nadesno, viewBox 900 -->
+      <figure class="vw-figure" data-vizuel="sirok">
+        <svg viewBox="0 0 900 366" role="img" aria-labelledby="dia-ugo-s-t">
+          <title id="dia-ugo-s-t">Dijagram: Solidity izvorni kod ulazi istovremeno u AI analizu poslovnih funkcija i ovlašćenja i u provere koje izvodi sam kod — nadogradivost, zaključana sredstva bez izlaza i neograničeno izdavanje tokena; oba toka se spajaju u pravni izveštaj u koji backend sam dodaje rizik koji model propusti.</title>
+
+          <rect class="vw-dia-box" x="1" y="140" width="170" height="60" rx="2"/>
+          <text class="vw-dia-label" x="15" y="166">SOLIDITY KOD</text>
+          <text class="vw-dia-sub" x="15" y="186">koji nalepite</text>
+
+          <path class="vw-dia-line" d="M171 170 H 220 M220 80 V 260 M220 80 H 280 M220 260 H 280"/>
+
+          <rect class="vw-dia-box" x="280" y="44" width="340" height="72" rx="2"/>
+          <text class="vw-dia-label" x="296" y="70">AI ANALIZA</text>
+          <text class="vw-dia-sub" x="296" y="88">poslovne funkcije, privilegovana ovlašćenja,</text>
+          <text class="vw-dia-sub" x="296" y="104">klasifikacija tokena, pravni rizici</text>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="280" y="224" width="340" height="72" rx="2"/>
+          <text class="vw-dia-label" x="296" y="250">PROVERE U SAMOM KODU</text>
+          <text class="vw-dia-sub" x="296" y="268">nadogradivost · zaključana sredstva bez izlaza</text>
+          <text class="vw-dia-sub" x="296" y="284">neograničeno izdavanje tokena bez limita</text>
+
+          <path class="vw-dia-line" d="M620 80 H 670 M620 260 H 670 M670 80 V 260 M670 172 H 720"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="720" y="130" width="178" height="84" rx="2"/>
+          <text class="vw-dia-label" x="736" y="158">PRAVNI IZVEŠTAJ</text>
+          <text class="vw-dia-sub" x="736" y="178">rizik koji model</text>
+          <text class="vw-dia-sub" x="736" y="194">propusti, kod dodaje sam</text>
+
+          <text class="vw-dia-sub" x="280" y="330">kada je nadogradivost otkrivena, nivo pouzdanosti nalaza se obara</text>
+          <text class="vw-dia-sub" x="280" y="350">⚠ ovo nije bezbednosni audit koda</text>
+        </svg>
+        <figcaption>Konceptualni prikaz toka — nije snimak ekrana</figcaption>
+      </figure>
+
+      <!-- USKA VERZIJA — odozgo nadole, viewBox 360 -->
+      <figure class="vw-figure" data-vizuel="uzak" hidden>
+        <svg viewBox="0 0 360 424" role="img" aria-labelledby="dia-ugo-u-t">
+          <title id="dia-ugo-u-t">Isti tok, preslagan za uži ekran: Solidity kod, AI analiza, provere koje izvodi sam kod i pravni izveštaj u koji backend sam dodaje rizik koji model propusti.</title>
+
+          <rect class="vw-dia-box" x="1" y="8" width="358" height="48" rx="2"/>
+          <text class="vw-dia-label" x="14" y="30">SOLIDITY KOD</text>
+          <text class="vw-dia-sub" x="14" y="46">koji nalepite</text>
+
+          <path class="vw-dia-line" d="M180 56 V 70"/>
+
+          <rect class="vw-dia-box" x="1" y="70" width="358" height="76" rx="2"/>
+          <text class="vw-dia-label" x="14" y="92">AI ANALIZA</text>
+          <text class="vw-dia-sub" x="14" y="108">poslovne funkcije, ovlašćenja,</text>
+          <text class="vw-dia-sub" x="14" y="124">klasifikacija tokena, pravni rizici</text>
+
+          <path class="vw-dia-line" d="M180 146 V 160"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="1" y="160" width="358" height="92" rx="2"/>
+          <text class="vw-dia-label" x="14" y="182">PROVERE U SAMOM KODU</text>
+          <text class="vw-dia-sub" x="14" y="198">nadogradivost</text>
+          <text class="vw-dia-sub" x="14" y="214">zaključana sredstva bez izlaza</text>
+          <text class="vw-dia-sub" x="14" y="230">neograničeno izdavanje tokena</text>
+
+          <path class="vw-dia-line" d="M180 252 V 266"/>
+
+          <rect class="vw-dia-box vw-dia-box--accent" x="1" y="266" width="358" height="76" rx="2"/>
+          <text class="vw-dia-label" x="14" y="288">PRAVNI IZVEŠTAJ</text>
+          <text class="vw-dia-sub" x="14" y="304">rizik koji model propusti,</text>
+          <text class="vw-dia-sub" x="14" y="320">kod ga dodaje sam</text>
+
+          <text class="vw-dia-sub" x="1" y="366">kada je nadogradivost otkrivena,</text>
+          <text class="vw-dia-sub" x="1" y="384">nivo pouzdanosti nalaza se obara</text>
+          <text class="vw-dia-sub" x="1" y="410">⚠ ovo nije bezbednosni audit koda</text>
+        </svg>
+        <figcaption>Konceptualni prikaz toka — nije snimak ekrana</figcaption>
+      </figure>
+
+      <!-- Tri mehanizma, svaki sa mestom u kodu. Ista logika kao na početnoj. -->
+      <div class="vw-grid vw-grid--3" style="margin-top:var(--vw-sp-8)">
+        <div class="vw-proof">
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 01</p>
+          <h3>Rizik se ne spušta prećutno</h3>
+          <p>Kada odgovor modela ne sadrži prepoznatljiv nivo rizika, sistem ga
+             tumači kao najviši, a ocenu van dozvoljenog opsega odbacuje. Greška
+             ide u konzervativnom smeru, ne u prijatnom.</p>
+          <span class="vw-proof__src">tests/test_singular_intelligence_fixes.py</span>
+        </div>
+        <div class="vw-proof">
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 02</p>
+          <h3>Tri rizika ne zavise od modela</h3>
+          <p>Nadogradivost, zaključana sredstva bez izlaza i neograničeno
+             izdavanje tokena traži sam kod. Ako ih model ne pomene, backend ih
+             dodaje u izveštaj.</p>
+          <span class="vw-proof__src">routers/web3.py</span>
+        </div>
+        <div class="vw-proof">
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 03</p>
+          <h3>Ograničenja idu pre nalaza</h3>
+          <p>U PDF dosijeu se ograničenja analize štampaju na vrhu dokumenta, pre
+             prvog nalaza — ne u fusnoti koju čitalac nađe tek kad zatreba.</p>
+          <span class="vw-proof__src">dossier_pdf.py</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. GDE SE UKLAPA ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Gde se uklapa</p>
+      <h2>Isti sistem, drugi posao</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Modul stoji na istoj platformi kao ostatak Vindexa i nosi ista
+           pravila: brojeve i ocene računa i ograničava backend, AI sme da ih
+           objasni ali ne i da ih odredi, a ograde se pišu uz nalaz, ne ispod
+           njega.</p>
+        <p>U samom proizvodu i u ovom tekstu modul se zove „Digitalna imovina".
+           Naziv „Web3" se u ovoj oblasti i dalje sreće, ali obim ovog modula je
+           uži i unapred određen: usklađenost i provera porekla digitalne
+           imovine, i ništa izvan toga.</p>
+      </div>
+
+      <div class="vw-grid vw-grid--2" style="margin-top:var(--vw-sp-6)">
+        <div>
+          <h3>Uz advokatsku kancelariju</h3>
+          <p>Modul se uključuje uz postojeći nalog. Dosije o poreklu sredstava i
+             pravna analiza ugovora sedaju pored predmeta, klijenata i
+             dokumenata koje kancelarija već vodi u Vindexu.</p>
+        </div>
+        <div>
+          <h3>Samostalno, bez ostatka platforme</h3>
+          <p>Za banke i compliance timove koji ne vode sudske predmete, modul
+             može raditi sam — u tom režimu se ostatak korisničkog interfejsa
+             sakriva i vidi se samo digitalna imovina.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. GRANICE ── obavezne ograde iz koda, doslovno.
+       Bez ove sekcije stranica bi bila neistinita, ne samo nepotpuna. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Granice</p>
+      <h2>Šta ovaj modul ne radi i ne tvrdi</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Rečenice ispod su iste one koje sistem prikazuje uz nalaz i štampa u
+           izveštaju. Ovde stoje doslovno, ne u blažoj verziji.</p>
+      </div>
+
+      <ul class="vw-limits" style="margin-top:var(--vw-sp-6)">
+        <li>Provera porekla novčanika: „Analiza je trenutno ograničena na
+            Ethereum mrežu (mainnet)."</li>
+        <li>„Proveravaju se isključivo direktni (1-hop) kontakti novčanika —
+            sredstva se ne prate kroz više transakcija unazad (multi-hop)."</li>
+        <li><strong>„Rezultat NE predstavlja potpunu blockchain forenzičku analizu."</strong></li>
+        <li>„Ne vrši se identifikacija vlasnika novčanika niti atribucija
+            entiteta, osim putem javno dostupnih oznaka i zvaničnih sankcionih
+            lista (OFAC SDN)."</li>
+        <li>Provera porekla novčanika zavisi od spoljne konfiguracije. Kada ona
+            nije podešena, ta provera ne radi, a dosije o poreklu sredstava se
+            generiše bez te sekcije.</li>
+        <li>Sankciona provera: „Odsustvo pogotka NE znači da adresa nema drugi
+            pravni ili reputacioni rizik — OFAC lista se ažurira u realnom
+            vremenu i ovaj snapshot može biti neaktuelan. Ovo nije pravni savet
+            niti zamena za profesionalni sankcijski compliance program."
+            Zato se ishod „adresa je čista" ne prikazuje — ni u proizvodu, ni
+            ovde.</li>
+        <li>Uvoz izvoda sa berzi: „Ovo je deterministička klasifikacija na osnovu
+            naziva operacije/tipa iz CSV exporta — NIJE poreski savet i ne
+            zamenjuje pregled od strane poreskog savetnika. Kategorije
+            'crypto_to_crypto' i 'nepoznato' posebno zahtevaju ručnu proveru."</li>
+        <li>Baza CARF i DAC8 sadrži ključne sekcije tih dokumenata, ne njihov
+            integralni tekst. Simulator izveštavanja je programski sprečen da
+            citira konkretan član — jer bi takav citat bio izmišljen.</li>
+        <li>Pravna analiza pametnog ugovora nije bezbednosni audit koda niti
+            tehničko objašnjenje Solidity funkcija.</li>
+        <li>Broj člana propisa se citira samo kada se taj broj doslovno nalazi u
+            pronađenom tekstu. Kada relevantnost pronađenih izvora padne nisko,
+            sistem sam dodaje napomenu o pouzdanosti i preporučuje konsultaciju
+            sa advokatom.</li>
+        <li>Podaci se osvežavaju ručno: OFAC lista je snapshot od 13.07.2026, a
+            korpusi propisa i izvod iz CARF i DAC8 teksta pune se pokretanjem
+            skripte, ne automatski.</li>
+        <li>„Ovo nije pravni savet. Konsultujte advokata specijalizovanog za
+            digitalnu imovinu."</li>
+      </ul>
+
+      <p class="vw-eyebrow" style="margin-top:var(--vw-sp-7);color:var(--vw-text-2)">Šta iz ovoga ipak radi u vašu korist</p>
+      <ul class="vw-limits vw-limits--ok">
+        <li>Sankciona provera adresa, pregled liste CARF jurisdikcija i uvoz CSV
+            izvoda ne zovu nijedan spoljni servis i ne oslanjaju se na AI —
+            to su determinističke provere nad podacima ugrađenim u proizvod.</li>
+        <li>Ocene i nivoi rizika se ograničavaju u backendu: vrednost van opsega
+            se odbacuje, a neprepoznat nivo pada na konzervativnu stranu.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── 6. PRAVAC RAZVOJA ── jedini materijal koji mapa istine dozvoljava kao
+       budućnost. Svaka stavka nosi vidljivu oznaku da nije dostupna. ── -->
+  <section class="vw-section">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Pravac razvoja</p>
+      <h2>Šta je na mapi puta</h2>
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Ništa sa ovog spiska nije dostupno danas i ne ulazi u ono što modul
+           sada radi. Stoji ovde zato da se ne bi tražilo među postojećim
+           funkcijama.</p>
+      </div>
+
+      <ul class="vw-path">
+        <li>
+          <span class="vw-path__tag">Mapa puta — nije dostupno</span>
+          <h3>Dodatni izvozi sa berzi</h3>
+          <p>Coinbase i Bitget. Danas se prepoznaju izvodi sa Binance-a i
+             Kraken-a, i samo oni.</p>
+        </li>
+        <li>
+          <span class="vw-path__tag">Mapa puta — nije dostupno</span>
+          <h3>Prekogranično izveštavanje</h3>
+          <p>Prošireno pokrivanje obaveza izveštavanja preko granice jedne
+             jurisdikcije.</p>
+        </li>
+        <li>
+          <span class="vw-path__tag">Mapa puta — nije dostupno</span>
+          <h3>Prošireno utvrđivanje porekla i podrška za dodatne mreže</h3>
+          <p>Danas je provera porekla ograničena na Ethereum mrežu i na direktne
+             (1-hop) kontakte novčanika.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── 7. PRISTUP ── jedini pošten poziv na akciju.
+       Stripe nije integrisan (`migrations/060`, `062`) — aktivacija je ručna,
+       pa sajt ne sme imati „Kupite" ni cenu. ── -->
+  <section class="vw-section vw-section--cta">
+    <div class="vw-wrap">
+      <p class="vw-eyebrow">Pristup</p>
+      <h2>Modul se ne uključuje sam</h2>
+
+      <div style="margin-top:var(--vw-sp-6);max-width:var(--vw-measure)">
+        <p>Digitalna imovina nije uključena ni u jednu tarifu sama po sebi —
+           otključava se isključivo posebnim dodatkom na nalogu.</p>
+        <p>Kupovina jednim klikom ne postoji. Aktivacija je ručna: pošaljete
+           zahtev, a mi uključimo modul na vašem nalogu. Zato ovde nema ni cene
+           ni dugmeta za plaćanje.</p>
+        <p>Dok modul nije aktiviran, ceo ekran je nedostupan — uključujući i one
+           provere koje same po sebi nisu gejtovane, jer se zovu isključivo sa
+           tog ekrana.</p>
+      </div>
+
+      <div class="vw-callout vw-callout--warn" style="margin-top:var(--vw-sp-6)">
+        <p>Vindex AI ne pruža pravne savete. Sve što ovaj modul vrati je polazna
+           tačka za pravnika ili compliance oficira i mora proći ljudsku
+           proveru pre nego što se na tome zasnuje odluka.</p>
+      </div>
+
+      <p style="margin-top:var(--vw-sp-7);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+        <a class="vw-btn vw-btn--primary" href="/kontakt">Zatražite aktivaciju</a>
+        <a class="vw-btn vw-btn--ghost" href="/sposobnosti">Ostale sposobnosti</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="vw-footer">
+  <div class="vw-wrap">
+    <div class="vw-footer__grid">
+      <div>
+        <a class="vw-logo" href="/">Vindex <em>AI</em></a>
+        <p class="vw-small" style="margin-top:var(--vw-sp-3);max-width:34ch">
+          Platforma za rad sa pravnim predmetima, dokumentima i izvorima.
+        </p>
+      </div>
+      <div>
+        <h4>Proizvod</h4>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/sposobnosti">Sposobnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/web3">Digitalna imovina</a></li>
+          <li><a href="/tehnologija">Tehnologija</a></li>
+          <li><a href="/vizija">Vizija</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Poverenje</h4>
+        <ul>
+          <li><a href="/bezbednost">Bezbednost</a></li>
+          <li><a href="/security">Bezbednosne mere</a></li>
+          <li><a href="/static/Vindex-AI-Bezbednosni-List.pdf">Bezbednosni list (PDF)</a></li>
+          <li><a href="/ai-disclosure">Upotreba veštačke inteligencije</a></li>
+          <li><a href="/status">Status sistema</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Pravno</h4>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Obrada podataka</a></li>
+          <li><a href="/kontakt">Kontakt</a></li>
+          <li><a href="/beta">Beta pristup</a></li>
+          <li><a href="/app#login">Uđi u aplikaciju</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="vw-footer__bottom">
+      <span>&copy; MMXXVI Vindex AI</span>
+      <span>Vindex AI ne pruža pravne savete. Sadržaj koji sistem generiše mora pregledati advokat.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Mobilna navigacija — identičan skup stavki kao desktop. */
+(function () {
+  var dugme = document.querySelector('.vw-nav-toggle');
+  var nav = document.getElementById('vw-nav');
+  if (!dugme || !nav) return;
+  dugme.addEventListener('click', function () {
+    var otvoren = nav.getAttribute('data-otvoren') === '1';
+    nav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+    dugme.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+  });
+  nav.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { nav.setAttribute('data-otvoren', '0'); dugme.setAttribute('aria-expanded', 'false'); dugme.focus(); }
+  });
+})();
+
+/* Izbor verzije dijagrama. `.vw-figure svg` ima `width:100%`, pa se sa širinom
+   skalira i tekst: dijagram od 900 jedinica na telefonu daje slova od oko 4px.
+   Zato svaki dijagram postoji u dve verzije — široka (viewBox 900) i uska
+   (viewBox 360, vertikalno preslagana) — i vidljiva je tačno jedna.
+   Prag je 760px. Bez JavaScripta ostaje široka verzija. */
+(function () {
+  if (!window.matchMedia) return;
+  var upit = window.matchMedia('(max-width: 760px)');
+  var siroki = document.querySelectorAll('[data-vizuel="sirok"]');
+  var uski = document.querySelectorAll('[data-vizuel="uzak"]');
+  function primeni() {
+    var uzak = upit.matches;
+    Array.prototype.forEach.call(siroki, function (el) { el.hidden = uzak; });
+    Array.prototype.forEach.call(uski, function (el) { el.hidden = !uzak; });
+  }
+  primeni();
+  if (upit.addEventListener) { upit.addEventListener('change', primeni); }
+  else if (upit.addListener) { upit.addListener(primeni); }
+})();
+
+/* Ulazna animacija — samo `opacity`/`transform`, i samo ako korisnik nije
+   tražio smanjen pokret. */
+(function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  var meta = document.querySelectorAll('.vw-section > .vw-wrap > *');
+  var io = new IntersectionObserver(function (unosi) {
+    unosi.forEach(function (u) {
+      if (u.isIntersecting) { u.target.setAttribute('data-vidljivo', '1'); io.unobserve(u.target); }
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  meta.forEach(function (el) { el.classList.add('vw-reveal'); io.observe(el); });
+})();
+</script>
+
+</body>
+</html>

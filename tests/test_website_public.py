@@ -37,9 +37,16 @@ _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Devet stranica novog sajta.
 STRANICE = [
-    "/", "/kako-radi", "/sposobnosti", "/za-advokate",
+    "/", "/kako-radi", "/sposobnosti", "/za-advokate", "/web3",
     "/bezbednost", "/vizija", "/tehnologija", "/beta", "/kontakt",
 ]
+
+# Stvarne rute aplikacije, proverene uživo: `/app` servira `index.html`, a
+# `#login` / `#register` otvaraju modal za prijavu (`static/vindex.js:8281-8288`).
+# Registracija JESTE otvorena — `POST /api/register` kreira korisnika preko
+# Supabase admin API-ja i vraća token.
+APP_PRIJAVA = "/app#login"
+APP_REGISTRACIJA = "/app#register"
 
 # Postojeće pravne i bezbednosne stranice — sajt ih linkuje, ne redizajnira.
 PRAVNE = [
@@ -76,6 +83,18 @@ def _vidljivi_tekst(klijent, ruta: str) -> str:
     telo = re.sub(r"<script.*?</script>", " ", telo, flags=re.S)
     telo = re.sub(r"<style.*?</style>", " ", telo, flags=re.S)
     return telo
+
+
+def _cist_tekst(klijent, ruta: str) -> str:
+    """Vidljiv tekst bez HTML oznaka, sa sažetim razmakom.
+
+    Obavezno za poređenje REČENICA. Rečenica u HTML-u je prelomljena kroz redove
+    i uvučena, pa doslovan podniz ne pogađa ništa — a `„Rezultat NE predstavlja
+    potpunu blockchain forenzičku analizu."` na stranici JESTE, samo u dva reda.
+    Prva verzija ovog testa je zbog toga prijavila lažan pad.
+    """
+    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, ruta))
+    return re.sub(r"\s+", " ", telo)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -326,3 +345,125 @@ def test_robots_i_dalje_stiti_api(klijent):
     assert "User-agent" in telo
     assert "/api/" in telo
     assert "Sitemap:" in telo
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. PRISTUP APLIKACIJI — put od sajta do stvarnog proizvoda
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_svaka_stranica_nudi_ulaz_u_aplikaciju(klijent, ruta):
+    """Poziv na akciju za ulaz u aplikaciju mora biti na SVAKOJ stranici.
+
+    Sajt je nastao zamenom landinga koji je imao „POČNI BESPLATNO" kao jedini
+    ulaz. Ta formulacija je uklonjena jer nije bila tačna — ali je sa njom
+    nestao i svaki put do proizvoda. Posetilac koji već ima nalog nije imao gde
+    da klikne.
+    """
+    assert APP_PRIJAVA in _tekst(klijent, ruta), (
+        f"{ruta} nema poziv na akciju ka aplikaciji ({APP_PRIJAVA})"
+    )
+
+
+def test_ulaz_u_aplikaciju_vodi_na_zivu_rutu(klijent):
+    """CTA ne sme voditi u prazno.
+
+    `/app` mora stvarno da odgovori i da servira aplikaciju, ne stari landing.
+    """
+    r = klijent.get("/app")
+    assert r.status_code == 200, f"/app vraća {r.status_code}"
+    telo = r.text
+    assert "setAuthMode" in telo or "#register" in telo, (
+        "/app ne servira aplikaciju sa modalom za prijavu"
+    )
+    # Stari landing je obrisan; ako se ikad vrati na ovu rutu, ovo pada.
+    assert "Počni besplatno" not in telo, "/app servira stari landing"
+
+
+def test_registracija_je_stvarno_otvorena(klijent):
+    """CTA „Otvori nalog" sme da postoji SAMO ako registracija radi.
+
+    Mandat je izričit: ako registracija nije dostupna, dugme se ne prikazuje.
+    Ovde se meri postojanje rute, ne njen ishod — poziv bez podataka mora vratiti
+    422 (validacija), ne 404 (ruta ne postoji).
+    """
+    r = klijent.post("/api/register", json={})
+    assert r.status_code != 404, "ruta /api/register ne postoji — ukloni CTA za nalog"
+    assert r.status_code in (400, 422), f"neočekivan odgovor: {r.status_code}"
+
+
+def test_pocetna_razdvaja_dva_putovanja(klijent):
+    """Postojeći korisnik i budući korisnik ne smeju deliti isti poziv na akciju.
+
+    Nalog radi odmah; Beta je razgovor o zatvorenom testiranju. Jedan CTA za
+    oba bi značio da jedno od to dvoje nije istina.
+    """
+    telo = _tekst(klijent, "/")
+    assert APP_PRIJAVA in telo, "nema puta za postojećeg korisnika"
+    assert APP_REGISTRACIJA in telo, "nema puta za otvaranje naloga"
+    assert 'href="/beta"' in telo, "nema puta za beta pristup"
+
+
+def test_beta_ostaje_odvojena_od_pristupa_aplikaciji(klijent):
+    """Beta ne sme biti predstavljena kao otvaranje naloga."""
+    telo = _vidljivi_tekst(klijent, "/beta").lower()
+    for izraz in ("besplatno", "odmah dobijate nalog", "automatski nalog"):
+        assert izraz not in telo, f"/beta implicira otvaranje naloga: {izraz!r}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. DIGITALNA IMOVINA (/web3)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_web3_je_u_navigaciji(klijent):
+    for ruta in STRANICE:
+        assert 'href="/web3"' in _tekst(klijent, ruta), f"{ruta} ne linkuje /web3"
+
+
+def test_web3_ponavlja_obavezne_ograde(klijent):
+    """Dve ograde iz koda su obavezne i bez njih stranica laže.
+
+    Obe je napisao neko ko zna granice alata, pre nego što ih je iko tražio:
+    `routers/wallet_provenance.py:70` i `:302-305`.
+    """
+    telo = _cist_tekst(klijent, "/web3")
+    assert "NE predstavlja potpunu blockchain forenzičku analizu" in telo, (
+        "/web3 ne ponavlja obaveznu ogradu o dometu analize"
+    )
+    assert "rizik" in telo.lower(), "/web3 ne pominje rizik uopšte"
+
+
+def test_web3_ne_obecava_trgovanje_ni_savet(klijent):
+    """Obim je usklađenost i provera porekla. Nikad trgovanje, nikad savet.
+
+    Zabranjuje se TVRDNJA, ne reč. Prva verzija ovog testa je zabranjivala niz
+    „trgovanje" i time oborila rečenicu „Nije za trgovanje." — dakle baš onu
+    koja granicu POSTAVLJA. Test koji kažnjava poštenje je gori od nikakvog.
+    """
+    telo = _cist_tekst(klijent, "/web3").lower()
+
+    # Afirmativne formulacije — svaka bi značila izlazak iz obima.
+    for izraz in ("za trgovanje digitalnom imovinom", "preporuka za kupovinu",
+                  "savet o ulaganju", "prikaz prinosa", "upravljanje portfolijom",
+                  "defi prinos", "trgujte"):
+        assert izraz not in telo, f"/web3 izlazi iz obima: {izraz!r}"
+
+    # I obrnuto: granica mora biti IZRIČITO napisana, ne samo poštovana.
+    #
+    # Ne traži se određena reč nego tvrdnja. Ranija verzija je zahtevala niz
+    # „nije za trgovanje", pa je stranica granicu preformulisala pozitivno —
+    # što je bolje napisano, a test bi je oborio. Test sme da traži da granica
+    # POSTOJI, ne kojim je rečima izgovorena.
+    assert "usklađenost i provera porekla" in telo, (
+        "/web3 nigde ne kaže koji mu je obim"
+    )
+    assert "ne preporučuje kupovinu" in telo, (
+        "/web3 ne odriče preporuku kupovine — granicu mora izgovoriti, ne samo "
+        "je ne prekršiti"
+    )
+
+
+def test_web3_ne_obecava_cenu_ni_trenutnu_aktivaciju(klijent):
+    """Modul je gejtovan dodatkom, a Stripe nije integrisan — aktivacija je ručna."""
+    telo = _cist_tekst(klijent, "/web3").lower()
+    for izraz in ("€", "rsd", "kupite", "pretplatite se"):
+        assert izraz not in telo, f"/web3 obećava kupovinu koja ne postoji: {izraz!r}"

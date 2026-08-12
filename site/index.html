@@ -38,11 +38,12 @@
     <nav class="vw-nav" id="vw-nav" aria-label="Glavna navigacija">
       <a href="/kako-radi">Kako radi</a>
       <a href="/sposobnosti">Sposobnosti</a>
-      <a href="/bezbednost">Bezbednost</a>
       <a href="/za-advokate">Za advokate</a>
+      <a href="/web3">Digitalna imovina</a>
+      <a href="/bezbednost">Bezbednost</a>
       <a href="/vizija">Vizija</a>
-      <a href="/app">Prijava</a>
-      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/beta">Prijavite se za betu</a>
+      <a class="vw-btn vw-btn--ghost vw-btn--inline" href="/beta">Beta</a>
+      <a class="vw-btn vw-btn--primary vw-btn--inline" href="/app#login">Uđi u aplikaciju</a>
     </nav>
   </div>
 </header>
@@ -80,7 +81,7 @@
         odgovor — i ćuti kada pouzdan izvor ne postoji.
       </p>
       <p style="margin-top:var(--vw-sp-6);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
-        <a class="vw-btn vw-btn--primary" href="/beta">Prijavite se za zatvoreno testiranje</a>
+        <a class="vw-btn vw-btn--primary" href="/app#login">Uđi u aplikaciju</a>
         <a class="vw-btn vw-btn--ghost" href="/kako-radi">Kako radi</a>
       </p>
 
@@ -628,9 +629,33 @@
           ništa od toga nije mereno. Ono što postoji je sistem koji radi i spisak
           onoga što još ne radi.
         </p>
-        <p style="margin-top:var(--vw-sp-6)">
-          <a class="vw-btn vw-btn--primary" href="/beta">Prijavite se za zatvoreno testiranje</a>
-        </p>
+      </div>
+
+      <!-- DVA ODVOJENA PUTOVANJA.
+           Razdvojena su namerno i nikad se ne mešaju: nalog se otvara odmah i
+           radi (`POST /api/register` kreira korisnika i dodeljuje početne
+           kredite), dok je Beta razgovor o zatvorenom testiranju sa nekim ko
+           gradi proizvod. Jedan poziv na akciju za oba bi značio da jedno od to
+           dvoje nije istina. -->
+      <div class="vw-grid vw-grid--2" style="margin-top:var(--vw-sp-7)">
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Već imate nalog</p>
+          <h3>Uđite u Vindex</h3>
+          <p>Prijava vodi pravo u aplikaciju sa vašim predmetima.</p>
+          <p style="margin-top:var(--vw-sp-4)">
+            <a class="vw-btn vw-btn--primary" href="/app#login">Uđi u aplikaciju</a>
+          </p>
+        </div>
+        <div>
+          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Prvi put ste ovde</p>
+          <h3>Otvorite nalog ili se javite</h3>
+          <p>Nalog možete otvoriti odmah. Ako želite da učestvujete u zatvorenom
+             testiranju i razgovarate direktno sa nama, javite se.</p>
+          <p style="margin-top:var(--vw-sp-4);display:flex;gap:var(--vw-sp-3);flex-wrap:wrap">
+            <a class="vw-btn vw-btn--ghost" href="/app#register">Otvori nalog</a>
+            <a class="vw-btn vw-btn--ghost" href="/beta">Zatraži beta pristup</a>
+          </p>
+        </div>
       </div>
     </div>
   </section>
@@ -652,6 +677,7 @@
           <li><a href="/kako-radi">Kako radi</a></li>
           <li><a href="/sposobnosti">Sposobnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/web3">Digitalna imovina</a></li>
           <li><a href="/tehnologija">Tehnologija</a></li>
           <li><a href="/vizija">Vizija</a></li>
         </ul>
@@ -673,6 +699,8 @@
           <li><a href="/terms">Uslovi korišćenja</a></li>
           <li><a href="/dpa">Obrada podataka</a></li>
           <li><a href="/kontakt">Kontakt</a></li>
+          <li><a href="/beta">Beta pristup</a></li>
+          <li><a href="/app#login">Uđi u aplikaciju</a></li>
         </ul>
       </div>
     </div>
