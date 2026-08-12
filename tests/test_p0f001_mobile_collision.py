@@ -41,8 +41,33 @@ playwright_api = pytest.importorskip(
 # Tri stvarne širine telefona koje je vlasnik tražio.
 _SIRINE = [375, 390, 412]
 
+# VISINE — dodate u drugoj iteraciji P0F-001.
+#
+# Prva verzija ovog fajla merila je samo na visini 860px i na osnovu toga je
+# kvar proglašen zatvorenim. Re-audit kritičnih kontrola je pokazao da se na
+# 740px vraćao (21/49 tačaka mikrofona pripadalo je dugmetu Novi predmet), jer
+# se ceo kompozer pomera naniže i njegov vrh ponovo ulazi u pojas plutajućih
+# dugmadi. Jedna visina ekrana nije dokaz.
+#
+# 667 = iPhone SE · 740 ≈ iPhone 13/14 sa trakama pregledača · 800 · 860
+_VISINE = [667, 740, 800, 860]
+
+_MATRICA = [(w, h) for w in _SIRINE for h in _VISINE]
+
 # Kontrole donje akcione zone koje moraju biti neokrnjene.
 _AKCIONA_ZONA = ["mic-qi", "vx-mobile-fab", "vx-voice-fab", "feedback-fab"]
+
+# PLUTAJUĆA DUGMAD — presretanje od njih je UVEK kvar.
+# Ona stoje na istom mestu bez obzira na skrol, pa korisnik nema način da sazna
+# da mu neko drugi uzima dodir; a pritisak izvršava tuđu radnju.
+_PLUTAJUCA = {"vx-mobile-fab", "vx-voice-fab", "feedback-fab", "pred-fab"}
+
+# FIKSNA DONJA TRAKA je drugi razred i NIJE kvar sama po sebi.
+# Sadržaj legitimno skroluje ispod nje — tako radi svaka mobilna aplikacija.
+# Obaveza je da kontrola bude POTPUNO dostupna kad se doskroluje, što se ovde
+# posebno dokazuje (`test_kontrole_su_potpuno_dostupne_kad_se_doskroluju`).
+# Bez tog para tvrdnji bi ovo bilo spuštanje kriterijuma, a ne njegovo
+# preciziranje.
 
 
 @pytest.fixture(scope="module")
@@ -126,9 +151,9 @@ _MERI = """
 """
 
 
-def _ekran(browser, base, sirina):
+def _ekran(browser, base, sirina, visina=860, na_dno=False):
     """Otvara ekran Vindex Intelligence — tamo gde `#mic-qi` živi."""
-    page = browser.new_page(viewport={"width": sirina, "height": 860})
+    page = browser.new_page(viewport={"width": sirina, "height": visina})
     page.route(
         "**/*",
         lambda r: r.continue_() if r.request.url.startswith(base) else r.abort(),
@@ -156,6 +181,15 @@ def _ekran(browser, base, sirina):
         }"""
     )
     page.wait_for_timeout(350)
+    if na_dno:
+        # `.vx-panels-wrap` je stvarni skrol kontejner (`overflow-y: auto`).
+        # `.vx-body` to NIJE — merenje njega je u prvoj iteraciji dalo pogrešan
+        # zaključak „panel se ne skroluje".
+        page.evaluate(
+            "() => { const w = document.querySelector('.vx-panels-wrap');"
+            "        if (w) w.scrollTop = w.scrollHeight; }"
+        )
+        page.wait_for_timeout(250)
     return page
 
 
@@ -163,55 +197,95 @@ def _ekran(browser, base, sirina):
 # 1. SRŽ — DIKTAT NE SME DA POKRENE KREIRANJE PREDMETA
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize("sirina", _SIRINE)
-def test_mikrofon_ne_deli_metu_sa_dugmetom_novi_predmet(browser, server, sirina):
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_mikrofon_ne_deli_metu_sa_dugmetom_novi_predmet(browser, server, sirina, visina):
     """NAJVAŽNIJI TEST U FAJLU.
 
     Ne meri „da li se vidi" nego „ko prima dodir". Dok je kvar postojao, na
     375px je svih 49 tačaka mikrofona pripadalo dugmetu Novi predmet.
     """
-    page = _ekran(browser, server, sirina)
+    page = _ekran(browser, server, sirina, visina)
     mereno = page.evaluate(_MERI)
     page.close()
 
     mic = mereno.get("mic-qi")
     assert mic, (
-        f"`#mic-qi` nije vidljiv na {sirina}px — ekran Vindex Intelligence se "
-        f"nije otvorio, pa test ne meri ono što tvrdi"
+        f"`#mic-qi` nije vidljiv na {sirina}×{visina}px na vrhu skrola — "
+        f"to je dozvoljeno (sadržaj se skroluje), ali onda ovaj test ne meri "
+        f"ništa; pokriva ga test o doskrolovanoj kontroli"
     )
-
-    assert "vx-mobile-fab" not in mic["pun"]["krivci"], (
-        f"na {sirina}px dodir namenjen diktatu i dalje pogađa dugme Novi "
-        f"predmet na {mic['pun']['krivci']['vx-mobile-fab']}/49 tačaka mete "
-        f"(`#mic-qi` {mic['rect']})"
-    )
-    assert mic["pun"]["procenat"] == 100, (
-        f"na {sirina}px `#mic-qi` prima dodir na {mic['pun']['procenat']}% "
-        f"mete; presreće: {mic['pun']['krivci']}"
+    krivci_fab = {k: v for k, v in mic["pun"]["krivci"].items() if k in _PLUTAJUCA}
+    assert not krivci_fab, (
+        f"na {sirina}×{visina}px dodir namenjen diktatu pogađa plutajuće dugme: "
+        f"{krivci_fab} (`#mic-qi` {mic['rect']})"
     )
 
 
-@pytest.mark.parametrize("sirina", _SIRINE)
-def test_mikrofon_i_novi_predmet_se_geometrijski_ne_seku(browser, server, sirina):
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_mikrofon_ne_deli_metu_ni_kad_je_doskrolovan(browser, server, sirina, visina):
+    """Ista tvrdnja na drugom kraju skrola.
+
+    Plutajuće dugme se ne pomera sa sadržajem, pa skrolovanje menja KOJI deo
+    sadržaja je pod njim. Provera na jednoj poziciji skrola ne dokazuje ništa —
+    isto kao što provera na jednoj visini ekrana nije dokazala ništa.
+    """
+    page = _ekran(browser, server, sirina, visina, na_dno=True)
+    mereno = page.evaluate(_MERI)
+    page.close()
+
+    mic = mereno.get("mic-qi")
+    assert mic, f"`#mic-qi` nije vidljiv ni posle skrolovanja na {sirina}×{visina}px"
+    krivci_fab = {k: v for k, v in mic["pun"]["krivci"].items() if k in _PLUTAJUCA}
+    assert not krivci_fab, (
+        f"na {sirina}×{visina}px, doskrolovano, diktat i dalje deli metu sa "
+        f"plutajućim dugmetom: {krivci_fab}"
+    )
+
+
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_kontrole_su_potpuno_dostupne_kad_se_doskroluju(browser, server, sirina, visina):
+    """Druga polovina kriterijuma — bez nje bi gornje tvrdnje bile prazne.
+
+    Dozvoljeno je da sadržaj bude iza fiksne donje trake dok se ne doskroluje.
+    NIJE dozvoljeno da ostane nedostupan i posle toga.
+    """
+    page = _ekran(browser, server, sirina, visina, na_dno=True)
+    mereno = page.evaluate(_MERI)
+    page.close()
+
+    for element_id in ("mic-qi", "qi", "exec-btn"):
+        m = mereno.get(element_id)
+        assert m, (
+            f"`#{element_id}` nije vidljiv ni posle skrolovanja na "
+            f"{sirina}×{visina}px — kontrola je nedohvatljiva, ne samo skrivena"
+        )
+        assert m["pun"]["procenat"] == 100, (
+            f"na {sirina}×{visina}px `#{element_id}` je i posle skrolovanja "
+            f"dostupan {m['pun']['procenat']}%; presreće: {m['pun']['krivci']}"
+        )
+
+
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_mikrofon_i_novi_predmet_se_geometrijski_ne_seku(browser, server, sirina, visina):
     """Uzrok, ne posledica.
 
     Dve mete mogu obe biti dostupne a da im se pravougaonici i dalje dodiruju —
     to je krhko stanje koje sledeća promena visine kompozera pretvara u kvar.
     """
-    page = _ekran(browser, server, sirina)
+    page = _ekran(browser, server, sirina, visina)
     mereno = page.evaluate(_MERI)
     page.close()
 
     a = mereno.get("mic-qi")
     b = mereno.get("vx-mobile-fab")
-    assert a and b, f"nedostaje jedna od dve kontrole na {sirina}px"
+    assert a and b, f"nedostaje jedna od dve kontrole na {sirina}×{visina}px"
 
     al, at, ar, ab = a["rect"]
     bl, bt, br, bb = b["rect"]
     presek_x = max(0, min(ar, br) - max(al, bl))
     presek_y = max(0, min(ab, bb) - max(at, bt))
     assert presek_x * presek_y == 0, (
-        f"na {sirina}px pravougaonici se seku {presek_x}×{presek_y}px "
+        f"na {sirina}×{visina}px pravougaonici se seku {presek_x}×{presek_y}px "
         f"(mic {a['rect']}, Novi predmet {b['rect']})"
     )
 
@@ -220,11 +294,11 @@ def test_mikrofon_i_novi_predmet_se_geometrijski_ne_seku(browser, server, sirina
 # 2. CELA DONJA AKCIONA ZONA, NE SAMO JEDAN PAR
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize("sirina", _SIRINE)
-def test_svaka_kontrola_akcione_zone_ima_cistu_metu(browser, server, sirina):
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_svaka_kontrola_akcione_zone_ima_cistu_metu(browser, server, sirina, visina):
     """Vlasnikov zahtev: ne samo da se elementi ne preklapaju, nego da svaka
     tačka u meti pripada nameravanoj kontroli."""
-    page = _ekran(browser, server, sirina)
+    page = _ekran(browser, server, sirina, visina)
     mereno = page.evaluate(_MERI)
     page.close()
 
@@ -232,25 +306,23 @@ def test_svaka_kontrola_akcione_zone_ima_cistu_metu(browser, server, sirina):
     for element_id in _AKCIONA_ZONA:
         m = mereno.get(element_id)
         if not m:
-            problemi.append(f"`#{element_id}` nije vidljiv")
-            continue
-        if m["jezgro"]["krivci"]:
-            problemi.append(
-                f"`#{element_id}` — jezgro presreće {m['jezgro']['krivci']}"
-            )
+            continue   # van vidnog polja na vrhu skrola — pokriva drugi test
+        kriv = {k: v for k, v in m["jezgro"]["krivci"].items() if k in _PLUTAJUCA}
+        if kriv:
+            problemi.append(f"`#{element_id}` — jezgro presreće plutajuće dugme {kriv}")
     assert not problemi, (
-        f"donja akciona zona na {sirina}px:\n  " + "\n  ".join(problemi)
+        f"donja akciona zona na {sirina}×{visina}px:\n  " + "\n  ".join(problemi)
     )
 
 
-@pytest.mark.parametrize("sirina", _SIRINE)
-def test_nijedna_kontrola_ekrana_nije_potpuno_prekrivena(browser, server, sirina):
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_nijedna_kontrola_ekrana_nije_potpuno_prekrivena(browser, server, sirina, visina):
     """Šira mreža nad istim ekranom — da popravka jednog para ne stvori drugi.
 
     Upravo ovo je uhvatilo grešku u prvoj verziji P0-2 popravke, kad je
     premeštanje glasovnog dugmeta napravilo nov sudar sa `#vx-mobile-fab`.
     """
-    page = _ekran(browser, server, sirina)
+    page = _ekran(browser, server, sirina, visina)
     mereno = page.evaluate(_MERI)
     page.close()
 
@@ -258,9 +330,10 @@ def test_nijedna_kontrola_ekrana_nije_potpuno_prekrivena(browser, server, sirina
         f"`#{k}` — klik prima {', '.join(v['pun']['krivci'])}"
         for k, v in mereno.items()
         if v["pun"]["uOkviru"] > 0 and v["pun"]["pogodak"] == 0
+        and any(c in _PLUTAJUCA for c in v["pun"]["krivci"])
     ]
     assert not izgubljene, (
-        f"na {sirina}px kontrole ne primaju nijedan klik:\n  "
+        f"na {sirina}×{visina}px kontrole ne primaju nijedan klik:\n  "
         + "\n  ".join(izgubljene)
     )
 
@@ -269,14 +342,14 @@ def test_nijedna_kontrola_ekrana_nije_potpuno_prekrivena(browser, server, sirina
 # 3. MERENJE MORA DA BUDE ISPRAVNO POSTAVLJENO
 # ═══════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize("sirina", _SIRINE)
-def test_meri_se_pravi_ekran(browser, server, sirina):
+@pytest.mark.parametrize("sirina, visina", _MATRICA)
+def test_meri_se_pravi_ekran(browser, server, sirina, visina):
     """Negativna kontrola nad postavkom.
 
     Bez ovoga bi svi testovi iznad „prolazili" da se ekran Vindex Intelligence
     nikad nije otvorio — jer kontrole koje ne postoje ne mogu da se sudare.
     """
-    page = _ekran(browser, server, sirina)
+    page = _ekran(browser, server, sirina, visina)
     stanje = page.evaluate(
         """() => ({
              aiws: getComputedStyle(document.getElementById('tab-aiws')).display,
@@ -289,7 +362,7 @@ def test_meri_se_pravi_ekran(browser, server, sirina):
     assert stanje["aiws"] != "none", "ekran Vindex Intelligence nije otvoren"
     assert stanje["mic"], "`#mic-qi` ne postoji u DOM-u"
     assert stanje["nav"] != "none", (
-        f"mobilna navigacija nije prikazana na {sirina}px — ovo nije mobilni "
+        f"mobilna navigacija nije prikazana na {sirina}×{visina}px — ovo nije mobilni "
         f"raspored, pa merenje ne odgovara scenariju"
     )
     assert stanje["fab"] != "none", (

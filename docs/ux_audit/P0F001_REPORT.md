@@ -1,3 +1,18 @@
+> # ⚠ ISPRAVKA — OVAJ IZVEŠTAJ JE DELOM NETAČAN
+>
+> Zaključak „P0F-001 CLOSED" iz ovog dokumenta **nije bio tačan**. Popravka je
+> merena samo na visini ekrana 860px; na 740px i 667px sudar se vraćao.
+>
+> Dve tvrdnje odavde su takođe netačne i ispravljene su:
+> * „panel se ne skroluje" — merio sam `.vx-body`; stvarni skrol kontejner je
+>   `.vx-panels-wrap` (`scrollHeight 1147 / clientHeight 726`);
+> * popravka `align-items: flex-start` — mutacija je kasnije pokazala da ne radi
+>   ništa, pa je uklonjena.
+>
+> Važeće stanje i konačna popravka (vodoravno razdvajanje) su u
+> **`REAUDIT_CRITICAL_CONTROLS.md`**. Ovaj dokument se zadržava kao trag
+> pogrešnog zaključka, ne kao izvor istine.
+
 # P0F-001 — MOBILE ACTION COLLISION
 
 **Polazno:** `41de2f79` · 5054 passed / 1 skipped
