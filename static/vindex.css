@@ -9810,3 +9810,13 @@ textarea.vx-f-input:not(:placeholder-shown) + .vx-f-label { top: 0.55rem; }
   outline-offset: -2px !important;
   background: rgba(0,212,255,0.06) !important;
 }
+
+/* ── Faza 1.5: vidljiv fokus za custom kontrole ───────────────────────────
+   `.t-tab` je fokus dobio u P0-4. Isto pravilo mora da važi za svaku kontrolu
+   koja se predstavlja kao dugme a nije `<button>` — inače dobije `tabindex`,
+   prima fokus, a korisnik ne vidi gde se nalazi. */
+.vx-sidebar-help:focus-visible,
+#pred-upload-zone:focus-visible {
+  outline: 2px solid var(--blue) !important;
+  outline-offset: 2px !important;
+}

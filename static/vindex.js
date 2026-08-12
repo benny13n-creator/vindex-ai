@@ -7997,16 +7997,42 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
   if (!currentSession || !currentUser) { showToast('Morate biti prijavljeni da biste prijavili grešku.', 'err'); return; }
   btn.textContent = '\u0160aljem...'; btn.disabled = true;
   try {
-    var sb = getSupabase();
+    // R-004 (Faza 1.5, 2026-08-12): SADRZAJ PRIJAVE POSTOJI SAMO OVDE.
+    //
+    // `/api/feedback` po NO-STORAGE politici (`routers/drafting.py:796`) cuva
+    // iskljucivo HES pitanja i tip -- ne i tekst pitanja ni odgovora. Sam poziv
+    // je `fetch(...).catch(function(){})`, a backend vraca `{"status":"ok"}` i
+    // kad upis padne. Dakle jedini trag netacnog pravnog odgovora je red u
+    // `reported_errors`, i pise ga iskljucivo ovaj klijent.
+    //
+    // Ranije je ovde stajalo `var sb = getSupabase(); if (sb) { ... }`, a poruka
+    // "Prijavljeno -- hvala" se postavljala BEZUSLOVNO ispod. Kad `window.supabase`
+    // jos nije ucitan, `getSupabase()` vraca `null`, upis se tiho preskace, i
+    // advokat dobija potvrdu za prijavu koje nigde nema. Isti razred kao P0-1:
+    // ekran uspeha bez ishoda -- i to na najvrednijem signalu koji imamo.
+    //
+    // `_waitSupa()` vec postoji u ovom fajlu upravo za ovaj slucaj; koristi se.
+    var sb = (typeof _waitSupa === 'function') ? await _waitSupa(4000) : getSupabase();
     var pitanje = decodeURIComponent(pitanjeEnc);
     var odgovor = decodeURIComponent(odgovorEnc);
-    if (sb) {
-      await sb.from('reported_errors').insert({
-        user_id:         currentUser.id,
-        original_prompt: pitanje.substring(0, 4000),
-        ai_response:     odgovor.substring(0, 8000),
-        timestamp:       new Date().toISOString()
-      });
+    if (!sb) {
+      btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
+      btn.disabled = false;
+      showToast('Prijava NIJE sačuvana — nema veze sa bazom. Pokušajte ponovo.', 'err');
+      return;
+    }
+    var _upis = await sb.from('reported_errors').insert({
+      user_id:         currentUser.id,
+      original_prompt: pitanje.substring(0, 4000),
+      ai_response:     odgovor.substring(0, 8000),
+      timestamp:       new Date().toISOString()
+    });
+    // Supabase JS ne baca izuzetak -- gresku vraca u objektu.
+    if (_upis && _upis.error) {
+      btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
+      btn.disabled = false;
+      showToast('Prijava NIJE sačuvana: ' + (_upis.error.message || 'greška baze'), 'err');
+      return;
     }
     // Šalji i hash na backend (bez sadržaja, za serverski log)
     fetch(BASE_URL + '/api/feedback', {
@@ -23734,10 +23760,45 @@ async function portalUkloni(praceniId) {
 //
 // `Space` se mora sprečiti u `keydown` — inače stranica skroluje pre nego što
 // se tab otvori.
+// SAMO `role="tab"`. Namerno NE i `role="button"`.
+//
+// Prva verzija ovog rukovaoca (Faza 1.5) hvatala je i `[role="button"]` — i
+// time napravila DUPLIKAT: `vindex.js:483` vec ima generic aktivator za
+// `[role="button"][tabindex]`. Posledica je bila dvostruko izvrsavanje: `Enter`
+// na zoni za otpremanje otvarao je izbor fajla DVA puta. Uhvatio ga je test
+// koji broji koliko je puta radnja izvrsena, a ne da li se izvrsila.
+//
+// Zato ovde ostaje samo ono sto postojeci rukovalac ne pokriva: tabovi glavne
+// navigacije (`role="tab"`, P0-4). Za sve sto se predstavlja kao dugme dovoljno
+// je dodati `role="button"` i `tabindex` — aktivacija vec postoji.
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-  var tab = e.target && e.target.closest && e.target.closest('.t-tab');
-  if (!tab) return;
+  if (!e.target || !e.target.closest) return;
+  var el = e.target.closest('[role="tab"]');
+  if (!el) return;
+  var oznaka = (el.tagName || '').toUpperCase();
+  if (oznaka === 'BUTTON' || oznaka === 'A' || oznaka === 'INPUT') return;
   e.preventDefault();
-  tab.click();
+  el.click();
 });
+
+// R-001 (Faza 1.5): „Pomoc & podrska" u bocnoj traci nije imala NIJEDAN rukovalac
+// -- ni `onclick`, ni slusaoca. CSS joj je davao `cursor:pointer` i hover, pa je
+// izgledala ziva. To je lazna affordance, i stajala je tako od pocetka.
+//
+// Nova funkcija se NE pravi. Kanonsko odrediste vec postoji: `#pomoc-section`
+// (`index.html:3746`) unutar Podesavanja -- FAQ (`pomocFaqToggle`) plus forma
+// koja salje na `/api/support/poruka` (`pomocPosalji`). Do njega se do sada
+// moglo doci samo rucnim otvaranjem Podesavanja i skrolovanjem; nijedna
+// kontrola nije vodila tamo.
+function pomocOtvori() {
+  var dugme = document.getElementById('tab-btn-settings');
+  if (dugme && typeof setTab === 'function') setTab(dugme, 'settings');
+  // Skrol tek kad se panel iscrta.
+  setTimeout(function() {
+    var sekcija = document.getElementById('pomoc-section');
+    if (sekcija && sekcija.scrollIntoView) {
+      sekcija.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 120);
+}

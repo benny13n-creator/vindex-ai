@@ -535,7 +535,7 @@
           <i data-lucide="user-plus"></i>
           <span>Pozovite kolegu</span>
         </div>
-        <div class="vx-foot-row vx-sidebar-help">
+        <div class="vx-foot-row vx-sidebar-help" role="button" tabindex="0" onclick="pomocOtvori()" aria-label="Pomoć i podrška — otvara FAQ i formu za podršku">
           <i data-lucide="help-circle"></i>
           <span>Pomoć &amp; podrška</span>
         </div>
@@ -1088,7 +1088,7 @@
               <div class="pred-subtab-pane" id="pred-pane-dokumenti" style="display:none;">
                 <div class="pred-section-lbl">Otpremi dokument</div>
                 <input type="file" id="pred-upload-input" accept=".pdf,.docx,.doc" style="display:none" onchange="pred_upload_doc(this.files[0])">
-                <div id="pred-upload-zone" class="upload-dropzone" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
+                <div id="pred-upload-zone" class="upload-dropzone" role="button" tabindex="0" aria-label="Otpremi dokument — PDF ili DOCX, do 10MB" style="padding:0.85rem 1rem;margin-top:0;" onclick="pred_upload_trigger()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');pred_upload_doc(event.dataTransfer.files[0])">
                   <div style="font-size:1.15rem;margin-bottom:0.2rem;"><i data-lucide="paperclip" style="width:20px;height:20px;color:rgba(255,255,255,0.45);"></i></div>
                   <div style="font-size:0.8rem;color:rgba(255,255,255,0.7);">Prevucite dokument ili kliknite za upload</div>
                   <div style="font-size:0.71rem;color:rgba(255,255,255,0.35);margin-top:0.12rem;">PDF, DOCX — do 10MB</div>
@@ -2875,7 +2875,7 @@
               <span class="t-chip" onclick="fillQ('Razvod braka i starateljstvo nad detetom')">Razvod i starateljstvo</span>
               <span class="t-chip" onclick="fillQ('Zastarelost potraživanja naknade štete')">Zastarelost</span>
             </div>
-            <label class="t-label">Vaše pravno pitanje:</label>
+            <label class="t-label" for="qi">Vaše pravno pitanje:</label>
             <div class="mic-input-wrap">
               <textarea class="t-input" id="qi" placeholder="Npr. Koji su uslovi za naknadu nematerijalne štete?" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
               <button class="mic-btn" id="mic-qi" type="button" onclick="micToggle('qi')" title="Glasovni unos — kliknite da diktirate (sr-RS)"><i class="fa-solid fa-microphone"></i></button>
