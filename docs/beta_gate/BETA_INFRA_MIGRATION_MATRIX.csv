@@ -1,0 +1,107 @@
+migration_id,filename,classification,expected_objects,actual_objects,proof_level,risk,runtime_impact,recommended_action
+002,002_klijenti_crm.sql,SCHEMA MATCH ONLY,tab=4 kol=14 idx=14 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+003,003_billing.sql,SCHEMA MATCH ONLY,tab=3 kol=0 idx=8 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+004,004_klijenti_fixes.sql,SCHEMA MATCH ONLY,tab=0 kol=2 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+005,005_rocista.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+006,006_tarife.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=4 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+007,007_ingest_jobs.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=0 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+008,008_sef_recurring.sql,SCHEMA MATCH ONLY,tab=4 kol=0 idx=3 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+009,009_notifications_analytics.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=4 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+010,010_client_portal.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+011,011_saradnja.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+012,012_sms_notifikacije.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=0 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+013,013_client_portal_uploads.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=4 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+014,014_security_fixes.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+015,015_predmeti_extra_fields.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+016,016_evidence_vault.sql,SCHEMA MATCH ONLY,tab=1 kol=1 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+017,017_scraper_state.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+018,018_kancelarija.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=4 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+019,019_api_kljucevi.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+020,020_law_docs.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+021,021_email_notif.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+022,022_weekly_digest.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+023,023_stability_500_users.sql,VERIFIED MISSING,tab=0 kol=0 idx=5 pol_trg=0,nedostaje=4,SCHEMA,P1,"ciljevi ne postoje: ['email_notif_log.created_at', 'email_notif_log.tip', 'klijenti.created_at', 'ro",RECONSTRUCT
+024,024_plans_usage.sql,SCHEMA MATCH ONLY,tab=3 kol=0 idx=2 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+025,025_onboarding_emails.sql,SCHEMA MATCH ONLY,tab=1 kol=1 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+026,026_predmet_health_log.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+036,036_decision_log.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=5 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+037,037_learning_loop.sql,SCHEMA MATCH ONLY,tab=3 kol=0 idx=5 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+038,038_deep_learning.sql,SCHEMA MATCH ONLY,tab=3 kol=5 idx=7 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+039,039_epistemic_confidence.sql,SCHEMA MATCH ONLY,tab=1 kol=13 idx=3 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+040,040_faza5_org_intelligence.sql,SCHEMA MATCH ONLY,tab=6 kol=0 idx=6 pol_trg=6,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+041,041_confidence_audit_hygiene.sql,SCHEMA MATCH ONLY,tab=2 kol=2 idx=4 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+042,042_mesecna_upotreba_db.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+043,043_security_bulletproof.sql,SCHEMA MATCH ONLY,tab=3 kol=3 idx=11 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+044,044_anomaly_detection.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=1 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+045,045_firm_intelligence.sql,SCHEMA MATCH ONLY,tab=5 kol=1 idx=9 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+046,046_firm_memory.sql,SCHEMA MATCH ONLY,tab=4 kol=1 idx=8 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+047,047_trust_graph_workflow.sql,SCHEMA MATCH ONLY,tab=4 kol=1 idx=9 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+048,048_reliability_hardening.sql,SCHEMA MATCH ONLY,tab=4 kol=4 idx=9 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+049,049_health_observability.sql,SCHEMA MATCH ONLY,tab=2 kol=3 idx=3 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+050,050_cio_dnevni_izvestaj.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+051,051_plans_usage_schema_fix.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+052,052_twin_simulacije.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+053,053_orphaned_inline_schemas.sql,SCHEMA MATCH ONLY,tab=6 kol=0 idx=6 pol_trg=6,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+054,054_predmet_delegiranja.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+055,055_waitlist.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+056,056_tos_acceptances.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+057,057_active_orphaned_tables.sql,SCHEMA MATCH ONLY,tab=9 kol=0 idx=7 pol_trg=9,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+058,058_briefing_saradnja_memory_webhooks.sql,SCHEMA MATCH ONLY,tab=7 kol=0 idx=4 pol_trg=7,nedostaje=0,SCHEMA,P3,supersedirano (DROP u kasnijoj migraciji): ['vindex_memory'],DO NOT RUN
+059,059_workflow_solo_i_sistemski_predlosci.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=0 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+060,060_digitalna_imovina_activation.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+061,061_fix_missing_profiles_columns.sql,SCHEMA MATCH ONLY,tab=0 kol=5 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+062,062_digitalna_imovina_standalone.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+063,063_entitlement_system.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+064,064_feature_registry.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=1 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+065,065_feature_registry_v2.sql,SCHEMA MATCH ONLY,tab=3 kol=1 idx=3 pol_trg=3,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+066,066_digital_twin_feature.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+067,067_seat_lifecycle.sql,SCHEMA MATCH ONLY,tab=1 kol=1 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+068,068_tier_config.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=1 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+069,069_feature_registry_credit_multiplier.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+070,070_feature_registry_feature_type.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+071,071_business_groups.sql,SCHEMA MATCH ONLY,tab=2 kol=1 idx=1 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+072,072_business_groups_content.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+073,073_intake_foundations.sql,SCHEMA MATCH ONLY,tab=4 kol=1 idx=4 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+074,074_intake_phase1a.sql,SCHEMA MATCH ONLY,tab=4 kol=4 idx=5 pol_trg=4,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+075,075_remove_vindex_memory.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+076,076_legal_reasoning_engine.sql,SCHEMA MATCH ONLY,tab=6 kol=0 idx=9 pol_trg=6,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+077,077_sec031_restrict_auth_users_cascade.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+078,078_sec034_klijenti_komentari_policies.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=0 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+079,079_fix_predmet_delegiranja_fk.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+080,080_predmet_dokazi_grounding.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+081,081_audit_immutable_prev_hash_unique.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+082,082_agent_recommendations.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+083,083_copilot_ambient_feature.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+084,084_timer_sessions_unique_active.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+085,085_aktivne_sesije.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+086,086_portal_monitoring.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=4 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+087,087_pinecone_capacity_monitoring.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+088,088_staging_memory.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+089,089_ai_provenance_extension.sql,SCHEMA MATCH ONLY,tab=0 kol=19 idx=4 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+090,090_ledger_correlation_id.sql,SCHEMA MATCH ONLY,tab=0 kol=2 idx=2 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+091,091_event_bus_atomic_claim.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+092,092_finalize_atomic_claim.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+093,093_intake_job_segments.sql,SCHEMA MATCH ONLY,tab=1 kol=1 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+094,094_case_assimilation.sql,SCHEMA MATCH ONLY,tab=0 kol=3 idx=3 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+095,095_intake_bulletproofing.sql,SCHEMA MATCH ONLY,tab=0 kol=3 idx=2 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+096,096_case_evolution_engine.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+097,097_case_evolution_migration_i.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+098,098_case_intelligence_summaries.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=1 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+099,099_case_actions.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=2 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+100,100_notifications_priority_alignment.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+101,101_notifications_dedupe_key.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+102,102_lambda002_rpc_ownership_lockdown.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+103,103_lambda002_profiles_column_lockdown.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+104,104_lambda008_faktura_broj_unique.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+105,105_lambda008_predmet_dokumenti_missing_columns.sql,SCHEMA MATCH ONLY,tab=0 kol=1 idx=0 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+106,106_phoenix_predmet_dokumenti_redni_broj_unique.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=1 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+107,107_beta_gate_credit_race_closure.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+108,108_atomic_usage_counters.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+109,109_night_watch_rls_lockdown.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=0 pol_trg=5,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+110,110_rls_lockdown_idempotent.sql,SCHEMA MATCH ONLY,tab=0 kol=0 idx=0 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+111,111_phantom_ai_charges.sql,UNKNOWN,tab=0 kol=0 idx=0 pol_trg=0,nedostaje=0,NONE,P2,nijedan objekat nije vidljiv kroz PostgREST,INVESTIGATE
+112,112_feature_usage_provenance.sql,SCHEMA MATCH ONLY,tab=0 kol=2 idx=2 pol_trg=0,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+—,smart_contract_analyses.sql,SCHEMA MATCH ONLY,tab=1 kol=0 idx=0 pol_trg=1,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+—,supabase_migration.sql,PARTIAL/DRIFT,tab=6 kol=1 idx=3 pol_trg=6,nedostaje=7,SCHEMA,P0,"nedostaje: ['api_costs', 'ratio_decidendi', 'reported_errors', 'api_costs(tabela)']",HUMAN REVIEW
+—,supabase_migration_v3.sql,SCHEMA MATCH ONLY,tab=2 kol=0 idx=4 pol_trg=2,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
+—,supabase_setup.sql,SCHEMA MATCH ONLY,tab=13 kol=0 idx=9 pol_trg=11,nedostaje=0,SCHEMA,P3,sema se poklapa; ledger ne postoji,DO NOT RUN
