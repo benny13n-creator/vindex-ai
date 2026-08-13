@@ -156,6 +156,24 @@ class InjectionResult:
         return {"risk_score": round(self.risk_score, 3), "flags": self.flags, "blocked": self.blocked}
 
 
+# EXF-002: preklapanje mora biti vece od najduzeg moguceg pogotka obrasca,
+# inace bi injekcija podeljena tacno na granici prozora prosla neprimeceno.
+_PREKLAPANJE = 512
+
+
+def _prozori_za_analizu(text: str) -> list:
+    """Deli tekst na preklapajuce prozore od `MAX_INPUT_CHARS`.
+
+    Za tekst koji staje u jedan prozor ponasanje je identicno starom (jedan
+    prolaz nad celim tekstom) -- pa se za kratke ulaze nista ne menja ni u
+    rezultatu ni u ceni.
+    """
+    if len(text) <= MAX_INPUT_CHARS:
+        return [text]
+    korak = MAX_INPUT_CHARS - _PREKLAPANJE
+    return [text[i:i + MAX_INPUT_CHARS] for i in range(0, len(text), korak)]
+
+
 def analyze(text: str) -> InjectionResult:
     """
     Analizira tekst kroz 4 sloja zaštite.
@@ -173,27 +191,54 @@ def analyze(text: str) -> InjectionResult:
 
     # Sloj 1+2: Normalizacija
     normalized = _normalize(text)
-    truncated  = normalized[:MAX_INPUT_CHARS]
+
+    # ══ EXF-002 (BETA-DATA-CONFIDENTIALITY-001) — GUARD JE BIO SLEP IZA 60k ══
+    #
+    # Ovde je stajalo `truncated = normalized[:MAX_INPUT_CHARS]`, pa se ceo
+    # ostatak teksta NIJE analizirao. Izmereno karakter po karakter:
+    #     injekcija na 59.900 zn. -> blocked=True,  score=1.00
+    #     injekcija na 60.100 zn. -> blocked=False, score=0.00
+    #
+    # Pozivalac (`ask_analiza`) NE skracuje pre slanja modelu, pa je pun tekst
+    # -- ukljucujuci injekciju iza granice -- stizao provajderu doslovno.
+    # 60.000 znakova je oko 25-30 strana; ugovori i presude to rutinski prelaze.
+    #
+    # Napad je realan za pravnu aplikaciju: protivna strana posalje advokatu
+    # dokument sa uputstvom na 40. strani, advokat ga otpremi, guard ne vidi
+    # nista.
+    #
+    # POPRAVKA: isti obrasci, isti pragovi, isti sloj -- samo se ceo tekst
+    # skenira u PREKLAPAJUCIM prozorima umesto da se odsece. Preklapanje
+    # sprecava da injekcija podeljena na granici prozora prodje neprimeceno.
+    # Nije uveden nov sistem zastite; uklonjena je slepa tacka postojeceg.
+    prozori = _prozori_za_analizu(normalized)
 
     cumulative = 0.0
     flags: list[str] = []
 
-    # Sloj 3: Base64 analiza
-    b64_extra, b64_flags = _analyze_base64_payloads(truncated)
-    cumulative = min(1.0, cumulative + b64_extra)
-    flags.extend(b64_flags)
+    for deo in prozori:
+        # Sloj 3: Base64 analiza
+        b64_extra, b64_flags = _analyze_base64_payloads(deo)
+        cumulative = min(1.0, cumulative + b64_extra)
+        flags.extend(b64_flags)
 
-    # Sloj 4: Pattern matching
-    for pattern, score in _COMPILED:
-        if pattern.search(truncated):
-            cumulative = min(1.0, cumulative + score)
-            flags.append(pattern.pattern[:60])
+        # Sloj 4: Pattern matching
+        for pattern, score in _COMPILED:
+            if pattern.search(deo):
+                cumulative = min(1.0, cumulative + score)
+                flags.append(pattern.pattern[:60])
 
-    # Strukturni heuristici
-    extra = _extra_heuristics(truncated)
-    cumulative = min(1.0, cumulative + extra)
-    if extra > 0:
-        flags.append(f"heuristic:{extra:.2f}")
+        # Strukturni heuristici
+        extra = _extra_heuristics(deo)
+        cumulative = min(1.0, cumulative + extra)
+        if extra > 0:
+            flags.append(f"heuristic:{extra:.2f}")
+
+        # Prag je dostignut -- dalji prozori ne mogu promeniti ishod.
+        if cumulative >= BLOCK_THRESHOLD:
+            break
+
+    truncated = normalized[:MAX_INPUT_CHARS]   # `sanitized` ostaje neizmenjen ugovor
 
     blocked = cumulative >= BLOCK_THRESHOLD
 
