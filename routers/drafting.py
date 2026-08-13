@@ -353,7 +353,7 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     session_id = generate_session_id()
 
     try:
-        await asyncio.to_thread(
+        _upisano = await asyncio.to_thread(
             ingest_session, manifest, session_id,
             namespace_override=owner_ns,
             extra_metadata={
@@ -371,6 +371,17 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
         logger.warning("[STAGING_PROMOTE] Pinecone ingest neuspešan predmet=%s: %s", predmet_id, str(pe)[:150])
         return False
 
+    # BETA-DATA-CONFIDENTIALITY-004 / SE-01: povratna vrednost `ingest_session`
+    # se ovde uopste nije uzimala, a `status` je nize bio hard-kodovan literal
+    # "indeksirano" -- dakle tvrdnja o pretrazivosti bez ijednog dokaza.
+    from uploaded_doc.ingest import ingest_je_potpun as _potpun
+    _indeksiran = _potpun(_upisano, manifest.total_chunks)
+    if not _indeksiran:
+        logger.error(
+            "[STAGING_PROMOTE] nepotpun ingest predmet=%s: upisano %s od %s",
+            predmet_id, _upisano, manifest.total_chunks,
+        )
+
     try:
         _rn_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").select("redni_broj").eq("predmet_id", predmet_id).order("redni_broj", desc=True).limit(1).execute()
@@ -383,7 +394,8 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
         "predmet_id": predmet_id, "user_id": user_id,
         "naziv_fajla": f"AI Nacrt (odobren) — {naziv}",
         "storage_path": f"draft/{session_id}",
-        "pinecone_namespace": owner_ns, "status": "indeksirano",
+        "pinecone_namespace": owner_ns,
+        "status": "indeksirano" if _indeksiran else "sacuvano",
         "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
         "redni_broj": next_rn, "tekst_sadrzaj": tekst[:100_000],
         # Program Intake Sprint 001 (2026-08-04) -- ovaj red je ranije

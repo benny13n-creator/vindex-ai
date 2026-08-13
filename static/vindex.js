@@ -12392,7 +12392,12 @@ async function pred_loadDetail(id) {
           group.items.forEach(function(dok, _i) {
             var _ns = dok.pinecone_namespace || '';
             var _kb = dok.velicina_kb || 0;
-            var _hasNs = !!_ns;
+            // BETA-DATA-CONFIDENTIALITY-004 / SE-03: indikator je ranije citao
+            // `pinecone_namespace`, koji se upisuje BEZUSLOVNO -- i kad ingest
+            // nije uspeo. Dokument koji nije u indeksu prikazivao se identicno
+            // indeksiranom: zelena tacka, cyan ikonica, "klikni za analizu".
+            // Jedina istina o pretrazivosti je `status === 'indeksirano'`.
+            var _hasNs = (dok.status === 'indeksirano');
             var _rn = dok.redni_broj || (_sorted.indexOf(dok) + 1);
             var _rnStr = String(_rn).padStart(2, '0');
             var _isLast = group === _groups[_groups.length - 1] && _i === group.items.length - 1;

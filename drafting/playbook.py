@@ -69,6 +69,14 @@ def ingest_playbook(user_id: str, filename: str, tekst: str) -> int:
 
     import uuid
     records = []
+    # BETA-DATA-CONFIDENTIALITY-004 / SE-05: `zip` staje na kracoj sekvenci --
+    # delimican embedding odgovor bi tiho upisao podskup i vratio manji broj
+    # korisniku kao da je sve u redu. Isti bug je zatvoren u uploaded_doc/ingest.py.
+    if len(vectors_raw) != len(chunks):
+        raise RuntimeError(
+            f"embedding je vratio {len(vectors_raw)} vektora za {len(chunks)} "
+            f"chunk-ova - delimican ingest se odbija"
+        )
     for i, (chunk, vec) in enumerate(zip(chunks, vectors_raw)):
         records.append({
             "id": f"pb_{user_id}_{i}_{uuid.uuid4().hex[:8]}",

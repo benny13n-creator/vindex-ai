@@ -5217,9 +5217,28 @@ async def predmet_upload_auto_analyze(
                     "golden_template": False,
                 },
             )
+            # BETA-DATA-CONFIDENTIALITY-004 / FS-001 — USPEH SE DOKAZUJE, NE
+            # PRETPOSTAVLJA. Do sada je `_pinecone_ok` ostajao True samo zato
+            # što izuzetak nije podignut, a `count` se nije proveravao nijednom.
+            # `ingest_session` vraca broj STVARNO upisanih vektora; ako je manji
+            # od broja chunk-ova, dokument je u Pinecone-u nepotpun i ne sme da
+            # se predstavi kao pretraziv.
+            from uploaded_doc.ingest import ingest_je_potpun as _potpun
+            if not _potpun(count, manifest.total_chunks):
+                logger.error(
+                    "[INGEST] nepotpun ingest predmet=%s: upisano %s od %s chunk-ova",
+                    predmet_id, count, manifest.total_chunks,
+                )
+                _pinecone_ok = False
         except Exception as _pe:
             _pe_str = str(_pe)
-            if "429" in _pe_str or "storage" in _pe_str.lower() or "Too Many" in _pe_str:
+            # Klasifikator je bio `"storage" in _pe_str.lower()` -- presiroko:
+            # svaka greska cija poruka sadrzi "storage" (ukljucujuci greske
+            # Supabase Storage-a i poruke koje pominju `storage_path`) tiho je
+            # postajala "kvota" i dokument je zavrsavao kao 'sacuvano' umesto
+            # da podigne 500. Suzeno na stvarne Pinecone kvota poruke.
+            from uploaded_doc.ingest import je_kvota_greska as _je_kvota
+            if _je_kvota(_pe):
                 logger.warning("[P1.1] Pinecone storage pun — dokument se cuva bez RAG indeksiranja: %s", _pe_str[:120])
                 _pinecone_ok = False
                 count = 0

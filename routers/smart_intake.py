@@ -1397,7 +1397,7 @@ async def _finalize_intake_job_core(
             # vlasnik-znanja namespace kao api.py's predmet upload (v. tamo
             # za punu napomenu) -- zamenjuje pred_{session_id}.
             try:
-                await asyncio.to_thread(
+                _upisano = await asyncio.to_thread(
                     ingest_session, manifest, session_id,
                     namespace_override=_owner_ns,
                     extra_metadata={
@@ -1412,6 +1412,17 @@ async def _finalize_intake_job_core(
                         "golden_template": False,
                     },
                 )
+                # BETA-DATA-CONFIDENTIALITY-004 / FS-001: isti dokaz kao na
+                # `api.py` upload putanji -- broj upisanih vektora mora da
+                # odgovara broju chunk-ova, inace dokument nije pretraziv u
+                # celosti i ne sme da nosi status 'indeksirano'.
+                from uploaded_doc.ingest import ingest_je_potpun as _potpun
+                if not _potpun(_upisano, manifest.total_chunks):
+                    logger.error(
+                        "[SMART_INTAKE] nepotpun ingest predmet=%s dok=%s: upisano %s od %s",
+                        predmet_id, doc_id[:8], _upisano, manifest.total_chunks,
+                    )
+                    pinecone_ok = False
             except Exception as pe:
                 logger.warning("[SMART_INTAKE] Pinecone ingest neuspešan (non-fatal) predmet=%s dok=%s: %s", predmet_id, doc_id[:8], str(pe)[:150])
                 pinecone_ok = False

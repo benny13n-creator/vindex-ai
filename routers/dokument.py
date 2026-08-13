@@ -308,9 +308,22 @@ async def dokument_upload(
                 # lets that check happen now -- see _verify_pred_namespace_ownership.
                 extra_metadata={"origin": ORIGIN_CLIENT_DOC, "owner_user_id": user["user_id"]},
             )
+            # SE-02: `count` se dodeljivao a nikad nije poredjen sa brojem
+            # chunk-ova -- sesija je mogla biti proglasena spremnom za pitanja
+            # nad nepotpuno indeksiranim dokumentom.
+            from uploaded_doc.ingest import ingest_je_potpun as _potpun
+            if not _potpun(count, manifest.total_chunks):
+                logger.error(
+                    "[UPLOAD] nepotpun ingest session=%s: upisano %s od %s",
+                    session_id, count, manifest.total_chunks,
+                )
         except Exception as e:
             _es = str(e)
-            if "429" in _es or "storage" in _es.lower() or "Too Many" in _es:
+            # SE-02: stari klasifikator (`"storage" in _es.lower()`) je svaku
+            # gresku koja pominje "storage" pretvarao u kvotu. Kanonski je sada
+            # `je_kvota_greska`, isti koji koristi `api.py`.
+            from uploaded_doc.ingest import je_kvota_greska as _je_kvota
+            if _je_kvota(e):
                 # Pinecone pun — nastavi bez RAG, tekst je ekstraktovan
                 logger.warning("[UPLOAD] Pinecone storage pun, nastavljam bez indeksiranja: %s", _es[:120])
                 count = 0
