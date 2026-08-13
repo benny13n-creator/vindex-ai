@@ -318,8 +318,19 @@ def test_pitanje_refund_condition_includes_error_status():
 
     pitanje_src = inspect.getsource(api.pitanje)
     stream_src = inspect.getsource(api.pitanje_stream)
-    assert 'rezultat.get("status") == "error"' in pitanje_src
-    assert 'rezultat.get("status") == "error"' in stream_src
+    # UPDATED by BETA-HARDENING-001 (2026-08-13). The inline literal is gone:
+    # both handlers now call the shared predicate `api._treba_refundirati`,
+    # because the duplicated condition carried a duplicated hole — an empty
+    # answer on the success path was charged (FS-003).
+    #
+    # The LAMBDA008 guarantee itself is unchanged, and is now asserted by
+    # EXECUTION rather than by the presence of a source literal.
+    assert "_treba_refundirati(rezultat)" in pitanje_src, \
+        "/api/pitanje no longer routes its refund decision through the predicate"
+    assert "_treba_refundirati(rezultat)" in stream_src, \
+        "/api/pitanje/stream no longer routes its refund decision through the predicate"
+    assert api._treba_refundirati({"status": "error"}) is True, \
+        "LAMBDA008 regression: a genuine LLM failure is no longer refunded"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

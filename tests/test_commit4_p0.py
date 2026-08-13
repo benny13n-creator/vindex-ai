@@ -104,8 +104,24 @@ def test_t2_stream_generator_refunds_on_no_deduct_branch():
 
     assert "UsageService.refund" in body, \
         "T2 FAIL: _event_generator must call UsageService.refund for non-deduction path"
-    assert "from_cache" in body and "blocked" in body, \
-        "T2 FAIL: refund must be conditioned on from_cache/blocked, not unconditional"
+    # UPDATED by BETA-HARDENING-001 (2026-08-13).
+    # The literals `from_cache` / `blocked` no longer appear inline: both
+    # handlers now share ONE predicate, `api._treba_refundirati(rezultat)`,
+    # because the identical condition existed twice and both copies missed the
+    # same case — status=="success" with an EMPTY answer, i.e. the user is
+    # charged for a blank screen (FS-003).
+    #
+    # This test now asserts the PROPERTY and does it by EXECUTING the predicate.
+    # A string check is exactly how NIGHT-005's free-credit regression stayed
+    # green across 70 tests.
+    assert "_treba_refundirati(rezultat)" in body, \
+        "T2 FAIL: refund must stay conditional, via the canonical predicate"
+
+    import api
+    assert api._treba_refundirati({"status": "success", "data": "x", "from_cache": True}) is True
+    assert api._treba_refundirati({"status": "success", "data": "x", "blocked": True}) is True
+    assert api._treba_refundirati({"status": "success", "data": "x"}) is False, \
+        "T2 FAIL: a genuine fresh answer must NOT be refunded"
 
 
 # ─── T3: /api/register has rate limit decorator ───────────────────────────────

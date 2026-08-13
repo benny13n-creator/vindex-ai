@@ -1415,6 +1415,41 @@ async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) ->
         return None
 
 
+def _treba_refundirati(rezultat: dict) -> bool:
+    """Da li korisniku treba vratiti kredit za ovaj rezultat.
+
+    BETA-HARDENING-001 / FS-003. Uslov je do sada glasio
+    `from_cache or blocked or status == "error"` i bio je DOSLOVNO isti na obe
+    putanje (`/api/pitanje` i `/api/pitanje/stream`). Nijedna od njih nije
+    pokrivala slucaj `status == "success"` sa PRAZNIM tekstom: korisnik dobije
+    prazan ekran, protokol se uredno zavrsi, a kredit ostane naplacen.
+
+    Prazan odgovor nije isporucen odgovor. Predikat je izdvojen ovde da obe
+    putanje dele JEDAN uslov -- ovo nije nov tok, nego uklanjanje duplikata
+    uslova koji je vec postojao dva puta.
+    """
+    if not isinstance(rezultat, dict):
+        return True
+    if rezultat.get("from_cache", False) or rezultat.get("blocked", False):
+        return True
+    if rezultat.get("status") == "error":
+        return True
+    if rezultat.get("status") == "success":
+        # SE-006 (protivnički pregled): `data` nije uvek `str` — `ask_analiza_v2`
+        # vraća `dict`. `(… or "").strip()` bi bacio `AttributeError` i pretvorio
+        # kanonski predikat u NOV izvor padova. Prazno je samo ono što nema
+        # sadržaja; svaka ne-prazna struktura je isporučen odgovor.
+        _data = rezultat.get("data")
+        if _data is None:
+            return True
+        if isinstance(_data, str):
+            if not _data.strip():
+                return True
+        elif not _data:
+            return True
+    return False
+
+
 def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None) -> dict:
     """Pretvara interni rezultat agenta u API odgovor."""
     resp: dict = {}
@@ -3311,7 +3346,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         # failure (LAMBDA008-REL-001: ask_agent returns {"status":"error",...} rather than
         # raising on exhausted-retry OpenAI failure, so this must be checked explicitly —
         # otherwise a sustained outage burns a real credit on every failed request).
-        if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
+        if _treba_refundirati(rezultat):
             await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
             preostalo = preostalo + 1
         _credit_consumed = False  # accounted for above; the except block must not double-refund
@@ -3473,19 +3508,59 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
 
             # Stream the guard-verified response in 80-char chunks
             _CHUNK = 80
-            for i in range(0, len(data_text), _CHUNK):
-                chunk = data_text[i:i + _CHUNK]
+            _delovi = [data_text[i:i + _CHUNK] for i in range(0, len(data_text), _CHUNK)]
+            for chunk in _delovi:
+                # BETA-HARDENING-001 / FS-001 — REGRESIJA NIGHT-005.
+                #
+                # `_delivered = True` je stajalo POSLE petlje. Generator se posle
+                # `yield` SUSPENDUJE i nastavlja tek kad potrošač zatraži sledeću
+                # stavku. Klijent koji primi poslednji komad i prestane da čita
+                # nikad ne dopusti da se ta linija izvrši -- pa `except BaseException`
+                # zatekne `_delivered = False` i REFUNDIRA kredit.
+                #
+                # Ishod: pun odgovor isporučen, kredit vraćen, neto cena 0.
+                # Izmereno: 363/363 znaka primljeno, bajt-identično, saldo 10 → 10.
+                # Ponovljivo do granice od 10/min; `refund` nema gornju granicu.
+                #
+                # NIGHT-005 je opisao TAČNO ovaj kvar i tvrdio da ga zatvara.
+                # Njegov test (`test_beta_gate_credit_second_order.py:114`) proverava
+                # `assert "_delivered = True" in src` -- PRISUSTVO NISKE, ne mesto
+                # izvršavanja. Zato je 70 testova bilo zeleno dok je rupa stajala.
+                #
+                # SE-001 (protivnički pregled): PRVA verzija ove popravke podizala
+                # je zastavicu pred POSLEDNJIM komadom i time samo POMERILA
+                # granicu zloupotrebe za 80 znakova. Prekid na pretposlednjem
+                # komadu i dalje je vraćao kredit — izmereno: odgovor od 4.000
+                # znakova, primljeno 3.920 (98%), `refund = 1`.
+                #
+                # Gore od toga: `DISCLAIMER` (265 znakova, `main.py:2336`) visi na
+                # kraju SVAKOG odgovora, pa je poslednji komad uvek rep pravne
+                # napomene. Napadač ga žrtvuje i **ne gubi nijedan znak pravnog
+                # sadržaja**. Cena zaobilaženja bila je nula.
+                #
+                # Kanonska semantika je zato „isporučeno = 0 komada":
+                #   0 komada   → korisnik nije dobio ništa → refund (SOA-012)
+                #   ≥ 1 komad  → odgovor je počeo da izlazi → bez refunda
+                _delivered = True
                 yield f"data: {chunk.replace(chr(10), chr(92) + 'n')}\n\n"
 
-            # NIGHT-005: the answer has now left the server. Anything that goes
-            # wrong from here is not something the user should be refunded for.
-            _delivered = True
+            # Prazan odgovor nema nijedan komad, pa gornja grana nikad ne opali.
+            # To je ISPRAVNO: prazan ekran nije isporuka, i `_treba_refundirati`
+            # ispod vraća kredit (FS-003).
+            # SE-005 (protivnički pregled): odgovor od samih belina PROIZVODI
+            # komade, pa `not _delovi` ne opali — korisnik dobija prazan ekran i
+            # uredan `[DONE]`. Za korisnika je to isto što i prazan odgovor.
+            if not _delovi or not data_text.strip():
+                logger.error(
+                    "[PITANJE_STREAM] prazan odgovor — korisnik ne dobija tekst [q=%s]", qh
+                )
+                yield "data: Sistem nije vratio odgovor. Pokušajte ponovo.\n\n"
 
             # UsageService.consume() already pre-deducted the credit above (same timing as
             # the old require_credits pre-deduction) — refund on cache-hit/blocked/genuine
             # LLM failure (LAMBDA008-REL-001, see /api/pitanje's identical fix above).
             preostalo = _stream_preostalo
-            if rezultat.get("from_cache", False) or rezultat.get("blocked", False) or rezultat.get("status") == "error":
+            if _treba_refundirati(rezultat):
                 await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                 _refunded = True
                 # SOA-016: the displayed balance used to be hardcoded `+ 1`,
@@ -3504,12 +3579,21 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             # (including pokreni()'s own 503 queue-timeout, Scenario 3) used to skip the
             # refund entirely, since the refund-check logic only runs on the success path
             # a few lines above. Same fix as the non-streaming /api/pitanje.
-            if not _refunded:
+            # SE-007 (protivnički pregled): zaštita `not _delivered` postojala je
+            # SAMO u `except BaseException` grani ispod. Izuzetak koji nastane
+            # POSLE isporuke odgovora (npr. pad pri čitanju salda) prolazio je
+            # ovuda i refundirao pun, već isporučen odgovor — izmereno: 437
+            # znakova isporučeno, `refund = 1`, uz dva `[DONE]`.
+            if not _refunded and not _delivered:
                 try:
                     await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                     _refunded = True
                 except Exception:
                     logger.warning("[PITANJE_STREAM] refund nakon greške nije uspeo [q=%s]", qh)
+            elif _delivered:
+                logger.info(
+                    "[PITANJE_STREAM] greška NAKON isporuke odgovora — bez refunda [q=%s]", qh
+                )
             yield "data: Došlo je do greške. Pokušajte ponovo.\n\n"
             yield "data: [DONE]\n\n"
 

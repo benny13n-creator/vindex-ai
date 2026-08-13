@@ -212,10 +212,33 @@ def test_e_izlazni_sloj_je_ozicen_na_kanonsku_tacku(patched):
         "firewall nije uvezen u kanonsku tačku"
     )
     # Oba wrappera moraju vraćati PROVERENU vrednost, ne sirov `response`.
-    assert izvor.count("return _enforce_response(kwargs, response)") == 2, (
-        "jedan od wrappera (sync/async) vraća neproveren odgovor — polovična "
-        "pokrivenost je gora od nikakve, jer izgleda kao puna"
-    )
+    # AŽURIRANO: BETA-HARDENING-001 (2026-08-13), nalaz FS-004.
+    #
+    # Tvrdnja je ostala ista — oba wrappera vraćaju PROVEREN odgovor — ali se
+    # više ne meri doslovnom niskom `return _enforce_response(kwargs, response)`.
+    # Redosled unutar wrappera je morao da se promeni: `_capture_chat_provenance`
+    # se ranije izvršavao PRE provere, pa je odbijen odgovor ostajao zabeležen
+    # kao `status="success"` dok je pozivalac dobijao izuzetak.
+    #
+    # Sada oba wrappera zovu `_enforce_response(...)` i vraćaju NJEGOV rezultat,
+    # a provenance se upisuje tek kad se zna ishod. Merimo to svojstvo:
+    # svaki wrapper mora da vrati vrednost koja je prošla kroz `_enforce_response`,
+    # i da provenance dolazi POSLE te provere.
+    for _ime in ("_guarded_create", "_guarded_acreate"):
+        _telo = izvor.split(f"def {_ime}")[1].split("\n    def ")[0]
+        assert "_enforce_response(kwargs, response)" in _telo, (
+            f"{_ime} više ne poziva firewall — polovična pokrivenost je gora od "
+            f"nikakve, jer izgleda kao puna"
+        )
+        assert "return _provereno" in _telo, (
+            f"{_ime} ne vraća PROVERENU vrednost nego nešto drugo"
+        )
+        _i_provera = _telo.index("_enforce_response(kwargs, response)")
+        _i_prov = _telo.index("_capture_chat_provenance(self, kwargs, response, _ms)")
+        assert _i_provera < _i_prov, (
+            f"{_ime}: provenance se upisuje PRE firewall provere — odbijen "
+            f"odgovor bi ponovo bio zabeležen kao uspeh (FS-004)"
+        )
     # Tvrdnja je o CHAT wrapperima. `_tracked_embed` i audio wrapperi
     # legitimno vraćaju sirov odgovor — firewall V1 pokriva chat-completion
     # oblik (`choices[0].message`), koji embeddings i audio nemaju. To je

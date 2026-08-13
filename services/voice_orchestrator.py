@@ -196,6 +196,10 @@ class VoiceOrchestratorSession:
         self._connect = openai_ws_factory or _connect_openai_realtime
         self.upstream: Any = None
         self._pending_confirmations: dict[str, dict] = {}
+        # BETA-HARDENING-001 / FS-002: koliko je audio delti STVARNO otislo
+        # browseru. Bez ovoga se ishod sesije ne moze razlikovati od namere.
+        self._isporucenih_delti: int = 0
+        self._provenance_zatvoren: bool = False
 
     async def start(self) -> None:
         # Wave 9 / D2: kapija PRE konekcije. Ako provera padne, `self.upstream`
@@ -203,7 +207,12 @@ class VoiceOrchestratorSession:
         await proveri_voice_dozvolu(self.user)
         self.upstream = await self._connect()
         await self._send_session_config()
-        _uknjizi_voice_sesiju_provenance(self.user)
+        # FS-002: ovde se sesija tek OTVARA. Ranije je ovo upisivalo
+        # `status="success"` (podrazumevana vrednost potpisa) jos pre nego sto
+        # je ijedan bajt zvuka isporucen -- pa je sesija u kojoj advokat nije
+        # cuo NISTA ostajala zabelezena kao uspesna. Za privilegovan razgovor
+        # to je jedini forenzicki trag koji postoji, i bio je netacan.
+        _uknjizi_voice_sesiju_provenance(self.user, status="started")
 
     async def close(self) -> None:
         if self.upstream is not None:
@@ -211,6 +220,16 @@ class VoiceOrchestratorSession:
                 await self.upstream.close()
             except Exception:
                 pass
+        # FS-002: terminalni status po STVARNOM ishodu, ne po nameri.
+        # Sesija bez ijedne isporucene audio delte NIJE uspesna sesija.
+        # `_provenance_zatvoren` cuva od dvostrukog upisa ako se `close()`
+        # pozove vise puta (npr. i iz rukovaoca greske i iz `finally`).
+        if not self._provenance_zatvoren:
+            self._provenance_zatvoren = True
+            _uknjizi_voice_sesiju_provenance(
+                self.user,
+                status="success" if self._isporucenih_delti > 0 else "error",
+            )
 
     async def _send_session_config(self) -> None:
         await self.upstream.send(json.dumps({
@@ -265,6 +284,14 @@ class VoiceOrchestratorSession:
             await self.handle_upstream_event(event)
 
     async def handle_upstream_event(self, event: dict) -> None:
+        # SE-004 (protivnicki pregled): brojac je merio SAMO
+        # `response.audio.delta`. Sesija koja je isporucila transkript i
+        # rezultat alata, ali bez ijedne audio delte, zavrsavala bi kao
+        # `error` -- lazan uspeh zamenjen laznom greskom, sto je jednako
+        # netacan forenzicki trag.
+        #
+        # Meri se ISHOD, ne jedan kanal: svaki dogadjaj koji je stvarno otisao
+        # browseru broji se kao isporuka.
         etype = event.get("type")
         if etype == "response.audio.delta":
             await self.client_ws.send_json({"type": "output_audio", "audio": event.get("delta", "")})
@@ -277,6 +304,10 @@ class VoiceOrchestratorSession:
             # transcript delte, response.done, itd. — prosledi browseru
             # neizmenjeno za UI prikaz, ne blokira relay ako browser ignoriše.
             await self.client_ws.send_json(event)
+        # Posle uspesnog `send_json` -- greska u slanju baca pre ovog reda,
+        # pa se neisporucen dogadjaj ne broji kao isporucen.
+        if etype != "error":
+            self._isporucenih_delti += 1
 
     # ─── Function calling + Human-in-the-Loop ──────────────────────────────
 

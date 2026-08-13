@@ -738,8 +738,27 @@ def _patch_prompt_guard() -> None:
         except Exception as exc:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
-        _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
-        return _enforce_response(kwargs, response)
+        # BETA-HARDENING-001 / FS-004 — PROVENANCE JE TVRDIO USPEH ZA ODBIJEN ODGOVOR.
+        #
+        # Redosled je bio: `_capture_chat_provenance(... uspeh ...)` pa tek onda
+        # `_enforce_response(...)`. Kad response firewall odbije odgovor
+        # (neispravan JSON, prazan sadrzaj, `content=None`, prazna lista izbora,
+        # odbijanje provajdera), pozivalac dobije izuzetak -- a jedini forenzicki
+        # trag o tom pozivu kaze `status="success"`.
+        #
+        # Za pravnu aplikaciju to je najgora vrsta netacnosti: revizija bi
+        # pokazala uspesan AI poziv tamo gde korisnik nije dobio nista.
+        #
+        # Sada se provenance upisuje TEK kad se zna ishod provere, i to u obe
+        # grane -- odbijen odgovor se belezi kao greska, ne kao uspeh.
+        _ms = int((time.monotonic() - _t0) * 1000)
+        try:
+            _provereno = _enforce_response(kwargs, response)
+        except Exception as _exc_fw:
+            _capture_chat_provenance(self, kwargs, response, _ms, error=_exc_fw)
+            raise
+        _capture_chat_provenance(self, kwargs, response, _ms)
+        return _provereno
 
     async def _guarded_acreate(self, *args, **kwargs):
         # Ista indirekcija i ista fail-closed brana kao u sync grani — async
@@ -769,8 +788,16 @@ def _patch_prompt_guard() -> None:
         except Exception as exc:
             _capture_chat_provenance(self, kwargs, None, int((time.monotonic() - _t0) * 1000), error=exc)
             raise
-        _capture_chat_provenance(self, kwargs, response, int((time.monotonic() - _t0) * 1000))
-        return _enforce_response(kwargs, response)
+        # Ista ispravka kao u sync grani (FS-004): async putanja ne sme da bude
+        # slabija, a u ovom repou je brojnija.
+        _ms = int((time.monotonic() - _t0) * 1000)
+        try:
+            _provereno = _enforce_response(kwargs, response)
+        except Exception as _exc_fw:
+            _capture_chat_provenance(self, kwargs, response, _ms, error=_exc_fw)
+            raise
+        _capture_chat_provenance(self, kwargs, response, _ms)
+        return _provereno
 
     # Wave 9 (C2): marker STANJA na samim wrapperima. `_guard_patched` opisuje
     # nameru i može se resetovati spolja; ovo se ne može, jer živi na objektu
