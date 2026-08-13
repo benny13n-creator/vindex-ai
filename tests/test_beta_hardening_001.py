@@ -568,3 +568,113 @@ async def test_se004_ishod_se_meri_po_isporuci_a_ne_po_jednom_kanalu(
         f"događaji {[e['type'] for e in dogadjaji]} → provenance {upisi}, "
         f"očekivano {[ocekivan]}"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BETA-HARDENING-002 / P0-B — PUNA MATRICA PREKIDA
+#
+# Mandat traži prekid na 0/1/25/50/75/90/98/99%, na pretposlednjem i poslednjem
+# komadu. Ugovor je eksplicitan i glasi:
+#
+#   ≥ 1 isporučen komad  →  NAPLAĆENO   (generisanje se desilo i odgovor je
+#                                        počeo da izlazi sa servera)
+#   0 isporučenih komada →  REFUNDIRANO (korisnik nije dobio ništa)
+#
+# Alternativa „naplati srazmerno" ne postoji u proizvodu: kredit je jedinica po
+# upitu, ne po znaku, i `UsageService` nema pojam delimične naplate.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_MATRICA_ODGOVOR = "Član 154 ZOO propisuje odgovornost za štetu. " * 90   # ~4.000 zn.
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("procenat", [1, 25, 50, 75, 90, 98, 99])
+async def test_p0b_prekid_na_procentu_ne_vraca_kredit(monkeypatch, procenat):
+    """Nijedan procenat isporuke ne sme da bude profitabilan za napadača.
+
+    Pre BETA-HARDENING-001: prekid na 100% je vraćao kredit.
+    Posle prve, nedovoljne popravke: prekid na 98% je i dalje vraćao kredit.
+    """
+    ukupno = -(-len(_MATRICA_ODGOVOR) // 80)
+    komada = max(1, (ukupno * procenat) // 100)
+
+    primljeni, refunda, naplata = await _pokreni_stream(
+        monkeypatch, odgovor=_MATRICA_ODGOVOR, prekid_posle_poslednjeg=True,
+        prekid_na_komadu=komada,
+    )
+    isporuceno = len(_tekst(primljeni))
+    assert isporuceno > 0, f"na {procenat}% nije isporučen nijedan znak"
+    assert naplata == 1
+    assert refunda == 0, (
+        f"prekid na {procenat}% ({isporuceno}/{len(_MATRICA_ODGOVOR)} znakova) "
+        f"vratio je kredit — to je profitabilan napad"
+    )
+
+
+@pytest.mark.anyio
+async def test_p0b_nula_isporuceno_je_jedini_slucaj_refunda(monkeypatch):
+    """Druga strana ugovora — mora ostati živa.
+
+    Ako korisnik prekine dok se odgovor još računa, nije dobio ništa i kredit
+    mu se vraća. To je bio ceo smisao `SOA-012` i ne sme biti žrtvovano.
+    """
+    import api
+
+    naplata = _Broj(vrednost=9)
+    refund = _Broj(vrednost=None)
+    monkeypatch.setattr(api.UsageService, "consume", naplata)
+    monkeypatch.setattr(api.UsageService, "refund", refund)
+    monkeypatch.setattr(api.UsageService, "balance", _Broj(vrednost=10))
+
+    async def _memorija(*a, **kw):
+        return ""
+    monkeypatch.setattr(api, "_fetch_firm_memory_context", _memorija, raising=False)
+
+    async def _spor(*a, **kw):
+        await asyncio.sleep(5)
+        return {"status": "success", "data": _MATRICA_ODGOVOR}
+    monkeypatch.setattr(api, "pokreni", _spor, raising=False)
+
+    req = types.SimpleNamespace(pitanje="p", history=None, predmet_id=None,
+                                session_id=None, namespace=None)
+    zahtev = types.SimpleNamespace(client=types.SimpleNamespace(host="127.0.0.1"),
+                                   headers={}, url="/x", state=types.SimpleNamespace())
+    fn = api.pitanje_stream
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    odg = await fn(req=req, request=zahtev, user={"user_id": "u", "email": "e@e.rs"})
+
+    it = odg.body_iterator
+    zadatak = asyncio.ensure_future(it.__anext__())
+    await asyncio.sleep(0)
+    zadatak.cancel()
+    try:
+        await zadatak
+    except (asyncio.CancelledError, StopAsyncIteration):
+        pass
+    await it.aclose()
+
+    assert len(refund.pozivi) == 1, (
+        "prekid PRE ijednog isporučenog komada mora da vrati kredit (SOA-012)"
+    )
+
+
+@pytest.mark.anyio
+async def test_p0b_ponovljeni_zahtev_ne_pravi_dvostruki_refund(monkeypatch):
+    """Napadač ponavlja obrazac. Svaki zahtev mora biti tačno jednom naplaćen
+    i najviše jednom refundiran — nikad neto pozitivan."""
+    ukupno = -(-len(_MATRICA_ODGOVOR) // 80)
+    ukupno_naplata = 0
+    ukupno_refund = 0
+    for _ in range(3):
+        _, r, n = await _pokreni_stream(
+            monkeypatch, odgovor=_MATRICA_ODGOVOR, prekid_posle_poslednjeg=True,
+            prekid_na_komadu=ukupno - 1,
+        )
+        ukupno_naplata += n
+        ukupno_refund += r
+    assert ukupno_naplata == 3
+    assert ukupno_refund == 0, (
+        f"tri uzastopna prekida na pretposlednjem komadu dala su {ukupno_refund} "
+        f"refunda — obrazac je ponovljiv i profitabilan"
+    )

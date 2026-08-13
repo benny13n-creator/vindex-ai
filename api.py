@@ -1692,7 +1692,28 @@ def health():
         "pid": _os.getpid(),
         "redis": bool(_REDIS_URL),
         "workers": int(_os.getenv("WEB_CONCURRENCY", 1)),
+        # GT-001 (BETA-HARDENING-002): stanje provenance ŠEME, ne stanje zakrpe.
+        # Ranije se ovde izlagalo samo da li je AI zakrpa aktivna — a tiho
+        # osiromašenje forenzičkog traga (migracija 089 nije primenjena) nije
+        # imalo NIJEDAN spoljni signal. Sada ga ima, i `None` se ne prikazuje
+        # kao „u redu" nego kao „još nije izmereno".
+        "provenance": _provenance_stanje(),
     }
+
+
+def _provenance_stanje() -> dict:
+    """Fail-soft omotač — health nikad ne sme da padne zbog dijagnostike."""
+    try:
+        from security.ai_forensics import provenance_stanje_seme
+        return provenance_stanje_seme()
+    except Exception:                  # pragma: no cover — dijagnostika
+        # P6b (protivnicki pregled): OVDE JE STAJALO `str(_exc)[:120]`.
+        # `/health` je JAVAN i neautentikovan; izmereno je da tako izlazi
+        # `postgres://korisnik:LOZINKA@host/baza` iz teksta izuzetka.
+        # To je bila NOVA bezbednosna povrsina koju je uveo ovaj sprint.
+        # Spolja se sme videti samo DA dijagnostika nije dostupna.
+        logger.warning("[HEALTH] stanje provenance seme nije dostupno", exc_info=True)
+        return {"dostupno": False}
 
 
 @app.get("/api/version")
@@ -3490,6 +3511,19 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
         # (success-path condition, Exception, BaseException) so adding the
         # BaseException handler cannot double-refund.
         _refunded = False
+        # B1/B2 (protivnicki pregled): `_refund_dugovan` je ODVOJEN od
+        # `_delivered`. Zastita `not _delivered`, dodata zbog SE-007, gusila je
+        # i LEGITIMAN ponovni pokusaj refundacije: kod kes-pogotka ili
+        # `status="error"` prvi `refund()` moze da padne, `_refunded` ostane
+        # `False`, a `except Exception` je onda odbijao da pokusa ponovo jer je
+        # odgovor vec isporucen. Korisnik ostane naplacen za kesiran ili
+        # neuspeo odgovor -- regresija u odnosu na `6fb4a99f`.
+        #
+        # Razlika je sustinska:
+        #   `_delivered`      = da li je korisnik dobio tekst
+        #   `_refund_dugovan` = da li mu po ugovoru SLEDUJE povracaj
+        # Prekid veze gleda prvo; neuspeo upis povracaja gleda drugo.
+        _refund_dugovan = False
         # NIGHT-005: set once the answer bytes have left the server. See the
         # disconnect handler at the bottom of this generator.
         _delivered = False
@@ -3561,6 +3595,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             # LLM failure (LAMBDA008-REL-001, see /api/pitanje's identical fix above).
             preostalo = _stream_preostalo
             if _treba_refundirati(rezultat):
+                _refund_dugovan = True
                 await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                 _refunded = True
                 # SOA-016: the displayed balance used to be hardcoded `+ 1`,
@@ -3584,7 +3619,7 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
             # POSLE isporuke odgovora (npr. pad pri čitanju salda) prolazio je
             # ovuda i refundirao pun, već isporučen odgovor — izmereno: 437
             # znakova isporučeno, `refund = 1`, uz dva `[DONE]`.
-            if not _refunded and not _delivered:
+            if not _refunded and (_refund_dugovan or not _delivered):
                 try:
                     await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
                     _refunded = True

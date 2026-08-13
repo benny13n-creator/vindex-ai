@@ -25,6 +25,7 @@ u testovima) — nijedna metoda ovde ne zavisi direktno od stvarne mrežne
 konekcije.
 """
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -76,6 +77,92 @@ _KILL_TRUE = {"1", "true", "yes", "on", "da"}
 class VoiceEntitlementError(RuntimeError):
     """Sesija je odbijena. Namerno je RuntimeError, ne HTTPException — ovaj
     modul nema HTTP kontekst, a pozivalac (WS ruter) ionako zatvara kanal."""
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BETA-HARDENING-002 / BYPASS-7 — TACKA PRINUDE ZA GLASOVNI WSS
+#
+# Kapija `proveri_voice_dozvolu()` je postojala i pozivala se iz `start()`,
+# ALI sama tacka povezivanja (`_connect_openai_realtime`) nije imala nikakvu
+# proveru. Svaki novi pozivalac -- ili injektovana fabrika -- mogao je da
+# otvori sirov WSS ka OpenAI Realtime API-ju bez ijedne governance odluke.
+# Zbog toga je BETA-HARDENING-001 oznacio ovu putanju kao `BYPASS-7`.
+#
+# Popravka NIJE nov governance sistem. Postojeca kapija ostaje jedina odluka;
+# dodaje se samo mehanizam koji cini nemogucim da se ona PRESKOCI:
+#
+#   `proveri_voice_dozvolu()` postavlja `_ODLUKA` contextvar,
+#   `_connect_openai_realtime()` odbija da se poveze bez njega.
+#
+# Contextvar je vezan za asyncio task, pa vazi tacno za onaj tok izvrsavanja
+# koji je odluku i dobio -- ne moze se „pozajmiti" iz druge sesije.
+_ODLUKA: contextvars.ContextVar = contextvars.ContextVar(
+    "vindex_voice_odluka", default=None
+)
+
+
+class VoiceGovernanceBypass(RuntimeError):
+    """Pokusaj otvaranja veze ka provajderu bez governance odluke."""
+
+
+class _Odluka:
+    """Token governance odluke.
+
+    S3 (protivnicki pregled): ranije je odluka bila obican `dict` koji je
+    postavljala JAVNA funkcija `_oznaci_odluku`. Svaki pozivalac je mogao da je
+    izmisli i time otvori vezu bez dodira sa registry-jem, tarifom i kill
+    switch-om. Prinuda je bila konvencija, ne prinuda.
+
+    Sada token moze da nastane samo unutar `proveri_voice_dozvolu()`: konstruktor
+    trazi privatni kljuc modula koji se nigde ne izvozi.
+    """
+
+    __slots__ = ("user_id", "correlation_id")
+
+    def __init__(self, kljuc, user_id, correlation_id):
+        if kljuc is not _KLJUC_ODLUKE:
+            raise VoiceGovernanceBypass(
+                "Governance odluka se ne moze konstruisati spolja — "
+                "jedini put je `proveri_voice_dozvolu()`."
+            )
+        self.user_id = user_id
+        self.correlation_id = correlation_id
+
+
+_KLJUC_ODLUKE = object()
+
+
+def _oznaci_odluku(user: dict, correlation_id: str) -> None:
+    """INTERNO. Poziva se iskljucivo iz `proveri_voice_dozvolu()`."""
+    _ODLUKA.set(_Odluka(_KLJUC_ODLUKE, (user or {}).get("user_id"), correlation_id))
+
+
+def _provjeri_odluku_za(user: dict) -> None:
+    """FAIL-CLOSED provera da tekuci tok ima odluku, i to ZA OVOG korisnika."""
+    odluka = _ODLUKA.get()
+    if odluka is None:
+        logger.error(
+            "[VOICE_RT] POKUSAJ VEZE BEZ GOVERNANCE ODLUKE — odbijeno. Neko je "
+            "dodao putanju koja zaobilazi `proveri_voice_dozvolu()`."
+        )
+        raise VoiceGovernanceBypass(
+            "Veza ka glasovnom provajderu je odbijena: nema governance odluke "
+            "za ovaj tok izvrsavanja."
+        )
+    trazeni = (user or {}).get("user_id")
+    if trazeni and odluka.user_id and odluka.user_id != trazeni:
+        logger.error(
+            "[VOICE_RT] ODLUKA PRIPADA DRUGOM KORISNIKU (%.8s != %.8s) — odbijeno.",
+            str(odluka.user_id), str(trazeni),
+        )
+        raise VoiceGovernanceBypass(
+            "Governance odluka pripada drugom korisniku — sesija je odbijena."
+        )
+
+
+def voice_odluka_doneta() -> bool:
+    """Za testove i za dijagnostiku — da li tekuci tok ima governance odluku."""
+    return _ODLUKA.get() is not None
 
 
 async def proveri_voice_dozvolu(user: dict) -> None:
@@ -138,6 +225,21 @@ async def proveri_voice_dozvolu(user: dict) -> None:
         raise VoiceEntitlementError(
             "Provera prava za glasovni asistent nije uspela — sesija je odbijena."
         ) from e
+
+    # BYPASS-7: odluka je DONETA — tek sada tok sme da otvori vezu ka provajderu.
+    #
+    # Uz nju se postavlja i korelacioni kontekst. HTTP middleware (`api.py:1027`)
+    # koji ga postavlja za svih 611 HTTP ruta NE izvrsava se za WebSocket opseg,
+    # pa je glasovna sesija bila jedina putanja bez korelacionog ID-ja -- i to
+    # bas ona koja nosi privilegovan razgovor. Koristi se postojeci kanonski
+    # mehanizam (`shared.ai_provenance`), ne nov.
+    try:
+        from shared import ai_provenance as _prov
+        _cid = _prov.current_correlation_id() or _prov.new_correlation_id()
+        _prov.set_request_context(user_id=uid, correlation_id=_cid)
+    except Exception:                                    # pragma: no cover
+        _cid = "voice-bez-korelacije"
+    _oznaci_odluku(user, _cid)
 
 
 def _uknjizi_voice_sesiju_provenance(user: dict, status: str = "success",
@@ -205,6 +307,15 @@ class VoiceOrchestratorSession:
         # Wave 9 / D2: kapija PRE konekcije. Ako provera padne, `self.upstream`
         # ostaje None i nijedan bajt ne odlazi ka OpenAI Realtime API-ju.
         await proveri_voice_dozvolu(self.user)
+        # S2 (protivnicki pregled): prinuda MORA biti i ovde, ne samo unutar
+        # `_connect_openai_realtime`. `openai_ws_factory` je test seam koji
+        # zamenjuje celu funkciju povezivanja -- izmereno je da tako veza moze
+        # da se otvori sa `odluka_doneta=False`, dakle bas ono sto je komentar
+        # tvrdio da je nemoguce.
+        #
+        # S8: odluka se proverava i po VLASNIKU. Ranije se gledalo samo da
+        # postoji, pa je odluka korisnika A otvarala vezu za korisnika B.
+        _provjeri_odluku_za(self.user)
         self.upstream = await self._connect()
         await self._send_session_config()
         # FS-002: ovde se sesija tek OTVARA. Ranije je ovo upisivalo
@@ -372,6 +483,18 @@ async def _connect_openai_realtime():
     websockets bibliotekom umesto openai SDK-om jer Realtime API nije
     request/response chat.completions poziv nego trajna sesija)."""
     import websockets
+
+    # BYPASS-7 (BETA-HARDENING-002): FAIL CLOSED bez governance odluke.
+    #
+    # Ovo je jedina tacka u kodu kroz koju prolazi otvaranje veze ka OpenAI
+    # Realtime API-ju. Provera stoji OVDE, a ne (samo) u pozivaocu, jer je
+    # `start()` do sada bio jedini cuvar -- svaki novi pozivalac, refaktor ili
+    # injektovana fabrika mogli su da ga zaobidju.
+    #
+    # `_ODLUKA` postavlja iskljucivo `proveri_voice_dozvolu()`. Bez nje se
+    # nijedan bajt ne salje provajderu, i to se ne moze „popraviti" dodavanjem
+    # novog pozivaoca -- moze samo prolaskom kroz kapiju.
+    _provjeri_odluku_za({})     # ista provera kao na granici sesije
 
     # S2-2 (2026-08-09): FAIL CLOSED when the deployment is configured for
     # Azure / EU data residency.

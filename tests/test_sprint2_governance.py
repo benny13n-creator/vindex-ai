@@ -228,6 +228,13 @@ async def test_realtime_voice_refuses_to_run_under_eu_configuration():
     refused instead."""
     import services.voice_orchestrator as vo
 
+    # AŽURIRANO: BETA-HARDENING-002 / BYPASS-7.
+    # `_connect_openai_realtime()` sada FAIL-CLOSED odbija vezu bez governance
+    # odluke — to je i bila poenta zatvaranja BYPASS-7. Ovaj test zove tačku
+    # povezivanja DIREKTNO, dakle baš zaobilaznicu koja više ne postoji, pa
+    # mora prvo da uradi ono što u produkciji radi `proveri_voice_dozvolu()`.
+    # Tvrdnja testa (EU konfiguracija odbija sesiju) je NEPROMENJENA.
+    vo._oznaci_odluku({"user_id": "test"}, "cid-test")
     with patch.dict(os.environ, {
         "AZURE_OPENAI_KEY": "fake-azure-key",
         "AZURE_OPENAI_ENDPOINT": "https://fake.openai.azure.com",
@@ -259,6 +266,8 @@ async def test_realtime_voice_still_connects_without_azure_configuration():
            if k not in ("AZURE_OPENAI_KEY", "AZURE_OPENAI_ENDPOINT")}
     env["OPENAI_API_KEY"] = "sk-fake"
 
+    # AŽURIRANO: BETA-HARDENING-002 / BYPASS-7 — v. objašnjenje iznad.
+    vo._oznaci_odluku({"user_id": "test"}, "cid-test")
     with patch.dict(os.environ, env, clear=True), \
          patch.dict("sys.modules", {"websockets": fake_ws}):
         await vo._connect_openai_realtime()

@@ -130,14 +130,40 @@ def test_stream_refund_is_idempotent_across_all_three_paths():
     #
     # What this test is actually for — no double refund — is unchanged, so
     # assert that property instead of one particular spelling of it.
-    _guards = src.count("if not _refunded:") + src.count("if not _refunded and not _delivered:")
-    assert _guards >= 2, (
+    # UPDATED by BETA-HARDENING-002 (2026-08-13).
+    #
+    # Counting exact guard literals broke when the Exception branch grew a
+    # second condition (`_refund_dugovan`), added because the `not _delivered`
+    # guard from SE-007 was ALSO suppressing a legitimate refund retry: on a
+    # cache hit or `status == "error"` the first refund() can fail, `_refunded`
+    # stays False, and the handler then refused to try again because the answer
+    # had been delivered. The user stayed charged for a cached/failed answer.
+    #
+    # The invariant is unchanged — no double refund — so it is now asserted as
+    # a PROPERTY: every branch that calls refund() must be guarded by
+    # `_refunded`. That survives future edits to the other conditions.
+    import re as _re
+    _grane = [g for g in _re.findall(r"if not _refunded[^\n:]*:", src)]
+    assert len(_grane) >= 2, (
         "both the Exception and BaseException handlers must be guarded by the "
-        f"_refunded flag; found {_guards} guarded branches"
+        f"_refunded flag; found {len(_grane)} guarded branches: {_grane}"
     )
+    # And every refund call site inside the generator must sit under such a
+    # guard or under the success-path condition — never unguarded.
+    assert "await UsageService.refund" in src
+    assert src.count("_refunded = True") >= 3, (
+        "each refund path must mark _refunded, or the next handler will refund again"
+    )
+
+    # NOTE (NIGHT-005 lesson, kept deliberately): the old assertion here was
+    # `assert "_delivered = True" in src` — a STRING-PRESENCE check. It passed
+    # for months while the flag was assigned AFTER the chunk loop, where a
+    # disconnected client never reached it, handing out full answers for free.
+    # The behavioural proof now lives in tests/test_beta_hardening_001.py, which
+    # drives the real generator and disconnects at 1/25/50/75/90/98/99%.
     assert "_delivered = True" in src, (
         "the disconnect handler must be able to tell a pre-delivery abort from "
-        "a post-delivery one, or it refunds work that was delivered"
+        "a post-delivery one; POSITION is proven in test_beta_hardening_001.py"
     )
 
 

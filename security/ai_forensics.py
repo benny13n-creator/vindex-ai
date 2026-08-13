@@ -204,6 +204,71 @@ def _persist_sync(data: dict) -> None:
 # includes a column if the caller actually supplied a value for it, keeping
 # pre-migration environments from erroring on every AI call.
 
+# ═══════════════════════════════════════════════════════════════════════════
+# GT-001 — STANJE ŠEME PROVENANCE-A JE MERLJIVO, NE PRETPOSTAVLJENO
+#
+# Do BETA-HARDENING-002 je ovde stajao TIH pad: širok upis padne na „kolona ne
+# postoji" (pre migracije 089), kod se vrati na uski skup od 10 legacy kolona —
+# BEZ `correlation_id`, `predmet_id`, `document_id` i `status` — i nastavi kao
+# da je sve u redu. Potpuni neuspeh je bio `logger.debug`, dakle nevidljiv.
+#
+# Posledica: provenance u produkciji piše redove BEZ JOIN KLJUČA, veza
+# naplata→predmet nestaje, a ništa u aplikaciji to ne prijavljuje. Za dokaz u
+# sporu to je najgora vrsta tihe degradacije.
+#
+# POLITIKA (namerna, ne slučajna): **fail-open sa IZRIČITIM degradiranim
+# statusom.** Red se i dalje upisuje — bolje osiromašen trag nego nikakav — ali:
+#   · degradacija se pamti u procesu i izlaže preko `/health`,
+#   · prvi put se loguje kao ERROR sa tačnim spiskom izgubljenih kolona,
+#   · potpuni neuspeh je ERROR, ne `debug`.
+#
+# Time stanje migracije 089 prestaje da bude UNKNOWN u runtime-u: prvi širok
+# upis GA MERI. Ovo ne zamenjuje potvrdu vlasnika da je migracija pokrenuta —
+# ali čini nemogućim da sistem tiho radi bez nje.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Kolone koje postoje TEK posle migracije 089 i koje nose forenzičku vrednost.
+_KOLONE_089 = (
+    "correlation_id", "predmet_id", "document_id", "status", "tenant_id",
+    "module_name", "operation_name", "model_provider", "model_version",
+    "system_prompt_hash", "user_prompt_hash", "confidence_score",
+    "hallucination_check_result", "parent_event_id", "knowledge_sources",
+    "retrieved_context_ids", "retrieval_query", "audit_reference",
+    "error_message",
+)
+
+# `None` = još nijedan upis nije pokušan (ne znamo). `True` = širok upis prošao.
+# `False` = šema je legacy, migracija 089 NIJE primenjena.
+_prosirena_sema: "bool | None" = None
+_degradiranih_upisa: int = 0
+_izgubljene_kolone: set = set()
+_upozorenje_izdato: bool = False
+
+
+def provenance_stanje_seme() -> dict:
+    """Merljivo stanje provenance šeme, za `/health` i za testove.
+
+    `prosirena_sema is None` znači da runtime još nije imao priliku da izmeri —
+    to NIJE isto što i „sve je u redu" i tako se mora i prikazivati.
+    """
+    return {
+        "prosirena_sema": _prosirena_sema,
+        "migracija_089_potvrdjena": _prosirena_sema is True,
+        "degradiranih_upisa": _degradiranih_upisa,
+        # P2: spisak se izvodi iz STVARNO izmerenog gubitka, ne iz konstante.
+        "izgubljene_kolone": sorted(_izgubljene_kolone) if _prosirena_sema is False else [],
+    }
+
+
+def _resetuj_stanje_seme() -> None:
+    """Samo za testove — stanje je procesno, pa mora da se može očistiti."""
+    global _prosirena_sema, _degradiranih_upisa, _upozorenje_izdato
+    _prosirena_sema = None
+    _degradiranih_upisa = 0
+    _upozorenje_izdato = False
+    _izgubljene_kolone.clear()
+
+
 async def log_provenance_from_wrapper(
     *,
     module_name: str,
@@ -307,8 +372,20 @@ async def log_provenance_from_wrapper(
         from shared.audit_immutable import _is_missing_column_error
         supa = _get_supa()
         safe = {k: (json.dumps(v) if isinstance(v, list) else v) for k, v in record.items() if v is not None}
+        global _prosirena_sema, _degradiranih_upisa, _upozorenje_izdato
         try:
             await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe).execute())
+            # P2 (protivnicki pregled): OVDE JE STAJALO bezuslovno `= True`.
+            # Jedan uspesan upis posle degradiranog vracao je
+            # `migracija_089_potvrdjena` na `True` i praznio `izgubljene_kolone` --
+            # latch koji se otkljucava a nikad ne zakljucava. Dohvatljivo preko
+            # PostgREST schema-cache staleness i rolling deploy-a.
+            #
+            # Degradacija je LEPLJIVA: kad je jednom izmerena, ostaje dok se
+            # proces ne restartuje. Bolje lazno pesimisticno nego lazno sigurno --
+            # ovo je forenzicki trag, ne metrika performansi.
+            if _prosirena_sema is not False:
+                _prosirena_sema = True
         except Exception as _wide_exc:
             # Project Phoenix (2026-08-03), Finding P-1: NARROW fallback --
             # only retry without the extended-schema columns when the error
@@ -317,10 +394,25 @@ async def log_provenance_from_wrapper(
             # reset), which would just waste a second doomed attempt.
             if not _is_missing_column_error(_wide_exc):
                 raise
+            # GT-001: degradacija je od sada IZRIČITA i merljiva.
+            _prosirena_sema = False
+            _degradiranih_upisa += 1
+            _izgubljene = sorted(set(_KOLONE_089) & set(safe.keys()))
+            _izgubljene_kolone.update(_izgubljene)
+            if not _upozorenje_izdato:
+                _upozorenje_izdato = True
+                logger.error(
+                    "[FORENSICS] MIGRACIJA 089 NIJE PRIMENJENA — provenance se "
+                    "upisuje BEZ join ključa. Izgubljene kolone: %s. Svi dalji "
+                    "redovi su forenzički osiromašeni dok se migracija ne pokrene.",
+                    ", ".join(_izgubljene) or "(nijedna u ovom redu)",
+                )
             safe_legacy = {k: v for k, v in safe.items() if k in legacy_record}
             await asyncio.to_thread(lambda: supa.table("ai_forensics").insert(safe_legacy).execute())
     except Exception as e:
-        logger.debug("[FORENSICS] provenance persist greška (nije kritično): %s", e)
+        # GT-001: bilo je `logger.debug` — potpun gubitak forenzičkog traga bio
+        # je nevidljiv. Provenance JESTE kritičan; upis koji padne mora da se vidi.
+        logger.error("[FORENSICS] provenance NIJE upisan — trag je izgubljen: %s", e)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -350,10 +350,21 @@ def test_handle_client_message_confirm_dispatches_to_confirm_tool_call():
 def test_connect_openai_realtime_uses_bearer_auth_header():
     from services.voice_orchestrator import _connect_openai_realtime
 
+    import services.voice_orchestrator as vo
+
     fake_ws = AsyncMock()
+
+    async def _sa_odlukom():
+        # BETA-HARDENING-002 / BYPASS-7: veza bez governance odluke je od sada
+        # odbijena. U produkciji odluku postavlja `proveri_voice_dozvolu()`;
+        # ovde se radi isto, i to UNUTAR istog taska, jer je contextvar
+        # task-lokalan. Tvrdnja testa (Bearer zaglavlje) je nepromenjena.
+        vo._oznaci_odluku({"user_id": "test"}, "cid-test")
+        return await _connect_openai_realtime()
+
     with patch("websockets.connect", new=AsyncMock(return_value=fake_ws)) as m, \
          patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-key"}):
-        result = asyncio.run(_connect_openai_realtime())
+        result = asyncio.run(_sa_odlukom())
 
     assert result is fake_ws
     args, kwargs = m.call_args
