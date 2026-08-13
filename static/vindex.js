@@ -5024,9 +5024,30 @@ async function crmPokreniKonflikt() {
         firma:   (document.getElementById('cf-firma').value||'').trim(),
       })
     });
+    // BETA-P0-COI: `!d.conflict_detected` je davalo ZELENO i kad polja nema.
+    // Negacija odsutnog polja je `true`, pa je i HTTP 500 sa JSON telom
+    // zavrsavao u grani "nema sukoba". Sada se zeleno prikazuje ISKLJUCIVO
+    // kad je backend izricito potvrdio da je provera izvrsena.
+    if (!r.ok) {
+      var _pd = null;
+      try { _pd = await r.json(); } catch (_e) { _pd = null; }
+      var _por = (_pd && _pd.detail && _pd.detail.poruka)
+        ? _pd.detail.poruka
+        : 'Provera sukoba interesa NIJE izvršena.';
+      rezultat.innerHTML = '<div class="crm-conflict-warn"><b>⚠ ' + _htmlEsc(_por)
+        + '</b><div style="margin-top:6px;font-size:0.78rem;">Rezultat se ne sme tumačiti kao odsustvo sukoba. Pokušajte ponovo.</div></div>';
+      return;
+    }
     var d = await r.json();
-    if (!d.conflict_detected) {
-      rezultat.innerHTML = '<div class="crm-conflict-ok">✅ Nije pronađen sukob interesa.</div>';
+    if (d.status_provere !== 'NO_CONFLICT' && d.status_provere !== 'CONFLICT_FOUND') {
+      rezultat.innerHTML = '<div class="crm-conflict-warn"><b>⚠ Provera sukoba interesa NIJE izvršena.</b>'
+        + '<div style="margin-top:6px;font-size:0.78rem;">Rezultat se ne sme tumačiti kao odsustvo sukoba.</div></div>';
+      return;
+    }
+    if (d.status_provere === 'NO_CONFLICT') {
+      rezultat.innerHTML = '<div class="crm-conflict-ok">✅ Nije pronađen sukob interesa.'
+        + '<div style="margin-top:6px;font-size:0.72rem;opacity:0.75;">Provereno klijenata: '
+        + (d.provereno_klijenata != null ? d.provereno_klijenata : '?') + '</div></div>';
     } else {
       var detalji = (d.details||[]).map(function(c){ return '<div style="margin-top:6px;font-size:0.78rem;">⚠ '+_htmlEsc(c.detalji)+'</div>'; }).join('');
       rezultat.innerHTML = '<div class="crm-conflict-warn"><b>⚠ Pronađen potencijalni sukob!</b>'+detalji+'</div>';
@@ -19444,9 +19465,24 @@ async function crmPokreniKonfliktNovi() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
       body: JSON.stringify({ ime_prezime: ime_prez || null, firma: firma || null }),
     });
+    // BETA-P0-COI: `r.ok` se nije proveravao. HTTP greska je davala
+    // `d.status === undefined`, sto je padalo u `else` granu -- dakle NE zeleno,
+    // ali sa porukom `undefined`. Backend (`routers/conflict_check.py`, SOA2-006)
+    // vec razlikuje nepotpunu proveru; ovde se to samo cini vidljivim.
+    if (!r.ok) {
+      if (rez) rez.innerHTML = '<div class="cc-review">⚠️ <b>PROVERA NIJE IZVRŠENA</b>'
+        + '<br><span style="font-size:.8rem;">Odsustvo rezultata NE znači da konflikta nema. '
+        + 'Ponovite proveru pre nego što donesete odluku o prihvatanju klijenta.</span></div>';
+      return;
+    }
     var d = await r.json();
     var html = '';
-    if (d.status === 'clear') {
+    if (d.provera_potpuna === false) {
+      // Backend je vec degradirao na `review`; ovde se eksplicitno imenuje da
+      // se zeleno NIKAD ne moze prikazati za nepotpunu pretragu.
+      html = '<div class="cc-review">⚠️ <b>PROVERA NIJE POTPUNA</b><br><span style="font-size:.8rem;">'
+        + _htmlEsc(d.poruka || 'Pretraga nije uspela u celosti.') + '</span></div>';
+    } else if (d.status === 'clear') {
       html = '<div class="cc-clear">✅ <b>Nema konflikta</b><br><span style="font-size:.8rem;">'+_htmlEsc(d.poruka)+'</span></div>';
     } else if (d.status === 'conflict') {
       html = '<div class="cc-modal" style="background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.3);border-radius:2px;padding:.8rem;margin-bottom:.5rem;">⚠️ <b style="color:#f87171;">KONFLIKT INTERESA!</b><br><span style="font-size:.8rem;color:rgba(255,255,255,.6);">'+_htmlEsc(d.poruka)+'</span></div>';

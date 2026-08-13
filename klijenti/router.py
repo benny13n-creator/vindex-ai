@@ -616,6 +616,21 @@ async def restore_klijent(
 
 # ─── FAZA 3: Conflict of Interest check ──────────────────────────────────────
 
+# BETA-P0-COI: eksplicitna stanja provere sukoba interesa.
+#
+# Ranije je odgovor nosio SAMO `conflict_detected`. Kad bi pretraga pukla,
+# `except` bi je progutao i kod bi stigao do `len([]) > 0` == False -- dakle
+# odgovor identican stvarnom "nema sukoba". Frontend radi `if (!d.conflict_
+# detected)`, a negacija ODSUTNOG polja je `true`, pa je i HTTP 500 sa JSON
+# telom davao zeleno.
+#
+# `COI_CHECK_FAILED` se NIKAD ne sme preslikati u `COI_NO_CONFLICT`. To je
+# jedini ekran u proizvodu ciji je posao da advokata upozori; lazno negativan
+# nalaz nosi disciplinsku odgovornost.
+COI_NO_CONFLICT   = "NO_CONFLICT"
+COI_CONFLICT_FOUND = "CONFLICT_FOUND"
+COI_CHECK_FAILED  = "CHECK_FAILED"
+
 @router.post("/klijenti/check-conflict")
 async def check_conflict(
     req: ConflictCheckReq,
@@ -642,6 +657,8 @@ async def check_conflict(
     firma_query = _normalize_name(req.firma) if req.firma else ""
 
     conflicts = []
+    _provereno_klijenata = 0
+    _provereno_veza = 0
 
     try:
         # Dohvati sve klijente ovog korisnika
@@ -653,6 +670,7 @@ async def check_conflict(
                         .execute()
         )
         all_clients = all_clients_res.data or []
+        _provereno_klijenata = len(all_clients)
 
         for c in all_clients:
             c_name = _normalize_name(f"{c.get('ime', '')} {c.get('prezime', '')}".strip())
@@ -673,7 +691,9 @@ async def check_conflict(
                                         .eq("klijent_id", cid)
                                         .execute()
             )
-            for pk in (pk_res.data or []):
+            _pk_redovi = pk_res.data or []
+            _provereno_veza += len(_pk_redovi)
+            for pk in _pk_redovi:
                 uloga = pk.get("uloga_klijenta", "")
                 if uloga in ("protivna_strana", "protivna_stranka", "tuzeni", "advokat_protivne"):
                     conflicts.append({
@@ -690,8 +710,20 @@ async def check_conflict(
                         "predmet_id":    pk["predmet_id"],
                     })
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("[CONFLICT] greška: %s", e)
+        # FAIL-CLOSED: neuspela pretraga NE SME da se predstavi kao "nema
+        # sukoba". Vraca se greska, da je i `r.ok` na frontendu uhvati.
+        logger.error("[CONFLICT] provera nije izvrsena: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status_provere": COI_CHECK_FAILED,
+                "poruka": "Provera sukoba interesa nije izvršena. "
+                          "Rezultat se ne sme tumačiti kao odsustvo sukoba.",
+            },
+        )
 
     conflict_detected = len(conflicts) > 0
 
@@ -704,6 +736,13 @@ async def check_conflict(
 
     return {
         "conflict_detected": conflict_detected,
+        # Bez ovog polja frontend ne moze da razlikuje "nema sukoba" od
+        # "nije provereno" -- `!undefined` je `true`.
+        "status_provere":    COI_CONFLICT_FOUND if conflict_detected else COI_NO_CONFLICT,
+        # Obim provere: prazna baza i pretraga od 500 klijenata ne smeju
+        # izgledati isto advokatu.
+        "provereno_klijenata": _provereno_klijenata,
+        "provereno_veza":      _provereno_veza,
         "conflict_types":    list({c["tip_konflikta"] for c in conflicts}),
         "details":           conflicts[:10],
     }
