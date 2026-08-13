@@ -155,6 +155,47 @@ async def kreiraj_zadatak(
     firma = await _get_firma_info(supa, uid)
     kancelarija_id = firma.get("kancelarija_id")
 
+    # ── CONF-009 (BETA-DATA-CONFIDENTIALITY-002) ─────────────────────────────
+    # Oba strana ključa su se upisivala neproverena. Obrazac je već u ovom
+    # fajlu, na `:443` — kapija pre upita — samo nikad nije primenjen ovde.
+    #
+    # `predmet_id`: bez kapije se zadatak kači na tuđi predmet.
+    #
+    # `dodeljen_uid` je teži slučaj i niko ga nije prijavio: `workspace.py:129`
+    # čita zadatke SAMO po `dodeljen_uid`, pa je svaki korisnik mogao da ubaci
+    # stavku proizvoljnog naslova i roka na tuđu kanonsku dnevnu tablu, uz
+    # `proactive_alerts` notifikaciju (`:185`). Meta mora biti ACTIVE član iste
+    # kancelarije — ili sam pozivalac, što je uobičajen tok (zadatak sebi).
+    #
+    # 404 a ne 403 svuda: inače endpoint postaje proročište o tome koji
+    # predmeti i koji nalozi postoje.
+    if payload.predmet_id:
+        pred_r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id")
+                .eq("id", payload.predmet_id)
+                .eq("user_id", uid)
+                .limit(1)
+                .execute()
+        )
+        if not pred_r.data:
+            raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+
+    if payload.dodeljen_uid and payload.dodeljen_uid != uid:
+        if not kancelarija_id:
+            raise HTTPException(status_code=404, detail="Korisnik nije pronađen.")
+        clan_r = await asyncio.to_thread(
+            lambda: supa.table("kancelarija_clanovi")
+                .select("user_id")
+                .eq("user_id", payload.dodeljen_uid)
+                .eq("kancelarija_id", kancelarija_id)
+                .eq("status", "ACTIVE")
+                .limit(1)
+                .execute()
+        )
+        if not clan_r.data:
+            raise HTTPException(status_code=404, detail="Korisnik nije pronađen.")
+
     # Validacija datuma
     rok_datum = None
     if payload.rok_datum:

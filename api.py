@@ -1415,6 +1415,33 @@ async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) ->
         return None
 
 
+def _poseduje_predmet(user_id: str, predmet_id: str) -> bool:
+    """Da li `predmet_id` pripada baš ovom korisniku.
+
+    CONF-010 (BETA-DATA-CONFIDENTIALITY-002). `/api/pitanje` (`:3378`) i
+    `/api/procena` (`:4895`) su upisivali u `predmet_istorija` sa `predmet_id`
+    koji stiže iz tela zahteva, bez ijedne provere. Napadač je time ubacivao
+    sopstveno pitanje i pun GPT-4o odgovor u TUĐI pravni spis, gde ih žrtva
+    zatim vidi kao svoju AI istoriju (`:4154` ih razliva kroz `get_predmet`).
+
+    Asimetrija koja objašnjava kako je promaklo: oba endpointa čitanje konteksta
+    VEĆ ispravno filtriraju po `user_id` (`:3339`, `:4774`). Izolacija je
+    promišljena na strani čitanja i zaboravljena na strani upisa — isti obrazac
+    u devet drugih ruta.
+
+    Fail-closed: greška u proveri znači NE upisuj.
+    """
+    if not (user_id and predmet_id):
+        return False
+    try:
+        r = (_get_supa().table("predmeti").select("id")
+             .eq("id", predmet_id).eq("user_id", user_id).limit(1).execute())
+        return bool(r.data)
+    except Exception as e:
+        logger.warning("[SEC] provera vlasništva predmeta pala, upis se odbija: %s", e)
+        return False
+
+
 def _treba_refundirati(rezultat: dict) -> bool:
     """Da li korisniku treba vratiti kredit za ovaj rezultat.
 
@@ -3373,7 +3400,19 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         _credit_consumed = False  # accounted for above; the except block must not double-refund
 
         # F5.4: persist Q&A turn to predmet_istorija
-        if predmet_id and rezultat.get("status") == "success" and not rezultat.get("blocked"):
+        # CONF-010: kapija pre upisa, v. `_poseduje_predmet`. Namerno NE diže
+        # 404 — odgovor je već proizveden i naplaćen, a strana čitanja ionako
+        # nije vratila nikakav kontekst tuđeg predmeta. Odbija se samo upis,
+        # jer je on jedina radnja koja ostavlja trag kod žrtve.
+        _sme_istoriju = bool(predmet_id) and await asyncio.to_thread(
+            _poseduje_predmet, user["user_id"], predmet_id
+        )
+        if predmet_id and not _sme_istoriju:
+            logger.warning(
+                "[SEC] CONF-010: odbijen upis u predmet_istorija — predmet %s nije korisnikov",
+                predmet_id,
+            )
+        if _sme_istoriju and rezultat.get("status") == "success" and not rezultat.get("blocked"):
             try:
                 _get_supa().table("predmet_istorija").insert({
                     "predmet_id": predmet_id,
@@ -4890,7 +4929,20 @@ async def pravna_procena(request: Request, authorization: str = Header(None)):
             logger.warning("[P3.4] /procena Sekcija 22 greška: %s", _s22e)
 
     # Persist to predmet_istorija if linked to a case
-    if predmet_id and procena_tekst:
+    # CONF-010: ista kapija kao na `/api/pitanje`. Ovde je nosivost veća —
+    # payload je pun GPT-4o pravni nalaz, ne samo pitanje.
+    if predmet_id and procena_tekst and not await asyncio.to_thread(
+        _poseduje_predmet, user.id, predmet_id
+    ):
+        logger.warning(
+            "[SEC] CONF-010: odbijen upis procene u predmet_istorija — predmet %s nije korisnikov",
+            predmet_id,
+        )
+        procena_tekst_smem_upisati = False
+    else:
+        procena_tekst_smem_upisati = True
+
+    if predmet_id and procena_tekst and procena_tekst_smem_upisati:
         try:
             _get_supa().table("predmet_istorija").insert({
                 "predmet_id": predmet_id,

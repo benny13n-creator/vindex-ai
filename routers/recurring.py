@@ -108,9 +108,15 @@ async def create_recurring(
         "pdv_procenat":  req.pdv_procenat,
         "aktivan":       True,
     }
+    # CONF-011 (BETA-DATA-CONFIDENTIALITY-002): oba strana kljuca su se
+    # upisivala neprovereno, pa su viseci cross-tenant FK-ovi propagirali u
+    # stvarne `fakture` redove -- dakle u novac, ne samo u metapodatke.
+    from shared.ownership import zahtevaj as _zahtevaj_vlasnistvo
     if req.klijent_id:
+        await _db(lambda: _zahtevaj_vlasnistvo(supa, "klijenti", req.klijent_id, uid))
         row["klijent_id"] = req.klijent_id
     if req.predmet_id:
+        await _db(lambda: _zahtevaj_vlasnistvo(supa, "predmeti", req.predmet_id, uid))
         row["predmet_id"] = req.predmet_id
 
     res = await _db(lambda: supa.table("recurring_templates").insert(row).execute())

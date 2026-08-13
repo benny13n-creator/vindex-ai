@@ -101,6 +101,14 @@ async def dodaj_vezu(
     if not kancelarija_id:
         raise HTTPException(status_code=403, detail="Niste član nijedne kancelarije.")
 
+    # CONF-011: `predmet_id` je stizao iz tela i zavrsavao u grafu koji cela
+    # kancelarija cita, a odatle u LLM promptove kolega.
+    from shared.ownership import zahtevaj as _zahtevaj_vlasnistvo
+    if payload.predmet_id:
+        await asyncio.to_thread(
+            _zahtevaj_vlasnistvo, supa, "predmeti", payload.predmet_id, uid
+        )
+
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("memory_graph_edges").insert({

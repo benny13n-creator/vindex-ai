@@ -179,6 +179,19 @@ async def dodaj_memoriju(
     if not kancelarija_id:
         raise HTTPException(status_code=400, detail="Niste član nijedne kancelarije.")
 
+    # CONF-011 (BETA-DATA-CONFIDENTIALITY-002): `entity_id` je stizao iz tela
+    # neproveren, pa je zapis o TUDJEM predmetu/klijentu ulazio u memoriju koju
+    # cela kancelarija cita -- i odatle u AI kontekst kolega. Provera se odnosi
+    # samo na tipove koji su stvarni resursi u bazi; `sudija`/`firma`/`partner`
+    # su slobodan tekst i nemaju vlasnika.
+    _TABELA_ZA_TIP = {"predmet": "predmeti", "klijent": "klijenti"}
+    _tabela = _TABELA_ZA_TIP.get(payload.entity_type)
+    if _tabela:
+        from shared.ownership import zahtevaj as _zahtevaj_vlasnistvo
+        await asyncio.to_thread(
+            _zahtevaj_vlasnistvo, supa, _tabela, payload.entity_id, uid
+        )
+
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("memory_entries").insert({

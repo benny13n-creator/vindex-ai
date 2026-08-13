@@ -37,6 +37,9 @@ from klijenti.audit import Akcija, log_event, get_client_ip
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
 from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, _is_founder, _verify_token
+# CONF-008: promena privilegije je bila jedina admin ruta bez ograničenja
+# stope — susedne rute u `routers/kancelarija.py` ga imaju.
+from shared.rate import limiter
 from shared.permissions import PermissionService
 from shared.usage import UsageService
 
@@ -1192,13 +1195,66 @@ async def arhiviraj_klijent(klijent_id: str, request: Request):
 
 # ─── Role management endpoint ────────────────────────────────────────────────
 
+def _verify_moze_menjati_rolu(supa, caller_uid: str, target_uid: str) -> dict:
+    """Kapija za `set_user_role`. Vraća red člana ili diže izuzetak.
+
+    CONF-008 (BETA-DATA-CONFIDENTIALITY-002). Ranije je jedina provera bila
+    `user["role"] < Role.PARTNER` — pitanje o POZIVAOCU, nikad o META. Kako je
+    `user_roles` globalna tabela bez `kancelarija_id`, partner jedne kancelarije
+    je mogao da promeni rolu korisnika bilo koje druge: da unapredi saučesnika u
+    `partner` ili da suparnika spusti na `sekretaricu` i time mu oduzme
+    `access_confidential` i `download_document` NAD NJEGOVIM SOPSTVENIM
+    klijentima. `target_user_id` se nije poredio ni sa čim.
+
+    Obrazac je kanonski iz `api.py:4370` (kapija pre upisa) i
+    `routers/kancelarija.py:571` (opseg firme): meta mora biti ACTIVE član
+    kancelarije kojom pozivalac administrira.
+
+    404 A NE 403 za sve što se tiče METE — inače endpoint postaje proročište
+    postojanja korisnika. Ranije je strani UUID vraćao 200, a nepostojeći 500
+    (nepresretnuto kršenje stranog ključa), pa se iz razlike čitalo da li nalog
+    postoji. 403 ostaje samo za tvrdnju o POZIVAOCU, gde ništa ne odaje.
+
+    OSNIVAČ NEMA ZAOBILAZNICU — i to je namerno, ne propust. Osnivači su ovde
+    ranije stizali slučajno, jer `_get_role` (`:62`) kratko spaja na
+    `Role.PARTNER`, pa je globalna izmena role bila implicitna posledica
+    prečice za čitanje. Mandat traži da ponašanje bude izričito: osnivač mora
+    biti admin firme kao i svi ostali. Za sve van toga postoji pristup bazi.
+    """
+    if target_uid == caller_uid:
+        # Samopromena je zabranjena da partner ne bi mogao da se zaključa iz
+        # sopstvene kancelarije. Nema legitimnog toka koji je traži.
+        raise HTTPException(status_code=400, detail="Ne možete menjati sopstvenu rolu.")
+
+    firma = (
+        supa.table("kancelarije").select("id")
+        .eq("admin_uid", caller_uid).limit(1).execute()
+    )
+    if not firma.data:
+        raise HTTPException(status_code=404, detail="Korisnik nije pronađen.")
+
+    clan = (
+        supa.table("kancelarija_clanovi").select("id, email, status")
+        .eq("user_id", target_uid)
+        .eq("kancelarija_id", firma.data[0]["id"])
+        .eq("status", "ACTIVE")
+        .limit(1).execute()
+    )
+    if not clan.data:
+        # Pokriva odjednom: drugu kancelariju, nepostojećeg korisnika i
+        # uklonjenog/neaktivnog člana — sva tri se spolja ne razlikuju.
+        raise HTTPException(status_code=404, detail="Korisnik nije pronađen.")
+    return clan.data[0]
+
+
 @router.put("/api/users/{target_user_id}/role")
+@limiter.limit("20/minute")
 async def set_user_role(
     target_user_id: str,
     request: Request,
     rola: str = "advokat",
 ):
-    """Faza 5 — Podešava rolu korisnika (samo PARTNER može menjati role)."""
+    """Faza 5 — Podešava rolu korisnika (samo PARTNER, samo u svojoj firmi)."""
     user = await _auth_from_request(request)
     if user["role"] < Role.PARTNER:
         raise HTTPException(status_code=403, detail="Samo partner može menjati role korisnika.")
@@ -1206,11 +1262,28 @@ async def set_user_role(
         raise HTTPException(status_code=422, detail=f"Nevažeća rola: {rola}. Dozvoljeno: {list(ROLE_STR.keys())}")
 
     supa = _get_supa()
+    clan = await asyncio.to_thread(
+        _verify_moze_menjati_rolu, supa, user["user_id"], target_user_id
+    )
     await asyncio.to_thread(
         lambda: supa.table("user_roles").upsert({
             "user_id": target_user_id,
             "rola":    rola,
         }, on_conflict="user_id").execute()
+    )
+    # Promena privilegije bez traga je bila druga polovina nalaza: akcija
+    # `user_role_change` stoji deklarisana u `shared/audit_immutable.py:89` a
+    # nijedno mesto je nije zvalo.
+    await log_event(
+        supa=supa,
+        user_id=user["user_id"],
+        user_email=user.get("email", ""),
+        user_role=user.get("role_str", ""),
+        akcija=Akcija.EDIT,
+        entitet_id=target_user_id,
+        entitet_tip="user_role",
+        detalji={"nova_rola": rola, "meta_email": clan.get("email", "")},
+        ip_adresa=get_client_ip(request),
     )
     return {"status": "postavljeno", "user_id": target_user_id, "rola": rola}
 
