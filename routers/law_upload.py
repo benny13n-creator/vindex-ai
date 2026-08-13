@@ -118,8 +118,19 @@ def _run_ingest_sync(
         try:
             embs = _embed(batch)
         except Exception as exc:
+            # BETA-DATA-ID-01 / RULE 7: `continue` je ovde tiho preskakao ceo
+            # batch i nastavljao dalje -- zakon je zavrsavao u indeksu sa
+            # RUPAMA, a funkcija je vracala broj kao da je sve proslo. Sedmi
+            # pisac ingesta, nijedan raniji sprint ga nije prijavio.
             logger.error("[LAW_UPLOAD] embed greška batch %d: %s", i, exc)
-            continue
+            raise
+        # Isti `zip` obrazac kao u `uploaded_doc/ingest.py`: delimican odgovor
+        # provajdera bi tiho upisao podskup.
+        if len(embs) != len(batch):
+            raise RuntimeError(
+                f"embedding je vratio {len(embs)} vektora za {len(batch)} "
+                f"chunk-ova — delimican ingest se odbija"
+            )
         for j, emb in enumerate(embs):
             ci = i + j
             vectors.append({

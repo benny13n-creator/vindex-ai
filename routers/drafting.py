@@ -341,9 +341,20 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     tekst = staging_row["tekst"]
     naziv = staging_row.get("naziv") or staging_row.get("tip") or "Nacrt"
 
+    # BETA-DATA-ID-01: `source_sha256` je ranije bio prazan string, jer nacrt ne
+    # dolazi iz fajla. Otkad identitet vektora zavisi od verzije sadrzaja
+    # (`shared/vector_identity.py`), prazna verzija znaci "nema identiteta" i
+    # ingest se fail-closed odbija -- pa bi promocija odobrenog nacrta tiho
+    # prestala da radi (izuzetak se nize guta i vraca False).
+    #
+    # Nacrt SVOJ sadrzaj i jeste njegova verzija: hes teksta daje istu
+    # semantiku kao hes fajla kod uploada -- ponovna promocija istog teksta
+    # prepisuje umesto da duplira, izmenjen tekst pravi novu verziju.
+    from shared.vector_identity import verzija_sadrzaja as _verzija
     source_meta = {
         "source_filename": f"Nacrt — {naziv}", "source_format": "txt",
-        "source_sha256": "", "is_scanned": False, "session_id": "__local__",
+        "source_sha256": _verzija(tekst), "is_scanned": False,
+        "session_id": "__local__",
     }
     manifest = await asyncio.to_thread(chunk_document, tekst, source_meta)
     if manifest.total_chunks == 0:

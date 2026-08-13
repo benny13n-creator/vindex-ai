@@ -90,6 +90,37 @@ def ingest_session(
             f"{len(manifest.chunks)} chunk-ova — delimičan ingest se odbija"
         )
 
+    # ── BETA-DATA-ID-01 — DETERMINISTICKI IDENTITET ─────────────────────────
+    #
+    # Ranije je Pinecone `id` bio `chunk.chunk_id`, a to je `uuid4()` generisan
+    # pri svakom chunk-ovanju (`chunker.py:157`). Ponovni upload istog fajla
+    # pravio je potpuno nove ID-eve: duplikati, nemoguce brisanje, nemoguca
+    # orphan detekcija.
+    #
+    # Identitet se gradi iz onoga sto vec postoji, bez nove kolone i bez izmene
+    # ijednog pozivaoca:
+    #   scope   = `predmet_id` kad je dokument trajan (granica brisanja i
+    #             vlasnistva), inace `session_id` za privremene sesije
+    #   verzija = `manifest.source_sha256` -- heš SAMOG fajla
+    #
+    # `scope` je ono sto sprecava da isti fajl dva razlicita korisnika dobije
+    # iste ID-eve (RULE 12): heš je isti, scope nije.
+    from shared.vector_identity import (
+        NedovoljanIdentitet,
+        canonical_vector_id,
+        metapodaci_identiteta,
+    )
+    _predmet_id = (extra_metadata or {}).get("predmet_id") or ""
+    _scope = _predmet_id or session_id
+    _verzija = manifest.source_sha256
+    if not _verzija:
+        # RULE 6, fail-closed: bez verzije nema jednoznacnog identiteta, pa se
+        # NE upisuje nista. Tiho vracanje na uuid4 vratilo bi tacno stanje koje
+        # ovaj sprint uklanja.
+        raise NedovoljanIdentitet(
+            "manifest nema source_sha256 — vektori se ne upisuju bez identiteta"
+        )
+
     records = []
     for chunk, vec in zip(manifest.chunks, vectors_raw):
         text_stored = chunk.text[:_TEXT_TRUNCATE]
@@ -106,8 +137,14 @@ def ingest_session(
         }
         if extra_metadata:
             metadata.update(extra_metadata)
+        # Identitet se dodaje POSLE `extra_metadata`, da ga pozivalac ne moze
+        # slucajno pregaziti.
+        metadata.update(metapodaci_identiteta(
+            scope=_scope, verzija=_verzija, chunk_index=chunk.chunk_index,
+            predmet_id=_predmet_id or None,
+        ))
         records.append({
-            "id": chunk.chunk_id,
+            "id": canonical_vector_id(_scope, _verzija, chunk.chunk_index),
             "values": vec,
             "metadata": metadata,
         })
