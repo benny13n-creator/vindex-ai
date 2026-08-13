@@ -290,6 +290,7 @@ class TestCrossCaseRetrieval:
                 "Da li postoji klauzula o raskidu ugovora?",
                 kancelarija_namespace="kancelarija_kanc-1",
                 current_predmet_id="predmet-NEW",
+                dozvoljeni_predmeti=["predmet-NEW", "predmet-OLD"],
             )
 
         # Both the current-case AND the past-case passage must be present --
@@ -339,7 +340,9 @@ class TestCrossCaseRetrieval:
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
             _, meta = retrieve_documents(
-                "upit", kancelarija_namespace="kancelarija_kanc-1", current_predmet_id="predmet-NEW",
+                "upit", kancelarija_namespace="kancelarija_kanc-1",
+                current_predmet_id="predmet-NEW",
+                dozvoljeni_predmeti=["predmet-NEW", "predmet-OLD"],
             )
 
         passages = meta["doc_passages"]

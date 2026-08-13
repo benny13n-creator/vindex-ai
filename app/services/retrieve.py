@@ -1766,6 +1766,7 @@ def retrieve_documents(
     extra_namespaces: Optional[list] = None,
     kancelarija_namespace: Optional[str] = None,
     current_predmet_id: Optional[str] = None,
+    dozvoljeni_predmeti: Optional[list] = None,
 ) -> tuple[list[str], dict]:
     """
     Agentic RAG pipeline — svi 5 sprintova.
@@ -1842,14 +1843,35 @@ def retrieve_documents(
     # pretraga. Zaseban executor od _extra_exec iznad: taj mehanizam je za
     # ad-hoc tmp_* dokument-analizu (bez filtera), ovaj je za trajno
     # case_doc/draft_final znanje istog vlasnika, sa metadata filterom.
+    #
+    # BETA-DATA-CONFIDENTIALITY-003 / F-01. Filter je do sada glasio samo
+    # {"type": ...} -- dakle SVI trajni dokumenti cele kancelarije, za svakog
+    # aktivnog clana. Kanonska kapija za citanje predmeta
+    # (`api.py::get_predmet`) propusta samo vlasnika i izricito delegiranog
+    # korisnika; clanstvo u kancelariji NIJE osnov. Clan koji predmet ne moze
+    # ni da otvori kroz API dobijao je doslovan tekst iz njega kroz RAG.
+    #
+    # `shared/rag_acl.py` je jedini vlasnik te odluke. Kada vrati None,
+    # namespace se NE pretrazuje -- prazan filter u Pinecone-u znaci "bez
+    # ogranicenja", pa bi svaka buduca greska koja proizvede {} otvorila tacno
+    # ovu rupu ponovo.
     _kanc_exec = None
     _kanc_future = None
     if kancelarija_namespace:
-        _kanc_exec = ThreadPoolExecutor(max_workers=1)
-        _kanc_future = _kanc_exec.submit(
-            _pretraga_ns, vektor, kancelarija_namespace, 8,
-            {"type": {"$in": ["case_doc", "draft_final"]}},
+        from shared.rag_acl import filter_za_namespace_vlasnika
+        _kanc_filter = filter_za_namespace_vlasnika(
+            dozvoljeni_predmeti, ["case_doc", "draft_final"], current_predmet_id
         )
+        if _kanc_filter is None:
+            logger.warning(
+                "[KANC_NS:%s] preskacem namespace vlasnika -- nema autorizovanih predmeta",
+                kancelarija_namespace,
+            )
+        else:
+            _kanc_exec = ThreadPoolExecutor(max_workers=1)
+            _kanc_future = _kanc_exec.submit(
+                _pretraga_ns, vektor, kancelarija_namespace, 8, _kanc_filter,
+            )
 
     # ── Faza 1: Query transformation (paralel) ────────────────────────────────
     # FIX-1: use intent-aware decomposition for complex queries;

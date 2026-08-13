@@ -415,7 +415,8 @@ class TestTimeDecayRanking:
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
-            _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")
+            _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1",
+                dozvoljeni_predmeti=["pred-1", "pred-2"])
 
         passages = meta["doc_passages"]
         assert passages[0]["predmet_id"] == "pred-2", "Sveži važeći dokument mora pobediti prevaziđen uprkos istom sirovom skoru"
@@ -449,7 +450,8 @@ class TestTimeDecayRanking:
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
-            docs, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")
+            docs, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1",
+                dozvoljeni_predmeti=["pred-1", "pred-2"])
 
         assert meta["doc_passages"] == []
         assert not any("Neproveren AI tekst" in d for d in docs)
@@ -506,7 +508,8 @@ class TestMatchBreakdown:
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
              patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
-            _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1")
+            _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1",
+                dozvoljeni_predmeti=["pred-1", "pred-2"])
 
         breakdown = meta["match_breakdown"]
         assert len(breakdown) >= 1

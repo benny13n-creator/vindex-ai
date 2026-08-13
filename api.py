@@ -5428,6 +5428,11 @@ async def predmet_upload_auto_analyze(
     _rag_meta: dict = {}
     try:
         from app.services.retrieve import retrieve_documents as _retrieve
+        # F-01: skup predmeta koje pozivalac stvarno sme da vidi, izracunat
+        # kanonski (v. shared/rag_acl.py). Bez njega retrieval ne sme da
+        # dodirne namespace vlasnika.
+        from shared.rag_acl import dozvoljeni_predmeti as _acl_predmeti
+        _dozvoljeni_pred = await asyncio.to_thread(_acl_predmeti, _get_supa(), user.id)
         # Institutional Learning & RAG Audit (2026-07-26) #2: kancelarija_namespace
         # + current_predmet_id daju ovoj auto-analizi pristup ranijim predmetima
         # istog vlasnika (kancelarije ili solo korisnika), sa prioritetom na
@@ -5438,6 +5443,7 @@ async def predmet_upload_auto_analyze(
                     _rag_query, 3,
                     kancelarija_namespace=_owner_ns,
                     current_predmet_id=predmet_id,
+                    dozvoljeni_predmeti=_dozvoljeni_pred,
                 )
             ),
             timeout=4.0,
