@@ -404,3 +404,57 @@ def test_pine01_podmetnut_id_druge_firme_ne_moze_biti_obrisan():
 
     assert r.ishod == Ishod.REFUSED
     assert ix.svi(NS_B) == sorted(tudji), "vektor druge firme je obrisan"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PINE-02 §7 — BRANA NAD GLOBALNIM BRISANJEM
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `scripts/ingest_case_law.py` je imao dve rollback grane sa
+# `delete(delete_all=True, namespace="sudska_praksa")`. Napisane su kad je taj
+# namespace bio prazan. Danas u njemu stoji **407.795 vektora iz TRI izvora**,
+# pa bi rollback jednog ingesta uništio podatke druga dva.
+#
+# Brana namerno NE pokušava da suzi brisanje na „svoje" vektore — to bi tražilo
+# dokaz o opsegu koji ne postoji. §7 to izričito zabranjuje. Umesto toga odbija,
+# kaže koliko bi nestalo, i traži izričitu dozvolu.
+
+class _StatIndeks:
+    def __init__(self, broj):
+        self._broj = broj
+
+    def describe_index_stats(self):
+        return {"namespaces": {"sudska_praksa": {"vector_count": self._broj}}}
+
+
+def test_pine02_globalno_brisanje_se_odbija_kad_ima_tudjih_vektora():
+    from shared.vector_deletion import (
+        GlobalnoBrisanjeOdbijeno,
+        dozvoli_globalno_brisanje,
+    )
+    with pytest.raises(GlobalnoBrisanjeOdbijeno) as e:
+        dozvoli_globalno_brisanje(_StatIndeks(407_795), "sudska_praksa",
+                                  kreirano_ovim_pokretanjem=50)
+    assert "407795" in str(e.value).replace(".", "").replace(",", "")
+
+
+def test_pine02_rollback_sopstvenog_ingesta_je_dozvoljen():
+    """Kad je sve u namespace-u napravilo ovo pokretanje, rollback je legitiman."""
+    from shared.vector_deletion import dozvoli_globalno_brisanje
+    assert dozvoli_globalno_brisanje(_StatIndeks(50), "sudska_praksa",
+                                     kreirano_ovim_pokretanjem=50) == 50
+
+
+def test_pine02_nemerljiv_broj_je_odbijanje_a_ne_dozvola():
+    """„Ne znam koliko ih ima" nikad ne sme da postane „slobodno briši"."""
+    from shared.vector_deletion import (
+        GlobalnoBrisanjeOdbijeno,
+        dozvoli_globalno_brisanje,
+    )
+
+    class _Puca:
+        def describe_index_stats(self):
+            raise RuntimeError("Pinecone nedostupan")
+
+    with pytest.raises(GlobalnoBrisanjeOdbijeno):
+        dozvoli_globalno_brisanje(_Puca(), "sudska_praksa")

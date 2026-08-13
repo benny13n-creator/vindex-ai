@@ -344,7 +344,7 @@ def stage_seed(index, client) -> set[str]:
             "HARD STOP: only %d/%d sanity queries passed after Stage 1. Rolling back.",
             passed, len(SANITY_QUERIES_STAGE1),
         )
-        index.delete(delete_all=True, namespace=TARGET_NAMESPACE)
+        _zasticeni_delete_all(index, TARGET_NAMESPACE)
         time.sleep(3)
         verify_namespace_state(index, DEFAULT_NS_EXPECTED, 0, label="post-rollback")
         log.info("Rollback complete. Default namespace intact at %d.", DEFAULT_NS_EXPECTED)
@@ -536,10 +536,32 @@ def production_regression(client) -> bool:
 # Rollback
 # ---------------------------------------------------------------------------
 
+
+def _zasticeni_delete_all(index, namespace: str) -> None:
+    """PINE-02 §7: rollback vise ne sme da unisti tudje vektore.
+
+    `sudska_praksa` danas puni TRI skripta. Rollback jednog od njih je ranije
+    brisao sve. Sada se odbija dok se izricito ne dozvoli.
+    """
+    import os as _os
+    from shared.vector_deletion import (
+        DOZVOLA_ENV,
+        GlobalnoBrisanjeOdbijeno,
+        dozvoli_globalno_brisanje,
+    )
+    if _os.environ.get(DOZVOLA_ENV) != "1":
+        try:
+            dozvoli_globalno_brisanje(index, namespace)
+        except GlobalnoBrisanjeOdbijeno as e:
+            log.error("ODBIJENO GLOBALNO BRISANJE: %s", e)
+            raise
+    index.delete(delete_all=True, namespace=namespace)
+
+
 def rollback(index) -> None:
     """Delete ALL sudska_praksa vectors. Default namespace NOT touched."""
     log.warning("ROLLBACK: deleting all vectors in namespace=%s", TARGET_NAMESPACE)
-    index.delete(delete_all=True, namespace=TARGET_NAMESPACE)
+    _zasticeni_delete_all(index, TARGET_NAMESPACE)
     time.sleep(5)
     counts = get_namespace_counts(index)
     default_count = counts.get("", 0)

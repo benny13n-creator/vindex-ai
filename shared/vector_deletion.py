@@ -243,3 +243,58 @@ def klasifikuj_orphan(vector_id: str, metadata: Optional[dict] = None) -> str:
     if "__chunk_" in vid or vid.startswith(("kb_", "discovery_")):
         return LEGACY_POZNAT
     return ORPHAN_UNIDENTIFIABLE
+
+
+# ─── BRANA NAD GLOBALNIM BRISANJEM (PINE-02 §7) ─────────────────────────────
+
+class GlobalnoBrisanjeOdbijeno(RuntimeError):
+    """Diže se kad `delete_all` nad namespace-om nije dokazano bezbedan."""
+
+
+DOZVOLA_ENV = "VINDEX_ALLOW_DESTRUCTIVE_ROLLBACK"
+
+
+def dozvoli_globalno_brisanje(index, namespace: str, kreirano_ovim_pokretanjem: int = 0) -> int:
+    """Kapija ispred svakog `delete_all`. Vraća broj vektora koji BI nestao.
+
+    ZAŠTO POSTOJI
+
+    `scripts/ingest_case_law.py` ima dve rollback grane koje rade
+    `index.delete(delete_all=True, namespace="sudska_praksa")`. Napisane su kad
+    je taj namespace bio prazan i punio ga je samo taj skript. Danas u njemu
+    stoji **407.795 vektora iz tri različita izvora** (`ingest_case_law`,
+    `ingest_bilten_to_pinecone`, `ingest_sudskapraksa`), pa bi rollback jednog
+    ingesta uništio podatke druga dva — kao kolateralu, bez ijedne poruke.
+
+    ŠTA OVA FUNKCIJA NAMERNO NE RADI
+
+    Ne pokušava da „suzi" brisanje na vektore koje je taj skript napravio. To bi
+    tražilo dokaz o opsegu koji ne postoji — ID obrasci tri pisača nisu
+    disjunktni na način koji bi to garantovao. §7 izričito zabranjuje pretvaranje
+    globalnog brisanja u „malo sigurnije" bez dokazanog opsega.
+
+    Umesto toga radi jedino što je pošteno: odbija, kaže koliko bi nestalo, i
+    traži izričitu dozvolu.
+    """
+    try:
+        stat = index.describe_index_stats()
+        ns = (getattr(stat, "namespaces", None) or
+              (stat.get("namespaces") if isinstance(stat, dict) else {}) or {})
+        podaci = ns.get(namespace) or {}
+        ukupno = (getattr(podaci, "vector_count", None)
+                  if not isinstance(podaci, dict) else podaci.get("vector_count", 0)) or 0
+    except Exception as e:
+        raise GlobalnoBrisanjeOdbijeno(
+            f"broj vektora u namespace-u '{namespace}' nije merljiv ({e}) — "
+            f"globalno brisanje se odbija"
+        ) from e
+
+    tudje = int(ukupno) - int(kreirano_ovim_pokretanjem or 0)
+    if tudje > 0:
+        raise GlobalnoBrisanjeOdbijeno(
+            f"namespace '{namespace}' sadrzi {ukupno} vektora, a ovo pokretanje "
+            f"je napravilo {kreirano_ovim_pokretanjem} — {tudje} tudjih vektora bi "
+            f"bilo unisteno. Odbijam. Ako je to zaista namera, postavi "
+            f"{DOZVOLA_ENV}=1."
+        )
+    return int(ukupno)

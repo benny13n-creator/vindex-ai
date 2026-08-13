@@ -131,13 +131,20 @@ def test_id02_podrazumevana_verzija_ekstrakcije_je_stabilna():
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.parametrize("a,b", [
-    ("tekst", "tekst "),          # trailing whitespace
-    ("tekst", "Tekst"),           # velicina slova
-    ("a\nb", "a\r\nb"),           # prelom reda
+    ("tekst", "tekstt"),          # stvarno drugaciji sadrzaj
+    ("tekst", "Tekst"),           # velicina slova JESTE sadrzaj
+    ("Clan 1.", "Clan 2."),       # razlicit clan
     ("", "x"),
 ])
 def test_id02_identitet_je_osetljiv_na_promenu_sadrzaja(a, b):
     assert verzija_dokumenta(a) != verzija_dokumenta(b)
+
+# PINE-02 §4 je namerno promenio ugovor za dva slucaja koja su ranije bila
+# u listi iznad: rep reda i CRLF. Oni NISU razlika u sadrzaju nego artefakt
+# ekstrakcije i platforme -- a upravo je njihova osetljivost proizvela
+# razilazenje dva pipeline-a (isti dokument, dva identiteta). Sada se
+# izricito tvrdi suprotno, u `test_pine02_kanonski_oblik_uklanja_artefakte`.
+
 
 
 def test_id02_none_nije_identitet():
@@ -370,3 +377,119 @@ def test_id02_hes_bajtova_se_odbija_kao_verzija():
     with pytest.raises(NedovoljanIdentitet):
         proveri_kanonsku_verziju("NIJE-HEKS-VREDNOST-DUZINE-32-ZNAK")
     assert proveri_kanonsku_verziju(verzija_dokumenta("tekst"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PINE-02 §4 — JEDNA KANONSKA NORMALIZACIJA TEKSTA
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# STOP uslov iz §4: „isti dokument može dobiti različit hash kroz različite
+# pipeline-ove". To NIJE bila teorija — izmereno je na stvarnoj razlici u
+# `uploaded_doc/extractor.py`:
+#
+#   OCR grana (`:247`) vraća `ocr_text = "\n\n".join(p for p in ocr_pages if p)`
+#   — prazne strane ISPADAJU — ali kao četvrtu vrednost vraća `ocr_pages`, koji
+#   ih ZADRŽAVA (`:250`).
+#
+#   `api.py` hešira `text`; `smart_intake` za segment hešira
+#   `"\n\n".join(pages[a:b])`. Skenirani PDF sa jednom neprepoznatom stranom je
+#   dovoljan da isti dokument dobije dva identiteta:
+#       9b6c3ee4...  vs  478efa88...
+
+def test_pine02_prazna_strana_ne_pravi_dva_identiteta_istog_dokumenta():
+    """SRŽ §4 — merena razlika između dva legalna pipeline-a."""
+    from shared.vector_identity import verzija_dokumenta
+
+    strane = ["Prva strana ugovora.", "", "Treca strana ugovora."]
+    kroz_api = "\n\n".join(p for p in strane if p)        # extractor `ocr_text`
+    kroz_intake = "\n\n".join(strane)                      # segment iz `pages`
+
+    assert kroz_api != kroz_intake, "test je besmislen ako su ulazi isti"
+    assert verzija_dokumenta(kroz_api) == verzija_dokumenta(kroz_intake), (
+        "isti dokument dobija dva identiteta zavisno od pipeline-a"
+    )
+
+
+def test_pine02_normalizacija_NE_spaja_stvarno_razlicite_dokumente():
+    """Kontrola koja sprečava da normalizacija postane novi problem."""
+    from shared.vector_identity import verzija_dokumenta
+
+    assert verzija_dokumenta("Ugovor o zakupu") != verzija_dokumenta("Ugovor o kupoprodaji")
+    assert verzija_dokumenta("Clan 1.") != verzija_dokumenta("Clan 2.")
+
+
+@pytest.mark.parametrize("a,b,zasto", [
+    ("a\r\nb", "a\nb", "prelom reda zavisi od platforme, ne od dokumenta"),
+    ("a   \nb", "a\nb", "razmak na kraju reda je artefakt ekstrakcije"),
+    ("  a\nb  ", "a\nb", "rubovi dokumenta"),
+    ("a\n\n\n\n\nb", "a\n\nb", "prazne strane"),
+    ("c\u030c", "\u010d", "NFC — isto slovo zapisano na dva načina"),
+])
+def test_pine02_kanonski_oblik_uklanja_artefakte(a, b, zasto):
+    from shared.vector_identity import verzija_dokumenta
+    assert verzija_dokumenta(a) == verzija_dokumenta(b), zasto
+
+
+def test_pine02_kanonski_tekst_je_idempotentan():
+    from shared.vector_identity import kanonski_tekst
+    t = "  Clan 1.\r\n\r\n\r\n\r\n  Clan 2.   \n"
+    assert kanonski_tekst(kanonski_tekst(t)) == kanonski_tekst(t)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PINE-02 §8 — SISTEMSKA BRAVA: PISAC NE SME PROIZVESTI PROIZVOLJAN ID
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Mutacija „dozvoli writeru proizvoljan ID" prvo NIJE oborila nijedan test —
+# jer svi testovi prosleđuju kanonsku vrednost, pa uklonjena provera nije imala
+# šta da uhvati. §9 nalaže da se istraži test, ne da se menja produkcija.
+#
+# Ovi testovi voze PRAVI `ingest_session` sa NEKANONSKIM vrednostima i traže da
+# svaka bude odbijena PRE ijednog upisa.
+
+@pytest.mark.parametrize("nekanonska,zasto", [
+    ("a" * 64, "heš BAJTOVA — 64 znaka umesto 32"),
+    ("ABCDEF0123456789ABCDEF0123456789", "velika slova nisu kanonski oblik"),
+    ("nije-heks-vrednost-duzine-32-zna", "nije heksadecimalno"),
+    ("a" * 31, "prekratko"),
+    ("a" * 33, "predugačko"),
+    ("dokument-1", "proizvoljna oznaka pisača"),
+])
+def test_pine02_nekanonska_verzija_se_odbija_pre_ijednog_upisa(nekanonska, zasto):
+    from unittest.mock import MagicMock, patch
+
+    from shared.vector_identity import NedovoljanIdentitet
+    from uploaded_doc.ingest import ingest_session
+
+    upisano = []
+
+    class _IX:
+        def upsert(self, vectors, namespace):
+            upisano.extend(v["id"] for v in vectors)
+
+    emb = MagicMock()
+    emb.embed_documents.side_effect = lambda t: [[0.0] * 3072 for _ in t]
+    with patch("uploaded_doc.ingest._get_embeddings_client", return_value=emb), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=_IX()):
+        with pytest.raises(NedovoljanIdentitet):
+            ingest_session(_mini_manifest(["Tekst dokumenta."]), "sess",
+                           namespace_override="ns",
+                           extra_metadata={"predmet_id": "pred-A"},
+                           verzija_dokumenta_id=nekanonska)
+
+    assert upisano == [], f"vektori su upisani uprkos nekanonskoj verziji ({zasto})"
+
+
+def test_pine02_izostavljena_verzija_je_odbijanje_a_ne_podrazumevana_vrednost():
+    """Fail-closed: pisač koji zaboravi da prosledi verziju ne dobija fallback."""
+    from unittest.mock import MagicMock, patch
+
+    from shared.vector_identity import NedovoljanIdentitet
+    from uploaded_doc.ingest import ingest_session
+
+    emb = MagicMock()
+    emb.embed_documents.side_effect = lambda t: [[0.0] * 3072 for _ in t]
+    with patch("uploaded_doc.ingest._get_embeddings_client", return_value=emb), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=MagicMock()):
+        with pytest.raises(NedovoljanIdentitet):
+            ingest_session(_mini_manifest(["T"]), "sess", namespace_override="ns")

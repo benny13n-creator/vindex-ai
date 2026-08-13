@@ -63,6 +63,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from typing import Optional
 
 # Verzija šeme deljenja teksta. POVEĆATI kad se promeni bilo šta što menja
@@ -75,6 +76,10 @@ CHUNK_SCHEMA_VERSION = 1
 _VERZIJA_DUZINA = 32
 
 _DOZVOLJENI = re.compile(r"[^A-Za-z0-9_.\-]")
+LF = chr(10)
+CR = chr(13)
+CRLF = CR + LF
+_VISE_PRELOMA = re.compile(LF + "{3,}")
 
 
 class NedovoljanIdentitet(ValueError):
@@ -205,6 +210,57 @@ def metapodaci_identiteta(
 EXTRACTION_VERSION = 1
 
 
+def kanonski_tekst(tekst: str) -> str:
+    """Jedan i jedini oblik teksta iz kog se racuna identitet dokumenta.
+
+    BETA-DATA-PINE-02 §4. Bez ove funkcije isti dokument dobija DVA identiteta,
+    sto je izmereno na stvarnoj razlici izmedju dva legalna pipeline-a:
+
+      `uploaded_doc/extractor.py:247` u OCR grani vraca `ocr_text` kao
+      `"
+
+".join(p for p in ocr_pages if p)` -- prazne strane ISPADAJU --
+      ali kao cetvrtu vrednost vraca `ocr_pages`, koji ih ZADRZAVA (`:250`).
+
+      `api.py` hesira `text` (bez praznih strana).
+      `routers/smart_intake.py` za segment hesira `"
+
+".join(pages[a:b])`
+      (sa praznim stranama).
+
+    Skenirani PDF sa jednom neuspesno prepoznatom stranom je dovoljan:
+
+        api.py       -> 'Prva strana.
+
+Treca strana.'
+        smart_intake -> 'Prva strana.
+
+
+
+Treca strana.'
+        hes          -> 9b6c3ee4...  vs  478efa88...
+
+    Normalizacija spaja ta dva, a NE spaja stvarno razlicite dokumente
+    (kontrolisano testom).
+
+    Sta se normalizuje i zasto:
+      NFC          -- ista slova zapisana razlicito ("č" kao jedan znak ili kao
+                      "c" + kvacica) daju isti bajt-niz
+      prelomi reda -- CRLF/CR -> LF; zavise od platforme, ne od dokumenta
+      rep reda     -- razmaci na kraju reda su artefakt ekstrakcije
+      prazni redovi -- 3+ uzastopna preloma -> 2; ovo je ono sto zatvara
+                      razliku izmedju dva pipeline-a
+      rubovi       -- vodeci/prateci razmak celog dokumenta
+    """
+    if tekst is None:
+        raise NedovoljanIdentitet("tekst dokumenta je None — nema identiteta")
+    t = unicodedata.normalize("NFC", tekst)
+    t = t.replace(CRLF, LF).replace(CR, LF)
+    t = LF.join(red.rstrip() for red in t.split(LF))
+    t = _VISE_PRELOMA.sub(LF + LF, t)
+    return t.strip()
+
+
 def verzija_dokumenta(tekst: str, extraction_version: int = EXTRACTION_VERSION) -> str:
     """Kanonski identitet sadržaja jednog dokumenta.
 
@@ -212,9 +268,7 @@ def verzija_dokumenta(tekst: str, extraction_version: int = EXTRACTION_VERSION) 
     to je jedini razlog zbog kog detekcija duplikata i brisanje mogu da rade
     preko granica pipeline-a.
     """
-    if tekst is None:
-        raise NedovoljanIdentitet("tekst dokumenta je None — nema identiteta")
-    osnova = f"e{int(extraction_version)}|{tekst}"
+    osnova = f"e{int(extraction_version)}|{kanonski_tekst(tekst)}"
     return hashlib.sha256(osnova.encode("utf-8")).hexdigest()[:_VERZIJA_DUZINA]
 
 
