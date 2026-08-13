@@ -112,8 +112,10 @@ def _pokreni(n_chunks, n_vektora=None, indeks=None):
     ]
     with patch("uploaded_doc.ingest._get_embeddings_client", return_value=ugradnje), \
          patch("uploaded_doc.ingest._get_pinecone_index", return_value=indeks):
+        from shared.vector_identity import verzija_dokumenta as _vd
         broj = ingest_session(_manifest(n_chunks), "sess-1",
-                              namespace_override="kancelarija_A")
+                              namespace_override="kancelarija_A",
+                              verzija_dokumenta_id=_vd(f"dokument-{n_chunks}"))
     return broj, indeks
 
 

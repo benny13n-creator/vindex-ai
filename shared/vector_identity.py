@@ -172,3 +172,72 @@ def metapodaci_identiteta(
     if document_id:
         m["vx_document_id"] = document_id
     return m
+
+
+# ─── KANONSKI IDENTITET SADRŽAJA (BETA-DATA-ID-02) ──────────────────────────
+#
+# ODLUKA: identitet sadržaja dokumenta je SHA-256 NJEGOVOG IZVUČENOG TEKSTA,
+# uz eksplicitnu verziju ekstrakcije. NIJE heš bajtova fajla.
+#
+# ZAŠTO NE BAJTOVI — merena činjenica, ne preferencija:
+# `routers/smart_intake.py` deli JEDAN otpremljen fajl na N dokumenata
+# (`for idx, doc_entry in enumerate(documents)`, :1314), a `raw_bytes` dohvata
+# JEDNOM pre petlje (:1273). Heš bajtova je zato isti za svih N. Izmereno:
+#
+#     dokument 1 chunk0 = pred-A__8f4bd21e...__k1_c0
+#     dokument 2 chunk0 = pred-A__8f4bd21e...__k1_c0     ← ISTI ID
+#
+# Drugi dokument bi `upsert`-om PREPISAO prvi. Bajtovi identifikuju UPLOAD,
+# ne DOKUMENT.
+#
+# ČETIRI SEMANTIKE SE NE SMEJU MEŠATI (§4 misije):
+#   upload/job identitet  = heš bajtova   (`smart_intake.py:155`, idempotencija
+#                                          posla — ostaje bajtovi, i to je tačno)
+#   identitet dokumenta   = ovaj modul    (heš teksta + verzija ekstrakcije)
+#   identitet verzije     = isto          (izmenjen tekst → nova verzija)
+#   identitet vektora     = scope + verzija + chunk
+#
+# ZAŠTO VERZIJA EKSTRAKCIJE (§10):
+# tekst zavisi od parsera i OCR-a. Bez eksplicitne verzije bi nadogradnja
+# `pytesseract`-a tiho promenila identitet svakog skeniranog dokumenta —
+# „isti dokument danas → heš A, sutra → heš B". Sa njom je promena vidljiva i
+# namerna: nova verzija ekstrakcije JESTE nova reprezentacija sadržaja.
+EXTRACTION_VERSION = 1
+
+
+def verzija_dokumenta(tekst: str, extraction_version: int = EXTRACTION_VERSION) -> str:
+    """Kanonski identitet sadržaja jednog dokumenta.
+
+    Isti dokument kroz BILO KOJI produkcijski pipeline mora dati istu vrednost —
+    to je jedini razlog zbog kog detekcija duplikata i brisanje mogu da rade
+    preko granica pipeline-a.
+    """
+    if tekst is None:
+        raise NedovoljanIdentitet("tekst dokumenta je None — nema identiteta")
+    osnova = f"e{int(extraction_version)}|{tekst}"
+    return hashlib.sha256(osnova.encode("utf-8")).hexdigest()[:_VERZIJA_DUZINA]
+
+
+
+_KANONSKI_OBLIK = re.compile(r"^[0-9a-f]{%d}$" % _VERZIJA_DUZINA)
+
+
+def proveri_kanonsku_verziju(verzija: str) -> str:
+    """Odbija sve što nije izlaz `verzija_dokumenta()`.
+
+    Pisač koji prosledi nešto drugo — recimo `hashlib.sha256(raw).hexdigest()`,
+    koji ima 64 znaka umesto 32 — ovde pada, umesto da tiho proizvede vektore
+    pod pogrešnim identitetom. To je struktura koja hvata tačno grešku koju su
+    pisci već pravili: heš BAJTOVA umesto heša TEKSTA.
+
+    Ne dokazuje da je heširan pravi tekst — to nijedna provera ovde ne može.
+    Dokazuje da vrednost potiče iz kanonske funkcije, a ne iz slučajnog
+    `hexdigest()` poziva.
+    """
+    v = (verzija or "").strip()
+    if not _KANONSKI_OBLIK.match(v):
+        raise NedovoljanIdentitet(
+            f"verzija nije kanonskog oblika ({_VERZIJA_DUZINA} heks znakova): "
+            f"dobijeno {len(v)} znakova"
+        )
+    return v

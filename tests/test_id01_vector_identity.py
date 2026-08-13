@@ -51,6 +51,7 @@ from shared.vector_identity import (  # noqa: E402
     NedovoljanIdentitet,
     canonical_vector_id,
     metapodaci_identiteta,
+    verzija_dokumenta,
     prefiks_dokumenta,
     verzija_sadrzaja,
 )
@@ -103,7 +104,10 @@ def _manifest(n: int, sha: str = "a" * 64, tekst: str = "Pasus") -> ChunkingMani
 
 
 def _ingest(n=3, sha="a" * 64, predmet_id=None, session_id="sess-1",
-            ns="kancelarija_A", indeks=None, n_vektora=None):
+            ns="kancelarija_A", indeks=None, n_vektora=None, tekst="Pasus"):
+    """ID-02: verzija se izvodi iz TEKSTA chunk-ova, ne iz `sha`. Zato testovi
+    koji razlikuju dokumente sada menjaju `tekst`, a `sha` je zadrzan samo da
+    se dokaze da NE utice na identitet."""
     indeks = indeks or _LazniIndeks()
     ugradnje = MagicMock()
     ugradnje.embed_documents.return_value = [
@@ -112,8 +116,11 @@ def _ingest(n=3, sha="a" * 64, predmet_id=None, session_id="sess-1",
     extra = {"predmet_id": predmet_id} if predmet_id else None
     with patch("uploaded_doc.ingest._get_embeddings_client", return_value=ugradnje), \
          patch("uploaded_doc.ingest._get_pinecone_index", return_value=indeks):
-        broj = ingest_session(_manifest(n, sha), session_id,
-                              namespace_override=ns, extra_metadata=extra)
+        from shared.vector_identity import verzija_dokumenta as _vd
+        _m = _manifest(n, sha, tekst)
+        broj = ingest_session(_m, session_id, namespace_override=ns,
+                              extra_metadata=extra,
+                              verzija_dokumenta_id=_vd(tekst))
     return broj, indeks
 
 
@@ -185,12 +192,19 @@ def test_id01_nedovoljan_identitet_dize_izuzetak(args):
         canonical_vector_id(*args)
 
 
-def test_id01_manifest_bez_sha_ne_upisuje_nista():
-    """RULE 6 doslovno: bez identiteta se vektor NE upisuje."""
-    indeks = _LazniIndeks()
-    with pytest.raises(NedovoljanIdentitet):
-        _ingest(sha="", indeks=indeks)
-    assert indeks.pozivi == 0
+def test_id01_deklarisani_sha_NE_utice_na_identitet():
+    """ID-02: verzija se vise ne uzima od pozivaoca.
+
+    Ranije je identitet dolazio iz `manifest.source_sha256`, pa je zavisio od
+    toga sta je pisac tamo stavio -- a merenje je pokazalo da su pisci stavljali
+    razlicite stvari (bajtovi fajla vs bajtovi celog posla). Sada isti tekst
+    daje isti identitet i kad se deklarisani sha razlikuje.
+    """
+    _, i1 = _ingest(n=2, sha="a" * 64, tekst="Isti tekst")
+    _, i2 = _ingest(n=2, sha="b" * 64, tekst="Isti tekst")
+    assert i1.idevi("kancelarija_A") == i2.idevi("kancelarija_A"), (
+        "identitet i dalje zavisi od vrednosti koju pisac deklarise"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -221,8 +235,8 @@ def test_id01_izmenjen_dokument_pravi_NOVU_verziju_a_ne_prepisuje():
     """RULE 9: nova verzija ne sme tiho da pojede staru — obe moraju ostati
     jednoznačno adresabilne dok se stara izričito ne obriše."""
     indeks = _LazniIndeks()
-    _ingest(n=3, sha="a" * 64, indeks=indeks)
-    _ingest(n=3, sha="b" * 64, indeks=indeks)
+    _ingest(n=3, tekst="Prva verzija ugovora", indeks=indeks)
+    _ingest(n=3, tekst="Druga verzija ugovora", indeks=indeks)
     assert indeks.broj("kancelarija_A") == 6, "verzije se ne smeju prepisati"
 
 
@@ -240,12 +254,18 @@ def test_id01_isti_fajl_u_dva_predmeta_ostaje_odvojen():
 def test_id01_prefiks_izdvaja_TACNO_jedan_dokument():
     """Bez ovoga `PINE-01` ostaje blokiran: najuži izvodljiv filter bio je ceo
     predmet. Sa prefiksom se cilja tačno jedna verzija jednog dokumenta."""
-    indeks = _LazniIndeks()
-    _ingest(n=3, sha="a" * 64, predmet_id="pred-A", indeks=indeks)
-    _ingest(n=3, sha="b" * 64, predmet_id="pred-A", indeks=indeks)
-    _ingest(n=3, sha="c" * 64, predmet_id="pred-B", indeks=indeks)
+    from shared.vector_identity import verzija_dokumenta
 
-    pref = prefiks_dokumenta("pred-A", "a" * 32)
+    indeks = _LazniIndeks()
+    T_A = "Dokument A"
+    _ingest(n=3, tekst=T_A, predmet_id="pred-A", indeks=indeks)
+    _ingest(n=3, tekst="Dokument B", predmet_id="pred-A", indeks=indeks)
+    _ingest(n=3, tekst="Dokument C", predmet_id="pred-B", indeks=indeks)
+
+    # Verzija se NE racuna ovde ponovo -- zove se ISTI vlasnik koji je koristi
+    # produkcija. Da test sam sastavlja ocekivanu vrednost, merio bi istu stranu
+    # ugovora kao implementacija i ne bi primetio razilazenje (nalaz D-5).
+    pref = prefiks_dokumenta("pred-A", verzija_dokumenta(T_A))
     pogodjeni = [i for i in indeks.idevi("kancelarija_A") if i.startswith(pref)]
     assert len(pogodjeni) == 3, "prefiks ne izdvaja tačno jedan dokument"
 
@@ -255,10 +275,13 @@ def test_id01_prefiks_izdvaja_TACNO_jedan_dokument():
 
 def test_id01_prefiks_jednog_tenanta_ne_pogadja_drugog():
     """Brisanje po prefiksu ne sme da pređe granicu predmeta."""
+    from shared.vector_identity import verzija_dokumenta
+
     indeks = _LazniIndeks()
-    _ingest(n=2, sha="a" * 64, predmet_id="pred-A", indeks=indeks)
-    _ingest(n=2, sha="a" * 64, predmet_id="pred-B", indeks=indeks)
-    pref = prefiks_dokumenta("pred-A", "a" * 32)
+    T = "Isti dokument u dva predmeta"
+    _ingest(n=2, tekst=T, predmet_id="pred-A", indeks=indeks)
+    _ingest(n=2, tekst=T, predmet_id="pred-B", indeks=indeks)
+    pref = prefiks_dokumenta("pred-A", verzija_dokumenta(T))
     assert len([i for i in indeks.idevi("kancelarija_A") if i.startswith(pref)]) == 2
 
 
@@ -289,7 +312,8 @@ def test_id01_pozivalac_ne_moze_pregaziti_identitet():
     with patch("uploaded_doc.ingest._get_embeddings_client", return_value=ugradnje), \
          patch("uploaded_doc.ingest._get_pinecone_index", return_value=indeks):
         ingest_session(_manifest(1), "s", namespace_override="ns",
-                       extra_metadata={"predmet_id": "pred-A", "vx_scope": "LAZ"})
+                       extra_metadata={"predmet_id": "pred-A", "vx_scope": "LAZ"},
+                       verzija_dokumenta_id=verzija_dokumenta("v1"))
     assert list(indeks.prostor["ns"].values())[0]["vx_scope"] == "pred-A"
 
 

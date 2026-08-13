@@ -15,6 +15,14 @@ from uploaded_doc.session import parse_expires
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
+
+# BETA-DATA-ID-02: `ingest_session` sada zahteva kanonsku verziju
+# dokumenta (fail-closed, v. shared/vector_identity.py). Test nije
+# oslabljen -- meri isto sto i pre; samo mora da IZJAVI verziju, koju
+# je ranije precutno imao jer je nije ni bilo.
+from shared.vector_identity import verzija_dokumenta as _vd02  # noqa: E402
+_VERZIJA_ZA_TEST = _vd02("test-dokument")
+
 def _make_manifest(n_chunks: int, long_text: bool = False) -> ChunkingManifest:
     now = datetime.now(tz=timezone.utc)
     text = "X" * 50_000 if long_text else "Zaposleni preuzima obaveze prema zakonu."
@@ -62,7 +70,8 @@ def test_ingest_session_upserts_correct_count():
 
     with patch("uploaded_doc.ingest._get_pinecone_index", return_value=mock_index), \
          patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
-        count = ingest_session(manifest, session_id, ttl_hours=24)
+        count = ingest_session(manifest, session_id, ttl_hours=24,
+                               verzija_dokumenta_id=_VERZIJA_ZA_TEST)
 
     assert count == 5
     mock_index.upsert.assert_called_once()
@@ -85,7 +94,8 @@ def test_ingest_session_metadata_includes_expires_at():
 
     with patch("uploaded_doc.ingest._get_pinecone_index", return_value=mock_index), \
          patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
-        ingest_session(manifest, session_id, ttl_hours=24)
+        ingest_session(manifest, session_id, ttl_hours=24,
+                               verzija_dokumenta_id=_VERZIJA_ZA_TEST)
 
     vectors = mock_index.upsert.call_args.kwargs.get("vectors") or \
               mock_index.upsert.call_args.args[0]
@@ -112,7 +122,8 @@ def test_ingest_session_truncates_long_text():
 
     with patch("uploaded_doc.ingest._get_pinecone_index", return_value=mock_index), \
          patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
-        ingest_session(manifest, session_id, ttl_hours=24)
+        ingest_session(manifest, session_id, ttl_hours=24,
+                               verzija_dokumenta_id=_VERZIJA_ZA_TEST)
 
     vectors = mock_index.upsert.call_args.kwargs.get("vectors") or \
               mock_index.upsert.call_args.args[0]
@@ -134,7 +145,8 @@ def test_ingest_handles_empty_manifest():
 
     with patch("uploaded_doc.ingest._get_pinecone_index", return_value=mock_index), \
          patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
-        count = ingest_session(manifest, session_id, ttl_hours=24)
+        count = ingest_session(manifest, session_id, ttl_hours=24,
+                               verzija_dokumenta_id=_VERZIJA_ZA_TEST)
 
     assert count == 0
     mock_index.upsert.assert_not_called()

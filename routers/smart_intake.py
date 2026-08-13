@@ -1339,7 +1339,12 @@ async def _finalize_intake_job_core(
         # (the mission's explicit instruction) -- content_sha256 is the
         # SHA-256 of this document's own extracted text, the same content
         # regardless of what the uploaded file was named or when it arrived.
-        content_hash = hashlib.sha256(seg_text.encode("utf-8")).hexdigest()
+        # BETA-DATA-ID-02: kanonski identitet sadrzaja -- heš teksta OVOG
+        # dokumenta + verzija ekstrakcije. Ista vrednost se koristi i za
+        # detekciju duplikata (ispod) i za verziju vektora (`source_sha256`
+        # nize) -- jedan heš, jedna semantika.
+        from shared.vector_identity import verzija_dokumenta as _verzija_dok
+        content_hash = _verzija_dok(seg_text)
         dup_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
                 .select("id, predmet_id")
@@ -1386,7 +1391,14 @@ async def _finalize_intake_job_core(
             source_meta = {
                 "source_filename": job.get("original_filename") or "dokument",
                 "source_format":   suffix.lstrip("."),
-                "source_sha256":   hashlib.sha256(raw_bytes).hexdigest(),
+                # BETA-DATA-ID-02 -- SUDAR ID-eva VEKTORA, dokazan merenjem.
+                # Ovde je stajao hes RAW_BYTES, a `raw_bytes` se dohvata JEDNOM
+                # pre petlje po dokumentima -- pa su svi segmenti jednog posla
+                # dobijali ISTI `source_sha256`. Posto je od ID-01 verzija deo
+                # ID-a vektora, dva dokumenta iz istog posla u istom predmetu
+                # dobijala su IDENTICNE ID-eve i drugi je `upsert`-om PREPISAO
+                # prvi. Sada je verzija identitet OVOG dokumenta.
+                "source_sha256":   content_hash,
                 "is_scanned":      is_scanned,
                 "session_id":      "__local__",
             }
@@ -1400,6 +1412,10 @@ async def _finalize_intake_job_core(
                 _upisano = await asyncio.to_thread(
                     ingest_session, manifest, session_id,
                     namespace_override=_owner_ns,
+                    # ID-02 / D-5: ISTA vrednost koja ide u
+                    # `predmet_dokumenti.content_sha256` (:1465) i koja je
+                    # koriscena za proveru duplikata (:1352).
+                    verzija_dokumenta_id=content_hash,
                     extra_metadata={
                         "predmet_id": predmet_id,
                         "kancelarija_id": _kancelarija_id or "",

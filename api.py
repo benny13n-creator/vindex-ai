@@ -5161,7 +5161,16 @@ async def predmet_upload_auto_analyze(
         logger.info("[P2.1] doc_type=%r for predmet=%s, filename=%s", doc_type, predmet_id, file.filename)
 
         # Chunk + ingest to Pinecone
-        _content_sha256 = hashlib.sha256(raw).hexdigest()
+        # BETA-DATA-ID-02: kanonski identitet sadrzaja je hes IZVUCENOG TEKSTA,
+        # ne bajtova fajla. Bajtovi identifikuju upload, ne dokument -- u
+        # segmentiranom toku (`smart_intake`) jedan fajl daje N dokumenata sa
+        # istim bajtovima. Uz to, dok su dva toka racunala hes nad razlicitim
+        # ulazima, detekcija duplikata IZMEDJU njih nije mogla da radi.
+        from shared.vector_identity import verzija_dokumenta as _verzija_dok
+        # ID-02 / D-5: ISTA vrednost ide u `predmet_dokumenti.content_sha256`
+        # (:5286) i u `ingest_session` kao verzija dokumenta -- inace
+        # `prefiks_dokumenta` ne bi nasao vektore tog dokumenta.
+        _content_sha256 = _verzija_dok(text)
         source_meta = {
             "source_filename": file.filename,
             "source_format": suffix.lstrip("."),
@@ -5204,6 +5213,7 @@ async def predmet_upload_auto_analyze(
             count = await asyncio.to_thread(
                 ingest_session, manifest, session_id,
                 namespace_override=_owner_ns,
+                verzija_dokumenta_id=_content_sha256,
                 extra_metadata={
                     "predmet_id": predmet_id,
                     "kancelarija_id": _kancelarija_id or "",

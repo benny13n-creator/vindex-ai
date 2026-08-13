@@ -278,7 +278,10 @@ async def dokument_upload(
         source_meta = {
             "source_filename": file.filename,
             "source_format":   suffix.lstrip("."),
-            "source_sha256":   hashlib.sha256(raw).hexdigest(),
+            # BETA-DATA-ID-02: isti kanonski ugovor kao ostali pisci.
+            "source_sha256":   __import__(
+                "shared.vector_identity", fromlist=["x"]
+            ).verzija_dokumenta(text),
             "is_scanned":      is_scanned,
             "session_id":      "__local__",
         }
@@ -297,6 +300,7 @@ async def dokument_upload(
             # Pinecone-u treba da nosi origin, ne samo trajni case_doc/
             # draft_final.
             from shared.vector_origin import ORIGIN_CLIENT_DOC
+            from shared.vector_identity import verzija_dokumenta as _vd02
             count = await asyncio.to_thread(
                 ingest_session, manifest, session_id, ttl_hours,
                 # Final Beta Gate F1 (MEDIUM): tmp_ namespaces are session-based
@@ -307,6 +311,7 @@ async def dokument_upload(
                 # user's uploaded document via /api/dokument/pitanje. owner_user_id
                 # lets that check happen now -- see _verify_pred_namespace_ownership.
                 extra_metadata={"origin": ORIGIN_CLIENT_DOC, "owner_user_id": user["user_id"]},
+                verzija_dokumenta_id=_vd02(text),
             )
             # SE-02: `count` se dodeljivao a nikad nije poredjen sa brojem
             # chunk-ova -- sesija je mogla biti proglasena spremnom za pitanja

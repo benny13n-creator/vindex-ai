@@ -32,6 +32,15 @@ from contextlib import contextmanager  # noqa: E402
 from uploaded_doc.schema import ChunkingManifest, UploadedDocChunk
 
 
+# BETA-DATA-ID-02: `ingest_session` sada zahteva kanonsku verziju dokumenta
+# (fail-closed, v. shared/vector_identity.py). Testovi nisu oslabljeni -- mere
+# isto sto i pre; samo moraju da IZJAVE verziju, koju su ranije precutno imali
+# jer je nije ni bilo.
+from shared.vector_identity import verzija_dokumenta as _vd02  # noqa: E402
+
+_VERZIJA_ZA_TEST = _vd02("test-dokument")
+
+
 @contextmanager
 def _stub_retrieve_llm():
     """Stub the OpenAI chat client used throughout retrieve.py.
@@ -163,6 +172,7 @@ class TestIngestSessionOwnerNamespace:
              patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
             ingest_session(
                 manifest, "sess-1",
+                verzija_dokumenta_id=_VERZIJA_ZA_TEST,
                 namespace_override="kancelarija_kanc-1",
                 extra_metadata={"predmet_id": "pred-1", "kancelarija_id": "kanc-1", "type": "case_doc"},
             )
@@ -182,6 +192,7 @@ class TestIngestSessionOwnerNamespace:
              patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
             ingest_session(
                 manifest, "sess-2",
+                verzija_dokumenta_id=_VERZIJA_ZA_TEST,
                 namespace_override="user_u1",
                 extra_metadata={"predmet_id": "pred-2", "kancelarija_id": "", "type": "draft_final"},
             )
@@ -204,7 +215,8 @@ class TestIngestSessionOwnerNamespace:
 
         with patch("uploaded_doc.ingest._get_pinecone_index", return_value=mock_index), \
              patch("uploaded_doc.ingest._get_embeddings_client", return_value=mock_embeddings):
-            ingest_session(manifest, "sess-3")
+            ingest_session(manifest, "sess-3",
+                           verzija_dokumenta_id=_VERZIJA_ZA_TEST)
 
         assert mock_index.upsert.call_args.kwargs.get("namespace") == "tmp_sess-3"
 

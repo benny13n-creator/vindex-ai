@@ -350,7 +350,7 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     # Nacrt SVOJ sadrzaj i jeste njegova verzija: hes teksta daje istu
     # semantiku kao hes fajla kod uploada -- ponovna promocija istog teksta
     # prepisuje umesto da duplira, izmenjen tekst pravi novu verziju.
-    from shared.vector_identity import verzija_sadrzaja as _verzija
+    from shared.vector_identity import verzija_dokumenta as _verzija
     source_meta = {
         "source_filename": f"Nacrt — {naziv}", "source_format": "txt",
         "source_sha256": _verzija(tekst), "is_scanned": False,
@@ -367,6 +367,7 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
         _upisano = await asyncio.to_thread(
             ingest_session, manifest, session_id,
             namespace_override=owner_ns,
+            verzija_dokumenta_id=_verzija(tekst),
             extra_metadata={
                 "predmet_id": predmet_id,
                 "kancelarija_id": kancelarija_id or "",

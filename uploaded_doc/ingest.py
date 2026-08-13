@@ -43,6 +43,7 @@ def ingest_session(
     namespace_prefix: str = _TMP_NS_PREFIX,
     namespace_override: Optional[str] = None,
     extra_metadata: Optional[dict] = None,
+    verzija_dokumenta_id: Optional[str] = None,
 ) -> int:
     """Embed chunks and upsert to a Pinecone namespace.
 
@@ -112,14 +113,38 @@ def ingest_session(
     )
     _predmet_id = (extra_metadata or {}).get("predmet_id") or ""
     _scope = _predmet_id or session_id
-    _verzija = manifest.source_sha256
-    if not _verzija:
-        # RULE 6, fail-closed: bez verzije nema jednoznacnog identiteta, pa se
-        # NE upisuje nista. Tiho vracanje na uuid4 vratilo bi tacno stanje koje
-        # ovaj sprint uklanja.
+
+    # BETA-DATA-ID-02 — VERZIJA SE IZVODI OVDE, NE UZIMA OD POZIVAOCA.
+    #
+    # ID-01 je verziju citao iz `manifest.source_sha256`. To je znacilo da
+    # identitet dokumenta zavisi od toga sta je pisac tamo stavio -- a merenje je
+    # pokazalo da su pisci stavljali RAZLICITE stvari:
+    #   `api.py`       -> hes bajtova fajla
+    #   `smart_intake` -> hes bajtova CELOG POSLA, isti za sve segmente
+    # Posledica je bio SUDAR: dva dokumenta iz istog segmentiranog posla, u
+    # istom predmetu, dobijala su identicne ID-eve i drugi je prepisao prvi.
+    #
+    # Umesto da se svaki pisac testira posebno, verzija se izvodi iz teksta koji
+    # se STVARNO indeksira. Tako nijedan pisac ne moze da je pogresi, a
+    # `source_sha256` ostaje ono sto i jeste -- podatak o izvornom fajlu.
+    # Kanonska verzija se racuna JEDNOM, iz teksta dokumenta, i prosledjuje se
+    # ovde izricitim parametrom. Namerno NIJE `manifest.source_sha256`: taj polje
+    # su pisci punili razlicitim stvarima (hes bajtova fajla, hes bajtova CELOG
+    # posla), sto je proizvelo sudar ID-eva medju segmentima jednog posla.
+    #
+    # Namerno se NE izvodi ni iz spojenih chunk-ova: `chunk_document` deli sa
+    # preklapanjem (`OVERLAP_TOKENS = 100`), pa spajanje duplira tekst -- mereno
+    # 31.600 znakova -> 36.428. Vrednost bi se tada razlikovala od one koju pisac
+    # upisuje u `predmet_dokumenti.content_sha256`, i `prefiks_dokumenta` ne bi
+    # nasao nijedan vektor dokumenta duzeg od jednog chunk-a. Tiho.
+    #
+    # Fail-closed po RULE 6: bez izricite verzije se NE upisuje nista.
+    if not verzija_dokumenta_id:
         raise NedovoljanIdentitet(
-            "manifest nema source_sha256 — vektori se ne upisuju bez identiteta"
+            "verzija_dokumenta_id nije prosledjena — vektori se ne upisuju bez identiteta"
         )
+    from shared.vector_identity import proveri_kanonsku_verziju as _proveri
+    _verzija = _proveri(verzija_dokumenta_id)
 
     records = []
     for chunk, vec in zip(manifest.chunks, vectors_raw):
