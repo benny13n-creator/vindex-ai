@@ -201,11 +201,32 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
         logger.warning("[CONFLICT/S1] predmeti greška: %s", exc)
         sloj_status["predmeti"] = "greška"
 
-    # ── SLOJ 2: Klijenti — ime, firma, email, PIB (fuzzy) ────────────────────
+    # ── SLOJ 2: Klijenti — ime, firma, email (fuzzy) ─────────────────────────
+    #
+    # BETA-P1-COLUMN-DRIFT-007 / DRIFT-001.
+    #
+    # Ovde je stajalo `select("id,ime,prezime,firma,email,pib")`. Kolona `pib`
+    # NE POSTOJI -- PIB se cuva sifrovan, kao `pib_encrypted` (mereno nad
+    # produkcijom: `?select=...,pib` -> 400/42703, bez `pib` -> 200).
+    # PostgREST odbija CEO zahtev, pa je ovaj sloj pucao na SVAKOM pozivu:
+    # pretraga po klijentima se nikad nije izvrsila, `provera_potpuna` je bila
+    # `False` uvek, i provera se nikad nije naplatila.
+    #
+    # `pib` se NE preimenuje u `pib_encrypted`: poredjenje otvorenog PIB-a iz
+    # forme sa sifrovanom vrednoscu se ne bi nikad poklopilo -- dobili bismo tih
+    # lazno-negativan nalaz umesto glasne greske. Desifrovanje svih klijenata na
+    # svakoj proveri bi zaobislo strogi audit trag iz BETA-P0-SENSITIVE-DATA-AUDIT.
+    if req.pib and req.pib.strip():
+        # Trazeno je podudaranje po PIB-u, a ono se ne moze izvesti. Provera se
+        # degradira na nepotpunu -- tiho ignorisanje bi na etickom ekranu bilo
+        # lazno-negativan nalaz.
+        sloj_status["klijenti"] = "pib_nepodržan"
+        logger.warning("[CONFLICT/S2] PIB pretraga nije podržana (šifrovana kolona)")
+
     try:
         kl = await asyncio.to_thread(
             lambda: supa.table("klijenti").select(
-                "id,ime,prezime,firma,email,pib"
+                "id,ime,prezime,firma,email"
             ).eq("user_id", uid).execute()
         )
 
@@ -218,14 +239,10 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
             puno_ime  = f"{k.get('ime','') or ''} {k.get('prezime','') or ''}".strip()
             firma_k   = k.get("firma","") or ""
             email_k   = (k.get("email","") or "").lower()
-            pib_k     = (k.get("pib","") or "").strip()
 
-            # PIB i email — exact match
-            if req.pib and req.pib.strip() and req.pib.strip() == pib_k:
-                matching_klijent_ids.append(kid)
-                matching_klijenti_map[kid] = k
-                match_scores[kid] = 100
-                continue
+            # Email — exact match. (PIB poredjenje je uklonjeno: `k` vise ne
+            # nosi `pib`, jer ta kolona ne postoji. Zahtev sa PIB-om je gore
+            # vec degradirao ovaj sloj na nepotpun.)
             if req.email and req.email.lower() == email_k:
                 matching_klijent_ids.append(kid)
                 matching_klijenti_map[kid] = k
@@ -351,7 +368,11 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
     # status the frontend already handles conservatively) and is NOT charged,
     # matching this codebase's canonical semantics: no delivered result, no
     # credit.
-    _slojevi_greska = sorted(k for k, v in sloj_status.items() if v == "greška")
+    # BETA-P1-COLUMN-DRIFT-007: bilo koje stanje koje NIJE "ok" cini proveru
+    # nepotpunom. Ranije se gledalo samo `== "greška"`, pa bi svako novo stanje
+    # (npr. „pretraga po ovom polju nije podrzana") tiho prolazilo kao potpuna
+    # provera. Fail-closed po konstrukciji, ne po nabrajanju.
+    _slojevi_greska = sorted(k for k, v in sloj_status.items() if v != "ok")
     _provera_potpuna = not _slojevi_greska
 
     if not konflikti and not _provera_potpuna:

@@ -55,7 +55,42 @@ def test_conflict_check_cannot_report_clear_when_a_search_layer_failed():
 
     src = inspect.getsource(cc)
     assert '_provera_potpuna' in src
-    assert 'v == "greška"' in src, "must derive completeness from the layer statuses"
+
+    # BETA-P1-COLUMN-DRIFT-007 (2026-08-14): this used to assert the literal
+    # source text `v == "greška"`. That pinned the MECHANISM, not the contract,
+    # and it blocked a strictly safer implementation: completeness is now
+    # derived from `v != "ok"`, so ANY non-ok layer state (not just the one
+    # spelling enumerated here) degrades the check. Fail-closed by
+    # construction instead of by enumeration.
+    #
+    # Replaced with the behaviour the docstring actually describes: a downed
+    # layer must never render as "clear". Driven through the real handler.
+    import asyncio
+    from unittest.mock import MagicMock, patch
+
+    class _LayerDown:
+        def table(self, name):
+            q = MagicMock()
+            if name == "klijenti":
+                q.select.return_value.eq.return_value.execute.side_effect = \
+                    RuntimeError("database outage")
+            else:
+                q.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+                q.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+            return q
+
+    async def _no_charge(*a, **k):
+        return None
+
+    with patch.object(cc, "_get_supa", return_value=_LayerDown()), \
+         patch.object(cc.UsageService, "consume", new=_no_charge):
+        r = asyncio.run(cc.check_conflict(
+            cc.ConflictReq(ime_prezime="Petar Petrović"),
+            {"user_id": "u1", "email": "a@a.rs"}))
+
+    assert r["provera_potpuna"] is False, "a downed layer was reported as a complete check"
+    assert r["status"] != "clear", "a downed layer rendered as 'no conflict found'"
+    assert "klijenti" in r["slojevi_greska"]
 
     # The clear branch must be reachable only when the check actually ran.
     clear_idx = src.index('final_status = "clear"')

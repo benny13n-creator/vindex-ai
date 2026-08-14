@@ -132,6 +132,23 @@ def test_coi_ui_HTTP_500_NIKAD_NE_DAJE_ZELENO(browser, server):
     assert "NIJE IZVRŠENA" in tekst.upper()
 
 
+def test_coi_ui_pib_nepodrzan_sloj_NIJE_zeleno(browser, server):
+    """BETA-P1-COLUMN-DRIFT-007: novo stanje sloja mora da stigne do ekrana.
+
+    Backend degradira sloj „klijenti" kad se traži podudaranje po PIB-u, jer je
+    ta kolona šifrovana i ne može se porediti. Ako bi se to stanje na ekranu
+    prikazalo isto kao uspešna provera, degradacija ne bi vredela ništa.
+    """
+    tekst, html, _ = _prikazi(browser, server, status=200, telo={
+        "status": "review", "provera_potpuna": False,
+        "slojevi_greska": ["klijenti"], "konflikti": [],
+        "poruka": "⚠️ PROVERA NIJE POTPUNA — pretraga nije uspela za: klijenti.",
+    })
+    assert "cc-clear" not in html
+    assert "Nema konflikta" not in tekst
+    assert "NIJE POTPUNA" in tekst.upper()
+
+
 def test_coi_ui_prazno_telo_ne_daje_zeleno(browser, server):
     tekst, html, _ = _prikazi(browser, server, status=200, telo={})
     assert "cc-clear" not in html
