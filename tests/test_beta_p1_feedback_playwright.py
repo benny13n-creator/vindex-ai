@@ -92,10 +92,11 @@ def _prijavi(browser, server, *, primarni_ok, rezervni_status):
              window.__upisi = [];
              // Dvojnik Supabase klijenta: `insert` vraca gresku u OBJEKTU,
              // tacno kao pravi SDK (ne baca izuzetak).
+             window.__primarniOk = primarniOk;
              window._waitSupa = () => Promise.resolve({
                from: (t) => ({ insert: (row) => {
                  window.__upisi.push({ t: t, row: row });
-                 return Promise.resolve(primarniOk ? {} : {
+                 return Promise.resolve(window.__primarniOk ? {} : {
                    error: { message: "Could not find the table "
                                    + "'public.reported_errors' in the schema cache" }
                  });
@@ -183,3 +184,94 @@ def test_ui_sirov_engleski_iz_baze_se_NE_prikazuje_advokatu(browser, server):
     spojeno = " ".join(stanje["toasts"]) + " " + stanje["tekst"]
     for engleski in ("schema cache", "Could not find", "relation", "PGRST"):
         assert engleski not in spojeno, f"advokatu je prikazano: {spojeno!r}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 3. PONOVNI POKUŠAJ — DETERMINISTIČKO PONAŠANJE (TASK 1, mandat §„DUPLICATE/RETRY")
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_ponovni_pokusaj_posle_delimicnog_ishoda_KONVERGIRA(browser, server):
+    """Advokat kome je prošao samo rezervni kanal sme da pokuša ponovo, i taj
+    pokušaj mora da ga dovede do PUNE potvrde kad primarni kanal proradi.
+
+    Ovo je jedini razlog zbog kog dugme u delimičnom ishodu ostaje aktivno.
+    Da nije konvergentno, aktivno dugme bi bilo samo poziv na uzaludno klikanje.
+    """
+    st = browser.new_page(viewport={"width": 1280, "height": 900})
+    st.route(re.compile(r".*/api/feedback"), lambda r: r.fulfill(
+        status=200, content_type="application/json", body='{"status":"ok"}'))
+    st.route(re.compile(r".*/rest/v1/.*"), lambda r: r.fulfill(
+        status=200, content_type="application/json", body="[]"))
+    st.goto(f"{server}/index.html", wait_until="domcontentloaded")
+    st.wait_for_timeout(900)
+    st.evaluate("""() => {
+        window.currentSession = { access_token: 't' };
+        window.currentUser    = { id: 'u1', email: 't@t.rs' };
+        window.__toasts = []; window.__upisi = [];
+        window.showToast = (p, t) => window.__toasts.push((t||'') + ':' + p);
+        window.__primarniOk = false;          // prvi pokusaj: primarni pada
+        window._waitSupa = () => Promise.resolve({
+          from: (t) => ({ insert: (row) => {
+            window.__upisi.push({ t: t, row: row });
+            return Promise.resolve(window.__primarniOk ? {} : {
+              error: { message: "schema cache" } });
+          }})
+        });
+        const d = document.createElement('div');
+        d.innerHTML = _feedbackBar('Uslovi za naknadu?', 'Član 154 ZOO.');
+        document.body.appendChild(d);
+    }""")
+
+    st.evaluate("() => document.querySelector('#fb-btn').click()")
+    st.wait_for_timeout(600)
+    prvi = st.evaluate("""() => { const b = document.querySelector('#fb-btn');
+        return { tekst: b.textContent, onemogucen: b.disabled }; }""")
+
+    assert "Bez sadržaja" in prvi["tekst"]
+    assert prvi["onemogucen"] is False, "ponovni pokušaj nije ni moguć"
+
+    # Primarni kanal proradi; advokat klikne ponovo.
+    st.evaluate("() => { window.__primarniOk = true; }")
+    st.evaluate("() => document.querySelector('#fb-btn').click()")
+    st.wait_for_timeout(600)
+    drugi = st.evaluate("""() => { const b = document.querySelector('#fb-btn');
+        return { tekst: b.textContent, onemogucen: b.disabled,
+                 upisa: window.__upisi.length }; }""")
+    st.close()
+
+    assert "Prijavljeno" in drugi["tekst"], drugi["tekst"]
+    assert drugi["onemogucen"] is True, "puna potvrda mora zaključati dugme"
+    assert drugi["upisa"] == 2, "drugi pokušaj nije stigao do baze"
+
+
+def test_puna_potvrda_zakljucava_dugme_protiv_duplog_slanja(browser, server):
+    """Posle pune potvrde ponovni klik ne sme proizvesti novi upis."""
+    st = browser.new_page(viewport={"width": 1280, "height": 900})
+    st.route(re.compile(r".*/api/feedback"), lambda r: r.fulfill(
+        status=200, content_type="application/json", body='{"status":"ok"}'))
+    st.route(re.compile(r".*/rest/v1/.*"), lambda r: r.fulfill(
+        status=200, content_type="application/json", body="[]"))
+    st.goto(f"{server}/index.html", wait_until="domcontentloaded")
+    st.wait_for_timeout(900)
+    st.evaluate("""() => {
+        window.currentSession = { access_token: 't' };
+        window.currentUser    = { id: 'u1', email: 't@t.rs' };
+        window.__toasts = []; window.__upisi = [];
+        window.showToast = (p, t) => window.__toasts.push((t||'') + ':' + p);
+        window._waitSupa = () => Promise.resolve({
+          from: (t) => ({ insert: (row) => {
+            window.__upisi.push({ t: t, row: row });
+            return Promise.resolve({});
+          }})
+        });
+        const d = document.createElement('div');
+        d.innerHTML = _feedbackBar('Uslovi za naknadu?', 'Član 154 ZOO.');
+        document.body.appendChild(d);
+    }""")
+    st.evaluate("() => document.querySelector('#fb-btn').click()")
+    st.wait_for_timeout(500)
+    st.evaluate("() => document.querySelector('#fb-btn').click()")
+    st.wait_for_timeout(500)
+    upisa = st.evaluate("() => window.__upisi.length")
+    st.close()
+    assert upisa == 1, f"dvostruko slanje: {upisa} upisa"
