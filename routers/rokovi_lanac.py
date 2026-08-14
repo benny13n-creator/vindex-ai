@@ -280,10 +280,21 @@ _TIPOVI: dict[str, dict] = {
 
 _VALID_TIPOVI = frozenset(_TIPOVI)
 
+# BETA-P1-DEADLINE-TRUTH.
+#
+# Ove vrednosti su ranije glasile `kljucan` / `normalan` / `info`, a CHECK
+# ogranicenje na `predmet_hronologija.vaznost` (`supabase_setup.sql:415`)
+# dozvoljava `kritičan` / `važan` / `informativan`. Svaki upis roka je zato
+# padao na 23514, `except` ga je progutao, a odgovor je i dalje glasio
+# `ok: True`.
+#
+# Nije pretpostavka nego merenje: u produkciji stoji 52 reda, SVI sa semskim
+# vrednostima (kritičan 17, važan 13, informativan 22) i NIJEDAN sa kod-ovim.
+# Dakle CHECK vazi i nikad nijedan rok nije upisan ovom putanjom.
 _VAZNOST_HRON: dict[str, str] = {
-    "kritican": "kljucan",
-    "vazno":    "normalan",
-    "info":     "info",
+    "kritican": "kritičan",
+    "vazno":    "važan",
+    "info":     "informativan",
 }
 
 
@@ -425,6 +436,9 @@ async def post_rokovi_lanac(
                 "dogadjaj":   f"Rok: {r['naziv']} ({r['zakonski_osnov']})",
                 "datum":      r["datum_iso"],
                 "datum_iso":  r["datum_iso"],
+                # Fallback `"normalan"` CHECK ODBIJA -- to je namerno: nemapirana
+                # vrednost je bug u katalogu i mora pasti glasno (503), ne tiho
+                # se preslikati u pogresnu vaznost. Test drzi katalog potpunim.
                 "vaznost":    _VAZNOST_HRON.get(r["vaznost"], "normalan"),
                 "akter":      f"Automatski — ZPP lanac | {r['opis'][:200]}",
             }
@@ -432,12 +446,26 @@ async def post_rokovi_lanac(
         ]
 
         try:
-            await asyncio.to_thread(
+            _ins = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija").insert(records).execute()
             )
+            # Rezultat se PROVERAVA: prazan `data` znaci da nijedan red nije
+            # upisan, sto je isto sto i pad -- samo tise.
+            if not getattr(_ins, "data", None):
+                raise RuntimeError("upis nije vratio nijedan red")
             sacuvano = True
         except Exception as e:
-            logger.warning("[ROKOVI_LANAC] hronologija insert greška: %s", e)
+            # Advokat je trazio da se rokovi sacuvaju uz predmet. Ako to nije
+            # uspelo, operacija NIJE uspela -- tiho `sacuvano=False` uz
+            # `ok: True` je upravo ono sto je advokata ostavljalo bez roka.
+            # Lanac je cista aritmetika datuma i moze se ponovo izracunati, pa
+            # se ovde nista vredno ne gubi odbijanjem.
+            logger.error("[ROKOVI_LANAC] rokovi NISU sacuvani: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="Rokovi NISU sačuvani uz predmet. Nijedan rok nije "
+                       "evidentiran — pokušajte ponovo.",
+            )
 
     tip_meta = _TIPOVI[body.tip_dogadjaja]
     logger.info(

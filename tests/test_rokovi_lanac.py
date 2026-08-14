@@ -196,10 +196,23 @@ async def test_lanac_dostava_zalbe():
     assert r["datum_iso"] == "2026-06-09"
 
 
-# ─── T10: DB greška pri upisivanju — sacuvano=False, ne puca ─────────────────
+# ─── T10: DB greška pri upisivanju — MORA biti neuspeh, ne tihi "ok" ─────────
+#
+# OBRNUT 2026-08-14 (BETA-P1-DEADLINE-TRUTH).
+#
+# Ovaj test je ranije tvrdio `result["ok"] is True` uz `sacuvano_u_predmet is
+# False` — dakle KODIFIKOVAO je "uspeh iako nije sačuvano" kao ugovor. Advokat
+# bi izračunate rokove video crveno kao KRITIČAN, a oni se ne bi sačuvali; dugme
+# ne bi javilo ni grešku ni uspeh.
+#
+# Rok je za advokata egzistencijalna stvar: propušten rok je izgubljen predmet.
+# Zato neuspeh upisa MORA biti neuspeh operacije, ne tiha napomena u polju koje
+# frontend ne čita.
 
 @pytest.mark.anyio
-async def test_lanac_db_insert_greska_non_fatal():
+async def test_lanac_db_insert_greska_MORA_biti_neuspeh():
+    from fastapi import HTTPException
+
     from routers.rokovi_lanac import LanacReq, post_rokovi_lanac
 
     pred = {"id": "pred-xyz", "naziv": "Predmet"}
@@ -210,11 +223,12 @@ async def test_lanac_db_insert_greska_non_fatal():
     )
 
     with patch("routers.rokovi_lanac._get_supa", return_value=_build_supa(pred, insert_ok=False)):
-        result = await post_rokovi_lanac(body, _fake_request(), _fake_user())
+        with pytest.raises(HTTPException) as e:
+            await post_rokovi_lanac(body, _fake_request(), _fake_user())
 
-    assert result["ok"] is True
-    assert result["sacuvano_u_predmet"] is False
-    assert len(result["lanac"]) == 1
+    assert e.value.status_code >= 500, (
+        "neuspeo upis roka mora vratiti grešku, ne 200 sa `ok: True`"
+    )
 
 
 # ─── T11: Sve vaznosti su ispravno mapirane ──────────────────────────────────

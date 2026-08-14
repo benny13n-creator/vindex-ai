@@ -11918,6 +11918,12 @@ async function lanac_sacuvaj(tip, datum, btn) {
       showToast('Rokovi sačuvani u hronologiju!', 'success');
       if (btn) { btn.textContent = '✓ Sačuvano'; btn.style.color = '#4ade80'; btn.style.borderColor = 'rgba(74,222,128,0.3)'; }
       timeline_load();
+    } else {
+      // BETA-P1-DEADLINE-TRUTH: bez ove grane dugme je zauvek ostajalo na
+      // „Čuvam..." bez ijedne poruke — advokat nije mogao znati da rok NIJE
+      // upisan. Tišina se ne sme čitati kao uspeh.
+      showToast('Rokovi NISU sačuvani u hronologiju.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '⛓ Sačuvaj u hronologiju predmeta →'; }
     }
   } catch(e) {
     showToast('Greška pri čuvanju.', 'error');
@@ -22649,9 +22655,18 @@ async function pred_rokokiGeneriši(sacuvaj) {
     if (rezEl) {
       var _vaznostColor = { kritican: '#ff9090', vazno: '#fbbf24', info: 'rgba(255,255,255,0.35)' };
       var _vaznostLabel = { kritican: 'KRITIČAN', vazno: 'VAŽNO', info: 'INFO' };
+      // BETA-P1-DEADLINE-TRUTH: kad je advokat tražio čuvanje a upis nije
+      // potvrđen, odsustvo zelene oznake nije dovoljno — spisak rokova bez
+      // ijedne reči izgleda isto kao uspeh. Neupisano stanje se imenuje.
+      var _trazenoCuvanje = !!(sacuvaj && activePredmetId);
+      var _oznakaCuvanja  = d.sacuvano_u_predmet
+        ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>'
+        : (_trazenoCuvanje
+            ? ' · <span style="color:#ff9090;">NIJE sačuvano u hronologiji</span>'
+            : '');
       var html = '<div style="font-size:.72rem;color:rgba(255,255,255,0.4);margin-bottom:.5rem;">'
         + _htmlEsc(d.tip_naziv) + ' · ' + _htmlEsc(d.datum_pocetka_display)
-        + (d.sacuvano_u_predmet ? ' · <span style="color:#4ade80;">Sačuvano u hronologiji</span>' : '') + '</div>';
+        + _oznakaCuvanja + '</div>';
       html += '<div style="display:flex;flex-direction:column;gap:.4rem;">';
       (d.lanac || []).forEach(function(r) {
         var col = _vaznostColor[r.vaznost] || 'rgba(255,255,255,0.4)';
