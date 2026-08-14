@@ -115,6 +115,19 @@ def _fake_upload_file(content: bytes = b"%PDF-1.4 fake pdf content", filename: s
     return f
 
 
+@pytest.fixture(autouse=False)
+def portal_upload_ukljucen():
+    """BETA-P1-PORTAL-READONLY (2026-08-14): slanje dokumenata kroz klijentski
+    portal je za betu ISKLJUCENO podrazumevano -- ta putanja jedina ne sifruje
+    fajl pre upisa u Storage.
+
+    Testovi ispod ne mere kapiju nego LOGIKU upisa (kompenzaciono brisanje,
+    posten odgovor). Ta logika mora ostati pokrivena dok kapija stoji
+    zatvorena, inace bi istrulila neprimeceno. Zato je ovde otvaraju svesno."""
+    with patch.dict(os.environ, {"PORTAL_UPLOAD_ENABLED": "1"}):
+        yield
+
+
 def _portal_supa(insert_should_fail: bool, bucket_remove_should_fail: bool = False):
     """Minimal supa mock covering exactly client_portal_upload's own call
     sequence: token-active check, storage upload, DB insert (fails or not),
@@ -149,7 +162,7 @@ def _portal_supa(insert_should_fail: bool, bucket_remove_should_fail: bool = Fal
 
 
 @pytest.mark.anyio
-async def test_portal_upload_db_failure_compensates_and_returns_honest_error():
+async def test_portal_upload_db_failure_compensates_and_returns_honest_error(portal_upload_ukljucen):
     """Proves the fix: when the client_portal_uploads DB insert fails AFTER
     the storage upload already succeeded, the endpoint must (a) NOT return
     ok:True/"uspešno dostavljen" (the old false-success bug), (b) raise a
@@ -176,7 +189,7 @@ async def test_portal_upload_db_failure_compensates_and_returns_honest_error():
 
 
 @pytest.mark.anyio
-async def test_portal_upload_compensating_delete_failure_still_returns_honest_error():
+async def test_portal_upload_compensating_delete_failure_still_returns_honest_error(portal_upload_ukljucen):
     """Double-failure case (matching smart_intake.py's own best-effort
     handling): even if the compensating bucket.remove() ALSO fails, the
     endpoint must still raise (not silently fall through to a false
@@ -201,7 +214,7 @@ async def test_portal_upload_compensating_delete_failure_still_returns_honest_er
 
 
 @pytest.mark.anyio
-async def test_portal_upload_success_path_unaffected():
+async def test_portal_upload_success_path_unaffected(portal_upload_ukljucen):
     """Negative control: the fix must not touch the happy path -- a
     successful DB insert still returns ok:True and never calls
     bucket.remove()."""

@@ -450,7 +450,14 @@ async def client_portal_view(
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
-                .select("dogadjaj, datum_iso, vaznost, tip_roka")
+                # BETA-P1-PORTAL-READONLY: `tip_roka` NE POSTOJI na
+                # `predmet_hronologija` (mereno: akter, created_at, datum,
+                # datum_iso, dogadjaj, dokument_naziv, id, predmet_id, user_id,
+                # vaznost). PostgREST odbija CEO upit sa 42703, a poziv je u
+                # `asyncio.gather` bez `return_exceptions` -- dakle svaki
+                # klijentski pogled na portal je zavrsavao kao 500.
+                # Nijedan citalac odgovora ne koristi `tip_roka`.
+                .select("dogadjaj, datum_iso, vaznost")
                 .eq("predmet_id", predmet_id)
                 .eq("user_id", advokat_uid)
                 .gte("datum_iso", date.today().isoformat())
@@ -526,6 +533,23 @@ async def client_portal_upload(
 
     Ograničenja: maks 10 MB, dozvoljeni tipovi: PDF, DOCX, DOC, JPG, PNG, WEBP, TXT.
     """
+    # BETA-P1-PORTAL-READONLY (M-1).
+    #
+    # Ovo je JEDINA od cetiri putanje unosa dokumenata koja fajl NE sifruje pre
+    # upisa u Storage. Bucket jeste privatan (mereno), ali podatak stoji
+    # nesifrovan, a putanju otvara token koji drzi neko van kancelarije.
+    #
+    # Portal je za betu READ-ONLY. Kapija je iskljucena PODRAZUMEVANO -- ne
+    # zato sto je kod pogresan, nego zato sto se ugovor poverljivosti ne moze
+    # ispuniti bez sifrovanja. Vlasnik je ukljucuje svesno, kad se sifrovanje
+    # doda.
+    if os.getenv("PORTAL_UPLOAD_ENABLED", "").strip().lower() not in ("1", "true", "da"):
+        raise HTTPException(
+            status_code=503,
+            detail="Slanje dokumenata kroz klijentski portal je privremeno "
+                   "isključeno. Pošaljite dokument advokatu direktno.",
+        )
+
     if not x_portal_token:
         raise HTTPException(status_code=401, detail="X-Portal-Token header je obavezan.")
 

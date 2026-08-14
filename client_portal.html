@@ -201,27 +201,28 @@
         <div class="status-badge aktivan" id="status-badge">Aktivan</div>
       </div>
       <div class="case-meta">
-        <div class="case-meta-item"><strong>Stranka:</strong> <span id="stranka-name">—</span></div>
-        <div class="case-meta-item"><strong>Advokat:</strong> <span id="advokat-name">—</span></div>
+        <div class="case-meta-item"><strong>Tip predmeta:</strong> <span id="predmet-tip">—</span></div>
         <div class="case-meta-item"><strong>Otvoren:</strong> <span id="datum-otvoren">—</span></div>
+        <div class="case-meta-item"><strong>Pristup vazi do:</strong> <span id="pristup-istice">—</span></div>
       </div>
-      <div class="ai-status">
-        <div class="ai-status-label">✦ AI STATUS</div>
-        <div class="ai-status-text" id="ai-status-tekst">Ucitavam...</div>
+      <div class="ai-status" id="opis-blok" style="display:none;">
+        <div class="ai-status-label">O PREDMETU</div>
+        <div class="ai-status-text" id="predmet-opis"></div>
       </div>
     </div>
 
     <div class="section">
       <div class="section-title">Rokovi i rocista</div>
       <div class="timeline" id="timeline-list">
-        <div class="empty">Nema aktivnih rokova.</div>
+        <div class="empty">Ucitavam...</div>
       </div>
     </div>
 
     <div class="section">
       <div class="section-title">Dokumenti</div>
       <div id="docs-list">
-        <div class="empty">Nema dostupnih dokumenata.</div>
+        <div class="empty">Dokumenti se ne dele kroz portal. Za dokumentaciju se
+        obratite advokatu koji vam je poslao ovaj link.</div>
       </div>
     </div>
 
@@ -230,9 +231,9 @@
       <div class="contact-card">
         <div class="contact-avatar">⚖️</div>
         <div>
-          <div class="contact-name" id="kontakt-ime">—</div>
-          <div class="contact-role">Advokat</div>
-          <a class="contact-email" id="kontakt-email" href="#" style="display:none;">✉ Posalji email</a>
+          <div class="contact-name">Vas advokat</div>
+          <div class="contact-role" id="kontakt-tekst">Odgovorite na email kojim
+          vam je poslat ovaj link.</div>
         </div>
       </div>
     </div>
@@ -246,6 +247,22 @@
 </footer>
 
 <script>
+/*
+  BETA-P1-PORTAL-READONLY (2026-08-14)
+
+  Ova stranica je zvala `/api/portal/predmet`, koja token trazi u tabeli
+  `privremeni_pristup`. Link koji advokat STVARNO generise
+  (`POST /api/client-portal/token/{predmet_id}`) je HMAC token ciji se hes
+  cuva u `client_portal_tokens` -- druga tabela. Zato je svaki klijentski link
+  zavrsavao na 404 „Token nije pronadjen".
+
+  Kanonski citac je `/api/client-portal/view`: HMAC provera, hes u bazi,
+  opoziv, provera da `predmet_id` iz tokena odgovara redu (nema IDOR-a), i
+  filter internih beleski. Token ide u zaglavlje, ne u URL, da ne zavrsi u
+  server logovima.
+
+  Portal je READ-ONLY: ne prikazuje dokumente i nema slanje fajlova.
+*/
 (async function () {
   const params = new URLSearchParams(window.location.search);
   const token  = params.get("token") || params.get("privremeni_token");
@@ -257,6 +274,18 @@
     document.getElementById("error-msg").textContent   = msg   || "";
   }
 
+  function esc(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function datumSrb(v) {
+    if (!v) return "";
+    const d = new Date(v);
+    return isNaN(d) ? String(v).slice(0, 10) : d.toLocaleDateString("sr-RS");
+  }
+
   if (!token) {
     showError("Link nije ispravan", "Ovaj link ne sadrzi pristupni token. Kontaktirajte advokata.");
     return;
@@ -264,12 +293,15 @@
 
   let data;
   try {
-    const resp = await fetch("/api/portal/predmet?token=" + encodeURIComponent(token));
+    const resp = await fetch("/api/client-portal/view", {
+      headers: { "X-Portal-Token": token }
+    });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       showError(
+        resp.status === 401 ? "Link vise ne vazi" :
         resp.status === 404 ? "Predmet nije pronadjen" :
-        resp.status === 410 ? "Link je istekao" : "Greska",
+        resp.status === 429 ? "Previse zahteva" : "Greska",
         err.detail || "Pokusajte ponovo ili kontaktirajte advokata."
       );
       return;
@@ -280,73 +312,84 @@
     return;
   }
 
+  const pred = data.predmet || {};
+
   document.getElementById("loading-state").style.display  = "none";
   document.getElementById("portal-content").style.display = "block";
 
-  document.getElementById("predmet-naziv").textContent = data.naziv || "Predmet";
-  document.getElementById("stranka-name").textContent  = data.stranka || "—";
-  document.getElementById("advokat-name").textContent  = data.advokat_ime || "—";
-  document.getElementById("datum-otvoren").textContent = data.datum_otvoren
-    ? new Date(data.datum_otvoren).toLocaleDateString("sr-RS") : "—";
+  document.getElementById("predmet-naziv").textContent  = pred.naziv || "Predmet";
+  document.getElementById("predmet-tip").textContent    = pred.tip   || "—";
+  document.getElementById("datum-otvoren").textContent  = datumSrb(pred.kreiran) || "—";
+  document.getElementById("pristup-istice").textContent =
+    datumSrb(data.token_expires_at) || "—";
+
+  if (pred.opis) {
+    document.getElementById("predmet-opis").textContent = pred.opis;
+    document.getElementById("opis-blok").style.display  = "block";
+  }
 
   const badge = document.getElementById("status-badge");
-  const st    = (data.status || "aktivan").toLowerCase().replace(" ", "_");
+  const st    = String(pred.status || "aktivan").toLowerCase().replace(" ", "_");
   badge.className   = "status-badge " + st;
-  badge.textContent = st === "aktivan" ? "Aktivan" : st === "u_toku" ? "U toku" : st === "zatvoren" ? "Zatvoren" : "Na cekanju";
+  badge.textContent = st === "aktivan" ? "Aktivan" :
+                      st === "u_toku"  ? "U toku"  :
+                      st === "zatvoren" ? "Zatvoren" : "Na cekanju";
 
-  document.getElementById("ai-status-tekst").textContent = data.ai_status || "Predmet je aktivan. Advokat radi na slucaju.";
+  // ── Rokovi i rocista ──────────────────────────────────────────────────────
+  //
+  // Prazna lista ovde znaci „nema zakazanih rokova", a NE „ne znam" -- odgovor
+  // je stigao sa 200 i oba polja su procitana iz baze. Neuspeh nikad ne stize
+  // dovde: on je vec obraden gore kao `showError`.
+  const stavke = [];
+
+  (data.rocista || []).forEach(function (r) {
+    stavke.push({
+      datum: (r.datum || "").slice(0, 10),
+      naslov: "Rociste" + (r.sud ? " — " + r.sud : ""),
+      detalj: [r.vreme ? "u " + r.vreme : "",
+               r.sudnica ? "sudnica " + r.sudnica : "",
+               r.broj_predmeta_suda ? "br. " + r.broj_predmeta_suda : ""]
+              .filter(Boolean).join(" · "),
+      status: r.status || ""
+    });
+  });
+
+  (data.kriticni_rokovi || []).forEach(function (k) {
+    stavke.push({
+      datum: (k.datum_iso || "").slice(0, 10),
+      naslov: k.dogadjaj || "Rok",
+      detalj: "",
+      status: ""
+    });
+  });
+
+  stavke.sort(function (a, b) { return a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0; });
 
   const timelineEl = document.getElementById("timeline-list");
-  const rokovi = data.rokovi || [];
-  if (rokovi.length > 0) {
-    timelineEl.innerHTML = "";
+  if (!stavke.length) {
+    timelineEl.innerHTML = '<div class="empty">Nema zakazanih rokova ni rocista.</div>';
+  } else {
     const danas = new Date().toISOString().slice(0, 10);
-    rokovi.forEach(function (rok) {
-      const datumStr = (rok.datum || "").slice(0, 10);
-      const prosao   = datumStr < danas;
-      const danaDiff = Math.ceil((new Date(datumStr) - new Date()) / 86400000);
-      const hitnost  = !prosao && danaDiff <= 3 ? "urgentno" : !prosao && danaDiff <= 14 ? "uskoro" : "planirano";
-      timelineEl.innerHTML += [
+    timelineEl.innerHTML = stavke.map(function (s) {
+      const prosao  = s.datum < danas;
+      const dana    = Math.ceil((new Date(s.datum) - new Date()) / 86400000);
+      const hitnost = !prosao && dana <= 3 ? "urgentno" : !prosao && dana <= 14 ? "uskoro" : "planirano";
+      return [
         '<div class="timeline-item">',
         '  <div style="position:relative;display:flex;flex-direction:column;align-items:center;">',
         '    <div class="timeline-dot ' + (prosao ? "past" : hitnost === "urgentno" ? "urgent" : "") + '"></div>',
         '    <div class="timeline-line"></div>',
         '  </div>',
         '  <div class="timeline-content">',
-        '    <div class="timeline-label">' + (rok.naziv || "Rok") + '</div>',
-        '    <div class="timeline-date">' + datumStr + '</div>',
-        (!prosao ? '<span class="timeline-badge ' + hitnost + '">' + (hitnost === "urgentno" ? "⚠ Uskoro" : hitnost === "uskoro" ? "Nedelja dana" : "Planirano") + '</span>' : ""),
+        '    <div class="timeline-label">' + esc(s.naslov) + '</div>',
+        '    <div class="timeline-date">' + esc(s.datum) + (s.detalj ? " · " + esc(s.detalj) : "") + '</div>',
+        (!prosao ? '<span class="timeline-badge ' + hitnost + '">' +
+           (hitnost === "urgentno" ? "Uskoro" : hitnost === "uskoro" ? "Nedelja dana" : "Planirano") +
+         '</span>' : ""),
         '  </div>',
         '</div>'
       ].join("");
-    });
-  }
-
-  const docsEl = document.getElementById("docs-list");
-  const dokazi = data.dokumenti || [];
-  if (dokazi.length > 0) {
-    docsEl.innerHTML = "";
-    dokazi.forEach(function (d) {
-      const ext = (d.naziv || "").split(".").pop().toLowerCase();
-      const ico = ext === "pdf" ? "📄" : ext === "docx" ? "📝" : "📎";
-      docsEl.innerHTML += [
-        '<div class="doc-item">',
-        '  <div class="doc-icon">' + ico + '</div>',
-        '  <div>',
-        '    <div class="doc-name">' + (d.naziv || "Dokument") + '</div>',
-        '    <div class="doc-meta">' + (d.datum ? new Date(d.datum).toLocaleDateString("sr-RS") : "") + '</div>',
-        '  </div>',
-        '</div>'
-      ].join("");
-    });
-  }
-
-  document.getElementById("kontakt-ime").textContent = data.advokat_ime || "—";
-  const emailEl = document.getElementById("kontakt-email");
-  if (data.advokat_email) {
-    emailEl.href        = "mailto:" + data.advokat_email;
-    emailEl.textContent = "✉ " + data.advokat_email;
-    emailEl.style.display = "inline-flex";
+    }).join("");
   }
 })();
 </script>
