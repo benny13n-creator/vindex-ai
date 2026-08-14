@@ -217,17 +217,42 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
     anon_email = f"deleted_{uid[:8]}@deleted.vindex.rs"
 
     def _delete():
-        supa.table("profiles").update({
+        # BETA-RELIABILITY-FALSE-SUCCESS / FS-P1-07.
+        #
+        # Rezultati oba upisa su se odbacivali kao izraz. Ako `update` ne
+        # pogodi nijedan red -- pogresan `uid`, RLS, izmenjena sema -- korisnik
+        # je svejedno dobijao „Vaš korisnički nalog je anonimizovan".
+        # To je tvrdnja po clanu 17 GDPR-a, izrecena bez ijednog dokaza da se
+        # bilo sta promenilo.
+        #
+        # `profiles` je OBAVEZAN: bez njega email i ime ostaju u bazi.
+        # `korisnik_email_notif` je dopuna (gasi obavestenja) -- njegov pad ne
+        # obara brisanje, ali se glasno belezi.
+        res = supa.table("profiles").update({
             "email":     anon_email,
             "full_name": "Obrisani korisnik",
         }).eq("id", uid).execute()
 
-        supa.table("korisnik_email_notif").upsert(
-            {"user_id": uid, "aktivan": False},
-            on_conflict="user_id",
-        ).execute()
+        if not getattr(res, "data", None):
+            raise RuntimeError("anonimizacija profila nije pogodila nijedan red")
 
-    await asyncio.to_thread(_delete)
+        try:
+            supa.table("korisnik_email_notif").upsert(
+                {"user_id": uid, "aktivan": False},
+                on_conflict="user_id",
+            ).execute()
+        except Exception as _e:
+            logger.error("[GDPR] gasenje obavestenja nije uspelo uid=%.8s: %s", uid, _e)
+
+    try:
+        await asyncio.to_thread(_delete)
+    except Exception as _exc:
+        logger.error("[GDPR] anonimizacija NIJE izvrsena uid=%.8s: %s", uid, _exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Brisanje naloga NIJE izvršeno. Vaši podaci su nepromenjeni. "
+                   "Pokušajte ponovo ili nam pišite na kontakt@vindex.ai.",
+        )
     logger.info("[GDPR] account deleted uid=%.8s", uid)
 
     # Zabeleži brisanje u nepromenjivi audit log — ne može biti obrisano

@@ -204,3 +204,66 @@ class TestGdprAccountDeleteAnonymizesOnly:
             assert not fake.calls, "Founder zahtev mora biti odbijen PRE bilo kakvog upisa u bazu."
         finally:
             app.dependency_overrides.pop(get_current_user, None)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FS-P1-07 — TVRDNJA O BRISANJU MORA IMATI DOKAZ
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# STARI UGOVOR: rezultati oba upisa su se odbacivali kao izraz; odgovor je
+#               uvek glasio „Vaš korisnički nalog je anonimizovan".
+# NOVI UGOVOR:  `profiles` update koji ne pogodi nijedan red je NEUSPEH (503),
+#               a podaci se izričito proglašavaju nepromenjenima.
+# ZAŠTO JE STARI BIO POGREŠAN: to je tvrdnja po članu 17 GDPR-a izrečena bez
+#               ijednog dokaza da se išta promenilo.
+
+
+class _PrazanUpisSupa(_FakeSupa):
+    """PostgREST koji je izvršio upit ali nije pogodio nijedan red."""
+
+    def table(self, name):
+        q = _FakeQuery(self, name)
+        if name == "profiles":
+            class _Prazno:
+                data = []
+            q.execute = lambda: _Prazno()
+        return q
+
+
+class _PaoUpisSupa(_FakeSupa):
+    def table(self, name):
+        q = _FakeQuery(self, name)
+        if name == "profiles":
+            def _puca():
+                raise RuntimeError("baza nedostupna")
+            q.execute = _puca
+        return q
+
+
+class TestGdprDeleteMoraDokazatiBrisanje:
+    def test_prazan_rezultat_NIJE_uspesno_brisanje(self, client, fake_supa, monkeypatch):
+        """NAJVAŽNIJI TEST U KLASI.
+
+        `fake_supa` se traži zbog override-a autentifikacije; sam Supabase se
+        zatim zamenjuje onim koji vraća prazan rezultat."""
+        import routers.gdpr as gdpr
+        supa = _PrazanUpisSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.9")
+        assert r.status_code == 503, r.text
+        assert "NIJE izvršeno" in r.text
+        assert "anonimizovan" not in r.text
+
+    def test_pad_baze_NIJE_uspesno_brisanje(self, client, fake_supa, monkeypatch):
+        import routers.gdpr as gdpr
+        supa = _PaoUpisSupa()
+        monkeypatch.setattr(gdpr, "_get_supa", lambda: supa)
+        r = _delete_account(client, "10.0.0.10")
+        assert r.status_code == 503
+        assert "nepromenjeni" in r.text
+
+    def test_uspesno_brisanje_i_dalje_prolazi(self, client, fake_supa):
+        """Negativna kontrola: popravka ne sme da obori legitiman tok."""
+        r = _delete_account(client, "10.0.0.11")
+        assert r.status_code == 200
+        assert "anonimizovan" in r.text

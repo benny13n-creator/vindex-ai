@@ -103,3 +103,50 @@ def test_founder_unaffected_by_exception_path():
         role = _get_role("uid-founder", "founder@vindex.rs")
 
     assert role == Role.PARTNER
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FS-P0-04 — DRUGA KOPIJA RAZREŠAVANJA ROLE (`klijenti/permissions.py`)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Postojeći testovi u ovom fajlu pokrivaju `klijenti/router.py::_get_role`.
+# `klijenti/permissions.py::_role_from_db` je DRUGA implementacija istog
+# pojma i nikad nije bila zakrpljena — pad čitanja je vraćao ADVOKAT-a, rolu
+# koja sme da čita JMBG/pasoš/PIB.
+
+def test_permissions_role_pad_citanja_je_najniza_rola():
+    """NEUSPEH razrešavanja role ≠ uspešno razrešena rola."""
+    from unittest.mock import MagicMock
+
+    from klijenti.permissions import Role, _role_from_db
+
+    supa = MagicMock()
+    supa.table.side_effect = RuntimeError("baza nedostupna")
+    assert _role_from_db("u1", "neko@firma.rs", supa) is Role.SEKRETARICA
+
+
+def test_permissions_role_bez_reda_ostaje_podrazumevana():
+    """Legitimno prazno (nova osoba bez reda u `user_roles`) NIJE greška —
+    inače bi popravka zaključala svakog novog korisnika."""
+    from unittest.mock import MagicMock
+
+    from klijenti.permissions import DEFAULT_ROLE, _role_from_db
+
+    supa = MagicMock()
+    supa.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = \
+        MagicMock(data=None)
+    assert _role_from_db("u1", "neko@firma.rs", supa) is DEFAULT_ROLE
+
+
+def test_permissions_pala_rola_ne_sme_citati_poverljiva_polja():
+    """Meri se POSLEDICA, ne vrednost enuma."""
+    from unittest.mock import MagicMock
+
+    from klijenti.permissions import FC, _role_from_db, can_access_field
+
+    supa = MagicMock()
+    supa.table.side_effect = RuntimeError("baza nedostupna")
+    rola = _role_from_db("u1", "neko@firma.rs", supa)
+    assert not can_access_field(rola, FC.CONFIDENTIAL), (
+        "pad čitanja role i dalje otvara JMBG/pasoš/PIB"
+    )

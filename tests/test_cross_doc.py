@@ -225,16 +225,47 @@ def test_sync_kontekst_opcioni():
     assert result["broj_dokumenata"] == 2
 
 
-def test_sync_gpt_invalid_json_ne_pada():
+def test_sync_gpt_invalid_json_MORA_da_pukne():
+    """OBRNUT 2026-08-14 — BETA-RELIABILITY-FALSE-SUCCESS / FS-P1-01.
+
+    STARI UGOVOR
+        „Neispravan JSON od modela ne sme da obori zahtev; rezultat je prazan."
+        (`test_sync_gpt_invalid_json_ne_pada`)
+
+    ZASTO JE STARI BIO POGRESAN
+        Prazan rezultat ovde nije prazan rezultat nego NEIZVEDENA ANALIZA.
+        UI ga ispisuje kao „Nisu pronađeni konflikti između odabranih
+        dokumenata." — PRAVNU TVRDNJU o odnosu dokumenata — i kredit se
+        naplaćuje. Okidač nije redak: `max_tokens=2000` preseca odgovor
+        upravo kod najdužih skupova dokumenata, dakle kod najtežih predmeta.
+        Test je kodifikovao tišinu kao ispravno ponašanje.
+
+    NOVI UGOVOR
+        Nepotpun odgovor modela je GREŠKA. Ide u 500 granu, kredit se ne
+        naplaćuje, a advokat vidi da analiza nije završena.
+    """
+    import json as _json
+
     from routers.cross_doc import _cross_doc_sync, DokumentUnos
     docs = [DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)]
 
     with _patch_gpt("nije json"):
+        with pytest.raises(_json.JSONDecodeError):
+            _cross_doc_sync(docs, "Da li postoji konflikt?", None)
+
+
+def test_sync_prazan_ali_VALIDAN_json_ostaje_legitimno_prazan():
+    """Negativna kontrola: model koji stvarno nije našao konflikte mora i dalje
+    proći. Bez ovoga bi popravka pretvorila svaki miran nalaz u grešku."""
+    from routers.cross_doc import _cross_doc_sync, DokumentUnos
+    docs = [DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)]
+
+    with _patch_gpt('{"konflikti": [], "slicnosti": [], "preporuke": [], '
+                    '"rezime": "Nema neusaglašenosti.", "pravni_zakljucak": "OK"}'):
         result = _cross_doc_sync(docs, "Da li postoji konflikt?", None)
 
     assert result["konflikti"] == []
-    assert result["slicnosti"] == []
-    assert result["preporuke"] == []
+    assert result["rezime"] == "Nema neusaglašenosti."
 
 
 # ─── HTTP endpoint ────────────────────────────────────────────────────────────
@@ -406,3 +437,91 @@ def test_predmet_req_model_vise_od_5():
             dokument_ids=[f"d-00{i}" for i in range(6)],
             pravno_pitanje="Da li postoje kontradikcije između ovih dokumenata?",
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FS-P1-01 — NEIZVEDENA ANALIZA SE NE SME NAPLATITI NI PRIKAZATI KAO NALAZ
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_neispravan_odgovor_modela_NE_naplacuje_kredit():
+    """NAJVAŽNIJI TEST U FAJLU.
+
+    Kredit se trošio i kad analiza nije proizvela nijedan nalaz — advokat je
+    platio pun GPT-4o poziv za tvrdnju „nema konflikata" koju niko nije izveo.
+    Meri se POSLEDICA (da li je `consume` pozvan), ne oblik izuzetka.
+    """
+    from unittest.mock import patch as _patch
+
+    from routers.cross_doc import cross_doc_analiza, CrossDocReq, DokumentUnos
+
+    naplate = []
+
+    async def _consume(*a, **k):
+        naplate.append(a)
+
+    req_body = CrossDocReq(
+        dokumenti=[DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)],
+        pravno_pitanje="Da li postoji konflikt između otkaznih rokova?",
+    )
+
+    with _patch_gpt("nije json"), \
+         _patch("routers.cross_doc.UsageService.consume", new=_consume):
+        odgovor = await cross_doc_analiza(req_body, _fake_request(), {"user_id": "u1", "email": "a@a.rs"})
+
+    assert naplate == [], "kredit je naplaćen za analizu koja nije izvedena"
+    assert getattr(odgovor, "status_code", 200) == 500
+
+
+@pytest.mark.anyio
+async def test_neispravan_odgovor_modela_NE_vraca_praznu_analizu():
+    """Odgovor ne sme da nosi `konflikti: []` — frontend to ispisuje kao
+    pravnu tvrdnju da konflikata nema."""
+    import json as _json
+    from unittest.mock import patch as _patch
+
+    from routers.cross_doc import cross_doc_analiza, CrossDocReq, DokumentUnos
+
+    async def _consume(*a, **k):
+        return None
+
+    req_body = CrossDocReq(
+        dokumenti=[DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)],
+        pravno_pitanje="Da li postoji konflikt između otkaznih rokova?",
+    )
+
+    with _patch_gpt("nije json"), \
+         _patch("routers.cross_doc.UsageService.consume", new=_consume):
+        odgovor = await cross_doc_analiza(req_body, _fake_request(), {"user_id": "u1", "email": "a@a.rs"})
+
+    telo = _json.loads(bytes(odgovor.body).decode())
+    assert "konflikti" not in telo
+    assert telo.get("error")
+
+
+@pytest.mark.anyio
+async def test_uspesna_analiza_se_i_dalje_naplacuje():
+    """Negativna kontrola: popravka ne sme da ukine naplatu za izvedenu
+    analizu."""
+    from unittest.mock import patch as _patch
+
+    from routers.cross_doc import cross_doc_analiza, CrossDocReq, DokumentUnos
+
+    naplate = []
+
+    async def _consume(*a, **k):
+        naplate.append(a)
+
+    req_body = CrossDocReq(
+        dokumenti=[DokumentUnos(**_DOC_A), DokumentUnos(**_DOC_B)],
+        pravno_pitanje="Da li postoji konflikt između otkaznih rokova?",
+    )
+
+    with _patch_gpt('{"konflikti": [], "slicnosti": [], "preporuke": [], '
+                    '"rezime": "Nema neusaglašenosti.", "pravni_zakljucak": "OK"}'), \
+         _patch("routers.cross_doc.UsageService.consume", new=_consume):
+        odgovor = await cross_doc_analiza(req_body, _fake_request(), {"user_id": "u1", "email": "a@a.rs"})
+
+    assert len(naplate) == 1
+    assert odgovor["konflikti"] == []
+    assert odgovor["rezime"] == "Nema neusaglašenosti."

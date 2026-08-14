@@ -134,13 +134,31 @@ def _role_from_db(user_id: str, email: str, supa) -> Role:
     if (email or "").lower() in founder_emails:
         return Role.PARTNER
 
+    # BETA-RELIABILITY-FALSE-SUCCESS / FS-P0-04.
+    #
+    # Ovde je `except` padao na isti `return DEFAULT_ROLE` kao i uspesno
+    # citanje bez reda. Time se NEUSPEH citanja role predstavljao kao USPESNO
+    # razresena rola ADVOKAT -- a ta rola zadovoljava i
+    # `ROLE_FIELD_ACCESS[FC.CONFIDENTIAL]` i `ACTION_MIN_ROLE["access_confidential"]`.
+    # Prolazni ispad baze bi sekretaricu unapredio u rolu koja cita JMBG,
+    # broj pasosa i PIB.
+    #
+    # Dva ishoda se sada razlikuju, tacno kao u `klijenti/router.py:73`, koji
+    # je vec fail-closed:
+    #     citanje uspelo, nema reda  -> DEFAULT_ROLE   (namerno; nova osoba)
+    #     citanje PALO               -> SEKRETARICA    (najnizi nivo)
+    #
+    # Napomena o dostiznosti: `make_role_dependency` danas nema produkcijskog
+    # pozivaoca. Zamka se zatvara zato sto je napunjena, ne zato sto je vec
+    # opalila -- prvi pozivalac koji je doda ne bi imao razloga da posumnja.
     try:
         res = supa.table("user_roles").select("rola").eq("user_id", user_id).single().execute()
         if res.data:
             return ROLE_STR.get(res.data.get("rola", ""), DEFAULT_ROLE)
+        return DEFAULT_ROLE
     except Exception as e:
         logger.warning("[PERMISSIONS] user_roles read greška za uid=%.8s: %s", user_id, e)
-    return DEFAULT_ROLE
+        return Role.SEKRETARICA
 
 
 def make_role_dependency(supa_getter):

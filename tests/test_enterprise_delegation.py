@@ -195,3 +195,59 @@ def test_get_predmet_no_delegation_still_404():
             asyncio.run(api.get_predmet("p1", _req(), authorization="Bearer faketoken"))
 
     assert exc_info.value.status_code == 404
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FS-P1-25 — `ok: True` BEZ DOKAZA DA JE DELEGIRANJE UPISANO
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# STARI UGOVOR: rezultat `insert`-a se odbacivao; odgovor je uvek `ok: True`.
+# NOVI UGOVOR:  upis koji ne vrati nijedan red je 503 uz izričitu poruku da je
+#               predmet ostao samo kod prvog advokata.
+# ZAŠTO JE STARI BIO POGREŠAN: delegiranje je PRISTUPNA odluka — drugi advokat
+#               dobija pravo čitanja kroz `shared/rag_acl.py`. Neupisano
+#               delegiranje znači da prvi veruje da je predao predmet, drugi ga
+#               ne vidi, i niko ne zna da se to desilo.
+
+def _delegiranje_supa(insert_data):
+    pred_chain = _chain(MagicMock(data={"naziv": "X", "user_id": "u1"}))
+    admin_chain = _chain(MagicMock(data={"id": "firm1"}))
+    members_chain = _chain(MagicMock(data=[{"user_id": "u1", "uloga": "admin"},
+                                           {"user_id": "u2", "uloga": "advokat"}]))
+    insert_chain = _chain(MagicMock(data=insert_data))
+    insert_chain.insert = MagicMock(return_value=insert_chain)
+
+    def _table(name):
+        if name == "predmet_delegiranja":
+            return insert_chain
+        return {"predmeti": pred_chain, "kancelarije": admin_chain,
+                "kancelarija_clanovi": members_chain}[name]
+
+    supa = MagicMock()
+    supa.table.side_effect = _table
+    return supa
+
+
+def test_delegiranje_bez_upisanog_reda_NIJE_uspeh():
+    """NAJVAŽNIJI TEST U FAJLU."""
+    from fastapi import HTTPException
+
+    payload = enterprise.DelegiranjeRequest(predmet_id="p1", advokat_user_id="u2")
+    with patch.object(enterprise, "_get_supa", return_value=_delegiranje_supa([])):
+        with pytest.raises(HTTPException) as e:
+            asyncio.run(enterprise.delegiraj_predmet(
+                _req(), payload, {"user_id": "u1", "email": "a@b.com"}))
+
+    assert e.value.status_code == 503
+    assert "NIJE sačuvano" in e.value.detail
+    assert "samo kod vas" in e.value.detail
+
+
+def test_delegiranje_sa_upisanim_redom_i_dalje_prolazi():
+    """Negativna kontrola."""
+    payload = enterprise.DelegiranjeRequest(predmet_id="p1", advokat_user_id="u2")
+    with patch.object(enterprise, "_get_supa",
+                      return_value=_delegiranje_supa([{"id": "deleg1"}])):
+        result = asyncio.run(enterprise.delegiraj_predmet(
+            _req(), payload, {"user_id": "u1", "email": "a@b.com"}))
+    assert result["ok"] is True

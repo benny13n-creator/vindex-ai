@@ -219,9 +219,24 @@ def _cross_doc_sync(
         raw = resp.choices[0].message.content or "{}"
         result = json.loads(raw)
     except json.JSONDecodeError as exc:
+        # BETA-RELIABILITY-FALSE-SUCCESS / FS-P1-01.
+        #
+        # Ovde je stajalo `result = {}`. Posledica: `konflikti: []`, `rezime: ""`,
+        # `pravni_zakljucak: ""` -- a UI to ispisuje kao
+        # „Nisu pronađeni konflikti između odabranih dokumenata."
+        # To je PRAVNA TVRDNJA o odnosu dokumenata, izrečena iz analize koja
+        # nikada nije proizvela nijedan nalaz. Kredit se pritom naplaćivao.
+        #
+        # Okidač nije egzotičan: `max_tokens=2000` uz `response_format=json_object`
+        # znaci da se odgovor PRESECE upravo kod najduzih skupova dokumenata --
+        # verovatnoća raste sa težinom predmeta.
+        #
+        # Nepotpun JSON nije prazan rezultat. Greška ide u postojeću 500 granu,
+        # a `UsageService.consume` ispod se nikad ne dosegne -- nema naplate za
+        # analizu koja nije izvedena.
         _sentry_capture(exc)
-        logger.warning("[CROSS_DOC] JSON parse greška: %s", exc)
-        result = {}
+        logger.error("[CROSS_DOC] odgovor modela nije validan JSON: %s", exc)
+        raise
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[CROSS_DOC] GPT greška: %s", exc)

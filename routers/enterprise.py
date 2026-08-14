@@ -254,7 +254,14 @@ async def delegiraj_predmet(
             detail="Advokat kome delegirate mora biti član iste kancelarije.",
         )
 
-    await asyncio.to_thread(
+    # BETA-RELIABILITY-FALSE-SUCCESS / FS-P1-25.
+    #
+    # Rezultat upisa se odbacivao kao izraz, a odgovor je bezuslovno glasio
+    # `ok: True`. Delegiranje je pristupna odluka: advokat kome je predmet
+    # delegiran dobija pravo citanja kroz `shared/rag_acl.py`. Ako red nije
+    # upisan, prvi advokat veruje da je predao predmet, drugi ga ne vidi, a
+    # niko ne zna da se to desilo.
+    _ins = await asyncio.to_thread(
         lambda: supa.table("predmet_delegiranja").insert({
             "predmet_id":      payload.predmet_id,
             "od_user_id":      uid,
@@ -263,6 +270,14 @@ async def delegiraj_predmet(
             "status":          "aktivno",
         }).execute()
     )
+    if not getattr(_ins, "data", None):
+        logger.error("[ENTERPRISE] delegiranje NIJE upisano predmet=%s na=%s",
+                     payload.predmet_id, payload.advokat_user_id)
+        raise HTTPException(
+            status_code=503,
+            detail="Delegiranje NIJE sačuvano. Predmet je i dalje samo kod vas — "
+                   "pokušajte ponovo.",
+        )
 
     logger.info("Predmet %s delegiran sa %s na %s", payload.predmet_id, uid, payload.advokat_user_id)
     return {"ok": True, "predmet_id": payload.predmet_id}
