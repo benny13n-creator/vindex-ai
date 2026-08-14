@@ -232,9 +232,33 @@ async def knowledge_search(
             )
         )
 
+        # BETA-P0-DELETED-DATA-ISOLATION.
+        #
+        # `naslov` i `sadrzaj` se citaju ISKLJUCIVO iz Pinecone metapodataka --
+        # baza se ranije nije dodirivala nijednom. Posto je brisanje vektora
+        # bilo "fire-and-forget" (v. `_delete_from_pinecone` nize), zastareo
+        # vektor je servirao PUN SADRZAJ obrisane beleske.
+        #
+        # Zatvara se isto kao F-01: autorizacija se izvodi iz TRENUTNOG stanja
+        # baze, ne iz metapodataka vektora. Vektor bez svog reda ne moze biti
+        # vracen, cak i ako fizicki postoji.
+        #
+        # Fail-closed: ako provera ne uspe, pretraga pada -- "ne znam da li je
+        # ziva" nikad ne sme da znaci "prikazi je".
+        _kandidati = [m for m in results.matches if m.score >= 0.3]
+        _ids = [m.metadata.get("beleska_id") or m.id for m in _kandidati]
+        _zivi = set()
+        if _ids:
+            _res = await asyncio.to_thread(
+                lambda: _get_supa().table("user_knowledge")
+                        .select("id").eq("user_id", uid).in_("id", _ids).execute()
+            )
+            _zivi = {r["id"] for r in (_res.data or [])}
+
         items = []
-        for m in results.matches:
-            if m.score >= 0.3:
+        for m in _kandidati:
+            _bid = m.metadata.get("beleska_id") or m.id
+            if _bid in _zivi:
                 items.append({
                     "id":         m.metadata.get("beleska_id", m.id),
                     "naslov":     m.metadata.get("naslov", ""),
@@ -346,7 +370,7 @@ async def knowledge_update(
             )
         )
 
-    return {"ok": True, "id": entry_id}
+    return {"ok": True, "id": entry_id, "vektor_uklonjen": _vektor_uklonjen}
 
 
 @router.delete("/api/knowledge/{entry_id}")
@@ -377,21 +401,29 @@ async def knowledge_delete(
         logger.error("[KNOWLEDGE] Greška brisanja beleške: %s", exc)
         raise HTTPException(status_code=500, detail="Greška pri brisanju beleške.")
 
-    # Obriši iz Pinecone (fire-and-forget)
-    async def _delete_from_pinecone():
-        try:
-            index = _get_pinecone_index()
-            await asyncio.to_thread(
-                lambda: index.delete(
-                    ids=[f"kb_{uid}_{entry_id}"],
-                    namespace=f"kb_{uid}",
-                )
+    # BETA-P0-DELETED-DATA-ISOLATION: brisanje vektora vise nije
+    # "fire-and-forget". Ishod se CEKA i PRIJAVLJUJE -- ranije je odgovor bio
+    # `{"ok": True}` bez obzira da li je vektor uklonjen.
+    #
+    # Ovo je DOPUNA, ne garancija: mreza moze pasti posle DB brisanja. Prava
+    # brana je filter u pretrazi (v. `knowledge_search`), koji cini zaostali
+    # vektor nedohvatljivim bez obzira na ishod ovde.
+    #
+    # ID je deterministican (`kb_{uid}_{entry_id}`) -- nikad se ne brise po
+    # slicnosti ni po imenu.
+    _vektor_uklonjen = False
+    try:
+        _index = _get_pinecone_index()
+        await asyncio.to_thread(
+            lambda: _index.delete(
+                ids=[f"kb_{uid}_{entry_id}"],
+                namespace=f"kb_{uid}",
             )
-        except Exception as e:
-            _sentry_capture(e)
-            logger.warning("[KNOWLEDGE] Pinecone delete greška: %s", e)
-
-    asyncio.create_task(_delete_from_pinecone())
+        )
+        _vektor_uklonjen = True
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error("[KNOWLEDGE] vektor NIJE uklonjen (zapis jeste obrisan): %s", e)
 
     # V34: poslovni događaj je DB brisanje iz user_knowledge, ne Pinecone
     # čišćenje -- ono je fire-and-forget i njegov neuspeh ne poništava
