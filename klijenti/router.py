@@ -33,7 +33,8 @@ from klijenti.permissions import (
     Role, ROLE_STR, ROLE_NAMES, filter_klijent, can_perform,
     can_access_field, DEFAULT_ROLE, FC,
 )
-from klijenti.audit import Akcija, log_event, get_client_ip
+from klijenti.audit import (Akcija, AuditNijeZapisan, get_client_ip,
+                            log_event, log_event_strict)
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
 from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, _is_founder, _verify_token
@@ -411,14 +412,26 @@ async def get_klijent(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Nemate pravo uvida u poverljive podatke.",
             )
-        # Audit MORA biti pre dekriptovanja i pre return-a
-        await log_event(
-            supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
-            user_role=user.get("role_str", "advokat"), akcija=Akcija.VIEW_CONFIDENTIAL,
-            entitet_id=klijent_id,
-            detalji={"polja": ["jmbg", "broj_pasosa", "pib"]},
-            ip_adresa=ip,
-        )
+        # Audit MORA biti pre dekriptovanja i pre return-a.
+        #
+        # BETA-P0-SENSITIVE-DATA-AUDIT: ranije je ovde stajao `log_event`, koji
+        # svaki izuzetak guta u `logger.warning` ("non-blocking"). Ako bi upis
+        # audita pao, tok bi nastavio do `decrypt_field` i JMBG/pasos/PIB bi
+        # izasao iz sistema BEZ IJEDNOG TRAGA o tome ko ga je i kada video.
+        # Nema uvida bez traga -- `log_event_strict` dize izuzetak.
+        try:
+            await log_event_strict(
+                supa=supa, user_id=user["user_id"], user_email=user.get("email", ""),
+                user_role=user.get("role_str", "advokat"), akcija=Akcija.VIEW_CONFIDENTIAL,
+                entitet_id=klijent_id,
+                detalji={"polja": ["jmbg", "broj_pasosa", "pib"]},
+                ip_adresa=ip,
+            )
+        except AuditNijeZapisan as _ae:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(_ae),
+            ) from _ae
         # Dekriptuj CONFIDENTIAL polja, pa ukloni encrypted verzije iz response
         # (ne sme da se vrate i enc_v1:... i plaintext u istom response)
         for enc_field, plain_key in [

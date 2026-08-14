@@ -66,6 +66,54 @@ async def log_event(
         logger.warning("[AUDIT] log_event greška (non-blocking): %s", e)
 
 
+class AuditNijeZapisan(RuntimeError):
+    """Audit poverljivog pristupa nije upisan — radnja se mora prekinuti."""
+
+
+async def log_event_strict(**kw) -> None:
+    """Audit koji NE SME da propadne tiho.
+
+    BETA-P0-SENSITIVE-DATA-AUDIT.
+
+    `log_event` iznad je namerno „fire-and-forget" i takav ostaje — ima preko 20
+    pozivalaca kojima je to ispravna semantika (pregled liste, izmena naziva,
+    izvoz). Za jednu jedinu klasu radnji to nije prihvatljivo: dešifrovanje
+    JMBG-a, broja pasoša i PIB-a.
+
+    Ranije je pad upisa audita bio `logger.warning`, pa bi tok nastavio do
+    `decrypt_field` i najosetljiviji podatak klijenta izašao bi iz sistema **bez
+    ijednog traga o tome ko ga je i kada video**. Za advokata to nije samo
+    tehnički propust nego gubitak dokazivosti.
+
+    Ovde se izuzetak DIŽE. Pozivalac mora odbiti radnju — nema uvida bez traga.
+
+    Namerno NE prima plaintext: `detalji` nosi samo IMENA polja
+    (`{"polja": ["jmbg"]}`), nikad vrednosti.
+    """
+    supa = kw["supa"]
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("klijenti_audit").insert({
+                "user_id":     kw.get("user_id"),
+                "user_email":  kw.get("user_email"),
+                "user_role":   kw.get("user_role"),
+                "akcija":      kw.get("akcija"),
+                "entitet_tip": kw.get("entitet_tip", "klijent"),
+                "entitet_id":  kw.get("entitet_id"),
+                "detalji":     kw.get("detalji") or {},
+                "ip_adresa":   kw.get("ip_adresa"),
+            }).execute()
+        )
+    except Exception as e:
+        logger.error("[AUDIT] STROGI audit nije upisan — radnja se odbija: %s", e)
+        raise AuditNijeZapisan(
+            "Pristup poverljivim podacima nije mogao biti evidentiran. "
+            "Uvid je odbijen."
+        ) from e
+    logger.info("[AUDIT] %s uid=%.8s eid=%s (strogi)",
+                kw.get("akcija"), str(kw.get("user_id"))[:8], kw.get("entitet_id"))
+
+
 def get_client_ip(request) -> Optional[str]:
     """Izvlači IP adresu iz request headera (Render proxy-aware)."""
     if request is None:
