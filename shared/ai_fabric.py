@@ -531,11 +531,48 @@ def _govern_request(request: AIRequest) -> AIRequest:
         raise GovernanceRejection("user_id mora biti string ako je prisutan.")
 
     # Postojeći prompt guard iz security sloja -- REUSE, ne nova implementacija.
+    #
+    # BETA-NIGHT-STABILIZATION / TASK 3 (FS-P1-42).
+    #
+    # Ovde je stajalo:
+    #
+    #     try:
+    #         from security.prompt_guard import sanitize_prompt
+    #         request.prompt = sanitize_prompt(request.prompt)
+    #     except ImportError:
+    #         pass
+    #
+    # Dve greske, obe tihe:
+    #
+    #   1. `sanitize_prompt` NE POSTOJI. `security/prompt_guard.py` izlaze
+    #      `analyze()` / `wrap_for_ai()`. Uvoz je dakle padao SVAKI PUT, pa
+    #      guard nikada nije bio primenjen -- iako komentar iznad tvrdi da jeste.
+    #   2. `except ImportError: pass` je NOT_ATTEMPTED pretvarao u SUCCESS na
+    #      BEZBEDNOSNOJ kontroli. Governance funkcija je vracala zahtev kao
+    #      „provereno" a nista nije proverila.
+    #
+    # Kanonski obrazac postoji i preuzet je doslovno iz `shared/ai_client.py`:
+    # ako analizator nije dostupan, poziv se ODBIJA, ne propusta.
+    #
+    # Napomena o dostiznosti: `ai_fabric` danas nema nijednog produkcijskog
+    # uvoza -- dokazano i staticki (grep za `from/import`, dinamicki string uvoz)
+    # i runtime-om (`ai_fabric` nije u `sys.modules` posle `import api`). Zamka
+    # se zatvara zato sto je napunjena: modul nosi Anthropic i Gemini adaptere
+    # koje monkeypatch iz `ai_client` NE pokriva, pa bi prvi buduci pozivalac
+    # dobio AI putanju potpuno van guard-a, i to tiho.
     try:
-        from security.prompt_guard import sanitize_prompt  # type: ignore
-        request.prompt = sanitize_prompt(request.prompt)
-    except ImportError:
-        pass
+        from security.prompt_guard import analyze as _analiziraj
+    except Exception as exc:
+        raise GovernanceRejection(
+            "Prompt guard nije dostupan (%s) — poziv se odbija." % type(exc).__name__
+        ) from exc
+
+    _nalaz = _analiziraj(request.prompt or "")
+    if getattr(_nalaz, "blocked", False):
+        raise GovernanceRejection(
+            "Prompt guard je blokirao zahtev (risk_score=%.3f)."
+            % getattr(_nalaz, "risk_score", 0.0)
+        )
     return request
 
 
