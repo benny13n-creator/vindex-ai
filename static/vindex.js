@@ -774,12 +774,31 @@ async function tosAccept() {
   var chk = document.getElementById('tos-confirm-chk');
   if (chk && !chk.checked) return;
   if (!currentSession) return;
+
+  // FS-P1-30. Overlay se zatvarao BEZUSLOVNO, a `catch` je bio prazan. Server
+  // je mogao ostati bez zapisa o prihvatanju Uslova koriscenja -- pravno
+  // obavezujuceg cina. Sada se overlay zatvara tek kad server potvrdi.
+  var btn = document.getElementById('tos-accept-btn');
+  var err = document.getElementById('tos-greska');
+  if (btn) { btn.disabled = true; btn.dataset.stanje = 'SUBMITTING'; }
+  if (err) err.style.display = 'none';
   try {
-    await fetch(BASE_URL + '/api/tos/accept', {
+    var r = await fetch(BASE_URL + '/api/tos/accept', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
     });
-  } catch(e) {}
+    if (!r || !r.ok) throw new Error('server nije potvrdio prihvatanje');
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.dataset.stanje = 'FAILED'; }
+    if (err) {
+      err.textContent = 'Prihvatanje NIJE zabeleženo. Pokušajte ponovo.';
+      err.style.display = 'block';
+    } else {
+      showToast('Prihvatanje Uslova NIJE zabeleženo. Pokušajte ponovo.', 'err');
+    }
+    return;
+  }
+  if (btn) btn.dataset.stanje = 'CONFIRMED';
   var ov = document.getElementById('tos-overlay');
   if (ov) ov.style.display = 'none';
 }
@@ -4510,16 +4529,25 @@ async function dodajKomentar() {
   if (!inp || !_aktPredmetId) return;
   var tekst = inp.value.trim();
   if (!tekst) return;
+  // FS-P1-28. `inp.value = ''` se izvrsavao bez ijedne provere, a `catch` je
+  // bio prazan -- otkucan komentar je nestajao i kad server nije primio nista.
+  // Polje se sada cisti ISKLJUCIVO posle potvrde.
   inp.disabled = true;
+  inp.dataset.stanje = 'SUBMITTING';
   try {
-    await fetch('/predmeti/'+_aktPredmetId+'/komentari', {
+    var r = await fetch('/predmeti/'+_aktPredmetId+'/komentari', {
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+currentSession.access_token},
       body: JSON.stringify({tekst: tekst})
     });
+    if (!r || !r.ok) throw new Error('komentar nije sacuvan');
     inp.value = '';
+    inp.dataset.stanje = 'CONFIRMED';
     ucitajKomentare(_aktPredmetId);
-  } catch(e) {}
+  } catch(e) {
+    inp.dataset.stanje = 'FAILED';
+    showToast('Komentar NIJE sačuvan — tekst je ostao u polju, pokušajte ponovo.', 'err');
+  }
   inp.disabled = false;
 }
 
@@ -11288,8 +11316,11 @@ async function timer_stop() {
   var elapsed_s = Math.floor((Date.now() - data.start) / 1000);
   var elapsed_h = parseFloat((elapsed_s / 3600).toFixed(4));
 
+  // FS-P1-29. `localStorage.removeItem(key)` je stajao OVDE -- pre POST-a.
+  // Kad upis padne, izmereno naplativo vreme je bilo nepovratno izgubljeno:
+  // toast jeste bio iskren, ali sati vise nisu postojali ni u pregledacu.
+  // Merenje se sada brise TEK kad server potvrdi da je unos sacuvan.
   if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
-  localStorage.removeItem(key);
 
   var startBtn = document.getElementById('pred-timer-start-btn');
   var stopBtn  = document.getElementById('pred-timer-stop-btn');
@@ -11299,6 +11330,7 @@ async function timer_stop() {
   if (dispEl)   dispEl.textContent     = '00:00:00';
 
   if (elapsed_h < 0.0028) { // < ~10 sec — ignoriši
+    localStorage.removeItem(key);
     showToast('Tajmer resetovan (trajanje prekratko).', 'info');
     return;
   }
@@ -11317,13 +11349,15 @@ async function timer_stop() {
       })
     });
     if (r.ok) {
+      localStorage.removeItem(key);   // tek sada je merenje bezbedno odbaciti
       showToast('Tajmer zaustavljen — ' + hStr + '. Radnja dodata u naplatu.', 'ok');
     } else {
-      var d = await r.json();
-      showToast(d.detail || 'Tajmer zatvoren, greška pri čuvanju.', 'err');
+      var d = await r.json().catch(function(){ return {}; });
+      showToast((d.detail || 'Radnja NIJE sačuvana') + ' — izmereno ' + hStr
+                + ' je zadržano, pokušajte ponovo.', 'err');
     }
   } catch(e) {
-    showToast('Greška veze — radnja nije sačuvana.', 'err');
+    showToast('Greška veze — izmereno ' + hStr + ' je zadržano, pokušajte ponovo.', 'err');
   }
 }
 
@@ -19009,11 +19043,23 @@ function evidence_reklasifikuj(dokId) {
 function evidence_addDokaz() {
   var tvrdnja = prompt('Unesite dokaznu stavku (tvrdnju, činjenicu, dokaz):');
   if (!tvrdnja || !activePredmetId || !currentSession) return;
+  // FS-P1-27. `r.ok` se nije gledao i nije bilo `.catch()`. Tekst tvrdnje
+  // dolazi iz `prompt()` i NEPOVRATAN je -- „Dokaz dodat ✓" uz izgubljen tekst
+  // je najgora moguca kombinacija. Zato se pri neuspehu tvrdnja vraca korisniku
+  // u poruci, da moze da je kopira.
   fetch('/api/evidence/predmeti/' + activePredmetId + '/dokaz', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
     body: JSON.stringify({ tvrdnja: tvrdnja })
-  }).then(function(r){ return r.json(); }).then(function(){ evidence_load(); showToast('Dokaz dodat ✓'); });
+  }).then(function(r){
+    if (!r || !r.ok) throw new Error('dokaz nije sacuvan');
+    return r.json();
+  }).then(function(){
+    evidence_load();
+    showToast('Dokaz dodat ✓');
+  }).catch(function(){
+    showToast('Dokaz NIJE sačuvan. Vaš tekst: „' + tvrdnja + '" — sačuvajte ga i pokušajte ponovo.', 'err');
+  });
 }
 
 function evidence_deleteDokaz(dokazId) {
@@ -23779,14 +23825,25 @@ async function profitabilnost_load(predmetId) {
 
 async function profitabilnost_toggleOptIn(cb) {
   if (!currentSession) return;
+  // FS-P1-31. Pregledac je vec prebacio checkbox pre nego sto je funkcija
+  // pozvana, a `r.ok` se nije gledao -- UI je pokazivao jedno, server drugo, i
+  // to do sledeceg reload-a. Ovo je GDPR saglasnost, ne podesavanje teme.
+  var trazeno = cb.checked;
+  cb.disabled = true;
   try {
-    await fetch(BASE_URL + '/api/benchmarking/opt-in', {
+    var r = await fetch(BASE_URL + '/api/benchmarking/opt-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.access_token },
-      body: JSON.stringify({ saglasan: cb.checked })
+      body: JSON.stringify({ saglasan: trazeno })
     });
-    showToast(cb.checked ? 'Benchmark učešće aktivirano.' : 'Benchmark učešće deaktivirano.', 'ok');
-  } catch(e) { showToast('Greška pri ažuriranju podešavanja.', 'error'); }
+    if (!r || !r.ok) throw new Error('saglasnost nije zabelezena');
+    showToast(trazeno ? 'Benchmark učešće aktivirano.' : 'Benchmark učešće deaktivirano.', 'ok');
+  } catch(e) {
+    cb.checked = !trazeno;   // vrati prikaz na stvarno stanje servera
+    showToast('Saglasnost NIJE promenjena — ostalo je kako je bilo.', 'err');
+  } finally {
+    cb.disabled = false;
+  }
 }
 
 // ── Portal.sud.rs praćenje ────────────────────────────────────────────────────
