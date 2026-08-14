@@ -824,21 +824,38 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
     NO-STORAGE POLICY (Basic API tier): čuvamo samo hash pitanja i tip — bez sadržaja.
     ZZPL čl. 5(1)(c) — minimizacija podataka.
     """
+    qh = _q_hash(req.pitanje)
     try:
-        qh = _q_hash(req.pitanje)
-        await asyncio.to_thread(
+        _ins = await asyncio.to_thread(
             lambda: _get_supa().table("feedback").insert({
                 "user_id": user["user_id"],
                 "q_hash":  qh,
                 "tip":     req.tip,
             }).execute()
         )
-        logger.info("Feedback [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, qh)
-        return {"status": "ok"}
+        # BETA-P1-FEEDBACK-TRUTH: prazan `data` znaci da nijedan red nije upisan.
+        if not getattr(_ins, "data", None):
+            raise RuntimeError("upis nije vratio nijedan red")
     except Exception as _exc:
+        # BETA-P1-FEEDBACK-TRUTH.
+        #
+        # Ovde je ranije stajalo `return {"status": "ok"}` -- doslovno ista
+        # vrednost kao kod uspeha. Kolona `q_hash` NE POSTOJI u produkciji
+        # (mereno: `feedback` ima samo id, user_id, tip, created_at), pa je
+        # SVAKI poziv padao na 42703 i svaki je javljao „ok".
+        #
+        # Ovo je jedini kanal kojim advokat prijavljuje POGRESAN PRAVNI SADRZAJ.
+        # Tisina na tom kanalu znaci da mi ne saznajemo za netacne odgovore, a
+        # korisnik veruje da jesmo. Zato neuspeh sada IZLAZI iz funkcije.
         _sentry_capture(_exc)
-        logger.exception("Greška u /api/feedback")
-        return {"status": "ok"}
+        logger.error("[FEEDBACK] prijava NIJE zabelezena [uid=%.8s] [q=%s]: %s",
+                     user["user_id"], qh, _exc)
+        return _greska_odgovor(
+            503, "Prijava NIJE zabeležena. Pokušajte ponovo ili nam pišite na "
+                 "kontakt@vindex.ai.")
+
+    logger.info("Feedback [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, qh)
+    return {"status": "ok"}
 
 
 @router.post("/api/podnesak")

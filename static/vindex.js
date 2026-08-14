@@ -8093,19 +8093,53 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
       timestamp:       new Date().toISOString()
     });
     // Supabase JS ne baca izuzetak -- gresku vraca u objektu.
-    if (_upis && _upis.error) {
-      btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
-      btn.disabled = false;
-      showToast('Prijava NIJE sačuvana: ' + (_upis.error.message || 'greška baze'), 'err');
+    var _primarniOk = !(_upis && _upis.error);
+
+    // BETA-P1-FEEDBACK-TRUTH (2026-08-14): rezervni kanal se salje UVEK.
+    //
+    // Ranije je pad primarnog kanala radio `return` PRE ovog poziva, pa je
+    // rezervni kanal -- jedini preostali trag -- ostajao neposlat tacno u
+    // trenutku kad je jedini koji jos moze da uspe. Odgovor se gubio na oba.
+    //
+    // Rezervni kanal cuva SAMO hes pitanja i tip (`routers/drafting.py`,
+    // NO-STORAGE politika) -- dakle nikad sam po sebi nije puna prijava, jer
+    // tekst pogresnog pravnog odgovora ne prezivljava. Zato se ishod razdvaja
+    // na tri stanja i nijedno se ne prikazuje kao ono jace od sebe.
+    var _rezervniOk = false;
+    try {
+      var _fr = await fetch(BASE_URL + '/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
+        body: JSON.stringify({ pitanje: pitanje, odgovor: odgovor, tip: 'greska' })
+      });
+      _rezervniOk = !!(_fr && _fr.ok);
+    } catch(_e) { _rezervniOk = false; }
+
+    if (_primarniOk) {
+      btn.textContent = '\u2713 Prijavljeno \u2014 hvala'; btn.classList.add('sent'); btn.disabled = true;
       return;
     }
-    // Šalji i hash na backend (bez sadržaja, za serverski log)
-    fetch(BASE_URL + '/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+currentSession.access_token },
-      body: JSON.stringify({ pitanje: pitanje, odgovor: odgovor, tip: 'greska' })
-    }).catch(function(){});
-    btn.textContent = '\u2713 Prijavljeno \u2014 hvala'; btn.classList.add('sent'); btn.disabled = true;
+    if (_rezervniOk) {
+      // Znamo DA je odgovor prijavljen, ali ne i STA je u njemu pisalo.
+      //
+      // Dugme NAMERNO ostaje aktivno, a tekst NAMERNO ne sadrzi rec
+      // „Prijavljeno": delimican ishod ne sme ni da izgleda ni da se ponasa kao
+      // pun. Ponovni pokusaj ovde ne stete nista -- najgore sto se moze desiti
+      // je jos jedan red sa istim hesom.
+      btn.textContent = '⚠ Bez sadržaja — pokušajte ponovo';
+      btn.disabled = false;
+      showToast('Prijava je zabeležena, ali BEZ teksta odgovora. Ako je sadržaj '
+                + 'bitan, pošaljite ga na kontakt@vindex.ai.', 'err');
+      return;
+    }
+    // Oba kanala pala. Poruka baze je sirov engleski PostgREST tekst i ne
+    // prikazuje se advokatu -- ide u konzolu, gde joj je mesto.
+    console.error('[Vindex] prijava netačnog odgovora nije upisana:',
+                  _upis && _upis.error);
+    btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
+    btn.disabled = false;
+    showToast('Prijava NIJE zabeležena. Pokušajte ponovo ili nam pišite na '
+              + 'kontakt@vindex.ai.', 'err');
   } catch(e) {
     console.error('[Vindex] sendFeedback greška:', e);
     btn.textContent = '\u26d1 Prijavi neta\u010dan odgovor'; btn.disabled = false;
