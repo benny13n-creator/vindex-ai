@@ -32,9 +32,23 @@ ZAŠTO SE OVO NE MOŽE ZATVORITI SAMO KODOM
 
 Signal koji vredi je „koji odgovor je bio pogrešan". Bez `q_hash` i bez
 `reported_errors` taj signal ne postoji ni u jednom obliku. Zato je uz kod
-napisana migracija `113_feedback_truth.sql` — **nije pokrenuta**, čeka vlasnika.
+napisana migracija `113_feedback_truth.sql`.
 
-Do tada kod govori istinu: prijava koja nije zabeležena vraća grešku.
+STANJE 2026-08-14 (BETA-NIGHT-STABILIZATION, TASK 1) — MIGRACIJA JE PRIMENJENA
+
+Dokazano read-only sondama nad produkcijom, ne pretpostavljeno:
+
+    feedback?select=q_hash&limit=0     400/42703  ->  200
+    reported_errors?select=id&limit=0  404/PGRST205 -> 200 (0 redova)
+    reported_errors: user_id, original_prompt, ai_response, timestamp — sve postoje
+
+Oba kanala prijave sada imaju skladište. Testovi ispod zato više ne opisuju
+„stanje pre migracije" nego INVARIJANTU: upis koji baza odbije nikad ne sme
+izaći kao uspeh — ni danas, ni posle eventualnog rollback-a šeme.
+
+NEPROVERENO: RLS politike nad `reported_errors` nisu potvrđene jer
+`SUPABASE_ANON_KEY` nije dostupan u okruženju. Deklarisane su u migraciji, ali
+njihovo PONAŠANJE nije izmereno — v. `FALSE_SUCCESS_DECISIONS.md`.
 """
 import asyncio
 import io
@@ -59,12 +73,20 @@ UID = "uid-advokat"
 PITANJE = "Da li otkaz bez pisanog upozorenja proizvodi dejstvo?"
 ODGOVOR = "Član 180 ZOR — otkaz je ništav."
 
-# Kolone koje `feedback` STVARNO ima u produkciji danas (izmereno preko
-# PostgREST OpenAPI korena, ne pretpostavljeno).
-KOLONE_DANAS = {"id", "user_id", "tip", "created_at"}
+# Šema `feedback` PRE migracije 113 (izmereno 2026-08-14): bez `q_hash`.
+# Zadržana je namerno — to je stanje u kom je ruta padala na 42703 i lagala
+# „ok", pa test ispod dokazuje da se takvo stanje NIKAD ne sme prikazati kao
+# uspeh, čak i ako se šema ikad vrati unazad.
+KOLONE_PRE_113 = {"id", "user_id", "tip", "created_at"}
 
-# Kolone posle migracije 113.
-KOLONE_POSLE_113 = KOLONE_DANAS | {"q_hash"}
+# Šema `feedback` U PRODUKCIJI DANAS. Migracija 113 JE primenjena — dokazano
+# read-only sondom 2026-08-14 u BETA-NIGHT-STABILIZATION:
+#     ?select=q_hash&limit=0   400/42703  ->  200
+#     reported_errors          404/PGRST205 -> 200 (0 redova)
+KOLONE_DANAS = KOLONE_PRE_113 | {"q_hash"}
+
+# Zadržan stari naziv da postojeći testovi u ovom fajlu ostanu čitljivi.
+KOLONE_POSLE_113 = KOLONE_DANAS
 
 
 class _Supa:
@@ -108,22 +130,26 @@ def _status(odgovor):
 # 1. SRŽ — NEUSPELA PRIJAVA NIKAD NIJE „ok"
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_prijava_na_DANASNJOJ_semi_ne_sme_da_kaze_ok():
+def test_prijava_na_semi_BEZ_q_hash_ne_sme_da_kaze_ok():
     """NAJVAŽNIJI TEST U FAJLU.
 
-    Ovo je tačno današnja produkcija: `feedback` bez `q_hash`. Pre popravke je
-    ovaj poziv vraćao `{"status": "ok"}` — dakle sistem je 100% prijava
-    netačnih pravnih odgovora bacao i svaku od njih potvrđivao.
+    Ovo je bila produkcija do migracije 113: `feedback` bez `q_hash`. Ruta je
+    padala na 42703 i svaku od 100% odbačenih prijava potvrđivala kao „ok".
+
+    Migracija je u međuvremenu primenjena, ali test OSTAJE: on više ne opisuje
+    današnju šemu nego INVARIJANTU — upis koji baza odbije nikad ne sme izaći
+    kao uspeh. Da se kolona ikad izgubi (rollback, restore, drift), tišina se
+    neće vratiti neprimećeno.
     """
-    supa = _Supa(KOLONE_DANAS)
+    supa = _Supa(KOLONE_PRE_113)
     odg = _pozovi(supa)
     assert _status(odg) >= 500, f"neuspela prijava vraća {odg!r}"
     assert supa.upisano == [], "ništa nije upisano, a to je i poenta"
 
 
-def test_prijava_POSLE_migracije_113_prolazi():
-    """Ista ruta, ista šema kakvu migracija 113 pravi — sada mora da uspe.
-    Bez ovoga bi popravka mogla biti „uvek vraćaj grešku"."""
+def test_prijava_na_DANASNJOJ_produkcionoj_semi_prolazi():
+    """Šema koja je DANAS u produkciji (migracija 113 primenjena i dokazana
+    sondom). Bez ovoga bi popravka mogla biti „uvek vraćaj grešku"."""
     supa = _Supa(KOLONE_POSLE_113)
     odg = _pozovi(supa)
     assert _status(odg) == 200

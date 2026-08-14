@@ -1,4 +1,17 @@
 -- ============================================================================
+-- STATUS: PRIMENJENA. Potvrdjeno read-only sondama 2026-08-14
+-- (BETA-NIGHT-STABILIZATION, TASK 1):
+--     feedback?select=q_hash&limit=0     400/42703    -> 200
+--     reported_errors?select=id&limit=0  404/PGRST205 -> 200 (0 redova)
+--     reported_errors ima user_id, original_prompt, ai_response, timestamp
+--
+-- NEPROVERENO: ponasanje RLS politika (nema `SUPABASE_ANON_KEY` u okruzenju).
+-- Politike su deklarisane ispod; njihov EFEKAT nije izmeren.
+--
+-- Fajl se zadrzava kao istorijski artefakt i kao izvor istine za test
+-- `test_migracija_113_deklarise_q_hash_i_reported_errors`. Idempotentan je
+-- (sve `IF NOT EXISTS`), pa ponovno pokretanje ne radi nista.
+-- ============================================================================
 -- Migracija 113 — PRIJAVA NETACNOG PRAVNOG ODGOVORA (BETA-P1-FEEDBACK-TRUTH)
 --
 -- PROBLEM (mereno protiv produkcije 2026-08-14, samo citanjem)
