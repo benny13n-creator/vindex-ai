@@ -134,16 +134,11 @@ def test_6b_nedostupan_guard_ODBIJA_poziv_a_ne_propusta():
     `except ImportError: pass` je NOT_ATTEMPTED pretvarao u SUCCESS na
     bezbednosnoj kontroli. Sada nedostupan analizator znači odbijen poziv.
     """
-    import builtins
-
-    stvarni_uvoz = builtins.__import__
-
-    def _pukni(ime, *a, **k):
-        if ime == "security.prompt_guard":
-            raise ImportError("modul nedostupan")
-        return stvarni_uvoz(ime, *a, **k)
-
-    with patch.object(builtins, "__import__", side_effect=_pukni):
+    # `sys.modules[ime] = None` je dokumentovan nacin da uvoz digne ImportError.
+    # NAMERNO se ne krpi `builtins.__import__`: to je globalno stanje koje bi za
+    # trajanje testa presretalo uvoze i u drugim nitima (Playwright, background
+    # taskovi) -- landmine u punoj suiti, a meri istu stvar.
+    with patch.dict(sys.modules, {"security.prompt_guard": None}):
         with pytest.raises(GovernanceRejection) as e:
             _govern_request(AIRequest(task="t", prompt="bilo šta"))
     assert "nije dostupan" in str(e.value)

@@ -44,8 +44,14 @@ def server():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    socketserver.TCPServer.allow_reuse_address = True
-    srv = socketserver.TCPServer(("127.0.0.1", port), Tih)
+    # BETA-NIGHT-STABILIZATION / TASK 9: jednonitni `TCPServer` serijalizuje
+    # SVE zahteve. Pregledac za `index.html` otvara vise paralelnih konekcija
+    # (HTML + 9.5k linija JS + CSS + fontovi), pa jedna spora blokira ostale i
+    # `domcontentloaded` ume da probije 30s -- izmereno kao flake u punoj suiti.
+    # Threading varijanta nije „veci timeout" nego uklanjanje uskog grla.
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.daemon_threads = True
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", port), Tih)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         yield f"http://127.0.0.1:{port}"
