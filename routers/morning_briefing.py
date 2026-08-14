@@ -40,6 +40,7 @@ from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 from shared.case_context import build_case_context
 from shared.case_readiness import top_open_action
+from shared import rokovi as _rokovi_domen
 from shared.attention_priority import canonical_sort_key
 
 logger = logging.getLogger("vindex.morning_briefing")
@@ -111,15 +112,9 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                 .limit(20)
                 .execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("id, naziv, datum, tip, predmet_id, opis")
-                .eq("user_id", uid)
-                .gte("datum", danas.isoformat())
-                .lte("datum", za_7.isoformat())
-                .order("datum")
-                .execute()
-        ),
+        # BETA-DEADLINE-DOMAIN-001: `rokovi` je tabela bez ijednog pisca i bez
+        # postojanja u produkciji. Kanonski izvor je `predmet_hronologija`.
+        _rokovi_domen.rokovi_za_korisnika(supa, uid, od=danas, do=za_7, limit=100),
         asyncio.to_thread(
             lambda: supa.table("rocista")
                 .select("id, sud, datum, vreme, predmet_id, status")
@@ -136,16 +131,9 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                 .limit(100)
                 .execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("id, naziv, datum, tip, predmet_id, opis")
-                .eq("user_id", uid)
-                .gte("datum", pre_90.isoformat())
-                .lt("datum", danas.isoformat())
-                .order("datum", desc=True)
-                .limit(20)
-                .execute()
-        ),
+        # Propusteni rokovi (BLACKSWAN-CRIT-002 putanja) -- isti kanonski izvor.
+        _rokovi_domen.rokovi_za_korisnika(
+            supa, uid, od=pre_90, do=danas - timedelta(days=1), limit=20),
         asyncio.to_thread(
             lambda: supa.table("rocista")
                 .select("id, sud, datum, vreme, predmet_id, status")
@@ -160,10 +148,17 @@ async def _generiši_briefing(uid: str, supa) -> dict:
     )
 
     predmeti = predmeti_r.data or []
-    rokovi   = rokovi_r.data   or []
     rocista  = rocista_r.data  or []
-    rokovi_propusteni  = rokovi_propusteni_r.data  or []
     rocista_propustena = rocista_propustena_r.data or []
+
+    # Neuspeh citanja rokova NE postaje prazan brifing. `_generisi_briefing`
+    # nema try oko `gather`-a, pa bi ranije 500 srusio ceo brifing; sada se
+    # razlika prenosi kao stanje i brifing to izricito kaze.
+    rokovi_dostupni = rokovi_r.uspeh and rokovi_propusteni_r.uspeh
+    rokovi = [r.kao_dict() for r in (rokovi_r.rokovi if rokovi_r.uspeh else [])]
+    rokovi_propusteni = [
+        r.kao_dict() for r in (rokovi_propusteni_r.rokovi if rokovi_propusteni_r.uspeh else [])
+    ]
 
     def _dani_do(datum_str: str) -> int:
         try:
@@ -212,6 +207,15 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             f"ROKOVI OVE NEDELJE ({len(rokovi_uskoro)}):\n" +
             "\n".join(f"- {r.get('naziv','Rok')} — {r['datum']}" for r in rokovi_uskoro)
         )
+    if not rokovi_dostupni:
+        # BETA-DEADLINE-DOMAIN-001: bez ovoga model dobija odsustvo rokova kao
+        # cinjenicu i napise „miran dan" advokatu koji ima rok sutra.
+        parts.append(
+            "ROKOVI: NEPOZNATO — rokovi nisu pročitani iz baze. NE tvrdi da "
+            "rokova nema, NE nazivaj dan mirnim, i izričito upozori advokata "
+            "da proveri rokove ručno."
+        )
+
     if predmeti:
         # Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
         # found this function had ZERO access to case_dna/predmet_dokumenti/
@@ -371,6 +375,9 @@ Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Eka
             _otvaranje = f"Danas vas čeka {len(rocista_danas)} ročište — dan je zauzet."
         elif rokovi_hitni:
             _otvaranje = f"Nema ročišta danas, ali {len(rokovi_hitni)} rok(ova) ističe uskoro."
+        elif not rokovi_dostupni:
+            _otvaranje = ("⚠ Rokovi trenutno nisu dostupni — odsustvo rokova u ovom "
+                          "brifingu NE znači da ih nema. Proverite ih ručno.")
         else:
             _otvaranje = "Nema hitnih obaveza za danas — miran dan."
 
@@ -394,6 +401,8 @@ Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Eka
     return {
         "datum": danas.isoformat(),
         "ai_briefing": ai_tekst,
+        # Prazna lista rokova je istina SAMO kad je ovo `True`.
+        "rokovi_dostupni": rokovi_dostupni,
         "statistike": {
             "aktivnih_predmeta":  len(predmeti),
             "rokova_ove_nedelje": len(rokovi),
@@ -1131,33 +1140,22 @@ async def today_focus(
         aktivnih_predmeta = 0
 
     # ── Korak 2: Hitni rokovi ≤3 dana ────────────────────────────────────────
+    # BETA-DEADLINE-DOMAIN-001. Ovde je bio `except Exception: pass` nad
+    # tabelom koja ne postoji -- `/today-focus` je SVAKI put tvrdio da hitnih
+    # rokova nema. Kanonski sloj razliku „prazno" / „nisam mogao" nosi u stanju.
     hitni_rokovi: list[dict] = []
-    try:
-        rr = await asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("predmet_id,naziv,datum,tip")
-                .eq("user_id", uid)
-                .gte("datum", today_iso)
-                .lte("datum", in_3d_iso)
-                .order("datum")
-                .limit(10)
-                .execute()
-        )
-        for r in (rr.data or []):
-            datum = r.get("datum", "")
-            try:
-                dana_do = (date.fromisoformat(datum) - now.date()).days
-            except Exception:
-                dana_do = 0
-            hitni_rokovi.append({
-                "predmet_naziv": pred_map.get(r.get("predmet_id", ""), ""),
-                "rok_naziv":     r.get("naziv", ""),
-                "datum":         datum,
-                "dana_do":       dana_do,
-                "urgentnost":    "hitno" if dana_do <= 1 else "uskoro",
-            })
-    except Exception:
-        pass
+    _rez_rokovi = await _rokovi_domen.rokovi_za_korisnika(
+        supa, uid, od=date.fromisoformat(today_iso),
+        do=date.fromisoformat(in_3d_iso), limit=10)
+    rokovi_dostupni = _rez_rokovi.uspeh
+    for r in _rez_rokovi.rokovi:
+        hitni_rokovi.append({
+            "predmet_naziv": pred_map.get(r.predmet_id, ""),
+            "rok_naziv":     r.naslov,
+            "datum":         r.datum.isoformat(),
+            "dana_do":       r.dana_do,
+            "urgentnost":    "hitno" if r.dana_do <= 1 else "uskoro",
+        })
 
     # ── Korak 3: Ročišta ove nedelje ─────────────────────────────────────────
     rocista_nedelja: list[dict] = []
@@ -1245,7 +1243,7 @@ async def today_focus(
         rokovi_txt = "; ".join(
             f"{r['predmet_naziv']} ({r['rok_naziv']}, {r['dana_do']}d)"
             for r in hitni_rokovi[:3]
-        ) or "nema"
+        ) or ("nema" if rokovi_dostupni else "NEPOZNATO — nisu pročitani iz baze")
         rocista_txt = "; ".join(
             f"{r['predmet_naziv']} {r['datum']} {r['sud']}"
             for r in rocista_nedelja[:3]
@@ -1295,6 +1293,9 @@ async def today_focus(
         elif rocista_nedelja:
             r0 = rocista_nedelja[0]
             ai_poruka = f"Imate rociste u sudu '{r0.get('sud', '')}' dana {r0.get('datum', '')}. Pripremite se."
+        elif not rokovi_dostupni:
+            ai_poruka = ("Rokovi trenutno nisu dostupni — odsustvo rokova ovde NE "
+                         "znaci da ih nema. Proverite ih rucno.")
         else:
             ai_poruka = "Nema hitnih rokova ni rocista. Dobar dan za stratesko planiranje."
 
@@ -1311,6 +1312,7 @@ async def today_focus(
         "datum":                today_iso,
         "ai_poruka":            ai_poruka,
         "hitni_rokovi":         hitni_rokovi,
+        "rokovi_dostupni":      rokovi_dostupni,
         "rocista_nedelja":      rocista_nedelja,
         "zapostavljeni_predmeti": zapostavljeni,
         "lekcije_na_cekanju":   lekcije_na_cekanju,

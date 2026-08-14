@@ -126,7 +126,7 @@ async def test_command_center_degrades_gracefully_on_query_timeout():
 
     with patch.object(dashboard, "_get_supa", return_value=MagicMock()), \
          patch.object(dashboard, "gather_with_timeout", new=AsyncMock(
-             return_value=(asyncio.TimeoutError("t"),) * 13
+             return_value=(asyncio.TimeoutError("t"),) * 12
          )):
         result = await asyncio.wait_for(
             dashboard.command_center(_req(), {"user_id": "u1"}), timeout=3.0
@@ -134,6 +134,16 @@ async def test_command_center_degrades_gracefully_on_query_timeout():
 
     # Must return a valid (degraded/empty) response, not hang or crash.
     assert isinstance(result, dict)
+
+    # BETA-DEADLINE-DOMAIN-001 (2026-08-14): fan-out je 13 -> 12 jer je upit nad
+    # nepostojecom tabelom `rokovi` uklonjen (kanonski izvor je jedan). Broj je
+    # bio jedina stvar vezana za implementaciju u ovom testu.
+    #
+    # Uz to: „degradirano" vise ne sme da znaci „prazan dan". Timeout nad
+    # rokovima mora biti VIDLJIV, inace je ovo tacno onaj lazno-zeleni ekran
+    # zbog kog domen rokova postoji.
+    assert result["rokovi_dostupni"] is False
+    assert "Sve je pod kontrolom" not in result.get("summary", "")
 
 
 @pytest.mark.anyio

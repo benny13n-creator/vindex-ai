@@ -395,12 +395,20 @@ async def test_command_center_excludes_hearings_and_deadlines_for_archived_case(
         {"id": "r1", "predmet_id": active_id, "sud": "Sud1", "datum": "2026-08-07", "vreme": "10:00", "status": "zakazano"},
         {"id": "r2", "predmet_id": archived_id, "sud": "Sud2", "datum": "2026-08-07", "vreme": "11:00", "status": "zakazano"},
     ]
-    rokovi_tabela = [
-        {"predmet_id": active_id, "naziv": "Rok A", "datum": "2026-08-08", "tip": "podnesak"},
-        {"predmet_id": archived_id, "naziv": "Rok B", "datum": "2026-08-08", "tip": "podnesak"},
+    # BETA-DEADLINE-DOMAIN-001 (2026-08-14): fixture prebacen sa nepostojece
+    # tabele `rokovi` na kanonskog vlasnika `predmet_hronologija`. Invarijanta
+    # koju test cuva -- rok arhiviranog predmeta ne sme na pocetni ekran --
+    # nije promenjena; promenjen je izvor iz kog rok dolazi.
+    from datetime import date as _d, timedelta as _t
+    _sutra = (_d.today() + _t(days=1)).isoformat()
+    hronologija = [
+        {"id": "h1", "predmet_id": active_id, "dogadjaj": "Rok A",
+         "datum_iso": _sutra, "vaznost": "kritičan", "akter": ""},
+        {"id": "h2", "predmet_id": archived_id, "dogadjaj": "Rok B",
+         "datum_iso": _sutra, "vaznost": "kritičan", "akter": ""},
     ]
 
-    supa = test_dashboard._make_cc_supa(predmeti=predmeti, rocista=rocista, rokovi_tabela=rokovi_tabela)
+    supa = test_dashboard._make_cc_supa(predmeti=predmeti, rocista=rocista, rokovi=hronologija)
 
     with patch.object(dash, "_get_supa", return_value=supa):
         result = await dash.command_center(test_dashboard._req(), test_dashboard._user())

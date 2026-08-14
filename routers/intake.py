@@ -26,6 +26,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.intake")
 router = APIRouter(tags=["intake"])
@@ -285,7 +286,7 @@ async def intake_kreiraj(
                     "dogadjaj":   naziv_roka,
                     "datum":      body.prvi_rok,
                     "datum_iso":  body.prvi_rok,
-                    "vaznost":    "bitan",
+                    "vaznost":    _rokovi_domen.normalizuj_vaznost("bitan"),
                     "akter":      "Intake Wizard (AI)",
                 }).execute()
             )

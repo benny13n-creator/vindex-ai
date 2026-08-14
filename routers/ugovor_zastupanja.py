@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.ugovor_zastupanja")
 router = APIRouter(tags=["ugovor"])
@@ -339,7 +340,7 @@ async def post_generiši_ugovor(
                     "dogadjaj":   f"Ugovor o zastupanju zaključen — Klijent: {body.klijent_ime_prezime[:80]}",
                     "datum":      datum,
                     "datum_iso":  datum,
-                    "vaznost":    "kljucan",
+                    "vaznost":    _rokovi_domen.normalizuj_vaznost("kljucan"),
                     "akter":      f"Advokat {body.advokat_ime[:80]}",
                 }).execute()
             )

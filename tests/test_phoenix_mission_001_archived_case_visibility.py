@@ -9,6 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -33,10 +34,16 @@ async def test_guardian_scan_excludes_deadline_on_archived_case():
                 {"id": "pred-active", "status": "aktivan"},
                 {"id": "pred-archived", "status": "zatvoren"},
             ]
-        elif name == "rokovi":
-            t.select.return_value.eq.return_value.gte.return_value.lte.return_value.order.return_value.execute.return_value.data = [
-                {"id": "r1", "naziv": "Rok A", "datum": "2026-08-10", "tip": "podnesak", "predmet_id": "pred-active", "opis": ""},
-                {"id": "r2", "naziv": "Rok B", "datum": "2026-08-10", "tip": "podnesak", "predmet_id": "pred-archived", "opis": ""},
+        elif name == "predmet_hronologija":
+            # BETA-DEADLINE-DOMAIN-001: fixture prebacen sa nepostojece tabele
+            # `rokovi` na kanonskog vlasnika. Invarijanta koju test cuva --
+            # rok na arhiviranom predmetu se ne skenira -- nije promenjena.
+            _d = (date.today() + timedelta(days=2)).isoformat()
+            t.select.return_value.eq.return_value.gte.return_value.lte.return_value.order.return_value.limit.return_value.execute.return_value.data = [
+                {"id": "r1", "dogadjaj": "Rok A", "datum_iso": _d,
+                 "vaznost": "kritičan", "predmet_id": "pred-active", "akter": ""},
+                {"id": "r2", "dogadjaj": "Rok B", "datum_iso": _d,
+                 "vaznost": "kritičan", "predmet_id": "pred-archived", "akter": ""},
             ]
         return t
 

@@ -32,6 +32,8 @@ import os
 import secrets
 import urllib.parse
 from datetime import datetime, date, timezone
+from datetime import timedelta
+from shared import rokovi as _rokovi_domen
 from typing import Optional
 
 import httpx
@@ -391,20 +393,18 @@ async def gcal_sync_rokovi(
 
     access_token = tok_r.data["access_token"]
 
-    rokovi_r = await asyncio.to_thread(
-        lambda: supa.table("rokovi")
-            .select("naziv, datum, opis, predmet_id")
-            .eq("user_id", uid)
-            .gte("datum", date.today().isoformat())
-            .limit(50)
-            .execute()
-    )
+    # BETA-DEADLINE-DOMAIN-001: kanonski izvor rokova. `zahtevaj` neuspeh
+    # pretvara u 503 -- sinhronizacija koja tiho ne posalje nista je gora od
+    # one koja kaze da nije uspela.
+    _rokovi = _rokovi_domen.zahtevaj(await _rokovi_domen.rokovi_za_korisnika(
+        supa, uid, od=date.today(),
+        do=date.today() + timedelta(days=365), limit=50))
 
     synced = 0
     errors = 0
 
     async with httpx.AsyncClient() as client:
-        for rok in (rokovi_r.data or []):
+        for rok in (r.kao_dict() for r in _rokovi):
             try:
                 event_body = {
                     "summary":     f"[Vindex] {rok.get('naziv', 'Rok')}",

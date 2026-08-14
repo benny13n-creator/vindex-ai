@@ -237,43 +237,64 @@ async def test_cc_hitni_rokovi_within_48h():
 
 
 @pytest.mark.anyio
-async def test_cc_rokovi_tabela_merged_into_rokovi_7():
-    """NIGHTLY REPAIR (2026-07-24), Faza 2 item 5: a deadline entered via
-    the "rokovi" table (the one AI Deadline Guardian / zastarelost.py
-    reads, and 30+ other modules write to) must now also appear in the
-    Command Center's rokovi_7/hitni_rokovi -- previously ONLY
-    predmet_hronologija rows were shown here, so a deadline entered
-    through any rokovi-writing flow was invisible on the main dashboard."""
+async def test_cc_rokovi_dolaze_iz_KANONSKOG_izvora():
+    """BETA-DEADLINE-DOMAIN-001 (2026-08-14) — zamenjuje dva testa spajanja.
+
+    STARI UGOVOR
+        „Rok upisan kroz tabelu `rokovi` mora se pojaviti na Command Centru
+        zajedno sa rokovima iz `predmet_hronologija`." (Nightly repair
+        2026-07-24, Faza 2, stavka 5.)
+
+    ZASTO JE STARI BIO POGRESAN
+        Tabela `rokovi` NE POSTOJI u produkciji (`PGRST205`) i u celom repou
+        nema nijedan `INSERT`/`UPDATE`/`UPSERT`/`DELETE` nad njom. Ta polovina
+        spajanja vracala je nula redova svakog dana od kad je dodata, a
+        `_safe()` je gutao gresku -- pa se „nema rokova" i „nisam mogao da
+        pogledam" nisu razlikovali. Stari test je prolazio samo zato sto je
+        njegov lazni Supabase izmisljao redove koje produkcija ne moze imati.
+
+    NOVI UGOVOR
+        Jedan kanonski izvor (`predmet_hronologija` preko `shared/rokovi.py`).
+        Prazna lista je istina SAMO uz `rokovi_dostupni: True`.
+    """
     from routers.dashboard import command_center
     from datetime import date, timedelta
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    sutra = (date.today() + timedelta(days=1)).isoformat()
     preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rokovi_tabela = [{"id": "r1", "naziv": "Žalba na presudu", "datum": tomorrow,
-                       "tip": "zalba_zpp", "predmet_id": PID, "opis": ""}]
-    supa = _make_cc_supa(predmeti=preds, rokovi_tabela=rokovi_tabela)
+    hron  = [{"id": "h1", "predmet_id": PID, "dogadjaj": "Žalba na presudu",
+              "datum_iso": sutra, "vaznost": "kritičan", "akter": ""}]
+    supa = _make_cc_supa(predmeti=preds, rokovi=hron)
     with patch("routers.dashboard._get_supa", return_value=supa):
         result = await command_center(request=_req(), user=_user())
 
+    assert result["rokovi_dostupni"] is True
     assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["rokovi_7_dana"])
     assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["hitni_rokovi"])
+    assert all(r["izvor"] == "predmet_hronologija" for r in result["rokovi_7_dana"])
 
 
 @pytest.mark.anyio
-async def test_cc_rokovi_7_merges_both_sources_without_dropping_either():
+async def test_cc_neuspeh_citanja_rokova_NIJE_prazan_dan():
+    """NAJVAZNIJI TEST U OVOM FAJLU.
+
+    Pad upita nad rokovima ranije je prolazio kroz `_safe()` i zavrsavao kao
+    prazna lista -- ekran je tvrdio „Sve je pod kontrolom".
+    """
     from routers.dashboard import command_center
-    from datetime import date, timedelta
-    in3 = (date.today() + timedelta(days=3)).isoformat()
-    in4 = (date.today() + timedelta(days=4)).isoformat()
     preds = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    hronologija = [{"predmet_id": PID, "dogadjaj": "Iz hronologije", "datum_iso": in3, "vaznost": "srednja"}]
-    rokovi_tabela = [{"id": "r1", "naziv": "Iz rokovi tabele", "datum": in4, "tip": "rok", "predmet_id": PID, "opis": ""}]
-    supa = _make_cc_supa(predmeti=preds, rokovi=hronologija, rokovi_tabela=rokovi_tabela)
-    with patch("routers.dashboard._get_supa", return_value=supa):
+    supa = _make_cc_supa(predmeti=preds)
+
+    async def _pao(*a, **k):
+        from shared import rokovi as R
+        return R.Rezultat(stanje=R.Stanje.NEUSPEH, rokovi=[], razlog="baza pala")
+
+    with patch("routers.dashboard._get_supa", return_value=supa),          patch("routers.dashboard._rokovi_domen.rokovi_za_korisnika", new=_pao):
         result = await command_center(request=_req(), user=_user())
 
-    dogadjaji = {r["dogadjaj"] for r in result["rokovi_7_dana"]}
-    assert "Iz hronologije" in dogadjaji
-    assert "Iz rokovi tabele" in dogadjaji
+    assert result["rokovi_dostupni"] is False
+    assert result["rokovi_7_dana"] == []
+    assert "Sve je pod kontrolom" not in result["summary"], result["summary"]
+    assert "nisu dostupni" in result["summary"]
 
 
 @pytest.mark.anyio

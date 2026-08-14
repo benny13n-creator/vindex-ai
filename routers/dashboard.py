@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.query_timeout import gather_with_timeout
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.dashboard")
 router = APIRouter(tags=["dashboard"])
@@ -65,7 +66,7 @@ async def command_center(
     # handles identically to a real per-query failure -- no new code paths.
     (predmeti_r, rocista_r, rokovi_r, risk_hist_r,
      beleske_r, dokumenti_r, ist_recent_r,
-     fakture_r, rocista_buduci_r, rokovi_tabela_r,
+     fakture_r, rocista_buduci_r,
      dokazi_all_r, dokumenti_all_r, rocista_all_r) = await gather_with_timeout(
         # Final Beta Gate F25 (LOW-MEDIUM): this query had NO .order()/.limit() at
         # all, unlike the capped-and-disclosed pattern used elsewhere (e.g. cio.py's
@@ -86,14 +87,10 @@ async def command_center(
             .eq("datum", today_iso)
             .order("vreme")
             .execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id,dogadjaj,datum_iso,vaznost")
-            .eq("user_id", uid)
-            .gte("datum_iso", today_iso)
-            .lte("datum_iso", in_7_iso)
-            .order("datum_iso")
-            .limit(100)
-            .execute()),
+        # BETA-DEADLINE-DOMAIN-001: jedini izvor rokova je kanonski sloj.
+        _rokovi_domen.rokovi_za_korisnika(
+            supa, uid, od=date.fromisoformat(today_iso),
+            do=date.fromisoformat(in_7_iso), limit=100),
         # Operation Single Brain (2026-08-07): kept ONLY for the "risk changed since last look"
         # diff feature below (pad_procene) -- a legitimate historical comparison, not a source
         # of CURRENT risk anymore. This is the app's actual home-tab endpoint; it used to treat
@@ -137,14 +134,6 @@ async def command_center(
             .gte("datum", today_iso)
             .lte("datum", in_90_iso)
             .order("datum")
-            .execute()),
-        asyncio.to_thread(lambda: supa.table("rokovi")
-            .select("id,naziv,datum,tip,predmet_id,opis")
-            .eq("user_id", uid)
-            .gte("datum", today_iso)
-            .lte("datum", in_7_iso)
-            .order("datum")
-            .limit(100)
             .execute()),
         # Operation Single Brain: the 3 tables calculate_procesni_rizik needs, bulk-fetched
         # once for the whole portfolio (same pattern as api.py::predmeti_dashboard's own fix)
@@ -248,26 +237,26 @@ async def command_center(
     # (istorijski dogadjaji/rokovi) I rokovi tabela (ista koju čita AI
     # Deadline Guardian, routers/zastarelost.py::guardian_scan) -- ranije se
     # ovde prikazivao samo prvi izvor.
+    # BETA-DEADLINE-DOMAIN-001. Ovde su se spajala DVA izvora: hronologija i
+    # tabela `rokovi`. Druga ne postoji u produkciji i nema nijednog pisca, pa
+    # je ta polovina liste bila trajno prazna, a `_safe()` je gutao gresku --
+    # „nema rokova" i „nisam mogao da pogledam" su izgledali isto.
+    #
+    # `rokovi_dostupni` nosi tu razliku do ekrana. Endpoint namerno NE pada u
+    # celini: pocetni ekran ima jos devet izvora koji rade.
+    _rokovi_rez = rokovi_r if isinstance(rokovi_r, _rokovi_domen.Rezultat) else None
+    rokovi_dostupni = bool(_rokovi_rez and _rokovi_rez.uspeh)
     rokovi_7 = [
         {
-            "predmet_id":    h.get("predmet_id", ""),
-            "predmet_naziv": pred_by_id.get(h.get("predmet_id", ""), {}).get("naziv", "—"),
-            "dogadjaj":      h.get("dogadjaj", ""),
-            "datum_iso":     h.get("datum_iso", ""),
-            "vaznost":       h.get("vaznost", ""),
-            "izvor":         "predmet_hronologija",
+            "predmet_id":    r.predmet_id,
+            "predmet_naziv": pred_by_id.get(r.predmet_id, {}).get("naziv", "—"),
+            "dogadjaj":      r.naslov,
+            "datum_iso":     r.datum.isoformat(),
+            "vaznost":       r.vaznost,
+            "izvor":         _rokovi_domen.TABELA,
         }
-        for h in _safe(rokovi_r) if h.get("predmet_id") in aktivni_ids
-    ] + [
-        {
-            "predmet_id":    g.get("predmet_id", ""),
-            "predmet_naziv": pred_by_id.get(g.get("predmet_id", ""), {}).get("naziv", "—"),
-            "dogadjaj":      g.get("naziv", "") or g.get("opis", "") or "Rok",
-            "datum_iso":     g.get("datum", ""),
-            "vaznost":       g.get("tip", ""),
-            "izvor":         "rokovi",
-        }
-        for g in _safe(rokovi_tabela_r) if g.get("predmet_id") in aktivni_ids
+        for r in (_rokovi_rez.rokovi if rokovi_dostupni else [])
+        if r.predmet_id in aktivni_ids
     ]
     rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
     hitni_rokovi = [r for r in rokovi_7 if (r.get("datum_iso") or "9999") <= in_2_iso]
@@ -380,7 +369,15 @@ async def command_center(
         n = len(neaktivni_predmeti)
         preporuke.append(f"{n} predmet{'a' if n > 1 else ''} bez aktivnosti >30 dana — proverite status.")
 
-    summary = " ".join(preporuke[:2]) if preporuke else "Sve je pod kontrolom — nema hitnih upozorenja."
+    # BETA-DEADLINE-DOMAIN-001: „Sve je pod kontrolom" je tvrdnja. Ako rokovi
+    # nisu procitani, ona se ne sme izreci -- to je tacno onaj lazno-zeleni
+    # ekran zbog kog ceo ovaj domen postoji.
+    if not rokovi_dostupni:
+        preporuke.insert(0, "⚠ Rokovi trenutno nisu dostupni — odsustvo rokova "
+                            "na ovom ekranu NE znači da ih nema.")
+        summary = " ".join(preporuke[:2])
+    else:
+        summary = " ".join(preporuke[:2]) if preporuke else "Sve je pod kontrolom — nema hitnih upozorenja."
 
     return {
         # Backward compatible with existing /portfolio/dashboard consumer
@@ -389,6 +386,8 @@ async def command_center(
         "predmeti_truncated": predmeti_truncated,
         "rokovi_7_dana":     rokovi_7,
         "hitni_rokovi":      hitni_rokovi,
+        # Prazna lista rokova je istina SAMO kad je ovo `True`.
+        "rokovi_dostupni":   rokovi_dostupni,
         "neaktivni_30_dana": neaktivni_predmeti,
         "summary":           summary,
         # New OS fields

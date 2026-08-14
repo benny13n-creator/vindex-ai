@@ -97,7 +97,15 @@ async def test_case_commander_fetches_siblings_when_owned():
     supa, called = _tracking_supa(owned=True)
     result = await _dohvati_predmet_kontekst("p1", "u1", supa)
     assert result["predmet"]
-    assert set(called["siblings"]) == {"rokovi", "predmet_dokumenti", "predmet_komentari"}
+    # BETA-DEADLINE-DOMAIN-001 (2026-08-14):
+    #   STARI UGOVOR: sestrinske tabele su {rokovi, predmet_dokumenti, predmet_komentari}
+    #   NOVI UGOVOR:  {predmet_hronologija, predmet_dokumenti, predmet_komentari}
+    #   ZASTO JE STARI BIO POGRESAN: `rokovi` ne postoji u produkciji i nema
+    #   nijednog pisca u repou. Invarijanta koju ovaj test cuva -- da se
+    #   sestrinski upiti NE pokrecu pre provere vlasnistva -- nije promenjena;
+    #   promenjeno je samo IME kanonske tabele iz koje se rokovi citaju.
+    assert set(called["siblings"]) == {
+        "predmet_hronologija", "predmet_dokumenti", "predmet_komentari"}
 
 
 # ─── digital_twin.py::_dohvati_kontekst_predmeta ──────────────────────────────

@@ -57,6 +57,7 @@ from pydantic import BaseModel, Field
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user, _verify_token
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.whatsapp_notif")
 router = APIRouter(tags=["whatsapp_notif"])
@@ -298,18 +299,11 @@ async def posalji_rok(
             detail=f"Prekoracen limit: max 1 WhatsApp poruka po korisniku na sat.",
         )
 
-    # Dohvati rok iz tabele rokovi
-    rok_r = await asyncio.to_thread(
-        lambda: supa.table("rokovi")
-            .select("id, naziv, datum, opis, predmet_id")
-            .eq("id", req.rok_id)
-            .eq("user_id", uid)
-            .maybe_single()
-            .execute()
-    )
-    rok = rok_r.data
-    if not rok:
-        raise HTTPException(status_code=404, detail="Rok nije pronadjen.")
+    # BETA-DEADLINE-DOMAIN-001: kanonski izvor. Ranije je `.maybe_single()` nad
+    # nepostojecom tabelom dizao 500 umesto namenjenog 404.
+    _rez = await _rokovi_domen.rok_po_id(supa, uid, req.rok_id)
+    _lista = _rokovi_domen.zahtevaj(_rez)
+    rok = _lista[0].kao_dict()
 
     # Dohvati naziv predmeta
     naziv_predmeta = "Predmet"
@@ -411,16 +405,9 @@ async def dnevni_brifing_wa(
 
         # Dohvati podatke za brifing
         rokovi_r, rocista_r = await asyncio.gather(
-            asyncio.to_thread(
-                lambda u=uid: supa.table("rokovi")
-                    .select("naziv, datum, opis")
-                    .eq("user_id", u)
-                    .gte("datum", danas_iso)
-                    .lte("datum", za_7_iso)
-                    .order("datum")
-                    .limit(5)
-                    .execute()
-            ),
+            _rokovi_domen.rokovi_za_korisnika(
+                supa, uid, od=date.fromisoformat(danas_iso),
+                do=date.fromisoformat(za_7_iso), limit=5),
             asyncio.to_thread(
                 lambda u=uid: supa.table("rocista")
                     .select("naziv, datum, vreme, sud")
@@ -431,7 +418,11 @@ async def dnevni_brifing_wa(
             ),
         )
 
-        rokovi        = rokovi_r.data or []
+        # BETA-DEADLINE-DOMAIN-001: brifing koji nije mogao da procita rokove
+        # NE sme da bude poslat kao da rokova nema -- advokat ga cita na
+        # telefonu i na osnovu njega planira dan.
+        rokovi_dostupni = rokovi_r.uspeh
+        rokovi        = [r.kao_dict() for r in (rokovi_r.rokovi if rokovi_dostupni else [])]
         rocista_danas = rocista_r.data or []
 
         # Gradimo poruku (max 4000 znakova — WhatsApp limit)
@@ -456,7 +447,11 @@ async def dnevni_brifing_wa(
                 datum  = (rok.get("datum") or "")[:10]
                 linije.append(f"  • {datum} — {naziv}")
 
-        if not rocista_danas and not rokovi:
+        if not rokovi_dostupni:
+            linije.append("")
+            linije.append("⚠ *Rokovi trenutno nisu dostupni* — odsustvo rokova u "
+                          "ovoj poruci NE znaci da ih nema. Proverite ih u aplikaciji.")
+        elif not rocista_danas and not rokovi:
             linije.append("✅ Nema hitnih rokova ni rocista.")
 
         linije.append("")

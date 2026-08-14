@@ -28,6 +28,7 @@ from openai import AsyncOpenAI  # noqa: E402 — after env load
 from shared.deps import _get_supa  # noqa: E402
 from shared.llm_retry import llm_retry  # noqa: E402
 from shared.sentry import capture_exception as _sentry_capture  # noqa: E402
+from shared import rokovi as _rokovi_domen
 
 
 @llm_retry
@@ -364,9 +365,13 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
             if not d or d < one_year_ago:
                 continue
             opis_roka = (item.get("opis") or "Rok")[:200]
-            vaznost   = item.get("vaznost", "bitan")
-            if vaznost not in ("kritičan", "bitan", "normalan"):
-                vaznost = "bitan"
+            # BETA-DEADLINE-DOMAIN-001: ovde je stajala provera nad recnikom
+            # ("kritičan","bitan","normalan") od kog CHECK u bazi prihvata SAMO
+            # prvi, uz podrazumevanu vrednost "bitan" koju odbija. Svaki rok
+            # koji AI nije oznacio kao kritican tiho je nestajao u
+            # `logger.debug`. Kanonska normalizacija cuva namerenu tezinu i
+            # daje vrednost koju baza prima.
+            vaznost   = _rokovi_domen.normalizuj_vaznost(item.get("vaznost"))
             try:
                 await asyncio.to_thread(lambda d=d, op=opis_roka, vz=vaznost: supa.table("predmet_hronologija").insert({
                     "predmet_id": predmet_id,

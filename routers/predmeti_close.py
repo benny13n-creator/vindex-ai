@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.predmeti_close")
 router = APIRouter(tags=["predmeti"])
@@ -192,7 +193,7 @@ async def zatvori_predmet(
                 "dogadjaj":   hron_dogadjaj[:200],
                 "datum":      datum_zatv,
                 "datum_iso":  datum_zatv,
-                "vaznost":    "kljucan",
+                "vaznost":    _rokovi_domen.normalizuj_vaznost("kljucan"),
                 "akter":      hron_akter[:300],
             }).execute()
         )

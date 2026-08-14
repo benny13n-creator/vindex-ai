@@ -43,6 +43,9 @@ from shared.deps import _get_supa
 from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.usage import UsageService
+from datetime import date, timedelta
+
+from shared import rokovi as _rokovi_domen
 from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 from shared.commander_schema import canonical_field, gpt_advisory_field, gpt_explanation_field
@@ -127,17 +130,17 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
             .execute()
     )
     if not _safe_one(pred_r):
-        return {"predmet": {}, "rokovi": [], "dokumenta": [], "komentari": []}
+        return {"predmet": {}, "rokovi": [], "rokovi_dostupni": False,
+                "dokumenta": [], "komentari": []}
 
-    rokovi_r, dok_r, kom_r = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("naziv, datum, tip, opis")
-                .eq("predmet_id", predmet_id)
-                .order("datum")
-                .limit(10)
-                .execute()
-        ),
+    # BETA-DEADLINE-DOMAIN-001: `rokovi` ne postoji i nema pisca. Kanonski
+    # izvor je `predmet_hronologija` preko `shared/rokovi.py`. AI kontekst je
+    # posebno osetljiv: GPT je dosad dobijao `ROKOVI: []` kao CINJENICU i na
+    # osnovu toga tvrdio da rokova nema.
+    rokovi_rez, dok_r, kom_r = await asyncio.gather(
+        _rokovi_domen.rokovi_za_predmet(
+            supa, uid, predmet_id,
+            do=date.today() + timedelta(days=90), limit=10),
         # LAMBDA008-CTX-001 fix: was an unordered .limit(20) — on a case with >20
         # documents this permanently hid whichever 20 rows Postgres happened to
         # return first, the exact "static slice on unordered fetch" bug
@@ -163,11 +166,16 @@ async def _dohvati_predmet_kontekst(predmet_id: str, uid: str, supa) -> dict:
         return_exceptions=True,
     )
 
+    # Kontekst koji ide u GPT mora znati razliku izmedju „nema rokova" i
+    # „nisam mogao da procitam rokove". Bez toga model tvrdi ono prvo.
+    _rez = rokovi_rez if isinstance(rokovi_rez, _rokovi_domen.Rezultat) else None
+    _dostupni = bool(_rez and _rez.uspeh)
     return {
-        "predmet":      _safe_one(pred_r),
-        "rokovi":       _safe(rokovi_r),
-        "dokumenta":    _safe(dok_r),
-        "komentari":    _safe(kom_r),
+        "predmet":          _safe_one(pred_r),
+        "rokovi":           [r.kao_dict() for r in (_rez.rokovi if _dostupni else [])],
+        "rokovi_dostupni":  _dostupni,
+        "dokumenta":        _safe(dok_r),
+        "komentari":        _safe(kom_r),
     }
 
 
@@ -310,8 +318,13 @@ def _formatiraj_kontekst(ctx: dict, dodatni: str = "") -> str:
             datum = str(r.get("datum", "N/A"))[:10]
             opis  = (r.get("opis") or "")[:80]
             lines.append(f"  - {r.get('naziv', 'Rok')} | {datum}" + (f" | {opis}" if opis else ""))
-    else:
+    elif ctx.get("rokovi_dostupni", True):
         lines.append("\nROKOVI: Nema unetih rokova")
+    else:
+        # BETA-DEADLINE-DOMAIN-001: model NE SME dobiti „nema rokova" kao
+        # činjenicu kad upit nije uspeo — na osnovu toga bi savetovao advokata.
+        lines.append("\nROKOVI: NEPOZNATO — rokovi nisu pročitani iz baze. "
+                     "NE tvrdi da rokova nema i NE daj savet koji zavisi od rokova.")
 
     if ctx["dokumenta"]:
         lines.append(f"\nDOKUMENTA U SISTEMU ({len(ctx['dokumenta'])}):")
@@ -607,11 +620,9 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
             .select("id, naziv, opis, status, tip_postupka, protivnik, sud, vrednost_spora, created_at")
             .eq("user_id", user_id).eq("status", "aktivan")
             .order("created_at", desc=True).limit(20).execute()),
-        asyncio.to_thread(lambda: supa.table("rokovi")
-            .select("id, naziv, datum, opis, predmet_id, status")
-            .eq("user_id", user_id)
-            .gte("datum", danas.isoformat()).lte("datum", za_30)
-            .order("datum").limit(50).execute()),
+        _rokovi_domen.rokovi_za_korisnika(
+            supa, user_id, od=danas,
+            do=date.fromisoformat(za_30), limit=50),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("id, naziv_fajla, predmet_id, created_at")
             .eq("user_id", user_id)
@@ -631,7 +642,11 @@ async def _dohvati_sve_predmete_za_analizu(user_id: str) -> dict:
         return getattr(r, "data", None) or []
 
     predmeti  = _d(predmeti_r)
-    rokovi    = _d(rokovi_r)
+    # Neuspeh citanja rokova NE postaje prazna lista: `rokovi_dostupni` nosi
+    # razliku dalje, do prompta i do odgovora.
+    _rez = rokovi_r if isinstance(rokovi_r, _rokovi_domen.Rezultat) else None
+    rokovi_dostupni = bool(_rez and _rez.uspeh)
+    rokovi    = [r.kao_dict() for r in (_rez.rokovi if rokovi_dostupni else [])]
     dokumenti = _d(dokumenti_r)
     komentari = _d(komentari_r)
 

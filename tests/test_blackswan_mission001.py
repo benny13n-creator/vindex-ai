@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import threading
+from datetime import date as _date, timedelta as _td
 from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("FOUNDER_EMAILS", "test@test.com")
@@ -30,6 +31,45 @@ from starlette.requests import Request as StarletteRequest  # noqa: E402
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+
+# BETA-DEADLINE-DOMAIN-001 (2026-08-14): rokovi se vise ne citaju iz nepostojece
+# tabele `rokovi` nego iz kanonskog vlasnika `predmet_hronologija`. Lazni lanac
+# ispod STVARNO primenjuje opseg po `datum_iso` -- bez toga bi isti red ispao i
+# kao propusten i kao nadolazeci, pa test ne bi merio ono sto tvrdi.
+def _hronologija_chain(redovi):
+    stanje = {}
+
+    class _C:
+        def select(self, *a, **k):
+            return self
+
+        def eq(self, *a, **k):
+            return self
+
+        def order(self, *a, **k):
+            return self
+
+        def limit(self, *a, **k):
+            return self
+
+        def gte(self, k, v):
+            stanje["gte"] = v
+            return self
+
+        def lte(self, k, v):
+            stanje["lte"] = v
+            return self
+
+        def execute(self):
+            izlaz = [
+                r for r in redovi
+                if (not stanje.get("gte") or str(r["datum_iso"]) >= stanje["gte"])
+                and (not stanje.get("lte") or str(r["datum_iso"]) <= stanje["lte"])
+            ]
+            return MagicMock(data=izlaz)
+    return _C()
 
 
 def _chain(execute_return=None, execute_side_effect=None):
@@ -234,15 +274,14 @@ async def test_morning_briefing_surfaces_missed_deadlines():
     import routers.morning_briefing as mb
 
     korisnik = {"id": "u1", "email": "u1@x.rs"}
-    propusteni_rok = {"id": "rok1", "naziv": "Odgovor na tužbu", "datum": "2026-06-01", "tip": "odgovor", "predmet_id": "p1", "opis": ""}
+    _propusten_datum = (_date.today() - _td(days=30)).isoformat()
+    propusteni_rok = {"id": "rok1", "dogadjaj": "Odgovor na tužbu",
+                      "datum_iso": _propusten_datum, "vaznost": "kritičan",
+                      "predmet_id": "p1", "akter": ""}
 
     def _table(name):
-        if name == "rokovi":
-            # both the upcoming query and the propusteni query hit this table;
-            # route by whether .lt() was called (propusteni uses .lt, upcoming uses .lte)
-            c = _chain(MagicMock(data=[]))
-            c.lt = MagicMock(return_value=_chain(MagicMock(data=[propusteni_rok])))
-            return c
+        if name == "predmet_hronologija":
+            return _hronologija_chain([propusteni_rok])
         if name == "rocista":
             return _chain(MagicMock(data=[]))
         if name == "predmeti":
@@ -296,14 +335,14 @@ async def test_morning_briefing_survives_an_openai_outage():
     time-critical part of the screen, down with it."""
     import routers.morning_briefing as mb
 
-    propusteni_rok = {"id": "rok1", "naziv": "Odgovor na tužbu", "datum": "2026-06-01",
-                      "tip": "odgovor", "predmet_id": "p1", "opis": ""}
+    _propusten_datum = (_date.today() - _td(days=30)).isoformat()
+    propusteni_rok = {"id": "rok1", "dogadjaj": "Odgovor na tužbu",
+                      "datum_iso": _propusten_datum, "vaznost": "kritičan",
+                      "predmet_id": "p1", "akter": ""}
 
     def _table(name):
-        if name == "rokovi":
-            c = _chain(MagicMock(data=[]))
-            c.lt = MagicMock(return_value=_chain(MagicMock(data=[propusteni_rok])))
-            return c
+        if name == "predmet_hronologija":
+            return _hronologija_chain([propusteni_rok])
         return _chain(MagicMock(data=[]))
 
     supa = MagicMock()

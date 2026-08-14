@@ -28,6 +28,8 @@ import json
 import logging
 import os
 from datetime import date, datetime, timezone
+from datetime import timedelta
+from shared import rokovi as _rokovi_domen
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -638,15 +640,11 @@ async def ai_analiziraj_predmet(
                 .not_.in_("status", ["zavrseno", "otkazano"])
                 .execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("naziv, datum, status")
-                .eq("predmet_id", predmet_id)
-                .gte("datum", danas)
-                .order("datum")
-                .limit(5)
-                .execute()
-        ),
+        # BETA-DEADLINE-DOMAIN-001: kanonski izvor rokova.
+        _rokovi_domen.rokovi_za_predmet(
+            supa, uid, predmet_id,
+            od=date.fromisoformat(danas),
+            do=date.fromisoformat(danas) + timedelta(days=365), limit=5),
         # Operation Singular Intelligence (2026-08-07), Truth Contract "Risk" §Forbidden: every
         # other calculate_procesni_rizik caller (matter_intel.py, ccc.py, case_context.py,
         # case_pipeline.py, case_evolution.py) excludes soft-deleted evidence; this one didn't --
@@ -672,7 +670,11 @@ async def ai_analiziraj_predmet(
     docs     = (docs_r.data    if not isinstance(docs_r, Exception)    else []) or []
     billing  = (billing_r.data if not isinstance(billing_r, Exception) else []) or []
     zadaci   = (zadaci_r.data  if not isinstance(zadaci_r, Exception)  else []) or []
-    rokovi   = (rokovi_r.data  if not isinstance(rokovi_r, Exception)  else []) or []
+    # BETA-DEADLINE-DOMAIN-001: neuspeh se NE pretvara u praznu listu -- ovaj
+    # kontekst ide u GPT koji na osnovu njega savetuje advokata.
+    _rez_rok = rokovi_r if isinstance(rokovi_r, _rokovi_domen.Rezultat) else None
+    rokovi_dostupni = bool(_rez_rok and _rez_rok.uspeh)
+    rokovi   = [r.kao_dict() for r in (_rez_rok.rokovi if rokovi_dostupni else [])]
     dokazi   = (dokazi_r.data  if not isinstance(dokazi_r, Exception)  else []) or []
     rocista  = (rocista_r.data if not isinstance(rocista_r, Exception) else []) or []
 
@@ -721,7 +723,7 @@ async def ai_analiziraj_predmet(
         f"Dokumenti: {', '.join(doc_nazivi[:10]) or 'nema'}\n"
         f"Nefakturisano: {nefakturisano_rsd:,.0f} RSD\n"
         f"Aktivni zadaci: {', '.join(zadaci_aktivni[:5]) or 'nema'}\n"
-        f"Nadolazeći rokovi: {', '.join(r.get('naziv','') + ' ' + r.get('datum','') for r in rokovi[:3]) or 'nema'}\n"
+        f"Nadolazeći rokovi: {', '.join(r.get('naziv','') + ' ' + r.get('datum','') for r in rokovi[:3]) or ('nema' if rokovi_dostupni else 'NEPOZNATO — nisu pročitani iz baze; ne tvrdi da ih nema')}\n"
     ) + (
         "POZNATI PROBLEMI (deterministička analiza, ne nagađaj suprotno): "
         + "; ".join(f"[{p['ozbiljnost']}] {p['problem']}" for p in _otkriveni_problemi) + "\n"

@@ -15,6 +15,8 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from datetime import date
+from shared import rokovi as _rokovi_domen
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -93,14 +95,11 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
             .order("created_at")
             .execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-            .select("naziv, datum, status, tip")
-            .eq("predmet_id", predmet_id)
-            .eq("user_id", user_id)
-            .order("datum")
-            .execute()
-        ),
+        # BETA-DEADLINE-DOMAIN-001: kanonski izvor. Prozor je namerno sirok --
+        # replay gleda ceo zivot predmeta, ne narednih 7 dana.
+        _rokovi_domen.rokovi_za_predmet(
+            supa, user_id, predmet_id,
+            od=date(2000, 1, 1), do=date(2100, 1, 1), limit=200),
         asyncio.to_thread(
             lambda: supa.table("rocista")
             .select("sud, datum, vreme, status, napomena")
@@ -152,19 +151,26 @@ async def _gather_timeline_events(supa, predmet_id: str, user_id: str) -> list[d
             "kriticnost": "srednja",
         })
 
-    # Rokovi
-    for r in (rokovi_row.data or []):
-        datum = r.get("datum", "")
-        status = r.get("status", "")
-        kriticnost = "visoka" if status in ("prekoracen", "propusten") else "srednja"
+    # Rokovi — BETA-DEADLINE-DOMAIN-001.
+    #
+    # Stara `rokovi.status` kolona ("prekoracen"/"propusten") nije nedostajuca
+    # sema nego IZVEDENA vrednost: rok je prekoracen ako mu je datum u
+    # proslosti. Kanonski sloj to vec racuna (`Rok.prekoracen`), pa se ovde
+    # nista ne izmislja niti gubi.
+    if not rokovi_row.uspeh:
+        raise HTTPException(
+            status_code=503,
+            detail="Rokovi nisu dostupni — replay bi prikazao nepotpunu istoriju.")
+    for r in rokovi_row.rokovi:
+        status = "prekoracen" if r.prekoracen else "aktivan"
         events.append({
-            "datum": datum[:10] if datum else "",
-            "datum_full": datum,
+            "datum": r.datum.isoformat(),
+            "datum_full": r.datum.isoformat(),
             "tip": "rok",
             "tip_label": "Rok",
-            "opis": f"{r.get('naziv', 'Rok')} [{r.get('tip', '')}] — status: {status}",
-            "detalji": {"tip_roka": r.get("tip"), "status": status},
-            "kriticnost": kriticnost,
+            "opis": f"{r.naslov} — status: {status}",
+            "detalji": {"vaznost": r.vaznost, "status": status},
+            "kriticnost": "visoka" if (r.prekoracen or r.vaznost == "kritičan") else "srednja",
         })
 
     # Rocista

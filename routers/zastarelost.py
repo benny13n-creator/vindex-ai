@@ -20,6 +20,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
 
@@ -501,17 +502,14 @@ async def guardian_scan(
     )
     arhivirani_ids = {p["id"] for p in (predmeti_r.data or []) if p.get("status") in ("zatvoren", "arhiviran", "odbijen")}
 
-    rokovi_r = await asyncio.to_thread(
-        lambda: supa.table("rokovi")
-            .select("id, naziv, datum, tip, predmet_id, opis")
-            .eq("user_id", uid)
-            .gte("datum", danas.isoformat())
-            .lte("datum", za_30d.isoformat())
-            .order("datum")
-            .execute()
-    )
+    # BETA-DEADLINE-DOMAIN-001: Deadline Guardian je citao tabelu koja ne
+    # postoji, pa je svaki scan zavrsavao kao 500. `zahtevaj` cuva to glasnim,
+    # ali sada nad kanonskim izvorom koji stvarno ima podatke.
+    _rokovi_lista = _rokovi_domen.zahtevaj(await _rokovi_domen.rokovi_za_korisnika(
+        supa, uid, od=danas, do=za_30d, limit=200))
 
-    rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") not in arhivirani_ids]
+    rokovi = [r.kao_dict() for r in _rokovi_lista
+              if r.predmet_id not in arhivirani_ids]
     if not rokovi:
         return {"scan": [], "ukupno": 0, "kriticno": 0, "hitno": 0,
                 "period_dana": 30, "generirano": danas.isoformat(),

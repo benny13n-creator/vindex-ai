@@ -505,6 +505,7 @@ from shared.attention_priority import VAZNOST_TO_CANONICAL as _VAZNOST_TO_CANONI
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
+from shared import rokovi as _rokovi_domen
 from shared.sentry import capture_exception as _sentry_capture
 
 
@@ -2602,7 +2603,7 @@ async def portal_predmet_data(request: Request, token: str):
     Nije potrebna autentifikacija — pristup je kontrolisan tokenom. Rate limit je
     dodatna odbrana u dubini (defense-in-depth), ne osnovna zaštita.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime, timedelta, timezone
 
     if not token or len(token) < 10:
         raise HTTPException(status_code=400, detail="Neispravan token.")
@@ -2631,18 +2632,18 @@ async def portal_predmet_data(request: Request, token: str):
     predmet_id      = tok.get("predmet_id")
     vlasnik_user_id = tok.get("vlasnik_user_id")
 
-    pred_r, rok_r, advokat_r = await asyncio.gather(
+    # BETA-DEADLINE-DOMAIN-001: `rokovi` je tabela koja ne postoji i nikad nije
+    # imala pisca. Kanonski vlasnik roka je `predmet_hronologija`; citanje ide
+    # kroz `shared/rokovi.py`, koji neuspeh NE pretvara u praznu listu.
+    pred_r, rok_rez, advokat_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("rokovi")
-                .select("naziv, datum, tip")
-                .eq("predmet_id", predmet_id)
-                .gte("datum", datetime.now(timezone.utc).date().isoformat())
-                .order("datum")
-                .limit(10)
-                .execute()
+        _rokovi_domen.rokovi_za_predmet(
+            supa, vlasnik_user_id, predmet_id,
+            od=datetime.now(timezone.utc).date(),
+            do=datetime.now(timezone.utc).date() + timedelta(days=90),
+            limit=10,
         ),
         asyncio.to_thread(
             lambda: supa.table("profiles")
@@ -2654,8 +2655,10 @@ async def portal_predmet_data(request: Request, token: str):
     )
 
     predmet = pred_r.data  or {}
-    rokovi  = rok_r.data   or []
     advokat = advokat_r.data or {}
+    # Neuspeh citanja rokova NE sme da procuri kao prazna sekcija: klijent bi
+    # zakljucio da rokova nema. `zahtevaj` ga pretvara u 503.
+    rokovi  = [r.kao_dict() for r in _rokovi_domen.zahtevaj(rok_rez)]
 
     ai_status = "Predmet je aktivan. Advokat aktivno radi na slučaju."
     try:

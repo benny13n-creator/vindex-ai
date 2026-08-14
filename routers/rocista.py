@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field, field_validator
 from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 
 logger = logging.getLogger("vindex.rocista")
 router = APIRouter(tags=["rocista"])
@@ -401,7 +402,7 @@ async def hearing_followup(
             "dogadjaj":   f"Follow-up ročište: {body.napomena[:120]}",
             "datum":      today_iso,
             "datum_iso":  today_iso,
-            "vaznost":    "bitan",
+            "vaznost":    _rokovi_domen.normalizuj_vaznost("bitan"),
             "akter":      "Advokat",
         }).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").insert({

@@ -11515,7 +11515,16 @@ function portfolio_render(d) {
   var rokovi    = d.rokovi_7_dana || [];
   var rokEl     = document.getElementById('portfolio-rokovi');
   var rokListEl = document.getElementById('portfolio-rokovi-list');
-  if (rokovi.length > 0 && rokEl && rokListEl) {
+
+  // BETA-DEADLINE-DOMAIN-001: prazna lista rokova je istina SAMO ako je
+  // `rokovi_dostupni !== false`. Ranije je pad upita nad rokovima davao istu
+  // praznu sekciju kao stvarno prazan dan -- advokat razliku nije mogao videti.
+  if (d.rokovi_dostupni === false && rokEl && rokListEl) {
+    rokEl.style.display = 'block';
+    rokListEl.innerHTML = '<div style="font-size:0.72rem;color:#ff9090;padding:0.3rem 0;">'
+      + '⚠ Rokovi trenutno nisu dostupni — odsustvo rokova ovde NE znači da ih nema. '
+      + 'Osvežite stranicu ili proverite rokove u predmetu.</div>';
+  } else if (rokovi.length > 0 && rokEl && rokListEl) {
     rokEl.style.display = 'block';
     rokListEl.innerHTML = rokovi.map(function(h){
       return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;font-size:0.73rem;color:rgba(255,255,255,.8);">'
