@@ -256,3 +256,58 @@ def test_klijentski_upis_pise_u_tabelu_koju_sql_deklarise():
             "klijent piše `reported_errors.%s`, a nijedan SQL to ne deklariše"
             % polje
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. IZOLACIJA — BRAVA NAD SVOJSTVOM KOJE NOSI CEO BEZBEDNOSNI ZAKLJUČAK
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# BETA NIGHT SPRINT — REPORTED_ERRORS ISOLATION FORENSICS (2026-08-15).
+#
+# Izolacija `reported_errors` je DOKAZANA ponašanjem, ali samo za `anon` ulogu,
+# i taj dokaz počiva na jednoj arhitektonskoj činjenici:
+#
+#     NIJEDAN backend endpoint ne dodiruje `reported_errors`.
+#
+# Backend radi sa `service_role` ključem, koji RLS **zaobilazi**. Dokle god
+# nijedna ruta ne čita tu tabelu, RLS je jedina i potpuna kontrola. Onog dana
+# kad neko doda „admin pregled prijava", ta kontrola prestaje da važi za tu
+# rutu — a dokaz iz ovog sprinta prestaje da pokriva sistem.
+#
+# Ovaj test ne meri RLS (to mreža ne sme da radi u suiti). Meri PRETPOSTAVKU
+# pod kojom RLS dokaz uopšte važi.
+
+def test_nijedan_backend_endpoint_ne_cita_reported_errors():
+    """Ako ovaj test padne, dodata je ruta koja tabelu čita `service_role`
+    ključem — dakle van RLS-a. Tada TA RUTA mora imati sopstvenu, dokazivu
+    proveru vlasništva, a nalaz o izolaciji mora biti ponovo izveden."""
+    import glob
+    import io as _io
+
+    pogodci = []
+    for obrazac in ("routers/*.py", "services/**/*.py", "shared/*.py",
+                    "klijenti/*.py", "workers/*.py", "api.py"):
+        for f in glob.glob(obrazac, recursive=True):
+            t = _io.open(f, encoding="utf-8", errors="replace").read()
+            if "reported_errors" in t:
+                pogodci.append(f)
+
+    assert not pogodci, (
+        "backend dodiruje `reported_errors` u %s — RLS to NE pokriva jer "
+        "backend koristi service_role. Dodaj eksplicitnu proveru vlasništva "
+        "i ponovo izvedi dokaz izolacije." % pogodci
+    )
+
+
+def test_jedini_pisac_je_pregledac_pod_korisnickim_identitetom():
+    """Upis ide iz `static/vindex.js` preko korisnikovog Supabase klijenta —
+    dakle POD RLS-om, sa `auth.uid()` koji baza sama utvrđuje. Zato INSERT
+    politika (`auth.uid() = user_id`) uopšte može da bude granica."""
+    js = io.open(os.path.join(_KOREN, "static", "vindex.js"),
+                 encoding="utf-8").read()
+    assert "from('reported_errors').insert(" in js
+    # `_waitSupa()` vraća klijent napravljen sa PUBLISHABLE ključem i
+    # korisnikovom sesijom — nikad sa service_role ključem.
+    assert "service_role" not in js, (
+        "frontend pominje service_role — privilegovan ključ ne sme u pregledač"
+    )
