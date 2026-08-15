@@ -198,3 +198,109 @@ izričito zabranjuje GREEN na osnovu „verovatno radi".
 Ono što **jeste** dokazano je značajno: neautentifikovani napadač sa javnim
 ključem ne može pročitati, upisati, izmeniti ni obrisati nijedan red — ni u
 `reported_errors`, ni u bilo kojoj poverljivoj tabeli.
+
+
+---
+
+# RLS-AB-001 — DOPUNA: `authenticated` A/B DOKAZAN
+
+**Datum:** 2026-08-15 · **HEAD pri merenju:** `bcec08df`
+
+Prethodni odeljak ostavio je `authenticated` izolaciju kao UNKNOWN. Sada je
+izmerena — stvarnim nalozima, stvarnim sesijama, bez kovanja tokena.
+
+## Metod (isti koji aplikacija koristi)
+
+    POST /auth/v1/admin/users              (service_role)  → dva throwaway naloga
+    POST /auth/v1/token?grant_type=password (publishable)  → STVARNI JWT
+    GET  /auth/v1/user                                      → potvrda identiteta
+    PostgREST sa tim JWT-om                                 → `auth.uid()` je taj korisnik
+
+`signInWithPassword` je isti tok koji koristi `static/vindex.js:640`.
+`service_role` je korišćen **isključivo** za pripremu, verifikaciju stanja i
+čišćenje — nijednom kao A ili B.
+
+**Identitet dokazan:** `/auth/v1/user` je za oba tokena vratio tačno onaj `id`
+koji je admin API dodelio; tokeni su različiti.
+
+## Rezultat — 10/10 blokirano
+
+| Operacija | Ishod | Dokaz |
+|---|---|---|
+| A → B SELECT po tačnom `id` | **BLOKIRAN** | `count=*/0`, marker B odsutan |
+| A → B SELECT po `user_id` B | **BLOKIRAN** | `count=*/0` |
+| A → B SELECT bez filtera | **BLOKIRAN** | `count=*/0` |
+| A → B UPDATE | **BLOKIRAN** | stanje reda posle: `'netaknuto'` |
+| A → B DELETE | **BLOKIRAN** | red **preživeo** |
+| A → B INSERT (`user_id=B`) | **BLOKIRAN** | `403/42501`, red nije nastao |
+| B → A SELECT po `id` / po `user_id` | **BLOKIRAN** | `count=*/0` |
+| B → A UPDATE | **BLOKIRAN** | stanje: `'netaknuto'` |
+| B → A DELETE | **BLOKIRAN** | red **preživeo** |
+| B → A INSERT (`user_id=A`) | **BLOKIRAN** | `403/42501` |
+
+Nijedan zaključak ne počiva na HTTP statusu — svaki UPDATE/DELETE je proveren
+**stanjem reda pre i posle**.
+
+**Informaciono curenje:** upit za **postojeći tuđi** `id` i za **nepostojeći**
+`id` daju identičan status, telo i `count`. Nema razlike koja bi otkrila
+postojanje tuđeg reda.
+
+## ⚠ FUNKCIONALNI NALAZ — ispravka mog ranijeg zaključka
+
+Oba autentifikovana korisnika dobijaju **`403 / 42501`** i pri upisu
+**SOPSTVENOG** reda:
+
+    "new row violates row-level security policy for table \"reported_errors\""
+
+Poruka je **policy-level**, ne grant-level („permission denied for table"),
+dakle: `authenticated` **ima** INSERT pravo, ali ga nijedna politika ne
+propušta. Deklarisana `WITH CHECK (auth.uid() = user_id)` iz migracije 113
+**nije na snazi u produkciji.**
+
+**Ispravka:** u prethodnom sprintu sam zaključio da je migracija 113 primenjena
+i da su „oba kanala prijave dobila skladište". Izmerio sam da **tabela i kolone
+postoje** — nisam izmerio da korisnik može da piše. Tabela postoji; politika ne.
+
+**Posledica:** primarni kanal prijave netačnog pravnog odgovora
+(`static/vindex.js::sendFeedback`) **ne radi ni za jednog korisnika**. UI to
+pošteno prijavljuje („⚠ Bez sadržaja — pokušajte ponovo"), pa nema lažno-zelenog
+ekrana — ali tekst spornog odgovora se i dalje nigde ne čuva.
+
+**Bezbednosno:** ovo je **restriktivnije** od nameravanog, dakle fail-closed —
+nije ranjivost. **Funkcionalno:** kvar.
+
+**NIJE POPRAVLJENO.** Popravka zahteva izmenu RLS politike u produkciji, što je
+HARD STOP ovog mandata i odluka vlasnika.
+
+## GRANT — delimično razrešen ponašanjem
+
+Katalog (`pg_policies`, `role_table_grants`) ostaje **nedostupan**. Ali tip
+greške razlikuje dva sloja:
+
+| Uloga · operacija | Odgovor | Zaključak o GRANT-u |
+|---|---|---|
+| `authenticated` INSERT | `42501` *"violates row-level security policy"* | **grant POSTOJI**, politika odbija |
+| `authenticated` SELECT | `200 []` | **grant POSTOJI**, RLS filtrira na 0 |
+| `authenticated` UPDATE/DELETE | `204` bez greške | **grant POSTOJI**, RLS filtrira na 0 |
+| `anon` INSERT | `42501` | odbijen |
+
+Katalog ostaje UNKNOWN; **ponašanje grantova više nije UNKNOWN.**
+
+## Ugovor čitanja — dokumentovan, nije kvar
+
+Ni vlasnik ne može da čita svoj red (`count=*/0`). To je **u skladu** sa
+deklarisanom SELECT politikom (`service_role` only) — proizvod je za korisnika
+**write-only**. Po mandatu (TASK 10) to se dokumentuje kao ugovor, ne prijavljuje
+kao kvar.
+
+## Čišćenje — potvrđeno
+
+| | |
+|---|---|
+| USER_A / USER_B | obrisani, `GET /auth/v1/admin/users/{id}` → **404** |
+| `reported_errors` | `count=*/0` |
+| markeri (`RLS_AB_PROBE_*`, `KOVANO_OD_*`) | obrisani |
+| `profiles` | **12 pre, 12 posle** — bez zaostalih redova |
+
+Reproduktibilno: `scripts/rls_ab_forensics.py`, uz obaveznu potvrdu
+`RLS_AB_FORENSICS=DA`.
