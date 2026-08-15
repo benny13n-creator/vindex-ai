@@ -12,6 +12,13 @@ NIJEDAN korak ne kuje token i ne koristi `service_role` kao A ili B.
 `service_role` se koristi ISKLJUCIVO za pripremu, verifikaciju stanja i
 ciscenje -- nikad kao dokaz izolacije.
 
+ZAMKA KOJA ME JE JEDNOM PREVARILA -- ne ponavljati je
+`Prefer: return=representation` tera PostgREST na INSERT ... RETURNING, a
+RETURNING trazi SELECT pravo nad upisanim redom. Kad je SELECT politika
+`service_role only`, INSERT PROLAZI ali RETURNING pada sa 42501 -- pa izgleda
+kao da je upis odbijen. Zato se za sonde upisa koristi `return=minimal`, a
+postojanje reda se proverava ODVOJENIM citanjem preko service_role.
+
 CISCENJE je u `finally` i uvek se izvrsava.
 
 UPOZORENJE — OVAJ ALAT DODIRUJE PRODUKCIJU
@@ -134,12 +141,16 @@ try:
     # ── KONTROLNI REDOVI ─────────────────────────────────────────────────────
     nas("2. KONTROLNI REDOVI — svaki korisnik upisuje SVOJ (pozitivna kontrola)")
     for ime, t_, uid, mark in (("A", A, A_ID, MARK_A), ("B", B, B_ID, MARK_B)):
+        # `return=minimal` -- v. napomenu o RETURNING zamci u zaglavlju.
         s, _, t = http("POST", "/rest/v1/reported_errors", PUB, t_,
                        [{"user_id": uid, "original_prompt": mark,
                          "ai_response": "netaknuto"}],
-                       prefer="return=representation")
-        print("  %s upisuje SVOJ red: HTTP %-4s %s" % (ime, s, t[:220]))
-        ishodi["insert_svoj_" + ime] = s in (200, 201)
+                       prefer="return=minimal")
+        s2, _, t2 = http("GET", "/rest/v1/reported_errors?select=id&original_prompt=eq." + mark,
+                         SVC, SVC)
+        nastao = bool(json.loads(t2))
+        print("  %s upisuje SVOJ red: HTTP %-4s red nastao: %s" % (ime, s, nastao))
+        ishodi["insert_svoj_" + ime] = nastao
 
     # id-jeve citamo service_role-om (verifikacioni kanal, ne dokaz)
     s, _, t = http("GET", "/rest/v1/reported_errors?select=id,user_id,original_prompt,ai_response",
@@ -213,7 +224,7 @@ try:
 
     s, _, t = http("POST", "/rest/v1/reported_errors", PUB, A,
                    [{"user_id": B_ID, "original_prompt": "KOVANO_OD_A",
-                     "ai_response": "x"}], prefer="return=representation")
+                     "ai_response": "x"}], prefer="return=minimal")
     s2, _, t2 = http("GET", "/rest/v1/reported_errors?select=id&original_prompt=eq.KOVANO_OD_A",
                      SVC, SVC)
     ishodi["A_insert_kao_B"] = rez("A INSERT sa user_id=B (kovanje vlasnistva)",
@@ -246,7 +257,7 @@ try:
 
     s, _, t = http("POST", "/rest/v1/reported_errors", PUB, B,
                    [{"user_id": A_ID, "original_prompt": "KOVANO_OD_B",
-                     "ai_response": "x"}], prefer="return=representation")
+                     "ai_response": "x"}], prefer="return=minimal")
     s2, _, t2 = http("GET", "/rest/v1/reported_errors?select=id&original_prompt=eq.KOVANO_OD_B",
                      SVC, SVC)
     ishodi["B_insert_kao_A"] = rez("B INSERT sa user_id=A (kovanje vlasnistva)",

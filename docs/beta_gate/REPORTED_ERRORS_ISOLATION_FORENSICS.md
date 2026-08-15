@@ -245,7 +245,15 @@ Nijedan zaključak ne počiva na HTTP statusu — svaki UPDATE/DELETE je provere
 `id` daju identičan status, telo i `count`. Nema razlike koja bi otkrila
 postojanje tuđeg reda.
 
-## ⚠ FUNKCIONALNI NALAZ — ispravka mog ranijeg zaključka
+## ⚠⚠ OVAJ ODELJAK JE POVUČEN — v. „ISPRAVKA 2" na kraju dokumenta
+
+> Tvrdnja ispod (**„primarni kanal ne radi ni za jednog korisnika"**) je
+> **NETAČNA**. Uzrok nije bio RLS nego **moja sonda**: slala je
+> `Prefer: return=representation`, što tera `INSERT … RETURNING`, a RETURNING
+> traži SELECT pravo. Zadržano je nepromenjeno radi traga; ispravan nalaz je u
+> „ISPRAVCI 2".
+
+## ~~⚠ FUNKCIONALNI NALAZ — ispravka mog ranijeg zaključka~~ (POVUČENO)
 
 Oba autentifikovana korisnika dobijaju **`403 / 42501`** i pri upisu
 **SOPSTVENOG** reda:
@@ -304,3 +312,96 @@ kao kvar.
 
 Reproduktibilno: `scripts/rls_ab_forensics.py`, uz obaveznu potvrdu
 `RLS_AB_FORENSICS=DA`.
+
+
+---
+
+# ISPRAVKA 2 — POVLAČIM NALAZ O FUNKCIONALNOM KVARU
+
+**Datum:** 2026-08-16 · Osnovni izvor: politike koje je vlasnik pročitao iz
+`pg_policies`, plus tri dodatna kontrolisana eksperimenta.
+
+## Šta je vlasnik pokazao
+
+```
+reported_errors_insert_own     INSERT  {public}  with_check = (auth.uid() = user_id)
+reported_errors_service_select SELECT  {public}  using = (jwt.role = 'service_role')
+```
+
+Obe politike **postoje** i tačno su onakve kakve su deklarisane u migraciji 113.
+
+## Moja prva hipoteza — i zašto je bila pogrešna
+
+Pretpostavio sam da `auth.uid()` vraća `NULL` (stara definicija funkcije uz nov
+PostgREST). **Opovrgnuto merenjem:** isti autentifikovani korisnik uspešno
+upisuje u `predmeti` (**201**) i `klijenti` (**201**) preko `auth.uid()`
+politika. `auth.uid()` radi ispravno.
+
+## Stvarni uzrok — bio je u mojoj sondi
+
+| `Prefer` zaglavlje | `reported_errors` | `feedback` |
+|---|---|---|
+| `return=representation` | **403 / 42501** | **403 / 42501** |
+| `return=minimal` | **201 UPISANO** | **201 UPISANO** |
+| bez zaglavlja | **201 UPISANO** | **201 UPISANO** |
+
+`return=representation` tera PostgREST na `INSERT … RETURNING`, a RETURNING
+zahteva **SELECT** pravo nad upisanim redom. Pošto je SELECT politika
+`service_role only`, INSERT **prolazi** ali RETURNING pada — i to izgleda kao da
+je upis odbijen.
+
+## Da li produkcija šalje to zaglavlje? NE
+
+Iz priloženog SDK-a (`static/supabase.min.js`): `Prefer: return=representation`
+dodaje **isključivo `.select()`**. `sendFeedback` zove `.insert({…})` **bez**
+`.select()`, pa šalje `return=minimal`.
+
+**Zaključak: primarni kanal prijave netačnog pravnog odgovora RADI.** Tvrdnja iz
+prethodnog odeljka se povlači u celosti.
+
+## Ponovljen test bez zamke — svi kontrolni uslovi zadovoljeni
+
+| Test | Ishod |
+|---|---|
+| A upisuje **SVOJ** red (`return=minimal`) | **201, red nastao** — pozitivna kontrola PROLAZI |
+| B upisuje **SVOJ** red | **201, red nastao** |
+| A upisuje sa `user_id = B` | **403 / 42501, red NIJE nastao** |
+| B upisuje sa `user_id = A` | **403 / 42501, red NIJE nastao** |
+| A → B SELECT / UPDATE / DELETE | **BLOKIRANO** (stanje reda provereno) |
+| B → A SELECT / UPDATE / DELETE | **BLOKIRANO** |
+| informaciono curenje | **nema** |
+
+`WITH CHECK (auth.uid() = user_id)` dakle radi **tačno kako je projektovano**:
+propušta sopstveno, odbija tuđe.
+
+## GRANT — sada razrešeno ponašanjem
+
+`authenticated` ima SELECT, INSERT, UPDATE i DELETE **grantove** na obe tabele
+(greške su uvek policy-level `42501 violates RLS`, nikad `permission denied`).
+Katalog i dalje nije čitan, ali pitanje više nije otvoreno u praksi.
+
+## Alat ispravljen
+
+`scripts/rls_ab_forensics.py` sada koristi `return=minimal` i postojanje reda
+proverava **odvojenim** čitanjem preko `service_role`. Zamka je opisana u
+zaglavlju skripte da se ne ponovi.
+
+## Ugovor čitanja — potvrđen, nije kvar
+
+Ni vlasnik ne čita svoj red. To je **namera** deklarisane SELECT politike:
+`reported_errors` je za korisnika **write-only**. Prijave čita samo interni
+pregled kvaliteta preko `service_role`.
+
+## Konačno stanje
+
+| Uslov izlazne kapije | Status |
+|---|---|
+| A→B i B→A: SELECT / INSERT / UPDATE / DELETE | ✅ **svih 8 blokirano** |
+| Pozitivna kontrola (svoj upis) | ✅ **prolazi** |
+| Identitet A i B stvarno autentifikovan | ✅ `/auth/v1/user` |
+| `service_role` korišćen kao dokaz | ❌ **nije** — samo priprema/čišćenje |
+| Mock korišćen kao dokaz RLS-a | ❌ **nije** |
+| Informaciono curenje | ✅ nema |
+| Čišćenje | ✅ nalozi 404, tabela `count=*/0`, `profiles` 12→12 |
+
+**VERDIKT: GREEN.**
