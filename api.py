@@ -6021,8 +6021,15 @@ async def predmet_workspace(
     supa = _get_supa()
 
     # Step 1: Verify ownership
+    #
+    # NS001/FAZA 1: bilo je `.single()`, koje na 0 redova podiže PostgREST
+    # grešku, pa je provera vlasništva vraćala HTTP 500 umesto 404, a red
+    # `if not pred.data: raise 404` nikad se nije izvršio. Mereno: korisnik B
+    # traži predmet korisnika A -> 500. Podatak nije curio, ali je klasa greške
+    # bila lažna i namera koda mrtva. `maybe_single()` ovde ima ispravan
+    # ugovor zahvaljujući shared/postgrest_compat.py.
     pred = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", uid).single().execute()
+        lambda: supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
     )
     if not pred.data:
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")

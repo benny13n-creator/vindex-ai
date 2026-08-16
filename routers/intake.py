@@ -256,13 +256,32 @@ async def intake_kreiraj(
     # -- a rejected/failed client link was invisible to the caller, who saw
     # success:True with no client attached and no way to know why short of
     # opening the case later. klijent_povezan now reports it explicitly.
+    #
+    # NIGHT STABILIZATION 001 / FAZA 1 (BR-002): `klijent_povezan` je bio
+    # izveštaj koji NIKO ne čita. `_intakeKreiraj` u `static/vindex.js` uzima
+    # samo `d.predmet_id` i odmah prelazi na ekran uspeha — advokat je dobijao
+    # potpunu potvrdu kreiranja predmeta za klijenta koji uz taj predmet nije
+    # vezan, bez ijednog signala. Mereno: `predmet_klijenti` je imao 0 redova
+    # uz 19 predmeta i 5 klijenata.
+    #
+    # Klijent je za ovaj tok OBAVEZAN (`klijent_id` je obavezno polje, a
+    # čarobnjak blokira korak bez izabranog klijenta), pa predmet bez veze nije
+    # „delimičan uspeh" nego neuspeh. Isti obrazac koji `api.py` upload ruta već
+    # koristi kad obavezan sledeći upis padne: ukloni ono što je upravo
+    # napravljeno i podigni grešku, umesto da vratiš 200 na pola posla.
+    # Kompenzacija je bezbedna baš ovde: veza je PRVI korak posle kreiranja
+    # predmeta, pa još ništa drugo ne pokazuje na taj predmet.
     klijent_povezan = False
+    _veza_greska: Optional[str] = None
     try:
         klijent_ok = await asyncio.to_thread(
             lambda: supa.table("klijenti").select("id").eq("id", body.klijent_id).eq("user_id", uid).maybe_single().execute()
         )
-        if not klijent_ok.data:
+        # `.maybe_single()` vraća None (ne objekat) kad nema reda -- zato
+        # `getattr`, inače bi ovo bio AttributeError umesto jasnog ishoda.
+        if not getattr(klijent_ok, "data", None):
             logger.warning("[INTAKE] predmet_klijenti insert odbijen — klijent_id %.8s ne pripada uid=%.8s", body.klijent_id, uid)
+            _veza_greska = "nepostojeci_klijent"
         else:
             await asyncio.to_thread(
                 lambda: supa.table("predmet_klijenti").insert({
@@ -274,6 +293,22 @@ async def intake_kreiraj(
             klijent_povezan = True
     except Exception as e:
         logger.warning("[INTAKE] predmet_klijenti insert greška: %s", e)
+        _veza_greska = "upis_veze"
+
+    if not klijent_povezan:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmeti").delete().eq("id", predmet_id).eq("user_id", uid).execute()
+            )
+            logger.warning("[INTAKE] predmet %s uklonjen — klijent nije povezan (%s)", predmet_id, _veza_greska)
+        except Exception as _ce:
+            logger.error("[INTAKE] kompenzacija nije uspela, predmet %s ostaje bez klijenta: %s", predmet_id, _ce)
+        if _veza_greska == "nepostojeci_klijent":
+            raise HTTPException(status_code=404, detail="Klijent nije pronađen. Predmet nije kreiran.")
+        raise HTTPException(
+            status_code=500,
+            detail="Predmet nije kreiran — povezivanje klijenta nije uspelo. Pokušajte ponovo.",
+        )
 
     rok_dodat = False
     if body.prvi_rok:

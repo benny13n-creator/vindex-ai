@@ -85,15 +85,23 @@ async def export_complete(user=Depends(get_current_user)):
         metadata={"email": email, "format": "zip"},
     ))
 
+    # NS001 — kolona za sortiranje mora postojati na TOJ tabeli, inače
+    # PostgREST odbija ceo upit (42703), `_fetch` je upiše u `_failed`, i ZIP se
+    # odbacuje. `klijenti` i `predmet_komentari` nemaju `created_at` nego
+    # `kreirano` -- mereno sondom `select(<kolona>)&limit=0` nad produkcijskom
+    # bazom i potvrdjeno stvarnim pozivom: `GET /api/export/complete` je vraćao
+    # HTTP 503 "podaci iz sledećih tabela nisu mogli da se pročitaju: klijenti,
+    # predmet_komentari". Dakle prenosivost podataka (ZZPL čl. 36 / GDPR čl. 20)
+    # nije radila ni za jednog korisnika.
     tables = [
         ("predmeti",          "predmeti.json",     "created_at"),
-        ("klijenti",          "klijenti.json",     "created_at"),
+        ("klijenti",          "klijenti.json",     "kreirano"),
         ("billing_entries",   "billing.json",      "created_at"),
         ("predmet_dokumenti", "dokumenti.json",    "created_at"),
         ("predmet_beleske",   "beleske.json",      "created_at"),
         ("rocista",           "rocista.json",      "datum"),
         ("predmet_hronologija","hronologija.json", "datum_iso"),
-        ("predmet_komentari", "komentari.json",    "created_at"),
+        ("predmet_komentari", "komentari.json",    "kreirano"),
     ]
 
     buf = io.BytesIO()

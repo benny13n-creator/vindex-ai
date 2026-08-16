@@ -240,14 +240,22 @@ async def create_klijent(
     # intake_kreiraj — klijenti creation had zero protection. Check-then-insert 5s
     # window, not a full atomic guarantee (matches the precedent's own documented
     # tradeoff), but closes the realistic double-click case.
+    #
+    # NS001/FAZA 1: kolona se zove `kreirano`, ne `created_at`. Sa pogrešnim
+    # imenom PostgREST odbija CEO upit sa 42703, izuzetak izlazi iz rute i
+    # `POST /klijenti` vraća 500 — dakle guard protiv dvoklika je onemogućio
+    # kreiranje klijenta u potpunosti, za svakog korisnika, na svakom pokušaju
+    # (`_dedup_key` je neprazan kad god ime nije prazno, a ime je obavezno).
+    # Mereno stvarnim HTTP pozivom: 500 + `column klijenti.created_at does not
+    # exist`. Nijedan klijent nije kreiran posle 2026-07-19.
     _dedup_key = (req.ime.strip() + req.prezime.strip() + req.firma.strip()).lower()
     if _dedup_key:
         _cutoff_iso = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
         _dup_check = await asyncio.to_thread(
             lambda: supa.table("klijenti")
-                .select("id, created_at, ime, prezime, firma")
+                .select("id, kreirano, ime, prezime, firma")
                 .eq("user_id", user["user_id"])
-                .gte("created_at", _cutoff_iso)
+                .gte("kreirano", _cutoff_iso)
                 .execute()
         )
         for _row in (_dup_check.data or []):
@@ -385,16 +393,24 @@ async def get_klijent(
     supa = _get_supa()
     ip = get_client_ip(request)
 
+    # NS001/FAZA 1: bilo je `.single()`, koji na 0 redova PODIŽE PostgREST
+    # grešku umesto da vrati prazno -- pa je `if not res.data: raise 404` bio
+    # mrtav kod, a tuđi/nepostojeći klijent je vraćao HTTP 500. Mereno stvarnim
+    # pozivom: korisnik B traži klijenta korisnika A -> 500. Podatak nije curio,
+    # ali je klasa greške bila lažna ("naša greška" umesto "nije vaše"), a
+    # namera koda se nikad nije izvršavala.
+    #
+    # `.maybe_single()` vraća None (ne objekat) kad nema reda -- zato `getattr`.
     res = await asyncio.to_thread(
         lambda: supa.table("klijenti")
                     .select("*")
                     .eq("id", klijent_id)
                     .eq("user_id", user["user_id"])
                     .neq("status", "soft_deleted")
-                    .single()
+                    .maybe_single()
                     .execute()
     )
-    if not res.data:
+    if not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
     klijent = dict(res.data)
 
@@ -1586,7 +1602,11 @@ async def klijent_relationship(klijent_id: str, request: Request):
     aktivan_count = sum(1 for p in predmeti_linked if p.get("status") in ("aktivan", "u_toku"))
     from datetime import datetime
     try:
-        created_iso = kl_row.data.get("created_at", "")
+        # NS001/FAZA 1: ista kolonska greška kao u `create_klijent` iznad --
+        # `created_at` na tabeli `klijenti` ne postoji. Ovde nije rušila rutu
+        # (`.select("*")` ne pada), nego je tiho vraćala prazno, pa je
+        # „dana saradnje" bilo 0 za SVAKOG klijenta, uvek.
+        created_iso = kl_row.data.get("kreirano", "")
         dana_saradnje = (datetime.now() - datetime.fromisoformat(created_iso.replace("Z", "").rstrip("+00:00"))).days
     except Exception:
         dana_saradnje = 0

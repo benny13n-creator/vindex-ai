@@ -23,6 +23,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt as jose_jwt, JWTError
 from supabase import create_client, Client as SupabaseClient
 
+# NS001/FAZA 1 — `maybe_single()` u postgrest 2.28.3 vraća `None` na 0 redova,
+# a 201 mesta u ovom kodu odmah čita `.data`, pa umesto 404 daju HTTP 500.
+# Ugovor se vraća na jednom mestu, ovde, jer je `shared/deps.py` kanonski ulaz u
+# bazu i uvozi ga svaki produkcijski put. Detalji i merenja: shared/postgrest_compat.py
+from shared.postgrest_compat import primeni as _primeni_pgrst_compat
+
+_primeni_pgrst_compat()
+
 logger = logging.getLogger("vindex.api")
 
 # ─── Supabase ────────────────────────────────────────────────────────────────

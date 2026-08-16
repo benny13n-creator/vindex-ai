@@ -412,8 +412,25 @@ async def test_povezi_klijenta_rejects_foreign_predmet():
 
 @pytest.mark.anyio
 async def test_intake_kreiraj_skips_linking_foreign_klijent():
-    """A klijent_id the caller does not own must be silently skipped when
-    creating a case via the intake wizard, not linked to the new predmet."""
+    """A klijent_id the caller does not own must never be linked to the new case.
+
+    NS001/FAZA 1 — PROMENJENO OČEKIVANJE, NE OSLABLJENO.
+
+    STARO: "mora biti TIHO preskočen" -- predmet se kreira, veza se ne upiše,
+    ruta vrati HTTP 200 sa `success: True`. Ovaj test je merio samo da veza NIJE
+    upisana, pa je prolazio i dok je advokat dobijao potpunu potvrdu kreiranja
+    predmeta bez klijenta. Mereno u produkciji: `predmet_klijenti` 0 redova uz
+    19 predmeta.
+
+    NOVO: klijent je za ovaj tok obavezan, pa tiho preskakanje nije "bezbedan
+    ishod" nego lažan uspeh. Ruta sada vraća 404 i uklanja upravo kreiran
+    predmet.
+
+    ZAŠTO: bezbednosna tvrdnja ovog testa (tuđi `klijent_id` se NIKAD ne vezuje)
+    ostaje netaknuta i i dalje se meri -- `insert_calls == []`. Dodato je samo
+    ono što je nedostajalo: da korisnik o tome bude obavešten i da ne ostane
+    predmet bez klijenta.
+    """
     from unittest.mock import AsyncMock
     from routers.intake import IntakeKreirajReq, intake_kreiraj
 
@@ -444,9 +461,13 @@ async def test_intake_kreiraj_skips_linking_foreign_klijent():
         coro.close()
         return MagicMock()
 
+    from fastapi import HTTPException
+
     with patch("routers.intake._get_supa", return_value=mock_supa), \
          patch("asyncio.create_task", side_effect=_capture_create_task), \
          patch("services.case_pipeline.run_case_pipeline", new=AsyncMock()):
-        await intake_kreiraj(body, _fake_request("/api/intake/kreiraj"), user=_fake_user())
+        with pytest.raises(HTTPException) as exc:
+            await intake_kreiraj(body, _fake_request("/api/intake/kreiraj"), user=_fake_user())
 
     assert insert_calls == [], "a klijent_id not owned by the caller must never be linked"
+    assert exc.value.status_code == 404, "silent 200 would hide a case with no client"
