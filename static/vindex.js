@@ -12526,6 +12526,10 @@ async function pred_loadDetail(id) {
               + '</div></div>'
               + '<button onclick="event.stopPropagation();dokPreviewOpen(\'' + escHtml(dok.id || '') + '\',\'' + escHtml(dok.naziv_fajla || '') + '\',\'' + escHtml(_kb + '') + '\')" '
               + 'title="Pogledaj sadržaj" class="vx-btn vx-btn-ghost" style="flex-shrink:0;height:26px;width:26px;padding:0;">→</button>'
+              // BR-004: do NS001/FAZA 2 nije postojala nijedna kontrola za
+              // brisanje dokumenta -- ni ovde ni bilo gde drugde.
+              + '<button onclick="event.stopPropagation();dok_obrisi(\'' + escHtml(dok.id || '') + '\',\'' + escHtml(dok.naziv_fajla || '') + '\')" '
+              + 'title="Obriši dokument" class="vx-btn vx-btn-ghost" style="flex-shrink:0;height:26px;width:26px;padding:0;color:rgba(255,120,120,0.75);">✕</button>'
               + '<input type="checkbox" class="pred-dok-item-cb" onclick="event.stopPropagation()" onchange="crossdoc_toggleDok(this)" title="Označi za cross-doc analizu" '
               + 'style="flex-shrink:0;width:14px;height:14px;cursor:pointer;accent-color:#00d4ff;">'
               + '</div></div>';
@@ -15724,6 +15728,39 @@ function _doctplAutopopulate(sel) {
 function docTplClose() {
   var overlay = document.getElementById('doctpl-overlay');
   if (overlay) overlay.style.display = 'none';
+}
+
+// ── Brisanje dokumenta (BR-004, NS001/FAZA 2) ────────────────────────────────
+//
+// Stanje se NE menja optimisticki. Brisanje je nepovratno i pipeline ima tri
+// koraka koji mogu da padnu (vektori, original, red u bazi) -- lista se osvezava
+// tek iz odgovora servera, da UI nikad ne tvrdi brisanje koje se nije desilo.
+async function dok_obrisi(dokId, naziv) {
+  if (!activePredmetId || !currentSession || !dokId) return;
+  if (!confirm('Obrisati dokument "' + (naziv || '') + '"?\n\nUklanjaju se i vektori iz pretrage i original. Ovo se ne moze ponistiti.')) return;
+
+  var red = document.getElementById('cdrow-' + dokId);
+  if (red) red.style.opacity = '0.45';
+  try {
+    var r = await fetch(BASE_URL + '/api/predmeti/' + encodeURIComponent(activePredmetId)
+                        + '/dokumenti/' + encodeURIComponent(dokId), {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + currentSession.access_token },
+    });
+    var d = {};
+    try { d = await r.json(); } catch (_je) { d = {}; }
+    if (!r.ok || !d.success) {
+      if (red) red.style.opacity = '';
+      showToast(d.detail || 'Dokument nije obrisan.', 'err');
+      return;
+    }
+    showToast('Dokument obrisan.', 'ok');
+    // Jedina istina o listi je server.
+    pred_loadDetail(activePredmetId);
+  } catch (e) {
+    if (red) red.style.opacity = '';
+    showToast('Veza sa serverom nije uspela — dokument nije obrisan.', 'err');
+  }
 }
 
 // ── Dokument Preview ──────────────────────────────────────────────────────────

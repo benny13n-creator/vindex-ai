@@ -123,6 +123,37 @@ def _izlistaj_po_prefiksu(index, namespace: str, prefiks: str) -> Optional[list]
         return None
 
 
+# Prozor u kome se čeka da Pinecone-ov `list()` prizna već izvršeno brisanje.
+# 8 × 1.5s ≈ 12s: mereno je da je stvarno kašnjenje reda sekunde, a gornja
+# granica mora ostati unutar trajanja jednog HTTP zahteva.
+VERIFIKACIJA_POKUSAJA = 8
+VERIFIKACIJA_PAUZA_S = 1.5
+
+
+def _cekaj_da_nestanu(index, namespace: str, prefiks: str,
+                      pokusaja: int = VERIFIKACIJA_POKUSAJA,
+                      pauza_s: float = VERIFIKACIJA_PAUZA_S,
+                      _spavaj=None) -> Optional[list]:
+    """Lista po prefiksu dok ne bude prazna ili dok prozor ne istekne.
+
+    Vraća poslednje viđeno stanje: `[]` (nestali), lista preostalih, ili `None`
+    ako listanje uopšte nije moguće. `None` se NE ponavlja — „ne znam" se ne
+    popravlja čekanjem, i ne sme da se degradira u „prazno je".
+    """
+    import time as _time
+    spavaj = _spavaj or _time.sleep
+    preostali = None
+    for pokusaj in range(max(1, pokusaja)):
+        preostali = _izlistaj_po_prefiksu(index, namespace, prefiks)
+        if preostali is None or preostali == []:
+            return preostali
+        if pokusaj < pokusaja - 1:
+            spavaj(pauza_s)
+    logger.warning("[DELETE] posle %d provera ostalo %d vektora (ns=%s)",
+                   pokusaja, len(preostali or []), namespace)
+    return preostali
+
+
 def obrisi_vektore_dokumenta(
     supa,
     index,
@@ -203,7 +234,19 @@ def obrisi_vektore_dokumenta(
                         ocekivano=ocekivano, prefiks=prefiks)
 
     # ── 6. VERIFIKACIJA — HTTP 200 NIJE DOKAZ (§8) ──────────────────────────
-    preostali = _izlistaj_po_prefiksu(index, namespace, prefiks)
+    #
+    # NS001/FAZA 2 — JEDNO ČITANJE ODMAH POSLE BRISANJA NIJE DOKAZ ni u jednom
+    # smeru. Pinecone-ov `list()` je eventualno konzistentan: mereno stvarnim
+    # brisanjem, `delete()` je prošao, vektor je stvarno nestao, a `list()`
+    # sekundu kasnije ga je i dalje vraćao. Ova funkcija je zbog toga vraćala
+    # `PARTIAL_FAILURE`, pozivalac je odbijao ceo posao, i brisanje dokumenta
+    # NIKAD nije uspevalo — iako su vektori bili uklonjeni. Advokat je dobijao
+    # „ništa nije promenjeno" uz dokument koji je već ispao iz pretrage.
+    #
+    # Zato se čeka da indeks stigne sebe, u ograničenom prozoru. Prozor je
+    # ograničen namerno: posle njega se i dalje prijavljuje neuspeh, jer
+    # „sačekaj još malo" bez granice je isto što i „proglasi uspeh".
+    preostali = _cekaj_da_nestanu(index, namespace, prefiks)
     if preostali is None:
         return Rezultat(Ishod.VERIFICATION_FAILED,
                         "brisanje izvršeno, ali rezultat nije proverljiv",

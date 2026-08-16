@@ -6003,6 +6003,167 @@ async def predmet_dokument_preview(
     }
 
 
+# ── BR-004 — BRISANJE DOKUMENTA (NS001/FAZA 2) ───────────────────────────────
+#
+# Do ovog sprinta advokat NIJE MOGAO da obriše dokument: nije postojala nijedna
+# delete ruta za `predmet_dokumenti`, nijedna kontrola u `static/vindex.js`, a
+# kanonski `shared/vector_deletion.py::obrisi_vektore_dokumenta` -- napisan
+# upravo za ovo -- pozivan je isključivo iz `scripts/ingest_case_law.py`.
+# Dokument otpremljen greškom ostajao je zauvek: u bazi, u storage-u, u
+# Pinecone-u i u svakom AI odgovoru.
+#
+# REDOSLED JE DEO UGOVORA, NE DETALJ IZVEDBE
+#
+# Vektori se brišu PRVI i moraju uspeti. Da red u bazi nestane prvi, dokument bi
+# nestao iz liste dok bi njegov tekst i dalje ulazio u AI odgovore -- najgori
+# mogući ishod: advokat veruje da ga je uklonio, a sistem i dalje odgovara iz
+# njega. Zato: vektori -> storage -> red u bazi, i prekid na prvom neuspehu.
+#
+# ŠTA SE NE RADI: nema „obriši šta možeš". `obrisi_vektore_dokumenta` je
+# fail-closed po dizajnu (odbija bez kanonskog identiteta, bez namespace-a, i
+# kad ijedan nađeni ID izađe iz kanonskog prefiksa), i taj ugovor se ovde ne
+# omekšava.
+@app.delete("/api/predmeti/{predmet_id}/dokumenti/{dok_id}")
+@limiter.limit("20/minute")
+async def predmet_dokument_obrisi(
+    predmet_id: str,
+    dok_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Briše dokument: vektore, original u storage-u i red u bazi."""
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    row = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("id,naziv_fajla,status,storage_path,pinecone_namespace,content_sha256")
+            .eq("id", dok_id).eq("predmet_id", predmet_id).eq("user_id", uid)
+            .maybe_single().execute()
+    )
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen")
+    d = row.data
+
+    # ── 1. VEKTORI ──────────────────────────────────────────────────────────
+    #
+    # Dokument koji je ikada prijavljen kao pretraživ (`indeksirano`) ili koji
+    # ima kanonski identitet MORA proći kanonsko brisanje. Dokument bez oba
+    # nikad nije ušao u indeks -- za njega u Pinecone-u nema šta da se briše, i
+    # to je jedini slučaj u kome se ovaj korak preskače. Taj slučaj se
+    # IMENUJE u odgovoru, ne ćuti se.
+    _ima_identitet = bool((d.get("content_sha256") or "").strip())
+    _bio_indeksiran = (d.get("status") == "indeksirano")
+    vektori = {"ishod": "PRESKOCENO_NIJE_INDEKSIRAN", "obrisano": 0}
+
+    if _bio_indeksiran or _ima_identitet:
+        from shared.vector_deletion import Ishod as _VIshod, obrisi_vektore_dokumenta
+        from uploaded_doc.ingest import _get_pinecone_index
+
+        def _obrisi_vektore():
+            return obrisi_vektore_dokumenta(
+                supa, _get_pinecone_index(),
+                user_id=uid, predmet_id=predmet_id, document_id=dok_id,
+            )
+
+        try:
+            rez = await asyncio.to_thread(_obrisi_vektore)
+        except Exception as _ve:
+            logger.error("[DOK-DELETE] brisanje vektora puklo dok=%.8s: %s", dok_id, _ve)
+            raise HTTPException(
+                status_code=503,
+                detail="Dokument nije obrisan — indeks trenutno nije dostupan. Pokušajte ponovo.",
+            )
+
+        vektori = rez.as_dict()
+        if not rez.uspeh:
+            # Ni red u bazi ni original se NE diraju. Stanje ostaje
+            # konzistentno: dokument je i dalje vidljiv i i dalje pretraživ.
+            logger.error("[DOK-DELETE] odbijeno dok=%.8s: %s", dok_id, rez)
+            # Poruka mora da razlikuje „ništa nije dirano" od „brisanje je
+            # počelo i nije potvrđeno". REFUSED znači da se do Pinecone-a nije
+            # ni stiglo; PARTIAL_FAILURE / VERIFICATION_FAILED znače da je
+            # `delete()` pozvan, pa tvrdnja „ništa nije promenjeno" ne bi bila
+            # tačna — a lažna umirujuća poruka je gora od nikakve.
+            if rez.ishod == _VIshod.REFUSED:
+                _poruka = ("Dokument nije obrisan — vektori nisu uklonjeni "
+                           f"({rez.razlog}). Ništa nije promenjeno.")
+            else:
+                _poruka = ("Dokument nije obrisan — uklanjanje vektora nije potvrđeno "
+                           f"({rez.razlog or rez.ishod}). Deo vektora je možda već uklonjen; "
+                           "dokument je i dalje u vašoj listi. Pokušajte ponovo.")
+            raise HTTPException(status_code=409, detail=_poruka)
+        if rez.ishod == _VIshod.ALREADY_ABSENT:
+            logger.info("[DOK-DELETE] dok=%.8s nije imao vektore", dok_id)
+
+    # ── 2. ORIGINAL U STORAGE-U ─────────────────────────────────────────────
+    #
+    # `storage_path` je za starije redove labela `session/{id}` koja ne pokazuje
+    # ni na jedan objekat (v. napomenu u upload ruti) -- brisanje se tada
+    # preskače, jer nema šta da se briše.
+    _put = (d.get("storage_path") or "").strip()
+    storage_ishod = "PRESKOCENO_NEMA_ORIGINALA"
+    if _put and not _put.startswith("session/"):
+        try:
+            from routers.smart_intake import _STORAGE_BUCKET as _bucket
+            await asyncio.to_thread(
+                lambda: supa.storage.from_(_bucket).remove([_put])
+            )
+            storage_ishod = "OBRISAN"
+        except Exception as _se:
+            # Vektori su već obrisani; zaustaviti se ovde ostavilo bi dokument u
+            # listi, a nepretraživ. Original koji je ostao je gubitak prostora,
+            # ne gubitak poverljivosti prema AI sloju -- i imenuje se u odgovoru.
+            logger.warning("[DOK-DELETE] original nije obrisan (%s): %s", _put, _se)
+            storage_ishod = "NIJE_OBRISAN"
+
+    # ── 3. RED U BAZI ───────────────────────────────────────────────────────
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").delete()
+                .eq("id", dok_id).eq("predmet_id", predmet_id).eq("user_id", uid)
+                .execute()
+        )
+    except Exception as _de:
+        logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
+        raise HTTPException(
+            status_code=500,
+            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
+        )
+
+    # HTTP 200 od baze nije dokaz (isti razlog kao verifikacija u §6 kanonskog
+    # modula) -- proverava se da reda stvarno više nema.
+    _provera = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti").select("id").eq("id", dok_id).limit(1).execute()
+    )
+    if _provera.data:
+        raise HTTPException(
+            status_code=500,
+            detail="Vektori su uklonjeni, ali dokument je i dalje u bazi. Pokušajte ponovo.",
+        )
+
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(
+            "dokument_delete",
+            user_id=uid,
+            resource_type="dokument",
+            resource_id=dok_id,
+            ip=request.client.host if request.client else None,
+            metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", ""),
+                      "vektori": vektori, "storage": storage_ishod},
+        ))
+    except Exception as _ae:
+        logger.warning("[AUDIT] dokument_delete log greška: %s", _ae)
+
+    return {
+        "success": True,
+        "dokument_id": dok_id,
+        "vektori": vektori,
+        "storage": storage_ishod,
+    }
+
+
 # ── P1 — Case Workspace ───────────────────────────────────────────────────────
 
 @app.get("/api/predmeti/{predmet_id}/workspace")
