@@ -1758,6 +1758,40 @@ def _jedan_retrieval_krug(
     return jedinstveni, orig_score_map
 
 
+def _vlasnicki_opseg_iz_konteksta():
+    """(namespace, dozvoljeni_predmeti) izvedeni iz AUTENTIFIKOVANOG identiteta.
+
+    BR-003. Vraca `(None, None)` kad konteksta nema -- pozadinski poslovi,
+    skripte, neautentifikovani pozivi. To je zatecено ponasanje: vlasnicki
+    namespace se tada NE pretrazuje. Fail-closed, ne fail-open.
+
+    Sve tri karike su kanonske i vec postoje; ovde se samo spajaju:
+      `shared/ai_provenance.py`   -> user_id iz verifikovanog JWT `sub`
+      `shared/kancelarija_utils`  -> kancelarija_id + rag_owner_namespace()
+      `shared/rag_acl.py`         -> skup predmeta koje korisnik sme da vidi
+    """
+    try:
+        from shared.ai_provenance import _request_ctx
+        uid = (_request_ctx.get() or {}).get("user_id")
+    except Exception:
+        return None, None
+    if not uid:
+        return None, None
+    try:
+        from shared.deps import _get_supa
+        from shared.kancelarija_utils import (get_kancelarija_id_sync,
+                                              rag_owner_namespace)
+        from shared.rag_acl import dozvoljeni_predmeti as _acl
+
+        supa = _get_supa()
+        ns = rag_owner_namespace(uid, get_kancelarija_id_sync(supa, uid))
+        return ns, _acl(supa, uid)
+    except Exception as e:
+        # Neuspeh razresavanja NE sme da otvori pretragu bez ogranicenja.
+        logger.error("[BR003] vlasnicki opseg nije razresen za uid=%.8s: %s", uid, e)
+        return None, None
+
+
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
 def retrieve_documents(
@@ -1855,6 +1889,42 @@ def retrieve_documents(
     # namespace se NE pretrazuje -- prazan filter u Pinecone-u znaci "bez
     # ogranicenja", pa bi svaka buduca greska koja proizvede {} otvorila tacno
     # ovu rupu ponovo.
+    # ── BR-003: VLASNIČKI OPSEG SE IZVODI OVDE, NE PRIMA SE OD POZIVAOCA ─────
+    #
+    # Zatečeno stanje (mereno): `retrieve_documents` ima 14 produkcijskih
+    # pozivalaca, a `kancelarija_namespace` prosleđuje TAČNO JEDAN --
+    # auto-analiza u `api.py:5476`, unutar same upload rute. Za svako normalno
+    # pitanje advokata namespace je bio `None`, pa se grana ispod nikad nije ni
+    # izvršila: korisnikovi dokumenti nisu bili u opsegu pretrage.
+    #
+    # Zašto se ne prosleđuje kroz 14 poziva: parametar koji svako mora da se
+    # seti da prosledi je isti onaj koji je ovde i zaboravljen 13 puta.
+    # Identitet se zato uzima sa mesta na kom ga sistem VEĆ ima -- iz
+    # `set_request_context(user_id=...)`, koju postavljaju auth choke point-i
+    # (`shared/deps.py:326`, `api.py:3776/3805`) iz VERIFIKOVANOG JWT `sub`.
+    # Korisnik tu vrednost ne može da izabere ni da falsifikuje.
+    #
+    # Prosleđena vrednost se NE uzima na veru: ako kontekst ima korisnika, a
+    # pozivalac je poslao drugačiji namespace, pobeđuje izvedeni. Time nijedna
+    # buduća putanja ne može da pretražuje tuđi prostor ni greškom ni namerno.
+    _izvedeni_ns, _izvedeni_acl = _vlasnicki_opseg_iz_konteksta()
+    if _izvedeni_ns:
+        if kancelarija_namespace and kancelarija_namespace != _izvedeni_ns:
+            logger.error(
+                "[BR003] Odbijen prosledjen namespace %r -- vlasnik je %r",
+                kancelarija_namespace, _izvedeni_ns,
+            )
+        kancelarija_namespace = _izvedeni_ns
+        # ACL prati namespace: prazan/izostavljen ACL bi u
+        # `filter_za_namespace_vlasnika` dao `None` (= ne pretrazuj), pa bi
+        # namespace bio beskoristan. Prosledjeni ACL se postuje samo ako je
+        # PODSKUP izvedenog -- pozivalac sme da suzi, nikad da prosiri.
+        if dozvoljeni_predmeti is None:
+            dozvoljeni_predmeti = _izvedeni_acl
+        else:
+            _dozvoljeni_set = set(_izvedeni_acl or [])
+            dozvoljeni_predmeti = [p for p in dozvoljeni_predmeti if p in _dozvoljeni_set]
+
     _kanc_exec = None
     _kanc_future = None
     if kancelarija_namespace:

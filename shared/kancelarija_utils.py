@@ -16,30 +16,42 @@ import asyncio
 from typing import Any, Optional
 
 
-async def get_kancelarija_id(supa: Any, uid: str) -> Optional[str]:
-    """Vraća kancelarija_id kancelarije čiji je `uid` admin ili aktivan član,
-    ili None ako korisnik ne pripada nijednoj kancelariji (solo advokat)."""
+def get_kancelarija_id_sync(supa: Any, uid: str) -> Optional[str]:
+    """Sinhrono jezgro razrešavanja kancelarije. JEDINA implementacija upita.
+
+    BR-003: `retrieve_documents` je sinhrona funkcija (poziva se kroz
+    `asyncio.to_thread`), pa joj `async` varijanta nije upotrebljiva. Umesto
+    druge kopije istih upita, logika je izvučena OVDE, a `get_kancelarija_id`
+    ispod je sada tanak async omotač nad ovim jezgrom. Broj mesta na kojima se
+    zna KAKO se kancelarija razrešava time pada sa jedan na jedan -- ne raste.
+
+    Vraća `None` i kad korisnik nema kancelariju (solo advokat) i kad upit
+    padne. Obe situacije vode u `user_{uid}` namespace, dakle u UŽI opseg --
+    greška nikad ne proširuje vidljivost.
+    """
     try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("kancelarije")
-                .select("id")
-                .eq("admin_uid", uid)
-                .maybe_single()
-                .execute()
-        )
+        r = (supa.table("kancelarije")
+             .select("id")
+             .eq("admin_uid", uid)
+             .maybe_single()
+             .execute())
         if r.data:
             return r.data["id"]
-        r2 = await asyncio.to_thread(
-            lambda: supa.table("kancelarija_clanovi")
-                .select("kancelarija_id")
-                .eq("user_id", uid)
-                .eq("status", "ACTIVE")
-                .maybe_single()
-                .execute()
-        )
+        r2 = (supa.table("kancelarija_clanovi")
+              .select("kancelarija_id")
+              .eq("user_id", uid)
+              .eq("status", "ACTIVE")
+              .maybe_single()
+              .execute())
         return r2.data.get("kancelarija_id") if r2.data else None
     except Exception:
         return None
+
+
+async def get_kancelarija_id(supa: Any, uid: str) -> Optional[str]:
+    """Vraća kancelarija_id kancelarije čiji je `uid` admin ili aktivan član,
+    ili None ako korisnik ne pripada nijednoj kancelariji (solo advokat)."""
+    return await asyncio.to_thread(get_kancelarija_id_sync, supa, uid)
 
 
 def rag_owner_namespace(user_id: str, kancelarija_id: Optional[str]) -> str:
