@@ -10,6 +10,7 @@ import re
 import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 from app.services.retrieve import (
@@ -2413,17 +2414,87 @@ SYSTEM_PROMPT_PORESKI    = SYSTEM_PROMPT_PORESKI    + _MISLJENJA_PROMPT_ADDENDUM
 SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _MISLJENJA_PROMPT_ADDENDUM
 
 
-def _format_halucination_block(razlog: str) -> str:
-    """Korisnička poruka kada guard v2.0 detektuje fabricated article citation."""
-    return (
+_DOK_CITAT_MAX = 1200
+
+
+def _dokumentarni_citat(docs: Optional[list] = None) -> str:
+    """Doslovan citat pasusa iz KORISNIKOVOG dokumenta koji su ušli u kontekst.
+
+    NS001-P0-001B. Vraća prazno kad takvih pasusa nema — tada je izlaz
+    `_format_halucination_block` bajt-identičan ranijem.
+
+    Namerno se citira SAM DOKUMENT iz retrieval-a, a ne rečenica koju je model
+    napisao: dokument je već proveren podatak, pa halucinacija ovim putem nije
+    moguća. To je razlika između „sačuvaj potvrđenu činjenicu" i „propusti deo
+    blokiranog odgovora".
+    """
+    if not docs:
+        return ""
+    from app.services.doc_formatter import _DOC_LABEL
+    delovi, ukupno = [], 0
+    for d in docs:
+        t = (d or "").strip()
+        if not t.startswith(_DOC_LABEL):
+            continue
+        if ukupno + len(t) > _DOK_CITAT_MAX:
+            t = t[: max(0, _DOK_CITAT_MAX - ukupno)].rstrip()
+        if not t:
+            break
+        delovi.append(t)
+        ukupno += len(t)
+        if ukupno >= _DOK_CITAT_MAX:
+            break
+    return "\n\n".join(delovi)
+
+
+def _format_halucination_block(razlog: str, docs: Optional[list] = None) -> str:
+    """Korisnička poruka kada guard v2.0 detektuje fabricated article citation.
+
+    NS001-P0-001B — NEUSPEH PRAVNOG DELA NIJE NEUSPEH DOKUMENTA.
+
+    Ranije je ova poruka zamenjivala CEO odgovor, pa je uz neproverljivu pravnu
+    referencu nestajala i činjenica iz advokatovog dokumenta — činjenica koja
+    nikad nije bila sporna, koju je retrieval već potvrdio i koja je stigla
+    modelu. Mereno: advokat pita „kolika je ugovorna kazna i da li je odredba
+    dozvoljena", dokument doslovno kaže iznos, a odgovor glasi „nema direktnog
+    člana u bazi".
+
+    Blokada pravnog dela ostaje NEPROMENJENA — nijedan neproveren član zakona i
+    dalje ne izlazi. Menja se samo to što se uz nju prilaže doslovan citat
+    dokumenta, kad ga ima. Kad ga nema, ponašanje je identično ranijem
+    (fail-closed za nepostojeću činjenicu).
+    """
+    _citat = _dokumentarni_citat(docs)
+    _uvod = (
+        "[!] STATUSNA POTVRDA: Deo odgovora iz VAŠEG DOKUMENTA je potvrđen; "
+        "pravni deo nije proverljiv u bazi zakona.\n\n"
+        if _citat else
         "[!] STATUSNA POTVRDA: Opšta pravna logika — nema direktnog člana u bazi za ovo pitanje.\n\n"
-        "--- HIJERARHIJA IZVORA\n"
-        "Sistem nije mogao da verifikuje navedene pravne reference u dostupnoj bazi zakona RS.\n\n"
-        "--- PRAVNI ZAKLJUČAK\n"
+    )
+    _blok_dokumenta = (
+        "--- IZ VAŠEG DOKUMENTA (doslovan citat, potvrđen izvor)\n"
+        f"{_citat}\n\n"
+        if _citat else ""
+    )
+    _zakljucak = (
+        "PRAVNI deo odgovora je blokiran jer su detektovane pravne reference koje "
+        "nisu potkrepljene direktnim citatom iz indeksiranih zakona. Vindex AI "
+        "primenjuje politiku nulte tolerancije na neproverene navode članova "
+        "zakona. Činjenice iz vašeg dokumenta iznad NISU predmet te blokade i "
+        "navedene su doslovno.\n\n"
+        if _citat else
         "Odgovor je blokiran jer su detektovane pravne reference koje nisu potkrepljene "
         "direktnim citatom iz indeksiranih zakona. Vindex AI primenjuje politiku nultog "
         "tolerancija na neproverene navode članova zakona.\n\n"
-        "--- PREPORUKE\n"
+    )
+    return (
+        _uvod
+        + _blok_dokumenta
+        + "--- HIJERARHIJA IZVORA\n"
+        "Sistem nije mogao da verifikuje navedene pravne reference u dostupnoj bazi zakona RS.\n\n"
+        "--- PRAVNI ZAKLJUČAK\n"
+        + _zakljucak
+        + "--- PREPORUKE\n"
         "— Navedite tačan broj člana i naziv zakona (npr. \"ZR čl. 161\") za direktan pregled\n"
         "— Reformulišite pitanje sa više pravnog konteksta\n"
         "— Konsultujte primarni izvor: Paragraf.rs ili Sl. glasnik RS\n\n"
@@ -2826,7 +2897,7 @@ def _parsiraj_strukturni_odgovor(
         data = _json.loads(raw_json)
     except Exception as exc:
         logger.warning("[COMMIT3] JSON parse greška [tip=%s]: %s", tip, exc)
-        return False, _format_halucination_block(f"JSON parse greška: {exc}")
+        return False, _format_halucination_block(f"JSON parse greška: {exc}", docs)
 
     # BLACKSWAN-AI-004 fix (Operation Black Swan, Mission 001, AI Attack): guard_text used
     # to scan only 3 named fields (citat_zakona/pravni_osnov/pravni_zakljucak), but
@@ -2860,7 +2931,7 @@ def _parsiraj_strukturni_odgovor(
         logger.warning(
             "[COMMIT3] Strukturni guard blok [tip=%s] razlog=%s", tip, razlog
         )
-        return False, _format_halucination_block(razlog)
+        return False, _format_halucination_block(razlog, docs)
 
     # T6: Praksa hallucination guard — only active when we provided a praksa context
     if praksa_context:
@@ -2879,7 +2950,7 @@ def _parsiraj_strukturni_odgovor(
                     tip, fabricated[:3],
                 )
                 return False, _format_halucination_block(
-                    f"Sudska praksa nije u kontekstu: {', '.join(fabricated[:3])}"
+                    f"Sudska praksa nije u kontekstu: {', '.join(fabricated[:3])}", docs
                 )
             logger.info(
                 "[COMMIT3_PRAKSA] %d praksa citations verified OK [tip=%s]",

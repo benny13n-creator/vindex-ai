@@ -2,8 +2,8 @@
 """
 NS002 / NS001-P0-001 — KARAKTERIZACIJA, NE POPRAVKA.
 
-STATUS: 🟡 BLOKIRANO. Produkcijski kod NIJE menjan (v. `docs/beta_gate/
-NS002_DOCUMENT_FACT_DETERMINISM.md`). Ovi testovi ZAKLJUČAVAJU IZMERENO
+STATUS: MEHANIZAM 1 i dalje otvoren; MEHANIZAM 2 ZATVOREN u NS002B
+(`docs/beta_gate/NS002B_SOURCE_SEPARATION.md`). Ovi testovi ZAKLJUČAVAJU IZMERENO
 PONAŠANJE dva mehanizma koji zajedno obaraju P0 tok, da bi sledeća izmena
 morala da bude svesna.
 
@@ -218,29 +218,27 @@ def test_1f_izvor_kvara_je_imenovan():
 # 2 — MEHANIZAM 2: GUARD OBARA CEO ODGOVOR ZBOG PRAVNE REFERENCE
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_2_KVAR_kad_guard_blokira_nestaje_i_cinjenica_iz_dokumenta():
-    """# KVAR — izmereno stanje.
+def test_2_cinjenica_iz_dokumenta_prezivljava_blokadu():
+    """PREPISAN 2026-08-16 (NS002B) — ovaj test je RANIJE tvrdio suprotno.
 
-    Sinteza se pokrece i pasus dokumenta stize modelu, ali kada guard
-    (`[MEDIUM->BLOCK] Commit3 guard`) obori odgovor, ceo tekst se zamenjuje
-    kanonskim `ODGOVOR_NIJE_PRONADJEN` — pa nestaje i cinjenica iz dokumenta,
-    koja nikad nije bila sporna. Blokada je sve-ili-nista.
+    STARO (`test_2_KVAR_...`): kad guard obori odgovor, ceo tekst se zamenjuje
+    kanonskim „nema direktnog clana u bazi", pa nestaje i cinjenica iz
+    advokatovog dokumenta. Test je bio KARAKTERIZACIJA kvara i imao je izricitu
+    uputu da MORA pasti kad se blocker zatvori. Pao je — i ovo je taj prepis.
 
-    GRANICA OVOG TESTA, izricito: ovde guard puca zato sto lazni model vraca
-    obican tekst umesto JSON-a (`[COMMIT3] JSON parse greska`). U stvarnom E2E
-    prolasku model vraca ispravan JSON, a blokada se svejedno desava — ista log
-    linija, 9 od 10 pokusaja scenarija J. TACAN OKIDAC u produkciji NIJE
-    dokazan ovim harness-om i zato se ovde NE tvrdi. Dokazano je samo ono sto
-    ovaj test meri: kad guard blokira, cinjenica iz dokumenta ide s njim.
+    NOVO: `_format_halucination_block` prilaze doslovan citat pasusa iz
+    KORISNIKOVOG dokumenta uz blokadu pravnog dela. Blokada pravnog dela je
+    NEPROMENJENA — nijedan neproveren clan zakona i dalje ne izlazi.
+
+    Detalji i mutacije: `tests/test_ns002b_source_separation.py`.
     """
     rez, z = _vozi(_meta(conf="LOW"), [PASUS], extra_namespaces=["tmp_x"])
     assert z["model_pozvan"] is True
     assert "17.350" in z["kontekst"], "cinjenica nije ni stigla modelu"
     tekst = str(rez.get("data") or "")
-    assert rez.get("blocked") is True, rez.get("blocked")
-    assert "17.350" not in tekst, (
-        "cinjenica iz dokumenta sada prezivljava blokadu — prepisi ovaj test"
-    )
+    assert rez.get("blocked") is True, "blokada pravnog dela je nestala — to NIJE bio cilj"
+    assert "17.350" in tekst, "cinjenica iz dokumenta i dalje nestaje sa blokadom"
+    assert "IZ VAŠEG DOKUMENTA" in tekst
 
 
 # ═══════════════════════════════════════════════════════════════════════════
