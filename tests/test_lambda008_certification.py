@@ -206,13 +206,28 @@ async def test_verify_pred_namespace_ownership_rejects_unowned_predmet():
 
 @pytest.mark.anyio
 async def test_verify_pred_namespace_ownership_allows_owned_predmet():
+    """NS001/FAZA 3 (BR-005) — PROMENJENO OČEKIVANJE, NE OSLABLJENO.
+
+    STARO: vlasnik `pred_<predmet_id>` namespace-a je smeo da prođe.
+    NOVO: `pred_` šema više ne postoji ni za vlasnika — dokazano je da je mrtva
+    (nijedan pisac je ne proizvodi; nijedan postojeći `pred_*` namespace nema
+    `predmeti.id` kao sufiks; 43 takva namespace-a iz baze ne postoje u
+    Pinecone-u), pa je ova grana mogla da vrati isključivo 404.
+
+    ZAŠTO NIJE OSLABLJENJE: susedni test (`..._rejects_foreign_predmet`) je
+    merio da TUĐI predmet pada. Sada pada i vlasnikov — strože, ne slabije.
+    Legitiman `tmp_` put ostaje pokriven testom ispod.
+    """
     from routers.dokument import _verify_pred_namespace_ownership
 
     supa = MagicMock()
     supa.table.return_value = _chain(MagicMock(data=[{"id": "p1"}]))
 
     with patch("routers.dokument._get_supa", return_value=supa):
-        await _verify_pred_namespace_ownership("p1", "pred_", "u1")  # must not raise
+        with pytest.raises(HTTPException) as exc:
+            await _verify_pred_namespace_ownership("p1", "pred_", "u1")
+
+    assert exc.value.status_code == 404
 
 
 @pytest.mark.anyio

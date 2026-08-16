@@ -48,9 +48,15 @@ def ingest_session(
     """Embed chunks and upsert to a Pinecone namespace.
 
     Default behavior (namespace_override=None) is UNCHANGED: namespace is
-    <namespace_prefix><session_id>. Use namespace_prefix='pred_' for permanent
-    predmet documents (cleanup_expired only deletes tmp_* namespaces).
-    Default prefix 'tmp_' is for temporary sessions.
+    <namespace_prefix><session_id>, i to je iskljucivo za PRIVREMENE sesije
+    ('tmp_', koje cleanup_expired brise po isteku TTL-a).
+
+    NS001/FAZA 3 (BR-005): raniji tekst je ovde preporucivao stari "pred"
+    prefiks za trajne dokumente predmeta. Ta sema je mrtva --
+    trajni dokumenti idu kroz namespace_override=rag_owner_namespace(...), a
+    nijedan `pred_*` namespace nije vise dohvatljiv (mereno: nijednom sufiks
+    nije predmeti.id, a 43 takva namespace-a iz baze ne postoje u Pinecone-u).
+    Preporuka je uklonjena da ne bi vratila fragmentaciju kroz dokumentaciju.
 
     namespace_override / extra_metadata (Institutional Learning & RAG Audit,
     2026-07-26, stavka #1): kad je namespace_override prosleđen, koristi se

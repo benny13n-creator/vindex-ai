@@ -142,45 +142,77 @@ async def _call(dok, session_id="predmet-A", prefix="pred_", user_id="user-A"):
     )
 
 
+# -----------------------------------------------------------------------------
+# NS001/FAZA 3 (BR-005) -- PROMENJENA OCEKIVANJA, NE OSLABLJENA
+#
+# STARO: `pred_` je bio prihvatljiva sema, a `session_id` je za nju BIO
+# `predmeti.id`, pa su c1/c2/c9/c7 merili da se taj predmet_id verno veze kao
+# subjekat AI poziva.
+#
+# NOVO: `pred_` sema je uklonjena iz svih produkcijskih putanja. Dokaz da je
+# bila mrtva: nijedan pisac je ne proizvodi; 6 `pred_*` namespace-ova u
+# Pinecone-u nema `predmeti.id` kao sufiks; 43 `pred_*` namespace-a iz
+# `predmet_dokumenti` ne postoje u Pinecone-u. Grana je mogla da vrati
+# iskljucivo 404.
+#
+# ZASTO OVO NIJE OSLABLJENJE: tvrdnja koju su ovi testovi stitili -- "subjekat
+# AI poziva mora biti istinit, nikad izmisljen" -- ne samo da ostaje, nego je
+# sada jaca: za `tmp_` subjekat je i dalje NULL (c3), a `pred_` vise uopste ne
+# moze da udje. Dodata je i tvrdnja koje ranije nije bilo: vlasnicki namespace
+# (`kancelarija_*`/`user_*`) ne sme da prodje ovim putem, jer `extra_namespaces`
+# pretraga ide BEZ `rag_acl` filtera.
+# -----------------------------------------------------------------------------
+
+
 @pytest.mark.anyio
-async def test_c1_pred_success_binds_the_real_predmet_id():
+async def test_c1_pred_sema_se_vise_ne_prihvata():
+    """Bilo `test_c1_pred_success_binds_the_real_predmet_id`."""
+    from fastapi import HTTPException
     import routers.dokument as dok
 
-    captured = {}
+    called = {"n": 0}
 
-    def _fake_agent(*a, **k):
-        captured["subject"] = _subject()
-        return {"status": "success", "data": "odgovor"}
+    def _must_not_run(*a, **k):
+        called["n"] += 1
+        return {}
 
     with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
          patch("uploaded_doc.session.validate_session", return_value=True), \
-         patch("main.ask_agent", _fake_agent), \
+         patch("main.ask_agent", _must_not_run), \
          patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
-        await _call(dok)
+        with pytest.raises(HTTPException) as exc:
+            await _call(dok, session_id="pred_predmet-A", prefix="pred_")
 
-    assert captured["subject"][1] == "predmet-A", captured["subject"]
-    assert captured["subject"][2] is None, "session_id must never be written as document_id"
+    assert exc.value.status_code == 422
+    assert called["n"] == 0, "provajder je dohvacen za uklonjenu semu"
 
 
 @pytest.mark.anyio
-async def test_c2_pred_failure_carries_the_same_predmet_id():
+async def test_c2_prosledjen_prefiks_ne_moze_da_vrati_pred_semu():
+    """Bilo `test_c2_pred_failure_carries_the_same_predmet_id`.
+
+    Polje `namespace_prefix` je ranije BIRALO semu. Sada je bez uticaja: cist
+    `session_id` uz `namespace_prefix='pred_'` ide kroz `tmp_` put, i subjekat
+    ostaje istinit NULL."""
     import routers.dokument as dok
 
-    captured = {}
+    seen = {}
 
-    def _err_agent(*a, **k):
-        captured["subject"] = _subject()
-        return {"status": "error", "message": "Sistem je trenutno zauzet"}
+    def _record(pitanje, history, extra_ns, *a, **k):
+        seen["ns"] = extra_ns[0]
+        seen["subject"] = _subject()
+        return {"status": "success", "data": "x"}
 
+    idx = _index_with({"tmp_sess-9": "x"})
     with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=idx), \
          patch("uploaded_doc.session.validate_session", return_value=True), \
-         patch("main.ask_agent", _err_agent), \
+         patch("main.ask_agent", _record), \
          patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
-        await _call(dok)
+        await _call(dok, session_id="sess-9", prefix="pred_")
 
-    assert captured["subject"][1] == "predmet-A", (
-        "a failed AI call must carry the same subject as a successful one"
-    )
+    assert seen["ns"] == "tmp_sess-9", seen
+    assert seen["subject"][1] is None
 
 
 @pytest.mark.anyio
@@ -208,7 +240,12 @@ async def test_c3_tmp_success_records_no_subject():
 
 
 @pytest.mark.anyio
-async def test_c8_unauthorized_predmet_never_reaches_the_provider():
+async def test_c8_tudja_tmp_sesija_nikad_ne_stize_do_provajdera():
+    """Bilo `test_c8_unauthorized_predmet_never_reaches_the_provider`.
+
+    Ista tvrdnja, samo nad semom koja je ostala: vektori tudje `tmp_` sesije
+    nose `owner_user_id` koji se ne poklapa, pa se pada zatvoreno (404) PRE
+    ijednog poziva provajderu."""
     from fastapi import HTTPException
     import routers.dokument as dok
 
@@ -218,59 +255,87 @@ async def test_c8_unauthorized_predmet_never_reaches_the_provider():
         called["n"] += 1
         return {}
 
-    empty = MagicMock()
-    empty.data = []
-    chain = MagicMock()
-    chain.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = empty
-    supa = MagicMock()
-    supa.table.return_value = chain
+    idx = MagicMock()
+    idx.query.return_value = MagicMock(matches=[
+        MagicMock(metadata={"owner_user_id": "user-NEKO-DRUGI"})
+    ])
 
-    with patch.object(dok, "_get_supa", return_value=supa), \
+    with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=idx), \
          patch("main.ask_agent", _must_not_run), \
          patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
         with pytest.raises(HTTPException) as exc:
-            await _call(dok, session_id="predmet-TUDJ")
+            await _call(dok, session_id="tudja-sesija", prefix="tmp_")
 
     assert exc.value.status_code == 404
-    assert called["n"] == 0, "the provider must never be reached for a foreign case"
+    assert called["n"] == 0, "the provider must never be reached for a foreign session"
+
+
+@pytest.mark.anyio
+async def test_c8b_vlasnicki_namespace_ne_sme_da_udje_ovim_putem():
+    """TVRDNJA KOJE RANIJE NIJE BILO.
+
+    `extra_namespaces` pretraga u `app/services/retrieve.py` ide BEZ metadata
+    filtera. Da vlasnicki namespace stigne ovim putem, `shared/rag_acl.py`
+    kapija bi bila zaobidjena i pozivalac bi dobio doslovan tekst iz predmeta
+    koje ne sme ni da otvori."""
+    from fastapi import HTTPException
+    import routers.dokument as dok
+
+    called = {"n": 0}
+
+    def _must_not_run(*a, **k):
+        called["n"] += 1
+        return {}
+
+    with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
+         patch("main.ask_agent", _must_not_run), \
+         patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
+        for sid in ("kancelarija_k1", "user_u1", "tmp_x", "pred_x"):
+            with pytest.raises(HTTPException) as exc:
+                await _call(dok, session_id=sid, prefix="tmp_")
+            assert exc.value.status_code == 422, sid
+    assert called["n"] == 0
 
 
 @pytest.mark.anyio
 async def test_c9_the_subject_does_not_survive_the_endpoint():
     import routers.dokument as dok
 
+    idx = _index_with({"tmp_sess-1": "x"})
     with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
+         patch("uploaded_doc.ingest._get_pinecone_index", return_value=idx), \
          patch("uploaded_doc.session.validate_session", return_value=True), \
          patch("main.ask_agent", lambda *a, **k: {"status": "success", "data": "x"}), \
          patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
-        await _call(dok)
+        await _call(dok, session_id="sess-1", prefix="tmp_")
 
     assert _subject()[1] is None, "predmet_id must not outlive the endpoint"
 
 
 @pytest.mark.anyio
 async def test_c7_parallel_requests_cross_neither_namespace_nor_subject():
-    """One pred_ request and one tmp_ request in flight together. Neither may
-    observe the other's subject, and the tmp_ one must stay NULL."""
+    """Dva paralelna `tmp_` zahteva. Nijedan ne sme da vidi tudji namespace ni
+    tudji subjekat, i oba subjekta ostaju NULL."""
     import routers.dokument as dok
 
     seen = {}
 
     def _record(pitanje, history, extra_ns, *a, **k):
-        subj = _subject()
-        seen[extra_ns[0]] = subj
+        seen[extra_ns[0]] = _subject()
         return {"status": "success", "data": "x"}
 
-    idx = _index_with({"tmp_sess-1": "x", "pred_predmet-A": "y"})
+    idx = _index_with({"tmp_sess-1": "x", "tmp_sess-2": "y"})
     with patch.object(dok, "_get_supa", return_value=_owned_supa()), \
          patch("uploaded_doc.ingest._get_pinecone_index", return_value=idx), \
          patch("uploaded_doc.session.validate_session", return_value=True), \
          patch("main.ask_agent", _record), \
          patch("shared.usage.UsageService.consume", new=AsyncMock(return_value=9)):
         await asyncio.gather(
-            _call(dok, session_id="predmet-A", prefix="pred_"),
             _call(dok, session_id="sess-1", prefix="tmp_"),
+            _call(dok, session_id="sess-2", prefix="tmp_"),
         )
 
-    assert seen["pred_predmet-A"][1] == "predmet-A"
-    assert seen["tmp_sess-1"][1] is None, "the tmp_ request must not inherit a case"
+    assert set(seen) == {"tmp_sess-1", "tmp_sess-2"}, seen
+    assert seen["tmp_sess-1"][1] is None
+    assert seen["tmp_sess-2"][1] is None

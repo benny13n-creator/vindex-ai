@@ -12542,30 +12542,16 @@ async function pred_loadDetail(id) {
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
     }
-    // Auto-restore doc session: tiho postavi _docSessionId od najnovijeg pred_ dokumenta
-    if (d.dokumenti && d.dokumenti.length && !_docSessionId) {
-      for (var _ri = 0; _ri < d.dokumenti.length; _ri++) {
-        var _rNs = (d.dokumenti[_ri].pinecone_namespace || '');
-        if (_rNs.startsWith('pred_')) {
-          var _rDok = d.dokumenti[_ri];
-          _docSessionId       = _rNs.replace(/^pred_/, '');
-          _docNamespacePrefix = 'pred_';
-          _docUploadName      = _rDok.naziv_fajla;
-          _docUploadSize      = (_rDok.velicina_kb || 0) * 1024;
-          var _rZ  = document.getElementById('doc-upload-zone');
-          var _rSa = document.getElementById('doc-session-active');
-          var _rFn = document.getElementById('doc-file-name');
-          var _rFm = document.getElementById('doc-file-meta');
-          var _rOw = document.getElementById('doc-ocr-warning');
-          if (_rZ)  _rZ.style.display  = 'none';
-          if (_rSa) _rSa.style.display = 'block';
-          if (_rFn) _rFn.textContent   = _rDok.naziv_fajla || 'Dokument';
-          if (_rFm) _rFm.textContent   = (_rDok.velicina_kb || 0) + ' KB • trajno sačuvan';
-          if (_rOw) _rOw.style.display = 'none';
-          break;
-        }
-      }
-    }
+    // NS001/FAZA 3 (BR-005) — UKLONJEN auto-restore `pred_` sesije.
+    //
+    // Grana je postavljala `_docSessionId = <ns bez pred_>` i
+    // `_docNamespacePrefix = 'pred_'`, a onda je `/api/dokument/pitanje` tim
+    // vrednostima uvek vracalo 404: nijedan `pred_*` namespace ne postoji u
+    // Pinecone-u, i nijednom sufiks nije `predmeti.id` (mereno). Za dokumente
+    // danasnjeg koda (`user_*`/`kancelarija_*`) uslov se nikad nije ni ispunio.
+    // Dakle: ili nista, ili tiho pripremljen 404. Pitanja o dokumentima
+    // predmeta idu kroz pretragu predmeta, koja izvodi vlasnicki namespace
+    // kanonski (BR-003).
     // Cross-doc section (renders once; always present when docs exist)
     var cdSecEl = document.getElementById('crossdoc-section');
     if (cdSecEl) {
@@ -15806,9 +15792,21 @@ function dokPreviewClose() {
 }
 
 function dokUcitajZaAnalizu(ns, naziv, velicinaKb, dokId) {
-  // ns = "pred_SESSION" or "tmp_SESSION"
-  var prefix = ns.startsWith('pred_') ? 'pred_' : 'tmp_';
-  var sessionId = ns.replace(/^(pred_|tmp_)/, '');
+  // NS001/FAZA 3 (BR-005). Ranije: `prefix = ns.startsWith('pred_') ? 'pred_' : 'tmp_'`
+  // i `sessionId = ns` bez prefiksa. Za dokument u vlasnickom namespace-u
+  // (`user_*`/`kancelarija_*`) to je pravilo `tmp_user_<uid>` -- namespace koji
+  // ne postoji -- pa je klik na dokument uvek zavrsavao sa 404. Mereno.
+  //
+  // Sesijska analiza radi iskljucivo nad `tmp_` uploadom. Dokument predmeta se
+  // otvara u pregledu, a pitanja o njemu idu kroz pretragu predmeta, koja
+  // vlasnicki namespace izvodi kanonski (BR-003).
+  ns = ns || '';
+  if (!ns.startsWith('tmp_')) {
+    dokPreviewOpen(dokId, naziv, velicinaKb);
+    return;
+  }
+  var prefix = 'tmp_';
+  var sessionId = ns.slice(4);
   if (!sessionId) { showToast('Ovaj dokument nije vektorizovan — otpremite ga ponovo da biste koristili analizu.', 'warn'); return; }
 
   _docSessionId       = sessionId;
@@ -20370,13 +20368,13 @@ async function pred_upload_doc(file) {
       return;
     }
     var d = await r.json();
-    // Odmah aktiviraj document session od novog uploada — ne čekaj pred_loadDetail
-    if (d.session_id) {
-      _docSessionId       = d.session_id;
-      _docNamespacePrefix = 'pred_';
-      _docUploadName      = file.name;
-      _docUploadSize      = file.size;
-    }
+    // NS001/FAZA 3 (BR-005) — UKLONJENO lazno aktiviranje `pred_` sesije.
+    //
+    // `d.session_id` je nasumican hex iz upload odgovora; vektori tog dokumenta
+    // ne idu u `pred_<session_id>` nego u vlasnicki namespace. Postavljanje
+    // `_docNamespacePrefix='pred_'` je zato pravilo namespace koji ne postoji,
+    // pa je prvo pitanje o upravo otpremljenom dokumentu vracalo
+    // "Sesija nije pronadjena ili je istekla". Mereno stvarnim pozivom: 404.
     var mainHtml = '';
     if (d.procena) {
       var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;

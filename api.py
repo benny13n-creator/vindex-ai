@@ -5985,13 +5985,21 @@ async def predmet_dokument_preview(
     tekst = (d.get("tekst_sadrzaj") or "").strip()
 
     # 2. Fallback: rekonstrukcija iz Pinecone (za stare dokumente bez tekst_sadrzaj)
+    #
+    # NS001/FAZA 3 (BR-005): fallback je radio SAMO za `tmp_`/`pred_` šeme. Za
+    # dokumente današnjeg koda (`kancelarija_*`/`user_*`) prefiks je pogrešno
+    # padao na `tmp_`, a `session_id` je ostajao ceo namespace — pa se čitalo
+    # iz `tmp_user_<uid>`, namespace-a koji ne postoji. Fallback je tiho vraćao
+    # prazno za svaki savremen dokument. Sada se čita iz PRAVOG namespace-a.
     if not tekst:
-        ns = d.get("pinecone_namespace") or ""
-        if ns:
-            ns_prefix = "pred_" if ns.startswith("pred_") else "tmp_"
-            session_id = ns.removeprefix("tmp_").removeprefix("pred_")
+        ns = (d.get("pinecone_namespace") or "").strip()
+        if ns.startswith("tmp_"):
             from routers.dokument import _fetch_session_tekst
-            tekst = await asyncio.to_thread(_fetch_session_tekst, session_id, ns_prefix)
+            tekst = await asyncio.to_thread(_fetch_session_tekst, ns[len("tmp_"):], "tmp_")
+        elif ns:
+            # Vlasnički namespace: prefiks je ceo namespace, bez session sufiksa.
+            from routers.dokument import _fetch_session_tekst
+            tekst = await asyncio.to_thread(_fetch_session_tekst, "", ns)
 
     return {
         "naziv_fajla": d.get("naziv_fajla", ""),

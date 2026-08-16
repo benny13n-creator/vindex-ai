@@ -186,16 +186,17 @@ async def _verify_pred_namespace_ownership(session_id: str, ns_prefix: str, uid:
     this fix carry no owner_user_id -- fails closed (404) on a missing/
     mismatched owner rather than trusting an unverifiable legacy vector; the
     24h TTL bounds this to a one-time transition window, not a standing gap."""
-    if ns_prefix not in ("pred_", "tmp_"):
-        return
-    if ns_prefix == "pred_":
-        supa = _get_supa()
-        r = await asyncio.to_thread(
-            lambda: supa.table("predmeti").select("id").eq("id", session_id).eq("user_id", uid).limit(1).execute()
-        )
-        if not (r.data or []):
-            raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
-        return
+    # NS001/FAZA 3 (BR-005): `pred_` grana je uklonjena. Dokaz da je bila mrtva,
+    # a ne „za svaki slučaj":
+    #   · nijedan pisac više ne proizvodi `pred_` namespace — svi koriste
+    #     `namespace_override=rag_owner_namespace(...)` ili `tmp_`
+    #   · u Pinecone-u postoji 6 `pred_*` namespace-ova; nijednom sufiks NIJE
+    #     `predmeti.id`, a ova provera je tražila baš to → 404 uvek
+    #   · `predmet_dokumenti` referiše 43 `pred_*` namespace-a; nijedan ne
+    #     postoji u Pinecone-u i nijednom sufiks nije `predmeti.id`
+    # Dakle grana je mogla da vrati isključivo 404, ni za jedan postojeći podatak.
+    if ns_prefix != "tmp_":
+        raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
     # ns_prefix == "tmp_"
     try:
@@ -432,13 +433,23 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
     if not body.session_id or not body.session_id.strip():
         raise HTTPException(status_code=422, detail="session_id je obavezan")
 
-    ns_prefix = body.namespace_prefix or "tmp_"
-    if ns_prefix not in ("tmp_", "pred_"):
-        ns_prefix = "tmp_"
+    # NS001/FAZA 3 (BR-005) — SAMO `tmp_`. Dva razloga, oba merena:
+    #
+    # 1. `pred_` je dokazano mrtav (v. `_verify_pred_namespace_ownership`).
+    # 2. Ovaj put pretražuje namespace kroz `extra_namespaces`, a ta grana u
+    #    `app/services/retrieve.py` ide BEZ metadata filtera — namerno, jer je
+    #    za ad-hoc `tmp_` dokument. Kada bi ovde ikad stigao vlasnički
+    #    namespace (`kancelarija_*`/`user_*`), pretraga bi zaobišla
+    #    `shared/rag_acl.py` kapiju i vratila sadržaj predmeta koje pozivalac
+    #    ne sme ni da otvori. Zato se vlasnički prostor ovde izričito odbija.
+    ns_prefix = "tmp_"
+    _sid = body.session_id.strip()
+    if _sid.startswith(("kancelarija_", "user_", "tmp_", "pred_")):
+        raise HTTPException(status_code=422, detail="Neispravan session_id")
 
-    await _verify_pred_namespace_ownership(body.session_id, ns_prefix, user["user_id"])
+    await _verify_pred_namespace_ownership(_sid, ns_prefix, user["user_id"])
 
-    session_valid = await asyncio.to_thread(validate_session, body.session_id, ns_prefix)
+    session_valid = await asyncio.to_thread(validate_session, _sid, ns_prefix)
     if not session_valid:
         raise HTTPException(status_code=404, detail="Sesija nije pronađena ili je istekla")
 
@@ -468,7 +479,9 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
     # fallback closed in Phase A never applied to this binding in the first
     # place. Phase A stands on its own as an integrity fix for the other callers.
     from shared.ai_provenance import case_context as _ai_case_ctx
-    _subject_predmet_id = body.session_id if ns_prefix == "pred_" else None
+    # `tmp_` sesija nema deterministicko preslikavanje na predmet (uuid4 koji se
+    # ne upisuje ni u jednu tabelu), pa je istinit zapis NULL -- v. napomenu ispod.
+    _subject_predmet_id = None
     with _ai_case_ctx(
         predmet_id=_subject_predmet_id,
         module_name="ask_agent",
@@ -478,7 +491,7 @@ async def dokument_pitanje(body: PitanjeDocRequest, user: dict = Depends(Permiss
             ask_agent,
             body.pitanje,
             body.history,
-            [f"{ns_prefix}{body.session_id}"],
+            [f"{ns_prefix}{_sid}"],
         )
     if isinstance(rezultat, dict) and rezultat.get("status") != "error":
         from shared.audit_immutable import log_action
@@ -590,14 +603,11 @@ async def klasifikuj_sesiju(
 ):
     """Ručna AI klasifikacija dokumenta iz aktivne sesije."""
     session_id = (body.get("session_id") or "").strip()
-    namespace_prefix = body.get("namespace_prefix") or "tmp_"
+    namespace_prefix = "tmp_"  # NS001/FAZA 3: `pred_` uklonjen (v. BR-005)
     filename = body.get("filename") or "dokument"
 
     if not session_id:
         raise HTTPException(status_code=400, detail="session_id je obavezan.")
-    if namespace_prefix not in ("tmp_", "pred_"):
-        namespace_prefix = "tmp_"
-
     await _verify_pred_namespace_ownership(session_id, namespace_prefix, user["user_id"])
 
     tekst = await asyncio.to_thread(_fetch_session_tekst, session_id, namespace_prefix)
