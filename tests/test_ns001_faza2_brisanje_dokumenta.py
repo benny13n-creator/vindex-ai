@@ -170,6 +170,9 @@ class _Q:
 
     def execute(self):
         self.b.dnevnik.append((self.t, self.op))
+        if self.t == "predmet_istorija" and self.op == "delete":
+            self.b.obrisana_istorija.append(self.f.get("pitanje"))
+            return MagicMock(data=[{"id": "h1"}])
         if self.t != "predmet_dokumenti":
             return MagicMock(data=[])
         if self.op == "delete":
@@ -202,6 +205,7 @@ class _Baza:
         self.red_postoji = True
         self.db_puca, self.storage_puca = db_puca, storage_puca
         self.obrisani_originali, self.dnevnik = [], []
+        self.obrisana_istorija = []
         self.storage = _Storage(self)
 
     def table(self, ime):
@@ -402,3 +406,45 @@ def test_6c_UI_ima_kontrolu_za_brisanje():
     assert "dok_obrisi(" in js.split("function dok_obrisi(")[0], \
         "funkcija postoji ali je niko ne poziva"
     assert "method: 'DELETE'" in js.split("function dok_obrisi(")[1][:1500]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7 — IZVEDENI TRAGOVI DOKUMENTA U KONTEKSTU PREDMETA
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# NAĐENO TEK E2E PROLASKOM (NS001/FAZA 4), NE ČITANJEM KODA.
+#
+# Posle brisanja dokumenta AI je i dalje odgovarao njegovom kontrolnom
+# činjenicom (iznos 47.912 EUR). Vektori, original i red u bazi bili su
+# uklonjeni — ali je upload ruta pri obradi upisala dva reda u
+# `predmet_istorija` (`[Auto-analiza] <fajl>`, `[Metapodaci] <fajl>`), a
+# `api.py::pitanje` poslednjih 10 redova te tabele ubacuje DOSLOVNO u prompt
+# kao „KONTEKST PREDMETA".
+
+
+def test_7_brisanje_uklanja_izvedene_tragove_dokumenta():
+    baza = _Baza()
+    out, greska, _ = _vozi_delete(baza, VD.Rezultat(VD.Ishod.DELETED, obrisano=1, ocekivano=1))
+    assert greska is None
+    assert set(baza.obrisana_istorija) == {
+        "[Auto-analiza] dokaz.docx", "[Metapodaci] dokaz.docx",
+    }, baza.obrisana_istorija
+    assert out["izvedeni_tragovi"] == 2, out
+
+
+def test_7b_izvedeni_tragovi_se_ne_diraju_ako_vektori_nisu_potvrdjeni():
+    """Fail-closed vazi i ovde: dok se ne zna da su vektori uklonjeni, nista se
+    ne brise — inace bi neuspeo pokusaj brisanja pojeo kontekst predmeta."""
+    baza = _Baza()
+    _out, greska, _ = _vozi_delete(baza, VD.Rezultat(VD.Ishod.PARTIAL_FAILURE, "ostalo 2"))
+    assert greska.status_code == 409
+    assert baza.obrisana_istorija == []
+
+
+def test_7c_advokatova_sopstvena_pitanja_se_NE_brisu():
+    """Brišu se samo dva sistemska artefakta izvedena IZ dokumenta. Advokatov
+    sopstveni radni trag nije dokument i ne sme da nestane s njim."""
+    baza = _Baza()
+    _vozi_delete(baza, VD.Rezultat(VD.Ishod.DELETED, obrisano=1, ocekivano=1))
+    for p in baza.obrisana_istorija:
+        assert p.startswith(("[Auto-analiza] ", "[Metapodaci] ")), p

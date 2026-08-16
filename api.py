@@ -6125,7 +6125,36 @@ async def predmet_dokument_obrisi(
             logger.warning("[DOK-DELETE] original nije obrisan (%s): %s", _put, _se)
             storage_ishod = "NIJE_OBRISAN"
 
-    # ── 3. RED U BAZI ───────────────────────────────────────────────────────
+    # ── 3. IZVEDENI TRAGOVI DOKUMENTA U KONTEKSTU PREDMETA ──────────────────
+    #
+    # NS001/FAZA 4 je ovo uhvatila E2E prolaskom, ne čitanjem koda: posle
+    # brisanja dokumenta, AI je i dalje odgovarao njegovom kontrolnom činjenicom
+    # (iznos 47.912 EUR). Vektori su bili uklonjeni, red i original takođe —
+    # ali je upload ruta pri obradi upisala DVA reda u `predmet_istorija`:
+    #   `[Auto-analiza] <naziv_fajla>`  — puna AI analiza dokumenta
+    #   `[Metapodaci]  <naziv_fajla>`   — izvučeni iznosi, stranke, datumi
+    # a `api.py::pitanje` poslednjih 10 redova te tabele ubacuje DOSLOVNO u
+    # prompt kao „KONTEKST PREDMETA". Sadržaj obrisanog dokumenta je tako
+    # nastavljao da oblikuje odgovore.
+    #
+    # Brišu se ISKLJUČIVO ta dva sistemska artefakta — izvedeni su iz dokumenta
+    # i nemaju sopstveni život. Advokatova sopstvena pitanja i odgovori se NE
+    # diraju: to je njegov radni trag, ne dokument, i tiho brisanje tuđe
+    # evidencije bilo bi veći gubitak od onoga što rešava.
+    _naziv = d.get("naziv_fajla") or "dokument"
+    istorija_obrisano = 0
+    for _marker in (f"[Auto-analiza] {_naziv}", f"[Metapodaci] {_naziv}"):
+        try:
+            _r = await asyncio.to_thread(
+                lambda m=_marker: supa.table("predmet_istorija").delete()
+                    .eq("predmet_id", predmet_id).eq("user_id", uid).eq("pitanje", m)
+                    .execute()
+            )
+            istorija_obrisano += len(_r.data or [])
+        except Exception as _ie:
+            logger.warning("[DOK-DELETE] izvedeni trag %r nije obrisan: %s", _marker, _ie)
+
+    # ── 4. RED U BAZI ───────────────────────────────────────────────────────
     try:
         await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti").delete()
@@ -6159,7 +6188,8 @@ async def predmet_dokument_obrisi(
             resource_id=dok_id,
             ip=request.client.host if request.client else None,
             metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", ""),
-                      "vektori": vektori, "storage": storage_ishod},
+                      "vektori": vektori, "storage": storage_ishod,
+                      "izvedeni_tragovi": istorija_obrisano},
         ))
     except Exception as _ae:
         logger.warning("[AUDIT] dokument_delete log greška: %s", _ae)
@@ -6169,6 +6199,7 @@ async def predmet_dokument_obrisi(
         "dokument_id": dok_id,
         "vektori": vektori,
         "storage": storage_ishod,
+        "izvedeni_tragovi": istorija_obrisano,
     }
 
 
