@@ -949,6 +949,55 @@ function _vxRenderIzvori(d) {
   el.innerHTML = '';
   el.style.display = 'none';
 
+  // B4: backend imenuje izvore koje NIJE uspeo da proveri (`izvori_neuspeh`).
+  // Bez ovog prikaza parcijalan odgovor izgleda identično potpuno proverenom:
+  // lista `izvori` bi navela samo ono što JESTE pročitano, a advokat nema
+  // način da sazna da njegovi dokumenti uopšte nisu pretraženi.
+  var _neusp = (d && d.izvori_neuspeh) || [];
+  var _neuspHtml = '';
+  if (Array.isArray(_neusp) && _neusp.length) {
+    _neuspHtml =
+      '<div class="vx-izvori-neuspeh" style="color:#e0a030;font-size:0.72rem;padding:0.3rem 0;">' +
+      '⚠ Nije provereno: ' + _neusp.map(_vxEsc).join(', ') +
+      '. Odgovor je nepotpun — odsustvo podatka iz tih izvora NIJE potvrđeno.' +
+      '</div>';
+  }
+
+  // B4-M2: činjenica iz korisnikovog dokumenta je ODVOJEN autoritet od pravnog
+  // izvora. Prikazuje se u sopstvenom bloku, sa imenom dokumenta, i NIKAD pod
+  // naslovom „Pravni izvori" — dokument navodi, propis propisuje.
+  // `source_type` dolazi iz backend-a; ovde se samo poštuje, ne izvodi.
+  var _cinj = (d && d.cinjenice_iz_dokumenta) || [];
+  var _cinjHtml = '';
+  if (Array.isArray(_cinj) && _cinj.length) {
+    var _stavke = [];
+    for (var j = 0; j < _cinj.length; j++) {
+      var c = _cinj[j] || {};
+      if (c.source_type !== 'USER_DOCUMENT') continue;   // ništa drugo ovde ne ulazi
+      var izvorOpis = c.dokument ? _vxEsc(c.dokument) : 'vaš dokument';
+      if (c.chunk !== null && c.chunk !== undefined) izvorOpis += ', deo ' + _vxEsc(String(c.chunk));
+      _stavke.push(
+        '<li class="vx-dok-cinjenica">' +
+          '<span class="vx-dok-navod">' + _vxEsc(c.navod || '') + '</span>' +
+          '<span class="vx-dok-izvor">' + izvorOpis + '</span>' +
+        '</li>'
+      );
+    }
+    if (_stavke.length) {
+      _cinjHtml =
+        '<h3 class="vx-dok-nas">Činjenica iz vašeg dokumenta</h3>' +
+        '<div style="font-size:0.68rem;color:rgba(255,255,255,0.45);padding-bottom:0.2rem;">' +
+        'Doslovan navod iz dokumenta koji ste dostavili — nije pravno potvrđen.</div>' +
+        '<ul class="vx-dok-lista">' + _stavke.join('') + '</ul>';
+    }
+  }
+
+  var _preHtml = _neuspHtml + _cinjHtml;
+  if (_preHtml) {
+    el.innerHTML = _preHtml;
+    el.style.display = '';
+  }
+
   var lista = (d && d.izvori) || [];
   if (!Array.isArray(lista) || !lista.length) return;
 
@@ -967,7 +1016,7 @@ function _vxRenderIzvori(d) {
   }
   if (!stavke.length) return;                  // svi elementi nevalidni
 
-  el.innerHTML =
+  el.innerHTML = _preHtml +
     '<h3 class="vx-izvori-nas">Pravni izvori</h3>' +
     '<ul class="vx-izvori-lista">' + stavke.join('') + '</ul>';
   el.style.display = '';
@@ -11450,7 +11499,13 @@ function pred_renderConfirmCard(predlozi, metadata) {
       +'<input type="checkbox" id="conf-rok-0" checked style="accent-color:rgba(255,255,255,0.72);width:14px;height:14px;">'
       +'<label for="conf-rok-0" style="font-size:0.78rem;color:#fff;flex:1;cursor:pointer;">Dodaj rok: '+escHtml(rNaziv)+(rDatum?' ('+rDatum+')':'')+'</label>'
       +'</div>',
-      naziv: rNaziv, datum_iso: rDatum, vaznost: 'bitan'
+      // B1: ovde je stajalo `vaznost: 'bitan'`. `bitan` NE POSTOJI u šemi --
+      // `predmet_hronologija.vaznost` ima CHECK koji dozvoljava samo
+      // `kritičan | važan | informativan` (supabase_setup.sql:415), pa je
+      // svaki ovako poslat rok obarao INSERT na 23514. Vrednost je poticala
+      // iz DRUGOG rečnika (`datumi_kljucni[].znacaj` = kriticno|bitno|
+      // informativno), a srednji stepen tog rečnika je u šemi `važan`.
+      naziv: rNaziv, datum_iso: rDatum, vaznost: 'važan'
     });
   }
   if (!klijentItems.length && !rokItems.length) return '';
@@ -11482,13 +11537,35 @@ async function pred_confirmLinks(klijentItems, rokData) {
       headers: _predAuthHdr(),
       body: JSON.stringify({klijent_ids: selectedIds, dodaj_rok: dodajRok}),
     });
-    var d = await r.json();
-    if (d && d.success) {
-      var card = document.getElementById('pred-confirm-card');
+    var d = null;
+    try { d = await r.json(); } catch(_je) { d = null; }
+    // B1 — ODBRANA U DUBINU: „✓ Sačuvano." se sme reći SAMO ako je svaki
+    // traženi upis potvrđen. Ranije je uslov bio samo `d.success`, pa je
+    // odgovor `{success:true, rok_dodat:false}` -- koji je backend stvarno
+    // vraćao kad CHECK obori INSERT -- završavao u zelenoj grani.
+    // `rok_dodat` se proverava i posle backend popravke, namerno: ova grana
+    // ne sme da zavisi od toga da li se serverski ugovor jednog dana promeni.
+    var _rokTrazen = !!dodajRok;
+    var _rokOk     = !_rokTrazen || (d && d.rok_dodat === true);
+    var _uspeh     = !!(r.ok && d && d.success === true && _rokOk);
+    var card = document.getElementById('pred-confirm-card');
+    if (_uspeh) {
       if (card) card.innerHTML = '<div style="font-size:0.75rem;color:#7de0a0;padding:0.3rem 0;font-weight:600;">✓ Sačuvano.</div>';
       pred_loadDetail(activePredmetId);
+    } else {
+      // Isti inline obrazac koji ovaj tok već koristi za delimičan neuspeh
+      // (v. `original_preserved === false` u pred_uploadDokument).
+      var _por = (d && d.rok_greska)
+        ? d.rok_greska
+        : 'Nije sačuvano. Pokušajte ponovo.';
+      if (card) card.innerHTML = '<div style="color:#e0a030;font-size:0.75rem;padding:0.3rem 0;">⚠ ' + escHtml(_por) + '</div>';
+      // Veze sa klijentima koje JESU napravljene se svejedno prikazuju.
+      if (d && (d.linked_klijenti || []).length) pred_loadDetail(activePredmetId);
     }
-  } catch(e) {}
+  } catch(e) {
+    var _cardErr = document.getElementById('pred-confirm-card');
+    if (_cardErr) _cardErr.innerHTML = '<div style="color:#e0a030;font-size:0.75rem;padding:0.3rem 0;">⚠ Nije sačuvano — nema veze sa serverom. Pokušajte ponovo.</div>';
+  }
 }
 
 // ── Portfolio Intelligence ────────────────────────────────────────────────────
@@ -14075,8 +14152,16 @@ async function billing_openReport(tip) {
 }
 
 function billing_renderReport(tip, d) {
+  // B2: backend imenuje grupe koje nije uspeo da pročita (`nepotpuno`). Bez
+  // ovog prikaza izveštaj bi izgledao potpuno, a raspodela po tipu/klijentu
+  // bila bi izvedena iz upita koji nije uspeo. Isti obrazac koji pretraga već
+  // koristi (`cmdkRender`).
+  var _nep = (d && d.nepotpuno && d.nepotpuno.length)
+    ? '<div style="color:#e0a030;font-size:0.7rem;padding:0.25rem 0 0.4rem;">⚠ Deo izveštaja nije izračunat ('
+      + d.nepotpuno.map(escHtml).join(', ') + ') — te grupe su nepouzdane.</div>'
+    : '';
   if (tip === 'godisnji') {
-    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Godišnji izveštaj '+(d.godina||'')+'</div>'
+    return _nep + '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Godišnji izveštaj '+(d.godina||'')+'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem;">'
       +'<div style="background:rgba(0,212,127,0.07);border:1px solid rgba(0,212,127,0.15);border-radius:2px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Uneseno</div><div style="font-size:0.82rem;font-weight:700;color:#00d47f;">'+Math.round(d.ukupno_uneseno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
       +'<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(0,212,255,0.10);border-radius:2px;padding:0.35rem;"><div style="font-size:0.62rem;color:rgba(255,255,255,0.35);">Naplaćeno</div><div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.72);">'+Math.round(d.ukupno_naplaceno_rsd||0).toLocaleString('sr-RS')+' RSD</div></div>'
@@ -14099,7 +14184,7 @@ function billing_renderReport(tip, d) {
   }
   if (tip === 'po-tipu') {
     var rows = d.po_tipu || [];
-    return '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po tipu predmeta</div>'
+    return _nep + '<div style="font-weight:600;margin-bottom:0.35rem;color:rgba(255,255,255,0.7);">Prihodi po tipu predmeta</div>'
       +'<div style="font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.72);margin-bottom:0.35rem;">Ukupno: '+Math.round(d.ukupno_rsd||0).toLocaleString('sr-RS')+' RSD</div>'
       +rows.slice(0,5).map(function(t){
         return '<div style="margin-bottom:0.3rem;">'

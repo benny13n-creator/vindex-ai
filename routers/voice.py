@@ -133,25 +133,41 @@ async def _fetch_predmeti_summary(uid: str, supa) -> dict:
         return {"ukupno": 0, "aktivnih": 0, "predmeti": []}
 
 
-async def _fetch_rokovi(uid: str, supa, days_ahead: int = 14) -> list:
-    """Rokovi koji ističu u narednih N dana."""
-    today = date.today().isoformat()
-    until = (date.today() + timedelta(days=days_ahead)).isoformat()
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("predmet_hronologija")
-                .select("datum,naziv,vaznost,predmet_id")
-                .eq("user_id", uid)
-                .gte("datum", today)
-                .lte("datum", until)
-                .order("datum")
-                .limit(20)
-                .execute()
-        )
-        return r.data or []
-    except Exception as exc:
-        logger.warning("[VOICE] rokovi fetch error: %s", exc)
-        return []
+# B3 — GLAS NE SME TVRDITI DA ROKOVA NEMA AKO PROVERA NIJE IZVRŠENA.
+#
+# ŠTA JE BILO — mereno nad produkcionom šemom, ne pretpostavljeno:
+#
+#   .select("datum,naziv,vaznost,predmet_id")
+#
+# `predmet_hronologija.naziv` NE POSTOJI (sonda: 42703, kolona je `dogadjaj`),
+# pa je PostgREST odbijao ceo upit — bez obzira na broj redova. Uz to se
+# filtriralo po `datum`, koja je TEXT slobodnog oblika; jedino `datum_iso` je
+# uporediv (v. shared/rokovi.py). `except` je grešku gutao u `logger.warning` i
+# vraćao `[]`, a pozivalac je `[]` prevodio u kontekst
+# „Nema kritičnih rokova u narednih 14 dana." koji model IZGOVARA advokatu.
+#
+# Dakle: upit koji nikad nije uspeo → izgovorena tvrdnja da rokova nema.
+#
+# POPRAVKA NE UVODI NOV ČITAČ. `shared/rokovi.py` je kanonski čitalac domena
+# rokova i već razlikuje tri ishoda koja su ovde jedino bitna:
+#
+#   Stanje.OK       upit izvršen, ima rokova
+#   Stanje.PRAZNO   upit izvršen, nema rokova   <- legitimno „nema"
+#   Stanje.NEUSPEH  upit NIJE izvršen           <- ne zna se, ne sme se tvrditi
+#
+# Zato ova funkcija više ne vraća `list` (koja tu razliku ne može da nosi) nego
+# `Rezultat`. Prazna lista se ovde više ne može pročitati bez `uspeh`.
+async def _fetch_rokovi(uid: str, supa, days_ahead: int = 14):
+    """Rokovi u narednih N dana. Vraća `shared.rokovi.Rezultat`, ne listu."""
+    from shared import rokovi as _rokovi_domen
+
+    danas = date.today()
+    return await _rokovi_domen.rokovi_za_korisnika(
+        supa, uid,
+        od=danas,
+        do=danas + timedelta(days=days_ahead),
+        limit=20,
+    )
 
 
 # ── Query handler — verbalni odgovor sa DB podacima ──────────────────────────
@@ -166,6 +182,15 @@ PRAVILA:
 - Ako nema traženih podataka, reci to direktno.
 - Ne pominjaš da si AI ili model.
 - Nikad ne koristi emoji ili markdown."""
+
+
+# B3: doslovan tekst koji se izgovara kad provera rokova NIJE izvršena.
+# Konstanta, a ne inline string, da bi test mogao da tvrdi tačan izgovoren
+# sadržaj bez prepisivanja. Bez markdown-a i emodžija — ovo ide u TTS.
+_ROKOVI_NEUSPEH_ODGOVOR = (
+    "Provera rokova nije uspela, pa ne mogu da potvrdim da li rokova ima. "
+    "Ovo nije potvrda da rokova nema. Pokušajte ponovo za koji trenutak."
+)
 
 
 async def _handle_query(text: str, uid: str, supa) -> dict:
@@ -222,12 +247,34 @@ async def _handle_query(text: str, uid: str, supa) -> dict:
                 context_parts.append("Poslednji predmeti: " + ", ".join(names))
 
     if need_rokovi:
-        rokovi = await _fetch_rokovi(uid, supa)
-        if rokovi:
+        _rez_rokovi = await _fetch_rokovi(uid, supa)
+        if not _rez_rokovi.uspeh:
+            # B3: neuspela provera se NE prosleđuje modelu.
+            #
+            # Slanje konteksta „provera nije uspela" oslanjalo bi garanciju na
+            # poslušnost modela, a `_QUERY_SYSTEM` mu izričito nalaže: „Ako nema
+            # traženih podataka, reci to direktno." Bezbednosno svojstvo se ne
+            # sme oslanjati na tekst prompta, pa se odgovor ovde formira
+            # DETERMINISTIČKI i model se ne zove. Isti obrazac koji
+            # `voice_command` već koristi za stop-reč (rani povratak bez API
+            # poziva), i usput bez naplativog poziva na putanji greške.
+            logger.error("[VOICE] provera rokova NIJE izvrsena uid=%.8s stanje=%s: %s",
+                         uid, _rez_rokovi.stanje.value, _rez_rokovi.razlog)
+            return {
+                "type":    "query",
+                "actions": [],
+                "odgovor": _ROKOVI_NEUSPEH_ODGOVOR,
+                "rokovi_provereni": False,
+                "action": "unknown", "params": {}, "followup": None,
+            }
+        _rokovi = [r.kao_dict() for r in _rez_rokovi.rokovi]
+        if _rokovi:
             lines = [f"- {fmt_datum(r['datum'])} | {r.get('naziv','')} (važnost: {r.get('vaznost','')})"
-                     for r in rokovi[:5]]
+                     for r in _rokovi[:5]]
             context_parts.append("Rokovi koji ističu:\n" + "\n".join(lines))
         else:
+            # Dostižno SAMO iz Stanje.PRAZNO — upit je izvršen i vratio nula
+            # redova. To je jedina grana koja sme da tvrdi odsustvo.
             context_parts.append("Nema kritičnih rokova u narednih 14 dana.")
 
     if not (need_rocista or need_predmeti or need_rokovi):

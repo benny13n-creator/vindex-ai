@@ -33,6 +33,78 @@ def _db(fn):
     return asyncio.to_thread(fn)
 
 
+# ─── B2 — NEUSPEO PODUPIT NIJE PRAZAN REZULTAT ───────────────────────────────
+#
+# ŠTA JE BILO — mereno nad produkcionom šemom, ne pretpostavljeno:
+#
+# Svaki izveštaj u ovom fajlu radio je `asyncio.gather(..., return_exceptions=
+# True)` pa `(r.data or []) if not isinstance(r, Exception) else []`. Neuspeh
+# podupita je time postajao PRAZNA LISTA, a prazna lista je nizvodno postajala
+# finansijska tvrdnja: `ukupno_naplaceno_rsd: 0`, koje frontend ispisuje
+# podebljano kao `0 RSD` (`static/vindex.js::billing_renderReport`), odnosno
+# „Nema faktura za ovaj period."
+#
+# I to nije bio teorijski scenario — podupiti su padali UVEK, jer su imenovali
+# kolone kojih u šemi nema (sonda produkcije, PostgREST OpenAPI koren):
+#
+#   fakture         -> `iznos_rsd` NE POSTOJI (iznosi su iznos_bez_pdv /
+#                      pdv_iznos / iznos_sa_pdv)
+#                   -> `klijent_id` NE POSTOJI. Faktura NEMA vezu ka `klijenti`;
+#                      identitet klijenta je denormalizovan snimak
+#                      `klijent_naziv` / `klijent_pib` (v. pisca u
+#                      routers/billing.py:639-653)
+#   billing_entries -> `klijent_id` NE POSTOJI (samo `predmet_id`, `faktura_id`)
+#   klijenti        -> kolona je `firma`, ne `naziv_firme`
+#
+# PostgREST odbija ceo zahtev sa 42703 bez obzira na broj redova, pa je izveštaj
+# bio deterministički prazan.
+#
+# PRAVILO KOJE SE OVDE UVODI — dva različita izvora, dva različita ishoda:
+#
+#   `_mora`   izvor koji NOSI BROJ koji advokat čita kao činjenicu (iznosi,
+#             brojanja rokova/ročišta). Neuspeh = izveštaj se NE proizvodi
+#             (HTTP 503). Isti ugovor koji `shared/rokovi.py::zahtevaj` već
+#             drži za rokove: „ne znam" se ne sme prikazati kao „nula".
+#   `_dopuna` izvor koji nosi SAMO oznaku/grupisanje (naziv, tip predmeta).
+#             Neuspeh se IMENUJE u `nepotpuno`, izveštaj ostaje upotrebljiv.
+#             Isti obrazac koji `routers/search.py` već koristi.
+
+
+def _mora(r, ime: str) -> list:
+    """Podupit koji nosi broj. Neuspeh je 503 — nikad tiha nula."""
+    if isinstance(r, Exception):
+        logger.error("[BILLING-REPORT] izvor '%s' nije procitan: %s", ime, r)
+        raise HTTPException(
+            status_code=503,
+            detail=(f"Izveštaj nije izračunat — izvor „{ime}” trenutno nije "
+                    f"dostupan. Prikazani iznos bi bio netačan, pa se ne "
+                    f"prikazuje."),
+        )
+    return getattr(r, "data", None) or []
+
+
+def _dopuna(r, ime: str, nepotpuno: list) -> list:
+    """Podupit koji nosi samo oznaku. Neuspeh se imenuje, ne prećutkuje."""
+    if isinstance(r, Exception):
+        logger.warning("[BILLING-REPORT] dopunski izvor '%s' nije procitan: %s", ime, r)
+        nepotpuno.append(ime)
+        return []
+    return getattr(r, "data", None) or []
+
+
+def _naziv_klijenta(f: dict) -> str:
+    """Identitet klijenta sa fakture — njeno SOPSTVENO polje, ne izvedena veza.
+
+    `fakture` nema `klijent_id`; pisac (`routers/billing.py:643`) upisuje
+    `klijent_naziv` kao snimak u trenutku izdavanja. Grupisanje po tom polju je
+    jedino grupisanje po klijentu koje se iz šeme može dokazati. Put
+    `fakture -> predmet_id -> predmet_klijenti -> klijenti` NIJE korišćen: jedan
+    predmet ima više klijenata sa različitim ulogama, pa bi izbor „onog pravog"
+    bio izmišljeno pravilo, a `predmet_klijenti` u produkciji ima 0 redova.
+    """
+    return (f.get("klijent_naziv") or "").strip()
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _month_range(godina: int) -> list[str]:
@@ -63,14 +135,17 @@ async def billing_godisnji(
     od = f"{godina}-01-01"
     do = f"{godina}-12-31"
 
-    entries_r, fakture_r, predmeti_r, klijenti_r = await asyncio.gather(
+    # `klijenti` upit je uklonjen, ne preimenovan: postojao je isključivo da
+    # preslika `fakture.klijent_id` -> ime, a te kolone nema. Upit čiji se
+    # rezultat nema na šta spojiti nije upit koji treba popraviti.
+    entries_r, fakture_r, predmeti_r = await asyncio.gather(
         _db(lambda: supa.table("billing_entries")
             .select("iznos_rsd, datum, obracunato, predmet_id")
             .eq("user_id", uid)
             .gte("datum", od).lte("datum", do)
             .execute()),
         _db(lambda: supa.table("fakture")
-            .select("iznos_sa_pdv, iznos_rsd, status, datum_fakture, klijent_id")
+            .select("iznos_sa_pdv, status, datum_fakture, klijent_naziv")
             .eq("user_id", uid)
             .gte("datum_fakture", od).lte("datum_fakture", do)
             .execute()),
@@ -78,20 +153,15 @@ async def billing_godisnji(
             .select("id, naziv, tip")
             .eq("user_id", uid)
             .execute()),
-        _db(lambda: supa.table("klijenti")
-            .select("id, ime, prezime, naziv_firme")
-            .eq("user_id", uid)
-            .execute()),
         return_exceptions=True,
     )
 
-    entries  = (entries_r.data  or []) if not isinstance(entries_r,  Exception) else []
-    fakture  = (fakture_r.data  or []) if not isinstance(fakture_r,  Exception) else []
-    predmeti = (predmeti_r.data or []) if not isinstance(predmeti_r, Exception) else []
-    klijenti = (klijenti_r.data or []) if not isinstance(klijenti_r, Exception) else []
+    nepotpuno: list[str] = []
+    entries  = _mora(entries_r, "stavke naplate")
+    fakture  = _mora(fakture_r, "fakture")
+    predmeti = _dopuna(predmeti_r, "tipovi predmeta", nepotpuno)
 
     pred_map = {p["id"]: p for p in predmeti}
-    kl_map   = {k["id"]: " ".join(filter(None, [k.get("ime"), k.get("prezime"), k.get("naziv_firme")])) for k in klijenti}
 
     # Mesečni breakdown
     meseci: dict[str, dict] = {m: {"mesec": m, "uneseno": 0.0, "naplaceno": 0.0, "stavki": 0} for m in _month_range(godina)}
@@ -111,14 +181,15 @@ async def billing_godisnji(
     ukupno_fakturisano = sum(float(f.get("iznos_sa_pdv") or 0) for f in fakture)
     stopa = round(ukupno_naplaceno / ukupno_fakturisano * 100, 1) if ukupno_fakturisano else 0.0
 
-    # Top klijenti (po fakturisanom)
+    # Top klijenti — po nazivu sa same fakture (v. `_naziv_klijenta`).
     kl_iznosi: dict[str, float] = {}
     for f in fakture:
-        kid = f.get("klijent_id") or "_bez_klijenta"
-        kl_iznosi[kid] = kl_iznosi.get(kid, 0.0) + float(f.get("iznos_sa_pdv") or 0)
+        naziv = _naziv_klijenta(f)
+        if not naziv:
+            continue
+        kl_iznosi[naziv] = kl_iznosi.get(naziv, 0.0) + float(f.get("iznos_sa_pdv") or 0)
     top_klijenti = sorted(
-        [{"klijent_id": kid, "naziv": kl_map.get(kid, "—"), "iznos": round(izn, 2)}
-         for kid, izn in kl_iznosi.items() if kid != "_bez_klijenta"],
+        [{"naziv": naziv, "iznos": round(izn, 2)} for naziv, izn in kl_iznosi.items()],
         key=lambda x: x["iznos"], reverse=True
     )[:5]
 
@@ -146,6 +217,9 @@ async def billing_godisnji(
         "po_mesecima":         list(meseci.values()),
         "top_klijenti":        top_klijenti,
         "top_tipovi_predmeta": top_tipovi,
+        # Prazno = sve pročitano. Neprazno = navedene grupe su nepouzdane i
+        # frontend to MORA prikazati (v. billing_renderReport).
+        "nepotpuno":           nepotpuno,
     }
 
 
@@ -172,24 +246,29 @@ async def billing_csv_export(
     except ValueError:
         raise HTTPException(status_code=422, detail="Nevalidan format datuma (YYYY-MM-DD).")
 
-    entries_r, predmeti_r, klijenti_r = await asyncio.gather(
+    # `billing_entries` NEMA `klijent_id` (šema: predmet_id, faktura_id) — kolona
+    # je uklonjena iz `select`, a sa njom i `klijenti` upit koji je služio samo
+    # njoj. Kolona „Klijent" u CSV-u zato ostaje prazna: iz ovog izvora se
+    # klijent ne može izvesti bez izmišljanja pravila (v. `_naziv_klijenta`).
+    #
+    # Za IZVOZ nema „delimično": dokument koji advokat šalje dalje mora biti
+    # kompletan ili se ne sme proizvesti. Zato je i `predmeti` ovde `_mora`, a
+    # ne `_dopuna` — tiho prazna kolona „Predmet" u eksportu je gora od greške.
+    entries_r, predmeti_r = await asyncio.gather(
         _db(lambda: supa.table("billing_entries")
-            .select("datum, predmet_id, klijent_id, tarifa_sifra, tarifa_naziv, opis, sati, iznos_rsd, obracunato, faktura_id")
+            .select("datum, predmet_id, tarifa_sifra, tarifa_naziv, opis, sati, iznos_rsd, obracunato, faktura_id")
             .eq("user_id", uid)
             .gte("datum", od_date).lte("datum", do_date)
             .order("datum")
             .execute()),
         _db(lambda: supa.table("predmeti").select("id, naziv").eq("user_id", uid).execute()),
-        _db(lambda: supa.table("klijenti").select("id, ime, prezime, naziv_firme").eq("user_id", uid).execute()),
         return_exceptions=True,
     )
 
-    entries  = (entries_r.data  or []) if not isinstance(entries_r,  Exception) else []
-    predmeti = (predmeti_r.data or []) if not isinstance(predmeti_r, Exception) else []
-    klijenti = (klijenti_r.data or []) if not isinstance(klijenti_r, Exception) else []
+    entries  = _mora(entries_r, "stavke naplate")
+    predmeti = _mora(predmeti_r, "predmeti")
 
     pred_map = {p["id"]: p.get("naziv", "") for p in predmeti}
-    kl_map   = {k["id"]: " ".join(filter(None, [k.get("ime"), k.get("prezime"), k.get("naziv_firme")])) for k in klijenti}
 
     buf = io.StringIO()
     w   = csv.writer(buf, delimiter=";", quoting=csv.QUOTE_MINIMAL)
@@ -199,7 +278,7 @@ async def billing_csv_export(
         w.writerow([
             e.get("datum", ""),
             pred_map.get(e.get("predmet_id", ""), ""),
-            kl_map.get(e.get("klijent_id", ""), ""),
+            "",
             e.get("tarifa_sifra", ""),
             e.get("tarifa_naziv", ""),
             e.get("opis", ""),
@@ -231,23 +310,21 @@ async def billing_zastarele(
     supa  = _get_supa()
     today = date.today()
 
-    entries_r, klijenti_r = await asyncio.gather(
+    # `billing_entries.klijent_id` NE POSTOJI, pa je i ovde `klijenti` upit bio
+    # bez ključa za spajanje. „Top dužnici" se iz ovog izvora ne mogu izvesti —
+    # to se sada IZRIČITO objavljuje (`top_duznici_dostupno: False`) umesto da
+    # prazna lista izgleda kao „nema dužnika".
+    entries_r = (await asyncio.gather(
         _db(lambda: supa.table("billing_entries")
-            .select("id, datum, iznos_rsd, opis, predmet_id, klijent_id")
+            .select("id, datum, iznos_rsd, opis, predmet_id")
             .eq("user_id", uid)
             .eq("obracunato", False)
             .order("datum")
             .execute()),
-        _db(lambda: supa.table("klijenti")
-            .select("id, ime, prezime, naziv_firme")
-            .eq("user_id", uid)
-            .execute()),
         return_exceptions=True,
-    )
+    ))[0]
 
-    entries  = (entries_r.data  or []) if not isinstance(entries_r,  Exception) else []
-    klijenti = (klijenti_r.data or []) if not isinstance(klijenti_r, Exception) else []
-    kl_map   = {k["id"]: " ".join(filter(None, [k.get("ime"), k.get("prezime"), k.get("naziv_firme")])) for k in klijenti}
+    entries = _mora(entries_r, "nenaplaćene stavke")
 
     buckets = {
         "do_30_dana":  {"iznos": 0.0, "stavki": 0, "stavke": []},
@@ -255,8 +332,6 @@ async def billing_zastarele(
         "61_90_dana":  {"iznos": 0.0, "stavki": 0, "stavke": []},
         "starije_90":  {"iznos": 0.0, "stavki": 0, "stavke": []},
     }
-    kl_iznosi: dict[str, float] = {}
-
     for e in entries:
         try:
             d    = date.fromisoformat(e.get("datum", today.isoformat()))
@@ -281,23 +356,17 @@ async def billing_zastarele(
             "dana_staro":  dana,
         })
 
-        kid = e.get("klijent_id") or "_"
-        kl_iznosi[kid] = kl_iznosi.get(kid, 0.0) + iznos
-
     for b in buckets.values():
         b["iznos"] = round(b["iznos"], 2)
-
-    top_duznici = sorted(
-        [{"klijent_id": kid, "naziv": kl_map.get(kid, "—"), "iznos": round(izn, 2)}
-         for kid, izn in kl_iznosi.items() if kid != "_"],
-        key=lambda x: x["iznos"], reverse=True
-    )[:10]
 
     ukupno = round(sum(b["iznos"] for b in buckets.values()), 2)
     return {
         "ukupno_nenaplaceno_rsd": ukupno,
         "aging":                  buckets,
-        "top_duznici":            top_duznici,
+        # Prazna lista uz `dostupno: False` znači „ne može se izračunati", ne
+        # „nema dužnika". `billing_entries` nema vezu ka klijentu.
+        "top_duznici":            [],
+        "top_duznici_dostupno":   False,
     }
 
 
@@ -332,8 +401,9 @@ async def billing_po_tipu(
         return_exceptions=True,
     )
 
-    entries  = (entries_r.data  or []) if not isinstance(entries_r,  Exception) else []
-    predmeti = (predmeti_r.data or []) if not isinstance(predmeti_r, Exception) else []
+    nepotpuno: list[str] = []
+    entries  = _mora(entries_r, "stavke naplate")
+    predmeti = _dopuna(predmeti_r, "tipovi predmeta", nepotpuno)
     pred_map = {p["id"]: p for p in predmeti}
 
     tipovi: dict[str, dict] = {}
@@ -366,6 +436,9 @@ async def billing_po_tipu(
         "do":           do_date,
         "ukupno_rsd":   round(ukupno_iznos, 2),
         "po_tipu":      result,
+        # Ako `predmeti` nije pročitan, SVE stavke padnu u „ostalo" — ukupan
+        # iznos je tačan, ali je raspodela po tipu neupotrebljiva. To se imenuje.
+        "nepotpuno":    nepotpuno,
     }
 
 
@@ -403,41 +476,41 @@ async def billing_po_klijentu(
     except ValueError:
         raise HTTPException(status_code=422, detail="Nevalidan format datuma (YYYY-MM-DD).")
 
-    fakture_r, klijenti_r = await asyncio.gather(
+    # `fakture` nema ni `klijent_id` ni `iznos_rsd`. Grupisanje ide po
+    # `klijent_naziv` (sopstveno polje fakture), a svi iznosi su `iznos_sa_pdv`
+    # — jedan i isti osnov kroz ceo izveštaj, isti koji `godisnji` i `mesecni`
+    # već koriste. Mešanje neto i bruto osnova bi dalo brojeve koji se ne
+    # sabiraju.
+    fakture_r = (await asyncio.gather(
         _db(lambda: supa.table("fakture")
-            .select("id, klijent_id, iznos_rsd, iznos_sa_pdv, status, datum_fakture")
+            .select("id, klijent_naziv, iznos_sa_pdv, status, datum_fakture")
             .eq("user_id", uid)
             .gte("datum_fakture", od_date)
             .lte("datum_fakture", do_date)
             .order("datum_fakture")
             .execute()),
-        _db(lambda: supa.table("klijenti")
-            .select("id, ime, prezime, naziv_firme")
-            .eq("user_id", uid)
-            .execute()),
         return_exceptions=True,
-    )
+    ))[0]
 
-    fakture  = (fakture_r.data  or []) if not isinstance(fakture_r,  Exception) else []
-    klijenti = (klijenti_r.data or []) if not isinstance(klijenti_r, Exception) else []
-    kl_map   = {
-        k["id"]: " ".join(filter(None, [k.get("ime"), k.get("prezime"), k.get("naziv_firme")])).strip() or "—"
-        for k in klijenti
-    }
+    fakture = _mora(fakture_r, "fakture")
 
     # Agregacija po klijentu
     agg: dict[str, dict] = {}
     for f in fakture:
-        kid  = f.get("klijent_id") or "_bez_klijenta"
-        iznos = float(f.get("iznos_rsd") or 0)
-        iznos_pdv = float(f.get("iznos_sa_pdv") or iznos)
+        naziv = _naziv_klijenta(f)
+        kid   = naziv or "_bez_klijenta"
+        iznos = float(f.get("iznos_sa_pdv") or 0)
+        iznos_pdv = iznos
         placena   = f.get("status") == "placena"
         ym        = (f.get("datum_fakture") or "")[:7]
 
         if kid not in agg:
             agg[kid] = {
-                "klijent_id":    kid,
-                "naziv":         kl_map.get(kid, "—"),
+                # Ključ je NAZIV sa fakture, ne id klijenta — polje se zato više
+                # ne zove `klijent_id`. Vraćati ime pod tim imenom značilo bi
+                # tvrditi vezu ka `klijenti` koja u šemi ne postoji.
+                "kljuc":         kid,
+                "naziv":         naziv or "—",
                 "ukupno_rsd":    0.0,
                 "naplaceno_rsd": 0.0,
                 "neplaceno_rsd": 0.0,
@@ -458,7 +531,6 @@ async def billing_po_klijentu(
 
     result = sorted([
         {
-            "klijent_id":    e["klijent_id"],
             "naziv":         e["naziv"],
             "ukupno_rsd":    round(e["ukupno_rsd"], 2),
             "naplaceno_rsd": round(e["naplaceno_rsd"], 2),
@@ -471,7 +543,7 @@ async def billing_po_klijentu(
             ],
         }
         for e in agg.values()
-        if e["klijent_id"] != "_bez_klijenta"
+        if e["kljuc"] != "_bez_klijenta"
     ], key=lambda x: x["ukupno_rsd"], reverse=True)
 
     return {
@@ -540,7 +612,7 @@ async def billing_mesecni(
             .lte("datum", do_inc_iso)
             .execute()),
         asyncio.to_thread(lambda: supa.table("fakture")
-            .select("iznos_sa_pdv,iznos_rsd,status,datum_fakture")
+            .select("iznos_sa_pdv,status,datum_fakture")
             .eq("user_id", uid)
             .gte("datum_fakture", od_iso)
             .lte("datum_fakture", do_inc_iso)
@@ -561,19 +633,22 @@ async def billing_mesecni(
         return_exceptions=True,
     )
 
-    def _safe(r):
-        return [] if isinstance(r, Exception) else (r.data or [])
-
-    predmeti    = _safe(pred_r)
-    rocista     = _safe(rocista_r)
-    entries     = _safe(billing_r)
-    fakture     = _safe(fakture_r)
-    prekoraceni = _safe(rokovi_r)
-    sledeci14   = _safe(hronologija_r)
+    # Svih šest izvora ovde postaje BROJ na ekranu (aktivnih predmeta, ročišta,
+    # fakturisano, naplaćeno, prekoračeni rokovi). Nijedan od tih brojeva ne sme
+    # biti nula zato što upit nije uspeo — „0 prekoračenih rokova" iz pale
+    # pretrage je isti kvar kao „0 RSD". Zato su svi `_mora`.
+    # Frontend (`mesecniIzvestajUcitaj`) na `!r.ok` ispisuje grešku, pa 503 daje
+    # poštenu poruku umesto lažnog izveštaja.
+    predmeti    = _mora(pred_r,        "predmeti")
+    rocista     = _mora(rocista_r,     "ročišta")
+    entries     = _mora(billing_r,     "stavke naplate")
+    fakture     = _mora(fakture_r,     "fakture")
+    prekoraceni = _mora(rokovi_r,      "prekoračeni rokovi")
+    sledeci14   = _mora(hronologija_r, "nadolazeći rokovi")
 
     fakturisano = sum(float(e.get("iznos_rsd") or 0) for e in entries)
     naplaceno   = sum(
-        float(f.get("iznos_sa_pdv") or f.get("iznos_rsd") or 0)
+        float(f.get("iznos_sa_pdv") or 0)
         for f in fakture if f.get("status") == "placena"
     )
 

@@ -953,21 +953,43 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
         return []
 
 
+# B4 — IMENA IZVORA KOJA SE PRENOSE UZ ODGOVOR.
+#
+# Konstante, a ne slobodni stringovi, da bi i `main.py` i testovi tvrdili istu
+# vrednost bez prepisivanja.
+IZVOR_ZAKON = "zakonski korpus"
+IZVOR_DOKUMENTI = "dokumenti predmeta"
+
+
 def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Optional[dict] = None) -> list:
     """Query an arbitrary named Pinecone namespace. Used for tmp_* doc namespaces
     and (Institutional Learning & RAG Audit, 2026-07-26) for the kancelarija_{id}/
     user_{id} owner-scope namespace — `filter` is the Pinecone metadata filter
-    (e.g. {"type": {"$in": ["case_doc", "draft_final"]}})."""
+    (e.g. {"type": {"$in": ["case_doc", "draft_final"]}}).
+
+    B4 — NEUSPEH SE VIŠE NE GUTA OVDE.
+
+    Ranije je stajalo `except → logger.warning → return []`, pa je „pretraga
+    nije izvršena" bila BAJT-IDENTIČNA sa „pretraga je izvršena i ništa nije
+    našla". Ta razlika je nizvodno postajala tvrdnja advokatu (v. `ask_agent`).
+    `RetrievalUnavailable` — definisan odmah ispod, i stariji od ovog fajla —
+    imenuje tačno taj princip: „could not be performed" NIJE „nothing found".
+    Ovde se on prvi put primenjuje i na pretragu advokatovih dokumenata.
+
+    Izuzetak se sada PROPUŠTA pozivaocu. Sva tri produkcijska pozivaoca ga već
+    hvataju (`retrieve_documents` dva puta, `api.py::_fetch_relevantne_presude_sync`
+    jednom), pa se ponašanje ne menja — menja se samo to što pozivalac sada MOŽE
+    da razlikuje ta dva stanja. Potpis je namerno NEPROMENJEN."""
     index = _get_index()
+    kwargs = {"vector": vektor, "top_k": k, "namespace": namespace, "include_metadata": True}
+    if filter:
+        kwargs["filter"] = filter
     try:
-        kwargs = {"vector": vektor, "top_k": k, "namespace": namespace, "include_metadata": True}
-        if filter:
-            kwargs["filter"] = filter
         return index.query(**kwargs).matches
     except Exception as exc:
         _sentry_capture(exc)
         logger.warning("[NS:%s] Pretraga nije uspela: %s", namespace, exc)
-        return []
+        raise
 
 
 
@@ -1853,16 +1875,27 @@ def retrieve_documents(
     except Exception as exc:
         _sentry_capture(exc)
         logger.error("[RETRIEVE] Embedding neuspešan za query='%s': %s", query[:60], exc)
+        # B4: pad embeddinga znaci da NIJEDAN izvor nije pretrazen. Ranije je
+        # ovaj povratak bio oblikovan kao potpuno validan „LOW, nista nije
+        # nadjeno" rezultat, pa je `ask_agent` iz njega proizvodio tvrdnju o
+        # sadrzaju pravnog korpusa („pitanje izlazi iz indeksiranih oblasti").
+        # Sada nosi imena izvora koji NISU provereni.
         return [], {
             "top_score": 0.0, "top_article": "", "top_law": "", "top_text": "",
             "confidence": "LOW", "confidence_detail": {}, "izvori": [],
             "doc_passages": [], "praksa_matches": [], "match_breakdown": [],
+            "izvori_neuspeh": [IZVOR_ZAKON, IZVOR_DOKUMENTI],
         }
 
     # ── Faza 0b: Start praksa + extra-ns retrieval in background ─────────────────
     # Conservative design: zakon pipeline is unchanged; additional results are appended
     # AFTER the zakon pipeline completes. Gate (confidence band) is driven by zakon
     # top score only — praksa/doc passages add content, not band signal.
+    # B4: jedan kanal za stanje izvora kroz ceo poziv. Prazna lista na kraju
+    # znaci „svi izvori procitani"; svako ime u njoj je izvor koji NIJE
+    # proveren i o kome se nista ne sme tvrditi.
+    _izvori_neuspeh: list[str] = []
+
     _praksa_exec = ThreadPoolExecutor(max_workers=1)
     _f_praksa = _praksa_exec.submit(_pretraga_praksa, vektor, 5)
 
@@ -2210,6 +2243,10 @@ def retrieve_documents(
             except Exception as _de:
                 _sentry_capture(_de)
                 logger.warning("[DOC_NS:%s] Retrieval greška: %s", _ns, _de)
+                # B4: ukljucuje i TimeoutError iz `.result(timeout=5.0)` --
+                # spor izvor tiho ispada isto kao pao izvor.
+                if IZVOR_DOKUMENTI not in _izvori_neuspeh:
+                    _izvori_neuspeh.append(IZVOR_DOKUMENTI)
         if _extra_exec is not None:
             _extra_exec.shutdown(wait=False)
 
@@ -2282,6 +2319,10 @@ def retrieve_documents(
         except Exception as _ke:
             _sentry_capture(_ke)
             logger.warning("[KANC_NS:%s] Retrieval greška: %s", kancelarija_namespace, _ke)
+            # B4: isto vazi i ovde -- `.result(timeout=5.0)` na sporom Pinecone-u
+            # je do sada tiho izbacivao advokatove dokumente iz odgovora.
+            if IZVOR_DOKUMENTI not in _izvori_neuspeh:
+                _izvori_neuspeh.append(IZVOR_DOKUMENTI)
         finally:
             if _kanc_exec is not None:
                 _kanc_exec.shutdown(wait=False)
@@ -2315,6 +2356,9 @@ def retrieve_documents(
         # Institutional Memory Architecture V2 (2026-07-26) STUB 4 —
         # Explainable Retrieval ("Zašto mi prikazuješ ovaj dokument?").
         "match_breakdown":    _build_match_breakdown(_izvori, _praksa_matches_raw, _doc_passages_raw),
+        # B4: prazno = svi izvori procitani. Neprazno = navedeni izvori NISU
+        # provereni i o njima se ne sme tvrditi ni prisustvo ni ODSUSTVO.
+        "izvori_neuspeh":     _izvori_neuspeh,
     }
     logger.info(
         "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",

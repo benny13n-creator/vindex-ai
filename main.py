@@ -2417,6 +2417,105 @@ SYSTEM_PROMPT_DEFINICIJA = SYSTEM_PROMPT_DEFINICIJA + _MISLJENJA_PROMPT_ADDENDUM
 _DOK_CITAT_MAX = 1200
 
 
+# ─── B4-M2 — AUTORITET IZVORA JE SISTEMSKI PODATAK, NE MODELOV ───────────────
+#
+# ŠTA JE BILO — izmereno, ne pretpostavljeno:
+#
+# Provenance je POSTOJAO na ulazu u model (`format_doc_passage` lepi header
+# „KORISNIKOV DOKUMENT [fajl, chunk N]", a `retrieval_meta["doc_passages"]`
+# nosi strukturu), ali je umirao na četiri mesta nizvodno:
+#
+#   1. `ask_agent` nijedna grana nije čitala `doc_passages`
+#   2. sve 4 sheme strukturiranog odgovora imaju 0 polja za činjenicu iz
+#      dokumenta (PARNICA 25, COMPLIANCE 24, PORESKI 26, DEFINICIJA 9)
+#   3. `_json_ka_tekst` čita 30 imenovanih polja i odbacuje sve ostalo
+#   4. `api.py::normalizuj_rezultat` je bela lista koja polje ne propušta
+#
+# Posledica: sistem nije imao formalnu razliku između „dokument NAVODI X" i
+# „pravni izvor POTVRĐUJE X".
+#
+# ZAŠTO SE NE DODAJE POLJE U SHEME
+#
+# Polje u shemi popunjava MODEL. Time bi provenance dolazio iz teksta koji
+# model piše — a dokument korisnika je ULAZ, ne autoritet. Umesto toga se
+# koristi mehanizam koji u ovom fajlu VEĆ POSTOJI (`_dokumentarni_citat`,
+# NS001-P0-001B): doslovan pasus iz retrieval-a, sistemski izdvojen. Model ne
+# učestvuje, pa halucinacija identiteta izvora ovim putem nije moguća, a
+# `_json_ka_tekst` prestaje da bude tačka gubitka jer provenance kroz model i
+# ne prolazi.
+
+# Vrednosti su konstante da bi ih i backend i testovi tvrdili bez prepisivanja.
+SOURCE_USER_DOCUMENT = "USER_DOCUMENT"   # dokument koji je korisnik dostavio
+SOURCE_LEGAL_CORPUS  = "LEGAL_CORPUS"    # zakonski korpus (polje `izvori`)
+VERIF_READ_OK        = "READ_OK"         # pasus je stvarno pročitan iz dokumenta
+                                         # NIJE isto što i „pravno verifikovano"
+
+
+def _dokumentarne_cinjenice(docs: Optional[list] = None,
+                            izvori_neuspeh: Optional[list] = None) -> list:
+    """Strukturirane činjenice iz KORISNIKOVOG dokumenta, iz istog izvora
+    (`docs`) koji je otišao modelu.
+
+    INVARIANT 5/6: ako pretraga dokumenata NIJE uspela, vraća se prazna lista —
+    sistem nema pravo da tvrdi šta dokument navodi. Zato `izvori_neuspeh`.
+
+    INVARIANT 1/3: svaki unos nosi `source_type: USER_DOCUMENT` i
+    `verification_state: READ_OK`. `READ_OK` znači „pasus je pročitan", NIKAD
+    „pravno potvrđeno" — ta reč se ovde ne koristi namerno.
+
+    INVARIANT 9: `source_type` dodeljuje OVA funkcija, ne tekst dokumenta. Ni
+    jedan sadržaj dokumenta ne može promeniti vrednost — parsira se isključivo
+    header koji je `format_doc_passage` (sistem) sam napisao.
+    """
+    # Isti izvor labele koji `_dokumentarni_citat` već koristi — jedan vlasnik.
+    from app.services.doc_formatter import _DOC_LABEL as _L
+    if not docs:
+        return []
+    if izvori_neuspeh:
+        from app.services.retrieve import IZVOR_DOKUMENTI as _IZVOR_DOK
+        if _IZVOR_DOK in izvori_neuspeh:
+            return []
+
+    cinjenice, ukupno = [], 0
+    for d in docs:
+        t = (d or "").strip()
+        if not t.startswith(_L):
+            continue
+        glava, _, telo = t.partition("\n")
+        telo = telo.strip()
+        if not telo:
+            continue
+        # Header je oblika: `<LABEL> [<fajl>, <clan>, chunk <n>]` — piše ga
+        # `format_doc_passage`, pa je bezbedan za parsiranje.
+        dokument, chunk = "", None
+        if "[" in glava and glava.rstrip().endswith("]"):
+            unutra = glava[glava.index("[") + 1: glava.rindex("]")]
+            delovi = [x.strip() for x in unutra.split(",")]
+            if delovi and not delovi[0].startswith("chunk"):
+                dokument = delovi[0]
+            for x in delovi:
+                if x.startswith("chunk"):
+                    try:
+                        chunk = int(x.split()[-1])
+                    except (ValueError, IndexError):
+                        chunk = None
+        if ukupno + len(telo) > _DOK_CITAT_MAX:
+            telo = telo[: max(0, _DOK_CITAT_MAX - ukupno)].rstrip()
+        if not telo:
+            break
+        cinjenice.append({
+            "navod":              telo,
+            "dokument":           dokument,
+            "chunk":              chunk,
+            "source_type":        SOURCE_USER_DOCUMENT,
+            "verification_state": VERIF_READ_OK,
+        })
+        ukupno += len(telo)
+        if ukupno >= _DOK_CITAT_MAX:
+            break
+    return cinjenice
+
+
 def _dokumentarni_citat(docs: Optional[list] = None) -> str:
     """Doslovan citat pasusa iz KORISNIKOVOG dokumenta koji su ušli u kontekst.
 
@@ -3321,6 +3420,63 @@ def ask_agent(
                             old_band, new_band,
                         )
 
+        # ── B4 — GRANICA AUTORITETA: NEUSPEH IZVORA NIJE PRAZAN IZVOR ──────
+        #
+        # `retrieval_meta["izvori_neuspeh"]` nosi imena izvora koji NISU
+        # provereni (v. app/services/retrieve.py). Do sada takvo polje nije ni
+        # postojalo: pad pretrage je bio bajt-identican praznom rezultatu, pa je
+        # `_format_low_response` iz njega proizvodio tvrdnju o sadrzaju pravnog
+        # korpusa, a sinteza je davala HIGH odgovor kao da su advokatovi
+        # dokumenti pretrazeni. Reprodukovano determinicki (B4 DOKAZ 1-4).
+        from app.services.retrieve import IZVOR_ZAKON as _IZVOR_ZAKON
+        _izvori_neuspeh = list(retrieval_meta.get("izvori_neuspeh") or [])
+
+        # Ako ZAKONSKI KORPUS nije pretrazen, nijedna tvrdnja o njemu nije
+        # dozvoljena -- ni tvrdnja o odsustvu. Fail-closed, BEZ poziva modelu:
+        # prompt nije kontrolna granica. Ista forma koju S4-3 vec koristi za
+        # nedostupnu proveru clana (`retrieval_unavailable`).
+        if _IZVOR_ZAKON in _izvori_neuspeh:
+            logger.error(
+                "[B4] zakonski korpus NIJE pretrazen (%s) — odbijam pravnu tvrdnju [q=%s]",
+                _izvori_neuspeh, log_id,
+            )
+            # B4-M2 / INVARIANT 2: dokument koji JESTE pročitan se ne baca zato
+            # što pravni korpus nije dostupan. Do sada je ovaj `return` odbacivao
+            # `docs` u celosti, pa je činjenica iz advokatovog ugovora nestajala
+            # zajedno sa pravnim delom — mereno (CASE B: „17.350" nije bilo u
+            # odgovoru iako je bilo u `docs`).
+            #
+            # INVARIANT 8 + 9: model se i dalje NE zove. Bez korpusa on ne sme
+            # proizvoditi pravni tekst, a garancija ne sme zavisiti od prompta.
+            # Isporučuje se DOSLOVAN pasus koji je sistem pročitao — ništa
+            # izvedeno, nijedan pravni zaključak.
+            _cinjenice = _dokumentarne_cinjenice(docs, _izvori_neuspeh)
+            if _cinjenice:
+                _poruka = (
+                    "Pravni deo nije mogao biti proveren — pravni korpus trenutno "
+                    "nije dostupan, pa NE tvrdim šta zakon propisuje.\n\n"
+                    "Iz vašeg dokumenta sam pročitao (doslovno, bez tumačenja):\n\n"
+                    + _dokumentarni_citat(docs)
+                )
+            else:
+                _poruka = ("Sistem trenutno ne može da pretraži pravni korpus. "
+                           "Ovo NIJE tvrdnja da odgovor ne postoji — "
+                           "pokušajte ponovo za koji trenutak.")
+            return {
+                "status": "error",
+                "blocked": False,
+                "data": _poruka,
+                "confidence": "LOW",
+                "top_score": 0.0,
+                "top_article": "",
+                "top_law": "",
+                "retrieval_unavailable": True,
+                "izvori_neuspeh": _izvori_neuspeh,
+                # INVARIANT 1/3/4: dokumentarna činjenica se prenosi, ali NIKAD
+                # pod pravnim autoritetom — `izvori` (LEGAL_CORPUS) ostaje prazno.
+                "cinjenice_iz_dokumenta": _cinjenice,
+            }
+
         confidence        = retrieval_meta["confidence"]
         top_score         = retrieval_meta["top_score"]
         top_article       = retrieval_meta["top_article"]
@@ -3422,11 +3578,45 @@ def ask_agent(
 
         # KORAK 2: LOW — instant refusal, no LLM needed
         if confidence == "LOW":
+            # B4: `_format_low_response` kaze „Nemam pouzdan odgovor ... u
+            # trenutnoj bazi zakona" i navodi da pitanje „izlazi iz indeksiranih
+            # oblasti". To je tvrdnja o SADRZAJU izvora. Ako neki izvor nije ni
+            # proveren, ta tvrdnja nema osnov -- odsustvo dokaza nije dokaz
+            # odsustva. Deterministicki, bez modela.
+            if _izvori_neuspeh:
+                logger.error("[B4] LOW uz nepretrazene izvore %s — ne tvrdim odsustvo [q=%s]",
+                             _izvori_neuspeh, log_id)
+                # B4-M2 / INVARIANT 2: isto kao gore — ako je dokument pročitan,
+                # njegov pasus ide advokatu i kad pravni deo nije proverljiv.
+                _cinjenice = _dokumentarne_cinjenice(docs, _izvori_neuspeh)
+                _uvod = ("Nisam mogao da proverim sve izvore za ovo pitanje ("
+                         + ", ".join(_izvori_neuspeh) + "). "
+                         "Zato NE tvrdim da odgovora nema.")
+                if _cinjenice:
+                    _uvod += ("\n\nIz vašeg dokumenta sam pročitao (doslovno, "
+                              "bez tumačenja):\n\n" + _dokumentarni_citat(docs))
+                else:
+                    _uvod += " Pokušajte ponovo."
+                return {
+                    "status": "error",
+                    "blocked": False,
+                    "data": _uvod,
+                    "confidence": "LOW",
+                    "top_score": top_score,
+                    "top_article": top_article,
+                    "top_law": top_law,
+                    "retrieval_unavailable": True,
+                    "izvori_neuspeh": _izvori_neuspeh,
+                    "cinjenice_iz_dokumenta": _cinjenice,
+                }
             odgovor = _format_low_response(top_score)
             rezultat = {
                 "status": "success", "data": odgovor,
                 "confidence": "LOW", "top_score": top_score,
                 "top_article": top_article, "top_law": top_law,
+                # Svi izvori pročitani; dokumentarne činjenice se i dalje
+                # prenose odvojeno od pravnih (INVARIANT 1).
+                "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
             }
             if not history and not extra_namespaces and not memory_context:
                 _cache_set(pitanje, rezultat)
@@ -3517,6 +3707,19 @@ def ask_agent(
         if confidence == "MEDIUM":
             _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
             _misljenja_insert = f"\n\n{misljenja_blok}\n" if misljenja_blok else ""
+            # B4: model ne sme da vidi pao izvor kao PRAZAN izvor. Ovo NIJE
+            # kontrolna granica (to je deterministička oznaka u odgovoru iznad),
+            # nego uklanjanje pogrešnog stanja iz ulaza — bez ovoga model iz
+            # praznog konteksta legitimno zaključuje odsustvo.
+            _neuspeh_blok = ""
+            if _izvori_neuspeh:
+                _neuspeh_blok = (
+                    "\n\nUPOZORENJE O IZVORIMA: sledeći izvori NISU provereni: "
+                    + ", ".join(_izvori_neuspeh)
+                    + ". NE tvrdi da u njima nema podataka i NE izvodi zaključak "
+                      "o njihovom sadržaju.\n"
+                )
+
             user_content = (
                 f"{_HEDGE}"
                 f"{history_blok}"
@@ -3524,6 +3727,7 @@ def ask_agent(
                 f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
                 f"{_praksa_insert}"
                 f"{_misljenja_insert}"
+                f"{_neuspeh_blok}"
             )
             try:
                 _raw_med = _pozovi_openai(
@@ -3573,6 +3777,11 @@ def ask_agent(
                 "confidence": "MEDIUM", "top_score": top_score,
                 "top_article": top_article, "top_law": top_law,
                 "confidence_detail": _conf_detail, "izvori": _izvori,
+                # B4: parcijalan odgovor se ISPORUCUJE, ali nikad kao potpuno proveren.
+                "izvori_neuspeh": _izvori_neuspeh,
+                # INVARIANT 1/10: dokumentarne cinjenice putuju ODVOJENO od `izvori`
+                # (LEGAL_CORPUS) kroz ceo lanac, da se dva autoriteta ne stope.
+                "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
             }
             if not history and not extra_namespaces and not memory_context:
                 _cache_set(pitanje, rezultat)
@@ -3582,12 +3791,26 @@ def ask_agent(
         # KORAK 6: HIGH — puni topic prompt, soft section check, anti-halucinacijska zaštita
         _praksa_insert = f"\n\n{praksa_blok}\n" if praksa_blok else ""
         _misljenja_insert = f"\n\n{misljenja_blok}\n" if misljenja_blok else ""
+        # B4: model ne sme da vidi pao izvor kao PRAZAN izvor. Ovo NIJE
+        # kontrolna granica (to je deterministicka oznaka u odgovoru iznad),
+        # nego uklanjanje pogresnog stanja iz ulaza -- bez ovoga model iz
+        # praznog konteksta legitimno zakljucuje odsustvo.
+        _neuspeh_blok = ""
+        if _izvori_neuspeh:
+            _neuspeh_blok = (
+                "\n\nUPOZORENJE O IZVORIMA: sledeći izvori NISU provereni: "
+                + ", ".join(_izvori_neuspeh)
+                + ". NE tvrdi da u njima nema podataka i NE izvodi zaključak "
+                  "o njihovom sadržaju.\n"
+            )
+
         user_content = (
             f"{history_blok}"
             f"PITANJE: {pitanje_api}\n\n"
             f"KONTEKST IZ BAZE ZAKONA:\n{kontekst}"
             f"{_praksa_insert}"
             f"{_misljenja_insert}"
+            f"{_neuspeh_blok}"
         )
         try:
             _raw_high = _pozovi_openai(
@@ -3682,6 +3905,11 @@ def ask_agent(
             "confidence": confidence, "top_score": top_score,
             "top_article": top_article, "top_law": top_law,
             "confidence_detail": _conf_detail, "izvori": _izvori,
+                # B4: parcijalan odgovor se ISPORUCUJE, ali nikad kao potpuno proveren.
+                "izvori_neuspeh": _izvori_neuspeh,
+                # INVARIANT 1/10: dokumentarne cinjenice putuju ODVOJENO od `izvori`
+                # (LEGAL_CORPUS) kroz ceo lanac, da se dva autoriteta ne stope.
+                "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
         }
         if not history and not extra_namespaces and not memory_context:
             _cache_set(pitanje, rezultat)

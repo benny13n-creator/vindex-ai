@@ -1506,6 +1506,25 @@ def normalizuj_rezultat(rezultat: dict, credits_remaining: Optional[int] = None)
             resp["top_law"] = rezultat["top_law"]
         if rezultat.get("top_article"):
             resp["top_article"] = rezultat["top_article"]
+        # B4-M1 / B4-M2 — PROVENANCE MORA DA PREĐE GRANICU API-ja.
+        #
+        # Ova funkcija je BELA LISTA: kopira samo nabrojana polja. Izmereno je
+        # da su na njoj umirala DVA polja koja nose autoritet izvora:
+        #
+        #   `izvori_neuspeh`          (B4-M1) — koji izvor NIJE proveren
+        #   `cinjenice_iz_dokumenta`  (B4-M2) — šta dokument NAVODI
+        #
+        # Bez ovoga je popravka postojala u `ask_agent` i u `vindex.js`, a
+        # klijent je nikad nije video — polje se gubilo tačno ovde.
+        #
+        # `is not None`, ne truthiness: PRAZNA lista je informacija („provereno,
+        # nema ničega") i mora se razlikovati od odsutnog polja.
+        if rezultat.get("izvori_neuspeh") is not None:
+            resp["izvori_neuspeh"] = rezultat["izvori_neuspeh"]
+        if rezultat.get("cinjenice_iz_dokumenta") is not None:
+            resp["cinjenice_iz_dokumenta"] = rezultat["cinjenice_iz_dokumenta"]
+        if rezultat.get("retrieval_unavailable"):
+            resp["retrieval_unavailable"] = True
     return resp
 
 
@@ -6653,26 +6672,68 @@ async def predmet_confirm_links(
         except Exception as e:
             logger.warning("[CONFIRM-LINKS] klijent link greška: %s", e)
 
+    # B1 — ROK KOJI BAZA ODBIJE VIŠE SE NE PRIJAVLJUJE KAO USPEH.
+    #
+    # ŠTA JE BILO -- reprodukovano, ne pretpostavljeno:
+    #
+    #   `vaznost` je uzimana iz tela zahteva bez ijedne provere, sa
+    #   podrazumevanom vrednošću `"bitan"`. `predmet_hronologija.vaznost` ima
+    #   CHECK (`supabase_setup.sql:415`) koji dozvoljava isključivo
+    #   `kritičan | važan | informativan`. Sonda produkcije: 52 reda, sve tri
+    #   šemske vrednosti, **nijedna** `bitan` -- dakle CHECK važi i INSERT je
+    #   padao na 23514. `except` ga je gutao u `logger.warning`, a odgovor je
+    #   svejedno glasio `success: True`. Frontend čita `d.success`, pa je
+    #   ispisivao `✓ Sačuvano.` za rok koji u bazi ne postoji.
+    #
+    # VALIDACIJA prati kanonski obrazac koji već postoji na dva mesta u ovom
+    # repozitorijumu -- `predmet_upload_auto_analyze` (`_VALID_VAZNOST` iznad)
+    # i `routers/copilot.py::_handle_akcija_rok`: nepoznata vrednost se NE
+    # odbija nego pada na najniži nivo. Razlog je isti kao tamo -- podatak iz
+    # advokatovog dokumenta ne sme da se izgubi zbog reči koju pošiljalac nije
+    # pogodio, a šema se ne proširuje da bi se primio tuđi rečnik.
+    _VALID_VAZNOST_ROK = {"kritičan", "važan", "informativan"}
+    _rok_greska: Optional[str] = None
     if req.dodaj_rok:
+        rok = req.dodaj_rok
+        _vaznost_rok = rok.get("vaznost")
+        if _vaznost_rok not in _VALID_VAZNOST_ROK:
+            _vaznost_rok = "informativan"
         try:
-            rok = req.dodaj_rok
-            await asyncio.to_thread(
+            _rok_ins = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija").insert({
                     "predmet_id": predmet_id,
                     "user_id":    uid,
                     "dogadjaj":   (rok.get("naziv") or "Rok")[:200],
                     "datum":      rok.get("datum_iso",""),
                     "datum_iso":  rok.get("datum_iso",""),
-                    "vaznost":    rok.get("vaznost","bitan"),
+                    "vaznost":    _vaznost_rok,
                     "akter":      "Auto-detect (AI)",
                 }).execute()
             )
+            # Prazan rezultat je isto što i pad, samo tiše -- isti ugovor koji
+            # `routers/rokovi_lanac.py` i `routers/drafting.py::feedback` već
+            # drže: 0 upisanih redova NIJE uspeh.
+            if not getattr(_rok_ins, "data", None):
+                raise RuntimeError("upis roka nije vratio nijedan red")
             rok_dodat = True
         except Exception as e:
-            logger.warning("[CONFIRM-LINKS] rok insert greška: %s", e)
+            logger.error("[CONFIRM-LINKS] rok NIJE upisan predmet=%s: %s", predmet_id, e)
+            _rok_greska = ("Rok nije sačuvan. Pokušajte ponovo ili ga unesite "
+                           "ručno u kartici Rokovi.")
 
     asyncio.create_task(_audit(uid, "confirm_links", predmet_id))
-    return {"predmet_id": predmet_id, "linked_klijenti": linked, "rok_dodat": rok_dodat, "success": True}
+    # INVARIJANTA B1: `success` je True samo ako je SVAKI traženi upis
+    # potvrđen. Stanje `success: True` uz `rok_dodat: False` više ne postoji
+    # ni na jednoj putanji ove rute.
+    _odgovor = {
+        "predmet_id":      predmet_id,
+        "linked_klijenti": linked,
+        "rok_dodat":       rok_dodat,
+        "success":         (not req.dodaj_rok) or rok_dodat,
+    }
+    if _rok_greska:
+        _odgovor["rok_greska"] = _rok_greska
+    return _odgovor
 
 
 # ── Portfolio Intelligence ─────────────────────────────────────────────────────
