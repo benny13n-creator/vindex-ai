@@ -159,12 +159,21 @@ async def command_center(
         label="dashboard.command_center",
     )
 
-    def _safe(r):
+    # N5-A-004: isti koren kao N5-A-001. `_safe` je svaki pao izvor svodio
+    # na `[]` bez ijednog traga u odgovoru, pa je Command Center prikazivao
+    # nule i prazne liste kao stvarno stanje portfelja. Sada se svaki
+    # nepročitan izvor IMENUJE i vraća korisniku.
+    degradirani_izvori: list[str] = []
+
+    def _safe(r, ime: str = ""):
         if isinstance(r, Exception):
+            logger.error("[DASHBOARD] izvor '%s' NIJE procitan: %s", ime or "?", r)
+            if ime and ime not in degradirani_izvori:
+                degradirani_izvori.append(ime)
             return []
         return r.data or []
 
-    predmeti   = _safe(predmeti_r)
+    predmeti   = _safe(predmeti_r, "predmeti")
     pred_by_id = {p["id"]: p for p in predmeti}
     aktivni    = [p for p in predmeti if p.get("status") not in ("zatvoren", "arhiviran", "odbijen")]
     aktivni_count = len(aktivni)
@@ -176,12 +185,12 @@ async def command_center(
     # Neplaćene fakture (nacrt + izdata)
     neplaceno_fakture_rsd = sum(
         float(f.get("iznos_sa_pdv") or 0)
-        for f in _safe(fakture_r)
+        for f in _safe(fakture_r, "fakture")
     )
 
     # Najranije nadolazeće ročište po predmetu (za sorting top_aktivni)
     earliest_rociste: dict[str, str] = {}
-    for r in _safe(rocista_buduci_r):
+    for r in _safe(rocista_buduci_r, "ročišta"):
         pid = r.get("predmet_id")
         d = r.get("datum") or "9999-12-31"
         if pid and d < earliest_rociste.get(pid, "9999-12-31"):
@@ -229,7 +238,7 @@ async def command_center(
             "vreme":         (r.get("vreme") or "")[:5],
             "status":        r.get("status", ""),
         }
-        for r in _safe(rocista_r) if r.get("predmet_id") in aktivni_ids
+        for r in _safe(rocista_r, "ročišta") if r.get("predmet_id") in aktivni_ids
     ]
 
     # 2. Rokovi 7 dana + hitni (<48h)
@@ -271,23 +280,23 @@ async def command_center(
     from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS_CC
 
     dokazi_map_cc: dict[str, list] = {}
-    for d in _safe(dokazi_all_r):
+    for d in _safe(dokazi_all_r, "dokazi"):
         pid = d.get("predmet_id")
         if pid:
             dokazi_map_cc.setdefault(pid, []).append(d)
     dokumenti_map_cc: dict[str, list] = {}
-    for d in _safe(dokumenti_all_r):
+    for d in _safe(dokumenti_all_r, "dokumenti"):
         pid = d.get("predmet_id")
         if pid:
             dokumenti_map_cc.setdefault(pid, []).append(d)
     rocista_map_cc: dict[str, list] = {}
-    for r in _safe(rocista_all_r):
+    for r in _safe(rocista_all_r, "ročišta"):
         pid = r.get("predmet_id")
         if pid:
             rocista_map_cc.setdefault(pid, []).append(r)
 
     prev_risk_by_pred: dict[str, str] = {}
-    for r in _safe(risk_hist_r):
+    for r in _safe(risk_hist_r, "istorija rizika"):
         pid = r.get("predmet_id")
         if pid and pid not in prev_risk_by_pred:
             try:
@@ -323,8 +332,8 @@ async def command_center(
 
     # 4. Neaktivni predmeti (>30 dana)
     active_pids = (
-        {r.get("predmet_id") for r in _safe(beleske_r)}
-        | {r.get("predmet_id") for r in _safe(ist_recent_r)}
+        {r.get("predmet_id") for r in _safe(beleske_r, "beleške")}
+        | {r.get("predmet_id") for r in _safe(ist_recent_r, "istorija predmeta")}
     )
     neaktivni_predmeti = [
         {
@@ -345,7 +354,7 @@ async def command_center(
             "naziv_fajla":   d.get("naziv_fajla", ""),
             "created_at":    d.get("created_at", ""),
         }
-        for d in _safe(dokumenti_r)
+        for d in _safe(dokumenti_r, "dokumenti")
     ]
 
     # 6. AI preporuke (rule-based — without AI call)
@@ -380,6 +389,10 @@ async def command_center(
         summary = " ".join(preporuke[:2]) if preporuke else "Sve je pod kontrolom — nema hitnih upozorenja."
 
     return {
+        # N5-A-004: bez ovog polja prazan Command Center izgleda isto kad je
+        # portfelj prazan i kad izvori nisu pročitani. Prazna lista = potpuno.
+        "degradirani_izvori": degradirani_izvori,
+        "provera_potpuna":   not degradirani_izvori,
         # Backward compatible with existing /portfolio/dashboard consumer
         "ukupno_predmeta":   len(predmeti),
         "ukupno_aktivnih":   aktivni_count,
@@ -399,7 +412,7 @@ async def command_center(
         # "risk worsened" coverage with zero signal. Same split as -003
         # (Mission 014): the cap itself is a genuine cost tradeoff, unchanged
         # and still the founder's call -- this is disclosure only.
-        "pad_procene_truncated":  len(_safe(risk_hist_r)) >= 300,
+        "pad_procene_truncated":  len(_safe(risk_hist_r, "istorija rizika")) >= 300,
         "novi_dokumenti":         novi_dokumenti,
         "ai_preporuke":           preporuke,
         "top_aktivni_predmeti":   top_aktivni_predmeti,

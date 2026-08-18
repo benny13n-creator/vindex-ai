@@ -74,8 +74,23 @@ def _is_stop(text: str) -> bool:
 
 # ── DB fetch za query kontekst ────────────────────────────────────────────────
 
-async def _fetch_rocista(uid: str, supa, days_ahead: int = 7) -> list:
-    """Ročišta u narednih N dana."""
+async def _fetch_rocista(uid: str, supa, days_ahead: int = 7) -> dict:
+    """Ročišta u narednih N dana.
+
+    N5-A-003 — „NEMA ROČIŠTA" SE NE SME REĆI IZ UPITA KOJI JE PAO.
+
+    Ova funkcija je vraćala golu listu, pa je `except` vraćao `[]` — isto što
+    vrati i uspešan upit nad praznim kalendarom. Pozivalac (`_handle_query`)
+    je na praznu listu izgovarao „Nema zakazanih ročišta u narednih 14 dana",
+    dakle tvrdnju o sudskom kalendaru advokata izvedenu iz upita koji nije
+    izvršen. Rok za ročište je nepovratan.
+
+    Ista tri stanja koja `shared/rokovi.py::Stanje` već definiše, i isti
+    `uspeh` ključ koji `_fetch_predmeti_summary` (N1) već koristi:
+      uspeh=True,  stanje="ok"      upit izvršen, ima ročišta
+      uspeh=True,  stanje="prazno"  upit izvršen, nema ročišta  <- legitimno
+      uspeh=False, stanje="neuspeh" upit NIJE izvršen           <- ne zna se
+    """
     today = date.today()
     until = (today + timedelta(days=days_ahead)).isoformat()
     today_str = today.isoformat()
@@ -93,33 +108,74 @@ async def _fetch_rocista(uid: str, supa, days_ahead: int = 7) -> list:
         )
         rows = r.data or []
 
-        # Fetch predmet names
+        # Fetch predmet names.
+        # Zaseban `try`: imena predmeta su ukras, postojanje ročišta je
+        # činjenica. Ranije je pad OVOG upita rušio ceo poziv u `except`
+        # ispod i pretvarao poznata ročišta u „nema ročišta".
         if rows:
-            pred_ids = list({row["predmet_id"] for row in rows if row.get("predmet_id")})
-            pr = await asyncio.to_thread(
-                lambda: supa.table("predmeti")
-                    .select("id,naziv,tuzilac,tuzeni")
-                    .in_("id", pred_ids)
-                    .execute()
-            )
-            pred_map = {p["id"]: p for p in (pr.data or [])}
+            try:
+                pred_ids = list({row["predmet_id"] for row in rows if row.get("predmet_id")})
+                pr = await asyncio.to_thread(
+                    lambda: supa.table("predmeti")
+                        .select("id,naziv,tuzilac,tuzeni")
+                        .in_("id", pred_ids)
+                        .execute()
+                )
+                pred_map = {p["id"]: p for p in (pr.data or [])}
+            except Exception as exc:
+                logger.warning("[VOICE] nazivi predmeta za rocista nisu procitani: %s", exc)
+                pred_map = {}
             for row in rows:
                 p = pred_map.get(row.get("predmet_id"), {})
                 row["predmet_naziv"] = p.get("naziv", "")
                 row["tuzilac"]       = p.get("tuzilac", "")
                 row["tuzeni"]        = p.get("tuzeni", "")
-        return rows
+        return {
+            "uspeh":   True,
+            "stanje":  "ok" if rows else "prazno",
+            "rocista": rows,
+        }
     except Exception as exc:
-        logger.warning("[VOICE] rocista fetch error: %s", exc)
-        return []
+        logger.error("[VOICE] provera rocista NIJE izvrsena uid=%.8s: %s", uid, exc)
+        return {"uspeh": False, "stanje": "neuspeh", "rocista": []}
 
 
+# N1 (OOS-B3-1) — „0 PREDMETA" SE NE SME REĆI IZ UPITA KOJI JE PAO.
+#
+# ŠTA JE BILO — mereno nad produkcionom šemom, ne pretpostavljeno:
+#
+#     .select("id,naziv,tuzilac,tuzeni,oblast,status,created_at")
+#
+# `predmeti.oblast` NE POSTOJI — i nikada nije ni postojala. Sonda kolonu po
+# kolonu (2026-08-18): šest od sedam prolazi, `oblast` vraća
+# `42703: column predmeti.oblast does not exist`. Nije ni preimenovana:
+# `oblast_prava`, `kategorija`, `pravna_oblast`, `oblast_spora`, `domen` —
+# nijedna ne postoji. U celom repozitorijumu nema nijedne SQL naredbe koja tu
+# kolonu kreira; `CREATE TABLE predmeti` (`supabase_setup.sql:300`) je nema.
+# Uvedena je u kodu (`d727fbd8`) protiv šeme koja je nikad nije imala.
+#
+# PostgREST zato odbija CEO upit, `except` ga guta, i funkcija vraća
+# `{ukupno: 0, aktivnih: 0}` — što pozivalac pretvara u kontekst
+# „Predmeti: ukupno 0, aktivnih 0.", a `_QUERY_SYSTEM` nalaže modelu da to
+# kaže direktno. Advokat sa 19 predmeta ČUJE da nema nijedan.
+#
+# POPRAVKA JE DVODELNA:
+#   1. `oblast` se uklanja iz `select`-a — vrednost se NIGDE ne čita (jedini
+#      pozivalac koristi samo `ukupno`, `aktivnih` i `naziv`). Isto važi za
+#      `tuzilac`/`tuzeni`, ali oni POSTOJE u šemi pa se ne diraju: menja se
+#      tačno ono što je pokvareno, ništa više.
+#   2. Neuspeh više nije bajt-identičan praznoj bazi: `uspeh` nosi tu razliku,
+#      isti ugovor koji `_fetch_rokovi` već drži preko `shared/rokovi.py`.
 async def _fetch_predmeti_summary(uid: str, supa) -> dict:
-    """Ukupan broj aktivnih predmeta i lista naziva."""
+    """Ukupan broj aktivnih predmeta i lista naziva.
+
+    `uspeh` razlikuje „upit izvršen, nula redova" od „upit nije izvršen".
+    Pozivalac NE SME čitati `ukupno`/`aktivnih` bez provere `uspeh`.
+    """
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmeti")
-                .select("id,naziv,tuzilac,tuzeni,oblast,status,created_at")
+                .select("id,naziv,tuzilac,tuzeni,status,created_at")
                 .eq("user_id", uid)
                 .order("created_at", desc=True)
                 .limit(100)
@@ -127,10 +183,11 @@ async def _fetch_predmeti_summary(uid: str, supa) -> dict:
         )
         rows = r.data or []
         active = [p for p in rows if p.get("status") not in ("zatvoren", "arhiviran")]
-        return {"ukupno": len(rows), "aktivnih": len(active), "predmeti": rows[:20]}
+        return {"uspeh": True, "ukupno": len(rows), "aktivnih": len(active),
+                "predmeti": rows[:20]}
     except Exception as exc:
-        logger.warning("[VOICE] predmeti fetch error: %s", exc)
-        return {"ukupno": 0, "aktivnih": 0, "predmeti": []}
+        logger.error("[VOICE] provera predmeta NIJE izvrsena uid=%.8s: %s", uid, exc)
+        return {"uspeh": False, "ukupno": 0, "aktivnih": 0, "predmeti": []}
 
 
 # B3 — GLAS NE SME TVRDITI DA ROKOVA NEMA AKO PROVERA NIJE IZVRŠENA.
@@ -187,9 +244,23 @@ PRAVILA:
 # B3: doslovan tekst koji se izgovara kad provera rokova NIJE izvršena.
 # Konstanta, a ne inline string, da bi test mogao da tvrdi tačan izgovoren
 # sadržaj bez prepisivanja. Bez markdown-a i emodžija — ovo ide u TTS.
+# N1: doslovan tekst kad provera PREDMETA nije izvršena. Isti razlog kao kod
+# rokova: bezbednosno svojstvo se ne sme oslanjati na poslušnost modela.
+_PREDMETI_NEUSPEH_ODGOVOR = (
+    "Provera predmeta nije uspela, pa ne mogu da potvrdim koliko ih imate. "
+    "Ovo nije potvrda da predmeta nema. Pokušajte ponovo za koji trenutak."
+)
+
+
 _ROKOVI_NEUSPEH_ODGOVOR = (
     "Provera rokova nije uspela, pa ne mogu da potvrdim da li rokova ima. "
     "Ovo nije potvrda da rokova nema. Pokušajte ponovo za koji trenutak."
+)
+
+
+_ROCISTA_NEUSPEH_ODGOVOR = (
+    "Provera ročišta nije uspela, pa ne mogu da potvrdim da li ročišta ima. "
+    "Ovo nije potvrda da ročišta nema. Pokušajte ponovo za koji trenutak."
 )
 
 
@@ -220,7 +291,22 @@ async def _handle_query(text: str, uid: str, supa) -> dict:
     need_rokovi    = any(w in text_lower for w in ['rok', 'rokovi', 'istice', 'ističe', 'deadline'])
 
     if need_rocista:
-        rocista = await _fetch_rocista(uid, supa, days_ahead=14)
+        _rez_rocista = await _fetch_rocista(uid, supa, days_ahead=14)
+        if not _rez_rocista.get("uspeh"):
+            # N5-A-003: neuspela provera se NE prosleđuje modelu. Kontekst
+            # „Nema zakazanih ročišta" je tvrdnja o sudskom kalendaru koju bi
+            # model izgovorio kao činjenicu. Deterministički odgovor, bez
+            # poziva modelu — isti obrazac koji `need_rokovi` (B3) i
+            # `need_predmeti` (N1) grane već koriste.
+            logger.error("[VOICE] provera rocista NIJE izvrsena uid=%.8s", uid)
+            return {
+                "type":    "query",
+                "actions": [],
+                "odgovor": _ROCISTA_NEUSPEH_ODGOVOR,
+                "rocista_provereni": False,
+                "action": "unknown", "params": {}, "followup": None,
+            }
+        rocista = _rez_rocista["rocista"]
         if rocista:
             lines = []
             for r in rocista:
@@ -238,6 +324,20 @@ async def _handle_query(text: str, uid: str, supa) -> dict:
 
     if need_predmeti:
         summary = await _fetch_predmeti_summary(uid, supa)
+        if not summary.get("uspeh"):
+            # N1: neuspela provera se NE prosleđuje modelu. Kontekst
+            # „Predmeti: ukupno 0, aktivnih 0." je tvrdnja o advokatovom
+            # portfoliju, a `_QUERY_SYSTEM` mu izričito nalaže da je izgovori.
+            # Deterministički odgovor, bez poziva modelu — isti obrazac koji
+            # `need_rokovi` grana već koristi.
+            logger.error("[VOICE] provera predmeta NIJE izvrsena uid=%.8s", uid)
+            return {
+                "type":    "query",
+                "actions": [],
+                "odgovor": _PREDMETI_NEUSPEH_ODGOVOR,
+                "predmeti_provereni": False,
+                "action": "unknown", "params": {}, "followup": None,
+            }
         context_parts.append(
             f"Predmeti: ukupno {summary['ukupno']}, aktivnih {summary['aktivnih']}."
         )

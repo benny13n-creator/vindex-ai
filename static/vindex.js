@@ -1671,6 +1671,18 @@ _dashRender = function(d, bd, inboxData) {
   }
 
   var html = '';
+  // N5-A-004: Command Center prikazuje brojeve o celoj kancelariji. Ako ijedan
+  // izvor nije procitan, te brojke su nepotpune i to se mora videti - ranije je
+  // pao upit davao nulu koja izgleda kao stvarno stanje.
+  var _dashDeg = (d.degradirani_izvori || []);
+  if (_dashDeg.length || d.provera_potpuna === false) {
+    html += '<div style="border:1px solid rgba(255,80,80,0.4);background:rgba(255,80,80,0.10);'
+          + 'border-radius:2px;padding:.55rem .9rem;margin-bottom:.6rem;color:#ff6b6b;font-size:.82rem;">'
+          + '<b>⚠ Prikazani brojevi su nepotpuni</b><br>'
+          + 'Nismo uspeli da pročitamo: ' + _htmlEsc(_dashDeg.join(', ') || 'jedan ili više izvora')
+          + '. Nula ovde NIJE potvrda da stavki nema.'
+          + '</div>';
+  }
   var _dn = localStorage.getItem('vindex_display_name') || (currentUser ? (currentUser.email||'').split('@')[0] : '');
   var userName = _dn ? escHtml(_dn) : '';
 
@@ -1847,13 +1859,30 @@ function _wsRender(d) {
   var h = '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('layout-grid')+'Workspace — šta zahteva pažnju</span></div>';
   var ukupno = d.ukupno_aktivnih || 0;
 
-  if (!ukupno) {
+  // N5-A-001: „Sve je pod kontrolom" je tvrdnja o celom portfelju. Sme se
+  // izgovoriti SAMO kad je backend potvrdio da je svaki izvor pročitan.
+  // Ranije je pad upita davao `ukupno_aktivnih = 0` i ovaj zeleni ✓ se
+  // prikazivao na ekranu koji advokat gleda svako jutro.
+  var _wsDeg = (d.degradirani_izvori || []);
+  var _wsNepotpuno = _wsDeg.length > 0 || d.provera_potpuna === false;
+
+  if (_wsNepotpuno) {
+    h += '<div class="kc-panel-empty" style="border:1px solid rgba(255,80,80,0.4);background:rgba(255,80,80,0.10);border-radius:2px;padding:.6rem .8rem;">';
+    h += '<span class="kc-panel-empty-title" style="color:#ff6b6b;">⚠ Pregled nije potpun</span>';
+    h += '<span class="kc-panel-empty-sub">Nismo uspeli da pročitamo: '
+       + _htmlEsc(_wsDeg.join(', ') || 'jedan ili više izvora')
+       + '. Prazna lista NIJE potvrda da obaveza nema.</span>';
+    h += '<span class="kc-panel-empty-sub"><span onclick="wsLoad()" style="color:#4aa8ff;cursor:pointer;">Pokušaj ponovo</span></span>';
+    h += '</div>';
+  }
+
+  if (!ukupno && !_wsNepotpuno) {
     h += '<div class="kc-panel-empty">';
     h += '<span class="kc-panel-empty-ico">'+_kcIco('check-circle')+'</span>';
     h += '<span class="kc-panel-empty-title">Sve je pod kontrolom</span>';
     h += '<span class="kc-panel-empty-sub">Nema otvorenih akcija koje zahtevaju pažnju.</span>';
     h += '</div>';
-  } else {
+  } else if (ukupno) {
     h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.6rem;">';
     _WS_BUCKETS.forEach(function(b) {
       var n = (d[b.key]||[]).length;
@@ -21598,8 +21627,38 @@ async function _intakeKreiraj() {
         protivna_strana:    _protivna,
       })
     });
-    if (_cfRes.ok) {
-      var _cfData = await _cfRes.json();
+    // N4-COI-001: nastavak je dozvoljen SAMO uz HTTP uspeh I eksplicitan
+    // status NO_CONFLICT/CONFLICT_FOUND. Ranije se gledalo samo
+    // `conflict_detected`, pa je pao upit (prazna lista) izgledao isto kao
+    // istinski čista provera, a HTTP greška se preskakala nemo.
+    var _cfData = null;
+    try { _cfData = await _cfRes.json(); } catch(_je) { _cfData = null; }
+    var _cfStatus = (_cfData && _cfData.status_provere)
+                 || (_cfData && _cfData.detail && _cfData.detail.status_provere)
+                 || null;
+
+    if (!_cfRes.ok || _cfStatus === 'CHECK_FAILED' ||
+        (_cfStatus !== 'NO_CONFLICT' && _cfStatus !== 'CONFLICT_FOUND')) {
+      var _cfIzvori = (_cfData && _cfData.detail && _cfData.detail.izvori_neuspeh)
+                   || (_cfData && _cfData.izvori_neuspeh) || [];
+      if (_conflictWarningEl) {
+        _conflictWarningEl.innerHTML =
+          '<b>⚠ Provera sukoba interesa NIJE izvršena</b><br>' +
+          'Rezultat se ne sme tumačiti kao odsustvo sukoba.' +
+          (_cfIzvori.length ? '<br><small style="opacity:0.8;">Nepročitani izvori: '
+                              + _htmlEsc(_cfIzvori.join(', ')) + '</small>' : '') +
+          '<br><small style="opacity:0.8;">Pokušajte ponovo pre otvaranja predmeta.</small>';
+        _conflictWarningEl.style.background = 'rgba(255,80,80,0.15)';
+        _conflictWarningEl.style.border = '1px solid rgba(255,80,80,0.4)';
+        _conflictWarningEl.style.color = '#ff6b6b';
+        _conflictWarningEl.style.display = 'block';
+      }
+      nextBtn.disabled = false;
+      nextBtn.textContent = 'Pokušaj ponovo';
+      return;
+    }
+
+    {
       if (_cfData.conflict_detected) {
         var _cfSeverity = _cfData.has_blocker ? 'BLOKIRAJUCI' : 'UPOZORENJE';
         var _cfMsgs = (_cfData.conflicts || []).slice(0, 3).map(function(c){ return '• ' + _htmlEsc(c.opis); }).join('<br>');
@@ -21623,7 +21682,23 @@ async function _intakeKreiraj() {
         await new Promise(function(r){ setTimeout(r, 2000); });
       }
     }
-  } catch(_cfe) { /* Conflict check failure is non-blocking */ }
+  } catch(_cfe) {
+    // N4-COI-001: pad mreže/parsiranja je RANIJE bio "non-blocking", pa je
+    // čarobnjak nastavljao ka kreiranju predmeta bez ijedne provere.
+    if (_conflictWarningEl) {
+      _conflictWarningEl.innerHTML =
+        '<b>⚠ Provera sukoba interesa NIJE izvršena</b><br>' +
+        'Rezultat se ne sme tumačiti kao odsustvo sukoba.' +
+        '<br><small style="opacity:0.8;">Pokušajte ponovo pre otvaranja predmeta.</small>';
+      _conflictWarningEl.style.background = 'rgba(255,80,80,0.15)';
+      _conflictWarningEl.style.border = '1px solid rgba(255,80,80,0.4)';
+      _conflictWarningEl.style.color = '#ff6b6b';
+      _conflictWarningEl.style.display = 'block';
+    }
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Pokušaj ponovo';
+    return;
+  }
 
   nextBtn.textContent = 'Kreiranje...';
 

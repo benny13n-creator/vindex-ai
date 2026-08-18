@@ -149,6 +149,43 @@ async def _db(fn):
     return await asyncio.to_thread(fn)
 
 
+# ─── N5-A-002: NEUSPELO ČITANJE NIJE NULA DINARA ──────────────────────────────
+#
+# Sva četiri finansijska pregleda ispod koriste `asyncio.gather(...,
+# return_exceptions=True)` i svaki je pao izvor pretvarao u `[]`. Zbir prazne
+# liste je `0.0`, pa je odgovor pri padu bio BAJT-IDENTIČAN stvarnoj nuli —
+# a `static/vindex.js:2582` boji „Ukupno duguje 0" u ZELENO
+# (`d.ukupno_rsd > 0 ? crveno : #4ade80`). Advokat je tako video potvrdu da
+# klijent ne duguje ništa, izvedenu iz upita koji nije izvršen.
+#
+# Razlika koju `billing_reports.py` (B2) već pravi i koja se ovde preslikava:
+# izvor koji NOSI BROJ mora oboriti odgovor; izvor koji nosi samo NAZIV se
+# imenuje, a izveštaj ostaje upotrebljiv. Vrednosti i semantika su namerno
+# identične kanonskim — isti pojam, isto ime, ista istina.
+
+
+def _mora(r, ime: str) -> list:
+    """Podupit koji nosi broj. Neuspeh je 503 — nikad tiha nula."""
+    if isinstance(r, Exception):
+        logger.error("[BILLING] izvor '%s' nije procitan: %s", ime, r)
+        raise HTTPException(
+            status_code=503,
+            detail=(f"Finansijski pregled nije izračunat — izvor „{ime}” trenutno "
+                    f"nije dostupan. Prikazani iznos bi bio netačan, pa se ne "
+                    f"prikazuje."),
+        )
+    return getattr(r, "data", None) or []
+
+
+def _dopuna(r, ime: str, nepotpuno: list) -> list:
+    """Podupit koji nosi samo oznaku. Neuspeh se imenuje, ne prećutkuje."""
+    if isinstance(r, Exception):
+        logger.warning("[BILLING] dopunski izvor '%s' nije procitan: %s", ime, r)
+        nepotpuno.append(ime)
+        return []
+    return getattr(r, "data", None) or []
+
+
 async def _resolve_tarifa_for_predmet(supa, uid: str, predmet_id: str) -> float:
     """Resolves satnica: per-klijent → globalna → 7500 (AKS default)."""
     from routers.tarife import resolve_tarifa
@@ -927,8 +964,8 @@ async def billing_pregled(
         return_exceptions=True,
     )
 
-    entries = entries_r.data if not isinstance(entries_r, Exception) else []
-    fakture = fakture_r.data if not isinstance(fakture_r, Exception) else []
+    entries = _mora(entries_r, "stavke naplate")
+    fakture = _mora(fakture_r, "fakture")
 
     ukupno_unoseno = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []))
     obracunato     = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []) if e.get("obracunato"))
@@ -972,8 +1009,9 @@ async def billing_dugovanja(
         return_exceptions=True,
     )
 
-    entries  = entries_r.data if not isinstance(entries_r, Exception) else []
-    predmeti = predmeti_r.data if not isinstance(predmeti_r, Exception) else []
+    nepotpuno: list[str] = []
+    entries  = _mora(entries_r, "stavke naplate")
+    predmeti = _dopuna(predmeti_r, "nazivi predmeta", nepotpuno)
     pred_map = {p["id"]: p.get("naziv", "—") for p in predmeti}
 
     by_predmet: dict[str, dict] = {}
@@ -997,6 +1035,8 @@ async def billing_dugovanja(
         "ukupno_rsd":  ukupno_rsd,
         "predmeta":    len(dugovanja),
         "stavki":      len(entries or []),
+        # N5-A-002: dopunski izvor koji nije procitan se IMENUJE.
+        "nepotpuno":   nepotpuno,
     }
 
 
@@ -1023,8 +1063,8 @@ async def billing_naplata_status(
         return_exceptions=True,
     )
 
-    entries = entries_r.data if not isinstance(entries_r, Exception) else []
-    fakture = fakture_r.data if not isinstance(fakture_r, Exception) else []
+    entries = _mora(entries_r, "stavke naplate")
+    fakture = _mora(fakture_r, "fakture")
 
     ukupno_stavke  = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []))
     neobracunato   = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []) if not e.get("obracunato"))
@@ -1097,9 +1137,10 @@ async def billing_po_klijentu(
         return_exceptions=True,
     )
 
-    entries  = entries_r.data if not isinstance(entries_r, Exception) else []
-    fakture  = fakture_r.data if not isinstance(fakture_r, Exception) else []
-    predmeti = predmeti_r.data if not isinstance(predmeti_r, Exception) else []
+    nepotpuno: list[str] = []
+    entries  = _mora(entries_r, "stavke naplate")
+    fakture  = _mora(fakture_r, "fakture")
+    predmeti = _dopuna(predmeti_r, "nazivi predmeta", nepotpuno)
 
     ukupno_rsd = sum(float(e.get("iznos_rsd") or 0) for e in (entries or []))
     naplaceno  = sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "placena")
@@ -1112,6 +1153,8 @@ async def billing_po_klijentu(
         "ukupno_rsd":  ukupno_rsd,
         "naplaceno":   naplaceno,
         "neizmireno":  sum(float(f.get("iznos_sa_pdv") or 0) for f in (fakture or []) if f.get("status") == "izdata"),
+        # N5-A-002: dopunski izvor koji nije procitan se IMENUJE.
+        "nepotpuno":   nepotpuno,
     }
 
 

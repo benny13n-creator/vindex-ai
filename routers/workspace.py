@@ -39,7 +39,7 @@ from fastapi import APIRouter, Depends, Request
 from routers.case_actions import _fetch_open_actions, _PRIORITY_ORDER, _sort_key
 from shared.attention_priority import ZADACI_TO_CANONICAL as _ZADACI_PRIORITET_MAP
 from shared.deps import _get_supa, get_current_user
-from shared.query_timeout import gather_with_timeout, single_with_timeout
+from shared.query_timeout import gather_with_timeout
 
 logger = logging.getLogger("vindex.workspace")
 router = APIRouter(prefix="/api/workspace", tags=["workspace"])
@@ -161,9 +161,20 @@ async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str) -> l
     actions_res, zadaci_res = await gather_with_timeout(
         closed_actions_task, closed_zadaci_task, label="workspace.recently_completed"
     )
+    # N5-A-001 (dopuna, 2026-08-19): ova dva pada su bila jedini preostali tihi
+    # gutači u ovoj ruti. Bez njih bi `provera_potpuna` mogao tvrditi `True`
+    # dok je korpa „Završeno nedavno" lažno prazna — dakle sam signal
+    # potpunosti bi bio netačan.
+    _degradirano: list[str] = []
+    if isinstance(actions_res, Exception):
+        logger.error("[WORKSPACE] izvor 'zavrsene akcije' NIJE procitan: %s", actions_res)
+        _degradirano.append("završene akcije")
+    if isinstance(zadaci_res, Exception):
+        logger.error("[WORKSPACE] izvor 'zavrseni zadaci' NIJE procitan: %s", zadaci_res)
+        _degradirano.append("završeni zadaci")
     closed_actions = (actions_res.data if not isinstance(actions_res, Exception) else []) or []
     closed_zadaci = (zadaci_res.data if not isinstance(zadaci_res, Exception) else []) or []
-    return closed_actions, closed_zadaci
+    return closed_actions, closed_zadaci, _degradirano
 
 
 async def _empty_result():
@@ -192,14 +203,37 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     # morning. The sibling endpoint get_worklist (routers/case_actions.py)
     # already carries this exact filter (Phoenix Mission 001,
     # LIVINGSYS-DEBT-036) -- this applies the same fix here.
-    predmeti_r = await single_with_timeout(
+    # N5-A-001 — PRAZNA TABLA IZ PALOG UPITA NIJE „SVE JE POD KONTROLOM".
+    #
+    # `single_with_timeout` na timeout vraća `_EmptyResult()` čiji je `.data`
+    # prazna lista (njegova sopstvena „fail-open philosophy"), a gather ispod
+    # je izuzetke svodio na `[]` uz `logger.warning` — dakle SAMO na server.
+    # Rezultat: `ukupno_aktivnih == 0` i `static/vindex.js:1848` iscrta zeleni
+    # ✓ „Sve je pod kontrolom — Nema otvorenih akcija koje zahtevaju pažnju."
+    # na ekranu koji advokat gleda svako jutro. Odgovor pri padu bio je
+    # identičan odgovoru pri stvarno praznoj tabli.
+    #
+    # `gather_with_timeout` se koristi i za ovaj jedan upit jer na timeout
+    # vraća `TimeoutError` koji se MOŽE prepoznati — `single_with_timeout`
+    # vraća prazan rezultat koji se ne može razlikovati od stvarno praznog.
+    # Isti obrazac objave koji `routers/kalendar.py` već koristi
+    # (`degraded_sources`), bez menjanja HTTP ugovora.
+    degradirani_izvori: list[str] = []
+
+    (predmeti_r,) = await gather_with_timeout(
         asyncio.to_thread(
             lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid)
                 .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
         ),
         label="workspace.predmeti",
     )
-    predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in (predmeti_r.data or [])}
+    if isinstance(predmeti_r, Exception):
+        logger.error("[WORKSPACE] izvor 'predmeti' NIJE procitan: %s", predmeti_r)
+        degradirani_izvori.append("predmeti")
+        _predmeti_data: list = []
+    else:
+        _predmeti_data = predmeti_r.data or []
+    predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in _predmeti_data}
     predmet_ids = list(predmet_naziv.keys())
 
     # Program Lambda, Certification 004 (2026-08-06): Reliability Architect
@@ -218,13 +252,17 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
         _fetch_review_jobs(supa, uid),
         label="workspace.main",
     )
-    for _name, _res in (("open_actions", _actions_r), ("waiting_zadaci", _zadaci_r), ("review_jobs", _review_r)):
+    for _name, _res in (("otvorene akcije", _actions_r), ("zadaci na čekanju", _zadaci_r), ("stavke za pregled", _review_r)):
         if isinstance(_res, Exception):
-            logger.warning("[WORKSPACE] %s fetch greška, taj deo table-a prazan: %s", _name, _res)
+            # N5-A-001: ranije samo `logger.warning` — korisnik nije saznao ništa.
+            logger.error("[WORKSPACE] izvor '%s' NIJE procitan: %s", _name, _res)
+            degradirani_izvori.append(_name)
     actions = _actions_r if not isinstance(_actions_r, Exception) else []
     zadaci_ceka = _zadaci_r if not isinstance(_zadaci_r, Exception) else []
     review_jobs = _review_r if not isinstance(_review_r, Exception) else []
-    closed_actions, closed_zadaci = await _fetch_recently_completed(supa, predmet_ids, uid)
+    closed_actions, closed_zadaci, _deg_zavrseno = await _fetch_recently_completed(
+        supa, predmet_ids, uid)
+    degradirani_izvori.extend(_deg_zavrseno)
 
     danas_stavke: list[dict] = []
     kriticno_stavke: list[dict] = []
@@ -279,4 +317,8 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
         "zavrseno_nedavno": zavrseno_stavke,
         "ukupno_aktivnih": ukupno_aktivnih,
         "predmeta_sa_akcijama": predmeta_sa_akcijama,
+        # N5-A-001: bez ovog polja frontend ne može da razlikuje „nema ničega"
+        # od „nismo uspeli da pročitamo". Prazna lista = provera je potpuna.
+        "degradirani_izvori": degradirani_izvori,
+        "provera_potpuna": not degradirani_izvori,
     }
