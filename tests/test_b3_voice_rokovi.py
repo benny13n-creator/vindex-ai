@@ -82,11 +82,37 @@ class SemaGreska(RuntimeError):
     """42703 — isto što PostgREST vrati za nepostojeću kolonu."""
 
 
-class _SemaSupa:
-    """Lažni Supabase koji STVARNO primenjuje skup kolona."""
+RED_ROCISTA = {
+    "datum": SUTRA, "vreme": "09:30:00", "sud": "Prvi osnovni sud u Beogradu",
+    "sudnica": "12", "predmet_id": "p1", "status": "zakazano",
+}
 
-    def __init__(self, redovi=None, puca=False):
+RED_PREDMETA = {"id": "p1", "naziv": "Spor 1/2026", "tuzilac": "A", "tuzeni": "B"}
+
+
+class _SemaSupa:
+    """Lažni Supabase koji STVARNO primenjuje skup kolona.
+
+    N5-M3 (2026-08-19) — dvojnik je vraćao ISTE redove za SVAKU tabelu i nije
+    imao `in_`. Dok je `_fetch_rocista` gutao svaki izuzetak u `[]`, to se nije
+    videlo: pad upita nad `predmeti` (nedostajući `in_`) završavao je kao
+    „nema ročišta". Pošto ročišta i rokovi sada imaju odvojene, dokazano
+    različite ugovore, i dvojnik mora da ih razlikuje:
+
+      predmet_hronologija  select→eq→gte(datum_iso)→lte→order→limit   (rokovi)
+      rocista              select→eq→eq→gte(datum)→lte→order→limit    (ročišta)
+      predmeti             select→in_                                 (nazivi)
+
+    Podrazumevano `rocista` vraća PRAZNO — legitimno prazan kalendar, upit je
+    izvršen. Time se ni jedna asercija ovog fajla ne menja: ranije je ista
+    rečenica dolazila iz progutane greške, sada dolazi iz stvarno izvršenog
+    upita. Ni jedna asercija, ni jedno očekivanje i ni jedan naziv nisu dirani.
+    """
+
+    def __init__(self, redovi=None, puca=False, redovi_rocista=None, redovi_predmeti=None):
         self.redovi = redovi if redovi is not None else [RED_ROKA]
+        self.redovi_rocista = redovi_rocista if redovi_rocista is not None else []
+        self.redovi_predmeti = redovi_predmeti if redovi_predmeti is not None else []
         self.puca = puca
         self.trazeno: list[tuple] = []   # (tabela, kolone)
 
@@ -96,7 +122,14 @@ class _SemaSupa:
         class _Q:
             def select(self, kolone="*", *a, **k):
                 spolja.trazeno.append((ime, kolone))
-                if spolja.puca:
+                # N1 (harness ispravka, 2026-08-18): `puca` je obarao SVAKI
+                # select, iako je namera ovog fajla uvek bila da simulira ispad
+                # SAMO domena rokova. Preširok injektor je u `test_G` obarao i
+                # `predmeti` upit, pa je taj test slučajno kodifikovao N1 kvar
+                # kao ugovor (pao `predmeti` upit -> odgovor svejedno generisan
+                # modelom). Menja se ISKLJUČIVO opseg simulacije; nijedna
+                # asercija, nijedno očekivanje i nijedan naziv nisu dirani.
+                if spolja.puca and ime == "predmet_hronologija":
                     raise RuntimeError("simuliran ispad baze")
                 if ime == "predmet_hronologija" and kolone != "*":
                     for c in [x.strip() for x in kolone.split(",")]:
@@ -110,8 +143,15 @@ class _SemaSupa:
             def lte(self, *a, **k):   return self
             def order(self, *a, **k): return self
             def limit(self, *a, **k): return self
+            # produkcija zove `in_` na `predmeti` (spajanje naziva uz ročišta);
+            # bez ovoga je dvojnik obarao upit i lažno proizvodio „nema ročišta"
+            def in_(self, *a, **k):   return self
 
             def execute(self):
+                if ime == "rocista":
+                    return MagicMock(data=list(spolja.redovi_rocista))
+                if ime == "predmeti":
+                    return MagicMock(data=list(spolja.redovi_predmeti))
                 return MagicMock(data=list(spolja.redovi))
 
         return _Q()

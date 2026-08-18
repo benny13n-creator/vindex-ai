@@ -181,8 +181,11 @@ async def test_get_workspace_degrades_gracefully_on_query_timeout():
     async def _all_timeout(*coros, **kw):
         return tuple(asyncio.TimeoutError("t") for _ in coros)
 
+    # N5-A-001 (2026-08-19): `single_with_timeout` je na timeout vraćao prazan
+    # rezultat koji se NE MOŽE razlikovati od stvarno praznog, pa `get_workspace`
+    # sada i taj jedan upit vodi kroz `gather_with_timeout` (vraća prepoznatljiv
+    # `TimeoutError`). Menja se ISKLJUČIVO cilj zakrpe — asercije ostaju iste.
     with patch.object(workspace, "_get_supa", return_value=MagicMock()), \
-         patch("routers.workspace.single_with_timeout", new=AsyncMock(return_value=_Empty())), \
          patch("routers.workspace.gather_with_timeout", new=_all_timeout):
         result = await asyncio.wait_for(workspace.get_workspace(_req(), {"user_id": "u1"}), timeout=3.0)
 
