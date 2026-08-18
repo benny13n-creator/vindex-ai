@@ -136,7 +136,8 @@ async def _fetch_waiting_zadaci(supa, uid: str) -> list[dict]:
     return list(res.data or [])
 
 
-async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str) -> list[dict]:
+async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str,
+                                    degradirani: list[str] | None = None) -> list[dict]:
     since = (datetime.now(timezone.utc) - timedelta(days=_COMPLETED_WINDOW_DAYS)).isoformat()
     closed_actions_task = (
         asyncio.to_thread(
@@ -165,7 +166,7 @@ async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str) -> l
     # gutači u ovoj ruti. Bez njih bi `provera_potpuna` mogao tvrditi `True`
     # dok je korpa „Završeno nedavno" lažno prazna — dakle sam signal
     # potpunosti bi bio netačan.
-    _degradirano: list[str] = []
+    _degradirano = degradirani if degradirani is not None else []
     if isinstance(actions_res, Exception):
         logger.error("[WORKSPACE] izvor 'zavrsene akcije' NIJE procitan: %s", actions_res)
         _degradirano.append("završene akcije")
@@ -174,7 +175,7 @@ async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str) -> l
         _degradirano.append("završeni zadaci")
     closed_actions = (actions_res.data if not isinstance(actions_res, Exception) else []) or []
     closed_zadaci = (zadaci_res.data if not isinstance(zadaci_res, Exception) else []) or []
-    return closed_actions, closed_zadaci, _degradirano
+    return closed_actions, closed_zadaci
 
 
 async def _empty_result():
@@ -260,9 +261,10 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     actions = _actions_r if not isinstance(_actions_r, Exception) else []
     zadaci_ceka = _zadaci_r if not isinstance(_zadaci_r, Exception) else []
     review_jobs = _review_r if not isinstance(_review_r, Exception) else []
-    closed_actions, closed_zadaci, _deg_zavrseno = await _fetch_recently_completed(
-        supa, predmet_ids, uid)
-    degradirani_izvori.extend(_deg_zavrseno)
+    # `degradirani_izvori` se prosleđuje kao akumulator, a ne vraća kao treća
+    # vrednost: povratni ugovor (2-torka) ostaje netaknut za sve pozivaoce.
+    closed_actions, closed_zadaci = await _fetch_recently_completed(
+        supa, predmet_ids, uid, degradirani=degradirani_izvori)
 
     danas_stavke: list[dict] = []
     kriticno_stavke: list[dict] = []

@@ -198,7 +198,11 @@ async def test_workspace_board_excludes_archived_case():
         assert predmet_ids == ["pred-active"]
         return []
 
-    async def _fake_recently_completed(supa, predmet_ids, uid):
+    # N5-A-001 (2026-08-19): helper sada prima `degradirani` akumulator u koji
+    # upisuje izvore koje NIJE uspeo da pročita — bez toga bi `provera_potpuna`
+    # mogao tvrditi `True` dok je korpa „Završeno nedavno" lažno prazna.
+    # Dvojnik simulira uspešno čitanje, pa ne upisuje ništa. Asercija je ista.
+    async def _fake_recently_completed(supa, predmet_ids, uid, degradirani=None):
         assert predmet_ids == ["pred-active"]
         return [], []
 
