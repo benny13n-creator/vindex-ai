@@ -90,7 +90,7 @@ SUBSTRING_ADVERSARIAL = [
 
 # ── F. Unicode / ćirilica / interpunkcija / razmaci ─────────────────────────
 UNICODE_I_FORMA = [
-    # NAPOMENA: par ("Đorđe Šešelj", "Djordje Sheshelj") NIJE u matrici. On bi
+    # NAPOMENA: par ("Đorđe Šljivić", "Djordje Shljivich") NIJE u matrici. On bi
     # tražio digrafsku transliteraciju (Š->sh, Ž->zh) latinice u latinicu, što
     # proizvod nikada nije tvrdio da radi; `_CYR_TO_LAT` prevodi samo ćirilicu.
     # Mereno: skor 72. Zabeleženo kao OUT-OF-SCOPE nalaz, ne kao ugovor.
@@ -98,7 +98,7 @@ UNICODE_I_FORMA = [
     ("Petar   Petrović",  "Petar Petrović",     CONFLICT),  # višestruki razmak
     ("petar petrović",    "PETAR PETROVIĆ",     CONFLICT),  # veličina slova
     ("Čačak Komerc",      "Cacak Komerc",       CONFLICT),  # dijakritici
-    ("Đorđe Šešelj",      "Đorđe Marković",     CLEAR),     # isto ime, drugo prezime
+    ("Đorđe Šljivić",      "Đorđe Marković",     CLEAR),     # isto ime, drugo prezime
 ]
 
 SVE = (RAZLICITA_PRAVNA_LICA + ISTI_SUBJEKT + FIZICKA_LICA
