@@ -309,6 +309,15 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         _kljucni_rok = f"Ročište danas u {_kljucni_rok_kandidat.get('sud','N/A')} — {_kljucni_rok_kandidat.get('datum','')} {(_kljucni_rok_kandidat.get('vreme') or '')[:5]}. Pripremi se pre polaska."
     elif _kljucni_rok_kandidat:
         _kljucni_rok = f"{_kljucni_rok_kandidat.get('naziv','Rok')} — {_kljucni_rok_kandidat.get('datum','')}. Ne odlaži pripremu."
+    elif not rokovi_dostupni:
+        # DRIFT-002/003 (klasa E) — `_otvaranje` (dole) i prompt modela (gore)
+        # su već poštovali `rokovi_dostupni`, ali OVO polje nije: izvedeno je
+        # samo iz praznine liste, pa je pao upit davao tvrdnju o odsustvu
+        # rokova. Mereno: brifing je sadržao i „⚠ Rokovi trenutno nisu
+        # dostupni" i „Nema hitnih rokova u narednih 7 dana." — dve
+        # protivrečne rečenice u istom tekstu, a druga je neistinita.
+        _kljucni_rok = ("Rokovi nisu pročitani iz baze — ne mogu potvrditi da ih nema. "
+                        "Proverite ih ručno pre nego što planirate dan.")
     else:
         _kljucni_rok = "Nema hitnih rokova u narednih 7 dana."
 
