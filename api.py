@@ -2747,6 +2747,29 @@ class RegisterReq(BaseModel):
         return v.strip().lower()
 
 
+def _prijava_na_zasebnom_klijentu(email: str, password: str):
+    """Prijavljuje SVEZE registrovanog korisnika na ZASEBNOM Supabase klijentu.
+
+    Ne sme na deljeni `_get_supa()` singlton. `supabase-py` (`_sync/client.py::
+    _listen_to_auth_events`) na dogadjaj SIGNED_IN radi
+
+        self.options.headers["Authorization"] = auth_header
+        self.auth._headers["Authorization"]   = auth_header
+
+    a `auth._headers` je ISTI recnik koji koristi `auth.admin`. Prijava na
+    singltonu zato prepisuje servisni kljuc korisnickim JWT-om za ceo proces:
+    svaki naredni `admin.create_user` puca sa "User not allowed" (HTTP 500), a
+    `_postgrest` se nulira pa svaki naredni upit ide kao TAJ korisnik. Izmereno
+    nad stvarnom bazom posle jedne registracije: profiles 3->1 red, predmeti
+    3->0, klijenti 3->0 — drugi advokati na tom radniku vide prazne predmete.
+
+    Zaseban klijent je kratkotrajan, pa trovanje ostaje u njemu i nestaje s njim.
+    """
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY).auth.sign_in_with_password(
+        {"email": email, "password": password}
+    )
+
+
 @app.post("/api/register")
 @limiter.limit("5/minute")
 async def register(req: RegisterReq, request: Request):
@@ -2788,11 +2811,9 @@ async def register(req: RegisterReq, request: Request):
             except Exception as prof_err:
                 logger.warning("Profil nije kreiran odmah: %s", prof_err)
 
-            # Prijavi korisnika da dobije token
-            login_result = supa.auth.sign_in_with_password({
-                "email": req.email,
-                "password": req.password,
-            })
+            # Prijavi korisnika da dobije token. NAMERNO ne na `supa` — v.
+            # `_prijava_na_zasebnom_klijentu` iznad.
+            login_result = _prijava_na_zasebnom_klijentu(req.email, req.password)
             session = getattr(login_result, "session", None)
             access_token = session.access_token if session else None
             return {
