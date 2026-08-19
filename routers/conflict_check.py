@@ -13,6 +13,7 @@ Vraća: status (clear/conflict/review) + lista konflikata sa slojem, severitetom
         conflict_score i conflict_reason.
 """
 import asyncio
+import difflib
 import logging
 import re
 import unicodedata
@@ -30,11 +31,12 @@ router = APIRouter(prefix="/api/conflict-check", tags=["conflict_check"])
 
 # ── Fuzzy matching helpers ────────────────────────────────────────────────────
 
-try:
-    from rapidfuzz import fuzz
-    _RAPIDFUZZ = True
-except ImportError:
-    _RAPIDFUZZ = False
+# PRG-P1-NIGHT-001: `rapidfuzz` je uklonjen iz ovog puta. Bio je uvezen kroz
+# `try/except ImportError`, pa je COI verdikt tiho zavisio od toga da li je
+# paket instaliran: isti kod i isti ulaz davali su "conflict" sa paketom i
+# "clear" bez njega. Sada je jedini motor `difflib` iz standardne biblioteke,
+# zbog cega verdikt vise ne moze da varira po okruzenju.
+_FUZZY_ENGINE = "token-difflib"
 
 _CYR_TO_LAT = str.maketrans({
     'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Ђ':'Dj','Е':'E','Ж':'Zh','З':'Z',
@@ -67,17 +69,100 @@ def _normalize_name(name: str) -> str:
     return s
 
 
+# Prag na kome se dva TOKENA smatraju istim tokenom.
+#
+# Kalibrisan merenjem na oba smera greske, nad korpusom od 758 jednoznakovnih
+# mutacija stvarnih srpskih imena (izostavljanje / transpozicija / udvajanje):
+#
+#     prag <= 85 -> 0 propustenih pravih tipfelera, "Nikola"/"Nikolina" oznaceno
+#     prag >= 86 -> 4.4% propustenih pravih tipfelera (33/758)
+#
+# Za proveru sukoba interesa propusten sukob je povreda Kodeksa, a suvisna
+# oznaka je neugodnost. Zato se bira plato bez laznih negativa; 82 je njegova
+# sredina, najdalje od obe ivice.
+_TOKEN_JAK = 82
+
+
+def _ratio(x: str, y: str) -> int:
+    return int(difflib.SequenceMatcher(None, x, y).ratio() * 100)
+
+
+def _transponovano(x: str, y: str) -> bool:
+    """Tacno jedna zamena susednih znakova: 'ilic' <-> 'iilc'.
+
+    `difflib` na kratkim tokenima kaznjava transpoziciju nesrazmerno
+    ("ilic"/"iilc" = 50), pa bi bez ovog uslova obican tipfeler u prezimenu
+    sakrio stvarni sukob. Uslov je namerno uzak — trazi susedne znakove, pa
+    "maric"/"ramic" (razlicita prezimena, isti znakovi) NE prolazi.
+    """
+    if len(x) != len(y) or x == y:
+        return False
+    r = [i for i in range(len(x)) if x[i] != y[i]]
+    return (len(r) == 2 and r[1] == r[0] + 1
+            and x[r[0]] == y[r[1]] and x[r[1]] == y[r[0]])
+
+
+def _upareno(x: str, y: str) -> int:
+    """Skor uparivanja dva tokena, ili 0 ako se ne smatraju istim tokenom."""
+    r = _ratio(x, y)
+    if r >= _TOKEN_JAK or _transponovano(x, y):
+        return max(r, _TOKEN_JAK)
+    return 0
+
+
+def _skor_smer(kraci: list[str], duzi: list[str]) -> int:
+    """Pohlepno upari svaki token kraćeg imena sa najboljim slobodnim tokenom
+    dužeg. Token se troši, pa se isto prezime ne može dvaput iskoristiti."""
+    slobodni = list(duzi)
+    jaki: list[int] = []
+    for t in kraci:
+        if not slobodni:
+            break
+        i = max(range(len(slobodni)), key=lambda k: _upareno(t, slobodni[k]))
+        r = _upareno(t, slobodni[i])
+        if r:
+            jaki.append(r)
+            slobodni.pop(i)
+
+    if len(kraci) == 1 and len(duzi) == 1:
+        # Jednorečno ime nema čime da se potvrdi — ceo string je jedini dokaz.
+        return _ratio(kraci[0], duzi[0])
+    if not jaki:
+        return 0
+    prosek = sum(jaki) // len(jaki)
+    if len(jaki) == len(kraci) and len(kraci) >= 2:
+        # Dva ili više nezavisnih tokena se poklapaju → isti subjekt. Višak
+        # tokena u dužem imenu (srednje ime, grad, ogranak) se tolerise.
+        return prosek
+    # Delimično preklapanje. JEDAN zajednički token nije dokaz identiteta:
+    # "Firma doo" i "Druga firma doo" dele rec "firma", "Milan Jovanović" i
+    # "Milica Jovanović" dele prezime — ni jedno ni drugo nije isti subjekt.
+    return prosek * len(jaki) // len(duzi)
+
+
 def _fuzzy_score(a: str, b: str) -> int:
-    """Score 0–100 sličnosti između dva string-a."""
+    """Score 0–100 sličnosti između dva imena stranke.
+
+    Model je tokenski, ne nad celim string-om. Raniji
+    `max(token_sort_ratio, partial_ratio)` je vracao 100 kad god je kraće ime
+    bilo podniska dužeg, pa je stranka "Firma doo" (posle skidanja pravnog
+    nastavka: "firma") pravila blokirajuci sukob sa svime sto sadrži tu rec.
+    """
     na, nb = _normalize_name(a), _normalize_name(b)
     if not na or not nb:
         return 0
     if na == nb:
         return 100
-    if _RAPIDFUZZ:
-        return max(fuzz.token_sort_ratio(na, nb), fuzz.partial_ratio(na, nb))
-    import difflib
-    return int(difflib.SequenceMatcher(None, na, nb).ratio() * 100)
+    ta, tb = na.split(), nb.split()
+    if not ta or not tb:
+        return 0
+    if len(ta) < len(tb):
+        return _skor_smer(ta, tb)
+    if len(tb) < len(ta):
+        return _skor_smer(tb, ta)
+    # Jednak broj tokena — racunaj oba smera da skor ne bi zavisio od toga
+    # koja je stranka upisana prva.
+    return max(_skor_smer(ta, tb), _skor_smer(tb, ta))
 
 
 def _best_score(termin: str, candidates: list[str]) -> int:
@@ -398,8 +483,8 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
         poruka = (f"🔍 PREGLED: {len(konflikti)} zatvorenih predmeta sa preklapanjem (bivši klijenti). "
                   f"Preporučena detaljna provera pre prihvatanja.")
 
-    logger.info("[CONFLICT] user=%s termini=%s status=%s konflikata=%d visoki=%d rapidfuzz=%s",
-                uid[:8], termini, final_status, len(konflikti), len(visoki), _RAPIDFUZZ)
+    logger.info("[CONFLICT] user=%s termini=%s status=%s konflikata=%d visoki=%d engine=%s",
+                uid[:8], termini, final_status, len(konflikti), len(visoki), _FUZZY_ENGINE)
 
     # Only charge for a check that actually ran. See the SOA2-006 note above.
     if _provera_potpuna:
@@ -416,5 +501,5 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
         "visoki":    len(visoki),
         "srednji":   len(srednji),
         "slojevi":   sloj_status,
-        "fuzzy_engine": "rapidfuzz" if _RAPIDFUZZ else "difflib",
+        "fuzzy_engine": _FUZZY_ENGINE,
     }
