@@ -6082,6 +6082,25 @@ async def predmet_obrisi(
     logger.info("[PREDMET-DELETE] uid=%.8s p=%.8s ishod=%s vektori=%s neuspele=%s",
                 uid, predmet_id, rez.ishod, rez.vektori, rez.neuspele_tabele)
 
+    # T3 — AUDIT MORA DOKAZATI STA SE DOGODILO.
+    #
+    # Brisanje predmeta je najdestruktivnija operacija u proizvodu. Bez traga
+    # se posle ne moze dokazati ni STA je uklonjeno ni DA LI je uklonjeno u
+    # celosti. Upisuje se ishod SVAKOG pokusaja -- i odbijenog i blokiranog i
+    # delimicnog -- jer je i neuspeo pokusaj brisanja tudjeg predmeta podatak
+    # od bezbednosnog znacaja.
+    try:
+        from shared.audit_immutable import log_action
+        await log_action(
+            "predmet_delete", user_id=uid,
+            resource_type="predmet", resource_id=predmet_id,
+            metadata=rez.kao_dict(),
+        )
+    except Exception as _aexc:
+        # Audit ne sme oboriti operaciju koja je vec izvrsena, ali njegov
+        # izostanak mora biti vidljiv u logu.
+        logger.error("[PREDMET-DELETE] AUDIT NIJE UPISAN p=%.8s: %s", predmet_id, _aexc)
+
     if rez.ishod == IshodPredmeta.DELETED:
         return {"ok": True, **rez.kao_dict()}
     if rez.ishod == IshodPredmeta.ALREADY_ABSENT:

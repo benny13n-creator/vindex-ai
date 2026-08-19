@@ -269,9 +269,12 @@ def test_15_lista_tabela_ne_sme_sadrzati_audit_ni_novac():
 
 def test_16_ruta_vraca_200_samo_za_DELETED():
     """Staticka brana nad `api.py`: nijedan drugi ishod ne sme dati `ok: True`."""
+    import ast
     src = io.open("api.py", encoding="utf-8").read()
-    i = src.index("async def predmet_obrisi(")
-    blok = src[i:i + 2600]
+    fn = next(n for n in ast.walk(ast.parse(src))
+              if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+              and n.name == "predmet_obrisi")
+    blok = ast.get_source_segment(src, fn)
     assert 'if rez.ishod == IshodPredmeta.DELETED:' in blok
     assert blok.index('{"ok": True') > blok.index("IshodPredmeta.DELETED"), \
         "`ok: True` je dostizno pre provere ishoda"
