@@ -2827,6 +2827,52 @@ _JSON_SCHEMA_MAP: dict[str, dict] = {
 
 _STATUS_SYMBOL_MAP: dict[str, str] = {"ok": "[✓]", "warn": "[~]", "err": "[!]"}
 
+# ---------------------------------------------------------------------------
+# N3-AUTH-001 — statusna_potvrda je tvrdnja o STANJU PRETRAGE, ne pravni stav.
+# Model sme da rezonuje o pravu; ne sme da tvrdi sta je sistem nasao u bazi.
+# Autoritet je izmereno stanje retrieval-a. Model je od ovog trenutka samo
+# predlagac; njegov `statusna_potvrda_status` se odbacuje na produkcionom putu.
+# Isti obrazac kao B4-M2 (backend-owned provenance).
+# ---------------------------------------------------------------------------
+STATUS_OK: str = "ok"      # doslovan clan potvrdjen u bazi
+STATUS_WARN: str = "warn"  # ima izvora, ali nema doslovnog clana
+STATUS_ERR: str = "err"    # nema izvora
+
+
+def _izracunaj_statusnu_potvrdu(
+    authoritative: bool,
+    confidence: str,
+    izvori: list | None,
+    top_article: str = "",
+) -> dict:
+    """N3-AUTH-001: racuna statusnu potvrdu ISKLJUCIVO iz izmerenog stanja
+    pretrage. Nikad ne cita model. Vraca {"status", "tekst"}.
+
+    STATUS_OK se izdaje samo kad je `authoritative` True — to je jedina
+    tacka u kojoj je sistem dokazao da je trazeni clan doslovno pronadjen i
+    injektovan (KORAK 1.5). Sve ostalo je degradacija, nikad nadogradnja."""
+    _izv = izvori or []
+
+    if authoritative is True:
+        _clan = (top_article or "").strip()
+        _dodatak = f" ({_clan})" if _clan else ""
+        return {
+            "status": STATUS_OK,
+            "tekst": f"Doslovno citiran — clan{_dodatak} direktno pronadjen u bazi zakona RS.",
+        }
+
+    if _izv or confidence in ("HIGH", "MEDIUM"):
+        return {
+            "status": STATUS_WARN,
+            "tekst": "Parafrazirano na osnovu pronadjenih izvora — sistem prilagodjava tekst; "
+                     "doslovan clan nije potvrdjen u bazi.",
+        }
+
+    return {
+        "status": STATUS_ERR,
+        "tekst": "Opsta pravna logika — nema direktnog clana u bazi za ovo pitanje.",
+    }
+
 _SISTEM_NAPOMENA = (
     "⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. "
     "Konsultujte originalni tekst propisa u Službenom glasniku RS. "
@@ -2843,11 +2889,51 @@ _BRZA_PROCENA_RIZIK_LABEL = {"nizak": "NIZAK", "srednji": "SREDNJI", "visok": "V
 _BRZA_PROCENA_PRIORITET_LABEL = {"kriticno": "KRITIČNO", "vazno": "VAŽNO", "korisno": "KORISNO"}
 
 
-def _json_ka_tekst(data: dict, tip: str) -> str:
+_STATUSNI_MARKER_RE = re.compile(
+    r"\[(?:✓|v|V|~|!)\]\s*STATUSNA\s+POTVRDA\s*:?", re.IGNORECASE
+)
+
+# Drugi kanal istog defekta: `verifiedBadge` (vindex.js:7093) se racuna iz
+# POUZDANOST sekcije i lepi zelenu znacku "Potvrdjeno u bazi propisa".
+# Serializer tu sekciju nikad ne emituje, pa svaki njen pojavak u tekstu
+# potice od modela. Kljuc je case-sensitive u UI-ju (vindex.js:7007/7019),
+# pa se neutralise tacno taj oblik — obican pomen reci "pouzdanost" ostaje.
+_POUZDANOST_KLJUC_RE = re.compile(r"(?:🎯\s*Pouzdanost|POUZDANOST\s*:)")
+
+
+def _ocisti_statusne_markere(vrednost):
+    """N3-AUTH-001 (injekcioni kanal): model pise slobodan tekst u ~30 polja koja
+    `_json_ka_tekst` serijalizuje. Ako u bilo koje od njih ubaci liniju
+    "[v] STATUSNA POTVRDA: ..." ili "POUZDANOST: Visoka", frontend to prepoznaje
+    kao zaseban kljuc (vindex.js:6962 / 7019) i renderuje kao zelenu potvrdu —
+    dakle model bi zaobisao backend autoritet kroz obican tekst. Zato se ti
+    kljucevi uklanjaju iz SVEG model-sadrzaja; recenica modela ostaje, ali gubi
+    status-renderovanje. Backend svoju liniju dodaje posle ovog ciscenja."""
+    if isinstance(vrednost, str):
+        return _POUZDANOST_KLJUC_RE.sub(
+            "Pouzdanost", _STATUSNI_MARKER_RE.sub("", vrednost)
+        )
+    if isinstance(vrednost, list):
+        return [_ocisti_statusne_markere(v) for v in vrednost]
+    if isinstance(vrednost, dict):
+        return {k: _ocisti_statusne_markere(v) for k, v in vrednost.items()}
+    return vrednost
+
+
+def _json_ka_tekst(data: dict, tip: str, potvrda: dict | None = None) -> str:
     """Serializes parsed JSON response dict back to the --- marker text format
-    expected by the frontend formatResponse function. Zero UI change."""
-    status_sym = _STATUS_SYMBOL_MAP.get(data.get("statusna_potvrda_status", "err"), "[!]")
-    status_txt = data.get("statusna_potvrda_tekst", "")
+    expected by the frontend formatResponse function. Zero UI change.
+
+    N3-AUTH-001: kad je `potvrda` prosledjena (svaki produkcioni put), ona je
+    jedini izvor statusne potvrde — model se ignorise."""
+    data = _ocisti_statusne_markere(data)
+
+    if potvrda is not None:
+        status_sym = _STATUS_SYMBOL_MAP.get(potvrda.get("status", STATUS_ERR), "[!]")
+        status_txt = potvrda.get("tekst", "")
+    else:
+        status_sym = _STATUS_SYMBOL_MAP.get(data.get("statusna_potvrda_status", "err"), "[!]")
+        status_txt = data.get("statusna_potvrda_tekst", "")
 
     parts: list[str] = []
 
@@ -2981,6 +3067,7 @@ def _parsiraj_strukturni_odgovor(
     tip: str,
     docs: list[str],
     praksa_context: str = "",
+    potvrda: dict | None = None,
 ) -> tuple[bool, str]:
     """
     Parse JSON response from LLM (Commit 3/3 structured output).
@@ -3056,7 +3143,7 @@ def _parsiraj_strukturni_odgovor(
                 len(cited_pairs), tip,
             )
 
-    return True, _json_ka_tekst(data, tip)
+    return True, _json_ka_tekst(data, tip, potvrda=potvrda)
 
 
 # ─── NACRT RAG context hints (Commit 2/3) ────────────────────────────────────
@@ -3738,7 +3825,12 @@ def ask_agent(
                 logger.exception("MEDIUM LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-            _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(_raw_med, tip, filtrirani, praksa_context=praksa_blok)
+            _potvrda = _izracunaj_statusnu_potvrdu(
+                _korak_15_authoritative, confidence, _izvori, top_article
+            )
+            _json_ok_med, odgovor = _parsiraj_strukturni_odgovor(
+                _raw_med, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+            )
             if not _json_ok_med:
                 logger.warning("[MEDIUM→BLOCK] Commit3 guard [q=%s]", log_id)
                 return {
@@ -3821,7 +3913,12 @@ def ask_agent(
             logger.exception("HIGH LLM greška [q=%s]", log_id)
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
-        _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(_raw_high, tip, filtrirani, praksa_context=praksa_blok)
+        _potvrda = _izracunaj_statusnu_potvrdu(
+            _korak_15_authoritative, confidence, _izvori, top_article
+        )
+        _json_ok_high, odgovor = _parsiraj_strukturni_odgovor(
+            _raw_high, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+        )
 
         # Soft section check — log only, do not discard
         if _json_ok_high and not _ima_obavezne_sekcije(odgovor, aktivan_sekcije):
@@ -3876,7 +3973,12 @@ def ask_agent(
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
 
             # Re-check via structural guard — hard block if still fabricating
-            _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(_raw_dg, tip, filtrirani, praksa_context=praksa_blok)
+            _potvrda = _izracunaj_statusnu_potvrdu(
+                _korak_15_authoritative, confidence, _izvori, top_article
+            )
+            _json_ok_dg, odgovor = _parsiraj_strukturni_odgovor(
+                _raw_dg, tip, filtrirani, praksa_context=praksa_blok, potvrda=_potvrda
+            )
             if not _json_ok_dg:
                 logger.warning("[DOWNGRADE→BLOCK] Commit3 guard posle downgrade [q=%s]", log_id)
                 return {
