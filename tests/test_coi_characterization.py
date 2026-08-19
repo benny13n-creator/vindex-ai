@@ -272,3 +272,32 @@ def test_skor_je_simetrican_nad_sirokim_korpusom():
     assert not asimetricni, (
         f"{len(asimetricni)}/{len(korpus)} parova daje različit skor po smeru: "
         f"{asimetricni[:5]}")
+
+
+def test_dugacko_ime_ne_moze_da_obori_proveru():
+    """Polja `ConflictReq` nemaju `max_length`.
+
+    Tokenski scoring je linearan po broju tokena, pa bi ime od 1000 reci diglo
+    jedan zahtev sa ~1.1 s na ~37 s pri 500 predmeta (izmereno). `_MAX_TOKENA`
+    je granica; ovaj test pada ako je neko ukloni.
+    """
+    import time
+    from routers.conflict_check import _fuzzy_score, _MAX_TOKENA
+
+    assert _MAX_TOKENA <= 16, "granica tokena je previsoka da bi stitila"
+    dugo = " ".join(f"token{i}" for i in range(1000))
+    t0 = time.perf_counter()
+    for _ in range(20):
+        _fuzzy_score(dugo, "Alfa Trgovina doo Beograd")
+    proteklo = (time.perf_counter() - t0) / 20
+    assert proteklo < 0.004, (
+        f"jedno poredjenje sa imenom od 1000 reci traje {proteklo*1000:.1f} ms; "
+        f"pri 500 predmeta to je {proteklo*1000:.0f} s po zahtevu")
+
+
+def test_secenje_tokena_ne_pravi_lazni_negativ():
+    """Identicna duga imena moraju i dalje dati 100 (rano poredjenje jednakosti)."""
+    from routers.conflict_check import _fuzzy_score
+    dugo = " ".join(f"Rec{i}" for i in range(40))
+    assert _fuzzy_score(dugo, dugo) == 100
+    assert _fuzzy_score(dugo, dugo.lower()) == 100

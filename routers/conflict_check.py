@@ -82,6 +82,9 @@ def _normalize_name(name: str) -> str:
 # sredina, najdalje od obe ivice.
 _TOKEN_JAK = 82
 
+# Vidi obrazlozenje u `_fuzzy_score`.
+_MAX_TOKENA = 12
+
 
 def _ratio(x: str, y: str) -> int:
     return int(difflib.SequenceMatcher(None, x, y).ratio() * 100)
@@ -153,7 +156,14 @@ def _fuzzy_score(a: str, b: str) -> int:
         return 0
     if na == nb:
         return 100
-    ta, tb = na.split(), nb.split()
+    # Gornja granica broja tokena. Tokenski model je linearan po broju tokena
+    # upita puta broj tokena zapisa, pa bi ime od 1000 reci (polja
+    # `ConflictReq` nemaju `max_length`) diglo jedan zahtev sa ~1.1 s na ~37 s
+    # pri 500 predmeta — izmereno. Nijedno stvarno ime stranke nema vise od 12
+    # reci; najduzi realan primer ("Javno komunalno preduzece Gradsko
+    # saobracajno preduzece Beograd doo") ima 8. Potpuno identicna imena i dalje
+    # daju 100 preko poredjenja iznad, pre secenja.
+    ta, tb = na.split()[:_MAX_TOKENA], nb.split()[:_MAX_TOKENA]
     if not ta or not tb:
         return 0
     if len(ta) < len(tb):
