@@ -70,19 +70,55 @@ def _next_datum(od: date, ucestalost: str) -> date:
     return od + relativedelta(years=1)
 
 
-def _build_faktura_row(tpl: dict, uid: str) -> dict:
-    bruto = round(tpl["iznos_rsd"] * (1 + tpl.get("pdv_procenat", 0) / 100), 2)
+# N2 (OOS-B2-1) — ŠEST KOLONA KOJE `fakture` NIKADA NIJE IMALA.
+#
+# ŠTA JE BILO — sonda ključ-po-ključ nad živom šemom (2026-08-18):
+#
+#     klijent_id · opis · iznos_rsd · pdv_procenat · bruto_rsd · datum_izdavanja
+#         -> svih šest: `42703: column fakture.<x> does not exist`
+#
+# Nijedna nije preimenovana ni uklonjena — `migrations/003_billing.sql:7-25` je
+# jedina definicija tabele i nikad ih nije imala. `recurring_templates` ima SVE
+# izvorne vrednosti (13/13 kolona OK), pa ovo nije nedostajuća šema nego
+# **greška mapiranja**: kod je pisan protiv `fakture` koja ne postoji.
+#
+# Posledica: `INSERT` je padao na 42703, izuzetak je izlazio iz rute kao HTTP
+# 500, `sledeci_datum` se nije pomerao. Nije bilo lažnog uspeha — padalo je
+# glasno — ali NIJEDNA ponavljajuća faktura nikada nije mogla biti izdata.
+#
+# MAPIRANJE JE DOKAZANO, NE PRETPOSTAVLJENO:
+#
+#     iznos_rsd        -> iznos_bez_pdv     (neto osnovica)
+#     pdv_procenat     -> pdv_iznos         (PROCENAT -> IZNOS, preračun)
+#     bruto_rsd        -> iznos_sa_pdv
+#     datum_izdavanja  -> datum_fakture
+#     opis             -> napomena          (jedino tekstualno polje koje `fakture` ima)
+#     klijent_id       -> NEMA FK na `fakture`; klijent je denormalizovan snimak
+#                         `klijent_naziv` (NOT NULL) — v. `generisi_iz_sablona`
+#
+# Oblik je preuzet iz kanonskog pisca `routers/billing.py:639-653`, ne izmišljen.
+#
+# `broj_fakture` i `klijent_naziv` su NOT NULL BEZ DEFAULT-a i payload ih nikad
+# nije postavljao — zato ih funkcija sada PRIMA kao argumente. Ostaje sinhrona i
+# čista: dohvatanje radi pozivalac, koji jedini ima `supa`.
+def _build_faktura_row(tpl: dict, uid: str, broj_fakture: str,
+                       klijent_naziv: str) -> dict:
+    """Šablon -> red za `fakture`, u kanonskom obliku te tabele."""
+    neto = float(tpl["iznos_rsd"])
+    stopa = float(tpl.get("pdv_procenat") or 0)
+    pdv_iznos = round(neto * stopa / 100, 2)
     return {
-        "user_id":       uid,
-        "klijent_id":    tpl.get("klijent_id"),
-        "predmet_id":    tpl.get("predmet_id"),
-        "opis":          tpl["opis"],
-        "iznos_rsd":     tpl["iznos_rsd"],
-        "pdv_procenat":  tpl.get("pdv_procenat", 0),
-        "bruto_rsd":     bruto,
-        "status":        "nacrt",
-        "datum_izdavanja": date.today().isoformat(),
-        "napomena":      f"Auto-generisana iz šablona: {tpl['naziv']}",
+        "user_id":        uid,
+        "predmet_id":     tpl.get("predmet_id"),
+        "broj_fakture":   broj_fakture,
+        "klijent_naziv":  klijent_naziv,
+        "iznos_bez_pdv":  round(neto, 2),
+        "pdv_iznos":      pdv_iznos,
+        "iznos_sa_pdv":   round(neto + pdv_iznos, 2),
+        "status":         "nacrt",
+        "datum_fakture":  date.today().isoformat(),
+        "napomena":       f"Auto-generisana iz šablona: {tpl['naziv']}"
+                          + (f" — {tpl['opis']}" if tpl.get("opis") else ""),
     }
 
 
@@ -320,11 +356,49 @@ async def generisi_iz_sablona(
             detail="Šablon nema ispravan 'sledeći datum' — proverite i ispravite šablon pre generisanja fakture.",
         )
 
-    faktura_row = _build_faktura_row(tpl, uid)
+    # N2: `fakture.klijent_naziv` je NOT NULL bez default-a, a `recurring_templates`
+    # ima samo `klijent_id`. Identitet je DOKAZIV — baza sama prijavlja
+    # `Foreign Key to klijenti.id` — pa se naziv dohvata iz `klijenti`, umesto da
+    # se izmišlja iz naziva šablona. Upit je opsegovan na vlasnika (`user_id`):
+    # šablon ne sme povući klijenta drugog korisnika.
+    #
+    # Šablon BEZ klijenta nema kanonski izvor naziva. Tu se, po pravilu „nema
+    # zamene -> ne izmišljaj", vraća eksplicitna greška umesto lažnog imena.
+    if not tpl.get("klijent_id"):
+        raise HTTPException(
+            status_code=422,
+            detail="Šablon nema povezanog klijenta — faktura se ne može izdati. "
+                   "Dodajte klijenta u šablon pa pokušajte ponovo.",
+        )
+    kl_res = await _db(
+        lambda: supa.table("klijenti")
+        .select("ime, prezime, firma")
+        .eq("id", tpl["klijent_id"])
+        .eq("user_id", uid)
+        .maybe_single()
+        .execute()
+    )
+    _kl = getattr(kl_res, "data", None) or {}
+    klijent_naziv = " ".join(filter(None, [
+        (_kl.get("ime") or "").strip(),
+        (_kl.get("prezime") or "").strip(),
+        (_kl.get("firma") or "").strip(),
+    ])).strip()
+    if not klijent_naziv:
+        raise HTTPException(
+            status_code=422,
+            detail="Klijent iz šablona nije pronađen ili nema naziv — "
+                   "faktura se ne može izdati.",
+        )
+
+    from routers.billing import _sledeci_broj_fakture
+    broj_fakture = await _sledeci_broj_fakture(supa, uid)
+
+    faktura_row = _build_faktura_row(tpl, uid, broj_fakture, klijent_naziv)
     fak_res = await _db(
         lambda: supa.table("fakture").insert(faktura_row).execute()
     )
-    if not fak_res.data:
+    if not getattr(fak_res, "data", None):
         raise HTTPException(status_code=500, detail="Greška pri kreiranju fakture.")
 
     faktura    = fak_res.data[0]
@@ -342,6 +416,9 @@ async def generisi_iz_sablona(
         "status":         "generisano",
         "faktura_id":     faktura["id"],
         "sledeci_datum":  novi_datum.isoformat(),
-        "iznos_rsd":      faktura["iznos_rsd"],
-        "bruto_rsd":      faktura["bruto_rsd"],
+        # N2: ranije `faktura["iznos_rsd"]` / `["bruto_rsd"]` — kolone koje
+        # `fakture` nema, pa bi ruta pukla na KeyError i posle uspešnog upisa.
+        "iznos_bez_pdv":  faktura.get("iznos_bez_pdv"),
+        "iznos_sa_pdv":   faktura.get("iznos_sa_pdv"),
+        "broj_fakture":   faktura.get("broj_fakture"),
     }

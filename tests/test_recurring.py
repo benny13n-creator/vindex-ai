@@ -102,6 +102,15 @@ def _make_supa_recurring(tpl=None, tpl_list=None, faktura_row=None):
             sel.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
                 data={"email": "klijent@firma.rs"}
             )
+            # N2 (harness rupa): `generisi_iz_sablona` čita naziv klijenta
+            # lancem `.eq("id", ...).eq("user_id", uid).maybe_single()` — dva
+            # `eq`, koja ovaj mock nije modelovao, pa je vraćao MagicMock i
+            # `" ".join(...)` je pucao. Dodaje se SAMO taj lanac, sa
+            # realističnim redom; nijedna asercija nije menjana.
+            sel.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value = MagicMock(
+                data={"ime": "Nikola", "prezime": "Petrović", "firma": None,
+                      "email": "klijent@firma.rs"}
+            )
             sel.eq.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=[])
 
         tbl.select.return_value = sel
@@ -279,7 +288,13 @@ def test_generisi_faktura_201(client):
     assert data["status"]        == "generisano"
     assert "faktura_id"          in data
     assert "sledeci_datum"       in data
-    assert data["iznos_rsd"]     == SAMPLE_FAKTURA["iznos_rsd"]
+    # N2 (OOS-B2-1): ranije `data["iznos_rsd"]` — polje imenovano po koloni koju
+    # `fakture` NEMA (`42703`), pa je prolazilo samo zato što ga je mock
+    # izmišljao. Ista poslovna provera („ruta vraća iznos upravo kreirane
+    # fakture") izražena je kanonskom kolonom koju ruta stvarno čita.
+    # `SAMPLE_FAKTURA` nije menjan — `iznos_sa_pdv: 60000.0` je već postojao i
+    # jednak je starom `bruto_rsd`, što potvrđuje da je isti podatak.
+    assert data["iznos_sa_pdv"]  == SAMPLE_FAKTURA["iznos_sa_pdv"]
 
 
 def test_generisi_pomera_mesecno_datum():
@@ -336,20 +351,27 @@ def test_next_datum_godisnje():
     assert _next_datum(d, "godisnje") == date(2027, 6, 15)
 
 
+# N2 (OOS-B2-1): oba testa su tvrdila `bruto_rsd` i `iznos_rsd` — kolone koje
+# `fakture` NIKADA nije imala (sonda: `42703: column fakture.<x> does not
+# exist`; `migrations/003_billing.sql:7-25` je jedina definicija tabele). Time
+# su kodifikovala kvar zbog kojeg nijedna ponavljajuća faktura nije mogla biti
+# izdata. Ista poslovna očekivanja se ovde zadržavaju, samo izražena kanonskim
+# kolonama: neto -> `iznos_bez_pdv`, bruto -> `iznos_sa_pdv`. Vrednosti
+# (12000 / 10000 / 8000) i provera `status == "nacrt"` su NEPROMENJENE.
 def test_build_faktura_row_bruto():
     from routers.recurring import _build_faktura_row
     tpl = {**SAMPLE_TPL, "iznos_rsd": 10000.0, "pdv_procenat": 20.0}
-    row = _build_faktura_row(tpl, "uid-001")
-    assert row["bruto_rsd"] == 12000.0
-    assert row["iznos_rsd"] == 10000.0
-    assert row["status"]    == "nacrt"
+    row = _build_faktura_row(tpl, "uid-001", "2026/0001", "Nikola Petrović")
+    assert row["iznos_sa_pdv"]  == 12000.0
+    assert row["iznos_bez_pdv"] == 10000.0
+    assert row["status"]        == "nacrt"
 
 
 def test_build_faktura_row_bez_pdv():
     from routers.recurring import _build_faktura_row
     tpl = {**SAMPLE_TPL, "iznos_rsd": 8000.0, "pdv_procenat": 0.0}
-    row = _build_faktura_row(tpl, "uid-001")
-    assert row["bruto_rsd"] == 8000.0
+    row = _build_faktura_row(tpl, "uid-001", "2026/0002", "Nikola Petrović")
+    assert row["iznos_sa_pdv"] == 8000.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
