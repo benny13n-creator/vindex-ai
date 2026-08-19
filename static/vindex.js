@@ -19405,7 +19405,12 @@ function ccc_load() {
 
   fetch('/api/ccc/predmeti/' + activePredmetId, {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
-  }).then(function(r){ return r.json(); }).then(function(d) {
+  }).then(function(r){
+    // NIGHT2-A-001: `r.ok` se nije proveravao — greskovni odgovor je parsiran
+    // kao podatak, pa je Command Center iscrtavao nule kao stvarno stanje.
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d) {
     _ccc_render(container, d);
   }).catch(function(e){
     container.innerHTML = '<div style="padding:1rem;color:#f87171;">Greška: ' + _friendlyErr(e) + '</div>';
@@ -19427,7 +19432,17 @@ function _ccc_render(el, d) {
   var klijentiStr = (d.klijenti || []).map(function(k){ return k.ime; }).join(', ') || '';
 
   // ── SMART ACTION CHIPS ──────────────────────────────────────────────────
+  // NIGHT2-A-001: cip se izdaje na osnovu ODSUSTVA podatka („nema roka",
+  // „nema dokumenta"). Ako izvor nije procitan, odsustvo nije dokazano —
+  // tada se umesto lazne tvrdnje prikazuje sta nije procitano.
+  var _cccDeg = (d.degradirani_izvori || []);
+  var _cccNepotpuno = _cccDeg.length > 0 || d.provera_potpuna === false;
   var chips = [];
+  if (_cccNepotpuno) {
+    chips.push({ cls:'chip-red', icon:'',
+      text:'⚠ Nepotpuno: ' + _htmlEsc(_cccDeg.join(', ') || 'izvori nisu pročitani'),
+      action:"ccc_load()" });
+  }
   // 1. Kritičan rok (≤7 dana) — CRVENA
   var kr = d.kritican_rok;
   if (kr) {
@@ -19436,7 +19451,7 @@ function _ccc_render(el, d) {
     chips.push({ cls:'chip-red', icon:'', text: tag+' — '+(_htmlEsc((kr.naziv||'Rok').slice(0,30))), action:"pred_subtabSwitch('rokovi')" });
   }
   // 2. Predmeti bez dokumenta — CRVENA
-  if ((dok.ukupno||0) === 0) {
+  if ((dok.ukupno||0) === 0 && !_cccNepotpuno) {
     chips.push({ cls:'chip-red', icon:'', text:'Uploaduj prvi dokument', action:"pred_subtabSwitch('dokumenti')" });
   }
   // 3. Nedostajući dokaz — ŽUTA

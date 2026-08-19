@@ -22,6 +22,25 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     supa = _get_supa()
     uid  = user["user_id"]
 
+    # NIGHT2-A-001 — PAO IZVOR NIJE PRAZAN IZVOR.
+    #
+    # Command Center gura 7 izvora kroz `return_exceptions=True` i svaki pad
+    # svodi na `[]`, bez ijednog polja o degradaciji. Mereno izvrsenjem: kad
+    # citanje `predmet_dokazi` padne, `dok_stats.ukupno` je 0 i UI iscrta
+    # CRVENI cip „Uploaduj prvi dokument" za predmet koji dokaze IMA. Isto vazi
+    # za `kritican_rok = None` -> izostanak crvenog cipa o roku.
+    #
+    # Isti obrazac koji `routers/dashboard.py::_safe(r, ime)` vec koristi.
+    degradirani_izvori: list[str] = []
+
+    def _izvor(r, ime: str):
+        if isinstance(r, Exception):
+            logger.error("[CCC] izvor '%s' NIJE procitan: %s", ime, r)
+            if ime not in degradirani_izvori:
+                degradirani_izvori.append(ime)
+            return []
+        return getattr(r, "data", None) or []
+
     # ── Ownership check ─────────────────────────────────────────────────────
     pr = await asyncio.to_thread(
         lambda: supa.table("predmeti").select(
@@ -78,7 +97,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     )
 
     # ── Dokazi statistika ────────────────────────────────────────────────────
-    dokazi = (dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or []
+    dokazi = _izvor(dokazi_r, "dokazi")
     dok_stats = {"jaka": 0, "srednja": 0, "slaba": 0, "ukupno": len(dokazi)}
     for d in dokazi:
         s = d.get("snaga", "srednja")
@@ -87,7 +106,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
 
     # ── Dokumenti broji ─────────────────────────────────────────────────────
     tip_stat: dict = {}
-    for d in ((dok_count_r.data if not isinstance(dok_count_r, Exception) else []) or []):
+    for d in _izvor(dok_count_r, "dokumenti"):
         t = d.get("tip_dokaza") or "neklasifikovan"
         tip_stat[t] = tip_stat.get(t, 0) + 1
 
@@ -106,7 +125,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # engine's output below.
     now = datetime.now(timezone.utc)
     rokovi_data = []
-    for r in ((rok_r.data if not isinstance(rok_r, Exception) else []) or []):
+    for r in _izvor(rok_r, "rokovi"):
         dana = None
         try:
             ds = r.get("datum", "") or ""
@@ -120,7 +139,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # ── Billing summary ──────────────────────────────────────────────────────
     billing_data = {"uneseno": 0, "nenaplaceno": 0, "naplaceno": 0}
     try:
-        for e in ((be_r.data if not isinstance(be_r, Exception) else []) or []):
+        for e in _izvor(be_r, "naplata"):
             iznos = float(e.get("iznos") or 0)
             billing_data["uneseno"] += iznos
             if e.get("obracunato"):
@@ -133,7 +152,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # ── Klijenti ─────────────────────────────────────────────────────────────
     klijenti = []
     try:
-        for k in ((kl_r.data if not isinstance(kl_r, Exception) else []) or []):
+        for k in _izvor(kl_r, "klijenti"):
             ki = k.get("klijenti") or {}
             klijenti.append({
                 "uloga": k.get("uloga", ""),
@@ -155,8 +174,8 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # (services/risk_engine.py::calculate_procesni_rizik) -- jedan izvor
     # istine za "health_score"/"nedostajući dokazi" umesto dva koja mogu dati
     # različit odgovor za isti predmet pod istim imenom polja.
-    _dok_count_data = (dok_count_r.data if not isinstance(dok_count_r, Exception) else []) or []
-    _rok_raw = (rok_r.data if not isinstance(rok_r, Exception) else []) or []
+    _dok_count_data = _izvor(dok_count_r, "dokumenti")
+    _rok_raw = _izvor(rok_r, "rokovi")
     _rizik = calculate_procesni_rizik(
         dokazi=dokazi, dokumenti=_dok_count_data, rocista=_rok_raw,
         tip_predmeta=predmet.get("tip", "ostalo"), expected_docs=_EXPECTED_DOCS,
@@ -186,8 +205,11 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         "rokovi":           rokovi_data,
         "predstojeći":      predstojeći,
         "billing":          billing_data,
-        "aktivnosti":       (hron_r.data if not isinstance(hron_r, Exception) else []) or [],
+        "aktivnosti":       _izvor(hron_r, "hronologija"),
         "health_score":     health_score,
         "nedostajuci":      nedostajuci,
         "kritican_rok":     kritican_rok,
+        # Bez ovog polja frontend ne moze da razlikuje "nema" od "nije procitano".
+        "degradirani_izvori": degradirani_izvori,
+        "provera_potpuna":  not degradirani_izvori,
     }
