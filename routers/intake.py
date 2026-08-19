@@ -513,6 +513,25 @@ class ConflictCheckIntakeReq(BaseModel):
     pib:                str = Field(default="", max_length=15)
 
 
+# N4-COI-001: eksplicitna stanja provere sukoba interesa.
+#
+# Ranije je odgovor nosio SAMO `conflict_detected`. Pretraga je mogla da padne
+# na CETIRI nezavisna mesta (spoljni `except` + tri `return_exceptions=True`
+# gutaca), a svaki pad je zavrsavao kao prazna lista -> `len([]) > 0` == False
+# -> "Nije detektovan sukob interesa. Mozete otvoriti predmet." Odgovor pri
+# padu bio je bajt-identican odgovoru pri istinski cistoj proveri.
+#
+# `COI_CHECK_FAILED` se NIKAD ne sme preslikati u `COI_NO_CONFLICT`. To je
+# jedini ekran u proizvodu ciji je posao da advokata upozori; lazno negativan
+# nalaz nosi disciplinsku odgovornost (cl. 42 Zakona o advokaturi).
+#
+# Nazivi i vrednosti su NAMERNO identicni kanonskom ugovoru iz
+# klijenti/router.py (BETA-P0-COI) — isti pojam, isto ime, ista istina.
+COI_NO_CONFLICT    = "NO_CONFLICT"
+COI_CONFLICT_FOUND = "CONFLICT_FOUND"
+COI_CHECK_FAILED   = "CHECK_FAILED"
+
+
 async def _run_conflict_check(
     uid: str, novi_klijent_ime: str, novi_klijent_firma: str = "",
     protivna_strana: str = "", pib: str = "",
@@ -537,6 +556,8 @@ async def _run_conflict_check(
     q_protiv  = _norm(protivna_strana) if protivna_strana else ""
 
     conflicts: list[dict] = []
+    # N4-COI-001: svaki izvor koji NIJE procitan. Neprazna lista => CHECK_FAILED.
+    izvori_neuspeh: list[str] = []
 
     try:
         # Fetch all active clients for this user
@@ -557,8 +578,23 @@ async def _run_conflict_check(
             return_exceptions=True,
         )
 
-        all_clients: list[dict] = [] if isinstance(clients_res, Exception) else (clients_res.data or [])
-        all_predmeti: list[dict] = [] if isinstance(predmeti_res, Exception) else (predmeti_res.data or [])
+        # N4-COI-001: `return_exceptions=True` je ranije pretvarao pao upit u
+        # praznu listu bez ijednog traga. Prazno i neuspelo NISU isto.
+        if isinstance(clients_res, Exception):
+            izvori_neuspeh.append("klijenti")
+            logger.error("[CONFLICT-CHECK] uid=%.8s izvor 'klijenti' NIJE procitan: %s",
+                         uid, clients_res)
+            all_clients: list[dict] = []
+        else:
+            all_clients = clients_res.data or []
+
+        if isinstance(predmeti_res, Exception):
+            izvori_neuspeh.append("predmeti")
+            logger.error("[CONFLICT-CHECK] uid=%.8s izvor 'predmeti' NIJE procitan: %s",
+                         uid, predmeti_res)
+            all_predmeti: list[dict] = []
+        else:
+            all_predmeti = predmeti_res.data or []
 
         # For clients that match, fetch their predmet_klijenti roles in parallel
         matched_client_ids: list[str] = []
@@ -589,7 +625,14 @@ async def _run_conflict_check(
             ], return_exceptions=True)
 
             for cid, res in zip(matched_client_ids, role_results):
-                if not isinstance(res, Exception):
+                if isinstance(res, Exception):
+                    # N4-COI-001: uloge bas POGODJENOG klijenta nisu procitane —
+                    # to je sloj u kome se blokirajuci sukob i prepoznaje.
+                    if "predmet_klijenti" not in izvori_neuspeh:
+                        izvori_neuspeh.append("predmet_klijenti")
+                    logger.error("[CONFLICT-CHECK] uid=%.8s uloge klijenta %.8s NISU procitane: %s",
+                                 uid, cid, res)
+                else:
                     roles_by_client[cid] = res.data or []
 
         # Predmet index for names
@@ -665,7 +708,11 @@ async def _run_conflict_check(
 
     except Exception as e:
         _sentry_capture(e)
-        logger.error("[CONFLICT-CHECK] uid=%.8s greška: %s", uid, e)
+        logger.error("[CONFLICT-CHECK] uid=%.8s provera NIJE izvršena: %s", uid, e)
+        # N4-COI-001: ranije se ovde samo logovalo i propadalo u granu
+        # "nema sukoba". Neuspeh mora ostati neuspeh sve do potrošača.
+        if "provera" not in izvori_neuspeh:
+            izvori_neuspeh.append("provera")
 
     # Deduplicate by (tip, predmet_id, klijent_id)
     seen: set[tuple] = set()
@@ -679,7 +726,22 @@ async def _run_conflict_check(
     conflict_detected = len(unique_conflicts) > 0
     has_blocker = any(c["severity"] == "BLOKIRAJUCI" for c in unique_conflicts)
 
-    if has_blocker:
+    # N4-COI-001: neuspeh ima PREDNOST nad svakim drugim ishodom. Ako ijedan
+    # izvor nije pročitan, provera NIJE izvršena — bez obzira na to što je
+    # preostali sloj možda vratio nula pogodaka.
+    if izvori_neuspeh:
+        status_provere = COI_CHECK_FAILED
+    elif conflict_detected:
+        status_provere = COI_CONFLICT_FOUND
+    else:
+        status_provere = COI_NO_CONFLICT
+
+    if status_provere == COI_CHECK_FAILED:
+        preporuka = (
+            "Provera sukoba interesa NIJE izvršena (" + ", ".join(izvori_neuspeh) + "). "
+            "Rezultat se ne sme tumačiti kao odsustvo sukoba."
+        )
+    elif has_blocker:
         preporuka = (
             "Postoji BLOKIRAJUCI sukob interesa. Ne možete zastupati ovog klijenta "
             "u predmetu gde je suprotna strana vaš postojeći klijent (čl. 42 Zakona o advokaturi)."
@@ -692,13 +754,19 @@ async def _run_conflict_check(
     else:
         preporuka = "Nije detektovan sukob interesa. Možete otvoriti predmet."
 
-    logger.info("[CONFLICT-CHECK] uid=%.8s konflikti=%d bloker=%s", uid, len(unique_conflicts), has_blocker)
+    logger.info("[CONFLICT-CHECK] uid=%.8s status=%s konflikti=%d bloker=%s neuspeli_izvori=%s",
+                uid, status_provere, len(unique_conflicts), has_blocker, izvori_neuspeh)
 
     return {
         "conflict_detected": conflict_detected,
         "has_blocker":       has_blocker,
         "conflicts":         unique_conflicts[:20],
         "preporuka":         preporuka,
+        # Bez ovog polja frontend ne može da razlikuje "nema sukoba" od
+        # "nije provereno" — `!undefined` je `true`.
+        "status_provere":    status_provere,
+        # Koji izvor tačno nije pročitan — advokat i log vide isti razlog.
+        "izvori_neuspeh":    izvori_neuspeh,
     }
 
 
@@ -712,10 +780,24 @@ async def intake_conflict_check(
     """Provera sukoba interesa pre otvaranja predmeta (CRM Intake Wizard,
     ime-prvo tok). Jezgro logike je u _run_conflict_check -- vidi tamo za
     tri proverena scenarija."""
-    return await _run_conflict_check(
+    rezultat = await _run_conflict_check(
         user["user_id"], body.novi_klijent_ime, body.novi_klijent_firma,
         body.protivna_strana, body.pib,
     )
+    # N4-COI-001: neuspela provera se vraća kao GREŠKA, da je uhvati i `r.ok`
+    # na frontendu — ne samo semantički status. Isti ugovor kao kanonski
+    # klijenti/router.py::check_conflict.
+    if rezultat.get("status_provere") == COI_CHECK_FAILED:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status_provere": COI_CHECK_FAILED,
+                "izvori_neuspeh": rezultat.get("izvori_neuspeh", []),
+                "poruka": "Provera sukoba interesa nije izvršena. "
+                          "Rezultat se ne sme tumačiti kao odsustvo sukoba.",
+            },
+        )
+    return rezultat
 
 
 # ─── Phase 6.2 — Template predmeti ───────────────────────────────────────────

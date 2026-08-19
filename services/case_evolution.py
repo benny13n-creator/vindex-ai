@@ -490,8 +490,27 @@ async def _consequence_conflict_check(event: Event) -> str:
     if not klijent_ime:
         return "skipped_no_klijent_ime"
 
-    from routers.intake import _run_conflict_check
+    from routers.intake import COI_CHECK_FAILED, COI_NO_CONFLICT, _run_conflict_check
     result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "")
+
+    # N4-COI-001: neuspela provera NIJE "nema sukoba". Ranije je pao upit
+    # zavrsavao ovde kao `no_conflict` i proaktivni alarm se nikad ne bi
+    # kreirao -- tiho i trajno. Izuzetak ide kanonskom dispatcher-u, koji
+    # posledicu oznaci 'failed' i prepusti je proverenom retry/dead-letter
+    # mehanizmu Event Bus-a (MAX_DISPATCH_ATTEMPTS=5).
+    if result.get("status_provere") == COI_CHECK_FAILED:
+        raise RuntimeError(
+            "Provera sukoba interesa nije izvršena (izvori: %s) — "
+            "rezultat se ne sme tumačiti kao odsustvo sukoba."
+            % ", ".join(result.get("izvori_neuspeh", []) or ["nepoznato"])
+        )
+
+    if result.get("status_provere") != COI_NO_CONFLICT and not result.get("conflict_detected"):
+        raise RuntimeError(
+            "Provera sukoba interesa vratila nepoznat status: %r"
+            % result.get("status_provere")
+        )
+
     if not result.get("conflict_detected"):
         return "no_conflict"
 

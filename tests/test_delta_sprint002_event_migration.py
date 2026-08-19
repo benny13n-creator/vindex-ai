@@ -395,7 +395,8 @@ async def test_client_linked_no_conflict_creates_no_alert():
         event_id="evt-1",
     )
     with patch("routers.intake._run_conflict_check",
-               new=AsyncMock(return_value={"conflict_detected": False, "has_blocker": False, "conflicts": [], "preporuka": ""})), \
+               new=AsyncMock(return_value={"conflict_detected": False, "has_blocker": False, "conflicts": [], "preporuka": "",
+                                          "status_provere": "NO_CONFLICT", "izvori_neuspeh": []})), \
          patch("shared.proactive_alerts.create_proactive_alert", new=AsyncMock()) as mock_alert:
         result = await _consequence_conflict_check(event)
 
