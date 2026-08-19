@@ -6050,6 +6050,58 @@ async def predmet_dokument_preview(
 # fail-closed po dizajnu (odbija bez kanonskog identiteta, bez namespace-a, i
 # kad ijedan nađeni ID izađe iz kanonskog prefiksa), i taj ugovor se ovde ne
 # omekšava.
+@app.delete("/api/predmeti/{predmet_id}")
+@limiter.limit("10/minute")
+async def predmet_obrisi(
+    predmet_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """P1-5 — briše predmet po specifikaciji `docs/beta_gate/P15_LIFECYCLE_SPECIFICATION.md`.
+
+    Fail-closed: `200` se vraća ISKLJUČIVO kad je svaki entitet koji politika
+    nalaže da se ukloni dokazano uklonjen. Delimično brisanje je `409`, ne
+    `200` sa umirujućom porukom — advokat mora znati da predmet i dalje postoji.
+    """
+    from shared.predmet_deletion import IshodPredmeta, obrisi_predmet
+
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    def _index():
+        try:
+            from uploaded_doc.ingest import _get_pinecone_index
+            return _get_pinecone_index()
+        except Exception as exc:
+            logger.error("[PREDMET-DELETE] indeks nije dostupan: %s", exc)
+            return None
+
+    rez = await asyncio.to_thread(
+        lambda: obrisi_predmet(supa, _index(), user_id=uid, predmet_id=predmet_id)
+    )
+    logger.info("[PREDMET-DELETE] uid=%.8s p=%.8s ishod=%s vektori=%s neuspele=%s",
+                uid, predmet_id, rez.ishod, rez.vektori, rez.neuspele_tabele)
+
+    if rez.ishod == IshodPredmeta.DELETED:
+        return {"ok": True, **rez.kao_dict()}
+    if rez.ishod == IshodPredmeta.ALREADY_ABSENT:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
+    if rez.ishod == IshodPredmeta.REFUSED:
+        raise HTTPException(status_code=403, detail="Nemate pravo pristupa ovom predmetu.")
+    if rez.ishod == IshodPredmeta.BLOCKED:
+        raise HTTPException(
+            status_code=409,
+            detail={"poruka": "Predmet nije obrisan — " + rez.razlog + ". Ništa nije promenjeno.",
+                    **rez.kao_dict()},
+        )
+    raise HTTPException(
+        status_code=409,
+        detail={"poruka": "Predmet NIJE obrisan u celosti — " + (rez.razlog or "deo podataka nije uklonjen")
+                          + ". Predmet je i dalje u vašoj listi; pokušajte ponovo.",
+                **rez.kao_dict()},
+    )
+
+
 @app.delete("/api/predmeti/{predmet_id}/dokumenti/{dok_id}")
 @limiter.limit("20/minute")
 async def predmet_dokument_obrisi(
