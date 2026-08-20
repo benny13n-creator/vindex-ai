@@ -628,8 +628,22 @@ async def _run_conflict_check(
             c_name  = _norm(f"{c.get('ime', '')} {c.get('prezime', '')}".strip())
             c_firma = _norm(c.get("firma") or "")
             # Match against either query
+            #
+            # Guard za poredjenje `q_protiv` protiv `c_firma` mora biti `c_firma`,
+            # a ne `q_firma`. `q_firma` je firma NOVOG klijenta i nije operand tog
+            # poredjenja; kad je korisnik ne unese, cela grana se preskace i klijent
+            # koji je PRAVNO LICE nikad ne udje u `matched_client_ids`. Scenario 1
+            # nize (isti par operanada) vec koristi ispravan guard `c_firma_norm`.
+            #
+            # Posledica u produkciji: klijent `firma="Druga firma doo"` vezan za
+            # predmet ulogom `stranka`, upit o protivnoj strani "Druga firma doo" --
+            # doslovno isto ime -- vracao je NO_CONFLICT. Propusten sukob.
+            #
+            # Raniji supstring matcher je ovo SLUCAJNO maskirao ("druga" je podniska
+            # "druga firma doo", pa je klijent ulazio preko `c_name`); tokenski
+            # matcher iz `05c1042d` tu kompenzaciju vise ne pruza.
             if (
-                (q_protiv and (_name_match(q_protiv, c_name) or (q_firma and _name_match(q_protiv, c_firma)))) or
+                (q_protiv and (_name_match(q_protiv, c_name) or (c_firma and _name_match(q_protiv, c_firma)))) or
                 (q_novi_i and (_name_match(q_novi_i, c_name) or (q_firma and _name_match(q_firma, c_firma))))
             ):
                 matched_client_ids.append(c["id"])
