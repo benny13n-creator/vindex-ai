@@ -183,3 +183,35 @@ scripts/founder_agent/drafts/
 # Word Add-in lokalni dev server (2026-07-25) — samopotpisan TLS
 # sertifikat + privatni ključ, generisan po mašini, nikad ne ide u git.
 scripts/word_addin_dev_certs/
+
+# Scrape-ovani korpus (2026-08) — 4,2 GB / ~147k fajlova.
+# Ista konvencija kao data/sudska_praksa/raw/ iznad: sirovi izvori se NE prate.
+# Izvori su javne baze, a skripte za ponovno preuzimanje su u scripts/
+# (ingest_all_sources.py, ingest_bilten*.py, ingest_sudskapraksa.py).
+data/acas/
+data/apelacioni_bilteni/
+data/apelacioni_bilteni_converted/
+data/as_ns_bilteni/
+data/echr/
+data/kjn/
+data/kzk/
+data/mfin/
+data/misljenja_converted/
+data/ombudsman_apv/
+data/ombudsman_apv_converted/
+data/parlament/
+data/poverenik/
+data/ravnopravnost/
+data/sudska_praksa_converted/
+data/sudskapraksa_portal/
+data/sudskapraksa_sud/
+data/sudskapraksa_sud_converted/
+data/ustavni/
+data/vks_prosirenje/
+data/zastitnik/
+vindex_scraper_output/
+
+# Logovi ingest-a — mogu sadrzati putanje i sadrzaj dokumenata
+data/ingest_all_log*.txt
+data/ingest_sp_log.txt
+data/ingest_sp_err.txt
