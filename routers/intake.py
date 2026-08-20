@@ -491,19 +491,44 @@ _OPPOSING_ROLES = frozenset({
 _CLIENT_ROLES = frozenset({"stranka", "tuzilac"})
 
 
+# PRG-P1-COI-CONVERGENCE-001: jedan poslovni pojam ("da li je ovo ista
+# stranka?") imao je tri nezavisne implementacije. Ovo je jedina kanonska.
+from routers.conflict_check import CONFLICT_WARN, _fuzzy_score
+from routers.conflict_check import _normalize_name as _kanonska_normalizacija
+
+
 def _norm(s: str) -> str:
-    """Lowercase, remove diacritics, collapse whitespace."""
-    s = unicodedata.normalize("NFD", s.lower())
-    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-    s = re.sub(r"[^\w\s]", " ", s)
-    return re.sub(r"\s+", " ", s).strip()
+    """Normalizacija imena stranke — KANONSKA (`routers/conflict_check.py`).
+
+    Ranije je ovde stajala lokalna normalizacija koja interpunkciju pretvara u
+    razmak, pa je "Delta d.o.o." postajalo "delta d o o", a pravni nastavak se
+    nije skidao. Zbog toga "Delta doo" i "Delta d.o.o." — ista firma — nisu bili
+    prepoznati kao isti subjekt.
+    """
+    return _kanonska_normalizacija(s)
 
 
 def _name_match(query: str, candidate: str) -> bool:
-    """Substring match in either direction (catches partial names)."""
+    """Da li su ovo ista stranka? ISTA odluka koju donosi kanonski COI.
+
+    Ranije: `query in candidate or candidate in query`. Gola supstring provera,
+    bez praga, nad tekstom kome pravni nastavak nije skinut. Posledice izmerene
+    nad 19 realnih parova (PRG-P1-PREPUSH-001 i ovaj sprint):
+
+      3 LAZNA POZITIVA — "Firma doo" ⊂ "Druga firma doo" -> Intake Wizard je
+        prikazivao 🚫 BLOKIRAJUCI sukob interesa za dve nepovezane firme;
+      6 LAZNIH NEGATIVA — "Петар Петровић" vs "Petar Petrović" (cirilica),
+        "Petrović Petar" vs "Petar Petrović" (redosled reci),
+        "Delta doo" vs "Delta d.o.o." (varijanta nastavka), tipfeler, srednje
+        ime. Propusten sukob je teza greska od suvisne oznake.
+
+    `CONFLICT_WARN` je isti prag na kome kanonska implementacija unosi nalaz u
+    `konflikti`; ispod njega ona vraca "clear". Severity ovde i dalje odredjuje
+    ULOGA (`_CLIENT_ROLES` / `_OPPOSING_ROLES`), ne skor — taj ugovor se ne menja.
+    """
     if not query or not candidate:
         return False
-    return query in candidate or candidate in query
+    return _fuzzy_score(query, candidate) >= CONFLICT_WARN
 
 
 class ConflictCheckIntakeReq(BaseModel):
