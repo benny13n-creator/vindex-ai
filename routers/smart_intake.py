@@ -36,6 +36,7 @@ import asyncio
 import base64
 import hashlib
 import logging
+import uuid as _uuid
 import os
 import re
 import tempfile
@@ -786,6 +787,41 @@ async def finalize_intake_job(
     return await _finalize_intake_job_core(job_id, request, body, user)
 
 
+# ─── S6: identitet i trajnost NEW_CLIENT_LINKED dogadjaja ────────────────────
+#
+# Dogadjaj NIJE "klijent je povezan sa predmetom" -- to je bio pogresan naziv.
+# Payload nosi PAR imena (nase + protivnicko), a posledica zove
+# `_run_conflict_check` sa imenima kao ulazom. CI-RED-002
+# (2026-08-08) je dokazao da `klijent_id` sme biti None: provera sukoba treba
+# IME, ne vezu. Zato dogadjaj mora prezivetii neuspeh vezivanja.
+#
+# Poslovni identitet je `job_id`, dokazano kodom: postoji tacno JEDAN emit sajt,
+# cuvan sa `if klijent_ime:`, unutar `if not resuming:`; batch zove ovo jezgro
+# po poslu. Dakle jedan posao proizvodi najvise jedan takav dogadjaj.
+# `intake_jobs.id` je UUID PK, vezan za tenant preko `uploaded_by`, i isti je
+# kroz retry, crash i resume.
+#
+# Odbaceno: (predmet_id, klijent_id) -- `klijent_id` sme biti NULL.
+# Odbaceno: (predmet_id, normalizovano_ime) -- identitet bi zavisio od
+# normalizatora, a on se menja; promena bi razbila idempotenciju unazad.
+#
+# Namespace je fiksan i NE SME se menjati: promena bi svim buducim dogadjajima
+# dala nov identitet i ponistila idempotenciju u odnosu na vec upisane redove.
+_NS_VINDEX_EVENTS = _uuid.UUID("6f5e1b3a-0000-4000-8000-000000000000")
+
+# Koliko puta pokusati trajni upis pre nego sto se prizna neuspeh. Retry je
+# bezbedan ISKLJUCIVO zato sto identitet postoji: bez njega bi drugi pokusaj
+# napravio drugi poslovni dogadjaj, drugu COI posledicu i drugi alarm
+# (izmereno: 2 dogadjaja -> 2 alarma). Isti obrazac kao PREDMET_KREIRAN
+# (api.py, BLACKSWAN-HIGH-008).
+_COI_EMIT_POKUSAJA = 3
+
+
+def _new_client_linked_event_id(job_id: str) -> str:
+    """Stabilan poslovni identitet dogadjaja, deterministicki iz `job_id`."""
+    return str(_uuid.uuid5(_NS_VINDEX_EVENTS, "NewClientLinked:%s" % job_id))
+
+
 async def _finalize_intake_job_core(
     job_id: str,
     request: Request,
@@ -1109,6 +1145,11 @@ async def _finalize_intake_job_core(
     # assimilation below is the only per-item work that genuinely needs to
     # resume/retry -- it has its own per-document idempotency (content hash).
     # Defaults below cover the resume path, where none of this block runs.
+    # S6: `coi_stanje` je jedini izvor istine o tome da li je COI provera
+    # uopste ZAKAZANA. Podrazumevano NOT_APPLICABLE pokriva resume put i
+    # poslove bez imena stranke, gde dogadjaj legitimno ne nastaje.
+    coi_stanje = "COI_NOT_APPLICABLE"
+    coi_event_id = None
     klijent_ime = ""
     klijent_nesiguran = False
     klijent_kandidati: list[str] = []
@@ -1214,21 +1255,50 @@ async def _finalize_intake_job_core(
             # new gating introduced). Case Evolution Engine (services/
             # case_evolution.py, registered for NEW_CLIENT_LINKED) now OWNS
             # deciding and executing the conflict-check consequence.
-            try:
-                from services.event_bus import EventType, emit_durable
-                await emit_durable(
-                    EventType.NEW_CLIENT_LINKED,
-                    uid,
-                    predmet_id,
-                    {
-                        "klijent_id": klijent_id,
-                        "klijent_ime": klijent_ime,
-                        "protivna_strana": protivna_strana_val,
-                        "trigger": "smart_intake_finalize",
-                    },
-                )
-            except Exception as _ee:
-                logger.warning("[SMART_INTAKE] NEW_CLIENT_LINKED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ee)
+            # S6 (2026-08-20): raniji upis je bio JEDAN pokusaj u `except`-u oznacenom
+            # kao non-fatal. Kad bi pao: predmet, klijent i veza su vec commit-ovani,
+            # finalize vraca ok=True, reda u `events` nema, dispecer nema sta da
+            # procita, COI se NIKAD ne izvrsi -- a odgovor je bajt-identican onom kad
+            # je provera uredno prosla. Dokazano izvrsavanjem nad produkcijom.
+            #
+            # Sada: deterministicki `event_id` iz `job_id` + ograniceni retry. Retry je
+            # bezbedan SAMO zbog identiteta -- `events.id` PK odbija drugi upis, pa
+            # ponovljen pokusaj ne moze da napravi drugi poslovni dogadjaj.
+            _coi_eid = _new_client_linked_event_id(job_id)
+            for _pokusaj in range(1, _COI_EMIT_POKUSAJA + 1):
+                try:
+                    from services.event_bus import EventType, emit_durable
+                    await emit_durable(
+                        EventType.NEW_CLIENT_LINKED,
+                        uid,
+                        predmet_id,
+                        {
+                            "klijent_id": klijent_id,
+                            "klijent_ime": klijent_ime,
+                            "protivna_strana": protivna_strana_val,
+                            "trigger": "smart_intake_finalize",
+                            # `job_id` u payload-u je RECOVERY trag: iz njega se
+                            # identitet dogadjaja moze ponovo izvesti bez ijedne
+                            # heuristike.
+                            "job_id": job_id,
+                        },
+                        event_id=_coi_eid,
+                    )
+                    coi_stanje = "COI_PENDING"
+                    coi_event_id = _coi_eid
+                    break
+                except Exception as _ee:
+                    if _pokusaj < _COI_EMIT_POKUSAJA:
+                        logger.warning("[SMART_INTAKE] NEW_CLIENT_LINKED upis pokusaj %d/%d nije uspeo predmet=%s: %s",
+                                       _pokusaj, _COI_EMIT_POKUSAJA, predmet_id, _ee)
+                        await asyncio.sleep(0.2 * _pokusaj)
+                        continue
+                    # Iscrpljeni pokusaji: COI provera NIJE zakazana. To se vise ne
+                    # guta -- odgovor nosi eksplicitno stanje, jer odsustvo alarma
+                    # ne sme da znaci "nema sukoba".
+                    coi_stanje = "COI_FAILED"
+                    logger.error("[SMART_INTAKE] NEW_CLIENT_LINKED NIJE upisan posle %d pokusaja predmet=%s job=%s -- COI provera NIJE zakazana: %s",
+                                 _COI_EMIT_POKUSAJA, predmet_id, job_id, _ee)
 
         # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
         rok_dodat = False
@@ -1771,6 +1841,10 @@ async def _finalize_intake_job_core(
         "ok":          True,
         "predmet_id":  predmet_id,
         "naziv":       naziv,
+        # S6: odsustvo alarma vise ne sme da se cita kao "nema sukoba". Ovo polje
+        # kaze da li je COI provera zakazana; UI prikaz je zaseban zadatak.
+        "coi_status":   coi_stanje,
+        "coi_event_id": coi_event_id,
         "klijent_dodat": bool(klijent_ime) and not klijent_nesiguran,
         # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- never
         # silently guesses between 2+ same-name clients (mission's own named

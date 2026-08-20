@@ -489,6 +489,7 @@ async def emit_durable(
     predmet_id:     str | None,
     payload:        dict[str, Any],
     supa=None,
+    event_id:       str | None = None,
 ) -> None:
     """Durably inserts one row into the 'events' outbox — the caller's own
     state-changing work must already be committed BEFORE calling this (same
@@ -497,7 +498,20 @@ async def emit_durable(
     happen). Fail-soft is the CALLER's responsibility (wrap in try/except),
     matching PREDMET_KREIRAN/DOCUMENT_ACCEPTED's own established pattern —
     this helper raises on any error that isn't the tolerated missing-column
-    case, it does not itself swallow anything."""
+    case, it does not itself swallow anything.
+
+    `event_id` (S6, 2026-08-20) -- OPCIONO i podrazumevano None, pa je ponasanje
+    svih 11 postojecih poziva nepromenjeno (baza i dalje generise `id`).
+    Kad je prosledjen, koristi se kao `events.id` uz `ignore_duplicates=True`
+    (PostgREST `ON CONFLICT (id) DO NOTHING`), pa POZIVALAC dobija pravo da
+    definise STABILAN POSLOVNI IDENTITET dogadjaja. Time ponovljen upis istog
+    poslovnog dogadjaja postaje no-op umesto drugog reda, a brana je vec
+    postojeci `events.id` PRIMARY KEY (migracija 073) -- bez ijedne izmene seme.
+
+    Zasto je to potrebno: bez stabilnog identiteta svaki retry pravi NOV
+    `events.id`, dakle NOV poslovni dogadjaj, dakle drugu COI posledicu i drugi
+    alarm. Izmereno: retry bez identiteta -> 2 posledice, 2 alarma; ista
+    isporuka istog id-a x3 -> 1 posledica, 1 alarm."""
     if supa is None:
         from shared.deps import _get_supa
         supa = _get_supa()
@@ -509,15 +523,20 @@ async def emit_durable(
         "predmet_id": predmet_id,
         "payload":    {**payload, "correlation_id": _cid},
     }
+    if event_id is not None:
+        _evt_row["id"] = event_id
+    # `ignore_duplicates=True` samo kad pozivalac nosi identitet -- inace bi
+    # menjalo ponasanje postojecih poziva.
+    _opts = {"ignore_duplicates": True} if event_id is not None else {}
     from shared.audit_immutable import _is_missing_column_error
     try:
         await asyncio.to_thread(
-            lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}).execute()
+            lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}, **_opts).execute()
         )
     except Exception as _wide_exc:
         if not _is_missing_column_error(_wide_exc):
             raise
-        await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row).execute())
+        await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row, **_opts).execute())
 
 
 # ─── Durable outbox dispatch (Faza 0, ADR-0001) ────────────────────────────────
