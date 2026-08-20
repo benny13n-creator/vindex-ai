@@ -2963,7 +2963,25 @@ async def me(user: dict = Depends(get_current_user)):
             "credits_total":     9999 if founder else BESPLATNI_KREDITI,
             "is_pro":            profil["is_pro"],
             "is_founder":        founder,
-            "digitalna_imovina_aktivirano": profil.get("digitalna_imovina_aktivirano", False),
+            # Founder pravilo se OVDE primenjuje isto kao dva reda iznad na
+            # kredite (`9999 if founder`). Bez toga je `/api/me` govorio jedno,
+            # a backend radio drugo: `PermissionService.require` (shared/
+            # permissions.py) na SVAKOJ `da_*` ruti ima granu `if is_founder:
+            # ... return user` KOJA SE IZVRSAVA PRE provere `digital_assets`
+            # dodatka -- dakle founder VEC ima pun pristup Web3/Digitalnoj
+            # imovini. Ovo polje je citalo sirovu kolonu profila, vracalo False,
+            # i frontend (`_dimRenderAiwsPill`, static/vindex.js) je zato krio
+            # dugme "Vindex AI - Digitalna imovina & usklađenost" korisniku koji
+            # na backendu prolazi. Nesklad prikaza, ne nedostatak ovlascenja.
+            #
+            # Ovo NIJE bypass: pravo se ne dodeljuje ovde nego u postojecem
+            # `_is_founder`, istom mehanizmu koji backend vec koristi kao izvor
+            # istine. Za korisnika koji NIJE founder ponasanje je nepromenjeno --
+            # i dalje odlucuje `digital_assets` dodatak.
+            "digitalna_imovina_aktivirano": founder or profil.get("digitalna_imovina_aktivirano", False),
+            # `standalone` NAMERNO ostaje nepromenjen: on skriva ostatak
+            # platforme i vazi samo za 79EUR standalone tarifu. Founderu treba
+            # cela platforma, ne samo ovaj modul.
             "digitalna_imovina_standalone": profil.get("digitalna_imovina_standalone", False),
         }
     except Exception as exc:
