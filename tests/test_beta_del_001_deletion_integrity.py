@@ -414,3 +414,51 @@ def test_12b_bez_kolone_je_predmet_aktivan():
 def test_12c_get_predmet_vraca_404_za_tombstonovan():
     import api as _api
     assert _api._je_u_brisanju({"brisanje_zapoceto": "2026-08-21T00:00:00+00:00"}) is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST 13 — OŽIČENJE: KANONSKE READ PUTANJE GATE-UJU NA TOMBSTONE
+#
+# Unit testovi dokazuju da `_je_u_brisanju` radi. Ovaj test dokazuje da je
+# STVARNO POZVAN na putanjama koje bi inače vratile predmet kao aktivan.
+# Bez njega bi popravka mogla da postoji, a ruta da je ne koristi.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_13_kanonske_read_putanje_proveravaju_tombstone():
+    import ast as _ast
+    import io as _io
+
+    src = _io.open(os.path.join(os.path.dirname(__file__), "..", "api.py"),
+                   encoding="utf-8").read()
+    stablo = _ast.parse(src)
+
+    # funkcije koje moraju da gate-uju na tombstone, po imenu rute
+    OBAVEZNE = {
+        "get_predmet": "GET pojedinacnog predmeta",
+        "predmet_hronologija_get": "hronologija",
+        "predmet_workspace": "workspace",
+    }
+    nadjene = {}
+    for n in _ast.walk(stablo):
+        if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and n.name in OBAVEZNE:
+            telo = _ast.dump(n)
+            nadjene[n.name] = "_je_u_brisanju" in telo
+
+    for ime, opis in OBAVEZNE.items():
+        if ime not in nadjene:
+            continue          # ruta preimenovana — pokriveno drugim testom
+        assert nadjene[ime], (
+            "%s (%s) ne proverava tombstone — tombstonovan predmet bi bio "
+            "vracen kao aktivan" % (ime, opis))
+
+    # AI kontekst: `/api/pitanje` ubacuje beleske/istoriju odvojenim putem
+    assert "[BETA-DEL-001] predmet %s je u brisanju" in src, (
+        "`/api/pitanje` vise ne preskace kontekst predmeta u brisanju")
+
+
+def test_13b_lista_i_dashboard_filtriraju():
+    import io as _io
+    src = _io.open(os.path.join(os.path.dirname(__file__), "..", "api.py"),
+                   encoding="utf-8").read()
+    assert src.count("_bez_tombstone(") >= 3, (
+        "lista i/ili dashboard vise ne filtriraju tombstonovane predmete")

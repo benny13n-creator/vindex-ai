@@ -3444,6 +3444,26 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         # F5.4: inject predmet context when predmet_id is provided
         pitanje_za_agenta = req.pitanje
+
+        # BETA-DEL-001: predmet u brisanju NE SME da hrani AI kontekst.
+        # RAG je vec iskljucen kroz `dozvoljeni_predmeti`, ali beleske i
+        # istorija se ubacuju ODVOJENIM putem, bez ijedne provere predmeta.
+        # Bez ovoga bi sadrzaj predmeta koji se brise i dalje stizao modelu.
+        # Greska u proveri => kontekst se preskace (fail-closed), sto je isti
+        # smer kao postojeci `except` ispod.
+        if predmet_id:
+            try:
+                _t = (_get_supa().table("predmeti").select("brisanje_zapoceto")
+                      .eq("id", predmet_id).eq("user_id", user["user_id"])
+                      .maybe_single().execute())
+                if _je_u_brisanju(getattr(_t, "data", None)):
+                    logger.info("[BETA-DEL-001] predmet %s je u brisanju — kontekst se ne ubacuje",
+                                predmet_id)
+                    predmet_id = None
+            except Exception as _te:                       # noqa: BLE001
+                logger.warning("[BETA-DEL-001] provera brisanja nije izvrsena za %s: %s — "
+                               "kontekst se preskace", predmet_id, _te)
+                predmet_id = None
         if predmet_id:
             try:
                 supa = _get_supa()
@@ -5913,8 +5933,9 @@ async def predmet_hronologija_get(
 ):
     """Phase 2.2 — Return sorted chronology events for a predmet."""
     user = await _require_auth_async(authorization)
-    pred_row = _get_supa().table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).single().execute()
-    if not pred_row.data:
+    pred_row = _get_supa().table("predmeti").select("id,brisanje_zapoceto").eq("id", predmet_id).eq("user_id", user.id).single().execute()
+    # BETA-DEL-001: predmet oznacen za brisanje se ponasa kao da ne postoji.
+    if not pred_row.data or _je_u_brisanju(pred_row.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     try:
@@ -5956,8 +5977,9 @@ async def predmet_ai_preporuka(
     - Presude koje podržavaju poziciju
     """
     supa = _get_supa()
-    pred = supa.table("predmeti").select("naziv, opis, tip, status").eq("id", predmet_id).eq("user_id", user["user_id"]).single().execute()
-    if not pred.data:
+    pred = supa.table("predmeti").select("naziv, opis, tip, status, brisanje_zapoceto").eq("id", predmet_id).eq("user_id", user["user_id"]).single().execute()
+    # BETA-DEL-001
+    if not pred.data or _je_u_brisanju(pred.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     p = pred.data
@@ -6400,7 +6422,8 @@ async def predmet_workspace(
     pred = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
     )
-    if not pred.data:
+    # BETA-DEL-001: predmet oznacen za brisanje se ponasa kao da ne postoji.
+    if not pred.data or _je_u_brisanju(pred.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     # Step 2: Parallel fetch of all related data
