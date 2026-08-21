@@ -102,10 +102,23 @@ async def _generiši_briefing(uid: str, supa) -> dict:
     # long-resolved rociste doesn't clutter every future briefing forever.
     pre_90 = danas - timedelta(days=90)
 
-    predmeti_r, rokovi_r, rocista_r, klijenti_r, rokovi_propusteni_r, rocista_propustena_r = await asyncio.gather(
+    # B-U-001 (2026-08-21): `return_exceptions=True` je OBAVEZAN deo ugovora ovog
+    # `gather`-a, ne kozmetika. Bez njega pad JEDNOG izvora rusi ceo brifing u
+    # HTTP 500 -- sto je i bio dokazani produkcioni kvar. Ali izolacija sama po
+    # sebi nije dovoljna: rezultat palog izvora NE SME da izgleda kao dokazano
+    # prazno stanje, pa svaki izvor nosi svoju zastavicu dostupnosti (v. `_izvor`).
+    predmeti_r, rokovi_r, rocista_r, rokovi_propusteni_r, rocista_propustena_r = await asyncio.gather(
         asyncio.to_thread(
+            # B-U-001: `stranka` i `protivnik` NE POSTOJE u produkcionoj semi
+            # (sondirano direktno nad bazom: 42703 za obe, kao i za `stranke`,
+            # `klijent`, `klijent_id`). Kanonski nosioci identiteta strana su
+            # `tuzilac`/`tuzeni` -- jedine „party" kolone koje kanonski write
+            # path `PATCH /api/predmeti` prihvata i sanitizuje (api.py:4358).
+            # Pogresna imena su ovde stajala od uvodjenja brifinga (c86f525e,
+            # 2026-06-28), pa `/api/briefing/daily` nikada nije radio na
+            # produkciji; nijedan test to nije uhvatio jer svi mock-uju Supabase.
             lambda: supa.table("predmeti")
-                .select("id, naziv, status, stranka, protivnik, updated_at")
+                .select("id, naziv, status, tuzilac, tuzeni, updated_at")
                 .eq("user_id", uid)
                 .in_("status", ["aktivan", "u_toku", "pending"])
                 .order("updated_at", desc=True)
@@ -124,13 +137,6 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                 .order("datum")
                 .execute()
         ),
-        asyncio.to_thread(
-            lambda: supa.table("klijenti")
-                .select("id, ime, prezime, naziv_kompanije")
-                .eq("user_id", uid)
-                .limit(100)
-                .execute()
-        ),
         # Propusteni rokovi (BLACKSWAN-CRIT-002 putanja) -- isti kanonski izvor.
         _rokovi_domen.rokovi_za_korisnika(
             supa, uid, od=pre_90, do=danas - timedelta(days=1), limit=20),
@@ -145,20 +151,46 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                 .limit(20)
                 .execute()
         ),
+        return_exceptions=True,
     )
 
-    predmeti = predmeti_r.data or []
-    rocista  = rocista_r.data  or []
-    rocista_propustena = rocista_propustena_r.data or []
+    def _izvor(rez, ime: str) -> tuple[list, bool]:
+        """FAILED != EMPTY. Vraca (redovi, dostupno).
+
+        `dostupno=False` znaci da upit NIJE izvrsen do kraja -- praznina koju
+        vraca tada NIJE dokaz da podataka nema, i nijedna recenica brifinga ne
+        sme da je tako protumaci.
+        """
+        if isinstance(rez, BaseException):
+            logger.warning("[MORNING_BRIEFING] izvor %s nije procitan (%s: %s)",
+                           ime, type(rez).__name__, rez)
+            return [], False
+        return (rez.data or []), True
+
+    def _izvor_rokova(rez, ime: str) -> tuple[list, bool]:
+        """Domen rokova je vec fail-closed (`.uspeh`); ovde se dodatno hvata i
+        slucaj da sam poziv domena baci, posto `gather` sada vraca izuzetke."""
+        if isinstance(rez, BaseException):
+            logger.warning("[MORNING_BRIEFING] izvor %s nije procitan (%s: %s)",
+                           ime, type(rez).__name__, rez)
+            return [], False
+        if not rez.uspeh:
+            return [], False
+        return [r.kao_dict() for r in rez.rokovi], True
+
+    predmeti, predmeti_dostupni = _izvor(predmeti_r, "predmeti")
+    rocista, _rocista_ok = _izvor(rocista_r, "rocista")
+    rocista_propustena, _rocista_prop_ok = _izvor(rocista_propustena_r, "rocista_propustena")
 
     # Neuspeh citanja rokova NE postaje prazan brifing. `_generisi_briefing`
     # nema try oko `gather`-a, pa bi ranije 500 srusio ceo brifing; sada se
     # razlika prenosi kao stanje i brifing to izricito kaze.
-    rokovi_dostupni = rokovi_r.uspeh and rokovi_propusteni_r.uspeh
-    rokovi = [r.kao_dict() for r in (rokovi_r.rokovi if rokovi_r.uspeh else [])]
-    rokovi_propusteni = [
-        r.kao_dict() for r in (rokovi_propusteni_r.rokovi if rokovi_propusteni_r.uspeh else [])
-    ]
+    rokovi, _rokovi_ok = _izvor_rokova(rokovi_r, "rokovi")
+    rokovi_propusteni, _rokovi_prop_ok = _izvor_rokova(rokovi_propusteni_r, "rokovi_propusteni")
+    rokovi_dostupni = _rokovi_ok and _rokovi_prop_ok
+    # Ista logika kao kod rokova: brifing cita rocista DVAPUT (predstojeca +
+    # propustena). Pad bilo kog citanja znaci da odsustvo rocista nije dokazano.
+    rocista_dostupna = _rocista_ok and _rocista_prop_ok
 
     def _dani_do(datum_str: str) -> int:
         try:
@@ -176,6 +208,10 @@ async def _generiši_briefing(uid: str, supa) -> dict:
     # zero-case user -- an honest empty list, not a NameError or a GPT guess
     # filling the gap.
     _kanonske_akcije = []
+    # B-U-001: prazna lista akcija je dokaz odsustva SAMO ako je svaki kontekst
+    # predmeta stvarno izgradjen. Pocinje kao `predmeti_dostupni`: ako lista
+    # predmeta nije procitana, ni akcije nisu.
+    _akcije_dostupne = predmeti_dostupni
 
     # ── AI kontekst ────────────────────────────────────────────────────────────
     parts = []
@@ -215,6 +251,20 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             "rokova nema, NE nazivaj dan mirnim, i izričito upozori advokata "
             "da proveri rokove ručno."
         )
+    if not rocista_dostupna:
+        # B-U-001: ista invarijanta kao za rokove. Rociste je vremenski
+        # najkriticnija stavka u brifingu -- odsustvo iz palog upita ne sme
+        # da postane tvrdnja da rocista nema.
+        parts.append(
+            "ROČIŠTA: NEPOZNATO — ročišta nisu pročitana iz baze. NE tvrdi da "
+            "ročišta nema, NE nazivaj dan mirnim, i izričito upozori advokata "
+            "da proveri ročišta ručno."
+        )
+    if not predmeti_dostupni:
+        parts.append(
+            "PREDMETI: NEPOZNATO — lista predmeta nije pročitana iz baze. NE "
+            "tvrdi da predmeta ni otvorenih akcija nema."
+        )
 
     if predmeti:
         # Program Tau, Master Sprint 002 (2026-08-06): CONTEXT_BUILDER_REGISTRY.md
@@ -240,6 +290,14 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         _readiness_by_id = {}
         for _p, _r in zip(_prikazani, _readiness_rezultati):
             if isinstance(_r, Exception) or _r.get("error"):
+                # B-U-001: pad izgradnje konteksta je do sada nestajao bez traga,
+                # a „Nema otvorenih akcija" se izvodi iz PRAZNE liste akcija --
+                # dakle pao upit je davao tvrdnju o odsustvu obaveza.
+                # OGRANICENJE (otvoren rizik, v. izvestaj): ovo hvata samo pad
+                # CELOG `build_case_context`. Pad pojedinacnog upita UNUTAR
+                # njega `shared/case_context.py::_safe` i dalje pretvara u `[]`
+                # bez signala; to je zaseban modul i van opsega B-U-001.
+                _akcije_dostupne = False
                 continue
             _readiness_by_id[_p["id"]] = _r.get("readiness", {}).get("value", {})
             _open_actions = ((_r.get("active_actions") or {}).get("value")) or []
@@ -252,8 +310,18 @@ async def _generiši_briefing(uid: str, supa) -> dict:
                     "rok": _top.get("rok"),
                 })
 
+        def _stranke_labela(p: dict) -> str:
+            """B-U-001: isti prikaz kao ranije (`stranka: ...`), ali iz kolona
+            koje u produkciji STVARNO postoje. Bez izvedenih zakljucaka: ako
+            nijedna strana nije uneta, ostaje `N/A` kao i do sada."""
+            _tuzilac = (p.get("tuzilac") or "").strip()
+            _tuzeni = (p.get("tuzeni") or "").strip()
+            if _tuzilac and _tuzeni:
+                return f"{_tuzilac} protiv {_tuzeni}"
+            return _tuzilac or _tuzeni or "N/A"
+
         def _linija_predmeta(p: dict) -> str:
-            base = f"- {p.get('naziv','Predmet')} | stranka: {p.get('stranka','N/A')}"
+            base = f"- {p.get('naziv','Predmet')} | stranka: {_stranke_labela(p)}"
             r = _readiness_by_id.get(p.get("id"))
             if r and r.get("status"):
                 base += f" | readiness: {r['status']}"
@@ -301,6 +369,13 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             f"- {a['predmet_naziv']}: {a['razlog']}" + (f" (rok: {a['rok']})" if a.get("rok") else "")
             for a in _kanonske_akcije[:4]
         )
+    elif not _akcije_dostupne:
+        # B-U-001: prazna lista akcija je izvedena iz liste predmeta I iz
+        # konteksta svakog predmeta. Ako bilo koje od to dvoje nije procitano,
+        # „nema otvorenih akcija" je tvrdnja bez pokrica -- ista klasa kao
+        # DRIFT-002/003 kod rokova.
+        _danas_zahteva_paznju = ("Predmeti nisu pročitani iz baze — ne mogu potvrditi "
+                                 "da otvorenih akcija nema. Proverite ih ručno.")
     else:
         _danas_zahteva_paznju = "Nema otvorenih akcija u Case Actions ni za jedan predmet."
 
@@ -309,14 +384,12 @@ async def _generiši_briefing(uid: str, supa) -> dict:
         _kljucni_rok = f"Ročište danas u {_kljucni_rok_kandidat.get('sud','N/A')} — {_kljucni_rok_kandidat.get('datum','')} {(_kljucni_rok_kandidat.get('vreme') or '')[:5]}. Pripremi se pre polaska."
     elif _kljucni_rok_kandidat:
         _kljucni_rok = f"{_kljucni_rok_kandidat.get('naziv','Rok')} — {_kljucni_rok_kandidat.get('datum','')}. Ne odlaži pripremu."
-    elif not rokovi_dostupni:
-        # DRIFT-002/003 (klasa E) — `_otvaranje` (dole) i prompt modela (gore)
-        # su već poštovali `rokovi_dostupni`, ali OVO polje nije: izvedeno je
-        # samo iz praznine liste, pa je pao upit davao tvrdnju o odsustvu
-        # rokova. Mereno: brifing je sadržao i „⚠ Rokovi trenutno nisu
-        # dostupni" i „Nema hitnih rokova u narednih 7 dana." — dve
-        # protivrečne rečenice u istom tekstu, a druga je neistinita.
-        _kljucni_rok = ("Rokovi nisu pročitani iz baze — ne mogu potvrditi da ih nema. "
+    elif not (rokovi_dostupni and rocista_dostupna):
+        # DRIFT-002/003 (klasa E): ovo polje je ranije izvođeno samo iz praznine
+        # liste, pa je pao upit davao tvrdnju o odsustvu rokova — uz istovremeno
+        # upozorenje da rokovi nisu dostupni. B-U-001 dodaje ročišta: i
+        # `_kljucni_rok_kandidat` se bira iz `rocista_danas`.
+        _kljucni_rok = ("Rokovi/ročišta nisu pročitani iz baze — ne mogu potvrditi da ih nema. "
                         "Proverite ih ručno pre nego što planirate dan.")
     else:
         _kljucni_rok = "Nema hitnih rokova u narednih 7 dana."
@@ -384,9 +457,14 @@ Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Eka
             _otvaranje = f"Danas vas čeka {len(rocista_danas)} ročište — dan je zauzet."
         elif rokovi_hitni:
             _otvaranje = f"Nema ročišta danas, ali {len(rokovi_hitni)} rok(ova) ističe uskoro."
-        elif not rokovi_dostupni:
-            _otvaranje = ("⚠ Rokovi trenutno nisu dostupni — odsustvo rokova u ovom "
-                          "brifingu NE znači da ih nema. Proverite ih ručno.")
+        elif not (rokovi_dostupni and rocista_dostupna and _akcije_dostupne):
+            # B-U-001: „miran dan" sme da se izgovori samo ako su SVI izvori
+            # koji bi ga mogli opovrgnuti stvarno pročitani.
+            _nedostupni = ", ".join(_ime for _ime, _ok in (
+                ("rokovi", rokovi_dostupni), ("ročišta", rocista_dostupna),
+                ("predmeti", _akcije_dostupne)) if not _ok)
+            _otvaranje = (f"⚠ Sledeći izvori trenutno nisu dostupni: {_nedostupni} — njihovo "
+                          "odsustvo u ovom brifingu NE znači da obaveza nema. Proverite ih ručno.")
         else:
             _otvaranje = "Nema hitnih obaveza za danas — miran dan."
 
@@ -412,6 +490,16 @@ Vrati SAMO tu jednu rečenicu, bez markdown formatiranja, bez uvodnih fraza. Eka
         "ai_briefing": ai_tekst,
         # Prazna lista rokova je istina SAMO kad je ovo `True`.
         "rokovi_dostupni": rokovi_dostupni,
+        # B-U-001: isto pravilo za preostala dva izvora. Aditivna polja --
+        # postojeci potrosaci koji ih ne citaju rade nepromenjeno.
+        # `statistike.rocista_*` i `statistike.aktivnih_predmeta` su dokaz
+        # odsustva SAMO kad je odgovarajuca zastavica `True`.
+        "rocista_dostupna": rocista_dostupna,
+        "predmeti_dostupni": predmeti_dostupni,
+        # `False` znaci da „Nema otvorenih akcija" NIJE dokazano. Pokriva pad
+        # liste predmeta i pad izgradnje konteksta; NE pokriva tih pad
+        # pojedinacnog upita unutar `shared/case_context.py` (otvoren rizik).
+        "akcije_dostupne": _akcije_dostupne,
         "statistike": {
             "aktivnih_predmeta":  len(predmeti),
             "rokova_ove_nedelje": len(rokovi),
