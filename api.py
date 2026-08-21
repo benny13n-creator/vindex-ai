@@ -1533,6 +1533,29 @@ def greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"greska": poruka})
 
 
+# BETA-DEL-001 — ISKLJUČENJE PREDMETA KOJI SE BRIŠE IZ KORISNIČKIH READ PUTANJA.
+
+
+def _je_u_brisanju(red) -> bool:
+    """Da li je red predmeta tombstonovan (BETA-DEL-001).
+
+    Provera je NAD REZULTATOM, ne nad upitom. Filter u samom upitu bi ubacio
+    novi clan u lanac PostgREST poziva, a postojeci testovi tvrde tacan oblik
+    tog lanca (`chain.range.assert_called_once_with(...)`) — pa bi izmena
+    oborila sest testova koji nemaju veze sa brisanjem. Semantika je ista, a
+    povrsina promene manja.
+
+    Nedostajuca kolona (pre migracije 114) daje `None` -> predmet je aktivan.
+    To je bezbedno: bez kolone se tombstone ne moze ni upisati.
+    """
+    return bool((red or {}).get("brisanje_zapoceto"))
+
+
+def _bez_tombstone(redovi) -> list:
+    """Izbacuje tombstonovane predmete iz vec dohvacene liste."""
+    return [r for r in (redovi or []) if not _je_u_brisanju(r)]
+
+
 # ─── Cache busting ────────────────────────────────────────────────────────────
 import re as _re
 
@@ -4036,7 +4059,8 @@ async def lista_predmeta(
             .range(offset, offset + limit - 1)
             .execute()
     )
-    return {"predmeti": rows.data, "ukupno": rows.count}
+    # BETA-DEL-001: predmet oznacen za brisanje nije aktivan predmet.
+    return {"predmeti": _bez_tombstone(rows.data), "ukupno": rows.count}
 
 
 @app.get("/api/predmeti/dashboard")
@@ -4056,7 +4080,7 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
             .order("created_at", desc=True)
             .execute()
     )
-    predmeti = preds_r.data or []
+    predmeti = _bez_tombstone(preds_r.data)   # BETA-DEL-001
     if not predmeti:
         return {"predmeti": [], "po_prioritetu": [], "po_riziku": [], "po_rokovima": [], "statistike": {"ukupno": 0}}
 
@@ -4246,7 +4270,9 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
         if deleg.data:
             row = supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
 
-    if not row.data:
+    # BETA-DEL-001: predmet oznacen za brisanje se ponasa kao da ne postoji.
+    # Provera je nad REZULTATOM, ne nad upitom (v. `_je_u_brisanju`).
+    if not row.data or _je_u_brisanju(row.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     beleske, istorija, dokumenti, hronologija, komentari, predmet_klijenti = await asyncio.gather(
@@ -6152,10 +6178,24 @@ async def predmet_obrisi(
             detail={"poruka": "Predmet nije obrisan — " + rez.razlog + ". Ništa nije promenjeno.",
                     **rez.kao_dict()},
         )
+    # BETA-DEL-001 — DVA RAZLIČITA NEUSPEHA, DVE RAZLIČITE PORUKE.
+    #
+    # Ranije je jedan tekst pokrivao oba, i tvrdio „pokušajte ponovo" i onda
+    # kada je identičan retry deterministički padao zauvek. Poruka „može se
+    # ponoviti" sada postoji SAMO uz `RETRYABLE_FAILURE`.
+    if rez.ishod == IshodPredmeta.PERMANENT_FAILURE:
+        raise HTTPException(
+            status_code=409,
+            detail={"poruka": "Predmet nije obrisan — " + (rez.razlog or "operacija nije mogla da počne")
+                              + ". Ništa nije promenjeno; ponavljanje neće pomoći.",
+                    "retry_moguc": False,
+                    **rez.kao_dict()},
+        )
     raise HTTPException(
         status_code=409,
-        detail={"poruka": "Predmet NIJE obrisan u celosti — " + (rez.razlog or "deo podataka nije uklonjen")
-                          + ". Predmet je i dalje u vašoj listi; pokušajte ponovo.",
+        detail={"poruka": "Brisanje je započeto ali nije završeno — " + (rez.razlog or "deo podataka nije uklonjen")
+                          + ". Predmet je označen za brisanje i više nije aktivan; ponovite operaciju.",
+                "retry_moguc": True,
                 **rez.kao_dict()},
     )
 
@@ -6872,7 +6912,7 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
             .eq("user_id", uid)
             .execute()
     )
-    predmeti = preds_r.data or []
+    predmeti = _bez_tombstone(preds_r.data)   # BETA-DEL-001
     if not predmeti:
         return {
             "kpi": {"aktivni":0,"zatvoreni":0,"visok_rizik":0,"rokovi_7_dana":0,"neaktivni_30_dana":0,"bez_klijenta":0},

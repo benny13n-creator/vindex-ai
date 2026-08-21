@@ -51,7 +51,10 @@ ISHODI = [
     (IshodPredmeta.ALREADY_ABSENT, 404),
     (IshodPredmeta.REFUSED, 403),
     (IshodPredmeta.BLOCKED, 409),
-    (IshodPredmeta.PARTIAL_FAILURE, 409),
+    # BETA-DEL-001: jedan `PARTIAL_FAILURE` razdvojen je u dva ishoda sa
+    # suprotnim znacenjem za korisnika. Oba i dalje moraju upisati audit.
+    (IshodPredmeta.RETRYABLE_FAILURE, 409),
+    (IshodPredmeta.PERMANENT_FAILURE, 409),
 ]
 
 
@@ -103,8 +106,9 @@ def test_ponovljeni_delete_ne_daje_dva_uspeha():
 
 
 def test_detalj_greske_nosi_masinski_citljiv_ishod():
-    """Frontend mora moci da razlikuje BLOCKED od PARTIAL_FAILURE."""
-    for ishod in (IshodPredmeta.BLOCKED, IshodPredmeta.PARTIAL_FAILURE):
+    """Frontend mora moci da razlikuje sva tri neuspesna ishoda."""
+    for ishod in (IshodPredmeta.BLOCKED, IshodPredmeta.RETRYABLE_FAILURE,
+                  IshodPredmeta.PERMANENT_FAILURE):
         _, greska, _ = _pozovi(RezultatBrisanja(ishod, "razlog"))
         d = greska.detail
         assert isinstance(d, dict), ishod

@@ -66,8 +66,27 @@ def dozvoljeni_predmeti(supa, user_id: str) -> list:
     if not user_id:
         return []
 
-    svoji = (supa.table("predmeti").select("id")
-             .eq("user_id", user_id).execute())
+    # BETA-DEL-001: predmet u stanju brisanja NE SME biti izvor za RAG.
+    #
+    # Ovo je JEDINO usko grlo kroz koje vlasnikov namespace ulazi u pretragu,
+    # pa je jedan filter ovde dovoljan da tombstonovan predmet nestane iz
+    # konteksta — uključujući `cinjenice_iz_dokumenta` (B4-M2), koje se time
+    # prirodno prazni. Nijedna linija B4-M2 logike se NE dira.
+    #
+    # Zašto `try` a ne samo filter: kolona stiže migracijom 114. Ako migracija
+    # jos nije primenjena, upit sa filterom pada i korisnik bi ostao BEZ
+    # retrieval-a. Pad na neutralnu granu je ovde bezbedan jer se tombstone bez
+    # te kolone ne moze ni upisati (`obrisi_predmet` tada vraca
+    # PERMANENT_FAILURE i ne dira nista), pa nijedan predmet ne moze biti
+    # DELETING.
+    try:
+        svoji = (supa.table("predmeti").select("id")
+                 .eq("user_id", user_id).is_("brisanje_zapoceto", "null").execute())
+    except Exception as e:
+        logger.warning("[RAG_ACL] filter `brisanje_zapoceto` nije primenjen "
+                       "(migracija 114?): %s", e)
+        svoji = (supa.table("predmeti").select("id")
+                 .eq("user_id", user_id).execute())
     ids = [r["id"] for r in (svoji.data or []) if r.get("id")]
 
     # Delegirani uvid — isti uslov koji `get_predmet` koristi na svojoj

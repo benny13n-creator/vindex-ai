@@ -46,6 +46,15 @@ class _Upit:
         self.filteri[k] = v
         return self
 
+    def in_(self, k, v):
+        # BETA-DEL-001: deca koja vise o `events(id)` brisu se po `event_id`.
+        self.filteri["__in__" + k] = list(v)
+        return self
+
+    def is_(self, k, v):
+        self.filteri["__is__" + k] = v
+        return self
+
     def maybe_single(self):
         return self
 
@@ -53,6 +62,9 @@ class _Upit:
         g = self.d.puca.get(self.t)
         if g is not None:
             raise g
+        if self.a == "update":
+            self.d.azuriranja.append(self.t)
+            return MagicMock(data=[])
         if self.a == "delete":
             self.d.brisanja.append(self.t)
             return MagicMock(data=[])
@@ -75,6 +87,10 @@ class _Tabela:
     def delete(self, *a, **k):
         return _Upit(self.d, self.ime, "delete")
 
+    def update(self, *a, **k):
+        # Tombstone (BETA-DEL-001). Belezi se odvojeno od brisanja.
+        return _Upit(self.d, self.ime, "update")
+
 
 class _Supa:
     """Dvojnik koji BELEZI sta je stvarno obrisano."""
@@ -87,6 +103,7 @@ class _Supa:
         }
         self.puca = puca or {}
         self.brisanja = []
+        self.azuriranja = []
 
     def table(self, ime):
         return _Tabela(self, ime)
@@ -102,7 +119,7 @@ _BEZ = object()
 def _obrisi(supa, index=_BEZ, uid=UID, sme=True, vektori_uspeh=True):
     v = MagicMock()
     v.uspeh = vektori_uspeh
-    v.ishod = "DELETED" if vektori_uspeh else "PARTIAL_FAILURE"
+    v.ishod = "DELETED" if vektori_uspeh else "PARTIAL_FAILURE"  # ishod VEKTORA, drugi enum
     with patch("shared.vector_deletion._sme_predmet", return_value=sme), \
          patch("shared.vector_deletion.obrisi_vektore_dokumenta", return_value=v):
         idx = _index() if index is _BEZ else index
@@ -174,23 +191,40 @@ def test_07_tudji_predmet_je_ALREADY_ABSENT_ne_obrisan():
 
 
 # ── 8-10. vektori ───────────────────────────────────────────────────────────
+#
+# OLD: ova tri testa su tvrdila `s.brisanja == []` — „kad vektori padnu,
+#      nijedan red nije obrisan". To je bio invariant STAROG redosleda, u kome
+#      su vektori bili PRVI destruktivni korak.
+#
+# NEW: BETA-DEL-001 je pomerio vektore IZA brisanja redova, pa su pri padu
+#      vektora redovi ocekivano vec obrisani. Zamena invarianta:
+#      predmet je TOMBSTONOVAN i njegov red POSTOJI, dakle nista nije orphan.
+#
+# WHY: stari redosled je mereno uzivo 3/3 proizvodio ZIV predmet sa nepovratno
+#      obrisanim vektorima. Novi redosled to cini nemogucim: u trenutku kad
+#      vektori nestanu, predmet je vec nevidljiv korisniku i RAG-u.
+#
+# INVARIANT KOJI OVI TESTOVI SADA CUVAJU:
+#      pad vektora => RETRYABLE_FAILURE + tombstone upisan + `predmeti` red ostaje
 
-def test_08_pad_vektora_ne_brise_NIJEDAN_red():
-    """Zaostao vektor uz obrisan red je curenje sadrzaja."""
+def test_08_pad_vektora_ostavlja_TOMBSTONOVAN_predmet():
     s = _Supa()
     s.redovi["predmet_dokumenti"] = [{"id": "d1", "predmet_id": PID, "user_id": UID}]
     r = _obrisi(s, vektori_uspeh=False)
-    assert r.ishod == IshodPredmeta.PARTIAL_FAILURE
+    assert r.ishod == IshodPredmeta.RETRYABLE_FAILURE
     assert r.vektori == "NEUSPEH"
-    assert s.brisanja == [], "redovi su obrisani iako vektori nisu"
+    assert r.tombstone == "UPISAN", "predmet nije oznacen za brisanje pre destrukcije"
+    assert "predmeti" in s.azuriranja, "tombstone nije upisan u bazu"
+    assert "predmeti" not in s.brisanja, "predmet je obrisan iako vektori nisu"
 
 
 def test_09_indeks_nedostupan_uz_dokumente_je_neuspeh():
     s = _Supa()
     s.redovi["predmet_dokumenti"] = [{"id": "d1", "predmet_id": PID, "user_id": UID}]
     r = _obrisi(s, index=None)
-    assert r.ishod == IshodPredmeta.PARTIAL_FAILURE
-    assert s.brisanja == []
+    assert r.ishod == IshodPredmeta.RETRYABLE_FAILURE
+    assert r.tombstone == "UPISAN"
+    assert "predmeti" not in s.brisanja
 
 
 def test_10_izuzetak_u_brisanju_vektora_je_neuspeh():
@@ -200,8 +234,9 @@ def test_10_izuzetak_u_brisanju_vektora_je_neuspeh():
          patch("shared.vector_deletion.obrisi_vektore_dokumenta",
                side_effect=RuntimeError("pinecone pao")):
         r = obrisi_predmet(s, _index(), user_id=UID, predmet_id=PID)
-    assert r.ishod == IshodPredmeta.PARTIAL_FAILURE
-    assert s.brisanja == []
+    assert r.ishod == IshodPredmeta.RETRYABLE_FAILURE
+    assert r.tombstone == "UPISAN"
+    assert "predmeti" not in s.brisanja
 
 
 # ── 11-13. parcijalni pad redova ────────────────────────────────────────────
@@ -210,7 +245,7 @@ def test_10_izuzetak_u_brisanju_vektora_je_neuspeh():
 def test_11_pad_jedne_tabele_je_PARTIAL_i_predmet_ostaje(kvar):
     s = _Supa(puca={"zadaci": KVAROVI[kvar]})
     r = _obrisi(s)
-    assert r.ishod == IshodPredmeta.PARTIAL_FAILURE, kvar
+    assert r.ishod == IshodPredmeta.RETRYABLE_FAILURE, kvar
     assert r.uspeh is False
     assert "zadaci" in r.neuspele_tabele
     assert "predmeti" not in s.brisanja, "predmet je obrisan uprkos neociscenoj tabeli"
@@ -243,7 +278,7 @@ def test_13_pad_samog_predmeta_je_PARTIAL():
         return t
     s.table = _t
     r = _obrisi(s)
-    assert r.ishod == IshodPredmeta.PARTIAL_FAILURE
+    assert r.ishod == IshodPredmeta.RETRYABLE_FAILURE
     assert "predmeti" in r.neuspele_tabele
 
 
@@ -252,7 +287,7 @@ def test_13_pad_samog_predmeta_je_PARTIAL():
 def test_14_uspeh_je_iskljucivo_DELETED_ili_ALREADY_ABSENT():
     from shared.predmet_deletion import RezultatBrisanja
     for ishod in (IshodPredmeta.BLOCKED, IshodPredmeta.REFUSED,
-                  IshodPredmeta.PARTIAL_FAILURE):
+                  IshodPredmeta.RETRYABLE_FAILURE):
         assert RezultatBrisanja(ishod).uspeh is False, ishod
     for ishod in (IshodPredmeta.DELETED, IshodPredmeta.ALREADY_ABSENT):
         assert RezultatBrisanja(ishod).uspeh is True, ishod
