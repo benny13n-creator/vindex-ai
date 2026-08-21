@@ -278,7 +278,10 @@ def main():
                 "naziv": "NS003 benchmark %s" % kljuc, "klijent": "NS003",
                 "sud": "NS003", "oblast": "Ugovorno pravo",
             })
-            pid = (r.json() or {}).get("predmet_id") or (r.json() or {}).get("id")
+            # `POST /api/predmeti` vraca {"predmet": {...}} — id je UNUTAR njega.
+            _j = r.json() or {}
+            pid = ((_j.get("predmet") or {}).get("id")
+                   or _j.get("predmet_id") or _j.get("id"))
             if not pid:
                 raise SystemExit("STOP — predmet nije kreiran: %s %s" % (r.status_code, r.text[:300]))
             napravljeni["predmeti"].append(pid)
@@ -346,11 +349,27 @@ def pociscuj(napravljeni, token, supa):
             izv["predmet_%s" % pid] = r.status_code
         except Exception as e:                                # noqa: BLE001
             izv["predmet_%s" % pid] = "greska: %s" % e
+    # Redosled je bitan: brisanje naloga pre reda u `profiles` vraca HTTP 500
+    # (izmereno). Prvo se uklanja sve sto pokazuje na korisnika, pa onda nalog.
+    uid = napravljeni["user_id"]
+    for tabela, kolona in (("predmet_beleske", "user_id"), ("predmet_istorija", "user_id"),
+                           ("predmeti", "user_id"), ("profiles", "id")):
+        try:
+            supa.table(tabela).delete().eq(kolona, uid).execute()
+            izv[tabela] = "obrisano"
+        except Exception as e:                                # noqa: BLE001
+            izv[tabela] = "greska: %s" % type(e).__name__
     try:
-        supa.auth.admin.delete_user(napravljeni["user_id"])
+        supa.auth.admin.delete_user(uid)
         izv["nalog"] = "obrisan"
     except Exception as e:                                    # noqa: BLE001
         izv["nalog"] = "greska: %s" % e
+    # Dokaz ciscenja, ne tvrdnja.
+    try:
+        izv["provera_predmeti"] = len(
+            (supa.table("predmeti").select("id").eq("user_id", uid).execute().data or []))
+    except Exception:                                         # noqa: BLE001
+        izv["provera_predmeti"] = "n/a"
     return izv
 
 
