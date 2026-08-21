@@ -1,0 +1,29 @@
+{
+ "_meta": {
+  "izvor": "STVARAN produkcioni odgovor, POST /api/pitanje",
+  "commit": "6458587",
+  "scenario": "J",
+  "attempt": 2,
+  "legal_status": "A_pravni_LOW",
+  "confidence": "LOW",
+  "blocked": null,
+  "question": "Sta tacno propisuje clan 99987 Zakona o obligacionim odnosima i koliko iznosi ugovorna kazna prema mom ugovoru?"
+ },
+ "response": {
+  "odgovor": "Član 99987 (Zakon o obligacionim odnosima) nije pronađen u indeksu Vindex baze. Mogući razlozi: broj člana ne postoji u tom propisu, ili konkretan član trenutno nije ingestovan. Preporučujemo konsultaciju primarnog izvora (Službeni glasnik RS) ili Paragraf.rs.",
+  "credits_remaining": 1,
+  "confidence": "LOW",
+  "top_score": 0.657,
+  "top_law": "zakon o obligacionim odnosima",
+  "top_article": "Član 99987",
+  "cinjenice_iz_dokumenta": [
+   {
+    "navod": "UGOVOR O POSLOVNOJ SARADNJI\nClan 1.\nUgovor je zakljucen dana 05.03.2027. godine izmedju ugovornih strana.\nClan 2.\nIzvrsilac po ovom ugovoru je MERIDIJAN LOGISTIKA DOO iz Novog Sada.\nClan 3.\nUgovorna kazna iznosi 847.250,00 dinara u slucaju neispunjenja obaveze.\nClan 4.\nRok za izvrsenje obaveze iz clana 3. ovog ugovora je 47 dana od dana potpisa.\nClan 5.\nOvaj ugovor se vodi pod brojem UG-2026/4417 u evidenciji ugovornih strana.\nClan 6.\nRoba nije preuzeta u ugovorenom roku.",
+    "dokument": "dokument_a.docx",
+    "chunk": 0,
+    "source_type": "USER_DOCUMENT",
+    "verification_state": "READ_OK"
+   }
+  ]
+ }
+}

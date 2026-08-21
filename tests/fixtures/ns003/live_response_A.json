@@ -1,0 +1,63 @@
+{
+ "_meta": {
+  "izvor": "STVARAN produkcioni odgovor, POST /api/pitanje",
+  "commit": "6458587",
+  "scenario": "A",
+  "attempt": 1,
+  "legal_status": "normalan",
+  "confidence": "MEDIUM",
+  "blocked": null,
+  "question": "Koliko iznosi ugovorna kazna prema mom ugovoru?"
+ },
+ "response": {
+  "odgovor": "--- BRZA PROCENA\nPravni osnov: POSTOJI\nPravna utemeljenost: VISOKA\nDokazna potpunost: POTPUNA\nProcesni rizik: NIZAK\nObrazloženje: Pravni osnov postoji (ZOO čl. 270). Ugovorna kazna jasno definisana u ugovoru. Nema nedostajućih informacija.\nGlavni rizik: Nema značajnih procesnih rizika jer je ugovorna kazna jasno definisana.\nSTRATEŠKA PREPORUKA:\n1. Proveriti solventnost dužnika [KRITIČNO]\n   Zašto: Bez solventnosti, naplata kazne može biti problematična.\n\n[~] STATUSNA POTVRDA: Parafrazirano na osnovu pronadjenih izvora — sistem prilagodjava tekst; doslovan clan nije potvrdjen u bazi.\n\n--- HIJERARHIJA IZVORA\nPoseban propis: Zakon o obligacionim odnosima — matični zakon za ugovorne odnose.\n\n--- PRAVNI ZAKLJUČAK\nPostoji verovatan pravni osnov za zahtev za naplatu ugovorne kazne prema Zakonu o obligacionim odnosima čl. 270, uz ispunjenje zakonskih uslova. Vrsta odgovornosti: ugovorna. Podnosilac mora dokazati postojanje ugovora, neispunjenje obaveze i ugovorenu kaznu. Sudska praksa: Apelacioni sud u Nisu, 22Gž. 649/13 potvrđuje primenu ugovorne kazne za neispunjenje obaveza.\n\n--- ANALIZA ŠTETE\n• Uzročna veza (ZOO čl. 154): Postoji jer je neispunjenje obaveze direktno povezano sa ugovornom kaznom. • Materijalna šteta (ZOO čl. 189): Nije primenljivo jer se radi o ugovornoj kazni, ne o šteti. • Nematerijalna šteta (ZOO čl. 200): Nije primenljivo jer se radi o ugovornoj kazni, ne o šteti.\n\n--- PROCENA VREDNOSTI ZAHTEVA\nUgovorna kazna iznosi 847.250,00 dinara prema ugovoru.\n\n--- CITAT ZAKONA [RAG]\nČlan 270 (1) Poverilac i dužnik mogu ugovoriti da će dužnik platiti poveriocu određeni novčani iznos ili pribaviti neku drugu materijalnu korist ako ne ispuni svoju obavezu ili ako zadocni sa njenim ispunjenjem (ugovorna kazna).\n\n--- PRAVNI OSNOV\nZakon o obligacionim odnosima, član 270 (Sl. glasnik RS, br. 29/78 i dr.)\n\n--- RIZICI I IZUZECI\n• Solventnost dužnika: Bez imovine, naplata kazne može biti problematična. • Doprinos oštećenog: Nije primenljivo jer se radi o ugovornoj kazni.\n\n--- TAČKE RIZIKA\n⛔ Zastarelost: Nije primenljivo jer se radi o ugovornoj kazni. ⛔ Nedostatak dokaza: Nema nedostajućih dokaza jer je kazna jasno definisana. ⛔ Doprinos oštećenog: Nije primenljivo jer se radi o ugovornoj kazni.\n\n--- PROCESNI KORACI\n(1) ROKOVI ZASTARELOSTI • Nije primenljivo jer se radi o ugovornoj kazni. (2) DOKAZNA SREDSTVA • Ugovor o poslovnoj saradnji sa definisanom kaznom. (3) REDOSLED POSTUPKA Korak 0: PROVERI SOLVENTNOST tuženog — bez imovine za izvršenje, presuda je beskorisna. Korak 1: Prijava osiguravajućem društvu ako postoji osiguranje. Korak 2: Medijacija — brže i jeftinije, kad je primenjivo. Korak 3: Tužba pred nadležnim sudom — krajnja mera.\n\n--- KLJUČNO PITANJE\nDa li je dužnik solventan? (Ako DA — naplata kazne je moguća. Ako NE — naplata može biti problematična.)\n\n--- POTREBNE INFORMACIJE\n1. Da li je dužnik solventan? 2. Da li postoji osiguranje koje pokriva ugovornu kaznu? 3. Da li je bilo pokušaja mirnog rešenja spora?\n\n--- SUDSKA PRAKSA\n1. Apelacioni sud u Nisu, 22Gž. 649/13, 2013-03-26\n   Pravni princip: Ugovorna kazna može se ugovoriti samo za nenovčane obaveze.\n   Primena: Potvrđuje pravo na ugovornu kaznu za neispunjenje obaveza.\n   Razlika: Činjenično stanje predmeta nije potpuno poznato — nedostaje informacija o solventnosti dužnika.\n   Odluka potvrđuje da ugovorna kazna može biti naplaćena za neispunjenje nenovčanih obaveza.\n\n--- IZVOR\nZakon o obligacionim odnosima (Sl. glasnik RS, br. 29/78 i dr.)\n\n⚠️ Ovaj izveštaj je generisan uz pomoć AI i služi isključivo kao pomoćno sredstvo u radu. Konsultujte originalni tekst propisa u Službenom glasniku RS. Nije pravni savet — podložno promenama u sudskoj praksi.",
+  "credits_remaining": 11,
+  "confidence": "MEDIUM",
+  "confidence_detail": {
+   "skor": 81,
+   "nivo": "visoko",
+   "upozorenje": false,
+   "top_score_confidence": "MEDIUM"
+  },
+  "izvori": [
+   {
+    "zakon": "zakon o obligacionim odnosima",
+    "clan": "Član 275",
+    "score": 0.6244
+   },
+   {
+    "zakon": "zakon o obligacionim odnosima",
+    "clan": "Član 271",
+    "score": 0.624
+   },
+   {
+    "zakon": "zakon o obligacionim odnosima",
+    "clan": "Član 273",
+    "score": 0.6234
+   },
+   {
+    "zakon": "zakon o obligacionim odnosima",
+    "clan": "Član 270",
+    "score": 0.618
+   },
+   {
+    "zakon": "zakon o obligacionim odnosima",
+    "clan": "Član 276",
+    "score": 0.6001
+   }
+  ],
+  "top_score": 0.624,
+  "top_law": "zakon o obligacionim odnosima",
+  "top_article": "Član 275",
+  "izvori_neuspeh": [],
+  "cinjenice_iz_dokumenta": [
+   {
+    "navod": "UGOVOR O POSLOVNOJ SARADNJI\nClan 1.\nUgovor je zakljucen dana 05.03.2027. godine izmedju ugovornih strana.\nClan 2.\nIzvrsilac po ovom ugovoru je MERIDIJAN LOGISTIKA DOO iz Novog Sada.\nClan 3.\nUgovorna kazna iznosi 847.250,00 dinara u slucaju neispunjenja obaveze.\nClan 4.\nRok za izvrsenje obaveze iz clana 3. ovog ugovora je 47 dana od dana potpisa.\nClan 5.\nOvaj ugovor se vodi pod brojem UG-2026/4417 u evidenciji ugovornih strana.\nClan 6.\nRoba nije preuzeta u ugovorenom roku.",
+    "dokument": "dokument_a.docx",
+    "chunk": 0,
+    "source_type": "USER_DOCUMENT",
+    "verification_state": "READ_OK"
+   }
+  ]
+ }
+}
