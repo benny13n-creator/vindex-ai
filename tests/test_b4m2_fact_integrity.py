@@ -163,8 +163,18 @@ def test_cinjenica_prezivljava_dugacak_pravni_kontekst(naziv, telo, vrednost):
                          ids=[c[0] for c in CINJENICE])
 def test_zakonski_pasus_ne_moze_da_se_predstavi_kao_cinjenica(naziv, telo, vrednost):
     """Obrnut smer: ništa iz zakonskog korpusa ne sme da uđe u kanal dokumenta.
-    Zakon sadrži 9,50 / 01.01.1978 / P-9999/99 — nijedno ne sme da se pojavi."""
-    docs = [_zakon(i) for i in range(6)] + [_pasus("ugovor.pdf", 0, telo)]
+    Zakon sadrži 9,50 / 01.01.1978 / P-9999/99 — nijedno ne sme da se pojavi.
+
+    KRATAK zakonski pasus je OBAVEZAN u ovom skupu: dugi (`_zakon()`) ionako ne
+    stane u budžet, pa bi ispao i bez provere labele — i mutacija „ukloni
+    proveru labele" bi preživela. Kratak pasus u vernom `_formatiraj_match`
+    obliku je jedini koji ovaj invariant stvarno meri.
+    """
+    kratak_zakon = ("ZAKON: Zakon o obligacionim odnosima\nČLAN: 277\n\n"
+                    "CITABILNI TEKST: Kamata je 9,50 procenata od 01.01.1978. "
+                    "Predmet P-9999/99, rok zastarelosti tri godine.\n")
+    docs = [_zakon(i) for i in range(6)] + [kratak_zakon,
+                                            _pasus("ugovor.pdf", 0, telo)]
     spojeno = " ".join(x["navod"] for x in M._dokumentarne_cinjenice(docs, []))
     for tudje in ("9,50", "01.01.1978", "P-9999/99", "zastarelosti"):
         assert tudje not in spojeno, (
@@ -246,95 +256,161 @@ def test_uobicajen_slucaj_je_bajt_identican():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 4 — KARAKTERIZACIJA: KANAL NE POSTOJI NA BLOKIRANIM IZLAZIMA
+# 4 — NALAZ 2: PROVENANCE PREŽIVLJAVA BLOKIRANE IZLAZE
 #
-# Ovi testovi tvrde ono što sistem DANAS radi — uključujući pogrešno.
-# Nađeno AST popisom svih izlaza iz `ask_agent` (24 izlaza koji nose odgovor,
-# 13 bez kanala) i POTVRĐENO izvršavanjem, ne čitanjem koda.
+# OLD (`ed02b29f`, karakterizacija kvara): tri testa u ovoj sekciji tvrdila su
+#     da `cinjenice_iz_dokumenta` NE POSTOJI na izlazima `filtrirani == []`,
+#     „pravna greška" i „guard block". Nosili su izričitu uputu da MORAJU pasti
+#     kad se blokator zatvori i da se tada ZAMENJUJU dokazom pokrivenosti.
 #
-# Kanal `cinjenice_iz_dokumenta` postoji na HIGH i LOW putu, a NEDOSTAJE tačno
-# na blokiranim/odbijenim izlazima — dakle u situaciji zbog koje je B4 i
-# otvoren: pravni deo padne, a činjenica iz dokumenta nestane s njim.
+# NEW: blokator je zatvoren. Isti izlazi sada nose kanal, pa ova sekcija tvrdi
+#     suprotno — činjenica iz dokumenta preživljava blokadu pravnog dela.
 #
-# NIJE POPRAVLJENO U OVOM SPRINTU. Dva od tri pogođena izlaza su izlazi
-# anti-halucinacijskog guard-a; NS002 je izmereno dokazao da izmene na toj
-# granici traže živo E2E merenje (scenario J: 4/5 → 1/10 posle naizgled
-# ispravne izmene, koja je zato VRAĆENA). Ovaj sprint to merenje ne može da
-# izvede, pa se stanje zaključava umesto da se nagađa.
+# WHY: kanal je postojao na HIGH i LOW putu, a nedostajao je baš na blokiranim
+#     izlazima — dakle tačno kad pravni deo padne, što je situacija zbog koje je
+#     B4 i otvoren. Advokat je dobijao odbijanje bez ijednog traga o tome šta
+#     njegov dokument kaže.
 #
-# KAD SE BLOKATOR ZATVORI, OVI TESTOVI MORAJU PASTI. Tada se ZAMENJUJU
-# dokazom pokrivenosti — ne brišu se.
+# GRANICA KOJU OVI TESTOVI ČUVAJU: dodavanje provenance-a NE SME da promeni
+# odluku guard-a. Zato svaki test ispod tvrdi i `blocked`, i da tekst odgovora
+# nije dobio nijednu novu tvrdnju.
 # ═══════════════════════════════════════════════════════════════════════════
 
+import contextlib  # noqa: E402
 from unittest.mock import patch  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(__file__))
 from test_b4_source_authority import _ask, _meta  # noqa: E402
 
 _DOK_PASUS = ("KORISNIKOV DOKUMENT (OVAJ PREDMET) [ugovor.pdf, chunk 0]\n\n"
-              "Ugovorna kazna iznosi 500.000,00 dinara. Ugovor zaključen 14.03.2026.")
-_ZAK_PASUS = "[ZOO član 262] Ugovorna kazna se može ugovoriti u novcu " + "x" * 80
+              "Ugovorna kazna iznosi 500.000,00 dinara. Ugovor zaključen 14.03.2026. "
+              "Rok za ispunjenje je 30 dana. Dužnik ALFA DOO. Predmet P-1234/26.")
+# Zakon namerno nosi DRUGE brojeve i DRUGI datum od dokumenta (§11 conflict).
+#
+# HARNESS FORENSICS: prva verzija ovog fixture-a bila je JEDNOLINIJSKA. Zbog
+# toga je `telo` posle `partition("\n")` bilo prazno, pa je zakonski pasus
+# ispadao iz `_dokumentarne_cinjenice` čak i kad se provera labele UKLONI —
+# mutacija „zakon ulazi u kanal dokumenta" je preživela, a test je izgledao
+# zeleno. Stvarni pasus iz `_formatiraj_match` je VIŠELINIJSKI, pa je fixture
+# sada veran njegovom obliku. Bez toga INVARIANT B nije bio meren.
+_ZAK_PASUS = ("ZAKON: Zakon o obligacionim odnosima\nČLAN: 262\n\n"
+              "CITABILNI TEKST: Ugovorna kazna ne može preći 50.000,00 dinara. "
+              "Zakon je stupio na snagu 01.01.1978. Rok zastarelosti je tri "
+              "godine. Predmet P-9999/99.\n")
 
 
-def _ask_bez_kesa(pitanje, dodatni_patch=None, conf="HIGH", top=0.9):
+def _ask_bez_kesa(pitanje, dodatni_patch=None, conf="HIGH", top=0.9, docs=None):
     """`ask_agent` sa ISKLJUČENIM L1+L2 kešom.
 
     HARNESS FORENSICS: bez ovoga svaki naredni scenario dobija keširan odgovor
     prethodnog (`Cache HIT L1`), pa bi svi izgledali kao da nose kanal — a i
     upisivalo bi se u produkcionu `ai_cache` tabelu. Mereno, ne pretpostavljeno.
     """
-    import contextlib
     M._CACHE.clear()
     with contextlib.ExitStack() as st:
         st.enter_context(patch.object(M, "_supa_cache_get", return_value=None))
         st.enter_context(patch.object(M, "_supa_cache_set", return_value=None))
         if dodatni_patch is not None:
             st.enter_context(dodatni_patch)
-        rez, _ = _ask([_ZAK_PASUS, _DOK_PASUS], _meta(conf, top), pitanje=pitanje)
+        rez, _ = _ask(docs if docs is not None else [_ZAK_PASUS, _DOK_PASUS],
+                      _meta(conf, top), pitanje=pitanje)
     M._CACHE.clear()
     return rez
 
 
+def _navodi(rez):
+    return " ".join(x["navod"] for x in (rez.get("cinjenice_iz_dokumenta") or []))
+
+
+# ── kontrola harnessa ──────────────────────────────────────────────────────
+
 def test_referenca_HIGH_i_LOW_put_NOSE_kanal():
-    """Kontrola: kanal stvarno radi tamo gde je ugrađen. Bez ove kontrole
-    testovi ispod bi mogli da prolaze zato što je harness pokvaren."""
+    """Bez ove kontrole testovi ispod bi mogli da prolaze zbog pokvarenog
+    harnessa, a ne zbog ispravnog koda."""
     assert "cinjenice_iz_dokumenta" in _ask_bez_kesa("B4M2 kontrola HIGH")
     assert "cinjenice_iz_dokumenta" in _ask_bez_kesa(
         "B4M2 kontrola LOW", conf="LOW", top=0.2)
 
 
-def test_KVAR_prazan_filtriran_kontekst_gubi_kanal():
-    """`if not filtrirani:` izlaz vraća LOW odbijanje BEZ kanala, dok njegov
-    sestrinski LOW izlaz kanal nosi. Ista situacija, dva različita ugovora."""
-    rez = _ask_bez_kesa("B4M2 prazan filtriran kontekst",
-                        patch.object(M, "_filtriraj_kontekst", return_value=[]))
-    assert "cinjenice_iz_dokumenta" not in rez, (
-        "BLOKATOR ZATVOREN — zameni ovaj test dokazom pokrivenosti")
+# ── tri zatvorena izlaza ───────────────────────────────────────────────────
+
+_BLOKIRANI = [
+    ("filtrirani_prazan", lambda: patch.object(M, "_filtriraj_kontekst", return_value=[]), None),
+    ("pravna_greska", lambda: patch.object(M, "_verifikuj_pravne_greske",
+                                           return_value=(False, "izmišljen član")), True),
+    ("guard_block", lambda: patch.object(M, "_parsiraj_strukturni_odgovor",
+                                         return_value=(False, "BLOKIRANO")), True),
+]
 
 
-def test_KVAR_pravna_greska_blokira_i_cinjenicu_iz_dokumenta():
-    """`_odgovor_pravna_greska` zamenjuje ceo odgovor. Ni kanala ni citata —
-    činjenica iz advokatovog dokumenta nestaje potpuno."""
-    rez = _ask_bez_kesa("B4M2 pravna greska",
-                        patch.object(M, "_verifikuj_pravne_greske",
-                                     return_value=(False, "izmišljen član")))
-    assert rez.get("blocked") is True
-    assert "cinjenice_iz_dokumenta" not in rez, (
-        "BLOKATOR ZATVOREN — zameni ovaj test dokazom pokrivenosti")
-    assert "500.000,00" not in (rez.get("data") or ""), (
-        "iznos se pojavio u tekstu — ponašanje je promenjeno, ažuriraj nalaz")
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_blokiran_izlaz_nosi_cinjenicu_iz_dokumenta(naziv, mk, ocekivan_blocked):
+    rez = _ask_bez_kesa("B4M2 zatvoren %s" % naziv, mk())
+    assert "cinjenice_iz_dokumenta" in rez, (
+        "činjenica iz dokumenta ponovo nestaje sa blokadom pravnog dela")
+    assert "500.000,00" in _navodi(rez)
+    assert "14.03.2026" in _navodi(rez)
 
 
-def test_KVAR_guard_block_nema_strukturisan_kanal():
-    """Guard koji obori strukturu odgovora vraća blokadu bez kanala.
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_guard_ostaje_guard(naziv, mk, ocekivan_blocked):
+    """INVARIANT C/D: provenance ne sme da promeni odluku guard-a niti da
+    blokiran odgovor pretvori u odgovor."""
+    rez = _ask_bez_kesa("B4M2 guard %s" % naziv, mk())
+    assert rez.get("blocked") is ocekivan_blocked, (
+        "guard odluka je promenjena dodavanjem provenance-a")
 
-    NAPOMENA: na ovom putu `_format_halucination_block` (NS001-P0-001B) UME da
-    priloži doslovan citat u TEKST, pa činjenica nije nužno nevidljiva — ali
-    strukturisanog, mašinski čitljivog kanala nema.
+
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_legal_context_ne_postaje_dokumentarna_cinjenica(naziv, mk, ocekivan_blocked):
+    """INVARIANT B: zakon nosi 50.000,00 / 01.01.1978 / P-9999/99 — nijedno ne
+    sme da se pojavi kao ono što DOKUMENT navodi."""
+    nav = _navodi(_ask_bez_kesa("B4M2 izvor %s" % naziv, mk()))
+    for tudje in ("50.000,00", "01.01.1978", "P-9999/99", "zastarelosti"):
+        assert tudje not in nav, (
+            "vrednost iz ZAKONA je isporučena kao činjenica iz dokumenta: %r" % tudje)
+
+
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_bez_dokumenta_kanal_je_PRAZAN_a_ne_izmisljen(naziv, mk, ocekivan_blocked):
+    """INVARIANT A: kad dokumenta nema, kanal je prazna lista — ne izmišljena
+    činjenica i ne prepisan zakon. `[]` znači „pročitano, nema ničega"."""
+    rez = _ask_bez_kesa("B4M2 bez dokumenta %s" % naziv, mk(), docs=[_ZAK_PASUS])
+    assert rez.get("cinjenice_iz_dokumenta") == []
+
+
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_tekst_odgovora_ne_dobija_novu_tvrdnju(naziv, mk, ocekivan_blocked):
+    """§10 C: provenance se prenosi u ODVOJENOM polju. Tekst koji guard
+    kontroliše ne sme dobiti nijedan znak više."""
+    bez = _ask_bez_kesa("B4M2 tekst %s" % naziv, mk(), docs=[_ZAK_PASUS])
+    sa = _ask_bez_kesa("B4M2 tekst %s" % naziv, mk())
+    assert (bez.get("data") or "") == (sa.get("data") or ""), (
+        "tekst odgovora se menja kad dokument postoji — provenance je procurio "
+        "u polje koje guard kontroliše")
+
+
+# ── API granica ────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("naziv,mk,ocekivan_blocked", _BLOKIRANI,
+                         ids=[b[0] for b in _BLOKIRANI])
+def test_provenance_prelazi_API_granicu_i_na_blokiranom_putu(naziv, mk, ocekivan_blocked):
+    """Popravka u `ask_agent` je bezvredna ako polje umre u `normalizuj_rezultat`.
+
+    Tačno to se već jednom dogodilo: bela lista u `api.py` gutala je i
+    `izvori_neuspeh` i `cinjenice_iz_dokumenta`, pa je popravka postojala u
+    agentu i u `vindex.js`, a klijent je nikad nije video.
     """
-    rez = _ask_bez_kesa("B4M2 guard block",
-                        patch.object(M, "_parsiraj_strukturni_odgovor",
-                                     return_value=(False, "BLOKIRANO")))
-    assert rez.get("blocked") is True
-    assert "cinjenice_iz_dokumenta" not in rez, (
-        "BLOKATOR ZATVOREN — zameni ovaj test dokazom pokrivenosti")
+    import api
+
+    rez = _ask_bez_kesa("B4M2 API %s" % naziv, mk())
+    resp = api.normalizuj_rezultat(rez, credits_remaining=5)
+    assert "cinjenice_iz_dokumenta" in resp, (
+        "provenance je umro na API granici — klijent ga ne vidi")
+    assert "500.000,00" in " ".join(x["navod"] for x in resp["cinjenice_iz_dokumenta"])
+    assert resp["cinjenice_iz_dokumenta"][0]["source_type"] == "USER_DOCUMENT"

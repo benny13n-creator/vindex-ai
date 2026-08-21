@@ -4,6 +4,12 @@
 
 ---
 
+> **STATUS 2026-08-21:** NALAZ 2 je od ovog izveštaja **zatvoren** — v.
+> `B4M2_NALAZ2_REMEDIATION.md`. Ispravka broja: izlaza iz `ask_agent` ima
+> **18**, ne 24 (greška u brojanju je objašnjena u tom izveštaju); broj „13 bez
+> kanala" je bio tačan. Ostatak ovog dokumenta ostaje kao zapis stanja na
+> `ed02b29f`.
+
 ## VERDIKT
 
 🔴 **RED.**

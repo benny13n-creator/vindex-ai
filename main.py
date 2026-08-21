@@ -2470,6 +2470,37 @@ def _dokumentarne_cinjenice(docs: Optional[list] = None,
     INVARIANT 10: navod je CEO ili ga nema. Odsečen fragment potpisan sa
     `READ_OK` je tvrdnja o dokumentu koja nije tačna — v. obrazloženje uz
     budžet ispod.
+
+    INVARIANT 11 (B4-M2 / NALAZ 2): KOJI IZLAZI IZ `ask_agent` NOSE OVAJ KANAL.
+
+    Pravilo je jedno, da ne bi nastajala razlika među sestrinskim izlazima —
+    upravo je ona i bila kvar:
+
+        Svaki izlaz koji korisniku isporučuje ODGOVOR ILI ODBIJANJE na
+        postavljeno pitanje nosi kanal. Prolazni infrastrukturni kvar
+        („Sistem je trenutno zauzet", korisnik ponavlja pokušaj) i izlaz
+        PRE retrieval-a ga ne nose.
+
+    Mereno na `ed02b29f`: kanal je postojao na HIGH i na jednom LOW izlazu, a
+    nedostajao je na blokiranim/odbijenim izlazima — dakle tačno tamo gde
+    pravni deo padne, što je situacija zbog koje je B4 i otvoren. Advokat bi
+    dobio „nema direktnog člana u bazi" bez ijednog traga o tome šta njegov
+    dokument kaže.
+
+    Dodavanje je ČISTO ADITIVNO: ne dira control flow, ne menja `data`,
+    `status` ni `blocked`, i ne utiče na odluku anti-halucinacionog guard-a.
+    Vrednost izvodi ova funkcija iz `docs` — istog izvora koji je već u
+    kontekstu — pa se provenance ne izmišlja.
+
+    NE NOSE KANAL, i to je namerno:
+      * izlaz za prazno pitanje i pad samog retrieval-a — `docs` još ne
+        postoji, pa nema šta da se prenese (izmišljanje bi bilo gore od
+        ćutanja);
+      * tri „Sistem je trenutno zauzet" izlaza posle pada LLM poziva — sistem
+        ne tvrdi ništa o dokumentu, korisnik ponavlja pokušaj;
+      * spoljni `except Exception` na dnu funkcije — `docs` tamo NIJE
+        garantovano vezan (izuzetak može nastati i pre retrieval-a), pa bi
+        poziv mogao da digne `UnboundLocalError` i pretvori grešku u pad.
     """
     # Isti izvor labele koji `_dokumentarni_citat` već koristi — jedan vlasnik.
     from app.services.doc_formatter import _DOC_LABEL as _L
@@ -3663,6 +3694,7 @@ def ask_agent(
                     "top_article": _ref_label,
                     "top_law": _ref_zakon or top_law,
                     "retrieval_unavailable": True,
+                    "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
             if not _ref_matches:
                 logger.warning(
@@ -3675,6 +3707,7 @@ def ask_agent(
                     "data": _format_refusal(_ref_label, _ref_zakon or top_law),
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": _ref_label, "top_law": _ref_zakon or top_law,
+                    "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
             # Fix 1: article found — update metadata unconditionally (old guard
             # `if confidence != "HIGH"` caused footer to show semantic top hit instead
@@ -3752,6 +3785,7 @@ def ask_agent(
                 "status": "success", "data": odgovor,
                 "confidence": "LOW", "top_score": top_score,
                 "top_article": top_article, "top_law": top_law,
+                "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
             }
 
         # KORAK 4: Klasifikacija + topic prompt (zajednički za MEDIUM i HIGH)
@@ -3866,12 +3900,18 @@ def ask_agent(
                     "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
+                    "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
 
             pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
             if not pravno_validan:
                 logger.error("Pravna greška MEDIUM: %s", pravna_greska)
-                return {"status": "success", "blocked": True, "data": _odgovor_pravna_greska(pravna_greska)}
+                return {
+                    "status": "success",
+                    "blocked": True,
+                    "data": _odgovor_pravna_greska(pravna_greska),
+                    "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
+                }
 
             # Topic drift check — za MEDIUM: ne blokiramo, samo dodajemo upozorenje
             tematski_ok_med, tematski_razlog_med = _proveri_tematsku_relevantnost(pitanje_api, odgovor, filtrirani)
@@ -4014,12 +4054,18 @@ def ask_agent(
                     "data": odgovor,
                     "confidence": "LOW", "top_score": top_score,
                     "top_article": top_article, "top_law": top_law,
+                    "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
                 }
 
         pravno_validan, pravna_greska = _verifikuj_pravne_greske(odgovor)
         if not pravno_validan:
             logger.error("Pravna greška [confidence=%s]: %s", confidence, pravna_greska)
-            return {"status": "success", "blocked": True, "data": _odgovor_pravna_greska(pravna_greska)}
+            return {
+                "status": "success",
+                "blocked": True,
+                "data": _odgovor_pravna_greska(pravna_greska),
+                "cinjenice_iz_dokumenta": _dokumentarne_cinjenice(docs, _izvori_neuspeh),
+            }
 
         odgovor = _srpski_termini(odgovor)
         odgovor = _ogranici_pouzdanost(odgovor)
