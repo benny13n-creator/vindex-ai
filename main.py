@@ -2466,6 +2466,10 @@ def _dokumentarne_cinjenice(docs: Optional[list] = None,
     INVARIANT 9: `source_type` dodeljuje OVA funkcija, ne tekst dokumenta. Ni
     jedan sadržaj dokumenta ne može promeniti vrednost — parsira se isključivo
     header koji je `format_doc_passage` (sistem) sam napisao.
+
+    INVARIANT 10: navod je CEO ili ga nema. Odsečen fragment potpisan sa
+    `READ_OK` je tvrdnja o dokumentu koja nije tačna — v. obrazloženje uz
+    budžet ispod.
     """
     # Isti izvor labele koji `_dokumentarni_citat` već koristi — jedan vlasnik.
     from app.services.doc_formatter import _DOC_LABEL as _L
@@ -2499,10 +2503,33 @@ def _dokumentarne_cinjenice(docs: Optional[list] = None,
                         chunk = int(x.split()[-1])
                     except (ValueError, IndexError):
                         chunk = None
+        # INVARIANT 10 (B4-M2): ČINJENICA SE EMITUJE CELA ILI NIKAKO.
+        #
+        # Ranije je ovde stajalo `telo = telo[: MAX - ukupno].rstrip()` — budžet
+        # se poštovao tako što se telo seklo NA PROIZVOLJNOM ZNAKU, a fragment
+        # je zatim dobijao ISTE oznake kao ceo navod (`READ_OK`,
+        # `USER_DOCUMENT`) i stizao u UI pod naslovom „Doslovan navod iz
+        # dokumenta koji ste dostavili".
+        #
+        # Izmereno na `_DOK_CITAT_MAX = 1200`:
+        #   dokument: „Kazna je 500.000,00 dinara."
+        #   prikazano advokatu: „Kazna je 500.0"        (verification_state=READ_OK)
+        #   dokument: „Zakljucen 14.03.2026. godine."
+        #   prikazano advokatu: „Zakljucen 14.03.2026." (rok/datum bez godine)
+        # Iznos od pola miliona postaje 500,0 — to nije izgubljena činjenica
+        # nego IZMENJENA, potpisana kao pročitana iz dokumenta.
+        #
+        # `READ_OK` znači „ovaj pasus je pročitan". Za odsečen fragment ta
+        # tvrdnja je neistinita, a nijedno polje unosa je ne opovrgava (v.
+        # ključeve ispod — markera o skraćivanju nema, i ne dodaje se ovde jer
+        # bi to bila izmena API ugovora).
+        #
+        # Zato: ako ceo navod ne stane u preostali budžet, ne emituje se uopšte.
+        # `continue`, ne `break` — kraća činjenica IZA duge i dalje sme da uđe,
+        # pa se gubi strogo manje nego ranije. Kad sve staje (uobičajen slučaj),
+        # ponašanje je bajt-identično ranijem.
         if ukupno + len(telo) > _DOK_CITAT_MAX:
-            telo = telo[: max(0, _DOK_CITAT_MAX - ukupno)].rstrip()
-        if not telo:
-            break
+            continue
         cinjenice.append({
             "navod":              telo,
             "dokument":           dokument,
