@@ -434,14 +434,27 @@ def test_8b_csv_export_i_dalje_radi():
 def test_8c_mesecni_racuna_tacno():
     """Napomena o obimu: `_SemaSupa` NE primenjuje `.gte/.lte` filtere — to radi
     baza. Ovde se zato meri SUMIRANJE i izbor po statusu, ne filtriranje po
-    periodu. Očekivanje je pun skup redova, ne mesečni podskup."""
+    periodu. Očekivanje je pun skup redova, ne mesečni podskup.
+
+    OLD: tvrdilo se `fakturisano_rsd == 19500.0`, uz komentar „7500 + 12000".
+         To su iznosi iz `billing_entries` — dakle NEOBRAČUNAT rad. Test je time
+         kodirao sam kvar B2-MESECNI-001.
+
+    NEW: `fakturisano_rsd` dolazi iz `fakture` (9000 + 14400 = 23400), a rad
+         meseca ima sopstveno polje `uneseno_rsd` (7500 + 12000 = 19500).
+
+    WHY: mereno uživo na `15302e0` — tenant sa 4.000 RSD rada i NIJEDNOM
+         fakturom dobijao je `fakturisano_rsd = 4000` i `neplaceno_rsd = 4000`,
+         tj. dug koji klijentu nikad nije ispostavljen.
+    """
     supa, c = _klijent()
     with patch.object(br, "_get_supa", return_value=supa):
         d = c.get("/billing/report/mesecni?mesec=%d-01" % YEAR).json()
 
-    assert d["fakturisano_rsd"] == 19500.0   # 7500 + 12000
+    assert d["fakturisano_rsd"] == 23400.0   # 9000 + 14400, iz `fakture`
     assert d["naplaceno_rsd"]   == 9000.0    # samo faktura sa `placena`
-    assert d["neplaceno_rsd"]   == 10500.0
+    assert d["neplaceno_rsd"]   == 14400.0   # 23400 - 9000
+    assert d["uneseno_rsd"]     == 19500.0   # 7500 + 12000, rad iz `billing_entries`
     assert d["aktivnih_predmeta"] == 2
 
 

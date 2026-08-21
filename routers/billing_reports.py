@@ -646,11 +646,30 @@ async def billing_mesecni(
     prekoraceni = _mora(rokovi_r,      "prekoračeni rokovi")
     sledeci14   = _mora(hronologija_r, "nadolazeći rokovi")
 
-    fakturisano = sum(float(e.get("iznos_rsd") or 0) for e in entries)
+    # B2-MESECNI-001 — TRI POJMA KOJA SE NE SMEJU MEŠATI.
+    #
+    # Ovde je stajalo:
+    #     fakturisano = sum(float(e.get("iznos_rsd") or 0) for e in entries)
+    # `entries` su `billing_entries`, dakle NEOBRAČUNAT rad. Mereno uživo na
+    # `15302e0`: tenant sa 3 stavke rada (1.000 + 2.500 + 500) i NIJEDNOM
+    # fakturom dobijao je `fakturisano_rsd = 4000` i time `neplaceno_rsd = 4000`
+    # — advokatu je prikazan dug koji klijentu nikad nije ispostavljen.
+    #
+    # `fakture` se u ovoj funkciji VEĆ dohvata, skopirana po `user_id` i po
+    # `datum_fakture` unutar meseca, kroz `_mora` (pad izvora = 503, ne nula).
+    # Ista, ispravna semantika postoji u godišnjem izveštaju iznad.
+    #
+    #   rad        `billing_entries.iznos_rsd`      uneseno, još nefakturisano
+    #   fakturisan `fakture.iznos_sa_pdv`           izdato klijentu
+    #   naplaćen   `fakture` sa `status='placena'`  stvarno naplaćeno
+    fakturisano = sum(float(f.get("iznos_sa_pdv") or 0) for f in fakture)
     naplaceno   = sum(
         float(f.get("iznos_sa_pdv") or 0)
         for f in fakture if f.get("status") == "placena"
     )
+    # Rad meseca ne sme da nestane sa ekrana — samo prestaje da se zove
+    # „fakturisano". Isto ime nosi i godišnji izveštaj (`ukupno_uneseno_rsd`).
+    uneseno = sum(float(e.get("iznos_rsd") or 0) for e in entries)
 
     pred_by_tip: dict[str, int] = {}
     for p in predmeti:
@@ -664,7 +683,8 @@ async def billing_mesecni(
         "predmeti_po_tipu":   pred_by_tip,
         "rocista_mesec":      len(rocista),
         "rocista":            rocista[:20],
-        "fakturisano_rsd":    round(fakturisano, 2),
+        "uneseno_rsd":        round(uneseno, 2),      # rad meseca, još nefakturisan
+        "fakturisano_rsd":    round(fakturisano, 2),  # iz `fakture`, nikad iz rada
         "naplaceno_rsd":      round(naplaceno, 2),
         "neplaceno_rsd":      round(fakturisano - naplaceno, 2),
         "prekoraceni_rokovi": len(prekoraceni),
