@@ -265,6 +265,43 @@ def _verify_token(token: str) -> Optional[dict]:
     return None
 
 
+def email_iz_tokena(payload: Optional[dict]) -> str:
+    """B-U-007 — JEDINA dozvoljena granica poverenja za identitet iz tokena.
+
+    Email izveden ovom funkcijom odlučuje o osnivačkim i admin privilegijama
+    (`FOUNDER_EMAILS`, `PRO_EMAILS`, `_require_admin`, `_require_founder`,
+    `_is_founder`, `klijenti/permissions.py::_role_from_db`). Zato sme da
+    dolazi ISKLJUČIVO iz server-kontrolisanog izvora.
+
+    ŠTA JE POUZDANO — `payload["email"]`:
+      • na SDK putanji (`supa.auth.get_user`) `_verify_token` ga sintetiše iz
+        `resp.user.email`, tj. iz kolone `auth.users.email`;
+      • na lokalnoj putanji (`verify_token_local`) to je top-level claim koji
+        Supabase upisuje iz iste kolone i kriptografski potpisuje.
+      Korisnik tu vrednost ne može da promeni bez verifikovanog email-change
+      toka — dakle menja je server, ne klijent.
+
+    ŠTA NIJE POUZDANO I ZATO VIŠE NE ULAZI U ODLUKU:
+      • `user_metadata.email` — piše ga sam korisnik pozivom
+        `supabase.auth.updateUser({data: {...}})`. Izmereno nad sintetičkim
+        nalogom 2026-08-22: običan korisnik je upisao osnivački email i ta
+        vrednost se pojavila u POTPISANOM tokenu. Potpis dokazuje da token
+        nije falsifikovan — NE dokazuje da je sadržaj polja istinit.
+      • `email_claim` — nestandardan ključ koji nijedno mesto u repou ne
+        upisuje; kao fallback bi bio samo još jedan otvoren ulaz.
+
+    FAIL-CLOSED: kad pouzdanog email-a nema, vraća se `""`. Prazan string nije
+    ni u `FOUNDER_EMAILS` ni u `PRO_EMAILS` (prazne vrednosti se filtriraju pri
+    učitavanju), pa je ishod DENY — nikad „best effort" privilegija.
+    """
+    if not isinstance(payload, dict):
+        return ""
+    email = payload.get("email")
+    if not isinstance(email, str):
+        return ""
+    return email.strip()
+
+
 def _client_ip(request: Optional[Request]) -> Optional[str]:
     if not request or not request.client:
         return None
@@ -309,12 +346,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Vaša sesija je istekla. Prijavite se ponovo.",
         )
-    email = (
-        payload.get("email")
-        or payload.get("user_metadata", {}).get("email")
-        or payload.get("email_claim")
-        or ""
-    )
+    # B-U-007: identitet koji odlucuje o privilegiji dolazi SAMO iz
+    # server-kontrolisanog claim-a. v. shared/deps.py::email_iz_tokena
+    email = email_iz_tokena(payload)
     logger.debug("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
     # Mission Atlas (2026-08-03) — AI Provenance request context. Every
     # Depends(get_current_user)-protected endpoint already resolves the user

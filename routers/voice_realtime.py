@@ -30,6 +30,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from shared.deps import _verify_token
 from shared.feature_registry import get_policy
 from shared.deps import _is_founder
+from shared.deps import email_iz_tokena  # B-U-007
 from shared.sentry import capture_exception as _sentry_capture
 from services.voice_orchestrator import VoiceEntitlementError, VoiceOrchestratorSession
 
@@ -54,11 +55,8 @@ async def _authenticate(websocket: WebSocket) -> Optional[dict]:
         await websocket.close(code=_POLICY_VIOLATION_CODE, reason="Nevažeći ili istekao token.")
         return None
 
-    email = (
-        payload.get("email")
-        or payload.get("user_metadata", {}).get("email")
-        or ""
-    )
+    # B-U-007: v. shared/deps.py::email_iz_tokena
+    email = email_iz_tokena(payload)
     user = {"user_id": payload.get("sub"), "email": email}
 
     try:

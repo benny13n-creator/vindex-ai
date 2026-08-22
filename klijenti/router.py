@@ -37,7 +37,7 @@ from klijenti.audit import (Akcija, AuditNijeZapisan, get_client_ip,
                             log_event, log_event_strict)
 from security.crypto import encrypt_field, decrypt_field, is_encrypted, generate_storage_key
 from security.html_sanitize import sanitize_user_input
-from shared.deps import _get_supa, _is_founder, _verify_token
+from shared.deps import _get_supa, _is_founder, _verify_token, email_iz_tokena  # B-U-007
 # CONF-008: promena privilegije je bila jedina admin ruta bez ograničenja
 # stope — susedne rute u `routers/kancelarija.py` ga imaju.
 from shared.rate import limiter
@@ -1642,10 +1642,8 @@ async def _auth_from_request(request: Request) -> dict:
     payload = await asyncio.to_thread(_verify_token, creds.credentials)
     if not payload:
         raise HTTPException(status_code=401, detail="Nevažeći token.")
-    email = (
-        payload.get("email") or
-        payload.get("user_metadata", {}).get("email") or ""
-    )
+    # B-U-007: v. shared/deps.py::email_iz_tokena
+    email = email_iz_tokena(payload)
     user = {"user_id": payload.get("sub"), "email": email}
     return await _enrich_user(user)
 

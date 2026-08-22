@@ -342,12 +342,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Vaša sesija je istekla. Prijavite se ponovo.",
         )
-    email = (
-        payload.get("email")
-        or payload.get("user_metadata", {}).get("email")
-        or payload.get("email_claim")
-        or ""
-    )
+    # B-U-007: identitet koji odlucuje o privilegiji dolazi SAMO iz
+    # server-kontrolisanog claim-a. v. shared/deps.py::email_iz_tokena
+    email = email_iz_tokena(payload)
     logger.info("get_current_user: sub=%s email=%s", payload.get("sub", "?")[:8], email)
     return {"user_id": payload.get("sub"), "email": email}
 
@@ -501,6 +498,10 @@ def _sb_ensure_credits_row(user_id: str, initial: int = 15) -> None:
 # require_credits is the canonical shared version \u2014 same object as shared.deps.require_credits
 # so a single dependency_overrides entry covers all routes (api.py + all router modules).
 from shared.deps import require_credits, _refund_one_credit, _increment_monthly_usage, _get_monthly_usage, verify_token_local
+# B-U-007: jedina granica poverenja za identitet iz tokena (v. njen docstring).
+# api.py ima sopstvenu kopiju `FOUNDER_EMAILS`/`get_current_user`, ali granica
+# poverenja sme da postoji samo na JEDNOM mestu za ceo proizvod.
+from shared.deps import email_iz_tokena
 from shared.attention_priority import VAZNOST_TO_CANONICAL as _VAZNOST_TO_CANONICAL, CANONICAL_ORDER as _CANONICAL_ORDER
 from shared.cost import begin_cost_tracking, log_cost_to_db
 from shared.llm_retry import llm_retry
@@ -3852,11 +3853,8 @@ def _require_auth(authorization: Optional[str]) -> object:
 
     class _AuthUser:
         id: str = payload.get("sub", "")
-        email: str = (
-            payload.get("email")
-            or payload.get("user_metadata", {}).get("email")
-            or ""
-        )
+        # B-U-007: v. shared/deps.py::email_iz_tokena
+        email: str = email_iz_tokena(payload)
 
     # Mission Atlas (2026-08-03) — same AI Provenance request-context stamp
     # as shared/deps.py::get_current_user, for api.py's own manual-auth style.
