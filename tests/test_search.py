@@ -27,7 +27,18 @@ from shared.deps import get_current_user
 FAKE_USER = {"user_id": "uid-001", "email": "a@test.rs", "role": "pro"}
 
 SAMPLE_PREDMET = {"id": "p-001", "naziv": "Tužba Petrović", "opis": "Naknada štete", "tip": "gradjansko", "status": "aktivan"}
-SAMPLE_KLIJENT = {"id": "kl-001", "ime": "Nikola", "prezime": "Petrović", "naziv_firme": None, "email": "n@test.rs", "pib": "123456789"}
+# B-U-002 (2026-08-22) — OLD/NEW/WHY, zamena a ne slabljenje:
+#   OLD: {"naziv_firme": None, ..., "pib": "123456789"}
+#   NEW: {"firma": None, ..., "status": "aktivan"}   (bez `pib`)
+#   WHY: `klijenti.naziv_firme` i `klijenti.pib` NE POSTOJE u produkcionoj bazi
+#        (sondirano: 42703 za obe). Fikstura je opisivala šemu koja ne postoji,
+#        pa je test bio zelen dok je produkcija vraćala `nepotpuno: ["klijenti"]`
+#        na svaki upit. Kanonske kolone su `firma` (isto ime koje koristi
+#        `GET /klijenti`, klijenti/router.py:331) i `pib_encrypted` (PIB se
+#        čuva samo šifrovan, pa `ilike` nad njim nema smisla). `status` je
+#        dodat jer pretraga sada, kao i `GET /klijenti`, isključuje
+#        soft-deleted klijente.
+SAMPLE_KLIJENT = {"id": "kl-001", "ime": "Nikola", "prezime": "Petrović", "firma": None, "email": "n@test.rs", "status": "aktivan"}
 SAMPLE_DOK     = {"id": "d-001", "naziv_fajla": "ugovor_petrovic.pdf", "predmet_id": "p-001", "status": "indeksirano", "tekst_sadrzaj": "Ugovor izmedju Petrović i ABC d.o.o.", "created_at": "2026-01-01"}
 SAMPLE_BILLING = {"id": "b-001", "opis": "Konsultacija Petrović", "iznos_rsd": 7500.0, "predmet_id": "p-001", "datum": "2026-06-01"}
 SAMPLE_HRON    = {"id": "h-001", "predmet_id": "p-001", "dogadjaj": "Prijem tužbe Petrović", "datum_iso": "2026-01-15", "vaznost": "kritičan"}
@@ -77,6 +88,9 @@ def _make_supa(predmeti=None, klijenti=None, dokumenti=None, billing=None, hron=
             sel.ilike.return_value = sel
             sel.in_.return_value = sel
             sel.limit.return_value = sel
+            # B-U-002: `.neq(...)` je ranije nedostajao u lancu, pa je vraćao
+            # svež MagicMock i cela grana bi pukla čim ga pretraga pozove.
+            sel.neq.return_value = sel
             sel.execute.return_value = MagicMock(data=kls)
 
         elif name == "predmet_dokumenti":

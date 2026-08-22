@@ -56,19 +56,40 @@ def _search_predmeti(supa, uid: str, q: str, limit: int) -> list[dict]:
 
 
 def _search_klijenti(supa, uid: str, q: str, limit: int) -> list[dict]:
+    # B-U-002 (2026-08-22): ova grana je BACALA IZUZETAK na svaki poziv, pa
+    # globalna pretraga NIKADA nije nasla nijednog klijenta -- vracala je
+    # `nepotpuno: ["klijenti"]`. Dve kolone, obe sondirane nad produkcijom:
+    #
+    #   `naziv_firme` -> 42703. Kanonska je `firma`: tako je zove i kanonski
+    #     read path `GET /klijenti` (klijenti/router.py:331,335 -- isti
+    #     `ime/prezime/firma` ilike obrazac) i kanonski write path (:696).
+    #
+    #   `pib` -> 42703. PIB se cuva ISKLJUCIVO sifrovan, u `pib_encrypted`
+    #     (klijenti/router.py:292,530 upisuju `encrypt_field(req.pib)`, :456
+    #     ga dekriptuje tek pri citanju). `ilike` nad sifratom ne moze da
+    #     pogodi otvoren tekst, pa pretraga po PIB-u nije stvar imena kolone
+    #     nego proizvodne odluke (blind index) -- v. izvestaj. Kolona je zato
+    #     uklonjena, a NIJE zamenjena drugim identifikatorom (`maticni_broj`
+    #     postoji, ali je drugi podatak).
     q2 = q.replace("%", "")
     r  = (supa.table("klijenti")
-          .select("id, ime, prezime, naziv_firme, email, pib")
+          .select("id, ime, prezime, firma, email")
           .eq("user_id", uid)
-          .or_(f"ime.ilike.%{q2}%,prezime.ilike.%{q2}%,naziv_firme.ilike.%{q2}%,email.ilike.%{q2}%,pib.ilike.%{q2}%")
+          # Mereno pre nego sto je popravka pushovana: bez ovog filtera bi
+          # ozivljena grana NOVO prikazivala obrisane klijente -- kvar koji
+          # ranije nije postojao samo zato sto grana nikad nije ni radila.
+          # Kanonski read path `GET /klijenti` (klijenti/router.py:334) krije
+          # ih tacno ovako; ovo ga prati, ne uvodi novu semantiku.
+          .neq("status", "soft_deleted")
+          .or_(f"ime.ilike.%{q2}%,prezime.ilike.%{q2}%,firma.ilike.%{q2}%,email.ilike.%{q2}%")
           .limit(limit)
           .execute())
     return [
         {
             "tip":    "klijent",
             "id":     row["id"],
-            "naziv":  " ".join(filter(None, [row.get("ime"), row.get("prezime"), row.get("naziv_firme")])) or row.get("email", ""),
-            "preview": row.get("email") or row.get("pib") or "",
+            "naziv":  " ".join(filter(None, [row.get("ime"), row.get("prezime"), row.get("firma")])) or row.get("email", ""),
+            "preview": row.get("email") or "",
             "meta":   {},
         }
         for row in (r.data or [])
