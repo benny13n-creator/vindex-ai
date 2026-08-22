@@ -1813,6 +1813,69 @@ def _jedan_retrieval_krug(
     return jedinstveni, orig_score_map
 
 
+def _karantin_chunka(match) -> tuple:
+    """B-U-004 / MODEL C — da li OVAJ chunk sme u prompt? Vraca (karantin, skor).
+
+    ZASTO OVDE, A NE SIRE ILI UZE:
+      Vlasnicki namespace je USER-wide po dokazanom ugovoru (v. komentar u
+      `_jedan_retrieval_krug` i `retrieve.py` blok „Kancelarija (cross-case)
+      pasusi": rezultati iz drugih predmeta istog vlasnika se NAMERNO ne
+      filtriraju napolje). Mereno 2026-08-22: jedan dokument sa injection
+      obrascem gasio je AI nad SVIM predmetima tog advokata, ukljucujuci
+      prazne -- jer je guard u `shared/ai_client.py` video sklopljen prompt i
+      obarao ceo poziv. Sada se odluka donosi nad POJEDINACNIM chunkom, pre
+      nego sto udje u `docs`, pa ostatak rezultata prezivi.
+
+    STA SE NE MENJA:
+      detekcija (`security.prompt_guard.analyze` je ista, cista funkcija bez
+      stanja), prag, guard u `ai_client` (ostaje kao poslednja brana),
+      tenant ACL, namespace arhitektura.
+
+    FAIL-CLOSED: ako analizator nije dostupan, chunk se karantinira. Neprocenjen
+    chunk ne sme u prompt. Pozivalac tu razliku prijavljuje kroz
+    `izvori_neuspeh` da praznina ne bi izgledala kao dokazano odsustvo.
+    """
+    tekst = ((match.metadata or {}).get("text") or "")
+    if not tekst.strip():
+        return False, 0.0
+    try:
+        from security.prompt_guard import analyze as _analyze
+    except Exception as exc:
+        logger.error("[KARANTIN] analizator nedostupan (%s) — chunk se odbija", exc)
+        return True, -1.0
+    try:
+        r = _analyze(tekst)
+    except Exception as exc:
+        logger.error("[KARANTIN] analiza pala (%s) — chunk se odbija", exc)
+        return True, -1.0
+    if getattr(r, "blocked", False):
+        return True, float(getattr(r, "risk_score", 0.0))
+    return False, float(getattr(r, "risk_score", 0.0))
+
+
+def _zabelezi_karantin(match, skor: float, namespace: str, karantin_log: list) -> None:
+    """Auditira izolovan chunk. Koristi POSTOJECI kanal (`security_events` preko
+    `_log_rag_error`), bez nove taksonomije i bez ijedne izmene seme.
+
+    U audit NE ide sadrzaj dokumenta -- samo identitet chunka i skor. Sirov
+    tekst je advokatova tajna i ne sme da zavrsi u bezbednosnom logu.
+    """
+    m = match.metadata or {}
+    zapis = {
+        "chunk_id": getattr(match, "id", "?"),
+        "predmet_id": m.get("predmet_id"),
+        "chunk_index": m.get("chunk_index"),
+        "source_filename": m.get("source_filename"),
+        "risk_score": skor,
+    }
+    karantin_log.append(zapis)
+    logger.warning("[KARANTIN] chunk izolovan iz konteksta: %s", zapis)
+    try:
+        _log_rag_error("prompt_injection_quarantined", namespace, json.dumps(zapis))
+    except Exception:
+        pass
+
+
 def _vlasnicki_opseg_iz_konteksta():
     """(namespace, dozvoljeni_predmeti) izvedeni iz AUTENTIFIKOVANOG identiteta.
 
@@ -1928,6 +1991,9 @@ def retrieve_documents(
     # znaci „svi izvori procitani"; svako ime u njoj je izvor koji NIJE
     # proveren i o kome se nista ne sme tvrditi.
     _izvori_neuspeh: list[str] = []
+    # B-U-004 / MODEL C: chunkovi izolovani pre ulaska u prompt. Prazna lista =
+    # nista nije izolovano. Neprazna = konkretni pasusi nisu poslati modelu.
+    _karantinovano: list[dict] = []
 
     _praksa_exec = ThreadPoolExecutor(max_workers=1)
     _f_praksa = _praksa_exec.submit(_pretraga_praksa, vektor, 5)
@@ -2270,6 +2336,13 @@ def retrieve_documents(
             try:
                 _ns_matches = _fut.result(timeout=5.0)
                 for _pm in _ns_matches[:3]:
+                    # B-U-004 / MODEL C
+                    _kar, _skor = _karantin_chunka(_pm)
+                    if _kar:
+                        _zabelezi_karantin(_pm, _skor, _ns, _karantinovano)
+                        if _skor < 0 and IZVOR_DOKUMENTI not in _izvori_neuspeh:
+                            _izvori_neuspeh.append(IZVOR_DOKUMENTI)
+                        continue
                     _pf = format_doc_passage(_pm)
                     if _pf and len(_pf.strip()) > 50:
                         docs.append(_pf)
@@ -2314,6 +2387,16 @@ def retrieve_documents(
                 # v. routers/drafting.py) -- ako bi ipak, potpuno se isključuje
                 # iz retrievala umesto da samo dobije nizak skor.
                 if _origin == ORIGIN_AI_GENERATED:
+                    continue
+                # B-U-004 / MODEL C: izolacija ide PRE rangiranja i pre rezanja
+                # na top-5. Da je posle, zarazeni pasusi bi trosili mesta u
+                # budzetu i izbacivali zdrave dokumente iz konteksta -- mereno
+                # testom J (5 zarazenih + 1 zdrav => zdrav je nestajao).
+                _kar, _skor = _karantin_chunka(_pm)
+                if _kar:
+                    _zabelezi_karantin(_pm, _skor, kancelarija_namespace, _karantinovano)
+                    if _skor < 0 and IZVOR_DOKUMENTI not in _izvori_neuspeh:
+                        _izvori_neuspeh.append(IZVOR_DOKUMENTI)
                     continue
                 _je_isti_predmet = bool(current_predmet_id) and _m.get("predmet_id") == current_predmet_id
 
@@ -2426,6 +2509,9 @@ def retrieve_documents(
         # B4: prazno = svi izvori procitani. Neprazno = navedeni izvori NISU
         # provereni i o njima se ne sme tvrditi ni prisustvo ni ODSUSTVO.
         "izvori_neuspeh":     _izvori_neuspeh,
+        # B-U-004: koji su pasusi izolovani i zasto. Aditivno polje; postojeci
+        # potrosaci koji ga ne citaju rade nepromenjeno.
+        "karantin":           _karantinovano,
     }
     logger.info(
         "[RETRIEVE] confidence=%s score=%.4f article=%s law=%s",
