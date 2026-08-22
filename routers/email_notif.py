@@ -49,33 +49,28 @@ _SMTP_USER   = os.getenv("EMAIL_SMTP_USER", "")
 _SMTP_PASS   = os.getenv("EMAIL_SMTP_PASS", "")
 _FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
 
-# Operation Lawyer Zero, LZ-001 (2026-08-03): predmet_hronologija.vaznost has
-# no single vocabulary across the codebase -- the column's own CHECK
-# constraint (supabase_setup.sql) allows only 'kritičan'/'važan'/'informativan',
-# but api.py's own existing urgency-ordering logic (_VAZNOST_ORDER,
-# api.py:5114) and an existing filter (api.py:5449) already treat "bitan" as a
-# real, occurring value -- meaning it is very likely actually present in
-# production data despite not matching the constraint's literal text (this
-# repo has repeatedly turned out to have declared-vs-actual schema drift; see
-# SEC-034/the migration 057 "orphaned tables" history). routers/intake.py's
-# primary AI-assisted case-creation path writes "bitan"; routers/smart_intake.py
-# writes "važan"; routers/rokovi_lanac.py's own internal mapping
-# (_VAZNOST_HRON) writes "kljucan"/"normalan"/"info".
+# Operation Lawyer Zero, LZ-001 (2026-08-03) je ovde drzao listu
+# ["kritičan","važan","bitan","kljucan","normalan"], uz obrazlozenje da
+# `bitan` "verovatno stvarno postoji u produkciji" iako ne odgovara CHECK-u.
+# B-U-006 je to IZMERIO i pretpostavka je opovrgnuta: CHECK postoji i radi
+# (5/5 pokusaja upisa van skupa palo na 23514), a svih 52 reda u produkciji
+# nose iskljucivo kanonske vrednosti. `bitan`/`kljucan`/`normalan` su bili
+# mrtvi unosi -- filter je izgledao siri nego sto jeste.
 #
-# Rather than change any WRITER (risking breaking _VAZNOST_ORDER/api.py:5449,
-# which already depend on "bitan" existing, without a full reader audit this
-# mission doesn't have budget for safely), this reminder cron's own READ-side
-# filter is broadened to match every value that actually indicates an
-# actionable deadline today, across every writer -- a purely additive,
-# zero-risk change (a SELECT filter, not a write, cannot violate any
-# constraint or corrupt data). "informativan"/"info" (and "normalan" as used
-# as a distinct low tier elsewhere) are excluded by design -- an
-# informational, non-actionable event should not page a lawyer by email.
-# A full vocabulary unification across all writers is a separate, larger,
-# deliberately-deferred follow-on (see LAWYER_AUTOMATION_MAP.md) -- this
-# fix's job is only to make sure existing, already-written deadlines of any
-# real importance level actually trigger the reminder that already exists.
-_ACTIONABLE_VAZNOST = ["kritičan", "važan", "bitan", "kljucan", "normalan"]
+# B-U-006: izvedeno iz KANONSKOG domena, ne prepisano rucno.
+#
+# Ranije je lista glasila ["kritičan","važan","bitan","kljucan","normalan"].
+# Poslednje tri vrednosti CHECK u produkciji ODBIJA
+# (`vaznost IN ('kritičan','važan','informativan')`, potvrdjeno sondom: svih
+# 5 pokusaja upisa van skupa palo je na 23514), pa su bile mrtvi unosi --
+# filter je izgledao siri nego sto jeste. Sonda nad svih 52 reda u produkciji:
+# informativan 22, kritičan 17, važan 13, nijedna nekanonska vrednost.
+#
+# INVARIJANTA: alerting ne sme da zavisi od vrednosti koju baza ne moze da
+# sadrzi. Izvodjenjem iz `VAZNOST_DOZVOLJENE` lista vise ne moze da se razidje
+# sa semom -- ako se domen ikad promeni, menja se na JEDNOM mestu.
+from shared.rokovi import VAZNOST_DOZVOLJENE as _VAZNOST_DOZVOLJENE
+_ACTIONABLE_VAZNOST = [v for v in _VAZNOST_DOZVOLJENE if v != "informativan"]
 _CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 _security_opt = HTTPBearer(auto_error=False)

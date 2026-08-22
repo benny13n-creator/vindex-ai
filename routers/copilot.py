@@ -803,9 +803,11 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
     )
     if not pred_ok.data:
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Predmet nije pronađen."}
-    _vaznost = ext.get("vaznost")
-    if _vaznost not in ("kritičan", "važan", "informativan"):
-        _vaznost = "informativan"
+    # B-U-006: kanonski normalizator (zaokruzuje NAVISE) umesto pada na
+    # `informativan`, koji ispada iz podsetnika. Glasovni unos i AI ekstrakcija
+    # redovno daju sinonim ili oblik bez dijakritike.
+    from shared.rokovi import normalizuj_vaznost as _norm_vaznost
+    _vaznost = _norm_vaznost(ext.get("vaznost"))
     try:
         await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
             "predmet_id": predmet_id,
@@ -832,7 +834,10 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         "uspeh":   True,
         "dogadjaj": ext["dogadjaj"],
         "datum":   ext.get("datum_iso",""),
-        "vaznost": ext.get("vaznost","bitan"),
+        # B-U-006-N1: odgovor mora da nosi vrednost koja je STVARNO upisana.
+        # Ranije je vracao sirov AI izlaz (podrazumevano `bitan`) dok je u bazi
+        # stajalo nesto drugo -- advokat je citao jedan nivo, sistem cuvao drugi.
+        "vaznost": _vaznost,
         "odgovor": f"Rok dodat: {ext['dogadjaj']}" + (f" ({ext['datum_iso']})" if ext.get("datum_iso") else ""),
     }
 

@@ -5788,15 +5788,17 @@ async def predmet_upload_auto_analyze(
                 hron_raw = _m.group(0)
             hron_data = _json.loads(hron_raw)
             if isinstance(hron_data, list) and hron_data:
-                _VALID_VAZNOST = {"kritičan", "važan", "informativan"}
+                # B-U-006: kanonski normalizator umesto pada na najnizi nivo.
+                # AI ekstrakcija iz advokatovog dokumenta cesto vrati sinonim
+                # (`bitan`, `hitno`) ili oblik bez dijakritike; ranije je svaki
+                # takav rok postajao `informativan` i ispadao iz podsetnika.
+                from shared.rokovi import normalizuj_vaznost as _norm_vaznost
                 rows = []
                 for ev in hron_data[:50]:
                     if not isinstance(ev, dict) or not ev.get("dogadjaj"):
                         continue
                     datum_iso = _validate_hronologija_datum_iso(ev.get("datum_iso"), predmet_id)
-                    vaznost = ev.get("vaznost", "informativan")
-                    if vaznost not in _VALID_VAZNOST:
-                        vaznost = "informativan"
+                    vaznost = _norm_vaznost(ev.get("vaznost"))
                     rows.append({
                         "predmet_id":     predmet_id,
                         "user_id":        user.id,
@@ -6856,19 +6858,19 @@ async def predmet_confirm_links(
     #   svejedno glasio `success: True`. Frontend čita `d.success`, pa je
     #   ispisivao `✓ Sačuvano.` za rok koji u bazi ne postoji.
     #
-    # VALIDACIJA prati kanonski obrazac koji već postoji na dva mesta u ovom
-    # repozitorijumu -- `predmet_upload_auto_analyze` (`_VALID_VAZNOST` iznad)
-    # i `routers/copilot.py::_handle_akcija_rok`: nepoznata vrednost se NE
-    # odbija nego pada na najniži nivo. Razlog je isti kao tamo -- podatak iz
-    # advokatovog dokumenta ne sme da se izgubi zbog reči koju pošiljalac nije
-    # pogodio, a šema se ne proširuje da bi se primio tuđi rečnik.
-    _VALID_VAZNOST_ROK = {"kritičan", "važan", "informativan"}
+    # B-U-006: KANONSKA VAZNOST. Ranije je nepoznata vrednost padala na
+    # `informativan` -- najnizi nivo, koji `routers/email_notif.py` NE
+    # ukljucuje u podsetnike. Mereno uzivo 2026-08-22: 10 od 14 varijanti
+    # (`kritican` bez dijakritike, `KRITICAN`, cirilicno `критичан`, `bitan`,
+    # razmaci) zavrsavalo je kao `informativan` uz `rok_dodat: true` -- rok
+    # koji advokat vidi kao evidentiran, a koji ga nikad ne podseti.
+    # `shared/rokovi.py::normalizuj_vaznost` je kanonski ugovor i zaokruzuje
+    # NAVISE: potcenjen rok advokat ne vidi, precenjen vidi i odbaci.
+    from shared.rokovi import normalizuj_vaznost as _norm_vaznost
     _rok_greska: Optional[str] = None
     if req.dodaj_rok:
         rok = req.dodaj_rok
-        _vaznost_rok = rok.get("vaznost")
-        if _vaznost_rok not in _VALID_VAZNOST_ROK:
-            _vaznost_rok = "informativan"
+        _vaznost_rok = _norm_vaznost(rok.get("vaznost"))
         try:
             _rok_ins = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija").insert({

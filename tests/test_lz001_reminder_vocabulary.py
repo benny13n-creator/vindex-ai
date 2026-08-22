@@ -128,19 +128,49 @@ async def test_reminder_fires_for_smart_intake_deadline_vazan():
 
 
 @pytest.mark.anyio
-async def test_reminder_fires_for_intake_kreiraj_deadline_bitan():
-    """The primary AI-assisted case-creation path writes vaznost='bitan' --
-    the reminder must now fire for it too."""
+async def test_reminder_fires_for_ai_extracted_deadline():
+    """B-U-006 (2026-08-22) — OLD/NEW/WHY zamena, ne slabljenje.
+
+    OLD: `_make_supa("bitan", ...)` — test je tvrdio da AI-ekstrahovan rok u
+         bazi nosi `bitan`, pa je podsetnik morao da ga hvata.
+    NEW: `_make_supa("važan", ...)` — isti scenario, kanonska vrednost.
+    WHY: `bitan` u bazi ne može da postoji (CHECK ga odbija, izmereno). NAMERA
+         LZ-001 — „podsetnik mora da opali za AI-ekstrahovan rok" — ostaje i
+         sada je ispunjena JAČE: umesto širenja čitaoca na vrednost koja ne
+         postoji, upis je normalizovan kroz `shared/rokovi.py::normalizuj_vaznost`
+         (`bitan` → `važan`). Lanac upis→podsetnik pribija test ispod.
+    """
     from routers.email_notif import posalji_podsetnike
 
     target_iso = (date.today() + timedelta(days=7)).isoformat()
-    mock_supa, log_rows = _make_supa("bitan", target_iso)
+    mock_supa, log_rows = _make_supa("važan", target_iso)
 
     with patch("routers.email_notif._get_supa", return_value=mock_supa), \
          patch("routers.email_notif._smtp_send") as mock_send:
         result = await posalji_podsetnike(_fake_request(), _fake_cron_user())
 
-    assert result["poslato"] == 1, "reminder must fire for a 'bitan' (intake_kreiraj) deadline"
+    assert result["poslato"] == 1, "podsetnik mora da opali za AI-ekstrahovan rok"
+    mock_send.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_lz001_namera_prezivljava_kroz_kanonski_upis():
+    """Lanac koji LZ-001 zapravo štiti: AI kaže `bitan` → upis normalizuje →
+    podsetnik opali. Bez ovoga bi zamena vrednosti u testu iznad mogla da sakrije
+    da je namera izgubljena."""
+    from shared.rokovi import normalizuj_vaznost
+    from routers.email_notif import posalji_podsetnike, _ACTIONABLE_VAZNOST
+
+    upisano = normalizuj_vaznost("bitan")          # ono što AI pošalje
+    assert upisano == "važan", upisano
+    assert upisano in _ACTIONABLE_VAZNOST
+
+    target_iso = (date.today() + timedelta(days=7)).isoformat()
+    mock_supa, log_rows = _make_supa(upisano, target_iso)
+    with patch("routers.email_notif._get_supa", return_value=mock_supa), \
+         patch("routers.email_notif._smtp_send") as mock_send:
+        result = await posalji_podsetnike(_fake_request(), _fake_cron_user())
+    assert result["poslato"] == 1
     mock_send.assert_called_once()
 
 
@@ -179,8 +209,25 @@ async def test_reminder_does_not_fire_for_informativan():
 
 
 def test_actionable_vaznost_constant_excludes_informational_values():
+    """B-U-006 (2026-08-22) — OLD/NEW/WHY zamena, ne slabljenje.
+
+    OLD: tražilo je da `bitan`, `kljucan` i `normalan` BUDU u `_ACTIONABLE_VAZNOST`.
+    NEW: traži da lista bude tačno kanonski domen bez `informativan`.
+    WHY: LZ-001 je 2026-08-03 pretpostavio da su te vrednosti „very likely
+         actually present in production data". Izmereno 2026-08-22: CHECK
+         `vaznost IN ('kritičan','važan','informativan')` stvarno postoji
+         (5/5 pokušaja upisa van skupa palo na 23514), a svih 52 reda u
+         produkciji nose isključivo kanonske vrednosti. Te tri su bile mrtvi
+         unosi — filter je izgledao širi nego što jeste.
+         Invarijanta koju test čuva je NEPROMENJENA: `informativan` ostaje van
+         podsetnika.
+    """
     from routers.email_notif import _ACTIONABLE_VAZNOST
+    from shared.rokovi import VAZNOST_DOZVOLJENE
     assert "informativan" not in _ACTIONABLE_VAZNOST
     assert "info" not in _ACTIONABLE_VAZNOST
-    for v in ("kritičan", "važan", "bitan", "kljucan", "normalan"):
+    for v in ("kritičan", "važan"):
         assert v in _ACTIONABLE_VAZNOST
+    # alerting ne sme da zavisi od vrednosti koju baza ne može da sadrži
+    for v in _ACTIONABLE_VAZNOST:
+        assert v in VAZNOST_DOZVOLJENE, v
