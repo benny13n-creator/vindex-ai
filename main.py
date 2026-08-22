@@ -29,6 +29,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+# F1 (B-U-004-N1): bezbednosni signal guarda mora da bude vidljiv ovom
+# modulu da bi mogao da se NE guta u generickim `except Exception` granama.
+from security.prompt_guard import PromptInjectionBlocked
+
 logger = logging.getLogger("vindex.agent")
 
 _client: OpenAI | None = None
@@ -2316,6 +2320,14 @@ def _pozovi_openai(
         try:
             from shared.cost import record_cost as _rc
             _rc(model, odgovor.usage.prompt_tokens, odgovor.usage.completion_tokens)
+        # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+        # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+        # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+        # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+        # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+        # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+        except PromptInjectionBlocked:
+            raise
         except Exception:
             pass
     return (odgovor.choices[0].message.content or "").strip()
@@ -3540,6 +3552,14 @@ def ask_agent(
         # KORAK 1: Retrieve with confidence metadata
         try:
             docs, retrieval_meta = retrieve_documents(pitanje_api, k=10, extra_namespaces=extra_namespaces)
+        # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+        # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+        # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+        # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+        # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+        # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+        except PromptInjectionBlocked:
+            raise
         except Exception as e:
             logger.exception("PINECONE GREŠKA [q=%s] tip=%s msg=%s", log_id, type(e).__name__, str(e)[:200])
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
@@ -3882,6 +3902,14 @@ def ask_agent(
                     system_prompt, user_content, model=_model, max_tokens=_max_tokens,
                     response_format=_JSON_SCHEMA_MAP.get(tip),
                 )
+            # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+            # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+            # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+            # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+            # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+            # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+            except PromptInjectionBlocked:
+                raise
             except Exception:
                 logger.exception("MEDIUM LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
@@ -3976,6 +4004,14 @@ def ask_agent(
                 system_prompt, user_content, model=_model, max_tokens=_max_tokens,
                 response_format=_JSON_SCHEMA_MAP.get(tip),
             )
+        # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+        # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+        # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+        # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+        # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+        # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+        except PromptInjectionBlocked:
+            raise
         except Exception:
             logger.exception("HIGH LLM greška [q=%s]", log_id)
             return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
@@ -4035,6 +4071,14 @@ def ask_agent(
                     system_prompt, user_content_medium, model=_model, max_tokens=_max_tokens,
                     response_format=_JSON_SCHEMA_MAP.get(tip),
                 )
+            # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+            # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+            # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+            # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+            # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+            # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+            except PromptInjectionBlocked:
+                raise
             except Exception:
                 logger.exception("MEDIUM downgrade LLM greška [q=%s]", log_id)
                 return {"status": "error", "message": "Sistem je trenutno zauzet. Pokušajte ponovo." + DISCLAIMER}
@@ -4092,6 +4136,14 @@ def ask_agent(
         logger.info("Uspešan odgovor [confidence=%s, tip=%s, q=%s]", confidence, tip, log_id)
         return rezultat
 
+    # F1 (B-U-004-N1): bezbednosni signal NIJE infrastrukturna greska.
+    # `PromptInjectionBlocked` se ovde NE guta -- inace bi guard koji je
+    # opalio duboko u lancu izasao kao poruka o zauzetom sistemu, bez
+    # ijednog audit reda. Ruta `/api/pitanje` ga hvata eksplicitno,
+    # auditira ga i refundira kredit (v. api.py). Obican izuzetak i dalje
+    # ide postojecom generickom granom ispod -- dva slucaja se ne spajaju.
+    except PromptInjectionBlocked:
+        raise
     except Exception as e:
         logger.error("ASK_AGENT GREŠKA: %s: %s", type(e).__name__, str(e)[:300])
         logger.exception("ASK_AGENT stacktrace")

@@ -890,6 +890,11 @@ async def _stop_smart_intake_background_loops():
         logger.warning("[SHUTDOWN] drenaža pozadinskih taskova nije uspela: %s", exc)
 
 
+# F1 (B-U-004-N1): tip bezbednosnog signala guarda, potreban rutama
+# `/api/pitanje` i `/api/pitanje/stream` da ga uhvate PRE generickog
+# `except Exception` i klasifikuju kao security event, ne kao ispad.
+from security.prompt_guard import PromptInjectionBlocked as _PIBlockedRoute
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Hvatanje svih neočekivanih izuzetaka — vraća JSON umesto HTML stranice greške."""
@@ -3470,11 +3475,67 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 supa = _get_supa()
                 beleske_res  = supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(5).execute()
                 istorija_res = supa.table("predmet_istorija").select("pitanje, odgovor").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(10).execute()
-                beleske_tekst  = "\n".join(b["sadrzaj"] for b in (beleske_res.data or []) if b.get("sadrzaj"))
+                # F1 (B-U-004-N1, 2026-08-23): KARANTIN KONTEKSTA PREDMETA.
+                #
+                # Route gate iznad (`_guard_analyze(req.pitanje)`) analizira SAMO
+                # pitanje. Beleske i istorija se dodaju POSLE njega i ulaze u
+                # odlazni prompt -- taj gate ih ne pokriva. B-U-004 karantin
+                # pokriva samo dokumentarne chunkove iz retrieval-a, pa ni on ne
+                # vidi ovaj kanal.
+                #
+                # Mereno uzivo nad `75bea3dd`: beleska sa injection obrascem
+                # prolazi upis (HTTP 200), a zatim SVAKO pitanje nad tim
+                # predmetom vraca „Sistem je trenutno zauzet" -- deterministicki,
+                # bez ijednog audit reda. Ceo predmet ostane bez AI-ja.
+                #
+                # Isti obrazac kao `retrieve.py::_karantin_chunka`: izoluje se
+                # POJEDINACAN unos, ostatak konteksta prezivljava. Detekcija je
+                # ista (`security.prompt_guard.analyze`), prag se ne dira.
+                from security.prompt_guard import analyze as _ctx_analyze
+                _ctx_karantin: list = []
+
+                def _ctx_bezbedan(tekst: str, oznaka: str) -> bool:
+                    if not (tekst or "").strip():
+                        return False
+                    try:
+                        if _ctx_analyze(tekst).blocked:
+                            _ctx_karantin.append(oznaka)
+                            return False
+                    except Exception as _ce:
+                        # Neprocenjen unos NE ulazi u prompt (fail-closed).
+                        logger.error("[CTX_KARANTIN] analiza pala (%s) — %s se izostavlja",
+                                     _ce, oznaka)
+                        _ctx_karantin.append(oznaka + ":neprocenjen")
+                        return False
+                    return True
+
+                beleske_tekst  = "\n".join(
+                    b["sadrzaj"] for i, b in enumerate(beleske_res.data or [])
+                    if b.get("sadrzaj") and _ctx_bezbedan(b["sadrzaj"], "beleska#%d" % i))
                 istorija_tekst = "\n".join(
                     f"P: {r['pitanje']}\nO: {r['odgovor'][:300]}"
-                    for r in (istorija_res.data or []) if r.get("pitanje")
+                    for i, r in enumerate(istorija_res.data or [])
+                    if r.get("pitanje")
+                    and _ctx_bezbedan("%s %s" % (r.get("pitanje") or "",
+                                                 (r.get("odgovor") or "")[:300]),
+                                      "istorija#%d" % i)
                 )
+                if _ctx_karantin:
+                    logger.warning("[CTX_KARANTIN] predmet=%s izolovano: %s",
+                                   predmet_id, _ctx_karantin)
+                    try:
+                        from shared.audit_immutable import log_action as _ctx_log
+                        from shared.bg import spawn as _spawn_ctx
+                        _spawn_ctx(_ctx_log(
+                            "injection_attempt_blocked",
+                            user_id=user["user_id"],
+                            resource_type="predmet_kontekst",
+                            ip=request.client.host if request.client else None,
+                            metadata={"predmet_id": predmet_id,
+                                      "izolovano": _ctx_karantin[:10]},
+                        ))
+                    except Exception:
+                        pass
                 if beleske_tekst or istorija_tekst:
                     delovi = []
                     if beleske_tekst:
@@ -3550,6 +3611,38 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         if _credit_consumed:
             await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
         raise
+    except _PIBlockedRoute as _pib:
+        # F1 (B-U-004-N1, 2026-08-23): guard je opalio DUBOKO u lancu (nad
+        # sklopljenim promptom), ne nad `req.pitanje` -- pre-request gate iznad
+        # ga tada nije video. Ranije je ovo zavrsavalo u generickom `except`
+        # ispod kao „Sistem je trenutno zauzet", bez ijednog audit reda: isti
+        # bezbednosni dogadjaj imao je dva razlicita ishoda zavisno od toga GDE
+        # je opalio. Sada oba puta daju isti ugovor kao pre-request gate:
+        # 400 + `injection_attempt_blocked` + refund.
+        #
+        # BEZ DVOSTRUKOG AUDITA: pre-request gate se vraca NORMALNIM `return`-om
+        # i nikad ne dize ovaj izuzetak, pa se ove dve grane iskljucuju.
+        # Izuzetak se ovde ne re-raise-uje, pa ga ni globalni handler
+        # (`api.py::global_exception_handler`) ne vidi i ne auditira po drugi put.
+        logger.warning("[GUARD] BLOCKED duboko u lancu uid=%.8s score=%.2f",
+                       user["user_id"], getattr(_pib, "risk_score", -1.0))
+        try:
+            from shared.audit_immutable import log_action as _pib_log
+            from shared.bg import spawn as _pib_spawn
+            _pib_spawn(_pib_log(
+                "injection_attempt_blocked",
+                user_id=user["user_id"],
+                resource_type="pitanje_lanac",
+                ip=request.client.host if request.client else None,
+                metadata={"score": getattr(_pib, "risk_score", None),
+                          "flags": (getattr(_pib, "flags", None) or [])[:5]},
+            ))
+        except Exception:
+            pass
+        if _credit_consumed:
+            await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+            _credit_consumed = False
+        return greska_odgovor(400, "Zahtev sadrži neodgovarajući sadržaj i nije obrađen.")
     except Exception:
         _qh_safe = locals().get("qh", "?")
         logger.exception("Greška u /api/pitanje [q=%s]", _qh_safe)
@@ -3749,6 +3842,38 @@ async def pitanje_stream(req: PitanjeReq, request: Request, user: dict = Depends
 
             yield "data: [DONE]\n\n"
             yield f"data: [CREDITS:{max(preostalo, 0)}]\n\n"
+
+        except _PIBlockedRoute as _pib_s:
+            # F1 (B-U-004-N1): isti ugovor kao na `/api/pitanje` -- guard koji
+            # opali DUBOKO u lancu je bezbednosni dogadjaj, ne ispad servera.
+            # Ova ruta nema `KONTEKST PREDMETA` (beleske/istorija se ovde ne
+            # ubacuju), pa je dostizna samo preko retrieval sadrzaja; svejedno
+            # mora da bude auditirana i da korisniku kaze istinu.
+            # Pre-request gate ove rute vraca NORMALNIM `return`-om i ne dize
+            # ovaj izuzetak -- dve grane se iskljucuju, nema dvostrukog audita.
+            logger.warning("[GUARD] BLOCKED duboko u lancu (stream) uid=%.8s score=%.2f",
+                           user["user_id"], getattr(_pib_s, "risk_score", -1.0))
+            try:
+                from shared.audit_immutable import log_action as _pib_log_s
+                from shared.bg import spawn as _pib_spawn_s
+                _pib_spawn_s(_pib_log_s(
+                    "injection_attempt_blocked",
+                    user_id=user["user_id"],
+                    resource_type="pitanje_stream_lanac",
+                    ip=request.client.host if request.client else None,
+                    metadata={"score": getattr(_pib_s, "risk_score", None),
+                              "flags": (getattr(_pib_s, "flags", None) or [])[:5]},
+                ))
+            except Exception:
+                pass
+            if not _refunded and not _delivered:
+                try:
+                    await UsageService.refund(user["user_id"], user.get("email", ""), "ai_pravna_pitanja")
+                    _refunded = True
+                except Exception:
+                    logger.warning("[PITANJE_STREAM] refund nakon guard-a nije uspeo [q=%s]", qh)
+            yield "data: Zahtev sadrži neodgovarajući sadržaj i nije obrađen.\n\n"
+            yield "data: [DONE]\n\n"
 
         except Exception as _stream_exc:
             _sentry_capture(_stream_exc)
