@@ -888,7 +888,14 @@ def _log_rag_error(reason: str, namespace: str, detail: str) -> None:
 
 # ─── Pinecone operacije ───────────────────────────────────────────────────────
 
-def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None) -> list:
+def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = None,
+                         *, neuspeh: Optional[list] = None) -> list:
+    """`neuspeh`: opciona lista u koju se, ako upit PADNE, upisuje `IZVOR_ZAKON`.
+
+    B-U-003: bez nje je pad upita bio bajt-identičan praznom rezultatu, pa je
+    pozivalac nije mogao razlikovati od „pretraženo, ništa nije nađeno".
+    Podrazumevano `None` — svi postojeći pozivaoci rade nepromenjeno.
+    """
     index = _get_index()
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
@@ -906,10 +913,14 @@ def _semanticka_pretraga(query: str, k: int = 10, filter_zakon: Optional[str] = 
         _sentry_capture(exc)
         logger.error("[PINECONE] Greška u pretrazi query='%s': %s: %s", query[:60], type(exc).__name__, str(exc)[:200])
         _log_rag_error(type(exc).__name__, _ZAKONI_NS, str(exc))
+        if neuspeh is not None:
+            neuspeh.append(IZVOR_ZAKON)
         return []
 
 
-def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = None) -> list:
+def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = None,
+                  *, neuspeh: Optional[list] = None) -> list:
+    """`neuspeh`: v. `_semanticka_pretraga` (B-U-003)."""
     index = _get_index()
     filter_dict = {"law": {"$eq": filter_zakon}} if filter_zakon else None
     try:
@@ -917,6 +928,8 @@ def _pretraga_vec(vektor: list[float], k: int, filter_zakon: Optional[str] = Non
     except Exception as _exc:
         _sentry_capture(_exc)
         logger.exception("Greška u pretraga_vec")
+        if neuspeh is not None:
+            neuspeh.append(IZVOR_ZAKON)
         return []
 
 
@@ -959,6 +972,14 @@ def _pretraga_praksa(vektor: list[float], k: int = 5) -> list:
 # vrednost bez prepisivanja.
 IZVOR_ZAKON = "zakonski korpus"
 IZVOR_DOKUMENTI = "dokumenti predmeta"
+
+# B-U-003: koliko UVEK-izvršenih upita nad `_ZAKONI_NS` čini „korpus je
+# pretražen". Tačno dva: filtrirani i nefiltrirani primarni upit u
+# `_jedan_retrieval_krug` (grane b i c). Ako se tamo doda/oduzme primarni upit,
+# OVAJ broj mora da prati — inače bi „svi primarni pali" postalo nedostižno i
+# signal bi tiho oslabio. Test `test_bu003_...::test_broj_primarnih_upita`
+# pribija ovu vezu.
+_ZAKON_PRIMARNIH_UPITA = 2
 
 
 def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Optional[dict] = None) -> list:
@@ -1696,10 +1717,20 @@ def _jedan_retrieval_krug(
     label_clana: Optional[str],
     extra_queries: list[str],
     top_k_pinecone: int = 10,
+    *,
+    neuspeh_primarni: Optional[list] = None,
 ) -> tuple[list, dict]:
     """
     Pokreće sve Pinecone pretrage paralelno i vraća deduplikovanu listu matcheva
     i orig_score_map {id: cosine} izgrađen iz originalnog upita (top-30 sa filterom).
+
+    B-U-003 — `neuspeh_primarni`: lista u koju se upisuje `IZVOR_ZAKON` za svaki
+    PAO PRIMARNI upit. Primarni su tačno dva (b i c ispod): filtrirana i
+    nefiltrirana pretraga nad `_ZAKONI_NS`, koje se izvršavaju UVEK, za svako
+    pitanje. Ekspanzije (d–i) i pod-upiti su ADITIVNI — postoje da prošire
+    prisećanje, a njihov pad ne znači da korpus nije pretražen. Kad bi i one
+    slale signal, jedan prolazni pad ZDI-ekspanzije oborio bi savršeno dobar
+    HIGH odgovor u odbijanje — to bi bio nov kvar, ne popravka ovog.
     """
     import time as _time
     q_norm = _normalizuj(query)
@@ -1712,11 +1743,13 @@ def _jedan_retrieval_krug(
         fjobs.append(executor.submit(_direktan_fetch_clana, label_clana, zakon))
 
     # b) Semantička sa filterom — widened to 30 to build orig-query cosine lookup
-    f_orig_law = executor.submit(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon)
+    #    PRIMARNI upit #1 (B-U-003)
+    f_orig_law = executor.submit(_pretraga_vec, vektor, max(top_k_pinecone, 30), zakon,
+                                 neuspeh=neuspeh_primarni)
     fjobs.append(f_orig_law)
 
-    # c) Semantička bez filtera
-    fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None))
+    # c) Semantička bez filtera — PRIMARNI upit #2 (B-U-003)
+    fjobs.append(executor.submit(_pretraga_vec, vektor, 6, None, neuspeh=neuspeh_primarni))
 
     # d) ZDI ekspanzija
     if any(x in q_norm for x in _ZDI_TRIGERI):
@@ -2010,7 +2043,16 @@ def retrieve_documents(
         logger.info("[HyDE] Timeout ili greška — preskočena")
 
     # ── Faza 2: Retrieval ─────────────────────────────────────────────────────
-    matchevi, orig_score_map = _jedan_retrieval_krug(query, vektor, zakon, label_clana, sub_queries)
+    # B-U-003: kanal kojim pad PRIMARNOG Pinecone upita stiže dovde. Bez njega
+    # je `_pretraga_vec` hvatao svaki izuzetak i vraćao `[]`, pa je pad upita
+    # bio bajt-identičan uspešnoj pretrazi sa nula rezultata — i `ask_agent` je
+    # iz njega proizvodio tvrdnju o SADRŽAJU pravnog korpusa („pitanje izlazi
+    # iz indeksiranih oblasti"). Ista klasa greške za koju je pad EMBEDDINGA
+    # (Faza 0 iznad) već popravljen; pad UPITA nije bio pokriven.
+    _neuspeh_primarni: list[str] = []
+    matchevi, orig_score_map = _jedan_retrieval_krug(
+        query, vektor, zakon, label_clana, sub_queries,
+        neuspeh_primarni=_neuspeh_primarni)
 
     # HyDE: embed hipotetičkog dokumenta i dodaj rezultate
     if hyde_text:
@@ -2341,6 +2383,31 @@ def retrieve_documents(
             "Proverite: PINECONE_API_KEY, PINECONE_HOST, ime indeksa '%s'.",
             query[:80], os.getenv("PINECONE_INDEX_NAME", PINECONE_INDEX),
         )
+
+    # ── B-U-003: FAILURE != EMPTY za zakonski korpus ─────────────────────────
+    #
+    # `IZVOR_ZAKON` u `izvori_neuspeh` je jedini signal kojim `ask_agent` zna da
+    # o korpusu ne sme tvrditi NIŠTA — ni prisustvo, ni odsustvo. Ta grana u
+    # `main.py` već postoji, fail-closed je i ne zove model; nedostajao je samo
+    # ovaj signal iz upitnog sloja.
+    #
+    # Kada se pali (i zašto ne uvek):
+    #   • oba primarna upita pala  -> korpus dokazano NIJE pretražen;
+    #   • jedan primarni pao I nula rezultata -> rečenica „nema relevantnog
+    #     propisa" izvodi se upravo iz te nule, a nula nije dokazana.
+    # Ako primarni upiti prođu (makar i sa nula rezultata), korpus JESTE
+    # pretražen i postojeća „nema pronađenog izvora" semantika ostaje netaknuta.
+    # Ako ima rezultata, odgovor je utemeljen u stvarnim izvorima i nijedna
+    # tvrdnja o odsustvu se ne izgovara — pa strože gašenje ne bi štitilo
+    # advokata, samo bi mu oborilo ispravan odgovor.
+    if _neuspeh_primarni and (len(_neuspeh_primarni) >= _ZAKON_PRIMARNIH_UPITA or not reranked):
+        logger.error(
+            "[RETRIEVE] zakonski korpus NIJE pretrazen: %d/%d primarnih upita palo, "
+            "rezultata=%d — oznacavam IZVOR_ZAKON kao neproveren [query=%s]",
+            len(_neuspeh_primarni), _ZAKON_PRIMARNIH_UPITA, len(reranked), query[:60],
+        )
+        if IZVOR_ZAKON not in _izvori_neuspeh:
+            _izvori_neuspeh.append(IZVOR_ZAKON)
 
     _izvori = _build_izvori(reranked)
     retrieval_meta = {
