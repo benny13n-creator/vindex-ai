@@ -74,7 +74,10 @@ def _mora(r, ime: str) -> list:
     """Podupit koji nosi broj. Neuspeh je 503 — nikad tiha nula."""
     if isinstance(r, Exception):
         logger.error("[BILLING-REPORT] izvor '%s' nije procitan: %s", ime, r)
-        raise HTTPException(
+        # Namerni korisnicki ugovor (B2 gate): korisnik MORA da razlikuje pao
+        # izvor od iznosa NULA. Poruka je rucno pisana i ne sadrzi izuzetak.
+        from shared.http_errors import NamerniHTTPException as _Namerni
+        raise _Namerni(
             status_code=503,
             detail=(f"Izveštaj nije izračunat — izvor „{ime}” trenutno nije "
                     f"dostupan. Prikazani iznos bi bio netačan, pa se ne "

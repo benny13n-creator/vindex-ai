@@ -948,6 +948,71 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         content={"greska": _msg, "error": _msg, "status": "error"},
     )
 
+
+# ── GRANICA OTKRIVANJA INTERNIH PODATAKA NA 5xx ─────────────────────────────
+#
+# DOKAZANO NA PRODUKCIJI `657818a5` (WRITE-ERROR-DB-VALUE-DISCLOSURE-REPORT.md):
+#
+#   POST /api/firma-memorija/klijent/sacuvaj  {"rizik_profil": "NEPOSTOJECI_PROFIL"}
+#   -> CHECK violation (SQLSTATE 23514)
+#   -> ruta radi `raise HTTPException(500, str(e))`
+#   -> HTTP 500 telo je sadrzalo:
+#        'details': 'Failing row contains (819b2085-..., 5add0312-..., null,
+#         KANARINAC-TAJNI-KLIJENT-9f3a, null, f, email, NEPOSTOJECI_PROFIL, ...)'
+#
+# Kanarinac je presao granicu BAZA -> APLIKACIJA -> HTTP -> KORISNIK.
+#
+# ZASTO globalni `Exception` handler iznad NIJE pomogao: on eksplicitno
+# propusta `HTTPException` dalje (`if isinstance(exc, _HTTPExc): raise exc`), a
+# handler za `HTTPException` nije bio registrovan NIGDE -- pa je Starlette-ov
+# podrazumevani handler serijalizovao `detail` doslovno.
+#
+# Korenski uzrok nije 94 mesta koja prosledjuju `str(e)`, nego to sto rute
+# zaobilaze sopstvenu bezbednu granicu. Zato se popravka radi na JEDNOM mestu.
+# Izmereno u kodu: 278 eksplicitnih 5xx dizanja, od toga 125 sa dinamickim
+# `detail`-om (79 golih `str(e)`).
+#
+# UGOVOR:
+#   status < 500  -> nepromenjeno; korisnicki 4xx ugovori ostaju netaknuti
+#   status >= 500 -> `detail` se NE emituje; korisnik dobija kanonsku poruku,
+#                    a original ide u server-side log
+#   izuzetak      -> `NamerniHTTPException`: 5xx cija je poruka DEO KORISNICKOG
+#                    UGOVORA, deklarisana na mestu dizanja
+#
+# Zasto izuzetak postoji: prva verzija ove granice sanitizovala je SVE 5xx i
+# oborila 11 testova, medju njima 9 iz B2 gate-a. Ti testovi brane poruku
+# „Izvestaj nije izracunat -- izvor ... nije dostupan": bez nje korisnik ne moze
+# da razlikuje pao izvor od iznosa NULA, sto je tacno kvar koji je B2 zatvorio.
+# Bezbednost se zato NE pogadja iz sadrzaja poruke (crna lista koju napadac
+# ispituje) nego se DEKLARISE u kodu (v. shared/http_errors.py).
+#
+# Oblik odgovora (`{"detail": ...}`) se NE menja -- menja se samo tekst, da
+# postojeci klijenti koji citaju `detail` ne puknu.
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exception_handlers import (
+    http_exception_handler as _starlette_http_exception_handler,
+)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_exception_boundary(request: Request, exc: StarletteHTTPException):
+    from shared.http_errors import NamerniHTTPException as _Namerni
+
+    if exc.status_code < 500 or isinstance(exc, _Namerni):
+        return await _starlette_http_exception_handler(request, exc)
+
+    # Observability se NE sme izgubiti: original ide u postojeci logger, ne
+    # klijentu. SERVER LOG != USER RESPONSE.
+    logger.error(
+        "[5xx] %s %s -> %d | interni detalj (NE ide klijentu): %s",
+        request.method, request.url.path, exc.status_code, exc.detail,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": "Interna greška servera. Pokušajte ponovo."},
+        headers=getattr(exc, "headers", None),
+    )
+
 ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv("ALLOWED_ORIGINS", "https://vindex.rs").split(",")

@@ -248,7 +248,10 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
         await asyncio.to_thread(_delete)
     except Exception as _exc:
         logger.error("[GDPR] anonimizacija NIJE izvrsena uid=%.8s: %s", uid, _exc)
-        raise HTTPException(
+        # Namerni korisnicki ugovor: korisnik MORA saznati da podaci NISU
+        # obrisani -- tisina bi bila neodvojiva od uspesnog brisanja.
+        from shared.http_errors import NamerniHTTPException as _Namerni
+        raise _Namerni(
             status_code=503,
             detail="Brisanje naloga NIJE izvršeno. Vaši podaci su nepromenjeni. "
                    "Pokušajte ponovo ili nam pišite na kontakt@vindex.ai.",
