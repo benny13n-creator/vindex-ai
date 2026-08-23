@@ -250,10 +250,23 @@ def _patch_openai_module() -> None:
 
 def _extract_user_text(messages) -> str:
     """
-    Spaja tekst svih 'user'-role poruka iz messages liste — ovo je jedini
-    deo poziva koji guard analizira (isti ugovor kao wrap_for_ai(): nepoverljiv
-    sadržaj živi u 'user' porukama, 'system' poruke su poverljive instrukcije
-    koje autor rute kontroliše, ne korisnik/dokument).
+    Spaja tekst svih 'user'-role poruka iz messages liste.
+
+    ⚠️ ULOGA NIJE NIVO POVERENJA. Raniji docstring ovde je tvrdio da su
+    „'system' poruke poverljive instrukcije koje autor rute kontroliše, ne
+    korisnik/dokument". Ta tvrdnja je bila NETACNA i bila je korenski uzrok
+    N1-NEW-3: `main.py` je slobodan tekst kancelarijske memorije prependovao
+    u system prompt, pa je user-controlled sadrzaj zavrsavao u ulozi koju
+    guard po definiciji preskace.
+
+    Reprodukovano nad produkcijom `b0d074f0`:
+        napad u tekstu koji guard analizira : False
+        analyze(system_prompt).blocked      : True   <- da je gledao, blokirao bi
+        pozicija napada u system poruci     : index 74 od 6139
+
+    Poreklo se zato vise NE izvodi iz uloge. T3 sadrzaj nosi registrovanu
+    granicu (v. `security.prompt_guard.razdvoji_po_poreklu`), a T1 sloj vise
+    ne sme da primi user-controlled tekst (v. `_fetch_firm_memory_context`).
 
     Podržava i string i multimodalni (lista content-parts) format poruke.
     """
@@ -272,6 +285,57 @@ def _extract_user_text(messages) -> str:
                 if isinstance(part, dict) and part.get("type") == "text":
                     parts.append(part.get("text", "") or "")
     return "\n".join(p for p in parts if p)
+
+
+def _odluka_po_poreklu(text: str, _analiziraj, kanal: str):
+    """SEC-003 odluka razdvojena po POREKLU, ne po ulozi.
+
+    TARGET-2. SEC-003 se ne ukida, ne slabi globalno i ne zaobilazi -- dobija
+    precizniji ugovor:
+
+        T2  direktna korisnicka instrukcija -> analizira se, BLOKIRA
+        T3  nepoverljiv dokaz u registrovanoj granici -> NE blokira se,
+            ali ni ne dobija instrukcioni autoritet; belezi se
+
+    Razlika koja je sustinska: T3 ne postaje POVERLJIV. T3 samo nema
+    instrukcioni autoritet. Model sme da ga cita i pravno analizira; ne sme da
+    izvrsi ono sto u njemu pise. Autoritet drzi `granica_autoriteta()` u
+    system poruci, koju napadac ne moze da dosegne.
+
+    Granica se priznaje SAMO ako je registrovana u ovom kontekstu, iz koda.
+    Tekst koji samo lici na granicu ostaje T2 i ide na punu analizu -- pa
+    napadac ne moze da sam sebi dodeli status dokaza.
+
+    Vraca `(rezultat_ili_None, t3_nalazi)`. Rezultat != None znaci BLOKADA.
+    """
+    from security.prompt_guard import razdvoji_po_poreklu
+
+    t2, t3 = razdvoji_po_poreklu(text)
+    nalazi = []
+    for oznaka, deo in t3:
+        if not (deo or "").strip():
+            continue
+        r3 = _analiziraj(deo)
+        if r3.blocked:
+            # NIJE blokada: sadrzaj je izolovan i bez autoriteta. Zato se ovde
+            # NE sme upisati „injection blocked" -- to bi bila lazna tvrdnja o
+            # ishodu. Belezi se sto jeste: izolovan pokusaj u dokaznom sadrzaju.
+            nalazi.append({"oznaka": oznaka.rsplit("_", 1)[0],
+                           "score": round(float(r3.risk_score), 3)})
+            logger.warning(
+                "[AI_GUARD] T3 IZOLOVAN (%s) kanal=%s oznaka=%s score=%.2f — "
+                "sadrzaj ide modelu kao PODATAK, bez instrukcionog autoriteta",
+                kanal, _caller_hint(), nalazi[-1]["oznaka"], r3.risk_score,
+            )
+    if t2.strip():
+        r2 = _analiziraj(t2)
+        if r2.blocked:
+            logger.warning(
+                "[AI_GUARD] BLOCKED (%s) caller=%s score=%.2f flags=%d",
+                kanal, _caller_hint(), r2.risk_score, len(r2.flags),
+            )
+            return r2, nalazi
+    return None, nalazi
 
 
 def _caller_hint(depth: int = 2) -> str:
@@ -724,12 +788,8 @@ def _patch_prompt_guard() -> None:
             )
         text = _extract_user_text(kwargs.get("messages"))
         if text:
-            result = _analiziraj(text)
-            if result.blocked:
-                logger.warning(
-                    "[AI_GUARD] BLOCKED (sync) caller=%s score=%.2f flags=%d",
-                    _caller_hint(), result.risk_score, len(result.flags),
-                )
+            result, _ = _odluka_po_poreklu(text, _analiziraj, "sync")
+            if result is not None:
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
         import time
         _t0 = time.monotonic()
@@ -774,12 +834,11 @@ def _patch_prompt_guard() -> None:
         text = _extract_user_text(kwargs.get("messages"))
         if text:
             import asyncio
-            result = await asyncio.to_thread(_analiziraj, text)
-            if result.blocked:
-                logger.warning(
-                    "[AI_GUARD] BLOCKED (async) caller=%s score=%.2f flags=%d",
-                    _caller_hint(), result.risk_score, len(result.flags),
-                )
+            # `_odluka_po_poreklu` cita `ContextVar` registar; `to_thread`
+            # kopira kontekst pozivaoca, pa registar ostaje vidljiv.
+            result, _ = await asyncio.to_thread(
+                _odluka_po_poreklu, text, _analiziraj, "async")
+            if result is not None:
                 raise PromptInjectionBlocked(result.risk_score, result.flags)
         import time
         _t0 = time.monotonic()

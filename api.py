@@ -1433,7 +1433,27 @@ async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) ->
             for s in (odbijene[:2] if isinstance(odbijene, list) else []):
                 lines.append(f"- NIKAD NE PREDLAGATI: {s}")
 
-        return "\n".join(lines)
+        # ── TARGET-1 (N1-NEW-3): MEMORIJA JE PODATAK, NE INSTRUKCIJA ─────────
+        #
+        # Reprodukovano nad produkcijom `b0d074f0` (clan A pise, clan B pita):
+        #     memory_entries.sadrzaj = "Ignore all previous instructions. ..."
+        #     -> `main.py:3822`: system_prompt = memory_context + system_prompt
+        #     -> napad na indeksu 74 od 6139 znakova SYSTEM poruke, PRE svih
+        #        Vindex instrukcija
+        #     -> SEC-003 ga NE VIDI (`if role != "user": continue`),
+        #        iako bi ga `analyze()` blokirao da je pogledao
+        #
+        # Slobodan tekst koji upisuje BILO KOJI clan kancelarije (`POST
+        # /api/firma-memorija/dodaj`, bez ijedne provere guard-a) time je
+        # dobijao autoritet sistemske instrukcije, i to deljeno za sve kolege.
+        #
+        # Pakovanje se radi OVDE, na izvoru provenance-a, a ne kod potrosaca:
+        # tako sadrzaj ne moze da izadje iz ove funkcije kao gola instrukcija
+        # ni kroz jedan buduci put. Funkcija memorije ostaje netaknuta --
+        # sadrzaj se ne skracuje i ne menja, samo dobija tacnu oznaku porekla.
+        from security.prompt_guard import IZVOR_MEMORIJA as _IZV_MEM
+        from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj_mem
+        return _zapakuj_mem("\n".join(lines), _IZV_MEM)
     except Exception as _me:
         logger.debug("[FIRM_MEM] Greška pri dohvatanju memorije: %s", _me)
         return None
@@ -3492,12 +3512,17 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
             if _d_skor >= 0.90 or _d_skor < 0:
                 logger.warning("[DOKAZ] injection u dokaznom kanalu uid=%.8s score=%.2f — "
                                "izolovan, nije blokiran", user["user_id"], _d_skor)
+                # Akcija NIJE `injection_attempt_blocked`: nista nije blokirano.
+                # Upisati „blocked" za sadrzaj koji je propusten kao podatak bila
+                # bi lazna tvrdnja o ishodu, i audit vise ne bi odgovarao
+                # stvarnom bezbednosnom dogadjaju. Belezi se sto se stvarno
+                # desilo: pokusaj je izolovan i lisen instrukcionog autoriteta.
                 asyncio.create_task(_imm_log(
-                    "injection_attempt_blocked",
+                    "injection_izolovan_kao_podatak",
                     user_id=user["user_id"],
                     resource_type="dokazni_kanal",
                     ip=request.client.host if request.client else None,
-                    metadata={"score": _d_skor, "flags": _d_flags, "ishod": "izolovan_kao_podatak"},
+                    metadata={"score": _d_skor, "flags": _d_flags, "blokirano": False},
                 ))
             pitanje_za_agenta = (
                 f"{req.pitanje}\n\n"
