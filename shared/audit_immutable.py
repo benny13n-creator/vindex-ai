@@ -95,6 +95,17 @@ AUDITABLE_ACTIONS: set[str] = {
     "reasoning_graph_generated",
     # Bezbednosni događaji
     "injection_attempt_blocked", "rate_limit_exceeded",
+    # TARGET-2 (2026-08-23): dokazni kanal je ALLOW ishod -- sadrzaj je izolovan
+    # u granicu autoriteta i lisen instrukcionog autoriteta, ali NIJE blokiran.
+    # Upisati `injection_attempt_blocked` za takav ishod bila bi lazna tvrdnja o
+    # tome sta se desilo, pa postoji zasebna akcija.
+    #
+    # Nadjeno ZIVIM merenjem, ne pregledom koda: prvi produkcioni prolaz je za
+    # scenarije E/F/G dao 0 audit redova. `log_action` tiho preskace svaku
+    # akciju van ovog skupa (`log_action`: `if action not in AUDITABLE_ACTIONS`),
+    # a lokalni test je to sakrio jer mokuje `log_action`. Ruta je tvrdila da
+    # auditira, a nije -- klasa "declared != enforced".
+    "injection_izolovan_kao_podatak",
     "suspicious_access", "api_key_rotation",
     # KORAK B — Autonomni Background Action Agenti (2026-07-24)
     "AGENT_AUTONOMOUS_EXECUTION",

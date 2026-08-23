@@ -252,3 +252,47 @@ def test_t2_uloga_nije_nivo_poverenja():
     t2, t3 = razdvoji_po_poreklu(env)
     assert t2.strip() == "" and len(t3) == 1
     assert t3[0][1].strip() == NAPAD
+
+
+# ══ AUDIT: akcija mora biti STVARNO upisiva, ne samo pozvana ════════════════
+
+def test_t2_audit_akcije_su_u_stvarnom_whitelistu():
+    """Nadjeno zivim merenjem: prvi produkcioni prolaz dao je 0 audit redova
+    za dokazni kanal.
+
+    `shared/audit_immutable.log_action` TIHO preskace svaku akciju van
+    `AUDITABLE_ACTIONS`. Ruta je zvala `log_action(...)` i izgledalo je da
+    auditira, a nijedan red nije nastao. Lokalni testovi to nisu videli jer
+    mokuju `log_action` -- mok prihvata bilo koje ime akcije.
+
+    Ovaj test gleda STVARNI skup, pa ga mokovanje ne moze sakriti.
+    """
+    from shared.audit_immutable import AUDITABLE_ACTIONS
+    for akcija in ("injection_attempt_blocked", "injection_izolovan_kao_podatak"):
+        assert akcija in AUDITABLE_ACTIONS, (
+            "akcija %r nije u AUDITABLE_ACTIONS — log_action bi je tiho odbacio"
+            % akcija)
+
+
+def test_t2_ruta_koristi_samo_upisive_audit_akcije():
+    """Svaka audit akcija koju `/api/pitanje` navodi mora biti upisiva."""
+    import ast, io as _io
+    from shared.audit_immutable import AUDITABLE_ACTIONS
+    src = _io.open("api.py", encoding="utf-8").read()
+    drvo = ast.parse(src)
+    ruta = None
+    for c in ast.walk(drvo):
+        if isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef)) and c.name == "pitanje":
+            ruta = c
+            break
+    assert ruta is not None
+    akcije = set()
+    for c in ast.walk(ruta):
+        if isinstance(c, ast.Call) and c.args:
+            f = c.func
+            ime = getattr(f, "id", None) or getattr(f, "attr", None) or ""
+            if "log" in ime.lower() and isinstance(c.args[0], ast.Constant)                     and isinstance(c.args[0].value, str):
+                akcije.add(c.args[0].value)
+    assert akcije, "nijedna audit akcija nije nadjena u ruti"
+    neupisive = akcije - set(AUDITABLE_ACTIONS)
+    assert not neupisive, "ruta navodi akcije koje log_action tiho odbacuje: %s" % neupisive
