@@ -258,6 +258,7 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
             pid   = p["id"]
             tuz   = p.get("tuzilac") or ""
             tuz2  = p.get("tuzeni")  or ""
+            naz   = p.get("naziv")   or ""
             bivsi = _is_closed(p.get("status", ""))
 
             for termin in termini:
@@ -266,13 +267,44 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
 
                 score_tuz  = _fuzzy_score(termin, tuz)
                 score_tuz2 = _fuzzy_score(termin, tuz2)
-                best_score = max(score_tuz, score_tuz2)
+                # ── BETA-COI-PARTY-BLIND (2026-08-23) ────────────────────────
+                #
+                # Sloj 1 je pretrazivao ISKLJUCIVO `tuzilac`/`tuzeni`. Te kolone
+                # ne popunjava NIJEDAN put kreiranja predmeta -- ni
+                # `api.py::kreiraj_predmet`, ni `routers/intake.py`, ni
+                # `routers/smart_intake.py` -- pa su u produkciji prazne za
+                # 22/22 predmeta. `predmet_klijenti` (Sloj 3) ima 0 redova.
+                #
+                # Reprodukovano uzivo nad `c297cae8`, sa kontrolnom grupom:
+                #   prazne kolone  -> status "clear", "Mozete prihvatiti klijenta."
+                #   iste stranke   -> status "conflict", "OZBILJAN KONFLIKT"
+                #   upisane PATCH-em
+                # Dakle uzrok nije prag, ni fuzzy model, ni pao upit -- nego
+                # prazno polje. Sloj je uspesno pretrazivao NISTA i zato je
+                # prijavljivao `ok`, cime je zaobisao postojecu fail-closed
+                # granu koja pad izvora degradira na `review`.
+                #
+                # Ime protivne strane u praksi ZIVI u nazivu predmeta
+                # ("Milanovic protiv TehnoGradnja"). Naziv se zato dodaje kao
+                # tredi izvor dokaza u istom sloju.
+                #
+                # Mereno nad 22 produkciona predmeta:
+                #   naziv -> 6/8 stvarnih protivnika pogodjeno, 0/22 laznih
+                #            (najvisi lazni skor 16, prag je 70)
+                #   opis  -> 0/8 pogodjeno, pa se NE koristi (nula koristi,
+                #            a najveca povrsina za lazne pozitive)
+                score_naz  = _fuzzy_score(termin, naz)
+                best_score = max(score_tuz, score_tuz2, score_naz)
 
                 if best_score < CONFLICT_WARN:
                     continue
 
-                which     = "tuzilac" if score_tuz >= score_tuz2 else "tuzeni"
-                matched_v = tuz if which == "tuzilac" else tuz2
+                if score_naz > max(score_tuz, score_tuz2):
+                    which, matched_v = "naziv_predmeta", naz
+                elif score_tuz >= score_tuz2:
+                    which, matched_v = "tuzilac", tuz
+                else:
+                    which, matched_v = "tuzeni", tuz2
                 label     = "[BIVŠI KLIJENT] " if bivsi else ""
                 konflikti.append({
                     "sloj":            "predmeti",
