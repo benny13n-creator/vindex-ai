@@ -2295,6 +2295,26 @@ def _pozovi_openai(
     FAZA 2 (2026-07-24): @llm_retry -- max 3 pokušaja sa exponential backoff-om
     za rate-limit/5xx/timeout/connection greške; 400/401 se NE ponavljaju.
     """
+    # ── C (B-U-004-F3): GRANICA INSTRUKCIONOG AUTORITETA ─────────────────────
+    #
+    # Deklaracija se dodaje CENTRALNO, na jedinom mestu kroz koje prolazi svih
+    # 11 poziva modelu iz ovog modula. Time nijedno pozivno mesto ne moze da je
+    # zaboravi, i ne postoji 11 razlicitih ad-hoc zastita.
+    #
+    # Do `b0d074f0` ovakve granice nije bilo: `wrap_for_ai()` -- jedini sloj
+    # izolacije koji `security/prompt_guard.py` dokumentuje -- nema nijednog
+    # pozivaoca u produkcionom kodu. Nepoverljiv sadrzaj (dokument, OCR,
+    # beleska, istorija, memorija kancelarije) ulazio je u prompt bez ijedne
+    # oznake koja bi ga razlikovala od Vindex instrukcije.
+    #
+    # Dodaje se na KRAJ system poruke: poslednja rec u kanalu najviseg
+    # autoriteta mora pripadati Vindex-u, a ne sadrzaju koji je pre nje ubacen
+    # (npr. memorija kancelarije, v. `ask_agent`).
+    from security.prompt_guard import granica_autoriteta as _granica
+    _deklaracija = _granica()
+    if _deklaracija not in (system_prompt or ""):
+        system_prompt = f"{system_prompt}\n\n{_deklaracija}"
+
     kwargs: dict = {
         "model": model,
         "messages": [
@@ -3819,7 +3839,25 @@ def ask_agent(
         system_prompt, aktivan_sekcije, _model, _max_tokens = _prompt_map.get(tip, _prompt_map["DEFINICIJA"])
 
         if memory_context:
-            system_prompt = memory_context + "\n\n" + system_prompt
+            # ── C (B-U-004-F3): MEMORIJA KANCELARIJE JE T3, NE T1 ────────────
+            #
+            # `memory_context` dolazi iz `memory_entries.sadrzaj`, a taj red
+            # upisuje BILO KOJI clan kancelarije slobodnim tekstom preko
+            # `POST /memorija/dodaj` (routers/firm_memory.py:197). Nad tim
+            # poljem ne postoji nijedna provera prompt guard-a.
+            #
+            # Do sada je taj tekst bio DOSLOVNO PREPENDOVAN na system prompt --
+            # dakle korisnicki unos je dobijao najvisi instrukcioni autoritet,
+            # i to deljeno za CELU kancelariju: jedan clan je mogao da upise
+            # „memoriju" koja postaje sistemska direktiva za svakog kolegu.
+            # T3 -> T1 eskalacija, bez guard-a i bez audita.
+            #
+            # Sadrzaj ostaje na istom mestu (ne menja se sta model vidi), ali
+            # sada nosi oznaku nepoverljivog podatka, a deklaracija granice se
+            # dodaje POSLE njega u `_pozovi_openai`.
+            from security.prompt_guard import IZVOR_MEMORIJA as _IZV_MEM
+            from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj
+            system_prompt = _zapakuj(memory_context, _IZV_MEM) + "\n\n" + system_prompt
 
         if any("KORISNIKOV DOKUMENT" in d for d in filtrirani):
             system_prompt = system_prompt + "\n\n" + _DOC_CONTEXT_ADDENDUM
@@ -3846,7 +3884,28 @@ def ask_agent(
                         _n_before - len(filtrirani),
                     )
 
-        kontekst = "\n\n---\n\n".join(filtrirani)
+        # ── C (B-U-004-F3): RETRIEVAL I ISTORIJA SU T3 ───────────────────────
+        #
+        # `filtrirani` nosi chunkove zakonskog korpusa ALI I tekst advokatovih
+        # otpremljenih dokumenata i OCR-a -- dakle sadrzaj koji je protivna
+        # strana mogla proizvoljno da napise. Do sada je ulazio u prompt kao
+        # obican tekst iza natpisa „KONTEKST IZ BAZE ZAKONA", bez ijedne oznake
+        # koja ga razlikuje od Vindex instrukcije.
+        #
+        # `history` dolazi PRAVO IZ TELA ZAHTEVA (`HistoryItem.q/.a`, api.py) --
+        # bez validatora, bez sanitizacije, bez guard-a -- i renderuje se kao
+        # „Vindex AI: {a}". Napadac je time mogao da FALSIFIKUJE prethodni
+        # odgovor asistenta i tako mu pripise autoritet. Ovo je bio nepokriven
+        # kanal: route gate analizira samo `req.pitanje`.
+        #
+        # Zakonski korpus se pakuje zajedno sa dokumentima: on ionako nikada
+        # nije instrukcioni kanal nego referentni podatak, pa oznaka „podatak"
+        # za njega nije gubitak, a granica ostaje jedna umesto dve.
+        from security.prompt_guard import IZVOR_ISTORIJA as _IZV_IST
+        from security.prompt_guard import IZVOR_RETRIEVAL as _IZV_RET
+        from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj_ctx
+
+        kontekst = _zapakuj_ctx("\n\n---\n\n".join(filtrirani), _IZV_RET)
         history_blok = ""
         if history:
             stavke = []
@@ -3854,7 +3913,11 @@ def ask_agent(
                 q_h = _skini_pii((h.get("q") or "")[:200])
                 a_h = (h.get("a") or "")[:400]
                 stavke.append(f"[{i}] Korisnik: {q_h}\n    Vindex AI: {a_h}...")
-            history_blok = "ISTORIJA RAZGOVORA (kontekst):\n" + "\n".join(stavke) + "\n\n"
+            history_blok = (
+                "ISTORIJA RAZGOVORA (kontekst):\n"
+                + _zapakuj_ctx("\n".join(stavke), _IZV_IST)
+                + "\n\n"
+            )
 
         if top_score < 0.55:
             _HEDGE = (
