@@ -110,6 +110,57 @@ TABELE_DECA_DOGADJAJA: tuple[str, ...] = (
     "case_actions",
 )
 
+# ═══════════════════════════════════════════════════════════════════════════
+# BLK-2 — ISTA KLASA KVARA KAO `case_evolution_consequences`, DRUGO STABLO
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `intake_jobs` je u `TABELE_BEZ_FK` (dakle PURGE), ali ga briše `.delete()`
+# koji baza odbija: šest tabela ima DOLAZNU FK ka njemu, nijedna sa `ON DELETE`
+# (sve `NO ACTION`). Politika je i ovde modelovala samo ODLAZNE FK ka
+# `predmeti`, pa su ta deca bila nevidljiva jedinom predikatu (`predmet_id`) —
+# `intake_documents`, `extracted_entities` i ostali nemaju tu kolonu uopšte.
+#
+# Mereno uživo na `57bec9d`, 3/3 (BLK-2 §14): predmet iz dokumenta uvek daje
+# `409 RETRYABLE_FAILURE`, `neuspele_tabele: ["intake_jobs"]`,
+# `vektori: NIJE_POKRENUTO`. Ponovljen pokušaj pada identično — zauvek.
+# Kontrolna grupa (predmet bez dokumenta) daje `200 DELETED`.
+#
+# Redosled ispod je IZVEDEN IZ GRAFA, ne pogođen:
+#   extracted_entities.document_id      → intake_documents   (074, NOT NULL)
+#   intake_review_queue.document_id     → intake_documents   (074, nullable)
+#   intake_review_queue.intake_job_id   → intake_jobs        (074, NOT NULL)
+#   intake_processing_outcomes.segment_id → intake_job_segments (093, nullable)
+#   intake_job_segments.document_id     → intake_documents   (093, nullable)
+#   ⇒ outcomes PRE segments, segments PRE documents, entities PRE documents.
+#
+# `intake_audit_log` (073) nosi komentar „Nikad UPDATE/DELETE". Provereno:
+# nema okidača, pravila ni REVOKE-a koji to iznuđuje — za razliku od
+# `audit_immutable`, koji ima `trg_protect_audit_immutable` (mig. 043) i koji
+# se ovde NE dira. Specifikacija (`P15_LIFECYCLE_SPECIFICATION.md` §2) izvodi
+# `RETAIN` isključivo iz postojećih tehničkih odluka (DB okidač, FK RESTRICT),
+# a ovde nijedna ne postoji. Šest sestrinskih tabela istog oblika
+# (`decision_log`, `outcome_log`, `email_notif_log`, `portal_status_log`,
+# `counterfactual_log`, `recommendation_log`) već su PURGE. Tenzija je ipak
+# stvarna i prijavljena je u BLK-2-REMEDIATION-REPORT-001 §22 — nije prećutana.
+TABELE_DECA_POSLOVA: tuple[tuple[str, str], ...] = (
+    ("extracted_entities",         "document_id"),
+    ("intake_review_queue",        "intake_job_id"),
+    ("intake_processing_outcomes", "intake_job_id"),
+    ("intake_job_segments",        "intake_job_id"),
+    ("intake_audit_log",           "intake_job_id"),
+    ("intake_documents",           "intake_job_id"),
+)
+
+# `predmet_dokumenti` pokazuje NA `intake_jobs` i `intake_job_segments`
+# (migracije 095 i 094, obe kolone nullable). Red se NE sme obrisati ovde —
+# korak 6 iz njega čita spisak dokumenata čije vektore treba ukloniti, a
+# `ON DELETE CASCADE` sa `predmeti` ga ionako briše u koraku 7 (izmereno
+# sondom: red nestaje sa `predmeti` redom). Zato se veza samo RASKIDA.
+KOLONE_VEZE_KA_POSLOVIMA: tuple[str, ...] = (
+    "source_intake_job_id",
+    "source_intake_job_segment_id",
+)
+
 # PostgREST kodovi koji znače „nema šta da se briše", ne „brisanje nije uspelo".
 _NEMA_OBJEKTA = ("PGRST205", "42P01", "42703", "does not exist",
                  "could not find the table", "schema cache")
@@ -217,6 +268,78 @@ def _obrisi_decu_dogadjaja(supa, predmet_id: str) -> list:
     return neuspele
 
 
+def _obrisi_decu_poslova(supa, predmet_id: str) -> list:
+    """Briše redove koji preko `intake_job_id`/`document_id` vise o intake
+    poslovima ovog predmeta, i raskida vezu `predmet_dokumenti` → poslovi.
+
+    BLK-2 — KORENSKI UZROK. Vraća listu tabela koje NISU očišćene (prazna = sve
+    u redu). Kao i kod `_obrisi_decu_dogadjaja`, FK-ovi u migracijama
+    073/074/093/094/095 se NAMERNO NE menjaju — problem se rešava redosledom
+    brisanja, ne izmenom šeme. Razlog je isti onaj koji specifikacija već
+    zahteva (invarijanta 8): dodavanje `ON DELETE CASCADE` na postojeću tabelu
+    traži dokaz da nema orphan redova, a taj dokaz ovde ne postoji.
+    """
+    try:
+        red = (supa.table("intake_jobs").select("id")
+               .eq("predmet_id", predmet_id).execute())
+        job_ids = [r["id"] for r in (getattr(red, "data", None) or []) if r.get("id")]
+    except Exception as exc:
+        if _nema_objekta(exc):
+            return []
+        logger.error("[PREDMET-DELETE] spisak intake poslova nije procitan p=%.8s: %s",
+                     predmet_id, exc)
+        return ["intake_jobs"]
+
+    if not job_ids:
+        return []
+
+    neuspele = []
+
+    # 1. RASKIDANJE VEZE (ne brisanje) — mora PRE `intake_job_segments`.
+    #    Bez ovoga `predmet_dokumenti.source_intake_job_segment_id` drži
+    #    segmente, a `source_intake_job_id` same poslove.
+    for kolona in KOLONE_VEZE_KA_POSLOVIMA:
+        try:
+            (supa.table("predmet_dokumenti").update({kolona: None})
+             .eq("predmet_id", predmet_id).execute())
+        except Exception as exc:
+            if _nema_objekta(exc):
+                continue
+            logger.error("[PREDMET-DELETE] veza predmet_dokumenti.%s nije raskinuta "
+                         "p=%.8s: %s", kolona, predmet_id, exc)
+            neuspele.append("predmet_dokumenti.%s" % kolona)
+
+    # 2. Dokumenti posla — potrebni da bi se `extracted_entities` uopšte našli
+    #    (ta tabela nema ni `predmet_id` ni `intake_job_id`).
+    try:
+        red_d = (supa.table("intake_documents").select("id")
+                 .in_("intake_job_id", job_ids).execute())
+        doc_ids = [r["id"] for r in (getattr(red_d, "data", None) or []) if r.get("id")]
+    except Exception as exc:
+        if _nema_objekta(exc):
+            doc_ids = []
+        else:
+            logger.error("[PREDMET-DELETE] spisak intake dokumenata nije procitan "
+                         "p=%.8s: %s", predmet_id, exc)
+            return neuspele + ["intake_documents"]
+
+    # 3. Deca, u redosledu izvedenom iz grafa (v. TABELE_DECA_POSLOVA).
+    for tabela, kolona in TABELE_DECA_POSLOVA:
+        kljucevi = doc_ids if kolona == "document_id" else job_ids
+        if not kljucevi:
+            continue
+        try:
+            supa.table(tabela).delete().in_(kolona, kljucevi).execute()
+        except Exception as exc:
+            if _nema_objekta(exc):
+                continue
+            logger.error("[PREDMET-DELETE] tabela %s (preko %s) nije ociscena p=%.8s: %s",
+                         tabela, kolona, predmet_id, exc)
+            neuspele.append(tabela)
+
+    return neuspele
+
+
 def obrisi_predmet(supa, index, *, user_id: str, predmet_id: str) -> RezultatBrisanja:
     """Briše predmet i sve što politika kaže da se briše — i ništa drugo.
 
@@ -280,6 +403,16 @@ def obrisi_predmet(supa, index, *, user_id: str, predmet_id: str) -> RezultatBri
         rez.ishod = IshodPredmeta.RETRYABLE_FAILURE
         rez.neuspele_tabele.extend(neuspela_deca)
         rez.razlog = ("zavisni redovi dogadjaja nisu uklonjeni; vektori NISU dirani "
+                      "i predmet je oznacen za brisanje — ponovite operaciju")
+        return rez
+
+    # 5a-bis. deca koja vise o `intake_jobs(id)` — PRE `intake_jobs`, iz istog
+    #         razloga iz kog deca događaja idu pre `events`. BLK-2.
+    neuspela_deca_poslova = _obrisi_decu_poslova(supa, predmet_id)
+    if neuspela_deca_poslova:
+        rez.ishod = IshodPredmeta.RETRYABLE_FAILURE
+        rez.neuspele_tabele.extend(neuspela_deca_poslova)
+        rez.razlog = ("zavisni redovi intake poslova nisu uklonjeni; vektori NISU dirani "
                       "i predmet je oznacen za brisanje — ponovite operaciju")
         return rez
 
