@@ -243,6 +243,16 @@ def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None) -> list[
             "vrednost":  vrednost,
             "kontekst":  ctx,
             "kategorija": _kategorija(ctx),
+            # BLK-1 (2026-08-24): `kontekst` je centriran isečak ±100 znakova i
+            # iz njega se NE može pouzdano rekonstruisati gde je datum stajao u
+            # originalnom tekstu (isečak se strip-uje, a tekstualni datumi se
+            # normalizuju pa se `vrednost` u tekstu doslovno ni ne pojavljuje).
+            # Bez tačne pozicije nijedan pozivalac ne može da proveri ŠTA stoji
+            # neposredno PRE datuma — a upravo to je jedina razlika između
+            # "Rok za žalbu ističe 25.08.2026" i "primljeno dana 25.08.2026".
+            # Polja su čisto aditivna: nijedan postojeći ključ nije promenjen.
+            "pozicija":  pos,
+            "kraj":      end,
         })
 
     # ─── 1. Apsolutni datum DD.MM.YYYY ──────────────────────────────────────

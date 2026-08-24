@@ -966,6 +966,13 @@ async def _finalize_intake_job_core(
     # ukljuciti eksplicitan signal u finalize odgovoru.
     per_doc_value_maps = []
     per_doc_uncertain = []
+    # BLK-1: `value_map` namerno odbacuje pouzdanost — za naziv predmeta i opis
+    # to je bilo dovoljno. Za ROK nije: rok se upisuje u `predmet_hronologija`,
+    # odatle u kalendar i u podsetnike, i to je jedini entitet čija greška
+    # proizvodi lažnu OBAVEZU advokata. Zato se pouzdanost i status pregleda
+    # čuvaju paralelno, bez menjanja `value_map` ugovora koji koriste
+    # `_create_new_predmet_from_value_map` i Ownership Resolution.
+    per_doc_meta_maps = []
     for d in documents:
         vm = {
             e["entity_type"]: (e.get("corrected_value") or e.get("value"))
@@ -973,6 +980,15 @@ async def _finalize_intake_job_core(
             if (e.get("corrected_value") or e.get("value"))
         }
         per_doc_value_maps.append(vm)
+        per_doc_meta_maps.append({
+            e["entity_type"]: {
+                "confidence": e.get("confidence"),
+                # Advokat je ovu vrednost ili ispravio ili izričito pregledao —
+                # ljudska potvrda nadjačava prag automatskog prihvatanja.
+                "potvrdio_covek": bool(e.get("corrected_value")) or bool(e.get("reviewed")),
+            }
+            for e in d["entities"]
+        })
         low_conf = (d["review"] or {}).get("low_confidence_fields") or []
         per_doc_uncertain.append(bool(d["review"]) and "document_type" in low_conf)
 
@@ -1006,6 +1022,7 @@ async def _finalize_intake_job_core(
     entities = documents[0]["entities"]
     review = documents[0]["review"]
     value_map = per_doc_value_maps[0]
+    meta_map = per_doc_meta_maps[0]
     classification_uncertain = per_doc_uncertain[0]
     low_confidence_fields = (review or {}).get("low_confidence_fields") or []
 
@@ -1154,6 +1171,7 @@ async def _finalize_intake_job_core(
     klijent_nesiguran = False
     klijent_kandidati: list[str] = []
     rok_dodat = False
+    rok_preskocen_razlog = None
     if not resuming:
         # Program Intake Sprint 006 (2026-08-05) -- replaces the pre-Sprint-006
         # `.ilike("ime", klijent_ime)` query, a confirmed live bug: klijent_ime is
@@ -1301,19 +1319,56 @@ async def _finalize_intake_job_core(
                                  _COI_EMIT_POKUSAJA, predmet_id, job_id, _ee)
 
         # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
+        #
+        # BLK-1, drugi sloj odbrane. Prvi sloj (shared/intake_extract.py::
+        # extract_deadline) više ne proglašava običan datum rokom. Ovaj sloj
+        # postoji zato što je docstring iznad ("ako je izvučen sa dovoljnom
+        # pouzdanošću") do 2026-08-24 bio NETAČAN: pouzdanost se ovde nije
+        # čitala uopšte — `value_map` je nije ni nosio — pa je svaka vrednost
+        # koja se dala pretvoriti u ISO datum završavala u kalendaru advokata.
+        #
+        # Upis se sada dešava samo kad je ispunjen bar jedan uslov:
+        #   • pouzdanost ≥ AUTO_ACCEPT_THRESHOLD (isti prag koji već odlučuje
+        #     šta ide u review queue — jedan prag, jedna istina), ili
+        #   • advokat je vrednost ispravio ili izričito pregledao.
+        # Sve ostalo ostaje vidljivo u `GET /jobs/{id}` kao kandidat sa svojom
+        # pouzdanošću, ali NE postaje obaveza u kalendaru.
         rok_dodat = False
+        rok_preskocen_razlog = None
         deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
-        if deadline_iso:
+        _dl_meta = meta_map.get("deadline") or {}
+        _dl_conf = _dl_meta.get("confidence")
+        _dl_potvrdjen = bool(_dl_meta.get("potvrdio_covek"))
+        _dl_dovoljan = _dl_potvrdjen or (
+            _dl_conf is not None and float(_dl_conf) >= intake_documents.AUTO_ACCEPT_THRESHOLD
+        )
+        if deadline_iso and not _dl_dovoljan:
+            rok_preskocen_razlog = "niska_pouzdanost"
+            logger.info(
+                "[SMART_INTAKE] rok NIJE upisan (pouzdanost=%s < %s, bez ljudske potvrde) predmet=%s job=%s",
+                _dl_conf, intake_documents.AUTO_ACCEPT_THRESHOLD, predmet_id, job_id,
+            )
+        if deadline_iso and _dl_dovoljan:
             try:
                 await asyncio.to_thread(
                     lambda: supa.table("predmet_hronologija").insert({
                         "predmet_id": predmet_id,
                         "user_id":    uid,
-                        "dogadjaj":   f"Rok — {tip_labela}",
+                        # BLK-1: raniji naziv je bio "Rok — {tip_labela}", gde je
+                        # `tip_labela` TIP DOKUMENTA. U kalendaru je to čitano kao
+                        # vrsta roka ("Rok — ugovor"), što je tvrdnja koju sistem
+                        # nema čime da potkrepi. Sada naziv kaže tačno ono što
+                        # sistem zna: rok pronađen U dokumentu tog tipa.
+                        "dogadjaj":   f"Rok iz dokumenta ({tip_labela})",
                         "datum":      deadline_iso,
                         "datum_iso":  deadline_iso,
                         "vaznost":    "važan",
                         "akter":      "Smart Intake",
+                        # BLK-1 / provenance: kolona postoji od početka i ostajala
+                        # je NULL, pa advokat nije imao odgovor na pitanje "odakle
+                        # ovaj rok?". Naziv izvornog fajla je jedini podatak koji je
+                        # na ovom mestu već dostupan i koji taj odgovor daje.
+                        "dokument_naziv": job.get("original_filename") or None,
                     }).execute()
                 )
                 rok_dodat = True
@@ -1853,6 +1908,11 @@ async def _finalize_intake_job_core(
         "klijent_nesiguran": klijent_nesiguran,
         "klijent_kandidati": klijent_kandidati,
         "rok_dodat":     rok_dodat,
+        # BLK-1 / "nema tihe degradacije": `rok_dodat: false` sam po sebi ne
+        # razlikuje "dokument nema rok" od "rok je pronađen ali nije dovoljno
+        # dokazan da bi ušao u kalendar". Drugi slučaj je informacija koju
+        # advokat treba da vidi — zato nosi sopstveni razlog.
+        "rok_preskocen_razlog": rok_preskocen_razlog,
         "dokument_povezan": doc_linked,
         # Program Intake Sprint 006 -- per-document assimilation outcome,
         # replacing the single aggregate flag above for any caller that

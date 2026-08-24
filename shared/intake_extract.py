@@ -110,43 +110,148 @@ def extract_court(text: str) -> tuple[Optional[str], float]:
     return naziv, 0.9
 
 
+# ─── BLK-1: DATUM ≠ ROK ───────────────────────────────────────────────────────
+#
+# Dokazano uživo (BOJAN-BETA-FORENSIC-AUDIT-001, 2026-08-24) i reprodukovano
+# determinističkim jediničnim testom na HEAD `9a2ce774`: 9 od 14 slučajeva je
+# proglašavalo OBIČAN DATUM rokom, sa pouzdanošću 0.90-0.95 — iznad
+# `AUTO_ACCEPT_THRESHOLD` (0.90), dakle bez ijednog upozorenja advokatu.
+#
+# Uzrok NIJE bio prag i NIJE bio regex za datume. Uzrok je bio KRITERIJUM:
+# `_kategorija()` traži PRAVNU TEMU ("žalba", "tužba", "isplata") u prozoru od
+# ±100 znakova. Tema nije dokaz da je datum rok — "Isplata izvršena
+# 12.01.2026." nosi temu `isplata`, a taj datum je prošlost, ne obaveza.
+# Povrh toga, stara grana `izabran = znacajan or rokovi[0]` je, kad ništa nije
+# kategorisano, uzimala PRVI DATUM U DOKUMENTU — tj. datum dokumenta.
+#
+# Novi kriterijum traži DOKAZ O ROKU, ne temu:
+#   1. neposredno PRE datuma mora stajati eksplicitna rokovna reč
+#      ("rok", "roku", "ističe", "najkasnije", ćirilički ekvivalenti);
+#   2. između te reči i datuma ne sme biti PROTIV-DOKAZA ("zaključen",
+#      "potpisan", "primljeno", "izvršena", "zakazano", "ročište"…), jer takva
+#      reč znači da datum pripada NJOJ, a ne rokovnoj reči;
+#   3. između te reči i datuma ne sme biti ni novog reda ni DRUGOG datuma —
+#      inače se rokovna reč iz prethodne rečenice lepi na sledeći datum
+#      ("Rok za žalbu ističe 25.08.2026.\nU Beogradu, dana 05.08.2026.").
+#
+# Kad dokaza nema, vraća se `(None, 0.0)` — isti oblik koji `extract_all_entities`
+# već tretira kao "nije pronađeno" i šalje u review queue. Nema tihe degradacije:
+# postojeći, stvarno dokazani rokovi prolaze nepromenjeni (v. regresione testove).
+
+_ROK_MARKER_RE = re.compile(
+    r"\brok(?:a|u|om|ovi|ova|ove)?\b"          # rok / roka / roku / rokom / rokovi
+    r"|\bрок(?:а|у|ом|ови|ова|ове)?\b"          # ћирилица
+    r"|isti[čc]e|isteka|istekne|isteku"
+    r"|истиче|истека|истекне|истеку"
+    r"|najkasnije|најкасније"
+    r"|poslednji\s+dan|последњи\s+дан",
+    re.IGNORECASE,
+)
+
+# Reči koje datum vezuju za NEKI DRUGI događaj (potpis, prijem, isplata,
+# ročište, donošenje). Ako se nađu IZMEĐU rokovne reči i datuma, datum
+# pripada njima — ne roku.
+_KONTRA_MARKER_RE = re.compile(
+    r"zaklju[čc]|закључ"
+    r"|potpis|потпис"
+    r"|sastavlj|састављ"
+    r"|donet|donesen|донет|донесен"
+    r"|primljen|prijem|примљен|пријем"
+    r"|dostavlj|достављ"
+    r"|izvr[šs]en|извршен"
+    r"|ispla[ćc]en|upla[ćc]en|pla[ćc]en|исплаћен|уплаћен|плаћен"
+    r"|zakazan|заказан"
+    r"|ro[čc]i[šs]t|рочишт"
+    r"|odr[žz]an|одржан"
+    r"|podnet|поднет"
+    r"|overen|оверен"
+    r"|izdat|издат",
+    re.IGNORECASE,
+)
+
+_DRUGI_DATUM_RE = re.compile(r"\d{1,2}\.\s?\d{1,2}\.\s?\d{4}")
+
+# Koliko znakova unazad se traži rokovna reč. 90 pokriva tipičnu srpsku
+# konstrukciju ("Rok za izjavljivanje žalbe na presudu ističe <datum>") a da
+# ne preskoči granicu rečenice — granicu ionako zatvara pravilo 3.
+_ROK_DOKAZ_PROZOR = 90
+
+
+def _ima_dokaz_o_roku(text: str, pozicija: int, kraj: int) -> bool:
+    """True samo ako datum/relativni izraz na [pozicija, kraj) ima eksplicitan
+    dokaz da je ROK, a ne samo datum. Vidi blok iznad za tri pravila."""
+    if pozicija is None:
+        return False
+
+    pocetak = max(0, pozicija - _ROK_DOKAZ_PROZOR)
+    # Prozor uključuje i sam match: relativni rokovi ("u roku od 15 dana")
+    # nose rokovnu reč UNUTAR sopstvenog izraza, ne ispred njega.
+    prozor = text[pocetak:kraj]
+
+    poslednji = None
+    for m in _ROK_MARKER_RE.finditer(prozor):
+        poslednji = m
+    if poslednji is None:
+        return False
+
+    # Apsolutni offset kraja rokovne reči, pa razmak do samog datuma.
+    kraj_markera = pocetak + poslednji.end()
+    if kraj_markera >= pozicija:
+        # Rokovna reč je UNUTAR izraza (relativni slučaj) — dokaz je direktan.
+        return True
+
+    razmak = text[kraj_markera:pozicija]
+    if "\n" in razmak:
+        return False
+    if _KONTRA_MARKER_RE.search(razmak):
+        return False
+    if _DRUGI_DATUM_RE.search(razmak):
+        return False
+    return True
+
+
 def extract_deadline(text: str) -> tuple[Optional[str], float]:
     """Reuse-uje uploaded_doc/deadline_parser.py::ekstrahuj_rokove — isti
     mehanizam koji /api/dokument/rokovi već koristi, ne nov parser.
 
-    Otkriveno uživo (Faza 1A): "uzmi prvi pronađeni rok" je pogrešno kad
-    dokument pominje VIŠE datuma — datum same presude je skoro uvek prvi u
-    tekstu, a stvarni rok (za žalbu/otkaz/isplatu) dolazi kasnije, tipično u
-    odeljku pravne pouke. Zato se prvo traži rok sa PRAVNO ZNAČAJNOM
-    kategorijom (zastarelost/otkaz/zalba/podnesak/isplata — vidi
-    deadline_parser._kategorija).
+    `ekstrahuj_rokove` je KANDIDAT-generator: vraća svaki datum u dokumentu.
+    To je ispravno za listu koju advokat pregleda (`/api/dokument/rokovi`), ali
+    NIJE odluka. Ova funkcija je odluka — i ona sme da kaže "ovo je rok" samo
+    kad za to postoji dokaz (`_ima_dokaz_o_roku`, v. blok iznad).
 
-    Drugi sloj istog nalaza: deadline_parser.py-ov kontekst-prozor (100
-    karaktera) je dovoljno širok da OBA datuma u kratkom pasusu dobiju istu
-    kategoriju (npr. i datum presude i stvarni rok za žalbu, ako su blizu u
-    tekstu) — kategorija sama nije uvek dovoljna da razdvoji. Dodatni signal:
-    istekao=False (rok još nije prošao) je jači pokazatelj "ovo je stvarni,
-    aktivni rok" nego prosto koji je prvi u tekstu — presuda je skoro uvek
-    ranije datirana od roka koji iz nje proizilazi."""
+    Kad više kandidata ima dokaz, bira se prvi koji još nije istekao — rok koji
+    tek predstoji je ono što advokatu treba; ako su svi istekli, bira se prvi
+    dokazani. Fallback "uzmi prvi datum u dokumentu" je UKLONJEN: on je bio
+    korenski uzrok BLK-1."""
     from uploaded_doc.deadline_parser import ekstrahuj_rokove
 
-    rokovi = ekstrahuj_rokove(text or "")
+    izvor = text or ""
+    rokovi = ekstrahuj_rokove(izvor)
     if not rokovi:
         return None, 0.0
 
-    znacajan = (
-        next((r for r in rokovi if r.get("kategorija") != "ostalo" and r.get("istekao") is False), None)
-        or next((r for r in rokovi if r.get("kategorija") != "ostalo"), None)
+    dokazani = [
+        r for r in rokovi
+        if _ima_dokaz_o_roku(izvor, r.get("pozicija"), r.get("kraj"))
+    ]
+    if not dokazani:
+        # Datum(i) postoje, ali nijedan nije dokazan kao rok. Ovo NIJE greška
+        # ekstrakcije — to je pošten ishod, i `extract_all_entities` ga već
+        # tretira kao "nije pronađeno" (niska pouzdanost → review queue).
+        return None, 0.0
+
+    izabran = (
+        next((r for r in dokazani if r.get("istekao") is False), None)
+        or dokazani[0]
     )
-    izabran = znacajan or rokovi[0]
 
     vrednost = izabran.get("konkretan_datum") or izabran.get("vrednost")
     # Apsolutni datum (regex sa eksplicitnim danom/mesecom/godinom) je
-    # pouzdaniji signal nego relativni ("15 dana") koji zavisi od tačnog
-    # datuma dokumenta da bi se izračunao unapred. Kategorisan rok (znacajan
-    # je not None) dobija blagi bonus — manja šansa da je ovo slučajan datum.
+    # pouzdaniji signal nego relativni ("15 dana"), koji zavisi od tačnog
+    # datuma dokumenta da bi uopšte bio pretvoren u datum. Bonus od 0.05 nosi
+    # svaki DOKAZANI rok — posle ove izmene drugih i nema.
     base = 0.9 if izabran.get("tip") == "apsolutni" else 0.72
-    confidence = min(0.97, base + 0.05) if znacajan else base
+    confidence = min(0.97, base + 0.05)
     return vrednost, confidence
 
 
