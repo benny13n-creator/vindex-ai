@@ -1348,6 +1348,36 @@ async def _finalize_intake_job_core(
                 "[SMART_INTAKE] rok NIJE upisan (pouzdanost=%s < %s, bez ljudske potvrde) predmet=%s job=%s",
                 _dl_conf, intake_documents.AUTO_ACCEPT_THRESHOLD, predmet_id, job_id,
             )
+        # BLK-1 / TEST J: isti dokument obrađen dva puta pravio je DVA identična
+        # roka u istom predmetu. Dedup na otpremanju (`already_submitted`) hvata
+        # samo ponovno slanje PRE finalizacije — posle nje isti sadržaj dobija
+        # nov `job_id` i prolazi ovuda ponovo. Rok je obaveza advokata; ista
+        # obaveza upisana dvaput je isti oblik lažne informacije kao izmišljen
+        # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti
+        # naziv događaja.
+        _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
+        if deadline_iso and _dl_dovoljan:
+            try:
+                _postojeci = await asyncio.to_thread(
+                    lambda: supa.table("predmet_hronologija")
+                        .select("id")
+                        .eq("predmet_id", predmet_id)
+                        .eq("datum_iso", deadline_iso)
+                        .eq("dogadjaj", _rok_dogadjaj)
+                        .limit(1)
+                        .execute()
+                )
+                if _postojeci.data:
+                    logger.info(
+                        "[SMART_INTAKE] rok %s vec postoji u predmetu %s -- preskacem duplikat (job=%s)",
+                        deadline_iso, predmet_id, job_id,
+                    )
+                    rok_preskocen_razlog = "vec_postoji"
+                    deadline_iso = None
+            except Exception as exc:
+                # Provera duplikata NE sme da obori upis stvarnog roka -- gori
+                # ishod od duplog roka je nijedan rok.
+                logger.warning("[SMART_INTAKE] provera duplikata roka nije uspela (nastavljam): %s", exc)
         if deadline_iso and _dl_dovoljan:
             try:
                 await asyncio.to_thread(
@@ -1358,8 +1388,11 @@ async def _finalize_intake_job_core(
                         # `tip_labela` TIP DOKUMENTA. U kalendaru je to čitano kao
                         # vrsta roka ("Rok — ugovor"), što je tvrdnja koju sistem
                         # nema čime da potkrepi. Sada naziv kaže tačno ono što
-                        # sistem zna: rok pronađen U dokumentu tog tipa.
-                        "dogadjaj":   f"Rok iz dokumenta ({tip_labela})",
+                        # sistem zna: rok pronađen U dokumentu tog tipa. Isti
+                        # izraz koji provera duplikata iznad koristi — jedan
+                        # naziv, jedno mesto, inače dedup gleda drugu vrednost
+                        # nego što se upisuje.
+                        "dogadjaj":   _rok_dogadjaj,
                         "datum":      deadline_iso,
                         "datum_iso":  deadline_iso,
                         "vaznost":    "važan",

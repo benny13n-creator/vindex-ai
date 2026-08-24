@@ -206,3 +206,190 @@ def test_relativni_rok_ne_postaje_datum_u_kalendaru():
     )
     assert vrednost == "15 dana"
     assert _deadline_to_iso(vrednost) is None
+
+
+# ─── TAČKA UPISA: baza / kalendar / podsetnik (nalog §13, §14) ───────────────
+#
+# Testovi iznad zaključavaju ODLUKU (`extract_deadline`). Ovi zaključavaju
+# POSLEDICU — šta finalize stvarno upiše u `predmet_hronologija`, jedini izvor
+# iz kog `/api/kalendar/pregled` i `/notifications/refresh` čitaju rokove.
+# Mocking obrazac je isti kao u tests/test_sprint003_classification_review_required.py.
+
+import contextlib
+import os
+import sys
+from unittest.mock import AsyncMock, MagicMock, patch
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from starlette.requests import Request as StarletteRequest
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+def _blk1_request():
+    return StarletteRequest(scope={
+        "type": "http", "method": "POST", "headers": [], "query_string": b"",
+        "path": "/api/smart-intake/jobs/job-1/finalize", "app": MagicMock(), "state": MagicMock(),
+    })
+
+
+def _blk1_user():
+    return {"user_id": "00000000-0000-0000-0000-000000000001", "email": "advokat@vindex.rs"}
+
+
+def _blk1_supa(hronologija_postoji=False):
+    """Beleži svaki INSERT u predmet_hronologija u `supa.blk1_upisi`."""
+    supa = MagicMock()
+    supa.blk1_upisi = []
+
+    def _table(name):
+        t = MagicMock()
+        if name == "intake_jobs":
+            t.select.return_value.eq.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = {
+                "id": "job-1", "status": "completed", "storage_path": "session/xyz",
+                "original_filename": "resenje.pdf", "mime_type": "application/pdf",
+                "predmet_id": None, "completed_at": None,
+            }
+            t.update.return_value.eq.return_value.execute.return_value = MagicMock()
+        elif name == "predmeti":
+            t.insert.return_value.execute.return_value.data = [{"id": "pred-001"}]
+        elif name == "predmet_dokumenti":
+            t.insert.return_value.execute.return_value.data = [{"id": "dok-001"}]
+            # Detekcija "nastavljam prekinuti pokusaj" (smart_intake.py:1055) --
+            # prazan rezultat znaci "ovo je prvi finalize", sto je slucaj koji
+            # ovi testovi mere. Bez ovoga MagicMock vraca truthy `.data` i kod
+            # ide u RESUME granu koja rok NAMERNO preskace.
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+        elif name == "klijenti":
+            t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.limit.return_value.execute.return_value.data = []
+            t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]
+        elif name == "predmet_klijenti":
+            t.insert.return_value.execute.return_value.data = [{}]
+        elif name == "predmet_hronologija":
+            def _insert(red):
+                supa.blk1_upisi.append(red)
+                m = MagicMock()
+                m.execute.return_value.data = [{}]
+                return m
+            t.insert.side_effect = _insert
+            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
+                [{"id": "hron-postojeci"}] if hronologija_postoji else []
+            )
+        elif name == "intake_job_segments":
+            t.select.return_value.eq.return_value.maybe_single.return_value.execute.return_value.data = None
+        return t
+
+    supa.table.side_effect = _table
+    return supa
+
+
+async def _blk1_finalize(supa, entities, review=None):
+    from routers.smart_intake import finalize_intake_job, FinalizeReq
+
+    job_result = {
+        "document": {"id": "dok-001", "document_type": "appeal"},
+        "entities": entities,
+        "review": review,
+    }
+    patches = (
+        patch("routers.smart_intake._get_supa", return_value=supa),
+        patch("shared.intake_segments._get_supa", return_value=supa),
+        patch("shared.intake_documents.get_job_documents", new=AsyncMock(return_value=[job_result])),
+        patch("shared.intake_worker.worker._download_and_decrypt", new=AsyncMock(return_value=b"raw")),
+        patch("uploaded_doc.extractor.extract", return_value=("tekst", False, False, None, None)),
+        patch("uploaded_doc.chunker.chunk_document", return_value={"chunks": []}),
+        patch("uploaded_doc.ingest.ingest_session", return_value=None),
+        patch("uploaded_doc.session.generate_session_id", return_value="sess-001"),
+        patch("shared.kancelarija_utils.get_kancelarija_id", new=AsyncMock(return_value=None)),
+        patch("shared.vector_origin.now_iso", return_value="2026-08-24T00:00:00Z"),
+        patch("routers.smart_intake.intake_queue.claim_finalize",
+              new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-24T00:00:00+00:00"})),
+        patch("services.event_bus.emit_durable", new=AsyncMock()),
+    )
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
+        return await finalize_intake_job("job-1", _blk1_request(), FinalizeReq(), _blk1_user())
+
+
+def _ent(entity_type, value, confidence, reviewed=False, corrected=None):
+    return {"id": "e-" + entity_type, "entity_type": entity_type, "value": value,
+            "confidence": confidence, "reviewed": reviewed, "corrected_value": corrected,
+            "extraction_method": "regex"}
+
+
+@pytest.mark.anyio
+async def test_upis_dokazan_rok_ulazi_u_hronologiju_sa_provenance():
+    """Dokazan rok mora da uđe u `predmet_hronologija` — to je jedini izvor
+    kalendara — i mora da nosi izvorni dokument."""
+    supa = _blk1_supa()
+    rezultat = await _blk1_finalize(supa, [_ent("deadline", "27.09.2026", 0.95)])
+
+    assert rezultat["rok_dodat"] is True
+    assert len(supa.blk1_upisi) == 1
+    red = supa.blk1_upisi[0]
+    assert red["datum_iso"] == "2026-09-27"
+    assert red["dokument_naziv"] == "resenje.pdf"
+
+
+@pytest.mark.anyio
+async def test_upis_naziv_vise_ne_tvrdi_vrstu_roka():
+    """Raniji naziv je bio vrsta DOKUMENTA prikazana kao vrsta ROKA."""
+    supa = _blk1_supa()
+    await _blk1_finalize(supa, [_ent("deadline", "27.09.2026", 0.95)])
+
+    dogadjaj = supa.blk1_upisi[0]["dogadjaj"]
+    assert not dogadjaj.startswith("Rok — ")
+    assert dogadjaj.startswith("Rok iz dokumenta (")
+
+
+@pytest.mark.anyio
+async def test_upis_niska_pouzdanost_ne_ulazi_u_kalendar():
+    """Drugi sloj: i kad bi klasifikacija propustila nedokazan datum, upis ga
+    zaustavlja — i to KAŽE, umesto da ćuti."""
+    supa = _blk1_supa()
+    rezultat = await _blk1_finalize(supa, [_ent("deadline", "27.09.2026", 0.55)])
+
+    assert rezultat["rok_dodat"] is False
+    assert rezultat["rok_preskocen_razlog"] == "niska_pouzdanost"
+    assert supa.blk1_upisi == []
+
+
+@pytest.mark.anyio
+async def test_upis_ljudska_potvrda_nadjacava_prag():
+    """Vrednost koju je advokat ispravio ulazi bez obzira na pouzdanost —
+    prag štiti od mašine, ne od čoveka."""
+    supa = _blk1_supa()
+    rezultat = await _blk1_finalize(
+        supa, [_ent("deadline", "01.01.2027", 0.20, reviewed=True, corrected="27.09.2026")])
+
+    assert rezultat["rok_dodat"] is True
+    assert supa.blk1_upisi[0]["datum_iso"] == "2026-09-27"
+
+
+@pytest.mark.anyio
+async def test_upis_TEST_J_dupla_obrada_ne_pravi_dupli_rok():
+    """TEST J (nalog §10): isti dokument obrađen dvaput. Rok već postoji u
+    predmetu — drugi upis se preskače, i razlog se prijavljuje."""
+    supa = _blk1_supa(hronologija_postoji=True)
+    rezultat = await _blk1_finalize(supa, [_ent("deadline", "27.09.2026", 0.95)])
+
+    assert rezultat["rok_dodat"] is False
+    assert rezultat["rok_preskocen_razlog"] == "vec_postoji"
+    assert supa.blk1_upisi == []
+
+
+@pytest.mark.anyio
+async def test_upis_bez_roka_ne_dira_hronologiju():
+    """Tužba bez roka: `extract_deadline` vraća None, entitet nema vrednost,
+    `predmet_hronologija` ostaje netaknuta."""
+    supa = _blk1_supa()
+    rezultat = await _blk1_finalize(supa, [_ent("deadline", None, 0.0)])
+
+    assert rezultat["rok_dodat"] is False
+    assert rezultat["rok_preskocen_razlog"] is None
+    assert supa.blk1_upisi == []
