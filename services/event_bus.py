@@ -472,6 +472,90 @@ def emit(
     ))
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# BLK-2.1 — DOGADJAJ SE NE UPISUJE ZA PREDMET KOJI SE BRIŠE ILI JE OBRISAN
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Dokazano determinističkom trkom (55 iteracija, barijera puštena TAČNO kad
+# korak 5b brisanja obriše `events`): **54/55 je proizvelo orphan** — predmet
+# obrisan, a `events` red sa njegovim `predmet_id` ostao. `events.predmet_id`
+# nema FK, pa ga korak 7 (`DELETE FROM predmeti`) ne dodiruje.
+#
+# Zašto guard, a ne „metla posle brisanja": metla nije atomarna prema piscu i
+# ne sprečava da poller DISPEČUJE takav događaj (`dispatch_pending_events` ne
+# proverava postojanje predmeta) — Case Evolution bi se pokrenuo nad mrtvim
+# predmetom. Presretanje na PISCU je najranija tačka na kojoj se to može
+# sprečiti.
+#
+# Zašto NE strani ključ `events.predmet_id → predmeti.id`: izmereno na
+# produkciji — kolona je `TEXT`, `predmeti.id` je `UUID`, i **871 od 1000**
+# redova u uzorku nosi vrednosti koje nisu UUID (`"pred-1"`, `"pred-001"` —
+# talog jediničnih testova), uz 86 redova sa `NULL`. FK bi zahtevao promenu
+# tipa i brisanje/migraciju tih redova, što invarijanta 8 specifikacije
+# izričito zabranjuje bez dokaza da nema orphan redova. Zato: bez izmene šeme.
+#
+# Koristi se POSTOJEĆI tombstone (`predmeti.brisanje_zapoceto`, migracija 114),
+# isti koji `shared/rag_acl.py` već koristi da isključi predmet iz RAG-a — nije
+# uveden nov mehanizam.
+
+_NEISPRAVAN_UUID_KODOVI = ("22P02", "invalid input syntax for type uuid")
+
+
+def _je_uuid(vrednost: str) -> bool:
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(vrednost))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+async def predmet_prima_dogadjaje(supa, predmet_id: "str | None") -> bool:
+    """True ako se za `predmet_id` sme upisati događaj.
+
+    False SAMO kad je dokazano da predmet ne postoji ili je označen za brisanje.
+
+    Namerno propušta (vraća True) u tri slučaja:
+      1. `predmet_id` je prazan — događaj nije vezan za predmet (sistemski);
+      2. `predmet_id` nije UUID — takav red ne može referencirati stvaran
+         predmet (kolona `predmeti.id` je UUID), pa ne može ni biti orphan
+         obrisanog predmeta; upit bi samo pukao sa `22P02`;
+      3. sama provera je pala — `events` je outbox čiji gubitak trajno lomi
+         Case Pipeline (BLACKSWAN-HIGH-008: predmet bez `PREDMET_KREIRAN`
+         događaja nikad ne dobije nijedan prolaz), dok je orphan red pitanje
+         higijene. Zato prolazna greška baze NE sme da guta događaje. Loguje se.
+    """
+    if not predmet_id or not _je_uuid(predmet_id):
+        return True
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id, brisanje_zapoceto")
+                .eq("id", predmet_id)
+                .limit(1)
+                .execute()
+        )
+        redovi = getattr(r, "data", None) or []
+    except Exception as exc:
+        if any(k.lower() in str(exc).lower() for k in _NEISPRAVAN_UUID_KODOVI):
+            return True
+        logger.warning(
+            "[EVENT_BUS] provera stanja predmeta %s nije izvedena (%s) — dogadjaj se PROPUSTA "
+            "da se outbox ne bi tiho gubio; moguc orphan ako je predmet u brisanju.",
+            str(predmet_id)[:8], exc,
+        )
+        return True
+    if not redovi:
+        logger.info("[EVENT_BUS] dogadjaj odbijen: predmet %s ne postoji (obrisan).",
+                    str(predmet_id)[:8])
+        return False
+    if redovi[0].get("brisanje_zapoceto"):
+        logger.info("[EVENT_BUS] dogadjaj odbijen: predmet %s je oznacen za brisanje.",
+                    str(predmet_id)[:8])
+        return False
+    return True
+
+
 # ─── Canonical durable emission helper (Program Delta, Sprint 002) ───────────
 # Sprint 001 introduced ONE emission idiom (INSERT INTO events, tolerant of
 # correlation_id column missing pre-migration-090) at exactly one call site
@@ -515,6 +599,9 @@ async def emit_durable(
     if supa is None:
         from shared.deps import _get_supa
         supa = _get_supa()
+    # BLK-2.1 — najranija tačka na kojoj se orphan može sprečiti.
+    if not await predmet_prima_dogadjaje(supa, predmet_id):
+        return
     from shared.ai_provenance import current_correlation_id
     _cid = current_correlation_id()
     _evt_row = {
@@ -888,6 +975,11 @@ async def reap_missing_pipeline_events(min_age_minutes: int = 10, lookback_days:
     for p in predmeti:
         if p["id"] in already_have_event:
             continue
+        # BLK-2.1: reaper bira po `created_at`, bez obzira na tombstone —
+        # predmet u brisanju bi ovde dobio NOV dogadjaj koji korak 5b vise
+        # nece stici da obrise.
+        if not await predmet_prima_dogadjaje(supa, p["id"]):
+            continue
         try:
             await asyncio.to_thread(
                 lambda p=p: supa.table("events").insert({
@@ -961,6 +1053,9 @@ async def reap_missing_rociste_events(min_age_minutes: int = 10, lookback_days: 
     for r in rocista:
         key = (r.get("predmet_id"), r.get("sud"), r.get("datum"))
         if key in evt_keys:
+            continue
+        # BLK-2.1 — isti razlog kao kod PREDMET_KREIRAN reapera iznad.
+        if not await predmet_prima_dogadjaje(supa, r.get("predmet_id")):
             continue
         try:
             await asyncio.to_thread(

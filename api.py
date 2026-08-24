@@ -4285,9 +4285,21 @@ async def kreiraj_predmet(request: Request, authorization: str = Header(None)):
         # closes the common transient-blip case (a blip lasting a few seconds, this
         # mission's own named Scenario 5 shape) without a larger redesign; a genuinely
         # sustained outage still needs the reconciliation sweep below.
-        _evt_insert_ok = False
+        # BLK-2.1 — isti guard kao u services/event_bus.py::emit_durable. Ovo
+        # mesto ga NE zove (gradi `_evt_row` samo), pa bi bez ove provere
+        # ostalo nezasticeno. Guard propusta kad je predmet aktivan, sto je
+        # ovde ocekivano stanje (red je upravo kreiran) — vrednost je u tome
+        # sto retry petlja ispod ne moze da upise dogadjaj za predmet koji je
+        # u medjuvremenu poceo da se brise.
+        from services.event_bus import predmet_prima_dogadjaje as _prima
+        if not await _prima(_get_supa(), _evt_row.get("predmet_id")):
+            logger.info("[PREDMET] PREDMET_KREIRAN nije upisan — predmet se brise ili je obrisan.")
+            _dogadjaj_preskocen = True
+        else:
+            _dogadjaj_preskocen = False
+        _evt_insert_ok = _dogadjaj_preskocen
         _evt_last_exc: Exception | None = None
-        for _evt_attempt in range(3):
+        for _evt_attempt in (range(0) if _dogadjaj_preskocen else range(3)):
             try:
                 await asyncio.to_thread(
                     lambda: _get_supa().table("events").insert({**_evt_row, "correlation_id": _cid}).execute()

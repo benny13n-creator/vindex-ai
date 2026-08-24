@@ -620,6 +620,13 @@ async def _emit_genome_event(
         # tiho pokušao drugi upis i na potpuno nepovezanu grešku (npr.
         # konekcija), ne samo na "kolona ne postoji".
         from shared.audit_immutable import _is_missing_column_error
+        # BLK-2.1 — Genome refresh je pozadinski zadatak koji finalize pokrece
+        # 3s kasnije; ako advokat u medjuvremenu obrise predmet, ovaj upis je
+        # tacno onaj koji ostavlja orphan. Guard je isti kao u emit_durable.
+        from services.event_bus import predmet_prima_dogadjaje as _prima
+        if not await _prima(supa, _row.get("predmet_id")):
+            logger.info("[GENOME] Event nije upisan — predmet se brise ili je obrisan.")
+            return correlation_id
         try:
             await asyncio.to_thread(
                 lambda: supa.table("events").insert({**_row, "correlation_id": correlation_id}).execute()
