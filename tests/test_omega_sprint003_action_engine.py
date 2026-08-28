@@ -317,7 +317,12 @@ async def test_rule4_three_or_more_upcoming_deadlines_is_high_planirati_rokove()
 async def test_rule5_weak_evidence_is_informational_ojacati_dokaze():
     from services.case_evolution import _compute_target_actions
     supa = _make_target_supa(
-        dokazi=[{"snaga": "slaba", "kategorija": "izjava", "pravni_element": "x"}],
+        # TASK 004A: Fixture explicitly represents an assessed evidence item.
+        # Pravilo 5 se okida na labelu „Slaba", a `slaba` je po F4 ugovoru
+        # dostižna ISKLJUČIVO ljudskom procenom -- `snaga_iz_lokacije` nikada
+        # ne vraća `slaba`, pa `covek` ovde nije izbor nego jedina mogućnost.
+        dokazi=[{"snaga": "slaba", "kategorija": "izjava", "pravni_element": "x",
+                 "izvor_snage": "covek"}],
         dokumenti=[{"naziv_fajla": "d.pdf", "status": "indeksirano", "tip_dokaza": t} for t in
                    ("sudska_odluka", "podnesak", "ugovor", "dopis")],
         rocista=[],

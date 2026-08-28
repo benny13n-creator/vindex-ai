@@ -126,7 +126,11 @@ async def test_no_poznati_problemi_section_when_case_is_clean():
 
     # Satisfy all 4 expected radno doc types + strong evidence + no critical
     # hearings -> identify_case_problems returns [].
-    dokazi = [{"snaga": "jaka", "kategorija": "x"}] * 4
+    # TASK 004A: Fixture explicitly represents assessed evidence items.
+    # Da bi predmet bio „čist" po F4 ugovoru, tvrdnje ne smeju samo postojati
+    # nego moraju biti PROCENJENE -- neprocenjena tvrdnja je stvarna praznina
+    # i legitimno proizvodi problem „nije procenjeno".
+    dokazi = [{"snaga": "jaka", "kategorija": "x", "izvor_snage": "covek"}] * 4
     dokumenti = [
         {"naziv_fajla": f"{t}.pdf", "status": "ok", "created_at": "2026-01-01", "tip_dokaza": t}
         for t in ("ugovor", "dopis", "finansijska_dokumentacija", "sudska_odluka")

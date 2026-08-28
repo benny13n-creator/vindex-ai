@@ -68,7 +68,7 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
         # alongside this one) happened to cancel out to a coincidentally-matching health_score
         # between two endpoints, masking both real defects.
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
-            "snaga,kategorija"
+            "snaga,kategorija,izvor_snage"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,tip_dokaza").eq(
             "predmet_id", predmet_id).execute()),

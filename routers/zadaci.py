@@ -653,7 +653,7 @@ async def ai_analiziraj_predmet(
         # still being counted.
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("snaga, kategorija")
+                .select("snaga, kategorija, izvor_snage")
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
                 .execute()

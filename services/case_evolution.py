@@ -699,7 +699,7 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
     from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
     tip_predmeta = after_data.get("tip") or "ostalo"
     dokazi_r, dok_r, rok_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element,izvor_snage").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         # Operation Singular Intelligence, Mission 002: tip_dokaza added -- Red Team's Attack 1
         # reproduced this exact caller (of calculate_procesni_rizik, missing the column every
         # sibling caller selects since the G-028 fix) computing "Srednji"/health=55/4 fabricated
@@ -810,7 +810,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     tip_predmeta = pred_data.get("tip") or "ostalo"
 
     dokazi_r, dok_r, rok_r = await asyncio.gather(
-        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element,izvor_snage").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         # tip_dokaza included (unlike matter_intel.py's own read-only display
         # caller, G-028) -- this query feeds a STATEFUL, persisted action
         # ("Nedostaje X u spisu" -> PRIBAVITI_DOKAZ), so a permanently-empty

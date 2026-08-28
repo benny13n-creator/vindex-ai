@@ -44,21 +44,27 @@ def test_kljucan_now_counts_as_critical_client_facing_deadline():
 
 def test_predmeti_dashboard_dokazi_query_excludes_soft_deleted():
     src = open(os.path.join(REPO_ROOT, "api.py"), encoding="utf-8").read()
-    marker = 'supa.table("predmet_dokazi")\n                .select("predmet_id,snaga,kategorija")'
+    # TASK 004A: marker je LOKATOR bloka, ne predmet provere. TASK 004 je
+    # `.select(...)` proširio sa `izvor_snage` (bez njega bi svaki red bio
+    # neprocenjen); tvrdnja koju ovaj test štiti -- soft-delete filter -- je
+    # nepromenjena i ovde se i dalje proverava nad istim blokom.
+    marker = 'supa.table("predmet_dokazi")\n                .select("predmet_id,snaga,kategorija,izvor_snage")'
     block = src.split(marker, 1)[1][:200]
     assert 'is_("deleted_at", "null")' in block
 
 
 def test_command_center_dokazi_query_excludes_soft_deleted():
     src = open(os.path.join(REPO_ROOT, "routers", "dashboard.py"), encoding="utf-8").read()
-    marker = 'supa.table("predmet_dokazi")\n            .select("predmet_id,snaga,kategorija")'
+    # TASK 004A: isto kao gore — pomeren lokator, tvrdnja nepromenjena.
+    marker = 'supa.table("predmet_dokazi")\n            .select("predmet_id,snaga,kategorija,izvor_snage")'
     block = src.split(marker, 1)[1][:200]
     assert 'is_("deleted_at", "null")' in block
 
 
 def test_matter_health_score_dokazi_query_excludes_soft_deleted():
     src = open(os.path.join(REPO_ROOT, "routers", "dashboard.py"), encoding="utf-8").read()
-    marker = 'supa.table("predmet_dokazi")\n            .select("snaga,kategorija,pravni_element")'
+    # TASK 004A: isto kao gore — pomeren lokator, tvrdnja nepromenjena.
+    marker = 'supa.table("predmet_dokazi")\n            .select("snaga,kategorija,pravni_element,izvor_snage")'
     block = src.split(marker, 1)[1][:200]
     assert 'is_("deleted_at", "null")' in block
 

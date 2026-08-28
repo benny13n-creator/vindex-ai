@@ -441,7 +441,12 @@ async def test_health_max_score():
     supa = _make_health_supa(
         pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
         bel=[{"id": "b1"}],                                            # aktivnost present
-        dokazi=[{"snaga": "jaka"}],                                    # snaga_dokaza=Jaka
+        # TASK 004A: fixture EKSPLICITNO predstavlja procenjenu dokaznu stavku.
+        # Scenario ovog testa je „predmet SA jakim dokazom" -- da bi to bio jak
+        # dokaz, neko ga je morao proceniti. Do TASK-a 004 se to podrazumevalo
+        # jer je `snaga` bila NOT NULL DEFAULT 'srednja'; sada provenance mora
+        # biti izrečena. `covek` = advokat je izričito ocenio snagu.
+        dokazi=[{"snaga": "jaka", "izvor_snage": "covek"}],            # snaga_dokaza=Jaka
         dok=[{"id": "d1", "tip_dokaza": "podnesak"},
              {"id": "d2", "tip_dokaza": "dopis"}],                     # covers both EXPECTED_DOCS["ostalo"]
         roc=[{"datum": far_future}],                                   # non-critical, but present
@@ -484,7 +489,12 @@ async def test_health_faktori_aktivnost_reports_real_subscore_not_total():
     supa = _make_health_supa(
         pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
         bel=[], kom=[],                      # NEMA aktivnosti -> aktivnost poeni = 0
-        dokazi=[{"snaga": "jaka"}],          # health_score=70 (non-zero, non-25-coincidence)
+        # TASK 004A: Fixture explicitly represents an assessed evidence item.
+        # Tvrdnja ovog testa je `faktori.aktivnost == 0` nezavisno od totala;
+        # `score == 70` je SPOREDNA premisa koja samo obezbeđuje da total nije
+        # nula. Premisa se čuva time što se dokaz izriče kao procenjen -- ne
+        # menjanjem očekivanog broja.
+        dokazi=[{"snaga": "jaka", "izvor_snage": "covek"}],  # health_score=70 (non-zero, non-25-coincidence)
         dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
         roc=[],
     )
@@ -518,7 +528,11 @@ async def test_health_upozorenje_range():
     supa = _make_health_supa(
         pred=[{"id": PID, "status": "aktivan", "tip": "ostalo"}],
         bel=[],
-        dokazi=[{"snaga": "srednja"}],
+        # TASK 004A: Fixture explicitly represents an assessed evidence item.
+        # `srednja` kao PROCENJENA vrednost može poticati isključivo od čoveka:
+        # DC-005 vraća `srednja` samo kada tvrdnju NIJE našao, a to je po F4
+        # ugovoru `podrazumevano` (neprocenjeno), ne `dc005`.
+        dokazi=[{"snaga": "srednja", "izvor_snage": "covek"}],
         dok=[{"id": "d1", "tip_dokaza": "podnesak"}, {"id": "d2", "tip_dokaza": "dopis"}],
         roc=[],
     )

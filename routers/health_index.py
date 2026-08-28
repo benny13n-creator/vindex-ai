@@ -105,7 +105,7 @@ async def _compute_health(uid: str, supa) -> dict:
         # mission's 10 forensic teams. Bulk-fetched here so risk can be computed LIVE per case
         # via the canonical engine, the same pattern used by api.py/routers/dashboard.py.
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
-            .select("predmet_id,snaga,kategorija")
+            .select("predmet_id,snaga,kategorija,izvor_snage")
             .eq("user_id", uid).is_("deleted_at", "null").execute()),
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
             .select("predmet_id,tip_dokaza")

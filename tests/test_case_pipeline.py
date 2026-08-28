@@ -464,7 +464,14 @@ async def test_step7_success():
     from services.case_pipeline import _step_risk_snapshot, StepStatus
     supa = _supa_by_table(
         predmet_istorija=[],
-        predmet_dokazi=[{"snaga": "jaka"}, {"snaga": "jaka"}, {"snaga": "jaka"}],
+        # TASK 004A: Fixture explicitly represents assessed evidence items.
+        # Test tvrdi da `_step_risk_snapshot` vraća ISTI deterministički
+        # rezultat kao Matter Intel/Cockpit za identičan ulaz; „3x jaka dokaza"
+        # iz docstring-a podrazumeva procenjene dokaze, što se od TASK-a 004
+        # mora izreći provenance-om umesto oslanjanja na DB default.
+        predmet_dokazi=[{"snaga": "jaka", "izvor_snage": "covek"},
+                        {"snaga": "jaka", "izvor_snage": "covek"},
+                        {"snaga": "jaka", "izvor_snage": "covek"}],
         predmet_dokumenti=[],
         rocista=[],
     )

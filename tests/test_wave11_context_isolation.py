@@ -196,8 +196,32 @@ def otisak(rezultat: dict) -> str:
 # zakrpe). Ako ijedan izvor ispadne iz konteksta, ili ijedno polje promeni
 # oblik, otisak se razlikuje — zato je ovo istovremeno i dokaz nepromenjenog
 # ponašanja i pozitivna kontrola nad samim testom.
-_ZLATNI_OTISAK_SA_DOKUMENTIMA = "ed4d7764a772d5775378d84da5608ee516c56e34295b26a984828cf418ee0730"
-_ZLATNI_OTISAK_BEZ_DOKUMENATA = "87ac0884f65400cf005f45b1bccb57516062f8c831e24e267cbdadbf51ad91f1"
+#
+# TASK 004A — otisci su PREBAZIRANI, tehnika i namera su NEPROMENJENE.
+#
+# Namena ovih testova je pozitivna kontrola nad testom izolacije („da nisu SVI
+# upiti ugašeni"), a ne javni izlazni ugovor. Otisak je alat, ne tvrdnja.
+#
+# Fixture (`predmet_dokazi`, ~linija 125) nosi `snaga` bez `izvor_snage` --
+# dakle po F4 ugovoru dve NEPROCENJENE tvrdnje. Provenance se NAMERNO ne
+# dodaje: ovi testovi mere izolaciju, ne semantiku dokaza, pa im je legacy
+# oblik reda verniji od izmišljene procene.
+#
+# Šta se promenilo u izlazu (posledica TASK-a 004, ne regresija):
+#     snaga_dokaza   Jaka  -> Nije procenjeno       health_score  70 -> 30
+#     snaga_pct        50  -> 0                     nivo       Nizak -> Visok
+#     snaga_detalji  {j1,s0,sl1} -> {0,0,0}
+#     + broj_tvrdnji=2, broj_procenjenih=0, pokrivenost=EVIDENCE_UNASSESSED
+#     + problem „2 tvrdnji u spisu nije procenjeno"
+#
+# Zadržati stare otiske značilo bi zahtevati `Jaka`/50/70 za dva reda BEZ
+# ijedne procene -- tačno grešku koju su gate-ovi 006-009 dokazali.
+#
+# Otisci pre TASK-a 004 (za reviziju):
+#   sa dokumentima : ed4d7764a772d5775378d84da5608ee516c56e34295b26a984828cf418ee0730
+#   bez dokumenata : 87ac0884f65400cf005f45b1bccb57516062f8c831e24e267cbdadbf51ad91f1
+_ZLATNI_OTISAK_SA_DOKUMENTIMA = "2fde822dba3c6d10ea00347d131f5e7c8b7a3b8836243025d98c2f4f92740360"
+_ZLATNI_OTISAK_BEZ_DOKUMENATA = "aa52b66cb8f4f527d316f27da409f3e6ab9f91b421aafe63a8478da903070389"
 
 
 # ─── 1. SRŽ: tuđi upiti se NE IZVRŠAVAJU ────────────────────────────────────

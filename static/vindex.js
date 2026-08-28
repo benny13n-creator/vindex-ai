@@ -19332,9 +19332,24 @@ function matter_intel_load() {
   }).then(function(r){ return r.json(); }).then(function(d) {
     bar.style.display = 'block';
     var rizikColor = d.rizik_boja === 'green' ? '#4ade80' : d.rizik_boja === 'red' ? '#f87171' : '#fbbf24';
-    var snagaColor = d.snaga_dokaza === 'Jaka' ? '#4ade80' : d.snaga_dokaza === 'Slaba' ? '#f87171' : '#fbbf24';
+    // TASK 004: „Nije procenjeno" NIJE ocena snage — dobija neutralnu boju da se
+    // vizuelno ne izjednaci sa „Srednja". Bez toga bi korisnik odsustvo procene
+    // video isto kao osrednju procenu.
+    var snagaColor = d.snaga_dokaza === 'Jaka' ? '#4ade80'
+                   : d.snaga_dokaza === 'Slaba' ? '#f87171'
+                   : d.snaga_dokaza === 'Nije procenjeno' ? 'rgba(255,255,255,0.55)'
+                   : '#fbbf24';
 
-    document.getElementById('mi-snaga').textContent    = d.snaga_dokaza || '—';
+    // TASK 004: kod delimicne procene ocena snage pociva SAMO na procenjenom delu
+    // spisa -- to mora biti vidljivo, inace „Jaka" nad 1 od 100 tvrdnji izgleda
+    // isto kao „Jaka" nad svih 100.
+    var _snagaTekst = d.snaga_dokaza || '—';
+    if (d.pokrivenost_procene === 'EVIDENCE_PARTIAL') {
+      _snagaTekst += ' (' + (d.broj_procenjenih || 0) + '/' + (d.broj_tvrdnji || 0) + ' procenjeno)';
+    } else if (d.pokrivenost_procene === 'EVIDENCE_UNASSESSED' && (d.broj_tvrdnji || 0) > 0) {
+      _snagaTekst += ' (' + d.broj_tvrdnji + ' tvrdnji čeka procenu)';
+    }
+    document.getElementById('mi-snaga').textContent    = _snagaTekst;
     document.getElementById('mi-snaga').style.color    = snagaColor;
     document.getElementById('mi-rizik').textContent    = d.procesni_rizik || '—';
     document.getElementById('mi-rizik').style.color    = rizikColor;

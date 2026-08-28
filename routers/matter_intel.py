@@ -63,7 +63,7 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
     # ── Sva 3 upita paralelno ────────────────────────────────────────────────
     dokazi_r, dok_r, rok_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
-            "snaga,kategorija,pravni_element"
+            "snaga,kategorija,pravni_element,izvor_snage"
         ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         # Operation Single Brain (2026-08-07): this select was missing tip_dokaza --
         # calculate_procesni_rizik's missing-evidence detection reads exactly that column
@@ -128,6 +128,12 @@ async def get_matter_intel(request: Request, predmet_id: str, user=Depends(get_c
         "snaga_dokaza":     snaga_label,
         "snaga_pct":        snaga_pct,
         "snaga_detalji":    snaga_count,
+        # TASK 004 — coverage osa, aditivno (postojeći potrošači nedirnuti).
+        # Bez ovoga UI ne može da razlikuje „nema tvrdnji" od „tvrdnje postoje,
+        # ali nijedna nije procenjena", niti da vidi da „Jaka" počiva na 1/100.
+        "broj_tvrdnji":       _rizik["broj_tvrdnji"],
+        "broj_procenjenih":   _rizik["broj_procenjenih"],
+        "pokrivenost_procene": _rizik["pokrivenost_procene"],
         "procesni_rizik":   procesni_rizik,
         "rizik_boja":       rizik_boja,
         "nedostajuci_dokazi": nedostajuci,

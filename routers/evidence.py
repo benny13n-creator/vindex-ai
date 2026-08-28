@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
+from shared.http_errors import NamerniHTTPException
 from fastapi import Security
 from shared.llm_retry import llm_retry
 from shared.permissions import PermissionService
@@ -121,96 +122,25 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
         }
 
 
-_CHARS_PO_STRANICI = 2500  # gruba procena (12pt font, A4, standardni razmak)
-_PROBE_MAX_LEN = 100  # _lociraj_tvrdnju proverava SAMO prvih ovoliko karaktera tvrdnje
-
-
-def _lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
-    """AKCIJA 2 (2026-07-24): programski pronalazi GDE se tvrdnja nalazi u
-    izvornom dokumentu -- isti substring-matching princip kao
-    analiza/validator.py::validate_clause_excerpts (ne teoretsko poverenje
-    LLM-u), primenjen na Evidence Vault. Ako tvrdnja nije doslovno
-    pronađena (GPT je parafrazirao umesto citirao), vraća sve None --
-    kolone su NULLABLE upravo zbog ovoga (fail-soft, nikad izmišljena
-    lokacija samo da bi polje bilo popunjeno)."""
-    prazno = {"stranica": None, "paragraf": None, "start_offset": None, "end_offset": None}
-    if not tekst or not tvrdnja:
-        return prazno
-
-    probe = re.sub(r"\.{2,}$|…$", "", tvrdnja.strip()).rstrip()[:_PROBE_MAX_LEN]
-    if not probe:
-        return prazno
-
-    # Pokušaj 1: tačan (case-insensitive) substring na ORIGINALNOM tekstu --
-    # daje TAČAN offset kad GPT citira sa istim razmacima kao izvor.
-    pos = tekst.lower().find(probe.lower())
-    if pos >= 0:
-        start_offset, end_offset = pos, pos + len(probe)
-    else:
-        # Pokušaj 2: whitespace-normalizovano pretraživanje (isti obrazac
-        # kao validate_clause_excerpts), sa proporcionalnim mapiranjem
-        # nazad na originalni tekst -- aproksimacija, dovoljno dobra za
-        # "otprilike koja stranica/segment", ne za karakter-precizan offset.
-        try:
-            from analiza.validator import _normalize_ws
-            tekst_norm = _normalize_ws(tekst)
-            probe_norm = _normalize_ws(probe)
-            npos = tekst_norm.find(probe_norm)
-        except Exception:
-            npos = -1
-        if npos < 0:
-            return prazno
-        razmera = len(tekst) / max(len(tekst_norm), 1)
-        start_offset = int(npos * razmera)
-        end_offset = int((npos + len(probe_norm)) * razmera)
-
-    stranica = (start_offset // _CHARS_PO_STRANICI) + 1
-
-    paragraf = None
-    try:
-        from analiza.segmenter import segment_document
-        segmented = segment_document(tekst)
-        for seg in segmented.segments:
-            if seg.start_offset >= 0 and seg.start_offset <= start_offset < seg.end_offset:
-                paragraf = seg.id
-                break
-    except Exception:
-        pass
-
-    return {
-        "stranica": stranica,
-        "paragraf": paragraf,
-        "start_offset": start_offset,
-        "end_offset": end_offset,
-    }
-
-
-_SNAGA_MIN_TVRDNJA_LEN = 20  # ispod ovoga, substring poklapanje je previse opste (npr. samo ime stranke) da bi bio pouzdan signal
-
-
-def _snaga_iz_lokacije(tvrdnja: str, lokacija: dict) -> str:
-    """Program Beta (2026-08-04) — `snaga` je ranije bila fiksna "srednja" za
-    SVAKU tvrdnju, bez obzira da li je _lociraj_tvrdnju uopšte mogla da je
-    pronađe u izvornom dokumentu -- odbačen već-izračunat signal (isti obrazac
-    kao shared/genome_validator.py::compute_snaga_score, treći potvrđeni
-    slučaj istog principa u ovom repou). Tvrdnja pronađena doslovno u izvoru
-    je genuinely jača dokazna osnova nego neverifikovana -- ali "nije
-    pronađeno" NE znači nužno "netačno" (GPT je mogao parafrazirati), zato
-    default za neverifikovano ostaje neutralno "srednja", ne "slaba".
-
-    Olympus Faza 10 governance nalaz (2026-08-04, AI Grounding + AI Quality
-    Auditor nezavisno potvrdili isti rizik): "jaka" se dodeljuje SAMO kad je
-    CELA tvrdnja duž provere -- ne prekratka (generička fraza kao samo ime
-    stranke može slučajno poklopiti nepovezano mesto u tekstu) i ne duža od
-    _PROBE_MAX_LEN (_lociraj_tvrdnju proverava SAMO prvih 100 karaktera --
-    duža tvrdnja čiji je REP izmišljen/parafraziran bi inače dobila "jaka" na
-    osnovu poklapanja samo prefiksa, nikad proveravajući ostatak)."""
-    if lokacija.get("start_offset") is None:
-        return "srednja"
-    duzina = len((tvrdnja or "").strip())
-    if duzina < _SNAGA_MIN_TVRDNJA_LEN or duzina > _PROBE_MAX_LEN:
-        return "srednja"
-    return "jaka"
+# ── Utemeljenje i snaga: kanonski izvor je shared/evidence_write.py ─────────
+# IMPLEMENTATION TASK 001 (2026-08-27): `_lociraj_tvrdnju` i `_snaga_iz_lokacije`
+# su preseljene u shared/evidence_write.py bez izmene ponašanja, da bi ih
+# jedinstveni primitiv upisa mogao pozvati bez cirkularnog importa. Re-eksport
+# ispod čuva stara imena jer na njih računaju DECISION_REGISTRY.md (DC-005),
+# tests/test_decision_registry_completeness.py i tests/test_akcija2_faza4_*.py.
+from shared.evidence_write import (              # noqa: E402
+    KATEGORIJE,
+    SNAGE,
+    GreskaDokaza,
+    lociraj_tvrdnju as _lociraj_tvrdnju,
+    odredi_snagu,
+    snaga_iz_lokacije as _snaga_iz_lokacije,
+    upisi_dokaz,
+    upisi_dokaze,
+    _CHARS_PO_STRANICI,
+    _PROBE_MAX_LEN,
+    _SNAGA_MIN_TVRDNJA_LEN,
+)
 
 
 def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> dict:
@@ -277,46 +207,40 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
         # su i dalje vredne upisati ako je predmet_dokazi tabela zdrava.
         cinjenice = rezultat.get("kljucne_cinjenice", [])
         pravni_elm = rezultat.get("pravni_elementi", [])
-        rows = []
-        for i, c in enumerate(cinjenice[:5]):
-            # AKCIJA 2 (2026-07-24): lokacijsko utemeljenje -- migracija 080
-            # (predmet_dokazi.stranica/paragraf/start_offset/end_offset,
-            # čeka pokretanje). _lociraj_tvrdnju vraća sve None kad tvrdnja
-            # nije doslovno pronađena u tekst-u -- ne izmišljena lokacija.
-            lokacija = _lociraj_tvrdnju(tekst, c)
-            rows.append({
-                "predmet_id":    predmet_id,
-                "dokument_id":   dokument_id,
-                "user_id":       user_id,
-                "tvrdnja":       c,
-                "kategorija":    "cinjenica",
-                "snaga":         _snaga_iz_lokacije(c, lokacija),
+        # IMPLEMENTATION TASK 001 (2026-08-27): upis ide kroz JEDINSTVENI
+        # primitiv shared/evidence_write.py::upisi_dokaze. Ovde se više ne
+        # gradi red ručno, ne poziva se DC-005 direktno i ne radi se sopstveni
+        # insert -- `izvor_tekst=tekst` je jedini signal koji primitivu treba
+        # da bi utemeljio tvrdnje i izveo `snaga` po DC-005.
+        #
+        # `proveri_vlasnistvo=False`: ovaj poziv dolazi iz durable event toka
+        # (services/case_evolution.py::_consequence_evidence_classify), koji je
+        # vlasništvo već dokazao time što je učitao `predmet_dokumenti` red za
+        # ovaj `dokument_id`. Dodatan upit po pozivu bio bi suvišan, a
+        # `predmet_id`/`user_id` ovde ne dolaze iz korisničkog zahteva.
+        stavke = [
+            {
+                "tvrdnja":        c,
+                "kategorija":     "cinjenica",
+                "dokument_id":    dokument_id,
                 "pravni_element": pravni_elm[i] if i < len(pravni_elm) else None,
-                **lokacija,
-            })
-        if rows:
-            try:
-                supa.table("predmet_dokazi").insert(rows).execute()
-                logger.info("[EVIDENCE] Upisano %d činjenica za predmet=%s", len(rows), predmet_id)
-            except Exception as exc_grounding:
-                # Migracija 080 (stranica/paragraf/start_offset/end_offset)
-                # možda još nije pokrenuta u produkciji -- degradiraj na
-                # insert bez grounding kolona umesto da izgubi CEO upis dok
-                # migracija ne prođe (fail-soft, isti princip kao ostatak
-                # ove funkcije).
-                logger.warning(
-                    "[EVIDENCE] Insert sa grounding kolonama neuspešan (%s) — pokušavam bez njih",
-                    exc_grounding,
-                )
-                legacy_rows = [
-                    {k: v for k, v in r.items() if k not in ("stranica", "paragraf", "start_offset", "end_offset")}
-                    for r in rows
-                ]
-                supa.table("predmet_dokazi").insert(legacy_rows).execute()
-                logger.info(
-                    "[EVIDENCE] Upisano %d činjenica (bez grounding kolona) za predmet=%s",
-                    len(legacy_rows), predmet_id,
-                )
+            }
+            for i, c in enumerate(cinjenice[:5])
+        ]
+        if stavke:
+            _rez_upisa = upisi_dokaze(
+                supa,
+                predmet_id=predmet_id,
+                user_id=user_id,
+                stavke=stavke,
+                izvor_tekst=tekst,
+                proveri_vlasnistvo=False,
+            )
+            _utemeljeno = sum(1 for o in _rez_upisa["odluke"] if o["lokacija_poznata"])
+            logger.info(
+                "[EVIDENCE] Upisano %d činjenica (%d utemeljeno u izvoru) za predmet=%s",
+                len(_rez_upisa["odluke"]), _utemeljeno, predmet_id,
+            )
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
 
@@ -369,7 +293,12 @@ async def get_evidence(request: Request, predmet_id: str, user=Depends(require_u
 class DokazReq(BaseModel):
     tvrdnja:       str
     kategorija:    str = "cinjenica"
-    snaga:         str = "srednja"
+    # TASK 003A: BILO `str = "srednja"`. Taj default je odsustvo korisnikove
+    # odluke pretvarao u vrednost, pa je `odredi_snagu` svaki zahtev bez
+    # dokumenta klasifikovao kao `izvor_odluke='covek'` -- lažna tvrdnja da je
+    # advokat procenio snagu (Gate 005). `None` znači „nije dostavljeno"; sama
+    # vrednost i dalje ne dokazuje ništa, dokaz je `model_fields_set` u ruti.
+    snaga:         Optional[str] = None
     pravni_element: Optional[str] = None
     napomena:      Optional[str] = None
     dokument_id:   Optional[str] = None
@@ -378,39 +307,97 @@ class DokazReq(BaseModel):
 @router.post("/predmeti/{predmet_id}/dokaz")
 @limiter.limit("20/minute")
 async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depends(require_user)):
-    """Manuelno dodaje dokaznu stavku u Evidence Vault."""
+    """Manuelno dodaje dokaznu stavku u Evidence Vault.
+
+    IMPLEMENTATION TASK 001 (2026-08-27): ova ruta je bila DRUGI, neprijavljen
+    autor odluke DC-005 -- prepisivala je `snaga` pravo iz tela zahteva, dok je
+    automatska putanja istu kolonu IZVODILA iz utemeljenja u dokumentu. Ista
+    skala, dve mere, a `calculate_procesni_rizik` ih je sabirao. Sada oba pisca
+    idu kroz shared/evidence_write.py::upisi_dokaz, koji je jedini donosilac te
+    odluke (v. `odredi_snagu`).
+
+    Šta se promenilo za pozivaoca:
+      • bez `dokument_id` — `snaga` iz tela zahteva se poštuje (advokat je
+        autoritet tamo gde sistem nema šta da proveri), ALI samo ako je polje
+        stvarno poslato. TASK 003A: ranije je ovde stajalo „UI šalje samo
+        `tvrdnja`, pa za UI nema promene" -- to je bilo netačno u posledici,
+        jer je Pydantic default popunjavao polje na serveru i UI unos je
+        završavao kao `izvor_odluke='covek'`. Sada odsustvo polja daje
+        `podrazumevano`.
+      • sa `dokument_id` — tekst tog dokumenta se učitava, tvrdnja se u njemu
+        traži i `snaga` se izvodi po DC-005; poslata vrednost se ignoriše.
+        Odgovor to prijavljuje kroz `snaga_prepisana`, nikad tiho.
+      • `dokument_id` koji ne pripada ovom predmetu se sada ODBIJA (400)
+        umesto da se tiho postavi na NULL uz `{"ok": true}`."""
     import asyncio
     supa = get_supa()
     uid = user["user_id"]
 
+    # TASK 003A -- dokaz ljudske procene je EKSPLICITNO PRISUSTVO polja u
+    # zahtevu, nikad njegova vrednost. Vrednost može doći od schema default-a
+    # (to je i bio kvar iz Gate 005); prisustvo u `model_fields_set` može doći
+    # isključivo od pošiljaoca.
+    _snaga_eksplicitna = "snaga" in req.model_fields_set
+    if req.snaga is not None and not _snaga_eksplicitna:
+        # Nedostižno dok je schema `Optional[str] = None`. Ako se default ikada
+        # vrati, ovde puca glasno umesto da tiho fabrikuje ljudsku procenu.
+        raise NamerniHTTPException(
+            status_code=500,
+            detail="Ulazni ugovor za `snaga` je nesaglasan: vrednost postoji bez eksplicitnog unosa.",
+        )
+    _snaga = req.snaga if _snaga_eksplicitna else None
+
+    # Vlasništvo nad predmetom se proverava PRVO, pre dodirivanja dokumenta --
+    # `upisi_dokaz` istu proveru radi i sam (INVARIANT 1), ali bi bez ove ruta
+    # za nepostojeći/tuđi predmet sa zadatim `dokument_id` vratila 400 umesto
+    # 404 kao do sada. Redosled odgovora ostaje nepromenjen.
     pr = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()
+        lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
     )
-    if not pr.data:
+    if not (pr.data or []):
         raise HTTPException(status_code=404)
 
-    dokument_id = req.dokument_id
-    if dokument_id:
-        dok_ok = await asyncio.to_thread(
-            lambda: supa.table("predmet_dokumenti").select("id").eq("id", dokument_id).eq("predmet_id", predmet_id).maybe_single().execute()
+    # Izvorni tekst se učitava SAMO kad je dokument zadat -- bez njega DC-005
+    # nema ulaz i `odredi_snagu` pada na tvrdnju čoveka (v. njen docstring).
+    izvor_tekst = None
+    if req.dokument_id:
+        dok = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti")
+                .select("tekst_sadrzaj")
+                .eq("id", req.dokument_id).eq("predmet_id", predmet_id)
+                .limit(1).execute()
         )
-        if not dok_ok.data:
-            dokument_id = None
+        if not (dok.data or []):
+            raise HTTPException(status_code=400, detail="Dokument ne pripada ovom predmetu.")
+        izvor_tekst = (dok.data[0] or {}).get("tekst_sadrzaj") or None
 
-    row = {
-        "predmet_id":    predmet_id,
-        "user_id":       uid,
-        "tvrdnja":       req.tvrdnja,
-        "kategorija":    req.kategorija,
-        "snaga":         req.snaga,
-        "pravni_element": req.pravni_element,
-        "napomena":      req.napomena,
-        "dokument_id":   dokument_id,
+    try:
+        rez = await asyncio.to_thread(
+            lambda: upisi_dokaz(
+                supa,
+                predmet_id=predmet_id,
+                user_id=uid,
+                tvrdnja=req.tvrdnja,
+                kategorija=req.kategorija,
+                snaga=_snaga,
+                dokument_id=req.dokument_id,
+                pravni_element=req.pravni_element,
+                napomena=req.napomena,
+                izvor_tekst=izvor_tekst,
+            )
+        )
+    except GreskaDokaza as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.poruka)
+
+    odluka = rez["odluka"]
+    return {
+        "ok": True,
+        "id": (rez["red"] or {}).get("id"),
+        "snaga": odluka.get("snaga"),
+        "snaga_izvor": odluka.get("izvor_odluke"),
+        "snaga_prepisana": odluka.get("snaga_prepisana", False),
+        "lokacija_poznata": odluka.get("lokacija_poznata", False),
     }
-    res = await asyncio.to_thread(
-        lambda: supa.table("predmet_dokazi").insert(row).execute()
-    )
-    return {"ok": True, "id": (res.data or [{}])[0].get("id")}
 
 
 @router.delete("/predmeti/{predmet_id}/dokaz/{dokaz_id}")

@@ -81,9 +81,14 @@ async def test_no_evidence_high_risk():
 @pytest.mark.anyio
 async def test_strong_evidence_label():
     from routers.matter_intel import get_matter_intel
-    dokazi = [{"snaga":"jaka","kategorija":"ugovor","pravni_element":""},
-              {"snaga":"jaka","kategorija":"dopis","pravni_element":""},
-              {"snaga":"srednja","kategorija":"podnesak","pravni_element":""}]
+    # TASK 004A: Fixture explicitly represents assessed evidence items.
+    # Predmet ovog testa je labeling matematika (2 jake + 1 srednja -> „Jaka",
+    # pct >= 60), a ona je po F4 ugovoru definisana samo nad PROCENJENIM
+    # tvrdnjama. `srednja` kao procenjena vrednost može doći isključivo od
+    # čoveka (DC-005 `srednja` znači „nije pronađeno" = neprocenjeno).
+    dokazi = [{"snaga":"jaka","kategorija":"ugovor","pravni_element":"","izvor_snage":"covek"},
+              {"snaga":"jaka","kategorija":"dopis","pravni_element":"","izvor_snage":"covek"},
+              {"snaga":"srednja","kategorija":"podnesak","pravni_element":"","izvor_snage":"covek"}]
     supa = _make_supa(_PRED_RADNO, dokazi=dokazi)
     with patch("routers.matter_intel._get_supa", return_value=supa):
         result = await get_matter_intel(_make_request(), PID, _user())

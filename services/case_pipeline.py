@@ -607,7 +607,7 @@ async def _step_risk_snapshot(supa, predmet_id: str, user_id: str,
 
         dokazi_r, dok_r, rok_r = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
-                "snaga,kategorija,pravni_element"
+                "snaga,kategorija,pravni_element,izvor_snage"
             ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
             asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
                 "tip_dokaza"
@@ -671,7 +671,7 @@ async def _step_copilot_preporuka(supa, predmet_id: str, user_id: str,
             # sam, ISTOM funkcijom, ne izmisljaj drugaciji broj.
             dokazi_r, dok_r, rok_r = await asyncio.gather(
                 asyncio.to_thread(lambda: supa.table("predmet_dokazi").select(
-                    "snaga,kategorija,pravni_element"
+                    "snaga,kategorija,pravni_element,izvor_snage"
                 ).eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
                 asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select(
                     "tip_dokaza"

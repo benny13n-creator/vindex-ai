@@ -32,7 +32,7 @@ complexity; it makes an already-real convention checkable.
 | Sledeći koraci (deterministic "what's missing", NOT the AI recommendation layer) | `identify_case_problems` | `services/risk_engine.py` | `dashboard.py`, `zadaci.py::ai_analiziraj_predmet`, `case_pipeline.py` step 8 | `DC-002` |
 | Case-strength percentage (Genome) | `compute_snaga_score` | `shared/genome_validator.py` | `case_dna.py::_extract_genome` (both call sites) | `DC-003` |
 | Court Predictor confidence level + percentage | `_calc_confidence_nivo` / `_procenat_iz_score` | `routers/court_predictor.py` | `confidence_check` endpoint | `DC-004` |
-| Evidence Vault claim strength (`snaga`) | `_snaga_iz_lokacije` | `routers/evidence.py` | `klasifikuj_i_sacuvaj` | `DC-005` |
+| Evidence Vault claim strength (`snaga`) | `odredi_snagu` (wraps `snaga_iz_lokacije`) | `shared/evidence_write.py` | **only** `upisi_dokaze` — which is the single write path for `predmet_dokazi`, used by both `routers/evidence.py::klasifikuj_i_sacuvaj` (automatic) and `routers/evidence.py::add_dokaz` (manual) | `DC-005` |
 | Genome delta significance / alert urgency | `_delta_significant` / `_delta_hitnost` | `routers/case_dna.py` | auto-refresh + manual-refresh paths (both, since Program Gamma's dedup) | `DC-006` |
 | Genome internal consistency / escalation need | `verify_genome` (incl. `_validate_dok_reference` family) | `shared/genome_validator.py` | `case_dna.py::_extract_genome`, `_maybe_alert_require_review` | `DC-007` |
 | Draft readiness (deterministic half only — citations) | `evaluate_draft_quality` (citation component) | `services/quality_gate.py` | `routers/drafting.py` auto-promotion gate | `DC-008` |

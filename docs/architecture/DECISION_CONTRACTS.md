@@ -53,15 +53,20 @@ in code comments.
 - **Failure Behavior**: the accompanying GPT call (`_pozovi_confidence_api`) is explicitly barred from touching the number — instructed "NE navodi procenat ni broj."
 - **Confidence Methodology**: bounded 20-80% by deliberate design — never claims certainty. The platform's most-cited reference pattern (Program Alpha, 2026-08-04).
 
-### DC-005 — Evidence Vault claim strength
-- **Function**: `routers/evidence.py::_snaga_iz_lokacije(tvrdnja, lokacija)`
-- **Ulazi**: the extracted claim text, `_lociraj_tvrdnju`'s grounding result.
-- **Algoritam**: "jaka" only if found AND claim length in [20,100] chars (bounds added Program Beta Faza 10, after 2 independent governance reviewers found the same over-claim risk); else "srednja".
-- **Dozvoljeni izlazi**: `"jaka"` | `"srednja"`.
-- **Objašnjenje**: UI tooltip (Program Beta) shows grounding location for "jaka".
-- **Evidence Chain**: `_lociraj_tvrdnju`'s page/paragraph/offset.
-- **Failure Behavior**: `_lociraj_tvrdnju` never raises, always returns a dict with `start_offset` (possibly `None`).
-- **Confidence Methodology**: binary, not a probability — explicitly scoped to "was this verbatim-locatable," not general evidentiary weight (documented after Legal Domain Expert governance finding).
+### DC-005 — Evidence Vault claim strength (`predmet_dokazi.snaga`)
+- **Function**: `shared/evidence_write.py::odredi_snagu(tvrdnja, lokacija, *, izvor_dostupan, snaga_tvrdi_covek)`
+  — the sole decider. It wraps `snaga_iz_lokacije` (the grounding signal, unchanged, re-exported from `routers/evidence.py` as `_snaga_iz_lokacije` for backward compatibility).
+- **Ulazi**: claim text, `lociraj_tvrdnju`'s grounding result, whether a source document text was actually supplied, and (only then relevant) a human-asserted value.
+- **Algoritam** — one policy, one documented branch:
+  1. **Source text supplied** → `snaga_iz_lokacije(...)`: `"jaka"` only if the claim was located AND its length is in [20,100] chars (bounds added Program Beta Faza 10, after 2 independent governance reviewers found the same over-claim risk); otherwise `"srednja"`. A caller-supplied value is **ignored** and the override is reported back as `snaga_prepisana=True` — never silently.
+  2. **No source text** → the human-asserted value, validated against the migration-016 CHECK enum; `"srednja"` if none was given. DC-005's grounding branch cannot run here (nothing to verify against), and forcing it would permanently remove the lawyer's ability to mark evidence `"slaba"` — a real loss of function, not a correction.
+- **Dozvoljeni izlazi**: `"jaka"` | `"srednja"` | `"slaba"` (the third only via branch 2).
+- **Enforcement**: `predmet_dokazi` has exactly **one** write path — `shared/evidence_write.py::upisi_dokaze`. Both `klasifikuj_i_sacuvaj` (automatic) and `add_dokaz` (manual) route through it; neither can set `snaga` itself. Before IMPLEMENTATION TASK 001 (2026-08-27) `add_dokaz` was an **undeclared second author** of this decision, writing the request body straight into the column.
+- **Objašnjenje**: `upisi_dokaze` returns an `izvor_odluke` per row (`"dc005"` | `"covek"` | `"podrazumevano"`), so every write is auditable caller → primitive → database. `add_dokaz` surfaces it in its HTTP response.
+- **Evidence Chain**: `lociraj_tvrdnju`'s page/paragraph/offset — written only when the claim is genuinely located, never fabricated (all four columns stay `NULL` otherwise).
+- **Failure Behavior**: `lociraj_tvrdnju` never raises. Invalid `snaga`/`kategorija` raise `GreskaDokaza` (mapped to HTTP 400) rather than being silently coerced.
+- **Confidence Methodology**: branch 1 is binary, not a probability.
+- **⚠ Known open gap (not closed by TASK 001)**: `services/risk_engine.py::calculate_procesni_rizik` (DC-001) consumes `snaga` as **general evidentiary weight**, while branch 1 supplies **verbatim-locatability** — a scope mismatch first documented by the Legal Domain Expert governance finding. TASK 001 guarantees the column now has one owner and one algorithm; it does **not** reconcile those two notions. Closing it requires deciding whether grounding and evidentiary weight are one attribute or two.
 
 ### DC-006 — Genome delta significance / alert urgency
 - **Function**: `routers/case_dna.py::_delta_significant` / `_delta_hitnost`

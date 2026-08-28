@@ -42,8 +42,17 @@ def test_dc004_court_predictor_confidence_functions_exist():
 
 
 def test_dc005_snaga_iz_lokacije_canonical_source_exists():
+    # IMPLEMENTATION TASK 001 (2026-08-27): DC-005's canonical decider is now
+    # `odredi_snagu` in shared/evidence_write.py -- it wraps the unchanged
+    # grounding signal `snaga_iz_lokacije`. Both are asserted: the registry
+    # names the former, while the latter's old alias must stay importable
+    # because other docs and tests still reference it.
+    from shared.evidence_write import odredi_snagu, snaga_iz_lokacije, upisi_dokaze
     from routers.evidence import _snaga_iz_lokacije
-    assert callable(_snaga_iz_lokacije)
+    assert callable(odredi_snagu)
+    assert callable(snaga_iz_lokacije)
+    assert callable(upisi_dokaze)
+    assert _snaga_iz_lokacije is snaga_iz_lokacije
 
 
 def test_dc006_delta_significance_and_urgency_functions_exist():

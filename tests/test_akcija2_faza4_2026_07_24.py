@@ -249,7 +249,13 @@ def test_lociraj_tvrdnju_nepostojeca_tvrdnja_vraca_none():
 
     tekst = "Neki potpuno drugačiji tekst dokumenta."
     loc = _lociraj_tvrdnju(tekst, "ovo se nikad ne pojavljuje u dokumentu bas nikako")
-    assert loc == {"stranica": None, "paragraf": None, "start_offset": None, "end_offset": None}
+    # IMPLEMENTATION TASK 002A (2026-08-28): rezultat je prosiren kljucem `nacin`.
+    # Namera ovog testa -- "nepronadjena tvrdnja ne dobija NIJEDNU lokaciju" -- je
+    # nepromenjena i OJACANA: uz sve cetiri lokacijske vrednosti None, sada se
+    # tvrdi i da je nacin eksplicitno `nije_pronadjen` (a ne None ni izostavljen).
+    for kolona in ("stranica", "paragraf", "start_offset", "end_offset"):
+        assert loc[kolona] is None, kolona
+    assert loc["nacin"] == "nije_pronadjen"
 
 
 def test_lociraj_tvrdnju_prazan_ulaz():
@@ -339,9 +345,14 @@ def test_klasifikuj_i_sacuvaj_degradira_na_legacy_insert_ako_kolone_ne_postoje()
     call_log = []
 
     def _insert(rows):
+        # Veran dvojnik okruženja bez migracije 080: baza odbija SVAKI upis koji
+        # sadrži grounding kolonu, ne samo prvi po redu. Raniji dvojnik je posle
+        # prvog poziva prihvatao i redove sa `stranica`, pa je tvrdio da kolona
+        # ne postoji a ipak je primao -- to je sakrivalo koliko koraka
+        # degradacije se stvarno dogodi.
         call_log.append(rows)
         m = MagicMock()
-        if len(call_log) == 1:
+        if any("stranica" in r for r in rows):
             m.execute.side_effect = Exception('column "stranica" does not exist')
         else:
             m.execute.return_value = MagicMock(data=[{"id": "row-1"}])
@@ -360,9 +371,16 @@ def test_klasifikuj_i_sacuvaj_degradira_na_legacy_insert_ako_kolone_ne_postoje()
          patch("routers.evidence._klasifikuj_dokument", side_effect=_fake_rezultat):
         ev.klasifikuj_i_sacuvaj("predmet-1", "dok-1", "test.pdf", "tekst sa Neka činjenica. u sebi", "user-1")
 
-    assert len(call_log) == 2, "mora pokušati insert dva puta (sa pa bez grounding kolona)"
-    assert "stranica" in call_log[0][0]
-    assert "stranica" not in call_log[1][0]
+    # IMPLEMENTATION TASK 001 (2026-08-27): degradacija je sada STEPENASTA --
+    # prvi retry odbacuje SAMO kolonu `identitet` (migracija 116), tek drugi i
+    # grounding kolone (migracija 080). Namera ovog testa je nepromenjena i
+    # ojačana: upis se NE SME izgubiti, a poslednji pokušaj mora biti bez
+    # grounding kolona. Dodato je i da grounding preživi korak u kome nije bio
+    # uzrok pada -- ranije se odbacivao odmah, bez potrebe.
+    assert len(call_log) >= 2, "mora pokušati ponovo umesto da izgubi upis"
+    assert "stranica" in call_log[0][0], "prvi pokušaj ide sa grounding kolonama"
+    assert "stranica" not in call_log[-1][0], "poslednji pokušaj je bez grounding kolona"
+    assert any("stranica" in poziv[0] and "identitet" not in poziv[0] for poziv in call_log[1:]),         "grounding se ne sme odbaciti u koraku u kome nije bio uzrok pada"
 
 
 # ─── 3a. cross_doc.py::_uzorkuj_dokument ───────────────────────────────────

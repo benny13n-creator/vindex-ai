@@ -18,7 +18,25 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+# TASK 004 — jedan kanonski derivation layer. `pokrivenost_procene` je već
+# jedini vlasnik pojma „koliko je tvrdnji procenjeno" (TASK 003B); ovde se
+# KORISTI, ne kopira. Nijedan potrošač ne sme sam izvoditi ovo stanje.
+from shared.evidence_write import (
+    IZVORI_PROCENJENO,
+    KOLONA_IZVOR_SNAGE,
+    POKRIVENOST_NEMA_TVRDNJI,
+    pokrivenost_procene,
+)
+
 logger = logging.getLogger("vindex.risk_engine")
+
+# TASK 004 — `snaga_dokaza` je do sada mešao DVE ose: postojanje tvrdnji
+# („Nema dokaza") i kvalitet procenjenih („Jaka/Srednja/Slaba"). Zbog toga je
+# predmet sa tvrdnjama koje niko nije procenio bio nerazlučiv od praznog
+# predmeta. Ova vrednost razdvaja te dve ose: „Nema dokaza" od sada znači
+# STROGO da tvrdnji nema, a ovo da tvrdnje postoje ali nijedna nije procenjena.
+# Nije strength klasa -- ne ulazi ni u jedan brojač, procenat ni bonus/kaznu.
+SNAGA_NEPROCENJENO = "Nije procenjeno"
 
 
 def calculate_procesni_rizik(
@@ -39,15 +57,30 @@ def calculate_procesni_rizik(
     now = datetime.now(timezone.utc)
 
     # ── Dokazi analiza ───────────────────────────────────────────────────────
+    # TASK 004: strength se računa ISKLJUČIVO nad procenjenim tvrdnjama.
+    # Ranije je stajalo `d.get("snaga", "srednja")` nad SVIM redovima -- a pošto
+    # je `predmet_dokazi.snaga` NOT NULL DEFAULT 'srednja', svaka NEPROCENJENA
+    # tvrdnja je ulazila u imenilac kao procenjena tvrdnja srednje snage. To je
+    # razvodnjavalo advokatovu izričitu ocenu (10 neprocenjenih tvrdnji je
+    # obaralo „Jaka" na „Srednja") i maskiralo slabu evidenciju kao srednju.
+    pokrivenost = pokrivenost_procene(dokazi)
+    procenjeni = [d for d in dokazi if (d or {}).get(KOLONA_IZVOR_SNAGE) in IZVORI_PROCENJENO]
+
     snaga_count = {"jaka": 0, "srednja": 0, "slaba": 0}
-    for d in dokazi:
-        s = d.get("snaga", "srednja")
+    for d in procenjeni:
+        # Bez `default="srednja"`: procenjen red UVEK nosi `snaga`. Red bez nje
+        # je greška podataka i ne sme se tiho prebrojati kao srednji.
+        s = d.get("snaga")
         if s in snaga_count:
             snaga_count[s] += 1
     ukupno = sum(snaga_count.values())
 
     if ukupno == 0:
-        snaga_label = "Nema dokaza"
+        # Dve različite činjenice, dva različita iskaza (Gate 008/009).
+        snaga_label = (
+            "Nema dokaza" if pokrivenost["status"] == POKRIVENOST_NEMA_TVRDNJI
+            else SNAGA_NEPROCENJENO
+        )
         snaga_pct = 0
     else:
         jaka_pct = snaga_count["jaka"] / ukupno
@@ -154,6 +187,12 @@ def calculate_procesni_rizik(
         "snaga_dokaza": snaga_label,
         "snaga_pct": snaga_pct,
         "snaga_detalji": snaga_count,
+        # TASK 004 — COVERAGE OSA, aditivno. Strength kaže KOLIKO su jaki
+        # procenjeni dokazi; ovo kaže KOLIKO ih je uopšte procenjeno. Dve
+        # nezavisne ose; nijedna se ne sme izvoditi iz druge.
+        "broj_tvrdnji": pokrivenost["broj_tvrdnji"],
+        "broj_procenjenih": pokrivenost["broj_procenjenih"],
+        "pokrivenost_procene": pokrivenost["status"],
         "nedostajuci_dokazi": nedostajuci,
         "nedostajuci_count": len(nedostajuci),
         "predstojeći_rokovi": predstojeći,
@@ -219,6 +258,22 @@ def identify_case_problems(rizik: dict[str, Any], tip_predmeta: str) -> list[dic
             "problem": f"Nema uploadovanih dokaza za {tip_sr} predmet" if tip_sr != "predmet"
                        else "Nema uploadovanih dokaza za predmet",
             "ozbiljnost": "kritican",
+        })
+    elif rizik.get("snaga_dokaza") == SNAGA_NEPROCENJENO:
+        # TASK 004: do sada je OVAJ slučaj upadao u granu iznad i tvrdio da
+        # dokaza nema -- činjenično netačno za predmet koji ima tvrdnje.
+        # Potrebna radnja nije „prikupi dokaze" nego „proceni postojeće".
+        _n = rizik.get("broj_tvrdnji") or 0
+        problemi.append({
+            "problem": f"{_n} tvrdnji u spisu nije procenjeno — dokazna snaga nije utvrđena",
+            "ozbiljnost": "vazan",
+        })
+    elif (rizik.get("pokrivenost_procene") == "EVIDENCE_PARTIAL"):
+        _n = rizik.get("broj_tvrdnji") or 0
+        _p = rizik.get("broj_procenjenih") or 0
+        problemi.append({
+            "problem": f"Procenjeno {_p} od {_n} tvrdnji — ocena snage počiva na delu spisa",
+            "ozbiljnost": "vazan",
         })
 
     for t in (rizik.get("nedostajuci_dokazi") or [])[:3]:

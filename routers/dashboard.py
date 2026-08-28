@@ -143,7 +143,7 @@ async def command_center(
         # Evidence Chains audit); a soft-deleted evidence row could inflate/deflate Command
         # Center's own risk sphere/badges relative to Workspace/CCC for the same case.
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
-            .select("predmet_id,snaga,kategorija")
+            .select("predmet_id,snaga,kategorija,izvor_snage")
             .eq("user_id", uid)
             .is_("deleted_at", "null")
             .execute()),
@@ -477,7 +477,7 @@ async def matter_health_score(
         # Operation Singular Intelligence, Mission 002: .is_("deleted_at","null") added -- 3rd of 3
         # remaining calculate_procesni_rizik callers missing this filter (Team 7's audit).
         asyncio.to_thread(lambda: supa.table("predmet_dokazi")
-            .select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id)
+            .select("snaga,kategorija,pravni_element,izvor_snage").eq("predmet_id", predmet_id)
             .is_("deleted_at", "null").limit(200).execute()),
         label="dashboard.matter_health_score",
     )

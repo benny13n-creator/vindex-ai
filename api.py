@@ -4435,7 +4435,7 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
         # dashboard's own risk sort relative to Workspace/CCC/Matter Intel for the same case.
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("predmet_id,snaga,kategorija")
+                .select("predmet_id,snaga,kategorija,izvor_snage")
                 .in_("predmet_id", pred_ids)
                 .is_("deleted_at", "null")
                 .execute()
@@ -6742,7 +6742,7 @@ async def predmet_workspace(
         # 'datum' dodat (G-027) — potreban calculate_procesni_rizik za predstojeci/kriticni racun,
         # ranije se ovde selektovalo samo 'id' jer je CRS koristio samo broj rocista.
         asyncio.to_thread(lambda: supa.table("rocista").select("id,datum").eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element,izvor_snage").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
         # Operation Single Brain, Mission 002: feeds compute_case_readiness() below so the
         # Case Ready Score checklist can be capped by the canonical readiness engine --
         # see docs/singlebrain/READINESS_AUTHORITY_SPEC.md.
@@ -6860,6 +6860,11 @@ async def predmet_workspace(
                 f"Rokovi: {' | '.join((h.get('dogadjaj','') or '')[:80] + ' (' + (h.get('datum_iso','') or '') + ')' for h in (hronologija_r.data or [])[:5]) or 'nema'}\n"
                 f"Procesni rizik (vec izracunat, ne menjaj): {_deterministic_risk['nivo']} "
                 f"— snaga dokaza: {_deterministic_risk['snaga_dokaza']}, "
+                # TASK 004: pokrivenost je EKSPLICITNA cinjenica. Model je ranije
+                # mogao samo da je pogadja iz labela, a „Nema dokaza" je za predmet
+                # sa neprocenjenim tvrdnjama bila cinjenicno netacna tvrdnja.
+                f"procenjeno tvrdnji: {_deterministic_risk['broj_procenjenih']} od "
+                f"{_deterministic_risk['broj_tvrdnji']} ({_deterministic_risk['pokrivenost_procene']}), "
                 f"nedostajucih dokaza: {_deterministic_risk['nedostajuci_count']}, "
                 f"kriticnih rokova (≤7 dana): {_deterministic_risk['kriticni_rokovi']}"
             )

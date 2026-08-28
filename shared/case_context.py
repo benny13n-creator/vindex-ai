@@ -227,7 +227,7 @@ async def _fetch_raw(predmet_id: str, uid: str, supa, include_documents: bool = 
         dok_awaitable,
         asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("id, snaga, kategorija, pravni_element")
+                .select("id, snaga, kategorija, pravni_element, izvor_snage")
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
                 .execute()
