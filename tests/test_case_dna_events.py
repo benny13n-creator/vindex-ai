@@ -257,6 +257,9 @@ async def test_run_genome_background_threads_explicit_trigger():
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=AsyncMock(return_value={"snaga_predmeta_procent": 55})), \
+         patch("routers.case_dna.upisi_v2_opazanje", new=AsyncMock(return_value={
+             "kandidata": 0, "odbijeno": 0, "kompletno": True,
+             "observation_version": 1, "ishodi": [], "odbijeni": []})), \
          patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_hist, \
          patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
         await cd._run_genome_background("predmet-1", "user-1", 50, trigger="rociste_trigger")
@@ -299,6 +302,9 @@ async def test_run_genome_background_computes_and_threads_verifikacija():
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=AsyncMock(return_value=extracted)), \
+         patch("routers.case_dna.upisi_v2_opazanje", new=AsyncMock(return_value={
+             "kandidata": 0, "odbijeno": 0, "kompletno": True,
+             "observation_version": 1, "ishodi": [], "odbijeni": []})), \
          patch("routers.case_dna._save_genome_history", new=AsyncMock()), \
          patch("routers.case_dna._emit_genome_event", new=AsyncMock(return_value="corr")) as mock_emit:
         await cd._run_genome_background("predmet-1", "user-1", 50, trigger="upload_trigger")

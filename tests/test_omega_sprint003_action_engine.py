@@ -57,6 +57,13 @@ def _make_target_supa(case_dna=None, tip="parnicno", dokazi=None, dokumenti=None
             return _simple_select_table(dokumenti)
         if name == "rocista":
             return _simple_select_table(rocista)
+        # A015: `_compute_target_actions` sada prvo pita ima li predmet
+        # perzistirane V2 kontradikcije. Prazan odgovor znaci „nema V2" ->
+        # legacy Rule 3 se izvrsava nepromenjen, sto je bas ono sto ovaj
+        # harness i meri. (Ovaj laznjak namerno puca na nepoznatu tabelu --
+        # zato je i uhvatio promenu ugovora umesto da je tiho propusti.)
+        if name == "predmet_issues":
+            return _simple_select_table([])
         raise AssertionError(f"unexpected table {name}")
 
     supa = MagicMock()
@@ -141,6 +148,13 @@ def _make_full_action_supa(case_dna=None, tip="parnicno", dokazi=None, dokumenti
             return _simple_select_table(rocista)
         if name == "case_actions":
             return _case_actions_table()
+        # A015: `_compute_target_actions` sada prvo pita ima li predmet
+        # perzistirane V2 kontradikcije. Prazan odgovor znaci „nema V2" ->
+        # legacy Rule 3 se izvrsava nepromenjen, sto je bas ono sto ovaj
+        # harness i meri. (Ovaj laznjak namerno puca na nepoznatu tabelu --
+        # zato je i uhvatio promenu ugovora umesto da je tiho propusti.)
+        if name == "predmet_issues":
+            return _simple_select_table([])
         raise AssertionError(f"unexpected table {name}")
 
     supa = MagicMock()

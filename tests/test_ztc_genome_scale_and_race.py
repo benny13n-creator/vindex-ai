@@ -116,8 +116,12 @@ async def test_do_genome_refresh_orders_docs_by_redni_broj_descending():
 
     captured = {}
 
-    async def _fake_extract(docs, dokazi=None, ukupno_u_predmetu=None):
+    # A014: `_extract_genome` je dobio `predmet_id` (opseg kataloga tvrdnji).
+    # Dubler mora pratiti stvaran potpis -- inace poziv puca u TypeError koji
+    # `_do_genome_refresh` proguta, pa test pada iz pogresnog razloga.
+    async def _fake_extract(docs, dokazi=None, ukupno_u_predmetu=None, predmet_id=None):
         captured["ukupno_u_predmetu"] = ukupno_u_predmetu
+        captured["predmet_id"] = predmet_id
         return {"zakljucak": "ok", "verzija": 1}
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
@@ -131,6 +135,8 @@ async def test_do_genome_refresh_orders_docs_by_redni_broj_descending():
     # order() must have been called with desc=True on the document fetch
     order_calls = supa.table("predmet_dokumenti").select.return_value.eq.return_value.order.call_args_list
     assert captured["ukupno_u_predmetu"] == 40
+    # A014: opseg se ne sme pogadjati iz podataka -- pozivalac ga prosledjuje.
+    assert captured["predmet_id"] == "pred-1"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -178,7 +184,7 @@ async def test_do_genome_refresh_never_writes_case_dna_when_extraction_failed():
         return t
     supa.table.side_effect = _table
 
-    async def _fake_extract_failing(docs, dokazi=None, ukupno_u_predmetu=None):
+    async def _fake_extract_failing(docs, dokazi=None, ukupno_u_predmetu=None, predmet_id=None):
         return {"greska": "OpenAI timeout"}
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
@@ -227,11 +233,14 @@ async def test_do_genome_refresh_still_writes_case_dna_on_success():
         return t
     supa.table.side_effect = _table
 
-    async def _fake_extract_ok(docs, dokazi=None, ukupno_u_predmetu=None):
+    async def _fake_extract_ok(docs, dokazi=None, ukupno_u_predmetu=None, predmet_id=None):
         return {"zakljucak": "ok", "kljucne_cinjenice": ["nova činjenica"]}
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=_fake_extract_ok), \
+         patch("routers.case_dna.upisi_v2_opazanje", new=AsyncMock(return_value={
+             "kandidata": 0, "odbijeno": 0, "kompletno": True,
+             "observation_version": 1, "ishodi": [], "odbijeni": []})) as mock_v2, \
          patch("routers.case_dna._save_genome_history", new=AsyncMock()) as mock_history, \
          patch("routers.case_dna._emit_genome_event", new=AsyncMock()) as mock_emit, \
          patch("routers.case_dna._maybe_alert_require_review", new=AsyncMock()) as mock_review, \
@@ -243,6 +252,12 @@ async def test_do_genome_refresh_still_writes_case_dna_on_success():
     mock_history.assert_called_once()
     mock_emit.assert_called_once()
     mock_review.assert_called_once()
+    # A017: dubler ne sme samo da NEUTRALIŠE novu granu — mora da dokaže da je
+    # prošla. Bez ovoga bi uklanjanje V2 poziva iz produkcije prošlo nezapaženo,
+    # a upravo to je invariant koji A017 uvodi (V2 opažanje pre upisa case_dna).
+    mock_v2.assert_called_once()
+    assert mock_v2.call_args.kwargs["predmet_id"] == "pred-1"
+    assert mock_v2.call_args.kwargs["genome"]["kljucne_cinjenice"] == ["nova činjenica"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -261,7 +276,8 @@ async def test_concurrent_trigger_for_same_predmet_is_coalesced_not_dropped():
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger"):
+    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger",
+                           event_id=None):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -299,7 +315,8 @@ async def test_non_overlapping_triggers_each_run_independently():
 
     call_count = 0
 
-    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger"):
+    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger",
+                           event_id=None):
         nonlocal call_count
         call_count += 1
 
@@ -318,7 +335,8 @@ async def test_different_predmet_ids_never_block_each_other():
     started = asyncio.Event()
     release = asyncio.Event()
 
-    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger"):
+    async def fake_refresh(predmet_id, uid, stari_procent=None, trigger="upload_trigger",
+                           event_id=None):
         seen_ids.append(predmet_id)
         if predmet_id == "pred-A":
             started.set()

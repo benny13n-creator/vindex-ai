@@ -198,7 +198,7 @@ async def test_scenario1_raw_outbox_event_flows_all_the_way_to_workspace():
     # deployed" fallback path.
     fake.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
-    async def _fake_genome_bg(predmet_id, uid, before_verzija, trigger=None):
+    async def _fake_genome_bg(predmet_id, uid, before_verzija, trigger=None, event_id=None):
         # _consequence_genome_refresh independently verifies case_dna.verzija
         # actually incremented -- simulate what a real refresh does.
         for row in fake.tables["predmeti"]:
@@ -253,7 +253,7 @@ async def test_scenario1_replay_does_not_duplicate_workspace_items():
     })
     fake.rpc = MagicMock(side_effect=Exception("PGRST202: Could not find the function public.claim_pending_events"))
 
-    async def _fake_genome_bg(predmet_id, uid, before_verzija, trigger=None):
+    async def _fake_genome_bg(predmet_id, uid, before_verzija, trigger=None, event_id=None):
         for row in fake.tables["predmeti"]:
             if row["id"] == predmet_id:
                 row["case_dna"] = {**row.get("case_dna", {}), "verzija": (row.get("case_dna", {}).get("verzija") or 0) + 1}

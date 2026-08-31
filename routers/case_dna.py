@@ -38,7 +38,19 @@ from shared.llm_retry import llm_retry
 from shared.sentry import capture_exception as _sentry_capture
 from services.event_bus import EventType
 from shared.genome_validator import verify_genome, compute_snaga_score, validate_dok_reference
-from shared.contradiction_identity import contradiction_identity
+# A002: isti regex koji `_validate_kontradikcije_lokacije` koristi za validaciju
+# DOK-NN oznaka. Uvozi se umesto da se prepiše — dva izraza za isti pojam bi
+# značila dva vlasnika istog pravila.
+from shared.genome_validator import _DOK_PATTERN
+from shared.contradiction_identity import (contradiction_identity,
+                                            uporedi_kontradikcije,
+                                            identitet_seme_po_tvrdnjama)
+# A014: katalog referenci na tvrdnje. Uvozi se, ne prepisuje — jedan vlasnik
+# pravila o tome sta model sme da referise.
+from shared.claim_catalog import MAKS_TVRDNJI as _MAKS_TVRDNJI, napravi_katalog, redovi_za_prompt
+from services.v2_observation import upisi_v2_opazanje
+from services.v2_contradiction_persistence import (
+    V2PackageRejected, V2StaleObservation)
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -82,7 +94,8 @@ Vrati SAMO validan JSON (bez markdown):
     {"naziv": "Rok zastarelosti/zalbeni rok/sl.", "datum": "YYYY-MM-DD ili null", "opis": "Posledica propustanja", "status": "aktivan|prosao|nepoznat"}
   ],
   "kontradikcije": [
-    {"opis": "Tacno sta se kosi (citati ako moguce)", "lokacija_1": "DOK-01 str.X ili opis", "lokacija_2": "DOK-02 str.Y ili opis", "tezina": "kriticna|vazna|manja"}
+    {"issue_label": "Kratak naziv JEDNE sporne tacke (npr. 'razlika u datumu prestanka')", "claim_refs": ["CLAIM-001", "CLAIM-004"], "relation_type": "cinjenica_cinjenica", "opis": "Tacno sta se kosi (citati ako moguce)", "lokacija_1": "DOK-01 str.X ili opis", "lokacija_2": "DOK-02 str.Y ili opis", "tezina": "kriticna|vazna|manja"},
+    {"issue_label": "DRUGA, nezavisna sporna tacka - zaseban zapis, ne spajati sa gornjim", "claim_refs": ["CLAIM-002", "CLAIM-005"], "relation_type": "cinjenica_norma", "opis": "...", "lokacija_1": "DOK-01 str.X", "lokacija_2": "DOK-03 str.Y", "tezina": "vazna"}
   ],
   "argumenti_za": ["Konkretan argument sa dokazom koji ide u korist klijenta"],
   "argumenti_protiv": ["Konkretan argument koji ide protiv klijenta ili slabost predmeta"],
@@ -141,6 +154,34 @@ STROGA PRAVILA:
 - najslabija_tacka.kriticnost = 0-100 (100 = moze da unisti predmet).
 - strategija.scenariji: min 2, max 5 realnih scenarija.
 - nedostaje: samo ono sto ZAISTA nedostaje za dokazivanje. Prazna lista ako su svi kljucni dokazi prisutni.
+- kontradikcije: LISTA je, i broj stavki NIJE ogranicen. Vrati SVAKU nezavisnu
+  spornu tacku kao ZASEBAN objekat u toj listi. Prazna lista je ispravna ako
+  predmet nema kontradikciju - ne izmisljaj je da bi lista bila puna.
+  ZABRANJENO je spojiti dve sporne tacke u jedan zapis samo zato sto dele isti
+  dokument, istu stranu, istu lokaciju ili isti pravni kontekst. Primer: ako se
+  dokumenti ne slazu i oko DATUMA prestanka i oko IZNOSA duga, to su DVE
+  kontradikcije, ne jedna. Zapis oblika "postoje razlike izmedju dokumenata" je
+  NEISPRAVAN - svaka stavka mora imenovati JEDNU spornu tacku.
+  Dve tvrdnje iz ISTOG dokumenta koje se medjusobno kose su takodje
+  kontradikcija (npr. dva svedoka u istom zapisniku) - navedi ih kao zaseban
+  zapis, sa oba lokatora unutar tog dokumenta.
+- kontradikcije.claim_refs: OBAVEZNO polje. Navedi oznake CLAIM-NNN iz sekcije
+  EVIDENCE VAULT koje su STVARNI ucesnici te sporne tacke. Dozvoljene su ISKLJUCIVO
+  oznake koje su ti date u toj sekciji — NIKAD ne izmisljaj oznaku, ne pisi UUID,
+  ne pisi naziv dokumenta. Ako sekcija EVIDENCE VAULT nije data ili u njoj nema
+  tvrdnji koje se stvarno kose, vrati praznu listu kontradikcija; prazna lista je
+  ISPRAVNA, izmisljena referenca NIJE.
+  Jedna kontradikcija sme imati VISE OD DVE reference: ako se tri tvrdnje
+  medjusobno iskljucuju oko istog pitanja (npr. tri razlicita datuma istog
+  dogadjaja), to je JEDNA sporna tacka sa TRI reference, a NE tri sporne tacke.
+  Najmanji broj referenci je dve.
+- kontradikcije.relation_type: tacno jedna od dve vrednosti.
+  "cinjenica_cinjenica" = dve cinjenicne tvrdnje se kose medjusobno.
+  "cinjenica_norma" = cinjenicna tvrdnja se kosi sa pravnom normom/propisom.
+  Nikad ne izvodi ovu vrednost iz dokumenta, labele, lokacije ni tezine.
+- kontradikcije.issue_label: naziv JEDNE sporne tacke. Naziv NIJE identitet —
+  dve sporne tacke sa istim nazivom a razlicitim claim_refs ostaju DVE.
+  Dodavanje novog dokumenta NE spaja postojece razlicite sporne tacke.
 - kontradikcije.lokacija_1/lokacija_2: navedi TACAN "DOK-XX str.Y" SAMO ako je
   strana eksplicitno vidljiva u tekstu dokumenta. Ako strana nije jasna,
   navedi samo "DOK-XX" bez broja strane. Ako ni dokument nije jasan, ostavi
@@ -176,14 +217,22 @@ async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
     da bude paralelna, neuporedjena istina. Vraca vec-klasifikovane
     kljucne cinjenice (routers/evidence.py::klasifikuj_i_sacuvaj) da bi
     _extract_genome mogao da ih koristi kao kontekst umesto da ih tiho
-    ignorise. Nikad ne baca — advisory kontekst, ne sme oboriti ekstrakciju."""
+    ignorise. Nikad ne baca — advisory kontekst, ne sme oboriti ekstrakciju.
+
+    A014 (2026-08-30): dodati su `id`/`predmet_id`/`deleted_at` — bez `id`
+    tvrdnja nije mogla da dobije referencu, pa kontradikcija nije mogla da
+    nosi `claim_refs` (v. shared/claim_catalog.py). Dodat je i `.order("id")`:
+    `.limit()` bez `order` ne garantuje ISTI podskup u dva uzastopna refresh-a,
+    pa bi ista tvrdnja mogla da dobije razlicitu oznaku — ili da nestane iz
+    kataloga izmedju dva poziva."""
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmet_dokazi")
-                .select("tvrdnja,kategorija,pravni_element")
+                .select("id,predmet_id,tvrdnja,kategorija,pravni_element,deleted_at")
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
-                .limit(20)
+                .order("id")
+                .limit(_MAKS_TVRDNJI)
                 .execute()
         )
         return r.data or []
@@ -230,6 +279,7 @@ async def _pozovi_genome_api(client, combined: str, broj_dokumenata: int) -> str
 async def _extract_genome(
     docs: list[dict], dokazi: Optional[list[dict]] = None,
     ukupno_u_predmetu: Optional[int] = None,
+    predmet_id: Optional[str] = None,
 ) -> dict:
     """GPT-4o ekstrakcija Case Genome iz liste dokumenata.
 
@@ -246,7 +296,15 @@ async def _extract_genome(
     nula) broj bas za slucajeve kada je istina najveca: predmet sa >25
     dokumenata. Kada pozivalac prosledi stvaran ukupan broj dokumenata u
     predmetu (necuknjen upitom), ovaj broj je tacan; ako ne, ponasanje
-    ostaje isto kao pre (priblizno, iz already-limited liste)."""
+    ostaje isto kao pre (priblizno, iz already-limited liste).
+
+    predmet_id (A014): opseg kataloga referenci na tvrdnje. Prosledjuje se
+    EKSPLICITNO -- prva verzija ga je zakljucivala iz `dokazi[i]["predmet_id"]`,
+    pa je pozivalac koji taj kljuc ne salje TIHO gubio ceo EVIDENCE VAULT blok.
+    Opseg se ne pogadja iz podataka. Bez `predmet_id` blok se i dalje salje, u
+    anonimnom obliku od pre A014 -- kontekst nikad ne nestaje, nestaju samo
+    oznake, pa kontradikcija ne moze da nosi `claim_refs` i bude odbijena
+    nizvodno (fail-closed), umesto da ovde tiho oslabi prompt."""
     if not docs:
         return {}
 
@@ -282,20 +340,38 @@ async def _extract_genome(
 
     combined = "\n\n".join(parts)
 
+    # A014: tvrdnje vise nisu anonimni redovi nego IMENOVANE reference — ali
+    # SAMO kada je poznat opseg (`predmet_id`). Katalog je deterministican i
+    # predmet-scoped (shared/claim_catalog.py), pa ga pozivalac koji
+    # materijalizuje kontradikcije rekonstruise istim pozivom nad istom listom
+    # `dokazi` — nista se ne prenosi kroz stanje.
+    #
+    # Bez `predmet_id` blok se NE gubi nego se salje u obliku od pre A014.
+    # Tiho izbacivanje bi vratilo forenzicki nalaz od 2026-07-22 ("Genome nikad
+    # ne cita predmet_dokazi"), i to bez ijednog signala.
     if dokazi:
-        dokazi_lines = []
-        for d in dokazi[:20]:
-            tvrdnja = (d.get("tvrdnja") or "").strip()
-            if not tvrdnja:
-                continue
-            elm = f" [{d.get('pravni_element')}]" if d.get("pravni_element") else ""
-            dokazi_lines.append(f"- {tvrdnja}{elm}")
-        if dokazi_lines:
-            combined += (
+        katalog = napravi_katalog(dokazi, predmet_id) if predmet_id else {}
+        if katalog:
+            zaglavlje = (
+                "\n\n[EVIDENCE VAULT — već klasifikovane ključne činjenice iz ovih dokumenata. "
+                "Koristi kao dodatni kontekst; ne izmišljaj nove ako se ne poklapaju sa tekstom. "
+                "OZNAKE CLAIM-NNN su JEDINE dozvoljene vrednosti za kontradikcije[].claim_refs]\n"
+            )
+            dokazi_lines = redovi_za_prompt(katalog, dokazi)
+        else:
+            zaglavlje = (
                 "\n\n[EVIDENCE VAULT — već klasifikovane ključne činjenice iz ovih dokumenata, "
                 "koristi kao dodatni kontekst, ne izmišljaj nove ako se ne poklapaju sa tekstom]\n"
-                + "\n".join(dokazi_lines)
             )
+            dokazi_lines = []
+            for d in dokazi[:_MAKS_TVRDNJI]:
+                tvrdnja = (d.get("tvrdnja") or "").strip()
+                if not tvrdnja:
+                    continue
+                elm = f" [{d.get('pravni_element')}]" if d.get("pravni_element") else ""
+                dokazi_lines.append(f"- {tvrdnja}{elm}")
+        if dokazi_lines:
+            combined += zaglavlje + "\n".join(dokazi_lines)
 
     try:
         from openai import AsyncOpenAI
@@ -339,12 +415,73 @@ async def _extract_genome(
                     _hm[_k] = max(0, min(100, int(_v)))
                 except (TypeError, ValueError):
                     _hm[_k] = 0
+        # ── A001: KANONSKI IDENTITET DOKUMENTA U `dokazi_rang` ──────────────
+        # Genome je do sada dokument identifikovao ISKLJUČIVO imenom fajla
+        # (`naziv`), koje LLM prepisuje iz zaglavlja. Ime fajla nije identitet:
+        # menja se pri preimenovanju, a dva dokumenta istog predmeta smeju da
+        # se zovu isto. Zato se ovde svakoj stavci dodaje `dokument_id` —
+        # stvarni `predmet_dokumenti.id`, izveden DETERMINISTIČKI iz `docs`,
+        # nikad od strane LLM-a.
+        #
+        # Pravilo poklapanja je NAMERNO isto kao u
+        # shared/genome_validator.py::_validate_dokazi_rang (strip + lower),
+        # da bi rezolucija i validacija govorile o istom pojmu. Nema fuzzy
+        # poklapanja, nema „najbližeg" dokumenta.
+        #
+        # FAIL-CLOSED: ako ime ne pogađa nijedan dokument ILI pogađa više njih
+        # (isti naziv fajla u istom predmetu), `dokument_id` ostaje None.
+        # Nerazrešeno je tačan podatak; izmišljena veza nije.
+        _po_nazivu: dict[str, list[str]] = {}
+        for _doc in (docs or []):
+            _kljuc = (_doc.get("naziv_fajla") or "").strip().lower()
+            _did = _doc.get("id")
+            if _kljuc and _did:
+                _po_nazivu.setdefault(_kljuc, []).append(_did)
+
         for _d in (result.get("dokazi_rang") or []):
-            if isinstance(_d, dict) and "snaga_score" in _d:
+            if not isinstance(_d, dict):
+                continue
+            if "snaga_score" in _d:
                 try:
                     _d["snaga_score"] = max(0, min(100, int(_d["snaga_score"])))
                 except (TypeError, ValueError):
                     _d["snaga_score"] = 0
+            _kandidati = _po_nazivu.get((_d.get("naziv") or "").strip().lower(), [])
+            _d["dokument_id"] = _kandidati[0] if len(_kandidati) == 1 else None
+
+        # ── A002: KANONSKI IDENTITET DOKUMENTA U `kontradikcije` ────────────
+        # `lokacija_1`/`lokacija_2` su oblika "DOK-NN str.Y". `DOK-NN` NIJE
+        # LLM izmišljotina nego oznaka izvedena iz stvarne kolone
+        # `predmet_dokumenti.redni_broj`, koju migracija 106 čuva UNIQUE
+        # indeksom nad (predmet_id, redni_broj). Zato je rezolucija ovde
+        # jača nego kod `dokazi_rang`: jedinstvenost garantuje baza, ne
+        # konvencija imenovanja fajlova.
+        #
+        # `_DOK_PATTERN` se UVOZI iz shared/genome_validator.py umesto da se
+        # ovde ponovo napiše -- isti regex mora da važi i za validaciju i za
+        # rezoluciju. Dva zasebna izraza za isti pojam su tačno obrazac koji
+        # ovaj repo zabranjuje (jedan koncept = jedan vlasnik).
+        #
+        # `lokacija_1`/`lokacija_2` se NE DIRAJU: one su i prikaz i ulaz u
+        # shared/contradiction_identity.py::contradiction_identity, čiji heš
+        # završava u `case_actions.dedupe_key`. Identitet kontradikcije
+        # ostaje nepromenjen; ovde se dodaje SAMO referenca na dokument.
+        _po_rednom: dict[int, list[str]] = {}
+        for _doc in (docs or []):
+            _rb, _did = _doc.get("redni_broj"), _doc.get("id")
+            if _did and str(_rb or "").isdigit():
+                _po_rednom.setdefault(int(_rb), []).append(_did)
+
+        for _k in (result.get("kontradikcije") or []):
+            if not isinstance(_k, dict):
+                continue
+            for _polje, _cilj in (("lokacija_1", "dokument_id_1"),
+                                  ("lokacija_2", "dokument_id_2")):
+                _m = _DOK_PATTERN.search(_k.get(_polje) or "")
+                _kand = _po_rednom.get(int(_m.group(1)), []) if _m else []
+                # FAIL-CLOSED: bez DOK-NN oznake, nepoznat broj ili više
+                # kandidata -> None. Nikad `_kand[0]`.
+                _k[_cilj] = _kand[0] if len(_kand) == 1 else None
         return result
     except Exception as exc:
         _sentry_capture(exc)
@@ -369,8 +506,21 @@ def _compute_delta(old_g: dict, new_g: dict) -> dict:
     stara_snaga = old_g.get("snaga_predmeta_procent") or 0
     nova_snaga  = new_g.get("snaga_predmeta_procent") or 0
 
-    stari_kontr = {contradiction_identity(k) for k in (old_g.get("kontradikcije") or [])}
-    novi_kontr  = {contradiction_identity(k) for k in (new_g.get("kontradikcije") or [])}
+    # A016.7 §9 -- identitet po TVRDNJAMA kad ga obe strane nose, inace stari
+    # identitet po lokacijama. Sema se bira JEDNOM za celo poredjenje, ne po
+    # stavci: mesanje bi na prvom refresh-u posle A014 prijavilo laznu promenu.
+    _stare_k = old_g.get("kontradikcije") or []
+    _nove_k  = new_g.get("kontradikcije") or []
+    if identitet_seme_po_tvrdnjama(_stare_k, _nove_k):
+        # Identitet po tvrdnjama + pravilo sadrzavanja (A008). Broji se
+        # uparivanjem, ne razlikom skupova -- vidi `uporedi_kontradikcije`.
+        _kontr_nove, _kontr_elim = uporedi_kontradikcije(_stare_k, _nove_k)
+    else:
+        # Stari put, netaknut: snimci pre A014 nemaju `claim_refs`.
+        stari_kontr = {contradiction_identity(k) for k in _stare_k}
+        novi_kontr  = {contradiction_identity(k) for k in _nove_k}
+        _kontr_nove = len(novi_kontr - stari_kontr)
+        _kontr_elim = len(stari_kontr - novi_kontr)
 
     stara_nt = (old_g.get("najslabija_tacka") or {}).get("kriticnost") or 0
     nova_nt  = (new_g.get("najslabija_tacka") or {}).get("kriticnost") or 0
@@ -385,8 +535,8 @@ def _compute_delta(old_g: dict, new_g: dict) -> dict:
         "snaga_delta":          nova_snaga - stara_snaga,
         "snaga_stara":          stara_snaga,
         "snaga_nova":           nova_snaga,
-        "kontr_eliminisane":    len(stari_kontr - novi_kontr),
-        "kontr_nove":           len(novi_kontr - stari_kontr),
+        "kontr_eliminisane":    _kontr_elim,
+        "kontr_nove":           _kontr_nove,
         "nt_kriticnost_delta":  nova_nt - stara_nt,
         "nedostaje_delta":      nova_ned - stara_ned,
         "strategija_promenjena": bool(
@@ -707,7 +857,7 @@ _GENOME_COALESCE_WAIT_TIMEOUT = 120.0
 
 async def _run_genome_background(
     predmet_id: str, uid: str, stari_procent: Optional[int] = None,
-    trigger: str = "upload_trigger",
+    trigger: str = "upload_trigger", event_id: Optional[str] = None,
 ):
     """Zero-Touch Case investigation (2026-08-03, BETA-002/Scenario F):
     thin coalescing wrapper around _do_genome_refresh. More than one
@@ -744,6 +894,20 @@ async def _run_genome_background(
     just its own -- a strictly worse failure mode than the one being fixed.
     On timeout, falls back to the pre-mission behavior (return without
     waiting further) rather than raising."""
+    # A016.7 (§6) -- `event_id` je identitet KONKRETNOG run-a, prosledjen aditivno
+    # do persistence sloja. Dva merena ogranicenja koja ovaj parametar NE resava i
+    # koja se zato ne smeju predstaviti kao resena:
+    #
+    #   (1) COALESCING GA ODBACUJE. Grana odmah ispod: drugi triger za isti predmet
+    #       se sazima u vec pokrenuti run. Njegov `event_id` nestaje, a opazanje
+    #       koje ga pokriva nosi TUDJI event_id. Identitet run-a je zato identitet
+    #       IZVRSENOG opazanja, ne identitet svakog povoda za njega.
+    #   (2) RERUN PETLJA GA PONAVLJA. Petlja nize poziva _do_genome_refresh vise
+    #       puta sa ISTIM `event_id`, pa jedan event moze proizvesti N opazanja.
+    #
+    # Posledica za A016.7 §6 ("razlikovati retry istog run-a od novog run-a sa istim
+    # sadrzajem"): na ovom sloju to jos NIJE moguce. Vidi i migraciju 124 -- ni baza
+    # ne pamti `event_id`, jer bi to trazilo drugu kolonu (§5 dozvoljava samo jednu).
     if predmet_id in _genome_refresh_inflight:
         _genome_refresh_rerun.add(predmet_id)
         _done_event = _genome_refresh_done_event.get(predmet_id)
@@ -762,7 +926,8 @@ async def _run_genome_background(
     try:
         while True:
             _genome_refresh_rerun.discard(predmet_id)
-            await _do_genome_refresh(predmet_id, uid, stari_procent, trigger)
+            await _do_genome_refresh(predmet_id, uid, stari_procent, trigger,
+                                     event_id=event_id)
             if predmet_id not in _genome_refresh_rerun:
                 break
     finally:
@@ -774,7 +939,7 @@ async def _run_genome_background(
 
 async def _do_genome_refresh(
     predmet_id: str, uid: str, stari_procent: Optional[int] = None,
-    trigger: str = "upload_trigger",
+    trigger: str = "upload_trigger", event_id: Optional[str] = None,
 ):
     """Poziva se u pozadini posle uploada/rocista/smart-intake finalize-a.
     Regenerise Genome i kreira alert ako se snaga promenila.
@@ -829,7 +994,7 @@ async def _do_genome_refresh(
         from shared.ai_provenance import case_context as _ai_case_ctx
         with _ai_case_ctx(predmet_id=predmet_id, module_name="case_dna", operation_name="genome_extraction",
                           knowledge_sources=[d.get("id") for d in docs]):
-            genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
+            genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata, predmet_id=predmet_id)
         if genome.get("_genome_docs_preskoceno"):
             logger.warning(
                 "[GENOME] predmet=%s: %d dokumenata IZOSTAVLJENO iz analize (ukupno=%s, analizirano=%d)",
@@ -873,6 +1038,27 @@ async def _do_genome_refresh(
         # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
         genome["_verifikacija"] = verify_genome(genome, docs)
         genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+
+        # ── A017: V2 OPAZANJE IDE PRVO ───────────────────────────────────────
+        # Namerno PRE `_sync_rokovi_to_hronologija`, `_save_genome_history` i
+        # upisa `case_dna`. Sve tri linije ispod PISU. Kad bi V2 isao posle njih,
+        # neuspeh V2 paketa ostavio bi hronologiju, istoriju i `case_dna` upisane
+        # a V2 sliku praznu -- tacno stanje koje A017 par.2 zabranjuje
+        # ("Python ima nove Genome rezultate ali V2 persistence nije uspeo").
+        #
+        # Ovde se NISTA ne hvata. Izuzetak putuje do spoljnog `except` ove
+        # funkcije, koji ga loguje i vraca se BEZ ijednog upisa -- pa `verzija`
+        # ostaje nepromenjena, a `services/case_evolution.py::
+        # _consequence_genome_refresh` to vec tretira kao neuspeh posledice i
+        # prepusta event bus-u retry/dead-letter. To je POSTOJECI kanonski
+        # mehanizam, ne novo stanje.
+        _v2 = await upisi_v2_opazanje(
+            predmet_id=predmet_id, user_id=uid, genome=genome,
+            dokazi=dokazi_ctx, event_id=event_id)
+        logger.info("[A017] V2 opazanje upisano predmet=%s kandidata=%d odbijeno=%d "
+                    "kompletno=%s v_obs=%s", predmet_id, _v2["kandidata"],
+                    _v2["odbijeno"], _v2["kompletno"], _v2["observation_version"])
+
         await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
         # Snimi stari u istoriju
@@ -921,6 +1107,33 @@ async def _do_genome_refresh(
 
         logger.info("[GENOME] bg refresh predmet=%s docs=%d snaga=%s%% v%s",
                     predmet_id, len(docs), genome.get("snaga_predmeta_procent"), genome.get("verzija"))
+    except (V2StaleObservation, V2PackageRejected) as _v2_odbijeno:
+        # ── A017.1 (G5): ODBIJENO OPAZANJE NE SME DA PRODJE KAO USPEH ────────
+        # Izmereno pre popravke (4/6 kolizija): gubitnik trke dobije `55000`,
+        # V2 mu NE upise nista, `case_dna` ostane nepromenjen -- ali njegova
+        # posledica (`services/case_evolution.py::_consequence_genome_refresh`)
+        # uporedjuje verziju PRE i POSLE, a POBEDNIK ju je u medjuvremenu
+        # pomerio. Posledica zato vidi promenu i vraca USPEH za opazanje koje
+        # nikad nije postalo kanonsko.
+        #
+        # Zato se ova dva izuzetka PROPAGIRAJU umesto da se progutaju. Time se
+        # ne uvodi novo stanje: posledica pada, Event Bus je oznaci `failed` i
+        # primeni svoj vec dokazani retry/dead-letter -- POSTOJECI kanonski
+        # mehanizam (isti kojim se resava i `verzija unchanged`).
+        #
+        # Kanonsko stanje POBEDNIKA ostaje netaknuto: do ovog mesta se stize sa
+        # NULA upisa (V2 ide pre `_sync_rokovi_to_hronologija`,
+        # `_save_genome_history` i upisa `case_dna`), pa odbijeni refresh nema
+        # sta da ponisti.
+        #
+        # Genericki kvarovi (mreza, RPC, neocekivano) NAMERNO ostaju na starom
+        # ugovoru ispod -- njih pokriva provera `verzija unchanged`, i njihova
+        # semantika nije predmet ovog sprinta.
+        logger.warning(
+            "[GENOME] refresh predmet=%s ODBIJEN (%s) -- opazanje NIJE kanonsko, "
+            "posledica se prijavljuje kao neuspeh: %s",
+            predmet_id, type(_v2_odbijeno).__name__, _v2_odbijeno)
+        raise
     except Exception as exc:
         logger.warning("[GENOME] Background refresh greška: %s", exc)
 
@@ -1039,7 +1252,7 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
     from shared.ai_provenance import case_context as _ai_case_ctx
     with _ai_case_ctx(predmet_id=predmet_id, module_name="case_dna", operation_name="genome_extraction",
                       knowledge_sources=[d.get("id") for d in docs]):
-        genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata)
+        genome = await _extract_genome(docs, dokazi=dokazi_ctx, ukupno_u_predmetu=ukupno_dokumenata, predmet_id=predmet_id)
 
     # Final Beta Gate F2 (HIGH): this MANUAL refresh path used to lack the
     # same guard _run_genome_background already has (see the long comment on
@@ -1080,6 +1293,46 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
     # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
     genome["_verifikacija"] = verify_genome(genome, docs)
     genome["_analiza_osnov"] = await _compute_analiza_osnov(supa, predmet_id, docs)
+
+    # ── A017: V2 OPAZANJE IDE PRVO (isti kanonski ulaz kao pozadinski put) ────
+    # Rucni refresh je DRUGI proizvodjac Genome opazanja. Da V2 nije uvezan i
+    # ovde, advokat bi rucnim refresh-om dobio novi `case_dna` bez V2 slike, pa
+    # bi Rule 3 projektovao iz zastarelog V2 stanja.
+    #
+    # Neuspeh se NE prikazuje kao uspeh, ali se ni ne uvodi novo stanje: koristi
+    # se POSTOJECI `case_dna_persisted=False` odgovor (Singular Intelligence,
+    # 2026-08-07) koji vec znaci "izracunato je, ali NIJE sacuvano". Advokat
+    # vidi tacno onu poruku koju bi video i da je pao upis u bazu.
+    _v2_ok = True
+    try:
+        _v2 = await upisi_v2_opazanje(
+            predmet_id=predmet_id, user_id=uid, genome=genome,
+            dokazi=dokazi_ctx, event_id=None)
+        logger.info("[A017] V2 opazanje upisano (manual) predmet=%s kandidata=%d "
+                    "odbijeno=%d kompletno=%s", predmet_id, _v2["kandidata"],
+                    _v2["odbijeno"], _v2["kompletno"])
+    except Exception as _v2_exc:
+        logger.warning("[A017] V2 opazanje NEUSPESNO (manual) predmet=%s: %s -- "
+                       "case_dna se NE upisuje", predmet_id, _v2_exc)
+        _v2_ok = False
+
+    if not _v2_ok:
+        return {
+            "predmet_id": predmet_id,
+            "predmet_naziv": pred_check.data.get("naziv"),
+            "case_dna": stari_genome,
+            "docs_analizirano": len(docs),
+            "snaga_procent": stari_genome.get("snaga_predmeta_procent") if isinstance(stari_genome, dict) else None,
+            "verzija": stari_verzija,
+            "intelligence_delta": None,
+            "snaga_promena": None,
+            "case_dna_persisted": False,
+            "poruka": (
+                f"Case Genome v{nova_verzija} je izracunat ali NIJE sacuvan zbog greske u bazi -- "
+                f"prikazan je prethodni sacuvani Genome (v{stari_verzija}). Pokusajte ponovo."
+            ),
+        }
+
     await _sync_rokovi_to_hronologija(supa, predmet_id, uid, genome)
 
     # Snimi stari Genome u istoriju

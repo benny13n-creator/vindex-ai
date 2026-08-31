@@ -99,6 +99,8 @@ def _validate_dokazi_rang(genome: dict, docs: list[dict]) -> list[dict]:
     return flags
 
 
+from shared.contradiction_identity import contradiction_identity  # noqa: E402
+
 def _validate_kontradikcije_lokacije(genome: dict, docs: list[dict]) -> list[dict]:
     """Hard-flag: DOK-XX reference u kontradikcijama moraju odgovarati stvarnim
     redni_broj vrednostima medju dokumentima predmeta."""
@@ -410,6 +412,78 @@ def validate_predmet_reference(predmet_id_prefix: Optional[str], poznati: dict, 
     return []
 
 
+
+def _validate_kontradikcije_oblik(genome: dict) -> tuple[list[dict], list[dict]]:
+    """A009 -- MNOGOSTRUKOST I OBLIK LISTE KONTRADIKCIJA.
+
+    A005 je izmerio da isti par dokumenata moze nositi dve nezavisne sporne
+    tacke, i da ih proizvodjac ume da spoji u jedan zapis. Producer ugovor je
+    zato dopunjen eksplicitnom kardinalnoscu (`routers/case_dna.py`,
+    _GENOME_SYSTEM). Ova provera je deterministicki deo tog ugovora: proverava
+    OBLIK, nikad znacenje.
+
+    Sta se NAMERNO ne proverava: da li su dve stavke "zapravo ista sporna
+    tacka" i da li jedna stavka "zapravo pokriva dve". To bi trazilo semanticko
+    poredjenje, koje je A008 oborio (`CANONICALIZATION != SEMANTIC IDENTITY`) i
+    koje pripada V2 domenskom sloju (`shared/issue_v2.py`), ne validatoru.
+
+    Izolacija po stavci je obavezna: jedna neispravna kontradikcija sme dati
+    flag samo za sebe i NE SME oboriti niti sakriti ispravne susede -- inace bi
+    validacija postala nov izvor tihog gubitka, tacno onaj koji A009 zatvara.
+
+    Prazna lista je VALIDNA -- predmet bez kontradikcije je legitiman ishod."""
+    hard: list[dict] = []
+    soft: list[dict] = []
+    if "kontradikcije" not in genome:
+        return hard, soft
+
+    stavke = genome.get("kontradikcije")
+    if stavke is None:
+        return hard, soft
+    if not isinstance(stavke, list):
+        return ([{
+            "polje": "kontradikcije",
+            "razlog": f"mora biti lista, dobijeno {type(stavke).__name__} -- skalarni izlaz "
+                      f"strukturno onemogucava vise od jedne kontradikcije",
+            "stavka": str(stavke)[:120],
+        }], soft)
+
+    videni: dict[tuple, int] = {}
+    for i, k in enumerate(stavke):
+        if not isinstance(k, dict):
+            hard.append({
+                "polje": f"kontradikcije[{i}]",
+                "razlog": f"stavka nije objekat nego {type(k).__name__}",
+                "stavka": str(k)[:120],
+            })
+            continue
+
+        opis = (k.get("opis") or "").strip() if isinstance(k.get("opis"), str) else ""
+        lok = [k.get(p) for p in ("lokacija_1", "lokacija_2")]
+        ima_lok = any(isinstance(x, str) and x.strip() for x in lok)
+        if not opis and not ima_lok:
+            hard.append({
+                "polje": f"kontradikcije[{i}]",
+                "razlog": "stavka nema ni opis ni ijednu lokaciju -- prazan nalaz",
+                "stavka": "",
+            })
+            continue
+
+        # Doslovan duplikat: identicna kontradikcija zapisana dvaput. Poredi se
+        # SAMO na tacnu jednakost normalizovanog opisa i vec postojeceg
+        # identiteta lokacija -- bez slicnosti, bez pragova.
+        kljuc = (contradiction_identity(k), " ".join(opis.lower().split()))
+        if kljuc in videni:
+            soft.append({
+                "polje": f"kontradikcije[{i}]",
+                "razlog": f"doslovan duplikat stavke #{videni[kljuc]} (isti opis i iste lokacije)",
+                "stavka": opis[:120],
+            })
+        else:
+            videni[kljuc] = i
+
+    return hard, soft
+
 def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:
     """Glavna ulazna tacka — Faza 1.3. Nula GPT poziva, nula I/O (docs je vec
     ucitan od strane pozivaoca). Nikad ne baca izuzetak — greska u jednoj
@@ -433,6 +507,13 @@ def verify_genome(genome: dict, docs: list[dict]) -> dict[str, Any]:
             bucket.extend(fn())
         except Exception:
             pass
+
+    try:
+        o_hard, o_soft = _validate_kontradikcije_oblik(genome)
+        hard.extend(o_hard)
+        soft.extend(o_soft)
+    except Exception:
+        pass
 
     try:
         k_hard, k_soft = _validate_snaga_konzistentnost(genome)

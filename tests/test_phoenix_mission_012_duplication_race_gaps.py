@@ -256,7 +256,7 @@ async def test_coalesced_caller_waits_for_inflight_run_to_complete():
 
     completion_order = []
 
-    async def _fake_do_refresh(predmet_id, uid, stari_procent, trigger):
+    async def _fake_do_refresh(predmet_id, uid, stari_procent, trigger, event_id=None):
         await asyncio.sleep(0.05)
         completion_order.append("refresh_done")
 
@@ -287,7 +287,7 @@ async def test_genome_refresh_inflight_state_fully_cleaned_up_after_coalesce():
     cd._genome_refresh_rerun.clear()
     cd._genome_refresh_done_event.clear()
 
-    async def _fake_do_refresh(predmet_id, uid, stari_procent, trigger):
+    async def _fake_do_refresh(predmet_id, uid, stari_procent, trigger, event_id=None):
         await asyncio.sleep(0.01)
 
     with patch.object(cd, "_do_genome_refresh", new=_fake_do_refresh):
@@ -316,7 +316,7 @@ async def test_coalesced_caller_falls_back_after_timeout_instead_of_hanging_fore
     cd._genome_refresh_rerun.clear()
     cd._genome_refresh_done_event.clear()
 
-    async def _hangs_forever(predmet_id, uid, stari_procent, trigger):
+    async def _hangs_forever(predmet_id, uid, stari_procent, trigger, event_id=None):
         await asyncio.sleep(3600)  # never completes within the test
 
     with patch.object(cd, "_do_genome_refresh", new=_hangs_forever), \

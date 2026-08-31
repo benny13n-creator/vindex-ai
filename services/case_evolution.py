@@ -58,6 +58,7 @@ from typing import Awaitable, Callable, Optional
 from services.event_bus import Event, EventType
 from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
 from shared.contradiction_identity import contradiction_dedupe_key, normalize_tezina
+from shared.contradiction_identity import nove_kontradikcije_za_briefing
 from shared.deps import _get_supa
 
 logger = logging.getLogger("vindex.case_evolution")
@@ -236,6 +237,31 @@ async def _mark_failed(event_id: str, name: str, error: object) -> None:
 
 # ─── Consequence executors — DOCUMENT_ACCEPTED (the one event wired this sprint) ──
 
+async def _prethodne_kontradikcije(supa, predmet_id: str, after_verzija) -> Optional[list]:
+    """Kontradikcije iz PRETHODNE verzije Genome-a, ili `None`.
+
+    `None` znači „nema sa čim porediti" (prvi Genome predmeta, ili verzija nije
+    poznata) — a ne „nema kontradikcija". Ta razlika je bitna: prazna lista bi
+    značila da je sve nestalo."""
+    if after_verzija is None:
+        return None
+    try:
+        res = await asyncio.to_thread(
+            lambda: supa.table("predmet_genome_history").select("genome_data,verzija")
+                .eq("predmet_id", predmet_id).lt("verzija", after_verzija)
+                .order("verzija", desc=True).limit(1).execute()
+        )
+    except Exception as exc:                                # noqa: BLE001
+        # Pad čitanja istorije NE sme da se predstavi kao „ništa se nije promenilo".
+        # Vraća se `None`, pa pozivalac ide starim putem i to je vidljivo u logu.
+        logger.warning("[CASE_EVOLUTION] istorija Genome-a nečitljiva predmet=%s: %s", predmet_id, exc)
+        return None
+    red = (res.data or [None])[0]
+    if not isinstance(red, dict):
+        return None
+    return (red.get("genome_data") or {}).get("kontradikcije") or []
+
+
 async def _consequence_genome_refresh(event: Event) -> str:
     """Refreshes Case Genome — reuses routers/case_dna.py::
     _run_genome_background() UNCHANGED (this sprint is explicitly forbidden
@@ -288,7 +314,12 @@ async def _consequence_genome_refresh(event: Event) -> str:
     before_verzija = (before_data or {}).get("case_dna", {}).get("verzija") if before_data else None
 
     from routers.case_dna import _run_genome_background
-    await _run_genome_background(predmet_id, uid, before_verzija, trigger=_trigger)
+    # A016.7 §6: `event_id` se prosledjuje EKSPLICITNO. Do sada je putovao samo
+    # ukalupljen u `_trigger` string (`case_evolution:<event_id>`), sto je bilo
+    # nusproizvod dedup logike -- citati ga natrag iz stringa bilo bi parsiranje
+    # tudjeg formata, ne ugovor.
+    await _run_genome_background(predmet_id, uid, before_verzija, trigger=_trigger,
+                                 event_id=event.event_id)
 
     after_res = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("case_dna").eq("id", predmet_id).maybe_single().execute()
@@ -687,8 +718,21 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
     before_dogadjaji = int(payload.get("pre_dogadjaji") or 0)
     kontradikcije_posle = after_dna.get("kontradikcije") or []
     dogadjaji_posle = after_dna.get("datumi_kljucni") or []
-    nove_kontradikcije = max(0, len(kontradikcije_posle) - before_kontradikcije)
     novi_dogadjaji = max(0, len(dogadjaji_posle) - before_dogadjaji)
+
+    # ── A016.7 §9 (A016.1 C-2) ────────────────────────────────────────────────
+    # Ranije: broj = `len(posle) - pre_broj`, a prikazane stavke = `posle[-broj:]`.
+    # Dve nezavisne pretpostavke, obe netačne. Izmereno na 2 nestale + 3 nove:
+    # razlika dužina daje 1, pa je briefing prikazivao JEDNU stavku (poslednju po
+    # redosledu koji GPT ne garantuje), dok su dve nove ostajale nevidljive a
+    # nestanak dve stare se nigde nije pominjao.
+    #
+    # `pre_kontradikcije` je samo BROJ, pa razlika ni ne može biti tačna. Prethodni
+    # snimak se zato čita iz `predmet_genome_history.genome_data`, gde ceo Genome
+    # već stoji — bez nove tabele i bez nove kolone.
+    _prethodne = await _prethodne_kontradikcije(supa, predmet_id, after_verzija)
+    nove_kontradikcije, _nove_stavke = nove_kontradikcije_za_briefing(
+        _prethodne, kontradikcije_posle, before_kontradikcije)
 
     # Core Consolidation's own jedini algoritam za "šta nedostaje / koji su
     # rizici" -- isti kod koji routers/matter_intel.py već koristi, nikad
@@ -731,7 +775,7 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
         "genome_verzija_pre": payload.get("pre_verzija"),
         "genome_verzija_posle": after_verzija,
         "detalji": {
-            "kontradikcije": kontradikcije_posle[-nove_kontradikcije:] if nove_kontradikcije else [],
+            "kontradikcije": _nove_stavke,
             "nedostajuci_dokazi": rizik.get("nedostajuci_dokazi") or [],
             "rizici": rizici_ozbiljni,
             "job_ids": payload.get("job_ids") or [],
@@ -938,6 +982,26 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # root cause, same fix, as routers/case_dna.py::_compute_delta's own
     # SIGMA-002 (Sprint 001 Debt Register) -- one shared identity function,
     # not two independent patches.
+    # A015 (2026-08-30) — V2 PROJEKCIJA IMA PREDNOST, BEZ MESANJA IDENTITETA.
+    #
+    # Ako predmet ima perzistirane V2 kontradikcije, Rule 3 projektuje ISKLJUCIVO
+    # iz njih, sa kljucem izvedenim iz `predmet_contradictions.id`. Legacy grana
+    # ispod se u tom slucaju uopste ne izvrsava.
+    #
+    # Zasto "ili-ili", a ne oboje: kada bi obe grane radile, ista sporna tacka bi
+    # dobila DVE akcije sa dva razlicita kljuca (V2 i legacy), pa bi reconcile
+    # video duplikat i advokat bi dobio isti nalaz dvaput. Pravilo iz mandata je
+    # izricito -- legacy kontradikcija -> legacy projekcija, V2 -> V2 projekcija.
+    #
+    # Predmet bez tvrdnji (`predmet_dokazi = 0`) ne moze imati V2 kontradikciju
+    # (A014 tamo pada zatvoreno), pa za njega ovo vraca praznu listu i legacy
+    # putanja ostaje netaknuta -- sto je i uslov iz A015 §14.
+    from services.v2_projection import v2_akcije_za_predmet
+    _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id)
+    if _v2_akcije:
+        actions.extend(_v2_akcije)
+        return actions
+
     _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
     for k in (case_dna.get("kontradikcije") or []):
         opis = k.get("opis") or ""
@@ -952,9 +1016,36 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         # dict's own .get(..., "medium") default silently downgraded an out-of-enum tezina
         # to medium priority -- invisible under-flagging of a possibly-critical contradiction.
         _tez = normalize_tezina(k.get("tezina"))
+        # A003 (2026-08-29) — ADITIVNA PROVENIJENCIJA DOKUMENTA.
+        # A002 (routers/case_dna.py) je JEDINI vlasnik rezolucije `DOK-NN` ->
+        # `predmet_dokumenti.id` i upisuje `dokument_id_1`/`dokument_id_2` u istu
+        # kontradikciju, uparene sa `lokacija_1`/`lokacija_2` iz kojih su izvedene.
+        # Ovde se ta vec-razresena vrednost SAMO PRENOSI dalje -- nikad ponovo ne
+        # racuna: nema regexa, nema poklapanja po nazivu fajla, nema pozicije u
+        # listi, nema `docs[0]`. Drugi resolver istog pojma je tacno ono sto ovaj
+        # repo zabranjuje (jedan koncept = jedan vlasnik).
+        #
+        # `.get()` je namerno: Genome ekstrahovan PRE A002 nema ove kljuceve
+        # (izmereno: 0/19 postojecih kontradikcija u produkciji ih ima), pa je
+        # `None` ispravan ishod, a ne greska.
+        #
+        # FAIL-CLOSED, tri pravila koja NE SMEJU biti "popravljena":
+        #   1. oba kljuca UVEK postoje -- `None` znaci "nije razreseno", dok bi
+        #      izostavljen kljuc znacio "ova verzija ne podrzava provenijenciju";
+        #   2. `dokument_id_1 == dokument_id_2` je VALIDNO, ne duplikat --
+        #      intra-dokumentna kontradikcija (dva iskaza u istom dokumentu) je
+        #      26% stvarnih slucajeva; deduplikacija bi obrisala drugu stranu;
+        #   3. `lokacija_N` i `dokument_id_N` ostaju upareni -- zamena strana je
+        #      korupcija provenijencije, iako je identitet kontradikcije
+        #      (shared/contradiction_identity.py) namerno order-independent.
+        #
+        # `izvor_dokumenti`, `dedupe_key`, `lokacija_1/2` i identitet kontradikcije
+        # ostaju NEPROMENJENI -- ovo je iskljucivo dodavanje dva polja u `dokaz`.
         actions.append({
             "tip": "RAZRESITI_KONTRADIKCIJU", "razlog": opis,
-            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": _tez},
+            "dokaz": {"opis": opis, "lokacija_1": loc1, "lokacija_2": loc2, "tezina": _tez,
+                      "dokument_id_1": k.get("dokument_id_1"),
+                      "dokument_id_2": k.get("dokument_id_2")},
             "prioritet": _TEZINA_PRIORITET[_tez], "rok": None,
             "dedupe_key": contradiction_dedupe_key(k),
             "izvor_dokumenti": [x for x in (loc1, loc2) if x],

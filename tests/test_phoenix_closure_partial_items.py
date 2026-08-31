@@ -92,8 +92,13 @@ async def test_genome_refresh_proceeds_when_no_recent_duplicate_for_this_event()
     event = Event(type=EventType.DOCUMENT_ACCEPTED, user_id="u1", predmet_id="pred-1",
                   payload={}, event_id="evt-new-1")
 
-    async def _fake_run_genome_background(predmet_id, uid, before_verzija, trigger=None):
+    async def _fake_run_genome_background(predmet_id, uid, before_verzija, trigger=None, event_id=None):
         assert trigger == "case_evolution:evt-new-1"
+        # A016.7 §6: `event_id` mora stići EKSPLICITNO, a ne samo ukalupljen u
+        # `trigger`. Dubler koji ga samo prima ne dokazuje ništa — ovde se meri
+        # da je stvarno prosleđen, i to isti onaj koji nosi događaj.
+        assert event_id == "evt-new-1", \
+            f"identitet run-a se izgubio između posledice i Genome-a: {event_id!r}"
 
     with patch("services.case_evolution._get_supa", return_value=supa), \
          patch("routers.case_dna._run_genome_background", new=AsyncMock(side_effect=_fake_run_genome_background)) as mock_refresh:

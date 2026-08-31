@@ -237,6 +237,9 @@ async def test_refresh_case_dna_body_honestly_reports_failed_save():
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=AsyncMock(return_value=dict(novi_genome))), \
+         patch("routers.case_dna.upisi_v2_opazanje", new=AsyncMock(return_value={
+             "kandidata": 0, "odbijeno": 0, "kompletno": True,
+             "observation_version": 1, "ishodi": [], "odbijeni": []})), \
          patch("routers.case_dna._fetch_dokazi_kontekst", new=AsyncMock(return_value=[])), \
          patch("routers.case_dna.verify_genome", return_value={"odluka": "ok"}), \
          patch("routers.case_dna._compute_analiza_osnov", new=AsyncMock(return_value={})), \
@@ -290,6 +293,9 @@ async def test_refresh_case_dna_body_reports_success_when_save_succeeds():
 
     with patch("routers.case_dna._get_supa", return_value=supa), \
          patch("routers.case_dna._extract_genome", new=AsyncMock(return_value=dict(novi_genome))), \
+         patch("routers.case_dna.upisi_v2_opazanje", new=AsyncMock(return_value={
+             "kandidata": 0, "odbijeno": 0, "kompletno": True,
+             "observation_version": 1, "ishodi": [], "odbijeni": []})), \
          patch("routers.case_dna._fetch_dokazi_kontekst", new=AsyncMock(return_value=[])), \
          patch("routers.case_dna.verify_genome", return_value={"odluka": "ok"}), \
          patch("routers.case_dna._compute_analiza_osnov", new=AsyncMock(return_value={})), \

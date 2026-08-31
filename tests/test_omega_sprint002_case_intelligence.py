@@ -282,7 +282,7 @@ async def test_scenario3_two_concurrent_batches_same_case_no_cross_contamination
     supa, rows, summaries = _make_combined_supa(case_dna_after={"kontradikcije": [], "datumi_kljucni": []})
 
     calls = []
-    async def _fake_genome(predmet_id, uid, snaga, trigger=None):
+    async def _fake_genome(predmet_id, uid, snaga, trigger=None, event_id=None):
         await asyncio.sleep(0)  # encourage interleaving
         calls.append(predmet_id)
 
