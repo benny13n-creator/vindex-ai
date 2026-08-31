@@ -276,6 +276,8 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
 
         poslato = 0
         greske  = 0
+        preskoceno = 0      # drugi proces je već rezervisao isti podsetnik
+        neisporuceno = 0    # rezervisano, isporuka nepotvrđena → ručna provera
 
         for profil in profili:
             uid        = profil["user_id"]
@@ -320,29 +322,64 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 if not rokovi:
                     continue
 
+                # ── TASK 1: TRAJNI CLAIM PRE SLANJA ──────────────────────────
+                # Ranije: `_smtp_send` pa upis u log, i to u `except: pass`.
+                # Dva prozora duplikata:
+                #   (a) slanje uspe, upis padne → sledeći cron šalje PONOVO;
+                #   (b) dva paralelna cron poziva prođu istu `dup` proveru
+                #       (nema zaključavanja) → OBA pošalju isti email.
+                #
+                # Popravka koristi POSTOJEĆU šemu — bez nove kolone i tabele:
+                # `email_notif_log` već ima UNIQUE(user_id, predmet_id,
+                # datum_roka, dana_pre) (migracija 021:31). Upis se pomera PRE
+                # slanja i time postaje trajna rezervacija: drugi proces udari
+                # u UNIQUE i odustane.
+                #
+                # ŠTA OVO JESTE:  at-most-once POKUŠAJ SLANJA.
+                # ŠTA NIJE:       exactly-once ISPORUKA. Baza i SMTP ne mogu
+                #                 biti u istoj transakciji i to se ovde ne
+                #                 tvrdi. Ako slanje padne POSLE rezervacije,
+                #                 automatskog ponavljanja NEMA — ono bi vratilo
+                #                 tačno onaj prozor duplikata koji se zatvara.
+                #                 Takav ishod je `neisporuceno` i traži ručnu
+                #                 proveru, jer je NEPOZNAT, ne neuspešan.
+                claim_rows = [{
+                    "user_id":    uid,
+                    "predmet_id": rok.get("predmet_id", ""),
+                    "datum_roka": target_iso,
+                    "dana_pre":   dana_pre,
+                } for rok in rokovi]
+                try:
+                    supa.table("email_notif_log").insert(claim_rows).execute()
+                except Exception as exc:
+                    _t = str(exc)
+                    if "23505" in _t or "duplicate key" in _t.lower():
+                        logger.info("[EMAIL-CRON] preskočeno (već rezervisano) uid=%.8s dana_pre=%d datum=%s",
+                                    uid, dana_pre, target_iso)
+                        preskoceno += 1
+                        continue
+                    # Rezervacija nije uspela iz drugog razloga → NE ŠALJEMO.
+                    # Fail-closed: bolje neposlato nego poslato bez evidencije.
+                    logger.error("[EMAIL-CRON] rezervacija neuspešna, slanje preskočeno uid=%.8s: %s", uid, exc)
+                    greske += 1
+                    continue
+
                 subject = f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
                 html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr)
 
                 try:
                     _smtp_send(to_addr, subject, html)
-                    # Log sent
-                    for rok in rokovi:
-                        try:
-                            supa.table("email_notif_log").insert({
-                                "user_id":   uid,
-                                "predmet_id": rok.get("predmet_id", ""),
-                                "datum_roka": target_iso,
-                                "dana_pre":   dana_pre,
-                            }).execute()
-                        except Exception:
-                            pass
                     poslato += 1
                     logger.info("[EMAIL-CRON] poslato uid=%.8s dana_pre=%d datum=%s", uid, dana_pre, target_iso)
                 except Exception as exc:
-                    logger.error("[EMAIL-CRON] greška uid=%.8s: %s", uid, exc)
-                    greske += 1
+                    # Rezervacija POSTOJI, isporuka NIJE potvrđena. Ne briše se
+                    # i ne ponavlja se automatski — ishod je nepoznat.
+                    logger.error("[EMAIL-CRON] NEISPORUČENO (rezervisano, bez automatskog ponavljanja) "
+                                 "uid=%.8s dana_pre=%d datum=%s: %s", uid, dana_pre, target_iso, exc)
+                    neisporuceno += 1
 
-        return {"poslato": poslato, "greske": greske}
+        return {"poslato": poslato, "greske": greske,
+                "preskoceno": preskoceno, "neisporuceno": neisporuceno}
 
     result = await asyncio.to_thread(_run)
     return result
