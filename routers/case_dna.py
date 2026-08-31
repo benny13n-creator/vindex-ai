@@ -91,7 +91,7 @@ Vrati SAMO validan JSON (bez markdown):
     {"opis": "Dogadjaj koji je okidac spora", "datum": "YYYY-MM-DD", "znacaj": "kriticno|bitno|informativno"}
   ],
   "rokovi_kriticni": [
-    {"naziv": "Rok zastarelosti/zalbeni rok/sl.", "datum": "YYYY-MM-DD ili null", "opis": "Posledica propustanja", "status": "aktivan|prosao|nepoznat"}
+    {"naziv": "Rok zastarelosti/zalbeni rok/sl.", "datum": "YYYY-MM-DD ili null", "opis": "Posledica propustanja", "status": "aktivan|prosao|nepoznat", "lokacija": "DOK-XX str.Y -- iz KOG dokumenta rok potice; prazan string ako rok ne potice iz jednog konkretnog dokumenta"}
   ],
   "kontradikcije": [
     {"issue_label": "Kratak naziv JEDNE sporne tacke (npr. 'razlika u datumu prestanka')", "claim_refs": ["CLAIM-001", "CLAIM-004"], "relation_type": "cinjenica_cinjenica", "opis": "Tacno sta se kosi (citati ako moguce)", "lokacija_1": "DOK-01 str.X ili opis", "lokacija_2": "DOK-02 str.Y ili opis", "tezina": "kriticna|vazna|manja"},
@@ -482,6 +482,26 @@ async def _extract_genome(
                 # FAIL-CLOSED: bez DOK-NN oznake, nepoznat broj ili više
                 # kandidata -> None. Nikad `_kand[0]`.
                 _k[_cilj] = _kand[0] if len(_kand) == 1 else None
+
+        # ── B8: KANONSKI IZVOR ROKA ─────────────────────────────────────────
+        # Rok je do sada zavrsavao u `predmet_hronologija` bez ijedne reference
+        # na dokument iz kog potice -- advokat je video "Rok za zalbu: 15 dana"
+        # i nije mogao da dodje do resenja koje ga je pokrenulo.
+        #
+        # Ne uvodi se NOV identitet: koristi se ISTI `_po_rednom` i ISTI
+        # `_DOK_PATTERN` koje A002 vec gradi dva bloka iznad. `DOK-NN` je
+        # izveden iz `predmet_dokumenti.redni_broj`, koji migracija 106 cuva
+        # UNIQUE indeksom -- jedinstvenost garantuje baza, ne konvencija.
+        #
+        # FAIL-CLOSED, isto kao A002: bez oznake, nepoznat broj ili vise
+        # kandidata -> `None`. Nerazresen izvor je tacan podatak; izmisljena
+        # veza nije. `lokacija` se NE dira -- ostaje i prikaz i ulaz.
+        for _r in (result.get("rokovi_kriticni") or []):
+            if not isinstance(_r, dict):
+                continue
+            _m = _DOK_PATTERN.search(_r.get("lokacija") or "")
+            _kand = _po_rednom.get(int(_m.group(1)), []) if _m else []
+            _r["dokument_id"] = _kand[0] if len(_kand) == 1 else None
         return result
     except Exception as exc:
         _sentry_capture(exc)
@@ -802,6 +822,18 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
     rokovi = genome.get("rokovi_kriticni") or []
     if not rokovi:
         return 0
+    # B8: `dokument_id` -> `naziv_fajla`, da hronologija prikaze STVARNO ime
+    # dokumenta iz kog rok potice. Cita se opsegom predmeta; nerazresen rok
+    # ostaje bez naziva (None), nikad sa pogodjenim.
+    _dok_nazivi: dict[str, str] = {}
+    try:
+        _dr = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla")
+                .eq("predmet_id", predmet_id).execute()
+        )
+        _dok_nazivi = {d["id"]: d.get("naziv_fajla") or "" for d in (_dr.data or [])}
+    except Exception as exc:
+        logger.warning("[GENOME] Sync rokovi — citanje dokumenata: %s", exc)
     try:
         postojeci_r = await asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
@@ -822,11 +854,15 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
         if not datum or len(datum) != 10:
             continue
         naziv = (r.get("naziv") or "Rok").strip()
+        # B8: naziv dokumenta se izvodi iz razresenog `dokument_id`, ne iz teksta
+        # koji je model napisao. Kolona `dokument_naziv` vec postoji, pa ovaj deo
+        # NE trazi migraciju. Puni `dokument_id` u hronologiji ceka migraciju 126.
+        _dok_naziv = _dok_nazivi.get(r.get("dokument_id")) if r.get("dokument_id") else None
         dogadjaj = f"{naziv}: {(r.get('opis') or '').strip()}"[:200] if r.get("opis") else naziv[:200]
         if (dogadjaj, datum) in postojeci:
             continue
         try:
-            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum: supa.table("predmet_hronologija").insert({
+            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv: supa.table("predmet_hronologija").insert({
                 "predmet_id": predmet_id,
                 "user_id":    uid,
                 "dogadjaj":   dg,
@@ -834,6 +870,7 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                 "datum_iso":  dt,
                 "vaznost":    "kritičan",
                 "akter":      "Genome (AI)",
+                "dokument_naziv": dn,
             }).execute())
             upisano += 1
         except Exception as exc:
