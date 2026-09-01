@@ -127,11 +127,24 @@ def test_dedup_kljuc_nepromenjen():
 # 3. GRANICA — bez migracije nema `dokument_id` u hronologiji
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_hronologija_ne_upisuje_dokument_id_pre_migracije():
-    """`predmet_hronologija.dokument_id` ne postoji u živoj šemi. Upis bi
-    obarao svaki sync. Kolona čeka migraciju 126."""
+def test_hronologija_upisuje_dokument_id_posle_migracije_126():
+    """Migracija 126 je izvršena i dokazana uživo (11/11): kolona postoji, FK
+    odbija nepostojeći dokument (`23503`), `ON DELETE SET NULL` čuva istorijski
+    događaj. Tek sada se kolona sme upisivati.
+
+    Prozor se namerno računa do kraja `insert({...})` bloka, a ne fiksnih N
+    znakova: raniji fiksni prozor je promašio dodato polje i test je prolazio
+    tvrdeći nešto što više nije merio."""
     telo = _telo("_sync_rokovi_to_hronologija")
     i = telo.index('supa.table("predmet_hronologija").insert({')
-    odsecak = telo[i:i + 500]
-    assert '"dokument_id"' not in odsecak, \
-        "upisuje se kolona koja u živoj šemi ne postoji — svaki sync bi pao"
+    odsecak = telo[i:telo.index("}).execute())", i)]
+    assert '"dokument_id": di' in odsecak, \
+        "kolona postoji ali se ne upisuje — hronologija i dalje nema kanonski izvor"
+
+
+def test_dokument_id_dolazi_iz_razresenog_roka_a_ne_iz_naziva():
+    """Vrednost mora poticati iz `rokovi_kriticni[].dokument_id` (fail-closed
+    razrešen), nikad iz imena fajla."""
+    telo = _telo("_sync_rokovi_to_hronologija")
+    assert 'di=r.get("dokument_id")' in telo, \
+        "dokument_id se izvodi iz nečeg drugog umesto iz razrešenog roka"

@@ -862,7 +862,7 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
         if (dogadjaj, datum) in postojeci:
             continue
         try:
-            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv: supa.table("predmet_hronologija").insert({
+            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv, di=r.get("dokument_id"): supa.table("predmet_hronologija").insert({
                 "predmet_id": predmet_id,
                 "user_id":    uid,
                 "dogadjaj":   dg,
@@ -871,6 +871,11 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                 "vaznost":    "kritičan",
                 "akter":      "Genome (AI)",
                 "dokument_naziv": dn,
+                # Migracija 126 je izvrsena i dokazana uzivo (11/11: FK odbija
+                # nepostojeci dokument sa 23503, ON DELETE SET NULL cuva
+                # istorijski dogadjaj). Tek sada se kolona sme upisivati.
+                # NULL je TACNA vrednost kada izvor nije jednoznacno razresen.
+                "dokument_id": di,
             }).execute())
             upisano += 1
         except Exception as exc:
