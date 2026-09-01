@@ -810,6 +810,40 @@ async def _emit_genome_event(
     return correlation_id
 
 
+def _razdvoji_dokumente_po_tekstu(redovi) -> tuple[list[dict], list[dict]]:
+    """Deli dokumente na `(za_analizu, bez_teksta)` — jedan vlasnik podele.
+
+    D-1: do sada je na DVA mesta stajalo isto filtriranje
+    (`if (d.get("tekst_sadrzaj") or "").strip()`), i dokument bez teksta je
+    TIHO ispadao iz Genome obrade. Izmereno 4/4: predmet sa 2 dokumenta ->
+    Genome analizirao 1, `_genome_docs_preskoceno = 0`, `upozorenja = None`.
+    Advokat uploaduje skeniranu presudu, ona se pojavi u predmetu, a AI je
+    nikad ne procita — i nista to ne kaze.
+
+    Dokument bez teksta se i dalje NE salje modelu (to bi bio prazan kontekst),
+    ali se vise ne gubi: pozivalac dobija drugu listu i mora je zabeleziti.
+
+    Prazan tekst NIJE greska sam po sebi — moze biti neuspeo OCR, moze biti
+    prazan fajl. Razlog nije poznat ovde i NE izmislja se; belezi se cinjenica
+    da dokument nije analiziran, ne uzrok."""
+    za_analizu: list[dict] = []
+    bez_teksta: list[dict] = []
+    for d in (redovi or []):
+        (za_analizu if (d.get("tekst_sadrzaj") or "").strip() else bez_teksta).append(d)
+    return za_analizu, bez_teksta
+
+
+def _zapis_o_neanaliziranim(bez_teksta) -> list[dict]:
+    """Sistemsko polje `_dokumenti_bez_teksta` — ne LLM polje.
+
+    Namerno NE ide u `upozorenja[]`: to polje puni model i cita ga
+    `routers/case_intelligence.py`. Mesanje sistemske cinjenice sa LLM prozom
+    bi dalo dva vlasnika istog polja. `_`-prefiks je vec konvencija za
+    sistemska polja (`_verifikacija`, `_analiza_osnov`, `_genome_docs_preskoceno`)."""
+    return [{"id": d.get("id"), "naziv_fajla": d.get("naziv_fajla"),
+             "redni_broj": d.get("redni_broj")} for d in (bez_teksta or [])]
+
+
 async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: dict) -> int:
     """Core Consolidation Sec 1.5 (2026-07-22) — Genome-ekstraktovani
     rokovi_kriticni su ranije ziveli SAMO u case_dna jsonb koloni, nikad
@@ -1028,8 +1062,19 @@ async def _do_genome_refresh(
                 .order("redni_broj", desc=True)
                 .limit(_GENOME_MAX_DOCS).execute()
         )
-        docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
+        docs, _bez_teksta = _razdvoji_dokumente_po_tekstu(dok_res.data)
+        if _bez_teksta:
+            logger.warning(
+                "[GENOME] predmet=%s: %d dokumenata BEZ TEKSTA nije analizirano "
+                "(neuspeo OCR ili prazan fajl): %s",
+                predmet_id, len(_bez_teksta),
+                ", ".join((d.get("naziv_fajla") or "?") for d in _bez_teksta[:5]))
         if not docs:
+            # D-1: nijedan dokument nema tekst. Ranije se ovde cutke izlazilo.
+            logger.warning(
+                "[GENOME] predmet=%s: NIJEDAN od %d dokumenata nema tekst — "
+                "Genome se NE osvezava. Predmet ostaje bez analize.",
+                predmet_id, len(dok_res.data or []))
             return
 
         dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
@@ -1076,6 +1121,10 @@ async def _do_genome_refresh(
 
         # Auto-versioning
         genome["verzija"] = stari_verzija + 1
+        # D-1: dokument koji nije analiziran mora ostati VIDLJIV u case_dna,
+        # ne samo u logu. Prazna lista je tacna vrednost i upisuje se uvek --
+        # inace se "nema neanaliziranih" i "starije polje" ne razlikuju.
+        genome["_dokumenti_bez_teksta"] = _zapis_o_neanaliziranim(_bez_teksta)
 
         # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
         genome["_verifikacija"] = verify_genome(genome, docs)
@@ -1278,7 +1327,7 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
                 .order("redni_broj", desc=True)
                 .limit(_GENOME_MAX_DOCS).execute()
         )
-        docs = [d for d in (dok_res.data or []) if (d.get("tekst_sadrzaj") or "").strip()]
+        docs, _bez_teksta = _razdvoji_dokumente_po_tekstu(dok_res.data)
     except Exception as exc:
         raise HTTPException(500, f"Greska pri ucitavanju dokumenata: {exc}")
 
@@ -1286,8 +1335,14 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
         return {
             "predmet_id": predmet_id,
             "case_dna": {},
-            "poruka": "Nema dokumenata sa tekstom. Uploadujte dokumente u predmet.",
+            "poruka": (
+                f"Nijedan od {len(_bez_teksta)} dokumenata nema citljiv tekst "
+                "(neuspeo OCR ili prazan fajl). Genome nije osvezen."
+                if _bez_teksta else
+                "Nema dokumenata sa tekstom. Uploadujte dokumente u predmet."
+            ),
             "docs_analizirano": 0,
+            "dokumenti_bez_teksta": _zapis_o_neanaliziranim(_bez_teksta),
         }
 
     dokazi_ctx = await _fetch_dokazi_kontekst(supa, predmet_id)
@@ -1331,6 +1386,8 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
     # Auto-versioning
     nova_verzija = stari_verzija + 1
     genome["verzija"] = nova_verzija
+    # D-1: isto sistemsko polje i na rucnom putu (dva proizvodjaca, jedan ugovor).
+    genome["_dokumenti_bez_teksta"] = _zapis_o_neanaliziranim(_bez_teksta)
 
     # Faza 1.3 — Genome Verification Layer (advisory, non-blocking, nula GPT poziva)
     genome["_verifikacija"] = verify_genome(genome, docs)
