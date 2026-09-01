@@ -149,9 +149,16 @@ def test_svi_prazni_ne_zovu_model_i_ne_pisu_case_dna():
 
 
 def test_rucni_put_kaze_korisniku_koliko_dokumenata_nije_procitano():
+    """Prozor se racuna DO KRAJA `return {...}` bloka, ne fiksnih N znakova.
+
+    Raniji fiksni prozor od 900 znakova merio je duzinu odsecka, a ne ugovor:
+    kada je RG-1 dodao `case_dna_persisted` u isti dict, ceo blok je narastao
+    na 992 znaka i `dokumenti_bez_teksta` je ispao iz prozora -- test je pao
+    iako oba polja i dalje POSTOJE u odgovoru. Isti kvar fiksnog prozora, i
+    isti popravak, kao u `test_b8_rok_izvor_identitet.py`."""
     telo = _telo("_refresh_case_dna_body")
     i = telo.index("if not docs:")
-    odsecak = telo[i:i + 900]
+    odsecak = telo[i:telo.index(chr(125) + chr(10), i) + 1]
     assert "dokumenti_bez_teksta" in odsecak, \
         "odgovor ne nosi listu nepročitanih dokumenata"
     assert "len(_bez_teksta)" in odsecak, \

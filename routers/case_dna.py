@@ -1342,6 +1342,13 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
                 "Nema dokumenata sa tekstom. Uploadujte dokumente u predmet."
             ),
             "docs_analizirano": 0,
+            # RG-1: bez ovoga frontend (`_voice_refresh_case_dna`) pada u granu
+            # uspeha i prikazuje zelen "Procena predmeta azurirana" iako NISTA
+            # nije analizirano. Koristi se POSTOJECI diskriminator ("izracunato
+            # je, ali NIJE sacuvano"), ne nov -- frontend ga vec obradjuje tako
+            # sto prikaze `data.poruka`, a ona ovde tacno kaze koliko dokumenata
+            # nema citljiv tekst.
+            "case_dna_persisted": False,
             "dokumenti_bez_teksta": _zapis_o_neanaliziranim(_bez_teksta),
         }
 
