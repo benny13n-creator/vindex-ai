@@ -29,6 +29,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.learning")
 router = APIRouter(prefix="/api/learning", tags=["learning"])
@@ -278,6 +279,9 @@ async def zabeleži_ishod(
                         "datum_iso":  date.today().isoformat(),
                         "vaznost":    "informativan",
                         "akter":      "Learning Engine",
+                        # migracija 127 — W-LEARNING: sistemski zapis o
+                        # zatvaranju predmeta, nije pravni nalaz.
+                        "izvor":      _IZVOR.IZVOR_SYSTEM,
                     }).execute()
                 )
             except Exception as _he:

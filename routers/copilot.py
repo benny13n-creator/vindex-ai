@@ -36,6 +36,7 @@ from shared.permissions import PermissionService
 from shared.rate import limiter
 from shared.sentry import capture_exception as _sentry_capture
 from shared.usage import UsageService
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.copilot")
 router = APIRouter(tags=["copilot"])
@@ -817,6 +818,9 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
             "datum_iso":  ext.get("datum_iso",""),
             "vaznost":    _vaznost,
             "akter":      "Copilot (AI)",
+            # migracija 127 — W-COPILOT: advokat otkuca "Dodaj rok...";
+            # model samo strukturira njegov tekst.
+            "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
         }).execute())
     except Exception as e:
         _sentry_capture(e)

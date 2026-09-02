@@ -364,7 +364,7 @@ async def test_generate_notifications_delete_excludes_dedupe_key_rows():
         for method in ("select", "eq", "gte", "lte", "lt", "order", "limit", "in_", "is_", "delete", "insert"):
             setattr(m, method, MagicMock(return_value=m))
         m.execute = MagicMock(return_value=MagicMock(data=[
-            {"predmet_id": "p1", "dogadjaj": "Ročište", "datum_iso": "2026-08-08", "vaznost": "kritičan"},
+            {"izvor": "HUMAN_DIRECT", "predmet_id": "p1", "dogadjaj": "Ročište", "datum_iso": "2026-08-08", "vaznost": "kritičan"},
         ]))
         return m
 

@@ -40,6 +40,7 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.onboarding")
 router = APIRouter(tags=["onboarding"])
@@ -247,6 +248,8 @@ async def kreiraj_demo_predmet(
                 "predmet_id": predmet_id, "user_id": uid,
                 "dogadjaj": "Rok za odgovor na tužbu", "datum": rok_datum, "datum_iso": rok_datum,
                 "vaznost": "kritičan", "akter": "Demo predmet",
+                # migracija 127 — W-ONBOARDING: demo sadrzaj, nije pravni nalaz.
+                "izvor": _IZVOR.IZVOR_SYSTEM,
             }).execute()
         )
     except Exception as e:

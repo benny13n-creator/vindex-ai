@@ -46,14 +46,15 @@ PID = "p-1"
 MAIL = "advokat@example.invalid"
 
 
-def _ai_rok(rid="r-ai", vaznost="kritičan", akter="Genome (AI)"):
-    return {"id": rid, "akter": akter, "vaznost": vaznost,
+def _ai_rok(rid="r-ai", vaznost="kritičan", akter="Genome (AI)", izvor="AI_AUTONOMOUS"):
+    return {"id": rid, "akter": akter, "izvor": izvor, "vaznost": vaznost,
             "predmet_id": PID, "user_id": UID,
             "dogadjaj": "Rok za reklamaciju", "datum_iso": "2026-03-15"}
 
 
 def _ljudski_rok(rid="r-h"):
-    return {"id": rid, "akter": "Advokat Marko", "vaznost": "kritičan",
+    return {"id": rid, "akter": "Advokat Marko", "izvor": "HUMAN_DIRECT",
+            "vaznost": "kritičan",
             "predmet_id": PID, "user_id": UID,
             "dogadjaj": "Rok iz ugovora", "datum_iso": "2026-03-15"}
 
@@ -62,10 +63,15 @@ def _ljudski_rok(rid="r-h"):
 # 1. KANONSKI PREDIKAT — TEST A/B/C/D/E
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_oba_ai_proizvodjaca_su_prepoznata():
-    """Izmereno na zivoj bazi: `predmet_hronologija.akter` ima DVA AI potpisa."""
+def test_akter_VISE_NIJE_provenijencija():
+    """Migracija 127: kapija cita `izvor`, ne `akter`.
+
+    `je_ai_poreklo` je zadrzano samo za prikaz i za ovaj regresioni dokaz —
+    FAZA 6.2.1 je izmerila da `akter` nosi ime stranke iz LLM izlaza."""
     assert set(AI_AKTERI) == {"Genome (AI)", "Pipeline (AI)"}
-    assert je_ai_poreklo("Genome (AI)") and je_ai_poreklo("Pipeline (AI)")
+    # `akter` koji "izgleda ljudski" NE otvara kapiju ako je `izvor` AI:
+    r = {"id": "x", "akter": "Poslodavac DOO Sever", "izvor": "AI_AUTONOMOUS"}
+    assert sme_pokrenuti_obavezu(r, set()) is False
 
 
 def test_ljudski_akter_nije_ai():
@@ -102,7 +108,16 @@ def test_ljudski_rok_nije_gejtovan():
     assert sme_pokrenuti_obavezu(_ljudski_rok(), set()) is True
 
 
-def test_red_bez_kljuca_akter_se_tretira_kao_ljudski():
+def test_red_BEZ_izvora_je_FAIL_CLOSED():
+    """`izvor` je `NOT NULL` u bazi (migracija 127), pa odsutan kljuc moze da
+    znaci SAMO da ga upit nije dovukao. Pogadjanje na osnovu nedostajuceg
+    podatka je tacno ono sto je otvorilo rupu iz FAZE 6.2.1.
+
+    Meri se BEZ potvrde: potvrda je jaci signal od provenijencije."""
+    assert sme_pokrenuti_obavezu({"id": "x", "vaznost": "kritičan"}, set()) is False
+
+
+def _zastarelo_test_red_bez_kljuca_akter():
     """SVESNA GRANICA, ne previd.
 
     Kapija poreklo cita iz `akter`. Ako ga upit ne dovuce, red izgleda ljudski

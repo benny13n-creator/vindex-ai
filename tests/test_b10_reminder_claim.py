@@ -129,7 +129,7 @@ def _rok(datum_iso):
     # `shared/rokovi.py::sme_pokrenuti_obavezu`. Fixture ih dobija da bi ostao
     # VERAN stvarnom redu; `akter` je ljudski, jer B10 meri rezervaciju pre
     # slanja, a ne granicu AI opazanja (to meri test_faza62_*).
-    return {"id": f"rok-{datum_iso}", "akter": "Advokat Marko",
+    return {"id": f"rok-{datum_iso}", "akter": "Advokat Marko", "izvor": "HUMAN_DIRECT",
             "dogadjaj": "Rok za žalbu", "datum_iso": datum_iso,
             "predmet_id": PID, "user_id": UID, "vaznost": "kritičan"}
 

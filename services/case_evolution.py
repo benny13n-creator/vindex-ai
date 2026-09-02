@@ -60,6 +60,7 @@ from shared.attention_priority import CANONICAL_TO_NOTIFICATIONS
 from shared.contradiction_identity import contradiction_dedupe_key, normalize_tezina
 from shared.contradiction_identity import nove_kontradikcije_za_briefing
 from shared.deps import _get_supa
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.case_evolution")
 
@@ -402,6 +403,9 @@ async def _consequence_timeline_entry(event: Event) -> str:
             "dogadjaj":   opis,
             "vaznost":    "informativan",
             "akter":      "Case Evolution Engine",
+            # migracija 127 — W-EVOLUTION: posledica dogadjaja na sabirnici,
+            # nije opazanje.
+            "izvor":      _IZVOR.IZVOR_SYSTEM,
         }).execute()
     )
     if not res.data:

@@ -139,8 +139,8 @@ def _sutra():
     return (date.today() + timedelta(days=1)).isoformat()
 
 
-def _ai_rok(datum_iso=None, rid=ROK_ID, vaznost="kritičan"):
-    return {"id": rid, "akter": "Genome (AI)", "vaznost": vaznost,
+def _ai_rok(datum_iso=None, rid=ROK_ID, vaznost="kritičan", izvor="AI_AUTONOMOUS"):
+    return {"id": rid, "akter": "Genome (AI)", "izvor": izvor, "vaznost": vaznost,
             "dogadjaj": "Rok za reklamaciju uredjaja U-1",
             "datum": datum_iso or _sutra(), "datum_iso": datum_iso or _sutra(),
             "predmet_id": PID, "user_id": UID}
@@ -214,6 +214,7 @@ def test_ljudski_rok_i_dalje_salje_bez_ikakve_potvrde():
     """Regresija: gejt ne sme da ugasi rokove koje je uneo covek."""
     r = _ai_rok(rid="rok-h")
     r["akter"] = "Advokat Marko"
+    r["izvor"] = "HUMAN_DIRECT"   # migracija 127: poreklo odlucuje `izvor`
     b = FakeBaza([r], email_aktivan=True, potvrde=[])
     rez, poslati = _posalji_email(b)
     assert len(poslati) == 1, "ljudski rok je pogresno gejtovan"

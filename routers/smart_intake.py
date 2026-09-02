@@ -52,6 +52,7 @@ from typing import Optional
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
 from shared.rate import limiter
 from shared import intake_documents, intake_queue, intake_segments, case_assimilation
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.smart_intake")
 router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
@@ -1397,6 +1398,12 @@ async def _finalize_intake_job_core(
                         "datum_iso":  deadline_iso,
                         "vaznost":    "važan",
                         "akter":      "Smart Intake",
+                        # migracija 127 — W-SMARTINTAKE: rok je AI-
+                        # ekstrahovan iz dokumenta. Advokat je kliknuo
+                        # "Kreiraj predmet", ali OVAJ rok nikad nije video
+                        # -- klasifikacija ide po tvorcu SADRZAJA, ne po
+                        # kliku.
+                        "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
                         # BLK-1 / provenance: kolona postoji od početka i ostajala
                         # je NULL, pa advokat nije imao odgovor na pitanje "odakle
                         # ovaj rok?". Naziv izvornog fajla je jedini podatak koji je

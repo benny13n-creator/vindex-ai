@@ -323,6 +323,9 @@ async def intake_kreiraj(
                     "datum_iso":  body.prvi_rok,
                     "vaznost":    _rokovi_domen.normalizuj_vaznost("bitan"),
                     "akter":      "Intake Wizard (AI)",
+                    # migracija 127 — W-INTAKE-ROK: `body.prvi_rok` dolazi
+                    # iz forme koju je advokat popunio.
+                    "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
                 }).execute()
             )
             rok_dodat = True
@@ -444,6 +447,9 @@ async def intake_kreiraj(
                     "datum":      datum,
                     "datum_iso":  datum,
                     "akter":      "Intake Wizard — šablon",
+                    # migracija 127 — W-INTAKE-TPL1: sadrzaj je staticki
+                    # `_TEMPLATES` katalog, advokat je izabrao sablon.
+                    "izvor":      _IZVOR.IZVOR_DETERMINISTIC,
                 })
             if hron_rows:
                 try:
@@ -495,6 +501,7 @@ _CLIENT_ROLES = frozenset({"stranka", "tuzilac"})
 # stranka?") imao je tri nezavisne implementacije. Ovo je jedina kanonska.
 from routers.conflict_check import CONFLICT_WARN, _fuzzy_score
 from routers.conflict_check import _normalize_name as _kanonska_normalizacija
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 
 def _norm(s: str) -> str:
@@ -1035,6 +1042,10 @@ async def post_from_template(
             "datum":      datum,
             "datum_iso":  datum,
             "akter":      "Template (AI)",
+            # migracija 127 — W-INTAKE-TPL2: isti staticki katalog. Oznaka
+            # "(AI)" u `akter` je istorijski netacna -- sadrzaj nije LLM
+            # (prijavljeno kao out-of-scope).
+            "izvor":      _IZVOR.IZVOR_DETERMINISTIC,
         })
     if hron_rows:
         try:

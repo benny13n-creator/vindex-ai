@@ -25,6 +25,7 @@ from security.html_sanitize import sanitize_user_input
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.rocista")
 router = APIRouter(tags=["rocista"])
@@ -404,6 +405,9 @@ async def hearing_followup(
             "datum_iso":  today_iso,
             "vaznost":    _rokovi_domen.normalizuj_vaznost("bitan"),
             "akter":      "Advokat",
+            # migracija 127 — W-ROCISTE: advokat unosi follow-up posle
+            # rocista.
+            "izvor":      _IZVOR.IZVOR_HUMAN_DIRECT,
         }).execute()),
         asyncio.to_thread(lambda: supa.table("predmet_istorija").insert({
             "predmet_id": body.predmet_id,

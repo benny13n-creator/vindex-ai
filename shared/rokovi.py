@@ -422,6 +422,46 @@ def zahtevaj(rez: Rezultat) -> list:
 # Ljudski unos i ZPP lanac nose druge vrednosti i ovim se NE menjaju.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# ── PROVENIJENCIJA SADRŽAJA (migracija 127) ─────────────────────────────────
+# `izvor` odgovara na pitanje KAKO je sadržaj zapisa nastao. To je ČETVRTA,
+# nezavisna osa — ne meša se ni sa jednom od ostale tri:
+#
+#   `akter`   KO je izvršio radnju (stranka u događaju)
+#   `izvor`   KAKO je sadržaj nastao                    <- ovde
+#   potvrda   DA LI je čovek odobrio izvršivu upotrebu  (audit_immutable)
+#   `vaznost` KOLIKO je događaj važan
+#
+# FAZA 6.2.1 je dokazala šta se dešava kad jedno polje nosi dva značenja:
+# `api.py::predmet_upload_auto_analyze` upisuje LLM tekst u `akter`, pa je
+# AI rok stizao do kapije kao „Poslodavac DOO Sever" i prolazio kao ljudski.
+IZVOR_AI_AUTONOMOUS = "AI_AUTONOMOUS"   # model proizveo sadržaj, čovek ga nije video pre upisa
+IZVOR_AI_ASSISTED   = "AI_ASSISTED"     # čovek dao/video vrednost, model je samo strukturirao
+IZVOR_HUMAN_DIRECT  = "HUMAN_DIRECT"    # čovek uneo sadržaj rukom
+IZVOR_DETERMINISTIC = "DETERMINISTIC"   # statički katalog u kodu, čovek izabrao
+IZVOR_SYSTEM        = "SYSTEM"          # posledica lifecycle događaja, nije opažanje
+IZVOR_LEGACY        = "LEGACY_UNKNOWN"  # nastalo pre ugovora, poreklo nedokazivo
+
+#: Isti skup koji drži `CHECK` iz migracije 127. Držati usklađeno.
+IZVOR_DOZVOLJENI: tuple = (
+    IZVOR_AI_AUTONOMOUS, IZVOR_AI_ASSISTED, IZVOR_HUMAN_DIRECT,
+    IZVOR_DETERMINISTIC, IZVOR_SYSTEM, IZVOR_LEGACY,
+)
+
+#: Klase kod kojih je sadržaj prošao kroz ljudske oči ili dolazi iz statičkog
+#: kataloga. Namerno je BELA lista, ne crna: sve što nije ovde — uključujući
+#: `None`, odsutan ključ i vrednost koju kod ne poznaje — traži potvrdu.
+#: Crna lista bi svaku buduću, još neuvedenu klasu tiho propustila.
+IZVOR_SME_BEZ_POTVRDE: tuple = (
+    IZVOR_AI_ASSISTED, IZVOR_HUMAN_DIRECT, IZVOR_DETERMINISTIC, IZVOR_SYSTEM,
+)
+
+#: Klase koje NIKAD nisu izvršive bez eksplicitne ljudske potvrde. Izvedeno iz
+#: bele liste da se dve liste ne mogu raziće.
+IZVOR_TRAZI_POTVRDU: tuple = tuple(
+    v for v in IZVOR_DOZVOLJENI if v not in IZVOR_SME_BEZ_POTVRDE
+)
+
+
 #: Potpisi u `predmet_hronologija.akter` koje upisuju AI proizvođači.
 #: `Genome (AI)`   — routers/case_dna.py::_sync_rokovi_to_hronologija
 #: `Pipeline (AI)` — services/case_pipeline.py
@@ -431,7 +471,12 @@ AI_AKTERI: tuple = ("Genome (AI)", "Pipeline (AI)")
 
 
 def je_ai_poreklo(akter: Optional[str]) -> bool:
-    """Da li je ovaj red hronologije proizveo AI, a ne čovek?
+    """ZASTARELO ZA BEZBEDNOST — ne koristiti kao provenijenciju.
+
+    Zadržano samo za prikaz i za regresione testove koji dokumentuju zašto je
+    `akter` bio pogrešan izbor (FAZA 6.2.1). Kanonsko poreklo je `izvor`.
+
+    Da li je ovaj red hronologije proizveo AI, a ne čovek?
 
     Namerno DOSLOVNO poređenje, bez `startswith`/`in`: labav test bi svrstao
     ljudski unos „Pipeline (AI) je pogrešio" u AI poreklo i tiho ugasio
@@ -443,18 +488,33 @@ def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bo
     """JEDINA kapija između opažanja i izvršive posledice (podsetnik, SMS,
     notifikacija).
 
-    FAIL-CLOSED: red AI porekla prolazi ISKLJUČIVO ako je njegov `id` u skupu
-    potvrđenih. Prazan/`None` skup znači „nijedna potvrda ne postoji", pa
-    nijedan AI rok ne prolazi — to je ispravan ishod, ne greška.
+    Čita KANONSKU PROVENIJENCIJU (`izvor`, migracija 127). Do FAZE 6.2.1 je
+    čitala `akter` — i to je bilo dokazano pogrešno: `akter` nosi IME STRANKE u
+    događaju, a `api.py::predmet_upload_auto_analyze` ga puni tekstom iz modela.
+    Mereno: 49/55 redova je tako prolazilo kao „ljudski unos".
 
-    Red koji NIJE AI porekla prolazi nepromenjeno: ovaj gejt ne uvodi nova
-    ograničenja nad rokovima koje je uneo čovek ili deterministički ZPP lanac.
+    FAIL-CLOSED na dva mesta:
+      1. `izvor` u `IZVOR_TRAZI_POTVRDU` → prolazi SAMO uz ljudsku potvrdu;
+      2. `izvor` odsutan → poreklo se ne može utvrditi, pa red NE prolazi.
+
+    Druga tačka je bezbedna baš zato što je `izvor` `NOT NULL` u bazi: red bez
+    njega ne može postojati, pa odsutan ključ znači samo „upit ga nije dovukao"
+    — a pogađanje na osnovu nedostajućeg podatka je tačno ono što je otvorilo
+    prethodnu rupu.
+
+    PROVENIJENCIJA NIJE OVLAŠĆENJE. `AI_ASSISTED`, `HUMAN_DIRECT`,
+    `DETERMINISTIC` i `SYSTEM` prolaze ovu kapiju, ali time se NE tvrdi da su
+    potvrđeni — samo da im sadržaj nije proizveo model bez ljudskih očiju.
+    O odobrenju odlučuje potvrda, ne ova funkcija.
     """
-    if not je_ai_poreklo(red.get("akter")):
+    if red.get("izvor") in IZVOR_SME_BEZ_POTVRDE:
         return True
+    # Sve ostalo traži potvrdu: `AI_AUTONOMOUS`, `LEGACY_UNKNOWN`, `None`,
+    # odsutan ključ (upit ga nije dovukao) i svaka vrednost koju ovaj kod ne
+    # poznaje. Nepoznato NIJE dozvoljeno.
     rid = red.get("id")
     if not rid:
-        # AI red bez `id` se ne može dovesti u vezu ni sa jednom potvrdom.
+        # Red bez `id` se ne može dovesti u vezu ni sa jednom potvrdom.
         return False
     return rid in (potvrdjeni_ids or set())
 

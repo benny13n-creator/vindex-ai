@@ -85,7 +85,7 @@ async def test_second_cron_run_same_day_does_not_resend_sms():
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"user_id": "u1", "dogadjaj": "Odgovor na tužbu", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Odgovor na tužbu", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     with patch("routers.sms._FOUNDER_EMAILS", {"founder@vindex.rs"}), \
          patch("routers.sms._send_sms", return_value=True) as mock_send:
@@ -126,7 +126,7 @@ async def test_different_deadline_next_day_still_sends():
     day_after = (date.today() + timedelta(days=2)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     # Already sent the reminder for the day_after occurrence (a different
     # date), not for tomorrow's -- must NOT block today's send.
@@ -151,7 +151,7 @@ async def test_log_tip_is_date_qualified_not_the_old_bare_string():
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     with patch("routers.sms._FOUNDER_EMAILS", {"founder@vindex.rs"}), \
          patch("routers.sms._send_sms", return_value=True):

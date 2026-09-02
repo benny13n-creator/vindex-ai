@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.rokovi_lanac")
 router = APIRouter(tags=["rokovi"])
@@ -441,6 +442,9 @@ async def post_rokovi_lanac(
                 # se preslikati u pogresnu vaznost. Test drzi katalog potpunim.
                 "vaznost":    _VAZNOST_HRON.get(r["vaznost"], "normalan"),
                 "akter":      f"Automatski — ZPP lanac | {r['opis'][:200]}",
+                # migracija 127 — W-ROKOVILANAC: rokovi se racunaju iz
+                # statickog ZPP kataloga `_TIPOVI`, ne iz modela.
+                "izvor":      _IZVOR.IZVOR_DETERMINISTIC,
             }
             for r in lanac
         ]

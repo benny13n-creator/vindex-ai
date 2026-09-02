@@ -92,7 +92,7 @@ def _make_supa(rok_vaznost: str, target_iso: str):
                 result = MagicMock()
                 if getattr(sel, "_matched", False) and val == target_iso:
                     result.execute.return_value.data = [
-                        {"dogadjaj": "Rok za žalbu", "datum_iso": target_iso, "predmet_id": "pred-001"}
+                        {"izvor": "HUMAN_DIRECT", "dogadjaj": "Rok za žalbu", "datum_iso": target_iso, "predmet_id": "pred-001"}
                     ]
                 else:
                     result.execute.return_value.data = []

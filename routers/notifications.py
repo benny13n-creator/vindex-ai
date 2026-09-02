@@ -176,7 +176,7 @@ async def _generate_notifications(uid: str) -> int:
     try:
         rokovi_r, predmeti_r = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("id, akter, predmet_id, dogadjaj, datum_iso, vaznost")
+                .select("id, izvor, predmet_id, dogadjaj, datum_iso, vaznost")
                 .eq("user_id", uid)
                 .gte("datum_iso", today_iso)
                 .lte("datum_iso", in_7_iso)
@@ -241,7 +241,7 @@ async def _generate_notifications(uid: str) -> int:
         pre_90_iso = (today - timedelta(days=90)).isoformat()
         rokovi_propusteni_r, predmeti_r2 = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("id, akter, predmet_id, dogadjaj, datum_iso, vaznost")
+                .select("id, izvor, predmet_id, dogadjaj, datum_iso, vaznost")
                 .eq("user_id", uid)
                 .gte("datum_iso", pre_90_iso)
                 .lt("datum_iso", today_iso)

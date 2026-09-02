@@ -169,7 +169,7 @@ async def test_hitan_rok_notification_gets_high_priority_not_the_old_broken_valu
     from datetime import date
 
     today = date.today().isoformat()
-    rokovi = [{"predmet_id": "pred-1", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"}]
+    rokovi = [{"izvor": "HUMAN_DIRECT", "predmet_id": "pred-1", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"}]
     predmeti = [{"id": "pred-1", "naziv": "Predmet A", "status": "aktivan"}]
     insert_calls: list = []
     supa = _make_notif_supa(rokovi=rokovi, predmeti=predmeti, insert_calls=insert_calls)
@@ -204,8 +204,8 @@ async def test_closed_case_deadline_does_not_generate_a_notification():
 
     today = date.today().isoformat()
     rokovi = [
-        {"predmet_id": "pred-closed", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"},
-        {"predmet_id": "pred-open", "dogadjaj": "Rok za odgovor", "datum_iso": today, "vaznost": "kritičan"},
+        {"izvor": "HUMAN_DIRECT", "predmet_id": "pred-closed", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"},
+        {"izvor": "HUMAN_DIRECT", "predmet_id": "pred-open", "dogadjaj": "Rok za odgovor", "datum_iso": today, "vaznost": "kritičan"},
     ]
     predmeti = [
         {"id": "pred-closed", "naziv": "Zatvoren predmet", "status": "zatvoren"},

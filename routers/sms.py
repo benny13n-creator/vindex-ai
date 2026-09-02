@@ -256,7 +256,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
         try:
             svi_rokovi_r = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija")
-                    .select("id,akter,user_id,dogadjaj,datum_iso,predmet_id")
+                    .select("id,izvor,user_id,dogadjaj,datum_iso,predmet_id")
                     .in_("user_id", user_ids)
                     .eq("vaznost", "kritičan")
                     .gte("datum_iso", today_s)
@@ -412,7 +412,7 @@ async def posalji_briefing_whatsapp(request: Request, user: dict = Depends(get_c
 
     predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id,akter,dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id,izvor,dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,napomena").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(5).execute()),
     )
 

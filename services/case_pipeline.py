@@ -29,6 +29,7 @@ from shared.deps import _get_supa  # noqa: E402
 from shared.llm_retry import llm_retry  # noqa: E402
 from shared.sentry import capture_exception as _sentry_capture  # noqa: E402
 from shared import rokovi as _rokovi_domen
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 
 @llm_retry
@@ -380,6 +381,9 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
                     "datum":      d,
                     "datum_iso":  d,
                     "vaznost":    vz,
+                    # migracija 127 — W-PIPELINE: pipeline sam izvlaci
+                    # rokove iz dokumenta.
+                    "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
                     "akter":      "Pipeline (AI)",
                 }).execute())
                 inserted += 1

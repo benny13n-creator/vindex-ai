@@ -317,9 +317,10 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
 
                 rokovi_r = (
                     supa.table("predmet_hronologija")
-                    # FAZA 6.2: `id` i `akter` su potrebni gejtu -- `id` je kljuc
-                    # odluke, `akter` nosi poreklo. Ostatak upita nepromenjen.
-                    .select("id, akter, dogadjaj, datum_iso, predmet_id")
+                    # Migracija 127: gejt trazi `id` (kljuc odluke) i `izvor`
+                    # (kanonska provenijencija). `akter` se vise NE cita kao
+                    # poreklo -- on nosi ime stranke u dogadjaju.
+                    .select("id, izvor, dogadjaj, datum_iso, predmet_id")
                     .eq("user_id", uid)
                     .in_("vaznost", _ACTIONABLE_VAZNOST)
                     .eq("datum_iso", target_iso)
@@ -559,7 +560,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             # Fetch this user's deadlines for the next 7 days
             if _aktivni_ids:
                 rokovi_r  = (supa.table("predmet_hronologija")
-                                 .select("id,akter,dogadjaj,datum_iso,vaznost,predmet_id")
+                                 .select("id,izvor,dogadjaj,datum_iso,vaznost,predmet_id")
                                  .eq("user_id", uid)
                                  .in_("predmet_id", _aktivni_ids)
                                  .gte("datum_iso", today_iso)
@@ -586,7 +587,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
                              .execute())
             if _aktivni_ids:
                 hitnih_r  = (supa.table("predmet_hronologija")
-                                 .select("id,akter,predmet_id")
+                                 .select("id,izvor,predmet_id")
                                  .eq("user_id", uid)
                                  .in_("predmet_id", _aktivni_ids)
                                  .eq("vaznost", "kritičan")

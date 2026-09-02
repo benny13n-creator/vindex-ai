@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.predmeti_close")
 router = APIRouter(tags=["predmeti"])
@@ -195,6 +196,9 @@ async def zatvori_predmet(
                 "datum_iso":  datum_zatv,
                 "vaznost":    _rokovi_domen.normalizuj_vaznost("kljucan"),
                 "akter":      hron_akter[:300],
+                # migracija 127 — W-CLOSE: advokat rucno zatvara predmet i
+                # pise zakljucak.
+                "izvor":      _IZVOR.IZVOR_HUMAN_DIRECT,
             }).execute()
         )
     except Exception as e:

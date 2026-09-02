@@ -115,6 +115,7 @@ logger = logging.getLogger("vindex.api")
 # ─── Supabase ────────────────────────────────────────────────────────────────
 from jose import jwt as jose_jwt, JWTError
 from supabase import create_client, Client as SupabaseClient
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 SUPABASE_URL         = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
@@ -6106,6 +6107,11 @@ async def predmet_upload_auto_analyze(
                         "datum_iso":      datum_iso,
                         "dogadjaj":       str(ev.get("dogadjaj", ""))[:500],
                         "akter":          str(ev.get("akter") or "")[:200],
+                        # migracija 127 — W-UPLOAD: model cita dokument i
+                        # sam pravi dogadjaje; advokat ih ne vidi pre upisa.
+                        # `akter` iznad je IME STRANKE iz LLM izlaza -- zato
+                        # je i bila potrebna zasebna osa.
+                        "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
                         "vaznost":        vaznost,
                     })
                 if rows:
@@ -7185,6 +7191,9 @@ async def predmet_confirm_links(
                     "datum_iso":  rok.get("datum_iso",""),
                     "vaznost":    _vaznost_rok,
                     "akter":      "Auto-detect (AI)",
+                    # migracija 127 — W-CONFIRMLINKS: ruta `confirm-links`
+                    # -- advokat je vec potvrdio ovaj rok pre upisa.
+                    "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
                 }).execute()
             )
             # Prazan rezultat je isto što i pad, samo tiše -- isti ugovor koji

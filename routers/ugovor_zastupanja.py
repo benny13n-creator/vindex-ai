@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.ugovor_zastupanja")
 router = APIRouter(tags=["ugovor"])
@@ -342,6 +343,9 @@ async def post_generiši_ugovor(
                     "datum_iso":  datum,
                     "vaznost":    _rokovi_domen.normalizuj_vaznost("kljucan"),
                     "akter":      f"Advokat {body.advokat_ime[:80]}",
+                # migracija 127 — W-UGOVOR: advokat generise ugovor sa
+                # sopstvenim podacima.
+                "izvor":      _IZVOR.IZVOR_HUMAN_DIRECT,
                 }).execute()
             )
             sacuvano = True

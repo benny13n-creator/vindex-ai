@@ -51,6 +51,7 @@ from shared.claim_catalog import MAKS_TVRDNJI as _MAKS_TVRDNJI, napravi_katalog,
 from services.v2_observation import upisi_v2_opazanje
 from services.v2_contradiction_persistence import (
     V2PackageRejected, V2StaleObservation)
+from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
 
 logger = logging.getLogger("vindex.case_genome")
 router = APIRouter(prefix="/api/predmeti", tags=["case_dna"])
@@ -905,6 +906,9 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                 "vaznost":    "kritičan",
                 "akter":      "Genome (AI)",
                 "dokument_naziv": dn,
+                # migracija 127 — W-GENOME: Genome sam izvlaci rok iz
+                # dokumenta.
+                "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
                 # Migracija 126 je izvrsena i dokazana uzivo (11/11: FK odbija
                 # nepostojeci dokument sa 23503, ON DELETE SET NULL cuva
                 # istorijski dogadjaj). Tek sada se kolona sme upisivati.
