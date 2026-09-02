@@ -78,6 +78,12 @@ AUDITABLE_ACTIONS: set[str] = {
     # kanonski resolve_review() poziv (ranije nije ni postojao poziv koji
     # bi ovo trebalo da loguje — nova, jedina kapija za "review razrešen").
     "entity_corrected", "dokument_review_resolved",
+    # FAZA 6.2 (2026-09-02) -- ljudska odluka o AI opazenom roku. Isti oblik
+    # kao "dokument_review_resolved" iznad: covek preuzima odgovornost za
+    # nalaz koji je proizveo model. Bez ovih unosa `log_action` bi TIHO
+    # vratio None, pa bi rok izgledao nepotvrdjen zauvek -- a gejt je
+    # fail-closed, sto znaci da potvrda nikad ne bi mogla da se da.
+    "rok_potvrdjen", "rok_odbijen",
     # Klijenti
     "klijent_create", "klijent_delete",
     # Autentifikacija

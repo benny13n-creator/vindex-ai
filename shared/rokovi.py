@@ -403,3 +403,62 @@ def zahtevaj(rez: Rezultat) -> list:
     if rez.stanje is Stanje.NEISPRAVAN_SUBJEKT:
         raise HTTPException(status_code=400, detail=rez.razlog or "Neispravan zahtev.")
     return rez.rokovi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.2 — GRANICA IZMEĐU AI OPAŽANJA I IZVRŠIVE OBAVEZE (INV-2)
+#
+# FAZA 6.1 je UŽIVO dokazala kvar: Genome je upisao tri roka sa
+# `vaznost="kritičan"`, a `_ACTIONABLE_VAZNOST = ["kritičan", "važan"]` — pa su
+# sva tri bila podobna za email/SMS podsetnik i notifikaciju BEZ IJEDNE ljudske
+# potvrde. Da je `korisnik_email_notif` bio uključen, advokat bi dobio opomenu
+# za rok koji nikad nije video ni potvrdio.
+#
+# `vaznost` je AI PROCENA TEŽINE. Ona NIJE potvrda i NIJE ovlašćenje.
+# Zato se ovde ne dira ni jedna postojeća `vaznost` vrednost niti njena
+# semantika — uvodi se NEZAVISNA dimenzija: poreklo + potvrda.
+#
+# Poreklo se ne izmišlja: `akter` je POSTOJEĆE kanonsko polje koje oba AI
+# proizvođača već popunjavaju svojim potpisom (izmereno na živoj bazi).
+# Ljudski unos i ZPP lanac nose druge vrednosti i ovim se NE menjaju.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: Potpisi u `predmet_hronologija.akter` koje upisuju AI proizvođači.
+#: `Genome (AI)`   — routers/case_dna.py::_sync_rokovi_to_hronologija
+#: `Pipeline (AI)` — services/case_pipeline.py
+#: Vrednost se poredi DOSLOVNO: nepoznat akter NIJE AI (fail-open za ljudski
+#: unos je ispravan — ljudski rok nikad nije bio gejtovan i ne postaje sada).
+AI_AKTERI: tuple = ("Genome (AI)", "Pipeline (AI)")
+
+
+def je_ai_poreklo(akter: Optional[str]) -> bool:
+    """Da li je ovaj red hronologije proizveo AI, a ne čovek?
+
+    Namerno DOSLOVNO poređenje, bez `startswith`/`in`: labav test bi svrstao
+    ljudski unos „Pipeline (AI) je pogrešio" u AI poreklo i tiho ugasio
+    korisnikov sopstveni rok."""
+    return (akter or "") in AI_AKTERI
+
+
+def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bool:
+    """JEDINA kapija između opažanja i izvršive posledice (podsetnik, SMS,
+    notifikacija).
+
+    FAIL-CLOSED: red AI porekla prolazi ISKLJUČIVO ako je njegov `id` u skupu
+    potvrđenih. Prazan/`None` skup znači „nijedna potvrda ne postoji", pa
+    nijedan AI rok ne prolazi — to je ispravan ishod, ne greška.
+
+    Red koji NIJE AI porekla prolazi nepromenjeno: ovaj gejt ne uvodi nova
+    ograničenja nad rokovima koje je uneo čovek ili deterministički ZPP lanac.
+    """
+    if not je_ai_poreklo(red.get("akter")):
+        return True
+    rid = red.get("id")
+    if not rid:
+        # AI red bez `id` se ne može dovesti u vezu ni sa jednom potvrdom.
+        return False
+    return rid in (potvrdjeni_ids or set())
+
+
+def filtriraj_izvrsive(redovi: Optional[list], potvrdjeni_ids: Optional[set] = None) -> list:
+    """Primena `sme_pokrenuti_obavezu` na listu redova hronologije."""
+    return [r for r in (redovi or []) if sme_pokrenuti_obavezu(r, potvrdjeni_ids)]

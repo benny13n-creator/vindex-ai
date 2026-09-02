@@ -70,6 +70,11 @@ _FROM_ADDR   = os.getenv("EMAIL_FROM", "") or _SMTP_USER
 # sadrzi. Izvodjenjem iz `VAZNOST_DOZVOLJENE` lista vise ne moze da se razidje
 # sa semom -- ako se domen ikad promeni, menja se na JEDNOM mestu.
 from shared.rokovi import VAZNOST_DOZVOLJENE as _VAZNOST_DOZVOLJENE
+# FAZA 6.2 (INV-2): `vaznost` je AI procena tezine, NE ovlascenje. AI opazen
+# rok sme da posalje email tek kad ga covek potvrdi. Gejt je fail-closed i
+# ne dira nijednu postojecu `vaznost` vrednost.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 _ACTIONABLE_VAZNOST = [v for v in _VAZNOST_DOZVOLJENE if v != "informativan"]
 _CRON_SECRET = os.getenv("CRON_SECRET", "")
 
@@ -312,13 +317,21 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
 
                 rokovi_r = (
                     supa.table("predmet_hronologija")
-                    .select("dogadjaj, datum_iso, predmet_id")
+                    # FAZA 6.2: `id` i `akter` su potrebni gejtu -- `id` je kljuc
+                    # odluke, `akter` nosi poreklo. Ostatak upita nepromenjen.
+                    .select("id, akter, dogadjaj, datum_iso, predmet_id")
                     .eq("user_id", uid)
                     .in_("vaznost", _ACTIONABLE_VAZNOST)
                     .eq("datum_iso", target_iso)
                     .execute()
                 )
                 rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
+                # INV-2: nepotvrdjen AI rok NE SME da posalje email. Skup
+                # potvrda se cita tek ako ima AI redova -- nula dodatnih upita
+                # za predmete koje je vodio covek.
+                rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
+                if not rokovi:
+                    continue
                 if not rokovi:
                     continue
 
@@ -546,7 +559,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             # Fetch this user's deadlines for the next 7 days
             if _aktivni_ids:
                 rokovi_r  = (supa.table("predmet_hronologija")
-                                 .select("dogadjaj,datum_iso,vaznost,predmet_id")
+                                 .select("id,akter,dogadjaj,datum_iso,vaznost,predmet_id")
                                  .eq("user_id", uid)
                                  .in_("predmet_id", _aktivni_ids)
                                  .gte("datum_iso", today_iso)
@@ -573,7 +586,7 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
                              .execute())
             if _aktivni_ids:
                 hitnih_r  = (supa.table("predmet_hronologija")
-                                 .select("predmet_id")
+                                 .select("id,akter,predmet_id")
                                  .eq("user_id", uid)
                                  .in_("predmet_id", _aktivni_ids)
                                  .eq("vaznost", "kritičan")
@@ -583,10 +596,16 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             else:
                 hitnih_r = types.SimpleNamespace(data=[])
 
-            rokovi     = rokovi_r.data or []
+            # INV-2: isti gejt kao na send-reminders putu -- nedeljni pregled je
+            # takodje email koji odlazi advokatu, pa nepotvrdjen AI rok ne sme
+            # ni u njega, ni u brojac "hitnih". Jedan upit pokriva oba skupa.
+            _kandidati = list(rokovi_r.data or []) + list(hitnih_r.data or [])
+            _potvrdjeni = _potvrdjeni_ids([r.get("id") for r in _kandidati])
+            rokovi     = _filtriraj_izvrsive(rokovi_r.data or [], _potvrdjeni)
             rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])]
             neplaceno  = sum(float(r.get("iznos_rsd", 0) or 0) for r in (billing_r.data or []))
-            hitnih     = len(set(r.get("predmet_id") for r in (hitnih_r.data or [])))
+            hitnih     = len(set(r.get("predmet_id")
+                                 for r in _filtriraj_izvrsive(hitnih_r.data or [], _potvrdjeni)))
             aktivnih   = aktivan_by_uid.get(uid, 0)
             user_name  = (profil_data.get("full_name") or to_addr.split("@")[0] or "").title()
 

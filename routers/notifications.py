@@ -21,6 +21,11 @@ from pydantic import BaseModel, Field
 from shared.attention_priority import NOTIFICATIONS_TO_CANONICAL, CANONICAL_ORDER
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+# FAZA 6.2 (INV-2): notifikacija je izvrsiva posledica -- gura tvrdnju o roku
+# advokatu. Nepotvrdjen AI opazen rok ne sme da je proizvede. Isti kanonski
+# gejt kao email i SMS, fail-closed.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.notifications")
 router = APIRouter(tags=["notifications"])
@@ -171,7 +176,7 @@ async def _generate_notifications(uid: str) -> int:
     try:
         rokovi_r, predmeti_r = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("predmet_id, dogadjaj, datum_iso, vaznost")
+                .select("id, akter, predmet_id, dogadjaj, datum_iso, vaznost")
                 .eq("user_id", uid)
                 .gte("datum_iso", today_iso)
                 .lte("datum_iso", in_7_iso)
@@ -197,7 +202,9 @@ async def _generate_notifications(uid: str) -> int:
             closed_pids = {p["id"] for p in predmeti_r.data if p.get("status") in ("zatvoren", "arhiviran")}
 
         if not isinstance(rokovi_r, Exception):
-            for r in (rokovi_r.data or []):
+            # INV-2: nepotvrdjen AI rok ne proizvodi notifikaciju.
+            _sirovi = rokovi_r.data or []
+            for r in _filtriraj_izvrsive(_sirovi, _potvrdjeni_ids([x.get("id") for x in _sirovi])):
                 pid   = r.get("predmet_id", "")
                 if pid in closed_pids:
                     continue
@@ -234,7 +241,7 @@ async def _generate_notifications(uid: str) -> int:
         pre_90_iso = (today - timedelta(days=90)).isoformat()
         rokovi_propusteni_r, predmeti_r2 = await asyncio.gather(
             asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("predmet_id, dogadjaj, datum_iso, vaznost")
+                .select("id, akter, predmet_id, dogadjaj, datum_iso, vaznost")
                 .eq("user_id", uid)
                 .gte("datum_iso", pre_90_iso)
                 .lt("datum_iso", today_iso)
@@ -254,7 +261,10 @@ async def _generate_notifications(uid: str) -> int:
             closed_pids2 = {p["id"] for p in predmeti_r2.data if p.get("status") in ("zatvoren", "arhiviran")}
 
         if not isinstance(rokovi_propusteni_r, Exception):
-            for r in (rokovi_propusteni_r.data or []):
+            # INV-2: isto i za "propusten rok" -- tvrdnja da je advokat NESTO
+            # propustio je jednako izvrsiva kao opomena da nesto dolazi.
+            _sirovi2 = rokovi_propusteni_r.data or []
+            for r in _filtriraj_izvrsive(_sirovi2, _potvrdjeni_ids([x.get("id") for x in _sirovi2])):
                 pid = r.get("predmet_id", "")
                 if pid in closed_pids2:
                     continue

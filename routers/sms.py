@@ -32,6 +32,10 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+# FAZA 6.2 (INV-2): SMS je izvrsiva posledica isto kao email -- nepotvrdjen
+# AI opazen rok ne sme da ga pokrene. Isti kanonski gejt, fail-closed.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.sms")
 router = APIRouter(tags=["sms"])
@@ -252,7 +256,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
         try:
             svi_rokovi_r = await asyncio.to_thread(
                 lambda: supa.table("predmet_hronologija")
-                    .select("user_id,dogadjaj,datum_iso,predmet_id")
+                    .select("id,akter,user_id,dogadjaj,datum_iso,predmet_id")
                     .in_("user_id", user_ids)
                     .eq("vaznost", "kritičan")
                     .gte("datum_iso", today_s)
@@ -260,6 +264,10 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(get_current_
                     .execute()
             )
             svi_rokovi = svi_rokovi_r.data or []
+            # INV-2: gejt PRE grupisanja po korisniku -- nepotvrdjen AI rok ne
+            # sme ni da udje u batch iz kog se salju poruke.
+            svi_rokovi = _filtriraj_izvrsive(
+                svi_rokovi, _potvrdjeni_ids([r.get("id") for r in svi_rokovi]))
         except Exception as e:
             logger.error("[SMS-CRON] Batch upit greška: %s", e)
             svi_rokovi = []
@@ -404,12 +412,13 @@ async def posalji_briefing_whatsapp(request: Request, user: dict = Depends(get_c
 
     predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id,akter,dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,napomena").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(5).execute()),
     )
 
     n_predmeta = len(predmeti_r.data or [])
-    hitni_rokovi = rokovi_r.data or []
+    _sirovi = rokovi_r.data or []
+    hitni_rokovi = _filtriraj_izvrsive(_sirovi, _potvrdjeni_ids([r.get("id") for r in _sirovi]))
     rocista_danas = rocista_r.data or []
 
     linije = [f"*Vindex AI — Jutarnji izveštaj {today_s}*"]
