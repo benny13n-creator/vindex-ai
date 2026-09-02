@@ -210,14 +210,19 @@ def test_G_email_iskljucen_nepotvrdjen_rok_ne_salje():
     assert rez.get("poslato") == 0
 
 
-def test_ljudski_rok_i_dalje_salje_bez_ikakve_potvrde():
-    """Regresija: gejt ne sme da ugasi rokove koje je uneo covek."""
+def test_ljudski_rok_TAKODJE_trazi_potvrdu():
+    """FAZA 6.4.2 je oborila raniju verziju ovog testa: „ljudski rok i dalje
+    salje bez ikakve potvrde" je bilo tacno opisivanje RED-1 nalaza."""
     r = _ai_rok(rid="rok-h")
     r["akter"] = "Advokat Marko"
-    r["izvor"] = "HUMAN_DIRECT"   # migracija 127: poreklo odlucuje `izvor`
+    r["izvor"] = "HUMAN_DIRECT"
     b = FakeBaza([r], email_aktivan=True, potvrde=[])
-    rez, poslati = _posalji_email(b)
-    assert len(poslati) == 1, "ljudski rok je pogresno gejtovan"
+    _rez, poslati = _posalji_email(b)
+    assert poslati == [], "ljudski rok je poslat bez potvrde — to je RED-1"
+
+    b2 = FakeBaza([r], email_aktivan=True, potvrde=[_potvrda("rok-h")])
+    _rez2, poslati2 = _posalji_email(b2)
+    assert len(poslati2) == 1, "potvrdjen ljudski rok nije poslat"
 
 
 def test_pad_citanja_potvrda_ne_salje_email():

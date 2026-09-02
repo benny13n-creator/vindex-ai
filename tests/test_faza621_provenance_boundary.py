@@ -28,7 +28,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from shared.rokovi import (  # noqa: E402
-    IZVOR_DOZVOLJENI, IZVOR_TRAZI_POTVRDU, je_ai_poreklo, sme_pokrenuti_obavezu,
+    IZVOR_DOZVOLJENI, je_ai_poreklo, sme_pokrenuti_obavezu,
 )
 
 
@@ -45,10 +45,10 @@ def _red(**kw):
 @pytest.mark.parametrize("opis,red,ocekivano", [
     ("AI autonomno — nepotvrdjeno",  _red(izvor="AI_AUTONOMOUS"),  False),
     ("Legacy — poreklo nedokazivo",  _red(izvor="LEGACY_UNKNOWN"), False),
-    ("AI asistirano",                _red(izvor="AI_ASSISTED"),    True),
-    ("Ljudski unos",                 _red(izvor="HUMAN_DIRECT"),   True),
-    ("Deterministicki katalog",      _red(izvor="DETERMINISTIC"),  True),
-    ("Sistemski zapis",              _red(izvor="SYSTEM"),         True),
+    ("AI asistirano",                _red(izvor="AI_ASSISTED"),    False),
+    ("Ljudski unos",                 _red(izvor="HUMAN_DIRECT"),   False),
+    ("Deterministicki katalog",      _red(izvor="DETERMINISTIC"),  False),
+    ("Sistemski zapis",              _red(izvor="SYSTEM"),         False),
     ("`izvor` kljuc ODSUTAN",        _red(),                       False),
     ("`izvor` je None",              _red(izvor=None),             False),
     ("`izvor` nepoznata vrednost",   _red(izvor="NESTO_TRECE"),    False),
@@ -56,10 +56,8 @@ def _red(**kw):
 def test_truth_table_nad_izvorom(opis, red, ocekivano):
     """DENY = False, ALLOW = True, bez potvrda (`set()`).
 
-    Kapija je BELA lista: prolaze samo cetiri klase kod kojih je sadrzaj prosao
-    kroz ljudske oci ili dolazi iz statickog kataloga. `None`, odsutan kljuc i
-    svaka nepoznata vrednost padaju — crna lista bi svaku buducu, jos neuvedenu
-    klasu tiho propustila."""
+    FAZA 6.4.2: provenijencija VISE NE ODLUCUJE. Nijedna vrednost `izvor`-a ne
+    otvara kapiju — ni `HUMAN_DIRECT`. Jedino ovlascenje je ljudska potvrda."""
     assert sme_pokrenuti_obavezu(red, set()) is ocekivano, opis
 
 
@@ -74,8 +72,9 @@ def test_odsutan_izvor_je_fail_closed():
     assert sme_pokrenuti_obavezu({"id": "x", "vaznost": "kritičan"}, {"x"}) is True
 
 
-def test_potvrda_otvara_kapiju_za_ai_i_legacy():
-    for izvor in IZVOR_TRAZI_POTVRDU:
+def test_potvrda_otvara_kapiju_za_SVAKU_klasu():
+    """Potvrda je jedina osa koja daje ALLOW — i vazi jednako za sve klase."""
+    for izvor in IZVOR_DOZVOLJENI:
         assert sme_pokrenuti_obavezu(_red(izvor=izvor), {"r-1"}) is True, izvor
 
 
@@ -83,7 +82,10 @@ def test_sest_kanonskih_vrednosti_i_ni_jedna_vise():
     assert IZVOR_DOZVOLJENI == (
         "AI_AUTONOMOUS", "AI_ASSISTED", "HUMAN_DIRECT",
         "DETERMINISTIC", "SYSTEM", "LEGACY_UNKNOWN")
-    assert IZVOR_TRAZI_POTVRDU == ("AI_AUTONOMOUS", "LEGACY_UNKNOWN")
+    # FAZA 6.4.2: pojam "klase koje smeju bez potvrde" VISE NE POSTOJI.
+    import shared.rokovi as _R
+    assert not hasattr(_R, "IZVOR_SME_BEZ_POTVRDE"),         "vratio se koncept 'provenijencija sme bez potvrde' — to je RED-1"
+    assert not hasattr(_R, "IZVOR_TRAZI_POTVRDU")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -112,14 +114,15 @@ def test_akter_NE_UTICE_na_odluku(akter):
     Ovo je invarijanta koja je nedostajala i zbog koje je rupa i nastala."""
     ai = sme_pokrenuti_obavezu(_red(akter=akter, izvor="AI_AUTONOMOUS"), set())
     hum = sme_pokrenuti_obavezu(_red(akter=akter, izvor="HUMAN_DIRECT"), set())
-    assert ai is False and hum is True, akter
+    assert ai is False and hum is False, akter          # bez potvrde: oba DENY
+    assert sme_pokrenuti_obavezu(_red(akter=akter, izvor="HUMAN_DIRECT"), {"r-1"}) is True
 
 
 def test_akter_koji_izgleda_kao_ai_ne_blokira_ljudski_red():
     """Obrnut smer: `akter='Genome (AI)'` uz `izvor='HUMAN_DIRECT'` je validna
     kombinacija (npr. advokat opisuje sta je AI uradio) i NE SME biti blokiran."""
     assert sme_pokrenuti_obavezu(
-        _red(akter="Genome (AI)", izvor="HUMAN_DIRECT"), set()) is True
+        _red(akter="Genome (AI)", izvor="HUMAN_DIRECT"), {"r-1"}) is True
 
 
 def test_je_ai_poreklo_vise_nije_deo_odluke():
@@ -127,7 +130,7 @@ def test_je_ai_poreklo_vise_nije_deo_odluke():
     test bi pao."""
     assert je_ai_poreklo("Genome (AI)") is True          # i dalje tacna tvrdnja o `akter`
     assert sme_pokrenuti_obavezu(                        # ali bez uticaja na kapiju
-        _red(akter="Genome (AI)", izvor="HUMAN_DIRECT"), set()) is True
+        _red(akter="Genome (AI)", izvor="HUMAN_DIRECT"), {"r-1"}) is True
 
 
 def test_upload_put_i_dalje_upisuje_llm_tekst_u_akter():

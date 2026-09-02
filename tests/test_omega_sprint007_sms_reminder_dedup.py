@@ -21,6 +21,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from starlette.requests import Request as StarletteRequest
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.4.2 nijedan rok ne moze proizvesti izvrsivu posledicu bez ljudske
+# potvrde. Ovaj fajl meri SMS dedup ugovor, ne tu granicu (nju mere
+# `test_faza642_*` i `test_faza621_*`), pa se modeluje advokat koji je rokove
+# vec potvrdio.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.sms as _m
+    if hasattr(_m, "_potvrdjeni_ids"):
+        monkeypatch.setattr(_m, "_potvrdjeni_ids", lambda ids: {str(i) for i in ids if i})
+
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -85,7 +102,7 @@ async def test_second_cron_run_same_day_does_not_resend_sms():
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Odgovor na tužbu", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"id": "rok-o7-a", "izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Odgovor na tužbu", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     with patch("routers.sms._FOUNDER_EMAILS", {"founder@vindex.rs"}), \
          patch("routers.sms._send_sms", return_value=True) as mock_send:
@@ -126,7 +143,7 @@ async def test_different_deadline_next_day_still_sends():
     day_after = (date.today() + timedelta(days=2)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"id": "rok-o7-b", "izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     # Already sent the reminder for the day_after occurrence (a different
     # date), not for tomorrow's -- must NOT block today's send.
@@ -151,7 +168,7 @@ async def test_log_tip_is_date_qualified_not_the_old_bare_string():
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     profili = [{"user_id": "u1", "telefon": "+381601234567", "whatsapp": False,
                 "quiet_start": None, "quiet_end": None, "allow_critical_override": True}]
-    rokovi = [{"izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
+    rokovi = [{"id": "rok-o7-b", "izvor": "HUMAN_DIRECT", "user_id": "u1", "dogadjaj": "Ročište", "datum_iso": tomorrow, "predmet_id": "pred-1"}]
 
     with patch("routers.sms._FOUNDER_EMAILS", {"founder@vindex.rs"}), \
          patch("routers.sms._send_sms", return_value=True):

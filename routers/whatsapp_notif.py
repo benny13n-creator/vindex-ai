@@ -58,6 +58,9 @@ from pydantic import BaseModel, Field
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user, _verify_token
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+# FAZA 6.4.2: WhatsApp je izvrsiv izlaz -- ista kanonska kapija.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.whatsapp_notif")
 router = APIRouter(tags=["whatsapp_notif"])
@@ -304,6 +307,11 @@ async def posalji_rok(
     _rez = await _rokovi_domen.rok_po_id(supa, uid, req.rok_id)
     _lista = _rokovi_domen.zahtevaj(_rez)
     rok = _lista[0].kao_dict()
+    # INV: slanje pojedinacnog roka je izvrsiv izlaz -- trazi ljudsku potvrdu.
+    if not _filtriraj_izvrsive([rok], _potvrdjeni_ids([rok.get("id")])):
+        raise HTTPException(
+            status_code=409,
+            detail="Rok nije potvrđen za slanje. Potvrdite ga pre nego što ga pošaljete.")
 
     # Dohvati naziv predmeta
     naziv_predmeta = "Predmet"
@@ -423,6 +431,8 @@ async def dnevni_brifing_wa(
         # telefonu i na osnovu njega planira dan.
         rokovi_dostupni = rokovi_r.uspeh
         rokovi        = [r.kao_dict() for r in (rokovi_r.rokovi if rokovi_dostupni else [])]
+        # INV: brifing na telefonu je izvrsiv izlaz -- nepotvrdjen rok ne ulazi.
+        rokovi        = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
         rocista_danas = rocista_r.data or []
 
         # Gradimo poruku (max 4000 znakova — WhatsApp limit)

@@ -24,6 +24,27 @@ from unittest.mock import MagicMock, patch
 from starlette.requests import Request as StarletteRequest
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.4.2 nijedan rok ne moze proizvesti izvrsivu posledicu bez eksplicitne
+# ljudske potvrde -- ni ljudski, ni deterministicki, ni sistemski. Testovi u
+# ovom fajlu ne mere TU granicu (nju meri `test_faza621_provenance_boundary.py`
+# i `test_faza64_provenance_contract.py`); oni mere svoje sopstvene ugovore,
+# koji su i dalje vazeci.
+#
+# Zato se ovde modeluje advokat koji je rokove VEC potvrdio. Bez toga bi svaki
+# ovaj test padao iz razloga koji nema veze sa onim sto tvrdi.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.email_notif as _m
+    if hasattr(_m, "_potvrdjeni_ids"):
+        monkeypatch.setattr(_m, "_potvrdjeni_ids", lambda ids: {str(i) for i in ids if i})
+
+
+
 def _fake_request():
     scope = {
         "type": "http", "method": "POST", "headers": [], "query_string": b"",
@@ -92,7 +113,7 @@ def _make_supa(rok_vaznost: str, target_iso: str):
                 result = MagicMock()
                 if getattr(sel, "_matched", False) and val == target_iso:
                     result.execute.return_value.data = [
-                        {"izvor": "HUMAN_DIRECT", "dogadjaj": "Rok za žalbu", "datum_iso": target_iso, "predmet_id": "pred-001"}
+                        {"id": "rok-lz001", "izvor": "HUMAN_DIRECT", "dogadjaj": "Rok za žalbu", "datum_iso": target_iso, "predmet_id": "pred-001"}
                     ]
                 else:
                     result.execute.return_value.data = []

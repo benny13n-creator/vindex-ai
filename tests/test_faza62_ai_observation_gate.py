@@ -103,9 +103,14 @@ def test_E_odbijen_rok_nije_izvrsiv():
     assert sme_pokrenuti_obavezu(_ai_rok(rid="r-no"), {"r-neki-drugi"}) is False
 
 
-def test_ljudski_rok_nije_gejtovan():
-    """Regresija: rok koji je uneo covek nikad nije trazio potvrdu i ne trazi je sada."""
-    assert sme_pokrenuti_obavezu(_ljudski_rok(), set()) is True
+def test_ljudski_rok_TAKODJE_trazi_potvrdu():
+    """FAZA 6.4.2 je oborila raniju verziju ovog testa.
+
+    Do 6.4.1 se tvrdilo „ljudski rok nikad nije trazio potvrdu i ne trazi je
+    sada". FAZA 6.4.1 je dokazala da je bas to bio RED-1: provenijencija je
+    davala ovlascenje. Sada nijedna klasa ne prolazi bez potvrde."""
+    assert sme_pokrenuti_obavezu(_ljudski_rok(), set()) is False
+    assert sme_pokrenuti_obavezu(_ljudski_rok(), {"r-h"}) is True
 
 
 def test_red_BEZ_izvora_je_FAIL_CLOSED():
@@ -139,10 +144,12 @@ def test_ai_rok_bez_id_je_fail_closed():
     assert sme_pokrenuti_obavezu(r, {"bilo-sta"}) is False
 
 
-def test_filtriranje_zadrzava_ljudske_a_uklanja_nepotvrdjene_ai():
+def test_filtriranje_propusta_ISKLJUCIVO_potvrdjene():
+    """FAZA 6.4.2: filter vise ne gleda poreklo — samo skup potvrda."""
     redovi = [_ai_rok("a1"), _ljudski_rok("h1"), _ai_rok("a2")]
-    assert [r["id"] for r in filtriraj_izvrsive(redovi, {"a2"})] == ["h1", "a2"]
-    assert [r["id"] for r in filtriraj_izvrsive(redovi, set())] == ["h1"]
+    assert [r["id"] for r in filtriraj_izvrsive(redovi, {"a2"})] == ["a2"]
+    assert [r["id"] for r in filtriraj_izvrsive(redovi, {"h1", "a1"})] == ["a1", "h1"]
+    assert filtriraj_izvrsive(redovi, set()) == []
     assert filtriraj_izvrsive(None, set()) == []
 
 

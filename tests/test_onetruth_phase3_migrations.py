@@ -12,6 +12,27 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.4.2 nijedan rok ne moze proizvesti izvrsivu posledicu bez eksplicitne
+# ljudske potvrde -- ni ljudski, ni deterministicki, ni sistemski. Testovi u
+# ovom fajlu ne mere TU granicu (nju meri `test_faza621_provenance_boundary.py`
+# i `test_faza64_provenance_contract.py`); oni mere svoje sopstvene ugovore,
+# koji su i dalje vazeci.
+#
+# Zato se ovde modeluje advokat koji je rokove VEC potvrdio. Bez toga bi svaki
+# ovaj test padao iz razloga koji nema veze sa onim sto tvrdi.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.notifications as _m
+    if hasattr(_m, "_potvrdjeni_ids"):
+        monkeypatch.setattr(_m, "_potvrdjeni_ids", lambda ids: {str(i) for i in ids if i})
+
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -364,7 +385,7 @@ async def test_generate_notifications_delete_excludes_dedupe_key_rows():
         for method in ("select", "eq", "gte", "lte", "lt", "order", "limit", "in_", "is_", "delete", "insert"):
             setattr(m, method, MagicMock(return_value=m))
         m.execute = MagicMock(return_value=MagicMock(data=[
-            {"izvor": "HUMAN_DIRECT", "predmet_id": "p1", "dogadjaj": "Ročište", "datum_iso": "2026-08-08", "vaznost": "kritičan"},
+            {"id": "rok-ot-1", "izvor": "HUMAN_DIRECT", "predmet_id": "p1", "dogadjaj": "Ročište", "datum_iso": "2026-08-08", "vaznost": "kritičan"},
         ]))
         return m
 

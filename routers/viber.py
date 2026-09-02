@@ -37,6 +37,10 @@ from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+# FAZA 6.4.2: Viber brifing je izvrsiv izlaz kao i email/SMS -- prolazi kroz
+# ISTU kanonsku kapiju. Bez ovoga je AI rok isao pravo u poruku (RED-2).
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.viber")
 router = APIRouter(tags=["viber"])
@@ -278,12 +282,15 @@ async def _briefing_tekst(uid: str, supa) -> str:
 
     predmeti_r, rokovi_r, rocista_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("user_id", uid).eq("status", "aktivan").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id,dogadjaj,datum_iso").eq("user_id", uid).gte("datum_iso", today_s).lte("datum_iso", in_7d).eq("vaznost", "kritičan").order("datum_iso").limit(3).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,napomena").eq("user_id", uid).gte("datum", today_s).lte("datum", today_s).limit(3).execute()),
     )
 
     n_predmeta = len(predmeti_r.data or [])
-    hitni = rokovi_r.data or []
+    # INV: `vaznost="kritičan"` iz upita je PRIORITET, ne ovlascenje. Rok ulazi
+    # u poruku iskljucivo ako ga je covek potvrdio -- ista kapija kao email/SMS.
+    _sirovi = rokovi_r.data or []
+    hitni = _filtriraj_izvrsive(_sirovi, _potvrdjeni_ids([r.get("id") for r in _sirovi]))
     rocista = rocista_r.data or []
 
     linije = [f"Vindex AI - {today_s}", f"Aktivni predmeti: {n_predmeta}"]

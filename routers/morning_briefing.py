@@ -42,6 +42,10 @@ from shared.case_context import build_case_context
 from shared.case_readiness import top_open_action
 from shared import rokovi as _rokovi_domen
 from shared.attention_priority import canonical_sort_key
+# FAZA 6.4.2: jutarnji brifing odlazi EMAIL-om -- ista kanonska kapija kao
+# ostali izlazi. Rok bez ljudske potvrde ne ulazi u poruku.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.morning_briefing")
 router = APIRouter(tags=["morning-briefing"])
@@ -197,6 +201,13 @@ async def _generiši_briefing(uid: str, supa) -> dict:
             return (date.fromisoformat(str(datum_str)[:10]) - danas).days
         except Exception:
             return 999
+
+    # INV: brifing je izvrsiv izlaz. Nepotvrdjen rok se ne prikazuje kao obaveza,
+    # bez obzira na `vaznost` i na to ko ga je proizveo. Isti gejt kao email/SMS.
+    _potv = _potvrdjeni_ids([r.get("id") for r in rokovi] +
+                            [r.get("id") for r in rokovi_propusteni])
+    rokovi            = _filtriraj_izvrsive(rokovi, _potv)
+    rokovi_propusteni = _filtriraj_izvrsive(rokovi_propusteni, _potv)
 
     rokovi_hitni    = [r for r in rokovi if _dani_do(r["datum"]) <= 2]
     rokovi_uskoro   = [r for r in rokovi if 2 < _dani_do(r["datum"]) <= 7]

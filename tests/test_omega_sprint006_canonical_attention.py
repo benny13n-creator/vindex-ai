@@ -14,6 +14,27 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.4.2 nijedan rok ne moze proizvesti izvrsivu posledicu bez eksplicitne
+# ljudske potvrde -- ni ljudski, ni deterministicki, ni sistemski. Testovi u
+# ovom fajlu ne mere TU granicu (nju meri `test_faza621_provenance_boundary.py`
+# i `test_faza64_provenance_contract.py`); oni mere svoje sopstvene ugovore,
+# koji su i dalje vazeci.
+#
+# Zato se ovde modeluje advokat koji je rokove VEC potvrdio. Bez toga bi svaki
+# ovaj test padao iz razloga koji nema veze sa onim sto tvrdi.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.notifications as _m
+    if hasattr(_m, "_potvrdjeni_ids"):
+        monkeypatch.setattr(_m, "_potvrdjeni_ids", lambda ids: {str(i) for i in ids if i})
+
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -169,7 +190,7 @@ async def test_hitan_rok_notification_gets_high_priority_not_the_old_broken_valu
     from datetime import date
 
     today = date.today().isoformat()
-    rokovi = [{"izvor": "HUMAN_DIRECT", "predmet_id": "pred-1", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"}]
+    rokovi = [{"id": "rok-o6-1", "izvor": "HUMAN_DIRECT", "predmet_id": "pred-1", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"}]
     predmeti = [{"id": "pred-1", "naziv": "Predmet A", "status": "aktivan"}]
     insert_calls: list = []
     supa = _make_notif_supa(rokovi=rokovi, predmeti=predmeti, insert_calls=insert_calls)
@@ -204,8 +225,8 @@ async def test_closed_case_deadline_does_not_generate_a_notification():
 
     today = date.today().isoformat()
     rokovi = [
-        {"izvor": "HUMAN_DIRECT", "predmet_id": "pred-closed", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"},
-        {"izvor": "HUMAN_DIRECT", "predmet_id": "pred-open", "dogadjaj": "Rok za odgovor", "datum_iso": today, "vaznost": "kritičan"},
+        {"id": "rok-o6-c", "izvor": "HUMAN_DIRECT", "predmet_id": "pred-closed", "dogadjaj": "Rok za žalbu", "datum_iso": today, "vaznost": "kritičan"},
+        {"id": "rok-o6-o", "izvor": "HUMAN_DIRECT", "predmet_id": "pred-open", "dogadjaj": "Rok za odgovor", "datum_iso": today, "vaznost": "kritičan"},
     ]
     predmeti = [
         {"id": "pred-closed", "naziv": "Zatvoren predmet", "status": "zatvoren"},

@@ -683,6 +683,27 @@ def test_hearing_cc_score_clamped_unconditionally():
 
 _stashed_mock = sys.modules.pop("main", None)
 import main as _m  # noqa: E402
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.4.2 nijedan rok ne moze proizvesti izvrsivu posledicu bez eksplicitne
+# ljudske potvrde -- ni ljudski, ni deterministicki, ni sistemski. Testovi u
+# ovom fajlu ne mere TU granicu (nju meri `test_faza621_provenance_boundary.py`
+# i `test_faza64_provenance_contract.py`); oni mere svoje sopstvene ugovore,
+# koji su i dalje vazeci.
+#
+# Zato se ovde modeluje advokat koji je rokove VEC potvrdio. Bez toga bi svaki
+# ovaj test padao iz razloga koji nema veze sa onim sto tvrdi.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.morning_briefing as _m
+    if hasattr(_m, "_potvrdjeni_ids"):
+        monkeypatch.setattr(_m, "_potvrdjeni_ids", lambda ids: {str(i) for i in ids if i})
+
 del sys.modules["main"]
 if _stashed_mock is not None:
     sys.modules["main"] = _stashed_mock

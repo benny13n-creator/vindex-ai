@@ -42,6 +42,9 @@ from pydantic import BaseModel
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+# FAZA 6.4.2: izvoz u Google Calendar je SPOLJASNJI efekat -- ista kapija.
+from shared.rokovi import filtriraj_izvrsive as _filtriraj_izvrsive
+from shared.rok_potvrda import potvrdjeni_ids as _potvrdjeni_ids
 
 logger = logging.getLogger("vindex.integrations")
 router = APIRouter(tags=["integrations"])
@@ -404,7 +407,12 @@ async def gcal_sync_rokovi(
     errors = 0
 
     async with httpx.AsyncClient() as client:
-        for rok in (r.kao_dict() for r in _rokovi):
+        # INV: upis u advokatov spoljasnji kalendar je izvrsiv efekat. Nepotvrdjen
+        # rok se ne izvozi -- inace bi AI nalaz zavrsio u kalendaru kao obaveza.
+        _dozvoljeni = _filtriraj_izvrsive(
+            [r.kao_dict() for r in _rokovi],
+            _potvrdjeni_ids([r.izvor_id for r in _rokovi]))
+        for rok in _dozvoljeni:
             try:
                 event_body = {
                     "summary":     f"[Vindex] {rok.get('naziv', 'Rok')}",

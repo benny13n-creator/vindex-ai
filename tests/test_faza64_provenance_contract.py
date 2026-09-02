@@ -188,8 +188,8 @@ def _r(izvor, vaznost="kritičan", rid="r-1"):
 @pytest.mark.parametrize("oznaka,izvor,vaznost,potvrde,ocekivano", [
     ("A  AI_AUTONOMOUS + kritičan + nepotvrdjen", "AI_AUTONOMOUS", "kritičan", set(),      False),
     ("B  AI_AUTONOMOUS + važan   + nepotvrdjen", "AI_AUTONOMOUS", "važan",    set(),      False),
-    ("C  AI_ASSISTED   + kritičan + nepotvrdjen", "AI_ASSISTED",   "kritičan", set(),      True),
-    ("D  HUMAN_DIRECT  + kritičan + nepotvrdjen", "HUMAN_DIRECT",  "kritičan", set(),      True),
+    ("C  AI_ASSISTED   + kritičan + nepotvrdjen", "AI_ASSISTED",   "kritičan", set(),      False),
+    ("D  HUMAN_DIRECT  + kritičan + nepotvrdjen", "HUMAN_DIRECT",  "kritičan", set(),      False),
     ("E  LEGACY_UNKNOWN + nepotvrdjen",           "LEGACY_UNKNOWN","kritičan", set(),      False),
     ("G  AI_AUTONOMOUS + POTVRDJEN",              "AI_AUTONOMOUS", "kritičan", {"r-1"},    True),
 ])
@@ -197,22 +197,23 @@ def test_matrica_bezbednosti(oznaka, izvor, vaznost, potvrde, ocekivano):
     assert sme_pokrenuti_obavezu(_r(izvor, vaznost), potvrde) is ocekivano, oznaka
 
 
-def test_C_ai_assisted_nije_implicitno_potvrdjen():
-    """§11: `AI_ASSISTED` prolazi PROVENIJENCIJSKU kapiju, ali time se NE tvrdi
-    da je potvrdjen. Provenijencija i ovlascenje su razlicite ose — potvrda se
-    i dalje trazi tamo gde je postojeci model zahteva."""
-    from shared.rokovi import IZVOR_TRAZI_POTVRDU
-    assert "AI_ASSISTED" not in IZVOR_TRAZI_POTVRDU
-    # ali NIJE u skupu potvrdjenih -- kapija ne tvrdi nista o odobrenju
-    assert sme_pokrenuti_obavezu(_r("AI_ASSISTED"), set()) is True
+def test_pojam_klasa_koje_smeju_bez_potvrde_NE_POSTOJI():
+    """FAZA 6.4.2: svaka lista "bezbednih izvora" je isti oblik greske. Jedini
+    nacin da je buduci developer ne uvede je da pojam ne postoji."""
+    import shared.rokovi as _R
+    assert not hasattr(_R, "IZVOR_SME_BEZ_POTVRDE")
+    assert not hasattr(_R, "IZVOR_TRAZI_POTVRDU")
+    for izvor in ("AI_ASSISTED", "HUMAN_DIRECT", "DETERMINISTIC", "SYSTEM"):
+        assert sme_pokrenuti_obavezu(_r(izvor), set()) is False, izvor
 
 
 def test_vaznost_ne_utice_na_kapiju():
-    """§19: `vaznost` je prioritet, ne ovlascenje. Ista `izvor` klasa daje isti
-    ishod za sve tri vrednosti."""
+    """`vaznost` je prioritet, ne ovlascenje — ishod je isti za sve vrednosti,
+    i za svaku klasu porekla."""
     for v in ("kritičan", "važan", "informativan"):
-        assert sme_pokrenuti_obavezu(_r("AI_AUTONOMOUS", v), set()) is False
-        assert sme_pokrenuti_obavezu(_r("HUMAN_DIRECT", v), set()) is True
+        for izvor in ("AI_AUTONOMOUS", "HUMAN_DIRECT", "SYSTEM"):
+            assert sme_pokrenuti_obavezu(_r(izvor, v), set()) is False
+            assert sme_pokrenuti_obavezu(_r(izvor, v), {"r-1"}) is True
 
 
 # ═══════════════════════════════════════════════════════════════════════════

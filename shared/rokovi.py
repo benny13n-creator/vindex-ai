@@ -447,20 +447,19 @@ IZVOR_DOZVOLJENI: tuple = (
     IZVOR_DETERMINISTIC, IZVOR_SYSTEM, IZVOR_LEGACY,
 )
 
-#: Klase kod kojih je sadržaj prošao kroz ljudske oči ili dolazi iz statičkog
-#: kataloga. Namerno je BELA lista, ne crna: sve što nije ovde — uključujući
-#: `None`, odsutan ključ i vrednost koju kod ne poznaje — traži potvrdu.
-#: Crna lista bi svaku buduću, još neuvedenu klasu tiho propustila.
-IZVOR_SME_BEZ_POTVRDE: tuple = (
-    IZVOR_AI_ASSISTED, IZVOR_HUMAN_DIRECT, IZVOR_DETERMINISTIC, IZVOR_SYSTEM,
-)
-
-#: Klase koje NIKAD nisu izvršive bez eksplicitne ljudske potvrde. Izvedeno iz
-#: bele liste da se dve liste ne mogu raziće.
-IZVOR_TRAZI_POTVRDU: tuple = tuple(
-    v for v in IZVOR_DOZVOLJENI if v not in IZVOR_SME_BEZ_POTVRDE
-)
-
+# FAZA 6.4.2 — UKLONJENO: `IZVOR_SME_BEZ_POTVRDE` i `IZVOR_TRAZI_POTVRDU`.
+#
+# FAZA 6.4.1 je dokazala da je taj koncept BIO ista greška koju su faze 6.1–6.3
+# razotkrile kod `akter`: polje koje opisuje POREKLO počelo je da odlučuje o
+# OVLAŠĆENJU. Izmereno: 4 od 6 klasa (`AI_ASSISTED`, `HUMAN_DIRECT`,
+# `DETERMINISTIC`, `SYSTEM`) prolazile su kapiju nepotvrđene.
+#
+# Provenijencija ostaje — ali isključivo kao podatak za audit, objašnjenje i
+# buduću politiku. NIJEDNA njena vrednost više ne proizvodi `ALLOW`.
+#
+# Namerno NE postoji zamenska lista „bezbednih izvora". Svaka takva lista je
+# isti oblik greške; jedini način da je budući developer ne uvede je da je
+# pojam ne postoji.
 
 #: Potpisi u `predmet_hronologija.akter` koje upisuju AI proizvođači.
 #: `Genome (AI)`   — routers/case_dna.py::_sync_rokovi_to_hronologija
@@ -485,36 +484,32 @@ def je_ai_poreklo(akter: Optional[str]) -> bool:
 
 
 def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bool:
-    """JEDINA kapija između opažanja i izvršive posledice (podsetnik, SMS,
-    notifikacija).
+    """JEDINA odluka o tome sme li se rok pretvoriti u izvršivu posledicu
+    (email, SMS, Viber, WhatsApp, notifikacija, kalendar).
 
-    Čita KANONSKU PROVENIJENCIJU (`izvor`, migracija 127). Do FAZE 6.2.1 je
-    čitala `akter` — i to je bilo dokazano pogrešno: `akter` nosi IME STRANKE u
-    događaju, a `api.py::predmet_upload_auto_analyze` ga puni tekstom iz modela.
-    Mereno: 49/55 redova je tako prolazilo kao „ljudski unos".
+    Ulaz je ISKLJUČIVO stanje ovlašćenja. Ni `izvor`, ni `akter`, ni `vaznost`
+    ne učestvuju — i to nije previd nego cela poenta:
 
-    FAIL-CLOSED na dva mesta:
-      1. `izvor` u `IZVOR_TRAZI_POTVRDU` → prolazi SAMO uz ljudsku potvrdu;
-      2. `izvor` odsutan → poreklo se ne može utvrditi, pa red NE prolazi.
+        `akter`   KO je izvršio radnju        -> nikad nije bio ovlašćenje
+        `izvor`   KAKO je sadržaj nastao      -> opis porekla, ne dozvola
+        `vaznost` KOLIKO je važno             -> prioritet, ne dozvola
+        potvrda   DA LI je čovek odobrio      -> JEDINO ovlašćenje
 
-    Druga tačka je bezbedna baš zato što je `izvor` `NOT NULL` u bazi: red bez
-    njega ne može postojati, pa odsutan ključ znači samo „upit ga nije dovukao"
-    — a pogađanje na osnovu nedostajućeg podatka je tačno ono što je otvorilo
-    prethodnu rupu.
+    FAZA 6.2 je gejtovala po `akter` i to je palo (6.2.1: model je upisivao ime
+    stranke u to polje). FAZA 6.4 je gejtovala po `izvor` i to je palo (6.4.1:
+    4/6 klasa je prolazilo nepotvrđeno). Zajednički uzrok oba pada je isti —
+    atribut koji OPISUJE zapis dobio je moć da ga ODOBRI.
 
-    PROVENIJENCIJA NIJE OVLAŠĆENJE. `AI_ASSISTED`, `HUMAN_DIRECT`,
-    `DETERMINISTIC` i `SYSTEM` prolaze ovu kapiju, ali time se NE tvrdi da su
-    potvrđeni — samo da im sadržaj nije proizveo model bez ljudskih očiju.
-    O odobrenju odlučuje potvrda, ne ova funkcija.
+    Zato ovde nema nijedne grane po sadržaju reda. Nepotvrđeno je zabranjeno,
+    bez izuzetka i bez obzira na to ko ga je napisao i koliko je hitno.
+
+    POSLEDICA KOJU TREBA ZNATI: dok ne postoji površina kojom advokat potvrđuje
+    rok, ova funkcija vraća `False` za svaki rok. To je namerno stanje —
+    fail-closed — a ne kvar.
     """
-    if red.get("izvor") in IZVOR_SME_BEZ_POTVRDE:
-        return True
-    # Sve ostalo traži potvrdu: `AI_AUTONOMOUS`, `LEGACY_UNKNOWN`, `None`,
-    # odsutan ključ (upit ga nije dovukao) i svaka vrednost koju ovaj kod ne
-    # poznaje. Nepoznato NIJE dozvoljeno.
     rid = red.get("id")
     if not rid:
-        # Red bez `id` se ne može dovesti u vezu ni sa jednom potvrdom.
+        # Bez identiteta se red ne može dovesti u vezu ni sa jednom potvrdom.
         return False
     return rid in (potvrdjeni_ids or set())
 
