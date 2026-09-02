@@ -43,6 +43,11 @@ from pydantic import BaseModel, EmailStr, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.attention_priority import VAZNOST_TO_CANONICAL, CRITICAL, HIGH
+# FAZA 6.5: klijentski portal je DISCLOSURE povrsina prema TRECEM LICU.
+# Prikazuje ISKLJUCIVO potvrdjene rokove. Politika je kanonska i deljena sa
+# ostalim potrosacima -- portal nema svoje pravilo.
+from shared.rokovi import filtriraj_za as _filtriraj_za, POTROSAC_KLIJENT
+from shared.rok_potvrda import odluke as _odluke
 
 # Operation Single Brain (2026-08-07): the raw literals this query filters predmet_
 # hronologija.vaznost on used to be hardcoded as ["kritican", "vazno"] -- neither spelling
@@ -432,7 +437,7 @@ async def client_portal_view(
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
-                .select("dogadjaj, datum, datum_iso, akter, vaznost")
+                .select("id, dogadjaj, datum, datum_iso, akter, vaznost")
                 .eq("predmet_id", predmet_id)
                 .eq("user_id", advokat_uid)
                 .order("datum_iso", desc=False)
@@ -457,7 +462,7 @@ async def client_portal_view(
                 # `asyncio.gather` bez `return_exceptions` -- dakle svaki
                 # klijentski pogled na portal je zavrsavao kao 500.
                 # Nijedan citalac odgovora ne koristi `tip_roka`.
-                .select("dogadjaj, datum_iso, vaznost")
+                .select("id, dogadjaj, datum_iso, vaznost")
                 .eq("predmet_id", predmet_id)
                 .eq("user_id", advokat_uid)
                 .gte("datum_iso", date.today().isoformat())
@@ -476,8 +481,24 @@ async def client_portal_view(
     # Filter hronologije — skrivamo internu tehničku vaznost "interni" (ako postoji)
     # i dogadjaje koji počinju "[INTERNI]" prefiksom (konvencija za buduće interne beleške)
     hron_raw = hron_r.data if hron_r else []
+    _rok_raw = rokovi_r.data if rokovi_r else []
+
+    # FAZA 6.5 -- KANONSKA GRANICA OTKRIVANJA.
+    # FAZA 6.4.3 je izmerila da je portal (token bez logina, dakle TRECE LICE)
+    # prikazivao nepotvrdjen AI rok: jedini filter je bio tekstualni prefiks i
+    # `vaznost`. Ni jedno ni drugo nije ovlascenje.
+    #
+    # Sada odlucuje ISKLJUCIVO stanje odluke nad tacnim `predmet_hronologija.id`.
+    # `izvor`, `akter` i `vaznost` se NE koriste kao dozvola -- portal nema svoje
+    # pravilo nego zove istu politiku kao email, SMS i izvoz.
+    _odl = await asyncio.to_thread(
+        _odluke, [h.get("id") for h in hron_raw] + [r.get("id") for r in _rok_raw])
+    hron_dozvoljeno = _filtriraj_za(hron_raw, _odl, potrosac=POTROSAC_KLIJENT)
+
+    # Postojeci filter OSTAJE, ali kao ono sto jeste: skrivanje internih beleski,
+    # a ne bezbednosna granica. Primenjuje se POSLE kanonske politike.
     hron_filtered = [
-        h for h in hron_raw
+        h for h in hron_dozvoljeno
         if not (h.get("dogadjaj") or "").startswith("[INTERNI]")
         and h.get("vaznost") != "interni"
     ]
@@ -486,7 +507,7 @@ async def client_portal_view(
     # Buduca ročišta (status=zakazano) i prošla (status=odrzano) — sve sem otkazanih
     roc_vidljiva = [r for r in roc_raw if r.get("status") != "otkazano"]
 
-    kriticni_rokovi = rokovi_r.data if rokovi_r else []
+    kriticni_rokovi = _filtriraj_za(_rok_raw, _odl, potrosac=POTROSAC_KLIJENT)
 
     return {
         "predmet": {

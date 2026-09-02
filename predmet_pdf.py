@@ -177,9 +177,18 @@ def generiši_predmet_pdf(
         tbl_data = [["Datum", "Događaj", "Akter", "Važnost"]]
         for h in hronos:
             vaznost = h.get("vaznost") or "informativan"
+            # FAZA 6.5: PDF je advokatov radni izvoz (INTERNAL), pa nepotvrđen
+            # rok OSTAJE — ali mora biti vidljivo označen. Tiho izostavljanje
+            # roka iz spisa bilo bi gore od prikazivanja kandidata.
+            _stanje = h.get("stanje_odluke")
+            _dog = h.get("dogadjaj") or "—"
+            if _stanje == "UNCONFIRMED":
+                _dog = "[NEPOTVRĐENO] " + _dog
+            elif _stanje == "REJECTED":
+                _dog = "[ODBIJENO] " + _dog
             tbl_data.append([
                 _fmt_date(h.get("datum_iso") or h.get("datum")),
-                Paragraph(h.get("dogadjaj") or "—", s["body"]),
+                Paragraph(_dog, s["body"]),
                 Paragraph(h.get("akter") or "—", s["body"]),
                 vaznost,
             ])

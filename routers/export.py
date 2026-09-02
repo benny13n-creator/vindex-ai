@@ -16,6 +16,9 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user, require_pro
 from docx_export import tekst_u_docx as _tekst_u_docx
+# FAZA 6.5: PDF izvoz je INTERNAL (advokatov radni spis) -- nepotvrdjen rok se
+# NE izostavlja nego OZNACAVA. Stanje dolazi iz kanonskog citaca odluka.
+from shared.rok_potvrda import odluke as _odluke, stanje_roka as _stanje_roka
 
 router = APIRouter()
 
@@ -197,7 +200,7 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
         ),
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
-                         .select("dogadjaj, akter, datum, datum_iso, vaznost")
+                         .select("id, dogadjaj, akter, datum, datum_iso, vaznost")
                          .eq("predmet_id", predmet_id)
                          .eq("user_id", uid)
                          .order("datum_iso", desc=False)
@@ -205,13 +208,20 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
         ),
     )
 
+    # Svaki red nosi svoje stanje odluke; PDF ga prikazuje kao oznaku.
+    _hron = hron_res.data or []
+    _odl = await asyncio.to_thread(_odluke, [h.get("id") for h in _hron])
+    _hron_sa_stanjem = [
+        {**h, "stanje_odluke": _stanje_roka(h.get("id"), _odl)} for h in _hron
+    ]
+
     try:
         pdf_bytes = await asyncio.to_thread(
             _generiši_pdf,
             predmet,
             docs_res.data or [],
             beleske_res.data or [],
-            hron_res.data or [],
+            _hron_sa_stanjem,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Greška pri generisanju PDF-a: {exc}")

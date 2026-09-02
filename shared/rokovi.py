@@ -483,6 +483,72 @@ def je_ai_poreklo(akter: Optional[str]) -> bool:
     return (akter or "") in AI_AKTERI
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.5 — JEDNA POLITIKA, VISE POTROSACA
+#
+# Do 6.4.2 je postojala samo odluka „sme li ovo da POKRENE akciju". FAZA 6.4.3
+# je izmerila da to nije dovoljno: 36 od 43 modula koji dodiruju rokove
+# OTKRIVAJU podatak umesto da izvrsavaju akciju, a klijentski portal je
+# nepotvrdjen AI rok pokazivao trecem licu.
+#
+# Zato postoji JEDNA funkcija sa cetiri vrste potrosaca. Svaki kanal pita istu
+# stvar i dobija odgovor po istom pravilu — nema `email politike`, `portal
+# politike` i `izvoz politike` koje se vremenom raziđu.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: Ko trazi pristup roku.
+POTROSAC_INTERNI = "INTERNAL"        # ovlascen advokat u svojoj kancelariji
+POTROSAC_KLIJENT = "CLIENT"          # trece lice (klijentski portal)
+POTROSAC_IZVOZ_SPOLJA = "EXPORT_EXTERNAL"   # sadrzaj napusta advokatov prostor
+POTROSAC_AKCIJA = "ACTION"           # email/SMS/Viber/WhatsApp/kalendar
+
+POTROSACI: tuple = (POTROSAC_INTERNI, POTROSAC_KLIJENT,
+                    POTROSAC_IZVOZ_SPOLJA, POTROSAC_AKCIJA)
+
+
+def sme_pristupiti(red: dict, odluke_mapa: Optional[dict] = None,
+                   *, potrosac: str = POTROSAC_AKCIJA) -> bool:
+    """Kanonska odluka: sme li OVAJ potrosac da dobije OVAJ rok?
+
+    Ulaz je stanje odluke nad tacnim `red["id"]` — nista drugo. `izvor`,
+    `akter` i `vaznost` se ne citaju ni ovde ni bilo gde nizvodno.
+
+    Politika po potrosacu:
+
+        stanje          INTERNAL   CLIENT   EXPORT_EXTERNAL   ACTION
+        UNCONFIRMED     vidi       NE       NE                NE
+        CONFIRMED       vidi       vidi     vidi              sme
+        REJECTED        vidi       NE       NE                NE
+
+    `INTERNAL` namerno vidi sve: advokat mora videti kandidata da bi ga uopste
+    mogao potvrditi ili odbiti, a odbijen rok mora ostati u istoriji.
+    ODBIJEN NIJE OBRISAN.
+
+    Nepoznat potrosac je fail-closed — bolje da nova povrsina ne vidi nista
+    nego da tiho dobije sve.
+    """
+    from shared.rok_potvrda import (
+        STANJE_ODBIJEN, STANJE_POTVRDJEN, stanje_roka,
+    )
+    rid = red.get("id")
+    if not rid:
+        # Bez identiteta se red ne moze dovesti u vezu ni sa jednom odlukom.
+        return potrosac == POTROSAC_INTERNI
+    stanje = stanje_roka(rid, odluke_mapa)
+    if potrosac == POTROSAC_INTERNI:
+        return True
+    if potrosac in (POTROSAC_KLIJENT, POTROSAC_IZVOZ_SPOLJA, POTROSAC_AKCIJA):
+        return stanje == STANJE_POTVRDJEN
+    return False        # nepoznat potrosac -> nista
+
+
+def filtriraj_za(redovi: Optional[list], odluke_mapa: Optional[dict] = None,
+                 *, potrosac: str = POTROSAC_AKCIJA) -> list:
+    """Primena `sme_pristupiti` na listu."""
+    return [r for r in (redovi or [])
+            if sme_pristupiti(r, odluke_mapa, potrosac=potrosac)]
+
+
 def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bool:
     """JEDINA odluka o tome sme li se rok pretvoriti u izvršivu posledicu
     (email, SMS, Viber, WhatsApp, notifikacija, kalendar).
@@ -507,11 +573,13 @@ def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bo
     rok, ova funkcija vraća `False` za svaki rok. To je namerno stanje —
     fail-closed — a ne kvar.
     """
-    rid = red.get("id")
-    if not rid:
-        # Bez identiteta se red ne može dovesti u vezu ni sa jednom potvrdom.
-        return False
-    return rid in (potvrdjeni_ids or set())
+    # FAZA 6.5: jedan vlasnik odluke. Ova funkcija je ACTION slucaj opste
+    # politike `sme_pristupiti` — zadrzana je zato sto 7 izlaznih kanala vec
+    # prosledjuje SKUP potvrdjenih id-eva, a ne mapu odluka. Prevod je ovde,
+    # na jednom mestu, umesto u sedam poziva.
+    from shared.rok_potvrda import STANJE_POTVRDJEN
+    mapa = {str(x): STANJE_POTVRDJEN for x in (potvrdjeni_ids or set())}
+    return sme_pristupiti(red, mapa, potrosac=POTROSAC_AKCIJA)
 
 
 def filtriraj_izvrsive(redovi: Optional[list], potvrdjeni_ids: Optional[set] = None) -> list:

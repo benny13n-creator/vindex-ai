@@ -7,6 +7,37 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 from starlette.requests import Request as StarletteRequest
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FAZA 6.5 — ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
+#
+# Od 6.5 klijentski portal prikazuje ISKLJUCIVO potvrdjene rokove (nepotvrdjen
+# AI rok je bio otkrivan trecem licu -- FAZA 6.4.3). Testovi u ovom fajlu ne
+# mere TU granicu (nju meri `test_faza65_confirmation_disclosure_impl.py`) nego
+# skrivanje internih beleski i oblik odgovora, sto su i dalje vazeci ugovori.
+#
+# Zato se modeluje advokat koji je rokove vec potvrdio.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _rokovi_su_potvrdjeni(monkeypatch):
+    import routers.client_portal as _cp
+    from shared.rok_potvrda import STANJE_POTVRDJEN
+    if hasattr(_cp, "_odluke"):
+        monkeypatch.setattr(
+            _cp, "_odluke",
+            lambda ids: {str(i): STANJE_POTVRDJEN for i in ids if i is not None})
+    # Fixture redovi cesto nemaju `id`; politika bez `id` ne moze da ih uveze
+    # sa odlukom, pa se ovde dodeljuje stabilan surogat -- isto sto baza radi.
+    _orig = _cp._filtriraj_za
+
+    def _sa_id(redovi, odl, **kw):
+        redovi = [{**r, "id": r.get("id") or f"fx-{i}"} for i, r in enumerate(redovi or [])]
+        return _orig(redovi, {r["id"]: STANJE_POTVRDJEN for r in redovi}, **kw)
+
+    monkeypatch.setattr(_cp, "_filtriraj_za", _sa_id)
+
+
 os.environ.setdefault("SECRET_KEY", "test-secret-key-za-testove-128bit")
 
 

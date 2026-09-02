@@ -73,15 +73,27 @@ async def _zapisi(akcija: str, rok_id: str, user_id: str, napomena: Optional[str
     return True
 
 
-def potvrdjeni_ids(rok_ids: Iterable[str]) -> set:
-    """Skup `predmet_hronologija.id` koji SMEJU da pokrenu obavezu.
+#: Tri stanja odluke. Odsustvo zapisa je NEPOTVRDJEN — to NIJE isto sto i
+#: ODBIJEN: „niko se jos nije izjasnio" i „covek je rekao ne" moraju ostati
+#: razlicite cinjenice (odbijen rok se i dalje vidi u istoriji, nepotvrdjen ceka).
+STANJE_NEPOTVRDJEN = "UNCONFIRMED"
+STANJE_POTVRDJEN = "CONFIRMED"
+STANJE_ODBIJEN = "REJECTED"
 
-    FAIL-CLOSED na svakom nivou: pad upita, prazan odgovor ili nedostupna
-    tabela daju PRAZAN skup — dakle nijedan AI rok ne prolazi. Nikad se ne
-    vraća „sve dozvoljeno" kao rezervni ishod."""
+
+def odluke(rok_ids: Iterable[str]) -> dict:
+    """Poslednja odluka po roku: `{rok_id: CONFIRMED|REJECTED}`.
+
+    Rok koji se ne pojavi u rezultatu je NEPOTVRDJEN. FAIL-CLOSED na svakom
+    nivou: pad upita, prazan odgovor ili nedostupna tabela daju PRAZAN recnik —
+    dakle sve je nepotvrdjeno. Nikad se ne vraca „sve odobreno".
+
+    Redosled je po `seq` (INSERT-only hash-lanac), pa poslednja odluka pobedjuje:
+    odbijanje posle potvrde gasi izvrsivost, potvrda posle odbijanja je vraca.
+    """
     ids = [str(x) for x in (rok_ids or []) if x]
     if not ids:
-        return set()
+        return {}
     try:
         from shared.deps import _get_supa
         r = (_get_supa().table("audit_immutable")
@@ -92,13 +104,30 @@ def potvrdjeni_ids(rok_ids: Iterable[str]) -> set:
              .order("seq")
              .execute())
     except Exception as exc:
-        logger.warning("[ROK_POTVRDA] citanje odluka palo — nijedan AI rok nije izvrsiv: %s", exc)
-        return set()
+        logger.warning("[ROK_POTVRDA] citanje odluka palo — sve ostaje nepotvrdjeno: %s", exc)
+        return {}
 
     poslednja: dict = {}
     for red in (r.data or []):
-        poslednja[str(red.get("resource_id"))] = red.get("action")
-    return {rid for rid, akcija in poslednja.items() if akcija == AKCIJA_POTVRDA}
+        akcija = red.get("action")
+        poslednja[str(red.get("resource_id"))] = (
+            STANJE_POTVRDJEN if akcija == AKCIJA_POTVRDA else STANJE_ODBIJEN)
+    return poslednja
+
+
+def stanje_roka(rok_id: str, odluke_mapa: Optional[dict] = None) -> str:
+    """Stanje jednog roka. Bez zapisa -> `UNCONFIRMED`."""
+    return (odluke_mapa or {}).get(str(rok_id), STANJE_NEPOTVRDJEN)
+
+
+def potvrdjeni_ids(rok_ids: Iterable[str]) -> set:
+    """Skup `predmet_hronologija.id` koji SMEJU da pokrenu obavezu.
+
+    FAIL-CLOSED na svakom nivou: pad upita, prazan odgovor ili nedostupna
+    tabela daju PRAZAN skup — dakle nijedan AI rok ne prolazi. Nikad se ne
+    vraća „sve dozvoljeno" kao rezervni ishod."""
+    return {rid for rid, stanje in odluke(rok_ids).items()
+            if stanje == STANJE_POTVRDJEN}
 
 
 async def potvrdjeni_ids_async(rok_ids: Iterable[str]) -> set:

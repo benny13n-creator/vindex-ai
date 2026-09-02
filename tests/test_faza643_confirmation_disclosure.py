@@ -44,8 +44,10 @@ def test_potvrda_koristi_iskljucivo_rok_id_kao_identitet():
 
 
 def test_citanje_potvrda_upareno_po_resource_id():
+    """FAZA 6.5: jedini citac odluka je `odluke()`; `potvrdjeni_ids` je izveden
+    iz njega. Ugovor je nepromenjen — samo je vlasnik citanja jedan."""
     s = _izv("shared/rok_potvrda.py")
-    telo = s[s.index("def potvrdjeni_ids("):]
+    telo = s[s.index("def odluke("):s.index("def stanje_roka(")]
     assert '.in_("resource_id", ids)' in telo
     assert '.eq("resource_type", RESURS)' in telo
     for zabranjeno in ("datum", "naziv", "vaznost", "akter"):
@@ -117,19 +119,16 @@ def _pozivaoci_potvrde():
     return nadjeni
 
 
-def test_ne_postoji_nijedan_pozivalac_potvrde():
-    """IZMERENO STANJE, ne zeljeno: `potvrdi_rok`/`odbij_rok` nemaju pozivaoca.
+def test_potvrdu_poziva_TACNO_JEDNA_povrsina():
+    """FAZA 6.4.3 je izmerila NULA pozivaoca — advokat nije mogao nista da
+    potvrdi, pa je izlazni sloj bio mrtav. FAZA 6.5 je dodala namensku rutu.
 
-    Posledica je dvostruka:
-      * nijedan tok NE MOZE implicitno potvrditi rok (§16/§17/§18 su prazni
-        skupovi — nema klika, uploada ni pregleda koji potvrdjuje);
-      * ali ni advokat ne moze potvrditi nista, pa je ACTION sloj mrtav.
-
-    Kad se doda ruta/UI, ovaj test PADA — i to je namerno: tada se mora
-    ponovo dokazati da nova povrsina ne uvodi implicitnu potvrdu."""
-    assert _pozivaoci_potvrde() == [], (
-        "pojavio se pozivalac potvrde — proveriti §16/§17/§18 pre nego sto se "
-        "ovaj test azurira: %s" % _pozivaoci_potvrde())
+    Ovaj test je zato promenjen sa „nema nijednog" na „ima tacno jednog": to je
+    nova, uza tvrdnja, ne slabija. Ako se pojavi drugi pozivalac — upload,
+    Copilot, kreiranje predmeta, izvoz — test pada i mora se dokazati da nova
+    povrsina ne uvodi implicitnu potvrdu."""
+    assert _pozivaoci_potvrde() == ["routers/rok_odluka.py"], (
+        "potvrdu poziva neko van namenske rute: %s" % _pozivaoci_potvrde())
 
 
 def test_nijedan_pisac_hronologije_ne_upisuje_potvrdu():
@@ -160,9 +159,17 @@ def test_audit_nosi_ko_sta_kada_koji_rok_i_redosled():
 
 def test_poslednja_odluka_pobedjuje():
     s = _izv("shared/rok_potvrda.py")
-    telo = s[s.index("def potvrdjeni_ids("):]
+    telo = s[s.index("def odluke("):s.index("def stanje_roka(")]
     assert '.order("seq")' in telo
-    assert "poslednja[str(red.get(" in telo.replace(" ", "").replace("poslednja[str(red.get(", "poslednja[str(red.get(") or "poslednja" in telo
+    assert "poslednja" in telo
+
+
+def test_potvrdjeni_ids_je_izveden_iz_odluke():
+    """Dva nezavisna citaca bi se vremenom razisla — zato je samo jedan."""
+    s = _izv("shared/rok_potvrda.py")
+    telo = s[s.index("def potvrdjeni_ids("):s.index("async def potvrdjeni_ids_async(")]
+    assert "odluke(" in telo
+    assert "audit_immutable" not in telo, "`potvrdjeni_ids` ima svoj upit"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
