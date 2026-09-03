@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v147";
+const CACHE_NAME = "vindex-v148";
 
 const PRECACHE = [
   "/offline",
