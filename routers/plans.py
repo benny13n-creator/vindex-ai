@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from shared.business_groups import get_all_groups
 from shared.deps import _get_supa, _ensure_profile, get_current_user
 from shared.feature_registry import get_all_policies
-from shared.permissions import effective_tier
+from shared.permissions import PermissionService, effective_tier
 from shared.tier_config import get_all_tiers, get_tier
 from shared.usage import UsageService
 
@@ -41,6 +41,29 @@ async def _monthly_usage_by_feature(user_id: str) -> dict[str, dict]:
         bucket["broj_koriscenja"] += r.get("broj_koriscenja") or 0
         bucket["krediti_potroseni"] += float(r.get("krediti_potroseni") or 0)
     return agg
+
+
+async def _sme_v2(user: dict) -> bool:
+    """Da li nalog sme da otvori V2 frontend.
+
+    Z014 R2. NEMA sopstvene logike — poziva se ISTI kanonski lanac koji
+    štiti svaki drugi endpoint (`PermissionService.require`): kill-switch,
+    zavisnosti, status funkcije, addon/tarifa, founder pravilo. Time
+    `v2_pristup` ne postaje paralelan permission sistem nego jedan običan
+    feature_key u `feature_registry`, dodeljen preko `profiles.addons` —
+    isti mehanizam kojim `digital_assets` već gejtuje osam `da_*` funkcija.
+
+    FAIL-CLOSED: ako red `v2_pristup` još ne postoji u registru,
+    `get_policy` baca RuntimeError i odgovor je False — nikad tiho `True`.
+
+    Ovo je rollout kapija, ne bezbednosna zamena: posle nje svaki poslovni
+    endpoint i dalje proverava sopstvene dozvole.
+    """
+    try:
+        await PermissionService.require("v2_pristup")(user=dict(user))
+        return True
+    except Exception:
+        return False
 
 
 @router.get("/status")
@@ -83,6 +106,9 @@ async def plan_status(user=Depends(get_current_user)):
         "plan":                     pt,
         "plan_display":             tier_row.get("display_name", pt.capitalize()),
         "addons":                   profil.get("addons") or [],
+        # Z014 R2 — dodato polje. Sva postojeća polja su nepromenjena, pa
+        # nijedan zatečeni potrošač ovog odgovora nije pogođen.
+        "v2_pristup":               await _sme_v2(user),
         "subscription_expires_at":  profil.get("subscription_expires_at"),
         "subscription_seats_extra": profil.get("subscription_seats_extra", 0),
         "credits_remaining":        credits_remaining,
