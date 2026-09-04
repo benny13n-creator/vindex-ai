@@ -46,15 +46,23 @@ async def _monthly_usage_by_feature(user_id: str) -> dict[str, dict]:
 async def _sme_v2(user: dict) -> bool:
     """Da li nalog sme da otvori V2 frontend.
 
-    Z014 R2. NEMA sopstvene logike — poziva se ISTI kanonski lanac koji
-    štiti svaki drugi endpoint (`PermissionService.require`): kill-switch,
-    zavisnosti, status funkcije, addon/tarifa, founder pravilo. Time
+    Z014 R2 / Z014.2. NEMA sopstvene logike — poziva se ISTI kanonski lanac
+    koji štiti svaki drugi endpoint (`PermissionService.require`). Time
     `v2_pristup` ne postaje paralelan permission sistem nego jedan običan
-    feature_key u `feature_registry`, dodeljen preko `profiles.addons` —
-    isti mehanizam kojim `digital_assets` već gejtuje osam `da_*` funkcija.
+    feature_key u `feature_registry`.
 
-    FAIL-CLOSED: ako red `v2_pristup` još ne postoji u registru,
-    `get_policy` baca RuntimeError i odgovor je False — nikad tiho `True`.
+    Od Z014.2 taj red je `feature_type='ROLLOUT'`, pa lanac za njega gleda
+    isključivo per-user dodelu u `profiles.rollout_flags` (migracija 128).
+    NIJE komercijalni dodatak i NE ide kroz `profiles.addons` — upravo zato
+    što se ta lista vraća korisniku sirovo (`/api/plan/status`, GDPR izvoz),
+    pa bi interni ključ osvanuo kao „Dodaci: v2_pristup".
+
+    Founder ovde NEMA prečicu: ROLLOUT grana stoji iznad founder izuzetka,
+    pa i founder mora imati eksplicitnu dodelu.
+
+    FAIL-CLOSED dvostruko: ako red `v2_pristup` ne postoji u registru,
+    `get_policy` baca RuntimeError; ako kolone `rollout_flags` nema ili nije
+    lista, dodela je prazna. Oba puta False — nikad tiho `True`.
 
     Ovo je rollout kapija, ne bezbednosna zamena: posle nje svaki poslovni
     endpoint i dalje proverava sopstvene dozvole.
