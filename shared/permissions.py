@@ -143,6 +143,46 @@ class PermissionService:
 
             feature_status = policy.get("status", "ACTIVE")
 
+            # 2.5) ROLLOUT — interna kapija za postepeno puštanje (migracija 128).
+            #
+            # Stoji IZNAD svakog founder izuzetka, i to je cela poenta ove grane.
+            # Za ROLLOUT tip postoji tačno jedna osa koja odlučuje: da li je
+            # feature_key dodeljen ovom nalogu u `profiles.rollout_flags`. Nema
+            # tarife, nema addon-a, nema founder prečice. Da founder izuzetak
+            # ostao iznad, opoziv se ne bi mogao dokazati ni na jednom founder
+            # nalogu — dodela i oduzimanje davali bi isti ishod.
+            #
+            # Zašto ovo ne menja nijednu zatečenu funkciju: grana se otvara samo
+            # za `feature_type == "ROLLOUT"`, a nijedan od 70 zatečenih redova
+            # nema tu vrednost (pre migracije 128 je CHECK constraint nije ni
+            # dozvoljavao). Ponašanje ostalih redova je zato bajt u bajt isto.
+            if policy.get("feature_type") == "ROLLOUT":
+                # Životni ciklus reda blokira SVE, bez founder izuzetka —
+                # rollout kapija koja je ugašena mora biti ugašena i za foundera.
+                if feature_status in ("DEPRECATED", "COMING_SOON"):
+                    raise HTTPException(
+                        status_code=http_status.HTTP_404_NOT_FOUND,
+                        detail="Ova funkcija nije dostupna.",
+                    )
+
+                profil = await asyncio.to_thread(_ensure_profile, user["user_id"], email)
+                dodele = profil.get("rollout_flags")
+
+                # Fail-closed na svaki oblik neispravnog podatka: NULL, pogrešan
+                # tip, jsonb objekat ili string. Kod stringa bi `in` radio
+                # poklapanje PODNIZA, pa bi npr. "nema_v2_pristupa" propustilo
+                # "v2_pristup" — zato lista, ili ništa.
+                if not isinstance(dodele, list) or feature not in dodele:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_403_FORBIDDEN,
+                        detail="Restricted.",
+                    )
+
+                user["subscription_type"] = effective_tier(profil)
+                user["addons"] = profil.get("addons") or []
+                user["_feature_policy"] = policy
+                return user
+
             # 3) DEPRECATED / COMING_SOON — obični korisnici blokirani, founder prolazi.
             if feature_status in ("DEPRECATED", "COMING_SOON") and not is_founder:
                 msg = (

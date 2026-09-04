@@ -554,6 +554,33 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
             user_id, type(exc).__name__,
         )
 
+    # ── Korak 6: rollout dodele (migracija 128) — NAMERNO ZASEBAN UPIT ────────
+    # Ne sme se dodati u `select` iz Koraka 5. Taj blok ima JEDAN try/except za
+    # sve četiri entitlement kolone: da `rollout_flags` bilo u istom `select`-u,
+    # a kolona još ne postoji (migracija nije pokrenuta), PostgREST bi vratio
+    # 42703, ceo blok bi pao u except i SVAKI korisnik bi tiho postao
+    # subscription_type='basic' sa addons=[]. Lažan paywall za celu bazu zbog
+    # jedne nove kolone. Zato zaseban upit sa sopstvenim except-om: kad kolone
+    # nema, gubi se samo rollout podatak i to fail-closed (prazna lista = DENY).
+    rollout_flags: list = []
+    try:
+        rf_res = (
+            supa.table("profiles")
+            .select("rollout_flags")
+            .eq("id", user_id)
+            .execute()
+        )
+        _rf = ((rf_res.data or [{}])[0] or {}).get("rollout_flags")
+        # Tip se ne pretpostavlja: sve što nije lista tretira se kao prazno.
+        # jsonb kolona može fizički sadržati objekat ili string, a `in` nad
+        # stringom bi radio poklapanje podniza — što bi bilo tiho popuštanje.
+        rollout_flags = _rf if isinstance(_rf, list) else []
+    except Exception as exc:
+        logger.debug(
+            "[PROFILE] rollout_flags nije dostupno za uid=%.8s (migracija 128?) — %s",
+            user_id, type(exc).__name__,
+        )
+
     return {
         "credits_remaining": credits_remaining,
         "is_pro": _is_pro(email, is_pro_db),
@@ -563,6 +590,7 @@ def _ensure_profile(user_id: str, email: str = "") -> dict:
         "addons": addons,
         "subscription_expires_at": subscription_expires_at,
         "subscription_seats_extra": subscription_seats_extra,
+        "rollout_flags": rollout_flags,
     }
 
 
