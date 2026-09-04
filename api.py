@@ -6424,6 +6424,123 @@ async def predmet_dokument_preview(
     }
 
 
+# ── Z014 R1 — PREUZIMANJE ORIGINALNOG SPISA ──────────────────────────────────
+#
+# ZAŠTO STREAM, A NE POTPISANI LINK
+#
+# `predmet_dokumenti.storage_path` pokazuje na objekat u bucket-u
+# `intake-dokumenti`, a taj objekat je AES-GCM ŠIFRAT (v. upload iznad:
+# `_si_encrypt(raw)` -> base64url(nonce + ciphertext)). Supabase potpisani
+# link isporučuje bajtove takve kakvi jesu — korisnik bi dobio šifru, ne
+# dokument. Obrazac iz `routers/client_portal.py` (`create_signed_url`) radi
+# zato što bucket `portal-uploads` čuva NEŠIFROVANE fajlove; on se ovde ne
+# može preuzeti. Zato backend mora sam da dohvati, dešifruje i pošalje —
+# isti redosled koji `klijenti/router.py` (Trezor) već koristi za svoj bucket.
+#
+# ZAŠTO TROSTRUKO OGRANIČEN UPIT
+#
+# `.eq(id).eq(predmet_id).eq(user_id)` je isti lanac koji koristi brisanje
+# spisa ispod. Poznat `dok_id` sam po sebi ne otvara ništa: dokument mora
+# pripadati baš tom predmetu i baš tom korisniku. Svaki promašaj daje isti
+# 404 — tuđi dokument i nepostojeći dokument se spolja ne razlikuju.
+@app.get("/api/predmeti/{predmet_id}/dokumenti/{dok_id}/download")
+@limiter.limit("20/minute")
+async def predmet_dokument_download(
+    predmet_id: str,
+    dok_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Vraća ORIGINALNI fajl spisa, dešifrovan, kao preuzimanje."""
+    import base64 as _b64
+    from urllib.parse import quote as _q
+
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    # 1. Predmet mora postojati, pripadati korisniku i ne biti u brisanju.
+    pred = await asyncio.to_thread(
+        lambda: supa.table("predmeti")
+            .select("id,brisanje_zapoceto")
+            .eq("id", predmet_id).eq("user_id", uid)
+            .maybe_single().execute()
+    )
+    if not pred or not pred.data or _je_u_brisanju(pred.data):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+
+    # 2. Dokument mora pripadati BAŠ tom predmetu i BAŠ tom korisniku.
+    row = await asyncio.to_thread(
+        lambda: supa.table("predmet_dokumenti")
+            .select("id,naziv_fajla,storage_path,velicina_kb")
+            .eq("id", dok_id).eq("predmet_id", predmet_id).eq("user_id", uid)
+            .maybe_single().execute()
+    )
+    if not row or not row.data:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen")
+    d = row.data
+
+    put = (d.get("storage_path") or "").strip()
+    if not put:
+        # Vlastiti dokument bez sačuvanog originala — imenuje se, ne ćuti se.
+        # Nije 404 „ne postoji": dokument postoji, original nije sačuvan
+        # (upload pre P1.1, ili neuspeo storage upis koji je namerno ostavio
+        # storage_path prazan umesto da tiho tvrdi suprotno).
+        raise HTTPException(
+            status_code=404,
+            detail="Original ovog spisa nije sačuvan. Dostupan je samo izdvojeni tekst.",
+        )
+
+    # 3. Audit PRE nego što bajtovi napuste server (obrazac iz Trezora).
+    #    `dokument_download` je već u AUDITABLE_ACTIONS — rezervisan za ovo.
+    #    Neuspeh upisa se glasno loguje ali ne blokira advokatu pristup
+    #    sopstvenom spisu; to je svesna ravnoteža, ne previd.
+    try:
+        from shared.audit_immutable import log_action
+        await log_action(
+            "dokument_download",
+            user_id=uid,
+            resource_type="dokument",
+            resource_id=dok_id,
+            ip=request.client.host if request.client else None,
+            metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", "")},
+        )
+    except Exception as _ae:
+        logger.warning("[AUDIT] dokument_download log greška (dok=%s): %s", dok_id, _ae)
+
+    # 4. Dohvati šifrat i dešifruj.
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from routers.smart_intake import _STORAGE_BUCKET as _bucket_ime
+        from security.crypto import _get_field_key
+
+        sifrat = await asyncio.to_thread(
+            lambda: supa.storage.from_(_bucket_ime).download(put)
+        )
+        sirovo = _b64.urlsafe_b64decode(sifrat + b"==")
+        nonce, ct = sirovo[:12], sirovo[12:]
+        bajtovi = AESGCM(_get_field_key()).decrypt(nonce, ct, None)
+    except Exception as e:
+        logger.error("[SPIS_DOWNLOAD] dohvat/dešifrovanje palo (dok=%s): %s", dok_id, e)
+        raise HTTPException(status_code=500, detail="Spis trenutno nije moguće preuzeti.")
+
+    # 5. Ime fajla: RFC 5987 za Unicode + ASCII rezerva za stare klijente.
+    ime = (d.get("naziv_fajla") or "").strip() or f"spis_{dok_id[:8]}"
+    ime = ime.replace("\r", "").replace("\n", "").replace('"', "").replace("\\", "")
+    ime_ascii = ime.encode("ascii", "replace").decode("ascii") or f"spis_{dok_id[:8]}"
+
+    return StreamingResponse(
+        iter([bajtovi]),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition":
+                'attachment; filename="%s"; filename*=UTF-8\'\'%s' % (ime_ascii, _q(ime)),
+            "Content-Length": str(len(bajtovi)),
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 # ── BR-004 — BRISANJE DOKUMENTA (NS001/FAZA 2) ───────────────────────────────
 #
 # Do ovog sprinta advokat NIJE MOGAO da obriše dokument: nije postojala nijedna
