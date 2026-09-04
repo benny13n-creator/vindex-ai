@@ -4353,6 +4353,9 @@ async def lista_predmeta(
     authorization: str = Header(None),
     limit: int = 200,
     offset: int = 0,
+    q: str | None = None,
+    status: str | None = None,
+    view: str | None = None,
 ):
     """
     FIX (nightly repair, 2026-07-24), Faza 3 item 8: ranije je ovaj upit
@@ -4371,16 +4374,54 @@ async def lista_predmeta(
     user = await _require_auth_async(authorization)
     limit = min(max(limit, 1), 500)
     offset = max(offset, 0)
-    rows = await asyncio.to_thread(
-        lambda: _get_supa().table("predmeti")
-            .select("*", count="exact")
-            .eq("user_id", user.id)
-            .order("created_at", desc=True)
-            .range(offset, offset + limit - 1)
-            .execute()
+
+    # Z014 R4 — `view=summary` vraca samo polja koja registru trebaju.
+    # `select("*")` je i dalje podrazumevan, pa nijedan zateceni potrosac
+    # ovog endpointa nije pogodjen. Mereno na 20 predmeta: `case_dna` nosi
+    # 85% odgovora (92.090 B -> 14.212 B bez njega). `brisanje_zapoceto`
+    # mora ostati u projekciji jer `_je_u_brisanju` cita bas njega.
+    kolone = (
+        "id,naziv,tip,status,broj_predmeta,created_at,updated_at,brisanje_zapoceto"
+        if (view or "").strip().lower() == "summary"
+        else "*"
     )
+
+    # Z014 R3 — pretraga po nazivu. `%` i `_` se UKLANJAJU iz upita, ne
+    # eskejpuju: PostgREST ne izlaze SQL ESCAPE klauzulu, pa je uklanjanje
+    # jedini deterministican nacin. Upit je ionako vec ogranicen na
+    # `user_id`, tako da dzoker ne bi otvorio tudje podatke -- uklanjanje
+    # sluzi predvidivosti rezultata, ne izolaciji.
+    q_ociscen = (q or "").strip().replace("%", "").replace("_", "")[:120]
+    status_ociscen = (status or "").strip()[:40]
+
+    def _upit():
+        ch = (
+            _get_supa().table("predmeti")
+            .select(kolone, count="exact")
+            .eq("user_id", user.id)
+        )
+        if q_ociscen:
+            ch = ch.ilike("naziv", "%%%s%%" % q_ociscen)
+        if status_ociscen:
+            ch = ch.eq("status", status_ociscen)
+        # `id` kao drugi kljuc sortiranja: bez njega dva predmeta sa istim
+        # `created_at` mogu menjati redosled izmedju dve stranice, pa bi red
+        # bio preskocen ili prikazan dvaput.
+        return (
+            ch.order("created_at", desc=True)
+              .order("id", desc=True)
+              .range(offset, offset + limit - 1)
+              .execute()
+        )
+
+    rows = await asyncio.to_thread(_upit)
     # BETA-DEL-001: predmet oznacen za brisanje nije aktivan predmet.
-    return {"predmeti": _bez_tombstone(rows.data), "ukupno": rows.count}
+    return {
+        "predmeti": _bez_tombstone(rows.data),
+        "ukupno": rows.count,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @app.get("/api/predmeti/dashboard")
