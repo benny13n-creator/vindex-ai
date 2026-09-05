@@ -1,0 +1,116 @@
+/* Vindex V2 — Znanje.
+ *
+ * Povrsina za citanje, ne za caskanje. Odgovor je proza u meri od 72ch,
+ * izvori su spisak, ograde su blokovi sa linijom levo — bez ikona, bez boja
+ * koje vicu, bez „AI" znacke.
+ */
+
+.v2-znanje__forma { max-width: var(--v2-mera-citanje); gap: var(--v2-r-3); }
+.v2-znanje__polje { font-size: 16px; min-height: 88px; }
+
+.v2-znanje { padding-bottom: var(--v2-r-7); max-width: var(--v2-mera-citanje); }
+
+.v2-znanje__pitanje { padding-block: var(--v2-r-5) var(--v2-r-4); }
+.v2-znanje__pitanje-tekst {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--v2-tx-1);
+  overflow-wrap: anywhere;
+}
+
+/* ── Ograda: cita se PRE odgovora ────────────────────────────────────── */
+.v2-ograda {
+  margin-block: var(--v2-r-4);
+  padding: var(--v2-r-4);
+  border-left: 3px solid var(--v2-st-greska);
+  background: var(--v2-papir-2);
+}
+.v2-ograda--izvor-nije-proveren { border-left-color: var(--v2-brend); }
+.v2-ograda--bez-pogotka { border-left-color: var(--v2-tx-3); }
+.v2-ograda__naslov { font-size: 15px; font-weight: 600; color: var(--v2-tx-1); }
+.v2-ograda__telo { font-size: 14px; color: var(--v2-tx-2); margin-top: var(--v2-r-2); }
+
+/* ── Odgovor ─────────────────────────────────────────────────────────── */
+.v2-znanje__odgovor { padding-top: var(--v2-r-4); border-top: 1px solid var(--v2-linija-jaca); }
+.v2-znanje__zaglavlje-odgovora {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--v2-r-4); flex-wrap: wrap; margin-bottom: var(--v2-r-3);
+}
+.v2-znanje__pasus {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--v2-tx-1);
+  margin-bottom: var(--v2-r-4);
+  overflow-wrap: anywhere;
+}
+
+/* Nivo poklapanja je REC, nikad procenat. Boja samo pojacava rec. */
+.v2-sigurnost { font-size: 13px; font-weight: 500; color: var(--v2-tx-3); }
+.v2-sigurnost[data-nivo="visoka"] { color: var(--v2-st-aktivno); }
+.v2-sigurnost[data-nivo="srednja"] { color: var(--v2-tx-2); }
+.v2-sigurnost[data-nivo="niska"] { color: var(--v2-st-greska); }
+
+/* ── Izvori i navodi iz spisa ────────────────────────────────────────── */
+.v2-izvori, .v2-cinjenice { margin-top: var(--v2-r-5); padding-top: var(--v2-r-4); border-top: 1px solid var(--v2-linija); }
+.v2-izvori__lista { margin-top: var(--v2-r-3); }
+.v2-izvori__red {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--v2-r-3);
+  padding-block: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija);
+  font-size: 14px;
+}
+.v2-izvori__zakon { color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-izvori__clan { color: var(--v2-tx-3); font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; }
+
+.v2-cinjenice__uvod { font-size: 13px; color: var(--v2-tx-3); margin-block: var(--v2-r-2) var(--v2-r-3); }
+.v2-cinjenice__izvor { color: var(--v2-tx-3); font-size: 13px; }
+
+.v2-znanje__odricanje {
+  margin-top: var(--v2-r-6);
+  padding-top: var(--v2-r-3);
+  border-top: 1px solid var(--v2-linija);
+  font-size: 13px;
+  color: var(--v2-tx-3);
+}
+
+/* ── Kancelarija ─────────────────────────────────────────────────────── */
+.v2-kancelarija { padding-bottom: var(--v2-r-7); }
+
+.v2-klijenti__red {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: 56px;
+}
+.v2-klijenti__naziv { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-klijenti__meta {
+  font-size: 13px; color: var(--v2-tx-3);
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+}
+.v2-klijenti__meta > * + *::before { content: "·"; margin-right: 10px; }
+.v2-klijenti__vrsta {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* Iznos nikad ne stoji sam: uz njega ide pitanje na koje odgovara. */
+.v2-naplata__red {
+  display: grid;
+  grid-template-columns: minmax(0, 22ch) minmax(0, 16ch) minmax(0, 1fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: 52px;
+}
+.v2-naplata__naziv { font-size: 15px; color: var(--v2-tx-1); }
+.v2-naplata__iznos { font-size: 15px; color: var(--v2-tx-1); font-variant-numeric: tabular-nums; }
+.v2-naplata__pitanje { font-size: 13px; color: var(--v2-tx-3); }
+
+@media (max-width: 720px) {
+  .v2-klijenti__red, .v2-naplata__red { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}

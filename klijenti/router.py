@@ -327,16 +327,25 @@ async def list_klijenti(
     offset = max(offset, 0)
 
     def _fetch():
-        q = (supa.table("klijenti")
-                 .select("id,tip,ime,prezime,firma,email,telefon,status,aktivan,datum_poslednje_aktivnosti,kreirano", count="exact")
-                 .eq("user_id", user["user_id"]))
-        # Isključi soft-deleted
-        q = q.neq("status", "soft_deleted")
-        if pretraga:
-            q = q.or_(f"ime.ilike.%{pretraga}%,prezime.ilike.%{pretraga}%,firma.ilike.%{pretraga}%")
-        if status_filter:
-            q = q.eq("status", status_filter)
-        return q.order("kreirano", desc=True).range(offset, offset + limit - 1).execute()
+        def _osnovni():
+            q = (supa.table("klijenti")
+                     .select("id,tip,ime,prezime,firma,email,telefon,status,aktivan,datum_poslednje_aktivnosti,kreirano", count="exact")
+                     .eq("user_id", user["user_id"]))
+            # Isključi soft-deleted
+            q = q.neq("status", "soft_deleted")
+            if pretraga:
+                q = q.or_(f"ime.ilike.%{pretraga}%,prezime.ilike.%{pretraga}%,firma.ilike.%{pretraga}%")
+            if status_filter:
+                q = q.eq("status", status_filter)
+            return q
+
+        # Offset iza kraja spiska je PRAZNA STRANA, ne HTTP 500. Isto pravilo i
+        # isti razlog kao na registru predmeta -- vidi `shared/stranicenje.py`.
+        from shared.stranicenje import strana_ili_prazna
+        return strana_ili_prazna(
+            lambda: _osnovni().order("kreirano", desc=True).range(offset, offset + limit - 1).execute(),
+            lambda: _osnovni().limit(1).execute(),
+        )
 
     res = await asyncio.to_thread(_fetch)
     klijenti = [filter_klijent(k, user["role"]) for k in (res.data or [])]

@@ -6,7 +6,6 @@ Vindex AI — FastAPI server sa Supabase autentifikacijom i kreditnim sistemom
 import logging
 import os
 import asyncio
-from types import SimpleNamespace
 import threading
 from pathlib import Path
 from typing import Optional, List
@@ -4522,27 +4521,18 @@ async def lista_predmeta(
         # `id` kao drugi kljuc sortiranja: bez njega dva predmeta sa istim
         # `created_at` mogu menjati redosled izmedju dve stranice, pa bi red
         # bio preskocen ili prikazan dvaput.
-        try:
-            return (
-                _osnovni()
-                .order("created_at", desc=True)
-                .order("id", desc=True)
-                .range(offset, offset + limit - 1)
-                .execute()
-            )
-        except Exception as ex:
-            # PGRST103 -- „Requested range not satisfiable". PostgREST tako
-            # odgovara kada je pocetak opsega IZA poslednjeg reda. To NIJE
-            # kvar servera nego prazna strana: registar od 20 predmeta na
-            # `offset=500` nema redova, ali i dalje ima tacan `ukupno`.
-            # Bez ovoga svaki predalek offset -- rucno otkucan, iz obelezene
-            # veze, ili posle brisanja predmeta -- rusi ceo registar u 500.
-            # Granicni slucaj `offset == ukupno` PostgREST vec vraca kao
-            # praznu stranu, pa se ponasanje ovde samo prosiruje dalje.
-            if getattr(ex, "code", None) != "PGRST103":
-                raise
-            koliko = _osnovni().limit(1).execute()
-            return SimpleNamespace(data=[], count=koliko.count)
+        #
+        # Offset iza kraja registra je PRAZNA STRANA, ne 500 -- pravilo i
+        # razlog zive u `shared/stranicenje.py`, jednom za ceo proizvod.
+        from shared.stranicenje import strana_ili_prazna
+        return strana_ili_prazna(
+            lambda: (_osnovni()
+                     .order("created_at", desc=True)
+                     .order("id", desc=True)
+                     .range(offset, offset + limit - 1)
+                     .execute()),
+            lambda: _osnovni().limit(1).execute(),
+        )
 
     rows = await asyncio.to_thread(_upit)
     # BETA-DEL-001: predmet oznacen za brisanje nije aktivan predmet.
@@ -4808,12 +4798,45 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
         except Exception as e:
             logger.warning("[PREDMETI] klijenti linked greška: %s", e)
 
+    # ── STANJE ODLUKE MORA DA PREĐE GRANICU API-ja ────────────────────────────
+    #
+    # FAZA 6.5 razdvaja gde stanje roka živi: `izvrsen`/`otkazan` su u koloni
+    # `predmet_hronologija.stanje`, a `potvrdjen`/`odbijen` su u lancu odluka
+    # (`audit_immutable`) — kolona se pri potvrdi NE menja, i to je namerno.
+    #
+    # Posledica koju je izmerio živi test Dosijea: advokat potvrdi predloženi
+    # rok, potvrda se uredno upiše u lanac, a posle osvežavanja Dosijea rok i
+    # dalje stoji pod „Za proveru". Ova ruta je vraćala sirove redove
+    # hronologije bez ijednog traga o odluci, pa Dosije nije IMAO iz čega da
+    # zaključi da je odluka doneta. Kontrola koja radi a izgleda kao da ne
+    # radi tera advokata da potvrđuje isti rok iznova.
+    #
+    # Zato se `stanje_odluke` dodaje SAMO redovima koji su IZJAVLJENI kao rok
+    # (`vrsta='rok'`, migracija 129). Neizjavljen red ostaje bez tog polja —
+    # fail-closed ostaje fail-closed, ovde se ne pogađa šta je rok.
+    # `odluke()` je i sam fail-closed: pad upita daje prazan rečnik, dakle
+    # sve nepotvrđeno; nikad „sve odobreno".
+    _hron = list(hronologija.data or [])
+    _rok_ids = [str(h.get("id")) for h in _hron
+                if h.get("id") and _rokovi_domen.je_rok(h)]
+    if _rok_ids:
+        try:
+            from shared.rok_potvrda import odluke as _odluke, stanje_roka as _stanje_roka
+            _mapa = await asyncio.to_thread(_odluke, _rok_ids)
+            for h in _hron:
+                if str(h.get("id")) in _rok_ids:
+                    h["stanje_odluke"] = _stanje_roka(str(h.get("id")), _mapa)
+        except Exception as _e:
+            # Bez stanja odluke Dosije pada nazad na „nepotvrđeno" — to je
+            # bezbedna strana: predlog ostaje predlog.
+            logger.warning("[PREDMETI] stanje odluke nije dohvaćeno za %s: %s", predmet_id, _e)
+
     return {
         "predmet":         row.data,
         "beleske":         beleske.data,
         "istorija":        istorija.data,
         "dokumenti":       dokumenti.data,
-        "hronologija":     hronologija.data,
+        "hronologija":     _hron,
         "komentari":       komentari.data,
         "klijenti_linked": klijenti_linked,
     }

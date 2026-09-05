@@ -25,6 +25,12 @@ Sta ovaj test cuva, a sto se iz koda ne vidi:
   Test namerno NE ide na mrezu — lazni klijent reprodukuje tacno onaj oblik
   greske koji je izmeren uzivo (`code == "PGRST103"`), i dokazuje da se
   svaka DRUGA greska i dalje propagira (tiho gutanje kvarova je gore od 500).
+
+  ISTA KLASA POSTOJI NA DVA MESTA. Prvo prebrojavanje je obuhvatalo samo
+  `api.py`, `routers/`, `services/` i `shared/` i naslo je jedno mesto; drugo,
+  nad celim repozitorijumom, naslo je i `klijenti/router.py`. Zato pravilo
+  sada zivi u `shared/stranicenje.py`, a `test_nijedan_range_nije_nezasticen`
+  cuva da se trece mesto ne pojavi neprimeceno.
 """
 import asyncio
 import os
@@ -168,3 +174,67 @@ def test_filter_ostaje_primenjen_i_na_praznoj_strani():
     supa = _Supa()
     _pozovi(supa, limit=20, offset=999, q="kalibracija", status="aktivan")
     assert len(supa.upiti) == 2, "prebrojavanje mora ici kroz isti skup filtera"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Klasa, ne pojedinacan slucaj
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_nijedan_range_nije_nezasticen():
+    """
+    Svako `.range(offset, ...)` u proizvodnom kodu mora ici kroz
+    `strana_ili_prazna`. Novo mesto koje to zaobidje vraca istu 500 gresku,
+    a otkrilo bi se tek na offsetu koji niko ne kuca u razvoju.
+    """
+    import pathlib
+    koren = pathlib.Path(__file__).resolve().parent.parent
+    preskoci = {"tests", ".git", "node_modules", "venv", ".venv", "v2"}
+    nezasticeni = []
+    for put in koren.rglob("*.py"):
+        if any(d in preskoci for d in put.relative_to(koren).parts):
+            continue
+        try:
+            tekst = put.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if ".range(" not in tekst:
+            continue
+        if "strana_ili_prazna" in tekst or put.name == "stranicenje.py":
+            continue
+        nezasticeni.append(str(put.relative_to(koren)))
+    assert not nezasticeni, (
+        "Ova mesta stranice bez zastite od offseta iza kraja: %s" % nezasticeni)
+
+
+def test_zajednicki_pomocnik_propusta_druge_greske():
+    from shared.stranicenje import strana_ili_prazna
+
+    class _Drugo(Exception):
+        code = "PGRST301"
+
+    def _pao():
+        raise _Drugo()
+
+    with pytest.raises(_Drugo):
+        strana_ili_prazna(_pao, lambda: SimpleNamespace(count=7))
+
+
+def test_zajednicki_pomocnik_prebrojava_tek_na_padu():
+    from shared.stranicenje import strana_ili_prazna
+    brojac = {"n": 0}
+
+    def _prebroj():
+        brojac["n"] += 1
+        return SimpleNamespace(count=42)
+
+    ok = strana_ili_prazna(lambda: SimpleNamespace(data=[1], count=1), _prebroj)
+    assert ok.data == [1] and brojac["n"] == 0
+
+    class _VanOpsega(Exception):
+        code = "PGRST103"
+
+    def _pao():
+        raise _VanOpsega()
+
+    prazna = strana_ili_prazna(_pao, _prebroj)
+    assert prazna.data == [] and prazna.count == 42 and brojac["n"] == 1

@@ -3,11 +3,9 @@
  * Prvi sadrzaj ekrana je REGISTAR. Nema pozdravne poruke, nema slogana, nema
  * statisticke table. Advokat otvara Predmete da nadje predmet.
  *
- * SVESNO IZOSTAVLJENO U GATE V1 (Z015 §24, §25):
- *   - otvaranje predmeta: Dosije jos ne postoji, pa red NIJE klikabilan.
- *     Kontrola koja izgleda kao akcija a nema ishod je gora od njenog izostanka.
- *   - „Nov predmet": tok kreiranja nije autorizovan u ovom talasu, pa dugmeta nema.
- * Oba su zabelezena kao odlozeni funkcionalni elementi, ne kao previd.
+ * Oba izostavljanja iz Gate V1 su sada izgradjena: red vodi u Dosije predmeta
+ * (prava <a href> veza), a „Nov predmet" otvara radnju `/app-v2/predmeti/nov`.
+ * Nijedna kontrola na ovom ekranu nema izgled akcije bez ishoda.
  */
 
 import { napraviCiklus } from "../../platform/lifecycle.js";
@@ -16,6 +14,7 @@ import { naPrijavu } from "../../platform/auth.js";
 import { ucitajStranu, PO_STRANI } from "./api.js";
 import { napraviStanje, novaGeneracija, jeAktuelna, STANJE } from "./state.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
+import { elementPoruke } from "../../platform/obavestenje.js";
 
 const DEBOUNCE_MS = 300;
 
@@ -129,6 +128,11 @@ export function montirajPredmete(kontejner, kontekst) {
   zaglavlje.appendChild(brojac);
   unutra.appendChild(zaglavlje);
 
+  // Ishod radnje sa prethodnog ekrana (npr. brisanje predmeta) pripada ovde,
+  // jer je ovo ekran na koji se korisnik posle nje vraca.
+  const izPrethodne = elementPoruke();
+  if (izPrethodne) unutra.appendChild(izPrethodne);
+
   const sekcija = el("section", "v2-registar");
   sekcija.setAttribute("aria-labelledby", "v2-naslov-predmeti");
 
@@ -150,6 +154,17 @@ export function montirajPredmete(kontejner, kontekst) {
   ocisti.hidden = true;
   forma.append(labela, polje, ocisti);
   alat.appendChild(forma);
+
+  // Otvaranje predmeta je glavna radnja ovog prostora i zato stoji uz registar,
+  // a ne u globalnoj ljusci: ljuska nosi kretanje, prostor nosi svoj posao.
+  const novi = el("a", "v2-dugme v2-dugme--glavno", "Nov predmet");
+  novi.href = putanjaZa("predmeti", "nov");
+  ciklus.slusaj(novi, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "nov");
+  });
+  alat.appendChild(novi);
   sekcija.appendChild(alat);
 
   // ── Sadrzaj ──

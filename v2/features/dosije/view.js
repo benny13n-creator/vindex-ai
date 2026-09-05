@@ -24,6 +24,9 @@ import { naPrijavu } from "../../platform/auth.js";
 import { idiNa } from "../../platform/router.js";
 import { SIDRA } from "../../domain/dosije.js";
 import { ucitajDosije, putanjaPreuzimanja } from "./api.js";
+import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
+import { posalji } from "../../platform/http.js";
+import { kontrolaOdluke } from "../rokovi/odluka.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -155,17 +158,137 @@ function sekcijaAnaliza(d) {
 
 /* ── Spisi ──────────────────────────────────────────────────────────────── */
 
-function sekcijaSpisi(d, predmetId, ciklus) {
+/**
+ * Otpremanje spisa stoji UZ spisak spisa, ne u modalu i ne na posebnoj strani:
+ * advokat vidi sta vec ima dok dodaje novo.
+ *
+ * Backend vraca `original_preserved:false` kada je OCR/analiza uspela ali
+ * upis originala u skladiste nije. To se KAZE — advokat cija potpisana
+ * originalna verzija nije sacuvana ne sme da vidi isti ekran kao onaj cija
+ * jeste. Isto vazi za `mozda_duplikat`.
+ */
+function otpremanje(predmetId, ciklus, naUspeh) {
+  const okvir = el("div", "v2-otpremi");
+
+  const lab = el("label", "v2-otpremi__labela", "Dodaj spis");
+  const uslovi = el("p", "v2-otpremi__uslovi", "PDF, DOCX, DOC, JPG ili PNG. Najviše 10 MB.");
+  lab.htmlFor = "v2-spis-fajl";
+  const unos = el("input", "v2-otpremi__polje");
+  unos.type = "file";
+  unos.id = "v2-spis-fajl";
+  unos.name = "file";
+  // TACNO ono sto backend prihvata (`_ALLOWED_SUFFIXES` u api.py). Ponuditi
+  // .txt ili .rtf znacilo bi pustiti advokata da izabere fajl koji ce server
+  // odbiti sa 415 — kontrola koja obecava vise nego sto ispunjava.
+  unos.accept = ".pdf,.docx,.doc,.jpg,.jpeg,.png";
+
+  const dugme = el("button", "v2-dugme", "Otpremi");
+  dugme.type = "button";
+  dugme.disabled = true;
+
+  const stanje = el("p", "v2-otpremi__stanje");
+  stanje.setAttribute("role", "status");
+  stanje.hidden = true;
+
+  const red = el("div", "v2-otpremi__red");
+  red.append(unos, dugme);
+  okvir.append(lab, uslovi, red, stanje);
+
+  function javi(tekst, vrsta) {
+    stanje.className = "v2-otpremi__stanje v2-otpremi__stanje--" + (vrsta || "info");
+    stanje.textContent = tekst;
+    stanje.hidden = false;
+  }
+
+  ciklus.slusaj(unos, "change", () => {
+    dugme.disabled = !(unos.files && unos.files.length);
+    stanje.hidden = true;
+  });
+
+  let radi = false;
+  ciklus.slusaj(dugme, "click", async () => {
+    if (radi || !unos.files || !unos.files.length) return;
+    const fajl = unos.files[0];
+    radi = true;
+    dugme.disabled = true;
+    unos.disabled = true;
+    // Analiza spisa traje; ekran to kaze umesto da izgleda zamrznuto.
+    javi(`„${fajl.name}" se otprema i analizira. Ovo može potrajati.`, "info");
+
+    const telo = new FormData();
+    telo.append("file", fajl, fajl.name);
+
+    let odg;
+    try {
+      odg = await posalji(`/api/predmeti/${encodeURIComponent(predmetId)}/upload`,
+                          { telo, signal: ciklus.prekidac().signal });
+    } catch (e) {
+      if (jePrekid(e) || ciklus.ugasen) return;
+      radi = false;
+      unos.disabled = false;
+      dugme.disabled = false;
+      if (e && e.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+      if (e && e.vrsta === VRSTA.MREZA) {
+        javi("Veza je prekinuta pre nego što je stigao odgovor. Spis je možda otpremljen — "
+           + "osvežite Dosije pre nego što pokušate ponovo.", "upozorenje");
+        return;
+      }
+      javi("Spis nije otpremljen. " + porukaZaKorisnika(e), "greska");
+      return;
+    }
+    if (ciklus.ugasen) return;
+
+    const upozorenja = [];
+    if (odg && odg.original_preserved === false) {
+      upozorenja.push("Originalni fajl NIJE sačuvan u skladištu — sačuvan je samo izdvojen tekst. "
+                    + "Zadržite svoju kopiju.");
+    }
+    if (odg && odg.mozda_duplikat) {
+      upozorenja.push("Isti sadržaj već postoji u ovom predmetu.");
+    }
+    radi = false;
+    unos.value = "";
+    unos.disabled = false;
+    dugme.disabled = true;
+
+    if (typeof naUspeh === "function") {
+      // Dosije se ponovo cita, pa bi poruka nestala sa starim DOM-om.
+      // Zato ide kroz jednokratno obavestenje i preziveti ponovno iscrtavanje —
+      // upozorenje da original NIJE sacuvan ne sme da se izgubi u osvezavanju.
+      ostavi(upozorenja.length ? upozorenja.join(" ") : "Spis je otpremljen i analiziran.",
+             upozorenja.length ? "upozorenje" : "uspeh");
+      naUspeh();
+      return;
+    }
+    javi(upozorenja.length ? upozorenja.join(" ") : "Spis je otpremljen i analiziran.",
+         upozorenja.length ? "upozorenje" : "uspeh");
+  });
+
+  return okvir;
+}
+
+function sekcijaSpisi(d, predmetId, ciklus, radnje) {
   const s = celina("spisi", "Spisi");
   if (!d.spisi.length) {
     s.appendChild(prazno("U ovom predmetu još nema spisa."));
+    s.appendChild(otpremanje(predmetId, ciklus, radnje && radnje.osvezi));
     return s;
   }
   const ul = el("ul", "v2-spisi");
   for (const f of d.spisi) {
     const li = el("li", "v2-spisi__red");
 
-    const naziv = el("span", "v2-spisi__naziv", f.naziv);
+    // Naziv otvara CITANJE spisa. Preuzimanje je zasebna, tiha radnja:
+    // advokat najcesce hoce da PROCITA, a ne da skine fajl.
+    const naziv = el("span", "v2-spisi__naziv");
+    if (radnje && radnje.otvoriSpis) {
+      const veza = el("button", "v2-spisi__otvori", f.naziv);
+      veza.type = "button";
+      ciklus.slusaj(veza, "click", () => radnje.otvoriSpis(f.id));
+      naziv.appendChild(veza);
+    } else {
+      naziv.textContent = f.naziv;
+    }
     li.appendChild(naziv);
 
     const meta = el("span", "v2-spisi__meta");
@@ -187,12 +310,13 @@ function sekcijaSpisi(d, predmetId, ciklus) {
     ul.appendChild(li);
   }
   s.appendChild(ul);
+  s.appendChild(otpremanje(predmetId, ciklus, radnje && radnje.osvezi));
   return s;
 }
 
 /* ── Rokovi i zadaci ────────────────────────────────────────────────────── */
 
-function rokRed(r) {
+function rokRed(r, ciklus) {
   const li = el("li", "v2-rok__red");
   if (r.proslo) li.dataset.proslo = "1";
   const kada = el("span", "v2-rok__kada v2-mono");
@@ -200,11 +324,15 @@ function rokRed(r) {
   kada.appendChild(document.createTextNode(r.datum));
   kada.appendChild(el("span", "v2-rok__rel", r.kada));
   li.appendChild(kada);
-  li.appendChild(el("span", "v2-rok__opis", r.opis));
+  const opis = el("span", "v2-rok__opis", r.opis);
+  li.appendChild(opis);
+  // Odluka stoji SAMO uz nepotvrdjen predlog. Potvrdjena obaveza nema sta da
+  // se „potvrdjuje" drugi put, a ponudjena kontrola bi to sugerisala.
+  if (ciklus) li.appendChild(kontrolaOdluke(r, ciklus));
   return li;
 }
 
-function sekcijaRokovi(d) {
+function sekcijaRokovi(d, ciklus) {
   const s = celina("rokovi", "Rokovi i zadaci");
   const r = d.rokovi;
   if (!r.obaveze.length && !r.zaProveru.length) {
@@ -225,7 +353,7 @@ function sekcijaRokovi(d) {
     b.appendChild(el("p", "v2-provera__uvod",
       "Sistem je predložio ove rokove. Nisu potvrđeni i ne predstavljaju evidentiranu obavezu."));
     const ul = el("ul", "v2-rok");
-    for (const x of r.zaProveru) ul.appendChild(rokRed(x));
+    for (const x of r.zaProveru) ul.appendChild(rokRed(x, ciklus));
     b.appendChild(ul);
     s.appendChild(b);
   }
@@ -234,7 +362,7 @@ function sekcijaRokovi(d) {
 
 /* ── Montiranje ─────────────────────────────────────────────────────────── */
 
-export function montirajDosije(kontejner, kontekst, predmetId) {
+export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
   const ciklus = napraviCiklus();
 
   const unutra = el("div", "v2-scena__unutra v2-scena__unutra--predmet");
@@ -314,11 +442,15 @@ export function montirajDosije(kontejner, kontekst, predmetId) {
 
     const okvir = document.createDocumentFragment();
     okvir.appendChild(zaglavlje);
+    // Ishod radnje koja je zavrsila ovde (npr. dopuna posle otvaranja predmeta)
+    // stoji odmah ispod naziva, ne kao prolazan oblacic koji korisnik propusti.
+    const izPrethodne = elementPoruke();
+    if (izPrethodne) okvir.appendChild(izPrethodne);
     okvir.appendChild(sekcijaStanje(d));
     okvir.appendChild(sekcijaHronologija(d));
     okvir.appendChild(sekcijaAnaliza(d));
-    okvir.appendChild(sekcijaSpisi(d, predmetId, ciklus));
-    okvir.appendChild(sekcijaRokovi(d));
+    okvir.appendChild(sekcijaSpisi(d, predmetId, ciklus, radnje));
+    okvir.appendChild(sekcijaRokovi(d, ciklus));
     sadrzaj.replaceChildren(okvir);
 
     // Traka ide IZNAD sadrzaja, unutar iste papir scene.

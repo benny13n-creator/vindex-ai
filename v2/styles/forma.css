@@ -1,0 +1,129 @@
+/* Vindex V2 — unos podataka.
+ *
+ * Jedna kolona, vidljive labele, bez kartica i bez koraka-carobnjaka.
+ * Placeholder NIJE labela: nestaje cim se kuca, pa polje koje advokat popuni
+ * pola sata kasnije vise ne kaze sta je u njemu.
+ *
+ * Polja su ista visina i ista sirina kao kontrole u registru — forma nije
+ * druga aplikacija nego drugi posao u istoj.
+ */
+
+.v2-forma {
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-r-5);
+  max-width: 720px;
+  padding-block: var(--v2-r-5) var(--v2-r-7);
+}
+
+.v2-polje-unos { display: flex; flex-direction: column; gap: 6px; }
+
+.v2-polje-unos__labela {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-tx-2);
+}
+
+.v2-polje-unos__kontrola {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--v2-linija-jaca);
+  border-radius: var(--v2-radijus);
+  background: var(--v2-papir);
+  color: var(--v2-tx-1);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+}
+textarea.v2-polje-unos__kontrola { min-height: 96px; resize: vertical; }
+
+.v2-polje-unos__kontrola:focus-visible {
+  outline: 2px solid var(--v2-brend);
+  outline-offset: 1px;
+  border-color: var(--v2-brend);
+}
+
+.v2-polje-unos__pomoc {
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  max-width: var(--v2-mera-citanje);
+}
+
+/* Dva polja koja se citaju kao par (tuzilac / tuzeni) stoje jedno uz drugo
+   kad ima mesta, a jedno ispod drugog kad nema. Nikad se ne skracuju. */
+.v2-forma__par {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--v2-r-5);
+}
+
+.v2-forma__radnje {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+  flex-wrap: wrap;
+  padding-top: var(--v2-r-2);
+}
+
+/* ── Glavna radnja: jedna po ekranu, puna ispuna ─────────────────────── */
+.v2-dugme--glavno {
+  background: var(--v2-brend);
+  border-color: var(--v2-brend);
+  color: #FFFFFF;
+}
+.v2-dugme--glavno:hover:not(:disabled) { background: #5B1620; border-color: #5B1620; }
+.v2-dugme--glavno:disabled {
+  background: var(--v2-linija-jaca);
+  border-color: var(--v2-linija-jaca);
+  color: var(--v2-papir);
+}
+
+/* Odustajanje ne izgleda kao radnja ravna glavnoj. */
+.v2-dugme--tiho {
+  border-color: transparent;
+  color: var(--v2-tx-2);
+  text-decoration: none;
+}
+.v2-dugme--tiho:hover { color: var(--v2-tx-1); text-decoration: underline; text-underline-offset: 3px; }
+
+.v2-dugme--opasno { color: var(--v2-st-greska); border-color: var(--v2-linija-jaca); }
+.v2-dugme--opasno:hover:not(:disabled) { border-color: var(--v2-st-greska); }
+
+/* ── Poruka o ishodu ─────────────────────────────────────────────────── */
+.v2-forma__poruka,
+.v2-obavestenje {
+  padding: var(--v2-r-3) var(--v2-r-4);
+  border-left: 3px solid var(--v2-tx-3);
+  background: var(--v2-papir-2);
+  font-size: 14px;
+  color: var(--v2-tx-1);
+  max-width: var(--v2-mera-citanje);
+}
+.v2-obavestenje { margin-block: var(--v2-r-4) 0; }
+
+.v2-forma__poruka--greska,
+.v2-obavestenje--greska { border-left-color: var(--v2-st-greska); }
+.v2-forma__poruka--upozorenje,
+.v2-obavestenje--upozorenje { border-left-color: var(--v2-brend); }
+.v2-forma__poruka--uspeh,
+.v2-obavestenje--uspeh { border-left-color: var(--v2-st-aktivno); }
+
+/* ── Potvrda opasne radnje ───────────────────────────────────────────── */
+.v2-potvrda {
+  border: 1px solid var(--v2-st-greska);
+  padding: var(--v2-r-4);
+  margin-top: var(--v2-r-4);
+  max-width: var(--v2-mera-citanje);
+}
+.v2-potvrda__naslov { font-size: 15px; font-weight: 600; color: var(--v2-tx-1); }
+.v2-potvrda__telo { font-size: 14px; color: var(--v2-tx-2); margin-top: var(--v2-r-2); }
+.v2-potvrda__radnje { display: flex; gap: var(--v2-r-3); margin-top: var(--v2-r-4); flex-wrap: wrap; }
+
+/* Recenica ispod naslova scene: objasnjava sta ekran radi, ne reklamira ga. */
+.v2-podnaslov {
+  margin-top: var(--v2-r-2);
+  font-size: 14px;
+  color: var(--v2-tx-3);
+  max-width: var(--v2-mera-citanje);
+}

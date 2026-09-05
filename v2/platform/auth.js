@@ -103,3 +103,22 @@ export function korisnik() {
 export function naPrijavu() {
   window.location.replace(PRIJAVA);
 }
+
+
+/**
+ * Odjava. Brise sesiju iz `localStorage` i vodi na prijavu.
+ *
+ * NAMERNO NE ZOVE `/api/logout`: sesija V2 aplikacije zivi iskljucivo u
+ * `localStorage` kljucu koji Supabase upisuje, pa je brisanje tog kljuca ono
+ * sto odjavu STVARNO izvrsava. Poziv koji bi mogao da padne, a posle koga
+ * korisnik i dalje ima vazecu sesiju u pretrazivacu, dao bi ekran koji tvrdi
+ * da je odjavio a nije.
+ *
+ * Prvo se brise, pa se tek onda ide na prijavu — obrnut redosled bi ostavio
+ * sesiju ziva ako navigacija krene pre brisanja.
+ */
+export function odjavi() {
+  try { window.localStorage.removeItem(KLJUC); } catch (e) { /* privatan prozor */ }
+  _sesija = null;
+  window.location.replace(PRIJAVA);
+}

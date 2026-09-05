@@ -223,3 +223,73 @@
   .v2-spisi__akcije { text-align: left; }
   .v2-tekst-veza { justify-content: flex-start; }
 }
+
+/* ── Otpremanje spisa ────────────────────────────────────────────────── */
+.v2-otpremi {
+  margin-top: var(--v2-r-5);
+  padding-top: var(--v2-r-4);
+  border-top: 1px solid var(--v2-linija);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-r-2);
+  max-width: var(--v2-mera-citanje);
+}
+.v2-otpremi__labela { font-size: 13px; font-weight: 600; color: var(--v2-tx-2); }
+.v2-otpremi__red { display: flex; align-items: center; gap: var(--v2-r-3); flex-wrap: wrap; }
+.v2-otpremi__polje { font-size: 13px; color: var(--v2-tx-2); flex: 1 1 240px; min-width: 0; }
+.v2-otpremi__stanje {
+  font-size: 13px;
+  color: var(--v2-tx-2);
+  border-left: 3px solid var(--v2-tx-3);
+  padding: var(--v2-r-2) var(--v2-r-3);
+  background: var(--v2-papir-2);
+}
+.v2-otpremi__stanje--greska { border-left-color: var(--v2-st-greska); }
+.v2-otpremi__stanje--upozorenje { border-left-color: var(--v2-brend); }
+.v2-otpremi__stanje--uspeh { border-left-color: var(--v2-st-aktivno); }
+
+/* Naziv spisa otvara citanje. Izgleda kao tekst reda, ne kao dugme. */
+.v2-spisi__otvori {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--v2-tx-1);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.v2-spisi__otvori:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--v2-brend); }
+
+/* ── Odluka o predlozenom roku ───────────────────────────────────────── */
+.v2-odluka { display: flex; align-items: center; gap: var(--v2-r-2); flex-wrap: wrap; }
+.v2-dugme--sitno { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+@media (pointer: coarse) { .v2-dugme--sitno { min-height: 44px; } }
+.v2-odluka__stanje { font-size: 13px; color: var(--v2-tx-3); }
+.v2-odluka__stanje--greska { color: var(--v2-st-greska); }
+
+.v2-rok__red { grid-template-columns: minmax(0, 15ch) minmax(0, 1fr) auto; }
+
+/* ── Citac spisa ─────────────────────────────────────────────────────── */
+.v2-citac { padding-bottom: var(--v2-r-7); }
+.v2-citac__zaglavlje { padding-block: var(--v2-r-5) var(--v2-r-4); border-bottom: 1px solid var(--v2-linija); }
+.v2-citac__nazad { display: inline-block; margin-bottom: var(--v2-r-3); }
+.v2-citac__naziv { overflow-wrap: anywhere; }
+.v2-citac__linija {
+  margin-top: var(--v2-r-2);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--v2-r-4);
+  font-size: 13px; color: var(--v2-tx-3);
+}
+.v2-citac__telo {
+  padding-top: var(--v2-r-5);
+  max-width: var(--v2-mera-citanje);
+}
+.v2-citac__pasus {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--v2-tx-1);
+  margin-bottom: var(--v2-r-4);
+  overflow-wrap: anywhere;
+}
+.v2-otpremi__uslovi { font-size: 13px; color: var(--v2-tx-3); }
