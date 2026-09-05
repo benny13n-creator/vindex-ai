@@ -1,79 +1,103 @@
 /* Vindex V2 — ruter (History API).
  *
- * U Wave 1 postoji tacno jedan ekran, pa ruter namerno nema ni ugnjezdene rute
- * ni parametre ni cuvare. Ono sto ima je jedina stvar zbog koje ruter uopste
- * postoji ovako rano: da `/app-v2` i `/app-v2/predmeti` budu ISTA aplikacija,
- * da osvezavanje i deep link rade, i da izmena putanje ne izaziva ponovno
- * ucitavanje dokumenta.
+ * Ruter zna samo za PROSTORE. Ne zna za objekte i radnje unutar njih — to je
+ * posao ekrana. Time se dubina navigacije drzi na modelu
+ * PROSTOR -> OBJEKAT -> RADNJA, umesto da ruter postane stablo tabova.
  *
- * Ne pravi se ovde apstrakcija za rute koje jos ne postoje.
+ * Sve rute su prave putanje, pa `<a href>` radi nativno: srednji klik i
+ * „otvori u novoj kartici" ne traze nijednu liniju koda. Obican klik ruter
+ * presrece i menja prikaz bez ponovnog ucitavanja dokumenta.
+ *
+ * Kontekst se cuva izmedju prelazaka: ekran koji se napusta moze da ostavi
+ * svoje stanje, a isti ekran ga pri povratku zatice. Bez toga bi korisnik
+ * posle svakog prelaska iznova gradio pretragu, stranu i poziciju.
  */
 
 export const KOREN = "/app-v2";
 
-const ekrani = new Map();
-let tekuci = null;      // { kljuc, ciklus }
-let ciljKontejner = null;
+const ekrani = new Map();          // kljuc -> montiraj(el, kontekst)
+let tekuci = null;                 // { kljuc, ciklus }
+let kontejner = null;
+let podrazumevani = null;
+const slusaoci = [];
+const konteksti = new Map();       // kljuc -> proizvoljno stanje ekrana
 
-/** @param {string} kljuc  @param {(el:HTMLElement)=>{ugasi:()=>void}} montiraj */
+/** @param {(el:HTMLElement, kontekst:object)=>{ugasi:Function, kontekst?:Function}} montiraj */
 export function registruj(kljuc, montiraj) {
   ekrani.set(kljuc, montiraj);
+  if (!podrazumevani) podrazumevani = kljuc;
+}
+
+export function postaviPodrazumevani(kljuc) {
+  podrazumevani = kljuc;
+}
+
+export function naPromenu(fn) {
+  slusaoci.push(fn);
+  if (tekuci) fn(tekuci.kljuc);
 }
 
 function kljucIzPutanje(putanja) {
-  const p = putanja.replace(/\/+$/, "") || KOREN;
-  if (p === KOREN) return "predmeti";              // koren se razresava na Predmeti
-  if (p === KOREN + "/predmeti") return "predmeti";
-  return null;
+  const p = String(putanja || "").replace(/\/+$/, "");
+  if (p === KOREN || p === "") return podrazumevani;
+  const zadnji = p.slice(KOREN.length + 1);
+  return ekrani.has(zadnji) ? zadnji : null;
 }
 
 export function putanjaZa(kljuc) {
-  return kljuc === "predmeti" ? KOREN + "/predmeti" : KOREN;
+  return `${KOREN}/${kljuc}`;
 }
 
-function primeni(zamena) {
-  const kljuc = kljucIzPutanje(window.location.pathname);
+function primeni() {
+  let kljuc = kljucIzPutanje(window.location.pathname);
 
+  // Nepoznata putanja -> kanonsko razresenje na podrazumevani prostor,
+  // bez ponovnog ucitavanja dokumenta.
   if (!kljuc) {
-    // Nepoznata child putanja -> kanonsko razresenje na Predmeti, bez
-    // ponovnog ucitavanja dokumenta.
-    window.history.replaceState({}, "", putanjaZa("predmeti"));
-    return primeni(true);
-  }
-
-  // Koren bez eksplicitne child putanje dobija kanonsku putanju u traci,
-  // takodje bez reload-a.
-  if (window.location.pathname.replace(/\/+$/, "") === KOREN) {
+    kljuc = podrazumevani;
+    window.history.replaceState({}, "", putanjaZa(kljuc));
+  } else if (window.location.pathname.replace(/\/+$/, "") === KOREN) {
     window.history.replaceState({}, "", putanjaZa(kljuc));
   }
 
-  if (tekuci && tekuci.kljuc === kljuc && !zamena) return;
+  if (tekuci && tekuci.kljuc === kljuc) return;
 
-  if (tekuci) { tekuci.ciklus.ugasi(); tekuci = null; }
-  ciljKontejner.replaceChildren();
+  if (tekuci) {
+    // Ekran koji odlazi ostavlja svoj kontekst da bi ga zatekao pri povratku.
+    if (typeof tekuci.ciklus.kontekst === "function") {
+      try { konteksti.set(tekuci.kljuc, tekuci.ciklus.kontekst()); } catch (e) { /* nebitno */ }
+    }
+    tekuci.ciklus.ugasi();
+    tekuci = null;
+  }
+  kontejner.replaceChildren();
 
   const montiraj = ekrani.get(kljuc);
   if (!montiraj) return;
-  tekuci = { kljuc, ciklus: montiraj(ciljKontejner) };
+  tekuci = { kljuc, ciklus: montiraj(kontejner, konteksti.get(kljuc) || null) };
+  for (const fn of slusaoci) fn(kljuc);
 }
 
-export function pokreni(kontejner) {
-  ciljKontejner = kontejner;
-  window.addEventListener("popstate", () => primeni(false));
-  primeni(false);
+export function pokreni(el) {
+  kontejner = el;
+  window.addEventListener("popstate", primeni);
+  primeni();
+}
+
+export function idiNaPutanju(putanja) {
+  const p = String(putanja || "");
+  if (window.location.pathname === p) return;
+  window.history.pushState({}, "", p);
+  primeni();
 }
 
 export function idiNa(kljuc) {
-  const p = putanjaZa(kljuc);
-  if (window.location.pathname === p) return;
-  window.history.pushState({}, "", p);
-  primeni(false);
+  idiNaPutanju(putanjaZa(kljuc));
 }
 
-/** Samo za testove — vraca ruter u pocetno stanje. */
+/** Samo za testove. */
 export function _resetuj() {
   if (tekuci) tekuci.ciklus.ugasi();
-  tekuci = null;
-  ciljKontejner = null;
-  ekrani.clear();
+  tekuci = null; kontejner = null; podrazumevani = null;
+  ekrani.clear(); konteksti.clear(); slusaoci.length = 0;
 }

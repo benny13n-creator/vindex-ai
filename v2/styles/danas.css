@@ -1,0 +1,131 @@
+/* Vindex V2 — Danas.
+ *
+ * Ekran je spisak, ne tabla. Nema kartica, nema mreze widgeta, nema grafikona.
+ * Grupe se razdvajaju natkapom i belinom, stavke vlasastom linijom.
+ *
+ * Datum je jedini element koji sme da bude mono: vrednost koja se poredi po
+ * vertikali i prepisuje u rokovnik.
+ */
+
+.v2-danas { padding-bottom: var(--v2-r-7); }
+
+.v2-zaglavlje__datum {
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Grupa ───────────────────────────────────────────────────────────── */
+.v2-grupa { margin-bottom: var(--v2-r-6); }
+.v2-grupa__naslov {
+  padding-bottom: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija-jaca);
+  margin: 0;
+}
+
+/* Istekla obaveza je jedino mesto na ekranu gde semanticka boja nesto nosi —
+   i tu je nosi TANKA LINIJA, dok rec „Isteklo" i dalje nosi znacenje sama.
+   Boja pojacava, ne zamenjuje. */
+.v2-grupa[data-grupa="isteklo"] .v2-grupa__naslov {
+  border-bottom-color: var(--v2-st-greska);
+  color: var(--v2-st-greska);
+}
+
+/* ── Stavka ──────────────────────────────────────────────────────────── */
+.v2-obaveza {
+  display: grid;
+  grid-template-columns: minmax(0, 15ch) minmax(0, 1fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: var(--v2-red-min);
+}
+
+.v2-obaveza__kada {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  color: var(--v2-tx-2);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-obaveza__rel {
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--v2-tx-3);
+}
+.v2-grupa[data-grupa="isteklo"] .v2-obaveza__rel { color: var(--v2-st-greska); }
+
+.v2-obaveza__telo { min-width: 0; }
+
+.v2-obaveza__naslov {
+  font-size: 15px;
+  color: var(--v2-tx-1);
+  overflow-wrap: anywhere;
+}
+
+/* KATEGORIJA: verzal, sitno, prigušeno, bez ispune i okvira. */
+.v2-obaveza__vrsta {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+  margin-right: var(--v2-r-2);
+}
+
+.v2-obaveza__meta {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+.v2-obaveza__meta > * + *::before {
+  content: "·";
+  margin-right: 10px;
+  color: var(--v2-tx-3);
+}
+
+.v2-obaveza__predmet { overflow-wrap: anywhere; }
+
+/* Jedina tvrdnja na ekranu koja menja ono sto advokat sme da pretpostavi. */
+.v2-obaveza__nepotvrdjeno {
+  color: var(--v2-st-greska);
+  font-weight: 500;
+}
+
+/* ── Upozorenje o nepotpunom izvoru ──────────────────────────────────── */
+.v2-upozorenje {
+  border-left: 2px solid var(--v2-st-greska);
+  padding: var(--v2-r-2) var(--v2-r-4);
+  margin-bottom: var(--v2-r-5);
+  font-size: 14px;
+  color: var(--v2-tx-2);
+}
+
+/* ── Nedavno otvoreni predmeti (samo kada nema obaveza) ──────────────── */
+.v2-nedavni { margin-top: var(--v2-r-7); }
+.v2-nedavni__lista { margin-top: var(--v2-r-2); border-top: 1px solid var(--v2-linija-jaca); }
+.v2-nedavni__red {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: var(--v2-red-min);
+}
+.v2-nedavni__naziv { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-nedavni__meta { font-size: 13px; color: var(--v2-tx-3); white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .v2-obaveza {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .v2-obaveza__kada { flex-direction: row; align-items: baseline; gap: 10px; }
+}

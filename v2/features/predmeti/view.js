@@ -92,9 +92,18 @@ function poruka({ naslov, telo, greska }) {
 
 /* ── Montiranje ─────────────────────────────────────────────────────────── */
 
-export function montirajPredmete(kontejner) {
+export function montirajPredmete(kontejner, kontekst) {
   const ciklus = napraviCiklus();
   const s = napraviStanje(PO_STRANI);
+
+  // Kontekst prezivljava odlazak u drugi prostor i povratak: korisnik koji je
+  // trazio „kalibracija" na trecoj strani zatice tacno to, a ne prazan registar.
+  // Bez ovoga bi svaki prelazak na Danas i natrag ponistio njegov rad.
+  if (kontekst) {
+    if (typeof kontekst.upit === "string") s.upit = kontekst.upit;
+    if (Number.isFinite(kontekst.offset)) s.offset = kontekst.offset;
+    if (Number.isFinite(kontekst.limit) && kontekst.limit > 0) s.limit = kontekst.limit;
+  }
 
   const unutra = el("div", "v2-scena__unutra");
 
@@ -122,6 +131,7 @@ export function montirajPredmete(kontejner) {
   polje.name = "q";
   polje.autocomplete = "off";
   polje.placeholder = "Pretraži predmete";
+  polje.value = s.upit;
   const ocisti = el("button", "v2-trazi__ocisti", "Poništi");
   ocisti.type = "button";
   ocisti.hidden = true;
@@ -295,6 +305,9 @@ export function montirajPredmete(kontejner) {
   });
 
   ciklus.dodaj(() => { if (s.prekidac) s.prekidac.abort(); });
+
+  // Ruter ovo cita pri napustanju ekrana i vraca pri sledecem montiranju.
+  ciklus.kontekst = () => ({ upit: s.upit, offset: s.offset, limit: s.limit });
 
   ucitaj();
   return ciklus;

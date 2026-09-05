@@ -53,21 +53,40 @@
   min-height: 60px;
   display: flex;
   align-items: center;
-  gap: var(--v2-r-5);
+  gap: var(--v2-r-6);
+  flex-wrap: wrap;
 }
 
-.v2-ljuska__odeljak {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--v2-tx-1-crna);
-  position: relative;
-  padding-block: 6px;
+/* ── Globalna navigacija ───────────────────────────────────────────────
+ * Editorial, ne bocna traka i ne trake sa ispunom. Aktivan prostor nosi
+ * uzdrzanu liniju i vecu tezinu (ustav §13, N-2), nikad ispunu.
+ * Prostor koji ne postoji ovde se i ne iscrtava — nema onemogucenih stavki.
+ */
+.v2-nav { min-width: 0; }
+.v2-nav__lista {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-5);
+  flex-wrap: wrap;
 }
-/* Aktivni odeljak: uzdrzana linija, ne ispuna (ustav §13, N-2). */
-.v2-ljuska__odeljak::after {
+.v2-nav__veza {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;              /* interakcioni cilj, ne iscrtana visina */
+  padding-block: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--v2-tx-2-crna);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.v2-nav__veza:hover { color: var(--v2-tx-1-crna); }
+.v2-nav__veza--aktivan { color: var(--v2-tx-1-crna); font-weight: 600; }
+.v2-nav__veza--aktivan::after {
   content: "";
   position: absolute;
-  left: 0; right: 0; bottom: -1px;
+  left: 0; right: 0; bottom: 8px;
   height: 2px;
   background: var(--v2-brend-na-crnoj);
 }
@@ -99,6 +118,7 @@
 
 @media (max-width: 720px) {
   .v2-ljuska__red { gap: var(--v2-r-4); min-height: 56px; }
+  .v2-nav__lista { gap: var(--v2-r-4); }
   .v2-ljuska__email { max-width: 16ch; }
   .v2-zaglavlje { padding-block: var(--v2-r-5) var(--v2-r-3); }
 }
