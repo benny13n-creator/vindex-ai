@@ -1,7 +1,7 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v148";
+const CACHE_NAME = "vindex-v149";
 
 const PRECACHE = [
   "/offline",
@@ -34,6 +34,25 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
 
   if (event.request.method !== "GET") return;
+
+  // ── Vindex V2 izolacija (Z015 §11) ─────────────────────────────────────────
+  // /app-v2 i /v2/@token/* NIKAD ne prolaze kroz ovaj service worker.
+  //
+  // Bez ovoga: navigacija na /app-v2 pri padu mreze pada na `caches.match("/offline")`,
+  // a /offline vraca legacy index.html. Korisnik bi video STARI Vindex pod V2 URL-om,
+  // sto je gore od greske -- izgleda kao da V2 ne radi, a zapravo je pogresan proizvod.
+  //
+  // V2 je u Wave 1 ONLINE-ONLY. Dozvoljen ishod pri padu mreze je nativna mrezna
+  // greska pretrazivaca. Nije dozvoljen nijedan legacy app-shell dokument.
+  // Legacy /app zadrzava svoje offline ponasanje nepromenjeno.
+  if (
+    url.origin === self.location.origin &&
+    (url.pathname === "/app-v2" ||
+     url.pathname.startsWith("/app-v2/") ||
+     url.pathname.startsWith("/v2/"))
+  ) {
+    return; // bez respondWith -> pretrazivac ide direktno na mrezu
+  }
 
   // Supabase i eksterni auth/API servisi — nikad ne keširati
   if (
