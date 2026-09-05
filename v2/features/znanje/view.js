@@ -118,7 +118,14 @@ export function montirajZnanje(kontejner, kontekst) {
     e.preventDefault();
     idiNa("znanje", "praksa");
   });
-  prekidac.append(ovde, kaPraksi);
+  const kaRokovima = el("a", "v2-prekidac__stavka", "Rokovi");
+  kaRokovima.href = putanjaZa("znanje", "rokovi");
+  ciklus.slusaj(kaRokovima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("znanje", "rokovi");
+  });
+  prekidac.append(ovde, kaPraksi, kaRokovima);
   unutra.appendChild(prekidac);
 
   const forma = el("form", "v2-forma v2-znanje__forma");

@@ -50,7 +50,14 @@ export function montirajPraksu(kontejner, kontekst) {
   });
   const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Sudska praksa");
   ovde.setAttribute("aria-current", "page");
-  izbor.append(kaPropisima, ovde);
+  const kaRokovima = el("a", "v2-prekidac__stavka", "Rokovi");
+  kaRokovima.href = putanjaZa("znanje", "rokovi");
+  ciklus.slusaj(kaRokovima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("znanje", "rokovi");
+  });
+  izbor.append(kaPropisima, ovde, kaRokovima);
   unutra.appendChild(izbor);
 
   // ── Obrazac ──

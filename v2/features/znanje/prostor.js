@@ -1,8 +1,9 @@
 /* Vindex V2 — prostor ZNANJE: propisi i sudska praksa.
  *
- * Dva pitanja, jedan prostor:
+ * Tri pitanja, jedan prostor:
  *   /app-v2/znanje         -> sta kaze propis (RAG nad zakonskim korpusom)
  *   /app-v2/znanje/praksa  -> sta je sud vec presudio
+ *   /app-v2/znanje/rokovi  -> do kada (zastarelost i procesni rokovi)
  *
  * Praksa NIJE peti prostor i nema stavku u globalnoj navigaciji. Legacy ima
  * „Sudska praksa" kao zaseban sidebar item, ali to nije dokaz da V2 treba
@@ -14,8 +15,9 @@
 
 import { montirajZnanje } from "./view.js";
 import { montirajPraksu } from "./praksa.js";
+import { montirajRokove } from "./rokovi.js";
 
-const RADNJE = { praksa: montirajPraksu };
+const RADNJE = { praksa: montirajPraksu, rokovi: montirajRokove };
 
 export function montirajProstorZnanje(kontejner, kontekst, param) {
   const svi = kontekst || {};

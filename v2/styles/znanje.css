@@ -198,3 +198,65 @@
   margin-top: var(--v2-r-3); font-size: 15px; line-height: 1.65;
   color: var(--v2-tx-2); overflow-wrap: anywhere;
 }
+
+/* ── Racunanje rokova (B26) ──────────────────────────────────────────────
+ * „Isteklo" nosi sopstveno stanje: zastarelo potrazivanje i propusten
+ * procesni rok ne smeju izgledati kao „ostalo je jos 40 dana".
+ */
+.v2-rok-ishod { margin-top: var(--v2-r-5); }
+.v2-rok-ishod__kartica {
+  border: 1px solid var(--v2-linija);
+  border-left: 3px solid var(--v2-tx-3);
+  padding: var(--v2-r-4);
+  background: var(--v2-papir-2);
+}
+.v2-rok-ishod__kartica[data-ishod="isteklo"] { border-left-color: var(--v2-brend); }
+.v2-rok-ishod__kartica[data-ishod="blizu"]   { border-left-color: var(--v2-tx-1); }
+.v2-rok-ishod__naslov {
+  margin: 0;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 20px;
+  color: var(--v2-tx-1);
+}
+.v2-rok-ishod__osnov {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--v2-tx-2);
+}
+.v2-rok-ishod__datum {
+  margin: var(--v2-r-4) 0 0;
+  font-size: 18px;
+  color: var(--v2-tx-1);
+}
+.v2-rok-ishod__datum .v2-mono { font-variant-numeric: tabular-nums; }
+.v2-rok-ishod__stanje { margin: 4px 0 0; color: var(--v2-tx-2); }
+.v2-rok-ishod__kartica[data-ishod="isteklo"] .v2-rok-ishod__stanje {
+  color: var(--v2-brend);
+  font-weight: 600;
+}
+.v2-rok-ishod__detalji {
+  margin-top: var(--v2-r-4);
+  padding-top: var(--v2-r-3);
+  border-top: 1px solid var(--v2-linija);
+}
+.v2-rok-ishod__red {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--v2-r-3);
+  padding: 3px 0;
+  font-size: 14px;
+}
+.v2-rok-ishod__oznaka { color: var(--v2-tx-3); }
+.v2-rok-ishod__vrednost { color: var(--v2-tx-1); }
+.v2-rok-ishod__napomena {
+  margin: var(--v2-r-3) 0 0;
+  font-size: 14px;
+  color: var(--v2-tx-2);
+}
+.v2-rok-ishod__ograda {
+  margin: var(--v2-r-4) 0 0;
+  padding-top: var(--v2-r-3);
+  border-top: 1px solid var(--v2-linija);
+  font-size: 13px;
+  color: var(--v2-tx-3);
+}
