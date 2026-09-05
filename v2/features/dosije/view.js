@@ -32,6 +32,7 @@ import { obrazacZadatka, obrazacRocista, obrazacBeleske,
          kontrolaBrisanjaSpisa, kontrolaBrisanjaNapomene } from "./radnje.js";
 import { kontrolaIzmene } from "./izmena.js";
 import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
+import { ucitajNaplatuPredmeta, sadrzajNaplate } from "./naplata.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -567,7 +568,31 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
     okvir.appendChild(sekcijaAnaliza(d));
     okvir.appendChild(sekcijaSpisi(d, predmetId, ciklus, radnje));
     okvir.appendChild(sekcijaRokovi(d, ciklus, predmetId, radnje, new Date()));
+
+    // Naplata se ucitava ODVOJENO i POSLE jezgra: Dosije ne sme da ceka na
+    // billing da bi prikazao predmet, a pad naplate ne sme da obori Dosije.
+    // Do odgovora stoji izricito „ucitava se" — prazna celina bi tvrdila da
+    // na predmetu nema evidentiranog rada.
+    const cNap = celina("naplata", "Naplata");
+    cNap.appendChild(prazno("Učitava se…"));
+    okvir.appendChild(cNap);
     sadrzaj.replaceChildren(okvir);
+
+    (async () => {
+      let n;
+      try {
+        n = await ucitajNaplatuPredmeta(predmetId, { signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        n = { unosi: null, unosiPali: true, unosiGreska: e,
+              tajmer: null, tajmerPao: true };
+      }
+      if (ciklus.ugasen) return;
+      cNap.replaceChildren(naslovCeline("naplata", "Naplata"));
+      cNap.appendChild(sadrzajNaplate(n, predmetId, d.zaglavlje.naziv,
+                                      ciklus, radnje && radnje.osvezi
+                                        ? radnje.osvezi : () => {}));
+    })();
 
     // Traka ide IZNAD sadrzaja, unutar iste papir scene.
     unutra.parentElement.insertBefore(traka, unutra);

@@ -208,3 +208,64 @@ def test_iznos_se_cita_i_sa_tackama_i_sa_zarezom():
 def test_nula_i_negativan_iznos_se_odbijaju():
     assert len(_js('return N.nedostaciUnosa({ predmetId:"p", opis:"x", iznos:"0" });')) == 1
     assert len(_js('return N.nedostaciUnosa({ predmetId:"p", opis:"x", iznos:"-5" });')) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# B16 — NAPLATA JEDNOG PREDMETA U DOSIJEU
+#
+# Kancelarija odgovara na „koliko sam ovog meseca zaradio", Dosije na „koliko
+# je rada ulozeno u OVAJ predmet". Isti domen sluzi oba pitanja; ono sto se
+# ovde cuva su pravila koja Dosije uvodi.
+# ═══════════════════════════════════════════════════════════════════════════
+def _dosije_js(telo: str):
+    import json as _json
+    skripta = textwrap.dedent(f"""
+        import * as D from "file:///{V2}/domain/dosije.js";
+        const rezultat = await (async () => {{ {telo} }})();
+        process.stdout.write(JSON.stringify(rezultat));
+    """)
+    p = subprocess.run([node, "--input-type=module", "-e", skripta],
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert p.returncode == 0, p.stderr[-1500:]
+    return _json.loads(p.stdout)
+
+
+@nodemark
+def test_naplata_je_celina_dosijea_i_to_poslednja():
+    """Predmet se prvo razume pa tek onda naplacuje — Naplata je na kraju."""
+    sidra = _dosije_js("return D.SIDRA.map(x => x.kljuc);")
+    assert "naplata" in sidra, sidra
+    assert sidra[-1] == "naplata", sidra
+
+
+@nodemark
+def test_prazan_odgovor_ne_daje_nijedan_unos():
+    """Ekran krije zbir kad `svi` je prazan — ovo cuva uslov od koga zavisi.
+
+    Cetiri nule iznad recenice „jos nije evidentiran rad" nisu merenje, a
+    „Ukupno 0 RSD" se cita kao tvrdnja da klijent nista ne duguje.
+    """
+    u = _js("return N.uUnose({ entries: [], ukupno_rsd: 0, obracunato_rsd: 0, "
+            "neobracunato_rsd: 0, ukupno_h: 0 });")
+    assert u["svi"] == []
+    assert u["zaFakturu"] == []
+
+
+@nodemark
+def test_tri_iznosa_ostaju_razdvojena():
+    """„Ukupno" nije „obracunato"; spajanje bi sakrilo sta jos treba naplatiti."""
+    u = _js("return N.uUnose({ entries: [], ukupno_rsd: 30000, "
+            "obracunato_rsd: 12000, neobracunato_rsd: 18000, ukupno_h: 4 });")
+    assert u["ukupno"] != u["obracunato"], u
+    assert u["neobracunato"] != u["ukupno"], u
+    assert len({u["ukupno"], u["obracunato"], u["neobracunato"]}) == 3, u
+
+
+@nodemark
+def test_tajmer_na_drugom_predmetu_je_i_dalje_aktivan():
+    """Dosije poredi `predmetId` — ali `radi` ne sme da zavisi od predmeta."""
+    t = _js("return N.uTajmer({ aktivan: true, timer: { predmet_id: 'drugi', "
+            "opis: 'Priprema' } });")
+    assert t["radi"] is True
+    assert t["predmetId"] == "drugi"
+    assert t["poznato"] is True

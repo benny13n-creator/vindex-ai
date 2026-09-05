@@ -328,3 +328,58 @@
   padding-top: var(--v2-r-4);
   border-top: 1px solid var(--v2-linija);
 }
+
+/* ── Naplata predmeta (B16) ──────────────────────────────────────────────
+ * Iznosi su tabelarni brojevi u monospace-u: advokat ih poredi po vertikali,
+ * a proporcionalne cifre bi mu pomerale kolonu iz reda u red.
+ */
+.v2-naplata__zbir {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--v2-linija);
+}
+.v2-naplata__stavka {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--v2-r-3) var(--v2-r-4) var(--v2-r-3) 0;
+  border-bottom: 1px solid var(--v2-linija);
+}
+.v2-naplata__oznaka {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+.v2-naplata__zbir .v2-naplata__iznos {
+  font-size: 18px;
+  color: var(--v2-tx-1);
+  font-variant-numeric: tabular-nums;
+}
+.v2-naplata__unos {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--v2-r-3);
+  flex-wrap: wrap;
+}
+.v2-naplata__meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--v2-r-3);
+  color: var(--v2-tx-3);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.v2-naplata__meta .v2-mono {
+  color: var(--v2-tx-1);
+  font-variant-numeric: tabular-nums;
+}
+.v2-naplata__tajmer { margin: 0 0 var(--v2-r-3); color: var(--v2-tx-1); }
+.v2-polje-unos__kontrola--usko { max-width: 8.5rem; }
+
+@media (max-width: 640px) {
+  .v2-naplata__zbir { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v2-naplata__unos { align-items: flex-start; }
+}

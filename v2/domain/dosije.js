@@ -37,6 +37,8 @@ export const SIDRA = Object.freeze([
   { kljuc: "analiza", naziv: "Analiza" },
   { kljuc: "spisi", naziv: "Spisi" },
   { kljuc: "rokovi", naziv: "Rokovi" },
+  // Naplata je POSLEDNJA: predmet se prvo razume, pa tek onda naplacuje.
+  { kljuc: "naplata", naziv: "Naplata" },
 ]);
 
 function tekst(v) {
