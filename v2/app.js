@@ -12,7 +12,7 @@
 
 import { montirajLjusku } from "./shell/shell.js";
 import { registruj, pokreni, postaviPodrazumevani } from "./platform/router.js";
-import { montirajDanas } from "./features/danas/view.js";
+import { montirajProstorDanas } from "./features/danas/prostor.js";
 import { montirajProstorPredmeti } from "./features/predmeti/prostor.js";
 import { montirajPredmetProstor } from "./features/dosije/prostor.js";
 import { montirajPretragu } from "./features/pretraga/view.js";
@@ -30,7 +30,8 @@ export const IZGRADJENI = ["danas", "predmeti", "znanje", "kancelarija", "usklad
 export function pokreniAplikaciju(koren, { sme } = {}) {
   const glavni = montirajLjusku(koren, { izgradjeni: IZGRADJENI, sme });
 
-  registruj("danas", montirajDanas);
+  // Prostor DANAS sam razresava svoje radnje ().
+  registruj("danas", montirajProstorDanas);
   // Prostor PREDMETI sam razresava radnje u sebi (`/predmeti/nov`).
   registruj("predmeti", montirajProstorPredmeti);
   // `predmet` je OBJEKAT, ne prostor: ne pojavljuje se u globalnoj navigaciji,

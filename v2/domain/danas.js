@@ -285,3 +285,92 @@ export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
     nedokazivo,
   };
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * KALENDAR — isti podaci, siri prozor
+ *
+ * Danas odgovara na „sta trazi moju paznju"; kalendar na „sta me ceka".
+ * To su dva pitanja nad ISTIM izvorima, pa kalendar NE sme da uvede drugi
+ * pojam roka: potvrdjen rok je i ovde potvrdjen, kandidat je i ovde
+ * kandidat, a neizjavljen red ni ovde nije rok.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** Naziv meseca za grupisanje. Bez skracenica koje se ne citaju. */
+const MESECI = ["januar", "februar", "mart", "april", "maj", "jun",
+                "jul", "avgust", "septembar", "oktobar", "novembar", "decembar"];
+
+const DANI = ["nedelja", "ponedeljak", "utorak", "sreda", "četvrtak", "petak", "subota"];
+
+/** „ponedeljak, 08.09.2026." — dan u nedelji je ono sto advokat planira. */
+export function danTekst(iso) {
+  const s = String(iso || "").slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(d.getTime())) return datumTekst(s);
+  return `${DANI[d.getDay()]}, ${m[3]}.${m[2]}.${m[1]}.`;
+}
+
+export function mesecTekst(iso) {
+  const m = /^(\d{4})-(\d{2})/.exec(String(iso || ""));
+  return m ? `${MESECI[Number(m[2]) - 1]} ${m[1]}` : "";
+}
+
+/**
+ * Sve sto ima datum u prozoru, grupisano po danu pa po mesecu.
+ *
+ * Ulazi su ISTI kao za Danas: potvrdjeni rokovi iz `kandidati.rokovi` i
+ * rocista iz `kalendar.dogadjaji`. Kandidati se NE prikazuju u kalendaru —
+ * nepotvrdjen predlog nije termin i ne sme da zauzme mesto u planu dana.
+ */
+export function sastaviKalendar({ kandidati, kalendar }, sada = danasDan()) {
+  const k = kandidati || {};
+  const c = kalendar || {};
+  const dogadjaji = Array.isArray(c.dogadjaji) ? c.dogadjaji : [];
+  const imena = imenaIzKalendara(dogadjaji);
+  const redovi = Array.isArray(k.rokovi) ? k.rokovi : [];
+
+  // Samo POTVRDJEN. Time su `izvrsen`/`otkazan`/`odbijen` vec iskljuceni —
+  // `jeRazresen` ovde nista ne bi dodao jer se racuna iz istog `stanjeZapisa`.
+  const rokovi = redovi
+    .filter(jeRok)
+    .filter(r => stanjeZapisa(r) === STANJE.POTVRDJEN)
+    .map(r => uObavezu(r, imena, sada));
+
+  const rocista = dogadjaji
+    .filter(e => e && e.tip === "rociste")
+    .map(e => uRociste(e, sada));
+
+  const stavke = rokovi.concat(rocista)
+    .filter(x => x.datumIso)
+    .sort((a, b) => (a.datumIso === b.datumIso
+      ? (a.vreme || "").localeCompare(b.vreme || "")
+      : (a.datumIso < b.datumIso ? -1 : 1)));
+
+  // Grupisanje po danu, pa dani po mesecu. Prazan dan se NE prikazuje:
+  // mreza od 30 praznih kvadrata nije plan nego ukras.
+  const poDanu = new Map();
+  for (const x of stavke) {
+    if (!poDanu.has(x.datumIso)) poDanu.set(x.datumIso, []);
+    poDanu.get(x.datumIso).push(x);
+  }
+  const meseci = [];
+  for (const [iso, lista] of poDanu) {
+    const mt = mesecTekst(iso);
+    let m = meseci.find(x => x.naziv === mt);
+    if (!m) { m = { naziv: mt, dani: [] }; meseci.push(m); }
+    m.dani.push({ iso, naslov: danTekst(iso), stavke: lista,
+                  proslo: razlikaDana(iso, sada) < 0 });
+  }
+  // Kandidati se NE prikazuju kao termini, ali se PREBROJAVAJU. Predlog koji
+  // nestane bez traga je gori od predloga u kalendaru: advokat ne moze da zna
+  // da li odluka ceka na nekoliko rokova ili ni na jednom.
+  const predlozi = redovi
+    .filter(jeRok)
+    .filter(r => stanjeZapisa(r) === STANJE.KANDIDAT)
+    .length;
+
+  return { meseci, ukupno: stavke.length, predlozi,
+           nedokazivo: redovi.filter(r => !jeRok(r)).length };
+}

@@ -144,3 +144,30 @@
 .v2-obaveza__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
 .v2-obaveza:has(.v2-obaveza__veza:hover) { background: var(--v2-papir-2); }
 .v2-obaveza .v2-odluka { margin-top: var(--v2-r-2); }
+
+/* ── Kalendar ────────────────────────────────────────────────────────── */
+.v2-kalendar { padding-bottom: var(--v2-r-7); }
+.v2-kal__mesec { margin-top: var(--v2-r-5); }
+.v2-kal__mesec-naslov { display: block; margin-bottom: var(--v2-r-3); }
+.v2-kal__dan {
+  padding-block: var(--v2-r-3);
+  border-top: 1px solid var(--v2-linija);
+}
+.v2-kal__dan[data-proslo="1"] .v2-kal__dan-naslov { color: var(--v2-st-greska); }
+.v2-kal__dan-naslov {
+  font-size: 14px; font-weight: 600; color: var(--v2-tx-2);
+  margin-bottom: var(--v2-r-2);
+}
+.v2-kal__stavka {
+  display: grid;
+  grid-template-columns: minmax(0, 7ch) minmax(0, 1fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-2);
+  min-height: 44px;
+}
+.v2-kal__vreme { font-size: 13px; color: var(--v2-tx-2); }
+.v2-kal__naslov { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .v2-kal__stavka { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}

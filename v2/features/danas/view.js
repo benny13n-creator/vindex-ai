@@ -34,7 +34,7 @@ import { naPrijavu } from "../../platform/auth.js";
 import { ucitajDanas, ucitajNedavnePredmete, DANA_UNAPRED } from "./api.js";
 import { kadaTekst } from "../../domain/danas.js";
 import { uZapise } from "../../domain/predmeti.js";
-import { idiNaPutanju, putanjaZa } from "../../platform/router.js";
+import { idiNaPutanju, putanjaZa, idiNa } from "../../platform/router.js";
 import { kontrolaOdluke } from "../rokovi/odluka.js";
 
 function el(tag, klasa, tekst) {
@@ -172,6 +172,22 @@ export function montirajDanas(kontejner) {
   zaglavlje.appendChild(h1);
   zaglavlje.appendChild(el("p", "v2-zaglavlje__datum v2-mono", danasnjiDatum()));
   unutra.appendChild(zaglavlje);
+
+  // Prekidac ka kalendaru: „sta trazi paznju" i „sta me ceka" su dva pitanja
+  // nad istim izvorima, pa dele prostor.
+  const prekidac = el("nav", "v2-prekidac");
+  prekidac.setAttribute("aria-label", "Pregled vremena");
+  const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Danas");
+  ovde.setAttribute("aria-current", "page");
+  const kaKalendaru = el("a", "v2-prekidac__stavka", "Kalendar");
+  kaKalendaru.href = putanjaZa("danas", "kalendar");
+  ciklus.slusaj(kaKalendaru, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "kalendar");
+  });
+  prekidac.append(ovde, kaKalendaru);
+  unutra.appendChild(prekidac);
 
   const sadrzaj = el("div", "v2-danas");
   sadrzaj.id = "v2-danas-sadrzaj";
