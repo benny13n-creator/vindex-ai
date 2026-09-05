@@ -30,7 +30,7 @@
  */
 
 import { napraviCiklus } from "../../platform/lifecycle.js";
-import { posalji } from "../../platform/http.js";
+import { dohvati, posalji } from "../../platform/http.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
@@ -151,7 +151,21 @@ export function montirajNovPredmet(kontejner, kontekst) {
   const par = el("div", "v2-forma__par");
   par.append(p3.omot, p4.omot);
 
-  forma.append(p1.omot, p2.omot, spisak, par, p5.omot, p6.omot);
+  // ── Postojeci klijent (opciono) ──
+  // Vezivanje ide kroz `POST /api/predmeti/{id}/confirm-links`, koji proverava
+  // vlasnistvo nad SVAKIM id-jem pre vezivanja. Klijent se bira sa spiska —
+  // slobodan unos imena ovde bi znacio da V2 sam pogadja na kog klijenta se
+  // misli, a to je posao coveka.
+  const p7 = polje("np-klijent", "Postojeći klijent", {
+    spisak: "np-klijenti",
+    pomoc: "Opciono. Počnite da kucate ime ili firmu; bira se sa spiska.",
+  });
+  p7.unos.value = zaceto.klijent || "";
+  const spisakK = el("datalist");
+  spisakK.id = "np-klijenti";
+  const klijentiPoNazivu = new Map();
+
+  forma.append(p1.omot, p2.omot, spisak, par, p5.omot, p7.omot, spisakK, p6.omot);
 
   const poruka = el("div", "v2-forma__poruka");
   poruka.setAttribute("role", "alert");
@@ -169,6 +183,30 @@ export function montirajNovPredmet(kontejner, kontekst) {
   unutra.appendChild(forma);
   kontejner.appendChild(unutra);
   p1.unos.focus();
+
+  // Spisak klijenata se ucitava u pozadini; ako padne, polje ostaje prazno a
+  // ostatak obrasca radi. Vezivanje klijenta je OPCIONO i ne sme da bude
+  // uslov za otvaranje predmeta.
+  (async () => {
+    try {
+      const d = await dohvati("/klijenti", { upit: { limit: 200 },
+                                             signal: ciklus.prekidac().signal });
+      if (ciklus.ugasen) return;
+      for (const k of (d && d.klijenti) || []) {
+        const ime = String(k.firma || [k.ime, k.prezime].filter(Boolean).join(" ") || "").trim();
+        if (!ime || !k.id) continue;
+        klijentiPoNazivu.set(ime, k.id);
+        const o = document.createElement("option");
+        o.value = ime;
+        spisakK.appendChild(o);
+      }
+    } catch (e) {
+      if (jePrekid(e) || ciklus.ugasen) return;
+      p7.omot.querySelector(".v2-polje-unos__pomoc").textContent =
+        "Spisak klijenata nije učitan. Predmet možete otvoriti i bez klijenta, "
+        + "pa ga povezati kasnije.";
+    }
+  })();
   document.title = "Nov predmet · Vindex";
 
   function javi(tekst, vrsta) {
@@ -370,6 +408,33 @@ export function montirajNovPredmet(kontejner, kontekst) {
         }
       }
     }
+
+    // ── Vezivanje postojeceg klijenta (opciono, treci korak) ──
+    // Vezuje se SAMO klijent izabran sa spiska. Otkucano ime koje nije u
+    // spisku se NE vezuje i to se KAZE: pogadjanje na kog klijenta se misli
+    // je posao coveka, ne ekrana. Predmet je vec otvoren, pa neuspeh ovde
+    // ne sme da izgleda kao neuspeh otvaranja predmeta.
+    const izabrano = p7.unos.value.trim();
+    if (izabrano) {
+      const klijentId = klijentiPoNazivu.get(izabrano);
+      if (!klijentId) {
+        ostavi(`Predmet je otvoren, ali klijent „${izabrano}" nije prepoznat sa spiska `
+             + "i nije povezan. Povežite ga iz Kancelarije.", "upozorenje");
+      } else {
+        try {
+          await posalji(`/api/predmeti/${encodeURIComponent(id)}/confirm-links`, {
+            telo: { klijent_ids: [klijentId], uloga: "stranka" },
+            signal: prekidac.signal,
+          });
+        } catch (err) {
+          if (!jePrekid(err) && !ciklus.ugasen) {
+            ostavi("Predmet je otvoren, ali klijent nije povezan. "
+                 + "Povežite ga iz Kancelarije.", "upozorenje");
+          }
+        }
+      }
+    }
+
     if (ciklus.ugasen) return;
     idiNa("predmet", id);
   });
@@ -378,6 +443,7 @@ export function montirajNovPredmet(kontejner, kontekst) {
   ciklus.kontekst = () => ({
     naziv: p1.unos.value, vrsta: p2.unos.value, tuzilac: p3.unos.value,
     tuzeni: p4.unos.value, vrednost: p5.unos.value, opis: p6.unos.value,
+    klijent: p7.unos.value,
   });
 
   return ciklus;

@@ -30,6 +30,7 @@ import { kontrolaOdluke } from "../rokovi/odluka.js";
 import { uZadatke, uRocista, uBeleske } from "../../domain/dosije.js";
 import { obrazacZadatka, obrazacRocista, obrazacBeleske,
          kontrolaBrisanjaSpisa } from "./radnje.js";
+import { kontrolaIzmene } from "./izmena.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -122,6 +123,12 @@ function sekcijaStanje(d, ciklus, predmetId, radnje) {
     bBel.appendChild(obrazacBeleske(predmetId, ciklus, radnje.osvezi));
   }
   s.appendChild(bBel);
+
+  // Izmena podataka stoji na dnu „Stanja" — advokat ispravlja ime tuzenog
+  // gledajuci ostatak predmeta, ne u praznom obrascu na drugoj strani.
+  if (radnje && radnje.osvezi && d.sirovi) {
+    s.appendChild(kontrolaIzmene(predmetId, d.sirovi, ciklus, radnje.osvezi));
+  }
 
   return s;
 }

@@ -208,6 +208,11 @@ export function sastaviDosije(odgovor, spremnostSirova, sada) {
     beleske: uBeleske(o.beleske),
     brojBelezaka: (o.beleske || []).length,
     spremnost: uSpremnost(spremnostSirova),
+    // Sirov zapis predmeta se cuva SAMO za izmenu: obrazac mora da zna
+    // zatecene vrednosti i `updated_at` radi optimisticke kontrole. Nista
+    // sa ovog objekta se NE iscrtava direktno — prikaz ide kroz `zaglavlje`
+    // i `polja`, koji su vec proslos kroz pravila o praznom i nepoznatom.
+    sirovi: o.predmet || null,
   };
 }
 
