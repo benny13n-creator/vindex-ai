@@ -6,6 +6,7 @@ Vindex AI — FastAPI server sa Supabase autentifikacijom i kreditnim sistemom
 import logging
 import os
 import asyncio
+from types import SimpleNamespace
 import threading
 from pathlib import Path
 from typing import Optional, List
@@ -4505,7 +4506,7 @@ async def lista_predmeta(
     q_ociscen = (q or "").strip().replace("%", "").replace("_", "")[:120]
     status_ociscen = (status or "").strip()[:40]
 
-    def _upit():
+    def _osnovni():
         ch = (
             _get_supa().table("predmeti")
             .select(kolone, count="exact")
@@ -4515,15 +4516,33 @@ async def lista_predmeta(
             ch = ch.ilike("naziv", "%%%s%%" % q_ociscen)
         if status_ociscen:
             ch = ch.eq("status", status_ociscen)
+        return ch
+
+    def _upit():
         # `id` kao drugi kljuc sortiranja: bez njega dva predmeta sa istim
         # `created_at` mogu menjati redosled izmedju dve stranice, pa bi red
         # bio preskocen ili prikazan dvaput.
-        return (
-            ch.order("created_at", desc=True)
-              .order("id", desc=True)
-              .range(offset, offset + limit - 1)
-              .execute()
-        )
+        try:
+            return (
+                _osnovni()
+                .order("created_at", desc=True)
+                .order("id", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        except Exception as ex:
+            # PGRST103 -- „Requested range not satisfiable". PostgREST tako
+            # odgovara kada je pocetak opsega IZA poslednjeg reda. To NIJE
+            # kvar servera nego prazna strana: registar od 20 predmeta na
+            # `offset=500` nema redova, ali i dalje ima tacan `ukupno`.
+            # Bez ovoga svaki predalek offset -- rucno otkucan, iz obelezene
+            # veze, ili posle brisanja predmeta -- rusi ceo registar u 500.
+            # Granicni slucaj `offset == ukupno` PostgREST vec vraca kao
+            # praznu stranu, pa se ponasanje ovde samo prosiruje dalje.
+            if getattr(ex, "code", None) != "PGRST103":
+                raise
+            koliko = _osnovni().limit(1).execute()
+            return SimpleNamespace(data=[], count=koliko.count)
 
     rows = await asyncio.to_thread(_upit)
     # BETA-DEL-001: predmet oznacen za brisanje nije aktivan predmet.
