@@ -1,0 +1,62 @@
+/* Vindex V2 — tokeni.
+ *
+ * Jedini sloj u kome sme da postoji boja kao vrednost. Svaki drugi V2 fajl
+ * boju uzima kroz var(). Razlog nije stil nego dokaziva jednina: legacy je imao
+ * 431 literal boje van palete (Wave 2 lock, W2-L6) upravo zato sto je vrednost
+ * smela da se pise bilo gde.
+ *
+ * Dve podloge, ni jedna nije cista (ustav §6, P-2):
+ *   CRNA  -- neutralna, bez plavog prizvuka
+ *   PAPIR -- topla, bez hladnog SaaS prizvuka
+ */
+
+:root {
+  /* ── Podloge ─────────────────────────────────────────────────────────── */
+  --v2-crna:            #12110F;   /* scena: zaglavlje ljuske */
+  --v2-crna-2:          #1C1A17;   /* jedina druga povrsina u crnoj sceni    */
+  --v2-papir:           #F6F3ED;   /* scena: registar                        */
+  --v2-papir-2:         #EFEBE3;   /* jedina druga povrsina u papir sceni    */
+
+  /* ── Tekst na papiru ─────────────────────────────────────────────────── */
+  --v2-tx-1:            #191814;   /* primarni  — 15.4:1 na papiru           */
+  --v2-tx-2:            #3D3A34;   /* sekundarni — 9.6:1                     */
+  --v2-tx-3:            #605B52;   /* metapodatak — 5.6:1  (AA za 14px)      */
+
+  /* ── Tekst na crnom ──────────────────────────────────────────────────── */
+  --v2-tx-1-crna:       #F2EEE7;   /* 15.0:1 na crnoj                        */
+  --v2-tx-2-crna:       #C6C0B6;   /* 9.7:1                                  */
+  --v2-tx-3-crna:       #948D82;   /*  4.9:1  — samo >=14px                  */
+
+  /* ── Vlasaste linije (ustav §7, S-3: jedan tip separatora) ───────────── */
+  --v2-linija:          rgba(25, 24, 20, 0.14);
+  --v2-linija-jaca:     rgba(25, 24, 20, 0.26);
+  --v2-linija-crna:     rgba(242, 238, 231, 0.16);
+
+  /* ── Brend akcenat: duboka kontrolisana crvena (oxblood) ─────────────
+   * Koristi se OSKUDNO i samo gde ima hijerarhijsku funkciju:
+   *   1. prsten fokusa
+   *   2. oznaka aktivnog odeljka
+   * Nikad kao boja teksta sadrzaja, nikad kao status (ustav §9.3, BA-1).     */
+  --v2-brend:           #6E1B22;   /*  9.1:1 na papiru — dovoljno za fokus    */
+  --v2-brend-na-crnoj:  #C08C8C;   /*  6.0:1 na crnoj — ista uloga, druga scena */
+
+  /* ── Semantika stanja — nikad jedini signal (ustav §10) ──────────────── */
+  --v2-st-aktivno:      #1F5D3F;   /*  6.3:1 na papiru */
+  --v2-st-mirovanje:    #605B52;   /*  5.6:1           */
+  --v2-st-zavrseno:     #3D3A34;   /*  9.6:1           */
+  --v2-st-greska:       #8A2318;   /*  7.4:1           */
+
+  /* ── Ritam ───────────────────────────────────────────────────────────── */
+  --v2-r-1: 4px;   --v2-r-2: 8px;   --v2-r-3: 12px;
+  --v2-r-4: 16px;  --v2-r-5: 24px;  --v2-r-6: 32px;  --v2-r-7: 48px;
+
+  /* Editorial mera sadrzaja. Scena je uvek puna sirina; ovo je samo sadrzaj. */
+  --v2-mera:            1180px;
+  --v2-ivica:           clamp(16px, 4vw, 40px);
+
+  /* Ciljna visina reda registra. TARGET, ne zakon: red raste kad naziv prelama. */
+  --v2-red-min:         56px;
+
+  /* Bez senki, bez radijusa na povrsinama (ustav §7, S-1/S-2; W2-L5). */
+  --v2-radijus:         0;
+}

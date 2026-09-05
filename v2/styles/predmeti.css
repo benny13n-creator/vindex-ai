@@ -1,0 +1,141 @@
+/* Vindex V2 — registar Predmeti.
+ *
+ * Red je red, ne kartica (Wave 2 lock, W2-L5). Razdvaja ga linija, ne
+ * zaobljenje, ne senka, ne plutajuci kontejner. Nema grid-a kartica.
+ *
+ * Visina reda: --v2-red-min je CILJ za jednolinijski zapis, ne fiksna visina.
+ * Naziv predmeta sme da prelomi i red tada raste. Skracivanje trotackom nije
+ * osnovni dizajn registra — pun naziv je podatak zbog koga se registar cita.
+ */
+
+.v2-registar { padding-bottom: var(--v2-r-7); }
+
+.v2-reg__alat {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--v2-r-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--v2-r-4);
+}
+
+.v2-reg__broj { font-size: 13px; color: var(--v2-tx-3); }
+
+/* ── Mreza reda ──────────────────────────────────────────────────────── */
+.v2-reg__zaglavlje,
+.v2-reg__red {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)      /* naziv        */
+    minmax(0, 15ch)     /* broj         */
+    minmax(0, 15ch)     /* vrsta        */
+    minmax(0, 12ch)     /* stanje       */
+    minmax(0, 11ch);    /* izmenjeno    */
+  gap: var(--v2-r-4);
+  align-items: baseline;
+}
+
+.v2-reg__zaglavlje {
+  padding-block: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija-jaca);
+}
+
+.v2-reg__red {
+  min-height: var(--v2-red-min);
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  align-items: center;
+}
+
+.v2-reg__naziv {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--v2-tx-1);
+  /* Prelama, ne sece. Duge reci (npr. broj predmeta u nazivu) se lome. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.v2-reg__broj-predmeta {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  color: var(--v2-tx-2);
+  overflow-wrap: anywhere;
+}
+
+/* KATEGORIJA — kakva je to stvar: verzal, sitno, prigusen, bez ispune i okvira. */
+.v2-reg__vrsta {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+
+/* STANJE — u kakvom je stanju: tezina 500, bez verzala, bez ispune i okvira.
+   Boja pojacava rec, rec nosi znacenje. */
+.v2-reg__stanje { font-size: 14px; font-weight: 500; color: var(--v2-st-mirovanje); }
+.v2-reg__stanje[data-stanje="aktivan"]  { color: var(--v2-st-aktivno); }
+.v2-reg__stanje[data-stanje="zavrsen"]  { color: var(--v2-st-zavrseno); }
+.v2-reg__stanje[data-stanje="nepoznato"]{ color: var(--v2-tx-3); }
+
+.v2-reg__datum {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Stranicenje ─────────────────────────────────────────────────────── */
+.v2-str {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+  padding-top: var(--v2-r-5);
+  flex-wrap: wrap;
+}
+.v2-str__polozaj {
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Uzak ekran: i dalje registar, nikad galerija kartica ───────────────
+ * Red postaje vertikalniji, ali ostaje red sa linijom ispod. Nijedan podatak
+ * se ne sakriva zbog sirine i nista ne pada ispod 13px.
+ */
+@media (max-width: 860px) {
+  .v2-reg__zaglavlje { display: none; }
+
+  .v2-reg__red {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    align-items: start;
+    padding-block: var(--v2-r-3);
+  }
+
+  .v2-reg__naziv { font-size: 15px; }
+
+  /* Metapodatak u jednom toku, razdvojen tackom — bez pilula i znacki. */
+  .v2-reg__broj-predmeta,
+  .v2-reg__vrsta,
+  .v2-reg__stanje,
+  .v2-reg__datum { display: inline; }
+
+  .v2-reg__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+  }
+  .v2-reg__meta > * + *::before {
+    content: "·";
+    color: var(--v2-tx-3);
+    margin-right: 10px;
+  }
+  .v2-reg__stanje { font-size: 13px; }
+}
+
+@media (min-width: 861px) {
+  .v2-reg__meta { display: contents; }
+}

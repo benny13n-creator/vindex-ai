@@ -1,0 +1,62 @@
+/* Vindex V2 — tri registra pisma, tri uloge (ustav §4).
+ *
+ *   SERIF  identitet i hijerarhija — naziv prostora, naslov odeljka
+ *   SANS   noseće pismo aplikacije — sve sto se cita kao recenica
+ *   MONO   podatak koji se poredi po vertikali ili prepisuje
+ *
+ * Test za mono (ustav §5): ako je niz recenica koju covek cita radi razumevanja
+ * — nije mono. Ako je vrednost koju poredi ili prepisuje — jeste mono.
+ */
+
+.v2-serif {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.v2-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Naziv prostora u ljusci. Serif, jer nosi identitet — ne slogan. */
+.v2-znak {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: 0.01em;
+  color: var(--v2-tx-1-crna);
+}
+
+/* Naslov odeljka. Jedini serif na papir sceni. */
+.v2-naslov {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(26px, 3.4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--v2-tx-1);
+}
+
+/* Natkapa: verzal, tezina 600, razmak 0.08em (Wave 2 lock, W2-L4, uloga SEKCIJA).
+   Nikad ispod 11px — legacy je na tome pao WCAG kapiju. */
+.v2-natkapa {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+
+/* Naziv polja (zaglavlje kolone) — ista gramatika, razmak 0.06em (uloga POLJE). */
+.v2-polje {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+
+.v2-telo   { font-size: 15px; color: var(--v2-tx-2); }
+.v2-meta   { font-size: 13px; color: var(--v2-tx-3); }

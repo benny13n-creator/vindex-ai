@@ -2737,6 +2737,117 @@ def serve_html():
     return _serve_index_html()
 
 
+# ─── Vindex V2 (Wave 1) ───────────────────────────────────────────────────────
+# Paralelan frontend na /app-v2. NE deli nijedan fajl sa legacy /app: ni HTML,
+# ni CSS, ni JS, ni DOM. Legacy ostaje netaknut kao fallback proizvod.
+#
+# Verzija je U PUTANJI (/v2/@<token>/...), ne u query stringu. Zato asset sme
+# nositi `immutable` kes od godinu dana: nova verzija = nova putanja, pa stara
+# nikad ne treba da bude invalidirana. Legacy `?v=` model radi suprotno --
+# ista putanja, promenljiv query -- i namerno se ovde ne ponavlja.
+
+_V2_DIR = BASE_DIR / "v2"
+_V2_HTML_PATH = BASE_DIR / "index-v2.html"
+
+
+def _v2_build_token() -> str:
+    """Verzija u putanji V2 asseta.
+
+    Produkcija: dokazani commit identitet (isti izvor kao /api/version).
+    Razvoj: deterministicki hash stabla (putanja + velicina + mtime) -- menja se
+    kad se fajl promeni, a ne menja se pri svakom restartu. Prefiks `dev-` cini
+    ocevidnim da to NIJE dokazan build identitet.
+    """
+    from shared.build_info import get_build_info
+    short = (get_build_info() or {}).get("commit_short")
+    if short:
+        return short
+    import hashlib as _hl
+    h = _hl.sha256()
+    izvori = [_V2_HTML_PATH] + sorted(_V2_DIR.rglob("*")) if _V2_DIR.exists() else [_V2_HTML_PATH]
+    for f in izvori:
+        try:
+            if f.is_file():
+                st = f.stat()
+                h.update(str(f.relative_to(BASE_DIR)).encode("utf-8"))
+                h.update(f"{st.st_size}:{int(st.st_mtime)}".encode("ascii"))
+        except OSError:
+            continue
+    return "dev-" + h.hexdigest()[:12]
+
+
+_V2_TOKEN: str = _v2_build_token()
+_V2_BASE: str = f"/v2/@{_V2_TOKEN}"
+_V2_HTML_CACHE: Optional[bytes] = None
+
+
+def _serve_v2_html():
+    """V2 dokument. Sam HTML se NE kesira (kao ni legacy /app) -- kesiraju se
+    asseti, koji imaju verziju u putanji."""
+    global _V2_HTML_CACHE
+    from fastapi.responses import Response
+    if _V2_HTML_CACHE is None:
+        try:
+            sirovo = _V2_HTML_PATH.read_text(encoding="utf-8")
+        except OSError:
+            return greska_odgovor(404, "Vindex V2 nije pronađen.")
+        _V2_HTML_CACHE = sirovo.replace("__V2_BASE__", _V2_BASE).encode("utf-8")
+    return Response(
+        content=_V2_HTML_CACHE,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "X-Build": _GIT_HASH,
+        },
+    )
+
+
+@app.get("/app-v2", include_in_schema=False)
+def serve_v2():
+    return _serve_v2_html()
+
+
+@app.get("/app-v2/{putanja:path}", include_in_schema=False)
+def serve_v2_child(putanja: str):
+    """Child rute (npr. /app-v2/predmeti) servira isti dokument -- ruter je na
+    klijentu (History API). Deep link i osvezavanje stranice zato rade."""
+    return _serve_v2_html()
+
+
+@app.get("/v2/@{token}/{putanja:path}", include_in_schema=False)
+def serve_v2_asset(token: str, putanja: str):
+    """V2 asseti sa verzijom u putanji.
+
+    Token se NE proverava protiv trenutnog builda: stara verzija sme i dalje da
+    se servira dok je neki otvoren dokument jos referencira. Sto se kesa tice
+    to je i poenta immutable modela.
+    """
+    if not putanja or ".." in putanja or putanja.startswith("/"):
+        return JSONResponse(status_code=404, content={"error": "Nije pronađeno."})
+    meta = _V2_DIR / putanja
+    try:
+        stvarna = meta.resolve()
+        koren = _V2_DIR.resolve()
+        if not str(stvarna).startswith(str(koren)) or not stvarna.is_file():
+            return JSONResponse(status_code=404, content={"error": "Nije pronađeno."})
+    except OSError:
+        return JSONResponse(status_code=404, content={"error": "Nije pronađeno."})
+    tip = {
+        ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".svg": "image/svg+xml",
+        ".json": "application/json; charset=utf-8",
+    }.get(stvarna.suffix, "application/octet-stream")
+    return FileResponse(
+        str(stvarna),
+        media_type=tip,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @app.get("/portal", include_in_schema=False)
 def serve_portal():
     """Klijentski portal — stranica za klijente, pristup putem tokena."""

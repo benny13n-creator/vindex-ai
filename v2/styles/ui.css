@@ -1,0 +1,96 @@
+/* Vindex V2 — kontrole.
+ *
+ * Stepenovana afordansa (ustav §11.2): ispuna = primarna akcija, ivica =
+ * sekundarna, sve ostalo = tekst sa stanjem. U Gate V1 na ekranu nema nijedne
+ * primarne akcije, jer nijedna jos nije autorizovana — pa ispune ni nema.
+ * To nije previd; dugme koje ne radi je gore od dugmeta koga nema.
+ */
+
+/* ── Polje za pretragu ───────────────────────────────────────────────── */
+.v2-trazi {
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija-jaca);
+  padding-block: var(--v2-r-2);
+  /* `width` je obavezan uz `max-width`: roditelj `.v2-reg__alat` je flex sa
+     `space-between`, pa bi se forma inace skupila na sirinu sadrzaja i polje
+     za pretragu bi izgledalo kao da prima dve reci. */
+  width: 100%;
+  max-width: 520px;
+}
+
+.v2-trazi__polje {
+  /* `flex-basis: 0`, ne `auto`: input ima podrazumevanu `size` sirinu od oko
+     20 znakova, pa bi uz `auto` bazu ostao pri toj sirini umesto da popuni red. */
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 15px;
+  color: var(--v2-tx-1);
+}
+.v2-trazi__polje::placeholder { color: var(--v2-tx-3); }
+.v2-trazi__polje:focus { outline: none; }
+/* Fokus se vidi na celom polju, ne na golom inputu — veci i mirniji cilj. */
+.v2-trazi:focus-within {
+  border-bottom-color: var(--v2-brend);
+  box-shadow: 0 1px 0 0 var(--v2-brend);
+}
+
+.v2-trazi__ocisti {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--v2-tx-2);
+  padding: 8px;
+  /* Interakcioni cilj je veci od iscrtanog znaka (ustav §15). */
+  margin: -8px -8px -8px 0;
+  min-width: 44px;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.v2-trazi__ocisti:hover { color: var(--v2-tx-1); }
+
+/* ── Sekundarna akcija: ivica, bez ispune ────────────────────────────── */
+.v2-dugme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--v2-r-2);
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--v2-linija-jaca);
+  border-radius: var(--v2-radijus);
+  background: transparent;
+  color: var(--v2-tx-1);
+  font-size: 14px;
+  font-weight: 500;
+}
+.v2-dugme:hover:not(:disabled) { border-color: var(--v2-tx-2); }
+.v2-dugme:disabled {
+  color: var(--v2-tx-3);
+  border-color: var(--v2-linija);
+  cursor: default;
+}
+
+/* Interakcioni cilj >= 44px i na dodir, bez uvecavanja iscrtane kontrole. */
+@media (pointer: coarse) {
+  .v2-dugme { min-height: 44px; }
+}
+
+/* ── Tekst sa stanjem: odjava, i sve ostalo ──────────────────────────── */
+.v2-tekst-akcija {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v2-tx-2-crna);
+  padding: 10px 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.v2-tekst-akcija:hover { color: var(--v2-tx-1-crna); }

@@ -1,0 +1,86 @@
+/* Vindex V2 — osnova. Reset koliko je potrebno, ni znak vise. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  /* Podloga dokumenta je PAPIR: kada sadrzaj ne popuni ekran, ono sto se vidi
+     ispod poslednje scene mora i dalje biti papir, a ne siva praznina. */
+  background: var(--v2-papir);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--v2-papir);
+  color: var(--v2-tx-1);
+  font-family: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  /* Bez horizontalnog prelivanja ni na jednoj sirini (§34). */
+  overflow-x: hidden;
+}
+
+h1, h2, h3, p, figure { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+/* Kontrole forme po specifikaciji NE nasledjuju pismo. Legacy je zbog toga
+   imao 44 vidljiva cvora u Arialu (Wave 2 lock, W2-L1). Pravilo je namerno
+   niske specificnosti: pobedjuje samo podrazumevano pismo pretrazivaca. */
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+
+/* `hidden` mora da pobedi autorsko `display`. Bez ovoga `.v2-str { display:flex }`
+   gazi podrazumevano `[hidden]{display:none}` iz UA sloja, pa se stranicenje
+   iscrtava i kada nema druge strane -- dva onemogucena dugmeta bez ishoda.
+   To je tacno ona mrtva kontrola koju ekran ne sme da ima. */
+[hidden] { display: none !important; }
+
+/* Fokus se nikad ne zrtvuje radi cistote (ustav §12, IS-3). */
+:focus-visible {
+  outline: 2px solid var(--v2-brend);
+  outline-offset: 2px;
+}
+.v2-scena--crna :focus-visible {
+  outline-color: var(--v2-brend-na-crnoj);
+}
+
+.v2-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--v2-papir);
+  color: var(--v2-tx-1);
+  padding: var(--v2-r-3) var(--v2-r-4);
+  border: 1px solid var(--v2-linija-jaca);
+  text-decoration: none;
+}
+.v2-skip:focus { left: 0; }
+
+.v2-nevidljivo {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+  /* Labela za citac ekrana ne sme naslediti prezentacione transformacije
+     roditelja: `.v2-reg__vrsta` je verzal, pa bi bez ovoga citac dobio
+     „VRSTA:" umesto „Vrsta:". Verzal je gramatika kategorije, ne sadrzaj. */
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

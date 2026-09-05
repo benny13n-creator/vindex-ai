@@ -1,0 +1,108 @@
+/* Vindex V2 — arhitektura scena (full-bleed).
+ *
+ * ZAKLJUCANI INVARIJANT:
+ *   Scena ide od x=0 do desne ivice viewporta. Uvek. Bez izuzetka.
+ *   Samo SADRZAJ scene ima editorial meru.
+ *
+ * Posledica koju test meri: na bilo kom Y unutar PAPIR scene, piksel na x=0,
+ * x=sirina/2 i x=sirina-1 mora biti papir. Nikad crno-papir-crno na istoj Y osi.
+ *
+ * Zato ovde NEMA:
+ *   - centriranog wrappera koji nosi pozadinu
+ *   - kartice na kanvasu
+ *   - zaobljenih kontejnera scene
+ *   - senki i plutajucih panela
+ */
+
+.v2-app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--v2-papir);
+}
+
+/* Scena: pozadinu nosi element pune sirine. */
+.v2-scena {
+  width: 100%;
+  margin: 0;
+}
+.v2-scena--crna  { background: var(--v2-crna);  color: var(--v2-tx-1-crna); }
+.v2-scena--papir { background: var(--v2-papir); color: var(--v2-tx-1); }
+
+/* Sadrzaj scene: jedina stvar koja ima meru i bocnu ivicu. */
+.v2-scena__unutra {
+  max-width: var(--v2-mera);
+  margin-inline: auto;
+  padding-inline: var(--v2-ivica);
+  width: 100%;
+}
+
+/* Papir scena mora dosezati do dna viewporta i kad sadrzaja ima malo. */
+.v2-glavni { flex: 1 1 auto; }
+
+/* ── Ljuska ───────────────────────────────────────────────────────────────
+ * Minimalna po nalogu: dovoljno da korisnik zna da je u Vindexu, da je u
+ * Predmetima i ko je prijavljen. Bez bocne trake, bez mrtvih stavki za
+ * module koji jos ne postoje, bez IA koja bi implicitno zakljucala buducu
+ * globalnu navigaciju.
+ */
+.v2-ljuska { border-bottom: 1px solid var(--v2-linija-crna); }
+
+.v2-ljuska__red {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-5);
+}
+
+.v2-ljuska__odeljak {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v2-tx-1-crna);
+  position: relative;
+  padding-block: 6px;
+}
+/* Aktivni odeljak: uzdrzana linija, ne ispuna (ustav §13, N-2). */
+.v2-ljuska__odeljak::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--v2-brend-na-crnoj);
+}
+
+.v2-ljuska__nalog {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-3);
+  min-width: 0;
+}
+.v2-ljuska__email {
+  font-size: 13px;
+  color: var(--v2-tx-2-crna);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 34ch;
+}
+
+/* ── Zaglavlje odeljka ────────────────────────────────────────────────── */
+.v2-zaglavlje {
+  padding-block: var(--v2-r-6) var(--v2-r-4);
+  display: flex;
+  align-items: baseline;
+  gap: var(--v2-r-4);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .v2-ljuska__red { gap: var(--v2-r-4); min-height: 56px; }
+  .v2-ljuska__email { max-width: 16ch; }
+  .v2-zaglavlje { padding-block: var(--v2-r-5) var(--v2-r-3); }
+}
+
+@media (max-width: 400px) {
+  .v2-ljuska__email { display: none; }
+}

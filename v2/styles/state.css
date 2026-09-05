@@ -1,0 +1,59 @@
+/* Vindex V2 — stanja ekrana: ucitavanje, prazno, greska, boot.
+ *
+ * Skelet je NEUTRALAN: cuva strukturu reda, ne izmislja sadrzaj. Nema laznih
+ * naziva predmeta, nema laznih brojeva. Ono sto se vidi dok se ceka ne sme
+ * postati tvrdnja o podacima.
+ */
+
+.v2-boot {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--v2-papir);
+}
+.v2-boot__tekst { font-size: 14px; color: var(--v2-tx-3); }
+
+/* ── Skelet ──────────────────────────────────────────────────────────── */
+.v2-skelet__red {
+  min-height: var(--v2-red-min);
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+  border-bottom: 1px solid var(--v2-linija);
+  padding-block: var(--v2-r-3);
+}
+.v2-skelet__traka {
+  height: 10px;
+  background: var(--v2-papir-2);
+  border: 0;
+}
+.v2-skelet__traka--siroka { flex: 1 1 auto; max-width: 34ch; }
+.v2-skelet__traka--uska   { flex: 0 0 88px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .v2-skelet__traka { animation: v2-disanje 1.6s ease-in-out infinite; }
+  @keyframes v2-disanje { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+}
+
+/* ── Prazno / greska ─────────────────────────────────────────────────── */
+.v2-poruka {
+  padding-block: var(--v2-r-7);
+  max-width: 62ch;
+}
+.v2-poruka__naslov {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--v2-tx-1);
+  margin-bottom: var(--v2-r-2);
+}
+.v2-poruka__telo { font-size: 14px; color: var(--v2-tx-2); }
+.v2-poruka__akcija { margin-top: var(--v2-r-4); }
+
+/* Greska nosi semanticku boju SAMO na tankoj levoj liniji; rec i dalje nosi
+   znacenje (ustav §10: boja pojacava, ne nosi). */
+.v2-poruka--greska {
+  border-left: 2px solid var(--v2-st-greska);
+  padding-left: var(--v2-r-4);
+}
