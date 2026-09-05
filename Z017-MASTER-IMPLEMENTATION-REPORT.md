@@ -3,7 +3,7 @@
 **Izveštaj o izvršenju**
 Radno stablo: `vindex-v2-wt`, grana `v2-gate-a`
 Polazna tačka: `5e3e8a43` (produkcija = `origin/main` u trenutku početka)
-Završna tačka: `712975fd`
+Završna tačka: `7d556286`
 Datum: 2026-09-05
 
 ---
@@ -51,10 +51,10 @@ ionako nije data i nije tražena.
 ### 1.2 Obim izmene
 
 ```
-44 fajla, +5.247 / -136 linija
-35 novih/izmenjenih V2 modula
+47 files changed, 6016 insertions(+), 140 deletions(-)
+V2 kod: 47 fajlova, 6.596 linija (od toga 1.034 linije komentara u JS-u)
  5 novih test fajlova
- 7 komitova
+9 komitova
 ```
 
 ---
@@ -129,7 +129,14 @@ i vraća 415. Kontrola koja obećava više nego što ispunjava. Sada je spisak
 identičan serverskom, vidljiv uz kontrolu, a 415 i 413 imaju sopstvene
 poruke — to su jedine greške koje korisnik može sam da otkloni.
 
-### 2.6 Odgovor Znanja je prikazivan kao smeće
+### 2.6 Sirov enum na ekranu — na tri mesta
+
+`radni_spor` u registru (§2.3), `kriticno` kao „SPREMNOST" u Dosijeu, i
+`FIZICKO_LICE` u spisku klijenata. Poslednja dva su nađena **gledanjem
+snimaka ekrana**, ne čitanjem koda — u kodu izgledaju kao obično
+prosleđivanje vrednosti.
+
+### 2.7 Odgovor Znanja je prikazivan kao smeće
 
 Agent vraća **strukturisan dokument** (`--- BRZA PROCENA`, `--- PRAVNI
 ZAKLJUČAK`, `--- CITAT ZAKONA [RAG]`). Ravno iscrtavanje je te crte
@@ -140,6 +147,18 @@ potvrđen u bazi"* — stajala je zakopana u sredini pasusa, gde je advokat ne
 pročita. Sada stoji **iznad** teksta, kao ograda.
 
 I: izvor se udvostručavao — `„zakon o parnicnom postupku član Član 367"`.
+
+### 2.8 429 je izgledao kao pad aplikacije
+
+`/api/plan/status` ima granicu od 60 zahteva na sat, a boot ga zove pri
+svakom otvaranju. Kada granica padne, V2 je 429 svrstavao pod „neispravan
+zahtev" i pisao „Vindex trenutno nije dostupan." — pa advokat pomisli da je
+aplikacija pala i ponavlja pokušaj, čime ostaje zaključan duže. Sada 429 ima
+svoju poruku koja kaže šta da uradi.
+
+**Nađeno tako što sam sam iscrpeo granicu tokom merenja.** Granica od 60/sat
+na ruti koja se zove pri svakom otvaranju ostaje otvoreno pitanje za
+vlasnika — popravljena je poruka, ne granica.
 
 ---
 
@@ -281,14 +300,14 @@ obaveza, ne pogodnost, i **nema je u V2**.
 
 | Fajl | Testova |
 |---|---|
-| `test_z017_dosije_domen.py` | 27 |
+| `test_z017_dosije_domen.py` | 28 |
 | `test_z017_znanje_domen.py` | 27 |
-| `test_z017_kancelarija_domen.py` | 18 |
+| `test_z017_kancelarija_domen.py` | 19 |
 | `test_z017_uskladjenost_domen.py` | 15 |
 | `test_z017_registar_offset.py` | 9 |
-| **ukupno novih** | **96** |
+| **ukupno novih** | **98** |
 
-V2 skup ukupno (Z015 + Z016 + Z017): **188 testova**.
+V2 skup ukupno (Z015 + Z016 + Z017): **191 test**, svi prolaze.
 
 ### 7.2 Mutacije — zelen test nije dokaz dok ne padne
 
@@ -299,7 +318,8 @@ V2 skup ukupno (Z015 + Z016 + Z017): **188 testova**.
 | kancelarija | 6 | 6/6 |
 | usklađenost | 4 | 4/4 |
 | rečnik | 2 | 2/2 |
-| **ukupno** | **21** | **21/21** |
+| sirov enum (spremnost, klijent) | 2 | 2/2 |
+| **ukupno** | **23** | **23/23** |
 
 Jedna mutacija je **preživela** pri prvom pokušaju (`M1 nazivVrste
 fallback`): test je bio zadovoljen samom mapom i nikad nije doticao granu
@@ -339,7 +359,59 @@ veza u V2    :  9   bez href  : 0
 ```
 
 
-<!-- VIZUELNI DOKAZ -->
+## 9b. VIZUELNI DOKAZ — 9 POVRŠINA × 5 ŠIRINA
+
+45 snimaka ekrana, po jedan boot po širini (kroz aplikaciju se ide klikom,
+kao što ide i korisnik).
+
+```
+1920x1080  danas · predmeti · nov-predmet · napravi-akt · dosije ·
+1440x900   znanje · kancelarija · uskladjenost · pretraga
+1024x768   — sve povrsine, sve sirine —
+390x844
+360x800
+```
+
+Na svih 45 kombinacija:
+
+- **bez** horizontalnog preliva
+- **bez** teksta ispod 11px
+- **tačno jedan** `h1` po ekranu
+- naslov kartice pregledača ispravan na svakoj radnji
+- **0** grešaka u konzoli
+
+### Putovanje vlasnika (jedan tok, bez ponovnog učitavanja)
+
+| Korak | Ishod |
+|---|---|
+| otvorio Vindex | `/app-v2/danas` |
+| Predmeti | 21 red |
+| pretražio svoj predmet | 1 red |
+| otvorio Dosije | 5 celina |
+| potvrdio rok | „Potvrđeno." |
+| Ctrl+K pretraga | 5 rezultata |
+| Kancelarija | 4 celine |
+| nazad na Predmete | **pretraga zatečena** |
+
+```
+punih učitavanja dokumenta : 1   (ceo tok bez ijednog reload-a)
+grešaka u konzoli          : 0
+```
+
+### Dva zabeležena odgovora servera — i šta zapravo jesu
+
+Na poslednjem prolazu (360x800) zabeleženi su jedan 500 i jedan 503. Uzrok je
+u serverskom logu: `[WinError 10035] A non-blocking socket operation could
+not be completed immediately` na `/klijenti` — **iscrpljenje soketa na
+lokalnoj Windows mašini** posle više uzastopnih merenja, ne kvar proizvoda.
+Ponovno merenje iste površine u izolaciji: 4 celine, 0 neučitanih delova,
+bez preliva, **bez ijedne greške**.
+
+Vredi zabeležiti šta se tada videlo na ekranu: pošto Kancelarija čita četiri
+izvora kroz `allSettled`, pali deo je prikazao „nije učitano" umesto da ceo
+prostor ostane prazan. Kvar okruženja je time postao dokaz da odbrana od
+delimičnog pada radi.
+
 
 ---
 
