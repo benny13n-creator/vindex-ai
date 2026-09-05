@@ -65,12 +65,43 @@ def test_summary_red_se_preslikava_u_zapis():
 
 
 def test_nepoznat_enum_ne_curi():
-    """Sirovi kljuc iz baze se korisniku ne prikazuje ni kada mapa ne zna za njega."""
+    """
+    Sirovi kljuc iz baze se korisniku ne prikazuje ni kada mapa ne zna za njega.
+
+    IZMENJENO U Z017 — I ZASTO. Prvobitna verzija je trazila da nepoznata
+    vrednost postane PRAZNA (`vrsta == ""`, `stanje == "—"`). Merenje na
+    produkciji je pokazalo sta to znaci u praksi: `predmeti.tip` NIJE
+    kontrolisan recnik i nosi radni_spor, Parnica, opsti, ugovorni_spor,
+    nasledstvo, naknada_stete, potrosacki_spor, ostalo — od 23 predmeta samo
+    1 pogadja negdasnji uzi recnik. Pravilo je, dakle, brisalo STVARAN
+    podatak na 22 od 23 predmeta i tvrdilo da predmet vrstu nema.
+
+    Namera pravila (Z015 §19) je bila da advokat ne cita programerski zargon
+    („radni_spor"), a ne da izgubi podatak. Zato invarijanta sada glasi:
+
+        SIROV KLJUC (snake_case, sa donjim crtama) SE NIKAD NE PRIKAZUJE,
+        ali se nepoznata vrednost CITLJIVO ispisuje umesto da nestane,
+        a SEMANTIKA se i dalje ne pogadja — `stanjeKlasa` ostaje „nepoznato",
+        pa nepoznato stanje ne dobija boju aktivnog ni zavrsenog predmeta.
+    """
     z = _pokreni("""
         return uZapis({ naziv: "X", tip: "neki_novi_tip_iz_baze", status: "neko_novo_stanje" });
     """)
-    assert "neki_novi_tip" not in json.dumps(z, ensure_ascii=False)
-    assert "neko_novo_stanje" not in json.dumps(z, ensure_ascii=False)
+    kao_tekst = json.dumps(z, ensure_ascii=False)
+    # Sirov kljuc ne sme na ekran ni u jednom obliku sa donjom crtom.
+    assert "neki_novi_tip" not in kao_tekst
+    assert "neko_novo_stanje" not in kao_tekst
+    assert "_" not in z["vrsta"] and "_" not in z["stanje"]
+    # Ali podatak NIJE obrisan.
+    assert z["vrsta"] == "Neki novi tip iz baze"
+    assert z["stanje"] == "Neko novo stanje"
+    # Semantika se i dalje ne pogadja.
+    assert z["stanjeKlasa"] == "nepoznato"
+
+
+def test_prazna_vrednost_i_dalje_daje_crticu():
+    """Praznina i nepoznata vrednost su dve razlicite cinjenice."""
+    z = _pokreni('return uZapis({ naziv: "X" });')
     assert z["vrsta"] == ""
     assert z["stanje"] == "—"
     assert z["stanjeKlasa"] == "nepoznato"

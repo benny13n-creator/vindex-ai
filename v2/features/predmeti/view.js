@@ -165,6 +165,17 @@ export function montirajPredmete(kontejner, kontekst) {
     idiNa("predmeti", "nov");
   });
   alat.appendChild(novi);
+
+  // Izrada akta stoji uz registar iz istog razloga kao „Nov predmet":
+  // to je posao ovog prostora, ne stavka globalne navigacije.
+  const akt = el("a", "v2-dugme", "Napravi akt");
+  akt.href = putanjaZa("predmeti", "akt");
+  ciklus.slusaj(akt, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "akt");
+  });
+  alat.appendChild(akt);
   sekcija.appendChild(alat);
 
   // ── Sadrzaj ──

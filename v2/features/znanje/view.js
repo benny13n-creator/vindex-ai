@@ -131,6 +131,7 @@ export function montirajZnanje(kontejner, kontekst) {
   unutra.appendChild(sadrzaj);
   kontejner.appendChild(unutra);
   polje.focus();
+  document.title = "Znanje · Vindex";
 
   let poslednji = zaceto.odgovor || null;
   let radi = false;

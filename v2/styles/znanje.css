@@ -152,3 +152,6 @@
 .v2-uskl { padding-bottom: var(--v2-r-7); max-width: var(--v2-mera-citanje); }
 .v2-uskl__nalaz { padding-top: var(--v2-r-4); }
 .v2-ograda--bez-izvora { border-left-color: var(--v2-st-greska); }
+.v2-akt { padding-bottom: var(--v2-r-7); max-width: var(--v2-mera-citanje); }
+.v2-akt__telo { padding-top: var(--v2-r-4); }
+.v2-ograda--nacrt { border-left-color: var(--v2-brend); }

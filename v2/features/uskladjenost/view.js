@@ -95,6 +95,7 @@ export function montirajUskladjenost(kontejner, kontekst) {
   sadrzaj.setAttribute("aria-labelledby", "v2-naslov-uskladjenost");
   unutra.appendChild(sadrzaj);
   kontejner.appendChild(unutra);
+  document.title = "Usklađenost · Vindex";
 
   let radi = false;
 

@@ -209,6 +209,7 @@ export function montirajKancelariju(kontejner) {
   sadrzaj.setAttribute("aria-labelledby", "v2-naslov-kancelarija");
   unutra.appendChild(sadrzaj);
   kontejner.appendChild(unutra);
+  document.title = "Kancelarija · Vindex";
 
   sadrzaj.appendChild(prazno("Učitava se…"));
 

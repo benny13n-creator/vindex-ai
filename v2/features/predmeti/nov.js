@@ -158,6 +158,7 @@ export function montirajNovPredmet(kontejner, kontekst) {
   unutra.appendChild(forma);
   kontejner.appendChild(unutra);
   p1.unos.focus();
+  document.title = "Nov predmet · Vindex";
 
   function javi(tekst, vrsta) {
     poruka.className = "v2-forma__poruka v2-forma__poruka--" + (vrsta || "greska");
