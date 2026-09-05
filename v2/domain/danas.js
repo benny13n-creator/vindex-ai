@@ -71,16 +71,29 @@ export function jeRok(red) {
   return String((red && red.vrsta) || "").trim().toLowerCase() === VRSTA.ROK;
 }
 
+/** Stanja koja audit lanac NE MOZE da izrazi — samo ona imaju prednost. */
+export const STANJA_SAMO_KOLONA = Object.freeze([STANJE.IZVRSEN, STANJE.OTKAZAN]);
+
 /**
- * Domensko stanje reda. Prednost ima kolona `stanje`; kada je prazna, pada na
- * model potvrde, pa se zateceno ponasanje ne menja. Bez oba — `null`, i nista
- * se ne tvrdi.
+ * Domensko stanje reda. Podela odgovornosti nije proizvoljna:
+ *
+ *   `izvrsen` / `otkazan`   -> kolona `stanje` (migracija 129). Audit lanac ih
+ *                              ne moze izraziti; za njih tamo nema akcije.
+ *   `potvrdjen` / `odbijen` -> audit lanac, gde ih je FAZA 6.5 namerno
+ *                              smestila. Ruta odluke sme SAMO da cita
+ *                              hronologiju — to je strukturno zakljucano.
+ *
+ * Kolona se cita i za ostala stanja, ali TEK ako odluke nema: tako pisac koji
+ * upise `kandidat` ne moze pregaziti kasniju potvrdu.
  */
 export function stanjeZapisa(red) {
   const s = String((red && red.stanje) || "").trim().toLowerCase();
-  if (Object.values(STANJE).includes(s)) return s;
+  if (STANJA_SAMO_KOLONA.includes(s)) return s;
   const o = String((red && red.stanje_odluke) || "").trim().toUpperCase();
-  return ODLUKA_U_STANJE[o] || null;
+  const izOdluke = ODLUKA_U_STANJE[o];
+  if (izOdluke && izOdluke !== STANJE.KANDIDAT) return izOdluke;
+  if (Object.values(STANJE).includes(s)) return s;
+  return izOdluke || null;
 }
 
 export function jeRazresen(red) {

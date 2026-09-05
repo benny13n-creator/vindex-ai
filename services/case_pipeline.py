@@ -374,7 +374,7 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
             # daje vrednost koju baza prima.
             vaznost   = _rokovi_domen.normalizuj_vaznost(item.get("vaznost"))
             try:
-                await asyncio.to_thread(lambda d=d, op=opis_roka, vz=vaznost: supa.table("predmet_hronologija").insert(_rokovi_domen.oznaci({
+                await asyncio.to_thread(lambda d=d, op=opis_roka, vz=vaznost: supa.table("predmet_hronologija").insert({
                     "predmet_id": predmet_id,
                     "user_id":    user_id,
                     "dogadjaj":   op,
@@ -385,9 +385,9 @@ async def _step_ekstrakcija_rokova(supa, predmet_id: str, user_id: str,
                     # rokove iz dokumenta.
                     "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
                     "akter":      "Pipeline (AI)",
-                # migracija 129 — model je rok izvukao sam; covek ga nije video.
-                }, vrsta=_rokovi_domen.VRSTA_ROK,
-                   stanje=_rokovi_domen.STANJE_KANDIDAT, supa=supa)).execute())
+                    # migracija 129 — izjavljena vrsta; stanje ostaje na auditu.
+                    **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
+                }).execute())
                 inserted += 1
             except Exception as ins_e:
                 logger.debug("[PIPELINE][step3] insert greška: %s", ins_e)

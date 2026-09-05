@@ -157,30 +157,6 @@ async def kandidati(
     }
 
 
-async def _upisi_stanje(supa, rok_id: str, uid: str, stanje: str) -> None:
-    """Upisuje DOMENSKO stanje u `predmet_hronologija.stanje` (migracija 129).
-
-    Audit trag (`audit_immutable`) ostaje nepromenljiv zapis DOGADJAJA i pise se
-    odvojeno. Ova kolona je domenski model: `izvrsen` i `otkazan` nisu odluke o
-    poreklu nego poslovno stanje obaveze, i za njih u auditu nema ni akcije ni
-    znacenja.
-
-    Nikad ne obara odluku: ako migracija 129 nije primenjena, ili upis padne,
-    citalac pada na model potvrde i ponasanje ostaje zateceno. Odluka je vec
-    zabelezena u auditu pre nego sto se ovo pozove.
-    """
-    if not _rokovi_domen._sema_ima_129(supa):
-        return
-    try:
-        await asyncio.to_thread(
-            lambda: supa.table("predmet_hronologija")
-                .update({"stanje": stanje})
-                .eq("id", rok_id).eq("user_id", uid).execute()
-        )
-    except Exception as exc:
-        logger.warning("[ROK_ODLUKA] domensko stanje nije upisano (rok=%.8s): %s", rok_id, exc)
-
-
 @router.post("/api/rokovi/{rok_id}/potvrdi")
 @limiter.limit("60/minute")
 async def potvrdi(
@@ -205,8 +181,6 @@ async def potvrdi(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
-
-    await _upisi_stanje(supa, rok_id, uid, _rokovi_domen.STANJE_POTVRDJEN)
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,
@@ -240,8 +214,6 @@ async def odbij(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo.")
-
-    await _upisi_stanje(supa, rok_id, uid, _rokovi_domen.STANJE_ODBIJEN)
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,

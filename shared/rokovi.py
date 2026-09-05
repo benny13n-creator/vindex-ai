@@ -641,24 +641,41 @@ def je_rok(red: Optional[dict]) -> bool:
     return bool(red) and (red.get("vrsta") or "").strip().lower() == VRSTA_ROK
 
 
+#: Stanja koja audit lanac NE MOZE da izrazi — za njih nema ni akcije ni
+#: znacenja u `audit_immutable`. Samo ona imaju prednost nad odlukom.
+STANJA_SAMO_KOLONA: frozenset = frozenset({STANJE_IZVRSEN, STANJE_OTKAZAN})
+
+
 def stanje_zapisa(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> Optional[str]:
     """Domensko stanje reda.
 
-    Prednost ima kolona `stanje` (migracija 129). Kada je prazna — legacy red
-    ili pisac koji je još ne postavlja — pada na model potvrde, pa se zatečeno
-    ponašanje ne menja. Ako ni tamo nema ničega, vraća `None`: ništa se ne
-    tvrdi.
+    PODELA ODGOVORNOSTI, i ona nije proizvoljna:
+
+      `izvrsen` / `otkazan`   -> kolona `stanje` (migracija 129). Audit lanac ih
+                                 ne moze izraziti; za njih tamo nema akcije.
+      `potvrdjen` / `odbijen` -> audit lanac, gde ih je FAZA 6.5 namerno
+                                 smestila. Ruta odluke SME SAMO DA CITA
+                                 hronologiju — to je strukturno zakljucano
+                                 (`test_ruta_odluke_ne_menja_rok`), pa potvrda
+                                 ovde ne sme postati upis u red.
+
+    Kolona se cita i za ostala stanja, ali TEK ako odluke nema — tako pisac koji
+    upise `kandidat` ne moze pregaziti kasniju potvrdu.
     """
     if not red:
         return None
     s = (red.get("stanje") or "").strip().lower()
-    if s in STANJA_DOZVOLJENA:
+    if s in STANJA_SAMO_KOLONA:
         return s
     rid = red.get("id")
-    if not rid:
-        return None
-    from shared.rok_potvrda import stanje_roka
-    return _ODLUKA_U_STANJE.get(stanje_roka(rid, odluke_mapa))
+    if rid:
+        from shared.rok_potvrda import stanje_roka
+        iz_odluke = _ODLUKA_U_STANJE.get(stanje_roka(rid, odluke_mapa))
+        if iz_odluke and iz_odluke != STANJE_KANDIDAT:
+            return iz_odluke
+    if s in STANJA_DOZVOLJENA:
+        return s
+    return STANJE_KANDIDAT if rid else None
 
 
 def je_razresen(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> bool:
@@ -692,6 +709,25 @@ def _resetuj_sondu() -> None:
     """Samo za testove."""
     global _KOLONE_129
     _KOLONE_129 = None
+
+
+def oznake(*, vrsta: str, stanje: Optional[str] = None, supa=None) -> dict:
+    """Fragment za `**` unutar `insert({...})`.
+
+    Postoji zato sto omotavanje celog recnika (`insert(oznaci({...}))`) menja
+    OBLIK poziva, a dva testa iz B8 mere bas taj oblik da bi dokazala da se
+    `dokument_id` stvarno upisuje. Fragment cuva `insert({` doslovno.
+    """
+    if vrsta not in VRSTE_DOZVOLJENE:
+        raise ValueError(f"nepoznata vrsta zapisa: {vrsta!r}")
+    if stanje is not None and stanje not in STANJA_DOZVOLJENA:
+        raise ValueError(f"nepoznato stanje: {stanje!r}")
+    if supa is None or not _sema_ima_129(supa):
+        return {}
+    out = {"vrsta": vrsta}
+    if stanje is not None:
+        out["stanje"] = stanje
+    return out
 
 
 def oznaci(red: dict, *, vrsta: str, stanje: Optional[str] = None, supa=None) -> dict:

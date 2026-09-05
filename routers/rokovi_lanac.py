@@ -430,11 +430,12 @@ async def post_rokovi_lanac(
         if not pred_res.data:
             raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
-        # migracija 129 — ZPP lanac racuna rokove iz statickog kataloga, ali
-        # pokretanje lanca NIJE potvrda svakog pojedinacnog roka. Zato KANDIDAT:
-        # potvrda ostaje zaseban ljudski cin (FAZA 6.4.1 — poreklo ne ovlascuje).
+        # migracija 129 — ZPP lanac racuna rokove iz statickog kataloga, pa
+        # IZJAVLJUJE da su rokovi. Pokretanje lanca NIJE potvrda svakog
+        # pojedinacnog roka, pa `stanje` ostaje na auditu (FAZA 6.4.1 —
+        # poreklo ne ovlascuje).
         records = [
-            _IZVOR.oznaci({
+            {
                 "predmet_id": body.predmet_id,
                 "user_id":    uid,
                 "dogadjaj":   f"Rok: {r['naziv']} ({r['zakonski_osnov']})",
@@ -448,7 +449,8 @@ async def post_rokovi_lanac(
                 # migracija 127 — W-ROKOVILANAC: rokovi se racunaju iz
                 # statickog ZPP kataloga `_TIPOVI`, ne iz modela.
                 "izvor":      _IZVOR.IZVOR_DETERMINISTIC,
-            }, vrsta=_IZVOR.VRSTA_ROK, stanje=_IZVOR.STANJE_KANDIDAT, supa=supa)
+                **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
+            }
             for r in lanac
         ]
 
