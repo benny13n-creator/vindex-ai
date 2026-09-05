@@ -282,3 +282,85 @@ svake kapije — a ne zato sto nesto nije zavrseno.
 
 Sledeca kapija (B — Predmeti prekalibrisan unutar odobrene ljuske) **ne pocinje**
 dok ne vidite ovu.
+
+---
+
+# DODATAK — Z016.1 · CANON RECONCILIATION
+
+HEAD: `500dcd33` · Push: **nije izvršen** · Migracije: **0** · Legacy `/app`: **0 fajlova**
+
+## §16 · ADVERSARIAL TABELA (pre koda)
+
+| # | ISSUE | CURRENT | CANON | RISK | MINIMAL CHANGE |
+|---|---|---|---|---|---|
+| 1 | date-only admission | samo datum | datum **ILI** odluka, klase razdvojene | odluke koje čekaju ne stižu do advokata | dve klase: `OBAVEZA` / `ZA PROVERU` |
+| 2 | nepotvrđeni AI rokovi | u „Isteklo", crvena oznaka | predlog ne sme delovati hitnije od obaveze | AI predlog bio najhitnija stvar na ekranu | zasebna sekcija ispod, mirnija gramatika |
+| 3 | nedavni predmeti | stalni blok | fallback | Danas postaje početni portal | samo kad nema ni obaveza ni provera |
+| 4 | 90 dana | proizvodna odluka | starost nije poslovno značenje | UI bi tvrdio potpunost | tehnički opseg dohvatanja, dokumentovan |
+
+## §8 · FORENZIKA STANJA U BACKENDU
+
+```
+predmet_hronologija kolone:
+  akter · created_at · datum · datum_iso · dogadjaj · dokument_id
+  dokument_naziv · id · izvor · predmet_id · user_id · vaznost
+
+resen / zavrsen / status / izvrsen / zatvoren / obrisan   ->  NIJEDNE NEMA
+
+_klasifikuj_dogadjaj:  catch-all `return "rok_dokument"`
+  -> „Kraj zaposlenja tuzioca kod tuzenog" izlazi kao ROK
+
+cela tabela, sve kancelarije:  55 redova
+  izvor:  Counter({'LEGACY_UNKNOWN': 55})
+  audit_immutable resource_type='rok':  0 redova
+
+posledica pogadjanja:
+  unazad  90 dana ->  1 red,  1 predlog
+  unazad 180 dana -> 10 redova, 2 predloga
+  unazad 365 dana -> 47 redova, 2 predloga   <- 45 istorijskih cinjenica
+```
+
+**Nijedan rok nigde u proizvodu nikad nije potvrđen ni odbijen.** Klasa
+„potvrđena obaveza" je danas prazna po podacima, ne po implementaciji.
+
+## IZMENA
+
+Fail-closed: red ulazi u „Za proveru" samo ako `izvor` to **dokazuje**.
+Allow-lista `IZVOR_DOKAZUJE_PREDLOG` je namerno prazna. `akter` je slobodan
+tekst i pogađanje po njemu obara test.
+
+## MERENO U PREGLEDAČU
+
+```
+STVARNI PODACI   obaveza 0 · za proveru 0
+                 „Nema obaveza koje trenutno traže postupanje." + 5 nedavnih predmeta
+SA OBAVEZOM      NAREDNIH 7 DANA — ROČIŠTE 07.09. 09:30 · ROK 08.09.
+                 nedavni blok: 0
+```
+
+## REGRESIJA
+
+```
+Gate A  (2f592620)   15 palo · 7717 prošlo
+Z016.1  (500dcd33)   15 palo · 7719 prošlo
+
+NOVO: nijedan · NESTALO: nijedan · +2 = tačno novi testovi
+```
+
+Testovi: 35/35.
+
+## VERDIKT
+
+# 🔴 GATE A BLOKIRAN — KONKRETNA KONTRADIKCIJA U PODATKOVNOM UGOVORU
+
+Kod je spreman i bezbedan. Deploy nije izvršen jer bi vam dao prazan Danas, a
+§23 traži da ocenite baš razliku potvrđeno/nepotvrđeno — koja se na stvarnim
+podacima ne može prikazati bez pogađanja.
+
+**Odblokira jedna odluka:** koja je kanonska oznaka da je red predlog roka.
+(a) backend upisuje `izvor` koji to razlikuje → dodajem vrednost u allow-listu;
+(b) odobrite privremenu heuristiku (`akter` sadrži `(AI)`);
+(c) Danas ostaje bez klase B do kapije F i deployuje se takav.
+
+**Gate B blokatori:** `/api/predmeti` `offset` van opsega → HTTP 500;
+nedostatak vrste i rešenosti u `predmet_hronologija`.
