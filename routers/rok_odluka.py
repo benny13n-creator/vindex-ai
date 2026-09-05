@@ -79,6 +79,7 @@ async def kandidati(
     request: Request,
     predmet_id: Optional[str] = None,
     dana: int = 30,
+    od: Optional[str] = None,
     user: dict = Depends(get_current_user),
 ):
     """INTERNAL pogled: advokat vidi SVE svoje rokove sa stanjem odluke.
@@ -88,18 +89,37 @@ async def kandidati(
     ODBIJEN NIJE OBRISAN.
 
     Sam pregled NE menja nista: nema upisa, nema potvrde, nema promene stanja.
+
+    `od` (Z016 / Gate A): pocetak opsega, podrazumevano DANAS — bez njega
+    ponasanje je bajt u bajt isto kao pre. Postoji zato sto je istekao rok
+    najvaznija stavka na ekranu Danas, a jedini drugi izvor datiranih obaveza
+    (`/api/kalendar/pregled`) ne vraca `id` reda ni `stanje_odluke`. Bez ovog
+    parametra istekao rok bi se mogao prikazati samo kao gola tvrdnja, bez
+    podatka da li ga je covek ikad potvrdio ili ga je predlozio AI.
     """
     supa = _get_supa()
     uid = user["user_id"]
     _dana = max(1, min(int(dana or 30), 365))
     danas = date.today()
+    try:
+        od_date = date.fromisoformat(od) if od else danas
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datum mora biti u obliku YYYY-MM-DD.")
+    # Gornja granica se racuna od DANAS, ne od `od` — `dana` znaci „koliko
+    # unapred gledam", a ne „koliko dana ukupno". Pomeranje pocetka unazad ne
+    # sme tiho da produzi pogled u buducnost.
+    do_date = danas + timedelta(days=_dana)
+    if od_date > do_date:
+        od_date = do_date
+    if (do_date - od_date).days > 365:
+        raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana.")
 
     def _upit():
         q = (supa.table("predmet_hronologija")
              .select("id, predmet_id, dogadjaj, datum, datum_iso, vaznost, akter, dokument_naziv")
              .eq("user_id", uid)
-             .gte("datum_iso", danas.isoformat())
-             .lte("datum_iso", (danas + timedelta(days=_dana)).isoformat())
+             .gte("datum_iso", od_date.isoformat())
+             .lte("datum_iso", do_date.isoformat())
              .order("datum_iso")
              .limit(_MAX_KANDIDATA))
         if predmet_id:
