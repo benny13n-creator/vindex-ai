@@ -18,12 +18,16 @@ import { montirajPredmetProstor } from "./features/dosije/prostor.js";
 import { montirajPretragu } from "./features/pretraga/view.js";
 import { montirajZnanje } from "./features/znanje/view.js";
 import { montirajKancelariju } from "./features/kancelarija/view.js";
+import { montirajUskladjenost } from "./features/uskladjenost/view.js";
 
 /** Prostori izgradjeni u ovoj verziji. Raste sa kapijama, nikad unapred. */
-export const IZGRADJENI = ["danas", "predmeti", "znanje", "kancelarija"];
+// „Uskladjenost" je IZGRADJENA, ali je uslovna: da li se vidi odlucuje
+// `sme` iz boot-a, na osnovu prava naloga. Izgradjenost i pravo su dve
+// razlicite odluke i namerno se ne mesaju (vidi domain/spaces.js).
+export const IZGRADJENI = ["danas", "predmeti", "znanje", "kancelarija", "uskladjenost"];
 
-export function pokreniAplikaciju(koren) {
-  const glavni = montirajLjusku(koren, { izgradjeni: IZGRADJENI });
+export function pokreniAplikaciju(koren, { sme } = {}) {
+  const glavni = montirajLjusku(koren, { izgradjeni: IZGRADJENI, sme });
 
   registruj("danas", montirajDanas);
   // Prostor PREDMETI sam razresava radnje u sebi (`/predmeti/nov`).
@@ -31,9 +35,15 @@ export function pokreniAplikaciju(koren) {
   // `predmet` je OBJEKAT, ne prostor: ne pojavljuje se u globalnoj navigaciji,
   // ali ima sopstvenu rutu `/app-v2/predmet/<id>` da deep link i back rade.
   registruj("predmet", montirajPredmetProstor);
-  // Pretraga je UTILITY, ne prostor: ima rutu, nema mesto u globalnoj navigaciji.
   registruj("znanje", montirajZnanje);
   registruj("kancelarija", montirajKancelariju);
+  // Uslovni prostor se registruje SAMO ako nalog na njega ima pravo.
+  // Da se registruje uvek, rucno otkucana putanja `/app-v2/uskladjenost`
+  // otvorila bi ekran kome nalog ne sme da pristupi — kapija bi bila
+  // samo u navigaciji, a ne u ruti. (Server i dalje proverava svoje
+  // dozvole; ovo je da UI ne obeca ono sto backend odbija.)
+  if (!sme || sme("uskladjenost")) registruj("uskladjenost", montirajUskladjenost);
+  // Pretraga je UTILITY, ne prostor: ima rutu, nema mesto u globalnoj navigaciji.
   registruj("pretraga", montirajPretragu);
   postaviPodrazumevani("danas");
 

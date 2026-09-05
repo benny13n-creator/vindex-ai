@@ -118,3 +118,37 @@
 .v2-znanje__odeljak { margin-bottom: var(--v2-r-5); }
 .v2-znanje__odeljak .v2-natkapa { display: block; margin-bottom: var(--v2-r-2); }
 .v2-ograda--nije-doslovno { border-left-color: var(--v2-brend); }
+
+/* ── Usklađenost: izbor analize po PITANJU, ne po nazivu modula ──────── */
+.v2-izbor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--v2-linija-jaca);
+  margin-top: var(--v2-r-5);
+}
+.v2-izbor__stavka {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--v2-r-3) var(--v2-r-4) var(--v2-r-3) 0;
+  border: 0;
+  border-bottom: 1px solid var(--v2-linija);
+  background: none;
+  cursor: pointer;
+  min-height: 64px;
+}
+.v2-izbor__pitanje { font-size: 15px; color: var(--v2-tx-1); }
+.v2-izbor__naziv {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--v2-tx-3);
+}
+.v2-izbor__stavka:hover .v2-izbor__pitanje { color: var(--v2-brend); }
+.v2-izbor__stavka--aktivna { border-bottom-color: var(--v2-brend); }
+.v2-izbor__stavka--aktivna .v2-izbor__pitanje { font-weight: 600; }
+
+.v2-uskl { padding-bottom: var(--v2-r-7); max-width: var(--v2-mera-citanje); }
+.v2-uskl__nalaz { padding-top: var(--v2-r-4); }
+.v2-ograda--bez-izvora { border-left-color: var(--v2-st-greska); }

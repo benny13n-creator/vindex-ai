@@ -7,8 +7,9 @@
  *   3. ako nema sesije  -> kanonska prijava
  *   4. /api/plan/status -> kanonski izvor prava
  *   5. v2_pristup?
- *   6. tek tada montiranje aplikacije
- *   7. tek tada prvi poslovni poziv (Predmeti)
+ *   6. /api/me -> pravo na uslovni peti prostor (Usklađenost)
+ *   7. tek tada montiranje aplikacije
+ *   8. tek tada prvi poslovni poziv (Predmeti)
  *
  * Sto se u ovom fajlu NE radi: ne donosi se bezbednosna odluka. `v2_pristup`
  * je rollout kapija, ne zamena za autorizaciju — svaki poslovni endpoint iza
@@ -76,8 +77,22 @@ async function boot() {
   // 5–6. Kapija. Fail-closed: sve sto nije tacno `true` je nedostupno.
   if (!stanje || stanje.v2_pristup !== true) { naLegacy(); return; }
 
+  // 7. Uslovni peti prostor. `/api/plan/status` NE nosi pravo na digitalnu
+  //    imovinu — nosi ga `/api/me`. Poziv je zaseban i NIJE blokirajuci:
+  //    ako padne, Usklađenost se ne prikazuje, a ostatak aplikacije radi.
+  //    FAIL-CLOSED: prostor za koji pravo nije DOKAZANO se ne prikazuje.
+  let sme = () => true;
+  try {
+    const ja = await dohvati("/api/me");
+    const daSme = !!(ja && ja.digitalna_imovina_aktivirano === true);
+    sme = (kljuc) => (kljuc === "uskladjenost" ? daSme : true);
+  } catch (e) {
+    logGreska("boot: pravo na Usklađenost nije dokazano", e && e.vrsta);
+    sme = (kljuc) => kljuc !== "uskladjenost";
+  }
+
   koren.dataset.faza = "aplikacija";
-  pokreniAplikaciju(koren);
+  pokreniAplikaciju(koren, { sme });
 }
 
 // Service worker je iskljucen za /app-v2 u `static/sw.js`. Stariji SW koji je
