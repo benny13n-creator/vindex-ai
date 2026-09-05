@@ -64,7 +64,8 @@ function blokIzvora(izvori) {
   for (const i of izvori) {
     const li = el("li", "v2-izvori__red");
     li.appendChild(el("span", "v2-izvori__zakon", i.zakon));
-    if (i.clan) li.appendChild(el("span", "v2-izvori__clan", "član " + i.clan));
+    // `i.clan` je vec normalizovan u domenu i sadrzi rec „clan" — ne dodaje se opet.
+    if (i.clan) li.appendChild(el("span", "v2-izvori__clan", i.clan));
     ul.appendChild(li);
   }
   s.appendChild(ul);
@@ -151,6 +152,17 @@ export function montirajZnanje(kontejner, kontekst) {
     // Ograde IZNAD odgovora — advokat ih mora videti pre teksta.
     for (const u of o.upozorenja) okvir.appendChild(blokUpozorenja(u));
 
+    // Statusna potvrda (N3/AUTH-001) kaze da li je odredba DOSLOVNO potvrdjena
+    // u bazi ili je tekst parafraziran. Backend je stavlja u sredinu odgovora,
+    // gde je niko ne procita; ovde stoji uz ograde, iznad teksta.
+    if (o.potvrda && !o.potvrda.doslovno) {
+      okvir.appendChild(blokUpozorenja({
+        kljuc: "nije-doslovno",
+        naslov: "Tekst odredbe nije doslovno potvrđen",
+        telo: o.potvrda.poruka + " Pre citiranja proverite tačan tekst u „Službenom glasniku“.",
+      }));
+    }
+
     const a = el("section", "v2-znanje__odgovor");
     const zagl = el("div", "v2-znanje__zaglavlje-odgovora");
     zagl.appendChild(el("h2", "v2-natkapa", "Odgovor"));
@@ -160,7 +172,21 @@ export function montirajZnanje(kontejner, kontekst) {
       zagl.appendChild(sig);
     }
     a.appendChild(zagl);
-    a.appendChild(uPasuse(o.tekst, "v2-znanje__pasus"));
+
+    // Agent vraca STRUKTURISAN dokument („--- BRZA PROCENA", „--- PRAVNI
+    // ZAKLJUČAK", „--- CITAT ZAKONA [RAG]"…). Odeljci se iscrtavaju kao
+    // odeljci; ravno iscrtavanje bi te crte pretvorilo u smece na ekranu i
+    // izgubilo jedinu strukturu koju odgovor ima. Sadrzaj se NE menja.
+    if (o.odeljci && o.odeljci.length > 1) {
+      for (const d of o.odeljci) {
+        const blok = el("div", "v2-znanje__odeljak");
+        if (d.naslov) blok.appendChild(el("h3", "v2-natkapa", d.naslov));
+        blok.appendChild(uPasuse(d.telo, "v2-znanje__pasus"));
+        a.appendChild(blok);
+      }
+    } else {
+      a.appendChild(uPasuse(o.tekst, "v2-znanje__pasus"));
+    }
     okvir.appendChild(a);
 
     if (o.cinjenice.length) okvir.appendChild(blokCinjenica(o.cinjenice));

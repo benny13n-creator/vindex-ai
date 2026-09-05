@@ -22,7 +22,16 @@ function tekst(v) {
   return String(v == null ? "" : v).trim();
 }
 
+/**
+ * Broj ili `null`. ODSUTNA VREDNOST NIJE NULA.
+ *
+ * `Number(null)` je 0 i `Number("")` je 0 — pa bi naivna konverzija iznos koji
+ * backend NIJE poslao prikazala kao „0 RSD", tj. kao tvrdnju „ovog meseca
+ * niste ispostavili nijedan racun". To je ista klasa greske koju je B2 vec
+ * platio na drugom mestu: nepoznato prikazano kao izmereno.
+ */
 function broj(v) {
+  if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }

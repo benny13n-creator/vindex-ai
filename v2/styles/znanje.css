@@ -114,3 +114,7 @@
 @media (max-width: 720px) {
   .v2-klijenti__red, .v2-naplata__red { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }
+
+.v2-znanje__odeljak { margin-bottom: var(--v2-r-5); }
+.v2-znanje__odeljak .v2-natkapa { display: block; margin-bottom: var(--v2-r-2); }
+.v2-ograda--nije-doslovno { border-left-color: var(--v2-brend); }

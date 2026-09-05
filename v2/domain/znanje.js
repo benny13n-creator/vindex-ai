@@ -48,13 +48,22 @@ function tekst(v) {
   return String(v == null ? "" : v).trim();
 }
 
-/** Jedan izvor: zakon i clan. Skor se NE prikazuje kao broj korisniku. */
+/**
+ * Jedan izvor: zakon i clan. Skor se NE prikazuje kao broj korisniku.
+ *
+ * `clan` iz baze vec sadrzi rec „Član" („Član 367"), pa se ona NE dodaje jos
+ * jednom — mereno uzivo, ranije je davalo „zakon o parnicnom postupku član
+ * Član 367". Naziv zakona je u bazi malim slovom; podize se samo prvo slovo.
+ * Dijakritika se NE dopisuje: to bi bilo izmisljanje sadrzaja izvora.
+ */
 export function uIzvor(sirov) {
   const i = sirov || {};
-  const zakon = tekst(i.zakon || i.law);
+  const sirovZakon = tekst(i.zakon || i.law);
   const clan = tekst(i.clan || i.article);
-  if (!zakon) return null;
-  return { zakon, clan, oznaka: clan ? `${zakon}, član ${clan}` : zakon };
+  if (!sirovZakon) return null;
+  const zakon = sirovZakon.charAt(0).toLocaleUpperCase("sr-RS") + sirovZakon.slice(1);
+  const clanCist = /^(član|clan)\b|^(čl|cl)\./i.test(clan) ? clan : (clan ? "član " + clan : "");
+  return { zakon, clan: clanCist, oznaka: clanCist ? `${zakon}, ${clanCist}` : zakon };
 }
 
 /**
@@ -119,11 +128,61 @@ export function cinjeniceIzDokumenta(odg) {
   }).filter(x => x.tekst);
 }
 
+/**
+ * Agent vraca STRUKTURISAN dokument, ne slobodnu prozu: odeljke uvedene sa
+ * `--- NASLOV` („--- BRZA PROCENA", „--- PRAVNI ZAKLJUČAK", „--- CITAT ZAKONA
+ * [RAG]"…). Ravno iscrtavanje pretvara te crte u smece na ekranu i gubi
+ * jedinu strukturu koju odgovor ima.
+ *
+ * Ovo NE menja sadrzaj — samo prepoznaje granice odeljaka koje je backend vec
+ * ispisao. Tekst pre prvog naslova ostaje kao uvod, a ne baca se.
+ */
+export function odeljci(tekstOdgovora) {
+  const redovi = String(tekstOdgovora || "").replace(/\r\n/g, "\n").split("\n");
+  const izlaz = [];
+  let tekuci = { naslov: "", redovi: [] };
+  for (const red of redovi) {
+    const m = /^\s*-{2,}\s*(.+?)\s*$/.exec(red);
+    if (m && m[1]) {
+      if (tekuci.redovi.join("").trim() || tekuci.naslov) izlaz.push(tekuci);
+      tekuci = { naslov: m[1], redovi: [] };
+      continue;
+    }
+    tekuci.redovi.push(red);
+  }
+  if (tekuci.redovi.join("").trim() || tekuci.naslov) izlaz.push(tekuci);
+  return izlaz
+    .map(o => ({ naslov: o.naslov, telo: o.redovi.join("\n").trim() }))
+    .filter(o => o.telo || o.naslov);
+}
+
+/**
+ * Statusna potvrda (N3/AUTH-001) kaze da li je clan DOSLOVNO potvrdjen u bazi
+ * ili je tekst parafraziran. To je tvrdnja o poreklu odgovora i mora stajati
+ * IZNAD teksta, ne biti zakopana u sredini pasusa gde je niko ne procita.
+ *
+ * Vraca `{poruka, doslovno}` ili `null` ako je backend nije poslao.
+ */
+export function statusnaPotvrda(tekstOdgovora) {
+  const m = /\[[~x✓v]\]\s*STATUSNA POTVRDA\s*:\s*([^\n]+)/i.exec(String(tekstOdgovora || ""));
+  if (!m) return null;
+  const poruka = m[1].trim();
+  return {
+    poruka,
+    // „doslovan clan nije potvrdjen" je eksplicitno poricanje — na njega se
+    // fail-closed gleda kao na NIJE doslovno.
+    doslovno: !/nije potvr/i.test(poruka),
+  };
+}
+
 /** Sastavlja sve sto ekran sme da prikaze iz jednog odgovora. */
 export function sastaviOdgovor(sirov) {
   const o = sirov || {};
+  const sirovTekst = tekst(o.odgovor);
   return {
-    tekst: tekst(o.odgovor),
+    tekst: sirovTekst,
+    odeljci: odeljci(sirovTekst),
+    potvrda: statusnaPotvrda(sirovTekst),
     sigurnost: sigurnost(o.confidence),
     izvori: izvoriIz(o),
     upozorenja: upozorenja(o),
