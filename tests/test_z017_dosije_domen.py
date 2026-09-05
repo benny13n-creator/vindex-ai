@@ -363,3 +363,105 @@ def test_spremnost_ne_curi_sirov_enum():
     assert s["status"] == "Delimicno spreman"
     assert "_" not in s["status"]
     assert s["statusSirovi"] == "delimicno_spreman"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ZADACI, ROCISTA, BELESKE — tri stvari koje NISU rok
+# ═══════════════════════════════════════════════════════════════════════════
+
+@nodemark
+def test_zadatak_rociste_i_rok_su_tri_razlicite_stvari():
+    """
+    Zadatak je posao koji je advokat sam sebi zadao; rociste je zakazan
+    termin pred sudom; rok je pravna posledica. Nijedno od prva dva ne prolazi
+    kroz ugovor o rokovima (migracija 129) i nijedno ne sme da se pojavi kao
+    rok. Domen ih drzi u tri odvojene funkcije nad tri odvojena izvora.
+    """
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      const rok = O.uRokove([{ id:"r", dogadjaj:"Rok", datum_iso:"2026-09-10",
+                               vrsta:"rok", stanje:"potvrdjen" }], sada);
+      const zad = O.uZadatke([{ id:"z", naziv:"Zadatak", status:"otvoren" }], sada);
+      const roc = O.uRocista([{ id:"c", sud:"Sud", datum:"2026-09-12" }], sada);
+      return { rokova: rok.obaveze.length, zadataka: zad.otvoreni.length,
+               rocista: roc.redovi.length,
+               zadatakURokovima: rok.obaveze.some(x => x.opis === "Zadatak"),
+               rocisteURokovima: rok.obaveze.some(x => x.opis === "Sud") };
+    """)
+    assert r["rokova"] == 1 and r["zadataka"] == 1 and r["rocista"] == 1
+    assert r["zadatakURokovima"] is False
+    assert r["rocisteURokovima"] is False
+
+
+@nodemark
+def test_zavrsen_zadatak_ostaje_kao_dokaz_a_ne_medju_otvorenim():
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      const z = O.uZadatke([
+        { id:"1", naziv:"Otvoren", status:"otvoreno" },
+        { id:"2", naziv:"Gotov",  status:"zavrsen" },
+        { id:"3", naziv:"Otkazan", status:"otkazan" }], sada);
+      return { otvorenih: z.otvoreni.map(x=>x.naziv), zavrsenih: z.zavrseni.length, ukupno: z.ukupno };
+    """)
+    assert r["otvorenih"] == ["Otvoren"]
+    assert r["zavrsenih"] == 2
+    assert r["ukupno"] == 3
+
+
+@nodemark
+def test_zadaci_sortirani_po_roku_a_bez_roka_idu_na_kraj():
+    """
+    Ulaz je NAMERNO veci od tri stavke i ima DVA zadatka bez roka.
+    Sa tri stavke V8 koristi insertion sort i poredjenje se ne pozove u
+    redosledu koji razotkriva obrnutu granu — mutacija je prezivela ne zato
+    sto je test slab u nameri, nego zato sto je uzorak bio premali da grana
+    uopste bude dosegnuta.
+    """
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      return O.uZadatke([
+        { id:"a", naziv:"Bez roka 1", status:"otvoreno" },
+        { id:"b", naziv:"Najkasniji", status:"otvoreno", rok_datum:"2026-12-01" },
+        { id:"c", naziv:"Raniji",     status:"otvoreno", rok_datum:"2026-09-07" },
+        { id:"d", naziv:"Bez roka 2", status:"otvoreno" },
+        { id:"e", naziv:"Srednji",    status:"otvoreno", rok_datum:"2026-10-15" },
+        { id:"f", naziv:"Najraniji",  status:"otvoreno", rok_datum:"2026-09-06" }], sada)
+        .otvoreni.map(x => x.naziv);
+    """)
+    assert r[:4] == ["Najraniji", "Raniji", "Srednji", "Najkasniji"], r
+    assert set(r[4:]) == {"Bez roka 1", "Bez roka 2"}, r
+
+
+@nodemark
+def test_rociste_bez_suda_ili_datuma_nije_termin():
+    """Sud i datum su obavezni po serverskom ugovoru — nepotpun red nije rociste."""
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      const x = O.uRocista([
+        { id:"1", sud:"Osnovni sud", datum:"2026-09-12" },
+        { id:"2", sud:"Bez datuma" },
+        { id:"3", datum:"2026-09-20" }], sada);
+      return { potpunih: x.redovi.length, nepotpunih: x.nepotpuna };
+    """)
+    assert r["potpunih"] == 1
+    assert r["nepotpunih"] == 2
+
+
+@nodemark
+def test_prazna_beleska_se_ne_prikazuje():
+    r = _js('return O.uBeleske([{id:"1", sadrzaj:"Ima teksta"}, {id:"2", sadrzaj:"   "}, {id:"3"}]).length;')
+    assert r == 1
+
+
+@nodemark
+def test_beleske_se_prenose_cele_a_ne_kao_broj():
+    """
+    Ranije je `sastaviDosije` vracao samo DUZINU — ekran je mogao da kaze
+    „ima 3 beleske", ali ne i STA u njima pise, sto je jedino zbog cega
+    beleska postoji.
+    """
+    d = _js("""return O.sastaviDosije({ predmet:{id:"p"},
+      beleske:[{id:"b1", sadrzaj:"Zvao klijent."}] }, null, new Date());""")
+    assert isinstance(d["beleske"], list)
+    assert d["beleske"][0]["tekst"] == "Zvao klijent."
+    assert d["brojBelezaka"] == 1

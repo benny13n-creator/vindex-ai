@@ -202,7 +202,106 @@ export function sastaviDosije(odgovor, spremnostSirova, sada) {
     spisi: (o.dokumenti || []).map(uSpis),
     hronologija: uHronologiju(hron),
     rokovi: uRokove(hron, sada),
-    beleske: (o.beleske || []).length,
+    // Beleske se prenose CELE, ne kao broj. Ranije je ovde stajala samo
+    // duzina — ekran je time mogao da kaze „ima 3 beleske", ali ne i STA u
+    // njima pise, sto je jedino zbog cega beleska postoji.
+    beleske: uBeleske(o.beleske),
+    brojBelezaka: (o.beleske || []).length,
     spremnost: uSpremnost(spremnostSirova),
   };
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * ZADACI, ROCISTA I BELESKE
+ *
+ * Sve troje zive u Dosijeu, ali NIJEDNO nije rok. Zadatak je posao koji je
+ * advokat sam sebi zadao; rociste je zakazan termin pred sudom; beleska je
+ * ono sto je zapisao. Nijedno ne prolazi kroz ugovor o rokovima iz
+ * migracije 129 i nijedno ne sme da se pojavi u „Obavezama" kao rok.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/** Stanja zadatka koja backend koristi; nepoznato se ispisuje citljivo. */
+const ZADATAK_ZAVRSEN = ["zavrsen", "završen", "otkazan", "odbijen"];
+
+export function uZadatak(sirov, sada) {
+  const z = sirov || {};
+  const rok = tekst(z.rok_datum || z.rok || "");
+  const razlika = rok ? razlikaDana(rok, sada) : null;
+  const stanje = tekst(z.status).toLowerCase();
+  return {
+    id: z.id || "",
+    naziv: ocistiNaslov(tekst(z.naziv)) || "Zadatak bez naziva",
+    opis: tekst(z.opis),
+    prioritet: citljivo(tekst(z.prioritet)),
+    stanje: citljivo(tekst(z.status)),
+    zavrsen: ZADATAK_ZAVRSEN.includes(stanje),
+    datum: rok ? datumTekst(rok) : "",
+    datumIso: rok,
+    razlika,
+    kada: razlika === null ? "" : kadaTekst(razlika),
+    proslo: razlika !== null && razlika < 0,
+  };
+}
+
+/**
+ * Zadaci predmeta, razdvojeni na otvorene i zavrsene.
+ * Zavrsen zadatak se NE BRISE sa ekrana — on je dokaz da je posao uradjen.
+ */
+export function uZadatke(niz, sada) {
+  const svi = (niz || []).map(z => uZadatak(z, sada));
+  const otvoreni = svi.filter(z => !z.zavrsen)
+    .sort((a, b) => {
+      if (!a.datumIso && !b.datumIso) return 0;
+      if (!a.datumIso) return 1;
+      if (!b.datumIso) return -1;
+      return a.datumIso < b.datumIso ? -1 : 1;
+    });
+  return { otvoreni, zavrseni: svi.filter(z => z.zavrsen), ukupno: svi.length };
+}
+
+/**
+ * Rociste. Datum i sud su OBAVEZNI po serverskom ugovoru, pa red bez njih
+ * nije rociste nego nepotpun zapis — i ne prikazuje se kao termin.
+ */
+export function uRociste(sirov, sada) {
+  const r = sirov || {};
+  const d = tekst(r.datum);
+  const razlika = d ? razlikaDana(d, sada) : null;
+  const mesto = [tekst(r.sud), tekst(r.sudnica)].filter(Boolean).join(", ");
+  return {
+    id: r.id || "",
+    sud: tekst(r.sud),
+    mesto,
+    datum: d ? datumTekst(d) : "",
+    datumIso: d,
+    vreme: tekst(r.vreme),
+    brojSuda: tekst(r.broj_predmeta_suda),
+    napomena: tekst(r.napomena),
+    razlika,
+    kada: razlika === null ? "" : kadaTekst(razlika),
+    proslo: razlika !== null && razlika < 0,
+    potpuno: Boolean(d && tekst(r.sud)),
+  };
+}
+
+export function uRocista(niz, sada) {
+  const svi = (niz || []).map(r => uRociste(r, sada));
+  const potpuna = svi.filter(r => r.potpuno).sort((a, b) => (a.datumIso < b.datumIso ? -1 : 1));
+  return { redovi: potpuna, nepotpuna: svi.length - potpuna.length };
+}
+
+/** Beleska. Prazna beleska se ne prikazuje — prazan red nije zapis. */
+export function uBelesku(sirov) {
+  const b = sirov || {};
+  const sadrzaj = tekst(b.sadrzaj || b.tekst || b.beleska);
+  return {
+    id: b.id || "",
+    tekst: sadrzaj,
+    datum: datum(b.created_at || b.kreirano),
+  };
+}
+
+export function uBeleske(niz) {
+  return (niz || []).map(uBelesku).filter(b => b.tekst);
 }

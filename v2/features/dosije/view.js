@@ -27,6 +27,9 @@ import { ucitajDosije, putanjaPreuzimanja } from "./api.js";
 import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
 import { posalji } from "../../platform/http.js";
 import { kontrolaOdluke } from "../rokovi/odluka.js";
+import { uZadatke, uRocista, uBeleske } from "../../domain/dosije.js";
+import { obrazacZadatka, obrazacRocista, obrazacBeleske,
+         kontrolaBrisanjaSpisa } from "./radnje.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -56,7 +59,7 @@ function prazno(tekst) {
 
 /* ── Stanje ─────────────────────────────────────────────────────────────── */
 
-function sekcijaStanje(d) {
+function sekcijaStanje(d, ciklus, predmetId, radnje) {
   const s = celina("stanje", "Stanje");
 
   if (d.polja.length) {
@@ -98,6 +101,28 @@ function sekcijaStanje(d) {
   if (!d.polja.length && !d.klijenti.length && !d.zaglavlje.opis) {
     s.appendChild(prazno("Za ovaj predmet još nisu uneti podaci o strankama, sudu ni broju predmeta."));
   }
+  // ── Beleske ──
+  // Beleska je radna napomena o predmetu — pripada „Stanju", ne hronologiji
+  // (hronologija je ono sto se DESILO) i ne dobija sestu celinu.
+  const bBel = el("div", "v2-podblok");
+  bBel.appendChild(el("h3", "v2-natkapa", "Beleške"));
+  if (!d.beleske.length) {
+    bBel.appendChild(prazno("Nema beleški za ovaj predmet."));
+  } else {
+    const ulB = el("ul", "v2-lista-tanka");
+    for (const b of d.beleske) {
+      const liB = el("li");
+      liB.appendChild(document.createTextNode(b.tekst));
+      if (b.datum) liB.appendChild(el("span", "v2-beleska__datum", " — " + b.datum));
+      ulB.appendChild(liB);
+    }
+    bBel.appendChild(ulB);
+  }
+  if (radnje && radnje.osvezi) {
+    bBel.appendChild(obrazacBeleske(predmetId, ciklus, radnje.osvezi));
+  }
+  s.appendChild(bBel);
+
   return s;
 }
 
@@ -312,6 +337,11 @@ function sekcijaSpisi(d, predmetId, ciklus, radnje) {
     } else {
       akcije.appendChild(el("span", "v2-meta", "original nije sačuvan"));
     }
+    // Brisanje spisa je nepovratno i uklanja i vektore — trazi potvrdu u dva
+    // koraka koja IMENUJE spis. Vidi `radnje.js`.
+    if (radnje && radnje.osvezi && f.id) {
+      akcije.appendChild(kontrolaBrisanjaSpisa(predmetId, f, ciklus, radnje.osvezi));
+    }
     li.appendChild(akcije);
     ul.appendChild(li);
   }
@@ -338,12 +368,15 @@ function rokRed(r, ciklus) {
   return li;
 }
 
-function sekcijaRokovi(d, ciklus) {
+function sekcijaRokovi(d, ciklus, predmetId, radnje, sada) {
   const s = celina("rokovi", "Rokovi i zadaci");
   const r = d.rokovi;
+  // Odsustvo ROKOVA se saopstava, ali NE prekida celinu: rocista i zadaci su
+  // zasebne stvari i moraju se videti (i moci dodati) i kad rokova nema.
+  // Rani izlaz je ovde jednom vec sakrio oba obrasca — predmet bez rokova
+  // nije predmet bez posla.
   if (!r.obaveze.length && !r.zaProveru.length) {
     s.appendChild(prazno("Za ovaj predmet nema evidentiranih rokova."));
-    return s;
   }
   if (r.obaveze.length) {
     const b = el("div", "v2-podblok");
@@ -363,6 +396,67 @@ function sekcijaRokovi(d, ciklus) {
     b.appendChild(ul);
     s.appendChild(b);
   }
+  // ── Rocista ──
+  // Rociste NIJE rok: to je zakazan termin pred sudom, ne pravna posledica.
+  // Zato ima svoj podblok i nikad se ne mesa sa obavezama.
+  const ro = uRocista(d.rocista, sada);
+  const bRoc = el("div", "v2-podblok");
+  bRoc.appendChild(el("h3", "v2-natkapa", "Ročišta"));
+  if (d.rocistaPala) {
+    bRoc.appendChild(prazno("Ročišta nisu učitana. Ovo ne znači da ih nema."));
+  } else if (!ro.redovi.length) {
+    bRoc.appendChild(prazno("Nema zakazanih ročišta."));
+  } else {
+    const ulR = el("ul", "v2-rok");
+    for (const x of ro.redovi) {
+      const liR = el("li", "v2-rok__red");
+      if (x.proslo) liR.dataset.proslo = "1";
+      const kadaR = el("span", "v2-rok__kada v2-mono");
+      kadaR.appendChild(nevidljivo("Datum: "));
+      kadaR.appendChild(document.createTextNode(x.datum + (x.vreme ? " " + x.vreme : "")));
+      kadaR.appendChild(el("span", "v2-rok__rel", x.kada));
+      liR.appendChild(kadaR);
+      liR.appendChild(el("span", "v2-rok__opis", x.mesto || x.sud));
+      ulR.appendChild(liR);
+    }
+    bRoc.appendChild(ulR);
+  }
+  if (radnje && radnje.osvezi) bRoc.appendChild(obrazacRocista(predmetId, ciklus, radnje.osvezi));
+  s.appendChild(bRoc);
+
+  // ── Zadaci ──
+  // Zadatak je posao koji je advokat sam sebi zadao — ne rok i ne rociste.
+  const za = uZadatke(d.zadaci, sada);
+  const bZad = el("div", "v2-podblok");
+  bZad.appendChild(el("h3", "v2-natkapa", "Zadaci"));
+  if (d.zadaciPali) {
+    bZad.appendChild(prazno("Zadaci nisu učitani. Ovo ne znači da ih nema."));
+  } else if (!za.otvoreni.length && !za.zavrseni.length) {
+    bZad.appendChild(prazno("Nema zadataka za ovaj predmet."));
+  } else {
+    const ulZ = el("ul", "v2-rok");
+    for (const x of za.otvoreni) {
+      const liZ = el("li", "v2-rok__red");
+      if (x.proslo) liZ.dataset.proslo = "1";
+      const kadaZ = el("span", "v2-rok__kada v2-mono");
+      kadaZ.appendChild(nevidljivo("Rok: "));
+      kadaZ.appendChild(document.createTextNode(x.datum || "—"));
+      if (x.kada) kadaZ.appendChild(el("span", "v2-rok__rel", x.kada));
+      liZ.appendChild(kadaZ);
+      liZ.appendChild(el("span", "v2-rok__opis", x.naziv));
+      ulZ.appendChild(liZ);
+    }
+    bZad.appendChild(ulZ);
+    // Zavrsen zadatak se NE BRISE sa ekrana — on je dokaz da je posao uradjen.
+    if (za.zavrseni.length) {
+      bZad.appendChild(el("p", "v2-celina__prazno",
+        za.zavrseni.length === 1 ? "1 završen zadatak."
+                                 : za.zavrseni.length + " završenih zadataka."));
+    }
+  }
+  if (radnje && radnje.osvezi) bZad.appendChild(obrazacZadatka(predmetId, ciklus, radnje.osvezi));
+  s.appendChild(bZad);
+
   return s;
 }
 
@@ -452,11 +546,11 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
     // stoji odmah ispod naziva, ne kao prolazan oblacic koji korisnik propusti.
     const izPrethodne = elementPoruke();
     if (izPrethodne) okvir.appendChild(izPrethodne);
-    okvir.appendChild(sekcijaStanje(d));
+    okvir.appendChild(sekcijaStanje(d, ciklus, predmetId, radnje));
     okvir.appendChild(sekcijaHronologija(d));
     okvir.appendChild(sekcijaAnaliza(d));
     okvir.appendChild(sekcijaSpisi(d, predmetId, ciklus, radnje));
-    okvir.appendChild(sekcijaRokovi(d, ciklus));
+    okvir.appendChild(sekcijaRokovi(d, ciklus, predmetId, radnje, new Date()));
     sadrzaj.replaceChildren(okvir);
 
     // Traka ide IZNAD sadrzaja, unutar iste papir scene.

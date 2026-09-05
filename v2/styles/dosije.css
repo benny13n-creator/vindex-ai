@@ -296,3 +296,24 @@
   overflow-wrap: anywhere;
 }
 .v2-otpremi__uslovi { font-size: 13px; color: var(--v2-tx-3); }
+
+/* ── Radnje unutar Dosijea (zadatak, rociste, beleska) ───────────────── */
+.v2-radnja {
+  margin-top: var(--v2-r-4);
+  padding-top: var(--v2-r-3);
+  border-top: 1px solid var(--v2-linija);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-r-2);
+  max-width: var(--v2-mera-citanje);
+}
+.v2-radnja__red { display: flex; gap: var(--v2-r-2); flex-wrap: wrap; align-items: center; }
+.v2-radnja__red .v2-polje-unos__kontrola { flex: 1 1 200px; min-width: 0; }
+.v2-radnja__datum { flex: 0 0 auto !important; width: auto; }
+.v2-radnja__vreme { flex: 0 0 auto !important; width: auto; }
+.v2-beleska__datum { color: var(--v2-tx-3); font-size: 13px; }
+
+.v2-tekst-akcija--opasno { color: var(--v2-st-greska); }
+.v2-spisi__brisi { display: block; margin-top: 4px; }
+.v2-spisi__akcije { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+@media (max-width: 720px) { .v2-spisi__akcije { align-items: flex-start; } }
