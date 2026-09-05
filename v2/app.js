@@ -16,7 +16,7 @@ import { montirajDanas } from "./features/danas/view.js";
 import { montirajProstorPredmeti } from "./features/predmeti/prostor.js";
 import { montirajPredmetProstor } from "./features/dosije/prostor.js";
 import { montirajPretragu } from "./features/pretraga/view.js";
-import { montirajZnanje } from "./features/znanje/view.js";
+import { montirajProstorZnanje } from "./features/znanje/prostor.js";
 import { montirajKancelariju } from "./features/kancelarija/view.js";
 import { montirajUskladjenost } from "./features/uskladjenost/view.js";
 import { montirajProstorKlijent } from "./features/klijent/view.js";
@@ -40,7 +40,8 @@ export function pokreniAplikaciju(koren, { sme } = {}) {
   // `/app-v2/klijent/nov`. Nema stavku u globalnoj navigaciji --
   // do klijenta se stize iz Kancelarije i iz pretrage.
   registruj("klijent", montirajProstorKlijent);
-  registruj("znanje", montirajZnanje);
+  // Prostor ZNANJE sam razresava svoje radnje ().
+  registruj("znanje", montirajProstorZnanje);
   registruj("kancelarija", montirajKancelariju);
   // Uslovni prostor se registruje SAMO ako nalog na njega ima pravo.
   // Da se registruje uvek, rucno otkucana putanja `/app-v2/uskladjenost`

@@ -22,6 +22,7 @@ import { posalji } from "../../platform/http.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { sastaviOdgovor } from "../../domain/znanje.js";
+import { idiNa, putanjaZa } from "../../platform/router.js";
 
 const NAJMANJE = 3;
 const NAJVISE = 2000;
@@ -103,6 +104,22 @@ export function montirajZnanje(kontejner, kontekst) {
     "Pravno istraživanje po propisima Republike Srbije. Odgovor uvek dolazi sa izvorima "
     + "koje možete proveriti."));
   unutra.appendChild(zaglavlje);
+
+  // Prebacivanje izmedju dva pitanja istog prostora. Nije tab bar: obe strane
+  // su prave rute i mogu se podeliti.
+  const prekidac = el("nav", "v2-prekidac");
+  prekidac.setAttribute("aria-label", "Šta pitate");
+  const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Propisi");
+  ovde.setAttribute("aria-current", "page");
+  const kaPraksi = el("a", "v2-prekidac__stavka", "Sudska praksa");
+  kaPraksi.href = putanjaZa("znanje", "praksa");
+  ciklus.slusaj(kaPraksi, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("znanje", "praksa");
+  });
+  prekidac.append(ovde, kaPraksi);
+  unutra.appendChild(prekidac);
 
   const forma = el("form", "v2-forma v2-znanje__forma");
   forma.noValidate = true;

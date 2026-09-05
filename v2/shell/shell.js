@@ -118,20 +118,22 @@ export function montirajLjusku(koren, { izgradjeni, sme, pretraga = true }) {
   };
   if (pretraga) document.addEventListener("keydown", naTastaturu);
 
-  naPromenu((kljuc) => {
+  naPromenu((kljuc, param) => {
     for (const [k2, a] of veze) {
       const aktivan = k2 === kljuc;
       a.classList.toggle("v2-nav__veza--aktivan", aktivan);
       if (aktivan) a.setAttribute("aria-current", "page");
       else a.removeAttribute("aria-current");
     }
-    // Naslov kartice postavlja ljuska SAMO za prostore. Objekti i radnje
-    // (Dosije predmeta, klijent, „Nov predmet", „Napravi akt") nose sopstveni
-    // naslov i postavljaju ga sami pri montiranju — ljuska ih ne sme pregaziti
-    // generickim „Vindex". Mereno: `/klijent/nov` je imao naslov „Vindex",
-    // pa su tri razlicite podstranice u istoriji pretrazivaca izgledale isto.
+    // Naslov kartice postavlja ljuska SAMO za KOREN prostora. Objekti i radnje
+    // (Dosije, klijent, „Nov predmet", „Sudska praksa") nose sopstveni naslov i
+    // postavljaju ga sami pri montiranju — ljuska ih ne sme pregaziti.
+    //
+    // Mereno dvaput: `/klijent/nov` je nosio genericko „Vindex", a
+    // `/znanje/praksa` naslov „Znanje" — u oba slucaja se vise razlicitih
+    // podstranica u istoriji pretrazivaca nije moglo razlikovati.
     const p = prostori.find(x => x.kljuc === kljuc);
-    if (p) document.title = `${p.naziv} · Vindex`;
+    if (p && !param) document.title = `${p.naziv} · Vindex`;
   });
 
   return glavni;
