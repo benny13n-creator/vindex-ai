@@ -116,7 +116,11 @@ async def kandidati(
 
     def _upit():
         q = (supa.table("predmet_hronologija")
-             .select("id, predmet_id, dogadjaj, datum, datum_iso, vaznost, akter, dokument_naziv")
+             # `izvor` (Z016.1): kolona provenijencije. Bez nje potrosac ne moze
+             # da DOKAZE da je red predlog roka, a ne istorijska cinjenica
+             # predmeta -- a pogadjanje po tekstu ili po `akter` je tacno ono
+             # sto na ovom podatku ne sme da se radi.
+             .select("id, predmet_id, dogadjaj, datum, datum_iso, vaznost, akter, dokument_naziv, izvor")
              .eq("user_id", uid)
              .gte("datum_iso", od_date.isoformat())
              .lte("datum_iso", do_date.isoformat())

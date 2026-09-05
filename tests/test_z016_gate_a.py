@@ -4,14 +4,17 @@ Z016 GATE A — GLOBALNA LJUSKA + DANAS.
 
 Sta ovi testovi cuvaju, a sto se iz koda ne vidi:
 
-  1. DANAS SE NE SME GRADITI IZ KALENDARA.
-     `/api/kalendar/pregled` za rokove iz `predmet_hronologija` vraca samo
-     `{vaznost, dogadjaj}` — bez `id`, bez `akter`, bez stanja odluke. Izmereno
-     na produkciji: sva cetiri roka na ovom nalogu su `akter="…(AI)"` i
-     `stanje_odluke=UNCONFIRMED`. Kroz kalendar bi advokat video „kritican rok"
-     koji nijedan covek nije potvrdio. Zato je izvor `/api/rokovi/kandidati`.
-     `test_kalendarski_rokovi_se_odbacuju` i `test_nepotvrdjen_je_obelezen`
-     obaraju bas to.
+  1. DVE SEMANTICKE KLASE SE NE MESAJU.
+     Potvrdjena obaveza (rociste, ili rok sa `stanje_odluke=CONFIRMED`) i
+     nepotvrdjen predlog nikad ne stoje u istom redu ni istom statusu.
+     `test_potvrdjen_rok_je_obaveza` i
+     `test_dokazan_predlog_ide_u_ZA_PROVERU_nikad_medju_obaveze` obaraju to.
+
+  1b. NEDOKAZIV RED NE ULAZI (fail-closed).
+     `predmet_hronologija` nema kolonu o VRSTI reda; `_klasifikuj_dogadjaj` ima
+     catch-all `return "rok_dokument"`, a `izvor` je `LEGACY_UNKNOWN` na svih 55
+     redova u celoj tabeli. Bez dokaza red se ne prikazuje ni kao obaveza ni kao
+     predlog. `test_nedokaziv_red_NE_ULAZI_u_danas` i `test_akter_sa_AI_nije_dokaz`.
 
   2. ISTI ROK SE NE SME POJAVITI DVAPUT.
      Kalendar i kandidati citaju ISTU tabelu. Ako se iz kalendara uzme bilo sta
@@ -177,10 +180,14 @@ def test_child_rute_prostora_serviraju_isti_dokument():
 nodemark = pytest.mark.skipif(node is None, reason="node nije dostupan")
 
 
-def _js(telo: str):
+def _js(telo: str, dodaj_izvor: str = ""):
+    """`dodaj_izvor` privremeno proširuje allow-listu provenijencije, da bi se
+    ponašanje klase B moglo dokazati PRE nego što backend počne da je upisuje."""
+    prosiri = f'D.IZVOR_DOKAZUJE_PREDLOG.push("{dodaj_izvor}");' if dodaj_izvor else ""
     skripta = textwrap.dedent(f"""
         import * as D from "file:///{V2}/domain/danas.js";
         import * as S from "file:///{V2}/domain/spaces.js";
+        {prosiri}
         const rezultat = (() => {{ {telo} }})();
         process.stdout.write(JSON.stringify(rezultat));
     """)
@@ -196,44 +203,86 @@ ROK = """{ id:"r1", predmet_id:"p1", dogadjaj:"Rok za odgovor na tuzbu",
 
 
 @nodemark
-def test_nepotvrdjen_je_obelezen():
+def test_nedokaziv_red_NE_ULAZI_u_danas():
+    """Fail-closed: red koji se ne moze dokazati kao predlog roka ne ulazi.
+
+    `predmet_hronologija` nema kolonu o VRSTI reda, a `izvor` je
+    `LEGACY_UNKNOWN` na svih 55 redova u celoj tabeli. Pogadjanje po tekstu ili
+    po `akter` uvuklo bi u Danas istorijske cinjenice predmeta kao rokove —
+    mereno: u prozoru od 365 dana 45 od 47 redova su cinjenice, ne rokovi."""
     r = _js("""
       const sada = new Date(2026, 8, 5);
-      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok za odgovor",
-                  datum_iso:"2026-09-07", akter:"Pipeline (AI)", stanje_odluke:"UNCONFIRMED" }] };
+      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Kraj zaposlenja tuzioca",
+                  datum_iso:"2026-09-06", akter:"Zaposleni Marko", izvor:"LEGACY_UNKNOWN",
+                  stanje_odluke:"UNCONFIRMED" }] };
       const s = D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada);
-      return s.grupe[0].stavke[0];
+      return { ukupno: s.ukupno, obaveza: s.obaveza, provera: s.zaProveru.length,
+               nedokazivo: s.nedokazivo };
     """)
-    assert r["nepotvrdjen"] is True
-    assert r["automatski"] is True
-    assert r["potvrdjen"] is False
+    assert r["ukupno"] == 0
+    assert r["provera"] == 0
+    assert r["nedokazivo"] == 1, "nedokaziv red mora biti prebrojan, ne precutan"
 
 
 @nodemark
-def test_potvrdjen_nije_obelezen():
+def test_akter_sa_AI_nije_dokaz():
+    """`akter` je slobodan tekst. Pogadjanje po njemu je zabranjeno."""
     r = _js("""
       const sada = new Date(2026, 8, 5);
       const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok",
-                  datum_iso:"2026-09-07", akter:"Marko Marković", stanje_odluke:"CONFIRMED" }] };
-      return D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada).grupe[0].stavke[0];
+                  datum_iso:"2026-09-06", akter:"Genome (AI)", izvor:"LEGACY_UNKNOWN",
+                  stanje_odluke:"UNCONFIRMED" }] };
+      return D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada).zaProveru.length;
     """)
-    assert r["nepotvrdjen"] is False
-    assert r["automatski"] is False
+    assert r == 0
 
 
 @nodemark
-def test_odbijen_ne_ulazi_u_danas():
-    """Covek se izjasnio — to vise ne trazi paznju. Nije obrisano, samo nije ovde."""
+def test_dokazan_predlog_ide_u_ZA_PROVERU_nikad_medju_obaveze():
+    """Kada backend pocne da dokazuje provenijenciju, red ulazi — u klasu B."""
     r = _js("""
       const sada = new Date(2026, 8, 5);
-      const k = { rokovi: [
-        { id:"a", predmet_id:"p", dogadjaj:"X", datum_iso:"2026-09-06", stanje_odluke:"REJECTED" },
-        { id:"b", predmet_id:"p", dogadjaj:"Y", datum_iso:"2026-09-06", stanje_odluke:"UNCONFIRMED" }] };
+      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok za odgovor",
+                  datum_iso:"2026-09-06", izvor:"DOKAZ_TEST", stanje_odluke:"UNCONFIRMED" }] };
       const s = D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada);
-      return { ukupno: s.ukupno, opisi: s.grupe.flatMap(g => g.stavke.map(x => x.opis)) };
+      return { obaveza: s.obaveza, provera: s.zaProveru.length,
+               klasa: s.zaProveru[0] && s.zaProveru[0].klasa,
+               naziv: s.zaProveru[0] && s.zaProveru[0].vrstaNaziv,
+               nedokazivo: s.nedokazivo };
+    """, dodaj_izvor="DOKAZ_TEST")
+    assert r["obaveza"] == 0, "predlog NIKAD ne sme uci medju potvrdjene obaveze"
+    assert r["provera"] == 1
+    assert r["klasa"] == "provera"
+    assert r["naziv"] == "Predlog roka"
+    assert r["nedokazivo"] == 0
+
+
+@nodemark
+def test_potvrdjen_rok_je_obaveza():
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok za odgovor",
+                  datum_iso:"2026-09-06", izvor:"LEGACY_UNKNOWN", stanje_odluke:"CONFIRMED" }] };
+      const s = D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada);
+      return { obaveza: s.obaveza, provera: s.zaProveru.length,
+               klasa: s.grupe[0].stavke[0].klasa, grupa: s.grupe[0].kljuc };
     """)
-    assert r["ukupno"] == 1
-    assert r["opisi"] == ["Y"]
+    assert r["obaveza"] == 1 and r["provera"] == 0
+    assert r["klasa"] == "obaveza"
+    assert r["grupa"] == "sutra"
+
+
+@nodemark
+def test_odbijen_predlog_ne_ulazi_i_nije_nedokaziv():
+    r = _js("""
+      const sada = new Date(2026, 8, 5);
+      const k = { rokovi: [{ id:"a", predmet_id:"p", dogadjaj:"X",
+                  datum_iso:"2026-09-06", stanje_odluke:"REJECTED" }] };
+      const s = D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada);
+      return { ukupno: s.ukupno, nedokazivo: s.nedokazivo };
+    """)
+    assert r["ukupno"] == 0
+    assert r["nedokazivo"] == 0
 
 
 @nodemark
@@ -243,7 +292,7 @@ def test_kalendarski_rokovi_se_odbacuju():
     r = _js("""
       const sada = new Date(2026, 8, 5);
       const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok za odgovor",
-                  datum_iso:"2026-09-06", stanje_odluke:"UNCONFIRMED" }] };
+                  datum_iso:"2026-09-06", stanje_odluke:"CONFIRMED" }] };
       const c = { dogadjaji: [
         { tip:"rok_dokument", datum:"2026-09-06", predmet_id:"p1",
           predmet_naziv:"Predmet A", naslov:"⚠️ Rok za odgovor", detalji:{} },
@@ -261,7 +310,8 @@ def test_kalendarski_rokovi_se_odbacuju():
 def test_naziv_predmeta_dolazi_iz_kalendara():
     r = _js("""
       const sada = new Date(2026, 8, 5);
-      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok", datum_iso:"2026-09-06" }] };
+      const k = { rokovi: [{ id:"r1", predmet_id:"p1", dogadjaj:"Rok",
+                  datum_iso:"2026-09-06", stanje_odluke:"CONFIRMED" }] };
       const c = { dogadjaji: [{ tip:"rociste", datum:"2026-09-09", predmet_id:"p1",
                   predmet_naziv:"Marković protiv Delta", detalji:{} }] };
       return D.sastavi({ kandidati: k, kalendar: c }, sada).grupe[0].stavke[0].predmet;
@@ -279,7 +329,7 @@ def test_ukrasni_emoji_se_skida():
 
 @nodemark
 @pytest.mark.parametrize("razlika,ocekivano", [
-    (-82, "isteklo"), (-1, "isteklo"), (0, "danas"), (1, "sutra"),
+    (-82, "propusteno"), (-1, "propusteno"), (0, "danas"), (1, "sutra"),
     (2, "nedelja"), (7, "nedelja"), (8, None), (400, None),
 ])
 def test_granice_grupa(razlika, ocekivano):
@@ -293,8 +343,8 @@ def test_dalje_od_sedam_dana_ne_ulazi():
     r = _js("""
       const sada = new Date(2026, 8, 5);
       const k = { rokovi: [
-        { id:"a", predmet_id:"p", dogadjaj:"blizu", datum_iso:"2026-09-10" },
-        { id:"b", predmet_id:"p", dogadjaj:"daleko", datum_iso:"2026-09-15" }] };
+        { id:"a", predmet_id:"p", dogadjaj:"blizu", datum_iso:"2026-09-10", stanje_odluke:"CONFIRMED" },
+        { id:"b", predmet_id:"p", dogadjaj:"daleko", datum_iso:"2026-09-15", stanje_odluke:"CONFIRMED" }] };
       const s = D.sastavi({ kandidati: k, kalendar: { dogadjaji: [] } }, sada);
       return s.grupe.flatMap(g => g.stavke.map(x => x.opis));
     """)
@@ -319,16 +369,18 @@ def test_odseceno_se_prijavljuje():
 
 
 @nodemark
-def test_rociste_nije_predmet_modela_potvrde():
+def test_rociste_je_obaveza_bez_modela_potvrde():
     """Rociste je zakazan dogadjaj iz druge tabele — model potvrde se na njega
     ne primenjuje i ne sme se glumiti."""
     r = _js("""
       const sada = new Date(2026, 8, 5);
       const c = { dogadjaji: [{ tip:"rociste", datum:"2026-09-06", vreme:"09:30",
                   predmet_id:"p1", predmet_naziv:"P", detalji:{ id:"h1", sud:"Viši sud", sudnica:"3" } }] };
-      return D.sastavi({ kandidati:{rokovi:[]}, kalendar:c }, sada).grupe[0].stavke[0];
+      const s = D.sastavi({ kandidati:{rokovi:[]}, kalendar:c }, sada);
+      return { ...s.grupe[0].stavke[0], obaveza: s.obaveza, provera: s.zaProveru.length };
     """)
-    assert r["nepotvrdjen"] is False
+    assert r["obaveza"] == 1 and r["provera"] == 0
+    assert r["klasa"] == "obaveza"
     assert r["vrstaNaziv"] == "Ročište"
     assert r["opis"] == "Viši sud, 3"
     assert r["vreme"] == "09:30"

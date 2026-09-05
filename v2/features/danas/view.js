@@ -2,6 +2,11 @@
  *
  * Danas odgovara na jedno pitanje: STA TRAZI MOJU PAZNJU.
  *
+ * Ekran ima najvise dve celine, i one se NE MESAJU:
+ *   OBAVEZE     potvrdjene, grupisane po hitnosti
+ *   ZA PROVERU  predlozi koje niko nije potvrdio, uvek ispod obaveza
+ * Nedavno otvoreni predmeti se pojavljuju SAMO kad nema ni jednog ni drugog.
+ *
  * Sto ovde NAMERNO ne postoji, iako bi bilo lako dodati:
  *   - nijedan broj koji nije datum („20 aktivnih predmeta", „7 visokog rizika")
  *   - nijedan grafikon, nijedna kartica, nijedna mreza widgeta
@@ -73,17 +78,26 @@ function stavka(o) {
     p.appendChild(document.createTextNode(o.predmet));
     meta.appendChild(p);
   }
-  // Nepotvrdjen rok se NE prikazuje kao gotova obaveza. Ovo je jedina stvar
-  // na ekranu koja menja ono sto advokat sme da pretpostavi.
-  if (o.nepotvrdjen) {
-    const n = el("span", "v2-obaveza__nepotvrdjeno");
-    n.textContent = o.automatski ? "Nepotvrđeno · predložio sistem" : "Nepotvrđeno";
-    meta.appendChild(n);
-  }
   if (meta.childNodes.length) telo.appendChild(meta);
 
   li.appendChild(telo);
   return li;
+}
+
+/**
+ * Klasa B stoji ISPOD svih potvrdjenih obaveza i nosi mirniju gramatiku.
+ * Predlog ne sme izgledati hitnije od stvarnog roka samo zato sto ga je
+ * napravio sistem — zato razliku nosi polozaj i rec, a ne jaca boja.
+ */
+function proveraBlok(stavke) {
+  const sek = el("section", "v2-grupa v2-provera");
+  sek.appendChild(el("h2", "v2-natkapa v2-grupa__naslov", "Za proveru"));
+  sek.appendChild(el("p", "v2-provera__uvod",
+    "Sistem je predložio ove rokove. Nisu potvrđeni i ne predstavljaju evidentiranu obavezu."));
+  const ul = el("ul", "v2-grupa__lista");
+  for (const o of stavke) ul.appendChild(stavka(o));
+  sek.appendChild(ul);
+  return sek;
 }
 
 function grupaBlok(g) {
@@ -197,15 +211,19 @@ export function montirajDanas(kontejner) {
       const upoz = upozorenjeIzvora(pregled);
       if (upoz) okvir.appendChild(upoz);
 
+      for (const g of pregled.grupe) okvir.appendChild(grupaBlok(g));
+      if (pregled.zaProveru.length) okvir.appendChild(proveraBlok(pregled.zaProveru));
+
       if (pregled.ukupno === 0) {
         okvir.appendChild(poruka({
-          naslov: `Nema obaveza sa rokom u narednih ${DANA_UNAPRED} dana.`,
+          naslov: "Nema obaveza koje trenutno traže postupanje.",
         }));
-      } else {
-        for (const g of pregled.grupe) okvir.appendChild(grupaBlok(g));
       }
       sadrzaj.replaceChildren(okvir);
-      await nedavni(sadrzaj);
+
+      // Nedavni predmeti su FALLBACK, ne treci blok. Danas ostaje povrsina
+      // paznje; kada paznje ima, ne dodaje se pocetni portal ispod nje.
+      if (pregled.ukupno === 0) await nedavni(sadrzaj);
     } catch (e) {
       if (jePrekid(e) || ciklus.ugasen || moja !== generacija) return;
       sadrzaj.setAttribute("aria-busy", "false");

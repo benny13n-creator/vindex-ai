@@ -1,45 +1,66 @@
 /* Vindex V2 — domen ekrana Danas.
  *
- * ── ZASTO SE OBAVEZE NE CITAJU IZ KALENDARA ──────────────────────────────
+ * ═══ DVE SEMANTICKE KLASE, KOJE SE NIKAD NE MESAJU ════════════════════════
  *
- * `/api/kalendar/pregled` je jedini agregat datiranih dogadjaja, ali za rokove
- * izvedene iz `predmet_hronologija` vraca SAMO `{vaznost, dogadjaj}`. Nema
- * `id`, nema `akter`, nema stanje odluke.
+ *   A. OBAVEZA   stvarno evidentirana poslovna obaveza
+ *                -> rociste (tabela `rocista`, sopstveni objekat i status)
+ *                -> rok cije je stanje odluke CONFIRMED
  *
- * Izmereno na produkciji (2026-09-05, vlasnicki nalog): sva tri nadolazeca
- * „kriticna roka" imaju `akter = "Pipeline (AI)"` i `stanje_odluke =
- * UNCONFIRMED`. Kroz kalendar bi se advokatu prikazali kao gotove obaveze sa
- * uzvicnikom — tvrdnja da ima kritican rok koji nijedan covek nije potvrdio.
+ *   B. ZA PROVERU  trazi konkretnu reakciju, ali NIJE potvrdjena obaveza
+ *                -> predlog roka koji je sistem napravio i niko nije potvrdio
  *
- * Zato je izvor obaveza `/api/rokovi/kandidati`, koji nosi `stanje_odluke`.
- * Kalendar se koristi za DVE stvari koje kandidati nemaju: rocista (zaseban
- * objekat iz tabele `rocista`, sopstveni status) i naziv predmeta.
+ * Nepotvrdjen predlog se NIKAD ne sme naci u istom redu i istom vizuelnom
+ * statusu kao potvrdjena obaveza, i ne sme izgledati hitnije od nje.
  *
- * Kalendarski dogadjaji tipa `rok_dokument`/`napomena` se NAMERNO odbacuju —
- * to su isti redovi koje kandidati vec vracaju, samo bez stanja odluke.
- * Bez tog odbacivanja svaka obaveza bi se pojavila dvaput.
+ * ═══ ZASTO JE KLASA B DANAS PRAZNA ═══════════════════════════════════════
  *
- * ── STA NE ULAZI U DANAS ──────────────────────────────────────────────────
+ * Da bi red iz `predmet_hronologija` usao u klasu B, mora se DOKAZATI da je
+ * predlog roka. Backend to trenutno ne moze:
  *
- * Odbijen predlog (`REJECTED`) se ne prikazuje: covek se vec izjasnio, pa to
- * vise ne trazi paznju. Nije obrisan i ostaje u istoriji rokova — Danas
- * jednostavno nije istorija.
+ *   - `predmet_hronologija` nema nijednu kolonu za VRSTU reda. Kalendarski
+ *     klasifikator (`_klasifikuj_dogadjaj`) pogadja iz teksta i ima catch-all
+ *     `return "rok_dokument"` — pa „Kraj zaposlenja tuzioca kod tuzenog",
+ *     istorijska cinjenica predmeta, postaje „rok".
+ *   - `izvor` je kolona provenijencije predvidjena tacno za ovo, ali je
+ *     `LEGACY_UNKNOWN` na SVIH 55 redova u celoj tabeli, u svim kancelarijama.
+ *   - `akter` je slobodan tekst („Genome (AI)", „DOO Alfa Trejd"). Pogadjanje
+ *     po njemu je tacno ono sto se ovde ne sme raditi.
  *
- * Nivo rizika sam po sebi nije ulaznica. Stavka ulazi jer ima datum.
+ * Merena posledica pogadjanja: pri prozoru od 365 dana kroz kandidate prolazi
+ * 47 redova, od kojih su 2 predlozi roka a 45 istorijske cinjenice predmeta.
+ * Danas bi postao arhiva.
+ *
+ * Zato je odluka FAIL-CLOSED: red koji se ne moze dokazati NE ULAZI. Vindex o
+ * njemu ne tvrdi nista — ni da je obaveza, ni da nije. Broj takvih redova se
+ * vraca kao `nedokazivo` radi dijagnostike; korisniku se ne prikazuje, jer
+ * nedostatak podatkovnog ugovora nije njegov problem.
  *
  * Cist modul: bez DOM-a, bez mreze, bez stanja.
  */
 
 const DAN_MS = 86400000;
 
-/** Automatski proizvodjaci roka. Korisnik ne vidi ovaj niz, samo posledicu. */
-const AUTOMATSKI_AKTERI = ["pipeline", "ai", "sistem", "auto"];
-
 export const STANJE = Object.freeze({
   POTVRDJEN: "CONFIRMED",
   NEPOTVRDJEN: "UNCONFIRMED",
   ODBIJEN: "REJECTED",
 });
+
+/**
+ * Vrednosti `predmet_hronologija.izvor` koje DOKAZUJU da je red predlog roka
+ * koji je napravio sistem.
+ *
+ * Namerno prazna. Popunjava se tek kada backend pocne da upisuje provenijenciju
+ * koja to razlikuje. Dodavanje vrednosti ovde je proizvodna odluka, ne
+ * implementaciona — zato stoji na jednom vidljivom mestu.
+ */
+export const IZVOR_DOKAZUJE_PREDLOG = [];
+
+export function dokazanoPredlog(red) {
+  const izvor = String((red && red.izvor) || "").trim().toUpperCase();
+  if (!izvor) return false;
+  return IZVOR_DOKAZUJE_PREDLOG.includes(izvor);
+}
 
 function uDan(iso) {
   if (!iso) return null;
@@ -52,30 +73,32 @@ function danasDan() {
   return new Date(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-/** Razlika u danima; negativno = proslo. */
 export function razlikaDana(iso, sada = danasDan()) {
   const d = uDan(iso);
   if (!d) return null;
   return Math.round((d.getTime() - sada.getTime()) / DAN_MS);
 }
 
+/* ── Grupe obaveza ──────────────────────────────────────────────────────
+ * Redosled je poslovni prioritet, ne kalendarski: propusteno prvo.
+ * Sve dalje od 7 dana ne trazi paznju DANAS i ne ulazi.
+ */
 export function grupa(razlika) {
   if (razlika === null) return null;
-  if (razlika < 0) return "isteklo";
+  if (razlika < 0) return "propusteno";
   if (razlika === 0) return "danas";
   if (razlika === 1) return "sutra";
   if (razlika <= 7) return "nedelja";
-  return null;                      // dalje od 7 dana ne trazi paznju danas
+  return null;
 }
 
 export const GRUPE = Object.freeze([
-  { kljuc: "isteklo", naziv: "Isteklo" },
+  { kljuc: "propusteno", naziv: "Propušteno" },
   { kljuc: "danas", naziv: "Danas" },
   { kljuc: "sutra", naziv: "Sutra" },
   { kljuc: "nedelja", naziv: "Narednih 7 dana" },
 ]);
 
-/** Vreme izrazeno onako kako ga advokat izgovara, ne kao broj dana od epohe. */
 export function kadaTekst(razlika) {
   if (razlika === null) return "";
   if (razlika === 0) return "danas";
@@ -85,7 +108,7 @@ export function kadaTekst(razlika) {
     const n = Math.abs(razlika);
     return n === 1 ? "pre 1 dan" : `pre ${n} dana`;
   }
-  return razlika === 1 ? "za 1 dan" : `za ${razlika} dana`;
+  return `za ${razlika} dana`;
 }
 
 export function datumTekst(iso) {
@@ -96,16 +119,7 @@ export function datumTekst(iso) {
   return `${dan}.${mes}.${d.getFullYear()}.`;
 }
 
-function automatski(akter) {
-  const a = String(akter || "").toLowerCase();
-  return AUTOMATSKI_AKTERI.some(x => a.includes(x));
-}
-
-/**
- * Server salje naslov sa ukrasnim emojijem („⚠️ Rociste zakazano").
- * V2 ga skida: emoji nije podatak nego prezentacija koju je izabrao drugi sloj,
- * a vizuelni kanon ne koristi ukrasne znakove kao nosioce znacenja.
- */
+/** Server salje naslov sa ukrasnim emojijem; emoji je prezentacija, ne podatak. */
 export function ocistiNaslov(tekst) {
   return String(tekst || "")
     .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2B00}-\u{2BFF}]/gu, "")
@@ -113,59 +127,61 @@ export function ocistiNaslov(tekst) {
     .trim();
 }
 
-/** Rok/obaveza iz `/api/rokovi/kandidati`. */
-export function uObavezu(sirov, imenaPredmeta = {}, sada = danasDan()) {
-  const r = sirov || {};
-  const iso = r.datum_iso || r.datum || "";
+function osnovno(iso, sada) {
   const razlika = razlikaDana(iso, sada);
-  const stanje = r.stanje_odluke || STANJE.NEPOTVRDJEN;
+  return { datumIso: iso, datum: datumTekst(iso), razlika, grupa: grupa(razlika) };
+}
+
+/** Klasa A — potvrdjen rok iz hronologije. */
+export function uObavezu(sirov, imena = {}, sada = danasDan()) {
+  const r = sirov || {};
   return {
+    klasa: "obaveza",
     id: r.id || "",
     vrsta: "rok",
     vrstaNaziv: "Rok",
     opis: ocistiNaslov(r.dogadjaj) || "Rok bez opisa",
     predmetId: r.predmet_id || "",
-    predmet: imenaPredmeta[r.predmet_id] || "",
-    datumIso: iso,
-    datum: datumTekst(iso),
-    razlika,
-    grupa: grupa(razlika),
-    potvrdjen: stanje === STANJE.POTVRDJEN,
-    nepotvrdjen: stanje === STANJE.NEPOTVRDJEN,
-    odbijen: stanje === STANJE.ODBIJEN,
-    automatski: automatski(r.akter),
+    predmet: imena[r.predmet_id] || "",
+    vreme: "",
+    ...osnovno(r.datum_iso || r.datum || "", sada),
   };
 }
 
-/** Rociste iz `/api/kalendar/pregled` (tabela `rocista`, sopstveni status). */
+/** Klasa A — rociste. Zaseban objekat; model potvrde se na njega ne primenjuje. */
 export function uRociste(sirov, sada = danasDan()) {
   const e = sirov || {};
-  const iso = e.datum || "";
-  const razlika = razlikaDana(iso, sada);
   const d = e.detalji || {};
   const mesto = [d.sud, d.sudnica].filter(Boolean).join(", ");
   return {
+    klasa: "obaveza",
     id: d.id || "",
     vrsta: "rociste",
     vrstaNaziv: "Ročište",
     opis: mesto || "Ročište",
     predmetId: e.predmet_id || "",
     predmet: e.predmet_naziv || "",
-    datumIso: iso,
-    datum: datumTekst(iso),
     vreme: e.vreme || "",
-    razlika,
-    grupa: grupa(razlika),
-    // Rociste nije AI predlog nego zakazan dogadjaj — model potvrde se na
-    // njega ne primenjuje i ne sme se glumiti.
-    potvrdjen: true,
-    nepotvrdjen: false,
-    odbijen: false,
-    automatski: false,
+    ...osnovno(e.datum || "", sada),
   };
 }
 
-/** Mapa predmet_id -> naziv, izvedena iz kalendara (kandidati je nemaju). */
+/** Klasa B — predlog roka koji niko nije potvrdio. */
+export function uProveru(sirov, imena = {}, sada = danasDan()) {
+  const r = sirov || {};
+  return {
+    klasa: "provera",
+    id: r.id || "",
+    vrsta: "predlog",
+    vrstaNaziv: "Predlog roka",
+    opis: ocistiNaslov(r.dogadjaj) || "Predlog bez opisa",
+    predmetId: r.predmet_id || "",
+    predmet: imena[r.predmet_id] || "",
+    vreme: "",
+    ...osnovno(r.datum_iso || r.datum || "", sada),
+  };
+}
+
 export function imenaIzKalendara(dogadjaji) {
   const m = {};
   for (const e of dogadjaji || []) {
@@ -175,38 +191,55 @@ export function imenaIzKalendara(dogadjaji) {
 }
 
 /**
- * Sastavlja ekran Danas iz dva izvora.
- * @returns {{grupe: Array, ukupno: number, degradirano: boolean, odseceno: boolean}}
+ * Sastavlja Danas.
+ * @returns {{grupe, obaveza, zaProveru, ukupno, degradirano, odseceno, nedokazivo}}
  */
 export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
   const k = kandidati || {};
   const c = kalendar || {};
   const dogadjaji = Array.isArray(c.dogadjaji) ? c.dogadjaji : [];
   const imena = imenaIzKalendara(dogadjaji);
+  const redovi = Array.isArray(k.rokovi) ? k.rokovi : [];
 
-  const obaveze = (Array.isArray(k.rokovi) ? k.rokovi : [])
-    .map(x => uObavezu(x, imena, sada))
-    .filter(x => !x.odbijen && x.grupa !== null);
+  // ── Klasa A ────────────────────────────────────────────────────────────
+  const potvrdjeni = redovi
+    .filter(r => (r || {}).stanje_odluke === STANJE.POTVRDJEN)
+    .map(r => uObavezu(r, imena, sada));
 
   const rocista = dogadjaji
     .filter(e => e && e.tip === "rociste")
-    .map(x => uRociste(x, sada))
-    .filter(x => x.grupa !== null);
+    .map(e => uRociste(e, sada));
 
-  const sve = obaveze.concat(rocista).sort((a, b) => {
-    if (a.datumIso !== b.datumIso) return a.datumIso < b.datumIso ? -1 : 1;
-    return (a.vreme || "").localeCompare(b.vreme || "");
-  });
+  const obaveze = potvrdjeni.concat(rocista)
+    .filter(x => x.grupa !== null)
+    .sort((a, b) => (a.datumIso === b.datumIso
+      ? (a.vreme || "").localeCompare(b.vreme || "")
+      : (a.datumIso < b.datumIso ? -1 : 1)));
+
+  // ── Klasa B ────────────────────────────────────────────────────────────
+  // Odbijen predlog ne ulazi: covek se izjasnio, to vise ne trazi paznju.
+  const otvoreni = redovi.filter(r => (r || {}).stanje_odluke !== STANJE.POTVRDJEN
+                                   && (r || {}).stanje_odluke !== STANJE.ODBIJEN);
+  const dokazani = otvoreni.filter(dokazanoPredlog);
+
+  const zaProveru = dokazani
+    .map(r => uProveru(r, imena, sada))
+    .filter(x => x.razlika !== null)
+    .sort((a, b) => (a.datumIso < b.datumIso ? -1 : 1));
 
   const grupe = GRUPE
-    .map(g => ({ ...g, stavke: sve.filter(x => x.grupa === g.kljuc) }))
+    .map(g => ({ ...g, stavke: obaveze.filter(x => x.grupa === g.kljuc) }))
     .filter(g => g.stavke.length > 0);
 
   return {
     grupe,
-    ukupno: sve.length,
-    // Delimican izvor NIKAD ne sme izgledati kao prazan ekran (§31).
+    obaveza: obaveze.length,
+    zaProveru,
+    ukupno: obaveze.length + zaProveru.length,
     degradirano: Boolean((c.degraded_sources || []).length) || Boolean(c.__palo) || Boolean(k.__palo),
     odseceno: Boolean(k.odseceno) || Boolean(c.truncated),
+    // Redovi koje ugovor ne moze da razvrsta. Dijagnostika za vlasnika,
+    // NE prikazuje se korisniku.
+    nedokazivo: otvoreni.length - dokazani.length,
   };
 }

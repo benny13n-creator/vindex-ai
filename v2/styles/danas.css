@@ -26,10 +26,24 @@
 /* Istekla obaveza je jedino mesto na ekranu gde semanticka boja nesto nosi —
    i tu je nosi TANKA LINIJA, dok rec „Isteklo" i dalje nosi znacenje sama.
    Boja pojacava, ne zamenjuje. */
-.v2-grupa[data-grupa="isteklo"] .v2-grupa__naslov {
+.v2-grupa[data-grupa="propusteno"] .v2-grupa__naslov {
   border-bottom-color: var(--v2-st-greska);
   color: var(--v2-st-greska);
 }
+
+/* „Za proveru" nosi MIRNIJU gramatiku od potvrdjenih obaveza: stoji ispod njih,
+   ima uvodnu recenicu koja kaze sta jeste, i nema semanticku boju hitnosti.
+   Predlog ne sme izgledati hitnije od stvarnog roka. */
+.v2-provera .v2-grupa__naslov { color: var(--v2-tx-3); }
+.v2-provera__uvod {
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  padding-block: var(--v2-r-2);
+  max-width: 62ch;
+}
+.v2-provera .v2-obaveza__kada,
+.v2-provera .v2-obaveza__naslov { color: var(--v2-tx-2); }
+.v2-provera .v2-obaveza__rel { color: var(--v2-tx-3); }
 
 /* ── Stavka ──────────────────────────────────────────────────────────── */
 .v2-obaveza {
@@ -56,7 +70,7 @@
   font-size: 12px;
   color: var(--v2-tx-3);
 }
-.v2-grupa[data-grupa="isteklo"] .v2-obaveza__rel { color: var(--v2-st-greska); }
+.v2-grupa[data-grupa="propusteno"] .v2-obaveza__rel { color: var(--v2-st-greska); }
 
 .v2-obaveza__telo { min-width: 0; }
 
@@ -91,12 +105,6 @@
 }
 
 .v2-obaveza__predmet { overflow-wrap: anywhere; }
-
-/* Jedina tvrdnja na ekranu koja menja ono sto advokat sme da pretpostavi. */
-.v2-obaveza__nepotvrdjeno {
-  color: var(--v2-st-greska);
-  font-weight: 500;
-}
 
 /* ── Upozorenje o nepotpunom izvoru ──────────────────────────────────── */
 .v2-upozorenje {

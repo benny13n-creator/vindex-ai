@@ -20,9 +20,20 @@ import { sastavi } from "../../domain/danas.js";
 /** Koliko unapred Danas gleda. Poklapa se sa poslednjom grupom „Narednih 7 dana". */
 export const DANA_UNAPRED = 7;
 
-/** Koliko unazad se traze istekli rokovi.
- *  Istekao rok ne prestaje da vazi, ali Danas je ekran paznje, ne arhiva.
- *  Vrednost je proizvodna odluka i namerno stoji na jednom mestu. */
+/**
+ * TEHNICKI opseg dohvatanja unazad — NIJE poslovno pravilo.
+ *
+ * Starost sama po sebi ne znaci nista: nereseni rok star 91 dan moze biti
+ * vazniji od onog starog 20 dana. Ovaj broj postoji samo zato sto
+ * `/api/rokovi/kandidati` mora dobiti neku donju granicu, i zato sto isti
+ * endpoint ogranicava raspon na 365 dana.
+ *
+ * Pravilo „nereseno ne nestaje zato sto je staro" se ovde NE MOZE sprovesti:
+ * `predmet_hronologija` nema nijednu kolonu o resenosti. To je zavisnost
+ * kapije Rokovi i zadaci, ne odluka ovog ekrana.
+ *
+ * Zato UI nikad ne tvrdi da je ovo potpun spisak nerezenih obaveza.
+ */
 export const DANA_UNAZAD = 90;
 
 function isoPomeraj(dana) {
