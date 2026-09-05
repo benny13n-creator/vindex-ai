@@ -17,6 +17,7 @@
 import { napraviCiklus } from "../../platform/lifecycle.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu, odjavi } from "../../platform/auth.js";
+import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ucitajKancelariju } from "./api.js";
 import { uNalog, uKlijente, uNaplatu, uTim } from "../../domain/kancelarija.js";
 
@@ -98,12 +99,24 @@ function sekcijaNalog(deo, ciklus) {
 }
 
 /* ── Klijenti ───────────────────────────────────────────────────────────── */
-function sekcijaKlijenti(deo) {
+function sekcijaKlijenti(deo, ciklus) {
   const s = celina("klijenti", "Klijenti");
   if (deo.pao) { s.appendChild(nijeUcitano("Spisak klijenata", deo.greska)); return s; }
+
+  // Otvaranje klijenta je radnja ovog prostora i zato stoji uz spisak, a ne
+  // u globalnoj navigaciji: klijenti su socivo Kancelarije, ne peti prostor.
+  const noviK = el("a", "v2-dugme", "Nov klijent");
+  noviK.href = putanjaZa("klijent", "nov");
+  ciklus.slusaj(noviK, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("klijent", "nov");
+  });
+
   const k = uKlijente(deo.podaci);
   if (!k.redovi.length) {
     s.appendChild(prazno("Još nema evidentiranih klijenata."));
+    s.appendChild(noviK);
     return s;
   }
   if (k.ukupno !== null) {
@@ -113,7 +126,24 @@ function sekcijaKlijenti(deo) {
   const ul = el("ul", "v2-klijenti");
   for (const x of k.redovi) {
     const li = el("li", "v2-klijenti__red");
-    li.appendChild(el("span", "v2-klijenti__naziv", x.naziv));
+
+    // Red vodi u DOSIJE klijenta. Prava <a href> veza: srednji klik i „otvori
+    // u novoj kartici" rade nativno. Klijent bez id-ja NE postaje veza —
+    // lazan deep link je gori od izostanka veze.
+    const naziv = el("span", "v2-klijenti__naziv");
+    if (x.id) {
+      const veza = el("a", "v2-reg__veza", x.naziv);
+      veza.href = putanjaZa("klijent", x.id);
+      ciklus.slusaj(veza, "click", (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        idiNa("klijent", x.id);
+      });
+      naziv.appendChild(veza);
+    } else {
+      naziv.textContent = x.naziv;
+    }
+    li.appendChild(naziv);
 
     const meta = el("span", "v2-klijenti__meta");
     if (x.vrsta) {
@@ -144,6 +174,7 @@ function sekcijaKlijenti(deo) {
     s.appendChild(el("p", "v2-celina__prazno",
       `Prikazano ${k.redovi.length} od ${k.ukupno}. Ostale nađite kroz pretragu (Ctrl+K).`));
   }
+  s.appendChild(noviK);
   return s;
 }
 
@@ -234,7 +265,7 @@ export function montirajKancelariju(kontejner) {
 
     const okvir = document.createDocumentFragment();
     okvir.appendChild(sekcijaNalog(d.nalog, ciklus));
-    okvir.appendChild(sekcijaKlijenti(d.klijenti));
+    okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus));
     okvir.appendChild(sekcijaNaplata(d.naplata));
     okvir.appendChild(sekcijaTim(d.tim));
     sadrzaj.replaceChildren(okvir);

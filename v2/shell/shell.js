@@ -125,8 +125,13 @@ export function montirajLjusku(koren, { izgradjeni, sme, pretraga = true }) {
       if (aktivan) a.setAttribute("aria-current", "page");
       else a.removeAttribute("aria-current");
     }
+    // Naslov kartice postavlja ljuska SAMO za prostore. Objekti i radnje
+    // (Dosije predmeta, klijent, „Nov predmet", „Napravi akt") nose sopstveni
+    // naslov i postavljaju ga sami pri montiranju — ljuska ih ne sme pregaziti
+    // generickim „Vindex". Mereno: `/klijent/nov` je imao naslov „Vindex",
+    // pa su tri razlicite podstranice u istoriji pretrazivaca izgledale isto.
     const p = prostori.find(x => x.kljuc === kljuc);
-    document.title = p ? `${p.naziv} · Vindex` : "Vindex";
+    if (p) document.title = `${p.naziv} · Vindex`;
   });
 
   return glavni;

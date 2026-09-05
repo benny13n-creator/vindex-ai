@@ -19,6 +19,7 @@ import { montirajPretragu } from "./features/pretraga/view.js";
 import { montirajZnanje } from "./features/znanje/view.js";
 import { montirajKancelariju } from "./features/kancelarija/view.js";
 import { montirajUskladjenost } from "./features/uskladjenost/view.js";
+import { montirajProstorKlijent } from "./features/klijent/view.js";
 
 /** Prostori izgradjeni u ovoj verziji. Raste sa kapijama, nikad unapred. */
 // „Uskladjenost" je IZGRADJENA, ali je uslovna: da li se vidi odlucuje
@@ -35,6 +36,10 @@ export function pokreniAplikaciju(koren, { sme } = {}) {
   // `predmet` je OBJEKAT, ne prostor: ne pojavljuje se u globalnoj navigaciji,
   // ali ima sopstvenu rutu `/app-v2/predmet/<id>` da deep link i back rade.
   registruj("predmet", montirajPredmetProstor);
+  // `klijent` je takodje OBJEKAT: `/app-v2/klijent/<id>` i radnja
+  // `/app-v2/klijent/nov`. Nema stavku u globalnoj navigaciji --
+  // do klijenta se stize iz Kancelarije i iz pretrage.
+  registruj("klijent", montirajProstorKlijent);
   registruj("znanje", montirajZnanje);
   registruj("kancelarija", montirajKancelariju);
   // Uslovni prostor se registruje SAMO ako nalog na njega ima pravo.
