@@ -17,6 +17,7 @@ import { naPrijavu } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ostavi, elementPoruke } from "../../platform/obavestenje.js";
 import { sastaviKlijenta, uTeloNovog, nedostaci } from "../../domain/klijent.js";
+import { kontrolaIzmeneKlijenta, kontrolaArhiviranja } from "./radnje.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -66,6 +67,9 @@ function spisakPredmeta(lista, ciklus) {
 /* ── Dosije klijenta ────────────────────────────────────────────────────── */
 export function montirajKlijenta(kontejner, kontekst, klijentId) {
   const ciklus = napraviCiklus();
+  // Posle izmene se dosije ponovo cita SA SERVERA — samo ovaj ekran, ne ceo
+  // boot (`/api/plan/status` ima granicu od 60 na sat).
+  const osvezi = () => { if (!ciklus.ugasen) ucitaj(); };
 
   const unutra = el("div", "v2-scena__unutra v2-scena__unutra--predmet");
   const sadrzaj = el("div", "v2-dosije");
@@ -81,7 +85,7 @@ export function montirajKlijenta(kontejner, kontekst, klijentId) {
 
   sadrzaj.appendChild(prazno("Učitava se…"));
 
-  (async () => {
+  async function ucitaj() {
     const prekidac = ciklus.prekidac();
     let d;
     try {
@@ -141,6 +145,10 @@ export function montirajKlijenta(kontejner, kontekst, klijentId) {
       b.appendChild(el("p", "v2-proza", k.zaglavlje.napomena));
       s1.appendChild(b);
     }
+    // Izmena i arhiviranje. Arhiviranje stoji odvojeno i vizuelno drugacije —
+    // i NE zove se „Obriši", jer server radi soft-delete (vidi radnje.js).
+    s1.appendChild(kontrolaIzmeneKlijenta(klijentId, d.klijent || {}, ciklus, osvezi));
+    s1.appendChild(kontrolaArhiviranja(klijentId, k.zaglavlje.naziv, ciklus));
     okvir.appendChild(s1);
 
     // ── Aktivni ──
@@ -157,7 +165,9 @@ export function montirajKlijenta(kontejner, kontekst, klijentId) {
 
     sadrzaj.replaceChildren(okvir);
     document.title = k.zaglavlje.naziv + " · Vindex";
-  })();
+  }
+
+  ucitaj();
 
   return ciklus;
 }

@@ -31,6 +31,7 @@ import { uZadatke, uRocista, uBeleske } from "../../domain/dosije.js";
 import { obrazacZadatka, obrazacRocista, obrazacBeleske,
          kontrolaBrisanjaSpisa } from "./radnje.js";
 import { kontrolaIzmene } from "./izmena.js";
+import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -128,6 +129,9 @@ function sekcijaStanje(d, ciklus, predmetId, radnje) {
   // gledajuci ostatak predmeta, ne u praznom obrascu na drugoj strani.
   if (radnje && radnje.osvezi && d.sirovi) {
     s.appendChild(kontrolaIzmene(predmetId, d.sirovi, ciklus, radnje.osvezi));
+    // Brisanje stoji NA DNU celine, odvojeno od izmene i vizuelno drugacije:
+    // nepovratna radnja ne sme da stoji uz svakodnevnu.
+    s.appendChild(kontrolaBrisanjaPredmeta(predmetId, d.zaglavlje.naziv, ciklus));
   }
 
   return s;
