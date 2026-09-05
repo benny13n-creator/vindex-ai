@@ -137,3 +137,10 @@
   }
   .v2-obaveza__kada { flex-direction: row; align-items: baseline; gap: 10px; }
 }
+
+/* Stavka vodi u Dosije svog predmeta. Nasledjuje tipografiju reda —
+   veza je tekst obaveze, ne dugme pored nje. */
+.v2-obaveza__veza { color: inherit; text-decoration: none; }
+.v2-obaveza__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
+.v2-obaveza:has(.v2-obaveza__veza:hover) { background: var(--v2-papir-2); }
+.v2-obaveza .v2-odluka { margin-top: var(--v2-r-2); }

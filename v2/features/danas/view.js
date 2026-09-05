@@ -18,13 +18,14 @@
  * nema obaveza, prikazuju se nedavno otvoreni predmeti — jer korisnik koji
  * nema rok i dalje ima posao.
  *
- * SVESNO IZOSTAVLJENO U KAPIJI A:
- *   Stavke NISU klikabilne. Klik mora voditi do najpreciznijeg konteksta
- *   (rociste -> predmet -> Rokovi -> to rociste), a Dosije jos ne postoji.
- *   Vodjenje na vrh registra bi bilo tacno ono sto vlasnicki model zabranjuje.
+ * OBA IZOSTAVLJANJA IZ KAPIJE A SU SADA ZATVORENA:
+ *   Stavka vodi u DOSIJE svog predmeta, i to pravo na celinu „Rokovi i
+ *   zadaci" (`#celina-rokovi`), a ne na vrh registra. Stavka bez dokazivog
+ *   `predmet_id` NE postaje veza — lazan deep link je gori od izostanka veze.
  *
- *   Potvrdi/odbij se ne nudi. To je upis sa pravnim posledicama i pripada
- *   kapiji Rokovi i zadaci. Ovde se stanje potvrde SAOPSTAVA, ne menja.
+ *   Predlog roka dobija „Potvrdi / Odbij", istu kontrolu koja stoji i u
+ *   Dosijeu. Dve implementacije iste pravne radnje znacile bi dve prilike da
+ *   se ponasa razlicito.
  */
 
 import { napraviCiklus } from "../../platform/lifecycle.js";
@@ -33,6 +34,8 @@ import { naPrijavu } from "../../platform/auth.js";
 import { ucitajDanas, ucitajNedavnePredmete, DANA_UNAPRED } from "./api.js";
 import { kadaTekst } from "../../domain/danas.js";
 import { uZapise } from "../../domain/predmeti.js";
+import { idiNaPutanju, putanjaZa } from "../../platform/router.js";
+import { kontrolaOdluke } from "../rokovi/odluka.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -51,7 +54,15 @@ function danasnjiDatum() {
 
 /* ── Stavka ───────────────────────────────────────────────────────────── */
 
-function stavka(o) {
+/**
+ * Otvara predmet stavke, pozicioniran na celinu „Rokovi i zadaci".
+ * Hash prezivljava jer ga Dosije cita posle iscrtavanja.
+ */
+function putanjaStavke(o) {
+  return putanjaZa("predmet", o.predmetId) + "#celina-rokovi";
+}
+
+function stavka(o, ciklus) {
   const li = el("li", "v2-obaveza");
 
   const kada = el("span", "v2-obaveza__kada");
@@ -68,7 +79,21 @@ function stavka(o) {
   naslov.appendChild(vrsta);
   // Razmak mora biti u TEKSTU, ne samo u `margin`. Bez njega citac ekrana
   // spaja kategoriju i opis u jednu rec: „ROKRok za reklamaciju...".
-  naslov.appendChild(document.createTextNode(" " + o.opis));
+  if (o.predmetId) {
+    const veza = el("a", "v2-obaveza__veza", " " + o.opis);
+    veza.href = putanjaStavke(o);
+    if (ciklus) {
+      ciklus.slusaj(veza, "click", (e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        idiNaPutanju(putanjaStavke(o));
+      });
+    }
+    naslov.appendChild(veza);
+  } else {
+    // Bez dokazivog predmeta stavka se PRIKAZUJE, ali ne glumi vezu.
+    naslov.appendChild(document.createTextNode(" " + o.opis));
+  }
   telo.appendChild(naslov);
 
   const meta = el("p", "v2-obaveza__meta");
@@ -81,6 +106,12 @@ function stavka(o) {
   if (meta.childNodes.length) telo.appendChild(meta);
 
   li.appendChild(telo);
+
+  // Odluka stoji SAMO uz nepotvrdjen predlog, nikad uz potvrdjenu obavezu
+  // ni uz rociste (rociste nije predlog i nema sta da se potvrdjuje).
+  if (ciklus && o.klasa === "provera" && o.id) {
+    li.appendChild(kontrolaOdluke(o, ciklus));
+  }
   return li;
 }
 
@@ -89,24 +120,24 @@ function stavka(o) {
  * Predlog ne sme izgledati hitnije od stvarnog roka samo zato sto ga je
  * napravio sistem — zato razliku nosi polozaj i rec, a ne jaca boja.
  */
-function proveraBlok(stavke) {
+function proveraBlok(stavke, ciklus) {
   const sek = el("section", "v2-grupa v2-provera");
   sek.appendChild(el("h2", "v2-natkapa v2-grupa__naslov", "Za proveru"));
   sek.appendChild(el("p", "v2-provera__uvod",
     "Sistem je predložio ove rokove. Nisu potvrđeni i ne predstavljaju evidentiranu obavezu."));
   const ul = el("ul", "v2-grupa__lista");
-  for (const o of stavke) ul.appendChild(stavka(o));
+  for (const o of stavke) ul.appendChild(stavka(o, ciklus));
   sek.appendChild(ul);
   return sek;
 }
 
-function grupaBlok(g) {
+function grupaBlok(g, ciklus) {
   const sek = el("section", "v2-grupa");
   sek.dataset.grupa = g.kljuc;
   const h = el("h2", "v2-natkapa v2-grupa__naslov", g.naziv);
   sek.appendChild(h);
   const ul = el("ul", "v2-grupa__lista");
-  for (const o of g.stavke) ul.appendChild(stavka(o));
+  for (const o of g.stavke) ul.appendChild(stavka(o, ciklus));
   sek.appendChild(ul);
   return sek;
 }
@@ -211,8 +242,8 @@ export function montirajDanas(kontejner) {
       const upoz = upozorenjeIzvora(pregled);
       if (upoz) okvir.appendChild(upoz);
 
-      for (const g of pregled.grupe) okvir.appendChild(grupaBlok(g));
-      if (pregled.zaProveru.length) okvir.appendChild(proveraBlok(pregled.zaProveru));
+      for (const g of pregled.grupe) okvir.appendChild(grupaBlok(g, ciklus));
+      if (pregled.zaProveru.length) okvir.appendChild(proveraBlok(pregled.zaProveru, ciklus));
 
       if (pregled.ukupno === 0) {
         okvir.appendChild(poruka({

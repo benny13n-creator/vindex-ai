@@ -457,6 +457,16 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
     unutra.parentElement.insertBefore(traka, unutra);
     ciklus.dodaj(() => traka.remove());
 
+    // Dolazak iz Danas nosi `#celina-rokovi`: klik na obavezu mora da spusti
+    // advokata TACNO na rokove tog predmeta, ne na vrh Dosijea. Pretrazivac
+    // to ne moze sam jer je sadrzaj iscrtan posle promene putanje.
+    // Nepoznato sidro se tiho ignorise — nikad se ne skace nasumicno.
+    if (window.location.hash) {
+      const cilj = sadrzaj.querySelector(
+        "#" + CSS.escape(window.location.hash.slice(1)));
+      if (cilj) cilj.scrollIntoView({ block: "start" });
+    }
+
     // ── Sidra prate poziciju ──────────────────────────────────────────────
     const celine = Array.from(sadrzaj.querySelectorAll(".v2-celina"));
     if ("IntersectionObserver" in window && celine.length) {
