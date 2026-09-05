@@ -20,6 +20,8 @@ import { naPrijavu, odjavi } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ucitajKancelariju } from "./api.js";
 import { uNalog, uKlijente, uNaplatu, uTim } from "../../domain/kancelarija.js";
+import { blokoviNaplate } from "./naplata.js";
+import { elementPoruke } from "../../platform/obavestenje.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -179,13 +181,16 @@ function sekcijaKlijenti(deo, ciklus) {
 }
 
 /* ── Naplata ────────────────────────────────────────────────────────────── */
-function sekcijaNaplata(deo) {
+function sekcijaNaplata(deo, rad, ciklus, osvezi) {
   const s = celina("naplata", "Naplata");
   if (deo.pao) { s.appendChild(nijeUcitano("Pregled naplate", deo.greska)); return s; }
   const b = uNaplatu(deo.podaci);
+  // Odsustvo mesecnog pregleda se saopstava, ali NE prekida celinu: tajmer i
+  // evidentiranje rada moraju biti dostupni i kad mesec jos nema nijedan unos
+  // — to je bas trenutak kada advokat prvi put unosi rad. Rani izlaz je istu
+  // gresku vec jednom napravio u celini „Rokovi i zadaci".
   if (!b.stavke.length) {
     s.appendChild(prazno("Za tekući mesec nema evidentiranog rada ni faktura."));
-    return s;
   }
   if (b.mesec) s.appendChild(el("p", "v2-reg__broj", "Tekući mesec: " + b.mesec));
   const ul = el("ul", "v2-naplata");
@@ -198,6 +203,11 @@ function sekcijaNaplata(deo) {
     ul.appendChild(li);
   }
   s.appendChild(ul);
+
+  // Tajmer, evidentiranje rada i fakture (F4/F5). Naplata je posao
+  // kancelarije, pa zivi ovde — Dosije zadrzava svojih pet celina.
+  if (rad && osvezi) s.appendChild(blokoviNaplate(rad, ciklus, osvezi));
+
   return s;
 }
 
@@ -233,6 +243,12 @@ function sekcijaTim(deo) {
 export function montirajKancelariju(kontejner) {
   const ciklus = napraviCiklus();
 
+  // Posle upisa (tajmer, evidentiran rad, faktura) prostor se ponovo cita SA
+  // SERVERA. Doslikati novo stanje iz memorije znacilo bi tvrditi nesto o
+  // bazi bez dokaza da je tamo stiglo. Ponovo se cita SAMO ovaj prostor —
+  // `location.reload()` bi ponovo pokrenuo ceo boot i potrosio jos jedan
+  // poziv `/api/plan/status`, koji ima granicu od 60 na sat.
+
   const unutra = el("div", "v2-scena__unutra v2-scena__unutra--predmet");
   const zaglavlje = el("header", "v2-zaglavlje");
   const h1 = el("h1", "v2-naslov", "Kancelarija");
@@ -248,9 +264,8 @@ export function montirajKancelariju(kontejner) {
   kontejner.appendChild(unutra);
   document.title = "Kancelarija · Vindex";
 
-  sadrzaj.appendChild(prazno("Učitava se…"));
-
-  (async () => {
+  async function ucitajIPrikazi() {
+    sadrzaj.replaceChildren(prazno("Učitava se…"));
     const prekidac = ciklus.prekidac();
     let d;
     try {
@@ -264,12 +279,16 @@ export function montirajKancelariju(kontejner) {
     if (ciklus.ugasen) return;
 
     const okvir = document.createDocumentFragment();
+    const izPrethodne = elementPoruke();
+    if (izPrethodne) okvir.appendChild(izPrethodne);
     okvir.appendChild(sekcijaNalog(d.nalog, ciklus));
     okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus));
-    okvir.appendChild(sekcijaNaplata(d.naplata));
+    okvir.appendChild(sekcijaNaplata(d.naplata, d.rad, ciklus, ucitajIPrikazi));
     okvir.appendChild(sekcijaTim(d.tim));
     sadrzaj.replaceChildren(okvir);
-  })();
+  }
+
+  ucitajIPrikazi();
 
   return ciklus;
 }

@@ -12,6 +12,7 @@
 
 import { dohvati } from "../../platform/http.js";
 import { jePrekid } from "../../platform/errors.js";
+import { ucitajNaplatu } from "./naplata.js";
 
 function deo(r) {
   if (r.status === "fulfilled") return { podaci: r.value, pao: false };
@@ -19,14 +20,15 @@ function deo(r) {
 }
 
 export async function ucitajKancelariju({ signal } = {}) {
-  const [nalog, klijenti, naplata, tim] = await Promise.allSettled([
+  const [nalog, klijenti, naplata, tim, rad] = await Promise.allSettled([
     dohvati("/api/me", { signal }),
     dohvati("/klijenti", { upit: { limit: 100, offset: 0 }, signal }),
     dohvati("/billing/pregled", { signal }),
     dohvati("/api/kancelarija/moja", { signal }),
+    ucitajNaplatu({ signal }),
   ]);
 
-  for (const r of [nalog, klijenti, naplata, tim]) {
+  for (const r of [nalog, klijenti, naplata, tim, rad]) {
     if (r.status === "rejected" && jePrekid(r.reason)) throw r.reason;
   }
 
@@ -35,5 +37,8 @@ export async function ucitajKancelariju({ signal } = {}) {
     klijenti: deo(klijenti),
     naplata: deo(naplata),
     tim: deo(tim),
+    // Tajmer, evidentiran rad i fakture. Pad ovog dela ne sme da obori
+    // pregled naplate — to su dva razlicita izvora o istoj temi.
+    rad: rad.status === "fulfilled" ? rad.value : null,
   };
 }
