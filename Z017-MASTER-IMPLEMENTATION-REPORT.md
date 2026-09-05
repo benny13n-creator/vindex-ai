@@ -309,7 +309,35 @@ slučaj razlog zašto se mutacije uopšte rade.
 
 ---
 
-<!-- REGRESIJA -->
+## 8. REGRESIJA — DIFERENCIJALNO, NE PO BROJU
+
+Poređen je **skup imena padova**, ne njihov broj. Isti broj padova može biti
+drugi skup, i tada je nešto pokvareno a nije se videlo.
+
+```
+PRE  (5e3e8a43):  15 failed, 7725 passed, 179 skipped  (770 s)
+POSLE (661bf462): 15 failed, 7822 passed, 179 skipped  (777 s)
+
+diff skupova padova: IDENTIČAN
+  0 novih padova
+  0 popravljenih (svih 15 su zatečeni, nisu u domenu ovog programa)
++97 testova prolazi
+```
+
+Zatečenih 15 padova (nepromenjeni, van domena ovog programa):
+`test_coi_intake_convergence` (3), `test_faza1_pristupacnost` (3),
+`test_faza1_izvor_pod` (1), `test_ns003_protocol` (1),
+`test_prg_night_register` (5), `test_rc_cold_start` (2).
+
+## 9. REVIZIJA MRTVIH KONTROLA
+
+Kanon zabranjuje kontrolu koja izgleda kao akcija a nema ishod.
+
+```
+dugmadi u V2 : 16   bez ishoda: 0
+veza u V2    :  9   bez href  : 0
+```
+
 
 <!-- VIZUELNI DOKAZ -->
 

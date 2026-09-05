@@ -11,6 +11,7 @@ export const VRSTA = Object.freeze({
   ZABRANJENO:   "zabranjeno",     // 403 — nalog nema pravo na ovu funkciju
   NEISPRAVAN:   "neispravan",     // 400/422 — zahtev nije ispravan
   NEMA:         "nema",           // 404
+  PREVISE:      "previse",        // 429 — previse zahteva u kratkom roku
   VRSTA_FAJLA:  "vrsta_fajla",    // 415 — format nije podrzan
   PREVELIKO:    "preveliko",      // 413 — fajl je preko dozvoljene velicine
   SERVER:       "server",         // 5xx
@@ -41,6 +42,10 @@ export function porukaZaKorisnika(e) {
   if (v === VRSTA.NEMA)       return "Traženo nije pronađeno.";
   // 415 i 413 su JEDINE greske koje korisnik moze sam da otkloni, pa moraju
   // da kazu TACNO sta da uradi. Uopstena poruka bi ga ostavila da pogadja.
+  // 429 nije kvar: korisnik je poslao previse zahteva u kratkom roku.
+  // Bez sopstvene poruke prikazuje se kao „Vindex nije dostupan", pa
+  // advokat misli da je aplikacija pala i ponavlja — sto ga drzi zakljucanim.
+  if (v === VRSTA.PREVISE)     return "Previše zahteva u kratkom roku. Sačekajte koji minut pa pokušajte ponovo.";
   if (v === VRSTA.VRSTA_FAJLA) return "Ova vrsta fajla nije podržana. Prihvataju se PDF, DOCX, DOC, JPG i PNG.";
   if (v === VRSTA.PREVELIKO)   return "Fajl je veći od 10 MB. Podelite ga ili smanjite rezoluciju skena.";
   if (v === VRSTA.NEISPRAVAN) return "Zahtev nije mogao biti obrađen u ovom obliku.";

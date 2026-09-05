@@ -70,7 +70,11 @@ async function boot() {
     if (e && e.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
     if (e && e.vrsta === VRSTA.ZABRANJENO) { naLegacy(); return; }
     logGreska("boot: stanje naloga nije dostupno", e && e.vrsta);
-    porukaBoot("Vindex trenutno nije dostupan. Pokušajte ponovo za koji trenutak.");
+    // 429 se NE sme prikazati kao „Vindex nije dostupan": advokat tada misli
+    // da je aplikacija pala i ponavlja pokusaj, cime ostaje zakljucan duze.
+    porukaBoot(e && e.vrsta === VRSTA.PREVISE
+      ? "Previše zahteva u kratkom roku. Sačekajte koji minut pa osvežite stranicu."
+      : "Vindex trenutno nije dostupan. Pokušajte ponovo za koji trenutak.");
     return;
   }
 

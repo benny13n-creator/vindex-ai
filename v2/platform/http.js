@@ -15,6 +15,7 @@ function vrstaZaStatus(status) {
   if (status === 401) return VRSTA.NEPRIJAVLJEN;
   if (status === 403) return VRSTA.ZABRANJENO;
   if (status === 404) return VRSTA.NEMA;
+  if (status === 429) return VRSTA.PREVISE;
   if (status === 413) return VRSTA.PREVELIKO;
   if (status === 415) return VRSTA.VRSTA_FAJLA;
   if (status === 400 || status === 422) return VRSTA.NEISPRAVAN;
