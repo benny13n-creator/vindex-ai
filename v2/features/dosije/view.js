@@ -62,8 +62,14 @@ function sekcijaStanje(d) {
   if (d.polja.length) {
     const dl = el("dl", "v2-polja");
     for (const p of d.polja) {
-      dl.appendChild(el("dt", "v2-polje", p.naziv));
-      dl.appendChild(el("dd", p.mono ? "v2-polja__v v2-mono" : "v2-polja__v", p.vrednost));
+      // Naziv i vrednost su JEDAN par u jednoj celiji mreze. Kao dve odvojene
+      // celije, `auto-fit` ih je razbacivao u razlicite kolone, pa je labela
+      // stajala levo a vrednost dve kolone dalje, a podvlaka ispod vrednosti
+      // izgledala kao da pripada susednom polju.
+      const par = el("div", "v2-polja__par");
+      par.appendChild(el("dt", "v2-polje", p.naziv));
+      par.appendChild(el("dd", p.mono ? "v2-polja__v v2-mono" : "v2-polja__v", p.vrednost));
+      dl.appendChild(par);
     }
     s.appendChild(dl);
   }

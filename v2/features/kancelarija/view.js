@@ -24,7 +24,7 @@ export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
   { kljuc: "klijenti", naziv: "Klijenti" },
   { kljuc: "naplata", naziv: "Naplata" },
-  { kljuc: "tim", naziv: "Kancelarija" },
+  { kljuc: "tim", naziv: "Tim kancelarije" },
 ]);
 
 function el(tag, klasa, tekst) {
@@ -56,10 +56,16 @@ function nijeUcitano(sta, e) {
   return d;
 }
 
+/**
+ * Naziv i vrednost su JEDAN par u jednoj celiji mreze. Kao dve odvojene
+ * celije, `auto-fit` ih razbacuje u razlicite kolone, pa labela stoji levo a
+ * vrednost dve kolone dalje.
+ */
 function poljeVrednost(naziv, vrednost, mono) {
-  const dt = el("dt", "v2-polje", naziv);
-  const dd = el("dd", "v2-polja__v" + (mono ? " v2-mono" : ""), vrednost);
-  return [dt, dd];
+  const par = el("div", "v2-polja__par");
+  par.appendChild(el("dt", "v2-polje", naziv));
+  par.appendChild(el("dd", "v2-polja__v" + (mono ? " v2-mono" : ""), vrednost));
+  return [par];
 }
 
 /* ── Nalog ──────────────────────────────────────────────────────────────── */
@@ -166,7 +172,7 @@ function sekcijaNaplata(deo) {
 
 /* ── Tim ────────────────────────────────────────────────────────────────── */
 function sekcijaTim(deo) {
-  const s = celina("tim", "Kancelarija");
+  const s = celina("tim", "Tim kancelarije");
   if (deo.pao) { s.appendChild(nijeUcitano("Podatak o kancelariji", deo.greska)); return s; }
   const t = uTim(deo.podaci);
   if (t.stanje !== "aktivan") {

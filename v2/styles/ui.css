@@ -67,6 +67,10 @@
   color: var(--v2-tx-1);
   font-size: 14px;
   font-weight: 500;
+  /* `.v2-dugme` stoji i na <button> i na <a> (npr. „Nov predmet"). Bez ovoga
+     veza zadrzava podrazumevanu podvlaku pretrazivaca, pa isto dugme izgleda
+     drugacije zavisno od toga kojim je elementom napravljeno. */
+  text-decoration: none;
 }
 .v2-dugme:hover:not(:disabled) { border-color: var(--v2-tx-2); }
 .v2-dugme:disabled {

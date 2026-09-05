@@ -120,8 +120,13 @@ textarea.v2-polje-unos__kontrola { min-height: 96px; resize: vertical; }
 .v2-potvrda__telo { font-size: 14px; color: var(--v2-tx-2); margin-top: var(--v2-r-2); }
 .v2-potvrda__radnje { display: flex; gap: var(--v2-r-3); margin-top: var(--v2-r-4); flex-wrap: wrap; }
 
-/* Recenica ispod naslova scene: objasnjava sta ekran radi, ne reklamira ga. */
+/* Recenica ISPOD naslova scene: objasnjava sta ekran radi, ne reklamira ga.
+ *
+ * `.v2-zaglavlje` je flex red — tako da kratak brojac („20 predmeta") stoji uz
+ * naslov. Cela recenica tu ne pripada: bez `flex-basis:100%` sedala je DESNO
+ * od naslova i citala se kao podnaslov u istom redu. Zato uzima ceo red. */
 .v2-podnaslov {
+  flex-basis: 100%;
   margin-top: var(--v2-r-2);
   font-size: 14px;
   color: var(--v2-tx-3);

@@ -18,6 +18,8 @@
  * Cist modul: bez DOM-a, bez mreze, bez stanja.
  */
 
+import { citljivo } from "./labels.js";
+
 function tekst(v) {
   return String(v == null ? "" : v).trim();
 }
@@ -66,8 +68,11 @@ export function uKlijenta(sirov) {
   return {
     id: k.id || "",
     naziv: firma || ime || "Klijent bez naziva",
-    // Fizicko lice i pravno lice se razlikuju; `tip` je u bazi slobodan tekst.
-    vrsta: tekst(k.tip),
+    // Fizicko lice i pravno lice se razlikuju; `tip` je u bazi slobodan tekst
+    // i dolazi kao sirov kljuc („fizicko_lice"). Prikazan takav, to je
+    // programerski zargon na ekranu advokata — Z015 §19. Citljiv ispis ne
+    // menja vrednost, samo je cini recju.
+    vrsta: citljivo(tekst(k.tip)),
     email: tekst(k.email),
     telefon: tekst(k.telefon),
     stanje: tekst(k.status),

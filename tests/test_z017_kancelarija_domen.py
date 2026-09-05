@@ -209,3 +209,17 @@ def test_ukupno_prezivljava_i_kad_je_veci_od_prikazanog():
 def test_prazan_odgovor_ne_rusi_domen():
     r = _js("return K.uKlijente(null);")
     assert r["redovi"] == [] and r["ukupno"] is None
+
+
+@nodemark
+def test_vrsta_klijenta_ne_curi_kao_sirov_kljuc():
+    """
+    `klijenti.tip` dolazi kao „fizicko_lice". Prikazan takav, to je
+    programerski zargon na ekranu advokata (Z015 §19). Mereno na produkciji:
+    spisak klijenata je prikazivao „FIZICKO_LICE" verzalom.
+    """
+    r = _js('return ["fizicko_lice","pravno_lice",""].map(t => K.uKlijenta({tip:t, firma:"X"}).vrsta);')
+    assert r[0] == "Fizicko lice"
+    assert r[1] == "Pravno lice"
+    assert r[2] == "", "prazna vrsta ostaje prazna, ne izmislja se"
+    assert "_" not in " ".join(r)

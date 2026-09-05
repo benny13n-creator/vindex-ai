@@ -62,7 +62,7 @@ function normalizuj(v) {
  * samo bez donje crte. Brisanje stvarnog podatka je gore od prikaza sirovog:
  * advokat bi video prazno polje kod predmeta koji vrstu ima.
  */
-function citljivo(sirovo) {
+export function citljivo(sirovo) {
   const s = String(sirovo == null ? "" : sirovo).trim().replace(/[_]+/g, " ");
   if (!s) return "";
   const sazeto = s.replace(/\s+/g, " ");

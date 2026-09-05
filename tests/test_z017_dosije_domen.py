@@ -318,7 +318,9 @@ def test_spremnost_bez_statusa_je_null():
 def test_spremnost_ne_izlaze_broj():
     s = _js('return O.uSpremnost({ status:"delimično", score: 42, razlozi:["Nema stranaka"] });')
     assert "score" not in s
-    assert s["status"] == "delimično"
+    # Vrednost se prikazuje citljivo (veliko pocetno slovo), ali se NE menja:
+    # vidi `test_spremnost_ne_curi_sirov_enum`.
+    assert s["status"].lower() == "delimično"
     assert s["razlozi"] == ["Nema stranaka"]
 
 
@@ -347,3 +349,17 @@ def test_prazan_odgovor_ne_rusi_dosije():
     d = _js("return Object.keys(O.sastaviDosije(null, null, new Date()));")
     for k in ("zaglavlje", "polja", "klijenti", "spisi", "hronologija", "rokovi"):
         assert k in d, d
+
+
+@nodemark
+def test_spremnost_ne_curi_sirov_enum():
+    """
+    `/health` vraca sirov enum („kriticno", „delimicno_spreman"). Prikazan
+    takav, to je programerski zargon na ekranu advokata -- tacno ono sto
+    Z015 §19 zabranjuje. Vrednost se ne menja, samo postaje rec; sirov oblik
+    ostaje dostupan pod `statusSirovi` za dijagnostiku.
+    """
+    s = _js('return O.uSpremnost({ status:"delimicno_spreman", razlozi:["Nema stranaka"] });')
+    assert s["status"] == "Delimicno spreman"
+    assert "_" not in s["status"]
+    assert s["statusSirovi"] == "delimicno_spreman"

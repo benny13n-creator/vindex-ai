@@ -17,7 +17,7 @@
  * Cist modul: bez DOM-a, bez mreze, bez stanja.
  */
 
-import { nazivStanja, klasaStanja, nazivVrste, datum } from "./labels.js";
+import { nazivStanja, klasaStanja, nazivVrste, datum, citljivo } from "./labels.js";
 import { ocistiNaslov, datumTekst, razlikaDana, kadaTekst } from "./danas.js";
 import { jeRok, stanjeZapisa, STANJE } from "./danas.js";
 
@@ -180,7 +180,11 @@ export function uSpremnost(sirov) {
   const status = tekst(h.status);
   if (!status) return null;
   return {
-    status,
+    // `/health` vraca sirov enum („kriticno", „delimicno"). Prikazan takav,
+    // to je programerski zargon na ekranu advokata — tacno ono sto Z015 §19
+    // zabranjuje. Citljiv ispis ne menja vrednost, samo je cini recju.
+    status: citljivo(status),
+    statusSirovi: status,
     razlozi: (h.razlozi || []).map(tekst).filter(Boolean),
     // `score` se namerno NE prikazuje kao broj: ocena bez objasnjenja je
     // tacno ono sto vlasnicki kanon zabranjuje. Razlozi jesu upotrebljivi.
