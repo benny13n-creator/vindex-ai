@@ -897,7 +897,7 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
         if (dogadjaj, datum) in postojeci:
             continue
         try:
-            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv, di=r.get("dokument_id"): supa.table("predmet_hronologija").insert({
+            await asyncio.to_thread(lambda dg=dogadjaj, dt=datum, dn=_dok_naziv, di=r.get("dokument_id"): supa.table("predmet_hronologija").insert(_IZVOR.oznaci({
                 "predmet_id": predmet_id,
                 "user_id":    uid,
                 "dogadjaj":   dg,
@@ -914,7 +914,10 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                 # istorijski dogadjaj). Tek sada se kolona sme upisivati.
                 # NULL je TACNA vrednost kada izvor nije jednoznacno razresen.
                 "dokument_id": di,
-            }).execute())
+            # migracija 129 — Genome sam izvlaci rok iz dokumenta i covek ga
+            # nije video pre upisa. Zato KANDIDAT, nikad potvrdjen. Kada
+            # migracija nije primenjena, `oznaci` vraca red neizmenjen.
+            }, vrsta=_IZVOR.VRSTA_ROK, stanje=_IZVOR.STANJE_KANDIDAT, supa=supa)).execute())
             upisano += 1
         except Exception as exc:
             logger.warning("[GENOME] Sync rokovi — insert greška: %s", exc)

@@ -44,6 +44,7 @@ from pydantic import BaseModel, Field
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
+from shared import rokovi as _rokovi_domen
 from shared.rok_potvrda import (
     STANJE_NEPOTVRDJEN, odbij_rok, odluke, potvrdi_rok, stanje_roka,
 )
@@ -114,13 +115,20 @@ async def kandidati(
     if (do_date - od_date).days > 365:
         raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana.")
 
+    # `vrsta`/`stanje` postoje tek od migracije 129. Projekcija se bira prema
+    # STVARNOJ semi: da su kolone bezuslovno u `select`-u, PostgREST bi pre
+    # migracije vratio 42703 i ceo endpoint bi pao sa 503. Zateceno ponasanje
+    # mora ostati netaknuto dok migracija ne bude pokrenuta.
+    _osnovne = ("id, predmet_id, dogadjaj, datum, datum_iso, vaznost, akter, "
+                # `izvor` (Z016.1, migracija 127): provenijencija. Bez nje
+                # potrosac ne moze da DOKAZE poreklo reda, a pogadjanje po
+                # tekstu ili po `akter` je tacno ono sto se ovde ne sme raditi.
+                "dokument_naziv, izvor")
+    _kolone = (_osnovne + ", vrsta, stanje") if _rokovi_domen._sema_ima_129(supa) else _osnovne
+
     def _upit():
         q = (supa.table("predmet_hronologija")
-             # `izvor` (Z016.1): kolona provenijencije. Bez nje potrosac ne moze
-             # da DOKAZE da je red predlog roka, a ne istorijska cinjenica
-             # predmeta -- a pogadjanje po tekstu ili po `akter` je tacno ono
-             # sto na ovom podatku ne sme da se radi.
-             .select("id, predmet_id, dogadjaj, datum, datum_iso, vaznost, akter, dokument_naziv, izvor")
+             .select(_kolone)
              .eq("user_id", uid)
              .gte("datum_iso", od_date.isoformat())
              .lte("datum_iso", do_date.isoformat())
@@ -149,6 +157,30 @@ async def kandidati(
     }
 
 
+async def _upisi_stanje(supa, rok_id: str, uid: str, stanje: str) -> None:
+    """Upisuje DOMENSKO stanje u `predmet_hronologija.stanje` (migracija 129).
+
+    Audit trag (`audit_immutable`) ostaje nepromenljiv zapis DOGADJAJA i pise se
+    odvojeno. Ova kolona je domenski model: `izvrsen` i `otkazan` nisu odluke o
+    poreklu nego poslovno stanje obaveze, i za njih u auditu nema ni akcije ni
+    znacenja.
+
+    Nikad ne obara odluku: ako migracija 129 nije primenjena, ili upis padne,
+    citalac pada na model potvrde i ponasanje ostaje zateceno. Odluka je vec
+    zabelezena u auditu pre nego sto se ovo pozove.
+    """
+    if not _rokovi_domen._sema_ima_129(supa):
+        return
+    try:
+        await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .update({"stanje": stanje})
+                .eq("id", rok_id).eq("user_id", uid).execute()
+        )
+    except Exception as exc:
+        logger.warning("[ROK_ODLUKA] domensko stanje nije upisano (rok=%.8s): %s", rok_id, exc)
+
+
 @router.post("/api/rokovi/{rok_id}/potvrdi")
 @limiter.limit("60/minute")
 async def potvrdi(
@@ -173,6 +205,8 @@ async def potvrdi(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
+
+    await _upisi_stanje(supa, rok_id, uid, _rokovi_domen.STANJE_POTVRDJEN)
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,
@@ -206,6 +240,8 @@ async def odbij(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo.")
+
+    await _upisi_stanje(supa, rok_id, uid, _rokovi_domen.STANJE_ODBIJEN)
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,

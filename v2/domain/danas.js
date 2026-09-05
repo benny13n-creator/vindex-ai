@@ -12,54 +12,79 @@
  * Nepotvrdjen predlog se NIKAD ne sme naci u istom redu i istom vizuelnom
  * statusu kao potvrdjena obaveza, i ne sme izgledati hitnije od nje.
  *
- * ═══ ZASTO JE KLASA B DANAS PRAZNA ═══════════════════════════════════════
+ * ═══ ODAKLE DOLAZI ODLUKA (migracija 129) ════════════════════════════════
  *
- * Da bi red iz `predmet_hronologija` usao u klasu B, mora se DOKAZATI da je
- * predlog roka. Backend to trenutno ne moze:
+ * Tri eksplicitna signala, tri odvojene uloge. Nijedan ne preuzima tudju —
+ * to je greska koju su FAZE 6.1-6.4.1 vec platile dvaput (`akter`, pa `izvor`):
  *
- *   - `predmet_hronologija` nema nijednu kolonu za VRSTU reda. Kalendarski
- *     klasifikator (`_klasifikuj_dogadjaj`) pogadja iz teksta i ima catch-all
- *     `return "rok_dokument"` — pa „Kraj zaposlenja tuzioca kod tuzenog",
- *     istorijska cinjenica predmeta, postaje „rok".
- *   - `izvor` je kolona provenijencije predvidjena tacno za ovo, ali je
- *     `LEGACY_UNKNOWN` na SVIH 55 redova u celoj tabeli, u svim kancelarijama.
- *   - `akter` je slobodan tekst („Genome (AI)", „DOO Alfa Trejd"). Pogadjanje
- *     po njemu je tacno ono sto se ovde ne sme raditi.
+ *     izvor    KAKO je red nastao          provenijencija (migracija 127)
+ *     vrsta    STA red jeste               migracija 129
+ *     stanje   GDE je u zivotnom ciklusu   migracija 129
  *
- * Merena posledica pogadjanja: pri prozoru od 365 dana kroz kandidate prolazi
- * 47 redova, od kojih su 2 predlozi roka a 45 istorijske cinjenice predmeta.
- * Danas bi postao arhiva.
+ * `vrsta` je JEDINI dozvoljen odgovor na pitanje „je li ovo rok". Pogadjanje
+ * po tekstu je zabranjeno i ima razlog: `_klasifikuj_dogadjaj` u kalendaru ima
+ * catch-all `return "rok_dokument"`, pa „Kraj zaposlenja tuzioca kod tuzenog"
+ * — istorijska cinjenica predmeta — izlazi kao ROK. Mereno: u prozoru od 365
+ * dana 45 od 47 redova su cinjenice, ne rokovi.
  *
- * Zato je odluka FAIL-CLOSED: red koji se ne moze dokazati NE ULAZI. Vindex o
- * njemu ne tvrdi nista — ni da je obaveza, ni da nije. Broj takvih redova se
- * vraca kao `nedokazivo` radi dijagnostike; korisniku se ne prikazuje, jer
- * nedostatak podatkovnog ugovora nije njegov problem.
+ * Red bez izjavljene `vrsta` NE ULAZI ni u jednu klasu. Vindex o njemu ne
+ * tvrdi nista — ni da je obaveza, ni da nije. To je fail-closed po projektu,
+ * a ne privremeno stanje: zateceni redovi se NIKAD ne klasifikuju retroaktivno.
  *
- * Cist modul: bez DOM-a, bez mreze, bez stanja.
+  * Cist modul: bez DOM-a, bez mreze, bez stanja.
  */
 
 const DAN_MS = 86400000;
 
-export const STANJE = Object.freeze({
-  POTVRDJEN: "CONFIRMED",
-  NEPOTVRDJEN: "UNCONFIRMED",
-  ODBIJEN: "REJECTED",
+/** `predmet_hronologija.vrsta` — migracija 129. */
+export const VRSTA = Object.freeze({
+  ROK: "rok",
+  ROCISTE: "rociste",
+  ZADATAK: "zadatak",
+  DOGADJAJ: "dogadjaj",
 });
 
-/**
- * Vrednosti `predmet_hronologija.izvor` koje DOKAZUJU da je red predlog roka
- * koji je napravio sistem.
- *
- * Namerno prazna. Popunjava se tek kada backend pocne da upisuje provenijenciju
- * koja to razlikuje. Dodavanje vrednosti ovde je proizvodna odluka, ne
- * implementaciona — zato stoji na jednom vidljivom mestu.
- */
-export const IZVOR_DOKAZUJE_PREDLOG = [];
+/** `predmet_hronologija.stanje` — migracija 129. */
+export const STANJE = Object.freeze({
+  KANDIDAT: "kandidat",
+  POTVRDJEN: "potvrdjen",
+  ODBIJEN: "odbijen",
+  IZVRSEN: "izvrsen",
+  OTKAZAN: "otkazan",
+});
 
-export function dokazanoPredlog(red) {
-  const izvor = String((red && red.izvor) || "").trim().toUpperCase();
-  if (!izvor) return false;
-  return IZVOR_DOKAZUJE_PREDLOG.includes(izvor);
+/** Stanja u kojima rok vise ne trazi paznju i ne sme u aktivni Danas. */
+export const STANJA_RAZRESENA = Object.freeze([
+  STANJE.ODBIJEN, STANJE.IZVRSEN, STANJE.OTKAZAN,
+]);
+
+/** Prevod stanja odluke (audit trag) u domensko stanje — za legacy redove
+ *  koji imaju odluku ali jos nemaju kolonu `stanje`. */
+const ODLUKA_U_STANJE = Object.freeze({
+  CONFIRMED: STANJE.POTVRDJEN,
+  REJECTED: STANJE.ODBIJEN,
+  UNCONFIRMED: STANJE.KANDIDAT,
+});
+
+/** Je li red rok — po IZJAVI, nikad po pogadjanju. */
+export function jeRok(red) {
+  return String((red && red.vrsta) || "").trim().toLowerCase() === VRSTA.ROK;
+}
+
+/**
+ * Domensko stanje reda. Prednost ima kolona `stanje`; kada je prazna, pada na
+ * model potvrde, pa se zateceno ponasanje ne menja. Bez oba — `null`, i nista
+ * se ne tvrdi.
+ */
+export function stanjeZapisa(red) {
+  const s = String((red && red.stanje) || "").trim().toLowerCase();
+  if (Object.values(STANJE).includes(s)) return s;
+  const o = String((red && red.stanje_odluke) || "").trim().toUpperCase();
+  return ODLUKA_U_STANJE[o] || null;
+}
+
+export function jeRazresen(red) {
+  return STANJA_RAZRESENA.includes(stanjeZapisa(red));
 }
 
 function uDan(iso) {
@@ -201,9 +226,17 @@ export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
   const imena = imenaIzKalendara(dogadjaji);
   const redovi = Array.isArray(k.rokovi) ? k.rokovi : [];
 
-  // ── Klasa A ────────────────────────────────────────────────────────────
-  const potvrdjeni = redovi
-    .filter(r => (r || {}).stanje_odluke === STANJE.POTVRDJEN)
+  // Samo redovi koji su IZJAVILI da su rok ulaze u bilo koju klasu.
+  const rokovi = redovi.filter(jeRok);
+  // Sve ostalo se ne klasifikuje — ni kao obaveza, ni kao predlog.
+  const nedokazivo = redovi.length - rokovi.length;
+
+  // Razresen rok (odbijen / izvrsen / otkazan) ne trazi vise paznju.
+  const aktivni = rokovi.filter(r => !jeRazresen(r));
+
+  // ── Klasa A: potvrdjena obaveza ────────────────────────────────────────
+  const potvrdjeni = aktivni
+    .filter(r => stanjeZapisa(r) === STANJE.POTVRDJEN)
     .map(r => uObavezu(r, imena, sada));
 
   const rocista = dogadjaji
@@ -216,13 +249,9 @@ export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
       ? (a.vreme || "").localeCompare(b.vreme || "")
       : (a.datumIso < b.datumIso ? -1 : 1)));
 
-  // ── Klasa B ────────────────────────────────────────────────────────────
-  // Odbijen predlog ne ulazi: covek se izjasnio, to vise ne trazi paznju.
-  const otvoreni = redovi.filter(r => (r || {}).stanje_odluke !== STANJE.POTVRDJEN
-                                   && (r || {}).stanje_odluke !== STANJE.ODBIJEN);
-  const dokazani = otvoreni.filter(dokazanoPredlog);
-
-  const zaProveru = dokazani
+  // ── Klasa B: kandidat ──────────────────────────────────────────────────
+  const zaProveru = aktivni
+    .filter(r => stanjeZapisa(r) === STANJE.KANDIDAT)
     .map(r => uProveru(r, imena, sada))
     .filter(x => x.razlika !== null)
     .sort((a, b) => (a.datumIso < b.datumIso ? -1 : 1));
@@ -238,8 +267,8 @@ export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
     ukupno: obaveze.length + zaProveru.length,
     degradirano: Boolean((c.degraded_sources || []).length) || Boolean(c.__palo) || Boolean(k.__palo),
     odseceno: Boolean(k.odseceno) || Boolean(c.truncated),
-    // Redovi koje ugovor ne moze da razvrsta. Dijagnostika za vlasnika,
-    // NE prikazuje se korisniku.
-    nedokazivo: otvoreni.length - dokazani.length,
+    // Redovi koji nisu izjavili `vrsta`. Dijagnostika za vlasnika, korisniku
+    // se NE prikazuje — nedostatak podatkovnog ugovora nije njegov problem.
+    nedokazivo,
   };
 }

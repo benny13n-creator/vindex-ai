@@ -585,3 +585,129 @@ def sme_pokrenuti_obavezu(red: dict, potvrdjeni_ids: Optional[set] = None) -> bo
 def filtriraj_izvrsive(redovi: Optional[list], potvrdjeni_ids: Optional[set] = None) -> list:
     """Primena `sme_pokrenuti_obavezu` na listu redova hronologije."""
     return [r for r in (redovi or []) if sme_pokrenuti_obavezu(r, potvrdjeni_ids)]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# Z016.2 — MINIMALNI UGOVOR ROKA: VRSTA i STANJE (migracija 129)
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Tri signala, tri odvojene uloge. Nijedan ne sme preuzeti tuđu — to je greška
+# koju su FAZE 6.1–6.4.1 već platile dvaput (`akter`, pa `izvor`):
+#
+#     izvor    KAKO je red nastao       provenijencija (migracija 127)
+#     vrsta    ŠTA red jeste            migracija 129
+#     stanje   GDE je u životnom ciklusu migracija 129
+#
+# `vrsta` je jedini dozvoljen odgovor na pitanje „je li ovo rok". Pogađanje po
+# tekstu (`_klasifikuj_dogadjaj` sa catch-all granom) i po `akter` je zabranjeno
+# i pokriveno testom.
+
+VRSTA_ROK      = "rok"        # obaveza sa rokom
+VRSTA_ROCISTE  = "rociste"    # zakazano ročište
+VRSTA_ZADATAK  = "zadatak"    # zadatak kancelarije
+VRSTA_DOGADJAJ = "dogadjaj"   # istorijska činjenica predmeta — NIJE obaveza
+
+#: Isti skup koji drži CHECK iz migracije 129. Držati usklađeno.
+VRSTE_DOZVOLJENE: tuple = (VRSTA_ROK, VRSTA_ROCISTE, VRSTA_ZADATAK, VRSTA_DOGADJAJ)
+
+STANJE_KANDIDAT  = "kandidat"    # predložen, čovek se nije izjasnio
+STANJE_POTVRDJEN = "potvrdjen"   # čovek potvrdio
+STANJE_ODBIJEN   = "odbijen"     # čovek odbio; NIJE obrisan
+STANJE_IZVRSEN   = "izvrsen"     # obaveza izvršena
+STANJE_OTKAZAN   = "otkazan"     # obaveza otkazana
+
+STANJA_DOZVOLJENA: tuple = (STANJE_KANDIDAT, STANJE_POTVRDJEN, STANJE_ODBIJEN,
+                            STANJE_IZVRSEN, STANJE_OTKAZAN)
+
+#: Stanja koja su razrešena — rok koji je u njima NE traži više pažnju i ne
+#: sme se pojaviti na aktivnom ekranu Danas.
+STANJA_RAZRESENA: frozenset = frozenset({STANJE_ODBIJEN, STANJE_IZVRSEN, STANJE_OTKAZAN})
+
+#: Prevod stanja odluke (audit trag) u domensko stanje. Postoji zato što su
+#: legacy redovi bez `stanje` i dalje čitljivi kroz model potvrde.
+_ODLUKA_U_STANJE = {
+    "CONFIRMED": STANJE_POTVRDJEN,
+    "REJECTED": STANJE_ODBIJEN,
+    "UNCONFIRMED": STANJE_KANDIDAT,
+}
+
+
+def je_rok(red: Optional[dict]) -> bool:
+    """Je li ovaj red rok — po IZJAVI, ne po pogađanju.
+
+    `NULL` vrsta znači „nije izjavljeno" i vraća `False`: fail-closed. Zatečeni
+    red se ne proglašava rokom retroaktivno.
+    """
+    return bool(red) and (red.get("vrsta") or "").strip().lower() == VRSTA_ROK
+
+
+def stanje_zapisa(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> Optional[str]:
+    """Domensko stanje reda.
+
+    Prednost ima kolona `stanje` (migracija 129). Kada je prazna — legacy red
+    ili pisac koji je još ne postavlja — pada na model potvrde, pa se zatečeno
+    ponašanje ne menja. Ako ni tamo nema ničega, vraća `None`: ništa se ne
+    tvrdi.
+    """
+    if not red:
+        return None
+    s = (red.get("stanje") or "").strip().lower()
+    if s in STANJA_DOZVOLJENA:
+        return s
+    rid = red.get("id")
+    if not rid:
+        return None
+    from shared.rok_potvrda import stanje_roka
+    return _ODLUKA_U_STANJE.get(stanje_roka(rid, odluke_mapa))
+
+
+def je_razresen(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> bool:
+    """Razrešen rok ne ulazi u aktivni Danas — ni odbijen, ni izvršen, ni otkazan."""
+    return stanje_zapisa(red, odluke_mapa) in STANJA_RAZRESENA
+
+
+# ── Upisna strana ───────────────────────────────────────────────────────────
+#
+# Pisci ne smeju pasti ako migracija 129 još nije pokrenuta: `INSERT` sa
+# nepostojećom kolonom vraća 42703 i oborio bi stvaranje roka u produkciji.
+# Zato se sposobnost šeme proverava jednom po procesu i kešira.
+
+_KOLONE_129: Optional[bool] = None
+
+
+def _sema_ima_129(supa) -> bool:
+    global _KOLONE_129
+    if _KOLONE_129 is not None:
+        return _KOLONE_129
+    try:
+        supa.table("predmet_hronologija").select("vrsta, stanje").limit(1).execute()
+        _KOLONE_129 = True
+    except Exception:
+        logger.info("[ROKOVI] migracija 129 nije primenjena — `vrsta`/`stanje` se ne upisuju")
+        _KOLONE_129 = False
+    return _KOLONE_129
+
+
+def _resetuj_sondu() -> None:
+    """Samo za testove."""
+    global _KOLONE_129
+    _KOLONE_129 = None
+
+
+def oznaci(red: dict, *, vrsta: str, stanje: Optional[str] = None, supa=None) -> dict:
+    """Dodaje eksplicitnu `vrsta`/`stanje` semantiku redu pre upisa.
+
+    Kada migracija 129 nije primenjena, red se vraća NEIZMENJEN — pisac i dalje
+    radi, a čitalac ostaje fail-closed. To je jedini način da se ugovor uvede
+    bez prozora u kom stvaranje roka puca.
+    """
+    if vrsta not in VRSTE_DOZVOLJENE:
+        raise ValueError(f"nepoznata vrsta zapisa: {vrsta!r}")
+    if stanje is not None and stanje not in STANJA_DOZVOLJENA:
+        raise ValueError(f"nepoznato stanje: {stanje!r}")
+    if supa is None or not _sema_ima_129(supa):
+        return red
+    red["vrsta"] = vrsta
+    if stanje is not None:
+        red["stanje"] = stanje
+    return red
