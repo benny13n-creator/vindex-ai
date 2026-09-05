@@ -30,13 +30,17 @@
 .v2-scena--crna  { background: var(--v2-crna);  color: var(--v2-tx-1-crna); }
 .v2-scena--papir { background: var(--v2-papir); color: var(--v2-tx-1); }
 
-/* Sadrzaj scene: jedina stvar koja ima meru i bocnu ivicu. */
+/* Sadrzaj scene: jedina stvar koja ima meru i bocnu ivicu.
+   Mera se bira po POSLU, ne globalno — vidi tokens.css. */
 .v2-scena__unutra {
   max-width: var(--v2-mera);
   margin-inline: auto;
   padding-inline: var(--v2-ivica);
   width: 100%;
 }
+.v2-scena__unutra--registar { max-width: var(--v2-mera-registar); }
+.v2-scena__unutra--predmet  { max-width: var(--v2-mera-predmet); }
+.v2-scena__unutra--citanje  { max-width: var(--v2-mera-citanje); }
 
 /* Papir scena mora dosezati do dna viewporta i kad sadrzaja ima malo. */
 .v2-glavni { flex: 1 1 auto; }
@@ -47,14 +51,32 @@
  * module koji jos ne postoje, bez IA koja bi implicitno zakljucala buducu
  * globalnu navigaciju.
  */
-.v2-ljuska { border-bottom: 1px solid var(--v2-linija-crna); }
+/* Ljuska mora da saopsti: OVO JE RADNO OKRUZENJE.
+   Prva verzija je bila traka od 60px sa dve reci i delovala je kao zaglavlje
+   sajta. Ovde nosi vecu visinu, vertikalnu podelu izmedju znaka i navigacije,
+   i desnu zonu za pretragu i nalog. Nije hero i nije navbar sablon. */
+.v2-ljuska {
+  border-bottom: 1px solid var(--v2-linija-crna);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--v2-crna);
+}
 
 .v2-ljuska__red {
-  min-height: 60px;
+  min-height: 72px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* Znak i navigacija razdvojeni tankom vertikalnom linijom — struktura, ne ukras. */
+.v2-ljuska__znak-zona {
   display: flex;
   align-items: center;
-  gap: var(--v2-r-6);
-  flex-wrap: wrap;
+  padding-right: var(--v2-r-5);
+  margin-right: var(--v2-r-5);
+  border-right: 1px solid var(--v2-linija-crna);
 }
 
 /* ── Globalna navigacija ───────────────────────────────────────────────
@@ -62,19 +84,19 @@
  * uzdrzanu liniju i vecu tezinu (ustav §13, N-2), nikad ispunu.
  * Prostor koji ne postoji ovde se i ne iscrtava — nema onemogucenih stavki.
  */
-.v2-nav { min-width: 0; }
+.v2-nav { min-width: 0; display: flex; align-items: stretch; }
 .v2-nav__lista {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--v2-r-5);
-  flex-wrap: wrap;
 }
+/* Aktivan prostor nosi liniju po CELOJ visini ljuske — pripadnost mestu, ne
+   dekoraciju. Ispuna se i dalje ne koristi (ustav §13, N-2). */
 .v2-nav__veza {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;              /* interakcioni cilj, ne iscrtana visina */
-  padding-block: 6px;
+  padding-block: 0;
   font-size: 14px;
   font-weight: 400;
   color: var(--v2-tx-2-crna);
@@ -86,17 +108,27 @@
 .v2-nav__veza--aktivan::after {
   content: "";
   position: absolute;
-  left: 0; right: 0; bottom: 8px;
+  left: 0; right: 0; bottom: 0;
   height: 2px;
   background: var(--v2-brend-na-crnoj);
 }
 
-.v2-ljuska__nalog {
+.v2-ljuska__desno {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+  min-width: 0;
+  padding-left: var(--v2-r-5);
+}
+
+.v2-ljuska__nalog {
   display: flex;
   align-items: center;
   gap: var(--v2-r-3);
   min-width: 0;
+  padding-left: var(--v2-r-5);
+  border-left: 1px solid var(--v2-linija-crna);
 }
 .v2-ljuska__email {
   font-size: 13px;
@@ -116,9 +148,13 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 720px) {
-  .v2-ljuska__red { gap: var(--v2-r-4); min-height: 56px; }
+@media (max-width: 900px) {
+  .v2-ljuska__red { min-height: 60px; flex-wrap: wrap; align-items: center; }
+  .v2-ljuska__znak-zona { border-right: 0; margin-right: var(--v2-r-4); padding-right: 0; }
   .v2-nav__lista { gap: var(--v2-r-4); }
+  .v2-nav__veza { min-height: 44px; }
+  .v2-nav__veza--aktivan::after { bottom: 6px; }
+  .v2-ljuska__nalog { border-left: 0; padding-left: var(--v2-r-3); }
   .v2-ljuska__email { max-width: 16ch; }
   .v2-zaglavlje { padding-block: var(--v2-r-5) var(--v2-r-3); }
 }

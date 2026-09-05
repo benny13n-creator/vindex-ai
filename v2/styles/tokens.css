@@ -50,9 +50,23 @@
   --v2-r-1: 4px;   --v2-r-2: 8px;   --v2-r-3: 12px;
   --v2-r-4: 16px;  --v2-r-5: 24px;  --v2-r-6: 32px;  --v2-r-7: 48px;
 
-  /* Editorial mera sadrzaja. Scena je uvek puna sirina; ovo je samo sadrzaj. */
-  --v2-mera:            1180px;
-  --v2-ivica:           clamp(16px, 4vw, 40px);
+  /* ── Klase sirine ───────────────────────────────────────────────────
+   * NEMA jedne univerzalne mere. Sirina prati POSAO:
+   *
+   *   --v2-mera-registar  operativni registri i ljuska; na 1920 monitoru
+   *                       registar mora da koristi prostor, ne da izgleda
+   *                       kao mobilni raspored centriran na sredini
+   *   --v2-mera-predmet   rad u predmetu, srednja gustina
+   *   --v2-mera-citanje   duga proza; red duzi od ~72 znaka se tesko cita
+   *
+   * Prva verzija je imala jednu meru od 1180px za sve i na 1920 je izgledala
+   * kao prazna stranica sa trakom teksta. To je bio kvar, ne stil.
+   */
+  --v2-mera-registar:   1440px;
+  --v2-mera-predmet:    1280px;
+  --v2-mera-citanje:    72ch;
+  --v2-mera:            var(--v2-mera-registar);   /* podrazumevano */
+  --v2-ivica:           clamp(16px, 3vw, 48px);
 
   /* Ciljna visina reda registra. TARGET, ne zakon: red raste kad naziv prelama. */
   --v2-red-min:         56px;

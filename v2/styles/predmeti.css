@@ -139,3 +139,12 @@
 @media (min-width: 861px) {
   .v2-reg__meta { display: contents; }
 }
+
+/* Naziv je veza ka Dosijeu — nasledjuje tipografiju reda, ne izgleda kao dugme. */
+.v2-reg__veza {
+  color: inherit;
+  text-decoration: none;
+  display: inline-block;
+}
+.v2-reg__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
+.v2-reg__red:has(.v2-reg__veza:hover) { background: var(--v2-papir-2); }

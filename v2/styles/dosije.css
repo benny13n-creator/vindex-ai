@@ -1,0 +1,225 @@
+/* Vindex V2 — Dosije.
+ *
+ * Jedna kontinuirana radna povrsina, pet celina razdvojenih vlasastom linijom
+ * i natkapom. Bez kartica, bez senki, bez tabova.
+ */
+
+/* ── Lepljiva kontekstualna traka ────────────────────────────────────────
+ * Stoji ispod globalne ljuske i nosi orijentaciju unutar PREDMETA:
+ * povratak, naziv, i sidra kroz celine. Nije tab bar — ne skriva nista.
+ */
+.v2-predmet-traka {
+  position: sticky;
+  top: 72px;
+  z-index: 10;
+  background: var(--v2-papir);
+  border-bottom: 1px solid var(--v2-linija-jaca);
+}
+.v2-predmet-traka__red {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+}
+.v2-predmet-traka__nazad {
+  color: var(--v2-tx-2);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.v2-predmet-traka__nazad:hover { color: var(--v2-tx-1); }
+
+.v2-predmet-traka__naziv {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--v2-tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 38ch;
+  padding-left: var(--v2-r-4);
+  border-left: 1px solid var(--v2-linija);
+}
+
+.v2-predmet-traka__sidra {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--v2-r-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.v2-predmet-traka__sidra::-webkit-scrollbar { display: none; }
+
+.v2-sidro {
+  position: relative;
+  font-size: 13px;
+  color: var(--v2-tx-3);
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.v2-sidro:hover { color: var(--v2-tx-1); }
+.v2-sidro--aktivan { color: var(--v2-tx-1); font-weight: 600; }
+.v2-sidro--aktivan::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 6px;
+  height: 2px;
+  background: var(--v2-brend);
+}
+
+/* ── Zaglavlje predmeta ──────────────────────────────────────────────── */
+.v2-dosije { padding-bottom: var(--v2-r-7); }
+.v2-dosije__zaglavlje { padding-block: var(--v2-r-6) var(--v2-r-4); }
+.v2-dosije__naziv { overflow-wrap: anywhere; }
+.v2-dosije__linija {
+  margin-top: var(--v2-r-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--v2-r-4);
+  font-size: 13px;
+  color: var(--v2-tx-3);
+}
+.v2-dosije__vrsta {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--v2-tx-3);
+}
+.v2-dosije__stanje { font-size: 14px; font-weight: 500; color: var(--v2-st-mirovanje); }
+.v2-dosije__stanje[data-stanje="aktivan"] { color: var(--v2-st-aktivno); }
+.v2-dosije__stanje[data-stanje="zavrsen"] { color: var(--v2-st-zavrseno); }
+
+/* ── Celina ──────────────────────────────────────────────────────────── */
+.v2-celina { padding-block: var(--v2-r-6) var(--v2-r-5); border-top: 1px solid var(--v2-linija-jaca); }
+.v2-celina:first-of-type { border-top: 0; }
+.v2-celina__naslov {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--v2-tx-1);
+  margin-bottom: var(--v2-r-4);
+  scroll-margin-top: 136px;      /* ljuska 72 + traka 48 + vazduh */
+}
+.v2-celina__prazno { font-size: 14px; color: var(--v2-tx-3); max-width: var(--v2-mera-citanje); }
+
+.v2-podblok { margin-top: var(--v2-r-5); }
+.v2-podblok--provera .v2-natkapa { color: var(--v2-tx-3); }
+
+.v2-proza { font-size: 15px; color: var(--v2-tx-2); max-width: var(--v2-mera-citanje); }
+.v2-lista-tanka > li {
+  padding-block: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija);
+  font-size: 14px;
+  color: var(--v2-tx-2);
+  overflow-wrap: anywhere;
+}
+
+/* ── Polja stanja ────────────────────────────────────────────────────── */
+.v2-polja {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 var(--v2-r-6);
+  margin: 0;
+}
+.v2-polja dt { padding-top: var(--v2-r-3); }
+.v2-polja__v {
+  margin: 0 0 var(--v2-r-3);
+  padding-bottom: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  font-size: 15px;
+  color: var(--v2-tx-1);
+  overflow-wrap: anywhere;
+}
+
+/* ── Hronologija ─────────────────────────────────────────────────────── */
+.v2-hron__red {
+  display: grid;
+  grid-template-columns: minmax(0, 13ch) minmax(0, 1fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: 64px;
+}
+.v2-hron__datum { font-size: 13px; color: var(--v2-tx-2); }
+.v2-hron__red[data-vaznost="kritican"] .v2-hron__datum { color: var(--v2-st-greska); }
+.v2-hron__dogadjaj { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-hron__meta {
+  margin-top: 3px; font-size: 13px; color: var(--v2-tx-3);
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+}
+.v2-hron__meta > * + *::before { content: "·"; margin-right: 10px; }
+.v2-hron__oznaka {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--v2-tx-3);
+}
+
+/* ── Spisi ───────────────────────────────────────────────────────────── */
+.v2-spisi__red {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 26ch) minmax(0, 16ch);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: 60px;
+}
+.v2-spisi__naziv { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-spisi__meta {
+  font-size: 13px; color: var(--v2-tx-3);
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+}
+.v2-spisi__meta > * + *::before { content: "·"; margin-right: 10px; }
+.v2-spisi__akcije { font-size: 13px; text-align: right; }
+.v2-tekst-veza {
+  color: var(--v2-tx-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.v2-tekst-veza:hover { color: var(--v2-brend); }
+
+/* ── Rokovi ──────────────────────────────────────────────────────────── */
+.v2-rok__red {
+  display: grid;
+  grid-template-columns: minmax(0, 15ch) minmax(0, 1fr);
+  gap: var(--v2-r-4);
+  align-items: baseline;
+  padding-block: var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  min-height: 56px;
+}
+.v2-rok__kada { font-size: 13px; color: var(--v2-tx-2); display: flex; flex-direction: column; gap: 2px; }
+.v2-rok__rel { font-family: "Source Sans 3", system-ui, sans-serif; font-size: 12px; color: var(--v2-tx-3); }
+.v2-rok__red[data-proslo="1"] .v2-rok__rel { color: var(--v2-st-greska); }
+.v2-rok__opis { font-size: 15px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+
+.v2-analiza__stanje { font-size: 15px; color: var(--v2-tx-1); margin-bottom: var(--v2-r-3); }
+
+/* ── Uzak ekran ──────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .v2-predmet-traka { top: 60px; }
+  .v2-predmet-traka__red { flex-wrap: wrap; padding-block: 4px; }
+  .v2-predmet-traka__naziv { border-left: 0; padding-left: 0; max-width: 100%; }
+  .v2-predmet-traka__sidra { margin-left: 0; width: 100%; gap: var(--v2-r-4); }
+  .v2-celina__naslov { scroll-margin-top: 160px; }
+}
+@media (max-width: 720px) {
+  .v2-hron__red, .v2-rok__red, .v2-spisi__red {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .v2-rok__kada { flex-direction: row; align-items: baseline; gap: 10px; }
+  .v2-spisi__akcije { text-align: left; }
+  .v2-tekst-veza { justify-content: flex-start; }
+}

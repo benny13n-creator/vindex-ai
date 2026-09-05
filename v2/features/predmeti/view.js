@@ -15,6 +15,7 @@ import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { ucitajStranu, PO_STRANI } from "./api.js";
 import { napraviStanje, novaGeneracija, jeAktuelna, STANJE } from "./state.js";
+import { idiNa, putanjaZa } from "../../platform/router.js";
 
 const DEBOUNCE_MS = 300;
 
@@ -43,7 +44,19 @@ function zaglavljeKolona() {
 function red(zapis) {
   const li = el("li", "v2-reg__red");
 
-  li.appendChild(el("span", "v2-reg__naziv", zapis.naziv));
+  // Red vodi u DOSIJE tog predmeta. Prava <a href> veza: srednji klik i
+  // „otvori u novoj kartici" rade nativno, citac ekrana dobija ime, a
+  // tastatura radi bez ijedne linije dodatnog koda.
+  const veza = el("a", "v2-reg__veza", zapis.naziv);
+  veza.href = putanjaZa("predmet", zapis.id);
+  veza.addEventListener("click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmet", zapis.id);
+  });
+  const naziv = el("span", "v2-reg__naziv");
+  naziv.appendChild(veza);
+  li.appendChild(naziv);
 
   const meta = el("span", "v2-reg__meta");
 
@@ -105,7 +118,7 @@ export function montirajPredmete(kontejner, kontekst) {
     if (Number.isFinite(kontekst.limit) && kontekst.limit > 0) s.limit = kontekst.limit;
   }
 
-  const unutra = el("div", "v2-scena__unutra");
+  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--registar");
 
   const zaglavlje = el("header", "v2-zaglavlje");
   const h1 = el("h1", "v2-naslov", "Predmeti");

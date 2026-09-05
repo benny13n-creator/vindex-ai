@@ -26,27 +26,59 @@ const STANJE_KLASA = {
   na_cekanju: "mirovanje", pauziran: "mirovanje",
 };
 
+/* `predmeti.tip` NIJE kontrolisan recnik. Merenje na produkciji (23 predmeta):
+ * radni_spor, Parnica, opsti, ugovorni_spor, nasledstvo, naknada_stete,
+ * potrosacki_spor, ostalo — samo 1 od 23 pogadja negdasnji uzi recnik.
+ * Zato ovde stoje kurirani nazivi ZA POZNATE kljuceve, a nepoznata vrednost
+ * se citljivo ispisuje umesto da nestane (vidi `nazivVrste`). */
 const VRSTA = {
-  parnicni:      "Parnični",
-  krivicni:      "Krivični",
-  upravni:       "Upravni",
-  prekrsajni:    "Prekršajni",
-  izvrsni:       "Izvršni",
-  radni:         "Radni",
-  privredni:     "Privredni",
-  porodicni:     "Porodični",
-  ostalo:        "Ostalo",
+  parnicni:        "Parnični",
+  parnica:         "Parnica",
+  parnicni_spor:   "Parnični spor",
+  krivicni:        "Krivični",
+  upravni:         "Upravni",
+  prekrsajni:      "Prekršajni",
+  izvrsni:         "Izvršni",
+  radni:           "Radni",
+  radni_spor:      "Radni spor",
+  privredni:       "Privredni",
+  privredni_spor:  "Privredni spor",
+  porodicni:       "Porodični",
+  nasledstvo:      "Nasledstvo",
+  naknada_stete:   "Naknada štete",
+  ugovorni_spor:   "Ugovorni spor",
+  potrosacki_spor: "Potrošački spor",
+  opsti:           "Opšti",
+  ostalo:          "Ostalo",
 };
 
 function normalizuj(v) {
   return String(v || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-/** Nepoznat enum NE postaje sirovi kljuc na ekranu. Vraca se neutralan naziv. */
+/**
+ * Nepoznata sirova vrednost se ne brise nego se cita: `radni_spor` -> „Radni
+ * spor". To NIJE izmisljanje — to je ista informacija koju je korisnik uneo,
+ * samo bez donje crte. Brisanje stvarnog podatka je gore od prikaza sirovog:
+ * advokat bi video prazno polje kod predmeta koji vrstu ima.
+ */
+function citljivo(sirovo) {
+  const s = String(sirovo == null ? "" : sirovo).trim().replace(/[_]+/g, " ");
+  if (!s) return "";
+  const sazeto = s.replace(/\s+/g, " ");
+  return sazeto.charAt(0).toLocaleUpperCase("sr-RS") + sazeto.slice(1);
+}
+
+/**
+ * Prazno stanje je „—". Nepoznato stanje se ISPISUJE citljivo, jer je to
+ * podatak koji u bazi postoji; „—" bi tvrdilo da predmet stanje nema.
+ * Boju i dalje odredjuje `klasaStanja`, koja za nepoznato ostaje neutralna —
+ * rec se prikazuje, semantika se ne pogadja.
+ */
 export function nazivStanja(sirovo) {
   const k = normalizuj(sirovo);
   if (!k) return "—";
-  return STANJE[k] || "—";
+  return STANJE[k] || citljivo(sirovo) || "—";
 }
 
 export function klasaStanja(sirovo) {
@@ -57,7 +89,7 @@ export function klasaStanja(sirovo) {
 export function nazivVrste(sirovo) {
   const k = normalizuj(sirovo);
   if (!k) return "";
-  return VRSTA[k] || "";
+  return VRSTA[k] || citljivo(sirovo);
 }
 
 /** Datum u obliku koji advokat prepisuje, ne u ISO obliku iz baze. */

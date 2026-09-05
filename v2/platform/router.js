@@ -34,33 +34,52 @@ export function postaviPodrazumevani(kljuc) {
 
 export function naPromenu(fn) {
   slusaoci.push(fn);
-  if (tekuci) fn(tekuci.kljuc);
+  if (tekuci) fn(tekuci.kljuc, tekuci.param);
 }
 
-function kljucIzPutanje(putanja) {
+/**
+ * Razresava putanju u { kljuc, param }.
+ *
+ * Ruter zna za PROSTORE i za tacno jedan oblik objekta u putanji:
+ * `/app-v2/<kljuc>/<id>`. Dublje od toga ne ide — model je
+ * PROSTOR -> OBJEKAT -> RADNJA, a radnja zivi unutar ekrana, ne u ruteru.
+ */
+function razresi(putanja) {
   const p = String(putanja || "").replace(/\/+$/, "");
-  if (p === KOREN || p === "") return podrazumevani;
-  const zadnji = p.slice(KOREN.length + 1);
-  return ekrani.has(zadnji) ? zadnji : null;
+  if (p === KOREN || p === "") return { kljuc: podrazumevani, param: null };
+  const rep = p.slice(KOREN.length + 1);
+  if (!rep) return { kljuc: podrazumevani, param: null };
+  const delovi = rep.split("/");
+  const kljuc = delovi[0];
+  if (!ekrani.has(kljuc)) return { kljuc: null, param: null };
+  return { kljuc, param: delovi.length > 1 ? decodeURIComponent(delovi[1]) : null };
 }
 
-export function putanjaZa(kljuc) {
-  return `${KOREN}/${kljuc}`;
+export function putanjaZa(kljuc, param) {
+  return param
+    ? `${KOREN}/${kljuc}/${encodeURIComponent(param)}`
+    : `${KOREN}/${kljuc}`;
+}
+
+/** Tekuci parametar rute (npr. id predmeta). */
+export function tekuciParam() {
+  return tekuci ? tekuci.param : null;
 }
 
 function primeni() {
-  let kljuc = kljucIzPutanje(window.location.pathname);
+  let { kljuc, param } = razresi(window.location.pathname);
 
   // Nepoznata putanja -> kanonsko razresenje na podrazumevani prostor,
   // bez ponovnog ucitavanja dokumenta.
   if (!kljuc) {
-    kljuc = podrazumevani;
+    kljuc = podrazumevani; param = null;
     window.history.replaceState({}, "", putanjaZa(kljuc));
   } else if (window.location.pathname.replace(/\/+$/, "") === KOREN) {
     window.history.replaceState({}, "", putanjaZa(kljuc));
   }
 
-  if (tekuci && tekuci.kljuc === kljuc) return;
+  // Isti ekran sa istim parametrom -> nista se ne montira ponovo.
+  if (tekuci && tekuci.kljuc === kljuc && tekuci.param === param) return;
 
   if (tekuci) {
     // Ekran koji odlazi ostavlja svoj kontekst da bi ga zatekao pri povratku.
@@ -74,8 +93,9 @@ function primeni() {
 
   const montiraj = ekrani.get(kljuc);
   if (!montiraj) return;
-  tekuci = { kljuc, ciklus: montiraj(kontejner, konteksti.get(kljuc) || null) };
-  for (const fn of slusaoci) fn(kljuc);
+  const ciklus = montiraj(kontejner, konteksti.get(kljuc) || null, param);
+  tekuci = { kljuc, param, ciklus };
+  for (const fn of slusaoci) fn(kljuc, param);
 }
 
 export function pokreni(el) {
@@ -91,8 +111,8 @@ export function idiNaPutanju(putanja) {
   primeni();
 }
 
-export function idiNa(kljuc) {
-  idiNaPutanju(putanjaZa(kljuc));
+export function idiNa(kljuc, param) {
+  idiNaPutanju(putanjaZa(kljuc, param));
 }
 
 /** Samo za testove. */
