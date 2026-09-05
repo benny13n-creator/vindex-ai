@@ -132,3 +132,39 @@ textarea.v2-polje-unos__kontrola { min-height: 96px; resize: vertical; }
   color: var(--v2-tx-3);
   max-width: var(--v2-mera-citanje);
 }
+
+/* ── Sukob interesa ──────────────────────────────────────────────────────
+ * Blokirajuci nalaz nosi jaku liniju i NEMA dugme za nastavak; nalaz koji
+ * trazi pregled nosi brend liniju i izricito dugme. Razlika mora biti
+ * vidljiva pre nego sto se procita tekst.
+ */
+.v2-konflikt {
+  padding: var(--v2-r-4);
+  border-left: 3px solid var(--v2-tx-3);
+  background: var(--v2-papir-2);
+  max-width: var(--v2-mera-citanje);
+  display: flex;
+  flex-direction: column;
+  gap: var(--v2-r-3);
+}
+.v2-konflikt--konflikt  { border-left-color: var(--v2-st-greska); }
+.v2-konflikt--pregled   { border-left-color: var(--v2-brend); }
+.v2-konflikt--nepotpuna { border-left-color: var(--v2-brend); }
+
+.v2-konflikt__naslov { font-size: 15px; font-weight: 600; color: var(--v2-tx-1); }
+.v2-konflikt__telo   { font-size: 14px; color: var(--v2-tx-2); }
+
+.v2-konflikt__red {
+  padding-block: var(--v2-r-2);
+  border-bottom: 1px solid var(--v2-linija);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-konflikt__naziv { font-size: 14px; color: var(--v2-tx-1); overflow-wrap: anywhere; }
+.v2-konflikt__meta {
+  font-size: 13px; color: var(--v2-tx-3);
+  display: flex; flex-wrap: wrap; gap: 2px 10px;
+}
+.v2-konflikt__meta > * + *::before { content: "·"; margin-right: 10px; }
+.v2-konflikt .v2-dugme { align-self: flex-start; }

@@ -14,6 +14,16 @@
  * POSTOJI i korisnik se vodi u njegov Dosije sa tacnom porukom sta nije
  * sacuvano. Nikad se ne tvrdi da predmet nije napravljen kad jeste.
  *
+ * PROVERA SUKOBA INTERESA JE DEO OVOG TOKA, NE ODVOJEN EKRAN.
+ * Kada su unete stranke, kanonska provera (`POST /api/conflict-check`) se
+ * izvrsava PRE otvaranja predmeta. Blokirajuci nalaz zaustavlja tok; nalaz
+ * koji trazi pregled trazi izricitu ljudsku potvrdu; NEPOTPUNA provera se
+ * tretira kao nepotvrdjena, nikad kao cista (vidi domain/konflikt.js).
+ *
+ * Provera se NE preskace tiho. Ako poziv padne, ishod je „nije provereno" i
+ * korisnik mora svesno da nastavi — jer odsustvo rezultata nije dokaz da
+ * konflikta nema.
+ *
  * VRSTA PREDMETA NIJE ZATVOREN SPISAK. Mereno na produkciji: `predmeti.tip`
  * nosi radni_spor, Parnica, opsti, ugovorni_spor, nasledstvo, naknada_stete,
  * potrosacki_spor, ostalo. Zato je ovde `datalist` — predlozi da, prinuda ne.
@@ -25,6 +35,7 @@ import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ostavi } from "../../platform/obavestenje.js";
+import { imaStaDaSeProveri, upitIzStranaka, uIshod, spoji, NASTAVAK } from "../../domain/konflikt.js";
 
 /** Predlozi vrste — poznate vrednosti iz baze, ne ogranicenje. */
 const VRSTE = [
@@ -175,6 +186,71 @@ export function montirajNovPredmet(kontejner, kontekst) {
 
   let salje = false;
 
+  // Covek je video nalaz koji trazi pregled i svesno nastavio. BLOKIRAJUCI
+  // nalaz se ovim NE moze zaobici — on nikad ne nudi nastavak.
+  let konfliktPotvrdjen = false;
+
+  const konfliktPanel = el("div", "v2-konflikt");
+  konfliktPanel.hidden = true;
+  konfliktPanel.setAttribute("role", "alert");
+  forma.insertBefore(konfliktPanel, radnje);
+
+  /**
+   * Iscrtava ishod provere sukoba interesa.
+   *
+   * BLOKIRAJUCI nalaz nema dugme za nastavak — jedini izlaz je izmena
+   * stranaka ili odustajanje. Nalaz koji trazi pregled ima izricito dugme,
+   * i tek ono postavlja `konfliktPotvrdjen`.
+   */
+  function prikaziKonflikt(ishod) {
+    const blok = ishod.nastavak === NASTAVAK.BLOKIRANO;
+    konfliktPanel.className = "v2-konflikt v2-konflikt--" + ishod.ishod;
+    konfliktPanel.replaceChildren();
+    konfliktPanel.appendChild(el("p", "v2-konflikt__naslov", ishod.naslov));
+    if (ishod.telo) konfliktPanel.appendChild(el("p", "v2-konflikt__telo", ishod.telo));
+
+    if (ishod.konflikti.length) {
+      const ul = el("ul", "v2-konflikt__lista");
+      for (const k of ishod.konflikti) {
+        const li = el("li", "v2-konflikt__red");
+        li.appendChild(el("span", "v2-konflikt__naziv", k.naziv));
+        const meta = el("span", "v2-konflikt__meta");
+        if (k.predmet && k.predmet !== k.naziv) meta.appendChild(el("span", "", k.predmet));
+        if (k.uloga) meta.appendChild(el("span", "", k.uloga));
+        meta.appendChild(el("span", "", k.aktivan ? "aktivan predmet" : "zatvoren predmet"));
+        li.appendChild(meta);
+        ul.appendChild(li);
+      }
+      konfliktPanel.appendChild(ul);
+    }
+
+    if (!blok) {
+      const nastavi = el("button", "v2-dugme v2-dugme--opasno", "Razumem — otvori predmet");
+      nastavi.type = "button";
+      ciklus.slusaj(nastavi, "click", () => {
+        konfliktPotvrdjen = true;
+        konfliktPanel.appendChild(el("p", "v2-konflikt__telo",
+          "Nastavak je zabeležen. Pritisnite „Otvori predmet“."));
+        nastavi.remove();
+        potvrdi.focus();
+      });
+      konfliktPanel.appendChild(nastavi);
+    }
+
+    konfliktPanel.hidden = false;
+    konfliktPanel.scrollIntoView({ block: "nearest" });
+  }
+
+  // Izmena stranaka ponistava ranije datu potvrdu: potvrda vazi za TE
+  // stranke, ne za obrazac.
+  for (const polje of [p3.unos, p4.unos]) {
+    ciklus.slusaj(polje, "input", () => {
+      if (!konfliktPotvrdjen && konfliktPanel.hidden) return;
+      konfliktPotvrdjen = false;
+      konfliktPanel.hidden = true;
+    });
+  }
+
   ciklus.slusaj(odustani, "click", (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
@@ -199,6 +275,44 @@ export function montirajNovPredmet(kontejner, kontekst) {
     poruka.hidden = true;
 
     const prekidac = ciklus.prekidac();
+
+    // ── KAPIJA: sukob interesa ─────────────────────────────────────────
+    // Izvrsava se PRE otvaranja predmeta, i samo ako ima sta da se proveri.
+    // Jednom potvrdjen ishod se ne proverava ponovo pri istom slanju —
+    // korisnik je vec svesno nastavio.
+    if (!konfliktPotvrdjen) {
+      const upiti = upitIzStranaka({ tuzilac: p3.unos.value, tuzeni: p4.unos.value });
+      if (upiti.some(imaStaDaSeProveri)) {
+        potvrdi.textContent = "Provera sukoba interesa…";
+        const ishodi = [];
+        for (const u of upiti) {
+          if (!imaStaDaSeProveri(u)) continue;
+          try {
+            const odg = await posalji("/api/conflict-check", {
+              telo: { ime_prezime: u.ime_prezime }, signal: prekidac.signal,
+            });
+            ishodi.push(uIshod(odg));
+          } catch (err) {
+            if (jePrekid(err) || ciklus.ugasen) return;
+            if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+            // Pad poziva NIJE cist nalaz. `uIshod(null)` daje „nije provereno",
+            // sto trazi izricitu ljudsku potvrdu pre nastavka.
+            ishodi.push(uIshod(null));
+          }
+        }
+        if (ciklus.ugasen) return;
+
+        const ishod = spoji(ishodi);
+        if (ishod.nastavak !== NASTAVAK.SLOBODNO) {
+          salje = false;
+          potvrdi.disabled = false;
+          potvrdi.textContent = "Otvori predmet";
+          prikaziKonflikt(ishod);
+          return;
+        }
+      }
+    }
+
     let napravljen;
     try {
       napravljen = await posalji("/api/predmeti", {
