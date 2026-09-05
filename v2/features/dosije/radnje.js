@@ -33,7 +33,7 @@ function el(tag, klasa, tekst) {
  *
  * @param {object} o  { dugme, ciklus, poruka, posle, radi }
  */
-async function izvrsi({ dugme, tekstUToku, tekstNormalan, poruka, ciklus, poziv, naUspeh, imeRadnje }) {
+async function izvrsi({ dugme, tekstUToku, tekstNormalan, poruka, ciklus, poziv, naUspeh, naGresku, imeRadnje, neuspeh }) {
   dugme.disabled = true;
   const staro = dugme.textContent;
   dugme.textContent = tekstUToku;
@@ -47,13 +47,20 @@ async function izvrsi({ dugme, tekstUToku, tekstNormalan, poruka, ciklus, poziv,
     dugme.disabled = false;
     dugme.textContent = tekstNormalan || staro;
     if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+    // Radnja koja zna da neki status NIJE kvar (npr. 404 pri brisanju: stavka
+    // vise ne postoji) sama ga obradi i vrati `true`.
+    if (typeof naGresku === "function" && naGresku(err) === true) return;
     poruka.className = "v2-forma__poruka v2-forma__poruka--"
       + (err && err.vrsta === VRSTA.MREZA ? "upozorenje" : "greska");
-    poruka.textContent = (err && err.vrsta === VRSTA.MREZA)
-      // Kod pisanja mrezni kvar NIJE dokaz da se nista nije upisalo.
-      ? "Veza je prekinuta pre nego što je stigao odgovor. " + imeRadnje
-        + " je možda sačuvano — osvežite Dosije pre nego što pokušate ponovo."
-      : imeRadnje + " nije sačuvano. " + porukaZaKorisnika(err);
+    // `neuspeh` postoji zato sto se radnje razlicito slazu u recenici:
+    // „Beleska nije sacuvano" nije srpski. Podrazumevani tekst vazi za upis.
+    poruka.textContent = neuspeh
+      ? neuspeh(err)
+      : (err && err.vrsta === VRSTA.MREZA)
+        // Kod pisanja mrezni kvar NIJE dokaz da se nista nije upisalo.
+        ? "Veza je prekinuta pre nego što je stigao odgovor. " + imeRadnje
+          + " je možda sačuvano — osvežite Dosije pre nego što pokušate ponovo."
+        : imeRadnje + " nije sačuvano. " + porukaZaKorisnika(err);
     poruka.hidden = false;
   }
 }
@@ -172,6 +179,77 @@ export function obrazacRocista(predmetId, ciklus, osvezi) {
   });
 
   return okvir;
+}
+
+/* ── Brisanje napomene ────────────────────────────────────── */
+/**
+ * Napomene stizu iz dve tabele (v. `uNapomene`), pa se i brisu na dve
+ * putanje. Advokat tu razliku NE VIDI: za njega je to jedna napomena i jedno
+ * dugme. `izvor` bira rutu i nista vise.
+ *
+ * Potvrda je u dva koraka jer brisanje nije opozivo. 404 znaci da napomena
+ * vise ne postoji — to nije greska koju treba prijaviti kao kvar, nego stanje
+ * koje ekran treba da uskladi, pa se u tom slucaju samo osvezava.
+ */
+export function kontrolaBrisanjaNapomene(predmetId, napomena, ciklus, osvezi) {
+  const omot = el("span", "v2-beleska__brisi");
+  const trazi = el("button", "v2-tekst-akcija v2-tekst-akcija--opasno", "Obriši");
+  trazi.type = "button";
+  trazi.setAttribute("aria-label", "Obriši napomenu");
+  omot.appendChild(trazi);
+
+  const putanja = napomena.izvor === "komentar"
+    ? `/komentari/${encodeURIComponent(napomena.id)}`
+    : `/api/predmeti/${encodeURIComponent(predmetId)}/beleske/${encodeURIComponent(napomena.id)}`;
+
+  ciklus.slusaj(trazi, "click", () => {
+    if (omot.querySelector(".v2-potvrda")) return;
+    trazi.hidden = true;
+
+    const p = el("div", "v2-potvrda v2-potvrda--usko");
+    p.setAttribute("role", "alertdialog");
+    p.appendChild(el("p", "v2-potvrda__naslov", "Obrisati ovu napomenu?"));
+
+    const poruka = el("div", "v2-forma__poruka");
+    poruka.setAttribute("role", "alert");
+    poruka.hidden = true;
+
+    const radnje = el("div", "v2-potvrda__radnje");
+    const potvrdi = el("button", "v2-dugme v2-dugme--opasno", "Obriši");
+    potvrdi.type = "button";
+    const odustani = el("button", "v2-dugme v2-dugme--tiho", "Odustani");
+    odustani.type = "button";
+    radnje.append(potvrdi, odustani);
+    p.append(poruka, radnje);
+    omot.appendChild(p);
+    potvrdi.focus();
+
+    ciklus.slusaj(odustani, "click", () => {
+      p.remove(); trazi.hidden = false; trazi.focus();
+    });
+
+    ciklus.slusaj(potvrdi, "click", () => {
+      izvrsi({
+        dugme: potvrdi, tekstUToku: "Briše se…", tekstNormalan: "Obriši",
+        poruka, ciklus, imeRadnje: "Napomena",
+        poziv: (signal) => posalji(putanja, { metod: "DELETE", signal }),
+        naUspeh: () => { ostavi("Napomena je obrisana.", "uspeh"); osvezi(); },
+        neuspeh: (err) => (err && err.vrsta === VRSTA.MREZA)
+          // Mrezni kvar pri brisanju NIJE dokaz da napomena stoji.
+          ? "Veza je prekinuta pre nego što je stigao odgovor. Napomena je "
+            + "možda obrisana — osvežite Dosije pre nego što pokušate ponovo."
+          : "Napomena nije obrisana. " + porukaZaKorisnika(err),
+        naGresku: (err) => {
+          // 404: napomena vise ne postoji (obrisana drugde ili dvoklik).
+          // Ekran se usklađuje sa bazom umesto da prijavi kvar koji nije kvar.
+          if (err && err.status === 404) { osvezi(); return true; }
+          return false;
+        },
+      });
+    });
+  });
+
+  return omot;
 }
 
 /* ── Nova beleska ───────────────────────────────────────────────────────── */

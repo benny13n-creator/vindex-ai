@@ -205,8 +205,10 @@ export function sastaviDosije(odgovor, spremnostSirova, sada) {
     // Beleske se prenose CELE, ne kao broj. Ranije je ovde stajala samo
     // duzina — ekran je time mogao da kaze „ima 3 beleske", ali ne i STA u
     // njima pise, sto je jedino zbog cega beleska postoji.
-    beleske: uBeleske(o.beleske),
-    brojBelezaka: (o.beleske || []).length,
+    // Jedan tok nad dve tabele — v. `uNapomene`. `/api/predmeti/{id}` vec
+    // vraca oba niza, pa ovo ne uvodi nijedan dodatni poziv.
+    beleske: uNapomene({ beleske: o.beleske, komentari: o.komentari }),
+    brojBelezaka: uNapomene({ beleske: o.beleske, komentari: o.komentari }).length,
     spremnost: uSpremnost(spremnostSirova),
     // Sirov zapis predmeta se cuva SAMO za izmenu: obrazac mora da zna
     // zatecene vrednosti i `updated_at` radi optimisticke kontrole. Nista
@@ -297,16 +299,54 @@ export function uRocista(niz, sada) {
 }
 
 /** Beleska. Prazna beleska se ne prikazuje — prazan red nije zapis. */
-export function uBelesku(sirov) {
+export function uBelesku(sirov, izvor = "beleska") {
   const b = sirov || {};
   const sadrzaj = tekst(b.sadrzaj || b.tekst || b.beleska);
+  const kada = b.created_at || b.kreirano || null;
   return {
     id: b.id || "",
     tekst: sadrzaj,
-    datum: datum(b.created_at || b.kreirano),
+    datum: datum(kada),
+    // Odsutan trenutak se NE popunjava danasnjim datumom. `datum` u tom
+    // slucaju nosi kanonsku oznaku nepoznatog („—"), a `datumPoznat` govori
+    // ekranu da ne dopisuje datumsku odrednicu uz napomenu — nedostatak
+    // vremena upisa je artefakt zapisa, ne tvrdnja o predmetu.
+    datumPoznat: !!kada,
+    // Sirov trenutak se cuva SAMO za uredjivanje niza. Nikad se ne prikazuje —
+    // `datum` je jedini oblik koji advokat vidi.
+    kada: kada ? String(kada) : "",
+    // `izvor` odredjuje ISKLJUCIVO putanju za brisanje. Ne prikazuje se: dve
+    // tabele nisu dva pojma za advokata, nego posledica istorije baze.
+    izvor,
   };
 }
 
-export function uBeleske(niz) {
-  return (niz || []).map(uBelesku).filter(b => b.tekst);
+export function uBeleske(niz, izvor = "beleska") {
+  return (niz || []).map(b => uBelesku(b, izvor)).filter(b => b.tekst);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * NAPOMENE — JEDAN TOK NAD DVE TABELE
+ *
+ * Legacy `/app` prikazuje DVA odvojena spiska slobodnog teksta na istom
+ * predmetu: „Beleške" (`predmet_beleske`) i „Komentari" (`predmet_komentari`).
+ * Oba su vlasnikova, oba su slobodan tekst o predmetu, nijedno nema polje po
+ * kome bi se razlikovalo. To su dva imena za istu radnju — a „1 koncept = 1
+ * vlasnik = 1 istina" je vlasnikovo pravilo, ne moje.
+ *
+ * V2 zato ima JEDAN tok: „Beleške". Ni jedan postojeci zapis ne nestaje —
+ * citaju se OBE tabele; nove napomene se upisuju u `predmet_beleske`. Poreklo
+ * reda se ne prikazuje jer advokatu ne znaci nista; nosi se samo zato sto se
+ * brisanje razlikuje po putanji.
+ * ═══════════════════════════════════════════════════════════════════════ */
+export function uNapomene({ beleske, komentari } = {}) {
+  const spojene = uBeleske(beleske, "beleska")
+    .concat(uBeleske(komentari, "komentar"));
+  // Najnovije prvo: napomena se pise da bi se sutra procitala.
+  return spojene.sort((a, b) => {
+    if (a.kada === b.kada) return 0;
+    if (!a.kada) return 1;
+    if (!b.kada) return -1;
+    return a.kada < b.kada ? 1 : -1;
+  });
 }

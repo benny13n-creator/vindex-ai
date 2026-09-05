@@ -4999,7 +4999,14 @@ async def dodaj_belesku(predmet_id: str, request: Request, authorization: str = 
 @limiter.limit("30/minute")
 async def obrisi_belesku(predmet_id: str, beleska_id: str, request: Request, authorization: str = Header(None)):
     user = await _require_auth_async(authorization)
-    _get_supa().table("predmet_beleske").delete().eq("id", beleska_id).eq("user_id", user.id).execute()
+    # Rezultat DELETE-a se ranije odbacivao, pa je ruta vracala {"ok": True} i za
+    # nepostojecu i za tudju belesku -- odgovor koji tvrdi brisanje koje se nije
+    # desilo. Owner predikat je uvek drzao (nista tudje nije brisano), lazan je
+    # bio odgovor. Isti guard vec stoji nad istom klasom resursa u
+    # routers/komentari.py (V31) i kod rocista/zadataka.
+    r = _get_supa().table("predmet_beleske").delete().eq("id", beleska_id).eq("user_id", user.id).execute()
+    if not r.data:
+        raise HTTPException(status_code=404, detail="Beleška nije pronađena")
     return {"ok": True}
 
 

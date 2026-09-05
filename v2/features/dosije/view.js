@@ -29,7 +29,7 @@ import { posalji } from "../../platform/http.js";
 import { kontrolaOdluke } from "../rokovi/odluka.js";
 import { uZadatke, uRocista, uBeleske } from "../../domain/dosije.js";
 import { obrazacZadatka, obrazacRocista, obrazacBeleske,
-         kontrolaBrisanjaSpisa } from "./radnje.js";
+         kontrolaBrisanjaSpisa, kontrolaBrisanjaNapomene } from "./radnje.js";
 import { kontrolaIzmene } from "./izmena.js";
 import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
 
@@ -113,9 +113,14 @@ function sekcijaStanje(d, ciklus, predmetId, radnje) {
   } else {
     const ulB = el("ul", "v2-lista-tanka");
     for (const b of d.beleske) {
-      const liB = el("li");
+      const liB = el("li", "v2-beleska");
       liB.appendChild(document.createTextNode(b.tekst));
-      if (b.datum) liB.appendChild(el("span", "v2-beleska__datum", " — " + b.datum));
+      if (b.datumPoznat) liB.appendChild(el("span", "v2-beleska__datum", " — " + b.datum));
+      // Napomena se moze i ukloniti — inace bi jedini nacin da se ispravi
+      // pogresno zapisana napomena bio da se doda jos jedna ispod nje.
+      if (radnje && radnje.osvezi && b.id) {
+        liB.appendChild(kontrolaBrisanjaNapomene(predmetId, b, ciklus, radnje.osvezi));
+      }
       ulB.appendChild(liB);
     }
     bBel.appendChild(ulB);

@@ -96,11 +96,16 @@ async def get_komentari(
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Pristup predmetu nije dozvoljen.")
 
+    # Kolona u `predmet_komentari` je `kreirano`, ne `created_at`. Sortiranje po
+    # nepostojecoj koloni je PostgREST greska, pa je OVA ruta vracala 500 za
+    # svakog korisnika i za svaki predmet: komentari su se upisivali (POST radi i
+    # vraca red sa `kreirano`), ali se nisu mogli procitati nazad. Upis bez
+    # citanja je gori od nedostupne funkcije jer advokat veruje da je zabelezio.
     res = await asyncio.to_thread(
         lambda: supa.table("predmet_komentari")
                     .select("*")
                     .eq("predmet_id", predmet_id)
-                    .order("created_at", desc=False)
+                    .order("kreirano", desc=False)
                     .execute()
     )
     return {"komentari": res.data or []}
