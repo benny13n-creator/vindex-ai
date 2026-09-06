@@ -34,6 +34,7 @@ import { kontrolaIzmene } from "./izmena.js";
 import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
 import { ucitajNaplatuPredmeta, sadrzajNaplate } from "./naplata.js";
 import { ucitajSaradnjuPredmeta, sadrzajSaradnje } from "./saradnja.js";
+import { blokPoredjenja } from "./poredjenje.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -382,6 +383,12 @@ function sekcijaSpisi(d, predmetId, ciklus, radnje) {
   }
   s.appendChild(ul);
   s.appendChild(otpremanje(predmetId, ciklus, radnje && radnje.osvezi));
+  // C7 (Z017.2 execution queue #10) -- poredjenje dokumenata. Potrebna su
+  // najmanje 2 spisa da bi poredjenje uopste imalo smisla; sa manje se blok
+  // ne dodaje (nema formu koja ne moze da se koristi).
+  if (d.spisi.length >= 2) {
+    s.appendChild(blokPoredjenja(predmetId, d.spisi.map(sp => ({ id: sp.id, naziv: sp.naziv })), ciklus));
+  }
   return s;
 }
 
