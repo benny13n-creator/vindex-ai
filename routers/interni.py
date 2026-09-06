@@ -43,9 +43,18 @@ async def post_dodaj_stav(req: InterniStavRequest, request: Request, user: dict 
 @limiter.limit("30/minute")
 async def post_pretraga_stavova(req: InterniPretraga, request: Request, user: dict = Depends(PermissionService.require("interni_stavovi"))):
     """F7.2 — Pretraži interne stavove firme (PRO)."""
-    rezultati = await asyncio.to_thread(_search_stavovi, user["user_id"], req.upit)
+    # Z017.2 -- FAILURE != EMPTY. `search_stavovi` sada baca kad pretraga
+    # NIJE izvrsena (Pinecone/embedding pad), za razliku od praznog []
+    # kad JESTE izvrsena i nema pogodaka -- ta dva stanja se ovde ne smeju
+    # spojiti u isti odgovor.
+    try:
+        rezultati = await asyncio.to_thread(_search_stavovi, user["user_id"], req.upit)
+        pretraga_neuspesna = False
+    except Exception:
+        rezultati = []
+        pretraga_neuspesna = True
     await UsageService.consume(user["user_id"], user.get("email", ""), "interni_stavovi")
-    return {"rezultati": rezultati, "ukupno": len(rezultati)}
+    return {"rezultati": rezultati, "ukupno": len(rezultati), "pretraga_neuspesna": pretraga_neuspesna}
 
 
 @router.delete("/interni-stavovi/obrisi-sve")  # F7.2

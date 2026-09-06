@@ -117,9 +117,15 @@ def search_stavovi(user_id: str, upit: str, top_k: int = 5) -> list[dict]:
             for m in matches
             if float(m.score) > 0.5 and (m.metadata or {}).get("text", "").strip()
         ]
-    except Exception:
+    except Exception as exc:
         logger.warning("[INTERNI] search failed for user=%.8s", user_id)
-        return []
+        # Z017.2 -- FAILURE != EMPTY (isti invarijant kao B-U-003 za
+        # /api/pitanje). `except: return []` je vracalo IDENTICAN oblik za
+        # "pretraga izvrsena, nema stavova" i "pretraga NIJE izvrsena"
+        # (Pinecone/embedding pad) -- razlika je bila nevidljiva na API
+        # granici. Sada se pad prosledjuje dalje da bi ga pozivalac
+        # (routers/interni.py) razlikovao od praznog rezultata.
+        raise RuntimeError("interni_stavovi pretraga nije izvrsena") from exc
 
 
 def obrisi_stavove(user_id: str) -> int:

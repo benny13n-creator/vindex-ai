@@ -57,7 +57,14 @@ export function montirajPraksu(kontejner, kontekst) {
     e.preventDefault();
     idiNa("znanje", "rokovi");
   });
-  izbor.append(kaPropisima, ovde, kaRokovima);
+  const kaStavovima = el("a", "v2-prekidac__stavka", "Naši stavovi");
+  kaStavovima.href = putanjaZa("znanje", "stavovi");
+  ciklus.slusaj(kaStavovima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("znanje", "stavovi");
+  });
+  izbor.append(kaPropisima, ovde, kaRokovima, kaStavovima);
   unutra.appendChild(izbor);
 
   // ── Obrazac ──

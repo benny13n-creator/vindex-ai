@@ -16,8 +16,9 @@
 import { montirajZnanje } from "./view.js";
 import { montirajPraksu } from "./praksa.js";
 import { montirajRokove } from "./rokovi.js";
+import { montirajStavove } from "./stavovi.js";
 
-const RADNJE = { praksa: montirajPraksu, rokovi: montirajRokove };
+const RADNJE = { praksa: montirajPraksu, rokovi: montirajRokove, stavovi: montirajStavove };
 
 export function montirajProstorZnanje(kontejner, kontekst, param) {
   const svi = kontekst || {};

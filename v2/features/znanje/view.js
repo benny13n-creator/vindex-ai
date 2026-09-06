@@ -134,7 +134,14 @@ export function montirajZnanje(kontejner, kontekst) {
     e.preventDefault();
     idiNa("znanje", "rokovi");
   });
-  prekidac.append(ovde, kaPraksi, kaRokovima);
+  const kaStavovima = el("a", "v2-prekidac__stavka", "Naši stavovi");
+  kaStavovima.href = putanjaZa("znanje", "stavovi");
+  ciklus.slusaj(kaStavovima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("znanje", "stavovi");
+  });
+  prekidac.append(ovde, kaPraksi, kaRokovima, kaStavovima);
   unutra.appendChild(prekidac);
 
   // Kad je pitanje vezano za predmet, to MORA biti vidljivo pre kucanja:
