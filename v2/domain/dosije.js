@@ -28,6 +28,7 @@ export const CELINE = Object.freeze([
   { kljuc: "analiza", naziv: "Analiza predmeta" },
   { kljuc: "spisi", naziv: "Spisi" },
   { kljuc: "rokovi", naziv: "Rokovi i zadaci" },
+  { kljuc: "naplata", naziv: "Naplata" },
 ]);
 
 /** Kratka imena za sidrenu traku — puna imena ostaju na naslovima celina. */

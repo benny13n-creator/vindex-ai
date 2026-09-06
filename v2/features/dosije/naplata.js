@@ -89,8 +89,8 @@ function blokSpiska(u) {
     const li = el("li", "v2-naplata__unos");
     li.appendChild(document.createTextNode(x.opis));
     const meta = el("span", "v2-naplata__meta");
-    if (x.datum) meta.appendChild(el("span", "", x.datum));
-    meta.appendChild(el("span", "v2-mono", x.iznos));
+    if (x.datum) meta.appendChild(el("span", "", " " + x.datum));
+    meta.appendChild(el("span", "v2-mono", " " + x.iznos));
     // „Obračunato" se PISE samo kad jeste; odsustvo oznake ne tvrdi suprotno
     // jer bi „nije obračunato" na nepoznatom stanju bilo tvrdnja bez pokrica.
     if (x.obracunato === true) meta.appendChild(el("span", "v2-znak", "obračunato"));

@@ -256,6 +256,29 @@ export function montirajKancelariju(kontejner) {
   zaglavlje.appendChild(h1);
   unutra.appendChild(zaglavlje);
 
+  // Finansije i Tarife su POGLEDI ovog prostora, ne nove destinacije u
+  // globalnoj navigaciji.
+  const prekidac = el("nav", "v2-prekidac");
+  prekidac.setAttribute("aria-label", "Kancelarija");
+  const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Kancelarija");
+  ovde.setAttribute("aria-current", "page");
+  const kaFin = el("a", "v2-prekidac__stavka", "Finansije");
+  kaFin.href = putanjaZa("kancelarija", "finansije");
+  ciklus.slusaj(kaFin, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("kancelarija", "finansije");
+  });
+  const kaTar = el("a", "v2-prekidac__stavka", "Tarife");
+  kaTar.href = putanjaZa("kancelarija", "tarife");
+  ciklus.slusaj(kaTar, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("kancelarija", "tarife");
+  });
+  prekidac.append(ovde, kaFin, kaTar);
+  unutra.appendChild(prekidac);
+
   const sadrzaj = el("div", "v2-kancelarija");
   sadrzaj.tabIndex = -1;
   sadrzaj.setAttribute("aria-live", "polite");

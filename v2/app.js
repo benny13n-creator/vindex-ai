@@ -17,7 +17,7 @@ import { montirajProstorPredmeti } from "./features/predmeti/prostor.js";
 import { montirajPredmetProstor } from "./features/dosije/prostor.js";
 import { montirajPretragu } from "./features/pretraga/view.js";
 import { montirajProstorZnanje } from "./features/znanje/prostor.js";
-import { montirajKancelariju } from "./features/kancelarija/view.js";
+import { montirajProstorKancelarija } from "./features/kancelarija/prostor.js";
 import { montirajUskladjenost } from "./features/uskladjenost/view.js";
 import { montirajProstorKlijent } from "./features/klijent/view.js";
 
@@ -43,7 +43,7 @@ export function pokreniAplikaciju(koren, { sme } = {}) {
   registruj("klijent", montirajProstorKlijent);
   // Prostor ZNANJE sam razresava svoje radnje ().
   registruj("znanje", montirajProstorZnanje);
-  registruj("kancelarija", montirajKancelariju);
+  registruj("kancelarija", montirajProstorKancelarija);
   // Uslovni prostor se registruje SAMO ako nalog na njega ima pravo.
   // Da se registruje uvek, rucno otkucana putanja `/app-v2/uskladjenost`
   // otvorila bi ekran kome nalog ne sme da pristupi — kapija bi bila

@@ -330,9 +330,17 @@ def test_spremnost_ne_izlaze_broj():
 
 @nodemark
 def test_sidra_pokrivaju_tacno_celine():
+    """INVARIJANTA: nijedno sidro bez celine, nijedna celina bez sidra.
+
+    Popis ispod je SNIMAK sadrzaja Dosijea, ne invarijanta. Prosiren je sa
+    „naplata" kad je B16 dodao sestu celinu (rad evidentiran na predmetu) sa
+    stvarnim tokom, backend ugovorom i testovima. Prva tvrdnja — ona koja
+    stvarno stiti korisnika od sidra koje vodi u prazno — NIJE menjana.
+    """
     r = _js("return { c: O.CELINE.map(x=>x.kljuc), s: O.SIDRA.map(x=>x.kljuc) };")
     assert r["c"] == r["s"]
-    assert r["c"] == ["stanje", "hronologija", "analiza", "spisi", "rokovi"]
+    assert r["c"] == ["stanje", "hronologija", "analiza", "spisi", "rokovi",
+                      "naplata"]
 
 
 @nodemark

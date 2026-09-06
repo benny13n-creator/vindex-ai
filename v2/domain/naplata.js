@@ -28,7 +28,9 @@ function tekst(v) {
   return String(v == null ? "" : v).trim();
 }
 
-function broj(v) {
+/** Broj ili `null`. Odsutna vrednost NIJE nula — `Number(null)` jeste 0, i
+ * upravo zato ovo mora da postoji na jednom mestu za ceo V2. */
+export function broj(v) {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;

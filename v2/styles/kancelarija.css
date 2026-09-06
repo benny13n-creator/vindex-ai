@@ -1,0 +1,93 @@
+
+/* ── Finansije i tarife (F6/F7/F8) ───────────────────────────────────────
+ * Tri iznosa se drze RAZDVOJENA i svaki nosi recenicu koja kaze sta znaci:
+ * „nije fakturisano" bez objasnjenja se cita kao dug klijenta.
+ */
+.v2-fin__mreza {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  border-top: 1px solid var(--v2-linija);
+}
+.v2-fin__polje {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--v2-r-4) var(--v2-r-4) var(--v2-r-4) 0;
+  border-bottom: 1px solid var(--v2-linija);
+}
+.v2-fin__oznaka {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+.v2-fin__iznos {
+  font-size: 20px;
+  color: var(--v2-tx-1);
+  font-variant-numeric: tabular-nums;
+}
+.v2-fin__polje[data-polje="neizmireno"] .v2-fin__iznos { color: var(--v2-brend); }
+.v2-fin__opis { font-size: 13px; color: var(--v2-tx-3); max-width: 34ch; }
+.v2-fin__zbir { margin: 0 0 var(--v2-r-3); color: var(--v2-tx-1); font-size: 16px; }
+.v2-fin__lista { list-style: none; margin: 0; padding: 0; }
+.v2-fin__grupa {
+  padding: var(--v2-r-3) 0;
+  border-bottom: 1px solid var(--v2-linija);
+}
+.v2-fin__glava {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--v2-r-3);
+}
+.v2-fin__predmet { color: var(--v2-tx-1); font-size: 15px; }
+.v2-fin__glava .v2-fin__iznos { font-size: 15px; }
+.v2-fin__stavka {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--v2-r-3);
+  flex-wrap: wrap;
+}
+.v2-fin__meta {
+  display: inline-flex;
+  gap: var(--v2-r-3);
+  color: var(--v2-tx-3);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.v2-fin__meta .v2-mono { color: var(--v2-tx-1); font-variant-numeric: tabular-nums; }
+.v2-fin__meseci { margin-top: var(--v2-r-4); }
+.v2-fin__mesec {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: var(--v2-r-3);
+  padding: 3px 0;
+}
+.v2-fin__mesec-ime { font-size: 13px; color: var(--v2-tx-3); }
+.v2-fin__traka {
+  display: block;
+  height: 8px;
+  background: var(--v2-papir-2);
+  border: 1px solid var(--v2-linija);
+}
+.v2-fin__traka-deo { display: block; height: 100%; background: var(--v2-brend); }
+.v2-fin__mesec-iznos { font-size: 13px; color: var(--v2-tx-1); font-variant-numeric: tabular-nums; }
+
+.v2-tarifa__satnica { margin: 0; font-size: 15px; color: var(--v2-tx-2); }
+.v2-tarifa__satnica .v2-tarifa__iznos { font-size: 24px; color: var(--v2-tx-1); }
+.v2-tarifa__stavka {
+  padding: var(--v2-r-3) 0;
+  border-bottom: 1px solid var(--v2-linija);
+}
+.v2-tarifa__stavka[data-moja="1"] { border-left: 3px solid var(--v2-brend); padding-left: var(--v2-r-3); }
+.v2-tarifa__naziv { color: var(--v2-tx-1); font-size: 15px; }
+.v2-tarifa__sifra { color: var(--v2-tx-3); font-size: 13px; }
+.v2-tarifa__meta { margin: 2px 0 0; font-size: 13px; color: var(--v2-tx-3); }
+.v2-tarifa__radnja { margin-top: 4px; }
+
+@media (max-width: 640px) {
+  .v2-fin__mreza { grid-template-columns: minmax(0, 1fr); }
+  .v2-fin__mesec { grid-template-columns: 4.5rem 1fr auto; }
+}
