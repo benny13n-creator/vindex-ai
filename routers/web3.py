@@ -104,7 +104,13 @@ async def post_compliance_check(req: StrategijaRequest, request: Request, user: 
             _compliance_check, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
-        return {"rezultat": rezultat, "modul": "compliance_check", "credits_remaining": max(preostalo, 0)}
+        return {
+            "rezultat": rezultat.get("odgovor", ""),
+            "izvori": rezultat.get("izvori", []),
+            "retrieval_unavailable": rezultat.get("retrieval_unavailable", False),
+            "modul": "compliance_check",
+            "credits_remaining": max(preostalo, 0),
+        }
     # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
     # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
     # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
@@ -299,7 +305,13 @@ async def post_carf_dac8_readiness(req: StrategijaRequest, request: Request, use
             _carf_dac8_readiness, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
-        return {"rezultat": rezultat, "modul": "carf_dac8_readiness", "credits_remaining": max(preostalo, 0)}
+        return {
+            "rezultat": rezultat.get("odgovor", ""),
+            "izvori": rezultat.get("izvori", []),
+            "retrieval_unavailable": rezultat.get("retrieval_unavailable", False),
+            "modul": "carf_dac8_readiness",
+            "credits_remaining": max(preostalo, 0),
+        }
     # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
     # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
     # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and

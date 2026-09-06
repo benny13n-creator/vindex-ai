@@ -283,15 +283,18 @@ def _je_b2b_upit(upit: str) -> bool:
     return any(k in u for k in _B2B_KLJUCNE)
 
 
-def _build_izvori_web3(matches: list, threshold: float = 0.50) -> list[dict]:
-    """Provenance contract za web3_zdi_mca namespace (Z017.2 §5/§6/§8).
+def _build_izvori_web3(matches: list, threshold: float = 0.50, *, izvor_polje: str = "izvor",
+                        izvor_default: str = "ZDI/MiCA") -> list[dict]:
+    """Provenance contract za web3_zdi_mca / carf_dac8 namespace-ove (Z017.2 §5/§6/§8).
 
-    Ovaj namespace NEMA `law`/`article` metadata polja koja koristi
-    `app.services.retrieve._build_izvori` (zakonski korpus) -- ovde postoje
-    `izvor` (naziv propisa/instrumenta, npr. "ZDI") i `tekst` (stvarni
-    preuzeti odlomak). Zato je ovo ODVOJENA, additive funkcija koja koristi
-    SAMO polja koja retrieval stvarno vraća -- ništa se ne izmišlja (§6:
-    "NE izmišljaj polja koja backend ne može dokazati").
+    Ovi namespace-ovi NEMAJU `law`/`article` metadata polja koja koristi
+    `app.services.retrieve._build_izvori` (zakonski korpus). Zato je ovo
+    ODVOJENA, additive funkcija koja koristi SAMO polja koja retrieval
+    stvarno vraća -- ništa se ne izmišlja (§6). `izvor_polje` postoji zato
+    što se naziv polja razlikuje po namespace-u: web3_zdi_mca koristi
+    `izvor` ("ZDI"/"MiCA"), carf_dac8 koristi `propis`+`naslov` -- slepo
+    citanje `izvor` na carf_dac8 matches-ima bi svaki nalaz oznacilo kao
+    "ZDI/MiCA" (pogresan izvor), zato pozivalac prosledjuje tacno polje.
 
     Prazna lista znači "pretraga izvršena, ništa relevantno nije nađeno" --
     razlikuje se od `retrieval_unavailable=True` (pretraga NIJE izvršena),
@@ -306,7 +309,10 @@ def _build_izvori_web3(matches: list, threshold: float = 0.50) -> list[dict]:
         tekst = (meta.get("tekst") or "").strip()
         if not tekst:
             continue
-        izvor = meta.get("izvor") or "ZDI/MiCA"
+        izvor = meta.get(izvor_polje) or izvor_default
+        naslov = (meta.get("naslov") or "").strip()
+        if naslov:
+            izvor = f"{izvor} — {naslov}"
         odlomak = tekst[:240]
         key = f"{izvor}|{odlomak[:60]}"
         if key in vidjeni:
@@ -438,13 +444,19 @@ def web3_pretraga_sync(upit: str, api_key: str) -> dict:
     return {"odgovor": odgovor, "izvori": izvori, "retrieval_unavailable": retrieval_unavailable}
 
 
-def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
-    """Compliance checker: da li aktivnost zahteva dozvolu po ZDI i MiCA."""
+def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> dict:
+    """Compliance checker: da li aktivnost zahteva dozvolu po ZDI i MiCA.
+
+    Z017.2 PATTERN A (isti obrazac kao `web3_pretraga_sync`/G1). Vraca dict
+    {odgovor, izvori, retrieval_unavailable} umesto golog str -- retrieved
+    metapodaci se vise ne bacaju cim udju u prompt."""
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
 
     chunks: list[str] = []
     kontekst = ""
+    izvori: list[dict] = []
+    retrieval_unavailable = False
 
     try:
         vec = _ugradi_query(opis_aktivnosti)
@@ -462,8 +474,10 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
             if float(m.score) >= 0.52 and m.metadata.get("tekst", "").strip()
         ]
         kontekst = "\n\n".join(chunks) if chunks else ""
+        izvori = _build_izvori_web3(matches, threshold=0.52)
     except Exception as e:
         logger.warning("[WEB3] Compliance Pinecone neuspešna: %s", e)
+        retrieval_unavailable = True
 
     client = _OAI(api_key=api_key)
     resp = _pozovi_web3_api(
@@ -481,7 +495,8 @@ def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:
         ],
     )
     odgovor = (resp.choices[0].message.content or "").strip()
-    return _verifikuj_citat_clanova(odgovor, chunks)
+    odgovor = _verifikuj_citat_clanova(odgovor, chunks)
+    return {"odgovor": odgovor, "izvori": izvori, "retrieval_unavailable": retrieval_unavailable}
 
 
 def whitepaper_check_sync(tekst_whitepaper: str, api_key: str) -> str:
@@ -927,7 +942,7 @@ Implementacija se razlikuje po jurisdikciji i vremenskom okviru primene — kons
 savetnika ili advokata pre donošenja odluka."""
 
 
-def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
+def carf_dac8_readiness_sync(upit: str, api_key: str) -> dict:
     """
     RAG pretraga nad carf_dac8 namespacom + GPT-4o odgovor. Isti obrazac kao
     web3_pretraga_sync, ciljano na CARF/DAC8 umesto ZDI/MiCA.
@@ -936,6 +951,10 @@ def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
     scripts/ingest_carf_dac8.py pre nego sto ova funkcija moze vratiti smislene
     rezultate — ako namespace nema podataka, kontekst ostaje prazan i odgovor
     to eksplicitno navodi umesto da halucinira.
+
+    Z017.2 PATTERN A -- vraca dict {odgovor, izvori, retrieval_unavailable},
+    isti obrazac kao web3_pretraga_sync/compliance_check_sync. `izvor_polje="propis"`
+    jer ovaj namespace ne koristi `izvor` kao web3_zdi_mca (v. _build_izvori_web3).
     """
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
@@ -943,6 +962,8 @@ def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
     chunks: list[str] = []
     kontekst = "Nema relevantnih odredbi u bazi."
     max_score = 0.0
+    izvori: list[dict] = []
+    retrieval_unavailable = False
 
     try:
         vec = _ugradi_query(upit)
@@ -971,10 +992,13 @@ def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
             kontekst = "\n\n".join(chunks_sa_izvorom)
         else:
             kontekst = "Nema relevantnih odredbi u bazi za ovo pitanje."
+        izvori = _build_izvori_web3(matches, threshold=0.50, izvor_polje="propis", izvor_default="CARF/DAC8")
     except Exception as e:
         logger.warning("[CARF_DAC8] Pinecone pretraga neuspešna: %s", e)
         kontekst = "Baza trenutno nije dostupna."
         chunks = []
+        izvori = []
+        retrieval_unavailable = True
 
     client = _OAI(api_key=api_key)
     resp = _pozovi_web3_api(
@@ -1008,7 +1032,7 @@ def carf_dac8_readiness_sync(upit: str, api_key: str) -> str:
             "dostupna. Odgovor ne treba smatrati pouzdanim bez dodatne provere."
         )
 
-    return odgovor
+    return {"odgovor": odgovor, "izvori": izvori, "retrieval_unavailable": retrieval_unavailable}
 
 
 # ── Cross-Jurisdiction Tax Intelligence ─────────────────────────────────────────
