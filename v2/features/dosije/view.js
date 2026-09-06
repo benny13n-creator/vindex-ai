@@ -33,6 +33,7 @@ import { obrazacZadatka, obrazacRocista, obrazacBeleske,
 import { kontrolaIzmene } from "./izmena.js";
 import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
 import { ucitajNaplatuPredmeta, sadrzajNaplate } from "./naplata.js";
+import { ucitajSaradnjuPredmeta, sadrzajSaradnje } from "./saradnja.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -580,7 +581,8 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
     // stoji odmah ispod naziva, ne kao prolazan oblacic koji korisnik propusti.
     const izPrethodne = elementPoruke();
     if (izPrethodne) okvir.appendChild(izPrethodne);
-    okvir.appendChild(sekcijaStanje(d, ciklus, predmetId, radnje));
+    const cStanje = sekcijaStanje(d, ciklus, predmetId, radnje);
+    okvir.appendChild(cStanje);
     okvir.appendChild(sekcijaHronologija(d));
     okvir.appendChild(sekcijaAnaliza(d));
     okvir.appendChild(sekcijaSpisi(d, predmetId, ciklus, radnje));
@@ -609,6 +611,25 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
       cNap.appendChild(sadrzajNaplate(n, predmetId, d.zaglavlje.naziv,
                                       ciklus, radnje && radnje.osvezi
                                         ? radnje.osvezi : () => {}));
+    })();
+
+    // Saradnja (B18) se ucitava ODVOJENO, isti razlog kao Naplata iznad, uz
+    // jednu razliku: kad korisnik NIJE vlasnik predmeta, `sadrzajSaradnje`
+    // vraca `null` i ovde se NISTA ne dodaje -- nema flash-a praznog bloka
+    // za retku, admin-tipa radnju koju vecina otvaranja Dosijea nece ni
+    // koristiti.
+    (async () => {
+      let s;
+      try {
+        s = await ucitajSaradnjuPredmeta(predmetId, { signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        return; // sekundarna radnja -- ne dodaj gresku u Stanje zbog nje
+      }
+      if (ciklus.ugasen) return;
+      const blok = sadrzajSaradnje(s, predmetId, ciklus,
+        radnje && radnje.osvezi ? radnje.osvezi : () => {});
+      if (blok) cStanje.appendChild(blok);
     })();
 
     // Traka ide IZNAD sadrzaja, unutar iste papir scene.
