@@ -174,19 +174,38 @@ def test_E_ui_dugme_postoji_i_cita_isti_flag():
 # ── TEST F — TENANT IZOLACIJA NIJE DIRANA ──────────────────────────────────
 
 def test_F_izmena_ne_dira_tenant_ni_rbac():
-    """Popravka sme da promeni SAMO izvedenu vrednost jednog polja odgovora."""
+    """Popravka sme da promeni SAMO izvedenu vrednost jednog polja odgovora.
+
+    Z017.2 §5 (PATTERN A provenance contract) je dodao `izvori`/
+    `retrieval_unavailable` u `routers/web3.py::post_web3_pretraga` --
+    legitimna, additive izmena odgovora, van opsega ovog testa. Originalna
+    verzija je testirala "fajl uopste nije diran u odnosu na HEAD u trenutku
+    pisanja" sto je bio tacan opis TE JEDNE popravke, ali nije trajan
+    invarijant -- svaka buduca legitimna izmena `routers/web3.py` bi ovaj
+    test pogresno oborila. Sada se proverava STVARNA namera: da diff ne
+    dira permission/tenant/scoping linije, ne da fajl ostaje bajt-za-bajt
+    zamrznut."""
     import io as _io
     import os as _os
+    import re as _re
     import subprocess
 
     koren = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), ".."))
     diff = subprocess.run(["git", "diff", "--name-only", "HEAD"], cwd=koren,
                           capture_output=True, text=True).stdout.split()
-    zabranjeno = [f for f in diff if f.startswith(("migrations/", "shared/permissions.py",
-                                                   "routers/web3.py", "routers/ofac_screening.py",
-                                                   "routers/wallet_provenance.py",
-                                                   "routers/source_of_funds.py"))]
-    assert not zabranjeno, "dirane su zabranjene povrsine: %s" % zabranjeno
+    zabranjeno_fajlovi = [f for f in diff if f.startswith(("migrations/", "shared/permissions.py",
+                                                           "routers/ofac_screening.py",
+                                                           "routers/wallet_provenance.py",
+                                                           "routers/source_of_funds.py"))]
+    assert not zabranjeno_fajlovi, "dirane su zabranjene povrsine: %s" % zabranjeno_fajlovi
+
+    if "routers/web3.py" in diff:
+        patch = subprocess.run(["git", "diff", "HEAD", "--", "routers/web3.py"], cwd=koren,
+                               capture_output=True, text=True).stdout
+        dirane_linije = [l for l in patch.splitlines() if l.startswith(("+", "-")) and not l.startswith(("+++", "---"))]
+        rbac_markeri = _re.compile(r"PermissionService|Depends\(|tenant_id|user\[.user_id.\]|require\(")
+        rbac_dirano = [l for l in dirane_linije if rbac_markeri.search(l)]
+        assert not rbac_dirano, "routers/web3.py diff dira permission/tenant liniju: %s" % rbac_dirano
 
     perm = _io.open(_os.path.join(koren, "shared", "permissions.py"), encoding="utf-8").read()
     assert "digital_assets" not in perm or "addon_required" in perm, (

@@ -283,12 +283,57 @@ def _je_b2b_upit(upit: str) -> bool:
     return any(k in u for k in _B2B_KLJUCNE)
 
 
-def web3_pretraga_sync(upit: str, api_key: str) -> str:
+def _build_izvori_web3(matches: list, threshold: float = 0.50) -> list[dict]:
+    """Provenance contract za web3_zdi_mca namespace (Z017.2 §5/§6/§8).
+
+    Ovaj namespace NEMA `law`/`article` metadata polja koja koristi
+    `app.services.retrieve._build_izvori` (zakonski korpus) -- ovde postoje
+    `izvor` (naziv propisa/instrumenta, npr. "ZDI") i `tekst` (stvarni
+    preuzeti odlomak). Zato je ovo ODVOJENA, additive funkcija koja koristi
+    SAMO polja koja retrieval stvarno vraća -- ništa se ne izmišlja (§6:
+    "NE izmišljaj polja koja backend ne može dokazati").
+
+    Prazna lista znači "pretraga izvršena, ništa relevantno nije nađeno" --
+    razlikuje se od `retrieval_unavailable=True` (pretraga NIJE izvršena),
+    tačno isti invarijant koji B-U-003 zaključava za /api/pitanje."""
+    vidjeni: set[str] = set()
+    izvori: list[dict] = []
+    for m in matches:
+        meta = getattr(m, "metadata", None) or {}
+        score = round(float(getattr(m, "score", 0.0)), 4)
+        if score < threshold:
+            continue
+        tekst = (meta.get("tekst") or "").strip()
+        if not tekst:
+            continue
+        izvor = meta.get("izvor") or "ZDI/MiCA"
+        odlomak = tekst[:240]
+        key = f"{izvor}|{odlomak[:60]}"
+        if key in vidjeni:
+            continue
+        vidjeni.add(key)
+        izvori.append({"izvor": izvor, "odlomak": odlomak, "score": score})
+        if len(izvori) >= 5:
+            break
+    return izvori
+
+
+def web3_pretraga_sync(upit: str, api_key: str) -> dict:
     """
     RAG pretraga nad web3_zdi_mca namespacom + GPT-4o odgovor.
     Za B2B/razmenu/cross-border upite: hibridni dual-query (semantički + tematski boost).
     Fallback upozorenje kada max score < 0.55.
     Post-generation citation guard uklanja neverbatim brojeve članova.
+
+    Z017.2 §5/§6/§7 -- provenance contract (PATTERN A):
+    Ranije je vraćao samo `str` -- metapodaci o preuzetim odlomcima (koji
+    propis, koja ocena relevantnosti, da li je pretraga uopšte izvršena) su
+    se gubili čim su ušli u prompt. Sada vraća dict:
+        odgovor               -- isti tekst kao ranije (backward-compatible sadržaj)
+        izvori                -- stvarno preuzeti odlomci iznad praga (§6, `_build_izvori_web3`)
+        retrieval_unavailable -- True SAMO kad Pinecone/embedding pozivi nisu izvršeni
+                                  (izuzetak), NIKAD kad su izvršeni i vratili malo/ništa
+                                  (FAILURE != EMPTY, isti invarijant kao B-U-003)
     """
     from openai import OpenAI as _OAI
     from app.services.retrieve import _get_index, _ugradi_query
@@ -296,6 +341,8 @@ def web3_pretraga_sync(upit: str, api_key: str) -> str:
     chunks: list[str] = []
     kontekst = "Nema relevantnih odredbi u bazi."
     max_score = 0.0
+    izvori: list[dict] = []
+    retrieval_unavailable = False
 
     try:
         vec = _ugradi_query(upit)
@@ -349,10 +396,13 @@ def web3_pretraga_sync(upit: str, api_key: str) -> str:
             kontekst = "\n\n".join(chunks_sa_izvorom)
         else:
             kontekst = "Nema relevantnih odredbi u bazi — odgovor se zasniva na kanonskom pregledu."
+        izvori = _build_izvori_web3(svi_matches)
     except Exception as e:
         logger.warning("[WEB3] Pinecone pretraga neuspešna: %s", e)
         kontekst = "Baza nije dostupna — odgovor se zasniva na opštim pravilima."
         chunks = []
+        izvori = []
+        retrieval_unavailable = True
 
     client = _OAI(api_key=api_key)
     resp = _pozovi_web3_api(
@@ -385,7 +435,7 @@ def web3_pretraga_sync(upit: str, api_key: str) -> str:
         ).format(max_score)
         odgovor = odgovor + napomena
 
-    return odgovor
+    return {"odgovor": odgovor, "izvori": izvori, "retrieval_unavailable": retrieval_unavailable}
 
 
 def compliance_check_sync(opis_aktivnosti: str, api_key: str) -> str:

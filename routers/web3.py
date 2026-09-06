@@ -69,7 +69,17 @@ async def post_web3_pretraga(req: StrategijaRequest, request: Request, user: dic
             _web3_pretraga, req.tekst, os.getenv("OPENAI_API_KEY", "")
         )
         preostalo = await UsageService.consume(user["user_id"], user.get("email", ""), "da_regulatory_review")
-        return {"rezultat": rezultat, "modul": "web3_pretraga", "credits_remaining": max(preostalo, 0)}
+        # Z017.2 §5/§6/§7 -- provenance contract (PATTERN A). `_web3_pretraga`
+        # sada vraća dict, ne string -- `izvori`/`retrieval_unavailable` moraju
+        # preći API granicu, isti propust koji je pre popravke gubio
+        # `izvori_neuspeh` na /api/pitanje (§B4-M1).
+        return {
+            "rezultat": rezultat.get("odgovor", ""),
+            "izvori": rezultat.get("izvori", []),
+            "retrieval_unavailable": rezultat.get("retrieval_unavailable", False),
+            "modul": "web3_pretraga",
+            "credits_remaining": max(preostalo, 0),
+        }
     # SOA-009 (second-order audit, 2026-08-08): HTTPException subclasses Exception,
     # so UsageService.consume()'s genuine 402 NO_CREDITS / 429 COOLDOWN was caught
     # below and re-raised as a generic 500 -- the frontend paywall keys on 402 and
