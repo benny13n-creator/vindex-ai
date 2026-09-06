@@ -122,6 +122,7 @@ function stavka(o, ciklus) {
  */
 function proveraBlok(stavke, ciklus) {
   const sek = el("section", "v2-grupa v2-provera");
+  sek.id = "grupa-provera";
   sek.appendChild(el("h2", "v2-natkapa v2-grupa__naslov", "Za proveru"));
   sek.appendChild(el("p", "v2-provera__uvod",
     "Sistem je predložio ove rokove. Nisu potvrđeni i ne predstavljaju evidentiranu obavezu."));
@@ -133,6 +134,7 @@ function proveraBlok(stavke, ciklus) {
 
 function grupaBlok(g, ciklus) {
   const sek = el("section", "v2-grupa");
+  sek.id = "grupa-" + g.kljuc;
   sek.dataset.grupa = g.kljuc;
   const h = el("h2", "v2-natkapa v2-grupa__naslov", g.naziv);
   sek.appendChild(h);
@@ -140,6 +142,40 @@ function grupaBlok(g, ciklus) {
   for (const o of g.stavke) ul.appendChild(stavka(o, ciklus));
   sek.appendChild(ul);
   return sek;
+}
+
+/**
+ * Sidro (crna scena) prikazuje TAČNO iste, već filtrirane grupe koje spisak
+ * ispod prikazuje — nula nove poslovne logike, čist indeks postojećeg
+ * sadržaja. Grupa sa 0 stavki se NE prikazuje ovde jer se ne prikazuje ni
+ * ispod (`sastavi()` je već filtrira) — brojka bez stavke iza sebe bila bi
+ * tačno onaj "broj koji nije datum" koji je ovaj ekran namerno izbegavao.
+ * Zato ovo NIJE KPI: svaki broj je zbir redova koji se vide klikom ispod.
+ */
+function prioritetStavka(naziv, broj, kljuc, hitno) {
+  const a = el("a", "v2-danas-sidro__stavka" + (hitno ? " v2-danas-sidro__stavka--hitno" : ""));
+  a.href = "#grupa-" + kljuc;
+  a.appendChild(el("span", "v2-danas-sidro__broj v2-mono", String(broj)));
+  a.appendChild(el("span", "v2-danas-sidro__oznaka", naziv));
+  return a;
+}
+
+function iscrtajPrioritete(prioriteti, pregled) {
+  prioriteti.replaceChildren();
+  // `pregled === null` znači da izvor nije dostupan: poruka o tome je već
+  // u glavnom sadržaju ispod, sidro ostaje tiho umesto da tvrdi „nema ničega".
+  if (!pregled) return;
+  if (pregled.ukupno === 0) {
+    prioriteti.appendChild(el("p", "v2-danas-sidro__mirno",
+      "Nema obaveza koje trenutno traže postupanje."));
+    return;
+  }
+  for (const g of pregled.grupe) {
+    prioriteti.appendChild(prioritetStavka(g.naziv, g.stavke.length, g.kljuc, g.kljuc === "propusteno"));
+  }
+  if (pregled.zaProveru.length) {
+    prioriteti.appendChild(prioritetStavka("Za proveru", pregled.zaProveru.length, "provera", false));
+  }
 }
 
 function skelet() {
@@ -164,14 +200,32 @@ function poruka({ naslov, telo, greska }) {
 
 export function montirajDanas(kontejner) {
   const ciklus = napraviCiklus();
-  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--danas");
 
-  const zaglavlje = el("header", "v2-zaglavlje");
+  // ── Sidro: crna scena, drugi nivo iste arhitekture kao ljuska. ──────────
+  // Ovo NIJE nova komponenta ni novi mehanizam prelaza — isti par klasa
+  // (`v2-scena` / `v2-scena--crna`) koji ljuska već koristi, primenjen po
+  // drugi put unutar `v2-glavni`. Zato je prenosivo na Predmeti/Dosije/
+  // Kancelarija bez ijednog novog ad-hoc pravila: bilo koji ekran koji
+  // zasluži sopstveni autoritativni vrh može ugnjezditi istu scenu.
+  //
+  // Sidro nosi TAČNO ono što ekran već računa (`pregled.grupe`,
+  // `pregled.zaProveru`) — indeks postojećeg spiska, ne nov broj.
+  const sidro = el("div", "v2-scena v2-scena--crna");
+  const sidroUnutra = el("div", "v2-scena__unutra v2-scena__unutra--danas v2-danas-sidro");
+  const naslovnica = el("div", "v2-danas-sidro__naslovnica");
   const h1 = el("h1", "v2-naslov", "Danas");
   h1.id = "v2-naslov-danas";
-  zaglavlje.appendChild(h1);
-  zaglavlje.appendChild(el("p", "v2-zaglavlje__datum v2-mono", danasnjiDatum()));
-  unutra.appendChild(zaglavlje);
+  naslovnica.appendChild(h1);
+  naslovnica.appendChild(el("p", "v2-zaglavlje__datum v2-mono", danasnjiDatum()));
+  sidroUnutra.appendChild(naslovnica);
+
+  const prioriteti = el("div", "v2-danas-sidro__prioriteti");
+  prioriteti.setAttribute("aria-live", "polite");
+  sidroUnutra.appendChild(prioriteti);
+  sidro.appendChild(sidroUnutra);
+
+  // ── Radna povrsina: papir, nepromenjena osim izmestenog zaglavlja. ──────
+  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--danas v2-danas-radna");
 
   // Prekidac ka kalendaru: „sta trazi paznju" i „sta me ceka" su dva pitanja
   // nad istim izvorima, pa dele prostor.
@@ -210,6 +264,7 @@ export function montirajDanas(kontejner) {
   sadrzaj.setAttribute("aria-labelledby", "v2-naslov-danas");
   unutra.appendChild(sadrzaj);
 
+  kontejner.appendChild(sidro);
   kontejner.appendChild(unutra);
 
   let generacija = 0;
@@ -267,6 +322,7 @@ export function montirajDanas(kontejner) {
       const pregled = await ucitajDanas({ signal: prekidac.signal });
       if (moja !== generacija || ciklus.ugasen) return;
       sadrzaj.setAttribute("aria-busy", "false");
+      iscrtajPrioritete(prioriteti, pregled);
 
       const okvir = document.createDocumentFragment();
       const upoz = upozorenjeIzvora(pregled);
@@ -289,6 +345,8 @@ export function montirajDanas(kontejner) {
       if (jePrekid(e) || ciklus.ugasen || moja !== generacija) return;
       sadrzaj.setAttribute("aria-busy", "false");
       if (e && e.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+      // Sidro ostaje tiho (ne tvrdi "0") — greska je vec ispisana ispod.
+      iscrtajPrioritete(prioriteti, null);
       // Pad NIKAD ne sme izgledati kao „nemate obaveza".
       sadrzaj.replaceChildren(poruka({
         naslov: "Obaveze trenutno nisu dostupne",

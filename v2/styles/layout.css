@@ -151,6 +151,63 @@
   flex-wrap: wrap;
 }
 
+/* ── Danas — sidro (crna) ─────────────────────────────────────────────────
+ * Isti par klasa koji nosi ljusku (`v2-scena` / `v2-scena--crna`), ugnjezden
+ * po drugi put unutar `v2-glavni`. Danas je prvi ekran koji to radi; pravilo
+ * je namerno opste (ne "v2-danas-scena--crna") da bi svaki buduci ekran
+ * mogao da ugnjezdi isti autoritet bez nove arhitekture (Wave 1B, §7).
+ *
+ * Donja ivica nosi tanku oxblood liniju — jedina joj je svrha da obelezi
+ * gde autoritet prestaje i radna povrsina pocinje, ne dekoracija.
+ */
+.v2-danas-sidro {
+  padding-block: var(--v2-r-6) var(--v2-r-5);
+  border-bottom: 2px solid var(--v2-brend-na-crnoj);
+}
+.v2-danas-sidro__naslovnica {
+  display: flex;
+  align-items: baseline;
+  gap: var(--v2-r-4);
+  flex-wrap: wrap;
+}
+
+/* Sidro prikazuje TACNO iste, vec filtrirane grupe koje spisak ispod
+   prikazuje (domain/danas.js::sastavi) — indeks postojeceg sadrzaja, ne nov
+   broj: grupa sa 0 stavki se ovde ne pojavljuje jer se ne pojavljuje ni
+   ispod. Svaka stavka je veza (#grupa-<kljuc>) na sopstvenu sekciju ispod. */
+.v2-danas-sidro__prioriteti {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--v2-r-6) var(--v2-r-6);
+  margin-top: var(--v2-r-5);
+  padding-top: var(--v2-r-4);
+  border-top: 1px solid var(--v2-linija-crna);
+}
+.v2-danas-sidro__stavka {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.v2-danas-sidro__mirno {
+  margin-top: var(--v2-r-5);
+  padding-top: var(--v2-r-4);
+  border-top: 1px solid var(--v2-linija-crna);
+  max-width: 62ch;
+}
+
+/* Radna povrsina posle sidra vise ne nasledjuje razmak od `.v2-zaglavlje`
+   (koje je sidro preuzelo) — sopstveni gornji razmak, umesto pregaznog
+   pravila na deljenoj `.v2-scena__unutra`. */
+.v2-danas-radna { padding-top: var(--v2-r-5); }
+
+@media (max-width: 720px) {
+  .v2-danas-sidro__prioriteti { gap: var(--v2-r-5) var(--v2-r-5); }
+}
+
 @media (max-width: 900px) {
   .v2-ljuska__red { min-height: 60px; flex-wrap: wrap; align-items: center; }
   .v2-ljuska__znak-zona { border-right: 0; margin-right: var(--v2-r-4); padding-right: 0; }
