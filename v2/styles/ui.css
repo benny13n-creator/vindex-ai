@@ -142,16 +142,6 @@
   .v2-ljuska__precica { display: none; }
 }
 
-/* ── Sidro (Danas) — stavka je veza, tekst sa stanjem ─────────────────────
- * Isti obrazac kao `.v2-tekst-akcija`: bez ispune, bez ivice, znacenje nosi
- * podvlaka na hover/fokus (fokus prsten dolazi od globalnog :focus-visible,
- * ustav §12, IS-3 — nista posebno ovde nije potrebno).
- */
-.v2-danas-sidro__stavka:hover .v2-danas-sidro__oznaka {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 /* ── Ekran pretrage ─────────────────────────────────────────────────────── */
 .v2-trazi--veliko { max-width: 640px; margin-bottom: var(--v2-r-5); }
 .v2-trazi--veliko .v2-trazi__polje { font-size: 17px; padding-block: 10px; }

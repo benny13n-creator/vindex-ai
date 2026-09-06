@@ -45,13 +45,6 @@
   --v2-st-mirovanje:    #605B52;   /*  5.6:1           */
   --v2-st-zavrseno:     #3D3A34;   /*  9.6:1           */
   --v2-st-greska:       #8A2318;   /*  7.4:1           */
-  /* Semantika stanja je postojala samo za papir. Ugnjezdena crna scena
-     (Danas sidro, Wave 1B) treba istu poruku "hitno" na crnoj podlozi —
-     BA-1 zabranjuje da to nosi BREND crvenu (brend != status), pa je ovo
-     nova, odvojena promenljiva, ne varijanta brenda. 5.1:1 na crnoj (WCAG
-     relativna luminantnost, izracunato) — iznad 4.5:1 praga za tekst bilo
-     koje velicine, ne samo za >=14px kao --v2-tx-3-crna. */
-  --v2-st-greska-na-crnoj: #C9695C;   /*  5.1:1 na crnoj  */
 
   /* ── Ritam ───────────────────────────────────────────────────────────── */
   --v2-r-1: 4px;   --v2-r-2: 8px;   --v2-r-3: 12px;

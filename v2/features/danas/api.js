@@ -91,3 +91,42 @@ export async function ucitajNedavnePredmete({ signal } = {}) {
   });
   return Array.isArray(o && o.predmeti) ? o.predmeti : [];
 }
+
+/**
+ * GET /api/workspace (Program Omega, routers/workspace.py) — vec dokazan,
+ * vec tenant-izolovan, vec koriscen od strane legacy /app. Wave 2 ga PRVI
+ * PUT vezuje za V2 Danas; sam ugovor (buckets, `degradirani_izvori`,
+ * `provera_potpuna`) je NEPROMENJEN.
+ */
+export async function ucitajWorkspace({ signal } = {}) {
+  return dohvati("/api/workspace", { signal });
+}
+
+/**
+ * Orkestrira DVA nezavisna izvora Danas-a (Wave 2). `/api/rokovi/kandidati`
+ * + `/api/kalendar/pregled` (postojece, `ucitajDanas`) i `/api/workspace`
+ * (novo) citaju RAZLICITE tabele (rokovi/rocista naspram case_actions/
+ * zadaci/intake_jobs) — nisu dupli izvori, pa pad jednog ne sme oboriti
+ * drugi. Rokovi/kalendar ostaju OSNOVNI izvor (postojece ponasanje, pad se
+ * ne guta); workspace je DOPUNSKI — njegov pad se pretvara u
+ * `workspaceGreska`, ne u izuzetak koji obara ceo ekran.
+ */
+export async function ucitajPregledDanas({ signal } = {}) {
+  const [p, w] = await Promise.allSettled([
+    ucitajDanas({ signal }),
+    ucitajWorkspace({ signal }),
+  ]);
+
+  // Otkazivanje nije pad izvora — pozivalac ga prepoznaje i cuti.
+  for (const r of [p, w]) {
+    if (r.status === "rejected" && jePrekid(r.reason)) throw r.reason;
+  }
+
+  if (p.status === "rejected") throw p.reason;
+
+  return {
+    pregled: p.value,
+    workspace: w.status === "fulfilled" ? w.value : null,
+    workspaceGreska: w.status === "rejected",
+  };
+}

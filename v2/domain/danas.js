@@ -288,6 +288,127 @@ export function sastavi({ kandidati, kalendar }, sada = danasDan()) {
 
 
 /* ═══════════════════════════════════════════════════════════════════════
+ * WAVE 2 — PRIORITY STREAM + CONTEXT RAIL
+ *
+ * Sastavlja kompoziciju iz DVA nezavisna izvora koja se odvojeno cine
+ * (v. api.js::ucitajPregledDanas):
+ *   pregled    -- ovaj isti modul, `sastavi()` (rokovi/rocista, nepromenjeno)
+ *   workspace  -- sirov odgovor GET /api/workspace (case_actions/zadaci/
+ *                 intake_jobs), vec normalizovan PO STAVCI na serveru
+ *                 (routers/workspace.py::_normalize_*)
+ *
+ * Redosled unutar svakog toka je FIKSAN spisak vec-sastavljenih izvora, ne
+ * izracunata ocena -- ovaj modul ne izmislja "AI prioritet". Bucket imena
+ * (`kriticno`, `za_pregled`, ...) se ovde citaju ali se NE prenose u UI kao
+ * odeljci — Wave 2 §3/§8 to izricito zabranjuje; view.js montira JEDAN tok.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+const _VRSTA_NAZIV_RADNE = Object.freeze({
+  case_action: "Nalaz",
+  zadatak: "Zadatak",
+  review: "Pregled",
+});
+
+/** Naziv kategorije za prikaz jedne radne stavke (case_action/zadatak/review). */
+export function nazivRadneVrste(vrsta) {
+  return _VRSTA_NAZIV_RADNE[vrsta] || "";
+}
+
+/**
+ * Radna stavka iz /api/workspace -> prikazni oblik. Cist modul: samo
+ * citanje vec-odlucenih polja (workspace.py je vec odlucio hitnost/rok),
+ * nijedna nova poslovna odluka ovde.
+ *
+ * `anchor` je nagovestaj koje odeljak Dosijea najbolje odgovara stavci:
+ *   review  -> "spisi"   (Spisi zaista prikazuje dokumenta)
+ *   zadatak -> "rokovi"  (Rokovi i zadaci zaista prikazuje zadatke predmeta)
+ *   case_action -> null  (Dosije JOS NEMA posvecen prikaz case_actions —
+ *                 vodi na koren predmeta, ne na lazan sidro; Wave 2 §7)
+ */
+export function uRadnuStavku(item, sada = danasDan()) {
+  const it = item || {};
+  const rok = it.rok || null;
+  const razlika = rok ? razlikaDana(rok, sada) : null;
+  const anchor = it.vrsta === "review" ? "spisi" : it.vrsta === "zadatak" ? "rokovi" : null;
+  return {
+    vrsta: it.vrsta || "",
+    naslov: ocistiNaslov(it.naslov) || "Bez naziva",
+    predmetId: it.predmet_id || "",
+    predmet: it.predmet_naziv || "",
+    hitno: it.prioritet === "critical",
+    kada: rok ? datumTekst(rok) : "",
+    razlika,
+    anchor,
+  };
+}
+
+function _brojStavkiRecenica(n) {
+  if (n === 1) return "1 stavka traži pažnju danas.";
+  if (n >= 2 && n <= 4) return `${n} stavke traže pažnju danas.`;
+  return `${n} stavki traži pažnju danas.`;
+}
+
+/**
+ * Jedna istinita recenica o stanju dana za kompaktno zaglavlje (Wave 2 §5).
+ * NIKAD niz nula-brojeva: ako nista ne trazi paznju, kaze to mirno; ako
+ * ima, kaze koliko, i — ako postoji rociste danas — kada je prvo.
+ */
+export function sazetakDana(tier1Ukupno, prvoRocisteDanasVreme) {
+  const n = Number.isFinite(tier1Ukupno) ? tier1Ukupno : 0;
+  const osnovno = n === 0 ? "Danas nema stavki koje zahtevaju hitnu pažnju." : _brojStavkiRecenica(n);
+  return prvoRocisteDanasVreme ? `${osnovno} Ročište u ${prvoRocisteDanasVreme}.` : osnovno;
+}
+
+/**
+ * Sastavlja Tier 1 ("Traži pažnju"), Tier 2 ("Uskoro") i pomocne brojeve za
+ * preostalo/kalendarsko odbrojavanje (view.js gradi DOM, ovaj modul samo
+ * priprema podatke i redosled).
+ */
+export function komponujDanas({ pregled, workspace, workspaceGreska } = {}, sada = danasDan()) {
+  const p = pregled || { grupe: [], zaProveru: [], degradirano: false, odseceno: false };
+  const w = workspace || {};
+
+  const kriticno    = (w.kriticno || []).map(x => uRadnuStavku(x, sada));
+  const wDanas      = (w.danas || []).map(x => uRadnuStavku(x, sada));
+  const zaPregled   = (w.za_pregled || []).map(x => uRadnuStavku(x, sada));
+  const predstojece = (w.predstojece || []).map(x => uRadnuStavku(x, sada));
+  const naCekanju   = (w.na_cekanju || []).map(x => uRadnuStavku(x, sada));
+  const zavrseno    = (w.zavrseno_nedavno || []).map(x => uRadnuStavku(x, sada));
+
+  // `pregled.grupe` je vec filtrirano na propusteno/danas/sutra/nedelja
+  // (v. GRUPE) -- ovde se samo razdvaja u dva toka.
+  const rokoviHitno = [];
+  const rokoviUskoro = [];
+  for (const g of p.grupe) {
+    if (g.kljuc === "propusteno" || g.kljuc === "danas") rokoviHitno.push(...g.stavke);
+    else rokoviUskoro.push(...g.stavke);
+  }
+
+  const tier1 = [...kriticno, ...rokoviHitno, ...wDanas, ...zaPregled, ...p.zaProveru];
+  // Kalendarske (rok/rociste) stavke su NAMERNO prve u tier2 -- view.js na
+  // tome racuna da proceni da li je preostalo posle odsecanja cisto
+  // kalendarsko (sme veza na Kalendar) ili ne (Wave 2 §8, ne "Kalendar
+  // vlasnik" za ne-kalendarski rad).
+  const tier2 = [...rokoviUskoro, ...predstojece, ...naCekanju];
+
+  const prvoRocisteDanas = rokoviHitno.find(x => x.vrsta === "rociste" && x.grupa === "danas" && x.vreme);
+
+  return {
+    tier1,
+    tier2,
+    tier2KalendarskihUkupno: rokoviUskoro.length,
+    zavrsenoNedavno: zavrseno,
+    prvoRocisteDanasVreme: prvoRocisteDanas ? prvoRocisteDanas.vreme : null,
+    // Dva razlicita stanja, dve razlicite recenice (view.js bira):
+    //   nedostupno -- neki izvor NIJE procitan ili nije potpuno proveren
+    //   odseceno   -- izvor JESTE procitan, ali server sam kaze da ima jos
+    nedostupno: Boolean(p.degradirano) || Boolean(workspaceGreska) || w.provera_potpuna === false,
+    odseceno: Boolean(p.odseceno),
+  };
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
  * KALENDAR — isti podaci, siri prozor
  *
  * Danas odgovara na „sta trazi moju paznju"; kalendar na „sta me ceka".

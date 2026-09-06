@@ -68,39 +68,14 @@
 .v2-telo   { font-size: 15px; color: var(--v2-tx-2); }
 .v2-meta   { font-size: 13px; color: var(--v2-tx-3); }
 
-/* Naslov ugnjezden u crnu scenu (npr. Danas sidro, Wave 1B) nasledjuje
-   crnu paletu. Opste pravilo, ne ekran-po-ekran klasa: svaki buduci
-   ugnjezdeni crni prizor dobija isto ponasanje bez nove definicije. */
+/* Naslov ugnjezden u crnu scenu (npr. Danas zaglavlje) nasledjuje crnu
+   paletu. Opste pravilo, ne ekran-po-ekran klasa: svaki buduci ugnjezdeni
+   crni prizor dobija isto ponasanje bez nove definicije. */
 .v2-scena--crna .v2-naslov { color: var(--v2-tx-1-crna); }
 
-/* ── Sidro (Danas) — broj i oznaka ────────────────────────────────────────
- * Broj je MONO (vrednost koja se poredi — ustav §5), oznaka je natkapa
- * gramatika, oba na crnoj paleti.
- */
-.v2-danas-sidro__broj {
-  font-size: 28px;
-  line-height: 1;
-  color: var(--v2-tx-1-crna);
-}
-.v2-danas-sidro__oznaka {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--v2-tx-2-crna);
-}
-/* Propusteno je JEDINO mesto gde sidro nosi crvenu — i nosi je REC pre boje:
-   "Propušteno" ostaje ispisano, boja samo pojacava (ustav §10). Posebna
-   promenljiva jer brend crvena nikad ne sme biti status (ustav §9.3, BA-1) —
-   v. tokens.css za --v2-st-greska-na-crnoj. */
-.v2-danas-sidro__stavka--hitno .v2-danas-sidro__broj,
-.v2-danas-sidro__stavka--hitno .v2-danas-sidro__oznaka {
-  color: var(--v2-st-greska-na-crnoj);
-}
-.v2-danas-sidro__mirno {
+/* Kompaktno zaglavlje (Danas, Wave 2) — jedna recenica o stanju dana. */
+.v2-danas-glava__sazetak {
   font-size: 14px;
   color: var(--v2-tx-2-crna);
 }
-@media (max-width: 720px) {
-  .v2-danas-sidro__broj { font-size: 24px; }
-}
+.v2-danas-glava__sazetak .v2-mono { color: var(--v2-tx-1-crna); }
