@@ -10,8 +10,9 @@
 
 import { montirajDanas } from "./view.js";
 import { montirajKalendar } from "./kalendar.js";
+import { montirajBrifing } from "./brifing.js";
 
-const RADNJE = { kalendar: montirajKalendar };
+const RADNJE = { kalendar: montirajKalendar, brifing: montirajBrifing };
 
 export function montirajProstorDanas(kontejner, kontekst, param) {
   const svi = kontekst || {};

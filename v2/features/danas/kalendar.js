@@ -69,7 +69,14 @@ export function montirajKalendar(kontejner, kontekst) {
   });
   const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Kalendar");
   ovde.setAttribute("aria-current", "page");
-  prekidac.append(kaDanas, ovde);
+  const kaBrifingu = el("a", "v2-prekidac__stavka", "Brifing");
+  kaBrifingu.href = putanjaZa("danas", "brifing");
+  ciklus.slusaj(kaBrifingu, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "brifing");
+  });
+  prekidac.append(kaDanas, ovde, kaBrifingu);
   unutra.appendChild(prekidac);
 
   // ── Izbor prozora ──

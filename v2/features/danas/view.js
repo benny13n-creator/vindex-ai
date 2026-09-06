@@ -186,7 +186,14 @@ export function montirajDanas(kontejner) {
     e.preventDefault();
     idiNa("danas", "kalendar");
   });
-  prekidac.append(ovde, kaKalendaru);
+  const kaBrifingu = el("a", "v2-prekidac__stavka", "Brifing");
+  kaBrifingu.href = putanjaZa("danas", "brifing");
+  ciklus.slusaj(kaBrifingu, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "brifing");
+  });
+  prekidac.append(ovde, kaKalendaru, kaBrifingu);
   unutra.appendChild(prekidac);
 
   const sadrzaj = el("div", "v2-danas");

@@ -171,3 +171,47 @@
 @media (max-width: 720px) {
   .v2-kal__stavka { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* ── Jutarnji brifing (H5) ───────────────────────────────────────────────
+ * „nije očitano" nije nula: broj koji nije pročitan mora izgledati drugačije
+ * od broja koji jeste, inače se prazan izvor čita kao odsustvo obaveza.
+ */
+.v2-brifing__brojevi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  border-top: 1px solid var(--v2-linija);
+  margin-bottom: var(--v2-r-5);
+}
+.v2-brifing__broj {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--v2-r-3) var(--v2-r-4) var(--v2-r-3) 0;
+  border-bottom: 1px solid var(--v2-linija);
+}
+.v2-brifing__oznaka {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+.v2-brifing__vrednost {
+  font-size: 22px;
+  color: var(--v2-tx-1);
+  font-variant-numeric: tabular-nums;
+}
+.v2-brifing__vrednost--nepoznato {
+  font-size: 14px;
+  color: var(--v2-tx-3);
+  font-style: italic;
+}
+.v2-brifing__tekst {
+  margin-top: var(--v2-r-5);
+  padding-top: var(--v2-r-4);
+  border-top: 1px solid var(--v2-linija);
+}
+.v2-brifing__veza { color: var(--v2-tx-1); text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .v2-brifing__brojevi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
