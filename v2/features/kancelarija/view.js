@@ -26,6 +26,7 @@ import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
 import { dohvati, posalji } from "../../platform/http.js";
 import { blokUvozaKlijenata } from "./uvozKlijenata.js";
 import { ucitajPortfolio, sadrzajPortfolia } from "./portfolio.js";
+import { ucitajZdravljeFirme, sadrzajZdravljaFirme } from "./zdravljeFirme.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -720,6 +721,27 @@ export function montirajKancelariju(kontejner) {
       h.id = "celina-portfolio";
       cPort.appendChild(h);
       cPort.appendChild(sadrzajPortfolia(p, ciklus));
+    })();
+
+    // Firm Health Index (F10) -- ucitava se ODVOJENO, isti razlog kao Portfolio.
+    const cZdr = celina("zdravlje", "Zdravlje kancelarije");
+    cZdr.appendChild(prazno("Učitava se…"));
+    okvir.appendChild(cZdr);
+
+    (async () => {
+      let z;
+      try {
+        z = await ucitajZdravljeFirme({ signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        z = { stanje: "palo", greska: e };
+      }
+      if (ciklus.ugasen) return;
+      cZdr.replaceChildren();
+      const h2 = el("h2", "v2-celina__naslov", "Zdravlje kancelarije");
+      h2.id = "celina-zdravlje";
+      cZdr.appendChild(h2);
+      cZdr.appendChild(sadrzajZdravljaFirme(z, ciklus));
     })();
   }
 
