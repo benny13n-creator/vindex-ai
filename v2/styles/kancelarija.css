@@ -91,3 +91,16 @@
   .v2-fin__mreza { grid-template-columns: minmax(0, 1fr); }
   .v2-fin__mesec { grid-template-columns: 4.5rem 1fr auto; }
 }
+
+/* ── Plan i potrosnja (H9) ───────────────────────────────────────────── */
+.v2-plan__stavka {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--v2-r-3);
+}
+.v2-plan__meta {
+  color: var(--v2-tx-2);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

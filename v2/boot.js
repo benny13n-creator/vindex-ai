@@ -24,6 +24,7 @@ import { dohvati } from "./platform/http.js";
 import { VRSTA } from "./platform/errors.js";
 import { greska as logGreska } from "./platform/log.js";
 import { pokreniAplikaciju } from "./app.js";
+import { zapamtiPlan } from "./platform/nalog.js";
 
 const KOREN_ID = "v2-koren";
 const LEGACY = "/app";
@@ -80,6 +81,11 @@ async function boot() {
 
   // 5–6. Kapija. Fail-closed: sve sto nije tacno `true` je nedostupno.
   if (!stanje || stanje.v2_pristup !== true) { naLegacy(); return; }
+
+  // Stanje naloga se PAMTI: Kancelarija ga prikazuje bez novog poziva.
+  // `/api/plan/status` ima granicu od 60 na sat, pa bi ponovni poziv iz
+  // ekrana trosio istu granicu za podatak koji je vec procitan.
+  zapamtiPlan(stanje);
 
   // 7. Uslovni peti prostor. `/api/plan/status` NE nosi pravo na digitalnu
   //    imovinu — nosi ga `/api/me`. Poziv je zaseban i NIJE blokirajuci:

@@ -430,10 +430,23 @@ async def get_notifications(
             "notifications": data,
             "ukupno":        len(data),
             "neprocitane":   neprocitane,
+            # `procitano: True` znači da je spisak stvarno pročitan. Bez ovoga
+            # klijent ne može da razlikuje „nema obaveštenja" od „čitanje nije
+            # uspelo" — v. grana ispod.
+            "procitano_uspesno": True,
         }
     except Exception as e:
         logger.error("[NOTIF] fetch greška: %s", e)
-        return {"notifications": [], "ukupno": 0, "neprocitane": 0}
+        # Prazan spisak uz 200 je do sada bio TVRDNJA da obaveštenja nema, a
+        # nastajao je iz pale pretrage. Odgovor se zadržava (postojeći
+        # potrošači ne smeju da puknu), ali sada NOSI podatak da čitanje nije
+        # uspelo, pa ekran može da kaže „nije pročitano" umesto „nema ničega".
+        return {
+            "notifications": [],
+            "ukupno": 0,
+            "neprocitane": 0,
+            "procitano_uspesno": False,
+        }
 
 
 @router.post("/notifications/refresh")

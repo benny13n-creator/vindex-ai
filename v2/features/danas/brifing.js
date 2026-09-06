@@ -67,7 +67,14 @@ export function montirajBrifing(kontejner, kontekst) {
   });
   const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Brifing");
   ovde.setAttribute("aria-current", "page");
-  prekidac.append(kaDanas, kaKalendaru, ovde);
+  const kaObavestenjima = el("a", "v2-prekidac__stavka", "Obaveštenja");
+  kaObavestenjima.href = putanjaZa("danas", "obavestenja");
+  ciklus.slusaj(kaObavestenjima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "obavestenja");
+  });
+  prekidac.append(kaDanas, kaKalendaru, ovde, kaObavestenjima);
   unutra.appendChild(prekidac);
 
   const alat = el("div", "v2-reg__alat");

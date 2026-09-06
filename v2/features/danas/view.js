@@ -193,7 +193,14 @@ export function montirajDanas(kontejner) {
     e.preventDefault();
     idiNa("danas", "brifing");
   });
-  prekidac.append(ovde, kaKalendaru, kaBrifingu);
+  const kaObavestenjima = el("a", "v2-prekidac__stavka", "Obaveštenja");
+  kaObavestenjima.href = putanjaZa("danas", "obavestenja");
+  ciklus.slusaj(kaObavestenjima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "obavestenja");
+  });
+  prekidac.append(ovde, kaKalendaru, kaBrifingu, kaObavestenjima);
   unutra.appendChild(prekidac);
 
   const sadrzaj = el("div", "v2-danas");

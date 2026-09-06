@@ -76,7 +76,14 @@ export function montirajKalendar(kontejner, kontekst) {
     e.preventDefault();
     idiNa("danas", "brifing");
   });
-  prekidac.append(kaDanas, ovde, kaBrifingu);
+  const kaObavestenjima = el("a", "v2-prekidac__stavka", "Obaveštenja");
+  kaObavestenjima.href = putanjaZa("danas", "obavestenja");
+  ciklus.slusaj(kaObavestenjima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("danas", "obavestenja");
+  });
+  prekidac.append(kaDanas, ovde, kaBrifingu, kaObavestenjima);
   unutra.appendChild(prekidac);
 
   // ── Izbor prozora ──

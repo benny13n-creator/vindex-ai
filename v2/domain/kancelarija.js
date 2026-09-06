@@ -138,3 +138,54 @@ export function uTim(sirov) {
     })).filter(c => c.email),
   };
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * PLAN I POTROSNJA (H9)
+ *
+ * `/api/plan/status` je kanonski izvor prava i boot ga vec cita. Ovde se
+ * samo cisti oblik za prikaz.
+ *
+ * POTROSNJA BEZ GRANICE NIJE „NEOGRANICENO". `dnevni_limit: null` znaci da
+ * granica NIJE OBJAVLJENA u ovom odgovoru — ne da je nema. Prikazati „∞"
+ * bilo bi obecanje koje ovaj ekran ne moze da odrzi.
+ * ═══════════════════════════════════════════════════════════════════════ */
+export function uPlan(sirov) {
+  const o = sirov || {};
+  const t = (v) => String(v == null ? "" : v).trim();
+  const n = (v) => {
+    if (v === null || v === undefined || v === "") return null;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : null;
+  };
+  return {
+    naziv: t(o.plan_display) || t(o.plan),
+    kljuc: t(o.plan),
+    dodaci: (Array.isArray(o.addons) ? o.addons : []).map(t).filter(Boolean),
+    istice: t(o.subscription_expires_at).slice(0, 10),
+    // Datum u proslosti NIJE „vazi do": pretplata je istekla. Prikazati ga
+    // kao rok koji jos tece bila bi tvrdnja koja ne stoji. `null` znaci da
+    // se datum ne moze proceniti — tada se ne tvrdi ni jedno ni drugo.
+    isteklo: (() => {
+      const d = t(o.subscription_expires_at).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+      const n = new Date();
+      const p2 = (x) => String(x).padStart(2, "0");
+      const danas = `${n.getFullYear()}-${p2(n.getMonth() + 1)}-${p2(n.getDate())}`;
+      return d < danas;
+    })(),
+    dodatnihMesta: n(o.subscription_seats_extra),
+    krediti: n(o.credits_remaining),
+    mesec: t(o.year_month),
+    potrosnja: (Array.isArray(o.usage_this_month) ? o.usage_this_month : [])
+      .map(u => ({
+        kljuc: t(u && u.feature_key),
+        naziv: t(u && u.naziv) || t(u && u.feature_key),
+        koriscenja: n(u && u.broj_koriscenja),
+        krediti: n(u && u.krediti_potroseni),
+        // `null` granica znaci „nije objavljena", NE „neograniceno".
+        dnevniLimit: n(u && u.dnevni_limit),
+        mesecniLimit: n(u && u.mesecni_limit),
+      }))
+      .filter(u => u.kljuc),
+  };
+}

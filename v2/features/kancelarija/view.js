@@ -19,7 +19,8 @@ import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu, odjavi } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ucitajKancelariju } from "./api.js";
-import { uNalog, uKlijente, uNaplatu, uTim } from "../../domain/kancelarija.js";
+import { uNalog, uKlijente, uNaplatu, uTim, uPlan } from "../../domain/kancelarija.js";
+import { procitajPlan } from "../../platform/nalog.js";
 import { blokoviNaplate } from "./naplata.js";
 import { elementPoruke } from "../../platform/obavestenje.js";
 
@@ -90,6 +91,60 @@ function sekcijaNalog(deo, ciklus) {
     for (const x of poljeVrednost(naziv, v, mono)) dl.appendChild(x);
   }
   s.appendChild(dl);
+
+  // ── Plan i potrosnja (H9) ──
+  // Podatak dolazi iz onoga sto je boot vec procitao: `/api/plan/status` ima
+  // granicu od 60 na sat i ne sme se zvati ponovo zbog prikaza.
+  const sirovPlan = procitajPlan();
+  const bPlan = el("div", "v2-podblok");
+  bPlan.appendChild(el("h3", "v2-natkapa", "Plan i potrošnja"));
+  if (!sirovPlan) {
+    // Bez podatka se plan NE pogadja iz `/api/me`: tamo stoji drugi pojam.
+    bPlan.appendChild(prazno("Podaci o planu nisu učitani pri pokretanju. "
+      + "Osvežite stranicu da biste ih videli."));
+  } else {
+    const pl = uPlan(sirovPlan);
+    const dl2 = el("dl", "v2-polja");
+    const redovi2 = [["Plan", pl.naziv, false]];
+    if (pl.dodaci.length) redovi2.push(["Dodaci", pl.dodaci.join(", "), false]);
+    // Istekao datum se IMENUJE kao istek, ne kao rok koji još teče.
+    if (pl.istice) {
+      redovi2.push([pl.isteklo === true ? "Pretplata istekla" : "Pretplata važi do",
+                    pl.istice, true]);
+    }
+    if (pl.dodatnihMesta !== null && pl.dodatnihMesta > 0) {
+      redovi2.push(["Dodatnih mesta", String(pl.dodatnihMesta), true]);
+    }
+    for (const [naziv, v, mono] of redovi2) {
+      if (!v) continue;
+      for (const x of poljeVrednost(naziv, v, mono)) dl2.appendChild(x);
+    }
+    bPlan.appendChild(dl2);
+
+    if (!pl.potrosnja.length) {
+      bPlan.appendChild(prazno(pl.mesec
+        ? `U mesecu ${pl.mesec} još nema zabeležene potrošnje.`
+        : "Nema zabeležene potrošnje."));
+    } else {
+      if (pl.mesec) bPlan.appendChild(prazno("Potrošnja u mesecu " + pl.mesec + "."));
+      const ul2 = el("ul", "v2-lista-tanka");
+      for (const u of pl.potrosnja) {
+        const li = el("li", "v2-plan__stavka");
+        li.appendChild(document.createTextNode(u.naziv));
+        const meta = el("span", "v2-plan__meta");
+        if (u.koriscenja !== null) {
+          meta.appendChild(el("span", "v2-mono",
+            " " + u.koriscenja + (u.mesecniLimit !== null ? " / " + u.mesecniLimit : "")));
+        }
+        // `null` granica znaci „nije objavljena", NE „neograniceno" — pa se
+        // nista i ne pise umesto nje.
+        li.appendChild(meta);
+        ul2.appendChild(li);
+      }
+      bPlan.appendChild(ul2);
+    }
+  }
+  s.appendChild(bPlan);
 
   const radnje = el("div", "v2-forma__radnje");
   const izadji = el("button", "v2-dugme", "Odjavi se");

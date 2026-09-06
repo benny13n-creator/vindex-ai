@@ -215,3 +215,31 @@
 @media (max-width: 640px) {
   .v2-brifing__brojevi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ── Obaveštenja (H7) ────────────────────────────────────────────────────
+ * Nepročitano nosi levu ivicu: razlika mora biti vidljiva bez čitanja teksta.
+ */
+.v2-obavestenja__lista { list-style: none; margin: 0; padding: 0; }
+.v2-obavestenje-red {
+  padding: var(--v2-r-3) 0 var(--v2-r-3) var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  border-left: 3px solid transparent;
+}
+.v2-obavestenje-red[data-neprocitano="1"] { border-left-color: var(--v2-brend); }
+.v2-obavestenje-red[data-prioritet="high"] .v2-obavestenje-red__naslov {
+  font-weight: 600;
+}
+.v2-obavestenje-red__naslov { margin: 0; color: var(--v2-tx-1); font-size: 15px; }
+.v2-obavestenje-red__veza { color: inherit; text-decoration: underline; }
+.v2-obavestenje-red__broj {
+  color: var(--v2-tx-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.v2-obavestenje-red__telo { margin: 2px 0 0; color: var(--v2-tx-2); font-size: 14px; }
+.v2-obavestenje-red__kada {
+  margin: 2px 0 0;
+  color: var(--v2-tx-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
