@@ -82,7 +82,14 @@ export function montirajPodnesak(kontejner, kontekst) {
   });
   const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Podnesak sudu");
   ovde.setAttribute("aria-current", "page");
-  prekidac.append(kaAktu, ovde);
+  const kaSablonima = el("a", "v2-prekidac__stavka", "Šabloni");
+  kaSablonima.href = putanjaZa("predmeti", "sabloni");
+  ciklus.slusaj(kaSablonima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "sabloni");
+  });
+  prekidac.append(kaAktu, ovde, kaSablonima);
   unutra.appendChild(prekidac);
 
   const forma = el("form", "v2-forma");

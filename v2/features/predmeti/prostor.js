@@ -13,9 +13,10 @@ import { montirajPredmete } from "./view.js";
 import { montirajNovPredmet } from "./nov.js";
 import { montirajAkt } from "./akt.js";
 import { montirajPodnesak } from "./podnesak.js";
+import { montirajSablone } from "./sabloni.js";
 
 const RADNJE = { nov: montirajNovPredmet, akt: montirajAkt,
-                 podnesak: montirajPodnesak };
+                 podnesak: montirajPodnesak, sabloni: montirajSablone };
 
 export function montirajProstorPredmeti(kontejner, kontekst, param) {
   const svi = kontekst || {};

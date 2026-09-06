@@ -73,7 +73,14 @@ export function montirajAkt(kontejner, kontekst) {
     e.preventDefault();
     idiNa("predmeti", "podnesak");
   });
-  prekidac.append(ovdePrekidac, kaPodnesku);
+  const kaSablonima = el("a", "v2-prekidac__stavka", "Šabloni");
+  kaSablonima.href = putanjaZa("predmeti", "sabloni");
+  ciklus.slusaj(kaSablonima, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "sabloni");
+  });
+  prekidac.append(ovdePrekidac, kaPodnesku, kaSablonima);
   unutra.appendChild(prekidac);
 
   const forma = el("form", "v2-forma");

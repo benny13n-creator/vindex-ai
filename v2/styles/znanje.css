@@ -273,3 +273,21 @@
   font-size: 13px;
   color: var(--v2-tx-3);
 }
+
+/* ── Sabloni dokumenata (D4) ─────────────────────────────────────────────
+ * Polja se grade se iz sablona, pa ih moze biti sedam i vise: dve kolone na
+ * sirokom ekranu drze obrazac u vidnom polju bez skrolovanja.
+ */
+.v2-sablon__polja {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--v2-r-3) var(--v2-r-4);
+  margin-bottom: var(--v2-r-4);
+}
+.v2-sablon__polja > .v2-polje-unos__pomoc,
+.v2-sablon__polja > .v2-celina__prazno { grid-column: 1 / -1; }
+.v2-sablon__cuvanje {
+  margin-top: var(--v2-r-5);
+  padding-top: var(--v2-r-4);
+  border-top: 1px solid var(--v2-linija);
+}

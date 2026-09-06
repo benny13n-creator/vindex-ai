@@ -229,11 +229,17 @@ async def sacuvaj_dokument(
 
     try:
         r = await asyncio.to_thread(
+            # Kolone `predmet_beleske` su (sondirano nad produkcionom bazom
+            # 2026-09-06): id, predmet_id, user_id, sadrzaj, created_at,
+            # updated_at. Ovaj upis je gađao `tekst` I `tip` — nijedne nema,
+            # pa je PostgREST vraćao PGRST204 i ruta je 500-ovala na SVAKI
+            # poziv: čuvanje dokumenta iz šablona nikada nije radilo.
+            # Uklonjena je i ukrasna ikonica ispred naziva — zabranjena je
+            # pravilom, a odavde bi završila i U BAZI.
             lambda: supa.table("predmet_beleske").insert({
                 "predmet_id": req.predmet_id,
                 "user_id":    uid,
-                "tekst":      f"📄 {req.naziv}\n\n{req.sadrzaj}",
-                "tip":        "dokument",
+                "sadrzaj":    f"{req.naziv}\n\n{req.sadrzaj}",
             }).execute()
         )
         if not r.data:
