@@ -16,7 +16,7 @@
 
 import { napraviCiklus } from "../../platform/lifecycle.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
-import { naPrijavu, odjavi } from "../../platform/auth.js";
+import { naPrijavu, odjavi, token } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ucitajKancelariju } from "./api.js";
 import { uNalog, uKlijente, uNaplatu, uTim, uPlan, uMesta, uIstoriju } from "../../domain/kancelarija.js";
@@ -152,6 +152,51 @@ function sekcijaNalog(deo, ciklus) {
   izadji.type = "button";
   ciklus.slusaj(izadji, "click", () => odjavi());
   radnje.appendChild(izadji);
+
+  // H8 (Z017.2 execution queue #9) -- postojeca, kompletna backend
+  // sposobnost (GET /api/export/complete, ZIP sa predmeti/klijenti/billing/
+  // dokumenti-metadata/beleske/rocista/hronologija) nije imala V2 povrsinu.
+  // NE tvrdi se da je izvoz "zakonski obavezan" (§10) -- ovo je jednostavno
+  // postojeca korisnicka funkcija koju korisnik legitimno moze da koristi.
+  //
+  // `dohvati()` parsira odgovor kao JSON i ne odgovara za binarni ZIP, pa
+  // ide sirov fetch + Bearer header (isti obrazac kao legacy
+  // static/vindex.js:822 exportSviPodaci, dokazano radi u produkciji) --
+  // ruta zahteva Authorization header, obican <a href> navigacija ga ne bi
+  // ponela.
+  const izvoz = el("button", "v2-dugme v2-dugme--tiho", "Preuzmi moje podatke");
+  izvoz.type = "button";
+  ciklus.slusaj(izvoz, "click", async () => {
+    izvoz.disabled = true;
+    izvoz.textContent = "Priprema se…";
+    try {
+      const t = token();
+      const odgovor = await fetch("/api/export/complete", {
+        headers: t ? { Authorization: "Bearer " + t } : {},
+        credentials: "same-origin",
+      });
+      if (!odgovor.ok) throw new Error("HTTP " + odgovor.status);
+      const blob = await odgovor.blob();
+      const url = URL.createObjectURL(blob);
+      const cd = odgovor.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename="([^"]+)"/);
+      const a = el("a");
+      a.href = url;
+      a.download = m ? m[1] : "vindex-export.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      ostavi("Izvoz je preuzet.", "uspeh");
+    } catch (err) {
+      ostavi("Izvoz nije uspeo. Pokušajte ponovo.", "greska");
+    } finally {
+      izvoz.disabled = false;
+      izvoz.textContent = "Preuzmi moje podatke";
+    }
+  });
+  radnje.appendChild(izvoz);
+
   s.appendChild(radnje);
   return s;
 }
