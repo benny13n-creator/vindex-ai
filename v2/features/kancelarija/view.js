@@ -27,6 +27,7 @@ import { dohvati, posalji } from "../../platform/http.js";
 import { blokUvozaKlijenata } from "./uvozKlijenata.js";
 import { ucitajPortfolio, sadrzajPortfolia } from "./portfolio.js";
 import { ucitajZdravljeFirme, sadrzajZdravljaFirme } from "./zdravljeFirme.js";
+import { ucitajProfitabilnostPregled, blokProfitabilnostiPregleda } from "./profitabilnostPregled.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -34,6 +35,8 @@ export const CELINE = Object.freeze([
   { kljuc: "naplata", naziv: "Naplata" },
   { kljuc: "tim", naziv: "Tim kancelarije" },
   { kljuc: "portfolio", naziv: "Portfolio" },
+  { kljuc: "zdravlje", naziv: "Zdravlje kancelarije" },
+  { kljuc: "profitabilnost", naziv: "Profitabilnost kancelarije" },
 ]);
 
 function el(tag, klasa, tekst) {
@@ -742,6 +745,31 @@ export function montirajKancelariju(kontejner) {
       h2.id = "celina-zdravlje";
       cZdr.appendChild(h2);
       cZdr.appendChild(sadrzajZdravljaFirme(z, ciklus));
+    })();
+
+    // Profitabilnost kancelarije (F11) -- SOPSTVENA celina, ne pod-blok
+    // Portfolia: nezavisan poziv koji ne sme da deli roditelja sa
+    // Portfolio-vim .replaceChildren() (ista opasnost od trke stanja koja
+    // je nadjena i ispravljena za B20/Naplata u Dosijeu -- ovde izbegnuta
+    // odvojenim celina() kontejnerom umesto pod-kontejnera).
+    const cProf = celina("profitabilnost", "Profitabilnost kancelarije");
+    cProf.appendChild(prazno("Učitava se…"));
+    okvir.appendChild(cProf);
+
+    (async () => {
+      let pr;
+      try {
+        pr = await ucitajProfitabilnostPregled({ signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        pr = { ucitano: false, greska: e };
+      }
+      if (ciklus.ugasen) return;
+      cProf.replaceChildren();
+      const h3 = el("h2", "v2-celina__naslov", "Profitabilnost kancelarije");
+      h3.id = "celina-profitabilnost";
+      cProf.appendChild(h3);
+      cProf.appendChild(blokProfitabilnostiPregleda(pr, ciklus));
     })();
   }
 

@@ -33,6 +33,7 @@ import { obrazacZadatka, obrazacRocista, obrazacBeleske,
 import { kontrolaIzmene } from "./izmena.js";
 import { kontrolaBrisanjaPredmeta } from "./brisanje.js";
 import { ucitajNaplatuPredmeta, sadrzajNaplate } from "./naplata.js";
+import { ucitajProfitabilnostPredmeta, blokProfitabilnostiPredmeta } from "./profitabilnost.js";
 import { ucitajSaradnjuPredmeta, sadrzajSaradnje } from "./saradnja.js";
 import { blokPoredjenja } from "./poredjenje.js";
 
@@ -600,7 +601,15 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
     // Do odgovora stoji izricito „ucitava se" — prazna celina bi tvrdila da
     // na predmetu nema evidentiranog rada.
     const cNap = celina("naplata", "Naplata");
-    cNap.appendChild(prazno("Učitava se…"));
+    // Dva NEZAVISNA pod-kontejnera unutar iste celine -- Naplata i
+    // Profitabilnost (B20) ucitavaju se odvojeno (drugi endpoint, drugi
+    // VIEW u bazi) i NIJEDAN ne sme da .replaceChildren() na zajednickom
+    // roditelju, jer bi tada jedan mogao da izbrise sadrzaj drugog cim
+    // stigne prvi (trka stanja -- otkriveno pre nego sto je uslo u kod).
+    const naplataMesto = el("div");
+    naplataMesto.appendChild(prazno("Učitava se…"));
+    const profitMesto = el("div");
+    cNap.append(naplataMesto, profitMesto);
     okvir.appendChild(cNap);
     sadrzaj.replaceChildren(okvir);
 
@@ -614,10 +623,24 @@ export function montirajDosije(kontejner, kontekst, predmetId, radnje) {
               tajmer: null, tajmerPao: true };
       }
       if (ciklus.ugasen) return;
-      cNap.replaceChildren(naslovCeline("naplata", "Naplata"));
-      cNap.appendChild(sadrzajNaplate(n, predmetId, d.zaglavlje.naziv,
+      naplataMesto.replaceChildren(sadrzajNaplate(n, predmetId, d.zaglavlje.naziv,
                                       ciklus, radnje && radnje.osvezi
                                         ? radnje.osvezi : () => {}));
+    })();
+
+    // Profitabilnost predmeta (B20) -- POTPUNO nezavisan poziv od Naplate
+    // iznad (drugi endpoint, drugi VIEW u bazi); pad ovog ne sme da obori
+    // ni Naplatu ni ostatak Dosijea.
+    (async () => {
+      let pr;
+      try {
+        pr = await ucitajProfitabilnostPredmeta(predmetId, { signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        pr = { ucitano: false, greska: e };
+      }
+      if (ciklus.ugasen) return;
+      profitMesto.replaceChildren(blokProfitabilnostiPredmeta(pr));
     })();
 
     // Saradnja (B18) se ucitava ODVOJENO, isti razlog kao Naplata iznad, uz
