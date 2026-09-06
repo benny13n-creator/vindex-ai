@@ -278,3 +278,47 @@ def test_cinjenice_iz_dokumenta_prezivljavaju_granicu():
 @nodemark
 def test_odsutne_cinjenice_nisu_prazna_lista_na_ekranu():
     assert _js("return Z.cinjeniceIzDokumenta({});") == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# D7 — KONTEKST PREDMETA U PITANJU
+#
+# Backend ubacuje beleške predmeta u upit FAIL-CLOSED: na svaku sumnju (tuđi
+# predmet, predmet u postupku brisanja, greška pri čitanju) grane u
+# `/api/pitanje` tiho preskaču kontekst i odgovaraju opšte. Bez izričitog
+# polja klijent to ne može da zna, pa bi advokatu prikazao opšti odgovor kao
+# odgovor o NJEGOVOM predmetu.
+#
+#   true  — beleške su stvarno ušle u upit
+#   false — predmet je tražen ali NIJE pročitan  → mora se saopštiti
+#   null  — predmet nije ni tražen
+# ═══════════════════════════════════════════════════════════════════════════
+@nodemark
+def test_kontekst_predmeta_true():
+    r = _js('return Z.sastaviOdgovor({ odgovor: "x", kontekst_predmeta: true })'
+            ".kontekstPredmeta;")
+    assert r is True
+
+
+@nodemark
+def test_kontekst_predmeta_false_se_ne_gubi():
+    """`false` je nalaz: odgovor NIJE u kontekstu predmeta, ma šta advokat
+    očekivao. Pretvoriti ga u `null` značilo bi prećutati to."""
+    r = _js('return Z.sastaviOdgovor({ odgovor: "x", kontekst_predmeta: false })'
+            ".kontekstPredmeta;")
+    assert r is False
+
+
+@nodemark
+def test_bez_polja_kontekst_je_null():
+    r = _js('return Z.sastaviOdgovor({ odgovor: "x" }).kontekstPredmeta;')
+    assert r is None
+
+
+@nodemark
+def test_neocekivana_vrednost_konteksta_je_null():
+    """`"true"`, `1` i slično nisu dokaz da su beleške ušle — fail-closed."""
+    for v in ('"true"', "1", '""', "0"):
+        r = _js('return Z.sastaviOdgovor({ odgovor: "x", kontekst_predmeta: '
+                + v + " }).kontekstPredmeta;")
+        assert r is None, v

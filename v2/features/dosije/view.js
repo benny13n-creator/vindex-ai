@@ -21,7 +21,7 @@
 import { napraviCiklus } from "../../platform/lifecycle.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
-import { idiNa } from "../../platform/router.js";
+import { idiNa, putanjaZa, idiNaPutanju } from "../../platform/router.js";
 import { SIDRA } from "../../domain/dosije.js";
 import { ucitajDosije, putanjaPreuzimanja } from "./api.js";
 import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
@@ -133,6 +133,23 @@ function sekcijaStanje(d, ciklus, predmetId, radnje) {
 
   // Izmena podataka stoji na dnu „Stanja" — advokat ispravlja ime tuzenog
   // gledajuci ostatak predmeta, ne u praznom obrascu na drugoj strani.
+  // D7: pravno pitanje U KONTEKSTU ovog predmeta. Radnja polazi ODAVDE, pa
+  // Znanje ne dobija birač predmeta — predmet je već izabran time što je
+  // advokat otvorio njegov Dosije.
+  {
+    const put = putanjaZa("znanje") + "?predmet=" + encodeURIComponent(predmetId);
+    const pitaj = el("a", "v2-dugme", "Pitaj o ovom predmetu");
+    pitaj.href = put;
+    ciklus.slusaj(pitaj, "click", (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      idiNaPutanju(put);
+    });
+    const red = el("div", "v2-forma__radnje");
+    red.appendChild(pitaj);
+    s.appendChild(red);
+  }
+
   if (radnje && radnje.osvezi && d.sirovi) {
     s.appendChild(kontrolaIzmene(predmetId, d.sirovi, ciklus, radnje.osvezi));
     // Brisanje stoji NA DNU celine, odvojeno od izmene i vizuelno drugacije:

@@ -3648,6 +3648,10 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
 
         predmet_id = (req.predmet_id or "").strip() or None
         session_id = (req.session_id or "").strip() or None
+        # Postaje `True` tek kada je kontekst predmeta STVARNO ušao u prompt.
+        # Sve fail-closed grane ispod ga ostavljaju na `False`, pa odgovor može
+        # da kaže istinu o tome da li je predmet pročitan.
+        _kontekst_ubacen = False
 
         # F1.5: ako frontend nije poslao history, dohvati iz ai_sessions (2h TTL)
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
@@ -3820,6 +3824,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     # inace bi ova grana pregazila dokazni kanal postavljen iznad
                     # i dokaz bi tiho nestao kad je predmet otvoren.
                     pitanje_za_agenta = f"{extra_context}\n\nPITANJE: {pitanje_za_agenta}"
+                    # Jedina tačka u kojoj je kontekst stvarno ušao u prompt.
+                    _kontekst_ubacen = True
                     logger.info("[F5] predmet_id=%s context injected (%d beleški, %d istorija)", predmet_id, len(beleske_res.data or []), len(istorija_res.data or []))
             except Exception:
                 logger.warning("[F5] predmet context load failed for predmet_id=%s — proceeding without", predmet_id)
@@ -3878,6 +3884,14 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         if not resp.get("odgovor"):
             logger.error("[PITANJE] normalizuj_rezultat vratio prazan odgovor — rezultat=%s", rezultat)
             resp["odgovor"] = "Sistem nije mogao da formuliše odgovor. Pokušajte ponovo."
+        # Kontekst predmeta se ubacuje FAIL-CLOSED: na svaku sumnju (tuđi
+        # predmet, predmet u brisanju, greška pri čitanju) grane iznad ga tiho
+        # preskaču. Bez ovog polja klijent to ne može da zna, pa bi advokatu
+        # prikazao odgovor kao da je „u kontekstu predmeta" i onda kada
+        # predmet nije ni pročitan. `None` = predmet nije ni tražen.
+        resp["kontekst_predmeta"] = (
+            None if not (req.predmet_id or "").strip() else bool(_kontekst_ubacen)
+        )
         return resp
     except HTTPException:
         # BLACKSWAN-HIGH-004: pokreni()'s own 503 (AI queue-timeout) is an intentional,

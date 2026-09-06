@@ -190,5 +190,12 @@ export function sastaviOdgovor(sirov) {
     // `credits_remaining` je stanje NALOGA, ne svojstvo odgovora. Prikazuje se
     // u Kancelariji, ne uz pravni tekst.
     preostaloKredita: Number.isFinite(o.credits_remaining) ? o.credits_remaining : null,
+    // D7: da li je kontekst predmeta STVARNO ušao u upit. Backend ga ubacuje
+    // fail-closed i na svaku sumnju (tuđi predmet, predmet u brisanju, greška
+    // pri čitanju) ga tiho preskače. `true` = pročitan, `false` = tražen ali
+    // NIJE pročitan, `null` = nije ni tražen. `false` se MORA saopštiti:
+    // odgovor tada nije „u kontekstu predmeta", ma šta advokat očekivao.
+    kontekstPredmeta: o.kontekst_predmeta === true ? true
+      : (o.kontekst_predmeta === false ? false : null),
   };
 }

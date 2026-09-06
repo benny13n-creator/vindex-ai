@@ -291,3 +291,19 @@
   padding-top: var(--v2-r-4);
   border-top: 1px solid var(--v2-linija);
 }
+
+/* ── Pitanje vezano za predmet (D7) ─────────────────────────────────────
+ * Veza mora biti vidljiva PRE kucanja: advokat inače ne zna da u upit ide i
+ * sadržaj predmeta.
+ */
+.v2-znanje__vezano {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--v2-r-3);
+  margin-bottom: var(--v2-r-4);
+  padding: var(--v2-r-3);
+  border-left: 3px solid var(--v2-brend);
+  background: var(--v2-papir-2);
+}
+.v2-znanje__vezano-tekst { color: var(--v2-tx-1); font-size: 14px; }

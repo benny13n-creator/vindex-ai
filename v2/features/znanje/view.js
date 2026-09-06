@@ -22,7 +22,7 @@ import { posalji } from "../../platform/http.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { sastaviOdgovor } from "../../domain/znanje.js";
-import { idiNa, putanjaZa } from "../../platform/router.js";
+import { idiNa, putanjaZa, idiNaPutanju } from "../../platform/router.js";
 
 const NAJMANJE = 3;
 const NAJVISE = 2000;
@@ -94,6 +94,15 @@ export function montirajZnanje(kontejner, kontekst) {
   const ciklus = napraviCiklus();
   const zaceto = kontekst || {};
 
+  // ── Predmet iz upita (D7) ──
+  // Pitanje se moze vezati za predmet: `/app-v2/znanje?predmet=<id>`. Radnja
+  // se pokrece iz Dosijea, pa nema biraca predmeta — predmet je vec izabran
+  // time sto je advokat dosao odande.
+  let vezaniPredmet = "";
+  try {
+    vezaniPredmet = new URLSearchParams(window.location.search).get("predmet") || "";
+  } catch (e) { vezaniPredmet = ""; }
+
   const unutra = el("div", "v2-scena__unutra v2-scena__unutra--predmet");
 
   const zaglavlje = el("header", "v2-zaglavlje");
@@ -127,6 +136,35 @@ export function montirajZnanje(kontejner, kontekst) {
   });
   prekidac.append(ovde, kaPraksi, kaRokovima);
   unutra.appendChild(prekidac);
+
+  // Kad je pitanje vezano za predmet, to MORA biti vidljivo pre kucanja:
+  // advokat inace ne zna da salje sadrzaj predmeta u upit.
+  if (vezaniPredmet) {
+    const traka = el("div", "v2-znanje__vezano");
+    traka.appendChild(el("span", "v2-znanje__vezano-tekst",
+      "Pitanje se postavlja u kontekstu otvorenog predmeta."));
+    const kaPredmetu = el("a", "v2-tekst-akcija", "Otvori predmet");
+    kaPredmetu.href = putanjaZa("predmet", vezaniPredmet);
+    ciklus.slusaj(kaPredmetu, "click", (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      idiNaPutanju(putanjaZa("predmet", vezaniPredmet));
+    });
+    // Natpis NE sme da pocinje sa „Pitaj": pored dugmeta „Pitaj" ispod, dva
+    // dugmeta koja pocinju istom recju su zamka pri brzom pogledu.
+    const odveži = el("button", "v2-tekst-akcija", "Ukloni predmet iz pitanja");
+    odveži.type = "button";
+    ciklus.slusaj(odveži, "click", () => {
+      vezaniPredmet = "";
+      traka.remove();
+      // Putanja se ciscenjem upita usklađuje sa stanjem: podeljena veza ne
+      // sme da vodi u ekran koji tvrdi drugaciji kontekst.
+      try { window.history.replaceState({}, "", putanjaZa("znanje")); }
+      catch (e) { /* nebitno */ }
+    });
+    traka.append(kaPredmetu, odveži);
+    unutra.appendChild(traka);
+  }
 
   const forma = el("form", "v2-forma v2-znanje__forma");
   forma.noValidate = true;
@@ -173,6 +211,22 @@ export function montirajZnanje(kontejner, kontekst) {
     p.appendChild(el("h2", "v2-natkapa", "Pitanje"));
     p.appendChild(el("p", "v2-znanje__pitanje-tekst", pitanje));
     okvir.appendChild(p);
+
+    // D7: kontekst predmeta se ubacuje FAIL-CLOSED. Kad je tražen a nije
+    // pročitan, advokat to mora znati — inače čita opšti odgovor kao odgovor
+    // o svom predmetu.
+    if (o.kontekstPredmeta === false) {
+      const up = el("div", "v2-poruka v2-poruka--upozorenje");
+      up.setAttribute("role", "alert");
+      up.appendChild(el("p", "v2-poruka__naslov", "Spisi predmeta nisu ušli u pitanje"));
+      up.appendChild(el("p", "v2-poruka__telo",
+        "Odgovor je opšti — nije zasnovan na beleškama ovog predmeta. "
+        + "Ovo se dešava kada predmet nije dostupan ili je u postupku brisanja."));
+      okvir.appendChild(up);
+    } else if (o.kontekstPredmeta === true) {
+      okvir.appendChild(el("p", "v2-celina__prazno",
+        "Uz zakonski korpus, u pitanje su ušle i beleške ovog predmeta."));
+    }
 
     // Ograde IZNAD odgovora — advokat ih mora videti pre teksta.
     for (const u of o.upozorenja) okvir.appendChild(blokUpozorenja(u));
@@ -247,7 +301,9 @@ export function montirajZnanje(kontejner, kontekst) {
     const prekidac = ciklus.prekidac();
     let sirov;
     try {
-      sirov = await posalji("/api/pitanje", { telo: { pitanje: q }, signal: prekidac.signal });
+      const telo = { pitanje: q };
+      if (vezaniPredmet) telo.predmet_id = vezaniPredmet;
+      sirov = await posalji("/api/pitanje", { telo, signal: prekidac.signal });
     } catch (e) {
       if (jePrekid(e) || ciklus.ugasen) return;
       radi = false;
