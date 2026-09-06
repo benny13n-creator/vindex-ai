@@ -18,6 +18,7 @@ import { naPrijavu } from "../../platform/auth.js";
 import { ANALIZE, analizaPoKljucu, uNalaz } from "../../domain/uskladjenost.js";
 import { uSkorIzvestaj } from "../../domain/skorIzvestaj.js";
 import { uUgovorAnalizu } from "../../domain/ugovorAnaliza.js";
+import { blokWalletProvenance, blokSourceOfFundsDossier } from "./dodatne.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -96,6 +97,12 @@ export function montirajUskladjenost(kontejner, kontekst) {
   sadrzaj.setAttribute("aria-live", "polite");
   sadrzaj.setAttribute("aria-labelledby", "v2-naslov-uskladjenost");
   unutra.appendChild(sadrzaj);
+
+  // G7/G8 (Z017.2 execution queue #6) -- van ANALIZE kataloga, drugaciji
+  // ugovor (adresa umesto teksta; PDF umesto JSON-a). V2 nepostojanje je
+  // bio jedini razlog odsustva -- oba backend-a su vec radila.
+  unutra.appendChild(blokWalletProvenance(ciklus));
+  unutra.appendChild(blokSourceOfFundsDossier(ciklus));
   kontejner.appendChild(unutra);
   document.title = "Usklađenost · Vindex";
 
