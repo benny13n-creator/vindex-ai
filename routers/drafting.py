@@ -531,6 +531,19 @@ async def nacrt_types():
     return {"tipovi": _drafting_get_types()}
 
 
+@router.get("/api/podnesak/types")
+async def podnesak_types():
+    """Katalog tipova podnesaka -- isti ugovor kao `/api/nacrt/types`.
+
+    Postoji zato sto je spisak dozvoljenih tipova do sada zivelo SAMO u
+    validatoru `PodnesakReq.tip`. Frontend koji bi ga prepisao nudio bi tip
+    koji server vise ne zna, i to bi se videlo tek posle klika -- kontrola
+    koja pada na kraju umesto da se ne ponudi. Bez autentifikacije, kao i
+    `/api/nacrt/types` i `/api/courts`.
+    """
+    return {"tipovi": [{"tip": k, "naziv": v} for k, v in PODNESAK_TIPOVI.items()]}
+
+
 @router.get("/api/courts")
 async def get_courts():
     """Katalog srpskih sudova sa adresama — za popunjavanje zaglavlja podnesaka."""

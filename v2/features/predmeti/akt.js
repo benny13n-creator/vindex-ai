@@ -59,6 +59,23 @@ export function montirajAkt(kontejner, kontekst) {
     "Nacrt podneska ili ugovora na osnovu vašeg opisa. Rezultat je polazni tekst, ne gotov akt."));
   unutra.appendChild(zaglavlje);
 
+  // Podnesak sudu je SRODNA ali druga radnja: ima sud u zaglavlju, procesni
+  // tip i posledicu koja se meri rokovima. Zato stoji kao prekidac, a ne kao
+  // jos jedna stavka u padajucem spisku pored ugovora o radu.
+  const prekidac = el("nav", "v2-prekidac");
+  prekidac.setAttribute("aria-label", "Šta pravite");
+  const ovdePrekidac = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Akt");
+  ovdePrekidac.setAttribute("aria-current", "page");
+  const kaPodnesku = el("a", "v2-prekidac__stavka", "Podnesak sudu");
+  kaPodnesku.href = putanjaZa("predmeti", "podnesak");
+  ciklus.slusaj(kaPodnesku, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "podnesak");
+  });
+  prekidac.append(ovdePrekidac, kaPodnesku);
+  unutra.appendChild(prekidac);
+
   const forma = el("form", "v2-forma");
   forma.noValidate = true;
 
