@@ -43,6 +43,7 @@ export const ANALIZE = Object.freeze([
     najmanje: 30,
     labela: "Opis aktivnosti",
     pomoc: "Opišite čime se klijent bavi: usluga, tokeni, korisnici, jurisdikcije.",
+    oblik: "tekst",
   },
   {
     kljuc: "pretraga",
@@ -52,6 +53,7 @@ export const ANALIZE = Object.freeze([
     najmanje: 10,
     labela: "Pitanje",
     pomoc: "Konkretno pitanje o Zakonu o digitalnoj imovini ili MiCA uredbi.",
+    oblik: "tekst",
   },
   {
     kljuc: "whitepaper",
@@ -61,6 +63,7 @@ export const ANALIZE = Object.freeze([
     najmanje: 100,
     labela: "Tekst whitepaper-a",
     pomoc: "Nalepite tekst. Najmanje 100 znakova.",
+    oblik: "tekst",
   },
   {
     kljuc: "aml",
@@ -70,6 +73,13 @@ export const ANALIZE = Object.freeze([
     najmanje: 30,
     labela: "Opis postupka",
     pomoc: "Kako klijent identifikuje korisnike i prati transakcije.",
+    // OTKRIVENI KVAR (Z017.2): backend vraca {audit_data, objasnjenje}, NIKAD
+    // {rezultat} -- generican "tekst" oblik je prikazivao "odgovor nije
+    // stigao u ocekivanom obliku" za SVAKI poziv. Popravljeno na "skor".
+    oblik: "skor",
+    ukupniKljuc: "ukupna_uskladenost",
+    nivoKljuc: "uskladenost_nivo",
+    kljucPodataka: "audit_data",
   },
   {
     kljuc: "ugovor",
@@ -79,6 +89,34 @@ export const ANALIZE = Object.freeze([
     najmanje: 50,
     labela: "Kod ili opis ugovora",
     pomoc: "Izvorni kod ugovora ili opis njegove logike.",
+    // OTKRIVENI KVAR (Z017.2): backend (SmartContractReq) ocekuje
+    // {solidity_source}, ne {tekst} -- SVAKI pokusaj ove analize je vracao
+    // 422 pre nego sto bi handler bio pozvan. Popravljeno.
+    poljeTela: "solidity_source",
+    oblik: "ugovor",
+  },
+  {
+    kljuc: "due-diligence",
+    naziv: "Spremnost za Due Diligence",
+    pitanje: "Koliko je moja dokumentacija spremna za regulatorni/bankarski upit?",
+    putanja: "/web3/health-score",
+    najmanje: 30,
+    labela: "Opis posedovane dokumentacije",
+    pomoc: "Koju dokumentaciju posedujete o kripto imovini i transakcijama.",
+    oblik: "skor",
+    ukupniKljuc: "ukupni_skor",
+    nivoKljuc: "skor_nivo",
+    kljucPodataka: "health_data",
+  },
+  {
+    kljuc: "reporting-simulator",
+    naziv: "Simulator izveštavanja (CARF/DAC8)",
+    pitanje: "Kako se ovaj scenario tipično kategoriše za izveštavanje?",
+    putanja: "/web3/reporting-simulator",
+    najmanje: 20,
+    labela: "Opis scenarija transakcija",
+    pomoc: "Opšta edukacija o CARF/DAC8-tipa kategorijama — ne pravni/poreski savet.",
+    oblik: "tekst",
   },
 ]);
 

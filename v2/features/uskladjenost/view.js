@@ -16,6 +16,8 @@ import { posalji } from "../../platform/http.js";
 import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu } from "../../platform/auth.js";
 import { ANALIZE, analizaPoKljucu, uNalaz } from "../../domain/uskladjenost.js";
+import { uSkorIzvestaj } from "../../domain/skorIzvestaj.js";
+import { uUgovorAnalizu } from "../../domain/ugovorAnaliza.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -117,12 +119,7 @@ export function montirajUskladjenost(kontejner, kontekst) {
       `Unesite tekst i pokrenite analizu. Najmanje ${izabrana.najmanje} znakova.`));
   }
 
-  function iscrtaj(n) {
-    const okvir = document.createDocumentFragment();
-
-    // Ograda IZNAD nalaza. Z017.2 §7: uslovna SAMO za analize koje backend
-    // stvarno prati (n.ograda.izvori postoji) -- za ostale je i dalje
-    // STALNA, nepromenjeno ponašanje (v. domain/uskladjenost.js).
+  function ogradaElement(n) {
     const imaIzvore = Array.isArray(n.ograda.izvori) && n.ograda.izvori.length > 0;
     const o = el("div", "v2-ograda" + (imaIzvore ? " v2-ograda--sa-izvorima" : " v2-ograda--bez-izvora"));
     o.setAttribute("role", "alert");
@@ -137,7 +134,130 @@ export function montirajUskladjenost(kontejner, kontekst) {
       }
       o.appendChild(ul);
     }
-    okvir.appendChild(o);
+    return o;
+  }
+
+  function skorRed(naziv, vrednost) {
+    const par = el("div", "v2-polja__par");
+    par.appendChild(el("dt", "v2-polje", naziv));
+    par.appendChild(el("dd", "v2-polja__v v2-mono", vrednost));
+    return par;
+  }
+
+  /** Z017.2 -- oblik "skor" (aml/due-diligence). Backend nikad nije vracao
+   * `rezultat` za ove -- ovo je stvaran prikaz strukturiranih podataka, ne
+   * text-only fallback koji je ranije uvek pisao "odgovor nije stigao u
+   * ocekivanom obliku". */
+  function iscrtajSkor(sirov) {
+    const p = uSkorIzvestaj(sirov, izabrana);
+    const okvir = document.createDocumentFragment();
+    okvir.appendChild(ogradaElement(uNalaz(sirov)));
+
+    const s = el("section", "v2-uskl__nalaz");
+    s.appendChild(el("h2", "v2-natkapa", izabrana.naziv));
+
+    if (p.ukupno === null && !p.kategorije.length) {
+      s.appendChild(el("p", "v2-celina__prazno",
+        "Analiza je izvršena, ali odgovor nije stigao u očekivanom obliku. "
+        + "Ovo nije nalaz da je sve usklađeno."));
+      okvir.appendChild(s);
+      sadrzaj.replaceChildren(okvir);
+      return;
+    }
+
+    if (p.ukupno !== null) {
+      const dl = el("dl", "v2-polja");
+      dl.appendChild(skorRed("Ukupno", p.ukupno + "/100"));
+      if (p.nivo) dl.appendChild(skorRed("Nivo", p.nivo));
+      s.appendChild(dl);
+    }
+
+    if (p.kategorije.length) {
+      const ul = el("ul", "v2-lista-tanka");
+      for (const k of p.kategorije) {
+        const li = el("li");
+        const red = el("p", "v2-forma__red");
+        red.appendChild(el("span", "", k.naziv));
+        if (k.skor !== null) red.appendChild(el("span", "v2-mono", ` ${k.skor}/${k.max ?? "?"}`));
+        if (k.status) red.appendChild(el("span", "v2-meta", " · " + k.status));
+        li.appendChild(red);
+        if (k.komentar) li.appendChild(el("p", "v2-meta", k.komentar));
+        ul.appendChild(li);
+      }
+      s.appendChild(ul);
+    }
+
+    if (p.kriticniNedostaci.length) {
+      s.appendChild(el("h3", "v2-natkapa", "Kritični nedostaci"));
+      const ul = el("ul", "v2-lista-tanka");
+      for (const n of p.kriticniNedostaci) ul.appendChild(el("li", "", n));
+      s.appendChild(ul);
+    }
+
+    if (p.preporuke.length) {
+      s.appendChild(el("h3", "v2-natkapa", "Preporuke"));
+      const ul = el("ul", "v2-lista-tanka");
+      for (const pr of p.preporuke) ul.appendChild(el("li", "", pr));
+      s.appendChild(ul);
+    }
+
+    okvir.appendChild(s);
+    sadrzaj.replaceChildren(okvir);
+  }
+
+  /** Z017.2 -- oblik "ugovor" (G5, F12 Smart Contract Legal Analyzer). */
+  function iscrtajUgovor(sirov) {
+    const a = uUgovorAnalizu(sirov);
+    const okvir = document.createDocumentFragment();
+    okvir.appendChild(ogradaElement(uNalaz(sirov)));
+
+    const s = el("section", "v2-uskl__nalaz");
+    s.appendChild(el("h2", "v2-natkapa", izabrana.naziv));
+
+    const dl = el("dl", "v2-polja");
+    if (a.nazivUgovora) dl.appendChild(skorRed("Ugovor", a.nazivUgovora));
+    if (a.solidityVerzija) dl.appendChild(skorRed("Solidity", a.solidityVerzija));
+    dl.appendChild(skorRed("Proxy obrazac", a.jeProxy ? "da" : "ne"));
+    if (a.amlNivoRizika) dl.appendChild(skorRed("AML rizik", a.amlNivoRizika));
+    s.appendChild(dl);
+    if (a.amlObrazlozenje) s.appendChild(el("p", "v2-meta", a.amlObrazlozenje));
+
+    if (a.rizici.length) {
+      s.appendChild(el("h3", "v2-natkapa", "Pravni rizici"));
+      const ul = el("ul", "v2-lista-tanka");
+      for (const r of a.rizici) {
+        const li = el("li");
+        const red = el("p", "v2-forma__red");
+        red.appendChild(el("span", "", r.rizik));
+        if (r.ozbiljnost) red.appendChild(el("span", "v2-meta", " · " + r.ozbiljnost));
+        li.appendChild(red);
+        if (r.obrazlozenje) li.appendChild(el("p", "v2-meta", r.obrazlozenje));
+        ul.appendChild(li);
+      }
+      s.appendChild(ul);
+    } else {
+      s.appendChild(el("p", "v2-celina__prazno", "Nisu identifikovani konkretni pravni rizici."));
+    }
+
+    if (a.klasifikacijaTokena.length) {
+      s.appendChild(el("h3", "v2-natkapa", "Klasifikacija tokena"));
+      const ul = el("ul", "v2-lista-tanka");
+      for (const k of a.klasifikacijaTokena) {
+        const li = el("li");
+        li.appendChild(el("span", "", k.kategorija));
+        if (k.status) li.appendChild(el("span", "v2-meta", " · " + k.status));
+        ul.appendChild(li);
+      }
+      s.appendChild(ul);
+    }
+
+    okvir.appendChild(s);
+    sadrzaj.replaceChildren(okvir);
+  }
+
+  function iscrtaj(n) {
+    const okvir = document.createDocumentFragment();
+    okvir.appendChild(ogradaElement(n));
 
     const s = el("section", "v2-uskl__nalaz");
     s.appendChild(el("h2", "v2-natkapa", izabrana.naziv));
@@ -175,7 +295,11 @@ export function montirajUskladjenost(kontejner, kontekst) {
     const prekidac = ciklus.prekidac();
     let sirov;
     try {
-      sirov = await posalji(izabrana.putanja, { telo: { tekst: t }, signal: prekidac.signal });
+      // Z017.2 OTKRIVENI KVAR: "ugovor" ocekuje solidity_source, ne tekst --
+      // svaki pokusaj je ranije vracao 422 pre nego sto bi handler bio pozvan.
+      sirov = await posalji(izabrana.putanja, {
+        telo: { [izabrana.poljeTela || "tekst"]: t }, signal: prekidac.signal,
+      });
     } catch (err) {
       if (jePrekid(err) || ciklus.ugasen) return;
       radi = false;
@@ -196,7 +320,9 @@ export function montirajUskladjenost(kontejner, kontekst) {
     dugme.disabled = false;
     dugme.textContent = "Pokreni analizu";
     sadrzaj.setAttribute("aria-busy", "false");
-    iscrtaj(uNalaz(sirov));
+    if (izabrana.oblik === "skor") iscrtajSkor(sirov);
+    else if (izabrana.oblik === "ugovor") iscrtajUgovor(sirov);
+    else iscrtaj(uNalaz(sirov));
     sadrzaj.focus();
   });
 

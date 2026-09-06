@@ -4,7 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from starlette.requests import Request as StarletteRequest
 
 
@@ -344,3 +344,71 @@ async def test_uloga_nema_pristupa():
         result = await moja_uloga_na_predmetu("strani-predmet", _fake_request(), _saradnik_user())
 
     assert result["uloga"] is None
+
+
+# ─── Z017.2 SS4 -- uklonjen saradnik gubi pristup (stateful, ne staticka fixtura) ──
+
+@pytest.mark.anyio
+async def test_uklonjen_saradnik_gubi_pristup():
+    """`moja_uloga_na_predmetu` mora ponovo pitati bazu svaki put, ne pamtiti
+    raniji odgovor -- inace bi uklonjen saradnik zadrzao pristup dok se
+    nesto drugo (npr. token) ne osvezi. Stateful dvojnik: DELETE stvarno
+    uklanja red iz istog "stanja" koje sledeci SELECT cita, isto kao prava
+    baza -- staticka fixtura (uloga_row=X uvek) ne bi mogla da dokaze ovo."""
+    from routers.saradnja import ukloni_saradnika, moja_uloga_na_predmetu
+
+    stanje = {"clan": {"uloga": "saradnja"}}  # saradnik JOS ima pristup
+
+    def _table(name):
+        t = MagicMock()
+        if name == "predmeti":
+            # `moja_uloga_na_predmetu` prvo proverava vlasnistvo preko
+            # .eq("id",...).eq("user_id", uid) -- mora stvarno da gleda KOJI
+            # uid je upitan, inace bi i saradnik "video" da je vlasnik.
+            def _eq_id(polje, vrednost):
+                m = MagicMock()
+                if polje == "id" and vrednost == _PREDMET_ID:
+                    def _eq_uid(polje2, vrednost2):
+                        m2 = MagicMock()
+                        red = [_PREDMET_ROW] if (polje2 == "user_id" and vrednost2 == "uid-vlasnik-001") else []
+                        m2.execute.return_value.data = red
+                        return m2
+                    m.eq.side_effect = _eq_uid
+                else:
+                    m.eq.return_value.execute.return_value.data = []
+                return m
+            t.select.return_value.eq.side_effect = _eq_id
+        elif name == "predmet_saradnici":
+            # DELETE -- stvarno uklanja iz `stanje`, ne samo vraca fiksan odgovor
+            del_m = MagicMock()
+            def _delete_execute():
+                bio = stanje["clan"] is not None
+                stanje["clan"] = None
+                return MagicMock(data=[{"id": "sar-id-001"}] if bio else [])
+            del_m.execute.side_effect = _delete_execute
+            t.delete.return_value.eq.return_value.eq.return_value.eq.return_value = del_m
+            # SELECT uloga -- cita TRENUTNO stanje, ne ono od pre poziva iznad
+            sel = MagicMock()
+            def _select_execute():
+                red = [stanje["clan"]] if stanje["clan"] else []
+                return MagicMock(data=red)
+            sel.execute.side_effect = _select_execute
+            t.select.return_value.eq.return_value.eq.return_value.limit.return_value = sel
+        return t
+
+    mock = MagicMock()
+    mock.table.side_effect = _table
+
+    with patch("routers.saradnja._get_supa", return_value=mock), \
+         patch("routers.saradnja._audit_log", new=AsyncMock()), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()):
+        # PRE uklanjanja: saradnik ima pristup
+        pre = await moja_uloga_na_predmetu(_PREDMET_ID, _fake_request(), _saradnik_user())
+        assert pre["uloga"] == "saradnja"
+
+        # Uklanjanje -- vlasnik uklanja saradnika
+        await ukloni_saradnika(_PREDMET_ID, "uid-saradnik-002", _fake_request(), _vlasnik())
+
+        # POSLE uklanjanja: ISTI poziv, ISTI predmet -- pristup je nestao
+        posle = await moja_uloga_na_predmetu(_PREDMET_ID, _fake_request(), _saradnik_user())
+        assert posle["uloga"] is None
