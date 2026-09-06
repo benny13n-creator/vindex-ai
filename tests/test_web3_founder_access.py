@@ -195,17 +195,24 @@ def test_F_izmena_ne_dira_tenant_ni_rbac():
                           capture_output=True, text=True).stdout.split()
     zabranjeno_fajlovi = [f for f in diff if f.startswith(("migrations/", "shared/permissions.py",
                                                            "routers/ofac_screening.py",
-                                                           "routers/wallet_provenance.py",
-                                                           "routers/source_of_funds.py"))]
+                                                           "routers/wallet_provenance.py"))]
     assert not zabranjeno_fajlovi, "dirane su zabranjene povrsine: %s" % zabranjeno_fajlovi
 
-    if "routers/web3.py" in diff:
-        patch = subprocess.run(["git", "diff", "HEAD", "--", "routers/web3.py"], cwd=koren,
+    # routers/web3.py i routers/source_of_funds.py -- isti sadrzajski uslov kao
+    # gore (SS177-187): diff je dozvoljen, permission/tenant/scoping linija nije.
+    # source_of_funds.py je dodat u ovaj sadrzajski-proveren skup Z017.2 kada je
+    # Pattern A (carf_dac8_readiness_sync str->dict) zahtevao popravku njegovog
+    # jedinog internog poziva te funkcije (dossier_pdf i dalje ocekuje str) --
+    # popravka je cisto tip-prilagodjavanje, ne RBAC izmena, dokazano ispod.
+    for f in ("routers/web3.py", "routers/source_of_funds.py"):
+        if f not in diff:
+            continue
+        patch = subprocess.run(["git", "diff", "HEAD", "--", f], cwd=koren,
                                capture_output=True, text=True).stdout
         dirane_linije = [l for l in patch.splitlines() if l.startswith(("+", "-")) and not l.startswith(("+++", "---"))]
         rbac_markeri = _re.compile(r"PermissionService|Depends\(|tenant_id|user\[.user_id.\]|require\(")
         rbac_dirano = [l for l in dirane_linije if rbac_markeri.search(l)]
-        assert not rbac_dirano, "routers/web3.py diff dira permission/tenant liniju: %s" % rbac_dirano
+        assert not rbac_dirano, "%s diff dira permission/tenant liniju: %s" % (f, rbac_dirano)
 
     perm = _io.open(_os.path.join(koren, "shared", "permissions.py"), encoding="utf-8").read()
     assert "digital_assets" not in perm or "addon_required" in perm, (

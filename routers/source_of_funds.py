@@ -79,7 +79,13 @@ async def post_source_of_funds_dossier(
     try:
         health_task = asyncio.to_thread(_documentation_health_score, req.opis_dokumentacije, api_key)
         carf_task = asyncio.to_thread(_carf_dac8_readiness, carf_pitanje, api_key)
-        health_rezultat, carf_odgovor = await asyncio.gather(health_task, carf_task)
+        health_rezultat, carf_rezultat = await asyncio.gather(health_task, carf_task)
+        # Z017.2 Pattern A promenio je carf_dac8_readiness_sync sa str na dict
+        # {odgovor, izvori, retrieval_unavailable} -- generisi_dossier_pdf i
+        # dalje ocekuje str (v. dossier_pdf.py:95,181). PDF dossier ne
+        # prikazuje izvore strukturno (sledeci korak); za sada samo tekst
+        # prelazi u PDF, isto ponasanje kao pre ove izmene.
+        carf_odgovor = carf_rezultat.get("odgovor", "") if isinstance(carf_rezultat, dict) else carf_rezultat
     except Exception:
         logger.exception("[F16] Greška pri generisanju AI sekcija dossier-a")
         raise HTTPException(status_code=500, detail="Greška pri analizi. Pokušajte ponovo.")
