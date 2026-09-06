@@ -24,6 +24,7 @@ import { procitajPlan } from "../../platform/nalog.js";
 import { blokoviNaplate } from "./naplata.js";
 import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
 import { dohvati, posalji } from "../../platform/http.js";
+import { blokUvozaKlijenata } from "./uvozKlijenata.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -202,7 +203,7 @@ function sekcijaNalog(deo, ciklus) {
 }
 
 /* ── Klijenti ───────────────────────────────────────────────────────────── */
-function sekcijaKlijenti(deo, ciklus) {
+function sekcijaKlijenti(deo, ciklus, osvezi) {
   const s = celina("klijenti", "Klijenti");
   if (deo.pao) { s.appendChild(nijeUcitano("Spisak klijenata", deo.greska)); return s; }
 
@@ -220,6 +221,7 @@ function sekcijaKlijenti(deo, ciklus) {
   if (!k.redovi.length) {
     s.appendChild(prazno("Još nema evidentiranih klijenata."));
     s.appendChild(noviK);
+    s.appendChild(blokUvozaKlijenata(ciklus, osvezi));
     return s;
   }
   if (k.ukupno !== null) {
@@ -278,6 +280,7 @@ function sekcijaKlijenti(deo, ciklus) {
       `Prikazano ${k.redovi.length} od ${k.ukupno}. Ostale nađite kroz pretragu (Ctrl+K).`));
   }
   s.appendChild(noviK);
+  s.appendChild(blokUvozaKlijenata(ciklus, osvezi));
   return s;
 }
 
@@ -690,7 +693,7 @@ export function montirajKancelariju(kontejner) {
     const izPrethodne = elementPoruke();
     if (izPrethodne) okvir.appendChild(izPrethodne);
     okvir.appendChild(sekcijaNalog(d.nalog, ciklus));
-    okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus));
+    okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus, ucitajIPrikazi));
     okvir.appendChild(sekcijaNaplata(d.naplata, d.rad, ciklus, ucitajIPrikazi));
     okvir.appendChild(sekcijaTim(d.tim, ciklus, ucitajIPrikazi));
     sadrzaj.replaceChildren(okvir);
