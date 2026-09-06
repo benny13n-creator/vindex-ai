@@ -113,6 +113,22 @@ export function montirajNovPredmet(kontejner, kontekst) {
     "Predmet se otvara nazivom. Stranke, broj i vrednost spora mogu se dopuniti kasnije u Dosijeu."));
   unutra.appendChild(zaglavlje);
 
+  // Predmet moze nastati i IZ DOKUMENTA (A7). Ista svrha, drugi put — pa
+  // prekidac, a ne zasebna stavka u globalnoj navigaciji.
+  const prekidacNacina = el("nav", "v2-prekidac");
+  prekidacNacina.setAttribute("aria-label", "Kako otvarate predmet");
+  const ovdeNacin = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Ručno");
+  ovdeNacin.setAttribute("aria-current", "page");
+  const kaUvozu = el("a", "v2-prekidac__stavka", "Iz dokumenta");
+  kaUvozu.href = putanjaZa("predmeti", "uvoz");
+  ciklus.slusaj(kaUvozu, "click", (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    idiNa("predmeti", "uvoz");
+  });
+  prekidacNacina.append(ovdeNacin, kaUvozu);
+  unutra.appendChild(prekidacNacina);
+
   const forma = el("form", "v2-forma");
   forma.noValidate = true;
 

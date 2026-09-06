@@ -148,3 +148,47 @@
 }
 .v2-reg__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
 .v2-reg__red:has(.v2-reg__veza:hover) { background: var(--v2-papir-2); }
+
+/* ── Uvoz iz dokumenta (A7) ──────────────────────────────────────────────
+ * Podatak koji traži pregled NE SME da izgleda isto kao podatak koji ne
+ * traži: razlika mora biti vidljiva pre nego što advokat napravi predmet.
+ */
+.v2-uvoz { margin-top: var(--v2-r-5); }
+.v2-uvoz__glava { margin-bottom: var(--v2-r-4); }
+.v2-uvoz__stanje {
+  margin: 2px 0 0;
+  font-size: 15px;
+  color: var(--v2-tx-1);
+}
+.v2-uvoz__stanje[data-status="failed"] { color: var(--v2-brend); font-weight: 600; }
+.v2-uvoz__tip { margin: var(--v2-r-3) 0 0; color: var(--v2-tx-2); font-size: 14px; }
+.v2-uvoz__lista { list-style: none; margin: 0; padding: 0; }
+.v2-uvoz__entitet {
+  padding: var(--v2-r-3) 0 var(--v2-r-3) var(--v2-r-3);
+  border-bottom: 1px solid var(--v2-linija);
+  border-left: 3px solid transparent;
+}
+.v2-uvoz__entitet[data-pregled="1"] { border-left-color: var(--v2-brend); }
+.v2-uvoz__polje {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-tx-3);
+}
+.v2-uvoz__vrednost { color: var(--v2-tx-1); font-size: 15px; }
+.v2-uvoz__vrednost--nema { color: var(--v2-tx-3); font-style: italic; font-size: 14px; }
+.v2-uvoz__pouzdanost {
+  color: var(--v2-tx-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.v2-uvoz__ispravka { margin-left: var(--v2-r-3); }
+.v2-uvoz__forma-ispravke { margin-top: var(--v2-r-2); }
+.v2-uvoz__ishod { margin-top: var(--v2-r-5); }
+.v2-uvoz__naziv {
+  margin: 0 0 var(--v2-r-3);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 20px;
+  color: var(--v2-tx-1);
+}
+.v2-ograda[data-coi="COI_FAILED"] { border-left-color: var(--v2-brend); }
