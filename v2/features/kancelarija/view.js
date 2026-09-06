@@ -25,12 +25,14 @@ import { blokoviNaplate } from "./naplata.js";
 import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
 import { dohvati, posalji } from "../../platform/http.js";
 import { blokUvozaKlijenata } from "./uvozKlijenata.js";
+import { ucitajPortfolio, sadrzajPortfolia } from "./portfolio.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
   { kljuc: "klijenti", naziv: "Klijenti" },
   { kljuc: "naplata", naziv: "Naplata" },
   { kljuc: "tim", naziv: "Tim kancelarije" },
+  { kljuc: "portfolio", naziv: "Portfolio" },
 ]);
 
 function el(tag, klasa, tekst) {
@@ -696,7 +698,29 @@ export function montirajKancelariju(kontejner) {
     okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus, ucitajIPrikazi));
     okvir.appendChild(sekcijaNaplata(d.naplata, d.rad, ciklus, ucitajIPrikazi));
     okvir.appendChild(sekcijaTim(d.tim, ciklus, ucitajIPrikazi));
+
+    // Portfolio (F9) -- ucitava se ODVOJENO i POSLE jezgra, isti obrazac kao
+    // Naplata: pad ovog dela ne sme da obori ostatak Kancelarije.
+    const cPort = celina("portfolio", "Portfolio");
+    cPort.appendChild(prazno("Učitava se…"));
+    okvir.appendChild(cPort);
     sadrzaj.replaceChildren(okvir);
+
+    (async () => {
+      let p;
+      try {
+        p = await ucitajPortfolio({ signal: ciklus.prekidac().signal });
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        p = { ucitano: false, greska: e };
+      }
+      if (ciklus.ugasen) return;
+      cPort.replaceChildren();
+      const h = el("h2", "v2-celina__naslov", "Portfolio");
+      h.id = "celina-portfolio";
+      cPort.appendChild(h);
+      cPort.appendChild(sadrzajPortfolia(p, ciklus));
+    })();
   }
 
   ucitajIPrikazi();
