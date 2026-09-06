@@ -19,11 +19,11 @@ import { jePrekid, porukaZaKorisnika, VRSTA } from "../../platform/errors.js";
 import { naPrijavu, odjavi } from "../../platform/auth.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ucitajKancelariju } from "./api.js";
-import { uNalog, uKlijente, uNaplatu, uTim, uPlan } from "../../domain/kancelarija.js";
+import { uNalog, uKlijente, uNaplatu, uTim, uPlan, uMesta, uIstoriju } from "../../domain/kancelarija.js";
 import { procitajPlan } from "../../platform/nalog.js";
 import { blokoviNaplate } from "./naplata.js";
 import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
-import { posalji } from "../../platform/http.js";
+import { dohvati, posalji } from "../../platform/http.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -399,6 +399,110 @@ function blokPozivanja(ciklus, osvezi) {
   return b;
 }
 
+/** Naziv firme + mesta + istorija -- ucitava se ODVOJENO od jezgra tima, isti
+ * razlog kao Naplata u Dosijeu: admin ne sme da ceka na audit log da bi
+ * upravljao clanovima, a pad ovog dela ne sme da obori invite/suspenduj. */
+function blokAdministracijeFirme(firma, ciklus, osvezi) {
+  const b = el("div", "v2-podblok");
+  b.appendChild(el("h3", "v2-natkapa", "Administracija firme"));
+
+  // Naziv
+  const redNaziv = el("div", "v2-forma__red");
+  const nazivPolje = el("input");
+  nazivPolje.type = "text";
+  nazivPolje.value = firma || "";
+  nazivPolje.setAttribute("aria-label", "Naziv firme");
+  const sacuvajNaziv = dugme("Sačuvaj naziv");
+  redNaziv.append(nazivPolje, sacuvajNaziv);
+  b.appendChild(redNaziv);
+  const porukaNaziv = el("div", "v2-forma__poruka");
+  porukaNaziv.setAttribute("role", "alert");
+  porukaNaziv.hidden = true;
+  b.appendChild(porukaNaziv);
+
+  ciklus.slusaj(sacuvajNaziv, "click", async () => {
+    const v = nazivPolje.value.trim();
+    if (v.length < 2) {
+      porukaNaziv.className = "v2-forma__poruka v2-forma__poruka--greska";
+      porukaNaziv.textContent = "Naziv mora imati najmanje 2 znaka.";
+      porukaNaziv.hidden = false;
+      return;
+    }
+    sacuvajNaziv.disabled = true;
+    try {
+      await posalji("/api/kancelarija/naziv", { metod: "PUT", telo: { naziv: v }, signal: ciklus.prekidac().signal });
+      if (ciklus.ugasen) return;
+      ostavi("Naziv firme je sačuvan.", "uspeh");
+      osvezi();
+    } catch (err) {
+      if (jePrekid(err) || ciklus.ugasen) return;
+      sacuvajNaziv.disabled = false;
+      if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+      porukaNaziv.className = "v2-forma__poruka v2-forma__poruka--greska";
+      porukaNaziv.textContent = "Naziv nije sačuvan. " + porukaZaKorisnika(err);
+      porukaNaziv.hidden = false;
+    }
+  });
+
+  // Mesta -- placeholder dok se ne ucita
+  const mestaBlok = el("div", "v2-podblok");
+  mestaBlok.appendChild(el("h3", "v2-natkapa", "Mesta"));
+  mestaBlok.appendChild(prazno("Učitava se…"));
+  b.appendChild(mestaBlok);
+
+  // Istorija -- placeholder dok se ne ucita
+  const istorijaBlok = el("div", "v2-podblok");
+  istorijaBlok.appendChild(el("h3", "v2-natkapa", "Istorija članstva"));
+  istorijaBlok.appendChild(prazno("Učitava se…"));
+  b.appendChild(istorijaBlok);
+
+  (async () => {
+    let mesta;
+    try {
+      mesta = uMesta(await dohvati("/api/kancelarija/mesta", { signal: ciklus.prekidac().signal }));
+    } catch (e) {
+      if (jePrekid(e) || ciklus.ugasen) return;
+      mestaBlok.replaceChildren(el("h3", "v2-natkapa", "Mesta"), nijeUcitano("Pregled mesta", e));
+      return;
+    }
+    if (ciklus.ugasen) return;
+    mestaBlok.replaceChildren(el("h3", "v2-natkapa", "Mesta"));
+    if (mesta.ukupno === null) {
+      mestaBlok.appendChild(prazno("Podatak o mestima nije dostupan."));
+    } else {
+      mestaBlok.appendChild(el("p", "v2-reg__broj",
+        `${mesta.iskorisceno} od ${mesta.ukupno} mesta iskorišćeno (${mesta.slobodno} slobodno).`));
+    }
+  })();
+
+  (async () => {
+    let dogadjaji;
+    try {
+      dogadjaji = uIstoriju(await dohvati("/api/kancelarija/istorija", { signal: ciklus.prekidac().signal }));
+    } catch (e) {
+      if (jePrekid(e) || ciklus.ugasen) return;
+      istorijaBlok.replaceChildren(el("h3", "v2-natkapa", "Istorija članstva"), nijeUcitano("Istorija članstva", e));
+      return;
+    }
+    if (ciklus.ugasen) return;
+    istorijaBlok.replaceChildren(el("h3", "v2-natkapa", "Istorija članstva"));
+    if (!dogadjaji.length) {
+      istorijaBlok.appendChild(prazno("Nema zabeleženih promena članstva."));
+    } else {
+      const ul = el("ul", "v2-lista-tanka");
+      for (const d of dogadjaji) {
+        const li = el("li");
+        li.appendChild(el("span", "", d.email));
+        li.appendChild(el("span", "v2-meta", " · " + d.akcija + (d.kada ? " · " + d.kada.slice(0, 10) : "")));
+        ul.appendChild(li);
+      }
+      istorijaBlok.appendChild(ul);
+    }
+  })();
+
+  return b;
+}
+
 function sekcijaTim(deo, ciklus, osvezi) {
   const s = celina("tim", "Tim kancelarije");
   if (deo.pao) { s.appendChild(nijeUcitano("Podatak o kancelariji", deo.greska)); return s; }
@@ -468,7 +572,10 @@ function sekcijaTim(deo, ciklus, osvezi) {
     }
     s.appendChild(ul);
   }
-  if (t.jeAdmin) s.appendChild(blokPozivanja(ciklus, osvezi));
+  if (t.jeAdmin) {
+    s.appendChild(blokPozivanja(ciklus, osvezi));
+    s.appendChild(blokAdministracijeFirme(t.firma, ciklus, osvezi));
+  }
   return s;
 }
 

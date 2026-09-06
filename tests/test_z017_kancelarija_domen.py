@@ -151,6 +151,32 @@ def test_z0172_poziv_nosi_id_za_prihvati_odbij():
 
 
 @nodemark
+def test_z0172_mesta_odsutan_podatak_ostaje_null():
+    """F3 mesta -- odsutno polje ostaje null, ne 0 (0 bi tvrdilo da nema mesta)."""
+    prazno = _js("return K.uMesta({});")
+    assert prazno["ukupno"] is None and prazno["iskorisceno"] is None
+
+    puno = _js('return K.uMesta({ tier:"pro", total_allowed_seats:5, used_seats:3, available_seats:2 });')
+    assert puno == {"ukupno": 5, "iskorisceno": 3, "slobodno": 2, "tarifa": "pro"}
+
+
+@nodemark
+def test_z0172_istorija_nepoznata_akcija_ne_nestaje():
+    """Nepoznata `action` vrednost se ispisuje kakva jeste, ne nestaje iz
+    prikaza -- isti zakon kao nepoznato stanje/uloga (Z015 §19)."""
+    dogadjaji = _js(
+        'return K.uIstoriju({ events: ['
+        '{ clan_email:"a@b.rs", action:"invite", created_at:"2026-09-01T10:00:00Z" },'
+        '{ clan_email:"c@d.rs", action:"nesto_novo", created_at:"2026-09-02T10:00:00Z" },'
+        '{ clan_email:"", action:"invite", created_at:"2026-09-03T10:00:00Z" }'
+        '] });'
+    )
+    assert len(dogadjaji) == 2  # red bez email-a ispada, ne prikazuje se prazan
+    assert dogadjaji[0]["akcija"] == "Pozvan(a)"
+    assert dogadjaji[1]["akcija"] == "nesto_novo"
+
+
+@nodemark
 def test_nepoznato_stanje_tima_ne_tvrdi_da_kancelarije_nema():
     t = _js('return K.uTim({ status:"nesto_novo" });')
     assert t["stanje"] == "nepoznato"

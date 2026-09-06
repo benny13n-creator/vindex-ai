@@ -146,6 +146,32 @@ export function uTim(sirov) {
   };
 }
 
+/** Mesta (F3 -- /api/kancelarija/mesta). Admin-only, ucitava se odvojeno. */
+export function uMesta(sirov) {
+  const m = sirov || {};
+  return {
+    ukupno: Number.isFinite(m.total_allowed_seats) ? m.total_allowed_seats : null,
+    iskorisceno: Number.isFinite(m.used_seats) ? m.used_seats : null,
+    slobodno: Number.isFinite(m.available_seats) ? m.available_seats : null,
+    tarifa: tekst(m.tier),
+  };
+}
+
+const SEAT_AKCIJA_LABELS = {
+  invite: "Pozvan(a)", accept: "Prihvatio/la poziv", reject: "Odbio/la poziv",
+  suspend: "Suspendovan(a)", reactivate: "Reaktiviran(a)", remove: "Uklonjen(a)",
+};
+
+/** Istorija clanstva (F3 -- /api/kancelarija/istorija). Trajni audit trag. */
+export function uIstoriju(sirov) {
+  const events = Array.isArray(sirov && sirov.events) ? sirov.events : [];
+  return events.map(e => ({
+    email: tekst(e && e.clan_email),
+    akcija: SEAT_AKCIJA_LABELS[tekst(e && e.action)] || tekst(e && e.action) || "—",
+    kada: tekst(e && e.created_at),
+  })).filter(e => e.email);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
  * PLAN I POTROSNJA (H9)
  *
