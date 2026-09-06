@@ -18,6 +18,7 @@ import { idiNa, putanjaZa } from "../../platform/router.js";
 import { ostavi, elementPoruke } from "../../platform/obavestenje.js";
 import { sastaviKlijenta, uTeloNovog, nedostaci } from "../../domain/klijent.js";
 import { kontrolaIzmeneKlijenta, kontrolaArhiviranja } from "./radnje.js";
+import { uIstorijuKlijenta } from "../../domain/klijentIstorija.js";
 
 function el(tag, klasa, tekst) {
   const e = document.createElement(tag);
@@ -163,8 +164,48 @@ export function montirajKlijenta(kontejner, kontekst, klijentId) {
     else s3.appendChild(spisakPredmeta(k.zavrseni, ciklus));
     okvir.appendChild(s3);
 
+    // Istorija (E6) -- ucitava se ODVOJENO, isti razlog kao Naplata/Saradnja
+    // u Dosijeu: pad ove sekcije ne sme da obori prikaz klijenta.
+    const s4 = celina("istorija", "Istorija");
+    s4.appendChild(prazno("Učitava se…"));
+    okvir.appendChild(s4);
+
     sadrzaj.replaceChildren(okvir);
     document.title = k.zaglavlje.naziv + " · Vindex";
+
+    (async () => {
+      let ist;
+      try {
+        ist = uIstorijuKlijenta(await dohvati(
+          `/klijenti/${encodeURIComponent(klijentId)}/timeline`, { signal: prekidac.signal }));
+      } catch (e) {
+        if (jePrekid(e) || ciklus.ugasen) return;
+        const naslovGreske = el("h2", "v2-celina__naslov", "Istorija");
+        naslovGreske.id = "celina-istorija";
+        s4.replaceChildren(naslovGreske,
+          el("p", "v2-celina__prazno", "Istorija nije učitana. " + porukaZaKorisnika(e)));
+        return;
+      }
+      if (ciklus.ugasen) return;
+      const naslovIstorije = el("h2", "v2-celina__naslov", "Istorija");
+      naslovIstorije.id = "celina-istorija";
+      s4.replaceChildren(naslovIstorije);
+      if (!ist.dogadjaji.length) {
+        s4.appendChild(prazno("Nema zabeleženih događaja za ovog klijenta."));
+        return;
+      }
+      const ul = el("ul", "v2-lista-tanka");
+      for (const d of ist.dogadjaji) {
+        const li = el("li");
+        const red = el("p", "v2-forma__red");
+        red.appendChild(el("span", "v2-mono", d.datum.slice(0, 10)));
+        red.appendChild(el("span", "", " " + d.nazivTipa));
+        li.appendChild(red);
+        if (d.opis) li.appendChild(el("p", "v2-meta", d.opis));
+        ul.appendChild(li);
+      }
+      s4.appendChild(ul);
+    })();
   }
 
   ucitaj();
