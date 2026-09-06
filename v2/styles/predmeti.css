@@ -192,3 +192,18 @@
   color: var(--v2-tx-1);
 }
 .v2-ograda[data-coi="COI_FAILED"] { border-left-color: var(--v2-brend); }
+
+/* ── Dodirne mete na telefonu ────────────────────────────────────────────
+ * Naziv predmeta/klijenta je bio 23px visok: prst pogađa POVRŠINU, a ne
+ * slova, pa je dodir malo iznad ili ispod teksta padao na red koji nije
+ * kliktabilan. Negativna margina drži ISTI vizuelni razmak — raste samo
+ * pogodak. Gustina na širokom ekranu se NE dira: vlasnik traži operativnu
+ * gustinu, a ne razmaknute redove.
+ */
+@media (pointer: coarse), (max-width: 640px) {
+  .v2-reg__veza {
+    display: block;
+    padding: 8px 0;
+    margin: -8px 0;
+  }
+}

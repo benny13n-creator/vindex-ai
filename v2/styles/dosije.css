@@ -383,3 +383,17 @@
   .v2-naplata__zbir { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .v2-naplata__unos { align-items: flex-start; }
 }
+
+/* ── Dodirne mete na telefonu (v. predmeti.css) ────────────────────────── */
+@media (pointer: coarse), (max-width: 640px) {
+  .v2-spisi__otvori {
+    display: block;
+    padding: 8px 0;
+    margin: -8px 0;
+    text-align: left;
+  }
+  .v2-otpremi__polje,
+  input[type="file"].v2-polje-unos__kontrola {
+    min-height: 40px;
+  }
+}
