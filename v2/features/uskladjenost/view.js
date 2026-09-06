@@ -120,11 +120,23 @@ export function montirajUskladjenost(kontejner, kontekst) {
   function iscrtaj(n) {
     const okvir = document.createDocumentFragment();
 
-    // Ograda IZNAD nalaza. Stalna, ne uslovna.
-    const o = el("div", "v2-ograda v2-ograda--bez-izvora");
+    // Ograda IZNAD nalaza. Z017.2 §7: uslovna SAMO za analize koje backend
+    // stvarno prati (n.ograda.izvori postoji) -- za ostale je i dalje
+    // STALNA, nepromenjeno ponašanje (v. domain/uskladjenost.js).
+    const imaIzvore = Array.isArray(n.ograda.izvori) && n.ograda.izvori.length > 0;
+    const o = el("div", "v2-ograda" + (imaIzvore ? " v2-ograda--sa-izvorima" : " v2-ograda--bez-izvora"));
     o.setAttribute("role", "alert");
     o.appendChild(el("p", "v2-ograda__naslov", n.ograda.naslov));
     o.appendChild(el("p", "v2-ograda__telo", n.ograda.telo));
+    if (imaIzvore) {
+      const ul = el("ul", "v2-ograda__izvori");
+      for (const izv of n.ograda.izvori) {
+        const li = el("li", "v2-mono");
+        li.textContent = izv.izvor + (izv.odlomak ? " — " + izv.odlomak : "");
+        ul.appendChild(li);
+      }
+      o.appendChild(ul);
+    }
     okvir.appendChild(o);
 
     const s = el("section", "v2-uskl__nalaz");

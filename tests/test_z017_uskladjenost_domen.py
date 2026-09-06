@@ -4,14 +4,18 @@ Z017 — USKLAĐENOST (digitalna imovina), domen + kapija petog prostora.
 
 Sta ovi testovi cuvaju, a sto se iz koda ne vidi:
 
-  1. OGRADA JE STALNA, NE USLOVNA.
-     Mereno na samim rutama: `POST /web3/*` vraca `{rezultat, modul,
-     credits_remaining}` — bez `izvori`, bez `confidence`, bez
-     `izvori_neuspeh`. To je merljiva razlika u odnosu na `/api/pitanje`.
-     Posledica: poreklo zakljucka se NE MOZE prikazati, pa ograda ne sme da
-     zavisi od sadrzaja odgovora. Da je uslovna, „dobar" nalaz bi izgledao
-     jednako potkrepljen kao odgovor sa pet clanova zakona.
-     `test_ograda_stoji_uz_svaki_nalaz`.
+  1. OGRADA JE STALNA ZA ANALIZE BEZ RETRIEVAL-A, USLOVNA ZA ONE SA NJIM.
+     Z017.2 §5/§7 PATTERN A: `/web3/compliance` i `/web3/pretraga` sada
+     STVARNO prate retrieval i vracaju `izvori`/`retrieval_unavailable` --
+     za njih je ograda uslovna (SUPPORTED/INSUFFICIENT_SOURCE/
+     SOURCE_UNAVAILABLE, `test_ograda_uslovna_kad_backend_prati_izvore`).
+     `/web3/whitepaper`, `/web3/aml-audit`, `/web3/analiziraj-ugovor` NEMAJU
+     RAG uopste (potvrdjeno citanjem web3_compliance.py) -- za njih ograda
+     ostaje STALNA, nepromenjeno, jer backend nikad nije saopstio izvore da
+     bi se pogadjalo stanje. Da je uslovna svuda bez razlike, „dobar" nalaz
+     bez ijednog stvarnog izvora bio bi jednako potkrepljen kao onaj sa pet
+     provere odredbi. `test_ograda_stoji_uz_svaki_nalaz` cuva STALNI slucaj
+     (fixture bez `izvori` polja uopste).
 
   2. PRAZAN REZULTAT NIJE NALAZ DA JE SVE USKLADJENO.
      `test_prazan_rezultat_je_oznacen_kao_prazan`.
@@ -77,6 +81,42 @@ def test_ograda_stoji_uz_svaki_nalaz(odgovor):
     n = _u(f"return U.uNalaz({odgovor});")
     assert n["ograda"]["naslov"].strip()
     assert "nije potkrepljen izvorima" in n["ograda"]["naslov"]
+
+
+@nodemark
+def test_ograda_uslovna_kad_backend_prati_izvore():
+    """Z017.2 §7 -- tri stanja, nikad pomesana. Prisustvo `izvori`/
+    `retrieval_unavailable` POLJA (ne njihova vrednost) je signal da backend
+    prati retrieval za ovu analizu -- odsustvo polja (stari, non-RAG oblik)
+    mora dati STALNU ogradu, ne SOURCE_UNAVAILABLE."""
+    # SUPPORTED -- pretraga izvrsena, nesto pronadjeno
+    potkrepljen = _u('return U.uNalaz({ rezultat: "Analiza.", '
+                     'izvori: [{izvor:"ZDI", odlomak:"Clan 5...", score:0.81}], '
+                     'retrieval_unavailable: false });')
+    assert "potkrepljen" in potkrepljen["ograda"]["naslov"].lower()
+    assert len(potkrepljen["ograda"]["izvori"]) == 1
+
+    # INSUFFICIENT_SOURCE -- pretraga izvrsena, prazan rezultat
+    nedovoljno = _u('return U.uNalaz({ rezultat: "Analiza.", izvori: [], '
+                    'retrieval_unavailable: false });')
+    assert "Nije pronađena" in nedovoljno["ograda"]["naslov"]
+
+    # SOURCE_UNAVAILABLE -- pretraga NIJE izvrsena (razlicito od gornjeg!)
+    nedostupno = _u('return U.uNalaz({ rezultat: "Analiza.", izvori: [], '
+                    'retrieval_unavailable: true });')
+    assert "nije mogao biti proveren" in nedostupno["ograda"]["naslov"]
+    assert nedostupno["ograda"]["naslov"] != nedovoljno["ograda"]["naslov"]
+
+
+@nodemark
+def test_ograda_stalna_kad_backend_ne_saopstava_izvore():
+    """whitepaper/aml/ugovor -- odsustvo `izvori` polja u odgovoru NIKAD ne
+    sme se protumaciti kao SOURCE_UNAVAILABLE. To bi bila pogadjanje stanja
+    koje backend nikad nije saopstio (§6: NE popunjavaj unknown vrednosti
+    pretpostavkama)."""
+    n = _u('return U.uNalaz({ rezultat: "Whitepaper analiza.", modul: "whitepaper_check" });')
+    assert "nije potkrepljen izvorima" in n["ograda"]["naslov"]
+    assert "izvori" not in n["ograda"] or n["ograda"].get("izvori") is None
 
 
 @nodemark

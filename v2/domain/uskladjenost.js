@@ -101,6 +101,43 @@ export const OGRADA = Object.freeze({
       + "za izjavu prema nadzornom organu.",
 });
 
+/**
+ * Z017.2 §7 -- provenance semantika, SAMO za analize čiji backend stvarno
+ * prati retrieval ("regulativa"=/web3/compliance, "pretraga"=/web3/pretraga
+ * -- obe nose `izvori`/`retrieval_unavailable` posle Pattern A popravke).
+ * "whitepaper"/"aml"/"ugovor" NEMAJU RAG uopšte (potvrđeno čitanjem
+ * web3_compliance.py -- nijedna ne poziva _get_index/_ugradi_query), pa se
+ * za njih NE pogađa stanje koje backend nikad nije saopštio -- ostaju na
+ * STALNOJ `OGRADA` iznad, nepromenjeno.
+ *
+ * Tri stanja se NIKAD ne mešaju (§6): SOURCE_UNAVAILABLE (pretraga NIJE
+ * izvršena) != INSUFFICIENT_SOURCE (izvršena, ništa iznad praga) !=
+ * SUPPORTED (izvršena, nešto pronađeno -- i dalje samo polazna tačka).
+ */
+const OGRADA_IZVOR_NEDOSTUPAN = Object.freeze({
+  naslov: "Izvor nije mogao biti proveren",
+  telo: "Pretraga baze propisa trenutno nije bila dostupna, pa se poreklo ovog nalaza ne može "
+      + "potvrditi. Ovo NE znači da propis ne postoji ili da je nalaz netačan — znači da nije "
+      + "proveren u ovom pokušaju. Pokušajte ponovo pre nego što se oslonite na njega.",
+});
+
+const OGRADA_NEDOVOLJAN_IZVOR = Object.freeze({
+  naslov: "Nije pronađena odgovarajuća odredba",
+  telo: "Pretraga je izvršena, ali nije pronašla dovoljno relevantnu odredbu za ovo pitanje. "
+      + "Odsustvo pogotka ne znači da propis ne postoji — znači da nije pronađen i proveren u "
+      + "ovoj bazi. Koristite ovo kao polaznu tačku istraživanja, nikada kao regulatorno mišljenje.",
+});
+
+function ogradaPotkrepljena(izvori) {
+  return {
+    naslov: "Nalaz je potkrepljen pronađenim odredbama",
+    telo: "Ispod stoje stvarno preuzeti odlomci na kojima se ovaj nalaz delimično zasniva. "
+        + "I dalje proverite izvor pre oslanjanja na njega u konkretnom slučaju — pronalaženje "
+        + "odlomka ne znači da je model ispravno protumačio njegov sadržaj.",
+    izvori,
+  };
+}
+
 function tekst(v) {
   return String(v == null ? "" : v).trim();
 }
@@ -120,10 +157,25 @@ export function uNalaz(sirov) {
   else if (r && typeof r === "object") {
     telo = tekst(r.tekst || r.analiza || r.odgovor || r.rezultat || "");
   }
+
+  let ograda = OGRADA;
+  const pratiIzvore = o
+    && (Object.prototype.hasOwnProperty.call(o, "izvori")
+        || Object.prototype.hasOwnProperty.call(o, "retrieval_unavailable"));
+  if (pratiIzvore) {
+    if (o.retrieval_unavailable === true) {
+      ograda = OGRADA_IZVOR_NEDOSTUPAN;
+    } else if (Array.isArray(o.izvori) && o.izvori.length > 0) {
+      ograda = ogradaPotkrepljena(o.izvori);
+    } else {
+      ograda = OGRADA_NEDOVOLJAN_IZVOR;
+    }
+  }
+
   return {
     telo,
     prazan: telo === "",
     modul: tekst(o.modul),
-    ograda: OGRADA,
+    ograda,
   };
 }
