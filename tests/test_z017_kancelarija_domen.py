@@ -132,6 +132,25 @@ def test_tri_stanja_tima():
 
 
 @nodemark
+def test_z0172_samo_admin_dobija_upravljanje_timom():
+    """F3 (Z017.2 SS9) -- jeAdmin je JEDINI signal koji otkljucava upravljanje
+    u view.js. Backend (`_require_firma_admin`) odbija ne-admina sa 403 --
+    ovaj domenski flag mora tacno da odrazi taj uslov, ne priblizno."""
+    admin = _js('return K.uTim({ status:"aktivan", firma:{naziv:"X"}, moja_uloga:"admin" });')
+    saradnik = _js('return K.uTim({ status:"aktivan", firma:{naziv:"X"}, moja_uloga:"saradnik" });')
+    partner = _js('return K.uTim({ status:"aktivan", firma:{naziv:"X"}, moja_uloga:"partner" });')
+    assert admin["jeAdmin"] is True
+    assert saradnik["jeAdmin"] is False
+    assert partner["jeAdmin"] is False
+
+
+@nodemark
+def test_z0172_poziv_nosi_id_za_prihvati_odbij():
+    p = _js('return K.uTim({ status:"pending_invite", firma_naziv:"AK Petrović", invite_id:"inv-1" });')
+    assert p["pozivId"] == "inv-1"
+
+
+@nodemark
 def test_nepoznato_stanje_tima_ne_tvrdi_da_kancelarije_nema():
     t = _js('return K.uTim({ status:"nesto_novo" });')
     assert t["stanje"] == "nepoznato"

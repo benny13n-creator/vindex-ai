@@ -120,6 +120,7 @@ export function uTim(sirov) {
       stanje: "poziv",
       poruka: `Pozvani ste u kancelariju „${tekst(t.firma_naziv)}".`,
       firma: tekst(t.firma_naziv),
+      pozivId: tekst(t.invite_id),
     };
   }
   if (stanje !== "aktivan") {
@@ -130,10 +131,16 @@ export function uTim(sirov) {
     stanje: "aktivan",
     firma: tekst(t.firma && t.firma.naziv),
     mojaUloga: tekst(t.moja_uloga),
+    // Upravljanje timom (pozovi/suspenduj/reaktiviraj/ukloni) je SAMO za
+    // administratora firme -- backend (`_require_firma_admin`) odbija sve
+    // ostale sa 403, ovde se isti uslov ogleda da dugmad uopste ne izlaze
+    // radnju koju server nikad ne bi izvrsio.
+    jeAdmin: tekst(t.moja_uloga) === "admin",
     clanovi: clanovi.map(c => ({
       id: (c && c.id) || "",
       email: tekst(c && c.email),
       uloga: tekst(c && (c.uloga_label || c.uloga)),
+      ulogaSirova: tekst(c && c.uloga),
       stanje: tekst(c && c.status),
     })).filter(c => c.email),
   };

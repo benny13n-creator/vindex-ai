@@ -63,7 +63,7 @@ function redSaradnika(s, predmetId, ciklus, osvezi) {
   li.appendChild(glavni);
   li.appendChild(el("span", "v2-meta", " · " + s.ulogaNaziv));
 
-  const ukloni = el("button", "v2-dugme-tekst v2-dugme-tekst--opasnost", "Ukloni");
+  const ukloni = el("button", "v2-dugme v2-dugme--opasno", "Ukloni");
   ukloni.type = "button";
   ciklus.slusaj(ukloni, "click", async () => {
     if (!window.confirm(`Ukloniti ${s.email} sa ovog predmeta?`)) return;

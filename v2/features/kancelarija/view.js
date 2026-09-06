@@ -22,7 +22,8 @@ import { ucitajKancelariju } from "./api.js";
 import { uNalog, uKlijente, uNaplatu, uTim, uPlan } from "../../domain/kancelarija.js";
 import { procitajPlan } from "../../platform/nalog.js";
 import { blokoviNaplate } from "./naplata.js";
-import { elementPoruke } from "../../platform/obavestenje.js";
+import { elementPoruke, ostavi } from "../../platform/obavestenje.js";
+import { posalji } from "../../platform/http.js";
 
 export const CELINE = Object.freeze([
   { kljuc: "nalog", naziv: "Nalog" },
@@ -266,11 +267,184 @@ function sekcijaNaplata(deo, rad, ciklus, osvezi) {
   return s;
 }
 
-/* ── Tim ────────────────────────────────────────────────────────────────── */
-function sekcijaTim(deo) {
+/* ── Tim ────────────────────────────────────────────────────────────────── *
+ * F3 (Z017.2 SS9) -- prikaz je oduvek bio potpun; upravljanje (pozovi/
+ * suspenduj/reaktiviraj/ukloni/prihvati/odbij) NIJE postojalo u V2 uopste,
+ * bez obzira na `no_firma`. Ovde se dodaju stvarne radnje, svaka pozivom
+ * postojece backend rute (`routers/kancelarija.py`) koja vec sprovodi
+ * ovlascenje -- dugmad se ovde SAMO uslovljavaju istim pravilom (jeAdmin,
+ * status clana) da nikad ne ponude radnju koju server nece izvrsiti.
+ */
+
+function dugme(tekst, klasa) {
+  const b = el("button", klasa || "v2-dugme v2-dugme--tiho", tekst);
+  b.type = "button";
+  return b;
+}
+
+function redAkcija(c, ciklus, osvezi) {
+  const akcije = el("span", "v2-klijenti__akcije");
+  if (c.stanje === "ACTIVE") {
+    const b = dugme("Suspenduj", "v2-dugme v2-dugme--opasno");
+    ciklus.slusaj(b, "click", async () => {
+      b.disabled = true;
+      try {
+        await posalji(`/api/kancelarija/suspenduj/${encodeURIComponent(c.id)}`, {
+          signal: ciklus.prekidac().signal,
+        });
+        if (ciklus.ugasen) return;
+        ostavi(`${c.email} suspendovan(a).`, "uspeh");
+        osvezi();
+      } catch (err) {
+        if (jePrekid(err) || ciklus.ugasen) return;
+        b.disabled = false;
+        if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+        ostavi("Suspenzija nije uspela. " + porukaZaKorisnika(err), "greska");
+      }
+    });
+    akcije.appendChild(b);
+  } else if (c.stanje === "SUSPENDED") {
+    const b = dugme("Reaktiviraj");
+    ciklus.slusaj(b, "click", async () => {
+      b.disabled = true;
+      try {
+        await posalji(`/api/kancelarija/reaktiviraj/${encodeURIComponent(c.id)}`, {
+          signal: ciklus.prekidac().signal,
+        });
+        if (ciklus.ugasen) return;
+        ostavi(`${c.email} reaktiviran(a).`, "uspeh");
+        osvezi();
+      } catch (err) {
+        if (jePrekid(err) || ciklus.ugasen) return;
+        b.disabled = false;
+        if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+        ostavi("Reaktivacija nije uspela. " + porukaZaKorisnika(err), "greska");
+      }
+    });
+    akcije.appendChild(b);
+  }
+  if (c.stanje === "ACTIVE" || c.stanje === "SUSPENDED" || c.stanje === "INVITED") {
+    const u = dugme("Ukloni", "v2-dugme v2-dugme--opasno");
+    ciklus.slusaj(u, "click", async () => {
+      if (!window.confirm(`Ukloniti ${c.email} iz kancelarije?`)) return;
+      u.disabled = true;
+      try {
+        await posalji(`/api/kancelarija/ukloni/${encodeURIComponent(c.id)}`, {
+          metod: "DELETE", signal: ciklus.prekidac().signal,
+        });
+        if (ciklus.ugasen) return;
+        ostavi(`${c.email} uklonjen(a).`, "uspeh");
+        osvezi();
+      } catch (err) {
+        if (jePrekid(err) || ciklus.ugasen) return;
+        u.disabled = false;
+        if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+        ostavi("Uklanjanje nije uspelo. " + porukaZaKorisnika(err), "greska");
+      }
+    });
+    akcije.appendChild(u);
+  }
+  return akcije;
+}
+
+function blokPozivanja(ciklus, osvezi) {
+  const b = el("div", "v2-forma v2-forma--redovi");
+  const red = el("div", "v2-forma__red");
+  const email = el("input");
+  email.type = "email";
+  email.placeholder = "kolega@primer.rs";
+  email.setAttribute("aria-label", "Email kolege");
+  const uloga = el("select");
+  for (const [k, naziv] of [["saradnik", "Saradnik"], ["partner", "Partner"], ["citanje", "Čitanje"]]) {
+    const opt = el("option", "", naziv);
+    opt.value = k;
+    uloga.appendChild(opt);
+  }
+  const posalji_ = dugme("Pozovi", "v2-dugme");
+  red.append(email, uloga, posalji_);
+  const poruka = el("div", "v2-forma__poruka");
+  poruka.setAttribute("role", "alert");
+  poruka.hidden = true;
+  b.append(red, poruka);
+
+  ciklus.slusaj(posalji_, "click", async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+      poruka.className = "v2-forma__poruka v2-forma__poruka--greska";
+      poruka.textContent = "Unesite ispravnu email adresu.";
+      poruka.hidden = false;
+      return;
+    }
+    posalji_.disabled = true;
+    posalji_.textContent = "Poziva se…";
+    poruka.hidden = true;
+    try {
+      await posalji("/api/kancelarija/pozovi", {
+        telo: { email: email.value.trim(), uloga: uloga.value },
+        signal: ciklus.prekidac().signal,
+      });
+      if (ciklus.ugasen) return;
+      email.value = "";
+      ostavi("Poziv je poslat.", "uspeh");
+      osvezi();
+    } catch (err) {
+      if (jePrekid(err) || ciklus.ugasen) return;
+      posalji_.disabled = false;
+      posalji_.textContent = "Pozovi";
+      if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+      poruka.className = "v2-forma__poruka v2-forma__poruka--greska";
+      poruka.textContent = "Poziv nije poslat. " + porukaZaKorisnika(err);
+      poruka.hidden = false;
+    }
+  });
+  return b;
+}
+
+function sekcijaTim(deo, ciklus, osvezi) {
   const s = celina("tim", "Tim kancelarije");
   if (deo.pao) { s.appendChild(nijeUcitano("Podatak o kancelariji", deo.greska)); return s; }
   const t = uTim(deo.podaci);
+
+  // Pozvani korisnik dobija PRIHVATI/ODBIJ -- ranije je ovde stajala samo
+  // poruka o pozivu, bez ijedne radnje (dead end).
+  if (t.stanje === "poziv") {
+    s.appendChild(el("p", "", t.poruka));
+    const akcije = el("div", "v2-forma__red");
+    const prihvati = dugme("Prihvati", "v2-dugme");
+    const odbij = dugme("Odbij", "v2-dugme v2-dugme--opasno");
+    ciklus.slusaj(prihvati, "click", async () => {
+      prihvati.disabled = true; odbij.disabled = true;
+      try {
+        await posalji("/api/kancelarija/prihvati", { signal: ciklus.prekidac().signal });
+        if (ciklus.ugasen) return;
+        ostavi("Pridružili ste se kancelariji.", "uspeh");
+        osvezi();
+      } catch (err) {
+        if (jePrekid(err) || ciklus.ugasen) return;
+        prihvati.disabled = false; odbij.disabled = false;
+        if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+        ostavi("Prihvatanje nije uspelo. " + porukaZaKorisnika(err), "greska");
+      }
+    });
+    ciklus.slusaj(odbij, "click", async () => {
+      if (!window.confirm("Odbiti poziv u ovu kancelariju?")) return;
+      prihvati.disabled = true; odbij.disabled = true;
+      try {
+        await posalji("/api/kancelarija/odbij", { signal: ciklus.prekidac().signal });
+        if (ciklus.ugasen) return;
+        ostavi("Poziv je odbijen.", "uspeh");
+        osvezi();
+      } catch (err) {
+        if (jePrekid(err) || ciklus.ugasen) return;
+        prihvati.disabled = false; odbij.disabled = false;
+        if (err && err.vrsta === VRSTA.NEPRIJAVLJEN) { naPrijavu(); return; }
+        ostavi("Odbijanje nije uspelo. " + porukaZaKorisnika(err), "greska");
+      }
+    });
+    akcije.append(prihvati, odbij);
+    s.appendChild(akcije);
+    return s;
+  }
+
   if (t.stanje !== "aktivan") {
     s.appendChild(prazno(t.poruka));
     return s;
@@ -278,19 +452,23 @@ function sekcijaTim(deo) {
   if (t.firma) s.appendChild(el("p", "v2-reg__broj", t.firma));
   if (!t.clanovi.length) {
     s.appendChild(prazno("U kancelariji nema drugih članova."));
-    return s;
+  } else {
+    const ul = el("ul", "v2-klijenti");
+    for (const c of t.clanovi) {
+      const li = el("li", "v2-klijenti__red");
+      li.appendChild(el("span", "v2-klijenti__naziv", c.email));
+      const meta = el("span", "v2-klijenti__meta");
+      if (c.uloga) meta.appendChild(el("span", "v2-klijenti__vrsta", c.uloga));
+      if (c.stanje) meta.appendChild(el("span", "", c.stanje));
+      li.appendChild(meta);
+      // Admin ne moze da suspenduje/ukloni SEBE preko ove liste -- clanovi
+      // ovde su uvek TUDji redovi (backend clanovi tabela ne sadrzi admina).
+      if (t.jeAdmin) li.appendChild(redAkcija(c, ciklus, osvezi));
+      ul.appendChild(li);
+    }
+    s.appendChild(ul);
   }
-  const ul = el("ul", "v2-klijenti");
-  for (const c of t.clanovi) {
-    const li = el("li", "v2-klijenti__red");
-    li.appendChild(el("span", "v2-klijenti__naziv", c.email));
-    const meta = el("span", "v2-klijenti__meta");
-    if (c.uloga) meta.appendChild(el("span", "v2-klijenti__vrsta", c.uloga));
-    if (c.stanje) meta.appendChild(el("span", "", c.stanje));
-    li.appendChild(meta);
-    ul.appendChild(li);
-  }
-  s.appendChild(ul);
+  if (t.jeAdmin) s.appendChild(blokPozivanja(ciklus, osvezi));
   return s;
 }
 
@@ -362,7 +540,7 @@ export function montirajKancelariju(kontejner) {
     okvir.appendChild(sekcijaNalog(d.nalog, ciklus));
     okvir.appendChild(sekcijaKlijenti(d.klijenti, ciklus));
     okvir.appendChild(sekcijaNaplata(d.naplata, d.rad, ciklus, ucitajIPrikazi));
-    okvir.appendChild(sekcijaTim(d.tim));
+    okvir.appendChild(sekcijaTim(d.tim, ciklus, ucitajIPrikazi));
     sadrzaj.replaceChildren(okvir);
   }
 
