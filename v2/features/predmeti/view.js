@@ -15,6 +15,7 @@ import { ucitajStranu, PO_STRANI } from "./api.js";
 import { napraviStanje, novaGeneracija, jeAktuelna, STANJE } from "./state.js";
 import { idiNa, putanjaZa } from "../../platform/router.js";
 import { elementPoruke } from "../../platform/obavestenje.js";
+import { ucitajDeljenePredmete, sekcijaDeljenihPredmeta } from "./deljeni.js";
 
 const DEBOUNCE_MS = 300;
 
@@ -195,6 +196,26 @@ export function montirajPredmete(kontejner, kontekst) {
   const polozaj = el("p", "v2-str__polozaj");
   str.append(prethodna, sledeca, polozaj);
   sekcija.appendChild(str);
+
+  // Deljeni predmeti (B18, saradnikova strana) -- potpuno nezavisan blok od
+  // registra iznad: sopstveni poziv, sopstveno stanje, ne dira `s` (paginacija/
+  // pretraga). Ne dodaje se uopste dok se ne ucita I ima sadrzaj (v.
+  // sekcijaDeljenihPredmeta -- vraca null za prazno/palo), da vecina naloga
+  // bez saradnje ne vidi stalno prazan blok.
+  const deljeniMesto = el("div");
+  unutra.insertBefore(deljeniMesto, sekcija);
+  (async () => {
+    let d;
+    try {
+      d = await ucitajDeljenePredmete({ signal: ciklus.prekidac().signal });
+    } catch (e) {
+      if (jePrekid(e) || ciklus.ugasen) return;
+      return;
+    }
+    if (ciklus.ugasen) return;
+    const blok = sekcijaDeljenihPredmeta(d, ciklus);
+    if (blok) deljeniMesto.replaceWith(blok);
+  })();
 
   unutra.appendChild(sekcija);
   kontejner.appendChild(unutra);
