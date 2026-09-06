@@ -44,7 +44,7 @@ export function montirajKalendar(kontejner, kontekst) {
   const zaceto = kontekst || {};
   let dana = PROZORI.some(p => p.dana === zaceto.dana) ? zaceto.dana : 30;
 
-  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--registar");
+  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--danas");
 
   const zaglavlje = el("header", "v2-zaglavlje");
   const h1 = el("h1", "v2-naslov", "Kalendar");

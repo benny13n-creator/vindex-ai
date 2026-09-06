@@ -40,7 +40,10 @@
 }
 .v2-scena__unutra--registar { max-width: var(--v2-mera-registar); }
 .v2-scena__unutra--predmet  { max-width: var(--v2-mera-predmet); }
+.v2-scena__unutra--danas    { max-width: var(--v2-mera-danas); }
 .v2-scena__unutra--citanje  { max-width: var(--v2-mera-citanje); }
+/* Alias za prozu unutar Danas prostora (brifing.js) — ista mera kao citanje. */
+.v2-scena__unutra--tekst    { max-width: var(--v2-mera-citanje); }
 
 /* Papir scena mora dosezati do dna viewporta i kad sadrzaja ima malo. */
 .v2-glavni { flex: 1 1 auto; }

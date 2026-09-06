@@ -57,6 +57,11 @@
    *                       registar mora da koristi prostor, ne da izgleda
    *                       kao mobilni raspored centriran na sredini
    *   --v2-mera-predmet   rad u predmetu, srednja gustina
+   *   --v2-mera-danas     spisak obaveza koji se SKENIRA, ne cita kao proza:
+   *                       ni tabela (nema kolona za popunjavanje), ni proza
+   *                       (nema pasusa) — red mora ostati citljiv kao red i
+   *                       na 1920+ monitoru, bez repa mrtvog prostora do
+   *                       desne ivice `--v2-mera-registar` sirine
    *   --v2-mera-citanje   duga proza; red duzi od ~72 znaka se tesko cita
    *
    * Prva verzija je imala jednu meru od 1180px za sve i na 1920 je izgledala
@@ -64,6 +69,7 @@
    */
   --v2-mera-registar:   1440px;
   --v2-mera-predmet:    1280px;
+  --v2-mera-danas:      960px;
   --v2-mera-citanje:    72ch;
   --v2-mera:            var(--v2-mera-registar);   /* podrazumevano */
   --v2-ivica:           clamp(16px, 3vw, 48px);

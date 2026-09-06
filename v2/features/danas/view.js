@@ -164,7 +164,7 @@ function poruka({ naslov, telo, greska }) {
 
 export function montirajDanas(kontejner) {
   const ciklus = napraviCiklus();
-  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--registar");
+  const unutra = el("div", "v2-scena__unutra v2-scena__unutra--danas");
 
   const zaglavlje = el("header", "v2-zaglavlje");
   const h1 = el("h1", "v2-naslov", "Danas");
