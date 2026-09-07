@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Vindex — pravni operativni sistem. Svako polje u predmetu nosi oznaku odakle potiče. Kad izvor nedostaje, sistem to kaže.">
+<title>Vindex AI — Pravni operativni sistem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --crna:#101010; --crna-2:#1A1A1A;
+  --papir:#F6F3ED; --papir-2:#EFEBE3;
+  --tx-1-crna:#F2F2F0; --tx-2-crna:#BEBEBC; --tx-3-crna:#8C8C89;
+  --tx-1:#191814; --tx-2:#3D3A34; --tx-3:#605B52;
+  --linija:rgba(25,24,20,.16); --linija-jaca:rgba(25,24,20,.28);
+  --linija-crna:rgba(242,242,240,.14); --linija-crna-jaca:rgba(242,242,240,.24);
+  --g:#8E0B23; --g-na-crnoj:#D45A6E;
+  --serif:"Source Serif 4",Georgia,serif;
+  --sans:"Source Sans 3",-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --mera:1180px; --ivica:clamp(20px,5vw,64px);
+}
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{margin:0;background:var(--crna);color:var(--tx-1-crna);font-family:var(--sans);line-height:1.55;overflow-x:hidden;}
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--g-na-crnoj);outline-offset:2px;}
+.scena--crna{background:var(--crna);color:var(--tx-1-crna);}
+.scena--crna-2{background:var(--crna-2);color:var(--tx-1-crna);}
+.scena--papir{background:var(--papir);color:var(--tx-1);}
+.scena--papir-2{background:var(--papir-2);color:var(--tx-1);}
+.unutra{max-width:var(--mera);margin-inline:auto;padding-inline:var(--ivica);}
+
+/* ── Shell / nav ─────────────────────────────────────────────────────── */
+.shell{position:sticky;top:0;z-index:20;background:var(--crna);border-bottom:1px solid var(--linija-crna);}
+.shell__red{max-width:var(--mera);margin-inline:auto;padding:20px var(--ivica);display:flex;align-items:center;justify-content:space-between;gap:24px;}
+.shell__znak{font-family:var(--serif);font-weight:600;font-size:19px;text-decoration:none;color:var(--tx-1-crna);}
+.shell__desno{display:flex;align-items:center;gap:28px;}
+.shell__login{font-size:14px;color:var(--tx-2-crna);text-decoration:none;}
+.shell__login:hover{color:var(--tx-1-crna);}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;font-size:14px;font-weight:500;text-decoration:none;border:1px solid transparent;white-space:nowrap;}
+.btn--primarno{background:var(--g);color:#F6EDEE;}
+.btn--primarno:hover{background:#7A0A1E;}
+.btn--duh{border-color:var(--linija-crna-jaca);color:var(--tx-1-crna);}
+.btn--duh:hover{border-color:var(--tx-2-crna);}
+.btn--duh-papir{border-color:var(--linija-jaca);color:var(--tx-1);}
+.btn--duh-papir:hover{border-color:var(--tx-2);}
+
+/* ── Typographic building blocks ─────────────────────────────────────── */
+.oznaka{font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;}
+.oznaka--crna{color:var(--tx-3-crna);}
+.oznaka--papir{color:var(--tx-3);}
+
+/* ── ACT 1 — Hero (crna) ─────────────────────────────────────────────── */
+.hero{padding:clamp(64px,12vw,140px) 0 clamp(56px,9vw,100px);}
+.hero__eyebrow{margin:0 0 22px;}
+.hero__h1{font-family:var(--serif);font-weight:600;font-size:clamp(36px,5.2vw,60px);line-height:1.12;letter-spacing:-.01em;margin:0 0 26px;max-width:16ch;}
+.hero__sub{font-size:clamp(16px,1.8vw,19px);line-height:1.6;color:var(--tx-2-crna);max-width:52ch;margin:0 0 40px;}
+.hero__ctas{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:28px;}
+.hero__foot{font-size:13px;color:var(--tx-3-crna);}
+
+/* ── ACT 2 — Principles (papir) ──────────────────────────────────────── */
+.principi{padding:clamp(64px,10vw,120px) 0;}
+.principi__glava{display:grid;grid-template-columns:1fr 1fr;gap:48px;padding-bottom:36px;border-bottom:2px solid var(--linija-jaca);margin-bottom:8px;align-items:end;}
+.principi__h2{font-family:var(--serif);font-weight:600;font-size:clamp(26px,3vw,34px);margin:0;letter-spacing:-.01em;}
+.principi__opis{font-size:15px;color:var(--tx-2);line-height:1.65;margin:0;max-width:46ch;}
+.princip{display:grid;grid-template-columns:120px 1fr;gap:32px;padding:34px 0;border-bottom:1px solid var(--linija);}
+.princip:last-child{border-bottom:0;}
+.princip__idx{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--g);padding-top:4px;}
+.princip__h3{font-family:var(--serif);font-weight:600;font-size:clamp(19px,2.1vw,23px);line-height:1.3;margin:0 0 10px;max-width:30ch;}
+.princip__telo{font-size:14.5px;color:var(--tx-2);line-height:1.65;max-width:60ch;margin:0;}
+
+/* ── ACT 3 — Mechanism (crna, axis+nodes) ───────────────────────────── */
+.mehanizam{padding:clamp(64px,10vw,120px) 0;}
+.mehanizam__glava{margin-bottom:clamp(48px,7vw,84px);}
+.mehanizam__eyebrow{margin-bottom:18px;}
+.mehanizam__h2{font-family:var(--serif);font-weight:600;font-size:clamp(26px,3vw,34px);margin:0;max-width:20ch;letter-spacing:-.01em;}
+.os{position:relative;max-width:900px;}
+.os::before{content:"";position:absolute;left:50%;top:10px;bottom:10px;width:1px;background:var(--g);transform:translateX(-.5px);}
+.korak{position:relative;display:grid;grid-template-columns:1fr 64px 1fr;align-items:start;margin-bottom:clamp(40px,6vw,72px);}
+.korak:last-child{margin-bottom:0;}
+.korak__cvor{grid-column:2;justify-self:center;width:9px;height:9px;border-radius:50%;background:var(--crna);border:1.5px solid var(--g);margin-top:8px;}
+.korak__sadrzaj{max-width:44ch;}
+.korak--levo .korak__sadrzaj{grid-column:1;text-align:right;margin-left:auto;}
+.korak--desno .korak__sadrzaj{grid-column:3;}
+.korak__eyebrow{margin-bottom:12px;}
+.korak--levo .korak__eyebrow{color:var(--tx-3-crna);}
+.korak__h3{font-family:var(--serif);font-weight:600;font-size:clamp(19px,2.1vw,23px);line-height:1.3;margin:0 0 10px;}
+.korak__telo{font-size:14.5px;color:var(--tx-2-crna);line-height:1.65;margin:0;}
+@media (max-width:760px){
+  .os::before{left:9px;}
+  .korak{grid-template-columns:20px 1fr;}
+  .korak__cvor{grid-column:1;justify-self:start;margin-top:6px;}
+  .korak--levo .korak__sadrzaj,.korak--desno .korak__sadrzaj{grid-column:2;text-align:left;margin-left:0;max-width:none;}
+}
+
+/* ── ACT 4 — Trust table (papir) ─────────────────────────────────────── */
+.poverenje{padding:clamp(64px,10vw,120px) 0;}
+.poverenje__glava{max-width:60ch;margin-bottom:clamp(40px,6vw,64px);}
+.poverenje__eyebrow{margin-bottom:16px;}
+.poverenje__h2{font-family:var(--serif);font-weight:600;font-size:clamp(26px,3vw,34px);margin:0 0 14px;letter-spacing:-.01em;}
+.poverenje__sub{font-size:15.5px;color:var(--tx-2);line-height:1.6;margin:0;}
+.tabela{width:100%;border-collapse:collapse;border-top:2px solid var(--linija-jaca);}
+.tabela th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--tx-3);font-weight:600;padding:14px 20px 14px 0;border-bottom:1px solid var(--linija-jaca);}
+.tabela td{padding:20px 20px 20px 0;border-bottom:1px solid var(--linija);font-size:14.5px;line-height:1.6;vertical-align:top;}
+.tabela td:first-child{font-weight:600;color:var(--tx-1);width:30%;white-space:normal;}
+.tabela td:last-child{color:var(--tx-2);}
+.poverenje__napomena{margin-top:28px;font-family:var(--mono);font-size:12px;color:var(--tx-3);line-height:1.6;max-width:70ch;}
+.poverenje__disclaimer{margin-top:10px;font-size:13px;color:var(--tx-3);}
+@media (max-width:640px){
+  .tabela, .tabela tbody, .tabela tr, .tabela td{display:block;width:100%;}
+  .tabela thead{display:none;}
+  .tabela tr{padding:18px 0;border-bottom:1px solid var(--linija);}
+  .tabela td{border-bottom:0;padding:4px 0;}
+  .tabela td:first-child{width:auto;}
+}
+
+/* ── ACT 5 — Closing CTA (crna) ──────────────────────────────────────── */
+.zatvaranje{padding:clamp(72px,13vw,160px) 0;text-align:center;}
+.zatvaranje__eyebrow{margin-bottom:22px;}
+.zatvaranje__h2{font-family:var(--serif);font-weight:600;font-size:clamp(30px,4.4vw,48px);line-height:1.18;margin:0 auto 20px;max-width:18ch;letter-spacing:-.01em;}
+.zatvaranje__sub{font-size:16px;color:var(--tx-2-crna);max-width:44ch;margin:0 auto 36px;}
+.zatvaranje__ctas{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-bottom:22px;}
+.zatvaranje__foot{font-size:13px;color:var(--tx-3-crna);}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.podnozje{border-top:1px solid var(--linija-crna);padding:28px 0;}
+.podnozje__red{display:flex;flex-wrap:wrap;gap:10px 24px;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--tx-3-crna);}
+.podnozje__linkovi a{text-decoration:underline;text-underline-offset:3px;margin-left:18px;}
+.podnozje__linkovi a:first-child{margin-left:0;}
+
+@media (max-width:900px){
+  .principi__glava{grid-template-columns:1fr;gap:16px;}
+  .princip{grid-template-columns:1fr;gap:8px;}
+}
+</style>
+</head>
+<body>
+
+<header class="shell">
+  <div class="shell__red">
+    <a href="#" class="shell__znak">Vindex</a>
+    <div class="shell__desno">
+      <a href="/app" class="shell__login">Prijavite se</a>
+      <a href="#pristup" class="btn btn--primarno">Zatražite pristup</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ACT 1 — HERO (crna): identitet i predlog -->
+  <section class="scena--crna hero">
+    <div class="unutra">
+      <p class="oznaka oznaka--crna hero__eyebrow">PRAVNI OPERATIVNI SISTEM &middot; REPUBLIKA SRBIJA</p>
+      <h1 class="hero__h1">Vindex zna odakle zna.</h1>
+      <p class="hero__sub">Svako polje u predmetu nosi oznaku odakle potiče. Kad izvor nedostaje, sistem to kaže — ne popunjava prazninu nagađanjem.</p>
+      <div class="hero__ctas">
+        <a href="#pristup" class="btn btn--primarno">Zatražite pristup &rarr;</a>
+        <a href="/app" class="btn btn--duh">Već imam nalog</a>
+      </div>
+      <p class="hero__foot">Zatvoreno testiranje &middot; ograničen broj mesta</p>
+    </div>
+  </section>
+
+  <!-- ACT 2 — PRINCIPI (papir): na čemu je pristup zasnovan -->
+  <section class="scena--papir principi">
+    <div class="unutra">
+      <div class="principi__glava">
+        <h2 class="principi__h2">Četiri principa rada.</h2>
+        <p class="principi__opis">Ne tvrdimo da AI ne greši. Tvrdimo da svaka tvrdnja ima izvor, i da nesigurnost ostaje vidljiva — nikad sakrivena iza samopouzdanog odgovora.</p>
+      </div>
+
+      <div class="princip">
+        <div class="princip__idx">01 &middot; POREKLO</div>
+        <div>
+          <h3 class="princip__h3">Svaki podatak nosi trag odakle potiče.</h3>
+          <p class="princip__telo">Ime, datum, iznos u predmetu — svako polje beleži iz kog dokumenta je preuzeto. Poreklo se ne gubi kad se predmet doradi.</p>
+        </div>
+      </div>
+
+      <div class="princip">
+        <div class="princip__idx">02 &middot; POTVRDA</div>
+        <div>
+          <h3 class="princip__h3">Predlog nije obaveza dok ga ne potvrdite.</h3>
+          <p class="princip__telo">Rok koji sistem prepozna iz dokumenta ostaje predlog dok ga advokat ne potvrdi. Tek tada pokreće podsetnik i postaje deo rasporeda.</p>
+        </div>
+      </div>
+
+      <div class="princip">
+        <div class="princip__idx">03 &middot; GRANICA POUZDANOSTI</div>
+        <div>
+          <h3 class="princip__h3">Kad sistem nije siguran, to i kaže.</h3>
+          <p class="princip__telo">Svaki predmet nosi sopstvenu ocenu spremnosti — potpuna, delimična ili nedovoljna za pouzdan odgovor. Moduli koji koriste AI tu ocenu čitaju pre nego što progovore.</p>
+        </div>
+      </div>
+
+      <div class="princip">
+        <div class="princip__idx">04 &middot; NEIZMENJIVA EVIDENCIJA</div>
+        <div>
+          <h3 class="princip__h3">Radnja u predmetu ne može se naknadno prepraviti ni obrisati.</h3>
+          <p class="princip__telo">Svaka izmena i potvrda ostaje zabeležena u lancu koji sistem sam štiti od izmene — čak i od administratora kancelarije.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 3 — MEHANIZAM (crna): kako realno radi, tri koraka, jedina osa u sistemu -->
+  <section class="scena--crna mehanizam">
+    <div class="unutra">
+      <div class="mehanizam__glava">
+        <p class="oznaka oznaka--crna mehanizam__eyebrow">KAKO RADI</p>
+        <h2 class="mehanizam__h2">Od dokumenta do potvrđene činjenice.</h2>
+      </div>
+
+      <div class="os">
+        <div class="korak korak--levo">
+          <div class="korak__sadrzaj">
+            <p class="oznaka korak__eyebrow">KORAK 01 &middot; UNOS</p>
+            <h3 class="korak__h3">Dokument ulazi u predmet.</h3>
+            <p class="korak__telo">Više dokumenata odjednom, automatsko prepoznavanje teksta i osnovno razvrstavanje. Original ostaje sačuvan.</p>
+          </div>
+          <div class="korak__cvor"></div>
+          <div></div>
+        </div>
+        <div class="korak korak--desno">
+          <div></div>
+          <div class="korak__cvor"></div>
+          <div class="korak__sadrzaj">
+            <p class="oznaka korak__eyebrow" style="color:var(--tx-3-crna);">KORAK 02 &middot; IZDVAJANJE</p>
+            <h3 class="korak__h3">Sistem prepoznaje rokove i činjenice u tekstu.</h3>
+            <p class="korak__telo">Semantička pretraga po značenju, ne po ključnoj reči. Svaki nalaz nosi oznaku dokumenta iz kog potiče.</p>
+          </div>
+        </div>
+        <div class="korak korak--levo">
+          <div class="korak__sadrzaj">
+            <p class="oznaka korak__eyebrow">KORAK 03 &middot; POTVRDA</p>
+            <h3 class="korak__h3">Advokat potvrđuje. Tek tada je obaveza stvarna.</h3>
+            <p class="korak__telo">Potvrđen rok ulazi u raspored i pokreće podsetnik. Nepotvrđen ostaje predlog — vidljiv, ali ne i obavezujući.</p>
+          </div>
+          <div class="korak__cvor"></div>
+          <div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 4 — POVERENJE (papir): mehanizmi umesto obećanja -->
+  <section class="scena--papir poverenje">
+    <div class="unutra">
+      <div class="poverenje__glava">
+        <p class="oznaka oznaka--papir poverenje__eyebrow">ZAŠTO VEROVATI</p>
+        <h2 class="poverenje__h2">Poverenje se proverava, ne uzima zdravo za gotovo.</h2>
+        <p class="poverenje__sub">Ono što tvrdimo, možete pratiti do mehanizma koji to sprovodi.</p>
+      </div>
+
+      <table class="tabela">
+        <thead>
+          <tr><th>Mehanizam</th><th>Ponašanje</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Razdvajanje kancelarija</td><td>Pripadnost svakog zapisa proverava se u samoj operaciji nad bazom podataka.</td></tr>
+          <tr><td>Uloge unutar kancelarije</td><td>Administrativne radnje dostupne su samo određenoj ulozi, ne svakom nalogu.</td></tr>
+          <tr><td>Evidencija AI poziva</td><td>Beleži se koji model je korišćen i u okviru kog predmeta — sadržaj upita i odgovora ne ulazi u tu evidenciju.</td></tr>
+          <tr><td>Identifikacioni podaci klijenta</td><td>JMBG, broj pasoša i PIB šifrovani su na nivou polja (AES-256-GCM).</td></tr>
+          <tr><td>Nepotvrđen rok</td><td>Ne pokreće podsetnik i ne prikazuje se kao stvarna obaveza dok ga advokat ne potvrdi.</td></tr>
+        </tbody>
+      </table>
+
+      <p class="poverenje__napomena">Provere sprovodi sam sistem, kao deo arhitekture — ovo nisu nalazi nezavisne revizije treće strane.</p>
+      <p class="poverenje__disclaimer">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata.</p>
+    </div>
+  </section>
+
+  <!-- ACT 5 — PRISTUP (crna): zatvaranje -->
+  <section class="scena--crna zatvaranje" id="pristup">
+    <div class="unutra">
+      <p class="oznaka oznaka--crna zatvaranje__eyebrow">PRISTUP</p>
+      <h2 class="zatvaranje__h2">Zatvoreno testiranje, ograničen broj mesta.</h2>
+      <p class="zatvaranje__sub">Prijavite se — javljamo se pojedinačno, pre šireg pristupa.</p>
+      <div class="zatvaranje__ctas">
+        <a href="#" class="btn btn--primarno" id="cta-pristup">Zatražite pristup &rarr;</a>
+        <a href="/app" class="btn btn--duh">Već imam nalog</a>
+      </div>
+      <p class="zatvaranje__foot">Besplatno tokom zatvorenog testiranja.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="scena--crna podnozje">
+  <div class="unutra podnozje__red">
+    <div>&copy; 2026 Vindex AI. Sva prava zadržana.</div>
+    <div class="podnozje__linkovi">
+      <a href="/privacy">Politika privatnosti</a>
+      <a href="/terms">Uslovi korišćenja</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
