@@ -94,7 +94,8 @@
   --vw-radius:    0;
   --vw-container: 1200px;
   --vw-measure:   68ch;
-  --vw-header-h:  152px;
+  --vw-header-h:  120px;
+  --vw-header-edge: 36px;
 
   --vw-t-fast: 120ms;
   --vw-t-base: 180ms;
@@ -212,18 +213,26 @@ em { font-style: normal; color: var(--vw-accent); }
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--vw-line);
 }
+/* Header chrome is anchored to the viewport edge, not the centered
+   --vw-container content grid the page sections use -- the brand mark and
+   the editorial content intentionally no longer share a left axis. */
 .vw-header__inner {
-  max-width: var(--vw-container); margin: 0 auto; padding: 0 var(--vw-sp-5);
+  max-width: none; margin: 0; padding: 0 var(--vw-header-edge);
   width: 100%; display: flex; align-items: center; gap: var(--vw-sp-6);
 }
 
 .vw-logo { display: inline-flex; align-items: center; }
 .vw-logo:hover { text-decoration: none; }
 .vw-logo img { display: block; }
-.vw-header .vw-logo img { height: 120px; width: auto; }
+.vw-header .vw-logo img { height: 92px; width: auto; }
 .vw-footer .vw-logo img { height: 140px; width: auto; }
 
-.vw-nav { display: flex; gap: var(--vw-sp-5); margin-left: auto; align-items: center; }
+/* Nav links flow naturally right after the logo; the ghost ("Beta") button
+   carries its own auto margin so it and the primary CTA after it are pushed
+   to the true right edge, leaving the plain links centered in the space
+   released by the logo's move to the left edge. */
+.vw-nav { display: flex; gap: var(--vw-sp-5); align-items: center; }
+.vw-nav .vw-btn--ghost { margin-left: auto; }
 .vw-nav a {
   color: var(--vw-text-2); font-size: 0.9rem; text-decoration: none;
   transition: color var(--vw-t-fast) ease;
@@ -427,9 +436,9 @@ em { font-style: normal; color: var(--vw-accent); }
    the 1023px tier below used for content-grid collapsing -- so the full
    lockup is already reduced at exactly 1024px and the nav never wraps. */
 @media (max-width: 1024px) {
-  :root { --vw-header-h: 108px; }
+  :root { --vw-header-h: 100px; --vw-header-edge: 28px; }
   .vw-header__inner { gap: var(--vw-sp-4); }
-  .vw-header .vw-logo img { height: 76px; }
+  .vw-header .vw-logo img { height: 78px; }
   .vw-nav { gap: var(--vw-sp-4); }
 }
 
