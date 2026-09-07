@@ -24,7 +24,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/site.css">
 </head>
 <body>
@@ -110,8 +110,9 @@
     </div>
   </section>
 
-  <!-- ── PROBLEM ── redovi 5–7, status OPISNO: bez ijedne brojke ── -->
-  <section class="vw-section">
+  <!-- ── PROBLEM ── redovi 5–7, status OPISNO: bez ijedne brojke ──
+       Bone: objasnjenje/citanje (Canonical Visual Rebuild v2 material sistem). -->
+  <section class="vw-section vw-section--bone">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Problem</p>
       <h2>Spis je uredan. Znanje o njemu nije.</h2>
@@ -124,72 +125,100 @@
     </div>
   </section>
 
-  <!-- ── KAKO RADI ── redovi 8–11, doslovno ── -->
+  <!-- ── KAKO RADI ── redovi 8–11, doslovno. Sadrzaj/tekst NEPROMENJEN --
+       omotac promenjen iz .vw-grid--2 u .vw-axis (osa+cvor, jedina takva
+       upotreba van dijagrama -- opravdano stvarnim, postojecim 4-koracnim
+       procesom, v. site.css komentar iznad .vw-axis). ── -->
   <section class="vw-section">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Kako radi</p>
       <h2>Četiri koraka</h2>
-      <div class="vw-grid vw-grid--2" style="margin-top:var(--vw-sp-6)">
-        <div>
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Korak 01</p>
-          <h3>Prijem spisa</h3>
-          <p>Prevučete ceo folder dokumenata odjednom; skenirani PDF i fotografija
-             dokumenta se pročitaju prepoznavanjem teksta, a vi u živo pratite
-             obradu kroz pet faza.</p>
+      <div class="vw-axis">
+        <div class="vw-axis__korak vw-axis__korak--levo">
+          <div class="vw-axis__sadrzaj">
+            <p class="vw-eyebrow">Korak 01</p>
+            <h3>Prijem spisa</h3>
+            <p>Prevučete ceo folder dokumenata odjednom; skenirani PDF i fotografija
+               dokumenta se pročitaju prepoznavanjem teksta, a vi u živo pratite
+               obradu kroz pet faza.</p>
+          </div>
+          <div class="vw-axis__cvor"></div>
+          <div></div>
         </div>
-        <div>
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Korak 02</p>
-          <h3>Izvlačenje podataka</h3>
-          <p>Iz dokumenata se izvlače broj predmeta, sud, sudija, stranke, rok i
-             iznos — svako polje sa svojom pouzdanošću; ispod praga sigurnosti
-             dokument čeka vašu potvrdu umesto da se sam upiše.</p>
+        <div class="vw-axis__korak vw-axis__korak--desno">
+          <div></div>
+          <div class="vw-axis__cvor"></div>
+          <div class="vw-axis__sadrzaj">
+            <p class="vw-eyebrow">Korak 02</p>
+            <h3>Izvlačenje podataka</h3>
+            <p>Iz dokumenata se izvlače broj predmeta, sud, sudija, stranke, rok i
+               iznos — svako polje sa svojom pouzdanošću; ispod praga sigurnosti
+               dokument čeka vašu potvrdu umesto da se sam upiše.</p>
+          </div>
         </div>
-        <div>
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Korak 03</p>
-          <h3>Jedan opis predmeta</h3>
-          <p>AI moduli ne čitaju vaš spis svaki na svoj način — svi dobijaju isti
-             deterministički opis predmeta, koji se sastavlja bez ijednog poziva
-             modela.</p>
+        <div class="vw-axis__korak vw-axis__korak--levo">
+          <div class="vw-axis__sadrzaj">
+            <p class="vw-eyebrow">Korak 03</p>
+            <h3>Jedan opis predmeta</h3>
+            <p>AI moduli ne čitaju vaš spis svaki na svoj način — svi dobijaju isti
+               deterministički opis predmeta, koji se sastavlja bez ijednog poziva
+               modela.</p>
+          </div>
+          <div class="vw-axis__cvor"></div>
+          <div></div>
         </div>
-        <div>
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Korak 04</p>
-          <h3>Odgovor sa izvorom</h3>
-          <p>Odgovor stiže sa spiskom propisa i članova i oznakom pouzdanosti;
-             kada pouzdanog izvora nema, odgovora nema.</p>
+        <div class="vw-axis__korak vw-axis__korak--desno">
+          <div></div>
+          <div class="vw-axis__cvor"></div>
+          <div class="vw-axis__sadrzaj">
+            <p class="vw-eyebrow">Korak 04</p>
+            <h3>Odgovor sa izvorom</h3>
+            <p>Odgovor stiže sa spiskom propisa i članova i oznakom pouzdanosti;
+               kada pouzdanog izvora nema, odgovora nema.</p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ── ZAŠTO VEROVATI ── redovi 12–14. Namerno IZNAD nabrajanja funkcija. ── -->
-  <section class="vw-section">
+  <!-- ── ZAŠTO VEROVATI ── redovi 12–14. Namerno IZNAD nabrajanja funkcija.
+       Bone (dokaz/evidencija). Sadrzaj/izvori NEPROMENJENI -- omotac iz
+       .vw-grid--3 kartica u .vw-elist editorijalnu listu (ista logika kao
+       referenca "Four principles, encoded." i V2 Danas "cetiri principa"). ── -->
+  <section class="vw-section vw-section--bone">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Zašto verovati</p>
       <h2>Tri mehanizma, ne tri obećanja</h2>
-      <div class="vw-grid vw-grid--3" style="margin-top:var(--vw-sp-6)">
-        <div class="vw-proof">
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 01</p>
-          <h3>Brojeve računa program</h3>
-          <p>Brojeve koje vidite — nivo rizika, ocenu spremnosti predmeta,
-             otkrivene probleme — računa program po formuli; AI sme da ih
-             objasni, ali ne i da ih odredi.</p>
-          <span class="vw-proof__src">services/risk_engine.py</span>
+      <div class="vw-elist">
+        <div class="vw-eitem">
+          <div class="vw-eitem__idx">01 &middot; DOKAZ</div>
+          <div>
+            <h3>Brojeve računa program</h3>
+            <p>Brojeve koje vidite — nivo rizika, ocenu spremnosti predmeta,
+               otkrivene probleme — računa program po formuli; AI sme da ih
+               objasni, ali ne i da ih odredi.</p>
+            <span class="vw-proof__src">services/risk_engine.py</span>
+          </div>
         </div>
-        <div class="vw-proof">
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 02</p>
-          <h3>Nacrt ne izmišlja član</h3>
-          <p>Kada AI u nacrtu navede broj člana koji ne postoji u priloženim
-             izvorima, drugi prolaz ga zamenjuje oznakom „proveriti relevantan
-             član" — nikad drugim brojem.</p>
-          <span class="vw-proof__src">shared/drafting_grounding.py</span>
+        <div class="vw-eitem">
+          <div class="vw-eitem__idx">02 &middot; DOKAZ</div>
+          <div>
+            <h3>Nacrt ne izmišlja član</h3>
+            <p>Kada AI u nacrtu navede broj člana koji ne postoji u priloženim
+               izvorima, drugi prolaz ga zamenjuje oznakom „proveriti relevantan
+               član" — nikad drugim brojem.</p>
+            <span class="vw-proof__src">shared/drafting_grounding.py</span>
+          </div>
         </div>
-        <div class="vw-proof">
-          <p class="vw-eyebrow" style="color:var(--vw-text-2)">Dokaz 03</p>
-          <h3>Osvežava se tačno jednom</h3>
-          <p>Kad primite novi dokument ili zakažete ročište, predmet se sam
-             osvežava — i to tačno jednom: pad servera usred posla ne izaziva
-             ponovni AI trošak.</p>
-          <span class="vw-proof__src">services/case_evolution.py</span>
+        <div class="vw-eitem">
+          <div class="vw-eitem__idx">03 &middot; DOKAZ</div>
+          <div>
+            <h3>Osvežava se tačno jednom</h3>
+            <p>Kad primite novi dokument ili zakažete ročište, predmet se sam
+               osvežava — i to tačno jednom: pad servera usred posla ne izaziva
+               ponovni AI trošak.</p>
+            <span class="vw-proof__src">services/case_evolution.py</span>
+          </div>
         </div>
       </div>
     </div>
@@ -409,8 +438,8 @@
     </div>
   </section>
 
-  <!-- ── ŠTA RADI DANAS ── redovi 15–20, šest grupa ── -->
-  <section class="vw-section">
+  <!-- ── ŠTA RADI DANAS ── redovi 15–20, šest grupa ── Bone (obim/objasnjenje). -->
+  <section class="vw-section vw-section--bone">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Šta radi danas</p>
       <h2>Šest celina</h2>
@@ -459,8 +488,8 @@
 
   <!-- ── IZVORI I POVERENJE ── redovi 43–48. Redovi 46 i 47 su OBAVEZNI:
        bez njih sekcija laže. Tabela je red 47 razložen po radnjama — isti
-       sadržaj, samo pregledniji. ── -->
-  <section class="vw-section">
+       sadržaj, samo pregledniji. Bone (dokaz/tabela cinjenica). ── -->
+  <section class="vw-section vw-section--bone">
     <div class="vw-wrap">
       <p class="vw-eyebrow">Izvori i poverenje</p>
       <h2>Kada izvora nema, nema ni odgovora</h2>

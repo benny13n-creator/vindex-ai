@@ -1,65 +1,83 @@
 /* ============================================================================
    VINDEX AI — JAVNI SAJT
    ----------------------------------------------------------------------------
-   Implementacija `docs/website/DESIGN_SYSTEM.md` (Faza B).
+   CANONICAL VISUAL REBUILD (v2). Zamenjuje Fazu B paletu (skoro-crna-PLAVA +
+   cyan akcenat, jedna povrsina za ceo sajt) sa odobrenim crno/bone/G sistemom
+   -- ista cetiri reference kao V2 Danas pilot ("Reputation, ledgered.",
+   "Four principles, encoded.", "The path to inscription.", "Read the public
+   record."). Klase i imena tokena OSTAJU ISTA (`--vw-*`, `.vw-*`) -- svih 10
+   stranica u site/ deli ovaj fajl, pa promena vrednosti odmah drzi ceo sajt
+   dosledan bez diranja svake stranice pojedinacno. Struktura fajla,
+   komentari i redosled ostaju prepoznatljivi iz razloga odrzavanja.
 
    PRAVILO IMENOVANJA: svi tokeni nose prefiks `--vw-`. Sajt ne redefiniše
-   nijedno postojeće ime iz `landing.html` ili `static/vindex.css` — ta dva
-   sistema nose ista imena sa različitim vrednostima (`--font-ui` je u jednom
-   sans, u drugom monospace; `--r-sm` je 6px vs 2px). Prefiks uklanja pitanje
-   „u kom fajlu da gledam".
+   nijedno postojeće ime iz `landing.html` ili `static/vindex.css`.
 
-   OVAJ FAJL NE VAŽI ZA: `/app` (aplikacija ima svoj sistem) i 6 pravnih
-   stranica u belom „Georgia dokument" stilu — one su print-orijentisane i pod
-   testom (`tests/test_api_security.py:84-99`). Sajt ih linkuje, ne redizajnira.
+   OVAJ FAJL NE VAŽI ZA: `/app` (aplikacija ima svoj sistem, V2 ima svoj u
+   `v2/styles/tokens.css`) i 6 pravnih stranica u belom „Georgia dokument"
+   stilu — one su print-orijentisane i pod testom.
    ========================================================================= */
 
 /* ── TOKENI ───────────────────────────────────────────────────────────── */
 :root {
-  /* Podloge. Jedna podloga na celom sajtu — identitetski element #2.
-     `#010308` je skoro crna, ali PLAVA, ne `#000`. */
-  --vw-bg:            #010308;
-  --vw-surface:       #0a1220;
-  --vw-surface-2:     #0d1117;
+  /* Dve podloge, materijalna razlika, ne dekorativna (ustav §6 principa iz
+     V2): CRNA nosi identitet/predlog/mehanizam, BONE nosi objasnjenje/dokaz.
+     Isti hex kao V2-ov korigovani crni tok (istinski neutralan, ne topao
+     charcoal) -- v2/styles/tokens.css --v2-crna/--v2-crna-2. */
+  --vw-bg:            #101010;
+  --vw-surface:       #1A1A1A;
+  --vw-surface-2:     #161616;
 
-  /* Linije. Slojevi se razdvajaju LINIJOM, ne svetlinom — Bloomberg pristup.
-     Zato je kontrast površine prema podlozi namerno samo 1,10:1. */
-  --vw-line:          rgba(255, 255, 255, 0.06);
-  --vw-line-2:        rgba(255, 255, 255, 0.10);
-  --vw-line-accent:   rgba(0, 212, 255, 0.20);
-  /* NOVO. WCAG 2.1 SC 1.4.11 traži 3:1 za granice kontrola. Nasleđena ivica
-     polja je 1,21:1 — polje je praktično nevidljivo, a Beta forma je jedina
-     konverziona tačka sajta. 3,22:1. */
-  --vw-line-input:    #54606f;
+  /* Bone -- ista vrednost kao V2 --v2-papir/--v2-papir-2. Topla-neutralna,
+     NIKAD zuta/bez/sepia/pergament. */
+  --vw-bone:          #F6F3ED;
+  --vw-bone-2:        #EFEBE3;
 
-  /* Tekst. Pun hex, nikad `rgba` sa alfom: kontrast `rgba` zavisi od toga šta
-     je iza njega, i to je tačno mehanizam kojim je `--tx-3` (2,44:1) prošao
-     neprimećeno kroz ceo landing i nosio celo podnožje.
-     Sajt ima DVA nivoa teksta, ne tri. */
-  --vw-text:          #e6edf3;  /* 17,46:1 — AAA */
-  --vw-text-2:        #8b98a8;  /*  7,03:1 — AAA */
-  --vw-text-disabled: #6f7d8f;  /*  4,92:1 — AA, jedini izuzetak, namerno */
+  /* Linije. Slojevi se razdvajaju LINIJOM, ne svetlinom. Dva para -- jedan
+     za crnu, jedan za bone povrsinu -- jer ista rgba(255,255,255,..) na
+     bone podlozi ne bi bila vidljiva. */
+  --vw-line:          rgba(242, 242, 240, 0.14);
+  --vw-line-2:        rgba(242, 242, 240, 0.24);
+  --vw-line-bone:     rgba(25, 24, 20, 0.16);
+  --vw-line-bone-2:   rgba(25, 24, 20, 0.28);
+  --vw-line-accent:   rgba(142, 11, 35, 0.35);
+  /* WCAG 2.1 SC 1.4.11 -- 3:1 za granice kontrola (forme na /beta). Neutralna
+     siva, ne vise plavicasta -- ista disciplina kao ostatak sistema. */
+  --vw-line-input:    #6b6b68;
 
-  /* Akcenat. 11,65:1 na podlozi — prolazi AAA (raniji strah da je „granični za
-     AA" bio je neosnovan). Koristi se ŠTEDLJIVO: najviše tri akcentovana
-     elementa po ekranu. Teal namerno NIJE identitetski element — najgeneričniji
-     je deo izgleda. */
-  --vw-accent:        #00d4ff;
-  --vw-accent-ink:    #010308;
-  --vw-accent-soft:   rgba(0, 212, 255, 0.08);
+  /* Tekst. Dva nivoa, dva para (crna/bone). Vrednosti identicne V2-ovom
+     korigovanom near-black toku (WCAG izracunato, v. tokens.css). */
+  --vw-text:            #F2F2F0;  /* na crnoj — 16.98:1 */
+  --vw-text-2:          #BEBEBC;  /* na crnoj — 10.22:1 */
+  --vw-text-disabled:   #8C8C89;  /* na crnoj —  5.64:1, samo >=14px */
+  --vw-text-bone:       #191814;  /* na bone  — 15.4:1 */
+  --vw-text-bone-2:     #3D3A34;  /* na bone  —  9.6:1 */
+  --vw-text-bone-3:     #605B52;  /* na bone  —  5.6:1, samo >=14px */
 
-  /* Statusi — samo dva, i oba funkcionalna, nikad dekorativna.
-     `⚠` je amber, NE crvena: sajt nema stanje greške, ima granice. To što
-     izvori nisu klikabilni nije kvar nego trenutna granica. */
-  --vw-ok:            #4ade80;  /* 11,84:1 */
-  --vw-warn:          #f0b429;  /* 11,07:1 */
+  /* Akcenat. Owner-odobreno G iz slepog Round 2 testa -- STRONG PREFERENCE,
+     tacna vrednost, ne razblazena aproksimacija. Koristi se STEDLJIVO:
+     strukturni znak (linija/cvor/ivica), nikad velika ispuna, nikad boja
+     tela teksta. Cyan (`#00d4ff`, Faza B) je UKLONJEN u celosti -- bio je
+     tacno onaj "plavi/AI" akcenat koji je nova vizuelna vlast eksplicitno
+     odbila. */
+  --vw-accent:          #8E0B23;
+  --vw-accent-ink:      #F6EDEE;
+  --vw-accent-soft:     rgba(142, 11, 35, 0.08);
+  --vw-accent-on-black: #D45A6E;  /* za tekst/fokus na crnoj, 4.97:1 -- ista logika kao V2 --v2-brend-pilot-na-crnoj */
 
-  /* Tipografija — tri imenovana toka. Ime `--font-ui` se namerno ne koristi. */
-  --vw-font-brand: 'Cormorant Garamond', Georgia, serif;
-  --vw-font-text:  'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Statusi — semantika, NE brend (BA-1 nacelo: brend != status, isto pravilo
+     kao ceo V2). Nepromenjeno ovim rebuild-om. */
+  --vw-ok:            #4ade80;
+  --vw-warn:          #f0b429;
+
+  /* Tipografija — tri imenovana toka. Zamenjeni Cormorant Garamond / Plus
+     Jakarta Sans (Faza B, nikad zasebno odobreni kao brend pismo) sa vec
+     odobrenim V2 sistemom -- ista tri pisma koja nosi cela aplikacija. */
+  --vw-font-brand: 'Source Serif 4', Georgia, serif;
+  --vw-font-text:  'Source Sans 3', system-ui, -apple-system, sans-serif;
   --vw-font-data:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
-  /* Razmak — osnova 8px. Devet koraka je maksimum. */
+  /* Razmak — nepromenjeno. */
   --vw-sp-1:  4px;
   --vw-sp-2:  8px;
   --vw-sp-3: 16px;
@@ -70,13 +88,13 @@
   --vw-sp-8: 96px;
   --vw-sp-9: 128px;
 
-  /* Geometrija. JEDNA vrednost radiusa. Aplikacija pobeđuje landing (6/14px)
-     jer su „oštri uglovi" obavezujuće pravilo, a landing je jedini deo
-     proizvoda koji ga krši. Pilule i krugovi su zabranjeni. */
-  --vw-radius:    2px;
+  /* Geometrija. Radijus na 0 -- ista disciplina kao V2 (`--v2-radijus:0`,
+     ustav §7 S-1/S-2: "bez senki, bez radijusa na povrsinama"). Faza B je
+     ovde bila jedini deo proizvoda koji je to krsio (2px); vise ne krsi. */
+  --vw-radius:    0;
   --vw-container: 1200px;
-  --vw-measure:   68ch;   /* proza se NE rasteže na punih 1200px */
-  --vw-header-h:  64px;
+  --vw-measure:   68ch;
+  --vw-header-h:  72px;
 
   --vw-t-fast: 120ms;
   --vw-t-base: 180ms;
@@ -95,42 +113,45 @@ body {
   background: var(--vw-bg);
   color: var(--vw-text);
   font-family: var(--vw-font-text);
-  font-size: 1rem;          /* 16px — nikad ispod; iOS Safari zumira polja */
+  font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
-
-/* Nula senki na celom sajtu. Razdvajanje je linija + razmak + promena familije.
-   Ovo je jedina odluka koja istovremeno ispunjava „bez glow-a", uklanja 27
-   gradijenata i 10 cyan senki iz nasleđenog sistema, i daje površinama pravo
-   da postoje na 1,10:1. */
 
 h1, h2, h3 {
   font-family: var(--vw-font-brand);
+  font-weight: 600;
   color: var(--vw-text);
   margin: 0;
   text-wrap: balance;
+  letter-spacing: -0.01em;
 }
-h1 { font-size: clamp(2.4rem, 4.5vw, 5rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
-h2 { font-size: clamp(2.2rem, 3.5vw, 3.4rem); font-weight: 700; line-height: 1.10; letter-spacing: -0.02em; }
-h3 { font-size: 1.4rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.4rem, 4.5vw, 4.6rem); line-height: 1.08; }
+h2 { font-size: clamp(2rem, 3.2vw, 2.9rem); line-height: 1.14; }
+h3 { font-size: 1.35rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.005em; }
+/* h1-h3 hardkoduju --vw-text (crna-kontekst) iznad -- BEZ ovoga naslov u
+   .vw-section--bone bio bi skoro-belo na bone podlozi, gotovo nevidljiv
+   (nadjeno pri stvarnom render-u, ne teorijski). */
+.vw-section--bone h1,
+.vw-section--bone h2,
+.vw-section--bone h3 { color: var(--vw-text-bone); }
 
 p { margin: 0 0 var(--vw-sp-3); max-width: var(--vw-measure); }
 p:last-child { margin-bottom: 0; }
 
-a { color: var(--vw-accent); text-decoration: none; }
+a { color: inherit; text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-em { font-style: italic; color: var(--vw-accent); }
+em { font-style: normal; color: var(--vw-accent); }
+.vw-section--bone em { color: var(--vw-accent); }
 
-/* Fokus mora biti VIDLJIV. Nalaz iz Faze B: `focus-visible` ima nula pojava u
-   celom `static/vindex.css`, a `landing.html:46` gasi outline na svim dugmadima.
-   Sajt to ne nasleđuje. */
 :focus-visible {
-  outline: 2px solid var(--vw-accent);
+  outline: 2px solid var(--vw-accent-on-black);
   outline-offset: 2px;
 }
+.vw-section--bone :focus-visible { outline-color: var(--vw-accent); }
 
 ::selection { background: var(--vw-accent); color: var(--vw-accent-ink); }
 
@@ -141,12 +162,15 @@ em { font-style: italic; color: var(--vw-accent); }
   padding: 0 var(--vw-sp-5);
 }
 
-.vw-section { padding: var(--vw-sp-8) 0; border-top: 1px solid var(--vw-line); }
+/* Materijal po sekciji. Podrazumevano crna (identitet/predlog/mehanizam);
+   `.vw-section--bone` prebacuje na bone (objasnjenje/dokaz/citanje) --
+   svaka promena ima razlog vezan za VRSTU sadrzaja, ne mehanicko
+   naizmenicno smenjivanje (v. site/index.html komentar iznad svake sekcije). */
+.vw-section { padding: var(--vw-sp-8) 0; border-top: 1px solid var(--vw-line); background: var(--vw-bg); color: var(--vw-text); }
+.vw-section--bone { background: var(--vw-bone); color: var(--vw-text-bone); border-top-color: var(--vw-line-bone); }
 .vw-section--cta { padding: var(--vw-sp-9) 0; }
 .vw-section:first-of-type { border-top: 0; }
 
-/* Oznaka sekcije. Monospace + uppercase + tracking — hijerarhiju nosi FAMILIJA,
-   ne providnost. Tačno to je zamenilo ukinuti `--tx-3`. */
 .vw-eyebrow {
   font-family: var(--vw-font-data);
   font-size: 0.68rem;
@@ -154,9 +178,10 @@ em { font-style: italic; color: var(--vw-accent); }
   line-height: 1.2;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--vw-accent);
+  color: var(--vw-text-2);
   margin: 0 0 var(--vw-sp-3);
 }
+.vw-section--bone .vw-eyebrow { color: var(--vw-text-bone-3); }
 
 .vw-lead {
   font-size: 1.05rem;
@@ -164,10 +189,11 @@ em { font-style: italic; color: var(--vw-accent); }
   color: var(--vw-text-2);
   max-width: 520px;
 }
+.vw-section--bone .vw-lead { color: var(--vw-text-bone-2); }
 
 .vw-small { font-size: 0.875rem; line-height: 1.55; color: var(--vw-text-2); }
+.vw-section--bone .vw-small { color: var(--vw-text-bone-3); }
 
-/* Svaki broj, datum, verzija, ruta i oznaka — monospace. Obavezujuće. */
 .vw-data { font-family: var(--vw-font-data); font-size: 0.875rem; line-height: 1.45; }
 .vw-num  { font-family: var(--vw-font-data); font-size: 1.6rem; line-height: 1.10; letter-spacing: -0.01em; }
 
@@ -182,7 +208,7 @@ em { font-style: italic; color: var(--vw-accent); }
   position: sticky; top: 0; z-index: 50;
   height: var(--vw-header-h);
   display: flex; align-items: center;
-  background: rgba(1, 3, 8, 0.92);
+  background: rgba(16, 16, 16, 0.94);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--vw-line);
 }
@@ -191,14 +217,14 @@ em { font-style: italic; color: var(--vw-accent); }
   width: 100%; display: flex; align-items: center; gap: var(--vw-sp-6);
 }
 
-/* Identitetski element #1: Cormorant sa italic `<em>` u akcentu. */
 .vw-logo {
   font-family: var(--vw-font-brand);
-  font-size: 1.35rem; font-weight: 600;
-  color: var(--vw-text); text-decoration: none;
+  font-size: 1.25rem; font-weight: 600;
+  color: var(--vw-text);
   letter-spacing: -0.01em; white-space: nowrap;
 }
 .vw-logo:hover { text-decoration: none; }
+.vw-logo em { color: var(--vw-text); }
 
 .vw-nav { display: flex; gap: var(--vw-sp-5); margin-left: auto; align-items: center; }
 .vw-nav a {
@@ -218,7 +244,7 @@ em { font-style: italic; color: var(--vw-accent); }
 /* ── DUGMAD ───────────────────────────────────────────────────────────── */
 .vw-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  min-height: 44px;                       /* dodirna meta */
+  min-height: 44px;
   padding: var(--vw-sp-2) var(--vw-sp-4);
   border-radius: var(--vw-radius);
   font-family: var(--vw-font-text); font-size: 0.9rem; font-weight: 600;
@@ -230,22 +256,20 @@ em { font-style: italic; color: var(--vw-accent); }
 .vw-btn--primary {
   background: var(--vw-accent); color: var(--vw-accent-ink); border: 1px solid var(--vw-accent);
 }
-.vw-btn--primary:hover { background: #33dfff; border-color: #33dfff; }
+.vw-btn--primary:hover { background: #7A0A1E; border-color: #7A0A1E; }
 
 .vw-btn--ghost {
   background: transparent; color: var(--vw-text); border: 1px solid var(--vw-line-2);
 }
 .vw-btn--ghost:hover { background: var(--vw-accent-soft); border-color: var(--vw-line-accent); }
+.vw-section--bone .vw-btn--ghost { color: var(--vw-text-bone); border-color: var(--vw-line-bone-2); }
 
 .vw-btn[disabled], .vw-btn[aria-disabled="true"] {
   color: var(--vw-text-disabled); border-color: var(--vw-line);
   background: transparent; cursor: not-allowed;
 }
 
-/* ── MREŽA SA LINIJAMA ────────────────────────────────────────────────────
-   Najbolji nasleđeni obrazac (`landing.html:364-372`): `gap` + pozadina daju
-   hairline linije bez ijedne `border` deklaracije. Prenesen doslovno, sa 1px
-   umesto 2px. */
+/* ── MREŽA SA LINIJAMA ────────────────────────────────────────────────── */
 .vw-grid {
   display: grid; gap: 1px;
   background: var(--vw-line);
@@ -253,9 +277,11 @@ em { font-style: italic; color: var(--vw-accent); }
   border-radius: var(--vw-radius);
   overflow: hidden;
 }
+.vw-section--bone .vw-grid { background: var(--vw-line-bone); border-color: var(--vw-line-bone); }
 .vw-grid--3 { grid-template-columns: repeat(3, 1fr); }
 .vw-grid--2 { grid-template-columns: repeat(2, 1fr); }
 .vw-grid > * { background: var(--vw-bg); padding: var(--vw-sp-5); }
+.vw-section--bone .vw-grid > * { background: var(--vw-bone); }
 
 /* ── KARTICE ──────────────────────────────────────────────────────────── */
 .vw-card {
@@ -264,13 +290,42 @@ em { font-style: italic; color: var(--vw-accent); }
 }
 .vw-card h3 { margin-bottom: var(--vw-sp-3); }
 .vw-card p { color: var(--vw-text-2); max-width: 44ch; }
+.vw-section--bone .vw-card { background: var(--vw-bone-2); border-color: var(--vw-line-bone-2); }
+.vw-section--bone .vw-card p { color: var(--vw-text-bone-2); }
 
-/* Kartica dokaza — jedina sa akcentnom levom ivicom. Bez ikona, po pravilu. */
 .vw-proof { border-left: 2px solid var(--vw-accent); }
 .vw-proof__src {
   font-family: var(--vw-font-data); font-size: 0.78rem; color: var(--vw-text-2);
   margin-top: var(--vw-sp-4); padding-top: var(--vw-sp-3);
   border-top: 1px solid var(--vw-line); display: block; word-break: break-all;
+}
+.vw-section--bone .vw-proof__src { color: var(--vw-text-bone-3); border-top-color: var(--vw-line-bone); }
+
+/* ── EDITORIJALNA LISTA (novo) ────────────────────────────────────────────
+   Zamenjuje karticu-u-mrezi za "dokaz"/"princip" sadrzaj gde postoji prirodan
+   redosled -- isti obrazac kao Vindex V2 Danas "cetiri principa" i referenca
+   "Four principles, encoded.": indeks + serif izjava + telo + izvor, redovi
+   razdvojeni linijom, bez kartice/senke/radijusa. Koristi ISTI HTML sadrzaj
+   koji je ranije bio u `.vw-grid--3.vw-proof` kartici -- samo omotac je nov
+   (`.vw-elist` / `.vw-eitem`), sadrzaj/linkovi/izvori nepromenjeni. */
+.vw-elist { border-top: 2px solid var(--vw-line-bone-2); margin-top: var(--vw-sp-6); }
+.vw-section:not(.vw-section--bone) .vw-elist { border-top-color: var(--vw-line-2); }
+.vw-eitem {
+  display: grid; grid-template-columns: 110px 1fr; gap: var(--vw-sp-5);
+  padding: var(--vw-sp-6) 0; border-bottom: 1px solid var(--vw-line-bone);
+}
+.vw-section:not(.vw-section--bone) .vw-eitem { border-bottom-color: var(--vw-line); }
+.vw-eitem:last-child { border-bottom: 0; }
+.vw-eitem__idx {
+  font-family: var(--vw-font-data); font-size: 0.78rem; letter-spacing: 0.06em;
+  color: var(--vw-accent); padding-top: 4px;
+}
+.vw-eitem h3 { margin-bottom: var(--vw-sp-2); max-width: 26ch; }
+.vw-eitem p { color: var(--vw-text-bone-2); max-width: 58ch; }
+.vw-section:not(.vw-section--bone) .vw-eitem p { color: var(--vw-text-2); }
+.vw-eitem .vw-proof__src { margin-top: var(--vw-sp-3); padding-top: 0; border-top: 0; }
+@media (max-width: 639px) {
+  .vw-eitem { grid-template-columns: 1fr; gap: var(--vw-sp-2); }
 }
 
 /* ── STATUSI ──────────────────────────────────────────────────────────── */
@@ -288,6 +343,7 @@ em { font-style: italic; color: var(--vw-accent); }
   padding: var(--vw-sp-3) 0; border-bottom: 1px solid var(--vw-line);
   color: var(--vw-text-2); max-width: var(--vw-measure);
 }
+.vw-section--bone .vw-limits li { border-bottom-color: var(--vw-line-bone); color: var(--vw-text-bone-2); }
 .vw-limits li::before {
   content: "⚠"; color: var(--vw-warn); font-family: var(--vw-font-data);
   flex-shrink: 0; line-height: 1.6;
@@ -295,15 +351,16 @@ em { font-style: italic; color: var(--vw-accent); }
 .vw-limits--ok li::before { content: "✓"; color: var(--vw-ok); }
 
 /* ── DIJAGRAMI ────────────────────────────────────────────────────────────
-   Sve ilustracije su inline SVG. Nema nijednog snimka proizvoda u repou, pa
-   nijedan vizuel ne sme izgledati kao postojeći interfejs — svaki nosi vidljivu
-   napomenu da je konceptualni prikaz. */
+   Sadrzaj/geometrija NEPROMENJENI (isti stvarni tok, ista polja) -- samo
+   paleta. `--accent` klase (grananje koje nesto ODLUCUJE -- "postoji izvor"
+   vs "nema izvora", "ISPOD PRAGA" polje) nose G; sve ostalo neutralno. */
 .vw-figure { margin: var(--vw-sp-6) 0 0; }
 .vw-figure svg { width: 100%; height: auto; display: block; }
 .vw-figure figcaption {
   font-family: var(--vw-font-data); font-size: 0.68rem; letter-spacing: 0.16em;
   text-transform: uppercase; color: var(--vw-text-2); margin-top: var(--vw-sp-3);
 }
+.vw-section--bone .vw-figure figcaption { color: var(--vw-text-bone-3); }
 .vw-dia-box   { fill: var(--vw-surface); stroke: var(--vw-line-2); stroke-width: 1; }
 .vw-dia-box--accent { stroke: var(--vw-accent); }
 .vw-dia-line  { stroke: var(--vw-line-2); stroke-width: 1; fill: none; }
@@ -311,41 +368,46 @@ em { font-style: italic; color: var(--vw-accent); }
 .vw-dia-label { fill: var(--vw-text); font-family: var(--vw-font-data); font-size: 11px; letter-spacing: 0.08em; }
 .vw-dia-sub   { fill: var(--vw-text-2); font-family: var(--vw-font-data); font-size: 10px; }
 .vw-dia-ok    { fill: var(--vw-ok); font-family: var(--vw-font-data); font-size: 11px; }
+.vw-section--bone .vw-dia-box { fill: var(--vw-bone-2); stroke: var(--vw-line-bone-2); }
+.vw-section--bone .vw-dia-line { stroke: var(--vw-line-bone-2); }
+.vw-section--bone .vw-dia-label { fill: var(--vw-text-bone); }
+.vw-section--bone .vw-dia-sub { fill: var(--vw-text-bone-3); }
 
-/* ── FORMA ────────────────────────────────────────────────────────────── */
-.vw-field { margin-bottom: var(--vw-sp-4); max-width: 480px; }
-.vw-field label {
-  display: block; font-family: var(--vw-font-data); font-size: 0.68rem;
-  letter-spacing: 0.16em; text-transform: uppercase;
-  color: var(--vw-text-2); margin-bottom: var(--vw-sp-2);
+/* ── OSA + ČVOR (novo) ─────────────────────────────────────────────────────
+   Jedina upotreba crvene linije+čvorova kao SAMOSTALNOG grafičkog uređaja
+   (van dijagrama) -- rezervisano za sekcije koje opisuju STVARAN, već
+   postojeći proces sa koracima (masterprompt §7 analog: "koristi gde
+   redosled/proces to opravdava", ne dekorativno). Koristi se u "Kako radi"
+   (4 stvarna koraka) -- ista logika kao V2 Danas `.v2-danas-sekvenca` i
+   `docs/website` referenca "The path to inscription." */
+.vw-axis { position: relative; margin-top: var(--vw-sp-7); }
+.vw-axis::before {
+  content: ""; position: absolute; left: 50%; top: 6px; bottom: 6px;
+  width: 1px; background: var(--vw-accent); transform: translateX(-.5px);
 }
-.vw-field input, .vw-field textarea {
-  width: 100%; padding: var(--vw-sp-3);
-  background: var(--vw-surface);
-  border: 1px solid var(--vw-line-input);   /* 3,22:1 — mora biti vidljivo */
-  border-radius: var(--vw-radius);
-  color: var(--vw-text); font-family: var(--vw-font-text); font-size: 1rem;
-  transition: border-color var(--vw-t-fast) ease;
+.vw-axis__korak {
+  position: relative; display: grid; grid-template-columns: 1fr 56px 1fr;
+  align-items: start; margin-bottom: var(--vw-sp-7);
 }
-.vw-field input:focus, .vw-field textarea:focus { border-color: var(--vw-accent); outline: none; }
-.vw-field input:focus-visible, .vw-field textarea:focus-visible { outline: 2px solid var(--vw-accent); outline-offset: 1px; }
-.vw-field textarea { min-height: 110px; resize: vertical; }
-.vw-field__err { color: var(--vw-warn); font-size: 0.875rem; margin-top: var(--vw-sp-2); display: none; }
-.vw-field--invalid input, .vw-field--invalid textarea { border-color: var(--vw-warn); }
-.vw-field--invalid .vw-field__err { display: block; }
+.vw-axis__korak:last-child { margin-bottom: 0; }
+.vw-axis__cvor {
+  grid-column: 2; justify-self: center; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--vw-bg); border: 1.5px solid var(--vw-accent);
+  margin-top: 6px;
+}
+.vw-axis__sadrzaj { max-width: 42ch; }
+.vw-axis__korak--levo .vw-axis__sadrzaj { grid-column: 1; text-align: right; margin-left: auto; }
+.vw-axis__korak--desno .vw-axis__sadrzaj { grid-column: 3; }
+@media (max-width: 760px) {
+  .vw-axis::before { left: 9px; }
+  .vw-axis__korak { grid-template-columns: 20px 1fr; }
+  .vw-axis__cvor { grid-column: 1; justify-self: start; }
+  .vw-axis__korak--levo .vw-axis__sadrzaj,
+  .vw-axis__korak--desno .vw-axis__sadrzaj { grid-column: 2; text-align: left; margin-left: 0; max-width: none; }
+}
 
-.vw-form__msg {
-  margin-top: var(--vw-sp-4); padding: var(--vw-sp-3);
-  border-left: 2px solid var(--vw-ok); background: var(--vw-surface);
-  color: var(--vw-text); max-width: 480px; display: none;
-}
-.vw-form__msg--warn { border-left-color: var(--vw-warn); }
-.vw-form__msg[data-vidljivo="1"] { display: block; }
-
-/* ── PODNOŽJE ─────────────────────────────────────────────────────────────
-   Nasleđeni landing crta podnožje u `--tx-3` (2,44:1) i ostavlja 9 od 20
-   linkova kao `href="#"`. Ovde: `--vw-text-2` (7,03:1) i nula praznih linkova. */
-.vw-footer { border-top: 1px solid var(--vw-line); padding: var(--vw-sp-8) 0 var(--vw-sp-6); margin-top: var(--vw-sp-8); }
+/* ── PODNOŽJE ─────────────────────────────────────────────────────────── */
+.vw-footer { border-top: 1px solid var(--vw-line); padding: var(--vw-sp-8) 0 var(--vw-sp-6); margin-top: var(--vw-sp-8); background: var(--vw-bg); }
 .vw-footer__grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: var(--vw-sp-6); }
 .vw-footer h4 {
   font-family: var(--vw-font-data); font-size: 0.68rem; font-weight: 500;
@@ -363,9 +425,7 @@ em { font-style: italic; color: var(--vw-accent); }
   display: flex; justify-content: space-between; gap: var(--vw-sp-4); flex-wrap: wrap;
 }
 
-/* ── RESPONZIVNO ──────────────────────────────────────────────────────────
-   Ništa se ne sakriva na mobilnom. Ako sekcija nije vredna mobilnog, nije
-   vredna ni desktopa. */
+/* ── RESPONZIVNO ──────────────────────────────────────────────────────── */
 @media (max-width: 1023px) {
   .vw-section { padding: var(--vw-sp-7) 0; }
   .vw-section--cta { padding: var(--vw-sp-8) 0; }
@@ -384,8 +444,6 @@ em { font-style: italic; color: var(--vw-accent); }
   .vw-btn { width: 100%; }
   .vw-btn--inline { width: auto; }
 
-  /* Mobilna navigacija nosi IDENTIČAN skup stavki kao desktop. Zatečeni landing
-     ima dva različita menija — to se ne nasleđuje. */
   .vw-nav-toggle { display: inline-flex; }
   .vw-nav {
     display: none; position: absolute; top: var(--vw-header-h); left: 0; right: 0;
@@ -398,7 +456,6 @@ em { font-style: italic; color: var(--vw-accent); }
   .vw-nav .vw-btn { margin-top: var(--vw-sp-3); }
 }
 
-/* Pokret objašnjava sistem, ne skriva nedostatak sadržaja. */
 .vw-reveal { opacity: 0; transform: translateY(8px); transition: opacity var(--vw-t-base) ease, transform var(--vw-t-base) ease; }
 .vw-reveal[data-vidljivo="1"] { opacity: 1; transform: none; }
 
@@ -414,21 +471,9 @@ em { font-style: italic; color: var(--vw-accent); }
 }
 
 /* ============================================================================
-   POLISH SPRINT — dopune
-   ----------------------------------------------------------------------------
-   Nijedan postojeći token nije promenjen. Sve ispod se oslanja na `--vw-*`
-   definisane na vrhu fajla.
+   POLISH SPRINT — dopune (nepromenjena struktura, nove vrednosti)
    ========================================================================= */
 
-/* ── OKVIR ZA SNIMAK PROIZVODA ────────────────────────────────────────────
-   Komponenta je spremna, ali se NE KORISTI dok ne postoji stvaran snimak
-   aplikacije. U repou danas nema nijednog: `screenshot_login.png` prikazuje
-   STARI landing i nosi tvrdnje koje smo uklonili („POČNI BESPLATNO", „Paketi",
-   „za manje od 10 sekundi", „trenirana isključivo na srpskim zakonima").
-   Upotreba tog snimka bi vizuelno vratila sve što je tekstualno uklonjeno.
-
-   Kada stvarni snimci stignu: `<figure class="vw-shot">` sa `<img loading="lazy"
-   decoding="async" width height>` i obaveznim `<figcaption>`. */
 .vw-shot { margin: var(--vw-sp-6) 0 0; }
 .vw-shot__frame {
   border: 1px solid var(--vw-line-2);
@@ -436,7 +481,6 @@ em { font-style: italic; color: var(--vw-accent); }
   background: var(--vw-surface);
   overflow: hidden;
 }
-/* Traka prozora — signal „ovo je stvaran ekran proizvoda", bez lažnih dugmadi. */
 .vw-shot__bar {
   display: flex; align-items: center; gap: var(--vw-sp-2);
   padding: var(--vw-sp-2) var(--vw-sp-3);
@@ -450,18 +494,12 @@ em { font-style: italic; color: var(--vw-accent); }
   text-transform: uppercase; color: var(--vw-text-2); margin-top: var(--vw-sp-3);
 }
 
-/* ── ISTAKNUT BLOK ────────────────────────────────────────────────────────
-   Zamenjuje inline `style="border-left:2px solid…"` koji se ponavljao na
-   četiri mesta. */
 .vw-callout {
   border-left: 2px solid var(--vw-accent);
   padding-left: var(--vw-sp-5);
 }
 .vw-callout--warn { border-left-color: var(--vw-warn); }
 
-/* ── PUTANJA RAZVOJA (vizija) ─────────────────────────────────────────────
-   Vertikalni niz koraka sa linijom. Svaki korak nosi oznaku faze; oznaka je
-   OBAVEZNA jer razdvaja ono što postoji od pravca razvoja. */
 .vw-path { list-style: none; padding: 0; margin: var(--vw-sp-6) 0 0; position: relative; }
 .vw-path::before {
   content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px;
@@ -483,14 +521,9 @@ em { font-style: italic; color: var(--vw-accent); }
 }
 .vw-path__tag--sada { color: var(--vw-accent); }
 
-/* ── SLOJEVITA KOMPOZICIJA ────────────────────────────────────────────────
-   Dva stuba: tekst levo, vizuel desno. Na mobilnom vizuel ide ISPOD teksta —
-   nikad se ne skuplja u nečitljivu širinu. */
 .vw-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vw-sp-7); align-items: start; }
 .vw-split--wide { grid-template-columns: 5fr 7fr; }
 
-/* ── TABELA PODATAKA ──────────────────────────────────────────────────────
-   Svaka ćelija sa brojem, oznakom ili rutom je monospace — obavezujuće pravilo. */
 .vw-table { width: 100%; border-collapse: collapse; margin-top: var(--vw-sp-5); }
 .vw-table th, .vw-table td {
   text-align: left; padding: var(--vw-sp-3) var(--vw-sp-3) var(--vw-sp-3) 0;
@@ -502,6 +535,40 @@ em { font-style: italic; color: var(--vw-accent); }
 }
 .vw-table td { color: var(--vw-text-2); }
 .vw-table td:first-child { color: var(--vw-text); }
+.vw-section--bone .vw-table th, .vw-section--bone .vw-table td { border-bottom-color: var(--vw-line-bone); }
+.vw-section--bone .vw-table th { color: var(--vw-text-bone-3); }
+.vw-section--bone .vw-table td { color: var(--vw-text-bone-2); }
+.vw-section--bone .vw-table td:first-child { color: var(--vw-text-bone); font-weight: 600; }
+
+/* ── FORMA (deljeno sa /beta i /kontakt — nije dirano danas) ───────────── */
+.vw-field { margin-bottom: var(--vw-sp-4); max-width: 480px; }
+.vw-field label {
+  display: block; font-family: var(--vw-font-data); font-size: 0.68rem;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--vw-text-2); margin-bottom: var(--vw-sp-2);
+}
+.vw-field input, .vw-field textarea {
+  width: 100%; padding: var(--vw-sp-3);
+  background: var(--vw-surface);
+  border: 1px solid var(--vw-line-input);
+  border-radius: var(--vw-radius);
+  color: var(--vw-text); font-family: var(--vw-font-text); font-size: 1rem;
+  transition: border-color var(--vw-t-fast) ease;
+}
+.vw-field input:focus, .vw-field textarea:focus { border-color: var(--vw-accent-on-black); outline: none; }
+.vw-field input:focus-visible, .vw-field textarea:focus-visible { outline: 2px solid var(--vw-accent-on-black); outline-offset: 1px; }
+.vw-field textarea { min-height: 110px; resize: vertical; }
+.vw-field__err { color: var(--vw-warn); font-size: 0.875rem; margin-top: var(--vw-sp-2); display: none; }
+.vw-field--invalid input, .vw-field--invalid textarea { border-color: var(--vw-warn); }
+.vw-field--invalid .vw-field__err { display: block; }
+
+.vw-form__msg {
+  margin-top: var(--vw-sp-4); padding: var(--vw-sp-3);
+  border-left: 2px solid var(--vw-ok); background: var(--vw-surface);
+  color: var(--vw-text); max-width: 480px; display: none;
+}
+.vw-form__msg--warn { border-left-color: var(--vw-warn); }
+.vw-form__msg[data-vidljivo="1"] { display: block; }
 
 @media (max-width: 1023px) {
   .vw-split, .vw-split--wide { grid-template-columns: 1fr; gap: var(--vw-sp-6); }
