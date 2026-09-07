@@ -116,7 +116,7 @@ def test_postojece_pravne_stranice_i_dalje_rade(klijent, ruta):
 
 
 def test_css_se_servira(klijent):
-    r = klijent.get("/static/site.css")
+    r = klijent.get("/static/site-v2.css")
     assert r.status_code == 200
     assert "--vw-bg" in r.text, "servira se pogrešan CSS"
 
