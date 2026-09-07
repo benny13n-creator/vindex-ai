@@ -136,6 +136,28 @@ a{color:inherit;}
   .principi__glava{grid-template-columns:1fr;gap:16px;}
   .princip{grid-template-columns:1fr;gap:8px;}
 }
+
+/* ── Waitlist modal ──────────────────────────────────────────────────── */
+.wl-overlay{position:fixed;inset:0;z-index:100;background:rgba(8,8,8,.72);display:none;align-items:center;justify-content:center;padding:24px;}
+.wl-overlay.open{display:flex;}
+.wl-panel{background:var(--crna-2);border:1px solid var(--linija-crna-jaca);width:100%;max-width:440px;padding:clamp(28px,5vw,44px);position:relative;max-height:90vh;overflow-y:auto;}
+.wl-close{position:absolute;top:18px;right:18px;background:none;border:0;color:var(--tx-3-crna);font-size:20px;line-height:1;cursor:pointer;padding:4px;}
+.wl-close:hover{color:var(--tx-1-crna);}
+.wl-eyebrow{margin:0 0 14px;}
+.wl-h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0 0 10px;color:var(--tx-1-crna);}
+.wl-sub{font-size:14px;color:var(--tx-2-crna);line-height:1.55;margin:0 0 26px;}
+.wl-field{margin-bottom:16px;}
+.wl-label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx-3-crna);margin-bottom:7px;}
+.wl-input,.wl-textarea{width:100%;background:var(--crna);border:1px solid var(--linija-crna-jaca);color:var(--tx-1-crna);font:inherit;font-size:14.5px;padding:11px 13px;}
+.wl-input:focus,.wl-textarea:focus{outline:none;border-color:var(--tx-2-crna);}
+.wl-textarea{resize:vertical;min-height:70px;}
+.wl-submit{width:100%;margin-top:6px;justify-content:center;cursor:pointer;font:inherit;}
+.wl-msg{margin-top:14px;font-size:13px;line-height:1.5;}
+.wl-msg--err{color:var(--g-na-crnoj);}
+.wl-success{display:none;text-align:center;padding:12px 0 4px;}
+.wl-success.open{display:block;}
+.wl-success__h2{font-family:var(--serif);font-weight:600;font-size:22px;margin:0 0 12px;color:var(--tx-1-crna);}
+.wl-success__sub{font-size:14.5px;color:var(--tx-2-crna);line-height:1.6;margin:0;}
 </style>
 </head>
 <body>
@@ -145,7 +167,7 @@ a{color:inherit;}
     <a href="#" class="shell__znak">Vindex</a>
     <div class="shell__desno">
       <a href="/app" class="shell__login">Prijavite se</a>
-      <a href="#pristup" class="btn btn--primarno">Zatražite pristup</a>
+      <a href="#" class="btn btn--primarno" onclick="wlOpen();return false;">Zatražite pristup</a>
     </div>
   </div>
 </header>
@@ -159,7 +181,7 @@ a{color:inherit;}
       <h1 class="hero__h1">Vindex zna odakle zna.</h1>
       <p class="hero__sub">Svako polje u predmetu nosi oznaku odakle potiče. Kad izvor nedostaje, sistem to kaže — ne popunjava prazninu nagađanjem.</p>
       <div class="hero__ctas">
-        <a href="#pristup" class="btn btn--primarno">Zatražite pristup &rarr;</a>
+        <a href="#" class="btn btn--primarno" onclick="wlOpen();return false;">Zatražite pristup &rarr;</a>
         <a href="/app" class="btn btn--duh">Već imam nalog</a>
       </div>
       <p class="hero__foot">Zatvoreno testiranje &middot; ograničen broj mesta</p>
@@ -282,7 +304,7 @@ a{color:inherit;}
       <h2 class="zatvaranje__h2">Zatvoreno testiranje, ograničen broj mesta.</h2>
       <p class="zatvaranje__sub">Prijavite se — javljamo se pojedinačno, pre šireg pristupa.</p>
       <div class="zatvaranje__ctas">
-        <a href="#" class="btn btn--primarno" id="cta-pristup">Zatražite pristup &rarr;</a>
+        <a href="#" class="btn btn--primarno" onclick="wlOpen();return false;">Zatražite pristup &rarr;</a>
         <a href="/app" class="btn btn--duh">Već imam nalog</a>
       </div>
       <p class="zatvaranje__foot">Besplatno tokom zatvorenog testiranja.</p>
@@ -300,6 +322,112 @@ a{color:inherit;}
     </div>
   </div>
 </footer>
+
+<!-- Waitlist modal — POST /waitlist/prijava, postojeći, već testiran endpoint
+     (routers/waitlist.py, tests/test_website_public.py). Bez auth-a. Polja
+     svedena na tri (ime, email, poruka) po preporuci iz
+     docs/website/VINDEX_AI_WEBSITE_COPY_BLUEPRINT.md -- firma/telefon ostaju
+     opcioni u samom API ugovoru pa se ovde i ne šalju. -->
+<div class="wl-overlay" id="wl-overlay" role="dialog" aria-modal="true" aria-labelledby="wl-h2">
+  <div class="wl-panel">
+    <button class="wl-close" id="wl-close-btn" aria-label="Zatvori" onclick="wlClose()">&#x2715;</button>
+
+    <div id="wl-form-wrap">
+      <p class="oznaka oznaka--crna wl-eyebrow">PRISTUP</p>
+      <h2 class="wl-h2" id="wl-h2">Zatražite pristup</h2>
+      <p class="wl-sub">Javljamo se pojedinačno, pre šireg pristupa.</p>
+
+      <div class="wl-field">
+        <label class="wl-label" for="wl-ime">Ime i prezime</label>
+        <input class="wl-input" type="text" id="wl-ime" autocomplete="name" maxlength="120">
+      </div>
+      <div class="wl-field">
+        <label class="wl-label" for="wl-email">Email</label>
+        <input class="wl-input" type="email" id="wl-email" autocomplete="email">
+      </div>
+      <div class="wl-field">
+        <label class="wl-label" for="wl-poruka">Poruka <span style="text-transform:none;">(opciono)</span></label>
+        <textarea class="wl-textarea" id="wl-poruka" maxlength="500"></textarea>
+      </div>
+
+      <button class="btn btn--primarno wl-submit" id="wl-submit-btn" onclick="wlSubmit()">Prijavite se za rani pristup</button>
+      <p class="wl-msg" id="wl-msg" hidden></p>
+    </div>
+
+    <div class="wl-success" id="wl-success">
+      <h2 class="wl-success__h2">Prijava primljena.</h2>
+      <p class="wl-success__sub" id="wl-success-sub"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+function wlOpen() {
+  document.getElementById('wl-overlay').classList.add('open');
+  document.getElementById('wl-form-wrap').style.display = '';
+  document.getElementById('wl-success').classList.remove('open');
+  var msg = document.getElementById('wl-msg'); msg.hidden = true; msg.textContent = '';
+  setTimeout(function(){ var el = document.getElementById('wl-ime'); if (el) el.focus(); }, 60);
+}
+function wlClose() {
+  document.getElementById('wl-overlay').classList.remove('open');
+}
+document.getElementById('wl-overlay').addEventListener('click', function(e){
+  if (e.target === this) wlClose();
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape' && document.getElementById('wl-overlay').classList.contains('open')) wlClose();
+});
+
+async function wlSubmit() {
+  var ime = (document.getElementById('wl-ime').value || '').trim();
+  var email = (document.getElementById('wl-email').value || '').trim();
+  var poruka = (document.getElementById('wl-poruka').value || '').trim();
+  var msg = document.getElementById('wl-msg');
+
+  function pokaziGresku(tekst) {
+    msg.textContent = tekst;
+    msg.hidden = false;
+    msg.className = 'wl-msg wl-msg--err';
+  }
+
+  if (!ime) { pokaziGresku('Unesite ime i prezime.'); document.getElementById('wl-ime').focus(); return; }
+  if (!email || email.indexOf('@') === -1) { pokaziGresku('Unesite ispravnu email adresu.'); document.getElementById('wl-email').focus(); return; }
+
+  var btn = document.getElementById('wl-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Šaljem…';
+  msg.hidden = true;
+
+  try {
+    var resp = await fetch('/waitlist/prijava', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ime: ime, email: email, poruka: poruka })
+    });
+    var data = await resp.json().catch(function(){ return {}; });
+    if (resp.ok && data.ok) {
+      // Backend vraća drugaciju `poruka` za novu prijavu nego za email koji je
+      // vec na listi (routers/waitlist.py) -- prikazujemo TACNO to, ne
+      // izmisljenu generiku koja bi mogla da protivreci stvarnom ishodu.
+      document.getElementById('wl-success-sub').textContent =
+        data.poruka || ('Javićemo vam se na ' + email + ' čim otvorimo pristup.');
+      document.getElementById('wl-form-wrap').style.display = 'none';
+      document.getElementById('wl-success').classList.add('open');
+    } else {
+      var poruka2 = (data && (data.poruka || (Array.isArray(data.detail) ? data.detail[0].msg : data.detail)))
+        || 'Greška pri prijavi. Pokušajte ponovo.';
+      pokaziGresku(poruka2);
+      btn.disabled = false;
+      btn.textContent = 'Prijavite se za rani pristup';
+    }
+  } catch (e) {
+    pokaziGresku('Veza sa serverom nije uspela. Proverite internet konekciju i pokušajte ponovo.');
+    btn.disabled = false;
+    btn.textContent = 'Prijavite se za rani pristup';
+  }
+}
+</script>
 
 </body>
 </html>
