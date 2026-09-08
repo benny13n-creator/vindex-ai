@@ -335,6 +335,32 @@ legacy "Vindex Intelligence" merge's coherence **could not be independently conf
 gathered this session (its exact legacy scope was not re-verified) — this is recorded as open, not
 resolved by assumption, and is not a reason to change anything today.
 
+**Resolved this sprint (remediation Phase 10), by repository evidence**: `static/vindex.js` shows the
+legacy `aiws` tab (labeled "Vindex Intelligence") is a shell around **five previously-independent
+tabs**, declared verbatim in code as `var _AIWS_MODES = { q:'zakon', a:'analiza', n:'nacrti',
+t:'strategija', ob:'oblasti' }` (line ~2166 area) plus a best-effort write path to a learning engine
+(`routers/learning.py`, `_pred_prosediUcenju` — case outcomes feeding `case_patterns`/`outcome_log`/
+`lessons`). Checked against the Znanje boundary above:
+
+- `q` (zakon — statute/case-law Q&A) and `ob` (oblasti — legal-area browsing): **fit** — both answer
+  "what does an external rule/precedent say," Znanje's own definition.
+- `a` (analiza — document analysis), `n` (nacrti — draft generation), `t` (strategija — case strategy):
+  **do not fit** — these operate on the firm's own case/document, which is a drafting-acceleration or
+  case-specific intent, not external research. §9 already places drafting under Predmeti/Šabloni for
+  exactly this reason.
+- The learning-engine write path is firm-internal accumulated knowledge ("what do *we* already know"),
+  which §9 explicitly excludes from Znanje "without a separate, explicit decision" — no such decision
+  exists.
+
+**Verdict**: the legacy "Vindex Intelligence" label names a grab-bag of five capabilities, not one
+coherent Znanje-shaped intent — a wholesale merge into Znanje as currently labeled would violate this
+document's own boundary. This finding does not require any change to the current prototype (no Znanje
+screen exists among the four required screens this sprint), and it is not authorization to touch the
+legacy app. It is carried forward as a documented constraint on any *future* production Znanje
+implementation: only the `q`/`ob` slice merges cleanly; `a`/`n`/`t` belong with Predmet-scoped work,
+and the learning-engine write path needs its own explicit placement decision before it can be folded
+into anything.
+
 **BELONGS IN ZNANJE**: anything that answers "what does an external rule, statute, or precedent say" —
 i.e., research questions whose source of truth is outside the firm's own case data.
 

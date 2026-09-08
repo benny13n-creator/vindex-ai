@@ -48,10 +48,18 @@
         </p>
         <div class="vx-danas-glava__akcije">
           <a class="vx-btn vx-btn--primary" href="#">Novi predmet</a>
-          <a class="vx-btn vx-btn--ghost" href="registar.html">Svi predmeti</a>
+          <a class="vx-tekst-akcija vx-tekst-akcija--svetlo" href="#">Iz dokumenta</a>
         </div>
+        <p style="margin-top:10px"><a class="vx-btn vx-btn--ghost" href="registar.html">Svi predmeti</a></p>
       </div>
 
+      <!-- Sfera: PROTOTIP, REPREZENTATIVNI PODACI — nisu povezani ni na jedan
+           stvaran API poziv. Četiri signala i njihova semantika su rešeni u
+           APPLICATION-ARCHITECTURE-CONTRACT-v1.md §3–4: sva četiri imaju
+           dokazano računljivu definiciju u produkciji (nijedan nije izmišljen
+           da bi popunio prazan slot). Vrednosti ispod se poklapaju sa brojem
+           stavki stvarno prikazanih u tokovima ispod (3 u „Traži pažnju", 2 u
+           „Uskoro") radi unutrašnje doslednosti ovog prikaza. -->
       <div class="vx-sfera-zona" aria-hidden="false">
         <img src="assets/sphere.png" alt="Vindex sfera — sažetak stanja kancelarije" width="1137" height="1117">
         <div class="vx-sfera-vrednosti">
@@ -61,15 +69,15 @@
           </div>
           <div class="vx-sfera-stavka">
             <p class="vx-sfera-broj vx-sfera-broj--aktivno">3</p>
-            <p class="vx-sfera-natpis">Aktivni<br>rokovi</p>
-          </div>
-          <div class="vx-sfera-stavka">
-            <p class="vx-sfera-broj">0</p>
-            <p class="vx-sfera-natpis">Novi<br>klijenti</p>
+            <p class="vx-sfera-natpis">Traži<br>pažnju</p>
           </div>
           <div class="vx-sfera-stavka">
             <p class="vx-sfera-broj vx-sfera-broj--aktivno">2</p>
-            <p class="vx-sfera-natpis">Nepročitani<br>dokumenti</p>
+            <p class="vx-sfera-natpis">Uskoro</p>
+          </div>
+          <div class="vx-sfera-stavka">
+            <p class="vx-sfera-broj">0</p>
+            <p class="vx-sfera-natpis">Novi predmeti<br>(7 dana)</p>
           </div>
         </div>
       </div>
@@ -88,10 +96,17 @@
 
       <div class="vx-danas-radni">
         <div>
+          <!-- ADMISSION CONTRACT (Architecture Contract §2) — svaka stavka ispod je
+               ACTIONABLE: ima okidač, razlog zašto traži radnju, predmet kome
+               pripada, i konkretno odredište. Nijedna stavka ovde nije čisto
+               informativna (npr. "izvoz je završen", "novi login") — to bi
+               kršilo pravilo prijema i pripada Obaveštenjima, ne ovde. -->
           <section class="vx-grupa">
             <h2 class="vx-eyebrow vx-grupa__naslov">Traži pažnju</h2>
             <ul class="vx-grupa__lista">
               <li class="vx-obaveza">
+                <!-- OKIDAČ: potvrđeno ročište danas. ZAŠTO: sudski termin, ne može
+                     se propustiti. ODREDIŠTE: Predmet · Rokovi. -->
                 <span class="vx-obaveza__kada vx-mono">danas<br>14:00</span>
                 <div>
                   <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Ročište</span>
@@ -100,6 +115,8 @@
                 </div>
               </li>
               <li class="vx-obaveza">
+                <!-- OKIDAČ: procesni rok ističe danas. ZAŠTO: pravna posledica ako
+                     se propusti. ODREDIŠTE: Predmet · Rokovi. -->
                 <span class="vx-obaveza__kada vx-mono">danas<br>—</span>
                 <div>
                   <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Rok</span>
@@ -108,6 +125,9 @@
                 </div>
               </li>
               <li class="vx-radna-stavka vx-radna-stavka--hitno">
+                <!-- OKIDAČ: novi spis koji menja stanje predmeta, još nepregledan.
+                     ZAŠTO: dok se ne pregleda, advokat ne zna šta sud kaže.
+                     ODREDIŠTE: Predmet · Spisi (čitač). -->
                 <span class="vx-radna-stavka__kada">Kritično</span>
                 <div>
                   <p class="vx-obaveza__naslov"><span class="vx-radna-stavka__vrsta">Novi spis</span>
@@ -122,6 +142,10 @@
             <h2 class="vx-eyebrow vx-grupa__naslov">Uskoro</h2>
             <ul class="vx-grupa__lista">
               <li class="vx-obaveza">
+                <!-- STANJE: potvrđeno, ali van neposrednog prozora — zato Uskoro,
+                     ne Traži pažnju. PRELAZAK: kad ovaj termin uđe u neposredni
+                     prozor (npr. dan pre), ista stavka prelazi u Traži pažnju —
+                     ne dupliraju se obe sekcije istovremeno. -->
                 <span class="vx-obaveza__kada vx-mono">sreda<br>10:30</span>
                 <div>
                   <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Ročište</span>
@@ -138,7 +162,7 @@
                 </div>
               </li>
             </ul>
-            <a class="vx-danas-preostalo, vx-tekst-akcija" href="#" style="display:inline-block;margin-top:8px">+4 u kalendaru</a>
+            <a class="vx-danas-preostalo vx-tekst-akcija" href="#" style="display:inline-block;margin-top:8px">+4 u kalendaru</a>
           </section>
         </div>
 

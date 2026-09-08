@@ -110,7 +110,29 @@
       <span class="vx-reg-red__cell vx-mono">1 mesec</span>
       <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--zavrseno">Završen</span></span>
     </a>
+
+    <!-- Namerno dug naziv — proverava da red raste umesto da se skraćuje
+         trotačkom (v2/styles/predmeti.css: "skraćivanje trotačkom nije
+         osnovni dizajn registra — pun naziv je podatak zbog koga se registar
+         čita"), nasleđeno iz produkcije, ne izmišljeno ovde. -->
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Udruženje malih akcionara "Zaštita kapitala" protiv Fonda za razvoj privrede AP Vojvodine — poništaj odluke skupštine</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Privredno pravo</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Privredni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Udruženje "Zaštita kapitala"</span>
+      <span class="vx-reg-red__cell vx-mono">2 meseca</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--mirovanje">Miruje</span></span>
+    </a>
   </div>
+
+  <!-- PROTOTIP, SKALA PODATAKA: ovaj registar prikazuje 9 kurirano izabranih
+       redova radi čitljivosti mokapa. Stvarni V2 registar već straniči po
+       50 (v2/features/predmeti/api.js: PO_STRANI = 50, offset/limit poziv,
+       ne učitavanje svega odjednom) — ovaj prototip ne ponovo implementira
+       tu logiku, samo je NE PROTIVREČI: red-po-red raspored bez kartica se
+       ponaša isto na 9 i na 50 redova, jer ne zavisi od broja stavki da bi
+       izgledao smisleno (za razliku od mreže kartica, koja na malom broju
+       stavki ostavlja prazan prostor). Stanje "nema rezultata pretrage" i
+       stranica 2 nisu posebno izgrađeni u ovom prototipu. -->
 </main>
 
 

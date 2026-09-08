@@ -35,6 +35,10 @@
   /* Canonical red — resolved to the website's value, see Visual Foundation doc */
   --vx-crveno: #8E0B23;
   --vx-crveno-hover: #7A0A1E;
+  /* Same brand red, lightened for legibility directly on the black scene --
+     identical logic and identical value to the website's --vw-accent-on-black
+     and V2's --v2-brend-na-crnoj (4.97:1 on crna). Not a new accent color. */
+  --vx-crveno-na-crnoj: #D45A6E;
 
   /* Semantic (never brand) */
   --vx-st-aktivno: #1F5D3F;
@@ -174,7 +178,15 @@ button { font-family: inherit; }
   color: var(--vx-tx-3-crna); border: 1px solid var(--vx-linija-crna);
   padding: 1px 6px;
 }
-.vx-ljuska__nalog { color: var(--vx-tx-2-crna); font-size: 13px; text-decoration: none; white-space: nowrap; }
+/* Interakciona meta je veca od iscrtanog teksta (isti obrazac kao .v2-znak u
+   produkciji): vizuelno ostaje mali tekst, ali dodirna povrsina dostize 44px
+   visine bez menjanja velicine slova ili dodavanja okvira/pozadine. */
+.vx-ljuska__nalog {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; min-width: 44px; padding: 0 4px; margin: 0 -6px 0 -4px;
+  color: var(--vx-tx-2-crna); font-size: 13px; text-decoration: none;
+  white-space: nowrap;
+}
 .vx-ljuska__nalog:hover { color: var(--vx-tx-1-crna); }
 
 .vx-nav-toggle {
@@ -306,6 +318,13 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--vx-linija-jaca);
 }
 .vx-tekst-akcija:hover { color: var(--vx-crveno); border-color: var(--vx-crveno); }
+/* Sekundarna akcija na crnoj sceni (npr. "Iz dokumenta" pored "Novi predmet")
+   — vizuelno podređena primarnom dugmetu: tekst, ne ispuna, manja težina. */
+.vx-tekst-akcija--svetlo {
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: var(--vx-tx-2-crna); border-bottom-color: var(--vx-linija-crna);
+}
+.vx-tekst-akcija--svetlo:hover { color: var(--vx-crveno-na-crnoj); border-color: var(--vx-crveno-na-crnoj); }
 
 .vx-spis-red, .vx-zadatak-red, .vx-rocnik-red {
   display: flex; align-items: center; gap: var(--vx-r4); min-height: 48px;
