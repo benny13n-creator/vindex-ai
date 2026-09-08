@@ -1686,12 +1686,29 @@ _dashRender = function(d, bd, inboxData) {
   var _dn = localStorage.getItem('vindex_display_name') || (currentUser ? (currentUser.email||'').split('@')[0] : '');
   var userName = _dn ? escHtml(_dn) : '';
 
-  /* ── 1. HEADER — greeting ──────────────────────────────────── */
+  /* ── 1. HEADER — orijentacija + istinit sažetak pažnje ────────────
+     Night Sprint (Komandni centar hijerarhija): "Dobrodošli nazad, Ime."
+     je ranije bio najjači vizuelni element ekrana (kc-hdr-title). Sada tu
+     klasu nosi recenica o paznji -- jedini broj koji je vec racunat na
+     ovom mestu (hitniRok, ista vrednost koja se ispisuje u sferi ispod,
+     ne nova logika) -- a pozdrav je demotovan u kc-hdr-sub, najmanju
+     klasu u ovom bloku. Ne izmisljamo novi "attention" izvor: ovo je
+     doslovno isti hitniRok koji je vec izracunat gore u ovoj funkciji. */
+  var _kcRokRec = function(n) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'hitan rok';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'hitna roka';
+    return 'hitnih rokova';
+  };
+  var _kcPaznjaRecenica = hitniRok > 0
+    ? (hitniRok + ' ' + _kcRokRec(hitniRok) + ' traži vašu pažnju danas.')
+    : 'Nema hitnih rokova koji traže pažnju danas.';
+
   html += '<div class="kc-hdr">';
   html += '<div class="kc-hdr-inner">';
-  html += '<div class="kc-hdr-eyebrow">Pregled dana</div>';
-  html += '<div class="kc-hdr-title">Dobrodošli nazad'+(userName ? ', '+userName : '')+'.</div>';
-  html += '<div class="kc-hdr-sub">Ovde je pregled stanja vaše kancelarije.</div>';
+  html += '<div class="kc-hdr-eyebrow">Komandni centar</div>';
+  html += '<div class="kc-hdr-title">'+escHtml(_kcPaznjaRecenica)+'</div>';
+  html += '<div class="kc-hdr-sub">Dobrodošli nazad'+(userName ? ', '+userName : '')+'.</div>';
   html += '</div>';
   html += '<div style="text-align:right;flex-shrink:0;">';
   html += '<div class="kc-hdr-date">'+_dashFormatDate()+'</div>';
@@ -1699,17 +1716,20 @@ _dashRender = function(d, bd, inboxData) {
   html += '</div>';
   html += '</div>';
 
-  /* ── 2. QUICK ACTIONS — 4 kartice ─────────────────────────── */
-  html += '<div class="kc-qa-bar">';
-  html += '<button class="kc-qa-btn" onclick="intakeOtvori()">'+_kcIco('briefcase');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi predmet</div><div class="kc-qa-btn-desc">Kreiraj novi predmet</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-k\'),\'k\');setTimeout(crmOtvoriFormu,250)">'+_kcIco('user-plus');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Novi klijent</div><div class="kc-qa-btn-desc">Dodaj novog klijenta</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="openAITool(\'a\')">'+_kcIco('file-text');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Otpremi dokument</div><div class="kc-qa-btn-desc">Dodaj dokument</div></div></button>';
-  html += '<button class="kc-qa-btn" onclick="setTab(document.getElementById(\'tab-btn-alati\'),\'alati\')">'+_kcIco('sparkles');
-  html += '<div class="kc-qa-btn-body"><div class="kc-qa-btn-title">Pokreni analizu</div><div class="kc-qa-btn-desc">Analiziraj</div></div></button>';
-  html += '</div>';
+  /* ── 2. QUICK ACTIONS — uklonjeno (Night Sprint: Komandni centar
+     hijerarhija). Cetiri jednako-tezinske kartice (Novi predmet / Novi
+     klijent / Otpremi dokument / Pokreni analizu) su bile prva stvar
+     posle zaglavlja, ispred stvarnih obaveza -- reklamirale su sve
+     moguce radnje umesto da prioritizuju tekuce obaveze. Svaka radnja
+     ostaje dostupna na svom kanonskom mestu, ne samo ovde:
+       Novi predmet     -> intakeOtvori(), vec pozivano sa vise mesta
+                           (npr. red 8113, 10261, 13538 komandna paleta,
+                           16197) -- ne postoji samo ovde.
+       Novi klijent     -> CRM tab (tab-btn-k) sopstveno "+" dugme.
+       Otpremi dokument -> AI alati tab, "Analiza dokumenta" (openAITool('a')).
+       Pokreni analizu  -> isti AI alati tab (tab-btn-alati).
+     Nijedna ruta, funkcija ni mogucnost nije obrisana -- obrisan je samo
+     ovaj redundantni red kartica. */
 
   /* ── 2.5. WORKSPACE — Program Omega Sprint 005 (2026-08-06) ──
      Kanonski operativni pogled (GET /api/workspace, Sprint 003/004's own
