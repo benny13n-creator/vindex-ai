@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danas — Vindex</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/vindex-next-app/styles/foundation.css">
+</head>
+<body>
+
+<!-- ══ LJUSKA — identična na sve 4 prototip ekrana ══ -->
+<header class="vx-ljuska">
+  <div class="vx-ljuska__red">
+    <a class="vx-znak" href="danas.html">Vinde<span class="vx-znak__x">x</span></a>
+    <button class="vx-nav-toggle" type="button">Meni</button>
+    <nav class="vx-nav" aria-label="Glavna navigacija">
+      <a class="vx-nav__veza vx-nav__veza--aktivan" href="danas.html" aria-current="page">Danas</a>
+      <a class="vx-nav__veza" href="registar.html">Predmeti</a>
+      <a class="vx-nav__veza" href="#">Znanje</a>
+      <a class="vx-nav__veza" href="#">Kancelarija</a>
+    </nav>
+    <div class="vx-ljuska__desno">
+      <a class="vx-ljuska__pretraga" href="#">
+        <span class="vx-ljuska__pretraga-tekst">Pretraži predmete, klijente, spise</span>
+        <span class="vx-ljuska__precica">Ctrl K</span>
+      </a>
+      <a class="vx-ljuska__nalog" href="#">Nalog</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ══ CRNA SCENA — zaglavlje + sfera ══ -->
+  <section class="vx-scena vx-scena--crna vx-danas-glava">
+    <div class="vx-danas-glava__inner">
+      <div class="vx-danas-glava__tekst">
+        <p class="vx-eyebrow">Danas</p>
+        <div class="vx-danas-glava__red">
+          <h1 class="vx-title">Ponedeljak</h1>
+          <span class="vx-danas-glava__datum vx-mono">08.09.2026.</span>
+        </div>
+        <p class="vx-danas-glava__sazetak">
+          Tri stavke traže pažnju, prva u <span class="vx-mono">14:00</span>.
+        </p>
+        <div class="vx-danas-glava__akcije">
+          <a class="vx-btn vx-btn--primary" href="#">Novi predmet</a>
+          <a class="vx-btn vx-btn--ghost" href="registar.html">Svi predmeti</a>
+        </div>
+      </div>
+
+      <div class="vx-sfera-zona" aria-hidden="false">
+        <img src="assets/sphere.png" alt="Vindex sfera — sažetak stanja kancelarije" width="1137" height="1117">
+        <div class="vx-sfera-vrednosti">
+          <div class="vx-sfera-stavka">
+            <p class="vx-sfera-broj vx-sfera-broj--aktivno">7</p>
+            <p class="vx-sfera-natpis">Aktivni<br>predmeti</p>
+          </div>
+          <div class="vx-sfera-stavka">
+            <p class="vx-sfera-broj vx-sfera-broj--aktivno">3</p>
+            <p class="vx-sfera-natpis">Aktivni<br>rokovi</p>
+          </div>
+          <div class="vx-sfera-stavka">
+            <p class="vx-sfera-broj">0</p>
+            <p class="vx-sfera-natpis">Novi<br>klijenti</p>
+          </div>
+          <div class="vx-sfera-stavka">
+            <p class="vx-sfera-broj vx-sfera-broj--aktivno">2</p>
+            <p class="vx-sfera-natpis">Nepročitani<br>dokumenti</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PAPIR SCENA — radni prostor ══ -->
+  <section class="vx-scena vx-scena--papir vx-danas-radna">
+    <div class="vx-danas-radna__inner">
+      <nav class="vx-prekidac" aria-label="Pregled vremena">
+        <span class="vx-prekidac__stavka vx-prekidac__stavka--aktivna" aria-current="page">Danas</span>
+        <a class="vx-prekidac__stavka" href="#">Kalendar</a>
+        <a class="vx-prekidac__stavka" href="#">Brifing</a>
+        <a class="vx-prekidac__stavka" href="#">Obaveštenja</a>
+      </nav>
+
+      <div class="vx-danas-radni">
+        <div>
+          <section class="vx-grupa">
+            <h2 class="vx-eyebrow vx-grupa__naslov">Traži pažnju</h2>
+            <ul class="vx-grupa__lista">
+              <li class="vx-obaveza">
+                <span class="vx-obaveza__kada vx-mono">danas<br>14:00</span>
+                <div>
+                  <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Ročište</span>
+                    <a class="vx-obaveza__veza" href="predmet.html">Ročište za glavnu raspravu</a></p>
+                  <p class="vx-obaveza__meta">Predmet: Marković protiv AD Vodovod</p>
+                </div>
+              </li>
+              <li class="vx-obaveza">
+                <span class="vx-obaveza__kada vx-mono">danas<br>—</span>
+                <div>
+                  <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Rok</span>
+                    <a class="vx-obaveza__veza" href="predmet.html">Rok za odgovor na tužbu ističe danas</a></p>
+                  <p class="vx-obaveza__meta">Predmet: Petrović d.o.o. — raskid ugovora</p>
+                </div>
+              </li>
+              <li class="vx-radna-stavka vx-radna-stavka--hitno">
+                <span class="vx-radna-stavka__kada">Kritično</span>
+                <div>
+                  <p class="vx-obaveza__naslov"><span class="vx-radna-stavka__vrsta">Novi spis</span>
+                    <a class="vx-radna-stavka__veza" href="predmet.html">Rešenje suda još nije pregledano</a></p>
+                  <p class="vx-obaveza__meta">Predmet: Jovanović — naknada štete</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section class="vx-grupa">
+            <h2 class="vx-eyebrow vx-grupa__naslov">Uskoro</h2>
+            <ul class="vx-grupa__lista">
+              <li class="vx-obaveza">
+                <span class="vx-obaveza__kada vx-mono">sreda<br>10:30</span>
+                <div>
+                  <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Ročište</span>
+                    <a class="vx-obaveza__veza" href="predmet.html">Pripremno ročište</a></p>
+                  <p class="vx-obaveza__meta">Predmet: Nikolić — imovinski spor</p>
+                </div>
+              </li>
+              <li class="vx-obaveza">
+                <span class="vx-obaveza__kada vx-mono">petak<br>—</span>
+                <div>
+                  <p class="vx-obaveza__naslov"><span class="vx-obaveza__vrsta">Rok</span>
+                    <a class="vx-obaveza__veza" href="predmet.html">Rok za žalbu</a></p>
+                  <p class="vx-obaveza__meta">Predmet: Marković protiv AD Vodovod</p>
+                </div>
+              </li>
+            </ul>
+            <a class="vx-danas-preostalo, vx-tekst-akcija" href="#" style="display:inline-block;margin-top:8px">+4 u kalendaru</a>
+          </section>
+        </div>
+
+        <aside>
+          <section class="vx-rail-sek">
+            <h2 class="vx-eyebrow vx-rail-sek__naslov">Nedavno završeno</h2>
+            <div class="vx-rail-red">Odgovor na tužbu — Petrović d.o.o.</div>
+            <div class="vx-rail-red">Podnesak dokaza — Nikolić</div>
+          </section>
+          <section class="vx-rail-sek">
+            <h2 class="vx-eyebrow vx-rail-sek__naslov">Nedavno otvoreno</h2>
+            <div class="vx-rail-red"><a class="vx-rail-veza" href="predmet.html">Marković protiv AD Vodovod</a></div>
+            <div class="vx-rail-red"><a class="vx-rail-veza" href="predmet.html">Jovanović — naknada štete</a></div>
+            <div class="vx-rail-red"><a class="vx-rail-veza" href="predmet.html">Petrović d.o.o.</a></div>
+          </section>
+          <a class="vx-rail-brifing" href="#">Jutarnji brifing →</a>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<script>
+  var vxToggle = document.querySelector('.vx-nav-toggle');
+  var vxNav = document.querySelector('.vx-nav');
+  if (vxToggle && vxNav) {
+    vxToggle.addEventListener('click', function () {
+      var otvoren = vxNav.getAttribute('data-otvoren') === '1';
+      vxNav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+      vxToggle.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+    });
+  }
+</script>
+</body>
+</html>

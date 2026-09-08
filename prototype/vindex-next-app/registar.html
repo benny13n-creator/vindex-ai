@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predmeti — Vindex</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/vindex-next-app/styles/foundation.css">
+</head>
+<body>
+
+<header class="vx-ljuska">
+  <div class="vx-ljuska__red">
+    <a class="vx-znak" href="danas.html">Vinde<span class="vx-znak__x">x</span></a>
+    <button class="vx-nav-toggle" type="button">Meni</button>
+    <nav class="vx-nav" aria-label="Glavna navigacija">
+      <a class="vx-nav__veza" href="danas.html">Danas</a>
+      <a class="vx-nav__veza vx-nav__veza--aktivan" href="registar.html" aria-current="page">Predmeti</a>
+      <a class="vx-nav__veza" href="#">Znanje</a>
+      <a class="vx-nav__veza" href="#">Kancelarija</a>
+    </nav>
+    <div class="vx-ljuska__desno">
+      <a class="vx-ljuska__pretraga" href="#">
+        <span class="vx-ljuska__pretraga-tekst">Pretraži predmete, klijente, spise</span>
+        <span class="vx-ljuska__precica">Ctrl K</span>
+      </a>
+      <a class="vx-ljuska__nalog" href="#">Nalog</a>
+    </div>
+  </div>
+</header>
+
+<main class="vx-scena vx-scena--papir">
+  <div class="vx-registar-glava">
+    <p class="vx-eyebrow">Registar</p>
+    <h1 class="vx-title">Predmeti</h1>
+  </div>
+
+  <div class="vx-reg-alat">
+    <input class="vx-input vx-reg-alat__pretraga" type="search" placeholder="Pretraži po nazivu, klijentu ili broju predmeta">
+    <div class="vx-reg-alat__desno">
+      <a class="vx-btn vx-btn--ghost" href="#">Filteri</a>
+      <a class="vx-btn vx-btn--primary" href="#">Novi predmet</a>
+    </div>
+  </div>
+
+  <div class="vx-registar">
+    <div class="vx-reg-zaglavlje">
+      <span class="vx-field-label">Predmet</span>
+      <span class="vx-field-label vx-reg-col--sud">Sud</span>
+      <span class="vx-field-label">Klijent</span>
+      <span class="vx-field-label">Poslednja aktivnost</span>
+      <span class="vx-field-label">Status</span>
+    </div>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Marković protiv AD Vodovod</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Naknada štete</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Dušan Marković</span>
+      <span class="vx-reg-red__cell vx-mono">danas</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--aktivno">Aktivan</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Petrović d.o.o. — raskid ugovora</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Privredni spor</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Privredni sud Beograd</span>
+      <span class="vx-reg-red__cell">Petrović d.o.o.</span>
+      <span class="vx-reg-red__cell vx-mono">danas</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--aktivno">Aktivan</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Jovanović — naknada štete</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Naknada štete</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Ana Jovanović</span>
+      <span class="vx-reg-red__cell vx-mono">juče</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--aktivno">Aktivan</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Nikolić — imovinski spor</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Imovinsko pravo</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Milan Nikolić</span>
+      <span class="vx-reg-red__cell vx-mono">3 dana</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--aktivno">Aktivan</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Simić — radni spor</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Radno pravo</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Jovana Simić</span>
+      <span class="vx-reg-red__cell vx-mono">1 nedelja</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--mirovanje">Miruje</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Đorđević — naslednička zajednica</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Nasledno pravo</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Petar Đorđević</span>
+      <span class="vx-reg-red__cell vx-mono">2 nedelje</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--mirovanje">Miruje</span></span>
+    </a>
+
+    <a class="vx-reg-red" href="predmet.html">
+      <span><span class="vx-reg-red__naziv">Vuković — okončan spor o zakupu</span><br><span class="vx-reg-red__sud vx-reg-col--sud">Obligaciono pravo</span></span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--sud">Osnovni sud Novi Sad</span>
+      <span class="vx-reg-red__cell">Ivana Vuković</span>
+      <span class="vx-reg-red__cell vx-mono">1 mesec</span>
+      <span class="vx-reg-red__cell vx-reg-red__cell--status"><span class="vx-reg-red__status vx-reg-red__status--zavrseno">Završen</span></span>
+    </a>
+  </div>
+</main>
+
+
+<script>
+  var vxToggle = document.querySelector('.vx-nav-toggle');
+  var vxNav = document.querySelector('.vx-nav');
+  if (vxToggle && vxNav) {
+    vxToggle.addEventListener('click', function () {
+      var otvoren = vxNav.getAttribute('data-otvoren') === '1';
+      vxNav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+      vxToggle.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+    });
+  }
+</script>
+</body>
+</html>

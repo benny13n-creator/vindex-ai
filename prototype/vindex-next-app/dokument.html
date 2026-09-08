@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rešenje suda — Marković protiv AD Vodovod — Vindex</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/prototype/vindex-next-app/styles/foundation.css">
+</head>
+<body>
+
+<header class="vx-ljuska">
+  <div class="vx-ljuska__red">
+    <a class="vx-znak" href="danas.html">Vinde<span class="vx-znak__x">x</span></a>
+    <button class="vx-nav-toggle" type="button">Meni</button>
+    <nav class="vx-nav" aria-label="Glavna navigacija">
+      <a class="vx-nav__veza" href="danas.html">Danas</a>
+      <a class="vx-nav__veza vx-nav__veza--aktivan" href="registar.html" aria-current="page">Predmeti</a>
+      <a class="vx-nav__veza" href="#">Znanje</a>
+      <a class="vx-nav__veza" href="#">Kancelarija</a>
+    </nav>
+    <div class="vx-ljuska__desno">
+      <a class="vx-ljuska__pretraga" href="#">
+        <span class="vx-ljuska__pretraga-tekst">Pretraži predmete, klijente, spise</span>
+        <span class="vx-ljuska__precica">Ctrl K</span>
+      </a>
+      <a class="vx-ljuska__nalog" href="#">Nalog</a>
+    </div>
+  </div>
+</header>
+
+<nav class="vx-citac-traka" aria-label="Orijentacija u predmetu">
+  <div class="vx-citac-traka__red">
+    <a class="vx-predmet-traka__nazad" href="predmet.html">← Marković protiv AD Vodovod</a>
+  </div>
+</nav>
+
+<main class="vx-scena vx-scena--papir vx-citac-body">
+  <div class="vx-citac-glava">
+    <p class="vx-eyebrow">Spis</p>
+    <h1 class="vx-title">Rešenje suda — zakazivanje ročišta</h1>
+    <div class="vx-citac-glava__meta">
+      <span class="vx-meta vx-mono">03.09.2026.</span>
+      <span class="vx-meta">Osnovni sud u Novom Sadu</span>
+      <span class="vx-meta">Original, dostupan</span>
+    </div>
+  </div>
+
+  <div class="vx-citac-tekst">
+    <p>Osnovni sud u Novom Sadu, u parnici tužioca Dušana Markovića protiv tuženog AD Vodovod, radi
+    naknade štete, zakazuje ročište za glavnu raspravu za dan 08.09.2026. godine sa početkom u
+    14:00 časova, u sudnici broj 4 ovog suda.</p>
+
+    <p>Stranke se pozivaju da na ročište donesu svu dokumentaciju na koju se pozivaju u svojim
+    podnescima, uključujući dokaze koji do sada nisu bili predmet uvida. Nedolazak uredno pozvane
+    stranke ne sprečava održavanje ročišta.</p>
+
+    <p>Tuženi je dužan da najkasnije osam dana pre zakazanog ročišta dostavi sudu i suprotnoj
+    strani pisani odgovor na tužbu, ukoliko to do sada nije učinio, u skladu sa članom 194. Zakona o
+    parničnom postupku.</p>
+
+    <p>Ovo rešenje se dostavlja punomoćnicima obe stranke, uz napomenu da se protiv njega ne može
+    izjaviti posebna žalba.</p>
+
+    <p style="margin-top: 2.4em">Sudija<br>Osnovni sud u Novom Sadu</p>
+  </div>
+</main>
+
+
+<script>
+  var vxToggle = document.querySelector('.vx-nav-toggle');
+  var vxNav = document.querySelector('.vx-nav');
+  if (vxToggle && vxNav) {
+    vxToggle.addEventListener('click', function () {
+      var otvoren = vxNav.getAttribute('data-otvoren') === '1';
+      vxNav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+      vxToggle.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+    });
+  }
+</script>
+</body>
+</html>
