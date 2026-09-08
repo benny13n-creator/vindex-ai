@@ -62,6 +62,10 @@
    *                       (nema pasusa) — red mora ostati citljiv kao red i
    *                       na 1920+ monitoru, bez repa mrtvog prostora do
    *                       desne ivice `--v2-mera-registar` sirine
+   *                       (1120px, ne 960 — na 960 je radna povrsina delovala
+   *                       kao uska kolona sajta usred praznog viewporta;
+   *                       ovaj token je iskljucivo Danas-ov, bez uticaja na
+   *                       ostale scene, vidi layout.css)
    *   --v2-mera-citanje   duga proza; red duzi od ~72 znaka se tesko cita
    *
    * Prva verzija je imala jednu meru od 1180px za sve i na 1920 je izgledala
@@ -69,7 +73,7 @@
    */
   --v2-mera-registar:   1440px;
   --v2-mera-predmet:    1280px;
-  --v2-mera-danas:      960px;
+  --v2-mera-danas:      1120px;
   --v2-mera-citanje:    72ch;
   --v2-mera:            var(--v2-mera-registar);   /* podrazumevano */
   --v2-ivica:           clamp(16px, 3vw, 48px);

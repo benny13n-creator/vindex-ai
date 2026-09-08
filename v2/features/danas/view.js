@@ -254,7 +254,7 @@ export function montirajDanas(kontejner) {
   const glava = el("div", "v2-scena v2-scena--crna");
   const glavaUnutra = el("div", "v2-scena__unutra v2-scena__unutra--danas v2-danas-glava");
   const glavaRed = el("div", "v2-danas-glava__red");
-  const h1 = el("h1", "v2-naslov", "Danas");
+  const h1 = el("h1", "v2-naslov", "Pregled dana");
   h1.id = "v2-naslov-danas";
   glavaRed.appendChild(h1);
   glavaRed.appendChild(el("p", "v2-zaglavlje__datum v2-mono", danasnjiDatum()));
@@ -268,7 +268,7 @@ export function montirajDanas(kontejner) {
 
   const prekidac = el("nav", "v2-prekidac");
   prekidac.setAttribute("aria-label", "Pregled vremena");
-  const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Danas");
+  const ovde = el("span", "v2-prekidac__stavka v2-prekidac__stavka--aktivna", "Pregled dana");
   ovde.setAttribute("aria-current", "page");
   const kaKalendaru = el("a", "v2-prekidac__stavka", "Kalendar");
   kaKalendaru.href = putanjaZa("danas", "kalendar");

@@ -51,7 +51,7 @@ export function montirajObavestenja(kontejner) {
 
   const prekidac = el("nav", "v2-prekidac");
   prekidac.setAttribute("aria-label", "Pregled vremena");
-  for (const [naziv, param] of [["Danas", null], ["Kalendar", "kalendar"],
+  for (const [naziv, param] of [["Pregled dana", null], ["Kalendar", "kalendar"],
                                 ["Brifing", "brifing"]]) {
     const a = el("a", "v2-prekidac__stavka", naziv);
     a.href = param ? putanjaZa("danas", param) : putanjaZa("danas");

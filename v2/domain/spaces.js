@@ -23,7 +23,7 @@
 
 /** Svi prostori iz vlasnickog modela, redom kojim se prikazuju. */
 export const PROSTORI = Object.freeze([
-  { kljuc: "danas",       naziv: "Danas",        putanja: "/app-v2/danas" },
+  { kljuc: "danas",       naziv: "Pregled dana", putanja: "/app-v2/danas" },
   { kljuc: "predmeti",    naziv: "Predmeti",     putanja: "/app-v2/predmeti" },
   { kljuc: "znanje",      naziv: "Znanje",       putanja: "/app-v2/znanje" },
   { kljuc: "kancelarija", naziv: "Kancelarija",  putanja: "/app-v2/kancelarija" },

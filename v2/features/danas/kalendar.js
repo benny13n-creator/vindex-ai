@@ -60,7 +60,7 @@ export function montirajKalendar(kontejner, kontekst) {
   // ── Prekidac Danas / Kalendar ──
   const prekidac = el("nav", "v2-prekidac");
   prekidac.setAttribute("aria-label", "Pregled vremena");
-  const kaDanas = el("a", "v2-prekidac__stavka", "Danas");
+  const kaDanas = el("a", "v2-prekidac__stavka", "Pregled dana");
   kaDanas.href = putanjaZa("danas");
   ciklus.slusaj(kaDanas, "click", (e) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;

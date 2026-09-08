@@ -53,6 +53,15 @@
   border-bottom: 1px solid var(--v2-linija-jaca);
   margin: 0;
 }
+/* Prva grupa u glavnoj koloni (Trazi paznju) nosi vecu tipografsku tezinu od
+   Uskoro ispod nje -- razlika dolazi iz velicine/tezine/boje, ne iz kartice
+   ni dodatne boje. Ovo je jedina vizuelna razlika izmedju dve grupe; ne dira
+   .v2-grupa__naslov osnovno pravilo, pa Uskoro i bocna traka ostaju nepromenjeni. */
+.v2-danas-radni__glavna .v2-grupa:first-of-type .v2-grupa__naslov {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--v2-tx-1);
+}
 
 /* Istekla obaveza je jedino mesto na ekranu gde semanticka boja nesto nosi —
    i tu je nosi TANKA LINIJA, dok rec „Isteklo" i dalje nosi znacenje sama.
