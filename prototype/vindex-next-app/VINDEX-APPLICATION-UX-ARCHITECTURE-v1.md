@@ -245,6 +245,13 @@ introducing new ones, per §14.
 
 ## 9. Unresolved questions (explicit, not smoothed over)
 
+> **Correction / update**: items 1 and 2 below were written before the adversarial architecture
+> review and `APPLICATION-ARCHITECTURE-CONTRACT-v1.md`. Both are now resolved at the architecture
+> level — see that document §3–4. "Aktivni rokovi" and "Nepročitani dokumenti" are superseded by
+> "Stavke koje traže pažnju" and "Uskoro" (both already computed today); "Novi klijenti" is
+> superseded by "Novi predmeti" (a real, timestamped event, pending only an owner decision on the
+> window length). Left in place below for the historical record of how the question was first framed.
+
 1. **The sphere's four counts are not currently computed anywhere.** "Aktivni predmeti," "Aktivni
    rokovi," "Novi klijenti," and "Nepročitani dokumenti" are plausible aggregates of data that
    exists (predmeti, rokovi, klijenti, dokumenti all have real backends per the capability matrix),
