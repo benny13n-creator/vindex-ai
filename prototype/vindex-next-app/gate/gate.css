@@ -1,0 +1,163 @@
+/* VINDEX NEXT — OPERATIONAL AUTHORITY / VISUAL COMPOSITION GATE
+ *
+ * Isolated composition experiment. Loaded ONLY by gate/danas.html, on top
+ * of ../styles/foundation.css (tokens, type, buttons, shell, nav are
+ * reused as-is). Every class here is prefixed `vxg-` so nothing in this
+ * file can collide with or affect danas.html, predmet.html, dokument.html,
+ * registar.html, or foundation.css itself — none of those files are
+ * touched by this gate.
+ *
+ * Tests four claims against the owner's critique of the first Home pass:
+ *   1. Black = situational awareness (real counts, never AI-flavored copy)
+ *   2. Sphere = ambient brand object carrying real signals (co-located
+ *      with the numbers, not visually encoding them — a raster photo
+ *      cannot do that honestly; see commit message for the full note)
+ *   3. Home's dominant signal is "what needs attention", not the weekday
+ *   4. Editorial list (typographic lanes) and a structural rule replace
+ *      both the sterile hairline table AND the boxed-card regression
+ */
+
+:root {
+  /* Sira mera nego v1 (960px) -- adresira kritiku da 2/3+1/3 kolona
+     "pluta" u praznom papiru na sirokim monitorima; i dalje daleko od
+     pune sirine ekrana, jer citljivost teksta ostaje granica. */
+  --vx-mera-gate: 1100px;
+}
+
+/* ── HERO / SITUATIONAL AWARENESS BAND ─────────────────────────────────
+   Ponedeljak is demoted to an 11px mono metadata line. The dominant
+   element is the Traži pažnju count — the actual answer to "what needs
+   my attention now" — with the single nearest item surfaced immediately
+   under it, so the 5-second rule is satisfied without scrolling. */
+.vxg-hero { padding: var(--vx-r6) var(--vx-ivica); }
+.vxg-hero__inner {
+  max-width: var(--vx-mera-gate); margin: 0 auto;
+  display: flex; align-items: center; justify-content: flex-start;
+  gap: var(--vx-r8); flex-wrap: wrap;
+}
+/* Ista strukturna logika kao radni prostor ispod (prava linija umesto
+   praznog razmaka bez razloga) — primenjena i ovde, jer se ista praznina
+   ponovo pojavila kada je hero levo poravnat a sfera fiksne širine desno. */
+.vxg-hero__signal {
+  max-width: 44ch; padding-right: var(--vx-r8);
+  border-right: 1px solid var(--vx-linija-crna);
+}
+.vxg-hero__meta {
+  font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--vx-tx-3-crna); margin: 0 0 var(--vx-r4);
+}
+/* Prazno stanje (0 stavki) NIJE ovaj isti element sa "0" upisanim — to bi
+   izgledalo kao greška, ne kao mir. Produkcija ovde grana na mirnu
+   rečenicu (vec postojeci obrazac iz HOME-ARCHITECTURE.md), ne na broj. */
+.vxg-hero__broj {
+  font-family: "Source Serif 4", Georgia, serif; font-weight: 600;
+  font-size: clamp(64px, 8vw, 96px); line-height: 0.88; color: var(--vx-tx-1-crna);
+  margin: 0;
+}
+.vxg-hero__oznaka {
+  font-size: 15px; color: var(--vx-tx-2-crna); margin: var(--vx-r2) 0 var(--vx-r5);
+}
+.vxg-hero__sledece {
+  display: block; padding: var(--vx-r4) 0; margin-bottom: var(--vx-r5);
+  border-top: 1px solid var(--vx-linija-crna); border-bottom: 1px solid var(--vx-linija-crna);
+  color: var(--vx-tx-1-crna); text-decoration: none; font-size: 15px;
+}
+.vxg-hero__sledece:hover { color: var(--vx-crveno-na-crnoj); }
+.vxg-hero__sledece-meta { display: block; margin-top: 3px; font-size: 13px; color: var(--vx-tx-3-crna); }
+.vxg-hero__akcije { display: flex; gap: var(--vx-r3); flex-wrap: wrap; }
+
+/* ── SFERA — ambient, ne poster. Nosi PREOSTALA tri signala (Aktivni
+   predmeti / Uskoro / Novi predmeti 7 dana); "Traži pažnju" je iznet kao
+   samostalan hero levo jer je to odgovor na centralno pitanje ekrana, ne
+   samo još jedan od četiri ravnopravna broja. Iskren opis mogućnosti
+   asseta: brojevi su POSTAVLJENI PORED sfere, ne kodirani NJENOM geometrijom
+   — statična rasterska slika to ne može, i ne pretvaramo je u nešto što
+   nije. Funkcionalnost dolazi od stvarnih, izračunatih brojeva pored nje. */
+.vxg-sfera { position: relative; width: 250px; height: 250px; flex-shrink: 0; }
+.vxg-sfera img { width: 100%; height: 100%; object-fit: contain; }
+.vxg-sfera-vrednosti {
+  position: absolute; left: 27%; top: 31%; width: 38%; height: 34%;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px 6px;
+  place-items: center start; background: var(--vx-crna);
+}
+.vxg-sfera-stavka { text-align: left; }
+.vxg-sfera-stavka--span { grid-column: 1 / -1; justify-self: center; text-align: center; }
+.vxg-sfera-broj {
+  font-family: "JetBrains Mono", monospace; font-weight: 700;
+  font-size: clamp(12px, 1.2vw, 16px); line-height: 1; color: var(--vx-tx-1-crna); margin: 0;
+}
+.vxg-sfera-natpis {
+  margin: 2px 0 0; font-size: 6.5px; font-weight: 600; letter-spacing: 0.03em;
+  text-transform: uppercase; color: var(--vx-tx-3-crna); line-height: 1.2;
+}
+
+/* ── RADNI PROSTOR — struktura poseduje razmak: prava vertikalna linija
+   deli "vaš rad" od "vaš kontekst", umesto praznog razmaka bez razloga.
+   Mera je šira nego u v1 (1100 umesto 960) da se manje "gubi" na širokim
+   monitorima, ali i dalje daleko od pune širine — čitljivost teksta je
+   granica, ne dostupan prostor ekrana. */
+.vxg-radna { padding: var(--vx-r6) var(--vx-ivica) var(--vx-r8); }
+.vxg-radna__inner { max-width: var(--vx-mera-gate); margin: 0 auto; }
+.vxg-radni { display: grid; grid-template-columns: 1fr 300px; gap: 0; align-items: start; }
+.vxg-radni__glavno { padding-right: var(--vx-r7); }
+.vxg-radni__rail { padding-left: var(--vx-r7); border-left: 1px solid var(--vx-linija); }
+
+.vxg-grupa { margin-bottom: var(--vx-r6); }
+.vxg-grupa__naslov { margin: 0 0 var(--vx-r2); }
+
+/* ── EDITORIAL LISTA — ne kartica, ne gola tabela. Vreme / tip / sadržaj
+   su tri odvojene tipografske "trake" kroz koje oko skenira po VRSTI
+   obaveze, bez ijedne dodatne boje ili ikonice — semantika dolazi iz
+   pozicije i tipografije, kako je traženo. */
+.vxg-lista { list-style: none; margin: 0; padding: 0; }
+.vxg-stavka {
+  display: grid; grid-template-columns: 64px 108px 1fr; gap: var(--vx-r4);
+  padding: var(--vx-r4) 0; border-top: 1px solid var(--vx-linija);
+}
+.vxg-stavka:first-child { border-top: none; }
+.vxg-stavka--hitno {
+  border-left: 3px solid var(--vx-crveno); padding-left: var(--vx-r3);
+  margin-left: calc(-1 * var(--vx-r3) - 3px);
+}
+.vxg-stavka__kada { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--vx-tx-3); padding-top: 1px; }
+.vxg-stavka__tip {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--vx-tx-3); padding-top: 1px;
+}
+.vxg-stavka--hitno .vxg-stavka__tip { color: var(--vx-crveno); }
+.vxg-stavka__naslov { margin: 0; font-size: 15px; color: var(--vx-tx-1); }
+.vxg-stavka__veza { color: var(--vx-tx-1); text-decoration: none; }
+.vxg-stavka__veza:hover { color: var(--vx-crveno); }
+.vxg-stavka__meta { margin: 4px 0 0; font-size: 13px; color: var(--vx-tx-3); }
+.vxg-preostalo { display: inline-block; margin-top: var(--vx-r3); }
+
+.vxg-prazno { padding: var(--vx-r6) 0; font-size: 16px; color: var(--vx-tx-2); border-top: 1px solid var(--vx-linija); }
+
+/* ── RAIL — plain, bez kartica; ritam nosi hijerarhiju. */
+.vxg-rail-sek { margin-bottom: var(--vx-r6); }
+.vxg-rail-sek__naslov { margin: 0 0 var(--vx-r3); }
+.vxg-rail-red { font-size: 14px; padding: var(--vx-r3) 0; border-top: 1px solid var(--vx-linija); }
+.vxg-rail-red:first-child { border-top: none; }
+.vxg-rail-veza { color: var(--vx-tx-1); text-decoration: none; }
+.vxg-rail-veza:hover { color: var(--vx-crveno); }
+.vxg-rail-brifing {
+  display: inline-flex; margin-top: var(--vx-r2); color: var(--vx-tx-2);
+  font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.vxg-rail-brifing:hover { color: var(--vx-crveno); }
+
+@media (max-width: 1024px) {
+  .vxg-radni { grid-template-columns: 1fr; }
+  .vxg-radni__glavno { padding-right: 0; }
+  .vxg-radni__rail { padding-left: 0; border-left: none; margin-top: var(--vx-r6); padding-top: var(--vx-r6); border-top: 1px solid var(--vx-linija); }
+  .vxg-hero__inner { flex-direction: column; align-items: flex-start; gap: var(--vx-r6); }
+  .vxg-hero__signal { border-right: none; padding-right: 0; }
+}
+@media (max-width: 639px) {
+  .vxg-hero__inner { flex-direction: column; align-items: flex-start; }
+  .vxg-hero__signal { border-right: none; padding-right: 0; max-width: none; }
+  .vxg-sfera { width: 200px; height: 200px; align-self: center; }
+  .vxg-hero__akcije { flex-direction: column; width: 100%; }
+  .vxg-hero__akcije .vx-btn { width: 100%; }
+  .vxg-stavka { grid-template-columns: 1fr; gap: 3px; }
+}

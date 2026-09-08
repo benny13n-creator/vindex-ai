@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danas — Gate — Vindex</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles/foundation.css">
+<link rel="stylesheet" href="gate.css">
+</head>
+<body>
+
+<!-- ══ OPERATIONAL AUTHORITY / VISUAL COMPOSITION GATE ══
+     Izolovan eksperiment, jedan jedini ekran. Ne dira danas.html,
+     predmet.html, dokument.html, registar.html ni foundation.css — vidi
+     gate.css header za pun kontekst i uslove pod kojima ovaj koncept
+     "preživljava" adversarial kritiku. -->
+<header class="vx-ljuska">
+  <div class="vx-ljuska__red">
+    <a class="vx-znak" href="danas.html"><img src="../assets/vindex-lockup.png" alt="Vindex" width="364" height="258"></a>
+    <button class="vx-nav-toggle" type="button">Meni</button>
+    <nav class="vx-nav" aria-label="Glavna navigacija">
+      <a class="vx-nav__veza vx-nav__veza--aktivan" href="danas.html" aria-current="page">Danas</a>
+      <a class="vx-nav__veza" href="../registar.html">Predmeti</a>
+      <a class="vx-nav__veza" href="#">Znanje</a>
+      <a class="vx-nav__veza" href="#">Kancelarija</a>
+    </nav>
+    <div class="vx-ljuska__desno">
+      <a class="vx-ljuska__pretraga" href="#">
+        <span class="vx-ljuska__pretraga-tekst">Pretraži predmete, klijente, spise</span>
+        <span class="vx-ljuska__precica">Ctrl K</span>
+      </a>
+      <a class="vx-ljuska__nalog" href="#">Nalog</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- ══ CRNA ZONA — situational awareness, ne atmosfera. Ponedeljak je
+       11px mono metapodatak, ne naslov. Dominantan element je odgovor na
+       "šta zahteva pažnju", ne dan u nedelji. ══ -->
+  <section class="vx-scena vx-scena--crna vxg-hero">
+    <div class="vxg-hero__inner">
+      <div class="vxg-hero__signal">
+        <p class="vxg-hero__meta">PONEDELJAK · 08.09.2026.</p>
+        <!-- PROTOTIP, POPUNJENO STANJE: kada je broj 0, produkcija ovde
+             prikazuje mirnu rečenicu (postojeći obrazac), ne "0" veličine
+             ovog fonta — veliki nula izgleda kao greška, ne kao mir. -->
+        <p class="vxg-hero__broj">3</p>
+        <p class="vxg-hero__oznaka">stvari traže pažnju</p>
+        <a class="vxg-hero__sledece" href="../predmet.html">
+          <span class="vx-mono">14:00</span> · Ročište za glavnu raspravu
+          <span class="vxg-hero__sledece-meta">Marković protiv AD Vodovod</span>
+        </a>
+        <div class="vxg-hero__akcije">
+          <a class="vx-btn vx-btn--primary" href="#">Novi predmet</a>
+          <a class="vx-tekst-akcija vx-tekst-akcija--svetlo" href="#">Iz dokumenta</a>
+        </div>
+      </div>
+
+      <!-- Sfera: PROTOTIP, REPREZENTATIVNI PODACI, nisu povezani ni na jedan
+           stvaran API poziv — isti status kao u v1 (APPLICATION-ARCHITECTURE-
+           CONTRACT-v1.md §3–4). Nosi PREOSTALA tri signala; "Traži pažnju" je
+           već iznet levo kao samostalan hero. Brojevi su postavljeni pored
+           sfere, ne kodirani njenom geometrijom — vidi gate.css napomenu. -->
+      <div class="vxg-sfera" aria-hidden="false">
+        <img src="assets/sphere.png" alt="Vindex sfera — sažetak stanja kancelarije" width="1137" height="1117">
+        <div class="vxg-sfera-vrednosti">
+          <div class="vxg-sfera-stavka">
+            <p class="vxg-sfera-broj">47</p>
+            <p class="vxg-sfera-natpis">Aktivni<br>predmeti</p>
+          </div>
+          <div class="vxg-sfera-stavka">
+            <p class="vxg-sfera-broj">2</p>
+            <p class="vxg-sfera-natpis">Uskoro</p>
+          </div>
+          <div class="vxg-sfera-stavka vxg-sfera-stavka--span">
+            <p class="vxg-sfera-broj">+4</p>
+            <p class="vxg-sfera-natpis">Novi / 7 dana</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ BONE ZONA — rad. Strukturna linija deli glavni tok od konteksta
+       (rail), umesto praznog razmaka bez razloga. ══ -->
+  <section class="vx-scena vx-scena--papir vxg-radna">
+    <div class="vxg-radna__inner">
+      <nav class="vx-prekidac" aria-label="Pregled vremena">
+        <span class="vx-prekidac__stavka vx-prekidac__stavka--aktivna" aria-current="page">Danas</span>
+        <a class="vx-prekidac__stavka" href="#">Kalendar</a>
+        <a class="vx-prekidac__stavka" href="#">Brifing</a>
+        <a class="vx-prekidac__stavka" href="#">Obaveštenja</a>
+      </nav>
+
+      <div class="vxg-radni">
+        <div class="vxg-radni__glavno">
+          <section class="vxg-grupa">
+            <h2 class="vx-eyebrow vxg-grupa__naslov">Traži pažnju</h2>
+            <ul class="vxg-lista">
+              <li class="vxg-stavka">
+                <span class="vxg-stavka__kada vx-mono">danas<br>14:00</span>
+                <span class="vxg-stavka__tip">Ročište</span>
+                <div>
+                  <p class="vxg-stavka__naslov"><a class="vxg-stavka__veza" href="../predmet.html">Ročište za glavnu raspravu</a></p>
+                  <p class="vxg-stavka__meta">Predmet: Marković protiv AD Vodovod</p>
+                </div>
+              </li>
+              <li class="vxg-stavka">
+                <span class="vxg-stavka__kada vx-mono">danas<br>—</span>
+                <span class="vxg-stavka__tip">Rok</span>
+                <div>
+                  <p class="vxg-stavka__naslov"><a class="vxg-stavka__veza" href="../predmet.html">Rok za odgovor na tužbu ističe danas</a></p>
+                  <p class="vxg-stavka__meta">Predmet: Petrović d.o.o. — raskid ugovora</p>
+                </div>
+              </li>
+              <li class="vxg-stavka vxg-stavka--hitno">
+                <span class="vxg-stavka__kada vx-mono">Kritično</span>
+                <span class="vxg-stavka__tip">Novi spis</span>
+                <div>
+                  <p class="vxg-stavka__naslov"><a class="vxg-stavka__veza" href="../predmet.html">Rešenje suda još nije pregledano</a></p>
+                  <p class="vxg-stavka__meta">Predmet: Jovanović — naknada štete</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section class="vxg-grupa">
+            <h2 class="vx-eyebrow vxg-grupa__naslov">Uskoro</h2>
+            <ul class="vxg-lista">
+              <li class="vxg-stavka">
+                <span class="vxg-stavka__kada vx-mono">sreda<br>10:30</span>
+                <span class="vxg-stavka__tip">Ročište</span>
+                <div>
+                  <p class="vxg-stavka__naslov"><a class="vxg-stavka__veza" href="../predmet.html">Pripremno ročište</a></p>
+                  <p class="vxg-stavka__meta">Predmet: Nikolić — imovinski spor</p>
+                </div>
+              </li>
+              <li class="vxg-stavka">
+                <span class="vxg-stavka__kada vx-mono">petak<br>—</span>
+                <span class="vxg-stavka__tip">Rok</span>
+                <div>
+                  <p class="vxg-stavka__naslov"><a class="vxg-stavka__veza" href="../predmet.html">Rok za žalbu</a></p>
+                  <p class="vxg-stavka__meta">Predmet: Marković protiv AD Vodovod</p>
+                </div>
+              </li>
+            </ul>
+            <a class="vxg-preostalo vx-tekst-akcija" href="#">+4 u kalendaru</a>
+          </section>
+        </div>
+
+        <aside class="vxg-radni__rail">
+          <section class="vxg-rail-sek">
+            <h2 class="vx-eyebrow vxg-rail-sek__naslov">Nedavno završeno</h2>
+            <div class="vxg-rail-red">Odgovor na tužbu — Petrović d.o.o.</div>
+            <div class="vxg-rail-red">Podnesak dokaza — Nikolić</div>
+          </section>
+          <section class="vxg-rail-sek">
+            <h2 class="vx-eyebrow vxg-rail-sek__naslov">Nedavno otvoreno</h2>
+            <div class="vxg-rail-red"><a class="vxg-rail-veza" href="../predmet.html">Marković protiv AD Vodovod</a></div>
+            <div class="vxg-rail-red"><a class="vxg-rail-veza" href="../predmet.html">Jovanović — naknada štete</a></div>
+            <div class="vxg-rail-red"><a class="vxg-rail-veza" href="../predmet.html">Petrović d.o.o.</a></div>
+          </section>
+          <a class="vxg-rail-brifing" href="#">Jutarnji brifing →</a>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<script>
+  var vxToggle = document.querySelector('.vx-nav-toggle');
+  var vxNav = document.querySelector('.vx-nav');
+  if (vxToggle && vxNav) {
+    vxToggle.addEventListener('click', function () {
+      var otvoren = vxNav.getAttribute('data-otvoren') === '1';
+      vxNav.setAttribute('data-otvoren', otvoren ? '0' : '1');
+      vxToggle.setAttribute('aria-expanded', otvoren ? 'false' : 'true');
+    });
+  }
+</script>
+</body>
+</html>
