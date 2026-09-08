@@ -15,7 +15,7 @@
 <!-- ══ LJUSKA — identična na sve 4 prototip ekrana ══ -->
 <header class="vx-ljuska">
   <div class="vx-ljuska__red">
-    <a class="vx-znak" href="danas.html">Vinde<span class="vx-znak__x">x</span></a>
+    <a class="vx-znak" href="danas.html"><img src="assets/vindex-lockup.png" alt="Vindex" width="364" height="258"></a>
     <button class="vx-nav-toggle" type="button">Meni</button>
     <nav class="vx-nav" aria-label="Glavna navigacija">
       <a class="vx-nav__veza vx-nav__veza--aktivan" href="danas.html" aria-current="page">Danas</a>
@@ -34,7 +34,7 @@
 </header>
 
 <main>
-  <!-- ══ CRNA SCENA — zaglavlje + sfera ══ -->
+  <!-- ══ CRNA SCENA — zaglavlje ══ -->
   <section class="vx-scena vx-scena--crna vx-danas-glava">
     <div class="vx-danas-glava__inner">
       <div class="vx-danas-glava__tekst">
@@ -51,35 +51,6 @@
           <a class="vx-tekst-akcija vx-tekst-akcija--svetlo" href="#">Iz dokumenta</a>
         </div>
         <p style="margin-top:10px"><a class="vx-btn vx-btn--ghost" href="registar.html">Svi predmeti</a></p>
-      </div>
-
-      <!-- Sfera: PROTOTIP, REPREZENTATIVNI PODACI — nisu povezani ni na jedan
-           stvaran API poziv. Četiri signala i njihova semantika su rešeni u
-           APPLICATION-ARCHITECTURE-CONTRACT-v1.md §3–4: sva četiri imaju
-           dokazano računljivu definiciju u produkciji (nijedan nije izmišljen
-           da bi popunio prazan slot). Vrednosti ispod se poklapaju sa brojem
-           stavki stvarno prikazanih u tokovima ispod (3 u „Traži pažnju", 2 u
-           „Uskoro") radi unutrašnje doslednosti ovog prikaza. -->
-      <div class="vx-sfera-zona" aria-hidden="false">
-        <img src="assets/sphere.png" alt="Vindex sfera — sažetak stanja kancelarije" width="1137" height="1117">
-        <div class="vx-sfera-vrednosti">
-          <div class="vx-sfera-stavka">
-            <p class="vx-sfera-broj vx-sfera-broj--aktivno">7</p>
-            <p class="vx-sfera-natpis">Aktivni<br>predmeti</p>
-          </div>
-          <div class="vx-sfera-stavka">
-            <p class="vx-sfera-broj vx-sfera-broj--aktivno">3</p>
-            <p class="vx-sfera-natpis">Traži<br>pažnju</p>
-          </div>
-          <div class="vx-sfera-stavka">
-            <p class="vx-sfera-broj vx-sfera-broj--aktivno">2</p>
-            <p class="vx-sfera-natpis">Uskoro</p>
-          </div>
-          <div class="vx-sfera-stavka">
-            <p class="vx-sfera-broj">0</p>
-            <p class="vx-sfera-natpis">Novi predmeti<br>(7 dana)</p>
-          </div>
-        </div>
       </div>
     </div>
   </section>
