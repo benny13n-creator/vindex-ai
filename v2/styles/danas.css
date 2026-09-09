@@ -77,14 +77,23 @@
   max-width: 62ch;
 }
 
-/* ── Stavka: rok / rociste / predlog (nepromenjeno) ──────────────────── */
+/* ── Stavka: rok / rociste / predlog ──────────────────────────────────
+ * C0 (Bounded Operational Objects): red dobija sopstvenu ogranicenu
+ * povrsinu umesto samo donje linije — jedina druga papir-povrsina
+ * (`--v2-papir-2`) plus puna, ali i dalje tanka, ivica (`--v2-linija-jaca`).
+ * Ravni uglovi, bez senke (ustav §7, S-1/S-2 — nepromenjeno, samo
+ * eksplicitno ovde). Ovo NISU kartice: jedna kolona, isti grid, ista
+ * gustina — granica postoji da red bude prepoznatljiv kao JEDNA
+ * operativna stvar, ne kao dekoracija. */
 .v2-obaveza {
   display: grid;
   grid-template-columns: minmax(0, 15ch) minmax(0, 1fr);
   gap: var(--v2-r-4);
   align-items: baseline;
-  padding-block: var(--v2-r-3);
-  border-bottom: 1px solid var(--v2-linija);
+  padding: var(--v2-r-3) var(--v2-r-4);
+  border: 1px solid var(--v2-linija-jaca);
+  border-radius: 0;
+  background: var(--v2-papir-2);
   min-height: var(--v2-red-min);
 }
 
@@ -141,7 +150,11 @@
    veza je tekst obaveze, ne dugme pored nje. */
 .v2-obaveza__veza { color: inherit; text-decoration: none; }
 .v2-obaveza__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
-.v2-obaveza:has(.v2-obaveza__veza:hover) { background: var(--v2-papir-2); }
+/* C0: default povrsina je vec `--v2-papir-2` (v. gore), pa interaktivno
+   stanje mora preci na DRUGU postojecu papir-povrsinu da ostane vidljivo —
+   isti par tokena, samo obrnut smer u odnosu na pre-C0 ponasanje. */
+.v2-obaveza:has(.v2-obaveza__veza:hover) { background: var(--v2-papir); }
+.v2-obaveza:focus-within { background: var(--v2-papir); }
 .v2-obaveza .v2-odluka { margin-top: var(--v2-r-2); }
 
 /* ── Radna stavka: case_action / zadatak / pregled dokumenta (workspace) ──
@@ -154,8 +167,10 @@
   grid-template-columns: minmax(0, 15ch) minmax(0, 1fr);
   gap: var(--v2-r-4);
   align-items: baseline;
-  padding-block: var(--v2-r-3);
-  border-bottom: 1px solid var(--v2-linija);
+  padding: var(--v2-r-3) var(--v2-r-4);
+  border: 1px solid var(--v2-linija-jaca);
+  border-radius: 0;
+  background: var(--v2-papir-2);
   min-height: var(--v2-red-min);
 }
 .v2-radna-stavka__kada {
@@ -177,7 +192,26 @@
 }
 .v2-radna-stavka__veza { color: inherit; text-decoration: none; }
 .v2-radna-stavka__veza:hover { text-decoration: underline; text-underline-offset: 3px; }
-.v2-radna-stavka:has(.v2-radna-stavka__veza:hover) { background: var(--v2-papir-2); }
+.v2-radna-stavka:has(.v2-radna-stavka__veza:hover) { background: var(--v2-papir); }
+.v2-radna-stavka:focus-within { background: var(--v2-papir); }
+
+/* ── C0: razdvajanje objekata + kriticna ivica ────────────────────────
+ * Mali razmak (ne padding kartice) izmedju uzastopnih redova iste liste,
+ * bez obzira da li mesaju `.v2-obaveza`/`.v2-radna-stavka` — svaka ima
+ * vec svoju punu ivicu, ovaj razmak samo sprecava da se dve ivice stope
+ * u jednu deblju liniju i izgube citljivost kao ODVOJENI objekti.
+ * Kriticno (propusteno / hitno) je JEDINO pojacanje: leva ivica prelazi
+ * na postojecu `--v2-st-greska` semantiku i zadeblja se — nema nove boje,
+ * nema pune crvene pozadine, nema badge-a, nema animacije. Predlog/provera
+ * je eksplicitno izuzet (§6, trust boundary): sam po sebi ne moze postati
+ * kriticniji izgledom nego danas. */
+.v2-grupa__lista > li + li { margin-top: var(--v2-r-1); }
+
+.v2-obaveza[data-grupa="propusteno"]:not(.v2-obaveza--provera),
+.v2-radna-stavka--hitno {
+  border-left-width: 3px;
+  border-left-color: var(--v2-st-greska);
+}
 
 /* ── Preostalo iza odsecanja — nikad tiho, nikad lazna veza ──────────── */
 .v2-danas-preostalo {
