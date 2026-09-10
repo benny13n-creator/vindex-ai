@@ -363,9 +363,9 @@ blockquote.citat-expanded { max-height: none; }
 .pc-lbl.blue { color: rgba(255,255,255,0.72); } .pc-lbl.blue::before { background: rgba(255,255,255,0.72); box-shadow:none; }
 .pc-lbl.green { color: #4ade80; } .pc-lbl.green::before { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
 .pc-lbl.gold { color: #e8c97a; } .pc-lbl.gold::before { background: #e8c97a; box-shadow: 0 0 6px rgba(232,201,122,0.7); }
-.pc-title { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.15rem; }
+.pc-title { font-family: 'Source Serif 4', serif; font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.15rem; }
 .pc-sub { font-size: 0.7rem; color: var(--tx-3); font-weight: 300; }
-.pc-big { font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 700; color: #4ade80; line-height: 1; margin-bottom: 0.5rem; }
+.pc-big { font-family: 'Source Serif 4', serif; font-size: 2.4rem; font-weight: 700; color: #4ade80; line-height: 1; margin-bottom: 0.5rem; }
 .pc-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
 .pc-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #4ade80, #00d4ff); }
 .pc-quote { font-style: italic; font-size: 0.75rem; color: rgba(232,201,122,0.75); line-height: 1.65; font-weight: 300; }
@@ -384,7 +384,7 @@ blockquote.citat-expanded { max-height: none; }
 .how-circle::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); }
 .how-step:hover .how-circle { background: rgba(0,212,255,0.09); border-color: rgba(0,212,255,0.35); box-shadow: 0 0 30px rgba(255,255,255,0.09); }
 .how-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: rgba(255,255,255,0.72); }
-.how-htitle { font-family: 'Cormorant Garamond', serif; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.55rem; }
+.how-htitle { font-family: 'Source Serif 4', serif; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.55rem; }
 .how-hdesc { font-size: 0.82rem; color: var(--tx-3); line-height: 1.82; font-weight: 300; max-width: 220px; margin: 0 auto; }
 
 /* ── TERMINAL GUIDE + CHIPS ─────────────────────────────────────────────── */
@@ -602,8 +602,8 @@ footer { padding: 2rem 1.5rem; }
 /* ── PAYWALL MODAL ───────────────────────────────────────────────────────── */
 .paywall-icon { font-size: 2.8rem; margin-bottom: 0.8rem; }
 .paywall-price-wrap { margin: 1.2rem 0 1.5rem; }
-.paywall-price-num { font-family: 'Cormorant Garamond',serif; font-size: 3.8rem; font-weight: 700; color: #fff; line-height: 1; }
-.paywall-price-cur { font-family: 'Cormorant Garamond',serif; font-size: 2rem; font-weight: 300; color: var(--tx-3); vertical-align: super; }
+.paywall-price-num { font-family: 'Source Serif 4',serif; font-size: 3.8rem; font-weight: 700; color: #fff; line-height: 1; }
+.paywall-price-cur { font-family: 'Source Serif 4',serif; font-size: 2rem; font-weight: 300; color: var(--tx-3); vertical-align: super; }
 .paywall-price-per { display: block; font-size: 0.78rem; color: var(--tx-3); margin-top: 0.3rem; }
 .paywall-features { list-style: none; text-align: left; margin: 0 0 1.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .paywall-features li { font-size: 0.8rem; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 0.5rem; }
@@ -956,7 +956,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .billing-faktura-form{background:rgba(255,255,255,0.02);border:1px solid rgba(0,212,255,0.07);border-radius:2px;padding:0.7rem;}
 .billing-faktura-ok{font-size:0.77rem;color:#4ade80;padding:0.4rem 0.6rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.18);border-radius:2px;}
 .billing-kc-kpi{background:rgba(255,255,255,0.02);border:1px solid rgba(0,212,255,0.07);border-radius:3px;padding:0.8rem 1rem;text-align:center;}
-.billing-kc-n{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
+.billing-kc-n{font-family:'Source Serif 4',serif;font-size:1.8rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
 .billing-kc-n.warn{color:#fb923c;}
 .billing-kc-l{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color: var(--tx-3);margin-top:0.25rem;line-height:1.4;}
 .billing-report-btn{width:100%;padding:0.42rem 0.55rem;background:rgba(255,255,255,0.03);border:1px solid var(--vx-border);border-radius:2px;color:rgba(255,255,255,0.55);font-size:0.7rem;cursor:pointer;transition:background .15s,border-color .15s,color .15s;font-family:inherit;text-align:left;}
@@ -975,12 +975,12 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kom-submit{background:rgba(0,212,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:2px;color:rgba(255,255,255,0.72);font-size:0.8rem;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;}
 .kom-submit:hover{background:rgba(255,255,255,0.09);}
 /* ── KONTROLNI CENTAR (tab-h) ──────────────────────────────── */
-.kc-greeting{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;color:rgba(255,255,255,0.85);margin-bottom:0.3rem;}
+.kc-greeting{font-family:'Source Serif 4',serif;font-size:1.5rem;font-weight:400;color:rgba(255,255,255,0.85);margin-bottom:0.3rem;}
 .kc-date{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.12em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-bottom:1.2rem;}
 .kc-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;margin-bottom:1.4rem;}
 .kc-kpi{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.9rem 1rem;text-align:center;transition:border-color 0.2s;cursor:default;}
 .kc-kpi:hover{border-color:rgba(255,255,255,0.09);}
-.kc-kpi-n{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
+.kc-kpi-n{font-family:'Source Serif 4',serif;font-size:2.2rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
 .kc-kpi-n.warn{color:#fb923c;}
 .kc-kpi-l{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.28);margin-top:0.3rem;line-height:1.4;}
 .kc-section{margin-bottom:1.4rem;}
@@ -1004,14 +1004,14 @@ select option:hover,select option:focus,select option:checked{background-color:r
 /* ── PRODUCT INTELLIGENCE (tab-pi) ─────────────────────────── */
 #tab-pi{padding:1rem 0 2rem;}
 .pi-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.4rem;}
-.pi-title{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:rgba(255,255,255,0.9);}
+.pi-title{font-family:'Source Serif 4',serif;font-size:1.5rem;font-weight:600;color:rgba(255,255,255,0.9);}
 .pi-subtitle{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;color: var(--tx-3);margin-top:0.2rem;}
 .pi-reload-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.55);font-size:0.7rem;padding:0.4rem 0.9rem;border-radius:2px;cursor:pointer;transition:all 0.2s;font-family:'JetBrains Mono',monospace;}
 .pi-reload-btn:hover{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.72);}
 .pi-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.7rem;margin-bottom:1.5rem;}
 @media(max-width:640px){.pi-kpi-grid{grid-template-columns:repeat(2,1fr);}}
 .pi-kpi{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:3px;padding:1rem;text-align:center;position:relative;}
-.pi-kpi-val{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
+.pi-kpi-val{font-family:'Source Serif 4',serif;font-size:2.4rem;font-weight:700;color:rgba(255,255,255,0.72);line-height:1;}
 .pi-kpi-lbl{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;color: var(--tx-3);margin-top:0.3rem;}
 .pi-kpi-trend{font-family:'JetBrains Mono',monospace;font-size:0.75rem;position:absolute;top:0.55rem;right:0.65rem;font-weight:600;}
 .pi-kpi-trend.up{color:#4ade80;}.pi-kpi-trend.down{color:#f87171;}.pi-kpi-trend.flat{color: var(--tx-4);}
@@ -1048,7 +1048,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .pi-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;}
 @media(max-width:480px){.pi-stats-row{grid-template-columns:1fr 1fr;}}
 .pi-stat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:2px;padding:0.75rem 0.9rem;text-align:center;}
-.pi-stat-val{font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:700;color:#c9a84c;line-height:1;}
+.pi-stat-val{font-family:'Source Serif 4',serif;font-size:1.7rem;font-weight:700;color:#c9a84c;line-height:1;}
 .pi-stat-lbl{font-family:'JetBrains Mono',monospace;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color: var(--tx-4);margin-top:0.25rem;}
 .pi-empty{text-align:center;padding:2rem;font-family:'JetBrains Mono',monospace;font-size:0.75rem;color: var(--tx-4);letter-spacing:0.1em;text-transform:uppercase;}
 .pi-funnel-tabs{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem;}
@@ -1507,7 +1507,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 
 /* Podešavanja panel */
 .settings-header {
-  font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 500;
+  font-family: 'Source Serif 4', serif; font-size: 1.3rem; font-weight: 500;
   color: rgba(255,255,255,0.88); margin-bottom: 1.5rem; letter-spacing: -0.01em;
 }
 .settings-section {
@@ -1561,7 +1561,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kc-topbar-left { flex: 1; min-width: 0; }
 .kc-topbar-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
 .kc-greeting {
-  font-family: 'Cormorant Garamond', serif; font-size: 1.65rem; font-weight: 500;
+  font-family: 'Source Serif 4', serif; font-size: 1.65rem; font-weight: 500;
   color: rgba(255,255,255,0.9); line-height: 1.2; letter-spacing: -0.01em;
   margin-bottom: 0.2rem;
 }
@@ -1614,7 +1614,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .kc-kpi.ok::before { background: #4ade80; }
 .kc-kpi:hover { border-color: rgba(255,255,255,0.09); }
 .kc-kpi-n {
-  font-family: 'Cormorant Garamond', serif; font-size: 2.4rem; font-weight: 700;
+  font-family: 'Source Serif 4', serif; font-size: 2.4rem; font-weight: 700;
   color: rgba(255,255,255,0.88); line-height: 1; margin-bottom: 0.3rem;
 }
 .kc-kpi-n.warn { color: #ef4444; }
@@ -1639,7 +1639,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
   margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;
 }
 .kc-section-hd-count {
-  font-family: 'Cormorant Garamond', serif; font-size: 1rem; font-weight: 600;
+  font-family: 'Source Serif 4', serif; font-size: 1rem; font-weight: 600;
   color: rgba(255,255,255,0.5);
 }
 
@@ -1730,7 +1730,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
   border-radius: 2px; padding: 0.7rem 0.8rem; text-align: left;
 }
 .billing-kc-n {
-  font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 700;
+  font-family: 'Source Serif 4', serif; font-size: 1.6rem; font-weight: 700;
   color: rgba(255,255,255,0.72); line-height: 1;
 }
 .billing-kc-n.warn { color: #fb923c; }
@@ -2193,7 +2193,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .h-badge::before { content:''; display:block; width:24px; height:1px; background:rgba(255,255,255,0.40); }
 .vp-icon { display:none; }
 .vp-card { background:transparent!important; border:none!important; border-left:2px solid rgba(0,212,255,0.10)!important; border-radius:0!important; padding:0 0 0 1.2rem!important; box-shadow:none!important; }
-.vp-title { font-family:'Cormorant Garamond',serif!important; font-size:1.05rem!important; font-weight:500!important; letter-spacing:-0.01em!important; color:rgba(255,255,255,0.88)!important; }
+.vp-title { font-family:'Source Serif 4',serif!important; font-size:1.05rem!important; font-weight:500!important; letter-spacing:-0.01em!important; color:rgba(255,255,255,0.88)!important; }
 .vp-desc { font-size:0.8rem!important; color: var(--tx-3)!important; line-height:1.68!important; }
 /* ───────────────────────────────────────────────────────────────────────── */
 
@@ -2772,7 +2772,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 
   /* Typography — v3: monospace-forward (Bloomberg Terminal/Palantir), osim zakljucanog
      Pregled dana ekrana (#tab-h ispod redefinise --font-ui nazad na originalni sans-serif) */
-  --font-brand: 'Cormorant Garamond', Georgia, serif;
+  --font-brand: 'Source Serif 4', Georgia, serif;
   --font-ui:    'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   --font-mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
@@ -2796,7 +2796,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 /* Dashboard (Pregled dana / sfera) je zakljucan ekran — redefiniše --font-ui
    nazad na originalni sans-serif samo unutar #tab-h, tako da globalna promena
    na monospace gore ne dira njegovu tipografiju. */
-#tab-h { --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+#tab-h { --font-ui: 'Source Sans 3', system-ui, -apple-system, sans-serif; }
 
 /* 2. BASE RESET ─────────────────────────────────────────────────── */
 *, *::before, *::after {
@@ -4850,7 +4850,7 @@ body.light-theme .wl-input::placeholder { color: rgba(10,18,32,0.28); }
   align-items: center !important;
 }
 .vx-logo-mark {
-  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-family: 'Source Serif 4', Georgia, serif !important;
   font-size: 1.4rem !important;
   font-weight: 600 !important;
   color: #ffffff !important;
@@ -5742,7 +5742,7 @@ i[data-lucide] svg {
   cursor: pointer;
   letter-spacing: 0.02em;
   transition: color .15s, border-color .15s;
-  font-family: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-ui, 'Source Sans 3', sans-serif);
   white-space: nowrap;
 }
 .pred-subtab-btn:hover { color: rgba(255,255,255,0.75); }
@@ -5763,7 +5763,7 @@ i[data-lucide] svg {
   border-radius: 2px;
   color: rgba(255,255,255,0.75);
   font-size: 0.78rem;
-  font-family: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-ui, 'Source Sans 3', sans-serif);
   cursor: pointer;
   text-align: left;
   gap: 0.45rem;
@@ -5828,7 +5828,7 @@ i[data-lucide] svg {
   background: transparent; border: none; border-bottom: 2px solid transparent;
   cursor: pointer; letter-spacing: .01em;
   transition: color .15s, border-color .15s;
-  font-family: var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-ui, 'Source Sans 3', sans-serif);
   white-space: nowrap;
   min-height: 44px;
 }
