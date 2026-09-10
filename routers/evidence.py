@@ -389,6 +389,31 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
     except GreskaDokaza as exc:
         raise HTTPException(status_code=exc.status, detail=exc.poruka)
 
+    # TASK 2 (Case Evolution Spine, 2026-09-11): this route wrote to
+    # predmet_dokazi via upisi_dokaz but never told the Canonical Consequence
+    # Engine a fact was added -- confirmed LIVE (TASK0_CASE_EVOLUTION_SPINE_
+    # FORENSIC_CONTRACT.md section C): 0 case_actions after 30s despite a
+    # successful write, and the events outbox held zero rows for the call at
+    # all (missing producer, not a broken dispatcher). Mirrors the exact,
+    # already-proven-live shape api.py:6010-6020 uses for the auto-analyze
+    # upload path (same EventType, same non-fatal try/except so a bus outage
+    # never turns a successful evidence write into a failed HTTP response).
+    # dokument_id is passed through when present (req.dokument_id) -- when
+    # absent, _consequence_evidence_classify's own dokument_id-gate makes it
+    # a harmless no-op (nothing to classify, the fact is already structured),
+    # while _consequence_refresh_case_actions still runs off predmet_id alone
+    # and picks up the new predmet_dokazi row either way.
+    try:
+        from services.event_bus import EventType, emit_durable
+        await emit_durable(
+            EventType.NEW_EVIDENCE_REGISTERED,
+            uid,
+            predmet_id,
+            {"dokument_id": req.dokument_id, "dokaz_id": (rez["red"] or {}).get("id"), "trigger": "manual_add_dokaz"},
+        )
+    except Exception as _ce:
+        logger.warning("[CASE_EVOLUTION] NEW_EVIDENCE_REGISTERED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ce)
+
     odluka = rez["odluka"]
     return {
         "ok": True,
