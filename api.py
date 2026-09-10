@@ -3737,6 +3737,16 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 supa = _get_supa()
                 beleske_res  = supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(5).execute()
                 istorija_res = supa.table("predmet_istorija").select("pitanje, odgovor").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(10).execute()
+                # TASK 5 (Case Evolution Spine, 2026-09-11): predmet_dokazi (manuelno
+                # ili automatski unete cinjenice, routers/evidence.py::add_dokaz) se
+                # NIGDE u ovoj ruti nije citao -- ni ovde, ni kroz shared/case_context.py
+                # (ta gradjevina takodje nikad ne selektuje `tvrdnja`, samo metapodatke).
+                # Dokazano uzivo: cinjenica dodata rucno ostaje nevidljiva za /api/pitanje
+                # bez obzira koliko dugo se ceka (dogadjaj/refresh vec dokazano brz --
+                # v. TASK2 -- ovo NIJE pitanje svezine, nego da cinjenica nikad ne stize
+                # do prompta). Ista granica poverenja kao beleske/istorija ispod
+                # (T3, nepoverljiv sadrzaj, karantin + zapakuj_nepoverljivo).
+                dokazi_res = supa.table("predmet_dokazi").select("tvrdnja, snaga, kategorija").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).is_("deleted_at", "null").order("created_at", desc=True).limit(20).execute()
                 # F1 (B-U-004-N1, 2026-08-23): KARANTIN KONTEKSTA PREDMETA.
                 #
                 # Route gate iznad (`_guard_analyze(req.pitanje)`) analizira SAMO
@@ -3782,6 +3792,11 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                                                  (r.get("odgovor") or "")[:300]),
                                       "istorija#%d" % i)
                 )
+                dokazi_tekst = "\n".join(
+                    f"- ({d.get('kategorija') or 'cinjenica'}, snaga={d.get('snaga') or 'nepoznata'}) {d['tvrdnja']}"
+                    for i, d in enumerate(dokazi_res.data or [])
+                    if d.get("tvrdnja") and _ctx_bezbedan(d["tvrdnja"], "dokaz#%d" % i)
+                )
                 if _ctx_karantin:
                     logger.warning("[CTX_KARANTIN] predmet=%s izolovano: %s",
                                    predmet_id, _ctx_karantin)
@@ -3798,7 +3813,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                         ))
                     except Exception:
                         pass
-                if beleske_tekst or istorija_tekst:
+                if beleske_tekst or istorija_tekst or dokazi_tekst:
                     # ── C (B-U-004-F3): KONTEKST PREDMETA JE T3 ──────────────
                     #
                     # Beleska i istorija su ulazile DOSLOVNO ispred natpisa
@@ -3814,6 +3829,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     from security.prompt_guard import IZVOR_BELESKA as _IZV_BEL
                     from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj_pred
                     delovi = []
+                    if dokazi_tekst:
+                        delovi.append(f"Utvrđene činjenice u predmetu:\n{dokazi_tekst}")
                     if beleske_tekst:
                         delovi.append(f"Beleške:\n{beleske_tekst}")
                     if istorija_tekst:
@@ -3826,7 +3843,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     pitanje_za_agenta = f"{extra_context}\n\nPITANJE: {pitanje_za_agenta}"
                     # Jedina tačka u kojoj je kontekst stvarno ušao u prompt.
                     _kontekst_ubacen = True
-                    logger.info("[F5] predmet_id=%s context injected (%d beleški, %d istorija)", predmet_id, len(beleske_res.data or []), len(istorija_res.data or []))
+                    logger.info("[F5] predmet_id=%s context injected (%d dokazi, %d beleški, %d istorija)", predmet_id, len(dokazi_res.data or []), len(beleske_res.data or []), len(istorija_res.data or []))
             except Exception:
                 logger.warning("[F5] predmet context load failed for predmet_id=%s — proceeding without", predmet_id)
 
