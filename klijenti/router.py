@@ -504,10 +504,17 @@ async def update_klijent(
     supa = _get_supa()
     ip = get_client_ip(request)
 
+    # DEFGO-A (2026-09-10): ista klasa greske kao NS001/FAZA 1 iznad (linija
+    # ~405) -- `.single()` na 0 redova PODIZE PostgREST izuzetak PRE ove
+    # `if not ... raise 404` provere, pa je tudj/nepostojeci klijent davao
+    # HTTP 500 umesto namerenog 404. Podatak nije curio (dokazano: B-ov
+    # pokusaj PUT-a nije izmenio A-ov klijent), ali klasa greske je bila
+    # pogresna. Isti fix kao ranije primenjen ovde: `.maybe_single()` +
+    # `getattr`, dosledno sa ostatkom ovog fajla.
     stara_vrednost = await asyncio.to_thread(
-        lambda: supa.table("klijenti").select("*").eq("id", klijent_id).eq("user_id", user["user_id"]).single().execute()
+        lambda: supa.table("klijenti").select("*").eq("id", klijent_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
-    if not stara_vrednost.data:
+    if not getattr(stara_vrednost, "data", None):
         raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
 
     update_row: dict = {}

@@ -7860,6 +7860,17 @@ async function execQuery() {
         console.error('[Vindex] PRAZNI ODGOVOR — raw d:', JSON.stringify(d));
         text = 'Server nije vratio odgovor. HTTP ' + r.status + '. Proverite konzolu (F12) i pošaljite grešku podršci.';
       }
+      // DEFGO-B (2026-09-10): backend `/api/pitanje` već računa i vraća
+      // `kontekst_predmeta` (fail-closed — false kad predmet nije dostupan/
+      // pronađen/u brisanju, v. api.py komentar iznad `resp["kontekst_predmeta"]`),
+      // ali ovaj UI ga do sada nigde nije čitao — advokat koji pita "u kontekstu
+      // predmeta X" nije imao način da zna kad je odgovor tiho pao na opšti mod.
+      // Upozorenje se dodaje SAMO kad je predmet eksplicitno tražen (aktivan tab
+      // predmeta) i backend eksplicitno kaže da nije korišćen — ne menja ponašanje
+      // za samostalna pitanja bez predmeta (d.kontekst_predmeta ostaje `null`).
+      if (dispatchTab === 'q' && activePredmetId && d.kontekst_predmeta === false) {
+        text = '⚠ Predmet nije pronađen ili nije dostupan — odgovor NIJE zasnovan na ovom predmetu, samo opšte pravne prirode.\n\n' + text;
+      }
 
       // Sačuvaj u in-memory i Supabase history
       if (d.odgovor) {
