@@ -44,7 +44,13 @@ async def get_ccc(predmet_id: str, user=Depends(get_current_user)):
     # ── Ownership check ─────────────────────────────────────────────────────
     pr = await asyncio.to_thread(
         lambda: supa.table("predmeti").select(
-            "id,naziv,tip,status,oblast,tuzilac,tuzeni,rizik,vrednost_spora,opis,created_at"
+            # "oblast" namerno uklonjen (2026-09-10, BETA CRITICAL FIX #1):
+            # kolona ne postoji na `predmeti` -- ni u jednoj migraciji (proveri
+            # migrations/015_predmeti_extra_fields.sql, koja dodaje tuzilac/
+            # tuzeni/rizik/vrednost_spora ali ne oblast) -- uzrokovala je
+            # deterministican 500 (`column predmeti.oblast does not exist`,
+            # 42703) na svaki pokusaj otvaranja detalja predmeta.
+            "id,naziv,tip,status,tuzilac,tuzeni,rizik,vrednost_spora,opis,created_at"
         ).eq("id", predmet_id).eq("user_id", uid).execute()
     )
     if not pr.data:

@@ -18036,7 +18036,13 @@ async function _cioLoad(hdr, forceRun) {
     section.innerHTML = _cioRender(data.izvestaj || {}, data);
     if (window.lucide) lucide.createIcons();
   } catch(e) {
-    section.innerHTML = '<div style="color:var(--tx-4);font-size:0.68rem;padding:0.5rem;">CIO nije dostupan. <span onclick="_cioLoad(null,true)" style="color:rgba(0,212,255,0.62);cursor:pointer;">Pokušaj ponovo</span></div>';
+    // BETA CRITICAL FIX #4 (2026-09-10): "CIO" je interni naziv koji korisnik
+    // vidi ISPISAN ("CHIEF INTELLIGENCE OFFICER") samo u uspešnom prikazu
+    // (_cioRender, gore) -- ali greska granа ovde je koristila golu skracenicu
+    // bez objasnjenja, pa je korisnik koji NIKAD ne vidi uspesan prikaz (npr.
+    // entitlement blokiran) video nepoznat, neobjasnjen termin. Interni
+    // identifikator/funkcija (`_cioLoad`, `/api/cio/*`) NIJE menjan.
+    section.innerHTML = '<div style="color:var(--tx-4);font-size:0.68rem;padding:0.5rem;">Dnevni pregled (Chief Intelligence Officer) trenutno nije dostupan. <span onclick="_cioLoad(null,true)" style="color:rgba(0,212,255,0.62);cursor:pointer;">Pokušaj ponovo</span></div>';
   }
 }
 
@@ -20503,6 +20509,24 @@ async function pred_upload_doc(file) {
     }
     if (r.status === 413) {
       if (errEl) { errEl.textContent = 'Fajl je preko 10MB.'; errEl.style.display = 'block'; }
+      if (resEl) resEl.innerHTML = '';
+      return;
+    }
+    if (r.status === 403) {
+      // BETA CRITICAL FIX #2 (2026-09-10): 403 na ovom endpoint-u je gotovo
+      // uvek PermissionService entitlement gejt ("Professional tarifa ili
+      // viša"), ne stvaran kvar servera -- ali je do sada padao u generičku
+      // granu ispod ("Greška servera (403). Pokušajte ponovo."), pa je
+      // korisnik na Basic tarifi mislio da je aplikacija pokvarena, ne da mu
+      // treba nadogradnja. Prikazujemo TAČNU backend poruku (`detail`) kad
+      // postoji -- ne izmišljenu -- umesto da nagađamo razlog; entitlement
+      // sama nije menjana.
+      var _entMsg = 'Nemate dozvolu za ovu radnju.';
+      try {
+        var _errBody = await r.json();
+        if (_errBody && _errBody.detail) _entMsg = _errBody.detail;
+      } catch (_e) { /* telo nije JSON -- ostaje fallback poruka iznad */ }
+      if (errEl) { errEl.textContent = _entMsg; errEl.style.display = 'block'; }
       if (resEl) resEl.innerHTML = '';
       return;
     }
