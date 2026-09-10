@@ -37,6 +37,17 @@ Evidence discipline: PROVEN = live runtime evidence cited below. INFERRED = code
    ```
 This is a real row from `case_actions`, written by `services/case_evolution.py:1175` (the sole INSERT point for that table), reached via `event_bus` dispatch of the event emitted by the upload endpoint. **DOCUMENT → EVENT → EVOLUTION → CASE ACTION is PROVEN live for the auto-analyze upload path.**
 
+Full causal chain, read directly from the `events` outbox table for this predmet (4 rows, all cleanly dispatched, `dispatch_attempts: 0`, `last_error: null`):
+
+| event_type | created_at | dispatched_at | correlation_id |
+|---|---|---|---|
+| `predmet_kreiran` | 22:23:51.82 | 22:23:58.43 | `cc29fe44...` |
+| `NewEvidenceRegistered` | 22:23:58.93 | 22:24:21.34 | `503fa399...` |
+| `DocumentAccepted` | 22:23:59.14 | 22:24:16.16 | `503fa399...` |
+| `GenomeUpdated` | 22:24:11.30 | 22:24:14.63 | `c7b46da3...` |
+
+`NewEvidenceRegistered`/`DocumentAccepted` share the upload's `correlation_id` (`503fa399-...`) — the same `correlation_id` that appears on the resulting `case_actions` row shown above. This is a complete, correlation-ID-linked, runtime-proven chain: **upload → 2 events emitted → genome refresh event → case_actions insert**, not a coincidence or an unrelated background process.
+
 Constraint discovered along the way (not a bug, a product gate): upload requires **Professional tier or higher** (`PermissionService.require("predmet_upload_ai")`) and **PDF/DOCX only** (415 on `.txt`) — both enforced correctly, just not obviously documented for a live test.
 
 ## C. Manual evidence path — PROVEN MISSING (confirms prior finding, now with runtime proof)
@@ -81,13 +92,13 @@ Not searched this pass for a second, competing event/consequence mechanism outsi
 
 1. **"The event bus is dead code / never actually runs."** — FALSIFIED. Live startup log shows the dispatch loop starting and polling; a live document upload produced a live `case_actions` row within ~13s, which is only possible if the loop is genuinely dispatching.
 2. **"case_evolution is already called from successful document ingestion."** — CONFIRMED TRUE, with runtime evidence (section B). This reverses the prior audit's conclusion; the prior audit's grep window was too narrow, not the code itself.
-3. **"Manual evidence entry already reaches the Consequence Engine some other way (e.g. a background reconciler)."** — FALSIFIED for the 30s window tested. No reconciler fired. Cannot fully rule out a much slower/cron-based reconciler without a longer observation window (not run past 30s in this pass) or a direct `dispatch_pending_events`/outbox-table inspection — recommend checking the events/outbox table directly for a queued-but-undispatched row addressed to this predmet before concluding the gap is total silence vs. merely unqueued.
+3. **"Manual evidence entry already reaches the Consequence Engine some other way (e.g. a background reconciler)."** — FALSIFIED, now with direct outbox-table proof (not just absence-of-effect). Queried `events` table for the test predmet (`0a5960ee-862b-45c1-ae22-2280f501ce8a`) directly: it contains exactly **one** row, `event_type: "predmet_kreiran"` (from case creation), cleanly `dispatched_at` ~5s after `created_at`. **There is no event row at all for the manual `add_dokaz` call** — not a queued-but-undispatched row, not a failed-dispatch row with `last_error` set. This proves the gap is a **missing producer** (the route never calls `emit_durable`), not a broken consumer/dispatcher. Task 2's fix is therefore exactly and only: add one `emit_durable(EventType.NEW_EVIDENCE_REGISTERED, ...)` call into `routers/evidence.py::add_dokaz`, matching the proven-working shape at `api.py:6012`. No dispatcher-side work needed.
 4. **"case_actions has more than one writer, so the contract is already fragile."** — FALSIFIED. Single INSERT point confirmed (section D), consistent with all prior audits on this point.
 5. **"Deadlines are already tracked somewhere else under a different name."** — PARTIALLY CONFIRMED / PARTIALLY OPEN. `rocista` tracks hearings (a real, different concept). `case_actions.rok` is the only deadline-shaped column found and it was NOT populated in the one live sample despite an explicit statutory deadline being present in the source document — suggests deadline extraction, if it exists at all, did not fire for this document, or fires on a different signal than the one tested. Not fully resolved; carried into Task 6 as an open question rather than asserted either way.
 
 ## Follow-up not yet done (honest gap disclosure)
 
-Before treating section E/F/G/H claims as settled: (a) inspect the raw events/outbox table directly for the manual-`add_dokaz` test case to distinguish "never queued" from "queued but undispatched" — this changes whether Task 2's fix is "wire the emit call" (missing producer) vs. "fix the dispatcher" (existing producer, broken consumer); (b) live A/B test of `/api/pitanje` freshness before/after a manual fact add; (c) read `services/case_pipeline.py` / `routers/case_pipeline.py` for a possible duplicate mechanism.
+(a) is now RESOLVED — see Adversarial Check item 3 above (direct `events` table query, missing producer confirmed). Still open: (b) live A/B test of `/api/pitanje` freshness before/after a manual fact add; (c) read `services/case_pipeline.py` / `routers/case_pipeline.py` for a possible duplicate mechanism.
 
 ## TASK 0 GATE DECISION
 
