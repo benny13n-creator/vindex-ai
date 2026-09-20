@@ -7001,12 +7001,37 @@ async def predmet_dokument_obrisi(
         except Exception as _ie:
             logger.warning("[DOK-DELETE] izvedeni trag %r nije obrisan: %s", _marker, _ie)
 
-    # ── 4. RED U BAZI ───────────────────────────────────────────────────────
+    # ── 4. RED U BAZI (Case Evolution's authoritative domain-invalidation
+    # boundary) + durable SourceInvalidated event, ATOMIC ────────────────────
+    #
+    # Wave 2, Task 2D corrective closure (VINDEX-V1-EXECUTION-CONTRACT.md,
+    # 2026-09-20) -- the DB row delete and the durable SourceInvalidated
+    # event used to be two independent network round-trips (a raw
+    # .delete() here, then a separate emit_source_invalidated() call
+    # further down). A process crash between them could leave the document
+    # relationally gone with NO event ever recorded -- permanently stale
+    # case_actions until some UNRELATED later event happened to touch the
+    # same matter, which the founder correctly rejected as not an
+    # integrity guarantee. Now one Postgres RPC (migration 131): the
+    # relational delete and the event insert happen inside that function's
+    # own single transaction -- either both commit or neither does.
+    #
+    # Postgres and object storage cannot share one ACID transaction
+    # (founder's own explicit instruction) -- vectors (step 1) and object
+    # storage (step 2) above remain OUTSIDE this transaction, in their own
+    # existing order and with their own existing non-blocking failure
+    # reporting, UNCHANGED by this fix. Vector deletion in particular
+    # stays a hard 503 pre-condition BEFORE this step (unchanged) --
+    # relaxing that would weaken the confidentiality guarantee it exists
+    # for (a document must not remain AI/Pinecone-retrievable after this
+    # endpoint reports it deleted), which Wave 2's own global invariants
+    # forbid touching.
+    from services.event_bus import invalidate_dokument_relational_atomic
+    from shared.ai_provenance import current_correlation_id
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("predmet_dokumenti").delete()
-                .eq("id", dok_id).eq("predmet_id", predmet_id).eq("user_id", uid)
-                .execute()
+        _invalidated = await invalidate_dokument_relational_atomic(
+            dokument_id=dok_id, predmet_id=predmet_id, user_id=uid,
+            correlation_id=current_correlation_id(), supa=supa,
         )
     except Exception as _de:
         logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
@@ -7014,9 +7039,18 @@ async def predmet_dokument_obrisi(
             status_code=500,
             detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
         )
+    if not _invalidated:
+        logger.error("[DOK-DELETE] red u bazi nije obrisan (already absent/foreign) dok=%.8s", dok_id)
+        raise HTTPException(
+            status_code=500,
+            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
+        )
 
     # HTTP 200 od baze nije dokaz (isti razlog kao verifikacija u §6 kanonskog
-    # modula) -- proverava se da reda stvarno više nema.
+    # modula) -- proverava se da reda stvarno više nema. Zadržano kao dodatna
+    # potvrda i posle prelaska na atomsku RPC (belt-and-suspenders) -- RPC-ov
+    # sopstveni `invalidated` odgovor je već autoritativan, ovo je samo
+    # dodatno uverenje, ne jedini dokaz.
     _provera = await asyncio.to_thread(
         lambda: supa.table("predmet_dokumenti").select("id").eq("id", dok_id).limit(1).execute()
     )

@@ -16,6 +16,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from shared.constants import TERMINALNI_STATUSI_PREDMETA as _TERMINALNI_STATUSI
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.query_timeout import gather_with_timeout
@@ -175,7 +176,7 @@ async def command_center(
 
     predmeti   = _safe(predmeti_r, "predmeti")
     pred_by_id = {p["id"]: p for p in predmeti}
-    aktivni    = [p for p in predmeti if p.get("status") not in ("zatvoren", "arhiviran", "odbijen")]
+    aktivni    = [p for p in predmeti if p.get("status") not in _TERMINALNI_STATUSI]
     aktivni_count = len(aktivni)
     # Final Beta Gate F25: disclosure companion to the explicit cap above --
     # same "cap is a genuine cost tradeoff, disclosure only" reasoning as

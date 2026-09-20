@@ -23,10 +23,24 @@ Zabeleženo, NIJE menjano u ovom sprintu: `predmet_id` se ne koristi u mutaciji.
 Sigurnosno je pokriveno `user_id`-em; dodavanje predikata bilo bi izmena
 ponašanja van obima. Test 6 zaključava trenutno stanje da promena ne prođe
 neprimećeno.
+
+WAVE 2 TASK 2D CORRECTIVE CLOSURE (2026-09-20)
+The soft-delete UPDATE and the durable SourceInvalidated event used to be
+two independent calls -- a process crash between them could leave stale
+derived state with no recovery path. delete_dokaz now calls ONE atomic
+Postgres RPC (invalidate_dokaz_and_emit_event, migration 130) that
+performs the SAME soft-delete (same id+user_id predicate, same "deleted_at
+IS NULL" re-delete idempotency, predmet_id still not a predicate -- all
+UNCHANGED) together with the event insert in one transaction. _Store/_Q
+below now model `.rpc()` instead of the old direct `.table().update()`
+chain; every test's ORIGINAL claim about mutation behavior is preserved,
+only the call shape moved.
 """
 import asyncio
 import os
 import sys
+import uuid as _uuid
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -44,14 +58,54 @@ class _Store:
             {"_t": "predmet_dokazi", "id": "d-A", "user_id": A, "predmet_id": P, "deleted_at": None},
             {"_t": "predmet_dokazi", "id": "d-B", "user_id": B, "predmet_id": P, "deleted_at": None},
         ]
+        self.events = []
         self.raises = raises
-        self.updates = []
+        self.rpc_calls = []  # each entry: dict of RPC params (replaces the old `updates` list)
 
     def table(self, name):
         return _Q(self, name)
 
+    def rpc(self, name, params):
+        return _Rpc(self, name, params)
+
+
+class _Rpc:
+    """Models migration 130's invalidate_dokaz_and_emit_event: same
+    id+user_id predicate and deleted_at-IS-NULL idempotency the old direct
+    UPDATE had, now inside one function call."""
+    def __init__(self, store, name, params):
+        self.store, self.name, self.params = store, name, params
+
+    def execute(self):
+        if self.store.raises:
+            raise RuntimeError("DB down")
+        self.store.rpc_calls.append(dict(self.params))
+        p = self.params
+        # No deleted_at check -- matches migration 130's own predicate
+        # exactly (see its comment): a repeat call on an already-deleted
+        # row still matches id+user_id and stays a truthful 200.
+        hit = next(
+            (r for r in self.store.rows
+             if r.get("_t") == "predmet_dokazi" and r.get("id") == p["p_dokaz_id"]
+             and r.get("user_id") == p["p_user_id"]),
+            None,
+        )
+        res = MagicMock()
+        if hit is None:
+            res.data = [{"predmet_id": None, "invalidated": False}]
+            return res
+        hit["deleted_at"] = datetime.now(timezone.utc).isoformat()
+        if not any(e["id"] == p["p_event_id"] for e in self.store.events):
+            self.store.events.append({"id": p["p_event_id"], "event_type": "SourceInvalidated",
+                                       "source_id": p["p_dokaz_id"]})
+        res.data = [{"predmet_id": hit["predmet_id"], "invalidated": True}]
+        return res
+
 
 class _Q:
+    """Retained for any incidental non-invalidation .table() access
+    (there is none in delete_dokaz's own current body, but kept so an
+    unrelated future read on this router doesn't hard-crash the fake)."""
     def __init__(self, s, t):
         self.s, self.t, self.f, self.op = s, t, {}, "select"
 
@@ -74,7 +128,6 @@ class _Q:
                if r.get("_t") == self.t and all(r.get(k) == v for k, v in self.f.items())]
         res = MagicMock()
         if self.op == "update":
-            self.s.updates.append(dict(self.f))
             for r in hit:
                 r.update(self.patch)
         res.data = hit
@@ -126,23 +179,34 @@ def test_3_foreign_dokaz_is_404_and_survives():
 def test_4_owner_predicate_is_inside_the_update():
     st = _Store()
     _delete(st, "d-A")
-    assert st.updates, "UPDATE se mora izvršiti"
-    assert st.updates[0].get("user_id") == A, "owner predikat mora biti u samoj naredbi"
-    assert st.updates[0].get("id") == "d-A"
+    assert st.rpc_calls, "RPC poziv se mora izvršiti"
+    assert st.rpc_calls[0].get("p_user_id") == A, "owner predikat mora biti u samom RPC pozivu"
+    assert st.rpc_calls[0].get("p_dokaz_id") == "d-A"
 
 
 def test_5_repeated_delete_stays_200_not_zero_row():
-    """Već obrisan red i dalje poklapa -> nije zero-row slučaj."""
+    """Već obrisan red i dalje poklapa -> nije zero-row slučaj.
+
+    Wave 2 Task 2D corrective closure preserves this exact contract --
+    migration 130's own predicate deliberately has NO `deleted_at IS
+    NULL` clause (see its own comment referencing this test by name), so
+    a repeat call still matches id+user_id and stays a truthful 200.
+    Event-level idempotency (no duplicate recompute) is separately
+    guaranteed by the deterministic event_id + ON CONFLICT DO NOTHING."""
     st = _Store()
     _, code1 = _delete(st, "d-A")
     assert code1 == 200
     _, code2 = _delete(st, "d-A")
     assert code2 == 200, "ponovljeno brisanje je istinita tvrdnja o krajnjem stanju"
-    assert len(st.updates) == 2
+    assert len(st.rpc_calls) == 2
+    # Exactly one event exists across both calls -- the RPC's own ON
+    # CONFLICT (id) DO NOTHING, not a 2nd logical invalidation.
+    assert len(st.events) == 1
 
 
 def test_6_predmet_id_is_not_a_predicate_current_behavior():
-    """Zabeleženo stanje, van obima V44: predmet_id iz putanje se ne koristi.
+    """Zabeleženo stanje, van obima V44 i van obima Wave 2 Task 2D: predmet_id
+    iz putanje se ne koristi kao predikat ni u RPC pozivu.
 
     Sigurnosno je pokriveno user_id-em. Test drži trenutno ponašanje vidljivim
     da eventualna izmena ne prođe neprimećeno.
@@ -150,7 +214,7 @@ def test_6_predmet_id_is_not_a_predicate_current_behavior():
     st = _Store()
     out, code = _delete(st, "d-A", predmet_id="sasvim-drugi-predmet")
     assert code == 200
-    assert "predmet_id" not in st.updates[0]
+    assert "p_predmet_id" not in st.rpc_calls[0]
 
 
 def test_7_db_exception_propagates_unchanged():

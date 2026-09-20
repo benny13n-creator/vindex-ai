@@ -449,7 +449,16 @@ def test_i2_svaka_moguca_izlazna_vrednost_je_poznata_risk_engine_u():
 # ═══════════════════════════════════════════════════════════════════════════
 
 def test_j_soft_delete_ostaje_van_putanje_upisa():
-    """INVARIANT 5: primitiv ne dira `deleted_at` ni pri jednom upisu."""
+    """INVARIANT 5: primitiv ne dira `deleted_at` ni pri jednom upisu.
+
+    Wave 2 Task 2D corrective closure (2026-09-20): delete_dokaz's own
+    soft-delete + ownership predicate moved from an inline Python
+    .update()/.eq() into migration 130's atomic invalidate_dokaz_and_
+    emit_event RPC (so the mutation and the durable SourceInvalidated
+    event share one transaction). The invariant this test locks in --
+    ownership-scoped soft-delete, never a hard delete -- still holds, now
+    verified against the RPC call site plus the migration's own SQL text
+    instead of inline literals in delete_dokaz's own source."""
     supa = FakeSupa()
     upisi_dokaz(supa, predmet_id=PREDMET, user_id=KORISNIK, tvrdnja=TVRDNJA)
     assert "deleted_at" not in supa.dokazi[0]
@@ -457,7 +466,14 @@ def test_j_soft_delete_ostaje_van_putanje_upisa():
     import inspect
     from routers import evidence
     izvor = inspect.getsource(evidence.delete_dokaz)
-    assert '"deleted_at"' in izvor and ".eq(\"user_id\", uid)" in izvor
+    assert "invalidate_dokaz_atomic" in izvor
+
+    import os
+    migracija_put = os.path.join(os.path.dirname(__file__), "..", "migrations", "131_atomic_source_invalidation.sql")
+    with open(migracija_put, "r", encoding="utf-8") as f:
+        migracija = f.read()
+    assert "SET deleted_at = now()" in migracija
+    assert "pd.user_id = p_user_id" in migracija
 
 
 def test_j2_legacy_fallback_bez_grounding_kolona_i_dalje_radi():

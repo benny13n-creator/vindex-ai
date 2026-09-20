@@ -46,6 +46,15 @@ class _Store:
     def table(self, name):
         return _Q(self, name)
 
+    def rpc(self, name, params):
+        # Wave 2 Task 2D corrective closure (2026-09-20): rociste_delete
+        # now calls the atomic invalidate_rociste_and_emit_event RPC
+        # (migration 130) instead of a direct .table("rocista").delete()
+        # -- same id+user_id owner predicate, same zero-row->404 contract.
+        # zadatak/knowledge/user_webhook are untouched by that task and
+        # still go through _Q's plain .table().delete() below.
+        return _RpcQ(self, name, params)
+
 
 class _Q:
     def __init__(self, store, table):
@@ -65,6 +74,28 @@ class _Q:
             self.s.rows.remove(r)
         res = MagicMock()
         res.data = hit
+        return res
+
+
+class _RpcQ:
+    def __init__(self, store, name, params):
+        self.s, self.name, self.params = store, name, params
+
+    def execute(self):
+        if self.name != "invalidate_rociste_and_emit_event":
+            raise ValueError(f"neočekivan RPC u testu: {self.name}")
+        p = self.params
+        hit = next(
+            (r for r in self.s.rows if r.get("_t") == "rocista"
+             and r.get("id") == p["p_rociste_id"] and r.get("user_id") == p["p_user_id"]),
+            None,
+        )
+        res = MagicMock()
+        if hit is None:
+            res.data = [{"predmet_id": None, "invalidated": False}]
+            return res
+        self.s.rows.remove(hit)
+        res.data = [{"predmet_id": hit.get("predmet_id"), "invalidated": True}]
         return res
 
 

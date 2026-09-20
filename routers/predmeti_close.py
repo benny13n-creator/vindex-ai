@@ -204,22 +204,37 @@ async def zatvori_predmet(
     except Exception as e:
         logger.warning("[ZATVORI] hronologija insert greška: %s", e)
 
-    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-036 remainder): closing a case
-    # updated predmeti.status and (Mission 001) hid its case_actions from the
-    # worklist at query level, but never closed the underlying case_actions rows
-    # themselves -- an open action for a closed case stayed status='open' in the
-    # DB forever, real data hygiene debt even though no longer user-visible.
-    # Best-effort, non-blocking (same pattern as the hronologija insert above):
-    # never lets a case_actions write failure block the closure itself.
+    # Wave 2, Task 2B (VINDEX-V1-EXECUTION-CONTRACT.md) — replaces the
+    # direct `UPDATE case_actions` this endpoint used to issue (Phoenix
+    # Closure, 2026-08-08), which violated migrations/099_case_actions.sql's
+    # own documented invariant ("Nijedan drugi modul ne sme pisati direktno
+    # u ovu tabelu") and, proven by Wave 1, could not protect against a
+    # delayed/replayed event re-opening an action afterward (this call only
+    # closed whatever was open AT THIS INSTANT; it had no say over a
+    # DOCUMENT_ACCEPTED/ROCISTE_ZAKAZANO/etc. event still in flight).
+    # Calling the canonical reconcile directly — the SAME function every
+    # other Case Evolution consequence uses, and the SAME direct-call idiom
+    # scripts/backfill_case_actions.py already establishes for an
+    # out-of-band caller — restores single write ownership AND, via
+    # _compute_target_actions' own terminal-matter guard (predmeti.status
+    # is already 'zatvoren' from the update above), makes the "no new open
+    # action can survive a terminal matter" invariant hold for THIS call
+    # site too, not only for later async events. Still best-effort,
+    # non-blocking — a reconcile failure must not undo the closure itself.
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("case_actions")
-                .update({"status": "closed"})
-                .eq("predmet_id", predmet_id).eq("user_id", uid).eq("status", "open")
-                .execute()
-        )
+        from services.case_evolution import _consequence_refresh_case_actions
+        from services.event_bus import Event as _Event, EventType as _EventType
+        _reconcile_result = await _consequence_refresh_case_actions(_Event(
+            type=_EventType.MATTER_BECAME_TERMINAL,
+            user_id=uid,
+            predmet_id=predmet_id,
+            payload={"trigger": "zatvori_predmet", "novi_status": "zatvoren"},
+            correlation_id=None,
+            event_id=None,
+        ))
+        logger.info("[ZATVORI] case_actions reconcile predmet=%s uid=%.8s: %s", predmet_id, uid, _reconcile_result)
     except Exception as e:
-        logger.warning("[ZATVORI] case_actions bulk-close greška: %s", e)
+        logger.warning("[ZATVORI] case_actions reconcile greška: %s", e)
 
     logger.info("[ZATVORI] predmet=%s uid=%.8s ishod=%s", predmet_id, uid, body.ishod)
 
@@ -386,25 +401,36 @@ async def bulk_promena_statusa(
     azurirano = len(update_r.data or [])
     preskoceno_race = len(za_update) - azurirano
 
-    # Phoenix Closure (2026-08-08, LIVINGSYS-DEBT-036 remainder): same
-    # data-hygiene gap as zatvori_predmet's own fix above, for the bulk path.
-    # Only reopening ("aktiviranje") is exempt -- reopening a case doesn't
-    # imply its already-closed actions should reopen too, a separate concern
-    # not in scope here. Scoped to the ids that ACTUALLY updated (update_r.data),
-    # not the full za_update list, so a row that lost the race above doesn't
-    # get its case_actions closed despite the predmet itself staying open.
+    # Wave 2, Task 2B — same canonical-ownership fix as zatvori_predmet's own
+    # (see its comment above). Only reopening ("aktiviranje") is exempt --
+    # reopening a case doesn't imply its already-closed actions should
+    # reopen too, a separate concern not in scope here. Scoped to the ids
+    # that ACTUALLY updated (update_r.data), not the full za_update list, so
+    # a row that lost the race above doesn't get reconciled despite the
+    # predmet itself staying open. Concurrent across predmeti (each
+    # reconcile is independent, no shared state) — one failure must not
+    # block the others or the bulk operation's own success response.
     if body.akcija in ("zatvaranje", "arhiviranje") and azurirano:
         _closed_ids = [row["id"] for row in (update_r.data or []) if row.get("id")]
         if _closed_ids:
-            try:
-                await asyncio.to_thread(
-                    lambda: supa.table("case_actions")
-                        .update({"status": "closed"})
-                        .eq("user_id", uid).in_("predmet_id", _closed_ids).eq("status", "open")
-                        .execute()
-                )
-            except Exception as e:
-                logger.warning("[BULK] case_actions bulk-close greška: %s", e)
+            from services.case_evolution import _consequence_refresh_case_actions
+            from services.event_bus import Event as _Event, EventType as _EventType
+
+            async def _reconcile_one(_pid: str):
+                try:
+                    _r = await _consequence_refresh_case_actions(_Event(
+                        type=_EventType.MATTER_BECAME_TERMINAL,
+                        user_id=uid,
+                        predmet_id=_pid,
+                        payload={"trigger": "bulk_promena_statusa", "akcija": body.akcija, "novi_status": novi_status},
+                        correlation_id=None,
+                        event_id=None,
+                    ))
+                    logger.info("[BULK] case_actions reconcile predmet=%s: %s", _pid, _r)
+                except Exception as e:
+                    logger.warning("[BULK] case_actions reconcile greška predmet=%s: %s", _pid, e)
+
+            await asyncio.gather(*(_reconcile_one(pid) for pid in _closed_ids))
 
     logger.info("[BULK] uid=%.8s akcija=%s azurirano=%d preskoceno_race=%d", uid, body.akcija, azurirano, preskoceno_race)
     poruka = f"{azurirano} predmet(a) — status promenjen na '{novi_status}'."

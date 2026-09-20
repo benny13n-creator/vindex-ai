@@ -86,14 +86,21 @@ def test_registry_100_percent_matches_event_bus_wiring():
 def test_registry_covers_exactly_the_6_events_wired_through_sprint_003():
     """Named for when it was written (Sprint 003, 6 events) -- updated
     Program Omega Sprint 002 (2026-08-06) to also include the 7th event
-    DOCUMENT_BATCH_COMPLETED wired that sprint. Kept as a living pin, not
-    frozen to a historical snapshot -- see test_delta_sprint004_certification.py
-    for the generic (non-count-frozen) registry<->wiring equivalence check."""
+    DOCUMENT_BATCH_COMPLETED wired that sprint, again VINDEX-V1-EXECUTION-
+    CONTRACT.md Wave 2 Task 2B (2026-09-19) for the 8th, MATTER_BECAME_
+    TERMINAL (Task 2B's own terminal-matter invariant -- only
+    refresh_case_actions), and again Wave 2 Task 2D (same day) for the
+    9th, SOURCE_INVALIDATED (evidence/document/hearing deletion ->
+    recomputation, only refresh_case_actions -- see both event types' own
+    docstrings in services/event_bus.py). Kept as a living pin, not frozen
+    to a historical snapshot -- see test_delta_sprint004_certification.py
+    for the generic (non-count-frozen) registry<->wiring equivalence
+    check."""
     from services.case_evolution import CONSEQUENCE_REGISTRY
     assert set(CONSEQUENCE_REGISTRY.keys()) == {
         EventType.DOCUMENT_ACCEPTED, EventType.REVIEW_ACCEPTED, EventType.REVIEW_REJECTED,
         EventType.NEW_CLIENT_LINKED, EventType.NEW_EVIDENCE_REGISTERED, EventType.ROCISTE_ZAKAZANO,
-        EventType.DOCUMENT_BATCH_COMPLETED,
+        EventType.DOCUMENT_BATCH_COMPLETED, EventType.MATTER_BECAME_TERMINAL, EventType.SOURCE_INVALIDATED,
     }
 
 

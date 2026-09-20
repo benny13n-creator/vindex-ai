@@ -27,6 +27,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.attention_priority import CANONICAL_ORDER as _PRIORITY_ORDER
+from shared.constants import TERMINALNI_STATUSI_PREDMETA as _TERMINALNI_STATUSI
 from shared.deps import _get_supa, get_current_user
 
 logger = logging.getLogger("vindex.case_actions")
@@ -76,7 +77,7 @@ async def get_worklist(request: Request, user: dict = Depends(get_current_user))
     # email cron and Command Center this same week.
     predmeti_r = await asyncio.to_thread(
         lambda: supa.table("predmeti").select("id,naziv").eq("user_id", uid)
-            .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+            .not_.in_("status", list(_TERMINALNI_STATUSI)).execute()
     )
     predmeti_rows = list(predmeti_r.data or [])
     predmet_naziv = {p["id"]: p.get("naziv") or p["id"] for p in predmeti_rows}

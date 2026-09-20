@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -73,6 +74,26 @@ class EventType(str, Enum):
     # finalized" into "one case-level refresh" instead of N redundant Genome
     # recomputes (Program Omega Sprint 001's own named, deferred `OMEGA-001`).
     DOCUMENT_BATCH_COMPLETED    = "DocumentBatchCompleted"
+    # VINDEX-V1-EXECUTION-CONTRACT.md, Wave 2, Task 2B (2026-09-19) — a
+    # predmet transitioned into a terminal status (see
+    # shared/constants.py::TERMINALNI_STATUSI_PREDMETA). Registered
+    # consequence: refresh_case_actions only (services/case_evolution.py) --
+    # _compute_target_actions treats a terminal matter's target set as
+    # empty, so the SAME reconcile that creates/updates/closes actions for
+    # every other event type also closes every currently-open action for
+    # this one, through the existing negative-reconciliation path, not a
+    # special-cased close routine.
+    MATTER_BECAME_TERMINAL      = "MatterBecameTerminal"
+    # VINDEX-V1-EXECUTION-CONTRACT.md, Wave 2, Task 2D (2026-09-19) -- an
+    # authoritative source (dokaz/dokument/rociste) was deleted/invalidated.
+    # Registered consequence: refresh_case_actions only -- recomputes the
+    # CURRENT target action set from what's left (services/case_evolution.py
+    # ::_compute_target_actions always re-reads predmet_dokazi/
+    # predmet_dokumenti/rocista fresh), so a deleted source's own action
+    # closes ONLY if nothing else still justifies it -- never a direct
+    # source-id -> action-id deletion. See emit_source_invalidated() below
+    # for the single emission point all 3 delete endpoints share.
+    SOURCE_INVALIDATED          = "SourceInvalidated"
 
 
 # ─── Event dataclass ──────────────────────────────────────────────────────────
@@ -381,6 +402,10 @@ class EventBus:
         # Aggregation Engine. Same canonical dispatcher, no separate
         # mechanism — see services/case_evolution.py::refresh_case_intelligence.
         self.subscribe(EventType.DOCUMENT_BATCH_COMPLETED, handle_case_changed)
+        # Wave 2, Task 2B — see MATTER_BECAME_TERMINAL's own docstring above.
+        self.subscribe(EventType.MATTER_BECAME_TERMINAL,   handle_case_changed)
+        # Wave 2, Task 2D — see SOURCE_INVALIDATED's own docstring above.
+        self.subscribe(EventType.SOURCE_INVALIDATED,        handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""
@@ -626,6 +651,146 @@ async def emit_durable(
         await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row, **_opts).execute())
 
 
+# Fixed, never-reused namespace for SOURCE_INVALIDATED's own deterministic
+# event_id derivation -- same idiom as routers/smart_intake.py's own
+# _NS_VINDEX_EVENTS for NEW_CLIENT_LINKED, a DIFFERENT fixed constant (not
+# imported from there) so the two event families can never collide even if
+# a future business-key string happened to coincide. Wave 2, Task 2D.
+_NS_SOURCE_INVALIDATION = uuid.UUID("6f5e1b3a-0000-4000-8000-000000000001")
+
+
+async def emit_source_invalidated(
+    *, user_id: str, predmet_id: str | None, source_type: str, source_id: str, supa=None,
+) -> None:
+    """VINDEX-V1-EXECUTION-CONTRACT.md, Wave 2, Task 2D -- THE single
+    emission point for every authoritative-source deletion (dokaz/dokument/
+    rociste, see the 3 call sites in routers/evidence.py, api.py, routers/
+    rocista.py). Durably signals Case Evolution to recompute derived state
+    from what's left -- never a direct source-id -> action-id delete, so an
+    action still justified by a DIFFERENT surviving source is never
+    incorrectly removed just because one of its supporting sources was.
+
+    Deterministic event_id (uuid5 from a fixed namespace + the stable
+    business key `source_type:source_id`) makes this idempotent at the
+    EVENT level, not only at the reconcile level: a duplicated/retried
+    delete call for the SAME source produces exactly one durable event
+    (`emit_durable`'s own `ignore_duplicates=True` -- ON CONFLICT (id) DO
+    NOTHING), never two recomputes for one logical deletion. An
+    already-absent source never reaches this function at all -- every
+    caller only invokes it after its own delete/update call confirms at
+    least one row was actually affected (the same zero-row-guard each of
+    the 3 endpoints already had before this task).
+
+    Fail-soft is the CALLER's responsibility, same contract as
+    emit_durable itself -- this does not swallow its own exceptions.
+
+    NOT used by the 3 production delete endpoints as of the Wave 2 Task 2D
+    corrective closure (2026-09-20) -- see invalidate_dokaz_atomic/
+    invalidate_rociste_atomic/invalidate_dokument_relational_atomic below,
+    which make the relational mutation and this same durable event atomic
+    via a database RPC (migration 131). Kept, unmodified, for any future
+    caller that already has a committed mutation and only needs to emit
+    the event on its own (e.g. a backfill/repair script -- the same role
+    scripts/backfill_case_actions.py already plays for refresh_case_actions
+    itself)."""
+    _event_id = _source_invalidation_event_id(source_type, source_id)
+    await emit_durable(
+        EventType.SOURCE_INVALIDATED, user_id, predmet_id,
+        {"source_type": source_type, "source_id": source_id},
+        supa=supa, event_id=_event_id,
+    )
+
+
+def _source_invalidation_event_id(source_type: str, source_id: str) -> str:
+    """The single deterministic-id derivation SOURCE_INVALIDATED has used
+    since its original Task 2D implementation -- extracted here so both
+    the non-atomic emit_source_invalidated() and the atomic RPC wrappers
+    below compute the IDENTICAL event_id for the same (source_type,
+    source_id), preserving idempotency continuity across the corrective
+    closure (a source already invalidated under the old path and retried
+    under the new one still collapses to one event)."""
+    return str(uuid.uuid5(_NS_SOURCE_INVALIDATION, f"SourceInvalidated:{source_type}:{source_id}"))
+
+
+async def _invalidate_atomic(
+    rpc_name: str, params: dict, *, supa=None,
+) -> "tuple[str | None, bool]":
+    """Shared plumbing for the 3 atomic invalidation RPCs below. Calls the
+    named Postgres function (migration 131) -- relational mutation and the
+    durable SourceInvalidated event insert happen inside that function's
+    own single implicit transaction, so a process crash between them is
+    structurally impossible (there is no 'between' left at the
+    application layer to crash in). Returns (predmet_id, invalidated)."""
+    if supa is None:
+        from shared.deps import _get_supa
+        supa = _get_supa()
+    res = await asyncio.to_thread(lambda: supa.rpc(rpc_name, params).execute())
+    rows = res.data if res else None
+    if not rows:
+        return None, False
+    row = rows[0] if isinstance(rows, list) else rows
+    return row.get("predmet_id"), bool(row.get("invalidated"))
+
+
+async def invalidate_dokaz_atomic(
+    *, dokaz_id: str, user_id: str, correlation_id: str | None = None, supa=None,
+) -> "tuple[str | None, bool]":
+    """Atomically soft-deletes predmet_dokazi AND persists the durable
+    SourceInvalidated event (migration 131's own invalidate_dokaz_and_
+    emit_event). Returns (predmet_id, invalidated) -- invalidated=False
+    (predmet_id=None) means the row was already absent/foreign, the same
+    contract the direct .update() call had before this corrective
+    closure (caller still raises its own 404)."""
+    event_id = _source_invalidation_event_id("dokaz", dokaz_id)
+    return await _invalidate_atomic(
+        "invalidate_dokaz_and_emit_event",
+        {"p_dokaz_id": dokaz_id, "p_user_id": user_id, "p_event_id": event_id, "p_correlation_id": correlation_id},
+        supa=supa,
+    )
+
+
+async def invalidate_rociste_atomic(
+    *, rociste_id: str, user_id: str, correlation_id: str | None = None, supa=None,
+) -> "tuple[str | None, bool]":
+    """Atomically deletes rocista AND persists the durable SourceInvalidated
+    event (migration 131's own invalidate_rociste_and_emit_event)."""
+    event_id = _source_invalidation_event_id("rociste", rociste_id)
+    return await _invalidate_atomic(
+        "invalidate_rociste_and_emit_event",
+        {"p_rociste_id": rociste_id, "p_user_id": user_id, "p_event_id": event_id, "p_correlation_id": correlation_id},
+        supa=supa,
+    )
+
+
+async def invalidate_dokument_relational_atomic(
+    *, dokument_id: str, predmet_id: str, user_id: str, correlation_id: str | None = None, supa=None,
+) -> bool:
+    """Atomically deletes the predmet_dokumenti ROW (relational truth
+    only) AND persists the durable SourceInvalidated event (migration
+    130's own invalidate_dokument_relational_and_emit_event) -- THE Case
+    Evolution authoritative domain-invalidation boundary for a document.
+    Vector (Pinecone) and object-storage cleanup are separate, non-atomic
+    concerns the caller (api.py) already handles before this call, in
+    their own existing order and with their own existing non-blocking
+    failure reporting -- unchanged by this function. Returns whether the
+    row was actually found and invalidated (False = already absent/
+    foreign, caller still raises its own error for that case)."""
+    if supa is None:
+        from shared.deps import _get_supa
+        supa = _get_supa()
+    event_id = _source_invalidation_event_id("dokument", dokument_id)
+    res = await asyncio.to_thread(lambda: supa.rpc(
+        "invalidate_dokument_relational_and_emit_event",
+        {"p_dokument_id": dokument_id, "p_predmet_id": predmet_id, "p_user_id": user_id,
+         "p_event_id": event_id, "p_correlation_id": correlation_id},
+    ).execute())
+    rows = res.data if res else None
+    if not rows:
+        return False
+    row = rows[0] if isinstance(rows, list) else rows
+    return bool(row.get("invalidated"))
+
+
 # ─── Durable outbox dispatch (Faza 0, ADR-0001) ────────────────────────────────
 # Poller — čita nedispečovane redove iz 'events' tabele (migracija 073) i
 # pokreće ih kroz isti in-memory handler registry. Redovi se pišu u istoj
@@ -643,6 +808,46 @@ DISPATCH_BATCH_SIZE = 50
 # misija eksplicitno tražila da se proveri. Ista granica kao Smart Intake's
 # već dokazan max_attempts=5 (migracija 073, fail_intake_job).
 MAX_DISPATCH_ATTEMPTS = 5
+
+# Wave 2, Task 2A (V1 Execution Contract): jedini string koji razlikuje
+# terminalno mrtav red od uspesnog dispatch-a u `events.last_error`. Mora
+# ostati identican markeru koji upotrebljava `events_outbox_metrics` view
+# (migracija 129) -- ako se ovaj string promeni bez azuriranja te migracije,
+# dead-letter redovi ponovo postaju nevidljivi metrikama tihim putem.
+DEAD_LETTER_MARKER = "DEAD_LETTER"
+
+# Kategorije koje `classify_outbox_event` vraca -- iste tri koje migracija
+# 129 racuna u SQL-u (undispatched/pending, success, dead-letter). Cuvane
+# kao konstante da pozivalac nikad ne pise sirov string.
+OUTBOX_PENDING_RETRYABLE = "PENDING_RETRYABLE"
+OUTBOX_SUCCESS = "SUCCESS"
+OUTBOX_DEAD_LETTER = "DEAD_LETTER"
+
+
+def classify_outbox_event(row: dict) -> str:
+    """Wave 2, Task 2A -- jedina odluka o tome u koju od tri operativne
+    kategorije spada jedan red `events` tabele. Postoji zato sto je pre ovog
+    zahvata `events_outbox_metrics` view tretirao SVAKI red sa postavljenim
+    `dispatched_at` kao uspesan dispatch -- ukljucujuci dead-lettered redove
+    (koji dobijaju `dispatched_at` upravo zato da poller prestane da ih
+    dohvata, ne zato sto je njihova posledica ikada uspela). Ta view logika
+    (migracija 129) mora ostati semanticki identicna ovoj funkciji; ne
+    postoji nacin da SQL i Python uvezu istu konstantu, pa se sinhronizuju
+    preko `DEAD_LETTER_MARKER`-a dokumentovanog ovde i u samoj migraciji.
+
+    - `dispatched_at IS NULL`           -> PENDING_RETRYABLE (nikad pokusano
+      ili jos uvek u retry prozoru, bez obzira da li je vec bilo gresaka).
+    - `dispatched_at` postavljen i
+      `last_error` nosi DEAD_LETTER_MARKER -> DEAD_LETTER (terminalno,
+      NIKAD tretirati kao uspeh).
+    - `dispatched_at` postavljen, bez DEAD_LETTER markera -> SUCCESS.
+    """
+    if not row.get("dispatched_at"):
+        return OUTBOX_PENDING_RETRYABLE
+    last_error = row.get("last_error") or ""
+    if DEAD_LETTER_MARKER in last_error:
+        return OUTBOX_DEAD_LETTER
+    return OUTBOX_SUCCESS
 
 
 def _is_missing_function_error(exc: Exception) -> bool:
@@ -812,7 +1017,7 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
                     lambda: supa.table("events")
                         .update({
                             "dispatch_attempts": attempts,
-                            "last_error": f"DEAD_LETTER after {attempts} attempts: {str(exc)[:450]}",
+                            "last_error": f"{DEAD_LETTER_MARKER} after {attempts} attempts: {str(exc)[:450]}",
                             "dispatched_at": datetime.now(timezone.utc).isoformat(),
                         })
                         .eq("id", row_id)

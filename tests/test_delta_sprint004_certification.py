@@ -342,10 +342,13 @@ def test_event_type_total_member_count_matches_documentation():
     members -- Sprint 004's own certification found the real count was 20
     (DOCUMENT_JOB_FAILED was described in prose but never given its own row
     in the 'other 10' table, undercounting by one). Program Omega Sprint 002
-    (2026-08-06) added a 21st member (DOCUMENT_BATCH_COMPLETED). This test
-    pins the true count so it can never silently drift again without a
-    documentation update being forced to keep pace."""
-    assert len(list(EventType)) == 21
+    (2026-08-06) added a 21st member (DOCUMENT_BATCH_COMPLETED). VINDEX-V1-
+    EXECUTION-CONTRACT.md Wave 2 Task 2B (2026-09-19) added a 22nd
+    (MATTER_BECAME_TERMINAL), and Task 2D (same day) a 23rd
+    (SOURCE_INVALIDATED). This test pins the true count so it can never
+    silently drift again without a documentation update being forced to
+    keep pace."""
+    assert len(list(EventType)) == 23
 
 
 def test_registry_100_percent_matches_event_bus_wiring():

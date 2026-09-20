@@ -131,6 +131,34 @@ consequences for it.
 | Rollback ponašanje | None needed — each consequence is independently idempotent and safe to leave partially applied, same reasoning as every other wired event |
 | Success kriterijum | Both consequences `completed`; one `case_intelligence_summaries` row exists, every number in it traceable to a real underlying query or the emitter's own already-verified payload (Agent 3's own "no conclusion without source" rule) |
 
+## MATTER_BECAME_TERMINAL — WIRED (VINDEX-V1-EXECUTION-CONTRACT.md, Wave 2, Task 2B, 2026-09-19) — new event type
+
+| Field | Value |
+|---|---|
+| Naziv | `MATTER_BECAME_TERMINAL` (`services/event_bus.py::EventType.MATTER_BECAME_TERMINAL`) — new this task, not a pre-existing dead declaration |
+| Vlasnik | `services/case_evolution.py::handle_case_changed` |
+| Zašto postoji | Wave 1 forensic proved a race: an event queued while a matter was active, processed AFTER `routers/predmeti_close.py` closed it, could INSERT a new `open` `case_actions` row and fire a "Hitan rok" notification for an already-closed case — because neither the direct write `predmeti_close.py` used to make nor `_consequence_refresh_case_actions` itself ever checked matter lifecycle state |
+| Ulaz | Called directly and synchronously (NOT through the durable outbox — the same direct-call idiom `scripts/backfill_case_actions.py` already established for an out-of-band caller) by `routers/predmeti_close.py::zatvori_predmet` and `bulk_promena_statusa`, immediately after `predmeti.status` is durably updated to a terminal value (`zatvoren`/`arhiviran`). Payload: `{"trigger": "zatvori_predmet"|"bulk_promena_statusa", "novi_status"|"akcija"}` |
+| Posledice | `refresh_case_actions` ONLY — no `genome_refresh`/`timeline_entry`/`project_notifications`. A matter going terminal has no new genome/timeline consequence; `_compute_target_actions` (`services/case_evolution.py`) returns an EMPTY target set for any predmet whose `status` is in `shared/constants.py::TERMINALNI_STATUSI_PREDMETA` — not a special case bolted onto the reconcile, the existing create/update/close loops do the right thing unmodified: zero creates, every currently-open action closes via the SAME negative-reconciliation path a normal "fact no longer holds" resolution already uses |
+| Terminal guard, independent 2nd layer | `_consequence_project_case_actions_to_notifications` ALSO checks `TERMINALNI_STATUSI_PREDMETA` directly (returns `skipped_terminal_matter`) rather than relying on registry ordering or on this event's own registry entry never including it — protects the SAME boundary even if a delayed/replayed DOCUMENT_ACCEPTED/ROCISTE_ZAKAZANO/etc. event (not this one) is what reaches it after closure |
+| Idempotency / Retry / Audit | This direct-call path does NOT go through `handle_case_changed`'s own `case_evolution_consequences` claim/audit tracking (bypassed the same way `scripts/backfill_case_actions.py` already does) — `_consequence_refresh_case_actions` is independently idempotent by construction (dedupe_key upsert semantics), safe to call directly and repeatedly. If a future caller ever needs to emit this durably through the outbox instead, the registry entry is already wired and ready — no second lifecycle framework needed |
+| Rollback ponašanje | None needed — closing every open action for a terminal matter is the correct terminal state, not a mutation requiring undo |
+| Success kriterijum | Zero `open` `case_actions` rows remain for the predmet; zero new action-driven notification is produced by any event processed after this point |
+
+## SOURCE_INVALIDATED — WIRED (VINDEX-V1-EXECUTION-CONTRACT.md, Wave 2, Task 2D, 2026-09-19) — new event type
+
+| Field | Value |
+|---|---|
+| Naziv | `SOURCE_INVALIDATED` (`services/event_bus.py::EventType.SOURCE_INVALIDATED`) — new this task, not a pre-existing dead declaration |
+| Vlasnik | `services/case_evolution.py::handle_case_changed` |
+| Zašto postoji | Wave 1 forensic proved a trigger-coverage gap, not a missing algorithm: evidence delete (`routers/evidence.py::delete_dokaz`), document delete (`api.py`'s dokument-delete endpoint), and hearing delete (`routers/rocista.py::obrisi_rociste`) never triggered Case Evolution recomputation. A `case_actions` row whose only justifying source was deleted stayed `open` forever |
+| Ulaz | Emitted durably by `services/event_bus.py::emit_source_invalidated` — the ONE shared emission point all 3 delete endpoints call immediately after their own delete/soft-delete succeeds (never before — same "represents something that already happened" discipline as every other `emit_durable` call site). Deterministic `event_id` (`uuid5` from a fixed namespace + `source_type:source_id`) makes a retried/duplicated delete call for the SAME source produce exactly one durable event, not two. Payload: `{"source_type": "dokaz"\|"dokument"\|"rociste", "source_id": ...}` |
+| Posledice | `refresh_case_actions` ONLY — recomputes the CURRENT target action set from whatever sources remain (`_compute_target_actions` always re-reads `predmet_dokazi`/`predmet_dokumenti`/`rocista` fresh). Deliberately NEVER a direct `source_id -> action_id` delete: if a 2nd surviving source still justifies the same logical fact (e.g. 2 documents both covering the same required document type), the action correctly stays open after deleting only one of them — only recomputing "what does current state justify" gets this right by construction |
+| Already-absent source | Never reaches this event at all — each of the 3 endpoints only calls `emit_source_invalidated` after its own delete/update call confirms at least one row was actually affected (the same zero-row 404 guard each endpoint already had before this task) |
+| Idempotency / Retry / Audit | `(event_id, consequence_name)` keyed, same mechanism as every other wired event, PLUS the event-level idempotency above (duplicate delete calls collapse to one outbox row before `handle_case_changed` is ever invoked) |
+| Rollback ponašanje | None needed — same reasoning as `MATTER_BECAME_TERMINAL`: reconciling to current-justified state is the correct outcome, not a mutation requiring undo |
+| Success kriterijum | `case_actions` for the affected predmet matches exactly what CURRENT (post-deletion) sources justify — no more, no less |
+
 ## The remaining 3 mapped events — still DECLARED, NOT WIRED
 
 | Event | Where it would originate | Why not wired yet |
@@ -141,11 +169,13 @@ consequences for it.
 
 ## Registry Audit — every `EventType` member accounted for (updated, Program Omega Sprint 002)
 
-`services/event_bus.py::EventType` has **21 members total** (was 20 as of Program Delta Sprint 004's own
+`services/event_bus.py::EventType` has **23 members total** (was 20 as of Program Delta Sprint 004's own
 certification; Program Omega Sprint 002, 2026-08-06, added `DOCUMENT_BATCH_COMPLETED`, the 21st — see its own
-WIRED section above). Pinned going forward by `tests/test_delta_sprint004_certification.py::
+WIRED section above; VINDEX-V1-EXECUTION-CONTRACT.md Wave 2 Task 2B, 2026-09-19, added `MATTER_BECAME_
+TERMINAL`, the 22nd; Task 2D, same day, added `SOURCE_INVALIDATED`, the 23rd — both have their own WIRED
+sections above). Pinned going forward by `tests/test_delta_sprint004_certification.py::
 test_event_type_total_member_count_matches_documentation`, which fails if the enum ever changes without this
-doc being updated. This registry documents the **7** that are wired to Case Evolution's own domain — a
+doc being updated. This registry documents the **9** that are wired to Case Evolution's own domain — a
 business event whose consequence is "what should automatically follow." The other 14 are explicitly NOT Case
 Evolution's domain, listed here so "100% match" means something precise rather than silently ignoring them:
 
@@ -167,7 +197,7 @@ Evolution's domain, listed here so "100% match" means something precise rather t
 | `MANUAL_CORRECTION_APPLIED` | none — declared, not wired | Same |
 
 **Result: registry is accurate.** Every `EventType` with a genuine, currently-needed reactive consequence
-(6 of 20) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
+(9 of 23) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
 doesn't exist in code, and no wired consequence in code is undocumented (enforced by
 `tests/test_delta_sprint004_certification.py::test_registry_100_percent_matches_event_bus_wiring` and
 `tests/test_delta_sprint003_full_convergence.py::test_every_consequence_registry_event_documented_in_case_evolution_registry_md`,

@@ -18,3 +18,11 @@ EXPECTED_DOCS: dict = {
     "nepokretnosti": ["javna_isprava", "ugovor", "sudska_odluka", "dopis"],
     "ostalo":        ["podnesak", "dopis"],
 }
+
+# Terminalni statusi predmeta -- Wave 2, Task 2B (VINDEX-V1-EXECUTION-
+# CONTRACT.md). Vrednosti su preuzete iz dva mesta koja su ih VEC nezavisno
+# koristila pre ovog zahvata (routers/case_actions.py's own worklist filter,
+# routers/dashboard.py's own "aktivni" brojac) -- ne izmišljene ovde. Jedan
+# izvor sada, da services/case_evolution.py ne postane TREĆA nezavisna kopija
+# podložna razilaženju (tačno klasa greške koju je Wave 1 već nasla drugde).
+TERMINALNI_STATUSI_PREDMETA: tuple = ("zatvoren", "arhiviran", "odbijen")

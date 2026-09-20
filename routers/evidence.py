@@ -428,30 +428,29 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
 @router.delete("/predmeti/{predmet_id}/dokaz/{dokaz_id}")
 @limiter.limit("20/minute")
 async def delete_dokaz(request: Request, predmet_id: str, dokaz_id: str, user=Depends(require_user)):
-    import asyncio
-    from datetime import datetime, timezone
     supa = get_supa()
     uid = user["user_id"]
-    # Program Sigma, Master Sprint 002 (2026-08-06) -- found and fixed: the
-    # literal string "now()" (with parentheses) is NOT a value Postgres's
-    # timestamptz input parser recognizes (only the bare word "now" is a
-    # documented special value) -- same bug class Program Omega Sprint 004
-    # already found and fixed for case_actions.closed_at (see
-    # services/case_evolution.py's own comment). This endpoint's own soft
-    # delete was either rejected outright by Postgres or stored an unusable
-    # value on every call. Fixed: a real, computed ISO-8601 timestamp.
-    # F-V41-002: rezultat soft-delete-a se odbacivao i ruta je bezuslovno
-    # vraćala {"ok": True} -- i za nepostojeći dokaz_id i za tuđi dokaz.
-    # Korisnik dobija potvrdu da je dokaz uklonjen iz predmeta iako u bazi
-    # nijedan red nije dirnut. Owner predikat je oduvek u samoj naredbi, pa
-    # tuđi dokaz nije mogao biti obrisan; lažan je bio odgovor.
-    r = await asyncio.to_thread(
-        lambda: supa.table("predmet_dokazi")
-            .update({"deleted_at": datetime.now(timezone.utc).isoformat()})
-            .eq("id", dokaz_id).eq("user_id", uid).execute()
+    # Wave 2, Task 2D corrective closure (VINDEX-V1-EXECUTION-CONTRACT.md,
+    # 2026-09-20) -- the soft-delete and the durable SourceInvalidated
+    # event used to be two independent network round-trips (a raw
+    # .update() here, then a separate emit_source_invalidated() call). A
+    # process crash between them could leave the dokaz deleted with NO
+    # event ever recorded -- permanently stale case_actions until some
+    # UNRELATED later event happened to touch the same matter, which the
+    # founder correctly rejected as not an integrity guarantee. Now one
+    # Postgres RPC (migration 131): the soft-delete and the event insert
+    # happen inside that function's own single transaction -- either both
+    # commit or neither does. F-V41-002's own fix (owner predicate,
+    # zero-row-guard -> real 404) is preserved unchanged, now enforced
+    # inside the RPC's own WHERE clause instead of a client-side .eq().
+    from services.event_bus import invalidate_dokaz_atomic
+    from shared.ai_provenance import current_correlation_id
+    _found_predmet_id, invalidated = await invalidate_dokaz_atomic(
+        dokaz_id=dokaz_id, user_id=uid, correlation_id=current_correlation_id(), supa=supa,
     )
-    if not r.data:
+    if not invalidated:
         raise HTTPException(status_code=404, detail="Dokaz nije pronađen.")
+
     return {"ok": True}
 
 

@@ -469,14 +469,23 @@ async def obrisi_rociste(
     uid  = user["user_id"]
     supa = _get_supa()
 
-    r = await asyncio.to_thread(
-        lambda: supa.table("rocista")
-            .delete()
-            .eq("id", rociste_id)
-            .eq("user_id", uid)
-            .execute()
+    # Wave 2, Task 2D corrective closure (VINDEX-V1-EXECUTION-CONTRACT.md,
+    # 2026-09-20) -- the delete and the durable SourceInvalidated event
+    # used to be two independent network round-trips (a raw .delete()
+    # here, then a separate emit_source_invalidated() call). A process
+    # crash between them could leave the hearing deleted with NO event
+    # ever recorded -- its own PRIPREMITI_PODNESAK case_actions row would
+    # stay open forever, not until "some later event happens to touch the
+    # matter," which the founder correctly rejected as not an integrity
+    # guarantee. Now one Postgres RPC (migration 131): the delete and the
+    # event insert happen inside that function's own single transaction --
+    # either both commit or neither does.
+    from services.event_bus import invalidate_rociste_atomic
+    from shared.ai_provenance import current_correlation_id
+    _deleted_predmet_id, invalidated = await invalidate_rociste_atomic(
+        rociste_id=rociste_id, user_id=uid, correlation_id=current_correlation_id(), supa=supa,
     )
-    if not r.data:
+    if not invalidated:
         raise HTTPException(status_code=404, detail="Ročište nije pronađeno")
 
     # V34: audit tek POSLE zero-row guarda -- 0 obrisanih redova znači 404 i

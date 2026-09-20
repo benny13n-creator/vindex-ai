@@ -40,26 +40,32 @@ def _req():
 
 @pytest.mark.anyio
 async def test_delete_dokaz_writes_a_real_timestamp_not_the_literal_string():
+    """Wave 2 Task 2D corrective closure (2026-09-20): delete_dokaz's own
+    soft-delete moved from a client-side .update({"deleted_at": <python
+    computed iso string>}) into migration 130's atomic invalidate_dokaz_
+    and_emit_event RPC, which sets `deleted_at = now()` directly in SQL --
+    a real, unquoted call to Postgres's own now() FUNCTION, not the
+    quoted string literal "now()" this test file's bug class is about
+    (a quoted string embedded in a value is what the timestamptz parser
+    rejects; an actual function call in a SET clause is exactly the
+    correct fix, arguably more robust than a client-computed timestamp --
+    no risk of app/DB clock skew)."""
+    import os
+    migracija_put = os.path.join(os.path.dirname(__file__), "..", "migrations", "131_atomic_source_invalidation.sql")
+    with open(migracija_put, "r", encoding="utf-8") as f:
+        migracija = f.read()
+    assert "SET deleted_at = now()" in migracija
+    assert 'SET deleted_at = \'now()\'' not in migracija  # the quoted-string bug shape, must never reappear
+
     from routers import evidence as ev
-
-    update_chain = MagicMock()
-    table = MagicMock()
-    table.update = MagicMock(return_value=update_chain)
-    update_chain.eq.return_value = update_chain
-    update_chain.execute.return_value = MagicMock()
-
     supa = MagicMock()
-    supa.table = MagicMock(return_value=table)
-
+    supa.rpc.return_value.execute.return_value = MagicMock(data=[{"predmet_id": "pred-1", "invalidated": True}])
     with patch("routers.evidence.get_supa", return_value=supa):
         await ev.delete_dokaz(_req(), "pred-1", "dok-1", user={"user_id": "u1"})
-
-    table.update.assert_called_once()
-    payload = table.update.call_args[0][0]
-    assert payload["deleted_at"] != "now()"
-    # A real ISO-8601 timestamp, parseable, not a SQL function call as text.
-    from datetime import datetime
-    datetime.fromisoformat(payload["deleted_at"])
+    # No client-side timestamp is even computed anymore -- the RPC call
+    # itself carries no deleted_at value at all (the SQL owns it).
+    _, rpc_params = supa.rpc.call_args[0]
+    assert "deleted_at" not in rpc_params
 
 
 def test_klasifikuj_i_sacuvaj_writes_a_real_timestamp_for_klasifikovan_at():

@@ -329,6 +329,36 @@ async def _consequence_genome_refresh(event: Event) -> str:
     after_verzija = (after_data or {}).get("case_dna", {}).get("verzija") if after_data else None
 
     if after_verzija is None or after_verzija == before_verzija:
+        if after_verzija is None and before_verzija is None:
+            # Wave 2, Task 2C (VINDEX-V1-EXECUTION-CONTRACT.md) -- PROVEN
+            # bug: a document-less matter (e.g. a hearing scheduled before
+            # any document was ever uploaded, or every uploaded document is
+            # still OCR-text-empty) is a valid normal lifecycle state.
+            # routers/case_dna.py::_do_genome_refresh's own D-1 guard
+            # ALREADY returns without bumping verzija in exactly this case
+            # ("nijedan dokument nema tekst -- Genome se NE osvezava"), by
+            # design, not a bug there. The bug was HERE: treating that
+            # legitimate no-op identically to a genuine failure (an LLM call
+            # that silently swallowed its own exception) dead-lettered
+            # ROCISTE_ZAKAZANO for every document-less matter, before
+            # refresh_case_actions/project_notifications ever got to run.
+            #
+            # Verified against actual data -- not inferred from which event
+            # fired -- using the SAME single-owner split D-1 introduced
+            # (_razdvoji_dokumente_po_tekstu), not a second, possibly-
+            # diverging copy of "does this document have text". This keeps
+            # DOCUMENT_ACCEPTED's own verification UNCHANGED: it only ever
+            # fires once a document was JUST accepted, so at least one
+            # text-bearing document always exists there and this branch is
+            # a structural no-op for that event type.
+            _dok_res = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokumenti")
+                    .select("id,tekst_sadrzaj").eq("predmet_id", predmet_id).execute()
+            )
+            from routers.case_dna import _razdvoji_dokumente_po_tekstu
+            _sa_tekstom, _ = _razdvoji_dokumente_po_tekstu(_dok_res.data or [])
+            if not _sa_tekstom:
+                return "skipped_no_genome_source"
         raise RuntimeError(
             f"genome_refresh verification failed for predmet={predmet_id}: "
             f"verzija unchanged ({before_verzija!r} -> {after_verzija!r})"
@@ -851,11 +881,30 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
 
     supa = _get_supa()
     pred_res = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("case_dna,tip").eq("id", predmet_id).maybe_single().execute()
+        lambda: supa.table("predmeti").select("case_dna,tip,status").eq("id", predmet_id).maybe_single().execute()
     )
     pred_data = (pred_res.data if pred_res else None) or {}
     case_dna = pred_data.get("case_dna") or {}
     tip_predmeta = pred_data.get("tip") or "ostalo"
+
+    # Wave 2, Task 2B (VINDEX-V1-EXECUTION-CONTRACT.md) -- PROVEN Wave 1
+    # race: a delayed/replayed event (queued while the matter was still
+    # active, processed after predmeti_close.py already closed it) used to
+    # recompute a target set from CURRENT evidence with no awareness the
+    # matter had gone terminal, letting _consequence_refresh_case_actions
+    # INSERT a brand-new `open` case_actions row -- and, downstream,
+    # _consequence_project_case_actions_to_notifications fire a "Hitan rok"
+    # bell -- for a case the lawyer already closed. A terminal matter has,
+    # by definition, no outstanding actionable target state: returning an
+    # empty set here is not a special case bolted onto the reconcile logic,
+    # it is the true target set. The EXISTING create/update/close loops in
+    # _consequence_refresh_case_actions then do the right thing on their
+    # own -- zero creates, zero updates, and every currently-open action
+    # closes through the SAME negative-reconciliation path a normal
+    # "fact no longer holds" resolution already uses.
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA as _TERMINALNI_STATUSI
+    if (pred_data.get("status") or "") in _TERMINALNI_STATUSI:
+        return []
 
     dokazi_r, dok_r, rok_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokazi").select("snaga,kategorija,pravni_element,izvor_snage").eq("predmet_id", predmet_id).is_("deleted_at", "null").execute()),
@@ -1149,6 +1198,17 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     existing_by_key = {r["dedupe_key"]: {"id": r["id"], "updated_at": r.get("updated_at")} for r in existing_rows}
 
     created, updated, closed = 0, 0, 0
+    # Wave 2, Task 2E (VINDEX-V1-EXECUTION-CONTRACT.md) -- PROVEN problem:
+    # the audit row below used to carry only aggregate counts
+    # (created=N/updated=N/closed=N), never WHICH concrete action this run
+    # created/updated/closed. On a multi-event matter, attributing a given
+    # case_actions row to the event that produced it degraded to a
+    # timestamp-proximity guess. These 3 lists carry the concrete
+    # (id, dedupe_key) pairs this run actually affected -- the smallest
+    # stable identity already available, no new column, no new table.
+    created_entries: list[dict] = []
+    updated_entries: list[dict] = []
+    closed_entries: list[dict] = []
 
     for key, action in target_by_key.items():
         row = {
@@ -1170,15 +1230,22 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
                     .update({**r, "updated_at": _now_iso}).eq("id", aid).eq("status", "open").execute()
             )
             updated += 1
+            updated_entries.append({"id": _existing["id"], "dedupe_key": key})
         else:
             try:
-                await asyncio.to_thread(lambda r=row: supa.table("case_actions").insert(r).execute())
+                _ins_res = await asyncio.to_thread(lambda r=row: supa.table("case_actions").insert(r).execute())
                 created += 1
+                _new_id = (_ins_res.data or [{}])[0].get("id") if _ins_res else None
+                created_entries.append({"id": _new_id, "dedupe_key": key})
             except Exception as _ins_exc:
                 # Partial UNIQUE index violation -- another concurrent
                 # refresh already created this exact action (Scenario 5).
                 # Not an error: the fact now has exactly one open row,
-                # which is the actual goal.
+                # which is the actual goal. No lineage entry from THIS run
+                # -- the call that actually won the race already recorded
+                # its own, real created_entry; fabricating one here (this
+                # run's own event never actually produced the row) would
+                # be exactly the false lineage Task 2E forbids.
                 if "duplicate key" not in str(_ins_exc).lower() and "unique" not in str(_ins_exc).lower():
                     raise
                 logger.info("[CASE_EVOLUTION] case_action already created concurrently, skipping: predmet=%s key=%s", predmet_id, key)
@@ -1193,8 +1260,19 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
             )
             if _snapshot_updated_at is not None:
                 _close_query = _close_query.eq("updated_at", _snapshot_updated_at)
-            await asyncio.to_thread(_close_query.execute)
-            closed += 1
+            _close_res = await asyncio.to_thread(_close_query.execute)
+            # Task 2E: only count/record a close that ACTUALLY happened --
+            # the optimistic-concurrency guard above (`.eq("updated_at",
+            # snapshot)`) can make this a safe no-op when a fresher
+            # concurrent write already changed the row (see this
+            # function's own docstring, Scenario 5's UPDATE/CLOSE
+            # counterpart). Unconditionally counting it regardless of
+            # whether it matched would both over-report `closed` and
+            # fabricate a lineage entry for a close this run never
+            # actually performed.
+            if _close_res and _close_res.data:
+                closed += 1
+                closed_entries.append({"id": existing["id"], "dedupe_key": key})
 
     try:
         from shared.audit_immutable import log_action
@@ -1202,7 +1280,19 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
             "case_action_refreshed",
             user_id=uid, resource_type="predmet", resource_id=predmet_id,
             correlation_id=event.correlation_id,
-            metadata={"created": created, "updated": updated, "closed": closed, "open_total": len(target_by_key)},
+            metadata={
+                "event_id": event.event_id,
+                "created": created, "updated": updated, "closed": closed,
+                "open_total": len(target_by_key),
+                # Task 2E: concrete per-action lineage, not just counts --
+                # this is what makes "which event produced/refreshed/closed
+                # THIS specific action" directly addressable from the
+                # immutable audit trail alone, without guessing from
+                # timestamp proximity.
+                "created_actions": created_entries,
+                "updated_actions": updated_entries,
+                "closed_actions": closed_entries,
+            },
         )
     except Exception as audit_exc:
         logger.warning("[CASE_EVOLUTION] case_action_refreshed audit upis neuspešan (non-fatal) predmet=%s: %s", predmet_id, audit_exc)
@@ -1256,13 +1346,25 @@ async def _consequence_project_case_actions_to_notifications(event: Event) -> st
     supa = _get_supa()
 
     pred_res = await asyncio.to_thread(
-        lambda: supa.table("predmeti").select("user_id,naziv").eq("id", predmet_id).maybe_single().execute()
+        lambda: supa.table("predmeti").select("user_id,naziv,status").eq("id", predmet_id).maybe_single().execute()
     )
     pred_data = (pred_res.data if pred_res else None) or {}
     owner_uid = pred_data.get("user_id")
     naziv = pred_data.get("naziv") or "Predmet"
     if not owner_uid:
         return "skipped_no_owner"
+
+    # Wave 2, Task 2B -- the same terminal-matter boundary as
+    # _compute_target_actions' own guard, enforced independently here
+    # rather than relied on transitively through registry ordering: a
+    # closed/archived/rejected matter must never receive a NEW "Hitan rok"
+    # bell notification from a late/replayed event, even if a future
+    # registry change ever reorders consequences or this function is
+    # invoked outside the normal DOCUMENT_ACCEPTED/ROCISTE_ZAKAZANO/etc.
+    # sequence.
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA as _TERMINALNI_STATUSI
+    if (pred_data.get("status") or "") in _TERMINALNI_STATUSI:
+        return "skipped_terminal_matter"
 
     # Target: this predmet's own currently-OPEN deadline actions —
     # case_actions' own Rule 1 (PRIPREMITI_PODNESAK), refreshed by the
@@ -1443,6 +1545,33 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
         ConsequenceDef(name="case_intelligence_summary", executor=_consequence_case_intelligence_summary),
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
         ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
+    ],
+    # Wave 2, Task 2B — see EventType.MATTER_BECAME_TERMINAL's own docstring
+    # (services/event_bus.py). Only refresh_case_actions: a matter going
+    # terminal has no new genome/timeline/conflict-check consequence, only a
+    # derived-state reconciliation (which will close every open action,
+    # since _compute_target_actions returns an empty target set for a
+    # terminal matter). No project_notifications here either — closing a
+    # matter is not itself a "new deadline" event; the reconcile above
+    # already removes any stale open PRIPREMITI_PODNESAK action, and that
+    # function's own terminal guard independently blocks a new bell either
+    # way.
+    EventType.MATTER_BECAME_TERMINAL: [
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+    ],
+    # Wave 2, Task 2D — see EventType.SOURCE_INVALIDATED's own docstring
+    # (services/event_bus.py) and emit_source_invalidated() there, the
+    # single emission point for evidence/document/hearing deletion. Only
+    # refresh_case_actions: _compute_target_actions always re-reads current
+    # predmet_dokazi/predmet_dokumenti/rocista, so a deleted source's own
+    # dependent action resolves through the SAME negative-reconciliation
+    # path used everywhere else — never a direct source-id -> action-id
+    # delete, and never incorrectly removed if another surviving source
+    # still justifies the same logical action (different dedupe_key would
+    # be required for that anyway — see _compute_target_actions's own
+    # per-fact dedupe_key construction).
+    EventType.SOURCE_INVALIDATED: [
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],
 }
 

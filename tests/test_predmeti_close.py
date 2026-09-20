@@ -3,9 +3,26 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+os.environ.setdefault("OPENAI_API_KEY", "sk-fake-test-key")
+os.environ.setdefault("PINECONE_API_KEY", "fake-pinecone")
+os.environ.setdefault("PINECONE_HOST", "https://fake.pinecone.io")
+
 import pytest
 from unittest.mock import MagicMock, patch
 from starlette.requests import Request as StarletteRequest
+
+# Wave 2, Task 2B: routers/predmeti_close.py now calls into
+# services.case_evolution (canonical case_actions ownership) from inside
+# zatvori_predmet/bulk_promena_statusa. That module-lazy import chain
+# (case_evolution -> event_bus -> EventBus() at event_bus's own module
+# level -> lazy-imports case_evolution back for handle_case_changed) is
+# only safe once both modules are already fully loaded -- exactly what
+# importing the full app here guarantees, the same reason every other test
+# file that touches Case Evolution does this same import first. Without
+# it, a test file that imports routers.predmeti_close in isolation (as
+# this file always has) triggers a partial-module ImportError the very
+# first time it calls either endpoint.
+from api import app  # noqa: E402,F401
 
 
 @pytest.fixture
@@ -221,7 +238,6 @@ async def test_get_ishod_active_predmet():
 
 def _build_supa_with_case_actions(pred: dict | None, update_wins: bool = True):
     mock = MagicMock()
-    case_actions_calls = []
 
     def _table(name):
         t = MagicMock()
@@ -237,60 +253,26 @@ def _build_supa_with_case_actions(pred: dict | None, update_wins: bool = True):
             ins_chain = MagicMock()
             ins_chain.execute.return_value.data = [{}]
             t.insert.return_value = ins_chain
-        elif name == "case_actions":
-            def _update(payload):
-                node = MagicMock()
-                def _eq(col, val):
-                    case_actions_calls.append((col, val))
-                    return node
-                node.eq.side_effect = _eq
-                node.execute.return_value = MagicMock(data=[{"id": "ca-1"}])
-                return node
-            t.update.side_effect = _update
         return t
 
     mock.table.side_effect = _table
-    return mock, case_actions_calls
-
-
-@pytest.mark.anyio
-async def test_zatvori_predmet_closes_lingering_open_case_actions():
-    from routers.predmeti_close import ZatvoriReq, zatvori_predmet
-
-    pred = {"id": "pred-005", "naziv": "Test", "status": "aktivan", "opis": ""}
-    body = ZatvoriReq(ishod="pobeda")
-    supa, case_actions_calls = _build_supa_with_case_actions(pred)
-
-    with patch("routers.predmeti_close._get_supa", return_value=supa):
-        result = await zatvori_predmet("pred-005", body, _fake_request(), _fake_user())
-
-    assert result["ok"] is True
-    # predmet_id, user_id, and status='open' were all applied as filters
-    filter_cols = [c for c, _ in case_actions_calls]
-    assert "predmet_id" in filter_cols
-    assert "user_id" in filter_cols
-    assert "status" in filter_cols
+    return mock
 
 
 @pytest.mark.anyio
 async def test_zatvori_predmet_survives_case_actions_update_failure():
-    """The case_actions bulk-close is best-effort -- a failure there must
+    """The case_actions reconcile is best-effort -- a failure there must
     never block or fail the case closure itself (same non-blocking contract
-    as the hronologija insert)."""
+    as the hronologija insert). services.case_evolution._get_supa is left
+    UNPATCHED here on purpose -- it falls through to the real (fake-host)
+    client, which raises on any network call, proving the try/except around
+    the reconcile call in zatvori_predmet actually swallows a real failure
+    rather than one hand-crafted to fail."""
     from routers.predmeti_close import ZatvoriReq, zatvori_predmet
 
     pred = {"id": "pred-006", "naziv": "Test", "status": "aktivan", "opis": ""}
     body = ZatvoriReq(ishod="poraz")
-    supa, _ = _build_supa_with_case_actions(pred)
-
-    _orig_side_effect = supa.table.side_effect
-    def _wrapped(name):
-        if name == "case_actions":
-            t = MagicMock()
-            t.update.side_effect = RuntimeError("db unavailable")
-            return t
-        return _orig_side_effect(name)
-    supa.table.side_effect = _wrapped
+    supa = _build_supa_with_case_actions(pred)
 
     with patch("routers.predmeti_close._get_supa", return_value=supa):
         result = await zatvori_predmet("pred-006", body, _fake_request(), _fake_user())
@@ -299,42 +281,30 @@ async def test_zatvori_predmet_survives_case_actions_update_failure():
 
 
 @pytest.mark.anyio
-async def test_bulk_zatvaranje_closes_case_actions_for_updated_predmeti_only():
+async def test_bulk_aktiviranje_reconcile_not_invoked():
+    """Reopening a case must not trigger any case_actions reconcile --
+    exempt scope, unchanged by Wave 2 Task 2B."""
     from routers.predmeti_close import BulkAkcijaReq, bulk_promena_statusa
-
-    case_actions_calls = []
 
     def _table(name):
         t = MagicMock()
         if name == "predmeti":
             t.select.return_value.eq.return_value.in_.return_value.execute.return_value = \
-                MagicMock(data=[{"id": "p1", "status": "aktivan"}, {"id": "p2", "status": "aktivan"}])
+                MagicMock(data=[{"id": "p1", "status": "zatvoren"}])
             t.update.return_value.eq.return_value.in_.return_value.neq.return_value.execute.return_value = \
-                MagicMock(data=[{"id": "p1"}])  # p2 lost a race, only p1 actually updated
-        elif name == "case_actions":
-            def _update(payload):
-                node = MagicMock()
-                def _eq(col, val):
-                    return node
-                def _in_(col, vals):
-                    case_actions_calls.append(list(vals))
-                    return node
-                node.eq.side_effect = _eq
-                node.in_.side_effect = _in_
-                node.execute.return_value = MagicMock(data=[])
-                return node
-            t.update.side_effect = _update
+                MagicMock(data=[{"id": "p1"}])
         return t
 
     supa = MagicMock()
     supa.table.side_effect = _table
 
-    body = BulkAkcijaReq(predmet_ids=["p1", "p2"], akcija="zatvaranje")
-    with patch("routers.predmeti_close._get_supa", return_value=supa):
+    with patch("routers.predmeti_close._get_supa", return_value=supa), \
+         patch("services.case_evolution._consequence_refresh_case_actions") as _mock_reconcile:
+        body = BulkAkcijaReq(predmet_ids=["p1"], akcija="aktiviranje")
         result = await bulk_promena_statusa(body, _fake_request(), _fake_user())
 
     assert result["azurirano"] == 1
-    assert case_actions_calls == [["p1"]]  # only the actually-updated predmet, not p2
+    _mock_reconcile.assert_not_called()
 
 
 @pytest.mark.anyio

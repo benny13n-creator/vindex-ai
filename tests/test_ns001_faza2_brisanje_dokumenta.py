@@ -207,9 +207,44 @@ class _Baza:
         self.obrisani_originali, self.dnevnik = [], []
         self.obrisana_istorija = []
         self.storage = _Storage(self)
+        self.events = []
 
     def table(self, ime):
         return _Q(ime, self)
+
+    def rpc(self, ime, parametri):
+        # Wave 2 Task 2D corrective closure (2026-09-20): api.py's own
+        # step 4 (red u bazi) now calls invalidate_dokument_relational_
+        # and_emit_event (migration 130) atomically instead of a direct
+        # .table("predmet_dokumenti").delete() -- same ownership
+        # predicate (id + predmet_id + user_id), same red_postoji
+        # end-state, now also inserting the durable SourceInvalidated
+        # event in the SAME call.
+        return _Rpc(ime, parametri, self)
+
+
+class _Rpc:
+    def __init__(self, ime, parametri, b):
+        self.ime, self.parametri, self.b = ime, parametri, b
+
+    def execute(self):
+        self.b.dnevnik.append((self.ime, "rpc"))
+        if self.ime != "invalidate_dokument_relational_and_emit_event":
+            raise ValueError(f"neočekivan RPC u testu: {self.ime}")
+        if self.b.db_puca:
+            raise RuntimeError("baza nedostupna")
+        p = self.parametri
+        poklapa = (
+            self.b.red_postoji
+            and self.b.red.get("id") == p["p_dokument_id"]
+            and self.b.red.get("predmet_id") == p["p_predmet_id"]
+            and self.b.red.get("user_id") == p["p_user_id"]
+        )
+        if not poklapa:
+            return MagicMock(data=[{"invalidated": False}])
+        self.b.red_postoji = False
+        self.b.events.append({"id": p["p_event_id"], "source_id": p["p_dokument_id"]})
+        return MagicMock(data=[{"invalidated": True}])
 
 
 def _vozi_delete(baza, rezultat_vektora, uid=UID):
@@ -223,11 +258,17 @@ def _vozi_delete(baza, rezultat_vektora, uid=UID):
         return rezultat_vektora
 
     _orig_exec = _Q.execute
+    _orig_rpc_exec = _Rpc.execute
 
     def _exec(self):
         if self.t == "predmet_dokumenti" and self.op == "delete":
             pozivi["redosled"].append("db")
         return _orig_exec(self)
+
+    def _rpc_exec(self):
+        if self.ime == "invalidate_dokument_relational_and_emit_event":
+            pozivi["redosled"].append("db")
+        return _orig_rpc_exec(self)
 
     async def _nista(*a, **k):
         return None
@@ -241,6 +282,7 @@ def _vozi_delete(baza, rezultat_vektora, uid=UID):
 
     with patch.object(api, "_get_supa", lambda: baza), \
          patch.object(_Q, "execute", _exec), \
+         patch.object(_Rpc, "execute", _rpc_exec), \
          patch("shared.vector_deletion.obrisi_vektore_dokumenta", _obrisi), \
          patch("uploaded_doc.ingest._get_pinecone_index", lambda: MagicMock()), \
          patch("shared.audit_immutable.log_action", _nista):

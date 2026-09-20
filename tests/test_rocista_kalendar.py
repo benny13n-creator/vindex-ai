@@ -382,10 +382,15 @@ async def test_obrisi_rociste_success():
 
 @pytest.mark.anyio
 async def test_obrisi_rociste_not_found():
+    """Wave 2 Task 2D corrective closure (2026-09-20): obrisi_rociste now
+    calls the atomic invalidate_rociste_and_emit_event RPC (migration
+    130) instead of a direct .table("rocista").delete() -- its own WHERE
+    clause matching nothing returns invalidated=FALSE, same 404 contract."""
     from routers.rocista import obrisi_rociste
     from fastapi import HTTPException
 
-    supa = _supa_ok([])
+    supa = MagicMock()
+    supa.rpc.return_value.execute.return_value = MagicMock(data=[{"predmet_id": None, "invalidated": False}])
 
     with patch("routers.rocista._get_supa", return_value=supa):
         with pytest.raises(HTTPException) as exc:
@@ -909,20 +914,23 @@ def test_rociste_patch_sud_trimmed():
 
 @pytest.mark.anyio
 async def test_obrisi_rociste_user_isolation():
-    """DELETE must include user_id eq — mock verifies chain is called."""
+    """DELETE must include user_id -- Wave 2 Task 2D corrective closure
+    (2026-09-20): ownership is now enforced INSIDE the atomic
+    invalidate_rociste_and_emit_event RPC's own WHERE clause (migration
+    130), not a client-side .eq(). Verified here by asserting the RPC is
+    called with the correct p_user_id parameter."""
     from routers.rocista import obrisi_rociste
 
     supa = MagicMock()
-    del_chain = MagicMock()
-    del_chain.execute.return_value = MagicMock(data=[{"id": "r1"}])
-    del_chain.eq.return_value = del_chain
-    del_chain.delete.return_value = del_chain
-    supa.table.return_value = del_chain
+    supa.rpc.return_value.execute.return_value = MagicMock(data=[{"predmet_id": "p1", "invalidated": True}])
 
-    with patch("routers.rocista._get_supa", return_value=supa):
+    with patch("routers.rocista._get_supa", return_value=supa), \
+         patch("shared.audit_immutable.log_action", new=AsyncMock()):
         result = await obrisi_rociste("r1", _req(method="DELETE"), _user())
 
     assert result["ok"] is True
-    # Verify user_id was applied as a filter
-    uid_calls = [str(c) for c in del_chain.eq.call_args_list]
-    assert any("user_id" in s or "aaaaaaaa" in s for s in uid_calls)
+    supa.rpc.assert_called_once()
+    rpc_name, rpc_params = supa.rpc.call_args[0]
+    assert rpc_name == "invalidate_rociste_and_emit_event"
+    assert rpc_params["p_user_id"] == _user()["user_id"]
+    assert rpc_params["p_rociste_id"] == "r1"
