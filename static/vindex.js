@@ -1540,7 +1540,14 @@ function _kcPanelAktivni(d) {
   var top = d.top_aktivni_predmeti || [];
   var visokRizikIds = (d.predmeti_visok_rizik||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
   var hitniIds      = (d.hitni_rokovi||[]).reduce(function(m,r){m[r.predmet_id]=1;return m;},{});
-  var rokByPredmet  = (d.rokovi_7_dana||[]).reduce(function(m,r){if(!m[r.predmet_id])m[r.predmet_id]=r.datum_iso;return m;},{});
+  // Wave 3 F4 final closure: `hitni_rokovi` is already CONFIRMED-only
+  // (backend, routers/dashboard.py) so hitniIds needs no change here. This
+  // "Rok: N dana" per-matter summary is a SEPARATE read of `rokovi_7_dana`
+  // (which still carries UNCONFIRMED candidates, kept visible elsewhere as
+  // neutral proposals) -- it must independently filter to `stanje_odluke
+  // === 'CONFIRMED'` or an unconfirmed, never-seen AI deadline would drive
+  // this exact warning text, the original defect this closure fixes.
+  var rokByPredmet  = (d.rokovi_7_dana||[]).reduce(function(m,r){if(r.stanje_odluke==='CONFIRMED'&&!m[r.predmet_id])m[r.predmet_id]=r.datum_iso;return m;},{});
   var ukupno = d.ukupno_aktivnih || 0;
   var h = '<div class="kc-panel" id="kc-panel-aktivni">';
   h += '<div class="kc-panel-hd"><span class="kc-panel-title">'+_kcIco('briefcase')+'Aktivni predmeti</span>';
@@ -11678,9 +11685,16 @@ function portfolio_render(d) {
   } else if (rokovi.length > 0 && rokEl && rokListEl) {
     rokEl.style.display = 'block';
     rokListEl.innerHTML = rokovi.map(function(h){
+      // Wave 3 F4 final closure: an UNCONFIRMED row (AI-autonomous or
+      // human-entered, provenance is irrelevant to this label -- only the
+      // decision state is) stays visible here as a neutral proposal, never
+      // styled/worded like a confirmed operational deadline. REJECTED rows
+      // are already excluded server-side (routers/dashboard.py) and never
+      // reach this list at all.
+      var cekaPotvrdu = h.stanje_odluke === 'UNCONFIRMED';
       return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.2rem 0;font-size:0.73rem;color:var(--tx-1);">'
-        +'<span style="color:#ffbb70;flex-shrink:0;font-family:monospace;">'+h.datum_iso+'</span>'
-        +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(h.dogadjaj||'Rok')+'</span>'
+        +'<span style="color:'+(cekaPotvrdu?'var(--tx-3)':'#ffbb70')+';flex-shrink:0;font-family:monospace;">'+h.datum_iso+'</span>'
+        +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(h.dogadjaj||'Rok')+(cekaPotvrdu?' <span style="color:var(--tx-3);font-style:italic;">— predlog, čeka potvrdu</span>':'')+'</span>'
         +(h.predmet_naziv?'<span style="font-size:0.62rem;color:var(--tx-3);flex-shrink:0;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(h.predmet_naziv)+'</span>':'')
         +'</div>';
     }).join('');

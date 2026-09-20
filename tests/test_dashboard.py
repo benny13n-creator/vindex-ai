@@ -224,13 +224,20 @@ async def test_cc_rocista_today():
 
 @pytest.mark.anyio
 async def test_cc_hitni_rokovi_within_48h():
+    """Wave 3 F4 final closure (2026-09-20): `hitni_rokovi` (the OPERATIONAL
+    list) now requires CONFIRMED decision state, not just date proximity --
+    see tests/test_wave3_f4_dashboard_authority.py for the full mandatory
+    authorization matrix this closure added. This test's own original
+    intent (a deadline within 48h appears in hitni_rokovi) still holds; it
+    now also needs the row confirmed, matching the corrected contract."""
     from routers.dashboard import command_center
     from datetime import date, timedelta
     tomorrow = (date.today() + timedelta(days=1)).isoformat()
     preds  = [{"id": PID, "naziv": "P", "status": "aktivan", "updated_at": "2026-01-01"}]
-    rokovi = [{"predmet_id": PID, "dogadjaj": "Rok za žalbu", "datum_iso": tomorrow, "vaznost": "kritičan"}]
+    rokovi = [{"id": "rok-48h", "predmet_id": PID, "dogadjaj": "Rok za žalbu", "datum_iso": tomorrow, "vaznost": "kritičan"}]
     supa   = _make_cc_supa(predmeti=preds, rokovi=rokovi)
-    with patch("routers.dashboard._get_supa", return_value=supa):
+    with patch("routers.dashboard._get_supa", return_value=supa), \
+         patch("routers.dashboard.odluke", return_value={"rok-48h": "CONFIRMED"}):
         result = await command_center(request=_req(), user=_user())
     assert len(result["hitni_rokovi"]) == 1
     assert result["hitni_rokovi"][0]["dogadjaj"] == "Rok za žalbu"
@@ -264,7 +271,13 @@ async def test_cc_rokovi_dolaze_iz_KANONSKOG_izvora():
     hron  = [{"id": "h1", "predmet_id": PID, "dogadjaj": "Žalba na presudu",
               "datum_iso": sutra, "vaznost": "kritičan", "akter": ""}]
     supa = _make_cc_supa(predmeti=preds, rokovi=hron)
-    with patch("routers.dashboard._get_supa", return_value=supa):
+    # Wave 3 F4 final closure (2026-09-20): `hitni_rokovi` now requires
+    # CONFIRMED decision state (tests/test_wave3_f4_dashboard_authority.py
+    # has the full authorization matrix) -- this test's own concern is
+    # single-source merging, unaffected by that closure, so confirm the row
+    # to keep proving what it always proved.
+    with patch("routers.dashboard._get_supa", return_value=supa), \
+         patch("routers.dashboard.odluke", return_value={"h1": "CONFIRMED"}):
         result = await command_center(request=_req(), user=_user())
 
     assert result["rokovi_dostupni"] is True

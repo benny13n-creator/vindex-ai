@@ -21,6 +21,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.query_timeout import gather_with_timeout
 from shared import rokovi as _rokovi_domen
+from shared.rok_potvrda import STANJE_POTVRDJEN, STANJE_ODBIJEN, odluke, stanje_roka
 
 logger = logging.getLogger("vindex.dashboard")
 router = APIRouter(tags=["dashboard"])
@@ -256,32 +257,62 @@ async def command_center(
     # celini: pocetni ekran ima jos devet izvora koji rade.
     _rokovi_rez = rokovi_r if isinstance(rokovi_r, _rokovi_domen.Rezultat) else None
     rokovi_dostupni = bool(_rokovi_rez and _rokovi_rez.uspeh)
+    _kandidati_roka = [
+        r for r in (_rokovi_rez.rokovi if rokovi_dostupni else [])
+        if r.predmet_id in aktivni_ids
+    ]
+    # Wave 3 F4 final closure (2026-09-20): commit 82e869b7 fixed TRANSPORT
+    # of `izvor` (provenance) to this response, but transport alone does not
+    # authorize anything -- `izvor` answers HOW a row was written, never
+    # WHETHER a lawyer may treat it as operational (shared/rokovi.py's own
+    # canon, and the FAZA 6.2/6.4 lessons documented there: authorization
+    # based on provenance has already been tried and proven wrong twice).
+    # The actual authorization axis is the human DECISION recorded in
+    # `audit_immutable` (shared/rok_potvrda.py, FAZA 6.5) -- the exact same
+    # mechanism routers/rok_odluka.py's `/api/rokovi/kandidati` (V2 Danas'
+    # candidate-confirmation surface) already uses. Resolved ONCE per
+    # request for every candidate id here, not per row.
+    _odl = await asyncio.to_thread(odluke, [r.izvor_id for r in _kandidati_roka])
     rokovi_7 = [
         {
+            "id":            r.izvor_id,
             "predmet_id":    r.predmet_id,
             "predmet_naziv": pred_by_id.get(r.predmet_id, {}).get("naziv", "—"),
             "dogadjaj":      r.naslov,
             "datum_iso":     r.datum.isoformat(),
             "vaznost":       r.vaznost,
-            # Wave 3 V1 beta acceptance (2026-09-20, P0 nalaz): OVDE je
-            # ranije stajala `_rokovi_domen.TABELA` (ime tabele, konstanta,
-            # ista za svaki red) -- ne provenijencija. Posledica: rok koji
-            # je AI upisao sam, bez da ga je advokat ikad video
-            # (izvor=IZVOR_AI_AUTONOMOUS), prikazivao se ovde vizuelno i
-            # funkcionalno identicno potvrdjenom ljudskom unosu -- na
-            # jedinom ekranu koji advokat svakodnevno gleda. Sada nosi
-            # stvarnu po-redovnu vrednost (shared/rokovi.py's `Rok.izvor`,
-            # citano iz `predmet_hronologija.izvor`, migracija 127).
-            # Izvrsni gejt (sme_pokrenuti_obavezu) ovo nikad nije koristio
-            # kao dozvolu i ostaje nepromenjen -- ovo je iskljucivo popravka
-            # vidljivosti istine na ekranu.
+            # Provenance -- HOW the row was written. Never authorization
+            # (see the block comment above and shared/rokovi.py's own canon).
             "izvor":         r.izvor,
+            # Human decision state -- WHETHER a lawyer may treat this as an
+            # operational deadline. Same three values
+            # (UNCONFIRMED/CONFIRMED/REJECTED) `/api/rokovi/kandidati` and
+            # `/api/rokovi/{id}/potvrdi`|`/odbij` already expose as
+            # `stanje_odluke` -- reused verbatim, not reinvented.
+            "stanje_odluke": stanje_roka(r.izvor_id, _odl),
         }
-        for r in (_rokovi_rez.rokovi if rokovi_dostupni else [])
-        if r.predmet_id in aktivni_ids
+        for r in _kandidati_roka
+        # REJECTED does not remain in an active/operational deadline list at
+        # all (FAZA 6.5's own rule: rejected stays visible in
+        # /api/rokovi/kandidati's full history view, which is the correct
+        # place for it -- not here). UNCONFIRMED is kept here (not hidden
+        # outright) so the dashboard can still surface it as a neutral
+        # proposal awaiting confirmation; it is excluded from
+        # `hitni_rokovi` below and from the frontend's confirmed-only
+        # per-matter deadline summary regardless of date proximity.
+        if stanje_roka(r.izvor_id, _odl) != STANJE_ODBIJEN
     ]
     rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
-    hitni_rokovi = [r for r in rokovi_7 if (r.get("datum_iso") or "9999") <= in_2_iso]
+    # `hitni_rokovi` is the OPERATIONAL/urgent list (drives the dashboard's
+    # warning treatment and the "Hitni rokovi" count) -- CONFIRMED only.
+    # An AI-autonomous, never-confirmed deadline being <48h away does not
+    # make it any more authorized to be treated as urgent than one 6 days
+    # away; date proximity and human confirmation are independent axes.
+    hitni_rokovi = [
+        r for r in rokovi_7
+        if (r.get("datum_iso") or "9999") <= in_2_iso
+        and r.get("stanje_odluke") == STANJE_POTVRDJEN
+    ]
 
     # 3. Visok rizik (LIVE, canonical) + pad procene (current live value vs. the most recent
     # historical snapshot). Operation Single Brain (2026-08-07): "trenutni" risk is no longer
