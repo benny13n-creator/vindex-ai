@@ -1,8 +1,8 @@
 # VINDEX Wave 4 — Controlled Real-User Beta Results
 
 Behavioral acceptance SHA: `1296cb6988191f5f830174b2f0c650159b70ccac`
-Current production SHA (before this session's preflight fix deploys): `daf2a7015dbf8c9e268409e13587dfb260cdd8fa`
-Production health: PROVEN (`/health` 200/ok on `daf2a70`, this session)
+Current production SHA: `b43dcedbba0c5096052f0756703c1c2abe2d653f` (cron-auth fix, deployed and identity-proven this session)
+Production health: PROVEN (`/health` 200/ok on `b43dced`, this session)
 Feature freeze: ACTIVE
 Bojan source: `docs/product/BOJAN_WORKFLOW_GAP_ANALYSIS_2026-08-02.md` — TRACEABLE (re-verified against current code this session where relevant, not trusted at face value; it is itself 7 weeks stale)
 Miroslav source: no dedicated requirements document or `M-01…M-07` numbering exists anywhere in the current repository (grepped exhaustively) — **SOURCE_UNKNOWN** for detailed numbering. One traceable canon claim found in `TASK8_FINAL_EVIDENCE_DOSSIER.md` (2026-09-10): "Bojan+Miroslav canon's core claim — Vindex should provide continuous case understanding (event → state-change → consequence → next-action)" — already validated and fixed per that dossier's own live evidence, and unaffected by any commit since (Wave 2/3 never touched `routers/evidence.py::add_dokaz` or `api.py`'s `/api/pitanje` context wiring).
@@ -52,7 +52,7 @@ Live-tested this session with the disposable Wave 2/3 test account (no entitleme
 | ID | User | Source | Workflow | Expected user outcome | System result | User result | Status | Severity | Evidence |
 |---|---|---|---|---|---|---|---|---|---|
 | W4-PF-A | — | REQ-B2 | Deadline→obligation bridge | Confirmed deadline is treated as an obligation somewhere real | Code-proven: dashboard (F4) + notifications (INV-2) + reminder gate, no case_actions needed | N/A — code preflight | REAL_USER_PROVEN (code) | — | This doc, Preflight A |
-| W4-PF-B | — | Preflight B | Email cron scheduler | Daily reminder job actually authenticates and sends | Was returning likely-403 silently for 93 runs; header + failure-visibility fixed | N/A — code preflight | FAIL_P1 → fix committed, **deploy pending founder authorization** | P1 (until deployed+reverified) | Commit `eea19093`, GH Actions API run history |
+| W4-PF-B | — | Preflight B | Email cron scheduler | Daily reminder job actually authenticates and sends | Code fix deployed and proven correct (workflow now sends the right header and fails loudly instead of silently); a real `workflow_dispatch` run still returned `HTTP 403 {"detail":"Restricted to founder or valid cron key."}` — the GitHub `CRON_TOKEN` secret's value does not currently match production's `CRON_SECRET` | N/A — code preflight | FAIL_P1 — **code closed, config open** | P1 | Commit `b43dcedb` deployed; run `35534636154` (`workflow_dispatch`, job `106141344981`), step "Pošalji email podsetnike" failed with logged HTTP 403; 0 secret-value occurrences confirmed in the job log before this report was written |
 | W4-PF-C | — | Preflight C | Miroslav source discovery | Locate traceable requirements or confirm absence | No numbered doc found; one canon claim found and already validated | N/A | NOT_APPLICABLE (informational) | — | This doc, Preflight C |
 | W4-B-1 | Bojan | REQ-B1 | Full intake→matter→document→deadline→confirm→reminder session | Bojan completes the workflow unaided | Not run — requires Bojan's real account/session | NOT_RUN | NOT_RUN | — | See Action Pack below |
 | W4-B-2 | Bojan | REQ-B2 | Deadline confirm/reject via UI | Bojan can tell proposed vs. confirmed, confirms correctly | Not run | NOT_RUN | NOT_RUN | — | See Action Pack |
@@ -67,8 +67,8 @@ Rows W4-B-1…3 and W4-M-1 cannot be closed by this session: per the mission's o
 
 **Zero staff/DB workarounds used.** All live checks this session used the app's own normal authenticated API paths with a disposable, non-entitled test account (created in an earlier session), cleaned up after each use.
 
-**Open P1:** 1 — email cron auth (Preflight B), fix committed (`eea19093`), not yet deployed pending founder push/deploy authorization (not granted in this mission's text, unlike prior Wave 2/3 missions which explicitly granted it).
+**Open P1:** 1 — email cron scheduler (Preflight B). Code fix deployed (`b43dcedb`) and independently proven correct via a real `workflow_dispatch` run (correct header sent, non-2xx correctly fails the job, no secret exposure). Remaining blocker is a **secret-store configuration mismatch** outside this session's access: GitHub Actions' `CRON_TOKEN` secret value does not currently authenticate against production's `CRON_SECRET`. Founder action required — see below.
 
 **Open P0:** 0
 
-Wave 4 is **NOT CLOSED** — real Bojan and Miroslav sessions have not occurred. See the action pack.
+Wave 4 is **NOT CLOSED** — cron scheduler config mismatch needs founder correction, then real Bojan and Miroslav sessions have not yet occurred. See the action pack (prior message) and the founder action below.
