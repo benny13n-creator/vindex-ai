@@ -1,10 +1,10 @@
 # VINDEX V1 — Beta Acceptance Matrix
 
-Candidate SHA: `82e869b74458c8136bb4bc681662c644a6fc2e43` (local commit, branch `wave2-rpc-uuid-contract-fix` — NOT pushed/deployed this session)
-Production SHA: `e496120dffa70a3f507c07086ff82e36a9fe3dd7`
-Production identity: PROVEN (`/api/version`: `commit=e496120d...`, `branch=main`, `identity_proven=true`)
-Production health: PROVEN (`/health`: HTTP 200, `{"status":"ok","commit":"e496120",...}`)
-Acceptance timestamp: 2026-09-20T18:00–20:15Z
+Candidate SHA: `1296cb6988191f5f830174b2f0c650159b70ccac`
+Production SHA: `1296cb6988191f5f830174b2f0c650159b70ccac`
+Production identity: PROVEN (`/api/version`: `commit=1296cb69...`, `branch=main`, `identity_proven=true`)
+Production health: PROVEN (`/health`: HTTP 200, `{"status":"ok","commit":"1296cb6",...}`)
+Acceptance timestamp: 2026-09-20T18:00–18:50Z
 Requirement sources: (1) no current `VINDEX-V1-EXECUTION-CONTRACT.md` exists on this branch (historical, not ported by design in the mainline re-integration — see prior session record); (2) `docs/product/BOJAN_WORKFLOW_GAP_ANALYSIS_2026-08-02.md` (validated Bojan workflow, re-verified against current code, not trusted at face value — it is itself 7 weeks stale relative to this candidate); (3) `TASK8_FINAL_EVIDENCE_DOSSIER.md` (Case Evolution Spine sprint, 2026-09-10 — addresses the Bojan+Miroslav "event → consequence" canon directly, with live production evidence); (4) current production behavior for anything not documented elsewhere. No `B-01…B-13`/`M-01…M-07` requirement-ID scheme exists in the current repo — not assumed, not recreated.
 Feature freeze: ACTIVE
 
@@ -44,7 +44,7 @@ Feature freeze: ACTIVE
 | F1 | Deadlines | Outbound/notification tier: unconfirmed AI deadline cannot trigger a reminder | Yes | PROVEN | — | DEPLOY_EQUIVALENCE | `shared/rokovi.py:513-575` (`sme_pokrenuti_obavezu`), sole authorization is explicit `potvrda`; wired into all 7 outbound call sites (`email_notif.py`, `sms.py`, `viber.py`, `whatsapp_notif.py`, `notifications.py`, `morning_briefing.py`, `integrations.py`) | Two prior failed gating attempts (FAZA 6.2/6.4) documented in-file; current design deliberately rejects `izvor`/`akter`/`vaznost` as authorization |
 | F2 | Deadlines | LLM instructed never to invent a deadline | Yes | PROVEN | — | SOURCE_CONTRACT | `routers/intake.py:70` (`"NE izmišljaj datume"`); `/api/intake/ekstrakcija` is proposal-only, no DB write | |
 | F3 | Deadlines | Document-extracted deadline requires confidence gate before becoming operational | Yes | PROVEN | — | DEPLOY_EQUIVALENCE | `shared/intake_documents.py:23` (`AUTO_ACCEPT_THRESHOLD = 0.90`); below threshold explicitly withheld (`routers/smart_intake.py:1343-1347`) | |
-| F4 | Deadlines | Dashboard display distinguishes AI-autonomous (never human-seen) deadlines from confirmed ones | Yes | **FAIL — FIX CODE COMPLETE / PRODUCTION REVERIFY REQUIRED** | P0 | DEPLOY_EQUIVALENCE (fix) | Defect: `routers/dashboard.py`'s "Hitni rokovi" filled `izvor` with a table-name constant, identical for every row; an AI-autonomous, never-confirmed deadline was visually/functionally indistinguishable from a confirmed one on the one screen a lawyer checks daily. Root cause: `shared/rokovi.py`'s `_KOLONE` never selected the `izvor` column migration 127 added. **Fixed this session**, commit `82e869b7`: `izvor` now selected, carried through `Rok`, exposed truthfully by the dashboard. 9 new focused tests + 623/623 full consumer-sweep regression, mutation-tested. **Not yet deployed to production — production still runs `e496120d`, which has this defect live.** | See "Open P0" below |
+| F4 | Deadlines | Dashboard display distinguishes AI-autonomous (never human-seen) deadlines from confirmed ones, and only CONFIRMED deadlines are treated as operational | Yes | PROVEN | — | LIVE + DETERMINISTIC_TEST | Two-part fix. Part 1 (commit `82e869b7`): `izvor` (provenance) transport fixed through `shared/rokovi.py` -> `routers/dashboard.py`. Part 2, final closure (commit `1296cb69`): transport alone did not authorize anything — `routers/dashboard.py` now resolves human decision state (`shared/rok_potvrda.py`, the same `odluke()`/`stanje_roka()` already live at `/api/rokovi/kandidati`) once per request, excludes REJECTED from `rokovi_7_dana` entirely, and restricts `hitni_rokovi` to CONFIRMED rows; `static/vindex.js::_kcPanelAktivni`'s "Rok: N dana" text now requires `stanje_odluke==='CONFIRMED'`. Production canary (synthetic Smart Intake upload, matter `2bd1937e-ab13-4f93-ac95-83271681e592`, rok `fa37cea0-6c5c-4b2f-bdee-2728ef0500c3`, `izvor=AI_AUTONOMOUS`): before confirmation — API showed `stanje_odluke=UNCONFIRMED`, absent from `hitni_rokovi` despite a 2-day-out date within the 48h window; deployed `static/vindex.js` verified byte-identical (CRLF-normalized diff) to the committed fix, containing the exact `stanje_odluke==='CONFIRMED'` filter — `POST /api/rokovi/{id}/potvrdi` → `stanje_odluke=CONFIRMED`, reload → row entered `hitni_rokovi` — `POST /api/rokovi/{id}/odbij` → `stanje_odluke=REJECTED`, reload → absent from both `rokovi_7_dana` and `hitni_rokovi`. Full UNCONFIRMED→CONFIRMED→REJECTED transition proven live. 12 new focused tests (mutation-tested) + 635/635 full consumer-sweep regression. Canary matters closed via the normal product path. | Closed this session, production-verified |
 | G1 | AI matter context | Correct matter/document/evidence context reaches the AI | Yes | PROVEN | — | LIVE (prior session) | `TASK8_FINAL_EVIDENCE_DOSSIER.md`: `predmet_dokazi.tvrdnja` wired into `/api/pitanje`'s context pipeline; live-proven a distinctive fact became answerable | |
 | G2 | AI matter context | No cross-user/cross-firm RAG leakage | Yes | PROVEN | — | DETERMINISTIC_TEST | `tests/test_confidentiality_003_rag_acl.py` — 15 tests incl. `test_f01_druga_kancelarija_nikad_ne_curi`, `test_f01_filter_nikad_nije_prazan_dict` (fail-closed, filter never empty), `test_acl_pad_predmeta_dize_izuzetak_a_ne_tiho_prazno` (ACL failure raises, doesn't silently narrow to nothing) | |
 | G3 | AI matter context | Stale/deleted source does not remain silently authoritative to the AI | Yes | PROVEN | — | DEPLOY_EQUIVALENCE | Wave 2 `SOURCE_INVALIDATED` consequence chain (unchanged by this session's fixes except the RPC contract itself, which is what makes invalidation actually fire now) | |
@@ -81,7 +81,7 @@ Feature freeze: ACTIVE
 ## Summary
 
 **OPEN P0:**
-1 — **F4** (dashboard deadline provenance). Fix code-complete (commit `82e869b7`), not yet deployed to production. Owning component: `routers/dashboard.py`, `shared/rokovi.py`.
+0
 
 **OPEN P1:**
 0
@@ -97,10 +97,6 @@ Feature freeze: ACTIVE
 
 ---
 
-## WAVE 3 — NOT CLOSED
-
-Blocker: **F4**, severity **P0**, owning component `routers/dashboard.py` / `shared/rokovi.py`.
-
-Smallest next action: push commit `82e869b7` (currently local-only on `wave2-rpc-uuid-contract-fix`) to `main`, deploy, then re-verify `F4` against the newly deployed SHA (confirm `/api/version` matches `82e869b7`, and that a synthetic AI-autonomous-sourced deadline's `izvor` field on `GET /api/dashboard/command-center` now reads `AI_AUTONOMOUS` rather than the old table-name constant). No further discovery needed — this is a deploy + single reverification, not a new audit.
-
-Push/deploy requires separate explicit authorization per this mission's own instruction ("Do NOT push/deploy without explicit authorization").
+## WAVE 3 — CLOSED
+## V1 TECHNICAL BETA ACCEPTANCE — PASS
+## READY FOR CONTROLLED BETA
