@@ -65,11 +65,15 @@ UID = "uid-advokat"
 DANAS = date.today()
 SUTRA = (DANAS + timedelta(days=1)).isoformat()
 
-# Stvarne kolone `predmet_hronologija` (PostgREST OpenAPI koren, 2026-08-18).
+# Stvarne kolone `predmet_hronologija` (PostgREST OpenAPI koren, 2026-08-18;
+# `izvor` dodat 2026-09-20 -- migracija 127 (2026-09-02) dodala je kolonu
+# POSLE ovog merenja, pa je ovaj skup do sada bio stale u odnosu na stvarnu
+# semu, ne obrnuto -- shared/rokovi.py's `_KOLONE` je imao istu grešku,
+# ispravljeno istom sesijom, v. tests/test_wave3_dashboard_rok_provenance.py).
 # `naziv` NAMERNO nije u skupu — to je cela poenta.
 SEMA_HRONOLOGIJA = {
     "id", "predmet_id", "user_id", "dokument_naziv", "datum", "datum_iso",
-    "dogadjaj", "akter", "vaznost", "created_at",
+    "dogadjaj", "akter", "vaznost", "created_at", "izvor",
 }
 
 RED_ROKA = {

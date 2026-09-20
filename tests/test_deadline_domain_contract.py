@@ -37,9 +37,12 @@ from shared import rokovi as R  # noqa: E402
 UID = "uid-advokat"
 PRED = "pred-1"
 
-# Izmerene produkcione kolone `predmet_hronologija` (OpenAPI koren, 2026-08-14).
+# Izmerene produkcione kolone `predmet_hronologija` (OpenAPI koren, 2026-08-14;
+# `izvor` dodat 2026-09-20 -- migracija 127 (2026-09-02) dodala je kolonu
+# POSLE ovog merenja, v. tests/test_wave3_dashboard_rok_provenance.py).
 SEMA_HRONOLOGIJA = {"akter", "created_at", "datum", "datum_iso", "dogadjaj",
-                    "dokument_naziv", "id", "predmet_id", "user_id", "vaznost"}
+                    "dokument_naziv", "id", "predmet_id", "user_id", "vaznost",
+                    "izvor"}
 
 DANAS = date.today()
 

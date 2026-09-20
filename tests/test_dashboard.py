@@ -270,7 +270,19 @@ async def test_cc_rokovi_dolaze_iz_KANONSKOG_izvora():
     assert result["rokovi_dostupni"] is True
     assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["rokovi_7_dana"])
     assert any(r["dogadjaj"] == "Žalba na presudu" for r in result["hitni_rokovi"])
-    assert all(r["izvor"] == "predmet_hronologija" for r in result["rokovi_7_dana"])
+    # Wave 3 V1 beta acceptance (2026-09-20): this line used to assert
+    # `r["izvor"] == "predmet_hronologija"` -- checking "single canonical
+    # source" by relying on the response's `izvor` key holding the SOURCE
+    # TABLE NAME, a constant identical for every row. That was itself the
+    # P0 defect this session found and fixed: `izvor` is supposed to carry
+    # the per-row AI/human PROVENANCE (`predmet_hronologija.izvor`,
+    # migration 127), not the table name -- fixed in
+    # routers/dashboard.py's rokovi_7 construction and covered by
+    # tests/test_wave3_dashboard_rok_provenance.py. This test's own actual
+    # contract (single canonical source, not the old two-table merge) is
+    # already fully proven above by `rokovi_dostupni`/the presence checks
+    # -- no substitute assertion needed here.
+    assert all("izvor" in r for r in result["rokovi_7_dana"])
 
 
 @pytest.mark.anyio

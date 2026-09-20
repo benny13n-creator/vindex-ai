@@ -263,7 +263,19 @@ async def command_center(
             "dogadjaj":      r.naslov,
             "datum_iso":     r.datum.isoformat(),
             "vaznost":       r.vaznost,
-            "izvor":         _rokovi_domen.TABELA,
+            # Wave 3 V1 beta acceptance (2026-09-20, P0 nalaz): OVDE je
+            # ranije stajala `_rokovi_domen.TABELA` (ime tabele, konstanta,
+            # ista za svaki red) -- ne provenijencija. Posledica: rok koji
+            # je AI upisao sam, bez da ga je advokat ikad video
+            # (izvor=IZVOR_AI_AUTONOMOUS), prikazivao se ovde vizuelno i
+            # funkcionalno identicno potvrdjenom ljudskom unosu -- na
+            # jedinom ekranu koji advokat svakodnevno gleda. Sada nosi
+            # stvarnu po-redovnu vrednost (shared/rokovi.py's `Rok.izvor`,
+            # citano iz `predmet_hronologija.izvor`, migracija 127).
+            # Izvrsni gejt (sme_pokrenuti_obavezu) ovo nikad nije koristio
+            # kao dozvolu i ostaje nepromenjen -- ovo je iskljucivo popravka
+            # vidljivosti istine na ekranu.
+            "izvor":         r.izvor,
         }
         for r in (_rokovi_rez.rokovi if rokovi_dostupni else [])
         if r.predmet_id in aktivni_ids

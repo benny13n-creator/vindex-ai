@@ -72,11 +72,23 @@ logger = logging.getLogger("vindex.rokovi")
 TABELA = "predmet_hronologija"
 
 # Kolone koje tabela STVARNO ima (mereno nad produkcijom preko PostgREST
-# OpenAPI korena): akter, created_at, datum, datum_iso, dogadjaj,
-# dokument_naziv, id, predmet_id, user_id, vaznost.
+# OpenAPI korena, pre migracije 127): akter, created_at, datum, datum_iso,
+# dogadjaj, dokument_naziv, id, predmet_id, user_id, vaznost.
 # `datum` je TEXT i slobodnog je oblika; `datum_iso` je DATE i jedino je ono
 # uporedivo. Zato se filtrira i sortira isključivo po `datum_iso`.
-_KOLONE = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"
+#
+# `izvor` dodat u SELECT (Wave 3 V1 beta acceptance, 2026-09-20, P0 nalaz):
+# migracija 127 je dodala kolonu i sve pisce popunjava (routers/smart_intake.py,
+# routers/case_dna.py -- IZVOR_AI_AUTONOMOUS na svakom AI-samostalnom upisu),
+# ali OVAJ citac je pisan pre te migracije i nikad nije azuriran da je stvarno
+# selektuje. Posledica: `Rok`/`kao_dict()` nisu mogli da nose provenijenciju
+# ni do jednog citaoca, ukljucujuci routers/dashboard.py's "Hitni rokovi" --
+# jedini ekran koji advokat svakodnevno gleda. Rezultat: AI-samostalan,
+# nikad-ljudski-vidjen rok se tamo prikazivao vizuelno i funkcionalno
+# identicno potvrdjenom. Izvrsni gejt (shared/rokovi.py::sme_pokrenuti_obavezu)
+# ovo NIKAD nije koristio kao dozvolu (FAZA 6.4.1 je to zabranila) i ostaje
+# nepromenjen; ovo je iskljucivo popravka VIDLJIVOSTI istine na ekranu.
+_KOLONE = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter, izvor"
 
 # Podrazumevani prozor: koliko unapred „predstojeći rok" uopšte znači.
 PROZOR_DANA = 7
@@ -176,6 +188,7 @@ class Rok:
     akter: str = ""
     dana_do: int = 0
     prekoracen: bool = False
+    izvor: str = ""
 
     @property
     def kljuc_sortiranja(self) -> tuple:
@@ -192,6 +205,7 @@ class Rok:
             "akter":       self.akter,
             "dana_do":     self.dana_do,
             "prekoracen":  self.prekoracen,
+            "izvor":       self.izvor,
         }
 
 
@@ -254,6 +268,7 @@ def _u_rok(red: dict, danas: date) -> Optional[Rok]:
         akter=(red.get("akter") or "")[:200],
         dana_do=(d - danas).days,
         prekoracen=d < danas,
+        izvor=(red.get("izvor") or "")[:50],
     )
 
 
