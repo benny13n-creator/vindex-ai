@@ -8,8 +8,38 @@ jobs:
   send-email-reminders:
     runs-on: ubuntu-latest
     steps:
+      # VINDEX AI, Wave 4 Preflight B (2026-09-20) -- PROVEN production defect:
+      # this step sent `Authorization: Bearer ${CRON_TOKEN}`, but
+      # routers/email_notif.py::_require_cron_or_founder() only ever accepts
+      # (1) an `X-Cron-Key` header equal to production's CRON_SECRET, or
+      # (2) a currently-valid FOUNDER Bearer JWT (email in FOUNDER_EMAILS) --
+      # never an arbitrary Bearer token. Every one of 93 prior scheduled runs
+      # almost certainly received 403 Forbidden from the endpoint. This was
+      # invisible in the GitHub Actions UI (93/93 "success") because the
+      # bare `curl` below had no `-f`/status check -- curl exits 0 on any
+      # completed HTTP response, including 401/403/500, and only fails on a
+      # genuine connection error. Fixed both halves: the header this job
+      # sends, and the job's own ability to report a real failure as a real
+      # failure (the exact "failures must not look like success" invariant
+      # Wave 2/3 already established for the app itself, now applied to its
+      # own scheduler).
+      #
+      # NOT independently provable from code alone: whether the
+      # `CRON_TOKEN` GitHub Actions secret's VALUE equals production's
+      # `CRON_SECRET` env var (Render). Both are opaque secret stores this
+      # session has no read access to -- if they were never synced, this
+      # fix corrects the header but the call still needs `CRON_TOKEN` (as
+      # sent here, now via X-Cron-Key) to equal Render's CRON_SECRET value.
+      # Flagged for founder verification in the Wave 4 action pack.
       - name: Pošalji email podsetnike
         run: |
-          curl -X POST https://vindex.rs/email-notif/send-reminders \
-            -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}" \
-            -H "Content-Type: application/json"
+          http_code=$(curl -s -o /tmp/email_cron_response.json -w "%{http_code}" -X POST https://vindex.rs/email-notif/send-reminders \
+            -H "X-Cron-Key: ${{ secrets.CRON_TOKEN }}" \
+            -H "Content-Type: application/json")
+          echo "HTTP $http_code"
+          cat /tmp/email_cron_response.json
+          echo ""
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::email-notif/send-reminders returned HTTP $http_code -- treating as job failure, not silent success."
+            exit 1
+          fi
