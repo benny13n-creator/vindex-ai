@@ -1,0 +1,118 @@
+/* Vindex V2 NG — PRIVREMENI design tokeni (prototip 001).
+ *
+ * Nisu konačno odobren design system. Postoje da bi jedan ekran mogao da
+ * se pregleda; svaka vrednost je kandidat dok founder ne potvrdi pravac.
+ *
+ * Pravilo: komponente čitaju SAMO ove tokene. Promena teme menja tokene,
+ * nikad komponente — zato tema ne može da poništi stanje interfejsa.
+ */
+
+:root {
+  /* Tipografija — privremena zamena za Tiempos Headline / Söhne (vidi README) */
+  --font-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+
+  /* Refinement 01: radni tekst 14→14,5, sekundarni 13→13,5, najmanji 12→13
+   * (stavke panela i demo napomene su relevantan tekst, ne ukras). */
+  --fs-title: 1.75rem;      /* 28px  naslov radnog prostora */
+  --fs-heading: 1.0625rem;  /* 17px  naslov panela */
+  --fs-body: 0.90625rem;    /* 14,5px osnovni radni tekst */
+  --fs-row-title: 0.9375rem;/* 15px  naziv predmeta */
+  --fs-meta: 0.84375rem;    /* 13,5px sekundarni podaci */
+  --fs-small: 0.8125rem;    /* 13px  najmanja veličina relevantnog teksta */
+
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+
+  /* Razmaci — osnova 4px */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+
+  --radius: 4px;
+  --radius-sm: 3px;
+
+  --topbar-h: 52px;
+  --nav-w: 232px;
+  --nav-w-collapsed: 60px;
+  /* Fluidno između 1280 i 1440 px (vrednosti na 1280 i 1440 = ranije): šira
+   * površina nikad ne daje užu kolonu naziva (ranije je skok na 1360 px oduzimao ~100 px). */
+  --fluid: max(0px, min(100vw - 1280px, 160px));   /* 0 na ≤1280, 160px na ≥1440 */
+  --panel-w: calc(296px + var(--fluid) * 0.2);
+  --sheet-pad: calc(24px + var(--fluid) * 0.05);
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 160ms;
+}
+
+/* ── DARK (podrazumevana) ─────────────────────────────────────────────── */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-shell: #0d0e10;        /* sloj sa teksturom */
+  --bg-sheet: #131417;        /* radna površina — čista */
+  --bg-panel: #16181b;        /* sekundarni panel */
+  --bg-hover: #1b1d21;
+  --bg-selected: #1e2229;
+  --bg-input: #0f1012;
+
+  --line: #24272c;
+  --line-strong: #33373e;
+
+  --text-1: #e8e6e1;          /* topla bela, ne čista */
+  --text-2: #a9acb2;
+  --text-3: #8a8e95;          /* ≥ 4.5:1 na svim površinama */
+
+  --accent: #7aa2dc;          /* Vindex plava — samo akcenat */
+  --accent-strong: #98b8e8;
+  --accent-quiet: rgba(122, 162, 220, 0.12);
+  --focus: #98b8e8;
+
+  --state-active: #8fb59a;
+  --state-waiting: #c9ad72;
+  --state-closed: #8a8e95;
+  --attention: #d0a35f;       /* oznaka bliskog datuma, ne alarm */
+
+  --demo-bg: rgba(201, 173, 114, 0.10);
+  --demo-line: rgba(201, 173, 114, 0.32);
+  --demo-text: #d4bb86;
+
+  --dot-rgb: 196, 210, 232;
+  --dot-alpha-max: 0.34;
+}
+
+/* ── LIGHT (alternativa) ──────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-shell: #ecebe7;
+  --bg-sheet: #fbfaf8;
+  --bg-panel: #f4f3ef;
+  --bg-hover: #f1f0ec;
+  --bg-selected: #e8edf5;
+  --bg-input: #ffffff;
+
+  --line: #dedbd4;
+  --line-strong: #c9c5bc;
+
+  --text-1: #1b1c1f;
+  --text-2: #4c5058;
+  --text-3: #62666d;
+
+  --accent: #2c5a9c;
+  --accent-strong: #1f4682;
+  --accent-quiet: rgba(44, 90, 156, 0.09);
+  --focus: #2c5a9c;
+
+  --state-active: #3d6e4b;
+  --state-waiting: #85641f;
+  --state-closed: #62666d;
+  --attention: #8a5a14;
+
+  --demo-bg: rgba(133, 100, 31, 0.08);
+  --demo-line: rgba(133, 100, 31, 0.30);
+  --demo-text: #6e5218;
+
+  --dot-rgb: 60, 70, 88;
+  --dot-alpha-max: 0.16;
+}

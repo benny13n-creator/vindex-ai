@@ -1,0 +1,4 @@
+# Vindex V2 NG — lokalni artefakti koji nikad ne ulaze u git
+node_modules/
+shots/
+test-results/

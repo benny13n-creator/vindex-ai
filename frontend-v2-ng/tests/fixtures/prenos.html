@@ -1,0 +1,14 @@
+<!doctype html>
+<!-- Fikstura: prenos (src/signature-background.js) sam, na istoj podlozi kao original.
+     ?seed=N ; ?zamrzni=1 -> rucni rezim, nacrtan tacno jedan 60 Hz frejm kao prvi frejm originala. -->
+<html data-theme="dark"><head><meta charset="utf-8"><title>Prenos pozadine</title>
+<style>html,body{margin:0;height:100%;background:#010308;overflow:hidden}#pozadina-test{position:fixed;inset:0}</style></head>
+<body><canvas id="pozadina-test"></canvas>
+<script src="../../src/signature-background.js"></script>
+<script>
+var q=new URLSearchParams(location.search);
+var seme=q.has("seed")?Number(q.get("seed")):undefined;
+var zam=q.get("zamrzni")==="1";
+window.inst=VindexSignatureBackground.mount(document.getElementById("pozadina-test"),{seed:seme,rucno:zam});
+if(zam) inst.frejm(1);
+</script></body></html>

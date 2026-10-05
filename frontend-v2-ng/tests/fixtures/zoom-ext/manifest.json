@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "vx-test-zoom",
+  "version": "1.0",
+  "description": "Samo za testove: stvarni zoom pregledača (chrome.tabs.setZoom), isti mehanizam kao Ctrl+.",
+  "permissions": ["tabs"],
+  "background": { "service_worker": "sw.js" }
+}
