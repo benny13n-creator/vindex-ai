@@ -85,6 +85,10 @@ jobs:
         if: always()
         run: node tests/diagnostics/background-forensic.mjs
 
+      - name: 200% zoom single-pixel forensics (diagnostic, NS002B)
+        if: always()
+        run: node tests/diagnostics/zoom200-forensic.mjs
+
       - name: Upload screenshots (evidence only, not committed)
         if: always()
         uses: actions/upload-artifact@v4
