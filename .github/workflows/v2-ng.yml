@@ -53,7 +53,8 @@ jobs:
           node -e '
             const s = require("./package.json").scripts;
             const suites = Object.keys(s).filter(k => k === "verify" || k.startsWith("verify:"));
-            require("fs").writeFileSync("/tmp/suites.txt", suites.join("\n"));
+            // Trailing newline is required: `while read` drops an unterminated last line.
+            require("fs").writeFileSync("/tmp/suites.txt", suites.join("\n") + "\n");
             console.log("Suites (" + suites.length + "):\n  " + suites.join("\n  "));
             const wired = new Set(suites.map(k => (s[k].match(/tests\/[^ ]+\.mjs/) || [""])[0]));
             const tools = new Set(["tests/perf.mjs", "tests/measure.mjs"]);
@@ -66,12 +67,18 @@ jobs:
         run: |
           node serve.mjs 4317 > /tmp/serve.log 2>&1 &
           for i in $(seq 1 50); do curl -s -o /dev/null http://127.0.0.1:4317/ && break; sleep 0.2; done
-          fail=0
-          while read -r suite; do
+          fail=0; ran=0
+          while read -r suite || [ -n "$suite" ]; do
+            [ -z "$suite" ] && continue
+            ran=$((ran+1))
             echo "::group::$suite"
             if npm run -s "$suite"; then echo "RESULT $suite: PASS"; else echo "RESULT $suite: FAIL"; fail=1; fi
             echo "::endgroup::"
           done < /tmp/suites.txt
+          listed=$(grep -c . /tmp/suites.txt)
+          echo "Suites listed: $listed, executed: $ran"
+          # A suite that silently did not run is a failure, not a pass.
+          if [ "$ran" -ne "$listed" ]; then echo "::error::executed $ran of $listed suites"; fail=1; fi
           exit $fail
 
       - name: Upload screenshots (evidence only, not committed)
