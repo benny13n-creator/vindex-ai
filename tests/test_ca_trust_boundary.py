@@ -589,6 +589,12 @@ class _PredmetQ:
     def limit(self, *a, **k):
         return self
 
+    def is_(self, *a, **k):
+        # `api.py` filtrira `predmet_dokazi` sa `.is_("deleted_at", "null")`
+        # (a3c582ec). Bez ovoga lazni klijent puca AttributeError-om, ruta ga
+        # guta i grana konteksta predmeta se tiho ne aktivira.
+        return self
+
     def maybe_single(self):
         return self
 
