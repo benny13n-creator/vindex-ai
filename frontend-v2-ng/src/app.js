@@ -205,6 +205,23 @@
     "greska": ["Predmeti nisu učitani", "Došlo je do greške pri učitavanju. Ovo nije prazna lista."],
   };
 
+  /* Svaka klasa greške ima SVOJE stanje. Nijedna ne kaže „nema predmeta“:
+   * neuspelo čitanje nije prazna kancelarija. */
+  var STANJE_GRESKE = {
+    AUTH_REQUIRED: ["greska-prijava", "Prijava više nije važeća", "Server nije prihvatio sesiju. Prijavite se ponovo u Vindex; predmeti se do tada ne prikazuju."],
+    FORBIDDEN: ["greska-pristup", "Nemate pristup predmetima", "Server je odbio pristup za ovaj nalog. Predmeti se ne prikazuju."],
+    NOT_FOUND: ["greska-servis", "Servis za predmete nije pronađen", "Server nije pronašao listu predmeta. Predmeti nisu učitani."],
+    RATE_LIMITED: ["greska-ogranicenje", "Previše zahteva", "Server je privremeno ograničio zahteve. Predmeti nisu učitani; pokušajte ponovo malo kasnije."],
+    SERVER_ERROR: ["greska-server", "Server trenutno ne odgovara ispravno", "Predmeti nisu učitani zbog greške na serveru. Ovo nije prazna lista."],
+    HTTP_ERROR: ["greska-server", "Predmeti nisu učitani", "Server je vratio neočekivan odgovor. Ovo nije prazna lista."],
+    NETWORK_ERROR: ["greska-mreza", "Server nije dostupan", "Veza sa serverom nije uspostavljena. Predmeti nisu učitani; ovo nije prazna lista."],
+    INVALID_RESPONSE: ["greska-odgovor", "Odgovor servera nije ispravan", "Podaci nisu prikazani jer odgovor nije mogao pouzdano da se pročita."],
+    INCONSISTENT: ["greska-nedosledno", "Lista se promenila tokom učitavanja", "Predmeti nisu prikazani da ne bi bili prikazani nepotpuno. Osvežite stranicu."],
+    CONFIG_ERROR: ["greska-konfiguracija", "Greška u podešavanju zahteva", "Zahtev nije poslat. Predmeti se ne prikazuju."],
+  };
+
+  function sekundi(ra) { var n = Number(ra); return Number.isFinite(n) && n > 0 && n < 86400 ? Math.ceil(n) : 0; }
+
   function prikaziLive(v) {
     if (v.vrsta === "podaci") {
       postaviPredmete(v.predmeti || []);
@@ -213,8 +230,16 @@
       postaviPredmete([]);
       stanje.upit = "";
       $("pretraga").value = "";
-      var t = TEKST_STANJA[v.vrsta] || TEKST_STANJA["greska"];
-      izvor = { stanje: v.vrsta, naslov: t[0], tekst: t[1] };
+      if (v.vrsta === "greska") {
+        var g = (v.greska && STANJE_GRESKE[v.greska.kod]) || ["greska", TEKST_STANJA["greska"][0], TEKST_STANJA["greska"][1]];
+        var tekstG = g[2];
+        var za = v.greska && v.greska.kod === "RATE_LIMITED" ? sekundi(v.greska.retryAfter) : 0;
+        if (za) tekstG = "Server je privremeno ograničio zahteve. Predmeti nisu učitani; pokušajte ponovo za " + za + " s.";
+        izvor = { stanje: g[0], naslov: g[1], tekst: tekstG };
+      } else {
+        var t = TEKST_STANJA[v.vrsta] || TEKST_STANJA["greska"];
+        izvor = { stanje: v.vrsta, naslov: t[0], tekst: t[1] };
+      }
     }
     osvezi();
   }
@@ -392,6 +417,12 @@
     /* Pretraga u LIVE režimu radi samo nad učitanim poljima; sud i klijent
      * nisu deo odgovora, pa se ne obećavaju. */
     $("pretraga").placeholder = "Naziv, broj predmeta ili stranka";
+    /* LIVE ne sme nositi oznake demo podataka: ni značku, ni „Demo nalog“,
+     * ni napomenu panela, ni natpis tabele. Ne dodaje se nova značka. */
+    document.querySelector(".demo-badge").hidden = true;
+    document.querySelector(".account").hidden = true;
+    document.querySelector(".panel__note").hidden = true;
+    document.querySelector(".cases caption").textContent = "Aktivni predmeti";
     prikaziPanelNepovezan();
     prikaziLive({ vrsta: "ucitavanje" });
     window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive }).pokreni();

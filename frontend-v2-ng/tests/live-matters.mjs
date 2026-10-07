@@ -157,31 +157,31 @@ for (const [n, ocekivanBroj] of [[0, "0 predmeta"], [1, "1 predmet"], [12, "12 p
 {
   const s = await scenario(napraviPredmete("k1", 1037), { kuke: { izmeniOdgovor: (t, off) => (off === 500 ? { ...t, ukupno: t.ukupno + 1 } : t) } });
   const e = await ekran(s.p);
-  zapisi("nedosledno", "ukupno se promenilo između strana → greška, 0 redova", e.stanje === "greska" && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
+  zapisi("nedosledno", "ukupno se promenilo između strana → greška, 0 redova", /^greska-/.test(e.stanje) && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
   await zatvori(s);
 }
 {
   const s = await scenario(napraviPredmete("k1", 1037), { kuke: { izmeniOdgovor: (t, off) => (off === 500 ? { ...t, predmeti: [t.predmeti[0], ...t.predmeti.slice(1)].map((p, i) => (i === 0 ? { ...p, id: "k1-00000" } : p)) } : t) } });
   const e = await ekran(s.p);
-  zapisi("nedosledno", "isti id na dve strane → greška, 0 redova", e.stanje === "greska" && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
+  zapisi("nedosledno", "isti id na dve strane → greška, 0 redova", /^greska-/.test(e.stanje) && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
   await zatvori(s);
 }
 {
   const s = await scenario(napraviPredmete("k1", 5), { kuke: { izmeniOdgovor: (t) => ({ predmeti: t.predmeti }) } });
   const e = await ekran(s.p);
-  zapisi("oblik", "odgovor bez `ukupno` → greška, ne prazna lista", e.stanje === "greska" && e.ids.length === 0, `${e.stanje}`);
+  zapisi("oblik", "odgovor bez `ukupno` → greška, ne prazna lista", /^greska-/.test(e.stanje) && e.ids.length === 0, `${e.stanje}`);
   await zatvori(s);
 }
 {
   const s = await scenario(napraviPredmete("k1", 5), { kuke: { izmeniOdgovor: (t) => ({ ...t, predmeti: t.predmeti.map((p, i) => (i === 2 ? { ...p, naziv: "" } : p)) }) } });
   const e = await ekran(s.p);
-  zapisi("oblik", "predmet bez naziva → greška, ne tiho preskakanje", e.stanje === "greska" && e.ids.length === 0, `${e.stanje}`);
+  zapisi("oblik", "predmet bez naziva → greška, ne tiho preskakanje", /^greska-/.test(e.stanje) && e.ids.length === 0, `${e.stanje}`);
   await zatvori(s);
 }
 {
   const s = await scenario(napraviPredmete("k1", 1037), { kuke: { preStrane: (off) => (off === 1000 ? { status: 500 } : null) } });
   const e = await ekran(s.p);
-  zapisi("greska-usred", "500 na trećoj strani → greška, ne 1000 predmeta kao „sve“", e.stanje === "greska" && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
+  zapisi("greska-usred", "500 na trećoj strani → greška, ne 1000 predmeta kao „sve“", /^greska-/.test(e.stanje) && e.ids.length === 0, `${e.stanje} ${e.ids.length}`);
   await zatvori(s);
 }
 
