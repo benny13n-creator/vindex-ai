@@ -1,9 +1,13 @@
 name: V2 NG
 
-# Dedicated CI for the isolated Vindex V2 NG frontend (frontend-v2-ng/).
-# No secrets, no production hosts: every test serves its own loopback fixture.
-# Runs ALL `verify*` scripts declared in frontend-v2-ng/package.json — the list
-# is read from package.json, not hardcoded, so a new suite cannot be skipped.
+# Dedicated CI for the isolated Vindex V2 NG frontend (frontend-v2-ng/) and its
+# default-off same-origin preview (/v2/preview/ in api.py).
+# No secrets, no production hosts: every test serves its own loopback fixture or
+# fake data; the Docker checks run with --network none.
+#   A  frontend   — ALL `verify*` scripts from package.json (read, not hardcoded)
+#   B  python311  — targeted preview/summary + existing /app-v2 and SW route tests
+#   C  e2e        — ALL `e2e:*` scripts: real api.py (Python 3.11) + real Chromium
+#   D  docker     — real Dockerfile; preview absent when the flag is off, served when on
 
 on:
   push:
@@ -11,6 +15,15 @@ on:
     paths:
       - "frontend-v2-ng/**"
       - ".github/workflows/v2-ng.yml"
+      - "api.py"
+      - "static/sw.js"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "tests/conftest.py"
+      - "tests/test_v2_ng_*.py"
+      - "tests/v2_ng_e2e_harness.py"
+      - "tests/test_z015_v2_*.py"
+      - "tests/test_z016_gate_a.py"
   workflow_dispatch:
 
 permissions:
@@ -56,7 +69,8 @@ jobs:
             // Trailing newline is required: `while read` drops an unterminated last line.
             require("fs").writeFileSync("/tmp/suites.txt", suites.join("\n") + "\n");
             console.log("Suites (" + suites.length + "):\n  " + suites.join("\n  "));
-            const wired = new Set(suites.map(k => (s[k].match(/tests\/[^ ]+\.mjs/) || [""])[0]));
+            const e2e = Object.keys(s).filter(k => k.startsWith("e2e:"));
+            const wired = new Set([...suites, ...e2e].map(k => (s[k].match(/tests\/[^ ]+\.mjs/) || [""])[0]));
             const tools = new Set(["tests/perf.mjs", "tests/measure.mjs"]);
             const files = require("fs").readdirSync("tests").filter(f => f.endsWith(".mjs")).map(f => "tests/" + f);
             const unwired = files.filter(f => !wired.has(f) && !tools.has(f));
@@ -97,3 +111,105 @@ jobs:
           path: frontend-v2-ng/shots/
           retention-days: 7
           if-no-files-found: ignore
+
+  python311:
+    name: Python 3.11 preview and summary contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://fake.supabase.co
+      SUPABASE_ANON_KEY: fake-anon-key
+      SUPABASE_SERVICE_KEY: fake-service-key
+      SUPABASE_JWT_SECRET: fake-jwt-secret-longer-than-32-chars-ok
+      OPENAI_API_KEY: sk-fake
+      PINECONE_API_KEY: fake-pinecone
+      PINECONE_HOST: https://fake.pinecone.io
+      FIELD_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Targeted preview/summary + existing V2 route and SW contract tests
+        run: |
+          python -m pytest -q -rs -p no:randomly -p no:cacheprovider \
+            tests/test_v2_ng_preview.py tests/test_v2_ng_summary.py \
+            tests/test_z015_v2_rute.py tests/test_z015_v2_sw_izolacija.py tests/test_z016_gate_a.py
+
+  e2e:
+    name: Same-origin e2e (real FastAPI on Python 3.11 + Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+          cache: npm
+          cache-dependency-path: frontend-v2-ng/package-lock.json
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install Node dependencies and Chromium
+        working-directory: frontend-v2-ng
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run every e2e:* script (harness env is built from scratch with fake values)
+        working-directory: frontend-v2-ng
+        env:
+          VX_PYTHON: python
+        run: |
+          node -e 'const s=require("./package.json").scripts; require("fs").writeFileSync("/tmp/e2e.txt", Object.keys(s).filter(k=>k.startsWith("e2e:")).join("\n")+"\n")'
+          cat /tmp/e2e.txt
+          fail=0; ran=0
+          while read -r t || [ -n "$t" ]; do
+            [ -z "$t" ] && continue
+            ran=$((ran+1))
+            echo "::group::$t"
+            if npm run -s "$t"; then echo "RESULT $t: PASS"; else echo "RESULT $t: FAIL"; fail=1; fi
+            echo "::endgroup::"
+          done < /tmp/e2e.txt
+          listed=$(grep -c . /tmp/e2e.txt)
+          echo "e2e listed: $listed, executed: $ran"
+          if [ "$listed" -lt 1 ] || [ "$ran" -ne "$listed" ]; then echo "::error::executed $ran of $listed e2e scripts"; fail=1; fi
+          exit $fail
+
+  docker:
+    name: Production Docker image contains and gates the preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image (real Dockerfile)
+        run: docker build -t vindex-v2-preview:ci .
+      - name: Image contains frontend-v2-ng
+        run: docker run --rm --network none vindex-v2-preview:ci sh -c 'test -f /app/frontend-v2-ng/index.html && test -f /app/frontend-v2-ng/src/app.js && echo OK frontend-v2-ng present'
+      - name: Flag OFF (default) - preview not registered, 404
+        run: |
+          docker run --rm --network none \
+            -e SUPABASE_URL=https://fake.supabase.co -e SUPABASE_ANON_KEY=fake-anon-key \
+            -e SUPABASE_SERVICE_KEY=fake-service-key -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok \
+            -e OPENAI_API_KEY=sk-fake -e PINECONE_API_KEY=fake-pinecone -e PINECONE_HOST=https://fake.pinecone.io \
+            -e FOUNDER_EMAILS=ci@example.com \
+            -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            vindex-v2-preview:ci python -c "import api; from fastapi.testclient import TestClient; k = TestClient(api.app); s = [k.get(u).status_code for u in ('/v2/preview', '/v2/preview/', '/v2/preview/src/app.js')]; print('preview OFF statuses', s); assert s == [404, 404, 404], s; assert not any(getattr(r, 'path', '').startswith('/v2/preview') for r in api.app.routes); print('OK: preview not registered with the flag off')"
+      - name: Flag ON - preview served from the image (no lifespan, no workers)
+        run: |
+          docker run --rm --network none -e VINDEX_V2_NG_PREVIEW_ENABLED=1 \
+            -e SUPABASE_URL=https://fake.supabase.co -e SUPABASE_ANON_KEY=fake-anon-key \
+            -e SUPABASE_SERVICE_KEY=fake-service-key -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok \
+            -e OPENAI_API_KEY=sk-fake -e PINECONE_API_KEY=fake-pinecone -e PINECONE_HOST=https://fake.pinecone.io \
+            -e FOUNDER_EMAILS=ci@example.com \
+            -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+            vindex-v2-preview:ci python -c "import api, hashlib, pathlib; from fastapi.testclient import TestClient; k = TestClient(api.app); r = k.get('/v2/preview/'); assert r.status_code == 200, r.status_code; assert hashlib.sha256(r.content).hexdigest() == hashlib.sha256(pathlib.Path('/app/frontend-v2-ng/index.html').read_bytes()).hexdigest(); a = k.get('/v2/preview/src/app.js'); f = k.get('/v2/preview/fonts/ibm-plex-sans/400.css'); t = k.get('/v2/preview/tests/v2_ng_e2e_harness.py'); p = k.get('/v2/preview/package.json'); print('preview ON', r.status_code, a.status_code, f.status_code, t.status_code, p.status_code); assert (a.status_code, f.status_code, t.status_code, p.status_code) == (200, 200, 404, 404); print('OK: preview served from the production image with the flag on')"
