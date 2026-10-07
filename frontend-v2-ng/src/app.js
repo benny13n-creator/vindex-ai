@@ -61,6 +61,8 @@
   var POCETNI_SMER = { naziv: "asc", broj: "asc", stanje: "asc", izmenjeno: "desc" };
 
   var indeks = [];
+  /* Samo za proveru (kao __vxStanje): koliko predmeta ekran drži u memoriji. */
+  window.__vxPredmetaUMemoriji = function () { return indeks.length; };
   function postaviPredmete(lista) {
     indeks = lista.map(function (p) {
       return { p: p, tekst: normalizuj([p.naziv, p.klijent, p.broj, p.sud, p.vrsta].join(" ")) };
@@ -172,8 +174,34 @@
   }
 
   function osvezi() {
-    if (izvor.stanje === "demo") prikaziRegistar();
+    if (izvor.stanje === "demo" || izvor.stanje === "podaci") prikaziRegistar();
     else prikaziStanje();
+  }
+
+  /* ── LIVE: prikaz stanja koja javlja kontroler (src/live.js) ───────────
+   * Svako stanje osim „podaci“ ODMAH briše predmete iz memorije ekrana i
+   * pretragu: ništa od prethodne sesije ne sme ostati kao trenutno. */
+  var TEKST_STANJA = {
+    "ucitavanje": ["Učitavanje predmeta…", "Predmeti se učitavaju sa servera."],
+    "bez-prijave": ["Niste prijavljeni", "Prijavite se u Vindex da biste videli svoje predmete."],
+    "istekla": ["Sesija je istekla", "Prijavite se ponovo u Vindex. Predmeti se ne prikazuju dok sesija ne bude obnovljena."],
+    "greska-sesije": ["Sesija nije mogla da se pročita", "Prijavite se ponovo u Vindex. Predmeti se ne prikazuju."],
+    "nepovezano": ["Živi izvor podataka nije povezan", "Predmeti se ne prikazuju dok se ne učitaju sa servera. Primeri se u ovom režimu ne prikazuju."],
+    "greska": ["Predmeti nisu učitani", "Došlo je do greške pri učitavanju. Ovo nije prazna lista."],
+  };
+
+  function prikaziLive(v) {
+    if (v.vrsta === "podaci") {
+      postaviPredmete(v.predmeti || []);
+      izvor = { stanje: "podaci", naslov: "", tekst: "" };
+    } else {
+      postaviPredmete([]);
+      stanje.upit = "";
+      $("pretraga").value = "";
+      var t = TEKST_STANJA[v.vrsta] || TEKST_STANJA["greska"];
+      izvor = { stanje: v.vrsta, naslov: t[0], tekst: t[1] };
+    }
+    osvezi();
   }
 
   /* ── Panel: zahteva pažnju ─────────────────────────────────────────── */
@@ -345,14 +373,13 @@
     postaviPredmete(demo.predmeti);
     osvezi();
     prikaziPanel();
+  } else if (rt && rezim === rt.LIVE && window.VxLive && window.VxSesija) {
+    prikaziPanelNepovezan();
+    prikaziLive({ vrsta: "ucitavanje" });
+    window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive }).pokreni();
   } else {
-    if (rt && rezim === rt.LIVE) {
-      izvor = { stanje: "nepovezano", naslov: "Živi izvor podataka nije povezan",
-                tekst: "Predmeti se ne prikazuju dok se ne učitaju sa servera. Primeri se u ovom režimu ne prikazuju." };
-    } else {
-      izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
-                tekst: (rt && rt.greska) || "Režim podataka nije učitan. Podaci se ne prikazuju." };
-    }
+    izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
+              tekst: (rt && rt.greska) || "Režim podataka nije učitan. Podaci se ne prikazuju." };
     osvezi();
     prikaziPanelNepovezan();
   }

@@ -139,11 +139,13 @@ async function proveriBezDemoa(upit, ocekivanoStanje, oznaka) {
   await o.ctx.close();
 }
 
-await proveriBezDemoa("?rezim=live", "nepovezano", "live");
+// Od Task 3 LIVE bez sesije prijavljuje „bez-prijave“ (pre bilo kakvog izvora
+// podataka). Kriterijum Task 1 je isti: nema demo podataka, nema „prazne kancelarije“.
+await proveriBezDemoa("?rezim=live", "bez-prijave", "live");
 await proveriBezDemoa("?rezim=xyz", "neispravna-konfiguracija", "neispravno:xyz");
 await proveriBezDemoa("?rezim=LIVE", "neispravna-konfiguracija", "neispravno:LIVE");
 await proveriBezDemoa("?rezim=", "neispravna-konfiguracija", "neispravno:prazno");
-await proveriBezDemoa("?rezim=live&predmeti=veliko", "nepovezano", "live+demo-scenario");
+await proveriBezDemoa("?rezim=live&predmeti=veliko", "bez-prijave", "live+demo-scenario");
 
 await browser.close();
 glavni.deca.kill();
