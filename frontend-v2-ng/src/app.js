@@ -417,6 +417,9 @@
     /* Pretraga u LIVE režimu radi samo nad učitanim poljima; sud i klijent
      * nisu deo odgovora, pa se ne obećavaju. */
     $("pretraga").placeholder = "Naziv, broj predmeta ili stranka";
+    /* Sud nema kanonski izvor u podacima predmeta, pa ga LIVE ne obećava:
+     * ista kolona, samo poštena oznaka (DEMO zadržava „Broj i sud“). */
+    document.querySelector('.cases th[data-kljuc="broj"] .sort').firstChild.nodeValue = "Broj predmeta";
     /* LIVE ne sme nositi oznake demo podataka: ni značku, ni „Demo nalog“,
      * ni napomenu panela, ni natpis tabele. Ne dodaje se nova značka. */
     document.querySelector(".demo-badge").hidden = true;

@@ -22,6 +22,7 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { pokreniFixture } from "./fixtures/api-fixture.mjs";
 import { napraviPredmete, predmetiRuta } from "./fixtures/predmeti-api.mjs";
+import { ugovor, fokusBezPomeranja, fiokeRade, razlikeUgovora } from "./fixtures/zoom-contract.mjs";
 
 const KOREN = fileURLToPath(new URL("..", import.meta.url));
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -133,16 +134,33 @@ async function snimakZoom(port) {
   const dpr = await p.evaluate(() => devicePixelRatio);
   const s = await p.context().newCDPSession(p);
   const { data } = await s.send("Page.captureScreenshot", { format: "png" });
+  const u = await ugovor(p);
+  const fokus = await fokusBezPomeranja(p);
+  const fioke = await fiokeRade(p);
   await ctx.close();
-  return { b: Buffer.from(data, "base64"), z, dpr };
+  return { b: Buffer.from(data, "base64"), z, dpr, u, fokus, fioke };
 }
+// 200%: BLOKIRA semantički ugovor; snimak je dokaz, ne kapija.
+// NS002B (run 37668839314): na Linux-u snimak ISTOG builda nije bit-deterministički
+// pri DPR 2 — piksel (31,616), CSS (15.5,308) na polu-pikselnoj ivici u #registry,
+// skače između dve vrednosti (plavi kanal 23/32) i na HEAD-u i na foundation-u,
+// dok su ugovor, DOM i stilovi identični. 100% piksel-poređenja ostaju blokirajuća.
 {
   const a = await snimakZoom(P_HEAD), a2 = await snimakZoom(P_HEAD), r = await snimakZoom(P_REF);
   await writeFile(join(OUT, "demo-zoom-200.png"), a.b);
-  zapisi("demo-zoom-200", "stvarni zoom pregledača je 200% (DPR 2)", a.z === 2 && a.dpr === 2 && r.z === 2, `zoom=${a.z} dpr=${a.dpr}`);
+  const g = "demo-zoom-200";
+  zapisi(g, "stvarni zoom pregledača je 200% i DPR 2 (HEAD i foundation)", a.z === 2 && a.dpr === 2 && a.u.dpr === 2 && r.z === 2 && r.dpr === 2, `zoom=${a.z} dpr=${a.dpr}`);
+  zapisi(g, "bez horizontalnog preliva", !a.u.preliv, a.u.sirine.join("/"));
+  zapisi(g, "očekivan režim: navigacija i „Zahteva pažnju“ su fioke", a.u.nav === "fioka" && a.u.panel === "fioka", `${a.u.nav}/${a.u.panel}`);
+  zapisi(g, "fioke rade: panel i navigacija se otvaraju, fokus ulazi, Escape zatvara", a.fioke.panel && a.fioke.panelZatvoren && a.fioke.nav, JSON.stringify(a.fioke));
+  zapisi(g, "nazivi predmeta najviše 2 reda", a.u.najviseRedovaNaziva <= 2, `${a.u.najviseRedovaNaziva}`);
+  zapisi(g, "fokus tastature na nazivu ne menja visinu reda", a.fokus.naNazivu && a.fokus.isto && a.fokus.linijaFokusiranog <= 2, JSON.stringify(a.fokus));
+  zapisi(g, "tipografski pod: nijedan vidljiv tekst ispod 13 CSS px", a.u.minFont[0] >= 13, a.u.minFont.join(" "));
+  const prema = razlikeUgovora(a.u, r.u), izmedju = razlikeUgovora(a.u, a2.u);
+  zapisi(g, `geometrija i izračunati stilovi identični foundation-u ${FOUNDATION}`, prema.length === 0 && JSON.stringify(a.fokus) === JSON.stringify(r.fokus) && JSON.stringify(a.fioke) === JSON.stringify(r.fioke), prema.slice(0, 3).join(" | "));
+  zapisi(g, "ugovor stabilan između dve HEAD sesije", izmedju.length === 0, izmedju.slice(0, 3).join(" | "));
   const dh = await razlika(a.b, a2.b), dr = await razlika(a.b, r.b);
-  zapisi("demo-zoom-200", "HEAD protiv HEAD u granici šuma", uSumu(dh), opis(dh));
-  zapisi("demo-zoom-200", `HEAD protiv foundation ${FOUNDATION} u granici šuma`, uSumu(dr), opis(dr));
+  console.log(`INFO  [${g}] snimak HEAD protiv HEAD: ${opis(dh)}; protiv foundation: ${opis(dr)} (dokaz, ne kapija)`);
 }
 await poredjenje.context().close();
 await Promise.all([sRef, sHead].map(d => new Promise(r => { d.once("exit", r); d.kill(); })));

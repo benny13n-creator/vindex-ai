@@ -14,8 +14,9 @@
  *
  * Polja se mapiraju samo iz onoga što odgovor STVARNO sadrži. Tabela `predmeti`
  * nema `sud` ni `klijent` (produkciona sonda 2026-08-21 i migracije) — ta polja
- * ostaju prazna, nikad izmišljena. `view=summary` se ne koristi jer ne sadrži
- * stranke (`tuzilac`, `tuzeni`), po kojima se pretražuje.
+ * ostaju prazna, nikad izmišljena. Koristi se `view=summary` (NS002 Task 4):
+ * id, naziv, tip, status, broj_predmeta, created_at, updated_at,
+ * brisanje_zapoceto, tuzilac, tuzeni — bez `case_dna`.
  */
 (function (root) {
   "use strict";
@@ -66,7 +67,7 @@
     for (var strana = 0; strana < NAJVISE_STRANA; strana++) {
       var r = await root.VxApi.get("/api/predmeti", {
         token: token, signal: signal, oblik: oblikStrane,
-        parametri: { status: "aktivan", limit: STRANA, offset: offset },
+        parametri: { view: "summary", status: "aktivan", limit: STRANA, offset: offset },
       });
       if (!r.ok) return r;
       var d = r.podaci;
@@ -85,7 +86,10 @@
         predmeti.push(p);
       }
       offset += d.limit;
-      if (offset >= ukupno) return { ok: true, predmeti: predmeti, ukupno: ukupno };
+      /* `ukupno` servera služi SAMO za straničenje: broji i predmete u brisanju,
+       * koje server ne vraća. Prikazani broj je broj stvarno učitanih,
+       * jedinstvenih aktivnih predmeta. */
+      if (offset >= ukupno) return { ok: true, predmeti: predmeti, ukupno: predmeti.length, ukupnoServer: ukupno };
       if (signal && signal.aborted) return { ok: false, greska: { kod: "ABORTED" } };
     }
     return { ok: false, greska: { kod: "INCONSISTENT", poruka: "Previše strana — učitavanje je prekinuto." } };

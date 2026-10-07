@@ -5,6 +5,7 @@
 // Tokeni i predmeti su izmišljeni; ništa ne ide van 127.0.0.1.
 
 import { chromium } from "playwright";
+import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { pokreniFixture } from "./fixtures/api-fixture.mjs";
 import { napraviPredmete, predmetiRuta } from "./fixtures/predmeti-api.mjs";
@@ -77,13 +78,68 @@ for (const [n, ocekivanBroj] of [[0, "0 predmeta"], [1, "1 predmet"], [12, "12 p
   const z = s.f.zahtevi;
   zapisi("1037", "tri zahteva: offset 0, 500, 1000", z.length === 3 && z.map(x => x.parametri.offset).join(",") === "0,500,1000", z.map(x => x.parametri.offset).join(","));
   zapisi("1037", "svaki zahtev: status=aktivan, limit=500, GET, Bearer", z.every(x => x.parametri.status === "aktivan" && x.parametri.limit === "500" && x.metod === "GET" && x.auth === `Bearer ${TOKEN}`));
-  zapisi("1037", "nijedan zahtev ne šalje user_id ni q/view", z.every(x => !("user_id" in x.parametri) && !("q" in x.parametri) && !("view" in x.parametri)), JSON.stringify(z[0].parametri));
+  // NS002 Task 4 (founder): lista koristi `view=summary`; nikad user_id ni q.
+  zapisi("1037", "svaki zahtev: view=summary, bez user_id i bez q", z.every(x => x.parametri.view === "summary" && !("user_id" in x.parametri) && !("q" in x.parametri)), JSON.stringify(z[0].parametri));
   zapisi("1037", "nema duplikata", new Set(e.ids).size === e.ids.length);
   zapisi("1037", `svih ${ocekivani.size} aktivnih (bez ${uBrisanju.length} u brisanju) prikazano, nijedan izgubljen`, e.ids.length === ocekivani.size && e.ids.every(id => ocekivani.has(id)), `${e.ids.length}`);
   zapisi("1037", "nijedan neaktivan ni tuđ predmet", e.ids.every(id => id.startsWith("k1-")));
   zapisi("1037", "nijedan predmet u brisanju", !e.ids.some(id => uBrisanju.includes(id)));
-  zapisi("1037", "broj = API ukupno (1037, uključuje predmete u brisanju — ugovor servera)", e.broj === "1037 predmeta", e.broj);
+  // NS002 Task 4 (founder): prikazani broj = stvarno učitani jedinstveni predmeti,
+  // ne `ukupno` servera (koje broji i predmete u brisanju).
+  zapisi("1037", `prikazani broj = stvarno prikazani predmeti (${ocekivani.size}), ne server ukupno 1037`, e.broj === `${ocekivani.size} predmeta` && e.ids.length === ocekivani.size, e.broj);
   await zatvori(s);
+}
+
+// ── NS002 Task 4: ukupno servera 12, jedan u brisanju → prikaz 11 ───────
+{
+  const s = await scenario(napraviPredmete("k1", 12, { u_brisanju: i => i === 3 }));
+  const e = await ekran(s.p);
+  const z = s.f.zahtevi;
+  zapisi("brisanje", "server ukupno 12, jedan u brisanju: prikazano 11 redova i „11 predmeta“", e.ids.length === 11 && e.broj === "11 predmeta", `${e.ids.length} / ${e.broj}`);
+  zapisi("brisanje", "jedan zahtev, bez beskonačne petlje", z.length === 1, `${z.length}`);
+  await s.p.fill("#pretraga", "broj 7");
+  const p = await ekran(s.p);
+  zapisi("brisanje", "broj pri pretrazi je u odnosu na stvarnih 11 („1 od 11 predmeta“)", p.broj === "1 od 11 predmeta", p.broj);
+  await zatvori(s);
+}
+
+// ── NS002 Task 4: LIVE ne obećava sud ────────────────────────────────────
+{
+  const s = await scenario(napraviPredmete("k1", 3));
+  const r = await s.p.evaluate(() => ({
+    zaglavlje: document.querySelector('.cases th[data-kljuc="broj"] .sort').textContent,
+    ph: document.getElementById("pretraga").placeholder,
+    sudova: document.querySelectorAll("#rows .ref__court").length,
+  }));
+  zapisi("sud", "LIVE zaglavlje kolone je „Broj predmeta“", r.zaglavlje === "Broj predmeta", r.zaglavlje);
+  zapisi("sud", "LIVE pretraga ne pominje sud", !/sud/i.test(r.ph), r.ph);
+  zapisi("sud", "LIVE ne prikazuje polje suda ni zamenski „—“ za sud", r.sudova === 0, `${r.sudova}`);
+  await zatvori(s);
+}
+{
+  const f = await pokreniFixture(async () => false);
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const p = await ctx.newPage();
+  await p.goto(`http://127.0.0.1:${f.port}/`);
+  const zag = await p.evaluate(() => document.querySelector('.cases th[data-kljuc="broj"] .sort').textContent);
+  zapisi("sud", "DEMO zadržava „Broj i sud“", zag === "Broj i sud", zag);
+  await ctx.close(); await f.zatvori();
+}
+
+// ── NS002 Task 4: veličina odgovora, pun vs summary (240 predmeta) ──────
+{
+  const f = await pokreniFixture(predmetiRuta({ [TOKEN]: { id: "k1", predmeti: napraviPredmete("k1", 240) } }));
+  const dohvati = (upit) => new Promise((res) => http.get({ host: "127.0.0.1", port: f.port, path: "/api/predmeti?" + upit, headers: { Authorization: `Bearer ${TOKEN}` } },
+    (r) => { const d = []; r.on("data", c => d.push(c)); r.on("end", () => res(Buffer.concat(d))); }));
+  const pun = await dohvati("status=aktivan&limit=500&offset=0");
+  const sum = await dohvati("view=summary&status=aktivan&limit=500&offset=0");
+  const sj = JSON.parse(sum.toString("utf8"));
+  const smanjenje = (1 - sum.length / pun.length) * 100;
+  console.log(`INFO  [payload] 240 predmeta: pun ${pun.length} B, summary ${sum.length} B, smanjenje ${smanjenje.toFixed(1)}%`);
+  zapisi("payload", "summary ne sadrži case_dna", !sum.toString("utf8").includes("case_dna") && sj.predmeti.every(x => !("case_dna" in x)));
+  zapisi("payload", "summary je materijalno manji od punog odgovora", sum.length * 2 < pun.length, `${smanjenje.toFixed(1)}%`);
+  zapisi("payload", "summary nosi polja koja lista prikazuje i pretražuje", sj.predmeti.every(x => ["id", "naziv", "status", "broj_predmeta", "tuzilac", "tuzeni", "updated_at"].every(k => k in x)));
+  await f.zatvori();
 }
 
 // ── Mapiranje polja: samo stvarna polja ─────────────────────────────────

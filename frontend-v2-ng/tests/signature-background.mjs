@@ -3,7 +3,7 @@
 // Rezultat: shots/background-results.json|md + snimci/video poređenja u shots/pozadina/
 
 import { chromium } from "playwright";
-import { mkdir, writeFile, rename, readdir, rm } from "node:fs/promises";
+import { mkdir, writeFile, rename, readdir, rm, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const BASE = process.env.VX_URL || "http://127.0.0.1:4317/";
@@ -31,7 +31,7 @@ const SPIJUN = () => {
   window.__vxMO = () => aktivniMO;
 };
 
-async function stranica({ w = 1440, h = 900, dpr = 1, motion = "no-preference", seme, tema = "dark", spijun = false, put = "", rafHz } = {}) {
+async function stranica({ w = 1440, h = 900, dpr = 1, motion = "no-preference", seme, tema = "dark", spijun = false, put = "", rafHz, pre } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, reducedMotion: motion });
   await ctx.addInitScript(([t]) => { try { localStorage.setItem("vx-ng-tema", t); localStorage.setItem("vx-ng-nav", "puna"); } catch (e) {} }, [tema]);
   if (seme !== undefined) await ctx.addInitScript(s => { window.VX_BG_SEED = s; }, seme);
@@ -45,6 +45,7 @@ async function stranica({ w = 1440, h = 900, dpr = 1, motion = "no-preference", 
   const p = await ctx.newPage();
   p.on("pageerror", e => greske.push(String(e)));
   p.on("console", m => { if (m.type() === "error") greske.push(m.text()); });
+  if (pre) await pre(p);
   await p.goto(BASE + put);
   await p.evaluate(() => document.fonts.ready);
   await p.waitForTimeout(120);
@@ -55,22 +56,38 @@ const snimakPlatna = (p, sel = "#pozadina") => p.$eval(sel, c => c.toDataURL());
 const instanca = (p, izraz) => p.evaluate(izraz);
 
 // ── 1. Vernost originalu (piksel po piksel) ─────────────────────────────
+// Odobreni ugovor: PRENOS == ORIGINAL BEZ odobrenog D1 bloka sjaja — ceo canvas,
+// egzaktno, isto seme, prvi frejm. Referenca ORIGINAL_MINUS_GLOW se pravi
+// deterministički iz original.html uklanjanjem TAČNO tog bloka (proverava se).
+//
+// Zašto ne „van kruga r=422 oko centra“ (stari oracle): sjaj originala je
+// centriran na (mx,my) koje prati `mousemove`. Na Linux Chromium-u stiže
+// sintetički mousemove u (0,0) pre svetlog frejma, pa je sjaj originala u uglu,
+// a stari oracle je merio pogrešnu zonu (NS002A, run 37659688255: 128071 razlika
+// van kruga, 0 unutra). Prenos je i tamo bio piksel-identičan ORIGINAL_MINUS_GLOW.
+const ORIGINAL_HTML = await readFile(fileURLToPath(new URL("./fixtures/original.html", import.meta.url)), "utf8");
+const D1_SJAJ = "var g=ctx.createRadialGradient(mx,my,0,mx,my,420);g.addColorStop(0,'rgba('+rgb+','+(isL?'0.05':'0.07')+')');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);";
+const iSjaj = ORIGINAL_HTML.indexOf(D1_SJAJ);
+const BEZ_SJAJA = ORIGINAL_HTML.slice(0, iSjaj) + ORIGINAL_HTML.slice(iSjaj + D1_SJAJ.length);
+// Strukturni uslov je deo provere vernosti: bez ispravne reference nema prolaza.
+const referencaIspravna = iSjaj >= 0 && ORIGINAL_HTML.split(D1_SJAJ).length === 2 &&
+  BEZ_SJAJA.length === ORIGINAL_HTML.length - D1_SJAJ.length && !/createRadialGradient|addColorStop/.test(BEZ_SJAJA);
+const SVETLO_ORIGINAL = () => { document.body.classList.add("light-theme"); ctx.clearRect(0, 0, W, H); for (const p of pts) { p.x -= p.vx; p.y -= p.vy; p.t -= .007; } drawBg(); };
+const bezSjaja = (p) => p.route("**/tests/fixtures/__original-bez-sjaja.html*", r => r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: BEZ_SJAJA }));
+const razlicitih = (a, b) => { let r = 0; for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3]) r++; return r; };
 for (const tema of ["dark", "light"]) {
   const svetla = tema === "light";
+  const pm = await stranica({ put: `tests/fixtures/__original-bez-sjaja.html?seed=42&zamrzni=1`, pre: bezSjaja });
+  if (svetla) await pm.evaluate(SVETLO_ORIGINAL);
   const po = await stranica({ put: `tests/fixtures/original.html?seed=42&zamrzni=1` });
-  if (svetla) await po.evaluate(() => { document.body.classList.add("light-theme"); ctx.clearRect(0, 0, W, H); for (const p of pts) { p.x -= p.vx; p.y -= p.vy; p.t -= .007; } drawBg(); });
+  if (svetla) await po.evaluate(SVETLO_ORIGINAL);
   const pn = await stranica({ put: `tests/fixtures/prenos.html?seed=42&zamrzni=1` });
   if (svetla) await pn.evaluate(() => { document.documentElement.dataset.theme = "light"; inst.destroy(); window.inst = VindexSignatureBackground.mount(document.getElementById("pozadina-test"), { seed: 42, rucno: true }); inst.frejm(1); });
-  const [o, n] = [await pikseli(po), await pikseli(pn)];
-  let van = 0, razl = 0, unutra = 0, razlU = 0;
-  for (let i = 0; i < o.length; i += 4) {
-    const k = i / 4, x = k % 1440, y = (k / 1440) | 0;
-    const d = o[i] !== n[i] || o[i + 1] !== n[i + 1] || o[i + 2] !== n[i + 2] || o[i + 3] !== n[i + 3];
-    if (Math.hypot(x - 720, y - 450) > 422) { van++; if (d) razl++; } else { unutra++; if (d) razlU++; }
-  }
-  zapisi(`vernost ${tema}`, "van zone uklonjenog sjaja: piksel-identično originalu (isto seme, prvi frejm)", razl === 0, `${razl} različitih od ${van} piksela`);
-  zapisi(`vernost ${tema}`, "unutar zone sjaja postoji razlika (D1: sjaj zaista uklonjen)", razlU > 0, `${razlU} od ${unutra} piksela`);
-  await po.context().close(); await pn.context().close();
+  const [m, o, n] = [await pikseli(pm), await pikseli(po), await pikseli(pn)];
+  const razl = razlicitih(m, n), sjaj = razlicitih(o, m);
+  zapisi(`vernost ${tema}`, "prenos == original bez D1 sjaja: CEO canvas piksel-identičan (isto seme, prvi frejm)", referencaIspravna && m.length === 1440 * 900 * 4 && razl === 0, `referenca ${referencaIspravna ? "ispravna" : "NEISPRAVNA"}; ${razl} različitih od ${m.length / 4} piksela`);
+  zapisi(`vernost ${tema}`, "D1 negativna kontrola: original sa sjajem se materijalno razlikuje od originala bez sjaja", sjaj > 10000, `${sjaj} piksela`);
+  await pm.context().close(); await po.context().close(); await pn.context().close();
 }
 
 // ── 2. Determinizam: seme samo u testu ─────────────────────────────────
