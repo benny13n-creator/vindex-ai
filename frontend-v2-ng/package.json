@@ -8,7 +8,9 @@
     "verify:pozadina": "node tests/signature-background.mjs",
     "perf": "node tests/perf.mjs",
     "verify:refinement": "node tests/refinement.mjs",
-    "measure": "node tests/measure.mjs"
+    "measure": "node tests/measure.mjs",
+    "verify:demo-otisak": "node tests/demo-fingerprint.mjs",
+    "verify:live-runtime": "node tests/live-runtime.mjs"
   },
   "keywords": [],
   "author": "",
