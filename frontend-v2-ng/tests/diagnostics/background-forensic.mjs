@@ -49,6 +49,9 @@ const browser = await chromium.launch();
 /* Beleži svaku boju/stil i addColorStop koje stranica postavi na 2D kontekst. */
 const INSTRUMENT = () => {
   window.__stilovi = [];
+  // Koren (NS002A): sjaj originala prati mousemove. Beleži svaki stvaran događaj.
+  window.__mis = [];
+  window.addEventListener("mousemove", e => window.__mis.push([e.clientX, e.clientY, e.isTrusted, Math.round(performance.now())]), true);
   const P = CanvasRenderingContext2D.prototype;
   for (const k of ["fillStyle", "strokeStyle"]) {
     const d = Object.getOwnPropertyDescriptor(P, k);
@@ -88,6 +91,7 @@ async function snimi(vrsta, tema) {
       bodyClass: document.body.className, isL_original: document.body.classList.contains("light-theme"),
       dataTheme: document.documentElement.dataset.theme || "", tema_prenos: document.documentElement.dataset.theme === "light" ? "light" : "dark",
       stilovi: window.__stilovi.slice(),
+      mis: window.__mis.slice(), mx: typeof window.mx === "number" ? window.mx : null, my: typeof window.my === "number" ? window.my : null,
       png: c.toDataURL("image/png"),
       vrsta,
     };
@@ -159,8 +163,9 @@ for (const tema of ["dark", "light"]) {
 izvestaj.faze.tema = {};
 for (const [k, s] of Object.entries(snimci)) {
   const jedinstveni = [...new Set(s.stilovi)];
-  izvestaj.faze.tema[k] = { canvas: [s.w, s.h], dpr: s.dpr, bodyClass: s.bodyClass, isL_original: s.isL_original, dataTheme: s.dataTheme,
+  izvestaj.faze.tema[k] = { mx: s.mx, my: s.my, mousemove: s.mis, canvas: [s.w, s.h], dpr: s.dpr, bodyClass: s.bodyClass, isL_original: s.isL_original, dataTheme: s.dataTheme,
     tema_prenos: s.tema_prenos, sha256: s.sha, stilovaJedinstvenih: jedinstveni.length, uzorakStilova: jedinstveni.slice(0, 8) };
+  log(`Koren    ${k.padEnd(15)} (mx,my)=(${s.mx},${s.my}) mousemove događaja: ${s.mis.length}${s.mis.length ? " prvi " + JSON.stringify(s.mis[0]) : ""}`);
   log(`Faza 1/2 ${k.padEnd(15)} canvas ${s.w}x${s.h} dpr ${s.dpr} body="${s.bodyClass}" data-theme="${s.dataTheme}" sha=${s.sha.slice(0, 16)}`);
   log(`           stilovi: ${jedinstveni.slice(0, 5).join(" | ")}`);
 }
