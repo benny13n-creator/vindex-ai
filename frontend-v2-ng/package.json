@@ -10,7 +10,8 @@
     "verify:refinement": "node tests/refinement.mjs",
     "measure": "node tests/measure.mjs",
     "verify:demo-otisak": "node tests/demo-fingerprint.mjs",
-    "verify:live-runtime": "node tests/live-runtime.mjs"
+    "verify:live-runtime": "node tests/live-runtime.mjs",
+    "verify:live-api": "node tests/live-api.mjs"
   },
   "keywords": [],
   "author": "",
