@@ -36,12 +36,16 @@ export function ugovor(p) {
     const nazivi = [...document.querySelectorAll(".case__name")];
     return {
       dpr: devicePixelRatio, inner: [innerWidth, innerHeight],
-      preliv: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      // Preliv i dokumenta i registra: tabela šira od ekrana skroluje UNUTAR
+      // #registry (sopstveni overflow), a dokument ostaje iste širine.
+      preliv: document.documentElement.scrollWidth > document.documentElement.clientWidth ||
+        document.getElementById("registry").scrollWidth > document.getElementById("registry").clientWidth,
+      prelivRegistra: [document.getElementById("registry").scrollWidth, document.getElementById("registry").clientWidth],
       sirine: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
       skrol: [Math.round(scrollX), Math.round(scrollY)],
       nav: getComputedStyle(document.getElementById("nav")).position === "fixed" ? "fioka" : "kolona",
       panel: getComputedStyle(document.getElementById("panel")).position === "fixed" ? "fioka" : "kolona",
-      okviri: { glavni: r(document.getElementById("glavni")), registar: r(document.getElementById("registry")), topbar: r(document.querySelector(".topbar")) },
+      okviri: { glavni: r(document.getElementById("glavni")), registar: r(document.getElementById("registry")), tabela: r(document.querySelector(".cases")), topbar: r(document.querySelector(".topbar")) },
       redovi: [...document.querySelectorAll("#rows tr")].map(t => Math.round(t.getBoundingClientRect().height)),
       najviseRedovaNaziva: Math.max(0, ...nazivi.map(a => Math.round(a.getBoundingClientRect().height / parseFloat(getComputedStyle(a).lineHeight)))),
       minFont: [minFont, minEl],
@@ -52,6 +56,9 @@ export function ugovor(p) {
 
 /** Fokus tastature na prvi naziv ne sme da promeni visinu nijednog reda. */
 export async function fokusBezPomeranja(p) {
+  try { return await fokus0(p); } catch (e) { return { naNazivu: false, isto: false, linijaFokusiranog: -1, greska: String(e).slice(0, 80) }; }
+}
+async function fokus0(p) {
   const visine = () => p.evaluate(() => [...document.querySelectorAll("#rows tr")].map(t => Math.round(t.getBoundingClientRect().height)));
   const pre = await visine();
   await p.focus('th[data-kljuc="izmenjeno"] .sort');
@@ -70,4 +77,21 @@ export function razlikeUgovora(a, b, put = "") {
     return [...new Set([...Object.keys(a), ...Object.keys(b)])].flatMap(k => razlikeUgovora(a[k], b[k], put ? put + "." + k : k));
   }
   return [`${put}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`];
+}
+
+/** Navigacija i „Zahteva pažnju“ su upotrebljivi kao fioke: otvaraju se i fokus ulazi u njih. */
+export async function fiokeRade(p) {
+  // Nevidljivo dugme = neuspela provera, nikad pad testa.
+  const vid = async (sel) => p.locator(sel).isVisible();
+  if (!(await vid("#panel-toggle")) || !(await vid("#nav-toggle"))) {
+    return { panel: false, panelZatvoren: false, nav: false, greska: "dugme fioke nije vidljivo" };
+  }
+  await p.click("#panel-toggle", { timeout: 3000 }); await p.waitForTimeout(80);
+  const panel = await p.evaluate(() => getComputedStyle(document.getElementById("panel")).visibility === "visible" && document.getElementById("panel").contains(document.activeElement));
+  await p.keyboard.press("Escape"); await p.waitForTimeout(80);
+  const panelZatvoren = await p.evaluate(() => !document.getElementById("panel").classList.contains("is-open"));
+  await p.click("#nav-toggle", { timeout: 3000 }); await p.waitForTimeout(80);
+  const nav = await p.evaluate(() => document.getElementById("nav").contains(document.activeElement));
+  await p.keyboard.press("Escape"); await p.waitForTimeout(80);
+  return { panel, panelZatvoren, nav };
 }
