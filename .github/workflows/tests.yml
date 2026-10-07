@@ -40,6 +40,11 @@ jobs:
       FIELD_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: tests/test_faza661_rollout_compatibility.py and
+          # tests/test_wave11_release_identity.py read historical commits via
+          # `git show`. A depth-1 clone made 14 of them fail and skipped 3.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
