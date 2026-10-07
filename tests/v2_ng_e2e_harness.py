@@ -15,6 +15,7 @@ lifespan="off": nijedan startup posao (workeri, dispečer, warmup) se ne pokreć
 Okruženje dolazi od pozivaoca, izgrađeno OD NULE sa lažnim vrednostima.
 Dnevnik (JSON linije) ide u VX_E2E_LOG. Vrednosti tokena se nikad ne upisuju.
 """
+import contextvars
 import json
 import os
 import socket
@@ -26,6 +27,9 @@ import types
 LOG = os.environ["VX_E2E_LOG"]
 PORT = int(os.environ["VX_E2E_PORT"])
 _brava = threading.Lock()
+# HTTP putanja zahteva u toku (prenosi se i u asyncio.to_thread) — da bi se
+# svaki blokiran spoljni pokušaj pripisao tačnoj ruti.
+_PUT = contextvars.ContextVar("vx_put", default="-")
 
 
 def _zapisi(zapis):
@@ -55,7 +59,7 @@ def _cilj(adresa):
 def _cuvar(self, adresa):
     host = _cilj(adresa)
     if host not in _LOOPBACK and self.family in (socket.AF_INET, socket.AF_INET6):
-        _zapisi({"vrsta": "spoljna-veza-blokirana", "host": str(host)[:80]})
+        _zapisi({"vrsta": "spoljna-veza-blokirana", "host": str(host)[:80], "put": _PUT.get()})
         raise OSError("e2e harness: spoljna mreža je zabranjena")
     return _orig_connect(self, adresa)
 
@@ -63,14 +67,14 @@ def _cuvar(self, adresa):
 def _cuvar_ex(self, adresa):
     host = _cilj(adresa)
     if host not in _LOOPBACK and self.family in (socket.AF_INET, socket.AF_INET6):
-        _zapisi({"vrsta": "spoljna-veza-blokirana", "host": str(host)[:80]})
+        _zapisi({"vrsta": "spoljna-veza-blokirana", "host": str(host)[:80], "put": _PUT.get()})
         return 111
     return _orig_connect_ex(self, adresa)
 
 
 def _dns(host, *a, **k):
     if host not in _LOOPBACK and host is not None:
-        _zapisi({"vrsta": "spoljni-dns-blokiran", "host": str(host)[:80]})
+        _zapisi({"vrsta": "spoljni-dns-blokiran", "host": str(host)[:80], "put": _PUT.get()})
         raise socket.gaierror("e2e harness: spoljni DNS je zabranjen")
     return _orig_getaddrinfo(host, *a, **k)
 
@@ -157,7 +161,7 @@ class _Upit:
 
     def __getattr__(self, ime):
         if ime in ("insert", "update", "upsert", "delete", "rpc"):
-            _zapisi({"vrsta": "UPIS-POKUSAN", "tabela": self.tabela, "metod": ime})
+            _zapisi({"vrsta": "UPIS-POKUSAN", "tabela": self.tabela, "metod": ime, "put": _PUT.get()})
             raise AssertionError(f"e2e harness: upis zabranjen ({ime})")
         raise AttributeError(ime)
 
@@ -167,7 +171,7 @@ class _Supa:
         return _Upit(ime)
 
     def rpc(self, ime, *a, **k):
-        _zapisi({"vrsta": "UPIS-POKUSAN", "tabela": "rpc", "metod": ime})
+        _zapisi({"vrsta": "UPIS-POKUSAN", "tabela": "rpc", "metod": ime, "put": _PUT.get()})
         raise AssertionError("e2e harness: rpc zabranjen")
 
 
@@ -192,4 +196,10 @@ _zapisi({"vrsta": "spreman", "preview_ruta": any(getattr(r, "path", "") == "/v2/
 
 import uvicorn  # noqa: E402
 
-uvicorn.run(api.app, host="127.0.0.1", port=PORT, lifespan="off", log_level="warning", access_log=False)
+async def _sa_putanjom(scope, receive, send):
+    # Samo beleži putanju za dnevnik; zahtev ide nepromenjen u api.app.
+    _PUT.set(scope.get("path", "-") if scope.get("type") == "http" else scope.get("type", "-"))
+    await api.app(scope, receive, send)
+
+
+uvicorn.run(_sa_putanjom, host="127.0.0.1", port=PORT, lifespan="off", log_level="warning", access_log=False)
