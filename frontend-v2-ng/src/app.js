@@ -425,7 +425,10 @@
     document.querySelector(".cases caption").textContent = "Aktivni predmeti";
     prikaziPanelNepovezan();
     prikaziLive({ vrsta: "ucitavanje" });
-    window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive }).pokreni();
+    var kontrolerLive = window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive });
+    /* Samo za proveru (kao __vxStanje): ponovno učitavanje bez UI elementa. */
+    window.__vxLiveOsvezi = function () { kontrolerLive.osvezi(); };
+    kontrolerLive.pokreni();
   } else {
     izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
               tekst: (rt && rt.greska) || "Režim podataka nije učitan. Podaci se ne prikazuju." };

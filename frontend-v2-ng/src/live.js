@@ -59,10 +59,13 @@
       try { r = await izvor.ucitaj(sesija.token(), signal); }
       catch (e) { r = { ok: false, greska: { kod: "INVALID_RESPONSE", poruka: "Neočekivana greška pri učitavanju." } }; }
 
-      /* Odgovor koji je zakasnio (nova sesija, novo učitavanje, odjava) se baca. */
+      /* Odgovor koji je zakasnio (nova sesija, novo učitavanje, odjava) se baca.
+       * Sesija se PONOVO ČITA pre primene rezultata: ako se zapis promenio a
+       * `storage` događaj još nije stigao (ili ga nema — promena u istom tabu),
+       * `proveri()` sada pokreće poništavanje i ovaj rezultat postaje zastareo. */
       if (moja !== generacija || signal.aborted) return;
-      var sad = sesija.stanje();
-      if (sad.stanje !== (S && S.PRIJAVLJEN) || sad.korisnik !== korisnik) return;
+      sesija.proveri();
+      if (moja !== generacija) return;
       kontroler = null;
 
       if (!r || !r.ok) {
