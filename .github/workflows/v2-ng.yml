@@ -1,0 +1,84 @@
+name: V2 NG
+
+# Dedicated CI for the isolated Vindex V2 NG frontend (frontend-v2-ng/).
+# No secrets, no production hosts: every test serves its own loopback fixture.
+# Runs ALL `verify*` scripts declared in frontend-v2-ng/package.json — the list
+# is read from package.json, not hardcoded, so a new suite cannot be skipped.
+
+on:
+  push:
+    branches: ["feature/vindex-v2-*"]
+    paths:
+      - "frontend-v2-ng/**"
+      - ".github/workflows/v2-ng.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-ng-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: V2 NG frontend suites (Ubuntu, Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: frontend-v2-ng
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # tests/live-browser-matrix.mjs extracts foundation 1eb20976 with
+          # `git archive` for the DEMO pixel comparison.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          # Same toolchain the suites were proven on locally.
+          node-version: "24.15.0"
+          cache: npm
+          cache-dependency-path: frontend-v2-ng/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: List test suites (every verify* script) and check none is unwired
+        run: |
+          node -e '
+            const s = require("./package.json").scripts;
+            const suites = Object.keys(s).filter(k => k === "verify" || k.startsWith("verify:"));
+            require("fs").writeFileSync("/tmp/suites.txt", suites.join("\n"));
+            console.log("Suites (" + suites.length + "):\n  " + suites.join("\n  "));
+            const wired = new Set(suites.map(k => (s[k].match(/tests\/[^ ]+\.mjs/) || [""])[0]));
+            const tools = new Set(["tests/perf.mjs", "tests/measure.mjs"]);
+            const files = require("fs").readdirSync("tests").filter(f => f.endsWith(".mjs")).map(f => "tests/" + f);
+            const unwired = files.filter(f => !wired.has(f) && !tools.has(f));
+            if (unwired.length) { console.error("Test files without a verify script: " + unwired.join(", ")); process.exit(1); }
+          '
+
+      - name: Run all suites
+        run: |
+          node serve.mjs 4317 > /tmp/serve.log 2>&1 &
+          for i in $(seq 1 50); do curl -s -o /dev/null http://127.0.0.1:4317/ && break; sleep 0.2; done
+          fail=0
+          while read -r suite; do
+            echo "::group::$suite"
+            if npm run -s "$suite"; then echo "RESULT $suite: PASS"; else echo "RESULT $suite: FAIL"; fail=1; fi
+            echo "::endgroup::"
+          done < /tmp/suites.txt
+          exit $fail
+
+      - name: Upload screenshots (evidence only, not committed)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-ng-shots
+          path: frontend-v2-ng/shots/
+          retention-days: 7
+          if-no-files-found: ignore
