@@ -8,7 +8,15 @@
     "verify:pozadina": "node tests/signature-background.mjs",
     "perf": "node tests/perf.mjs",
     "verify:refinement": "node tests/refinement.mjs",
-    "measure": "node tests/measure.mjs"
+    "measure": "node tests/measure.mjs",
+    "verify:demo-otisak": "node tests/demo-fingerprint.mjs",
+    "verify:live-runtime": "node tests/live-runtime.mjs",
+    "verify:live-api": "node tests/live-api.mjs",
+    "verify:live-session": "node tests/live-session.mjs",
+    "verify:live-matters": "node tests/live-matters.mjs",
+    "verify:live-states": "node tests/live-states.mjs",
+    "verify:live-isolation": "node tests/live-isolation.mjs",
+    "verify:live-matrix": "node tests/live-browser-matrix.mjs"
   },
   "keywords": [],
   "author": "",

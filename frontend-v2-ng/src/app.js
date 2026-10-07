@@ -7,7 +7,11 @@
 (function () {
   "use strict";
 
-  var demo = window.VX_DEMO;
+  /* Režim odlučuje src/runtime.js. Demo podaci se čitaju ISKLJUČIVO u DEMO
+   * režimu; LIVE i neispravna konfiguracija nikad ne dodiruju `VX_DEMO`. */
+  var rt = window.VxRuntime;
+  var rezim = rt ? rt.rezim : "neispravan";
+  var demo = rt && rezim === rt.DEMO ? window.VX_DEMO : null;
   var $ = function (id) { return document.getElementById(id); };
   var koren = document.documentElement;
 
@@ -56,9 +60,14 @@
   var RED_STANJA = { aktivan: 0, cekanje: 1 };
   var POCETNI_SMER = { naziv: "asc", broj: "asc", stanje: "asc", izmenjeno: "desc" };
 
-  var indeks = demo.predmeti.map(function (p) {
-    return { p: p, tekst: normalizuj([p.naziv, p.klijent, p.broj, p.sud, p.vrsta].join(" ")) };
-  });
+  var indeks = [];
+  /* Samo za proveru (kao __vxStanje): koliko predmeta ekran drži u memoriji. */
+  window.__vxPredmetaUMemoriji = function () { return indeks.length; };
+  function postaviPredmete(lista) {
+    indeks = lista.map(function (p) {
+      return { p: p, tekst: normalizuj([p.naziv, p.klijent, p.broj, p.sud, p.vrsta].concat(p.stranke || []).join(" ")) };
+    });
+  }
 
   function uporedi(a, b) {
     var r;
@@ -92,18 +101,26 @@
      * je u DOM-u (čitač ekrana, pretraga), u `title` za miš, a fokus tastature
      * otkriva ceo naziv na mestu. */
     a.title = p.naziv;
+    /* DEMO: „klijent · vrsta“. LIVE: stranke iz odgovora (tužilac · tuženi);
+     * prazni delovi se ne prikazuju, ništa se ne izmišlja. */
+    var delovi = p.stranke ? p.stranke : [p.klijent, p.vrsta];
+    delovi = delovi.filter(function (x) { return x; });
     var meta = el("span", "case__meta");
-    meta.append(p.klijent, el("span", "sep", "·"), p.vrsta);
+    delovi.forEach(function (d, i) { if (i) meta.append(el("span", "sep", "·")); meta.append(d); });
     c1.append(a, meta);
 
     var c2 = el("td", "cell-ref");
-    c2.append(el("span", "ref__no", p.broj), el("span", "ref__court", p.sud));
+    c2.append(el("span", "ref__no", p.broj || "—"));
+    if (p.sud) c2.append(el("span", "ref__court", p.sud));
 
+    /* Klasa stanja samo iz poznatog skupa; nepoznato stanje se prikazuje
+     * doslovno, nikad kao „undefined“. */
     var c3 = el("td", "cell-state");
-    c3.append(el("span", "state state--" + p.stanje, NAZIV_STANJA[p.stanje]));
+    var poznato = Object.prototype.hasOwnProperty.call(NAZIV_STANJA, p.stanje);
+    c3.append(el("span", poznato ? "state state--" + p.stanje : "state", poznato ? NAZIV_STANJA[p.stanje] : p.stanje));
 
     var c4 = el("td", "cell-date num");
-    var vreme = el("time", "date", datum(p.izmenjeno));
+    var vreme = el("time", "date", p.izmenjeno ? datum(p.izmenjeno) : "");
     vreme.dateTime = p.izmenjeno;
     c4.append(vreme);
 
@@ -113,7 +130,8 @@
 
   function prikaziRegistar() {
     var lista = vidljivi();
-    var ukupno = demo.predmeti.length;
+    /* LIVE: broj je `ukupno` iz API-ja (ne broj u memoriji, ne demo broj). */
+    var ukupno = izvor.stanje === "podaci" && typeof izvor.ukupno === "number" ? izvor.ukupno : indeks.length;
     var telo = $("rows");
     var frag = document.createDocumentFragment();
     lista.forEach(function (p) { frag.append(red(p)); });
@@ -132,6 +150,10 @@
     var prazno = lista.length === 0;
     $("registry").hidden = prazno;
     $("empty").hidden = !prazno;
+    /* Oznaka stanja mora pratiti ono što piše na ekranu (ne sme ostati
+     * „ucitavanje“ iz prethodnog stanja). DEMO je nema, kao i ranije. */
+    if (izvor.stanje === "podaci") $("empty").dataset.stanje = ukupno === 0 ? "prazno" : "bez-rezultata";
+    else delete $("empty").dataset.stanje;
     if (prazno) {
       if (ukupno === 0) {
         $("empty-title").textContent = "Nema aktivnih predmeta";
@@ -139,11 +161,87 @@
         $("empty-clear").hidden = true;
       } else {
         $("empty-title").textContent = "Nijedan predmet ne odgovara pretrazi";
-        $("empty-text").textContent = "Pretraženo po nazivu, klijentu, vrsti, broju predmeta i sudu za „" + stanje.upit.trim() + "“.";
+        $("empty-text").textContent = (izvor.stanje === "podaci"
+          ? "Pretraženo po nazivu, broju predmeta i strankama za „"
+          : "Pretraženo po nazivu, klijentu, vrsti, broju predmeta i sudu za „") + stanje.upit.trim() + "“.";
         $("empty-clear").hidden = false;
       }
     }
     $("pretraga").disabled = ukupno === 0;
+  }
+
+  /* ── Stanje bez podataka (LIVE / neispravna konfiguracija) ─────────────
+   * Koristi postojeći blok „empty“ (struktura ekrana se ne menja), ali NIKAD
+   * ne kaže „nema predmeta“: ovo je greška ili nepovezan izvor, ne prazna
+   * kancelarija. Pretraga je isključena, broj se ne prikazuje. */
+  var izvor = { stanje: "demo", naslov: "", tekst: "" };
+
+  function prikaziStanje() {
+    $("rows").replaceChildren();
+    $("registry").hidden = true;
+    $("empty").hidden = false;
+    $("empty").dataset.stanje = izvor.stanje;
+    $("empty-title").textContent = izvor.naslov;
+    $("empty-text").textContent = izvor.tekst;
+    $("empty-clear").hidden = true;
+    $("count").textContent = "";
+    $("pretraga").disabled = true;
+  }
+
+  function osvezi() {
+    if (izvor.stanje === "demo" || izvor.stanje === "podaci") prikaziRegistar();
+    else prikaziStanje();
+  }
+
+  /* ── LIVE: prikaz stanja koja javlja kontroler (src/live.js) ───────────
+   * Svako stanje osim „podaci“ ODMAH briše predmete iz memorije ekrana i
+   * pretragu: ništa od prethodne sesije ne sme ostati kao trenutno. */
+  var TEKST_STANJA = {
+    "ucitavanje": ["Učitavanje predmeta…", "Predmeti se učitavaju sa servera."],
+    "bez-prijave": ["Niste prijavljeni", "Prijavite se u Vindex da biste videli svoje predmete."],
+    "istekla": ["Sesija je istekla", "Prijavite se ponovo u Vindex. Predmeti se ne prikazuju dok sesija ne bude obnovljena."],
+    "greska-sesije": ["Sesija nije mogla da se pročita", "Prijavite se ponovo u Vindex. Predmeti se ne prikazuju."],
+    "nepovezano": ["Živi izvor podataka nije povezan", "Predmeti se ne prikazuju dok se ne učitaju sa servera. Primeri se u ovom režimu ne prikazuju."],
+    "greska": ["Predmeti nisu učitani", "Došlo je do greške pri učitavanju. Ovo nije prazna lista."],
+  };
+
+  /* Svaka klasa greške ima SVOJE stanje. Nijedna ne kaže „nema predmeta“:
+   * neuspelo čitanje nije prazna kancelarija. */
+  var STANJE_GRESKE = {
+    AUTH_REQUIRED: ["greska-prijava", "Prijava više nije važeća", "Server nije prihvatio sesiju. Prijavite se ponovo u Vindex; predmeti se do tada ne prikazuju."],
+    FORBIDDEN: ["greska-pristup", "Nemate pristup predmetima", "Server je odbio pristup za ovaj nalog. Predmeti se ne prikazuju."],
+    NOT_FOUND: ["greska-servis", "Servis za predmete nije pronađen", "Server nije pronašao listu predmeta. Predmeti nisu učitani."],
+    RATE_LIMITED: ["greska-ogranicenje", "Previše zahteva", "Server je privremeno ograničio zahteve. Predmeti nisu učitani; pokušajte ponovo malo kasnije."],
+    SERVER_ERROR: ["greska-server", "Server trenutno ne odgovara ispravno", "Predmeti nisu učitani zbog greške na serveru. Ovo nije prazna lista."],
+    HTTP_ERROR: ["greska-server", "Predmeti nisu učitani", "Server je vratio neočekivan odgovor. Ovo nije prazna lista."],
+    NETWORK_ERROR: ["greska-mreza", "Server nije dostupan", "Veza sa serverom nije uspostavljena. Predmeti nisu učitani; ovo nije prazna lista."],
+    INVALID_RESPONSE: ["greska-odgovor", "Odgovor servera nije ispravan", "Podaci nisu prikazani jer odgovor nije mogao pouzdano da se pročita."],
+    INCONSISTENT: ["greska-nedosledno", "Lista se promenila tokom učitavanja", "Predmeti nisu prikazani da ne bi bili prikazani nepotpuno. Osvežite stranicu."],
+    CONFIG_ERROR: ["greska-konfiguracija", "Greška u podešavanju zahteva", "Zahtev nije poslat. Predmeti se ne prikazuju."],
+  };
+
+  function sekundi(ra) { var n = Number(ra); return Number.isFinite(n) && n > 0 && n < 86400 ? Math.ceil(n) : 0; }
+
+  function prikaziLive(v) {
+    if (v.vrsta === "podaci") {
+      postaviPredmete(v.predmeti || []);
+      izvor = { stanje: "podaci", naslov: "", tekst: "", ukupno: v.ukupno };
+    } else {
+      postaviPredmete([]);
+      stanje.upit = "";
+      $("pretraga").value = "";
+      if (v.vrsta === "greska") {
+        var g = (v.greska && STANJE_GRESKE[v.greska.kod]) || ["greska", TEKST_STANJA["greska"][0], TEKST_STANJA["greska"][1]];
+        var tekstG = g[2];
+        var za = v.greska && v.greska.kod === "RATE_LIMITED" ? sekundi(v.greska.retryAfter) : 0;
+        if (za) tekstG = "Server je privremeno ograničio zahteve. Predmeti nisu učitani; pokušajte ponovo za " + za + " s.";
+        izvor = { stanje: g[0], naslov: g[1], tekst: tekstG };
+      } else {
+        var t = TEKST_STANJA[v.vrsta] || TEKST_STANJA["greska"];
+        izvor = { stanje: v.vrsta, naslov: t[0], tekst: t[1] };
+      }
+    }
+    osvezi();
   }
 
   /* ── Panel: zahteva pažnju ─────────────────────────────────────────── */
@@ -186,6 +284,21 @@
     $("attention-more").textContent = vise > 0 ? "Prikazano " + stavke.length + " od " + sve.length + ", po datumu." : "";
     $("panel-toggle-count").textContent = sve.length ? String(sve.length) : "";
     $("demo-date").textContent = "Referentni demo datum: " + datum(demo.danas);
+  }
+
+  /* Van DEMO režima panel ne prikazuje nijednu stavku: demo obaveze uz stvarne
+   * predmete bile bi izmišljene pravne obaveze. Ne tvrdi ni „nema obaveza“. */
+  function prikaziPanelNepovezan() {
+    $("attention").replaceChildren();
+    $("attention").hidden = true;
+    $("attention-empty").hidden = false;
+    $("attention-empty").dataset.stanje = "nepovezano";
+    document.querySelector("#attention-empty .panel__empty-title").textContent = "Ovaj deo još nije povezan u ovom pregledu.";
+    document.querySelector("#attention-empty .panel__empty-text").textContent = "Rokove i obaveze proverite u spisima predmeta.";
+    $("attention-more").hidden = true;
+    $("attention-more").textContent = "";
+    $("panel-toggle-count").textContent = "";
+    $("demo-date").textContent = "";
   }
 
   /* ── Tema ──────────────────────────────────────────────────────────── */
@@ -241,12 +354,12 @@
   }
 
   /* ── Događaji ──────────────────────────────────────────────────────── */
-  $("pretraga").addEventListener("input", function (e) { stanje.upit = e.target.value; prikaziRegistar(); });
+  $("pretraga").addEventListener("input", function (e) { stanje.upit = e.target.value; osvezi(); });
   $("pretraga").addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && e.target.value) { e.target.value = ""; stanje.upit = ""; prikaziRegistar(); }
+    if (e.key === "Escape" && e.target.value) { e.target.value = ""; stanje.upit = ""; osvezi(); }
   });
   $("empty-clear").addEventListener("click", function () {
-    $("pretraga").value = ""; stanje.upit = ""; prikaziRegistar(); $("pretraga").focus();
+    $("pretraga").value = ""; stanje.upit = ""; osvezi(); $("pretraga").focus();
   });
 
   document.querySelectorAll(".cases th[data-kljuc] .sort").forEach(function (b) {
@@ -254,7 +367,7 @@
       var k = b.closest("th").dataset.kljuc;
       if (stanje.kljuc === k) stanje.smer = stanje.smer === "asc" ? "desc" : "asc";
       else { stanje.kljuc = k; stanje.smer = POCETNI_SMER[k]; }
-      prikaziRegistar();
+      osvezi();
     });
   });
 
@@ -296,6 +409,30 @@
   /* ── Start ─────────────────────────────────────────────────────────── */
   postaviTemu(koren.dataset.theme === "light" ? "light" : "dark");
   postaviSkupljanje(koren.dataset.nav === "skupljena");
-  prikaziRegistar();
-  prikaziPanel();
+  if (demo) {
+    postaviPredmete(demo.predmeti);
+    osvezi();
+    prikaziPanel();
+  } else if (rt && rezim === rt.LIVE && window.VxLive && window.VxSesija) {
+    /* Pretraga u LIVE režimu radi samo nad učitanim poljima; sud i klijent
+     * nisu deo odgovora, pa se ne obećavaju. */
+    $("pretraga").placeholder = "Naziv, broj predmeta ili stranka";
+    /* LIVE ne sme nositi oznake demo podataka: ni značku, ni „Demo nalog“,
+     * ni napomenu panela, ni natpis tabele. Ne dodaje se nova značka. */
+    document.querySelector(".demo-badge").hidden = true;
+    document.querySelector(".account").hidden = true;
+    document.querySelector(".panel__note").hidden = true;
+    document.querySelector(".cases caption").textContent = "Aktivni predmeti";
+    prikaziPanelNepovezan();
+    prikaziLive({ vrsta: "ucitavanje" });
+    var kontrolerLive = window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive });
+    /* Samo za proveru (kao __vxStanje): ponovno učitavanje bez UI elementa. */
+    window.__vxLiveOsvezi = function () { kontrolerLive.osvezi(); };
+    kontrolerLive.pokreni();
+  } else {
+    izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
+              tekst: (rt && rt.greska) || "Režim podataka nije učitan. Podaci se ne prikazuju." };
+    osvezi();
+    prikaziPanelNepovezan();
+  }
 })();

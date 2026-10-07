@@ -155,7 +155,8 @@ svg .fill { fill: currentColor; stroke: none; }
   margin: 0; font-family: var(--font-serif); font-weight: 500;
   font-size: var(--fs-title); line-height: var(--lh-tight); letter-spacing: -0.005em;
 }
-.sheet__count { margin: var(--sp-1) 0 0; color: var(--text-3); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.sheet__count { margin: var(--sp-1) 0 0; color: var(--text-3); font-size: var(--fs-meta); font-variant-numeric: tabular-nums;
+  min-height: 1lh; }   /* red broja zadržava visinu i kad je prazan (LIVE učitavanje/greška) — bez pomeranja rasporeda */
 
 .search {
   position: relative; display: flex; align-items: center;

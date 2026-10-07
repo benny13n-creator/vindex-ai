@@ -65,6 +65,11 @@
     return out;
   }
 
+  /* Demo podaci postoje SAMO u DEMO režimu (src/runtime.js). U LIVE režimu i
+   * kod neispravne konfiguracije `VX_DEMO` se ne definiše uopšte, pa ga ništa
+   * ne može ni slučajno prikazati. Bez runtime.js režim nije dokazan → ništa. */
+  if (!window.VxRuntime || window.VxRuntime.rezim !== window.VxRuntime.DEMO) return;
+
   var q = new URLSearchParams(window.location.search);
   var scenarioPredmeti = q.get("predmeti") || "standard";
   var scenarioPaznja = q.get("paznja") || "standard";
