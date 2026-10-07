@@ -43,7 +43,7 @@ const py = spawn(process.env.VX_PYTHON || "python", ["tests/v2_ng_e2e_harness.py
 let pyIzlaz = ""; py.stdout.on("data", d => pyIzlaz += d); py.stderr.on("data", d => pyIzlaz += d);
 let gotov = false;
 for (let i = 0; i < 600 && !gotov; i++) {
-  gotov = await new Promise(r => http.get({ host: "127.0.0.1", port: PORT, path: "/v2/preview/" }, s => { s.resume(); r(s.statusCode === 200); }).on("error", () => r(false)));
+  gotov = await new Promise(r => http.get({ host: "127.0.0.1", port: PORT, path: "/v2/preview/?rezim=live" }, s => { s.resume(); r(s.statusCode === 200); }).on("error", () => r(false)));
   if (!gotov) await new Promise(r => setTimeout(r, 200));
 }
 zapisi("harness", "stvarna FastAPI aplikacija se podiže sa preview-om", gotov, gotov ? "" : pyIzlaz.slice(-600));

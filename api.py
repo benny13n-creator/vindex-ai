@@ -2870,17 +2870,32 @@ def _v2_ng_preview_ukljucen() -> bool:
 if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
     from fastapi.responses import RedirectResponse as _V2NgRedirect
 
+    # Preview se nikad ne indeksira i ne kešira.
+    _V2_NG_ZAGLAVLJA = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                        "X-Robots-Tag": "noindex, nofollow, noarchive"}
+
+    def _v2_ng_kanonski(request: Request) -> str:
+        # Lokalni prototip bez ?rezim prikazuje DEMO; produkcioni preview NE SME:
+        # adresa bez `rezim` vodi u LIVE. Postojeći upit se čuva (i eksplicitni
+        # ?rezim=demo za QA); preusmerenje je uvek relativno, na isti izvor.
+        upit = request.url.query
+        if "rezim" not in request.query_params:
+            upit = (upit + "&" if upit else "") + "rezim=live"
+        return "/v2/preview/?" + upit
+
     @app.get("/v2/preview", include_in_schema=False)
-    def v2_ng_preview_bez_kose():
+    def v2_ng_preview_bez_kose(request: Request):
         # Relativne putanje u index.html (src/, fonts/) traže završnu kosu crtu.
-        return _V2NgRedirect(url="/v2/preview/", status_code=307)
+        return _V2NgRedirect(url=_v2_ng_kanonski(request), status_code=307, headers=_V2_NG_ZAGLAVLJA)
 
     @app.get("/v2/preview/", include_in_schema=False)
-    def v2_ng_preview():
+    def v2_ng_preview(request: Request):
+        if "rezim" not in request.query_params:
+            return _V2NgRedirect(url=_v2_ng_kanonski(request), status_code=307, headers=_V2_NG_ZAGLAVLJA)
         return FileResponse(
             str(_V2_NG_DIR / "index.html"),
             media_type="text/html; charset=utf-8",
-            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+            headers=_V2_NG_ZAGLAVLJA,
         )
 
     app.mount("/v2/preview/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_preview_src")

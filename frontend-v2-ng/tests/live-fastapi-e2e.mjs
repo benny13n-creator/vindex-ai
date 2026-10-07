@@ -45,7 +45,7 @@ let pyIzlaz = "";
 py.stdout.on("data", d => pyIzlaz += d); py.stderr.on("data", d => pyIzlaz += d);
 let gotov = false;
 for (let i = 0; i < 600 && !gotov; i++) {
-  gotov = await new Promise(r => http.get({ host: "127.0.0.1", port: PORT, path: "/v2/preview/" }, s => { s.resume(); r(s.statusCode === 200); }).on("error", () => r(false)));
+  gotov = await new Promise(r => http.get({ host: "127.0.0.1", port: PORT, path: "/v2/preview/?rezim=live" }, s => { s.resume(); r(s.statusCode === 200); }).on("error", () => r(false)));
   if (!gotov) await new Promise(r => setTimeout(r, 200));
 }
 zapisi("harness", "stvarna FastAPI aplikacija servira /v2/preview/ (preview uključen samo u testu)", gotov, gotov ? "" : pyIzlaz.slice(-800));
@@ -60,7 +60,7 @@ const browser = await chromium.launch();
 const spoljni = [], metodi = [], konzola = [];
 const ses = (id, token) => JSON.stringify({ access_token: token, refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id, email: id + "@primer.test" } });
 
-async function otvori(pocetna) {
+async function otvori(pocetna, adresa = "/v2/preview/?rezim=live") {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   await ctx.route("**/*", (r) => {
     const h = new URL(r.request().url()).hostname;
@@ -74,7 +74,7 @@ async function otvori(pocetna) {
   p.on("request", q => metodi.push(q.method() + " " + new URL(q.url()).pathname));
   p.on("console", m => konzola.push(m.text()));
   p.on("pageerror", e => konzola.push("PAGEERROR " + e));
-  await p.goto(`${BASE}/v2/preview/?rezim=live`);
+  await p.goto(`${BASE}${adresa}`);
   await p.waitForFunction(() => { const e = document.getElementById("empty"); return !e.hidden ? e.dataset.stanje !== "ucitavanje" : document.querySelectorAll("#rows tr").length > 0; }, null, { timeout: 20000 }).catch(() => {});
   const drugi = await ctx.newPage();
   await drugi.goto(`${BASE}/v2/preview/src/tokens.css`);
@@ -183,6 +183,53 @@ const samo = (e, vlasnik) => e.ids.length > 0 && e.ids.every(id => id.startsWith
   const vxApi = await o.p.evaluate(async () => (await window.VxApi.get("/api/predmeti", { parametri: { user_id: "korisnik-B" } })).greska.kod);
   zapisi("11.user_id", "V2 transport ni ne šalje user_id (CONFIG_ERROR)", vxApi === "CONFIG_ERROR", vxApi);
   await o.ctx.close();
+}
+// 12. NS003 Task 2: podrazumevana adresa preview-a je LIVE — nikad demo podaci
+const DEMO_ZNACI = /Demonstracioni|Demo nalog|Referentni demo datum|demonstracioni/;
+const vidljivo = (p) => p.evaluate(() => {
+  const vid = (s) => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); return !e.closest("[hidden]") && getComputedStyle(e).display !== "none" && getComputedStyle(e).visibility !== "hidden" && r.width > 0 && r.height > 0; };
+  return { search: location.search, path: location.pathname, znacka: vid(".demo-badge"), nalog: vid(".account"), napomena: vid(".panel__note"),
+           datum: document.getElementById("demo-date").textContent, obaveze: document.querySelectorAll("#attention li").length,
+           redovi: document.querySelectorAll("#rows tr").length, stanje: document.getElementById("empty").hidden ? "registar" : document.getElementById("empty").dataset.stanje,
+           naslov: document.getElementById("empty-title").textContent, tekst: document.body.innerText, natpis: document.querySelector(".cases caption").textContent };
+});
+for (const adresa of ["/v2/preview", "/v2/preview/"]) {
+  const preApi = metodi.filter(m => m.endsWith("/api/predmeti")).length;
+  const o = await otvori(null, adresa);
+  await cekaj(o.p, () => document.getElementById("empty").dataset.stanje === "bez-prijave");
+  const v = await vidljivo(o.p);
+  zapisi("12.podrazumevano", `${adresa} bez prijave → /v2/preview/?rezim=live`, v.path === "/v2/preview/" && v.search === "?rezim=live", v.path + v.search);
+  zapisi("12.podrazumevano", `${adresa} bez prijave → stanje „bez-prijave“, 0 predmeta`, v.stanje === "bez-prijave" && v.redovi === 0, `${v.stanje} ${v.redovi} „${v.naslov}“`);
+  zapisi("12.podrazumevano", `${adresa}: nema demo značke, „Demo nalog“, napomene ni demo datuma`, !v.znacka && !v.nalog && !v.napomena && v.datum === "", JSON.stringify({ z: v.znacka, n: v.nalog, p: v.napomena, d: v.datum }));
+  zapisi("12.podrazumevano", `${adresa}: nema demo obaveza u panelu „Zahteva pažnju“`, v.obaveze === 0, `${v.obaveze}`);
+  zapisi("12.podrazumevano", `${adresa}: vidljiv tekst ne pominje demo sadržaj`, !DEMO_ZNACI.test(v.tekst) && !DEMO_ZNACI.test(v.natpis), (v.tekst.match(DEMO_ZNACI) || [""])[0]);
+  zapisi("12.podrazumevano", `${adresa}: bez prijave nema poziva /api/predmeti`, metodi.filter(m => m.endsWith("/api/predmeti")).length === preApi);
+  await o.ctx.close();
+}
+{
+  const o = await otvori(ses("korisnik-A", "vx-e2e-A"), "/v2/preview");
+  const e = await ekran(o.p);
+  const v = await vidljivo(o.p);
+  zapisi("12.podrazumevano", "/v2/preview sa prijavom → LIVE predmeti korisnika A, bez demo oznaka", v.search === "?rezim=live" && samo(e, "korisnik-A") && e.ids.length === 12 && !v.znacka && !DEMO_ZNACI.test(v.tekst), `${v.search} ${e.ids.length}`);
+  await o.ctx.close();
+}
+{
+  const preApi = metodi.filter(m => m.endsWith("/api/predmeti")).length;
+  const o = await otvori(ses("korisnik-A", "vx-e2e-A"), "/v2/preview/?rezim=demo");
+  await cekaj(o.p, () => document.querySelectorAll("#rows tr").length > 0);
+  const v = await vidljivo(o.p);
+  zapisi("12.eksplicitni-demo", "?rezim=demo ostaje DEMO i jasno je označen (značka vidljiva)", v.search === "?rezim=demo" && v.znacka && v.redovi > 0 && /Demonstracioni podaci/.test(v.tekst), `${v.search} ${v.znacka} ${v.redovi}`);
+  zapisi("12.eksplicitni-demo", "DEMO ne čita stvarni API ni sesiju (0 poziva /api/predmeti)", metodi.filter(m => m.endsWith("/api/predmeti")).length === preApi);
+  await o.ctx.close();
+}
+{
+  const ctx = await browser.newContext();
+  const p = await ctx.newPage();
+  const r = await p.goto(`${BASE}/v2/preview/?rezim=live`);
+  const h = r.headers();
+  zapisi("12.zaglavlja", "HTML preview-a: X-Robots-Tag noindex, nofollow, noarchive; no-store; nosniff",
+    h["x-robots-tag"] === "noindex, nofollow, noarchive" && /no-store/.test(h["cache-control"] || "") && h["x-content-type-options"] === "nosniff", JSON.stringify([h["x-robots-tag"], h["cache-control"]]));
+  await ctx.close();
 }
 
 await browser.close();

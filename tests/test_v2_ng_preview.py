@@ -8,7 +8,9 @@ testova i bez mrežnih poziva.
 
 Dokazuje:
   • bez promenljive (i za svaku vrednost osim 1/true/yes) rute ne postoje (404);
-  • uključen: /v2/preview → /v2/preview/, index.html (no-store), src/ i fonts/;
+  • uključen: /v2/preview i /v2/preview/ bez `rezim` → /v2/preview/?rezim=live
+    (NS003: produkcioni preview nikad podrazumevano ne prikazuje DEMO), postojeći
+    upit se čuva; index.html (no-store, nosniff, X-Robots-Tag noindex), src/, fonts/;
   • izlaže se SAMO index.html, src/, fonts/ — ne tests/, serve.mjs, package.json;
   • traversal ne vraća nijedan fajl van tih direktorijuma;
   • /app, /app-v2, /sw.js, /offline, /static/*, /api/predmeti su identični
@@ -39,12 +41,14 @@ for put in sys.argv[1:]:
     norm = re.sub(rb"\?v=[A-Za-z0-9._-]+", b"?v=X", r.content)
     out[put] = {"status": r.status_code, "ct": r.headers.get("content-type", ""),
                 "cc": r.headers.get("cache-control", ""), "loc": r.headers.get("location", ""),
+                "xrt": r.headers.get("x-robots-tag", ""), "xcto": r.headers.get("x-content-type-options", ""),
                 "sha": hashlib.sha256(r.content).hexdigest(), "sha_norm": hashlib.sha256(norm).hexdigest()}
 print("@@" + json.dumps(out))
 """
 
 PUTANJE_PREVIEW = [
-    "/v2/preview", "/v2/preview/", "/v2/preview/src/app.js", "/v2/preview/src/api.js",
+    "/v2/preview", "/v2/preview/", "/v2/preview/?rezim=live", "/v2/preview/?rezim=demo",
+    "/v2/preview/src/app.js", "/v2/preview/src/api.js",
     "/v2/preview/fonts/ibm-plex-sans/400.css",
     "/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2",
 ]
@@ -110,20 +114,62 @@ def test_svaka_druga_vrednost_je_iskljucen(vrednost):
 
 @pytest.mark.parametrize("vrednost", ["1", "true", "yes", " TRUE ", "Yes"])
 def test_dozvoljene_vrednosti_ukljucuju(vrednost):
-    r = _pokreni(vrednost, ["/v2/preview/"])
-    assert r["/v2/preview/"]["status"] == 200, (vrednost, r)
+    r = _pokreni(vrednost, ["/v2/preview/?rezim=live"])
+    assert r["/v2/preview/?rezim=live"]["status"] == 200, (vrednost, r)
 
 
-def test_ukljucen_bez_kose_preusmerava(ukljucen):
-    assert ukljucen["/v2/preview"]["status"] == 307
-    assert ukljucen["/v2/preview"]["loc"] == "/v2/preview/"
+# NS003 Task 2: adresa bez `rezim` → LIVE; postojeći upit se čuva; eksplicitni
+# `rezim` (i neispravan — runtime ga odbija glasno) se ne dira.
+PREUSMERENJA = {
+    "/v2/preview": "/v2/preview/?rezim=live",
+    "/v2/preview/": "/v2/preview/?rezim=live",
+    "/v2/preview?rezim=live": "/v2/preview/?rezim=live",
+    "/v2/preview?rezim=demo": "/v2/preview/?rezim=demo",
+    "/v2/preview?x=1": "/v2/preview/?x=1&rezim=live",
+    "/v2/preview/?x=1": "/v2/preview/?x=1&rezim=live",
+    "/v2/preview?rezim=demo&x=1": "/v2/preview/?rezim=demo&x=1",
+    "/v2/preview?x=1&rezim=live": "/v2/preview/?x=1&rezim=live",
+    "/v2/preview?rezim=nesto": "/v2/preview/?rezim=nesto",
+    "/v2/preview?next=//evil.example": "/v2/preview/?next=//evil.example&rezim=live",
+    "/v2/preview/?next=https://evil.example/": "/v2/preview/?next=https://evil.example/&rezim=live",
+}
+SERVIRA = ["/v2/preview/?rezim=live", "/v2/preview/?rezim=demo", "/v2/preview/?rezim=live&x=1",
+           "/v2/preview/?x=1&rezim=demo", "/v2/preview/?rezim=nesto", "/v2/preview/?rezim="]
+
+
+@pytest.fixture(scope="module")
+def kanonski():
+    return _pokreni("1", list(PREUSMERENJA) + SERVIRA)
+
+
+@pytest.mark.parametrize("put", list(PREUSMERENJA))
+def test_bez_rezima_preusmerava_u_live_i_cuva_upit(kanonski, put):
+    r = kanonski[put]
+    assert r["status"] == 307, (put, r["status"])
+    assert r["loc"] == PREUSMERENJA[put], (put, r["loc"])
+
+
+@pytest.mark.parametrize("put", list(PREUSMERENJA))
+def test_preusmerenje_je_uvek_relativno_na_isti_izvor(kanonski, put):
+    loc = kanonski[put]["loc"]
+    assert loc.startswith("/v2/preview/?") and not loc.startswith("//") and "://" not in loc.split("?")[0], loc
+    assert kanonski[put]["xrt"] == "noindex, nofollow, noarchive"
+
+
+@pytest.mark.parametrize("put", SERVIRA)
+def test_eksplicitan_rezim_servira_index(kanonski, put):
+    r = kanonski[put]
+    assert r["status"] == 200 and r["sha"] == _sha(NG / "index.html"), (put, r["status"])
 
 
 def test_ukljucen_servira_v2_index_bez_kesa(ukljucen):
-    r = ukljucen["/v2/preview/"]
-    assert r["status"] == 200 and r["ct"].startswith("text/html")
-    assert r["sha"] == _sha(NG / "index.html"), "nije V2 NG index.html"
-    assert "no-store" in r["cc"]
+    for put in ("/v2/preview/?rezim=live", "/v2/preview/?rezim=demo"):
+        r = ukljucen[put]
+        assert r["status"] == 200 and r["ct"].startswith("text/html")
+        assert r["sha"] == _sha(NG / "index.html"), "nije V2 NG index.html"
+        assert "no-store" in r["cc"]
+        assert r["xcto"] == "nosniff"
+        assert r["xrt"] == "noindex, nofollow, noarchive", (put, r["xrt"])
 
 
 @pytest.mark.parametrize("put,fajl", [

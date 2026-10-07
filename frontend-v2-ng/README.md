@@ -50,6 +50,11 @@ Parametri se mogu kombinovati. Za vraćanje teme i navigacije na početno stanje
 
 **DEMO** (podrazumevano, kao do sada): `npm run serve` → `http://127.0.0.1:4317/`.
 
+**Preview iz `api.py`** (`/v2/preview/`, isključen dok `VINDEX_V2_NG_PREVIEW_ENABLED`
+nije `1`/`true`/`yes`): adresa bez `rezim` se preusmerava na `/v2/preview/?rezim=live`,
+pa produkcioni preview nikad podrazumevano ne prikazuje demo podatke. `?rezim=demo`
+ostaje dostupan za QA i jasno je označen. Odgovor nosi `X-Robots-Tag: noindex, nofollow, noarchive`.
+
 **LIVE**: dodaj `?rezim=live`. Bilo koja druga vrednost `rezim` je glasna greška
 konfiguracije. LIVE nikad ne prikazuje demo podatke — ni kada nešto ne uspe.
 
