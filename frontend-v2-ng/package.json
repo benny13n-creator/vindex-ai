@@ -15,7 +15,8 @@
     "verify:live-session": "node tests/live-session.mjs",
     "verify:live-matters": "node tests/live-matters.mjs",
     "verify:live-states": "node tests/live-states.mjs",
-    "verify:live-isolation": "node tests/live-isolation.mjs"
+    "verify:live-isolation": "node tests/live-isolation.mjs",
+    "verify:live-matrix": "node tests/live-browser-matrix.mjs"
   },
   "keywords": [],
   "author": "",

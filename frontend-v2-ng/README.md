@@ -7,7 +7,7 @@
 
 - Lokacija u repozitorijumu: `frontend-v2-ng/` (Repository Integration Foundation v1.0). Odobreni prototip razvijen je u `C:\vindex-v2-ng-001` i prenet bez izmena koda.
 - **Nije povezan sa produkcijom**: nijedna ruta u `api.py` ne servira ovaj direktorijum (`/static`, `/word_addin` i `/app-v2` imaju sopstvene korene sa proverom putanje). Postojeći V1 (`index.html`, `static/`) i prethodni V2 (`v2/`, `index-v2.html`) nisu dirani i nisu osnova ovog koda.
-- Bez backend-a: samo demonstracioni podaci (`src/demo-data.js`). Nema `.py` fajlova, pa ga `pytest` (`testpaths = tests`) i `compileall` u CI-ju ne vide.
+- Podrazumevano (DEMO) bez backend-a: samo demonstracioni podaci (`src/demo-data.js`). LIVE režim samo čita postojeći `GET /api/predmeti` — vidi „LIVE režim (samo čitanje)“. Nema `.py` fajlova, pa ga `pytest` (`testpaths = tests`) i `compileall` u CI-ju ne vide.
 - Iz starog koda preuzeti su samo **nazivi modula** (iz `v2/domain/spaces.js` na `origin/main`, čitano preko `git show`) i princip svetlosnih tačaka. Kod, CSS i design system nisu preuzeti.
 
 ## Pokretanje
@@ -41,6 +41,50 @@ Ekran radi bez interneta, jer su fontovi lokalni.
 | `/?paznja=prazno` | prazan panel „Zahteva pažnju“ |
 
 Parametri se mogu kombinovati. Za vraćanje teme i navigacije na početno stanje obriši `localStorage` ključeve `vx-ng-tema` i `vx-ng-nav`.
+
+## LIVE režim (samo čitanje) — Night Sprint 001
+
+> **LIVE PRODUCTION DATA NOT VERIFIED IN THIS SPRINT.** Sav dokaz je nad lokalnim
+> fixture-om koji ponavlja ugovor `api.py`; ni produkciona prijava ni produkcioni
+> `/api/predmeti` nisu korišćeni.
+
+**DEMO** (podrazumevano, kao do sada): `npm run serve` → `http://127.0.0.1:4317/`.
+
+**LIVE**: dodaj `?rezim=live`. Bilo koja druga vrednost `rezim` je glasna greška
+konfiguracije. LIVE nikad ne prikazuje demo podatke — ni kada nešto ne uspe.
+
+- Prijava: koristi se POSTOJEĆA sesija (kanonski Supabase zapis `sb-<ref>-auth-token`
+  u `localStorage` istog izvora — isti mehanizam kao produkcioni `/app-v2`). V2 nema
+  svoj login, ne kopira i ne osvežava token; istekla sesija je stanje „istekla“.
+- Podaci: `GET /api/predmeti?status=aktivan&limit=500&offset=…`, sve strane do
+  `ukupno`. Bez `user_id` — pripadnost određuje server iz tokena.
+
+**Lokalni LIVE fixture** (bez backend-a, bez pravih podataka): testovi `npm run verify:live-*`
+sami podižu fixture (`tests/fixtures/predmeti-api.mjs`) koji ponavlja ugovor `api.py`.
+
+**Dev API proxy** (samo za lokalni razvoj, protiv LOKALNOG backend-a):
+
+```
+VINDEX_LOCAL_API_ORIGIN=http://127.0.0.1:8000 npm run serve
+# zatim http://127.0.0.1:4317/?rezim=live
+```
+
+> **Bezbednost:** proxy prihvata ISKLJUČIVO loopback cilj (`http://127.0.0.1:PORT` ili
+> `http://localhost:PORT`). Za `https://vindex.rs`, Railway, Supabase ili bilo koji drugi
+> host server odbija da se pokrene. Prosleđuje samo `GET /api/*` (ostalo je 405) i ne
+> ispisuje zaglavlja. Nije produkciona arhitektura.
+
+Pošto lokalni izvor (`127.0.0.1:4317`) nema produkcionu sesiju u `localStorage`, LIVE
+protiv lokalnog backend-a prikazuje „Niste prijavljeni“ dok se lokalna sesija ne napravi.
+
+**Šta još NIJE povezano:** panel „Zahteva pažnju“ (u LIVE pošteno kaže da nije povezan),
+detalj predmeta, dokumenti, OCR, AI, rokovi i obaveze, ostali moduli navigacije. Sud i
+klijent se ne prikazuju jer ih odgovor `/api/predmeti` ne sadrži.
+
+**LIVE testovi:** `verify:live-runtime`, `verify:live-api`, `verify:live-session`,
+`verify:live-matters`, `verify:live-states`, `verify:live-isolation`,
+`verify:live-matrix` (stvarni Chromium; DEMO piksel-poređenje sa `1eb20976`),
+`verify:demo-otisak`.
 
 ## Struktura
 
