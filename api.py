@@ -4562,8 +4562,12 @@ async def lista_predmeta(
     # ovog endpointa nije pogodjen. Mereno na 20 predmeta: `case_dna` nosi
     # 85% odgovora (92.090 B -> 14.212 B bez njega). `brisanje_zapoceto`
     # mora ostati u projekciji jer `_je_u_brisanju` cita bas njega.
+    # NS002 Task 4: + `tuzilac`, `tuzeni` (postojece kolone — migracija 015,
+    # produkciona sonda 2026-08-21) jer ih V2 NG lista prikazuje i pretrazuje.
+    # Projekcija ostaje nadskup prethodne; `sud` NE postoji u `predmeti` i nije
+    # ovde; `case_dna` se namerno ne vraca.
     kolone = (
-        "id,naziv,tip,status,broj_predmeta,created_at,updated_at,brisanje_zapoceto"
+        "id,naziv,tip,status,broj_predmeta,created_at,updated_at,brisanje_zapoceto,tuzilac,tuzeni"
         if (view or "").strip().lower() == "summary"
         else "*"
     )

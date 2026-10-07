@@ -237,7 +237,7 @@ async function zatvori(s) { await s.ctx.close(); await s.f.zatvori(); }
   const izvori = await Promise.all(["src/predmeti.js", "src/app.js", "src/live.js"].map(f => readFile(new URL("../" + f, import.meta.url), "utf8")));
   const kod = izvori.map(t => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")).join("\n");
   zapisi("zakupac", "LIVE kod ne čita `user_id` iz podataka niti ga gradi u zahtevu", !/user_id/.test(kod));
-  zapisi("zakupac", "predmeti.js gradi parametre samo od status/limit/offset", /parametri:\s*\{\s*status:\s*"aktivan",\s*limit:\s*STRANA,\s*offset:\s*offset\s*\}/.test(izvori[0]));
+  zapisi("zakupac", "predmeti.js gradi parametre samo od view/status/limit/offset", /parametri:\s*\{\s*view:\s*"summary",\s*status:\s*"aktivan",\s*limit:\s*STRANA,\s*offset:\s*offset\s*\}/.test(izvori[0]));
 }
 
 await browser.close();

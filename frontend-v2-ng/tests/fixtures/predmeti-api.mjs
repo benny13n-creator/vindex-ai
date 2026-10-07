@@ -16,7 +16,8 @@
 
 import { json } from "./api-fixture.mjs";
 
-const SUMMARY = ["id", "naziv", "tip", "status", "broj_predmeta", "created_at", "updated_at", "brisanje_zapoceto"];
+// Isto kao api.py posle NS002 Task 4 (+ tuzilac, tuzeni; bez case_dna i bez sud).
+const SUMMARY = ["id", "naziv", "tip", "status", "broj_predmeta", "created_at", "updated_at", "brisanje_zapoceto", "tuzilac", "tuzeni"];
 
 /* Realističan `case_dna` (~3,9 KB po predmetu; mereno u api.py komentaru:
  * 92 090 B / 20 predmeta, 85% odgovora). */

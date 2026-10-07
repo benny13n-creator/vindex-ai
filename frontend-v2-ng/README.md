@@ -56,8 +56,10 @@ konfiguracije. LIVE nikad ne prikazuje demo podatke — ni kada nešto ne uspe.
 - Prijava: koristi se POSTOJEĆA sesija (kanonski Supabase zapis `sb-<ref>-auth-token`
   u `localStorage` istog izvora — isti mehanizam kao produkcioni `/app-v2`). V2 nema
   svoj login, ne kopira i ne osvežava token; istekla sesija je stanje „istekla“.
-- Podaci: `GET /api/predmeti?status=aktivan&limit=500&offset=…`, sve strane do
-  `ukupno`. Bez `user_id` — pripadnost određuje server iz tokena.
+- Podaci: `GET /api/predmeti?view=summary&status=aktivan&limit=500&offset=…`, sve
+  strane do `ukupno` servera. Bez `user_id` — pripadnost određuje server iz tokena.
+  Prikazani broj je broj stvarno učitanih aktivnih predmeta (server `ukupno` broji i
+  predmete u brisanju). Sud se u LIVE ne prikazuje: kolona je „Broj predmeta“.
 
 **Lokalni LIVE fixture** (bez backend-a, bez pravih podataka): testovi `npm run verify:live-*`
 sami podižu fixture (`tests/fixtures/predmeti-api.mjs`) koji ponavlja ugovor `api.py`.
