@@ -12,7 +12,8 @@
     "verify:demo-otisak": "node tests/demo-fingerprint.mjs",
     "verify:live-runtime": "node tests/live-runtime.mjs",
     "verify:live-api": "node tests/live-api.mjs",
-    "verify:live-session": "node tests/live-session.mjs"
+    "verify:live-session": "node tests/live-session.mjs",
+    "verify:live-matters": "node tests/live-matters.mjs"
   },
   "keywords": [],
   "author": "",

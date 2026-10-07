@@ -65,7 +65,7 @@
   window.__vxPredmetaUMemoriji = function () { return indeks.length; };
   function postaviPredmete(lista) {
     indeks = lista.map(function (p) {
-      return { p: p, tekst: normalizuj([p.naziv, p.klijent, p.broj, p.sud, p.vrsta].join(" ")) };
+      return { p: p, tekst: normalizuj([p.naziv, p.klijent, p.broj, p.sud, p.vrsta].concat(p.stranke || []).join(" ")) };
     });
   }
 
@@ -101,18 +101,26 @@
      * je u DOM-u (čitač ekrana, pretraga), u `title` za miš, a fokus tastature
      * otkriva ceo naziv na mestu. */
     a.title = p.naziv;
+    /* DEMO: „klijent · vrsta“. LIVE: stranke iz odgovora (tužilac · tuženi);
+     * prazni delovi se ne prikazuju, ništa se ne izmišlja. */
+    var delovi = p.stranke ? p.stranke : [p.klijent, p.vrsta];
+    delovi = delovi.filter(function (x) { return x; });
     var meta = el("span", "case__meta");
-    meta.append(p.klijent, el("span", "sep", "·"), p.vrsta);
+    delovi.forEach(function (d, i) { if (i) meta.append(el("span", "sep", "·")); meta.append(d); });
     c1.append(a, meta);
 
     var c2 = el("td", "cell-ref");
-    c2.append(el("span", "ref__no", p.broj), el("span", "ref__court", p.sud));
+    c2.append(el("span", "ref__no", p.broj || "—"));
+    if (p.sud) c2.append(el("span", "ref__court", p.sud));
 
+    /* Klasa stanja samo iz poznatog skupa; nepoznato stanje se prikazuje
+     * doslovno, nikad kao „undefined“. */
     var c3 = el("td", "cell-state");
-    c3.append(el("span", "state state--" + p.stanje, NAZIV_STANJA[p.stanje]));
+    var poznato = Object.prototype.hasOwnProperty.call(NAZIV_STANJA, p.stanje);
+    c3.append(el("span", poznato ? "state state--" + p.stanje : "state", poznato ? NAZIV_STANJA[p.stanje] : p.stanje));
 
     var c4 = el("td", "cell-date num");
-    var vreme = el("time", "date", datum(p.izmenjeno));
+    var vreme = el("time", "date", p.izmenjeno ? datum(p.izmenjeno) : "");
     vreme.dateTime = p.izmenjeno;
     c4.append(vreme);
 
@@ -122,7 +130,8 @@
 
   function prikaziRegistar() {
     var lista = vidljivi();
-    var ukupno = indeks.length;
+    /* LIVE: broj je `ukupno` iz API-ja (ne broj u memoriji, ne demo broj). */
+    var ukupno = izvor.stanje === "podaci" && typeof izvor.ukupno === "number" ? izvor.ukupno : indeks.length;
     var telo = $("rows");
     var frag = document.createDocumentFragment();
     lista.forEach(function (p) { frag.append(red(p)); });
@@ -141,6 +150,10 @@
     var prazno = lista.length === 0;
     $("registry").hidden = prazno;
     $("empty").hidden = !prazno;
+    /* Oznaka stanja mora pratiti ono što piše na ekranu (ne sme ostati
+     * „ucitavanje“ iz prethodnog stanja). DEMO je nema, kao i ranije. */
+    if (izvor.stanje === "podaci") $("empty").dataset.stanje = ukupno === 0 ? "prazno" : "bez-rezultata";
+    else delete $("empty").dataset.stanje;
     if (prazno) {
       if (ukupno === 0) {
         $("empty-title").textContent = "Nema aktivnih predmeta";
@@ -148,7 +161,9 @@
         $("empty-clear").hidden = true;
       } else {
         $("empty-title").textContent = "Nijedan predmet ne odgovara pretrazi";
-        $("empty-text").textContent = "Pretraženo po nazivu, klijentu, vrsti, broju predmeta i sudu za „" + stanje.upit.trim() + "“.";
+        $("empty-text").textContent = (izvor.stanje === "podaci"
+          ? "Pretraženo po nazivu, broju predmeta i strankama za „"
+          : "Pretraženo po nazivu, klijentu, vrsti, broju predmeta i sudu za „") + stanje.upit.trim() + "“.";
         $("empty-clear").hidden = false;
       }
     }
@@ -193,7 +208,7 @@
   function prikaziLive(v) {
     if (v.vrsta === "podaci") {
       postaviPredmete(v.predmeti || []);
-      izvor = { stanje: "podaci", naslov: "", tekst: "" };
+      izvor = { stanje: "podaci", naslov: "", tekst: "", ukupno: v.ukupno };
     } else {
       postaviPredmete([]);
       stanje.upit = "";
@@ -374,6 +389,9 @@
     osvezi();
     prikaziPanel();
   } else if (rt && rezim === rt.LIVE && window.VxLive && window.VxSesija) {
+    /* Pretraga u LIVE režimu radi samo nad učitanim poljima; sud i klijent
+     * nisu deo odgovora, pa se ne obećavaju. */
+    $("pretraga").placeholder = "Naziv, broj predmeta ili stranka";
     prikaziPanelNepovezan();
     prikaziLive({ vrsta: "ucitavanje" });
     window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive }).pokreni();
