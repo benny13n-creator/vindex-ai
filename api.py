@@ -2848,6 +2848,46 @@ def serve_v2_asset(token: str, putanja: str):
     )
 
 
+# ── Vindex V2 NG preview — PODRAZUMEVANO ISKLJUČEN ──────────────────────────────
+# Izolovan frontend `frontend-v2-ng/` se servira sa ISTOG izvora (sesija i
+# /api/predmeti bez CORS-a) SAMO kada je VINDEX_V2_NG_PREVIEW_ENABLED tačno
+# "1", "true" ili "yes" (bez obzira na velika slova i razmake). Bilo šta drugo,
+# uključujući odsustvo, znači da rute NE POSTOJE (404) — produkcija bez
+# promenljive ostaje nepromenjena.
+#
+# Namespace /v2/preview/: legacy /sw.js namerno preskače sve /v2/* (Z015 §11),
+# pa preview nikad ne prolazi kroz legacy keš/offline shell.
+#
+# Izlaže se SAMO index.html, src/ i fonts/ — nikad tests/, serve.mjs,
+# package.json ni README. Traversal odbija StaticFiles.
+_V2_NG_DIR = BASE_DIR / "frontend-v2-ng"
+
+
+def _v2_ng_preview_ukljucen() -> bool:
+    return (os.getenv("VINDEX_V2_NG_PREVIEW_ENABLED") or "").strip().lower() in {"1", "true", "yes"}
+
+
+if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
+    from fastapi.responses import RedirectResponse as _V2NgRedirect
+
+    @app.get("/v2/preview", include_in_schema=False)
+    def v2_ng_preview_bez_kose():
+        # Relativne putanje u index.html (src/, fonts/) traže završnu kosu crtu.
+        return _V2NgRedirect(url="/v2/preview/", status_code=307)
+
+    @app.get("/v2/preview/", include_in_schema=False)
+    def v2_ng_preview():
+        return FileResponse(
+            str(_V2_NG_DIR / "index.html"),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        )
+
+    app.mount("/v2/preview/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_preview_src")
+    app.mount("/v2/preview/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_preview_fonts")
+    logger.info("[V2-NG] preview UKLJUČEN na /v2/preview/ (VINDEX_V2_NG_PREVIEW_ENABLED)")
+
+
 @app.get("/portal", include_in_schema=False)
 def serve_portal():
     """Klijentski portal — stranica za klijente, pristup putem tokena."""
