@@ -1,0 +1,14 @@
+# Test-only dependencies. Installed by CI next to requirements.txt; NEVER by
+# the production Dockerfile. Each line exists because a specific test needs it:
+#   pytest-asyncio  -- 15 test files use @pytest.mark.asyncio (148 tests)
+#   psycopg         -- scripts/test_db.py verify checks the driver before its
+#                      DSN rules; tests/test_wave10_test_db_bootstrap.py asserts
+#                      those rules. No database is started by installing it.
+#   anthropic, google-generativeai -- optional provider SDKs, lazily imported
+#                      in shared/ai_fabric.py; tests/test_ai_fabric_contract.py
+#                      patches their entry points.
+pytest==9.1.1
+pytest-asyncio==1.4.0
+psycopg[binary]==3.3.4
+anthropic==0.120.0
+google-generativeai==0.8.6
