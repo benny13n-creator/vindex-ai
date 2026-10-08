@@ -166,6 +166,42 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
   await o.ctx.close();
 }
 
+// P7 (Task 6): ceo tok — javni sajt → /app → postojeća prijava → predmeti →
+// predmet → dokumenti → nazad → odjava → bez ostataka. Prijava/odjava u legacy
+// delu su zamenjene minimalnim stubom (upis/brisanje kanonskog zapisa), jer je
+// legacy prijava van obima; V2 strana toka je stvarna.
+{
+  const stub = "window.doLogout = function () { localStorage.removeItem(" + JSON.stringify(KLJUC) + "); location.reload(); };";
+  const o = await otvori(null, "/", { legacyStub: stub });
+  zapisi("P7.tok", "javni sajt: „Uđi u aplikaciju“ vodi na /app", (await o.p.evaluate(() => [...document.querySelectorAll("a.dugme")].every(a => a.getAttribute("href") === "/app"))));
+  await o.p.click("header a.dugme");
+  await cekaj(o.p, () => location.pathname === "/app" && document.getElementById("empty").dataset.stanje === "bez-prijave");
+  zapisi("P7.tok", "/app bez prijave: V2 primarni, poziv na postojeću prijavu", (await ekran(o.p)).prijava === "/app-legacy?posle=app");
+  await o.p.click("#empty-prijava");
+  await cekaj(o.p, () => location.pathname === "/app-legacy");
+  await o.p.evaluate(([k, v]) => localStorage.setItem(k, v), [KLJUC, ses("korisnik-A", "vx-e2e-A")]);   // postojeća prijava upisuje sesiju
+  await cekaj(o.p, () => location.pathname === "/app" && document.querySelectorAll("#rows tr").length === 12);
+  zapisi("P7.tok", "posle prijave: nazad na /app, stvarni predmeti", (await ekran(o.p)).redovi === 12);
+  await o.p.click('#rows tr[data-id="korisnik-A-00000"] .case__name');
+  await cekaj(o.p, () => document.querySelectorAll("#predmet-cinjenice dt").length > 0);
+  await o.p.click("#tab-dokumenti");
+  await cekaj(o.p, () => document.querySelectorAll("#dok-lista button").length > 0);
+  await o.p.click("#dok-lista li:first-child button");
+  await cekaj(o.p, () => !document.getElementById("dok-tekst").hidden);
+  zapisi("P7.tok", "predmet → Dokumenti → stvaran tekst dokumenta", (await o.p.evaluate(() => document.getElementById("dok-tekst").textContent)) === "TEKST-A0-d0 sadržaj spisa.");
+  await o.p.click("#predmet-nazad");
+  await cekaj(o.p, () => document.documentElement.dataset.pogled !== "predmet");
+  zapisi("P7.tok", "„Predmeti“ vraća registar", (await ekran(o.p)).redovi === 12);
+  await o.p.click("#odjava");
+  await cekaj(o.p, () => location.pathname === "/app-legacy" && location.search === "?posle=app");
+  await o.p.waitForTimeout(500);
+  await o.p.goto(BASE + "/app#/predmeti/korisnik-A-00000/dokumenti");
+  await cekaj(o.p, () => document.getElementById("predmet-stanje").dataset.stanje === "bez-prijave");
+  const e = await o.p.evaluate(() => ({ tekst: document.body.innerText, mem: window.__vxDetaljUMemoriji(), redovi: document.querySelectorAll("#rows tr").length }));
+  zapisi("P7.tok", "posle odjave: direktan link na predmet ne prikazuje ništa (bez ostataka)", e.mem.predmet === null && e.mem.tekst === 0 && e.redovi === 0 && !/TEKST-A0|Predmet korisnik-A/.test(e.tekst));
+  await o.ctx.close();
+}
+
 await browser.close();
 py.kill();
 await new Promise(r => py.once("exit", r));
