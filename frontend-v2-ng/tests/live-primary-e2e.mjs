@@ -91,13 +91,13 @@ const DEMO = /Demonstracioni|Demo nalog|Referentni demo datum|nije deo ovog prot
 
 // P1/P2: bez prijave — LIVE, poziv na postojeću prijavu, nikad DEMO
 for (const adresa of ["/app", "/app?rezim=demo", "/app?rezim=nesto"]) {
-  const preApi = metodiV2.length;
+  const preZahteva = metodiV2.length;
   const o = await otvori(null, adresa);
   await cekaj(o.p, () => document.getElementById("empty").dataset.stanje === "bez-prijave");
   const e = await ekran(o.p);
   zapisi("P1.bez-prijave", `${adresa}: primarni V2, „Niste prijavljeni“, bez demo sadržaja`, e.prikaz === "primarni" && e.stanje === "bez-prijave" && e.redovi === 0 && !DEMO.test(e.tekst), `${e.prikaz} ${e.stanje}`);
   zapisi("P1.bez-prijave", `${adresa}: „Prijavite se“ vodi na postojeću prijavu (/app-legacy?posle=app)`, e.prijava === "/app-legacy?posle=app", String(e.prijava));
-  zapisi("P1.bez-prijave", `${adresa}: bez poziva /api/predmeti i bez odjave`, metodiV2.length === preApi && e.odjava === null);
+  zapisi("P1.bez-prijave", `${adresa}: bez poziva /api/predmeti i bez odjave`, metodiV2.length === preZahteva && e.odjava === null);
   await o.ctx.close();
 }
 // P3: prijavljen — stvarni predmeti, samo stvarne funkcije
@@ -132,11 +132,11 @@ for (const adresa of ["/app", "/app?rezim=demo", "/app?rezim=nesto"]) {
 }
 // P4: linkovi postojeće prijave (reset lozinke, #login) idu u legacy sa istim hash-om
 for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "#error=access_denied&error_description=x"]) {
-  const preApi = metodiV2.length;
+  const preZahteva = metodiV2.length;
   const o = await otvori(null, "/app" + hash);
   await cekaj(o.p, () => location.pathname === "/app-legacy");
   const put = await o.p.evaluate(() => location.pathname + location.hash);
-  zapisi("P4.prijava-linkovi", `/app${hash.slice(0, 22)}… → /app-legacy sa istim hash-om; V2 ga ne čita`, put === "/app-legacy" + hash && metodiV2.length === preApi, put.replace(/access_token=[^&]+/, "access_token=<skriveno>"));
+  zapisi("P4.prijava-linkovi", `/app${hash.slice(0, 22)}… → /app-legacy sa istim hash-om; V2 ga ne čita`, put === "/app-legacy" + hash && metodiV2.length === preZahteva, put.replace(/access_token=[^&]+/, "access_token=<skriveno>"));
   await o.ctx.close();
 }
 // P5: /app-legacy?posle=app vraća na /app čim postoji važeća sesija
