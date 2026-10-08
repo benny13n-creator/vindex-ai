@@ -195,3 +195,58 @@ export function vezaRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* ── Ročišta (routers/rocista.py) ── k.rocista = [{id, predmet_id, user_id, sud, datum, vreme, status, ...}]
+ * GET  /api/rocista?predmet_id=  → samo pozivaočeva (po user_id), po datumu; {rocista, ukupno}
+ * POST /api/rocista              → predmet mora biti pozivaočev (404); datum YYYY-MM-DD (422); {rociste} */
+export function rocistaRuta(korisnici, kuke = {}) {
+  let n = 0;
+  return async (req, url, res) => {
+    if (url.pathname !== "/api/rocista") return false;
+    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname + ":" + req.method, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    const svi = Object.values(korisnici).flatMap(x => x.rocista || []);
+    if (req.method === "GET") {
+      const pid = url.searchParams.get("predmet_id");
+      let r = svi.filter(x => x.user_id === k.id && (!pid || x.predmet_id === pid)).sort((a, b) => (a.datum < b.datum ? -1 : 1));
+      if (kuke.izmeniListu) r = kuke.izmeniListu(r);
+      json(res, 200, { rocista: r, ukupno: r.length });
+      return true;
+    }
+    if (req.method !== "POST") { json(res, 405, {}); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(b.datum || "") || !String(b.sud || "").trim()) { json(res, 422, { detail: [{ loc: ["body", "datum"] }] }); return true; }
+    if (!k.predmeti.some(p => p.id === b.predmet_id && p.user_id === k.id)) { json(res, 404, { detail: "Predmet nije pronađen" }); return true; }
+    const red = { id: `roc-${k.id}-${++n}`, predmet_id: b.predmet_id, user_id: k.id, sud: b.sud, datum: b.datum, vreme: b.vreme || null,
+      sudnica: b.sudnica || null, broj_predmeta_suda: b.broj_predmeta_suda || null, napomena: b.napomena || null, status: "zakazano" };
+    (k.rocista = k.rocista || []).push(red);
+    (kuke.upisano || (() => {}))(red, b);
+    json(res, 200, { rociste: red, ok: true });
+    return true;
+  };
+}
+
+/* GET /api/search: samo podaci pozivaoca; kuke.nepotpuno = ["dokumenti"] simulira pad grane. */
+export function pretragaRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    if (url.pathname !== "/api/search" || req.method !== "GET") return false;
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+    if (q.length < 2) { json(res, 422, { detail: "Upit mora imati barem 2 karaktera." }); return true; }
+    const nep = kuke.nepotpuno || [];
+    const sadrzi = (v) => String(v || "").toLowerCase().includes(q);
+    const moji = k.predmeti.filter(p => p.user_id === k.id);
+    const out = { q, predmeti: [], dokumenti: [], beleske: [], hronologija: [] };
+    if (!nep.includes("predmeti")) out.predmeti = moji.filter(p => sadrzi(p.naziv)).map(p => ({ tip: "predmet", id: p.id, naziv: p.naziv, preview: "", meta: { status: p.status } }));
+    if (!nep.includes("dokumenti")) out.dokumenti = (k.dokumentiPretraga || []).filter(d => sadrzi(d.naziv_fajla)).map(d => ({ tip: "dokument", id: d.id, naziv: d.naziv_fajla, preview: "", meta: { predmet_id: d.predmet_id } }));
+    if (!nep.includes("beleske")) out.beleske = Object.entries(k.beleske || {}).flatMap(([pid, l]) => l.filter(b => sadrzi(b.sadrzaj)).map(b => ({ tip: "beleska", id: b.id, naziv: b.sadrzaj.slice(0, 60), preview: b.sadrzaj, meta: { predmet_id: pid } })));
+    out.ukupno = out.predmeti.length + out.dokumenti.length + out.beleske.length;
+    if (nep.length) out.nepotpuno = nep;
+    json(res, 200, out);
+    return true;
+  };
+}

@@ -116,6 +116,11 @@ class _Upit:
         self.opseg = (0, n - 1)
         return self
 
+    def offset(self, n, *a, **k):
+        duzina = (self.opseg[1] - self.opseg[0]) if self.opseg else 10 ** 9
+        self.opseg = (n, n + duzina)
+        return self
+
     def range(self, a, b, *x, **k):
         self.opseg = (a, b)
         return self

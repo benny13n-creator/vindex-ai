@@ -461,6 +461,26 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
 .check { display: flex; gap: var(--sp-2); align-items: flex-start; margin-top: var(--sp-3); cursor: pointer; }
 .check input { margin-top: 3px; }
 select.field__input { height: 36px; }
+.field-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+.hearings { list-style: none; margin: var(--sp-3) 0 0; padding: 0; border-top: 1px solid var(--line); }
+.hearings:empty { border-top: 0; }
+.hearing { display: grid; grid-template-columns: 160px minmax(0, 1fr); column-gap: var(--sp-4); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.hearing__when { color: var(--text-1); font-variant-numeric: tabular-nums; }
+.hearing__court { overflow-wrap: anywhere; }
+.hearing__meta, .hearing__note { grid-column: 2; color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+.hearing__note { white-space: pre-wrap; }
+#roc-poruka { margin-top: var(--sp-3); }
+#pretraga-link { }
+.results { display: flex; flex-direction: column; gap: var(--sp-6); margin-top: var(--sp-5); }
+.results:empty { display: none; }
+.results__title { margin: 0 0 var(--sp-2); font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-heading); }
+.results__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.results__item { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--text-1); text-decoration: none; }
+.results__item:hover .results__name { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.results__name { display: block; overflow-wrap: anywhere; }
+.results__preview { display: block; margin-top: 2px; color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+#pr-nepotpuno { margin-top: var(--sp-3); }
+@media (max-width: 859px) { .field-row { grid-template-columns: minmax(0, 1fr); } .hearing { grid-template-columns: minmax(0, 1fr); } .hearing__meta, .hearing__note { grid-column: 1; } }
 @media (max-width: 859px) { .chrono__item { grid-template-columns: minmax(0, 1fr); } .chrono__meta { grid-column: 1; } }
 
 .matter { display: flex; flex-direction: column; flex: 1; min-height: 0; }

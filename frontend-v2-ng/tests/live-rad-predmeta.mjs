@@ -166,7 +166,7 @@ for (const [naziv, kuka, stanje] of [["500", { status: 500 }, "nepoznato"], ["pr
   const s = await scenario({ detalj: { izmeniDetalj: (t) => { const x = { ...t }; delete x.beleske; delete x.hronologija; return x; } } }, { odeljak: "/rad" });
   await cekaj(s.p, () => !document.getElementById("odeljak-rad").hidden);
   const e = await ekran(s.p);
-  zapisi("B.istina", "odgovor bez beleški/hronologije → „nisu učitane“, nikad „nema beleški“", /nisu učitane/.test(e.belStanje || "") && /nije učitana/.test(e.hronStanje || "") && !/nema beleški|prazna/i.test(e.tekst), `${e.belStanje} / ${e.hronStanje}`);
+  zapisi("B.istina", "odgovor bez beleški/hronologije → „nisu učitane“, nikad „nema beleški“", /nisu učitane/.test(e.belStanje || "") && /nije učitana/.test(e.hronStanje || "") && !/nema beleški/i.test(e.tekst) && !/Hronologija predmeta je prazna/.test(e.tekst), `${e.belStanje} / ${e.hronStanje}`);
   await s.zatvori();
 }
 

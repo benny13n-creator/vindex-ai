@@ -46,6 +46,7 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5v13a6.5 6.5 0 0 0 0-13z" class="fill"/></svg>
           <span id="theme-toggle-label">Svetla tema</span>
         </button>
+        <a class="text-btn" id="pretraga-link" href="#/pretraga" hidden>Pretraga</a>
         <span class="account" title="Demonstracioni nalog">Demo nalog</span>
         <a class="text-btn" id="odjava" href="/app" hidden>Odjava</a>
       </div>
@@ -149,6 +150,25 @@
         </form>
       </section>
 
+      <!-- Pretraga (samo LIVE, NS005). Puni src/pretraga.js. -->
+      <section class="matter" id="pretraga-pogled" hidden aria-labelledby="pr-naslov">
+        <div class="matter__head">
+          <a class="matter__back" href="#/">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
+          <h1 class="sheet__title matter__title" id="pr-naslov" tabindex="-1">Pretraga</h1>
+          <p class="matter__ref">Predmeti, dokumenti, beleške i hronologija vaših predmeta.</p>
+        </div>
+        <div class="matter__body">
+          <form class="form" id="pr-forma" role="search" novalidate>
+            <div class="field"><label class="field__label" for="pr-upit">Šta tražite</label>
+              <input class="field__input" id="pr-upit" type="search" maxlength="200" autocomplete="off" spellcheck="false"></div>
+          </form>
+          <p class="list-state" id="pr-stanje" role="status" aria-live="polite" hidden></p>
+          <p class="notice" id="pr-nepotpuno" data-stanje="nepoznato" hidden></p>
+          <div class="results" id="pr-rezultati"></div>
+        </div>
+      </section>
+
       <!-- Detalj predmeta (samo LIVE; samo čitanje). Sadržaj upisuje src/app.js kao tekst. -->
       <section class="matter" id="predmet" hidden aria-labelledby="predmet-naslov">
         <div class="matter__head">
@@ -159,7 +179,7 @@
         </div>
         <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
-          <a class="tabs__item" id="tab-rad" href="#/">Beleške i tok</a>
+          <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
@@ -245,7 +265,37 @@
           </section>
         </div>
         <div class="matter__body" id="odeljak-rad" hidden>
-          <section class="matter__section matter__section--first" aria-labelledby="bel-naslov">
+          <section class="matter__section matter__section--first" aria-labelledby="roc-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="roc-naslov">Ročišta</h2>
+              <button class="text-btn text-btn--line" id="roc-otvori" type="button" hidden>Zakaži ročište</button>
+            </div>
+            <form class="form form--inset" id="roc-forma" hidden novalidate aria-label="Zakazivanje ročišta">
+              <div class="field"><label class="field__label" for="roc-sud">Sud</label>
+                <input class="field__input" id="roc-sud" type="text" maxlength="300" autocomplete="off"></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="roc-datum">Datum</label>
+                  <input class="field__input" id="roc-datum" type="date"></div>
+                <div class="field"><label class="field__label" for="roc-vreme">Vreme</label>
+                  <input class="field__input" id="roc-vreme" type="time"></div>
+                <div class="field"><label class="field__label" for="roc-sudnica">Sudnica</label>
+                  <input class="field__input" id="roc-sudnica" type="text" maxlength="100" autocomplete="off"></div>
+              </div>
+              <div class="field"><label class="field__label" for="roc-broj">Broj predmeta u sudu</label>
+                <input class="field__input" id="roc-broj" type="text" maxlength="100" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="roc-napomena">Napomena</label>
+                <textarea class="field__input field__input--area" id="roc-napomena" rows="2" maxlength="2000"></textarea></div>
+              <p class="field__help">Zakazivanje ne šalje podsetnike.</p>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="roc-sacuvaj" type="submit">Zakaži ročište</button>
+                <button class="text-btn" id="roc-odustani" type="button">Odustani</button>
+              </div>
+            </form>
+            <p class="notice" id="roc-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="roc-stanje" role="status" hidden></p>
+            <ul class="hearings" id="roc-lista" aria-label="Ročišta predmeta"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="bel-naslov">
             <h2 class="matter__h2" id="bel-naslov">Beleške</h2>
             <form class="form" id="bel-forma" novalidate>
               <div class="field"><label class="field__label" for="bel-tekst">Nova beleška</label>
@@ -317,6 +367,8 @@
   <script src="src/nov-predmet.js"></script>
   <script src="src/rad-predmeta.js"></script>
   <script src="src/klijenti-predmeta.js"></script>
+  <script src="src/rocista-predmeta.js"></script>
+  <script src="src/pretraga.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

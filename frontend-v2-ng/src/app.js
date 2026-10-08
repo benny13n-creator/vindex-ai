@@ -334,6 +334,7 @@
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
     if (/^#\/predmeti\/nov\/?$/.test(location.hash)) return { pogled: "nov" };
+    if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
     var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
@@ -373,7 +374,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -417,6 +418,7 @@
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
     if (radPredmeta) radPredmeta.ocisti();
+    if (rocistaPredmeta) rocistaPredmeta.ocisti();
     $("predmet-prijava").hidden = true;
     ocistiDokument();
   }
@@ -433,6 +435,7 @@
   function prikaziOdeljak() {
     if (!ruta || !detaljPodaci) return;
     var o = ruta.odeljak;
+    if (o === "rad" && rocistaPredmeta) rocistaPredmeta.aktiviraj();
     $("odeljak-pregled").hidden = o !== "pregled";
     $("odeljak-rad").hidden = o !== "rad";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
@@ -488,6 +491,7 @@
     $("dok-prazno").hidden = v.dokumenti.length !== 0;
     $("predmet-odeljci").hidden = false;
     if (radPredmeta) radPredmeta.postavi(v);
+    if (rocistaPredmeta) rocistaPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "rad");
     prikaziOdeljak();
   }
 
@@ -552,9 +556,12 @@
     }
   }
 
-  var novPredmet = null, pogledRada = null;
+  var novPredmet = null, pretraga = null, pogledRada = null;
+  /* Radni pogledi bez predmeta: id sekcije + kontroler (otvori/zatvori). */
+  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga] }; }
   function zatvoriPogledRada() {
-    if (pogledRada === "nov") { novPredmet.zatvori(); $("nov-predmet").hidden = true; }
+    var p = pogledRada && pogledi()[pogledRada];
+    if (p) { p[1].zatvori(); $(p[0]).hidden = true; }
     pogledRada = null;
   }
 
@@ -567,8 +574,9 @@
       pogledRada = r.pogled;
       zatvoriFioku(false);
       koren.dataset.pogled = r.pogled;
-      $("nov-predmet").hidden = false;
-      novPredmet.otvori();
+      var pg = pogledi()[r.pogled];
+      $(pg[0]).hidden = false;
+      pg[1].otvori();
       return;
     }
     if (pogledRada) {
@@ -750,6 +758,7 @@
     /* NS005 — izmena, beleške, hronologija; posle upisa predmet se ponovo čita. */
     radPredmeta = window.VxRadPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     klijentiPredmeta = window.VxKlijentiPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
+    rocistaPredmeta = window.VxRocistaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
@@ -782,7 +791,12 @@
       kontrolerLive.osvezi();
       location.hash = adresaPredmeta(id, "pregled");
     } });
-    var uskladiNovLink = function () { $("nov-predmet-link").hidden = window.VxSesija.stanje().stanje !== window.VxSesija.STANJA.PRIJAVLJEN; };
+    pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    var uskladiNovLink = function () {
+      var prijavljen = window.VxSesija.stanje().stanje === window.VxSesija.STANJA.PRIJAVLJEN;
+      $("nov-predmet-link").hidden = !prijavljen;
+      $("pretraga-link").hidden = !prijavljen;
+    };
     window.VxSesija.naPromenu(uskladiNovLink);
     window.addEventListener("hashchange", primeniRutu);
 
