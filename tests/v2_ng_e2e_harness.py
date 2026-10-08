@@ -44,7 +44,8 @@ for _k in ("SUPABASE_DB_URL", "DATABASE_URL"):
         sys.exit(3)
 assert os.environ.get("SUPABASE_URL") == "https://fake.supabase.co"
 # Bar jedan od V2 prekidača (preview ili, od NS004, primarni /app).
-assert "1" in (os.environ.get("VINDEX_V2_NG_PREVIEW_ENABLED"), os.environ.get("VINDEX_V2_NG_PRIMARY_ENABLED"))
+# VX_E2E_SAJT=1: samo javni sajt, oba V2 prekidača isključena (kao produkcija bez aktivacije).
+assert os.environ.get("VX_E2E_SAJT") == "1" or "1" in (os.environ.get("VINDEX_V2_NG_PREVIEW_ENABLED"), os.environ.get("VINDEX_V2_NG_PRIMARY_ENABLED"))
 
 # ── 1. Čuvar soketa: samo loopback ──────────────────────────────────────────
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}

@@ -1732,82 +1732,50 @@ def root():
     return {"status": "ok", "servis": "Vindex AI"}
 
 
-@app.get("/kako-radi", include_in_schema=False)
-def site_kako_radi():
-    path = BASE_DIR / "site" / "kako-radi.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+# NS004: povučene marketinške stranice. Njihove tvrdnje nisu imale živ put u
+# proizvodu (docs/ns004-site-claims.md); trajno preusmerenje na odgovarajući
+# odeljak nove početne strane, da stari linkovi i pretraživači ne pucaju.
+_POVUCENE_STRANICE = {
+    "/kako-radi": "/#rad",
+    "/sposobnosti": "/#rad",
+    "/za-advokate": "/#rad",
+    "/web3": "/",
+    "/bezbednost": "/#nacela",
+    "/vizija": "/",
+    "/tehnologija": "/",
+    "/beta": "/#pristup",
+    "/kontakt": "/#pristup",
+}
 
 
-@app.get("/sposobnosti", include_in_schema=False)
-def site_sposobnosti():
-    path = BASE_DIR / "site" / "sposobnosti.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+def _povucena_stranica(cilj: str):
+    from fastapi.responses import RedirectResponse
+
+    def _ruta():
+        return RedirectResponse(url=cilj, status_code=301, headers={"Cache-Control": "public, max-age=300"})
+    return _ruta
 
 
-@app.get("/za-advokate", include_in_schema=False)
-def site_za_advokate():
-    path = BASE_DIR / "site" / "za-advokate.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+for _put, _cilj in _POVUCENE_STRANICE.items():
+    app.add_api_route(_put, _povucena_stranica(_cilj), methods=["GET"], include_in_schema=False)
 
 
-@app.get("/web3", include_in_schema=False)
-def site_web3():
-    """Digitalna imovina i usklađenost.
-
-    Ruta je `/web3` jer je to termin po kome je posetilac traži, ali je vidljivi
-    naziv modula „Digitalna imovina" — tako ga zove i sam kod (`migrations/060`).
-    Obim je usklađenost i provera porekla digitalne imovine; nikad trgovanje.
-    """
-    path = BASE_DIR / "site" / "web3.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+# NS004: asseti javnog sajta pod /v2/site/ — legacy /sw.js preskače /v2/*, pa
+# posetioci nikad ne dobijaju zastareo keš. Fontovi i kanonski logo se služe iz
+# frontend-v2-ng (jedan izvor, isti bajtovi kao u aplikaciji); potpisna pozadina
+# je ista datoteka koju koristi V2. Ne zavisi ni od jednog V2 prekidača.
+_SAJT_V2_DIR = BASE_DIR / "frontend-v2-ng"
 
 
-@app.get("/bezbednost", include_in_schema=False)
-def site_bezbednost():
-    path = BASE_DIR / "site" / "bezbednost.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+@app.get("/v2/site/potpis.js", include_in_schema=False)
+def sajt_potpis():
+    return FileResponse(str(_SAJT_V2_DIR / "src" / "signature-background.js"), media_type="text/javascript; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"})
 
 
-@app.get("/vizija", include_in_schema=False)
-def site_vizija():
-    path = BASE_DIR / "site" / "vizija.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/tehnologija", include_in_schema=False)
-def site_tehnologija():
-    path = BASE_DIR / "site" / "tehnologija.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/beta", include_in_schema=False)
-def site_beta():
-    path = BASE_DIR / "site" / "beta.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/kontakt", include_in_schema=False)
-def site_kontakt():
-    path = BASE_DIR / "site" / "kontakt.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+if (_SAJT_V2_DIR / "fonts").is_dir() and (_SAJT_V2_DIR / "brand").is_dir():
+    app.mount("/v2/site/fonts", _StaticFiles(directory=str(_SAJT_V2_DIR / "fonts")), name="sajt_fonts")
+    app.mount("/v2/site/brand", _StaticFiles(directory=str(_SAJT_V2_DIR / "brand")), name="sajt_brand")
 
 
 @app.get("/privacy")
@@ -2653,15 +2621,7 @@ async def diagnose(x_admin_key: str = Header(default="")):
 # Prvi element para je putanja, drugi je prioritet.
 _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/", "1.0"),
-    ("/kako-radi", "0.9"),
-    ("/sposobnosti", "0.9"),
-    ("/za-advokate", "0.9"),
-    ("/web3", "0.9"),
-    ("/bezbednost", "0.8"),
-    ("/vizija", "0.7"),
-    ("/tehnologija", "0.7"),
-    ("/beta", "0.8"),
-    ("/kontakt", "0.6"),
+    # NS004: povučene marketinške stranice (301 na početnu) nisu u sitemap-u.
     # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
     ("/privacy", "0.4"),
     ("/terms", "0.4"),

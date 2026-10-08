@@ -21,6 +21,13 @@ postoji u `site/` a nije zakačena na rutu je nevidljiva korisniku, i test koji
 
 Jedini izuzetak su strukturne provere HTML-a (§4), koje po prirodi gledaju
 sadržaj odgovora — ali i one gledaju ono što je server STVARNO poslao.
+
+NS004 (founder direktiva „nema tvrdnje bez živog puta u proizvodu"): sajt je
+jedna početna strana u V2 identitetu. Marketinške stranice bez živog puta su
+povučene (301 na odgovarajući odeljak). Ugovori tih stranica (Beta forma, /web3
+ograde, devet stranica) prevedeni su u: povučena ruta preusmerava, njen stari
+sadržaj više nije dostupan, a početna ne ponavlja nijednu od tih tvrdnji.
+Matrica tvrdnji: docs/ns004-site-claims.md.
 """
 import os
 import re
@@ -35,18 +42,18 @@ import api  # noqa: E402
 
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Devet stranica novog sajta.
-STRANICE = [
-    "/", "/kako-radi", "/sposobnosti", "/za-advokate", "/web3",
-    "/bezbednost", "/vizija", "/tehnologija", "/beta", "/kontakt",
-]
+# NS004: javni sajt je jedna početna strana.
+STRANICE = ["/"]
 
-# Stvarne rute aplikacije, proverene uživo: `/app` servira `index.html`, a
-# `#login` / `#register` otvaraju modal za prijavu (`static/vindex.js:8281-8288`).
-# Registracija JESTE otvorena — `POST /api/register` kreira korisnika preko
-# Supabase admin API-ja i vraća token.
-APP_PRIJAVA = "/app#login"
-APP_REGISTRACIJA = "/app#register"
+# Povučene marketinške stranice → 301 na odeljak početne (docs/ns004-site-claims.md).
+POVUCENE = {
+    "/kako-radi": "/#rad", "/sposobnosti": "/#rad", "/za-advokate": "/#rad", "/web3": "/",
+    "/bezbednost": "/#nacela", "/vizija": "/", "/tehnologija": "/", "/beta": "/#pristup", "/kontakt": "/#pristup",
+}
+
+# Ulaz u aplikaciju: `/app` (founder). Isključen V2 primarni prekidač → legacy
+# aplikacija sa prijavom; uključen → V2, koji prijavu vodi kroz /app-legacy.
+APP_ULAZ = "/app"
 
 # Postojeće pravne i bezbednosne stranice — sajt ih linkuje, ne redizajnira.
 PRAVNE = [
@@ -167,6 +174,24 @@ ZABRANJENO = [
     "doživotni pristup",
     "revolucionarn",
     "vodeća platforma",
+    # NS004 founder lista: generičke i apsolutne tvrdnje.
+    "budućnost prava",
+    "revolucij",
+    "transformacij",
+    "najmoćniji",
+    "najpametniji",
+    "AI advokat",
+    "nikada više",
+    "nikad više",
+    "sve što vam treba",
+    "jedina platforma",
+    "sve na jednom mestu",
+    "AI-powered",
+    "pokreće AI",
+    "AI analizira",
+    "propustite rok",
+    "pratite rokove",
+    "automatski prat",
 ]
 
 
@@ -271,14 +296,26 @@ def test_nema_zabranjenih_generickih_ikona(klijent, ruta):
 # 5. KONVERZIJA — Beta je jedini poziv na akciju
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_pocetna_vodi_na_betu(klijent):
-    assert 'href="/beta"' in _tekst(klijent, "/")
+@pytest.mark.parametrize("ruta,cilj", sorted(POVUCENE.items()))
+def test_povucena_stranica_trajno_preusmerava(klijent, ruta, cilj):
+    """Stari linkovi i pretraživači ne pucaju, a stari sadržaj nije dostupan."""
+    r = klijent.get(ruta, follow_redirects=False)
+    assert r.status_code == 301, f"{ruta} vraća {r.status_code}"
+    assert r.headers["location"] == cilj
+    assert "<html" not in r.text.lower(), f"{ruta} i dalje šalje stari sadržaj"
 
 
-def test_beta_forma_gadja_postojeci_endpoint(klijent):
-    """Forma mora slati na rutu koja stvarno postoji."""
-    telo = _tekst(klijent, "/beta")
-    assert "/waitlist/prijava" in telo
+def test_pocetna_ne_linkuje_povucene_stranice(klijent):
+    telo = _tekst(klijent, "/")
+    for ruta in POVUCENE:
+        assert f'href="{ruta}"' not in telo, f"početna linkuje povučenu stranicu {ruta}"
+
+
+def test_pocetna_nema_formu_za_listu_cekanja(klijent):
+    """POST /waitlist/prijava postoji, ali nije dokazan u produkciji bez upisa —
+    po founder pravilu sajt ga u NS004 ne nudi (docs/ns004-site-claims.md)."""
+    telo = _tekst(klijent, "/")
+    assert "/waitlist/prijava" not in telo and "<form" not in telo
 
 
 def test_waitlist_endpoint_prima_polja_koja_forma_salje(klijent):
@@ -304,38 +341,39 @@ def test_waitlist_endpoint_prima_polja_koja_forma_salje(klijent):
     )
 
 
-def test_beta_ne_obecava_email_potvrdu(klijent):
-    """SMTP se tiho preskače ako env nije podešen — korisnik dobija 200 i kad
-    nijedan mejl nije poslat. Zato stranica ne sme obećati potvrdu."""
-    telo = _vidljivi_tekst(klijent, "/beta").lower()
+def test_pocetna_ne_obecava_email_potvrdu(klijent):
+    """SMTP se tiho preskače ako env nije podešen — sajt ne sme obećati mejl."""
+    telo = _vidljivi_tekst(klijent, "/").lower()
     for izraz in ("proverite inboks", "potvrda je poslata", "poslali smo vam mejl",
                   "poslali smo vam email"):
-        assert izraz not in telo, f"/beta obećava mejl koji možda nije poslat: {izraz!r}"
+        assert izraz not in telo, f"početna obećava mejl koji možda nije poslat: {izraz!r}"
 
 
-@pytest.mark.parametrize("izraz", [r"cen[aeu]", r"€", r"RSD",
+@pytest.mark.parametrize("izraz", [r"cen[aeu]", r"€", r"\bRSD\b",
                                   r"dinara\s+mesečno", r"pretplat"])
-def test_beta_ne_pominje_cenu(klijent, izraz):
-    """Founding Partner nema definisanu cenu; nijedan plan se ne može kupiti.
+def test_pocetna_ne_pominje_cenu(klijent, izraz):
+    """Nijedan plan se ne može kupiti; sajt ne govori o ceni.
 
-    Granica reči je obavezna: `cena` kao podniz pogađa `proCENAt`, pa je prva
-    verzija ovog testa padala na rečenici koja uopšte ne govori o novcu.
+    Granica reči je obavezna: `cena` kao podniz pogađa `proCENAt`.
     """
-    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, "/beta"))
-    assert not re.search(izraz, telo, re.I), f"/beta pominje {izraz!r}"
+    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, "/"))
+    assert not re.search(izraz, telo, re.I), f"početna pominje {izraz!r}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 6. SEO
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_sitemap_navodi_sve_stranice(klijent):
+def test_sitemap_navodi_pocetnu_i_pravne_a_ne_povucene(klijent):
     r = klijent.get("/sitemap.xml")
     assert r.status_code == 200
-    for ruta in STRANICE:
-        if ruta == "/":
-            continue
-        assert ruta in r.text, f"sitemap ne navodi {ruta}"
+    from urllib.parse import urlparse
+    lokacije = [urlparse(u).path or "/" for u in re.findall(r"<loc>([^<]+)</loc>", r.text)]
+    assert "/" in lokacije
+    for ruta in ("/privacy", "/terms", "/security", "/dpa", "/ai-disclosure", "/bezbednosni-list"):
+        assert ruta in lokacije, f"sitemap ne navodi {ruta}"
+    for ruta in POVUCENE:
+        assert ruta not in lokacije, f"sitemap oglašava povučenu stranicu {ruta}"
 
 
 def test_robots_i_dalje_stiti_api(klijent):
@@ -359,8 +397,8 @@ def test_svaka_stranica_nudi_ulaz_u_aplikaciju(klijent, ruta):
     nestao i svaki put do proizvoda. Posetilac koji već ima nalog nije imao gde
     da klikne.
     """
-    assert APP_PRIJAVA in _tekst(klijent, ruta), (
-        f"{ruta} nema poziv na akciju ka aplikaciji ({APP_PRIJAVA})"
+    assert f'href="{APP_ULAZ}"' in _tekst(klijent, ruta), (
+        f"{ruta} nema poziv na akciju ka aplikaciji ({APP_ULAZ})"
     )
 
 
@@ -391,79 +429,26 @@ def test_registracija_je_stvarno_otvorena(klijent):
     assert r.status_code in (400, 422), f"neočekivan odgovor: {r.status_code}"
 
 
-def test_pocetna_razdvaja_dva_putovanja(klijent):
-    """Postojeći korisnik i budući korisnik ne smeju deliti isti poziv na akciju.
-
-    Nalog radi odmah; Beta je razgovor o zatvorenom testiranju. Jedan CTA za
-    oba bi značio da jedno od to dvoje nije istina.
-    """
+def test_pocetna_ima_jedan_ulaz_u_aplikaciju(klijent):
+    """Jedan poziv na akciju, jedno odredište: /app (founder). Bez obećanja
+    besplatnog ili automatskog naloga."""
     telo = _tekst(klijent, "/")
-    assert APP_PRIJAVA in telo, "nema puta za postojećeg korisnika"
-    assert APP_REGISTRACIJA in telo, "nema puta za otvaranje naloga"
-    assert 'href="/beta"' in telo, "nema puta za beta pristup"
-
-
-def test_beta_ostaje_odvojena_od_pristupa_aplikaciji(klijent):
-    """Beta ne sme biti predstavljena kao otvaranje naloga."""
-    telo = _vidljivi_tekst(klijent, "/beta").lower()
+    ulazi = set(re.findall(r'<a[^>]+class="dugme[^"]*"[^>]+href="([^"]+)"', telo))
+    assert ulazi == {APP_ULAZ}, f"pozivi na akciju vode na {ulazi}"
+    vidljivo = _vidljivi_tekst(klijent, "/").lower()
     for izraz in ("besplatno", "odmah dobijate nalog", "automatski nalog"):
-        assert izraz not in telo, f"/beta implicira otvaranje naloga: {izraz!r}"
+        assert izraz not in vidljivo, f"početna obećava nalog: {izraz!r}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 8. DIGITALNA IMOVINA (/web3)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_web3_je_u_navigaciji(klijent):
-    for ruta in STRANICE:
-        assert 'href="/web3"' in _tekst(klijent, ruta), f"{ruta} ne linkuje /web3"
-
-
-def test_web3_ponavlja_obavezne_ograde(klijent):
-    """Dve ograde iz koda su obavezne i bez njih stranica laže.
-
-    Obe je napisao neko ko zna granice alata, pre nego što ih je iko tražio:
-    `routers/wallet_provenance.py:70` i `:302-305`.
-    """
-    telo = _cist_tekst(klijent, "/web3")
-    assert "NE predstavlja potpunu blockchain forenzičku analizu" in telo, (
-        "/web3 ne ponavlja obaveznu ogradu o dometu analize"
-    )
-    assert "rizik" in telo.lower(), "/web3 ne pominje rizik uopšte"
-
-
-def test_web3_ne_obecava_trgovanje_ni_savet(klijent):
-    """Obim je usklađenost i provera porekla. Nikad trgovanje, nikad savet.
-
-    Zabranjuje se TVRDNJA, ne reč. Prva verzija ovog testa je zabranjivala niz
-    „trgovanje" i time oborila rečenicu „Nije za trgovanje." — dakle baš onu
-    koja granicu POSTAVLJA. Test koji kažnjava poštenje je gori od nikakvog.
-    """
-    telo = _cist_tekst(klijent, "/web3").lower()
-
-    # Afirmativne formulacije — svaka bi značila izlazak iz obima.
-    for izraz in ("za trgovanje digitalnom imovinom", "preporuka za kupovinu",
-                  "savet o ulaganju", "prikaz prinosa", "upravljanje portfolijom",
-                  "defi prinos", "trgujte"):
-        assert izraz not in telo, f"/web3 izlazi iz obima: {izraz!r}"
-
-    # I obrnuto: granica mora biti IZRIČITO napisana, ne samo poštovana.
-    #
-    # Ne traži se određena reč nego tvrdnja. Ranija verzija je zahtevala niz
-    # „nije za trgovanje", pa je stranica granicu preformulisala pozitivno —
-    # što je bolje napisano, a test bi je oborio. Test sme da traži da granica
-    # POSTOJI, ne kojim je rečima izgovorena.
-    assert "usklađenost i provera porekla" in telo, (
-        "/web3 nigde ne kaže koji mu je obim"
-    )
-    assert "ne preporučuje kupovinu" in telo, (
-        "/web3 ne odriče preporuku kupovine — granicu mora izgovoriti, ne samo "
-        "je ne prekršiti"
-    )
-
-
-def test_web3_ne_obecava_cenu_ni_trenutnu_aktivaciju(klijent):
-    """Modul je gejtovan dodatkom, a Stripe nije integrisan — aktivacija je ručna."""
-    telo = _cist_tekst(klijent, "/web3").lower()
-    for izraz in ("€", "rsd", "kupite", "pretplatite se"):
-        assert izraz not in telo, f"/web3 obećava kupovinu koja ne postoji: {izraz!r}"
+def test_web3_stranica_je_povucena_a_pocetna_je_ne_reklamira(klijent):
+    """Digitalna imovina nema V2 korisnički tok u NS004 — stranica je povučena
+    (301 na početnu), a početna je ne reklamira. Obim modula (usklađenost i
+    provera porekla, nikad trgovanje) ostaje u proizvodu; sajt o njemu ćuti."""
+    assert klijent.get("/web3", follow_redirects=False).status_code == 301
+    telo = _cist_tekst(klijent, "/").lower()
+    for izraz in ("web3", "digitalna imovina", "kripto", "blockchain", "trgovanj", "defi", "prinos"):
+        assert izraz not in telo, f"početna pominje {izraz!r}"

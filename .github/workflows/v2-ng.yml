@@ -24,6 +24,8 @@ on:
       - "tests/test_v2_ng_*.py"
       - "tests/v2_ng_e2e_harness.py"
       - "tests/v2_ng_docker_rehearsal.py"
+      - "site/**"
+      - "tests/test_website_public.py"
       - "tests/test_z015_v2_*.py"
       - "tests/test_z016_gate_a.py"
       # verify:session-contract izvodi kanonski ključ sesije iz ovih izvora.
@@ -145,7 +147,7 @@ jobs:
       - name: Targeted preview/summary + existing V2 route and SW contract tests
         run: |
           python -m pytest -q -rs -p no:randomly -p no:cacheprovider \
-            tests/test_v2_ng_preview.py tests/test_v2_ng_summary.py tests/test_v2_ng_detail.py tests/test_v2_ng_primary.py \
+            tests/test_v2_ng_preview.py tests/test_v2_ng_summary.py tests/test_v2_ng_detail.py tests/test_v2_ng_primary.py tests/test_website_public.py \
             tests/test_z015_v2_rute.py tests/test_z015_v2_sw_izolacija.py tests/test_z016_gate_a.py
 
   e2e:
