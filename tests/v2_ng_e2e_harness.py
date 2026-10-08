@@ -88,6 +88,7 @@ TOKENI = {
     "vx-e2e-A": "korisnik-A", "vx-e2e-B": "korisnik-B", "vx-e2e-240": "korisnik-240",
     "vx-e2e-prazan": "korisnik-prazan", "vx-e2e-1037": "korisnik-1037",
     "vx-e2e-sporiA": "korisnik-sporiA", "vx-e2e-xss": "korisnik-xss",
+    "vx-e2e-deleg": "korisnik-deleg",
 }
 KASNJENJE = {"korisnik-sporiA": 1.5}
 XSS = '<img src=x onerror="window.__xss=1">Predmet<script>window.__xss=2</script>'
@@ -114,9 +115,33 @@ BAZA = (
 )
 
 
+# NS004: dokumenti, klijenti i delegiranja za detalj predmeta (postojeće rute).
+def _dok(predmet, vlasnik, i, tekst, naziv=None):
+    return {"id": f"{predmet}-d{i}", "predmet_id": predmet, "user_id": vlasnik, "naziv_fajla": naziv or f"Spis {i + 1} {predmet}.pdf",
+            "storage_path": f"intake/{predmet}/{i}", "pinecone_namespace": f"kancelarija_{vlasnik}" if tekst is not None else "",
+            "status": "indeksirano", "velicina_kb": 40 + i, "redni_broj": i + 1, "tip_dokaza": "podnesak",
+            "created_at": f"2026-09-0{i + 1}T09:00:00+00:00", "tekst_sadrzaj": tekst}
+
+
+TABELE = {
+    "predmet_dokumenti": [
+        _dok("korisnik-A-00000", "korisnik-A", 0, "TEKST-A0-d0 sadržaj spisa."), _dok("korisnik-A-00000", "korisnik-A", 1, ""),
+        _dok("korisnik-B-00000", "korisnik-B", 0, "TAJNI-TEKST-B0"), _dok("korisnik-B-00001", "korisnik-B", 0, "TAJNI-TEKST-B1"),
+        _dok("korisnik-xss-00000", "korisnik-xss", 0, "x", naziv='<script>window.__xss=4</script>spis.pdf'),
+    ],
+    "predmet_klijenti": [{"predmet_id": "korisnik-A-00000", "klijent_id": "kl-A1", "uloga_klijenta": "tužilac", "napomena": "", "kreirano": "2026-09-01"},
+                         {"predmet_id": "korisnik-A-00000", "klijent_id": "kl-B1", "uloga_klijenta": "tuženi", "napomena": "", "kreirano": "2026-09-01"}],
+    "klijenti": [{"id": "kl-A1", "user_id": "korisnik-A", "ime": "Ana", "prezime": "Jović", "firma": "", "tip": "fizicko", "status": "aktivan", "deleted_at": None},
+                 {"id": "kl-B1", "user_id": "korisnik-B", "ime": "TAJNI", "prezime": "KlijentB", "firma": "", "tip": "fizicko", "status": "aktivan", "deleted_at": None}],
+    "predmet_delegiranja": [{"id": "dl1", "predmet_id": "korisnik-B-00001", "na_user_id": "korisnik-deleg", "status": "aktivno"},
+                            {"id": "dl2", "predmet_id": "korisnik-B-00002", "na_user_id": "korisnik-deleg", "status": "opozvano"}],
+}
+
+
 class _Upit:
     def __init__(self, tabela):
         self.tabela, self.kolone, self.filteri, self.ilike_, self.opseg = tabela, "*", [], None, None
+        self.u_listi, self.je_null, self.jedan = [], [], None
 
     def select(self, kolone, count=None):
         self.kolone = kolone
@@ -133,6 +158,23 @@ class _Upit:
     def order(self, *a, **k):
         return self
 
+    def in_(self, k, vrednosti):
+        self.u_listi.append((k, list(vrednosti)))
+        return self
+
+    def is_(self, k, v):
+        self.je_null.append(k)
+        return self
+
+    # postgrest 2.28.3: maybe_single() vraća None kad nema reda; single() baca grešku.
+    def maybe_single(self):
+        self.jedan = "maybe"
+        return self
+
+    def single(self):
+        self.jedan = "single"
+        return self
+
     def range(self, a, b):
         self.opseg = (a, b)
         return self
@@ -144,9 +186,20 @@ class _Upit:
     def execute(self):
         _zapisi({"vrsta": "upit", "tabela": self.tabela, "select": self.kolone,
                  "eq": [[k, v] for k, v in self.filteri], "opseg": list(self.opseg) if self.opseg else None})
-        if self.tabela != "predmeti":
+        izvor = BAZA if self.tabela == "predmeti" else TABELE.get(self.tabela)
+        if izvor is None:
             return types.SimpleNamespace(data=[], count=0)
-        redovi = [r for r in BAZA if all(r.get(k) == v for k, v in self.filteri)]
+        redovi = [r for r in izvor if all(r.get(k) == v for k, v in self.filteri)
+                  and all(r.get(k) in v for k, v in self.u_listi) and all(r.get(k) is None for k in self.je_null)]
+        if self.tabela != "predmeti":
+            redovi = [dict(r) for r in redovi]
+            if self.jedan:
+                if not redovi:
+                    if self.jedan == "single":
+                        raise RuntimeError("postgrest APIError: 0 rows (single)")
+                    return None
+                return types.SimpleNamespace(data=redovi[0], count=1)
+            return types.SimpleNamespace(data=redovi, count=len(redovi))
         vlasnik = dict(self.filteri).get("user_id")
         if vlasnik in KASNJENJE:
             time.sleep(KASNJENJE[vlasnik])
@@ -157,6 +210,12 @@ class _Upit:
         if self.kolone != "*":
             polja = [c.strip() for c in self.kolone.split(",")]
             redovi = [{c: r.get(c) for c in polja} for r in redovi]
+        if self.jedan:
+            if not redovi:
+                if self.jedan == "single":
+                    raise RuntimeError("postgrest APIError: 0 rows (single)")
+                return None
+            return types.SimpleNamespace(data=dict(redovi[0]), count=1)
         return types.SimpleNamespace(data=redovi, count=ukupno)
 
     def __getattr__(self, ime):
@@ -192,6 +251,30 @@ def _auth(authorization):
 
 api._require_auth = _auth
 api._get_supa = lambda: _Supa()
+
+
+# NS004: preview/download koriste FastAPI zavisnost `get_current_user`.
+async def _trenutni(authorization: str = __import__("fastapi").Header(None)):
+    return {"user_id": _auth(authorization).id, "email": "e2e@primer.test"}
+
+
+api.app.dependency_overrides[api.get_current_user] = _trenutni
+# Rate limit nije predmet ovog testa (svi zahtevi dolaze sa 127.0.0.1).
+api.limiter.enabled = False
+
+# Audit zapis (postojeće ponašanje preview rute) se BELEŽI, ne šalje: odvojeno
+# od upisa u podatke korisnika, da test pokaže tačno kada ga V2 izaziva.
+import shared.audit_immutable as _audit  # noqa: E402
+
+
+async def _audit_zapis(akcija, **k):
+    _zapisi({"vrsta": "AUDIT", "akcija": akcija, "put": _PUT.get()})
+
+
+_audit.log_action = _audit_zapis
+import routers.dokument as _rdok  # noqa: E402
+
+_rdok._fetch_session_tekst = lambda *a, **k: (_zapisi({"vrsta": "pinecone-fallback", "put": _PUT.get()}), "")[1]
 _zapisi({"vrsta": "spreman", "preview_ruta": any(getattr(r, "path", "") == "/v2/preview/" for r in api.app.routes)})
 
 import uvicorn  # noqa: E402

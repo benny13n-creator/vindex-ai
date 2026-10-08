@@ -4824,7 +4824,11 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     user = await _require_auth_async(authorization)
     supa = _get_supa()
     row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
-    if not row.data:
+    # NS004: postgrest `maybe_single()` vraca None (ne prazan odgovor) kad red ne
+    # postoji -- `row.data` je tada pucao u 500 za svaki tudj/nepostojeci predmet.
+    # Ishod je bio fail-closed, ali V2 nije mogao da razlikuje „nije dostupan" od
+    # „greska servera". Isti 404 za tudj i nepostojeci predmet; pristup se ne menja.
+    if not row or not row.data:
         # FIX (nightly repair, 2026-07-24): predmet_delegiranja (routers/
         # enterprise.py::delegiraj_predmet) je ranije upisivao zapis o
         # delegiranju koji NIŠTA drugo u kodu nikad nije čitalo za pristup
@@ -4840,12 +4844,12 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
             .eq("na_user_id", user.id) \
             .eq("status", "aktivno") \
             .maybe_single().execute()
-        if deleg.data:
+        if deleg and deleg.data:
             row = supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
 
     # BETA-DEL-001: predmet oznacen za brisanje se ponasa kao da ne postoji.
     # Provera je nad REZULTATOM, ne nad upitom (v. `_je_u_brisanju`).
-    if not row.data or _je_u_brisanju(row.data):
+    if not row or not row.data or _je_u_brisanju(row.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     beleske, istorija, dokumenti, hronologija, komentari, predmet_klijenti = await asyncio.gather(
@@ -6660,10 +6664,12 @@ async def predmet_dokument_preview(
             .eq("id", dok_id)
             .eq("predmet_id", predmet_id)
             .eq("user_id", uid)
-            .single()
+            .maybe_single()
             .execute()
     )
-    if not row.data:
+    # NS004: `.single()` je za tudj/nepostojeci dokument bacao izuzetak (500);
+    # sada je to isti 404 kao i za `download` ispod. Upit (vlasnik) je nepromenjen.
+    if not row or not row.data:
         raise HTTPException(status_code=404, detail="Dokument nije pronađen")
 
     d = row.data

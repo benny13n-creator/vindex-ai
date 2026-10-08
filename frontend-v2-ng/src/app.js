@@ -96,7 +96,10 @@
 
     var c1 = el("td", "cell-name");
     var a = el("a", "case__name", p.naziv);
-    a.href = "#"; a.dataset.akcija = "predmet";
+    /* LIVE: stvaran link na detalj predmeta (radi i „otvori u novom tabu“).
+     * DEMO nema detalj: ostaje poštena poruka da to nije deo prikaza. */
+    if (demo) { a.href = "#"; a.dataset.akcija = "predmet"; }
+    else a.href = adresaPredmeta(p.id, "pregled");
     /* Prikaz je ograničen na dva reda (CSS). Podatak se ne skraćuje: ceo naziv
      * je u DOM-u (čitač ekrana, pretraga), u `title` za miš, a fokus tastature
      * otkriva ceo naziv na mestu. */
@@ -301,6 +304,251 @@
     $("demo-date").textContent = "";
   }
 
+  /* ── Detalj predmeta (LIVE, samo čitanje) ──────────────────────────────
+   * Ruta je u hash-u: #/predmeti/<id> i #/predmeti/<id>/dokumenti. Radi isto
+   * pod /v2/preview/ i pod /app; Back, osvežavanje i direktan link rade bez
+   * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
+   * je registar. Sav sadržaj se upisuje kao tekst. */
+  function adresaPredmeta(id, odeljak) {
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : "");
+  }
+  function rutaIzAdrese() {
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti)?\/?$/.exec(location.hash);
+    if (!m) return null;
+    var id;
+    try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
+    return { id: id, odeljak: m[2] ? "dokumenti" : "pregled" };
+  }
+
+  var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
+  /* Isti rečnik vrsta koji koristi postojeći /app (static/vindex.js, izbor vrste
+   * predmeta); nepoznata vrednost se prikazuje doslovno. */
+  var NAZIV_VRSTE = { parnicno: "Parnični", krivicno: "Krivični", upravno: "Upravni", radno: "Radno", porodicno: "Porodičnopravni",
+                      nasledjivanje: "Ostavinski", privredno: "Privredno", nepokretnosti: "Nepokretnosti", ostalo: "Ostalo" };
+  var brojFormat = new Intl.NumberFormat("sr-Latn-RS", { maximumFractionDigits: 2 });
+  var STANJE_PREDMETA = {
+    "ucitavanje": ["Učitavanje predmeta…", "Podaci predmeta se učitavaju sa servera."],
+    "bez-prijave": TEKST_STANJA["bez-prijave"],
+    "istekla": TEKST_STANJA["istekla"],
+    "greska-sesije": TEKST_STANJA["greska-sesije"],
+  };
+  /* 403 i 404 daju ISTU poruku: spolja se ne razlikuje tuđ od nepostojećeg predmeta. */
+  var GRESKA_PREDMETA = {
+    NOT_FOUND: ["Predmet nije dostupan", "Predmet ne postoji ili nemate pristup. Podaci se ne prikazuju."],
+    FORBIDDEN: ["Predmet nije dostupan", "Predmet ne postoji ili nemate pristup. Podaci se ne prikazuju."],
+    AUTH_REQUIRED: ["Prijava više nije važeća", "Server nije prihvatio sesiju. Prijavite se ponovo u Vindex."],
+    RATE_LIMITED: ["Previše zahteva", "Server je privremeno ograničio zahteve. Pokušajte ponovo malo kasnije."],
+    SERVER_ERROR: ["Predmet nije učitan", "Greška na serveru. Podaci predmeta se ne prikazuju."],
+    HTTP_ERROR: ["Predmet nije učitan", "Server je vratio neočekivan odgovor. Podaci se ne prikazuju."],
+    NETWORK_ERROR: ["Server nije dostupan", "Veza sa serverom nije uspostavljena. Predmet nije učitan."],
+    INVALID_RESPONSE: ["Odgovor servera nije ispravan", "Podaci nisu prikazani jer odgovor nije mogao pouzdano da se pročita."],
+  };
+  var GRESKA_DOKUMENTA = {
+    NOT_FOUND: "Dokument nije dostupan za pregled.",
+    FORBIDDEN: "Dokument nije dostupan za pregled.",
+    AUTH_REQUIRED: "Server nije prihvatio sesiju. Tekst dokumenta se ne prikazuje.",
+    RATE_LIMITED: "Server je privremeno ograničio zahteve. Pokušajte ponovo malo kasnije.",
+    NETWORK_ERROR: "Server nije dostupan. Tekst dokumenta nije učitan.",
+    INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
+  };
+
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null;
+  /* Samo za proveru: šta ekran detalja drži u memoriji. */
+  window.__vxDetaljUMemoriji = function () {
+    return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
+             tekst: $("dok-tekst").textContent.length };
+  };
+
+  function cinjenica(dl, naziv, vrednost) {
+    if (vrednost === null || vrednost === undefined || vrednost === "") return;
+    dl.append(el("dt", null, naziv), el("dd", null, String(vrednost)));
+  }
+  function nazivStatusa(s) { return Object.prototype.hasOwnProperty.call(NAZIV_STATUSA, s) ? NAZIV_STATUSA[s] : s; }
+
+  function ocistiDokument() {
+    izabraniDok = null;
+    $("dok-sadrzaj").hidden = true;
+    $("dok-uputstvo").hidden = false;
+    $("dok-naslov").textContent = "";
+    $("dok-cinjenice").replaceChildren();
+    $("dok-stanje").hidden = true; $("dok-stanje").textContent = ""; delete $("dok-stanje").dataset.stanje;
+    $("dok-tekst").hidden = true; $("dok-tekst").textContent = "";
+    $("odeljak-dokumenti").classList.remove("is-doc-open");
+    $("dok-nazad").hidden = true;
+    document.querySelectorAll("#dok-lista .docs__item").forEach(function (b) { b.removeAttribute("aria-current"); });
+  }
+
+  function ocistiPredmet() {
+    detaljPodaci = null;
+    $("predmet-naslov").textContent = "";
+    $("predmet-ref").replaceChildren();
+    $("predmet-cinjenice").replaceChildren();
+    $("predmet-klijenti").replaceChildren();
+    $("predmet-klijenti-blok").hidden = true;
+    $("dok-lista").replaceChildren();
+    $("dok-prazno").hidden = true;
+    $("dok-broj").textContent = "";
+    $("predmet-odeljci").hidden = true;
+    $("odeljak-pregled").hidden = true;
+    $("odeljak-dokumenti").hidden = true;
+    $("predmet-stanje").hidden = true;
+    ocistiDokument();
+  }
+
+  function prikaziStanjePredmeta(naslov, tekst, oznaka) {
+    ocistiPredmet();
+    $("predmet-stanje").hidden = false;
+    $("predmet-stanje").dataset.stanje = oznaka;
+    $("predmet-stanje-naslov").textContent = naslov;
+    $("predmet-stanje-tekst").textContent = tekst;
+  }
+
+  function prikaziOdeljak() {
+    if (!ruta || !detaljPodaci) return;
+    var dok = ruta.odeljak === "dokumenti";
+    $("odeljak-pregled").hidden = dok;
+    $("odeljak-dokumenti").hidden = !dok;
+    $("tab-pregled").href = adresaPredmeta(ruta.id, "pregled");
+    $("tab-dokumenti").href = adresaPredmeta(ruta.id, "dokumenti");
+    if (dok) { $("tab-dokumenti").setAttribute("aria-current", "page"); $("tab-pregled").removeAttribute("aria-current"); }
+    else { $("tab-pregled").setAttribute("aria-current", "page"); $("tab-dokumenti").removeAttribute("aria-current"); }
+  }
+
+  function prikaziPredmetPodatke(v) {
+    ocistiPredmet();
+    detaljPodaci = { predmet: v.predmet, dokumenti: v.dokumenti };
+    var p = v.predmet;
+    $("predmet-naslov").textContent = p.naziv || "Predmet bez naziva";
+    var ref = $("predmet-ref");
+    if (p.broj) ref.append(el("span", "ref__no", p.broj));
+    if (p.status) {
+      var poznat = Object.prototype.hasOwnProperty.call(NAZIV_STATUSA, p.status);
+      ref.append(el("span", poznat ? "state state--" + p.status : "state", nazivStatusa(p.status)));
+    }
+    var dl = $("predmet-cinjenice");
+    cinjenica(dl, "Broj predmeta", p.broj);
+    cinjenica(dl, "Vrsta", Object.prototype.hasOwnProperty.call(NAZIV_VRSTE, p.tip) ? NAZIV_VRSTE[p.tip] : p.tip);
+    cinjenica(dl, "Tužilac", p.tuzilac);
+    cinjenica(dl, "Tuženi", p.tuzeni);
+    cinjenica(dl, "Vrednost spora", p.vrednost !== null ? brojFormat.format(p.vrednost) + " RSD" : "");
+    cinjenica(dl, "Otvoren", p.otvoren ? datum(p.otvoren) : "");
+    cinjenica(dl, "Poslednja izmena", p.izmenjeno ? datum(p.izmenjeno) : "");
+    if (v.klijenti.length) {
+      v.klijenti.forEach(function (k) {
+        var li = el("li", "people__item");
+        li.append(el("span", "people__name", k.naziv));
+        var meta = [k.firma, k.uloga].filter(Boolean).join(" · ");
+        if (meta) li.append(el("span", "people__meta", meta));
+        $("predmet-klijenti").append(li);
+      });
+      $("predmet-klijenti-blok").hidden = false;
+    }
+    $("dok-broj").textContent = String(v.dokumenti.length);
+    var lista = $("dok-lista");
+    v.dokumenti.forEach(function (d) {
+      var li = el("li");
+      var b = el("button", "docs__item");
+      b.type = "button"; b.dataset.dok = d.id;
+      b.append(el("span", "docs__name", d.naziv || "Dokument bez naziva"));
+      var meta = [d.tip ? d.tip.replace(/_/g, " ") : "", d.datum ? datum(d.datum) : ""].filter(Boolean).join(" · ");
+      if (meta) b.append(el("span", "docs__meta", meta));
+      li.append(b); lista.append(li);
+    });
+    $("dok-prazno").hidden = v.dokumenti.length !== 0;
+    $("predmet-odeljci").hidden = false;
+    prikaziOdeljak();
+  }
+
+  function prikaziDokumentStanje(v) {
+    if (!detaljPodaci || v.dokId !== izabraniDok) return;
+    var st = $("dok-stanje");
+    $("dok-tekst").hidden = true; $("dok-tekst").textContent = "";
+    st.hidden = false; st.dataset.stanje = v.stanje === "greska" ? "greska" : v.stanje;
+    st.textContent = v.stanje === "ucitavanje" ? "Učitavanje teksta dokumenta…"
+      : (GRESKA_DOKUMENTA[v.greska && v.greska.kod] || "Tekst dokumenta nije učitan zbog greške na serveru.");
+  }
+
+  function prikaziDokumentTekst(v) {
+    if (!detaljPodaci || v.dokId !== izabraniDok) return;
+    var st = $("dok-stanje");
+    if (!v.dostupan) {
+      st.hidden = false; st.dataset.stanje = "bez-teksta";
+      st.textContent = "Tekst ovog dokumenta nije izdvojen, pa ne može da se prikaže u ovom pregledu.";
+      $("dok-tekst").hidden = true; $("dok-tekst").textContent = "";
+      return;
+    }
+    st.hidden = true; st.textContent = ""; delete st.dataset.stanje;
+    $("dok-tekst").textContent = v.tekst;
+    $("dok-tekst").hidden = false;
+  }
+
+  function izaberiDokument(id) {
+    if (!detaljPodaci) return;
+    var d = detaljPodaci.dokumenti.find(function (x) { return x.id === id; });
+    if (!d) return;
+    ocistiDokument();
+    izabraniDok = id;
+    document.querySelectorAll("#dok-lista .docs__item").forEach(function (b) {
+      if (b.dataset.dok === id) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
+    });
+    $("dok-uputstvo").hidden = true;
+    $("dok-sadrzaj").hidden = false;
+    $("dok-naslov").textContent = d.naziv || "Dokument bez naziva";
+    var dl = $("dok-cinjenice");
+    cinjenica(dl, "Vrsta dokumenta", d.tip ? d.tip.replace(/_/g, " ") : "");
+    cinjenica(dl, "Dodat", d.datum ? datum(d.datum) : "");
+    cinjenica(dl, "Veličina", d.velicinaKb !== null ? brojFormat.format(d.velicinaKb) + " KB" : "");
+    cinjenica(dl, "Redni broj", d.redniBroj);
+    $("odeljak-dokumenti").classList.add("is-doc-open");
+    $("dok-nazad").hidden = false;
+    $("dok-naslov").focus();
+    detalj.otvoriDokument(id);
+  }
+
+  function prikaziDetalj(v) {
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); return; }
+    if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
+    if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
+    if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
+    if (v.vrsta === "dokument") { prikaziDokumentTekst(v); return; }
+    if (v.stanje === "greska") {
+      var g = GRESKA_PREDMETA[v.greska && v.greska.kod] || GRESKA_PREDMETA.SERVER_ERROR;
+      prikaziStanjePredmeta(g[0], g[1], "greska-" + String((v.greska && v.greska.kod) || "nepoznato").toLowerCase());
+    } else {
+      var t = STANJE_PREDMETA[v.stanje] || GRESKA_PREDMETA.SERVER_ERROR;
+      prikaziStanjePredmeta(t[0], t[1], v.stanje);
+    }
+  }
+
+  function primeniRutu() {
+    var r = rutaIzAdrese();
+    if (!r) {
+      if (ruta) {
+        ruta = null;
+        detalj.zatvori();
+        delete koren.dataset.pogled;
+        $("predmet").hidden = true;
+        $("glavni").focus();
+      }
+      return;
+    }
+    var noviPredmet = !ruta || ruta.id !== r.id;
+    ruta = r;
+    zatvoriFioku(false);
+    koren.dataset.pogled = "predmet";
+    $("predmet").hidden = false;
+    if (noviPredmet) { detalj.otvori(r.id); $("predmet-naslov").focus(); }
+    prikaziOdeljak();
+  }
+
+  /* Razdelnik liste dokumenata: miš i strelice, 240–480 px; pamti se lokalno. */
+  function postaviSirinuListe(px, pamti) {
+    var w = Math.max(240, Math.min(480, Math.round(px)));
+    $("odeljak-dokumenti").style.setProperty("--docs-list-w", w + "px");
+    $("dok-razdelnik").setAttribute("aria-valuenow", String(w));
+    if (pamti) { try { localStorage.setItem("vx-ng-dok-sirina", String(w)); } catch (e) {} }
+  }
+
   /* ── Tema ──────────────────────────────────────────────────────────── */
   function postaviTemu(t) {
     koren.dataset.theme = t;
@@ -431,7 +679,40 @@
     var kontrolerLive = window.VxLive.napravi({ sesija: window.VxSesija, izvor: window.VxLiveIzvor || null, prikazi: prikaziLive });
     /* Samo za proveru (kao __vxStanje): ponovno učitavanje bez UI elementa. */
     window.__vxLiveOsvezi = function () { kontrolerLive.osvezi(); };
+
+    /* Detalj predmeta: isti izvor sesije, sopstveni životni ciklus. */
+    detalj = window.VxDetalj.napravi({ sesija: window.VxSesija, izvor: window.VxPredmetIzvor, prikazi: prikaziDetalj });
+    $("dok-lista").addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-dok]");
+      if (b) izaberiDokument(b.dataset.dok);
+    });
+    $("dok-nazad").addEventListener("click", function () {
+      var id = izabraniDok;
+      detalj.zatvoriDokument();
+      var b = id && document.querySelector('#dok-lista .docs__item[data-dok="' + CSS.escape(id) + '"]');
+      if (b) b.focus();
+    });
+    var razdelnik = $("dok-razdelnik");
+    try { var sacuvana = Number(localStorage.getItem("vx-ng-dok-sirina")); if (sacuvana) postaviSirinuListe(sacuvana); else postaviSirinuListe(320); }
+    catch (e) { postaviSirinuListe(320); }
+    razdelnik.addEventListener("keydown", function (e) {
+      var w = Number(razdelnik.getAttribute("aria-valuenow")) || 320;
+      if (e.key === "ArrowLeft") { e.preventDefault(); postaviSirinuListe(w - 16, true); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); postaviSirinuListe(w + 16, true); }
+    });
+    razdelnik.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      var levo = $("dok-lista-okvir").getBoundingClientRect().left;
+      razdelnik.setPointerCapture(e.pointerId);
+      function pomeri(ev) { postaviSirinuListe(ev.clientX - levo, true); }
+      function pusti() { razdelnik.removeEventListener("pointermove", pomeri); razdelnik.removeEventListener("pointerup", pusti); }
+      razdelnik.addEventListener("pointermove", pomeri);
+      razdelnik.addEventListener("pointerup", pusti);
+    });
+    window.addEventListener("hashchange", primeniRutu);
+
     kontrolerLive.pokreni();
+    primeniRutu();
   } else {
     izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
               tekst: (rt && rt.greska) || "Režim podataka nije učitan. Podaci se ne prikazuju." };

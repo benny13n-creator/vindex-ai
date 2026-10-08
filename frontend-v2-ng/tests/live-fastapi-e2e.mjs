@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const KLJUC = "sb-czsxymueizfqrbbgqqob-auth-token";
-const SVI_TOKENI = ["vx-e2e-A", "vx-e2e-B", "vx-e2e-240", "vx-e2e-prazan", "vx-e2e-1037", "vx-e2e-sporiA", "vx-e2e-xss", "vx-e2e-opozvan"];
+const SVI_TOKENI = ["vx-e2e-A", "vx-e2e-B", "vx-e2e-240", "vx-e2e-prazan", "vx-e2e-1037", "vx-e2e-sporiA", "vx-e2e-xss", "vx-e2e-opozvan", "vx-e2e-deleg"];
 let pada = 0, ukupno = 0;
 const izlaz = [];
 function zapisi(grupa, naziv, ok, detalj = "") {
@@ -235,6 +235,92 @@ for (const adresa of ["/v2/preview", "/v2/preview/"]) {
   zapisi("12.zaglavlja", "HTML preview-a: X-Robots-Tag noindex, nofollow, noarchive; no-store; nosniff",
     h["x-robots-tag"] === "noindex, nofollow, noarchive" && /no-store/.test(h["cache-control"] || "") && h["x-content-type-options"] === "nosniff", JSON.stringify([h["x-robots-tag"], h["cache-control"]]));
   await ctx.close();
+}
+
+// 13. NS004: detalj predmeta i dokumenti kroz STVARNE rute api.py
+//     (get_predmet, predmet_dokument_preview) — vlasnik iz tokena, postojeće
+//     delegirano čitanje, bez upisa u podatke; audit samo pri otvaranju dokumenta.
+const detaljEkran = (p) => p.evaluate(() => ({
+  stanje: document.getElementById("predmet-stanje").hidden ? null : document.getElementById("predmet-stanje").dataset.stanje,
+  naslov: document.getElementById("predmet-naslov").textContent,
+  dokumenti: [...document.querySelectorAll("#dok-lista .docs__item")].map(b => b.dataset.dok),
+  dokTekst: document.getElementById("dok-tekst").hidden ? null : document.getElementById("dok-tekst").textContent,
+  dokStanje: document.getElementById("dok-stanje").hidden ? null : document.getElementById("dok-stanje").dataset.stanje,
+  tekst: document.body.innerText, mem: window.__vxDetaljUMemoriji(),
+}));
+const audit = async () => (await dnevnik()).filter(z => z.vrsta === "AUDIT");
+{
+  const pre = (await audit()).length;
+  const o = await otvori(ses("korisnik-A", "vx-e2e-A"), "/v2/preview/?rezim=live#/predmeti/korisnik-A-00000/dokumenti");
+  await cekaj(o.p, () => document.querySelectorAll("#dok-lista button").length > 0);
+  const e = await detaljEkran(o.p);
+  zapisi("13.detalj", "A: sopstveni predmet kroz stvarnu get_predmet rutu (naslov, 2 dokumenta)", e.naslov === "Predmet korisnik-A broj 0" && e.dokumenti.length === 2, `${e.naslov} ${e.dokumenti.length}`);
+  zapisi("13.detalj", "klijent drugog vlasnika ubačen u predmet_klijenti se NE prikazuje (postojeća zaštita)", await o.p.evaluate(() => { const k = document.getElementById("predmet-klijenti").textContent; return /Ana Jović/.test(k) && !/TAJNI/.test(k); }),
+    await o.p.evaluate(() => document.getElementById("predmet-klijenti").textContent));
+  zapisi("13.detalj", "ulazak u Dokumente: nijedan audit zapis", (await audit()).length === pre);
+  await o.p.click("#dok-lista li:first-child button");
+  await cekaj(o.p, () => !document.getElementById("dok-tekst").hidden);
+  const d = await detaljEkran(o.p);
+  zapisi("13.detalj", "otvoren dokument: tekst iz stvarne preview rute", d.dokTekst === "TEKST-A0-d0 sadržaj spisa.", d.dokTekst);
+  zapisi("13.detalj", "otvaranje dokumenta beleži postojeći audit „dokument_view“ (jedan)", (await audit()).length === pre + 1 && (await audit()).at(-1).akcija === "dokument_view");
+  await o.p.click("#dok-lista li:nth-child(2) button");
+  await cekaj(o.p, () => document.getElementById("dok-stanje").dataset.stanje === "bez-teksta");
+  zapisi("13.detalj", "dokument bez izdvojenog teksta: pošteno stanje (Pinecone fallback zabeležen, bez mreže)", (await detaljEkran(o.p)).dokStanje === "bez-teksta" && (await dnevnik()).some(z => z.vrsta === "pinecone-fallback"));
+  await postavi(o, null);
+  await cekaj(o.p, () => document.getElementById("predmet-stanje").dataset.stanje === "bez-prijave");
+  const x = await detaljEkran(o.p);
+  zapisi("13.detalj", "odjava na detalju: predmet, lista i tekst nestaju", x.mem.predmet === null && x.mem.dokumenata === 0 && x.mem.tekst === 0 && !/TEKST-A0|Spis 1 korisnik-A/.test(x.tekst));
+  await o.ctx.close();
+}
+for (const [naziv, token, korisnik, id, oznaka] of [
+  ["A → predmet korisnika B", "vx-e2e-A", "korisnik-A", "korisnik-B-00000", "greska-not_found"],
+  ["A → nepostojeći predmet", "vx-e2e-A", "korisnik-A", "korisnik-A-99999", "greska-not_found"],
+  ["delegat → opozvana delegacija", "vx-e2e-deleg", "korisnik-deleg", "korisnik-B-00002", "greska-not_found"],
+  ["1037 → predmet u brisanju", "vx-e2e-1037", "korisnik-1037", "korisnik-1037-00007", "greska-not_found"],
+]) {
+  const pre = (await upiti()).length;
+  const o = await otvori(ses(korisnik, token), "/v2/preview/?rezim=live#/predmeti/" + id);
+  await cekaj(o.p, (oz) => document.getElementById("predmet-stanje").dataset.stanje === oz, oznaka);
+  const e = await detaljEkran(o.p);
+  zapisi("13.izolacija", `${naziv}: stvarna ruta vraća 404 → „Predmet nije dostupan“, nijedan podatak`, e.stanje === oznaka && e.mem.predmet === null && !/TAJNI/.test(e.tekst), e.stanje);
+  const u = (await upiti()).slice(pre).filter(x => x.tabela === "predmeti" && x.eq.some(([k, v]) => k === "id" && v === id));
+  zapisi("13.izolacija", `${naziv}: prvi upit je ograničen na vlasnika iz tokena (user_id = ${korisnik})`, u.length >= 1 && u[0].eq.some(([k, v]) => k === "user_id" && v === korisnik));
+  await o.ctx.close();
+}
+{
+  const o = await otvori(ses("korisnik-deleg", "vx-e2e-deleg"), "/v2/preview/?rezim=live#/predmeti/korisnik-B-00001/dokumenti");
+  await cekaj(o.p, () => document.querySelectorAll("#dok-lista button").length > 0 || !document.getElementById("predmet-stanje").hidden && document.getElementById("predmet-stanje").dataset.stanje !== "ucitavanje");
+  const e = await detaljEkran(o.p);
+  zapisi("13.delegat", "aktivna delegacija: predmet je čitljiv (postojeći ugovor, nije proširen)", e.naslov === "Predmet korisnik-B broj 1" && e.dokumenti.length === 1, e.naslov);
+  const preU = (await dnevnik()).filter(z => z.vrsta === "UPIS-POKUSAN").length;
+  await o.p.click("#dok-lista li:first-child button");
+  await cekaj(o.p, () => document.getElementById("dok-stanje").dataset.stanje === "greska");
+  const d = await detaljEkran(o.p);
+  zapisi("13.delegat", "delegat ne dobija tekst dokumenta (preview je samo za vlasnika) — 404, ne 500", d.dokStanje === "greska" && d.dokTekst === null && !/TAJNI-TEKST/.test(d.tekst) && /nije dostupan/.test(d.tekst));
+  zapisi("13.delegat", "delegirano čitanje ne izaziva nijedan upis", (await dnevnik()).filter(z => z.vrsta === "UPIS-POKUSAN").length === preU);
+  await o.ctx.close();
+}
+{
+  const o = await otvori(ses("korisnik-A", "vx-e2e-A"), "/v2/preview/?rezim=live#/predmeti/korisnik-A-00000");
+  await cekaj(o.p, () => document.querySelectorAll("#predmet-cinjenice dt").length > 0);
+  const r = await o.p.evaluate(async () => {
+    const t = window.VxSesija.token();
+    const a = await window.VxPredmetIzvor.ucitajTekst("korisnik-B-00000", "korisnik-B-00000-d0", t);
+    const b = await window.VxPredmetIzvor.ucitajTekst("korisnik-A-00000", "korisnik-B-00000-d0", t);
+    const odg = await fetch("/api/predmeti/korisnik-B-00000/dokumenti/korisnik-B-00000-d0/preview", { headers: { Authorization: "Bearer " + t } });
+    return [a.ok ? "OK" : a.greska.kod, b.ok ? "OK" : b.greska.kod, odg.status, (await odg.text()).includes("TAJNI")];
+  });
+  zapisi("13.izolacija", "A ne čita dokument B ni preko tuđeg ni preko svog predmeta (404, bez sadržaja)", r[0] === "NOT_FOUND" && r[1] === "NOT_FOUND" && r[2] === 404 && r[3] === false, JSON.stringify(r));
+  await o.ctx.close();
+}
+{
+  const o = await otvori(ses("korisnik-xss", "vx-e2e-xss"), "/v2/preview/?rezim=live#/predmeti/korisnik-xss-00000/dokumenti");
+  await cekaj(o.p, () => document.querySelectorAll("#dok-lista button").length > 0);
+  await o.p.click("#dok-lista li:first-child button");
+  await cekaj(o.p, () => !document.getElementById("dok-tekst").hidden);
+  const r = await o.p.evaluate(() => ({ el: document.querySelectorAll("#predmet img, #predmet script").length, xss: window.__xss }));
+  zapisi("13.xss", "HTML u nazivu predmeta i dokumenta iz stvarne rute ostaje tekst", r.el === 0 && r.xss === undefined, JSON.stringify(r));
+  await o.ctx.close();
 }
 
 await browser.close();

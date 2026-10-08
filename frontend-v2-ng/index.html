@@ -112,6 +112,52 @@
         <p class="empty__text" id="empty-text"></p>
         <button class="text-btn text-btn--line" id="empty-clear" type="button" hidden>Obriši pretragu</button>
       </div>
+
+      <!-- Detalj predmeta (samo LIVE; samo čitanje). Sadržaj upisuje src/app.js kao tekst. -->
+      <section class="matter" id="predmet" hidden aria-labelledby="predmet-naslov">
+        <div class="matter__head">
+          <a class="matter__back" id="predmet-nazad" href="#/">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
+          <h1 class="sheet__title matter__title" id="predmet-naslov" tabindex="-1"></h1>
+          <p class="matter__ref" id="predmet-ref"></p>
+        </div>
+        <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
+          <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
+          <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
+        </nav>
+        <div class="empty matter__state" id="predmet-stanje" hidden>
+          <h2 class="empty__title" id="predmet-stanje-naslov"></h2>
+          <p class="empty__text" id="predmet-stanje-tekst"></p>
+        </div>
+        <div class="matter__body" id="odeljak-pregled" hidden>
+          <dl class="facts" id="predmet-cinjenice"></dl>
+          <section class="matter__section" id="predmet-klijenti-blok" hidden aria-labelledby="klijenti-naslov">
+            <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
+            <ul class="people" id="predmet-klijenti"></ul>
+          </section>
+        </div>
+        <div class="docs" id="odeljak-dokumenti" hidden>
+          <div class="docs__list-wrap" id="dok-lista-okvir">
+            <ul class="docs__list" id="dok-lista" aria-label="Dokumenti predmeta"></ul>
+            <div class="empty docs__empty" id="dok-prazno" hidden>
+              <h2 class="empty__title">Predmet nema dokumenata</h2>
+              <p class="empty__text">Dokumenti dodati u predmet pojaviće se ovde.</p>
+            </div>
+          </div>
+          <div class="docs__split" id="dok-razdelnik" role="separator" aria-orientation="vertical" aria-label="Širina liste dokumenata" tabindex="0" aria-valuemin="240" aria-valuemax="480"></div>
+          <article class="doc" id="dok-glavni" aria-labelledby="dok-naslov">
+            <button class="text-btn doc__back" id="dok-nazad" type="button" hidden>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Dokumenti</button>
+            <p class="doc__hint" id="dok-uputstvo">Izaberite dokument sa liste.</p>
+            <div id="dok-sadrzaj" hidden>
+              <h2 class="doc__title" id="dok-naslov" tabindex="-1"></h2>
+              <dl class="facts facts--doc" id="dok-cinjenice"></dl>
+              <div class="doc__state" id="dok-stanje" hidden></div>
+              <pre class="doc__text" id="dok-tekst" hidden></pre>
+            </div>
+          </article>
+        </div>
+      </section>
     </main>
 
     <aside class="panel" id="panel" aria-labelledby="panel-naslov">
@@ -140,6 +186,8 @@
   <script src="src/session.js"></script>
   <script src="src/live.js"></script>
   <script src="src/predmeti.js"></script>
+  <script src="src/predmet.js"></script>
+  <script src="src/detalj.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>
