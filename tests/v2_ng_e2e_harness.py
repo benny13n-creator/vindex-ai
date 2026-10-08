@@ -43,7 +43,8 @@ for _k in ("SUPABASE_DB_URL", "DATABASE_URL"):
         _zapisi({"vrsta": "okruzenje-greska", "kljuc": _k})
         sys.exit(3)
 assert os.environ.get("SUPABASE_URL") == "https://fake.supabase.co"
-assert os.environ.get("VINDEX_V2_NG_PREVIEW_ENABLED") == "1"
+# Bar jedan od V2 prekidača (preview ili, od NS004, primarni /app).
+assert "1" in (os.environ.get("VINDEX_V2_NG_PREVIEW_ENABLED"), os.environ.get("VINDEX_V2_NG_PRIMARY_ENABLED"))
 
 # ── 1. Čuvar soketa: samo loopback ──────────────────────────────────────────
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
@@ -275,7 +276,8 @@ _audit.log_action = _audit_zapis
 import routers.dokument as _rdok  # noqa: E402
 
 _rdok._fetch_session_tekst = lambda *a, **k: (_zapisi({"vrsta": "pinecone-fallback", "put": _PUT.get()}), "")[1]
-_zapisi({"vrsta": "spreman", "preview_ruta": any(getattr(r, "path", "") == "/v2/preview/" for r in api.app.routes)})
+_zapisi({"vrsta": "spreman", "preview_ruta": any(getattr(r, "path", "") == "/v2/preview/" for r in api.app.routes),
+         "primarni": api._V2_NG_PRIMARNI_HTML is not None})
 
 import uvicorn  # noqa: E402
 

@@ -2734,6 +2734,27 @@ def _serve_index_html():
 
 @app.get("/app")
 def serve_html():
+    # NS004: kada je VINDEX_V2_NG_PRIMARY_ENABLED uključen, /app je V2 NG (uvek
+    # LIVE; odluku donosi putanja u frontend-v2-ng/src/runtime.js). Isključeno --
+    # podrazumevano -- /app je legacy, bajt-identično kao ranije.
+    if _V2_NG_PRIMARNI_HTML is not None:
+        return _v2_ng_primarni_odgovor()
+    return _serve_index_html()
+
+
+@app.get("/app-legacy", include_in_schema=False)
+def serve_html_legacy(request: Request):
+    """Operativna rezerva: klasični /app, uvek dostupan; nije linkovan sa sajta.
+
+    Kada je V2 primarni, ovde žive postojeća prijava i odjava (V2 nema svoju
+    prijavu i nikad ne piše sesiju). `?posle=app` i `?odjava=1` tada dobijaju
+    mali skript koji samo vraća korisnika na /app; bez prekidača je ovo
+    nepromenjen legacy odgovor.
+    """
+    if _V2_NG_PRIMARNI_HTML is not None and (
+        request.query_params.get("posle") == "app" or request.query_params.get("odjava") == "1"
+    ):
+        return _legacy_sa_povratkom_na_v2()
     return _serve_index_html()
 
 
@@ -2903,6 +2924,70 @@ if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
     app.mount("/v2/preview/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_preview_fonts")
     app.mount("/v2/preview/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_preview_brand")
     logger.info("[V2-NG] preview UKLJUČEN na /v2/preview/ (VINDEX_V2_NG_PREVIEW_ENABLED)")
+
+
+# ── Vindex V2 NG kao PRIMARNI /app — PODRAZUMEVANO ISKLJUČEN (NS004) ──────────
+# VINDEX_V2_NG_PRIMARY_ENABLED = "1"/"true"/"yes" (kao preview): /app servira
+# V2 NG; asseti idu sa STABILNE putanje /v2/app/{src,fonts,brand} — nezavisno od
+# preview prekidača (preview je QA granica i kill switch, primarni nije od njega
+# zavisan). Legacy /sw.js preskače /v2/*, pa ni asseti ni preview ne prolaze kroz
+# legacy keš. Rollback: ukloniti promenljivu i restartovati (bez izmene koda);
+# /app-legacy je uvek klasičan /app.
+def _v2_ng_primarni_ukljucen() -> bool:
+    return (os.getenv("VINDEX_V2_NG_PRIMARY_ENABLED") or "").strip().lower() in {"1", "true", "yes"}
+
+
+_V2_NG_PRIMARNI_HTML: Optional[bytes] = None
+_V2_NG_PRIMARNI_ZAGLAVLJA = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+# Isti ključ koji upisuje postojeća prijava (static/vindex.js → supabase-js
+# podrazumevani storageKey); verify:session-contract proverava da se poklapaju.
+_V2_NG_KLJUC_SESIJE = "sb-czsxymueizfqrbbgqqob-auth-token"
+
+if _v2_ng_primarni_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
+    _V2_NG_PRIMARNI_HTML = _re.sub(
+        r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/\2/",
+        (_V2_NG_DIR / "index.html").read_text(encoding="utf-8"),
+    ).encode("utf-8")
+    app.mount("/v2/app/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_app_src")
+    app.mount("/v2/app/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_app_fonts")
+    app.mount("/v2/app/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_app_brand")
+    logger.info("[V2-NG] PRIMARNI /app (VINDEX_V2_NG_PRIMARY_ENABLED); /app-legacy ostaje klasičan")
+
+
+def _v2_ng_primarni_odgovor():
+    from fastapi.responses import Response
+    return Response(content=_V2_NG_PRIMARNI_HTML, media_type="text/html; charset=utf-8", headers=_V2_NG_PRIMARNI_ZAGLAVLJA)
+
+
+# Samo čita kanonsku sesiju (nikad je ne piše): kada postoji važeća sesija, vraća
+# na /app. `odjava=1` poziva POSTOJEĆU legacy `doLogout()` (signOut + čišćenje),
+# a adresu pre toga menja u `?posle=app`, da ponovno učitavanje ne bi ponovilo odjavu.
+_V2_NG_POVRATAK_SKRIPT = (
+    "<script>(function(){'use strict';"
+    "var K=" + __import__("json").dumps(_V2_NG_KLJUC_SESIJE) + ",q=new URLSearchParams(location.search);"
+    "function v(){try{var s=localStorage.getItem(K);if(!s)return false;"
+    "if(s.indexOf('base64-')===0)s=decodeURIComponent(escape(atob(s.slice(7))));"
+    "var o=JSON.parse(s);return !!(o&&o.access_token&&o.user&&o.user.id&&"
+    "(typeof o.expires_at!=='number'||o.expires_at*1000-Date.now()>30000));}catch(e){return false;}}"
+    "if(q.get('odjava')==='1'){history.replaceState(null,'','/app-legacy?posle=app');var n=0;"
+    "(function x(){if(typeof window.doLogout==='function'){window.doLogout();return;}if(++n<100)setTimeout(x,100);})();return;}"
+    "if(q.get('posle')==='app'){if(v()){location.replace('/app');return;}"
+    "var t=setInterval(function(){if(v()){clearInterval(t);location.replace('/app');}},400);"
+    "window.addEventListener('storage',function(e){if(e.key===K&&v())location.replace('/app');});}"
+    "})();</script>"
+)
+
+
+def _legacy_sa_povratkom_na_v2():
+    from fastapi.responses import Response
+    osnova = _serve_index_html()
+    telo = osnova.body
+    i = telo.rfind(b"</body>")
+    if i == -1:
+        return osnova
+    telo = telo[:i] + _V2_NG_POVRATAK_SKRIPT.encode("utf-8") + telo[i:]
+    zaglavlja = {k: v for k, v in osnova.headers.items() if k.lower() not in ("content-length", "content-type")}
+    return Response(content=telo, media_type="text/html", headers=zaglavlja)
 
 
 @app.get("/portal", include_in_schema=False)
