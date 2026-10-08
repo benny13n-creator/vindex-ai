@@ -166,6 +166,29 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
   await o.ctx.close();
 }
 
+// P8 (Task 9): primarni /app na 1440 i 390 — bez preliva; snimci kao dokaz (shots/primary/, nisu u git-u)
+{
+  const OUT = fileURLToPath(new URL("../shots/primary/", import.meta.url));
+  await (await import("node:fs/promises")).mkdir(OUT, { recursive: true });
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
+    await ctx.route("**/*", r => (new URL(r.request().url()).hostname === "127.0.0.1" ? r.continue() : r.abort()));
+    await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [KLJUC, ses("korisnik-A", "vx-e2e-A")]);
+    const p = await ctx.newPage();
+    await p.goto(BASE + "/app");
+    await cekaj(p, () => document.querySelectorAll("#rows tr").length === 12);
+    await p.evaluate(() => document.fonts.ready);
+    await p.screenshot({ path: join(OUT, `app-${w}-registar.png`) });
+    const p1 = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    await p.goto(BASE + "/app#/predmeti/korisnik-A-00000/dokumenti");
+    await cekaj(p, () => document.querySelectorAll("#dok-lista button").length > 0);
+    await p.screenshot({ path: join(OUT, `app-${w}-dokumenti.png`) });
+    const p2 = await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    zapisi("P8.vizuelno", `primarni /app @${w}: registar i dokumenti bez horizontalnog preliva`, !p1 && !p2);
+    await ctx.close();
+  }
+}
+
 // P7 (Task 6): ceo tok — javni sajt → /app → postojeća prijava → predmeti →
 // predmet → dokumenti → nazad → odjava → bez ostataka. Prijava/odjava u legacy
 // delu su zamenjene minimalnim stubom (upis/brisanje kanonskog zapisa), jer je

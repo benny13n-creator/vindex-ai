@@ -477,3 +477,9 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
   :root[data-prikaz="primarni"][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
   :root[data-prikaz="primarni"] .sheet { border-right: 0; }
 }
+
+/* Programski fokus (prelazak na predmet/dokument, povratak na listu) služi
+ * čitaču ekrana; nepokretni naslovi i površine ne dobijaju okvir. Linkovi u
+ * stilu dugmeta nisu podvučeni. */
+.matter__title:focus, .doc__title:focus, #glavni:focus { outline: none; }
+a.text-btn { text-decoration: none; }

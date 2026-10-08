@@ -119,7 +119,7 @@ def stanje(ime, flag, primarni=None):
     if rez:
         rez["_primarni_log"] = "[V2-NG] PRIMARNI /app" in log
         rez["_app_telo"] = docker("exec", k, "python", "-c",
-                                  "import urllib.request as u;print(u.urlopen('http://127.0.0.1:8000/app').read().decode()[:4000])")
+                                  "import urllib.request as u;print(u.urlopen('http://127.0.0.1:8000/app').read().decode())")
     docker("rm", "-f", k, provera=False)
     return rez, uklj
 
