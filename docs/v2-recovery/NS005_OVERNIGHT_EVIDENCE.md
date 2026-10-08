@@ -33,11 +33,11 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 
 ## TASK 3 — MATTER EDIT + NOTES + CHRONOLOGY (CAP-005 edit, 006, 007) — PROVEN
 - FILES: `src/rad-predmeta.js` (nov), `src/predmet.js` (opis, updated_at, beleske/hronologija iz ISTOG odgovora; null = „nije učitano"), `src/detalj.js` (`osvezi`), `src/app.js` (tab `#/predmeti/<id>/rad`), `index.html`, `src/app.css`, `tests/live-rad-predmeta.mjs`, fixture `pisanje-api.mjs` (+PATCH, +beleške), `predmeti-api.mjs` (detalj vraća beleške/hronologiju fixture-a), `tests/test_ns005_t3_izmena_beleske.py`.
-- BACKEND FIX (dokazan kvar, najmanja izmena): `api.py::update_predmet` — `maybe_single()` vraća None (postgrest 2.28.3) → tuđ/nepostojeći predmet je davao 500 umesto 404 (ista klasa kao NS004 `get_predmet`). `if not exists or not exists.data`. Autorizacija nepromenjena; regresioni test `test_tudja_izmena_404_i_red_netaknut`.
+- ~~BACKEND FIX~~ **POVUČENO (ispravka posle Task 7):** tvrdnja da `update_predmet` daje 500 za tuđ predmet bila je ARTEFAKT mog harness-a — `shared/postgrest_compat.py` u produkciji normalizuje `maybe_single()` (0 redova → odgovor sa `data=None`, ne `None`). Harness sada radi isto; `api.py` je vraćen na `main` bajt-za-bajt; `test_tudja_izmena_404_i_red_netaknut` prolazi i bez izmene. NS005 ne menja nijednu backend datoteku.
 - ENDPOINTS: `PATCH /api/predmeti/{id}` (samo izmenjena polja naziv/tip/tuzilac/tuzeni/vrednost_spora/opis + `if_updated_at`), `POST /api/predmeti/{id}/beleske`; beleške/hronologija iz postojećeg `GET /api/predmeti/{id}` (bez novih zahteva). Posle upisa predmet se PONOVO čita.
 - NE NUDI SE: broj predmeta (server ga ne prima), status (tok zatvaranja), rizik (računa program), „istorija" (to je AI Q&A dnevnik, ne događaji — ručni unos bi bio lažan), brisanje beleški.
 - TESTS: backend 11/11 (+ 61 postojećih testova ove rute zeleno); NG `verify:live-rad-predmeta` 44/44; svih 21 NG skripti zeleno; 214 ciljanih Python testova zeleno.
-- ADVERSARIAL: ubijeno 7 — neuspeh kao uspeh, bez if_updated_at, nedostajuće beleške kao prazna lista, nepoznat ishod kao „nije sačuvano", PATCH bez owner filtera, beleška bez provere vlasnika, vraćen 500 za tuđ PATCH. PREŽIVELA 1 (namerno prijavljeno): uklanjanje SAMO generacijske provere — kasni odgovor i dalje blokiraju abort + čišćenje pri učitavanju; kombinovana mutacija (generacija + abort) UBIJENA.
+- ADVERSARIAL: ubijeno 6 važećih — neuspeh kao uspeh, bez if_updated_at, nedostajuće beleške kao prazna lista, nepoznat ishod kao „nije sačuvano", PATCH bez owner filtera, beleška bez provere vlasnika (7. mutacija „vraćen 500 za tuđ PATCH" povučena zajedno sa nepostojećim kvarom). PREŽIVELA 1 (namerno prijavljeno): uklanjanje SAMO generacijske provere — kasni odgovor i dalje blokiraju abort + čišćenje pri učitavanju; kombinovana mutacija (generacija + abort) UBIJENA.
 - KNOWN LIMITATIONS: `POST beleske` u tuđ predmet vraća 500 (`.single()`), ne 404 — fail-closed, ništa upisano; nije ispravljano jer postojeći bezbednosni testovi zavise od oblika upita, a V2 formu nudi samo na otvorenom (sopstvenom) predmetu. Delegirani čitalac bi pri pokušaju beleške video „ishod nepoznat".
 - NEXT GATE: Task 4.
 
@@ -82,3 +82,8 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - TESTS: backend 7/7; NG `verify:live-znanje` 32/32; svih 25 NG skripti zeleno; ciljani Python 198 passed.
 - ADVERSARIAL: 8/8 ubijeno — greška prakse kao prazno; nedovršen citat; necitljiva odluka kao citljiva; `pretraga_neuspesna` ignorisana; zastarela pretraga (generacija+abort); nepoznat ishod stava kao „nije sačuvan"; zajednički namespace stavova (backend); praksa bez prijave (backend).
 - NEXT GATE: Task 8 — nacrti.
+
+## ISPRAVKA (posle Task 7) — maybe_single ugovor
+- NALAZ: `shared/postgrest_compat.py` (primenjuje se pri uvozu aplikacije) vraća `SingleAPIResponse(data=None)` umesto `None` za `maybe_single()` bez redova. Moj harness je vraćao `None` → lažan „500 za tuđ PATCH" u Task 3.
+- RADNJE: harness ispravljen (0 redova → `data=None`); `api.py` vraćen na `51164c92` (bez razlike); svih 50 NS005 backend testova (Task 2–7) zeleno nad originalnim backend-om.
+- POSLEDICA: NS005 grana NE menja backend kod. „Beleška u tuđ predmet → 500" ostaje tačno (`.single()` šim namerno ne dira).

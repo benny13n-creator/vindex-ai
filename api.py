@@ -5039,10 +5039,7 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
         exists = await asyncio.to_thread(
             lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
         )
-        # NS005: postgrest `maybe_single()` vraća None (ne prazan odgovor) kad red
-        # ne postoji -- isti kvar koji je NS004 ispravio u get_predmet: tuđ ili
-        # obrisan predmet je davao 500 umesto 404. Pristup se ne menja.
-        if not exists or not exists.data:
+        if not exists.data:
             raise HTTPException(status_code=404, detail="Predmet nije pronađen")
         raise HTTPException(
             status_code=409,

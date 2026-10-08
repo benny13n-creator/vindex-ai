@@ -263,7 +263,9 @@ class _Upit:
             if not redovi:
                 if self.jedan == "single":
                     raise RuntimeError("postgrest APIError: 0 rows (single)")
-                return None
+                # Isto kao produkcija: shared/postgrest_compat.py normalizuje maybe_single()
+                # tako da za 0 redova vraća odgovor sa data=None (ne None).
+                return _Rez(data=None, count=None)
             return _Rez(data=redovi[0], count=1)
         return _Rez(data=redovi, count=ukupno)
 
