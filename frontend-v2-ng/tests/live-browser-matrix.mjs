@@ -10,6 +10,13 @@
 // ≤ SUM_KANALA. Stvarna izmena (tekst, red, boja, pomeraj) daje hiljade
 // piksela sa velikom razlikom. Šum HEAD-protiv-HEAD se meri istim pragom.
 //
+// NS003 Task 4 (founder odluka): jedine NAMERAVANE vizuelne razlike prema
+// foundation-u su kanonski logo (tamna: samo prostor bivšeg teksta „Vindex“)
+// i, u svetloj temi, pozadina gornje trake (#F6F7F8). SAMO ti regioni se
+// izuzimaju iz piksel-poređenja prema foundation-u; unutar njih blokira
+// semantički ugovor brenda (tests/fixtures/brand-contract.mjs). HEAD protiv
+// HEAD se i dalje poredi preko CELOG snimka.
+//
 // LIVE: ponašanje + snimci iz stvarnog pregledača nad fixture-om koji ponavlja
 // ugovor api.py. Snimci: shots/matrix/ (nije u git-u).
 
@@ -23,6 +30,7 @@ import { fileURLToPath } from "node:url";
 import { pokreniFixture } from "./fixtures/api-fixture.mjs";
 import { napraviPredmete, predmetiRuta } from "./fixtures/predmeti-api.mjs";
 import { ugovor, fokusBezPomeranja, fiokeRade, razlikeUgovora } from "./fixtures/zoom-contract.mjs";
+import { brendUgovor, proveriBrend, proveriKontrast, nameravaniRegion } from "./fixtures/brand-contract.mjs";
 
 const KOREN = fileURLToPath(new URL("..", import.meta.url));
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
@@ -73,23 +81,26 @@ const SUM_PIKSELA = 64, SUM_KANALA = 2;
 
 /* Poređenje dva PNG-a u pregledaču (canvas) — bez novih zavisnosti. */
 const poredjenje = await (await browser.newContext()).newPage();
-async function razlika(a, b) {
-  return poredjenje.evaluate(async ([a, b]) => {
+async function razlika(a, b, maske = []) {
+  return poredjenje.evaluate(async ([a, b, maske]) => {
     const ucitaj = (src) => new Promise((r, x) => { const i = new Image(); i.onload = () => r(i); i.onerror = x; i.src = src; });
     const [ia, ib] = await Promise.all([ucitaj(a), ucitaj(b)]);
     if (ia.width !== ib.width || ia.height !== ib.height) return { piksela: Infinity, kanal: 255, dim: `${ia.width}x${ia.height} vs ${ib.width}x${ib.height}` };
     const pod = (img) => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d"); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
     const da = pod(ia), db = pod(ib);
-    let piksela = 0, kanal = 0;
+    let piksela = 0, kanal = 0, izuzeto = 0;
+    const W = ia.width;
+    const uMaski = (i) => { const x = (i / 4) % W, y = Math.floor(i / 4 / W); return maske.some(m => x >= Math.floor(m.x) && x < Math.ceil(m.x + m.w) && y >= Math.floor(m.y) && y < Math.ceil(m.y + m.h)); };
     for (let i = 0; i < da.length; i += 4) {
+      if (maske.length && uMaski(i)) { izuzeto++; continue; }
       const m = Math.max(Math.abs(da[i] - db[i]), Math.abs(da[i + 1] - db[i + 1]), Math.abs(da[i + 2] - db[i + 2]));
       if (m) { piksela++; if (m > kanal) kanal = m; }
     }
-    return { piksela, kanal, dim: `${ia.width}x${ia.height}` };
-  }, ["data:image/png;base64," + a.toString("base64"), "data:image/png;base64," + b.toString("base64")]);
+    return { piksela, kanal, izuzeto, dim: `${ia.width}x${ia.height}` };
+  }, ["data:image/png;base64," + a.toString("base64"), "data:image/png;base64," + b.toString("base64"), maske]);
 }
 const uSumu = (d) => d.piksela <= SUM_PIKSELA && d.kanal <= SUM_KANALA;
-const opis = (d) => `${d.piksela} piksela, maks. ${d.kanal}/255, ${d.dim}`;
+const opis = (d) => `${d.piksela} piksela, maks. ${d.kanal}/255, ${d.dim}${d.izuzeto ? `, izuzeto ${d.izuzeto} px nameravanog regiona` : ""}`;
 
 async function snimakDemo(port, { w = 1440, h = 900, tema = "dark", nav = "puna", upit = "", motion = "reduce", ceo = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion, deviceScaleFactor: 1 });
@@ -98,10 +109,12 @@ async function snimakDemo(port, { w = 1440, h = 900, tema = "dark", nav = "puna"
   await p.goto(`http://127.0.0.1:${port}/${upit}`);
   await p.addStyleTag({ content: SAKRIJ_POZADINU });
   await p.evaluate(() => document.fonts.ready);
+  await p.evaluate(() => Promise.all([...document.images].map(i => i.decode().catch(() => {}))));
   await p.waitForTimeout(250);
   const b = await p.screenshot({ fullPage: ceo });
+  const brend = await brendUgovor(p);
   await ctx.close();
-  return b;
+  return { b, brend };
 }
 
 const DEMO = [
@@ -113,10 +126,13 @@ const DEMO = [
 for (const [ime, o] of DEMO) {
   const h1 = await snimakDemo(P_HEAD, o), h2 = await snimakDemo(P_HEAD, o);
   const r = await snimakDemo(P_REF, o);
-  await writeFile(join(OUT, `demo-${ime}.png`), h1);
-  const dh = await razlika(h1, h2), dr = await razlika(h1, r);
-  zapisi("demo-piksel", `${ime}: HEAD protiv HEAD u granici šuma`, uSumu(dh), opis(dh));
-  zapisi("demo-piksel", `${ime}: HEAD protiv foundation ${FOUNDATION} u granici šuma`, uSumu(dr), opis(dr));
+  await writeFile(join(OUT, `demo-${ime}.png`), h1.b);
+  const region = nameravaniRegion(h1.brend, r.brend);
+  const dh = await razlika(h1.b, h2.b), dr = await razlika(h1.b, r.b, [region]);
+  zapisi("demo-piksel", `${ime}: HEAD protiv HEAD u granici šuma (ceo snimak)`, uSumu(dh), opis(dh));
+  zapisi("demo-piksel", `${ime}: HEAD protiv foundation ${FOUNDATION} u granici šuma van nameravanog regiona (${h1.brend.tema === "light" ? "gornja traka" : "logo"} ${[region.x, region.y, region.w, region.h].map(v => Math.round(v)).join(",")})`, uSumu(dr), opis(dr));
+  const losi = [...proveriBrend(h1.brend, r.brend), ...proveriKontrast(h1.brend, r.brend)].filter(([, ok]) => !ok);
+  zapisi("demo-brend", `${ime}: unutar nameravanog regiona važi ugovor brenda (asset, razmera, efekti, okviri trake i kontrola, pozadina, kontrast)`, losi.length === 0, losi.map(([n, , d]) => n + " — " + d).join(" | "));
 }
 
 // Stvarni zoom pregledača 200% (isto kao refinement.mjs: chrome.tabs.setZoom).

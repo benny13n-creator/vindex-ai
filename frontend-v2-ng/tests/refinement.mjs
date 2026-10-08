@@ -80,15 +80,42 @@ const bezHorizontalnog = p => p.evaluate(() => document.documentElement.scrollWi
 {
   const p = await otvori();
   zapisi("gornja traka", "nema breadcrumb-a koji ponavlja navigaciju i naslov", (await p.$$(".crumb")).length === 0);
+  // NS003: identitet je kanonski logo (slika u linku), pa se prikazuje imenom linka.
   const tekst = await p.$$eval(".topbar > :not(.topbar__end), .topbar__end > *", es => es.filter(e => e.getBoundingClientRect().width > 0 && getComputedStyle(e).display !== "none")
-    .map(e => e.textContent.trim().replace(/\s+/g, " ")).filter(Boolean));
-  zapisi("gornja traka", "samo identitet, demo oznaka i sistemske kontrole", JSON.stringify(tekst) === JSON.stringify(["Vindex", "Demonstracioni podaci Demo", "Svetla tema", "Demo nalog"]) ||
-    JSON.stringify(tekst) === JSON.stringify(["Vindex", "Demonstracioni podaciDemo", "Svetla tema", "Demo nalog"]), tekst.join(" | "));
+    .map(e => e.classList.contains("wordmark") ? "[logo] " + e.getAttribute("aria-label") : e.textContent.trim().replace(/\s+/g, " ")).filter(Boolean));
+  zapisi("gornja traka", "samo identitet, demo oznaka i sistemske kontrole", JSON.stringify(tekst) === JSON.stringify(["[logo] Vindex — Aktivni predmeti", "Demonstracioni podaci Demo", "Svetla tema", "Demo nalog"]) ||
+    JSON.stringify(tekst) === JSON.stringify(["[logo] Vindex — Aktivni predmeti", "Demonstracioni podaciDemo", "Svetla tema", "Demo nalog"]), tekst.join(" | "));
   zapisi("gornja traka", "pretraga ostaje u radnoj površini, ne u gornjoj traci", await p.$eval("#pretraga", e => !!e.closest("#glavni")));
-  const wm = await p.$eval(".wordmark", e => { const s = getComputedStyle(e); return { f: s.fontFamily, px: parseFloat(s.fontSize), ls: s.letterSpacing, ts: s.textShadow, bi: s.backgroundImage, c: s.color }; });
+  // NS003: tekstualni wordmark je zamenjen kanonskim logom — isti ugovor, nov oblik.
+  const wm = await p.$eval(".wordmark", e => { const s = getComputedStyle(e); const i = [...e.querySelectorAll("img")].find(x => getComputedStyle(x).display !== "none");
+    const si = i ? getComputedStyle(i) : null; const r = i ? i.getBoundingClientRect() : { width: 0, height: 0 };
+    return { src: i ? i.getAttribute("src") : "", h: r.height, w: r.width, nw: i ? i.naturalWidth : 0, nh: i ? i.naturalHeight : 0, alt: i ? i.getAttribute("alt") : null,
+      ts: s.textShadow, bi: s.backgroundImage, f: si ? si.filter : "", bs: si ? si.boxShadow : "", tekst: e.textContent.trim(), ime: e.getAttribute("aria-label"), href: e.getAttribute("href"),
+      traka: document.querySelector(".topbar").getBoundingClientRect().height }; });
   const h1 = await p.$eval(".sheet__title", e => parseFloat(getComputedStyle(e).fontSize));
-  zapisi("wordmark", "serif, 18–20px, podređen naslovu strane", wm.f.includes("Source Serif 4") && wm.px >= 18 && wm.px <= 20 && wm.px < h1, `${wm.px}px naspram h1 ${h1}px`);
-  zapisi("wordmark", "bez sjaja, gradijenta i agresivnog praćenja", wm.ts === "none" && wm.bi === "none" && (wm.ls === "normal" || parseFloat(wm.ls) <= 0.4), `letter-spacing ${wm.ls}`);
+  // Slova „VINDEX“ zauzimaju 129/309 visine providnog logoa (izmereno u kanonskom rasteru).
+  const slova = wm.h * 129 / 309;
+  zapisi("wordmark", "kanonski logo (tamna tema: providni exact-look SVG), podređen naslovu strane", wm.src === "brand/Vindex_Transparent_EXACT_LOOK.svg" && wm.nw === 1183 && wm.h < wm.traka && slova < h1,
+    `logo ${wm.w.toFixed(1)}×${wm.h}px, slova ${slova.toFixed(1)}px naspram h1 ${h1}px, traka ${wm.traka}px`);
+  zapisi("wordmark", "bez sjaja, senke, filtera i gradijenta; razmera izvorna", wm.ts === "none" && wm.bi === "none" && wm.f === "none" && wm.bs === "none" && Math.abs(wm.w - wm.h * wm.nw / wm.nh) <= 0.5, `filter ${wm.f}`);
+  zapisi("wordmark", "link: isto odredište (#glavni) i ime „Vindex — Aktivni predmeti“, bez dupliranog „Vindex“ za čitač ekrana",
+    wm.href === "#glavni" && wm.ime === "Vindex — Aktivni predmeti" && wm.tekst === "" && wm.alt === "");
+  const stablo = await p.locator(".topbar").ariaSnapshot();
+  zapisi("wordmark", "stablo pristupačnosti: jedan link „Vindex — Aktivni predmeti“, nijedna slika, „Vindex“ jednom", /link "Vindex — Aktivni predmeti"/.test(stablo) && !/\bimg\b/.test(stablo) && (stablo.match(/Vindex/g) || []).length === 1, stablo.split("\n").slice(0, 3).join(" / "));
+  // Od početka strane: „Preskoči…“, (dugme navigacije ako je vidljivo), pa logo-link.
+  await p.evaluate(() => document.activeElement && document.activeElement.blur());
+  const redosled = [];
+  for (let k = 0; k < 3; k++) {
+    await p.keyboard.press("Tab");
+    const a = await p.evaluate(() => { const a = document.activeElement; return a.classList.contains("wordmark") ? "wordmark" : (a.id || a.className); });
+    redosled.push(a); if (a === "wordmark") break;
+  }
+  const fokus = await p.evaluate(() => { const a = document.activeElement, s = getComputedStyle(a); return { wm: a.classList.contains("wordmark"), obris: s.outlineStyle !== "none" && parseFloat(s.outlineWidth) >= 2 }; });
+  zapisi("wordmark", "tastatura: Tab od početka stiže na logo-link odmah posle „Preskoči…“, fokus je vidljiv (obris ≥ 2px)", fokus.wm && fokus.obris && redosled[0] === "skip" && redosled.at(-1) === "wordmark", redosled.join(" → "));
+  if (fokus.wm) await p.keyboard.press("Enter");
+  await p.waitForTimeout(100);
+  const posle = await p.evaluate(() => ({ hash: location.hash, aktivan: document.activeElement && document.activeElement.id }));
+  zapisi("wordmark", "Enter na logo-linku vodi na #glavni i tamo prebacuje fokus (kao ranije)", fokus.wm && posle.hash === "#glavni" && posle.aktivan === "glavni", JSON.stringify(posle));
   await p.context().close();
 }
 

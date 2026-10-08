@@ -204,6 +204,11 @@ for (const adresa of ["/v2/preview", "/v2/preview/"]) {
   zapisi("12.podrazumevano", `${adresa}: nema demo obaveza u panelu „Zahteva pažnju“`, v.obaveze === 0, `${v.obaveze}`);
   zapisi("12.podrazumevano", `${adresa}: vidljiv tekst ne pominje demo sadržaj`, !DEMO_ZNACI.test(v.tekst) && !DEMO_ZNACI.test(v.natpis), (v.tekst.match(DEMO_ZNACI) || [""])[0]);
   zapisi("12.podrazumevano", `${adresa}: bez prijave nema poziva /api/predmeti`, metodi.filter(m => m.endsWith("/api/predmeti")).length === preApi);
+  // NS003 Task 4: oba kanonska logo fajla stižu kroz /v2/preview/brand/ stvarnog api.py.
+  const logo = await o.p.evaluate(() => Promise.all([...document.querySelectorAll(".wordmark img")].map(i => i.decode().then(() => 1, () => 0)
+    .then(() => ({ put: new URL(i.currentSrc).pathname, ok: i.complete && i.naturalWidth > 0, nw: i.naturalWidth, nh: i.naturalHeight })))));
+  zapisi("12.logo", `${adresa}: oba kanonska logo fajla učitana preko /v2/preview/brand/ (1183×309 SVG, 1800×500 PNG)`,
+    logo.length === 2 && logo.every(x => x.ok && x.put.startsWith("/v2/preview/brand/")) && logo[0].nw === 1183 && logo[1].nw === 1800, JSON.stringify(logo.map(x => x.put + " " + x.nw + "x" + x.nh)));
   await o.ctx.close();
 }
 {

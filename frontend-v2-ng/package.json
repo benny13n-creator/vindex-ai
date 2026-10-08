@@ -18,6 +18,7 @@
     "verify:live-isolation": "node tests/live-isolation.mjs",
     "verify:live-matrix": "node tests/live-browser-matrix.mjs",
     "verify:session-contract": "node tests/session-contract.mjs",
+    "verify:brand": "node tests/brand-identity.mjs",
     "e2e:fastapi": "node tests/live-fastapi-e2e.mjs",
     "e2e:sw-isolation": "node tests/live-sw-isolation.mjs"
   },

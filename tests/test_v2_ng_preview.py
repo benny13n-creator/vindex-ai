@@ -11,7 +11,8 @@ Dokazuje:
   • uključen: /v2/preview i /v2/preview/ bez `rezim` → /v2/preview/?rezim=live
     (NS003: produkcioni preview nikad podrazumevano ne prikazuje DEMO), postojeći
     upit se čuva; index.html (no-store, nosniff, X-Robots-Tag noindex), src/, fonts/;
-  • izlaže se SAMO index.html, src/, fonts/ — ne tests/, serve.mjs, package.json;
+  • izlaže se SAMO index.html, src/, fonts/, brand/ (NS003: dva kanonska logo
+    fajla, bajt-identična paketu) — ne tests/, serve.mjs, package.json;
   • traversal ne vraća nijedan fajl van tih direktorijuma;
   • /app, /app-v2, /sw.js, /offline, /static/*, /api/predmeti su identični
     sa i bez preview-a (preview ne zaklanja /api).
@@ -51,13 +52,24 @@ PUTANJE_PREVIEW = [
     "/v2/preview/src/app.js", "/v2/preview/src/api.js",
     "/v2/preview/fonts/ibm-plex-sans/400.css",
     "/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2",
+    "/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "/v2/preview/brand/Vindex_Protected_Light_Surface.png",
 ]
 NEIZLOZENO = [
     "/v2/preview/tests/fixtures/original.html", "/v2/preview/package.json", "/v2/preview/serve.mjs",
     "/v2/preview/README.md", "/v2/preview/index.html", "/v2/preview/src/../serve.mjs",
     "/v2/preview/src/%2e%2e/serve.mjs", "/v2/preview/src/..%2fserve.mjs", "/v2/preview/src/..%2f..%2fapi.py",
     "/v2/preview/fonts/%2e%2e/%2e%2e/api.py", "/v2/preview/src/%2e%2e/tests/live-api.mjs",
+    "/v2/preview/brand/", "/v2/preview/brand/%2e%2e/serve.mjs", "/v2/preview/brand/..%2f..%2fapi.py",
+    "/v2/preview/brand/Vindex_Approved_Reference_Source.png", "/v2/preview/brand/Vindex_Technical_White_VECTOR.svg",
+    "/v2/preview/brand/MANIFEST_SHA256.txt", "/v2/preview/.gitattributes",
 ]
+
+# NS003 Task 4: SHA-256 iz MANIFEST_SHA256.txt kanonskog paketa
+# Vindex_Logo_CANONICAL_FINAL (paket nije u repozitorijumu; runtime kopije jesu).
+KANONSKI_LOGO = {
+    "Vindex_Transparent_EXACT_LOOK.svg": "a69b32383295eb8c3850bb01581bb370433bb1761a935f88f878a1fc4afffc3f",
+    "Vindex_Protected_Light_Surface.png": "7485ddff765080615bcd90f04f383762770c41d8cf9e24fb21171088024eeae9",
+}
 NEPROMENJENO = ["/app", "/app-v2", "/sw.js", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
 
 
@@ -176,6 +188,8 @@ def test_ukljucen_servira_v2_index_bez_kesa(ukljucen):
     ("/v2/preview/src/app.js", "src/app.js"), ("/v2/preview/src/api.js", "src/api.js"),
     ("/v2/preview/fonts/ibm-plex-sans/400.css", "fonts/ibm-plex-sans/400.css"),
     ("/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2", "fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2"),
+    ("/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "brand/Vindex_Transparent_EXACT_LOOK.svg"),
+    ("/v2/preview/brand/Vindex_Protected_Light_Surface.png", "brand/Vindex_Protected_Light_Surface.png"),
 ])
 def test_ukljucen_asseti_ispod_iste_rute(ukljucen, put, fajl):
     assert ukljucen[put]["status"] == 200
@@ -200,3 +214,18 @@ def test_postojece_rute_nepromenjene(iskljucen, ukljucen):
 def test_preview_ne_zaklanja_api(ukljucen):
     # Bez tokena postojeća ruta i dalje odgovara 401 — preview je ne prekriva.
     assert ukljucen["/api/predmeti"]["status"] == 401
+
+
+def test_brand_sadrzi_samo_dva_kanonska_fajla_bajt_identicna_paketu():
+    fajlovi = sorted(p.name for p in (NG / "brand").iterdir())
+    assert fajlovi == sorted(KANONSKI_LOGO), fajlovi
+    for ime, sha in KANONSKI_LOGO.items():
+        assert _sha(NG / "brand" / ime) == sha, ime
+
+
+def test_ukljucen_logo_se_servira_bajt_identican_sa_tacnim_tipom(ukljucen):
+    tipovi = {"Vindex_Transparent_EXACT_LOOK.svg": "image/svg+xml", "Vindex_Protected_Light_Surface.png": "image/png"}
+    for ime, sha in KANONSKI_LOGO.items():
+        r = ukljucen["/v2/preview/brand/" + ime]
+        assert r["status"] == 200 and r["sha"] == sha, (ime, r["status"])
+        assert r["ct"].startswith(tipovi[ime]), (ime, r["ct"])

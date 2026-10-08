@@ -2858,8 +2858,9 @@ def serve_v2_asset(token: str, putanja: str):
 # Namespace /v2/preview/: legacy /sw.js namerno preskače sve /v2/* (Z015 §11),
 # pa preview nikad ne prolazi kroz legacy keš/offline shell.
 #
-# Izlaže se SAMO index.html, src/ i fonts/ — nikad tests/, serve.mjs,
-# package.json ni README. Traversal odbija StaticFiles.
+# Izlaže se SAMO index.html, src/, fonts/ i brand/ (dva kanonska logo fajla,
+# NS003) — nikad tests/, serve.mjs, package.json ni README. Traversal odbija
+# StaticFiles.
 _V2_NG_DIR = BASE_DIR / "frontend-v2-ng"
 
 
@@ -2900,6 +2901,7 @@ if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
 
     app.mount("/v2/preview/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_preview_src")
     app.mount("/v2/preview/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_preview_fonts")
+    app.mount("/v2/preview/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_preview_brand")
     logger.info("[V2-NG] preview UKLJUČEN na /v2/preview/ (VINDEX_V2_NG_PREVIEW_ENABLED)")
 
 

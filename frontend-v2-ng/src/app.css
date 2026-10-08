@@ -66,7 +66,22 @@ svg .fill { fill: currentColor; stroke: none; }
   font-family: var(--font-serif); font-weight: 500; font-size: 1.25rem; line-height: 1;
   letter-spacing: 0; color: var(--text-1); text-decoration: none;
   width: calc(var(--nav-w) - var(--sp-5) - var(--sp-4));
+  display: flex; align-items: center;
 }
+/* Kanonski logo (paket Vindex_Logo_CANONICAL_FINAL, NS003): odobrene datoteke
+ * bez ikakve obrade — bez filtera, providnosti, senke, maske, isecanja ili
+ * izobličenja; samo visina, širina sledi izvornu razmeru. Tamna tema: providni
+ * „exact look“ SVG na tamnoj, mirnoj traci. Svetla tema: zaštićeni lockup na
+ * tamnoj podlozi (nikad prebojen ili invertovan). Tema se bira samo CSS-om. */
+.wordmark__logo { display: block; flex: none; width: auto; }
+.wordmark__logo--tamna { height: 32px; }
+.wordmark__logo--svetla { height: 44px; display: none; }
+:root[data-theme="light"] .wordmark__logo--tamna { display: none; }
+:root[data-theme="light"] .wordmark__logo--svetla { display: block; }
+/* Founder odluka NS003 (opcija 3): svetla gornja traka dobija tačno boju
+ * neprovidne margine zaštićenog lockup-a (#F6F7F8), da se margina stopi sa
+ * površinom. Menja se SAMO pozadina .topbar u svetloj temi. */
+:root[data-theme="light"] .topbar { background: #F6F7F8; }
 :root[data-nav="skupljena"] .wordmark { width: auto; }
 
 .topbar__end { margin-left: auto; display: flex; align-items: center; gap: var(--sp-2); }
