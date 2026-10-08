@@ -332,6 +332,8 @@
     return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : "");
   }
   function rutaIzAdrese() {
+    /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
+    if (/^#\/predmeti\/nov\/?$/.test(location.hash)) return { pogled: "nov" };
     var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
@@ -541,8 +543,29 @@
     }
   }
 
+  var novPredmet = null, pogledRada = null;
+  function zatvoriPogledRada() {
+    if (pogledRada === "nov") { novPredmet.zatvori(); $("nov-predmet").hidden = true; }
+    pogledRada = null;
+  }
+
   function primeniRutu() {
     var r = rutaIzAdrese();
+    if (r && r.pogled) {
+      if (ruta) { ruta = null; detalj.zatvori(); $("predmet").hidden = true; }
+      if (pogledRada === r.pogled) return;
+      zatvoriPogledRada();
+      pogledRada = r.pogled;
+      zatvoriFioku(false);
+      koren.dataset.pogled = r.pogled;
+      $("nov-predmet").hidden = false;
+      novPredmet.otvori();
+      return;
+    }
+    if (pogledRada) {
+      zatvoriPogledRada();
+      if (!r) { delete koren.dataset.pogled; $("glavni").focus(); return; }
+    }
     if (!r) {
       if (ruta) {
         ruta = null;
@@ -742,10 +765,18 @@
       razdelnik.addEventListener("pointermove", pomeri);
       razdelnik.addEventListener("pointerup", pusti);
     });
+    /* NS005 — Nov predmet: samo u LIVE, samo prijavljenom korisniku. */
+    novPredmet = window.VxNovPredmet.napravi({ sesija: window.VxSesija, api: window.VxApi, naUspeh: function (id) {
+      kontrolerLive.osvezi();
+      location.hash = adresaPredmeta(id, "pregled");
+    } });
+    var uskladiNovLink = function () { $("nov-predmet-link").hidden = window.VxSesija.stanje().stanje !== window.VxSesija.STANJA.PRIJAVLJEN; };
+    window.VxSesija.naPromenu(uskladiNovLink);
     window.addEventListener("hashchange", primeniRutu);
 
     kontrolerLive.pokreni();
     if (window.__vxUskladiOdjavu) window.__vxUskladiOdjavu();
+    uskladiNovLink();
     primeniRutu();
   } else {
     izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",

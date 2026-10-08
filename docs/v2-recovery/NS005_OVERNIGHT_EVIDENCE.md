@@ -18,3 +18,15 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - ADVERSARIAL: 6/6 mutacija ubijeno i vraćeno (sha256 api.js isti pre/posle): bez Authorization; spoljni host; automatsko ponavljanje; mreža→„nije sačuvano"; `user_id` u telu; 5xx kao poznat neuspeh.
 - KNOWN LIMITATIONS: (1) Chromium SAM ponovo šalje POST kada se PONOVO KORIŠĆENA keep-alive veza prekine pre odgovora (izmereno: 2 zahteva za 1 fetch); sloj ne ponavlja (1 fetch), sveža veza = 1 zahtev. Zaštita bi bila idempotentni ključ na serveru — van NS005 (bez backend promene). (2) DELETE i PUT nisu izloženi.
 - NEXT GATE: Task 2 — novi predmet.
+
+## PYTHON BASELINE (main 51164c92, lokalno, `pytest tests -p no:randomly`)
+- 21 failed, 8275 passed, 179 skipped (18 min). Imena padova: test_prg_night_register (5), test_faza1_pristupacnost (3), test_coi_intake_convergence (3), test_bu001_briefing_schema_contract (3), test_rc_cold_start (2), phoenix013, ns003_protocol, faza1_izvor_pod, ca_trust_boundary, b4_authority_playwright (po 1). Pravilo: nijedno NOVO ime pada.
+
+## TASK 2 — NEW MATTER (CAP-004) — PROVEN
+- FILES: `frontend-v2-ng/src/nov-predmet.js` (nov), `src/app.js` (ruta `#/predmeti/nov`, link, osvežavanje registra), `index.html` (forma, „Nov predmet" u alatima registra), `src/app.css` (forme; `[data-pogled]` uopšten), `tests/live-nov-predmet.mjs`, `tests/fixtures/pisanje-api.mjs`, `tests/ns005_harness.py` (stvarne rute + baza u memoriji, 2 korisnika, blokirana mreža), `tests/test_ns005_t2_nov_predmet.py`.
+- ENDPOINTS: `POST /api/predmeti` (telo naziv/tip/opis; bez user_id), posle uspeha `GET /api/predmeti/{id}` i osvežen `GET /api/predmeti`.
+- TESTS: backend 7/7 (stvarna ruta: id vraćen, vlasnik iz tokena, user_id iz tela ignorisan, B → 404 i nema u listi, 401/400 bez upisa, 409 za dupli); NG `verify:live-nov-predmet` 41/41; svih 21 NG skripti zeleno (DEMO otisak i piksel-matrica nepromenjeni); `test_v2_ng_*` + website 142 passed.
+- ADVERSARIAL: 5/5 ubijeno — vlasnik iz tela (backend), bez owner filtera na detalju (backend), kasni odgovor prihvaćen posle A→B, nepoznat ishod prikazan kao „nije otvoren", dupli submit.
+- UX: 500/prekid/2xx-bez-id = „Ishod nije poznat… predmet je možda otvoren"; 4xx = „nije otvoren"; unos ostaje; dugme zaključano tokom slanja; DEMO nema ulaz.
+- KNOWN LIMITATIONS: stranke/broj/vrednost se ne unose pri otvaranju (ugovor rute) — Task 3. Provera sukoba interesa — Task 4.
+- NEXT GATE: Task 3.

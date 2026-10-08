@@ -81,12 +81,15 @@
           <h1 class="sheet__title">Aktivni predmeti</h1>
           <p class="sheet__count" id="count" aria-live="polite"></p>
         </div>
+        <div class="sheet__tools">
         <div class="search">
           <label class="sr-only" for="pretraga">Pretraži predmete</label>
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>
           <input id="pretraga" type="search" autocomplete="off" spellcheck="false"
                  placeholder="Naziv, klijent, vrsta, broj predmeta ili sud">
           <kbd class="search__key" aria-hidden="true">/</kbd>
+        </div>
+        <a class="text-btn text-btn--line sheet__action" id="nov-predmet-link" href="#/predmeti/nov" hidden>Nov predmet</a>
         </div>
       </div>
 
@@ -113,6 +116,38 @@
         <p class="empty__text" id="empty-text"></p>
         <button class="text-btn text-btn--line" id="empty-clear" type="button" hidden>Obriši pretragu</button>
       </div>
+
+      <!-- Nov predmet (samo LIVE, NS005). Šalje src/nov-predmet.js. -->
+      <section class="matter" id="nov-predmet" hidden aria-labelledby="nov-naslov">
+        <div class="matter__head">
+          <a class="matter__back" href="#/">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
+          <h1 class="sheet__title matter__title" id="nov-naslov" tabindex="-1">Nov predmet</h1>
+          <p class="matter__ref">Predmet se otvara nazivom. Stranke, broj i vrednost spora unosite u predmetu.</p>
+        </div>
+        <form class="form matter__body" id="nov-forma" novalidate>
+          <div class="field">
+            <label class="field__label" for="nov-naziv">Naziv predmeta</label>
+            <input class="field__input" id="nov-naziv" name="naziv" type="text" maxlength="300" autocomplete="off" required aria-describedby="nov-naziv-pomoc">
+            <p class="field__help" id="nov-naziv-pomoc">Obavezno. Na primer: Jović protiv Petrovića — naknada štete.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="nov-tip">Vrsta predmeta</label>
+            <input class="field__input" id="nov-tip" name="tip" type="text" maxlength="60" autocomplete="off" list="nov-vrste" aria-describedby="nov-tip-pomoc">
+            <datalist id="nov-vrste"></datalist>
+            <p class="field__help" id="nov-tip-pomoc">Izaberite ponuđenu ili upišite svoju.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="nov-opis">Kratak opis</label>
+            <textarea class="field__input field__input--area" id="nov-opis" name="opis" rows="4" maxlength="4000"></textarea>
+          </div>
+          <p class="notice" id="nov-poruka" role="status" aria-live="polite" hidden></p>
+          <div class="form__actions">
+            <button class="text-btn text-btn--primary" id="nov-posalji" type="submit">Otvori predmet</button>
+            <a class="text-btn" href="#/">Odustani</a>
+          </div>
+        </form>
+      </section>
 
       <!-- Detalj predmeta (samo LIVE; samo čitanje). Sadržaj upisuje src/app.js kao tekst. -->
       <section class="matter" id="predmet" hidden aria-labelledby="predmet-naslov">
@@ -190,6 +225,7 @@
   <script src="src/predmeti.js"></script>
   <script src="src/predmet.js"></script>
   <script src="src/detalj.js"></script>
+  <script src="src/nov-predmet.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

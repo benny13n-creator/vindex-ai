@@ -349,6 +349,8 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
 
   .sheet__head { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
   .search { width: 100%; }
+  .sheet__tools { width: 100%; }
+  .sheet__tools .search { flex: 1; min-width: 0; }
   .registry { padding: 0 var(--sp-4) var(--sp-6); }
   .empty { padding: var(--sp-6) var(--sp-4); }
 
@@ -378,19 +380,44 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
 
-/* ── Detalj predmeta (NS004, samo čitanje) ───────────────────────────────
- * Ista ljuska, ista tipografija i linije. U predmetu nema trajnog trećeg
+/* ── Detalj predmeta (NS004) i radni pogledi (NS005) ────────────────────
+ * Ista ljuska, ista tipografija i linije. Van registra nema trajnog trećeg
  * panela: radna površina dobija širinu. Dokument je primaran. */
-:root[data-pogled="predmet"] #glavni > .sheet__head,
-:root[data-pogled="predmet"] #registry,
-:root[data-pogled="predmet"] #empty,
-:root[data-pogled="predmet"] #panel,
-:root[data-pogled="predmet"] #panel-toggle { display: none !important; }
+:root[data-pogled] #glavni > .sheet__head,
+:root[data-pogled] #registry,
+:root[data-pogled] #empty,
+:root[data-pogled] #panel,
+:root[data-pogled] #panel-toggle { display: none !important; }
 @media (min-width: 860px) {
-  :root[data-pogled="predmet"] .shell { grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-areas: "top top" "nav main"; }
-  :root[data-pogled="predmet"][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
-  :root[data-pogled="predmet"] .sheet { border-right: 0; }
+  :root[data-pogled] .shell { grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-areas: "top top" "nav main"; }
+  :root[data-pogled][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
+  :root[data-pogled] .sheet { border-right: 0; }
 }
+
+/* ── Forme (NS005): labela iznad polja, jedna kolona, bez kartica ─────── */
+.sheet__tools { display: flex; align-items: center; gap: var(--sp-3); max-width: 100%; }
+.sheet__action { flex: none; height: 36px; }
+.form { display: flex; flex-direction: column; gap: var(--sp-5); max-width: 640px; }
+.field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.field__label { font-size: var(--fs-meta); color: var(--text-2); }
+.field__input {
+  width: 100%; min-height: 36px; padding: 6px 10px; font: inherit; font-size: var(--fs-body); color: var(--text-1);
+  background: var(--bg-input); border: 1px solid var(--line-strong); border-radius: var(--radius);
+  transition: border-color var(--dur) var(--ease);
+}
+.field__input--area { min-height: 96px; resize: vertical; line-height: 1.5; }
+.field__input:hover { border-color: var(--text-3); }
+.field__input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: transparent; }
+.field__input[aria-invalid="true"] { border-color: var(--attention); }
+.field__help { margin: 0; font-size: var(--fs-small); color: var(--text-3); }
+.form__actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+.text-btn--primary { border-color: var(--accent); color: var(--text-1); font-weight: 500; }
+.text-btn--primary:hover { background: var(--bg-selected); }
+.text-btn:disabled { opacity: .55; cursor: default; }
+.notice { margin: 0; padding: var(--sp-2) 0 var(--sp-2) var(--sp-3); border-left: 2px solid var(--line-strong); color: var(--text-2); max-width: 64ch; }
+.notice[data-stanje="greska"] { border-left-color: var(--attention); color: var(--text-1); }
+.notice[data-stanje="nepoznato"] { border-left-color: var(--attention); color: var(--text-1); }
+.notice[data-stanje="uspeh"] { border-left-color: var(--accent); }
 
 .matter { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .matter__head { padding: var(--sp-6) var(--sheet-pad) var(--sp-4); }
