@@ -65,6 +65,11 @@ export function proveriBrend(u, ref) {
   z("logo je ceo unutar linka i gornje trake (nije isečen)", unutar(logo.okvir, u.znak.okvir) && unutar(logo.okvir, u.traka.okvir) && logo.okvir.x >= 0 && logo.okvir.x + logo.okvir.w <= u.viewport,
     JSON.stringify(logo.okvir));
   z("gornja traka i dokument bez preliva", !u.traka.preliv && !u.dokumentPreliv);
+  z("link i logo počinju tačno gde je počinjao stari wordmark (leva ivica = foundation)", Math.abs(u.znak.okvir.x - ref.znak.okvir.x) <= 0.01 && Math.abs(logo.okvir.x - u.znak.okvir.x) <= 0.01,
+    `link ${u.znak.okvir.x} / logo ${logo.okvir.x} / foundation ${ref.znak.okvir.x}`);
+  // Sadržajna visina trake je visina bez donje linije od 1 px.
+  const sredinaTrake = u.traka.okvir.y + (u.traka.okvir.h - 1) / 2, sredinaLogoa = logo.okvir.y + logo.okvir.h / 2;
+  z("logo je vertikalno centriran u gornjoj traci (±0,5 px)", Math.abs(sredinaLogoa - sredinaTrake) <= 0.5, `${sredinaLogoa} vs ${sredinaTrake}`);
   z("link: isto odredište i isto pristupačno ime kao foundation", u.znak.href === ref.znak.href && u.znak.ime === ref.znak.ime && u.znak.ime === "Vindex — Aktivni predmeti", `${u.znak.href} „${u.znak.ime}“`);
   z("čitač ekrana ne dobija dupli „Vindex“ (logo alt=\"\", bez teksta u linku)", u.slike.every(s => s.alt === "") && u.znak.tekst === "", JSON.stringify(u.znak.tekst));
   z("gornja traka: okvir identičan foundation-u (visina, širina, položaj)", isti(u.traka.okvir, ref.traka.okvir), `${JSON.stringify(u.traka.okvir)} vs ${JSON.stringify(ref.traka.okvir)}`);
@@ -94,8 +99,12 @@ export function proveriKontrast(u, ref) {
     a.map(k => `${k.s} ${k.odnos.toFixed(2)}`).join(" ")]];
 }
 
-/** Prostor u kome je promena nameravana (CSS px; za masku piksel-poređenja). */
+/** Prostor u kome je promena nameravana (CSS px; za masku piksel-poređenja).
+ *  `mastilo` (ako je izmereno) = stvarni pikseli sadržaja linka, uključujući
+ *  glifove starog teksta koji izlaze van okvira linka. */
 export function nameravaniRegion(u, ref) {
   const unija = (a, b) => { const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y); return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y }; };
-  return u.tema === "light" ? unija(u.traka.okvir, ref.traka.okvir) : unija(u.znak.okvir, ref.znak.okvir);
+  if (u.tema === "light") return unija(u.traka.okvir, ref.traka.okvir);
+  // Tamna: okvir linka (HEAD i foundation) + izmereno mastilo njihovog sadržaja.
+  return [u.mastilo, ref.mastilo].filter(Boolean).reduce(unija, unija(u.znak.okvir, ref.znak.okvir));
 }

@@ -100,6 +100,20 @@ async function razlika(a, b, maske = []) {
     return { piksela, kanal, izuzeto, primeri, dim: `${ia.width}x${ia.height}` };
   }, ["data:image/png;base64," + a.toString("base64"), "data:image/png;base64," + b.toString("base64"), maske]);
 }
+/* Okvir piksela koji se razlikuju između dva PNG-a iste veličine (null ako nijedan). */
+async function okvirRazlike(a, b) {
+  return poredjenje.evaluate(async ([a, b]) => {
+    const ucitaj = (src) => new Promise((r, x) => { const i = new Image(); i.onload = () => r(i); i.onerror = x; i.src = src; });
+    const [ia, ib] = await Promise.all([ucitaj(a), ucitaj(b)]);
+    const pod = (img) => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d"); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
+    const da = pod(ia), db = pod(ib), W = ia.width;
+    let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+    for (let i = 0; i < da.length; i += 4) {
+      if (da[i] !== db[i] || da[i + 1] !== db[i + 1] || da[i + 2] !== db[i + 2]) { const x = (i / 4) % W, y = Math.floor(i / 4 / W); x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    }
+    return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  }, ["data:image/png;base64," + a.toString("base64"), "data:image/png;base64," + b.toString("base64")]);
+}
 const uSumu = (d) => d.piksela <= SUM_PIKSELA && d.kanal <= SUM_KANALA;
 const opis = (d) => `${d.piksela} piksela, maks. ${d.kanal}/255, ${d.dim}${d.izuzeto ? `, izuzeto ${d.izuzeto} px nameravanog regiona` : ""}${d.piksela && d.primeri ? `; prvi: ${d.primeri.join(" ")}` : ""}`;
 
@@ -114,6 +128,16 @@ async function snimakDemo(port, { w = 1440, h = 900, tema = "dark", nav = "puna"
   await p.waitForTimeout(250);
   const b = await p.screenshot({ fullPage: ceo });
   const brend = await brendUgovor(p);
+  // Stvarno mastilo sadržaja linka (foundation: serifni tekst „Vindex“ čiji glifovi
+  // mogu izaći piksel van okvira linka): snimak sa vidljivim i sa providnim
+  // sadržajem; razlika = tačni pikseli koje je stari wordmark bojio.
+  const o = brend.znak.okvir, isecak = { x: Math.max(0, Math.floor(o.x) - 8), y: Math.max(0, Math.floor(o.y) - 8), width: Math.ceil(o.w) + 16, height: Math.ceil(o.h) + 16 };
+  const sa = await p.screenshot({ clip: isecak });
+  await p.addStyleTag({ content: ".wordmark{color:transparent!important}.wordmark img{visibility:hidden!important}" });
+  await p.waitForTimeout(50);
+  const bez = await p.screenshot({ clip: isecak });
+  const m = await okvirRazlike(sa, bez);
+  brend.mastilo = m && { x: m.x + isecak.x, y: m.y + isecak.y, w: m.w, h: m.h };
   await ctx.close();
   return { b, brend };
 }
