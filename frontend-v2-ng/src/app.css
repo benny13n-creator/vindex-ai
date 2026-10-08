@@ -464,3 +464,16 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
   .facts { grid-template-columns: minmax(0, 1fr); }
   .facts dt { padding-bottom: 0; border-bottom: 0; }
 }
+
+/* ── PRIMARNI prikaz (/app, NS004) ───────────────────────────────────────
+ * Samo stvarne funkcije: bez panela „Zahteva pažnju“ (nije povezan sa
+ * stvarnim obavezama) i bez trećeg stupca. */
+:root[data-prikaz="primarni"] #panel,
+:root[data-prikaz="primarni"] #panel-toggle,
+:root[data-prikaz="primarni"] .demo-badge,
+:root[data-prikaz="primarni"] .account { display: none !important; }
+@media (min-width: 860px) {
+  :root[data-prikaz="primarni"] .shell { grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-areas: "top top" "nav main"; }
+  :root[data-prikaz="primarni"][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
+  :root[data-prikaz="primarni"] .sheet { border-right: 0; }
+}

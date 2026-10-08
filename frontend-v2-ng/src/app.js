@@ -132,6 +132,7 @@
   }
 
   function prikaziRegistar() {
+    if ($("empty-prijava")) $("empty-prijava").hidden = true;
     var lista = vidljivi();
     /* LIVE: broj je `ukupno` iz API-ja (ne broj u memoriji, ne demo broj). */
     var ukupno = izvor.stanje === "podaci" && typeof izvor.ukupno === "number" ? izvor.ukupno : indeks.length;
@@ -179,7 +180,25 @@
    * kancelarija. Pretraga je isključena, broj se ne prikazuje. */
   var izvor = { stanje: "demo", naslov: "", tekst: "" };
 
+  /* Stanja u kojima je jedini ispravan sledeći korak postojeća prijava. */
+  var STANJA_PRIJAVE = { "bez-prijave": 1, "istekla": 1, "greska-sesije": 1, "greska-prijava": 1,
+                         "greska-auth_required": 1 };
+  function linkPrijave(id, stanjeOznaka) {
+    var a = $(id);
+    if (!a) {
+      /* Registar: link se pravi tek kad zatreba (samo LIVE), da DEMO DOM ostane
+       * identičan foundation-u (verify:demo-otisak). */
+      if (!STANJA_PRIJAVE[stanjeOznaka]) return;
+      a = el("a", "text-btn text-btn--line", "Prijavite se");
+      a.id = id;
+      $("empty").append(a);
+    }
+    a.href = (rt && rt.prijava) || "/app";
+    a.hidden = !STANJA_PRIJAVE[stanjeOznaka];
+  }
+
   function prikaziStanje() {
+    linkPrijave("empty-prijava", izvor.stanje);
     $("rows").replaceChildren();
     $("registry").hidden = true;
     $("empty").hidden = false;
@@ -392,6 +411,7 @@
     $("odeljak-pregled").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
+    $("predmet-prijava").hidden = true;
     ocistiDokument();
   }
 
@@ -401,6 +421,7 @@
     $("predmet-stanje").dataset.stanje = oznaka;
     $("predmet-stanje-naslov").textContent = naslov;
     $("predmet-stanje-tekst").textContent = tekst;
+    linkPrijave("predmet-prijava", oznaka);
   }
 
   function prikaziOdeljak() {
@@ -662,6 +683,18 @@
     osvezi();
     prikaziPanel();
   } else if (rt && rezim === rt.LIVE && window.VxLive && window.VxSesija) {
+    /* PRIMARNI prikaz (/app): samo stvarne funkcije. Moduli koji još ne
+     * postoje se uklanjaju (ne glume rad), panel „Zahteva pažnju“ nije povezan
+     * sa stvarnim obavezama pa se ne prikazuje; odjava ide postojećim tokom. */
+    var primarni = rt.prikaz === rt.PRIMARNI;
+    if (primarni) {
+      koren.dataset.prikaz = "primarni";
+      document.querySelectorAll(".sidenav__item[data-modul]").forEach(function (a) { a.closest("li").remove(); });
+      $("odjava").href = rt.odjava;
+      var uskladiOdjavu = function () { $("odjava").hidden = window.VxSesija.stanje().stanje !== window.VxSesija.STANJA.PRIJAVLJEN; };
+      window.VxSesija.naPromenu(uskladiOdjavu);
+      window.__vxUskladiOdjavu = uskladiOdjavu;
+    }
     /* Pretraga u LIVE režimu radi samo nad učitanim poljima; sud i klijent
      * nisu deo odgovora, pa se ne obećavaju. */
     $("pretraga").placeholder = "Naziv, broj predmeta ili stranka";
@@ -712,6 +745,7 @@
     window.addEventListener("hashchange", primeniRutu);
 
     kontrolerLive.pokreni();
+    if (window.__vxUskladiOdjavu) window.__vxUskladiOdjavu();
     primeniRutu();
   } else {
     izvor = { stanje: "neispravna-konfiguracija", naslov: "Neispravna konfiguracija",
