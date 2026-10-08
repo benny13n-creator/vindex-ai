@@ -29,12 +29,38 @@
     };
   }
 
-  var trenutni = razresi(root.location ? root.location.search : "");
+  /* NS004 — PRIMARNI prikaz: V2 servira sam /app (VINDEX_V2_NG_PRIMARY_ENABLED).
+   * Putanja je jedini izvor odluke, pa /app NE MOŽE da padne u DEMO: `rezim`
+   * se tamo ne čita, uvek je LIVE. Preview (/v2/preview/) i lokalni prototip
+   * zadržavaju postojeće pravilo iznad. */
+  var PRIMARNI = "primarni", PREGLED = "pregled";
+  function prikazZa(putanja) { return /^\/app\/?$/.test(String(putanja || "")) ? PRIMARNI : PREGLED; }
+  var prikaz = prikazZa(root.location ? root.location.pathname : "");
+
+  /* Linkovi postojeće prijave (reset lozinke, potvrda naloga, #login/#register)
+   * nose token ili nameru u hash-u i očekuju legacy /app. U primarnom prikazu se
+   * ODMAH prosleđuju klasičnoj prijavi sa istim hash-om; V2 ih ne čita. */
+  var preusmeren = false;
+  if (prikaz === PRIMARNI && root.location) {
+    var h = String(root.location.hash || "");
+    if (/(^|[#&])(access_token|refresh_token|type|error|error_description|error_code)=/.test(h) || h === "#login" || h === "#register") {
+      preusmeren = true;
+      root.location.replace("/app-legacy" + h);
+    }
+  }
+
+  var trenutni = prikaz === PRIMARNI ? { rezim: preusmeren ? NEISPRAVAN : LIVE, greska: preusmeren ? "Preusmeravanje na prijavu…" : null }
+    : razresi(root.location ? root.location.search : "");
 
   root.VxRuntime = Object.freeze({
-    DEMO: DEMO, LIVE: LIVE, NEISPRAVAN: NEISPRAVAN,
+    DEMO: DEMO, LIVE: LIVE, NEISPRAVAN: NEISPRAVAN, PRIMARNI: PRIMARNI, PREGLED: PREGLED,
     razresi: razresi,
+    prikazZa: prikazZa,
+    prikaz: prikaz,
     rezim: trenutni.rezim,
     greska: trenutni.greska,
+    /* Gde se postojeća prijava/odjava nalazi u ovom prikazu. */
+    prijava: prikaz === PRIMARNI ? "/app-legacy?posle=app" : "/app",
+    odjava: prikaz === PRIMARNI ? "/app-legacy?odjava=1" : null,
   });
 })(window);

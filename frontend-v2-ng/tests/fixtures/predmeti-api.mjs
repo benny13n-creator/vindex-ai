@@ -95,3 +95,63 @@ export function predmetiRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* ── NS004: detalj predmeta i tekst dokumenta ─────────────────────────────
+ * Emulacija UGOVORA postojećih ruta (api.py, main f1d29b32):
+ *   GET /api/predmeti/{id}  → vlasnik iz tokena (.eq(user_id)); tuđ, nepostojeći
+ *     i predmet u brisanju → 404 „Predmet nije pronađen"; telo:
+ *     { predmet, beleske, istorija, dokumenti, hronologija, komentari, klijenti_linked }
+ *   GET /api/predmeti/{id}/dokumenti/{dok}/preview → .eq(id).eq(predmet_id).eq(user_id);
+ *     telo { naziv_fajla, velicina_kb, status, created_at, tekst, dostupan }.
+ * `dokumenti`: { [predmetId]: [redovi predmet_dokumenti] }. Kuke:
+ *   preDetalja(id, korisnik) / preTeksta(dok, korisnik) → Promise ili {status, telo}
+ *   izmeniDetalj(telo, id) → telo.
+ */
+export function napraviDokumente(predmetId, korisnik, n, opcije = {}) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `${predmetId}-d${i}`, predmet_id: predmetId, user_id: korisnik,
+    naziv_fajla: opcije.naziv ? opcije.naziv(i) : `Spis ${i + 1} predmeta ${predmetId}.pdf`,
+    storage_path: `intake/${predmetId}/${i}`, pinecone_namespace: `kancelarija_${korisnik}`,
+    status: "indeksirano", velicina_kb: 40 + i, redni_broj: i + 1,
+    tip_dokaza: opcije.tip ? opcije.tip(i) : (i % 2 ? "dokaz" : "podnesak"),
+    created_at: new Date(Date.UTC(2026, 8, 1 + i, 9, 0, 0)).toISOString(),
+    tekst_sadrzaj: opcije.tekst ? opcije.tekst(i) : `TEKST-${predmetId}-d${i}: sadržaj spisa ${i + 1}.`,
+  }));
+}
+
+export function predmetDetaljRuta(korisnici, dokumenti = {}, kuke = {}) {
+  return async (req, url, res) => {
+    const m = /^\/api\/predmeti\/([^/]+)(?:\/dokumenti\/([^/]+)\/preview)?$/.exec(url.pathname);
+    if (!m) return false;
+    if (req.method !== "GET") { json(res, 405, { detail: "Method Not Allowed" }); return true; }
+    const a = req.headers.authorization || "";
+    if (!a.startsWith("Bearer ")) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    const k = korisnici[a.slice(7)];
+    if (!k) { json(res, 401, { detail: "Invalid token" }); return true; }
+    const id = decodeURIComponent(m[1]);
+    if (m[2]) {
+      const dokId = decodeURIComponent(m[2]);
+      if (kuke.preTeksta) { const z = await kuke.preTeksta(dokId, k.id); if (z && z.status) { json(res, z.status, z.telo ?? { detail: "fixture" }); return true; } }
+      if (res.destroyed) return true;
+      const d = (dokumenti[id] || []).find(x => x.id === dokId && x.predmet_id === id && x.user_id === k.id);
+      if (!d) { json(res, 404, { detail: "Dokument nije pronađen" }); return true; }
+      const tekst = (d.tekst_sadrzaj || "").trim();
+      json(res, 200, { naziv_fajla: d.naziv_fajla, velicina_kb: d.velicina_kb, status: d.status, created_at: d.created_at, tekst, dostupan: !!tekst });
+      return true;
+    }
+    if (kuke.preDetalja) { const z = await kuke.preDetalja(id, k.id); if (z && z.status) { json(res, z.status, z.telo ?? { detail: "fixture" }); return true; } }
+    if (res.destroyed) return true;
+    const p = k.predmeti.find(x => x.id === id && x.user_id === k.id);
+    if (!p || p.brisanje_zapoceto) { json(res, 404, { detail: "Predmet nije pronađen" }); return true; }
+    let telo = { predmet: p, beleske: [], istorija: [], dokumenti: dokumenti[id] || [], hronologija: [], komentari: [],
+      klijenti_linked: k.klijenti && k.klijenti[id] ? k.klijenti[id] : [] };
+    if (kuke.izmeniDetalj) telo = kuke.izmeniDetalj(telo, id);
+    json(res, 200, telo);
+    return true;
+  };
+}
+
+/** Više handler-a redom; prvi koji obradi zahtev pobeđuje. */
+export function kombinuj(...h) {
+  return async (req, url, res) => { for (const x of h) if (await x(req, url, res)) return true; return false; };
+}

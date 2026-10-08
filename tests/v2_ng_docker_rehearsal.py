@@ -38,6 +38,9 @@ KANONSKI_LOGO = {
     "Vindex_Protected_Light_Surface.png": "7485ddff765080615bcd90f04f383762770c41d8cf9e24fb21171088024eeae9",
 }
 LEGACY = ["/health", "/", "/app", "/app-v2", "/sw.js", "/manifest.json", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
+# NS004: primarni /app, stabilni asseti i legacy rezerva.
+PRIMARNI = ["/app-legacy", "/app-legacy?posle=app", "/v2/app/src/app.js", "/v2/app/src/runtime.js",
+            "/v2/app/brand/Vindex_Transparent_EXACT_LOOK.svg", "/v2/app/tests/live-api.mjs", "/v2/app/package.json"]
 PREVIEW = ["/v2/preview", "/v2/preview/", "/v2/preview?x=1", "/v2/preview/?rezim=live", "/v2/preview/?rezim=demo",
            "/v2/preview/src/app.js", "/v2/preview/src/runtime.js", "/v2/preview/fonts/ibm-plex-sans/400.css",
            "/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "/v2/preview/brand/Vindex_Protected_Light_Surface.png"]
@@ -83,10 +86,11 @@ def sha(p):
     return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 
-def stanje(ime, flag):
+def stanje(ime, flag, primarni=None):
     k = f"vx-rehearsal-{ime.lower()}"
     docker("rm", "-f", k, provera=False)
-    env = [x for kv in {**LAZNO, **({"VINDEX_V2_NG_PREVIEW_ENABLED": flag} if flag else {})}.items() for x in ("-e", f"{kv[0]}={kv[1]}")]
+    dodatno = {**({"VINDEX_V2_NG_PREVIEW_ENABLED": flag} if flag else {}), **({"VINDEX_V2_NG_PRIMARY_ENABLED": primarni} if primarni else {})}
+    env = [x for kv in {**LAZNO, **dodatno}.items() for x in ("-e", f"{kv[0]}={kv[1]}")]
     docker("run", "-d", "--name", k, "--network", "none", *env, IMAGE)  # podrazumevani CMD image-a
     spreman = False
     for _ in range(90):
@@ -105,13 +109,17 @@ def stanje(ime, flag):
            info["HostConfig"]["NetworkMode"])
     rez = {}
     if spreman:
-        izlaz = docker("exec", k, "python", "-c", SONDA, *LEGACY, *PREVIEW, *SKRIVENO)
+        izlaz = docker("exec", k, "python", "-c", SONDA, *LEGACY, *PREVIEW, *SKRIVENO, *PRIMARNI)
         rez = json.loads([x for x in izlaz.splitlines() if x.startswith("@@")][-1][2:])
     spolja = [l for l in log.splitlines() if re.search(r"Temporary failure in name resolution|Name or service not known|Network is unreachable|ConnectError|nodename nor servname|getaddrinfo", l)]
     print(f"INFO  [{ime}] pokušaji spoljne mreže pri startu (blokirani, očekivano uz lažno okruženje): {len(spolja)} linija loga", flush=True)
     for l in sorted(set(re.sub(r"\d+", "N", l)[:140] for l in spolja))[:6]:
         print(f"INFO  [{ime}]     {l}", flush=True)
     uklj = "[V2-NG] preview UKLJUČEN" in log
+    if rez:
+        rez["_primarni_log"] = "[V2-NG] PRIMARNI /app" in log
+        rez["_app_telo"] = docker("exec", k, "python", "-c",
+                                  "import urllib.request as u;print(u.urlopen('http://127.0.0.1:8000/app').read().decode())")
     docker("rm", "-f", k, provera=False)
     return rez, uklj
 
@@ -160,6 +168,31 @@ if c:
         razl = [p for p in LEGACY + PREVIEW + SKRIVENO if (a[p]["status"], a[p]["norm"], a[p]["ct"]) != (c[p]["status"], c[p]["norm"], c[p]["ct"])]
         zapisi("C-OFF", "ponašanje identično stanju A (legacy i preview)", not razl, razl)
 zapisi("C-OFF", "log ne prijavljuje uključen preview", not uklj_c)
+if a:
+    zapisi("A-OFF", "primarni isključen: /app-legacy = /app (legacy), /v2/app/* = 404",
+           a["/app-legacy"]["norm"] == a["/app"]["norm"] and all(a[p]["status"] == 404 for p in PRIMARNI if p.startswith("/v2/app/"))
+           and "v2/app/src" not in a["_app_telo"] and not a["_primarni_log"])
+
+# ── D: primarni /app uključen (preview ostaje isključen) ─────────────────
+d, _ = stanje("D-PRIMARY-ON", None, primarni="true")
+if d:
+    zapisi("D-PRIMARY-ON", "/app je V2 NG sa assetima sa /v2/app/ (ne /v2/preview)", d["/app"]["status"] == 200 and 'src="/v2/app/src/runtime.js"' in d["_app_telo"]
+           and "/v2/preview/" not in d["_app_telo"] and d["_primarni_log"])
+    zapisi("D-PRIMARY-ON", "/v2/app asseti bajt-identični repozitorijumu, logo kanonski",
+           d["/v2/app/src/app.js"]["sha"] == sha(NG / "src/app.js") and d["/v2/app/src/runtime.js"]["sha"] == sha(NG / "src/runtime.js")
+           and d["/v2/app/brand/Vindex_Transparent_EXACT_LOOK.svg"]["sha"] == KANONSKI_LOGO["Vindex_Transparent_EXACT_LOOK.svg"])
+    zapisi("D-PRIMARY-ON", "tests/ i package.json nisu izloženi", d["/v2/app/tests/live-api.mjs"]["status"] == 404 and d["/v2/app/package.json"]["status"] == 404)
+    if a:
+        zapisi("D-PRIMARY-ON", "/app-legacy = klasičan /app iz stanja A (rezerva)", d["/app-legacy"]["norm"] == a["/app"]["norm"])
+        zapisi("D-PRIMARY-ON", "/app-legacy?posle=app = legacy + skript povratka", d["/app-legacy?posle=app"]["status"] == 200 and d["/app-legacy?posle=app"]["norm"] != a["/app"]["norm"])
+        razl = [p for p in LEGACY if p != "/app" and (a[p]["status"], a[p]["norm"]) != (d[p]["status"], d[p]["norm"])]
+        zapisi("D-PRIMARY-ON", "ostale rute identične stanju A; preview i dalje 404 (nezavisan)", not razl and all(d[p]["status"] == 404 for p in PREVIEW), razl)
+
+# ── E: primarni ponovo isključen — /app je odmah legacy, bez izmene koda ─
+e, _ = stanje("E-PRIMARY-OFF", None)
+if e and a:
+    razl = [p for p in LEGACY + PREVIEW + SKRIVENO + PRIMARNI if (a[p]["status"], a[p]["norm"]) != (e[p]["status"], e[p]["norm"])]
+    zapisi("E-PRIMARY-OFF", "posle restarta bez prekidača: identično stanju A (legacy /app)", not razl and not e["_primarni_log"], razl)
 
 print(f"\n{ukupno - pada}/{ukupno} PASS", flush=True)
 sys.exit(1 if pada else 0)

@@ -377,3 +377,109 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* ── Detalj predmeta (NS004, samo čitanje) ───────────────────────────────
+ * Ista ljuska, ista tipografija i linije. U predmetu nema trajnog trećeg
+ * panela: radna površina dobija širinu. Dokument je primaran. */
+:root[data-pogled="predmet"] #glavni > .sheet__head,
+:root[data-pogled="predmet"] #registry,
+:root[data-pogled="predmet"] #empty,
+:root[data-pogled="predmet"] #panel,
+:root[data-pogled="predmet"] #panel-toggle { display: none !important; }
+@media (min-width: 860px) {
+  :root[data-pogled="predmet"] .shell { grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-areas: "top top" "nav main"; }
+  :root[data-pogled="predmet"][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
+  :root[data-pogled="predmet"] .sheet { border-right: 0; }
+}
+
+.matter { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.matter__head { padding: var(--sp-6) var(--sheet-pad) var(--sp-4); }
+.matter__back {
+  display: inline-flex; align-items: center; gap: var(--sp-1); margin-left: -4px;
+  color: var(--text-2); text-decoration: none; font-size: var(--fs-meta);
+}
+.matter__back svg { width: 16px; height: 16px; }
+.matter__back:hover { color: var(--text-1); }
+.matter__title { margin-top: var(--sp-3); overflow-wrap: anywhere; }
+.matter__ref { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin: var(--sp-2) 0 0; color: var(--text-2); font-size: var(--fs-meta); min-height: 1lh; }
+.matter__ref .ref__no { display: inline; color: var(--text-1); }
+
+.tabs { display: flex; gap: var(--sp-6); padding: 0 var(--sheet-pad); border-bottom: 1px solid var(--line-strong); }
+.tabs__item {
+  padding: var(--sp-2) 0 var(--sp-3); margin-bottom: -1px; border-bottom: 2px solid transparent;
+  color: var(--text-2); text-decoration: none;
+}
+.tabs__item:hover { color: var(--text-1); }
+.tabs__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }
+.tabs__count { margin-left: 4px; color: var(--text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.matter__body { padding: var(--sp-6) var(--sheet-pad) var(--sp-8); max-width: 880px; }
+.facts { display: grid; grid-template-columns: minmax(140px, 200px) minmax(0, 1fr); margin: 0; border-top: 1px solid var(--line); }
+.facts dt, .facts dd { margin: 0; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.facts dt { padding-right: var(--sp-4); color: var(--text-3); font-size: var(--fs-meta); }
+.facts dd { color: var(--text-1); overflow-wrap: anywhere; }
+.matter__section { margin-top: var(--sp-8); }
+.matter__h2 { margin: 0 0 var(--sp-3); font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-heading); line-height: var(--lh-tight); }
+.people { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.people__item { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.people__name { display: block; overflow-wrap: anywhere; }
+.people__meta { display: block; margin-top: 2px; color: var(--text-2); font-size: var(--fs-meta); }
+
+/* Dokumenti: lista + razdelnik + dokument (primaran). */
+.docs { --docs-list-w: 320px; display: grid; grid-template-columns: var(--docs-list-w) 6px minmax(0, 1fr); flex: 1; min-height: 0; }
+.docs__list-wrap { min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); }
+.docs__list { list-style: none; margin: 0; padding: 0; }
+.docs__item {
+  display: block; width: 100%; padding: 12px var(--sp-4) 12px var(--sheet-pad); text-align: left;
+  border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text-1); cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.docs__item:hover { background: var(--bg-hover); }
+.docs__item[aria-current="true"] { background: var(--bg-selected); box-shadow: inset 2px 0 0 var(--accent); }
+.docs__name { display: block; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.docs__meta { display: block; margin-top: 2px; color: var(--text-2); font-size: var(--fs-meta); }
+.docs__empty { padding-left: var(--sheet-pad); }
+.docs__split { position: relative; cursor: col-resize; touch-action: none; }
+.docs__split::after { content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 1px; background: transparent; }
+.docs__split:hover::after, .docs__split:focus-visible::after { background: var(--accent); }
+.doc { min-height: 0; overflow-y: auto; padding: var(--sp-6) var(--sheet-pad) var(--sp-8); }
+.doc__hint { margin: 0; color: var(--text-3); }
+.doc__title { margin: 0 0 var(--sp-4); font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-heading); line-height: var(--lh-tight); overflow-wrap: anywhere; }
+.facts--doc { max-width: 640px; }
+.doc__state { margin-top: var(--sp-5); padding-left: var(--sp-3); border-left: 2px solid var(--line-strong); color: var(--text-2); }
+.doc__state[data-stanje="greska"] { border-left-color: var(--attention); }
+.doc__text {
+  margin: var(--sp-5) 0 0; max-width: 78ch; white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: var(--font-serif); font-size: 1rem; line-height: 1.65; color: var(--text-1);
+}
+.doc__back { display: none; margin: 0 0 var(--sp-3) -8px; }
+
+@media (max-width: 859px) {
+  .docs { grid-template-columns: minmax(0, 1fr); }
+  .docs__split { display: none; }
+  .docs__list-wrap { border-right: 0; }
+  .docs.is-doc-open .docs__list-wrap { display: none; }
+  .docs:not(.is-doc-open) .doc { display: none; }
+  .docs.is-doc-open .doc__back { display: inline-flex; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+  .facts dt { padding-bottom: 0; border-bottom: 0; }
+}
+
+/* ── PRIMARNI prikaz (/app, NS004) ───────────────────────────────────────
+ * Samo stvarne funkcije: bez panela „Zahteva pažnju“ (nije povezan sa
+ * stvarnim obavezama) i bez trećeg stupca. */
+:root[data-prikaz="primarni"] #panel,
+:root[data-prikaz="primarni"] #panel-toggle,
+:root[data-prikaz="primarni"] .demo-badge,
+:root[data-prikaz="primarni"] .account { display: none !important; }
+@media (min-width: 860px) {
+  :root[data-prikaz="primarni"] .shell { grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-areas: "top top" "nav main"; }
+  :root[data-prikaz="primarni"][data-nav="skupljena"] .shell { grid-template-columns: var(--nav-w-collapsed) minmax(0, 1fr); }
+  :root[data-prikaz="primarni"] .sheet { border-right: 0; }
+}
+
+/* Programski fokus (prelazak na predmet/dokument, povratak na listu) služi
+ * čitaču ekrana; nepokretni naslovi i površine ne dobijaju okvir. Linkovi u
+ * stilu dugmeta nisu podvučeni. */
+.matter__title:focus, .doc__title:focus, #glavni:focus { outline: none; }
+a.text-btn { text-decoration: none; }

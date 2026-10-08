@@ -38,7 +38,9 @@ def _fake_request():
 
 def _chain(data):
     c = MagicMock()
-    for m in ["select", "eq", "single", "execute"]:
+    # NS004: preview koristi `.maybe_single()` (postgrest vraća None za 0 redova);
+    # oba imena ostaju u lancu da mock prati stvaran poziv.
+    for m in ["select", "eq", "single", "maybe_single", "execute"]:
         setattr(c, m, MagicMock(return_value=c))
     r = MagicMock(); r.data = data
     c.execute = MagicMock(return_value=r)

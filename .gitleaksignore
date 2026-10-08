@@ -69,6 +69,18 @@ bb875b1c97cf38c9934270547daf54030c75a0a2:frontend-v2-ng/tests/live-fastapi-e2e.m
 788afb4f418dd4460c599ee5365b3e6cf67cff4f:.github/workflows/v2-ng.yml:generic-api-key:205
 788afb4f418dd4460c599ee5365b3e6cf67cff4f:.github/workflows/v2-ng.yml:generic-api-key:214
 
+# ── V2 NS004 non-secret request counters ──────────────────────────────────
+# Two historical test-only counter assignments were classified by the
+# generic-api-key heuristic because the local variable identifier contained
+# "Api". The assigned value is an in-memory array-length expression, not a
+# literal, credential, token, environment value or secret-store value.
+# Current source already uses a non-triggering identifier. Verified against
+# the exact commit blob before suppression (2026-10-08, founder decision).
+# Fingerprint-specific only: the same or any other suspicious pattern in a
+# new commit/file/line must still be detected.
+30022b87556e842af2a3dfb1e03bc66c6efce3a7:frontend-v2-ng/tests/live-primary-e2e.mjs:generic-api-key:94
+30022b87556e842af2a3dfb1e03bc66c6efce3a7:frontend-v2-ng/tests/live-primary-e2e.mjs:generic-api-key:135
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DELIBERATELY NOT SUPPRESSED — the one real finding
 # ═══════════════════════════════════════════════════════════════════════════

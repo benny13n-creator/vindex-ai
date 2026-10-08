@@ -1732,82 +1732,50 @@ def root():
     return {"status": "ok", "servis": "Vindex AI"}
 
 
-@app.get("/kako-radi", include_in_schema=False)
-def site_kako_radi():
-    path = BASE_DIR / "site" / "kako-radi.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+# NS004: povučene marketinške stranice. Njihove tvrdnje nisu imale živ put u
+# proizvodu (docs/ns004-site-claims.md); trajno preusmerenje na odgovarajući
+# odeljak nove početne strane, da stari linkovi i pretraživači ne pucaju.
+_POVUCENE_STRANICE = {
+    "/kako-radi": "/#rad",
+    "/sposobnosti": "/#rad",
+    "/za-advokate": "/#rad",
+    "/web3": "/",
+    "/bezbednost": "/#nacela",
+    "/vizija": "/",
+    "/tehnologija": "/",
+    "/beta": "/#pristup",
+    "/kontakt": "/#pristup",
+}
 
 
-@app.get("/sposobnosti", include_in_schema=False)
-def site_sposobnosti():
-    path = BASE_DIR / "site" / "sposobnosti.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+def _povucena_stranica(cilj: str):
+    from fastapi.responses import RedirectResponse
+
+    def _ruta():
+        return RedirectResponse(url=cilj, status_code=301, headers={"Cache-Control": "public, max-age=300"})
+    return _ruta
 
 
-@app.get("/za-advokate", include_in_schema=False)
-def site_za_advokate():
-    path = BASE_DIR / "site" / "za-advokate.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+for _put, _cilj in _POVUCENE_STRANICE.items():
+    app.add_api_route(_put, _povucena_stranica(_cilj), methods=["GET"], include_in_schema=False)
 
 
-@app.get("/web3", include_in_schema=False)
-def site_web3():
-    """Digitalna imovina i usklađenost.
-
-    Ruta je `/web3` jer je to termin po kome je posetilac traži, ali je vidljivi
-    naziv modula „Digitalna imovina" — tako ga zove i sam kod (`migrations/060`).
-    Obim je usklađenost i provera porekla digitalne imovine; nikad trgovanje.
-    """
-    path = BASE_DIR / "site" / "web3.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+# NS004: asseti javnog sajta pod /v2/site/ — legacy /sw.js preskače /v2/*, pa
+# posetioci nikad ne dobijaju zastareo keš. Fontovi i kanonski logo se služe iz
+# frontend-v2-ng (jedan izvor, isti bajtovi kao u aplikaciji); potpisna pozadina
+# je ista datoteka koju koristi V2. Ne zavisi ni od jednog V2 prekidača.
+_SAJT_V2_DIR = BASE_DIR / "frontend-v2-ng"
 
 
-@app.get("/bezbednost", include_in_schema=False)
-def site_bezbednost():
-    path = BASE_DIR / "site" / "bezbednost.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+@app.get("/v2/site/potpis.js", include_in_schema=False)
+def sajt_potpis():
+    return FileResponse(str(_SAJT_V2_DIR / "src" / "signature-background.js"), media_type="text/javascript; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"})
 
 
-@app.get("/vizija", include_in_schema=False)
-def site_vizija():
-    path = BASE_DIR / "site" / "vizija.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/tehnologija", include_in_schema=False)
-def site_tehnologija():
-    path = BASE_DIR / "site" / "tehnologija.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/beta", include_in_schema=False)
-def site_beta():
-    path = BASE_DIR / "site" / "beta.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
-
-
-@app.get("/kontakt", include_in_schema=False)
-def site_kontakt():
-    path = BASE_DIR / "site" / "kontakt.html"
-    if path.exists():
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=300"})
-    return JSONResponse(status_code=404, content={"error": "Stranica nije pronađena."})
+if (_SAJT_V2_DIR / "fonts").is_dir() and (_SAJT_V2_DIR / "brand").is_dir():
+    app.mount("/v2/site/fonts", _StaticFiles(directory=str(_SAJT_V2_DIR / "fonts")), name="sajt_fonts")
+    app.mount("/v2/site/brand", _StaticFiles(directory=str(_SAJT_V2_DIR / "brand")), name="sajt_brand")
 
 
 @app.get("/privacy")
@@ -2653,15 +2621,7 @@ async def diagnose(x_admin_key: str = Header(default="")):
 # Prvi element para je putanja, drugi je prioritet.
 _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/", "1.0"),
-    ("/kako-radi", "0.9"),
-    ("/sposobnosti", "0.9"),
-    ("/za-advokate", "0.9"),
-    ("/web3", "0.9"),
-    ("/bezbednost", "0.8"),
-    ("/vizija", "0.7"),
-    ("/tehnologija", "0.7"),
-    ("/beta", "0.8"),
-    ("/kontakt", "0.6"),
+    # NS004: povučene marketinške stranice (301 na početnu) nisu u sitemap-u.
     # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
     ("/privacy", "0.4"),
     ("/terms", "0.4"),
@@ -2734,6 +2694,27 @@ def _serve_index_html():
 
 @app.get("/app")
 def serve_html():
+    # NS004: kada je VINDEX_V2_NG_PRIMARY_ENABLED uključen, /app je V2 NG (uvek
+    # LIVE; odluku donosi putanja u frontend-v2-ng/src/runtime.js). Isključeno --
+    # podrazumevano -- /app je legacy, bajt-identično kao ranije.
+    if _V2_NG_PRIMARNI_HTML is not None:
+        return _v2_ng_primarni_odgovor()
+    return _serve_index_html()
+
+
+@app.get("/app-legacy", include_in_schema=False)
+def serve_html_legacy(request: Request):
+    """Operativna rezerva: klasični /app, uvek dostupan; nije linkovan sa sajta.
+
+    Kada je V2 primarni, ovde žive postojeća prijava i odjava (V2 nema svoju
+    prijavu i nikad ne piše sesiju). `?posle=app` i `?odjava=1` tada dobijaju
+    mali skript koji samo vraća korisnika na /app; bez prekidača je ovo
+    nepromenjen legacy odgovor.
+    """
+    if _V2_NG_PRIMARNI_HTML is not None and (
+        request.query_params.get("posle") == "app" or request.query_params.get("odjava") == "1"
+    ):
+        return _legacy_sa_povratkom_na_v2()
     return _serve_index_html()
 
 
@@ -2903,6 +2884,70 @@ if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
     app.mount("/v2/preview/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_preview_fonts")
     app.mount("/v2/preview/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_preview_brand")
     logger.info("[V2-NG] preview UKLJUČEN na /v2/preview/ (VINDEX_V2_NG_PREVIEW_ENABLED)")
+
+
+# ── Vindex V2 NG kao PRIMARNI /app — PODRAZUMEVANO ISKLJUČEN (NS004) ──────────
+# VINDEX_V2_NG_PRIMARY_ENABLED = "1"/"true"/"yes" (kao preview): /app servira
+# V2 NG; asseti idu sa STABILNE putanje /v2/app/{src,fonts,brand} — nezavisno od
+# preview prekidača (preview je QA granica i kill switch, primarni nije od njega
+# zavisan). Legacy /sw.js preskače /v2/*, pa ni asseti ni preview ne prolaze kroz
+# legacy keš. Rollback: ukloniti promenljivu i restartovati (bez izmene koda);
+# /app-legacy je uvek klasičan /app.
+def _v2_ng_primarni_ukljucen() -> bool:
+    return (os.getenv("VINDEX_V2_NG_PRIMARY_ENABLED") or "").strip().lower() in {"1", "true", "yes"}
+
+
+_V2_NG_PRIMARNI_HTML: Optional[bytes] = None
+_V2_NG_PRIMARNI_ZAGLAVLJA = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+# Isti ključ koji upisuje postojeća prijava (static/vindex.js → supabase-js
+# podrazumevani storageKey); verify:session-contract proverava da se poklapaju.
+_V2_NG_KLJUC_SESIJE = "sb-czsxymueizfqrbbgqqob-auth-token"
+
+if _v2_ng_primarni_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
+    _V2_NG_PRIMARNI_HTML = _re.sub(
+        r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/\2/",
+        (_V2_NG_DIR / "index.html").read_text(encoding="utf-8"),
+    ).encode("utf-8")
+    app.mount("/v2/app/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_app_src")
+    app.mount("/v2/app/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_app_fonts")
+    app.mount("/v2/app/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_app_brand")
+    logger.info("[V2-NG] PRIMARNI /app (VINDEX_V2_NG_PRIMARY_ENABLED); /app-legacy ostaje klasičan")
+
+
+def _v2_ng_primarni_odgovor():
+    from fastapi.responses import Response
+    return Response(content=_V2_NG_PRIMARNI_HTML, media_type="text/html; charset=utf-8", headers=_V2_NG_PRIMARNI_ZAGLAVLJA)
+
+
+# Samo čita kanonsku sesiju (nikad je ne piše): kada postoji važeća sesija, vraća
+# na /app. `odjava=1` poziva POSTOJEĆU legacy `doLogout()` (signOut + čišćenje),
+# a adresu pre toga menja u `?posle=app`, da ponovno učitavanje ne bi ponovilo odjavu.
+_V2_NG_POVRATAK_SKRIPT = (
+    "<script>(function(){'use strict';"
+    "var K=" + __import__("json").dumps(_V2_NG_KLJUC_SESIJE) + ",q=new URLSearchParams(location.search);"
+    "function v(){try{var s=localStorage.getItem(K);if(!s)return false;"
+    "if(s.indexOf('base64-')===0)s=decodeURIComponent(escape(atob(s.slice(7))));"
+    "var o=JSON.parse(s);return !!(o&&o.access_token&&o.user&&o.user.id&&"
+    "(typeof o.expires_at!=='number'||o.expires_at*1000-Date.now()>30000));}catch(e){return false;}}"
+    "if(q.get('odjava')==='1'){history.replaceState(null,'','/app-legacy?posle=app');var n=0;"
+    "(function x(){if(typeof window.doLogout==='function'){window.doLogout();return;}if(++n<100)setTimeout(x,100);})();return;}"
+    "if(q.get('posle')==='app'){if(v()){location.replace('/app');return;}"
+    "var t=setInterval(function(){if(v()){clearInterval(t);location.replace('/app');}},400);"
+    "window.addEventListener('storage',function(e){if(e.key===K&&v())location.replace('/app');});}"
+    "})();</script>"
+)
+
+
+def _legacy_sa_povratkom_na_v2():
+    from fastapi.responses import Response
+    osnova = _serve_index_html()
+    telo = osnova.body
+    i = telo.rfind(b"</body>")
+    if i == -1:
+        return osnova
+    telo = telo[:i] + _V2_NG_POVRATAK_SKRIPT.encode("utf-8") + telo[i:]
+    zaglavlja = {k: v for k, v in osnova.headers.items() if k.lower() not in ("content-length", "content-type")}
+    return Response(content=telo, media_type="text/html", headers=zaglavlja)
 
 
 @app.get("/portal", include_in_schema=False)
@@ -4824,7 +4869,11 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     user = await _require_auth_async(authorization)
     supa = _get_supa()
     row = supa.table("predmeti").select("*").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
-    if not row.data:
+    # NS004: postgrest `maybe_single()` vraca None (ne prazan odgovor) kad red ne
+    # postoji -- `row.data` je tada pucao u 500 za svaki tudj/nepostojeci predmet.
+    # Ishod je bio fail-closed, ali V2 nije mogao da razlikuje „nije dostupan" od
+    # „greska servera". Isti 404 za tudj i nepostojeci predmet; pristup se ne menja.
+    if not row or not row.data:
         # FIX (nightly repair, 2026-07-24): predmet_delegiranja (routers/
         # enterprise.py::delegiraj_predmet) je ranije upisivao zapis o
         # delegiranju koji NIŠTA drugo u kodu nikad nije čitalo za pristup
@@ -4840,12 +4889,12 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
             .eq("na_user_id", user.id) \
             .eq("status", "aktivno") \
             .maybe_single().execute()
-        if deleg.data:
+        if deleg and deleg.data:
             row = supa.table("predmeti").select("*").eq("id", predmet_id).maybe_single().execute()
 
     # BETA-DEL-001: predmet oznacen za brisanje se ponasa kao da ne postoji.
     # Provera je nad REZULTATOM, ne nad upitom (v. `_je_u_brisanju`).
-    if not row.data or _je_u_brisanju(row.data):
+    if not row or not row.data or _je_u_brisanju(row.data):
         raise HTTPException(status_code=404, detail="Predmet nije pronađen")
 
     beleske, istorija, dokumenti, hronologija, komentari, predmet_klijenti = await asyncio.gather(
@@ -6660,10 +6709,12 @@ async def predmet_dokument_preview(
             .eq("id", dok_id)
             .eq("predmet_id", predmet_id)
             .eq("user_id", uid)
-            .single()
+            .maybe_single()
             .execute()
     )
-    if not row.data:
+    # NS004: `.single()` je za tudj/nepostojeci dokument bacao izuzetak (500);
+    # sada je to isti 404 kao i za `download` ispod. Upit (vlasnik) je nepromenjen.
+    if not row or not row.data:
         raise HTTPException(status_code=404, detail="Dokument nije pronađen")
 
     d = row.data

@@ -61,6 +61,13 @@ zapisi("app-v2", "/app-v2 izvodi ključ istim pravilom (sb-<ref>-auth-token)",
 zapisi("app-v2", "/app-v2: access_token na vrhu zapisa, base64- prefiks podržan, expires_at u sekundama",
   /!o\.access_token/.test(authV2) && /startsWith\("base64-"\)/.test(authV2) && /o\.expires_at \* 1000/.test(authV2));
 
+// ── 2b. api.py: povratak na primarni /app posle prijave (NS004) ─────────
+const apiPy = procitaj(KOREN + "api.py");
+const kljucApi = (apiPy.match(/_V2_NG_KLJUC_SESIJE = "([^"]+)"/) || [])[1];
+zapisi("api.py", "skript povratka (/app-legacy?posle=app) čita isti izvedeni ključ sesije", kljucApi === KANON, String(kljucApi));
+const skript = (apiPy.match(/_V2_NG_POVRATAK_SKRIPT = \(([\s\S]*?)\n\)/) || [])[1] || "";
+zapisi("api.py", "skript povratka ne piše i ne briše sesiju (samo čita; odjava je legacy doLogout)", skript.length > 0 && !/setItem|removeItem|\.clear\(/.test(skript) && /doLogout/.test(skript));
+
 // ── 3. V2 NG: izvor ──────────────────────────────────────────────────────
 const izvorNg = procitaj(NG + "src/session.js");
 const kodNg = bezKomentara(izvorNg);
