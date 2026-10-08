@@ -39,10 +39,11 @@
     return "HTTP_ERROR";
   }
 
-  /* Dozvoljeni prefiksi API-ja na istom izvoru. `/klijenti` je postojeći CRM ruter
-   * (klijenti/router.py) koji nema `/api` prefiks; ništa drugo van `/api/` ne prolazi. */
+  /* Dozvoljeni prefiksi API-ja na istom izvoru. `/klijenti` (klijenti/router.py) i
+   * `/interni-stavovi/` (routers/interni.py) su postojeći ruteri bez `/api` prefiksa;
+   * ništa drugo van `/api/` ne prolazi. */
   function dozvoljenaPutanja(p) {
-    return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0;
+    return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0;
   }
 
   function napraviAdresu(putanja, parametri) {

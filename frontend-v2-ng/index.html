@@ -169,6 +169,55 @@
         </div>
       </section>
 
+      <!-- Znanje (samo LIVE, NS005). Puni src/znanje.js. -->
+      <section class="matter" id="znanje-pogled" hidden aria-labelledby="zn-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="zn-naslov" tabindex="-1">Znanje</h1>
+          <p class="matter__ref">Sudska praksa iz korpusa odluka i interni stavovi vaše kancelarije.</p>
+        </div>
+        <div class="matter__body">
+          <section class="matter__section matter__section--first" aria-labelledby="zn-praksa-naslov">
+            <h2 class="matter__h2" id="zn-praksa-naslov">Sudska praksa</h2>
+            <form class="form" id="zn-praksa-forma" role="search" novalidate>
+              <div class="field"><label class="field__label" for="zn-praksa-upit">Pojam ili pravno pitanje</label>
+                <input class="field__input" id="zn-praksa-upit" type="search" maxlength="300" autocomplete="off"></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="zn-praksa-oblast">Oblast</label>
+                  <select class="field__input" id="zn-praksa-oblast"><option value="">Sve oblasti</option></select></div>
+                <div class="field"><label class="field__label" for="zn-praksa-od">Godina od</label>
+                  <input class="field__input" id="zn-praksa-od" type="number" inputmode="numeric" min="1900" max="2100"></div>
+                <div class="field"><label class="field__label" for="zn-praksa-do">Godina do</label>
+                  <input class="field__input" id="zn-praksa-do" type="number" inputmode="numeric" min="1900" max="2100"></div>
+              </div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" type="submit">Pretraži praksu</button></div>
+            </form>
+            <p class="notice" id="zn-praksa-stanje" role="status" aria-live="polite" hidden></p>
+            <ul class="decisions" id="zn-praksa-lista" aria-label="Odluke"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="zn-stav-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="zn-stav-naslov">Interni stavovi kancelarije</h2>
+              <button class="text-btn text-btn--line" id="zn-dodaj-otvori" type="button" aria-expanded="false" aria-controls="zn-dodaj-forma">Dodaj stav</button>
+            </div>
+            <form class="form form--inset" id="zn-dodaj-forma" hidden novalidate aria-label="Nov interni stav">
+              <div class="field"><label class="field__label" for="zn-dodaj-naslov">Naslov stava</label>
+                <input class="field__input" id="zn-dodaj-naslov" type="text" maxlength="200" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="zn-dodaj-tekst">Tekst stava</label>
+                <textarea class="field__input field__input--area" id="zn-dodaj-tekst" rows="5" maxlength="20000"></textarea></div>
+              <p class="notice" id="zn-dodaj-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="zn-dodaj-sacuvaj" type="submit">Sačuvaj stav</button></div>
+            </form>
+            <form class="form" id="zn-stav-forma" role="search" novalidate>
+              <div class="field"><label class="field__label" for="zn-stav-upit">Pretraga stavova</label>
+                <input class="field__input" id="zn-stav-upit" type="search" maxlength="500" autocomplete="off"></div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" type="submit">Pretraži stavove</button></div>
+            </form>
+            <p class="notice" id="zn-stav-stanje" role="status" aria-live="polite" hidden></p>
+            <ul class="decisions" id="zn-stav-lista" aria-label="Interni stavovi"></ul>
+          </section>
+        </div>
+      </section>
+
       <!-- Detalj predmeta (samo LIVE; samo čitanje). Sadržaj upisuje src/app.js kao tekst. -->
       <section class="matter" id="predmet" hidden aria-labelledby="predmet-naslov">
         <div class="matter__head">
@@ -396,6 +445,7 @@
   <script src="src/rocista-predmeta.js"></script>
   <script src="src/pretraga.js"></script>
   <script src="src/pitanje-predmeta.js"></script>
+  <script src="src/znanje.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

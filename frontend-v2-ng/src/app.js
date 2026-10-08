@@ -335,6 +335,7 @@
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
     if (/^#\/predmeti\/nov\/?$/.test(location.hash)) return { pogled: "nov" };
     if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
+    if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
@@ -559,9 +560,16 @@
     }
   }
 
-  var novPredmet = null, pretraga = null, pogledRada = null;
+  var novPredmet = null, pretraga = null, znanje = null, pogledRada = null;
   /* Radni pogledi bez predmeta: id sekcije + kontroler (otvori/zatvori). */
-  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga] }; }
+  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje] }; }
+  /* Aktivna stavka navigacije prati pogled (Znanje ili Predmeti). */
+  function uskladiNavigaciju() {
+    var zn = document.querySelector('.sidenav__item[href="#/znanje"]'), pr = document.querySelector('.sidenav__item[href="#glavni"]');
+    var naZnanju = pogledRada === "znanje";
+    if (zn) { if (naZnanju) zn.setAttribute("aria-current", "page"); else zn.removeAttribute("aria-current"); }
+    if (pr) { if (naZnanju) pr.removeAttribute("aria-current"); else pr.setAttribute("aria-current", "page"); }
+  }
   function zatvoriPogledRada() {
     var p = pogledRada && pogledi()[pogledRada];
     if (p) { p[1].zatvori(); $(p[0]).hidden = true; }
@@ -580,10 +588,12 @@
       var pg = pogledi()[r.pogled];
       $(pg[0]).hidden = false;
       pg[1].otvori();
+      uskladiNavigaciju();
       return;
     }
     if (pogledRada) {
       zatvoriPogledRada();
+      uskladiNavigaciju();
       if (!r) { delete koren.dataset.pogled; $("glavni").focus(); return; }
     }
     if (!r) {
@@ -730,6 +740,10 @@
      * postoje se uklanjaju (ne glume rad), panel „Zahteva pažnju“ nije povezan
      * sa stvarnim obavezama pa se ne prikazuje; odjava ide postojećim tokom. */
     var primarni = rt.prikaz === rt.PRIMARNI;
+    /* NS005: Znanje je stvaran, testiran modul — u LIVE postaje pravi link (pre uklanjanja
+     * nedovršenih modula u primarnom prikazu). DEMO zadržava prototip. */
+    var znanjeStavka = document.querySelector('.sidenav__item[data-modul="Znanje"]');
+    if (znanjeStavka) { znanjeStavka.removeAttribute("data-modul"); znanjeStavka.setAttribute("href", "#/znanje"); }
     if (primarni) {
       koren.dataset.prikaz = "primarni";
       document.querySelectorAll(".sidenav__item[data-modul]").forEach(function (a) { a.closest("li").remove(); });
@@ -796,6 +810,7 @@
       location.hash = adresaPredmeta(id, "pregled");
     } });
     pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    znanje = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
     var uskladiNovLink = function () {
       var prijavljen = window.VxSesija.stanje().stanje === window.VxSesija.STANJA.PRIJAVLJEN;
       $("nov-predmet-link").hidden = !prijavljen;

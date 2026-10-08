@@ -282,3 +282,53 @@ export function pitanjeRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* POST /api/praksa/search — javni korpus, ali samo uz prijavu; nevažeća oblast → 400.
+ * kuke.odluke = niz odluka koje korpus vraća (filtrira se po query u izreci/broju). */
+const OBLASTI_PRAKSE = ["Građanska", "Zaštita prava", "Upravna", "Krivična"];
+export function praksaRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    if (url.pathname !== "/api/praksa/search" || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    (kuke.upisano || (() => {}))(b);
+    if (b.matter && !OBLASTI_PRAKSE.includes(b.matter)) { json(res, 400, { error: "Nevalidan matter filter" }); return true; }
+    const q = String(b.query || "").toLowerCase();
+    const sve = (kuke.odluke || []).filter(o => (!q || (o.izreka_preview + " " + o.decision_number).toLowerCase().includes(q)) && (!b.matter || o.matter === b.matter));
+    json(res, 200, { decisions: sve.slice(b.offset || 0, (b.offset || 0) + (b.limit || 10)), total: sve.length, page: 1, limit: b.limit || 10 });
+    return true;
+  };
+}
+
+/* /interni-stavovi/dodaj|pretraga — namespace po korisniku iz tokena (kao interni_stavovi.py). */
+export function stavoviRuta(korisnici, kuke = {}) {
+  const ns = {};
+  return async (req, url, res) => {
+    if (!url.pathname.startsWith("/interni-stavovi/") || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    (kuke.upisano || (() => {}))(url.pathname, b);
+    const prostor = (ns["interni_stavovi_" + k.id] = ns["interni_stavovi_" + k.id] || []);
+    if (url.pathname === "/interni-stavovi/dodaj") {
+      if (String(b.naslov || "").length < 3 || String(b.tekst || "").length < 30) { json(res, 422, { detail: [{ loc: ["body", "tekst"] }] }); return true; }
+      prostor.push({ naslov: b.naslov, tekst: b.tekst });
+      json(res, 200, { vektori: 1, naslov: b.naslov });
+      return true;
+    }
+    if (url.pathname === "/interni-stavovi/pretraga") {
+      if (kuke.stavoviPad) { json(res, 200, { rezultati: [], ukupno: 0, pretraga_neuspesna: true }); return true; }
+      const q = String(b.upit || "").toLowerCase();
+      const r = prostor.filter(s => (s.naslov + " " + s.tekst).toLowerCase().includes(q)).map(s => ({ naslov: s.naslov, tekst: s.tekst, score: 0.9 }));
+      json(res, 200, { rezultati: r, ukupno: r.length, pretraga_neuspesna: false });
+      return true;
+    }
+    json(res, 404, {});
+    return true;
+  };
+}
