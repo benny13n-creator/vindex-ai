@@ -77,7 +77,10 @@ const nijedanDetalj = (e) => e.mem.predmet === null && e.cinjenice.length === 0 
 {
   const s = await scenario();
   await cekaj(s.p, () => document.querySelectorAll("#rows tr").length > 0);
-  await s.p.click(`#rows tr[data-id="${A[0].id}"] .case__name`);
+  const reg = await s.p.evaluate(() => ({ ids: [...document.querySelectorAll("#rows tr")].map(t => t.dataset.id), tekst: document.body.innerText }));
+  const live = reg.ids.length === 4 && reg.ids.every(id => id.startsWith("kA-")) && !/Demonstracioni/.test(reg.tekst);
+  zapisi("1A.svoj", "?rezim=live: registar su stvarni predmeti korisnika A (nikad DEMO)", live, reg.ids.slice(0, 2).join(","));
+  if (live) await s.p.click(`#rows tr[data-id="${A[0].id}"] .case__name`);
   await cekaj(s.p, () => document.querySelectorAll("#predmet-cinjenice dt").length > 0);
   const e = await ekran(s.p);
   zapisi("1A.svoj", "klik na naziv otvara #/predmeti/<id> (pregled)", e.hash === "#/predmeti/" + A[0].id && e.pogled === "predmet" && e.pregled && !e.registar, e.hash);
