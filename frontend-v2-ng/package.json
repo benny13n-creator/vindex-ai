@@ -14,6 +14,7 @@
     "verify:live-api": "node tests/live-api.mjs",
     "verify:live-send": "node tests/live-send.mjs",
     "verify:live-nov-predmet": "node tests/live-nov-predmet.mjs",
+    "verify:live-rad-predmeta": "node tests/live-rad-predmeta.mjs",
     "verify:live-session": "node tests/live-session.mjs",
     "verify:live-matters": "node tests/live-matters.mjs",
     "verify:live-states": "node tests/live-states.mjs",

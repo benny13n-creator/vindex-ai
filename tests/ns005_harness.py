@@ -207,6 +207,9 @@ class _Upit:
         if vrsta == "update":
             for r in pogodjeni:
                 r.update(copy.deepcopy(telo))
+                # Isto kao trigger `update_predmeti_updated_at`: svaki UPDATE pomera updated_at.
+                if self.t == "predmeti" or "updated_at" in r:
+                    r["updated_at"] = _sada() + "#" + str(next(_brojac))
             return _Rez(data=[copy.deepcopy(r) for r in pogodjeni], count=len(pogodjeni))
         if vrsta == "delete":
             ids = {id(r) for r in pogodjeni}

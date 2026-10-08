@@ -30,3 +30,13 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - UX: 500/prekid/2xx-bez-id = „Ishod nije poznat… predmet je možda otvoren"; 4xx = „nije otvoren"; unos ostaje; dugme zaključano tokom slanja; DEMO nema ulaz.
 - KNOWN LIMITATIONS: stranke/broj/vrednost se ne unose pri otvaranju (ugovor rute) — Task 3. Provera sukoba interesa — Task 4.
 - NEXT GATE: Task 3.
+
+## TASK 3 — MATTER EDIT + NOTES + CHRONOLOGY (CAP-005 edit, 006, 007) — PROVEN
+- FILES: `src/rad-predmeta.js` (nov), `src/predmet.js` (opis, updated_at, beleske/hronologija iz ISTOG odgovora; null = „nije učitano"), `src/detalj.js` (`osvezi`), `src/app.js` (tab `#/predmeti/<id>/rad`), `index.html`, `src/app.css`, `tests/live-rad-predmeta.mjs`, fixture `pisanje-api.mjs` (+PATCH, +beleške), `predmeti-api.mjs` (detalj vraća beleške/hronologiju fixture-a), `tests/test_ns005_t3_izmena_beleske.py`.
+- BACKEND FIX (dokazan kvar, najmanja izmena): `api.py::update_predmet` — `maybe_single()` vraća None (postgrest 2.28.3) → tuđ/nepostojeći predmet je davao 500 umesto 404 (ista klasa kao NS004 `get_predmet`). `if not exists or not exists.data`. Autorizacija nepromenjena; regresioni test `test_tudja_izmena_404_i_red_netaknut`.
+- ENDPOINTS: `PATCH /api/predmeti/{id}` (samo izmenjena polja naziv/tip/tuzilac/tuzeni/vrednost_spora/opis + `if_updated_at`), `POST /api/predmeti/{id}/beleske`; beleške/hronologija iz postojećeg `GET /api/predmeti/{id}` (bez novih zahteva). Posle upisa predmet se PONOVO čita.
+- NE NUDI SE: broj predmeta (server ga ne prima), status (tok zatvaranja), rizik (računa program), „istorija" (to je AI Q&A dnevnik, ne događaji — ručni unos bi bio lažan), brisanje beleški.
+- TESTS: backend 11/11 (+ 61 postojećih testova ove rute zeleno); NG `verify:live-rad-predmeta` 44/44; svih 21 NG skripti zeleno; 214 ciljanih Python testova zeleno.
+- ADVERSARIAL: ubijeno 7 — neuspeh kao uspeh, bez if_updated_at, nedostajuće beleške kao prazna lista, nepoznat ishod kao „nije sačuvano", PATCH bez owner filtera, beleška bez provere vlasnika, vraćen 500 za tuđ PATCH. PREŽIVELA 1 (namerno prijavljeno): uklanjanje SAMO generacijske provere — kasni odgovor i dalje blokiraju abort + čišćenje pri učitavanju; kombinovana mutacija (generacija + abort) UBIJENA.
+- KNOWN LIMITATIONS: `POST beleske` u tuđ predmet vraća 500 (`.single()`), ne 404 — fail-closed, ništa upisano; nije ispravljano jer postojeći bezbednosni testovi zavise od oblika upita, a V2 formu nudi samo na otvorenom (sopstvenom) predmetu. Delegirani čitalac bi pri pokušaju beleške video „ishod nepoznat".
+- NEXT GATE: Task 4.

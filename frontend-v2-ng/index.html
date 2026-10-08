@@ -159,6 +159,7 @@
         </div>
         <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
+          <a class="tabs__item" id="tab-rad" href="#/">Beleške i tok</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
@@ -167,10 +168,52 @@
           <a class="text-btn text-btn--line" id="predmet-prijava" href="/app" hidden>Prijavite se</a>
         </div>
         <div class="matter__body" id="odeljak-pregled" hidden>
+          <p class="notice" id="pregled-poruka" role="status" aria-live="polite" hidden></p>
+          <div class="matter__tools"><button class="text-btn text-btn--line" id="izmena-otvori" type="button" hidden>Izmeni podatke</button></div>
           <dl class="facts" id="predmet-cinjenice"></dl>
+          <form class="form" id="izmena-forma" hidden novalidate aria-labelledby="izmena-naslov">
+            <h2 class="matter__h2" id="izmena-naslov">Izmena podataka</h2>
+            <div class="field"><label class="field__label" for="izm-naziv">Naziv predmeta</label>
+              <input class="field__input" id="izm-naziv" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-tip">Vrsta predmeta</label>
+              <input class="field__input" id="izm-tip" type="text" maxlength="60" autocomplete="off" list="nov-vrste"></div>
+            <div class="field"><label class="field__label" for="izm-tuzilac">Tužilac</label>
+              <input class="field__input" id="izm-tuzilac" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-tuzeni">Tuženi</label>
+              <input class="field__input" id="izm-tuzeni" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-vrednost">Vrednost spora (RSD)</label>
+              <input class="field__input" id="izm-vrednost" type="text" inputmode="decimal" maxlength="24" autocomplete="off" aria-describedby="izm-vrednost-pomoc">
+              <p class="field__help" id="izm-vrednost-pomoc">Prazno polje briše vrednost.</p></div>
+            <div class="field"><label class="field__label" for="izm-opis">Opis</label>
+              <textarea class="field__input field__input--area" id="izm-opis" rows="4" maxlength="4000"></textarea></div>
+            <p class="field__help">Broj predmeta se ovde ne menja: server ga ne prima kroz izmenu.</p>
+            <p class="notice" id="izm-poruka" role="status" aria-live="polite" hidden></p>
+            <div class="form__actions">
+              <button class="text-btn text-btn--primary" id="izm-sacuvaj" type="submit">Sačuvaj izmene</button>
+              <button class="text-btn" id="izm-odustani" type="button">Odustani</button>
+            </div>
+          </form>
           <section class="matter__section" id="predmet-klijenti-blok" hidden aria-labelledby="klijenti-naslov">
             <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
             <ul class="people" id="predmet-klijenti"></ul>
+          </section>
+        </div>
+        <div class="matter__body" id="odeljak-rad" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="bel-naslov">
+            <h2 class="matter__h2" id="bel-naslov">Beleške</h2>
+            <form class="form" id="bel-forma" novalidate>
+              <div class="field"><label class="field__label" for="bel-tekst">Nova beleška</label>
+                <textarea class="field__input field__input--area" id="bel-tekst" rows="3" maxlength="8000"></textarea></div>
+              <p class="notice" id="bel-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="bel-dodaj" type="submit">Dodaj belešku</button></div>
+            </form>
+            <p class="list-state" id="bel-stanje" hidden></p>
+            <ul class="notes" id="bel-lista" aria-label="Beleške predmeta"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="hron-naslov">
+            <h2 class="matter__h2" id="hron-naslov">Hronologija</h2>
+            <p class="list-state" id="hron-stanje" hidden></p>
+            <ol class="chrono" id="hron-lista" aria-label="Hronologija predmeta"></ol>
           </section>
         </div>
         <div class="docs" id="odeljak-dokumenti" hidden>
@@ -226,6 +269,7 @@
   <script src="src/predmet.js"></script>
   <script src="src/detalj.js"></script>
   <script src="src/nov-predmet.js"></script>
+  <script src="src/rad-predmeta.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

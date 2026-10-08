@@ -329,16 +329,16 @@
    * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
    * je registar. Sav sadržaj se upisuje kao tekst. */
   function adresaPredmeta(id, odeljak) {
-    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : "");
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : "");
   }
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
     if (/^#\/predmeti\/nov\/?$/.test(location.hash)) return { pogled: "nov" };
-    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti)?\/?$/.exec(location.hash);
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
     try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-    return { id: id, odeljak: m[2] ? "dokumenti" : "pregled" };
+    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : "pregled" };
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
@@ -373,7 +373,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -411,8 +411,10 @@
     $("dok-broj").textContent = "";
     $("predmet-odeljci").hidden = true;
     $("odeljak-pregled").hidden = true;
+    $("odeljak-rad").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
+    if (radPredmeta) radPredmeta.ocisti();
     $("predmet-prijava").hidden = true;
     ocistiDokument();
   }
@@ -428,13 +430,15 @@
 
   function prikaziOdeljak() {
     if (!ruta || !detaljPodaci) return;
-    var dok = ruta.odeljak === "dokumenti";
-    $("odeljak-pregled").hidden = dok;
-    $("odeljak-dokumenti").hidden = !dok;
-    $("tab-pregled").href = adresaPredmeta(ruta.id, "pregled");
-    $("tab-dokumenti").href = adresaPredmeta(ruta.id, "dokumenti");
-    if (dok) { $("tab-dokumenti").setAttribute("aria-current", "page"); $("tab-pregled").removeAttribute("aria-current"); }
-    else { $("tab-pregled").setAttribute("aria-current", "page"); $("tab-dokumenti").removeAttribute("aria-current"); }
+    var o = ruta.odeljak;
+    $("odeljak-pregled").hidden = o !== "pregled";
+    $("odeljak-rad").hidden = o !== "rad";
+    $("odeljak-dokumenti").hidden = o !== "dokumenti";
+    ["pregled", "rad", "dokumenti"].forEach(function (x) {
+      var tab = $("tab-" + x);
+      tab.href = adresaPredmeta(ruta.id, x);
+      if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
+    });
   }
 
   function prikaziPredmetPodatke(v) {
@@ -479,6 +483,7 @@
     });
     $("dok-prazno").hidden = v.dokumenti.length !== 0;
     $("predmet-odeljci").hidden = false;
+    if (radPredmeta) radPredmeta.postavi(v);
     prikaziOdeljak();
   }
 
@@ -738,6 +743,8 @@
 
     /* Detalj predmeta: isti izvor sesije, sopstveni životni ciklus. */
     detalj = window.VxDetalj.napravi({ sesija: window.VxSesija, izvor: window.VxPredmetIzvor, prikazi: prikaziDetalj });
+    /* NS005 — izmena, beleške, hronologija; posle upisa predmet se ponovo čita. */
+    radPredmeta = window.VxRadPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);

@@ -67,7 +67,8 @@
         return;
       }
       podaci = { korisnik: korisnik, id: id, predmet: r.predmet, dokumenti: r.dokumenti, klijenti: r.klijenti };
-      prikazi({ vrsta: "predmet", predmet: r.predmet, dokumenti: r.dokumenti, klijenti: r.klijenti });
+      prikazi({ vrsta: "predmet", predmet: r.predmet, dokumenti: r.dokumenti, klijenti: r.klijenti,
+                beleske: r.beleske, hronologija: r.hronologija });
     }
 
     function otvori(id) {
@@ -119,8 +120,16 @@
     }
     var odjavi = sesija.naPromenu(naPromenuSesije);
 
+    /* NS005: ponovo učitava ISTI predmet posle uspešnog upisa (izmena, beleška). */
+    function osvezi() {
+      if (predmetId === null) return;
+      ponisti();
+      ucitaj();
+    }
+
     return {
       otvori: otvori,
+      osvezi: osvezi,
       zatvori: zatvori,
       otvoriDokument: otvoriDokument,
       zatvoriDokument: function () { ponistiDokument(); prikazi({ vrsta: "dokument-ocisti" }); },

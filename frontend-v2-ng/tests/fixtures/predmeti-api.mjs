@@ -143,7 +143,8 @@ export function predmetDetaljRuta(korisnici, dokumenti = {}, kuke = {}) {
     if (res.destroyed) return true;
     const p = k.predmeti.find(x => x.id === id && x.user_id === k.id);
     if (!p || p.brisanje_zapoceto) { json(res, 404, { detail: "Predmet nije pronađen" }); return true; }
-    let telo = { predmet: p, beleske: [], istorija: [], dokumenti: dokumenti[id] || [], hronologija: [], komentari: [],
+    let telo = { predmet: p, beleske: (k.beleske && k.beleske[id]) || [], istorija: [], dokumenti: dokumenti[id] || [],
+      hronologija: (k.hronologija && k.hronologija[id]) || [], komentari: [],
       klijenti_linked: k.klijenti && k.klijenti[id] ? k.klijenti[id] : [] };
     if (kuke.izmeniDetalj) telo = kuke.izmeniDetalj(telo, id);
     json(res, 200, telo);

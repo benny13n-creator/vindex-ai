@@ -418,6 +418,21 @@ th[aria-sort="descending"] .sort__mark::before { content: "↓"; }
 .notice[data-stanje="greska"] { border-left-color: var(--attention); color: var(--text-1); }
 .notice[data-stanje="nepoznato"] { border-left-color: var(--attention); color: var(--text-1); }
 .notice[data-stanje="uspeh"] { border-left-color: var(--accent); }
+.matter__tools { display: flex; justify-content: flex-end; margin: 0 0 var(--sp-3); }
+#pregled-poruka { margin-bottom: var(--sp-4); }
+.matter__section--first { margin-top: 0; }
+.list-state { margin: var(--sp-4) 0 0; color: var(--text-2); }
+.list-state[data-stanje="greska"] { padding-left: var(--sp-3); border-left: 2px solid var(--attention); color: var(--text-1); }
+.notes { list-style: none; margin: var(--sp-5) 0 0; padding: 0; border-top: 1px solid var(--line); }
+.note { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.note__text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.note__meta { display: block; margin-top: 4px; color: var(--text-3); font-size: var(--fs-small); }
+.chrono { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.chrono__item { display: grid; grid-template-columns: 112px minmax(0, 1fr); column-gap: var(--sp-4); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.chrono__date { color: var(--text-2); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.chrono__text { overflow-wrap: anywhere; }
+.chrono__meta { grid-column: 2; color: var(--text-3); font-size: var(--fs-small); }
+@media (max-width: 859px) { .chrono__item { grid-template-columns: minmax(0, 1fr); } .chrono__meta { grid-column: 1; } }
 
 .matter { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .matter__head { padding: var(--sp-6) var(--sheet-pad) var(--sp-4); }

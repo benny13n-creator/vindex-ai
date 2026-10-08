@@ -28,6 +28,9 @@
       tip: tekst(p.tip),
       tuzilac: tekst(p.tuzilac),
       tuzeni: tekst(p.tuzeni),
+      opis: tekst(p.opis),
+      /* Doslovna vrednost za optimističku proveru izmene (`if_updated_at`). */
+      azurirano: typeof p.updated_at === "string" ? p.updated_at : "",
       vrednost: broj(p.vrednost_spora) !== null ? p.vrednost_spora
         : (typeof p.vrednost_spora === "string" && /^\s*\d+([.,]\d+)?\s*$/.test(p.vrednost_spora) ? Number(p.vrednost_spora.trim().replace(",", ".")) : null),
       otvoren: datumIso(p.created_at),
@@ -44,6 +47,20 @@
       velicinaKb: broj(d.velicina_kb),
       redniBroj: broj(d.redni_broj),
     };
+  }
+
+  /* NS005: beleške i hronologija iz ISTOG odgovora detalja. Kada polje nije
+   * niz, vraća se null („nije učitano"), nikad prazna lista. */
+  function mapirajBeleske(niz) {
+    if (!Array.isArray(niz)) return null;
+    return niz.filter(function (x) { return x && typeof x === "object" && x.id !== undefined && x.id !== null; })
+      .map(function (x) { return { id: String(x.id), tekst: typeof x.sadrzaj === "string" ? x.sadrzaj : "", datum: datumIso(x.created_at), vreme: tekst(x.created_at) }; });
+  }
+  function mapirajHronologiju(niz) {
+    if (!Array.isArray(niz)) return null;
+    return niz.filter(function (x) { return x && typeof x === "object"; })
+      .map(function (x) { return { dogadjaj: tekst(x.dogadjaj), datum: datumIso(x.datum_iso) || datumIso(x.datum) || tekst(x.datum), vaznost: tekst(x.vaznost), akter: tekst(x.akter) }; })
+      .filter(function (x) { return x.dogadjaj; });
   }
 
   function mapirajKlijenta(k) {
@@ -72,7 +89,8 @@
       dokumenti.push(mapirajDokument(x));
     }
     var klijenti = d.klijenti_linked.filter(function (k) { return k && typeof k === "object"; }).map(mapirajKlijenta).filter(function (k) { return k.naziv; });
-    return { ok: true, predmet: mapirajPredmet(d.predmet), dokumenti: dokumenti, klijenti: klijenti };
+    return { ok: true, predmet: mapirajPredmet(d.predmet), dokumenti: dokumenti, klijenti: klijenti,
+             beleske: mapirajBeleske(d.beleske), hronologija: mapirajHronologiju(d.hronologija) };
   }
 
   async function ucitajTekst(predmetId, dokId, token, signal) {
