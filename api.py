@@ -2848,6 +2848,63 @@ def serve_v2_asset(token: str, putanja: str):
     )
 
 
+# ── Vindex V2 NG preview — PODRAZUMEVANO ISKLJUČEN ──────────────────────────────
+# Izolovan frontend `frontend-v2-ng/` se servira sa ISTOG izvora (sesija i
+# /api/predmeti bez CORS-a) SAMO kada je VINDEX_V2_NG_PREVIEW_ENABLED tačno
+# "1", "true" ili "yes" (bez obzira na velika slova i razmake). Bilo šta drugo,
+# uključujući odsustvo, znači da rute NE POSTOJE (404) — produkcija bez
+# promenljive ostaje nepromenjena.
+#
+# Namespace /v2/preview/: legacy /sw.js namerno preskače sve /v2/* (Z015 §11),
+# pa preview nikad ne prolazi kroz legacy keš/offline shell.
+#
+# Izlaže se SAMO index.html, src/, fonts/ i brand/ (dva kanonska logo fajla,
+# NS003) — nikad tests/, serve.mjs, package.json ni README. Traversal odbija
+# StaticFiles.
+_V2_NG_DIR = BASE_DIR / "frontend-v2-ng"
+
+
+def _v2_ng_preview_ukljucen() -> bool:
+    return (os.getenv("VINDEX_V2_NG_PREVIEW_ENABLED") or "").strip().lower() in {"1", "true", "yes"}
+
+
+if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
+    from fastapi.responses import RedirectResponse as _V2NgRedirect
+
+    # Preview se nikad ne indeksira i ne kešira.
+    _V2_NG_ZAGLAVLJA = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                        "X-Robots-Tag": "noindex, nofollow, noarchive"}
+
+    def _v2_ng_kanonski(request: Request) -> str:
+        # Lokalni prototip bez ?rezim prikazuje DEMO; produkcioni preview NE SME:
+        # adresa bez `rezim` vodi u LIVE. Postojeći upit se čuva (i eksplicitni
+        # ?rezim=demo za QA); preusmerenje je uvek relativno, na isti izvor.
+        upit = request.url.query
+        if "rezim" not in request.query_params:
+            upit = (upit + "&" if upit else "") + "rezim=live"
+        return "/v2/preview/?" + upit
+
+    @app.get("/v2/preview", include_in_schema=False)
+    def v2_ng_preview_bez_kose(request: Request):
+        # Relativne putanje u index.html (src/, fonts/) traže završnu kosu crtu.
+        return _V2NgRedirect(url=_v2_ng_kanonski(request), status_code=307, headers=_V2_NG_ZAGLAVLJA)
+
+    @app.get("/v2/preview/", include_in_schema=False)
+    def v2_ng_preview(request: Request):
+        if "rezim" not in request.query_params:
+            return _V2NgRedirect(url=_v2_ng_kanonski(request), status_code=307, headers=_V2_NG_ZAGLAVLJA)
+        return FileResponse(
+            str(_V2_NG_DIR / "index.html"),
+            media_type="text/html; charset=utf-8",
+            headers=_V2_NG_ZAGLAVLJA,
+        )
+
+    app.mount("/v2/preview/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_preview_src")
+    app.mount("/v2/preview/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_preview_fonts")
+    app.mount("/v2/preview/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_preview_brand")
+    logger.info("[V2-NG] preview UKLJUČEN na /v2/preview/ (VINDEX_V2_NG_PREVIEW_ENABLED)")
+
+
 @app.get("/portal", include_in_schema=False)
 def serve_portal():
     """Klijentski portal — stranica za klijente, pristup putem tokena."""
@@ -4522,8 +4579,12 @@ async def lista_predmeta(
     # ovog endpointa nije pogodjen. Mereno na 20 predmeta: `case_dna` nosi
     # 85% odgovora (92.090 B -> 14.212 B bez njega). `brisanje_zapoceto`
     # mora ostati u projekciji jer `_je_u_brisanju` cita bas njega.
+    # NS002 Task 4: + `tuzilac`, `tuzeni` (postojece kolone — migracija 015,
+    # produkciona sonda 2026-08-21) jer ih V2 NG lista prikazuje i pretrazuje.
+    # Projekcija ostaje nadskup prethodne; `sud` NE postoji u `predmeti` i nije
+    # ovde; `case_dna` se namerno ne vraca.
     kolone = (
-        "id,naziv,tip,status,broj_predmeta,created_at,updated_at,brisanje_zapoceto"
+        "id,naziv,tip,status,broj_predmeta,created_at,updated_at,brisanje_zapoceto,tuzilac,tuzeni"
         if (view or "").strip().lower() == "summary"
         else "*"
     )

@@ -1,0 +1,35 @@
+{
+  "name": "vindex-v2-ng-001",
+  "version": "1.0.0",
+  "description": "Vindex V2 NG — izolovani prototip pocetnog radnog prostora (001)",
+  "scripts": {
+    "serve": "node serve.mjs",
+    "verify": "node tests/verify.mjs",
+    "verify:pozadina": "node tests/signature-background.mjs",
+    "perf": "node tests/perf.mjs",
+    "verify:refinement": "node tests/refinement.mjs",
+    "measure": "node tests/measure.mjs",
+    "verify:demo-otisak": "node tests/demo-fingerprint.mjs",
+    "verify:live-runtime": "node tests/live-runtime.mjs",
+    "verify:live-api": "node tests/live-api.mjs",
+    "verify:live-session": "node tests/live-session.mjs",
+    "verify:live-matters": "node tests/live-matters.mjs",
+    "verify:live-states": "node tests/live-states.mjs",
+    "verify:live-isolation": "node tests/live-isolation.mjs",
+    "verify:live-matrix": "node tests/live-browser-matrix.mjs",
+    "verify:session-contract": "node tests/session-contract.mjs",
+    "verify:brand": "node tests/brand-identity.mjs",
+    "e2e:fastapi": "node tests/live-fastapi-e2e.mjs",
+    "e2e:sw-isolation": "node tests/live-sw-isolation.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@fontsource/source-serif-4": "^5.3.0",
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}

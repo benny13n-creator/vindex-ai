@@ -50,6 +50,25 @@ c86d82df963a1be254ede4e6adce32bda9956ea0:tests/test_integracije.py:generic-api-k
 57426cf26788e48e2727471686fb6cce514330a4:index.html:generic-api-key:983
 605b7604be34e6f3bf2dba3e453a5abd324ec02c:static/vindex.js:generic-api-key:164
 
+# ── V2 NG deterministic test placeholders ───────────────────────────────────
+# FIELD_ENCRYPTION_KEY in V2 NG tests and the V2 NG workflow: the same
+# deliberately fake 32-byte hex fixture already accepted under "CI
+# placeholders" above (the four-times-repeated hex alphabet). It exists only
+# so test/import/container code can satisfy api.py's startup requirement; it is
+# written as a literal in a fake-only env block (never read from env or a
+# secret store) next to other obvious fakes (fake-anon-key, sk-fake,
+# https://fake.supabase.co). Verified 2026-10-08 by reading each value out of
+# its recorded commit blob (NS003, founder decision). Fingerprint-specific: a
+# new line, file or commit with this value still fails the scan. This does NOT
+# authorize the value generally, and never a production credential.
+a5be8bf3ab4bb2d56f1ff7e68ad7a3eb81e151f1:tests/v2_ng_docker_rehearsal.py:generic-api-key:33
+77cb2ca55eb9b79948c3364cf7e1a22ecc57156a:tests/test_v2_ng_preview.py:generic-api-key:69
+bb875b1c97cf38c9934270547daf54030c75a0a2:frontend-v2-ng/tests/live-fastapi-e2e.mjs:generic-api-key:39
+78bcd6f4a81ba387d2e1de4e7160cf58c30491ec:frontend-v2-ng/tests/live-sw-isolation.mjs:generic-api-key:38
+788afb4f418dd4460c599ee5365b3e6cf67cff4f:.github/workflows/v2-ng.yml:generic-api-key:127
+788afb4f418dd4460c599ee5365b3e6cf67cff4f:.github/workflows/v2-ng.yml:generic-api-key:205
+788afb4f418dd4460c599ee5365b3e6cf67cff4f:.github/workflows/v2-ng.yml:generic-api-key:214
+
 # ═══════════════════════════════════════════════════════════════════════════
 # DELIBERATELY NOT SUPPRESSED — the one real finding
 # ═══════════════════════════════════════════════════════════════════════════
