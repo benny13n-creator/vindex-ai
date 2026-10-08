@@ -89,18 +89,19 @@ async function razlika(a, b, maske = []) {
     const pod = (img) => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d"); g.drawImage(img, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; };
     const da = pod(ia), db = pod(ib);
     let piksela = 0, kanal = 0, izuzeto = 0;
+    const primeri = [];
     const W = ia.width;
     const uMaski = (i) => { const x = (i / 4) % W, y = Math.floor(i / 4 / W); return maske.some(m => x >= Math.floor(m.x) && x < Math.ceil(m.x + m.w) && y >= Math.floor(m.y) && y < Math.ceil(m.y + m.h)); };
     for (let i = 0; i < da.length; i += 4) {
       if (maske.length && uMaski(i)) { izuzeto++; continue; }
       const m = Math.max(Math.abs(da[i] - db[i]), Math.abs(da[i + 1] - db[i + 1]), Math.abs(da[i + 2] - db[i + 2]));
-      if (m) { piksela++; if (m > kanal) kanal = m; }
+      if (m) { piksela++; if (m > kanal) kanal = m; if (primeri.length < 8) primeri.push(`(${(i / 4) % W},${Math.floor(i / 4 / W)}) ${da[i]},${da[i + 1]},${da[i + 2]}/${db[i]},${db[i + 1]},${db[i + 2]}`); }
     }
-    return { piksela, kanal, izuzeto, dim: `${ia.width}x${ia.height}` };
+    return { piksela, kanal, izuzeto, primeri, dim: `${ia.width}x${ia.height}` };
   }, ["data:image/png;base64," + a.toString("base64"), "data:image/png;base64," + b.toString("base64"), maske]);
 }
 const uSumu = (d) => d.piksela <= SUM_PIKSELA && d.kanal <= SUM_KANALA;
-const opis = (d) => `${d.piksela} piksela, maks. ${d.kanal}/255, ${d.dim}${d.izuzeto ? `, izuzeto ${d.izuzeto} px nameravanog regiona` : ""}`;
+const opis = (d) => `${d.piksela} piksela, maks. ${d.kanal}/255, ${d.dim}${d.izuzeto ? `, izuzeto ${d.izuzeto} px nameravanog regiona` : ""}${d.piksela && d.primeri ? `; prvi: ${d.primeri.join(" ")}` : ""}`;
 
 async function snimakDemo(port, { w = 1440, h = 900, tema = "dark", nav = "puna", upit = "", motion = "reduce", ceo = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: motion, deviceScaleFactor: 1 });
