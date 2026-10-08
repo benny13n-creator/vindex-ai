@@ -250,3 +250,35 @@ export function pretragaRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* POST /api/pitanje (api.py::pitanje): {pitanje 3–2000, predmet_id} → 200 + normalizovan odgovor.
+ * kontekst_predmeta: true samo ako je predmet pozivaočev, false za tuđ, null bez predmet_id.
+ * Scenario po sadržaju pitanja (emulira ishode STVARNOG ask_agent-a, v. test_ns005_t6):
+ *   „bez izvora" → LOW, bez `izvori`, tekst odbijanja; „9999" → odbijanje izmišljenog člana;
+ *   „pad korpusa" → retrieval_unavailable; „delimično" → izvori_neuspeh; inače HIGH sa izvorima. */
+export function pitanjeRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    if (url.pathname !== "/api/pitanje" || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    const p = String(b.pitanje || "");
+    if (p.length < 3 || p.length > 2000) { json(res, 422, { detail: [{ loc: ["body", "pitanje"] }] }); return true; }
+    (kuke.upisano || (() => {}))(b);
+    const kontekst = b.predmet_id ? k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id) : null;
+    const osnova = { credits_remaining: 9, kontekst_predmeta: kuke.kontekst !== undefined ? kuke.kontekst : kontekst };
+    const NAPOMENA = "\n\n---\n\n⚠️ **Pravna napomena:** Vindex AI pruža informacije zasnovane na zakonskim tekstovima Republike Srbije i ne predstavlja pravni savet.";
+    let odg;
+    if (/bez izvora/i.test(p)) odg = { odgovor: "Nemam pouzdan odgovor na ovo pitanje u trenutnoj bazi zakona.\n\n---\n📊 Pouzdanost: NISKA | Score: 0.120" + NAPOMENA, confidence: "LOW", top_score: 0.12 };
+    else if (/9999/.test(p)) odg = { odgovor: "Član 9999 (Zakon o obligacionim odnosima) nije pronađen u indeksu Vindex baze.", confidence: "LOW", top_score: 0.7 };
+    else if (/pad korpusa/i.test(p)) odg = { odgovor: "Došlo je do greške prilikom obrade zahteva. Pokušajte ponovo.", retrieval_unavailable: true };
+    else if (/delimi/i.test(p)) odg = { odgovor: "--- PRAVNI ZAKLJUČAK\nDelimičan odgovor." + NAPOMENA, confidence: "MEDIUM", confidence_detail: {}, izvori: [{ zakon: "zakon o radu", clan: "Član 179" }], izvori_neuspeh: ["dokumenti predmeta"] };
+    else odg = { odgovor: "--- BRZA PROCENA\nŠteta se dokazuje **računima** i nalazom veštaka. <img src=x onerror=\"window.__xss=7\">\n--- PRAVNI ZAKLJUČAK\nPrimenjuje se ZOO." + NAPOMENA,
+                 confidence: "HIGH", confidence_detail: { nivo: "HIGH" }, izvori: [{ zakon: "zakon o obligacionim odnosima", clan: "Član 154" }, { zakon: "zakon o obligacionim odnosima", clan: "200" }, { zakon: "", clan: "Član 1" }],
+                 cinjenice_iz_dokumenta: ["Ugovor navodi rok isporuke 30 dana."] };
+    json(res, 200, Object.assign({}, osnova, odg));
+    return true;
+  };
+}

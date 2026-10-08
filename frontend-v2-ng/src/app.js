@@ -329,17 +329,17 @@
    * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
    * je registar. Sav sadržaj se upisuje kao tekst. */
   function adresaPredmeta(id, odeljak) {
-    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : "");
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : "");
   }
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
     if (/^#\/predmeti\/nov\/?$/.test(location.hash)) return { pogled: "nov" };
     if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
-    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad)?\/?$/.exec(location.hash);
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
     try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : "pregled" };
+    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : "pregled" };
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
@@ -374,7 +374,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -415,6 +415,7 @@
     $("predmet-odeljci").hidden = true;
     $("odeljak-pregled").hidden = true;
     $("odeljak-rad").hidden = true;
+    $("odeljak-pitanje").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
     if (radPredmeta) radPredmeta.ocisti();
@@ -438,8 +439,9 @@
     if (o === "rad" && rocistaPredmeta) rocistaPredmeta.aktiviraj();
     $("odeljak-pregled").hidden = o !== "pregled";
     $("odeljak-rad").hidden = o !== "rad";
+    $("odeljak-pitanje").hidden = o !== "pitanje";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
-    ["pregled", "rad", "dokumenti"].forEach(function (x) {
+    ["pregled", "rad", "pitanje", "dokumenti"].forEach(function (x) {
       var tab = $("tab-" + x);
       tab.href = adresaPredmeta(ruta.id, x);
       if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
@@ -492,6 +494,7 @@
     $("predmet-odeljci").hidden = false;
     if (radPredmeta) radPredmeta.postavi(v);
     if (rocistaPredmeta) rocistaPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "rad");
+    if (pitanjePredmeta) pitanjePredmeta.postavi(v.predmet);
     prikaziOdeljak();
   }
 
@@ -542,7 +545,7 @@
   }
 
   function prikaziDetalj(v) {
-    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); return; }
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); return; }
     if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
     if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
     if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
@@ -759,6 +762,7 @@
     radPredmeta = window.VxRadPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     klijentiPredmeta = window.VxKlijentiPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     rocistaPredmeta = window.VxRocistaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    pitanjePredmeta = window.VxPitanjePredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
