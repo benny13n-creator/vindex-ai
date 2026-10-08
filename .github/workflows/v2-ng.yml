@@ -23,6 +23,7 @@ on:
       - "tests/conftest.py"
       - "tests/test_v2_ng_*.py"
       - "tests/v2_ng_e2e_harness.py"
+      - "tests/v2_ng_docker_rehearsal.py"
       - "tests/test_z015_v2_*.py"
       - "tests/test_z016_gate_a.py"
       # verify:session-contract izvodi kanonski ključ sesije iz ovih izvora.
@@ -219,3 +220,5 @@ jobs:
             -e FOUNDER_EMAILS=ci@example.com \
             -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
             vindex-v2-preview:ci python -c "import api, hashlib, pathlib; from fastapi.testclient import TestClient; k = TestClient(api.app); r = k.get('/v2/preview/'); assert r.status_code == 200, r.status_code; assert hashlib.sha256(r.content).hexdigest() == hashlib.sha256(pathlib.Path('/app/frontend-v2-ng/index.html').read_bytes()).hexdigest(); a = k.get('/v2/preview/src/app.js'); f = k.get('/v2/preview/fonts/ibm-plex-sans/400.css'); t = k.get('/v2/preview/tests/v2_ng_e2e_harness.py'); p = k.get('/v2/preview/package.json'); print('preview ON', r.status_code, a.status_code, f.status_code, t.status_code, p.status_code); assert (a.status_code, f.status_code, t.status_code, p.status_code) == (200, 200, 404, 404); print('OK: preview served from the production image with the flag on')"
+      - name: Rollout rehearsal on the production image (A OFF -> B ON -> C OFF, --network none, default CMD)
+        run: python3 tests/v2_ng_docker_rehearsal.py vindex-v2-preview:ci
