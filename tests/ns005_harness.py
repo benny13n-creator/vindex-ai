@@ -184,6 +184,38 @@ class _Upit:
                 out.append(r)
         return out
 
+    def _projekcija(self, r):
+        """Kao PostgREST: vraćaju se SAMO tražene kolone; `tabela(k1,k2)` se ugnježđuje
+        preko `<tabela bez s/i>_id` ili `predmet_id`."""
+        if not self.kol or self.kol.strip() == "*":
+            return r
+        delovi, dubina, bafer = [], 0, ""
+        for c in self.kol:
+            if c == "(":
+                dubina += 1
+            elif c == ")":
+                dubina -= 1
+            if c == "," and dubina == 0:
+                delovi.append(bafer.strip())
+                bafer = ""
+            else:
+                bafer += c
+        if bafer.strip():
+            delovi.append(bafer.strip())
+        out = {}
+        for d in delovi:
+            if "(" in d:
+                ime, kol = d.split("(", 1)
+                ime, kol = ime.strip(), [x.strip() for x in kol.rstrip(")").split(",")]
+                kljuc = r.get("predmet_id") if ime == "predmeti" else r.get(ime.rstrip("i") + "_id")
+                povezan = next((x for x in self.b.tabele.get(ime, []) if x.get("id") == kljuc), None)
+                out[ime] = {c: povezan.get(c) for c in kol} if povezan else None
+            elif d == "*":
+                out.update(r)
+            else:
+                out[d] = r.get(d)
+        return out
+
     def execute(self):
         vrsta, telo = self.radnja
         self.b.dnevnik.append({"tabela": self.t, "radnja": vrsta, "filteri": [(o, k) for o, k, _ in self.filt]})
@@ -215,7 +247,7 @@ class _Upit:
             ids = {id(r) for r in pogodjeni}
             self.b.tabele[self.t] = [r for r in self.b.tabele.get(self.t, []) if id(r) not in ids]
             return _Rez(data=[copy.deepcopy(r) for r in pogodjeni], count=len(pogodjeni))
-        redovi = [copy.deepcopy(r) for r in pogodjeni]
+        redovi = [self._projekcija(copy.deepcopy(r)) for r in pogodjeni]
         if self.redosled:
             k, desc = self.redosled
             redovi.sort(key=lambda r: (str(r.get(k) or ""), r.get("_rb", 0)), reverse=desc)
@@ -275,6 +307,21 @@ def pripremi(monkeypatch, tabele=None):
 
     monkeypatch.setattr(api, "_require_auth", _auth)
     monkeypatch.setattr(api, "_get_supa", lambda: baza)
+
+    # Ruteri koji uvoze `_get_supa`/`_verify_token` direktno (from shared.deps import ...)
+    # drže SVOJU referencu — zamenjuje se svaka, da nijedan put ne ode van memorije.
+    import sys as _sys
+
+    def _verify(tok):
+        uid = TOKENI.get(str(tok))
+        return {"sub": uid, "email": uid + "@primer.test"} if uid else None
+    for _ime, _mod in list(_sys.modules.items()):
+        if _mod is None or not (_ime.startswith(("routers.", "klijenti.", "shared.", "services.")) or _ime == "shared"):
+            continue
+        if hasattr(_mod, "_get_supa"):
+            monkeypatch.setattr(_mod, "_get_supa", lambda: baza, raising=False)
+        if hasattr(_mod, "_verify_token"):
+            monkeypatch.setattr(_mod, "_verify_token", _verify, raising=False)
     api.app.dependency_overrides[api.get_current_user] = _trenutni
     monkeypatch.setattr(api.limiter, "enabled", False)
     try:

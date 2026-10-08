@@ -194,8 +194,54 @@
             </div>
           </form>
           <section class="matter__section" id="predmet-klijenti-blok" hidden aria-labelledby="klijenti-naslov">
-            <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
+            <div class="section-head">
+              <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
+              <button class="text-btn text-btn--line" id="kl-otvori" type="button" hidden>Poveži klijenta</button>
+            </div>
+            <p class="notice" id="kl-uspeh" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="predmet-klijenti-prazno" hidden>Nijedan klijent nije povezan sa predmetom.</p>
             <ul class="people" id="predmet-klijenti"></ul>
+            <div class="link-panel" id="kl-panel" hidden>
+              <div class="field">
+                <label class="field__label" for="kl-pretraga">Pronađite klijenta iz kartoteke</label>
+                <input class="field__input" id="kl-pretraga" type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Ime, prezime ili firma">
+              </div>
+              <p class="list-state" id="kl-stanje" role="status" aria-live="polite" hidden></p>
+              <ul class="pick" id="kl-rezultati" aria-label="Rezultati pretrage klijenata"></ul>
+              <button class="text-btn" id="kl-nov-prekidac" type="button" aria-expanded="false" aria-controls="kl-nov-forma">Nov klijent u kartoteci</button>
+              <form class="form form--inset" id="kl-nov-forma" hidden novalidate aria-label="Nov klijent">
+                <div class="field"><label class="field__label" for="kl-tip">Vrsta</label>
+                  <select class="field__input" id="kl-tip"><option value="fizicko_lice">Fizičko lice</option><option value="pravno_lice">Pravno lice</option></select></div>
+                <div class="field"><label class="field__label" for="kl-ime">Ime ili naziv</label>
+                  <input class="field__input" id="kl-ime" type="text" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-prezime">Prezime</label>
+                  <input class="field__input" id="kl-prezime" type="text" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-firma">Firma</label>
+                  <input class="field__input" id="kl-firma" type="text" maxlength="300" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-email">E-pošta</label>
+                  <input class="field__input" id="kl-email" type="email" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-telefon">Telefon</label>
+                  <input class="field__input" id="kl-telefon" type="tel" maxlength="50" autocomplete="off"></div>
+                <p class="field__help">JMBG, PIB i broj pasoša se ovde ne unose.</p>
+                <div class="form__actions"><button class="text-btn text-btn--primary" id="kl-nov-sacuvaj" type="submit">Sačuvaj klijenta</button></div>
+              </form>
+              <div class="chosen" id="kl-izabran" hidden>
+                <p class="chosen__label">Izabran klijent</p>
+                <p class="chosen__name" id="kl-izabran-ime"></p>
+                <div class="coi" id="kl-coi" role="status" aria-live="polite" hidden>
+                  <p class="coi__title" id="kl-coi-naslov"></p>
+                  <p class="coi__text" id="kl-coi-telo"></p>
+                  <ul class="coi__list" id="kl-coi-lista"></ul>
+                </div>
+                <label class="check" id="kl-potvrda-red" hidden><input type="checkbox" id="kl-potvrda">
+                  <span>Pregledao sam nalaz i svesno povezujem klijenta.</span></label>
+              </div>
+              <p class="notice" id="kl-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="kl-povezi" type="button" disabled>Poveži sa predmetom</button>
+                <button class="text-btn" id="kl-odustani" type="button">Zatvori</button>
+              </div>
+            </div>
           </section>
         </div>
         <div class="matter__body" id="odeljak-rad" hidden>
@@ -270,6 +316,7 @@
   <script src="src/detalj.js"></script>
   <script src="src/nov-predmet.js"></script>
   <script src="src/rad-predmeta.js"></script>
+  <script src="src/klijenti-predmeta.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

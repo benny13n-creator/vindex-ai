@@ -114,6 +114,11 @@ for (const [naziv, putanja, opcije] of [
   ["protokol-relativna putanja //host", "//evil.example/api/echo", { saTokenom: true, telo: {} }],
   ["putanja van /api/", "/index.html", { saTokenom: true, telo: {} }],
   ["upit u putanji", "/api/echo?user_id=x", { saTokenom: true, telo: {} }],
+  ["sličan prefiks /klijentix", "/klijentix", { saTokenom: true, telo: {} }],
+  ["izlazak iz /api/ preko ..", "/api/../index.html", { saTokenom: true, telo: {} }],
+  ["segment . u putanji", "/api/./echo", { saTokenom: true, telo: {} }],
+  ["fragment u putanji", "/api/echo#x", { saTokenom: true, telo: {} }],
+  ["obrnuta kosa crta", "/api/x\\..\\..\\index.html", { saTokenom: true, telo: {} }],
   ["user_id u telu", "/api/echo", { saTokenom: true, telo: { naziv: "x", user_id: "tudji" } }],
   ["USER_ID (velika slova) u telu", "/api/echo", { saTokenom: true, telo: { USER_ID: "tudji" } }],
   ["owner_id u telu", "/api/echo", { saTokenom: true, telo: { owner_id: "tudji" } }],
@@ -136,6 +141,13 @@ for (const [naziv, putanja, opcije] of [
   const r = await page.evaluate(async (T) => { const c = new AbortController(); c.abort(); return window.VxApi.send("/api/echo", { token: T, telo: {}, signal: c.signal }); }, TOKEN);
   sviRezultati.push(r);
   zapisi("odbijeno-lokalno", "već otkazan signal → ABORTED, ništa poslato, ishod poznat (ništa nije upisano)", r.greska && r.greska.kod === "ABORTED" && !r.greska.ishodNepoznat && f.zahtevi.length === 0);
+}
+
+{
+  // `/klijenti` (postojeći CRM ruter bez /api prefiksa) je JEDINI dozvoljen izuzetak.
+  await nuluj();
+  const r = await send("/klijenti", { saTokenom: true, telo: { ime: "Ana" } });
+  zapisi("granica", "/klijenti je dozvoljen (zahtev poslat na isti izvor)", f.zahtevi.length === 1 && f.zahtevi[0].putanja === "/klijenti" && r.greska && r.greska.kod === "NOT_FOUND", JSON.stringify(r).slice(0, 80));
 }
 
 // ── Odbijanje servera: strukturisano, nikad uspeh ────────────────────────

@@ -106,3 +106,92 @@ export function beleskaRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* ── Klijenti (klijenti/router.py) ────────────────────────────────────────
+ * k.kartoteka = [{id, user_id, ime, prezime, firma, email, tip, jmbg_encrypted?}]
+ * GET  /klijenti?pretraga=  → samo klijenti pozivaoca, BEZ šifrovanih polja; {klijenti, ukupno}
+ * POST /klijenti            → ime < 2 znaka → 422; vlasnik iz tokena; {status:"kreiran", klijent} */
+const JAVNA_POLJA = ["id", "tip", "ime", "prezime", "firma", "email", "telefon", "status"];
+export function klijentiRuta(korisnici, kuke = {}) {
+  let n = 0;
+  return async (req, url, res) => {
+    if (url.pathname !== "/klijenti") return false;
+    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname + ":" + req.method, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Prijava je obavezna." }); return true; }
+    k.kartoteka = k.kartoteka || [];
+    if (req.method === "GET") {
+      const q = (url.searchParams.get("pretraga") || "").toLowerCase();
+      const svi = Object.values(korisnici).flatMap(x => x.kartoteka || []);
+      const moji = svi.filter(x => x.user_id === k.id && (!q || [x.ime, x.prezime, x.firma].some(v => String(v || "").toLowerCase().includes(q))));
+      json(res, 200, { klijenti: moji.map(x => Object.fromEntries(JAVNA_POLJA.map(c => [c, x[c] ?? ""]))), ukupno: moji.length });
+      return true;
+    }
+    if (req.method !== "POST") { json(res, 405, { detail: "Method Not Allowed" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, { detail: "bad json" }); return true; }
+    if (String(b.ime || "").trim().length < 2) { json(res, 422, { detail: [{ loc: ["body", "ime"], msg: "too short" }] }); return true; }
+    const red = { id: `kl-${k.id}-n${++n}`, user_id: k.id, tip: b.tip || "fizicko_lice", ime: b.ime, prezime: b.prezime || "", firma: b.firma || "",
+      email: b.email || "", telefon: b.telefon || "", status: "aktivan" };
+    k.kartoteka.push(red);
+    (kuke.upisano || (() => {}))(red, b);
+    json(res, 200, { status: "kreiran", klijent: Object.fromEntries(JAVNA_POLJA.map(c => [c, red[c]])) });
+    return true;
+  };
+}
+
+/* POST /api/conflict-check: traži SAMO u predmetima pozivaoca (tužilac/tuženi sadrži termin);
+ * aktivan predmet → conflict, ostalo → review, ništa → clear; provera_potpuna=true.
+ * kuke.coi(telo, korisnik) može da vrati {status, telo} (npr. pad, nepotpuna provera). */
+export function coiRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    if (url.pathname !== "/api/conflict-check" || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, { detail: "bad json" }); return true; }
+    if (kuke.coi) { const z = await kuke.coi(b, k.id); if (z && z.prekid) { req.socket.destroy(); return true; } if (z && z.status) { json(res, z.status, z.telo ?? {}); return true; } }
+    const termini = [b.ime_prezime, b.firma].filter(Boolean).map(x => String(x).toLowerCase());
+    const konflikti = [];
+    for (const p of k.predmeti.filter(x => x.user_id === k.id)) {
+      for (const [polje, v] of [["tuzilac", p.tuzilac], ["tuzeni", p.tuzeni]]) {
+        if (termini.some(t => String(v || "").toLowerCase().includes(t))) {
+          konflikti.push({ sloj: "predmeti", tip_konflikta: polje, sever: "VISOK", predmet_id: p.id, predmet_naziv: p.naziv, predmet_status: p.status, podudaranje: v });
+          break;
+        }
+      }
+    }
+    const aktivni = konflikti.filter(x => ["aktivan", "u_toku"].includes(x.predmet_status));
+    const status = aktivni.length ? "conflict" : konflikti.length ? "review" : "clear";
+    json(res, 200, { status, provera_potpuna: true, slojevi_greska: [], konflikti, poruka: "🚨 serverska poruka sa emodžijem", ukupno: konflikti.length });
+    return true;
+  };
+}
+
+/* POST /api/predmeti/{id}/confirm-links: vlasnik predmeta (inače 500 kao `.single()`),
+ * tuđ klijent se tiho izostavlja; vezani klijenti idu u k.klijenti[id] (detalj ih vraća). */
+export function vezaRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    const m = /^\/api\/predmeti\/([^/]+)\/confirm-links$/.exec(url.pathname);
+    if (!m || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    const id = decodeURIComponent(m[1]);
+    if (!k.predmeti.some(x => x.id === id && x.user_id === k.id)) { json(res, 500, { detail: "single: 0 rows" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, { detail: "bad json" }); return true; }
+    const linked = [];
+    for (const kid of (b.klijent_ids || []).slice(0, 5)) {
+      const kl = (k.kartoteka || []).find(x => x.id === kid && x.user_id === k.id);
+      if (!kl || kuke.odbijKlijenta) continue;
+      k.klijenti = k.klijenti || {};
+      const lista = (k.klijenti[id] = k.klijenti[id] || []);
+      if (!lista.some(x => x.id === kid)) lista.push({ id: kl.id, ime: kl.ime, prezime: kl.prezime, firma: kl.firma, uloga: b.uloga || "stranka" });
+      linked.push(kid);
+    }
+    (kuke.upisano || (() => {}))(linked, b);
+    json(res, 200, { success: true, linked_klijenti: linked, rok_dodat: false });
+    return true;
+  };
+}

@@ -373,7 +373,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -406,6 +406,8 @@
     $("predmet-cinjenice").replaceChildren();
     $("predmet-klijenti").replaceChildren();
     $("predmet-klijenti-blok").hidden = true;
+    $("predmet-klijenti-prazno").hidden = true;
+    if (klijentiPredmeta) klijentiPredmeta.ocisti();
     $("dok-lista").replaceChildren();
     $("dok-prazno").hidden = true;
     $("dok-broj").textContent = "";
@@ -460,16 +462,18 @@
     cinjenica(dl, "Vrednost spora", p.vrednost !== null ? brojFormat.format(p.vrednost) + " RSD" : "");
     cinjenica(dl, "Otvoren", p.otvoren ? datum(p.otvoren) : "");
     cinjenica(dl, "Poslednja izmena", p.izmenjeno ? datum(p.izmenjeno) : "");
-    if (v.klijenti.length) {
-      v.klijenti.forEach(function (k) {
-        var li = el("li", "people__item");
-        li.append(el("span", "people__name", k.naziv));
-        var meta = [k.firma, k.uloga].filter(Boolean).join(" · ");
-        if (meta) li.append(el("span", "people__meta", meta));
-        $("predmet-klijenti").append(li);
-      });
-      $("predmet-klijenti-blok").hidden = false;
-    }
+    v.klijenti.forEach(function (k) {
+      var li = el("li", "people__item");
+      li.append(el("span", "people__name", k.naziv));
+      var meta = [k.firma, k.uloga].filter(Boolean).join(" · ");
+      if (meta) li.append(el("span", "people__meta", meta));
+      $("predmet-klijenti").append(li);
+    });
+    /* NS005: blok je uvek vidljiv (vezivanje); `klijenti_linked` je obavezan niz,
+     * pa je prazan niz istinito „nijedan klijent". */
+    $("predmet-klijenti-prazno").hidden = v.klijenti.length !== 0;
+    $("predmet-klijenti-blok").hidden = false;
+    if (klijentiPredmeta) klijentiPredmeta.postavi(v.predmet);
     $("dok-broj").textContent = String(v.dokumenti.length);
     var lista = $("dok-lista");
     v.dokumenti.forEach(function (d) {
@@ -745,6 +749,7 @@
     detalj = window.VxDetalj.napravi({ sesija: window.VxSesija, izvor: window.VxPredmetIzvor, prikazi: prikaziDetalj });
     /* NS005 — izmena, beleške, hronologija; posle upisa predmet se ponovo čita. */
     radPredmeta = window.VxRadPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
+    klijentiPredmeta = window.VxKlijentiPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
