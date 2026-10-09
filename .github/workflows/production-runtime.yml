@@ -226,6 +226,8 @@ jobs:
       # NS005 Gate B: OCR u STVARNOJ produkcionoj slici (isti Dockerfile, isti tesseract-ocr,
       # poppler-utils i srpski paketi kao Render). Srpski latinični paket je OBAVEZAN ovde.
       - name: OCR proof inside the production image (Serbian packs required)
+        # FIELD_ENCRYPTION_KEY se NE prosleđuje: tests/conftest.py postavlja test-ključ pre svakog importa
+        # (doslovna vrednost u ovom koraku je bila gitleaks generic-api-key nalaz u commitu 34a21535).
         run: |
           mkdir -p "$RUNNER_TEMP/ocr"
           docker run --rm \
@@ -237,7 +239,6 @@ jobs:
             -e PINECONE_API_KEY=fake-pinecone \
             -e PINECONE_HOST=https://fake.pinecone.io \
             -e FOUNDER_EMAILS=ci@example.com \
-            -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
             -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 -e VINDEX_OCR_REPORT=/out/ocr-image.json \
             -v "$RUNNER_TEMP/ocr:/out" \
             vindex-prod-check:ci \
