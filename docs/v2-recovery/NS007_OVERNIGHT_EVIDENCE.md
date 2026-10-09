@@ -226,3 +226,25 @@ prolazan; S10 agent trajnog rada ulazi u dnevni cron; S11 poništen okidač se n
 određuje founder (Task 4 plan).
 
 **SLEDEĆA KAPIJA.** Task 4 — klijent okidača i plan za Render (bez postavljanja).
+
+---
+
+## TASK 4 — KLIJENT OKIDAČA + PLAN ZA RENDER (NIJE POSTAVLJENO)
+
+**PROBLEM.** Produkcioni raspoređivač treba da okine ciklus bez dupliranja Vindex runtime-a i tajni u drugi servis.
+
+**ODLUKA.** `scripts/trigger_autonomy_cycle.py`: samo stdlib, URL i tajna iz okruženja, jedan POST bez tela, timeout,
+izlaz ≠ 0 za sve osim 2xx, ispis samo statusa/prozora/run_id/brojeva. Tajna se ne šalje preko običnog HTTP-a osim ka
+localhost-u; URL sa korisnikom/lozinkom se odbija. Nema baze, modela ni poslovne logike.
+`docs/v2-recovery/NS007_RENDER_CRON_PLAN.md`: kandidat arhitektura (jedan lagan Render Cron Job → uska ruta),
+preduslovi redom, kadenca kao OPCIJE (founder odlučuje), isključivanje. Označeno NIJE POSTAVLJENO.
+
+**TESTOVI.** 12/12 — skripta kao pravi proces protiv lokalnog HTTP servera: uspeh, SKIPPED, 401/500/503, isteklo
+vreme, nepostojeći server, 5 konfiguracionih grešaka bez ijednog zahteva; tajna nikad u izlazu.
+
+**MUTACIJE (5/5 ubijeno).** K1 ispis celog tela; K2 ne-2xx kao uspeh; K3 http ka udaljenom hostu; K4 tajna u poruci
+greške; K5 bez timeout-a.
+
+**PRODUKCIJA.** Ništa nije postavljeno. Render nije diran.
+
+**SLEDEĆA KAPIJA.** Task 5 — budžet autonomije zatvoren pri grešci.
