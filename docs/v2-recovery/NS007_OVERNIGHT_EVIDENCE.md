@@ -477,3 +477,26 @@ preporuke.
 **MUTACIJE (3/3 ubijeno).** C1 odbacivanje ne povlači rad; C2 i prihvatanje povlači rad; C3 rad bez reference.
 
 **SLEDEĆA KAPIJA.** Task 14 — Workspace.
+
+---
+
+## TASK 14 — WORKSPACE: „VINDEX JE PRIPREMIO"
+
+**ODLUKA.** Kanonska tabla ostaje `GET /api/workspace`; nema „Agent Dashboard"-a. Aditivno polje
+`vindex_je_pripremio` (+ `vindex_je_pripremio_stanje`): READY_FOR_REVIEW radni proizvodi vlasnika, samo za aktivne
+predmete (isti skup predmeta kao ostale korpe), najviše 20, najnoviji prvi. Stavka: vrsta `pripremljeno`, naslov, vrsta
+rada, razlog (ZAŠTO), sažetak, stanje kvaliteta, vreme pripreme, veza na Case Action. Postojeće korpe (Danas, Kritično,
+Predstojeće, Za pregled, Na čekanju, Završeno nedavno) nepromenjene; pripremljen rad NIJE zadatak i ne ulazi u
+`ukupno_aktivnih` (Case Action = šta treba uraditi; radni proizvod = šta je Vindex već pripremio).
+- Tabela ne postoji (kod na produkciji pre migracije 136) → `NIJE_UKLJUCENO`, tabla ostaje POTPUNA (bez lažne
+  uzbune). Svaka druga greška → `NIJE_PROCITANO` + „pripremljeni rad" u `degradirani_izvori` (iskreno).
+- 0 poziva modela.
+
+**TESTOVI.** 4/4 + postojeći Workspace testovi + svi testovi koji diraju `/api/workspace` (153 passed; jedini pad
+`test_phoenix_mission_013…timeout_error_message` je IDENTIČAN pad osnove).
+
+**MUTACIJE (6/6 ubijeno).** W1 bez filtera vlasnika (prvo PREŽIVELA — druga brava je skup vlasnikovih predmeta;
+dodat test oštećenog reda); W2 zatvoreni predmeti; W3 ne-READY stanja; W4 nepostojeća tabela = nepotpuna tabla; W5
+svaka greška = tiho isključeno; W6 pripremljen rad u `ukupno_aktivnih`.
+
+**SLEDEĆA KAPIJA.** Task 15 — V2 Danas.
