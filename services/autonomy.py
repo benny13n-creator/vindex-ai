@@ -42,6 +42,16 @@ _KOD = re.compile(r"^[A-Z0-9_]{1,64}$")
 _PROZOR = re.compile(r"^[A-Za-z0-9:_.-]{1,80}$")
 
 
+class NeuspehPosla(Exception):
+    """Izvršilac javlja POŠTEN, konačan neuspeh (kontekst predmeta, izvor nije proveren, ročište više ne važi…):
+    posao postaje FAILED sa bezbednim kodom i NE ponavlja se. Bilo koji drugi izuzetak = prolazna greška: zakup
+    ističe i posao se ponovo zauzima, najviše `max_attempts` puta."""
+
+    def __init__(self, kod: str):
+        super().__init__(kod)
+        self.kod = kod
+
+
 def trajanje_zakupa() -> int:
     try:
         return max(30, min(3600, int(os.getenv("AUTONOMY_LEASE_SECONDS", "300"))))

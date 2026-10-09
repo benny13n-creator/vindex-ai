@@ -645,6 +645,7 @@ from routers.evidence_graph       import router as evidence_graph_router
 from routers.voice                import router as voice_router
 from routers.voice_realtime       import router as voice_realtime_router
 from routers.agent_notifications  import router as agent_notifications_router
+from routers.autonomy             import router as autonomy_router  # NS007: uska ulazna tačka autonomnog rada
 from routers.copilot_ambient      import router as copilot_ambient_router
 from routers.precedenti           import router as precedenti_router
 from routers.knowledge_graph      import router as knowledge_graph_router
@@ -743,6 +744,7 @@ app.include_router(evidence_graph_router)
 app.include_router(voice_router)
 app.include_router(voice_realtime_router)
 app.include_router(agent_notifications_router)
+app.include_router(autonomy_router)
 app.include_router(copilot_ambient_router)
 app.include_router(precedenti_router)
 app.include_router(knowledge_graph_router)

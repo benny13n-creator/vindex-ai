@@ -182,3 +182,47 @@ E3 — paritet ih hvata.
 pokreće). Supabase specifičnosti (PostgREST, stvarne uloge) su emulirane minimalnim okruženjem.
 
 **SLEDEĆA KAPIJA.** Task 3 — uska ulazna tačka raspoređivača.
+
+---
+
+## TASK 3 — USKA ULAZNA TAČKA RASPOREĐIVAČA
+
+**PROBLEM.** Autonomni rad ne sme da zavisi od `/api/cron/daily` (šalje mejlove/Viber, briše, eskalira — Task 0 J),
+ni od njegovog ne-atomskog heartbeat-a.
+
+**FALSIFIKACIJA.** (1) Da dnevni cron poziva novu rutu preko HTTP-a? Zabranjeno direktivom i nepotrebno. (2) Da se
+koristi postojeći `BRIEFING_CRON_SECRET`? Odbačeno: ista tajna bi okidala ceo dnevni dispečer; posebna tajna znači da
+procurela tajna okidača autonomije ne daje pristup brisanjima i slanju mejlova. (3) Da pozivalac zadaje prozor ili
+korisnika? Odbačeno: prozor računa server (UTC sat), telo se ne čita.
+
+**ODLUKA / IMPLEMENTACIJA.**
+- `POST /api/cron/autonomy` (`routers/autonomy.py`): `X-Autonomy-Secret` == `AUTONOMY_CRON_SECRET`
+  (`hmac.compare_digest`); tajna nepodešena ili kraća od 32 znaka = zatvoreno; nepodešena, pogrešna, nedostajuća →
+  bajt-identičan 401. Tok: zauzmi prozor `auto:YYYY-MM-DDTHH` → `run_autonomy_cycle` → završi ciklus. Zauzimanje
+  nedostupno → 503 (radnik se ne poziva); pad radnika → 500 + ciklus FAILED; upis završetka neuspeo →
+  `COMPLETED_UNRECORDED` (rad je već trajno upisan po stavkama, ciklus ostaje vidljivo RUNNING, ne krade se).
+- Kanonski radnik ostaje `workers/background_agents.py`. Registar je SADA JEDAN SPISAK MODULA (`_agent_modules`):
+  `_agent_registry()` (dnevni cron, legacy preporuke) bira module sa `run` — rezultat identičan kao pre;
+  `_work_agents()` bira module sa `planiraj` + `izvrsi`. Nema drugog registra.
+- `run_autonomy_cycle`: plan (0 poziva modela) → upis (jedan okidač = jedan red; nova verzija zastareva staru;
+  poništen okidač zastareva QUEUED/READY) → zauzimanje kroz `autonomy_claim_work_item` → izvršilac → rezultat samo
+  za vlasnika zakupa. `NeuspehPosla` (u `services/autonomy.py`) = FAILED, bez ponavljanja; drugi izuzetak =
+  prolazno (zakup ističe, ograničeno sa `max_attempts`). Bilo koji ishod zauzimanja osim CLAIMED, uključujući grešku
+  baze → izvršilac se NE poziva.
+- Dnevni cron i dalje zove `run_background_agents` (legacy preporuke) — dva toka ne dele poslove, pa nema
+  dvostrukog izvršavanja istog rada.
+
+**RUTE.** Nova: `POST /api/cron/autonomy` (mašina-mašini). Nijedna postojeća nije menjana.
+
+**TESTOVI.** 14/14 novih + postojeći `test_background_agents`, `test_cron_daily_dispatcher`,
+`test_cron_daily_failclosed_auth` (ukupno 53 passed).
+
+**MUTACIJE (11/11 ubijeno).** S1 nepodešena tajna = otvoreno; S2 obično/prefiks poređenje; S3 drugačiji 401 kad nije
+podešeno (orakl); S4 drugi poziv istog prozora radi; S5 greška zauzimanja prozora → ipak radi; S6 pad radnika bez
+FAILED ciklusa; S7 greška zauzimanja posla → izvršava se; S8 iscrpljen budžet → izvršava se; S9 `NeuspehPosla` kao
+prolazan; S10 agent trajnog rada ulazi u dnevni cron; S11 poništen okidač se ne zastareva.
+
+**OGRANIČENJE.** Prozor je UTC sat (najviše 24 ciklusa dnevno, bez obzira na broj okidanja); konačnu kadencu
+određuje founder (Task 4 plan).
+
+**SLEDEĆA KAPIJA.** Task 4 — klijent okidača i plan za Render (bez postavljanja).
