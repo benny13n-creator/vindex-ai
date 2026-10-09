@@ -861,3 +861,30 @@ po kontradikciji); C3 čitanje upisuje trag otvaranja u `predmeti`.
 **OGRANIČENJE.** Broj upita je meren nad lažnom bazom (broj poziva PostgREST-a), ne vreme na produkciji.
 
 **SLEDEĆA KAPIJA.** Task 18.
+
+---
+
+## TASK 18 — KOHERENTNOST ASSETA (NS005.1 „SACRED")
+
+**PROBLEM.** Tri nova JS fajla (`analiza-predmeta.js`, `zivi-pregled.js`, `radna-lista.js`) ne smeju da se učitaju
+sa stabilne putanje, inače posle deploy-a stari keš i nov `app.js` mogu da se pomešaju.
+
+**DOKAZ (PROVEN, bez izmene koda).** `test_ns0051_asset_coherency` 13/13: inventar zahteva da je SVAKI `src/*.js`
+učitan kroz `index.html` (broj na disku = broj u HTML-u) i da svaka lokalna referenca nosi `/v2/app/@<token>/`;
+token B ≠ A, server B odbija token A (404, no-store). Mutacije iz Task 10/11/12 (U9, P13, W12 — skript na stabilnoj
+`/v2/app/src/...` putanji) su UBIJENE ovim testom. `e2e:primary` 51/51 nad pravim FastAPI `/app`: svi asseti koje je
+pregledač zaista učitao su pod build tokenom, `immutable` keš; `e2e:fastapi` 62/62; `e2e:sw-isolation` 28/28.
+
+**FAJLOVI.** Nijedan (dokaz je postojeći test + mutacije novih fajlova).
+
+**SLEDEĆA KAPIJA.** Task 19 (opciono) — sajt.
+
+---
+
+## TASK 19 — SAJT (OPCIONO) — NIJE RAĐEN
+
+**ODLUKA.** Preskočeno namerno. Direktiva ga označava kao opcioni; nijedna NS006 sposobnost ne menja javni sajt, a
+svaka izmena teksta sajta o „živom predmetu" bila bi tvrdnja o proizvodu pre nego što founder pregleda funkciju.
+`e2e:site` 73/73 nepromenjen.
+
+**SLEDEĆA KAPIJA.** Task 20 — adversarial pregled.
