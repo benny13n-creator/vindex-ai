@@ -91,6 +91,23 @@ for (const [ime, w, h] of [["1440", 1440, 900], ["1920", 1920, 1080], ["1024", 1
   zapisi(g, "tekst i linkovi ≥ 4,5:1 na svojoj površini", losKontrast.length === 0, losKontrast.map(b => b.t).slice(0, 3).join(","));
   zapisi(g, "nijedan neuspeo lokalni resurs, nijedan spoljni zahtev", lose.length === 0 && spoljni.length === 0, [...lose, ...spoljni].slice(0, 3).join(","));
   zapisi(g, "nijedna greška u konzoli", greske.length === 0, greske.slice(0, 2).join(" | "));
+  // NS005 Task 12: sajt sme da tvrdi SAMO ono što je dokazano u Task 1–11 (NS005_OVERNIGHT_EVIDENCE.md).
+  const t12 = await p.evaluate(() => {
+    const tekst = document.querySelector("main").innerText;
+    const kor = [...document.querySelectorAll("#rad .korak")], nac = [...document.querySelectorAll("#nacela .nacelo")], pri = [...document.querySelectorAll("#prijem .nacelo")];
+    const mreza = (lista) => lista.map((e, i) => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { i, x: Math.round(r.left), lev: cs.borderLeftWidth, gor: cs.borderTopWidth }; });
+    return { tekst, koraci: kor.map(e => e.querySelector("h3").textContent), nacela: nac.map(e => e.querySelector("h3").textContent), prijem: pri.map(e => e.querySelector("h3").textContent), mk: mreza(kor), mn: mreza(nac), mp: mreza(pri) };
+  });
+  zapisi(g, "bez nedokazanih tvrdnji (podsetnici, SMS/Viber/WhatsApp, automatsko prepoznavanje, SEF, garancije)",
+    !/podsetni|SMS|Viber|WhatsApp|automatsk|SEF|e-faktur|garant|100\s?%|bez greške|nikad ne greši|razume svaki|bez pregleda|savršen/i.test(t12.tekst), (t12.tekst.match(/podsetni|SMS|Viber|WhatsApp|automatsk|SEF|e-faktur|garant|razume svaki|bez pregleda|savršen/i) || [""])[0]);
+  // NS005 Task 14: OCR/Smart Intake su dokazani (CI produkciona slika) — tvrdnja sme da postoji, ali uz pregled.
+  zapisi(g, "prijem dokumenata: tri dokazane tvrdnje (OCR, podaci kao predlog sa pregledom, prikačivanje bez menjanja predmeta)",
+    JSON.stringify(t12.prijem) === JSON.stringify(["Skenovi i fotografije", "Podaci kao predlog", "Dokument u predmetu"]) && /OCR/.test(t12.tekst) && /traži vaš pregled/.test(t12.tekst) && /ne menja podatke/.test(t12.tekst), t12.prijem.join(","));
+  zapisi(g, "devet dokazanih koraka i šest načela", JSON.stringify(t12.koraci) === JSON.stringify(["Predmeti", "Klijenti", "Spisi i pretraga", "Pravno pitanje", "Praksa i stavovi", "Nacrt podneska", "Ročišta i rokovi", "Naplata", "Kancelarija"])
+    && JSON.stringify(t12.nacela) === JSON.stringify(["Stvarni podaci", "Svoji predmeti", "Greška je greška", "Vi odlučujete", "Izvor uz odgovor", "Neizvestan ishod se kaže"]), t12.koraci.join(",") + " | " + t12.nacela.join(","));
+  if (w > 960) zapisi(g, "mreža 3 kolone: prvi u redu bez leve crte, naredni redovi sa gornjom crtom",
+    [t12.mk, t12.mn, t12.mp].every(m => m.every(c => (c.i % 3 === 0 ? c.lev === "0px" && c.x === m[0].x : c.lev !== "0px") && (c.i >= 3 ? c.gor !== "0px" : true))), JSON.stringify(t12.mk.slice(0, 4)));
+  else zapisi(g, "jedna kolona: svi koraci poravnati levo, bez leve crte", t12.mk.every(c => c.x === t12.mk[0].x && c.lev === "0px"));
   await ctx.close();
 }
 

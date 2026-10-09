@@ -127,13 +127,76 @@ jobs:
         run: |
           python -c "import api; assert hasattr(api, 'app'); print('OK: api:app imported on Python 3.11')"
 
+      # NS005 Gate B: stvaran Tesseract u ovom poslu (tesseract-ocr bez srpskog paketa) —
+      # dokazuje A–D i STVARNO stanje „bez srpskog paketa“ (E). Nedostatak OCR-a je PAD,
+      # ne preskok (VINDEX_REQUIRE_OCR=1). Rezultati izlaze kao anotacije (javno čitljive).
+      - name: OCR proof (real Tesseract, no Serbian pack)
+        env:
+          VINDEX_REQUIRE_OCR: "1"
+          VINDEX_OCR_REPORT: /tmp/ocr-py311.json
+        shell: bash
+        run: |
+          set -o pipefail
+          # `python -m pytest` (ne gol `pytest`): stavlja koren repoa na sys.path, kao u koraku u produkcionoj slici.
+          python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
+
+      - name: OCR proof report (py311)
+        if: always()
+        shell: bash
+        run: |
+          izvestaj() {
+          python - "$1" "$2" <<'PY'
+          import json, sys
+          put, oznaka = sys.argv[1], sys.argv[2]
+          try:
+              d = json.load(open(put, encoding="utf-8"))
+          except Exception as e:
+              print(f"::error title=OCR {oznaka}::izveštaj nije napisan ({type(e).__name__})")
+              sys.exit(0)
+          j = d.pop("jezici", [])
+          print(f"::notice title=OCR {oznaka} jezici::{len(j)} paketa; srp={'srp' in j}; srp_latn={'srp_latn' in j}")
+          for k, v in d.items():
+              print(f"::notice title=OCR {oznaka} {k}::" + json.dumps(v, ensure_ascii=False))
+          PY
+          }
+          izvestaj /tmp/ocr-py311.json py311
+          if [ -f /tmp/ocr-py311.log ]; then
+            # Logovi poslova nisu javni: poslednje linije pytest izlaza kao anotacija (okruženje ima samo lažne ključeve).
+            { printf "::notice title=OCR py311 pytest izlaz::"; tail -n 40 /tmp/ocr-py311.log | awk 'BEGIN{ORS="%0A"} {gsub(/%/,"%25"); print}'; echo; }
+          fi
+
       - name: Full test suite on the production interpreter
         # -rs: report SKIPPED with reasons. Without it the 59 real-PostgreSQL
         # tests covering migrations 107 and 108 -- the credit-race closure the
         # Beta GO was made conditional on -- collapse into a row of bare 's'
         # characters, and CI reports green having verified none of them. The
         # skip conditions are honest; their invisibility was the defect.
-        run: pytest tests/ -q -rs
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest tests/ -q -rfEs 2>&1 | tee /tmp/full-suite.log
+
+      # Logovi poslova nisu javni: SVA imena padova (bez poruka) kao anotacije u delovima ≤ 3.5 KB,
+      # da bi se mogla tačno uporediti sa osnovom na `main`.
+      - name: Failure names
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/full-suite.log ]; then
+            grep -aE "^(FAILED|ERROR) " /tmp/full-suite.log | sed -E 's/ - .*//' | sort -u > /tmp/failure-names.txt || true
+            echo "::notice title=Failure count (prod-py311)::$(wc -l < /tmp/failure-names.txt) | $(grep -aE '[0-9]+ (passed|failed)' /tmp/full-suite.log | tail -n 1)"
+            awk -v oz="prod-py311" 'BEGIN{d=0; n=1} { l=$0; gsub(/%/,"%25",l); if (d + length(l) > 3500) { print "::notice title=Failure names " oz " #" n "::" buf; buf=""; d=0; n++ } buf = buf l "%0A"; d += length(l) + 3 } END { if (buf != "") print "::notice title=Failure names " oz " #" n "::" buf }' /tmp/failure-names.txt
+          fi
+
+      # Logovi poslova nisu javni: zbirna linija i poslednji padovi kao anotacija — dokaz da je
+      # pytest prošao sakupljanje i izvršio testove (ne „Interrupted: N errors during collection“).
+      - name: Full test suite summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/full-suite.log ]; then
+            { printf "::notice title=Full suite::"; grep -E "^(FAILED|ERROR) |Interrupted|passed|failed" /tmp/full-suite.log | tail -n 40 | awk 'BEGIN{ORS="%0A"} {gsub(/%/,"%25"); print}'; echo; }
+          fi
 
   # ───────────────────────────────────────────────────────────────────────
   # GATE 3 — the real production build path.
@@ -171,6 +234,48 @@ jobs:
             -e FIELD_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
             vindex-prod-check:ci \
             python -c "import api; assert hasattr(api,'app'); print('OK: api:app imports inside the production image')"
+
+      # NS005 Gate B: OCR u STVARNOJ produkcionoj slici (isti Dockerfile, isti tesseract-ocr,
+      # poppler-utils i srpski paketi kao Render). Srpski latinični paket je OBAVEZAN ovde.
+      - name: OCR proof inside the production image (Serbian packs required)
+        # FIELD_ENCRYPTION_KEY se NE prosleđuje: tests/conftest.py postavlja test-ključ pre svakog importa
+        # (doslovna vrednost u ovom koraku je bila gitleaks generic-api-key nalaz u commitu 34a21535).
+        run: |
+          mkdir -p "$RUNNER_TEMP/ocr"
+          docker run --rm \
+            -e SUPABASE_URL=https://fake.supabase.co \
+            -e SUPABASE_ANON_KEY=fake-anon-key \
+            -e SUPABASE_SERVICE_KEY=fake-service-key \
+            -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok \
+            -e OPENAI_API_KEY=sk-fake \
+            -e PINECONE_API_KEY=fake-pinecone \
+            -e PINECONE_HOST=https://fake.pinecone.io \
+            -e FOUNDER_EMAILS=ci@example.com \
+            -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 -e VINDEX_OCR_REPORT=/out/ocr-image.json \
+            -v "$RUNNER_TEMP/ocr:/out" \
+            vindex-prod-check:ci \
+            python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py -q -rs -p no:randomly -p no:cacheprovider
+
+      - name: OCR proof report (production image)
+        if: always()
+        shell: bash
+        run: |
+          izvestaj() {
+          python - "$1" "$2" <<'PY'
+          import json, sys
+          put, oznaka = sys.argv[1], sys.argv[2]
+          try:
+              d = json.load(open(put, encoding="utf-8"))
+          except Exception as e:
+              print(f"::error title=OCR {oznaka}::izveštaj nije napisan ({type(e).__name__})")
+              sys.exit(0)
+          j = d.pop("jezici", [])
+          print(f"::notice title=OCR {oznaka} jezici::{len(j)} paketa; srp={'srp' in j}; srp_latn={'srp_latn' in j}")
+          for k, v in d.items():
+              print(f"::notice title=OCR {oznaka} {k}::" + json.dumps(v, ensure_ascii=False))
+          PY
+          }
+          izvestaj "$RUNNER_TEMP/ocr/ocr-image.json" image
 
       - name: Confirm the image really is Python 3.11
         run: |

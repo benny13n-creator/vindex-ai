@@ -116,6 +116,17 @@ async def _compute_health(uid: str, supa) -> dict:
         return_exceptions=True,
     )
 
+    # NS005: pad bilo kog izvora NIJE nula. Ranije je svaki izuzetak postajao prazna
+    # lista, pa je indeks davao izračunatu ocenu nad podacima koji nisu pročitani
+    # (v. LAMBDA008-ARCH-001 iznad — tačno taj obrazac je tiho davao maksimum).
+    _neuspeli = [ime for ime, r in (("predmeti", predmeti_r), ("rocista", rocista_r), ("billing", billing_r),
+                                    ("hronologija", hron_r), ("zatvoreni", closed_r), ("dokazi", dokazi_all_r),
+                                    ("dokumenti", dokumenti_all_r), ("rocista_sva", rocista_all_r))
+                 if isinstance(r, Exception)]
+    if _neuspeli:
+        logger.warning("[HEALTH] izvori nisu pročitani: %s", _neuspeli)
+        raise HTTPException(status_code=503, detail="Indeks zdravlja kancelarije trenutno nije dostupan.")
+
     predmeti  = [] if isinstance(predmeti_r, Exception) else (predmeti_r.data or [])
     rocista   = [] if isinstance(rocista_r,  Exception) else (rocista_r.data  or [])
     billing   = [] if isinstance(billing_r,  Exception) else (billing_r.data  or [])

@@ -63,6 +63,7 @@ SERVICE_ROLE_ONLY_TABLES: dict[str, str] = {
     "kancelarija_clanovi": "migrations/018_kancelarija.sql — 'Backend has full access', membership reads are API-mediated",
     "law_docs": "migrations/020_law_docs.sql — 'Samo service_role (backend) ima pristup — admini pristupaju via API'",
     "security_events": "migrations/043_security_bulletproof.sql — 'Nema user pristupa — samo admin čita kroz service_role'",
+    "v2_mutation_idempotency": "migrations/134_v2_mutation_idempotency.sql — 'RLS enabled with NO policies; explicit REVOKE from PUBLIC/anon/authenticated/service_role ... service_role then gets back only SELECT/INSERT/UPDATE' (NS005 Gate A2; tests/test_ns005_a2_idempotency.py::test_pg_rls_i_grantovi_samo_service_role)",
 }
 
 RLS_ENABLE_RE = re.compile(

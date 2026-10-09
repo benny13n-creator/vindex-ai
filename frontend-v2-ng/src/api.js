@@ -1,7 +1,7 @@
-/* Vindex V2 NG — jedina HTTP granica (samo čitanje).
+/* Vindex V2 NG — jedina HTTP granica.
  *
- * Sve mrežne operacije V2 ekrana prolaze ovde. Namerno postoji SAMO `get`:
- * ovaj sloj ne ume da piše. Svaki ishod je strukturisan objekat:
+ * Sve mrežne operacije V2 ekrana prolaze ovde: `get` (čitanje) i `send`
+ * (pisanje, vidi dole). Svaki ishod je strukturisan objekat:
  *
  *   { ok: true,  status, podaci }
  *   { ok: false, status, greska: { kod, poruka, retryAfter? } }
@@ -39,9 +39,18 @@
     return "HTTP_ERROR";
   }
 
+  /* Dozvoljeni prefiksi API-ja na istom izvoru. `/klijenti` (klijenti/router.py),
+   * `/interni-stavovi/` (routers/interni.py) i tačno `/portfolio/dashboard`
+   * (routers/portfolio.py) su postojeći ruteri bez `/api` prefiksa; ništa drugo
+   * van `/api/` ne prolazi. */
+  function dozvoljenaPutanja(p) {
+    return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0 || p === "/portfolio/dashboard" || p.indexOf("/billing/") === 0;
+  }
+
   function napraviAdresu(putanja, parametri) {
-    if (typeof putanja !== "string" || putanja.indexOf("/api/") !== 0 || putanja.indexOf("//") !== -1 || putanja.indexOf("?") !== -1) {
-      throw new Error("putanja mora biti /api/... bez upita i bez drugog hosta");
+    if (typeof putanja !== "string" || !dozvoljenaPutanja(putanja) || putanja.indexOf("//") !== -1 || putanja.indexOf("?") !== -1
+        || putanja.indexOf("#") !== -1 || putanja.indexOf("\\") !== -1 || /(^|\/)\.\.?(\/|$)/.test(putanja)) {
+      throw new Error("putanja mora biti /api/... (ili /klijenti) bez upita i bez drugog hosta");
     }
     var q = new URLSearchParams();
     if (parametri) {
@@ -116,5 +125,176 @@
     return { ok: true, status: odgovor.status, podaci: podaci };
   }
 
-  root.VxApi = Object.freeze({ get: get });
+  /* ── Pisanje (NS005) ────────────────────────────────────────────────────
+   * Odvojeno od `get` NAMERNO: čitanje bez posledice, pisanje sa posledicom.
+   * Iste granice kao `get` (isti izvor, `/api/...`, bez kolačića, bez
+   * preusmeravanja, bez ispisa), plus:
+   *  • samo metodi koje V2 stvarno koristi; DELETE ne postoji u ovom sloju;
+   *  • telo ne sme nositi vlasnika (`user_id`, `owner_id`, `tenant_id`…) —
+   *    pripadnost određuje server iz tokena;
+   *  • NIKAD se ne ponavlja;
+   *  • kada odgovor ne stigne (mreža, prekid, otkazivanje u letu) ili server
+   *    padne (5xx), ishod NIJE poznat: zahtev je možda upisan. Takav ishod
+   *    nosi `ishodNepoznat: true` i ekran ne sme reći „nije sačuvano“.
+   *    Samo odbijanje servera (4xx) znači da upis nije izvršen.
+   * Kodovi pored onih iz `get`: BAD_REQUEST 400 · CONFLICT 409 ·
+   * TOO_LARGE 413 · UNSUPPORTED_MEDIA 415 · VALIDATION_ERROR 422 ·
+   * OUTCOME_UNKNOWN (mreža/prekid posle slanja). */
+  var METODI_PISANJA = { POST: 1, PATCH: 1 };
+  var ZABRANJENA_POLJA = { user_id: 1, userid: 1, uid: 1, owner_id: 1, tenant_id: 1, vlasnik_id: 1 };
+
+  function kodPisanja(s) {
+    if (s === 400) return "BAD_REQUEST";
+    if (s === 409) return "CONFLICT";
+    if (s === 413) return "TOO_LARGE";
+    if (s === 415) return "UNSUPPORTED_MEDIA";
+    if (s === 422) return "VALIDATION_ERROR";
+    return kodZaStatus(s);
+  }
+
+  function zabranjenoPolje(telo) {
+    var kljucevi = [];
+    if (typeof FormData !== "undefined" && telo instanceof FormData) telo.forEach(function (v, k) { kljucevi.push(k); });
+    else if (telo && typeof telo === "object") kljucevi = Object.keys(telo);
+    for (var i = 0; i < kljucevi.length; i++) if (ZABRANJENA_POLJA[String(kljucevi[i]).toLowerCase()]) return kljucevi[i];
+    return null;
+  }
+
+  /* NS005 Gate A2: jedan ključ po korisničkoj radnji (jedan poziv `send`). Chromium-ovo
+   * mrežno ponavljanje istog fetch-a nosi ISTI ključ, pa server ne izvršava upis dvaput.
+   * UUID v4 iz crypto.getRandomValues (radi i van „secure context“-a, za razliku od randomUUID). */
+  function noviKljuc() {
+    var b = new Uint8Array(16);
+    root.crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.prototype.map.call(b, function (x) { return (x + 256).toString(16).slice(1); }).join("");
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+  }
+  /* Kod zaštite od dvostrukog upisa iz tela odgovora (shared/idempotency.py), ili null. */
+  function kodZastite(tekst) {
+    try { var k = JSON.parse(tekst).kod; return typeof k === "string" && /^IDEMPOTENCY_[A-Z_]{1,40}$/.test(k) ? k : null; }
+    catch (e) { return null; }
+  }
+
+  /* 422 nosi samo IMENA polja koja server nije prihvatio — nikad sirov tekst. */
+  function poljaIz422(tekst) {
+    try {
+      var d = JSON.parse(tekst).detail;
+      if (!Array.isArray(d)) return [];
+      return d.map(function (x) { return x && Array.isArray(x.loc) ? String(x.loc[x.loc.length - 1]) : ""; })
+        .filter(function (x) { return /^[A-Za-z_][A-Za-z0-9_]{0,40}$/.test(x); });
+    } catch (e) { return []; }
+  }
+
+  /**
+   * POST/PATCH /api/... sa tokenom tekuće sesije.
+   * @param {string} putanja
+   * @param {{metod?: "POST"|"PATCH", telo?: Object|FormData, token?: string, signal?: AbortSignal, oblik?: function(*):boolean}} opcije
+   */
+  async function send(putanja, opcije) {
+    opcije = opcije || {};
+    var metod = String(opcije.metod || "POST").toUpperCase();
+    if (!METODI_PISANJA[metod]) return greska("CONFIG_ERROR", "Metod nije dozvoljen.", 0);
+    var adresa;
+    try { adresa = napraviAdresu(putanja, null); }
+    catch (e) { return greska("CONFIG_ERROR", e.message, 0); }
+    var telo = opcije.telo;
+    var zabranjeno = zabranjenoPolje(telo);
+    if (zabranjeno) return greska("CONFIG_ERROR", "polje „" + zabranjeno + "“ nije dozvoljeno: pripadnost podataka određuje server", 0);
+    if (typeof opcije.token !== "string" || !opcije.token) return greska("AUTH_REQUIRED", "Niste prijavljeni.", 0);
+    if (opcije.signal && opcije.signal.aborted) return greska("ABORTED", "Zahtev je otkazan.", 0);
+
+    var zaglavlja = { Accept: "application/json", Authorization: "Bearer " + opcije.token, "Idempotency-Key": noviKljuc() };
+    var sadrzaj;
+    if (typeof FormData !== "undefined" && telo instanceof FormData) sadrzaj = telo;
+    else if (telo !== undefined && telo !== null) { zaglavlja["Content-Type"] = "application/json"; sadrzaj = JSON.stringify(telo); }
+
+    var odgovor;
+    try {
+      odgovor = await root.fetch(adresa, {
+        method: metod, headers: zaglavlja, body: sadrzaj, signal: opcije.signal,
+        credentials: "omit", cache: "no-store", redirect: "error",
+      });
+    } catch (e) {
+      /* Zahtev je možda stigao do servera: ishod nije poznat ni kad je otkazan u letu. */
+      if ((opcije.signal && opcije.signal.aborted) || (e && e.name === "AbortError")) {
+        return greska("ABORTED", "Zahtev je otkazan; ishod upisa nije poznat.", 0, { ishodNepoznat: true });
+      }
+      return greska("OUTCOME_UNKNOWN", "Veza je prekinuta pre odgovora; ishod upisa nije poznat.", 0, { ishodNepoznat: true });
+    }
+
+    var tekst;
+    try { tekst = await odgovor.text(); }
+    catch (e) {
+      if (!odgovor.ok) return greska(kodPisanja(odgovor.status), "Server je odgovorio statusom " + odgovor.status + ".", odgovor.status, { ishodNepoznat: odgovor.status >= 500 });
+      return greska("OUTCOME_UNKNOWN", "Odgovor nije primljen do kraja; ishod upisa nije poznat.", odgovor.status, { ishodNepoznat: true });
+    }
+
+    if (!odgovor.ok) {
+      var zastita = kodZastite(tekst);
+      /* Isti zahtev je već primljen i još se obrađuje (ili je ključ već upotrebljen): ruta NIJE
+       * ponovo izvršena, ali ishod prvog izvršavanja nije poznat. */
+      if (odgovor.status === 409 && (zastita === "IDEMPOTENCY_IN_PROGRESS" || zastita === "IDEMPOTENCY_CONFLICT")) {
+        return greska("OUTCOME_UNKNOWN", "Isti zahtev je već primljen; ishod upisa nije poznat.", 409, { ishodNepoznat: true });
+      }
+      /* Zaštita nije dostupna: server je odbio PRE izvršavanja — upis sigurno nije izvršen. */
+      if (odgovor.status === 503 && zastita === "IDEMPOTENCY_UNAVAILABLE") {
+        return greska("PROTECTION_UNAVAILABLE", "Zaštita od dvostrukog upisa trenutno nije dostupna; ništa nije izvršeno.", 503, { ishodNepoznat: false });
+      }
+      var dodatak = { ishodNepoznat: odgovor.status >= 500 };
+      if (odgovor.status === 429) { var ra = odgovor.headers.get("Retry-After"); if (ra) dodatak.retryAfter = ra; }
+      if (odgovor.status === 422) dodatak.polja = poljaIz422(tekst);
+      return greska(kodPisanja(odgovor.status), "Server je odgovorio statusom " + odgovor.status + ".", odgovor.status, dodatak);
+    }
+
+    /* 2xx: upis JE prihvaćen. Neispravno telo ne pretvara uspeh u grešku,
+     * ali pozivalac zna da podatke odgovora ne može da koristi. */
+    var podaci = null;
+    if (tekst) { try { podaci = JSON.parse(tekst); } catch (e) { podaci = null; } }
+    var ispravno = podaci !== null && typeof podaci === "object" && !Array.isArray(podaci)
+      && (typeof opcije.oblik !== "function" || opcije.oblik(podaci));
+    return ispravno ? { ok: true, status: odgovor.status, podaci: podaci }
+      : { ok: true, status: odgovor.status, podaci: null, neispravanOdgovor: true };
+  }
+
+  /**
+   * POST koji vraća FAJL (npr. .docx nacrta). Iste granice kao `send` (isti izvor,
+   * dozvoljene putanje, bez vlasnika u telu, bez ponavljanja, token obavezan); uspeh
+   * je samo 2xx sa očekivanim tipom sadržaja — sve ostalo je strukturisan neuspeh.
+   * @param {string} putanja
+   * @param {{telo: Object, token: string, signal?: AbortSignal, tip: string}} opcije  tip = očekivani MIME
+   * @returns {Promise<{ok:true, status, blob, ime}|{ok:false, status, greska}>}
+   */
+  async function preuzmi(putanja, opcije) {
+    opcije = opcije || {};
+    var adresa;
+    try { adresa = napraviAdresu(putanja, null); }
+    catch (e) { return greska("CONFIG_ERROR", e.message, 0); }
+    var zabranjeno = zabranjenoPolje(opcije.telo);
+    if (zabranjeno) return greska("CONFIG_ERROR", "polje „" + zabranjeno + "“ nije dozvoljeno: pripadnost podataka određuje server", 0);
+    if (typeof opcije.token !== "string" || !opcije.token) return greska("AUTH_REQUIRED", "Niste prijavljeni.", 0);
+    if (typeof opcije.tip !== "string" || !opcije.tip) return greska("CONFIG_ERROR", "Očekivani tip fajla nije naveden.", 0);
+    if (opcije.signal && opcije.signal.aborted) return greska("ABORTED", "Zahtev je otkazan.", 0);
+    var odgovor;
+    try {
+      odgovor = await root.fetch(adresa, {
+        method: "POST", headers: { Accept: opcije.tip, "Content-Type": "application/json", Authorization: "Bearer " + opcije.token },
+        body: JSON.stringify(opcije.telo || {}), signal: opcije.signal, credentials: "omit", cache: "no-store", redirect: "error",
+      });
+    } catch (e) {
+      if ((opcije.signal && opcije.signal.aborted) || (e && e.name === "AbortError")) return greska("ABORTED", "Zahtev je otkazan.", 0);
+      return greska("NETWORK_ERROR", "Server nije dostupan. Fajl nije preuzet.", 0);
+    }
+    if (!odgovor.ok) return greska(kodPisanja(odgovor.status), "Server je odgovorio statusom " + odgovor.status + ".", odgovor.status);
+    var vrsta = (odgovor.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+    if (vrsta !== opcije.tip.toLowerCase()) return greska("INVALID_RESPONSE", "Server nije vratio očekivani fajl.", odgovor.status);
+    var blob;
+    try { blob = await odgovor.blob(); }
+    catch (e) { return greska("NETWORK_ERROR", "Fajl nije primljen do kraja.", odgovor.status); }
+    if (!blob || !blob.size) return greska("INVALID_RESPONSE", "Server je vratio prazan fajl.", odgovor.status);
+    var m = /filename="([^"]{1,120})"/.exec(odgovor.headers.get("Content-Disposition") || "");
+    return { ok: true, status: odgovor.status, blob: blob, ime: m ? m[1] : "" };
+  }
+
+  root.VxApi = Object.freeze({ get: get, send: send, preuzmi: preuzmi });
 })(window);

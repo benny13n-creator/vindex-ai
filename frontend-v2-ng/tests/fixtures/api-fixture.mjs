@@ -25,7 +25,8 @@ export async function pokreniFixture(api) {
   const otvoreni = new Set();
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
-    if (url.pathname.startsWith("/api/")) {
+    // NS005: `/klijenti` i `/interni-stavovi/` su postojeći API ruteri bez `/api` prefiksa.
+    if (url.pathname.startsWith("/api/") || url.pathname === "/klijenti" || url.pathname.startsWith("/klijenti/") || url.pathname.startsWith("/interni-stavovi/") || url.pathname === "/portfolio/dashboard" || url.pathname.startsWith("/billing/")) {
       zahtevi.push({
         metod: req.method, putanja: url.pathname, upit: url.search,
         parametri: Object.fromEntries(url.searchParams), auth: req.headers.authorization || null,

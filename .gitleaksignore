@@ -11,6 +11,10 @@
 cabd4c46f465b171cef471cc5d0c3d98f5693e07:.github/workflows/production-runtime.yml:generic-api-key:158
 cabd4c46f465b171cef471cc5d0c3d98f5693e07:.github/workflows/production-runtime.yml:generic-api-key:103
 0b6f349ed28f75724dd7819c1253e9067b1c1746:.github/workflows/tests.yml:generic-api-key:40
+# NS005 (2026-10-09, founder-approved): the SAME fake CI FIELD_ENCRYPTION_KEY fixture,
+# added once more to the production-image OCR proof step beside fake Supabase/OpenAI/Pinecone
+# values; verified from the commit blob; already removed from current source (47eda9f8).
+34a21535098957b427c89f243430ddd7a60a77ba:.github/workflows/production-runtime.yml:generic-api-key:219
 
 # ── Test fixtures ──────────────────────────────────────────────────────────
 # "test-secret-key-za-testove-128bit" — its own name says what it is.

@@ -46,6 +46,7 @@
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5v13a6.5 6.5 0 0 0 0-13z" class="fill"/></svg>
           <span id="theme-toggle-label">Svetla tema</span>
         </button>
+        <a class="text-btn" id="pretraga-link" href="#/pretraga" hidden>Pretraga</a>
         <span class="account" title="Demonstracioni nalog">Demo nalog</span>
         <a class="text-btn" id="odjava" href="/app" hidden>Odjava</a>
       </div>
@@ -81,12 +82,15 @@
           <h1 class="sheet__title">Aktivni predmeti</h1>
           <p class="sheet__count" id="count" aria-live="polite"></p>
         </div>
+        <div class="sheet__tools">
         <div class="search">
           <label class="sr-only" for="pretraga">Pretraži predmete</label>
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.5 12.5l4 4"/></svg>
           <input id="pretraga" type="search" autocomplete="off" spellcheck="false"
                  placeholder="Naziv, klijent, vrsta, broj predmeta ili sud">
           <kbd class="search__key" aria-hidden="true">/</kbd>
+        </div>
+        <a class="text-btn text-btn--line sheet__action" id="nov-predmet-link" href="#/predmeti/nov" hidden>Nov predmet</a>
         </div>
       </div>
 
@@ -114,6 +118,164 @@
         <button class="text-btn text-btn--line" id="empty-clear" type="button" hidden>Obriši pretragu</button>
       </div>
 
+      <!-- Nov predmet (samo LIVE, NS005). Šalje src/nov-predmet.js. -->
+      <section class="matter" id="nov-predmet" hidden aria-labelledby="nov-naslov">
+        <div class="matter__head">
+          <a class="matter__back" href="#/">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
+          <h1 class="sheet__title matter__title" id="nov-naslov" tabindex="-1">Nov predmet</h1>
+          <p class="matter__ref">Predmet se otvara nazivom. Stranke, broj i vrednost spora unosite u predmetu.</p>
+        </div>
+        <form class="form matter__body" id="nov-forma" novalidate>
+          <div class="field">
+            <label class="field__label" for="nov-naziv">Naziv predmeta</label>
+            <input class="field__input" id="nov-naziv" name="naziv" type="text" maxlength="300" autocomplete="off" required aria-describedby="nov-naziv-pomoc">
+            <p class="field__help" id="nov-naziv-pomoc">Obavezno. Na primer: Jović protiv Petrovića — naknada štete.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="nov-tip">Vrsta predmeta</label>
+            <input class="field__input" id="nov-tip" name="tip" type="text" maxlength="60" autocomplete="off" list="nov-vrste" aria-describedby="nov-tip-pomoc">
+            <datalist id="nov-vrste"></datalist>
+            <p class="field__help" id="nov-tip-pomoc">Izaberite ponuđenu ili upišite svoju.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="nov-opis">Kratak opis</label>
+            <textarea class="field__input field__input--area" id="nov-opis" name="opis" rows="4" maxlength="4000"></textarea>
+          </div>
+          <p class="notice" id="nov-poruka" role="status" aria-live="polite" hidden></p>
+          <div class="form__actions">
+            <button class="text-btn text-btn--primary" id="nov-posalji" type="submit">Otvori predmet</button>
+            <a class="text-btn" href="#/">Odustani</a>
+          </div>
+        </form>
+      </section>
+
+      <!-- Pretraga (samo LIVE, NS005). Puni src/pretraga.js. -->
+      <section class="matter" id="pretraga-pogled" hidden aria-labelledby="pr-naslov">
+        <div class="matter__head">
+          <a class="matter__back" href="#/">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
+          <h1 class="sheet__title matter__title" id="pr-naslov" tabindex="-1">Pretraga</h1>
+          <p class="matter__ref">Predmeti, dokumenti, beleške i hronologija vaših predmeta.</p>
+        </div>
+        <div class="matter__body">
+          <form class="form" id="pr-forma" role="search" novalidate>
+            <div class="field"><label class="field__label" for="pr-upit">Šta tražite</label>
+              <input class="field__input" id="pr-upit" type="search" maxlength="200" autocomplete="off" spellcheck="false"></div>
+          </form>
+          <p class="list-state" id="pr-stanje" role="status" aria-live="polite" hidden></p>
+          <p class="notice" id="pr-nepotpuno" data-stanje="nepoznato" hidden></p>
+          <div class="results" id="pr-rezultati"></div>
+        </div>
+      </section>
+
+      <!-- Kancelarija (samo LIVE, NS005). Puni src/kancelarija.js. -->
+      <section class="matter" id="danas-pogled" hidden aria-labelledby="da-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="da-naslov" tabindex="-1">Danas</h1>
+          <p class="matter__ref">Potvrđeni rokovi i ročišta vaših predmeta, i predloženi rokovi koji čekaju vašu odluku.</p>
+        </div>
+        <div class="matter__body">
+          <p class="notice" id="da-stanje" role="status" aria-live="polite" hidden></p>
+          <p class="notice" id="da-poruka" role="status" aria-live="polite" hidden></p>
+          <section class="matter__section matter__section--first" aria-labelledby="da-obaveze-naslov">
+            <h2 class="matter__h2" id="da-obaveze-naslov">Obaveze</h2>
+            <p class="list-state" id="da-obaveze-stanje" role="status" hidden></p>
+            <div id="da-obaveze"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="da-predlozi-naslov">
+            <h2 class="matter__h2" id="da-predlozi-naslov">Predloženi rokovi za vašu odluku</h2>
+            <p class="field__help">Potvrdom preuzimate rok za upotrebu; potvrda ne znači da je sistem proverio njegovu tačnost. Odbijen rok se ne briše — ostaje u hronologiji predmeta.</p>
+            <p class="list-state" id="da-predlozi-stanje" role="status" hidden></p>
+            <ul class="reviews" id="da-predlozi" aria-label="Predloženi rokovi"></ul>
+            <p class="field__help" id="da-napomena" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="da-kalendar-naslov">
+            <h2 class="matter__h2" id="da-kalendar-naslov">Kalendar — narednih 30 dana</h2>
+            <p class="list-state" id="da-kalendar-stanje" role="status" hidden></p>
+            <div id="da-kalendar"></div>
+          </section>
+        </div>
+      </section>
+      <section class="matter" id="kancelarija-pogled" hidden aria-labelledby="ka-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="ka-naslov" tabindex="-1">Kancelarija</h1>
+          <p class="matter__ref">Tim, portfolio vaših predmeta i indeks zdravlja.</p>
+        </div>
+        <div class="matter__body">
+          <section class="matter__section matter__section--first" aria-labelledby="ka-tim-naslov">
+            <h2 class="matter__h2" id="ka-tim-naslov">Tim</h2>
+            <p class="answer__question" id="ka-firma"></p>
+            <p class="field__help" id="ka-uloga"></p>
+            <p class="list-state" id="ka-tim-stanje" role="status" hidden></p>
+            <ul class="people" id="ka-tim-lista" aria-label="Članovi kancelarije"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="ka-portfolio-naslov">
+            <h2 class="matter__h2" id="ka-portfolio-naslov">Portfolio</h2>
+            <p class="list-state" id="ka-portfolio-stanje" role="status" hidden></p>
+            <div id="ka-portfolio"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="ka-zdravlje-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="ka-zdravlje-naslov">Zdravlje kancelarije</h2>
+              <button class="text-btn text-btn--line" id="ka-zdravlje-dugme" type="button">Izračunaj indeks</button>
+            </div>
+            <p class="field__help">Indeks od 0 do 100 računa program iz rokova, dokaza, naplate i aktivnosti vaših predmeta. Izračunavanje troši kredit.</p>
+            <p class="list-state" id="ka-zdravlje-stanje" role="status" hidden></p>
+            <div id="ka-zdravlje"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- Znanje (samo LIVE, NS005). Puni src/znanje.js. -->
+      <section class="matter" id="znanje-pogled" hidden aria-labelledby="zn-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="zn-naslov" tabindex="-1">Znanje</h1>
+          <p class="matter__ref">Sudska praksa iz korpusa odluka i interni stavovi vaše kancelarije.</p>
+        </div>
+        <div class="matter__body">
+          <section class="matter__section matter__section--first" aria-labelledby="zn-praksa-naslov">
+            <h2 class="matter__h2" id="zn-praksa-naslov">Sudska praksa</h2>
+            <form class="form" id="zn-praksa-forma" role="search" novalidate>
+              <div class="field"><label class="field__label" for="zn-praksa-upit">Pojam ili pravno pitanje</label>
+                <input class="field__input" id="zn-praksa-upit" type="search" maxlength="300" autocomplete="off"></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="zn-praksa-oblast">Oblast</label>
+                  <select class="field__input" id="zn-praksa-oblast"><option value="">Sve oblasti</option></select></div>
+                <div class="field"><label class="field__label" for="zn-praksa-od">Godina od</label>
+                  <input class="field__input" id="zn-praksa-od" type="number" inputmode="numeric" min="1900" max="2100"></div>
+                <div class="field"><label class="field__label" for="zn-praksa-do">Godina do</label>
+                  <input class="field__input" id="zn-praksa-do" type="number" inputmode="numeric" min="1900" max="2100"></div>
+              </div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" type="submit">Pretraži praksu</button></div>
+            </form>
+            <p class="notice" id="zn-praksa-stanje" role="status" aria-live="polite" hidden></p>
+            <ul class="decisions" id="zn-praksa-lista" aria-label="Odluke"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="zn-stav-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="zn-stav-naslov">Interni stavovi kancelarije</h2>
+              <button class="text-btn text-btn--line" id="zn-dodaj-otvori" type="button" aria-expanded="false" aria-controls="zn-dodaj-forma">Dodaj stav</button>
+            </div>
+            <form class="form form--inset" id="zn-dodaj-forma" hidden novalidate aria-label="Nov interni stav">
+              <div class="field"><label class="field__label" for="zn-dodaj-naslov">Naslov stava</label>
+                <input class="field__input" id="zn-dodaj-naslov" type="text" maxlength="200" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="zn-dodaj-tekst">Tekst stava</label>
+                <textarea class="field__input field__input--area" id="zn-dodaj-tekst" rows="5" maxlength="20000"></textarea></div>
+              <p class="notice" id="zn-dodaj-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="zn-dodaj-sacuvaj" type="submit">Sačuvaj stav</button></div>
+            </form>
+            <form class="form" id="zn-stav-forma" role="search" novalidate>
+              <div class="field"><label class="field__label" for="zn-stav-upit">Pretraga stavova</label>
+                <input class="field__input" id="zn-stav-upit" type="search" maxlength="500" autocomplete="off"></div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" type="submit">Pretraži stavove</button></div>
+            </form>
+            <p class="notice" id="zn-stav-stanje" role="status" aria-live="polite" hidden></p>
+            <ul class="decisions" id="zn-stav-lista" aria-label="Interni stavovi"></ul>
+          </section>
+        </div>
+      </section>
+
       <!-- Detalj predmeta (samo LIVE; samo čitanje). Sadržaj upisuje src/app.js kao tekst. -->
       <section class="matter" id="predmet" hidden aria-labelledby="predmet-naslov">
         <div class="matter__head">
@@ -124,7 +286,12 @@
         </div>
         <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
+          <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
+          <a class="tabs__item" id="tab-pitanje" href="#/">Pravno pitanje</a>
+          <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
+          <a class="tabs__item" id="tab-naplata" href="#/">Naplata</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
+          <a class="tabs__item" id="tab-prijem" href="#/">Prijem dokumenata</a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
           <h2 class="empty__title" id="predmet-stanje-naslov"></h2>
@@ -132,10 +299,265 @@
           <a class="text-btn text-btn--line" id="predmet-prijava" href="/app" hidden>Prijavite se</a>
         </div>
         <div class="matter__body" id="odeljak-pregled" hidden>
+          <p class="notice" id="pregled-poruka" role="status" aria-live="polite" hidden></p>
+          <div class="matter__tools"><button class="text-btn text-btn--line" id="izmena-otvori" type="button" hidden>Izmeni podatke</button></div>
           <dl class="facts" id="predmet-cinjenice"></dl>
+          <form class="form" id="izmena-forma" hidden novalidate aria-labelledby="izmena-naslov">
+            <h2 class="matter__h2" id="izmena-naslov">Izmena podataka</h2>
+            <div class="field"><label class="field__label" for="izm-naziv">Naziv predmeta</label>
+              <input class="field__input" id="izm-naziv" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-tip">Vrsta predmeta</label>
+              <input class="field__input" id="izm-tip" type="text" maxlength="60" autocomplete="off" list="nov-vrste"></div>
+            <div class="field"><label class="field__label" for="izm-tuzilac">Tužilac</label>
+              <input class="field__input" id="izm-tuzilac" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-tuzeni">Tuženi</label>
+              <input class="field__input" id="izm-tuzeni" type="text" maxlength="300" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="izm-vrednost">Vrednost spora (RSD)</label>
+              <input class="field__input" id="izm-vrednost" type="text" inputmode="decimal" maxlength="24" autocomplete="off" aria-describedby="izm-vrednost-pomoc">
+              <p class="field__help" id="izm-vrednost-pomoc">Prazno polje briše vrednost.</p></div>
+            <div class="field"><label class="field__label" for="izm-opis">Opis</label>
+              <textarea class="field__input field__input--area" id="izm-opis" rows="4" maxlength="4000"></textarea></div>
+            <p class="field__help">Broj predmeta se ovde ne menja: server ga ne prima kroz izmenu.</p>
+            <p class="notice" id="izm-poruka" role="status" aria-live="polite" hidden></p>
+            <div class="form__actions">
+              <button class="text-btn text-btn--primary" id="izm-sacuvaj" type="submit">Sačuvaj izmene</button>
+              <button class="text-btn" id="izm-odustani" type="button">Odustani</button>
+            </div>
+          </form>
           <section class="matter__section" id="predmet-klijenti-blok" hidden aria-labelledby="klijenti-naslov">
-            <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
+            <div class="section-head">
+              <h2 class="matter__h2" id="klijenti-naslov">Klijenti</h2>
+              <button class="text-btn text-btn--line" id="kl-otvori" type="button" hidden>Poveži klijenta</button>
+            </div>
+            <p class="notice" id="kl-uspeh" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="predmet-klijenti-prazno" hidden>Nijedan klijent nije povezan sa predmetom.</p>
             <ul class="people" id="predmet-klijenti"></ul>
+            <div class="link-panel" id="kl-panel" hidden>
+              <div class="field">
+                <label class="field__label" for="kl-pretraga">Pronađite klijenta iz kartoteke</label>
+                <input class="field__input" id="kl-pretraga" type="search" autocomplete="off" spellcheck="false" maxlength="80" placeholder="Ime, prezime ili firma">
+              </div>
+              <p class="list-state" id="kl-stanje" role="status" aria-live="polite" hidden></p>
+              <ul class="pick" id="kl-rezultati" aria-label="Rezultati pretrage klijenata"></ul>
+              <button class="text-btn" id="kl-nov-prekidac" type="button" aria-expanded="false" aria-controls="kl-nov-forma">Nov klijent u kartoteci</button>
+              <form class="form form--inset" id="kl-nov-forma" hidden novalidate aria-label="Nov klijent">
+                <div class="field"><label class="field__label" for="kl-tip">Vrsta</label>
+                  <select class="field__input" id="kl-tip"><option value="fizicko_lice">Fizičko lice</option><option value="pravno_lice">Pravno lice</option></select></div>
+                <div class="field"><label class="field__label" for="kl-ime">Ime ili naziv</label>
+                  <input class="field__input" id="kl-ime" type="text" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-prezime">Prezime</label>
+                  <input class="field__input" id="kl-prezime" type="text" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-firma">Firma</label>
+                  <input class="field__input" id="kl-firma" type="text" maxlength="300" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-email">E-pošta</label>
+                  <input class="field__input" id="kl-email" type="email" maxlength="200" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="kl-telefon">Telefon</label>
+                  <input class="field__input" id="kl-telefon" type="tel" maxlength="50" autocomplete="off"></div>
+                <p class="field__help">JMBG, PIB i broj pasoša se ovde ne unose.</p>
+                <div class="form__actions"><button class="text-btn text-btn--primary" id="kl-nov-sacuvaj" type="submit">Sačuvaj klijenta</button></div>
+              </form>
+              <div class="chosen" id="kl-izabran" hidden>
+                <p class="chosen__label">Izabran klijent</p>
+                <p class="chosen__name" id="kl-izabran-ime"></p>
+                <div class="coi" id="kl-coi" role="status" aria-live="polite" hidden>
+                  <p class="coi__title" id="kl-coi-naslov"></p>
+                  <p class="coi__text" id="kl-coi-telo"></p>
+                  <ul class="coi__list" id="kl-coi-lista"></ul>
+                </div>
+                <label class="check" id="kl-potvrda-red" hidden><input type="checkbox" id="kl-potvrda">
+                  <span>Pregledao sam nalaz i svesno povezujem klijenta.</span></label>
+              </div>
+              <p class="notice" id="kl-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="kl-povezi" type="button" disabled>Poveži sa predmetom</button>
+                <button class="text-btn" id="kl-odustani" type="button">Zatvori</button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="matter__body" id="odeljak-rad" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="roc-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="roc-naslov">Ročišta</h2>
+              <button class="text-btn text-btn--line" id="roc-otvori" type="button" hidden>Zakaži ročište</button>
+            </div>
+            <form class="form form--inset" id="roc-forma" hidden novalidate aria-label="Zakazivanje ročišta">
+              <div class="field"><label class="field__label" for="roc-sud">Sud</label>
+                <input class="field__input" id="roc-sud" type="text" maxlength="300" autocomplete="off"></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="roc-datum">Datum</label>
+                  <input class="field__input" id="roc-datum" type="date"></div>
+                <div class="field"><label class="field__label" for="roc-vreme">Vreme</label>
+                  <input class="field__input" id="roc-vreme" type="time"></div>
+                <div class="field"><label class="field__label" for="roc-sudnica">Sudnica</label>
+                  <input class="field__input" id="roc-sudnica" type="text" maxlength="100" autocomplete="off"></div>
+              </div>
+              <div class="field"><label class="field__label" for="roc-broj">Broj predmeta u sudu</label>
+                <input class="field__input" id="roc-broj" type="text" maxlength="100" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="roc-napomena">Napomena</label>
+                <textarea class="field__input field__input--area" id="roc-napomena" rows="2" maxlength="2000"></textarea></div>
+              <p class="field__help">Zakazivanje ne šalje podsetnike.</p>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="roc-sacuvaj" type="submit">Zakaži ročište</button>
+                <button class="text-btn" id="roc-odustani" type="button">Odustani</button>
+              </div>
+            </form>
+            <p class="notice" id="roc-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="roc-stanje" role="status" hidden></p>
+            <ul class="hearings" id="roc-lista" aria-label="Ročišta predmeta"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="bel-naslov">
+            <h2 class="matter__h2" id="bel-naslov">Beleške</h2>
+            <form class="form" id="bel-forma" novalidate>
+              <div class="field"><label class="field__label" for="bel-tekst">Nova beleška</label>
+                <textarea class="field__input field__input--area" id="bel-tekst" rows="3" maxlength="8000"></textarea></div>
+              <p class="notice" id="bel-poruka" role="status" aria-live="polite" hidden></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="bel-dodaj" type="submit">Dodaj belešku</button></div>
+            </form>
+            <p class="list-state" id="bel-stanje" hidden></p>
+            <ul class="notes" id="bel-lista" aria-label="Beleške predmeta"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="hron-naslov">
+            <h2 class="matter__h2" id="hron-naslov">Hronologija</h2>
+            <p class="list-state" id="hron-stanje" hidden></p>
+            <ol class="chrono" id="hron-lista" aria-label="Hronologija predmeta"></ol>
+          </section>
+        </div>
+        <div class="matter__body" id="odeljak-pitanje" hidden>
+          <form class="form" id="pp-forma" novalidate>
+            <div class="field"><label class="field__label" for="pp-pitanje">Pravno pitanje u vezi sa ovim predmetom</label>
+              <textarea class="field__input field__input--area" id="pp-pitanje" rows="3" maxlength="2000" aria-describedby="pp-pomoc"></textarea>
+              <p class="field__help" id="pp-pomoc">Vindex pretražuje propise i navodi izvore. Kada pouzdan izvor ne postoji, to se jasno kaže.</p></div>
+            <div class="form__actions"><button class="text-btn text-btn--primary" id="pp-posalji" type="submit">Postavi pitanje</button></div>
+          </form>
+          <p class="notice" id="pp-stanje" role="status" aria-live="polite" hidden></p>
+          <article class="answer" id="pp-odgovor" hidden aria-labelledby="pp-odgovor-naslov">
+            <h2 class="matter__h2" id="pp-odgovor-naslov">Odgovor</h2>
+            <p class="answer__question" id="pp-postavljeno"></p>
+            <ul class="warns" id="pp-upozorenja" aria-label="Upozorenja uz odgovor"></ul>
+            <p class="answer__context" id="pp-kontekst" hidden></p>
+            <p class="answer__confidence" id="pp-sigurnost" hidden></p>
+            <section class="answer__sources" id="pp-izvori-blok" hidden aria-labelledby="pp-izvori-naslov">
+              <h3 class="answer__h" id="pp-izvori-naslov">Izvori na kojima odgovor počiva</h3>
+              <ul class="sources" id="pp-izvori"></ul>
+            </section>
+            <div class="answer__body" id="pp-tekst"></div>
+            <section class="answer__sources" id="pp-cinjenice-blok" hidden aria-labelledby="pp-cin-naslov">
+              <h3 class="answer__h" id="pp-cin-naslov">Šta dokument navodi (nije utvrđena činjenica)</h3>
+              <ul class="sources" id="pp-cinjenice"></ul>
+            </section>
+          </article>
+        </div>
+        <div class="matter__body" id="odeljak-nacrt" hidden>
+          <form class="form" id="nc-forma" novalidate>
+            <div class="field"><label class="field__label" for="nc-tip">Vrsta podneska</label>
+              <select class="field__input" id="nc-tip"></select></div>
+            <div class="field" id="nc-sud-red"><label class="field__label" for="nc-sud">Sud (zaglavlje podneska)</label>
+              <select class="field__input" id="nc-sud"></select></div>
+            <div class="field"><label class="field__label" for="nc-opis">Činjenice i zahtev</label>
+              <textarea class="field__input field__input--area" id="nc-opis" rows="6" maxlength="5000" aria-describedby="nc-opis-pomoc"></textarea>
+              <p class="field__help" id="nc-opis-pomoc">Stranke, datumi, iznosi i šta tražite. Vindex ne proverava nadležnost suda, rokove ni takse.</p></div>
+            <div class="form__actions"><button class="text-btn text-btn--primary" id="nc-generisi" type="submit" disabled>Izradi nacrt</button></div>
+          </form>
+          <p class="notice" id="nc-poruka" role="status" aria-live="polite" hidden></p>
+          <section class="draft" id="nc-rezultat" hidden aria-labelledby="nc-naslov-nacrta">
+            <h2 class="matter__h2" id="nc-naslov-nacrta"></h2>
+            <p class="draft__label">Nacrt je polazna tačka, ne gotov podnesak: pre podnošenja ga mora pregledati advokat.</p>
+            <p class="notice" id="nc-provera" role="status" hidden></p>
+            <label class="field__label" for="nc-tekst">Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)</label>
+            <textarea class="field__input draft__text" id="nc-tekst" rows="24" spellcheck="false"></textarea>
+            <div class="form__actions"><button class="text-btn text-btn--line" id="nc-docx" type="button">Preuzmi kao Word (.docx)</button></div>
+            <p class="notice" id="nc-docx-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="nc-overa-naslov">
+            <h2 class="matter__h2" id="nc-overa-naslov">Nacrti na overi</h2>
+            <p class="field__help">Izrađeni nacrti čekaju vašu overu. Odobren nacrt može ući u bazu znanja kancelarije ako mu je ocena kvaliteta dovoljna.</p>
+            <p class="notice" id="nc-overa-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="nc-overa-stanje" role="status" hidden></p>
+            <ul class="reviews" id="nc-overa-lista" aria-label="Nacrti na overi"></ul>
+          </section>
+        </div>
+        <div class="matter__body" id="odeljak-naplata" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="np-stavke-naslov">
+            <h2 class="matter__h2" id="np-stavke-naslov">Stavke naplate</h2>
+            <dl class="facts facts--doc" id="np-zbir" hidden></dl>
+            <p class="list-state" id="np-stavke-stanje" role="status" hidden></p>
+            <div class="ledger-wrap">
+              <table class="ledger" id="np-tabela" hidden>
+                <caption class="sr-only">Stavke naplate ovog predmeta</caption>
+                <thead><tr><th scope="col"><span class="sr-only">Na fakturu</span></th><th scope="col">Datum</th><th scope="col">Opis</th><th scope="col">Tarifa</th>
+                  <th scope="col" class="ledger__num">Sati</th><th scope="col" class="ledger__num">Iznos</th><th scope="col">Status</th></tr></thead>
+                <tbody id="np-stavke"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="matter__section" aria-labelledby="np-nova-naslov">
+            <h2 class="matter__h2" id="np-nova-naslov">Nova stavka</h2>
+            <form class="form" id="np-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-opis">Opis radnje</label>
+                <input class="field__input" id="np-opis" type="text" maxlength="400" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="np-tarifa">Tarifa</label>
+                <select class="field__input" id="np-tarifa" aria-describedby="np-pomoc"></select></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="np-iznos">Iznos (RSD)</label>
+                  <input class="field__input" id="np-iznos" type="text" inputmode="decimal" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="np-sati">Sati</label>
+                  <input class="field__input" id="np-sati" type="text" inputmode="decimal" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="np-datum">Datum</label>
+                  <input class="field__input" id="np-datum" type="date"></div>
+              </div>
+              <p class="field__help" id="np-pomoc">Uz tarifu bez iznosa iznos po tarifi izračunava server. Uz same sate server primenjuje satnicu predmeta. Bez datuma upisuje se današnji.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="np-dodaj" type="submit">Upiši stavku</button></div>
+            </form>
+            <p class="notice" id="np-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="np-tajmer-naslov">
+            <h2 class="matter__h2" id="np-tajmer-naslov">Tajmer</h2>
+            <p class="list-state" id="np-tajmer-stanje" role="status" hidden></p>
+            <a class="text-btn text-btn--line" id="np-tajmer-drugi" hidden>Otvori predmet na kom tajmer radi</a>
+            <form class="form" id="np-tajmer-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-tajmer-opis">Opis rada (neobavezno)</label>
+                <input class="field__input" id="np-tajmer-opis" type="text" maxlength="200" autocomplete="off"></div>
+              <div class="form__actions">
+                <button class="text-btn text-btn--line" id="np-tajmer-start" type="button" disabled>Pokreni tajmer</button>
+                <button class="text-btn text-btn--primary" id="np-tajmer-stop" type="button" hidden>Zaustavi i upiši stavku</button>
+              </div>
+            </form>
+            <p class="notice" id="np-tajmer-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="np-faktura-naslov">
+            <h2 class="matter__h2" id="np-faktura-naslov">Nacrt fakture</h2>
+            <p class="field__help">Označite nefakturisane stavke u tabeli. Faktura nastaje kao nacrt: ne izdaje se, ne šalje se klijentu i ne prijavljuje se u SEF.</p>
+            <form class="form" id="np-faktura-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-klijent">Klijent (naziv na fakturi)</label>
+                <input class="field__input" id="np-klijent" type="text" maxlength="300" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="np-pdv">PDV</label>
+                <select class="field__input" id="np-pdv"><option value="0">Bez PDV-a</option><option value="20">20%</option></select></div>
+              <div class="field"><label class="field__label" for="np-napomena">Napomena (neobavezno)</label>
+                <textarea class="field__input field__input--area" id="np-napomena" rows="2" maxlength="1000"></textarea></div>
+              <p class="field__help" id="np-izabrano" role="status"></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="np-faktura-dugme" type="submit" disabled>Napravi nacrt fakture</button></div>
+            </form>
+            <p class="notice" id="np-faktura-poruka" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h">Fakture za ovaj predmet</h3>
+            <p class="list-state" id="np-fakture-stanje" role="status" hidden></p>
+            <ul class="reviews" id="np-fakture" aria-label="Fakture za ovaj predmet"></ul>
+          </section>
+        </div>
+        <div class="matter__body" id="odeljak-prijem" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="pd-naslov">
+            <h2 class="matter__h2" id="pd-naslov">Dodaj dokumente u predmet</h2>
+            <p class="field__help">PDF, DOCX, TXT, JPG i PNG, do 25 MB po fajlu. Skenirani dokumenti i fotografije prolaze kroz OCR.
+              Izvučeni podaci su predlog sa prikazanom pouzdanošću: označene podatke pregledate pre nego što se dokument prikači predmetu.
+              Prikačivanje ne menja podatke predmeta.</p>
+            <form class="form" id="pd-forma" novalidate>
+              <div class="field"><label class="field__label" for="pd-fajlovi">Fajlovi</label>
+                <input class="field__input" id="pd-fajlovi" type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"></div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pd-otpremi" type="submit">Otpremi</button></div>
+            </form>
+            <p class="notice" id="pd-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="pd-stanje" role="status" hidden></p>
+            <ul class="reviews" id="pd-poslovi" aria-label="Dokumenti u obradi"></ul>
           </section>
         </div>
         <div class="docs" id="odeljak-dokumenti" hidden>
@@ -190,6 +612,18 @@
   <script src="src/predmeti.js"></script>
   <script src="src/predmet.js"></script>
   <script src="src/detalj.js"></script>
+  <script src="src/nov-predmet.js"></script>
+  <script src="src/rad-predmeta.js"></script>
+  <script src="src/klijenti-predmeta.js"></script>
+  <script src="src/rocista-predmeta.js"></script>
+  <script src="src/pretraga.js"></script>
+  <script src="src/pitanje-predmeta.js"></script>
+  <script src="src/znanje.js"></script>
+  <script src="src/nacrt-predmeta.js"></script>
+  <script src="src/naplata-predmeta.js"></script>
+  <script src="src/prijem-predmeta.js"></script>
+  <script src="src/kancelarija.js"></script>
+  <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

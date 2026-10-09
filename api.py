@@ -566,6 +566,11 @@ from shared.rate import _REDIS_URL, limiter
 logger.info("Rate limiter: %s (REDIS_URL=%s)", "Redis fail-open" if _REDIS_URL else "in-memory", bool(_REDIS_URL))
 app = FastAPI(title="Vindex AI", docs_url=None, redoc_url=None)
 app.state.limiter = limiter
+# NS005 Gate A2: trajna zaštita V2 upisa od mrežnog ponavljanja (shared/idempotency.py).
+# Registruje se PRVA = najunutrašnjiji sloj: ponovljen odgovor i dalje prolazi kroz
+# bezbednosna zaglavlja, correlation id, gzip i CORS. Zahtevi bez `Idempotency-Key` netaknuti.
+from shared.idempotency import IdempotencyMiddleware  # noqa: E402
+app.add_middleware(IdempotencyMiddleware)
 
 
 def _json_rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:

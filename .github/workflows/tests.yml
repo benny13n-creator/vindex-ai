@@ -57,4 +57,19 @@ jobs:
         # Beta GO was made conditional on -- collapse into a row of bare 's'
         # characters, and CI reports green having verified none of them. The
         # skip conditions are honest; their invisibility was the defect.
-        run: pytest tests/ -q -rs
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest tests/ -q -rfEs 2>&1 | tee /tmp/full-suite.log
+
+      # Logovi poslova nisu javni: SVA imena padova (bez poruka) kao anotacije u delovima ≤ 3.5 KB,
+      # da bi se mogla tačno uporediti sa osnovom na `main`.
+      - name: Failure names
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/full-suite.log ]; then
+            grep -aE "^(FAILED|ERROR) " /tmp/full-suite.log | sed -E 's/ - .*//' | sort -u > /tmp/failure-names.txt || true
+            echo "::notice title=Failure count (py${{ matrix.python-version }})::$(wc -l < /tmp/failure-names.txt) | $(grep -aE '[0-9]+ (passed|failed)' /tmp/full-suite.log | tail -n 1)"
+            awk -v oz="py${{ matrix.python-version }}" 'BEGIN{d=0; n=1} { l=$0; gsub(/%/,"%25",l); if (d + length(l) > 3500) { print "::notice title=Failure names " oz " #" n "::" buf; buf=""; d=0; n++ } buf = buf l "%0A"; d += length(l) + 3 } END { if (buf != "") print "::notice title=Failure names " oz " #" n "::" buf }' /tmp/failure-names.txt
+          fi
