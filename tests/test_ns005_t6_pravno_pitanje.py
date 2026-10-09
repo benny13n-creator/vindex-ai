@@ -57,14 +57,26 @@ def _model_zabranjen(*a, **kw):
 
 @contextlib.contextmanager
 def _agent_bez_mreze(docs, meta, clan=(None, None), direktno=None):
-    """Pravi ask_agent; zamenjene su samo spoljne pretrage i model (koji puca)."""
-    import main as M
-    with patch.object(M, "retrieve_documents", return_value=(docs, meta)), \
-         patch.object(M, "retrieve_sudska_praksa", return_value=[]), \
-         patch.object(M, "retrieve_misljenja", return_value=[]), \
-         patch.object(M, "ekstrakcija_clana", return_value=clan), \
-         patch.object(M, "_direktan_fetch_clana", return_value=direktno or []), \
-         patch.object(M, "_pozovi_openai", side_effect=_model_zabranjen) as llm:
+    """Pravi ask_agent; zamenjene su samo spoljne pretrage i model (koji puca).
+
+    Zamene idu u imenski prostor TAČNO one `ask_agent` funkcije koju ruta zove (`api.ask_agent`),
+    ne u `sys.modules["main"]`: test_lambda003_* briše `main` iz `sys.modules`, pa u punom pokretanju
+    `import main` ovde daje NOV modul koji ruta ne koristi i zamene bi promašile (izmereno: tada se
+    pokreće prava pretraga)."""
+    import api
+    from unittest.mock import MagicMock
+    llm = MagicMock(side_effect=_model_zabranjen)
+    zamene = {
+        "retrieve_documents": MagicMock(return_value=(docs, meta)),
+        "retrieve_sudska_praksa": MagicMock(return_value=[]),
+        "retrieve_misljenja": MagicMock(return_value=[]),
+        "ekstrakcija_clana": MagicMock(return_value=clan),
+        "_direktan_fetch_clana": MagicMock(return_value=direktno or []),
+        "_pozovi_openai": llm,
+    }
+    for ime in zamene:
+        assert ime in api.ask_agent.__globals__, ime  # zamena mora pogoditi postojeće ime, ne dodati novo
+    with patch.dict(api.ask_agent.__globals__, zamene):
         yield llm
 
 
