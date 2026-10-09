@@ -1574,6 +1574,120 @@ async def get_genome_history(predmet_id: str, user=Depends(get_current_user)):
     }
 
 
+# ── NS006 — ŽIVI PREDMET: profesionalni ugovor za V2 (samo čitanje) ─────────────
+#
+# Jedno čitanje = vlasništvo + izvori + čista projekcija. Ovde se NIŠTA ne upisuje i
+# model se NE poziva (otvaranje ekrana ne troši kredit). Svaki izvor nosi svoje
+# stanje: izvor koji nije pročitan postaje DEGRADED, nikad prazan. Tuđ i nepostojeći
+# predmet daju ISTI 404 (bez otkrivanja postojanja).
+
+_ZP_MAKS_REDOVA = 500
+_ZP_KOLONE_DOKAZA = ("id,predmet_id,dokument_id,tvrdnja,kategorija,snaga,pravni_element,stranica,paragraf,"
+                     "start_offset,end_offset,nacin_pronalaska,izvor_snage,identitet,created_at,deleted_at")
+
+
+async def _zp_vlasnistvo(supa, predmet_id: str, uid: str) -> dict:
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id,naziv,tip,status,tuzilac,tuzeni,case_dna")
+                .eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
+        )
+    except Exception as exc:
+        # Vlasništvo se ne može utvrditi → zatvoreno, bez detalja (ne otkriva postojanje).
+        logger.warning("[ZIVI_PREDMET] provera vlasništva nije izvršena: %s", exc)
+        raise HTTPException(status_code=503, detail="Predmet trenutno nije dostupan.")
+    redovi = (r.data if r else None) or []
+    if not redovi:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    return redovi[0]
+
+
+async def _zp_dokazi(supa, predmet_id: str, uid: str) -> list:
+    """Tvrdnje predmeta; kolona `izvor_tvrdnje` (migracija 135) se čita samo ako postoji."""
+    from shared.audit_immutable import _is_missing_column_error
+
+    def _upit(kolone):
+        return (supa.table("predmet_dokazi").select(kolone).eq("predmet_id", predmet_id).eq("user_id", uid)
+                .is_("deleted_at", "null").order("id").limit(_ZP_MAKS_REDOVA).execute())
+    try:
+        return list((await asyncio.to_thread(lambda: _upit(_ZP_KOLONE_DOKAZA + ",izvor_tvrdnje"))).data or [])
+    except Exception as exc:
+        if not _is_missing_column_error(exc):
+            raise
+        return list((await asyncio.to_thread(lambda: _upit(_ZP_KOLONE_DOKAZA))).data or [])
+
+
+async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
+    """Izvori jednog predmeta za V2 ugovor. Vlasništvo se proverava PRVO; svi ostali
+    upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini)."""
+    predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
+    from services.v2_projection import ucitaj_v2_kontradikcije
+    dok_r, dz_r, kon_r, ist_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+                          .select("id,naziv_fajla,redni_broj,tip_dokaza,status,klasifikovan_at,ai_tags,created_at")
+                          .eq("predmet_id", predmet_id).eq("user_id", uid).order("redni_broj")
+                          .limit(_ZP_MAKS_REDOVA).execute()),
+        _zp_dokazi(supa, predmet_id, uid),
+        ucitaj_v2_kontradikcije(supa, predmet_id),
+        asyncio.to_thread(lambda: supa.table("predmet_genome_history")
+                          .select("verzija,created_at").eq("predmet_id", predmet_id).eq("user_id", uid)
+                          .order("verzija", desc=True).limit(1).execute()),
+        return_exceptions=True,
+    )
+    izvori = {}
+    for ime, r in (("dokumenti", dok_r), ("dokazi", dz_r), ("kontradikcije", kon_r), ("istorija", ist_r)):
+        izvori[ime] = "GRESKA" if isinstance(r, Exception) else "OK"
+        if isinstance(r, Exception):
+            logger.warning("[ZIVI_PREDMET] izvor '%s' NIJE pročitan predmet=%s: %s", ime, predmet_id, r)
+    case_dna = predmet.pop("case_dna", None)
+    if case_dna is not None and not isinstance(case_dna, dict):
+        izvori["genome"] = "GRESKA"
+        case_dna = None
+    else:
+        izvori["genome"] = "OK"
+    dokumenti = [] if isinstance(dok_r, Exception) else list(dok_r.data or [])
+    dokazi = [] if isinstance(dz_r, Exception) else dz_r
+    # Vreme osvežavanja: red istorije sa verzijom N-1 upisan je u trenutku kad je nastala
+    # verzija N (_save_genome_history ide neposredno pre upisa case_dna). Bez tog reda → nepoznato.
+    osvezeno = None
+    if not isinstance(ist_r, Exception) and (ist_r.data or []) and isinstance(case_dna, dict):
+        poslednji = ist_r.data[0]
+        if poslednji.get("verzija") is not None and case_dna.get("verzija") == (poslednji.get("verzija") or 0) + 1:
+            osvezeno = poslednji.get("created_at")
+    return {
+        "predmet": predmet, "case_dna": case_dna, "dokumenti": dokumenti, "dokazi": dokazi,
+        "v2_kontradikcije": None if isinstance(kon_r, Exception) else kon_r,
+        "izvori": izvori, "osvezeno": osvezeno,
+        "skraceno": {"dokumenti": len(dokumenti) >= _ZP_MAKS_REDOVA, "dokazi": len(dokazi) >= _ZP_MAKS_REDOVA},
+    }
+
+
+def sastavi_zivi_predmet(izv: dict) -> dict:
+    from shared.evidence_graph import sastavi_graf
+    from shared.genome_contract import sastavi
+    ugovor = sastavi(predmet=izv["predmet"], case_dna=izv["case_dna"], dokumenti=izv["dokumenti"],
+                     dokazi=izv["dokazi"], izvori=izv["izvori"], osvezeno=izv["osvezeno"])
+    legacy = len((izv["case_dna"] or {}).get("kontradikcije") or []) if isinstance(izv["case_dna"], dict) else 0
+    ugovor["dokazi"] = sastavi_graf(dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
+                                    v2_kontradikcije=izv["v2_kontradikcije"], izvori=izv["izvori"],
+                                    legacy_kontradikcija=legacy)
+    ugovor["metapodaci"]["skraceno"] = izv["skraceno"]
+    return ugovor
+
+
+@router.get("/{predmet_id}/genome-v2")
+@limiter.limit("60/minute")
+async def get_zivi_predmet(predmet_id: str, request: Request, user=Depends(get_current_user)):
+    """NS006 — profesionalni ugovor živog predmeta. Samo čitanje: bez upisa, bez modela."""
+    from datetime import datetime as _dt, timezone as _tz
+    from fastapi.responses import JSONResponse as _JSON
+    izv = await ucitaj_zivi_predmet(_get_supa(), predmet_id, user["user_id"])
+    telo = sastavi_zivi_predmet(izv)
+    telo["procitano"] = _dt.now(_tz.utc).isoformat()
+    return _JSON(telo, headers={"Cache-Control": "no-store"})
+
+
 class CompareDoksReq(BaseModel):
     numbers: list[int]
 

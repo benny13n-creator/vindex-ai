@@ -313,3 +313,65 @@ deterministic; G8 sirove kontradikcije sa CLAIM oznakama u ugovoru; G9 „verova
 `null`). Poreklo starih tvrdnji bez `izvor_tvrdnje` i bez lokacije je UNKNOWN.
 
 **SLEDEĆA KAPIJA.** Task 4 — graf dokaza.
+
+---
+
+## TASK 4 — GRAF DOKAZA
+
+**PROBLEM.** Dokazi su ravna lista; ljudska tvrdnja i tvrdnja modela se ne razlikuju trajno.
+
+**TRENUTNI DOKAZ.** (PROVEN) `predmet_dokazi` nema kolonu autora tvrdnje. Dva pisca kroz jedan primitiv
+(`upisi_dokaze`): `add_dokaz` (čovek) i `klasifikuj_i_sacuvaj` (model). `izvor_snage=covek` piše SAMO ručni unos
+sa eksplicitnom snagom → dokazuje ljudski unos i bez nove kolone. Pala klasifikacija dokumenta upisuje `tip_dokaza`
+„ostalo" uz `ai_tags._klasifikacija_greska` (Phoenix 006).
+
+**POKUŠAJ OPOVRGAVANJA.** Može li se autor izvesti bez nove kolone? Delimično (`izvor_snage=covek`), ali ručni unos
+BEZ snage i AI unos koji DC-005 nije našao su identični (`podrazumevano`) → potrebna kolona. Može li se kolona
+popuniti podrazumevanom vrednošću? NE — izmislila bi autora starih redova.
+
+**ODLUKA.**
+- Migracija **135** (KREIRANA, NIJE primenjena): `predmet_dokazi.izvor_tvrdnje TEXT` nullable, bez DEFAULT-a,
+  bez backfill-a, bez CHECK-a (obrazac 118). Vokabular: `shared/evidence_write.py::IZVORI_TVRDNJE`.
+- Jedini pisac (`upisi_dokaze`) upisuje autora kad ga pozivalac zna; `add_dokaz` → `covek`,
+  `klasifikuj_i_sacuvaj` → `ai_klasifikacija`. Kolona se odbacuje SAMO kad greška baš nju imenuje (PGRST204/42703):
+  bez 135 → tačno 2 pokušaja i `izvor_snage` zadržan; bez 118 → autor zadržan; bez obe → upis uspeva bez obe.
+- Graf je PROJEKCIJA (`shared/evidence_graph.py`), ne nova tabela: tvrdnje (iz `predmet_dokazi`), dokumenti (sa
+  stanjem klasifikacije USPESNA / NEUSPESNA / NIJE_KLASIFIKOVAN), pravni elementi (determinističko grupisanje),
+  veze `potpora` / `element` / `protivrecnost` (samo iz perzistiranih V2 kontradikcija sa trajnim UUID tvrdnji).
+- Ruta za čitanje `GET /api/predmeti/{id}/genome-v2` (routers/case_dna.py — vlasnik Genome-a): vlasništvo prvo
+  (`predmeti.user_id`), pa svi upiti ograničeni na isti predmet I istog korisnika; svaki izvor nosi stanje
+  OK/GRESKA; `Cache-Control: no-store`; nema upisa, nema modela; tuđ i nepostojeći predmet → ISTI 404.
+
+**ODGOVORI PO TVRDNJI.** šta (`vrednost`), ko (`poreklo`), koji dokument (`dokument_id` — samo ovog predmeta), gde
+(`lokacija` samo ako je pronađena), pravni element (ili `null`), protivrečnosti (lista ili `null` = NEPOZNATO kad
+kontradikcije nisu pročitane ili postoje samo u analizi bez veze na tvrdnje), potpora (LOCIRANA_U_DOKUMENTU /
+DOKUMENT_BEZ_LOKACIJE / BEZ_POTPORE).
+
+**FAJLOVI.** `migrations/135_predmet_dokazi_izvor_tvrdnje.sql`, `shared/evidence_write.py`, `routers/evidence.py`,
+`shared/evidence_graph.py` (nov), `shared/genome_contract.py` (vokabular autora uvozi od pisca), `routers/case_dna.py`
+(ruta + učitavanje), `tests/ns006_fake.py` (nepostojeće kolone kao PostgREST), `tests/test_ns006_t4_evidence_graph.py`.
+
+**ENDPOINTI.** NOV: `GET /api/predmeti/{id}/genome-v2`. Izmenjen ponašanjem upisa (aditivno): `POST
+/api/evidence/predmeti/{id}/dokaz`.
+
+**TESTOVI.** `test_ns006_t4_*` 9/9 (tvrdnje nastaju STVARNIM putevima: ruta za čoveka, `klasifikuj_i_sacuvaj` za
+model sa zamenjenim odgovorom modela — 0 poziva modela). Regresija 191 fajl (dokazi, Case Evolution, `case_dna`,
+migracije): 2883 passed, 5 failed = `test_prg_night_register` (svih 5 su u osnovi `99d2c6b9`).
+**Uhvaćena sopstvena greška:** prva verzija pisca odbacivala je autora na SVAKU grešku upisa →
+`test_impl_task003b_izvor_snage::test_fallback_degradira_tacno_jedan_stepen` je pao; ispravljeno (kolona se odbacuje
+samo kad je greška imenuje) i zaključano mutacijom V9.
+
+**TENANT.** B → predmet A: 404, telo bajt-identično nepostojećem predmetu (nema orakla), bez ijednog A podatka u
+odgovoru; C (bez predmeta) → 404. A-ov dokument za B-ov predmet → 400 (Task 2).
+
+**FAILURE.** Kontradikcije nepročitane → protivrečnosti NEPOZNATE (ne prazne); tvrdnje nepročitane → graf i
+činjenice DEGRADED; sve to bez 5xx.
+
+**MUTACIJE (8/8 ubijeno).** V1 bez opsega vlasnika; V2 ljudska tvrdnja upisana kao AI; V3 pala klasifikacija kao
+uspeh; V4 nepročitane kontradikcije kao nijedna; V5 čitanje upisuje; V6 pisac ne beleži autora; V7 izmišljena
+lokacija; V9 autor odbačen na svaku grešku.
+
+**OGRANIČENJA.** Do primene 135, nove ljudske tvrdnje BEZ snage su UNKNOWN (pošteno, ne „ljudske"). Graf je ograničen
+na 500 tvrdnji i 500 dokumenata (`metapodaci.skraceno`). Prikaz samo OTVORENIH V2 kontradikcija (Task 5 proširuje).
+
+**SLEDEĆA KAPIJA.** Task 5 — profesionalne kontradikcije.

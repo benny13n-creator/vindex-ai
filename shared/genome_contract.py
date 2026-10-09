@@ -169,8 +169,8 @@ def _sekcija(stanje: str, stavke: Optional[list] = None, **dodatno) -> dict:
 
 # ── Klasifikacija porekla tvrdnje ─────────────────────────────────────────────
 
-IZVOR_TVRDNJE_COVEK = "covek"
-IZVOR_TVRDNJE_AI = "ai_klasifikacija"
+# Jedan vlasnik vokabulara: jedini pisac kolone (migracija 135).
+from shared.evidence_write import IZVOR_TVRDNJE_AI, IZVOR_TVRDNJE_COVEK  # noqa: E402
 
 
 def poreklo_tvrdnje(red: dict) -> tuple[str, str]:

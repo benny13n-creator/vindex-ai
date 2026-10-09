@@ -142,6 +142,8 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
 # ispod čuva stara imena jer na njih računaju DECISION_REGISTRY.md (DC-005),
 # tests/test_decision_registry_completeness.py i tests/test_akcija2_faza4_*.py.
 from shared.evidence_write import (              # noqa: E402
+    IZVOR_TVRDNJE_AI,
+    IZVOR_TVRDNJE_COVEK,
     KATEGORIJE,
     SNAGE,
     GreskaDokaza,
@@ -248,6 +250,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 stavke=stavke,
                 izvor_tekst=tekst,
                 proveri_vlasnistvo=False,
+                izvor_tvrdnje=IZVOR_TVRDNJE_AI,
             )
             _utemeljeno = sum(1 for o in _rez_upisa["odluke"] if o["lokacija_poznata"])
             logger.info(
@@ -397,6 +400,7 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
                 pravni_element=req.pravni_element,
                 napomena=req.napomena,
                 izvor_tekst=izvor_tekst,
+                izvor_tvrdnje=IZVOR_TVRDNJE_COVEK,
             )
         )
     except GreskaDokaza as exc:

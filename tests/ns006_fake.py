@@ -87,7 +87,34 @@ class Upit6(h5._Upit):
                     return x
         return None
 
+    def _proveri_kolone(self):
+        """Kolona koje u ovoj „bazi" nema (migracija nije pokrenuta): kao PostgREST —
+        čitanje daje 42703, upis PGRST204."""
+        nema = self.b.nepostojece_kolone.get(self.t) or set()
+        if not nema:
+            return
+        vrsta, telo = self.radnja
+        greska = None
+        if vrsta == "select":
+            trazene = {c.strip() for c in str(self.kol or "").split(",")}
+            for c in sorted(nema & trazene):
+                greska = '{"code": "42703", "message": "column %s.%s does not exist"}' % (self.t, c)
+                break
+        elif vrsta in ("insert", "upsert", "update"):
+            for r in (telo if isinstance(telo, list) else [telo]):
+                for c in sorted(nema & set(r or {})):
+                    greska = ('{"code": "PGRST204", "message": "Could not find the \'%s\' column of \'%s\' '
+                              'in the schema cache"}' % (c, self.t))
+                    break
+                if greska:
+                    break
+        if greska:
+            # neuspeo pokušaj se BELEŽI (kao i uspešan) — testovi broje pokušaje
+            self.b.dnevnik.append({"tabela": self.t, "radnja": vrsta, "filteri": [], "neuspeh": True})
+            raise Exception(greska)
+
     def execute(self):
+        self._proveri_kolone()
         vrsta, telo = self.radnja
         if vrsta not in ("insert", "upsert") or self.t not in JEDINSTVENO:
             if vrsta == "update" and self.t in JEDINSTVENO and self.t not in self.b.greske:
@@ -157,6 +184,7 @@ class Baza6(h5.Baza):
     def __init__(self, tabele=None):
         super().__init__(tabele)
         self.rpc_impl["claim_pending_events"] = _claim_pending_events
+        self.nepostojece_kolone: dict[str, set] = {}   # {tabela: {kolona}} — migracija nije pokrenuta
 
     def table(self, ime):
         return Upit6(self, ime)
