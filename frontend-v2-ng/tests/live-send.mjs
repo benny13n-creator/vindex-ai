@@ -42,6 +42,9 @@ const f = await pokreniFixture(async (req, url, res) => {
   if (p === "/api/nije-json") { res.writeHead(201, { "Content-Type": "text/plain" }); res.end("Created"); return true; }
   if (p === "/api/prazno") { res.writeHead(204); res.end(); return true; }
   if (p === "/api/preusmeri") { res.writeHead(307, { Location: "https://example.com/upis" }); res.end(); return true; }
+  if (p === "/api/docx") { res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="Tuzba.docx"' }); res.end(Buffer.from("PKfake-docx")); return true; }
+  if (p === "/api/docx-html") { res.writeHead(200, { "Content-Type": "text/html" }); res.end("<html>login</html>"); return true; }
+  if (p === "/api/docx-prazan") { res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }); res.end(); return true; }
   return false;
 });
 
@@ -217,10 +220,35 @@ for (const [s, kod] of Object.entries(OCEKIVANO)) {
   zapisi("izolacija", "preusmerenje se ne prati (upis ne ide na drugi host) → ishod nepoznat", r.ok === false && r.greska.ishodNepoznat === true && spoljni.length === 0, JSON.stringify(r).slice(0, 90));
 }
 
+// ── preuzmi: fajl (DOCX) sa istim granicama ─────────────────────────────
+{
+  const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const preuzmi = (putanja, o = {}) => page.evaluate(async ([putanja, o, T, DOCX]) => {
+    const r = await window.VxApi.preuzmi(putanja, Object.assign({ telo: { tekst: "x" }, tip: DOCX }, o.bezTokena ? {} : { token: T }, o.extra || {}));
+    return r.ok ? { ok: true, velicina: r.blob.size, ime: r.ime, tip: r.blob.type } : r;
+  }, [putanja, o, TOKEN, DOCX]).then(r => { sviRezultati.push(r); return r; });
+  await nuluj();
+  let r = await preuzmi("/api/docx");
+  zapisi("preuzmi", "DOCX → ok + Blob + ime iz Content-Disposition", r.ok && r.velicina > 0 && r.ime === "Tuzba.docx", JSON.stringify(r));
+  zapisi("preuzmi", "preuzimanje nosi Authorization tekuće sesije", f.zahtevi[0] && f.zahtevi[0].auth === "Bearer " + TOKEN && f.zahtevi[0].metod === "POST");
+  r = await preuzmi("/api/docx-html");
+  zapisi("preuzmi", "2xx sa pogrešnim tipom (HTML) → INVALID_RESPONSE, ne fajl", r.ok === false && r.greska.kod === "INVALID_RESPONSE");
+  r = await preuzmi("/api/docx-prazan");
+  zapisi("preuzmi", "prazan fajl → INVALID_RESPONSE", r.ok === false && r.greska.kod === "INVALID_RESPONSE");
+  r = await preuzmi("/api/status/500");
+  zapisi("preuzmi", "500 → SERVER_ERROR", r.ok === false && r.greska.kod === "SERVER_ERROR");
+  await nuluj();
+  for (const [naziv, put, o] of [["drugi host", "https://evil.example/api/docx", {}], ["bez tokena", "/api/docx", { bezTokena: true }],
+    ["user_id u telu", "/api/docx", { extra: { telo: { tekst: "x", user_id: "tudji" } } }]]) {
+    r = await preuzmi(put, o);
+    zapisi("preuzmi", `${naziv} → odbijeno lokalno, ništa poslato`, r.ok === false && ["CONFIG_ERROR", "AUTH_REQUIRED"].includes(r.greska.kod) && f.zahtevi.length === 0, JSON.stringify(r).slice(0, 80));
+  }
+}
+
 // ── GET ostaje isti; modul izlaže tačno get i send ───────────────────────
 {
   const api = await page.evaluate(() => ({ kljucevi: Object.keys(window.VxApi).sort().join(","), zamrznut: Object.isFrozen(window.VxApi) }));
-  zapisi("granica", "VxApi izlaže tačno get i send i zamrznut je (nema delete)", api.kljucevi === "get,send" && api.zamrznut, api.kljucevi);
+  zapisi("granica", "VxApi izlaže tačno get, preuzmi i send i zamrznut je (nema delete)", api.kljucevi === "get,preuzmi,send" && api.zamrznut, api.kljucevi);
 }
 
 await browser.close();

@@ -19,6 +19,7 @@
     "verify:live-rocista-pretraga": "node tests/live-rocista-pretraga.mjs",
     "verify:live-pitanje": "node tests/live-pitanje.mjs",
     "verify:live-znanje": "node tests/live-znanje.mjs",
+    "verify:live-nacrt": "node tests/live-nacrt.mjs",
     "verify:live-session": "node tests/live-session.mjs",
     "verify:live-matters": "node tests/live-matters.mjs",
     "verify:live-states": "node tests/live-states.mjs",

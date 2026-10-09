@@ -332,3 +332,62 @@ export function stavoviRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* ── Nacrti (routers/drafting.py) ─────────────────────────────────────────
+ * GET /api/podnesak/types, GET /api/courts (javni katalozi);
+ * POST /api/podnesak: tip van spiska → 422; tuđ predmet → 404; opis „kritika pala" →
+ *   critique_applied:false; „keš" → null; „izmišljen" → placeholder u tekstu.
+ * POST /api/nacrti/export/docx → .docx; staging lista/odobri/odbij po korisniku. */
+const TIPOVI_PODNESAKA = [{ tip: "tuzba_naknada_stete", naziv: "Tužba za naknadu štete" }, { tip: "zalba_parnicna", naziv: "Žalba (parnični postupak)" }];
+export function nacrtRuta(korisnici, kuke = {}) {
+  let n = 0;
+  return async (req, url, res) => {
+    const p = url.pathname;
+    if (p === "/api/podnesak/types" && req.method === "GET") {
+      if (await kuka(kuke, p, null, req, res)) return true;
+      json(res, 200, { tipovi: TIPOVI_PODNESAKA }); return true;
+    }
+    if (p === "/api/courts" && req.method === "GET") {
+      if (await kuka(kuke, p, null, req, res)) return true;
+      json(res, 200, { sudovi: { "Osnovni sudovi": [{ naziv: "Osnovni sud u Beogradu", adresa: "Ustanička 29, 11000 Beograd", grad: "Beograd" }], "Viši sudovi": [{ naziv: "Viši sud u Beogradu", adresa: "Savska 17a", grad: "Beograd" }] } });
+      return true;
+    }
+    const jeNacrt = p === "/api/podnesak" || p === "/api/nacrti/export/docx" || p.startsWith("/api/staging/");
+    if (!jeNacrt) return false;
+    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, p, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b = {}; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    k.staging = k.staging || [];
+    if (p === "/api/podnesak" && req.method === "POST") {
+      (kuke.upisano || (() => {}))(p, b);
+      if (!TIPOVI_PODNESAKA.some(t => t.tip === b.tip) || String(b.opis || "").length < 20) { json(res, 422, { detail: [{ loc: ["body", "tip"] }] }); return true; }
+      if (b.predmet_id && !k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id)) { json(res, 404, { detail: "Predmet nije pronađen." }); return true; }
+      const naziv = TIPOVI_PODNESAKA.find(t => t.tip === b.tip).naziv;
+      let tekst = `${(b.sud_naziv || "OSNOVNI SUD").toUpperCase()}\n${b.sud_adresa || ""}\n\n${naziv.toUpperCase()}\n\nTužilac traži naknadu štete prema čl. 154 ZOO.\n<script>window.__xss=11</script>\n\nNAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.`;
+      if (/izmišljen/.test(b.opis)) tekst = tekst.replace("čl. 154 ZOO", "[proveriti relevantan član] i [proveriti relevantan član]");
+      const critique = /kritika pala/.test(b.opis) ? false : /keš/.test(b.opis) ? null : true;
+      if (b.predmet_id) k.staging.unshift({ id: `st-${k.id}-${++n}`, predmet_id: b.predmet_id, naziv, tip: b.tip, status: "pending", created_at: new Date().toISOString() });
+      json(res, 200, { status: "success", odgovor: tekst, tip: b.tip, naziv, critique_applied: critique, ai_generated: true });
+      return true;
+    }
+    if (p === "/api/nacrti/export/docx" && req.method === "POST") {
+      (kuke.upisano || (() => {}))(p, b);
+      res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="Tuzba_za_naknadu_stete.docx"' });
+      res.end(Buffer.from("PK fake docx " + String(b.tekst || "").slice(0, 50)));
+      return true;
+    }
+    const ms = /^\/api\/staging\/predmet\/([^/]+)$/.exec(p);
+    if (ms && req.method === "GET") { json(res, 200, { stavke: k.staging.filter(s => s.predmet_id === decodeURIComponent(ms[1])) }); return true; }
+    const ma = /^\/api\/staging\/([^/]+)\/(approve|reject)$/.exec(p);
+    if (ma && req.method === "POST") {
+      const s = k.staging.find(x => x.id === decodeURIComponent(ma[1]));
+      if (!s) { json(res, 404, { detail: "Nacrt na čekanju nije pronađen." }); return true; }
+      s.status = ma[2] === "approve" ? "approved" : "rejected";
+      json(res, 200, { status: s.status, indexed: false, poruka: "confidence_score (0.4) je ispod praga 0.85" });
+      return true;
+    }
+    json(res, 404, {}); return true;
+  };
+}

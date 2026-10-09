@@ -230,6 +230,7 @@
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
           <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
           <a class="tabs__item" id="tab-pitanje" href="#/">Pravno pitanje</a>
+          <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
@@ -387,6 +388,35 @@
             </section>
           </article>
         </div>
+        <div class="matter__body" id="odeljak-nacrt" hidden>
+          <form class="form" id="nc-forma" novalidate>
+            <div class="field"><label class="field__label" for="nc-tip">Vrsta podneska</label>
+              <select class="field__input" id="nc-tip"></select></div>
+            <div class="field" id="nc-sud-red"><label class="field__label" for="nc-sud">Sud (zaglavlje podneska)</label>
+              <select class="field__input" id="nc-sud"></select></div>
+            <div class="field"><label class="field__label" for="nc-opis">Činjenice i zahtev</label>
+              <textarea class="field__input field__input--area" id="nc-opis" rows="6" maxlength="5000" aria-describedby="nc-opis-pomoc"></textarea>
+              <p class="field__help" id="nc-opis-pomoc">Stranke, datumi, iznosi i šta tražite. Vindex ne proverava nadležnost suda, rokove ni takse.</p></div>
+            <div class="form__actions"><button class="text-btn text-btn--primary" id="nc-generisi" type="submit" disabled>Izradi nacrt</button></div>
+          </form>
+          <p class="notice" id="nc-poruka" role="status" aria-live="polite" hidden></p>
+          <section class="draft" id="nc-rezultat" hidden aria-labelledby="nc-naslov-nacrta">
+            <h2 class="matter__h2" id="nc-naslov-nacrta"></h2>
+            <p class="draft__label">Nacrt je polazna tačka, ne gotov podnesak: pre podnošenja ga mora pregledati advokat.</p>
+            <p class="notice" id="nc-provera" role="status" hidden></p>
+            <label class="field__label" for="nc-tekst">Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)</label>
+            <textarea class="field__input draft__text" id="nc-tekst" rows="24" spellcheck="false"></textarea>
+            <div class="form__actions"><button class="text-btn text-btn--line" id="nc-docx" type="button">Preuzmi kao Word (.docx)</button></div>
+            <p class="notice" id="nc-docx-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="nc-overa-naslov">
+            <h2 class="matter__h2" id="nc-overa-naslov">Nacrti na overi</h2>
+            <p class="field__help">Izrađeni nacrti čekaju vašu overu. Odobren nacrt može ući u bazu znanja kancelarije ako mu je ocena kvaliteta dovoljna.</p>
+            <p class="notice" id="nc-overa-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="nc-overa-stanje" role="status" hidden></p>
+            <ul class="reviews" id="nc-overa-lista" aria-label="Nacrti na overi"></ul>
+          </section>
+        </div>
         <div class="docs" id="odeljak-dokumenti" hidden>
           <div class="docs__list-wrap" id="dok-lista-okvir">
             <ul class="docs__list" id="dok-lista" aria-label="Dokumenti predmeta"></ul>
@@ -446,6 +476,7 @@
   <script src="src/pretraga.js"></script>
   <script src="src/pitanje-predmeta.js"></script>
   <script src="src/znanje.js"></script>
+  <script src="src/nacrt-predmeta.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

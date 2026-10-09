@@ -230,5 +230,44 @@
       : { ok: true, status: odgovor.status, podaci: null, neispravanOdgovor: true };
   }
 
-  root.VxApi = Object.freeze({ get: get, send: send });
+  /**
+   * POST koji vraća FAJL (npr. .docx nacrta). Iste granice kao `send` (isti izvor,
+   * dozvoljene putanje, bez vlasnika u telu, bez ponavljanja, token obavezan); uspeh
+   * je samo 2xx sa očekivanim tipom sadržaja — sve ostalo je strukturisan neuspeh.
+   * @param {string} putanja
+   * @param {{telo: Object, token: string, signal?: AbortSignal, tip: string}} opcije  tip = očekivani MIME
+   * @returns {Promise<{ok:true, status, blob, ime}|{ok:false, status, greska}>}
+   */
+  async function preuzmi(putanja, opcije) {
+    opcije = opcije || {};
+    var adresa;
+    try { adresa = napraviAdresu(putanja, null); }
+    catch (e) { return greska("CONFIG_ERROR", e.message, 0); }
+    var zabranjeno = zabranjenoPolje(opcije.telo);
+    if (zabranjeno) return greska("CONFIG_ERROR", "polje „" + zabranjeno + "“ nije dozvoljeno: pripadnost podataka određuje server", 0);
+    if (typeof opcije.token !== "string" || !opcije.token) return greska("AUTH_REQUIRED", "Niste prijavljeni.", 0);
+    if (typeof opcije.tip !== "string" || !opcije.tip) return greska("CONFIG_ERROR", "Očekivani tip fajla nije naveden.", 0);
+    if (opcije.signal && opcije.signal.aborted) return greska("ABORTED", "Zahtev je otkazan.", 0);
+    var odgovor;
+    try {
+      odgovor = await root.fetch(adresa, {
+        method: "POST", headers: { Accept: opcije.tip, "Content-Type": "application/json", Authorization: "Bearer " + opcije.token },
+        body: JSON.stringify(opcije.telo || {}), signal: opcije.signal, credentials: "omit", cache: "no-store", redirect: "error",
+      });
+    } catch (e) {
+      if ((opcije.signal && opcije.signal.aborted) || (e && e.name === "AbortError")) return greska("ABORTED", "Zahtev je otkazan.", 0);
+      return greska("NETWORK_ERROR", "Server nije dostupan. Fajl nije preuzet.", 0);
+    }
+    if (!odgovor.ok) return greska(kodPisanja(odgovor.status), "Server je odgovorio statusom " + odgovor.status + ".", odgovor.status);
+    var vrsta = (odgovor.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+    if (vrsta !== opcije.tip.toLowerCase()) return greska("INVALID_RESPONSE", "Server nije vratio očekivani fajl.", odgovor.status);
+    var blob;
+    try { blob = await odgovor.blob(); }
+    catch (e) { return greska("NETWORK_ERROR", "Fajl nije primljen do kraja.", odgovor.status); }
+    if (!blob || !blob.size) return greska("INVALID_RESPONSE", "Server je vratio prazan fajl.", odgovor.status);
+    var m = /filename="([^"]{1,120})"/.exec(odgovor.headers.get("Content-Disposition") || "");
+    return { ok: true, status: odgovor.status, blob: blob, ime: m ? m[1] : "" };
+  }
+
+  root.VxApi = Object.freeze({ get: get, send: send, preuzmi: preuzmi });
 })(window);

@@ -148,7 +148,7 @@ for (const [naziv, putanja, opcije] of [
 {
   const api = await page.evaluate(() => ({ kljucevi: Object.keys(window.VxApi), zamrznut: Object.isFrozen(window.VxApi) }));
   // NS005: pisanje je odvojena funkcija `send` (tests/live-send.mjs); `get` i dalje samo čita.
-  zapisi("samo-citanje", "VxApi izlaže tačno get i send (bez delete) i zamrznut je", api.kljucevi.slice().sort().join(",") === "get,send" && api.zamrznut, api.kljucevi.join(","));
+  zapisi("samo-citanje", "VxApi izlaže tačno get, send i preuzmi (bez delete) i zamrznut je", api.kljucevi.slice().sort().join(",") === "get,preuzmi,send" && api.zamrznut, api.kljucevi.join(","));
   const metodi = new Set(f.zahtevi.map(z => z.metod));
   zapisi("samo-citanje", "fixture je primio samo GET", [...metodi].every(m => m === "GET"), [...metodi].join(","));
 }
