@@ -724,3 +724,27 @@ najviše `AUTONOMY_BUDGET_PER_ORG_DAILY` (20) plaćenih izvršenja, nezavisno od
 generiše.
 
 **SLEDEĆA KAPIJA.** Task 23 — „Dok spavate" od kraja do kraja.
+
+---
+
+## TASK 23 (+ TASK 33) — „DOK SPAVATE" OD KRAJA DO KRAJA I JUTARNJI DEMO
+
+**SCENARIO (`tests/ns007_demo.py`, test podaci).** Sve kroz PRAVU rutu `POST /api/cron/autonomy` (isti put kao budući
+Render Cron), kanonski radnik, pravi planeri i izvršioci; zamenjen samo provajder modela (na granici SDK-a — broji se
+svaki poziv) i Pinecone indeks korpusa.
+
+1. Predmet sa ročištem sutra. 2. Danas pre ciklusa: 0 pripremljenih radova. 3. Noću ruta okida ciklus. 4. Vindex sam
+priprema „Priprema za ročište 11.10.2026. — Petrović protiv Gradnja Invest DOO". 5. Danas: „Vindex je pripremio" sa
+razlogom. 6. Brief: ročište iz evidencije, ključne činjenice sa poreklom i izvorom, AI pitanja označena. 7. Izvori: 8
+referenci iz baze. 8–9. Ponovljen ciklus: planirano 0, duplikat 1, **0 novih poziva modela**. 10–11. Prihvatanje →
+ACCEPTED, **0 spoljnih upisa** (mejl, obaveštenja, Viber, staging, Case Actions, predmet, dokazi, ročišta, naplata).
+12–13. Radar pronalazi novu odluku + jednu izmišljenu → samo proverena postaje rad. 14–15. Analiza uticaja sa TAČNIM
+izvorom (Rev 1234/2023, Vrhovni sud, 2023-05-10, proveren) i doslovnim izvodom. Ukupno: 2 poziva modela za 2 rada.
+
+**UI.** `npm run demo:ns007` (5/5) pravi snimke iz ISTOG toka: `shots/ns007-demo/1-danas.png`, `2-priprema.png`,
+`3-praksa.png`, `4-pregled.png`. Svi UI ugovori su dokazani u `live-pripremljeno` (51/51) nad stvarnim odgovorima.
+
+**TESTOVI.** `test_ns007_t23_e2e` 5/5 (A pre/posle, A bez duplikata i naplate, A prihvatanje bez spoljnog efekta, B
+tačan izvor, C izmišljena odluka bez proizvoda + tačno 2 poziva).
+
+**SLEDEĆA KAPIJA.** Task 24 — proba postavljanja raspoređivača.
