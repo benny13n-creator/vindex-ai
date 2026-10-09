@@ -23,6 +23,7 @@
     RAZRESENA: "razrešena", ZAMENJENA: "zamenjena", NEPOTVRDJENA_TVRDNJAMA: "navodi je analiza; nije vezana za tvrdnje" };
   var POTPORA = { LOCIRANA_U_DOKUMENTU: "pronađeno u dokumentu", DOKUMENT_BEZ_LOKACIJE: "vezano za dokument, mesto nije pronađeno",
     BEZ_POTPORE: "bez dokumenta" };
+  var ULOGA = { tuzilac: "tužilac", tuzeni: "tuženi", svedok: "svedok", vestak: "veštak", zastupnik: "zastupnik", ostalo: "ostalo" };
   var SPREMNOST = { READY: "Spremno — nema otvorenih radnji", PARTIALLY_READY: "Delimično spremno", BLOCKED: "Blokirano",
     CRITICAL_GAP: "Kritičan nedostatak", UNKNOWN: "Nije moguće proceniti" };
   var KOMPLETNOST = { COMPLETE: "kompletna", PARTIAL: "delimična", DEGRADED: "delimično dostupna", UNKNOWN: "nije izračunata" };
@@ -158,7 +159,7 @@
         if (s.vrsta === "sustina_spora") $("an-sustina").append(stavkaListe(s.vrednost, s.poreklo, [meta(s.naslov)]));
       });
       niz(g.stranke && g.stranke.stavke).forEach(function (s) {
-        $("an-stranke").append(stavkaListe(s.vrednost, s.poreklo, [meta(s.uloga ? s.uloga.replace(/_/g, " ") : "uloga nije navedena")]));
+        $("an-stranke").append(stavkaListe(s.vrednost, s.poreklo, [meta((s.uloga ? (ULOGA[s.uloga] || s.uloga.replace(/_/g, " ")) : "uloga nije navedena") + (s.potvrdjeno_analizom ? " · analiza se slaže" : ""))]));
       });
       var pouzdane = niz(g.cinjenice && g.cinjenice.stavke).filter(function (s) { return s.poreklo === "SOURCE_FACT" || s.poreklo === "HUMAN_CONFIRMED"; });
       pouzdane.slice(0, 12).forEach(function (s) {

@@ -168,6 +168,20 @@ def test_3a_neispravni_datumi_i_vrednosti_se_obaraju():
     uloge = {s["vrednost"]: s for s in a["stranke"]["stavke"] if s["poreklo"] == gc.AI_ANALYSIS}
     assert uloge["N.N."]["uloga"] is None and uloge["N.N."]["uloga_neispravna"] is True
     assert a["stranke"]["odbaceno"] == 1, "stranka bez imena se ne prikazuje"
+    # analiza je samo ponovila tužioca koga je advokat uneo → jedna stavka, poreklo advokata, uz potvrdu analize
+    mp = [s for s in a["stranke"]["stavke"] if s["vrednost"] == "Marko Petrović"]
+    assert len(mp) == 1 and mp[0]["poreklo"] == gc.HUMAN_CONFIRMED and mp[0]["potvrdjeno_analizom"] is True, mp
+
+
+def test_3a_stranka_sa_drugom_ulogom_ostaje_vidljiva():
+    """Neslaganje (analiza kaže da je tužilac zapravo tuženi) se NE sakriva spajanjem."""
+    import copy
+    pr = dict(PREDMET)
+    g = copy.deepcopy(GENOME)
+    g["stranke"] = [{"uloga": "tuzeni", "ime": "Marko  Petrović."}]
+    a = _ugovor(predmet=pr, case_dna=g)
+    mp = [s for s in a["stranke"]["stavke"] if "Petrović" in s["vrednost"]]
+    assert sorted(s["poreklo"] for s in mp) == sorted([gc.HUMAN_CONFIRMED, gc.AI_ANALYSIS]), mp
     ned = {s["vrednost"]: s for s in a["nedostaje"]["stavke"]}
     assert ned["Svedok"]["hitnost"] is None
 

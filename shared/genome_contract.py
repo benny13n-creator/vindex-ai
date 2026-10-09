@@ -273,11 +273,20 @@ def _strane(predmet: dict, g: dict, ima_genome: bool) -> dict:
             stavke.append(_stavka("stranka.predmet", HUMAN_CONFIRMED, ime, id_=f"predmet:{uloga}",
                                   uloga=uloga, obrazlozenje_porekla="evidencija predmeta"))
     odbaceno = 0
+    # NS006 Task 20: stranka koju je analiza samo PONOVILA (isto ime, ista uloga) nije druga stranka — prikazuje
+    # se jednom, sa poreklom advokata, uz oznaku da se analiza slaže. Različita uloga ostaje vidljiva (neslaganje).
+    def _kljuc(ime, uloga):
+        return (" ".join(re.sub(r"[\"'„“”.,]", " ", ime or "").casefold().split()), uloga)
+    ljudske = {_kljuc(x["vrednost"], x.get("uloga")): x for x in stavke}
     for s in (g.get("stranke") or []) if ima_genome else []:
         if not isinstance(s, dict) or not _tekst(s.get("ime"), 300):
             odbaceno += 1
             continue
         uloga = (s.get("uloga") or "").strip().lower()
+        isti = ljudske.get(_kljuc(_tekst(s.get("ime"), 300), uloga))
+        if isti is not None:
+            isti["potvrdjeno_analizom"] = True
+            continue
         stavke.append(_stavka("stranka.genome", AI_ANALYSIS, _tekst(s.get("ime"), 300),
                               uloga=uloga if uloga in _ULOGE else None,
                               uloga_neispravna=uloga not in _ULOGE))

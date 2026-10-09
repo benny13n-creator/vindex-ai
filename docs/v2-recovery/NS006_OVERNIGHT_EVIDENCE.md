@@ -926,3 +926,22 @@ pogrešno da razume" i „šta košta / curi / laže kad nešto padne".
 - Gramatika razloga iz `risk_engine.py` (T12).
 
 **SLEDEĆA KAPIJA.** Task 21 — puna regresija i bezbednosni skeneri.
+
+---
+
+## TASK 20 — DOPUNA: STRANKE I JUTARNJI DEMO
+
+**PRONAĐENO (vizuelnim pregledom demo snimka).** Stranka koju je advokat uneo, a analiza samo ponovila, prikazivala se
+DVAPUT („Marko Petrović — tužilac": jednom „Uneo advokat", jednom „Analiza (AI)"), a uloga je pisana bez dijakritika
+(„tuzilac"). Sada: isto ime + ista uloga = jedna stavka sa poreklom advokata i oznakom „analiza se slaže"; ista osoba sa
+DRUGOM ulogom ostaje dvaput (neslaganje se ne sakriva). Uloge se prikazuju kao „tužilac / tuženi / veštak …".
+Mutacije X4 (ponovljena stranka dvaput) i X5 (spajanje i pri različitoj ulozi) UBIJENE.
+
+**JUTARNJI DEMO (sekcija 29 direktive).** `python tests/ns006_demo.py` priča korake 1–11 na test podacima:
+rešenje o otkazu → v1 → stiže dostavnica (ista putanja kao upload), niko ne osvežava → kanonski tok sam obrađuje
+događaj → v1→v2, „Šta se promenilo" (3 strukturne promene), nova tvrdnja iz dostavnice sa stranom, protivrečnost
+17.03 ↔ 25.03, spremnost „blokirano → kritičan nedostatak", NOVA kritična radnja. `node frontend-v2-ng/tests/ns006-demo.mjs`
+(4/4) pravi snimke koraka 12–15: `shots/ns006-demo/13-analiza.png`, `14-pregled.png`, `15-danas.png`.
+
+**FAJLOVI.** `shared/genome_contract.py`, `frontend-v2-ng/src/analiza-predmeta.js`, `tests/test_ns006_t3_genome_contract.py`,
+`tests/ns006_demo.py`, `frontend-v2-ng/tests/ns006-demo.mjs`, `frontend-v2-ng/package.json` (`demo:ns006`).
