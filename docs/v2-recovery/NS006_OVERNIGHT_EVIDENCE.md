@@ -535,3 +535,57 @@ CRLF fajlu — fajl ujednačen, alat ojačan, mutacije ponovljene i ubijene.
 postojeće ponašanje, vidi Task 8.
 
 **SLEDEĆA KAPIJA.** Task 8 — integritet motora akcija.
+
+---
+
+## TASK 8 — INTEGRITET MOTORA AKCIJA
+
+**PROBLEM.** Genome koji vidi problem a ne proizvede kanonsku akciju je beskoristan; akcija mora biti tačna, bez
+duplikata, i nikad zatvorena/otvorena na osnovu podataka koje sistem nije pročitao.
+
+**MATRICA (PROVEN kroz stvarni reconcile):**
+
+| Stanje | Akcija (postojeća semantika) |
+|---|---|
+| bez tvrdnji | PRIBAVITI_DOKAZ „nema dokaza", critical (Task 2: nov dokaz je ZATVARA) |
+| nedostajući tip dokumenta | PRIBAVITI_DOKAZ „Nedostaje …", high |
+| zakazano ročište ≤ 30 dana | PRIPREMITI_PODNESAK, rok = datum, prioritet po danima; pomereno → ISTA akcija ažurirana |
+| propušteno zakazano ročište | ostaje critical, „PROPUŠTENO" (ne nestaje sa satom) |
+| otkazano ročište | akcija se zatvara |
+| otvorena V2 kontradikcija | RAZRESITI_KONTRADIKCIJU (`v2:contradiction:<id>`), prioritet po težini; NOT_OBSERVED → zatvara se |
+| terminalan predmet | sve otvorene se zatvaraju; Workspace ga ne prikazuje ni kad reconcile nije pokrenut |
+| tvrdnje bez procene | NEMA akcije (postojeća odluka: `classify_case_problem` → None) — zabeleženo, nije menjano |
+| potvrđen rok (`predmet_hronologija`) | NEMA akcije — vidi odluku ispod |
+
+**PRONAĐEN I ZATVOREN KVAR (PROVEN izvršavanjem pre izmene).** `_compute_target_actions` je pad čitanja izvora
+tretirao kao prazan izvor (`return_exceptions=True` → `[]`): pad čitanja `rocista` → `created=0 updated=3 closed=1` —
+akcija „Ročište (Osnovni sud u Beogradu) za 5 dana" je ZATVORENA; pad čitanja `predmet_dokazi` → `created=1` — lažna
+kritična „Nema uploadovanih dokaza za radni predmet". Ista klasa u `_consequence_case_intelligence_summary` (trajan
+sažetak rizika iz nepročitanih izvora). Sada oba podižu izuzetak → posledica `failed` → postojeći retry/DEAD_LETTER;
+nijedna akcija i nijedan sažetak se ne menjaju na osnovu delimičnih podataka. `matter_intel` (legacy prikaz) nije diran.
+
+**ODLUKA O ROKOVIMA.** Potvrđeni rokovi NISU uvedeni u `case_actions`: vlasnik obaveze je domen rokova
+(`shared/rokovi.py`/`rok_potvrda`), a V2 Danas ih već prikazuje iz kalendara; druga reprezentacija iste obaveze u
+`case_actions` bi dala dva zapisa za jedan rok na istom ekranu (krši „1 koncept = 1 vlasnik"). Zabeleženo kao dug za
+odluku foundera, ne kao rupa koju ovaj sprint popunjava.
+
+**FAJLOVI.** `services/case_evolution.py`, `tests/test_ns006_t8_case_actions.py`.
+
+**TESTOVI.** 15/15 kroz stvarni reconcile i dispečer: ročište → akcija i pomeranje ažurira ISTI red (isti id); otkazano
+zatvara; propušteno ostaje kritično; V2 kontradikcija otvara/zatvara; zatvoren predmet zatvara sve i nestaje iz
+`/api/workspace`; terminalan bez reconcile-a i dalje skriven; razlog i izvor na svakoj akciji, bez izmišljenog roka; isti
+događaj dvaput i PARALELNO → po jedna otvorena akcija po ključu (delimičan UNIQUE iz 099); „restart" → `created=0` i
+isti skup; pad čitanja (3 tabele) → izuzetak i NEPROMENJENE akcije; kroz dispečer: pad → `greske=1` i akcija preživljava,
+sledeći prolaz uspeva; sažetak se ne upisuje iz nepročitanih izvora (2 tabele), a uz ispravne se upisuje. Regresija (88
+fajlova sa case_evolution/case_actions/workspace): 1499 passed, 1 failed = `test_phoenix_mission_013…` (u osnovi).
+
+**TENANT.** Reconcile je po predmetu (pozivalac je kanonski događaj); Workspace po korisniku (postojeće).
+
+**MUTACIJE (8/8 ubijeno).** A1 (#9) bez filtera terminalnog predmeta; A2 (#10) nestabilan ključ ročišta; A3 (#10) bez
+dedupe; A4 bez razloga; A5 pad čitanja ponovo = prazno; A6 sažetak iz nepročitanih izvora; A7 propušteno ročište ispada;
+A8 Workspace bez filtera terminalnih predmeta. A7 i A8 su prvo PREŽIVELE (praznine u testu) — dodata 2 testa.
+
+**OGRANIČENJA.** Legacy `PATCH status` i dalje ne emituje `MatterBecameTerminal` (akcije ostaju `open` u bazi, ali su
+skrivene u Workspace-u i worklist-u). Reconcile i dalje nema transakcijsku serijalizaciju (postojeći SINGULAR2-DEBT).
+
+**SLEDEĆA KAPIJA.** Task 9 — V2 API površina.

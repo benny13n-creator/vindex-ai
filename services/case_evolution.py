@@ -787,9 +787,17 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
-    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
-    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
-    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+    # NS006 Task 8 — ista klasa kao u `_compute_target_actions`: sažetak je TRAJAN zapis, pa
+    # rizici/nedostajući dokazi izračunati iz izvora koji nije pročitan ne smeju da se upišu.
+    # Izuzetak → posledica neuspela → retry (genome_refresh je već `completed` i ne ponavlja se).
+    for _ime, _rez in (("predmet_dokazi", dokazi_r), ("predmet_dokumenti", dok_r), ("rocista", rok_r)):
+        if isinstance(_rez, Exception):
+            raise RuntimeError(
+                f"case_intelligence_summary: izvor '{_ime}' nije pročitan za predmet={predmet_id}"
+            ) from _rez
+    dokazi = (dokazi_r.data or [])
+    dok_data = (dok_r.data or [])
+    rok_data = (rok_r.data or [])
     rizik = calculate_procesni_rizik(dokazi=dokazi, dokumenti=dok_data, rocista=rok_data, tip_predmeta=tip_predmeta, expected_docs=_EXPECTED_DOCS)
     problemi = identify_case_problems(rizik, tip_predmeta)
     rizici_ozbiljni = [p for p in problemi if p.get("ozbiljnost") in ("kritican", "vazan")]
@@ -917,9 +925,22 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         asyncio.to_thread(lambda: supa.table("rocista").select("id,sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
-    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
-    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
-    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+    # NS006 Task 8 — PAD ČITANJA NIJE PRAZAN IZVOR. Ranije je izuzetak ovde postajao `[]`, a
+    # reconcile ispod ciljni skup tumači kao istinu: izmereno, pad čitanja `rocista` je ZATVARAO
+    # otvorenu akciju za zakazano ročište (sud tiho nestaje iz radne liste), a pad čitanja
+    # `predmet_dokazi` OTVARAO lažnu kritičnu „Nema uploadovanih dokaza" (pa i obaveštenje).
+    # Sada se izuzetak podiže: posledica se beleži kao neuspela i Event Bus je ponavlja
+    # (MAX_DISPATCH_ATTEMPTS, pa vidljiv DEAD_LETTER) — nijedna akcija se ne menja na osnovu
+    # delimičnih podataka. Direktni pozivaoci (predmeti_close) već hvataju izuzetak i loguju.
+    for _ime, _rez in (("predmet_dokazi", dokazi_r), ("predmet_dokumenti", dok_r), ("rocista", rok_r)):
+        if isinstance(_rez, Exception):
+            raise RuntimeError(
+                f"case_actions reconcile: izvor '{_ime}' nije pročitan za predmet={predmet_id} — "
+                f"akcije se ne menjaju na osnovu delimičnih podataka"
+            ) from _rez
+    dokazi = (dokazi_r.data or [])
+    dok_data = (dok_r.data or [])
+    rok_data = (rok_r.data or [])
 
     from services.risk_engine import calculate_procesni_rizik, identify_case_problems
     from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS
