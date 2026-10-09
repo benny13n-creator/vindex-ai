@@ -1622,14 +1622,14 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
     """Izvori jednog predmeta za V2 ugovor. Vlasništvo se proverava PRVO; svi ostali
     upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini)."""
     predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
-    from services.v2_projection import ucitaj_v2_kontradikcije
+    from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz
     dok_r, dz_r, kon_r, ist_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
                           .select("id,naziv_fajla,redni_broj,tip_dokaza,status,klasifikovan_at,ai_tags,created_at")
                           .eq("predmet_id", predmet_id).eq("user_id", uid).order("redni_broj")
                           .limit(_ZP_MAKS_REDOVA).execute()),
         _zp_dokazi(supa, predmet_id, uid),
-        ucitaj_v2_kontradikcije(supa, predmet_id),
+        ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id),
         asyncio.to_thread(lambda: supa.table("predmet_genome_history")
                           .select("verzija,created_at").eq("predmet_id", predmet_id).eq("user_id", uid)
                           .order("verzija", desc=True).limit(1).execute()),
@@ -1665,13 +1665,17 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
 
 def sastavi_zivi_predmet(izv: dict) -> dict:
     from shared.evidence_graph import sastavi_graf
-    from shared.genome_contract import sastavi
+    from shared.genome_contract import sastavi, sastavi_kontradikcije
     ugovor = sastavi(predmet=izv["predmet"], case_dna=izv["case_dna"], dokumenti=izv["dokumenti"],
                      dokazi=izv["dokazi"], izvori=izv["izvori"], osvezeno=izv["osvezeno"])
     legacy = len((izv["case_dna"] or {}).get("kontradikcije") or []) if isinstance(izv["case_dna"], dict) else 0
+    v2 = izv["v2_kontradikcije"]
+    # Protivrečnost po tvrdnji = samo AKTIVNE (OPEN) V2 kontradikcije; zatvorene su istorija.
     ugovor["dokazi"] = sastavi_graf(dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
-                                    v2_kontradikcije=izv["v2_kontradikcije"], izvori=izv["izvori"],
-                                    legacy_kontradikcija=legacy)
+                                    v2_kontradikcije=None if v2 is None else [k for k in v2 if k.get("state") == "OPEN"],
+                                    izvori=izv["izvori"], legacy_kontradikcija=legacy)
+    ugovor["kontradikcije"] = sastavi_kontradikcije(v2=v2, case_dna=izv["case_dna"], dokazi=izv["dokazi"],
+                                                    dokumenti=izv["dokumenti"], izvori=izv["izvori"])
     ugovor["metapodaci"]["skraceno"] = izv["skraceno"]
     return ugovor
 

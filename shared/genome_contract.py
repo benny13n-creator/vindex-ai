@@ -126,22 +126,22 @@ class Razresavac:
         return None
 
     def lokacija(self, tekst: Any, polje: str) -> dict:
-        """`"DOK-NN str.X"` → `{dokument_id, strana, oznaka}`. Strana je ono što je model
-        naveo (nije proverena), i to samo ako je ceo broj."""
+        """`"DOK-NN str.X"` → `{dokument_id, strana_po_analizi, oznaka}`. Strana je ono što je
+        model naveo (NIJE proverena — zato i ime polja), i to samo ako je ceo broj."""
         oznaka = _tekst(tekst, 200)
         if not oznaka:
-            return {"dokument_id": None, "strana": None, "oznaka": None}
+            return {"dokument_id": None, "strana_po_analizi": None, "oznaka": None}
         m = _DOK.search(oznaka)
         if not m:
             self.nerazreseno.append({"polje": polje, "razlog": "lokacija bez DOK-NN oznake"})
-            return {"dokument_id": None, "strana": None, "oznaka": oznaka}
+            return {"dokument_id": None, "strana_po_analizi": None, "oznaka": oznaka}
         kandidati = self.po_rb.get(int(m.group(1)), [])
         if len(kandidati) != 1:
             self.nerazreseno.append({"polje": polje, "razlog": f"DOK-{int(m.group(1)):02d} ne odgovara tačno jednom dokumentu ovog predmeta"})
         strana = m.group(2)
         strana_br = int(strana) if strana and strana.rstrip(".,;").isdigit() and int(strana.rstrip(".,;")) > 0 else None
         return {"dokument_id": kandidati[0] if len(kandidati) == 1 else None,
-                "strana": strana_br, "oznaka": oznaka}
+                "strana_po_analizi": strana_br, "oznaka": oznaka}
 
 
 def _datum(v: Any) -> Optional[str]:
@@ -202,7 +202,9 @@ def tvrdnja_u_stavku(red: dict, raz: Razresavac) -> dict:
     dok_id = raz.dokument_id(red.get("dokument_id"), "tvrdnja.dokument_id") if red.get("dokument_id") else None
     lokacija = None
     if dok_id and red.get("start_offset") is not None:
-        lokacija = {"dokument_id": dok_id, "strana": red.get("stranica"), "paragraf": red.get("paragraf"),
+        # `stranica` je PROCENA (shared/evidence_write.py::lociraj_tvrdnju: offset // 2500 + 1),
+        # ne stvarna strana dokumenta — zato se tako i zove.
+        lokacija = {"dokument_id": dok_id, "strana_procena": red.get("stranica"), "paragraf": red.get("paragraf"),
                     "start": red.get("start_offset"), "kraj": red.get("end_offset"),
                     "nacin": red.get("nacin_pronalaska")}
     return _stavka("tvrdnja", poreklo, _tekst(red.get("tvrdnja")), id_=str(red["id"]),
@@ -487,4 +489,117 @@ def sastavi(*, predmet: dict, case_dna: Optional[dict], dokumenti: Optional[list
         },
         **sekcije,
         "nesigurnost": nes,
+    }
+
+
+# ── Kontradikcije (NS006 Task 5) ──────────────────────────────────────────────
+#
+# Izvor istine je PERZISTIRANA V2 kontradikcija (migracije 119–125): sporna tačka
+# (`predmet_issues`), relacija, stanje i članovi = trajni `predmet_dokazi.id`. Identitet
+# odlučuje domen (shared/issue_v2.py) pri upisu; ovde se samo prikazuje.
+#
+# Isto pravilo „ili-ili" kao Case Actions (services/case_evolution.py, A015): ako predmet
+# ima OTVORENE V2 kontradikcije, aktivne su one; inače su aktivne kontradikcije iz analize
+# (`case_dna.kontradikcije`) — kao AI_ANALYSIS, BEZ tvrdnji (CLAIM oznake su efemerne) i
+# sa dokumentima samo ako se zatvoreno razreše. Zatvorene V2 kontradikcije su istorija.
+
+STANJE_KONTRADIKCIJE = {
+    "OPEN": "AKTIVNA",
+    "REVIEW_REQUIRED": "ZA_PREGLED",
+    "RESOLVED": "RAZRESENA",
+    "NOT_OBSERVED": "VISE_SE_NE_OPAZA",
+    "SUPERSEDED": "ZAMENJENA",
+}
+_RELACIJE = {"cinjenica_cinjenica", "cinjenica_norma"}
+_TEZINE = {"kriticna", "vazna", "manja"}
+
+
+def _ucesnik(clan: dict, dokazi_po_id: dict, raz: Razresavac) -> dict:
+    red = dokazi_po_id.get(str(clan.get("dokaz_id")))
+    if not red:
+        # Član postoji u V2, ali tvrdnja nije među pročitanim (obrisana ili van granice čitanja).
+        return {"tvrdnja_id": str(clan.get("dokaz_id")), "tvrdnja": None, "poreklo": UNKNOWN,
+                "dokument_id": None, "lokacija": None, "uklonjen": bool(clan.get("uklonjen")),
+                "nepoznato": "tvrdnja nije dostupna"}
+    s = tvrdnja_u_stavku(red, raz)
+    return {"tvrdnja_id": s["id"], "tvrdnja": s["vrednost"], "poreklo": s["poreklo"],
+            "dokument_id": s["dokument_id"], "lokacija": s["lokacija"], "uklonjen": bool(clan.get("uklonjen"))}
+
+
+def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokazi: Optional[list],
+                          dokumenti: Optional[list], izvori: Optional[dict] = None) -> dict:
+    izvori = dict(izvori or {})
+    if v2 is None or izvori.get("kontradikcije", "OK") != "OK":
+        return {"stanje": DEGRADIRANO, "izvor": None, "aktivne": [], "za_pregled": [], "zatvorene": [],
+                "sazetak": None, "razlog": "Kontradikcije nisu pročitane."}
+    raz = Razresavac(dokumenti if izvori.get("dokumenti", "OK") == "OK" else [])
+    po_id = {str(d["id"]): d for d in (dokazi or []) if isinstance(d, dict) and d.get("id")}
+
+    def _v2_stavka(k: dict) -> dict:
+        ucesnici = [_ucesnik(c, po_id, raz) for c in (k.get("clanovi") or [])]
+        aktivni = [u for u in ucesnici if not u["uklonjen"]]
+        dok_ids = sorted({u["dokument_id"] for u in aktivni if u["dokument_id"]})
+        relacija = k.get("relation_type") if k.get("relation_type") in _RELACIJE else None
+        return {
+            "id": str(k["id"]), "id_vrsta": "izvor", "poreklo": AI_ANALYSIS, "reference_proverene": True,
+            "sporna_tacka": _tekst(k.get("issue_label"), 300), "sporna_tacka_id": str(k.get("issue_id") or ""),
+            "relacija": relacija, "tezina": k.get("tezina") if k.get("tezina") in _TEZINE else None,
+            "stanje": STANJE_KONTRADIKCIJE.get(k.get("state"), UNKNOWN), "razlog_stanja": _tekst(k.get("state_reason"), 300),
+            "ucesnici": aktivni, "povuceni_ucesnici": len(ucesnici) - len(aktivni),
+            "dokumenti": dok_ids,
+            "bez_izvora": [u["tvrdnja_id"] for u in aktivni if not u["dokument_id"]],
+            "nastala": k.get("created_at"), "promenjena": k.get("updated_at"),
+        }
+
+    v2_stavke = [_v2_stavka(k) for k in sorted(v2, key=lambda x: str(x.get("id")))]
+    aktivne_v2 = [s for s in v2_stavke if s["stanje"] == "AKTIVNA"]
+    za_pregled = [s for s in v2_stavke if s["stanje"] == "ZA_PREGLED"]
+    zatvorene = [s for s in v2_stavke if s["stanje"] not in ("AKTIVNA", "ZA_PREGLED")]
+
+    legacy_sirove = (case_dna or {}).get("kontradikcije") if isinstance(case_dna, dict) and "greska" not in (case_dna or {}) else None
+    legacy = []
+    if not aktivne_v2 and isinstance(legacy_sirove, list):
+        for i, k in enumerate(legacy_sirove):
+            if not isinstance(k, dict):
+                continue
+            tacka = _tekst(k.get("issue_label"), 300) or _tekst(k.get("opis"), 300)
+            if not tacka:
+                continue
+            strane = []
+            for lok_polje, id_polje in (("lokacija_1", "dokument_id_1"), ("lokacija_2", "dokument_id_2")):
+                lok = raz.lokacija(k.get(lok_polje), f"kontradikcije[{i}].{lok_polje}") if k.get(lok_polje) else \
+                    {"dokument_id": None, "strana_po_analizi": None, "oznaka": None}
+                upisan = raz.dokument_id(k.get(id_polje), f"kontradikcije[{i}].{id_polje}") if k.get(id_polje) else None
+                # Upisani id (A002, razrešen pri upisu) ima prednost samo ako se SLAŽE sa oznakom ili oznake nema.
+                if upisan and lok["dokument_id"] and upisan != lok["dokument_id"]:
+                    lok = {**lok, "dokument_id": None, "neslaganje": True}
+                elif upisan and not lok["dokument_id"]:
+                    lok = {**lok, "dokument_id": upisan}
+                strane.append(lok)
+            relacija = k.get("relation_type") if k.get("relation_type") in _RELACIJE else None
+            legacy.append({
+                "id": kljuc_sadrzaja("kontradikcija.analiza", tacka, k.get("lokacija_1"), k.get("lokacija_2")),
+                "id_vrsta": "sadrzaj", "poreklo": AI_ANALYSIS, "reference_proverene": False,
+                "sporna_tacka": tacka, "opis": _tekst(k.get("opis"), 1200), "relacija": relacija,
+                "tezina": k.get("tezina") if k.get("tezina") in _TEZINE else None,
+                "stanje": "NEPOTVRDJENA_TVRDNJAMA", "ucesnici": [],
+                "lokacije": strane, "dokumenti": sorted({s["dokument_id"] for s in strane if s["dokument_id"]}),
+                "napomena": "Analiza navodi ovu kontradikciju, ali ona nije vezana za tvrdnje predmeta.",
+            })
+
+    izvor = "v2" if aktivne_v2 else ("analiza" if legacy else ("v2" if v2_stavke else None))
+    aktivne = aktivne_v2 if aktivne_v2 else legacy
+    sve = aktivne + za_pregled + zatvorene
+    return {
+        "stanje": OK if sve else PRAZNO,
+        "izvor": izvor,
+        "aktivne": aktivne,
+        "za_pregled": za_pregled,
+        "zatvorene": zatvorene,
+        "nerazresene_reference": raz.nerazreseno[:20],
+        "sazetak": {
+            "aktivnih": len(aktivne), "za_pregled": len(za_pregled), "zatvorenih": len(zatvorene),
+            "kriticnih_aktivnih": sum(1 for s in aktivne if s["tezina"] == "kriticna"),
+            "aktivnih_bez_veze_na_tvrdnje": sum(1 for s in aktivne if not s["reference_proverene"]),
+        },
     }

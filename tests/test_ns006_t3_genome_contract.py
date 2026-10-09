@@ -107,7 +107,7 @@ def test_poreklo_tvrdnji():
 def test_nepoznata_dok_referenca_se_ne_vezuje():
     a = _ugovor()
     nt = next(s for s in a["strategija"]["stavke"] if s["vrsta"] == "najslabija_tacka")
-    assert nt["lokacija"]["dokument_id"] == D1 and nt["lokacija"]["strana"] is None, "str.x nije broj strane"
+    assert nt["lokacija"]["dokument_id"] == D1 and nt["lokacija"]["strana_po_analizi"] is None, "str.x nije broj strane"
     raz = gc.Razresavac(DOKUMENTI)
     assert raz.lokacija("DOK-07 str.1", "t")["dokument_id"] is None
     assert raz.lokacija("DOK-02", "t")["dokument_id"] == D2

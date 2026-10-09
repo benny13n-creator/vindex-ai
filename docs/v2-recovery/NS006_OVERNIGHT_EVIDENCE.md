@@ -375,3 +375,57 @@ lokacija; V9 autor odbačen na svaku grešku.
 na 500 tvrdnji i 500 dokumenata (`metapodaci.skraceno`). Prikaz samo OTVORENIH V2 kontradikcija (Task 5 proširuje).
 
 **SLEDEĆA KAPIJA.** Task 5 — profesionalne kontradikcije.
+
+---
+
+## TASK 5 — PROFESIONALNE KONTRADIKCIJE
+
+**PROBLEM.** V2 nema prikaz kontradikcija; analiza ih daje kao slobodan tekst sa efemernim oznakama.
+
+**TRENUTNI DOKAZ.** (PROVEN) Kanonski identitet već postoji: `shared/contradiction_materializer.py` (CLAIM → UUID,
+fail-closed) + `shared/issue_v2.py` (identitet po skupu tvrdnji i tipu relacije, kontinuitet sadržavanjem) +
+perzistencija 119–125 (stanja OPEN/REVIEW_REQUIRED/RESOLVED/NOT_OBSERVED/SUPERSEDED; zatvaranje neopaženih kroz
+`NOT_OBSERVED` pri kompletnom opažanju, A016.2B). `stranica` tvrdnje je PROCENA (`offset // 2500 + 1`).
+
+**POKUŠAJ OPOVRGAVANJA.** (1) Da li postojeći domen zaista daje 2 tačke za isti par dokumenata? Izvršeno kroz
+`materializuj` + `razresi_paket`: DA (dva različita skupa tvrdnji → 2× NEW_ISSUE). (2) Tri tvrdnje o istoj tački →
+1 sa 3 člana: DA. (3) Nova tvrdnja koja pojačava tačku → ISTA tačka: `razresi_kontinuitet` → CONTINUATION, isti
+`issue_id`. (4) `CLAIM-999` → UNRESOLVED_CLAIM_REF. Nijedan nov mehanizam identiteta nije potreban.
+**Pronađen sopstveni propust (Task 3):** ugovor je prikazivao procenu kao `strana` — preimenovano u `strana_procena`
+(tvrdnja) i `strana_po_analizi` (navod modela).
+
+**ODLUKA.** Prikaz nad perzistiranim V2 stanjem; isto „ili-ili" pravilo kao Case Actions (A015): otvorene V2 → aktivne
+su one; inače aktivne su kontradikcije iz analize, kao AI_ANALYSIS bez tvrdnji (`NEPOTVRDJENA_TVRDNJAMA`), sa
+dokumentom samo ako se `DOK-NN` zatvoreno razreši i SLAŽE sa upisanim `dokument_id` (neslaganje → `null` +
+`neslaganje: true`). Zatvorene V2 kontradikcije su istorija (`zatvorene`), za pregled odvojeno (`za_pregled`).
+
+**IMPLEMENTACIJA.** `services/v2_projection.py::ucitaj_v2_kontradikcije_za_prikaz` (nova funkcija čitanja, sva
+stanja + razlog + vremena + svi članovi; postojeća `ucitaj_v2_kontradikcije` za Case Actions NEPROMENJENA);
+`shared/genome_contract.py::sastavi_kontradikcije`; ruta `genome-v2` dobija sekciju `kontradikcije`, a graf dokaza
+dobija samo OPEN kao protivrečnost tvrdnje.
+
+**SVAKA KONTRADIKCIJA.** jedna `sporna_tacka`, `relacija`, `tezina` (samo iz skupa), `stanje` (AKTIVNA / ZA_PREGLED /
+RAZRESENA / VISE_SE_NE_OPAZA / ZAMENJENA), `ucesnici` (tvrdnja, poreklo, dokument, lokacija sa `strana_procena`),
+`povuceni_ucesnici`, `dokumenti`, `bez_izvora` (učesnici bez dokumenta — vidljivo, ne pogođeno).
+
+**FAJLOVI.** `services/v2_projection.py`, `shared/genome_contract.py`, `routers/case_dna.py`,
+`tests/test_ns006_t3_genome_contract.py` (preimenovano polje), `tests/test_ns006_t5_contradictions.py`.
+
+**TESTOVI.** 9/9 (4 kroz stvarni domen identiteta, 5 kroz rutu). Regresija: svi NS006 testovi + A-serija
+(`test_a00*`, `test_a01*`, `test_contradiction_v2_domain`, `test_case_dna*`) → 532 passed, 1 skipped.
+
+**TENANT.** Čitanje kontradikcija ide tek posle provere vlasništva nad predmetom (Task 4 ruta); V2 tabele su
+ograničene na `predmet_issues.predmet_id`.
+
+**FAILURE.** Pad čitanja kontradikcija → `DEGRADED`, `sazetak: null` (ne „0 kontradikcija").
+
+**MUTACIJE (8/8 ubijeno).** K1 (#15 iz mandata) učesnik bez izvora vezan za pogođen dokument; K2 zatvorena
+prikazana kao aktivna; K3 CLAIM oznake prenete; K4 analiza ima prednost nad V2; K5 nevažeća težina; K6 nepročitano
+kao prazno; K7 procena nazvana „strana"; K8 neslaganje oznake i upisanog id-a razrešeno u korist upisanog.
+Napomena: K4 je prvi put „preživela" zbog greške u MOM mutacionom alatu (dve izmene istog fajla su se pregazile) —
+alat ispravljen, mutacija ponovljena i ubijena. K8 je preživela zbog praznine u testu — test dopunjen.
+
+**OGRANIČENJA.** `RESOLVED` u V2 i dalje nema pisca (postojeće, A016.2B); prikaz ga podržava kad nastane. Kontradikcije
+iz analize bez veze na tvrdnje ne mogu imati učesnike.
+
+**SLEDEĆA KAPIJA.** Task 6 — verzije Genome-a i deterministička razlika.
