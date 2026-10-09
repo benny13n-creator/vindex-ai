@@ -212,9 +212,15 @@ class _Upit:
             if "(" in d:
                 ime, kol = d.split("(", 1)
                 ime, kol = ime.strip(), [x.strip() for x in kol.rstrip(")").split(",")]
-                kljuc = r.get("predmet_id") if ime == "predmeti" else r.get(ime.rstrip("i") + "_id")
+                strani = {"predmeti": "predmet_id", "kancelarije": "kancelarija_id"}.get(ime, ime.rstrip("i") + "_id")
+                kljuc = r.get(strani)
                 povezan = next((x for x in self.b.tabele.get(ime, []) if x.get("id") == kljuc), None)
-                out[ime] = {c: povezan.get(c) for c in kol} if povezan else None
+                if povezan is None:
+                    out[ime] = None
+                elif kol == ["*"]:
+                    out[ime] = copy.deepcopy(povezan)
+                else:
+                    out[ime] = {c: povezan.get(c) for c in kol}
             elif d == "*":
                 out.update(r)
             else:

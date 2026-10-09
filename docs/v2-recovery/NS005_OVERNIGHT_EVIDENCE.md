@@ -98,3 +98,17 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - KNOWN LIMITATIONS: tekst nacrta na overi ne vraća lista overe (samo metapodaci) — ne može se pregledati iz liste; katalog sudova sa servera sadrži grešku u kucanju („Osnovi sud u Beogradu") — prikazuje se doslovno (podatak backend-a); šabloni dokumenata (CAP-062) nisu u ovom zadatku.
 - LEVEL: Tasks 1–8 zatvoreni → **LEVEL C — CORE VINDEX RESTORED**.
 - NEXT GATE: Task 9 — Kancelarija.
+
+## TASK 9 — OFFICE CORE: TEAM + PORTFOLIO + HEALTH (CAP-091, 090, 095) — PROVEN
+- FILES: `src/kancelarija.js` (nov), `src/app.js` (ruta `#/kancelarija`, „Kancelarija" postaje stvaran link u LIVE; aktivna stavka navigacije uopštena za Znanje/Kancelariju), `src/api.js` (+ tačno `/portfolio/dashboard`), `index.html`, `src/app.css`, `tests/live-kancelarija.mjs`, `tests/live-primary-e2e.mjs` (P3: „Predmeti, Znanje, Kancelarija"), fixture `api-fixture.mjs` (+`/portfolio/dashboard`), `pisanje-api.mjs` (+kancelarija), `tests/ns005_harness.py` (ugnježđeno `kancelarije(*)`), `tests/test_ns005_t9_kancelarija.py`.
+- **BACKEND FIXES (dokazani kvarovi, najmanje izmene, autorizacija nepromenjena; svaki ima regresioni test i mutaciju koja ga vraća → test pada):**
+  1. `routers/kancelarija.py::moja_kancelarija` — svaka greška je vraćala `{"status": "no_firma"}` (pad baze = „nemate kancelariju"). Sada 503.
+  2. `routers/portfolio.py::portfolio_dashboard` — `return_exceptions=True` je pretvarao pad u praznu listu, a sažetak je tada govorio „Sve je pod kontrolom — nema hitnih rokova" (lažno umirenje o ROKOVIMA). Sada 503 ako bilo koji izvor padne.
+  3. `routers/health_index.py::_compute_health` — isti obrazac (8 upita) → ocena izračunata nad nepročitanim podacima. Sada 503 ako bilo koji izvor padne.
+  Postojeći testovi ovih modula (portfolio, z017/z0172 domen, 137 health-index testova) — zeleni.
+- ENDPOINTS: `GET /api/kancelarija/moja`, `GET /portfolio/dashboard`, `GET /api/firm/health-index` (samo na zahtev — troši kredit).
+- GRANICE: tim = sopstvena kancelarija (admin ili ACTIVE član); druga kancelarija nevidljiva (test); portfolio i indeks su po KORISNIKU (tako rade rute — ne po kancelariji); prikazuje se samo deterministički deo indeksa (ocena, slovo, komponente) — BEZ AI „direktive partnera", slabih signala, institucionalnih rizika, serverske boje i sažetka sa ikonicama; upravljanje članstvom nije izloženo.
+- TESTS: backend 10/10; NG `verify:live-kancelarija` 20/20; svih 27 NG skripti zeleno; 1095 povezanih Python testova (kancelarija/portfolio/health) zeleno.
+- ADVERSARIAL: 8/8 ubijeno — greška tima kao „niste član"; greška portfolija kao nule; indeks automatski (kredit); AI direktiva prikazana; zastareli portfolio (generacija+abort); vraćen lažni `no_firma` (backend); vraćene tihe nule u portfoliju (backend); vraćena ocena nad nepročitanim podacima (backend).
+- KNOWN LIMITATIONS: legacy i `/app-v2` sada dobijaju 503 umesto lažnog praznog stanja za ove tri rute (poštenije, ali vidljivo drugačije); poziv indeksa i dalje pokreće AI direktivu na serveru (trošak) iako je V2 ne prikazuje.
+- NEXT GATE: Task 10 — naplata.

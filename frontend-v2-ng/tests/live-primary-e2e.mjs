@@ -106,9 +106,9 @@ for (const adresa of ["/app", "/app?rezim=demo", "/app?rezim=nesto"]) {
   await cekaj(o.p, () => document.querySelectorAll("#rows tr").length > 0);
   const e = await ekran(o.p);
   zapisi("P3.primarni", "stvarni predmeti korisnika A (12), LIVE", e.redovi === 12 && e.stanje === "registar" && !DEMO.test(e.tekst), `${e.redovi}`);
-  // NS005 Task 7: „Znanje“ je kompletan, testiran modul (tests/live-znanje.mjs) pa je u navigaciji;
+  // NS005 Task 7/9: „Znanje“ i „Kancelarija“ su kompletni, testirani moduli (live-znanje, live-kancelarija);
   // ostali nedovršeni moduli i dalje su uklonjeni.
-  zapisi("P3.primarni", "navigacija: „Predmeti“ i „Znanje“ (nedovršeni moduli su uklonjeni)", JSON.stringify(e.moduli) === JSON.stringify(["Predmeti", "Znanje"]), e.moduli.join(","));
+  zapisi("P3.primarni", "navigacija: „Predmeti“, „Znanje“ i „Kancelarija“ (nedovršeni moduli su uklonjeni)", JSON.stringify(e.moduli) === JSON.stringify(["Predmeti", "Znanje", "Kancelarija"]), e.moduli.join(","));
   zapisi("P3.primarni", "bez panela „Zahteva pažnju“, demo značke i „Demo nalog“", !e.panel && !e.panelDugme && !e.znacka && !e.nalog);
   zapisi("P3.primarni", "odjava vodi kroz postojeću odjavu (/app-legacy?odjava=1)", e.odjava === "/app-legacy?odjava=1", String(e.odjava));
   for (const sel of [".sidenav__item", "#nav-collapse", ".wordmark"]) await o.p.click(sel).catch(() => {});

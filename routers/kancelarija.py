@@ -210,7 +210,10 @@ async def moja_kancelarija(
         return await asyncio.to_thread(_fetch)
     except Exception as exc:
         logger.warning("[KANCELARIJA] moja_kancelarija greška: %s", exc)
-        return {"status": "no_firma"}
+        # NS005: pad čitanja NIJE „nema kancelarije". Ranije je svaka greška (baza,
+        # mreža) vraćala {"status": "no_firma"}, pa je klijent prikazivao da korisnik
+        # nema kancelariju. Sada je to strukturisana greška; autorizacija se ne menja.
+        raise HTTPException(status_code=503, detail="Podaci o kancelariji trenutno nisu dostupni.")
 
 
 @router.post("/api/kancelarija/kreiraj", status_code=status.HTTP_201_CREATED)

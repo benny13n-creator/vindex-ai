@@ -11,7 +11,7 @@ import asyncio
 import logging
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
@@ -66,6 +66,16 @@ async def portfolio_dashboard(
             .execute()),
         return_exceptions=True,
     )
+
+    # NS005: pad bilo kog izvora NIJE prazan portfolio. Ranije se izuzetak tiho
+    # pretvarao u praznu listu, pa je pad upita za rokove davao sažetak „Sve je pod
+    # kontrolom — nema hitnih rokova" — lažno umirenje o rokovima. Sada je to greška.
+    _neuspeli = [ime for ime, r in (("predmeti", predmeti_r), ("rokovi", rokovi_r),
+                                    ("hronologija", hron_recent_r), ("beleske", bel_recent_r))
+                 if isinstance(r, Exception)]
+    if _neuspeli:
+        logger.warning("[PORTFOLIO] izvori nisu pročitani: %s", _neuspeli)
+        raise HTTPException(status_code=503, detail="Pregled portfolija trenutno nije dostupan.")
 
     predmeti     = predmeti_r.data if not isinstance(predmeti_r, Exception) and predmeti_r.data else []
     rokovi       = rokovi_r.data if not isinstance(rokovi_r, Exception) and rokovi_r.data else []

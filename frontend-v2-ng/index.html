@@ -169,6 +169,37 @@
         </div>
       </section>
 
+      <!-- Kancelarija (samo LIVE, NS005). Puni src/kancelarija.js. -->
+      <section class="matter" id="kancelarija-pogled" hidden aria-labelledby="ka-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="ka-naslov" tabindex="-1">Kancelarija</h1>
+          <p class="matter__ref">Tim, portfolio vaših predmeta i indeks zdravlja.</p>
+        </div>
+        <div class="matter__body">
+          <section class="matter__section matter__section--first" aria-labelledby="ka-tim-naslov">
+            <h2 class="matter__h2" id="ka-tim-naslov">Tim</h2>
+            <p class="answer__question" id="ka-firma"></p>
+            <p class="field__help" id="ka-uloga"></p>
+            <p class="list-state" id="ka-tim-stanje" role="status" hidden></p>
+            <ul class="people" id="ka-tim-lista" aria-label="Članovi kancelarije"></ul>
+          </section>
+          <section class="matter__section" aria-labelledby="ka-portfolio-naslov">
+            <h2 class="matter__h2" id="ka-portfolio-naslov">Portfolio</h2>
+            <p class="list-state" id="ka-portfolio-stanje" role="status" hidden></p>
+            <div id="ka-portfolio"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="ka-zdravlje-naslov">
+            <div class="section-head">
+              <h2 class="matter__h2" id="ka-zdravlje-naslov">Zdravlje kancelarije</h2>
+              <button class="text-btn text-btn--line" id="ka-zdravlje-dugme" type="button">Izračunaj indeks</button>
+            </div>
+            <p class="field__help">Indeks od 0 do 100 računa program iz rokova, dokaza, naplate i aktivnosti vaših predmeta. Izračunavanje troši kredit.</p>
+            <p class="list-state" id="ka-zdravlje-stanje" role="status" hidden></p>
+            <div id="ka-zdravlje"></div>
+          </section>
+        </div>
+      </section>
+
       <!-- Znanje (samo LIVE, NS005). Puni src/znanje.js. -->
       <section class="matter" id="znanje-pogled" hidden aria-labelledby="zn-naslov">
         <div class="matter__head">
@@ -477,6 +508,7 @@
   <script src="src/pitanje-predmeta.js"></script>
   <script src="src/znanje.js"></script>
   <script src="src/nacrt-predmeta.js"></script>
+  <script src="src/kancelarija.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

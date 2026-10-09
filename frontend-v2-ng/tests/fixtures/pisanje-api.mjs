@@ -391,3 +391,29 @@ export function nacrtRuta(korisnici, kuke = {}) {
     json(res, 404, {}); return true;
   };
 }
+
+/* ── Kancelarija: /api/kancelarija/moja, /portfolio/dashboard, /api/firm/health-index ──
+ * k.kancelarija = odgovor za /moja tog korisnika (ili {status:"no_firma"}); portfolio i
+ * indeks se računaju nad k.predmeti (samo vlasnik). kuke.pre(put) za greške. */
+export function kancelarijaRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    const p = url.pathname;
+    if (!["/api/kancelarija/moja", "/portfolio/dashboard", "/api/firm/health-index"].includes(p) || req.method !== "GET") return false;
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, p, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    (kuke.upisano || (() => {}))(p);
+    if (p === "/api/kancelarija/moja") { json(res, 200, k.kancelarija || { status: "no_firma" }); return true; }
+    const moji = k.predmeti.filter(x => x.user_id === k.id);
+    if (p === "/portfolio/dashboard") {
+      json(res, 200, { ukupno_predmeta: moji.length, ukupno_aktivnih: moji.filter(x => x.status === "aktivan").length, po_statusu: {}, po_tipu: {},
+        rokovi_7_dana: k.rokovi || [], rokovi_14_dana: k.rokovi || [], hitni_rokovi: (k.rokovi || []).filter(r => r.vaznost === "kritičan"),
+        neaktivni_30_dana: moji.slice(0, 1).map(x => ({ predmet_id: x.id, naziv: x.naziv, poslednja_izmena: "2026-08-01" })),
+        summary: "⚠ 1 HITNIH rokova odmah!" });
+      return true;
+    }
+    json(res, 200, { score: 72, grade: "B+", color: "#fbbf24", components: [{ label: "Rokovi i ročišta", score: 15, max: 20 }, { label: "Naplata", score: 12, max: 20 }],
+      n_aktivni: moji.length, n_zatvoreni: 0, chief_partner: "AI DIREKTIVA PARTNERA", weak_signals: ["SLAB SIGNAL"], inst_risks: [], iz_kesa: false });
+    return true;
+  };
+}
