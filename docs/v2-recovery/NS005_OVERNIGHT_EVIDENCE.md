@@ -183,3 +183,29 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
   - VISUAL: demo-otisak nepromenjen; live-matrix 152; brand 335; 390/1024 bez horizontalnog skrola u svakom novom paketu.
 - LEGACY FALLBACK: `e2e:primary` — odjava vodi na `/app-legacy?odjava=1`; legacy rute nisu dirane; `api.py`/`main.py` bajt-identični `main`-u. NO DEMO: `e2e:primary` (bez demo značke/„Demo nalog“), svi LIVE paketi proveravaju odsustvo demo sadržaja.
 - ZAHTEVI U PRIMARNOM V2: pre NS005 3 GET rute → posle 39 parova ruta+metod (18 GET, 21 upis POST/PATCH; 0 DELETE).
+
+## CLOSURE GATE A — POST IDEMPOTENCY FORENSIC — DUPLIKAT REPRODUKOVAN (STOP, odluka foundera)
+- PRODUKCIONA TOPOLOGIJA (izmereno jednim read-only HEAD zahtevom na javnu početnu stranu): browser ↔ **Cloudflare preko HTTP/2** (ALPN `h2`, nudi i `h3`) ↔ Render ↔ `uvicorn` (`x-render-origin-server: uvicorn`; `Dockerfile` CMD = jedan uvicorn proces). Broj Render instanci: UNKNOWN (nije u repou; Render se ne dira).
+- LOKALNA REPRODUKCIJA (scratchpad, ništa u repou): stvaran Chromium + stvaran `VxApi.send` → (a) direktno HTTP/1.1 ili (b) lokalni HTTP/2 TLS edge proksi u ulozi Cloudflare-a (502 na pad origin-a) → STVARAN `api.py` pod STVARNIM `uvicorn`-om (e2e harness, lažni Supabase). Beleženi SAMO broj dolazaka (metod + putanja), bez tela i tokena.
+- REZULTAT (isti za `/api/pitanje` i `POST /api/predmeti/{id}/beleske`; 1 fetch aplikacije u svakom redu):
+  - D1 direktno, normalno → 1 dolazak.
+  - D2 direktno h1, server OBRADI pa prekine vezu bez bajta odgovora → **2 dolaska** (raniji fixture nalaz potvrđen na pravom serveru).
+  - D3 direktno h1, trka sa istekom keep-alive (uvicorn 1 s, 40 pokušaja 940–1096 ms) → 40 fetch / 40 dolazaka, nikad > 1 (server zatvara pre čitanja — ponavljanje je tada ispravno).
+  - E1 h2 edge, normalno → 1.
+  - E2 h2 edge, origin obradi pa prekine vezu → 1 (edge vraća 502 → browser NE ponavlja; aplikacija: „ishod nepoznat“).
+  - E3 h2 edge, jedini uvicorn proces umre posle obrade → 1 (502).
+  - **E4 h2 edge, edge izgubi HTTP/2 sesiju ka browseru POSLE obrade na origin-u → 2 dolaska** — Chromium ponovo šalje POST novom sesijom. To je produkciona klasa (reset edge veze, promena mreže na telefonu), retka ali stvarna.
+- ZAKLJUČAK: duplikat NIJE artefakt harness-a. „Ishod nepoznat“ ne štiti od dvostrukog efekta na serveru. ZAKLJUČENO iz logike ruta: ponovljeni zahtev ne samo da duplira efekat nego aplikaciji vraća i POGREŠNU poruku (npr. drugi `timer/stop` → 404 „Nema aktivnog tajmera. Ništa nije upisano“ iako je stavka upisana; druga `faktura` → 409; drugi nov predmet istog naziva → 409).
+- POSTOJEĆI PRIMITIVI (pretraga koda i migracija): nijedan nije dokazano bezbedan kao opšti ključ protiv dvostrukog izvršavanja —
+  - memorija procesa: tačna samo ako postoji JEDNA instanca (Dockerfile: jedan proces po instanci; broj instanci UNKNOWN);
+  - Redis (`shared/rate.py`, Upstash): opcion (`REDIS_URL`), namerno fail-open, istorija prekoračene kvote → ne garantuje;
+  - `ai_cache` (`cache_key` PRIMARY KEY): šema postoji samo u komentaru u `main.py` (postojanje u produkciji UNKNOWN), i to je keš odgovora, ne evidencija upisa;
+  - `case_actions.dedupe_key`, idempotency ključ intake posla, `chain_anchors` guard: vezani za svoj domen.
+- PREDLOG (NIJE implementiran, čeka odluku):
+  - Klijent: `VxApi.send` šalje zaglavlje `Idempotency-Key` (nov UUID po korisničkoj radnji; Chromium-ov ponovni zahtev nosi ISTI ključ).
+  - Server: jedan middleware u `api.py` za POST/PATCH koji nose ključ (bez ključa = ponašanje kao danas, legacy netaknut). Prvi zahtev zauzima ključ (vlasnik iz tokena + ključ + metod + putanja + otisak tela), izvrši se, sačuva status i telo odgovora; ponovljen zahtev sa istim ključem dobija ISTI sačuvan odgovor bez ponovnog izvršavanja; isti ključ sa drugim telom → 422; dok je prvi u toku → čeka njegov odgovor.
+  - Skladište, opcija 1 (bez migracije): memorija procesa sa TTL-om — dovoljno AKO founder potvrdi da produkcija radi na JEDNOJ Render instanci (posle restarta ključevi nestaju, ali E3 pokazuje da tada ponovnog slanja ionako nema).
+  - Skladište, opcija 2 (migracija, traži odobrenje): nova tabela `idempotency_keys` — kolone: `user_id` (uuid), `idem_key` (uuid), `method`, `path`, `body_sha256`, `status` (`in_progress`|`done`), `http_status`, `response` (jsonb), `created_at`, `expires_at` (24 h); primarni ključ (`user_id`, `idem_key`); indeks po `expires_at`; RLS uključen bez politika (samo service_role). Zauzimanje = INSERT koji na sudar ključa daje 23505.
+  - Rute obuhvaćene (svih 21 V2 upisa): `/api/pitanje`, `/api/podnesak`, `POST/PATCH /api/predmeti[/{id}]`, `/api/predmeti/{id}/beleske`, `/api/predmeti/{id}/confirm-links`, `/klijenti`, `/api/rocista`, `/api/rokovi/{id}/potvrdi|odbij`, `/api/staging/{id}/approve|reject`, `/interni-stavovi/dodaj`, `/billing/entries`, `/billing/faktura`, `/billing/timer/start|stop`; POST-ovi koji samo čitaju (`/api/conflict-check`, `/api/praksa/search`, `/interni-stavovi/pretraga`, `/api/nacrti/export/docx`) dobijaju isto pravilo radi jednostavnosti (ponavljanje im ne šteti).
+- STATUS: Gate A NIJE zatvoren. Po pravilu kapije rad na funkcijama je stao; Gate B (OCR) i Gate C (završni dokaz) NISU započeti. Nijedan kod nije menjan; nijedna migracija nije napisana.
+- USPUT IZMERENO NA PR #7 (javni GitHub API, bez tokena): `secret-scan` (gitleaks) ✓, `sast-core`/`sast-full`/`semgrep-core`/`semgrep-full` ✓; `dependency-scan` (pip-audit) ✗ — isti korak pada i na `main` `51164c92`, NS005 ne dodaje zavisnosti; Production Runtime „Full test suite“ ✗ — pada i na `main` `51164c92` (Gate B uzrok po founderu: `tests/test_word_addin_taskpane.py`, nije još provereno ovde). Logovi CI poslova traže autentifikaciju (403) — nisu čitani.
