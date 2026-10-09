@@ -165,6 +165,9 @@ async def lista_radnih_proizvoda(request: Request, status: str = "READY_FOR_REVI
     try:
         r = await _a.to_thread(_upit)
     except Exception as e:
+        from routers.workspace import _nema_tabele
+        if _nema_tabele(e):   # kod pre migracije 136: mogućnost nije uključena — nije greška
+            return {"stavke": [], "ukupno": 0, "status": status, "stanje": "NIJE_UKLJUCENO"}
         _sentry_capture(e)
         logger.error("[AUTONOMY] lista nije pročitana uid=%.8s: %s", uid, type(e).__name__)
         raise HTTPException(status_code=503, detail="Pripremljeni rad trenutno nije dostupan.")
@@ -172,7 +175,7 @@ async def lista_radnih_proizvoda(request: Request, status: str = "READY_FOR_REVI
     nazivi = await _nazivi(supa, uid, sorted({str(s["predmet_id"]) for s in stavke}))
     for s in stavke:
         s["predmet_naziv"] = nazivi.get(str(s["predmet_id"]))
-    return {"stavke": stavke, "ukupno": len(stavke), "status": status}
+    return {"stavke": stavke, "ukupno": len(stavke), "status": status, "stanje": "OK"}
 
 
 async def _ucitaj_svoj(supa, uid: str, wid: str, kolone: str) -> dict:

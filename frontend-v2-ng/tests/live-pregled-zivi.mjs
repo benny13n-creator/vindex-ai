@@ -97,7 +97,7 @@ const ekran = (p) => p.evaluate(() => {
   };
 });
 const zahtevi = (s, re, metod) => s.f.zahtevi.filter(z => (!metod || z.metod === metod) && re.test(z.putanja));
-const DOZVOLJENO = /^\/api\/predmeti(\/[^/]+(\/(dokumenti|genome-v2\/promene))?)?$|^\/api\/case-actions\/predmeti\/[^/]+$/;
+const DOZVOLJENO = /^\/api\/predmeti(\/[^/]+(\/(dokumenti|genome-v2\/promene))?)?$|^\/api\/case-actions\/predmeti\/[^/]+$|^\/api\/autonomy\/work-items$/;   // NS007: + pripremljen rad predmeta
 
 // ── 1. Stvarno stanje predmeta ───────────────────────────────────────────────
 {
@@ -116,8 +116,9 @@ const DOZVOLJENO = /^\/api\/predmeti(\/[^/]+(\/(dokumenti|genome-v2\/promene))?)
   zapisi("sledece", "„Sledeći korak“ = prva radnja po kanonskom redosledu (prioritet, pa rok)", e.sledece.length === 1 && e.sledece[0][0] === prva.id, JSON.stringify(e.sledece));
   zapisi("istina", "ništa izmišljeno: svaka prikazana radnja postoji u odgovoru backend-a",
     [...e.paznja.map(x => x[1]), ...e.sledece.map(x => x[2])].every(t => AKCIJE_A.some(a => t.includes(a.razlog))));
-  zapisi("cena", "Pregled čita tačno promene + radnje (2 GET), ne pun Genome i ništa van ugovora",
+  zapisi("cena", "Pregled čita tačno promene + radnje + pripremljen rad (3 GET, NS007), ne pun Genome i ništa van ugovora",
     zahtevi(s, /genome-v2\/promene$/, "GET").length === 1 && zahtevi(s, /case-actions\/predmeti\//, "GET").length === 1 && zahtevi(s, /genome-v2$/).length === 0
+      && zahtevi(s, /^\/api\/autonomy\/work-items$/, "GET").length === 1
       && s.f.zahtevi.every(z => z.metod === "GET") && s.f.zahtevi.filter(z => z.putanja.startsWith("/api/")).every(z => DOZVOLJENO.test(z.putanja)),
     s.f.zahtevi.map(z => z.metod + " " + z.putanja).join(","));
   await s.p.click("#tab-analiza"); await cekaj(s.p, () => !document.getElementById("odeljak-analiza").hidden);

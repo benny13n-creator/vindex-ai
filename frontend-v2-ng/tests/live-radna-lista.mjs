@@ -99,7 +99,7 @@ const PREGLED = { vrsta: "review", id: "job-1", predmet_id: PA, predmet_naziv: "
   const s = await scenario();
   zapisi("prikaz", "Danas prikazuje radnu listu iz table", await gotovo(s.p));
   const e = await ekran(s.p);
-  zapisi("prikaz", "„Radna lista“ je iznad Obaveza (prvo šta traži rad)", e.redosled[0] === "Radna lista" && e.redosled[1] === "Obaveze", e.redosled.join(","));
+  zapisi("prikaz", "„Radna lista“ je iznad Obaveza; ispred nje samo „Vindex je pripremio“ (NS007)", e.redosled.join(",").startsWith("Vindex je pripremio,Radna lista,Obaveze"), e.redosled.join(","));
   const ocekivane = ["danas", "kriticno", "predstojece", "za_pregled", "na_cekanju", "zavrseno_nedavno"].filter(k => TABLA_A[k].length);
   zapisi("korpe", "korpe i brojevi tačno kao u odgovoru table (prazne se ne prikazuju)",
     JSON.stringify(e.korpe.map(k => [k[0], k[2]])) === JSON.stringify(ocekivane.map(k => [k, TABLA_A[k].length])), JSON.stringify(e.korpe));

@@ -221,3 +221,15 @@ def test_nijedan_spoljni_efekat(svet):
     upisi = {z["tabela"] for z in baza.dnevnik[pre:] if z["radnja"] in ("insert", "update", "upsert", "delete")}
     assert upisi <= DOZVOLJENI_UPISI, upisi - DOZVOLJENI_UPISI
     assert "predmeti" not in upisi and "case_actions" not in upisi and "staging_memory" not in upisi
+
+
+def test_izvori_imaju_naziv_dokumenta(svet):
+    baza, ba, mp = svet
+    model, _ = _model()
+    mp.setattr(hp, "_pozovi_model", model)
+    _ciklus(ba)
+    c = _posao(baza)["content_json"]
+    nazivi = {d["id"]: d["naziv_fajla"] for d in baza.tabele["predmet_dokumenti"]}
+    for x in c["kljucne_cinjenice"]:
+        assert x["dokument_naziv"] == nazivi.get(x["dokument_id"])
+    assert {u["dokument_naziv"] for u in c["protivrecnosti"][0]["ucesnici"]} == {"Rešenje o otkazu.pdf", "Dostavnica.pdf"}

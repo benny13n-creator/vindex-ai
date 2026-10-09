@@ -26,11 +26,13 @@
   function napravi(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, adresaPredmeta = o.adresaPredmeta;
+    /* NS007: isti odgovor table se predaje modulu „Vindex je pripremio" (bez drugog zahteva). */
+    var naPodatke = o.naPodatke || function () {};
     var gen = 0, k = null, otvoren = false;
 
     function el(tag, cls, t) { var e = d.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
     function stanje(st, t) { var n = $("rl-stanje"); if (!st) { n.hidden = true; n.textContent = ""; delete n.dataset.stanje; return; } n.hidden = false; n.dataset.stanje = st; n.textContent = t; }
-    function ocisti() { gen++; if (k) { k.abort(); k = null; } $("rl-korpe").replaceChildren(); stanje(null); }
+    function ocisti() { gen++; if (k) { k.abort(); k = null; } $("rl-korpe").replaceChildren(); stanje(null); naPodatke(null, null); }
 
     function zasto(x) {
       if (x.vrsta === "case_action") {
@@ -75,9 +77,11 @@
       if (!r.ok) {
         if (r.greska && r.greska.kod === "ABORTED") return;
         stanje("greska", "Radna lista nije učitana zbog greške. Ovo ne znači da nema obaveza.");
+        naPodatke(null, "NIJE_PROCITANO");
         return;
       }
       var x = r.podaci;
+      naPodatke(x, Array.isArray(x.vindex_je_pripremio) ? (x.vindex_je_pripremio_stanje || "OK") : "NIJE_UKLJUCENO");
       var ukupno = KORPE.reduce(function (n, kp) { return n + (kp[0] === "zavrseno_nedavno" ? 0 : x[kp[0]].length); }, 0);
       if (x.degradirani_izvori.length) stanje("nepotpuno", "Radna lista NIJE potpuna — nije pročitano: " + x.degradirani_izvori.map(tekst).join(", ") + ".");
       else if (!ukupno) stanje("prazno", "Nema otvorenih radnji, zadataka ni dokumenata za pregled.");

@@ -338,6 +338,8 @@
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
     if (/^#\/danas\/?$/.test(location.hash)) return { pogled: "danas" };
+    var mp = /^#\/pripremljeno\/([0-9a-fA-F-]{36})\/?$/.exec(location.hash);
+    if (mp) return { pogled: "pripremljeno", id: mp[1] };
     var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata|\/prijem|\/analiza)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
@@ -581,9 +583,9 @@
     }
   }
 
-  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, danas = null, pogledRada = null;
+  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, danas = null, pogledRada = null, pripremljeno = null, pripremljenoPogled = null;
   /* Radni pogledi bez predmeta: id sekcije + kontroler (otvori/zatvori). */
-  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], danas: ["danas-pogled", danas] }; }
+  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], danas: ["danas-pogled", danas], pripremljeno: ["pripremljeno-pogled", pripremljenoPogled] }; }
   /* Aktivna stavka navigacije prati pogled (Znanje ili Predmeti). */
   function uskladiNavigaciju() {
     var stavke = { znanje: '.sidenav__item[href="#/znanje"]', kancelarija: '.sidenav__item[href="#/kancelarija"]', danas: '.sidenav__item[href="#/danas"]' };
@@ -605,7 +607,8 @@
     var r = rutaIzAdrese();
     if (r && r.pogled) {
       if (ruta) { ruta = null; detalj.zatvori(); $("predmet").hidden = true; }
-      if (pogledRada === r.pogled) return;
+      if (pogledRada === r.pogled && r.pogled !== "pripremljeno") return;
+      if (pogledRada === "pripremljeno" && r.pogled === "pripremljeno") { pripremljenoPogled.otvori(); return; }
       zatvoriPogledRada();
       pogledRada = r.pogled;
       zatvoriFioku(false);
@@ -816,7 +819,9 @@
     } });
     /* NS006 Task 11 — Pregled: šta se promenilo, šta traži pažnju, sledeći korak (samo čitanje, bez modela). */
     ziviPregled = window.VxZiviPregled.napravi({ sesija: window.VxSesija, api: window.VxApi,
-      adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); } });
+      adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); },
+      /* NS007 Task 16 — pripremljen rad predmeta (READY) u Pregledu. */
+      prikaziPripremljeno: function (stavke, st) { if (pripremljeno) pripremljeno.prikaziListu("zp-prip-blok", "zp-prip", "zp-prip-stanje", stavke, st, null); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
@@ -856,7 +861,16 @@
     var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
       nazivPredmeta: function (id) { for (var i = 0; i < indeks.length; i++) if (String(indeks[i].p.id) === id) return indeks[i].p.naziv; return ""; } });
     /* NS006 Task 12 — radna lista iz kanonske table; isti pogled, sopstveni zahtev i stanje. */
-    var radnaLista = window.VxRadnaLista.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    /* NS007 Task 15 — „Vindex je pripremio": lista iz ISTOG odgovora table (bez dodatnog zahteva) + pogled detalja. */
+    pripremljeno = window.VxPripremljeno.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+      adresaRada: function (id) { return "#/pripremljeno/" + encodeURIComponent(id); } });
+    pripremljenoPogled = {
+      otvori: function () { var r = rutaIzAdrese(); pripremljeno.otvori(r && r.id); $("vpr-naslov").focus(); },
+      zatvori: function () { pripremljeno.zatvori(); },
+    };
+    var radnaLista = window.VxRadnaLista.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+      naPodatke: function (x, st) { pripremljeno.prikaziListu("dp-blok", "dp-lista", "dp-stanje", x ? x.vindex_je_pripremio : null, st,
+        "Vindex trenutno nema pripremljenog rada za pregled."); } });
     danas = {
       otvori: function () { radnaLista.otvori(); danasObaveze.otvori(); },
       zatvori: function () { radnaLista.zatvori(); danasObaveze.zatvori(); },

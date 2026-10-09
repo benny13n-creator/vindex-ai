@@ -123,3 +123,12 @@ def test_ostecen_red_ne_otkriva_naziv_tudjeg_predmeta(svet):
     assert "Tajni predmet B" not in r.text
     d = k.get(f"/api/autonomy/work-items/{uuid.UUID(int=99)}", headers=H("A"))
     assert "Tajni predmet B" not in d.text
+
+
+def test_lista_pre_migracije_nije_ukljucena_a_ne_greska(svet):
+    k, baza = svet
+    baza.greske["autonomy_work_items"] = RuntimeError('{"code": "42P01", "message": "relation \\"autonomy_work_items\\" does not exist"}')
+    r = k.get("/api/autonomy/work-items", headers=H("A"))
+    assert r.status_code == 200 and r.json()["stanje"] == "NIJE_UKLJUCENO" and r.json()["stavke"] == []
+    baza.greske["autonomy_work_items"] = RuntimeError("statement timeout")
+    assert k.get("/api/autonomy/work-items", headers=H("A")).status_code == 503

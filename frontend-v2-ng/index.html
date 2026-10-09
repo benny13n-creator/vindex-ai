@@ -178,8 +178,15 @@
         <div class="matter__body">
           <p class="notice" id="da-stanje" role="status" aria-live="polite" hidden></p>
           <p class="notice" id="da-poruka" role="status" aria-live="polite" hidden></p>
+          <!-- NS007 Task 15: rad koji je Vindex sam pripremio (isti GET /api/workspace; src/pripremljeno.js). -->
+          <section class="matter__section matter__section--first" id="dp-blok" aria-labelledby="dp-naslov">
+            <h2 class="matter__h2" id="dp-naslov">Vindex je pripremio</h2>
+            <p class="field__help">Rad koji je Vindex sam pripremio iz stanja vaših predmeta. Ništa nije poslato ni podneto — sve čeka vaš pregled.</p>
+            <p class="list-state" id="dp-stanje" role="status" hidden></p>
+            <ul class="an-list" id="dp-lista"></ul>
+          </section>
           <!-- NS006 Task 12: radna lista iz kanonske table (GET /api/workspace, src/radna-lista.js). Samo čitanje. -->
-          <section class="matter__section matter__section--first" aria-labelledby="rl-naslov">
+          <section class="matter__section" aria-labelledby="rl-naslov">
             <h2 class="matter__h2" id="rl-naslov">Radna lista</h2>
             <p class="field__help">Radnje koje je sistem izveo iz stanja predmeta, zadaci kancelarije i dokumenti koji čekaju vašu potvrdu.</p>
             <p class="list-state" id="rl-stanje" role="status" hidden></p>
@@ -202,6 +209,32 @@
             <p class="list-state" id="da-kalendar-stanje" role="status" hidden></p>
             <div id="da-kalendar"></div>
           </section>
+        </div>
+      </section>
+      <!-- NS007 Task 15: pregled jednog pripremljenog rada (#/pripremljeno/<id>). Odluka = samo pregled. -->
+      <section class="matter" id="pripremljeno-pogled" hidden aria-labelledby="vpr-naslov">
+        <div class="matter__head">
+          <p class="matter__ref"><a class="text-btn" href="#/danas">← Danas</a></p>
+          <h1 class="sheet__title matter__title" id="vpr-naslov" tabindex="-1">Pripremljeni rad</h1>
+          <p class="matter__ref" id="vpr-meta"></p>
+        </div>
+        <div class="matter__body">
+          <p class="list-state" id="vpr-stanje" role="status" aria-live="polite" hidden></p>
+          <div id="vpr-sadrzaj" hidden>
+            <p class="notice" id="vpr-razlog"></p>
+            <div id="vpr-delovi"></div>
+            <section class="matter__section" id="vpr-odluka-blok" hidden aria-labelledby="vpr-odluka-naslov">
+              <h2 class="matter__h2" id="vpr-odluka-naslov">Vaša odluka</h2>
+              <p class="field__help">Prihvatanje je samo vaša odluka o pregledu: ništa se ne šalje, ne podnosi i ne menja u predmetu.</p>
+              <div class="field"><label class="field__label" for="vpr-razlog-odbijanja">Razlog odbijanja (opciono)</label>
+                <textarea class="field__input field__input--area" id="vpr-razlog-odbijanja" rows="2" maxlength="1000"></textarea></div>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="vpr-prihvati" type="button">Prihvatam</button>
+                <button class="text-btn" id="vpr-odbaci" type="button">Odbacujem</button>
+              </div>
+            </section>
+            <p class="notice" id="vpr-poruka" role="status" aria-live="polite" hidden></p>
+          </div>
         </div>
       </section>
       <section class="matter" id="kancelarija-pogled" hidden aria-labelledby="ka-naslov">
@@ -311,6 +344,11 @@
           <!-- NS006 Task 11: živo stanje predmeta (src/zivi-pregled.js). Samo čitanje: promene verzija + kanonske radnje. -->
           <section class="matter__section zp" id="zp-blok" hidden aria-labelledby="zp-naslov">
             <h2 class="matter__h2" id="zp-naslov">Stanje predmeta</h2>
+            <div class="zp-prip" id="zp-prip-blok" hidden>
+              <h3 class="answer__h">Vindex je pripremio</h3>
+              <p class="field__help" id="zp-prip-stanje" role="status" hidden></p>
+              <ul class="an-list" id="zp-prip"></ul>
+            </div>
             <div class="zp__grid">
               <div class="zp__col"><h3 class="answer__h">Šta se promenilo</h3>
                 <p class="field__help" id="zp-promene-stanje" role="status" hidden></p><ul class="an-list" id="zp-promene"></ul></div>
@@ -705,6 +743,7 @@
   <script src="src/analiza-predmeta.js"></script>
   <script src="src/zivi-pregled.js"></script>
   <script src="src/radna-lista.js"></script>
+  <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>

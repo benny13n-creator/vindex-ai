@@ -34,6 +34,7 @@
     "verify:live-analiza": "node tests/live-analiza.mjs",
     "verify:live-pregled-zivi": "node tests/live-pregled-zivi.mjs",
     "verify:live-radna-lista": "node tests/live-radna-lista.mjs",
+    "verify:live-pripremljeno": "node tests/live-pripremljeno.mjs",
     "demo:ns006": "node tests/ns006-demo.mjs",
     "verify:live-matter": "node tests/live-matter.mjs",
     "e2e:fastapi": "node tests/live-fastapi-e2e.mjs",

@@ -500,3 +500,57 @@ dodat test oštećenog reda); W2 zatvoreni predmeti; W3 ne-READY stanja; W4 nepo
 svaka greška = tiho isključeno; W6 pripremljen rad u `ukupno_aktivnih`.
 
 **SLEDEĆA KAPIJA.** Task 15 — V2 Danas.
+
+---
+
+## TASK 15–16 — V2 DANAS „VINDEX JE PRIPREMIO" + PREGLED PREDMETA
+
+**ODLUKA.** Bez redizajna, bez nove stavke bočnog menija, bez „Agents" modula, avatara i animacija.
+- Danas: sekcija „Vindex je pripremio" je PRVA (pre radne liste), iz ISTOG odgovora `/api/workspace` koji radna lista
+  već čita (radna lista predaje podatke modulu — nijedan dodatni zahtev). Stavka: naslov (veza na pregled), vrsta
+  rada, predmet (veza), vreme pripreme, „Zašto: …", sažetak, stanje poverenja („Sadrži analizu (AI) — za vaš pregled" /
+  „Samo iz spisa — bez AI dela"). Prazno → normalno prazno stanje; nepročitano → „ne znači da ga nema"; server bez ove
+  mogućnosti (pre 136) → sekcija skrivena.
+- Pregled rada: novi radni pogled `#/pripremljeno/<id>` (isti obrazac kao Danas/Znanje/Kancelarija, bez stavke u
+  meniju). Priprema za ročište: ročište iz evidencije („ne iz analize"), ključne činjenice sa poreklom i izvorom PO
+  NAZIVU dokumenta i stranom, protivrečnosti sa oba izvora, otvorene radnje, šta nedostaje, AI pitanja/beleške uz
+  oznaku „Analiza (AI)" i napomenu. Nova praksa: odluka (broj, sud, datum, „proverena u bazi"), izvod iz odluke,
+  zašto je pronađena (procena Radar-a, AI), uticaj SA doslovnim izvodom, procena odnosa, pitanja, „razmotriti argument".
+  Odluka: „Prihvatam"/„Odbacujem" (+ opcioni razlog) preko `VxApi.send` (Idempotency-Key); tekst na ekranu: „ništa se
+  ne šalje, ne podnosi i ne menja u predmetu". Ishod nepoznat / 409 → poštena poruka + ponovno čitanje stanja.
+- Pregled predmeta: red „Vindex je pripremio" u bloku „Stanje predmeta" (READY rad TOG predmeta), treći GET uz
+  promene i radnje; Analiza netaknuta.
+- Backend dopuna: proizvod pripreme nosi naziv dokumenta uz id (izvor čitljiv bez dodatnog upita); lista po predmetu
+  pre migracije 136 vraća `NIJE_UKLJUCENO` umesto greške (inače bi Pregled na produkciji stalno javljao grešku).
+- Vizuelni pregled snimaka: ispravljeno „Iz dokumenta" na ročištu (ročište je iz evidencije, ne iz dokumenta) i sirova
+  težina „kriticna" → „kritična".
+
+**FAJLOVI.** `frontend-v2-ng/src/pripremljeno.js` (nov), `index.html` (Danas sekcija, pogled, Pregled red, skript pod
+build tokenom), `src/app.js` (ruta, pogled, ožičenje), `src/radna-lista.js` (predaja odgovora), `src/zivi-pregled.js`
+(treći GET), `src/app.css`, `package.json` (`verify:live-pripremljeno`), `tests/live-pripremljeno.mjs`,
+`tests/ns007_ui_fixture.py` (STVARNI ciklus → stvarni odgovori), `services/agent_tasks/hearing_prep.py`,
+`routers/autonomy.py`; NS006 testovi `live-pregled-zivi` (3 GET) i `live-radna-lista` (redosled) ažurirani za NAMERNU
+promenu.
+
+**TESTOVI.** `live-pripremljeno` 45/45 (stvarni ciklus: 2 rada, 0 upisa van pregleda pri odluci): Danas sekcija prva,
+stavke, veze, 1 GET; pregled pripreme (ročište iz evidencije, izvori po nazivu, AI označen, nijedan id u prikazu);
+prihvatanje = 1 POST sa ključem, bez drugih upisa; praksa: proveren izvor, izvod, odbijanje sa razlogom i ključem; tuđ
+rad „nije pronađen"; 500 ≠ „nije pronađen"; ishod nepoznat i 409; Danas pad/prazno/isključeno; Pregled predmeta (3
+GET); zastareo odgovor rad A→B i korisnik A→B (u letu i već prikazano); XSS; 360/1440 obe teme; meni bez novog modula;
+0 JS grešaka, 0 tokena u konzoli. `live-pregled-zivi` 30/30, `live-radna-lista` 25/25.
+
+**MUTACIJE (14/14 ubijeno).** Q1 zastareo detalj (bez generacije i abort-a); Q2 500 = „nije pronađen"; Q3 bez oznake
+porekla; Q4 izvor kao id; Q5 ishod nepoznat kao neuspeh; Q6 nepročitano kao prazno; Q7 HTML; Q8 uticaj bez izvoda;
+Q9 Danas pravi poseban zahtev; Q10 promena korisnika ne čisti (prvo PREŽIVELA — dodat test već prikazanog rada); Q11
+bez napomene o spoljnom efektu; Q12 Pregled ne prikazuje rad; Q13 skript van build tokena.
+
+**PRONAĐENO CELIM NG PAKETOM (moja greška, ispravljena).** Prvi prolaz paketa: `live-pitanje` 35/42. Uzrok: novi
+pogled je koristio ID prefiks `pp-` (`pp-stanje`, `pp-naslov`…), koji već koristi modul „Pravno pitanje" —
+`getElementById("pp-stanje")` je vraćao MOJ element, pa je pravno pitanje prijavljivalo pogrešno stanje. Svi moji ID-jevi
+preimenovani u `vpr-`; skeniranje celog `index.html`: 0 dupliranih ID-jeva. Pošto ovu klasu ništa nije pokrivalo, dodata
+je trajna provera jedinstvenosti SVIH ID-jeva na stranici (`live-pripremljeno` [integritet]); mutacija Q14 (dupli ID u
+novoj sekciji) je UBIJENA. Posle ispravke `live-pitanje` 42/42.
+
+**CEO NG PAKET.** 34 skripte: 33 zelene u prvom prolazu + `live-pitanje` zelen posle ispravke (pojedinačno 42/42).
+
+**SLEDEĆA KAPIJA.** Task 17 — revizioni trag.

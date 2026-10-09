@@ -697,3 +697,10 @@ a.text-btn { text-decoration: none; }
 .today__item--rad .today__kind { color: var(--text-2); }
 .today__item--rad[data-prioritet="critical"] .today__kind { color: var(--text-1); font-weight: 600; }
 @media (max-width: 859px) { .today__item--rad { grid-template-columns: minmax(0, 1fr) auto; } }
+/* NS007 Task 15–16 — „Vindex je pripremio“ (lista, pregled rada) */
+.vp-item__title { color: var(--text-1); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.vp-item__title:hover, .vp-item__title:focus-visible { text-decoration: underline; }
+.vp-item__summary { margin: var(--sp-1) 0 0; color: var(--text-1); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+.vp-izvod { margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--line); color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; white-space: pre-line; }
+.zp-prip { margin: 0 0 var(--sp-4); }
+.zp-prip .an-list { max-width: none; }

@@ -215,14 +215,17 @@ def _tekst(v, maks=400) -> str:
 
 def deterministicki_deo(rociste: dict, ugovor: dict, akcije: list) -> dict:
     """Sve što proizvod tvrdi o predmetu i ročištu — iz baze, sa poreklom. Bez modela."""
+    nazivi = {str(d.get("id")): d.get("naziv") for d in ((ugovor.get("dokazi") or {}).get("dokumenti") or [])}
     cinjenice = [{"id": s["id"], "tekst": _tekst(s.get("vrednost")), "poreklo": s.get("poreklo"),
-                  "dokument_id": s.get("dokument_id"), "strana_procena": (s.get("lokacija") or {}).get("strana_procena")}
+                  "dokument_id": s.get("dokument_id"), "dokument_naziv": nazivi.get(str(s.get("dokument_id"))),
+                  "strana_procena": (s.get("lokacija") or {}).get("strana_procena")}
                  for s in (ugovor.get("cinjenice") or {}).get("stavke") or []
                  if s.get("poreklo") in ("SOURCE_FACT", "HUMAN_CONFIRMED")][:20]
     protiv = [{"id": k["id"], "sporna_tacka": _tekst(k.get("sporna_tacka"), 300), "tezina": k.get("tezina"),
                "poreklo": k.get("poreklo"),
                "ucesnici": [{"tvrdnja_id": u.get("tvrdnja_id"), "tvrdnja": _tekst(u.get("tvrdnja")),
-                             "dokument_id": u.get("dokument_id")} for u in k.get("ucesnici") or []]}
+                             "dokument_id": u.get("dokument_id"), "dokument_naziv": nazivi.get(str(u.get("dokument_id")))}
+                            for u in k.get("ucesnici") or []]}
               for k in (ugovor.get("kontradikcije") or {}).get("aktivne") or []][:10]
     radnje = [{"id": str(a.get("id")), "tip": a.get("tip"), "razlog": _tekst(a.get("razlog"), 300),
                "prioritet": a.get("prioritet"), "rok": a.get("rok")}

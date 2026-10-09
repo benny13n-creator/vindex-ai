@@ -26,6 +26,7 @@
   function napravi(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, adresaAnalize = o.adresaAnalize || function () { return "#/"; };
+    var prikaziPripremljeno = o.prikaziPripremljeno || function () {};
     var trenutni = null, gen = 0, kontroler = null;
 
     function el(tag, cls, t) { var e = d.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
@@ -39,6 +40,7 @@
       ["zp-promene", "zp-paznja", "zp-sledece"].forEach(function (id) { $(id).replaceChildren(); });
       ["zp-promene-stanje", "zp-paznja-stanje", "zp-sledece-stanje"].forEach(function (id) { stanje(id, null); });
       $("zp-blok").hidden = true;
+      prikaziPripremljeno(null, null);
     }
 
     async function ucitaj() {
@@ -53,12 +55,18 @@
           oblik: function (x) { return x && typeof x.stanje === "string" && Array.isArray(x.promene); } }),
         api.get("/api/case-actions/predmeti/" + encodeURIComponent(id), { token: sesija.token(), signal: kontroler.signal,
           oblik: function (x) { return x && Array.isArray(x.akcije); } }),
+        /* NS007 Task 16: pripremljen rad OVOG predmeta (READY_FOR_REVIEW). */
+        api.get("/api/autonomy/work-items", { token: sesija.token(), signal: kontroler.signal,
+          parametri: { status: "READY_FOR_REVIEW", matter_id: id, limit: 10 },
+          oblik: function (x) { return x && Array.isArray(x.stavke); } }),
       ]);
       if (!zivi(moja, id)) return;
       kontroler = null;
       if ((r[0].greska && r[0].greska.kod === "ABORTED") || (r[1].greska && r[1].greska.kod === "ABORTED")) return;
       prikaziPromene(r[0]);
       prikaziAkcije(r[1]);
+      if (!(r[2].greska && r[2].greska.kod === "ABORTED"))
+        prikaziPripremljeno(r[2].ok ? r[2].podaci.stavke : null, r[2].ok ? (r[2].podaci.stanje || "OK") : "NIJE_PROCITANO");
     }
 
     function prikaziPromene(r) {
