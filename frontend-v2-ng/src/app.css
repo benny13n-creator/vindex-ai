@@ -494,6 +494,16 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .draft .matter__h2 { margin: 0; }
 .draft__label { margin: 0; color: var(--text-2); }
 .draft__text { min-height: 420px; font-family: var(--font-serif); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; resize: vertical; }
+.ledger-wrap { max-width: 880px; overflow-x: auto; }
+.ledger { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); font-size: var(--fs-meta); }
+.ledger th { text-align: left; font-weight: 500; color: var(--text-3); padding: 8px var(--sp-3) 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+.ledger td { padding: 10px var(--sp-3) 10px 0; border-bottom: 1px solid var(--line); color: var(--text-1); vertical-align: top; }
+.ledger .ledger__num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger .ledger__date { color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger .ledger__desc { overflow-wrap: anywhere; min-width: 160px; }
+.ledger .ledger__state { color: var(--text-2); white-space: nowrap; }
+.ledger .ledger__pick { width: 28px; }
+.ledger input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
 .reviews { list-style: none; margin: var(--sp-3) 0 0; padding: 0; border-top: 1px solid var(--line); max-width: 880px; }
 .reviews:empty { border-top: 0; }
 .review { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -543,6 +553,8 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 }
 .tabs__item:hover { color: var(--text-1); }
 .tabs__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }
+/* NS005: sa sest odeljaka traka se na telefonu pomera vodoravno umesto da poslednji odeljak ispadne van ekrana. */
+@media (max-width: 859px) { .tabs { overflow-x: auto; scrollbar-width: none; gap: var(--sp-5); } .tabs__item { flex: none; white-space: nowrap; } }
 .tabs__count { margin-left: 4px; color: var(--text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 
 .matter__body { padding: var(--sp-6) var(--sheet-pad) var(--sp-8); max-width: 880px; }

@@ -241,6 +241,8 @@ class _Upit:
                 r.setdefault("created_at", _sada())
                 r.setdefault("kreirano", r["created_at"])
                 r.setdefault("_rb", next(_brojac))
+                if self.t == "timer_sessions":  # kao DEFAULT now() / DEFAULT TRUE iz 003_billing.sql
+                    r.setdefault("start_at", r["created_at"]); r.setdefault("aktivan", True)
                 if vrsta == "upsert":
                     self.b.tabele.setdefault(self.t, [])[:] = [x for x in self.b.tabele.get(self.t, []) if x.get("id") != r["id"]]
                 self.b.tabele.setdefault(self.t, []).append(r)

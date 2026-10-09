@@ -417,3 +417,72 @@ export function kancelarijaRuta(korisnici, kuke = {}) {
     return true;
   };
 }
+
+/* ── Naplata: /billing/* (routers/billing.py) ──
+ * k.stavke / k.fakture / k.tajmer po korisniku. Predmet mora biti pozivaočev (404);
+ * uz tarifu bez iznosa iznos računa „server" (bodovi × 50); uz same sate satnica 6000;
+ * bez osnova 422; nepoznata tarifa 400; stavka na fakturi → 409; stavke drugog predmeta → 400.
+ * kuke.pre(putanja + ":" + metod) za greške/prekid; kuke.upisano(putanja, telo). */
+export const TARIFA = [
+  { sifra: "T01", naziv: "Tužba za novčano potraživanje (prostija)", bodovi: 12, iznos_rsd: 600, is_custom: false },
+  { sifra: "T02", naziv: "Odgovor na tužbu <b>složeniji</b>", bodovi: 20, iznos_rsd: 1000, is_custom: false },
+];
+export function naplataRuta(korisnici, kuke = {}) {
+  let n = 0;
+  return async (req, url, res) => {
+    const p = url.pathname;
+    if (!p.startsWith("/billing/")) return false;
+    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, p + ":" + req.method, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b = {}; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    k.stavke = k.stavke || []; k.fakture = k.fakture || [];
+    const moj = (id) => k.predmeti.some(x => x.id === id && x.user_id === k.id);
+    if (req.method === "POST") (kuke.upisano || (() => {}))(p, b);
+    if (p === "/billing/tarifa" && req.method === "GET") { json(res, 200, { tarifa: TARIFA, bod_rsd: 50 }); return true; }
+    if (p === "/billing/entries" && req.method === "GET") {
+      const pid = url.searchParams.get("predmet_id");
+      const e = k.stavke.filter(x => x.predmet_id === pid && x.user_id === k.id);
+      const uk = e.reduce((s, x) => s + x.iznos_rsd, 0), ob = e.filter(x => x.obracunato).reduce((s, x) => s + x.iznos_rsd, 0);
+      json(res, 200, { entries: e, ukupno_rsd: uk, obracunato_rsd: ob, neobracunato_rsd: uk - ob, ukupno_h: e.reduce((s, x) => s + (x.sati || 0), 0) });
+      return true;
+    }
+    if (p === "/billing/entries" && req.method === "POST") {
+      if (!moj(b.predmet_id)) { json(res, 404, { detail: "Predmet nije pronađen." }); return true; }
+      let iznos = b.iznos_rsd ?? null, t = null;
+      if (b.tarifa_sifra) { t = TARIFA.find(x => x.sifra === String(b.tarifa_sifra).toUpperCase()); if (!t) { json(res, 400, { detail: "Nepoznata tarifa sifra." }); return true; } if (iznos === null) iznos = t.bodovi * 50; }
+      if (iznos === null && b.sati) iznos = Math.ceil(b.sati * 6000);
+      if (iznos === null) { json(res, 422, { detail: "iznos_rsd je obavezan kad tarifa_sifra nije navedena." }); return true; }
+      const e = { id: `e-${k.id}-${++n}`, user_id: k.id, predmet_id: b.predmet_id, opis: b.opis, tip: b.tip, tarifa_sifra: t ? t.sifra : null, sati: b.sati ?? null, iznos_rsd: iznos, datum: b.datum || "2026-10-09", obracunato: false };
+      k.stavke.unshift(e);
+      json(res, 200, { success: true, entry: e }); return true;
+    }
+    if (p === "/billing/timer/aktivan" && req.method === "GET") { json(res, 200, k.tajmer ? { aktivan: true, timer: k.tajmer } : { aktivan: false, timer: null }); return true; }
+    if (p === "/billing/timer/start" && req.method === "POST") {
+      if (!moj(b.predmet_id)) { json(res, 404, { detail: "Predmet nije pronađen." }); return true; }
+      if (k.tajmer) { json(res, 409, { detail: "Tajmer je već aktivan." }); return true; }
+      k.tajmer = { id: `tm-${++n}`, user_id: k.id, predmet_id: b.predmet_id, opis: b.opis || null, start_at: "2026-10-09T08:30:00+00:00", aktivan: true };
+      json(res, 200, { success: true, timer: k.tajmer }); return true;
+    }
+    if (p === "/billing/timer/stop" && req.method === "POST") {
+      if (!k.tajmer) { json(res, 404, { detail: "Nema aktivnog tajmera." }); return true; }
+      const t = k.tajmer; k.tajmer = null;
+      const e = b.kreiraj_entry ? { id: `e-${k.id}-${++n}`, user_id: k.id, predmet_id: t.predmet_id, opis: t.opis || "Rad po predmetu (tajmer)", tip: "satnica", sati: 1.5, iznos_rsd: 9000, datum: "2026-10-09", obracunato: false } : null;
+      if (e) k.stavke.unshift(e);
+      json(res, 200, { success: true, trajanje_s: 5400, trajanje_h: 1.5, entry: e }); return true;
+    }
+    if (p === "/billing/faktura" && req.method === "GET") { json(res, 200, { fakture: k.fakture.filter(f => f.user_id === k.id).concat(kuke.dodatneFakture || []), ukupno: k.fakture.length }); return true; }
+    if (p === "/billing/faktura" && req.method === "POST") {
+      const e = k.stavke.filter(x => x.user_id === k.id && (b.entry_ids || []).includes(x.id));
+      if (!e.length) { json(res, 404, { detail: "Radnje nisu pronađene." }); return true; }
+      if (e.some(x => x.predmet_id !== b.predmet_id)) { json(res, 400, { detail: "Neke od odabranih radnji ne pripadaju navedenom predmetu." }); return true; }
+      if (e.some(x => x.obracunato)) { json(res, 409, { detail: "radnje su već na drugoj fakturi." }); return true; }
+      const osn = e.reduce((s, x) => s + x.iznos_rsd, 0), pdv = Math.round(osn * (b.pdv_stopa || 0)) / 100;
+      const f = { id: `f-${++n}`, user_id: k.id, predmet_id: b.predmet_id, broj_fakture: `2026/${String(k.fakture.length + 1).padStart(4, "0")}`, klijent_naziv: b.klijent_naziv, iznos_bez_pdv: osn, pdv_iznos: pdv, iznos_sa_pdv: osn + pdv, status: "nacrt", is_proforma: false, datum_dospeca: "2026-11-08" };
+      k.fakture.unshift(f); e.forEach(x => { x.obracunato = true; x.faktura_id = f.id; });
+      json(res, 200, { success: true, faktura: f, stavke: e.length }); return true;
+    }
+    json(res, 404, {}); return true;
+  };
+}

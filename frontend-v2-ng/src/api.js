@@ -44,7 +44,7 @@
    * (routers/portfolio.py) su postojeći ruteri bez `/api` prefiksa; ništa drugo
    * van `/api/` ne prolazi. */
   function dozvoljenaPutanja(p) {
-    return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0 || p === "/portfolio/dashboard";
+    return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0 || p === "/portfolio/dashboard" || p.indexOf("/billing/") === 0;
   }
 
   function napraviAdresu(putanja, parametri) {

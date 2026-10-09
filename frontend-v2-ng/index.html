@@ -262,6 +262,7 @@
           <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
           <a class="tabs__item" id="tab-pitanje" href="#/">Pravno pitanje</a>
           <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
+          <a class="tabs__item" id="tab-naplata" href="#/">Naplata</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
@@ -448,6 +449,73 @@
             <ul class="reviews" id="nc-overa-lista" aria-label="Nacrti na overi"></ul>
           </section>
         </div>
+        <div class="matter__body" id="odeljak-naplata" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="np-stavke-naslov">
+            <h2 class="matter__h2" id="np-stavke-naslov">Stavke naplate</h2>
+            <dl class="facts facts--doc" id="np-zbir" hidden></dl>
+            <p class="list-state" id="np-stavke-stanje" role="status" hidden></p>
+            <div class="ledger-wrap">
+              <table class="ledger" id="np-tabela" hidden>
+                <caption class="sr-only">Stavke naplate ovog predmeta</caption>
+                <thead><tr><th scope="col"><span class="sr-only">Na fakturu</span></th><th scope="col">Datum</th><th scope="col">Opis</th><th scope="col">Tarifa</th>
+                  <th scope="col" class="ledger__num">Sati</th><th scope="col" class="ledger__num">Iznos</th><th scope="col">Status</th></tr></thead>
+                <tbody id="np-stavke"></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="matter__section" aria-labelledby="np-nova-naslov">
+            <h2 class="matter__h2" id="np-nova-naslov">Nova stavka</h2>
+            <form class="form" id="np-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-opis">Opis radnje</label>
+                <input class="field__input" id="np-opis" type="text" maxlength="400" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="np-tarifa">Tarifa</label>
+                <select class="field__input" id="np-tarifa" aria-describedby="np-pomoc"></select></div>
+              <div class="field-row">
+                <div class="field"><label class="field__label" for="np-iznos">Iznos (RSD)</label>
+                  <input class="field__input" id="np-iznos" type="text" inputmode="decimal" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="np-sati">Sati</label>
+                  <input class="field__input" id="np-sati" type="text" inputmode="decimal" autocomplete="off"></div>
+                <div class="field"><label class="field__label" for="np-datum">Datum</label>
+                  <input class="field__input" id="np-datum" type="date"></div>
+              </div>
+              <p class="field__help" id="np-pomoc">Uz tarifu bez iznosa iznos po tarifi izračunava server. Uz same sate server primenjuje satnicu predmeta. Bez datuma upisuje se današnji.</p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="np-dodaj" type="submit">Upiši stavku</button></div>
+            </form>
+            <p class="notice" id="np-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="np-tajmer-naslov">
+            <h2 class="matter__h2" id="np-tajmer-naslov">Tajmer</h2>
+            <p class="list-state" id="np-tajmer-stanje" role="status" hidden></p>
+            <a class="text-btn text-btn--line" id="np-tajmer-drugi" hidden>Otvori predmet na kom tajmer radi</a>
+            <form class="form" id="np-tajmer-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-tajmer-opis">Opis rada (neobavezno)</label>
+                <input class="field__input" id="np-tajmer-opis" type="text" maxlength="200" autocomplete="off"></div>
+              <div class="form__actions">
+                <button class="text-btn text-btn--line" id="np-tajmer-start" type="button" disabled>Pokreni tajmer</button>
+                <button class="text-btn text-btn--primary" id="np-tajmer-stop" type="button" hidden>Zaustavi i upiši stavku</button>
+              </div>
+            </form>
+            <p class="notice" id="np-tajmer-poruka" role="status" aria-live="polite" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="np-faktura-naslov">
+            <h2 class="matter__h2" id="np-faktura-naslov">Nacrt fakture</h2>
+            <p class="field__help">Označite nefakturisane stavke u tabeli. Faktura nastaje kao nacrt: ne izdaje se, ne šalje se klijentu i ne prijavljuje se u SEF.</p>
+            <form class="form" id="np-faktura-forma" novalidate>
+              <div class="field"><label class="field__label" for="np-klijent">Klijent (naziv na fakturi)</label>
+                <input class="field__input" id="np-klijent" type="text" maxlength="300" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="np-pdv">PDV</label>
+                <select class="field__input" id="np-pdv"><option value="0">Bez PDV-a</option><option value="20">20%</option></select></div>
+              <div class="field"><label class="field__label" for="np-napomena">Napomena (neobavezno)</label>
+                <textarea class="field__input field__input--area" id="np-napomena" rows="2" maxlength="1000"></textarea></div>
+              <p class="field__help" id="np-izabrano" role="status"></p>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="np-faktura-dugme" type="submit" disabled>Napravi nacrt fakture</button></div>
+            </form>
+            <p class="notice" id="np-faktura-poruka" role="status" aria-live="polite" hidden></p>
+            <h3 class="answer__h">Fakture za ovaj predmet</h3>
+            <p class="list-state" id="np-fakture-stanje" role="status" hidden></p>
+            <ul class="reviews" id="np-fakture" aria-label="Fakture za ovaj predmet"></ul>
+          </section>
+        </div>
         <div class="docs" id="odeljak-dokumenti" hidden>
           <div class="docs__list-wrap" id="dok-lista-okvir">
             <ul class="docs__list" id="dok-lista" aria-label="Dokumenti predmeta"></ul>
@@ -508,6 +576,7 @@
   <script src="src/pitanje-predmeta.js"></script>
   <script src="src/znanje.js"></script>
   <script src="src/nacrt-predmeta.js"></script>
+  <script src="src/naplata-predmeta.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>

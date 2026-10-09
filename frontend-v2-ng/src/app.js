@@ -329,7 +329,7 @@
    * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
    * je registar. Sav sadržaj se upisuje kao tekst. */
   function adresaPredmeta(id, odeljak) {
-    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : "");
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : odeljak === "naplata" ? "/naplata" : "");
   }
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
@@ -337,11 +337,11 @@
     if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
-    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt)?\/?$/.exec(location.hash);
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
     try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : "pregled" };
+    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : m[2] === "/naplata" ? "naplata" : "pregled" };
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
@@ -376,7 +376,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -419,6 +419,7 @@
     $("odeljak-rad").hidden = true;
     $("odeljak-pitanje").hidden = true;
     $("odeljak-nacrt").hidden = true;
+    $("odeljak-naplata").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
     if (radPredmeta) radPredmeta.ocisti();
@@ -444,9 +445,11 @@
     $("odeljak-rad").hidden = o !== "rad";
     $("odeljak-pitanje").hidden = o !== "pitanje";
     $("odeljak-nacrt").hidden = o !== "nacrt";
+    $("odeljak-naplata").hidden = o !== "naplata";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
     if (o === "nacrt" && nacrtPredmeta) nacrtPredmeta.aktiviraj();
-    ["pregled", "rad", "pitanje", "nacrt", "dokumenti"].forEach(function (x) {
+    if (o === "naplata" && naplataPredmeta) naplataPredmeta.aktiviraj();
+    ["pregled", "rad", "pitanje", "nacrt", "naplata", "dokumenti"].forEach(function (x) {
       var tab = $("tab-" + x);
       tab.href = adresaPredmeta(ruta.id, x);
       if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
@@ -501,6 +504,7 @@
     if (rocistaPredmeta) rocistaPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "rad");
     if (pitanjePredmeta) pitanjePredmeta.postavi(v.predmet);
     if (nacrtPredmeta) nacrtPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "nacrt");
+    if (naplataPredmeta) naplataPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "naplata");
     prikaziOdeljak();
   }
 
@@ -551,7 +555,7 @@
   }
 
   function prikaziDetalj(v) {
-    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); return; }
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); return; }
     if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
     if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
     if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
@@ -789,6 +793,7 @@
     rocistaPredmeta = window.VxRocistaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     pitanjePredmeta = window.VxPitanjePredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     nacrtPredmeta = window.VxNacrtPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    naplataPredmeta = window.VxNaplataPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
