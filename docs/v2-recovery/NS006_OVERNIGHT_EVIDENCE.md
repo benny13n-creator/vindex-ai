@@ -992,3 +992,11 @@ G4, K6, U6, P1, W1 · #6 N7, N1–N3, N6 · #7 N4, N5 · #8 M8 (akcije bez opseg
 **FAJLOVI.** `tests/test_ns006_t5_contradictions.py` (test #3), `docs/v2-recovery/NS006_PR_BODY.md`.
 
 **SLEDEĆA KAPIJA.** Nema — završni izveštaj; čeka se pregled foundera.
+
+---
+
+## POSLE IZVEŠTAJA — MIGRACIJA 135
+
+2026-10-09: founder je pokrenuo `135_predmet_dokazi_izvor_tvrdnje.sql` na produkciji. Nije nezavisno provereno iz ovog
+okruženja (nema pristupa bazi). Posledica: ručne tvrdnje od sada dobijaju poreklo HUMAN_CONFIRMED, AI tvrdnje AI_ANALYSIS;
+redovi pre migracije ostaju bez autora (UNKNOWN) — namerno, autor se ne može rekonstruisati.

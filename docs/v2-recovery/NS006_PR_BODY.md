@@ -21,7 +21,7 @@ Puni dokazi po zadatku: `docs/v2-recovery/NS006_OVERNIGHT_EVIDENCE.md`. Zaključ
 | 1 | `a107bc53` | ulazna granica (JWT alg-confusion, pypdf 6.19) | 2/2 |
 | 2 | `633683d2` | ručni dokaz → događaj sa identitetom, 3 pokušaja | 6 + 1 druga brava |
 | 3 | `5644bbde` | profesionalni ugovor Genome-a + poreklo | 10/10 |
-| 4 | `631b01ba` | graf dokaza; migracija 135 (`izvor_tvrdnje`) KREIRANA, NIJE primenjena | 8/8 |
+| 4 | `631b01ba` | graf dokaza; migracija 135 (`izvor_tvrdnje`) primenjena 2026-10-09 | 8/8 |
 | 5 | `b79c12c2` | životni ciklus protivrečnosti (V2 ili analiza, nikad oba) | 8/8 |
 | 6 | `23d11a23` | determinističke promene verzija (stabilan identitet) | 8 + 1 po dizajnu |
 | 7 | `30b9bd99` | deterministička spremnost (FAILED ≠ EMPTY) | 7/7 |
@@ -43,7 +43,7 @@ Nove (samo čitanje): `GET /api/predmeti/{id}/genome-v2`, `GET /api/predmeti/{id
 Ponovo korišćene: `GET /api/case-actions/predmeti/{id}`, `GET /api/workspace`. Aditivno polje odgovora: `POST …/dokaz` → `dogadjaj`.
 
 ## Migracije
-`135_predmet_dokazi_izvor_tvrdnje.sql` — kreirana, **nije primenjena**. Kod radi i bez nje (dokazan fallback); bez nje se ručne tvrdnje ne razlikuju od AI tvrdnji u poreklu.
+`135_predmet_dokazi_izvor_tvrdnje.sql` — **primenjena na produkciji 2026-10-09 (potvrdio founder)**. Od tada nove tvrdnje nose autora (advokat / AI); stari redovi ostaju „autor nije poznat". Kod radi i bez nje (dokazan fallback).
 
 ## Demo (< 5 min)
 `python tests/ns006_demo.py` · `cd frontend-v2-ng && npm run demo:ns006` → `shots/ns006-demo/`.
