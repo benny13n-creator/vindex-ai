@@ -777,3 +777,37 @@ o verovatnoći ishoda; svaka metrika nosi „NIJE verovatnoća ishoda". Klijent 
 **OGRANIČENJE.** Modeli su zamenjeni; stvarni kvalitet klasifikacije i Genome-a se ovim testom NE meri.
 
 **SLEDEĆA KAPIJA.** Task 15.
+
+---
+
+## TASK 15 — MATRICA ZAKUPACA I SESIJA
+
+**PROBLEM.** Dokazati da nijedan podatak drugog korisnika ne ulazi u živi predmet, ni preko id-ja, ni preko sesije,
+ni preko oštećenog reda koji nosi `predmet_id` tuđeg predmeta.
+
+**KONSOLIDACIJA (već dokazano, ne ponavlja se).** Tuđ / nepostojeći / neispravan id → bajt-identičan 404 (T9); tabla
+B ne vidi A (T9, T14); tuđi korisnik ne pokreće obradu (T13); UI prelazak A→B i prelazak na drugi predmet dok odgovor
+kasni — Analiza (T10), Pregled (T11), Danas (T12), svaki sa mutacijom koja uklanja obe brave.
+
+**PRONAĐENO I ISPRAVLJENO (moj NS006 kod).** `ucitaj_v2_kontradikcije_za_prikaz` (Task 5) je sporne tačke čitao samo
+po `predmet_id`, iako `predmet_issues` ima `user_id` (119). Izmereno: V2 sporna tačka korisnika B zakačena za predmet A
+prikazivala se kod A. Ovo je odbrana u dubinu (GUARD paketnog RPC-a takav upis ne dozvoljava), ali docstring
+`ucitaj_zivi_predmet` je tvrdio „svi upiti … istog korisnika", što nije bilo tačno. Sada čitalac traži `uid` (obavezan
+parametar, bez tihog izostavljanja) i filtrira po njemu. Docstring ispravljen: `case_actions` nema kolonu korisnika
+(099), tamo je granica sam predmet čije je vlasništvo upravo dokazano.
+
+**FAJLOVI.** `services/v2_projection.py`, `routers/case_dna.py`, `tests/test_ns006_t15_tenant_matrix.py`.
+
+**TESTOVI.** 4/4 nad zagađenom bazom (tvrdnja, dokument, ročište, verzija istorije v99 i V2 sporna tačka korisnika B,
+svi sa `predmet_id` = A): ništa od B u genome-v2; tuđa „najnovija" verzija ne menja promene i NE prikriva stvarnu
+razliku lažnim „prethodna nije sačuvana"; B kroz predmet A dobija 404 bez bajta; tabla A bez B. Regresija: 1663
+passed, 1 skipped (svi testovi koji diraju `case_dna`, `v2_projection`, `genome-v2` + svi NS006).
+
+**MUTACIJE (7/7 ubijeno).** N1 tvrdnje, N2 dokumenti, N3 ročišta, N4 istorija (metapodaci), N5 istorija (prethodna
+verzija), N6 V2 sporne tačke — svaka bez filtera korisnika; N7 provera vlasništva predmeta uklonjena. N5 je u prvom
+prolazu preživela (posledica nije curenje već lažno UNKNOWN) → test pooštren.
+
+**DOPUNA TASK 14 (mutacije poreklа).** R1 ručna tvrdnja upisana kao AI, R2 AI tvrdnja upisana kao čovek — obe UBIJENE
+realnim predmetom.
+
+**SLEDEĆA KAPIJA.** Task 16.

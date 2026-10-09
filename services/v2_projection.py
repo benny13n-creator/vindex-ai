@@ -186,19 +186,20 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str) -> list[dict]:
     return out
 
 
-async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, maks: int = 200) -> list[dict]:
+async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, uid: str, maks: int = 200) -> list[dict]:
     """NS006 Task 5 — SVA stanja V2 kontradikcija predmeta (aktivne, za pregled, zatvorene),
     sa razlogom stanja, vremenima i SVIM članovima (i povučenim — `uklonjen`), za prikaz.
 
-    Samo čitanje, isti opseg kao `ucitaj_v2_kontradikcije` (granica je `predmet_issues.
-    predmet_id`; pozivalac PRE toga dokazuje vlasništvo nad predmetom). Za Case Actions se
-    i dalje koristi `ucitaj_v2_kontradikcije` (samo OPEN) — ova funkcija ga ne zamenjuje."""
+    Samo čitanje. Granica je `predmet_issues.predmet_id` I `predmet_issues.user_id` (NS006 Task 15:
+    sporna tačka drugog korisnika zakačena za isti predmet se ne prikazuje — odbrana u dubinu iza
+    GUARD-a paketnog RPC-a; pozivalac PRE toga dokazuje vlasništvo nad predmetom). Za Case Actions
+    se i dalje koristi `ucitaj_v2_kontradikcije` (samo OPEN) — ova funkcija ga ne zamenjuje."""
     import asyncio
-    if not predmet_id:
+    if not predmet_id or not uid:
         return []
     iss = await asyncio.to_thread(
         lambda: supa.table("predmet_issues").select("id,label,status")
-                   .eq("predmet_id", predmet_id).execute()
+                   .eq("predmet_id", predmet_id).eq("user_id", uid).execute()
     )
     issues = {i["id"]: i for i in ((iss.data if iss else None) or [])}
     if not issues:

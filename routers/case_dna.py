@@ -1653,7 +1653,9 @@ async def _zp_dokazi(supa, predmet_id: str, uid: str) -> list:
 
 async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
     """Izvori jednog predmeta za V2 ugovor. Vlasništvo se proverava PRVO; svi ostali
-    upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini)."""
+    upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini) — osim
+    `case_actions`, koja nema kolonu korisnika (099): tu je granica sam predmet čije je
+    vlasništvo upravo dokazano."""
     predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
     from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz
     dok_r, dz_r, kon_r, ist_r, roc_r, akc_r = await asyncio.gather(
@@ -1662,7 +1664,7 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
                           .eq("predmet_id", predmet_id).eq("user_id", uid).order("redni_broj")
                           .limit(_ZP_MAKS_REDOVA).execute()),
         _zp_dokazi(supa, predmet_id, uid),
-        ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id),
+        ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id, uid),
         asyncio.to_thread(lambda: supa.table("predmet_genome_history")
                           .select("verzija,created_at").eq("predmet_id", predmet_id).eq("user_id", uid)
                           .order("verzija", desc=True).limit(1).execute()),
