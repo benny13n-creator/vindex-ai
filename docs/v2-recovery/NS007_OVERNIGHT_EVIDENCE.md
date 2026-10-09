@@ -452,3 +452,28 @@ id kao 400 (orakl); V5 prihvatanje zatvara Case Action; V6 nazivi bez vlasnika (
 reda); V7 lista nosi sadržaj; V8 ruta van idempotentnosti.
 
 **SLEDEĆA KAPIJA.** Task 13 — kompatibilnost sa `agent_recommendations`.
+
+---
+
+## TASK 13 — KOMPATIBILNOST SA `agent_recommendations`
+
+**ODGOVORNOST (kanonski pravac).**
+- `agent_recommendations` (082) = legacy proaktivna površina preporuka/obaveštenja: „agent je primetio nešto".
+  Ostaje, ne briše se, istorijske preporuke se ne migriraju; `/api/agent-notifications` nepromenjen.
+- `autonomy_work_items` (136) = trajan PRIPREMLJEN rad: „Vindex je već uradio deo posla za pregled".
+- Rad sme da REFERENCIRA preporuku (`recommendation_id`, FK `ON DELETE SET NULL`); iz nje čuva samo kratko „zašto"
+  (odnos i obrazloženje Radar-a, ≤ 400 znakova), ne ceo sadržaj.
+- Budući pravac: nove vrste autonomnog rada idu u `autonomy_work_items`; preporuke ostaju signal koji može da postane
+  okidač rada (kao Precedents Radar → PRECEDENT_IMPACT).
+
+**PRONAĐENO I ZATVORENO.** Advokat koji ODBACI preporuku kroz postojeći tok bi i dalje imao analizu uticaja iz nje u redu
+za pregled. Sada planer PRECEDENT_IMPACT takav QUEUED/READY rad označava SUPERSEDED (ne briše). Prihvaćena preporuka
+ili obrisana preporuka (SET NULL) ne povlače gotov proizvod.
+
+**TESTOVI.** 5/5: postojeći endpoint preporuka radi i ne dira rad (i obrnuto); referenca bez kopiranja sadržaja;
+odbačena preporuka → SUPERSEDED bez novog poziva modela; prihvaćena/obrisana → rad ostaje; legacy `run` piše samo
+preporuke.
+
+**MUTACIJE (3/3 ubijeno).** C1 odbacivanje ne povlači rad; C2 i prihvatanje povlači rad; C3 rad bez reference.
+
+**SLEDEĆA KAPIJA.** Task 14 — Workspace.

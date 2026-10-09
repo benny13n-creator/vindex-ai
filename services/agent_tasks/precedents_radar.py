@@ -330,14 +330,22 @@ async def planiraj(supa) -> dict:
             "max_attempts": 2,
         })
 
+    # Preporuka koju je advokat ODBACIO (postojeći tok /api/agent-notifications) povlači i pripremljen rad iz nje:
+    # QUEUED/READY → SUPERSEDED (ne briše se). Obrisana preporuka (FK SET NULL) ne povlači gotov proizvod.
+    aktivni = [p for p in postojeci if p.get("status") in ("QUEUED", "READY_FOR_REVIEW")]
+    rec_ids = sorted({str(p["recommendation_id"]) for p in aktivni if p.get("recommendation_id")})
+    odbacene = set()
+    if rec_ids:
+        st_r = await asyncio.to_thread(lambda: supa.table("agent_recommendations").select("id,status")
+                                       .in_("id", rec_ids).execute())
+        odbacene = {str(r["id"]) for r in (st_r.data or []) if r.get("status") == "rejected"}
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA
     ponisteni = []
-    for p in postojeci:
-        if p.get("status") not in ("QUEUED", "READY_FOR_REVIEW"):
-            continue
+    for p in aktivni:
         pred = predmeti.get(str(p["predmet_id"]))
-        from shared.constants import TERMINALNI_STATUSI_PREDMETA
         if pred is None or str(pred.get("user_id")) != str(p["user_id"]) \
-                or (pred.get("status") or "") in TERMINALNI_STATUSI_PREDMETA or pred.get("brisanje_zapoceto"):
+                or (pred.get("status") or "") in TERMINALNI_STATUSI_PREDMETA or pred.get("brisanje_zapoceto") \
+                or str(p.get("recommendation_id") or "") in odbacene:
             ponisteni.append({"user_id": str(p["user_id"]), "predmet_id": str(p["predmet_id"]), "trigger_ref": p["trigger_ref"]})
     return {"kandidati": kandidati, "ponisteni": ponisteni, "preskoceno": preskoceno}
 
