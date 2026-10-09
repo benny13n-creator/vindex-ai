@@ -65,10 +65,10 @@ def main() -> dict:
         from services.agent_tasks import hearing_prep as hp, precedents_radar as pr
         import workers.background_agents as ba
 
-        async def m1(p, pid):
+        async def m1(p, pid, *_):
             return _model_rocista(p, pid)
 
-        async def m2(p, pid):
+        async def m2(p, pid, *_):
             return _model_uticaja(p, pid)
         mp.setattr(hp, "_pozovi_model", m1)
         mp.setattr(pr, "_pozovi_model_uticaj", m2)

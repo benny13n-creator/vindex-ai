@@ -163,13 +163,14 @@ async def oznaci_neuspeh(supa, work_id: str, owner: str, kod: str) -> bool:
     return bool(r.data)
 
 
-async def zastareli(supa, user_id: str, predmet_id: str, work_type: str, trigger_ref: str, osim_kljuca: str) -> int:
-    """Isti okidač, DRUGA verzija (npr. promenjeno ročište): stari QUEUED/READY postaju SUPERSEDED (ne brišu se)."""
+async def zastareli(supa, user_id: str, predmet_id: str, work_type: str, trigger_ref: str, osim_kljuca: str) -> list:
+    """Isti okidač, DRUGA verzija (npr. promenjeno ročište): stari QUEUED/READY postaju SUPERSEDED (ne brišu se).
+    Vraća id-jeve zastarelih stavki (za revizioni trag)."""
     r = await asyncio.to_thread(lambda: supa.table(TABELA_POSLOVA).update({
         "status": SUPERSEDED, "updated_at": _sada(), "safe_error_code": "TRIGGER_CHANGED",
     }).eq("user_id", user_id).eq("predmet_id", predmet_id).eq("work_type", work_type)
       .eq("trigger_ref", trigger_ref).in_("status", [QUEUED, READY]).neq("dedupe_key", osim_kljuca).execute())
-    return len(r.data or [])
+    return [str(x["id"]) for x in (r.data or [])]
 
 
 async def jos_vazi_zakup(supa, work_id: str, owner: str) -> bool:
@@ -202,6 +203,28 @@ async def ucitaj_predmete(supa, ids: list) -> dict:
             raise
         r = await asyncio.to_thread(lambda: _upit("id,user_id,status,naziv,case_dna"))
     return {str(p["id"]): p for p in (r.data or [])}
+
+
+_BEZBEDNA_POLJA = ("work_type", "agent_type", "trigger_type", "trigger_ref", "source_version", "attempt_count",
+                   "budget_units", "cost_class", "quality_state", "safe_error_code", "status", "run_id", "konacno",
+                   "recommendation_id", "case_action_id", "model")
+
+
+async def revizija(akcija: str, user_id: str, work_id: str, predmet_id: str | None, meta: dict) -> bool:
+    """Nepromenjiv trag kroz POSTOJEĆEG vlasnika (`audit_immutable.log_action`). Korelacija = id radne stavke
+    (isti id nosi i AI proveniencija izvršioca). Metapodaci se FILTRIRAJU na bezbedna polja — naslov, razlog,
+    sažetak i sadržaj nikad ne ulaze u trag. Vraća False kad upis nije uspeo — pozivalac to BROJI.
+    Politika: trag nije kapija — rad se nastavlja i kad revizija ne uspe, ali se uspeh nikad ne tvrdi."""
+    from shared.audit_immutable import log_action
+    bezbedno = {k: v for k, v in (meta or {}).items() if k in _BEZBEDNA_POLJA}
+    if predmet_id:
+        bezbedno["predmet_id"] = str(predmet_id)
+    try:
+        rid = await log_action(akcija, user_id=str(user_id), resource_type="autonomy_work_item",
+                               resource_id=str(work_id), metadata=bezbedno, correlation_id=str(work_id))
+    except Exception:
+        rid = None
+    return bool(rid)
 
 
 def novi_vlasnik() -> str:

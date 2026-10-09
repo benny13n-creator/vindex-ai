@@ -213,6 +213,11 @@ async def _odluka(work_id: str, user: dict, novi: str, razlog: _Opt[str]) -> dic
     if not r.data:
         raise HTTPException(status_code=409, detail="Ovaj rad više nije na pregledu.")
     red = r.data[0]
+    from services.autonomy import revizija
+    upisano = await revizija("AUTONOMY_WORK_ACCEPTED" if novi == "ACCEPTED" else "AUTONOMY_WORK_REJECTED", uid, red["id"],
+                             red.get("predmet_id"), {"status": novi, "work_type": red.get("work_type")})
+    if not upisano:
+        logger.warning("[AUTONOMY] revizija odluke nije upisana work=%s", red["id"])
     return {"ok": True, "id": red["id"], "status": red["status"], "resolved_at": red.get("resolved_at")}
 
 

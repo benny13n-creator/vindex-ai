@@ -554,3 +554,34 @@ novoj sekciji) je UBIJENA. Posle ispravke `live-pitanje` 42/42.
 **CEO NG PAKET.** 34 skripte: 33 zelene u prvom prolazu + `live-pitanje` zelen posle ispravke (pojedinačno 42/42).
 
 **SLEDEĆA KAPIJA.** Task 17 — revizioni trag.
+
+---
+
+## TASK 17 — REVIZIONI TRAG AUTONOMNOG RADA
+
+**ODLUKA.** Bez „audit v2": isti vlasnik `shared/audit_immutable.log_action`. Nove akcije u `AUDITABLE_ACTIONS`
+(inače bi ih `log_action` tiho preskočio — klasa „declared != enforced"): `AUTONOMY_WORK_QUEUED`, `_STARTED`, `_READY`,
+`_FAILED` (`konacno` true/false), `_SUPERSEDED`, `_ACCEPTED`, `_REJECTED`.
+- `services/autonomy.revizija`: `resource_type=autonomy_work_item`, `resource_id` = id rada, korisnik, predmet;
+  **korelacija = id radne stavke**, a isti id nosi i AI poziv izvršioca (`case_context(..., operation_name,
+  correlation_id=work_id)` → postojeća AI proveniencija) — jedan id vezuje ciklus (`run_id` u metapodacima), rad, model,
+  računovodstvo i odluku advokata.
+- Metapodaci se FILTRIRAJU na bezbedna polja (vrsta, okidač, verzija, pokušaj, jedinice budžeta, stanje kvaliteta, kod
+  greške, model, run_id). Naslov, razlog, sažetak i sadržaj nikad ne ulaze u trag.
+- Politika pri padu revizije: trag nije kapija — rad se nastavlja, ali se neuspeh BROJI (`revizija_nije_upisana`) i
+  nikad se ne tvrdi uspeh. `zastareli` sada vraća id-jeve (svaki zastareo rad dobija svoj zapis).
+
+**PRONAĐENO I ISPRAVLJENO (moja greška iz Task 1).** Postojeći bezbednosni test `test_sec034_migration_completeness`
+zahteva da svaka tabela sa RLS ima politiku ili obrazloženu stavku na listi „samo service-role". `autonomy_cycles`
+(namerno nevidljiva korisnicima) je pala na tom testu. Dodata stavka sa citatom iz migracije 136, isti obrazac kao
+`v2_mutation_idempotency`. Svih 31 testova koji skeniraju migracije: 311 passed, 129 skipped. Ovaj test nisam pokrenuo u
+Task 1 — zato je pun paket u Task 30 obavezan.
+
+**TESTOVI.** `test_ns007_t17_audit` 5/5: akcije dozvoljene; ceo ciklus QUEUED → STARTED → READY → ACCEPTED sa istom
+korelacijom kao AI poziv i bez sadržaja u metapodacima; zastarevanje i neuspeh (konačan/prolazan) u tragu; revizija
+nedostupna → rad READY, neuspeh izbrojan (3). NS007 ukupno 161 passed.
+
+**MUTACIJE (7/7 ubijeno).** A1 akcije van dozvoljenog skupa; A2 sadržaj u metapodacima; A3 korelacija nije id rada;
+A4 neuspeh revizije kao uspeh; A5 AI poziv bez korelacije; A6 bez traga odluke; A7 bez traga zastarevanja.
+
+**SLEDEĆA KAPIJA.** Task 18 — haos: zakup, pad, ponavljanje.

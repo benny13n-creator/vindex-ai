@@ -425,11 +425,12 @@ def proveri_uticaj(sirovo: dict, poznati: set, tekst_odluke: str) -> tuple:
     return out, odbaceno, kl or "nije_utvrdjeno", razmotriti
 
 
-async def _pozovi_model_uticaj(prompt: str, predmet_id: str) -> str:
+async def _pozovi_model_uticaj(prompt: str, predmet_id: str, work_id: str | None = None) -> str:
     from openai import AsyncOpenAI
     from shared.ai_provenance import case_context
     klijent = AsyncOpenAI(max_retries=0)
-    with case_context(predmet_id=predmet_id, module_name="autonomy.precedent_impact"):
+    with case_context(predmet_id=predmet_id, module_name="autonomy.precedent_impact",
+                      operation_name="PRECEDENT_IMPACT", correlation_id=work_id):
         r = await klijent.chat.completions.create(
             model=_MODEL_UTICAJ, temperature=0, max_tokens=1400, timeout=60.0, response_format={"type": "json_object"},
             messages=[{"role": "system", "content": _SISTEM_UTICAJ}, {"role": "user", "content": prompt}])
@@ -489,7 +490,7 @@ async def izvrsi(supa, item: dict) -> dict:
               + izvor["tekst"][:5000] + "\n\nSPORNA PITANJA PREDMETA:\n"
               + "\n".join(f"[{p['id']}] {p['naslov'] or ''}: {p['tekst']}" for p in pitanja))
     try:
-        sirovo = _json.loads(await _pozovi_model_uticaj(prompt, pid))
+        sirovo = _json.loads(await _pozovi_model_uticaj(prompt, pid, str(item["id"])))
         model_ok = True
     except Exception as e:
         logger.warning("[PRECEDENT_IMPACT] model nije odgovorio predmet=%s: %s", pid, type(e).__name__)

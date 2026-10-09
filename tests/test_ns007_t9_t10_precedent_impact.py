@@ -52,7 +52,7 @@ def _plan(baza):
 def _model(odgovor=None, pada=False):
     st = {"pozivi": [], "prompt": None}
 
-    async def poziv(prompt, predmet_id):
+    async def poziv(prompt, predmet_id, *_):
         st["pozivi"].append(predmet_id)
         st["prompt"] = prompt
         if pada:

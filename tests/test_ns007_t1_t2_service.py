@@ -63,7 +63,7 @@ def test_zastareli_menja_samo_isti_okidac_druge_verzije(baza):
     stari = asyncio.run(au.upisi_kandidata(baza, _k("roc-1:v1")))["id"]
     drugi_okidac = asyncio.run(au.upisi_kandidata(baza, _k("roc-2:v1", trigger_ref="roc-2")))["id"]
     novi = asyncio.run(au.upisi_kandidata(baza, _k("roc-1:v2")))["id"]
-    assert asyncio.run(au.zastareli(baza, UID, PID, "HEARING_PREP", "roc-1", "roc-1:v2")) == 1
+    assert asyncio.run(au.zastareli(baza, UID, PID, "HEARING_PREP", "roc-1", "roc-1:v2")) == [stari]
     st = {r["id"]: r["status"] for r in baza.tabele["autonomy_work_items"]}
     assert st == {stari: au.SUPERSEDED, drugi_okidac: au.QUEUED, novi: au.QUEUED}
     assert len(baza.tabele["autonomy_work_items"]) == 3, "zastarelo se ne briše"

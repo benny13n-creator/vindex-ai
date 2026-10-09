@@ -285,11 +285,12 @@ def proveri_ai_stavke(sirovo: dict, poznati: set) -> tuple:
     return out, odbaceno
 
 
-async def _pozovi_model(prompt: str, predmet_id: str) -> str:
+async def _pozovi_model(prompt: str, predmet_id: str, work_id: str | None = None) -> str:
     from openai import AsyncOpenAI
     from shared.ai_provenance import case_context
     klijent = AsyncOpenAI(max_retries=0)   # jedna rezervacija budžeta = jedan poziv; ponavljanje odlučuje zakup
-    with case_context(predmet_id=predmet_id, module_name="autonomy.hearing_prep"):
+    with case_context(predmet_id=predmet_id, module_name="autonomy.hearing_prep",
+                      operation_name="HEARING_PREP", correlation_id=work_id):
         r = await klijent.chat.completions.create(
             model=_MODEL, temperature=0, max_tokens=1200, timeout=60.0, response_format={"type": "json_object"},
             messages=[{"role": "system", "content": _SISTEM}, {"role": "user", "content": prompt}])
@@ -300,11 +301,11 @@ def _bez_ai(razlog: str) -> dict:
     return {"stanje": "NIJE_PRIPREMLJENO", "razlog": razlog, "pitanja": [], "beleske": [], "odbaceno": 0, "napomena": _NAPOMENA_AI}
 
 
-async def ai_deo(det: dict, predmet_id: str) -> dict:
+async def ai_deo(det: dict, predmet_id: str, work_id: str | None = None) -> dict:
     if not det["kljucne_cinjenice"] and not det["protivrecnosti"] and not det["otvorene_radnje"]:
         return _bez_ai("NEMA_STAVKI_IZ_SPISA")
     try:
-        sirovo = _json.loads(await _pozovi_model(_prompt(det), predmet_id))
+        sirovo = _json.loads(await _pozovi_model(_prompt(det), predmet_id, work_id))
     except Exception as e:
         logger.warning("[HEARING_PREP] AI deo nije pripremljen predmet=%s: %s", predmet_id, type(e).__name__)
         return _bez_ai("MODEL_NEDOSTUPAN")
@@ -378,7 +379,7 @@ async def izvrsi(supa, item: dict) -> dict:
     det = deterministicki_deo(roc, sastavi_zivi_predmet(izv), izv["akcije"])
     if not await au.jos_vazi_zakup(supa, str(item["id"]), str(item["lease_owner"])):
         raise RuntimeError("LEASE_LOST")                       # drugi radnik je preuzeo posao — ne trošimo model
-    ai = await ai_deo(det, pid)
+    ai = await ai_deo(det, pid, str(item["id"]))
     naziv = det["predmet"]["naziv"] or "predmet"
     return {
         "title": f"Priprema za ročište {_srpski_datum(d)} — {naziv}"[:300],

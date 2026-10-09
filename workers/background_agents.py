@@ -349,7 +349,11 @@ async def run_autonomy_cycle(run_id: str) -> dict:
     rez = {"run_id": run_id, "planirano": 0, "duplikata": 0, "zastarelo": 0, "zauzeto": 0, "spremno": 0,
            "neuspeh": 0, "prolazno": 0, "budzet_iscrpljen": 0, "budzet_nepoznat": 0, "nije_zauzeto": 0,
            "dead_letter": 0, "planer_greske": 0, "zauzimanje_greska": 0,
-           "upotreba_nije_zabelezena": 0}
+           "upotreba_nije_zabelezena": 0, "revizija_nije_upisana": 0}
+
+    async def _trag(akcija, red, **meta):
+        if not await au.revizija(akcija, red["user_id"], red["id"], red.get("predmet_id"), {**red, **meta, "run_id": run_id}):
+            rez["revizija_nije_upisana"] += 1
 
     # 1–2. plan + upis
     for work_type, agent in agenti.items():
@@ -361,14 +365,21 @@ async def run_autonomy_cycle(run_id: str) -> dict:
             rez["planer_greske"] += 1
             continue
         for p in plan.get("ponisteni", []):
-            rez["zastarelo"] += await au.zastareli(supa, p["user_id"], p["predmet_id"], work_type, p["trigger_ref"], "")
+            for wid in await au.zastareli(supa, p["user_id"], p["predmet_id"], work_type, p["trigger_ref"], ""):
+                rez["zastarelo"] += 1
+                await _trag("AUTONOMY_WORK_SUPERSEDED", {"id": wid, "user_id": p["user_id"], "predmet_id": p["predmet_id"]},
+                            work_type=work_type, trigger_ref=p["trigger_ref"])
         for k in plan.get("kandidati", []):
             ishod = await au.upisi_kandidata(supa, k)
             if ishod["ishod"] == "QUEUED":
                 rez["planirano"] += 1
+                await _trag("AUTONOMY_WORK_QUEUED", {**k, "id": ishod["id"]})
             else:
                 rez["duplikata"] += 1
-            rez["zastarelo"] += await au.zastareli(supa, k["user_id"], k["predmet_id"], work_type, k["trigger_ref"], k["dedupe_key"])
+            for wid in await au.zastareli(supa, k["user_id"], k["predmet_id"], work_type, k["trigger_ref"], k["dedupe_key"]):
+                rez["zastarelo"] += 1
+                await _trag("AUTONOMY_WORK_SUPERSEDED", {"id": wid, "user_id": k["user_id"], "predmet_id": k["predmet_id"]},
+                            work_type=work_type, trigger_ref=k["trigger_ref"])
 
     # 3–4. izvršenje
     poslovi = await _izvrsivi_poslovi(supa, list(agenti))
@@ -389,21 +400,26 @@ async def run_autonomy_cycle(run_id: str) -> dict:
             continue
         rez["zauzeto"] += 1
         item = z["item"]
+        await _trag("AUTONOMY_WORK_STARTED", item)
         agent = agenti[item["work_type"]]
         try:
             proizvod = await asyncio.wait_for(agent.izvrsi(supa, item), timeout=_AUTONOMY_TIMEOUT_POSLA_S)
         except au.NeuspehPosla as n:
             await au.oznaci_neuspeh(supa, item["id"], vlasnik, n.kod)
             rez["neuspeh"] += 1
+            await _trag("AUTONOMY_WORK_FAILED", item, safe_error_code=n.kod, konacno=True)
             continue
         except Exception as e:
             _sentry_capture(e)
             logger.warning("[AUTONOMY] prolazna greška work=%s: %s — zakup ističe, ponovni pokušaj je ograničen",
                            item["id"], type(e).__name__)
             rez["prolazno"] += 1
+            await _trag("AUTONOMY_WORK_FAILED", item, safe_error_code="TRANSIENT_" + type(e).__name__.upper()[:40], konacno=False)
             continue
         if await au.sacuvaj_rezultat(supa, item["id"], vlasnik, **proizvod):
             rez["spremno"] += 1
+            await _trag("AUTONOMY_WORK_READY", item, quality_state=proizvod.get("quality_state"),
+                        model=((proizvod.get("content") or {}).get("ai") or {}).get("model"))
             # Računovodstvo POSLE trajnog upisa rezultata: budžet je već rezervisan u samoj stavci (izvor istine),
             # pa neuspeo upis u usage_events ne vraća posao u red i ne pokreće ga ponovo — samo se broji.
             if item.get("cost_class") == "PAID" and not await _zabelezi_upotrebu(supa, item, run_id):

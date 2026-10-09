@@ -29,7 +29,7 @@ DOZVOLJENI_UPISI = {"autonomy_work_items", "autonomy_cycles", "usage_events", "a
 def _model(odgovor=None, pada=False):
     stanje = {"pozivi": [], "prompt": None}
 
-    async def poziv(prompt, predmet_id):
+    async def poziv(prompt, predmet_id, *_):
         stanje["pozivi"].append(predmet_id)
         stanje["prompt"] = prompt
         if pada:
