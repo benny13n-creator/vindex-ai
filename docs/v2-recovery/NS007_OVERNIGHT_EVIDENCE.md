@@ -748,3 +748,23 @@ izvorom (Rev 1234/2023, Vrhovni sud, 2023-05-10, proveren) i doslovnim izvodom. 
 tačan izvor, C izmišljena odluka bez proizvoda + tačno 2 poziva).
 
 **SLEDEĆA KAPIJA.** Task 24 — proba postavljanja raspoređivača.
+
+---
+
+## TASK 24 — PROBA POSTAVLJANJA RASPOREĐIVAČA (BEZ RENDER-A)
+
+**DOKAZ (PROVEN).** PRAVI proces `scripts/trigger_autonomy_cycle.py` → PRAVI HTTP → PRAVI uvicorn sa `api.app` nad
+lažnom bazom u istom procesu (`tests/ns007_uvicorn_proba.py`) → atomski prozor → kanonski radnik → rezultat:
+ispravna tajna 0/COMPLETED; isti sat 0/SKIPPED; pogrešna tajna 4/401; nedostaje tajna 2 bez zahteva; ciklus duži od
+isteka 3; pad ciklusa 4/500 sa `FAILED`. Tajna nikad u izlazu.
+
+**PRONAĐENO I ISPRAVLJENO.** Okidač nije čitao telo odgovora pri ne-2xx, pa je operater video samo „HTTP 500 {}". Sada
+čita telo i ispisuje samo bezbedna polja (isti filter kao za uspeh) — mutacija K6 (ceo telo greške u izlazu) UBIJENA
+postojećim testom tajne.
+
+**KONTROLNA LISTA.** Dodata u `NS007_RENDER_CRON_PLAN.md` (preduslovi, probni okidač, provere posle prve noći).
+Arhitektura: JEDAN Render Cron Job → lagan okidač → uska ruta; cron servis zna samo URL i tajnu. NIJE POSTAVLJENO.
+
+**TESTOVI.** `test_ns007_t24_rehearsal` 4/4 + `test_ns007_t4_trigger_client` 12/12.
+
+**SLEDEĆA KAPIJA.** Task 25 — regresija `/api/cron/daily`.

@@ -69,3 +69,31 @@ posebno i NIJE menjan u NS007.
 
 Ukloniti/pauzirati Render Cron Job, ili obrisati `AUTONOMY_CRON_SECRET` na web servisu (ruta odmah vraća 401).
 Postojeći radni proizvodi ostaju dostupni za pregled.
+
+## Proba postavljanja (NS007 Task 24, lokalno — Render NIJE diran)
+
+PRAVI proces okidača → PRAVI HTTP → PRAVI uvicorn sa `api.app` (lažna baza u istom procesu):
+
+| Slučaj | Izlaz okidača | Ispis |
+|---|---|---|
+| ispravna tajna | 0 | `COMPLETED` + brojevi (`spremno: 1`) |
+| isti sat, drugi put | 0 | `SKIPPED` / `ALREADY_CLAIMED` |
+| pogrešna tajna | 4 | `HTTP 401` |
+| nedostaje tajna | 2 | bez zahteva |
+| ciklus duži od isteka okidača | 3 | „nije odgovorio" |
+| ciklus pao | 4 | `HTTP 500 {"status": "FAILED", …}` (samo bezbedna polja) |
+
+Tajna se ni u jednom slučaju ne ispisuje (proveren i izlaz pri grešci — mutacija K6).
+
+## Kontrolna lista za uključivanje (kad founder odobri)
+
+- [ ] NS006 (PR #9) spojen; NS007 grana rebase/retarget na `main`
+- [ ] Migracija 136 primenjena; provera: 2 tabele + funkcija; `authenticated` nema EXECUTE ni INSERT/UPDATE
+- [ ] `AUTONOMY_CRON_SECRET` (≥ 32 znaka) na web servisu
+- [ ] (opciono) `AUTONOMY_BUDGET_PER_ORG_DAILY`, `AUTONOMY_HEARING_WINDOW_DAYS`, `AUTONOMY_LEASE_SECONDS`
+- [ ] Deploy web servisa; `/api/cron/autonomy` bez tajne → 401
+- [ ] Jedan ručni okidač sa lokalne mašine: `AUTONOMY_TRIGGER_URL=https://vindex.rs/api/cron/autonomy AUTONOMY_CRON_SECRET=… python scripts/trigger_autonomy_cycle.py`
+- [ ] Pregled `autonomy_cycles` (1 red COMPLETED) i `autonomy_work_items` (samo stvarni okidači)
+- [ ] Founder bira kadencu (opcije A/B/C iznad)
+- [ ] Render Cron Job sa SAMO dve promenljive (URL + tajna)
+- [ ] Posle prve noći: Danas → „Vindex je pripremio"; `usage_events(feature='autonomy')` = broj plaćenih izvršenja

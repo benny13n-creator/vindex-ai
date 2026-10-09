@@ -63,7 +63,11 @@ def main(argv: list[str] | None = None) -> int:
         with urllib.request.urlopen(zahtev, timeout=timeout) as odg:
             status, sirovo = odg.status, odg.read(65536)
     except urllib.error.HTTPError as e:
-        status, sirovo = e.code, b""
+        try:
+            sirovo = e.read(65536)            # telo greške: ispisuju se SAMO bezbedna polja (isti filter kao za uspeh)
+        except Exception:
+            sirovo = b""
+        status = e.code
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         razlog = getattr(e, "reason", e)
         return _greska(f"{cilj} nije odgovorio ({type(razlog).__name__})", 3)
