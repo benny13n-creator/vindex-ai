@@ -689,3 +689,38 @@ uticaja; N3 izvori iz izlaza modela; N4 izvod kao HTML (prvo PREŽIVELA — `<sc
 je test bio slab; pojačan na `<img onerror>`).
 
 **SLEDEĆA KAPIJA.** Task 22 — trošak (adversarijalno).
+
+---
+
+## TASK 22 — ADVERSARIJALNI TROŠAK
+
+**METOD.** Brojanje na granici OpenAI SDK-a (`openai.AsyncOpenAI` zamenjen brojačem; sinhroni `OpenAI` zabranjen) —
+svaki stvarni poziv provajdera iz BILO KOG koda, ne samo iz očekivanog izvršioca.
+
+**SCENARIO.** 100 aktivnih predmeta korisnika A sa Genome-om; 2 stvarna ročišta (danas i sutra); 1 proverena nova
+odluka; 3 preporuke sa izmišljenim odlukama.
+
+| Radnja | Pozivi modela (PROVEN) |
+|---|---|
+| ciklus | **3** (2 pripreme za ročište + 1 analiza uticaja) — ne 100 |
+| planer | 0 |
+| izmišljene odluke | 0 (nikad ne stignu do modela) |
+| otvaranje V2 (genome-v2, promene, radnje) | 0 |
+| Workspace / lista / lista po predmetu | 0 |
+| detalj rada, 3 osvežavanja | 0 |
+| prihvatanje | 0 |
+| ponovljen ciklus istog dana | 0 |
+| nov prozor kroz pravu rutu `/api/cron/autonomy` | 0 |
+
+Svi klijenti sa `max_retries=0` (nema skrivenih SDK ponavljanja: jedna rezervacija budžeta = jedan poziv).
+
+**DIMENZIJE TROŠKA (bez valute — cenovnik nije kanonski u repou).** Po ovom ciklusu: 3 poziva `gpt-4o-mini`, gornja
+granica izlaza 3.800 tokena (2 × 1.200 + 1 × 1.400), ulaz ≈ 4.700 znakova prompta ukupno. Po organizaciji dnevno:
+najviše `AUTONOMY_BUDGET_PER_ORG_DAILY` (20) plaćenih izvršenja, nezavisno od broja predmeta.
+
+**TESTOVI.** `test_ns007_t22_cost` 2/2.
+
+**MUTACIJE (3/3 ubijeno).** $1 skrivena SDK ponavljanja; $2 izmišljene odluke stižu do modela; $3 pregled rada ponovo
+generiše.
+
+**SLEDEĆA KAPIJA.** Task 23 — „Dok spavate" od kraja do kraja.
