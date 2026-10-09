@@ -429,3 +429,67 @@ alat ispravljen, mutacija ponovljena i ubijena. K8 je preživela zbog praznine u
 iz analize bez veze na tvrdnje ne mogu imati učesnike.
 
 **SLEDEĆA KAPIJA.** Task 6 — verzije Genome-a i deterministička razlika.
+
+---
+
+## TASK 6 — VERZIJE GENOME-A I DETERMINISTIČKA RAZLIKA
+
+**PROBLEM.** „Šta se promenilo u ovom predmetu od prethodne verzije?" bez modela i bez lažnih promena.
+
+**TRENUTNI DOKAZ.** (PROVEN) `predmet_genome_history.genome_data` čuva PUN snimak verzije N−1 i upisuje se tik pre
+upisa verzije N (njegov `created_at` = trenutak nastanka verzije N; `trigger_event` = okidač verzije N, za Case
+Evolution `case_evolution:<event_id>`). **Pronađen postojeći kvar:** `_compute_delta` (alarm „Genome ažuriran") poredi
+kontradikcije dve verzije po `CLAIM-NNN` oznakama, a one su EFEMERNE — katalog je sortiran po UUID-u tvrdnji, pa svaka
+nova tvrdnja koja sortira ispred postojećih pomera numeraciju. Ista sporna tačka (a, b) postaje `[CLAIM-001,
+CLAIM-002]` → `[CLAIM-002, CLAIM-003]`, što nije sadržavanje → „1 nova + 1 eliminisana" za nepromenjen predmet.
+
+**POKUŠAJ OPOVRGAVANJA.** Može li se istorijska oznaka razrešiti naknadno? NE — katalog starog snimka nije sačuvan.
+Može li se porediti po lokacijama? Ne pouzdano — A005: dve tačke nad istim parom dokumenata se spajaju. Zato: trajni
+identitet od sada, „nepoznato" za stare snimke.
+
+**ODLUKA.**
+- Proizvođač (`_extract_genome`, oba puta: pozadina i ručni refresh) upisuje uz `claim_refs` i `claim_ids` —
+  iste reference razrešene ISTIM katalogom koji je model video (`razresi_reference`), fail-closed: jedna nepoznata,
+  duplirana ili tuđa referenca → `None` za celu stavku (nikad delimična lista). Aditivno, kao `dokument_id`
+  (A001/A002); `claim_refs` netaknute (V2 materijalizacija ih čita).
+- `shared/contradiction_identity.py`: `contradiction_identity_stable` + `identitet_seme_stabilna`; `kljucevi`/
+  `razdvoji_kontradikcije`/`uporedi_kontradikcije` primaju funkciju identiteta (podrazumevano nepromenjeno).
+- `_compute_delta` daje prednost stabilnoj šemi kad je imaju OBE verzije (postojeće ponašanje za stare snimke
+  nepromenjeno — dug, vidi ograničenja).
+- `shared/genome_contract.py::promene_genome` (čista): `promene` = strukturne sa trajnim identitetom
+  (kontradikcija_dodata/nestala po `claim_ids`; dokumenti i tvrdnje u analizi — prebrojani; rok_dodat/uklonjen/
+  promenjen po (dokument, datum); provera analize); `analiticke` = procene modela (snaga — „nije verovatnoća ishoda",
+  broj nedostajućih) ODVOJENO; `nepoznato` kad trajnog identiteta nema. Slobodan tekst modela se ne poredi.
+- Ruta `GET /api/predmeti/{id}/genome-v2/promene`: trenutna/prethodna verzija (prethodna MORA biti N−1, inače
+  UNKNOWN), `nastala`, `okidac`, `dogadjaj_id`, akcije koje je isti događaj osvežio (`case_actions.event_id`),
+  poslednjih 10 verzija. Samo čitanje; vlasništvo prvo; istorija ograničena na predmet i korisnika.
+
+**FAJLOVI.** `routers/case_dna.py`, `shared/contradiction_identity.py`, `shared/genome_contract.py`,
+`tests/test_ns006_t6_genome_changes.py`.
+
+**ENDPOINTI.** NOV: `GET /api/predmeti/{id}/genome-v2/promene`.
+
+**TESTOVI.** 13/13: `_compute_delta` pri pomerenim oznakama → 0/0, stvarna nova tačka → 1; proizvođač razrešava
+`claim_ids` (nepoznata / duplikat / delimična lista → `None`, `claim_refs` netaknute); v17→v18 iz jednog novog dokumenta →
+tačno {dokumenti 2→3, nova kontradikcija (C,D), nov rok 2025-05-10, tvrdnje 4→6} + odvojeno 2 analitičke; ista analiza
+regenerisana (obrnut redosled, preformulisan tekst, pomerene oznake, drugi naziv roka) → 0 promena; isti ulaz → isti
+izlaz; snimak bez trajnih veza → kontradikcije „nepoznato"; rok promenjen po dokumentu; prva verzija → bez promena;
+ruta: promene + događaj + akcije, 0 upisa; B → 404 identičan nepostojećem; nedostajuća N−1 → UNKNOWN; pad istorije →
+DEGRADED. Regresija (25 postojećih fajlova sa `contradiction_identity`/`_compute_delta`/`_extract_genome` + NS006):
+587 passed, 1 skipped.
+
+**TENANT.** B ne vidi istoriju A (404 bez orakla).
+
+**FAILURE.** Istorija nepročitana → DEGRADED (ne „bez promena"); N−1 ne postoji → UNKNOWN.
+
+**MUTACIJE (8 ubijeno, 1 preživela po dizajnu).** P1 `_compute_delta` bez stabilne šeme (= stanje pre ispravke);
+P2 delimična lista `claim_ids`; P3 razlika po oznakama; P4 slobodan tekst kao promena; P5 nepoznato prećutano; P6 bilo
+koja prethodna verzija; P7 pad istorije kao bez promena; P9 (#7 iz mandata) ruta istorije bez provere vlasništva →
+B vidi istoriju → test pada. **P8 (filter `user_id` na upitu istorije uklonjen) PREŽIVLJAVA**: provera vlasništva nad
+predmetom (P9) je prava brava, filter po korisniku je dodatni sloj.
+
+**OGRANIČENJA.** Snimci napravljeni PRE ove izmene nemaju `claim_ids`: za njih je razlika kontradikcija „nepoznato", a
+postojeći alarm `_compute_delta` i dalje može da prijavi lažnu promenu kontradikcije za takav par (dug koji nestaje
+posle dva osvežavanja). Promene ročišta/potvrđenih rokova nisu deo snimka Genome-a (prikazuju se kroz akcije i Danas).
+
+**SLEDEĆA KAPIJA.** Task 7 — rizik i spremnost bez pseudo-predviđanja.

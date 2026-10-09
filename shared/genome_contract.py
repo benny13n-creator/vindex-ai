@@ -603,3 +603,118 @@ def sastavi_kontradikcije(*, v2: Optional[list], case_dna: Optional[dict], dokaz
             "aktivnih_bez_veze_na_tvrdnje": sum(1 for s in aktivne if not s["reference_proverene"]),
         },
     }
+
+
+# ── Promene između verzija Genome-a (NS006 Task 6) ────────────────────────────
+#
+# Deterministička razlika dva SNIMKA `case_dna` (trenutni i prethodni iz
+# `predmet_genome_history.genome_data`). Bez modela. Pravila:
+#   • porede se samo STRUKTURNE stavke sa trajnim identitetom; slobodan tekst modela
+#     (opis, strategija, najslabija tačka) se NE poredi — preformulacija nije promena;
+#   • kontradikcije po `claim_ids` (trajni `predmet_dokazi.id`, A008 pravilo sadržavanja
+#     iz shared/contradiction_identity.py); bez njih u bilo kojoj verziji → `nepoznato`;
+#   • rokovi iz analize po (dokument, datum); „promenjen" samo kad dokument ima tačno
+#     jedan rok u obe verzije;
+#   • procene modela (snaga, kritičnost, broj nedostajućih) idu ODVOJENO u `analiticke`.
+
+def _rokovi_kljucevi(g: dict) -> dict:
+    out: dict[tuple, dict] = {}
+    for r in g.get("rokovi_kriticni") or []:
+        if not isinstance(r, dict):
+            continue
+        datum = _datum(r.get("datum"))
+        if not datum:
+            continue
+        out[(str(r.get("dokument_id") or ""), datum)] = r
+    return out
+
+
+def promene_genome(stari: Optional[dict], novi: Optional[dict]) -> dict:
+    from shared.contradiction_identity import (
+        contradiction_identity_stable, identitet_seme_stabilna, razdvoji_kontradikcije)
+    if not isinstance(novi, dict) or not novi or "greska" in novi:
+        return {"stanje": NEPOZNATO, "promene": [], "analiticke": [], "nepoznato": [
+            {"oblast": "genome", "razlog": "Trenutna analiza ne postoji ili nije uspela."}]}
+    if not isinstance(stari, dict) or not stari or "greska" in stari:
+        return {"stanje": "PRVA_VERZIJA", "promene": [], "analiticke": [], "nepoznato": []}
+
+    promene: list[dict] = []
+    analiticke: list[dict] = []
+    nepoznato: list[dict] = []
+
+    def dodaj(lista, vrsta, oznaka, opis, kljuc, poreklo, staro=None, novo=None, **dod):
+        lista.append({"vrsta": vrsta, "oznaka": oznaka, "opis": opis, "kljuc": kljuc, "poreklo": poreklo,
+                      "staro": staro, "novo": novo, **dod})
+
+    # 1. Kontradikcije — trajni identitet ili ništa.
+    sk = [k for k in (stari.get("kontradikcije") or []) if isinstance(k, dict)]
+    nk = [k for k in (novi.get("kontradikcije") or []) if isinstance(k, dict)]
+    if sk or nk:
+        if identitet_seme_stabilna(sk, nk):
+            r = razdvoji_kontradikcije(sk, nk, contradiction_identity_stable)
+            for k in r["nove"]:
+                rel, ids = contradiction_identity_stable(k)
+                dodaj(promene, "kontradikcija_dodata", "+", "Nova kontradikcija: " + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
+                      "kontradikcija:" + rel + ":" + ",".join(ids), AI_ANALYSIS, tvrdnje=list(ids))
+            for k in r["eliminisane"]:
+                rel, ids = contradiction_identity_stable(k)
+                dodaj(promene, "kontradikcija_nestala", "✓", "Kontradikcija se više ne opaža: " + (_tekst(k.get("issue_label"), 200) or "sporna tačka"),
+                      "kontradikcija:" + rel + ":" + ",".join(ids), AI_ANALYSIS, tvrdnje=list(ids))
+        else:
+            nepoznato.append({"oblast": "kontradikcije",
+                              "razlog": "Bar jedna verzija nema trajne veze kontradikcija na tvrdnje; poređenje po oznakama bi dalo lažne promene."})
+
+    # 2. Brojevi iz analize (deterministički prebrojani u trenutku analize).
+    for kljuc, opis in (("_genome_docs_count", "Dokumenata u analizi"),):
+        a, b = stari.get(kljuc), novi.get(kljuc)
+        if isinstance(a, int) and isinstance(b, int) and a != b:
+            dodaj(promene, "dokumenti_analize", "+" if b > a else "−", f"{opis}: {a} → {b}", kljuc,
+                  DETERMINISTIC_DERIVATION, a, b)
+    sa, na = stari.get("_analiza_osnov") or {}, novi.get("_analiza_osnov") or {}
+    if isinstance(sa, dict) and isinstance(na, dict):
+        a, b = sa.get("cinjenica"), na.get("cinjenica")
+        if isinstance(a, int) and isinstance(b, int) and a != b:
+            dodaj(promene, "tvrdnje_analize", "+" if b > a else "−", f"Tvrdnji u analizi: {a} → {b}",
+                  "_analiza_osnov.cinjenica", DETERMINISTIC_DERIVATION, a, b)
+
+    # 3. Rokovi iz analize — po (dokument, datum).
+    sr, nr = _rokovi_kljucevi(stari), _rokovi_kljucevi(novi)
+    po_dok_s: dict[str, list] = {}
+    po_dok_n: dict[str, list] = {}
+    for (d, dat) in sr:
+        po_dok_s.setdefault(d, []).append(dat)
+    for (d, dat) in nr:
+        po_dok_n.setdefault(d, []).append(dat)
+    promenjeni_dok = {d for d in po_dok_s if d and len(po_dok_s[d]) == 1 and len(po_dok_n.get(d, [])) == 1
+                      and po_dok_s[d] != po_dok_n[d]}
+    for d in sorted(promenjeni_dok):
+        dodaj(promene, "rok_promenjen", "!", f"Rok iz analize promenjen: {po_dok_s[d][0]} → {po_dok_n[d][0]}",
+              "rok:" + d, AI_ANALYSIS, po_dok_s[d][0], po_dok_n[d][0], dokument_id=d)
+    for (d, dat) in sorted(set(nr) - set(sr)):
+        if d in promenjeni_dok:
+            continue
+        dodaj(promene, "rok_dodat", "+", f"Nov rok u analizi: {dat}", f"rok:{d}:{dat}", AI_ANALYSIS, None, dat, dokument_id=d or None)
+    for (d, dat) in sorted(set(sr) - set(nr)):
+        if d in promenjeni_dok:
+            continue
+        dodaj(promene, "rok_uklonjen", "−", f"Rok više nije u analizi: {dat}", f"rok:{d}:{dat}", AI_ANALYSIS, dat, None, dokument_id=d or None)
+
+    # 4. Ishod automatske provere analize (deterministički validator).
+    vs, vn = (stari.get("_verifikacija") or {}).get("odluka"), (novi.get("_verifikacija") or {}).get("odluka")
+    if vs and vn and vs != vn:
+        dodaj(promene, "provera_analize", "!" if vn == "require_review" else "✓",
+              f"Provera analize: {vs} → {vn}", "_verifikacija.odluka", DETERMINISTIC_DERIVATION, vs, vn)
+
+    # 5. Procene modela — odvojeno, nikad kao činjenica.
+    a, b = stari.get("snaga_predmeta_procent"), novi.get("snaga_predmeta_procent")
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)) and a != b:
+        dodaj(analiticke, "analiticka_ocena", "~", f"Analitička ocena (nije verovatnoća ishoda): {a} → {b}",
+              "snaga_predmeta_procent", AI_ANALYSIS, a, b, klasa=MIXED)
+    a, b = len(stari.get("nedostaje") or []), len(novi.get("nedostaje") or [])
+    if a != b:
+        dodaj(analiticke, "nedostajuce_po_analizi", "~", f"Nedostajućih stavki po analizi: {a} → {b}",
+              "nedostaje", AI_ANALYSIS, a, b, klasa=MODEL_DERIVED)
+
+    promene.sort(key=lambda p: (p["vrsta"], p["kljuc"]))
+    analiticke.sort(key=lambda p: (p["vrsta"], p["kljuc"]))
+    return {"stanje": OK, "promene": promene, "analiticke": analiticke, "nepoznato": nepoznato}
