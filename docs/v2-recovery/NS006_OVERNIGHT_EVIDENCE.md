@@ -175,3 +175,75 @@ Nije menjan (ispravka testa nije u opsegu NS006).
 - Eksploit PDF-ovi za svaki PYSEC nisu konstruisani; zaštita je verzija biblioteke + čuvar pina.
 
 **SLEDEĆA KAPIJA.** Task 2 — pokrivenost Case Evolution događaja.
+
+---
+
+## TASK 2 — POTPUNOST CASE EVOLUTION DOGAĐAJA
+
+**PROBLEM.** Da li svaka promena predmeta dostupna iz V2 proizvodi trajan događaj i odgovarajuću posledicu.
+
+**MATRICA POKRIVENOSTI** (putanje dostupne iz V2; „test" = postojeći test koji to izvršava):
+
+| Putanja (V2) | Trajni događaj | Case Evolution | Genome refresh | Dokazi | Case Actions | Dokaz |
+|---|---|---|---|---|---|---|
+| Nov predmet (`POST /api/predmeti`) | `predmet_kreiran` (retry + reaper) | ne (Case Pipeline) | ne (nema dokumenata) | — | ne | PROVEN: test_case_pipeline, test_blk21 |
+| Izmena predmeta (`PATCH`, bez `status`) | **ne** | — | — | — | **ne** | PROVEN (čitanje): naziv/opis ne menjaju stanje; `tip` menja očekivane tipove dokumenata → dug |
+| Beleška | ne (nije semantička promena stanja) | — | — | — | — | PROVEN (čitanje) |
+| Prihvaćen dokument / Smart Intake finalize | `DocumentAccepted` / `DocumentBatchCompleted` | da | **da** | klasifikacija | da | PROVEN: test_case_evolution, test_delta_sprint003/004 |
+| Smart Intake review resolve / reject | `ReviewAccepted` / `ReviewRejected` | da | da (posle finalize) / ne | — | da / ne | PROVEN: test_delta_sprint002 |
+| Ručni dokaz (`POST /api/evidence/predmeti/{id}/dokaz`) | `NewEvidenceRegistered` | da | **ne** (namerno, vidi ispod) | klasifikacija samo sa `dokument_id` | **da** | PROVEN: **test_ns006_t2** |
+| Povezivanje klijenta (`confirm-links`) | **ne** | — | — | — | — | odluka ispod |
+| Ročište kreirano | `rociste_zakazano` | da | da | — | da | PROVEN: test_beta_gate_rociste_consistency, test_omega_sprint003 |
+| Ročište izmenjeno (datum/vreme/status, uključujući otkazivanje) | `rociste_zakazano` (`trigger=rociste_updated`) | da | da | — | da | PROVEN: test_beta_gate_rociste_consistency |
+| Ročište obrisano | `SourceInvalidated` (atomski RPC) | da | ne | — | da | PROVEN: test_wave2_2d_corrective_atomic_invalidation |
+| Rok potvrđen / odbijen (Danas) | **ne** | — | — | — | **ne čita rokove** | Task 8 |
+| Zatvaranje predmeta | `MatterBecameTerminal` (direktan reconcile) | da | ne | — | zatvara sve | PROVEN: test_wave2_2f |
+
+**TRENUTNI DOKAZ / OPOVRGNUTO.** Istorijski trag „ručni dokaz ne emituje događaj" je OPOVRGNUT (emitovanje postoji
+od 2026-09-11). Pronađena PRAVA rupa na istoj putanji (PROVEN čitanjem): upis događaja je bio **jedan pokušaj bez
+identiteta**, a neuspeh se gutao uz `ok: true` — odgovor identičan uspehu, dok Case Evolution nikad ne sazna za tvrdnju.
+
+**POKUŠAJ OPOVRGAVANJA ODLUKA.**
+- *Treba li ručni dokaz da osvežava Genome?* NE. `api.py` (upload) i Smart Intake emituju `NewEvidenceRegistered`
+  ZAJEDNO sa `DocumentAccepted`, koji već osvežava Genome — dodavanje `genome_refresh` ovom događaju bi udvostručilo
+  plaćeni AI poziv po otpremanju. Posledica ručnog dokaza je `refresh_case_actions` (dokazano), a Genome vidi tvrdnju
+  pri sledećem osvežavanju (`_fetch_dokazi_kontekst`). Profesionalni pregled dokaza (Task 4) čita tvrdnje direktno,
+  bez AI-ja.
+- *Treba li `confirm-links` da emituje `NewClientLinked`?* NE. Jedina posledica (`conflict_check`) traži ime
+  PROTIVNE strane, koje ova ruta nema — izvođenje bi bilo nagađanje. V2 pre povezivanja već radi eksplicitnu
+  proveru sukoba (NS005 T4, PROVEN). Ostaje kao zabeležena odluka, ne rupa.
+- *Izmena `status` kroz `PATCH`* nije dostupna iz V2 (ugovor `rad-predmeta.js`); legacy dug, nije menjano.
+
+**IMPLEMENTACIJA.** `routers/evidence.py::add_dokaz`: deterministički `event_id = uuid5(NS, "NewEvidenceRegistered:dokaz:<id>")`
+(isti obrazac kao S6 `NewClientLinked` i `SourceInvalidated`), do 3 pokušaja (0,2 s · n), i aditivno polje odgovora
+`dogadjaj: ZAKAZAN | NIJE_ZAKAZAN`. Dispečer, registar posledica i šema NEPROMENJENI.
+
+**FAJLOVI.** `routers/evidence.py`; `tests/ns006_fake.py` (nov: jedinstvenost iz migracija 073/096/099,
+`ignore_duplicates`, `.not_`, RPC `claim_pending_events` 091 — NS005 harness netaknut);
+`tests/test_ns006_t2_evidence_event_chain.py`.
+
+**ENDPOINTI.** `POST /api/evidence/predmeti/{id}/dokaz` (aditivno polje `dogadjaj`).
+
+**TESTOVI.** `test_ns006_t2_*` 6/6 kroz STVARNU rutu, `emit_durable`, `dispatch_pending_events`,
+`handle_case_changed`, reconcile i `risk_engine`:
+dokaz → 1 red sa izvedenim id-jem → dispečer → `evidence_classification` (`skipped_no_dokument_id`) i
+`refresh_case_actions` `completed` → akcija „Nema uploadovanih dokaza" ZATVORENA, ostale otvorene i ažurirane
+(`event_id` = ovaj događaj), bez duplikata; ponovljen dispečer → 0 obrađeno. Regresija: 64 postojeća fajla koja
+dodiruju dokaze/Case Evolution/`emit_durable` → 1133 passed.
+
+**TENANT.** B → predmet A: 404; B-ov predmet + A-ov `dokument_id`: 400; 0 dokaza i 0 događaja.
+
+**FAILURE.** Prolazna greška → drugi pokušaj sa ISTIM id-jem → 1 događaj. Iscrpljeno → `NIJE_ZAKAZAN`, tvrdnja
+ostaje (nije poništiva bez transakcije; prijavljuje se). Pad posledice → `dispatch_attempts=1`, `failed`; sledeći
+prolaz završava SAMO `refresh_case_actions` (klasifikacija ostaje `completed`, ne ponavlja se).
+
+**MUTACIJE (6 ubijenih, 1 preživela po dizajnu).** E1 bez emitovanja → 4 testa padaju; E2 bez identiteta → 3;
+E3 bez retry-ja → 1; E4 neuspeh prijavljen kao ZAKAZAN → 1; E7 bez `refresh_case_actions` u registru → 3;
+E6 obe brave vlasništva uklonjene → tenant test pada. **E5 (samo provera u ruti uklonjena) PREŽIVLJAVA**: nezavisna
+druga brava `shared/evidence_write.py::_proveri_vlasnistvo` (INVARIANT 1) i dalje vraća 404 — to je odbrana u dubini,
+ne rupa u testu.
+
+**OGRANIČENJA.** Prozor pada procesa između upisa tvrdnje i upisa događaja i dalje postoji (zatvaranje traži RPC kao
+migracija 131 — migracija se ne primenjuje u ovom sprintu). Izmena `tip`-a predmeta ne pokreće reconcile (dug).
+
+**SLEDEĆA KAPIJA.** Task 3 — profesionalni Genome ugovor.
