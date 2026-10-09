@@ -614,3 +614,30 @@ važećim zakupom (druga brava) — UBIJA je test pariteta sa pravim PostgreSQL-
 mutacijom D5 (Task 1–2).
 
 **SLEDEĆA KAPIJA.** Task 19 — matrica zakupaca A/B.
+
+---
+
+## TASK 19 — MATRICA ZAKUPACA A/B
+
+| B ne sme da … | Dokaz | Mutacija |
+|---|---|---|
+| vidi rad A | T12 lista samo svoje; T14 tabla; T19 posle punog ciklusa za A: tabla, lista, lista po predmetu A prazne | V1, W1 |
+| zaključi da rad A postoji | T12 tuđ / nepostojeći / neispravan id → bajt-identičan 404 | V4 |
+| pročita naslov / izvore rada A | T12 detalj 404 bez teksta; oštećen red ne otkriva naziv tuđeg predmeta | V2, V6 |
+| prihvati / odbaci rad A | T12 404, stanje nepromenjeno | V2 |
+| pokrene rad nad predmetom A | okidač ne prima zakupca (T19: telo sa user_id/predmet_id ignorisano); planer veže sve za vlasnika | — |
+| podmetne ročište A uz predmet B | planer T6–7 (`VLASNIK_SE_NE_POKLAPA`), izvršilac T8 (`HEARING_NOT_FOUND`) | H2, X3 |
+| podmetne preporuku A uz predmet B | planer T9 (`VLASNIK_SE_NE_POKLAPA`), izvršilac T19 (`RECOMMENDATION_NOT_ACTIVE`) | P6/T2, T1 |
+| zadrži pristup kad predmet promeni vlasnika | izvršilac T8 (`MATTER_NOT_ACCESSIBLE`) | X14 |
+| dobije zastareo UI odgovor A | T15 (rad A→B, korisnik A→B u letu i posle prikaza) | Q1, Q10 |
+
+Sistemski planer nikad ne prelazi granicu korisnika/organizacije: svaki kandidat nosi `user_id` iz izvornog reda (ročište
+ili preporuka) koji mora biti jednak vlasniku predmeta; budžet je po organizaciji iz kanonskog članstva.
+
+**TESTOVI.** `test_ns007_t19_tenant_matrix` 3/3 (preporuka drugog korisnika u izvršiocu; B posle punog ciklusa za A;
+okidač bez zakupca iz tela).
+
+**MUTACIJE (2/2 novih ubijeno + 13 iz prethodnih zadataka).** T1 izvršilac: preporuka bez filtera vlasnika; T2 planer
+precedenta bez provere vlasnika.
+
+**SLEDEĆA KAPIJA.** Task 20 — promena sesije.
