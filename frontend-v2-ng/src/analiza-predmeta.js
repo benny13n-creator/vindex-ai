@@ -55,7 +55,7 @@
       "an-kontr-aktivne", "an-kontr-pregled", "an-kontr-zatvorene", "an-spremnost", "an-metrike"];
     function ocistiPrikaz() {
       KONTEJNERI.forEach(function (id) { $(id).replaceChildren(); });
-      ["an-promene-stanje", "an-genome-stanje", "an-dokazi-stanje", "an-kontr-stanje", "an-spremnost-stanje"].forEach(function (id) { stanje(id, null); });
+      ["an-promene-stanje", "an-genome-stanje", "an-dokazi-stanje", "an-kontr-stanje", "an-spremnost-stanje", "an-skraceno"].forEach(function (id) { stanje(id, null); });
       $("an-analiticke-blok").hidden = true; $("an-zatvorene-blok").hidden = true; $("an-metrike-blok").hidden = true;
       $("an-sadrzaj").hidden = true;
     }
@@ -121,6 +121,10 @@
 
     function prikazi(g, pr, prGreska) {
       var m = g.metapodaci || {};
+      /* Granica odgovora (500 redova): prikazani deo NIJE ceo predmet — to se kaže, brojevi se ne predstavljaju kao potpuni. */
+      var sk = m.skraceno || {};
+      if (sk.dokazi || sk.dokumenti) stanje("an-skraceno", "nepotpuno", "Predmet je veći od onoga što je ovde prikazano: lista " +
+        [sk.dokazi ? "tvrdnji" : "", sk.dokumenti ? "dokumenata" : ""].filter(Boolean).join(" i ") + " je skraćena na prvih 500, pa brojevi u ovom pregledu NISU potpuni.");
       var dokNaziv = {};
       niz(g.dokazi && g.dokazi.dokumenti).forEach(function (x) { dokNaziv[x.id] = x.naziv; });
 
@@ -242,7 +246,7 @@
       if (niz(g.metrike).length) {
         $("an-metrike-blok").hidden = false;
         g.metrike.forEach(function (x) {
-          $("an-metrike").append(stavkaListe(tekst(x.kljuc) + ": " + tekst(x.vrednost), x.klasa === "deterministic" ? "DETERMINISTIC_DERIVATION" : "AI_ANALYSIS",
+          $("an-metrike").append(stavkaListe((tekst(x.naziv) || tekst(x.kljuc)) + ": " + tekst(x.vrednost), x.klasa === "deterministic" ? "DETERMINISTIC_DERIVATION" : "AI_ANALYSIS",
             [meta(x.znacenje + " — " + x.napomena)]));
         });
       }

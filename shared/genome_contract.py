@@ -226,31 +226,40 @@ def klasifikuj_metrike(case_dna: dict) -> list[dict]:
     g = case_dna or {}
     out: list[dict] = []
 
-    def dodaj(kljuc, vrednost, klasa, znacenje):
-        out.append({"kljuc": kljuc, "vrednost": vrednost, "klasa": klasa, "znacenje": znacenje,
+    def dodaj(kljuc, vrednost, klasa, znacenje, naziv):
+        # `naziv` je ljudska oznaka sa SKALOM (NS006 Task 20): sam broj pored „snaga predmeta" se lako čita kao šansa.
+        out.append({"kljuc": kljuc, "naziv": naziv, "vrednost": vrednost, "klasa": klasa, "znacenje": znacenje,
                     "napomena": _NIJE_ISHOD})
 
     if "snaga_predmeta_procent" in g:
         dodaj("snaga_predmeta_procent", g.get("snaga_predmeta_procent"), MIXED,
-              "zbir uticaja faktora koje je naveo model, sabran pravilom u backend-u (compute_snaga_score)")
+              "zbir uticaja faktora koje je naveo model, sabran pravilom u backend-u (compute_snaga_score)",
+              "Snaga predmeta (analitička ocena, 0–100)")
     for k, v in sorted((g.get("heatmap") or {}).items()) if isinstance(g.get("heatmap"), dict) else []:
-        dodaj(f"heatmap.{k}", v, MODEL_DERIVED, "ocena dimenzije koju je dao model (0–100)")
+        dodaj(f"heatmap.{k}", v, MODEL_DERIVED, "ocena dimenzije koju je dao model (0–100)",
+              f"Dimenzija „{str(k).replace('_', ' ')}“ (ocena modela, 0–100)")
     nt = g.get("najslabija_tacka")
     if isinstance(nt, dict) and "kriticnost" in nt:
-        dodaj("najslabija_tacka.kriticnost", nt.get("kriticnost"), MODEL_DERIVED, "procena modela (0–100)")
+        dodaj("najslabija_tacka.kriticnost", nt.get("kriticnost"), MODEL_DERIVED, "procena modela (0–100)",
+              "Kritičnost najslabije tačke (ocena modela, 0–100)")
     for i, d in enumerate(g.get("dokazi_rang") or []):
         if isinstance(d, dict) and "snaga_score" in d:
-            dodaj(f"dokazi_rang[{i}].snaga_score", d.get("snaga_score"), MODEL_DERIVED, "ocena dokumenta koju je dao model")
+            dodaj(f"dokazi_rang[{i}].snaga_score", d.get("snaga_score"), MODEL_DERIVED, "ocena dokumenta koju je dao model",
+                  f"Ocena dokaza „{_tekst(d.get('naziv') or d.get('dokument'), 120) or str(i + 1)}“ (ocena modela)")
     if "genome_kompletnost" in g:
-        dodaj("genome_kompletnost", g.get("genome_kompletnost"), MODEL_DERIVED, "samoprocena modela")
+        dodaj("genome_kompletnost", g.get("genome_kompletnost"), MODEL_DERIVED, "samoprocena modela",
+              "Kompletnost analize (samoprocena modela)")
     osnov = g.get("_analiza_osnov")
     if isinstance(osnov, dict):
         for k in ("dokumenata", "cinjenica", "pravnih_elemenata"):
             if k in osnov:
-                dodaj(f"_analiza_osnov.{k}", osnov.get(k), DETERMINISTIC, "prebrojano iz baze u trenutku analize")
+                dodaj(f"_analiza_osnov.{k}", osnov.get(k), DETERMINISTIC, "prebrojano iz baze u trenutku analize",
+                      {"dokumenata": "Dokumenata u osnovu analize", "cinjenica": "Činjenica u osnovu analize",
+                       "pravnih_elemenata": "Pravnih elemenata u osnovu analize"}[k])
     for k in ("_genome_docs_count", "_genome_docs_preskoceno"):
         if k in g:
-            dodaj(k, g.get(k), DETERMINISTIC, "prebrojano pri sastavljanju analize")
+            dodaj(k, g.get(k), DETERMINISTIC, "prebrojano pri sastavljanju analize",
+                  {"_genome_docs_count": "Dokumenata u analizi", "_genome_docs_preskoceno": "Dokumenata preskočeno pri analizi"}[k])
     return out
 
 

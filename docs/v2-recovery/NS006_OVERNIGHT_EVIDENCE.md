@@ -888,3 +888,41 @@ svaka izmena teksta sajta o „živom predmetu" bila bi tvrdnja o proizvodu pre 
 `e2e:site` 73/73 nepromenjen.
 
 **SLEDEĆA KAPIJA.** Task 20 — adversarial pregled.
+
+---
+
+## TASK 20 — ADVERSARIAL PREGLED CELOG SPRINTA
+
+**METOD.** Pregled celog proizvodnog diff-a od osnove `99d2c6b9` (19 fajlova, +2159/−38) iz ugla „šta advokat može
+pogrešno da razume" i „šta košta / curi / laže kad nešto padne".
+
+**PROVERENO I ODBAČENO (nije problem).**
+- Novi AI troškovi? NE: registar posledica (`CONSEQUENCE_REGISTRY`) nije menjan; ročište → genome_refresh je postojalo
+  pre NS006. Sve nove rute i ekrani su samo čitanje (T17: 0 poziva modela, konstantan broj upita).
+- `add_dokaz` ponavlja emitovanje do 3 puta: najviše ~0,6 s dodatno, identitet događaja je determinističan
+  (ponavljanje je idempotentno); ishod je u polju `dogadjaj`.
+- Migracija 135 nije primenjena na produkciji: pisac i čitalac imaju dokazan fallback (T2/T3), kolona je nullable.
+- XSS: svi novi moduli upisuju isključivo `textContent`; adrese kroz `encodeURIComponent`; neispravan id nije veza.
+
+**PRONAĐENO I ISPRAVLJENO.**
+1. **Skraćen odgovor predstavljen kao ceo predmet.** Backend javlja `metapodaci.skraceno` (granica 500), UI to nije
+   prikazivao — advokat bi „500 tvrdnji" čitao kao potpun broj. Sada: „lista … je skraćena na prvih 500, pa brojevi u
+   ovom pregledu NISU potpuni". Test `live-analiza` [granica] ×2; mutacija X1 UBIJENA.
+2. **Sirov ključ metrike i broj bez skale.** Prikaz je bio `snaga_predmeta_procent: 61` — sirov ključ, a goli broj
+   pored „snaga predmeta" se lako čita kao šansa. Ugovor sada nosi aditivno polje `naziv` sa SKALOM i izvorom
+   („Snaga predmeta (analitička ocena, 0–100)", „… (ocena modela, 0–100)", „Dokumenata u analizi"); UI ga koristi.
+   Termin „Snaga predmeta" je zadržan (postojeći naziv, nije preimenovan). T3 proverava `naziv` za svaku metriku;
+   `live-analiza` proverava prikaz. Mutacije X2 (UI sirov ključ) i X3 (naziv bez skale) UBIJENE.
+
+**FAJLOVI.** `shared/genome_contract.py`, `frontend-v2-ng/src/analiza-predmeta.js`, `frontend-v2-ng/index.html`,
+`tests/test_ns006_t3_genome_contract.py`, `frontend-v2-ng/tests/live-analiza.mjs`.
+
+**TESTOVI.** NS006 backend 117 passed / 1 skipped; `live-analiza` 43/43.
+
+**PREOSTALI DUG (svesno ostavljen, za odluku foundera).**
+- V2 NG još nema ekran za ručno dodavanje tvrdnje, pa se `dogadjaj: NIJE_ZAKAZAN` nigde ne prikazuje korisniku
+  (stari `/app-legacy` ignoriše aditivno polje).
+- Analiza se ne osvežava sama dok je otvorena; nova verzija se vidi pri sledećem otvaranju predmeta.
+- Gramatika razloga iz `risk_engine.py` (T12).
+
+**SLEDEĆA KAPIJA.** Task 21 — puna regresija i bezbednosni skeneri.

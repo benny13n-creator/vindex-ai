@@ -141,7 +141,7 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
     sp.operativna_spremnost === "Kritičan nedostatak" && /2 od 5 tvrdnji ima procenu dokaza/.test(sp.pokrivenost_procene) && /pravilo, nije procena ishoda/.test(sp.procesni_rizik), JSON.stringify(sp));
   zapisi("spremnost", "ocene modela su u zasebnom bloku sa „nije verovatnoća ishoda“", e.metrike && /nisu verovatnoća ishoda/.test(e.metrike));
   zapisi("spremnost", "SVAKA ocena modela nosi sopstvenu napomenu „NIJE verovatnoća ishoda“",
-    e.metrikeStavke.length > 0 && e.metrikeStavke.every(x => /NIJE verovatnoća ishoda/.test(x) && !/verovatnoća uspeha|šans/i.test(x)), e.metrikeStavke.join(" | ").slice(0, 200));
+    e.metrikeStavke.length > 0 && e.metrikeStavke.every(x => /NIJE verovatnoća ishoda/.test(x) && !/verovatnoća uspeha|šans/i.test(x)) && e.metrikeStavke.some(x => /^Snaga predmeta \(analitička ocena, 0–100\): \d+/.test(x)) && !e.metrikeStavke.some(x => /[a-z]_[a-z]+:/.test(x)), e.metrikeStavke.join(" | ").slice(0, 200));
   const _bez = (e.ceo + " " + e.sav).replace(/(nisu|nije|ni jedan nije|nijedan pokazatelj nije) (verovatnoća|predviđanje) ishoda/gi, "");
   zapisi("istina", "nigde reči o šansi/verovatnoći uspeha", !ZABRANJENO.test(_bez), (_bez.match(ZABRANJENO) || [""])[0]);
   const DOZVOLJENO = [/^\/api\/predmeti$/, /^\/api\/predmeti\/[^/]+$/, /^\/api\/predmeti\/[^/]+\/dokumenti$/, /^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/];
@@ -182,6 +182,19 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
   zapisi("degradirano", "pokazatelji iz palog izvora su „Nije dostupno“, ostali važe",
     sp.pokrivenost_procene[0] === "DEGRADED" && /Nije dostupno/.test(sp.pokrivenost_procene[1]) && sp.operativna_spremnost[0] === "OK", JSON.stringify(sp));
   await s.zatvori();
+}
+
+// ── 3b. Skraćen odgovor (granica 500) se kaže, ne predstavlja se kao ceo predmet ──
+{
+  const s = await scenario({ kuke: { izmeni: (put, t) => /genome-v2$/.test(put) ? { ...t, metapodaci: { ...t.metapodaci, skraceno: { dokazi: true, dokumenti: false } } } : null } });
+  await gotovo(s.p);
+  const sk = await s.p.evaluate(() => { const n = document.getElementById("an-skraceno"); return n.hidden ? null : [n.dataset.stanje, n.textContent]; });
+  zapisi("granica", "skraćena lista tvrdnji: vidljivo „brojevi NISU potpuni“", !!sk && sk[0] === "nepotpuno" && /tvrdnji je skraćena na prvih 500/.test(sk[1]) && /NISU potpuni/.test(sk[1]), JSON.stringify(sk));
+  await s.zatvori();
+  const s2 = await scenario();
+  await gotovo(s2.p);
+  zapisi("granica", "potpun odgovor: bez upozorenja o skraćivanju", await s2.p.evaluate(() => document.getElementById("an-skraceno").hidden));
+  await s2.zatvori();
 }
 
 // ── 4. Greške ────────────────────────────────────────────────────────────────

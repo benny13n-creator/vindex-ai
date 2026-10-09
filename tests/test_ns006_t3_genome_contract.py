@@ -201,6 +201,7 @@ def test_3c_klasifikacija_brojeva():
     assert m["_analiza_osnov.cinjenica"]["klasa"] == gc.DETERMINISTIC
     for x in m.values():
         assert "NIJE verovatnoća ishoda" in x["napomena"]
+        assert x["naziv"] and x["naziv"] != x["kljuc"] and x["naziv"][0].isupper() and " " in x["naziv"], x   # ljudska oznaka, ne sirov ključ
     tekst = json.dumps(_ugovor(), ensure_ascii=False).lower()
     for zabranjeno in ("verovatnoća uspeha", "šansa za uspeh", "probability of winning", "predviđanje presude"):
         assert zabranjeno not in tekst
