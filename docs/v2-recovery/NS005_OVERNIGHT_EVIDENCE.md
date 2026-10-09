@@ -158,3 +158,28 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - POSLEDICA: Task 14 (Smart Intake + OCR UI) se NE radi — uslov „samo ako je Task 13 zelen“ nije ispunjen. Nivo A nije dostižan ove noći.
 - ŠTA FOUNDER MOŽE DA URADI: (a) otvoriti Draft PR ove grane ka `main` — `production-runtime.yml` će pokrenuti test sa stvarnim Tesseract-om; ili (b) na mašini sa Dockerom: `docker build -t vindex-ocr .` pa `docker run --rm vindex-ocr python -m pytest tests/test_b3_ocr_bez_laznog_uspeha.py -q -rs`.
 - NEXT GATE: Task 15 — završna adversarial integraciona kapija (Task 14 preskočen).
+
+## TASK 14 — SMART INTAKE + OCR UI — NIJE ZAPOČET
+- Uslov „samo ako je Task 13 zelen“ nije ispunjen (Task 13 = BLOCKED, okruženje). Ništa nije menjano.
+
+## TASK 15 — FINAL ADVERSARIAL INTEGRATION GATE — PROVEN (uz navedene otvorene stavke)
+- HEAD pre završnog merenja: `2e76364d` (grana `feature/vindex-v2-recovery-ns005`, lokalno = origin).
+- NG: svih 29 paketa zeleno na `fa727e53` (1.950 provera; demo-otisak isti kao na početku, `8f1039512b0383f7`; live-matrix 152; brand 335; e2e:fastapi 62; e2e:primary 41; e2e:sw-isolation 28; e2e:site 69). Commit `2e76364d` menja SAMO `tests/test_ns005_t6_pravno_pitanje.py` (pytest), ne NG.
+- PYTHON (pun `pytest tests -p no:randomly`, check worktree u scratchpad-u):
+  - prvo merenje na `fa727e53`: 22 failed / 8362 passed / 179 skipped — **2 NOVA imena padova**, oba iz NS005 Task 6 testa. Uzrok izmeren: `test_lambda003_*` briše `main` iz `sys.modules`; u punom pokretanju `api` već drži stari `main`, pa je `import main` u T6 davao nov modul i zamene su promašivale (pokretala se prava pretraga). Kvar TESTA, ne proizvoda.
+  - ispravka `2e76364d`: zamene idu u `api.ask_agent.__globals__` uz proveru da svako ime postoji. Dokaz zagađivačem: nova verzija prolazi (8 passed), stara pada (500).
+  - drugo merenje na `2e76364d`: **20 failed / 8364 passed / 179 skipped — 0 novih imena padova** u odnosu na `main` (21). Nestao `test_b4_authority_playwright::test_b4_ui_parcijalan_odgovor_MORA_biti_oznacen` (Playwright, nije diran; nestabilan, ne zasluga — isto kao u Task 5).
+- SECURITY:
+  - tajne: regex pretraga dodatih linija u diff-u `51164c92..HEAD` (52 fajla; OpenAI/JWT/AWS/privatni ključ/GitHub/Slack/Google/Pinecone obrasci) → 0. `gitleaks` NIJE instaliran na mašini — pravi gitleaks nije pokrenut (UNKNOWN; CI `security.yml` ga pokreće tek na PR-u).
+  - SAST: semgrep (`p/javascript`, `p/xss`, metrics off) nad 15 izmenjenih NG fajlova → 0 nalaza, 0 grešaka; bandit (`-ll`) nad 3 izmenjena backend rutera (1.106 LOC) → 0.
+  - invarijante (grep celog `frontend-v2-ng/src`): 0 `innerHTML/outerHTML/insertAdjacentHTML/document.write/eval/new Function`; 0 apsolutnih URL-ova u pozivima; `user_id/owner_id/tenant_id` postoje samo u listama ZABRANA u `api.js`; `localStorage` samo za temu, širinu i navigaciju. Napomena: GET lista zabranjenih parametara nema `tenant_id`/`vlasnik_id` (telo ih ima) — nijedan modul ih ne šalje; nedoslednost, ne curenje.
+- MATRICE (svaka ćelija = paket koji je dokazuje, uz mutacije po zadatku):
+  - FEATURE: T1 live-send · T2 live-nov-predmet · T3 live-rad-predmeta · T4 live-klijenti · T5 live-rocista-pretraga · T6 live-pitanje · T7 live-znanje · T8 live-nacrt · T9 live-kancelarija · T10 live-naplata · T11 live-danas · T12 e2e:site.
+  - TENANT A/B: svaki backend test T2–T11 (tuđ objekat 404 bez otkrivanja, liste samo sopstvene) + B-mutacije (uklonjen `.eq("user_id")` → test pada) u T4, T7, T9, T10, T11.
+  - SESSION / STALE: svaki NG paket T2–T11 ima A→B i zastarelo (generacija + abort) sa ubijenom mutacijom.
+  - WRITE-UNCERTAINTY: T1 transport (5xx/prekid = `ishodNepoznat`, bez ponavljanja) + po zadatku „šalje jednom“ i „nepoznat ishod → ponovno čitanje“.
+  - ERROR-HONESTY: pad čitanja ≠ prazno u svakom paketu; backend ispravke T9 (3 lažna prazna stanja → 503).
+  - XSS: HTML u podacima je tekst u svakom paketu (`window.__xss === null`).
+  - VISUAL: demo-otisak nepromenjen; live-matrix 152; brand 335; 390/1024 bez horizontalnog skrola u svakom novom paketu.
+- LEGACY FALLBACK: `e2e:primary` — odjava vodi na `/app-legacy?odjava=1`; legacy rute nisu dirane; `api.py`/`main.py` bajt-identični `main`-u. NO DEMO: `e2e:primary` (bez demo značke/„Demo nalog“), svi LIVE paketi proveravaju odsustvo demo sadržaja.
+- ZAHTEVI U PRIMARNOM V2: pre NS005 3 GET rute → posle 39 parova ruta+metod (18 GET, 21 upis POST/PATCH; 0 DELETE).
