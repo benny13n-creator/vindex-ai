@@ -620,3 +620,42 @@ traženim id-jem; S4 bez granice; S5 tvrdnje bez opsega predmeta.
 **OGRANIČENJA.** Granica 500 tvrdnji/dokumenata/ročišta/akcija po odgovoru; iznad toga UI vidi `skraceno`.
 
 **SLEDEĆA KAPIJA.** Task 10 — V2 UI „Analiza".
+
+---
+
+## TASK 10 — V2 UI „ANALIZA" (profesionalni Case Genome)
+
+**PROBLEM.** Advokat treba da vidi razumevanje predmeta (Genome), dokaze, protivrečnosti, rizike i spremnost sa
+POREKLOM svake stavke, bez trošenja AI kredita pri otvaranju i bez pseudo-predviđanja.
+
+**ODLUKA.** Tačno jedna nova kartica predmeta („Analiza", druga, posle Pregleda); bočni meni nepromenjen. Modul
+`frontend-v2-ng/src/analiza-predmeta.js` (`VxAnalizaPredmeta`) čita SAMO `GET genome-v2` i `GET genome-v2/promene`
+(lenjo: tek kad se kartica otvori, jednom po predmetu). Poreklo je i REČ i stil (AI = isprekidan okvir, nikad isto kao
+„iz dokumenta"). Ocene modela su u zasebnom bloku, svaka sa „NIJE verovatnoća ishoda". DEGRADED/UNKNOWN/INVALID imaju
+sopstvene poruke; greška servera ≠ prazno. „Izvor: …" otvara Dokumente sa izabranim dokumentom.
+
+**FAJLOVI.** `frontend-v2-ng/src/analiza-predmeta.js` (nov), `index.html` (kartica + odeljak + skript pod build
+tokenom), `src/app.js` (ruta `/analiza`, otvaranje dokumenta iz Analize), `src/app.css` (traka kartica se pomera unutar
+sebe na svim širinama; `.an-*`, `.prov`), `package.json` (`verify:live-analiza`), `tests/live-analiza.mjs`,
+`tests/ns006_ui_fixture.py` + `tests/ns006_realni_predmet.py` (odgovori su STVARNI backend odgovori nad realističnim
+predmetom, ne ručno pisani), `tests/live-primary-e2e.mjs` (očekivani spisak kartica: dodata tačno „Analiza").
+
+**TESTOVI.** `live-analiza` 41/41: sadržaj iz ugovora, 4 klase porekla kao reč, promene (strukturne odvojene od
+analitičkih), pala klasifikacija = neuspeh, pravni osnovi = „predlog analize", protivrečnost sa izvorima i procenjenom
+stranom, spremnost bez predviđanja; cena: tačno 2 GET, ništa van ugovora, povratak ne čita ponovo, Pregled ne čita
+genome-v2; DEGRADED = stanje GREŠKA (ne PRAZNO); 500/404 jasna poruka bez sadržaja; prelazak A→B i prelazak na drugi
+predmet istog korisnika dok odgovor kasni → ništa od A na ekranu; XSS kao tekst; 360–1440 px u obe teme bez preliva;
+0 spoljnih zahteva; nijedan token u konzoli. Ceo NG paket protiv NS006 servera: 30/30 skripti zeleno (posle ažuriranja
+očekivanih kartica `e2e:primary` 51/51).
+
+**MUTACIJE (9/9 ubijeno + dokaz dvostruke brave).** U1 dodatni refresh poziv pri otvaranju; U2 ponovno čitanje pri
+povratku; U4 metrika nazvana „verovatnoća uspeha"; U5 spljošteno poreklo; U6 DEGRADED kao prazno; U7 greška = prazna
+analiza; U8 tvrdnja kao HTML; U9 skript van build tokena (`test_ns0051` pada). Prvi prolaz je ostavio U1/U4/U6
+žive → test dopunjen (lista dozvoljenih zahteva, `textContent` zatvorenih blokova, vrsta stanja). U3 (uklonjena samo
+provera generacije) PREŽIVLJAVA s razlogom: abort zahteva je druga, nezavisna brava; U3a (uklonjen samo abort) takođe
+preživljava; U3b (obe uklonjene) je UBIJENA — test hvata zastareo prikaz.
+
+**OGRANIČENJA.** Analiza se ne osvežava sama dok je otvorena (bez ankete); nova verzija se vidi pri sledećem otvaranju
+predmeta. Ocene modela su prikazane, ali uvek kao analitičke.
+
+**SLEDEĆA KAPIJA.** Task 11 — Pregled svestan događaja.

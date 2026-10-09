@@ -286,6 +286,7 @@
         </div>
         <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
+          <a class="tabs__item" id="tab-analiza" href="#/">Analiza</a>
           <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
           <a class="tabs__item" id="tab-pitanje" href="#/">Pravno pitanje</a>
           <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
@@ -544,6 +545,65 @@
             <ul class="reviews" id="np-fakture" aria-label="Fakture za ovaj predmet"></ul>
           </section>
         </div>
+        <!-- NS006 — Analiza: profesionalni Genome, dokazi, protivrečnosti, rizici i spremnost. Samo čitanje; sadržaj upisuje
+             src/analiza-predmeta.js kao tekst. Otvaranje ne poziva model. -->
+        <div class="matter__body" id="odeljak-analiza" hidden>
+          <p class="list-state" id="an-stanje" role="status" aria-live="polite" hidden></p>
+          <div id="an-sadrzaj" hidden>
+            <section class="matter__section matter__section--first" aria-labelledby="an-promene-naslov">
+              <div class="section-head"><h2 class="matter__h2" id="an-promene-naslov">Šta se promenilo</h2><span class="an-version" id="an-verzija"></span></div>
+              <p class="list-state" id="an-promene-stanje" hidden></p>
+              <ul class="an-list" id="an-promene" aria-label="Promene od prethodne verzije"></ul>
+              <details class="an-more" id="an-analiticke-blok" hidden><summary>Promene u proceni analize (nisu činjenice)</summary>
+                <ul class="an-list" id="an-analiticke"></ul></details>
+            </section>
+            <nav class="an-jump" aria-label="Delovi analize">
+              <button class="text-btn" type="button" data-an-skok="an-genome-naslov">Genome</button>
+              <button class="text-btn" type="button" data-an-skok="an-dokazi-naslov">Dokazi</button>
+              <button class="text-btn" type="button" data-an-skok="an-kontr-naslov">Protivrečnosti</button>
+              <button class="text-btn" type="button" data-an-skok="an-spremnost-naslov">Rizici i spremnost</button>
+            </nav>
+            <section class="matter__section" aria-labelledby="an-genome-naslov">
+              <h2 class="matter__h2" id="an-genome-naslov" tabindex="-1">Genome predmeta</h2>
+              <p class="field__help">Svaka stavka nosi poreklo: iz dokumenta, uneo advokat, izračunato ili analiza (AI). Analiza je predlog, ne utvrđena činjenica.</p>
+              <p class="list-state" id="an-genome-stanje" hidden></p>
+              <h3 class="answer__h">Suština predmeta</h3><ul class="an-list" id="an-sustina"></ul>
+              <h3 class="answer__h">Stranke</h3><ul class="an-list" id="an-stranke"></ul>
+              <h3 class="answer__h">Ključne činjenice</h3><ul class="an-list" id="an-cinjenice"></ul>
+              <h3 class="answer__h">Otvorena pravna pitanja</h3><ul class="an-list" id="an-pitanja"></ul>
+              <h3 class="answer__h">Pravni osnovi koje predlaže analiza</h3>
+              <p class="field__help">Nisu potvrđeni u izvorima prava. Proverite ih pre upotrebe.</p>
+              <ul class="an-list" id="an-osnovi"></ul>
+              <h3 class="answer__h">Ključni datumi</h3><ul class="an-list" id="an-datumi"></ul>
+              <h3 class="answer__h">Šta nedostaje po analizi</h3><ul class="an-list" id="an-nedostaje"></ul>
+              <h3 class="answer__h">Strateški kontekst</h3><ul class="an-list" id="an-strategija"></ul>
+              <h3 class="answer__h">Šta analiza ne zna</h3><ul class="an-list" id="an-nesigurnost"></ul>
+            </section>
+            <section class="matter__section" aria-labelledby="an-dokazi-naslov">
+              <h2 class="matter__h2" id="an-dokazi-naslov" tabindex="-1">Dokazi</h2>
+              <p class="list-state" id="an-dokazi-stanje" hidden></p>
+              <p class="an-summary" id="an-dokazi-sazetak"></p>
+              <ul class="an-list" id="an-dokazi" aria-label="Tvrdnje predmeta"></ul>
+              <h3 class="answer__h">Dokumenti</h3><ul class="an-list" id="an-dokumenti"></ul>
+            </section>
+            <section class="matter__section" aria-labelledby="an-kontr-naslov">
+              <h2 class="matter__h2" id="an-kontr-naslov" tabindex="-1">Protivrečnosti</h2>
+              <p class="list-state" id="an-kontr-stanje" hidden></p>
+              <ul class="an-list" id="an-kontr-aktivne" aria-label="Aktivne protivrečnosti"></ul>
+              <ul class="an-list" id="an-kontr-pregled" aria-label="Protivrečnosti koje traže pregled"></ul>
+              <details class="an-more" id="an-zatvorene-blok" hidden><summary>Zatvorene protivrečnosti</summary>
+                <ul class="an-list" id="an-kontr-zatvorene"></ul></details>
+            </section>
+            <section class="matter__section" aria-labelledby="an-spremnost-naslov">
+              <h2 class="matter__h2" id="an-spremnost-naslov" tabindex="-1">Rizici i spremnost</h2>
+              <p class="field__help">Brojanje i pravila nad podacima predmeta. Nijedan pokazatelj nije predviđanje ishoda spora.</p>
+              <p class="list-state" id="an-spremnost-stanje" hidden></p>
+              <dl class="facts" id="an-spremnost"></dl>
+              <details class="an-more" id="an-metrike-blok" hidden><summary>Ocene iz analize (nisu verovatnoća ishoda)</summary>
+                <ul class="an-list" id="an-metrike"></ul></details>
+            </section>
+          </div>
+        </div>
         <div class="matter__body" id="odeljak-prijem" hidden>
           <section class="matter__section matter__section--first" aria-labelledby="pd-naslov">
             <h2 class="matter__h2" id="pd-naslov">Dodaj dokumente u predmet</h2>
@@ -622,6 +682,7 @@
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
   <script src="src/prijem-predmeta.js"></script>
+  <script src="src/analiza-predmeta.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>
