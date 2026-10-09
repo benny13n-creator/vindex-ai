@@ -322,6 +322,14 @@ const preB = async (s) => { await s.p.evaluate(([kl, v]) => { localStorage.setIt
   zapisi("bezbednost", "HTML u naslovu/razlogu se prikazuje kao tekst", (await s.p.evaluate(() => window.__xss || null)) === null && e.stavke.some(x => /<img src=x onerror=/.test(x.tekst)));
   await s.zatvori();
 }
+for (const [rad, izmena] of [[HP, (t) => { t.content_json.kljucne_cinjenice[0].tekst = "<img src=x onerror=window.__xss=1>"; t.content_json.kljucne_cinjenice[0].dokument_naziv = "<svg onload=window.__xss=2>"; }],
+                             [PI, (t) => { t.content_json.izvor.izvod = "<img src=x onerror=window.__xss=3>izvod"; t.content_json.ai.uticaj[0].izvod_iz_odluke = "<img src=x onerror=window.__xss=4>"; }]]) {
+  const s = await scenario({ hash: `#/pripremljeno/${rad}`, kuke: { izmeni: ({ p, metod }, t) => { if (metod === "GET" && p.endsWith(rad)) { izmena(t); return t; } return null; } } });
+  await detaljGotov(s.p);
+  const e = await detalj(s.p);
+  zapisi("bezbednost", `detalj ${rad === HP ? "pripreme" : "prakse"}: HTML iz sadržaja je tekst, ne izvršava se`, e.xss === null && /<(img|svg|script)/.test(await DOK(s)), String(e.xss));
+  await s.zatvori();
+}
 for (const [w, tema, hash] of [[360, "light", "#/danas"], [360, "dark", `#/pripremljeno/${HP}`], [1440, "light", `#/pripremljeno/${PI}`]]) {
   const s = await scenario({ w, h: 800, tema, hash });
   if (hash === "#/danas") await danasGotov(s.p); else await detaljGotov(s.p);
