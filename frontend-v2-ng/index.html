@@ -170,6 +170,33 @@
       </section>
 
       <!-- Kancelarija (samo LIVE, NS005). Puni src/kancelarija.js. -->
+      <section class="matter" id="danas-pogled" hidden aria-labelledby="da-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="da-naslov" tabindex="-1">Danas</h1>
+          <p class="matter__ref">Potvrđeni rokovi i ročišta vaših predmeta, i predloženi rokovi koji čekaju vašu odluku.</p>
+        </div>
+        <div class="matter__body">
+          <p class="notice" id="da-stanje" role="status" aria-live="polite" hidden></p>
+          <p class="notice" id="da-poruka" role="status" aria-live="polite" hidden></p>
+          <section class="matter__section matter__section--first" aria-labelledby="da-obaveze-naslov">
+            <h2 class="matter__h2" id="da-obaveze-naslov">Obaveze</h2>
+            <p class="list-state" id="da-obaveze-stanje" role="status" hidden></p>
+            <div id="da-obaveze"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="da-predlozi-naslov">
+            <h2 class="matter__h2" id="da-predlozi-naslov">Predloženi rokovi za vašu odluku</h2>
+            <p class="field__help">Potvrdom preuzimate rok za upotrebu; potvrda ne znači da je sistem proverio njegovu tačnost. Odbijen rok se ne briše — ostaje u hronologiji predmeta.</p>
+            <p class="list-state" id="da-predlozi-stanje" role="status" hidden></p>
+            <ul class="reviews" id="da-predlozi" aria-label="Predloženi rokovi"></ul>
+            <p class="field__help" id="da-napomena" hidden></p>
+          </section>
+          <section class="matter__section" aria-labelledby="da-kalendar-naslov">
+            <h2 class="matter__h2" id="da-kalendar-naslov">Kalendar — narednih 30 dana</h2>
+            <p class="list-state" id="da-kalendar-stanje" role="status" hidden></p>
+            <div id="da-kalendar"></div>
+          </section>
+        </div>
+      </section>
       <section class="matter" id="kancelarija-pogled" hidden aria-labelledby="ka-naslov">
         <div class="matter__head">
           <h1 class="sheet__title matter__title" id="ka-naslov" tabindex="-1">Kancelarija</h1>
@@ -578,6 +605,7 @@
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
   <script src="src/kancelarija.js"></script>
+  <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>

@@ -486,3 +486,37 @@ export function naplataRuta(korisnici, kuke = {}) {
     json(res, 404, {}); return true;
   };
 }
+
+/* ── Rokovi i kalendar: /api/rokovi/kandidati, /api/rokovi/{id}/potvrdi|odbij, /api/kalendar/pregled ──
+ * k.rokovi = redovi hronologije {id, predmet_id, dogadjaj, datum_iso, vrsta?, izvor, odluka?};
+ * k.dogadjaji = odgovor kalendara (ročišta). Tuđ rok → 404 bez promene. Odluka menja samo `odluka`
+ * (red se NE briše). kuke.pre(putanja + ":" + metod); kuke.kalendar(telo) menja odgovor kalendara. */
+export function rokoviRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    const p = url.pathname;
+    const jeOdluka = /^\/api\/rokovi\/[^/]+\/(potvrdi|odbij)$/.test(p);
+    if (!(p === "/api/rokovi/kandidati" || p === "/api/kalendar/pregled" || jeOdluka)) return false;
+    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, (jeOdluka ? "/api/rokovi/odluka" : p) + ":" + req.method, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    k.rokovi = k.rokovi || [];
+    if (p === "/api/rokovi/kandidati" && req.method === "GET") {
+      const od = url.searchParams.get("od") || "";
+      const r = k.rokovi.filter(x => x.datum_iso >= od).map(x => ({ id: x.id, predmet_id: x.predmet_id, dogadjaj: x.dogadjaj, datum_iso: x.datum_iso, izvor: x.izvor || "ai",
+        ...(x.vrsta ? { vrsta: x.vrsta } : {}), ...(x.stanje ? { stanje: x.stanje } : {}), stanje_odluke: x.odluka || "UNCONFIRMED" }));
+      json(res, 200, { rokovi: r, ukupno: r.length, odseceno: !!kuke.odseceno }); return true;
+    }
+    if (p === "/api/kalendar/pregled" && req.method === "GET") {
+      let t = { dogadjaji: k.dogadjaji || [], degraded_sources: [], truncated: false };
+      if (kuke.kalendar) t = kuke.kalendar(t);
+      json(res, 200, t); return true;
+    }
+    (kuke.upisano || (() => {}))(p, JSON.parse(sirovo || "{}"));
+    const m = /^\/api\/rokovi\/([^/]+)\/(potvrdi|odbij)$/.exec(p);
+    const r = k.rokovi.find(x => x.id === decodeURIComponent(m[1]));
+    if (!r) { json(res, 404, { detail: "Rok nije pronađen." }); return true; }
+    r.odluka = m[2] === "potvrdi" ? "CONFIRMED" : "REJECTED";
+    json(res, 200, { ok: true, rok_id: r.id, stanje_odluke: r.odluka, dogadjaj: r.dogadjaj, datum_iso: r.datum_iso }); return true;
+  };
+}

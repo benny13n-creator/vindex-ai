@@ -494,6 +494,16 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .draft .matter__h2 { margin: 0; }
 .draft__label { margin: 0; color: var(--text-2); }
 .draft__text { min-height: 420px; font-family: var(--font-serif); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; resize: vertical; }
+.today__group + .today__group { margin-top: var(--sp-5); }
+.today__list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; border-top: 1px solid var(--line); max-width: 880px; }
+.today__item { display: grid; grid-template-columns: minmax(150px, 210px) 72px minmax(0, 1fr) minmax(0, 220px); gap: var(--sp-1) var(--sp-4); align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.today__when { color: var(--text-2); font-size: var(--fs-meta); font-variant-numeric: tabular-nums; }
+.today__kind { color: var(--text-3); font-size: var(--fs-meta); }
+.today__item[data-vrsta="rociste"] .today__kind { color: var(--text-2); }
+.today__what { color: var(--text-1); overflow-wrap: anywhere; }
+.today__case { color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
+.today__day { margin: var(--sp-4) 0 0; color: var(--text-2); font-size: var(--fs-meta); }
+@media (max-width: 859px) { .today__item { grid-template-columns: minmax(0, 1fr) auto; } .today__what, .today__case { grid-column: 1 / -1; } }
 .ledger-wrap { max-width: 880px; overflow-x: auto; }
 .ledger { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); font-size: var(--fs-meta); }
 .ledger th { text-align: left; font-weight: 500; color: var(--text-3); padding: 8px var(--sp-3) 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }

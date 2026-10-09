@@ -253,6 +253,11 @@ def _auth(authorization):
 
 api._require_auth = _auth
 api._get_supa = lambda: _Supa()
+# NS005: ruteri uvoze `_get_supa` iz shared.deps pod sopstvenim imenom (npr. rok_odluka, kalendar).
+# Isti lazni Supabase za SVAKI alias iste funkcije -- inace bi ruta posla na pravi host (cuvar soketa bi je blokirao).
+for _ime, _mod in list(sys.modules.items()):
+    if _ime.split(".")[0] in ("routers", "shared", "klijenti", "services") and hasattr(_mod, "_get_supa"):
+        setattr(_mod, "_get_supa", api._get_supa)
 
 
 # NS004: preview/download koriste FastAPI zavisnost `get_current_user`.

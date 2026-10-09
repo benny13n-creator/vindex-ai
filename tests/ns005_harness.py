@@ -243,6 +243,8 @@ class _Upit:
                 r.setdefault("_rb", next(_brojac))
                 if self.t == "timer_sessions":  # kao DEFAULT now() / DEFAULT TRUE iz 003_billing.sql
                     r.setdefault("start_at", r["created_at"]); r.setdefault("aktivan", True)
+                if self.t == "audit_immutable":  # seq je BIGSERIAL (redosled lanca odluka)
+                    r.setdefault("seq", next(_brojac))
                 if vrsta == "upsert":
                     self.b.tabele.setdefault(self.t, [])[:] = [x for x in self.b.tabele.get(self.t, []) if x.get("id") != r["id"]]
                 self.b.tabele.setdefault(self.t, []).append(r)
@@ -263,7 +265,9 @@ class _Upit:
         redovi = [self._projekcija(copy.deepcopy(r)) for r in pogodjeni]
         if self.redosled:
             k, desc = self.redosled
-            redovi.sort(key=lambda r: (str(r.get(k) or ""), r.get("_rb", 0)), reverse=desc)
+            # Brojevi se porede kao brojevi (kao Postgres za BIGSERIAL/numeric): kao tekst bi 99 bilo posle 100.
+            redovi.sort(key=lambda r: ((0, r.get(k), "") if isinstance(r.get(k), (int, float)) and not isinstance(r.get(k), bool)
+                                       else (1, 0, str(r.get(k) or "")), r.get("_rb", 0)), reverse=desc)
         ukupno = len(redovi)
         if self.opseg:
             redovi = redovi[self.opseg[0]:self.opseg[1] + 1]

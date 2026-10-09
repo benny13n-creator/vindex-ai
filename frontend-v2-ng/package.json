@@ -22,6 +22,7 @@
     "verify:live-nacrt": "node tests/live-nacrt.mjs",
     "verify:live-kancelarija": "node tests/live-kancelarija.mjs",
     "verify:live-naplata": "node tests/live-naplata.mjs",
+    "verify:live-danas": "node tests/live-danas.mjs",
     "verify:live-session": "node tests/live-session.mjs",
     "verify:live-matters": "node tests/live-matters.mjs",
     "verify:live-states": "node tests/live-states.mjs",
