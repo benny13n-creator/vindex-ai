@@ -113,8 +113,20 @@ class Upit6(h5._Upit):
             self.b.dnevnik.append({"tabela": self.t, "radnja": vrsta, "filteri": [], "neuspeh": True})
             raise Exception(greska)
 
+    def _proveri_uuid(self):
+        """Kao Postgres: `predmeti.id` je UUID — poređenje sa neispravnim tekstom daje 22P02."""
+        if self.t != "predmeti":
+            return
+        for op, k, v in self.filt:
+            if op == "eq" and k == "id":
+                try:
+                    h5.uuid.UUID(str(v))
+                except ValueError:
+                    raise Exception('{"code": "22P02", "message": "invalid input syntax for type uuid: \\"%s\\""}' % v)
+
     def execute(self):
         self._proveri_kolone()
+        self._proveri_uuid()
         vrsta, telo = self.radnja
         if vrsta not in ("insert", "upsert") or self.t not in JEDINSTVENO:
             if vrsta == "update" and self.t in JEDINSTVENO and self.t not in self.b.greske:

@@ -589,3 +589,34 @@ A8 Workspace bez filtera terminalnih predmeta. A7 i A8 su prvo PREŽIVELE (prazn
 skrivene u Workspace-u i worklist-u). Reconcile i dalje nema transakcijsku serijalizaciju (postojeći SINGULAR2-DEBT).
 
 **SLEDEĆA KAPIJA.** Task 9 — V2 API površina.
+
+---
+
+## TASK 9 — V2 API POVRŠINA ŽIVOG PREDMETA
+
+**PROBLEM.** Najmanja čista površina za čitanje, bez aliasa i bez curenja između kancelarija.
+
+**ODLUKA (PROVEN pregledom ruta).** Nove rute su samo dve: `GET /api/predmeti/{id}/genome-v2` (ugovor: identitet,
+činjenice, stranke, pravna pitanja, hronologija, strategija, nedostaje, metrike, nesigurnost, `dokazi` (graf),
+`kontradikcije`, `spremnost`) i `GET /api/predmeti/{id}/genome-v2/promene`. Postojeće se ponovo koriste:
+`GET /api/case-actions/predmeti/{id}` (otvorene akcije predmeta) i `GET /api/workspace` (tabla). Graf, kontradikcije i
+spremnost su SEKCIJE jednog odgovora, ne zasebne rute (jedan zahtev pri otvaranju Analize).
+
+**PRONAĐENO I ISPRAVLJENO.** Postojeća `GET /api/case-actions/predmeti/{id}` (koju V2 ponovo koristi) za neispravan
+id vraća 500 (Postgres 22P02) — izmereno kad je lažna baza naučila 22P02 za `predmeti.id`. Sada, kao i nove rute: isti
+404 za tuđ, nepostojeći i neispravan id.
+
+**FAJLOVI.** `routers/case_dna.py` (provera formata), `routers/case_actions.py` (provera formata),
+`tests/ns006_fake.py` (22P02 za `predmeti.id`), `tests/test_ns006_t9_api_surface.py`.
+
+**TESTOVI.** 12/12: sve 4 rute traže prijavu (401); za 3 rute po predmetu: tuđ / nepostojeći / neispravan id →
+bajt-identičan 404, bez ijednog podatka A; vlasnik dobija 200; Workspace B ne vidi akcije A; član kontradikcije iz
+DRUGOG predmeta → tekst NE curi (`tvrdnja: null`, UNKNOWN); 620 tvrdnji → 500 + `skraceno.dokazi: true`; samo GET i
+tačno 2 nove rute. Regresija: 104 NS006 + 939 (case_actions) passed.
+
+**MUTACIJE (5/5 ubijeno).** S1 postojeća ruta bez provere formata; S2 nova ruta bez provere formata; S3 404 sa
+traženim id-jem; S4 bez granice; S5 tvrdnje bez opsega predmeta.
+
+**OGRANIČENJA.** Granica 500 tvrdnji/dokumenata/ročišta/akcija po odgovoru; iznad toga UI vidi `skraceno`.
+
+**SLEDEĆA KAPIJA.** Task 10 — V2 UI „Analiza".

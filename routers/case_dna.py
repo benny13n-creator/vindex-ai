@@ -1614,6 +1614,12 @@ _ZP_KOLONE_DOKAZA = ("id,predmet_id,dokument_id,tvrdnja,kategorija,snaga,pravni_
 
 
 async def _zp_vlasnistvo(supa, predmet_id: str, uid: str) -> dict:
+    # Neispravan UUID bi u Postgres-u dao 22P02 (→ 503); isti 404 kao tuđ ili nepostojeći predmet.
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(predmet_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("predmeti")
