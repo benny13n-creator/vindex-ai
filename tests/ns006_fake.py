@@ -192,10 +192,60 @@ def _claim_pending_events(baza, p):
     return out
 
 
+def _v2_paket(baza, p):
+    """Emulacija `v2_persist_observation_package` (migracije 124/125; pojedinačna stavka = 120/121
+    `v2_persist_contradiction`). Pravila prepisana iz SQL-a: provera verzije opažanja (55000 za ustajalo),
+    verzija+1, nova tema ili nastavak, OTVORENA kontradikcija po (tema, relacija) se ponovo koristi, aktivni
+    članovi se ne dupliraju, kompletno opažanje zatvara neopažene u NOT_OBSERVED. NIJE emulirano: grana
+    RESOLVED→REVIEW_REQUIRED (122) i `xmin` revalidacija — stvarni SQL je dokazan nad živom bazom (A016.8)."""
+    pid = p["p_predmet_id"]
+    pred = next((r for r in baza.tabele.get("predmeti", []) if r["id"] == pid), None)
+    if pred is None:
+        raise Exception('{"code": "23503", "message": "predmet ne postoji"}')
+    tekuca = int(pred.get("observation_version") or 0)
+    if p.get("p_expected_version") is not None and int(p["p_expected_version"]) != tekuca:
+        raise Exception('{"code": "55000", "message": "ustajalo opazanje"}')
+    nova = tekuca + 1
+    pred["observation_version"] = nova
+    sada = h5._sada()
+    mapa, opazene, out = {}, [], []
+    for st in p.get("p_paket") or []:
+        idx, ref = int(st.get("indeks") or 0), st.get("issue_ref")
+        if ref and str(ref).startswith("__nova__"):
+            ref = mapa[ref]
+        nova_tema = not ref
+        if nova_tema:
+            ref = str(h5.uuid.uuid4())
+            baza.tabele.setdefault("predmet_issues", []).append({"id": ref, "predmet_id": pid, "user_id": p["p_user_id"],
+                "label": st.get("label"), "status": "DISCOVERED", "created_at": sada, "updated_at": sada})
+        kontr = next((k for k in baza.tabele.setdefault("predmet_contradictions", [])
+                      if k["issue_id"] == ref and k["relation_type"] == st["relation_type"] and k["state"] == "OPEN"), None)
+        if kontr is None:
+            kontr = {"id": str(h5.uuid.uuid4()), "issue_id": ref, "relation_type": st["relation_type"], "state": "OPEN",
+                     "tezina": st.get("tezina"), "state_reason": None, "created_at": sada, "updated_at": sada}
+            baza.tabele["predmet_contradictions"].append(kontr)
+        clanovi = baza.tabele.setdefault("predmet_contradiction_claims", [])
+        for did in st.get("dokaz_ids") or []:
+            if not any(c["contradiction_id"] == kontr["id"] and c["dokaz_id"] == did and c.get("removed_at") is None for c in clanovi):
+                clanovi.append({"id": str(h5.uuid.uuid4()), "contradiction_id": kontr["id"], "dokaz_id": did,
+                                "removed_at": None, "observed_at": sada})
+        mapa[f"__nova__{idx}"] = ref
+        opazene.append(kontr["id"])
+        out.append({"out_version": nova, "out_indeks": idx, "out_issue_id": ref,
+                    "out_contradiction_id": kontr["id"], "out_created_issue": nova_tema})
+    if p.get("p_observation_complete") is True:
+        teme = {i["id"] for i in baza.tabele.get("predmet_issues", []) if i["predmet_id"] == pid}
+        for k in baza.tabele.get("predmet_contradictions", []):
+            if k["issue_id"] in teme and k["state"] == "OPEN" and k["id"] not in opazene:
+                k.update({"state": "NOT_OBSERVED", "state_reason": f"nije opazena u kompletnom opazanju v{nova}", "updated_at": sada})
+    return out
+
+
 class Baza6(h5.Baza):
     def __init__(self, tabele=None):
         super().__init__(tabele)
         self.rpc_impl["claim_pending_events"] = _claim_pending_events
+        self.rpc_impl["v2_persist_observation_package"] = _v2_paket
         self.nepostojece_kolone: dict[str, set] = {}   # {tabela: {kolona}} — migracija nije pokrenuta
 
     def table(self, ime):

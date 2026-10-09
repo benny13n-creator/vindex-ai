@@ -724,3 +724,31 @@ gramatički pogrešan padež za neke labele („Nedostaje finansijsku dokumentac
 vraća.
 
 **SLEDEĆA KAPIJA.** Task 13.
+
+---
+
+## TASK 13 — AUTONOMNI LANAC ŽIVOG PREDMETA
+
+**PROBLEM.** Dokazati rečenicu „promenio sam predmet, a Vindex je ažurirao razumevanje i sledeće korake bez mog
+zahteva" kroz STVARNE komponente, ne kroz pozive pojedinačnih funkcija.
+
+**DOKAZ (PROVEN).** `POST /api/rocista` → trajni red u `events` → `dispatch_pending_events` (isti poller kao
+DispatchLoop) → `handle_case_changed` → genome_refresh (`_extract_genome` nad STVARNIM promptom; model zamenjen
+determinističkom funkcijom koja bira CLAIM oznake iz stvarnog kataloga, 0 mrežnih poziva) → `upisi_v2_opazanje` →
+`v2_persist_observation_package` (SQL 124/125 emuliran u `tests/ns006_fake.py`) → Genome v3→v4 (istorija v3 sa
+`trigger_event = case_evolution:<event_id>`) → refresh_case_actions (RAZRESITI_KONTRADIKCIJU + PRIPREMITI_PODNESAK,
+obe sa istim `event_id`) → `GET genome-v2 / promene / case-actions` vide novo stanje, bez novog poziva modela.
+Ručni refresh se ne poziva nigde.
+
+**FAJLOVI.** `tests/test_ns006_t13_autonomous_chain.py`, `tests/ns006_fake.py` (emulacija paketnog RPC-a).
+
+**TESTOVI.** 3/3: pun lanac sa tragom event_id → posledice → istorija → akcije → V2 čitanje; ponovljen dispečer i
+ručni replay istog događaja ne ponavljaju skupu analizu (posledice `completed`); tuđi korisnik ne pokreće obradu (404,
+0 događaja, 0 poziva modela).
+
+**MUTACIJE (5/6 ubijeno, 1 preživljava s razlogom).** Z1 ročište ne emituje događaj; Z2 ročište izbačeno iz registra
+posledica; Z3 istorija bez veze na događaj; Z4 akcije bez `event_id`; Z6 kreiranje ročišta bez provere vlasnika — sve
+UBIJENE. Z5 (uklonjena idempotencija posledica) PREŽIVLJAVA: `_dup_g` u genome_refresh je druga, nezavisna brava koja
+sprečava dvostruku analizu istog događaja.
+
+**SLEDEĆA KAPIJA.** Task 14.
