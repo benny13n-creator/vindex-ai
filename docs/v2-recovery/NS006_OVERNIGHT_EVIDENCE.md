@@ -247,3 +247,69 @@ ne rupa u testu.
 migracija 131 — migracija se ne primenjuje u ovom sprintu). Izmena `tip`-a predmeta ne pokreće reconcile (dug).
 
 **SLEDEĆA KAPIJA.** Task 3 — profesionalni Genome ugovor.
+
+---
+
+## TASK 3 — PROFESIONALNI UGOVOR ŽIVOG PREDMETA (3A/3B/3C)
+
+**PROBLEM.** `predmeti.case_dna` je sirov izlaz modela; V2 nema ugovor koji razdvaja izvor, ljudsku potvrdu,
+izvođenje i analizu, niti stabilan identitet stavki.
+
+**TRENUTNI DOKAZ.** (PROVEN čitanjem) `case_dna` nema polje vremena osvežavanja; `dokazi_rang`/`kontradikcije`/
+`rokovi_kriticni` već nose `dokument_id` razrešen pri upisu (A001/A002/B8, fail-closed); `kontradikcije[].claim_refs`
+su efemerne `CLAIM-NNN` oznake (shared/claim_catalog.py — „oznaka nije identitet"); u kodu NE postoji provera koja
+par (zakon, član) potvrđuje kao važeći izvor (`validate_law_refs` = samo naziv zakona; `quality_gate._verify_citation`
+= da li postoji bilo koji „Član N", bez zakona).
+
+**POKUŠAJ OPOVRGAVANJA.** Da li se `CLAIM-NNN` sme razrešiti pri čitanju? NE — katalog se gradi nad trenutnim
+tvrdnjama; nova tvrdnja pomera oznake, pa bi `CLAIM-001` pokazao na drugu tvrdnju. Da li `quality_gate` sme da potvrdi
+„ZOO čl. 262"? NE — potvrdio bi i „Zakon o radu čl. 262" istim upitom. Da li predmet bez Genome-a sme imati prazne
+sekcije? NE — „nije izračunato" ≠ „nema ničega".
+
+**ODLUKA.** Aditivan, čist modul `shared/genome_contract.py` (pomoćnik vlasnika Genome-a, kao `genome_validator`):
+`sastavi(predmet, case_dna, dokumenti, dokazi, izvori, osvezeno)` → ugovor `pg-1`. Ne piše, ne zove model, ne
+dohvata sam. Stari potrošači (`/case-dna`, Case Evolution, alarmi) nepromenjeni.
+
+**UGOVOR (pg-1).** `metapodaci` (genome_verzija, osvezeno, dokumenata u predmetu/analizirano/izostavljeno/bez teksta,
+provera analize, kompletnost COMPLETE|PARTIAL|DEGRADED|UNKNOWN, stanje izvora), `identitet`, `cinjenice` (= tvrdnje
+`predmet_dokazi`, id = `predmet_dokazi.id`), `stranke`, `pravna_pitanja` (+ `pravni_osnovi_neprovereni`,
+`potvrdjeni_pravni_izvori: []`, `potvrda_izvora.stanje = NIJE_DOSTUPNA`), `hronologija`, `strategija`, `nedostaje`,
+`metrike`, `nesigurnost`. Svaka stavka: `id`, `id_vrsta` (`izvor` | `sadrzaj`), `poreklo`, `vrednost`.
+Stanja sekcije: OK / EMPTY / UNKNOWN / DEGRADED / INVALID. Kontradikcije, dokazi kao graf, rokovi, ročišta, spremnost
+i akcije se dodaju u Task 4–8.
+
+**KLASE POREKLA.** SOURCE_FACT, HUMAN_CONFIRMED, DETERMINISTIC_DERIVATION, AI_ANALYSIS, UNKNOWN (eksplicitno kad
+poreklo nije zabeleženo — ne pogađa se). Tvrdnja: `izvor_tvrdnje=covek` ili `izvor_snage=covek` → HUMAN_CONFIRMED;
+pronađena u tekstu svog dokumenta → SOURCE_FACT; `ai_klasifikacija` nepronađena → AI_ANALYSIS; ostalo → UNKNOWN.
+Sve iz `case_dna` → AI_ANALYSIS.
+
+**3A.** DOK-NN važi samo za tačno jedan dokument OVOG predmeta; upisani `dokument_id` samo ako je i sada dokument
+ovog predmeta; nikad po nazivu fajla. Neispravan datum → `datum: null, datum_neispravan: true`; vrednost van skupa
+(uloga, značaj, hitnost) → `null`; stranka bez imena se ne prikazuje (`odbaceno`). Neispravna savetodavna sekcija →
+`INVALID`, ostatak ugovora radi.
+
+**3B.** Svaki pravni osnov iz modela: `poverenje: UNVERIFIED_AI_ANALYSIS`, uz determinističke signale
+`naziv_zakona_prepoznat` i `broj_clana_moguc` (postojeći validatori, ne nova provera).
+
+**3C.** `snaga_predmeta_procent` = mixed (faktori modela, zbir backend-om), `heatmap.*`/`kriticnost`/`snaga_score`/
+`genome_kompletnost` = model_derived, `_analiza_osnov.*`/`_genome_docs_*` = deterministic. Svaka metrika nosi
+„NIJE verovatnoća ishoda ni predviđanje suda". Nova metrika uspeha NIJE uvedena.
+
+**FAJLOVI.** `shared/genome_contract.py` (nov), `tests/test_ns006_t3_genome_contract.py` (nov).
+
+**TESTOVI.** 14/14: isti izvori → bajt-identičan ugovor pri 5 nasumičnih redosleda; AI ključevi stabilni i označeni
+`sadrzaj`; poreklo 4 tvrdnje (SOURCE_FACT/HUMAN_CONFIRMED/AI_ANALYSIS/UNKNOWN); DOK-07 nepoznat, DOK-02 sa dva
+kandidata, naziv fajla, tuđi `dokument_id` → nerazrešeno; `CLAIM-001/CLAIM-999` se ne pojavljuju u ugovoru; bez Genome-a
+→ UNKNOWN + nesigurnost; pao izvor → DEGRADED; ulaz nepromenjen; 3A/3B/3C.
+
+**TENANT / FAILURE.** Čista funkcija — opseg vlasnika obezbeđuje učitavanje (Task 9). Pao izvor → DEGRADED, nikad
+prazno (PROVEN).
+
+**MUTACIJE (10/10 ubijeno).** G1 nepoznat DOK → prvi dokument; G2 tuđi `dokument_id` prihvaćen; G3 SOURCE_FACT → AI;
+G3b AI → SOURCE_FACT; G4 pao izvor → prazno; G5 osnov „VERIFIED"; G6 neispravan datum prihvaćen; G7 mixed →
+deterministic; G8 sirove kontradikcije sa CLAIM oznakama u ugovoru; G9 „verovatnoća uspeha".
+
+**OGRANIČENJA.** Vreme osvežavanja nije u `case_dna`; ugovor prima `osvezeno` od pozivaoca (Task 9: iz istorije, ili
+`null`). Poreklo starih tvrdnji bez `izvor_tvrdnje` i bez lokacije je UNKNOWN.
+
+**SLEDEĆA KAPIJA.** Task 4 — graf dokaza.
