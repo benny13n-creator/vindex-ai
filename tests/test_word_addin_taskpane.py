@@ -19,6 +19,7 @@ until validated here with a real parser. Fixed as part of this item.
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -70,14 +71,14 @@ def test_manifest_references_taskpane_and_adapter_consistently():
     assert "taskpane.html" in content
 
 
-@pytest.mark.skipif(subprocess.run(["node", "--version"], capture_output=True).returncode != 0,
+@pytest.mark.skipif(shutil.which("node") is None,
                      reason="node not available in this environment")
 def test_adapter_js_syntax_is_valid():
     result = subprocess.run(["node", "--check", _ADAPTER], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.skipif(subprocess.run(["node", "--version"], capture_output=True).returncode != 0,
+@pytest.mark.skipif(shutil.which("node") is None,
                      reason="node not available in this environment")
 def test_taskpane_inline_script_syntax_is_valid(tmp_path):
     html = _read(_TASKPANE)

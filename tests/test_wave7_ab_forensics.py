@@ -277,12 +277,23 @@ async def test_e_konkurentni_A_B_A_B_se_ne_mesaju():
     izolacije), ovo bi ga otkrilo.
     """
     import asyncio
-    rezultati = await asyncio.gather(
-        _ceo_lanac(ALFA_ID, UID_A),
-        _ceo_lanac(BETA_ID, UID_B),
-        _ceo_lanac(ALFA_ID, UID_A),
-        _ceo_lanac(BETA_ID, UID_B),
-    )
+    # Svaki `_ceo_lanac` drzi `patch(...)` nad ISTIM atributima preko `await`-a,
+    # pa cetiri konkurentna lanca ulaze i izlaze PREPLITANO (ne LIFO): kasniji
+    # `patch` pamti mock ranijeg kao "original" i vraca ga na izlazu. Bez
+    # spoljnog `patch`-a lazni klijent je ostajao trajno u
+    # `shared.deps._get_supa` do kraja sesije. Spoljni sloj vraca pravu
+    # vrednost posle `gather`-a bez obzira na redosled unutrasnjih izlaza;
+    # ono sto svaki lanac vidi se ne menja. `routers.strategija` se uvozi PRE
+    # spoljnog `patch`-a: inace bi njegov `from shared.deps import _get_supa`
+    # vezao vec zamenjeni mock i `patch` bi ga sacuvao kao "original".
+    import routers.strategija  # noqa: F401
+    with patch("shared.deps._get_supa"), patch("routers.strategija._get_supa"):
+        rezultati = await asyncio.gather(
+            _ceo_lanac(ALFA_ID, UID_A),
+            _ceo_lanac(BETA_ID, UID_B),
+            _ceo_lanac(ALFA_ID, UID_A),
+            _ceo_lanac(BETA_ID, UID_B),
+        )
     for i, (blok, poruke) in enumerate(rezultati):
         ocekivan, zabranjen = (ALFA_DOK, BETA_DOK) if i % 2 == 0 else (BETA_DOK, ALFA_DOK)
         assert ocekivan in blok, f"posao #{i} izgubio svoj kontekst"

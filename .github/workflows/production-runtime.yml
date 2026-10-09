@@ -106,7 +106,19 @@ jobs:
       # which never loads conftest, sets its own.
       FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     steps:
+      # git must exist BEFORE checkout: without it actions/checkout downloads a
+      # tarball via the REST API and there is no .git at all, so every test that
+      # reads history (`git show`, `git check-ignore`) fails in this job.
+      - name: Install git (CI tooling only; not in the production image)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git
+          rm -rf /var/lib/apt/lists/*
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: System packages the Dockerfile also installs
         run: |
@@ -117,7 +129,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Import the ASGI app exactly as gunicorn does
         env:

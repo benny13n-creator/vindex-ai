@@ -14,6 +14,7 @@ capability (OCR confidence scoring), not a fix.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import asyncio
+import re
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -208,6 +209,11 @@ def test_pred_upload_doc_distinguishes_timeout_error_message():
     vindex_js = open(os.path.join(REPO_ROOT, "static", "vindex.js"), encoding="utf-8").read()
     marker = "async function pred_upload_doc(file) {"
     assert marker in vindex_js
-    body = vindex_js.split(marker, 1)[1][:6000]
+    # Telo funkcije do sledece top-level funkcije -- ne fiksan broj znakova:
+    # funkcija je narasla preko 6000 i prozor je odsecao bas ovu granu.
+    ostatak = vindex_js.split(marker, 1)[1]
+    kraj = re.search(r"\n(?:async\s+)?function\s+\w+\s*\(", ostatak)
+    assert kraj, "kraj pred_upload_doc nije pronadjen"
+    body = ostatak[:kraj.start()]
     assert "AbortError" in body
     assert "predugo trajalo" in body
