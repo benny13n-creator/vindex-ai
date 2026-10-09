@@ -37,11 +37,14 @@ def _okruzenje():
         from PIL import Image  # noqa: F401
         return str(pytesseract.get_tesseract_version())
     except Exception as e:   # binarni fajl ili paket nedostaje
-        return "NEMA: " + type(e).__name__
+        return "NEMA: " + type(e).__name__ + ": " + str(e)[:160]
 
 
 _VERZIJA = _okruzenje()
 if _VERZIJA.startswith("NEMA"):
+    if os.getenv("VINDEX_OCR_REPORT"):   # da CI anotacija pokaže TAČAN uzrok (logovi poslova nisu javni)
+        with open(os.getenv("VINDEX_OCR_REPORT"), "w", encoding="utf-8") as _f:
+            json.dump({"greska_okruzenja": _VERZIJA}, _f, ensure_ascii=False)
     if _TRAZI:
         raise RuntimeError(f"VINDEX_REQUIRE_OCR=1, ali OCR okruženje nije potpuno ({_VERZIJA})")
     pytest.skip(f"OCR okruženje nije dostupno ({_VERZIJA}) — Gate B dokaz preskočen", allow_module_level=True)
