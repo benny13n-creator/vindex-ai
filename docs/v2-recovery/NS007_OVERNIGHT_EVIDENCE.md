@@ -278,3 +278,48 @@ posle završenog rada → proizvod ostaje READY, ne pokreće se ponovo, neuspeh 
 u red; B3 neuspeh knjiženja prijavljen kao uspeh; B4 budžet se ne resetuje po danu.
 
 **SLEDEĆA KAPIJA.** Task 6 — deterministički planer.
+
+---
+
+## TASK 6–7 — DETERMINISTIČKI PLANER + PODOBNOST ZA PRIPREMU ROČIŠTA
+
+**PROBLEM.** Legacy `precedents_radar` svaki dan prolazi kroz SVE aktivne predmete sa Genome-om i za svaki zove model
+(Task 0 F). Autonomni rad mora da nastaje samo iz stvarnog okidača, sa razlogom, bez modela u odlučivanju.
+
+**EVIDENCIJA (PROVEN).** Ročišta: `rocista` (005), `status ∈ {zakazano, odrzano, odlozeno, otkazano}`, `datum DATE`,
+`vreme TIME`. Završni statusi predmeta: `shared/constants.TERMINALNI_STATUSI_PREDMETA = (zatvoren, arhiviran,
+odbijen)` (legacy agenti koriste samo prva dva — dug, ne menja se ovde). Tombstone brisanja: `predmeti.
+brisanje_zapoceto` (114), čitan kao u `shared/rag_acl.py`. „Danas" u Case Actions / Workspace = `date.today()`.
+
+**ODLUKA.**
+- Planer je deo agenta (`planiraj`), radnik samo upisuje: plan → upis → zastarevanje (Task 3). 0 poziva modela.
+- HEARING_PREP (`services/agent_tasks/hearing_prep.py::planiraj`): posao SAMO ako je ročište `zakazano` u prozoru
+  [danas, danas + `AUTONOMY_HEARING_WINDOW_DAYS`] (podrazumevano 1 = danas i sutra, opseg 0–7, neispravno = 1),
+  predmet istog korisnika, nije završen, nije u brisanju, ima Genome (verzija ≥ 1). Bez razloga nema posla:
+  `reason` = „Ročište sutra (11.10.2026. u 09:30, Osnovni sud u Beogradu) — priprema po analizi predmeta v3.";
+  preskočeni se broje po razlogu.
+- Ključ = `HEARING_PREP:{ročište}:{verzija ročišta = sha256(datum|vreme|sud|sudnica)}:g{Genome verzija}`; promena
+  ročišta ili analize = nov posao, stari QUEUED/READY → SUPERSEDED (ne briše se).
+- Poništavanje: za svaku pripremu u QUEUED/READY planer proverava da li njeno ročište još važi (otkazano, odloženo,
+  održano, obrisano, pomereno van prozora, predmet zatvoren/u brisanju) → SUPERSEDED, izvršilac se ne poziva.
+- Veza: `case_action_id` = otvorena Case Action `PRIPREMITI_PODNESAK` za isto ročište (dodatak, ne uslov).
+- Budžet: ključ organizacije iz postojećeg `_resolve_orgs_batched` (kancelarija ili solo).
+- Kolona tombstone-a nedostaje → ista bezbedna grana kao `rag_acl` (tombstone se bez nje ne može upisati); SVAKA
+  druga greška čitanja propagira (planer pada vidljivo, nikad „nema posla").
+
+**TESTOVI.** 25/25: kandidat sa razlogom, ključem, vezom na Case Action i budžetom; kancelarija kao budžet; 8
+nepodobnih slučajeva (van prozora ×2, zatvoren/odbijen/arhiviran, u brisanju, bez Genome-a, ročište A uz predmet
+B); odloženo/otkazano/održano; eksplicitan podesiv prozor; **100 aktivnih predmeta sa 2 ročišta → tačno 2 kandidata,
+0 poziva modela**; promena ročišta → nov posao + SUPERSEDED; nova verzija Genome-a → nova priprema, ista → nijedna;
+otkazano/odloženo/zatvoren/obrisano posle upisa → posao koji čeka se NE izvršava; ročište pomereno 30 dana → poništen;
+kolona tombstone-a nedostaje; greška čitanja predmeta propagira; jednokratna greška (ne kolona) ne skida filter.
+
+**MUTACIJE (11/11 ubijeno).** H1 bez statusa ročišta; H2 bez provere vlasnika; H3 bez filtera završenog; H4 legacy
+lista bez `odbijen`; H5 bez tombstone-a; H6 bez Genome uslova (generička priprema); H7 ključ bez verzije ročišta; H8
+ključ bez verzije Genome-a; H9 bez poništavanja; H10 fallback na svaku grešku (prvo PREŽIVELA — dodat test
+jednokratne greške); H11 prozor bez gornje granice (prvo PREŽIVELA — dodat test pomerenog ročišta).
+
+**OGRANIČENJE.** „Danas" je datum servera (`date.today()`, na Render-u UTC) — isto kao Case Actions i Workspace; oko
+ponoći po beogradskom vremenu prozor kasni do 2 sata. Agent se registruje u Task 8 (kad dobije izvršioca).
+
+**SLEDEĆA KAPIJA.** Task 8 — izvršilac pripreme ročišta.
