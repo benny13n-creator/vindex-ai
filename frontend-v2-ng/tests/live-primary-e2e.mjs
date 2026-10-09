@@ -35,7 +35,10 @@ Object.assign(env, {
   PINECONE_HOST: "https://fake.pinecone.io", FIELD_ENCRYPTION_KEY: "f".repeat(64),
   FOUNDER_EMAILS: "ci@example.com", PYTHONUTF8: "1", PYTHONUNBUFFERED: "1",
   VINDEX_V2_NG_PRIMARY_ENABLED: "1", VX_E2E_LOG: LOG, VX_E2E_PORT: String(PORT),
+  // NS005.1: poznat build identitet (isti izvor kao produkcija: shared/build_info.py) → poznat token u putanji.
+  GIT_SHA: "5eedc0de5eedc0de5eedc0de5eedc0de5eedc0de",
 });
+const TOKEN = "5eedc0d";
 const py = spawn(process.env.VX_PYTHON || "python", ["tests/v2_ng_e2e_harness.py"], { cwd: REPO, env, stdio: ["ignore", "pipe", "pipe"] });
 let pyIzlaz = "";
 py.stdout.on("data", d => pyIzlaz += d); py.stderr.on("data", d => pyIzlaz += d);
@@ -129,7 +132,7 @@ for (const adresa of ["/app", "/app?rezim=demo", "/app?rezim=nesto"]) {
   await cekaj(o.p, () => document.documentElement.dataset.pogled !== "predmet" && document.querySelectorAll("#rows tr").length === 12);
   zapisi("P3.primarni", "Back vraća registar sa stvarnim predmetima", (await ekran(o.p)).redovi === 12);
   const assets = await o.p.evaluate(() => performance.getEntriesByType("resource").map(e => new URL(e.name).pathname).filter(x => /\.(js|css|svg|png|woff2)$/.test(x)));
-  zapisi("P3.primarni", "svi V2 asseti sa /v2/app/ (ne zavise od /v2/preview)", assets.length > 5 && assets.every(a => a.startsWith("/v2/app/")), assets.filter(a => !a.startsWith("/v2/app/")).slice(0, 3).join(","));
+  zapisi("P3.primarni", `svi V2 asseti sa /v2/app/@${TOKEN}/ (build-adresirani, ne zavise od /v2/preview)`, assets.length > 5 && assets.every(a => a.startsWith(`/v2/app/@${TOKEN}/`)), assets.filter(a => !a.startsWith(`/v2/app/@${TOKEN}/`)).slice(0, 3).join(","));
   await o.ctx.close();
 }
 // P4: linkovi postojeće prijave (reset lozinke, #login) idu u legacy sa istim hash-om
@@ -225,6 +228,61 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
   const e = await o.p.evaluate(() => ({ tekst: document.body.innerText, mem: window.__vxDetaljUMemoriji(), redovi: document.querySelectorAll("#rows tr").length }));
   zapisi("P7.tok", "posle odjave: direktan link na predmet ne prikazuje ništa (bez ostataka)", e.mem.predmet === null && e.mem.tekst === 0 && e.redovi === 0 && !/TEKST-A0|Predmet korisnik-A/.test(e.tekst));
   await o.ctx.close();
+}
+
+// P9 (NS005.1): keš ne sme da spoji NOV index.html sa STARIM app.js. Svaka STABILNA putanja
+// (/v2/app/{src,fonts,brand}/…) ovde odgovara ustajalim NS004 bajtovima — kao pregledač/CDN koji
+// ih još drži. Ustajali app.js radi isto što i stvarni NS004: uklanja SVE data-modul stavke.
+{
+  const STARI_APP_JS = "window.__vxStariAppJs=true;document.querySelectorAll('.sidenav__item[data-modul]').forEach(function(a){a.closest('li').remove();});";
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+  const stabilni = [], trazeni = [], zaglavlja = {};
+  await ctx.route("**/*", (r) => {
+    const u = new URL(r.request().url());
+    if (u.hostname !== "127.0.0.1") { spoljniV2.push(u.href); return r.abort(); }
+    if (/^\/v2\/app\/(src|fonts|brand)\//.test(u.pathname)) {
+      stabilni.push(u.pathname);
+      return r.fulfill({ status: 200, contentType: "text/javascript", headers: { "Cache-Control": "public, max-age=31536000" },
+        body: u.pathname.endsWith("app.js") ? STARI_APP_JS : "/* ustajalo */" });
+    }
+    return r.continue();
+  });
+  await ctx.addInitScript(([k, v]) => { if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(k, v); } },
+    [KLJUC, ses("korisnik-A", "vx-e2e-A")]);
+  const p = await ctx.newPage();
+  p.on("request", q => { const u = new URL(q.url()); if (u.pathname.startsWith("/v2/")) trazeni.push(u.pathname); });
+  p.on("response", s => { const u = new URL(s.url()); if (u.pathname.endsWith("/src/app.js")) zaglavlja[u.pathname] = s.headers()["cache-control"] || ""; });
+  p.on("pageerror", e => konzola.push("PAGEERROR " + e));
+  await p.goto(BASE + "/app");
+  await cekaj(p, () => document.querySelectorAll("#rows tr").length > 0);
+  const html = await (await p.request.get(BASE + "/app")).text();
+  const lokalne = [...html.matchAll(/\b(?:href|src)="([^"#][^"]*)"/g)].map(m => m[1]).filter(x => x.startsWith("/v2/") || /^(src|fonts|brand)\//.test(x));
+  zapisi("P9.koherentnost", `HTML: sve lokalne V2 reference su /v2/app/@${TOKEN}/ (${lokalne.length})`, lokalne.length >= 30 && lokalne.every(x => x.startsWith(`/v2/app/@${TOKEN}/`)), lokalne.filter(x => !x.startsWith(`/v2/app/@${TOKEN}/`)).slice(0, 3).join(","));
+  zapisi("P9.koherentnost", "pregledač je tražio NOV app.js sa build-adresom", trazeni.includes(`/v2/app/@${TOKEN}/src/app.js`), trazeni.filter(x => x.endsWith("app.js")).join(","));
+  zapisi("P9.koherentnost", "nijedan zahtev na stabilnu putanju — ustajali keš ne može da odgovori", stabilni.length === 0, stabilni.slice(0, 3).join(","));
+  zapisi("P9.koherentnost", "ustajali NS004 app.js NIJE izvršen", (await p.evaluate(() => window.__vxStariAppJs)) !== true);
+  zapisi("P9.koherentnost", "app.js sa build-adresom: public, max-age=31536000, immutable", zaglavlja[`/v2/app/@${TOKEN}/src/app.js`] === "public, max-age=31536000, immutable", JSON.stringify(zaglavlja));
+  const nav = await p.evaluate(() => {
+    const vid = (e) => !!e && !e.closest("[hidden]") && getComputedStyle(e).display !== "none" && e.getClientRects().length > 0;
+    return {
+      moduli: [...document.querySelectorAll(".sidenav__item")].filter(vid).map(a => a.textContent.trim()),
+      uskladjenost: !!document.querySelector('.sidenav__item[data-modul="Usklađenost"]') || [...document.querySelectorAll(".sidenav__item")].some(a => vid(a) && /Usklađenost/.test(a.textContent)),
+      pretraga: vid(document.getElementById("pretraga-link")), nov: vid(document.getElementById("nov-predmet-link")),
+    };
+  });
+  zapisi("P9.nav", "LIVE bočna navigacija: Danas, Predmeti, Znanje, Kancelarija", JSON.stringify(nav.moduli) === JSON.stringify(["Danas", "Predmeti", "Znanje", "Kancelarija"]), nav.moduli.join(","));
+  zapisi("P9.nav", "nedovršena „Usklađenost“ nije izložena", !nav.uskladjenost);
+  zapisi("P9.nav", "akcije „Pretraga“ i „Nov predmet“ su vidljive", nav.pretraga && nav.nov, JSON.stringify(nav));
+  await p.click('#rows tr[data-id="korisnik-A-00000"] .case__name');
+  await cekaj(p, () => document.querySelectorAll("#predmet-cinjenice dt").length > 0);
+  const kartice = await p.evaluate(() => [...document.querySelectorAll(".tabs__item")]
+    .filter(a => !a.closest("[hidden]") && getComputedStyle(a).display !== "none" && a.getClientRects().length > 0)
+    .map(a => a.childNodes[0].textContent.trim()));
+  const OCEKIVANE = ["Pregled", "Rad na predmetu", "Pravno pitanje", "Nacrt podneska", "Naplata", "Dokumenti", "Prijem dokumenata"];
+  zapisi("P9.nav", "predmet: Pregled, Rad na predmetu, Pravno pitanje, Nacrt podneska, Naplata, Dokumenti, Prijem dokumenata", JSON.stringify(kartice) === JSON.stringify(OCEKIVANE), kartice.join(","));
+  const tudji = await p.request.get(BASE + "/v2/app/@0000000/src/app.js");
+  zapisi("P9.koherentnost", "token DRUGOG builda: 404 + no-store (stari bajtovi ne mogu da odgovore na tuđ URL)", tudji.status() === 404 && tudji.headers()["cache-control"] === "no-store", `${tudji.status()} ${tudji.headers()["cache-control"]}`);
+  await ctx.close();
 }
 
 await browser.close();

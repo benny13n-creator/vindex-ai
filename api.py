@@ -2893,11 +2893,23 @@ if _v2_ng_preview_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
 
 # ── Vindex V2 NG kao PRIMARNI /app — PODRAZUMEVANO ISKLJUČEN (NS004) ──────────
 # VINDEX_V2_NG_PRIMARY_ENABLED = "1"/"true"/"yes" (kao preview): /app servira
-# V2 NG; asseti idu sa STABILNE putanje /v2/app/{src,fonts,brand} — nezavisno od
-# preview prekidača (preview je QA granica i kill switch, primarni nije od njega
-# zavisan). Legacy /sw.js preskače /v2/*, pa ni asseti ni preview ne prolaze kroz
-# legacy keš. Rollback: ukloniti promenljivu i restartovati (bez izmene koda);
-# /app-legacy je uvek klasičan /app.
+# V2 NG — nezavisno od preview prekidača (preview je QA granica i kill switch,
+# primarni nije od njega zavisan). Legacy /sw.js preskače /v2/*, pa ni asseti ni
+# preview ne prolaze kroz legacy keš. Rollback: ukloniti promenljivu i
+# restartovati (bez izmene koda); /app-legacy je uvek klasičan /app.
+#
+# NS005.1: asseti su ADRESIRANI BUILDOM — /v2/app/@<token>/{src,fonts,brand}/…,
+# isti princip kao /app-v2 (/v2/@<token>/…). Stabilna putanja /v2/app/src/app.js
+# nije imala Cache-Control, pa je posle deploya NS005 keš (pregledač/CDN) i dalje
+# davao NS004 app.js uz NOV index.html (novi moduli su imali nove URL-ove i
+# stigli su do servera; app.js nije). Nov build = nova putanja, pa stari bajtovi
+# ne mogu da odgovore na nov URL; zato asset sme biti `immutable`.
+#
+# Za razliku od /v2/@<token>/, token se OVDE PROVERAVA: odgovara se samo za
+# token TEKUĆEG builda. Tokom smene instanci (stara i nova istovremeno) zahtev
+# za @B koji stigne do stare instance A bi inače dobio bajtove A pod URL-om B —
+# sa `immutable` keš bi ih pamtio godinu dana, tj. trajno mešanje buildova.
+# Nepoznat token → 404 sa no-store (ništa se ne kešira).
 def _v2_ng_primarni_ukljucen() -> bool:
     return (os.getenv("VINDEX_V2_NG_PRIMARY_ENABLED") or "").strip().lower() in {"1", "true", "yes"}
 
@@ -2908,15 +2920,78 @@ _V2_NG_PRIMARNI_ZAGLAVLJA = {"Cache-Control": "no-store", "X-Content-Type-Option
 # podrazumevani storageKey); verify:session-contract proverava da se poklapaju.
 _V2_NG_KLJUC_SESIJE = "sb-czsxymueizfqrbbgqqob-auth-token"
 
-if _v2_ng_primarni_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
-    _V2_NG_PRIMARNI_HTML = _re.sub(
-        r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/\2/",
+_V2_NG_ASSET_DIREKTORIJUMI = ("src", "fonts", "brand")
+_V2_NG_ASSET_TIPOVI = {
+    ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".woff": "font/woff",
+}
+
+
+def _v2_ng_build_token() -> str:
+    """Token u putanji primarnih V2 NG asseta.
+
+    Produkcija: dokazani commit identitet iz `shared/build_info.py` (Render
+    RENDER_GIT_COMMIT), isti izvor kao /api/version i /app-v2. Razvoj bez
+    identiteta: `dev-` + sha256 SADRŽAJA izloženih fajlova — menja se kad se
+    fajl promeni; prefiks čini očiglednim da to NIJE dokazan build.
+    """
+    from shared.build_info import get_build_info
+    short = (get_build_info() or {}).get("commit_short")
+    if short:
+        return short
+    import hashlib as _hl
+    h = _hl.sha256()
+    fajlovi = [_V2_NG_DIR / "index.html"] + sorted(
+        p for d in _V2_NG_ASSET_DIREKTORIJUMI if (_V2_NG_DIR / d).is_dir() for p in (_V2_NG_DIR / d).rglob("*"))
+    for f in fajlovi:
+        try:
+            if f.is_file():
+                h.update(f.relative_to(_V2_NG_DIR).as_posix().encode("utf-8") + b"\0" + f.read_bytes())
+        except OSError:
+            continue
+    return "dev-" + h.hexdigest()[:12]
+
+
+def _v2_ng_primarni_html(token: str) -> bytes:
+    """index.html sa SVAKOM lokalnom src/fonts/brand referencom pod /v2/app/@<token>/.
+    CSS fontova koristi relativne url(./files/…), pa ostaje u istom buildu."""
+    return _re.sub(
+        r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/@" + token + r"/\2/",
         (_V2_NG_DIR / "index.html").read_text(encoding="utf-8"),
     ).encode("utf-8")
+
+
+if _v2_ng_primarni_ukljucen() and (_V2_NG_DIR / "index.html").is_file():
+    _V2_NG_TOKEN = _v2_ng_build_token()
+    _V2_NG_PRIMARNI_HTML = _v2_ng_primarni_html(_V2_NG_TOKEN)
+
+    @app.get("/v2/app/@{token}/{putanja:path}", include_in_schema=False)
+    def v2_ng_primarni_asset(token: str, putanja: str):
+        nema = JSONResponse(status_code=404, content={"error": "Nije pronađeno."}, headers=_V2_NG_PRIMARNI_ZAGLAVLJA)
+        if token != _V2_NG_TOKEN:
+            return nema
+        deo = putanja.split("/", 1)
+        if len(deo) != 2 or deo[0] not in _V2_NG_ASSET_DIREKTORIJUMI or ".." in putanja or "\\" in putanja:
+            return nema
+        try:
+            koren = (_V2_NG_DIR / deo[0]).resolve()
+            stvarna = (koren / deo[1]).resolve()
+            if not stvarna.is_relative_to(koren) or not stvarna.is_file():
+                return nema
+        except (OSError, ValueError):
+            return nema
+        tip = _V2_NG_ASSET_TIPOVI.get(stvarna.suffix.lower())
+        if not tip:
+            return nema
+        return FileResponse(str(stvarna), media_type=tip, headers={
+            "Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"})
+
+    # Kompatibilnost: stabilne putanje ostaju rutabilne za već otvorene kartice
+    # (bajtovi tekućeg builda, bez preusmeravanja). Nov /app ih NE referencira.
     app.mount("/v2/app/src", _StaticFiles(directory=str(_V2_NG_DIR / "src")), name="v2_ng_app_src")
     app.mount("/v2/app/fonts", _StaticFiles(directory=str(_V2_NG_DIR / "fonts")), name="v2_ng_app_fonts")
     app.mount("/v2/app/brand", _StaticFiles(directory=str(_V2_NG_DIR / "brand")), name="v2_ng_app_brand")
-    logger.info("[V2-NG] PRIMARNI /app (VINDEX_V2_NG_PRIMARY_ENABLED); /app-legacy ostaje klasičan")
+    logger.info("[V2-NG] PRIMARNI /app (VINDEX_V2_NG_PRIMARY_ENABLED), asseti /v2/app/@%s/; /app-legacy ostaje klasičan", _V2_NG_TOKEN)
 
 
 def _v2_ng_primarni_odgovor():

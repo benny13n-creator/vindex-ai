@@ -119,14 +119,18 @@ def test_dozvoljene_vrednosti_ukljucuju(vrednost):
     assert '<canvas id="pozadina"' in r["/app"]["telo"], vrednost
 
 
-def test_ukljucen_app_je_v2_sa_stabilnim_assetima(ukljucen):
+def test_ukljucen_app_je_v2_sa_build_adresiranim_assetima(ukljucen):
+    # NS005.1: asseti nose token builda u putanji (/v2/app/@<token>/…), nikad stabilnu putanju.
     r = ukljucen["/app"]
     assert r["status"] == 200 and r["ct"].startswith("text/html") and "no-store" in r["cc"] and r["xcto"] == "nosniff"
     telo = r["telo"]
-    assert '<canvas id="pozadina"' in telo and 'src="/v2/app/src/runtime.js"' in telo
+    m = re.search(r'src="/v2/app/@([A-Za-z0-9-]+)/src/runtime\.js"', telo)
+    assert '<canvas id="pozadina"' in telo and m
     assert not re.search(r'\b(?:href|src)="(?:src|fonts|brand)/', telo), "ostala je relativna putanja asseta"
+    assert not re.search(r"/v2/app/(?:src|fonts|brand)/", telo), "ostala je stabilna (keširana) putanja asseta"
     assert "/v2/preview/" not in telo, "primarni /app ne sme zavisiti od preview putanje"
-    ocekivano = re.sub(r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/\2/", (NG / "index.html").read_text(encoding="utf-8"))
+    ocekivano = re.sub(r'\b((?:href|src)=")(src|fonts|brand)/', r"\1/v2/app/@" + m.group(1) + r"/\2/",
+                       (NG / "index.html").read_text(encoding="utf-8"))
     assert telo == ocekivano
     # ?rezim=demo ne menja ništa na serveru; DEMO isključuje runtime.js po putanji.
     assert ukljucen["/app?rezim=demo"]["sha"] == r["sha"]

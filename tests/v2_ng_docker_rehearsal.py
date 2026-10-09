@@ -176,7 +176,8 @@ if a:
 # ── D: primarni /app uključen (preview ostaje isključen) ─────────────────
 d, _ = stanje("D-PRIMARY-ON", None, primarni="true")
 if d:
-    zapisi("D-PRIMARY-ON", "/app je V2 NG sa assetima sa /v2/app/ (ne /v2/preview)", d["/app"]["status"] == 200 and 'src="/v2/app/src/runtime.js"' in d["_app_telo"]
+    zapisi("D-PRIMARY-ON", "/app je V2 NG sa build-adresiranim assetima /v2/app/@<token>/ (ne /v2/preview)", d["/app"]["status"] == 200
+           and re.search(r'src="/v2/app/@[A-Za-z0-9-]+/src/runtime\.js"', d["_app_telo"]) and "/v2/app/src/" not in d["_app_telo"]
            and "/v2/preview/" not in d["_app_telo"] and d["_primarni_log"])
     zapisi("D-PRIMARY-ON", "/v2/app asseti bajt-identični repozitorijumu, logo kanonski",
            d["/v2/app/src/app.js"]["sha"] == sha(NG / "src/app.js") and d["/v2/app/src/runtime.js"]["sha"] == sha(NG / "src/runtime.js")
