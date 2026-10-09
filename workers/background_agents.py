@@ -325,6 +325,21 @@ async def _izvrsivi_poslovi(supa, tipovi: list[str]) -> list[dict]:
             if x["status"] == "QUEUED" or (x.get("lease_expires_at") and str(x["lease_expires_at"]) < sada)]
 
 
+async def _zabelezi_upotrebu(supa, item: dict, run_id: str) -> bool:
+    """usage_events red za plaćeno autonomno izvršenje (isti obrazac kao legacy agenti, feature='autonomy').
+    Vraća False kad upis ne uspe — pozivalac to BROJI, ne tvrdi uspeh."""
+    try:
+        await asyncio.to_thread(lambda: supa.table("usage_events").insert({
+            "user_id": item["user_id"], "feature": "autonomy", "action": item["work_type"],
+            "meta": {"work_item_id": item["id"], "run_id": run_id, "attempt": item.get("attempt_count")},
+        }).execute())
+        return True
+    except Exception as e:
+        _sentry_capture(e)
+        logger.warning("[AUTONOMY] usage_events upis nije uspeo work=%s: %s", item.get("id"), type(e).__name__)
+        return False
+
+
 async def run_autonomy_cycle(run_id: str) -> dict:
     """Jedan ciklus trajnog autonomnog rada. Vraća sažetak (samo brojevi i bezbedni kodovi, bez sadržaja)."""
     from services import autonomy as au
@@ -333,7 +348,8 @@ async def run_autonomy_cycle(run_id: str) -> dict:
     agenti = _work_agents()
     rez = {"run_id": run_id, "planirano": 0, "duplikata": 0, "zastarelo": 0, "zauzeto": 0, "spremno": 0,
            "neuspeh": 0, "prolazno": 0, "budzet_iscrpljen": 0, "budzet_nepoznat": 0, "nije_zauzeto": 0,
-           "dead_letter": 0, "planer_greske": 0, "zauzimanje_greska": 0}
+           "dead_letter": 0, "planer_greske": 0, "zauzimanje_greska": 0,
+           "upotreba_nije_zabelezena": 0}
 
     # 1–2. plan + upis
     for work_type, agent in agenti.items():
@@ -388,6 +404,10 @@ async def run_autonomy_cycle(run_id: str) -> dict:
             continue
         if await au.sacuvaj_rezultat(supa, item["id"], vlasnik, **proizvod):
             rez["spremno"] += 1
+            # Računovodstvo POSLE trajnog upisa rezultata: budžet je već rezervisan u samoj stavci (izvor istine),
+            # pa neuspeo upis u usage_events ne vraća posao u red i ne pokreće ga ponovo — samo se broji.
+            if item.get("cost_class") == "PAID" and not await _zabelezi_upotrebu(supa, item, run_id):
+                rez["upotreba_nije_zabelezena"] += 1
         else:
             rez["nije_zauzeto"] += 1   # zakup je u međuvremenu istekao/preuzet: rezultat se NE upisuje preko tuđeg
     return rez

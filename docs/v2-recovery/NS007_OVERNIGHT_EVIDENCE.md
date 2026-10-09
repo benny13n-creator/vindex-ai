@@ -248,3 +248,33 @@ greške; K5 bez timeout-a.
 **PRODUKCIJA.** Ništa nije postavljeno. Render nije diran.
 
 **SLEDEĆA KAPIJA.** Task 5 — budžet autonomije zatvoren pri grešci.
+
+---
+
+## TASK 5 — BUDŽET AUTONOMIJE ZATVOREN PRI GREŠCI
+
+**EVIDENCIJA (PROVEN, Task 0).** Legacy agenti: čitanje budžeta fail-open (`workers/background_agents.py:159`), budžet
+broji POKRETANJA agenta a ne pozive modela, upis potrošnje ide POSLE izvršenja.
+
+**ODLUKA.**
+- Izvor istine o trošku autonomnog rada je SAMA STAVKA (`budget_units`, `reserved_day`), rezervisana u
+  `autonomy_claim_work_item` PRE poziva modela, pod bravom po organizaciji (Task 1–2). `usage_events` (feature
+  `autonomy`) je samo računovodstvo POSLE trajnog upisa rezultata — nije osnov odluke, pa njegov pad ne može ni da
+  otvori potrošnju ni da ponovi rad.
+- Jedinica budžeta = jedno izvršenje plaćenog posla (jedan poziv modela po izvršiocu, Task 8/10). Budžet je po
+  organizaciji (`kancelarija:{id}` ili `solo:{uid}`) i zajednički za sve vrste plaćenog rada; resetuje se po UTC
+  danu. Besplatan (deterministički) rad ne troši budžet.
+- Fail-closed putanje: baza nedostupna pri zauzimanju → posao nije zauzet → izvršilac se ne poziva; nepoznat ili
+  neispravan limit (`AUTONOMY_BUDGET_PER_ORG_DAILY`) → BUDGET_UNKNOWN; iscrpljen → posao ostaje QUEUED.
+- Legacy fail-open budžet pozadinskih agenata NIJE menjan (direktiva cilja nov autonomni trošak) — zabeleženo kao dug.
+
+**TESTOVI.** 6/6 (nivo radnika) + SQL pod konkurencijom iz Task 1–2: **10 plaćenih, budžet 3 → model pozvan tačno 3
+puta**, 7 ostaje QUEUED; isti dan 0 novih; sledeći dan nova trojka; budžet zajednički za kancelariju i vrste rada;
+besplatan rad radi pri budžetu 0 i ne knjiži se; **baza budžeta nedostupna → 0 poziva modela**; **pad `usage_events`
+posle završenog rada → proizvod ostaje READY, ne pokreće se ponovo, neuspeh se broji**; knjiženje bez sadržaja
+(samo `work_item_id`, `run_id`, `attempt`).
+
+**MUTACIJE (4/4 ubijeno + D2/D6/D10/D11 iz Task 1–2).** B1 knjiži i besplatan rad; B2 neuspeh knjiženja vraća posao
+u red; B3 neuspeh knjiženja prijavljen kao uspeh; B4 budžet se ne resetuje po danu.
+
+**SLEDEĆA KAPIJA.** Task 6 — deterministički planer.
