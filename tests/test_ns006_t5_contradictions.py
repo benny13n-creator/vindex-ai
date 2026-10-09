@@ -181,3 +181,19 @@ def test_pad_citanja_kontradikcija_je_degradirano(monkeypatch):
         assert r["kontradikcije"]["stanje"] == "DEGRADED" and r["kontradikcije"]["sazetak"] is None
     finally:
         ocisti()
+
+
+# ── Mandat #3 (nepoznata referenca na tvrdnju): druga brava u `razresi_reference` ──
+# Katalog se gradi iz istih tvrdnji, pa se u normalnom toku nikad ne razilazi od izvora. Ako se ipak razidu
+# (zastareo katalog, tvrdnja obrisana između sastavljanja prompta i upisa), referenca se ODBIJA — ne preskače.
+def test_katalog_koji_se_razisao_od_izvora_se_odbija():
+    from shared.claim_catalog import razresi_reference, GreskaKataloga
+    P, DRUGI = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"
+    katalog = {"CLAIM-001": "t-postoji", "CLAIM-002": "t-nema", "CLAIM-003": "t-tudja", "CLAIM-004": "t-obrisana"}
+    poznati = {"t-postoji": {"predmet_id": P, "deleted_at": None},
+               "t-tudja": {"predmet_id": DRUGI, "deleted_at": None},
+               "t-obrisana": {"predmet_id": P, "deleted_at": "2026-10-01T00:00:00+00:00"}}
+    assert razresi_reference(["CLAIM-001"], katalog, P, poznati) == ["t-postoji"]
+    for ref, razlog in (("CLAIM-002", "ne postoji"), ("CLAIM-003", "drugom predmetu"), ("CLAIM-004", "obrisana")):
+        with pytest.raises(GreskaKataloga, match=razlog):
+            razresi_reference(["CLAIM-001", ref], katalog, P, poznati)

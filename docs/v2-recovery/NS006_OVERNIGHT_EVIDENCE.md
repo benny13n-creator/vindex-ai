@@ -945,3 +945,50 @@ događaj → v1→v2, „Šta se promenilo" (3 strukturne promene), nova tvrdnja
 
 **FAJLOVI.** `shared/genome_contract.py`, `frontend-v2-ng/src/analiza-predmeta.js`, `tests/test_ns006_t3_genome_contract.py`,
 `tests/ns006_demo.py`, `frontend-v2-ng/tests/ns006-demo.mjs`, `frontend-v2-ng/package.json` (`demo:ns006`).
+
+---
+
+## TASK 21 — PUNA REGRESIJA, PRODUKCIONI IZVOD, BEZBEDNOST
+
+**BACKEND, PUN PAKET (PROVEN).** `pytest tests -p no:randomly` (zaključan redosled) na HEAD naspram sveže osnove
+`99d2c6b9` (isti način pokretanja):
+
+| | osnova `99d2c6b9` | NS006 HEAD |
+|---|---|---|
+| failed | 20 | 20 |
+| passed | 8396 | 8513 (+117 NS006 testova) |
+| skipped | 198 | 199 |
+
+Skup imena palih testova je **IDENTIČAN** (0 novih, 0 ispravljenih). Tih 20 su postojeći padovi osnove:
+`test_bu001_briefing_schema_contract` (3), `test_prg_night_register` (5), `test_faza1_pristupacnost` (3),
+`test_coi_intake_convergence` [trio] (3), `test_rc_cold_start` (2), `test_ca_trust_boundary` (1),
+`test_faza1_izvor_pod` (1), `test_ns003_protocol` (1), `test_phoenix_mission_013_infra_reliability` (1).
+Dve izmene posle pokretanja paketa (T20 dopuna) ponovo su proverene na svim testovima koji diraju `genome_contract`,
+`case_dna`, `genome-v2`, `v2_projection`: 1649 passed.
+
+**FRONTEND, CEO NG PAKET (PROVEN).** `run_ng.sh` nad HEAD (sve `verify:*` i `e2e:*` skripte iz `package.json`): **33/33 skripte zeleno,
+2055 provera, 0 padova** — uključujući nove `verify:live-analiza` 43/43, `verify:live-pregled-zivi` 30/30,
+`verify:live-radna-lista` 25/25 i postojeće `e2e:primary` 51/51, `e2e:fastapi` 62/62, `e2e:site` 73/73.
+
+**PRODUKCIONI IZVOD.** Docker NIJE dostupan na ovoj mašini (`docker: command not found`) → slika NIJE izgrađena
+(UNKNOWN). Urađeno najbliže moguće, sa ISTOM verzijom Python-a kao slika (`python:3.11-slim`):
+- čista venv sa Python 3.11.9 + `pip install -r requirements.txt` (isti korak kao Dockerfile): uspešno;
+- svih 29 izmenjenih `.py` fajlova se kompajlira pod 3.11 (0 grešaka); `compileall` celog backend-a: rc=0;
+- hladan `import api` (3.13): 634 rute, sve 4 V2 rute registrovane;
+- pod 3.11: NS006 + NS005.1 testovi 139 passed; OCR + Smart Intake testovi 273 passed, 11 skipped.
+Tesseract u slici, `uvicorn` start i rad na Linux-u NISU provereni.
+
+**BEZBEDNOST.** Bandit (`-ll`, izmenjeni fajlovi): 0 nalaza srednje/visoke ozbiljnosti. Semgrep (`p/python`,
+`p/javascript`, 14 izmenjenih fajlova): 0 nalaza. pip-audit: osnova je imala 6 ranjivosti `pypdf` 6.15 + `ecdsa` +
+`python-jose`; HEAD ima samo `python-jose` (CVE-2026-85394, dokazano neiskoristiv kroz Vindex verifikatore — T1) i
+`ecdsa` (PYSEC-2026-1325, bez ispravke, zavisnost `python-jose`) — **0 novih**. Gitleaks NIJE instaliran (UNKNOWN);
+umesto njega regex pretraga celog diff-a (OpenAI/JWT/AWS/privatni ključ/`secret=…`): 0 pogodaka.
+
+**OBAVEZNE MUTACIJE (§22) — 15/15 pokriveno.** #1 E1 · #2 G1, G2 · #3 M3 (nepoznata oznaka), M3b (katalog razišao
+od izvora — prvo PREŽIVELA, dodat test `test_katalog_koji_se_razisao_od_izvora_se_odbija`) · #4 G3, G3b, U5 · #5 R1,
+G4, K6, U6, P1, W1 · #6 N7, N1–N3, N6 · #7 N4, N5 · #8 M8 (akcije bez opsega vlasnika) · #9 A1, A8 · #10 A2, A3 ·
+#11 U1 · #12 U9, P13, W12 · #13 U3b, P12b, W4b · #14 G9, U4 · #15 K1.
+
+**FAJLOVI.** `tests/test_ns006_t5_contradictions.py` (test #3), `docs/v2-recovery/NS006_PR_BODY.md`.
+
+**SLEDEĆA KAPIJA.** Nema — završni izveštaj; čeka se pregled foundera.
