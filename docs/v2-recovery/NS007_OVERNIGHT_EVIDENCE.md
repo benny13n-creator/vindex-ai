@@ -367,3 +367,53 @@ AI_PREPARED bez AI dela; X14 404 kao prolazno (prvo PREŽIVELA — dodat test pr
 autoritet uopšte ne traži od modela. Podrazumevani model `gpt-4o-mini` (`AUTONOMY_HEARING_MODEL`).
 
 **SLEDEĆA KAPIJA.** Task 9 — Precedents Radar.
+
+---
+
+## TASK 9–10 — PRECEDENTS RADAR → UTEMELJENA ANALIZA UTICAJA (PRECEDENT_IMPACT)
+
+**MAPA (PROVEN, `services/agent_tasks/precedents_radar.py`).** Izvor: `retrieve_sudska_praksa` (Pinecone
+`sudska_praksa`, Cohere rerank) + `process_praksa_chunks` (prag + dedup po broju odluke). Relevantnost: `gpt-4o-mini`
+klasifikacija podupire/osporava/neutralno (neuspeh → tiho „neutralno"). Vlasništvo: `predmeti.eq(user_id)`.
+Deduplikacija: `precedent:{predmet}:{broj}` u `agent_recommendations` (POSLE skupe pretrage i klasifikacije).
+Identitet odluke: `decision_number` iz metapodataka; kad ga nema, `process_praksa_chunks` daje `_unk_{id}`.
+Izlaz: SAMO preporuka. Legacy `run` NIJE menjan.
+
+**NALAZ.** `routers/praksa._fetch_decision_chunks` (dohvat odluke po identitetu, koristi ga poređenje odluka) je za
+NEDOSTUPAN Pinecone vraćao isto što i za NEPOSTOJEĆU odluku („nije pronađena"). Dodat opcioni `raise_on_error`
+(isti obrazac kao `retrieve._direktan_fetch_clana`): nedostupno → `RetrievalUnavailable`; podrazumevano ponašanje
+postojećih pozivalaca nepromenjeno (test). Nema druge implementacije dohvata.
+
+**ODLUKA.** Isti agent (jedan modul, jedan registar) dobija `planiraj`/`izvrsi` za PRECEDENT_IMPACT.
+- Planer (0 poziva modela): preporuka ovog agenta `pending`/`accepted`, ≤ 14 dana; predmet istog korisnika, aktivan,
+  nije u brisanju, sa Genome-om; broj odluke ispravan (ne `_unk_`, sadrži broj i „/"); odnos podupire/osporava sa
+  obrazloženjem; ODLUKA POSTOJI u korpusu i sud se poklapa. Korpus nedostupan → bez posla u ovom ciklusu (bez tvrdnje
+  da odluka ne postoji). Izmišljena odluka → nikad. Ključ `PRECEDENT_IMPACT:{predmet}:{odluka}:g{Genome}`; već
+  planiran ključ se ne proverava ponovo (ni Pinecone upit).
+- Izvršilac (jedan poziv): preporuka i dalje važi i vlasnikova je → identitet odluke isti → predmet dostupan, aktivan,
+  kontekst kompletan, ista verzija Genome-a → IZVOR PONOVO PROVEREN (nestao → FAILED; nedostupan → prolazno) →
+  postoje sporna pitanja predmeta (inače FAILED — bez generičke analize) → zakup naš. Model dobija tekst odluke i
+  sporna pitanja sa id-jevima. Prikazuje se: identitet odluke iz korpusa (`SOURCE_FACT`, `provereno`), zašto je
+  relevantna (procena Radar-a, `AI_ANALYSIS`), uticaji SAMO uz DOSLOVAN izvod iz odluke (provereno poređenjem
+  teksta), pitanja za pregled, „razmotriti argument" samo kad postoji potkrepljen uticaj. Odbacuje se: izmišljen
+  izvod, nepoznata referenca, drugi propisi/odluke, procenti, „sud će…", „predmet je dobijen/izgubljen".
+  Klasifikacija u prilog/protiv bez potkrepljenog uticaja → „nije utvrđeno". Pad modela → proizvod sa proverenim
+  izvorom bez AI dela, bez ponovnog poziva.
+
+**TESTOVI.** 25/25 (+ postojeći praksa testovi zeleni): proverena preporuka → 1 kandidat bez modela; 8 nepodobnih
+(izmišljena odluka, sud se ne poklapa, odbačena, neutralno, bez obrazloženja, `_unk_`, broj bez broja, tuđ predmet);
+zatvoren predmet; korpus nedostupan pa vraćen; **ista odluka dva dana zaredom → 1 posao, 1 poziv, 0 novih
+Pinecone upita**; nova verzija Genome-a → nova analiza; fetch razlikuje nedostupno/nepostojeće, a podrazumevano
+ponašanje ostaje; pun proizvod sa izvodom; 6 vrsta izmišljanja odbačeno; klasifikacija bez potkrepljenja; 5 kapija
+posle planiranja (izvor nestao, korpus nedostupan, preporuka odbačena, predmet zatvoren, nova verzija); ponovljen
+ciklus; pad modela; bez spornih pitanja nema generičke analize.
+
+**MUTACIJE (15/15 ubijeno).** P1 bez provere izvora u planeru; P2 nedostupno = nepostojeće; P3 sud se ne poredi; P4
+`_unk_` prihvaćen; P5 neutralno prihvaćeno; P6 bez vlasnika preporuke; P7 ključ bez Genome-a; P8 izvršilac bez ponovne
+provere; P9 uticaj bez izvoda; P10 procenti/predviđanje; P11 klasifikacija bez potkrepljenja (prvo PREŽIVELA — dodat
+test); P12 odbačena preporuka važi; P13 nedostupno = konačno; P14 generička analiza; P15 ponovna provera planiranog.
+
+**OGRANIČENJE.** Provera izvoda je doslovna (posle normalizacije razmaka i velikih slova) — parafraza se ne prihvata.
+Legacy radar i dalje troši model za sve aktivne predmete u dnevnom cronu (nepromenjeno, dug iz Task 0).
+
+**SLEDEĆA KAPIJA.** Task 11 (opciono) — sažetak promene predmeta.

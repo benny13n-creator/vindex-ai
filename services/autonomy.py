@@ -185,5 +185,24 @@ async def jos_vazi_zakup(supa, work_id: str, owner: str) -> bool:
         return False
 
 
+async def ucitaj_predmete(supa, ids: list) -> dict:
+    """Predmeti za planiranje i kapije: {id: red} sa statusom, vlasnikom, Genome-om i tombstone-om brisanja.
+    Kolona `brisanje_zapoceto` (114) se čita kao u `shared/rag_acl.py`: bez nje tombstone ne može ni da postoji,
+    pa je grana bez filtera bezbedna — ali SAMO za grešku nepostojeće kolone; svaka druga greška se propušta."""
+    if not ids:
+        return {}
+    from shared.audit_immutable import _is_missing_column_error
+
+    def _upit(kolone):
+        return supa.table("predmeti").select(kolone).in_("id", list(ids)).execute()
+    try:
+        r = await asyncio.to_thread(lambda: _upit("id,user_id,status,naziv,case_dna,brisanje_zapoceto"))
+    except Exception as e:
+        if not _is_missing_column_error(e):
+            raise
+        r = await asyncio.to_thread(lambda: _upit("id,user_id,status,naziv,case_dna"))
+    return {str(p["id"]): p for p in (r.data or [])}
+
+
 def novi_vlasnik() -> str:
     return str(uuid.uuid4())

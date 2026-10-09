@@ -64,20 +64,8 @@ def _srpski_datum(d: date) -> str:
 
 
 async def _predmeti(supa, ids: list[str]) -> dict[str, dict]:
-    if not ids:
-        return {}
-    from shared.audit_immutable import _is_missing_column_error
-
-    def _upit(kolone):
-        return supa.table("predmeti").select(kolone).in_("id", ids).execute()
-    try:
-        r = await asyncio.to_thread(lambda: _upit("id,user_id,status,naziv,case_dna,brisanje_zapoceto"))
-    except Exception as e:
-        # Ista bezbedna grana kao shared/rag_acl.py: bez migracije 114 tombstone se ne može ni upisati.
-        if not _is_missing_column_error(e):
-            raise
-        r = await asyncio.to_thread(lambda: _upit("id,user_id,status,naziv,case_dna"))
-    return {str(p["id"]): p for p in (r.data or [])}
+    from services.autonomy import ucitaj_predmete
+    return await ucitaj_predmete(supa, ids)
 
 
 def _razlog_nepodobnosti(roc: dict, pred: dict | None, danas: date, prozor: int) -> str | None:

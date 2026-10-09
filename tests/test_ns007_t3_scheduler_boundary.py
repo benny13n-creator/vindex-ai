@@ -180,4 +180,4 @@ def test_legacy_registar_dnevnog_crona_nepromenjen(svet):
     agent, _ = _agent()
     stanje["agenti"] = [agent]
     assert set(ba._agent_registry()) == {"court_portal_watcher", "precedents_radar"}, "agent trajnog rada ne ulazi u dnevni cron"
-    assert set(ba._work_agents()) == {"HEARING_PREP"}
+    assert set(ba._work_agents()) == {"HEARING_PREP", "PRECEDENT_IMPACT"}
