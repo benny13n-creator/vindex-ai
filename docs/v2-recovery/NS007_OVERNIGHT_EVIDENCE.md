@@ -585,3 +585,32 @@ nedostupna → rad READY, neuspeh izbrojan (3). NS007 ukupno 161 passed.
 A4 neuspeh revizije kao uspeh; A5 AI poziv bez korelacije; A6 bez traga odluke; A7 bez traga zastarevanja.
 
 **SLEDEĆA KAPIJA.** Task 18 — haos: zakup, pad, ponavljanje.
+
+---
+
+## TASK 18 — HAOS: ZAKUP, PAD, PONAVLJANJE (TVRDA KAPIJA)
+
+„Pad" = izuzetak koji nije `Exception` (kao umiranje procesa) — stavka ostaje tačno onakva kakvu ju je proces ostavio.
+Pravi izvršilac pripreme ročišta nad realističnim predmetom.
+
+| | Scenario | Ishod (PROVEN) | Gde |
+|---|---|---|---|
+| A | dva poziva u istom prozoru | jedan ciklus (drugi SKIPPED), 1 poziv modela; PG: 20 istovremenih → 1 | T18, T1–2 (PG) |
+| B | pad posle zauzimanja, pre modela | zakup važi → ne preuzima se; posle isteka → preuzet (pokušaj 2), završen, model 1× | T18 |
+| C | pad TOKOM poziva modela | pošteno RUNNING; najviše 2 izvršenja (2 jedinice budžeta), zatim DEAD_LETTER — nikad beskonačno | T18 |
+| D | pad posle upisa rezultata, pre kraja ciklusa | rezultat ostaje READY; ciklus ostaje vidljivo RUNNING (ne krade se); sledeći prozor: 0 zauzimanja, model 1× | T18 |
+| E | rasporedivač dvaput u 4 uzastopna prozora | 4 ciklusa, 1 posao, 1 poziv modela | T18 |
+| F | ista presuda dva dana zaredom, ista analiza | 1 proizvod, 0 novih upita korpusu | T9–10 |
+| G | promena ročišta | stari SUPERSEDED, nova priprema | T6–7 |
+| H | otkazano ročište | posao koji čeka se NE izvršava (SUPERSEDED / FAILED HEARING_NOT_ACTIVE) | T6–8 |
+| I | baza budžeta nedostupna | 0 plaćenih poziva | T3, T5 |
+| J | revizija nedostupna | rad se nastavlja, neuspeh se broji, uspeh se ne tvrdi | T17 |
+
+**TESTOVI.** `test_ns007_t18_chaos` 5/5 (A–E).
+
+**MUTACIJE (3/3 ubijeno + paritet).** K2 planer dozvoljava 5 plaćenih pokušaja (C pada); K3 radnik ponovo izvršava
+READY (D/E padaju); K1 (emulacija preuzima važeći zakup) PREŽIVLJAVA haos test jer i sam radnik preskače stavke sa
+važećim zakupom (druga brava) — UBIJA je test pariteta sa pravim PostgreSQL-om, a pravo SQL pravilo je dokazano
+mutacijom D5 (Task 1–2).
+
+**SLEDEĆA KAPIJA.** Task 19 — matrica zakupaca A/B.
