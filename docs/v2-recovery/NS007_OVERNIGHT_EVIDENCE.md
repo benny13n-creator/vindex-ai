@@ -768,3 +768,23 @@ Arhitektura: JEDAN Render Cron Job → lagan okidač → uska ruta; cron servis 
 **TESTOVI.** `test_ns007_t24_rehearsal` 4/4 + `test_ns007_t4_trigger_client` 12/12.
 
 **SLEDEĆA KAPIJA.** Task 25 — regresija `/api/cron/daily`.
+
+---
+
+## TASK 25 — REGRESIJA `/api/cron/daily`
+
+**DOKAZ (PROVEN).** Dnevni cron je ponašanjem netaknut: autentifikacija (`BRIEFING_CRON_SECRET`, fail-closed) i svi
+moduli nepromenjeni (`api.py` nije diran u NS007 osim registracije novog rutera); Modul 10 i dalje poziva
+`run_background_agents`; legacy registar = tačno 2 agenta preporuka; pun legacy prolaz ne pravi nijedan autonomni rad;
+dnevni dispečer ne poziva i ne pominje autonomni ciklus; autonomni ciklus ne čita heartbeat dnevnog crona
+(`chain_anchors`, `cron_runs`) — nijedan novi proizvod ne zahteva dnevni cron.
+
+**DUG (zabeležen, NIJE menjan — direktiva: „ne čistiti dnevni cron večeras").** Heartbeat dnevnog crona nije atomsko
+zauzimanje (provera na početku, upis na kraju; greška čitanja → `except: pass`); legacy budžet agenata je fail-open i
+broji pokretanja a ne pozive modela; `precedents_radar.run` svaki dan zove model za sve aktivne predmete sa Genome-om;
+legacy lista završnih statusa bez `odbijen`.
+
+**TESTOVI.** `test_ns007_t25_daily_cron_regression` 4/4 + postojeći `test_cron_daily_dispatcher`,
+`test_cron_daily_failclosed_auth`, `test_background_agents`, `test_wave4_preflight_b_email_cron_auth` — ukupno 51 passed.
+
+**SLEDEĆA KAPIJA.** Task 26 — adversarijalni pregled migracije.
