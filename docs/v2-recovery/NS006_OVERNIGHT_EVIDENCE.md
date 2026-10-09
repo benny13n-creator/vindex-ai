@@ -811,3 +811,28 @@ prolazu preživela (posledica nije curenje već lažno UNKNOWN) → test pooštr
 realnim predmetom.
 
 **SLEDEĆA KAPIJA.** Task 16.
+
+---
+
+## TASK 16 — PONAŠANJE PRI PADU PODSISTEMA
+
+**PROBLEM.** Pad jednog dela (model, paketni RPC, trajno pokvarena posledica) ne sme da pokvari postojeći Genome, da
+izgubi događaj ni da se tiho proguta.
+
+**DOKAZ (PROVEN).** A: model pada usred genome_refresh → `case_dna` NETAKNUT (ista verzija i sadržaj), posledica
+`failed`, događaj ostaje u redu (`dispatch_attempts=1`); sledeći prolaz uspeva, a model je pozvan tačno jednom više
+(nema dvostruke analize posle uspeha). B: paketni RPC V2 opažanja pada → `case_dna` i istorija NISU upisani (A017
+redosled: prvo V2, pa Genome), 0 kontradikcija; posle oporavka v4 i 1 kontradikcija. C: trajno pokvaren model → posle
+5 pokušaja `DEAD_LETTER` u `events.last_error` (vidljivo, ne izgubljeno).
+
+Ostali slučajevi su dokazani u svojim zadacima (DEGRADED umesto 0 — T3–T7; reconcile ne dira akcije kad izvor padne —
+T8; UI greške — live-analiza, live-pregled-zivi, live-radna-lista).
+
+**FAJLOVI.** `tests/test_ns006_t16_chaos.py`.
+
+**TESTOVI.** 3/3.
+
+**MUTACIJE (3/3 ubijeno).** H1 pad V2 paketa se proguta (Genome se ipak upiše); H2 nema dead-letter granice
+(50 umesto 5 pokušaja); H3 Genome upisan PRE V2 paketa (narušen A017 redosled).
+
+**SLEDEĆA KAPIJA.** Task 17.
