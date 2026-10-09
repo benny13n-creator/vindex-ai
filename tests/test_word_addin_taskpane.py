@@ -19,12 +19,17 @@ until validated here with a real parser. Fixed as part of this item.
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 
 import pytest
+
+# CI production-runtime (python:3.11-slim) nema Node: subprocess.run(["node", ...]) bi tada
+# bacio FileNotFoundError VEC PRI SAKUPLJANJU testova. shutil.which ne baca -> pravi SKIP.
+_NODE = shutil.which("node")
 
 _HERE = os.path.dirname(__file__)
 _ADDIN_DIR = os.path.join(_HERE, "..", "integrations", "word_addin")
@@ -70,14 +75,14 @@ def test_manifest_references_taskpane_and_adapter_consistently():
     assert "taskpane.html" in content
 
 
-@pytest.mark.skipif(subprocess.run(["node", "--version"], capture_output=True).returncode != 0,
+@pytest.mark.skipif(_NODE is None,
                      reason="node not available in this environment")
 def test_adapter_js_syntax_is_valid():
     result = subprocess.run(["node", "--check", _ADAPTER], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.skipif(subprocess.run(["node", "--version"], capture_output=True).returncode != 0,
+@pytest.mark.skipif(_NODE is None,
                      reason="node not available in this environment")
 def test_taskpane_inline_script_syntax_is_valid(tmp_path):
     html = _read(_TASKPANE)
