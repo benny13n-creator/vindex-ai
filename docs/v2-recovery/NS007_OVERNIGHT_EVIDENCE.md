@@ -814,9 +814,30 @@ verzije), bez proizvoda u red; broji se (`obnovljeno`) i beleži u reviziji (`ob
 neuspeo ili dead-letter red se NE dira (odluka advokata se poštuje). PG ograničenje i dalje sprečava READY bez proizvoda.
 
 **TESTOVI.** +3 u `test_ns007_t6_t7_hearing_planner` (odloženo pa vraćeno → obnova bez novog poziva; zastareo bez
-proizvoda → u red; odbijena se ne obnavlja). NS007 ukupno 165 passed.
+proizvoda → u red; odbijena se ne obnavlja). NS007 ukupno 163 passed (izmereno; ranije upisano „165" je bilo netačno).
 
 **MUTACIJE (4/4 ubijeno).** O1 bez obnove; O2 obnavlja i odbijeno; O3 obnova bez brojanja (prvo PREŽIVELA — mutacija
 je ostavljala sam upis, pa je obnova bila tiha; test sada zahteva i brojanje); O4 bez obnove u red.
 
 **SLEDEĆA KAPIJA.** Task 27 — retencija i granica skladištenja.
+
+---
+
+## TASK 27 — RETENCIJA I GRANICA SKLADIŠTENJA
+
+**ŠTA SE ČUVA.** U `autonomy_work_items.content_json`: pripremljen rad (stavke iz spisa sa poreklom, AI pitanja/beleške,
+za praksu identitet odluke i izvod do 1.200 znakova javne sudske odluke). U `source_refs`: SAMO identifikatori (ročište,
+tvrdnja, dokument, kontradikcija, Case Action, odluka, preporuka, verzija Genome-a).
+
+**ŠTA SE NE ČUVA.** Izvorni dokumenti (samo referenca), pun tekst dokumenata, prompt modela (AI proveniencija i dalje
+ide kroz postojeći `case_context` po svojoj politici, bez promene), tajne i ključevi provajdera. Revizija bez sadržaja.
+
+**DUG (svesno, za odluku foundera).**
+- Nema automatskog brisanja radnih proizvoda; nema roka čuvanja za ACCEPTED/REJECTED/SUPERSEDED/FAILED redove — rastu sa
+  vremenom (ograničeni veličinom po redu i brojem stvarnih okidača).
+- `autonomy_cycles` rastu najviše 24 reda dnevno.
+- Brisanje predmeta (P15) kaskadno briše sve radne proizvode predmeta; izvoz pre brisanja nije deo NS007.
+- Predlog za odluku (NIJE primenjen): rok čuvanja zastarelih i odbijenih radova + dnevni red čišćenja kroz postojeći
+  `services/retention_service.py` (Modul 9 dnevnog crona) — tek kad founder odobri politiku.
+
+**SLEDEĆA KAPIJA.** Task 28 — NS006 regresija.
