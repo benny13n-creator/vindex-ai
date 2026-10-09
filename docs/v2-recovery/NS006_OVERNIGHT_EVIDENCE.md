@@ -752,3 +752,28 @@ UBIJENE. Z5 (uklonjena idempotencija posledica) PREŽIVLJAVA: `_dup_g` u genome_
 sprečava dvostruku analizu istog događaja.
 
 **SLEDEĆA KAPIJA.** Task 14.
+
+---
+
+## TASK 14 — REALAN PREDMET OD DOKUMENTA DO AKCIJE
+
+**PROBLEM.** Isti lanac na realističnom srpskom radnom sporu, od prijema dokumenta (ne od ročišta), sa ručnim unosom
+advokata i protivrečnošću koja nastaje tek drugim dokumentom.
+
+**DOKAZ (PROVEN).** Marko Petrović protiv „Gradnja Invest" DOO: (1) rešenje o otkazu → NewEvidenceRegistered +
+DocumentAccepted (isto što ostavlja upload u `api.py`) → `klasifikuj_i_sacuvaj` (tvrdnje LOCIRANE u tekstu,
+`ai_klasifikacija`) → Genome v1 → akcije; (2) advokat ručno dodaje tvrdnju → HUMAN_CONFIRMED, događaj ZAKAZAN;
+(3) dostavnica („uručena 25.03") protivreči rešenju („uručeno 17.03") → Genome v2 → V2 kontradikcija kroz paketni RPC
+→ RAZRESITI_KONTRADIKCIJU; (4) ročište → v3, PRIPREMITI_PODNESAK; (5) V2 čitanje bez ijednog poziva modela.
+Zamenjeni su SAMO modeli (klasifikacija iz stvarnog teksta, Genome iz stvarnog prompta).
+
+**FAJLOVI.** `tests/test_ns006_t14_realni_predmet.py` (koristi `tests/ns006_realni_predmet.py` iz Task 10).
+
+**TESTOVI.** 2/2: poreklo (SOURCE_FACT ≥ 2, HUMAN_CONFIRMED = 1, ručna tvrdnja BEZ_POTPORE); kontradikcija sa oba
+dokumenta i procenjenom stranom; nijedan izmišljen id (svaka referenca postoji u bazi); operativna spremnost
+CRITICAL_GAP; akcije u predmetu i na tabli; promene v2→v3 poštene (ročište ne menja strukturu analize); nijedna reč
+o verovatnoći ishoda; svaka metrika nosi „NIJE verovatnoća ishoda". Klijent B: 404 bez ijednog bajta, tabla prazna.
+
+**OGRANIČENJE.** Modeli su zamenjeni; stvarni kvalitet klasifikacije i Genome-a se ovim testom NE meri.
+
+**SLEDEĆA KAPIJA.** Task 15.
