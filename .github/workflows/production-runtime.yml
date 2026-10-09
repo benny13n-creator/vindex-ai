@@ -134,7 +134,10 @@ jobs:
         env:
           VINDEX_REQUIRE_OCR: "1"
           VINDEX_OCR_REPORT: /tmp/ocr-py311.json
-        run: pytest tests/test_ns005_b_ocr.py -q -rs -p no:randomly -p no:cacheprovider
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest tests/test_ns005_b_ocr.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
 
       - name: OCR proof report (py311)
         if: always()
@@ -156,6 +159,10 @@ jobs:
           PY
           }
           izvestaj /tmp/ocr-py311.json py311
+          if [ -f /tmp/ocr-py311.log ]; then
+            # Logovi poslova nisu javni: poslednje linije pytest izlaza kao anotacija (okruženje ima samo lažne ključeve).
+            { printf "::notice title=OCR py311 pytest izlaz::"; tail -n 40 /tmp/ocr-py311.log | awk 'BEGIN{ORS="%0A"} {gsub(/%/,"%25"); print}'; echo; }
+          fi
 
       - name: Full test suite on the production interpreter
         # -rs: report SKIPPED with reasons. Without it the 59 real-PostgreSQL
