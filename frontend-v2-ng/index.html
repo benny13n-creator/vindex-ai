@@ -178,7 +178,14 @@
         <div class="matter__body">
           <p class="notice" id="da-stanje" role="status" aria-live="polite" hidden></p>
           <p class="notice" id="da-poruka" role="status" aria-live="polite" hidden></p>
-          <section class="matter__section matter__section--first" aria-labelledby="da-obaveze-naslov">
+          <!-- NS006 Task 12: radna lista iz kanonske table (GET /api/workspace, src/radna-lista.js). Samo čitanje. -->
+          <section class="matter__section matter__section--first" aria-labelledby="rl-naslov">
+            <h2 class="matter__h2" id="rl-naslov">Radna lista</h2>
+            <p class="field__help">Radnje koje je sistem izveo iz stanja predmeta, zadaci kancelarije i dokumenti koji čekaju vašu potvrdu.</p>
+            <p class="list-state" id="rl-stanje" role="status" hidden></p>
+            <div id="rl-korpe"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="da-obaveze-naslov">
             <h2 class="matter__h2" id="da-obaveze-naslov">Obaveze</h2>
             <p class="list-state" id="da-obaveze-stanje" role="status" hidden></p>
             <div id="da-obaveze"></div>
@@ -696,6 +703,7 @@
   <script src="src/prijem-predmeta.js"></script>
   <script src="src/analiza-predmeta.js"></script>
   <script src="src/zivi-pregled.js"></script>
+  <script src="src/radna-lista.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>

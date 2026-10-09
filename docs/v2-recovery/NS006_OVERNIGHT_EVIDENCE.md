@@ -691,3 +691,36 @@ P12b abort i generacija uklonjeni; P13 skript van build tokena. Prvi prolaz osta
 P12a (samo abort uklonjen) preživljava: generacija je nezavisna brava.
 
 **SLEDEĆA KAPIJA.** Task 12 — Danas povezan sa kanonskom tablom.
+
+---
+
+## TASK 12 — DANAS POVEZAN SA KANONSKOM TABLOM
+
+**PROBLEM.** Danas je prikazivao samo rokove i ročišta; radnje koje sistem izvodi iz stanja predmeta, zadaci i
+dokumenti koji čekaju potvrdu nisu bili vidljivi na mestu gde advokat počinje dan.
+
+**ODLUKA.** Sekcija „Radna lista" iznad Obaveza (`frontend-v2-ng/src/radna-lista.js`, `VxRadnaLista`) čita
+POSTOJEĆU tablu `GET /api/workspace` (nepromenjen ugovor, jedini vlasnik pitanja „šta me sada traži"). Tri vrste
+ostaju RAZLIČITE: Radnja sistema / Zadatak / Dokument za pregled. Radnja: naslov = vrsta, „Zašto" = razlog iz backend-a
++ izvor (protivrečnost, ročište, pravilo nad dokazima); vodi na Analizu predmeta. Zadatak i pregled vode na Pregled.
+Nepročitan izvor table → „NIJE potpuna — nije pročitano: …"; pad → GREŠKA, nikad „nema obaveza". Postojeći raspored
+Obaveza nepromenjen (radna lista ima sopstvenu klasu `today__item--rad`). Danas = 1 GET table, bez modela.
+
+**FAJLOVI.** `src/radna-lista.js` (nov), `index.html`, `src/app.js` (Danas = radna lista + postojeće obaveze, isti
+životni ciklus), `src/app.css`, `package.json` (`verify:live-radna-lista`), `tests/live-radna-lista.mjs`.
+
+**TESTOVI.** `live-radna-lista` 25/25 (stvarni odgovor table): redosled sekcija; korpe i brojevi tačno kao backend;
+svaka stavka je iz table, razlog se ne ponavlja; izvor radnje; navigacija; 1 GET, 0 upisa; izlazak sa Danas prazni
+listu; tri vrste različito označene; pad / nepotpuno / prazno; zakasneli odgovor A posle prelaska na B; tabla B
+pročitana B tokenom; XSS kao tekst; neispravan id nije veza; 360/1440 bez preliva. `live-danas` 50/50 nepromenjen.
+
+**MUTACIJE (12/13 ubijeno + 1 dokazana druga brava).** W1 pad = prazno; W2 nepotpuno = potpuno; W3 spljoštene vrste;
+W5 promena korisnika ne čisti; W6 HTML; W7 neispravan id kao veza; W8 izlazak ne prazni; W9 pogrešna kartica; W10
+razlog u naslovu; W11 lista se ne otvara; W12 van build tokena; W4b abort i generacija uklonjeni. W4 / W4a (samo jedna
+brava uklonjena) preživljavaju: generacija i abort su nezavisne brave.
+
+**DUG (postojeći, nije diran).** Tekst razloga iz `services/risk_engine.py` („Nedostaje {labela} u spisu") daje
+gramatički pogrešan padež za neke labele („Nedostaje finansijsku dokumentaciju"). Prikazuje se doslovno kako ga backend
+vraća.
+
+**SLEDEĆA KAPIJA.** Task 13.

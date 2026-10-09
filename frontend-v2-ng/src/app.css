@@ -691,3 +691,9 @@ a.text-btn { text-decoration: none; }
 .zp .an-list { max-width: none; }
 .zp-prio { flex: none; font-size: var(--fs-meta); color: var(--text-2); }
 .an-item[data-prioritet="critical"] .zp-prio { color: var(--text-1); font-weight: 600; padding-left: var(--sp-2); border-left: 2px solid var(--attention); }
+/* NS006 Task 12 — radna lista u Danas: korpe table */
+#rl-korpe .today__group + .today__group { margin-top: var(--sp-4); }
+.today__item--rad { grid-template-columns: minmax(90px, 120px) minmax(120px, 180px) minmax(0, 1fr) minmax(0, 220px); }
+.today__item--rad .today__kind { color: var(--text-2); }
+.today__item--rad[data-prioritet="critical"] .today__kind { color: var(--text-1); font-weight: 600; }
+@media (max-width: 859px) { .today__item--rad { grid-template-columns: minmax(0, 1fr) auto; } }

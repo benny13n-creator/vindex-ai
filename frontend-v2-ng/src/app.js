@@ -853,8 +853,15 @@
     znanje = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
     kancelarija = window.VxKancelarija.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* Nazivi predmeta bez ročišta: iz već učitanog registra (isti korisnik; registar se prazni pri promeni sesije). */
-    danas = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+    var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
       nazivPredmeta: function (id) { for (var i = 0; i < indeks.length; i++) if (String(indeks[i].p.id) === id) return indeks[i].p.naziv; return ""; } });
+    /* NS006 Task 12 — radna lista iz kanonske table; isti pogled, sopstveni zahtev i stanje. */
+    var radnaLista = window.VxRadnaLista.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    danas = {
+      otvori: function () { radnaLista.otvori(); danasObaveze.otvori(); },
+      zatvori: function () { radnaLista.zatvori(); danasObaveze.zatvori(); },
+      zaustavi: function () { radnaLista.zaustavi(); danasObaveze.zaustavi(); },
+    };
     var uskladiNovLink = function () {
       var prijavljen = window.VxSesija.stanje().stanje === window.VxSesija.STANJA.PRIJAVLJEN;
       $("nov-predmet-link").hidden = !prijavljen;
