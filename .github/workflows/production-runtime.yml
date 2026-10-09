@@ -176,6 +176,18 @@ jobs:
           set -o pipefail
           pytest tests/ -q -rfEs 2>&1 | tee /tmp/full-suite.log
 
+      # Logovi poslova nisu javni: SVA imena padova (bez poruka) kao anotacije u delovima ≤ 3.5 KB,
+      # da bi se mogla tačno uporediti sa osnovom na `main`.
+      - name: Failure names
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/full-suite.log ]; then
+            grep -aE "^(FAILED|ERROR) " /tmp/full-suite.log | sed -E 's/ - .*//' | sort -u > /tmp/failure-names.txt || true
+            echo "::notice title=Failure count (prod-py311)::$(wc -l < /tmp/failure-names.txt) | $(grep -aE '[0-9]+ (passed|failed)' /tmp/full-suite.log | tail -n 1)"
+            awk -v oz="prod-py311" 'BEGIN{d=0; n=1} { l=$0; gsub(/%/,"%25",l); if (d + length(l) > 3500) { print "::notice title=Failure names " oz " #" n "::" buf; buf=""; d=0; n++ } buf = buf l "%0A"; d += length(l) + 3 } END { if (buf != "") print "::notice title=Failure names " oz " #" n "::" buf }' /tmp/failure-names.txt
+          fi
+
       # Logovi poslova nisu javni: zbirna linija i poslednji padovi kao anotacija — dokaz da je
       # pytest prošao sakupljanje i izvršio testove (ne „Interrupted: N errors during collection“).
       - name: Full test suite summary
