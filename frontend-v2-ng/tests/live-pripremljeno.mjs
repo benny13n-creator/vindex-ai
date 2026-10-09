@@ -271,6 +271,49 @@ for (const [opis, odg, ocek] of [["ishod nepoznat (500)", { status: 500, telo: {
   await s.zatvori();
 }
 
+// ── 8b. Task 20: zastareo odgovor u preostalim tačkama (lista Danas, lista Pregleda, odluka) ──
+const preB = async (s) => { await s.p.evaluate(([kl, v]) => { localStorage.setItem(kl, v); window.dispatchEvent(new StorageEvent("storage", { key: kl, newValue: v })); }, [KLJUC, ses("kB", TB)]); };
+{
+  let pusti; const kapija = new Promise(r => { pusti = r; });
+  const s = await scenario({ kuke: { pre: async ({ k, p }) => { if (k === "A" && p === "/api/workspace") await kapija; return null; } } });
+  await cekaj(s.p, () => document.getElementById("rl-stanje").dataset.stanje === "ucitavanje");
+  await preB(s); await s.p.waitForTimeout(400); pusti(); await s.p.waitForTimeout(800);
+  const ids = await s.p.evaluate(() => [...document.querySelectorAll("#dp-lista > li")].map(li => li.dataset.rad));
+  zapisi("sesija", "Danas: zakasnela tabla A se ne iscrtava kod B (lista „Vindex je pripremio“)", !ids.includes(HP) && !ids.includes(PI), ids.join(","));
+  await s.zatvori();
+}
+{
+  let pusti; const kapija = new Promise(r => { pusti = r; });
+  const s = await scenario({ hash: `#/predmeti/${PA}`, kuke: { pre: async ({ k, p }) => { if (k === "A" && p === "/api/autonomy/work-items") await kapija; return null; } } });
+  await cekaj(s.p, () => document.getElementById("zp-paznja-stanje") && document.getElementById("zp-paznja-stanje").dataset.stanje === "ucitavanje");
+  await preB(s); await s.p.waitForTimeout(400); pusti(); await s.p.waitForTimeout(800);
+  const ids = await s.p.evaluate(() => [...document.querySelectorAll("#zp-prip > li")].map(li => li.dataset.rad));
+  zapisi("sesija", "Pregled predmeta: zakasnela lista rada A se ne iscrtava kod B", ids.length === 0, ids.join(","));
+  await s.zatvori();
+}
+{
+  let pusti; const kapija = new Promise(r => { pusti = r; });
+  const s = await scenario({ hash: `#/pripremljeno/${HP}`, kuke: { pre: async ({ metod }) => { if (metod === "POST") await kapija; return null; } } });
+  await detaljGotov(s.p);
+  await s.p.click("#vpr-prihvati");
+  await cekaj(s.p, () => document.getElementById("vpr-poruka").dataset.stanje === "ucitavanje");
+  await preB(s); await s.p.waitForTimeout(400); pusti(); await s.p.waitForTimeout(800);
+  const sve = await s.p.evaluate(() => document.getElementById("pripremljeno-pogled").textContent);
+  zapisi("sesija", "odluka A u letu, pa B: odgovor („Prihvaćeno…“) i sadržaj A se ne prikazuju kod B", !/Prihvaćeno|Petrović|Rešenje o otkazu/.test(sve), sve.replace(/\s+/g, " ").slice(0, 100));
+  await s.zatvori();
+}
+
+{
+  let pusti; const kapija = new Promise(r => { pusti = r; });
+  const s = await scenario({ kuke: { pre: async ({ k, p }) => { if (k === "B" && p === "/api/workspace") await kapija; return null; } } });
+  await danasGotov(s.p);
+  await preB(s); await s.p.waitForTimeout(500);
+  const tokom = await s.p.evaluate(() => [...document.querySelectorAll("#dp-lista > li")].map(li => li.dataset.rad));
+  pusti();
+  zapisi("sesija", "Danas: dok se tabla B učitava, rad A NIJE više na ekranu", tokom.length === 0, tokom.join(","));
+  await s.zatvori();
+}
+
 // ── 9. XSS i raspored ─────────────────────────────────────────────────────────
 {
   const s = await scenario({ kuke: { izmeni: ({ p }, t) => p === "/api/workspace" ? { ...t, vindex_je_pripremio: t.vindex_je_pripremio.map((x, i) => i ? x : { ...x, naslov: "<img src=x onerror=window.__xss=1>", razlog: "<b>r</b>" }) } : null } });

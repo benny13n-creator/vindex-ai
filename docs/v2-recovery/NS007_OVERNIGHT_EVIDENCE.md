@@ -641,3 +641,25 @@ okidač bez zakupca iz tela).
 precedenta bez provere vlasnika.
 
 **SLEDEĆA KAPIJA.** Task 20 — promena sesije.
+
+---
+
+## TASK 20 — PROMENA SESIJE
+
+Isti obrazac zaštite kao NS006 (generacija + AbortController + `sesija.naPromenu`), bez novog menadžera sesije.
+
+| Tačka | Scenario | Ishod (PROVEN, `live-pripremljeno`) |
+|---|---|---|
+| Danas — lista | tabla A kasni, prijavi se B | rad A se ne iscrtava kod B |
+| Danas — lista | lista A prikazana, tabla B kasni | rad A nestaje ODMAH, ne čeka B |
+| Pregled predmeta — lista | lista rada A kasni, prijavi se B | ništa od A |
+| Detalj rada | detalj A kasni, prijavi se B / već prikazan detalj A, prijavi se B | ništa od A |
+| Detalj rada | rad A kasni, otvoren rad B | A se ne iscrtava preko B |
+| Odluka | prihvatanje A u letu, prijavi se B | ni „Prihvaćeno…" ni sadržaj A kod B |
+
+**TESTOVI.** `live-pripremljeno` 49/49 (4 nova scenarija ovog zadatka).
+
+**MUTACIJE (2/2 ubijeno + Q1, Q10 iz Task 15).** Q15 odgovor odluke bez provere sesije; Q16 lista Danas se ne čisti pri
+promeni korisnika (prvo PREŽIVELA — dodat test „lista A prikazana, tabla B kasni").
+
+**SLEDEĆA KAPIJA.** Task 21 — XSS / prompt / napadi na izvore.
