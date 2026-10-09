@@ -493,3 +493,45 @@ postojeći alarm `_compute_delta` i dalje može da prijavi lažnu promenu kontra
 posle dva osvežavanja). Promene ročišta/potvrđenih rokova nisu deo snimka Genome-a (prikazuju se kroz akcije i Danas).
 
 **SLEDEĆA KAPIJA.** Task 7 — rizik i spremnost bez pseudo-predviđanja.
+
+---
+
+## TASK 7 — RIZIK I SPREMNOST BEZ PSEUDO-PREDVIĐANJA
+
+**PROBLEM.** Genome mora biti koristan advokatu, ne dekorativan, i ne sme da glumi predviđanje ishoda.
+
+**TRENUTNI DOKAZ.** (PROVEN, izvršeno u lažnoj bazi) `GET /api/matter-intel/predmeti/{id}` pri čitanju upisuje
+`predmet_health_log`, emituje alarme (`health_score_promenjen`, `rok_kritican`) i pad izvora tretira kao prazno
+(`return_exceptions=True` → `[]`). `risk_engine.calculate_procesni_rizik` i `case_readiness.compute_case_readiness`
+su čiste funkcije.
+
+**POKUŠAJ OPOVRGAVANJA.** Da li se „0 tvrdnji" i „tvrdnje nisu pročitane" sada razlikuju? DA (test). Da li pale
+akcije daju READY? Pre izmene bi `compute_case_readiness([])` vratio READY — zato se ne poziva kad akcije nisu pročitane.
+
+**ODLUKA.** Bez novog motora rizika. U kanonskog vlasnika spremnosti (`shared/case_readiness.py`) dodata čista
+`pregled_spremnosti`: dimenzije (pokrivenost procene „N od M tvrdnji", nedostajući tipovi dokumenata, zakazana ročišta
+30/7/propuštena, procesni rizik (pravilo) sa faktorima, aktivne kontradikcije, operativna spremnost nad otvorenim
+akcijama), svaka sa `znacenje`, `izvor`, `stanje`, `klasa: deterministic`. Izvor koji nije pročitan → `DEGRADED` i
+`vrednost: None`; procesni rizik se ne računa ako bilo koji od 3 ulaza nije pročitan. Ruta `genome-v2` dobija sekciju
+`spremnost` i čita `rocista` i otvorene `case_actions` (ograničeno na predmet; ročišta i na korisnika). `matter_intel`
+nije menjan (legacy ga i dalje koristi).
+
+**FAJLOVI.** `shared/case_readiness.py`, `routers/case_dna.py`, `tests/test_ns006_t7_readiness.py`.
+
+**TESTOVI.** 11/11: vrednosti jednake kanonskim vlasnicima (isti `calculate_procesni_rizik`); 5 parametrizovanih padova
+izvora → tačno pogođene dimenzije DEGRADED, ostale OK; prazno ≠ palo; nijedna reč o verovatnoći/šansi/predviđanju; ruta
+→ 0 upisa i 0 konstruisanih klijenata modela (OpenAI/AsyncOpenAI zamenjeni klasom koja puca); KONTRAST: legacy
+`matter_intel` GET u istoj bazi upisuje `predmet_health_log`. Regresija (37 fajlova sa readiness/risk/matter_intel +
+NS006): 722 passed, 1 skipped.
+
+**TENANT.** Isto kao Task 4 (vlasništvo prvo, 404 bez orakla).
+
+**MUTACIJE (7/7 ubijeno).** R1 (#5 iz mandata) pao izvor prikazan kao 0; R2 pale akcije = spremno; R3 rizik iz delimičnih
+podataka; R4 otvaranje ekrana upisuje; R5 otvaranje ekrana zove model; R6 (#14) „verovatnoća uspeha"; R7 otkazano ročište
+se broji. Napomena: R1–R3 su prvi put prijavljene kao NEISPRAVNE (ne preživele) jer je blok dodat heredoc-om imao LF u
+CRLF fajlu — fajl ujednačen, alat ojačan, mutacije ponovljene i ubijene.
+
+**OGRANIČENJA.** Potvrđeni rokovi (`predmet_hronologija`) nisu deo procesnog rizika (risk_engine čita ročišta) —
+postojeće ponašanje, vidi Task 8.
+
+**SLEDEĆA KAPIJA.** Task 8 — integritet motora akcija.

@@ -1650,7 +1650,7 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
     upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini)."""
     predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
     from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz
-    dok_r, dz_r, kon_r, ist_r = await asyncio.gather(
+    dok_r, dz_r, kon_r, ist_r, roc_r, akc_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
                           .select("id,naziv_fajla,redni_broj,tip_dokaza,status,klasifikovan_at,ai_tags,created_at")
                           .eq("predmet_id", predmet_id).eq("user_id", uid).order("redni_broj")
@@ -1660,10 +1660,17 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
         asyncio.to_thread(lambda: supa.table("predmet_genome_history")
                           .select("verzija,created_at").eq("predmet_id", predmet_id).eq("user_id", uid)
                           .order("verzija", desc=True).limit(1).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+                          .select("id,sud,datum,vreme,status").eq("predmet_id", predmet_id).eq("user_id", uid)
+                          .order("datum").limit(_ZP_MAKS_REDOVA).execute()),
+        asyncio.to_thread(lambda: supa.table("case_actions")
+                          .select("id,tip,razlog,dokaz,prioritet,rok,status,dedupe_key,event_id,izvor_dokumenti,created_at,updated_at")
+                          .eq("predmet_id", predmet_id).eq("status", "open").limit(_ZP_MAKS_REDOVA).execute()),
         return_exceptions=True,
     )
     izvori = {}
-    for ime, r in (("dokumenti", dok_r), ("dokazi", dz_r), ("kontradikcije", kon_r), ("istorija", ist_r)):
+    for ime, r in (("dokumenti", dok_r), ("dokazi", dz_r), ("kontradikcije", kon_r), ("istorija", ist_r),
+                   ("rocista", roc_r), ("akcije", akc_r)):
         izvori[ime] = "GRESKA" if isinstance(r, Exception) else "OK"
         if isinstance(r, Exception):
             logger.warning("[ZIVI_PREDMET] izvor '%s' NIJE pročitan predmet=%s: %s", ime, predmet_id, r)
@@ -1684,6 +1691,8 @@ async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
             osvezeno = poslednji.get("created_at")
     return {
         "predmet": predmet, "case_dna": case_dna, "dokumenti": dokumenti, "dokazi": dokazi,
+        "rocista": [] if isinstance(roc_r, Exception) else list(roc_r.data or []),
+        "akcije": [] if isinstance(akc_r, Exception) else list(akc_r.data or []),
         "v2_kontradikcije": None if isinstance(kon_r, Exception) else kon_r,
         "izvori": izvori, "osvezeno": osvezeno,
         "skraceno": {"dokumenti": len(dokumenti) >= _ZP_MAKS_REDOVA, "dokazi": len(dokazi) >= _ZP_MAKS_REDOVA},
@@ -1703,6 +1712,12 @@ def sastavi_zivi_predmet(izv: dict) -> dict:
                                     izvori=izv["izvori"], legacy_kontradikcija=legacy)
     ugovor["kontradikcije"] = sastavi_kontradikcije(v2=v2, case_dna=izv["case_dna"], dokazi=izv["dokazi"],
                                                     dokumenti=izv["dokumenti"], izvori=izv["izvori"])
+    from shared.case_readiness import pregled_spremnosti
+    cd = izv["case_dna"] if isinstance(izv["case_dna"], dict) else {}
+    ugovor["spremnost"] = pregled_spremnosti(
+        tip_predmeta=izv["predmet"].get("tip") or "ostalo", dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
+        rocista=izv["rocista"], akcije=izv["akcije"], kontradikcije=ugovor["kontradikcije"],
+        genome_izracunat=bool(cd) and "greska" not in cd, izvori=izv["izvori"])
     ugovor["metapodaci"]["skraceno"] = izv["skraceno"]
     return ugovor
 
