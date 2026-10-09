@@ -51,8 +51,8 @@ def _agent_modules() -> list:
     legacy agent preporuka (dnevni cron); modul sa `planiraj` + `izvrsi` radi trajni autonomni rad
     (`run_autonomy_cycle`). Lenji import -- izbegava cirkularnost i skuplje import-e (drafting, retrieve) pri
     modul-load-u workers/background_agents.py."""
-    from services.agent_tasks import court_portal_watcher, precedents_radar
-    return [court_portal_watcher, precedents_radar]
+    from services.agent_tasks import court_portal_watcher, hearing_prep, precedents_radar
+    return [court_portal_watcher, precedents_radar, hearing_prep]
 
 
 def _agent_registry() -> dict[str, Callable]:

@@ -323,3 +323,47 @@ jednokratne greške); H11 prozor bez gornje granice (prvo PREŽIVELA — dodat t
 ponoći po beogradskom vremenu prozor kasni do 2 sata. Agent se registruje u Task 8 (kad dobije izvršioca).
 
 **SLEDEĆA KAPIJA.** Task 8 — izvršilac pripreme ročišta.
+
+---
+
+## TASK 8 — IZVRŠILAC PRIPREME ZA ROČIŠTE
+
+**EVIDENCIJA (PROVEN, Task 0).** Postojeći Hearing Command Center (`routers/hearing_cc.py`) NIJE bezbedan za
+autonomni rad: kanonski kontekst je fail-soft (nastavlja bez njega), sistemski prompt sam navodi članove zakona (model
+proizvodi autoritet bez provere izvora), vraća `hearing_score` 0–100, kredit se troši posle poziva.
+
+**ODLUKA.** Ne pravi se drugi „hearing intelligence" motor i HCC se ne poziva. Izvršilac
+(`services/agent_tasks/hearing_prep.py::izvrsi`) sastavlja pripremu iz POSTOJEĆEG kanonskog ugovora živog predmeta
+(NS006 `ucitaj_zivi_predmet` + `sastavi_zivi_predmet`: poreklo i izvor svake stavke) i dodaje JEDAN uzak poziv modela.
+- Kapije PRE modela, redom: ročište postoji za (ročište, predmet, korisnik) → i dalje `zakazano` i nije prošlo →
+  nepromenjeno od planiranja (verzija u ključu) → predmet dostupan vlasniku (404 = konačno, 503 = prolazno) → aktivan i
+  nije u brisanju → SVI izvori konteksta pročitani (inače prolazno, bez proizvoda) → verzija Genome-a ista →
+  zakup i dalje naš (budžet je rezervisan pri zauzimanju).
+- Proizvod (`schema hp-1`): ročište (iz baze, `SOURCE_FACT`), predmet, determinističke dimenzije spremnosti, ključne
+  činjenice SAMO `SOURCE_FACT`/`HUMAN_CONFIRMED` sa dokumentom i stranom, aktivne protivrečnosti sa učesnicima,
+  otvorene radnje, nedostajući dokazi. Naslov i sažetak su deterministički.
+- AI deo: model dobija samo te stavke sa id-jevima (tekst = podatak, ne uputstvo); vraća pitanja i beleške; zadržava se
+  samo stavka sa važećom referencom, bez citata propisa/odluke i bez predviđanja ishoda (ostale se broje u
+  `odbaceno`); oznaka `AI_ANALYSIS` + napomena „nije utvrđena činjenica ni pravni izvor". `max_retries=0`: jedna
+  rezervacija = jedan poziv. Pad modela → priprema iz baze se čuva (`DETERMINISTIC`), bez ponovnog poziva.
+  Poziv ide kroz `case_context(predmet_id, module_name="autonomy.hearing_prep")` (postojeća AI proveniencija i
+  zaštita prompta).
+- Agent registrovan u JEDINI spisak modula; nema `run`, pa ne ulazi u dnevni cron.
+
+**TESTOVI.** 15/15 nad realističnim predmetom (ročište sutra): jedan poziv; ročište tačno iz baze; reference svih
+izvora postoje u bazi; prompt bez tuđeg predmeta; izmišljena referenca / citat (čl., Rev …/…) / predviđanje
+(„verovatnoća uspeha") / stavka bez reference se odbacuju; sve odbačeno → bez AI dela; pad modela → priprema iz baze
+bez ponovnog poziva; 5 konačnih kapija (otkazano, pomereno, zatvoren predmet, nova verzija Genome-a, ročište
+obrisano), ročište A u predmetu B, predmet više nije vlasnikov → FAILED bez modela; nepročitan izvor / izgubljen
+zakup → bez modela i bez proizvoda; nijedan spoljni efekat (upisi samo u tabele autonomnog rada i računovodstvo).
+Ukupno NS007 + legacy agenti/cron: 130 passed.
+
+**MUTACIJE (14/14 ubijeno).** X1 status ročišta; X2 promena ročišta; X3 ročište bez vezivanja za predmet/korisnika;
+X4 zatvoren predmet; X5 degradiran kontekst prolazi (fail-soft kao HCC); X6 verzija Genome-a; X7 zakup pre modela;
+X8 citati; X9 predviđanje; X10 nepoznate reference; X11 AI činjenice kao ključne; X12 pad modela = ponovni poziv; X13
+AI_PREPARED bez AI dela; X14 404 kao prolazno (prvo PREŽIVELA — dodat test promenjenog vlasništva).
+
+**OGRANIČENJE.** Model nije meren na kvalitet (zamenjen); filter citata je obrazac, ne potpuna provera — zato se
+autoritet uopšte ne traži od modela. Podrazumevani model `gpt-4o-mini` (`AUTONOMY_HEARING_MODEL`).
+
+**SLEDEĆA KAPIJA.** Task 9 — Precedents Radar.

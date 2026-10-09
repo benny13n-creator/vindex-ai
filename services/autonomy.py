@@ -172,5 +172,18 @@ async def zastareli(supa, user_id: str, predmet_id: str, work_type: str, trigger
     return len(r.data or [])
 
 
+async def jos_vazi_zakup(supa, work_id: str, owner: str) -> bool:
+    """Neposredno pre skupog koraka: posao je i dalje RUNNING, zakup je NAŠ i nije istekao."""
+    r = await asyncio.to_thread(lambda: supa.table(TABELA_POSLOVA).select("status,lease_owner,lease_expires_at")
+                                .eq("id", work_id).limit(1).execute())
+    red = (r.data or [None])[0]
+    if not red or red.get("status") != RUNNING or str(red.get("lease_owner")) != str(owner):
+        return False
+    try:
+        return datetime.fromisoformat(str(red["lease_expires_at"]).replace("Z", "+00:00")) > datetime.now(timezone.utc)
+    except (TypeError, ValueError, KeyError):
+        return False
+
+
 def novi_vlasnik() -> str:
     return str(uuid.uuid4())
