@@ -278,6 +278,21 @@ def test_samo_vlasnik_zavrsava_produkciono_skladiste(ok):
     assert s.zavrsi("uid-A", red["idempotency_key"], red["owner_token"], dict(polja)) is False
 
 
+def test_rad_bez_kljuca_ne_dodiruje_tabelu_i_ne_zavisi_od_nje(ok):
+    # Gate C: aplikacija i zahtevi BEZ ključa ne čitaju ni ne pišu v2_mutation_idempotency — ni pri
+    # pokretanju ni u radu. Skladište koje puca na SVAKI poziv ne sme ništa da obori.
+    k, b, _ = ok
+    import shared.idempotency as idem
+
+    class _Puca:
+        def __getattr__(self, ime):
+            raise AssertionError("skladište ključeva ne sme biti dodirnuto bez Idempotency-Key")
+    idem.postavi_skladiste(_Puca)
+    assert _stavka(k, "A", None).status_code == 200
+    assert k.get("/billing/entries", params={"predmet_id": PA}, headers=zaglavlje("A")).status_code == 200
+    assert not [z for z in b.dnevnik if z["tabela"] == TAB]
+
+
 def test_nema_spoljne_mreze():
     assert SPOLJNI_POKUSAJI == []
 
