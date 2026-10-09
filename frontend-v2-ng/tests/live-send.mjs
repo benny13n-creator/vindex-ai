@@ -11,6 +11,7 @@
 import { chromium } from "playwright";
 import { pokreniFixture, json } from "./fixtures/api-fixture.mjs";
 
+const UUID4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const TOKEN = "vx-send-test-token-NE-SME-U-LOG-77c3";
 let pada = 0, ukupno = 0;
 const izlazTesta = [];
@@ -28,7 +29,11 @@ function procitajTelo(req) {
 const f = await pokreniFixture(async (req, url, res) => {
   const p = url.pathname;
   const telo = await procitajTelo(req);
-  tela.push({ putanja: p, metod: req.method, telo, tip: req.headers["content-type"] || null });
+  tela.push({ putanja: p, metod: req.method, telo, tip: req.headers["content-type"] || null, kljuc: req.headers["idempotency-key"] || null });
+  // NS005 Gate A2: odgovori zaštite od dvostrukog upisa (shared/idempotency.py).
+  if (p === "/api/idem/u-toku") return json(res, 409, { detail: "x", kod: "IDEMPOTENCY_IN_PROGRESS" }, { "Retry-After": "5" }), true;
+  if (p === "/api/idem/sukob") return json(res, 409, { detail: "x", kod: "IDEMPOTENCY_CONFLICT" }), true;
+  if (p === "/api/idem/nedostupno") return json(res, 503, { detail: "x", kod: "IDEMPOTENCY_UNAVAILABLE" }), true;
   if (p === "/api/echo") return json(res, 200, { metod: req.method, tip: req.headers["content-type"] || null, duzina: telo.length, id: "novi-1" }), true;
   const m = /^\/api\/status\/(\d{3})$/.exec(p);
   if (m) {
@@ -189,6 +194,37 @@ for (const [s, kod] of Object.entries(OCEKIVANO)) {
   // spreči; jedina zaštita je idempotentni ključ na serveru (van NS005). Beleži se
   // izmereno, ne skriva se.
   console.log(`INFO  [ogranicenje] server je primio ${tela.length} zahtev(a) za 1 fetch na ponovo korišćenoj vezi`);
+  // NS005 Gate A2 — TVRDI PRIJEMNI TEST: Chromium-ovo mrežno ponavljanje istog fetch-a nosi ISTI ključ.
+  const kljucevi = tela.filter(t => t.putanja === "/api/prekid").map(t => t.kljuc);
+  zapisi("idempotency", "Chromium je SAM ponovio POST na ponovo korišćenoj vezi (preduslov dokaza)", kljucevi.length >= 2, `zahteva=${kljucevi.length}`);
+  zapisi("idempotency", "svako mrežno ponavljanje nosi ISTI Idempotency-Key (UUID v4)", kljucevi.length >= 2 && kljucevi.every(k => k === kljucevi[0]) && UUID4.test(kljucevi[0] || ""), JSON.stringify(kljucevi));
+}
+{
+  // Jedna korisnička radnja = jedan ključ; nova radnja (novi poziv send) = nov ključ.
+  await nuluj();
+  await send("/api/echo", { saTokenom: true, telo: { a: 1 } });
+  await send("/api/echo", { saTokenom: true, telo: { a: 1 } });
+  await send("/api/echo", { saTokenom: true, metod: "PATCH", telo: { a: 1 } });
+  const k = tela.map(t => t.kljuc);
+  zapisi("idempotency", "POST i PATCH nose Idempotency-Key u obliku UUID v4", k.length === 3 && k.every(x => UUID4.test(x || "")), JSON.stringify(k));
+  zapisi("idempotency", "dve uzastopne radnje sa istim telom dobijaju RAZLIČITE ključeve", new Set(k).size === 3);
+  await nuluj();
+  await page.evaluate((T) => window.VxApi.get("/api/echo", { token: T }), TOKEN);
+  await page.evaluate((T) => window.VxApi.preuzmi("/api/docx", { token: T, telo: { a: 1 }, tip: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }), TOKEN);
+  zapisi("idempotency", "GET i izvoz fajla (bez efekta) ne šalju ključ", tela.length === 2 && tela.every(t => t.kljuc === null), JSON.stringify(tela.map(t => t.kljuc)));
+}
+{
+  await nuluj();
+  const u = await send("/api/idem/u-toku", { saTokenom: true, telo: { a: 1 } });
+  zapisi("idempotency", "409 IDEMPOTENCY_IN_PROGRESS → OUTCOME_UNKNOWN + ishodNepoznat (nikad „nije sačuvano“)", u.greska.kod === "OUTCOME_UNKNOWN" && u.greska.ishodNepoznat === true, JSON.stringify(u.greska));
+  const s2 = await send("/api/idem/sukob", { saTokenom: true, telo: { a: 1 } });
+  zapisi("idempotency", "409 IDEMPOTENCY_CONFLICT → OUTCOME_UNKNOWN + ishodNepoznat", s2.greska.kod === "OUTCOME_UNKNOWN" && s2.greska.ishodNepoznat === true);
+  const n = await send("/api/idem/nedostupno", { saTokenom: true, telo: { a: 1 } });
+  zapisi("idempotency", "503 IDEMPOTENCY_UNAVAILABLE → PROTECTION_UNAVAILABLE, ishodNepoznat=false (server nije izvršio)", n.greska.kod === "PROTECTION_UNAVAILABLE" && n.greska.ishodNepoznat === false, JSON.stringify(n.greska));
+  const o = await send("/api/status/503", { saTokenom: true, telo: {} });
+  const c = await send("/api/status/409", { saTokenom: true, telo: {} });
+  zapisi("idempotency", "503 bez koda zaštite ostaje ishod nepoznat; obični 409 ostaje CONFLICT", o.greska.ishodNepoznat === true && c.greska.kod === "CONFLICT" && c.greska.ishodNepoznat === false);
+  zapisi("idempotency", "svaki od ovih zahteva poslat tačno jednom (nema ponavljanja na 409/503)", (await poziva()) === 5);
 }
 {
   // Ista situacija na SVEŽOJ vezi (novi kontekst): pregledač nema razlog da ponovi.

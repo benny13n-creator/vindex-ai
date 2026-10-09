@@ -160,6 +160,22 @@
     return null;
   }
 
+  /* NS005 Gate A2: jedan ključ po korisničkoj radnji (jedan poziv `send`). Chromium-ovo
+   * mrežno ponavljanje istog fetch-a nosi ISTI ključ, pa server ne izvršava upis dvaput.
+   * UUID v4 iz crypto.getRandomValues (radi i van „secure context“-a, za razliku od randomUUID). */
+  function noviKljuc() {
+    var b = new Uint8Array(16);
+    root.crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.prototype.map.call(b, function (x) { return (x + 256).toString(16).slice(1); }).join("");
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+  }
+  /* Kod zaštite od dvostrukog upisa iz tela odgovora (shared/idempotency.py), ili null. */
+  function kodZastite(tekst) {
+    try { var k = JSON.parse(tekst).kod; return typeof k === "string" && /^IDEMPOTENCY_[A-Z_]{1,40}$/.test(k) ? k : null; }
+    catch (e) { return null; }
+  }
+
   /* 422 nosi samo IMENA polja koja server nije prihvatio — nikad sirov tekst. */
   function poljaIz422(tekst) {
     try {
@@ -188,7 +204,7 @@
     if (typeof opcije.token !== "string" || !opcije.token) return greska("AUTH_REQUIRED", "Niste prijavljeni.", 0);
     if (opcije.signal && opcije.signal.aborted) return greska("ABORTED", "Zahtev je otkazan.", 0);
 
-    var zaglavlja = { Accept: "application/json", Authorization: "Bearer " + opcije.token };
+    var zaglavlja = { Accept: "application/json", Authorization: "Bearer " + opcije.token, "Idempotency-Key": noviKljuc() };
     var sadrzaj;
     if (typeof FormData !== "undefined" && telo instanceof FormData) sadrzaj = telo;
     else if (telo !== undefined && telo !== null) { zaglavlja["Content-Type"] = "application/json"; sadrzaj = JSON.stringify(telo); }
@@ -215,6 +231,16 @@
     }
 
     if (!odgovor.ok) {
+      var zastita = kodZastite(tekst);
+      /* Isti zahtev je već primljen i još se obrađuje (ili je ključ već upotrebljen): ruta NIJE
+       * ponovo izvršena, ali ishod prvog izvršavanja nije poznat. */
+      if (odgovor.status === 409 && (zastita === "IDEMPOTENCY_IN_PROGRESS" || zastita === "IDEMPOTENCY_CONFLICT")) {
+        return greska("OUTCOME_UNKNOWN", "Isti zahtev je već primljen; ishod upisa nije poznat.", 409, { ishodNepoznat: true });
+      }
+      /* Zaštita nije dostupna: server je odbio PRE izvršavanja — upis sigurno nije izvršen. */
+      if (odgovor.status === 503 && zastita === "IDEMPOTENCY_UNAVAILABLE") {
+        return greska("PROTECTION_UNAVAILABLE", "Zaštita od dvostrukog upisa trenutno nije dostupna; ništa nije izvršeno.", 503, { ishodNepoznat: false });
+      }
       var dodatak = { ishodNepoznat: odgovor.status >= 500 };
       if (odgovor.status === 429) { var ra = odgovor.headers.get("Retry-After"); if (ra) dodatak.retryAfter = ra; }
       if (odgovor.status === 422) dodatak.polja = poljaIz422(tekst);

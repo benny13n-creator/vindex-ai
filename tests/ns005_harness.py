@@ -245,6 +245,10 @@ class _Upit:
                     r.setdefault("start_at", r["created_at"]); r.setdefault("aktivan", True)
                 if self.t == "audit_immutable":  # seq je BIGSERIAL (redosled lanca odluka)
                     r.setdefault("seq", next(_brojac))
+                kljuc = self.b.jedinstveno.get(self.t)
+                if kljuc and vrsta == "insert" and any(all(x.get(c) == r.get(c) for c in kljuc) for x in self.b.tabele.get(self.t, [])):
+                    # Kao PRIMARY KEY u Postgres-u: drugi INSERT istog kljuca pada (PostgREST APIError 23505).
+                    raise Exception('{"code": "23505", "message": "duplicate key value violates unique constraint"}')
                 if vrsta == "upsert":
                     self.b.tabele.setdefault(self.t, [])[:] = [x for x in self.b.tabele.get(self.t, []) if x.get("id") != r["id"]]
                 self.b.tabele.setdefault(self.t, []).append(r)
@@ -289,6 +293,8 @@ class Baza:
         self.tabele = copy.deepcopy(tabele or {})
         self.dnevnik = []
         self.greske = {}
+        # Jedinstvenost koju baza sprovodi (migracija 134: PRIMARY KEY (user_id, idempotency_key)).
+        self.jedinstveno = {"v2_mutation_idempotency": ("user_id", "idempotency_key")}
 
     def table(self, ime):
         return _Upit(self, ime)
