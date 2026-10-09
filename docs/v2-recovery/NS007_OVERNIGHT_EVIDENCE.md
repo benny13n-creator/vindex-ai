@@ -788,3 +788,35 @@ legacy lista završnih statusa bez `odbijen`.
 `test_cron_daily_failclosed_auth`, `test_background_agents`, `test_wave4_preflight_b_email_cron_auth` — ukupno 51 passed.
 
 **SLEDEĆA KAPIJA.** Task 26 — adversarijalni pregled migracije.
+
+---
+
+## TASK 26 — ADVERSARIJALNI PREGLED MIGRACIJE 136
+
+| Stavka | Nalaz |
+|---|---|
+| RLS | uključen na obe tabele; `authenticated` SELECT samo svoje redove rada; ciklusi nevidljivi (PG test + `test_sec034` lista „samo service-role") |
+| Prava | REVOKE od PUBLIC/anon/authenticated; service_role SELECT/INSERT/UPDATE (bez DELETE); funkcija zauzimanja samo service_role (PG: `has_function_privilege`) |
+| Strani ključevi | `predmet_id → predmeti ON DELETE CASCADE`; `recommendation_id → agent_recommendations ON DELETE SET NULL`; `case_action_id` bez FK (Case Actions se zatvaraju, ne brišu; briše ih samo brisanje predmeta, koje kaskadno briše i rad); `user_id` bez FK ka `auth.users` (isto kao 134) — brisanje naloga zahteva prethodno brisanje predmeta (SEC-031 RESTRICT), koje kaskadno uklanja rad |
+| Brisanje predmeta | P15 kanon (tombstone, pa brisanje): planer isključuje predmet u brisanju (`brisanje_zapoceto`), izvršilac odbija; red `predmeti` poslednji → kaskada. Testovi brisanja 91/91 sa 136. Revizioni trag (`audit_immutable`) ostaje |
+| Indeksi | UNIQUE `(user_id, dedupe_key)`; `(user_id, status, ready_at)` za listu/tablu; `(predmet_id, status)` za Pregled; delimičan `(status, lease_expires_at) WHERE status IN (QUEUED, RUNNING)` za izbor posla; `(budget_key, reserved_day) WHERE budget_units > 0` za brojanje budžeta |
+| Obrazac zakupa | zauzimanje po primarnom ključu sa `FOR UPDATE`, zakup samo za QUEUED ili istekli RUNNING; izbor kandidata je samo nagoveštaj, odluka je u funkciji (PG: 20 istovremenih → 1) |
+| Ograničenja stanja | CHECK na svih 8 stanja; RUNNING ima zakup; READY/ACCEPTED/REJECTED imaju proizvod; pregled ima ko/kada; plaćena rezervacija ima dan |
+| Veličine | sadržaj ≤ 200 KB, izvori ≤ 50 KB, brojači ciklusa ≤ 8 KB, tekstualna polja ograničena |
+| PII / poverljivost | sadržaj = pripremljen pravni rad (kao `case_dna`), samo vlasnik; nema kopija dokumenata, promptova ni tajni; revizija bez sadržaja (T17) |
+| Retencija | nema automatskog brisanja (T27) |
+
+**PRONAĐENO I ISPRAVLJENO — životni ciklus.** UNIQUE ključ je trajan. Ročište greškom označeno „odloženo" (priprema →
+SUPERSEDED), pa vraćeno na „zakazano": isti ključ (identične ulazne verzije) → upis „duplikat", a zastarevanje je
+povuklo i ostalo — advokat bez IJEDNE pripreme za stvarno ročište, tiho. Sada (`services/autonomy.upisi_kandidata`):
+ako je postojeći red SUPERSEDED, OBNAVLJA se — sa proizvodom nazad na pregled (sadržaj je tačan: iste ulazne
+verzije), bez proizvoda u red; broji se (`obnovljeno`) i beleži u reviziji (`obnovljeno: true`). Odbijen, prihvaćen,
+neuspeo ili dead-letter red se NE dira (odluka advokata se poštuje). PG ograničenje i dalje sprečava READY bez proizvoda.
+
+**TESTOVI.** +3 u `test_ns007_t6_t7_hearing_planner` (odloženo pa vraćeno → obnova bez novog poziva; zastareo bez
+proizvoda → u red; odbijena se ne obnavlja). NS007 ukupno 165 passed.
+
+**MUTACIJE (4/4 ubijeno).** O1 bez obnove; O2 obnavlja i odbijeno; O3 obnova bez brojanja (prvo PREŽIVELA — mutacija
+je ostavljala sam upis, pa je obnova bila tiha; test sada zahteva i brojanje); O4 bez obnove u red.
+
+**SLEDEĆA KAPIJA.** Task 27 — retencija i granica skladištenja.

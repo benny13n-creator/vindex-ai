@@ -349,7 +349,7 @@ async def run_autonomy_cycle(run_id: str) -> dict:
     rez = {"run_id": run_id, "planirano": 0, "duplikata": 0, "zastarelo": 0, "zauzeto": 0, "spremno": 0,
            "neuspeh": 0, "prolazno": 0, "budzet_iscrpljen": 0, "budzet_nepoznat": 0, "nije_zauzeto": 0,
            "dead_letter": 0, "planer_greske": 0, "zauzimanje_greska": 0,
-           "upotreba_nije_zabelezena": 0, "revizija_nije_upisana": 0}
+           "upotreba_nije_zabelezena": 0, "revizija_nije_upisana": 0, "obnovljeno": 0}
 
     async def _trag(akcija, red, **meta):
         if not await au.revizija(akcija, red["user_id"], red["id"], red.get("predmet_id"), {**red, **meta, "run_id": run_id}):
@@ -374,6 +374,10 @@ async def run_autonomy_cycle(run_id: str) -> dict:
             if ishod["ishod"] == "QUEUED":
                 rez["planirano"] += 1
                 await _trag("AUTONOMY_WORK_QUEUED", {**k, "id": ishod["id"]})
+            elif ishod["ishod"] == "OBNOVLJENO":
+                rez["obnovljeno"] += 1
+                await _trag("AUTONOMY_WORK_READY" if ishod["status"] == au.READY else "AUTONOMY_WORK_QUEUED",
+                            {**k, "id": ishod["id"]}, obnovljeno=True)
             else:
                 rez["duplikata"] += 1
             for wid in await au.zastareli(supa, k["user_id"], k["predmet_id"], work_type, k["trigger_ref"], k["dedupe_key"]):

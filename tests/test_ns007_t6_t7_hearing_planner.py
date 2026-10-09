@@ -226,3 +226,46 @@ def test_jednokratna_greska_koja_nije_kolona_ne_skida_tombstone_filter(svet):
     baza.table = table
     with pytest.raises(RuntimeError):
         _plan(baza)
+
+
+def test_rociste_odlozeno_pa_vraceno_priprema_se_obnavlja_bez_novog_poziva(svet):
+    """Ročište greškom označeno kao odloženo (priprema → SUPERSEDED), pa vraćeno na zakazano: isti ključ (iste
+    ulazne verzije) → stari proizvod se OBNAVLJA na pregled, bez novog poziva modela. Ranije: nijedna priprema."""
+    napravi, mp = svet
+    baza = napravi([_predmet(1)], [_roc(1, 1)])
+    pozivi = []
+    _ciklus(baza, mp, pozivi)
+    assert baza.tabele["autonomy_work_items"][0]["status"] == "READY_FOR_REVIEW"
+    baza.tabele["rocista"][0]["status"] = "odlozeno"
+    _ciklus(baza, mp, pozivi)
+    assert baza.tabele["autonomy_work_items"][0]["status"] == "SUPERSEDED"
+    baza.tabele["rocista"][0]["status"] = "zakazano"
+    s = _ciklus(baza, mp, pozivi)
+    st = [r["status"] for r in baza.tabele["autonomy_work_items"]]
+    assert st == ["READY_FOR_REVIEW"] and len(pozivi) == 1 and s["obnovljeno"] == 1, (st, len(pozivi))
+
+
+def test_zastareo_bez_proizvoda_se_vraca_u_red(svet):
+    napravi, mp = svet
+    baza = napravi([_predmet(1)], [_roc(1, 1)])
+    asyncio.run(au.upisi_kandidata(baza, _plan(baza)["kandidati"][0]))     # samo u redu, bez izvršenja
+    baza.tabele["rocista"][0]["status"] = "odlozeno"
+    _ciklus(baza, mp, [])
+    assert baza.tabele["autonomy_work_items"][0]["status"] == "SUPERSEDED"
+    baza.tabele["rocista"][0]["status"] = "zakazano"
+    pozivi = []
+    s = _ciklus(baza, mp, pozivi)
+    assert baza.tabele["autonomy_work_items"][0]["status"] == "READY_FOR_REVIEW" and len(pozivi) == 1
+    assert s["obnovljeno"] == 1, "obnova se broji (i beleži u reviziji), nije tiha"
+
+
+def test_odbijena_priprema_se_ne_obnavlja(svet):
+    """Advokat je ODBIO pripremu: isti okidač sutra ne vraća je na pregled (odluka advokata se poštuje)."""
+    napravi, mp = svet
+    baza = napravi([_predmet(1)], [_roc(1, 1)])
+    pozivi = []
+    _ciklus(baza, mp, pozivi)
+    r = baza.tabele["autonomy_work_items"][0]
+    r.update(status="REJECTED", resolved_at="2026-10-10T08:00:00+00:00", reviewed_by="uid-A")
+    s = _ciklus(baza, mp, pozivi)
+    assert r["status"] == "REJECTED" and s["obnovljeno"] == 0 and len(pozivi) == 1

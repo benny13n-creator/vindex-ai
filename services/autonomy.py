@@ -121,6 +121,22 @@ async def upisi_kandidata(supa, kandidat: dict) -> dict:
         red, on_conflict="user_id,dedupe_key", ignore_duplicates=True).execute())
     if r.data:
         return {"ishod": "QUEUED", "id": r.data[0]["id"]}
+    # NS007 Task 26: isti ključ = IDENTIČNE ulazne verzije (npr. ročište greškom „odloženo", pa vraćeno). Ako je postojeći
+    # red SUPERSEDED, on se OBNAVLJA: sa proizvodom → nazad na pregled (sadržaj je i dalje tačan), bez proizvoda → u red.
+    # Bez ovoga bi okidač koji se vratio ostao bez ijedne pripreme. Odbijen, prihvaćen ili neuspeo red se NE dira.
+    sada = _sada()
+    obnova = await asyncio.to_thread(lambda: supa.table(TABELA_POSLOVA).update({
+        "status": READY, "updated_at": sada, "safe_error_code": None,
+    }).eq("user_id", kandidat["user_id"]).eq("dedupe_key", kandidat["dedupe_key"]).eq("status", SUPERSEDED)
+      .not_.is_("content_json", "null").execute())
+    if obnova.data:
+        return {"ishod": "OBNOVLJENO", "id": obnova.data[0]["id"], "status": READY}
+    obnova = await asyncio.to_thread(lambda: supa.table(TABELA_POSLOVA).update({
+        "status": QUEUED, "queued_at": sada, "updated_at": sada, "safe_error_code": None,
+    }).eq("user_id", kandidat["user_id"]).eq("dedupe_key", kandidat["dedupe_key"]).eq("status", SUPERSEDED)
+      .is_("content_json", "null").execute())
+    if obnova.data:
+        return {"ishod": "OBNOVLJENO", "id": obnova.data[0]["id"], "status": QUEUED}
     return {"ishod": "DUPLICATE"}
 
 
@@ -207,7 +223,7 @@ async def ucitaj_predmete(supa, ids: list) -> dict:
 
 _BEZBEDNA_POLJA = ("work_type", "agent_type", "trigger_type", "trigger_ref", "source_version", "attempt_count",
                    "budget_units", "cost_class", "quality_state", "safe_error_code", "status", "run_id", "konacno",
-                   "recommendation_id", "case_action_id", "model")
+                   "recommendation_id", "case_action_id", "model", "obnovljeno")
 
 
 async def revizija(akcija: str, user_id: str, work_id: str, predmet_id: str | None, meta: dict) -> bool:
