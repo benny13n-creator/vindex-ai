@@ -329,7 +329,7 @@
    * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
    * je registar. Sav sadržaj se upisuje kao tekst. */
   function adresaPredmeta(id, odeljak) {
-    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : odeljak === "naplata" ? "/naplata" : "");
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : odeljak === "naplata" ? "/naplata" : odeljak === "prijem" ? "/prijem" : "");
   }
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
@@ -338,11 +338,11 @@
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
     if (/^#\/danas\/?$/.test(location.hash)) return { pogled: "danas" };
-    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata)?\/?$/.exec(location.hash);
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata|\/prijem)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
     try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : m[2] === "/naplata" ? "naplata" : "pregled" };
+    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : m[2] === "/naplata" ? "naplata" : m[2] === "/prijem" ? "prijem" : "pregled" };
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
@@ -377,7 +377,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null, prijemPredmeta = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -421,6 +421,7 @@
     $("odeljak-pitanje").hidden = true;
     $("odeljak-nacrt").hidden = true;
     $("odeljak-naplata").hidden = true;
+    $("odeljak-prijem").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
     if (radPredmeta) radPredmeta.ocisti();
@@ -447,10 +448,11 @@
     $("odeljak-pitanje").hidden = o !== "pitanje";
     $("odeljak-nacrt").hidden = o !== "nacrt";
     $("odeljak-naplata").hidden = o !== "naplata";
+    $("odeljak-prijem").hidden = o !== "prijem";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
     if (o === "nacrt" && nacrtPredmeta) nacrtPredmeta.aktiviraj();
     if (o === "naplata" && naplataPredmeta) naplataPredmeta.aktiviraj();
-    ["pregled", "rad", "pitanje", "nacrt", "naplata", "dokumenti"].forEach(function (x) {
+    ["pregled", "rad", "pitanje", "nacrt", "naplata", "dokumenti", "prijem"].forEach(function (x) {
       var tab = $("tab-" + x);
       tab.href = adresaPredmeta(ruta.id, x);
       if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
@@ -506,6 +508,7 @@
     if (pitanjePredmeta) pitanjePredmeta.postavi(v.predmet);
     if (nacrtPredmeta) nacrtPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "nacrt");
     if (naplataPredmeta) naplataPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "naplata");
+    if (prijemPredmeta) prijemPredmeta.postavi(v.predmet);
     prikaziOdeljak();
   }
 
@@ -556,7 +559,7 @@
   }
 
   function prikaziDetalj(v) {
-    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); return; }
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); if (prijemPredmeta) prijemPredmeta.ocisti(); return; }
     if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
     if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
     if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
@@ -795,6 +798,8 @@
     pitanjePredmeta = window.VxPitanjePredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     nacrtPredmeta = window.VxNacrtPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
     naplataPredmeta = window.VxNaplataPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    /* NS005 Task 14 — prijem dokumenata (Smart Intake + OCR); posle prikačivanja predmet se ponovo čita (lista dokumenata). */
+    prijemPredmeta = window.VxPrijemPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);

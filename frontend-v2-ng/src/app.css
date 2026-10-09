@@ -504,6 +504,19 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .today__case { color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; }
 .today__day { margin: var(--sp-4) 0 0; color: var(--text-2); font-size: var(--fs-meta); }
 @media (max-width: 859px) { .today__item { grid-template-columns: minmax(0, 1fr) auto; } .today__what, .today__case { grid-column: 1 / -1; } }
+.intake { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.intake__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-1) var(--sp-4); align-items: baseline; }
+.intake__name { color: var(--text-1); overflow-wrap: anywhere; }
+.intake__state { color: var(--text-2); font-size: var(--fs-meta); }
+.intake__state[data-stanje="awaiting_review"], .intake__state[data-stanje="failed"] { color: var(--text-1); }
+.intake__meta { margin: var(--sp-1) 0 var(--sp-2); color: var(--text-2); font-size: var(--fs-meta); }
+.intake__value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-1); }
+.intake__conf { color: var(--text-3); font-size: var(--fs-meta); }
+.intake__flag { color: var(--attention); font-size: var(--fs-meta); }
+.intake__fix { display: flex; gap: var(--sp-2); width: 100%; margin-top: var(--sp-1); }
+.intake__input { flex: 1 1 auto; min-width: 0; }
+.intake__done { margin: var(--sp-2) 0 0; color: var(--text-2); }
+.intake__msg { margin-top: var(--sp-2); }
 .ledger-wrap { max-width: 880px; overflow-x: auto; }
 .ledger { width: 100%; border-collapse: collapse; margin-top: var(--sp-3); font-size: var(--fs-meta); }
 .ledger th { text-align: left; font-weight: 500; color: var(--text-3); padding: 8px var(--sp-3) 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }

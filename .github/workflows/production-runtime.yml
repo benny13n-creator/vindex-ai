@@ -137,7 +137,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pytest tests/test_ns005_b_ocr.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
+          # `python -m pytest` (ne gol `pytest`): stavlja koren repoa na sys.path, kao u koraku u produkcionoj slici.
+          python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py -q -rs -p no:randomly -p no:cacheprovider 2>&1 | tee /tmp/ocr-py311.log
 
       - name: OCR proof report (py311)
         if: always()
@@ -227,7 +228,7 @@ jobs:
             -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 -e VINDEX_OCR_REPORT=/out/ocr-image.json \
             -v "$RUNNER_TEMP/ocr:/out" \
             vindex-prod-check:ci \
-            python -m pytest tests/test_ns005_b_ocr.py -q -rs -p no:randomly -p no:cacheprovider
+            python -m pytest tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py -q -rs -p no:randomly -p no:cacheprovider
 
       - name: OCR proof report (production image)
         if: always()

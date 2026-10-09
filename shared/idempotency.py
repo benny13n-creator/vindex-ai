@@ -85,6 +85,12 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     ("POST", r"^/billing/entries$"),
     ("POST", r"^/billing/faktura$"),
     ("POST", r"^/billing/timer/(start|stop)$"),
+    # Smart Intake (Task 14): pregled, ispravka i prikačivanje imaju efekat. Otpremanje
+    # (`POST /api/smart-intake/documents`, multipart do 25 MB po fajlu) NAMERNO nije ovde: štiti ga
+    # jači ugovor na nivou posla — `idempotency_key = korisnik:sha256(sadržaj)` + UNIQUE indeks +
+    # `enqueue_intake_job` RPC (isti sadržaj istog korisnika = isti posao, bez novog bloba).
+    ("POST", rf"^/api/smart-intake/jobs/{_SEG}/(finalize|review/resolve|review/reject)$"),
+    ("POST", rf"^/api/smart-intake/entities/{_SEG}/correct$"),
 ))
 
 

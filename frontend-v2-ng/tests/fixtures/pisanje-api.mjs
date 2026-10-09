@@ -520,3 +520,85 @@ export function rokoviRuta(korisnici, kuke = {}) {
     json(res, 200, { ok: true, rok_id: r.id, stanje_odluke: r.odluka, dogadjaj: r.dogadjaj, datum_iso: r.datum_iso }); return true;
   };
 }
+
+/* ── Smart Intake: /api/smart-intake/* (routers/smart_intake.py) ──
+ * Multipart `files`; isti sadržaj istog korisnika = isti posao (`already_submitted`); tuđ posao → 404.
+ * k.poslovi[id] = {id, ime, status, attempts, predmet_id, dokument, entiteti, provera}. Test pomera stanje
+ * preko kuke.napreduj(posao, brojCitanja) koja se poziva pri svakom GET-u. kuke.pre(put + ":" + metod).
+ * Finalize: samo sopstven predmet; pre razrešenog pregleda 409; NE menja polja predmeta. */
+import { createHash } from "node:crypto";
+function delovi(sirovo, tip) {
+  const m = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(tip || "");
+  if (!m) return [];
+  const granica = "--" + (m[1] || m[2]);
+  return sirovo.split(granica).slice(1, -1).map(d => {
+    const kraj = d.indexOf("\r\n\r\n");
+    const zaglavlje = d.slice(0, kraj), sadrzaj = d.slice(kraj + 4, d.length - 2);
+    const f = /filename="([^"]*)"/.exec(zaglavlje), n = /name="([^"]*)"/.exec(zaglavlje);
+    // Telo je pročitano kao latin1 (bajt = znak, za heš sadržaja); ime fajla je UTF-8 kao kod pravog servera.
+    return { polje: n ? n[1] : "", ime: f ? Buffer.from(f[1], "latin1").toString("utf8") : null, sadrzaj };
+  }).filter(x => x.polje === "files" && x.ime !== null);
+}
+export function prijemRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    const p = url.pathname;
+    if (!p.startsWith("/api/smart-intake/")) return false;
+    const sirovo = req.method === "POST" ? await new Promise(r => { const d = []; req.on("data", c => d.push(c)); req.on("end", () => r(Buffer.concat(d).toString("latin1"))); }) : "";
+    const k = korisnik(req, korisnici);
+    const kljucKuke = p.replace(/[0-9a-f-]{36}|ent-[\w-]+/g, "{id}") + ":" + req.method;
+    if (await kuka(kuke, kljucKuke, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    k.poslovi = k.poslovi || {};
+    if (p === "/api/smart-intake/documents" && req.method === "POST") {
+      const fajlovi = delovi(sirovo, req.headers["content-type"]);
+      (kuke.upisano || (() => {}))(p, { fajlova: fajlovi.length, imena: fajlovi.map(f => f.ime), kljuc: req.headers["idempotency-key"] || null });
+      const rezultati = fajlovi.map(f => {
+        if (!/\.(pdf|docx|txt|jpe?g|png)$/i.test(f.ime)) return { filename: f.ime, ok: false, greska: "Nepodržan format fajla. Podržano: PDF, DOCX, TXT, JPG, PNG." };
+        const h = k.id + ":" + createHash("sha256").update(f.sadrzaj, "latin1").digest("hex");
+        const postojeci = Object.values(k.poslovi).find(x => x.kljuc === h);
+        if (postojeci) return { filename: f.ime, ok: true, job_id: postojeci.id, already_submitted: true };
+        const id = (kuke.idPosla || (() => crypto.randomUUID()))();
+        k.poslovi[id] = { id, ime: f.ime, kljuc: h, status: "received", attempts: 0, predmet_id: null, citanja: 0, dokument: null, entiteti: [], provera: null };
+        return { filename: f.ime, ok: true, job_id: id };
+      });
+      json(res, 202, { rezultati, ukupno: fajlovi.length, nastavlja: false, preostali_fajlovi: [] }); return true;
+    }
+    const mj = /^\/api\/smart-intake\/jobs\/([^/]+)(\/finalize|\/review\/resolve|\/review\/reject)?$/.exec(p);
+    if (mj) {
+      const posao = k.poslovi[decodeURIComponent(mj[1])];
+      if (!posao) { json(res, 404, { detail: "Posao nije pronađen." }); return true; }
+      const radnja = mj[2] || "";
+      if (!radnja && req.method === "GET") {
+        posao.citanja++;
+        if (kuke.napreduj) kuke.napreduj(posao, posao.citanja);
+        json(res, 200, { job: { id: posao.id, status: posao.status, attempts: posao.attempts, last_error: null, original_filename: posao.ime, predmet_id: posao.predmet_id },
+          dokument: posao.dokument, entiteti: posao.entiteti, potrebna_provera: posao.provera, dokumenti: [] });
+        return true;
+      }
+      const telo = JSON.parse(Buffer.from(sirovo || "{}", "latin1").toString("utf8"));
+      (kuke.upisano || (() => {}))(p, telo);
+      if (radnja === "/review/resolve") { if (posao.status === "awaiting_review") posao.status = "completed"; posao.provera = null; json(res, 200, { ok: true, already_finalized: false, review_resolved_now: true, job_status_advanced: true }); return true; }
+      if (radnja === "/review/reject") { posao.status = "failed"; posao.provera = null; json(res, 200, { ok: true, review_resolved_now: true, job_status_rejected: true }); return true; }
+      if (radnja === "/finalize") {
+        if (posao.predmet_id) { json(res, 200, { ok: true, predmet_id: posao.predmet_id, already_finalized: true, dokumenata_povezano: 1 }); return true; }
+        if (posao.status === "awaiting_review") { json(res, 409, { detail: "Posao čeka proveru." }); return true; }
+        if (!k.predmeti.some(x => x.id === telo.predmet_id && x.user_id === k.id)) { json(res, 404, { detail: "Predmet za prikačivanje nije pronađen." }); return true; }
+        posao.predmet_id = telo.predmet_id;
+        k.prikaceno = (k.prikaceno || []).concat([{ predmet_id: telo.predmet_id, ime: posao.ime }]);
+        json(res, 200, Object.assign({ ok: true, predmet_id: telo.predmet_id, coi_status: "COI_NOT_APPLICABLE", klijent_dodat: false, rok_dodat: false,
+          rok_preskocen_razlog: null, dokumenata_ukupno: 1, dokumenata_povezano: 1 }, kuke.finalize || {}));
+        return true;
+      }
+    }
+    const me = /^\/api\/smart-intake\/entities\/([^/]+)\/correct$/.exec(p);
+    if (me && req.method === "POST") {
+      const telo = JSON.parse(Buffer.from(sirovo || "{}", "latin1").toString("utf8"));
+      (kuke.upisano || (() => {}))(p, telo);
+      const e = Object.values(k.poslovi).flatMap(x => x.entiteti).find(x => x.entity_id === decodeURIComponent(me[1]));
+      if (!e) { json(res, 404, { detail: "Stavka nije pronađena." }); return true; }
+      e.value = telo.corrected_value; e.corrected = true; e.needs_review = false;
+      json(res, 200, { entity_id: e.entity_id, entity_type: e.entity_type, corrected_value: telo.corrected_value }); return true;
+    }
+    json(res, 404, {}); return true;
+  };
+}

@@ -14,6 +14,7 @@ Ništa ne ide u produkciju: SUPABASE_URL je lažan, OpenAI/Pinecone nedostupni.
 from __future__ import annotations
 
 import copy
+import sys
 import itertools
 import os
 import socket
@@ -241,6 +242,8 @@ class _Upit:
                 r.setdefault("created_at", _sada())
                 r.setdefault("kreirano", r["created_at"])
                 r.setdefault("_rb", next(_brojac))
+                for _kol, _vr in self.b.podrazumevano.get(self.t, {}).items():   # DEFAULT vrednosti kolona iz migracija
+                    r.setdefault(_kol, copy.deepcopy(_vr))
                 if self.t == "timer_sessions":  # kao DEFAULT now() / DEFAULT TRUE iz 003_billing.sql
                     r.setdefault("start_at", r["created_at"]); r.setdefault("aktivan", True)
                 if self.t == "audit_immutable":  # seq je BIGSERIAL (redosled lanca odluka)
@@ -286,6 +289,39 @@ class _Upit:
         return _Rez(data=redovi, count=ukupno)
 
 
+class _Kofa:
+    def __init__(self, sadrzaj, ime):
+        self._s, self._ime = sadrzaj, ime
+
+    def upload(self, path, file, file_options=None):
+        k = (self._ime, path)
+        if k in self._s and str((file_options or {}).get("upsert", "false")).lower() != "true":
+            raise Exception("Duplicate: The resource already exists (409)")
+        self._s[k] = bytes(file)
+        return types.SimpleNamespace(path=path)
+
+    def download(self, path):
+        k = (self._ime, path)
+        if k not in self._s:
+            raise Exception("Object not found (404)")
+        return self._s[k]
+
+    def remove(self, paths):
+        for p in paths:
+            self._s.pop((self._ime, p), None)
+        return []
+
+
+class _Skladiste:
+    """Supabase Storage u memoriji: `storage.from_(kofa).upload/download/remove`; `sadrzaj[(kofa, putanja)]`."""
+
+    def __init__(self):
+        self.sadrzaj = {}
+
+    def from_(self, ime):
+        return _Kofa(self.sadrzaj, ime)
+
+
 class Baza:
     """Supabase u memoriji: `baza.tabele[ime]` je lista redova."""
 
@@ -295,6 +331,10 @@ class Baza:
         self.greske = {}
         # Jedinstvenost koju baza sprovodi (migracija 134: PRIMARY KEY (user_id, idempotency_key)).
         self.jedinstveno = {"v2_mutation_idempotency": ("user_id", "idempotency_key")}
+        # RPC implementacije po imenu (npr. intake red u tests/ns005_intake_fake.py); bez nje rpc vraća [].
+        self.rpc_impl = {}
+        self.podrazumevano = {}   # {tabela: {kolona: DEFAULT}} — kao DEFAULT u šemi
+        self.storage = _Skladiste()
 
     def table(self, ime):
         return _Upit(self, ime)
@@ -302,9 +342,18 @@ class Baza:
     def from_(self, ime):
         return _Upit(self, ime)
 
-    def rpc(self, ime, *a, **k):
+    def rpc(self, ime, params=None, *a, **k):
         self.dnevnik.append({"tabela": "rpc:" + ime, "radnja": "rpc", "filteri": []})
-        return types.SimpleNamespace(execute=lambda: _Rez(data=[], count=0))
+        impl = self.rpc_impl.get(ime)
+        if impl is None:
+            return types.SimpleNamespace(execute=lambda: _Rez(data=[], count=0))
+
+        def _izvrsi():
+            if ("rpc:" + ime) in self.greske:
+                raise self.greske["rpc:" + ime]
+            d = impl(self, dict(params or {}))
+            return _Rez(data=d, count=len(d) if isinstance(d, list) else 1)
+        return types.SimpleNamespace(execute=_izvrsi)
 
     def upisi(self, tabela):
         return [z for z in self.dnevnik if z["tabela"] == tabela and z["radnja"] in ("insert", "update", "upsert", "delete")]
@@ -362,6 +411,17 @@ def pripremi(monkeypatch, tabele=None):
         monkeypatch.setattr(audit, "log_action", _audit)
     except Exception:
         pass
+    # main._client pamti OpenAI klijent pri prvom pozivu; bez ovoga bi klijent napravljen u NS005 testu
+    # preživeo test i zaobišao `patch("openai.OpenAI")` u kasnijim testovima (izmereno: test_intake_original_file_storage).
+    _main = sys.modules.get("main")
+    if _main is not None and hasattr(_main, "_client"):
+        monkeypatch.setattr(_main, "_client", None)
+    # Isto za keširane klijente pretrage (embedding/Pinecone/Cohere): ruta kao /api/praksa/search u NS005
+    # testu bi ih inače napravila stvarne i ostavila za sledeće testove.
+    _ret = sys.modules.get("app.services.retrieve")
+    for _ime in ("_EMBEDDINGS", "_CLIENT", "_COHERE_CLIENT", "_PINECONE_INDEX"):
+        if _ret is not None and hasattr(_ret, _ime):
+            monkeypatch.setattr(_ret, _ime, None)
     klijent = TestClient(api.app, raise_server_exceptions=False)
     return klijent, baza
 

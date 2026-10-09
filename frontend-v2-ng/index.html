@@ -291,6 +291,7 @@
           <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
           <a class="tabs__item" id="tab-naplata" href="#/">Naplata</a>
           <a class="tabs__item" id="tab-dokumenti" href="#/">Dokumenti <span class="tabs__count" id="dok-broj"></span></a>
+          <a class="tabs__item" id="tab-prijem" href="#/">Prijem dokumenata</a>
         </nav>
         <div class="empty matter__state" id="predmet-stanje" hidden>
           <h2 class="empty__title" id="predmet-stanje-naslov"></h2>
@@ -543,6 +544,22 @@
             <ul class="reviews" id="np-fakture" aria-label="Fakture za ovaj predmet"></ul>
           </section>
         </div>
+        <div class="matter__body" id="odeljak-prijem" hidden>
+          <section class="matter__section matter__section--first" aria-labelledby="pd-naslov">
+            <h2 class="matter__h2" id="pd-naslov">Dodaj dokumente u predmet</h2>
+            <p class="field__help">PDF, DOCX, TXT, JPG i PNG, do 25 MB po fajlu. Skenirani dokumenti i fotografije prolaze kroz OCR.
+              Izvučeni podaci su predlog sa prikazanom pouzdanošću: označene podatke pregledate pre nego što se dokument prikači predmetu.
+              Prikačivanje ne menja podatke predmeta.</p>
+            <form class="form" id="pd-forma" novalidate>
+              <div class="field"><label class="field__label" for="pd-fajlovi">Fajlovi</label>
+                <input class="field__input" id="pd-fajlovi" type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"></div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="pd-otpremi" type="submit">Otpremi</button></div>
+            </form>
+            <p class="notice" id="pd-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="pd-stanje" role="status" hidden></p>
+            <ul class="reviews" id="pd-poslovi" aria-label="Dokumenti u obradi"></ul>
+          </section>
+        </div>
         <div class="docs" id="odeljak-dokumenti" hidden>
           <div class="docs__list-wrap" id="dok-lista-okvir">
             <ul class="docs__list" id="dok-lista" aria-label="Dokumenti predmeta"></ul>
@@ -604,6 +621,7 @@
   <script src="src/znanje.js"></script>
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
+  <script src="src/prijem-predmeta.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>
