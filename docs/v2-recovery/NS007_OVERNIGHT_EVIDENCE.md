@@ -417,3 +417,38 @@ test); P12 odbačena preporuka važi; P13 nedostupno = konačno; P14 generička 
 Legacy radar i dalje troši model za sve aktivne predmete u dnevnom cronu (nepromenjeno, dug iz Task 0).
 
 **SLEDEĆA KAPIJA.** Task 11 (opciono) — sažetak promene predmeta.
+
+---
+
+## TASK 11 — SAŽETAK PROMENE PREDMETA (OPCIONO) — NAMERNO PRESKOČENO
+
+**ODLUKA.** Direktiva: „ako ne donosi dodatnu vrednost korisniku — PRESKOČI". NS006 Pregled već prikazuje tačno te
+determinističke promene između verzija Genome-a („Šta se promenilo", `GET genome-v2/promene`), uz radnje i pažnju.
+Isti sadržaj kao radni proizvod bi dupliralo Pregled i punilo red za pregled bez nove odluke za advokata. Vrsta
+`CASE_CHANGE_BRIEF` ostaje dozvoljena u šemi (136) za budući slučaj sa stvarnom vrednošću; nijedan kod je ne pravi.
+
+---
+
+## TASK 12 — API PREGLEDA AUTONOMNOG RADA
+
+**ODLUKA / RUTE (`routers/autonomy.py`).** `GET /api/autonomy/work-items` (status — podrazumevano
+READY_FOR_REVIEW, matter_id, work_type, limit 1–100; lista bez sadržaja), `GET /api/autonomy/work-items/{id}` (pun
+proizvod: sadržaj, izvori, razlog), `POST …/{id}/accept`, `POST …/{id}/reject` (opciono `{"razlog"}` ≤ 1000).
+- Sve sa `get_current_user`, svi upiti `.eq("user_id", uid)`; tuđ, nepostojeći i neispravan id → bajt-identičan 404;
+  naziv predmeta se čita samo iz vlasnikovih predmeta.
+- Prihvati/odbaci = SAMO odluka o pregledu: uslovni prelaz `READY_FOR_REVIEW → ACCEPTED/REJECTED` sa `resolved_at`,
+  `reviewed_by`, `review_note`. Ne šalje, ne podnosi, ne piše mejl, ne promoviše u memoriju znanja, ne izvršava i ne
+  zatvara Case Action. Nije na pregledu (već rešeno, zastarelo, neuspelo) → 409.
+- Mutacije dodate u NS005 trajnu idempotentnost (`shared/idempotency.ZASTICENE_RUTE`): isti `Idempotency-Key` → jedan
+  prelaz i sačuvan odgovor; i bez ključa uslov u bazi daje jedan prelaz.
+
+**TESTOVI.** 7/7 + NS005 idempotentnost zelena: lista samo svoje + filteri + 400 za neispravne + 401; detalj i
+identičan 404 bez curenja; prihvatanje bez upisa u druge tabele, drugi put 409; odbijanje sa razlogom, predugačak
+razlog 422; tuđ rad 404 i nepromenjen, zastareo 409; mrežno ponavljanje = 1 prelaz; oštećen red ne otkriva naziv
+tuđeg predmeta.
+
+**MUTACIJE (8/8 ubijeno).** V1 lista bez vlasnika; V2 detalj bez vlasnika; V3 prelaz bez uslova READY; V4 neispravan
+id kao 400 (orakl); V5 prihvatanje zatvara Case Action; V6 nazivi bez vlasnika (prvo PREŽIVELA — dodat test oštećenog
+reda); V7 lista nosi sadržaj; V8 ruta van idempotentnosti.
+
+**SLEDEĆA KAPIJA.** Task 13 — kompatibilnost sa `agent_recommendations`.

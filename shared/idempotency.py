@@ -91,6 +91,8 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     # `enqueue_intake_job` RPC (isti sadržaj istog korisnika = isti posao, bez novog bloba).
     ("POST", rf"^/api/smart-intake/jobs/{_SEG}/(finalize|review/resolve|review/reject)$"),
     ("POST", rf"^/api/smart-intake/entities/{_SEG}/correct$"),
+    # NS007: pregled autonomnog radnog proizvoda (prihvati/odbaci = promena stanja; mrežno ponavljanje = 1 prelaz).
+    ("POST", rf"^/api/autonomy/work-items/{_SEG}/(accept|reject)$"),
 ))
 
 
