@@ -836,3 +836,28 @@ T8; UI greške — live-analiza, live-pregled-zivi, live-radna-lista).
 (50 umesto 5 pokušaja); H3 Genome upisan PRE V2 paketa (narušen A017 redosled).
 
 **SLEDEĆA KAPIJA.** Task 17.
+
+---
+
+## TASK 17 — CENA ČITANJA ŽIVOG PREDMETA
+
+**PROBLEM.** Otvaranje predmeta, Analize, promena i table ne sme da troši AI kredite niti da raste sa veličinom
+predmeta (N+1).
+
+**DOKAZ (PROVEN).** `OpenAI` i `AsyncOpenAI` konstruktori zamenjeni klasom koja puca: 0 poziva za `genome-v2`,
+`genome-v2/promene`, `case-actions`, `workspace` i detalj predmeta. Broj upita bazi meren iz dnevnika lažne baze za
+predmet sa 1× i 40× više tvrdnji, dokumenata, kontradikcija, akcija i predmeta: IDENTIČAN za sve četiri V2 rute.
+Analiza je JEDAN zahtev sa svim sekcijama i ≤ 10 upita. Nijedna ruta za čitanje ne piše u bazu.
+UI: Analiza = tačno 2 GET pri otvaranju, Pregled = tačno 2 GET (promene + radnje), Danas = 1 GET table; povratak na
+karticu ne čita ponovo (live testovi).
+
+**FAJLOVI.** `tests/test_ns006_t17_cost.py`.
+
+**TESTOVI.** 1/1 (sa 10 merenja).
+
+**MUTACIJE (3/3 ubijeno).** C1 otvaranje Analize konstruiše klijenta modela; C2 N+1 (članovi kontradikcija jedan upit
+po kontradikciji); C3 čitanje upisuje trag otvaranja u `predmeti`.
+
+**OGRANIČENJE.** Broj upita je meren nad lažnom bazom (broj poziva PostgREST-a), ne vreme na produkciji.
+
+**SLEDEĆA KAPIJA.** Task 18.
