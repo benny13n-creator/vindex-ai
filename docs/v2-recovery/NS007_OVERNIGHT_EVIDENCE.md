@@ -123,3 +123,62 @@ Agenti dobijaju `user_id` iz `predmeti.user_id` (service-role čitanje); `preced
 **FAJLOVI.** Samo ovaj dokument. Nijedan produkcioni fajl.
 
 **SLEDEĆA KAPIJA.** Task 1 — trajni ugovor autonomije.
+
+---
+
+## TASK 1–2 — TRAJNI UGOVOR AUTONOMIJE + ATOMSKO ZAUZIMANJE CIKLUSA
+
+**PROBLEM.** Nijedna postojeća tabela nema pun ugovor (identitet posla, zakup, ponavljanje, rezultat, pregled,
+poreklo, vlasništvo, deduplikacija, greška/dead-letter) — Task 0. Heartbeat dnevnog crona nije atomsko zauzimanje.
+
+**FALSIFIKACIJA.** (1) Proširiti `agent_recommendations`? Odbačeno: zatvoren `CHECK agent_type`, nema stanja
+izvršavanja, a ona ostaje legacy površina preporuka. (2) `staging_memory`? Odbačeno: druga odgovornost (promocija u
+memoriju znanja). (3) Budžet brojati iz `usage_events`? Odbačeno: upis ide POSLE poziva modela (TOCTOU) i nema
+atomske rezervacije. (4) Zauzimanje ciklusa SELECT-pa-INSERT? Odbačeno (isti kvar kao heartbeat).
+
+**ODLUKA / ŠEMA — migracija `136_autonomy_work_items.sql` (KREIRANA, NIJE primenjena na produkciji).**
+- `autonomy_cycles`: `window_key UNIQUE`; zauzimanje = INSERT; RUNNING ciklus se nikad ne otima (zastareo je
+  vidljiv: `claimed_at` bez `finished_at`); oporavak prekinutog rada je na nivou posla.
+- `autonomy_work_items`: `UNIQUE(user_id, dedupe_key)`; stanja QUEUED / RUNNING / READY_FOR_REVIEW / ACCEPTED /
+  REJECTED / FAILED / DEAD_LETTER / SUPERSEDED — nijedno više; `reason` (ZAŠTO) obavezan; `source_refs` = samo
+  identifikatori; ograničenja: RUNNING ima zakup, READY/ACCEPTED/REJECTED imaju proizvod, pregled ima ko/kada,
+  plaćena rezervacija ima dan; veličina sadržaja ograničena.
+- `autonomy_claim_work_item(id, owner, lease, limit)`: zaključavanje reda → zakup samo za QUEUED ili RUNNING sa
+  ISTEKLIM zakupom → iscrpljeni pokušaji = DEAD_LETTER → za PLAĆEN posao savetodavna brava po organizaciji, prebrojavanje
+  dnevnih jedinica i rezervacija PRE modela; `NULL` limit = BUDGET_UNKNOWN (nije „neograničeno").
+- RLS: korisnik SELECT samo svoje; nikakav INSERT/UPDATE/DELETE i nikakvo izvršavanje funkcije za
+  `authenticated`/`anon`; ciklusi nevidljivi korisnicima.
+- Brisanje predmeta: `ON DELETE CASCADE` — ista politika kao 082 i kanonsko brisanje predmeta (P15); revizioni trag
+  ostaje u `audit_immutable`. Testovi brisanja predmeta: 91/91 sa 136 prisutnom.
+
+**GRANICA KOJA SE NE MOŽE ZATVORITI (iskreno).** Tačno-jednom izvršavanje modela nije moguće: radnik može da padne
+posle naplate, a pre upisa. Granica: svaki pokušaj rezerviše jedinicu, plaćen posao ima podrazumevano
+`max_attempts = 2` → jedan logički posao košta najviše 2 izvršenja, zatim DEAD_LETTER (vidljivo). Rezultat i
+READY_FOR_REVIEW se upisuju u JEDNOJ naredbi, samo za vlasnika zakupa — nema stanja „sačuvano, a nije spremno".
+
+**IMPLEMENTACIJA.** `services/autonomy.py` — jedini vlasnik životnog ciklusa (upis kandidata, zauzimanje ciklusa i
+posla, upis rezultata, neuspeh, zastarevanje). Nije registar agenata ni raspoređivač.
+
+**TESTOVI.**
+- PRAVI PostgreSQL 17.9 (izolovan lokalni klaster, sveža baza po testu, migracija iz repoa) — 10/10:
+  ponovljiva migracija; **20 istovremenih zauzimanja prozora → tačno 1 pobednik, 19× 23505**; **20 istovremenih
+  zauzimanja istog posla → tačno 1 CLAIMED**; isti okidač → 1 posao (drugi korisnik ima svoj); **10 istovremenih
+  plaćenih poslova, budžet 3 → tačno 3 CLAIMED, 7 ostaje QUEUED**; budžet po organizaciji, besplatan posao ne troši,
+  nepoznat limit zatvara; zakup: važeći se ne otima, istekao se preuzima, iscrpljen → DEAD_LETTER sa najviše 2
+  rezervacije; rezultat upisuje samo vlasnik; RLS i prava (uključujući direktnu proveru prava izvršavanja);
+  brisanje predmeta.
+- Paritet lažne baze i PostgreSQL-a (isti scenario, 11 koraka, svih 6 ishoda) — 1/1. Paritet je odmah otkrio
+  razliku u MOM Python sloju (`limit=None` je značio „podrazumevano", pa nepoznat limit nije mogao da stigne do
+  baze) — ispravljeno.
+- Servisni sloj nad lažnom bazom — 6/6.
+
+**MUTACIJE (17/17 ubijeno).** SQL nad pravim Postgres-om: D1 bez `FOR UPDATE`, D2 bez brave budžeta (TOCTOU), D3
+prozor bez UNIQUE, D4 bez granice pokušaja, D5 otimanje važećeg zakupa, D6 nepoznat limit = neograničeno, D7 RLS
+svi vide sve, D8 korisnik sme da poziva zauzimanje (prvo PREŽIVELA — druga brava je nedostatak UPDATE prava; dodata
+direktna provera prava), D9 bez dedupe ključa, D10 besplatan troši, D11 budžet globalan. Emulacija/servis: E1, E2,
+E3 — paritet ih hvata.
+
+**OGRANIČENJE.** Testovi na pravom Postgres-u traže `VX_TEST_PG_DSN`; bez njega se PRESKAČU (CI ih trenutno ne
+pokreće). Supabase specifičnosti (PostgREST, stvarne uloge) su emulirane minimalnim okruženjem.
+
+**SLEDEĆA KAPIJA.** Task 3 — uska ulazna tačka raspoređivača.
