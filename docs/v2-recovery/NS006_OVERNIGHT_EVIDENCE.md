@@ -659,3 +659,35 @@ preživljava; U3b (obe uklonjene) je UBIJENA — test hvata zastareo prikaz.
 predmeta. Ocene modela su prikazane, ali uvek kao analitičke.
 
 **SLEDEĆA KAPIJA.** Task 11 — Pregled svestan događaja.
+
+---
+
+## TASK 11 — PREGLED SVESTAN DOGAĐAJA
+
+**PROBLEM.** Advokat koji otvori predmet treba odmah da vidi šta se promenilo od prošle verzije analize, šta traži
+pažnju i koji je sledeći korak — bez druge AI sinteze i bez drugog motora preporuka.
+
+**ODLUKA.** Blok „Stanje predmeta" na vrhu Pregleda (`frontend-v2-ng/src/zivi-pregled.js`, `VxZiviPregled`):
+A. Šta se promenilo ← `GET genome-v2/promene` (najviše 4 + veza „Detalji u Analizi"); B. Šta traži pažnju ← kanonske
+`case-actions`, samo kritične i visoke; C. Sledeći korak ← ista lista, prva po kanonskom redosledu (prioritet, pa
+rok). Prioritet ima sopstveni stil (ne meša se sa oznakom porekla). Lenjo: samo kad je Pregled aktivan, jednom po
+predmetu.
+
+**FAJLOVI.** `src/zivi-pregled.js` (nov), `index.html` (blok + skript pod build tokenom), `src/app.js` (ožičenje,
+čišćenje), `src/app.css`, `package.json` (`verify:live-pregled-zivi`), `tests/live-pregled-zivi.mjs`,
+`tests/live-analiza.mjs` (Pregled sada čita promene, ali i dalje NE pun Genome).
+
+**TESTOVI.** `live-pregled-zivi` 30/30 (stvarni backend odgovori): promene iz ugovora + veza na Analizu; pažnja = samo
+kritične/visoke (i kad su srednje/niske prve u odgovoru); sledeći korak po kanonskom redosledu (bez kritičnih:
+srednji pre niskog); svaka radnja kaže ZAŠTO i rok; ništa izmišljeno; cena: tačno 2 GET, ništa van ugovora, povratak
+ne čita ponovo, Dokumenti ne čitaju; pad promena / radnji → GREŠKA „ne znači da nema", nikad „nema radnji"; pošteno
+prazno i prva verzija; zakasneli odgovor A ne na drugom predmetu ni kod korisnika B; prelazak na tuđ predmet prazni
+blok i u skrivenom DOM-u; XSS kao tekst; 360/768/1440 bez preliva. Ceo NG paket: 32/32 skripte zeleno.
+
+**MUTACIJE (12/13 ubijeno + 1 dokazana druga brava).** P1 pad radnji = prazno; P2 pad promena = prazno; P3 pažnja sa
+niskim prioritetima; P4 bez kanonskog redosleda; P5 čita pun Genome; P6 ponovno čitanje; P7 aktivira se na svim
+karticama; P8 razlog kao HTML; P9 izmišljena promena; P10 veza na pogrešnu karticu; P11 izlazak ne prazni blok;
+P12b abort i generacija uklonjeni; P13 skript van build tokena. Prvi prolaz ostavio P3 i P11 žive → dodati scenariji.
+P12a (samo abort uklonjen) preživljava: generacija je nezavisna brava.
+
+**SLEDEĆA KAPIJA.** Task 12 — Danas povezan sa kanonskom tablom.

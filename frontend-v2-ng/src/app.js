@@ -377,7 +377,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null, prijemPredmeta = null, analizaPredmeta = null, cekaDokument = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null, prijemPredmeta = null, analizaPredmeta = null, ziviPregled = null, cekaDokument = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -453,6 +453,7 @@
     $("odeljak-analiza").hidden = o !== "analiza";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
     if (o === "analiza" && analizaPredmeta) analizaPredmeta.aktiviraj();
+    if (o === "pregled" && ziviPregled) ziviPregled.aktiviraj();
     /* NS006: „Izvor" iz Analize otvara Dokumente sa izabranim dokumentom (isti predmet, već učitan). */
     if (o === "dokumenti" && cekaDokument) { var _dok = cekaDokument; cekaDokument = null; izaberiDokument(_dok); }
     if (o === "nacrt" && nacrtPredmeta) nacrtPredmeta.aktiviraj();
@@ -515,6 +516,7 @@
     if (naplataPredmeta) naplataPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "naplata");
     if (prijemPredmeta) prijemPredmeta.postavi(v.predmet);
     if (analizaPredmeta) analizaPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "analiza");
+    if (ziviPregled) ziviPregled.postavi(v.predmet, !!ruta && ruta.odeljak === "pregled");
     prikaziOdeljak();
   }
 
@@ -565,7 +567,7 @@
   }
 
   function prikaziDetalj(v) {
-    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); if (prijemPredmeta) prijemPredmeta.ocisti(); if (analizaPredmeta) analizaPredmeta.ocisti(); cekaDokument = null; return; }
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); if (prijemPredmeta) prijemPredmeta.ocisti(); if (analizaPredmeta) analizaPredmeta.ocisti(); if (ziviPregled) ziviPregled.ocisti(); cekaDokument = null; return; }
     if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
     if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
     if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
@@ -812,6 +814,9 @@
       cekaDokument = id;
       location.hash = adresaPredmeta(ruta.id, "dokumenti");
     } });
+    /* NS006 Task 11 — Pregled: šta se promenilo, šta traži pažnju, sledeći korak (samo čitanje, bez modela). */
+    ziviPregled = window.VxZiviPregled.napravi({ sesija: window.VxSesija, api: window.VxApi,
+      adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);

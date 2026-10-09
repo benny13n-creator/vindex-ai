@@ -167,7 +167,7 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
   const s = await scenario({ hash: `#/predmeti/${PA}` });
   await cekaj(s.p, () => !document.getElementById("odeljak-pregled").hidden);
   await s.p.waitForTimeout(300);
-  zapisi("cena", "Pregled ne poziva genome-v2", zahtevi(s, /genome-v2/).length === 0);
+  zapisi("cena", "Pregled ne čita pun Genome (samo promene, Task 11)", zahtevi(s, /genome-v2$/).length === 0 && zahtevi(s, /genome-v2\/promene$/).length === 1);
   await s.zatvori();
 }
 

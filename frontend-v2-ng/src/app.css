@@ -684,3 +684,10 @@ a.text-btn { text-decoration: none; }
 .an-dim { display: flex; flex-direction: column; gap: 2px; }
 .an-dim__value { color: var(--text-1); }
 .an-dim[data-stanje="DEGRADED"] .an-dim__value { color: var(--text-1); padding-left: var(--sp-2); border-left: 2px solid var(--attention); }
+
+/* NS006 Task 11 — Pregled: stanje predmeta (tri kolone na širokom, jedna ispod druge na uskom) */
+.zp__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); }
+.zp__col { min-width: 0; }
+.zp .an-list { max-width: none; }
+.zp-prio { flex: none; font-size: var(--fs-meta); color: var(--text-2); }
+.an-item[data-prioritet="critical"] .zp-prio { color: var(--text-1); font-weight: 600; padding-left: var(--sp-2); border-left: 2px solid var(--attention); }
