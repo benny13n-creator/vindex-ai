@@ -149,3 +149,12 @@ Lokalno: Node 24.15.0, Playwright Chromium, Python 3.x (pytest). Bez produkcije,
 - ADVERSARIAL: 4/4 ubijeno — tvrdnja o podsetniku mejlom; tvrdnja o automatskom prepoznavanju rokova; mreža bez pravila za redove; preimenovan/uklonjen korak. (Prvi pokušaj S1 nije primenjen — tekst mutacije nije odgovarao prelomu reda; ponovljen sa tačnim tekstom i ubijen.)
 - KNOWN LIMITATIONS: tvrdnje postaju tačne za korisnika tek kad se ova grana spoji i deployuje zajedno sa V2 NG (sajt i aplikacija idu istim deployem); čuvar tvrdnji je lista zabranjenih reči — tačnost pozitivnih rečenica je proverena ručno prema dokazima, ne automatski.
 - NEXT GATE: Task 13 — OCR dokazna kapija u Dockeru.
+
+## TASK 13 — OCR PROOF GATE IN DOCKER — BLOCKED (OKRUŽENJE), NIJE KVAR PROIZVODA
+- POKUŠANO: `docker` ne postoji (ni u bash PATH-u, ni Docker Desktop na `C:\Program Files\Docker`); `tesseract` ne postoji lokalno; WSL nema instaliranu Linux distribuciju. Instalacija Dockera/WSL-a je sistemska izmena (administrator, restart) — NIJE rađena bez foundera.
+- ŠTA JE IPAK IZMERENO (lokalno, bez stvarnog OCR motora): `tests/test_extractor_ocr.py`, `tests/test_extractor_image.py`, `tests/test_b3_ocr_bez_laznog_uspeha.py` → 14 passed, 1 skipped. Preskočen je JEDINI test sa stvarnim motorom: `test_b3_ocr_bez_laznog_uspeha.py:106` — „BLOCKED: nema tesseract/pytesseract/pdf2image/poppler“.
+- CI: `.github/workflows/production-runtime.yml` instalira `tesseract-ocr` i pokreće ceo pytest, ali SAMO na push u `main` i PR ka `main`. Ova grana nema PR (`gh` nije instaliran), pa CI dokaz za ovu granu NE POSTOJI. Rezultati CI-ja na `main` nisu čitani (bez `gh` i bez tokena; kredencijali nisu traženi).
+- STATUS: OCR = UNKNOWN (nije dokazan ni crven ni zelen). Pravilo misije „STOP ako je OCR crven zbog stvarnog kvara proizvoda“ se NE primenjuje — kvar nije izmeren.
+- POSLEDICA: Task 14 (Smart Intake + OCR UI) se NE radi — uslov „samo ako je Task 13 zelen“ nije ispunjen. Nivo A nije dostižan ove noći.
+- ŠTA FOUNDER MOŽE DA URADI: (a) otvoriti Draft PR ove grane ka `main` — `production-runtime.yml` će pokrenuti test sa stvarnim Tesseract-om; ili (b) na mašini sa Dockerom: `docker build -t vindex-ocr .` pa `docker run --rm vindex-ocr python -m pytest tests/test_b3_ocr_bez_laznog_uspeha.py -q -rs`.
+- NEXT GATE: Task 15 — završna adversarial integraciona kapija (Task 14 preskočen).
