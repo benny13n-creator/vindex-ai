@@ -43,10 +43,13 @@ async def test_kontekst_za_ai_returns_high_importance_memories_first():
     passthrough fixtures -- needed to prove desc=True actually changes output order."""
     from routers import firm_memory as fm
 
+    # RH001: kolone entity_type/entity_id su deo SELECT-a (granica poverljivosti ih proverava); prava baza ih vraća
+    # za upit `entity_type = 'sudija'`, a ovaj lažni upit ne filtrira, pa ih redovi moraju nositi sami.
+    _s = {"entity_type": "sudija", "entity_id": "Petrović"}
     rows = [
-        {"tip": "klijent_preferenca", "sadrzaj": "Niska vaznost fakt", "vaznost": "niska"},
-        {"tip": "sudija_obrazac", "sadrzaj": "Visoka vaznost fakt", "vaznost": "visoka"},
-        {"tip": "partner_odbijanje", "sadrzaj": "Normalna vaznost fakt", "vaznost": "normalna"},
+        {"tip": "klijent_preferenca", "sadrzaj": "Niska vaznost fakt", "vaznost": "niska", **_s},
+        {"tip": "sudija_obrazac", "sadrzaj": "Visoka vaznost fakt", "vaznost": "visoka", **_s},
+        {"tip": "partner_odbijanje", "sadrzaj": "Normalna vaznost fakt", "vaznost": "normalna", **_s},
     ]
 
     class _Query:

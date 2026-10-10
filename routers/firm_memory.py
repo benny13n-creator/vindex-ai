@@ -67,6 +67,29 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# RH001: članstvo u kancelariji NIJE pristup predmetu. Beleška vezana za predmet/klijenta vidi se samo uz kanonsku
+# autorizaciju (`shared/memorija_vidljivost` — isti vlasnik pravila kao NS008 Law Brain). Filtrira se PRE limita
+# rute (iz ograničenog većeg skupa), da ni broj vidljivih stavki ne zavisi od tuđih skrivenih beleški.
+_SKUP_ZA_FILTER = 1000
+
+
+def _vidljive(supa, uid: str, redovi: list) -> list:
+    from shared.memorija_vidljivost import vidljive_beleske
+    return vidljive_beleske(supa, uid, redovi)
+
+
+async def _vidljiv_red_ili_404(supa, uid: str, kancelarija_id, memorija_id: str, kolone: str) -> dict:
+    """Red memorije koji korisnik SME da vidi; tuđ predmetni/klijentski red = isti 404 kao nepostojeći."""
+    r = await asyncio.to_thread(
+        lambda: supa.table("memory_entries").select(kolone + ", entity_type, entity_id")
+            .eq("id", memorija_id).eq("kancelarija_id", kancelarija_id).eq("aktivan", True)
+            .maybe_single().execute())
+    red = getattr(r, "data", None)
+    if not red or not await asyncio.to_thread(_vidljive, supa, uid, [red]):
+        raise HTTPException(status_code=404, detail="Memorija nije pronađena.")
+    return red
+
+
 def _apply_trust(memorije: list[dict], supa, kancelarija_id: str) -> list[dict]:
     """
     Annotates memory entries with trust metadata and auto-marks expired ones.
@@ -245,9 +268,9 @@ async def pretrazi_memoriju(
             qb = qb.eq("entity_id", entity_id)
 
         r = await asyncio.to_thread(
-            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(min(limit, 100)).execute()
+            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(_SKUP_ZA_FILTER).execute()
         )
-        memorije = r.data or []
+        memorije = (await asyncio.to_thread(_vidljive, supa, uid, r.data or []))[:min(limit, 100)]
 
         # Lokalno filtriranje po q (case-insensitive, srpski)
         if q:
@@ -295,16 +318,17 @@ async def kontekst_za_ai(
         try:
             r = await asyncio.to_thread(
                 lambda: supa.table("memory_entries")
-                    .select("tip, sadrzaj, vaznost")
+                    .select("tip, sadrzaj, vaznost, entity_type, entity_id")
                     .eq("kancelarija_id", kancelarija_id)
                     .eq("entity_id", entity_id)
                     .eq("entity_type", entity_type)
                     .eq("aktivan", True)
                     .order("vaznost", desc=True)
-                    .limit(10)
+                    .limit(_SKUP_ZA_FILTER)
                     .execute()
             )
-            return r.data or []
+            # select bez entity_id/entity_type ne bi mogao da se proveri → čitaju se uz sadržaj
+            return (await asyncio.to_thread(_vidljive, supa, uid, r.data or []))[:10]
         except Exception:
             return []
 
@@ -527,19 +551,19 @@ async def get_klijent_profil(
             ),
             asyncio.to_thread(
                 lambda: supa.table("memory_entries")
-                    .select("tip, sadrzaj, vaznost, created_at")
+                    .select("tip, sadrzaj, vaznost, created_at, entity_type, entity_id")
                     .eq("kancelarija_id", kancelarija_id)
                     .eq("entity_type", "klijent")
                     .ilike("entity_id", f"%{klijent_ime}%")
                     .eq("aktivan", True)
                     .order("vaznost", desc=True)
-                    .limit(20)
+                    .limit(_SKUP_ZA_FILTER)
                     .execute()
             ),
         )
         return {
             "profil":   (cm_r.data or [None])[0],
-            "memorije": mem_r.data or [],
+            "memorije": (await asyncio.to_thread(_vidljive, supa, uid, mem_r.data or []))[:20],
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -655,6 +679,7 @@ async def obrisi_memoriju(
     kancelarija_id = await _get_kancelarija_id(supa, uid)
 
     try:
+        await _vidljiv_red_ili_404(supa, uid, kancelarija_id, memorija_id, "id")
         r = await asyncio.to_thread(
             lambda: supa.table("memory_entries")
                 .update({"aktivan": False, "updated_at": _now()})
@@ -695,9 +720,10 @@ async def sve_memorije(
             qb = qb.eq("entity_type", entity_type)
 
         r = await asyncio.to_thread(
-            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(min(limit, 200)).execute()
+            lambda: qb.order("vaznost", desc=True).order("created_at", desc=True).limit(_SKUP_ZA_FILTER).execute()
         )
-        memorije = _apply_trust(r.data or [], _get_supa(), kancelarija_id)
+        vidljive = (await asyncio.to_thread(_vidljive, supa, uid, r.data or []))[:min(limit, 200)]
+        memorije = _apply_trust(vidljive, _get_supa(), kancelarija_id)
 
         by_type: dict[str, int] = {}
         for m in memorije:
@@ -731,19 +757,8 @@ async def potvrdi_memoriju(
         raise HTTPException(status_code=403, detail="Niste član nijedne kancelarije.")
 
     try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("memory_entries")
-                .select("id, confidence, potvrde_count, potvrdjeno_od, zastarela")
-                .eq("id", memorija_id)
-                .eq("kancelarija_id", kancelarija_id)
-                .eq("aktivan", True)
-                .maybe_single()
-                .execute()
-        )
-        if not r.data:
-            raise HTTPException(status_code=404, detail="Memorija nije pronađena.")
-
-        entry = r.data
+        entry = await _vidljiv_red_ili_404(supa, uid, kancelarija_id, memorija_id,
+                                           "id, confidence, potvrde_count, potvrdjeno_od, zastarela")
         potvrdjeno_od: list = list(entry.get("potvrdjeno_od") or [])
         potvrde_count: int  = int(entry.get("potvrde_count") or 0)
         confidence:   float = float(entry.get("confidence") or 1.0)
