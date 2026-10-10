@@ -37,7 +37,7 @@ def _svet(sa_a=True):
         "memory_entries": [{"id": "m-opsta", "kancelarija_id": K1, "user_id": "uid-A", "entity_type": "sudija",
                             "entity_id": "Petrović", "entity_name": "Sudija Petrović", "tip": "obrazac",
                             "sadrzaj": "Sudija traži tabelu rokova.", "vaznost": "normalna", "aktivan": True,
-                            "izvor": "manual", "potvrde_count": 1, "created_at": "2026-09-01T00:00:00+00:00"}],
+                            "izvor": "manual", "potvrde_count": 1, "zastarela": False, "confidence": 0.9, "created_at": "2026-09-01T00:00:00+00:00"}],
         "memory_graph_edges": [{"id": "g-opsta", "kancelarija_id": K1, "from_type": "argument", "from_id": "rok",
                                 "from_naziv": "Propušten rok", "to_type": "sudija", "to_id": "Petrović",
                                 "to_naziv": "Sudija Petrović", "relacija": "koristio_argument", "predmet_id": None,
@@ -51,10 +51,10 @@ def _svet(sa_a=True):
         t["memory_entries"] += [
             {"id": "m-pred", "kancelarija_id": K1, "user_id": "uid-A", "entity_type": "predmet", "entity_id": PA,
              "entity_name": TAJNO[0], "tip": "napomena", "sadrzaj": TAJNO[1], "vaznost": "visoka", "aktivan": True,
-             "izvor": "manual", "potvrde_count": 1, "created_at": "2026-09-02T00:00:00+00:00"},
+             "izvor": "manual", "potvrde_count": 1, "zastarela": False, "confidence": 0.9, "created_at": "2026-09-02T00:00:00+00:00"},
             {"id": "m-klij", "kancelarija_id": K1, "user_id": "uid-A", "entity_type": "klijent", "entity_id": KL_A,
              "entity_name": "Marković", "tip": "preferencija", "sadrzaj": TAJNO[2], "vaznost": "visoka", "aktivan": True,
-             "izvor": "manual", "potvrde_count": 1, "created_at": "2026-09-03T00:00:00+00:00"},
+             "izvor": "manual", "potvrde_count": 1, "zastarela": False, "confidence": 0.9, "created_at": "2026-09-03T00:00:00+00:00"},
         ]
         t["memory_graph_edges"].append(
             {"id": "g-tajna", "kancelarija_id": K1, "from_type": "argument", "from_id": "zast", "from_naziv": TAJNO[3],
@@ -203,3 +203,22 @@ def test_delegiranje_otvara_predmetnu_belesku_a_opoziv_je_zatvara(svet):
     b.tabele["predmet_delegiranja"][0]["status"] = "opozvano"
     ids = {m["id"] for m in k.get("/api/firma-memorija/sve", headers=H("B")).json()["memorije"]}
     assert ids == {"m-opsta"}
+
+
+def test_chat_kontekst_kolege_bez_tudjih_beleski(svet):
+    """`api._fetch_firm_memory_context` ubacuje memoriju u SISTEMSKU poruku chata. B-ov kontekst ne sme da sadrži
+    A-ove predmetne/klijentske beleške i mora biti isti sa i bez njih; A-ov sadrži svoje."""
+    import asyncio
+    import api
+    napravi, _ = svet
+    napravi(True)
+    sa = asyncio.run(api._fetch_firm_memory_context("uid-B", pitanje="klijent popušta predmet Petrović"))
+    za_a = asyncio.run(api._fetch_firm_memory_context("uid-A", pitanje="klijent popušta predmet Petrović"))
+    napravi(False)
+    bez = asyncio.run(api._fetch_firm_memory_context("uid-B", pitanje="klijent popušta predmet Petrović"))
+    import re
+    bez_nonce = lambda x: re.sub(r"_[0-9a-f]{12}>", "_N>", x or "")     # nasumičan omotač protiv injekcije
+    assert bez_nonce(sa) == bez_nonce(bez) and "Sudija traži tabelu rokova." in (sa or "")
+    for t in TAJNO:
+        assert t not in (sa or ""), t
+    assert TAJNO[1] in (za_a or "") and TAJNO[2] in (za_a or "")

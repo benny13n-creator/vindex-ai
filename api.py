@@ -1443,15 +1443,15 @@ async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) ->
 
         mem_r, prof_r = await asyncio.gather(
             asyncio.to_thread(
-                # Dohvatamo više (20) pa filtriramo/sortiramo lokalno po relevantnosti
+                # Dohvatamo više pa filtriramo (granica poverljivosti), uzimamo 20 i sortiramo lokalno po relevantnosti
                 lambda: supa.table("memory_entries")
-                    .select("sadrzaj,entity_name,entity_type,confidence,vaznost")
+                    .select("sadrzaj,entity_name,entity_type,entity_id,confidence,vaznost")
                     .eq("kancelarija_id", kanc_id)
                     .eq("aktivan", True)
                     .eq("zastarela", False)
                     .gte("confidence", 0.5)
                     .order("confidence", desc=True)
-                    .limit(20)
+                    .limit(1000)
                     .execute()
             ),
             asyncio.to_thread(
@@ -1464,7 +1464,10 @@ async def _fetch_firm_memory_context(uid: str, pitanje: Optional[str] = None) ->
             ),
         )
 
-        all_memories = mem_r.data or []
+        # RH001: beleška vezana za tuđ predmet/klijenta ne sme u AI prompt kolege (isti vlasnik pravila kao rute
+        # /api/firma-memorija i Law Brain). Greška ACL-a → izuzetak → spoljni except → nema memorije (zatvoreno).
+        from shared.memorija_vidljivost import vidljive_beleske as _vidljive_beleske
+        all_memories = (await asyncio.to_thread(_vidljive_beleske, supa, uid, mem_r.data or []))[:20]
         profil = prof_r.data
 
         # Relevantni retrieval: ključne reči iz pitanja → rankiraj memorije
