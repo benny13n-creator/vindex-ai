@@ -812,11 +812,20 @@
     /* NS005 Task 14 — prijem dokumenata (Smart Intake + OCR); posle prikačivanja predmet se ponovo čita (lista dokumenata). */
     prijemPredmeta = window.VxPrijemPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
     /* NS006 — Analiza (samo čitanje, bez modela). */
-    analizaPredmeta = window.VxAnalizaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, otvoriDokument: function (id) {
+    var analizaGenoma = window.VxAnalizaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, otvoriDokument: function (id) {
       if (!ruta || !ruta.id) return;
       cekaDokument = id;
       location.hash = adresaPredmeta(ruta.id, "dokumenti");
     } });
+    /* NS008 Task 14 — sekundarna sekcija „Iskustvo kancelarije" u Analizi (čitanje bez modela; sinteza samo na klik). */
+    var iskustvoPredmeta = window.VxLawBrain.predmet({ sesija: window.VxSesija, api: window.VxApi });
+    analizaPredmeta = {
+      postavi: function (p, a) { analizaGenoma.postavi(p, a); iskustvoPredmeta.postavi(p, a); },
+      aktiviraj: function () { analizaGenoma.aktiviraj(); iskustvoPredmeta.aktiviraj(); },
+      ocisti: function () { analizaGenoma.ocisti(); iskustvoPredmeta.ocisti(); },
+      osvezi: function () { analizaGenoma.osvezi(); },
+      zaustavi: function () { analizaGenoma.zaustavi(); iskustvoPredmeta.zaustavi(); },
+    };
     /* NS006 Task 11 — Pregled: šta se promenilo, šta traži pažnju, sledeći korak (samo čitanje, bez modela). */
     ziviPregled = window.VxZiviPregled.napravi({ sesija: window.VxSesija, api: window.VxApi,
       adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); },
@@ -855,7 +864,14 @@
       location.hash = adresaPredmeta(id, "pregled");
     } });
     pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
-    znanje = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    /* NS008 Task 13 — Znanje: sudska praksa i stavovi (NS005) + iskustvo kancelarije (Law Brain, čitanje bez modela). */
+    var znanjePrakse = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    var znanjeKancelarije = window.VxLawBrain.znanje({ sesija: window.VxSesija, api: window.VxApi });
+    znanje = {
+      otvori: function () { znanjePrakse.otvori(); znanjeKancelarije.otvori(); },
+      zatvori: function () { znanjePrakse.zatvori(); znanjeKancelarije.zatvori(); },
+      zaustavi: function () { znanjePrakse.zaustavi(); znanjeKancelarije.zaustavi(); },
+    };
     kancelarija = window.VxKancelarija.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* Nazivi predmeta bez ročišta: iz već učitanog registra (isti korisnik; registar se prazni pri promeni sesije). */
     var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,

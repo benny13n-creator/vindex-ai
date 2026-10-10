@@ -94,7 +94,19 @@ def dozvoljeni_predmeti(supa, user_id: str) -> list:
     try:
         deleg = (supa.table("predmet_delegiranja").select("predmet_id")
                  .eq("na_user_id", user_id).eq("status", "aktivno").execute())
-        ids += [r["predmet_id"] for r in (deleg.data or []) if r.get("predmet_id")]
+        delegirani = sorted({str(r["predmet_id"]) for r in (deleg.data or []) if r.get("predmet_id")})
+        # NS008 Task 21: tombstone (BETA-DEL-001) važi i za DELEGIRANE predmete — ranije se filtrirao samo na
+        # vlasničkoj grani, pa je predmet u brisanju ostajao vidljiv delegatu (i u njegovom RAG filteru).
+        if delegirani:
+            try:
+                zivi = (supa.table("predmeti").select("id").in_("id", delegirani)
+                        .is_("brisanje_zapoceto", "null").execute())
+                delegirani = [r["id"] for r in (zivi.data or []) if r.get("id")]
+            except Exception as e2:
+                from shared.audit_immutable import _is_missing_column_error
+                if not _is_missing_column_error(e2):
+                    raise
+        ids += delegirani
     except Exception as e:
         # Delegiranje je dodatak, ne osnov. Ako ta tabela zakaže, korisnik
         # dobija uži skup — nikad širi. Fail-closed u pravom smeru.

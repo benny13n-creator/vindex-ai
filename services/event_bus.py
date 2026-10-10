@@ -651,6 +651,39 @@ async def emit_durable(
         await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row, **_opts).execute())
 
 
+# NS008 Task 3 — namespace za determinističan identitet prelaza predmeta u završni status. Različit od
+# svih ostalih porodica događaja, pa se identiteti nikad ne sudaraju.
+_NS_MATTER_TERMINAL = uuid.UUID("6f5e1b3a-0000-4000-8000-000000000008")
+
+
+def matter_terminal_event_id(predmet_id: str, novi_status: str, prelaz_ref: str) -> str:
+    """Isti PRELAZ (isti predmet, isti završni status, isti `prelaz_ref` = `updated_at` reda posle upisa
+    koji je napravio prelaz) = isti `events.id` → ponovljena emisija istog prelaza je no-op. Novi prelaz
+    posle ponovnog otvaranja ima novi `updated_at`, dakle novi događaj."""
+    return str(uuid.uuid5(_NS_MATTER_TERMINAL, f"MatterBecameTerminal:{predmet_id}:{novi_status}:{prelaz_ref}"))
+
+
+async def emit_matter_terminal(
+    *, user_id: str, predmet_id: str, novi_status: str, prethodni_status: "str | None",
+    prelaz_ref: str, trigger: str, supa=None,
+) -> bool:
+    """JEDINA tačka trajne emisije MATTER_BECAME_TERMINAL. Emituje SAMO stvaran prelaz: novi status je
+    završni, a prethodni nije bio isti (PATCH istog statusa nije prelaz). Pozivalac je već upisao status
+    (događaj opisuje ono što se desilo). Ne guta izuzetke — fail-soft je posao pozivaoca (kao emit_durable).
+    Vraća True ako je događaj predat outbox-u."""
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA
+    if novi_status not in TERMINALNI_STATUSI_PREDMETA or prethodni_status == novi_status:
+        return False
+    if not predmet_id or not prelaz_ref:
+        return False
+    await emit_durable(
+        EventType.MATTER_BECAME_TERMINAL, user_id, predmet_id,
+        {"trigger": trigger, "novi_status": novi_status, "prethodni_status": prethodni_status},
+        supa=supa, event_id=matter_terminal_event_id(predmet_id, novi_status, prelaz_ref),
+    )
+    return True
+
+
 # Fixed, never-reused namespace for SOURCE_INVALIDATED's own deterministic
 # event_id derivation -- same idiom as routers/smart_intake.py's own
 # _NS_VINDEX_EVENTS for NEW_CLIENT_LINKED, a DIFFERENT fixed constant (not

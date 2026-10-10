@@ -301,6 +301,26 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
 
     entiteti_view = _entiteti_view(entities)
 
+    # NS008 Task 16 — ispravke advokata iz ISTE kancelarije kao deterministički PREDLOG (ADR-0006), samo za
+    # institucionalne entitete (sudija, sud). Vrednost se ne menja; pad pregleda ne obara prikaz posla.
+    predlozi_stanje, _isp = "OK", {}
+    try:
+        from services.law_brain_ispravke import ispravke_kancelarije, predlog_za
+        _isp = await asyncio.to_thread(ispravke_kancelarije, _get_supa(), user["user_id"])
+    except Exception as _pe:
+        predlozi_stanje = "DEGRADED"
+        logger.warning("[SMART_INTAKE] predlozi ispravki nisu pročitani: %s", type(_pe).__name__)
+
+    def _sa_predlozima(view: list[dict], ents: list[dict]) -> list[dict]:
+        if _isp:
+            po_id = {e["id"]: e for e in ents}
+            for v in view:
+                p = predlog_za(po_id.get(v["entity_id"], {}), _isp)
+                if p:
+                    v["predlog_ispravke"] = p
+        return view
+    entiteti_view = _sa_predlozima(entiteti_view, entities)
+
     # Program Intake Sprint 003 (2026-08-05) -- Sprint 003 Fork A confirmed
     # a live, permanent, two-different-Serbian-labels contradiction: this
     # endpoint keeps serving intake_documents.document_type (Pipeline B's
@@ -331,6 +351,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
             ) if already_finalized else None,
         } if document else None,
         "entiteti": entiteti_view,
+        "predlozi_ispravki_stanje": predlozi_stanje,
         "potrebna_provera": {
             "razlog": review["reason"],
             "polja": review["low_confidence_fields"],
@@ -346,7 +367,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
             "tip": d["document"]["document_type"],
             "tip_pouzdanost": d["document"]["classification_confidence"],
             "ocr_koriscen": d["document"]["ocr_used"],
-            "entiteti": _entiteti_view(d["entities"]),
+            "entiteti": _sa_predlozima(_entiteti_view(d["entities"]), d["entities"]),
             "potrebna_provera": {
                 "razlog": d["review"]["reason"],
                 "polja": d["review"]["low_confidence_fields"],

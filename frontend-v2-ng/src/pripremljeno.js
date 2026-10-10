@@ -182,6 +182,7 @@
       stanje("vpr-stanje", null); stanje("vpr-poruka", null);
       if ($("vpr-sadrzaj")) $("vpr-sadrzaj").hidden = true;
       if ($("vpr-odluka-blok")) $("vpr-odluka-blok").hidden = true;
+      if ($("vpr-znanje-blok")) { $("vpr-znanje-blok").hidden = true; stanje("vpr-znanje-poruka", null); $("vpr-predlozi-znanje").disabled = false; }
       if ($("vpr-razlog-odbijanja")) $("vpr-razlog-odbijanja").value = "";
       if ($("vpr-naslov")) $("vpr-naslov").textContent = "Pripremljeni rad";
     }
@@ -203,6 +204,24 @@
       $("vpr-sadrzaj").hidden = false;
       $("vpr-odluka-blok").hidden = w.status !== "READY_FOR_REVIEW";
       $("vpr-prihvati").disabled = false; $("vpr-odbaci").disabled = false;
+      /* NS008 Task 15 — samo prihvaćen rad sme da se PREDLOŽI kao znanje (staging + advokatska overa). */
+      if ($("vpr-znanje-blok")) $("vpr-znanje-blok").hidden = w.status !== "ACCEPTED";
+    }
+
+    var predlazem = false;
+    async function predloziZnanje() {
+      if (!otvoren || predlazem) return;
+      var moja = gen, id = otvoren.id, korisnik = otvoren.korisnik;
+      predlazem = true; $("vpr-predlozi-znanje").disabled = true;
+      stanje("vpr-znanje-poruka", "ucitavanje", "Šaljem rad na advokatsku overu…");
+      var r = await api.send("/api/law-brain/rad/" + encodeURIComponent(id) + "/predlozi-znanje", { token: sesija.token(),
+        oblik: function (x) { return x && typeof x.staging_id === "string"; } });
+      predlazem = false;
+      if (moja !== gen || !otvoren || otvoren.id !== id || sesija.stanje().korisnik !== korisnik) return;
+      if (r.ok) { stanje("vpr-znanje-poruka", "ok", r.podaci.novo ? "Rad čeka advokatsku overu. Znanje kancelarije postaje tek posle odobrenja." : "Ovaj rad je već predložen i čeka overu (ili je obrađen)."); return; }
+      $("vpr-predlozi-znanje").disabled = false;
+      if (r.greska && r.greska.ishodNepoznat) { stanje("vpr-znanje-poruka", "nepoznato", "Ishod nije poznat — rad je možda već predložen. Ponovni pokušaj neće napraviti duplikat."); return; }
+      stanje("vpr-znanje-poruka", "greska", r.status === 409 ? "Kao znanje može se predložiti samo prihvaćen rad sa sadržajem." : "Predlog nije sačuvan zbog greške. Pokušajte ponovo.");
     }
 
     async function otvori(id) {
@@ -244,6 +263,7 @@
       if (r.ok) {
         stanje("vpr-poruka", "ok", (r.podaci.status === "ACCEPTED" ? "Prihvaćeno." : "Odbačeno.") + " Ništa nije poslato niti promenjeno u predmetu.");
         $("vpr-odluka-blok").hidden = true;
+        if ($("vpr-znanje-blok")) $("vpr-znanje-blok").hidden = r.podaci.status !== "ACCEPTED";
         return;
       }
       if (r.greska && r.greska.ishodNepoznat) { stanje("vpr-poruka", "nepoznato", "Ishod odluke nije poznat — ponovo učitavam stanje."); await otvori(id); stanje("vpr-poruka", "nepoznato", "Ishod prethodne odluke nije bio poznat; prikazano je trenutno stanje."); return; }
@@ -256,6 +276,7 @@
 
     if ($("vpr-prihvati")) $("vpr-prihvati").addEventListener("click", function () { odluci("accept"); });
     if ($("vpr-odbaci")) $("vpr-odbaci").addEventListener("click", function () { odluci("reject"); });
+    if ($("vpr-predlozi-znanje")) $("vpr-predlozi-znanje").addEventListener("click", predloziZnanje);
     var odjavi = sesija.naPromenu(function (novo, staro) { if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) zatvori(); });
 
     return { prikaziListu: prikaziListu, otvori: otvori, zatvori: zatvori, zaustavi: function () { odjavi(); zatvori(); } };

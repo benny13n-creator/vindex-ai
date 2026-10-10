@@ -562,7 +562,9 @@ class LearningEngine:
                             "broj_predmeta":   ll.get("broj_predmeta", 1),
                             "period_od":       ll.get("period_od"),
                             "period_do":       ll.get("period_do"),
-                            "status_lekcije":  ll.get("status_lekcije", "predlog_ai"),
+                            # NS008 Task 7: AI lekcija UVEK počinje kao kandidat; samo izričita ljudska
+                            # potvrda (PATCH /api/learning/lessons/{id}/potvrdi) je čini usvojenom praksom.
+                            "status_lekcije":  "predlog_ai",
                         }).execute()
                     )
                     count += 1
