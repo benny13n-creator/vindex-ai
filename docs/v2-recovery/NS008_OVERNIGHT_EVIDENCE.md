@@ -536,3 +536,21 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 8 passed (all NS008 backend: 151 passed). Playwright `live-law-brain` 38/38.
 - MUTATION RESULT: 5/5 killed (approved = CURRENT, confirmed lesson = CURRENT, legal currency asserted, no citation detection, memory expiry ignored).
 - NEXT GATE: Task 18.
+
+---
+
+## TASK 18 — NS007 AUTONOMY CONSUMES LAW BRAIN — **SKIPPED (by design)**
+
+- RULE: "If safe integration is not clean: SKIP Task 18. Do not contaminate stable autonomy architecture."
+- EVIDENCE (why not clean):
+  1. NS007 work-item validity is version-gated: `dedupe_key = HEARING_PREP:<rociste>:<verzija_rocista>:g<genome verzija>`, and the executor refuses stale items when the hearing version or `source_version` (Genome) changed (`hearing_prep.py:153-154, 360, 376`). Law Brain references (verified artifacts, confirmed lessons, human outcomes) have **no version in that key**.
+  2. A product prepared with an office artifact would therefore stay READY/ACCEPTED after that artifact is rejected or revoked (Task 21) or its lesson is rejected. There is no SUPERSEDED path for brain changes, which is exactly the "learn a false lesson once and repeat it" failure.
+  3. Fixing that requires changing NS007's planner dedupe key, `source_version` semantics, `_poznati_idjevi` reference validation, the prompt contract, and the review UI's reference rendering (a new reference type). That touches all of NS007's stable lifecycle.
+- WHAT EXISTS INSTEAD (safe path): the lawyer gets office experience next to the matter (Task 14), with the explicit grounded synthesis (Task 12) on demand.
+- DESIGN FOR A FUTURE SPRINT (not implemented):
+  - Add a `law_brain_fingerprint` (sorted ids + states of the ≤5 trusted references used) to `source_refs`, and include it in the dedupe key.
+  - The planner recomputes it, so a change → SUPERSEDED + replan.
+  - Validation accepts `lb:<kind>:<id>` refs only from that exact set.
+  - Only HUMAN_CONFIRMED_OUTCOME and LAWYER_VERIFIED_ARTIFACT, authorized via `rag_acl` for `item.user_id`. No extra model call (deterministic Task 11 read).
+- COMMIT: none (no code change).
+- NEXT GATE: Task 19.
