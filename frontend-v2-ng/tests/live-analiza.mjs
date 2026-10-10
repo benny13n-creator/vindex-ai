@@ -144,8 +144,9 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
     e.metrikeStavke.length > 0 && e.metrikeStavke.every(x => /NIJE verovatnoća ishoda/.test(x) && !/verovatnoća uspeha|šans/i.test(x)) && e.metrikeStavke.some(x => /^Snaga predmeta \(analitička ocena, 0–100\): \d+/.test(x)) && !e.metrikeStavke.some(x => /[a-z]_[a-z]+:/.test(x)), e.metrikeStavke.join(" | ").slice(0, 200));
   const _bez = (e.ceo + " " + e.sav).replace(/(nisu|nije|ni jedan nije|nijedan pokazatelj nije) (verovatnoća|predviđanje) ishoda/gi, "");
   zapisi("istina", "nigde reči o šansi/verovatnoći uspeha", !ZABRANJENO.test(_bez), (_bez.match(ZABRANJENO) || [""])[0]);
-  const DOZVOLJENO = [/^\/api\/predmeti$/, /^\/api\/predmeti\/[^/]+$/, /^\/api\/predmeti\/[^/]+\/dokumenti$/, /^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/];
-  const visak = s.f.zahtevi.filter(z => z.putanja.startsWith("/api/") && !DOZVOLJENO.some(re => re.test(z.putanja)));
+  // NS008 Task 14: Analiza čita i kontekst Law Brain-a — SAMO GET (bez modela i kredita); sinteza (/sinteza) nije dozvoljena.
+  const DOZVOLJENO = [/^\/api\/predmeti$/, /^\/api\/predmeti\/[^/]+$/, /^\/api\/predmeti\/[^/]+\/dokumenti$/, /^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/, /^\/api\/law-brain\/predmeti\/[^/]+$/];
+  const visak = s.f.zahtevi.filter(z => z.putanja.startsWith("/api/") && (!DOZVOLJENO.some(re => re.test(z.putanja)) || (z.putanja.startsWith("/api/law-brain/") && z.metod !== "GET")));
   zapisi("cena", "otvaranje Analize ne poziva ništa van ugovora (nema refresh-a, analize ni modela)", visak.length === 0, visak.map(z => z.metod + " " + z.putanja).join(","));
   zapisi("cena", "otvaranje Analize = tačno 2 GET (genome-v2 + promene), 0 upisa",
     zahtevi(s, /genome-v2$/, "GET").length === 1 && zahtevi(s, /genome-v2\/promene$/, "GET").length === 1 && s.f.zahtevi.every(z => z.metod === "GET"),

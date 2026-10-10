@@ -138,6 +138,84 @@ const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
   await s.zatvori();
 }
 
+// ── Predmet → Analiza → Iskustvo kancelarije (Task 14) ──
+const ANALIZA = (pid) => `#/predmeti/${encodeURIComponent(pid)}/analiza`;
+{
+  const s = await scenario({ hash: ANALIZA(PA_CUR) });
+  const ok = await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  zapisi("predmet", "Analiza učitava iskustvo kancelarije kao sekundarnu sekciju", ok);
+  const r = await s.p.evaluate(() => {
+    const li = (id) => [...document.querySelectorAll("#" + id + " > .an-item")].map(x => x.innerText);
+    return { sl: li("lbp-slicni"), rad: li("lbp-radovi"), lek: li("lbp-lekcije"), is: li("lbp-ishodi"), mem: li("lbp-memorija"),
+      prazno: !document.getElementById("lbp-prazno").hidden, tabovi: [...document.querySelectorAll(".matter__tabs a, [role=tab]")].map(a => a.textContent.trim()),
+      ids: [...document.querySelectorAll("[id]")].map(e => e.id) };
+  });
+  zapisi("predmet", "sličan raniji predmet sa razlogom i ljudskim ishodom",
+    r.sl.length === 1 && /Petrović protiv Gradnja Invest DOO/.test(r.sl[0]) && /Sličan jer:/.test(r.sl[0]) && /Ishod \(uneo advokat\): nagodba/.test(r.sl[0]), r.sl[0]);
+  zapisi("predmet", "overen rad, potvrđena lekcija, opis ishoda sa imeniocem",
+    r.rad.length === 1 && /Overio advokat/.test(r.rad[0]) && r.lek.length === 1 && r.is.some(x => /Veličina uzorka: 1/.test(x)) && !r.is.join().includes("%"));
+  zapisi("predmet", "nema „nema iskustva” kada iskustvo postoji", r.prazno === false);
+  zapisi("predmet", "nema duplih ID-eva", new Set(r.ids).size === r.ids.length);
+  zapisi("trošak", "otvaranje Analize: 1 GET konteksta, 0 sinteza",
+    lb(s).length === 1 && lb(s)[0].metod === "GET" && lb(s)[0].putanja === `/api/law-brain/predmeti/${PA_CUR}`, JSON.stringify(lb(s).map(z => z.metod + " " + z.putanja)));
+
+  await s.p.click("#lbp-analiziraj");
+  const gotovo = await cekaj(s.p, () => document.querySelectorAll("#lbp-sinteza > .an-item").length > 0);
+  const sin = await s.p.evaluate(() => ({ t: [...document.querySelectorAll("#lbp-sinteza > .an-item")].map(x => ({ t: x.innerText, v: x.dataset.vrsta })),
+    st: document.getElementById("lbp-sinteza-stanje").textContent }));
+  zapisi("sinteza", "izričit klik → tvrdnje sa izvorima i vrstom; odbačene nisu prikazane",
+    gotovo && sin.t.length === 3 && sin.t.every(x => /izvori: R\d/.test(x.t)) && !sin.t.some(x => /80%|Šansa|Izmišljen/.test(x.t))
+      && /Odbačeno tvrdnji bez izvora: 2/.test(sin.st) && /nije pravni savet/i.test(sin.st), JSON.stringify(sin).slice(0, 300));
+  const posle = lb(s).filter(z => z.metod === "POST");
+  zapisi("sinteza", "tačno 1 POST sinteze sa Idempotency-Key",
+    posle.length === 1 && posle[0].putanja === `/api/law-brain/predmeti/${PA_CUR}/sinteza`);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: ANALIZA(PB_CUR), korisnik: "kB", token: TB });
+  await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  const t = await tekstStranice(s.p);
+  zapisi("predmet", "B: iskreno „nema proverenog iskustva”, bez A-ovih podataka",
+    /kancelarija još nema proverenog iskustva/.test(t) && !/Petrović protiv/.test(t) && !/nagodba/.test(t) && !/Pribaviti/.test(t));
+  await s.p.click("#lbp-analiziraj");
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("lbp-sinteza-stanje"); return !n.hidden && n.dataset.stanje === "prazno"; });
+  const st = await s.p.evaluate(() => document.getElementById("lbp-sinteza-stanje").textContent);
+  zapisi("sinteza", "bez osnova → poruka, bez tvrdnji (model nije pozvan)", ok && /nema proverenog iskustva/i.test(st), st);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: ANALIZA(PA_CUR), kuke: { oznaka: "#degradirano" } });
+  await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  const st = await s.p.evaluate(() => { const n = document.getElementById("lbp-mem-stanje"); return n.hidden ? null : n.dataset.stanje + ":" + n.textContent; });
+  zapisi("stanja", "beleške pale u predmetu → nedostupno, ne prazno", !!st && st.startsWith("greska:") && /Nije dostupno/.test(st), st);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: ANALIZA(PA_CUR), kuke: { pre: ({ metod }) => metod === "POST" ? { status: 503, telo: { detail: "x" } } : null } });
+  await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  await s.p.click("#lbp-analiziraj");
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("lbp-sinteza-stanje"); return !n.hidden && n.dataset.stanje === "greska"; });
+  const st = await s.p.evaluate(() => document.getElementById("lbp-sinteza-stanje").textContent);
+  zapisi("sinteza", "503 → „Analiza nije izvršena. Kredit nije potrošen.”", ok && /Kredit nije potrošen/.test(st), st);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: ANALIZA(PA_CUR), kuke: { pre: ({ metod }) => metod === "POST" ? { status: 500, telo: { detail: "x" } } : null } });
+  await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  await s.p.click("#lbp-analiziraj");
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("lbp-sinteza-stanje"); return !n.hidden && n.dataset.stanje === "greska"; });
+  const st = await s.p.evaluate(() => document.getElementById("lbp-sinteza-stanje").textContent);
+  zapisi("sinteza", "500 → „ishod nije poznat” (ne obećava da kredit nije potrošen)", ok && /Ishod analize nije poznat/.test(st) && !/Kredit nije/.test(st), st);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: ANALIZA(PA_CUR), w: 390, h: 844, tema: "light" });
+  await cekaj(s.p, () => !document.getElementById("lbp-sadrzaj").hidden);
+  const preliv = await s.p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  zapisi("raspored", "Analiza 390px light: bez horizontalnog prelivanja", preliv <= 0, String(preliv));
+  await s.zatvori();
+}
+
 // ── Znanje: svetla tema + mobilni ──
 for (const [w, h, tema] of [[390, 844, "light"], [1440, 900, "light"]]) {
   const s = await scenario({ w, h, tema });

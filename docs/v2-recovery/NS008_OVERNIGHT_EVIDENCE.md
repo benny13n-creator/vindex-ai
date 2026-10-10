@@ -444,3 +444,26 @@ NEXT GATE: Task 1 — canonical contract.
   - Found while building the fixture and fixed: Serbian plural in descriptive sentences ("1 relevantnih ranijih predmet" → "1 relevantan raniji predmet"; 2–4 / 5+ forms; new parametrized test).
 - MUTATION RESULT: 4/4 killed (DEGRADED shown as empty, note without its trust label, filter that sends a request, candidate lessons shown as guidance).
 - NEXT GATE: Task 14.
+
+---
+
+## TASK 14 — MATTER CONTEXT: "ISKUSTVO KANCELARIJE"
+
+- DECISION: no new primary tab. A secondary section `#lbp-blok` inside the existing Matter → Analiza body, placed after the Genome content and outside `#an-sadrzaj`, so it loads independently even when the Genome read fails. It is rendered by `VxLawBrain.predmet` and wired as a composite in `app.js`; `analizaPredmeta` delegates `postavi/aktiviraj/ocisti` to both the NS006 Genome analysis and the Law Brain section.
+- CONTENT:
+  - Similar prior authorized matters, each with its "Sličan jer: …" reason and human outcome (or "Ishod nije zabeležen"). A delegated colleague matter is marked.
+  - Verified internal work, confirmed lessons, descriptive outcome history with a small-sample note, and office notes (labelled).
+  - With no trusted knowledge: "Za ovaj predmet kancelarija još nema proverenog iskustva." No padding prose.
+- SYNTHESIS: only through the explicit button "Analiziraj iskustvo kancelarije" (one POST via `VxApi.send` with Idempotency-Key).
+  - Claims render with their kind label and "AI sinteza · izvori: R…".
+  - The dropped count and the "nije pravni savet" notice are shown.
+  - `NEMA_OSNOVA` → honest message.
+  - 503 → "Analiza nije izvršena. Kredit nije potrošen." (route contract: 503 only before any charge).
+  - Any other 5xx or interrupted request → "Ishod analize nije poznat. Ne pokrećite je ponovo…" (no false promise).
+- COST: opening Analiza = 1 GET `/api/law-brain/predmeti/{id}`, 0 POST (Playwright request log).
+- NS006 REGRESSION ADJUSTMENT (explicit, scoped): `frontend-v2-ng/tests/live-analiza.mjs` asserted that opening Analiza calls only the Genome routes. Its allow-list now also admits **GET** `/api/law-brain/predmeti/{id}` (a read; no model, no credit). Any non-GET to `/api/law-brain/*` on open still fails the test. Result: 43/43.
+- FILES: `frontend-v2-ng/src/law-brain.js`, `frontend-v2-ng/index.html`, `frontend-v2-ng/src/app.js`, `frontend-v2-ng/tests/live-law-brain.mjs`, `frontend-v2-ng/tests/live-analiza.mjs`.
+- TESTS: `live-law-brain` 33/33 (Znanje 19 + matter 14: A context, B honest empty without A's data, B synthesis without basis, degraded notes, 503, 500, 390px light, duplicate IDs). `live-analiza` 43/43.
+- DEFECT FOUND AND FIXED BEFORE COMMIT: the UI read the HTTP status from the wrong field (`greska.status` instead of `r.status`), so a 503 was shown as "ishod nepoznat".
+- MUTATION RESULT: 5/5 killed (hidden model call on open, no honest-empty message, DEGRADED as empty, claims shown without sources, 503 reported as unknown).
+- NEXT GATE: Task 15.
