@@ -96,6 +96,7 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     # NS008: ljudski ishod predmeta (jedini izvor istine o ishodu za Law Brain) + zatvaranje predmeta.
     ("POST", r"^/api/learning/outcome$"),
     ("PATCH", rf"^/api/learning/lessons/{_SEG}/potvrdi$"),
+    ("POST", rf"^/api/law-brain/predmeti/{_SEG}/sinteza$"),
 ))
 
 

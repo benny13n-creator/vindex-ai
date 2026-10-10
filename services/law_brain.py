@@ -958,3 +958,5 @@ def kontekst_predmeta(supa, user_id: str, predmet_id: str, *, today: date) -> Op
     }
     return {"predmet_id": str(predmet_id), "verzija": CONTEXT_VERSION, "napomena": AUTHORITY_NOTICE,
             **sekcije, "data_quality": kvalitet}
+
+

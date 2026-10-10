@@ -393,3 +393,27 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 9 passed. Route/security inventory suites (22 files): 661 passed, 2 failed — `test_ca_trust_boundary::test_M19…` and `test_product_intelligence::test_require_admin_allows_founder`, **both in the NS007 baseline failure list** (`scratchpad/ns007/base_names.txt`), so they are not NS008-attributable.
 - MUTATION RESULT: 8/8 killed. A7 (tombstone check) initially SURVIVED, because the owner path of `rag_acl` already filters it; added a delegated-tombstone test → killed.
 - NEXT GATE: Task 12.
+
+---
+
+## TASK 12 — EXPLICIT GROUNDED LAW BRAIN SYNTHESIS
+
+- ROUTE: `POST /api/law-brain/predmeti/{id}/sinteza` (10/min).
+  - Entitlement and price come from the **existing** feature `precedenti` ("Law Firm Brain", migration 064, plan professional, 1 credit) via `PermissionService.require` (kill switch, rollout, plan). No new registry row, no migration.
+  - Durable idempotency: added to `ZASTICENE_RUTE`.
+- MODULE: `services/law_brain_sinteza.py`, kept separate from `services/law_brain.py` so the read layer stays provably model-free (Task 1 test `test_modul_ne_uvozi_model` still passes; `law_brain.py` contains 0 "openai").
+- FLOW:
+  1. `kontekst_predmeta` (authorized, Task 11).
+  2. `reference_za_sintezu` → numbered R1..Rn with trust class + source_ref. Similar matter → SOURCE_CASE_FACT. Its outcome → HUMAN_CONFIRMED_OUTCOME (only if RECORDED, never reopened). Verified artifacts / confirmed lessons → LAWYER_VERIFIED_ARTIFACT. Notes → their class. Computed statistics → SOURCE_CASE_FACT "Izračunato u kodu".
+  3. **No trusted basis** (no similar matter, outcome, verified artifact, or confirmed lesson; notes alone are not enough) → `NEMA_OSNOVA`, no model call, no credit.
+  4. Model (gpt-4o-mini, temp 0, JSON, `case_context` provenance).
+  5. `proveri_sintezu` drops a claim for: invented or missing ref (including mixed valid+invented), kind not matching the source class (e.g. "ishod" citing a note), forbidden content (`%`, procenat, šansa, verovatno, predviđ, član N, zakon, ustav, sudska praksa, uvek, nikad), or any number not present in the cited references. Claims are dropped, never "repaired".
+  6. Output: accepted `tvrdnje[{tekst, vrsta, refs, source_refs}]`, `odbaceno`, `razlozi_odbacivanja`, `reference`, notice "Nije pravni savet ni procena ishoda. Iskustvo kancelarije nije pravni izvor."
+- CREDIT: charged once, after a successful model call. Model failure or invalid JSON → 503, no credit. The 5xx body is masked by the existing global disclosure boundary in `api.py` (deliberate; test asserts the status only).
+- REPLAY: 2 physical POSTs with the same key → 1 model execution, 1 credit, byte-identical response (test).
+- FILES: `services/law_brain_sinteza.py`, `routers/law_brain.py`, `shared/idempotency.py`, `tests/test_ns008_t12_synthesis.py`.
+- TENANT RESULT: B's synthesis prompt for B's matter contains none of A's matter name, artifact, lesson, or outcome. A foreign matter → 404 with no model call.
+- TESTS: 11 passed. Opening the context (GET) → 0 model calls, 0 credits (test).
+- MUTATION RESULT: 9/9 killed. Y1 (mixed invented ref) and Y9 (reopened outcome offered as confirmed) initially SURVIVED → added pure-function tests → killed.
+- KNOWN LIMITATIONS: the synthesis result is not persisted (no table). The "one logical result" guarantee is per Idempotency-Key, and a new click is a new, separately charged synthesis by design.
+- NEXT GATE: Task 13.
