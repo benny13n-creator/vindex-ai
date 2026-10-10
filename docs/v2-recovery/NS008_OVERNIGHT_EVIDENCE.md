@@ -854,3 +854,34 @@ NEXT GATE: Task 1 — canonical contract.
 5. Semantic bias inside approved text can still shape the wording of accepted synthesis claims, within their cited sources (T20 limitation).
 6. `predmeti.oblast` is not in any repo migration. The production schema is UNKNOWN; the loader tolerates a missing column.
 7. Task 18 (autonomy grounded in Law Brain) is not implemented. The design is recorded.
+
+---
+
+## TASK 29 — NS006 / NS007 REGRESSION
+
+- Backend: `tests/test_ns006_*`, `tests/test_ns007_*`, and `tests/test_ns008_*` together, with real PostgreSQL 17 on :55499 for the NS007 PG tests → **474 passed, 1 skipped, 0 failed** (Python 3.13). Python 3.11.9 venv: **472 passed, 11 skipped, 0 failed** (the extra skips are PG tests; that venv has no PG driver).
+- Frontend: within the full NG suite (35/35):
+  - NS006 Living Matter / Analiza / Pregled / Danas: `live-analiza` 43/43 (allow-list adjusted for the Law Brain GET, Task 14), `live-pregled-zivi` 30/30, `live-danas`, `live-radna-lista` 25/25.
+  - NS007 prepared work / review / stale session: `live-pripremljeno` 51/51, `live-session` 38/38, `live-isolation` 25/25.
+- No unrelated NS006/NS007 debt was fixed. NS007 code touched by NS008: `routers/autonomy.py` (none), `pripremljeno.js` (an additive "Znanje kancelarije" section for ACCEPTED items only), `shared/idempotency.py` (additive routes).
+
+## TASK 30 — FULL SUITE vs BASELINE (by failure name)
+
+- Same command in the same session/environment: `python -m pytest tests -q -p no:randomly -p no:cacheprovider` (deterministic order).
+  - **Baseline** NS007 `deac5d99`: 31 failed, 8667 passed, 199 skipped.
+  - **NS008** `d378d6fb`: **31 failed, 8862 passed**, 199 skipped.
+- **Failure-name diff: 0 new, 0 removed** (`scratchpad/ns008/base_names.txt` vs `head_names2.txt`).
+- The first NS008 full run found **2 new failures**, both from static architecture guards, and both were fixed at the root (not exempted):
+  1. `test_phantom_ai_charges::test_c_detektor_naplate_bez_ai_poziva`: the synthesis route charged credits in a file with no AI call (the call lived in the service). The charge now sits in `services/law_brain_sinteza.py`, right after the successful model call. `precedenti` was deliberately not added to the detector's allowlist, which would exempt future phantom charges on that shared key.
+  2. `test_z017_registar_offset::test_nijedan_range_nije_nezasticen`: the new `range()` pagination (Task 22) did not go through `shared/stranicenje.strana_ili_prazna`. An offset past the end (rows deleted between pages) would raise PGRST103. It now goes through the canonical guard, with a new test where the second page returns PGRST103 → the read ends cleanly.
+- Note on the baseline count: the NS007 sprint recorded 20 failures. In this session the same `deac5d99` code shows 31; the 11 extra are all admin/founder-gate tests (`test_business_groups`, `test_feature_type`, `test_tier_config`, `test_product_intelligence`), which points to a test-environment difference (`FOUNDER_EMAILS`). They fail identically on baseline and NS008.
+- Docker: not installed → **UNKNOWN**. Python 3.11: compile OK for all 42 changed .py files, and the targeted suites pass.
+
+## TASK 31 — DRAFT PR
+
+- `gh` is unavailable, so the PR was not opened. The text is in `docs/v2-recovery/NS008_PR_BODY.md`. **Base: `feature/vindex-v2-ns007-while-you-sleep`.** Status: DRAFT, DO NOT MERGE.
+
+## FINAL STATE
+
+- Branch `feature/vindex-v2-ns008-law-brain`, pushed. Frozen: main `99d2c6b9`, NS006 `dac1f6dd`, NS007 `deac5d99` (verified unchanged).
+- Migrations created: **none** (137 was not needed). Applied: none. Render Cron: none. Deploy/merge: none.
