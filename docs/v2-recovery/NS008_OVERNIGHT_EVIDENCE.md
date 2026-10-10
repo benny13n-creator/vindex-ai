@@ -819,3 +819,38 @@ NEXT GATE: Task 1 — canonical contract.
 
 - JUSTIFIED SURVIVORS: **none.** Both masked survivors now have tests that prove each defense layer independently.
 - FILES: `tests/test_ns008_t20_poisoning.py`, `frontend-v2-ng/tests/live-law-brain.mjs`.
+
+---
+
+## TASK 32 — FINAL ADVERSARIAL REVIEW
+
+(The directive text was truncated after "serve deleted knowledge"; questions beyond that point were not received. The list below answers every received question plus the obvious continuations.)
+
+| Attack | Can Law Brain do it? | Proof |
+|---|---|---|
+| Leak another lawyer's matter | **No** (canonical ACL only; same office ≠ access) | T19 matrix: byte-identical responses for B and C with and without A's data, identical model prompts, same 404 as a nonexistent matter; T6; T8; 10/10 scope-filter mutations killed |
+| Learn from AI without human verification | **No** | Trust comes only from columns/provenance (T4, T7, T15, T20). An ACCEPTED NS007 product needs explicit promotion → staging → lawyer approval (T15). `save_lessons` can no longer write adopted lessons |
+| Mistake office practice for current law | **No** | `AUTHORITY_NOTICE` on every context; synthesis drops "član/zakon/sudska praksa" claims (T12); legal currency always UNKNOWN + "proverite izmene propisa" (T17) |
+| Invent an outcome | **No** | Only `outcome_log`, owner re-checked; status, chronology, graph `ishod`, and AI text never count (T2, T8, T20; gauntlet 3/4/7) |
+| Invent a lesson | **No** | Only CONFIRMED (+ `potvrdio` + `potvrdjeno_at`) lessons are guidance; legacy rows → UNKNOWN_LEGACY; synthesis claims need supplied sources (T7, T12, T20) |
+| Hide a small sample behind a percentage | **No** | No `%` anywhere; denominators and "Veličina uzorka" always shown; `mali_uzorak` < 5 (T9, T23; gauntlet 13) |
+| Treat an accepted draft as final truth | **No** | T15; NS007 ACCEPTED ≠ LAWYER_VERIFIED; staging `pending` ≠ trusted (T4) |
+| Serve deleted knowledge | **No for reads** | Read-time revocation in Law Brain **and** in `retrieve_documents` (T21); tombstones excluded for owner and delegate; no derived cache. *Physical* vector deletion is not done (residual 2) |
+| Spend credits silently | **No** | 0 model calls and 0 credits on every read; synthesis = 1 call + 1 credit, replay = 0; explicit search = 1 embedding, 0 credits (T26) |
+| Show stale data after a user switch | **No** | Generation guard proven independently of abort (gauntlet 16); reload for the new user (T19) |
+| Execute injected HTML/instructions | **No** | textContent rendering (Playwright XSS check); injected instructions in artifacts cannot widen the model's context (T20) |
+
+**Residual risks (honest):**
+1. **Legacy surfaces remain unchanged (directive: do not remove):**
+   - `/api/precedenti` (GPT + "same tip", includes active matters).
+   - `/api/outcome-intel` (keyword win rate %).
+   - `/api/firma-memorija/*` and `/api/memory-graph/*`: office-wide visibility of matter-tied notes and edges, and a GET-side write.
+   - A legacy `api.py` analysis prompt that asks for "PROCENA USPEHA: XX%".
+
+   Law Brain never reads them, but legacy `/app` users can still see their output. **Founder decision** on retiring or relabelling them.
+2. Revoked lawyer-verified vectors are **excluded at read time everywhere**, but not physically deleted (promoted rows lack `content_sha256`, so the canonical fail-closed deletion refuses them).
+3. Production latency is UNKNOWN. Round trips are bounded (46 at 1000 closed matters) but must be measured on staging data before rollout.
+4. Correction suggestions (T16) exist only in the API, not yet in the V2 intake UI.
+5. Semantic bias inside approved text can still shape the wording of accepted synthesis claims, within their cited sources (T20 limitation).
+6. `predmeti.oblast` is not in any repo migration. The production schema is UNKNOWN; the loader tolerates a missing column.
+7. Task 18 (autonomy grounded in Law Brain) is not implemented. The design is recorded.
