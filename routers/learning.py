@@ -313,6 +313,18 @@ async def zabeleži_ishod(
                 )
             except Exception as _he:
                 logger.warning("[LEARNING] hronologija upis greška (non-fatal): %s", _he)
+            # NS008 Task 3: ovaj put zatvaranja ranije nije emitovao događaj — Case Actions su ostajale
+            # otvorene, a Case Evolution nije video završni predmet.
+            try:
+                from services.event_bus import emit_matter_terminal
+                await emit_matter_terminal(
+                    user_id=uid, predmet_id=req.predmet_id, novi_status=novi_status,
+                    prethodni_status=predmet.get("status"),
+                    prelaz_ref=str(_close_res.data[0].get("updated_at") or ""),
+                    trigger="learning_outcome", supa=supa,
+                )
+            except Exception as _te:
+                logger.error("[LEARNING] MATTER_BECAME_TERMINAL nije upisan predmet=%s: %s", req.predmet_id, _te)
         else:
             logger.info("[LEARNING] predmet status update preskočen (već zatvoren ili konkurentna izmena): %s", req.predmet_id)
     except Exception as e:

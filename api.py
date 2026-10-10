@@ -5098,6 +5098,17 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     # behavior (unconditional update), so no existing frontend breaks.
     if_updated_at = body.get("if_updated_at")
     supa = _get_supa()
+    # NS008 Task 3: prelaz u završni status mora da proizvede trajni MATTER_BECAME_TERMINAL (Case Evolution,
+    # Case Actions, autonomija, istorija). Prethodni status se čita SAMO kad je tražen završni status, da bi
+    # PATCH istog statusa ostao bez događaja.
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA as _TERMINALNI
+    _prethodni_status = None
+    _trazi_terminal = allowed.get("status") in _TERMINALNI
+    if _trazi_terminal:
+        _pre = await asyncio.to_thread(
+            lambda: supa.table("predmeti").select("status").eq("id", predmet_id).eq("user_id", user.id).maybe_single().execute()
+        )
+        _prethodni_status = ((_pre.data or {}) if _pre is not None else {}).get("status")
     q = supa.table("predmeti").update(allowed).eq("id", predmet_id).eq("user_id", user.id)
     if if_updated_at:
         q = q.eq("updated_at", if_updated_at)
@@ -5144,6 +5155,18 @@ async def update_predmet(predmet_id: str, request: Request, authorization: str =
     # je append-only sa BEFORE UPDATE OR DELETE trigerom, pa bi upis sadržaja
     # predmeta (naziv/opis/tuzilac/tuzeni) trajno duplirao lične podatke u
     # ledger iz kog se ne mogu obrisati.
+    if _trazi_terminal and _prethodni_status != allowed["status"]:
+        try:
+            from services.event_bus import emit_matter_terminal
+            await emit_matter_terminal(
+                user_id=user.id, predmet_id=predmet_id, novi_status=allowed["status"],
+                prethodni_status=_prethodni_status, prelaz_ref=str(_new_updated_at or ""),
+                trigger="predmet_patch", supa=supa,
+            )
+        except Exception as _te:
+            # Status je već upisan; gubitak događaja se beleži (reaper/backfill), ne poništava izmenu.
+            logger.error("[PREDMET_PATCH] MATTER_BECAME_TERMINAL nije upisan predmet=%s: %s", predmet_id, _te)
+
     from shared.audit_immutable import log_action
     await log_action("predmet_update", user_id=user.id,
                      resource_type="predmet", resource_id=predmet_id,

@@ -198,3 +198,20 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 9/9 killed (T2-9 "GPT lessons on replay" initially SURVIVED → added `test_ponovljen_ishod_ne_pokrece_ponovo_gpt_lekcije` → killed).
 - KNOWN LIMITATIONS: a corrected outcome (pobeda→poraz) leaves legacy `case_patterns` counters reflecting the first submission (legacy table; Law Brain does not read it). Legacy `static/vindex.js` sends no Idempotency-Key — covered by the logical replay guard, not by the durable store.
 - NEXT GATE: Task 3.
+
+---
+
+## TASK 3 — TERMINAL MATTER EVENT CLOSURE
+
+- PROBLEM: NS006 debt "legacy status PATCH may not emit terminal matter event".
+- EVIDENCE (fresh, PROVEN in code): `MATTER_BECAME_TERMINAL` is reached only from `routers/predmeti_close.py` (zatvori + bulk), and there only as a **direct in-process call** to `_consequence_refresh_case_actions` (no outbox row). Two writers set a terminal status with no event at all: `PATCH /api/predmeti/{id}` (`status` in its allow-list) and `POST /api/learning/outcome` (sets `zatvoren`). Autonomy: both NS007 planners and both executors already refuse terminal matters (`hearing_prep.py:82,370`, `precedents_radar.py:263,347`).
+- FALSIFICATION: "closing via PATCH closes open actions" → before the fix, PATCH wrote the status and nothing reconciled actions until some other event for that matter arrived.
+- DECISION: one durable emitter, `services/event_bus.emit_matter_terminal`. It emits only on a real transition (new status ∈ `TERMINALNI_STATUSI_PREDMETA` and previous ≠ new). The event id is deterministic: `uuid5(ns, predmet:status:updated_at-after-write)`, so a retry of the same transition is a no-op, while reopen→close produces a new event. It is wired into PATCH (previous status is read only when a terminal status is requested) and into the learning outcome closure. Fail-soft: an outbox failure is logged and does not undo the status change. `predmeti_close.py` is left as is (it already reconciles through the canonical function; smallest change).
+- IMPLEMENTATION / FILES: `services/event_bus.py`, `api.py`, `routers/learning.py`, `tests/test_ns008_t3_terminal_event.py`.
+- ROUTES: `PATCH /api/predmeti/{id}`, `POST /api/learning/outcome` (no response change).
+- CHAIN (test `test_ceo_lanac_patch_do_autonomije`): active matter with a hearing tomorrow → open action + planner proposes HEARING_PREP → PATCH `zatvoren` → 1 `events` row with the deterministic id → real `dispatch_pending_events` → `refresh_case_actions: completed` → 0 open actions → planner: 0 candidates and the QUEUED item is in `ponisteni` → `law_brain.je_terminalan` = True and outcome = `OUTCOME_UNKNOWN`.
+- TENANT RESULT: B's PATCH of A's matter → 404, no event.
+- TESTS: 11 passed. Regression (70 files touching events/PATCH/learning): 1008 passed, 1 failed → `test_phoenix_mission_002…::test_learning_close_write_uses_neq_guard_and_audit_trail`, a source-text test with a 2000-char window. The emission was moved after the hronologija insert (same semantics), and the test now passes unmodified.
+- MUTATION RESULT: 7/7 killed (no PATCH emission, same-status emits, random event id, no learning emission, emitter accepts non-terminal, outbox failure breaks PATCH, constant transition ref).
+- KNOWN LIMITATIONS: two concurrent PATCHes from an active status could both read "aktivan" and emit two events with different ids. Harmless, since `refresh_case_actions` is a reconcile, but recorded. The close routes still reconcile in-process rather than through the outbox (pre-existing design, unchanged).
+- NEXT GATE: Task 4.
