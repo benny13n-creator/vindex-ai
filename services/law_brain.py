@@ -551,3 +551,58 @@ def slicni_predmeti(supa, user_id: str, predmet_id: str, *, limit: int = 10) -> 
         "verzija": SIMILARITY_VERSION,
         "napomena": SIMILARITY_NOTICE,
     }
+
+
+# ─── Task 7: lekcije — ljudska kapija (postojeća šema 039, bez nove migracije) ──────────────────────
+# `status_lekcije`: predlog_ai → CANDIDATE; usvojena_praksa + `potvrdio` + `potvrdjeno_at` → CONFIRMED;
+# odbijena → REJECTED (nikad smernica); zastarela / `zastarela=true` → STALE. Red bez statusa (pre 039) ili
+# „usvojen" bez dokaza ko je potvrdio → UNKNOWN_LEGACY. Nema pogađanja unazad.
+LESSON_CANDIDATE, LESSON_CONFIRMED, LESSON_REJECTED, LESSON_STALE = "CANDIDATE", "CONFIRMED", "REJECTED", "STALE"
+LESSON_UNKNOWN_LEGACY = "UNKNOWN_LEGACY"
+LEKCIJA_KOLONE = ("id,user_id,predmet_id,tip_spora,lecija,kategorija,status_lekcije,potvrdio,potvrdjeno_at,"
+                  "zastarela,zastarela_razlog,broj_predmeta,period_od,period_do,created_at")
+
+
+def lesson_item(red: dict, user_id: str) -> Optional[LawBrainItem]:
+    if not user_id or str(red.get("user_id") or "") != str(user_id):
+        return None
+    st = red.get("status_lekcije")
+    zastarela = bool(red.get("zastarela")) or st == "zastarela"
+    if st == "odbijena":
+        stanje, klasa, validnost = LESSON_REJECTED, AI_CANDIDATE_LESSON, DEPRECATED
+    elif st == "usvojena_praksa" and red.get("potvrdio") and red.get("potvrdjeno_at"):
+        stanje, klasa = LESSON_CONFIRMED, LAWYER_VERIFIED_ARTIFACT
+        validnost = STALE if zastarela else CURRENT
+    elif st == "predlog_ai":
+        stanje, klasa = LESSON_CANDIDATE, AI_CANDIDATE_LESSON
+        validnost = STALE if zastarela else UNKNOWN
+    elif st == "zastarela":
+        stanje, klasa, validnost = LESSON_STALE, AI_CANDIDATE_LESSON, STALE
+    else:
+        stanje, klasa = LESSON_UNKNOWN_LEGACY, UNKNOWN_LEGACY
+        validnost = STALE if zastarela else UNKNOWN
+    loza = ("AI_GENERATED", "LAWYER_CONFIRMED") if stanje == LESSON_CONFIRMED else ("AI_GENERATED",)
+    return LawBrainItem(
+        source_kind="lesson", source_owner="lessons_learned", source_id=str(red["id"]),
+        scope=SCOPE_USER, trust_class=klasa, validity=validnost,
+        title=f"Lekcija ({red.get('kategorija') or 'ostalo'})", excerpt=red.get("lecija") or "",
+        predmet_id=None, created_at=red.get("created_at"),
+        updated_at=red.get("potvrdjeno_at") or red.get("created_at"), lineage=loza, state=stanje,
+        attrs=(("tip_spora", red.get("tip_spora")), ("broj_predmeta", red.get("broj_predmeta")),
+               ("period_od", red.get("period_od")), ("period_do", red.get("period_do"))),
+    )
+
+
+def ucitaj_lekcije(supa, user_id: str, *, tip_spora: Optional[str] = None, limit: int = 200) -> list:
+    """Sopstvene lekcije korisnika (RLS/vlasnik = `user_id`), sa tačnim stanjem kapije. Bez upisa."""
+    q = supa.table("lessons_learned").select(LEKCIJA_KOLONE).eq("user_id", user_id)
+    if tip_spora:
+        q = q.eq("tip_spora", tip_spora)
+    r = q.order("created_at", desc=True).limit(max(1, min(int(limit), 500))).execute()
+    out = [it for it in (lesson_item(x, user_id) for x in (r.data or [])) if it is not None]
+    return order_items(out)
+
+
+def lekcije_kao_smernice(items) -> list:
+    """Kao institucionalna smernica sme SAMO potvrđena lekcija koja nije odbijena."""
+    return [it for it in items if it.source_kind == "lesson" and it.state == LESSON_CONFIRMED and it.trusted]

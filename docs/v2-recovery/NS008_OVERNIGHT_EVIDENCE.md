@@ -284,3 +284,32 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 12 passed. MUTATION RESULT: 7/7 killed. S6 (tombstone filter) and S7 (non-column error swallowed) initially SURVIVED → added the delegated-tombstone test and loader error tests → killed.
 - KNOWN LIMITATIONS: dimensions are coarse (no fact-pattern text similarity, by design: no model, no raw facts copied). Candidates beyond the 1000 newest terminal matters are not scanned (Task 22).
 - NEXT GATE: Task 7.
+
+---
+
+## TASK 7 — LESSONS LEARNED TRUST GATE
+
+- FRESH ANSWERS:
+  - AI-generated? **Yes**: `learning_engine.generate_lessons_learned` (GPT, JSON). Callers: the outcome route (opt-in) and `POST /api/learning/predmeti/{id}/lessons`.
+  - Can a lawyer confirm/reject? **Yes**: `PATCH /api/learning/lessons/{id}/potvrdi` (owner-scoped).
+  - Does the schema record confirmation? **Yes** (039): `status_lekcije` predlog_ai/usvojena_praksa/odbijena/zastarela, `potvrdio`, `potvrdjeno_at`.
+  - Does code distinguish candidate vs confirmed? Partly: `cio.py` reads only `usvojena_praksa`, while `case_intelligence.py`/`knowledge_hygiene` read both.
+- DECISION: reuse the existing schema. **No migration.**
+- IMPLEMENTATION:
+  - `law_brain.lesson_item` / `ucitaj_lekcije` / `lekcije_kao_smernice`. Mapping:
+    - `predlog_ai` → CANDIDATE / AI_CANDIDATE_LESSON.
+    - `usvojena_praksa` **with** `potvrdio` and `potvrdjeno_at` → CONFIRMED / LAWYER_VERIFIED_ARTIFACT (lineage AI_GENERATED→LAWYER_CONFIRMED).
+    - `odbijena` → REJECTED / DEPRECATED.
+    - `zastarela` or `zastarela=true` → STALE.
+    - NULL status (pre-039), or "usvojena" without proof of who confirmed → UNKNOWN_LEGACY.
+  - Only CONFIRMED and non-deprecated lessons are guidance.
+  - Hardening: `learning_engine.save_lessons` now always writes `predlog_ai`. Before, it accepted `status_lekcije` from the lesson dict, so any future caller could write a lesson as already adopted. The confirm route was added to `ZASTICENE_RUTE`.
+- FILES: `services/law_brain.py`, `services/learning_engine.py`, `shared/idempotency.py`, `tests/test_ns008_t7_lessons.py`.
+- ROUTES: `PATCH /api/learning/lessons/{id}/potvrdi` (now durable-idempotent with a key).
+- TRUST RESULT: a candidate is never guidance; the required mutation "CANDIDATE treated as confirmed" (L1) is killed.
+- TENANT RESULT: B's lessons are never read for A; A cannot confirm or reject B's lesson (404).
+- TESTS: 8 passed. Regression (38 files: lessons/learning_engine/idempotency): 318 passed, 81 skipped.
+- MUTATION RESULT: 9/9 killed.
+- NEW FINDING (legacy, not fixed): `routers/case_intelligence.py:124` and `services/knowledge_hygiene.py:49,267` select `sadrzaj` from `lessons_learned`. No migration defines that column (the text column is `lecija`, 038), so those reads would fail with 42703 in a schema built from the repo (production schema UNKNOWN). Law Brain reads `lecija`.
+- KNOWN LIMITATIONS: lessons are per-user (`user_id`), so a "team" view does not exist (legacy claim H). The "partner" confirmation is really the owner's confirmation.
+- NEXT GATE: Task 8.
