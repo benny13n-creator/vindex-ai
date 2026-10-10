@@ -169,8 +169,9 @@
    *   POST /api/law-brain/predmeti/{id}/sinteza  → SAMO na izričit klik; {stanje, tvrdnje[{tekst, vrsta, source_refs}],
    *        odbaceno, napomena}. NEMA_OSNOVA = model nije pozvan; 503 = analiza nije izvršena (kredit nije potrošen).
    */
-  var VRSTA_TVRDNJE = { iskustvo: "Iskustvo kancelarije", ishod: "Ishod uneo advokat", overen_rad: "Overen rad",
-    neproverena_beleska: "Beleška — nije proverena" };
+  /* Oznaka uvek počinje sa „AI ·": rečenicu je napisao model, a izvor (u zagradi) je ono na šta se oslanja. */
+  var VRSTA_TVRDNJE = { iskustvo: "AI · o iskustvu kancelarije", ishod: "AI · o ishodu koji je uneo advokat",
+    overen_rad: "AI · o overenom radu", neproverena_beleska: "AI · o nepotvrđenoj belešci" };
   function predmet(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); }, A = alati(d);
     var sesija = o.sesija, api = o.api, trenutni = null, gen = 0, kontroler = null, genS = 0, kS = null, salje = false;

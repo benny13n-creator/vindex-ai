@@ -30,8 +30,8 @@ def test_brojevi_i_imenilac():
     r = lb.descriptive_outcomes(PROFILI)
     assert (r["relevantnih"], r["sa_ljudskim_ishodom"], r["bez_ishoda"], r["ponovo_otvoreni"]) == (6, 4, 1, 1)
     assert r["po_ishodu"] == {"pobeda": 2, "poraz": 1, "nagodba": 1}
-    assert r["faktori"][0] == {"faktor": "svedoci", "broj": 3, "od": 4}
-    assert {"faktor": "pisana_komunikacija", "broj": 2, "od": 4} in r["faktori"]
+    assert r["faktori"][0] == {"faktor": "svedoci", "naziv": "Svedoci", "broj": 3, "od": 4}
+    assert {"faktor": "pisana_komunikacija", "naziv": "Pisana komunikacija", "broj": 2, "od": 4} in r["faktori"]
     assert r["uzorak"] == 4 and r["mali_uzorak"] is True
 
 
@@ -39,7 +39,7 @@ def test_recenice_bez_procenata_i_predvidjanja():
     r = lb.descriptive_outcomes(PROFILI)
     tekst = " ".join(r["recenice"]) + r["napomena"]
     assert "Zabeleženi ishodi: 2 pobeda, 1 poraz, 1 nagodba." in r["recenice"]
-    assert "Faktor „svedoci\" izričito zabeležen u 3 od 4 ishoda." in r["recenice"]
+    assert "Faktor „Svedoci“ izričito zabeležen u 3 od 4 ishoda." in r["recenice"]
     assert "Veličina uzorka: 4." in r["recenice"]
     assert "%" not in json.dumps(r, ensure_ascii=False)
     for zabranjeno in ("šansa", "verovatno", "očekuje", "win rate", "predviđ"):

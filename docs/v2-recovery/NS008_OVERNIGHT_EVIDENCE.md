@@ -710,3 +710,22 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 2 passed.
 - MUTATION RESULT: 4/4 killed. E1 (court dominates the weights) initially SURVIVED because OLD-2 is too dissimilar to compete → the exact score breakdown is now pinned → killed. The others: candidate lessons as guidance, rejected artifact still verified, synthesis without forbidden patterns.
 - NEXT GATE: Task 24.
+
+---
+
+## TASK 24 — LAW BRAIN DEMO (independent; Task 18 skipped → no faked autonomy integration)
+
+- RUN: `npm run demo:ns008` (in `frontend-v2-ng/`) → `shots/ns008-demo/{1-znanje,2-analiza,3-sinteza,4-posle-opoziva}.png` (git-ignored). Backend responses come from `python tests/ns008_demo.py --json`: the Task 23 scenario with history created through real routes. `python tests/ns008_demo.py` prints a readable summary.
+- STORY (7/7 PASS):
+  1. **Znanje**: office experience by matter type, the verified tužba, the confirmed lesson, a colleague's judge note labelled "nije proverena činjenica".
+  2. **CURRENT → Analiza → Iskustvo kancelarije**: "Marković protiv Tehnoprom DOO" with "Sličan jer: …", outcome "Ishod (uneo advokat): pobeda", denominator sentences, small-sample note. No chance/percentage (the only "šanse" occurrence is the disclaimer "Nisu procena šanse za uspeh").
+  3. **Explicit click** → 4 grounded AI claims, each labelled "AI · …" with sources R1–R4. "Šansa za uspeh je 80%" is dropped ("Odbačeno tvrdnji bez izvora: 1").
+  4. **After the lawyer revokes** the tužba and the lesson: both disappear, and the matter history remains.
+  - 0 model calls before the click; each explicit synthesis = 1 model call + 1 credit (`precedenti`); no JS errors; no external requests.
+- UI DEFECTS FOUND IN SCREENSHOTS AND FIXED:
+  1. Factor names showed raw form keys (`pisana_komunikacija`). They now use the single label owner `routers/learning._FAKTORI_LABELS` ("Pisana komunikacija"), with a readable fallback for unknown keys and a `naziv` field added beside the key.
+  2. AI synthesis claims of kind "ishod" were labelled "Ishod uneo advokat", which could read as if a human wrote the AI sentence. Every claim label now starts with **"AI ·"** ("AI · o ishodu koji je uneo advokat", …).
+  3. A Serbian closing quote was straightened (`„…“`).
+- FILES: `tests/ns008_demo.py`, `frontend-v2-ng/tests/ns008-demo.mjs`, `frontend-v2-ng/package.json` (`demo:ns008`), `services/law_brain.py`, `frontend-v2-ng/src/law-brain.js`, `tests/test_ns008_t9_outcome_patterns.py`.
+- TESTS: backend 186 passed. `live-law-brain` 41/41. Demo 7/7.
+- NEXT GATE: Task 25.

@@ -771,6 +771,18 @@ def _relevantni_predmeti(n: int) -> str:
     return f"{n} relevantnih ranijih predmeta"
 
 
+def _naziv_faktora(kljuc: str) -> str:
+    """Prikazni naziv presudnog faktora iz JEDINOG vlasnika rečnika (routers/learning._FAKTORI_LABELS);
+    nepoznat ključ se prikazuje čitljivo, nikad se ne izmišlja."""
+    try:
+        from routers.learning import _FAKTORI_LABELS
+        if kljuc in _FAKTORI_LABELS:
+            return _FAKTORI_LABELS[kljuc]
+    except Exception:
+        pass
+    return str(kljuc).replace("_", " ")
+
+
 def descriptive_outcomes(profili: list) -> dict:
     relevantnih = len(profili)
     zabelezeni, ponovo, nepoznati = [], 0, 0
@@ -790,14 +802,15 @@ def descriptive_outcomes(profili: list) -> dict:
     for z in zabelezeni:
         for f in set((z["item"].get("attrs") or {}).get("presudni_faktori") or ()):
             faktori[str(f)] = faktori.get(str(f), 0) + 1
-    faktori_l = [{"faktor": f, "broj": n, "od": k} for f, n in sorted(faktori.items(), key=lambda x: (-x[1], x[0]))]
+    faktori_l = [{"faktor": f, "naziv": _naziv_faktora(f), "broj": n, "od": k}
+                 for f, n in sorted(faktori.items(), key=lambda x: (-x[1], x[0]))]
     recenice = []
     if relevantnih:
         recenice.append(f"{_relevantni_predmeti(relevantnih)}; ljudski zabeležen ishod postoji za {k}.")
     if k:
         recenice.append("Zabeleženi ishodi: " + ", ".join(f"{n} {_ISHOD_RED[i]}" for i, n in po_ishodu.items()) + ".")
         for f in faktori_l[:5]:
-            recenice.append(f"Faktor „{f['faktor']}\" izričito zabeležen u {f['broj']} od {k} ishoda.")
+            recenice.append(f"Faktor „{f['naziv']}“ izričito zabeležen u {f['broj']} od {k} ishoda.")
         recenice.append(f"Veličina uzorka: {k}.")
     if ponovo:
         recenice.append(f"{ponovo} predmet(a) sa ishodom je ponovo otvoreno — ti ishodi se ne broje.")
