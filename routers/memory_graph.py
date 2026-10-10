@@ -119,6 +119,14 @@ async def dodaj_vezu(
         await asyncio.to_thread(
             _zahtevaj_vlasnistvo, supa, "predmeti", payload.predmet_id, uid
         )
+    # RH002: isto važi za čvor tipa predmet/klijent — inače B pripaja vezu (ishod, kontekst) TUĐEM predmetu, a ona
+    # stiže u vlasnikov graf i u prompt `/upit`/`/preporuka`. Isti ugovor kao `firma-memorija/dodaj` (404, bez proročišta).
+    _TABELA_ZA_TIP = {"predmet": "predmeti", "klijent": "klijenti"}
+    for _tip, _id in ((payload.from_type, payload.from_id), (payload.to_type, payload.to_id)):
+        if _tip in _TABELA_ZA_TIP:
+            await asyncio.to_thread(
+                _zahtevaj_vlasnistvo, supa, _TABELA_ZA_TIP[_tip], _id, uid
+            )
 
     try:
         r = await asyncio.to_thread(
