@@ -606,3 +606,116 @@ def ucitaj_lekcije(supa, user_id: str, *, tip_spora: Optional[str] = None, limit
 def lekcije_kao_smernice(items) -> list:
     """Kao institucionalna smernica sme SAMO potvrđena lekcija koja nije odbijena."""
     return [it for it in items if it.source_kind == "lesson" and it.state == LESSON_CONFIRMED and it.trusted]
+
+
+# ─── Task 8: memorija kancelarije + graf — normalizacija tvrdnji, bez upisa pri čitanju ─────────────
+# `memory_entries`/`memory_graph_edges` su POSTOJEĆI izričiti put deljenja u kancelariji (čovek upisuje u
+# memoriju firme). Law Brain ih prikazuje kao BELEŠKE / VEZE, nikad kao proverenu činjenicu ni uzrok.
+# Granica poverljivosti: beleška ili veza vezana za konkretan PREDMET ili KLIJENTA vidljiva je samo onome
+# ko taj predmet/klijenta sme da vidi (kanonska autorizacija) — inače bi naziv tuđeg predmeta, klijent ili
+# ishod procurili kroz memoriju. Opšti entiteti (sudija, firma, partner) su deljeni u kancelariji.
+# Za razliku od legacy GET-a (`routers/firm_memory._apply_trust` upisuje `zastarela` pri čitanju), ovde se
+# istek RAČUNA iz `expires_at` i prosleđenog `today` — čitanje ne menja stanje.
+MEMORY_NOTICE = "Beleška kolege iz kancelarije — zapažanje jedne osobe, nije proverena činjenica."
+GRAPH_NOTICE = "Veza koju je upisao čovek. Ne dokazuje da je argument uzrokovao ishod."
+_IZVOR_KLASA = {"manual": HUMAN_MEMORY_NOTE, "korekcija": HUMAN_CORRECTION,
+                "auto": AI_CANDIDATE_LESSON, "benchmark": AI_CANDIDATE_LESSON}
+_OPSTI_ENTITETI = ("sudija", "firma", "partner")
+MEMORIJA_KOLONE = ("id,kancelarija_id,user_id,entity_type,entity_id,entity_name,tip,sadrzaj,vaznost,aktivan,"
+                   "izvor,potvrde_count,expires_at,zastarela,created_at,updated_at")
+GRAF_KOLONE = "id,kancelarija_id,from_type,from_id,from_naziv,to_type,to_id,to_naziv,relacija,predmet_id,ishod,kontekst,created_at"
+
+
+def _klijenti_vlasnika(supa, user_id: str, ids) -> set:
+    ids = sorted({str(i) for i in ids if i})
+    if not ids:
+        return set()
+    out = set()
+    for i in range(0, len(ids), _IN_DEO):
+        r = supa.table("klijenti").select("id,user_id").in_("id", ids[i:i + _IN_DEO]).execute()
+        out |= {str(x["id"]) for x in (r.data or []) if str(x.get("user_id") or "") == str(user_id)}
+    return out
+
+
+def memory_item(red: dict, *, user_id: str, today: date) -> LawBrainItem:
+    klasa = _IZVOR_KLASA.get(red.get("izvor"), UNKNOWN_LEGACY)
+    validnost = validity_from(today=today, stale=bool(red.get("zastarela")), valid_until=red.get("expires_at"),
+                              has_validity_data=bool(red.get("expires_at")))
+    ime = red.get("entity_name") or red.get("entity_id") or ""
+    return LawBrainItem(
+        source_kind="memory_note", source_owner="memory_entries", source_id=str(red["id"]),
+        scope=SCOPE_OFFICE, trust_class=klasa, validity=validnost,
+        title=f"{(red.get('entity_type') or '').capitalize()}: {ime}", excerpt=red.get("sadrzaj") or "",
+        predmet_id=str(red["entity_id"]) if red.get("entity_type") == "predmet" else None,
+        created_at=red.get("created_at"), updated_at=red.get("updated_at") or red.get("created_at"),
+        lineage=("HUMAN_NOTE",) if klasa in HUMAN_CLASSES else ("AUTO",), state=red.get("tip"),
+        attrs=(("entity_type", red.get("entity_type")), ("vaznost", red.get("vaznost")),
+               ("potvrde_count", int(red.get("potvrde_count") or 0)),
+               ("sopstvena", str(red.get("user_id") or "") == str(user_id)),
+               ("napomena", MEMORY_NOTICE)),
+    )
+
+
+def graph_item(red: dict) -> LawBrainItem:
+    return LawBrainItem(
+        source_kind="graph_edge", source_owner="memory_graph_edges", source_id=str(red["id"]),
+        scope=SCOPE_OFFICE, trust_class=EXPLICIT_GRAPH_RELATION, validity=UNKNOWN,
+        title=str(red.get("relacija") or "veza"),
+        excerpt=f"{red.get('from_naziv') or red.get('from_id')} → {red.get('relacija')} → "
+                f"{red.get('to_naziv') or red.get('to_id')}",
+        predmet_id=str(red["predmet_id"]) if red.get("predmet_id") else None,
+        created_at=red.get("created_at"), lineage=("HUMAN_EDGE",), state=None,
+        attrs=(("from_type", red.get("from_type")), ("to_type", red.get("to_type")),
+               ("upisano_uz_vezu", red.get("ishod")), ("uzrocnost", False), ("napomena", GRAPH_NOTICE)),
+    )
+
+
+def _predmeti_veze(red: dict) -> set:
+    out = {str(red["predmet_id"])} if red.get("predmet_id") else set()
+    for strana in ("from", "to"):
+        if red.get(f"{strana}_type") == "predmet" and red.get(f"{strana}_id"):
+            out.add(str(red[f"{strana}_id"]))
+    return out
+
+
+def _klijenti_veze(red: dict) -> set:
+    return {str(red[f"{s}_id"]) for s in ("from", "to") if red.get(f"{s}_type") == "klijent" and red.get(f"{s}_id")}
+
+
+def ucitaj_memoriju(supa, user_id: str, *, today: date, limit: int = 200) -> dict:
+    """Beleške i veze kancelarije kojoj `user_id` AKTIVNO pripada. Bez kancelarije (solo ili uklonjen član)
+    → prazno. Samo SELECT."""
+    from shared.kancelarija_utils import get_kancelarija_id_sync
+    from shared.rag_acl import dozvoljeni_predmeti
+    kanc = get_kancelarija_id_sync(supa, user_id)
+    if not kanc:
+        return {"kancelarija": False, "beleske": [], "veze": []}
+    lim = max(1, min(int(limit), 500))
+    mem = (supa.table("memory_entries").select(MEMORIJA_KOLONE).eq("kancelarija_id", kanc).eq("aktivan", True)
+           .order("created_at", desc=True).limit(lim).execute().data or [])
+    graf = (supa.table("memory_graph_edges").select(GRAF_KOLONE).eq("kancelarija_id", kanc)
+            .order("created_at", desc=True).limit(lim).execute().data or [])
+    treba_acl = any(m.get("entity_type") == "predmet" for m in mem) or any(_predmeti_veze(g) for g in graf)
+    dozvoljeni = set(dozvoljeni_predmeti(supa, user_id)) if treba_acl else set()
+    klijenti = _klijenti_vlasnika(supa, user_id, [m.get("entity_id") for m in mem if m.get("entity_type") == "klijent"]
+                                  + [k for g in graf for k in _klijenti_veze(g)])
+    beleske = []
+    for m in mem:
+        if str(m.get("kancelarija_id") or "") != str(kanc) or m.get("aktivan") is False:
+            continue
+        et = m.get("entity_type")
+        if et == "predmet" and str(m.get("entity_id") or "") not in dozvoljeni:
+            continue
+        if et == "klijent" and str(m.get("entity_id") or "") not in klijenti:
+            continue
+        if et not in _OPSTI_ENTITETI + ("predmet", "klijent"):
+            continue
+        beleske.append(memory_item(m, user_id=user_id, today=today))
+    veze = []
+    for g in graf:
+        if str(g.get("kancelarija_id") or "") != str(kanc):
+            continue
+        if not _predmeti_veze(g) <= dozvoljeni or not _klijenti_veze(g) <= klijenti:
+            continue
+        veze.append(graph_item(g))
+    return {"kancelarija": True, "beleske": order_items(beleske), "veze": order_items(veze)}

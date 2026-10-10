@@ -313,3 +313,27 @@ NEXT GATE: Task 1 — canonical contract.
 - NEW FINDING (legacy, not fixed): `routers/case_intelligence.py:124` and `services/knowledge_hygiene.py:49,267` select `sadrzaj` from `lessons_learned`. No migration defines that column (the text column is `lecija`, 038), so those reads would fail with 42703 in a schema built from the repo (production schema UNKNOWN). Law Brain reads `lecija`.
 - KNOWN LIMITATIONS: lessons are per-user (`user_id`), so a "team" view does not exist (legacy claim H). The "partner" confirmation is really the owner's confirmation.
 - NEXT GATE: Task 8.
+
+---
+
+## TASK 8 — HUMAN MEMORY + MEMORY GRAPH NORMALIZATION
+
+- PROBLEM: office notes and graph edges are rendered and fed to AI as if they were facts. Legacy GET mutates state.
+- EVIDENCE: Task 0 B/D/G.
+  - `routers/firm_memory._apply_trust` writes `zastarela=true` during GET (PROVEN `firm_memory.py:110`).
+  - `memory_graph_edges.ishod` is free text.
+  - Notes and edges about a `predmet` or `klijent` are office-wide in legacy reads, so a colleague can read A's private matter name and client through them (`/api/firma-memorija/sve`, `/api/memory-graph/upit`).
+- DECISION: `firm_memory` and `memory_graph` are preserved untouched. Law Brain's own read (`law_brain.ucitaj_memoriju`) normalizes:
+  - `izvor` manual → HUMAN_MEMORY_NOTE; korekcija → HUMAN_CORRECTION; auto/benchmark → AI_CANDIDATE_LESSON; NULL → UNKNOWN_LEGACY.
+  - Every note carries "Beleška kolege … nije proverena činjenica". Content is verbatim, never generalized ("uvek"). `potvrde_count` is shown as a number.
+  - Validity is **computed** from `expires_at` against an explicit `today` (no expiry → UNKNOWN). Nothing is written on read.
+  - Edges → EXPLICIT_GRAPH_RELATION with `uzrocnost: false`, notice "Ne dokazuje da je argument uzrokovao ishod", and the edge's `ishod` exposed only as `upisano_uz_vezu` (never `outcome_ref`, never counted).
+  - Confidentiality boundary: office-shared entity types are sudija/firma/partner. A note or edge tied to a **predmet** requires the viewer in `rag_acl.dozvoljeni_predmeti`; one tied to a **klijent** requires the viewer to own that `klijenti` row. Office = canonical `get_kancelarija_id_sync` (`ACTIVE` only), so a removed member gets nothing.
+- FILES: `services/law_brain.py`, `tests/test_ns008_t8_memory.py`.
+- TENANT RESULT:
+  - B (same office) sees the judge note and the general edge, but not A's matter/client notes or the matter edge (no name, id, client, or "pobeda" in the payload).
+  - Active delegation opens the matter note/edge to B, while the client note stays A's.
+  - C (removed) → nothing. D (other office) → only K2 notes.
+- TESTS: 7 passed. MUTATION RESULT: 9/9 killed (matter note without ACL, client note without ownership, matter edge without ACL, auto as human, expiry ignored, GET-side write, removed member sees, causation true, inactive notes).
+- KNOWN LIMITATIONS: legacy `/api/firma-memorija/*` and `/api/memory-graph/*` keep their office-wide behaviour and their GET-side write (directive: preserve, do not retire). The leak path through those legacy routes is recorded for founder review, not changed tonight. `judge_patterns`/`client_memory`/`partner_profiles` are not surfaced by Law Brain.
+- NEXT GATE: Task 9.
