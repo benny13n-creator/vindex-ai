@@ -854,6 +854,26 @@ def _knowledge_item(m, md: dict, *, today: date) -> Optional[LawBrainItem]:
     )
 
 
+def vazece_overe(supa, parovi) -> set:
+    """JEDINO pravilo važenja LAWYER_VERIFIED vektora (Law Brain pretraga i RAG `retrieve_documents`):
+    `parent_id` postoji, njegov staging red je `approved` + `is_lawyer_approved` i pripada ISTOM predmetu kao
+    vektor (Task 20 — overa se ne može „pozajmiti"). Odbijanje posle promocije (Task 21) gasi vektor ODMAH,
+    bez čekanja na brisanje iz Pinecone-a. Greška baze se propušta — pozivalac bira fail-closed."""
+    trazeni = {}
+    for parent, predmet in parovi:
+        if parent:
+            trazeni[str(parent)] = str(predmet or "")
+    if not trazeni:
+        return set()
+    out = set()
+    for r in _in_upit(supa, "staging_memory", "id,predmet_id,status,is_lawyer_approved", "id", trazeni):
+        rid = str(r.get("id") or "")
+        if (r.get("status") == "approved" and r.get("is_lawyer_approved") is True
+                and rid in trazeni and str(r.get("predmet_id") or "") == trazeni[rid]):
+            out.add(rid)
+    return out
+
+
 def pretrazi_znanje_kancelarije(supa, user_id: str, upit: str, *, today: date,
                                 predmet_id: Optional[str] = None, k: int = 8) -> dict:
     """Izričita pretraga (trošak: jedan embedding upita). Greška Pinecone-a/baze se propušta — pozivalac
@@ -881,20 +901,12 @@ def pretrazi_znanje_kancelarije(supa, user_id: str, upit: str, *, today: date,
         it = _knowledge_item(m, md, today=today)
         if it is not None:
             kandidati.append((it, md))
-    # Opoziv pri čitanju: overen vektor važi samo dok je staging izvor i dalje `approved`.
-    roditelji = sorted({str(md["parent_id"]) for it, md in kandidati
-                        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and md.get("parent_id")})
-    vazeci: dict = {}
-    if roditelji:
-        for r in _in_upit(supa, "staging_memory", "id,user_id,predmet_id,status,is_lawyer_approved", "id", roditelji):
-            if r.get("status") == "approved" and r.get("is_lawyer_approved") is True:
-                vazeci[str(r["id"])] = str(r.get("predmet_id") or "")
+    # Opoziv pri čitanju: overen vektor važi samo dok je staging izvor i dalje `approved` (vazece_overe).
+    vazeci = vazece_overe(supa, [(md.get("parent_id"), md.get("predmet_id")) for it, md in kandidati
+                                 if it.trust_class == LAWYER_VERIFIED_ARTIFACT])
     stavke = []
     for it, md in kandidati:
-        # Task 20: overen vektor važi samo ako njegov staging roditelj postoji, odobren je i pripada ISTOM predmetu
-        # (vektor ne može da „pozajmi" overu tuđeg rada navođenjem tuđeg parent_id).
-        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and (
-                not md.get("parent_id") or vazeci.get(str(md["parent_id"])) != str(md.get("predmet_id") or "")):
+        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and str(md.get("parent_id") or "") not in vazeci:
             continue
         stavke.append(it)
     stavke.sort(key=lambda it: (_NIVO[it.trust_class], it.validity == DEPRECATED,

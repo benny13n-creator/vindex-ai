@@ -626,3 +626,34 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 4/4 killed (trust from text, borrowed parent_id, HTML via innerHTML, legacy "always" lesson as guidance).
 - KNOWN LIMITATIONS: semantic injection inside approved text can still bias the wording of accepted claims within their cited references. This is bounded by: claims only on supplied refs, kind ↔ source class, forbidden patterns, numbers must exist in refs, a notice on every output, and output never written back as knowledge.
 - NEXT GATE: Task 21.
+
+---
+
+## TASK 21 — DELETION / REVOCATION / CHANGE PROPAGATION
+
+- ARCHITECTURE FACT: Law Brain has **no derived index and no cache** (Task 5 decided against migration 137). Every section is read from the owners per request, so source changes propagate on the next read. The risk sat **outside** Law Brain: the physical copy of an approved artifact in Pinecone, served by the general RAG path.
+- EVIDENCE:
+  - `POST /api/staging/{id}/reject` on an approved, indexed row flips the status but leaves the vectors and the `predmet_dokumenti` row.
+  - `retrieve_documents` (the single RAG choke point for every lawyer question) served any `LAWYER_VERIFIED` vector with no check of its staging state.
+  - The canonical vector deletion (`shared/vector_deletion.obrisi_vektore_dokumenta`) correctly **refuses** promoted drafts, because their `predmet_dokumenti` row carries no `content_sha256` (fail-closed identity rule), so physical deletion would require new identity plumbing.
+- DECISION (smallest correct fix, no new retention policy):
+  - **Read-time revocation at the single RAG choke point.** `law_brain.vazece_overe` is the only validity rule for LAWYER_VERIFIED vectors: parent staging row is `approved` + `is_lawyer_approved` and belongs to the same matter. It is now used by both Law Brain office search and `retrieve.py` (`_vazece_overe_matcheva`, applied before ranking).
+  - **Fail-closed:** if staging can't be read, no verified vector is served.
+  - A rejected artifact stops being served everywhere immediately, though the vector physically remains. That is honestly reported in Law Brain as `REJECTED_STILL_INDEXED`.
+- ALSO FIXED:
+  1. `shared/rag_acl.dozvoljeni_predmeti` now filters the tombstone (`brisanje_zapoceto`) on the **delegated** branch too (Task 6 finding). It falls back only on a missing-column error. A matter being deleted disappears for delegates as well, in Law Brain and in their RAG filter.
+  2. **Pre-existing defect found by this task's control assertion:** `shared/vector_origin.freshness_weight` threw TypeError on a timezone-naive `created_at` ("2026-08-01"). The subtraction was outside the try block, so **one** such vector aborted the entire office-namespace branch of `retrieve_documents` (all documents silently gone, reported as a source failure). Separately, a naive past `valid_until` was silently ignored (TypeError swallowed → no penalty). Naive dates are now treated as UTC (`_kao_utc`).
+- PROPAGATION RESULTS (`tests/test_ns008_t21_revocation.py`, 9 passed; real routes):
+  - Verified artifact rejected → gone from context and from RAG output. Control: re-approval makes it served again. RAG with staging unreadable → not served.
+  - Lesson rejected (route) → gone from guidance.
+  - Memory deactivated (`DELETE /api/firma-memorija/{id}`) → gone.
+  - Outcome corrected (pobeda→poraz equivalent) → descriptive stats change.
+  - Matter tombstoned → gone for owner **and delegate** (similarity, artifacts, outcomes, Znanje). Its context → 404.
+  - Hard delete → no residue.
+  - **Immutable audit rows untouched.**
+  - Membership removed → office memory gone on the next request.
+- LEGACY TEST ADJUSTMENTS (explicit): `tests/test_confidentiality_003_rag_acl.py` (test double gains the standard PostgREST `in_`/`is_` + a new delegated-tombstone test) and `tests/test_institutional_memory_v2.py::…deprecated_document_ranks_below…` (vectors get `parent_id` and the validity lookup is patched, keeping the test about ranking).
+- TESTS: RAG/ACL/NS008 suites 305 passed (before the freshness fix) + freshness suites 92 passed after it.
+- MUTATION RESULT: 5/5 killed (RAG without revocation, RAG fail-open, validity without status, delegated tombstone reverted, naive date crash).
+- KNOWN LIMITATIONS / FOUNDER DECISION: physical removal of revoked vectors (needs `content_sha256` on promoted `predmet_dokumenti` rows + a canonical deletion call in `staging_reject`), and whether the promoted matter document row should be removed on revocation. No retention policy was invented.
+- NEXT GATE: Task 22.

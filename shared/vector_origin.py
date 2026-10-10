@@ -95,7 +95,7 @@ def freshness_weight(
         return 0.1
     if valid_until:
         try:
-            _vu = datetime.fromisoformat(valid_until.replace("Z", "+00:00"))
+            _vu = _kao_utc(datetime.fromisoformat(valid_until.replace("Z", "+00:00")))
             if _vu < datetime.now(timezone.utc):
                 return 0.1
         except (ValueError, TypeError):
@@ -109,7 +109,7 @@ def freshness_weight(
         return 1.0
 
     try:
-        _created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        _created = _kao_utc(datetime.fromisoformat(created_at.replace("Z", "+00:00")))
     except (ValueError, TypeError):
         return 1.0
 
@@ -122,6 +122,14 @@ def freshness_weight(
     span = _DECAY_FULL_YEARS - _DECAY_START_YEARS
     progress = (age_years - _DECAY_START_YEARS) / span
     return 1.0 - progress * (1.0 - _DECAY_FLOOR)
+
+
+def _kao_utc(d: datetime) -> datetime:
+    """NS008 Task 21 (zatečen kvar): datum bez zone („2026-08-01") se tumači kao UTC. Ranije je oduzimanje
+    naivnog i svesnog datuma bacalo TypeError VAN try bloka — jedan takav vektor je obarao celu kancelarijsku
+    granu pretrage (svi dokumenti nestaju, prijavljeno kao pad izvora), a istekao naivni `valid_until` se tiho
+    ignorisao (TypeError progutan → bez kazne)."""
+    return d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d
 
 
 def now_iso() -> str:

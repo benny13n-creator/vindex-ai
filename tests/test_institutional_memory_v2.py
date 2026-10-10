@@ -383,7 +383,7 @@ class TestTimeDecayRanking:
 
         _match_deprecated = MagicMock()
         _match_deprecated.metadata = {
-            "predmet_id": "pred-1", "type": "draft_final", "origin": "LAWYER_VERIFIED",
+            "predmet_id": "pred-1", "type": "draft_final", "origin": "LAWYER_VERIFIED", "parent_id": "st-1",
             "status": "DEPRECATED", "created_at": _iso_years_ago(5),
             "chunk_index": 0, "article_label": "", "text": "Stav baziran na ukinutom tumačenju zakona.",
         }
@@ -391,7 +391,7 @@ class TestTimeDecayRanking:
 
         _match_fresh = MagicMock()
         _match_fresh.metadata = {
-            "predmet_id": "pred-2", "type": "draft_final", "origin": "LAWYER_VERIFIED",
+            "predmet_id": "pred-2", "type": "draft_final", "origin": "LAWYER_VERIFIED", "parent_id": "st-2",
             "created_at": _iso_years_ago(0.2),
             "chunk_index": 0, "article_label": "", "text": "Stav baziran na trenutno važećem tumačenju zakona.",
         }
@@ -411,10 +411,13 @@ class TestTimeDecayRanking:
         mock_cohere = MagicMock()
         mock_cohere.rerank.side_effect = Exception("no cohere")
 
+        # NS008 Task 21: LAWYER_VERIFIED vektor se servira samo dok je njegov staging roditelj odobren
+        # (`_vazece_overe_matcheva`); ovaj test meri RANGIRANJE, pa su oba roditelja važeća.
         with _stub_retrieve_llm(), \
              patch("app.services.retrieve._get_index", return_value=mock_index), \
              patch("app.services.retrieve._get_embeddings", return_value=mock_embeddings), \
-             patch("app.services.retrieve._get_cohere", return_value=mock_cohere):
+             patch("app.services.retrieve._get_cohere", return_value=mock_cohere), \
+             patch("app.services.retrieve._vazece_overe_matcheva", return_value={"st-1", "st-2"}):
             _, meta = retrieve_documents("upit", kancelarija_namespace="kancelarija_kanc-1",
                 dozvoljeni_predmeti=["pred-1", "pred-2"])
 
