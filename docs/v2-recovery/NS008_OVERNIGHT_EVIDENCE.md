@@ -680,3 +680,33 @@ NEXT GATE: Task 1 — canonical contract.
 - FILES: `services/law_brain.py`, `tests/test_ns008_t22_scale.py`, `tests/test_ns008_t6_similarity.py` (stub gains `range`).
 - MUTATION RESULT: 3/3 killed (no pagination, N+1 batch size, unbounded Znanje list).
 - NEXT GATE: Task 23.
+
+---
+
+## TASK 23 — REALISTIC E2E "THE FIRM REMEMBERS"
+
+- SCENARIO (`tests/ns008_scenario.py`, fictional): office "Jovanović i partneri" (Beograd).
+  - **OLD-1** "Marković protiv Tehnoprom DOO": labour dispute, dismissal for an alleged breach of work discipline, Osnovni sud u Beogradu, witness + documentary evidence, open critical fact/fact contradiction about the service date, Genome v4.
+  - **OLD-2** "Gradnja Invest DOO protiv Opštine Zemun": commercial collection, Privredni sud, contract evidence.
+  - **CURRENT** "Petrović protiv Tehnoprom DOO": an active, similar dismissal case.
+  - Colleague B is in the same office, with a general judge note.
+- HISTORY CREATED THROUGH REAL ROUTES:
+  - `POST /api/learning/outcome` OLD-1 = pobeda (factors svedoci, pisana_komunikacija) and OLD-2 = poraz. Both matters close and **2 durable `MatterBecameTerminal` events** are written (Task 3).
+  - `POST /api/staging/{tužba}/approve` → LAWYER_VERIFIED (Pinecone promotion replaced).
+  - `PATCH /api/learning/lessons/{id}/potvrdi` → confirmed lesson. A second AI lesson stays a candidate; a 0.97-score AI appeal draft stays pending.
+- PROOF (`tests/test_ns008_t23_firm_remembers.py::test_kancelarija_pamti`):
+  1. CURRENT opens (200), with **0 model calls and 0 credits** before the button (11).
+  2. OLD-1 is found first.
+  3. WHY: "Sličan jer: isti tip predmeta (radni); ista oblast (radno); isti sud (Osnovni sud u Beogradu); iste vrste dokaza (dokaz, svedok); iste vrste protivrečnosti (cinjenica_cinjenica)." Points 3+2+1+2+1 = 9, pinned.
+  4. OLD-2 is never above OLD-1 (it falls below the threshold).
+  5. Verified final work = the approved tužba only (lineage AI_GENERATED→LAWYER_VERIFIED); the pending AI draft is absent.
+  6. The confirmed lesson is surfaced; the AI candidate appears only as a count (`kandidata: 1`).
+  7. Outcomes: `{"pobeda": 1}`, "Veličina uzorka: 1.", small sample flagged.
+  8. No "šansa / verovatnoć / win rate / %" anywhere.
+  9. The notice "Iskustvo kancelarije nije pravni izvor…" is present.
+  10. Synthesis: exactly 1 model call and 1 credit (`precedenti`). 4 claims are accepted, all citing only supplied sources (the tužba and the lesson among them). 2 are dropped ("Šansa za uspeh…", "Prema Zakonu o radu…").
+  - **Revocation:** the lawyer rejects the tužba and the lesson (real routes) → CURRENT immediately shows no verified work and no confirmed lesson, while OLD-1 remains a similar matter. A new synthesis has neither source in its references or prompt.
+  - B (same office) sees none of A's history and does see the general office note.
+- TESTS: 2 passed.
+- MUTATION RESULT: 4/4 killed. E1 (court dominates the weights) initially SURVIVED because OLD-2 is too dissimilar to compete → the exact score breakdown is now pinned → killed. The others: candidate lessons as guidance, rejected artifact still verified, synthesis without forbidden patterns.
+- NEXT GATE: Task 24.
