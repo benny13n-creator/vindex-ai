@@ -296,3 +296,77 @@ def test_delegat_upisuje_kao_i_kroz_predmet_id(svet):
     kroz_predmet_id = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(predmet_id=PA)).status_code
     kroz_cvor = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(to_type="predmet", to_id=PA)).status_code
     assert kroz_predmet_id == kroz_cvor
+
+
+# ─── RH002 FINAL: memorija u STVARNOJ poruci modela kroz `POST /api/pitanje` ─────────────────────────────────
+# Test iznad meri povratnu vrednost `_fetch_firm_memory_context`. Ovaj meri ono što model zaista dobija: stvarna
+# ruta → stvarno sklapanje memorije (`vidljive_beleske`, bez zamene) → stvarni `ask_agent` → `_pozovi_openai`,
+# koji je jedini zamenjen (hvata system/user poruku). Zamenjene su još samo spoljne pretrage korpusa.
+def test_chat_ruta_poruka_modela_bez_tudjih_beleski_i_acl_greska_zatvara(svet, monkeypatch):
+    import contextlib
+    from unittest.mock import MagicMock, patch
+    import api
+    import shared.rag_acl as rag_acl
+    import shared.usage as us
+    from security.prompt_guard import IZVOR_MEMORIJA
+    napravi, _ = svet
+    OPSTA = "Sudija traži tabelu rokova."
+
+    async def _kredit(*a, **kw):
+        return 10
+
+    async def _nista(*a, **kw):
+        return None
+    k, _ = napravi(True)       # fiksture postavlja `consume` → None; ruta za chat računa sa saldom, pa ide posle
+    monkeypatch.setattr(us.UsageService, "consume", staticmethod(_kredit))
+    monkeypatch.setattr(us.UsageService, "refund", staticmethod(_nista))
+    monkeypatch.setattr(api, "_get_firma_namespace", _nista, raising=False)
+    monkeypatch.setattr(api, "klasifikuj_pitanje", lambda *a, **kw: "opste", raising=False)
+    assert api._fetch_firm_memory_context.__module__ == "api"      # sklapanje memorije NIJE zamenjeno
+
+    meta = {"confidence": "HIGH", "top_score": 0.71, "top_article": "Član 200", "top_law": "zakon o obligacionim odnosima",
+            "doc_passages": [], "praksa_matches": []}
+    docs = ["Zakon o obligacionim odnosima, Član 200: Svako ko drugome prouzrokuje štetu dužan je da je naknadi." * 2]
+
+    @contextlib.contextmanager
+    def _model():
+        poruke = []
+
+        def _pozovi(system_prompt, user_content, **kw):
+            poruke.append(system_prompt + "\n" + user_content)
+            return "Prema Članu 200 Zakona o obligacionim odnosima, šteta se naknađuje."
+        zamene = {"retrieve_documents": MagicMock(return_value=(docs, meta)),
+                  "retrieve_sudska_praksa": MagicMock(return_value=[]), "retrieve_misljenja": MagicMock(return_value=[]),
+                  "ekstrakcija_clana": MagicMock(return_value=(None, None)),
+                  "_direktan_fetch_clana": MagicMock(return_value=[]), "_pozovi_openai": _pozovi}
+        for ime in zamene:
+            assert ime in api.ask_agent.__globals__, ime
+        with patch.dict(api.ask_agent.__globals__, zamene):
+            yield poruke
+
+    def _pitaj(k, ko, n):
+        # različito pitanje po zahtevu: keš odgovora ne sme da preskoči sklapanje konteksta
+        with _model() as poruke:
+            r = k.post("/api/pitanje", headers=H(ko),
+                       json={"pitanje": f"Kako sudija vodi ročište o naknadi štete po Članu 200, slučaj {n}?"})
+        assert r.status_code == 200, r.text
+        assert poruke, f"{ko}: model nije pozvan — poruka modela nije izmerena (prazna provera)"
+        return "\n".join(poruke)
+
+    za_a, za_b = _pitaj(k, "A", 1), _pitaj(k, "B", 2)
+    # A: sopstvena predmetna i klijentska beleška stižu do modela (pozitivna kontrola)
+    assert TAJNO[1] in za_a and TAJNO[2] in za_a and OPSTA in za_a
+    # B: opšta beleška kancelarije stiže (dokaz da je memorija sklopljena), A-ove privatne ne
+    assert IZVOR_MEMORIJA in za_b and OPSTA in za_b
+    for t in TAJNO:
+        assert t not in za_b, ("poruka modela za B", t)
+
+    # Greška ACL-a (npr. pad upita delegacija) zatvara: nijedna beleška ne ide modelu, zahtev i dalje prolazi.
+    def _pad(*a, **kw):
+        raise RuntimeError("ACL nedostupan")
+    monkeypatch.setattr(rag_acl, "dozvoljeni_predmeti", _pad)
+    for ko, n in (("A", 3), ("B", 4)):
+        p = _pitaj(k, ko, n)
+        assert IZVOR_MEMORIJA not in p, (ko, "memorija prošla uprkos grešci ACL-a")
+        for t in TAJNO:
+            assert t not in p, (ko, t)
