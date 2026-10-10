@@ -554,3 +554,47 @@ NEXT GATE: Task 1 — canonical contract.
   - Only HUMAN_CONFIRMED_OUTCOME and LAWYER_VERIFIED_ARTIFACT, authorized via `rag_acl` for `item.user_id`. No extra model call (deterministic Task 11 read).
 - COMMIT: none (no code change).
 - NEXT GATE: Task 19.
+
+---
+
+## TASK 19 — TENANT + OFFICE ACL MATRIX (HARD GATE)
+
+- ACTORS: A and B active in K1. C active in K2. R REMOVED, S SUSPENDED, I INVITED (all in K1).
+- A's DATA: a private closed matter (human outcome "pobeda"), a lawyer-approved artifact on it, a general office note about a judge, a note tied to the matter, and a graph edge to the matter carrying an outcome.
+- PLANTED ROW: an "approved" staging row by C on A's current matter.
+- RESULTS (real routes; `tests/test_ns008_t19_acl_matrix.py`, 12 passed):
+  - **A** sees everything that is A's: similar matter, artifact, outcome stats, both notes, the edge.
+  - **B (same office)**: does NOT see A's raw matter, artifact, outcome, matter note, or edge. DOES see the general office note.
+  - **Policy decision (explicit):** an approved artifact is shared across users only through matter authorization (owner/delegation); there is no implicit office-wide artifact sharing. Office-wide sharing exists only for human office memory (judge/firm/partner notes).
+  - **No inference (core gate):** for B and for C, every response is **byte-identical** between the world with A's data and the world without it:
+    - `GET /api/law-brain/znanje`
+    - context of their own matter
+    - context of A's matter
+    - context of a nonexistent matter
+    - synthesis on their own matter
+    - synthesis on A's matter
+    
+    This covers counts, titles, ids, similarity, outcome statistics, and errors. The model prompt sent for B/C is identical too. A's matter → same 404 bytes as a nonexistent one.
+  - **C, R, S, I** see no K1 memory.
+  - A membership change applies from the **next request** (B set to REMOVED → office memory gone, `kancelarija: false`); there is no cache in `get_kancelarija_id_sync` / `rag_acl`.
+  - Active delegation opens exactly the delegated matter (similarity + artifact); revoking it closes it again.
+  - The planted cross-user staging row is never shown to anyone.
+- UI (Playwright, `live-law-brain` 40/40):
+  - A slow response for A that arrives after the session switches to B is **not painted**. B's own knowledge then loads, with no leak.
+  - Logout clears the view.
+  - DEFECT FOUND AND FIXED: after a user switch, the open Znanje view stayed empty for B (cleared but never reloaded). It now reloads for the new signed-in user.
+  - NS005 `live-znanje` stays 33/33.
+- MUTATION GAUNTLET (every major scope filter, run against the matrix): **10/10 killed**.
+  - Z1 ACL owner filter
+  - Z2 delegation status
+  - Z3 ACTIVE membership
+  - Z4 memory office filter
+  - Z5 matter-note ACL
+  - Z6 matter-edge ACL
+  - Z7 artifact owner check — initially SURVIVED in the matrix (it was covered only by Task 4 unit tests) → planted-row test added → killed
+  - Z8 similarity ACL
+  - Z9 context ACL
+  - Z10 overview over all matters
+- FILES: `tests/test_ns008_t19_acl_matrix.py`, `frontend-v2-ng/src/law-brain.js`, `frontend-v2-ng/tests/live-law-brain.mjs`.
+- KNOWN LIMITATIONS: legacy `/api/firma-memorija/*` and `/api/memory-graph/*` remain office-wide for matter-tied notes and edges (Task 8, preserved by directive; recorded for founder review). The delegated-tombstone gap in shared `rag_acl` is Task 21.
+- NEXT GATE: Task 20.

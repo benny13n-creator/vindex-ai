@@ -245,6 +245,28 @@ zapisi("promocija", "ponovljen predlog vraća isti staging (bez duplikata)",
   S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje#ponovo`].telo.staging_id === S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje`].telo.staging_id
     && S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje#ponovo`].telo.novo === false);
 
+// ── Task 19: promena sesije usred spornog odgovora — A-ovi podaci nikad ne iscrtavaju za B ──
+{
+  let pusti = null;
+  const zadrzan = new Promise(r => { pusti = r; });
+  const s = await scenario({ kuke: { pre: async ({ k, p }) => { if (k === "A" && p === "/api/law-brain/znanje") await zadrzan; return null; } } });
+  await cekaj(s.p, () => !document.getElementById("lb-stanje").hidden);
+  const drugi = await s.ctx.newPage();
+  await drugi.goto(`http://127.0.0.1:${s.f.port}/src/tokens.css`);
+  await drugi.evaluate(([kl, v]) => localStorage.setItem(kl, v), [KLJUC, ses("kB", TB)]);
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden && /Još nema završenih predmeta/.test(document.body.innerText));
+  pusti();
+  await s.p.waitForTimeout(600);
+  const t = await tekstStranice(s.p);
+  zapisi("sesija", "zakasneli A-ov odgovor posle prelaska na B se ne iscrtava",
+    !/Petrović protiv/.test(t) && !/Pribaviti/.test(t) && !/nagodba/.test(t) && /Traži tabelu rokova/.test(t),
+    JSON.stringify({ curenje: /Petrović protiv|Pribaviti|nagodba/.test(t), bVidi: /Traži tabelu rokova/.test(t), lb: lbSve(s).map(z => z.auth && z.auth.slice(-6)) }));
+  await drugi.evaluate((kl) => localStorage.removeItem(kl), KLJUC);
+  const prazno = await cekaj(s.p, () => document.getElementById("lb-sadrzaj").hidden && !document.querySelector("#lb-iskustvo > .an-item, #lb-memorija > .an-item"));
+  zapisi("sesija", "odjava briše prikaz iskustva kancelarije", prazno);
+  await s.zatvori();
+}
+
 // ── Znanje: svetla tema + mobilni ──
 for (const [w, h, tema] of [[390, 844, "light"], [1440, 900, "light"]]) {
   const s = await scenario({ w, h, tema });

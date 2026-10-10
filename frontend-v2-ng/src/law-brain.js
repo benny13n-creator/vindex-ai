@@ -150,8 +150,16 @@
     }
 
     $("lb-filter").addEventListener("input", filtriraj);
-    var odjavi = sesija.naPromenu(function (novo, staro) { if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti(); });
-    return { otvori: function () { ucitaj(); }, zatvori: function () {}, ocisti: ocisti, zaustavi: function () { odjavi(); ocisti(); } };
+    var otvoren = false;
+    /* Promena korisnika dok je Znanje otvoreno: prikaz se briše (zakasneli odgovor prethodnog korisnika se odbacuje
+     * generacijom) i iskustvo se učitava za NOVOG prijavljenog korisnika. */
+    var odjavi = sesija.naPromenu(function (novo, staro) {
+      if (novo.korisnik === staro.korisnik && novo.stanje === staro.stanje) return;
+      ocisti();
+      if (otvoren && novo.stanje === sesija.STANJA.PRIJAVLJEN) ucitaj();
+    });
+    return { otvori: function () { otvoren = true; ucitaj(); }, zatvori: function () { otvoren = false; }, ocisti: ocisti,
+             zaustavi: function () { otvoren = false; odjavi(); ocisti(); } };
   }
 
 
