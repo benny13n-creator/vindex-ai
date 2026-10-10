@@ -735,8 +735,13 @@ MALI_UZORAK = 5
 _ISHOD_RED = {"pobeda": "pobeda", "poraz": "poraz", "nagodba": "nagodba", "odustajanje": "odustajanje"}
 
 
-def _mnozina_predmet(n: int) -> str:
-    return "predmet" if n % 10 == 1 and n % 100 != 11 else "predmeta"
+def _relevantni_predmeti(n: int) -> str:
+    """Srpska množina: 1 relevantan raniji predmet, 2–4 relevantna ranija predmeta, 5+ relevantnih ranijih predmeta."""
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{n} relevantan raniji predmet"
+    if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        return f"{n} relevantna ranija predmeta"
+    return f"{n} relevantnih ranijih predmeta"
 
 
 def descriptive_outcomes(profili: list) -> dict:
@@ -761,8 +766,7 @@ def descriptive_outcomes(profili: list) -> dict:
     faktori_l = [{"faktor": f, "broj": n, "od": k} for f, n in sorted(faktori.items(), key=lambda x: (-x[1], x[0]))]
     recenice = []
     if relevantnih:
-        recenice.append(f"{relevantnih} relevantnih ranijih {_mnozina_predmet(relevantnih)}; "
-                        f"ljudski zabeležen ishod postoji za {k}.")
+        recenice.append(f"{_relevantni_predmeti(relevantnih)}; ljudski zabeležen ishod postoji za {k}.")
     if k:
         recenice.append("Zabeleženi ishodi: " + ", ".join(f"{n} {_ISHOD_RED[i]}" for i, n in po_ishodu.items()) + ".")
         for f in faktori_l[:5]:
@@ -960,3 +964,65 @@ def kontekst_predmeta(supa, user_id: str, predmet_id: str, *, today: date) -> Op
             **sekcije, "data_quality": kvalitet}
 
 
+
+
+
+# ─── Task 13: pregled znanja kancelarije (Znanje) — čitanje, bez modela, bez kredita ────────────────
+# Iskustvo = završeni predmeti koje korisnik SME da vidi (ACL), grupisani po tipu, sa opisom ljudskih ishoda.
+# Verifikovani radovi = poverljivi artefakti tih predmeta. Lekcije = samo potvrđene (+ brojevi kandidata).
+# Memorija = beleške/veze kancelarije po Task 8 granici.
+ZNANJE_VERSION = "lb-znanje-1"
+
+
+def pregled_znanja(supa, user_id: str, *, today: date) -> dict:
+    from shared.rag_acl import dozvoljeni_predmeti
+    dozvoljeni = set(str(x) for x in dozvoljeni_predmeti(supa, user_id))     # pad → izuzetak → ruta 503
+    predmeti_st: dict = {}
+
+    def _predmeti():
+        if "redovi" not in predmeti_st:
+            predmeti_st["redovi"] = [p for p in ucitaj_predmete(supa, dozvoljeni)
+                                     if str(p.get("id")) in dozvoljeni and not p.get("brisanje_zapoceto")]
+        return predmeti_st["redovi"]
+
+    def _iskustvo():
+        zavrseni = sorted([p for p in _predmeti() if je_terminalan(p)],
+                          key=lambda p: (str(p.get("updated_at") or ""), str(p["id"])), reverse=True)[:MAX_KANDIDATA]
+        profili = ucitaj_profile(supa, zavrseni)
+        po_tipu: dict = {}
+        for p in zavrseni:
+            po_tipu.setdefault(p.get("tip") or "nije naveden", []).append(profili[str(p["id"])])
+        grupe = []
+        for tip, prof in sorted(po_tipu.items(), key=lambda x: (-len(x[1]), x[0])):
+            d = descriptive_outcomes(prof)
+            grupe.append({"tip": tip, **d})
+        return {"state": OK if grupe else EMPTY, "grupe": grupe, "zavrsenih": len(zavrseni)}
+
+    def _radovi():
+        nazivi = {str(p["id"]): p.get("naziv") or "" for p in _predmeti()}
+        pov = trusted(ucitaj_artefakte(supa, _predmeti()))
+        stavke = []
+        for a in pov:
+            d = a.to_dict()
+            d["predmet_naziv"] = nazivi.get(a.predmet_id, "")
+            stavke.append(d)
+        return {"state": OK if stavke else EMPTY, "stavke": stavke}
+
+    def _lekcije():
+        sve = ucitaj_lekcije(supa, user_id)
+        pot = lekcije_kao_smernice(sve)
+        return {"state": OK if pot else EMPTY, "stavke": [x.to_dict() for x in pot],
+                "kandidata": sum(1 for x in sve if x.state == LESSON_CANDIDATE),
+                "odbijenih": sum(1 for x in sve if x.state == LESSON_REJECTED),
+                "nepoznato_poreklo": sum(1 for x in sve if x.state == LESSON_UNKNOWN_LEGACY)}
+
+    def _memorija():
+        m = ucitaj_memoriju(supa, user_id, today=today)
+        return {"state": OK if (m["beleske"] or m["veze"]) else EMPTY, "kancelarija": m["kancelarija"],
+                "stavke": [b.to_dict() for b in m["beleske"]], "veze": [v.to_dict() for v in m["veze"]]}
+
+    sekcije = {"iskustvo": _sekcija(_iskustvo), "verifikovani_radovi": _sekcija(_radovi),
+               "potvrdjene_lekcije": _sekcija(_lekcije), "memorija_kancelarije": _sekcija(_memorija)}
+    degradirano = sorted(k for k, v in sekcije.items() if v.get("state") == DEGRADED)
+    return {"verzija": ZNANJE_VERSION, "napomena": AUTHORITY_NOTICE, **sekcije,
+            "data_quality": {"state": DEGRADED if degradirano else OK, "nedostupni_izvori": degradirano}}

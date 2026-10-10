@@ -1,0 +1,154 @@
+// Vindex V2 NG — NS008 Task 13–14: Law Brain u Znanju i u Analizi predmeta.
+// Pokretanje: `node tests/live-law-brain.mjs`. Odgovori API-ja su STVARNI odgovori Law Brain ruta
+// (tests/ns008_ui_fixture.py), ne ručno pisani JSON.
+
+import { chromium } from "playwright";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { pokreniFixture, json } from "./fixtures/api-fixture.mjs";
+import { napraviPredmete, predmetiRuta, predmetDetaljRuta, kombinuj } from "./fixtures/predmeti-api.mjs";
+
+const REPO = fileURLToPath(new URL("../..", import.meta.url));
+const KLJUC = "sb-czsxymueizfqrbbgqqob-auth-token";
+const TA = "vx-lb-A-NE-U-LOG-41", TB = "vx-lb-B-NE-U-LOG-42";
+let pada = 0, ukupno = 0;
+function zapisi(grupa, naziv, ok, detalj = "") {
+  ukupno++; if (!ok) pada++;
+  console.log(`${ok ? "PASS" : "FAIL"}  [${grupa}] ${naziv}${detalj ? " — " + detalj : ""}`);
+}
+function backend() {
+  const r = spawnSync(process.env.VX_PYTHON || "python", ["tests/ns008_ui_fixture.py"],
+    { cwd: REPO, encoding: "utf-8", env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" }, maxBuffer: 64 * 1024 * 1024 });
+  const red = (r.stdout || "").split("\n").find(l => l.startsWith("@@"));
+  if (!red) { console.log((r.stderr || "").slice(-2000)); throw new Error("ns008_ui_fixture.py nije vratio rezultat"); }
+  return JSON.parse(red.slice(2));
+}
+const S = backend();
+const { PA_CUR, PB_CUR } = S;
+zapisi("backend", "čitanje bez modela; jedna sinteza = jedan poziv i jedan kredit",
+  S.model_pozvan_pri_citanju === 0 && S.model_pozvan_ukupno === 1 && S.krediti.length === 1, JSON.stringify(S.krediti));
+
+const ses = (id, t) => JSON.stringify({ access_token: t, refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id } });
+const cekaj = (p, fn, arg, ms = 12000) => p.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+const browser = await chromium.launch();
+const konzola = [];
+
+function korisnici() {
+  const A = napraviPredmete("kA", 1), B = napraviPredmete("kB", 1);
+  A[0].id = PA_CUR; A[0].naziv = "A tekući";
+  B[0].id = PB_CUR; B[0].naziv = "B tekući";
+  return { [TA]: { id: "kA", predmeti: A }, [TB]: { id: "kB", predmeti: B } };
+}
+
+/** Tačno telo koje je backend vratio za (korisnik, metod, putanja); `oznaka` bira varijantu (npr. #degradirano). */
+function lbRuta(kuke = {}) {
+  const tok = { [TA]: "A", [TB]: "B" };
+  return async (req, url, res) => {
+    const p = url.pathname;
+    if (!p.startsWith("/api/law-brain/") && !/^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/.test(p)) return false;
+    const k = tok[(req.headers.authorization || "").slice(7)];
+    if (!k) { json(res, 401, { detail: "Prijava je obavezna" }); return true; }
+    if (/genome-v2/.test(p)) { json(res, 404, { detail: "Predmet nije pronađen." }); return true; }
+    if (kuke.pre) { const z = await kuke.pre({ p, k, metod: req.method }); if (z) { json(res, z.status, z.telo); return true; } }
+    const o = S.odgovori[`${k}|${req.method}|${p}${kuke.oznaka || ""}`] || S.odgovori[`${k}|${req.method}|${p}`]
+      || { status: 404, telo: { detail: "Predmet nije pronađen." } };
+    json(res, o.status, o.telo);
+    return true;
+  };
+}
+
+async function scenario({ kuke = {}, hash = "#/znanje", w = 1440, h = 900, tema = "dark", korisnik = "kA", token = TA } = {}) {
+  const KOR = korisnici();
+  const f = await pokreniFixture(kombinuj(lbRuta(kuke), predmetiRuta(KOR), predmetDetaljRuta(KOR, {})));
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce", colorScheme: tema });
+  const spoljni = [];
+  await ctx.route("**/*", r => { const u = new URL(r.request().url()); if (u.hostname === "127.0.0.1") return r.continue(); spoljni.push(u.href); return r.abort(); });
+  await ctx.addInitScript(([kl, v, t]) => { localStorage.setItem("vx-ng-tema", t); if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(kl, v); } }, [KLJUC, ses(korisnik, token), tema]);
+  const p = await ctx.newPage();
+  p.on("console", m => konzola.push(m.text()));
+  p.on("pageerror", e => konzola.push("PAGEERROR " + e));
+  await p.goto(`http://127.0.0.1:${f.port}/?rezim=live${hash}`);
+  return { f, ctx, p, spoljni, zatvori: async () => { await ctx.close(); await f.zatvori(); } };
+}
+const lb = (s) => s.f.zahtevi.filter(z => z.putanja.startsWith("/api/law-brain/"));
+const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
+
+// ── Znanje: A ──
+{
+  const s = await scenario();
+  const ok = await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  zapisi("znanje", "otvaranje Znanja učitava iskustvo kancelarije", ok);
+  const r = await s.p.evaluate(() => {
+    const lista = (id) => [...document.querySelectorAll("#" + id + " > .an-item")].map(li => ({ t: li.innerText, trust: li.dataset.trust }));
+    return { isk: lista("lb-iskustvo"), rad: lista("lb-radovi"), lek: lista("lb-lekcije"), mem: lista("lb-memorija"),
+      kand: (document.querySelector("#lb-lekcije .lb-kandidati") || {}).textContent || "",
+      slojevi: document.getElementById("lb-slojevi").innerText,
+      ids: [...document.querySelectorAll("[id]")].map(e => e.id) };
+  });
+  zapisi("znanje", "raniji predmeti po vrsti: opis sa imeniocem, bez procenata",
+    r.isk.length === 1 && /radni — 1 završen predmet/.test(r.isk[0].t) && /1 nagodba/.test(r.isk[0].t) && /Veličina uzorka: 1/.test(r.isk[0].t)
+      && /Mali uzorak/.test(r.isk[0].t) && !/%/.test(r.isk[0].t), r.isk[0] && r.isk[0].t.replace(/\n/g, " | "));
+  zapisi("znanje", "verifikovani rad nosi oznaku „Overio advokat” i predmet",
+    r.rad.length === 1 && r.rad[0].trust === "LAWYER_VERIFIED_ARTIFACT" && /Overio advokat/.test(r.rad[0].t) && /Petrović protiv Gradnja Invest DOO/.test(r.rad[0].t));
+  zapisi("znanje", "samo potvrđena lekcija; predlog AI samo kao broj koji čeka potvrdu",
+    r.lek.length === 1 && /Pribaviti pisane dokaze rano/.test(r.lek[0].t) && !/AI predlog/.test(r.lek.map(x => x.t).join()) && /1 predlog lekcije čeka/.test(r.kand));
+  zapisi("znanje", "beleška kolege je beleška, ne činjenica",
+    r.mem.length === 1 && r.mem[0].trust === "HUMAN_MEMORY_NOTE" && /nije proverena činjenica/.test(r.mem[0].t) && /Beleška kolege/.test(r.mem[0].t));
+  zapisi("znanje", "objašnjenje tri vrste znanja (zakon / kancelarija / AI)",
+    /Zakon i sudska praksa/.test(r.slojevi) && /Znanje kancelarije/.test(r.slojevi) && /AI analiza/.test(r.slojevi) && /ne pravni izvor/.test(r.slojevi));
+  zapisi("znanje", "nema duplih ID-eva", new Set(r.ids).size === r.ids.length, String(r.ids.length - new Set(r.ids).size));
+  const z = lb(s);
+  zapisi("trošak", "otvaranje: tačno 1 GET Law Brain, 0 POST (nema modela ni kredita)",
+    z.length === 1 && z[0].metod === "GET" && z[0].putanja === "/api/law-brain/znanje", JSON.stringify(z.map(x => x.metod + " " + x.putanja)));
+  await s.p.fill("#lb-filter", "pribaviti");
+  const filt = await s.p.evaluate(() => ["lb-iskustvo", "lb-radovi", "lb-lekcije", "lb-memorija"].map(id => [...document.querySelectorAll("#" + id + " > .an-item")].filter(li => !li.hidden).length));
+  zapisi("znanje", "filter je lokalan (bez zahteva) i sužava prikaz", filt.join() === "0,0,1,0" && lb(s).length === 1, filt.join());
+  zapisi("izolacija", "nijedan spoljni zahtev", s.spoljni.length === 0, s.spoljni.join());
+  await s.zatvori();
+}
+
+// ── Znanje: B (ista kancelarija) ne vidi A ──
+{
+  const s = await scenario({ korisnik: "kB", token: TB });
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  const t = await tekstStranice(s.p);
+  zapisi("poverljivost", "B ne vidi A-ov predmet, rad, lekciju ni ishod",
+    !/Petrović protiv/.test(t) && !/Tekst tužbe/.test(t) && !/Pribaviti/.test(t) && !/nagodba/.test(t));
+  zapisi("poverljivost", "B vidi opštu belešku o sudiji (deljena u kancelariji)", /Traži tabelu rokova/.test(t));
+  zapisi("poverljivost", "B: iskreno prazno iskustvo", /Još nema završenih predmeta/.test(t));
+  await s.zatvori();
+}
+
+// ── Znanje: izvor pao → nedostupno, ne prazno ──
+{
+  const s = await scenario({ kuke: { oznaka: "#degradirano" } });
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  const st = await s.p.evaluate(() => { const n = document.getElementById("lb-mem-stanje"); return n.hidden ? null : n.dataset.stanje + ":" + n.textContent; });
+  zapisi("stanja", "memorija pala → „Nije dostupno — izvor nije pročitan”, nikad „Nema beleški”",
+    !!st && st.startsWith("greska:") && /Nije dostupno/.test(st) && !/Nema beleški/.test(st), st);
+  await s.zatvori();
+}
+
+// ── Znanje: ceo zahtev pao → greška, ne prazno ──
+{
+  const s = await scenario({ kuke: { pre: () => ({ status: 503, telo: { detail: "x" } }) } });
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("lb-stanje"); return !n.hidden && n.dataset.stanje === "greska"; });
+  const t = await s.p.evaluate(() => document.getElementById("lb-stanje").textContent);
+  zapisi("stanja", "503 → greška sa „ne znači da ga nema”", ok && /ne znači da ga nema/.test(t) && await s.p.evaluate(() => document.getElementById("lb-sadrzaj").hidden), t);
+  await s.zatvori();
+}
+
+// ── Znanje: svetla tema + mobilni ──
+for (const [w, h, tema] of [[390, 844, "light"], [1440, 900, "light"]]) {
+  const s = await scenario({ w, h, tema });
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  const preliv = await s.p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  zapisi("raspored", `${w}px ${tema}: bez horizontalnog prelivanja`, preliv <= 0, String(preliv));
+  await s.zatvori();
+}
+
+const greske = konzola.filter(x => /PAGEERROR|Uncaught/.test(x));
+zapisi("konzola", "bez grešaka u stranici", greske.length === 0, greske.slice(0, 3).join(" | "));
+await browser.close();
+console.log(`\n${ukupno - pada}/${ukupno} PASS`);
+process.exit(pada ? 1 : 0);

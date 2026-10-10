@@ -417,3 +417,30 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 9/9 killed. Y1 (mixed invented ref) and Y9 (reopened outcome offered as confirmed) initially SURVIVED → added pure-function tests → killed.
 - KNOWN LIMITATIONS: the synthesis result is not persisted (no table). The "one logical result" guarantee is per Idempotency-Key, and a new click is a new, separately charged synthesis by design.
 - NEXT GATE: Task 13.
+
+---
+
+## TASK 13 — V2 ZNANJE: LAW BRAIN
+
+- DECISION: no new sidebar item. A new section **„Iskustvo kancelarije"** inside the existing Znanje view (after the NS005 sections Sudska praksa / Interni stavovi), rendered by the new module `frontend-v2-ng/src/law-brain.js` (`VxLawBrain.znanje`). It is loaded through the existing build-token rewrite (`<script src="src/law-brain.js">` → `/v2/app/@<token>/src/law-brain.js`, `api.py::_v2_ng_primarni_html`).
+- BACKEND: `GET /api/law-brain/znanje` → `law_brain.pregled_znanja`. Sections, each with a state:
+  - `iskustvo`: authorized terminal matters grouped by tip + `descriptive_outcomes` per group.
+  - `verifikovani_radovi`: trusted artifacts + authorized matter name.
+  - `potvrdjene_lekcije`: guidance only + candidate/rejected/unknown counts.
+  - `memorija_kancelarije`: Task 8 boundary.
+  - `data_quality`.
+- UI CONCEPTS: Raniji predmeti po vrsti (Iskustvo), Verifikovani radovi, Potvrđene lekcije, Memorija kancelarije, plus an explicit three-layer explanation (zakon i sudska praksa = external authority / znanje kancelarije = experience, not a legal source / AI analiza = always labelled).
+  - Every item carries a trust label: Ishod uneo advokat / Overio advokat / Beleška kolege — nije proverena činjenica / Veza … ne dokazuje uzrok / Predlog AI — nepotvrđeno / Poreklo nepoznato. STALE is flagged.
+  - Candidate lessons appear only as a count waiting for confirmation.
+  - The filter is local (no request).
+  - No tiles, gamification, animation, or "AI learns" copy.
+- COST: opening Znanje = exactly 1 GET `/api/law-brain/znanje`, 0 POST, 0 model, 0 credit (Playwright request log + backend test).
+- STATES: section DEGRADED → "Nije dostupno — izvor nije pročitan. Ovo ne znači da podataka nema." A whole-request 503 → error text "…ne znači da ga nema" with the content hidden. EMPTY → honest empty text (e.g. B: "Još nema završenih predmeta koje možete da vidite").
+- FILES: `services/law_brain.py`, `routers/law_brain.py`, `frontend-v2-ng/src/law-brain.js`, `frontend-v2-ng/index.html`, `frontend-v2-ng/src/app.css`, `frontend-v2-ng/src/app.js`, `frontend-v2-ng/package.json` (`verify:live-law-brain`), `tests/ns008_ui_fixture.py` (real route responses), `frontend-v2-ng/tests/live-law-brain.mjs`, `tests/test_ns008_t13_znanje_api.py`.
+- TESTS:
+  - Playwright `live-law-brain` 19/19 (real backend responses, A/B, degraded, 503, 390px + 1440px light, duplicate IDs = 0, no external requests, no console errors).
+  - Backend 4 passed.
+  - Existing `live-znanje` (NS005) 33/33 unchanged.
+  - Found while building the fixture and fixed: Serbian plural in descriptive sentences ("1 relevantnih ranijih predmet" → "1 relevantan raniji predmet"; 2–4 / 5+ forms; new parametrized test).
+- MUTATION RESULT: 4/4 killed (DEGRADED shown as empty, note without its trust label, filter that sends a request, candidate lessons shown as guidance).
+- NEXT GATE: Task 14.

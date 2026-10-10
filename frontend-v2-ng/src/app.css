@@ -672,6 +672,9 @@ a.text-btn { text-decoration: none; }
 .prov[data-poreklo="DETERMINISTIC_DERIVATION"] { border-left-color: var(--text-2); }
 .prov[data-poreklo="AI_ANALYSIS"] { border-left-style: dashed; color: var(--text-3); }
 .prov[data-poreklo="UNKNOWN"] { border-left-color: var(--attention); }
+.prov[data-poreklo="HUMAN_NOTE"] { border-left-color: var(--text-2); border-left-style: dotted; }
+.lb-zastarelo { color: var(--text-1); padding-left: var(--sp-2); border-left: 2px solid var(--attention); }
+.lb-kandidati { margin-top: var(--sp-2); }
 .an-change { display: flex; gap: var(--sp-3); align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--text-1); overflow-wrap: anywhere; }
 .an-change__mark { flex: none; width: 1.25rem; color: var(--text-2); font-variant-numeric: tabular-nums; text-align: center; }
 .an-change[data-oznaka="!"] .an-change__mark { color: var(--attention); }

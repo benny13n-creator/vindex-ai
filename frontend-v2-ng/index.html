@@ -271,7 +271,7 @@
       <section class="matter" id="znanje-pogled" hidden aria-labelledby="zn-naslov">
         <div class="matter__head">
           <h1 class="sheet__title matter__title" id="zn-naslov" tabindex="-1">Znanje</h1>
-          <p class="matter__ref">Sudska praksa iz korpusa odluka i interni stavovi vaše kancelarije.</p>
+          <p class="matter__ref">Sudska praksa iz korpusa odluka, interni stavovi i iskustvo vaše kancelarije.</p>
         </div>
         <div class="matter__body">
           <section class="matter__section matter__section--first" aria-labelledby="zn-praksa-naslov">
@@ -312,6 +312,27 @@
             </form>
             <p class="notice" id="zn-stav-stanje" role="status" aria-live="polite" hidden></p>
             <ul class="decisions" id="zn-stav-lista" aria-label="Interni stavovi"></ul>
+          </section>
+          <section class="matter__section" id="lb-znanje" aria-labelledby="lb-naslov">
+            <h2 class="matter__h2" id="lb-naslov">Iskustvo kancelarije</h2>
+            <p class="field__help" id="lb-slojevi">Ovde se ne mešaju tri vrste znanja. <strong>Zakon i sudska praksa</strong> su spoljni pravni izvori (gore). <strong>Znanje kancelarije</strong> su vaši raniji predmeti, radovi koje je advokat overio, potvrđene lekcije i beleške kolega — to je iskustvo, ne pravni izvor. <strong>AI analiza</strong> je uvek označena i nije potvrda.</p>
+            <p class="list-state" id="lb-stanje" role="status" aria-live="polite" hidden></p>
+            <div id="lb-sadrzaj" hidden>
+              <div class="field"><label class="field__label" for="lb-filter">Filtriraj prikazano</label>
+                <input class="field__input" id="lb-filter" type="search" maxlength="100" autocomplete="off"></div>
+              <h3 class="answer__h">Raniji predmeti po vrsti</h3>
+              <p class="list-state" id="lb-isk-stanje" hidden></p>
+              <ul class="an-list" id="lb-iskustvo" aria-label="Raniji predmeti po vrsti"></ul>
+              <h3 class="answer__h">Verifikovani radovi</h3>
+              <p class="list-state" id="lb-rad-stanje" hidden></p>
+              <ul class="an-list" id="lb-radovi" aria-label="Verifikovani radovi"></ul>
+              <h3 class="answer__h">Potvrđene lekcije</h3>
+              <p class="list-state" id="lb-lek-stanje" hidden></p>
+              <ul class="an-list" id="lb-lekcije" aria-label="Potvrđene lekcije"></ul>
+              <h3 class="answer__h">Memorija kancelarije</h3>
+              <p class="list-state" id="lb-mem-stanje" hidden></p>
+              <ul class="an-list" id="lb-memorija" aria-label="Memorija kancelarije"></ul>
+            </div>
           </section>
         </div>
       </section>
@@ -737,6 +758,7 @@
   <script src="src/pretraga.js"></script>
   <script src="src/pitanje-predmeta.js"></script>
   <script src="src/znanje.js"></script>
+  <script src="src/law-brain.js"></script>
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
   <script src="src/prijem-predmeta.js"></script>

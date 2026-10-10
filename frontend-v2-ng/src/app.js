@@ -855,7 +855,14 @@
       location.hash = adresaPredmeta(id, "pregled");
     } });
     pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
-    znanje = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    /* NS008 Task 13 — Znanje: sudska praksa i stavovi (NS005) + iskustvo kancelarije (Law Brain, čitanje bez modela). */
+    var znanjePrakse = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    var znanjeKancelarije = window.VxLawBrain.znanje({ sesija: window.VxSesija, api: window.VxApi });
+    znanje = {
+      otvori: function () { znanjePrakse.otvori(); znanjeKancelarije.otvori(); },
+      zatvori: function () { znanjePrakse.zatvori(); znanjeKancelarije.zatvori(); },
+      zaustavi: function () { znanjePrakse.zaustavi(); znanjeKancelarije.zaustavi(); },
+    };
     kancelarija = window.VxKancelarija.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* Nazivi predmeta bez ročišta: iz već učitanog registra (isti korisnik; registar se prazni pri promeni sesije). */
     var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,

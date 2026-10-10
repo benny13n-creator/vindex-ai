@@ -3,6 +3,8 @@
 import json
 import re
 
+import pytest
+
 from services import law_brain as lb
 
 
@@ -72,3 +74,10 @@ def test_modul_ne_zove_model_za_statistiku():
     import inspect
     src = inspect.getsource(lb.descriptive_outcomes)
     assert "openai" not in src.lower() and "chat" not in src.lower()
+
+
+@pytest.mark.parametrize("n,ocekivano", [(1, "1 relevantan raniji predmet"), (2, "2 relevantna ranija predmeta"),
+                                         (5, "5 relevantnih ranijih predmeta"), (11, "11 relevantnih ranijih predmeta"),
+                                         (21, "21 relevantan raniji predmet"), (12, "12 relevantnih ranijih predmeta")])
+def test_srpska_mnozina(n, ocekivano):
+    assert lb.descriptive_outcomes([_profil(f"p{i}") for i in range(n)])["recenice"][0].startswith(ocekivano + ";")

@@ -5,6 +5,7 @@ Vindex AI — routers/law_brain.py
 NS008 — uska V2 ulazna tačka Law Brain-a. Sva logika je u `services/law_brain.py`; ovde su samo
 autentifikacija, validacija i HTTP ugovor.
 
+  GET  /api/law-brain/znanje                         — pregled znanja kancelarije (Znanje): bez modela, bez kredita.
   GET  /api/law-brain/predmeti/{predmet_id}          — kanonski kontekst predmeta: bez modela, bez kredita, bez upisa.
   POST /api/law-brain/predmeti/{predmet_id}/sinteza  — JEDINI poziv modela; samo na izričit klik. Pravo i cena:
        postojeći feature `precedenti` („Law Firm Brain", migracija 064) — bez novog reda u registru. Trajna
@@ -52,6 +53,20 @@ async def kontekst_predmeta(predmet_id: str, request: Request, user: dict = Depe
     if k is None:
         raise HTTPException(status_code=404, detail=_NEMA)
     return k
+
+
+@router.get("/api/law-brain/znanje")
+@limiter.limit("60/minute")
+async def pregled_znanja(request: Request, user: dict = Depends(get_current_user)):
+    """Znanje → Iskustvo kancelarije: bez modela, bez kredita, bez upisa."""
+    from services import law_brain as lb
+    uid = user["user_id"]
+    try:
+        return await asyncio.to_thread(lb.pregled_znanja, _get_supa(), uid, today=_danas())
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error("[LAW_BRAIN] pregled znanja nije pročitan uid=%.8s: %s", uid, type(e).__name__)
+        raise HTTPException(status_code=503, detail="Iskustvo kancelarije trenutno nije dostupno.")
 
 
 @router.post("/api/law-brain/predmeti/{predmet_id}/sinteza")
