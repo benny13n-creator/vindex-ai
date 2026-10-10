@@ -657,3 +657,26 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 5/5 killed (RAG without revocation, RAG fail-open, validity without status, delegated tombstone reverted, naive date crash).
 - KNOWN LIMITATIONS / FOUNDER DECISION: physical removal of revoked vectors (needs `content_sha256` on promoted `predmet_dokumenti` rows + a canonical deletion call in `staging_reject`), and whether the promoted matter document row should be removed on revocation. No retention policy was invented.
 - NEXT GATE: Task 22.
+
+---
+
+## TASK 22 — PERFORMANCE / SCALE
+
+- METHOD: `tests/test_ns008_t22_scale.py` builds worlds with 1 / 100 / 1000 closed matters. Each matter carries an outcome, an approved artifact, a confirmed lesson, and an office note, so 1000 = 4000+ knowledge rows. The test measures the **number of DB round trips** (fake-DB journal) and wall time for the basic context read, similarity, verified artifacts, and the Znanje overview. OpenAI and Pinecone are patched to fail if touched.
+- RESULTS:
+
+| N closed matters | context | similarity | artifacts | Znanje |
+|---|---|---|---|---|
+| 1 | 16 q | 8 q | 1 q | 14 q |
+| 100 | 16 q | 8 q | 1 q | 14 q |
+| 1000 | 46 q | 38 q | 5 q | 44 q |
+
+  - Round trips grow with ceil(N/200) (`in_` batches), never per matter: **no N+1, no per-matter loop**.
+  - Reads are only `select`: no model call, no Pinecone call, no re-indexing.
+  - Wall times (fake in-memory DB: 1.2 ms → 377 ms at 1000) are **not production latency. Production p95 is UNKNOWN** and must be measured on staging data.
+- DEFECT FOUND AND FIXED (scale correctness): Supabase/PostgREST cuts any response at `max-rows` (default 1000), silently. A 200-matter batch with 10+ evidence rows per matter would have produced **wrong counts** in profiles and similarity. `_in_upit` now pages with `range(...)` until a short page. Test: an emulated cap returns all 2500 rows in 3 pages.
+- BOUNDS: similar ≤ 50, context memory ≤ 15 (+15 edges), context artifacts ≤ current + similar, Znanje artifacts ≤ `MAX_PRIKAZ=200` with `ukupno` (new), lessons ≤ 500, memory ≤ 500, similarity candidates ≤ `MAX_KANDIDATA=1000` newest terminal matters. Worst-case round trips are therefore bounded even beyond 1000 matters.
+- MIGRATION 137 EVALUATION: **not justified yet.** Reads are bounded and sublinear, and a materialized index would add a second copy to invalidate (Task 21). Trigger for reconsidering: measured p95 of `GET /api/law-brain/predmeti/{id}` > 1 s on real data. The next step would then be a regenerable closed-matter profile index with lineage (genome version, outcome id/updated_at, derivation version).
+- FILES: `services/law_brain.py`, `tests/test_ns008_t22_scale.py`, `tests/test_ns008_t6_similarity.py` (stub gains `range`).
+- MUTATION RESULT: 3/3 killed (no pagination, N+1 batch size, unbounded Znanje list).
+- NEXT GATE: Task 23.

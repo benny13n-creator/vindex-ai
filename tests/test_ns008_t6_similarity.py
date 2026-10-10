@@ -170,6 +170,9 @@ class _Stub:
     def in_(self, *a):
         return self
 
+    def range(self, *a):
+        return self
+
     def execute(self):
         g = self.greske.pop(0) if self.greske else None
         if g:

@@ -207,15 +207,24 @@ def order_items(items) -> list:
     return out
 
 
-_IN_DEO = 200   # najviše ID-eva po `in_` upitu (dužina PostgREST URL-a); broj upita = ceil(N / 200) po izvoru
+_IN_DEO = 200      # najviše ID-eva po `in_` upitu (dužina PostgREST URL-a); broj upita = ceil(N / 200) po izvoru
+_STRANA = 1000     # PostgREST/Supabase `max-rows` (podrazumevano 1000): odgovor preko toga se TIHO seče
 
 
 def _in_upit(supa, tabela: str, kolone: str, kljuc: str, ids) -> list:
+    """Svi redovi za date ID-eve. Task 22: odgovor se čita po stranama (`range`) dok strana nije nepotpuna —
+    bez toga bi 200 predmeta × 10 dokaza (2000 redova) tiho postalo 1000 i brojevi u profilu bi lagali."""
     ids = sorted({str(i) for i in ids if i})
     out: list = []
     for i in range(0, len(ids), _IN_DEO):
-        r = supa.table(tabela).select(kolone).in_(kljuc, ids[i:i + _IN_DEO]).execute()
-        out.extend(r.data or [])
+        deo, pocetak = ids[i:i + _IN_DEO], 0
+        while True:
+            r = supa.table(tabela).select(kolone).in_(kljuc, deo).range(pocetak, pocetak + _STRANA - 1).execute()
+            redovi = r.data or []
+            out.extend(redovi)
+            if len(redovi) < _STRANA:
+                break
+            pocetak += _STRANA
     return out
 
 
@@ -1005,6 +1014,7 @@ def kontekst_predmeta(supa, user_id: str, predmet_id: str, *, today: date) -> Op
 # Verifikovani radovi = poverljivi artefakti tih predmeta. Lekcije = samo potvrđene (+ brojevi kandidata).
 # Memorija = beleške/veze kancelarije po Task 8 granici.
 ZNANJE_VERSION = "lb-znanje-1"
+MAX_PRIKAZ = 200
 
 
 def pregled_znanja(supa, user_id: str, *, today: date) -> dict:
@@ -1035,11 +1045,11 @@ def pregled_znanja(supa, user_id: str, *, today: date) -> dict:
         nazivi = {str(p["id"]): p.get("naziv") or "" for p in _predmeti()}
         pov = trusted(ucitaj_artefakte(supa, _predmeti()))
         stavke = []
-        for a in pov:
+        for a in pov[:MAX_PRIKAZ]:      # Task 22: ograničen prikaz; `ukupno` kaže koliko ih ima
             d = a.to_dict()
             d["predmet_naziv"] = nazivi.get(a.predmet_id, "")
             stavke.append(d)
-        return {"state": OK if stavke else EMPTY, "stavke": stavke}
+        return {"state": OK if stavke else EMPTY, "stavke": stavke, "ukupno": len(pov)}
 
     def _lekcije():
         sve = ucitaj_lekcije(supa, user_id)
