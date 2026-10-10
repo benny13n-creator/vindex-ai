@@ -777,3 +777,96 @@ def descriptive_outcomes(profili: list) -> dict:
         "recenice": recenice,
         "napomena": OUTCOME_NOTICE,
     }
+
+
+# ─── Task 10: overeno znanje kancelarije kroz POSTOJEĆI Pinecone namespace vlasnika ────────────────
+# Ista infrastruktura kao `retrieve_documents`: `rag_owner_namespace` + ACL filter `rag_acl` (vlasnik +
+# delegiranje) + `_ugradi_query`/`_pretraga_ns`. Nema drugog vektorskog sloja. Zakon/sudska praksa ostaju
+# spoljašnji pravni autoritet i NISU deo ovog rezultata. AI_GENERATED se isključuje. Nepoznato poreklo ne
+# može da nadjača overeno znanje (rang po nivou poverenja PRE skora). Overen nacrt čiji je staging izvor u
+# međuvremenu odbijen se ne vraća (opoziv važi pri čitanju).
+KNOWLEDGE_NOTICE = ("Sličnost teksta pokazuje samo da se tekst poklapa sa upitom — nije potvrda pravne "
+                    "tačnosti. " + AUTHORITY_NOTICE)
+_NIVO = {LAWYER_VERIFIED_ARTIFACT: 0, SOURCE_CASE_FACT: 1, UNKNOWN_LEGACY: 2}
+
+
+def _knowledge_item(m, md: dict, *, today: date) -> Optional[LawBrainItem]:
+    from shared.vector_origin import (ORIGIN_AI_GENERATED, ORIGIN_CLIENT_DOC, ORIGIN_LAWYER_VERIFIED,
+                                      freshness_weight, origin_label)
+    origin = md.get("origin")
+    if origin == ORIGIN_AI_GENERATED:
+        return None
+    if origin == ORIGIN_LAWYER_VERIFIED:
+        klasa = LAWYER_VERIFIED_ARTIFACT
+        verifikovao = "Advokatska overa nacrta (staging)"
+    elif origin == ORIGIN_CLIENT_DOC or (not origin and md.get("type") == "case_doc"):
+        klasa, verifikovao = SOURCE_CASE_FACT, "Dokument iz predmeta (nije pravna ocena)"
+    else:
+        klasa, verifikovao = UNKNOWN_LEGACY, "Poreklo nije zabeleženo"
+    status = md.get("status")
+    validnost = validity_from(today=today, deprecated=(status == "DEPRECATED"), valid_until=md.get("valid_until"),
+                              has_validity_data=bool(md.get("valid_until") or status or md.get("golden_template")))
+    sveze = freshness_weight(origin=origin, created_at=md.get("created_at"),
+                             golden_template=bool(md.get("golden_template")), valid_until=md.get("valid_until"),
+                             status=status)
+    izvor_id = str(md.get("parent_id") or getattr(m, "id", "") or "")
+    return LawBrainItem(
+        source_kind="office_knowledge",
+        source_owner="staging_memory" if klasa == LAWYER_VERIFIED_ARTIFACT and md.get("parent_id") else "pinecone",
+        source_id=izvor_id or "nepoznato", scope=SCOPE_USER, trust_class=klasa, validity=validnost,
+        title=md.get("source_filename") or origin_label(origin), excerpt=md.get("text") or "",
+        predmet_id=str(md.get("predmet_id") or "") or None, created_at=md.get("created_at"),
+        lineage=tuple(md.get("origin_chain") or ([origin] if origin else ["UNKNOWN"])),
+        state="GOLDEN_TEMPLATE" if md.get("golden_template") else None,
+        attrs=(("slicnost_teksta", round(float(getattr(m, "score", 0.0) or 0.0), 4)),
+               ("slicnost_napomena", "retrieval sličnost teksta, nije pravna tačnost"),
+               ("poreklo", origin_label(origin)), ("verifikovao", verifikovao),
+               ("vrsta", md.get("type")), ("sveze", round(sveze, 3)),
+               ("moze_biti_zastarelo", sveze < 1.0 or validnost != CURRENT),   # nepoznato važenje nikad ne izgleda kao važeće
+               ("vektor_id", str(getattr(m, "id", "") or ""))),
+    )
+
+
+def pretrazi_znanje_kancelarije(supa, user_id: str, upit: str, *, today: date,
+                                predmet_id: Optional[str] = None, k: int = 8) -> dict:
+    """Izričita pretraga (trošak: jedan embedding upita). Greška Pinecone-a/baze se propušta — pozivalac
+    prikazuje DEGRADED, nikad „nema rezultata"."""
+    from shared.kancelarija_utils import get_kancelarija_id_sync, rag_owner_namespace
+    from shared.rag_acl import dozvoljeni_predmeti, filter_za_namespace_vlasnika
+    from app.services import retrieve as _rt
+    upit = " ".join(str(upit or "").split())[:500]
+    if not upit:
+        return {"stanje": EMPTY, "stavke": [], "napomena": KNOWLEDGE_NOTICE}
+    acl = set(dozvoljeni_predmeti(supa, user_id))
+    if predmet_id and str(predmet_id) not in acl:
+        return {"stanje": NOT_AUTHORIZED, "stavke": [], "napomena": KNOWLEDGE_NOTICE}
+    filt = filter_za_namespace_vlasnika(sorted(acl), ["draft_final", "case_doc"], predmet_id)
+    if filt is None:
+        return {"stanje": EMPTY, "stavke": [], "napomena": KNOWLEDGE_NOTICE}
+    ns = rag_owner_namespace(user_id, get_kancelarija_id_sync(supa, user_id))
+    k = max(1, min(int(k), 20))
+    matches = _rt._pretraga_ns(_rt._ugradi_query(upit), ns, k * 2, filt) or []
+    kandidati = []
+    for m in matches:
+        md = dict(getattr(m, "metadata", None) or {})
+        if str(md.get("predmet_id") or "") not in acl:      # odbrana u dubinu, i kad bi filter bio izgubljen
+            continue
+        it = _knowledge_item(m, md, today=today)
+        if it is not None:
+            kandidati.append((it, md))
+    # Opoziv pri čitanju: overen vektor važi samo dok je staging izvor i dalje `approved`.
+    roditelji = sorted({str(md["parent_id"]) for it, md in kandidati
+                        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and md.get("parent_id")})
+    vazeci = set()
+    if roditelji:
+        for r in _in_upit(supa, "staging_memory", "id,user_id,status,is_lawyer_approved", "id", roditelji):
+            if r.get("status") == "approved" and r.get("is_lawyer_approved") is True:
+                vazeci.add(str(r["id"]))
+    stavke = []
+    for it, md in kandidati:
+        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and (not md.get("parent_id") or str(md["parent_id"]) not in vazeci):
+            continue
+        stavke.append(it)
+    stavke.sort(key=lambda it: (_NIVO[it.trust_class], it.validity == DEPRECATED,
+                                -dict(it.attrs)["slicnost_teksta"], it.id))
+    return {"stanje": OK if stavke else EMPTY, "stavke": stavke[:k], "napomena": KNOWLEDGE_NOTICE}

@@ -352,3 +352,24 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 7 passed (all NS008 so far: see commit). MUTATION RESULT: 6/6 killed (reopened counted, outcome without human item, percentage instead of denominator, denominator = all relevant, small-sample flag off, sample size hidden).
 - KNOWN LIMITATIONS: factor keys are shown raw (as stored by the legacy form, e.g. `pisana_komunikacija`); the UI maps labels.
 - NEXT GATE: Task 10.
+
+---
+
+## TASK 10 — VERIFIED OFFICE KNOWLEDGE RETRIEVAL
+
+- PROBLEM: the office namespace mixes lawyer-verified drafts, client documents, and legacy vectors with no origin. Raw Pinecone score must never read as legal correctness.
+- EVIDENCE: promotion metadata (`drafting.py:371-380`): `type=draft_final`, `origin=LAWYER_VERIFIED`, `parent_id=<staging id>`, `origin_chain`, `created_at`, `golden_template`. Retrieval infrastructure already exists: `rag_owner_namespace`, `rag_acl.filter_za_namespace_vlasnika`, `_ugradi_query`, `_pretraga_ns` (which raises instead of returning an empty list, B4).
+- DECISION / IMPLEMENTATION: `law_brain.pretrazi_znanje_kancelarije(supa, uid, upit, today=, predmet_id=None)` — the same namespace and the same ACL filter, so there is no second vector layer.
+  - Classes: LAWYER_VERIFIED → LAWYER_VERIFIED_ARTIFACT (source_ref = staging row). CLIENT_DOC / case_doc → SOURCE_CASE_FACT. Missing origin → UNKNOWN_LEGACY. AI_GENERATED is dropped.
+  - Ranking: **trust tier first**, then deprecated last, then text similarity. A 0.99 legacy vector cannot outrank a 0.70 verified one (test).
+  - **Read-time revocation:** a verified vector is returned only while its staging parent is still `approved` + `is_lawyer_approved`; a verified vector without a parent is dropped. This closes the Task 4 `REJECTED_STILL_INDEXED` exposure for this read path.
+  - Defense in depth: matches whose `predmet_id` is outside the ACL are dropped even if the filter were lost.
+  - Each result explains: `slicnost_teksta` labelled "retrieval sličnost teksta, nije pravna tačnost", `poreklo`, `verifikovao`, `vrsta`, `sveze` (existing `freshness_weight`, golden template honoured), `moze_biti_zastarelo` (true unless validity is CURRENT and freshness is 1.0), `lineage`/`origin_chain`, plus the notice "Iskustvo kancelarije nije pravni izvor".
+  - Law and case law are not part of this result (external authority).
+  - An empty query makes no embedding call. A Pinecone failure propagates (caller → DEGRADED).
+- FILES: `services/law_brain.py`, `tests/test_ns008_t10_office_knowledge.py`.
+- TENANT RESULT: B in the same office → filter `$in=[PB]` and only B's vector. A broken filter returns everything → defense still yields only B's vector. A focus on A's matter → NOT_AUTHORIZED with no Pinecone call.
+- TESTS: 6 passed. One real defect was found while writing tests and fixed before commit: an origin-less legacy vector was flagged "not stale" despite UNKNOWN validity.
+- MUTATION RESULT: 9/9 killed.
+- COST: one embedding per explicit query (Task 26). Not used by the basic GET context (Task 11).
+- NEXT GATE: Task 11.
