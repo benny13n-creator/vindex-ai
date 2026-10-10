@@ -7,6 +7,8 @@ autentifikacija, validacija i HTTP ugovor.
 
   GET  /api/law-brain/znanje                         — pregled znanja kancelarije (Znanje): bez modela, bez kredita.
   GET  /api/law-brain/predmeti/{predmet_id}          — kanonski kontekst predmeta: bez modela, bez kredita, bez upisa.
+  POST /api/law-brain/rad/{work_id}/predlozi-znanje  — izričit predlog PRIHVAĆENOG autonomnog rada kao znanja
+       kancelarije: SAMO red u `staging_memory` (na advokatsku overu), nikad direktno Pinecone (Task 15).
   POST /api/law-brain/predmeti/{predmet_id}/sinteza  — JEDINI poziv modela; samo na izričit klik. Pravo i cena:
        postojeći feature `precedenti` („Law Firm Brain", migracija 064) — bez novog reda u registru. Trajna
        idempotentnost (NS005, `ZASTICENE_RUTE`): dva fizička POST-a sa istim ključem = jedno izvršenje modela,
@@ -91,3 +93,23 @@ async def sinteza(predmet_id: str, request: Request, user: dict = Depends(Permis
     if r.pop("model_pozvan"):
         await UsageService.consume(uid, user.get("email", ""), "precedenti", predmet_id=predmet_id)
     return r
+
+
+@router.post("/api/law-brain/rad/{work_id}/predlozi-znanje")
+@limiter.limit("20/minute")
+async def predlozi_znanje(work_id: str, request: Request, user: dict = Depends(get_current_user)):
+    if not _UUID.match(work_id or ""):
+        raise HTTPException(status_code=404, detail="Radni proizvod nije pronađen.")
+    from services import law_brain_promocija as lp
+    uid = user["user_id"]
+    try:
+        r = await lp.predlozi_kao_znanje(_get_supa(), uid, work_id)
+    except lp.NijePrihvacen as e:
+        raise HTTPException(status_code=409, detail="Kao znanje kancelarije može se predložiti samo prihvaćen rad sa sadržajem.")
+    except Exception as e:
+        _sentry_capture(e)
+        logger.error("[LAW_BRAIN] predlog znanja nije upisan uid=%.8s: %s", uid, type(e).__name__)
+        raise HTTPException(status_code=503, detail="Predlog nije sačuvan.")
+    if r is None:
+        raise HTTPException(status_code=404, detail="Radni proizvod nije pronađen.")
+    return {**r, "poruka": "Rad čeka advokatsku overu. Znanje kancelarije postaje tek posle odobrenja."}

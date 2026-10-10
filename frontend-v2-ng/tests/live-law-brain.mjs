@@ -45,7 +45,7 @@ function lbRuta(kuke = {}) {
   const tok = { [TA]: "A", [TB]: "B" };
   return async (req, url, res) => {
     const p = url.pathname;
-    if (!p.startsWith("/api/law-brain/") && !/^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/.test(p)) return false;
+    if (!p.startsWith("/api/law-brain/") && !/^\/api\/predmeti\/[^/]+\/genome-v2(\/promene)?$/.test(p) && !/^\/api\/autonomy\/work-items\/[^/]+$/.test(p)) return false;
     const k = tok[(req.headers.authorization || "").slice(7)];
     if (!k) { json(res, 401, { detail: "Prijava je obavezna" }); return true; }
     if (/genome-v2/.test(p)) { json(res, 404, { detail: "Predmet nije pronađen." }); return true; }
@@ -70,7 +70,8 @@ async function scenario({ kuke = {}, hash = "#/znanje", w = 1440, h = 900, tema 
   await p.goto(`http://127.0.0.1:${f.port}/?rezim=live${hash}`);
   return { f, ctx, p, spoljni, zatvori: async () => { await ctx.close(); await f.zatvori(); } };
 }
-const lb = (s) => s.f.zahtevi.filter(z => z.putanja.startsWith("/api/law-brain/"));
+const lb = (s) => s.f.zahtevi.filter(z => z.putanja.startsWith("/api/law-brain/") && !z.putanja.startsWith("/api/law-brain/rad/"));
+const lbSve = (s) => s.f.zahtevi.filter(z => z.putanja.startsWith("/api/law-brain/"));
 const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
 
 // ── Znanje: A ──
@@ -215,6 +216,32 @@ const ANALIZA = (pid) => `#/predmeti/${encodeURIComponent(pid)}/analiza`;
   zapisi("raspored", "Analiza 390px light: bez horizontalnog prelivanja", preliv <= 0, String(preliv));
   await s.zatvori();
 }
+
+// ── Task 15: prihvaćen rad → izričit predlog znanja (staging) ──
+{
+  const s = await scenario({ hash: `#/pripremljeno/${S.W_ACC}` });
+  const vid = await cekaj(s.p, () => !document.getElementById("vpr-sadrzaj").hidden);
+  const blok = await s.p.evaluate(() => !document.getElementById("vpr-znanje-blok").hidden);
+  zapisi("promocija", "prihvaćen rad nudi „Predloži kao znanje kancelarije”, bez automatskog upisa",
+    vid && blok && lbSve(s).filter(z => z.metod === "POST").length === 0);
+  await s.p.click("#vpr-predlozi-znanje");
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("vpr-znanje-poruka"); return !n.hidden && n.dataset.stanje === "ok"; });
+  const t = await s.p.evaluate(() => document.getElementById("vpr-znanje-poruka").textContent);
+  zapisi("promocija", "predlog → „čeka advokatsku overu” (staging pending, ne verifikovano)",
+    ok && /čeka advokatsku overu/.test(t) && S.staging_posle_predloga.length === 1 && S.staging_posle_predloga[0].status === "pending"
+      && S.staging_posle_predloga[0].is_lawyer_approved === false && S.staging_posle_predloga[0].pinecone_indexed === false, t);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ hash: `#/pripremljeno/${S.W_READY}` });
+  await cekaj(s.p, () => !document.getElementById("vpr-sadrzaj").hidden);
+  const blok = await s.p.evaluate(() => !document.getElementById("vpr-znanje-blok").hidden);
+  zapisi("promocija", "rad na pregledu (READY) nema opciju predloga znanja", blok === false);
+  await s.zatvori();
+}
+zapisi("promocija", "ponovljen predlog vraća isti staging (bez duplikata)",
+  S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje#ponovo`].telo.staging_id === S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje`].telo.staging_id
+    && S.odgovori[`A|POST|/api/law-brain/rad/${S.W_ACC}/predlozi-znanje#ponovo`].telo.novo === false);
 
 // ── Znanje: svetla tema + mobilni ──
 for (const [w, h, tema] of [[390, 844, "light"], [1440, 900, "light"]]) {

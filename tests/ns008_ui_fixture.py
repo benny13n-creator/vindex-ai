@@ -26,6 +26,9 @@ import pytest  # noqa: E402
 import tests.ns008_fake as f8  # noqa: E402
 from tests.test_ns008_t11_api import PA_CUR, PA_OLD, PB_CUR, _tabele  # noqa: E402
 
+W_ACC = "eeee0001-1515-4000-8000-000000000001"
+W_READY = "eeee0002-1515-4000-8000-000000000002"
+
 
 def _model(prompt, pid):
     refs = dict(re.findall(r"^(R\d+) (\[[A-Z_]+\].*)$", prompt, re.M))
@@ -44,7 +47,21 @@ def _model(prompt, pid):
 def main() -> dict:
     mp = pytest.MonkeyPatch()
     try:
-        k, baza = f8.pripremi(mp, _tabele())
+        t = _tabele()
+        t["autonomy_work_items"] = [
+            {"id": W_ACC, "user_id": "uid-A", "predmet_id": PA_CUR, "work_type": "HEARING_PREP", "status": "ACCEPTED",
+             "title": "Priprema za ročište", "summary": "Šta proveriti.", "dedupe_key": "k1", "reason": "Ročište sutra",
+             "ready_at": "2026-10-10T03:00:00+00:00", "quality_state": "AI_PREPARED_FOR_REVIEW",
+             "content_json": {"rociste": {"datum": "2026-10-11"}, "pitanja": [{"tekst": "Proveriti datum uručenja.", "refs": ["x"]}]}},
+            {"id": W_READY, "user_id": "uid-A", "predmet_id": PA_CUR, "work_type": "HEARING_PREP", "status": "READY_FOR_REVIEW",
+             "title": "Druga priprema", "summary": "x", "dedupe_key": "k2", "reason": "r", "ready_at": "2026-10-10T03:00:00+00:00",
+             "quality_state": "AI_PREPARED_FOR_REVIEW", "content_json": {"rociste": {"datum": "2026-10-11"}}}]
+        k, baza = f8.pripremi(mp, t)
+        import services.quality_gate as qg
+
+        async def _kvalitet(tekst, tip=""):
+            return {"confidence_score": 0.9, "detail": {}}
+        mp.setattr(qg, "evaluate_draft_quality", _kvalitet)
         import shared.permissions as perm
         import shared.usage as us
         import services.law_brain_sinteza as S
@@ -68,7 +85,7 @@ def main() -> dict:
         mp.setattr(us.UsageService, "consume", staticmethod(_naplati))
         mp.setattr(S, "_pozovi_model_sinteze", _m)
 
-        out = {"PA_CUR": PA_CUR, "PA_OLD": PA_OLD, "PB_CUR": PB_CUR, "odgovori": {}}
+        out = {"PA_CUR": PA_CUR, "PA_OLD": PA_OLD, "PB_CUR": PB_CUR, "W_ACC": W_ACC, "W_READY": W_READY, "odgovori": {}}
 
         def uzmi(ko, put, metod="GET", kljuc=None, oznaka=""):
             h = f8.zaglavlje(ko)
@@ -86,6 +103,12 @@ def main() -> dict:
         out["model_pozvan_pri_citanju"] = pre_modela
         out["model_pozvan_ukupno"] = len(pozivi)
         out["krediti"] = krediti
+        for wid in (W_ACC, W_READY):
+            uzmi("A", f"/api/autonomy/work-items/{wid}")
+        uzmi("A", f"/api/law-brain/rad/{W_ACC}/predlozi-znanje", "POST")
+        uzmi("A", f"/api/law-brain/rad/{W_ACC}/predlozi-znanje", "POST", oznaka="#ponovo")
+        out["staging_posle_predloga"] = [{k_: r.get(k_) for k_ in ("status", "is_lawyer_approved", "pinecone_indexed", "tip")}
+                                         for r in baza.tabele.get("staging_memory", []) if r.get("tip") == "pripremljen_rad"]
         baza.greske["memory_entries"] = Exception("down")
         uzmi("A", "/api/law-brain/znanje", oznaka="#degradirano")
         uzmi("A", f"/api/law-brain/predmeti/{PA_CUR}", oznaka="#degradirano")

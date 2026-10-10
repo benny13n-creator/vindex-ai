@@ -97,6 +97,7 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     ("POST", r"^/api/learning/outcome$"),
     ("PATCH", rf"^/api/learning/lessons/{_SEG}/potvrdi$"),
     ("POST", rf"^/api/law-brain/predmeti/{_SEG}/sinteza$"),
+    ("POST", rf"^/api/law-brain/rad/{_SEG}/predlozi-znanje$"),
 ))
 
 

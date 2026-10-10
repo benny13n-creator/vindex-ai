@@ -467,3 +467,24 @@ NEXT GATE: Task 1 — canonical contract.
 - DEFECT FOUND AND FIXED BEFORE COMMIT: the UI read the HTTP status from the wrong field (`greska.status` instead of `r.status`), so a 503 was shown as "ishod nepoznat".
 - MUTATION RESULT: 5/5 killed (hidden model call on open, no honest-empty message, DEGRADED as empty, claims shown without sources, 503 reported as unknown).
 - NEXT GATE: Task 15.
+
+---
+
+## TASK 15 — FINAL ARTIFACT PROMOTION (human-reviewed learning loop)
+
+- PROBLEM: NS007 ACCEPTED products must never become institutional knowledge silently, yet a lawyer needs a path to keep good work.
+- DECISION: an explicit, separate action that goes **through the existing `staging_memory` workflow**:
+  - `POST /api/law-brain/rad/{work_id}/predlozi-znanje` (durable-idempotent, 20/min) → `services/law_brain_promocija.predlozi_kao_znanje`.
+  - Requirements: the item is owned by the caller, its status is **ACCEPTED** (READY/REJECTED → 409), the matter ownership is re-checked, and it has content.
+  - Effect: deterministic text extraction (title, summary, every `tekst` field) → existing Quality Gate → **one** staging row (`tip=pripremljen_rad`, `pending`, `quality_detail.izvor_rad_id` = lineage back to the work item). A repeat request returns the same staging row.
+  - The module **never** writes Pinecone and never sets `is_lawyer_approved`. Verification still requires the existing `POST /api/staging/{id}/approve`, plus the ≥0.85 threshold for indexing.
+- UI: in the NS007 "Pripremljeni rad" detail, a section **„Znanje kancelarije"** appears **only for ACCEPTED** items (also right after accepting), with the copy "Prihvaćen rad nije automatski znanje kancelarije…" and the button "Predloži kao znanje kancelarije". Messages: pending review / already proposed / unknown outcome (no duplicate on retry) / 409.
+- REQUIRED TESTS:
+  - READY → absent from trusted brain, and promotion refused (409).
+  - ACCEPTED (seeded and via the real accept route) → still absent, 0 staging rows.
+  - Explicit promotion → staging `pending` = AI_WORK_PRODUCT / PENDING_REVIEW (not trusted), 0 Pinecone calls.
+  - Lawyer approval via the real route → LAWYER_VERIFIED_ARTIFACT / APPROVED_INDEXED, lineage AI_GENERATED→LAWYER_VERIFIED.
+- FILES: `services/law_brain_promocija.py`, `routers/law_brain.py`, `shared/idempotency.py`, `tests/ns008_fake.py` (staging DEFAULTs from 088), `tests/test_ns008_t15_promotion.py`, `frontend-v2-ng/src/pripremljeno.js`, `frontend-v2-ng/index.html`, `tests/ns008_ui_fixture.py`, `frontend-v2-ng/tests/live-law-brain.mjs`.
+- TESTS: backend 7 passed. Playwright `live-law-brain` 37/37 (+4 promotion checks, real route responses). NS007 `live-pripremljeno` 51/51 unchanged.
+- MUTATION RESULT: 6/6 killed (READY promotable, proposal pre-approved, direct Pinecone promotion, no dedupe, foreign work item, accept auto-proposes).
+- NEXT GATE: Task 16.
