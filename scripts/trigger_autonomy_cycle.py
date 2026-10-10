@@ -60,7 +60,8 @@ def main(argv: list[str] | None = None) -> int:
                                              "User-Agent": "vindex-autonomy-trigger/1"})
     cilj = f"{u.scheme}://{u.hostname}{':' + str(u.port) if u.port else ''}{u.path}"
     try:
-        with urllib.request.urlopen(zahtev, timeout=timeout) as odg:
+        # šema je iznad ograničena na https (http samo ka localhost-u); file:/ i druge šeme se odbijaju pre zahteva
+        with urllib.request.urlopen(zahtev, timeout=timeout) as odg:  # nosec B310
             status, sirovo = odg.status, odg.read(65536)
     except urllib.error.HTTPError as e:
         try:

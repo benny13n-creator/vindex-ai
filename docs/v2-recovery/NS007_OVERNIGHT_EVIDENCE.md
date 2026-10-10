@@ -841,3 +841,99 @@ ide kroz postojeći `case_context` po svojoj politici, bez promene), tajne i klj
   `services/retention_service.py` (Modul 9 dnevnog crona) — tek kad founder odobri politiku.
 
 **SLEDEĆA KAPIJA.** Task 28 — NS006 regresija.
+
+---
+
+## TASK 28 — NS006 REGRESIJA (NS007 je naslagan na NS006)
+
+**DOKAZ (PROVEN).** Svi NS006 backend testovi (Professional Genome, Evidence Graph, kontradikcije, promene Genome-a,
+spremnost, Case Actions, API površina, autonomni lanac, realan predmet, zakupci, haos, trošak) + NS005.1 koherentnost
+asseta: 132 passed, 1 skipped na NS007 HEAD. UI (ceo NG paket na kraju — 34/34 skripte, 2.106 provera, 0 padova): `live-analiza`, `live-pregled-zivi`,
+`live-radna-lista`, `live-danas` zeleni; dva NS006 UI testa su ažurirana SAMO za namernu promenu (Pregled čita i
+pripremljen rad → 3 GET; Danas ima novu prvu sekciju). Living Matter nije oslabljen.
+
+---
+
+## TASK 29 — KOHERENTNOST ASSETA
+
+**DOKAZ (PROVEN).** `src/pripremljeno.js` je učitan kroz `index.html` relativno, pa ga server isporučuje pod build
+tokenom `/v2/app/@<token>/` kao i sve ostale; `test_ns0051_asset_coherency` (inventar: svaki `src/*.js` mora biti u
+HTML-u i pod tokenom) zelen; mutacija Q13 (skript na stabilnoj `/v2/app/src/...` putanji) UBIJENA; `e2e:primary`,
+`e2e:fastapi`, `e2e:sw-isolation` zeleni (nema regresije service worker-a).
+
+---
+
+## TASK 30 — BEZBEDNOST + PUN CI
+
+**PUN BACKEND PAKET (PROVEN).** `pytest tests -p no:randomly`, zamrznuta NS006 osnova `dac1f6dd` naspram NS007 HEAD,
+isti način pokretanja:
+
+| | NS006 osnova `dac1f6dd` | NS007 HEAD |
+|---|---|---|
+| failed | 21* | 20 |
+| passed | 8515 | 8667 (+152 NS007) |
+| skipped | 198 | 210 (+12 PG testova bez `VX_TEST_PG_DSN`) |
+
+\* 21. pad osnove (`test_wave10_test_db_bootstrap::test_deljeni_klasteri_i_dalje_rade`) je izazvao MOJ lokalni PG klaster
+na portu 55432 — test proverava deljene klastere na 55432/55433. Dokaz: sa ugašenim klasterom isti test na osnovi
+prolazi 14/14; klaster premešten na 55499; sa njim upaljenim PG testovi + wave10 zajedno 25 passed. Stvaran skup padova
+osnove = 20 imena, **identičan** skupu NS007 (0 novih, 0 nestalih). Tih 20 su isti postojeći padovi kao u NS006
+izveštaju (bu001 ×3, prg_night_register ×5, faza1_pristupacnost ×3, coi_intake [trio] ×3, rc_cold_start ×2,
+ca_trust_boundary, faza1_izvor_pod, ns003_protocol, phoenix_013).
+
+PG testovi (pravi PostgreSQL 17.9, `VX_TEST_PG_DSN`): ugovor 10/10 + paritet 1/1.
+
+**PRODUKCIONI PYTHON 3.11.** 38 izmenjenih `.py` fajlova se kompajlira pod 3.11.9 (0 grešaka); NS007 + NS006 testovi
+pod 3.11 (venv sa `requirements.txt`): 279 passed, 11 skipped (PG testovi — venv nema `psycopg`).
+
+**PRODUKCIONI DOCKER.** UNKNOWN — Docker nije instaliran na ovoj mašini; slika NIJE građena. Dockerfile nije menjan.
+
+**BEZBEDNOST.** Bandit (`-ll`, 11 izmenjenih produkcionih fajlova): jedini nalaz B310 (`urlopen` u okidaču) — šema je
+pre poziva ograničena na https / http-localhost (test + mutacija K3), označeno `# nosec B310` sa obrazloženjem; posle
+toga 0 srednjih/visokih. Semgrep (`p/python`, `p/javascript`, 14 fajlova): 0. pip-audit: `requirements.txt` nepromenjen
+u NS007 (isti nalazi kao NS006: `python-jose` dokazano neiskoristiv, `ecdsa` bez ispravke). Gitleaks NIJE instaliran
+(UNKNOWN) — regex pretraga celog NS007 diff-a (OpenAI/JWT/AWS/privatni ključ/dugi `secret=`): 0. Testovi tajne okidača:
+tajna nikad u izlazu (K1, K4, K6).
+
+**SLEDEĆA KAPIJA.** Task 31 — završna adversarijalna pitanja.
+
+---
+
+## TASK 31 — ZAVRŠNA ADVERSARIJALNA PITANJA (bez nove implementacije)
+
+| # | Pitanje | Odgovor | Dokaz |
+|---|---|---|---|
+| 1 | Može li jedan prozor da se izvrši dvaput? | **NE.** UNIQUE `window_key`, INSERT je zauzimanje; RUNNING se ne otima | PG 20→1 (D3); T3 SKIPPED (S4); T18 A |
+| 2 | Može li jedan posao da naplati dvaput? | **DA, ograničeno — i iskreno dokumentovano**: pad posle naplate, a pre upisa → najviše `max_attempts` = 2 izvršenja, zatim DEAD_LETTER; posle uspeha nikad | PG D4; T18 C; T22 `max_retries=0` |
+| 3 | Može li pad baze budžeta da izazove nekontrolisanu potrošnju? | **NE.** Bez uspešnog zauzimanja nema izvršioca; nepoznat limit = BUDGET_UNKNOWN | T3 (S7, S8), T5, PG D6 |
+| 4 | Može li pad radnika da izgubi gotov proizvod? | **NE.** Rezultat i READY u jednoj naredbi, samo za vlasnika zakupa | T18 D; PG „samo vlasnik" |
+| 5 | Može li pad radnika da napravi beskonačna ponavljanja? | **NE.** `attempt_count < max_attempts`, zatim DEAD_LETTER | PG D4; T18 C |
+| 6 | Može li B da vidi rad A? | **NE.** | T12, T14, T19 (V1, V2, W1) |
+| 7 | Može li B da izazove rad nad predmetom A? | **NE.** Okidač ne prima zakupca; planer veže sve za vlasnika izvornog reda | T19, H2, P6, T1 |
+| 8 | Može li neproverena odluka da postane pouzdana? | **NE.** Izvor mora postojati u korpusu i u planeru i u izvršiocu; uticaj samo uz doslovan izvod | T9–10 (P1, P8, P9), T21, T23 C |
+| 9 | Može li priprema za ročište da izmisli podatke o ročištu? | **NE.** Ročište, sud, vreme, sudnica su iz baze; model ih ne vraća; stavke bez važeće reference se odbacuju | T8 (X10), T21 |
+| 10 | Može li prihvaćen proizvod da izazove spoljni čin? | **NE.** Prihvatanje menja samo stanje pregleda | T12 (V5), T23 (0 spoljnih upisa) |
+| 11 | Može li proizvod tiho da uđe u Law Brain? | **NE.** Nijedan put ka `staging_memory`/Pinecone | T8 (upisi), T12, T23 |
+| 12 | Može li zastareo rad da preživi promenjeno/otkazano ročište kao aktuelan? | **NE.** SUPERSEDED (planer) ili FAILED pre modela (izvršilac); vraćeno ročište obnavlja tačan proizvod | T6–7 (H9, H11), T8 (X1, X2), T26 |
+| 13 | Može li zatvoren predmet da proizvede nov autonomni rad? | **NE.** `TERMINALNI_STATUSI_PREDMETA` + tombstone, i u planeru i u izvršiocu | H3, H4, H5, X4 |
+| 14 | Može li autoritet koji je dao model da izgleda provereno bez izvora? | **NE.** Citati propisa/odluka iz modela se odbacuju; „provereno" nosi samo odluka nađena u korpusu | T8 (X8), T10 (P9, P10), T21 |
+| 15 | Može li otvaranje stranice da troši kredite? | **NE.** | T22 (granica SDK-a: 0 poziva za čitanje) |
+| 16 | Da li smo napravili drugi motor akcija? | **NE.** Case Actions netaknute; rad ih samo referencira (`case_action_id`) | T6–7, T14 |
+| 17 | Da li smo napravili drugi registar agenata? | **NE.** Jedan spisak modula (`_agent_modules`); legacy registar izveden iz njega, nepromenjen | T3 (S10), T25 |
+| 18 | Da li smo nepravilno preopteretili `staging_memory`? | **NE.** Nije diran | T0, T13 |
+| 19 | Da li je obrisana neka sačuvana sposobnost? | **NE.** Ništa obrisano; dnevni cron, preporuke, HCC, staging netaknuti | T25, `git diff --stat` |
+| 20 | Da li je NS007 izmenio PAD-001? | **NE.** | `git diff dac1f6dd..HEAD -- docs/v2/VINDEX_V2_PRODUCT_ARCHITECTURE_DECISION_PAD_001.md` prazan |
+
+Nijedno „DA" nije nebezbedno: jedino „DA" (pitanje 2) je fizička granica (pad posle naplate), ograničena na 2 izvršenja,
+vidljiva i dokumentovana u migraciji 136.
+
+**SLEDEĆA KAPIJA.** Task 32 — stacked Draft PR (tekst).
+
+---
+
+## TASK 32 — STACKED DRAFT PR
+
+PR NIJE otvoren automatski: u okruženju nema `gh`. Tekst je spreman u `docs/v2-recovery/NS007_PR_BODY.md` — naslov
+„V2 NS007 — While You Sleep / Autonomous Work", **base = `feature/vindex-v2-ns006-living-matter`** (NE `main`), head =
+`feature/vindex-v2-ns007-while-you-sleep`, sa oznakama STACKED ON NS006 PR #9 / DO NOT MERGE TO MAIN DIRECTLY / DO NOT
+DEPLOY / REQUIRES NS006 MERGE FIRST.
