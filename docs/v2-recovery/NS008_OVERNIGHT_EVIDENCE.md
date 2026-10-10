@@ -373,3 +373,23 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 9/9 killed.
 - COST: one embedding per explicit query (Task 26). Not used by the basic GET context (Task 11).
 - NEXT GATE: Task 11.
+
+---
+
+## TASK 11 — CANONICAL LAW BRAIN READ API
+
+- DECISION: new narrow router `routers/law_brain.py`. No existing route can honestly own the contract: `precedenti` and `outcome_intel` call GPT and charge credits. All logic is in `law_brain.kontekst_predmeta`.
+- ROUTE: `GET /api/law-brain/predmeti/{predmet_id}` (auth `get_current_user`, 60/min).
+  - Sections: `similar_cases`, `verified_artifacts` (current + similar authorized matters, trusted only, plus a pending count for this matter), `confirmed_lessons` (guidance only, plus candidate and unknown-origin counts), `relevant_human_memory` (office notes/edges that are general or tied to this matter), `descriptive_outcomes`, and `data_quality` (unavailable sources, genome present, closed matters scanned, similar with human outcome, lessons awaiting confirmation or of unknown origin).
+  - Every section has `state`.
+- FAILED SOURCE ≠ EMPTY: each section is computed independently, and an exception → `DEGRADED` (test: `lessons_learned` down → that section DEGRADED, others OK, `data_quality.nedostupni_izvori=["confirmed_lessons"]`). A similarity failure also degrades outcomes, which are derived from it.
+- AUTHORIZATION:
+  - ACL failure → 503 (never an empty 200).
+  - A foreign, nonexistent, malformed, or tombstoned matter (including a delegated tombstoned one) → **byte-identical 404**.
+  - `NOT_AUTHORIZED` remains a section state in the service contract (e.g. an unauthorized focus in office search). At route level, a foreign matter is a 404 so that no existence signal leaks.
+- NO model (OpenAI constructor patched to fail, test passes), NO credit (`UsageService.consume` never called), NO writes (only `select` in the DB journal). The internal `_profili` are never serialized.
+- FILES: `services/law_brain.py`, `routers/law_brain.py`, `api.py` (router registration), `tests/test_ns008_t11_api.py`.
+- TENANT RESULT: B (same office) gets only B's context; A's matter name, artifact, lesson, and outcome are absent; the office judge note is present (general entity).
+- TESTS: 9 passed. Route/security inventory suites (22 files): 661 passed, 2 failed — `test_ca_trust_boundary::test_M19…` and `test_product_intelligence::test_require_admin_allows_founder`, **both in the NS007 baseline failure list** (`scratchpad/ns007/base_names.txt`), so they are not NS008-attributable.
+- MUTATION RESULT: 8/8 killed. A7 (tombstone check) initially SURVIVED, because the owner path of `rag_acl` already filters it; added a delegated-tombstone test → killed.
+- NEXT GATE: Task 12.

@@ -509,10 +509,13 @@ def _objasnjenje(razlozi: list) -> str:
     return "Sličan jer: " + "; ".join(delovi) + "."
 
 
-def slicni_predmeti(supa, user_id: str, predmet_id: str, *, limit: int = 10) -> dict:
-    """Objašnjivo slični ZAVRŠENI predmeti koje `user_id` sme da vidi. Bez modela, bez upisa."""
+def slicni_predmeti(supa, user_id: str, predmet_id: str, *, limit: int = 10, dozvoljeni=None) -> dict:
+    """Objašnjivo slični ZAVRŠENI predmeti koje `user_id` sme da vidi. Bez modela, bez upisa.
+    `dozvoljeni` sme da prosledi pozivalac koji je ACL već izračunao u ISTOM zahtevu (isti izvor)."""
     from shared.rag_acl import dozvoljeni_predmeti
-    dozvoljeni = set(dozvoljeni_predmeti(supa, user_id))       # greška baze → izuzetak (fail-closed)
+    if dozvoljeni is None:
+        dozvoljeni = dozvoljeni_predmeti(supa, user_id)       # greška baze → izuzetak (fail-closed)
+    dozvoljeni = set(str(x) for x in dozvoljeni)
     if str(predmet_id) not in dozvoljeni:
         return {"stanje": NOT_AUTHORIZED, "stavke": []}
     redovi = {str(p["id"]): p for p in ucitaj_predmete(supa, dozvoljeni) if p.get("id")}
@@ -543,9 +546,11 @@ def slicni_predmeti(supa, user_id: str, predmet_id: str, *, limit: int = 10) -> 
             "overeni_artefakti": len(prof["overeni_artefakti"]),
         })
     stavke.sort(key=lambda s: (-s["bodovi"], s["predmet_id"]))
+    stavke = stavke[:max(1, min(int(limit), 50))]
     return {
+        "_profili": [profili[s["predmet_id"]] for s in stavke],     # interno (Task 9/11), ruta ga ne vraća
         "stanje": OK if stavke else EMPTY,
-        "stavke": stavke[:max(1, min(int(limit), 50))],
+        "stavke": stavke,
         "pretrazeno_zavrsenih": len(pretrazeno),
         "ukupno_slicnih": len(stavke),
         "verzija": SIMILARITY_VERSION,
@@ -870,3 +875,86 @@ def pretrazi_znanje_kancelarije(supa, user_id: str, upit: str, *, today: date,
     stavke.sort(key=lambda it: (_NIVO[it.trust_class], it.validity == DEPRECATED,
                                 -dict(it.attrs)["slicnost_teksta"], it.id))
     return {"stanje": OK if stavke else EMPTY, "stavke": stavke[:k], "napomena": KNOWLEDGE_NOTICE}
+
+
+
+# ─── Task 11: kanonski kontekst predmeta (čitanje, bez modela, bez kredita) ─────────────────────────
+# Svaka sekcija ima `state`; pad izvora je DEGRADED, nikad EMPTY. Tuđ/nepostojeć predmet → None (ruta vraća
+# isti 404 za oba, bez signala postojanja).
+CONTEXT_VERSION = "lb-ctx-1"
+
+
+def _sekcija(fn):
+    try:
+        return fn()
+    except Exception as e:                                   # pad izvora ≠ prazno
+        import logging
+        logging.getLogger("vindex.law_brain").warning("[LAW_BRAIN] sekcija nije pročitana: %s", type(e).__name__)
+        return {"state": DEGRADED, "stavke": []}
+
+
+def kontekst_predmeta(supa, user_id: str, predmet_id: str, *, today: date) -> Optional[dict]:
+    from shared.rag_acl import dozvoljeni_predmeti
+    dozvoljeni = set(str(x) for x in dozvoljeni_predmeti(supa, user_id))   # pad → izuzetak → ruta 503
+    if str(predmet_id) not in dozvoljeni:
+        return None
+    predmet = next((p for p in ucitaj_predmete(supa, [predmet_id]) if str(p.get("id")) == str(predmet_id)), None)
+    if predmet is None or predmet.get("brisanje_zapoceto"):
+        return None
+
+    def _sl():
+        r = slicni_predmeti(supa, user_id, predmet_id, dozvoljeni=dozvoljeni)
+        return {"state": r["stanje"], "stavke": r["stavke"], "pretrazeno_zavrsenih": r.get("pretrazeno_zavrsenih", 0),
+                "napomena": r.get("napomena"), "_profili": r.get("_profili", [])}
+    slicni = _sekcija(_sl)
+    profili_slicnih = slicni.pop("_profili", [])
+
+    def _art():
+        ids = [str(predmet_id)] + [s["predmet_id"] for s in slicni["stavke"]]
+        predmeti = [p for p in ucitaj_predmete(supa, ids) if str(p.get("id")) in dozvoljeni]
+        sve = ucitaj_artefakte(supa, predmeti)
+        pov = trusted(sve)
+        return {"state": OK if pov else EMPTY, "stavke": [a.to_dict() for a in pov],
+                "na_cekanju_u_ovom_predmetu": sum(1 for a in sve if a.state == ART_PENDING
+                                                   and a.predmet_id == str(predmet_id))}
+    artefakti = _sekcija(_art)
+
+    def _lek():
+        sve = ucitaj_lekcije(supa, user_id, tip_spora=predmet.get("tip") or None)
+        pot = lekcije_kao_smernice(sve)
+        return {"state": OK if pot else EMPTY, "stavke": [x.to_dict() for x in pot],
+                "kandidata": sum(1 for x in sve if x.state == LESSON_CANDIDATE),
+                "nepoznato_poreklo": sum(1 for x in sve if x.state == LESSON_UNKNOWN_LEGACY)}
+    lekcije = _sekcija(_lek)
+
+    def _mem():
+        m = ucitaj_memoriju(supa, user_id, today=today)
+        if not m["kancelarija"]:
+            return {"state": EMPTY, "stavke": [], "veze": [], "kancelarija": False}
+        bel = [b for b in m["beleske"] if b.predmet_id in (None, str(predmet_id))][:15]
+        vez = [v for v in m["veze"] if v.predmet_id in (None, str(predmet_id))][:15]
+        return {"state": OK if (bel or vez) else EMPTY, "stavke": [b.to_dict() for b in bel],
+                "veze": [v.to_dict() for v in vez], "kancelarija": True}
+    memorija = _sekcija(_mem)
+
+    if slicni["state"] == DEGRADED:
+        ishodi = {"state": DEGRADED}
+    else:
+        d = descriptive_outcomes(profili_slicnih)
+        ishodi = {"state": OK if d["sa_ljudskim_ishodom"] else EMPTY, **d}
+
+    sekcije = {"similar_cases": slicni, "verified_artifacts": artefakti, "confirmed_lessons": lekcije,
+               "relevant_human_memory": memorija, "descriptive_outcomes": ishodi}
+    degradirano = sorted(k for k, v in sekcije.items() if v.get("state") == DEGRADED)
+    g = predmet.get("case_dna") if isinstance(predmet.get("case_dna"), dict) else {}
+    kvalitet = {
+        "state": DEGRADED if degradirano else OK,
+        "nedostupni_izvori": degradirano,
+        "predmet_ima_genome": isinstance(g.get("verzija"), int),
+        "pretrazeno_zavrsenih": slicni.get("pretrazeno_zavrsenih", 0),
+        "slicni_sa_ljudskim_ishodom": ishodi.get("sa_ljudskim_ishodom"),
+        "lekcije_na_cekanju_potvrde": lekcije.get("kandidata"),
+        "lekcije_nepoznatog_porekla": lekcije.get("nepoznato_poreklo"),
+    }
+    return {"predmet_id": str(predmet_id), "verzija": CONTEXT_VERSION, "napomena": AUTHORITY_NOTICE,
+            **sekcije, "data_quality": kvalitet}
