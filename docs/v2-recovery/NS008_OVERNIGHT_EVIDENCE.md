@@ -152,3 +152,22 @@ Legend: **PROVEN** = read in code/schema at the cited line, or measured;
 
 COMMIT: (this commit) `docs: map canonical Law Brain sources`
 NEXT GATE: Task 1 — canonical contract.
+
+---
+
+## TASK 1 — CANONICAL LAW BRAIN CONTRACT
+
+- PROBLEM: no shared vocabulary for trust/validity/scope; each legacy reader invents its own ("win", "usvojena praksa", "confidence 0.6").
+- CURRENT OWNER: none (contract did not exist).
+- EVIDENCE: Task 0 matrices E/F.
+- FALSIFICATION: "a caller can mark AI content as human-verified" → impossible: `human_verified` is a derived property of `trust_class`; passing it is a `TypeError` (test). "validity defaults to CURRENT" → no: without validity data → `UNKNOWN`.
+- DECISION: pure module `services/law_brain.py` (no DB, no model, no clock). Readers in later tasks normalise source rows into `LawBrainItem`.
+- IMPLEMENTATION: locked `TRUST_CLASSES` (9), `HUMAN_CLASSES` (5; excludes SOURCE_CASE_FACT and UNKNOWN_LEGACY), `AI_CLASSES`; `VALIDITY_STATES` CURRENT/STALE/DEPRECATED/UNKNOWN; `SECTION_STATES` OK/EMPTY/UNKNOWN/DEGRADED/NOT_AUTHORIZED; scopes USER/OFFICE; frozen dataclass `LawBrainItem` (stable id `<kind>:<source_id>`, `source_ref`, lineage, `outcome_ref` mandatory for HUMAN_CONFIRMED_OUTCOME, exact `state`, bounded single-line excerpt ≤400); `validity_from(today=...)` with mandatory explicit `today`; `order_items` deterministic multi-pass stable sort; `AUTHORITY_NOTICE` ("Iskustvo kancelarije nije pravni izvor…").
+- FILES: `services/law_brain.py`, `tests/test_ns008_t1_contract.py`.
+- ROUTES: none.
+- TRUST RESULT: AI / UNKNOWN_LEGACY / SOURCE_CASE_FACT never `human_verified`; DEPRECATED human item not `trusted`.
+- TENANT RESULT: n/a (no I/O).
+- TESTS: 16 passed.
+- MUTATION RESULT: 8/8 killed (SOURCE_CASE_FACT as human, trusted ignores DEPRECATED, no-data→CURRENT, outcome without ref, unbounded excerpt, expired not stale, unknown class accepted, ordering without validity).
+- KNOWN LIMITATIONS: none for the contract itself.
+- NEXT GATE: Task 2.
