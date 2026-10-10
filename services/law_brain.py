@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from datetime import date, datetime
 from typing import Optional
 
@@ -208,6 +209,8 @@ def order_items(items) -> list:
 
 
 _IN_DEO = 200      # najviše ID-eva po `in_` upitu (dužina PostgREST URL-a); broj upita = ceil(N / 200) po izvoru
+from shared.stranicenje import strana_ili_prazna  # noqa: E402 — jedini vlasnik pravila straničenja
+
 _STRANA = 1000     # PostgREST/Supabase `max-rows` (podrazumevano 1000): odgovor preko toga se TIHO seče
 
 
@@ -219,7 +222,10 @@ def _in_upit(supa, tabela: str, kolone: str, kljuc: str, ids) -> list:
     for i in range(0, len(ids), _IN_DEO):
         deo, pocetak = ids[i:i + _IN_DEO], 0
         while True:
-            r = supa.table(tabela).select(kolone).in_(kljuc, deo).range(pocetak, pocetak + _STRANA - 1).execute()
+            # offset iza kraja (redovi obrisani između strana) = PGRST103 → prazna strana (shared/stranicenje.py)
+            r = strana_ili_prazna(
+                lambda d=deo, p=pocetak: supa.table(tabela).select(kolone).in_(kljuc, d).range(p, p + _STRANA - 1).execute(),
+                lambda: SimpleNamespace(count=None))
             redovi = r.data or []
             out.extend(redovi)
             if len(redovi) < _STRANA:

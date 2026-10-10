@@ -128,7 +128,7 @@ class ModelNedostupan(Exception):
     pass
 
 
-async def sinteza(supa, user_id: str, predmet_id: str, *, today: date) -> Optional[dict]:
+async def sinteza(supa, user_id: str, predmet_id: str, *, today: date, email: str = "") -> Optional[dict]:
     """None = predmet nije autorizovan/ne postoji. Bez referenci → bez poziva modela. Pad modela →
     ModelNedostupan (ruta: 503, bez kredita). Vraća i `model_pozvan` da ruta naplati tačno jednom."""
     import asyncio as _a
@@ -150,6 +150,10 @@ async def sinteza(supa, user_id: str, predmet_id: str, *, today: date) -> Option
         sirovo = _json.loads(await _pozovi_model_sinteze(prompt, predmet_id))
     except Exception as e:
         raise ModelNedostupan(type(e).__name__)
+    # Naplata TAČNO tamo gde je poziv modela (tests/test_phantom_ai_charges.py): jednom, posle uspešnog poziva,
+    # pod postojećim ključem `precedenti`. Pad modela ili neispravan JSON → nema naplate.
+    from shared.usage import UsageService
+    await UsageService.consume(user_id, email, "precedenti", predmet_id=predmet_id)
     tvrdnje, odbaceno, razlozi = proveri_sintezu(sirovo, refs)
     return {**osnova, "stanje": "OK" if tvrdnje else "NIJEDNA_TVRDNJA_NIJE_PROVERENA", "tvrdnje": tvrdnje,
             "odbaceno": odbaceno, "razlozi_odbacivanja": razlozi, "model_pozvan": True, "model": SYNTH_MODEL}

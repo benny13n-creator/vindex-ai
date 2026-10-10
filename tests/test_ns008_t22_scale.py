@@ -134,3 +134,25 @@ def test_secenje_na_1000_redova_ne_lazira_brojeve():
     s = _SupabaseSaSecenjem(redovi)
     assert len(lb._in_upit(s, "predmet_dokazi", "*", "predmet_id", ["p1"])) == 2500
     assert s.upita == 3
+
+
+def test_offset_iza_kraja_izmedju_strana_je_prazna_strana():
+    """Redovi obrisani između dve strane: PostgREST daje PGRST103 — čitanje se završava, ne pada."""
+    class _G(Exception):
+        code = "PGRST103"
+
+    class _S(_SupabaseSaSecenjem):
+        def table(self, t):
+            q = super().table(t)
+            o = self
+            izvrsi = q.execute
+
+            def _ex():
+                if o.upita >= 1:
+                    o.upita += 1
+                    raise _G("Requested range not satisfiable")
+                return izvrsi()
+            q.execute = _ex
+            return q
+    s = _S([{"predmet_id": "p1", "i": i} for i in range(1000)])
+    assert len(lb._in_upit(s, "predmet_dokazi", "*", "predmet_id", ["p1"])) == 1000

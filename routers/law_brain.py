@@ -79,10 +79,9 @@ async def sinteza(predmet_id: str, request: Request, user: dict = Depends(Permis
     if not _UUID.match(predmet_id or ""):
         raise HTTPException(status_code=404, detail=_NEMA)
     from services import law_brain_sinteza as lb
-    from shared.usage import UsageService
     uid = user["user_id"]
     try:
-        r = await lb.sinteza(_get_supa(), uid, predmet_id, today=_danas())
+        r = await lb.sinteza(_get_supa(), uid, predmet_id, today=_danas(), email=user.get("email", ""))
     except lb.ModelNedostupan as e:
         logger.warning("[LAW_BRAIN] sinteza: model nedostupan uid=%.8s: %s", uid, e)
         raise HTTPException(status_code=503, detail="Analiza iskustva trenutno nije dostupna. Kredit nije potrošen.")
@@ -92,8 +91,7 @@ async def sinteza(predmet_id: str, request: Request, user: dict = Depends(Permis
         raise HTTPException(status_code=503, detail="Analiza iskustva trenutno nije dostupna. Kredit nije potrošen.")
     if r is None:
         raise HTTPException(status_code=404, detail=_NEMA)
-    if r.pop("model_pozvan"):
-        await UsageService.consume(uid, user.get("email", ""), "precedenti", predmet_id=predmet_id)
+    r.pop("model_pozvan", None)          # kredit je naplaćen u servisu, uz sam poziv modela
     return r
 
 
