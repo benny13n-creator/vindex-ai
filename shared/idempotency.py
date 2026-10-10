@@ -93,6 +93,8 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     ("POST", rf"^/api/smart-intake/entities/{_SEG}/correct$"),
     # NS007: pregled autonomnog radnog proizvoda (prihvati/odbaci = promena stanja; mrežno ponavljanje = 1 prelaz).
     ("POST", rf"^/api/autonomy/work-items/{_SEG}/(accept|reject)$"),
+    # NS008: ljudski ishod predmeta (jedini izvor istine o ishodu za Law Brain) + zatvaranje predmeta.
+    ("POST", r"^/api/learning/outcome$"),
 ))
 
 

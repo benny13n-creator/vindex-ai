@@ -171,3 +171,30 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 8/8 killed (SOURCE_CASE_FACT as human, trusted ignores DEPRECATED, no-data→CURRENT, outcome without ref, unbounded excerpt, expired not stale, unknown class accepted, ordering without validity).
 - KNOWN LIMITATIONS: none for the contract itself.
 - NEXT GATE: Task 2.
+
+---
+
+## TASK 2 — CANONICAL OUTCOME TRUTH
+
+- PROBLEM: legacy readers infer outcomes from status/chronology; the only human writer allowed replays to inflate counters and re-run GPT lessons.
+- CURRENT OWNER: `outcome_log` (037), writer `POST /api/learning/outcome`.
+- EVIDENCE (fresh):
+  - who writes: only `routers/learning.py` upsert (`services/learning_engine.log_outcome` = 0 callers; would write `u_toku`, rejected by CHECK).
+  - one matter = one outcome: `predmet_id UNIQUE` + upsert `on_conflict=predmet_id` → PROVEN (fake emulates the UNIQUE; test: 2 submissions → 1 row).
+  - ownership: `_dohvati_predmet(.eq user_id)` before any write → B on A's matter = 404, no row (test).
+  - divergence: outcome upsert first, closure second (closure failure is non-fatal) → outcome can exist on an active matter; also a matter can be reopened after the outcome. Law Brain therefore exposes `RECORDED_MATTER_REOPENED` with validity `STALE`, never `CURRENT`.
+  - office scope: `outcome_log` is `user_id`-only (RLS own). No office sharing exists → nothing to leak; Law Brain reads it only for ACL-authorized matters and re-checks `row.user_id == predmet.user_id`.
+- FALSIFICATION: "closed matter = win/loss" → test `status=zatvoren` + chronology "Ishod: pobeda", no outcome_log → `OUTCOME_UNKNOWN`. Legacy `status=uspesno` → not an outcome (`NOT_TERMINAL`).
+- DECISION / IMPLEMENTATION:
+  - `services/law_brain.py`: `ISHODI` (= CHECK 037), `outcome_view(predmet, row)` → RECORDED / OUTCOME_UNKNOWN / NOT_TERMINAL / RECORDED_MATTER_REOPENED; `ucitaj_ishode(supa, authorized_predmeti)` raises on DB error (caller → DEGRADED), drops rows whose owner ≠ matter owner or whose `ishod` is outside the CHECK set.
+  - `routers/learning.py`: reads the existing outcome first (DB failure → 503, matter not closed); identical resubmission → no `case_patterns` increment, no `recommendation_log` rewrite, no GPT lessons (`ponovljen_ishod: true`); a corrected outcome updates the row but legacy counters are not re-incremented.
+  - `shared/idempotency.py`: `POST /api/learning/outcome` added to `ZASTICENE_RUTE` (same key → route runs once, stored response).
+  - Legacy `outcome_intel` untouched (directive); Law Brain never reads it.
+- FILES: `services/law_brain.py`, `routers/learning.py`, `shared/idempotency.py`, `tests/ns008_fake.py`, `tests/test_ns008_t2_outcomes.py`.
+- ROUTES: `POST /api/learning/outcome` (behaviour: replay-safe; new field `ponovljen_ishod`).
+- TRUST RESULT: only `outcome_log` rows → `HUMAN_CONFIRMED_OUTCOME` with `outcome_ref`.
+- TENANT RESULT: foreign write 404; forged foreign-owner row ignored by loader.
+- TESTS: 13 passed; related existing suites (39 files: learning/idempotency) 396 passed, 81 skipped.
+- MUTATION RESULT: 9/9 killed (T2-9 "GPT lessons on replay" initially SURVIVED → added `test_ponovljen_ishod_ne_pokrece_ponovo_gpt_lekcije` → killed).
+- KNOWN LIMITATIONS: a corrected outcome (pobeda→poraz) leaves legacy `case_patterns` counters reflecting the first submission (legacy table; Law Brain does not read it). Legacy `static/vindex.js` sends no Idempotency-Key — covered by the logical replay guard, not by the durable store.
+- NEXT GATE: Task 3.

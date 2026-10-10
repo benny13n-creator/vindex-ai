@@ -190,3 +190,72 @@ def order_items(items) -> list:
     out.sort(key=lambda it: it.updated_at or it.created_at or "", reverse=True)
     out.sort(key=lambda it: (trust_rank[it.trust_class], validity_rank[it.validity]))
     return out
+
+
+# ─── Task 2: ljudski ishod predmeta (jedini izvor: outcome_log) ─────────────
+# Status predmeta, hronologija, AI sažeci i Genome se NIKAD ne čitaju kao ishod. Zatvoren predmet bez
+# reda u outcome_log ima OUTCOME_UNKNOWN — ne „pobedu" ni „poraz".
+ISHODI = ("pobeda", "poraz", "nagodba", "odustajanje")       # = CHECK u migraciji 037
+OUTCOME_RECORDED = "RECORDED"
+OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
+OUTCOME_NOT_TERMINAL = "NOT_TERMINAL"
+OUTCOME_REOPENED = "RECORDED_MATTER_REOPENED"   # ishod postoji, ali je predmet ponovo aktivan
+OUTCOME_KOLONE = "id,predmet_id,user_id,ishod,presudni_faktori,trajanje_meseci,created_at,updated_at"
+
+
+def _terminalni_statusi() -> tuple:
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA
+    return tuple(TERMINALNI_STATUSI_PREDMETA)
+
+
+def je_terminalan(predmet: dict) -> bool:
+    return (predmet.get("status") or "") in _terminalni_statusi()
+
+
+def _ishod_pripada(predmet: dict, red: Optional[dict]) -> bool:
+    """Red ishoda važi samo za TAJ predmet i TOG vlasnika, sa ishodom iz dozvoljenog skupa."""
+    if not red:
+        return False
+    return (str(red.get("predmet_id") or "") == str(predmet.get("id") or "")
+            and str(red.get("user_id") or "") == str(predmet.get("user_id") or "")
+            and bool(predmet.get("user_id"))
+            and red.get("ishod") in ISHODI)
+
+
+def outcome_view(predmet: dict, red: Optional[dict]) -> dict:
+    """Deterministički pogled na ishod jednog (autorizovanog) predmeta."""
+    pid = str(predmet.get("id") or "")
+    terminalan = je_terminalan(predmet)
+    if not _ishod_pripada(predmet, red):
+        return {"predmet_id": pid, "status": OUTCOME_UNKNOWN if terminalan else OUTCOME_NOT_TERMINAL,
+                "ishod": None, "item": None}
+    stanje = OUTCOME_RECORDED if terminalan else OUTCOME_REOPENED
+    item = LawBrainItem(
+        source_kind="outcome", source_owner="outcome_log", source_id=str(red["id"]),
+        scope=SCOPE_USER, trust_class=HUMAN_CONFIRMED_OUTCOME,
+        validity=CURRENT if terminalan else STALE,
+        title=f"Ishod: {red['ishod']}",
+        excerpt=f"Ishod zabeležio advokat: {red['ishod']}",
+        predmet_id=pid, created_at=red.get("created_at"), updated_at=red.get("updated_at"),
+        lineage=("HUMAN_OUTCOME",), outcome_ref=str(red["id"]), state=stanje,
+        attrs=(("ishod", red["ishod"]),
+               ("presudni_faktori", tuple(sorted(str(x) for x in (red.get("presudni_faktori") or [])))),
+               ("trajanje_meseci", red.get("trajanje_meseci"))),
+    )
+    return {"predmet_id": pid, "status": stanje, "ishod": red["ishod"], "item": item}
+
+
+def ucitaj_ishode(supa, predmeti: list) -> dict:
+    """{predmet_id: outcome_log red} za VEĆ autorizovane predmete. Greška baze se NE guta (pozivalac
+    označava sekciju kao DEGRADED). Red tuđeg vlasnika se odbacuje i kad bi upit ga vratio."""
+    po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
+    if not po_id:
+        return {}
+    r = (supa.table("outcome_log").select(OUTCOME_KOLONE)
+         .in_("predmet_id", sorted(po_id)).execute())
+    out: dict = {}
+    for red in (r.data or []):
+        pid = str(red.get("predmet_id") or "")
+        if pid in po_id and _ishod_pripada(po_id[pid], red):
+            out[pid] = red
+    return out
