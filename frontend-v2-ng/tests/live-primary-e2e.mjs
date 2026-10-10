@@ -278,8 +278,8 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
   const kartice = await p.evaluate(() => [...document.querySelectorAll(".tabs__item")]
     .filter(a => !a.closest("[hidden]") && getComputedStyle(a).display !== "none" && a.getClientRects().length > 0)
     .map(a => a.childNodes[0].textContent.trim()));
-  const OCEKIVANE = ["Pregled", "Rad na predmetu", "Pravno pitanje", "Nacrt podneska", "Naplata", "Dokumenti", "Prijem dokumenata"];
-  zapisi("P9.nav", "predmet: Pregled, Rad na predmetu, Pravno pitanje, Nacrt podneska, Naplata, Dokumenti, Prijem dokumenata", JSON.stringify(kartice) === JSON.stringify(OCEKIVANE), kartice.join(","));
+  const OCEKIVANE = ["Pregled", "Analiza", "Rad na predmetu", "Pravno pitanje", "Nacrt podneska", "Naplata", "Dokumenti", "Prijem dokumenata"];
+  zapisi("P9.nav", "predmet: Pregled, Analiza (NS006, jedina nova kartica), Rad na predmetu, Pravno pitanje, Nacrt podneska, Naplata, Dokumenti, Prijem dokumenata", JSON.stringify(kartice) === JSON.stringify(OCEKIVANE), kartice.join(","));
   const tudji = await p.request.get(BASE + "/v2/app/@0000000/src/app.js");
   zapisi("P9.koherentnost", "token DRUGOG builda: 404 + no-store (stari bajtovi ne mogu da odgovore na tuđ URL)", tudji.status() === 404 && tudji.headers()["cache-control"] === "no-store", `${tudji.status()} ${tudji.headers()["cache-control"]}`);
   await ctx.close();

@@ -43,11 +43,14 @@ from shared.genome_validator import verify_genome, compute_snaga_score, validate
 # značila dva vlasnika istog pravila.
 from shared.genome_validator import _DOK_PATTERN
 from shared.contradiction_identity import (contradiction_identity,
+                                            contradiction_identity_stable,
                                             uporedi_kontradikcije,
-                                            identitet_seme_po_tvrdnjama)
+                                            identitet_seme_po_tvrdnjama,
+                                            identitet_seme_stabilna)
 # A014: katalog referenci na tvrdnje. Uvozi se, ne prepisuje — jedan vlasnik
 # pravila o tome sta model sme da referise.
 from shared.claim_catalog import MAKS_TVRDNJI as _MAKS_TVRDNJI, napravi_katalog, redovi_za_prompt
+from shared.claim_catalog import GreskaKataloga, razresi_reference
 from services.v2_observation import upisi_v2_opazanje
 from services.v2_contradiction_persistence import (
     V2PackageRejected, V2StaleObservation)
@@ -503,6 +506,24 @@ async def _extract_genome(
             _m = _DOK_PATTERN.search(_r.get("lokacija") or "")
             _kand = _po_rednom.get(int(_m.group(1)), []) if _m else []
             _r["dokument_id"] = _kand[0] if len(_kand) == 1 else None
+
+        # ── NS006 Task 6: TRAJNI IDENTITET TVRDNJI U `kontradikcije` ─────────
+        # `claim_refs` su oznake ovog kataloga i pomeraju se između verzija (dodata
+        # tvrdnja menja numeraciju). `claim_ids` = iste reference razrešene ISTIM
+        # katalogom koji je model video, u `predmet_dokazi.id` — trajni identitet za
+        # poređenje verzija (isti obrazac kao `dokument_id` gore). FAIL-CLOSED: bilo
+        # koja nepoznata/duplirana/tuđa referenca → `None`, nikad delimična lista.
+        # `claim_refs` se NE diraju (V2 materijalizacija ih čita).
+        _katalog_k = napravi_katalog(dokazi, predmet_id) if (dokazi and predmet_id) else {}
+        _poznati_k = {d["id"]: d for d in (dokazi or []) if isinstance(d, dict) and d.get("id")}
+        for _k in (result.get("kontradikcije") or []):
+            if not isinstance(_k, dict):
+                continue
+            try:
+                _ids = razresi_reference(_k.get("claim_refs"), _katalog_k, predmet_id, _poznati_k) if _katalog_k else None
+            except GreskaKataloga:
+                _ids = None
+            _k["claim_ids"] = sorted(_ids) if _ids and len(set(_ids)) >= 2 else None
         return result
     except Exception as exc:
         _sentry_capture(exc)
@@ -532,7 +553,13 @@ def _compute_delta(old_g: dict, new_g: dict) -> dict:
     # stavci: mesanje bi na prvom refresh-u posle A014 prijavilo laznu promenu.
     _stare_k = old_g.get("kontradikcije") or []
     _nove_k  = new_g.get("kontradikcije") or []
-    if identitet_seme_po_tvrdnjama(_stare_k, _nove_k):
+    if identitet_seme_stabilna(_stare_k, _nove_k):
+        # NS006 Task 6: TRAJNI id-jevi tvrdnji (`claim_ids`) imaju prednost. Oznake
+        # `CLAIM-NNN` se pomeraju kad se doda tvrdnja, pa bi ista sporna tačka izgledala
+        # kao „1 nova + 1 eliminisana" (shared/contradiction_identity.py::
+        # contradiction_identity_stable). Isto pravilo sadržavanja, drugi ključ.
+        _kontr_nove, _kontr_elim = uporedi_kontradikcije(_stare_k, _nove_k, contradiction_identity_stable)
+    elif identitet_seme_po_tvrdnjama(_stare_k, _nove_k):
         # Identitet po tvrdnjama + pravilo sadrzavanja (A008). Broji se
         # uparivanjem, ne razlikom skupova -- vidi `uporedi_kontradikcije`.
         _kontr_nove, _kontr_elim = uporedi_kontradikcije(_stare_k, _nove_k)
@@ -1572,6 +1599,224 @@ async def get_genome_history(predmet_id: str, user=Depends(get_current_user)):
         "predmet_naziv": pr.data.get("naziv"),
         "history": hist_res.data or [],
     }
+
+
+# ── NS006 — ŽIVI PREDMET: profesionalni ugovor za V2 (samo čitanje) ─────────────
+#
+# Jedno čitanje = vlasništvo + izvori + čista projekcija. Ovde se NIŠTA ne upisuje i
+# model se NE poziva (otvaranje ekrana ne troši kredit). Svaki izvor nosi svoje
+# stanje: izvor koji nije pročitan postaje DEGRADED, nikad prazan. Tuđ i nepostojeći
+# predmet daju ISTI 404 (bez otkrivanja postojanja).
+
+_ZP_MAKS_REDOVA = 500
+_ZP_KOLONE_DOKAZA = ("id,predmet_id,dokument_id,tvrdnja,kategorija,snaga,pravni_element,stranica,paragraf,"
+                     "start_offset,end_offset,nacin_pronalaska,izvor_snage,identitet,created_at,deleted_at")
+
+
+async def _zp_vlasnistvo(supa, predmet_id: str, uid: str) -> dict:
+    # Neispravan UUID bi u Postgres-u dao 22P02 (→ 503); isti 404 kao tuđ ili nepostojeći predmet.
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(predmet_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmeti")
+                .select("id,naziv,tip,status,tuzilac,tuzeni,case_dna")
+                .eq("id", predmet_id).eq("user_id", uid).limit(1).execute()
+        )
+    except Exception as exc:
+        # Vlasništvo se ne može utvrditi → zatvoreno, bez detalja (ne otkriva postojanje).
+        logger.warning("[ZIVI_PREDMET] provera vlasništva nije izvršena: %s", exc)
+        raise HTTPException(status_code=503, detail="Predmet trenutno nije dostupan.")
+    redovi = (r.data if r else None) or []
+    if not redovi:
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
+    return redovi[0]
+
+
+async def _zp_dokazi(supa, predmet_id: str, uid: str) -> list:
+    """Tvrdnje predmeta; kolona `izvor_tvrdnje` (migracija 135) se čita samo ako postoji."""
+    from shared.audit_immutable import _is_missing_column_error
+
+    def _upit(kolone):
+        return (supa.table("predmet_dokazi").select(kolone).eq("predmet_id", predmet_id).eq("user_id", uid)
+                .is_("deleted_at", "null").order("id").limit(_ZP_MAKS_REDOVA).execute())
+    try:
+        return list((await asyncio.to_thread(lambda: _upit(_ZP_KOLONE_DOKAZA + ",izvor_tvrdnje"))).data or [])
+    except Exception as exc:
+        if not _is_missing_column_error(exc):
+            raise
+        return list((await asyncio.to_thread(lambda: _upit(_ZP_KOLONE_DOKAZA))).data or [])
+
+
+async def ucitaj_zivi_predmet(supa, predmet_id: str, uid: str) -> dict:
+    """Izvori jednog predmeta za V2 ugovor. Vlasništvo se proverava PRVO; svi ostali
+    upiti su ograničeni na isti predmet I istog korisnika (odbrana u dubini) — osim
+    `case_actions`, koja nema kolonu korisnika (099): tu je granica sam predmet čije je
+    vlasništvo upravo dokazano."""
+    predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
+    from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz
+    dok_r, dz_r, kon_r, ist_r, roc_r, akc_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti")
+                          .select("id,naziv_fajla,redni_broj,tip_dokaza,status,klasifikovan_at,ai_tags,created_at")
+                          .eq("predmet_id", predmet_id).eq("user_id", uid).order("redni_broj")
+                          .limit(_ZP_MAKS_REDOVA).execute()),
+        _zp_dokazi(supa, predmet_id, uid),
+        ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id, uid),
+        asyncio.to_thread(lambda: supa.table("predmet_genome_history")
+                          .select("verzija,created_at").eq("predmet_id", predmet_id).eq("user_id", uid)
+                          .order("verzija", desc=True).limit(1).execute()),
+        asyncio.to_thread(lambda: supa.table("rocista")
+                          .select("id,sud,datum,vreme,status").eq("predmet_id", predmet_id).eq("user_id", uid)
+                          .order("datum").limit(_ZP_MAKS_REDOVA).execute()),
+        asyncio.to_thread(lambda: supa.table("case_actions")
+                          .select("id,tip,razlog,dokaz,prioritet,rok,status,dedupe_key,event_id,izvor_dokumenti,created_at,updated_at")
+                          .eq("predmet_id", predmet_id).eq("status", "open").limit(_ZP_MAKS_REDOVA).execute()),
+        return_exceptions=True,
+    )
+    izvori = {}
+    for ime, r in (("dokumenti", dok_r), ("dokazi", dz_r), ("kontradikcije", kon_r), ("istorija", ist_r),
+                   ("rocista", roc_r), ("akcije", akc_r)):
+        izvori[ime] = "GRESKA" if isinstance(r, Exception) else "OK"
+        if isinstance(r, Exception):
+            logger.warning("[ZIVI_PREDMET] izvor '%s' NIJE pročitan predmet=%s: %s", ime, predmet_id, r)
+    case_dna = predmet.pop("case_dna", None)
+    if case_dna is not None and not isinstance(case_dna, dict):
+        izvori["genome"] = "GRESKA"
+        case_dna = None
+    else:
+        izvori["genome"] = "OK"
+    dokumenti = [] if isinstance(dok_r, Exception) else list(dok_r.data or [])
+    dokazi = [] if isinstance(dz_r, Exception) else dz_r
+    # Vreme osvežavanja: red istorije sa verzijom N-1 upisan je u trenutku kad je nastala
+    # verzija N (_save_genome_history ide neposredno pre upisa case_dna). Bez tog reda → nepoznato.
+    osvezeno = None
+    if not isinstance(ist_r, Exception) and (ist_r.data or []) and isinstance(case_dna, dict):
+        poslednji = ist_r.data[0]
+        if poslednji.get("verzija") is not None and case_dna.get("verzija") == (poslednji.get("verzija") or 0) + 1:
+            osvezeno = poslednji.get("created_at")
+    return {
+        "predmet": predmet, "case_dna": case_dna, "dokumenti": dokumenti, "dokazi": dokazi,
+        "rocista": [] if isinstance(roc_r, Exception) else list(roc_r.data or []),
+        "akcije": [] if isinstance(akc_r, Exception) else list(akc_r.data or []),
+        "v2_kontradikcije": None if isinstance(kon_r, Exception) else kon_r,
+        "izvori": izvori, "osvezeno": osvezeno,
+        "skraceno": {"dokumenti": len(dokumenti) >= _ZP_MAKS_REDOVA, "dokazi": len(dokazi) >= _ZP_MAKS_REDOVA},
+    }
+
+
+def sastavi_zivi_predmet(izv: dict) -> dict:
+    from shared.evidence_graph import sastavi_graf
+    from shared.genome_contract import sastavi, sastavi_kontradikcije
+    ugovor = sastavi(predmet=izv["predmet"], case_dna=izv["case_dna"], dokumenti=izv["dokumenti"],
+                     dokazi=izv["dokazi"], izvori=izv["izvori"], osvezeno=izv["osvezeno"])
+    legacy = len((izv["case_dna"] or {}).get("kontradikcije") or []) if isinstance(izv["case_dna"], dict) else 0
+    v2 = izv["v2_kontradikcije"]
+    # Protivrečnost po tvrdnji = samo AKTIVNE (OPEN) V2 kontradikcije; zatvorene su istorija.
+    ugovor["dokazi"] = sastavi_graf(dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
+                                    v2_kontradikcije=None if v2 is None else [k for k in v2 if k.get("state") == "OPEN"],
+                                    izvori=izv["izvori"], legacy_kontradikcija=legacy)
+    ugovor["kontradikcije"] = sastavi_kontradikcije(v2=v2, case_dna=izv["case_dna"], dokazi=izv["dokazi"],
+                                                    dokumenti=izv["dokumenti"], izvori=izv["izvori"])
+    from shared.case_readiness import pregled_spremnosti
+    cd = izv["case_dna"] if isinstance(izv["case_dna"], dict) else {}
+    ugovor["spremnost"] = pregled_spremnosti(
+        tip_predmeta=izv["predmet"].get("tip") or "ostalo", dokazi=izv["dokazi"], dokumenti=izv["dokumenti"],
+        rocista=izv["rocista"], akcije=izv["akcije"], kontradikcije=ugovor["kontradikcije"],
+        genome_izracunat=bool(cd) and "greska" not in cd, izvori=izv["izvori"])
+    ugovor["metapodaci"]["skraceno"] = izv["skraceno"]
+    return ugovor
+
+
+@router.get("/{predmet_id}/genome-v2")
+@limiter.limit("60/minute")
+async def get_zivi_predmet(predmet_id: str, request: Request, user=Depends(get_current_user)):
+    """NS006 — profesionalni ugovor živog predmeta. Samo čitanje: bez upisa, bez modela."""
+    from datetime import datetime as _dt, timezone as _tz
+    from fastapi.responses import JSONResponse as _JSON
+    izv = await ucitaj_zivi_predmet(_get_supa(), predmet_id, user["user_id"])
+    telo = sastavi_zivi_predmet(izv)
+    telo["procitano"] = _dt.now(_tz.utc).isoformat()
+    return _JSON(telo, headers={"Cache-Control": "no-store"})
+
+
+_ZP_TRIGGER_DOGADJAJ = "case_evolution:"
+
+
+async def ucitaj_promene_predmeta(supa, predmet_id: str, uid: str) -> dict:
+    """NS006 Task 6 — trenutni Genome, prethodni snimak (tačno verzija N−1 iz istorije),
+    poslednjih 10 verzija i događaj koji je proizveo verziju N sa akcijama koje je osvežio.
+    Samo čitanje; vlasništvo prvo; sve ograničeno na predmet I korisnika."""
+    predmet = await _zp_vlasnistvo(supa, predmet_id, uid)
+    case_dna = predmet.get("case_dna") if isinstance(predmet.get("case_dna"), dict) else None
+    verzija = (case_dna or {}).get("verzija")
+    meta_r, pret_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmet_genome_history")
+                          .select("verzija,created_at,trigger_event").eq("predmet_id", predmet_id).eq("user_id", uid)
+                          .order("verzija", desc=True).limit(10).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_genome_history")
+                          .select("verzija,created_at,trigger_event,genome_data").eq("predmet_id", predmet_id)
+                          .eq("user_id", uid).order("verzija", desc=True).limit(1).execute()),
+        return_exceptions=True,
+    )
+    izvori = {"istorija": "GRESKA" if isinstance(meta_r, Exception) or isinstance(pret_r, Exception) else "OK"}
+    prethodni = None if izvori["istorija"] != "OK" else ((pret_r.data or [None])[0])
+    dogadjaj_id, okidac = None, None
+    if prethodni and verzija is not None and prethodni.get("verzija") == verzija - 1:
+        okidac = prethodni.get("trigger_event")
+        if isinstance(okidac, str) and okidac.startswith(_ZP_TRIGGER_DOGADJAJ):
+            dogadjaj_id = okidac[len(_ZP_TRIGGER_DOGADJAJ):] or None
+    akcije = None
+    if dogadjaj_id:
+        try:
+            ar = await asyncio.to_thread(lambda: supa.table("case_actions")
+                                         .select("id,tip,razlog,prioritet,rok,status,created_at,updated_at,closed_at")
+                                         .eq("predmet_id", predmet_id).eq("event_id", dogadjaj_id).limit(50).execute())
+            akcije = sorted(ar.data or [], key=lambda a: str(a.get("id")))
+            izvori["akcije"] = "OK"
+        except Exception as exc:
+            logger.warning("[ZIVI_PREDMET] akcije događaja nisu pročitane predmet=%s: %s", predmet_id, exc)
+            izvori["akcije"] = "GRESKA"
+    return {"case_dna": case_dna, "prethodni": prethodni, "izvori": izvori,
+            "verzije": [] if izvori["istorija"] != "OK" else list(meta_r.data or []),
+            "dogadjaj_id": dogadjaj_id, "okidac": okidac, "akcije": akcije}
+
+
+def sastavi_promene_predmeta(izv: dict) -> dict:
+    from shared.genome_contract import DEGRADIRANO, NEPOZNATO, promene_genome
+    tren = izv["case_dna"]
+    verzija = (tren or {}).get("verzija")
+    pret = izv["prethodni"]
+    if izv["izvori"].get("istorija") != "OK":
+        rez = {"stanje": DEGRADIRANO, "promene": [], "analiticke": [],
+               "nepoznato": [{"oblast": "istorija", "razlog": "Istorija verzija trenutno nije pročitana."}]}
+    elif verzija is not None and verzija > 1 and not (pret and pret.get("verzija") == verzija - 1):
+        rez = {"stanje": NEPOZNATO, "promene": [], "analiticke": [],
+               "nepoznato": [{"oblast": "istorija", "razlog": f"Prethodna verzija (v{verzija - 1}) nije sačuvana."}]}
+    else:
+        rez = promene_genome((pret or {}).get("genome_data") if pret and verzija and pret.get("verzija") == verzija - 1 else None, tren)
+    return {
+        **rez,
+        "trenutna_verzija": verzija,
+        "prethodna_verzija": (verzija - 1) if (rez["stanje"] not in ("PRVA_VERZIJA",) and verzija and verzija > 1) else None,
+        "nastala": (pret or {}).get("created_at") if pret and verzija and pret.get("verzija") == verzija - 1 else None,
+        "okidac": izv["okidac"], "dogadjaj_id": izv["dogadjaj_id"],
+        "akcije_dogadjaja": izv["akcije"],
+        "verzije": [{"verzija": v.get("verzija"), "zamenjena": v.get("created_at"), "okidac": v.get("trigger_event")}
+                    for v in izv["verzije"]],
+        "izvori": izv["izvori"],
+    }
+
+
+@router.get("/{predmet_id}/genome-v2/promene")
+@limiter.limit("60/minute")
+async def get_promene_predmeta(predmet_id: str, request: Request, user=Depends(get_current_user)):
+    """NS006 — šta se promenilo od prethodne verzije Genome-a. Samo čitanje, bez modela."""
+    from fastapi.responses import JSONResponse as _JSON
+    izv = await ucitaj_promene_predmeta(_get_supa(), predmet_id, user["user_id"])
+    return _JSON(sastavi_promene_predmeta(izv), headers={"Cache-Control": "no-store"})
 
 
 class CompareDoksReq(BaseModel):
