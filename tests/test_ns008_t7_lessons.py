@@ -54,7 +54,7 @@ def test_stanja_kapije(svet):
     assert (s[L_KAND].state, s[L_KAND].trust_class, s[L_KAND].human_verified) == \
         (lb.LESSON_CANDIDATE, lb.AI_CANDIDATE_LESSON, False)
     assert (s[L_POTV].state, s[L_POTV].trust_class, s[L_POTV].validity) == \
-        (lb.LESSON_CONFIRMED, lb.LAWYER_VERIFIED_ARTIFACT, lb.CURRENT)
+        (lb.LESSON_CONFIRMED, lb.LAWYER_VERIFIED_ARTIFACT, lb.UNKNOWN)
     assert s[L_POTV].lineage == ("AI_GENERATED", "LAWYER_CONFIRMED")
     assert (s[L_ODB].state, s[L_ODB].validity) == (lb.LESSON_REJECTED, lb.DEPRECATED)
     assert (s[L_STARA].state, s[L_STARA].trust_class) == (lb.LESSON_UNKNOWN_LEGACY, lb.UNKNOWN_LEGACY)

@@ -17,6 +17,7 @@ PRAVILA
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Optional
@@ -108,6 +109,20 @@ def validity_from(
     if not has_validity_data:
         return UNKNOWN
     return CURRENT
+
+
+# ─── Task 17: pravna aktuelnost internog znanja ─────────────────────────────
+# U sistemu NE postoji pouzdan signal izmene propisa vezan za član (law_docs je samo dnevnik ingestije fajlova).
+# Zato se pravna aktuelnost internog rada NIKAD ne tvrdi: uvek UNKNOWN, a rad koji se poziva na propis dobija
+# oznaku za proveru. Kada nastane pouzdan registar verzija propisa, ovde se uključuje — ne ranije.
+_CITAT_PROPISA = re.compile(r"\b(čl(an[a-z]*|\.)\s*\d+|zakon[a-z]*\s+o\s+\w+|sl\.?\s*glasnik)", re.IGNORECASE)
+LEGAL_CURRENCY_NOTICE = "Poziva se na propise — proverite da li su u međuvremenu izmenjeni."
+
+
+def pravna_aktuelnost(tekst: Optional[str]) -> tuple:
+    poziva = bool(_CITAT_PROPISA.search(str(tekst or "")))
+    return (("pravna_aktuelnost", UNKNOWN), ("poziva_se_na_propis", poziva),
+            ("napomena_aktuelnosti", LEGAL_CURRENCY_NOTICE if poziva else None))
 
 
 @dataclass(frozen=True)
@@ -296,7 +311,9 @@ def artifact_item(red: dict, predmet: dict) -> Optional[LawBrainItem]:
     indeksiran = red.get("pinecone_indexed") is True
     if status == "approved" and odobren and red.get("approved_at"):
         stanje = ART_INDEXED if indeksiran else ART_APPROVED_NOT_INDEXED
-        klasa, validnost = LAWYER_VERIFIED_ARTIFACT, CURRENT
+        # Task 17: odobrenje potvrđuje da je advokat rad overio TADA — ne da je i danas pravno aktuelan.
+        # staging nema podatak o važenju → UNKNOWN (nikad lažna svežina).
+        klasa, validnost = LAWYER_VERIFIED_ARTIFACT, UNKNOWN
         loza = ("AI_GENERATED", "LAWYER_VERIFIED")
     elif status == "rejected":
         stanje = ART_REJECTED_STILL_INDEXED if indeksiran else ART_REJECTED
@@ -312,7 +329,7 @@ def artifact_item(red: dict, predmet: dict) -> Optional[LawBrainItem]:
         predmet_id=str(predmet["id"]), created_at=red.get("created_at"),
         updated_at=red.get("approved_at") or red.get("created_at"), lineage=loza, state=stanje,
         attrs=(("tip", red.get("tip")), ("confidence_score", red.get("confidence_score")),
-               ("pinecone_indexed", indeksiran)),
+               ("pinecone_indexed", indeksiran)) + pravna_aktuelnost(red.get("tekst")),
     )
 
 
@@ -577,7 +594,7 @@ def lesson_item(red: dict, user_id: str) -> Optional[LawBrainItem]:
         stanje, klasa, validnost = LESSON_REJECTED, AI_CANDIDATE_LESSON, DEPRECATED
     elif st == "usvojena_praksa" and red.get("potvrdio") and red.get("potvrdjeno_at"):
         stanje, klasa = LESSON_CONFIRMED, LAWYER_VERIFIED_ARTIFACT
-        validnost = STALE if zastarela else CURRENT
+        validnost = STALE if zastarela else UNKNOWN      # Task 17: odsustvo oznake zastarelosti ≠ dokaz važenja
     elif st == "predlog_ai":
         stanje, klasa = LESSON_CANDIDATE, AI_CANDIDATE_LESSON
         validnost = STALE if zastarela else UNKNOWN
@@ -594,7 +611,8 @@ def lesson_item(red: dict, user_id: str) -> Optional[LawBrainItem]:
         predmet_id=None, created_at=red.get("created_at"),
         updated_at=red.get("potvrdjeno_at") or red.get("created_at"), lineage=loza, state=stanje,
         attrs=(("tip_spora", red.get("tip_spora")), ("broj_predmeta", red.get("broj_predmeta")),
-               ("period_od", red.get("period_od")), ("period_do", red.get("period_do"))),
+               ("period_od", red.get("period_od")), ("period_do", red.get("period_do")))
+              + pravna_aktuelnost(red.get("lecija")),
     )
 
 

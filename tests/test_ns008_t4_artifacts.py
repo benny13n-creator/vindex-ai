@@ -61,7 +61,7 @@ def test_tok_odobrenja_daje_tacna_stanja(svet):
     sve = _po_id(lb.ucitaj_artefakte(baza, [pa]))
     assert set(sve) == {S_VISOK, S_NIZAK, S_CEKA, S_OTROV}, "B-ov red nikad"
     v, n, c, o = sve[S_VISOK], sve[S_NIZAK], sve[S_CEKA], sve[S_OTROV]
-    assert (v.trust_class, v.state, v.validity) == (lb.LAWYER_VERIFIED_ARTIFACT, lb.ART_INDEXED, lb.CURRENT)
+    assert (v.trust_class, v.state, v.validity) == (lb.LAWYER_VERIFIED_ARTIFACT, lb.ART_INDEXED, lb.UNKNOWN),         "odobrenje nije dokaz da je rad i danas pravno aktuelan (Task 17)"
     assert v.lineage == ("AI_GENERATED", "LAWYER_VERIFIED") and v.to_dict()["source_ref"]["id"] == S_VISOK
     assert (n.trust_class, n.state) == (lb.LAWYER_VERIFIED_ARTIFACT, lb.ART_APPROVED_NOT_INDEXED)
     assert n.to_dict()["attrs"]["pinecone_indexed"] is False

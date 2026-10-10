@@ -31,7 +31,7 @@ def _tabele():
                          "presudni_faktori": ["svedoci"]}],
         "predmet_issues": [], "predmet_contradictions": [], "predmet_delegiranja": [],
         "staging_memory": [{"id": "s-ok", "user_id": "uid-A", "predmet_id": PA_OLD, "tip": "tuzba", "naziv": "Tužba",
-                            "tekst": "Tekst tužbe", "confidence_score": 0.9, "is_lawyer_approved": True,
+                            "tekst": "Tekst tužbe po članu 154 ZOO", "confidence_score": 0.9, "is_lawyer_approved": True,
                             "approved_at": "2026-08-01T00:00:00+00:00", "status": "approved", "pinecone_indexed": True}],
         "lessons_learned": [{"id": "l1", "user_id": "uid-A", "tip_spora": "radni", "lecija": "Pribaviti pisane dokaze rano.",
                              "kategorija": "dokaz", "status_lekcije": "usvojena_praksa", "potvrdio": "uid-A",

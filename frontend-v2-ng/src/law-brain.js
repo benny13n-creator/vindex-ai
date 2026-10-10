@@ -48,6 +48,9 @@
       li.append(red);
       niz(dodaci).forEach(function (x) { if (tekst(x)) li.append(el("span", "an-item__meta", x)); });
       if (it.validity === "STALE") li.append(el("span", "an-item__meta lb-zastarelo", "Možda zastarelo — proverite da li još važi."));
+      /* Task 17: pravna aktuelnost internog rada se nikad ne tvrdi; rad koji se poziva na propis traži proveru. */
+      var at = it.attrs || {};
+      if (at.poziva_se_na_propis && tekst(at.napomena_aktuelnosti)) li.append(el("span", "an-item__meta lb-zastarelo", tekst(at.napomena_aktuelnosti)));
       li.dataset.trust = it.trust_class || "";
       return li;
     }

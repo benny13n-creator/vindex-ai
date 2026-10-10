@@ -513,3 +513,26 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 7/7 killed (no office scope, party names transferred, ambiguous → suggestion, automatic overwrite, inactive members, diacritic correction discarded, lookup failure breaks the job view).
 - KNOWN LIMITATIONS: suggestions are not yet rendered in the V2 intake review UI (backend contract only). The lookup scans the newest 300 office intake jobs (bounded). ADR-0006's admin review/revoke route (`/api/admin/intake/corrections`) also does not exist; revoking = re-correcting the source entity.
 - NEXT GATE: Task 17.
+
+---
+
+## TASK 17 — KNOWLEDGE VALIDITY / STALENESS
+
+- EVIDENCE: existing validity primitives:
+  - `memory_entries.expires_at/zastarela`
+  - `lessons_learned.zastarela/status_lekcije` (+ `check_knowledge_decay`, knowledge hygiene)
+  - vector `valid_until/status DEPRECATED/golden_template` + `freshness_weight`
+  - `outcome_log` (historical fact)
+  
+  There is **no reliable legal-change signal tied to a cited article**: `law_docs` (020) is only an ingestion log of uploaded law files (status pending/running/done/failed/obrisan), with no version or validity mapping.
+- SELF-FALSIFICATION (defect in my own Tasks 4/7, fixed here): approved artifacts and confirmed lessons were reported `CURRENT` with no positive validity signal. That is false freshness: approval proves the lawyer verified the work **then**, not that it is legally current now.
+- DECISION / IMPLEMENTATION:
+  - `CURRENT` only with a positive signal: memory `expires_at` in the future, vector `valid_until`/golden template, or the human outcome of a terminal matter (historical fact). Approved artifact / confirmed lesson without validity data → `UNKNOWN` (still `trusted`, since trust ≠ currency). Rejected → `DEPRECATED`; flagged stale or expired → `STALE`.
+  - `law_brain.pravna_aktuelnost(text)` adds `pravna_aktuelnost: UNKNOWN` to every artifact and lesson, plus `poziva_se_na_propis` (regex: "član N", "čl. N", "Zakon o …", "Sl. glasnik") with the note "Poziva se na propise — proverite da li su u međuvremenu izmenjeni." Nothing is rewritten, and nothing is marked stale without a signal.
+  - UI: the note renders on Znanje/Analiza items (Playwright: the verified artifact citing "članu 154 ZOO" shows the note, and the word "aktuelan/važeći" is never claimed).
+- NOT BUILT (directive): a national law-version registry. Required future work: an article-level validity source; once it exists, `pravna_aktuelnost` is the single switch point.
+- FILES: `services/law_brain.py`, `frontend-v2-ng/src/law-brain.js`, `tests/test_ns008_t17_validity.py`, `tests/test_ns008_t4_artifacts.py` / `tests/test_ns008_t7_lessons.py` (expectations corrected to UNKNOWN), `tests/test_ns008_t11_api.py` (fixture artifact cites a law), `frontend-v2-ng/tests/live-law-brain.mjs`.
+- INCIDENT (tooling, fixed): a shell heredoc turned `\b` into a literal backspace byte inside the regex, so the pattern could never match, and `\n` in a JS regex into a real newline. The tests caught both, both were fixed via scratch scripts, and a control-character scan of all 39 branch-changed files is now clean.
+- TESTS: 8 passed (all NS008 backend: 151 passed). Playwright `live-law-brain` 38/38.
+- MUTATION RESULT: 5/5 killed (approved = CURRENT, confirmed lesson = CURRENT, legal currency asserted, no citation detection, memory expiry ignored).
+- NEXT GATE: Task 18.

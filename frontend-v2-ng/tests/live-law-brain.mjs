@@ -91,6 +91,8 @@ const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
       && /Mali uzorak/.test(r.isk[0].t) && !/%/.test(r.isk[0].t), r.isk[0] && r.isk[0].t.replace(/\n/g, " | "));
   zapisi("znanje", "verifikovani rad nosi oznaku „Overio advokat” i predmet",
     r.rad.length === 1 && r.rad[0].trust === "LAWYER_VERIFIED_ARTIFACT" && /Overio advokat/.test(r.rad[0].t) && /Petrović protiv Gradnja Invest DOO/.test(r.rad[0].t));
+  zapisi("važenje", "overen rad koji se poziva na propis traži proveru izmena (bez tvrdnje da je aktuelan)",
+    /proverite da li su u međuvremenu izmenjeni/.test(r.rad[0].t) && !/aktuelan|važeći/.test(r.rad[0].t), r.rad[0].t.replace(/\n/g, " | "));
   zapisi("znanje", "samo potvrđena lekcija; predlog AI samo kao broj koji čeka potvrdu",
     r.lek.length === 1 && /Pribaviti pisane dokaze rano/.test(r.lek[0].t) && !/AI predlog/.test(r.lek.map(x => x.t).join()) && /1 predlog lekcije čeka/.test(r.kand));
   zapisi("znanje", "beleška kolege je beleška, ne činjenica",
