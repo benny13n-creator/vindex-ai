@@ -36,6 +36,7 @@
     "verify:live-radna-lista": "node tests/live-radna-lista.mjs",
     "demo:ns006": "node tests/ns006-demo.mjs",
     "verify:live-matter": "node tests/live-matter.mjs",
+    "e2e:demo-ns006": "node tests/ns006-demo.mjs",
     "e2e:fastapi": "node tests/live-fastapi-e2e.mjs",
     "e2e:sw-isolation": "node tests/live-sw-isolation.mjs",
     "e2e:primary": "node tests/live-primary-e2e.mjs",
