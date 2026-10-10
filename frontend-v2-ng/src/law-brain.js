@@ -60,15 +60,17 @@
   /* ── Znanje → Iskustvo kancelarije ── */
   function znanje(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); }, A = alati(d);
-    var sesija = o.sesija, api = o.api, gen = 0, kontroler = null;
+    var sesija = o.sesija, api = o.api, gen = 0, kontroler = null, genP = 0, kP = null;
     var LISTE = ["lb-iskustvo", "lb-radovi", "lb-lekcije", "lb-memorija"];
 
     function stanje(id, st, t) { var n = $(id); if (!st) { n.hidden = true; n.textContent = ""; delete n.dataset.stanje; return; } n.hidden = false; n.dataset.stanje = st; n.textContent = t; }
     function ocisti() {
       gen++; if (kontroler) { kontroler.abort(); kontroler = null; }
       LISTE.forEach(function (id) { $(id).replaceChildren(); });
-      ["lb-stanje", "lb-isk-stanje", "lb-rad-stanje", "lb-lek-stanje", "lb-mem-stanje"].forEach(function (id) { stanje(id, null); });
+      ["lb-stanje", "lb-isk-stanje", "lb-rad-stanje", "lb-lek-stanje", "lb-mem-stanje", "lb-pretraga-stanje"].forEach(function (id) { stanje(id, null); });
       $("lb-sadrzaj").hidden = true; $("lb-filter").value = "";
+      genP++; if (kP) { kP.abort(); kP = null; }
+      $("lb-pretraga-lista").replaceChildren(); $("lb-pretraga-upit").value = "";
     }
     function sekcija(s, idStanja, prazno) {
       if (!s || s.state === "DEGRADED") { stanje(idStanja, "greska", NEDOSTUPNO); return false; }
@@ -148,6 +150,35 @@
         $(id).querySelectorAll(".an-item").forEach(function (li) { li.hidden = !!q && normalizuj(li.textContent).indexOf(q) === -1; });
       });
     }
+
+    /* Izričita pretraga overenog znanja (GET /api/law-brain/pretraga): samo na submit; DEGRADED ≠ „nema rezultata". */
+    async function pretrazi() {
+      var q = $("lb-pretraga-upit").value.trim();
+      $("lb-pretraga-lista").replaceChildren();
+      if (q.length < 3) { stanje("lb-pretraga-stanje", "greska", "Upit mora imati bar tri znaka."); return; }
+      if (sesija.stanje().stanje !== sesija.STANJA.PRIJAVLJEN) { stanje("lb-pretraga-stanje", "greska", "Niste prijavljeni. Pretraga nije izvršena."); return; }
+      var moja = ++genP, korisnik = sesija.stanje().korisnik;
+      if (kP) kP.abort();
+      kP = new AbortController();
+      stanje("lb-pretraga-stanje", "ucitavanje", "Pretraga znanja kancelarije…");
+      var r = await api.get("/api/law-brain/pretraga", { token: sesija.token(), signal: kP.signal, parametri: { q: q.slice(0, 500) },
+        oblik: function (x) { return x && typeof x.stanje === "string" && Array.isArray(x.stavke); } });
+      if (moja !== genP || sesija.stanje().korisnik !== korisnik) return;
+      kP = null;
+      if (!r.ok || r.podaci.stanje === "DEGRADED") {
+        if (!r.ok && r.greska && r.greska.kod === "ABORTED") return;
+        stanje("lb-pretraga-stanje", "greska", "Pretraga nije izvršena. Ovo nije prazan rezultat; pokušajte ponovo.");
+        return;
+      }
+      if (!r.podaci.stavke.length) { stanje("lb-pretraga-stanje", "prazno", "Nijedan overen rad ni dokument ne odgovara upitu."); return; }
+      stanje("lb-pretraga-stanje", "info", tekst(r.podaci.napomena));
+      r.podaci.stavke.forEach(function (it) {
+        var at = it.attrs || {};
+        $("lb-pretraga-lista").append(A.stavka(it, tekst(it.title) || "Dokument", [tekst(it.excerpt),
+          tekst(at.verifikovao), at.moze_biti_zastarelo ? "Važenje nije potvrđeno — proverite pre upotrebe." : ""]));
+      });
+    }
+    $("lb-pretraga-forma").addEventListener("submit", function (e) { e.preventDefault(); pretrazi(); });
 
     $("lb-filter").addEventListener("input", filtriraj);
     var otvoren = false;

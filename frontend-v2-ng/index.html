@@ -338,6 +338,15 @@
               <h3 class="answer__h">Memorija kancelarije</h3>
               <p class="list-state" id="lb-mem-stanje" hidden></p>
               <ul class="an-list" id="lb-memorija" aria-label="Memorija kancelarije"></ul>
+              <h3 class="answer__h">Pretraga overenih radova i dokumenata</h3>
+              <form class="form" id="lb-pretraga-forma" role="search" novalidate>
+                <div class="field"><label class="field__label" for="lb-pretraga-upit">Šta tražite u radovima i dokumentima vaših predmeta</label>
+                  <input class="field__input" id="lb-pretraga-upit" type="search" maxlength="500" autocomplete="off"></div>
+                <p class="field__help">Pokreće se samo na vaš zahtev. Ne troši kredit. Prvo se prikazuju radovi koje je advokat overio.</p>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="lb-pretraga-dugme" type="submit">Pretraži</button></div>
+              </form>
+              <p class="list-state" id="lb-pretraga-stanje" role="status" aria-live="polite" hidden></p>
+              <ul class="an-list" id="lb-pretraga-lista" aria-label="Rezultati pretrage znanja kancelarije"></ul>
             </div>
           </section>
         </div>

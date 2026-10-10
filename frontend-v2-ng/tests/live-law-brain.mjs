@@ -115,6 +115,33 @@ const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
   await s.zatvori();
 }
 
+// ── Izričita pretraga overenog znanja ──
+{
+  const s = await scenario();
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  zapisi("pretraga", "otvaranje ne pokreće pretragu", lbSve(s).filter(z => z.putanja === "/api/law-brain/pretraga").length === 0);
+  await s.p.fill("#lb-pretraga-upit", "otkaz");
+  await s.p.click("#lb-pretraga-dugme");
+  const ok = await cekaj(s.p, () => document.querySelectorAll("#lb-pretraga-lista > .an-item").length > 0);
+  const r = await s.p.evaluate(() => [...document.querySelectorAll("#lb-pretraga-lista > .an-item")].map(x => ({ t: x.innerText, trust: x.dataset.trust })));
+  zapisi("pretraga", "na zahtev: overen rad prvi (iako niži skor), dokument označen kao dokument, bez skora kao „tačnosti”",
+    ok && r.length === 2 && r[0].trust === "LAWYER_VERIFIED_ARTIFACT" && r[1].trust === "SOURCE_CASE_FACT" && !/0\.9|0\.7|%/.test(r.map(x => x.t).join(" ")),
+    JSON.stringify(r.map(x => x.trust)));
+  zapisi("pretraga", "tačno jedan zahtev pretrage", lbSve(s).filter(z => z.putanja === "/api/law-brain/pretraga").length === 1);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ kuke: { oznaka: "#degradirano" } });
+  await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
+  await s.p.fill("#lb-pretraga-upit", "otkaz");
+  await s.p.click("#lb-pretraga-dugme");
+  const ok = await cekaj(s.p, () => { const n = document.getElementById("lb-pretraga-stanje"); return !n.hidden && n.dataset.stanje === "greska"; });
+  const t = await s.p.evaluate(() => document.getElementById("lb-pretraga-stanje").textContent);
+  const poslato = lbSve(s).filter(z => z.putanja === "/api/law-brain/pretraga" && z.parametri.q === "otkaz").length;
+  zapisi("pretraga", "pad pretrage → „nije izvršena”, nikad „nema rezultata” (zahtev stvarno poslat)", ok && poslato === 1 && /nije izvršena/.test(t) && !/Nijedan/.test(t), t);
+  await s.zatvori();
+}
+
 // ── Znanje: B (ista kancelarija) ne vidi A ──
 {
   const s = await scenario({ korisnik: "kB", token: TB });

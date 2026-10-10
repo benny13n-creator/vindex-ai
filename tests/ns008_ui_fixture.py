@@ -107,6 +107,23 @@ def main() -> dict:
         out["model_pozvan_pri_citanju"] = pre_modela
         out["model_pozvan_ukupno"] = len(pozivi)
         out["krediti"] = krediti
+        # Izričita pretraga znanja: lažan Pinecone (overen vektor + dokument) — STVARNA ruta i pravila poverenja
+        import types as _t
+        from app.services import retrieve as _rt
+        _vek = [_t.SimpleNamespace(id="v-ok", score=0.71, metadata={"predmet_id": PA_OLD, "type": "draft_final", "origin": "LAWYER_VERIFIED",
+                                                                    "parent_id": "s-ok", "text": "Overena tužba — poništaj otkaza.",
+                                                                    "source_filename": "Nacrt — Tužba", "created_at": "2026-08-01T00:00:00+00:00"}),
+                _t.SimpleNamespace(id="v-dok", score=0.93, metadata={"predmet_id": PA_OLD, "type": "case_doc", "origin": "CLIENT_DOC",
+                                                                     "text": "Rešenje o otkazu (dokument iz predmeta).", "source_filename": "Resenje.pdf",
+                                                                     "created_at": "2026-07-01T00:00:00+00:00"})]
+        mp.setattr(_rt, "_ugradi_query", lambda q: [0.1])
+        mp.setattr(_rt, "_pretraga_ns", lambda vec, ns, kk, filt: list(_vek))
+        r_ = k.get("/api/law-brain/pretraga?q=otkaz", headers=f8.zaglavlje("A"))
+        out["odgovori"]["A|GET|/api/law-brain/pretraga"] = {"status": r_.status_code, "telo": r_.json()}
+        mp.setattr(_rt, "_pretraga_ns", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("pinecone down")))
+        r_ = k.get("/api/law-brain/pretraga?q=otkaz", headers=f8.zaglavlje("A"))
+        out["odgovori"]["A|GET|/api/law-brain/pretraga#degradirano"] = {"status": r_.status_code, "telo": r_.json()}
+
         for wid in (W_ACC, W_READY):
             uzmi("A", f"/api/autonomy/work-items/{wid}")
         uzmi("A", f"/api/law-brain/rad/{W_ACC}/predlozi-znanje", "POST")

@@ -729,3 +729,58 @@ NEXT GATE: Task 1 — canonical contract.
 - FILES: `tests/ns008_demo.py`, `frontend-v2-ng/tests/ns008-demo.mjs`, `frontend-v2-ng/package.json` (`demo:ns008`), `services/law_brain.py`, `frontend-v2-ng/src/law-brain.js`, `tests/test_ns008_t9_outcome_patterns.py`.
 - TESTS: backend 186 passed. `live-law-brain` 41/41. Demo 7/7.
 - NEXT GATE: Task 25.
+
+---
+
+## TASK 26 — COST BOUNDARY
+
+- MEASURED (`tests/test_ns008_t26_cost.py`, 6 passed). The counters cover synthesis completions, query embeddings (`_ugradi_query`), credit charges, and any other OpenAI/AsyncOpenAI construction (patched to fail):
+
+| Operation | Completions | Embeddings | Credits |
+|---|---|---|---|
+| Open Znanje (`GET /api/law-brain/znanje`) | 0 | 0 | 0 |
+| Open matter Law Brain (`GET /api/law-brain/predmeti/{id}`) | 0 | 0 | 0 |
+| Similarity | 0 | 0 | 0 |
+| Outcome patterns | 0 | 0 | 0 |
+| Explicit synthesis (`POST …/sinteza`) | **1** | 0 | **1** (`precedenti`) |
+| Replay, same Idempotency-Key | 0 more | 0 | 0 more |
+| Explicit verified-knowledge search (`GET /api/law-brain/pretraga?q=`) | 0 | **1** (existing retrieval architecture) | 0 |
+| Empty search query | 0 | 0 | 0 |
+| DB failure (context 503 / synthesis 503) | 0 | 0 | 0 — no paid fallback |
+| Autonomy | `workers/background_agents.py`, `hearing_prep.py`, `precedents_radar.py` contain no `law_brain` reference (Task 18 skipped) | | |
+
+- GAP FOUND AND FIXED: the Task 10 office-knowledge search had **no route**, so it was unreachable dead code. Added `GET /api/law-brain/pretraga` (20/min, ACL, NOT_AUTHORIZED focus → 404, Pinecone failure → `DEGRADED` rather than "no results"). It is explicit only and never runs on page open.
+- FILES: `routers/law_brain.py`, `tests/test_ns008_t26_cost.py`.
+
+---
+
+## TASK 28 — SECURITY
+
+- **Bandit** (`-ll`) over all 14 NS008-changed production Python files: **0 medium, 0 high**. The new modules (`services/law_brain*.py`, `routers/law_brain.py`) report "No issues identified".
+- **Semgrep** (`p/python` + `p/javascript`, the same configs as NS007) over 17 changed production files: 5 findings at NS008 HEAD vs 5 at NS007 baseline on the same files. **0 new.** All 5 are pre-existing (`api.py` logger lines 541/1171 etc.).
+- **Dependency audit:** `requirements.txt` and `frontend-v2-ng/package-lock.json` are **unchanged** vs `deac5d99`. `package.json` gains only scripts (`verify:live-law-brain`, `demo:ns008`), so dependency exposure is unchanged (pip-audit/npm audit results carry over from NS007).
+- **Gitleaks:** not installed on this machine → **UNKNOWN**. Substitute: a regex scan of every added line in `git diff deac5d99..HEAD` for OpenAI keys, AWS keys, JWTs, and private keys found **0** hits.
+- **Grants/RLS:** **no migration 137 was created**, so no grant or RLS change exists to review. No SQL or RLS was weakened.
+- **No client-side service role:** `law-brain.js` and `pripremljeno.js` have no service key; all calls go through the user token.
+- **No raw prompts stored:** the synthesis result is not persisted, and provenance goes through the existing `case_context`.
+- **No secrets in Law Brain records:** Law Brain writes nothing except the Task 15 staging proposal (work-product text only).
+- **No full documents copied into derived tables:** no derived table exists. Excerpts are bounded to 400 characters in API output, and profiles carry counts and categories only.
+
+### TASK 26 addendum — explicit search UI
+- Znanje → Iskustvo kancelarije gains "Pretraga overenih radova i dokumenata", which runs on submit only (≥3 characters). The copy says it does not spend credits.
+- Results show the trust label, "verifikovao", and "Važenje nije potvrđeno" when applicable, never the raw score.
+- A failure → "Pretraga nije izvršena. Ovo nije prazan rezultat."
+- DEFECT FOUND AND FIXED: the first version put the query in the path, which `VxApi` rejects by design (`parametri` is the contract). In that state the degraded check passed **for the wrong reason** (a CONFIG_ERROR). The check now also asserts the request was really sent with `q=otkaz`.
+- Playwright: +4 checks (opening does not search; verified result first despite a lower score; exactly 1 request; real DEGRADED → "nije izvršena").
+
+---
+
+## TASK 25 — ASSET / UI REGRESSION
+
+- **Full V2 NG suite** (`scratchpad/ns008/run_ng.sh`: every `verify:*`/`e2e:*` npm script against static `serve.mjs` :4347): **35/35 scripts, 2147/2147 checks, 0 FAIL**. NS007 final: 34 scripts / 2106 checks; +1 script `verify:live-law-brain`.
+  - Includes `e2e:primary` 51/51: build-token addressing `/v2/app/@<token>/…`, `/app`, `/app-legacy`, `/app-v2`, `/v2/preview`.
+  - Includes `e2e:sw-isolation` 28/28, `e2e:site` 73/73, `verify:live-matrix` 152/152 (browser/viewport/theme matrix), `verify:live-states` 99/99, `verify:live-isolation` 25/25.
+- **Re-run after the later search-UI edit:** `verify` 98/98, `e2e:primary` 51/51, `verify:refinement` 86/86, `verify:live-law-brain` 45/45, `verify:live-znanje` 33/33.
+- **New asset** `src/law-brain.js` is referenced as `src/law-brain.js` and rewritten to `/v2/app/@<token>/src/law-brain.js` by the existing `_v2_ng_primarni_html`, so it is build-token addressed.
+- **Sidebar unchanged** (Danas / Predmeti / Znanje / Kancelarija). There is no Law Brain item: the `app.js` navigation list was not touched, and Law Brain lives inside Znanje and as a secondary section of Matter → Analiza. No third permanent panel.
+- **Dark/light and responsive:** `live-law-brain` checks 390px light, 1440px light, and Analiza at 390px light, with no horizontal overflow. The dark default is covered by all other scenarios.

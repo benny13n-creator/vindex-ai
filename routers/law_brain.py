@@ -7,6 +7,8 @@ autentifikacija, validacija i HTTP ugovor.
 
   GET  /api/law-brain/znanje                         — pregled znanja kancelarije (Znanje): bez modela, bez kredita.
   GET  /api/law-brain/predmeti/{predmet_id}          — kanonski kontekst predmeta: bez modela, bez kredita, bez upisa.
+  GET  /api/law-brain/pretraga?q=…[&predmet_id=…]    — IZRIČITA pretraga overenog znanja kancelarije (postojeći
+       Pinecone namespace vlasnika + ACL): 1 embedding upita, 0 kompletacija, bez kredita; samo na zahtev korisnika.
   POST /api/law-brain/rad/{work_id}/predlozi-znanje  — izričit predlog PRIHVAĆENOG autonomnog rada kao znanja
        kancelarije: SAMO red u `staging_memory` (na advokatsku overu), nikad direktno Pinecone (Task 15).
   POST /api/law-brain/predmeti/{predmet_id}/sinteza  — JEDINI poziv modela; samo na izričit klik. Pravo i cena:
@@ -113,3 +115,22 @@ async def predlozi_znanje(work_id: str, request: Request, user: dict = Depends(g
     if r is None:
         raise HTTPException(status_code=404, detail="Radni proizvod nije pronađen.")
     return {**r, "poruka": "Rad čeka advokatsku overu. Znanje kancelarije postaje tek posle odobrenja."}
+
+
+@router.get("/api/law-brain/pretraga")
+@limiter.limit("20/minute")
+async def pretraga_znanja(request: Request, q: str = "", predmet_id: str = "", user: dict = Depends(get_current_user)):
+    if predmet_id and not _UUID.match(predmet_id):
+        raise HTTPException(status_code=404, detail=_NEMA)
+    from services import law_brain as lb
+    uid = user["user_id"]
+    try:
+        r = await asyncio.to_thread(lb.pretrazi_znanje_kancelarije, _get_supa(), uid, q, today=_danas(),
+                                    predmet_id=predmet_id or None)
+    except Exception as e:
+        _sentry_capture(e)
+        logger.warning("[LAW_BRAIN] pretraga znanja nije izvršena uid=%.8s: %s", uid, type(e).__name__)
+        return {"stanje": lb.DEGRADED, "stavke": [], "napomena": lb.KNOWLEDGE_NOTICE}
+    if r["stanje"] == lb.NOT_AUTHORIZED:
+        raise HTTPException(status_code=404, detail=_NEMA)
+    return {**r, "stavke": [it.to_dict() for it in r["stavke"]]}
