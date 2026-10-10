@@ -46,6 +46,17 @@ async def _pozovi_mg_api(oai, **kwargs):
     backoff-om za rate-limit/5xx/timeout/connection greške."""
     return await oai.chat.completions.create(**kwargs)
 
+# RH001: veza koja dodiruje predmet/klijenta vidi se samo uz kanonsku autorizaciju (`shared/memorija_vidljivost` —
+# isti vlasnik pravila kao NS008 Law Brain), i u odgovoru i u promptu modela. Filtrira se PRE limita rute, iz
+# ograničenog većeg skupa, da ni brojevi ni sadržaj ne zavise od tuđih skrivenih veza.
+_SKUP_ZA_FILTER = 1000
+
+
+def _vidljive(supa, uid: str, redovi: list) -> list:
+    from shared.memorija_vidljivost import vidljive_veze
+    return vidljive_veze(supa, uid, redovi)
+
+
 _VALID_TYPES    = {"partner", "klijent", "sudija", "predmet", "argument", "strategija"}
 _VALID_RELACIJE = {"koristio_argument", "pobedio_pred", "izgubio_pred",
                    "preferira", "odbija", "radio_sa", "zastupao", "resio_nagodbo"}
@@ -164,7 +175,7 @@ async def entitet_veze(
                     .eq("from_type", entity_type)
                     .eq("from_id", entity_id)
                     .order("snaga", desc=True)
-                    .limit(50)
+                    .limit(_SKUP_ZA_FILTER)
                     .execute()
             ),
             asyncio.to_thread(
@@ -174,13 +185,13 @@ async def entitet_veze(
                     .eq("to_type", entity_type)
                     .eq("to_id", entity_id)
                     .order("snaga", desc=True)
-                    .limit(50)
+                    .limit(_SKUP_ZA_FILTER)
                     .execute()
             ),
         )
 
-        odlazne = from_r.data or []
-        dolazne = to_r.data or []
+        odlazne = (await asyncio.to_thread(_vidljive, supa, uid, from_r.data or []))[:50]
+        dolazne = (await asyncio.to_thread(_vidljive, supa, uid, to_r.data or []))[:50]
 
         # Grupiraj po tipu relacije
         by_rel: dict[str, list] = {}
@@ -226,13 +237,13 @@ async def graph_upit(
         # Dohvati sve ivice firme (max 200 za kontekst)
         r = await asyncio.to_thread(
             lambda: supa.table("memory_graph_edges")
-                .select("from_type, from_naziv, relacija, to_type, to_naziv, ishod, snaga, kontekst")
+                .select("from_type, from_id, from_naziv, relacija, to_type, to_id, to_naziv, predmet_id, ishod, snaga, kontekst")
                 .eq("kancelarija_id", kancelarija_id)
                 .order("snaga", desc=True)
-                .limit(200)
+                .limit(_SKUP_ZA_FILTER)
                 .execute()
         )
-        ivice = r.data or []
+        ivice = (await asyncio.to_thread(_vidljive, supa, uid, r.data or []))[:200]
 
         if not ivice:
             return {"odgovor": "Graf je prazan. Počnite da dodajete veze između entiteta.", "ivice_pronadjene": 0}
@@ -326,19 +337,19 @@ async def graf_preporuka(
                 .eq("predmet_id", predmet_id)
                 .execute()
         )
-        direktne_veze = pred_veze_r.data or []
+        direktne_veze = await asyncio.to_thread(_vidljive, supa, uid, pred_veze_r.data or [])
 
-        # Veze pobeda/poraza za isti tip predmeta (iz celokupnog grafa)
+        # Veze pobeda/poraza za isti tip predmeta (iz grafa — samo veze koje korisnik sme da vidi)
         pobede_r = await asyncio.to_thread(
             lambda: supa.table("memory_graph_edges")
-                .select("from_type, from_naziv, to_type, to_naziv, relacija, ishod, snaga, kontekst")
+                .select("from_type, from_id, from_naziv, to_type, to_id, to_naziv, predmet_id, relacija, ishod, snaga, kontekst")
                 .eq("kancelarija_id", kancelarija_id)
                 .in_("relacija", ["pobedio_pred", "izgubio_pred", "koristio_argument"])
                 .order("snaga", desc=True)
-                .limit(50)
+                .limit(_SKUP_ZA_FILTER)
                 .execute()
         )
-        istorija = pobede_r.data or []
+        istorija = (await asyncio.to_thread(_vidljive, supa, uid, pobede_r.data or []))[:50]
 
         if not istorija and not direktne_veze:
             return {

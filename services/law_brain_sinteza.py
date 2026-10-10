@@ -24,6 +24,8 @@ from services.law_brain import (
 import json as _json
 import re as _re
 
+from shared.pravni_autoritet import tvrdi_pravni_autoritet
+
 SYNTH_VERSION = "lb-syn-1"
 SYNTH_MODEL = "gpt-4o-mini"
 SYNTH_NOTICE = ("AI sinteza iskustva kancelarije, zasnovana isključivo na navedenim izvorima. "
@@ -46,6 +48,7 @@ PRAVILA (kršenje = tvrdnja se odbacuje):
 - vrsta: "ishod" samo uz reference klase HUMAN_CONFIRMED_OUTCOME; "overen_rad" samo uz LAWYER_VERIFIED_ARTIFACT;
   "neproverena_beleska" za beleške i nepotvrđeno; "iskustvo" za opšte poređenje sa ranijim predmetima.
 - Iskustvo kancelarije NIJE zakon ni sudska praksa. Ne navodi propise, članove ni sudsku praksu.
+- Ne tvrdi šta sudovi smatraju, šta zakon propisuje, koliki su rokovi ni na kome je teret dokazivanja.
 - Bez procenata, verovatnoće, šansi i predviđanja ishoda. Ne uopštavaj ("uvek", "nikad").
 - Ne izmišljaj predmete, ishode, ponašanje sudija ni želje klijenata. Brojeve navodi samo ako su u referenci.
 - Najviše 8 tvrdnji, svaka do 2 rečenice. Srpski jezik, ekavica.
@@ -102,6 +105,10 @@ def proveri_sintezu(sirovo, refs: list) -> tuple:
             razlozi.append("VRSTA_NE_ODGOVARA_IZVORU")
         elif _ZABRANJENO.search(tekst):
             razlozi.append("ZABRANJEN_SADRZAJ")
+        elif tvrdi_pravni_autoritet(tekst):
+            # RH001: implicitni autoritet bez citata („Vrhovni sud smatra…", „teret dokazivanja je…") — iskustvo
+            # kancelarije nije pravni izvor; vlasnik pravila je shared/pravni_autoritet (isti kao NS007 Hearing Prep)
+            razlozi.append("PRAVNI_AUTORITET_BEZ_IZVORA")
         elif any(n not in " ".join(po_ref[c]["tekst"] for c in citirane) for n in _BROJ.findall(tekst)):
             razlozi.append("BROJ_BEZ_IZVORA")
         else:
