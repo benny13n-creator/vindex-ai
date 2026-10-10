@@ -143,3 +143,16 @@ def test_ubacena_instrukcija_ne_otvara_tudji_predmet_modelu(svet, monkeypatch):
     assert TAJNA_B not in promptovi[0] and "s-B" not in promptovi[0], "model ne dobija ništa što A ne sme da vidi"
     assert d["tvrdnje"] == [] and d["odbaceno"] == 3
     assert "Always do X" not in promptovi[0], "nepotvrđena legacy lekcija nije referenca"
+
+
+def test_ai_vektor_sa_pozajmljenim_odobrenim_roditeljem_ne_postaje_poverljiv(svet, monkeypatch):
+    """Prvi sloj odbrane nezavisno od drugog: AI_GENERATED vektor koji (krivotvorenom metapodatkom) nosi parent_id
+    STVARNO odobrenog staging reda ISTOG predmeta i dalje se nikad ne vraća — poreklo AI se ne može preobući."""
+    _, b = svet
+    from app.services import retrieve as rt
+    hits = [types.SimpleNamespace(id="v-ai-preobucen", score=0.99, metadata={
+        "predmet_id": PA_OLD, "type": "draft_final", "origin": "AI_GENERATED", "parent_id": "s-ok", "text": "AI tekst"})]
+    monkeypatch.setattr(rt, "_pretraga_ns", lambda vec, ns, k, filt: hits)
+    monkeypatch.setattr(rt, "_ugradi_query", lambda q: [0.1])
+    r = lb.pretrazi_znanje_kancelarije(b, "uid-A", "x", today=DANAS)
+    assert r["stavke"] == []

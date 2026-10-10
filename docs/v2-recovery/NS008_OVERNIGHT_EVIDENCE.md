@@ -784,3 +784,38 @@ NEXT GATE: Task 1 — canonical contract.
 - **New asset** `src/law-brain.js` is referenced as `src/law-brain.js` and rewritten to `/v2/app/@<token>/src/law-brain.js` by the existing `_v2_ng_primarni_html`, so it is build-token addressed.
 - **Sidebar unchanged** (Danas / Predmeti / Znanje / Kancelarija). There is no Law Brain item: the `app.js` navigation list was not touched, and Law Brain lives inside Znanje and as a secondary section of Matter → Analiza. No third permanent panel.
 - **Dark/light and responsive:** `live-law-brain` checks 390px light, 1440px light, and Analiza at 390px light, with no horizontal overflow. The dark default is covered by all other scenarios.
+
+---
+
+## TASK 27 — MUTATION GAUNTLET (20 mandated mutations)
+
+- HARNESS INCIDENT (found and fixed before trusting any result): the first gauntlet run reported 18/18 backend "kills", **all false**. The command used the glob `tests/test_ns008_*.py`. `subprocess(shell=True)` on Windows goes through `cmd.exe`, which does not expand globs, so pytest exited **rc=4 (usage error)** without running a test, and the harness counted any non-zero exit as a kill.
+  - Fixes: (1) the gauntlet command now lists all 22 NS008 test files explicitly; (2) the harness (`scratchpad/ns008/mut.py`) now reports pytest rc 2/3/4/5 as **NEVAZECA** (invalid), never as killed.
+  - All per-task mutation runs in Tasks 1–23 used explicit file names, and their output lists the specific failing test, so those kills are real.
+- REAL RESULT (`scratchpad/ns008/gauntlet_result.txt`): **20/20 killed**. Each backend mutation runs the full NS008 backend suite (192 tests); the UI mutations run `live-law-brain`.
+
+| # | Mutation | Killed by |
+|---|---|---|
+| 1 | AI_WORK_PRODUCT trusted | t1 locked trust set |
+| 2 | ACCEPTED autonomy item → knowledge | t15 accept-route test |
+| 3 | outcome inferred from status | t2 closed-without-outcome |
+| 4 | outcome inferred from chronology text | t2 "Ishod: pobeda" in chronology |
+| 5 | owner filter removed from similar matters | t10 ACL filter / t19 |
+| 6 | same office = raw matter readable | t10 / t19 byte-identity |
+| 7 | foreign outcome in statistics | t2 forged-owner row |
+| 8 | CANDIDATE lesson = CONFIRMED | t11 context |
+| 9 | AI_GENERATED vector trusted | **initially SURVIVED** (masked by the read-time staging check: test vectors had no approved parent) → added `test_ai_vektor_sa_pozajmljenim_odobrenim_roditeljem…` (forged parent of a really approved row) → killed |
+| 10 | source lineage removed | t1 source_ref |
+| 11 | model invents a source ref | t12 |
+| 12 | office experience labelled legal authority | t23 |
+| 13 | "82%" chance in output | t11 (no `%`) |
+| 14 | revoked artifact still served | t10 read-time revocation |
+| 15 | page load triggers synthesis | live-law-brain cost check |
+| 16 | stale A response paints into B | **initially SURVIVED** (masked by AbortController) → the scenario now disables `abort()` to prove the independent generation guard. Mutation output `curenje: true` → killed |
+| 17 | removed member keeps office Brain | t19 matrix (R) |
+| 18 | wrong office Pinecone namespace | t10 namespace assertion |
+| 19 | unknown legacy row treated as human-confirmed | t20 legacy lesson |
+| 20 | Law Brain writes on GET | t11 select-only journal |
+
+- JUSTIFIED SURVIVORS: **none.** Both masked survivors now have tests that prove each defense layer independently.
+- FILES: `tests/test_ns008_t20_poisoning.py`, `frontend-v2-ng/tests/live-law-brain.mjs`.

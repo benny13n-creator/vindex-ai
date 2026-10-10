@@ -282,6 +282,9 @@ zapisi("promocija", "ponovljen predlog vraća isti staging (bez duplikata)",
   let pusti = null;
   const zadrzan = new Promise(r => { pusti = r; });
   const s = await scenario({ kuke: { pre: async ({ k, p }) => { if (k === "A" && p === "/api/law-brain/znanje") await zadrzan; return null; } } });
+  /* Prekid zahteva (AbortController) je PRVI sloj; ovde se namerno gasi da bi se dokazao DRUGI, nezavisan sloj —
+   * generacija i provera korisnika: zakasneli A-ov odgovor stiže, ali se ne sme iscrtati za B. */
+  await s.p.evaluate(() => { AbortController.prototype.abort = function () {}; });
   await cekaj(s.p, () => !document.getElementById("lb-stanje").hidden);
   const drugi = await s.ctx.newPage();
   await drugi.goto(`http://127.0.0.1:${s.f.port}/src/tokens.css`);
