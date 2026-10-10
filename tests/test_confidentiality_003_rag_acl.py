@@ -277,9 +277,21 @@ class _FakeSupaACL:
                 self.uslovi[k] = v
                 return self
 
+            # NS008 Task 21: rag_acl filtrira tombstone i na delegiranoj grani (`in_` + `is_`, isti PostgREST API)
+            def in_(self, k, v):
+                self.uslovi[k + "__in"] = list(v)
+                return self
+
+            def is_(self, k, v):
+                self.uslovi[k + "__is"] = v
+                return self
+
             def execute(self):
-                if self.ime == "predmeti":
-                    d = [r for r in spolja._p if r["user_id"] == self.uslovi.get("user_id")]
+                if self.ime == "predmeti" and "id__in" in self.uslovi:
+                    d = [r for r in spolja._p if r["id"] in self.uslovi["id__in"] and not r.get("brisanje_zapoceto")]
+                elif self.ime == "predmeti":
+                    d = [r for r in spolja._p if r["user_id"] == self.uslovi.get("user_id")
+                         and ("brisanje_zapoceto__is" not in self.uslovi or not r.get("brisanje_zapoceto"))]
                 elif self.ime == "predmet_delegiranja":
                     if spolja._puca:
                         raise RuntimeError("tabela nedostupna")
@@ -408,3 +420,12 @@ def test_pine01_ponovljeno_brisanje_je_idempotentno_na_nivou_acl_a():
     for _ in range(3):
         docs, meta, _ = _pretrazi(dozvoljeni=["pred-A"])
         assert TAJNA_B not in "\n".join(docs) + str(meta.get("doc_passages", ""))
+
+
+def test_acl_delegiran_predmet_u_brisanju_nije_dozvoljen():
+    """NS008 Task 21: tombstone važi i za delegirane predmete (ranije samo za vlasničku granu)."""
+    supa = _FakeSupaACL(
+        predmeti=[{"id": "p1", "user_id": "u1"}, {"id": "p2", "user_id": "u2", "brisanje_zapoceto": "2026-10-01"}],
+        delegacije=[{"predmet_id": "p2", "na_user_id": "u1", "status": "aktivno"}],
+    )
+    assert dozvoljeni_predmeti(supa, "u1") == ["p1"]

@@ -178,6 +178,46 @@ async def _fetch_recently_completed(supa, predmet_ids: list[str], uid: str,
     return closed_actions, closed_zadaci
 
 
+# NS007 Task 14 — „Vindex je pripremio": READY_FOR_REVIEW autonomni radni proizvodi (migracija 136). Posebna korpa,
+# NIJE zadatak: ne ulazi u `ukupno_aktivnih` niti u druge korpe (Case Action = šta treba uraditi; radni proizvod = šta
+# je Vindex već pripremio). Samo vlasnikovi, samo za aktivne predmete. Tabela ne postoji (kod stigao pre migracije)
+# → korpa je isključena, a tabla NIJE proglašena nepotpunom; svaka druga greška → nepročitan izvor (iskreno).
+_MAKS_PRIPREMLJENOG = 20
+
+
+def _nema_tabele(e: Exception) -> bool:
+    s = str(e)
+    return "42P01" in s or "PGRST205" in s or "Could not find the table" in s
+
+
+async def _fetch_prepared_work(supa, uid: str, predmet_ids: list) -> list:
+    if not predmet_ids:
+        return []
+    r = await asyncio.to_thread(
+        lambda: supa.table("autonomy_work_items")
+            .select("id,predmet_id,work_type,title,summary,reason,quality_state,ready_at,case_action_id")
+            .eq("user_id", uid).eq("status", "READY_FOR_REVIEW").in_("predmet_id", predmet_ids)
+            .order("ready_at", desc=True).limit(_MAKS_PRIPREMLJENOG).execute()
+    )
+    return r.data or []
+
+
+def _normalize_prepared(w: dict, naziv: str | None) -> dict:
+    return {
+        "vrsta": "pripremljeno",
+        "id": w["id"],
+        "predmet_id": w.get("predmet_id"),
+        "predmet_naziv": naziv,
+        "naslov": w.get("title"),
+        "tip": w.get("work_type"),
+        "razlog": w.get("reason"),
+        "sazetak": w.get("summary"),
+        "kvalitet": w.get("quality_state"),
+        "pripremljeno": w.get("ready_at"),
+        "case_action_id": w.get("case_action_id"),
+    }
+
+
 async def _empty_result():
     class _R:
         data = []
@@ -247,12 +287,21 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
     # degrades gracefully per-bucket, matching the sibling gather's own
     # already-correct pattern.
     # Program Phoenix, Mission 013 (LIVINGSYS-DEBT-040): bounded to 15s.
-    _actions_r, _zadaci_r, _review_r = await gather_with_timeout(
+    _actions_r, _zadaci_r, _review_r, _pripremljeno_r = await gather_with_timeout(
         _fetch_open_actions(supa, predmet_ids),
         _fetch_waiting_zadaci(supa, uid),
         _fetch_review_jobs(supa, uid),
+        _fetch_prepared_work(supa, uid, predmet_ids),
         label="workspace.main",
     )
+    if isinstance(_pripremljeno_r, Exception) and _nema_tabele(_pripremljeno_r):
+        pripremljeno_stanje, _pripremljeno = "NIJE_UKLJUCENO", []
+    elif isinstance(_pripremljeno_r, Exception):
+        logger.error("[WORKSPACE] izvor 'pripremljeni rad' NIJE procitan: %s", _pripremljeno_r)
+        degradirani_izvori.append("pripremljeni rad")
+        pripremljeno_stanje, _pripremljeno = "NIJE_PROCITANO", []
+    else:
+        pripremljeno_stanje, _pripremljeno = "OK", _pripremljeno_r
     for _name, _res in (("otvorene akcije", _actions_r), ("zadaci na čekanju", _zadaci_r), ("stavke za pregled", _review_r)):
         if isinstance(_res, Exception):
             # N5-A-001: ranije samo `logger.warning` — korisnik nije saznao ništa.
@@ -317,6 +366,9 @@ async def get_workspace(request: Request, user: dict = Depends(get_current_user)
         "za_pregled": za_pregled_stavke,
         "na_cekanju": na_cekanju_stavke,
         "zavrseno_nedavno": zavrseno_stavke,
+        # NS007: pripremljen rad — posebna korpa, nije zadatak (ne ulazi u ukupno_aktivnih).
+        "vindex_je_pripremio": [_normalize_prepared(w, predmet_naziv.get(w.get("predmet_id"))) for w in _pripremljeno],
+        "vindex_je_pripremio_stanje": pripremljeno_stanje,
         "ukupno_aktivnih": ukupno_aktivnih,
         "predmeta_sa_akcijama": predmeta_sa_akcijama,
         # N5-A-001: bez ovog polja frontend ne može da razlikuje „nema ničega"

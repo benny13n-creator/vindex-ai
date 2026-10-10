@@ -149,3 +149,112 @@ def compute_case_readiness(
         return {"status": PARTIALLY_READY, "razlog": razlog, "izvor": source_keys}
 
     return {"status": READY, "razlog": "Nema otvorenih akcija niti neotklonjenih praznina.", "izvor": []}
+
+
+# ─── NS006 Task 7 — pregled spremnosti BEZ pseudo-predviđanja ─────────────────
+#
+# Čista funkcija nad VEĆ UČITANIM redovima. Računanje ostaje kod kanonskih vlasnika:
+# `services/risk_engine.py::calculate_procesni_rizik` / `identify_case_problems` i
+# `compute_case_readiness` iznad. Ovde se samo:
+#   • svaka dimenzija veže za SVOJ izvor i stanje tog izvora;
+#   • izvor koji NIJE pročitan daje `DEGRADED` i `vrednost: None` — nikad 0, nikad
+#     „spremno" (FAILED != EMPTY);
+#   • nijedna vrednost se ne naziva šansom, verovatnoćom ni predviđanjem ishoda.
+# Nema upisa (za razliku od `routers/matter_intel.py::get_matter_intel`, koji pri
+# čitanju upisuje `predmet_health_log` i emituje alarme).
+
+SPREMNOST_OK = "OK"
+SPREMNOST_DEGRADIRANO = "DEGRADED"
+SPREMNOST_NEPOZNATO = "UNKNOWN"
+
+
+def _dim(kljuc, naziv, vrednost, znacenje, izvor, stanje=SPREMNOST_OK, **dod):
+    return {"kljuc": kljuc, "naziv": naziv, "vrednost": vrednost if stanje == SPREMNOST_OK else None,
+            "znacenje": znacenje, "izvor": izvor, "stanje": stanje, "klasa": "deterministic", **dod}
+
+
+def pregled_spremnosti(*, tip_predmeta: str, dokazi: list | None, dokumenti: list | None, rocista: list | None,
+                       akcije: list | None, kontradikcije: dict | None, genome_izracunat: bool,
+                       izvori: dict | None = None) -> dict:
+    from services.risk_engine import calculate_procesni_rizik, identify_case_problems
+    from shared.constants import EXPECTED_DOCS
+    from shared.evidence_write import pokrivenost_procene
+
+    izvori = dict(izvori or {})
+    ok = {k: izvori.get(k, "OK") == "OK" for k in ("dokazi", "dokumenti", "rocista", "akcije", "kontradikcije")}
+    zakazana = [r for r in (rocista or []) if (r or {}).get("status") == "zakazano"]
+    dim: list[dict] = []
+
+    # 1. Pokrivenost procene dokaza — „N od M tvrdnji ima procenu", ne „snaga X%".
+    if ok["dokazi"]:
+        p = pokrivenost_procene(dokazi or [])
+        dim.append(_dim("pokrivenost_procene", "Tvrdnje sa procenom dokaza",
+                        {"procenjeno": p["broj_procenjenih"], "ukupno": p["broj_tvrdnji"], "status": p["status"]},
+                        "Koliko tvrdnji ima procenu dokazne snage (čovek ili pronađeno u izvoru).", "predmet_dokazi"))
+    else:
+        dim.append(_dim("pokrivenost_procene", "Tvrdnje sa procenom dokaza", None, "Tvrdnje nisu pročitane.",
+                        "predmet_dokazi", SPREMNOST_DEGRADIRANO))
+
+    # 2–4. Procesni rizik i njegovi delovi — SAMO ako su sva tri izvora pročitana.
+    rizik = None
+    if ok["dokazi"] and ok["dokumenti"] and ok["rocista"]:
+        rizik = calculate_procesni_rizik(dokazi=dokazi or [], dokumenti=dokumenti or [], rocista=zakazana,
+                                         tip_predmeta=tip_predmeta or "ostalo", expected_docs=EXPECTED_DOCS)
+    if ok["dokumenti"] and rizik is not None:
+        dim.append(_dim("nedostajuci_tipovi", "Nedostajući tipovi dokumenata", list(rizik["nedostajuci_dokazi"]),
+                        f"Tipovi dokumenata uobičajeni za ovu vrstu predmeta, a kojih u spisu nema.", "predmet_dokumenti"))
+    else:
+        dim.append(_dim("nedostajuci_tipovi", "Nedostajući tipovi dokumenata", None,
+                        "Dokumenti ili ročišta nisu pročitani.", "predmet_dokumenti", SPREMNOST_DEGRADIRANO))
+    if ok["rocista"]:
+        from datetime import date as _date
+        danas = _date.today()
+        dani = []
+        for r in zakazana:
+            try:
+                dani.append((_date.fromisoformat(str(r.get("datum"))[:10]) - danas).days)
+            except (TypeError, ValueError):
+                continue
+        dim.append(_dim("rocista", "Zakazana ročišta",
+                        {"u_narednih_30_dana": sum(1 for d in dani if 0 <= d <= 30),
+                         "u_narednih_7_dana": sum(1 for d in dani if 0 <= d <= 7),
+                         "propustena": sum(1 for d in dani if d < 0)},
+                        "Zakazana ročišta po vremenu do održavanja (propuštena = datum prošao, status nepromenjen).", "rocista"))
+    else:
+        dim.append(_dim("rocista", "Zakazana ročišta", None, "Ročišta nisu pročitana.", "rocista", SPREMNOST_DEGRADIRANO))
+    if rizik is not None:
+        dim.append(_dim("procesni_rizik", "Procesni rizik (pravilo)", rizik["nivo"],
+                        "Pravilo nad dokazima, nedostajućim dokumentima i rokovima (services/risk_engine.py). "
+                        "NIJE procena ishoda spora.", "risk_engine",
+                        faktori=[p["problem"] for p in identify_case_problems(rizik, tip_predmeta or "ostalo")]))
+    else:
+        dim.append(_dim("procesni_rizik", "Procesni rizik (pravilo)", None,
+                        "Bar jedan izvor (tvrdnje, dokumenti, ročišta) nije pročitan — rizik se ne računa iz delimičnih podataka.",
+                        "risk_engine", SPREMNOST_DEGRADIRANO))
+
+    # 5. Kontradikcije (iz sekcije kontradikcija).
+    if ok["kontradikcije"] and kontradikcije and kontradikcije.get("sazetak") is not None:
+        s = kontradikcije["sazetak"]
+        dim.append(_dim("kontradikcije", "Aktivne kontradikcije",
+                        {"aktivnih": s["aktivnih"], "kriticnih": s["kriticnih_aktivnih"], "za_pregled": s["za_pregled"],
+                         "bez_veze_na_tvrdnje": s["aktivnih_bez_veze_na_tvrdnje"]},
+                        "Aktivne sporne tačke među tvrdnjama i dokumentima.", "predmet_contradictions"))
+    else:
+        dim.append(_dim("kontradikcije", "Aktivne kontradikcije", None, "Kontradikcije nisu pročitane.",
+                        "predmet_contradictions", SPREMNOST_DEGRADIRANO))
+
+    # 6. Operativna spremnost — postojeći model nad OTVORENIM akcijama.
+    if ok["akcije"]:
+        otvorene = [a for a in (akcije or []) if a.get("status", "open") == "open"]
+        sp = compute_case_readiness(otvorene, genome_computed=genome_izracunat)
+        po_prioritetu = {p: sum(1 for a in otvorene if a.get("prioritet") == p) for p in CANONICAL_ORDER}
+        dim.append(_dim("operativna_spremnost", "Operativna spremnost", sp["status"], sp["razlog"],
+                        "case_actions", izvor_kljucevi=sp["izvor"], otvorenih_akcija=len(otvorene), po_prioritetu=po_prioritetu))
+    else:
+        dim.append(_dim("operativna_spremnost", "Operativna spremnost", None,
+                        "Akcije nisu pročitane — spremnost se ne procenjuje.", "case_actions", SPREMNOST_DEGRADIRANO))
+
+    degradirano = [d["kljuc"] for d in dim if d["stanje"] != SPREMNOST_OK]
+    return {"stanje": SPREMNOST_DEGRADIRANO if degradirano else SPREMNOST_OK, "dimenzije": dim,
+            "degradirano": degradirano,
+            "napomena": "Pokazatelji su determinističko brojanje i pravila nad podacima predmeta; ni jedan nije predviđanje ishoda."}

@@ -64,6 +64,20 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-v2-ng/package-lock.json
 
+      # NS006+ suites (live-analiza, live-pregled-zivi, live-radna-lista, ...) build their API answers by running the
+      # REAL backend flow over a fake DB (tests/ns00X_ui_fixture.py). Without the production interpreter and
+      # requirements they die on `import pytest` before any check runs (RH001: they had never run in CI).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies (for suites that run the real backend over a fake DB)
+        working-directory: .
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Install dependencies
         run: npm ci
 

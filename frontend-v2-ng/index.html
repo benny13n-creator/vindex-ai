@@ -178,7 +178,21 @@
         <div class="matter__body">
           <p class="notice" id="da-stanje" role="status" aria-live="polite" hidden></p>
           <p class="notice" id="da-poruka" role="status" aria-live="polite" hidden></p>
-          <section class="matter__section matter__section--first" aria-labelledby="da-obaveze-naslov">
+          <!-- NS007 Task 15: rad koji je Vindex sam pripremio (isti GET /api/workspace; src/pripremljeno.js). -->
+          <section class="matter__section matter__section--first" id="dp-blok" aria-labelledby="dp-naslov">
+            <h2 class="matter__h2" id="dp-naslov">Vindex je pripremio</h2>
+            <p class="field__help">Rad koji je Vindex sam pripremio iz stanja vaših predmeta. Ništa nije poslato ni podneto — sve čeka vaš pregled.</p>
+            <p class="list-state" id="dp-stanje" role="status" hidden></p>
+            <ul class="an-list" id="dp-lista"></ul>
+          </section>
+          <!-- NS006 Task 12: radna lista iz kanonske table (GET /api/workspace, src/radna-lista.js). Samo čitanje. -->
+          <section class="matter__section" aria-labelledby="rl-naslov">
+            <h2 class="matter__h2" id="rl-naslov">Radna lista</h2>
+            <p class="field__help">Radnje koje je sistem izveo iz stanja predmeta, zadaci kancelarije i dokumenti koji čekaju vašu potvrdu.</p>
+            <p class="list-state" id="rl-stanje" role="status" hidden></p>
+            <div id="rl-korpe"></div>
+          </section>
+          <section class="matter__section" aria-labelledby="da-obaveze-naslov">
             <h2 class="matter__h2" id="da-obaveze-naslov">Obaveze</h2>
             <p class="list-state" id="da-obaveze-stanje" role="status" hidden></p>
             <div id="da-obaveze"></div>
@@ -195,6 +209,38 @@
             <p class="list-state" id="da-kalendar-stanje" role="status" hidden></p>
             <div id="da-kalendar"></div>
           </section>
+        </div>
+      </section>
+      <!-- NS007 Task 15: pregled jednog pripremljenog rada (#/pripremljeno/<id>). Odluka = samo pregled. -->
+      <section class="matter" id="pripremljeno-pogled" hidden aria-labelledby="vpr-naslov">
+        <div class="matter__head">
+          <p class="matter__ref"><a class="text-btn" href="#/danas">← Danas</a></p>
+          <h1 class="sheet__title matter__title" id="vpr-naslov" tabindex="-1">Pripremljeni rad</h1>
+          <p class="matter__ref" id="vpr-meta"></p>
+        </div>
+        <div class="matter__body">
+          <p class="list-state" id="vpr-stanje" role="status" aria-live="polite" hidden></p>
+          <div id="vpr-sadrzaj" hidden>
+            <p class="notice" id="vpr-razlog"></p>
+            <div id="vpr-delovi"></div>
+            <section class="matter__section" id="vpr-odluka-blok" hidden aria-labelledby="vpr-odluka-naslov">
+              <h2 class="matter__h2" id="vpr-odluka-naslov">Vaša odluka</h2>
+              <p class="field__help">Prihvatanje je samo vaša odluka o pregledu: ništa se ne šalje, ne podnosi i ne menja u predmetu.</p>
+              <div class="field"><label class="field__label" for="vpr-razlog-odbijanja">Razlog odbijanja (opciono)</label>
+                <textarea class="field__input field__input--area" id="vpr-razlog-odbijanja" rows="2" maxlength="1000"></textarea></div>
+              <div class="form__actions">
+                <button class="text-btn text-btn--primary" id="vpr-prihvati" type="button">Prihvatam</button>
+                <button class="text-btn" id="vpr-odbaci" type="button">Odbacujem</button>
+              </div>
+            </section>
+            <p class="notice" id="vpr-poruka" role="status" aria-live="polite" hidden></p>
+            <section class="matter__section" id="vpr-znanje-blok" hidden aria-labelledby="vpr-znanje-naslov">
+              <h2 class="matter__h2" id="vpr-znanje-naslov">Znanje kancelarije</h2>
+              <p class="field__help">Prihvaćen rad nije automatski znanje kancelarije. Ako želite da ga sačuvate, ide na advokatsku overu; znanje kancelarije postaje tek kada ga advokat odobri.</p>
+              <div class="form__actions"><button class="text-btn text-btn--line" id="vpr-predlozi-znanje" type="button">Predloži kao znanje kancelarije</button></div>
+              <p class="notice" id="vpr-znanje-poruka" role="status" aria-live="polite" hidden></p>
+            </section>
+          </div>
         </div>
       </section>
       <section class="matter" id="kancelarija-pogled" hidden aria-labelledby="ka-naslov">
@@ -231,7 +277,7 @@
       <section class="matter" id="znanje-pogled" hidden aria-labelledby="zn-naslov">
         <div class="matter__head">
           <h1 class="sheet__title matter__title" id="zn-naslov" tabindex="-1">Znanje</h1>
-          <p class="matter__ref">Sudska praksa iz korpusa odluka i interni stavovi vaše kancelarije.</p>
+          <p class="matter__ref">Sudska praksa iz korpusa odluka, interni stavovi i iskustvo vaše kancelarije.</p>
         </div>
         <div class="matter__body">
           <section class="matter__section matter__section--first" aria-labelledby="zn-praksa-naslov">
@@ -273,6 +319,36 @@
             <p class="notice" id="zn-stav-stanje" role="status" aria-live="polite" hidden></p>
             <ul class="decisions" id="zn-stav-lista" aria-label="Interni stavovi"></ul>
           </section>
+          <section class="matter__section" id="lb-znanje" aria-labelledby="lb-naslov">
+            <h2 class="matter__h2" id="lb-naslov">Iskustvo kancelarije</h2>
+            <p class="field__help" id="lb-slojevi">Ovde se ne mešaju tri vrste znanja. <strong>Zakon i sudska praksa</strong> su spoljni pravni izvori (gore). <strong>Znanje kancelarije</strong> su vaši raniji predmeti, radovi koje je advokat overio, potvrđene lekcije i beleške kolega — to je iskustvo, ne pravni izvor. <strong>AI analiza</strong> je uvek označena i nije potvrda.</p>
+            <p class="list-state" id="lb-stanje" role="status" aria-live="polite" hidden></p>
+            <div id="lb-sadrzaj" hidden>
+              <div class="field"><label class="field__label" for="lb-filter">Filtriraj prikazano</label>
+                <input class="field__input" id="lb-filter" type="search" maxlength="100" autocomplete="off"></div>
+              <h3 class="answer__h">Raniji predmeti po vrsti</h3>
+              <p class="list-state" id="lb-isk-stanje" hidden></p>
+              <ul class="an-list" id="lb-iskustvo" aria-label="Raniji predmeti po vrsti"></ul>
+              <h3 class="answer__h">Verifikovani radovi</h3>
+              <p class="list-state" id="lb-rad-stanje" hidden></p>
+              <ul class="an-list" id="lb-radovi" aria-label="Verifikovani radovi"></ul>
+              <h3 class="answer__h">Potvrđene lekcije</h3>
+              <p class="list-state" id="lb-lek-stanje" hidden></p>
+              <ul class="an-list" id="lb-lekcije" aria-label="Potvrđene lekcije"></ul>
+              <h3 class="answer__h">Memorija kancelarije</h3>
+              <p class="list-state" id="lb-mem-stanje" hidden></p>
+              <ul class="an-list" id="lb-memorija" aria-label="Memorija kancelarije"></ul>
+              <h3 class="answer__h">Pretraga overenih radova i dokumenata</h3>
+              <form class="form" id="lb-pretraga-forma" role="search" novalidate>
+                <div class="field"><label class="field__label" for="lb-pretraga-upit">Šta tražite u radovima i dokumentima vaših predmeta</label>
+                  <input class="field__input" id="lb-pretraga-upit" type="search" maxlength="500" autocomplete="off"></div>
+                <p class="field__help">Pokreće se samo na vaš zahtev. Ne troši kredit. Prvo se prikazuju radovi koje je advokat overio.</p>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="lb-pretraga-dugme" type="submit">Pretraži</button></div>
+              </form>
+              <p class="list-state" id="lb-pretraga-stanje" role="status" aria-live="polite" hidden></p>
+              <ul class="an-list" id="lb-pretraga-lista" aria-label="Rezultati pretrage znanja kancelarije"></ul>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -286,6 +362,7 @@
         </div>
         <nav class="tabs" id="predmet-odeljci" aria-label="Odeljci predmeta" hidden>
           <a class="tabs__item" id="tab-pregled" href="#/">Pregled</a>
+          <a class="tabs__item" id="tab-analiza" href="#/">Analiza</a>
           <a class="tabs__item" id="tab-rad" href="#/">Rad na predmetu</a>
           <a class="tabs__item" id="tab-pitanje" href="#/">Pravno pitanje</a>
           <a class="tabs__item" id="tab-nacrt" href="#/">Nacrt podneska</a>
@@ -300,6 +377,23 @@
         </div>
         <div class="matter__body" id="odeljak-pregled" hidden>
           <p class="notice" id="pregled-poruka" role="status" aria-live="polite" hidden></p>
+          <!-- NS006 Task 11: živo stanje predmeta (src/zivi-pregled.js). Samo čitanje: promene verzija + kanonske radnje. -->
+          <section class="matter__section zp" id="zp-blok" hidden aria-labelledby="zp-naslov">
+            <h2 class="matter__h2" id="zp-naslov">Stanje predmeta</h2>
+            <div class="zp-prip" id="zp-prip-blok" hidden>
+              <h3 class="answer__h">Vindex je pripremio</h3>
+              <p class="field__help" id="zp-prip-stanje" role="status" hidden></p>
+              <ul class="an-list" id="zp-prip"></ul>
+            </div>
+            <div class="zp__grid">
+              <div class="zp__col"><h3 class="answer__h">Šta se promenilo</h3>
+                <p class="field__help" id="zp-promene-stanje" role="status" hidden></p><ul class="an-list" id="zp-promene"></ul></div>
+              <div class="zp__col"><h3 class="answer__h">Šta traži pažnju</h3>
+                <p class="field__help" id="zp-paznja-stanje" role="status" hidden></p><ul class="an-list" id="zp-paznja"></ul></div>
+              <div class="zp__col"><h3 class="answer__h">Sledeći korak</h3>
+                <p class="field__help" id="zp-sledece-stanje" role="status" hidden></p><ul class="an-list" id="zp-sledece"></ul></div>
+            </div>
+          </section>
           <div class="matter__tools"><button class="text-btn text-btn--line" id="izmena-otvori" type="button" hidden>Izmeni podatke</button></div>
           <dl class="facts" id="predmet-cinjenice"></dl>
           <form class="form" id="izmena-forma" hidden novalidate aria-labelledby="izmena-naslov">
@@ -544,6 +638,93 @@
             <ul class="reviews" id="np-fakture" aria-label="Fakture za ovaj predmet"></ul>
           </section>
         </div>
+        <!-- NS006 — Analiza: profesionalni Genome, dokazi, protivrečnosti, rizici i spremnost. Samo čitanje; sadržaj upisuje
+             src/analiza-predmeta.js kao tekst. Otvaranje ne poziva model. -->
+        <div class="matter__body" id="odeljak-analiza" hidden>
+          <p class="list-state" id="an-stanje" role="status" aria-live="polite" hidden></p>
+          <div id="an-sadrzaj" hidden>
+            <section class="matter__section matter__section--first" aria-labelledby="an-promene-naslov">
+              <div class="section-head"><h2 class="matter__h2" id="an-promene-naslov">Šta se promenilo</h2><span class="an-version" id="an-verzija"></span></div>
+              <p class="list-state" id="an-promene-stanje" hidden></p>
+              <ul class="an-list" id="an-promene" aria-label="Promene od prethodne verzije"></ul>
+              <details class="an-more" id="an-analiticke-blok" hidden><summary>Promene u proceni analize (nisu činjenice)</summary>
+                <ul class="an-list" id="an-analiticke"></ul></details>
+            </section>
+            <nav class="an-jump" aria-label="Delovi analize">
+              <button class="text-btn" type="button" data-an-skok="an-genome-naslov">Genome</button>
+              <button class="text-btn" type="button" data-an-skok="an-dokazi-naslov">Dokazi</button>
+              <button class="text-btn" type="button" data-an-skok="an-kontr-naslov">Protivrečnosti</button>
+              <button class="text-btn" type="button" data-an-skok="an-spremnost-naslov">Rizici i spremnost</button>
+            </nav>
+            <section class="matter__section" aria-labelledby="an-genome-naslov">
+              <h2 class="matter__h2" id="an-genome-naslov" tabindex="-1">Genome predmeta</h2>
+              <p class="field__help">Svaka stavka nosi poreklo: iz dokumenta, uneo advokat, izračunato ili analiza (AI). Analiza je predlog, ne utvrđena činjenica.</p>
+              <p class="list-state" id="an-genome-stanje" hidden></p>
+              <h3 class="answer__h">Suština predmeta</h3><ul class="an-list" id="an-sustina"></ul>
+              <h3 class="answer__h">Stranke</h3><ul class="an-list" id="an-stranke"></ul>
+              <h3 class="answer__h">Ključne činjenice</h3><ul class="an-list" id="an-cinjenice"></ul>
+              <h3 class="answer__h">Otvorena pravna pitanja</h3><ul class="an-list" id="an-pitanja"></ul>
+              <h3 class="answer__h">Pravni osnovi koje predlaže analiza</h3>
+              <p class="field__help">Nisu potvrđeni u izvorima prava. Proverite ih pre upotrebe.</p>
+              <ul class="an-list" id="an-osnovi"></ul>
+              <h3 class="answer__h">Ključni datumi</h3><ul class="an-list" id="an-datumi"></ul>
+              <h3 class="answer__h">Šta nedostaje po analizi</h3><ul class="an-list" id="an-nedostaje"></ul>
+              <h3 class="answer__h">Strateški kontekst</h3><ul class="an-list" id="an-strategija"></ul>
+              <h3 class="answer__h">Šta analiza ne zna</h3><ul class="an-list" id="an-nesigurnost"></ul>
+            </section>
+            <section class="matter__section" aria-labelledby="an-dokazi-naslov">
+              <h2 class="matter__h2" id="an-dokazi-naslov" tabindex="-1">Dokazi</h2>
+              <p class="list-state" id="an-dokazi-stanje" hidden></p>
+              <p class="an-summary" id="an-dokazi-sazetak"></p>
+              <p class="list-state" id="an-skraceno" role="status" hidden></p>
+              <ul class="an-list" id="an-dokazi" aria-label="Tvrdnje predmeta"></ul>
+              <h3 class="answer__h">Dokumenti</h3><ul class="an-list" id="an-dokumenti"></ul>
+            </section>
+            <section class="matter__section" aria-labelledby="an-kontr-naslov">
+              <h2 class="matter__h2" id="an-kontr-naslov" tabindex="-1">Protivrečnosti</h2>
+              <p class="list-state" id="an-kontr-stanje" hidden></p>
+              <ul class="an-list" id="an-kontr-aktivne" aria-label="Aktivne protivrečnosti"></ul>
+              <ul class="an-list" id="an-kontr-pregled" aria-label="Protivrečnosti koje traže pregled"></ul>
+              <details class="an-more" id="an-zatvorene-blok" hidden><summary>Zatvorene protivrečnosti</summary>
+                <ul class="an-list" id="an-kontr-zatvorene"></ul></details>
+            </section>
+            <section class="matter__section" aria-labelledby="an-spremnost-naslov">
+              <h2 class="matter__h2" id="an-spremnost-naslov" tabindex="-1">Rizici i spremnost</h2>
+              <p class="field__help">Brojanje i pravila nad podacima predmeta. Nijedan pokazatelj nije predviđanje ishoda spora.</p>
+              <p class="list-state" id="an-spremnost-stanje" hidden></p>
+              <dl class="facts" id="an-spremnost"></dl>
+              <details class="an-more" id="an-metrike-blok" hidden><summary>Ocene iz analize (nisu verovatnoća ishoda)</summary>
+                <ul class="an-list" id="an-metrike"></ul></details>
+            </section>
+          </div>
+          <section class="matter__section" id="lbp-blok" aria-labelledby="lbp-naslov">
+            <div class="section-head"><h2 class="matter__h2" id="lbp-naslov" tabindex="-1">Iskustvo kancelarije</h2>
+              <button class="text-btn text-btn--line" id="lbp-analiziraj" type="button">Analiziraj iskustvo kancelarije</button></div>
+            <p class="field__help">Raniji predmeti koje smete da vidite, overeni radovi, potvrđene lekcije i opis ranijih ishoda. Iskustvo kancelarije nije pravni izvor. Analiza se pokreće samo na vaš klik i troši kredit.</p>
+            <p class="list-state" id="lbp-stanje" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="lbp-sinteza-stanje" role="status" aria-live="polite" hidden></p>
+            <ul class="an-list" id="lbp-sinteza" aria-label="Analiza iskustva kancelarije"></ul>
+            <div id="lbp-sadrzaj" hidden>
+              <p class="list-state" id="lbp-prazno" hidden>Za ovaj predmet kancelarija još nema proverenog iskustva.</p>
+              <h3 class="answer__h">Slični raniji predmeti</h3>
+              <p class="list-state" id="lbp-sl-stanje" hidden></p>
+              <ul class="an-list" id="lbp-slicni" aria-label="Slični raniji predmeti"></ul>
+              <p class="field__help" id="lbp-sl-napomena" hidden></p>
+              <h3 class="answer__h">Overeni radovi</h3>
+              <p class="list-state" id="lbp-rad-stanje" hidden></p>
+              <ul class="an-list" id="lbp-radovi" aria-label="Overeni radovi"></ul>
+              <h3 class="answer__h">Potvrđene lekcije</h3>
+              <p class="list-state" id="lbp-lek-stanje" hidden></p>
+              <ul class="an-list" id="lbp-lekcije" aria-label="Potvrđene lekcije"></ul>
+              <h3 class="answer__h">Raniji ishodi (opis, ne predviđanje)</h3>
+              <p class="list-state" id="lbp-is-stanje" hidden></p>
+              <ul class="an-list" id="lbp-ishodi" aria-label="Raniji ishodi"></ul>
+              <h3 class="answer__h">Beleške kancelarije</h3>
+              <p class="list-state" id="lbp-mem-stanje" hidden></p>
+              <ul class="an-list" id="lbp-memorija" aria-label="Beleške kancelarije"></ul>
+            </div>
+          </section>
+        </div>
         <div class="matter__body" id="odeljak-prijem" hidden>
           <section class="matter__section matter__section--first" aria-labelledby="pd-naslov">
             <h2 class="matter__h2" id="pd-naslov">Dodaj dokumente u predmet</h2>
@@ -619,9 +800,14 @@
   <script src="src/pretraga.js"></script>
   <script src="src/pitanje-predmeta.js"></script>
   <script src="src/znanje.js"></script>
+  <script src="src/law-brain.js"></script>
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
   <script src="src/prijem-predmeta.js"></script>
+  <script src="src/analiza-predmeta.js"></script>
+  <script src="src/zivi-pregled.js"></script>
+  <script src="src/radna-lista.js"></script>
+  <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>

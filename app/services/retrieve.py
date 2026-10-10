@@ -982,6 +982,22 @@ IZVOR_DOKUMENTI = "dokumenti predmeta"
 _ZAKON_PRIMARNIH_UPITA = 2
 
 
+def _vazece_overe_matcheva(matches) -> set:
+    """NS008 Task 21 — skup `parent_id`-eva overenih (LAWYER_VERIFIED) vektora koji i dalje važe. Fail-closed:
+    ako se staging ne može pročitati, nijedan overen vektor se ne servira (uži skup, nikad širi)."""
+    parovi = [((m.metadata or {}).get("parent_id"), (m.metadata or {}).get("predmet_id")) for m in matches or []
+              if (m.metadata or {}).get("origin") == "LAWYER_VERIFIED"]
+    if not parovi:
+        return set()
+    try:
+        from shared.deps import _get_supa
+        from services.law_brain import vazece_overe
+        return vazece_overe(_get_supa(), parovi)
+    except Exception as exc:
+        logger.warning("[KANC_NS] provera overe nije uspela — overeni vektori se ne serviraju: %s", type(exc).__name__)
+        return set()
+
+
 def _pretraga_ns(vektor: list[float], namespace: str, k: int = 5, filter: Optional[dict] = None) -> list:
     """Query an arbitrary named Pinecone namespace. Used for tmp_* doc namespaces
     and (Institutional Learning & RAG Audit, 2026-07-26) for the kancelarija_{id}/
@@ -2378,10 +2394,15 @@ def retrieve_documents(
         _SAME_CASE_BOOST = 0.05
         try:
             _kanc_matches = _kanc_future.result(timeout=5.0)
+            # NS008 Task 21: overen nacrt čiji je staging izvor odbijen/opozvan (ili pripada drugom predmetu) se
+            # više ne servira — odmah, pri čitanju, istim pravilom kao Law Brain (services/law_brain.vazece_overe).
+            _overe = _vazece_overe_matcheva(_kanc_matches)
             _boosted = []
             for _pm in _kanc_matches:
                 _m = _pm.metadata or {}
                 _origin = _m.get("origin")
+                if _origin == "LAWYER_VERIFIED" and str(_m.get("parent_id") or "") not in _overe:
+                    continue
                 # STUB 2 defense-in-depth: AI_GENERATED ne bi trebalo NIKAD da
                 # dospe ovde (staging_memory gate ga sprečava na ingest strani,
                 # v. routers/drafting.py) -- ako bi ipak, potpuno se isključuje

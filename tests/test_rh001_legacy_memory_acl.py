@@ -16,7 +16,7 @@ import types
 
 import pytest
 
-import tests.ns005_harness as f8      # hotfix na main-u: osnovna lažna baza (ns006–ns008 slojevi ne postoje)
+import tests.ns008_fake as f8
 
 K1 = "e1e1e1e1-1919-4000-8000-000000000001"
 PA = "aaaaaaaa-1919-4000-8000-0000000000a1"

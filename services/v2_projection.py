@@ -186,6 +186,49 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str) -> list[dict]:
     return out
 
 
+async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, uid: str, maks: int = 200) -> list[dict]:
+    """NS006 Task 5 — SVA stanja V2 kontradikcija predmeta (aktivne, za pregled, zatvorene),
+    sa razlogom stanja, vremenima i SVIM članovima (i povučenim — `uklonjen`), za prikaz.
+
+    Samo čitanje. Granica je `predmet_issues.predmet_id` I `predmet_issues.user_id` (NS006 Task 15:
+    sporna tačka drugog korisnika zakačena za isti predmet se ne prikazuje — odbrana u dubinu iza
+    GUARD-a paketnog RPC-a; pozivalac PRE toga dokazuje vlasništvo nad predmetom). Za Case Actions
+    se i dalje koristi `ucitaj_v2_kontradikcije` (samo OPEN) — ova funkcija ga ne zamenjuje."""
+    import asyncio
+    if not predmet_id or not uid:
+        return []
+    iss = await asyncio.to_thread(
+        lambda: supa.table("predmet_issues").select("id,label,status")
+                   .eq("predmet_id", predmet_id).eq("user_id", uid).execute()
+    )
+    issues = {i["id"]: i for i in ((iss.data if iss else None) or [])}
+    if not issues:
+        return []
+    kon = await asyncio.to_thread(
+        lambda: supa.table("predmet_contradictions")
+                   .select("id,issue_id,relation_type,state,state_reason,tezina,created_at,updated_at")
+                   .in_("issue_id", list(issues.keys())).order("created_at").limit(maks).execute()
+    )
+    kontradikcije = list((kon.data if kon else None) or [])
+    if not kontradikcije:
+        return []
+    cl = await asyncio.to_thread(
+        lambda: supa.table("predmet_contradiction_claims")
+                   .select("contradiction_id,dokaz_id,removed_at,removed_reason")
+                   .in_("contradiction_id", [k["id"] for k in kontradikcije]).execute()
+    )
+    clanovi: dict[str, list[dict]] = {}
+    for c in ((cl.data if cl else None) or []):
+        clanovi.setdefault(c["contradiction_id"], []).append(
+            {"dokaz_id": c["dokaz_id"], "uklonjen": c.get("removed_at") is not None,
+             "razlog_uklanjanja": c.get("removed_reason")})
+    return [{**k, "issue_label": (issues.get(k["issue_id"]) or {}).get("label"),
+             "issue_status": (issues.get(k["issue_id"]) or {}).get("status"),
+             "clanovi": sorted(clanovi.get(k["id"], []), key=lambda c: str(c["dokaz_id"])),
+             "claim_ids": sorted(str(c["dokaz_id"]) for c in clanovi.get(k["id"], []) if not c["uklonjen"])}
+            for k in kontradikcije]
+
+
 async def v2_akcije_za_predmet(supa, predmet_id: str) -> list[dict]:
     """Ceo put: baza -> akcije. Prazna lista znači „ovaj predmet nema V2"."""
     kontradikcije = await ucitaj_v2_kontradikcije(supa, predmet_id)
