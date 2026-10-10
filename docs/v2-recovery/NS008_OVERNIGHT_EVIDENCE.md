@@ -488,3 +488,28 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: backend 7 passed. Playwright `live-law-brain` 37/37 (+4 promotion checks, real route responses). NS007 `live-pripremljeno` 51/51 unchanged.
 - MUTATION RESULT: 6/6 killed (READY promotable, proposal pre-approved, direct Pinecone promotion, no dedupe, foreign work item, accept auto-proposes).
 - NEXT GATE: Task 16.
+
+---
+
+## TASK 16 — CORRECTIONS AS INSTITUTIONAL LEARNING
+
+- EVIDENCE (fresh): ADR-0006 ("Case Memory is a deterministic lookup") specifies an office-scoped `entity_corrections` table with lookup-and-boost. **Neither the table, nor a migration, nor any code exists** (repo-wide grep: only the ADR and ADR-0017 mention it). The existing explicit correction contract (`POST /api/smart-intake/entities/{id}/correct` → `extracted_entities.corrected_value` + `intake_processing_outcomes.user_corrected` + audit `entity_corrected`) stays locked to a single document, so the same OCR mistake recurs in the next one. `intake_jobs.kancelarija_id` is written as `None` at enqueue (`smart_intake.py:206`). Integration is therefore missing, and this task commits it.
+- DECISION (no migration, no model): `services/law_brain_ispravke.py` derives a deterministic office lookup at read time **from the existing contract only**:
+  - Office = canonical `get_kancelarija_id_sync` + ACTIVE members + admin; solo = own corrections only.
+  - Their intake jobs → documents → corrected entities, **only `judge`/`court`** (institutional name normalizations). Party names, amounts, deadlines, and case numbers are matter facts and never transfer.
+  - An ambiguous original (several distinct corrections) → no suggestion.
+  - Matching uses a normalized key (diacritics/case/spacing; đ→dj→d). Corrections are compared by exact text, so "Petrovic" → "Petrović" counts as a real correction (a defect found during testing and fixed before commit).
+- INTEGRATION: `GET /api/smart-intake/jobs/{id}` adds `predlog_ispravke` to matching **unreviewed** entities (first document and every segmented document) as `{vrednost, trust_class: HUMAN_CORRECTION, broj_ispravki, kada, razlog}`, with the lineage text "Advokat iz vaše kancelarije ispravio je „X“ u „Y“ (02.09.2026.). Proverite pre potvrde." The date comes from audit `entity_corrected`; without it the text says "datum nije zabeležen".
+  - The extracted value is **not** changed; the lawyer still confirms through the existing correct route.
+  - A lookup failure → `predlozi_ispravki_stanje: DEGRADED`, and the job view still works.
+  - No matter name, document, or client is exposed: the lineage contains only the string the user already sees and its corrected spelling.
+- FILES: `services/law_brain_ispravke.py`, `routers/smart_intake.py`, `tests/test_ns008_t16_corrections.py`.
+- TENANT RESULT:
+  - Office A colleague → suggestion.
+  - Office B (same raw value) → none.
+  - A removed member's corrections no longer contribute.
+  - B's own new correction does not reach office A.
+- TESTS: 8 passed. Smart Intake regression (46 files): 761 passed, 9 skipped.
+- MUTATION RESULT: 7/7 killed (no office scope, party names transferred, ambiguous → suggestion, automatic overwrite, inactive members, diacritic correction discarded, lookup failure breaks the job view).
+- KNOWN LIMITATIONS: suggestions are not yet rendered in the V2 intake review UI (backend contract only). The lookup scans the newest 300 office intake jobs (bounded). ADR-0006's admin review/revoke route (`/api/admin/intake/corrections`) also does not exist; revoking = re-correcting the source entity.
+- NEXT GATE: Task 17.
