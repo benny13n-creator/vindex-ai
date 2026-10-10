@@ -237,3 +237,26 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 9/9 killed.
 - KNOWN LIMITATIONS: **PROVEN gap, not fixed here:** `POST /api/staging/{id}/reject` on an already-approved, indexed row sets `rejected` but leaves the Pinecone vector and the `predmet_dokumenti` row. Law Brain reports it as `REJECTED_STILL_INDEXED` (never trusted). Vector removal is Task 21.
 - NEXT GATE: Task 5.
+
+---
+
+## TASK 5 — CLOSED-MATTER PROFILE (derived, no new truth)
+
+- PROBLEM: similarity and history need a structured view of past matters that separates fact, human outcome, and AI analysis.
+- EVIDENCE: all inputs already exist with a single owner each: `predmeti` (tip, oblast, status, `case_dna` Genome), `outcome_log`, `predmet_dokazi.kategorija` (CHECK 016), `rocista.sud`, `predmet_issues.status` + `predmet_contradictions.relation_type/tezina/state` (119), and `staging_memory`.
+- DECISION: **no migration 137.** Measured: `ucitaj_profile` makes exactly **6 queries** for 1 matter and for 61 matters (one `in_` per source; test `test_broj_upita_ne_raste_sa_brojem_predmeta`). The existing owners therefore already give a stable, bounded read, and materializing would only create a second copy to keep in sync. Task 22 re-measures at 1/100/1000.
+- IMPLEMENTATION: `law_brain.matter_profile` (pure) + `ucitaj_profile` (batched). Sections:
+  - `cinjenice` SOURCE_CASE_FACT: tip/oblast/status/courts/evidence counts by category/hearing count.
+  - `ljudski_ishod` from Task 2.
+  - `ai_analiza` AI_WORK_PRODUCT: Genome version only, live issue counts by status, open/review contradiction counts by type/severity.
+  - `overeni_artefakti` (trusted only).
+  - `nepoznato` (explicit list).
+  - `poreklo` lineage: derivation_version `lb-profile-1`, genome_verzija, outcome_ref, outcome_updated_at — fully regenerable.
+  - Excluded: claim text, issue labels, document text, Genome scores.
+  - Rows whose `user_id` ≠ matter owner are dropped. Deleted evidence, merged issues, and resolved contradictions are not counted.
+- FILES: `services/law_brain.py`, `tests/test_ns008_t5_profile.py`.
+- TRUST RESULT: AI analysis always labelled AI_WORK_PRODUCT; a pending AI draft never appears among verified artifacts.
+- TENANT RESULT: a forged B row on A's matter is not counted.
+- TESTS: 6 passed. MUTATION RESULT: 8/8 killed (deleted evidence counted, foreign rows, resolved contradictions, AI draft as verified, N+1 queries, raw Genome leak, merged issues alive, unknown outcome not flagged).
+- KNOWN LIMITATIONS: `predmeti.oblast` is not created by any migration in the repo, yet legacy `precedenti.py` selects it and the PATCH allow-list writes it. Its production existence is UNKNOWN from migrations, so the Task 11 loader must tolerate a missing column (fallback select).
+- NEXT GATE: Task 6.

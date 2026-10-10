@@ -324,3 +324,112 @@ def ucitaj_artefakte(supa, predmeti: list) -> list:
 def trusted(items) -> list:
     """Samo ono što sme da se prikaže kao institucionalno znanje (ljudska klasa, nije povučeno)."""
     return [it for it in items if it.trusted]
+
+
+# ─── Task 5: izveden profil (zatvorenog) predmeta — NIJE nova istina ────────────────────────────────
+# Gradi se pri čitanju iz vlasnika domena, ograničenim brojem upita bez obzira na broj predmeta (po jedan
+# upit po izvoru, `in_` nad autorizovanim ID-evima). Ne kopira dokumente ni tekst tvrdnji — samo kategorije
+# i brojeve. Razdvaja: činjenice iz predmeta / ljudski ishod / AI analizu / nepoznato.
+PROFILE_DERIVATION = "lb-profile-1"
+_ISSUE_ZIVI = ("DISCOVERED", "CONFIRMED", "REOPENED")
+
+
+def _brojac(vrednosti) -> dict:
+    out: dict = {}
+    for v in vrednosti:
+        if v:
+            out[str(v)] = out.get(str(v), 0) + 1
+    return dict(sorted(out.items()))
+
+
+def matter_profile(predmet: dict, *, ishod_red: Optional[dict], dokazi: list, rocista: list,
+                   issues: list, kontradikcije: list, artefakti: list) -> dict:
+    """Čista funkcija: isti ulaz → isti profil. Ulazi su već filtrirani na ovaj predmet i vlasnika."""
+    g = predmet.get("case_dna") if isinstance(predmet.get("case_dna"), dict) else {}
+    g_verzija = g.get("verzija") if isinstance(g.get("verzija"), int) else None
+    ishod = outcome_view(predmet, ishod_red)
+    poverljivi = [a for a in artefakti if a.trusted]
+    cinjenice = {
+        "tip": predmet.get("tip") or None,
+        "oblast": predmet.get("oblast") or None,
+        "status": predmet.get("status") or None,
+        "sudovi": sorted({str(r.get("sud")).strip() for r in rocista if r.get("sud")}),
+        "dokazi_po_kategoriji": _brojac(d.get("kategorija") for d in dokazi if not d.get("deleted_at")),
+        "broj_rocista": len(rocista),
+    }
+    ai = {
+        "trust_class": AI_WORK_PRODUCT,
+        "genome_verzija": g_verzija,
+        "pravna_pitanja_po_statusu": _brojac(i.get("status") for i in issues),
+        "kontradikcije_po_vrsti": _brojac(k.get("relation_type") for k in kontradikcije),
+        "kontradikcije_po_tezini": _brojac(k.get("tezina") for k in kontradikcije),
+    }
+    nepoznato = sorted(
+        [k for k, v in (("tip", cinjenice["tip"]), ("oblast", cinjenice["oblast"])) if not v]
+        + (["sud"] if not cinjenice["sudovi"] else [])
+        + (["genome"] if g_verzija is None else [])
+        + (["ishod"] if ishod["status"] == OUTCOME_UNKNOWN else [])
+    )
+    return {
+        "predmet_id": str(predmet.get("id")),
+        "terminalan": je_terminalan(predmet),
+        "cinjenice": {"trust_class": SOURCE_CASE_FACT, **cinjenice},
+        "ljudski_ishod": {"status": ishod["status"], "ishod": ishod["ishod"],
+                          "item": ishod["item"].to_dict() if ishod["item"] else None},
+        "ai_analiza": ai,
+        "overeni_artefakti": [a.to_dict() for a in poverljivi],
+        "nepoznato": nepoznato,
+        "poreklo": {
+            "derivation_version": PROFILE_DERIVATION,
+            "genome_verzija": g_verzija,
+            "outcome_ref": str(ishod_red["id"]) if ishod["item"] else None,
+            "outcome_updated_at": (ishod_red or {}).get("updated_at") if ishod["item"] else None,
+        },
+    }
+
+
+def _po_predmetu(redovi, kljuc="predmet_id") -> dict:
+    out: dict = {}
+    for r in redovi or []:
+        out.setdefault(str(r.get(kljuc) or ""), []).append(r)
+    return out
+
+
+def ucitaj_profile(supa, predmeti: list) -> dict:
+    """{predmet_id: profil} za VEĆ autorizovane predmete. Tačno 6 upita za bilo koji broj predmeta.
+    Red čiji `user_id` nije vlasnik predmeta se odbacuje (kontradikcije nemaju user_id — vezane su preko
+    pitanja koje je već filtrirano). Greška bilo kog izvora se propušta (pozivalac → DEGRADED)."""
+    po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
+    if not po_id:
+        return {}
+    ids = sorted(po_id)
+
+    def _svoje(redovi):
+        return [r for r in (redovi or [])
+                if str(r.get("predmet_id") or "") in po_id
+                and str(r.get("user_id") or "") == str(po_id[str(r.get("predmet_id"))].get("user_id") or "-")]
+
+    ishodi = ucitaj_ishode(supa, list(po_id.values()))
+    dokazi = _po_predmetu(_svoje(supa.table("predmet_dokazi").select("predmet_id,user_id,kategorija,deleted_at")
+                                 .in_("predmet_id", ids).execute().data))
+    rocista = _po_predmetu(_svoje(supa.table("rocista").select("predmet_id,user_id,sud,status")
+                                  .in_("predmet_id", ids).execute().data))
+    issues_svi = _svoje(supa.table("predmet_issues").select("id,predmet_id,user_id,status")
+                        .in_("predmet_id", ids).execute().data)
+    issues_svi = [i for i in issues_svi if i.get("status") in _ISSUE_ZIVI]
+    issue_predmet = {str(i["id"]): str(i["predmet_id"]) for i in issues_svi}
+    kontr = []
+    if issue_predmet:
+        for k in (supa.table("predmet_contradictions").select("issue_id,relation_type,tezina,state")
+                  .in_("issue_id", sorted(issue_predmet)).execute().data or []):
+            if k.get("state") in ("OPEN", "REVIEW_REQUIRED") and str(k.get("issue_id")) in issue_predmet:
+                kontr.append({**k, "predmet_id": issue_predmet[str(k["issue_id"])]})
+    kontr_po = _po_predmetu(kontr)
+    issues_po = _po_predmetu(issues_svi)
+    artefakti_po: dict = {}
+    for a in ucitaj_artefakte(supa, list(po_id.values())):
+        artefakti_po.setdefault(a.predmet_id, []).append(a)
+    return {pid: matter_profile(p, ishod_red=ishodi.get(pid), dokazi=dokazi.get(pid, []),
+                                rocista=rocista.get(pid, []), issues=issues_po.get(pid, []),
+                                kontradikcije=kontr_po.get(pid, []), artefakti=artefakti_po.get(pid, []))
+            for pid, p in sorted(po_id.items())}
