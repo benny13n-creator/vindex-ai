@@ -337,3 +337,18 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 7 passed. MUTATION RESULT: 9/9 killed (matter note without ACL, client note without ownership, matter edge without ACL, auto as human, expiry ignored, GET-side write, removed member sees, causation true, inactive notes).
 - KNOWN LIMITATIONS: legacy `/api/firma-memorija/*` and `/api/memory-graph/*` keep their office-wide behaviour and their GET-side write (directive: preserve, do not retire). The leak path through those legacy routes is recorded for founder review, not changed tonight. `judge_patterns`/`client_memory`/`partner_profiles` are not surfaced by Law Brain.
 - NEXT GATE: Task 9.
+
+---
+
+## TASK 9 — OUTCOME PATTERNS WITHOUT PREDICTION
+
+- PROBLEM: legacy `outcome_intel` produced a win-rate % from inferred outcomes, with GPT-invented factor percentages.
+- DECISION: legacy stays (directive). The new `law_brain.descriptive_outcomes(profiles)` is a pure function over Task 5 profiles of relevant authorized matters (Task 6 results):
+  - Only `HUMAN_CONFIRMED_OUTCOME` in state RECORDED is counted.
+  - Reopened-matter outcomes and unknown outcomes are reported separately and never counted.
+  - Output: `relevantnih`, `sa_ljudskim_ishodom`, `bez_ishoda`, `ponovo_otvoreni`, `po_ishodu`, `faktori[{faktor, broj, od}]` (denominator = recorded outcomes), `uzorak`, `mali_uzorak` (< 5), and deterministic Serbian sentences, e.g. "Zabeleženi ishodi: 2 pobeda, 1 poraz, 1 nagodba." / "Faktor „svedoci" izričito zabeležen u 3 od 4 ishoda." / "Veličina uzorka: 4."
+  - Notice: "Nije predviđanje ishoda ovog predmeta." No `%`, no "šansa/verovatno/win rate", no model call.
+- FILES: `services/law_brain.py`, `tests/test_ns008_t9_outcome_patterns.py`.
+- TESTS: 7 passed (all NS008 so far: see commit). MUTATION RESULT: 6/6 killed (reopened counted, outcome without human item, percentage instead of denominator, denominator = all relevant, small-sample flag off, sample size hidden).
+- KNOWN LIMITATIONS: factor keys are shown raw (as stored by the legacy form, e.g. `pisana_komunikacija`); the UI maps labels.
+- NEXT GATE: Task 10.

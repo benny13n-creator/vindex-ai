@@ -719,3 +719,61 @@ def ucitaj_memoriju(supa, user_id: str, *, today: date, limit: int = 200) -> dic
             continue
         veze.append(graph_item(g))
     return {"kancelarija": True, "beleske": order_items(beleske), "veze": order_items(veze)}
+
+
+# ─── Task 9: opis prošlih ishoda — bez predviđanja ──────────────────────────────────────────────────
+# Ulaz: profili relevantnih (autorizovanih, završenih) predmeta. Broji se SAMO HUMAN_CONFIRMED_OUTCOME u
+# stanju RECORDED; ishod ponovo otvorenog predmeta i nepoznat ishod se prikazuju zasebno. Svi brojevi su iz
+# koda, uz imenilac. Nema procenata, nema „šanse", nema GPT brojeva.
+OUTCOME_NOTICE = "Opis prošlih ishoda u vašim predmetima. Nije predviđanje ishoda ovog predmeta."
+MALI_UZORAK = 5
+_ISHOD_RED = {"pobeda": "pobeda", "poraz": "poraz", "nagodba": "nagodba", "odustajanje": "odustajanje"}
+
+
+def _mnozina_predmet(n: int) -> str:
+    return "predmet" if n % 10 == 1 and n % 100 != 11 else "predmeta"
+
+
+def descriptive_outcomes(profili: list) -> dict:
+    relevantnih = len(profili)
+    zabelezeni, ponovo, nepoznati = [], 0, 0
+    for p in profili:
+        li = p.get("ljudski_ishod") or {}
+        st = li.get("status")
+        if st == OUTCOME_RECORDED and li.get("ishod") in ISHODI and li.get("item"):
+            zabelezeni.append(li)
+        elif st == OUTCOME_REOPENED:
+            ponovo += 1
+        else:
+            nepoznati += 1
+    k = len(zabelezeni)
+    po_ishodu = {i: sum(1 for z in zabelezeni if z["ishod"] == i) for i in ISHODI}
+    po_ishodu = {i: n for i, n in po_ishodu.items() if n}
+    faktori: dict = {}
+    for z in zabelezeni:
+        for f in set((z["item"].get("attrs") or {}).get("presudni_faktori") or ()):
+            faktori[str(f)] = faktori.get(str(f), 0) + 1
+    faktori_l = [{"faktor": f, "broj": n, "od": k} for f, n in sorted(faktori.items(), key=lambda x: (-x[1], x[0]))]
+    recenice = []
+    if relevantnih:
+        recenice.append(f"{relevantnih} relevantnih ranijih {_mnozina_predmet(relevantnih)}; "
+                        f"ljudski zabeležen ishod postoji za {k}.")
+    if k:
+        recenice.append("Zabeleženi ishodi: " + ", ".join(f"{n} {_ISHOD_RED[i]}" for i, n in po_ishodu.items()) + ".")
+        for f in faktori_l[:5]:
+            recenice.append(f"Faktor „{f['faktor']}\" izričito zabeležen u {f['broj']} od {k} ishoda.")
+        recenice.append(f"Veličina uzorka: {k}.")
+    if ponovo:
+        recenice.append(f"{ponovo} predmet(a) sa ishodom je ponovo otvoreno — ti ishodi se ne broje.")
+    return {
+        "relevantnih": relevantnih,
+        "sa_ljudskim_ishodom": k,
+        "bez_ishoda": nepoznati,
+        "ponovo_otvoreni": ponovo,
+        "po_ishodu": po_ishodu,
+        "faktori": faktori_l,
+        "uzorak": k,
+        "mali_uzorak": k < MALI_UZORAK,
+        "recenice": recenice,
+        "napomena": OUTCOME_NOTICE,
+    }
