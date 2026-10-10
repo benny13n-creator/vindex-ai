@@ -222,3 +222,77 @@ def test_chat_kontekst_kolege_bez_tudjih_beleski(svet):
     for t in TAJNO:
         assert t not in (sa or ""), t
     assert TAJNO[1] in (za_a or "") and TAJNO[2] in (za_a or "")
+
+
+# ─── RH002 A2: upis veze (`POST /api/memory-graph/dodaj-vezu`) ────────────────────────────────────────────────
+# Čitanje je zatvoreno, ali upis je proveravao samo `predmet_id`. Čvor tipa predmet/klijent u `from_id`/`to_id` je
+# ulazio neproveren: B je mogao da pripoji vezu (ishod, kontekst — slobodan tekst) TUĐEM predmetu/klijentu, a A je
+# zatim vidi u svom grafu i u promptu `/upit`/`/preporuka` (integritet i ubacivanje sadržaja u tuđ predmet).
+# Ugovor upisa je isti kao `POST /api/firma-memorija/dodaj` (CONF-011): predmet/klijent mora biti korisnikov,
+# odbijanje je 404 istog tela kao za nepostojeći resurs (bez proročišta postojanja).
+NEPOSTOJECI = "dddddddd-1919-4000-8000-0000000000d1"
+
+
+def _veza(**kw):
+    v = {"from_type": "argument", "from_id": "rok", "to_type": "sudija", "to_id": "Petrović",
+         "relacija": "koristio_argument", "kontekst": "UBACENO-OD-B", "ishod": "pobeda"}
+    v.update(kw)
+    return v
+
+
+NEOVLASCENE_VEZE = [
+    _veza(from_type="predmet", from_id=PA),
+    _veza(to_type="predmet", to_id=PA),
+    _veza(from_type="klijent", from_id=KL_A),
+    _veza(to_type="klijent", to_id=KL_A),
+    _veza(from_type="predmet", from_id=PA, predmet_id=PB),          # sopstveni predmet_id ne „pokriva" tuđ čvor
+    _veza(to_type="predmet", to_id=PA, predmet_id=None),
+    _veza(predmet_id=PA),
+]
+
+
+@pytest.mark.parametrize("telo", NEOVLASCENE_VEZE, ids=lambda t: f"{t['from_type']}>{t['to_type']}:{t.get('predmet_id')}")
+def test_B_ne_moze_da_pripoji_vezu_tudjem_predmetu_ili_klijentu(svet, telo):
+    napravi, _ = svet
+    k, b = napravi(True)
+    pre = len(b.tabele["memory_graph_edges"])
+    r = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=telo)
+    assert r.status_code == 404, r.text
+    assert len(b.tabele["memory_graph_edges"]) == pre
+    # A ne vidi ubačeni sadržaj u svom predmetu
+    assert "UBACENO-OD-B" not in k.get(f"/api/memory-graph/entitet/predmet/{PA}", headers=H("A")).text
+
+
+def test_odbijanje_veze_ne_odaje_postojanje(svet):
+    """Tuđ i nepostojeći predmet/klijent daju isti odgovor."""
+    napravi, _ = svet
+    k, _ = napravi(True)
+    for strana in ("from", "to"):
+        for tip, tudj in (("predmet", PA), ("klijent", KL_A)):
+            r1 = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(**{f"{strana}_type": tip, f"{strana}_id": tudj}))
+            r2 = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(**{f"{strana}_type": tip, f"{strana}_id": NEPOSTOJECI}))
+            assert (r1.status_code, r1.text) == (r2.status_code, r2.text) == (404, r2.text)
+
+
+def test_vlasnik_dodaje_vezu_svom_predmetu_i_klijentu(svet):
+    napravi, _ = svet
+    k, b = napravi(True)
+    r = k.post("/api/memory-graph/dodaj-vezu", headers=H("A"),
+               json=_veza(from_type="klijent", from_id=KL_A, to_type="predmet", to_id=PA, predmet_id=PA, kontekst="A-VEZA"))
+    assert r.status_code == 200, r.text
+    assert "A-VEZA" in k.get(f"/api/memory-graph/entitet/predmet/{PA}", headers=H("A")).text
+    # opšta veza bez predmeta/klijenta ostaje dostupna svakom članu (postojeći ugovor)
+    assert k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(kontekst="opste")).status_code == 200
+    assert k.post("/api/memory-graph/dodaj-vezu", headers=H("B"),
+                  json=_veza(from_type="predmet", from_id=PB, predmet_id=PB)).status_code == 200
+
+
+def test_delegat_upisuje_kao_i_kroz_predmet_id(svet):
+    """Bez nove semantike deljenja: upis čvora prati postojeći CONF-011 ugovor za `predmet_id` (vlasnik). Delegat koga
+    `predmet_id` odbija ne sme da prođe kroz `from_id`/`to_id` — ista odluka na obe ulazne tačke."""
+    napravi, _ = svet
+    k, b = napravi(True)
+    b.tabele["predmet_delegiranja"].append({"predmet_id": PA, "na_user_id": "uid-B", "status": "aktivno"})
+    kroz_predmet_id = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(predmet_id=PA)).status_code
+    kroz_cvor = k.post("/api/memory-graph/dodaj-vezu", headers=H("B"), json=_veza(to_type="predmet", to_id=PA)).status_code
+    assert kroz_predmet_id == kroz_cvor
