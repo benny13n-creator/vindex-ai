@@ -884,14 +884,17 @@ def pretrazi_znanje_kancelarije(supa, user_id: str, upit: str, *, today: date,
     # Opoziv pri čitanju: overen vektor važi samo dok je staging izvor i dalje `approved`.
     roditelji = sorted({str(md["parent_id"]) for it, md in kandidati
                         if it.trust_class == LAWYER_VERIFIED_ARTIFACT and md.get("parent_id")})
-    vazeci = set()
+    vazeci: dict = {}
     if roditelji:
-        for r in _in_upit(supa, "staging_memory", "id,user_id,status,is_lawyer_approved", "id", roditelji):
+        for r in _in_upit(supa, "staging_memory", "id,user_id,predmet_id,status,is_lawyer_approved", "id", roditelji):
             if r.get("status") == "approved" and r.get("is_lawyer_approved") is True:
-                vazeci.add(str(r["id"]))
+                vazeci[str(r["id"])] = str(r.get("predmet_id") or "")
     stavke = []
     for it, md in kandidati:
-        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and (not md.get("parent_id") or str(md["parent_id"]) not in vazeci):
+        # Task 20: overen vektor važi samo ako njegov staging roditelj postoji, odobren je i pripada ISTOM predmetu
+        # (vektor ne može da „pozajmi" overu tuđeg rada navođenjem tuđeg parent_id).
+        if it.trust_class == LAWYER_VERIFIED_ARTIFACT and (
+                not md.get("parent_id") or vazeci.get(str(md["parent_id"])) != str(md.get("predmet_id") or "")):
             continue
         stavke.append(it)
     stavke.sort(key=lambda it: (_NIVO[it.trust_class], it.validity == DEPRECATED,

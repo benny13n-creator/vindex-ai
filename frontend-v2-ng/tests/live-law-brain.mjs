@@ -95,8 +95,13 @@ const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
     /proverite da li su u međuvremenu izmenjeni/.test(r.rad[0].t) && !/aktuelan|važeći/.test(r.rad[0].t), r.rad[0].t.replace(/\n/g, " | "));
   zapisi("znanje", "samo potvrđena lekcija; predlog AI samo kao broj koji čeka potvrdu",
     r.lek.length === 1 && /Pribaviti pisane dokaze rano/.test(r.lek[0].t) && !/AI predlog/.test(r.lek.map(x => x.t).join()) && /1 predlog lekcije čeka/.test(r.kand));
+  const sudija = r.mem.find(x => /Traži tabelu rokova/.test(x.t));
   zapisi("znanje", "beleška kolege je beleška, ne činjenica",
-    r.mem.length === 1 && r.mem[0].trust === "HUMAN_MEMORY_NOTE" && /nije proverena činjenica/.test(r.mem[0].t) && /Beleška kolege/.test(r.mem[0].t));
+    !!sudija && sudija.trust === "HUMAN_MEMORY_NOTE" && /nije proverena činjenica/.test(sudija.t) && /Beleška kolege/.test(sudija.t));
+  const xss = await s.p.evaluate(() => ({ img: document.querySelectorAll("#lb-memorija img, #lb-memorija script, #lb-memorija b").length,
+    flag: window.__xss || null, tekst: [...document.querySelectorAll("#lb-memorija > .an-item")].map(x => x.innerText).join(" ") }));
+  zapisi("trovanje", "HTML/script u belešci se crta kao tekst (nema elementa, nema izvršavanja)",
+    xss.img === 0 && xss.flag === null && /<img src=x onerror=/.test(xss.tekst) && /<script>/.test(xss.tekst), JSON.stringify({ img: xss.img, flag: xss.flag }));
   zapisi("znanje", "objašnjenje tri vrste znanja (zakon / kancelarija / AI)",
     /Zakon i sudska praksa/.test(r.slojevi) && /Znanje kancelarije/.test(r.slojevi) && /AI analiza/.test(r.slojevi) && /ne pravni izvor/.test(r.slojevi));
   zapisi("znanje", "nema duplih ID-eva", new Set(r.ids).size === r.ids.length, String(r.ids.length - new Set(r.ids).size));

@@ -53,10 +53,10 @@ def svet(monkeypatch):
         "predmeti": [{"id": PA, "user_id": "uid-A", "status": "zatvoren"}, {"id": PA2, "user_id": "uid-A", "status": "zatvoren"},
                      {"id": PB, "user_id": "uid-B", "status": "zatvoren"}],
         "predmet_delegiranja": [],
-        "staging_memory": [{"id": "s-ok", "user_id": "uid-A", "status": "approved", "is_lawyer_approved": True},
-                           {"id": "s-ok2", "user_id": "uid-A", "status": "approved", "is_lawyer_approved": True},
-                           {"id": "s-odbijen", "user_id": "uid-A", "status": "rejected", "is_lawyer_approved": False},
-                           {"id": "s-B", "user_id": "uid-B", "status": "approved", "is_lawyer_approved": True}],
+        "staging_memory": [{"id": "s-ok", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True},
+                           {"id": "s-ok2", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True},
+                           {"id": "s-odbijen", "user_id": "uid-A", "predmet_id": PA2, "status": "rejected", "is_lawyer_approved": False},
+                           {"id": "s-B", "user_id": "uid-B", "predmet_id": PB, "status": "approved", "is_lawyer_approved": True}],
     })
     from app.services import retrieve as rt
     pozivi = []

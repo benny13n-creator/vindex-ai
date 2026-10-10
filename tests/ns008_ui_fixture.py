@@ -56,6 +56,10 @@ def main() -> dict:
             {"id": W_READY, "user_id": "uid-A", "predmet_id": PA_CUR, "work_type": "HEARING_PREP", "status": "READY_FOR_REVIEW",
              "title": "Druga priprema", "summary": "x", "dedupe_key": "k2", "reason": "r", "ready_at": "2026-10-10T03:00:00+00:00",
              "quality_state": "AI_PREPARED_FOR_REVIEW", "content_json": {"rociste": {"datum": "2026-10-11"}}}]
+        t["memory_entries"].append({"id": "m-html", "kancelarija_id": t["kancelarije"][0]["id"], "user_id": "uid-B",
+                                    "entity_type": "firma", "entity_id": "firma", "entity_name": "<b>Firma</b>",
+                                    "tip": "napomena", "sadrzaj": "<img src=x onerror=window.__xss=1><script>window.__xss=2</script>",
+                                    "aktivan": True, "izvor": "manual"})
         k, baza = f8.pripremi(mp, t)
         import services.quality_gate as qg
 
