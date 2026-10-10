@@ -259,3 +259,68 @@ def ucitaj_ishode(supa, predmeti: list) -> dict:
         if pid in po_id and _ishod_pripada(po_id[pid], red):
             out[pid] = red
     return out
+
+
+# ─── Task 4: advokatski overeni artefakti (jedini izvor: staging_memory, migracija 088) ─────────────
+# Tok: AI nacrt → staging_memory (Quality Gate skor) → izričita advokatska potvrda (`is_lawyer_approved`,
+# `approved_by`, `approved_at`, status `approved`) → promocija u Pinecone SAMO ako je skor ≥ prag
+# (`pinecone_indexed`). „Odobreno" i „indeksirano" su dva različita stanja i prikazuju se tačno.
+ART_INDEXED = "APPROVED_INDEXED"
+ART_APPROVED_NOT_INDEXED = "APPROVED_NOT_INDEXED"
+ART_PENDING = "PENDING_REVIEW"
+ART_REJECTED = "REJECTED"
+ART_REJECTED_STILL_INDEXED = "REJECTED_STILL_INDEXED"   # odbijen posle promocije — vektor još postoji
+ART_INCONSISTENT = "INCONSISTENT"                       # npr. status approved bez advokatske potvrde
+ARTEFAKT_KOLONE = ("id,user_id,predmet_id,tip,naziv,tekst,confidence_score,is_lawyer_approved,approved_at,"
+                   "status,pinecone_indexed,created_at")
+
+
+def artifact_item(red: dict, predmet: dict) -> Optional[LawBrainItem]:
+    """Normalizuje jedan staging red za (autorizovan) predmet. Red drugog predmeta/vlasnika → None."""
+    if str(red.get("predmet_id") or "") != str(predmet.get("id") or ""):
+        return None
+    if not predmet.get("user_id") or str(red.get("user_id") or "") != str(predmet.get("user_id")):
+        return None
+    status = red.get("status")
+    odobren = red.get("is_lawyer_approved") is True
+    indeksiran = red.get("pinecone_indexed") is True
+    if status == "approved" and odobren and red.get("approved_at"):
+        stanje = ART_INDEXED if indeksiran else ART_APPROVED_NOT_INDEXED
+        klasa, validnost = LAWYER_VERIFIED_ARTIFACT, CURRENT
+        loza = ("AI_GENERATED", "LAWYER_VERIFIED")
+    elif status == "rejected":
+        stanje = ART_REJECTED_STILL_INDEXED if indeksiran else ART_REJECTED
+        klasa, validnost, loza = AI_WORK_PRODUCT, DEPRECATED, ("AI_GENERATED", "REJECTED")
+    elif status == "pending" and not odobren:
+        stanje, klasa, validnost, loza = ART_PENDING, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
+    else:
+        stanje, klasa, validnost, loza = ART_INCONSISTENT, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
+    return LawBrainItem(
+        source_kind="artifact", source_owner="staging_memory", source_id=str(red["id"]),
+        scope=SCOPE_USER, trust_class=klasa, validity=validnost,
+        title=red.get("naziv") or red.get("tip") or "Nacrt", excerpt=red.get("tekst") or "",
+        predmet_id=str(predmet["id"]), created_at=red.get("created_at"),
+        updated_at=red.get("approved_at") or red.get("created_at"), lineage=loza, state=stanje,
+        attrs=(("tip", red.get("tip")), ("confidence_score", red.get("confidence_score")),
+               ("pinecone_indexed", indeksiran)),
+    )
+
+
+def ucitaj_artefakte(supa, predmeti: list) -> list:
+    """Svi staging redovi (sa tačnim stanjem) za VEĆ autorizovane predmete. Greška baze se propušta."""
+    po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
+    if not po_id:
+        return []
+    r = (supa.table("staging_memory").select(ARTEFAKT_KOLONE)
+         .in_("predmet_id", sorted(po_id)).execute())
+    out = []
+    for red in (r.data or []):
+        it = artifact_item(red, po_id.get(str(red.get("predmet_id") or ""), {}))
+        if it is not None:
+            out.append(it)
+    return order_items(out)
+
+
+def trusted(items) -> list:
+    """Samo ono što sme da se prikaže kao institucionalno znanje (ljudska klasa, nije povučeno)."""
+    return [it for it in items if it.trusted]

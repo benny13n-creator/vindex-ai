@@ -215,3 +215,25 @@ NEXT GATE: Task 1 — canonical contract.
 - MUTATION RESULT: 7/7 killed (no PATCH emission, same-status emits, random event id, no learning emission, emitter accepts non-terminal, outbox failure breaks PATCH, constant transition ref).
 - KNOWN LIMITATIONS: two concurrent PATCHes from an active status could both read "aktivan" and emit two events with different ids. Harmless, since `refresh_case_actions` is a reconcile, but recorded. The close routes still reconcile in-process rather than through the outbox (pre-existing design, unchanged).
 - NEXT GATE: Task 4.
+
+---
+
+## TASK 4 — LAWYER-VERIFIED ARTIFACTS
+
+- PROBLEM: Law Brain needs exactly one trusted source of institutional work product, and approved must stay distinct from indexed.
+- CURRENT OWNER: `staging_memory` (088) + `routers/drafting.py`.
+- EVIDENCE (fresh, code):
+  1. AI draft → `_stage_draft_for_review` (`drafting.py:245`): ownership check, 60 s retry dedupe, Quality Gate `evaluate_draft_quality` → insert `pending` with `confidence_score`.
+  2. `POST /api/staging/{id}/approve` (`:1283`): owner-scoped, atomic `pending→approved` claim (`is_lawyer_approved`, `approved_by`, `approved_at`).
+  3. Promotion only if `confidence_score ≥ 0.85` (`:320`) → `ingest_session` into `rag_owner_namespace` (`kancelarija_{id}` | `user_{id}`) with `origin=LAWYER_VERIFIED`, `origin_chain=[AI_GENERATED, LAWYER_VERIFIED]` → `pinecone_indexed` set from the real result.
+  4. Office retrieval of that vector remains ACL-filtered by `predmet_id` (Task 0 D).
+- FALSIFICATION: "approved = in the knowledge base" → false: below the threshold, `approved` with `pinecone_indexed=false` (test). "A high-quality AI draft is trusted" → false: score 0.99 without approval → AI_WORK_PRODUCT (test).
+- DECISION / IMPLEMENTATION: `law_brain.artifact_item` + `ucitaj_artefakte` + `trusted()`. LAWYER_VERIFIED_ARTIFACT only when `status=approved AND is_lawyer_approved AND approved_at`. States: `APPROVED_INDEXED`, `APPROVED_NOT_INDEXED`, `PENDING_REVIEW`, `REJECTED` (DEPRECATED), `REJECTED_STILL_INDEXED` (DEPRECATED, exposes the revocation gap), and `INCONSISTENT` (any other combination → AI_WORK_PRODUCT). A row whose `user_id` ≠ matter owner or whose `predmet_id` ≠ matter is dropped. `source_ref` → staging id. The excerpt is bounded (never the full draft).
+- FILES: `services/law_brain.py`, `tests/test_ns008_t4_artifacts.py`.
+- ROUTES: none new. Real `/api/staging/{id}/approve|reject` are exercised, with Pinecone promotion replaced as in `test_beta_gate_staging_approve_race.py`.
+- TRUST RESULT: trusted set = {approved+indexed, approved-not-indexed}. Pending, rejected, poisoned, and inconsistent are never trusted.
+- TENANT RESULT: B's staging row is never returned for A's matter; A cannot approve B's draft (404, no promotion).
+- TESTS: 11 passed.
+- MUTATION RESULT: 9/9 killed.
+- KNOWN LIMITATIONS: **PROVEN gap, not fixed here:** `POST /api/staging/{id}/reject` on an already-approved, indexed row sets `rejected` but leaves the Pinecone vector and the `predmet_dokumenti` row. Law Brain reports it as `REJECTED_STILL_INDEXED` (never trusted). Vector removal is Task 21.
+- NEXT GATE: Task 5.
