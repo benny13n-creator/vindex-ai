@@ -260,3 +260,27 @@ NEXT GATE: Task 1 — canonical contract.
 - TESTS: 6 passed. MUTATION RESULT: 8/8 killed (deleted evidence counted, foreign rows, resolved contradictions, AI draft as verified, N+1 queries, raw Genome leak, merged issues alive, unknown outcome not flagged).
 - KNOWN LIMITATIONS: `predmeti.oblast` is not created by any migration in the repo, yet legacy `precedenti.py` selects it and the PATCH allow-list writes it. Its production existence is UNKNOWN from migrations, so the Task 11 loader must tolerate a missing column (fallback select).
 - NEXT GATE: Task 6.
+
+---
+
+## TASK 6 — EXPLAINABLE SAFE MATTER SIMILARITY
+
+- PROBLEM: legacy similarity was "same tip" + GPT, included active matters, and had no explanation.
+- EVIDENCE: the canonical raw-matter authorization is `shared/rag_acl.dozvoljeni_predmeti` (owner + active `predmet_delegiranja`), the same one office Pinecone retrieval uses. No office-membership path grants raw matter access.
+- FALSIFICATION:
+  - "same office = may see colleague's closed matters": false. Required adversarial test: A and B in the same office (both `ACTIVE` members). B's response is **byte-identical** with and without A's closed matters existing: no name, client, Genome, outcome, id, or count (`pretrazeno_zavrsenih` counts only B's authorized matters).
+  - "outcome influences ranking": false. The score is identical for pobeda/poraz/no outcome (test).
+- DECISION / IMPLEMENTATION: `law_brain.slicni_predmeti(supa, uid, predmet_id)`:
+  - The current matter must be in the ACL; otherwise `NOT_AUTHORIZED`.
+  - Candidates = ACL ∩ terminal status ∩ not tombstoned, newest first, capped at `MAX_KANDIDATA=1000`.
+  - Profiles come from Task 5. `similarity(profile, profile)` reads only facts and contradiction types.
+  - Named-dimension points: tip 3, oblast 2, same court 1, shared evidence categories 1 each (≤3), shared contradiction types 1 each (≤3). Minimum 2 points.
+  - Every match carries `razlozi[]` and a Serbian sentence `zasto`. The outcome is attached **after** matching (human outcome only).
+  - Notice: "Bodovi … nisu procena šanse za uspeh." No `%` anywhere (test). No model call, read-only (test: only `select`).
+  - `ucitaj_predmete` falls back to narrower columns **only** on a missing-column error (`oblast` UNKNOWN in production), and every `in_` read is chunked at 200 ids.
+- FILES: `services/law_brain.py`, `tests/test_ns008_t6_similarity.py`.
+- TENANT RESULT: same-office leak test passes; B asking about A's current matter → `NOT_AUTHORIZED`; active delegation → visible (`sopstveni: false`); revoked delegation → invisible.
+- NEW FINDING (pre-existing, outside Law Brain): `rag_acl.dozvoljeni_predmeti` filters `brisanje_zapoceto` only on the **owner** branch. A delegated matter that is being deleted stays in the delegate's ACL, and therefore in the delegate's office-namespace RAG filter. Law Brain filters the tombstone itself (test `test_delegiran_predmet_u_brisanju_nije_kandidat`). The shared ACL fix is recorded for Task 21.
+- TESTS: 12 passed. MUTATION RESULT: 7/7 killed. S6 (tombstone filter) and S7 (non-column error swallowed) initially SURVIVED → added the delegated-tombstone test and loader error tests → killed.
+- KNOWN LIMITATIONS: dimensions are coarse (no fact-pattern text similarity, by design: no model, no raw facts copied). Candidates beyond the 1000 newest terminal matters are not scanned (Task 22).
+- NEXT GATE: Task 7.

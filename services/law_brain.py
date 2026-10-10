@@ -192,6 +192,18 @@ def order_items(items) -> list:
     return out
 
 
+_IN_DEO = 200   # najviše ID-eva po `in_` upitu (dužina PostgREST URL-a); broj upita = ceil(N / 200) po izvoru
+
+
+def _in_upit(supa, tabela: str, kolone: str, kljuc: str, ids) -> list:
+    ids = sorted({str(i) for i in ids if i})
+    out: list = []
+    for i in range(0, len(ids), _IN_DEO):
+        r = supa.table(tabela).select(kolone).in_(kljuc, ids[i:i + _IN_DEO]).execute()
+        out.extend(r.data or [])
+    return out
+
+
 # ─── Task 2: ljudski ishod predmeta (jedini izvor: outcome_log) ─────────────
 # Status predmeta, hronologija, AI sažeci i Genome se NIKAD ne čitaju kao ishod. Zatvoren predmet bez
 # reda u outcome_log ima OUTCOME_UNKNOWN — ne „pobedu" ni „poraz".
@@ -251,10 +263,8 @@ def ucitaj_ishode(supa, predmeti: list) -> dict:
     po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
     if not po_id:
         return {}
-    r = (supa.table("outcome_log").select(OUTCOME_KOLONE)
-         .in_("predmet_id", sorted(po_id)).execute())
     out: dict = {}
-    for red in (r.data or []):
+    for red in _in_upit(supa, "outcome_log", OUTCOME_KOLONE, "predmet_id", po_id):
         pid = str(red.get("predmet_id") or "")
         if pid in po_id and _ishod_pripada(po_id[pid], red):
             out[pid] = red
@@ -311,10 +321,8 @@ def ucitaj_artefakte(supa, predmeti: list) -> list:
     po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
     if not po_id:
         return []
-    r = (supa.table("staging_memory").select(ARTEFAKT_KOLONE)
-         .in_("predmet_id", sorted(po_id)).execute())
     out = []
-    for red in (r.data or []):
+    for red in _in_upit(supa, "staging_memory", ARTEFAKT_KOLONE, "predmet_id", po_id):
         it = artifact_item(red, po_id.get(str(red.get("predmet_id") or ""), {}))
         if it is not None:
             out.append(it)
@@ -396,7 +404,7 @@ def _po_predmetu(redovi, kljuc="predmet_id") -> dict:
 
 
 def ucitaj_profile(supa, predmeti: list) -> dict:
-    """{predmet_id: profil} za VEĆ autorizovane predmete. Tačno 6 upita za bilo koji broj predmeta.
+    """{predmet_id: profil} za VEĆ autorizovane predmete. 6 upita po delu od 200 predmeta (ne po predmetu).
     Red čiji `user_id` nije vlasnik predmeta se odbacuje (kontradikcije nemaju user_id — vezane su preko
     pitanja koje je već filtrirano). Greška bilo kog izvora se propušta (pozivalac → DEGRADED)."""
     po_id = {str(p.get("id")): p for p in predmeti if p.get("id")}
@@ -410,18 +418,16 @@ def ucitaj_profile(supa, predmeti: list) -> dict:
                 and str(r.get("user_id") or "") == str(po_id[str(r.get("predmet_id"))].get("user_id") or "-")]
 
     ishodi = ucitaj_ishode(supa, list(po_id.values()))
-    dokazi = _po_predmetu(_svoje(supa.table("predmet_dokazi").select("predmet_id,user_id,kategorija,deleted_at")
-                                 .in_("predmet_id", ids).execute().data))
-    rocista = _po_predmetu(_svoje(supa.table("rocista").select("predmet_id,user_id,sud,status")
-                                  .in_("predmet_id", ids).execute().data))
-    issues_svi = _svoje(supa.table("predmet_issues").select("id,predmet_id,user_id,status")
-                        .in_("predmet_id", ids).execute().data)
+    dokazi = _po_predmetu(_svoje(_in_upit(supa, "predmet_dokazi", "predmet_id,user_id,kategorija,deleted_at",
+                                          "predmet_id", ids)))
+    rocista = _po_predmetu(_svoje(_in_upit(supa, "rocista", "predmet_id,user_id,sud,status", "predmet_id", ids)))
+    issues_svi = _svoje(_in_upit(supa, "predmet_issues", "id,predmet_id,user_id,status", "predmet_id", ids))
     issues_svi = [i for i in issues_svi if i.get("status") in _ISSUE_ZIVI]
     issue_predmet = {str(i["id"]): str(i["predmet_id"]) for i in issues_svi}
     kontr = []
     if issue_predmet:
-        for k in (supa.table("predmet_contradictions").select("issue_id,relation_type,tezina,state")
-                  .in_("issue_id", sorted(issue_predmet)).execute().data or []):
+        for k in _in_upit(supa, "predmet_contradictions", "issue_id,relation_type,tezina,state", "issue_id",
+                          issue_predmet):
             if k.get("state") in ("OPEN", "REVIEW_REQUIRED") and str(k.get("issue_id")) in issue_predmet:
                 kontr.append({**k, "predmet_id": issue_predmet[str(k["issue_id"])]})
     kontr_po = _po_predmetu(kontr)
@@ -433,3 +439,115 @@ def ucitaj_profile(supa, predmeti: list) -> dict:
                                 rocista=rocista.get(pid, []), issues=issues_po.get(pid, []),
                                 kontradikcije=kontr_po.get(pid, []), artefakti=artefakti_po.get(pid, []))
             for pid, p in sorted(po_id.items())}
+
+
+# ─── Task 6: objašnjiva sličnost predmeta ───────────────────────────────────────────────────────────
+# Kandidati = SAMO predmeti koje kanonska autorizacija (`shared/rag_acl.dozvoljeni_predmeti`: vlasnik +
+# aktivno delegiranje) već dozvoljava pozivaocu, i to u završnom statusu. Ista kancelarija NIJE dozvola.
+# Ishod NIJE ulaz u sličnost (nema samoispunjavajuće pristrasnosti) — gleda se tek POSLE pronalaska.
+# Bodovi su deterministička retrieval podudarnost po imenovanim dimenzijama, NIKAD verovatnoća uspeha.
+SIMILARITY_VERSION = "lb-sim-1"
+SIMILARITY_NOTICE = ("Bodovi pokazuju koliko se predmeti poklapaju po navedenim osobinama. "
+                     "Nisu procena šanse za uspeh.")
+_TEZINE = {"tip": 3, "oblast": 2, "sud": 1, "dokazi": 1, "kontradikcije": 1}
+_MIN_BODOVA = 2
+_MAX_PO_DIMENZIJI = 3
+MAX_KANDIDATA = 1000
+# Redom pokušaja: pun skup → bez `oblast` (nije ni u jednoj migraciji u repozitorijumu) → bez tombstone kolone (114).
+PREDMET_KOLONE_POKUSAJI = (
+    "id,user_id,naziv,tip,oblast,status,case_dna,brisanje_zapoceto,updated_at",
+    "id,user_id,naziv,tip,status,case_dna,brisanje_zapoceto,updated_at",
+    "id,user_id,naziv,tip,status,case_dna,updated_at",
+)
+
+
+def ucitaj_predmete(supa, ids) -> list:
+    """Redovi predmeta za date (VEĆ autorizovane) ID-eve. Na grešku NEPOSTOJEĆE kolone prelazi na uži skup
+    kolona; svaka druga greška se propušta."""
+    from shared.audit_immutable import _is_missing_column_error
+    for n, kolone in enumerate(PREDMET_KOLONE_POKUSAJI):
+        try:
+            return _in_upit(supa, "predmeti", kolone, "id", ids)
+        except Exception as e:
+            if not _is_missing_column_error(e) or n == len(PREDMET_KOLONE_POKUSAJI) - 1:
+                raise
+    return []
+
+
+def similarity(trenutni: dict, kandidat: dict) -> dict:
+    """Čista funkcija nad DVA PROFILA (Task 5). Čita samo `cinjenice` i vrste kontradikcija — nikad ishod."""
+    a, b = trenutni["cinjenice"], kandidat["cinjenice"]
+    razlozi = []
+
+    def _dodaj(dim, vrednost, bodovi):
+        razlozi.append({"dimenzija": dim, "vrednost": vrednost, "bodovi": bodovi})
+
+    if a.get("tip") and a.get("tip") == b.get("tip"):
+        _dodaj("tip", a["tip"], _TEZINE["tip"])
+    if a.get("oblast") and a.get("oblast") == b.get("oblast"):
+        _dodaj("oblast", a["oblast"], _TEZINE["oblast"])
+    for sud in sorted(set(a.get("sudovi") or []) & set(b.get("sudovi") or []))[:1]:
+        _dodaj("sud", sud, _TEZINE["sud"])
+    zaj = sorted(set(a.get("dokazi_po_kategoriji") or {}) & set(b.get("dokazi_po_kategoriji") or {}))
+    if zaj:
+        _dodaj("dokazi", zaj, _TEZINE["dokazi"] * min(len(zaj), _MAX_PO_DIMENZIJI))
+    ka = set((trenutni.get("ai_analiza") or {}).get("kontradikcije_po_vrsti") or {})
+    kb = set((kandidat.get("ai_analiza") or {}).get("kontradikcije_po_vrsti") or {})
+    zk = sorted(ka & kb)
+    if zk:
+        _dodaj("kontradikcije", zk, _TEZINE["kontradikcije"] * min(len(zk), _MAX_PO_DIMENZIJI))
+    return {"bodovi": sum(r["bodovi"] for r in razlozi), "razlozi": razlozi}
+
+
+def _objasnjenje(razlozi: list) -> str:
+    delovi = []
+    for r in razlozi:
+        v = ", ".join(r["vrednost"]) if isinstance(r["vrednost"], list) else r["vrednost"]
+        delovi.append({"tip": f"isti tip predmeta ({v})", "oblast": f"ista oblast ({v})", "sud": f"isti sud ({v})",
+                       "dokazi": f"iste vrste dokaza ({v})",
+                       "kontradikcije": f"iste vrste protivrečnosti ({v})"}[r["dimenzija"]])
+    return "Sličan jer: " + "; ".join(delovi) + "."
+
+
+def slicni_predmeti(supa, user_id: str, predmet_id: str, *, limit: int = 10) -> dict:
+    """Objašnjivo slični ZAVRŠENI predmeti koje `user_id` sme da vidi. Bez modela, bez upisa."""
+    from shared.rag_acl import dozvoljeni_predmeti
+    dozvoljeni = set(dozvoljeni_predmeti(supa, user_id))       # greška baze → izuzetak (fail-closed)
+    if str(predmet_id) not in dozvoljeni:
+        return {"stanje": NOT_AUTHORIZED, "stavke": []}
+    redovi = {str(p["id"]): p for p in ucitaj_predmete(supa, dozvoljeni) if p.get("id")}
+    trenutni = redovi.get(str(predmet_id))
+    if trenutni is None:
+        return {"stanje": NOT_AUTHORIZED, "stavke": []}
+    kandidati = [p for pid, p in redovi.items()
+                 if pid != str(predmet_id) and pid in dozvoljeni and je_terminalan(p)
+                 and not p.get("brisanje_zapoceto")]
+    kandidati.sort(key=lambda p: (str(p.get("updated_at") or ""), str(p["id"])), reverse=True)
+    pretrazeno = kandidati[:MAX_KANDIDATA]
+    profili = ucitaj_profile(supa, [trenutni] + pretrazeno)
+    pt = profili[str(predmet_id)]
+    stavke = []
+    for p in pretrazeno:
+        prof = profili[str(p["id"])]
+        sl = similarity(pt, prof)
+        if sl["bodovi"] < _MIN_BODOVA:
+            continue
+        stavke.append({
+            "predmet_id": str(p["id"]),
+            "naziv": p.get("naziv") or "",
+            "sopstveni": str(p.get("user_id")) == str(user_id),
+            "bodovi": sl["bodovi"],
+            "razlozi": sl["razlozi"],
+            "zasto": _objasnjenje(sl["razlozi"]),
+            "ishod": prof["ljudski_ishod"],             # posle pronalaska; nikad ulaz u bodove
+            "overeni_artefakti": len(prof["overeni_artefakti"]),
+        })
+    stavke.sort(key=lambda s: (-s["bodovi"], s["predmet_id"]))
+    return {
+        "stanje": OK if stavke else EMPTY,
+        "stavke": stavke[:max(1, min(int(limit), 50))],
+        "pretrazeno_zavrsenih": len(pretrazeno),
+        "ukupno_slicnih": len(stavke),
+        "verzija": SIMILARITY_VERSION,
+        "napomena": SIMILARITY_NOTICE,
+    }
