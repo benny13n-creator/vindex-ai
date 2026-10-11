@@ -81,7 +81,7 @@ STANJE_POTVRDJEN = "CONFIRMED"
 STANJE_ODBIJEN = "REJECTED"
 
 
-def odluke(rok_ids: Iterable[str]) -> dict:
+def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
     """Poslednja odluka po roku: `{rok_id: CONFIRMED|REJECTED}`.
 
     Rok koji se ne pojavi u rezultatu je NEPOTVRDJEN. FAIL-CLOSED na svakom
@@ -104,6 +104,10 @@ def odluke(rok_ids: Iterable[str]) -> dict:
              .order("seq")
              .execute())
     except Exception as exc:
+        # VCR001 T03: `strogo=True` (Case Actions) — iz ODSUSTVA odluke pozivalac izvodi obavezu, pa
+        # neprocitan lanac ne sme da izgleda kao „nema odluka“. Podrazumevano ponasanje je nepromenjeno.
+        if strogo:
+            raise
         logger.warning("[ROK_POTVRDA] citanje odluka palo — sve ostaje nepotvrdjeno: %s", exc)
         return {}
 

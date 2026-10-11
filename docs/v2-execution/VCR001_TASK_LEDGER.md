@@ -75,3 +75,40 @@ Program na grani `program/vcr001` (worktree `C:/vindex-vcr001`), počev od `main
   - Usput uhvaćen i ispravljen moj sudar ID-jeva (`np-*` pripada Naplati), kao i broj `.tabs__item` u testu kartica.
 - **Van obima:** zahtev za proveru protivne strane u V2 (V2 proverava klijenta, isto kao kartica Klijenti); šabloni predmeta (T07).
 - **Produkcija:** nije deployovano (traži odluku o izdanju).
+
+## T03 — inteligencija dokumenata i organizacija predmeta — `PASS_IMPLEMENTED`
+- **Izvor:** VCR001 T03; A018 B8 (hronologija bez izvora), B9 (rokovi), B11/S5 (obaveza iz nalaza sa poreklom).
+- **Početni SHA:** `b6c5991d`.
+- **Zatečeno (P, kod):**
+  - rokovi iz Genome-a se već upisuju sa `dokument_id` (migracija 126), izvorom `AI_AUTONOMOUS` (127) i `vrsta=rok` (129);
+  - stanje odluke je u lancu odluka (FAZA 6.5), a V2 Danas ga potvrđuje ili odbija.
+
+  Ovo nije ponovo rađeno.
+- **Jaz 1 (B8):** V2 hronologija (`genome-v2` ← `datumi_kljucni`) nije imala izvor. Ispravka:
+  - Genome šema `datumi_kljucni[].lokacija` („DOK-NN“);
+  - `shared/genome_contract._hronologija` razrešava izvor istim zatvorenim razrešavačem (nepoznato → `None`);
+  - V2 Analiza prikazuje dugme izvora.
+- **Jaz 2 (B11):** rok iz dokumenta koji čeka odluku nije davao obavezu. Ispravka:
+  - Rule 6 u `services/case_evolution._compute_target_actions`, postojeći tip `PLANIRATI_ROKOVE` (CHECK 099, bez migracije);
+  - poreklo: `hronologija_id`, `dokument_id`, datum; samo za AI rokove bez odluke;
+  - nepročitana hronologija ili lanac odluka (`odluke(strogo=True)`, nov opcioni parametar) → izuzetak, akcije se ne menjaju;
+  - bez migracije 129 pravilo se preskače.
+- **Jaz 3:** odluka o roku nije osvežavala akcije. Ispravka:
+  - `routers/rok_odluka` posle potvrde ili odbijanja emituje trajni `MANUAL_CORRECTION_APPLIED`;
+  - registrovan u `CONSEQUENCE_REGISTRY` (refresh_case_actions + projekcija obaveštenja) i pretplaćen u `event_bus`.
+- **Rok NE postaje obavezujuć bez potvrde:** akcija je pregled, a podsetnik i dalje traži potvrdu (postojeći ugovor).
+- **Testovi:**
+  - `tests/test_vcr001_t03_organizacija.py` (9, LI): izvor u hronologiji (razrešen, nepoznat, nepročitani dokumenti, stari Genome); akcija sa poreklom; potvrda i odbijanje je zatvaraju; ručni rok ne daje akciju; nepročitana hronologija; nečitljiv lanac ne otvara ponovo potvrđen rok; bez 129.
+  - **Mutacije:** 5/5 uhvaćene.
+- **E2E (BR):** `frontend-v2-ng/tests/live-organizacija-e2e.mjs` **16/16**.
+  - Dokument → Genome → izvor datuma u Analizi; akcija „Planirati rokove … čeka vašu potvrdu“ u živom pregledu.
+  - Potvrda na ekranu Danas zatvara akciju (i u bazi); reload; samo vlasnik; 0 spoljnih veza; bez 5xx.
+  - Simulirani su Genome model, embedding i prijava.
+- **E2E server (`tests/osb003_solo_server.py`):** opciona varijanta `VX_GENOME_IZVORI=1`; upis u lanac odluka (harness je gasio `log_action`, pa je potvrda roka vraćala 503).
+- **Regresija:**
+  - Python 399 passed (27 fajlova);
+  - frontend `live-analiza` 43, `live-danas` 50, `live-pregled-zivi` 30, `live-radna-lista` 25;
+  - E2E `solo-tok` 23, `prijem-carobnjak` 37, `primary` 51, `fastapi` 62, `pre136` OK.
+- **Ograničenja:**
+  - izvor se pojavljuje tek posle sledećeg osvežavanja Genome-a (stari blobovi nemaju `lokacija`);
+  - živi pregled se ne osvežava sam posle obrade u pozadini (ponovno otvaranje predmeta).

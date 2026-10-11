@@ -1058,6 +1058,51 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
                 "dedupe_key": _stable_key("problem", "dokazi_slabi"),
             })
 
+    # Rule 6 — VCR001 T03 (A018 S5 / B11): ROK IZ DOKUMENTA KOJI ČEKA ODLUKU ADVOKATA.
+    # AI je predložio rok (`predmet_hronologija`, vrsta=rok, izvor AI_*), a lanac odluka (FAZA 6.5,
+    # shared/rok_potvrda.py) nema ni potvrdu ni odbijanje. Akcija je PREGLED roka, ne izvršenje: rok ne postaje
+    # obavezujuć niti pokreće podsetnik dok ga advokat ne potvrdi. Postojeći tip PLANIRATI_ROKOVE (CHECK iz
+    # migracije 099) — bez migracije. Poreklo: hronologija_id + dokument_id. Odluka (potvrda ili odbijanje)
+    # izbacuje rok iz ciljnog skupa, pa ga zatvara isti negativni reconcile. Bez kolona migracije 129 pravilo se
+    # preskače (`vrsta` se ne može pročitati). Pad čitanja hronologije ili lanca odluka → izuzetak (NS006 Task 8).
+    from shared import rokovi as _rokovi_dom
+    if _rokovi_dom._sema_ima_129(supa):
+        try:
+            _hr = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
+                .select("id,dogadjaj,datum_iso,izvor,dokument_id").eq("predmet_id", predmet_id)
+                .eq("vrsta", _rokovi_dom.VRSTA_ROK).execute())
+        except Exception as _he:
+            raise RuntimeError(f"case_actions reconcile: izvor 'predmet_hronologija' nije pročitan za predmet={predmet_id} — "
+                               f"akcije se ne menjaju na osnovu delimičnih podataka") from _he
+        _predlozi = [x for x in (_hr.data or []) if x.get("id") and x.get("datum_iso")
+                     and x.get("izvor") in (_rokovi_dom.IZVOR_AI_AUTONOMOUS, _rokovi_dom.IZVOR_AI_ASSISTED)]
+        if _predlozi:
+            from shared.rok_potvrda import odluke as _odluke
+            try:
+                _mapa = await asyncio.to_thread(_odluke, [str(x["id"]) for x in _predlozi], True)
+            except Exception as _oe:
+                raise RuntimeError(f"case_actions reconcile: lanac odluka o rokovima nije pročitan za predmet={predmet_id}") from _oe
+            for x in _predlozi:
+                if str(x["id"]) in _mapa:
+                    continue                                   # advokat je odlučio — nije više akcija pregleda
+                try:
+                    _d = datetime.fromisoformat(str(x["datum_iso"])[:10]).date()
+                except ValueError:
+                    continue
+                _dani = (_d - today).days
+                _naziv = (x.get("dogadjaj") or "Rok").strip()[:160]
+                actions.append({
+                    "tip": "PLANIRATI_ROKOVE",
+                    "razlog": (f"Rok iz dokumenta čeka vašu potvrdu: {_naziv} — {_d.isoformat()}"
+                               + (f" (prošao pre {abs(_dani)} dan(a))" if _dani < 0 else f" (za {_dani} dan(a))")),
+                    "dokaz": {"izvor": "predmet_hronologija", "hronologija_id": str(x["id"]),
+                              "dokument_id": x.get("dokument_id"), "datum": _d.isoformat(), "stanje_odluke": "UNCONFIRMED",
+                              "izvor_roka": x.get("izvor")},
+                    "prioritet": _priority_by_days(_dani),
+                    "rok": _d.isoformat(),
+                    "dedupe_key": _stable_key("rok_kandidat", str(x["id"])),
+                })
+
     # Rule 3 -- contradictions, sourced directly from Genome's own current
     # case_dna.kontradikcije (already required to carry a "DOK-XX str.Y"
     # source location by Genome's own extraction prompt).
@@ -1610,6 +1655,12 @@ CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     # still justifies the same logical action (different dedupe_key would
     # be required for that anyway — see _compute_target_actions's own
     # per-fact dedupe_key construction).
+    # VCR001 T03 — odluka advokata o roku (potvrda/odbijanje, routers/rok_odluka.py) menja ciljni skup akcija
+    # (Rule 6): bez ovoga bi akcija „Rok čeka vašu potvrdu“ ostala otvorena do sledećeg nepovezanog događaja.
+    EventType.MANUAL_CORRECTION_APPLIED: [
+        ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
+        ConsequenceDef(name="project_notifications", executor=_consequence_project_case_actions_to_notifications),
+    ],
     EventType.SOURCE_INVALIDATED: [
         ConsequenceDef(name="refresh_case_actions", executor=_consequence_refresh_case_actions),
     ],

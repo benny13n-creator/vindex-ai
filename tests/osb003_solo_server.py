@@ -86,10 +86,33 @@ async def _ekstrakcija(opis, nalazi):
             "vrsta_spora": "radni spor", "vrednost_spora": "320.000 RSD", "prvi_rok": "2026-12-15",
             "rok_opis": "Rok za tuzbu", "potrebni_dokumenti": ["Ugovor o radu", "Platne liste"]}
 mp.setattr(_INT, "_call_ekstrakcija", _ekstrakcija)
+# VCR001 T03 (samo uz VX_GENOME_IZVORI=1): Genome navodi IZVOR („DOK-01“) za ključni datum i za jedan aktivan rok
+# za 5 dana — da browser test vidi izvor u hronologiji i akciju „rok čeka potvrdu“. Ostali e2e ostaju nepromenjeni.
+if os.environ.get("VX_GENOME_IZVORI") == "1":
+    import copy as _copy, datetime as _dt  # noqa: E402
+    import routers.case_dna as _CD  # noqa: E402
+    from tests import ns006_realni_predmet as _RP  # noqa: E402
+    async def _genome_izvori(client, combined, n):
+        g = _copy.deepcopy(_RP._genome(0, False, 0, 0))
+        for _p in ("verzija", "_analiza_osnov", "_genome_docs_count", "_genome_docs_preskoceno", "_dokumenti_bez_teksta", "_verifikacija"):
+            g.pop(_p, None)
+        g["datumi_kljucni"] = [{"opis": "Uručenje rešenja o otkazu", "datum": "2025-03-17", "znacaj": "kriticno", "lokacija": "DOK-01 str.1"}]
+        _rok = (_dt.date.today() + _dt.timedelta(days=5)).isoformat()
+        g["rokovi_kriticni"] = [{"naziv": "Rok za žalbu", "datum": _rok, "opis": "Žalba na rešenje", "status": "aktivan", "lokacija": "DOK-01 str.1"}]
+        return json.dumps(g, ensure_ascii=False)
+    mp.setattr(_CD, "_pozovi_genome_api", _genome_izvori)
 mp.setattr(D, "_pozovi_kriticara", _kriticar)
 mp.setattr(QG, "evaluate_draft_quality", _kvalitet)
 mp.setattr(R, "retrieve_documents", lambda *a, **kw: (["Zakon o radu, Član 185: Rešenje o otkazu se dostavlja zaposlenom..."], {}))
 api.limiter.enabled = False
+# VCR001 T03: harness gasi `log_action`; lanac odluka o rokovima (FAZA 6.5) JE audit_immutable (INSERT-only, `seq`) —
+# bez upisa potvrda roka vraća 503. Ovde se upisuje u bazu u memoriji (harness emulira `seq`).
+import shared.audit_immutable as _AUD  # noqa: E402
+async def _log_action(action, user_id=None, resource_type=None, resource_id=None, ip=None, metadata=None, correlation_id=None):
+    r = BAZA.table("audit_immutable").insert({"action": action, "user_id": user_id, "resource_type": resource_type,
+                                              "resource_id": resource_id, "metadata": metadata or {}}).execute()
+    return (r.data or [{}])[0].get("id") or "ok"
+mp.setattr(_AUD, "log_action", _log_action)
 
 from fastapi.responses import JSONResponse  # noqa: E402
 

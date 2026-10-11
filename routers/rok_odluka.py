@@ -157,6 +157,18 @@ async def kandidati(
     }
 
 
+async def _javi_odluku(uid: str, red: dict, rok_id: str, odluka: str) -> None:
+    """VCR001 T03 — odluka o roku menja ciljni skup Case Actions (Rule 6). Trajni događaj pokreće usklađivanje akcija
+    za TAJ predmet. Odluka je već zabeležena u lancu; pad upisa događaja samo odlaže osvežavanje akcija do sledećeg
+    događaja predmeta (zabeleženo u logu), ne gubi odluku."""
+    try:
+        from services.event_bus import EventType, emit_durable
+        await emit_durable(EventType.MANUAL_CORRECTION_APPLIED, uid, red.get("predmet_id"),
+                           {"rok_id": str(rok_id), "odluka": odluka, "trigger": "rok_odluka"})
+    except Exception as exc:
+        logger.warning("[ROK_ODLUKA] događaj posle odluke nije upisan rok=%s: %s", rok_id, exc)
+
+
 @router.post("/api/rokovi/{rok_id}/potvrdi")
 @limiter.limit("60/minute")
 async def potvrdi(
@@ -181,6 +193,7 @@ async def potvrdi(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
+    await _javi_odluku(uid, red, rok_id, "potvrda")
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,
@@ -214,6 +227,7 @@ async def odbij(
         raise HTTPException(
             status_code=503,
             detail="Odluka nije zabeležena. Pokušajte ponovo.")
+    await _javi_odluku(uid, red, rok_id, "odbijanje")
 
     _odl = await asyncio.to_thread(odluke, [rok_id])
     return {"ok": True, "rok_id": rok_id,

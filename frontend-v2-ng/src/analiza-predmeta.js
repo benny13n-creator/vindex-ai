@@ -177,7 +177,9 @@
         $("an-osnovi").append(stavkaListe(s.vrednost, s.poreklo, [meta("Predlog analize — nije potvrđeno u izvorima prava" + (sig.length ? " · " + sig.join(" · ") : ""))]));
       });
       niz(g.hronologija && g.hronologija.stavke).forEach(function (s) {
-        $("an-datumi").append(stavkaListe((s.datum ? datum(s.datum) + " — " : "Datum nije ispravan — ") + s.vrednost, s.poreklo));
+        // VCR001 T03: izvor datuma (dokument predmeta) kada je razrešen; bez izvora se ne izmišlja.
+        $("an-datumi").append(stavkaListe((s.datum ? datum(s.datum) + " — " : "Datum nije ispravan — ") + s.vrednost, s.poreklo,
+          [s.lokacija && s.lokacija.dokument_id ? dugmeIzvora(s.lokacija.dokument_id, dokNaziv[s.lokacija.dokument_id], null) : null]));
       });
       niz(g.nedostaje && g.nedostaje.stavke).forEach(function (s) { $("an-nedostaje").append(stavkaListe(s.vrednost, s.poreklo, [meta(s.opis)])); });
       niz(g.strategija && g.strategija.stavke).forEach(function (s) {

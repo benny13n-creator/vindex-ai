@@ -15,11 +15,12 @@
     "T09",
     "R3"
   ],
-  "current_task": "T03",
+  "current_task": "R1",
   "completed_tasks": {
     "T00": "PASS_IMPLEMENTED",
     "T01": "PASS_IMPLEMENTED",
-    "T02": "PASS_IMPLEMENTED"
+    "T02": "PASS_IMPLEMENTED",
+    "T03": "PASS_IMPLEMENTED"
   },
   "blocked_tasks": {},
   "branch": "program/vcr001",
@@ -28,7 +29,7 @@
   "last_good_sha": "6ad0b13a2ccfeb8cc28094e7be4e2743bd8fab4f",
   "open_defects": [],
   "latest_test_artifacts": [],
-  "next_step": "T03: hronologija/rokovi iz dokumenata sa identitetom izvora; nesigurni rokovi ostaju predlozi; Case Actions iz nalaza",
+  "next_step": "R1 kapija: ceo sintetički tok u pregledaču + CI (tests, production-runtime, v2-ng, security) na tačnom SHA; R1 paket",
   "required_founder_decisions": [
     "merge/deploy svakog kandidata (R1/R2/R3) u produkciju",
     "migracija 136 i Render Cron za autonomiju (T08)",
