@@ -112,3 +112,15 @@ Program na grani `program/vcr001` (worktree `C:/vindex-vcr001`), počev od `main
 - **Ograničenja:**
   - izvor se pojavljuje tek posle sledećeg osvežavanja Genome-a (stari blobovi nemaju `lokacija`);
   - živi pregled se ne osvežava sam posle obrade u pozadini (ponovno otvaranje predmeta).
+
+## R1 — kapija prijema (T00–T03) — `PASS`
+- **Kandidat:** `b817fd2d`; paket dokaza u `docs/v2-execution/VCR001_R1_GATE.md`.
+- **CI:**
+  - Test Suite 3.11/3.13: 175/175 = `main` (0 novih);
+  - Runtime: Docker build/boot zeleno, pun paket 197 nasleđenih;
+  - V2 NG zeleno; Security zeleno.
+- **Ispravke tokom kapije:**
+  - curenje sonde 129 između testova (20 CI padova, T03);
+  - pojačana ns006 demo provera;
+  - zastarela dokumentacija registra.
+- **Merge/deploy:** NIJE izvršen — čeka odluku osnivača za R1 kandidat.

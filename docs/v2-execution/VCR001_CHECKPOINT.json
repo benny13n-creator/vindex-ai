@@ -15,21 +15,24 @@
     "T09",
     "R3"
   ],
-  "current_task": "R1",
+  "current_task": "T04",
   "completed_tasks": {
     "T00": "PASS_IMPLEMENTED",
     "T01": "PASS_IMPLEMENTED",
     "T02": "PASS_IMPLEMENTED",
-    "T03": "PASS_IMPLEMENTED"
+    "T03": "PASS_IMPLEMENTED",
+    "R1": "PASS (kandidat b817fd2d, nije spojeno)"
   },
   "blocked_tasks": {},
   "branch": "program/vcr001",
   "worktree": "C:/vindex-vcr001",
   "base_sha": "6ad0b13a2ccfeb8cc28094e7be4e2743bd8fab4f",
-  "last_good_sha": "6ad0b13a2ccfeb8cc28094e7be4e2743bd8fab4f",
+  "last_good_sha": "b817fd2d",
   "open_defects": [],
-  "latest_test_artifacts": [],
-  "next_step": "R1 kapija: ceo sintetički tok u pregledaču + CI (tests, production-runtime, v2-ng, security) na tačnom SHA; R1 paket",
+  "latest_test_artifacts": [
+    "docs/v2-execution/VCR001_R1_GATE.md"
+  ],
+  "next_step": "T04: kontekst predmeta u pravnom pitanju (case_context → retrieval), stanje konteksta",
   "required_founder_decisions": [
     "merge/deploy svakog kandidata (R1/R2/R3) u produkciju",
     "migracija 136 i Render Cron za autonomiju (T08)",
