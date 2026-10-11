@@ -644,10 +644,9 @@ async def emit_durable(
     # (test fake je argument prihvatao i to sakrio). `upsert(on_conflict="id", ignore_duplicates=True)`
     # salje `Prefer: resolution=ignore-duplicates` + `on_conflict=id` = INSERT ... ON CONFLICT (id) DO NOTHING.
     def _upisi(red):
-        tabela = supa.table("events")
         if event_id is not None:
-            return tabela.upsert(red, on_conflict="id", ignore_duplicates=True).execute()
-        return tabela.insert(red).execute()
+            return supa.table("events").upsert(red, on_conflict="id", ignore_duplicates=True).execute()
+        return supa.table("events").insert(red).execute()
     from shared.audit_immutable import _is_missing_column_error
     try:
         await asyncio.to_thread(_upisi, {**_evt_row, "correlation_id": _cid})

@@ -174,13 +174,14 @@ def test_3_svi_pisci_u_events_zovu_guard():
     import re
 
     ocekivani = {
-        "services/event_bus.py": 4,   # emit_durable (2 grane) + 2 reapera
+        "services/event_bus.py": 4,   # emit_durable (insert + upsert sa event_id, FRG001) + 2 reapera
         "api.py": 2,                  # PREDMET_KREIRAN (2 grane)
         "routers/case_dna.py": 2,     # GENOME_UPDATED (2 grane)
     }
     for putanja, koliko in ocekivani.items():
         izvor = _izvor(putanja)
-        upisi = len(re.findall(r'table\(\s*"events"\s*\)\.insert', izvor))
+        # FRG001: i `upsert` je pisac (emit_durable sa event_id) — lint ga broji, da ne zaobiđe guard.
+        upisi = len(re.findall(r'table\(\s*"events"\s*\)\.(?:insert|upsert)', izvor))
         assert upisi == koliko, (
             "%s ima %d upisa u `events`, ocekivano %d — nov pisac mora dobiti guard "
             "(BLK-2.1 §12)" % (putanja, upisi, koliko))
@@ -204,7 +205,7 @@ def test_3b_nijedan_drugi_fajl_ne_upisuje_u_events():
             izvor = p.read_text(encoding="utf-8")
         except Exception:
             continue
-        if re.search(r'table\(\s*"events"\s*\)\.insert', izvor):
+        if re.search(r'table\(\s*"events"\s*\)\.(?:insert|upsert)', izvor):
             nadjeni.add(rel)
     assert nadjeni == dozvoljeni, (
         "promenjen skup pisaca u `events`: %s (ocekivano %s)" % (sorted(nadjeni), sorted(dozvoljeni)))

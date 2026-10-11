@@ -215,9 +215,14 @@ async def test_emit_durable_bez_event_id_ostaje_nepromenjen():
     zabelezeno = {}
 
     class _T:
-        def insert(self, red, **kw):
-            zabelezeno["red"] = red
-            zabelezeno["kw"] = kw
+        # FRG001: potpis supabase-py 2.28.3 — `insert()` NEMA `ignore_duplicates` (TypeError); ima ga `upsert()`.
+        # Raniji `insert(self, red, **kw)` je prihvatao bilo šta i zaključao neispravan ugovor.
+        def insert(self, red, *, count=None, returning=None, upsert=False, default_to_null=True):
+            zabelezeno.update(red=red, kw={}, op="insert")
+            return self
+
+        def upsert(self, red, *, count=None, returning=None, ignore_duplicates=False, on_conflict="", default_to_null=True):
+            zabelezeno.update(red=red, kw={"ignore_duplicates": ignore_duplicates, "on_conflict": on_conflict}, op="upsert")
             return self
 
         def execute(self):
@@ -228,10 +233,10 @@ async def test_emit_durable_bez_event_id_ostaje_nepromenjen():
 
     await EB.emit_durable(EB.EventType.NEW_CLIENT_LINKED, "u", "p", {"x": 1}, supa=supa)
     assert "id" not in zabelezeno["red"], "id je poslat iako ga pozivalac nije dao"
-    assert zabelezeno["kw"] == {}, "ignore_duplicates je ukljucen bez identiteta"
+    assert zabelezeno["kw"] == {} and zabelezeno["op"] == "insert", "ignore_duplicates je ukljucen bez identiteta"
 
     await EB.emit_durable(EB.EventType.NEW_CLIENT_LINKED, "u", "p", {"x": 1}, supa=supa,
                           event_id="11111111-0000-4000-8000-000000000001")
     assert zabelezeno["red"]["id"] == "11111111-0000-4000-8000-000000000001"
-    assert zabelezeno["kw"].get("ignore_duplicates") is True, (
-        "bez ON CONFLICT DO NOTHING ponovljen upis bi digao gresku umesto no-op")
+    assert zabelezeno["op"] == "upsert" and zabelezeno["kw"] == {"ignore_duplicates": True, "on_conflict": "id"}, (
+        "bez ON CONFLICT (id) DO NOTHING ponovljen upis bi digao gresku umesto no-op")
