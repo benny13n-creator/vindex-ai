@@ -60,6 +60,19 @@ router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
 _MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB, isti limit kao /api/dokument/upload
 _STORAGE_BUCKET = "intake-dokumenti"
 
+# FRG001 (BETA-DEF-004) — stabilan poslovni identitet događaja finalizacije. Ponovljena finalizacija posle pada
+# upisa događaja ponovo emituje ISTI `events.id` (`emit_durable(event_id=...)` = ON CONFLICT (id) DO NOTHING),
+# pa oporavak nikad ne pravi drugi događaj ako je prvi ipak upisan.
+_NS_FINALIZE_DOGADJAJ = uuid.UUID("6f5e1b3a-0000-4000-8000-0000000f0001")
+
+
+def _id_dogadjaja_dokaza(dokument_id: str) -> str:
+    return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"new_evidence_registered:{dokument_id}"))
+
+
+def _id_prihvatanja_posla(job_id: str) -> str:
+    return str(uuid.uuid5(_NS_FINALIZE_DOGADJAJ, f"document_accepted:{job_id}"))
+
 # Program Omega, Master Sprint 001 (2026-08-06) -- OCR_AND_INTAKE_CAPACITY_REPORT.md's
 # own headline finding: gunicorn.conf.py's worker timeout is 120s (`timeout = 120`),
 # but upload_intake_documents() processed every file in the batch SEQUENTIALLY and
@@ -1496,6 +1509,9 @@ async def _finalize_intake_job_core(
     doc_linked_count = 0
     genome_should_trigger = False
     accepted_doc_names: list[str] = []  # Program Delta, Sprint 001 -- DOCUMENT_ACCEPTED payload
+    # FRG001 (BETA-DEF-004): dokumenti upisani u predmet čiji obavezni događaj NIJE upisan. Dok ova lista nije
+    # prazna, posao se ne obeležava kao prikačen (v. kraj funkcije) — inače bi dokument trajno ostao bez tvrdnji.
+    dogadjaji_nedostaju: list[str] = []
 
     for idx, doc_entry in enumerate(documents):
         doc_row = doc_entry["document"]
@@ -1533,7 +1549,7 @@ async def _finalize_intake_job_core(
         content_hash = _verzija_dok(seg_text)
         dup_res = await asyncio.to_thread(
             lambda: supa.table("predmet_dokumenti")
-                .select("id, predmet_id")
+                .select("id, predmet_id, klasifikovan_at")
                 .eq("user_id", uid)
                 .eq("content_sha256", content_hash)
                 .execute()
@@ -1552,6 +1568,26 @@ async def _finalize_intake_job_core(
             # already exists.
             if segment_row:
                 await intake_segments.mark_assimilation_resolved(segment_row["id"])
+            # FRG001 (BETA-DEF-004): postojeći dokument OVOG korisnika u OVOM predmetu koji još nije klasifikovan
+            # možda je ostao bez događaja (pad upisa ili prekid procesa posle upisa dokumenta). Isti stabilan
+            # `event_id` kao prvi pokušaj: ako je događaj već upisan, ovo je no-op.
+            if not same_case_dup.get("klasifikovan_at") and not classification_uncertain_i:
+                try:
+                    from services.event_bus import EventType, emit_durable
+                    await emit_durable(
+                        EventType.NEW_EVIDENCE_REGISTERED,
+                        uid,
+                        predmet_id,
+                        {
+                            "dokument_id": same_case_dup["id"],
+                            "naziv": job.get("original_filename") or "dokument",
+                            "trigger": "smart_intake_finalize",
+                        },
+                        event_id=_id_dogadjaja_dokaza(same_case_dup["id"]),
+                    )
+                except Exception as _ee:
+                    dogadjaji_nedostaju.append(same_case_dup["id"])
+                    logger.error("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED ponovni upis greška dok=%s: %s", same_case_dup["id"], _ee)
             doc_linked_count += 1
             dokumenti_rezultat.append({"document_id": doc_id, "povezan": True, "razlog": "vec_obradjen_preskocen"})
             logger.info(
@@ -1778,9 +1814,11 @@ async def _finalize_intake_job_core(
                                 "naziv": job.get("original_filename") or "dokument",
                                 "trigger": "smart_intake_finalize",
                             },
+                            event_id=_id_dogadjaja_dokaza(dokument_id_i),
                         )
                     except Exception as _ee:
-                        logger.warning("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED durable event upis greška (non-fatal) dok=%s: %s", dokument_id_i, _ee)
+                        dogadjaji_nedostaju.append(dokument_id_i)
+                        logger.error("[SMART_INTAKE] NEW_EVIDENCE_REGISTERED durable event upis greška dok=%s: %s", dokument_id_i, _ee)
                 else:
                     logger.info(
                         "[SMART_INTAKE] dok=%s klasifikacija nesigurna -- preskacem Evidence Vault auto-prepisivanje, ostaje Review Required",
@@ -1835,7 +1873,9 @@ async def _finalize_intake_job_core(
     # (`finalize_intake_job`) keeps its own default `True`, unchanged
     # behavior, since NEW_EVIDENCE_REGISTERED/NEW_CLIENT_LINKED (still
     # correctly per-document/per-link) are NOT affected by this flag.
-    if genome_should_trigger and emit_document_accepted:
+    # FRG001 (BETA-DEF-004): i nastavak prekinute finalizacije (`resuming`, svi dokumenti već upisani) ponovo
+    # emituje DOCUMENT_ACCEPTED, sa stabilnim identitetom po poslu — no-op ako je prvi pokušaj već upisao događaj.
+    if (genome_should_trigger or (resuming and doc_linked_count > 0)) and emit_document_accepted:
         try:
             from services.event_bus import EventType, emit_durable
             await emit_durable(
@@ -1843,16 +1883,13 @@ async def _finalize_intake_job_core(
                 uid,
                 predmet_id,
                 {"dokumenti": accepted_doc_names, "trigger": "smart_intake_finalize"},
+                event_id=_id_prihvatanja_posla(job_id),
             )
         except Exception as _ee:
-            # Fail-soft, matching every other durable-event emission in this
-            # codebase (PREDMET_KREIRAN, GENOME_UPDATED) -- a lost
-            # DOCUMENT_ACCEPTED event means the case's Genome/Timeline don't
-            # auto-update for this finalize call, a real but non-fatal
-            # degradation (a lawyer can still manually refresh Genome),
-            # never a reason to fail the finalize response itself, which
-            # has already durably registered the actual documents.
-            logger.warning("[SMART_INTAKE] DOCUMENT_ACCEPTED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ee)
+            # FRG001 (BETA-DEF-004): više nije fail-soft. Izgubljen DOCUMENT_ACCEPTED je značio da se Genome i
+            # hronologija za ovu finalizaciju nikad ne osveže, a posao je ipak bio obeležen kao završen.
+            dogadjaji_nedostaju.append("document_accepted")
+            logger.error("[SMART_INTAKE] DOCUMENT_ACCEPTED durable event upis greška predmet=%s: %s", predmet_id, _ee)
 
     # Program Intake Sprint 002 -- ova linija je i dalje jedini upis koji
     # trajno "zatvara" finalizaciju (isti field kao pre), ali sada je
@@ -1890,6 +1927,28 @@ async def _finalize_intake_job_core(
     # reaching this line (that needs the whole multi-step flow to become
     # per-step idempotent/resumable, a larger change -- named as debt,
     # LAMBDA006-INTAKE-001).
+    # FRG001 (BETA-DEF-004): dokument je u predmetu, ali njegov događaj nije upisan — posao NE sme da postane
+    # „prikačen“ (predmet_id/assimilation_complete), jer bi ga brzi izlaz na vrhu ove funkcije zauvek preskakao.
+    # Zauzeće se oslobađa (isti CAS na finalizing_at), pa ponovni pokušaj odmah ide kroz nastavak (`resuming`):
+    # dokument se ne duplira (content_sha256), a događaj se ponovo upisuje sa istim identitetom.
+    # 5xx: V2 to prikazuje kao „ishod nije poznat“ i ponovo nudi prikačivanje.
+    if dogadjaji_nedostaju:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("intake_jobs").update({"finalizing_at": None})
+                    .eq("id", job_id).eq("finalizing_at", claimed["finalizing_at"]).execute()
+            )
+        except Exception as _re:
+            logger.error("[SMART_INTAKE] oslobađanje zauzeća neuspešno job=%s (ponovo obradiv za ~120s): %s", job_id[:8], _re)
+        logger.error(
+            "[SMART_INTAKE] finalize job=%s predmet=%s NEPOTPUN -- %d obaveznih događaja nije upisano; posao ostaje neprikačen.",
+            job_id[:8], predmet_id, len(dogadjaji_nedostaju),
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Dokument je sačuvan u predmetu, ali njegova obrada (dokazi, Genome) nije zakazana zbog privremene greške. Ponovite prikačivanje — dokument neće biti dupliran.",
+        )
+
     try:
         _cas_res = await asyncio.to_thread(
             lambda: supa.table("intake_jobs").update({

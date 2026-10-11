@@ -639,16 +639,22 @@ async def emit_durable(
         _evt_row["id"] = event_id
     # `ignore_duplicates=True` samo kad pozivalac nosi identitet -- inace bi
     # menjalo ponasanje postojecih poziva.
-    _opts = {"ignore_duplicates": True} if event_id is not None else {}
+    # FRG001: supabase-py 2.28.3 (requirements.txt) `insert()` NEMA `ignore_duplicates` -- poziv je
+    # dizao TypeError pre ikakvog mreznog zahteva, pa se NIJEDAN dogadjaj sa `event_id` nije upisivao
+    # (test fake je argument prihvatao i to sakrio). `upsert(on_conflict="id", ignore_duplicates=True)`
+    # salje `Prefer: resolution=ignore-duplicates` + `on_conflict=id` = INSERT ... ON CONFLICT (id) DO NOTHING.
+    def _upisi(red):
+        tabela = supa.table("events")
+        if event_id is not None:
+            return tabela.upsert(red, on_conflict="id", ignore_duplicates=True).execute()
+        return tabela.insert(red).execute()
     from shared.audit_immutable import _is_missing_column_error
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}, **_opts).execute()
-        )
+        await asyncio.to_thread(_upisi, {**_evt_row, "correlation_id": _cid})
     except Exception as _wide_exc:
         if not _is_missing_column_error(_wide_exc):
             raise
-        await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row, **_opts).execute())
+        await asyncio.to_thread(_upisi, _evt_row)
 
 
 # NS008 Task 3 — namespace za determinističan identitet prelaza predmeta u završni status. Različit od
