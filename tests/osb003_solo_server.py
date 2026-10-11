@@ -30,6 +30,10 @@ logging.disable(logging.CRITICAL)
 import pytest  # noqa: E402
 import uvicorn  # noqa: E402
 
+# Tokenizer (tiktoken `cl100k_base`, javni fajl) se pri prvom uvozu preuzima i kešira — PRE čuvara soketa, jer bi ga
+# čuvar oborio na mašini bez keša (CI). To je JEDINA veza van loopback-a i nije poziv provajdera ni aplikacije;
+# sve posle ove linije meri čuvar (provera „0 spoljnih veza" u browser testu).
+import uploaded_doc.chunker  # noqa: E402,F401
 from tests.ns005_harness import SPOLJNI_POKUSAJI  # noqa: E402  (čuvar soketa se instalira pri uvozu)
 from tests.ns006_fake import dispecuj  # noqa: E402
 from tests.test_osb002_solo_tok import postavi_solo  # noqa: E402
