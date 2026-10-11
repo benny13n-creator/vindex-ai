@@ -567,6 +567,7 @@ COI_CHECK_FAILED   = "CHECK_FAILED"
 async def _run_conflict_check(
     uid: str, novi_klijent_ime: str, novi_klijent_firma: str = "",
     protivna_strana: str = "", pib: str = "",
+    iskljuci_predmet_id: "str | None" = None,
 ) -> dict:
     """Jezgro provere sukoba interesa. Izdvojeno iz POST /api/intake/conflict-check
     (Zero-Touch Case investigation, 2026-08-03, BETA-002/Scenario 5) da bi ga
@@ -768,6 +769,12 @@ async def _run_conflict_check(
         if key not in seen:
             seen.add(key)
             unique_conflicts.append(c)
+    # FRI001: Smart Intake poveže klijenta i upiše stranke u NOVI predmet PRE nego što se provera izvrši
+    # (posledica događaja NEW_CLIENT_LINKED), pa je predmet nalazio sukob SAM SA SOBOM („klijent sličnog imena
+    # u predmetu <isti predmet>“, „tuženi u predmetu <isti predmet>“). Predmet koji se proverava nije sukob.
+    # Podrazumevano None — HTTP endpoint (provera PRE otvaranja predmeta) je nepromenjen.
+    if iskljuci_predmet_id:
+        unique_conflicts = [c for c in unique_conflicts if c.get("predmet_id") != iskljuci_predmet_id]
 
     conflict_detected = len(unique_conflicts) > 0
     has_blocker = any(c["severity"] == "BLOKIRAJUCI" for c in unique_conflicts)

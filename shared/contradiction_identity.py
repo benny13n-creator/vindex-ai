@@ -155,20 +155,51 @@ def identitet_seme_po_tvrdnjama(*liste) -> bool:
     return bool(sve) and all(contradiction_identity_claims(k) is not None for k in sve)
 
 
-def kljucevi(stavke) -> list:
+def contradiction_identity_stable(k: dict):
+    """NS006 Task 6 — identitet iz TRAJNIH `claim_ids` (`predmet_dokazi.id`) + `relation_type`,
+    ili `None`.
+
+    `claim_refs` su `CLAIM-NNN` oznake jednog kataloga (shared/claim_catalog.py: „oznaka
+    nije identitet i nije stabilna između poziva"). Katalog se gradi nad tvrdnjama
+    sortiranim po UUID-u, pa nova tvrdnja POMERA oznake: ista sporna tačka (tvrdnje a, b)
+    je u jednoj verziji `[CLAIM-001, CLAIM-002]`, a u sledećoj `[CLAIM-002, CLAIM-003]`.
+    Poređenje dve verzije po oznakama zato prijavljuje lažnu promenu. `claim_ids` upisuje
+    proizvođač (routers/case_dna.py::_extract_genome) razrešavanjem ISTIM katalogom koji
+    je model video — trajni identitet, kao `dokument_id` (A001/A002)."""
+    ids = k.get("claim_ids")
+    if not isinstance(ids, (list, tuple)):
+        return None
+    ocisceni = sorted({str(r).strip() for r in ids if str(r or "").strip()})
+    if len(ocisceni) < 2:
+        return None
+    return ((k.get("relation_type") or "").strip(), tuple(ocisceni))
+
+
+def identitet_seme_stabilna(*liste) -> bool:
+    """Da li SVE stavke SVIH lista nose upotrebljive `claim_ids` — isto pravilo „sve ili
+    nijedna" kao `identitet_seme_po_tvrdnjama` (mešanje šema = lažna promena)."""
+    sve = [k for lst in liste for k in (lst or [])]
+    return bool(sve) and all(contradiction_identity_stable(k) is not None for k in sve)
+
+
+def kljucevi(stavke, identitet=None) -> list:
     """`[(relation_type, frozenset(claim_refs), original_dict), ...]`, sortirano.
 
     Determinističko sortiranje nije kozmetika: bez njega bi isti ulaz u drugom
-    redosledu mogao dati drugo uparivanje, pa i drugi broj novih."""
+    redosledu mogao dati drugo uparivanje, pa i drugi broj novih.
+
+    `identitet` (NS006): funkcija identiteta stavke; podrazumevano oznake
+    (`contradiction_identity_claims`), za trajne id-jeve `contradiction_identity_stable`."""
+    identitet = identitet or contradiction_identity_claims
     out = []
     for k in stavke or []:
-        ident = contradiction_identity_claims(k)
+        ident = identitet(k)
         if ident is not None:
             out.append((ident[0], frozenset(ident[1]), k))
     return sorted(out, key=lambda t: (t[0], sorted(t[1])))
 
 
-def uporedi_kontradikcije(stare, nove) -> tuple[int, int]:
+def uporedi_kontradikcije(stare, nove, identitet=None) -> tuple[int, int]:
     """Vraća `(broj_novih, broj_eliminisanih)` između dva Genome snimka.
 
     ## Zašto uparivanje, a ne razlika skupova
@@ -191,11 +222,11 @@ def uporedi_kontradikcije(stare, nove) -> tuple[int, int]:
     da isti broj. Preklapanje koje NIJE sadržavanje (`{1,2}` vs `{2,3}`) se ne
     upa­ruje — to je dvosmislenost koju domen šalje na ljudski pregled, pa se ovde
     broji kao promena, a ne prećutno spaja."""
-    razdvojeno = razdvoji_kontradikcije(stare, nove)
+    razdvojeno = razdvoji_kontradikcije(stare, nove, identitet)
     return len(razdvojeno["nove"]), len(razdvojeno["eliminisane"])
 
 
-def razdvoji_kontradikcije(stare, nove) -> dict:
+def razdvoji_kontradikcije(stare, nove, identitet=None) -> dict:
     """Isto uparivanje kao `uporedi_kontradikcije`, ali vraća STAVKE.
 
     Postoji zato što je brojanje i biranje stavki jedan te isti posao. Dok su
@@ -207,7 +238,7 @@ def razdvoji_kontradikcije(stare, nove) -> dict:
 
     Vraća `{"nove": [...], "eliminisane": [...]}` — originalne dict-ove, ne
     ključeve, da pozivalac ne mora da ih traži unazad."""
-    st, nv = kljucevi(stare), kljucevi(nove)
+    st, nv = kljucevi(stare, identitet), kljucevi(nove, identitet)
     upareno_staro = [False] * len(st)
     nove_stavke = []
     for j, (rel_n, skup_n, _orig_n) in enumerate(nv):

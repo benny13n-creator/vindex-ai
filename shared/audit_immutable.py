@@ -115,6 +115,10 @@ AUDITABLE_ACTIONS: set[str] = {
     "suspicious_access", "api_key_rotation",
     # KORAK B — Autonomni Background Action Agenti (2026-07-24)
     "AGENT_AUTONOMOUS_EXECUTION",
+    # NS007 — životni ciklus trajnog autonomnog rada (services/autonomy.py::revizija). Metapodaci su SAMO
+    # identifikatori i bezbedne klasifikacije — nikad naslov, razlog, sažetak ni sadržaj radnog proizvoda.
+    "AUTONOMY_WORK_QUEUED", "AUTONOMY_WORK_STARTED", "AUTONOMY_WORK_READY", "AUTONOMY_WORK_FAILED",
+    "AUTONOMY_WORK_SUPERSEDED", "AUTONOMY_WORK_ACCEPTED", "AUTONOMY_WORK_REJECTED",
     # Mission Ledger (2026-08-03) — Audit Link Completion (Phase 4). Ove
     # akcije su već povezane u shared/ai_provenance.py's canonical wrapper
     # (Mission Atlas) — dodavanje ovde zatvara poslednju kariku (Event/AI

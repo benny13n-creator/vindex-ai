@@ -410,9 +410,14 @@ _UPOREDI_USER_TEMPLATE = (
 )
 
 
-def _fetch_decision_chunks(dn: str) -> tuple:
+def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
     """Fetch all chunks for a decision from sudska_praksa (and upravna_praksa).
-    Returns (meta_dict, full_text) or raises ValueError if not found."""
+    Returns (meta_dict, full_text) or raises ValueError if not found.
+
+    NS007 (opt-in, isti obrazac kao `retrieve._direktan_fetch_clana(raise_on_error=)`): sa `raise_on_error=True`,
+    kada nijedan deo nije pronađen A bar jedan namespace NIJE mogao da se pretraži, diže se `RetrievalUnavailable`
+    — „pretraga nije izvršena" nije „odluka ne postoji". Podrazumevano ponašanje postojećih pozivalaca je
+    nepromenjeno."""
     import math as _math
     from app.services.retrieve import _get_index
     index = _get_index()
@@ -421,6 +426,7 @@ def _fetch_decision_chunks(dn: str) -> tuple:
 
     all_chunks: list = []
     meta: dict = {}
+    neuspelih_ns = 0
     for ns in ("sudska_praksa", "upravna_praksa"):
         try:
             res = index.query(
@@ -449,7 +455,11 @@ def _fetch_decision_chunks(dn: str) -> tuple:
         except Exception as _fe:
             _sentry_capture(_fe)
             logger.debug("[UPOREDI] ns=%s fetch failed for %r: %s", ns, dn, _fe)
+            neuspelih_ns += 1
 
+    if not all_chunks and raise_on_error and neuspelih_ns:
+        from app.services.retrieve import RetrievalUnavailable
+        raise RetrievalUnavailable(f"pretraga odluke nije izvršena u {neuspelih_ns} izvora")
     if not all_chunks:
         raise ValueError(f"Odluka \"{dn}\" nije pronađena u bazi sudskih odluka.")
 

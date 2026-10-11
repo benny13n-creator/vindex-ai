@@ -128,6 +128,9 @@ def _patched(mock_supa, job_result):
         # Sam audit poziv je pokriven u `tests/test_sprint006_finalize_assimilation.py`.
         patch("shared.audit_immutable.log_action", new=AsyncMock(return_value=None)),
         patch("shared.audit_immutable.log_action_sync", return_value=None),
+        # FRG001: isti obrazac kao `log_action` iznad — `emit_durable` uzima klijenta iz `shared.deps` i išao je
+        # pravom mrežom; pad je ranije bio tih, a sada (BETA-DEF-004) finalize vraća 503. Događaji se testiraju zasebno.
+        patch("services.event_bus.emit_durable", new=AsyncMock()),
     )
 
 

@@ -21,6 +21,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt as jose_jwt, JWTError
+from jose.exceptions import JOSEError
 from supabase import create_client, Client as SupabaseClient
 
 # NS001/FAZA 1 — `maybe_single()` u postgrest 2.28.3 vraća `None` na 0 redova,
@@ -228,7 +229,9 @@ def verify_token_local(token: str) -> Optional[dict]:
                 if payload.get("sub"):
                     return payload
                 logger.debug("verify_token_local: JWKS decode OK ali nema sub")
-            except JWTError as e:
+            # OSB003: i JWKError (osnova JOSEError) — ključ bez `alg` ili neodgovarajućeg tipa diže JWKError iz
+            # `jwk.construct`, ne JWTError. Ugovor funkcije je „None pri neuspehu“; izuzetak je davao 500 umesto 401.
+            except JOSEError as e:
                 logger.debug("verify_token_local: JWKS decode greška: %s", e)
 
     return None

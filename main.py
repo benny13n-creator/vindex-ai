@@ -731,30 +731,176 @@ _FRAMEWORK_CLANOVI_EXEMPT: frozenset[str] = frozenset([
 ])
 
 
+# ─── FRG001: vezivanje citata zakon + član za izvor ─────────────────────────
+# Izvor pravnog teksta u kontekstu nosi identitet koji NE dolazi od modela: zaglavlje
+# `ZAKON: <law>\nČLAN: <article>` koje pravi app/services/retrieve.py::_formatiraj_match iz
+# Pinecone metapodataka. Citat se vezuje za zakon naveden NEPOSREDNO uz njega (skraćenica iz
+# kanonskog `_ZAKON_KODOVI` ili pun naziv). Tematski nagoveštaji (LAW_HINTS: „otkaz“ → Zakon o
+# radu) se namerno NE koriste — to bi bilo pogađanje identiteta.
+# Nivoi (samo za testove i izveštaj, nisu korisnička terminologija):
+#   SOURCE_MATCHED  — citat imenuje zakon i taj član postoji u dostavljenom izvoru TOG zakona
+#   ARTICLE_PRESENT — citat ne imenuje zakon; broj člana postoji negde u kontekstu (stari nivo)
+#   UNVERIFIED      — ništa od navedenog; ide u postojeću blokadu pravnog dela
+# VERSION_VALIDATED i LEGAL_CORRECTNESS ovaj čuvar NIKAD ne proverava i ne tvrdi.
+CITAT_SOURCE_MATCHED = "SOURCE_MATCHED"
+CITAT_ARTICLE_PRESENT = "ARTICLE_PRESENT"
+CITAT_UNVERIFIED = "UNVERIFIED"
+CITAT_IZUZET = "EXEMPT_FRAMEWORK"
+
+# Jedini kod u `_ZAKON_KODOVI` čija vrednost u korpusu nije pun naziv („kz“ → „KZ“); pun naziv je
+# ključ u SL_GLASNIK_MAP. Bez ovoga bi ispravan citat „Krivičnog zakonika“ uz izvor „ZAKON: KZ“ bio odbijen.
+_ZAKON_PUNI_NAZIV_KOD: dict[str, str] = {"krivicni zakonik": "kz"}
+
+_CITAT_RE = re.compile(r"(?<![a-z])(?:clan(?:a|u|om|ovi|ova|ovima)?|cl\.)\s*(\d+[a-z]?)(?![0-9])")
+_ZAGLAVLJE_RE = re.compile(r"^ZAKON:[ \t]*(.+?)[ \t]*\r?\n[ \t]*ČLAN:[ \t]*(.+?)[ \t]*$", re.M)
+_PODELA_RE = re.compile(
+    r"^\s*(?:[.,]\s*)?(?:(?:stav[a-z]*|st\.|tack[a-z]*|tac\.|t\.|alineja|al\.)\s*\d+[a-z]?\s*\)?\s*[.,]?\s*)*"
+)
+_PADEZI_ZAKONA = (
+    (re.compile(r"\bzakonik(?:a|u|om)\b"), "zakonik"),
+    (re.compile(r"\bzakon(?:a|u|om)\b"), "zakon"),
+    (re.compile(r"\bustav(?:a|u|om)\b"), "ustav"),
+    (re.compile(r"\b(porodicn|krivicn)(?:og|om|im|i)\b"), r"\1i"),
+)
+# Imenovan, ali neprepoznat propis: „Zakon o …“, „…zakonik“, „Ustav …“, uredba, pravilnik. Golo „Zakona,“ bez
+# naziva NE imenuje izvor — ostaje na starom nivou (broj člana u kontekstu), ne blokira se.
+_GENERICKI_ZAKON_RE = re.compile(r"^(?:zakon(?:ik)? o [a-z]|zakonik\b|ustav [a-z]|uredb[a-z]* |pravilnik[a-z]* )")
+
+
+def _nominativ_zakona(tekst: str) -> str:
+    for obrazac, zamena in _PADEZI_ZAKONA:
+        tekst = obrazac.sub(zamena, tekst)
+    return re.sub(r"\s+", " ", tekst)
+
+
+def _kanon_zakona(naziv: str) -> str:
+    """Kanonski identitet zakona: kod iz `_ZAKON_KODOVI` kad je poznat, inače normalizovan pun naziv."""
+    from app.services.retrieve import _ZAKON_KODOVI
+    n = _nominativ_zakona(_normalizuj(naziv).strip(" .,;:()")).strip()
+    if n in _ZAKON_KODOVI:
+        return n
+    for kod, vrednost in _ZAKON_KODOVI.items():
+        if _normalizuj(vrednost) == n:
+            return kod
+    return _ZAKON_PUNI_NAZIV_KOD.get(n, n)
+
+
+def _izvori_iz_konteksta(docs: list[str]) -> dict[str, dict[str, bool]]:
+    """{identitet zakona: {broj člana: obrisan?}} — samo iz zaglavlja retrieval-a, nikad iz teksta modela."""
+    izvori: dict[str, dict[str, bool]] = {}
+    for d in docs or []:
+        zaglavlja = list(_ZAGLAVLJE_RE.finditer(d or ""))
+        for i, m in enumerate(zaglavlja):
+            broj = re.search(r"\d+[a-zA-Z]?", m.group(2))
+            if not broj:
+                continue
+            kraj = zaglavlja[i + 1].start() if i + 1 < len(zaglavlja) else len(d)
+            telo = _normalizuj(d[m.end():kraj])
+            telo = re.sub(r"(?:citabilni tekst|puni tekst clana)\s*:", " ", telo)
+            obrisan = bool(re.fullmatch(r"[\W_]*(?:clan\s*\d+[a-z]?\s*)?\(?\s*brisan[oai]?\s*\)?[\W_]*", telo))
+            clanovi = izvori.setdefault(_kanon_zakona(m.group(1)), {})
+            kljuc = broj.group(0).lower()
+            clanovi[kljuc] = clanovi.get(kljuc, True) and obrisan
+    return izvori
+
+
+def _poznati_nazivi(izvori: dict) -> list[tuple[str, str]]:
+    """(nominativ naziva, identitet), najduži prvo: izvori iz konteksta + kanonski registri."""
+    from app.services.retrieve import _ZAKON_KODOVI
+    nazivi = {(_nominativ_zakona(_normalizuj(v)), _kanon_zakona(v)) for v in _ZAKON_KODOVI.values()}
+    nazivi |= {(_nominativ_zakona(k), _kanon_zakona(k)) for k in SL_GLASNIK_MAP}
+    nazivi |= set(_ZAKON_PUNI_NAZIV_KOD.items())
+    nazivi |= {(i, i) for i in izvori if " " in i}
+    return sorted((n for n in nazivi if len(n[0]) > 3), key=lambda x: -len(x[0]))
+
+
+def _zakon_uz_citat(tekst: str, pocetak: int, kraj: int, nazivi: list) -> "str | None":
+    """Identitet zakona navedenog neposredno POSLE (ili, ako tamo nema, neposredno PRE) citata.
+    None = citat ne imenuje zakon. „?<fraza>“ = imenuje zakon koji nije prepoznat."""
+    from app.services.retrieve import _ZAKON_KODOVI
+    kodovi = "|".join(map(re.escape, _ZAKON_KODOVI))
+    posle = tekst[kraj:kraj + 160].split("\n", 1)[0]
+    sledeci = _CITAT_RE.search(posle)
+    if sledeci:
+        posle = posle[:sledeci.start()]
+    posle = posle[_PODELA_RE.match(posle).end():]
+    posle_n = _nominativ_zakona(posle)
+    m = re.match(r"(?:" + kodovi + r")\b", posle_n)          # posle nominativa: i „Ustava RS“ → ustav
+    if m:
+        return m.group(0)
+    for naziv, ident in nazivi:
+        if posle_n.startswith(naziv):
+            return ident
+    if _GENERICKI_ZAKON_RE.match(posle_n):
+        return "?" + " ".join(posle_n.split()[:6])
+    pre = tekst[max(0, pocetak - 100):pocetak].rsplit("\n", 1)[-1].rstrip(" ,:(")
+    m = re.search(r"\b(" + kodovi + r")$", pre)
+    if m:
+        return m.group(1)
+    pre_n = _nominativ_zakona(pre)
+    for naziv, ident in nazivi:
+        if pre_n.endswith(naziv):
+            return ident
+    return None
+
+
+def _klasifikuj_citate(odgovor: str, docs: list[str]) -> list[dict]:
+    """Svaki citiran član iz odgovora (latinica ili ćirilica, padeži, „čl.“) → nivo provere."""
+    tekst = _normalizuj(_cirilica_u_latinicu(odgovor or ""))
+    kontekst_norm = _normalizuj(" ".join(docs or []))
+    izvori = _izvori_iz_konteksta(docs)
+    nazivi = _poznati_nazivi(izvori)
+    rezultat: list[dict] = []
+    vidjeni: set = set()
+    for m in _CITAT_RE.finditer(tekst):
+        clan = m.group(1)
+        zakon = _zakon_uz_citat(tekst, m.start(), m.end(), nazivi)
+        if (clan, zakon) in vidjeni:
+            continue
+        vidjeni.add((clan, zakon))
+        if clan in _FRAMEWORK_CLANOVI_EXEMPT and zakon in (None, "zoo"):
+            nivo, razlog = CITAT_IZUZET, ""
+        elif zakon is None:
+            pattern = rf"(?:lan(?:a|u|om|ovi|ova|ovima)?|\bcl\.)\s*{re.escape(clan)}(?!\d)"
+            ok = bool(re.search(pattern, kontekst_norm))
+            nivo = CITAT_ARTICLE_PRESENT if ok else CITAT_UNVERIFIED
+            razlog = "" if ok else "citiran ali nije u dostavljenom kontekstu"
+        elif zakon in izvori and izvori[zakon].get(clan) is False:
+            nivo, razlog = CITAT_SOURCE_MATCHED, ""
+        elif zakon in izvori and clan in izvori[zakon]:
+            nivo, razlog = CITAT_UNVERIFIED, "u dostavljenom izvoru tog zakona označen kao brisan"
+        elif zakon in izvori:
+            nivo, razlog = CITAT_UNVERIFIED, "nije u dostavljenom izvoru tog zakona"
+        else:
+            nivo, razlog = CITAT_UNVERIFIED, "izvor tog zakona nije dostavljen"
+        rezultat.append({"clan": clan, "zakon": zakon, "nivo": nivo, "razlog": razlog,
+                         "version_validated": False})
+    return rezultat
+
+
 def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     """
-    Anti-hallucination guard v2.0 — strict per-article.
+    Anti-hallucination guard v2.0 — strict per-article; FRG001: vezan za izvor zakona.
     Vraća (validan, razlog).
 
-    Logika v2.0:
-    - "nije pronađen u bazi" markeri → uvek validan (early return)
-    - Kontekst < 3 docs ili < 500 chars → skip (tanki kontekst ne kažnjava)
-    - Iz odgovora se izvlače SVI citirani brojevi članova
-    - Izvačeni koji su u _FRAMEWORK_CLANOVI_EXEMPT (ZOO strukturni template) → preskačemo
-    - SVAKI preostali citiran clan MORA biti prisutan u kontekstu
-    - Ako bar JEDAN nije → False + lista fabricated
-    v1 razlika: v1 puštao ako bar 1 bio u kontekstu → fabricated ostali prolazili
+    Logika:
+    - Kontekst prazan → skip (nema prema čemu da se proveri)
+    - Iz odgovora se izvlače SVI citirani članovi (latinica/ćirilica, padeži, „čl.“) — `_klasifikuj_citate`
+    - Citat koji IMENUJE zakon mora da postoji u dostavljenom izvoru TOG zakona (zaglavlje retrieval-a);
+      broj člana iz drugog zakona više nije dokaz
+    - Citat bez zakona: broj člana mora biti negde u kontekstu (kao ranije)
+    - _FRAMEWORK_CLANOVI_EXEMPT (ZOO strukturni template) → preskačemo, samo za ZOO ili bez zakona
+    - Ako bar JEDAN nije proveren → False + lista
+    - Markeri tipa „nije pronađen u bazi“ (tekst MODELA) više ne isključuju proveru citata — važe samo
+      kad odgovor ne citira nijedan član
     """
-    # Early return — odgovor koji eksplicitno signalizira nedostatak podataka je uvek validan
     markeri_nije_pronadjeno = [
         "nije pronađen u bazi",
         "nema direktno primenljive",
         "nije dostupno",
         "0% —",
     ]
-    odgovor_lower = odgovor.lower()
-    if any(m in odgovor_lower for m in markeri_nije_pronadjeno):
-        return True, "ok"
+    odgovor_lower = (odgovor or "").lower()
 
     kontekst = " ".join(docs)
     kontekst_norm = _normalizuj(kontekst)
@@ -764,42 +910,27 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
         logger.info("[HALUCINACIJA_SKIP] Kontekst prazan (%d docs, %d chars) — preskačem", len(docs), len(kontekst))
         return True, "ok"
 
-    # 1) Strict per-article check
-    # BLACKSWAN-AI-004 fix (Operation Black Swan, Mission 001, AI Attack): required the
-    # Č/č diacritic -- a plain-ASCII "Clan 999" (no diacritic, a real degradation GPT can
-    # and does produce) silently bypassed extraction entirely, since a citation the regex
-    # never even sees can't be checked against anything. Reproduced.
-    citirani_raw = re.findall(r"[ČčCc]lan\s+(\d+[a-zA-Z]?)", odgovor)
+    # 1) Strict per-article check, vezan za izvor.
+    # BLACKSWAN-AI-004: i „Clan 999“ bez dijakritika; OSB003: padeži i „čl.“; FRG001: ćirilica i zakon.
+    citati = _klasifikuj_citate(odgovor, docs)
+    if not citati and any(m in odgovor_lower for m in markeri_nije_pronadjeno):
+        return True, "ok"
 
-    # Deduplicate while preserving order
-    vidjeni: set[str] = set()
-    citirani_unique: list[str] = []
-    for c in citirani_raw:
-        if c not in vidjeni:
-            vidjeni.add(c)
-            citirani_unique.append(c)
-
-    # Remove framework template citations (always present in prompts, not from RAG)
-    za_provjeru = [c for c in citirani_unique if c not in _FRAMEWORK_CLANOVI_EXEMPT]
-
-    if za_provjeru:
-        fabrikovani: list[str] = []
-        for clan in za_provjeru:
-            clan_norm = _normalizuj(clan)
-            pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
-            if not re.search(pattern, kontekst_norm):
-                fabrikovani.append(clan)
-
-        if fabrikovani:
-            logger.warning(
-                "HALUCINACIJA v2.0: %d/%d citiranih članova nije u kontekstu: %s",
-                len(fabrikovani), len(za_provjeru), fabrikovani[:5],
-            )
-            clanovi_str = ", ".join(f"Član {c}" for c in fabrikovani[:5])
-            return False, f"{clanovi_str} — citiran ali nije u dostavljenom kontekstu"
+    neprovereni = [c for c in citati if c["nivo"] == CITAT_UNVERIFIED]
+    if neprovereni:
+        logger.warning(
+            "HALUCINACIJA v2.0: %d/%d citiranih članova nije provereno u izvoru: %s",
+            len(neprovereni), len(citati), [(c["clan"], c["zakon"]) for c in neprovereni[:5]],
+        )
+        delovi = []
+        for c in neprovereni[:5]:
+            zakon = (c["zakon"] or "").lstrip("?")
+            oznaka = f" ({zakon.upper() if len(zakon) <= 6 else zakon})" if zakon else ""
+            delovi.append(f"Član {c['clan']}{oznaka} — {c['razlog']}")
+        return False, "; ".join(delovi)
 
     # 2) Citat check — samo kad nema nijednog citiranog broja člana
-    if not citirani_unique:
+    if not citati:
         match_citat = re.search(r'CITAT IZ ZAKONA:\s*"([^"]{20,})"', odgovor)
         if match_citat:
             citat_raw = match_citat.group(1)

@@ -639,16 +639,54 @@ async def emit_durable(
         _evt_row["id"] = event_id
     # `ignore_duplicates=True` samo kad pozivalac nosi identitet -- inace bi
     # menjalo ponasanje postojecih poziva.
-    _opts = {"ignore_duplicates": True} if event_id is not None else {}
+    # FRG001: supabase-py 2.28.3 (requirements.txt) `insert()` NEMA `ignore_duplicates` -- poziv je
+    # dizao TypeError pre ikakvog mreznog zahteva, pa se NIJEDAN dogadjaj sa `event_id` nije upisivao
+    # (test fake je argument prihvatao i to sakrio). `upsert(on_conflict="id", ignore_duplicates=True)`
+    # salje `Prefer: resolution=ignore-duplicates` + `on_conflict=id` = INSERT ... ON CONFLICT (id) DO NOTHING.
+    def _upisi(red):
+        if event_id is not None:
+            return supa.table("events").upsert(red, on_conflict="id", ignore_duplicates=True).execute()
+        return supa.table("events").insert(red).execute()
     from shared.audit_immutable import _is_missing_column_error
     try:
-        await asyncio.to_thread(
-            lambda: supa.table("events").insert({**_evt_row, "correlation_id": _cid}, **_opts).execute()
-        )
+        await asyncio.to_thread(_upisi, {**_evt_row, "correlation_id": _cid})
     except Exception as _wide_exc:
         if not _is_missing_column_error(_wide_exc):
             raise
-        await asyncio.to_thread(lambda: supa.table("events").insert(_evt_row, **_opts).execute())
+        await asyncio.to_thread(_upisi, _evt_row)
+
+
+# NS008 Task 3 — namespace za determinističan identitet prelaza predmeta u završni status. Različit od
+# svih ostalih porodica događaja, pa se identiteti nikad ne sudaraju.
+_NS_MATTER_TERMINAL = uuid.UUID("6f5e1b3a-0000-4000-8000-000000000008")
+
+
+def matter_terminal_event_id(predmet_id: str, novi_status: str, prelaz_ref: str) -> str:
+    """Isti PRELAZ (isti predmet, isti završni status, isti `prelaz_ref` = `updated_at` reda posle upisa
+    koji je napravio prelaz) = isti `events.id` → ponovljena emisija istog prelaza je no-op. Novi prelaz
+    posle ponovnog otvaranja ima novi `updated_at`, dakle novi događaj."""
+    return str(uuid.uuid5(_NS_MATTER_TERMINAL, f"MatterBecameTerminal:{predmet_id}:{novi_status}:{prelaz_ref}"))
+
+
+async def emit_matter_terminal(
+    *, user_id: str, predmet_id: str, novi_status: str, prethodni_status: "str | None",
+    prelaz_ref: str, trigger: str, supa=None,
+) -> bool:
+    """JEDINA tačka trajne emisije MATTER_BECAME_TERMINAL. Emituje SAMO stvaran prelaz: novi status je
+    završni, a prethodni nije bio isti (PATCH istog statusa nije prelaz). Pozivalac je već upisao status
+    (događaj opisuje ono što se desilo). Ne guta izuzetke — fail-soft je posao pozivaoca (kao emit_durable).
+    Vraća True ako je događaj predat outbox-u."""
+    from shared.constants import TERMINALNI_STATUSI_PREDMETA
+    if novi_status not in TERMINALNI_STATUSI_PREDMETA or prethodni_status == novi_status:
+        return False
+    if not predmet_id or not prelaz_ref:
+        return False
+    await emit_durable(
+        EventType.MATTER_BECAME_TERMINAL, user_id, predmet_id,
+        {"trigger": trigger, "novi_status": novi_status, "prethodni_status": prethodni_status},
+        supa=supa, event_id=matter_terminal_event_id(predmet_id, novi_status, prelaz_ref),
+    )
+    return True
 
 
 # Fixed, never-reused namespace for SOURCE_INVALIDATED's own deterministic

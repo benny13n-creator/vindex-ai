@@ -128,6 +128,15 @@ IZVORI: frozenset[str] = frozenset({IZVOR_COVEK, IZVOR_DC005, IZVOR_PODRAZUMEVAN
 # fail-closed: odsustvo dokaza o proceni nije dokaz o proceni.
 IZVORI_PROCENJENO: frozenset[str] = frozenset({IZVOR_COVEK, IZVOR_DC005})
 
+# NS006 Task 4 (migracija 135): ko je AUTOR tvrdnje. `izvor_snage` govori ko je
+# odlučio o snazi, ne ko je napisao tvrdnju — ručni unos bez procene i AI unos koji
+# DC-005 nije našao oba daju `podrazumevano`. Ovo ih razdvaja. `NULL` = nije
+# zabeleženo; čitalac to nikad ne tumači kao ljudsko.
+KOLONA_IZVOR_TVRDNJE = "izvor_tvrdnje"
+IZVOR_TVRDNJE_COVEK = "covek"
+IZVOR_TVRDNJE_AI = "ai_klasifikacija"
+IZVORI_TVRDNJE: frozenset[str] = frozenset({IZVOR_TVRDNJE_COVEK, IZVOR_TVRDNJE_AI})
+
 # Stanja pokrivenosti procene. Četvrto (`EVIDENCE_PARTIAL`) je obavezno: bez
 # njega je predmet sa 1 procenjenom od 100 tvrdnji nerazlučiv od predmeta sa
 # jednom jedinom procenjenom tvrdnjom.
@@ -407,17 +416,41 @@ def _insert_sa_fallback(supa, redovi: list[dict]) -> list[dict]:
     PRVA koja se odbacuje. Ostatak lanca je nepromenjen -- okruženje sme imati
     117 a ne 118, i tada `nacin_pronalaska` i `identitet` NE SMEJU biti
     odbačeni bez potrebe. Nijedno postojeće polje se ne zamenjuje izmišljenom
-    vrednošću; jedino se izostavlja kolona koje u toj bazi nema."""
+    vrednošću; jedino se izostavlja kolona koje u toj bazi nema.
+
+    NS006 Task 4: `izvor_tvrdnje` (migracija 135) se odbacuje SAMO kad greška baš
+    nju imenuje (PostgREST PGRST204/42703 navode ime kolone) — inače bi okruženje
+    kojem fali samo `izvor_snage` izgubilo i autora, tj. degradiralo dva stepena.
+    Bez nje red ostaje bez zapisa o autoru (čitalac: nepoznato), nikad sa izmišljenim."""
     try:
         res = supa.table("predmet_dokazi").insert(redovi).execute()
         return res.data or []
-    except Exception as exc:
+    except Exception as exc_prvi:
+        exc = exc_prvi
+        if KOLONA_IZVOR_TVRDNJE in str(exc) and any(KOLONA_IZVOR_TVRDNJE in r for r in redovi):
+            logger.warning(
+                "[EVIDENCE_WRITE] Insert neuspešan (%s) — pokušavam bez kolone `%s` (migracija 135 nije pokrenuta)",
+                exc, KOLONA_IZVOR_TVRDNJE,
+            )
+            redovi = [{k: v for k, v in r.items() if k != KOLONA_IZVOR_TVRDNJE} for r in redovi]
+            try:
+                res = supa.table("predmet_dokazi").insert(redovi).execute()
+                return res.data or []
+            except Exception as exc_drugi:
+                exc = exc_drugi
         logger.warning(
             "[EVIDENCE_WRITE] Insert neuspešan (%s) — pokušavam bez kolone `%s`",
             exc, KOLONA_IZVOR_SNAGE,
         )
         bez_izvora = [{k: v for k, v in r.items() if k != KOLONA_IZVOR_SNAGE} for r in redovi]
-        upisani = _insert_bez_izvora_snage(supa, bez_izvora)
+        try:
+            upisani = _insert_bez_izvora_snage(supa, bez_izvora)
+        except Exception as exc_lanac:
+            # Okruženje bez 118 I bez 135: lanac je pao baš na `izvor_tvrdnje`.
+            if KOLONA_IZVOR_TVRDNJE not in str(exc_lanac) or not any(KOLONA_IZVOR_TVRDNJE in r for r in bez_izvora):
+                raise
+            bez_izvora = [{k: v for k, v in r.items() if k != KOLONA_IZVOR_TVRDNJE} for r in bez_izvora]
+            upisani = _insert_bez_izvora_snage(supa, bez_izvora)
         # Glasno: redovi su upisani BEZ provenijencije procene, pa ih svaka
         # buduća pokrivenost mora brojati kao NEPROCENJENE (fail-closed).
         logger.warning(
@@ -494,8 +527,12 @@ def upisi_dokaze(
     stavke: list[dict],
     izvor_tekst: Optional[str] = None,
     proveri_vlasnistvo: bool = True,
+    izvor_tvrdnje: Optional[str] = None,
 ) -> dict:
     """Upisuje jednu ili više dokaznih stavki kroz JEDNU kanonsku putanju.
+
+    `izvor_tvrdnje` (NS006 Task 4) — autor tvrdnji iz `IZVORI_TVRDNJE`; `None`
+    znači „pozivalac ne zna" i kolona se ne upisuje.
 
     `stavke` — lista dict-ova sa ključevima:
         tvrdnja           (obavezno)
@@ -522,6 +559,8 @@ def upisi_dokaze(
     delete ostaje u `routers/evidence.py::delete_dokaz`, nepromenjen."""
     if not predmet_id or not user_id:
         raise GreskaDokaza("Nedostaje predmet_id ili user_id.")
+    if izvor_tvrdnje is not None and izvor_tvrdnje not in IZVORI_TVRDNJE:
+        raise GreskaDokaza(f"Nepoznat izvor tvrdnje '{izvor_tvrdnje}'.", status=500)
     if not stavke:
         return {"redovi": [], "odluke": []}
 
@@ -586,6 +625,8 @@ def upisi_dokaze(
             "pravni_element": st.get("pravni_element"),
             "napomena":       st.get("napomena"),
             **lokacija,
+            # NS006 Task 4: autor tvrdnje — samo kad ga pozivalac zna.
+            **({KOLONA_IZVOR_TVRDNJE: izvor_tvrdnje} if izvor_tvrdnje else {}),
         })
         odluke.append({
             "snaga":            snaga,
@@ -614,6 +655,7 @@ def upisi_dokaz(
     napomena: Optional[str] = None,
     izvor_tekst: Optional[str] = None,
     proveri_vlasnistvo: bool = True,
+    izvor_tvrdnje: Optional[str] = None,
 ) -> dict:
     """Jednostavka omotač oko `upisi_dokaze` — isti kod, ista pravila.
 
@@ -624,6 +666,7 @@ def upisi_dokaz(
         user_id=user_id,
         izvor_tekst=izvor_tekst,
         proveri_vlasnistvo=proveri_vlasnistvo,
+        izvor_tvrdnje=izvor_tvrdnje,
         stavke=[{
             "tvrdnja": tvrdnja, "kategorija": kategorija, "snaga": snaga,
             "dokument_id": dokument_id, "pravni_element": pravni_element,

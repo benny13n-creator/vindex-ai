@@ -121,6 +121,12 @@ async def get_worklist(request: Request, user: dict = Depends(get_current_user))
 @router.get("/predmeti/{predmet_id}")
 async def get_predmet_actions(predmet_id: str, request: Request, user: dict = Depends(get_current_user)):
     """Open case_actions for a single case — used by a case detail view."""
+    # NS006 Task 9: neispravan UUID je u Postgres-u 22P02 → 500. Isti 404 kao tuđ/nepostojeći predmet.
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(predmet_id))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(status_code=404, detail="Predmet nije pronađen")
     uid = user["user_id"]
     supa = _get_supa()
 

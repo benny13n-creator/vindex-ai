@@ -64,6 +64,7 @@ SERVICE_ROLE_ONLY_TABLES: dict[str, str] = {
     "law_docs": "migrations/020_law_docs.sql — 'Samo service_role (backend) ima pristup — admini pristupaju via API'",
     "security_events": "migrations/043_security_bulletproof.sql — 'Nema user pristupa — samo admin čita kroz service_role'",
     "v2_mutation_idempotency": "migrations/134_v2_mutation_idempotency.sql — 'RLS enabled with NO policies; explicit REVOKE from PUBLIC/anon/authenticated/service_role ... service_role then gets back only SELECT/INSERT/UPDATE' (NS005 Gate A2; tests/test_ns005_a2_idempotency.py::test_pg_rls_i_grantovi_samo_service_role)",
+    "autonomy_cycles": "migrations/136_autonomy_work_items.sql — 'ACCESS: RLS enabled ... Explicit REVOKE from PUBLIC/anon/authenticated'; cycles are invisible to users (scheduler-window claim only, service_role SELECT/INSERT/UPDATE) (NS007 Task 1–2; tests/test_ns007_t1_t2_contract_pg.py::test_rls_i_prava)",
 }
 
 RLS_ENABLE_RE = re.compile(

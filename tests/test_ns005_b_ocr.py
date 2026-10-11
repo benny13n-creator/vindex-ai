@@ -175,6 +175,57 @@ def test_B_skenirani_pdf_ocr(tmp_path, spijun):
         assert {"ć", "š", "ž"} <= set(dijakritici), dijakritici
 
 
+# OSB003: srpska ĆIRILICA (ranije nemerena). Ugrađena URW Helvetica u PyMuPDF-u ima ćirilične glifove
+# (provereno iscrtavanjem: Ж, Ш, Ђ, ћ daju različite piksele). Meri se SMISAO (udeo tačnih reči), ne dužina.
+REDOVI_CIR = [
+    "ОСНОВНИ СУД У БЕОГРАДУ",
+    "Тужилац: Марко Петровић из Београда",
+    "Тужени: Јован Јовановић из Новог Сада",
+    "Предмет: накнада штете у износу од 250.000 динара",
+    "Рочиште је заказано за 15. новембар 2026. године.",
+]
+RECI_CIR = ["основни", "суд", "београду", "тужилац", "марко", "петровић", "београда", "тужени", "јован",
+            "јовановић", "новог", "сада", "предмет", "накнада", "штете", "износу", "динара", "рочиште",
+            "заказано", "новембар", "године"]
+
+
+def _pogodak_cir(tekst):
+    n = (tekst or "").lower()
+    nadjene = [r for r in RECI_CIR if r in n]
+    return len(nadjene) / len(RECI_CIR), nadjene
+
+
+def test_B2_skenirani_pdf_cirilica(tmp_path, spijun):
+    p = tmp_path / "skeniran_cirilica.pdf"
+    _sken_pdf(p, _slika(REDOVI_CIR))
+    import pypdf
+    assert "".join((s.extract_text() or "") for s in pypdf.PdfReader(str(p)).pages).strip() == ""
+    text, skeniran, ocr_used, strane, conf = extractor.extract(p)
+    udeo, nadjene = _pogodak_cir(text)
+    jezik = spijun[0] if spijun else ""
+    IZVESTAJ["B2_skenirani_pdf_cirilica"] = {"ocr_pozvan": len(spijun), "jezik": jezik, "ocr_used": ocr_used,
+                                             "znakova": len(text.strip()), "udeo_reci": round(udeo, 2),
+                                             "nadjeno": len(nadjene), "conf": round(conf, 2) if conf is not None else None,
+                                             "cirilicnih_znakova": sum(1 for c in text if "Ѐ" <= c <= "ӿ")}
+    assert len(spijun) >= 1 and ocr_used is True
+    if "srp" in jezik.split("+"):
+        # Sa srpskim ćiriličnim paketom tekst mora biti SMISLEN: ≥ 80 % tačnih ćiriličnih reči.
+        assert udeo >= 0.8, (udeo, nadjene)
+    elif os.getenv("VINDEX_EXPECT_SRP") == "1":
+        pytest.fail(f"produkciona slika bez ćiriličnog paketa: izabran jezik {jezik!r}")
+
+
+def test_A2_digitalni_pdf_cirilica_bez_ocr(tmp_path, spijun):
+    p = tmp_path / "digitalni_cirilica.pdf"
+    doc = _strana_sa_tekstom(REDOVI_CIR)
+    doc.save(str(p))
+    doc.close()
+    text, skeniran, ocr_used, strane, conf = extractor.extract(p)
+    udeo, _ = _pogodak_cir(text)
+    IZVESTAJ["A2_digitalni_pdf_cirilica"] = {"ocr_pozvan": len(spijun), "ocr_used": ocr_used, "udeo_reci": round(udeo, 2)}
+    assert spijun == [] and ocr_used is False and udeo == 1.0, text[:300]
+
+
 @pytest.mark.parametrize("format_", ["PNG", "JPEG"])
 def test_C_slika_ocr(tmp_path, spijun, format_):
     p = tmp_path / ("sken." + ("png" if format_ == "PNG" else "jpg"))

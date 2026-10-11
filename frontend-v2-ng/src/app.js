@@ -329,7 +329,7 @@
    * serverske rute. Token nikad nije u adresi. Svaki drugi hash (npr. #glavni)
    * je registar. Sav sadržaj se upisuje kao tekst. */
   function adresaPredmeta(id, odeljak) {
-    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : odeljak === "naplata" ? "/naplata" : odeljak === "prijem" ? "/prijem" : "");
+    return "#/predmeti/" + encodeURIComponent(id) + (odeljak === "dokumenti" ? "/dokumenti" : odeljak === "rad" ? "/rad" : odeljak === "pitanje" ? "/pitanje" : odeljak === "nacrt" ? "/nacrt" : odeljak === "naplata" ? "/naplata" : odeljak === "prijem" ? "/prijem" : odeljak === "analiza" ? "/analiza" : "");
   }
   function rutaIzAdrese() {
     /* NS005: radni pogledi bez id-a predmeta imaju prednost nad #/predmeti/<id>. */
@@ -338,11 +338,13 @@
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
     if (/^#\/danas\/?$/.test(location.hash)) return { pogled: "danas" };
-    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata|\/prijem)?\/?$/.exec(location.hash);
+    var mp = /^#\/pripremljeno\/([0-9a-fA-F-]{36})\/?$/.exec(location.hash);
+    if (mp) return { pogled: "pripremljeno", id: mp[1] };
+    var m = /^#\/predmeti\/([^\/?#]*)(\/dokumenti|\/rad|\/pitanje|\/nacrt|\/naplata|\/prijem|\/analiza)?\/?$/.exec(location.hash);
     if (!m) return null;
     var id;
     try { id = decodeURIComponent(m[1]); } catch (e) { id = ""; }
-    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : m[2] === "/naplata" ? "naplata" : m[2] === "/prijem" ? "prijem" : "pregled" };
+    return { id: id, odeljak: m[2] === "/dokumenti" ? "dokumenti" : m[2] === "/rad" ? "rad" : m[2] === "/pitanje" ? "pitanje" : m[2] === "/nacrt" ? "nacrt" : m[2] === "/naplata" ? "naplata" : m[2] === "/prijem" ? "prijem" : m[2] === "/analiza" ? "analiza" : "pregled" };
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
@@ -377,7 +379,7 @@
     INVALID_RESPONSE: "Odgovor servera nije ispravan. Tekst se ne prikazuje.",
   };
 
-  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null, prijemPredmeta = null;
+  var detalj = null, ruta = null, detaljPodaci = null, izabraniDok = null, radPredmeta = null, klijentiPredmeta = null, rocistaPredmeta = null, pitanjePredmeta = null, nacrtPredmeta = null, naplataPredmeta = null, prijemPredmeta = null, analizaPredmeta = null, ziviPregled = null, cekaDokument = null;
   /* Samo za proveru: šta ekran detalja drži u memoriji. */
   window.__vxDetaljUMemoriji = function () {
     return { predmet: detaljPodaci ? detaljPodaci.predmet.id : null, dokumenata: detaljPodaci ? detaljPodaci.dokumenti.length : 0,
@@ -422,6 +424,7 @@
     $("odeljak-nacrt").hidden = true;
     $("odeljak-naplata").hidden = true;
     $("odeljak-prijem").hidden = true;
+    $("odeljak-analiza").hidden = true;
     $("odeljak-dokumenti").hidden = true;
     $("predmet-stanje").hidden = true;
     if (radPredmeta) radPredmeta.ocisti();
@@ -449,10 +452,15 @@
     $("odeljak-nacrt").hidden = o !== "nacrt";
     $("odeljak-naplata").hidden = o !== "naplata";
     $("odeljak-prijem").hidden = o !== "prijem";
+    $("odeljak-analiza").hidden = o !== "analiza";
     $("odeljak-dokumenti").hidden = o !== "dokumenti";
+    if (o === "analiza" && analizaPredmeta) analizaPredmeta.aktiviraj();
+    if (o === "pregled" && ziviPregled) ziviPregled.aktiviraj();
+    /* NS006: „Izvor" iz Analize otvara Dokumente sa izabranim dokumentom (isti predmet, već učitan). */
+    if (o === "dokumenti" && cekaDokument) { var _dok = cekaDokument; cekaDokument = null; izaberiDokument(_dok); }
     if (o === "nacrt" && nacrtPredmeta) nacrtPredmeta.aktiviraj();
     if (o === "naplata" && naplataPredmeta) naplataPredmeta.aktiviraj();
-    ["pregled", "rad", "pitanje", "nacrt", "naplata", "dokumenti", "prijem"].forEach(function (x) {
+    ["pregled", "analiza", "rad", "pitanje", "nacrt", "naplata", "dokumenti", "prijem"].forEach(function (x) {
       var tab = $("tab-" + x);
       tab.href = adresaPredmeta(ruta.id, x);
       if (x === o) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
@@ -509,6 +517,8 @@
     if (nacrtPredmeta) nacrtPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "nacrt");
     if (naplataPredmeta) naplataPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "naplata");
     if (prijemPredmeta) prijemPredmeta.postavi(v.predmet);
+    if (analizaPredmeta) analizaPredmeta.postavi(v.predmet, !!ruta && ruta.odeljak === "analiza");
+    if (ziviPregled) ziviPregled.postavi(v.predmet, !!ruta && ruta.odeljak === "pregled");
     prikaziOdeljak();
   }
 
@@ -559,7 +569,7 @@
   }
 
   function prikaziDetalj(v) {
-    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); if (prijemPredmeta) prijemPredmeta.ocisti(); return; }
+    if (v.vrsta === "predmet-ocisti") { ocistiPredmet(); if (pitanjePredmeta) pitanjePredmeta.ocisti(); if (nacrtPredmeta) nacrtPredmeta.ocisti(); if (naplataPredmeta) naplataPredmeta.ocisti(); if (prijemPredmeta) prijemPredmeta.ocisti(); if (analizaPredmeta) analizaPredmeta.ocisti(); if (ziviPregled) ziviPregled.ocisti(); cekaDokument = null; return; }
     if (v.vrsta === "dokument-ocisti") { ocistiDokument(); return; }
     if (v.vrsta === "predmet") { prikaziPredmetPodatke(v); return; }
     if (v.vrsta === "dokument-stanje") { prikaziDokumentStanje(v); return; }
@@ -573,9 +583,9 @@
     }
   }
 
-  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, danas = null, pogledRada = null;
+  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, danas = null, pogledRada = null, pripremljeno = null, pripremljenoPogled = null;
   /* Radni pogledi bez predmeta: id sekcije + kontroler (otvori/zatvori). */
-  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], danas: ["danas-pogled", danas] }; }
+  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], danas: ["danas-pogled", danas], pripremljeno: ["pripremljeno-pogled", pripremljenoPogled] }; }
   /* Aktivna stavka navigacije prati pogled (Znanje ili Predmeti). */
   function uskladiNavigaciju() {
     var stavke = { znanje: '.sidenav__item[href="#/znanje"]', kancelarija: '.sidenav__item[href="#/kancelarija"]', danas: '.sidenav__item[href="#/danas"]' };
@@ -597,7 +607,8 @@
     var r = rutaIzAdrese();
     if (r && r.pogled) {
       if (ruta) { ruta = null; detalj.zatvori(); $("predmet").hidden = true; }
-      if (pogledRada === r.pogled) return;
+      if (pogledRada === r.pogled && r.pogled !== "pripremljeno") return;
+      if (pogledRada === "pripremljeno" && r.pogled === "pripremljeno") { pripremljenoPogled.otvori(); return; }
       zatvoriPogledRada();
       pogledRada = r.pogled;
       zatvoriFioku(false);
@@ -800,6 +811,26 @@
     naplataPredmeta = window.VxNaplataPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* NS005 Task 14 — prijem dokumenata (Smart Intake + OCR); posle prikačivanja predmet se ponovo čita (lista dokumenata). */
     prijemPredmeta = window.VxPrijemPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, osvezi: function () { detalj.osvezi(); } });
+    /* NS006 — Analiza (samo čitanje, bez modela). */
+    var analizaGenoma = window.VxAnalizaPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi, otvoriDokument: function (id) {
+      if (!ruta || !ruta.id) return;
+      cekaDokument = id;
+      location.hash = adresaPredmeta(ruta.id, "dokumenti");
+    } });
+    /* NS008 Task 14 — sekundarna sekcija „Iskustvo kancelarije" u Analizi (čitanje bez modela; sinteza samo na klik). */
+    var iskustvoPredmeta = window.VxLawBrain.predmet({ sesija: window.VxSesija, api: window.VxApi });
+    analizaPredmeta = {
+      postavi: function (p, a) { analizaGenoma.postavi(p, a); iskustvoPredmeta.postavi(p, a); },
+      aktiviraj: function () { analizaGenoma.aktiviraj(); iskustvoPredmeta.aktiviraj(); },
+      ocisti: function () { analizaGenoma.ocisti(); iskustvoPredmeta.ocisti(); },
+      osvezi: function () { analizaGenoma.osvezi(); },
+      zaustavi: function () { analizaGenoma.zaustavi(); iskustvoPredmeta.zaustavi(); },
+    };
+    /* NS006 Task 11 — Pregled: šta se promenilo, šta traži pažnju, sledeći korak (samo čitanje, bez modela). */
+    ziviPregled = window.VxZiviPregled.napravi({ sesija: window.VxSesija, api: window.VxApi,
+      adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); },
+      /* NS007 Task 16 — pripremljen rad predmeta (READY) u Pregledu. */
+      prikaziPripremljeno: function (stavke, st) { if (pripremljeno) pripremljeno.prikaziListu("zp-prip-blok", "zp-prip", "zp-prip-stanje", stavke, st, null); } });
     $("dok-lista").addEventListener("click", function (e) {
       var b = e.target.closest("button[data-dok]");
       if (b) izaberiDokument(b.dataset.dok);
@@ -833,11 +864,34 @@
       location.hash = adresaPredmeta(id, "pregled");
     } });
     pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
-    znanje = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    /* NS008 Task 13 — Znanje: sudska praksa i stavovi (NS005) + iskustvo kancelarije (Law Brain, čitanje bez modela). */
+    var znanjePrakse = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    var znanjeKancelarije = window.VxLawBrain.znanje({ sesija: window.VxSesija, api: window.VxApi });
+    znanje = {
+      otvori: function () { znanjePrakse.otvori(); znanjeKancelarije.otvori(); },
+      zatvori: function () { znanjePrakse.zatvori(); znanjeKancelarije.zatvori(); },
+      zaustavi: function () { znanjePrakse.zaustavi(); znanjeKancelarije.zaustavi(); },
+    };
     kancelarija = window.VxKancelarija.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* Nazivi predmeta bez ročišta: iz već učitanog registra (isti korisnik; registar se prazni pri promeni sesije). */
-    danas = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+    var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
       nazivPredmeta: function (id) { for (var i = 0; i < indeks.length; i++) if (String(indeks[i].p.id) === id) return indeks[i].p.naziv; return ""; } });
+    /* NS006 Task 12 — radna lista iz kanonske table; isti pogled, sopstveni zahtev i stanje. */
+    /* NS007 Task 15 — „Vindex je pripremio": lista iz ISTOG odgovora table (bez dodatnog zahteva) + pogled detalja. */
+    pripremljeno = window.VxPripremljeno.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+      adresaRada: function (id) { return "#/pripremljeno/" + encodeURIComponent(id); } });
+    pripremljenoPogled = {
+      otvori: function () { var r = rutaIzAdrese(); pripremljeno.otvori(r && r.id); $("vpr-naslov").focus(); },
+      zatvori: function () { pripremljeno.zatvori(); },
+    };
+    var radnaLista = window.VxRadnaLista.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
+      naPodatke: function (x, st) { pripremljeno.prikaziListu("dp-blok", "dp-lista", "dp-stanje", x ? x.vindex_je_pripremio : null, st,
+        "Vindex trenutno nema pripremljenog rada za pregled."); } });
+    danas = {
+      otvori: function () { radnaLista.otvori(); danasObaveze.otvori(); },
+      zatvori: function () { radnaLista.zatvori(); danasObaveze.zatvori(); },
+      zaustavi: function () { radnaLista.zaustavi(); danasObaveze.zaustavi(); },
+    };
     var uskladiNovLink = function () {
       var prijavljen = window.VxSesija.stanje().stanje === window.VxSesija.STANJA.PRIJAVLJEN;
       $("nov-predmet-link").hidden = !prijavljen;

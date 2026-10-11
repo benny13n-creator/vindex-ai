@@ -147,6 +147,32 @@ async def zabeleži_ishod(
     faktori_azurirani = 0
     preporuke_azurirane = 0
 
+    # NS008 Task 2: jedan predmet = jedan logički ishod (outcome_log.predmet_id UNIQUE). Ponovljeno
+    # slanje ISTOG ishoda (dvoklik, mrežno ponavljanje bez Idempotency-Key iz legacy klijenta) ranije je
+    # ponovo uvećavalo case_patterns brojače i ponovo pokretalo GPT lekcije — broj „pobeda" je rastao bez
+    # novog predmeta. Isti ishod → bez sporednih efekata; samo (idempotentno) zatvaranje ispod se ponavlja.
+    # Izmenjen ishod (ispravka) se upisuje, ali se legacy brojači NE uvećavaju ponovo (Law Brain ih ne
+    # čita — broji iz outcome_log).
+    try:
+        _post = await asyncio.to_thread(
+            lambda: supa.table("outcome_log")
+                .select("id,ishod,presudni_faktori")
+                .eq("predmet_id", req.predmet_id)
+                .eq("user_id", uid)
+                .limit(1)
+                .execute()
+        )
+        postojeci_ishod = (_safe(_post) or [None])[0]
+    except Exception as e:
+        logger.error("[LEARNING] outcome_log čitanje nije uspelo — prekidam: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail="Ishod predmeta trenutno nije moguće proveriti. Predmet NIJE zatvoren — pokušajte ponovo.",
+        )
+    isti_ishod = bool(postojeci_ishod) and postojeci_ishod.get("ishod") == req.ishod and (
+        sorted(postojeci_ishod.get("presudni_faktori") or []) == sorted(req.presudni_faktori or [])
+    )
+
     # 1. Upsert outcome_log (uključuje root cause analizu)
     try:
         await asyncio.to_thread(
@@ -180,10 +206,10 @@ async def zabeleži_ishod(
             detail="Ishod predmeta nije sačuvan. Predmet NIJE zatvoren — pokušajte ponovo.",
         )
 
-    # 2. Update case_patterns za svaki faktor
+    # 2. Update case_patterns za svaki faktor — samo za PRVI zabeležen ishod predmeta
     je_pobeda = req.ishod == "pobeda"
     je_poraz  = req.ishod == "poraz"
-    for faktor in req.presudni_faktori[:10]:
+    for faktor in ([] if postojeci_ishod else req.presudni_faktori[:10]):
         try:
             existing = await asyncio.to_thread(
                 lambda f=faktor: supa.table("case_patterns")
@@ -219,8 +245,9 @@ async def zabeleži_ishod(
         except Exception as e:
             logger.warning("[LEARNING] case_patterns greška za faktor %s: %s", faktor, e)
 
-    # 3. Ažuriraj recommendation_log za ovaj predmet
-    if req.ishod in ("pobeda", "poraz"):
+    # 3. Ažuriraj recommendation_log za ovaj predmet (postavljanje vrednosti — idempotentno; preskače se
+    # samo kad se ništa nije promenilo)
+    if req.ishod in ("pobeda", "poraz") and not isti_ishod:
         ishod_poz = req.ishod == "pobeda"
         try:
             rec_r = await asyncio.to_thread(
@@ -286,6 +313,18 @@ async def zabeleži_ishod(
                 )
             except Exception as _he:
                 logger.warning("[LEARNING] hronologija upis greška (non-fatal): %s", _he)
+            # NS008 Task 3: ovaj put zatvaranja ranije nije emitovao događaj — Case Actions su ostajale
+            # otvorene, a Case Evolution nije video završni predmet.
+            try:
+                from services.event_bus import emit_matter_terminal
+                await emit_matter_terminal(
+                    user_id=uid, predmet_id=req.predmet_id, novi_status=novi_status,
+                    prethodni_status=predmet.get("status"),
+                    prelaz_ref=str(_close_res.data[0].get("updated_at") or ""),
+                    trigger="learning_outcome", supa=supa,
+                )
+            except Exception as _te:
+                logger.error("[LEARNING] MATTER_BECAME_TERMINAL nije upisan predmet=%s: %s", req.predmet_id, _te)
         else:
             logger.info("[LEARNING] predmet status update preskočen (već zatvoren ili konkurentna izmena): %s", req.predmet_id)
     except Exception as e:
@@ -300,7 +339,7 @@ async def zabeleži_ishod(
 
     # Opciono: automatski generisi Lessons Learned u pozadini
     lekcije_generisane = 0
-    if req.generisi_lekcije:
+    if req.generisi_lekcije and not isti_ishod:
         try:
             from services.learning_engine import learning
             lekcije = await learning.generate_lessons_learned(
@@ -325,6 +364,7 @@ async def zabeleži_ishod(
         "novi_status":          novi_status,
         "lekcije_generisane":   lekcije_generisane,
         "poruka":               poruka,
+        "ponovljen_ishod":      isti_ishod,
     }
 
 

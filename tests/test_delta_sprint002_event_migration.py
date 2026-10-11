@@ -138,6 +138,12 @@ def _make_combined_supa(existing_consequence_rows=None, verzija_start=3):
             return _hronologija_table()
         if name in ("predmet_genome_history", "audit_immutable", "case_intelligence_summaries"):
             return _dedup_check_table()
+        if name == "proactive_alerts":
+            # FRI001: conflict_check proverava isto nepročitano upozorenje pre upisa — svež put, nema ga.
+            t = MagicMock()
+            (t.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value
+             .eq.return_value.limit.return_value.execute.return_value.data) = []
+            return t
         t = MagicMock()
         t.insert.return_value.execute.return_value.data = [{"id": "row-1"}]
         return t

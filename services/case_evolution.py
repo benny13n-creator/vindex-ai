@@ -556,7 +556,8 @@ async def _consequence_conflict_check(event: Event) -> str:
         return "skipped_no_klijent_ime"
 
     from routers.intake import COI_CHECK_FAILED, COI_NO_CONFLICT, _run_conflict_check
-    result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "")
+    result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "",
+                                       iskljuci_predmet_id=event.predmet_id)
 
     # N4-COI-001: neuspela provera NIJE "nema sukoba". Ranije je pao upit
     # zavrsavao ovde kao `no_conflict` i proaktivni alarm se nikad ne bi
@@ -581,14 +582,32 @@ async def _consequence_conflict_check(event: Event) -> str:
 
     opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
     supa = _get_supa()
+    # FRI001: nalaz je PODUDARANJE IMENA, ne pravna ocena. Ranije je upozorenje preuzimalo `preporuka` HTTP
+    # provere („Postoji BLOKIRAJUCI sukob… Ne možete zastupati…“) i tako mečer predstavljalo kao potvrđen sukob.
+    # Ozbiljnost (urgentnost, „blokirajući“ tip podudaranja) ostaje ista; odluku donosi advokat.
+    naslov = ("Mogući blokirajući sukob interesa — potrebna provera" if result.get("has_blocker")
+              else "Mogući sukob interesa — potrebna provera")
+    opis = (f"Automatsko podudaranje imena, nije pravna ocena: {opisi} "
+            "Proverite pre prihvatanja ili nastavka zastupanja.").strip()[:2000]
+    # FRI001: prekid posle upisa upozorenja, a pre _mark_completed, ponovo pokreće ovu posledicu posle isteka
+    # zastarelosti (ritam ponovnih pokušaja nije ograničen jednim prozorom) — isto NEPROČITANO upozorenje za isti
+    # predmet se ne upisuje drugi put. Pročitano/novo drugačije upozorenje nije pogođeno.
+    _dup = await asyncio.to_thread(
+        lambda: supa.table("proactive_alerts").select("id")
+            .eq("user_id", event.user_id).eq("predmet_id", event.predmet_id)
+            .eq("tip", "sukob_interesa").eq("opis", opis).eq("procitana", False)
+            .limit(1).execute()
+    )
+    if _dup.data:
+        return "skipped_duplicate_conflict_alert"
     from shared.proactive_alerts import create_proactive_alert
     ok = await create_proactive_alert(
         supa,
         user_id=event.user_id,
         predmet_id=event.predmet_id,
         tip="sukob_interesa",
-        naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
-        opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+        naslov=naslov,
+        opis=opis,
         urgentnost="hitna" if result.get("has_blocker") else "normalna",
         retry_internally=False,
     )
@@ -787,9 +806,17 @@ async def _consequence_case_intelligence_summary(event: Event) -> str:
         asyncio.to_thread(lambda: supa.table("rocista").select("sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
-    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
-    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
-    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+    # NS006 Task 8 — ista klasa kao u `_compute_target_actions`: sažetak je TRAJAN zapis, pa
+    # rizici/nedostajući dokazi izračunati iz izvora koji nije pročitan ne smeju da se upišu.
+    # Izuzetak → posledica neuspela → retry (genome_refresh je već `completed` i ne ponavlja se).
+    for _ime, _rez in (("predmet_dokazi", dokazi_r), ("predmet_dokumenti", dok_r), ("rocista", rok_r)):
+        if isinstance(_rez, Exception):
+            raise RuntimeError(
+                f"case_intelligence_summary: izvor '{_ime}' nije pročitan za predmet={predmet_id}"
+            ) from _rez
+    dokazi = (dokazi_r.data or [])
+    dok_data = (dok_r.data or [])
+    rok_data = (rok_r.data or [])
     rizik = calculate_procesni_rizik(dokazi=dokazi, dokumenti=dok_data, rocista=rok_data, tip_predmeta=tip_predmeta, expected_docs=_EXPECTED_DOCS)
     problemi = identify_case_problems(rizik, tip_predmeta)
     rizici_ozbiljni = [p for p in problemi if p.get("ozbiljnost") in ("kritican", "vazan")]
@@ -917,9 +944,22 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         asyncio.to_thread(lambda: supa.table("rocista").select("id,sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
-    dokazi = ((dokazi_r.data if not isinstance(dokazi_r, Exception) else []) or [])
-    dok_data = ((dok_r.data if not isinstance(dok_r, Exception) else []) or [])
-    rok_data = ((rok_r.data if not isinstance(rok_r, Exception) else []) or [])
+    # NS006 Task 8 — PAD ČITANJA NIJE PRAZAN IZVOR. Ranije je izuzetak ovde postajao `[]`, a
+    # reconcile ispod ciljni skup tumači kao istinu: izmereno, pad čitanja `rocista` je ZATVARAO
+    # otvorenu akciju za zakazano ročište (sud tiho nestaje iz radne liste), a pad čitanja
+    # `predmet_dokazi` OTVARAO lažnu kritičnu „Nema uploadovanih dokaza" (pa i obaveštenje).
+    # Sada se izuzetak podiže: posledica se beleži kao neuspela i Event Bus je ponavlja
+    # (MAX_DISPATCH_ATTEMPTS, pa vidljiv DEAD_LETTER) — nijedna akcija se ne menja na osnovu
+    # delimičnih podataka. Direktni pozivaoci (predmeti_close) već hvataju izuzetak i loguju.
+    for _ime, _rez in (("predmet_dokazi", dokazi_r), ("predmet_dokumenti", dok_r), ("rocista", rok_r)):
+        if isinstance(_rez, Exception):
+            raise RuntimeError(
+                f"case_actions reconcile: izvor '{_ime}' nije pročitan za predmet={predmet_id} — "
+                f"akcije se ne menjaju na osnovu delimičnih podataka"
+            ) from _rez
+    dokazi = (dokazi_r.data or [])
+    dok_data = (dok_r.data or [])
+    rok_data = (rok_r.data or [])
 
     from services.risk_engine import calculate_procesni_rizik, identify_case_problems
     from shared.constants import EXPECTED_DOCS as _EXPECTED_DOCS

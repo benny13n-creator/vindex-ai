@@ -21,6 +21,19 @@ from shared.usage import UsageService
 def get_supa(): return _get_supa()
 require_user = get_current_user
 
+# NS006 Task 2 — STABILAN IDENTITET dogadjaja rucno dodatog dokaza (isti obrazac kao S6
+# `NewClientLinked` u routers/smart_intake.py i `SourceInvalidated` u services/event_bus.py).
+# Poslovni dogadjaj je "tvrdnja `predmet_dokazi.id` je registrovana" — jedan red, jedan
+# dogadjaj. Sa identitetom je ponovljen upis bezbedan (`events.id` PK, ON CONFLICT DO
+# NOTHING), pa sme da se pokusa vise puta; bez njega bi svaki pokusaj bio NOV dogadjaj.
+# Namespace je fiksan i NE SME se menjati (promena bi ponistila idempotenciju unazad).
+_NS_EVIDENCE_EVENTS = __import__("uuid").UUID("6f5e1b3a-0000-4000-8000-000000000002")
+_EVIDENCE_EMIT_POKUSAJA = 3
+
+
+def _new_evidence_event_id(dokaz_id: str) -> str:
+    return str(__import__("uuid").uuid5(_NS_EVIDENCE_EVENTS, "NewEvidenceRegistered:dokaz:%s" % dokaz_id))
+
 logger = logging.getLogger("vindex.evidence")
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
 
@@ -129,6 +142,8 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
 # ispod čuva stara imena jer na njih računaju DECISION_REGISTRY.md (DC-005),
 # tests/test_decision_registry_completeness.py i tests/test_akcija2_faza4_*.py.
 from shared.evidence_write import (              # noqa: E402
+    IZVOR_TVRDNJE_AI,
+    IZVOR_TVRDNJE_COVEK,
     KATEGORIJE,
     SNAGE,
     GreskaDokaza,
@@ -184,7 +199,10 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             "tip_dokaza":      rezultat.get("tip_dokaza", "ostalo"),
             "pravni_elementi": rezultat.get("pravni_elementi", []),
             "ai_tags":         json.dumps(rezultat.get("ai_tags", {})),
-            "klasifikovan_at": _dt.now(_tz.utc).isoformat(),
+            # OSB003: `klasifikovan_at` se NE upisuje ovde. To je znak ZAVRŠENE klasifikacije i čuvar
+            # idempotencije (services/case_evolution.py::_consequence_evidence_classify). Upisan pre
+            # tvrdnji, prolazna greška upisa tvrdnji ispod je tvrdnje gubila trajno: posledica je
+            # proglašavana završenom, a ponovni pokušaj preskakan. Upisuje se tek kad tvrdnje uspeju.
         }).eq("id", dokument_id).execute()
         logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
         # klasifikuj_i_sacuvaj is a plain sync function invoked via
@@ -201,6 +219,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu klasifikacije predmet_dokumenti: %s", exc)
 
+    tvrdnje_upisane = False
     try:
         # Upiši ključne činjenice kao predmet_dokazi — nezavisno od gornjeg
         # bloka: cak i ako predmet_dokumenti update padne, kljucne cinjenice
@@ -235,14 +254,23 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 stavke=stavke,
                 izvor_tekst=tekst,
                 proveri_vlasnistvo=False,
+                izvor_tvrdnje=IZVOR_TVRDNJE_AI,
             )
             _utemeljeno = sum(1 for o in _rez_upisa["odluke"] if o["lokacija_poznata"])
             logger.info(
                 "[EVIDENCE] Upisano %d činjenica (%d utemeljeno u izvoru) za predmet=%s",
                 len(_rez_upisa["odluke"]), _utemeljeno, predmet_id,
             )
+        tvrdnje_upisane = True
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
+
+    if tvrdnje_upisane:
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            supa.table("predmet_dokumenti").update({"klasifikovan_at": _dt.now(_tz.utc).isoformat()}).eq("id", dokument_id).execute()
+        except Exception as exc:
+            logger.warning("[EVIDENCE] Greška pri upisu klasifikovan_at: %s", exc)
 
     return rezultat
 
@@ -384,6 +412,7 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
                 pravni_element=req.pravni_element,
                 napomena=req.napomena,
                 izvor_tekst=izvor_tekst,
+                izvor_tvrdnje=IZVOR_TVRDNJE_COVEK,
             )
         )
     except GreskaDokaza as exc:
@@ -403,25 +432,47 @@ async def add_dokaz(request: Request, predmet_id: str, req: DokazReq, user=Depen
     # a harmless no-op (nothing to classify, the fact is already structured),
     # while _consequence_refresh_case_actions still runs off predmet_id alone
     # and picks up the new predmet_dokazi row either way.
-    try:
-        from services.event_bus import EventType, emit_durable
-        await emit_durable(
-            EventType.NEW_EVIDENCE_REGISTERED,
-            uid,
-            predmet_id,
-            {"dokument_id": req.dokument_id, "dokaz_id": (rez["red"] or {}).get("id"), "trigger": "manual_add_dokaz"},
-        )
-    except Exception as _ce:
-        logger.warning("[CASE_EVOLUTION] NEW_EVIDENCE_REGISTERED durable event upis greška (non-fatal) predmet=%s: %s", predmet_id, _ce)
+    #
+    # NS006 Task 2: upis je bio JEDAN pokušaj bez identiteta, a neuspeh je bio tih —
+    # odgovor `ok: True` bajt-identičan onom kad je događaj upisan, dok Case Evolution
+    # nikad ne sazna za tvrdnju. Sada: deterministički `event_id` iz `dokaz_id` +
+    # ograničen retry (bezbedan SAMO zbog identiteta), a ishod je vidljiv u odgovoru
+    # (`dogadjaj`). Tvrdnja ostaje upisana i kad događaj ne uspe — to nije poništivo
+    # ovde (nema transakcije preko PostgREST-a); prijavljuje se, ne skriva.
+    _dokaz_id = (rez["red"] or {}).get("id")
+    _dogadjaj = "NIJE_ZAKAZAN"
+    for _pokusaj in range(1, _EVIDENCE_EMIT_POKUSAJA + 1):
+        try:
+            from services.event_bus import EventType, emit_durable
+            await emit_durable(
+                EventType.NEW_EVIDENCE_REGISTERED,
+                uid,
+                predmet_id,
+                {"dokument_id": req.dokument_id, "dokaz_id": _dokaz_id, "trigger": "manual_add_dokaz"},
+                event_id=_new_evidence_event_id(_dokaz_id) if _dokaz_id else None,
+            )
+            _dogadjaj = "ZAKAZAN"
+            break
+        except Exception as _ce:
+            if _pokusaj < _EVIDENCE_EMIT_POKUSAJA and _dokaz_id:
+                logger.warning("[CASE_EVOLUTION] NEW_EVIDENCE_REGISTERED upis pokušaj %d/%d nije uspeo predmet=%s: %s",
+                               _pokusaj, _EVIDENCE_EMIT_POKUSAJA, predmet_id, _ce)
+                await asyncio.sleep(0.2 * _pokusaj)
+                continue
+            logger.error("[CASE_EVOLUTION] NEW_EVIDENCE_REGISTERED NIJE upisan predmet=%s dokaz=%s — "
+                         "Case Evolution ne zna za tvrdnju: %s", predmet_id, _dokaz_id, _ce)
+            break
 
     odluka = rez["odluka"]
     return {
         "ok": True,
-        "id": (rez["red"] or {}).get("id"),
+        "id": _dokaz_id,
         "snaga": odluka.get("snaga"),
         "snaga_izvor": odluka.get("izvor_odluke"),
         "snaga_prepisana": odluka.get("snaga_prepisana", False),
         "lokacija_poznata": odluka.get("lokacija_poznata", False),
+        # NS006 Task 2: da li je Case Evolution obavešten (ZAKAZAN | NIJE_ZAKAZAN).
+        "dogadjaj": _dogadjaj,
     }
 
 

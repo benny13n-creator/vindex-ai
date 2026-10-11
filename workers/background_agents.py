@@ -46,14 +46,23 @@ _MAX_AGENT_RUNS_PER_ORG_PER_DAY = int(os.getenv("AGENT_BUDGET_PER_ORG_DAILY", "4
 _MAX_CONCURRENT_AGENT_RUNS = int(os.getenv("BACKGROUND_AGENTS_CONCURRENCY", "5"))
 
 
+def _agent_modules() -> list:
+    """JEDINI registar agenata (NS007: jedan spisak modula, ne dva registra). Modul sa `run(user_id, supa)` je
+    legacy agent preporuka (dnevni cron); modul sa `planiraj` + `izvrsi` radi trajni autonomni rad
+    (`run_autonomy_cycle`). Lenji import -- izbegava cirkularnost i skuplje import-e (drafting, retrieve) pri
+    modul-load-u workers/background_agents.py."""
+    from services.agent_tasks import court_portal_watcher, hearing_prep, precedents_radar
+    return [court_portal_watcher, precedents_radar, hearing_prep]
+
+
 def _agent_registry() -> dict[str, Callable]:
-    # Lenji import -- izbegava cirkularnost i skuplje import-e (drafting,
-    # retrieve) pri modul-load-u workers/background_agents.py.
-    from services.agent_tasks import court_portal_watcher, precedents_radar
-    return {
-        court_portal_watcher.AGENT_TYPE: court_portal_watcher.run,
-        precedents_radar.AGENT_TYPE:     precedents_radar.run,
-    }
+    return {m.AGENT_TYPE: m.run for m in _agent_modules() if callable(getattr(m, "run", None))}
+
+
+def _work_agents() -> dict[str, object]:
+    """Agenti trajnog rada, po `work_type` koji izvršavaju (isti spisak modula kao `_agent_registry`)."""
+    return {m.WORK_TYPE: m for m in _agent_modules()
+            if callable(getattr(m, "planiraj", None)) and callable(getattr(m, "izvrsi", None))}
 
 
 async def _get_active_user_ids(supa) -> list[str]:
@@ -278,3 +287,147 @@ async def run_background_agents(run_id: str) -> dict:
     await asyncio.gather(*tasks, return_exceptions=True)
 
     return rezultat
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NS007 — trajni autonomni rad (A2 Prepare / A3 Organize)
+# ══════════════════════════════════════════════════════════════════════════════
+# Pozivalac: SAMO uska ulazna tačka `POST /api/cron/autonomy` (routers/autonomy.py), posle atomskog zauzimanja
+# prozora. Dnevni cron i dalje zove `run_background_agents` (legacy preporuke) — dva toka ne dele poslove.
+#
+#   1. PLAN       svaki agent trajnog rada vraća kandidate + poništene okidače. 0 poziva modela.
+#   2. UPIS       jedan logički okidač = jedan red (UNIQUE user_id + dedupe_key); nova verzija istog okidača
+#                 zastareva staru (SUPERSEDED, ne briše se); poništen okidač zastareva QUEUED/READY.
+#   3. IZVRŠENJE  posao se zauzima ISKLJUČIVO kroz `autonomy_claim_work_item` (zakup + rezervacija budžeta).
+#                 Ako zauzimanje ne uspe iz bilo kog razloga, izvršilac se NE poziva (nema poziva modela).
+#   4. REZULTAT   upisuje ga samo vlasnik zakupa, u istoj naredbi sa READY_FOR_REVIEW. `NeuspehPosla` = FAILED
+#                 (ne ponavlja se); drugi izuzetak = prolazno (zakup ističe, najviše max_attempts).
+# Ništa se ne šalje napolje. Nijedan radni proizvod ne ide u memoriju znanja.
+
+_AUTONOMY_MAX_POSLOVA_PO_CIKLUSU = int(os.getenv("AUTONOMY_MAX_ITEMS_PER_CYCLE", "25"))
+_AUTONOMY_TIMEOUT_POSLA_S = int(os.getenv("AUTONOMY_ITEM_TIMEOUT_SECONDS", "120"))
+
+
+async def _izvrsivi_poslovi(supa, tipovi: list[str]) -> list[dict]:
+    if not tipovi:
+        return []
+    r = await asyncio.to_thread(
+        lambda: supa.table("autonomy_work_items")
+            .select("id,user_id,predmet_id,work_type,trigger_ref,status,lease_expires_at")
+            .in_("status", ["QUEUED", "RUNNING"])
+            .in_("work_type", tipovi)
+            .order("queued_at")
+            .limit(_AUTONOMY_MAX_POSLOVA_PO_CIKLUSU * 4)
+            .execute()
+    )
+    sada = datetime.now(timezone.utc).isoformat()
+    return [x for x in (r.data or [])
+            if x["status"] == "QUEUED" or (x.get("lease_expires_at") and str(x["lease_expires_at"]) < sada)]
+
+
+async def _zabelezi_upotrebu(supa, item: dict, run_id: str) -> bool:
+    """usage_events red za plaćeno autonomno izvršenje (isti obrazac kao legacy agenti, feature='autonomy').
+    Vraća False kad upis ne uspe — pozivalac to BROJI, ne tvrdi uspeh."""
+    try:
+        await asyncio.to_thread(lambda: supa.table("usage_events").insert({
+            "user_id": item["user_id"], "feature": "autonomy", "action": item["work_type"],
+            "meta": {"work_item_id": item["id"], "run_id": run_id, "attempt": item.get("attempt_count")},
+        }).execute())
+        return True
+    except Exception as e:
+        _sentry_capture(e)
+        logger.warning("[AUTONOMY] usage_events upis nije uspeo work=%s: %s", item.get("id"), type(e).__name__)
+        return False
+
+
+async def run_autonomy_cycle(run_id: str) -> dict:
+    """Jedan ciklus trajnog autonomnog rada. Vraća sažetak (samo brojevi i bezbedni kodovi, bez sadržaja)."""
+    from services import autonomy as au
+    from shared.deps import _get_supa
+    supa = _get_supa()
+    agenti = _work_agents()
+    rez = {"run_id": run_id, "planirano": 0, "duplikata": 0, "zastarelo": 0, "zauzeto": 0, "spremno": 0,
+           "neuspeh": 0, "prolazno": 0, "budzet_iscrpljen": 0, "budzet_nepoznat": 0, "nije_zauzeto": 0,
+           "dead_letter": 0, "planer_greske": 0, "zauzimanje_greska": 0,
+           "upotreba_nije_zabelezena": 0, "revizija_nije_upisana": 0, "obnovljeno": 0}
+
+    async def _trag(akcija, red, **meta):
+        if not await au.revizija(akcija, red["user_id"], red["id"], red.get("predmet_id"), {**red, **meta, "run_id": run_id}):
+            rez["revizija_nije_upisana"] += 1
+
+    # 1–2. plan + upis
+    for work_type, agent in agenti.items():
+        try:
+            plan = await agent.planiraj(supa)
+        except Exception as e:
+            _sentry_capture(e)
+            logger.error("[AUTONOMY] planer %s pao run=%s: %s", work_type, run_id, type(e).__name__)
+            rez["planer_greske"] += 1
+            continue
+        for p in plan.get("ponisteni", []):
+            for wid in await au.zastareli(supa, p["user_id"], p["predmet_id"], work_type, p["trigger_ref"], ""):
+                rez["zastarelo"] += 1
+                await _trag("AUTONOMY_WORK_SUPERSEDED", {"id": wid, "user_id": p["user_id"], "predmet_id": p["predmet_id"]},
+                            work_type=work_type, trigger_ref=p["trigger_ref"])
+        for k in plan.get("kandidati", []):
+            ishod = await au.upisi_kandidata(supa, k)
+            if ishod["ishod"] == "QUEUED":
+                rez["planirano"] += 1
+                await _trag("AUTONOMY_WORK_QUEUED", {**k, "id": ishod["id"]})
+            elif ishod["ishod"] == "OBNOVLJENO":
+                rez["obnovljeno"] += 1
+                await _trag("AUTONOMY_WORK_READY" if ishod["status"] == au.READY else "AUTONOMY_WORK_QUEUED",
+                            {**k, "id": ishod["id"]}, obnovljeno=True)
+            else:
+                rez["duplikata"] += 1
+            for wid in await au.zastareli(supa, k["user_id"], k["predmet_id"], work_type, k["trigger_ref"], k["dedupe_key"]):
+                rez["zastarelo"] += 1
+                await _trag("AUTONOMY_WORK_SUPERSEDED", {"id": wid, "user_id": k["user_id"], "predmet_id": k["predmet_id"]},
+                            work_type=work_type, trigger_ref=k["trigger_ref"])
+
+    # 3–4. izvršenje
+    poslovi = await _izvrsivi_poslovi(supa, list(agenti))
+    for posao in poslovi[:_AUTONOMY_MAX_POSLOVA_PO_CIKLUSU]:
+        vlasnik = au.novi_vlasnik()
+        try:
+            z = await au.zauzmi_posao(supa, posao["id"], vlasnik)
+        except Exception as e:
+            _sentry_capture(e)
+            logger.error("[AUTONOMY] zauzimanje nije uspelo work=%s: %s — izvršilac se NE poziva", posao["id"], type(e).__name__)
+            rez["zauzimanje_greska"] += 1
+            continue
+        ishod = z.get("ishod")
+        if ishod != "CLAIMED":
+            kljuc = {"BUDGET_EXHAUSTED": "budzet_iscrpljen", "BUDGET_UNKNOWN": "budzet_nepoznat",
+                     "DEAD_LETTER": "dead_letter"}.get(ishod, "nije_zauzeto")
+            rez[kljuc] += 1
+            continue
+        rez["zauzeto"] += 1
+        item = z["item"]
+        await _trag("AUTONOMY_WORK_STARTED", item)
+        agent = agenti[item["work_type"]]
+        try:
+            proizvod = await asyncio.wait_for(agent.izvrsi(supa, item), timeout=_AUTONOMY_TIMEOUT_POSLA_S)
+        except au.NeuspehPosla as n:
+            await au.oznaci_neuspeh(supa, item["id"], vlasnik, n.kod)
+            rez["neuspeh"] += 1
+            await _trag("AUTONOMY_WORK_FAILED", item, safe_error_code=n.kod, konacno=True)
+            continue
+        except Exception as e:
+            _sentry_capture(e)
+            logger.warning("[AUTONOMY] prolazna greška work=%s: %s — zakup ističe, ponovni pokušaj je ograničen",
+                           item["id"], type(e).__name__)
+            rez["prolazno"] += 1
+            await _trag("AUTONOMY_WORK_FAILED", item, safe_error_code="TRANSIENT_" + type(e).__name__.upper()[:40], konacno=False)
+            continue
+        if await au.sacuvaj_rezultat(supa, item["id"], vlasnik, **proizvod):
+            rez["spremno"] += 1
+            await _trag("AUTONOMY_WORK_READY", item, quality_state=proizvod.get("quality_state"),
+                        model=((proizvod.get("content") or {}).get("ai") or {}).get("model"))
+            # Računovodstvo POSLE trajnog upisa rezultata: budžet je već rezervisan u samoj stavci (izvor istine),
+            # pa neuspeo upis u usage_events ne vraća posao u red i ne pokreće ga ponovo — samo se broji.
+            if item.get("cost_class") == "PAID" and not await _zabelezi_upotrebu(supa, item, run_id):
+                rez["upotreba_nije_zabelezena"] += 1
+        else:
+            rez["nije_zauzeto"] += 1   # zakup je u međuvremenu istekao/preuzet: rezultat se NE upisuje preko tuđeg
+    return rez
