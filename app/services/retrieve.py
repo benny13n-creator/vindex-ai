@@ -1926,6 +1926,20 @@ def _vlasnicki_opseg_iz_konteksta():
         return None, None
 
 
+def _trenutni_predmet_iz_konteksta() -> Optional[str]:
+    """VCR001 T04: predmet u čijem kontekstu teče AI operacija (`shared/ai_provenance.case_context`).
+
+    Isti razlog kao BR-003 iznad: `current_predmet_id` prosleđuje samo auto-analiza, pa su pojačanje istog predmeta
+    i suženje na trenutni predmet (`shared/rag_acl._MAX_IN`) bili mrtvi za pravno pitanje u predmetu. Vrednost NIJE
+    kapija pristupa: utiče samo na rangiranje i suženje unutar skupa koji `shared/rag_acl` već dozvoljava
+    (`filter_za_namespace_vlasnika` sužava samo ako je predmet u dozvoljenom skupu)."""
+    try:
+        from shared.ai_provenance import _case_ctx
+        return (_case_ctx.get() or {}).get("predmet_id") or None
+    except Exception:
+        return None
+
+
 # ─── Glavna javna funkcija ────────────────────────────────────────────────────
 
 def retrieve_documents(
@@ -2072,6 +2086,8 @@ def retrieve_documents(
         else:
             _dozvoljeni_set = set(_izvedeni_acl or [])
             dozvoljeni_predmeti = [p for p in dozvoljeni_predmeti if p in _dozvoljeni_set]
+    if current_predmet_id is None:
+        current_predmet_id = _trenutni_predmet_iz_konteksta()
 
     _kanc_exec = None
     _kanc_future = None

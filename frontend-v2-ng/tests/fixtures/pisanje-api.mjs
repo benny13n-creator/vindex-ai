@@ -269,6 +269,7 @@ export function pitanjeRuta(korisnici, kuke = {}) {
     (kuke.upisano || (() => {}))(b);
     const kontekst = b.predmet_id ? k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id) : null;
     const osnova = { credits_remaining: 9, kontekst_predmeta: kuke.kontekst !== undefined ? kuke.kontekst : kontekst };
+    if (kuke.kontekstStanje !== undefined) osnova.kontekst_predmeta_stanje = kuke.kontekstStanje;   // VCR001 T04
     const NAPOMENA = "\n\n---\n\n⚠️ **Pravna napomena:** Vindex AI pruža informacije zasnovane na zakonskim tekstovima Republike Srbije i ne predstavlja pravni savet.";
     let odg;
     if (/bez izvora/i.test(p)) odg = { odgovor: "Nemam pouzdan odgovor na ovo pitanje u trenutnoj bazi zakona.\n\n---\n📊 Pouzdanost: NISKA | Score: 0.120" + NAPOMENA, confidence: "LOW", top_score: 0.12 };

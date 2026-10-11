@@ -91,7 +91,13 @@
         li.append(el("p", "warn__title", u[1]), el("p", "warn__text", u[2]));
         $("pp-upozorenja").append(li);
       });
-      if (odg.kontekst_predmeta === false) {
+      if (odg.kontekst_predmeta === false && odg.kontekst_predmeta_stanje === "PRAZAN") {
+        $("pp-kontekst").hidden = false;
+        $("pp-kontekst").textContent = "Ovaj predmet još nema beleški ni utvrđenih činjenica, pa odgovor nije zasnovan na njima.";
+      } else if (odg.kontekst_predmeta === false && odg.kontekst_predmeta_stanje === "IZOSTAVLJEN") {
+        $("pp-kontekst").hidden = false;
+        $("pp-kontekst").textContent = "Sadržaj ovog predmeta je izostavljen iz odgovora iz bezbednosnih razloga (sumnjiv tekst u belešci ili činjenici).";
+      } else if (odg.kontekst_predmeta === false) {
         $("pp-kontekst").hidden = false;
         $("pp-kontekst").textContent = "Podaci ovog predmeta NISU uključeni u odgovor (predmet nije mogao da se pročita). Odgovor je opšti.";
       } else if (odg.kontekst_predmeta === true) {

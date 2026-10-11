@@ -123,6 +123,18 @@ for (const [naziv, q, provera] of [
   zapisi("B.kontekst", "`kontekst_predmeta:false` se izričito saopštava („NISU uključeni“)", /NISU uključeni/.test(e.kontekst || ""), e.kontekst);
   await s.zatvori();
 }
+// VCR001 T04: razlog zašto kontekst nije ušao — prazan predmet NIJE „nije mogao da se pročita“.
+for (const [stanje, re, ne] of [
+  ["PRAZAN", /još nema beleški ni utvrđenih činjenica/, /nije mogao da se pročita/],
+  ["IZOSTAVLJEN", /izostavljen iz odgovora iz bezbednosnih razloga/, /nije mogao da se pročita/],
+  ["NIJE_PROCITAN", /nije mogao da se pročita/, /još nema beleški/],
+]) {
+  const s = await scenario({ kontekst: false, kontekstStanje: stanje });
+  await pitaj(s.p, "Kako dokazati štetu?");
+  const e = await ekran(s.p);
+  zapisi("B.kontekst-" + stanje, "poruka odgovara stanju " + stanje, re.test(e.kontekst || "") && !ne.test(e.kontekst || ""), e.kontekst);
+  await s.zatvori();
+}
 
 // ── C: greške i nepoznat ishod ───────────────────────────────────────────
 for (const [naziv, kuka, stanje, re] of [
