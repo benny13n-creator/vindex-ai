@@ -199,7 +199,10 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             "tip_dokaza":      rezultat.get("tip_dokaza", "ostalo"),
             "pravni_elementi": rezultat.get("pravni_elementi", []),
             "ai_tags":         json.dumps(rezultat.get("ai_tags", {})),
-            "klasifikovan_at": _dt.now(_tz.utc).isoformat(),
+            # OSB003: `klasifikovan_at` se NE upisuje ovde. To je znak ZAVRŠENE klasifikacije i čuvar
+            # idempotencije (services/case_evolution.py::_consequence_evidence_classify). Upisan pre
+            # tvrdnji, prolazna greška upisa tvrdnji ispod je tvrdnje gubila trajno: posledica je
+            # proglašavana završenom, a ponovni pokušaj preskakan. Upisuje se tek kad tvrdnje uspeju.
         }).eq("id", dokument_id).execute()
         logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
         # klasifikuj_i_sacuvaj is a plain sync function invoked via
@@ -216,6 +219,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu klasifikacije predmet_dokumenti: %s", exc)
 
+    tvrdnje_upisane = False
     try:
         # Upiši ključne činjenice kao predmet_dokazi — nezavisno od gornjeg
         # bloka: cak i ako predmet_dokumenti update padne, kljucne cinjenice
@@ -257,8 +261,16 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 "[EVIDENCE] Upisano %d činjenica (%d utemeljeno u izvoru) za predmet=%s",
                 len(_rez_upisa["odluke"]), _utemeljeno, predmet_id,
             )
+        tvrdnje_upisane = True
     except Exception as exc:
         logger.warning("[EVIDENCE] Greška pri upisu predmet_dokazi: %s", exc)
+
+    if tvrdnje_upisane:
+        try:
+            from datetime import datetime as _dt, timezone as _tz
+            supa.table("predmet_dokumenti").update({"klasifikovan_at": _dt.now(_tz.utc).isoformat()}).eq("id", dokument_id).execute()
+        except Exception as exc:
+            logger.warning("[EVIDENCE] Greška pri upisu klasifikovan_at: %s", exc)
 
     return rezultat
 

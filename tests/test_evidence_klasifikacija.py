@@ -69,6 +69,8 @@ def test_predmet_dokumenti_update_happens_even_if_predmet_dokazi_insert_fails():
     dokumenti_table.update.assert_called_once()
     update_payload = dokumenti_table.update.call_args[0][0]
     assert update_payload["tip_dokaza"] == "ugovor"
+    # OSB003: bez upisanih tvrdnji NEMA znaka završene klasifikacije — posledica mora da se ponovi.
+    assert "klasifikovan_at" not in update_payload
 
 
 def test_both_succeed_normally_no_regression():
@@ -86,7 +88,10 @@ def test_both_succeed_normally_no_regression():
          patch("routers.evidence._klasifikuj_dokument", return_value=_fake_rezultat()):
         ev.klasifikuj_i_sacuvaj("predmet-1", "dok-1", "ugovor.pdf", "tekst", "user-1")
 
-    dokumenti_table.update.assert_called_once()
+    # OSB003: dva upisa u predmet_dokumenti — tip (odmah) i `klasifikovan_at` (tek POSLE uspelih tvrdnji).
+    payloads = [c[0][0] for c in dokumenti_table.update.call_args_list]
+    assert len(payloads) == 2 and payloads[0]["tip_dokaza"] == "ugovor" and "klasifikovan_at" not in payloads[0]
+    assert set(payloads[1]) == {"klasifikovan_at"}
     dokazi_table.insert.assert_called_once()
 
 

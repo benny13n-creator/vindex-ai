@@ -246,3 +246,41 @@ def test_V2_idempotencija_prikacivanja_i_ponovljeno_otpremanje(ok):
 
 def test_nema_spoljne_mreze():
     assert SPOLJNI_POKUSAJI == []
+
+
+REDOVI_CIR = [
+    "ОСНОВНИ СУД У БЕОГРАДУ",
+    "Број предмета: П 1234/2026",
+    "Тужилац: Марко Петровић из Београда",
+    "Тужени: Јован Јовановић из Новог Сада",
+    "Предмет: накнада штете у износу од 250.000,00 динара",
+    "Рочиште је заказано за 15. новембар 2026. године.",
+]
+
+
+def test_cirilicni_sken_kroz_worker_do_teksta_predmeta(ok):
+    """OSB003 Task 2: ćirilični skenirani PDF kroz STVARAN worker i STVARAN Tesseract do teksta dokumenta
+    prikačenog predmetu. Sa srpskim paketom tekst mora biti smislen (≥ 80 % tačnih ćiriličnih reči)."""
+    k, b = ok
+    from uploaded_doc import extractor
+    jezik = extractor._detect_ocr_lang()
+    r = _otpremi(k, "A", _skeniran_pdf(REDOVI_CIR), ime="cirilica.pdf")
+    assert r.status_code == 202, r.text
+    jid = r.json()["rezultati"][0]["job_id"]
+    assert _obradi() is True
+    posao = b.tabele["intake_jobs"][0]
+    assert posao["status"] in ("awaiting_review", "completed"), posao["status"]
+    if posao["status"] == "awaiting_review":
+        assert k.post(f"/api/smart-intake/jobs/{jid}/review/resolve", headers=zaglavlje("A")).status_code == 200
+    f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": PA}, headers=zaglavlje("A"))
+    assert f.status_code == 200, f.text
+    dok = [d for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == PA]
+    assert len(dok) == 1 and dok[0]["user_id"] == "uid-A"
+    tekst = (dok[0].get("tekst_sadrzaj") or "").lower()
+    reci = ["основни", "суд", "београду", "тужилац", "марко", "петровић", "тужени", "јован", "јовановић",
+            "накнада", "штете", "динара", "рочиште", "заказано", "новембар", "године"]
+    udeo = sum(1 for x in reci if x in tekst) / len(reci)
+    if "srp" in jezik.split("+"):
+        assert udeo >= 0.8, (jezik, udeo, tekst[:200])
+    elif os.getenv("VINDEX_EXPECT_SRP") == "1":
+        pytest.fail(f"produkciona slika bez ćiriličnog paketa: {jezik!r}")

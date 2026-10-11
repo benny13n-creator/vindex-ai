@@ -769,7 +769,9 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
     # Č/č diacritic -- a plain-ASCII "Clan 999" (no diacritic, a real degradation GPT can
     # and does produce) silently bypassed extraction entirely, since a citation the regex
     # never even sees can't be checked against anything. Reproduced.
-    citirani_raw = re.findall(r"[ČčCc]lan\s+(\d+[a-zA-Z]?)", odgovor)
+    # OSB003: i padežni oblici (člana/članu/članom/članovi...) i skraćenica „čl." — ranije su prolazili
+    # NEPROVERENI („u članu 9999", „čl. 9999"), iako ugovor kaže da SVAKI citiran član mora biti u kontekstu.
+    citirani_raw = re.findall(r"(?:[ČčCc]lan(?:a|u|om|ovi|ova|ovima)?|\b[ČčCc]l\.)\s*(\d+[a-zA-Z]?)", odgovor)
 
     # Deduplicate while preserving order
     vidjeni: set[str] = set()
@@ -786,7 +788,7 @@ def _proveri_halucinaciju(odgovor: str, docs: list[str]) -> tuple[bool, str]:
         fabrikovani: list[str] = []
         for clan in za_provjeru:
             clan_norm = _normalizuj(clan)
-            pattern = rf"lan\s+{re.escape(clan_norm)}(?!\d)"
+            pattern = rf"(?:lan(?:a|u|om|ovi|ova|ovima)?|\bcl\.)\s*{re.escape(clan_norm)}(?!\d)"
             if not re.search(pattern, kontekst_norm):
                 fabrikovani.append(clan)
 

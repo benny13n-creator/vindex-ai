@@ -86,8 +86,8 @@ def test_klasifikuj_i_sacuvaj_writes_a_real_timestamp_for_klasifikovan_at():
          patch("routers.evidence._klasifikuj_dokument", side_effect=_fake_rezultat):
         ev.klasifikuj_i_sacuvaj("predmet-1", "dok-1", "tuzba.pdf", "neki tekst dokumenta " * 5, "user-1")
 
-    dokumenti_table.update.assert_called_once()
-    payload = dokumenti_table.update.call_args[0][0]
+    # OSB003: `klasifikovan_at` je u ZASEBNOM upisu posle tvrdnji (tip ide prvi) — proverava se upis koji ga nosi.
+    payload = next(c[0][0] for c in dokumenti_table.update.call_args_list if "klasifikovan_at" in c[0][0])
     assert payload["klasifikovan_at"] != "now()"
     from datetime import datetime
     datetime.fromisoformat(payload["klasifikovan_at"])

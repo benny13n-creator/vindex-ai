@@ -192,6 +192,12 @@ def _nema_tabele(e: Exception) -> bool:
 
 async def _fetch_prepared_work(supa, uid: str, predmet_ids: list) -> list:
     if not predmet_ids:
+        # OSB003: bez predmeta se ranije NIJE pitala baza, pa je stanje bilo „OK" i bez migracije 136 — Danas je
+        # novom korisniku prikazivao „Vindex je pripremio". Jeftina provera (jedan red, samo svoj) otkriva da li
+        # tabela postoji; greška ide istim putem kao inače (NIJE_UKLJUCENO / NIJE_PROCITANO). Rezultat ostaje [].
+        await asyncio.to_thread(
+            lambda: supa.table("autonomy_work_items").select("id").eq("user_id", uid).limit(1).execute()
+        )
         return []
     r = await asyncio.to_thread(
         lambda: supa.table("autonomy_work_items")

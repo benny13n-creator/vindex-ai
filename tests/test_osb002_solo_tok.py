@@ -75,8 +75,8 @@ def _genome(pozivi):
     return _pozovi
 
 
-@pytest.fixture
-def solo(monkeypatch):
+def postavi_solo(monkeypatch):
+    """Okruženje solo toka (deli ga i tests/osb003_solo_server.py za browser test)."""
     k, b = pripremi(monkeypatch, {t: [] for t in TABELE})
     ns005_intake_fake.ukljuci(b)
     # `predmeti.case_dna` nema definiciju u migracijama; produkcija (read-only brojanje 2026-10-11): 0 od 148 redova
@@ -130,6 +130,12 @@ def solo(monkeypatch):
                                      usage=types.SimpleNamespace(prompt_tokens=1, completion_tokens=1, total_tokens=2))
     monkeypatch.setattr(cp, "_pozovi_pipeline_api", _pipeline_model)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-bez-mreze")
+    return k, b
+
+
+@pytest.fixture
+def solo(monkeypatch):
+    k, b = postavi_solo(monkeypatch)
     yield k, b
     ocisti()
 
