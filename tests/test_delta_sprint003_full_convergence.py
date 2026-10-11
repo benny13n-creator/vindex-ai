@@ -101,6 +101,8 @@ def test_registry_covers_exactly_the_6_events_wired_through_sprint_003():
         EventType.DOCUMENT_ACCEPTED, EventType.REVIEW_ACCEPTED, EventType.REVIEW_REJECTED,
         EventType.NEW_CLIENT_LINKED, EventType.NEW_EVIDENCE_REGISTERED, EventType.ROCISTE_ZAKAZANO,
         EventType.DOCUMENT_BATCH_COMPLETED, EventType.MATTER_BECAME_TERMINAL, EventType.SOURCE_INVALIDATED,
+        # VCR001 T03: odluka o roku (potvrda/odbijanje) → refresh_case_actions + projekcija obaveštenja.
+        EventType.MANUAL_CORRECTION_APPLIED,
     }
 
 

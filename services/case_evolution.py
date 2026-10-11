@@ -1540,8 +1540,9 @@ async def _consequence_project_case_actions_to_notifications(event: Event) -> st
 # NEW_EVIDENCE_REGISTERED — see CASE_EVOLUTION_REGISTRY.md for the full
 # per-event reasoning (owner/input/consequences/idempotency/audit/retry/
 # rollback/success-criterion) required by Task 4, including the 3 event
-# types still deliberately left empty (DOCUMENT_MODIFIED, CONFIDENCE_
-# DROPPED, MANUAL_CORRECTION_APPLIED — no proven consequence gap yet).
+# types originally left empty (DOCUMENT_MODIFIED, CONFIDENCE_DROPPED — no
+# proven consequence gap yet; MANUAL_CORRECTION_APPLIED wired in VCR001 T03
+# for the deadline decision, see its registry entry below).
 
 CONSEQUENCE_REGISTRY: dict[EventType, list[ConsequenceDef]] = {
     EventType.DOCUMENT_ACCEPTED: [

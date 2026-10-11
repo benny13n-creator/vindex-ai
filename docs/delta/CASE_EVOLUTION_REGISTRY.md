@@ -159,13 +159,13 @@ consequences for it.
 | Rollback ponašanje | None needed — same reasoning as `MATTER_BECAME_TERMINAL`: reconciling to current-justified state is the correct outcome, not a mutation requiring undo |
 | Success kriterijum | `case_actions` for the affected predmet matches exactly what CURRENT (post-deletion) sources justify — no more, no less |
 
-## The remaining 3 mapped events — still DECLARED, NOT WIRED
+## The remaining mapped events — still DECLARED, NOT WIRED (`MANUAL_CORRECTION_APPLIED` wired in VCR001 T03, see below)
 
 | Event | Where it would originate | Why not wired yet |
 |---|---|---|
 | `DOCUMENT_MODIFIED` | A document's classification/content changes post-acceptance (no current mechanism supports re-classifying an already-filed document) | No existing trigger point to hang this off of yet — building one is new functionality |
 | `CONFIDENCE_DROPPED` | A document/entity's confidence falls below `AUTO_ACCEPT_THRESHOLD` (Sprint 003's own Confidence Graph) | No consequence currently exists beyond the already-correct review-queue routing (Sprint 003/004) — nothing proven to be missing yet |
-| `MANUAL_CORRECTION_APPLIED` | `shared/intake_documents.py::correct_entity()` | Already writes its own `write_processing_outcome`/audit trail (Sprint 004) — no additional consequence identified as missing |
+| ~~`MANUAL_CORRECTION_APPLIED`~~ | — | **Wired in VCR001 T03 (2026-10-12).** Measured: `correct_entity()` never emitted it. The only emitter is `routers/rok_odluka.py` (lawyer confirms/rejects a document-sourced deadline). Consequences: `refresh_case_actions` (Rule 6 drops the decided deadline from the target set and the review action closes) + `project_notifications`. Idempotent: same reconcile as every other event. Owner: `predmet_id` of the deadline row (ownership already checked by the route). Retry: durable event, standard dispatcher. |
 
 ## Registry Audit — every `EventType` member accounted for (updated, Program Omega Sprint 002)
 
@@ -194,7 +194,7 @@ Evolution's domain, listed here so "100% match" means something precise rather t
 | `DOCUMENT_JOB_FAILED` | `services/event_bus.py::on_document_job_failed` | The one job-lifecycle event with a REAL consequence (a `proactive_alerts` row) — already has its own dedicated handler since Project Sentinel (2026-08-03), unrelated to Case Evolution's own 6 events |
 | `DOCUMENT_MODIFIED` | none — declared, not wired | Case Evolution's own domain, no proven consequence gap yet (see table above) |
 | `CONFIDENCE_DROPPED` | none — declared, not wired | Same |
-| `MANUAL_CORRECTION_APPLIED` | none — declared, not wired | Same |
+| `MANUAL_CORRECTION_APPLIED` | `routers/rok_odluka.py` → Case Evolution registry (VCR001 T03) | Wired: refresh_case_actions + project_notifications |
 
 **Result: registry is accurate.** Every `EventType` with a genuine, currently-needed reactive consequence
 (9 of 23) is wired to `handle_case_changed` and documented above. No registry entry names a consequence that
