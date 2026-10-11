@@ -138,6 +138,11 @@ jobs:
           python-version: "3.13"
       - name: Install pip-audit
         run: pip install pip-audit
+      # JRC001: odobreni izuzetak CVE-2026-85394 važi samo za python-jose==3.5.0 i najkasnije do 2027-01-09
+      # (security/izuzeci_ranjivosti.json). Posle roka, uz drugu verziju paketa, neispravan zapis ili nov ignore ID
+      # ovaj korak pada — produženje traži novo izričito odobrenje osnivača. Ništa ne potiskuje.
+      - name: Odobreni izuzeci ranjivosti — rok i obim (blocking)
+        run: python security/izuzeci_ranjivosti.py
       - name: pip-audit — dependency vulnerabilities (blocking, 2 documented exceptions)
         run: |
           pip-audit -r requirements.txt \
