@@ -116,7 +116,7 @@ export function klijentiRuta(korisnici, kuke = {}) {
   let n = 0;
   return async (req, url, res) => {
     if (url.pathname !== "/klijenti") return false;
-    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const sirovo = req.method === "POST" || req.method === "PATCH" ? await citajTelo(req) : "";
     const k = korisnik(req, korisnici);
     if (await kuka(kuke, url.pathname + ":" + req.method, k, req, res)) return true;
     if (!k) { json(res, 401, { detail: "Prijava je obavezna." }); return true; }
@@ -203,7 +203,7 @@ export function rocistaRuta(korisnici, kuke = {}) {
   let n = 0;
   return async (req, url, res) => {
     if (url.pathname !== "/api/rocista") return false;
-    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const sirovo = req.method === "POST" || req.method === "PATCH" ? await citajTelo(req) : "";
     const k = korisnik(req, korisnici);
     if (await kuka(kuke, url.pathname + ":" + req.method, k, req, res)) return true;
     if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
@@ -355,7 +355,7 @@ export function nacrtRuta(korisnici, kuke = {}) {
     }
     const jeNacrt = p === "/api/podnesak" || p === "/api/nacrti/export/docx" || p.startsWith("/api/staging/");
     if (!jeNacrt) return false;
-    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const sirovo = req.method === "POST" || req.method === "PATCH" ? await citajTelo(req) : "";
     const k = korisnik(req, korisnici);
     if (await kuka(kuke, p, k, req, res)) return true;
     if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
@@ -369,7 +369,7 @@ export function nacrtRuta(korisnici, kuke = {}) {
       let tekst = `${(b.sud_naziv || "OSNOVNI SUD").toUpperCase()}\n${b.sud_adresa || ""}\n\n${naziv.toUpperCase()}\n\nTužilac traži naknadu štete prema čl. 154 ZOO.\n<script>window.__xss=11</script>\n\nNAPOMENA SISTEMA: Ovaj nacrt je generisan uz pomoć Vindex AI i mora biti pregledan od strane ovlašćenog advokata pre podnošenja sudu.`;
       if (/izmišljen/.test(b.opis)) tekst = tekst.replace("čl. 154 ZOO", "[proveriti relevantan član] i [proveriti relevantan član]");
       const critique = /kritika pala/.test(b.opis) ? false : /keš/.test(b.opis) ? null : true;
-      if (b.predmet_id) k.staging.unshift({ id: `st-${k.id}-${++n}`, predmet_id: b.predmet_id, naziv, tip: b.tip, status: "pending", created_at: new Date().toISOString() });
+      if (b.predmet_id) k.staging.unshift({ id: `st-${k.id}-${++n}`, predmet_id: b.predmet_id, naziv, tip: b.tip, status: "pending", created_at: new Date().toISOString(), tekst });
       json(res, 200, { status: "success", odgovor: tekst, tip: b.tip, naziv, critique_applied: critique, ai_generated: true });
       return true;
     }
@@ -381,10 +381,30 @@ export function nacrtRuta(korisnici, kuke = {}) {
     }
     const ms = /^\/api\/staging\/predmet\/([^/]+)$/.exec(p);
     if (ms && req.method === "GET") { json(res, 200, { stavke: k.staging.filter(s => s.predmet_id === decodeURIComponent(ms[1])) }); return true; }
+    // VCR001 T05: ceo nacrt i izmena dok je na čekanju (isti ugovor kao routers/drafting.py).
+    const mj = /^\/api\/staging\/([^/]+)$/.exec(p);
+    if (mj && req.method === "GET") {
+      const s = k.staging.find(x => x.id === decodeURIComponent(mj[1]));
+      if (!s) { json(res, 404, { detail: "Nacrt nije pronađen." }); return true; }
+      json(res, 200, { ...s, tekst: s.tekst || `${s.naziv}\n\nRANIJE IZRAĐEN NACRT ${s.id}.\n<img src=x onerror="window.__xss=12">`, izmenio_advokat: !!s.izmenjeno_at, izmenjeno_at: s.izmenjeno_at || null });
+      return true;
+    }
+    const mt = /^\/api\/staging\/([^/]+)\/tekst$/.exec(p);
+    if (mt && req.method === "PATCH") {
+      (kuke.upisano || (() => {}))(p, b);
+      const s = k.staging.find(x => x.id === decodeURIComponent(mt[1]));
+      if (!s) { json(res, 404, { detail: "Nacrt nije pronađen." }); return true; }
+      if (s.status !== "pending") { json(res, 409, { detail: "Nacrt je već odobren ili odbijen — izmena više nije moguća." }); return true; }
+      if (!String(b.tekst || "").trim()) { json(res, 422, { detail: [{ loc: ["body", "tekst"] }] }); return true; }
+      s.tekst = b.tekst; s.izmenjeno_at = new Date().toISOString();
+      json(res, 200, { status: "pending", sacuvano: true, confidence_score: 0.5, izmenio_advokat: true, izmenjeno_at: s.izmenjeno_at });
+      return true;
+    }
     const ma = /^\/api\/staging\/([^/]+)\/(approve|reject)$/.exec(p);
     if (ma && req.method === "POST") {
       const s = k.staging.find(x => x.id === decodeURIComponent(ma[1]));
       if (!s) { json(res, 404, { detail: "Nacrt na čekanju nije pronađen." }); return true; }
+      if (ma[2] === "approve") s.odobren_tekst = s.tekst;
       s.status = ma[2] === "approve" ? "approved" : "rejected";
       json(res, 200, { status: s.status, indexed: false, poruka: "confidence_score (0.4) je ispod praga 0.85" });
       return true;
@@ -433,7 +453,7 @@ export function naplataRuta(korisnici, kuke = {}) {
   return async (req, url, res) => {
     const p = url.pathname;
     if (!p.startsWith("/billing/")) return false;
-    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const sirovo = req.method === "POST" || req.method === "PATCH" ? await citajTelo(req) : "";
     const k = korisnik(req, korisnici);
     if (await kuka(kuke, p + ":" + req.method, k, req, res)) return true;
     if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
@@ -497,7 +517,7 @@ export function rokoviRuta(korisnici, kuke = {}) {
     const p = url.pathname;
     const jeOdluka = /^\/api\/rokovi\/[^/]+\/(potvrdi|odbij)$/.test(p);
     if (!(p === "/api/rokovi/kandidati" || p === "/api/kalendar/pregled" || jeOdluka)) return false;
-    const sirovo = req.method === "POST" ? await citajTelo(req) : "";
+    const sirovo = req.method === "POST" || req.method === "PATCH" ? await citajTelo(req) : "";
     const k = korisnik(req, korisnici);
     if (await kuka(kuke, (jeOdluka ? "/api/rokovi/odluka" : p) + ":" + req.method, k, req, res)) return true;
     if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }

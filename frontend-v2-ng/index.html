@@ -632,9 +632,13 @@
             <h2 class="matter__h2" id="nc-naslov-nacrta"></h2>
             <p class="draft__label">Nacrt je polazna tačka, ne gotov podnesak: pre podnošenja ga mora pregledati advokat.</p>
             <p class="notice" id="nc-provera" role="status" hidden></p>
-            <label class="field__label" for="nc-tekst">Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)</label>
+            <p class="notice" id="nc-otvoren-stanje" role="status" aria-live="polite" hidden></p>
+            <label class="field__label" id="nc-tekst-oznaka" for="nc-tekst">Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)</label>
             <textarea class="field__input draft__text" id="nc-tekst" rows="24" spellcheck="false"></textarea>
-            <div class="form__actions"><button class="text-btn text-btn--line" id="nc-docx" type="button">Preuzmi kao Word (.docx)</button></div>
+            <div class="form__actions">
+              <button class="text-btn text-btn--line" id="nc-sacuvaj" type="button" hidden>Sačuvaj izmene</button>
+              <button class="text-btn text-btn--primary" id="nc-odobri" type="button" hidden>Odobri ovaj tekst</button>
+              <button class="text-btn text-btn--line" id="nc-docx" type="button">Preuzmi kao Word (.docx)</button></div>
             <p class="notice" id="nc-docx-poruka" role="status" aria-live="polite" hidden></p>
           </section>
           <section class="matter__section" aria-labelledby="nc-overa-naslov">
