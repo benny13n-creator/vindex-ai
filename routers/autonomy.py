@@ -182,8 +182,14 @@ async def _ucitaj_svoj(supa, uid: str, wid: str, kolone: str) -> dict:
     import asyncio as _a
     if not _UUID.match(wid or ""):
         raise _nije_pronadjen()
-    r = await _a.to_thread(lambda: supa.table("autonomy_work_items").select(kolone)
-                           .eq("id", wid).eq("user_id", uid).limit(1).execute())
+    try:
+        r = await _a.to_thread(lambda: supa.table("autonomy_work_items").select(kolone)
+                               .eq("id", wid).eq("user_id", uid).limit(1).execute())
+    except Exception as e:
+        from routers.workspace import _nema_tabele
+        if _nema_tabele(e):   # kod pre migracije 136: radni proizvod ne može da postoji — isti 404, ne 500
+            raise _nije_pronadjen()
+        raise
     red = (r.data or [None])[0]
     if not red:
         raise _nije_pronadjen()

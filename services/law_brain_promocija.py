@@ -54,9 +54,15 @@ async def predlozi_kao_znanje(supa, user_id: str, work_id: str) -> Optional[dict
     zahtev za isti rad vraća POSTOJEĆI staging red (jedan rad = jedan predlog)."""
     from services.quality_gate import evaluate_draft_quality
     from shared.kancelarija_utils import get_kancelarija_id
-    r = await asyncio.to_thread(lambda: supa.table("autonomy_work_items")
-                                .select("id,user_id,predmet_id,work_type,status,title,summary,content_json")
-                                .eq("id", work_id).eq("user_id", user_id).limit(1).execute())
+    try:
+        r = await asyncio.to_thread(lambda: supa.table("autonomy_work_items")
+                                    .select("id,user_id,predmet_id,work_type,status,title,summary,content_json")
+                                    .eq("id", work_id).eq("user_id", user_id).limit(1).execute())
+    except Exception as e:
+        from routers.workspace import _nema_tabele
+        if _nema_tabele(e):   # pre migracije 136 radni proizvod ne postoji → isti 404 kao nepostojeći
+            return None
+        raise
     item = (r.data or [None])[0]
     if not item or not item.get("predmet_id"):
         return None
