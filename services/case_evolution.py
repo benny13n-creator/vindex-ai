@@ -556,7 +556,8 @@ async def _consequence_conflict_check(event: Event) -> str:
         return "skipped_no_klijent_ime"
 
     from routers.intake import COI_CHECK_FAILED, COI_NO_CONFLICT, _run_conflict_check
-    result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "")
+    result = await _run_conflict_check(event.user_id, klijent_ime, "", protivna_strana, "",
+                                       iskljuci_predmet_id=event.predmet_id)
 
     # N4-COI-001: neuspela provera NIJE "nema sukoba". Ranije je pao upit
     # zavrsavao ovde kao `no_conflict` i proaktivni alarm se nikad ne bi
@@ -581,14 +582,32 @@ async def _consequence_conflict_check(event: Event) -> str:
 
     opisi = "; ".join(c.get("opis", "") for c in result.get("conflicts", [])[:5])
     supa = _get_supa()
+    # FRI001: nalaz je PODUDARANJE IMENA, ne pravna ocena. Ranije je upozorenje preuzimalo `preporuka` HTTP
+    # provere („Postoji BLOKIRAJUCI sukob… Ne možete zastupati…“) i tako mečer predstavljalo kao potvrđen sukob.
+    # Ozbiljnost (urgentnost, „blokirajući“ tip podudaranja) ostaje ista; odluku donosi advokat.
+    naslov = ("Mogući blokirajući sukob interesa — potrebna provera" if result.get("has_blocker")
+              else "Mogući sukob interesa — potrebna provera")
+    opis = (f"Automatsko podudaranje imena, nije pravna ocena: {opisi} "
+            "Proverite pre prihvatanja ili nastavka zastupanja.").strip()[:2000]
+    # FRI001: prekid posle upisa upozorenja, a pre _mark_completed, ponovo pokreće ovu posledicu posle isteka
+    # zastarelosti (ritam ponovnih pokušaja nije ograničen jednim prozorom) — isto NEPROČITANO upozorenje za isti
+    # predmet se ne upisuje drugi put. Pročitano/novo drugačije upozorenje nije pogođeno.
+    _dup = await asyncio.to_thread(
+        lambda: supa.table("proactive_alerts").select("id")
+            .eq("user_id", event.user_id).eq("predmet_id", event.predmet_id)
+            .eq("tip", "sukob_interesa").eq("opis", opis).eq("procitana", False)
+            .limit(1).execute()
+    )
+    if _dup.data:
+        return "skipped_duplicate_conflict_alert"
     from shared.proactive_alerts import create_proactive_alert
     ok = await create_proactive_alert(
         supa,
         user_id=event.user_id,
         predmet_id=event.predmet_id,
         tip="sukob_interesa",
-        naslov="BLOKIRAJUĆI sukob interesa" if result.get("has_blocker") else "Mogući sukob interesa",
-        opis=f"{result.get('preporuka', '')} {opisi}".strip()[:2000],
+        naslov=naslov,
+        opis=opis,
         urgentnost="hitna" if result.get("has_blocker") else "normalna",
         retry_internally=False,
     )
