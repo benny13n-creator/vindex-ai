@@ -1673,7 +1673,6 @@ async def _finalize_intake_job_core(
             # tekst_sadrzaj at all -- not a "migration not yet applied"
             # degradation (what this fallback ladder exists for), an
             # unrelated value bug masquerading as one.
-            from datetime import datetime as _dt_ki, timezone as _tz_ki
             _drop_095 = ("content_sha256", "source_intake_job_id")
             _drop_094 = ("source_intake_job_segment_id",)
 
@@ -1695,7 +1694,12 @@ async def _finalize_intake_job_core(
             dok_ins = None
             for _redni_attempt in range(3):
                 _base_rn = {**_dok_row_base, "redni_broj": _sledeci_redni}
-                _variant_full = {**_base_rn, "tip_dokaza": doc_type_i, "klasifikovan_at": _dt_ki.now(_tz_ki.utc).isoformat(), "tekst_sadrzaj": seg_text[:100_000]}
+                # OSB002: bez `klasifikovan_at`. To je kanonski znak ZAVRŠENE klasifikacije dokaza
+                # (routers/evidence.py::klasifikuj_i_sacuvaj ga upisuje) i čuvar idempotencije u
+                # services/case_evolution.py::_consequence_evidence_classify. Upisan ovde, pre događaja
+                # NEW_EVIDENCE_REGISTERED ispod, činio je da posledica UVEK vrati
+                # "skipped_already_classified" — dokument iz Smart Intake-a nikad nije dobio tvrdnje.
+                _variant_full = {**_base_rn, "tip_dokaza": doc_type_i, "tekst_sadrzaj": seg_text[:100_000]}
                 _variant_full_no_095 = {k: v for k, v in _variant_full.items() if k not in _drop_095}
                 _variant_full_no_lineage = {k: v for k, v in _variant_full.items() if k not in _drop_095 + _drop_094}
                 _variant_base_no_095 = {k: v for k, v in _base_rn.items() if k not in _drop_095}
