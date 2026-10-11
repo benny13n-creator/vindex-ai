@@ -46,6 +46,7 @@
     "e2e:fastapi": "node tests/live-fastapi-e2e.mjs",
     "e2e:sw-isolation": "node tests/live-sw-isolation.mjs",
     "e2e:primary": "node tests/live-primary-e2e.mjs",
+    "e2e:pre136": "node tests/live-pre136-e2e.mjs",
     "e2e:site": "node tests/site-e2e.mjs"
   },
   "keywords": [],

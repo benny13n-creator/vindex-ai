@@ -227,6 +227,48 @@ class _Upit:
         raise AttributeError(ime)
 
 
+# OSB002: opcioni režim autonomije (samo kad ga test eksplicitno traži; podrazumevano ništa se ne menja).
+#   VX_E2E_AUTONOMIJA=pre136  — tabele migracije 136 NE postoje (PostgREST PGRST205), kao produkcija danas;
+#   VX_E2E_AUTONOMIJA=spremno — pozitivna kontrola: tabela postoji i vraća jedan spreman rad korisnika A.
+AUTONOMIJA = os.environ.get("VX_E2E_AUTONOMIJA", "")
+assert AUTONOMIJA in ("", "pre136", "spremno")
+_TABELE_136 = ("autonomy_cycles", "autonomy_work_items")
+# /api/autonomy/work-items?matter_id= prihvata samo UUID (kao produkcijski predmeti) — zato jedan UUID predmet korisnika A.
+PREDMET_136 = "aaaa0136-0000-4000-8000-00000000000a"
+_SPREMAN_RAD = {"id": "0000c0de-0000-4000-8000-000000000001", "predmet_id": PREDMET_136, "user_id": "korisnik-A",
+                "status": "READY_FOR_REVIEW", "work_type": "HEARING_PREP", "title": "Priprema za ročište",
+                "summary": "Sažetak pripreme", "reason": "Ročište sutra", "quality_state": "AI_PREPARED_FOR_REVIEW",
+                "ready_at": "2026-10-11T03:00:00+00:00", "case_action_id": None}
+
+if AUTONOMIJA:
+    _p136 = _red("korisnik-A", 136, naziv="Petrović protiv Gradnja Invest DOO")
+    _p136.update({"id": PREDMET_136, "created_at": "2026-10-10T09:00:00+00:00"})
+    BAZA.append(_p136)
+    TABELE["predmet_dokumenti"].append(_dok(PREDMET_136, "korisnik-A", 0, "TEKST-136 sadržaj spisa."))
+    _execute_osnovni = _Upit.execute
+
+    def _execute_autonomija(self):
+        if self.tabela in _TABELE_136:
+            _zapisi({"vrsta": "AUTONOMIJA-UPIT", "rezim": AUTONOMIJA, "tabela": self.tabela, "put": _PUT.get()})
+            if AUTONOMIJA == "pre136":
+                raise RuntimeError('{"code": "PGRST205", "message": "Could not find the table public.%s in the schema cache"}' % self.tabela)
+            redovi = [dict(_SPREMAN_RAD)] if self.tabela == "autonomy_work_items" else []
+            return types.SimpleNamespace(data=redovi, count=len(redovi))
+        return _execute_osnovni(self)
+    _Upit.execute = _execute_autonomija
+
+    class _Negacija:
+        """PostgREST `.not_.in_(k, v)` (workspace: aktivni predmeti): red prolazi ako vrednost NIJE u v."""
+        def __init__(self, q):
+            self.q = q
+
+        def in_(self, k, v):
+            izvor = BAZA if self.q.tabela == "predmeti" else TABELE.get(self.q.tabela, [])
+            self.q.u_listi.append((k, sorted({r.get(k) for r in izvor if r.get(k) not in list(v)}, key=str)))
+            return self.q
+    _Upit.not_ = property(lambda self: _Negacija(self))
+
+
 class _Supa:
     def table(self, ime):
         return _Upit(ime)
@@ -266,6 +308,10 @@ async def _trenutni(authorization: str = __import__("fastapi").Header(None)):
 
 
 api.app.dependency_overrides[api.get_current_user] = _trenutni
+if AUTONOMIJA:
+    # /api/workspace i /api/autonomy/* koriste `shared.deps.get_current_user` (isti lažni token, ista provera).
+    import shared.deps as _deps  # noqa: E402
+    api.app.dependency_overrides[_deps.get_current_user] = _trenutni
 # Rate limit nije predmet ovog testa (svi zahtevi dolaze sa 127.0.0.1).
 api.limiter.enabled = False
 
