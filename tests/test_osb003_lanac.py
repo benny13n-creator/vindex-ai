@@ -107,9 +107,9 @@ def test_pad_genome_pa_oporavak_zadrzava_identitet_dogadjaja(solo, monkeypatch):
 
 
 def test_beta_def_004_pad_upisa_dogadjaja_posle_dokumenta(solo):
-    """BETA-DEF-004 (karakterizacija, NIJE ispravljeno): upis događaja padne odmah posle upisa dokumenta.
-    Finalizacija vraća 200, dokument postoji, ali tvrdnje i Genome nikad ne nastaju; ponovljena finalizacija
-    dokument vidi kao „već obrađen“ i događaj ne šalje ponovo. Test opisuje SADAŠNJE ponašanje."""
+    """BETA-DEF-004 — ISPRAVLJENO u FRG001 (puna matrica: tests/test_frg001_dogadjaj_dokumenta.py). Upis događaja
+    padne odmah posle upisa dokumenta: finalizacija više ne vraća 200 i posao ne postaje „prikačen“; ponovni
+    pokušaj dovršava isti dokument (bez duplikata) i tvrdnje nastaju."""
     k, b = solo
     _, pid = _novi_predmet(k, b)
     jid = _otpremi(k, _pdf()).json()["rezultati"][0]["job_id"]
@@ -121,11 +121,8 @@ def test_beta_def_004_pad_upisa_dogadjaja_posle_dokumenta(solo):
     b.greske["events"] = Exception('{"code": "08006", "message": "connection failure"}')
     f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A)
     del b.greske["events"]
-    assert f.status_code == 200 and len(b.tabele["predmet_dokumenti"]) == 1
-    assert len(b.tabele["events"]) == pre                 # nijedan događaj nije upisan
+    assert f.status_code == 503 and len(b.tabele["predmet_dokumenti"]) == 1
+    assert len(b.tabele["events"]) == pre and b.tabele["intake_jobs"][0]["predmet_id"] is None
+    assert k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).status_code == 200
     _do_kraja_dogadjaja(b)
-    assert b.tabele["predmet_dokazi"] == []
-    b.tabele["intake_jobs"][0]["assimilation_complete"] = False   # i ponovni pokušaj
-    k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A)
-    _do_kraja_dogadjaja(b)
-    assert b.tabele["predmet_dokazi"] == [] and len(b.tabele["predmet_dokumenti"]) == 1
+    assert b.tabele["predmet_dokazi"] and len(b.tabele["predmet_dokumenti"]) == 1

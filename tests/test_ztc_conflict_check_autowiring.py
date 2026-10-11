@@ -278,9 +278,14 @@ async def test_finalize_emit_failure_does_not_break_case_creation():
         "entities": [{"entity_type": "plaintiff", "value": "Marko Marković"}],
     }
 
+    # FRG001: pad se ubacuje SAMO u NEW_CLIENT_LINKED (predmet testa). Pad NEW_EVIDENCE_REGISTERED/
+    # DOCUMENT_ACCEPTED više nije fail-soft (BETA-DEF-004) — pokriveno u tests/test_frg001_dogadjaj_dokumenta.py.
+    def _pad_samo_klijent(event_type, *a, **kw):
+        if event_type.value == "NewClientLinked":
+            raise RuntimeError("boom")
     result, _mock_emit = await _run_finalize(
         mock_supa, job_result, FinalizeReq(klijent_strana="plaintiff"),
-        emit_side_effect=RuntimeError("boom"),
+        emit_side_effect=_pad_samo_klijent,
     )
 
     assert result["predmet_id"] == "pred-001"

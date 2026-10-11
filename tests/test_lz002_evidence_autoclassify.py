@@ -125,14 +125,24 @@ async def test_finalize_triggers_evidence_classification_in_background():
 
 @pytest.mark.anyio
 async def test_finalize_evidence_classification_failure_does_not_break_response():
-    """Program Delta, Sprint 002 (2026-08-05): fire-and-forget discipline
-    preserved through the migration -- if the durable NEW_EVIDENCE_REGISTERED
-    insert itself fails (a classifier failure now happens later, async, in
-    the Canonical Consequence Engine -- tested separately), the case must
-    still be created and the response must still succeed."""
+    """Program Delta, Sprint 002 (2026-08-05): ako upis trajnog NEW_EVIDENCE_REGISTERED padne, predmet ostaje
+    kreiran (ne vraća se unazad).
+
+    FRG001 (BETA-DEF-004): odgovor VIŠE NIJE uspeh. Stari ugovor („odgovor i dalje uspeva“) je bio sam defekt:
+    posao se obeležavao kao prikačen, a dokument je trajno ostajao bez tvrdnji. Sada: 503, predmet postoji,
+    posao NIJE obeležen kao prikačen, pa ponovni pokušaj dovršava obradu."""
+    from fastapi import HTTPException
     from routers.smart_intake import finalize_intake_job, FinalizeReq
 
     mock_supa = _make_supa()
+    tabele: dict = {}
+    _pravi = mock_supa.table.side_effect
+
+    def _belezi(name):
+        t = _pravi(name)
+        tabele.setdefault(name, []).append(t)
+        return t
+    mock_supa.table.side_effect = _belezi
     job_result = {"document": {"id": "dok-001", "document_type": "judgment"}, "entities": [], "review": None}
 
     with patch("routers.smart_intake._get_supa", return_value=mock_supa), \
@@ -148,8 +158,13 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
          patch("routers.smart_intake.intake_queue.claim_finalize", new=AsyncMock(return_value={"id": "job-1", "finalizing_at": "2026-08-07T00:00:00+00:00"})), \
          patch("services.event_bus.emit_durable", new=AsyncMock(side_effect=RuntimeError("boom"))):
 
-        result = await finalize_intake_job(
-            "job-1", _fake_request(), FinalizeReq(), _fake_user(),
-        )
+        with pytest.raises(HTTPException) as izuzetak:
+            await finalize_intake_job(
+                "job-1", _fake_request(), FinalizeReq(), _fake_user(),
+            )
 
-    assert result["predmet_id"] == "pred-001"
+    assert izuzetak.value.status_code == 503
+    assert any(t.insert.called for t in tabele["predmeti"])           # predmet JESTE kreiran
+    for t in tabele.get("intake_jobs", []):                          # ali posao nije obeležen kao prikačen
+        for poziv in t.update.call_args_list:
+            assert "predmet_id" not in poziv.args[0] and "assimilation_complete" not in poziv.args[0]

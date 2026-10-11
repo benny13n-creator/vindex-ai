@@ -42,7 +42,13 @@ def _make_docs(texts: list[str]) -> list[str]:
         "Zakon o radu reguliše prava i obaveze zaposlenih i poslodavaca. "
         "Odredbe zakona primenjuju se na sve zaposlene. "
     )
-    result = list(texts)
+    # FRG001: izvor u formatu „Zakon X, Član N: tekst“ prevodi se u STVARNI format retrieval-a
+    # (app/services/retrieve.py::_formatiraj_match) — čuvar sada vezuje citat za identitet izvora iz zaglavlja.
+    import re as _re
+    result = []
+    for t in texts:
+        m = _re.match(r"^(Zakon[^,]*|Porodi[^,]*), (Član \d+[a-z]?): (.*)$", t)
+        result.append(f"ZAKON: {m.group(1).lower()}\nČLAN: {m.group(2)}\n\nCITABILNI TEKST: {m.group(3)}\n" if m else t)
     while len(result) < 3:
         result.append(pad)
     while sum(len(d) for d in result) < 500:

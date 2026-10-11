@@ -59,6 +59,11 @@ class Upit6(h5._Upit):
         return _Negacija(self)
 
     def insert(self, red, *a, **k):
+        # FRG001: potpis supabase-py 2.28.3 — `insert()` nema `ignore_duplicates`/`on_conflict` (to ima samo
+        # `upsert()`). Fake ih je ranije prihvatao i sakrio da se nijedan događaj sa `event_id` nije upisivao.
+        nepoznato = set(k) - {"count", "returning", "upsert", "default_to_null"}
+        if nepoznato:
+            raise TypeError(f"SyncRequestBuilder.insert() got an unexpected keyword argument {sorted(nepoznato)[0]!r}")
         self.opcije = dict(k)
         return super().insert(red, *a, **k)
 
