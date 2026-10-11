@@ -795,9 +795,13 @@ async def _run_conflict_check(
             "Rezultat se ne sme tumačiti kao odsustvo sukoba."
         )
     elif has_blocker:
+        # OPERATION LIVE (odobrena COI politika bete): nalaz je PODUDARANJE IMENA (`_name_match`), ne utvrđen sukob.
+        # Ranije: „Postoji BLOKIRAJUCI sukob… Ne možete zastupati… (čl. 42 Zakona o advokaturi)“ — kategorična pravna
+        # tvrdnja i navod člana koji ovaj sistem ne proverava. Ozbiljnost (`has_blocker`, „BLOKIRAJUCI“) ostaje.
         preporuka = (
-            "Postoji BLOKIRAJUCI sukob interesa. Ne možete zastupati ovog klijenta "
-            "u predmetu gde je suprotna strana vaš postojeći klijent (čl. 42 Zakona o advokaturi)."
+            "Mogući sukob interesa — potrebna provera. Ime se podudara sa vašim postojećim klijentom ili "
+            "suprotnom stranom u drugom predmetu (automatsko podudaranje imena, nije pravna ocena). "
+            "Pre prihvatanja zastupanja proverite da li je reč o istom licu i o kakvom je odnosu reč."
         )
     elif conflict_detected:
         preporuka = (
