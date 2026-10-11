@@ -124,3 +124,28 @@ Program na grani `program/vcr001` (worktree `C:/vindex-vcr001`), počev od `main
   - pojačana ns006 demo provera;
   - zastarela dokumentacija registra.
 - **Merge/deploy:** NIJE izvršen — čeka odluku osnivača za R1 kandidat.
+
+## T04 — Genome i istraživanje: kontekst predmeta se stvarno koristi — `PASS_IMPLEMENTED`
+- **Commit:** `f995f709`.
+- **Zatečeno (P, kod):**
+  - Genome čita dokumente i činjenice predmeta (`routers/case_dna._fetch_dokazi_kontekst`) — postoji, nije rađeno ponovo.
+  - `/api/pitanje` ubacuje činjenice, beleške i istoriju.
+  - ALI `ask_agent` → `retrieve_documents` nikad nije dobio trenutni predmet: pojačanje istog predmeta i suženje posle `rag_acl._MAX_IN` bili su mrtvi za pravno pitanje.
+  - Predmet bez beleški i činjenica V2 je prikazivao kao „predmet nije mogao da se pročita“ — netačno.
+- **Ispravka:**
+  - `/api/pitanje` poziva agenta unutar kanonskog `shared/ai_provenance.case_context(predmet_id)`, samo za potvrđenog vlasnika i predmet koji nije u brisanju (isti upit kao BETA-DEL-001);
+  - `retrieve_documents` čita predmet iz konteksta ako ga pozivalac ne prosledi; ACL ostaje jedina kapija;
+  - nov `kontekst_predmeta_stanje` (UKLJUCEN | PRAZAN | IZOSTAVLJEN | NIJE_PROCITAN); bool polje nepromenjeno; V2 poruka po stanju.
+- **Namerno NIJE urađeno:** Genome izlaz se ne ubacuje u prompt pitanja — izvor istine su `predmet_dokazi`, ne AI analiza.
+- **Testovi:**
+  - `tests/test_vcr001_t04_kontekst_predmeta.py` (11, LI): crveno pre 7, kontrole prolaze;
+  - mutacije 6/6;
+  - M19 (granica poverenja) bio je nasleđen crven na `main` zbog drifta dvojnika (`.is_()`) — sada zelen, CI 175→174.
+- **BM:** `live-pitanje` 45/45 (3 nova stanja).
+- **CI na `f995f709`:**
+  - Test Suite 174/174 (0 novih, 1 ispravljen);
+  - Runtime 197 = isti parametrizovani skup kao `main`;
+  - Security zeleno;
+  - V2 NG zeleno na ponovljenom pokretanju (prvo: demo-piksel šum).
+- **Lokalno:** pun Python paket 19 padova, svi i na `main` stablu (13 lokalnih razlika okruženja + 6 nasleđenih).
+- **Otvoren defekt (CI):** `FLAKY-DEMO-PIKSEL` — `live-browser-matrix` demo-piksel povremeno pada sa 3–4 piksela u koloni x≈255–263 (HEAD↔HEAD i HEAD↔foundation). Prag se NE menja; zelen na ponovljenom pokretanju (2/2).
