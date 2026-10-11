@@ -134,6 +134,14 @@ def solo(monkeypatch):
     ocisti()
 
 
+def _orig_extract():
+    from shared.intake_worker import IntakeWorker
+    return IntakeWorker._extract_text
+
+
+_ORIG_EXTRACT = None
+
+
 def _radnik():
     from shared.intake_worker import IntakeWorker
     return asyncio.run(IntakeWorker(worker_id="osb002")._tick())
@@ -331,6 +339,8 @@ def test_prekinuta_obrada_nije_zavrsena_i_ne_moze_da_se_prikaci(solo, monkeypatc
     _, pid = _novi_predmet(k, b)
     jid = _otpremi(k, _pdf()).json()["rezultati"][0]["job_id"]
     from shared.intake_worker import IntakeWorker
+    global _ORIG_EXTRACT
+    _ORIG_EXTRACT = IntakeWorker.__dict__["_extract_text"]
 
     def _pad(self, path):
         raise RuntimeError("worker prekinut usred ekstrakcije")
@@ -342,10 +352,35 @@ def test_prekinuta_obrada_nije_zavrsena_i_ne_moze_da_se_prikaci(solo, monkeypatc
     assert f.status_code >= 400 and b.tabele["predmet_dokumenti"] == []
     g = k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()
     assert g["job"]["status"] == posao["status"] and g["job"]["last_error"]
-    # ponovni pokušaj posle prekida završava normalno
-    monkeypatch.undo()
+    assert posao["status"] == "received" and posao["attempts"] == 1 and posao["next_retry_at"], posao   # zakazan retry, ne „gotovo"
+    # ponovni pokušaj posle prekida (backoff istekao) završava normalno i ne duplira ništa
+    monkeypatch.setattr(IntakeWorker, "_extract_text", _ORIG_EXTRACT)
     posao["next_retry_at"] = None
-    posao["status"] = "received" if posao["status"] == "failed_retryable" else posao["status"]
+    assert _radnik() is True and posao["status"] in ("completed", "awaiting_review"), posao["status"]
+    if posao["status"] == "awaiting_review":
+        assert k.post(f"/api/smart-intake/jobs/{jid}/review/resolve", headers=A).status_code == 200
+    assert k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).status_code == 200
+    assert len(b.tabele["predmet_dokumenti"]) == 1 and len(b.tabele["intake_documents"]) == 1
+
+
+def test_osteceni_pdf_nije_lazno_zavrsen(solo):
+    k, b = solo
+    _, pid = _novi_predmet(k, b)
+    r = _otpremi(k, b"%PDF-1.7\n" + b"\x00\xff osteceno " * 200, ime="osteceno.pdf")
+    if r.status_code != 202:            # odbijeno već pri otpremanju — ništa nije u redu ni u skladištu
+        assert r.status_code in (400, 413, 415, 422) and b.tabele["intake_jobs"] == []
+        return
+    rez = r.json()["rezultati"][0]
+    if not rez.get("ok"):
+        assert b.tabele["intake_jobs"] == []
+        return
+    for _ in range(6):
+        _radnik()
+        b.tabele["intake_jobs"][0]["next_retry_at"] = None
+    posao = b.tabele["intake_jobs"][0]
+    assert posao["status"] != "completed", posao
+    assert k.post(f"/api/smart-intake/jobs/{rez['job_id']}/finalize", json={"predmet_id": pid}, headers=A).status_code == 409
+    assert b.tabele["predmet_dokumenti"] == []
 
 
 def test_dokument_bez_teksta_ide_na_pregled_ne_lazno_zavrsen(solo):
