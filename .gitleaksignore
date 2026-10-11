@@ -22,6 +22,8 @@ a1242da5b6af42616b709d49ec382715ef7105b7:tests/test_client_portal.py:generic-api
 780c9380af4e3a82a69a54548b00a36b7441e11f:tests/test_lambda001_beta_readiness_fixes.py:generic-api-key:10
 622c62e061aa8cf7899a1820dcdd02be8a0499be:tests/test_lambda002_ownership_idor_fixes.py:generic-api-key:23
 d1be4ce762c75c3f805d2b6518fb0e544b9c5089:tests/test_living_system_fixes.py:generic-api-key:8
+# OSB003 (2026-10-11): ista testna vrednost kao gore (SECRET_KEY fixture), procitana iz commit blob-a.
+e2dadc55eb9fb0e96e9d09d949b2487bc0e0c000:tests/test_wave10_rate_limiter_isolation.py:generic-api-key:35
 # "vndx_testkey12345" / "validApiKey15678" — integration-test stand-ins.
 c86d82df963a1be254ede4e6adce32bda9956ea0:tests/test_integracije.py:generic-api-key:31
 1dd21fad6995d97aff5bbf417c69acc293765c2f:tests/test_sef.py:generic-api-key:230

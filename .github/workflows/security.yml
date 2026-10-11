@@ -89,6 +89,10 @@ jobs:
           # the action is more predictable when told. .gitleaksignore is read
           # from the root automatically.
           GITLEAKS_CONFIG: .gitleaks.toml
+          # OSB003: akcija bez ovoga preuzima gitleaks 8.24.3, koji NE čita `[[allowlists]]` iz .gitleaks.toml
+          # (dokazano: 8.24.3 + ova konfiguracija = 876 nalaza, 8.30.1 = 0 posle .gitleaksignore). Fiksna verzija,
+          # ne "latest", da rezultat ne zavisi od dana pokretanja.
+          GITLEAKS_VERSION: "8.30.1"
 
   sast-core:
     runs-on: ubuntu-latest
