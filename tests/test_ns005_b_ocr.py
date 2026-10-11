@@ -286,3 +286,29 @@ def test_E_bez_tesseract_programa_nema_izmisljenog_teksta(tmp_path, monkeypatch)
     IZVESTAJ["E_bez_tesseract"] = {"slika": {"znakova": len(r1[0]), "ocr_used": r1[2]}, "pdf": {"znakova": len(r2[0]), "ocr_used": r2[2]}}
     for text, skeniran, ocr_used, strane, conf in (r1, r2):
         assert text == "" and skeniran is True and ocr_used is False and conf is None
+
+
+def test_F_mesoviti_pdf_skenirana_strana_kroz_pravi_ocr(tmp_path, spijun):
+    """VCR001 T01: digitalna strana + skenirana ćirilična strana bez tekstualnog sloja u ISTOM PDF-u. Ranije se OCR
+    nije pokretao (prosek po strani iznad praga) i tekst skenirane strane se tiho gubio."""
+    import fitz
+    doc = _strana_sa_tekstom(REDOVI)                      # strana 1: pravi tekstualni sloj
+    b = io.BytesIO()
+    _slika(REDOVI_CIR).save(b, format="PNG")
+    s2 = doc.new_page(width=595, height=842)            # strana 2: samo slika (sken)
+    s2.insert_image(fitz.Rect(20, 20, 575, 314), stream=b.getvalue())
+    p = tmp_path / "mesovit.pdf"
+    doc.save(str(p))
+    doc.close()
+    text, skeniran, ocr_used, strane, conf = extractor.extract(p)
+    udeo_lat, _ = _pogodak(strane[0])
+    udeo_cir, nadjene = _pogodak_cir(strane[1])
+    jezik = spijun[0] if spijun else ""
+    IZVESTAJ["F_mesoviti_pdf"] = {"ocr_pozvan": len(spijun), "jezik": jezik, "ocr_used": ocr_used,
+                                  "udeo_reci_digitalna": round(udeo_lat, 2), "udeo_reci_sken_cir": round(udeo_cir, 2)}
+    assert len(spijun) == 1 and ocr_used is True and skeniran is False     # OCR samo za skeniranu stranu
+    assert udeo_lat >= 0.8 and strane[1].strip()
+    if "srp" in jezik.split("+"):
+        assert udeo_cir >= 0.8, (udeo_cir, nadjene)
+    elif os.getenv("VINDEX_EXPECT_SRP") == "1":
+        pytest.fail(f"produkciona slika bez ćiriličnog paketa: izabran jezik {jezik!r}")

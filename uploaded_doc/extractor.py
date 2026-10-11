@@ -175,6 +175,35 @@ def _detect_ocr_lang() -> str:
     return "eng"
 
 
+def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], list[float]]:
+    """OCR samo zadatih strana PDF-a (0-indeksirano). Vraća ({indeks: tekst} za strane sa prepoznatim tekstom,
+    listu pouzdanosti). Bilo koja greška okruženja (nema pymupdf/tesseract) → ({}, []) — isto kao ranije."""
+    try:
+        import io
+        import fitz  # pymupdf
+        from PIL import Image
+
+        ocr_lang = _detect_ocr_lang()
+        doc = fitz.open(str(path))
+        dopuna: dict[int, str] = {}
+        confs: list[float] = []
+        for i in indeksi:
+            pixmap = doc[i].get_pixmap(dpi=300)
+            img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+            tekst, conf = _ocr_image(img, ocr_lang)
+            if tekst and tekst.strip():
+                dopuna[i] = tekst
+                if conf is not None:
+                    confs.append(conf)
+        doc.close()
+        if dopuna:
+            logger.info("[OCR] Mešovit PDF %s — OCR dopunio %d/%d strana bez teksta", path.name, len(dopuna), len(indeksi))
+        return dopuna, confs
+    except Exception as exc:
+        logger.warning("[OCR] OCR strana bez teksta nije izvršen za %s: %s", path.name, exc)
+        return {}, []
+
+
 def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     """Return (text, is_scanned, ocr_used, pages, ocr_confidence).
 
@@ -215,7 +244,17 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
     is_scanned = avg_chars < 30 or total_chars < 80
 
     if not is_scanned:
-        return "\n\n".join(pages), False, False, pages, None
+        # VCR001 T01: MEŠOVIT PDF (npr. digitalni podnesak + skeniran prilog). Prosek po strani prelazi prag, pa
+        # se OCR ranije nije pokretao, a tekst skenirane strane se TIHO gubio (strana ostaje "", dokument „pročitan“).
+        # Sada se OCR pokreće samo za strane bez tekstualnog sloja (< 30 znakova); potpuno digitalan PDF i dalje
+        # ne poziva OCR. Neuspeh OCR-a ostavlja stranu praznom — nikad izmišljen tekst.
+        kratke = [i for i, t in enumerate(pages) if len(t) < 30]
+        dopuna, confs = _ocr_strane_pdf(path, kratke) if kratke else ({}, [])
+        if not dopuna:
+            return "\n\n".join(pages), False, False, pages, None
+        for i, t in dopuna.items():
+            pages[i] = t
+        return "\n\n".join(pages), False, True, pages, ((sum(confs) / len(confs)) if confs else None)
 
     # OCR fallback for scanned/unreadable PDFs
     try:
