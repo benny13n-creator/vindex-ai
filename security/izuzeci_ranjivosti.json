@@ -1,0 +1,11 @@
+{
+  "CVE-2026-85394": {
+    "aliasi": ["GHSA-3qf3-8w2g-rqmx"],
+    "paket": "python-jose",
+    "verzija": "3.5.0",
+    "odobreno": "2026-10-11",
+    "vazi_do": "2027-01-09",
+    "vlasnik": "osnivač Vindex AI",
+    "odluka": "docs/v2-recovery/JWT_CVE_2026_85394_RISK_ACCEPTANCE.md"
+  }
+}
