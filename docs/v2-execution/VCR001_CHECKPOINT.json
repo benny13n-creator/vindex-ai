@@ -1,8 +1,26 @@
 {
   "program_id": "VCR001",
-  "task_order": ["T00", "T01", "T02", "T03", "R1", "T04", "T05", "T06", "T07", "R2", "T08", "T09", "R3"],
-  "current_task": "T01",
-  "completed_tasks": {"T00": "PASS_IMPLEMENTED"},
+  "task_order": [
+    "T00",
+    "T01",
+    "T02",
+    "T03",
+    "R1",
+    "T04",
+    "T05",
+    "T06",
+    "T07",
+    "R2",
+    "T08",
+    "T09",
+    "R3"
+  ],
+  "current_task": "T03",
+  "completed_tasks": {
+    "T00": "PASS_IMPLEMENTED",
+    "T01": "PASS_IMPLEMENTED",
+    "T02": "PASS_IMPLEMENTED"
+  },
   "blocked_tasks": {},
   "branch": "program/vcr001",
   "worktree": "C:/vindex-vcr001",
@@ -10,7 +28,7 @@
   "last_good_sha": "6ad0b13a2ccfeb8cc28094e7be4e2743bd8fab4f",
   "open_defects": [],
   "latest_test_artifacts": [],
-  "next_step": "T01: dokazati OCR kroz stvaran tok prijema (worker) u produkcionoj Docker slici; ponašanje za .doc/slike/mešoviti PDF",
+  "next_step": "T03: hronologija/rokovi iz dokumenata sa identitetom izvora; nesigurni rokovi ostaju predlozi; Case Actions iz nalaza",
   "required_founder_decisions": [
     "merge/deploy svakog kandidata (R1/R2/R3) u produkciju",
     "migracija 136 i Render Cron za autonomiju (T08)",

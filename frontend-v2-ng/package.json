@@ -48,6 +48,7 @@
     "e2e:primary": "node tests/live-primary-e2e.mjs",
     "e2e:pre136": "node tests/live-pre136-e2e.mjs",
     "e2e:solo-tok": "node tests/live-solo-tok-e2e.mjs",
+    "e2e:prijem-carobnjak": "node tests/live-prijem-carobnjak-e2e.mjs",
     "e2e:site": "node tests/site-e2e.mjs"
   },
   "keywords": [],

@@ -859,10 +859,15 @@
       razdelnik.addEventListener("pointerup", pusti);
     });
     /* NS005 — Nov predmet: samo u LIVE, samo prijavljenom korisniku. */
-    novPredmet = window.VxNovPredmet.napravi({ sesija: window.VxSesija, api: window.VxApi, naUspeh: function (id) {
+    var novRucno = window.VxNovPredmet.napravi({ sesija: window.VxSesija, api: window.VxApi, naUspeh: function (id) {
       kontrolerLive.osvezi();
       location.hash = adresaPredmeta(id, "pregled");
     } });
+    /* VCR001 T02 — isti pogled „Nov predmet“, još dva ulaza: iz opisa problema i iz dokumenta. */
+    var novPrijem = window.VxNovPredmetPrijem.napravi({ sesija: window.VxSesija, api: window.VxApi, ishodCoi: window.VxKlijentiPredmeta.ishod,
+      adresaPredmeta: adresaPredmeta, osveziListu: function () { kontrolerLive.osvezi(); },
+      naUspeh: function (id) { kontrolerLive.osvezi(); location.hash = adresaPredmeta(id, "pregled"); } });
+    novPredmet = { otvori: function () { novPrijem.ocisti(); novRucno.otvori(); }, zatvori: function () { novRucno.zatvori(); novPrijem.ocisti(); } };
     pretraga = window.VxPretraga.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
     /* NS008 Task 13 — Znanje: sudska praksa i stavovi (NS005) + iskustvo kancelarije (Law Brain, čitanje bez modela). */
     var znanjePrakse = window.VxZnanje.napravi({ sesija: window.VxSesija, api: window.VxApi });

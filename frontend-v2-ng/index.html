@@ -124,7 +124,13 @@
           <a class="matter__back" href="#/">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 5l-5 5 5 5"/></svg>Predmeti</a>
           <h1 class="sheet__title matter__title" id="nov-naslov" tabindex="-1">Nov predmet</h1>
-          <p class="matter__ref">Predmet se otvara nazivom. Stranke, broj i vrednost spora unosite u predmetu.</p>
+          <p class="matter__ref">Predmet se otvara nazivom, iz opisa problema ili iz dokumenta.</p>
+        </div>
+        <!-- VCR001 T02: tri ulaza u ISTI tok predmeta (src/nov-predmet-prijem.js). -->
+        <div class="rezimi" id="nov-rezimi" role="group" aria-label="Način otvaranja predmeta">
+          <button class="rezimi__item" type="button" id="nov-rezim-rucno" aria-current="page">Ručno</button>
+          <button class="rezimi__item" type="button" id="nov-rezim-opis">Iz opisa problema</button>
+          <button class="rezimi__item" type="button" id="nov-rezim-dokument">Iz dokumenta</button>
         </div>
         <form class="form matter__body" id="nov-forma" novalidate>
           <div class="field">
@@ -148,6 +154,74 @@
             <a class="text-btn" href="#/">Odustani</a>
           </div>
         </form>
+
+        <!-- VCR001 T02 A: problem prvo — POST /api/intake/ekstrakcija (predlog) → pregled → klijent → provera sukoba → POST /api/intake/kreiraj -->
+        <div class="matter__body" id="npo-panel" hidden>
+          <form class="form" id="npo-opis-forma" novalidate>
+            <div class="field">
+              <label class="field__label" for="npo-opis">Opis problema</label>
+              <textarea class="field__input field__input--area" id="npo-opis" rows="6" maxlength="4000" aria-describedby="npo-opis-pomoc"></textarea>
+              <p class="field__help" id="npo-opis-pomoc">Najmanje 20 znakova. Vindex predlaže podatke predmeta; ništa se ne upisuje dok ne potvrdite. Predlog troši jedan kredit.</p>
+            </div>
+            <div class="form__actions"><button class="text-btn text-btn--primary" id="npo-predlozi" type="submit">Predloži podatke</button></div>
+          </form>
+          <p class="notice" id="npo-poruka" role="status" aria-live="polite" hidden></p>
+          <form class="form" id="npo-predlog" novalidate hidden>
+            <p class="field__help">Predlog iz opisa. Proverite i ispravite pre otvaranja predmeta.</p>
+            <div class="field"><label class="field__label" for="npo-naziv">Naziv predmeta</label>
+              <input class="field__input" id="npo-naziv" type="text" maxlength="200" autocomplete="off" required></div>
+            <div class="field"><label class="field__label" for="npo-vrsta">Vrsta spora</label>
+              <input class="field__input" id="npo-vrsta" type="text" maxlength="100" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="npo-protivna">Protivna strana</label>
+              <input class="field__input" id="npo-protivna" type="text" maxlength="200" autocomplete="off"></div>
+            <div class="field"><label class="field__label" for="npo-vrednost">Vrednost spora</label>
+              <input class="field__input" id="npo-vrednost" type="text" maxlength="100" autocomplete="off"></div>
+            <fieldset class="field" id="npo-rok-okvir" hidden>
+              <legend class="field__label">Rok naveden u opisu</legend>
+              <p class="field__help" id="npo-rok-tekst"></p>
+              <label class="check"><input type="checkbox" id="npo-rok-upisi"> Upiši ovaj rok u hronologiju predmeta (proverio sam datum)</label>
+            </fieldset>
+            <div id="npo-dokumenti-okvir" hidden><p class="field__label">Dokumenti koje treba pribaviti</p><ul class="an-list" id="npo-dokumenti"></ul></div>
+            <fieldset class="field">
+              <legend class="field__label">Klijent</legend>
+              <label class="field__label" for="npo-klijent-pretraga">Postojeći klijent</label>
+              <input class="field__input" id="npo-klijent-pretraga" type="search" maxlength="100" autocomplete="off" placeholder="Pretraži kartoteku">
+              <ul class="pick" id="npo-klijenti" aria-label="Klijenti iz kartoteke"></ul>
+              <p class="field__help">ili nov klijent:</p>
+              <div class="field"><label class="field__label" for="npo-ime">Ime</label><input class="field__input" id="npo-ime" type="text" maxlength="100" autocomplete="off"></div>
+              <div class="field"><label class="field__label" for="npo-prezime">Prezime ili naziv firme</label><input class="field__input" id="npo-prezime" type="text" maxlength="100" autocomplete="off"></div>
+              <p class="field__help" id="npo-klijent-izbor">Klijent nije izabran.</p>
+            </fieldset>
+            <div class="notice" id="npo-coi" role="status" hidden><p class="field__label" id="npo-coi-naslov"></p><p id="npo-coi-telo"></p>
+              <ul class="an-list" id="npo-coi-lista"></ul>
+              <label class="check" id="npo-coi-potvrda-red" hidden><input type="checkbox" id="npo-coi-potvrda"> Pregledao sam nalaze provere i nastavljam</label></div>
+            <div class="form__actions">
+              <button class="text-btn" id="npo-proveri" type="button">Proveri sukob interesa</button>
+              <button class="text-btn text-btn--primary" id="npo-otvori" type="submit" disabled>Otvori predmet</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- VCR001 T02 B: dokument prvo — isti prijem kao u predmetu (src/prijem-predmeta.js, prefiks nd), finalize bez predmet_id -->
+        <div class="matter__body" id="npd-panel" hidden>
+          <p class="field__help">PDF, DOCX, TXT, JPG i PNG, do 25 MB po fajlu; skenirani dokumenti i fotografije prolaze kroz OCR.
+            Izvučeni podaci su predlog: označene podatke pregledate pre otvaranja predmeta. Prvi dokument otvara predmet, ostali se prikače istom predmetu.</p>
+          <div class="field"><label class="field__label" for="nd-klijent-strana">Naš klijent u dokumentu je</label>
+            <select class="field__input" id="nd-klijent-strana">
+              <option value="">— ne povezuj klijenta automatski —</option>
+              <option value="plaintiff">Tužilac / predlagač</option>
+              <option value="defendant">Tuženi / protivnik predlagača</option>
+            </select></div>
+          <form class="form" id="nd-forma" novalidate>
+            <div class="field"><label class="field__label" for="nd-fajlovi">Fajlovi</label>
+              <input class="field__input" id="nd-fajlovi" type="file" multiple accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"></div>
+            <div class="form__actions"><button class="text-btn text-btn--primary" id="nd-otpremi" type="submit">Otpremi</button></div>
+          </form>
+          <p class="notice" id="nd-poruka" role="status" aria-live="polite" hidden></p>
+          <p class="list-state" id="nd-stanje" role="status" hidden></p>
+          <ul class="reviews" id="nd-poslovi" aria-label="Dokumenti u obradi"></ul>
+          <p class="form__actions" id="nd-otvoren" hidden><a class="text-btn text-btn--primary" id="nd-otvori-predmet" href="#/">Otvori predmet</a></p>
+        </div>
       </section>
 
       <!-- Pretraga (samo LIVE, NS005). Puni src/pretraga.js. -->
@@ -804,6 +878,7 @@
   <script src="src/nacrt-predmeta.js"></script>
   <script src="src/naplata-predmeta.js"></script>
   <script src="src/prijem-predmeta.js"></script>
+  <script src="src/nov-predmet-prijem.js"></script>
   <script src="src/analiza-predmeta.js"></script>
   <script src="src/zivi-pregled.js"></script>
   <script src="src/radna-lista.js"></script>

@@ -40,8 +40,12 @@
   function nazivVrste(t) { return VRSTE[tekst(t)] || tekst(t).replace(/_/g, " ") || "Nije prepoznato"; }
 
   function napravi(o) {
-    var d = root.document, $ = function (id) { return d.getElementById(id); };
-    var sesija = o.sesija, api = o.api, osvezi = o.osvezi || function () {};
+    /* VCR001 T02: isti modul služi i strani „Nov predmet → Iz dokumenta“ (prefiks „nd“, ID-jevi nd-*). U tom režimu
+     * finalize NE nosi predmet_id (backend otvara predmet iz dokumenta, uz `klijent_strana` po izboru advokata);
+     * kad predmet nastane, ostali dokumenti iste sesije se prikače njemu. */
+    var P = o.prefiks || "pd";
+    var d = root.document, $ = function (id) { return d.getElementById(P === "pd" ? id : P + id.slice(2)); };
+    var sesija = o.sesija, api = o.api, osvezi = o.osvezi || function () {}, naOtvoren = o.naOtvoren || function () {};
     var trenutni = null, gen = 0, poslovi = [], saljem = false;
 
     function el(tag, cls, t) { var e = d.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
@@ -183,7 +187,8 @@
         akcije.append(dugme("Odbij dokument", "text-btn", function (b) { odluci(p, "reject", b); }));
         li.append(el("p", "field__help", "Potvrdom kažete da ste pregledali označene podatke. Tek posle toga dokument može da se prikači predmetu."));
       }
-      if (st === "completed" && !j.predmet_id) akcije.append(dugme("Prikači ovom predmetu", "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
+      if (st === "completed" && !j.predmet_id) akcije.append(dugme(trenutni.id ? "Prikači ovom predmetu" : "Otvori predmet iz ovog dokumenta",
+        "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
       if (j.predmet_id && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
       else if (j.predmet_id) li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu."));
       if (akcije.childNodes.length) li.append(akcije);
@@ -230,11 +235,20 @@
     async function prikaci(p, b) {
       if (p.radi || !zivi(p)) return;
       var moja = gen, pid = trenutni.id;
-      zakljucaj(p, b, true); javi(p, "ucitavanje", "Prikačivanje dokumenta predmetu…");
-      var r = await api.send("/api/smart-intake/jobs/" + encodeURIComponent(p.id) + "/finalize", { telo: { predmet_id: pid }, token: sesija.token(),
+      if (!pid && trenutni.otvara) return;                      // drugi dokument čeka da prvi otvori predmet
+      var telo = { predmet_id: pid };
+      if (!pid) {
+        var strana = $("pd-klijent-strana") ? tekst($("pd-klijent-strana").value) : "";
+        telo = strana === "plaintiff" || strana === "defendant" ? { klijent_strana: strana } : {};
+        trenutni.otvara = true;
+      }
+      zakljucaj(p, b, true); javi(p, "ucitavanje", pid ? "Prikačivanje dokumenta predmetu…" : "Otvaranje predmeta iz dokumenta…");
+      var r = await api.send("/api/smart-intake/jobs/" + encodeURIComponent(p.id) + "/finalize", { telo: telo, token: sesija.token(),
         oblik: function (x) { return x.ok === true; } });
+      if (!pid && moja === gen && trenutni) trenutni.otvara = false;
       if (moja !== gen || !zivi(p) || trenutni.id !== pid) return;
       zakljucaj(p, b, false);
+      if (!pid && r.ok && r.podaci && ispravanId(r.podaci.predmet_id)) { otvoren(p, r.podaci); return; }
       if (r.ok && r.podaci) {
         var x = r.podaci, delovi = [];
         if (x.predmet_id && x.predmet_id !== pid) delovi.push("Ovaj dokument je već bio prikačen drugom vašem predmetu; ovde nije ponovo prikačen.");
@@ -252,16 +266,39 @@
       neuspeh(p, r.greska || {}, "Dokument nije prikačen.");
     }
 
+    /* VCR001 T02: predmet je OTVOREN iz dokumenta — od sada se ostali dokumenti prikače njemu. Ishod se čita iz
+     * odgovora servera; ništa se ne pretpostavlja (klijent, provera sukoba, rok). */
+    function otvoren(p, x) {
+      trenutni.id = tekst(x.predmet_id);
+      var delovi = ["Predmet „" + (tekst(x.naziv) || "bez naziva") + "“ je otvoren iz dokumenta."];
+      if (x.klijent_dodat === true) delovi.push("Klijent iz dokumenta je povezan sa predmetom.");
+      else if (x.klijent_nesiguran === true) delovi.push("Klijent NIJE povezan: u kartoteci postoji više klijenata sličnog imena. Povežite pravog u kartici Klijenti.");
+      else delovi.push("Klijent nije povezan automatski. Povežite ga u kartici Klijenti.");
+      if (x.coi_status === "COI_PENDING") delovi.push("Provera sukoba interesa iz dokumenta je zakazana u pozadini — to nije rezultat; pre prihvatanja zastupanja pokrenite proveru u kartici Klijenti.");
+      else if (x.coi_status === "COI_FAILED") delovi.push("Provera sukoba interesa iz dokumenta NIJE zakazana. Pokrenite je ručno u kartici Klijenti.");
+      if (x.rok_dodat === true) delovi.push("Rok pronađen u dokumentu upisan je u hronologiju kao podatak iz dokumenta — proverite ga.");
+      javi(p, "uspeh", delovi.join(" "));
+      naOtvoren(trenutni.id, tekst(x.naziv));
+      poslovi.forEach(function (q) { if (q !== p && q.podaci) prikazi(q, null); });
+      prati(p);
+    }
+
     function postavi(predmet) {
       if (trenutni && trenutni.id === predmet.id && trenutni.korisnik === sesija.stanje().korisnik) return;
       ocisti();
       trenutni = { id: predmet.id, korisnik: sesija.stanje().korisnik };
     }
+    /** „Nov predmet → Iz dokumenta“: prijem bez predmeta (prvi finalize ga otvara). */
+    function pocniNov() {
+      if (trenutni && trenutni.nov && trenutni.korisnik === sesija.stanje().korisnik) return;
+      ocisti();
+      trenutni = { id: null, nov: true, otvara: false, korisnik: sesija.stanje().korisnik };
+    }
 
     $("pd-forma").addEventListener("submit", function (e) { e.preventDefault(); otpremi(); });
     var odjavi = sesija.naPromenu(function (novo, staro) { if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti(); });
 
-    return { postavi: postavi, aktiviraj: function () {}, ocisti: ocisti, zaustavi: function () { odjavi(); ocisti(); } };
+    return { postavi: postavi, pocniNov: pocniNov, aktiviraj: function () {}, ocisti: ocisti, zaustavi: function () { odjavi(); ocisti(); } };
   }
 
   root.VxPrijemPredmeta = Object.freeze({ napravi: napravi });

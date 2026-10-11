@@ -78,6 +78,14 @@ async def _kvalitet(*a, **kw):
 
 
 mp.setattr(D, "_pozovi_drafting_api", _model)
+# VCR001 T02: predlog iz opisa problema (POST /api/intake/ekstrakcija) — zamenjen je samo poziv modela.
+import routers.intake as _INT  # noqa: E402
+async def _ekstrakcija(opis, nalazi):
+    POZIVI_MODELA.append("ekstrakcija")
+    return {"predlog_naziva_predmeta": "Nikolic protiv Delta Promet — zarada", "protivna_strana": "Delta Promet DOO",
+            "vrsta_spora": "radni spor", "vrednost_spora": "320.000 RSD", "prvi_rok": "2026-12-15",
+            "rok_opis": "Rok za tuzbu", "potrebni_dokumenti": ["Ugovor o radu", "Platne liste"]}
+mp.setattr(_INT, "_call_ekstrakcija", _ekstrakcija)
 mp.setattr(D, "_pozovi_kriticara", _kriticar)
 mp.setattr(QG, "evaluate_draft_quality", _kvalitet)
 mp.setattr(R, "retrieve_documents", lambda *a, **kw: (["Zakon o radu, Član 185: Rešenje o otkazu se dostavlja zaposlenom..."], {}))
@@ -112,6 +120,9 @@ async def _stanje():
         "vlasnici": sorted({r.get("user_id") or r.get("uploaded_by") for x in ("predmeti", "klijenti", "predmet_dokumenti", "predmet_dokazi")
                             for r in t.get(x, [])} - {None}),
         "nedispecovano": len([e for e in t.get("events", []) if e.get("dispatched_at") is None]),
+        "hronologija": len(t.get("predmet_hronologija", [])),
+        "dokumenti_po_predmetu": sorted([sum(1 for d in t.get("predmet_dokumenti", []) if d.get("predmet_id") == p.get("id"))
+                                         for p in t.get("predmeti", [])]),
         "pozivi_modela": list(POZIVI_MODELA), "spoljni_pokusaji": len(SPOLJNI_POKUSAJI),
         "autonomy_upisi": len([z for z in BAZA.dnevnik if z["tabela"].startswith("autonomy")
                                and z["radnja"] in ("insert", "update", "upsert", "delete", "rpc")]),
