@@ -295,8 +295,9 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
         if total_chars > 0:
-            # OCR001: OCR nije dodao dovoljno — ostaje digitalni tekst (dopunjen stranama koje je OCR ipak pročitao).
-            return ocr_text, False, bool(ocr_strana), ocr_pages, ocr_confidence if ocr_strana else None
+            # OCR001: OCR nije dodao dovoljno. Dokument OSTAJE označen kao nepročitan (is_scanned=True → pregled, kao
+            # i ranije), ali se digitalni tekst (dopunjen stranama koje je OCR ipak pročitao) više ne briše.
+            return ocr_text, True, bool(ocr_strana), ocr_pages, ocr_confidence if ocr_strana else None
         logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
         _log_ocr_error("insufficient_text", path.name)
     except ImportError as ie:
@@ -307,9 +308,9 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         _log_ocr_error("unexpected_error", path.name)
 
     if total_chars > 0:
-        # OCR001: OCR nedostupan ili pao — digitalni tekst koji PDF stvarno ima se ne odbacuje (ranije: "" + „OCR nije
-        # uspeo“, pa dokument nije imao nijedan podatak ni za pregled ni za prikačivanje).
-        return "\n\n".join(pages), False, False, pages, None
+        # OCR001: OCR nedostupan ili pao — dokument ostaje označen kao nepročitan (is_scanned=True), ali digitalni tekst
+        # koji PDF stvarno ima se ne odbacuje (ranije: "", pa prikačen dokument nije imao nijedan znak teksta).
+        return "\n\n".join(pages), True, False, pages, None
     return "", True, False, None, None
 
 
@@ -318,6 +319,9 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
 # nema sadržaja i nije greška. Udeo tamnih piksela meri se na 50 dpi u sivoj skali (bez OCR-a, ~ms po strani).
 PRAG_KRATKE_STRANE = 30
 PRAG_VIDLJIVOG_SADRZAJA = 0.005     # 0,5 % tamnih piksela: prazna/skenirana bela strana je ispod, red teksta je iznad
+# Prosečna pouzdanost reči OCR-a ispod koje se tekst skeniranih strana ne predstavlja kao pouzdano pročitan. Izmereno u
+# produkcionoj slici (OCR001, CI): ispravno čitanje 0,88–0,96; ćirilica engleskim modelom 0,40–0,62 (CER 71–80 %).
+PRAG_POUZDANOSTI_OCR = 0.75
 
 
 def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:

@@ -186,8 +186,8 @@ def test_kratak_digitalni_pdf_zadrzava_tekst_kad_ocr_ne_procita_nista(tmp_path, 
     assert 0 < sum(_sloj_teksta(kratak)) < 80                      # ispod praga „skenirano“ (80 znakova)
     (text, is_scanned, ocr_used, pages, _c), _t, _p = _izvuci(tmp_path, "kratak.pdf", kratak)
     assert ocr_pada, "OCR petlja mora stvarno da se izvrši (inače test ništa ne meri)"
-    assert is_scanned is False and ocr_used is False
-    assert "Primalac: Primer Invest Test doo" in text and "25.03.2025" in text
+    assert is_scanned is True and ocr_used is False                  # i dalje označen kao nepročitan → pregled
+    assert "Primalac: Primer Invest Test doo" in text and "25.03.2025" in text   # ali tekst nije obrisan
     assert pages and "25.03.2025" in pages[0]
 
 
@@ -199,7 +199,7 @@ def test_kratak_digitalni_pdf_kraci_ocr_ne_zamenjuje_digitalni_tekst(tmp_path, m
     kratak = _digitalni(["DOSTAVNICA", "Primalac: Primer Invest Test doo", "Uruceno 25.03.2025."])
     (text, is_scanned, ocr_used, _pg, conf), _t, _p = _izvuci(tmp_path, "kratak.pdf", kratak)
     assert pozivi, "OCR petlja mora stvarno da se izvrši (inače test ništa ne meri)"
-    assert "Primer Invest Test doo" in text and is_scanned is False and ocr_used is False and conf is None
+    assert "Primer Invest Test doo" in text and is_scanned is True and ocr_used is False and conf is None
 
 
 def test_kratak_digitalni_pdf_zadrzava_tekst_kad_ocr_pukne(tmp_path, monkeypatch):
@@ -212,7 +212,7 @@ def test_kratak_digitalni_pdf_zadrzava_tekst_kad_ocr_pukne(tmp_path, monkeypatch
     monkeypatch.setattr(ex, "_detect_ocr_lang", lambda: "srp+srp_latn+eng")
     kratak = _digitalni(["DOSTAVNICA", "Primalac: Primer Invest Test doo", "Uruceno 25.03.2025."])
     (text, is_scanned, ocr_used, pages, conf), _t, _p = _izvuci(tmp_path, "kratak.pdf", kratak)
-    assert is_scanned is False and ocr_used is False and conf is None
+    assert is_scanned is True and ocr_used is False and conf is None
     assert "Primer Invest Test doo" in text and pages and "25.03.2025" in pages[0]
 
 
@@ -272,6 +272,20 @@ def test_worker_ocr_bez_srpskog_paketa_je_oznacen(ok, monkeypatch):
     g = k.get(f"/api/smart-intake/jobs/{jid}", headers=zaglavlje("A")).json()
     polja = [x for q in g["potrebne_provere"] if q["razlog"] == "ocr_failed" for x in q["polja"]]
     assert any("bez srpskog jezičkog paketa" in x for x in polja), g["potrebne_provere"]
+    assert _posao(b)["status"] == "awaiting_review"
+
+
+def test_worker_niska_ocr_pouzdanost_je_oznacena(ok, monkeypatch):
+    """Okrenut/mutan sken daje ≥ 30 znakova besmislenog teksta niske pouzdanosti — to nije „pročitano“."""
+    import uploaded_doc.extractor as ex
+    monkeypatch.setattr(ex, "_detect_ocr_lang", lambda: "srp+srp_latn+eng")
+    monkeypatch.setattr(ex, "_ocr_image", lambda img, jezik: ("ln: TLE SL Eo eT ee ri Wee 2 eS ee ae ae " * 3, 0.41))
+    k, b = ok
+    jid = _otpremi(k, "A", C_pdf(), ime="03.pdf").json()["rezultati"][0]["job_id"]
+    assert _obradi() is True
+    g = k.get(f"/api/smart-intake/jobs/{jid}", headers=zaglavlje("A")).json()
+    polja = [x for q in g["potrebne_provere"] if q["razlog"] == "ocr_failed" for x in q["polja"]]
+    assert any("OCR pouzdanost 41 %" in x for x in polja), g["potrebne_provere"]
     assert _posao(b)["status"] == "awaiting_review"
 
 
@@ -388,15 +402,15 @@ def test_ocr_C_mesoviti_obe_strane_pokrivene(tmp_path):
     ("bled_kontrast_0_25", lambda: _spoji(_digitalni(C1_REDOVI), _sken_varijanta(C2_REDOVI, kontrast=0.25))),
 ])
 def test_ocr_otezan_sken_procitan_ili_prijavljen_nikad_tiho_izgubljen(tmp_path, naziv, pdf):
-    from uploaded_doc.extractor import necitljive_strane_pdf
-    (text, _s, _u, pages, _c), t, p = _izvuci(tmp_path, naziv + ".pdf", pdf())
-    procitana = len((pages[1] or "").strip()) >= 30
-    prijavljena = necitljive_strane_pdf(p, pages) == [2]
+    from shared.intake_worker import IntakeWorker
+    (text, _s, ocr_used, pages, conf), t, p = _izvuci(tmp_path, naziv + ".pdf", pdf())
     cer, wer = _cer_wer("\n".join(C2_REDOVI), pages[1] if len(pages) > 1 else "")
-    IZVESTAJ["otezano_" + naziv] = {"procitana": procitana, "prijavljena_kao_neprocitana": prijavljena,
-                                    "cer": cer, "wer": wer, "sekundi": t}
+    tacno_procitana = cer < 0.2                    # „pročitano“ = tačno pročitano, ne samo ≥ 30 znakova
+    signali = IntakeWorker._nepotpuno_procitano(p, pages, ocr_used, conf)
+    IZVESTAJ["otezano_" + naziv] = {"tacno_procitana": tacno_procitana, "signali_za_pregled": signali,
+                                    "cer": cer, "wer": wer, "conf": round(conf, 3) if conf else None, "sekundi": t}
     _zapisi_izvestaj()
-    assert procitana or prijavljena, (naziv, pages[1][:120] if len(pages) > 1 else None)
+    assert tacno_procitana or signali, (naziv, cer, conf, pages[1][:120] if len(pages) > 1 else None)
 
 
 @treba_ocr

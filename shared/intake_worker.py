@@ -218,7 +218,7 @@ class IntakeWorker:
         try:
             text, is_scanned, ocr_used, pages, ocr_confidence = await asyncio.to_thread(self._extract_text, tmp_path)
             if not is_scanned:
-                necitljive = await asyncio.to_thread(self._nepotpuno_procitano, tmp_path, pages, ocr_used)
+                necitljive = await asyncio.to_thread(self._nepotpuno_procitano, tmp_path, pages, ocr_used, ocr_confidence)
         finally:
             try:
                 tmp_path.unlink()
@@ -532,11 +532,12 @@ class IntakeWorker:
         return extract(path)
 
     @staticmethod
-    def _nepotpuno_procitano(path: Path, pages: list[str] | None, ocr_used: bool) -> list[str]:
+    def _nepotpuno_procitano(path: Path, pages: list[str] | None, ocr_used: bool,
+                             ocr_confidence: float | None = None) -> list[str]:
         """OCR001 (B2/B4): opis onoga što NIJE pouzdano pročitano, za pregled advokata (prazno = ništa).
-        Strana sa vidljivim sadržajem a bez teksta, i OCR bez srpskog jezičkog paketa. Nemerljivo (None) se ne
-        prijavljuje kao greška — postojeći signali (`ocr_failed`, pouzdanost) ostaju na snazi."""
-        from uploaded_doc.extractor import necitljive_strane_pdf, upozorenje_jezika_ocr
+        Strana sa vidljivim sadržajem a bez teksta, OCR bez srpskog jezičkog paketa i OCR niske pouzdanosti (npr.
+        okrenut sken: izmereno CER 82 %, ali ≥ 30 znakova „teksta“). Nemerljivo (None) se ne prijavljuje kao greška."""
+        from uploaded_doc.extractor import PRAG_POUZDANOSTI_OCR, necitljive_strane_pdf, upozorenje_jezika_ocr
         opisi: list[str] = []
         if pages and path.suffix.lower() == ".pdf":
             for n in necitljive_strane_pdf(path, pages) or []:
@@ -545,6 +546,9 @@ class IntakeWorker:
             jezik = upozorenje_jezika_ocr()
             if jezik:
                 opisi.append(jezik)
+            if ocr_confidence is not None and ocr_confidence < PRAG_POUZDANOSTI_OCR:
+                opisi.append(f"OCR pouzdanost {round(ocr_confidence * 100)} % — tekst skeniranih strana je možda "
+                             "netačno pročitan (okrenut, mutan ili oštećen sken)")
         return opisi
 
     @staticmethod
