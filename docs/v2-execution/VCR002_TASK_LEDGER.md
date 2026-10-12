@@ -222,3 +222,52 @@ Dokazano kroz **stvarnu kapiju** (bez zamene `_potvrdjeni_ids`):
 - `tests/test_vcr002_t04_podsetnici.py`: 10 testova.
 - Mutacije M1 (rezervacija po roku), M2 (bez provere predmeta u brisanju), M3 (kapija propušta sve): **sve 3 UHVAĆENE**.
 - Regresija podsetnika (B10, Wave 4 auth, LZ001, Living System, nedeljni pregled, svi FAZA 6.x): **368 passed**.
+
+## T05 — Paralelni savetnici: bezbednost — `PASS_IMPLEMENTED` (ISOLATED)
+
+- **Početni SHA:** `ed6e1431`.
+- **Problem:** `POST /api/agents/run-parallel` je bio slabiji od `/run` (VCR001 T06):
+
+  | # | Razlika |
+  |---|---|
+  | P1 | nijedan rezultat nije imao proveru citata |
+  | P2 | tuđ ili nepostojeći predmet je tiho postajao „opšti“ kontekst, bez oznake |
+  | P3 | poseban, siromašniji kontekst: bez dokumenata, bez Genome-a, a opis bez granice poverenja |
+  | P4 | sirov tekst greške provajdera (`str(exc)[:80]`) išao je klijentu |
+  | P5 | budžet se nije proveravao pre plaćenih poziva modela; nedovoljno kredita je značilo n plaćenih poziva pa 402 i bačene odgovore |
+  | P6 | isti savetnik izabran 3 puta se plaćao 3 puta |
+  | P7 | objekat u listi `agenti` je davao 500; zadatak nije imao granicu |
+  | P8 | prazan odgovor modela se plaćao kao uspeh |
+
+- **Ispravke** (`routers/multi_agent.py`):
+  - **Jedan izvor konteksta:** `_kontekst_predmeta(supa, uid, predmet_id)` je mehanički izvučen iz `/run` i koriste ga oba puta. Proverava vlasništvo, uključuje dokumente (T3 granica) i Genome sažetak.
+  - **Opis predmeta je sada podatak, ne naredba:** pakuje se u granicu `BELESKA_PREDMETA` (i za `/run`).
+  - **Pretraga i provera citata:**
+    - pretraga se radi po zadatku (kao `/run`), a ti izvori su osnov kanonskog čuvara citata za **svaki** rezultat;
+    - rezultat nosi `stanje` USPEH/NEUSPEH;
+    - greška je generička: „Savetnik trenutno nije dostupan. Ništa nije naplaćeno za ovog savetnika.“
+  - **Odgovor:** `kontekst_predmeta` (None/True/False), `uspesnih`, `neuspesnih`, `naplaceno_savetnika`.
+  - **Naplata i ulaz:**
+    - duplikati savetnika se uklanjaju, uz očuvan redosled;
+    - provera budžeta (`krediti × n`) radi se PRE poziva modela (402);
+    - naplata ostaje po isporučenom odgovoru (SOA2-001), a prazan odgovor je NEUSPEH;
+    - `ParalelnaReq`: `task` 1–8000 znakova, `agenti: list[str]` (najviše 12) → 422.
+- **Nalaz u VCR001 kodu — `FIX-T05-1`** (ispravljeno, važi i za `/run`):
+  - **Problem:** `_proveri_citate_agenta` je `EXEMPT_FRAMEWORK` (npr. čl. 154 ZOO, izuzet od čuvara halucinacija) brojao kao proveren. V2 je advokatu pisao „Svi citirani članovi potvrđeni su u izvorima iz pravne baze“ i kad baza nije vratila **nijedan** izvor.
+  - **Ispravka:** izuzet član je potvrđen samo ako ga dostavljeni izvor tog zakona sadrži. U suprotnom je neproveren, uz razlog „opšte poznat član — nije potvrđen u dostavljenom izvoru“.
+- **Adversarijalni skup** (`tests/test_vcr002_t05_paralelni_savetnici.py`, 22 testa):
+  - Vlasništvo: tuđ predmet, nepostojeći predmet, istovremeni zahtevi A i B.
+  - Ubačena uputstva: napad iz dokumenta i iz opisa ostaje unutar granice.
+  - Citati:
+    - nepostojeći član → NEPROVERENI;
+    - bez rezultata pretrage i pri padu pretrage nema PROVERENI;
+    - dokument predmeta nije izvor za zakon;
+    - regresija za izuzet član na `/run`.
+  - Delimičan neuspeh: 1 od 3 pada (2 naplaćena, bez sirove greške); svi padaju (0 naplaćeno); prazan odgovor.
+  - Budžet i ulaz: nedovoljno kredita (402 pre ijednog poziva); dupli savetnik; 5 pogrešnih ulaza → 422 bez poziva; nepoznati savetnici.
+  - Mreža: nijedan spoljni pokušaj.
+- **Rezultati:**
+  - 22/22.
+  - Postojeći testovi savetnika (VCR001 T06, `test_multi_agent`, CELINA 3): 33/33.
+  - **Mutacije M1–M8 (vlasništvo, provera citata, izuzet = proveren, sirova greška, duplikati, budžet, naplata po pokušaju, opis bez granice): 8/8 UHVAĆENE.**
+- **Nije u ovom zadatku:** V2 dugme za paralelni rad (T07).
