@@ -128,6 +128,109 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   await s.zatvori();
 }
 
+// ── E/F (VCR002 T07): tri pogleda istovremeno i niz od istraživanja do nacrta ─────────────
+const ekranKomb = (p) => p.evaluate(() => {
+  const vid = (id) => { const e = document.getElementById(id); return !!e && !e.closest("[hidden]") && e.getClientRects().length > 0; };
+  return { odgovor: vid("ag-odgovor"), naslov: document.getElementById("ag-odgovor-naslov").textContent,
+    vrh: [...document.querySelectorAll("#ag-citati > li")].map(x => x.dataset.kljuc + ":" + x.textContent),
+    blokovi: [...document.querySelectorAll("#ag-tekst .ag-rez")].map(s => ({ agent: s.dataset.agent, stanje: s.dataset.stanje,
+      naslov: s.querySelector(".ag-rez__naslov").textContent, citati: [...s.querySelectorAll(".warns > .warn")].map(w => w.dataset.kljuc + ":" + w.textContent),
+      tekst: s.innerText })),
+    kontekst: vid("ag-kontekst") ? document.getElementById("ag-kontekst").textContent : null,
+    agentPolje: vid("ag-agent-polje"), pomoc: document.getElementById("ag-nacin-pomoc").textContent,
+    stanje: vid("ag-stanje") ? document.getElementById("ag-stanje").dataset.stanje + ":" + document.getElementById("ag-stanje").textContent : null,
+    xss: window.__xss || null };
+});
+async function pokreniKomb(p, nacin, zadatak = "Pripremi tužbu za naknadu štete iz ugovora.") {
+  await p.selectOption("#ag-nacin", nacin); await p.fill("#ag-zadatak", zadatak); await p.click("#ag-posalji");
+  await cekaj(p, () => { const n = document.getElementById("ag-stanje"); return !document.getElementById("ag-odgovor").hidden || (!n.hidden && n.dataset.stanje !== "ucitavanje"); });
+}
+{
+  const tela = [];
+  const s = await scenario({ upisano: (b) => tela.push(b) });
+  await s.p.selectOption("#ag-nacin", "paralelno");
+  let e = await ekranKomb(s.p);
+  zapisi("E.izbor", "kombinovan način sakriva izbor savetnika i kaže kako se naplaćuje", !e.agentPolje && /neuspeli se ne naplaćuju/.test(e.pomoc), e.pomoc);
+  await pokreniKomb(s.p, "paralelno");
+  e = await ekranKomb(s.p);
+  zapisi("E.paralelno", "tri odeljka, svaki sa SOPSTVENOM proverom citata", e.odgovor && e.blokovi.length === 3
+    && e.blokovi[0].citati[0].startsWith("citati-provereni:") && e.blokovi[1].citati[0].startsWith("citati-neprovereni:") && /Član 999/.test(e.blokovi[1].citati[0])
+    && e.blokovi[2].citati[0].startsWith("bez-citata:"), JSON.stringify(e.blokovi.map(b => [b.agent, b.citati.map(c => c.split(":")[0])])));
+  zapisi("E.paralelno", "radni materijal za pregled advokata; kontekst predmeta naveden", e.vrh.some(v => v.startsWith("pregled:")) && /uz podatke i dokumente ovog predmeta/.test(e.kontekst || ""));
+  zapisi("E.ugovor", "jedan zahtev sa tačno tri proverena savetnika, predmetom i ključem idempotencije, bez user_id",
+    tela.length === 1 && tela[0]._putanja === "/api/agents/run-parallel" && tela[0].agenti.join() === "research,litigation,intake"
+    && tela[0].predmet_id === s.A[0].id && !!tela[0]._kljuc && !("user_id" in tela[0]), JSON.stringify(tela[0]));
+  zapisi("E.bezbednost", "bez izvršavanja HTML-a i bez emodžija u odeljcima", e.xss === null && !e.blokovi.some(b => EMODZI.test(b.tekst)));
+  await s.zatvori();
+}
+{
+  const s = await scenario({ padaju: ["litigation"] });
+  await pokreniKomb(s.p, "paralelno");
+  const e = await ekranKomb(s.p);
+  const neusp = e.blokovi.find(b => b.agent === "litigation");
+  zapisi("E.delimicno", "jedan savetnik pao: vidljivo, nije naplaćen, ostali prikazani", e.vrh.some(v => /^delimicno:.*2 od 3.*nisu naplaćeni/.test(v))
+    && neusp && neusp.stanje === "NEUSPEH" && /nije uspeo/.test(neusp.naslov) && neusp.citati.length === 0
+    && e.blokovi.filter(b => b.stanje === "USPEH").length === 2, JSON.stringify(e.vrh));
+  await s.zatvori();
+}
+{
+  const s = await scenario({ padaju: ["research", "litigation", "intake"] });
+  await pokreniKomb(s.p, "paralelno");
+  const e = await ekranKomb(s.p);
+  zapisi("E.svi_pali", "svi pali: bez lažnog odgovora, „ništa nije naplaćeno“", !e.odgovor && /Nijedan savetnik nije odgovorio.*Ništa nije naplaćeno/.test(e.stanje || ""), e.stanje);
+  await s.zatvori();
+}
+{
+  const tela = [];
+  const s = await scenario({ upisano: (b) => tela.push(b) });
+  await pokreniKomb(s.p, "niz");
+  const e = await ekranKomb(s.p);
+  zapisi("F.niz", "tri koraka redom: istraživanje, strategija, nacrt", e.odgovor && e.blokovi.map(b => b.agent).join() === "research,litigation,drafting", e.blokovi.map(b => b.agent).join());
+  const zav = e.vrh.find(v => v.startsWith("zavrsni:"));
+  zapisi("F.zavrsni", "završni odgovor ima SVOJU proveru (neproveren), ne nasleđenu iz koraka 1 (proveren)",
+    !!zav && /Završni odgovor: 1 citiran član nije potvrđen/.test(zav) && e.blokovi[0].citati[0].startsWith("citati-provereni:"), zav);
+  zapisi("F.pregled", "„radni materijal, ne pravni zaključak“ i upozorenje da provera ranijeg koraka ne važi za završni",
+    e.vrh.some(v => /^pregled:.*ne pravni zaključak.*ne važi za završni/.test(v)));
+  zapisi("F.ugovor", "jedan zahtev /api/agents/pipeline sa proverenim nizom i ključem idempotencije",
+    tela.length === 1 && tela[0]._putanja === "/api/agents/pipeline" && tela[0].pipeline.join() === "research,litigation,drafting" && !!tela[0]._kljuc && typeof tela[0].opis === "string", JSON.stringify(tela[0]));
+  await s.zatvori();
+}
+{
+  const s = await scenario({ padaju: ["litigation"] });
+  await pokreniKomb(s.p, "niz");
+  const e = await ekranKomb(s.p);
+  zapisi("F.prekid", "prekid na koraku 2: korak 1 prikazan i naplaćen, korak 2 nije naplaćen, korak 3 nije pokrenut",
+    e.vrh.some(v => /^prekinut:.*koraku 2/.test(v)) && e.blokovi.length === 2 && e.blokovi[0].stanje === "USPEH" && e.blokovi[1].stanje === "NEUSPEH"
+    && /nije naplaćen/.test(e.blokovi[1].tekst), JSON.stringify(e.vrh));
+  await s.zatvori();
+}
+for (const [nacin, putanja] of [["paralelno", "/api/agents/run-parallel"], ["niz", "/api/agents/pipeline"]]) {
+  for (const [naziv, kuka, re] of [["402", { status: 402 }, /dovoljno kredita.*Ništa nije pokrenuto/], ["prekid", { prekid: true }, /Ne ponavljajte odmah/], ["403", { status: 403 }, /profesionalni paket/]]) {
+    const s = await scenario({ pre: (p) => p === putanja ? kuka : null });
+    await pokreniKomb(s.p, nacin);
+    const e = await ekranKomb(s.p);
+    zapisi("G.greske", `${nacin} ${naziv}: poruka bez odgovora`, !e.odgovor && re.test(e.stanje || ""), e.stanje);
+    await s.zatvori();
+  }
+}
+{
+  const tela = [];
+  const s = await scenario({ upisano: (b) => tela.push(b), pre: (p) => p === "/api/agents/pipeline" ? new Promise(r => setTimeout(r, 700)) : null });
+  await s.p.selectOption("#ag-nacin", "niz"); await s.p.fill("#ag-zadatak", "Pripremi tužbu za naknadu štete iz ugovora.");
+  await s.p.click("#ag-posalji"); await s.p.click("#ag-posalji", { force: true, timeout: 1000 }).catch(() => {});
+  const zakljucano = await s.p.evaluate(() => document.getElementById("ag-nacin").disabled && document.getElementById("ag-posalji").disabled);
+  await cekaj(s.p, () => !document.getElementById("ag-odgovor").hidden);
+  zapisi("G.dupli", "niz: dupli klik = tačno jedan zahtev; način rada zaključan dok traje", tela.length === 1 && zakljucano, String(tela.length));
+  await s.zatvori();
+}
+for (const [w, h] of [[390, 844]]) {
+  const s = await scenario({}, { w, h });
+  await pokreniKomb(s.p, "niz");
+  const m = await s.p.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: innerWidth }));
+  zapisi("G.raspored", `${w}px: bez horizontalnog skrola sa nizom savetnika`, m.sw <= m.vw, `${m.sw}/${m.vw}`);
+  await s.zatvori();
+}
+
 await browser.close();
 zapisi("izolacija", "nijedan zahtev van 127.0.0.1", sviSpoljni.length === 0);
 zapisi("token", "token nije u konzoli ni u izlazu", ![TA, TB].some(t => konzola.join("\n").includes(t) || izlaz.join("\n").includes(t)));

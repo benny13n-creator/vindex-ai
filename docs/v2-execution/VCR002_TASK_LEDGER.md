@@ -317,3 +317,82 @@ Dokazano kroz **stvarnu kapiju** (bez zamene `_potvrdjeni_ids`):
   - `tests/test_vcr002_t06_niz_savetnika.py`: 19/19 (tri koraka, nasleđivanje provere, prenesena halucinacija, tuđ predmet, pad 2. koraka, pad 1. koraka, neočekivan izuzetak, budžet, 5 pogrešnih ulaza, 5 idempotencija, mreža).
   - Regresija (idempotencija NS005 A2, savetnici VCR001/T05, `test_multi_agent`): 124 passed, 9 skipped (PostgreSQL).
   - **Mutacije M1–M6 (izlaz bez granice, završni nasleđuje prvi, ruta van zaštite, bez budžeta, sirova greška, neuspeh kao naplaćen): 6/6 UHVAĆENE** (M5 posle dodatog testa za neočekivan izuzetak).
+
+## T07 — Pun rad savetnika u V2 — `PASS_IMPLEMENTED` (BROWSER_INTEGRATION)
+
+- **Početni SHA:** `fbd5b24c`. Zavisnosti T05 i T06 su zatvorene.
+- **UI:** postojeći „Savetnik za ovaj predmet“ dobija polje **Način rada**. Nova navigacija ni „tržnica agenata“ ne postoje. Nude se samo dve proverene kombinacije:
+
+  | Način | Savetnici | Ruta |
+  |---|---|---|
+  | **Jedan savetnik** | izbor kao ranije | `/run` |
+  | **Tri pogleda istovremeno** | istraživanje, parnična strategija, prijem | `/run-parallel` |
+  | **Od istraživanja do nacrta** | istraživanje → strategija → nacrt | `/pipeline` |
+
+  - Kombinovan način se nudi samo ako server nudi sve njegove savetnike.
+  - Uz svaki način je rečeno kako se naplaćuje (bez izmišljenih brojeva: cenu određuje registar).
+  - Svaki savetnik ili korak je zaseban odeljak sa **sopstvenom proverom citata**.
+  - Prikazuje se delimičan neuspeh („Odgovorilo je 2 od 3 … nisu naplaćeni“) i prekid niza („prekinut na koraku N; završeni koraci prikazani i naplaćeni“).
+  - Niz nosi **proveru završnog odgovora** i oznaku „Radni materijal, ne pravni zaključak … provera ranijeg koraka ne važi za završni“.
+  - Ako svi savetnici padnu, nema lažnog odgovora.
+  - 402 → „Nemate dovoljno kredita … Ništa nije pokrenuto ni naplaćeno“.
+  - Prekid veze → „ishod nepoznat, ne ponavljajte odmah“.
+  - Dok traje, dugme i način rada su zaključani, pa dupli klik ne pravi drugi zahtev.
+  - `Idempotency-Key` šalje `api.send`.
+- **Izmenjeni fajlovi:**
+  - `frontend-v2-ng/index.html` (`ag-nacin`, `ag-agent-polje`);
+  - `src/agenti-predmeta.js`;
+  - `src/app.css` (7 linija, postojeći tokeni);
+  - fixture `pisanje-api.mjs` (obe rute, isti oblik kao server);
+  - `tests/live-agenti.mjs` (+20 provera);
+  - **nov `tests/live-savetnici-e2e.mjs`** (pravi `api.app`);
+  - `tests/osb003_solo_server.py` (blok samo uz `VX_AGENTI=1`; zamenjen je samo poziv modela);
+  - `package.json` (`e2e:savetnici`, uključen u CI V2 NG `e2e` posao).
+- **Dokaz:**
+  - `verify:live-agenti` **43/43**: pojedinačni režim 23/23 nepromenjen; paralelno, niz, delimičan neuspeh, svi pali, prekid niza, 402/403/prekid za oba načina, dupli klik, 390 px bez horizontalnog skrola, XSS, emodži, izolacija mreže.
+  - `e2e:savetnici` **18/18** nad pravim `api.app` (merenje na serveru):
+    - jedan savetnik = 1 poziv i 1 jedinica;
+    - paralelno = 3 poziva i **jedna naplata od 3 jedinice**;
+    - niz = 3 koraka, a koraci 2 i 3 dobijaju prethodni izlaz **unutar granice `IZLAZ_PRETHODNOG_SAVETNIKA`** (korak 1 bez nje);
+    - svaki pokretač je tačno jedan `COMPLETED` red u `v2_mutation_idempotency`;
+    - reload ne pokreće ništa;
+    - svi upisi su vlasnika;
+    - 0 spoljnih veza, bez JS grešaka i bez 5xx.
+- **Nije dokazano:** prijavljena produkcija (T01).
+
+## T08 — Preostali V1 → V2 paritet — `PASS` (presude, bez novih ekrana)
+
+Polazna osnova je matrica VCR001 (nije ponovljen popis). Proverena su samo sporna mesta.
+
+| Kandidat | Potvrđen zahtev bete? | V2 danas | Presuda | Razlog / dokaz |
+|---|---|---|---|---|
+| 1. Strategija i priprema parnice | delimično (Bojanov tok traži analizu, ne procenat) | savetnik „Parnična strategija“ + niz „Od istraživanja do nacrta“ (T07) | **CONNECT_EXISTING** (urađeno u T07) za bezbedan savetnički deo · **PRESERVE_GATED** za `routers/strategija.py` | `strategija.py` traži od modela `"procenat"` uspeha (l. 812, 830; „Litigation Simulator — procena ishoda sa % verovatnoće“). To je isti problem kao `PREDICTOR-DIF`; odluka osnivača (AI-pomaže/AI-odlučuje) |
+| 2. Pretraga dokumenata i dokaza | da (A018 gap) | Pretraga (`/api/search`), pretraga prakse, Law Brain | **ALREADY_COMPLETE** | V2 moduli pozivaju `/api/search`, `/api/praksa/search`, `/api/law-brain/pretraga` |
+| 3. Ročišta i kalendar | da | ročišta (`/api/rocista`), Danas | **ALREADY_COMPLETE** | `verify:live-rocista-pretraga` zeleno |
+| 4. Pristup lancu rokova | — | potvrda/odbijanje roka (VCR001 T03) | **ALREADY_COMPLETE** za lanac odluka · ZPP kalkulator (`/api/rokovi/lanac`) **OUT_OF_SCOPE** | B9 traži rokove iz dokumenta (A018 l. 27), ne ZPP kalkulator; kalkulator ostaje u `/app-legacy`, bez novog ekrana samo zato što modul postoji |
+| 5. Izvoz odobrenog dokumenta | da | Nacrt → DOCX (`/api/nacrti/export/docx`) | **ALREADY_COMPLETE** | VCR001 T05, `verify:live-nacrt` zeleno |
+| 6. Beleške i zadaci | da | beleške, zadaci, Radna lista | **ALREADY_COMPLETE** | VCR001 T07, e2e zeleno |
+| 7. Naplata | da (direktno potrebno) | Naplata | **ALREADY_COMPLETE** | `verify:live-naplata` zeleno; cene ni tarife nisu menjane |
+| 8. Pisanje i strategija (integracija) | da | nacrt + niz savetnika | **ALREADY_COMPLETE** / vidi 1 | — |
+| 9. Ostali Bojan / Miroslav | — | — | T10 | — |
+| Šabloni | — | nisu izloženi | **PRESERVE_GATED** | `TPL-DATUMI`: izmišljeni datumi u hronologiji |
+| Prediktor | — | nije izložen | **PRESERVE_GATED** | `PREDICTOR-DIF` |
+| Tim, Web3, glas, admin, eksperimentalno | ne (beta je solo) | — | **OUT_OF_SCOPE** (očuvano, ništa obrisano) | — |
+
+**Status:** nijedan potvrđen zahtev bete nije bez V2 puta ili bez izričitog razloga zašto ostaje zatvoren.
+
+## T09 — Autonomija NS007 — `PASS_ISOLATED` / `BLOCKED_AUTHORITY`
+
+- Vidi `VCR002_T09_AUTONOMY_ACTIVATION.md`.
+- **Novo:** svi NS007 testovi nad **stvarnim izolovanim PostgreSQL-om 17.9**: **163 passed, 0 skipped**. VCR001 je imao 11 preskočenih, uz netačnu napomenu da PG nije dostupan.
+- Kod autonomije je nepromenjen.
+
+## T10 — Zahtevi Bojan / Miroslav — vidi `VCR002_REQUIREMENTS_STATE.md`
+
+- **Promene nivoa:**
+  - B3 → PASS_ISOLATED (produkciona slika);
+  - B6 PARTIAL → PASS_ISOLATED;
+  - B5 i B12 dobijaju dokaz o brisanju izvora;
+  - B10 ostaje BLOCKED_AUTHORITY, ali sa tačnom dijagnozom i dve ispravke.
+- **Ništa nije LIVE ni REAL_USER_ACCEPTED.**
+- **Miroslav:** `BLOCKED_REQUIREMENTS_SOURCE`. Pretražen je i Google Drive osnivača: 0 rezultata za „Miroslav“.

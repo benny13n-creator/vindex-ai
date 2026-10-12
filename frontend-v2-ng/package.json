@@ -52,7 +52,8 @@
     "e2e:organizacija": "node tests/live-organizacija-e2e.mjs",
     "e2e:site": "node tests/site-e2e.mjs",
     "verify:live-agenti": "node tests/live-agenti.mjs",
-    "e2e:dokaz-zastarelost": "node tests/live-dokaz-zastarelost-e2e.mjs"
+    "e2e:dokaz-zastarelost": "node tests/live-dokaz-zastarelost-e2e.mjs",
+    "e2e:savetnici": "node tests/live-savetnici-e2e.mjs"
   },
   "keywords": [],
   "author": "",
