@@ -25,7 +25,10 @@
     paralelno: { agenti: ["research", "litigation", "intake"], ruta: "/api/agents/run-parallel",
       naslov: "Tri pogleda istovremeno",
       pomoc: "Pravno istraživanje, parnična strategija i prijem rade istovremeno nad istim zadatkom. Naplaćuje se po jedan poziv za svakog savetnika koji odgovori; neuspeli se ne naplaćuju." },
-    niz: { agenti: ["research", "litigation", "drafting"], ruta: "/api/agents/pipeline",
+    /* VCR002 RC FIX 2: niz je ISKLJUČEN. Pad radnika posle plaćenog koraka ostavlja plaćen rad nigde zabeležen,
+     * a nova radnja ga ponovo naplaćuje (tests/test_vcr002_rc_fix2_niz_oporavak.py). Uključuje se tek kad postoji
+     * trajna evidencija koraka i bezbedan oporavak — to traži novu šemu i posebno odobrenje. */
+    niz: { iskljucen: true, agenti: ["research", "litigation", "drafting"], ruta: "/api/agents/pipeline",
       naslov: "Od istraživanja do nacrta",
       pomoc: "Istraživanje, zatim parnična strategija, zatim nacrt — svaki korak koristi prethodni kao nepoverljiv radni materijal. Svaki završen korak se naplaćuje kao jedan poziv; ako se niz prekine, završeni koraci ostaju vidljivi." },
   };
@@ -70,7 +73,7 @@
       Object.keys(NACINI).forEach(function (n) {
         var ag = NACINI[n].agenti; if (!ag) return;
         var op = $("ag-nacin").querySelector('option[value="' + n + '"]');
-        if (op) op.disabled = !ag.every(function (id) { return lista.some(function (a) { return a.id === id; }); });
+        if (op) op.disabled = !!NACINI[n].iskljucen || !ag.every(function (id) { return lista.some(function (a) { return a.id === id; }); });
       });
       opis(); promeniNacin(); zakljucaj(salje);
     }

@@ -128,7 +128,7 @@ for (const [w, h] of [[390, 844], [1440, 900]]) {
   await s.zatvori();
 }
 
-// ── E/F (VCR002 T07): tri pogleda istovremeno i niz od istraživanja do nacrta ─────────────
+// ── E/F (VCR002 T07): tri pogleda istovremeno; niz je isključen (RC FIX 2) ─────────────
 const ekranKomb = (p) => p.evaluate(() => {
   const vid = (id) => { const e = document.getElementById(id); return !!e && !e.closest("[hidden]") && e.getClientRects().length > 0; };
   return { odgovor: vid("ag-odgovor"), naslov: document.getElementById("ag-odgovor-naslov").textContent,
@@ -180,31 +180,24 @@ async function pokreniKomb(p, nacin, zadatak = "Pripremi tužbu za naknadu štet
   zapisi("E.svi_pali", "svi pali: bez lažnog odgovora, „ništa nije naplaćeno“", !e.odgovor && /Nijedan savetnik nije odgovorio.*Ništa nije naplaćeno/.test(e.stanje || ""), e.stanje);
   await s.zatvori();
 }
+// F (VCR002 RC FIX 2): niz je ISKLJUČEN dok oporavak plaćenog niza posle pada radnika nije bezbedan.
 {
   const tela = [];
   const s = await scenario({ upisano: (b) => tela.push(b) });
-  await pokreniKomb(s.p, "niz");
+  const o = await s.p.evaluate(() => [...document.querySelectorAll("#ag-nacin option")].map(x => [x.value, x.disabled, x.textContent]));
+  const niz = o.find(x => x[0] === "niz");
+  zapisi("F.iskljucen", "niz se ne nudi posle učitanog kataloga i jasno piše da je privremeno isključen",
+    !!niz && niz[1] === true && /privremeno isključeno/.test(niz[2]), JSON.stringify(o));
+  zapisi("F.ostali", "jedan savetnik i tri pogleda ostaju dostupni", o.filter(x => x[0] !== "niz").every(x => x[1] === false), JSON.stringify(o));
+  await s.p.evaluate(() => { const n = document.getElementById("ag-nacin"); n.value = "niz"; n.dispatchEvent(new Event("change")); });
+  await s.p.fill("#ag-zadatak", "Pripremi tužbu za naknadu štete iz ugovora."); await s.p.click("#ag-posalji");
+  await cekaj(s.p, () => { const n = document.getElementById("ag-stanje"); return !n.hidden; });
   const e = await ekranKomb(s.p);
-  zapisi("F.niz", "tri koraka redom: istraživanje, strategija, nacrt", e.odgovor && e.blokovi.map(b => b.agent).join() === "research,litigation,drafting", e.blokovi.map(b => b.agent).join());
-  const zav = e.vrh.find(v => v.startsWith("zavrsni:"));
-  zapisi("F.zavrsni", "završni odgovor ima SVOJU proveru (neproveren), ne nasleđenu iz koraka 1 (proveren)",
-    !!zav && /Završni odgovor: 1 citiran član nije potvrđen/.test(zav) && e.blokovi[0].citati[0].startsWith("citati-provereni:"), zav);
-  zapisi("F.pregled", "„radni materijal, ne pravni zaključak“ i upozorenje da provera ranijeg koraka ne važi za završni",
-    e.vrh.some(v => /^pregled:.*ne pravni zaključak.*ne važi za završni/.test(v)));
-  zapisi("F.ugovor", "jedan zahtev /api/agents/pipeline sa proverenim nizom i ključem idempotencije",
-    tela.length === 1 && tela[0]._putanja === "/api/agents/pipeline" && tela[0].pipeline.join() === "research,litigation,drafting" && !!tela[0]._kljuc && typeof tela[0].opis === "string", JSON.stringify(tela[0]));
+  zapisi("F.bez_zahteva", "nasilno izabran niz: nijedan zahtev, nijedna naplata, iskrena poruka",
+    tela.length === 0 && !e.odgovor && /trenutno nije dostupan/.test(e.stanje || ""), JSON.stringify([tela.length, e.stanje]));
   await s.zatvori();
 }
-{
-  const s = await scenario({ padaju: ["litigation"] });
-  await pokreniKomb(s.p, "niz");
-  const e = await ekranKomb(s.p);
-  zapisi("F.prekid", "prekid na koraku 2: korak 1 prikazan i naplaćen, korak 2 nije naplaćen, korak 3 nije pokrenut",
-    e.vrh.some(v => /^prekinut:.*koraku 2/.test(v)) && e.blokovi.length === 2 && e.blokovi[0].stanje === "USPEH" && e.blokovi[1].stanje === "NEUSPEH"
-    && /nije naplaćen/.test(e.blokovi[1].tekst), JSON.stringify(e.vrh));
-  await s.zatvori();
-}
-for (const [nacin, putanja] of [["paralelno", "/api/agents/run-parallel"], ["niz", "/api/agents/pipeline"]]) {
+for (const [nacin, putanja] of [["paralelno", "/api/agents/run-parallel"]]) {
   for (const [naziv, kuka, re] of [["402", { status: 402 }, /dovoljno kredita.*Ništa nije pokrenuto/], ["prekid", { prekid: true }, /Ne ponavljajte odmah/], ["403", { status: 403 }, /profesionalni paket/]]) {
     const s = await scenario({ pre: (p) => p === putanja ? kuka : null });
     await pokreniKomb(s.p, nacin);
@@ -215,19 +208,19 @@ for (const [nacin, putanja] of [["paralelno", "/api/agents/run-parallel"], ["niz
 }
 {
   const tela = [];
-  const s = await scenario({ upisano: (b) => tela.push(b), pre: (p) => p === "/api/agents/pipeline" ? new Promise(r => setTimeout(r, 700)) : null });
-  await s.p.selectOption("#ag-nacin", "niz"); await s.p.fill("#ag-zadatak", "Pripremi tužbu za naknadu štete iz ugovora.");
+  const s = await scenario({ upisano: (b) => tela.push(b), pre: (p) => p === "/api/agents/run-parallel" ? new Promise(r => setTimeout(r, 700)) : null });
+  await s.p.selectOption("#ag-nacin", "paralelno"); await s.p.fill("#ag-zadatak", "Pripremi tužbu za naknadu štete iz ugovora.");
   await s.p.click("#ag-posalji"); await s.p.click("#ag-posalji", { force: true, timeout: 1000 }).catch(() => {});
   const zakljucano = await s.p.evaluate(() => document.getElementById("ag-nacin").disabled && document.getElementById("ag-posalji").disabled);
   await cekaj(s.p, () => !document.getElementById("ag-odgovor").hidden);
-  zapisi("G.dupli", "niz: dupli klik = tačno jedan zahtev; način rada zaključan dok traje", tela.length === 1 && zakljucano, String(tela.length));
+  zapisi("G.dupli", "tri pogleda: dupli klik = tačno jedan zahtev; način rada zaključan dok traje", tela.length === 1 && zakljucano, String(tela.length));
   await s.zatvori();
 }
 for (const [w, h] of [[390, 844]]) {
   const s = await scenario({}, { w, h });
-  await pokreniKomb(s.p, "niz");
+  await pokreniKomb(s.p, "paralelno");
   const m = await s.p.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: innerWidth }));
-  zapisi("G.raspored", `${w}px: bez horizontalnog skrola sa nizom savetnika`, m.sw <= m.vw, `${m.sw}/${m.vw}`);
+  zapisi("G.raspored", `${w}px: bez horizontalnog skrola sa tri pogleda`, m.sw <= m.vw, `${m.sw}/${m.vw}`);
   await s.zatvori();
 }
 

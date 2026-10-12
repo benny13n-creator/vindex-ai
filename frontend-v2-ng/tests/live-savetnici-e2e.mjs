@@ -96,19 +96,20 @@ zapisi("B", "server: 3 paralelna poziva, jedna naplata od 3 jedinice (po isporu�
   s.pozivi_modela.filter(x => x.startsWith("para:")).length === 3 && s.naplaceno_jedinica - sA.naplaceno_jedinica === 3 && s.naplate - sA.naplate === 1, JSON.stringify([s.pozivi_modela.slice(-3), s.naplaceno_jedinica - sA.naplaceno_jedinica]));
 const sB = s;
 
-// C) od istraživanja do nacrta
-await pokreni("niz");
+// C) niz je ISKLJUČEN (VCR002 RC FIX 2): pad radnika posle plaćenog koraka ostavlja plaćen rad nigde zabeležen
+const o = await p.evaluate(() => [...document.querySelectorAll("#ag-nacin option")].map(x => [x.value, x.disabled]));
+zapisi("C", "niz se ne nudi nad pravim katalogom savetnika; ostala dva načina da", JSON.stringify(o) === JSON.stringify([["pojedinacno", false], ["paralelno", false], ["niz", true]]), JSON.stringify(o));
+await p.evaluate(() => { const n = document.getElementById("ag-nacin"); n.value = "niz"; n.dispatchEvent(new Event("change")); });
+await p.fill("#ag-zadatak", "Analiziraj zakonitost otkaza i pripremi tužbu radi poništaja rešenja.");
+await p.click("#ag-posalji");
+await cekaj(() => !document.getElementById("ag-stanje").hidden);
 e = await ekran(); s = await stanje();
-const koraci = s.pozivi_modela.filter(x => x.startsWith("agent:")).slice(-3);
-zapisi("C", "tri koraka redom u UI-ju", e.blokovi.map(b => b.agent).join() === "research,litigation,drafting" && e.blokovi.every(b => b.stanje === "USPEH"), JSON.stringify(e.blokovi));
-zapisi("C", "server: korak 1 bez prethodnog izlaza, koraci 2 i 3 dobijaju ga UNUTAR granice poverenja",
-  JSON.stringify(koraci) === JSON.stringify(["agent:research:-", "agent:litigation:granica", "agent:drafting:granica"]), JSON.stringify(koraci));
-zapisi("C", "završni odgovor ima svoju proveru i oznaku „radni materijal, ne pravni zaključak“",
-  e.vrh.some(v => v.startsWith("zavrsni:")) && e.vrh.some(v => /^pregled:.*ne pravni zaključak/.test(v)), JSON.stringify(e.vrh));
-zapisi("C", "server: 3 naplate (po koraku)", s.naplaceno_jedinica - sB.naplaceno_jedinica === 3 && s.naplate - sB.naplate === 3, String(s.naplaceno_jedinica - sB.naplaceno_jedinica));
+zapisi("C", "nasilno izabran niz: server nije pozvan — nijedan poziv modela, nijedna naplata, nijedan zapis idempotencije",
+  s.pozivi_modela.length === sB.pozivi_modela.length && s.naplaceno_jedinica === sB.naplaceno_jedinica && !s.idempotencija.some(x => x.startsWith("/api/agents/pipeline")),
+  JSON.stringify([s.pozivi_modela.length - sB.pozivi_modela.length, s.naplaceno_jedinica - sB.naplaceno_jedinica]));
 
 // D) trajnost i reload
-zapisi("D", "svaki pokretač je tačno jedan COMPLETED zapis idempotencije", JSON.stringify(s.idempotencija) === JSON.stringify(["/api/agents/pipeline:COMPLETED", "/api/agents/run-parallel:COMPLETED", "/api/agents/run:COMPLETED"]), JSON.stringify(s.idempotencija));
+zapisi("D", "svaki pokretač je tačno jedan COMPLETED zapis idempotencije", JSON.stringify(s.idempotencija) === JSON.stringify(["/api/agents/run-parallel:COMPLETED", "/api/agents/run:COMPLETED"]), JSON.stringify(s.idempotencija));
 const preReload = s.pozivi_modela.length;
 await p.reload();
 await p.click("#tab-pitanje").catch(() => {});
