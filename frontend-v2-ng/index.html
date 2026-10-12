@@ -590,6 +590,21 @@
             <p class="list-state" id="hron-stanje" hidden></p>
             <ol class="chrono" id="hron-lista" aria-label="Hronologija predmeta"></ol>
           </section>
+          <!-- VCR001 T07: kalkulator zastarelosti (deterministički, ništa se ne upisuje) -->
+          <section class="matter__section" aria-labelledby="zs-naslov">
+            <h2 class="matter__h2" id="zs-naslov">Zastarelost potraživanja</h2>
+            <p class="field__help">Orijentacioni izračun po zakonskom roku. Prekid i zastoj zastarelosti se ne računaju — proverite ih posebno. Ništa se ne upisuje u predmet.</p>
+            <form class="form" id="zs-forma" novalidate>
+              <div class="field"><label class="field__label" for="zs-tip">Vrsta potraživanja</label>
+                <select class="field__input" id="zs-tip" aria-describedby="zs-tip-pomoc"></select>
+                <p class="field__help" id="zs-tip-pomoc"></p></div>
+              <div class="field"><label class="field__label" for="zs-datum">Rok teče od</label>
+                <input class="field__input" id="zs-datum" type="date"></div>
+              <div class="form__actions"><button class="text-btn text-btn--line" id="zs-izracunaj" type="submit" disabled>Izračunaj</button></div>
+            </form>
+            <p class="notice" id="zs-poruka" role="status" aria-live="polite" hidden></p>
+            <section id="zs-rezultat" hidden aria-label="Rezultat izračuna zastarelosti"><ul class="an-list" id="zs-rezultat-lista"></ul></section>
+          </section>
         </div>
         <div class="matter__body" id="odeljak-pitanje" hidden>
           <form class="form" id="pp-forma" novalidate>
@@ -615,6 +630,26 @@
               <ul class="sources" id="pp-cinjenice"></ul>
             </section>
           </article>
+          <!-- VCR001 T06: savetnik (agent) na zahtev, kroz čuvar citata -->
+          <section class="matter__section" id="ag-blok" aria-labelledby="ag-naslov">
+            <h2 class="matter__h2" id="ag-naslov">Savetnik za ovaj predmet</h2>
+            <p class="field__help">Specijalizovani AI savetnik radi nad podacima ovog predmeta. Svaki citiran član proverava se u pravnoj bazi; neprovereni su izričito označeni.</p>
+            <form class="form" id="ag-forma" novalidate>
+              <div class="field"><label class="field__label" for="ag-agent">Savetnik</label>
+                <select class="field__input" id="ag-agent" aria-describedby="ag-agent-pomoc"></select>
+                <p class="field__help" id="ag-agent-pomoc"></p></div>
+              <div class="field"><label class="field__label" for="ag-zadatak">Zadatak za savetnika</label>
+                <textarea class="field__input field__input--area" id="ag-zadatak" rows="3" maxlength="2000"></textarea></div>
+              <div class="form__actions"><button class="text-btn text-btn--primary" id="ag-posalji" type="submit" disabled>Pokreni savetnika</button></div>
+            </form>
+            <p class="notice" id="ag-stanje" role="status" aria-live="polite" hidden></p>
+            <article class="answer" id="ag-odgovor" hidden aria-labelledby="ag-odgovor-naslov">
+              <h3 class="answer__h" id="ag-odgovor-naslov"></h3>
+              <ul class="warns" id="ag-citati" aria-label="Provera citata"></ul>
+              <p class="notice" id="ag-kontekst" role="status" hidden></p>
+              <div class="answer__body" id="ag-tekst"></div>
+            </article>
+          </section>
         </div>
         <div class="matter__body" id="odeljak-nacrt" hidden>
           <form class="form" id="nc-forma" novalidate>
@@ -756,6 +791,16 @@
               <p class="an-summary" id="an-dokazi-sazetak"></p>
               <p class="list-state" id="an-skraceno" role="status" hidden></p>
               <ul class="an-list" id="an-dokazi" aria-label="Tvrdnje predmeta"></ul>
+              <!-- VCR001 T07: ručni unos tvrdnje (predmet_dokazi je izvor istine) -->
+              <form class="form" id="du-forma" novalidate aria-labelledby="du-naslov">
+                <h3 class="answer__h" id="du-naslov">Dodaj tvrdnju</h3>
+                <div class="field"><label class="field__label" for="du-tvrdnja">Tvrdnja (činjenica koju predmet treba da dokaže ili koju ste utvrdili)</label>
+                  <textarea class="field__input field__input--area" id="du-tvrdnja" rows="2" maxlength="2000"></textarea></div>
+                <div class="field"><label class="field__label" for="du-napomena">Napomena (nije obavezno)</label>
+                  <input class="field__input" id="du-napomena" maxlength="1000"></div>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="du-posalji" type="submit" disabled>Dodaj tvrdnju</button></div>
+                <p class="notice" id="du-poruka" role="status" aria-live="polite" hidden></p>
+              </form>
               <h3 class="answer__h">Dokumenti</h3><ul class="an-list" id="an-dokumenti"></ul>
             </section>
             <section class="matter__section" aria-labelledby="an-kontr-naslov">
@@ -877,6 +922,9 @@
   <script src="src/rocista-predmeta.js"></script>
   <script src="src/pretraga.js"></script>
   <script src="src/pitanje-predmeta.js"></script>
+  <script src="src/agenti-predmeta.js"></script>
+  <script src="src/dokaz-unos.js"></script>
+  <script src="src/zastarelost-kalkulator.js"></script>
   <script src="src/znanje.js"></script>
   <script src="src/law-brain.js"></script>
   <script src="src/nacrt-predmeta.js"></script>

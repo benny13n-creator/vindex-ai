@@ -623,3 +623,35 @@ export function prijemRuta(korisnici, kuke = {}) {
     json(res, 404, {}); return true;
   };
 }
+
+/* VCR001 T06 — GET /api/agents/lista (zatvoren spisak) i POST /api/agents/run (routers/multi_agent.py).
+ * kontekst_predmeta: true samo za pozivaočev predmet, false za tuđ, null bez predmet_id.
+ * kuke.provera = provera_citata koju „server“ vraća (podrazumevano: jedan izmišljen član; null = polje izostaje). */
+const AGENTI = [["intake", "Intake Agent", "📥"], ["research", "Research Agent", "🔍"], ["drafting", "Drafting Agent", "✍️"],
+                ["litigation", "Litigation Agent", "⚖️"], ["billing", "Billing Agent", "💰"], ["deadline", "Deadline Agent", "⏰"]];
+export function agentRuta(korisnici, kuke = {}) {
+  return async (req, url, res) => {
+    if (url.pathname === "/api/agents/lista" && req.method === "GET") {
+      if (await kuka(kuke, url.pathname, null, req, res)) return true;
+      json(res, 200, { agenti: AGENTI.map(([id, naziv, ikona]) => ({ id, naziv, ikona, opis: `Opis savetnika ${id} 🎯` })) });
+      return true;
+    }
+    if (url.pathname !== "/api/agents/run" || req.method !== "POST") return false;
+    const sirovo = await citajTelo(req);
+    const k = korisnik(req, korisnici);
+    if (await kuka(kuke, url.pathname, k, req, res)) return true;
+    if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+    let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+    (kuke.upisano || (() => {}))(b);
+    if (!AGENTI.some(a => a[0] === b.agent)) { json(res, 400, { detail: "Nepoznat agent" }); return true; }
+    const kontekst = b.predmet_id ? k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id) : null;
+    const provera = kuke.provera !== undefined ? kuke.provera
+      : { status: "NEPROVERENI", ukupno: 2, izvori_dostavljeni: true, neprovereni: [{ clan: "999", zakon: "zoo", razlog: "nije u dostavljenom izvoru tog zakona" }] };
+    const telo = { agent: b.agent, naziv: "Research Agent", ikona: "🔍", task: b.task, suggested_next: "drafting",
+      odgovor: "## 1. OSNOV ODGOVORNOSTI 📥\n**Osnov** je član 154 ZOO, a dopunski član 999 ZOO.\n\n## 2. DOKAZI\nPribaviti račune. <img src=x onerror=\"window.__xss=21\">",
+      kontekst_predmeta: kontekst };
+    if (provera !== null) telo.provera_citata = provera;
+    json(res, 200, telo);
+    return true;
+  };
+}

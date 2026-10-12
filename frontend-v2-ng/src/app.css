@@ -545,6 +545,8 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .warns { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 .warns:empty { display: none; }
 .warn { padding-left: var(--sp-3); border-left: 2px solid var(--attention); }
+.warn--ok { border-left-color: var(--line-strong, var(--border)); }
+.warn__list { margin: var(--sp-1) 0 0; padding-left: var(--sp-4); }
 .warn__title { margin: 0; font-weight: 500; }
 .warn__text { margin: 2px 0 0; color: var(--text-2); }
 .answer__context, .answer__confidence { margin: 0 0 var(--sp-2); color: var(--text-2); font-size: var(--fs-meta); }
