@@ -1,0 +1,12 @@
+{
+  "program": "VCR002",
+  "branch": "program/vcr002-beta-operational-closure",
+  "base_sha": "b36235a318ad80dcc4ce2136273533c42b5473c4",
+  "current_task": "T03",
+  "completed": {"T00": "PASS_LIVE", "T02": "PASS_ISOLATED"},
+  "blocked": {"T01": "BLOCKED_AUTHENTICATION", "T02_live": "BLOCKED_AUTHENTICATION"},
+  "last_passing_integrated_state": "b36235a3 (CI 0 novih padova)",
+  "new_regressions": [],
+  "founder_decisions_required": ["QA nalog (T01)"],
+  "next_executable_action": "T03 — sintetički višedokumentni predmet kroz stvarne rute"
+}
