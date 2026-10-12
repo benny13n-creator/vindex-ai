@@ -1,16 +1,16 @@
 id,izvor,zahtev,v1,v2,api_vlasnik,status_pre,zadatak,status_posle,dokaz,preostalo
-B1,"A018 — BOJAN REQUIREMENTS REALITY MATRIX.md (2026-08-31)",kreiranje predmeta,da,da,routers/predmeti.py,PASS (A018 🟢),T09,,,
-B2,A018,unos dokumenta u predmet,da,da (prikačiti),routers/smart_intake.py,PARTIAL (A018 🟡),T01/T02,,,
-B3,A018,skenirani dokument (OCR),da,da,uploaded_doc/extractor.py + intake_worker,PARTIAL (0 prod izvršenja),T01,,,
-B4,A018,pravilno čuvanje + identitet dokumenta,da,da,predmet_dokumenti.id,PASS (A018 🟢),T09,,,
-B5,A018,izvlačenje činjenica/dokaza,da,da,shared/evidence_write.py,PARTIAL,T03,,,
-B6,A018,povezivanje više dokumenata,da,da,case_dna,PARTIAL,T03,,,
-B7,A018,kontradikcije,da,da,V2 contradictions,PASS (A018 🟢),T04,,,
-B8,A018,hronologija,da,da,predmet_hronologija,PARTIAL (nema dokument_id),T03,,,
-B9,A018,rokovi,da,da,Genome + rokovi kandidati,PARTIAL,T03,,,
-B10,A018,podsetnici,da (email + spoljni cron),ne,routers/email_notif.py,FAIL (A018 🔴),T07,,,
-B11,A018,obaveze/akcije,ne,da,case_actions,PARTIAL,T03,,,
-B12,A018,Genome / case_dna,da,da,routers/case_dna.py,PARTIAL,T04,,,
-B13,A018,"jedan predmet, više dokumenata, jedan lanac",da,da,ceo lanac,PARTIAL (samo fixture),T03/R1,,,
-BW,docs/product/BOJAN_WORKFLOW_GAP_ANALYSIS_2026-08-02.md,"tok: novi klijent → predmet → upload → OCR+ekstrakcija → popunjavanje → hronologija → rokovi → obaveze → AI pregled",da,delimično,više,PARTIAL,R1,,,
-M*,REQUIREMENT_SOURCE_UNAVAILABLE,"Miroslav M-01…M-07: autentičan izvor nije pronađen u repou ni u dostupnim zapisima (M-0xx u .vindex_ai_team su ID-jevi misija, ne zahtevi)",,,,UNKNOWN,T09,REQUIREMENT_SOURCE_UNAVAILABLE,,potreban izvorni dokument
+B1,A018 — BOJAN REQUIREMENTS REALITY MATRIX.md (2026-08-31),kreiranje predmeta,da,da,routers/predmeti.py,PASS (A018 🟢),T09,PASS,"V2 Nov predmet (ručno/opis/dokument, T02 b6c5991d); e2e:solo-tok, prijem-carobnjak 37/37 (BR)",prijavljena produkcija nije proverena (nema test naloga)
+B2,A018,unos dokumenta u predmet,da,da (prikačiti),routers/smart_intake.py,PARTIAL (A018 🟡),T01/T02,PASS_SYNTHETIC,"T02: prijem iz dokumenta pravi predmet; Smart Intake prikačivanje; e2e:prijem-carobnjak, organizacija (BR)",stvaran predmet (B13)
+B3,A018,skenirani dokument (OCR),da,da,uploaded_doc/extractor.py + intake_worker,PARTIAL (0 prod izvršenja),T01,PASS_SYNTHETIC,T01 a8a7e16b: mešovit PDF — skenirana strana kroz pravi Tesseract (srp); test_F_mesoviti_pdf; Docker slika u CI sadrži OCR,OCR nikad live-verifikovan na produkciji (nema test naloga / stvarnog skena)
+B4,A018,pravilno čuvanje + identitet dokumenta,da,da,predmet_dokumenti.id,PASS (A018 🟢),T09,PASS,A018 6/6 (nepromenjeno); T05 nacrt vezan za staging id; T07 tvrdnja vezana za predmet,—
+B5,A018,izvlačenje činjenica/dokaza,da,da,shared/evidence_write.py,PARTIAL,T03,PASS_SYNTHETIC,T07: ručni unos tvrdnje u V2 (bez lažne snage); automatsko izvlačenje A014 (nepromenjeno); e2e:dokaz-zastarelost (BR),stvaran predmet (B13)
+B6,A018,povezivanje više dokumenata,da,da,case_dna,PARTIAL,T03,PARTIAL,nepromenjeno u VCR001 (A017 T6 na fixture podacima),dokaz na stvarnom spisu sa više dokumenata (B13)
+B7,A018,kontradikcije,da,da,V2 contradictions,PASS (A018 🟢),T04,PASS,A017 (nepromenjeno); T03 ns006 demo: protivrečnost u „Zahteva pažnju“ (BR),—
+B8,A018,hronologija,da,da,predmet_hronologija,PARTIAL (nema dokument_id),T03,PASS_SYNTHETIC,"T03 17dd7057: hronologija V2 nosi izvor (lokacija → dokument_id, isti zatvoren razrešavač); e2e:organizacija 16/16",postojeći Genome blobovi dobijaju izvor tek na sledećem osvežavanju
+B9,A018,rokovi,da,da,Genome + rokovi kandidati,PARTIAL,T03,PASS_SYNTHETIC,T03: rok iz dokumenta → akcija „čeka vašu potvrdu“ sa poreklom; potvrda/odbijanje zatvara akciju (lanac odluka FAZA 6.5); T07 kalkulator zastarelosti,stvaran predmet; zaseban entitet roka nije uveden (predmet_hronologija vrsta=rok je kanon)
+B10,A018,podsetnici,da (email + spoljni cron),ne,routers/email_notif.py,FAIL (A018 🔴),T07,BLOCKED,nepromenjeno — BLK-3 (spoljni cron + EMAIL_SMTP_* neproverljivi); T07 nije menjao,odluka osnivača / produkcioni preduslov
+B11,A018,obaveze/akcije,ne,da,case_actions,PARTIAL,T03,PASS_SYNTHETIC,T03 Rule 6: obaveza iz nalaza u dokumentu (rok kandidat) sa poreklom hronologija_id/dokument_id; T07 zadaci predmeta u V2,stvaran predmet
+B12,A018,Genome / case_dna,da,da,routers/case_dna.py,PARTIAL,T04,PASS_SYNTHETIC,T04: ulazi Genome-a potvrđeni (dokumenti + činjenice); T03: datumi_kljucni[].lokacija → izvor,produkcioni blobovi stariji od A001 dobijaju identitet tek na refresh-u
+B13,A018,"jedan predmet, više dokumenata, jedan lanac",da,da,ceo lanac,PARTIAL (samo fixture),T03/R1,BLOCKED,ceo lanac dokazan na sintetičkim podacima kroz V2 (R1/R2 paketi); nijedan stvaran predmet,"BLOCKED — REAL DATA REQUIRED (pilot predmet, odluka osnivača)"
+BW,docs/product/BOJAN_WORKFLOW_GAP_ANALYSIS_2026-08-02.md,tok: novi klijent → predmet → upload → OCR+ekstrakcija → popunjavanje → hronologija → rokovi → obaveze → AI pregled,da,delimično,više,PARTIAL,R1,PASS_SYNTHETIC,R1 + R2: klijent (COI) → predmet → upload → OCR/ekstrakcija → hronologija sa izvorom → rokovi (potvrda) → obaveze → savetnik/pitanje/nacrt kroz V2,stvaran predmet; podsetnici (B10)
+M*,REQUIREMENT_SOURCE_UNAVAILABLE,"Miroslav M-01…M-07: autentičan izvor nije pronađen u repou ni u dostupnim zapisima (M-0xx u .vindex_ai_team su ID-jevi misija, ne zahtevi)",,,,UNKNOWN,T09,REQUIREMENT_SOURCE_UNAVAILABLE,"pretraženi repo, docs, .vindex_ai_team i memorija: nema autentičnog izvora M-01…M-07; ID-jevi NISU izmišljeni",osnivač treba da dostavi izvorni dokument Miroslavljevih zahteva

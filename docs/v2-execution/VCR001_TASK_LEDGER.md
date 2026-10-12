@@ -200,3 +200,37 @@ Program na grani `program/vcr001` (worktree `C:/vindex-vcr001`), počev od `main
 - **Dokazi:**
   - `e2e:dokaz-zastarelost` 23/23 (BR, pravi `api.app`): tvrdnja → `predmet_dokazi` → događaj obrađen → Analiza → reload; zastarelost bez upisa; zadatak → Radna lista (Danas) → završen → reload.
   - svih 45 frontend paketa zeleno; pun lokalni Python paket 0 novih (2 pada pri paralelnom menjanju frontenda, zelena pri ponovnom pokretanju).
+
+## R2 — kapija pravnog rada (T04–T07) — `PASS`
+- **Kandidat:** `b9eb9946`; paket: `docs/v2-execution/VCR001_R2_GATE.md`.
+- **CI:**
+  - Test Suite 174/174 (0 novih u odnosu na T04; 1 manje nego `main`);
+  - Runtime: Docker build/boot zeleno, pun paket 197 nasleđenih (skupovi identični);
+  - Security zeleno;
+  - V2 NG zeleno na ponovljenom pokretanju (prvo: `FLAKY-DEMO-PIKSEL`).
+- **Merge/deploy:** NIJE izvršen — čeka odluku osnivača.
+
+## T08 — autonomija A2/A3 (NS007) — `PASS_ISOLATED` / aktivacija `BLOCKED_AUTHORITY`
+- **Dokument:** `docs/v2-execution/VCR001_T08_AUTONOMY_READINESS.md`.
+- **Zatečeno (P):** NS007 kod je u `main`/produkciji; bez migracije 136 autonomija je isključena i to se istinito prikazuje (`e2e:pre136`, uz kontrolu osetljivosti).
+- VCR001 NIJE dirao autonomiju (diff prazan).
+- **Dokazi:**
+  - NS007 testovi: 152 passed, 11 skipped (PG — nema lokalnih binarnih fajlova u ovoj sesiji);
+  - `e2e:demo-ns007` i `e2e:pre136` zeleno.
+- **Preostalo (osnivač):** migracija 136 (pokreće sam), `AUTONOMY_CRON_SECRET`, ručni probni okidač, kadenca, Render Cron.
+- **Ništa od toga nije urađeno.**
+
+## T09 — zatvaranje zahteva Bojana i Miroslava — `PASS` (matrica) / `BLOCKED` (stvaran predmet, Miroslav izvor)
+- **Matrica:** `VCR001_REQUIREMENTS_MATRIX.csv` — svaki B1–B13, BW i M* ima `status_posle`, dokaz i preostalo.
+- **Bojan:**
+  - PASS: B1, B4, B7;
+  - PASS_SYNTHETIC: B2, B3, B5, B8, B9, B11, B12, BW — lanac dokazan kroz V2 na sintetičkim podacima;
+  - PARTIAL: B6;
+  - BLOCKED: B10 (BLK-3), B13 (REAL DATA REQUIRED).
+- **Kanon „event → posledica“** (`project_bojan_miroslav_canon_audit`): rok iz dokumenta sada proizvodi obavezu sa poreklom (T03 Rule 6), a odluka advokata je zatvara.
+- **Miroslav:** `REQUIREMENT_SOURCE_UNAVAILABLE` — nijedan ID nije izmišljen.
+
+## R3 — kapija autonomije i zahteva (T08–T09) — `PASS` (aktivacija BLOCKED_AUTHORITY)
+- **Kod R3 kandidata = kod R2 kandidata** (`b9eb9946`). Posle R2 menjana je samo dokumentacija (`docs/v2-execution/*`), pa važe CI dokazi R2.
+- **Autonomija:** spremna u izolaciji; u produkciji isključena dok osnivač ne odluči.
+- **Zahtevi:** matrica popunjena; stvaran predmet i Miroslavljev izvor čekaju osnivača.
