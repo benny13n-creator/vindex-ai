@@ -218,6 +218,24 @@ def _brisanje_rpc(baza, p):
     return [{"invalidated": True}]
 
 
+def _atomsko_rpc(baza, p):
+    """Model funkcije iz migracije 137 (VCR002 FIX 1): AI tvrdnje dokumenta se povlače, red briše i događaj upisuje
+    zajedno — sve ili ništa. Sam SQL je dokazan nad pravim PostgreSQL-om (test_vcr002_rc_fix1_migracija137_pg.py)."""
+    if not any(d["id"] == p["p_dokument_id"] and d["predmet_id"] == p["p_predmet_id"] and d["user_id"] == p["p_user_id"]
+               for d in baza.tabele["predmet_dokumenti"]):
+        return [{"invalidated": False, "tvrdnje_povucene": 0}]
+    n = 0
+    for t in baza.tabele["predmet_dokazi"]:
+        if (t.get("dokument_id") == p["p_dokument_id"] and t["predmet_id"] == p["p_predmet_id"]
+                and t["user_id"] == p["p_user_id"] and not t.get("deleted_at")
+                and (t.get("izvor_tvrdnje") == "ai_klasifikacija"
+                     or (t.get("izvor_tvrdnje") is None and t.get("nacin_pronalaska") in ("egzaktan", "normalizovan")))):
+            t["deleted_at"] = "2099-01-01T00:00:00+00:00"
+            n += 1
+    _brisanje_rpc(baza, p)
+    return [{"invalidated": True, "tvrdnje_povucene": n}]
+
+
 def test_obrisan_izvor_nije_tiho_merodavan(predmet):
     """Obrisan dokument: nestaje iz predmeta, njegove AI tvrdnje se povlače (ne ulaze u Genome ni u kontekst pitanja),
     advokatova ručna tvrdnja koja ga navodi ostaje, a rok iz njega ostaje NEPOTVRĐEN (istorija, ne obaveza)."""
@@ -230,6 +248,7 @@ def test_obrisan_izvor_nije_tiho_merodavan(predmet):
     assert ai_zap
     from shared.vector_deletion import Ishod, Rezultat
     b.rpc_impl["invalidate_dokument_relational_and_emit_event"] = _brisanje_rpc
+    b.rpc_impl["invalidate_dokument_and_ai_claims_and_emit_event"] = _atomsko_rpc
     with patch("shared.vector_deletion.obrisi_vektore_dokumenta", lambda *a, **kw: Rezultat(Ishod.DELETED, obrisano=1, ocekivano=1)),             patch("uploaded_doc.ingest._get_pinecone_index", lambda: MagicMock()):
         tudje = k.delete(f"/api/predmeti/{pid}/dokumenti/{zap}", headers=B)
         r = k.delete(f"/api/predmeti/{pid}/dokumenti/{zap}", headers=A)
@@ -269,6 +288,7 @@ def test_ponovno_brisanje_istog_dokumenta_je_404_bez_dodatnih_izmena(predmet):
     k, b, pid, doks = predmet
     from shared.vector_deletion import Ishod, Rezultat
     b.rpc_impl["invalidate_dokument_relational_and_emit_event"] = _brisanje_rpc
+    b.rpc_impl["invalidate_dokument_and_ai_claims_and_emit_event"] = _atomsko_rpc
     with patch("shared.vector_deletion.obrisi_vektore_dokumenta", lambda *a, **kw: Rezultat(Ishod.DELETED, obrisano=1, ocekivano=1)),             patch("uploaded_doc.ingest._get_pinecone_index", lambda: MagicMock()):
         assert k.delete(f"/api/predmeti/{pid}/dokumenti/{doks['Tuzba.pdf']}", headers=A).status_code == 200
         pre = json.dumps(b.tabele["predmet_dokazi"], sort_keys=True, default=str)

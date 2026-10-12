@@ -7267,42 +7267,92 @@ async def predmet_dokument_obrisi(
     # for (a document must not remain AI/Pinecone-retrievable after this
     # endpoint reports it deleted), which Wave 2's own global invariants
     # forbid touching.
-    # VCR002 T03: AI tvrdnje izvučene iz OVOG dokumenta. FK `predmet_dokazi.dokument_id` je ON DELETE SET NULL (016),
-    # pa bi posle brisanja reda ostale aktivne bez izvora i nastavile da ulaze u Genome, kontekst pravnog pitanja i
-    # Analizu kao „utvrđene činjenice“. Identiteti se čitaju PRE brisanja (posle njega veza više ne postoji).
-    # Tvrdnje koje je uneo advokat (`izvor_tvrdnje='covek'`) se ne diraju — to je njegov rad, ne izvod dokumenta.
-    _ai_tvrdnje: list[str] = []
-    try:
-        _tr = await asyncio.to_thread(
-            lambda: supa.table("predmet_dokazi").select("id,izvor_tvrdnje,nacin_pronalaska")
-                .eq("predmet_id", predmet_id).eq("user_id", uid).eq("dokument_id", dok_id)
-                .is_("deleted_at", "null").execute()
-        )
-        _ai_tvrdnje = [t["id"] for t in (_tr.data or [])
-                       if t.get("izvor_tvrdnje") == "ai_klasifikacija"
-                       or (t.get("izvor_tvrdnje") is None and t.get("nacin_pronalaska") in ("egzaktan", "normalizovan"))]
-    except Exception as _te:
-        logger.warning("[DOK-DELETE] tvrdnje dokumenta nisu pročitane dok=%.8s: %s", dok_id, _te)
-
-    from services.event_bus import invalidate_dokument_relational_atomic
+    # VCR002 FIX 1 (Release Closure): povlačenje AI tvrdnji OVOG dokumenta i brisanje reda su jedna celina.
+    # FK `predmet_dokazi.dokument_id` je ON DELETE SET NULL (016): tvrdnja koja ostane aktivna posle brisanja reda
+    # gubi vezu sa izvorom, pa je ni ponovni pokušaj (404) ni bilo koji kasniji posao više ne nalaze, a ona nastavlja
+    # da ulazi u Genome, kontekst pravnog pitanja i Analizu. Zato:
+    #   * migracija 137 povlači tvrdnje, briše red i upisuje SourceInvalidated u JEDNOJ transakciji;
+    #   * dok 137 nije pokrenuta (i samo tada — PGRST202/42883), tvrdnje se povlače PRE brisanja reda, a ako brisanje
+    #     ne uspe, povlačenje se vraća (kompenzacija) — neuspelo brisanje ne sme tiho da povuče važeće tvrdnje.
+    # Uspeh se prijavljuje samo kad su oba koraka potvrđena. Tvrdnje koje je uneo advokat (`izvor_tvrdnje='covek'`)
+    # se ne diraju — to je njegov rad, ne izvod dokumenta.
+    from services.event_bus import (AtomskaInvalidacijaNedostupna, invalidate_dokument_and_ai_claims_atomic,
+                                    invalidate_dokument_relational_atomic)
     from shared.ai_provenance import current_correlation_id
+    _nije_obrisan = "Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo."
+    tvrdnje_povucene = 0
+    _povucene: list[str] = []
+    _trenutak = datetime.now(timezone.utc).isoformat()
+
+    async def _vrati_povucene() -> None:
+        """Kompenzacija puta pre 137: dokument nije obrisan, pa njegove tvrdnje ponovo važe. Vraćaju se SAMO redovi
+        koje je ovaj zahtev povukao (isti trenutak), nikad tvrdnja koju je neko drugi povukao ranije."""
+        if not _povucene:
+            return
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").update({"deleted_at": None})
+                    .in_("id", _povucene).eq("user_id", uid).eq("predmet_id", predmet_id)
+                    .eq("deleted_at", _trenutak).execute()
+            )
+        except Exception as _ke:
+            logger.error("[DOK-DELETE] kompenzacija nije uspela dok=%.8s: %s", dok_id, _ke)
+            raise HTTPException(
+                status_code=500,
+                detail="Dokument nije obrisan, a tvrdnje iz njega su privremeno povučene. Ponovite brisanje.",
+            )
+
     try:
-        _invalidated = await invalidate_dokument_relational_atomic(
+        _invalidated, tvrdnje_povucene = await invalidate_dokument_and_ai_claims_atomic(
             dokument_id=dok_id, predmet_id=predmet_id, user_id=uid,
             correlation_id=current_correlation_id(), supa=supa,
         )
+    except AtomskaInvalidacijaNedostupna:
+        _invalidated = None
     except Exception as _de:
         logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
-        raise HTTPException(
-            status_code=500,
-            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
-        )
-    if not _invalidated:
+        raise HTTPException(status_code=500, detail=_nije_obrisan)
+
+    if _invalidated is None:
+        logger.warning("[DOK-DELETE] migracija 137 nije pokrenuta — put sa kompenzacijom dok=%.8s", dok_id)
+        try:
+            _tr = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").select("id,izvor_tvrdnje,nacin_pronalaska")
+                    .eq("predmet_id", predmet_id).eq("user_id", uid).eq("dokument_id", dok_id)
+                    .is_("deleted_at", "null").execute()
+            )
+            _ai_tvrdnje = [t["id"] for t in (_tr.data or [])
+                           if t.get("izvor_tvrdnje") == "ai_klasifikacija"
+                           or (t.get("izvor_tvrdnje") is None and t.get("nacin_pronalaska") in ("egzaktan", "normalizovan"))]
+            if _ai_tvrdnje:
+                _pv = await asyncio.to_thread(
+                    lambda: supa.table("predmet_dokazi").update({"deleted_at": _trenutak})
+                        .in_("id", _ai_tvrdnje).eq("user_id", uid).eq("predmet_id", predmet_id)
+                        .is_("deleted_at", "null").execute()
+                )
+                _povucene = [t["id"] for t in (_pv.data or [])]
+        except Exception as _te:
+            logger.error("[DOK-DELETE] tvrdnje dokumenta nisu povučene, red se ne briše dok=%.8s: %s", dok_id, _te)
+            raise HTTPException(
+                status_code=503,
+                detail="Vektori su uklonjeni, ali dokument nije obrisan — tvrdnje iz njega trenutno nije moguće "
+                       "povući. Pokušajte ponovo.",
+            )
+        try:
+            _invalidated = await invalidate_dokument_relational_atomic(
+                dokument_id=dok_id, predmet_id=predmet_id, user_id=uid,
+                correlation_id=current_correlation_id(), supa=supa,
+            )
+        except Exception as _de:
+            logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
+            _invalidated = False
+        if not _invalidated:
+            await _vrati_povucene()
+            raise HTTPException(status_code=500, detail=_nije_obrisan)
+        tvrdnje_povucene = len(_povucene)
+    elif not _invalidated:
         logger.error("[DOK-DELETE] red u bazi nije obrisan (already absent/foreign) dok=%.8s", dok_id)
-        raise HTTPException(
-            status_code=500,
-            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
-        )
+        raise HTTPException(status_code=500, detail=_nije_obrisan)
 
     # HTTP 200 od baze nije dokaz (isti razlog kao verifikacija u §6 kanonskog
     # modula) -- proverava se da reda stvarno više nema. Zadržano kao dodatna
@@ -7313,24 +7363,11 @@ async def predmet_dokument_obrisi(
         lambda: supa.table("predmet_dokumenti").select("id").eq("id", dok_id).limit(1).execute()
     )
     if _provera.data:
+        await _vrati_povucene()
         raise HTTPException(
             status_code=500,
             detail="Vektori su uklonjeni, ali dokument je i dalje u bazi. Pokušajte ponovo.",
         )
-
-    # VCR002 T03: dokument je obrisan — njegove AI tvrdnje više nisu merodavne (meko brisanje, isto kao delete_dokaz).
-    tvrdnje_povucene = 0
-    if _ai_tvrdnje:
-        try:
-            _pv = await asyncio.to_thread(
-                lambda: supa.table("predmet_dokazi").update({"deleted_at": datetime.now(timezone.utc).isoformat()})
-                    .in_("id", _ai_tvrdnje).eq("user_id", uid).eq("predmet_id", predmet_id)
-                    .is_("deleted_at", "null").execute()
-            )
-            tvrdnje_povucene = len(_pv.data or [])
-        except Exception as _pe:
-            logger.error("[DOK-DELETE] AI tvrdnje obrisanog dokumenta nisu povučene dok=%.8s: %s", dok_id, _pe)
-            tvrdnje_povucene = -1
 
     try:
         from shared.audit_immutable import log_action

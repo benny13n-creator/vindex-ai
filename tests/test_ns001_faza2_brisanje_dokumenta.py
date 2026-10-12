@@ -229,7 +229,10 @@ class _Rpc:
 
     def execute(self):
         self.b.dnevnik.append((self.ime, "rpc"))
-        if self.ime != "invalidate_dokument_relational_and_emit_event":
+        # VCR002 FIX 1: api.py prvo zove atomsku funkciju iz migracije 137 (isti predikat vlasništva, isti
+        # end-state reda; ovaj fake nema tvrdnji, pa je broj povučenih 0).
+        if self.ime not in ("invalidate_dokument_relational_and_emit_event",
+                            "invalidate_dokument_and_ai_claims_and_emit_event"):
             raise ValueError(f"neočekivan RPC u testu: {self.ime}")
         if self.b.db_puca:
             raise RuntimeError("baza nedostupna")
@@ -266,7 +269,8 @@ def _vozi_delete(baza, rezultat_vektora, uid=UID):
         return _orig_exec(self)
 
     def _rpc_exec(self):
-        if self.ime == "invalidate_dokument_relational_and_emit_event":
+        if self.ime in ("invalidate_dokument_relational_and_emit_event",
+                        "invalidate_dokument_and_ai_claims_and_emit_event"):
             pozivi["redosled"].append("db")
         return _orig_rpc_exec(self)
 
