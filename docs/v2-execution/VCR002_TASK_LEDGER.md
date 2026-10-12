@@ -271,3 +271,49 @@ Dokazano kroz **stvarnu kapiju** (bez zamene `_potvrdjeni_ids`):
   - Postojeći testovi savetnika (VCR001 T06, `test_multi_agent`, CELINA 3): 33/33.
   - **Mutacije M1–M8 (vlasništvo, provera citata, izuzet = proveren, sirova greška, duplikati, budžet, naplata po pokušaju, opis bez granice): 8/8 UHVAĆENE.**
 - **Nije u ovom zadatku:** V2 dugme za paralelni rad (T07).
+
+## T06 — Integritet niza savetnika (pipeline) — `PASS_IMPLEMENTED` (ISOLATED)
+
+- **Početni SHA:** `86fa7e5e`.
+- **Tok** (provereno čitanjem i testom): zadatak → korak 1 (`run_agent`: kontekst predmeta, pretraga, čuvar citata, naplata) → izlaz → korak 2 … → odgovor.
+- **Problemi:**
+
+  | # | Problem |
+  |---|---|
+  | Q1 | izlaz prethodnog savetnika je ulazio u sledeći korak kao golo „PRETHODNI KORAK“, pa je uputstvo koje je model upisao u izlaz moglo da upravlja sledećim |
+  | Q2 | rezultat niza **nije nosio proveru citata** ni po koraku, ni za završni odgovor |
+  | Q3 | jedina zaštita od ponavljanja bio je keš procesa (15 min); ne važi preko radnika ni restarta |
+  | Q4 | sirova greška (`str(exc)[:120]`) išla je klijentu |
+  | Q5 | budžet za ceo niz se nije proveravao, pa je korak 3 mogao da padne na 402 posle dva plaćena koraka |
+  | Q6 | ulaz bez tipa i granica |
+
+- **Ispravke:**
+  - **`_zadatak_koraka`:** izlaz prethodnog koraka ulazi samo u granici poverenja. Nova oznaka u `security/prompt_guard.py`: `IZVOR_AI_KORAK = "IZLAZ_PRETHODNOG_SAVETNIKA"`, uz napomenu da to nije proverena činjenica i da njegovi citati nisu potvrđeni.
+  - **Citati:**
+    - svaki korak nosi svoju `provera_citata`, `stanje` i `naplacen`;
+    - `provera_citata_zavrsnog` je isključivo provera poslednjeg isporučenog odgovora, nikad nasleđena iz ranijeg koraka;
+    - `potreban_pregled_advokata: true`; `kontekst_predmeta`; `naplaceno_koraka`.
+  - **Trajna idempotencija:** dodata ruta `POST /api/agents/(run|run-parallel|pipeline)` u `shared/idempotency.py::ZASTICENE_RUTE`. To je postojeći okvir migracije 134 (`v2_mutation_idempotency`, primenjena u produkciji). **Bez nove tabele i bez migracije.** V2 već šalje `Idempotency-Key` za svaku radnju.
+  - **Greške, budžet, ulaz:**
+    - greška je generička (`_GRESKA_KORAKA`);
+    - provera budžeta (`krediti × broj koraka`) radi se pre prvog poziva;
+    - `PipelineReq`: `opis` 1–8000, `pipeline: list[str]` 1–12, `idempotency_key` ≤ 128.
+
+### Deklarisana garancija idempotencije
+
+| Slučaj | Ponašanje | Dokaz |
+|---|---|---|
+| ponovljen HTTP zahtev, isti ključ, isto telo | sačuvan odgovor (`idempotent-replayed: true`); model i naplata se NE ponavljaju, ni posle brisanja keša procesa | test |
+| istovremen zahtev, isti ključ (prvi u toku) | 409 `IDEMPOTENCY_IN_PROGRESS`, ruta se ne izvršava | test |
+| isti ključ, drugo telo | 409 `IDEMPOTENCY_CONFLICT` | test |
+| više radnika / instanci | PRIMARNI KLJUČ (user_id, ključ) u bazi | migracija 134 + NS005 A2 testovi |
+| timeout klijenta posle plaćenog koraka, ponovljen zahtev sa istim ključem | dok traje: 409; posle završetka: sačuvan odgovor, bez nove naplate | ugovor middleware-a (NS005 A2) |
+| restart radnika usred niza | red ostaje IN_PROGRESS, pa isti ključ dobija 409 trajno (fail-closed). Nova radnja advokata (novi ključ) izvršava ponovo i **ponovo naplaćuje** već plaćene korake prekinutog izvršenja. Ovo je **deklarisano ograničenje** (`LIM-T06-1`), ne garancija | ugovor middleware-a |
+| namerno ponovno pokretanje (nov ključ) | izvršava se i naplaćuje | test |
+| ključ drugog korisnika | ne deli odgovor | test |
+| pozivalac bez zaglavlja (V1) | kao pre: samo keš procesa, `iz_kesa` | nepromenjeno |
+
+- **Rezultati:**
+  - `tests/test_vcr002_t06_niz_savetnika.py`: 19/19 (tri koraka, nasleđivanje provere, prenesena halucinacija, tuđ predmet, pad 2. koraka, pad 1. koraka, neočekivan izuzetak, budžet, 5 pogrešnih ulaza, 5 idempotencija, mreža).
+  - Regresija (idempotencija NS005 A2, savetnici VCR001/T05, `test_multi_agent`): 124 passed, 9 skipped (PostgreSQL).
+  - **Mutacije M1–M6 (izlaz bez granice, završni nasleđuje prvi, ruta van zaštite, bez budžeta, sirova greška, neuspeh kao naplaćen): 6/6 UHVAĆENE** (M5 posle dodatog testa za neočekivan izuzetak).
