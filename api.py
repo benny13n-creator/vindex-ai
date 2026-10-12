@@ -7267,6 +7267,23 @@ async def predmet_dokument_obrisi(
     # for (a document must not remain AI/Pinecone-retrievable after this
     # endpoint reports it deleted), which Wave 2's own global invariants
     # forbid touching.
+    # VCR002 T03: AI tvrdnje izvučene iz OVOG dokumenta. FK `predmet_dokazi.dokument_id` je ON DELETE SET NULL (016),
+    # pa bi posle brisanja reda ostale aktivne bez izvora i nastavile da ulaze u Genome, kontekst pravnog pitanja i
+    # Analizu kao „utvrđene činjenice“. Identiteti se čitaju PRE brisanja (posle njega veza više ne postoji).
+    # Tvrdnje koje je uneo advokat (`izvor_tvrdnje='covek'`) se ne diraju — to je njegov rad, ne izvod dokumenta.
+    _ai_tvrdnje: list[str] = []
+    try:
+        _tr = await asyncio.to_thread(
+            lambda: supa.table("predmet_dokazi").select("id,izvor_tvrdnje,nacin_pronalaska")
+                .eq("predmet_id", predmet_id).eq("user_id", uid).eq("dokument_id", dok_id)
+                .is_("deleted_at", "null").execute()
+        )
+        _ai_tvrdnje = [t["id"] for t in (_tr.data or [])
+                       if t.get("izvor_tvrdnje") == "ai_klasifikacija"
+                       or (t.get("izvor_tvrdnje") is None and t.get("nacin_pronalaska") in ("egzaktan", "normalizovan"))]
+    except Exception as _te:
+        logger.warning("[DOK-DELETE] tvrdnje dokumenta nisu pročitane dok=%.8s: %s", dok_id, _te)
+
     from services.event_bus import invalidate_dokument_relational_atomic
     from shared.ai_provenance import current_correlation_id
     try:
@@ -7301,6 +7318,20 @@ async def predmet_dokument_obrisi(
             detail="Vektori su uklonjeni, ali dokument je i dalje u bazi. Pokušajte ponovo.",
         )
 
+    # VCR002 T03: dokument je obrisan — njegove AI tvrdnje više nisu merodavne (meko brisanje, isto kao delete_dokaz).
+    tvrdnje_povucene = 0
+    if _ai_tvrdnje:
+        try:
+            _pv = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").update({"deleted_at": datetime.now(timezone.utc).isoformat()})
+                    .in_("id", _ai_tvrdnje).eq("user_id", uid).eq("predmet_id", predmet_id)
+                    .is_("deleted_at", "null").execute()
+            )
+            tvrdnje_povucene = len(_pv.data or [])
+        except Exception as _pe:
+            logger.error("[DOK-DELETE] AI tvrdnje obrisanog dokumenta nisu povučene dok=%.8s: %s", dok_id, _pe)
+            tvrdnje_povucene = -1
+
     try:
         from shared.audit_immutable import log_action
         asyncio.create_task(log_action(
@@ -7311,7 +7342,7 @@ async def predmet_dokument_obrisi(
             ip=request.client.host if request.client else None,
             metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", ""),
                       "vektori": vektori, "storage": storage_ishod,
-                      "izvedeni_tragovi": istorija_obrisano},
+                      "izvedeni_tragovi": istorija_obrisano, "tvrdnje_povucene": tvrdnje_povucene},
         ))
     except Exception as _ae:
         logger.warning("[AUDIT] dokument_delete log greška: %s", _ae)
@@ -7322,6 +7353,7 @@ async def predmet_dokument_obrisi(
         "vektori": vektori,
         "storage": storage_ishod,
         "izvedeni_tragovi": istorija_obrisano,
+        "tvrdnje_povucene": tvrdnje_povucene,
     }
 
 

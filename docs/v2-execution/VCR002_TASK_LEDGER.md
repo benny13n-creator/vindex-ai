@@ -107,3 +107,59 @@ Nivoi dokaza: LOCAL · ISOLATED · BROWSER_INTEGRATION · LIVE · REAL_USER_ACCE
   - Zašto nije menjano: ispravka traži zahvat u funkciju od oko 1.300 linija, izvan ovog zadatka. Predlog je poseban mali zadatak (CAS oslobađanje zauzeća u `except` grani).
 - **Živo:** zavisi od T01 (`BLOCKED_AUTHENTICATION`). Postupak za živu proveru je u `VCR002_RELEASE_HANDOFF.md` §8.
 - **Status:** `PASS_ISOLATED`. LIVE: `BLOCKED_AUTHENTICATION`.
+
+## T03 — Bojanov tok sa više dokumenata — `PASS_ISOLATED` + jedna ispravka integriteta (živo: `BLOCKED_AUTHENTICATION`)
+
+- **Početni SHA:** `514d0f24`.
+- **Scenario** (izmišljen): Zlatibor Fiktivić protiv Primer Gradnja DOO, P 4711/2026, tri dokumenta:
+  - Tužba: rešenje uručeno 17.03.2025;
+  - Dostavnica: uručeno 25.03.2025 — namerna protivrečnost;
+  - Zapisnik: rok za izjašnjenje za 14 dana.
+
+  Nedostaje ugovor o radu.
+- **Šta prolazi stvarnim putem** (`tests/test_vcr002_t03_visedokumentni_predmet.py`):
+  - Smart Intake rute;
+  - intake worker i pypdf;
+  - kanonski pisac tvrdnji;
+  - Case Evolution dispečer;
+  - osvežavanje Genome-a (zamenjen je samo model; on vraća SAMO oznake `DOK-NN` i `CLAIM-NNN` iz stvarnog prompta, a server ih razrešava);
+  - sinhronizacija rokova;
+  - Case Actions;
+  - lanac odluka o roku;
+  - pravno pitanje i istorija;
+  - brisanje dokumenta.
+- **Ispravka `FIX-T03-1`** (problem → reprodukcija → ispravka):
+  - **Problem:** obrisan dokument je ostajao merodavan. `predmet_dokazi.dokument_id` je `ON DELETE SET NULL` (016), pa su AI tvrdnje obrisanog dokumenta ostajale aktivne bez izvora. Nastavljale su da ulaze:
+    - u Genome (`EVIDENCE VAULT … CLAIM-001: Rok za izjasnjenje…`);
+    - u kontekst pravnog pitanja kao „Utvrđene činjenice“;
+    - u Analizu.
+  - **Ispravka** (`api.py::predmet_dokument_obrisi`):
+    - pre atomskog brisanja se pročitaju tvrdnje tog dokumenta koje je napisao sistem: `izvor_tvrdnje='ai_klasifikacija'`, ili zastarele tvrdnje pronađene u tekstu (`nacin_pronalaska` egzaktan/normalizovan);
+    - posle potvrđenog brisanja te tvrdnje dobijaju `deleted_at` (meko brisanje, isti mehanizam kao `delete_dokaz`);
+    - **advokatove tvrdnje (`covek`) se ne diraju**;
+    - broj povučenih tvrdnji ide u odgovor i u nepromenljivi audit (`tvrdnje_povucene`).
+  - **Bez migracije.**
+  - **Ostatak rizika:** pad procesa između brisanja reda i povlačenja ostavlja tvrdnje kao ranije. To nije gore od zatečenog stanja, a greška se beleži u logu kao `error`.
+- **Rezultati:**
+  - `7 passed`.
+  - Mutacije M1 (bez povlačenja), M2 (povlači i advokatove) i M3 (čitanje posle gubitka veze): **sve 3 UHVAĆENE**.
+  - Regresija: postojeći testovi brisanja (NS001 FAZA 2, Wave 2 2D) 35/35. Šira grupa (brisanje, dokazi, evidence, OSB002/003, VCR001, NS006, FRG001, Wave 2): **484 passed, 1 skipped**.
+
+| Zahtev | Dokaz | Status |
+|---|---|---|
+| **B6** više dokumenata u jednom predmetu | 3 dokumenta, 3 stabilna identiteta, jedan predmet; svaka tvrdnja nosi svoj `dokument_id`; nema „preskakanja“ | `PASS_ISOLATED` |
+| **B8** hronologija sa izvorom | `genome-v2` hronologija: oba datuma uručenja → tačan `dokument_id` | `PASS_ISOLATED` |
+| **B9** rok potvrđuje advokat | rok iz Zapisnika: `AI_AUTONOMOUS`, `dokument_id` = Zapisnik, akcija „čeka vašu potvrdu“; posle ponovnog osvežavanja i dalje 1 rok i 1 akcija; potvrda je trajna i zatvara akciju; B ne može da odluči o tuđem roku | `PASS_ISOLATED` |
+| **B11** akcije iz nalaza u dokumentu | `PLANIRATI_ROKOVE` sa `hronologija_id` + `dokument_id` | `PASS_ISOLATED` |
+| **B12** Genome sa identitetom izvora | protivrečnost razrešena u dva STVARNA reda tvrdnji iz dva različita dokumenta; `CLAIM-NNN` nije sačuvan kao identitet; poslednje osvežavanje vidi sve dokumente; posle brisanja ne vidi obrisan | `PASS_ISOLATED` |
+| pravno pitanje u predmetu | kontekst nosi tvrdnje sva tri dokumenta, u granici poverenja; B ne dobija kontekst; istorija upisana jednom, vlasniku | `PASS_ISOLATED` |
+| **B13** sintetički | ceo lanac iznad | `PASS_ISOLATED` |
+| **B13** stvaran pilot | nema pilot predmeta ni prijavljene sesije | `BLOCKED_AUTHORITY` (pilot) / `BLOCKED_AUTHENTICATION` |
+
+- **Zapažanje `OBS-T03-1`** (nije menjano):
+  - Kontekst pravnog pitanja prikazuje obe protivrečne AI tvrdnje kao „Utvrđene činjenice … snaga=jaka“, bez oznake protivrečnosti.
+  - Advokat to ne vidi, jer je reč o promptu modela. Ipak, „utvrđene“ je preširoka reč za AI izvod.
+  - Promena teksta prompta je promena ponašanja proizvoda, pa je predložena kao posebna odluka, ne tiha izmena.
+- **Zapažanje `OBS-T03-2`:**
+  - Rok iz obrisanog dokumenta ostaje u hronologiji bez izvora (126: „čuva istorijski događaj“, namerno).
+  - Ostaje **NEPOTVRĐEN**, pa nikad ne postaje operativna obaveza. Test to proverava.
