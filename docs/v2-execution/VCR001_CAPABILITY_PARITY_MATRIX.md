@@ -20,24 +20,24 @@ Legenda statusa: `V2` = ALREADY_WORKING_V2 · `LEG` = WORKING_LEGACY_ONLY · `UI
 | Prijem „dokument prvo“: prikačiti postojećem predmetu | Smart Intake | `routers/smart_intake.py` | kartica „Prijem dokumenata“ | basic | V2 | T01 (OCR dokaz) |
 | Prijem „dokument prvo“: **nov predmet iz dokumenta** | čarobnjak `vindex.js:22355` | `finalize` bez `predmet_id` | — | basic | UI | **T02** |
 | Prijem „**problem prvo**“ (opis → predlog → predmet + klijent) | čarobnjak (`/api/intake/ekstrakcija`, `/kreiraj`) | `routers/intake.py` | — | `intake_ai` professional | UI | **T02** |
-| Šabloni predmeta (7 tipova sa hronologijom) | `/api/intake/from-template` | `routers/intake.py` | — | basic | LEG | T07 |
+| Šabloni predmeta (7 tipova sa hronologijom) | `/api/intake/from-template` | `routers/intake.py` | — | basic | LEG — **namerno nije izložen u V2** | T07: šablon upisuje hronologiju sa IZMIŠLJENIM datumima (danas + pomak, „Template (AI)“) — nisu činjenice predmeta; defekt `TPL-DATUMI`, odluka osnivača |
 | OCR (sken PDF, JPG/PNG, srp ćirilica i latinica) | upload | `uploaded_doc/extractor.py`, `shared/intake_worker.py` | Prijem dokumenata | basic | V2 kod; produkcija **0 izvršenja** (A018 B3) | **T01** |
 | `.doc` (stari Word) | upload | extractor nema handler | — | — | UNS → mora jasna greška | T01 |
-| Dokazi (Evidence Vault): pregled | Dokazi | `routers/evidence.py`, `genome-v2` | Analiza | `evidence` professional | V2 (čitanje) | T03/T07 (ručni unos) |
-| Case Genome / Living Matter | Genome | `routers/case_dna.py` | Analiza, Pregled | `case_dna` professional | V2 | T04 |
+| Dokazi (Evidence Vault): pregled + ručni unos | Dokazi | `routers/evidence.py`, `genome-v2` | Analiza („Dodaj tvrdnju“) | `evidence` professional | **V2** (T07, `fa5ac520`) | — (bez snage: nema lažne procene advokata) |
+| Case Genome / Living Matter | Genome | `routers/case_dna.py` | Analiza, Pregled | `case_dna` professional | V2 (T04: ulazi = dokumenti + činjenice, potvrđeno) | — |
 | Case Actions | — | `routers/case_actions.py` | Pregled (živi pregled) | — | V2 | T03 |
 | Hronologija i beleške | predmet | `/api/predmeti/{id}` | Rad na predmetu | basic | V2 | T03 (izvor kao `dokument_id`, A018 B8) |
 | Rokovi (kandidati, potvrda) i ročišta | kalendar | `routers/rokovi*.py`, `/api/rocista` | Danas, ročišta | `rokovi` basic | V2 | T03 |
-| Podsetnici (email) | `/email-notif` | `routers/email_notif.py` + spoljni cron | — | — | PRQ (workflow „Email Podsetnici“ pada; A018 B10 🔴) | T07 / odluka |
-| Pravno pitanje (RAG, čuvar citata) | Pitanje | `main.py`, `/api/pitanje` | Pravno pitanje | `ai_pravna_pitanja` basic | V2 | T04 |
+| Podsetnici (email) | `/email-notif` | `routers/email_notif.py` + spoljni cron | — | — | PRQ — BLK-3 (workflow „Email Podsetnici“ pada; A018 B10 🔴) | odluka osnivača / produkcioni preduslov (T07: nije menjano) |
+| Pravno pitanje (RAG, čuvar citata) | Pitanje | `main.py`, `/api/pitanje` | Pravno pitanje | `ai_pravna_pitanja` basic | V2 (T04, `f995f709`: pretraga zna za trenutni predmet; stanje konteksta) | — |
 | Law Brain (znanje, pretraga) | — | `routers/law_brain*.py` | Znanje, Law Brain | `firm_memory` professional | V2 | — |
 | Sudska praksa, interni stavovi | Praksa | `routers/praksa*`, `interni_stavovi` | Znanje | basic / professional | V2 | — |
-| Nacrti podnesaka + staging + DOCX | Nacrti | `routers/drafting.py`, `/api/staging`, `/api/nacrti/export/docx` | Nacrt podneska | `drafting` professional | V2 | T05 (trajni radni proizvod) |
-| **Multi-agent** (6 agenata: run / parallel / pipeline) | Tim savetnika | `routers/agents.py` | — | `multi_agent` professional | UI | **T06** |
-| Strategija, Red Team, AI Judge | Strategija | `routers/strategija*.py` | — | `strategija` professional | LEG | T07 |
-| Court predictor | Prediktor | `routers/predictor*.py` | — | professional | LEG | T07 |
-| Zastarelost | Zastarelost | `routers/zastarelost.py` | — | professional | LEG | T07 |
-| Zadaci | Zadaci | `routers/zadaci.py` | Radna lista (deo) | basic / `zadaci_ai` | LEG | T07 |
+| Nacrti podnesaka + staging + DOCX | Nacrti | `routers/drafting.py`, `/api/staging`, `/api/nacrti/export/docx` | Nacrt podneska | `drafting` professional | V2 (T05, `5fc726ea`: otvori / sačuvaj / odobri sačuvan tekst) | — |
+| **Multi-agent** (6 agenata: run / parallel / pipeline) | Tim savetnika | `routers/multi_agent.py` | Pravno pitanje → „Savetnik za ovaj predmet“ | `multi_agent` professional | **V2** za `run` (T06, `53de12de`/`fa5ac520`): čuvar citata, granica poverenja | `run-parallel`/`pipeline` nisu izloženi (isti čuvar treba dodati pre izlaganja) |
+| Strategija, Red Team, AI Judge | Strategija | `routers/strategija*.py` | — (delimično: savetnik „Parnična strategija“, T06) | `strategija` professional | LEG | odluka osnivača: granica AI-pomaže/AI-odlučuje (Product Philosophy DRAFT) |
+| Court predictor | Prediktor | `routers/court_predictor.py` | — | professional | LEG — **namerno nije izložen u V2** | model generiše `procenat_min/max` šanse za uspeh — protivno Deterministic Intelligence Framework-u; odluka osnivača |
+| Zastarelost | Zastarelost | `routers/zastarelost.py` | Rad → „Zastarelost potraživanja“ | javna ruta (bez prijave; deterministička, bez podataka) | **V2** (T07, `fa5ac520`) | — (prekid/zastoj se ne računaju — izričito rečeno) |
+| Zadaci | Zadaci | `routers/zadaci.py` | Rad → „Zadaci“ + Radna lista | basic / `zadaci_ai` | **V2** (T07, `3dc32630`): dodaj/rok/prioritet/završeno | AI predlog zadataka (`ai-analiziraj`) nije izložen |
 | Pretraga dokumenata | Pretraga | `/api/search` | Pretraga | basic | V2 | — |
 | Naplata (tajmer, AKS tarifa, fakture) | Finansije | `routers/billing*.py` | Naplata | `finansije` basic | V2 | — |
 | COI | čarobnjak | `routers/intake.py`, `routers/conflict_check.py` | Klijenti predmeta | `conflict_check` professional | V2 | — |

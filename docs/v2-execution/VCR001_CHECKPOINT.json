@@ -15,32 +15,38 @@
     "T09",
     "R3"
   ],
-  "current_task": "T05",
+  "current_task": "R2",
   "completed_tasks": {
     "T00": "PASS_IMPLEMENTED",
     "T01": "PASS_IMPLEMENTED",
     "T02": "PASS_IMPLEMENTED",
     "T03": "PASS_IMPLEMENTED",
     "R1": "PASS (kandidat b817fd2d, nije spojeno)",
-    "T04": "PASS_IMPLEMENTED"
+    "T04": "PASS_IMPLEMENTED",
+    "T05": "PASS_IMPLEMENTED",
+    "T06": "PASS_IMPLEMENTED",
+    "T07": "PASS_IMPLEMENTED (3 izložene, 4 sa statusom)"
   },
   "blocked_tasks": {},
   "branch": "program/vcr001",
   "worktree": "C:/vindex-vcr001",
   "base_sha": "6ad0b13a2ccfeb8cc28094e7be4e2743bd8fab4f",
-  "last_good_sha": "f995f709",
+  "last_good_sha": "fa5ac520",
   "open_defects": [
-    "FLAKY-DEMO-PIKSEL: live-browser-matrix demo-piksel 3-4 px šum u koloni x~255-263 (CI), zelen na ponovljenom pokretanju"
+    "FLAKY-DEMO-PIKSEL: live-browser-matrix demo-piksel 3-4 px šum u koloni x~255-263 (CI), zelen na ponovljenom pokretanju",
+    "TPL-DATUMI: /api/intake/from-template upisuje hronologiju sa izmišljenim datumima (danas+pomak) — nije izloženo u V2",
+    "PREDICTOR-DIF: /api/predictor/analiza — model generiše procenat šanse; nije izloženo u V2 (odluka osnivača)"
   ],
   "latest_test_artifacts": [
     "docs/v2-execution/VCR001_R1_GATE.md"
   ],
-  "next_step": "T05: nacrt kao trajan radni proizvod (otvori/sačuvaj/odobri sačuvan tekst)",
+  "next_step": "R2 kapija: CI na 3dc32630 + R2 paket (T04–T07)",
   "required_founder_decisions": [
     "merge/deploy svakog kandidata (R1/R2/R3) u produkciju",
     "migracija 136 i Render Cron za autonomiju (T08)",
     "izvor Miroslavljevih zahteva (T09)",
-    "test nalog za prijavljenu produkcionu proveru"
+    "test nalog za prijavljenu produkcionu proveru",
+    "šabloni (TPL-DATUMI), prediktor i strategija u V2 (granica AI-pomaže/AI-odlučuje)"
   ],
   "authorized_operations": "izmene koda, testovi, commit-ovi na program/vcr001, Draft PR; BEZ merge-a u main, deploy-a, migracija, Cron-a, naplate"
 }

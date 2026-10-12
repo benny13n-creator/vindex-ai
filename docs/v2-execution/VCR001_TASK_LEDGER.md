@@ -149,3 +149,54 @@ Program na grani `program/vcr001` (worktree `C:/vindex-vcr001`), počev od `main
   - V2 NG zeleno na ponovljenom pokretanju (prvo: demo-piksel šum).
 - **Lokalno:** pun Python paket 19 padova, svi i na `main` stablu (13 lokalnih razlika okruženja + 6 nasleđenih).
 - **Otvoren defekt (CI):** `FLAKY-DEMO-PIKSEL` — `live-browser-matrix` demo-piksel povremeno pada sa 3–4 piksela u koloni x≈255–263 (HEAD↔HEAD i HEAD↔foundation). Prag se NE menja; zelen na ponovljenom pokretanju (2/2).
+
+## T05 — nacrt kao trajan radni proizvod uz ljudsko odobrenje — `PASS_IMPLEMENTED`
+- **Commit:** `5fc726ea`.
+- **Zatečeno (P, kod):**
+  - V2 lista overe prikazivala je naziv/datum/status uz „Odobri“; tekst nacrta posle reload-a NIJE mogao da se otvori — overa naslepo.
+  - Izmene advokata postojale su samo u polju; odobrenje je u bazu znanja kancelarije unosilo NEIZMENJEN AI tekst.
+- **Ispravka:**
+  - `GET /api/staging/{id}` (samo vlasnik);
+  - `PATCH /api/staging/{id}/tekst` (samo dok je nacrt na čekanju; uslovni UPDATE; 409 posle odluke; Quality Gate nad izmenjenim tekstom; audit `nacrt_izmenjen` sa dužinom i otiskom, bez teksta);
+  - odobrenje promoviše tekst iz preuzetog reda;
+  - V2: „Otvori i pregledaj“; odobrava se samo otvoren nacrt — nesačuvana izmena se prvo čuva; odobren/odbijen nacrt je samo za čitanje.
+- **Testovi:**
+  - 10 (LI), mutacije 6/6 — prvi pokušaj testa „zastarelo čitanje“ nije razlikovao (proksi nije umotavao lanac); ispravljen i ponovo dokazan;
+  - `live-nacrt` 51/51 (BM: reload, konflikt, XSS); 371 srodnih Python testova.
+- **CI na `5fc726ea`:**
+  - V2 NG zeleno; Security zeleno;
+  - Test Suite: novi padovi objašnjeni, NISU od T05:
+    - (a) ponedeljkom (UTC) dnevni dispečer pokreće stvarno skeniranje Službenog glasnika → `test_nema_spoljne_mreze` (NS005) pada zavisno od redosleda — ispravljeno u `53de12de` (reprodukovano pre, 0 pokušaja posle);
+    - (b) posao na 3.11 je prešao ponoć UTC tokom izvršavanja (testovi koji računaju „danas“) — isti testovi prolaze lokalno i na sledećem CI krugu.
+  - Na `fa5ac520` Test Suite 174/174 = T04 osnova (0 novih).
+
+## T06 — agenti na zahtev iz V2, kroz čuvar citata — `PASS_IMPLEMENTED`
+- **Commitovi:** `53de12de` (backend), `fa5ac520` (V2).
+- **Zatečeno (P):**
+  - `routers/multi_agent.py` bez ikakve provere citata; prompt intake agenta traži stav člana „iz sopstvenog znanja“;
+  - tekst dokumenata predmeta (T3) ulazio je u prompt BEZ granice poverenja (B-U-004-F3 primenjen u `/api/pitanje`, ne ovde).
+- **Ispravka:**
+  - `provera_citata` kanonskim čuvarom `main._klasifikuj_citate`; izvor provere su samo tekstovi iz pravne baze (dokumenti predmeta nisu dokaz za član zakona);
+  - pad provere = `NEPOZNATO`;
+  - dokumenti u `zapakuj_nepoverljivo`; `kontekst_predmeta`.
+  - V2: „Savetnik za ovaj predmet“ u kartici Pravno pitanje (bez nove kartice, bez redizajna navigacije); 6 savetnika sa srpskim nazivima, bez ikonica; neprovereni citati izričito; spisak se čita tek kad je kartica otvorena.
+- **Testovi:**
+  - 9 (LI), mutacije 6/6;
+  - `live-agenti` 23/23 (BM);
+  - testovi „cena“ Analize/Pregleda uhvatili su prvo učitavanje spiska van kartice — ispravljeno.
+- **Van obima:** `run-parallel` i `pipeline` nisu izloženi u V2 (isti čuvar mora pre izlaganja).
+- **CI na `fa5ac520`:** Test Suite 174/174 (0 novih), Runtime 197 (0 novih), V2 NG zeleno, Security zeleno.
+
+## T07 — V1 sposobnosti u V2 — `PASS_IMPLEMENTED` (3 izložene, 4 sa statusom i razlogom)
+- **Izloženo u V2:**
+  1. **Ručni unos tvrdnje** (Analiza → „Dodaj tvrdnju“, `fa5ac520`): bez `snaga` (TASK 003A — nema lažne procene advokata); Analiza se ponovo čita; događaj Case Evolution.
+  2. **Zastarelost** (Rad, `fa5ac520`): deterministički kalkulator; ništa se ne upisuje; izričito: prekid i zastoj se ne računaju; `/zastarelost/` dodat u dozvoljene putanje V2 API sloja. Napomena: ruta je javna (bez prijave) — kalkulator bez podataka, nije curenje.
+  3. **Zadaci** (Rad, `3dc32630`): dodaj/rok/prioritet/završeno sa `if_updated_at`; dodela prijavljenom korisniku (bez nje zadatak nije na Radnoj listi).
+- **Nije izloženo, sa razlogom:**
+  - **Šabloni:** šablon upisuje hronologiju sa IZMIŠLJENIM datumima (danas + pomak) kao događaje predmeta — defekt `TPL-DATUMI`, odluka osnivača.
+  - **Prediktor:** model generiše procenat šanse za uspeh — protivno Deterministic Intelligence Framework-u; odluka osnivača.
+  - **Strategija (Red Team/AI Judge):** granica AI-pomaže/AI-odlučuje (Product Philosophy DRAFT); delimično pokriveno savetnikom „Parnična strategija“ (T06).
+  - **Podsetnici:** BLK-3, produkcioni preduslov.
+- **Dokazi:**
+  - `e2e:dokaz-zastarelost` 23/23 (BR, pravi `api.app`): tvrdnja → `predmet_dokazi` → događaj obrađen → Analiza → reload; zastarelost bez upisa; zadatak → Radna lista (Danas) → završen → reload.
+  - svih 45 frontend paketa zeleno; pun lokalni Python paket 0 novih (2 pada pri paralelnom menjanju frontenda, zelena pri ponovnom pokretanju).
