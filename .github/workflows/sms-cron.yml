@@ -8,8 +8,20 @@ jobs:
   send-reminders:
     runs-on: ubuntu-latest
     steps:
+      # VCR002 T04: dokazano 2026-10-11 (run 38144992944) — server odgovara 401 „Vaša sesija je istekla“, jer
+      # /sms/send-reminders prima SAMO osnivačev JWT (routers/sms.py), a ne CRON_TOKEN; goli `curl` bez provere
+      # statusa je to prikazivao kao uspeh. Isti kvar kao email-cron.yml pre Wave 4. Ovde se SAMO prestaje sa
+      # lažnim uspehom: prihvatanje cron ključa na SMS ruti bi uključilo slanje SMS-a stvarnim korisnicima, a to je
+      # zasebna odluka osnivača (VCR002_RELEASE_HANDOFF.md).
       - name: Pošalji SMS podsetnike
         run: |
-          curl -X POST https://vindex.rs/sms/send-reminders \
+          http_code=$(curl -s -o /tmp/sms_cron_response.json -w "%{http_code}" -X POST https://vindex.rs/sms/send-reminders \
             -H "Authorization: Bearer ${{ secrets.CRON_TOKEN }}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json")
+          echo "HTTP $http_code"
+          cat /tmp/sms_cron_response.json
+          echo ""
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::sms/send-reminders returned HTTP $http_code -- treating as job failure, not silent success."
+            exit 1
+          fi

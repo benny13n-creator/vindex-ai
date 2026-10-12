@@ -163,3 +163,62 @@ Nivoi dokaza: LOCAL · ISOLATED · BROWSER_INTEGRATION · LIVE · REAL_USER_ACCE
 - **Zapažanje `OBS-T03-2`:**
   - Rok iz obrisanog dokumenta ostaje u hronologiji bez izvora (126: „čuva istorijski događaj“, namerno).
   - Ostaje **NEPOTVRĐEN**, pa nikad ne postaje operativna obaveza. Test to proverava.
+
+## T04 — B10: postojeći podsetnici za rokove — `PASS_IMPLEMENTED` (kod) / `BLOCKED_AUTHORITY` (tajna i isporuka)
+
+- **Početni SHA:** `4a51a2c8`.
+- **Nema drugog planera.** Ostaju postojeći `email-cron.yml` → `POST /email-notif/send-reminders` → `routers/email_notif.py::posalji_podsetnike`.
+
+### Faza A — dijagnoza (bez otkrivanja tajni)
+
+- `email-cron.yml`: `state=active`, raspored `0 8 * * *`.
+  - Stvarna pokretanja kasne oko 6 h (GitHub raspored).
+  - Poslednjih 6 dana: **6/6 failure**, run 38147295244 (2026-10-11): `HTTP 403 {"detail":"Restricted to founder or valid cron key."}`.
+- Zaglavlje je ispravno od Wave 4: `X-Cron-Key: ***`. Maskirana vrednost znači da je tajna **neprazna**.
+- GitHub tajna `CRON_TOKEN` postoji (izmenjena 2026-06-20).
+- Server (`_require_cron_or_founder`) prihvata samo `X-Cron-Key == CRON_SECRET` (Render) ili osnivačev JWT.
+- **Zaključak:** na Render-u `CRON_SECRET` nije postavljen ili se razlikuje od `CRON_TOKEN`. Ova sesija ne vidi nijednu od te dve vrednosti, pa se dalje ne može razlikovati. Nijedna tajna nije čitana niti menjana.
+- **Nov nalaz — `FIX-T04-3`** (SMS posao lažno prijavljuje uspeh):
+  - `sms-cron.yml` prijavljuje **success** svaki dan (6/6), a server odgovara `401 „Vaša sesija je istekla“` (run 38144992944).
+  - Uzrok: `/sms/send-reminders` prima samo osnivačev JWT, a goli `curl` nema proveru statusa.
+  - Ispravka: posao sada pada na odgovor koji nije 2xx (isti obrazac kao email posao).
+  - SMS ruta **nije** proširena na cron ključ, jer bi to uključilo slanje SMS-a stvarnim korisnicima; to je odluka osnivača.
+  - Napomena: planirani poslovi se izvršavaju sa `main`-a, pa ispravka deluje tek posle spajanja.
+
+### Faza B — pravna bezbednost rokova (kapija postoji: `shared/rokovi.sme_pokrenuti_obavezu` + `shared/rok_potvrda`, lanac `audit_immutable`)
+
+Dokazano kroz **stvarnu kapiju** (bez zamene `_potvrdjeni_ids`):
+
+| Rok | Šalje se? |
+|---|---|
+| nepotvrđen AI rok | ne |
+| odbijen | ne |
+| potvrđen pa odbijen (poslednja odluka pobeđuje) | ne |
+| potvrđen | da |
+| pad čitanja lanca odluka | ništa se ne šalje (fail-closed) |
+
+- Već pokriveno ranije (B10/FAZA 6.x, nepromenjeno): isključena preferenca, neaktivan profil, arhiviran predmet, pad rezervacije.
+- **`FIX-T04-2`:** predmet **u brisanju** (`brisanje_zapoceto`, BETA-DEL-001) je slao podsetnik. Sada je isključen, isto kao `api.py::_je_u_brisanju`. Ako kolona ne postoji, upit pada na stari oblik.
+- **Primalac:** isključivo vlasnik profila (`profiles.email` po `user_id`).
+- **Odjava:** svaki email nosi „Odjavi se“ (`make_unsub_url`).
+- **Vremenska zona:** `date.today()` na Render-u (UTC). Rokovi su datumi, a pokretanje je oko 08:00–15:00 UTC, isti datum kao u Beogradu.
+
+### Faza C — idempotencija
+
+- **`FIX-T04-1`** (podsetnik se gubio):
+  - **Problem:** dva potvrđena roka istog dana u istom predmetu pravila su dva identična reda rezervacije u jednom INSERT-u. UNIQUE(user, predmet, datum, dan) iz 021 obara ceo iskaz (23505). Kod je to čitao kao „već rezervisano drugim procesom“, pa podsetnik **nikad nije poslat**, a izveštaj je tvrdio `preskoceno=1`.
+  - Postojeći test to nije video, jer njegova lažna baza nije proveravala jedinstvenost unutar jednog upisa.
+  - **Ispravka:** jedna rezervacija po predmetu. Email i dalje navodi sve rokove.
+- Ponovljen cron posle toga ne šalje ponovo (dokazano).
+- **Ugovor ostaje:** najviše jedan pokušaj slanja (at-most-once), ne tačno jedna isporuka. Pad SMTP-a posle rezervacije je `neisporuceno` i traži ručnu proveru (B10, nepromenjeno).
+
+### Faza D — stvarna isporuka: `BLOCKED_AUTHORITY`
+
+- Nema ovlašćenja za tajne, nema odobrenog test primaoca i nema prijavljene QA sesije.
+- Uputstvo za osnivača: `VCR002_RELEASE_HANDOFF.md` §6.
+
+### Rezultati
+
+- `tests/test_vcr002_t04_podsetnici.py`: 10 testova.
+- Mutacije M1 (rezervacija po roku), M2 (bez provere predmeta u brisanju), M3 (kapija propušta sve): **sve 3 UHVAĆENE**.
+- Regresija podsetnika (B10, Wave 4 auth, LZ001, Living System, nedeljni pregled, svi FAZA 6.x): **368 passed**.

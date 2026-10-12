@@ -297,9 +297,15 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
             # a dashboard the lawyer chooses to open, this is a proactive push straight to their
             # inbox -- the single most trust-damaging instance of this bug class. Fetched once
             # per user (not per dana_pre) to avoid 3x the query cost.
-            _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
-                .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
-            _aktivni_ids = {p["id"] for p in (_aktivni_r.data or [])}
+            # VCR002 T04: predmet u brisanju (BETA-DEL-001 tombstone, migracija 114) se ponaša kao da ne postoji —
+            # isto kao `api.py::_je_u_brisanju`. Bez kolone (pre 114) tombstone ne može ni da postoji.
+            try:
+                _aktivni_r = supa.table("predmeti").select("id,brisanje_zapoceto").eq("user_id", uid) \
+                    .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+            except Exception:
+                _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
+                    .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
+            _aktivni_ids = {p["id"] for p in (_aktivni_r.data or []) if not p.get("brisanje_zapoceto")}
             if not _aktivni_ids:
                 continue
 
@@ -357,12 +363,15 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 #                 tačno onaj prozor duplikata koji se zatvara.
                 #                 Takav ishod je `neisporuceno` i traži ručnu
                 #                 proveru, jer je NEPOZNAT, ne neuspešan.
+                # VCR002 T04: JEDNA rezervacija po predmetu. UNIQUE iz 021 važi i unutar jednog višerednog INSERT-a,
+                # pa su dva roka istog dana u istom predmetu obarala ceo iskaz (23505) — što se ispod čitalo kao
+                # „već rezervisano“ i podsetnik se tiho nikad nije slao. Email i dalje navodi SVE rokove.
                 claim_rows = [{
                     "user_id":    uid,
-                    "predmet_id": rok.get("predmet_id", ""),
+                    "predmet_id": pid,
                     "datum_roka": target_iso,
                     "dana_pre":   dana_pre,
-                } for rok in rokovi]
+                } for pid in dict.fromkeys(rok.get("predmet_id", "") for rok in rokovi)]
                 try:
                     supa.table("email_notif_log").insert(claim_rows).execute()
                 except Exception as exc:
