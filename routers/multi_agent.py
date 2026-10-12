@@ -862,7 +862,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
     # Charging per delivered agent matches the partial-success rule already
     # documented for the sibling case in api.py:5055-5057 (partial value is
     # charged, total failure is not).
-    _uspesni = [r for r in rezultati if isinstance(r, dict) and r.get("stanje") == "USPEH"]
+    _uspesni = [r for r in rezultati if isinstance(r, dict) and not r.get("greska") and r.get("stanje") == "USPEH"]
     if _uspesni:
         await UsageService.consume(uid, email, "multi_agent", multiplier=len(_uspesni), predmet_id=req.predmet_id if predmet_verifikovan else None)
     else:
