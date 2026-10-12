@@ -636,6 +636,50 @@ export function agentRuta(korisnici, kuke = {}) {
       json(res, 200, { agenti: AGENTI.map(([id, naziv, ikona]) => ({ id, naziv, ikona, opis: `Opis savetnika ${id} 🎯` })) });
       return true;
     }
+    // VCR002 T07: paralelna analiza i niz — oblik odgovora isti kao routers/multi_agent.py (T05/T06).
+    if ((url.pathname === "/api/agents/run-parallel" || url.pathname === "/api/agents/pipeline") && req.method === "POST") {
+      const sirovo = await citajTelo(req);
+      const k = korisnik(req, korisnici);
+      if (await kuka(kuke, url.pathname, k, req, res)) return true;
+      if (!k) { json(res, 401, { detail: "Unauthorized" }); return true; }
+      let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
+      (kuke.upisano || (() => {}))({ ...b, _putanja: url.pathname, _kljuc: req.headers["idempotency-key"] || null });
+      const kontekst = b.predmet_id ? k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id) : null;
+      const PROVERE = {
+        research: { status: "PROVERENI", ukupno: 1, neprovereni: [], izvori_dostavljeni: true },
+        litigation: { status: "NEPROVERENI", ukupno: 1, izvori_dostavljeni: true, neprovereni: [{ clan: "999", zakon: "zoo", razlog: "nije u dostavljenom izvoru tog zakona" }] },
+        intake: { status: "BEZ_CITATA", ukupno: 0, neprovereni: [], izvori_dostavljeni: true },
+        drafting: { status: "NEPROVERENI", ukupno: 1, izvori_dostavljeni: false, neprovereni: [{ clan: "154", zakon: "zoo", razlog: "opšte poznat član — nije potvrđen u dostavljenom izvoru" }] },
+      };
+      const padaju = new Set(kuke.padaju || []);
+      const tekstAg = (a) => `## ${a.toUpperCase()} 📥\n**Analiza** savetnika ${a}. <img src=x onerror="window.__xss=72">`;
+      if (url.pathname === "/api/agents/run-parallel") {
+        const agenti = [...new Set((b.agenti || []).filter(a => AGENTI.some(x => x[0] === a)))].slice(0, 3);
+        const rezultati = agenti.map(a => padaju.has(a)
+          ? { agent_id: a, naziv: a, ikona: "", stanje: "NEUSPEH", odgovor: "", greska: "Savetnik trenutno nije dostupan. Ništa nije naplaćeno za ovog savetnika.", provera_citata: null }
+          : { agent_id: a, naziv: a, ikona: "", stanje: "USPEH", odgovor: tekstAg(a), greska: null, provera_citata: PROVERE[a] });
+        const usp = rezultati.filter(r => r.stanje === "USPEH").length;
+        json(res, 200, { tip: "paralelna_analiza", agenti, rezultati, task: b.task, kontekst_predmeta: kontekst,
+          uspesnih: usp, neuspesnih: rezultati.length - usp, naplaceno_savetnika: usp });
+        return true;
+      }
+      const niz = (b.pipeline || []).filter(a => AGENTI.some(x => x[0] === a)).slice(0, 5);
+      const rezultati = [];
+      let prekid = null;
+      for (const [i, a] of niz.entries()) {
+        if (padaju.has(a)) {
+          rezultati.push({ korak: i + 1, agent: a, stanje: "NEUSPEH", naplacen: false, output: "Korak nije izvršen (HTTP 503).", greska: true, provera_citata: null });
+          prekid = { status: 503, detail: "AI servis trenutno nedostupan.", korak: i + 1 };
+          break;
+        }
+        rezultati.push({ korak: i + 1, agent: a, stanje: "USPEH", naplacen: true, output: tekstAg(a), provera_citata: PROVERE[a] });
+      }
+      const isp = rezultati.filter(r => r.stanje === "USPEH");
+      json(res, 200, { tip: "pipeline", pipeline: niz, koraci: rezultati.length, rezultati, kompletan: !prekid && isp.length === niz.length,
+        prekid, iz_kesa: false, kontekst_predmeta: kontekst, naplaceno_koraka: isp.length,
+        provera_citata_zavrsnog: isp.length ? isp[isp.length - 1].provera_citata : null, potreban_pregled_advokata: true });
+      return true;
+    }
     if (url.pathname !== "/api/agents/run" || req.method !== "POST") return false;
     const sirovo = await citajTelo(req);
     const k = korisnik(req, korisnici);

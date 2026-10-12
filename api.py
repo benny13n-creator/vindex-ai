@@ -3943,7 +3943,17 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 # v. TASK2 -- ovo NIJE pitanje svezine, nego da cinjenica nikad ne stize
                 # do prompta). Ista granica poverenja kao beleske/istorija ispod
                 # (T3, nepoverljiv sadrzaj, karantin + zapakuj_nepoverljivo).
-                dokazi_res = supa.table("predmet_dokazi").select("tvrdnja, snaga, kategorija").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).is_("deleted_at", "null").order("created_at", desc=True).limit(20).execute()
+                # VCR002 RC FIX 3: `*` jer poreklo (`izvor_tvrdnje` 135, `izvor_snage` 118, `nacin_pronalaska` 117,
+                # `dokument_id`) i `id` (članovi protivrečnosti) ulaze u kontekst; okruženje bez neke od tih migracija
+                # ne sme da izgubi ceo kontekst zbog nepostojeće kolone.
+                dokazi_res = supa.table("predmet_dokazi").select("*").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).is_("deleted_at", "null").order("created_at", desc=True).limit(20).execute()
+                # Trajne V2 protivrečnosti (predmet I korisnik); None = nisu pročitane, pa se to kaže u kontekstu.
+                try:
+                    from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz as _v2_kon
+                    _kontradikcije = await _v2_kon(supa, predmet_id, user["user_id"])
+                except Exception as _ke:
+                    logger.warning("[F5] protivrečnosti nisu pročitane predmet=%s: %s", predmet_id, _ke)
+                    _kontradikcije = None
                 # F1 (B-U-004-N1, 2026-08-23): KARANTIN KONTEKSTA PREDMETA.
                 #
                 # Route gate iznad (`_guard_analyze(req.pitanje)`) analizira SAMO
@@ -3989,11 +3999,10 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                                                  (r.get("odgovor") or "")[:300]),
                                       "istorija#%d" % i)
                 )
-                dokazi_tekst = "\n".join(
-                    f"- ({d.get('kategorija') or 'cinjenica'}, snaga={d.get('snaga') or 'nepoznata'}) {d['tvrdnja']}"
-                    for i, d in enumerate(dokazi_res.data or [])
-                    if d.get("tvrdnja") and _ctx_bezbedan(d["tvrdnja"], "dokaz#%d" % i)
-                )
+                # VCR002 RC FIX 3: tvrdnje sa poreklom iz kanonskog `poreklo_tvrdnje` i oznakom SPORNO iz trajnih V2
+                # protivrečnosti — nikad „utvrđene činjenice“ (ni navod pronađen u dokumentu nije dokazana činjenica).
+                from shared.genome_contract import kontekst_tvrdnji as _kontekst_tvrdnji
+                dokazi_tekst = _kontekst_tvrdnji(dokazi_res.data or [], _kontradikcije, bezbedan=_ctx_bezbedan)
                 if _ctx_karantin:
                     logger.warning("[CTX_KARANTIN] predmet=%s izolovano: %s",
                                    predmet_id, _ctx_karantin)
@@ -4029,7 +4038,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj_pred
                     delovi = []
                     if dokazi_tekst:
-                        delovi.append(f"Utvrđene činjenice u predmetu:\n{dokazi_tekst}")
+                        delovi.append(dokazi_tekst)
                     if beleske_tekst:
                         delovi.append(f"Beleške:\n{beleske_tekst}")
                     if istorija_tekst:
@@ -7267,25 +7276,92 @@ async def predmet_dokument_obrisi(
     # for (a document must not remain AI/Pinecone-retrievable after this
     # endpoint reports it deleted), which Wave 2's own global invariants
     # forbid touching.
-    from services.event_bus import invalidate_dokument_relational_atomic
+    # VCR002 FIX 1 (Release Closure): povlačenje AI tvrdnji OVOG dokumenta i brisanje reda su jedna celina.
+    # FK `predmet_dokazi.dokument_id` je ON DELETE SET NULL (016): tvrdnja koja ostane aktivna posle brisanja reda
+    # gubi vezu sa izvorom, pa je ni ponovni pokušaj (404) ni bilo koji kasniji posao više ne nalaze, a ona nastavlja
+    # da ulazi u Genome, kontekst pravnog pitanja i Analizu. Zato:
+    #   * migracija 137 povlači tvrdnje, briše red i upisuje SourceInvalidated u JEDNOJ transakciji;
+    #   * dok 137 nije pokrenuta (i samo tada — PGRST202/42883), tvrdnje se povlače PRE brisanja reda, a ako brisanje
+    #     ne uspe, povlačenje se vraća (kompenzacija) — neuspelo brisanje ne sme tiho da povuče važeće tvrdnje.
+    # Uspeh se prijavljuje samo kad su oba koraka potvrđena. Tvrdnje koje je uneo advokat (`izvor_tvrdnje='covek'`)
+    # se ne diraju — to je njegov rad, ne izvod dokumenta.
+    from services.event_bus import (AtomskaInvalidacijaNedostupna, invalidate_dokument_and_ai_claims_atomic,
+                                    invalidate_dokument_relational_atomic)
     from shared.ai_provenance import current_correlation_id
+    _nije_obrisan = "Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo."
+    tvrdnje_povucene = 0
+    _povucene: list[str] = []
+    _trenutak = datetime.now(timezone.utc).isoformat()
+
+    async def _vrati_povucene() -> None:
+        """Kompenzacija puta pre 137: dokument nije obrisan, pa njegove tvrdnje ponovo važe. Vraćaju se SAMO redovi
+        koje je ovaj zahtev povukao (isti trenutak), nikad tvrdnja koju je neko drugi povukao ranije."""
+        if not _povucene:
+            return
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").update({"deleted_at": None})
+                    .in_("id", _povucene).eq("user_id", uid).eq("predmet_id", predmet_id)
+                    .eq("deleted_at", _trenutak).execute()
+            )
+        except Exception as _ke:
+            logger.error("[DOK-DELETE] kompenzacija nije uspela dok=%.8s: %s", dok_id, _ke)
+            raise HTTPException(
+                status_code=500,
+                detail="Dokument nije obrisan, a tvrdnje iz njega su privremeno povučene. Ponovite brisanje.",
+            )
+
     try:
-        _invalidated = await invalidate_dokument_relational_atomic(
+        _invalidated, tvrdnje_povucene = await invalidate_dokument_and_ai_claims_atomic(
             dokument_id=dok_id, predmet_id=predmet_id, user_id=uid,
             correlation_id=current_correlation_id(), supa=supa,
         )
+    except AtomskaInvalidacijaNedostupna:
+        _invalidated = None
     except Exception as _de:
         logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
-        raise HTTPException(
-            status_code=500,
-            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
-        )
-    if not _invalidated:
+        raise HTTPException(status_code=500, detail=_nije_obrisan)
+
+    if _invalidated is None:
+        logger.warning("[DOK-DELETE] migracija 137 nije pokrenuta — put sa kompenzacijom dok=%.8s", dok_id)
+        try:
+            _tr = await asyncio.to_thread(
+                lambda: supa.table("predmet_dokazi").select("id,izvor_tvrdnje,nacin_pronalaska")
+                    .eq("predmet_id", predmet_id).eq("user_id", uid).eq("dokument_id", dok_id)
+                    .is_("deleted_at", "null").execute()
+            )
+            _ai_tvrdnje = [t["id"] for t in (_tr.data or [])
+                           if t.get("izvor_tvrdnje") == "ai_klasifikacija"
+                           or (t.get("izvor_tvrdnje") is None and t.get("nacin_pronalaska") in ("egzaktan", "normalizovan"))]
+            if _ai_tvrdnje:
+                _pv = await asyncio.to_thread(
+                    lambda: supa.table("predmet_dokazi").update({"deleted_at": _trenutak})
+                        .in_("id", _ai_tvrdnje).eq("user_id", uid).eq("predmet_id", predmet_id)
+                        .is_("deleted_at", "null").execute()
+                )
+                _povucene = [t["id"] for t in (_pv.data or [])]
+        except Exception as _te:
+            logger.error("[DOK-DELETE] tvrdnje dokumenta nisu povučene, red se ne briše dok=%.8s: %s", dok_id, _te)
+            raise HTTPException(
+                status_code=503,
+                detail="Vektori su uklonjeni, ali dokument nije obrisan — tvrdnje iz njega trenutno nije moguće "
+                       "povući. Pokušajte ponovo.",
+            )
+        try:
+            _invalidated = await invalidate_dokument_relational_atomic(
+                dokument_id=dok_id, predmet_id=predmet_id, user_id=uid,
+                correlation_id=current_correlation_id(), supa=supa,
+            )
+        except Exception as _de:
+            logger.error("[DOK-DELETE] red u bazi nije obrisan dok=%.8s: %s", dok_id, _de)
+            _invalidated = False
+        if not _invalidated:
+            await _vrati_povucene()
+            raise HTTPException(status_code=500, detail=_nije_obrisan)
+        tvrdnje_povucene = len(_povucene)
+    elif not _invalidated:
         logger.error("[DOK-DELETE] red u bazi nije obrisan (already absent/foreign) dok=%.8s", dok_id)
-        raise HTTPException(
-            status_code=500,
-            detail="Vektori su uklonjeni, ali dokument nije obrisan iz baze. Pokušajte ponovo.",
-        )
+        raise HTTPException(status_code=500, detail=_nije_obrisan)
 
     # HTTP 200 od baze nije dokaz (isti razlog kao verifikacija u §6 kanonskog
     # modula) -- proverava se da reda stvarno više nema. Zadržano kao dodatna
@@ -7296,6 +7372,7 @@ async def predmet_dokument_obrisi(
         lambda: supa.table("predmet_dokumenti").select("id").eq("id", dok_id).limit(1).execute()
     )
     if _provera.data:
+        await _vrati_povucene()
         raise HTTPException(
             status_code=500,
             detail="Vektori su uklonjeni, ali dokument je i dalje u bazi. Pokušajte ponovo.",
@@ -7311,7 +7388,7 @@ async def predmet_dokument_obrisi(
             ip=request.client.host if request.client else None,
             metadata={"predmet_id": predmet_id, "naziv_fajla": d.get("naziv_fajla", ""),
                       "vektori": vektori, "storage": storage_ishod,
-                      "izvedeni_tragovi": istorija_obrisano},
+                      "izvedeni_tragovi": istorija_obrisano, "tvrdnje_povucene": tvrdnje_povucene},
         ))
     except Exception as _ae:
         logger.warning("[AUDIT] dokument_delete log greška: %s", _ae)
@@ -7322,6 +7399,7 @@ async def predmet_dokument_obrisi(
         "vektori": vektori,
         "storage": storage_ishod,
         "izvedeni_tragovi": istorija_obrisano,
+        "tvrdnje_povucene": tvrdnje_povucene,
     }
 
 

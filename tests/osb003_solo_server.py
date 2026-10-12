@@ -101,6 +101,46 @@ if os.environ.get("VX_GENOME_IZVORI") == "1":
         g["rokovi_kriticni"] = [{"naziv": "Rok za žalbu", "datum": _rok, "opis": "Žalba na rešenje", "status": "aktivan", "lokacija": "DOK-01 str.1"}]
         return json.dumps(g, ensure_ascii=False)
     mp.setattr(_CD, "_pozovi_genome_api", _genome_izvori)
+# VCR002 T07 (samo uz VX_AGENTI=1): savetnici — zamenjen je SAMO poziv modela (/run i niz: `_pozovi_agent_api`,
+# paralelno: `_pozovi_para_api`). Beleži se agent i da li je izlaz prethodnog koraka stigao unutar granice poverenja.
+# Kredit: politika 1 kredit po pozivu i stanje 100 (bez ovoga lažna baza nema `user_credits`, pa provera budžeta = 402).
+if os.environ.get("VX_AGENTI") == "1":
+    import routers.multi_agent as _MA  # noqa: E402
+    import shared.usage as _US  # noqa: E402
+
+    def _agent_odgovor(system):
+        ag = next(a for a, c in _MA._AGENTS.items() if c["system"] == system)
+        return ag, {"research": "## OSNOV\nOdgovornost poslodavca uređuje član 185 Zakona o radu.",
+                    "litigation": "## SLABOSTI\nProtivnik će osporiti dostavu; videti član 999 Zakona o radu.",
+                    "intake": "## TIP PREDMETA\nRadni spor — poništaj rešenja o otkazu.",
+                    "drafting": "## NACRT\nTUŽBA radi poništaja rešenja o otkazu.\n⚠️ Ovaj nacrt generisala je AI."}.get(ag, "Odgovor.")
+
+    def _agent_sync(client, system, user_msg):
+        ag, t = _agent_odgovor(system)
+        POZIVI_MODELA.append("agent:%s:%s" % (ag, "granica" if "VINDEX_NEPOVERLJIVO_IZLAZ_PRETHODNOG_SAVETNIKA" in user_msg else "-"))
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=t))])
+
+    async def _agent_async(oai, system, base_msg):
+        ag, t = _agent_odgovor(system)
+        POZIVI_MODELA.append("para:%s" % ag)
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=t))])
+
+    async def _politika_agenti(feature):
+        return {"aktivno": True, "status": "ACTIVE", "feature_type": "CORE", "min_plan": "free", "krediti": 1}
+
+    async def _stanje_kredita(uid, email):
+        return 100
+    mp.setattr(_MA, "_pozovi_agent_api", _agent_sync)
+    mp.setattr(_MA, "_pozovi_para_api", _agent_async)
+    mp.setattr(_US, "get_policy", _politika_agenti)
+    mp.setattr(_US.UsageService, "balance", staticmethod(_stanje_kredita))
+    BAZA.naplaceno_jedinica = []
+    _consume_harness = _US.UsageService.consume
+
+    async def _naplati_jedinice(*a, **kw):
+        BAZA.naplaceno_jedinica.append(int(kw.get("multiplier") or 1))
+        return await _consume_harness(*a, **kw)
+    mp.setattr(_US.UsageService, "consume", staticmethod(_naplati_jedinice))
 mp.setattr(D, "_pozovi_kriticara", _kriticar)
 mp.setattr(QG, "evaluate_draft_quality", _kvalitet)
 mp.setattr(R, "retrieve_documents", lambda *a, **kw: (["Zakon o radu, Član 185: Rešenje o otkazu se dostavlja zaposlenom..."], {}))
@@ -147,6 +187,10 @@ async def _stanje():
         "dokumenti_po_predmetu": sorted([sum(1 for d in t.get("predmet_dokumenti", []) if d.get("predmet_id") == p.get("id"))
                                          for p in t.get("predmeti", [])]),
         "pozivi_modela": list(POZIVI_MODELA), "spoljni_pokusaji": len(SPOLJNI_POKUSAJI),
+        "naplate": len(getattr(BAZA, "naplate", [])),
+        "naplaceno_jedinica": sum(getattr(BAZA, "naplaceno_jedinica", [])),
+        "idempotencija": sorted("%s:%s" % (z.get("path"), z.get("state")) for z in t.get("v2_mutation_idempotency", [])
+                                if str(z.get("path", "")).startswith("/api/agents/")),
         "autonomy_upisi": len([z for z in BAZA.dnevnik if z["tabela"].startswith("autonomy")
                                and z["radnja"] in ("insert", "update", "upsert", "delete", "rpc")]),
     })

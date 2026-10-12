@@ -197,6 +197,66 @@ def poreklo_tvrdnje(red: dict) -> tuple[str, str]:
     return UNKNOWN, "poreklo nije zabeleženo"
 
 
+# ── Tvrdnje u kontekstu pravnog pitanja (VCR002 RC FIX 3) ─────────────────────
+#
+# Kontekst `/api/pitanje` je AI tvrdnje nazivao „Utvrđene činjenice … snaga=jaka“, a dve
+# protivrečne prikazivao bez oznake. Poreklo sada dolazi isključivo iz `poreklo_tvrdnje`, snaga
+# samo kad ju je procenio advokat, a SPORNO samo iz trajnih V2 protivrečnosti (aktivna ili za
+# pregled). Nijedna oznaka ne kaže „utvrđeno“: ni navod pronađen u dokumentu nije dokazana činjenica.
+
+_OZNAKA_POREKLA = {
+    HUMAN_CONFIRMED: "uneo advokat",
+    SOURCE_FACT: "navod iz dokumenta, pronađen u tekstu",
+    AI_ANALYSIS: "AI izdvojio, u tekstu dokumenta nije pronađen — neproveren",
+    UNKNOWN: "poreklo nije zabeleženo — neproveren",
+}
+SPORNA_STANJA = ("OPEN", "REVIEW_REQUIRED")
+
+
+def kontekst_tvrdnji(dokazi: Iterable[dict], v2_kontradikcije: Optional[list], bezbedan=None) -> str:
+    """Tekst tvrdnji predmeta za prompt pravnog pitanja.
+
+    `v2_kontradikcije` je izlaz `services.v2_projection.ucitaj_v2_kontradikcije_za_prikaz` (već ograničen na
+    predmet i korisnika) ili None kad čitanje nije uspelo — tada se to izričito kaže. `bezbedan(tekst, oznaka)` je
+    karantin pozivaoca; tekst koji ga ne prođe ne ulazi u prompt."""
+    bezbedan = bezbedan or (lambda tekst, oznaka: True)
+    sporne: dict[str, list[str]] = {}
+    tacke: list[str] = []
+    for i, k in enumerate(v2_kontradikcije or []):
+        ids = [str(c) for c in (k.get("claim_ids") or [])]
+        if k.get("state") not in SPORNA_STANJA or len(ids) < 2:
+            continue
+        labela = _tekst(k.get("issue_label"), 200) or "sporna tačka"
+        if not bezbedan(labela, "sporna_tacka#%d" % i):
+            labela = "sporna tačka"
+        for c in ids:
+            sporne.setdefault(c, []).append(labela)
+        stanje = "za pregled" if k.get("state") == "REVIEW_REQUIRED" else "aktivna"
+        tacke.append(f"- {labela} ({stanje}; tvrdnji u sukobu: {len(ids)})")
+    redovi = []
+    for i, d in enumerate(dokazi or []):
+        if not d.get("tvrdnja") or not bezbedan(d["tvrdnja"], "dokaz#%d" % i):
+            continue
+        poreklo, _ = poreklo_tvrdnje(d)
+        oznake = [_OZNAKA_POREKLA[poreklo]]
+        if poreklo == SOURCE_FACT:
+            oznake[0] += " (AI izdvojio)" if d.get("izvor_tvrdnje") == IZVOR_TVRDNJE_AI else " (autor nije zabeležen)"
+        if (d.get("izvor_snage") or "") == "covek" and d.get("snaga"):
+            oznake.append(f"procena advokata: {d['snaga']}")
+        if str(d.get("id")) in sporne:
+            oznake.append("SPORNO — u protivrečnosti sa drugom tvrdnjom: " + "; ".join(sporne[str(d.get("id"))]))
+        redovi.append(f"- [{'; '.join(oznake)}] ({d.get('kategorija') or 'cinjenica'}) {d['tvrdnja']}")
+    if not redovi:
+        return ""
+    delovi = ["Tvrdnje u predmetu (nijedna nije sudski utvrđena činjenica; uz svaku je navedeno poreklo):\n"
+              + "\n".join(redovi)]
+    if v2_kontradikcije is None:
+        delovi.append("Napomena: provera protivrečnosti nije dostupna; tvrdnje mogu biti međusobno protivrečne.")
+    elif tacke:
+        delovi.append("Sporne tačke (protivrečne tvrdnje — nijednu ne uzimaj kao tačnu bez provere):\n" + "\n".join(tacke))
+    return "\n\n".join(delovi)
+
+
 def tvrdnja_u_stavku(red: dict, raz: Razresavac) -> dict:
     poreklo, zasto = poreklo_tvrdnje(red)
     dok_id = raz.dokument_id(red.get("dokument_id"), "tvrdnja.dokument_id") if red.get("dokument_id") else None

@@ -571,6 +571,8 @@ IZVOR_ISTORIJA   = "ISTORIJA_RAZGOVORA"
 IZVOR_RETRIEVAL  = "PRETRAZENI_KONTEKST"
 IZVOR_MEMORIJA   = "MEMORIJA_KANCELARIJE"
 IZVOR_DOKAZ      = "DOKAZNI_TEKST_KORISNIKA"
+# VCR002 T06: izlaz prethodnog AI koraka u nizu savetnika — generisan sadržaj, nikad naredba ni proverena činjenica.
+IZVOR_AI_KORAK   = "IZLAZ_PRETHODNOG_SAVETNIKA"
 
 
 def granica_autoriteta() -> str:

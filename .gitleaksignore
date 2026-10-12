@@ -114,3 +114,9 @@ bb875b1c97cf38c9934270547daf54030c75a0a2:frontend-v2-ng/tests/live-fastapi-e2e.m
 # what makes it harmless; this line only stops re-reporting a finding that has
 # been dealt with.
 dc29b7641c0afeb996b94b3c8c0ff19b660fdc5d:.env:openai-api-key:1
+
+# ── VCR002 (2026-10-12) documentation false positive ──────────────────────
+# docs/v2-execution/VCR002_TASK_LEDGER.md:137 at 4a51a2c8 — the matched "secret" is the
+# literal column value `izvor_tvrdnje='ai_klasifikacija'` (claim author enum from
+# shared/evidence_write.py::IZVOR_TVRDNJE_AI) in prose. Read from the commit blob; not a credential.
+4a51a2c8286076fd35f983c2384e104e52187c61:docs/v2-execution/VCR002_TASK_LEDGER.md:generic-api-key:137

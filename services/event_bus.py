@@ -831,6 +831,37 @@ async def invalidate_dokument_relational_atomic(
     return bool(row.get("invalidated"))
 
 
+class AtomskaInvalidacijaNedostupna(Exception):
+    """Migracija 137 još nije pokrenuta (PGRST202/42883) -- jedini slučaj u kome sme da se padne na stari put."""
+
+
+async def invalidate_dokument_and_ai_claims_atomic(
+    *, dokument_id: str, predmet_id: str, user_id: str, correlation_id: str | None = None, supa=None,
+) -> tuple[bool, int]:
+    """VCR002 FIX 1 (migracija 137): u JEDNOJ transakciji povlači AI tvrdnje dokumenta, briše relacioni red i upisuje
+    SourceInvalidated. Vraća (invalidated, tvrdnje_povucene). Ako funkcije nema, podiže
+    AtomskaInvalidacijaNedostupna; svaka druga greška se propušta pozivaocu (nije „funkcija ne postoji“)."""
+    if supa is None:
+        from shared.deps import _get_supa
+        supa = _get_supa()
+    event_id = _source_invalidation_event_id("dokument", dokument_id)
+    try:
+        res = await asyncio.to_thread(lambda: supa.rpc(
+            "invalidate_dokument_and_ai_claims_and_emit_event",
+            {"p_dokument_id": dokument_id, "p_predmet_id": predmet_id, "p_user_id": user_id,
+             "p_event_id": event_id, "p_correlation_id": correlation_id},
+        ).execute())
+    except Exception as exc:
+        if _is_missing_function_error(exc):
+            raise AtomskaInvalidacijaNedostupna(str(exc)) from exc
+        raise
+    rows = res.data if res else None
+    if not rows:
+        return False, 0
+    row = rows[0] if isinstance(rows, list) else rows
+    return bool(row.get("invalidated")), int(row.get("tvrdnje_povucene") or 0)
+
+
 # ─── Durable outbox dispatch (Faza 0, ADR-0001) ────────────────────────────────
 # Poller — čita nedispečovane redove iz 'events' tabele (migracija 073) i
 # pokreće ih kroz isti in-memory handler registry. Redovi se pišu u istoj

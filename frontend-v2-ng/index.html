@@ -651,7 +651,14 @@
             <h2 class="matter__h2" id="ag-naslov">Savetnik za ovaj predmet</h2>
             <p class="field__help">Specijalizovani AI savetnik radi nad podacima ovog predmeta. Svaki citiran član proverava se u pravnoj bazi; neprovereni su izričito označeni.</p>
             <form class="form" id="ag-forma" novalidate>
-              <div class="field"><label class="field__label" for="ag-agent">Savetnik</label>
+              <div class="field"><label class="field__label" for="ag-nacin">Način rada</label>
+                <select class="field__input" id="ag-nacin" aria-describedby="ag-nacin-pomoc">
+                  <option value="pojedinacno">Jedan savetnik</option>
+                  <option value="paralelno">Tri pogleda istovremeno</option>
+                  <option value="niz" disabled>Od istraživanja do nacrta (privremeno isključeno)</option>
+                </select>
+                <p class="field__help" id="ag-nacin-pomoc"></p></div>
+              <div class="field" id="ag-agent-polje"><label class="field__label" for="ag-agent">Savetnik</label>
                 <select class="field__input" id="ag-agent" aria-describedby="ag-agent-pomoc"></select>
                 <p class="field__help" id="ag-agent-pomoc"></p></div>
               <div class="field"><label class="field__label" for="ag-zadatak">Zadatak za savetnika</label>
