@@ -359,6 +359,11 @@ def test_ai_rok_iz_dokumenta_ne_pokrece_podsetnik_bez_potvrde():
 def _zapisi_izvestaj():
     put = os.getenv("VINDEX_OCR001_REPORT")
     if put:
+        try:   # CI anotacija čita „jezici“ (bez toga ispisuje „0 paketa“)
+            import pytesseract
+            IZVESTAJ["jezici"] = sorted(pytesseract.get_languages(config=""))
+        except Exception:
+            IZVESTAJ["jezici"] = []
         with open(put, "w", encoding="utf-8") as f:
             json.dump(IZVESTAJ, f, ensure_ascii=False, indent=1)
 
