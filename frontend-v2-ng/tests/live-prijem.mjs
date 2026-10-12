@@ -221,6 +221,54 @@ for (const [naziv, kuka, stanje, re] of [
   zapisi("F.predmet", "drugi predmet: poslovi prvog se ne prikazuju i praćenje staje", e.poslovi.length === 0 && zahtevi(s, /^\/api\/smart-intake\/jobs\/[^/]+$/, "GET").length === g0);
   await s.zatvori();
 }
+// ── H: OCR001 — prikačivanje nije potvrđeno / u toku / odbijeno: nikad „prikačeno“ bez potvrde servera ────────
+const SPREMAN = (p) => { if (!p.dokument) { p.status = "completed"; p.dokument = { tip: "lawsuit", tip_pouzdanost: 0.9, ocr_koriscen: false }; } };
+{
+  let n = 0;
+  const s = await scenario({ napreduj: SPREMAN, finalize: () => (++n === 1 ? { ok: false, prikacivanje: "NIJE_PRIKACENO", dokumenata_povezano: 0,
+    dokumenti: [{ document_id: "d1", povezan: false, razlog: "insert_neuspesan" }] } : {}) });
+  await otpremi(s.p);
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"));
+  await s.p.click("text=Prikači ovom predmetu");
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Ponovi prikačivanje"));
+  let e = await ekran(s.p);
+  zapisi("H.nepotvrdjeno", "ok:false → „Dokument NIJE prikačen“ (greška), nema „Prikačeno ovom predmetu“ ni „Dokument je prikačen“",
+    /^greska:Dokument NIJE prikačen/.test(e.poslovi[0].msg || "") && !/Prikačeno ovom predmetu|Dokument je prikačen/.test(e.poslovi[0].tekst), e.poslovi[0].tekst.slice(0, 300));
+  zapisi("H.nepotvrdjeno", "posle ponovnog čitanja stanja: „Prikačivanje nije završeno“ + „Ponovi prikačivanje“",
+    /Prikačivanje nije završeno/.test(e.poslovi[0].tekst) && e.poslovi[0].dugmad.includes("Ponovi prikačivanje") && !e.poslovi[0].dugmad.includes("Prikači ovom predmetu"), e.poslovi[0].dugmad.join(","));
+  zapisi("H.nepotvrdjeno", "ništa nije poslato ponovo samo od sebe", await fetchova(s.p, "/api/smart-intake/jobs/{id}/finalize:POST") === 1);
+  await s.p.click("text=Ponovi prikačivanje");
+  await cekaj(s.p, () => /Prikačeno ovom predmetu/.test(document.getElementById("pd-poslovi").innerText));
+  e = await ekran(s.p);
+  zapisi("H.nepotvrdjeno", "ponovljeno prikačivanje: tek tada „Dokument je prikačen“ i „Prikačeno ovom predmetu“",
+    /^uspeh:Dokument je prikačen predmetu/.test(e.poslovi[0].msg || "") && /Prikačeno ovom predmetu/.test(e.poslovi[0].tekst) && e.poslovi[0].dugmad.length === 0, e.poslovi[0].msg);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ napreduj: (p, n) => { SPREMAN(p); p.prikacivanje = n < 4 ? "U_TOKU" : undefined; } });
+  await otpremi(s.p);
+  await cekaj(s.p, () => /Prikačivanje je u toku ili je upravo prekinuto/.test(document.getElementById("pd-poslovi").innerText));
+  let e = await ekran(s.p);
+  zapisi("H.u_toku", "zauzeće sveže (prekinut proces): „u toku ili upravo prekinuto“, BEZ dugmeta za prikačivanje, bez „Prikačeno“",
+    !e.poslovi[0].dugmad.some(b => /Prikači|Ponovi/.test(b)) && !/Prikačeno ovom predmetu/.test(e.poslovi[0].tekst), e.poslovi[0].dugmad.join(","));
+  const ok = await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"), null, 20000);
+  zapisi("H.u_toku", "praćenje se nastavlja dok je „u toku“; kad zauzeće zastari, prikačivanje se ponovo nudi", ok);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ napreduj: SPREMAN, pre: (p) => p === "/api/smart-intake/jobs/{id}/finalize:POST" ? { status: 409 } : null });
+  await otpremi(s.p);
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"));
+  const g0 = zahtevi(s, /^\/api\/smart-intake\/jobs\/[^/]+$/, "GET").length;
+  await s.p.click("text=Prikači ovom predmetu");
+  await cekaj(s.p, () => { const m = document.querySelector("#pd-poslovi .intake__msg"); return m && !m.hidden && m.dataset.stanje !== "ucitavanje"; });
+  await s.p.waitForTimeout(500);
+  const e = await ekran(s.p);
+  zapisi("H.409", "409: „nije potvrđen u predmetu“ + ponovno čitanje stanja, jedno slanje, nikad „prikačen“",
+    /^nepoznato:Server sada ne prihvata prikačivanje/.test(e.poslovi[0].msg || "") && zahtevi(s, /^\/api\/smart-intake\/jobs\/[^/]+$/, "GET").length > g0
+    && await fetchova(s.p, "/api/smart-intake/jobs/{id}/finalize:POST") === 1 && !/Prikačeno ovom predmetu/.test(e.poslovi[0].tekst), e.poslovi[0].msg);
+  await s.zatvori();
+}
 // ── G: raspored ─────────────────────────────────────────────────────────
 for (const [w, h] of [[390, 844], [1024, 768]]) {
   const s = await scenario({}, { w, h });

@@ -277,7 +277,9 @@ async def get_job_documents(intake_job_id: str) -> list[dict]:
         reviews = review_res.data or []
         review = reviews[0] if reviews else None
 
-        results.append({"document": document, "entities": entities, "review": review})
+        # OCR001: `reviews` (sve nerazrešene) uz `review` (prva, postojeći ugovor) — razlog „deo nije pročitan“ ne sme
+        # da ostane skriven iza drugog razloga istog dokumenta.
+        results.append({"document": document, "entities": entities, "review": review, "reviews": reviews})
 
     return results
 

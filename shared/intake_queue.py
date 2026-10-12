@@ -86,7 +86,12 @@ async def claim_next_job(from_status: str, to_status: str) -> Optional[dict]:
     return rows[0] if rows else None
 
 
-async def claim_finalize(job_id: str, stale_after_seconds: int = 120) -> Optional[dict]:
+# Prozor zastarevanja zauzeća finalizacije (migracija 092/095, `p_stale_after_seconds`). Jedno mesto: isti broj
+# koristi i GET /jobs/{id} (OCR001) da ne bi prikazao „spremno“ dok novi pokušaj još ne može da prođe.
+FINALIZE_ZASTAREVA_S = 120
+
+
+async def claim_finalize(job_id: str, stale_after_seconds: int = FINALIZE_ZASTAREVA_S) -> Optional[dict]:
     """Program Intake Sprint 002 -- atomic check-and-claim for
     finalize_intake_job's own completion marker (predmet_id), via
     claim_intake_finalize RPC (migration 092). Mirrors claim_next_job's own

@@ -34,6 +34,10 @@
   var DOZVOLJENO = /\.(pdf|docx|txt|jpe?g|png)$/i, MAX_B = 25 * 1024 * 1024;
 
   function tekst(v) { return String(v == null ? "" : v).trim(); }
+  /* OCR001: PRIKACENO · U_TOKU · NEPOTPUNO · NIJE_PRIKACENO (routers/smart_intake.py::_stanje_prikacivanja). Server bez
+   * tog polja (pre OCR001): `predmet_id` je tada bio jedini znak. */
+  var PRIKACIVANJA = { PRIKACENO: 1, U_TOKU: 1, NEPOTPUNO: 1, NIJE_PRIKACENO: 1 };
+  function prikacivanje(j) { var s = tekst(j && j.prikacivanje); return PRIKACIVANJA[s] ? s : (j && j.predmet_id ? "PRIKACENO" : "NIJE_PRIKACENO"); }
   function ispravanId(v) { return /^[A-Za-z0-9_-]{1,64}$/.test(tekst(v)); }
   function procenat(p) { var n = Number(p); return Number.isFinite(n) ? Math.round(n * 100) + "%" : "—"; }
   function nazivPolja(t) { return POLJA[t] || tekst(t).replace(/_/g, " "); }
@@ -128,7 +132,7 @@
       }
       p.podaci = r.podaci;
       var st = tekst(p.podaci.job.status);
-      if (ZAVRSNA[st]) { prikazi(p, null); return; }
+      if (ZAVRSNA[st] && prikacivanje(p.podaci.job) !== "U_TOKU") { prikazi(p, null); return; }
       if (Date.now() - p.od > NAJDUZE_MS) { prikazi(p, "Praćenje je zaustavljeno posle 5 minuta. Obrada se nastavlja na serveru — ponovo otpremite isti fajl da biste videli njen ishod."); return; }
       prikazi(p, null);
       p.tajmer = setTimeout(function () { prati(p); }, RAZMAK_MS);
@@ -151,8 +155,17 @@
       var j = x.job;
       if (st === "failed") { var f = el("p", "notice", "Obrada nije uspela posle više pokušaja. Dokument nije prikačen; otpremite ga ponovo ili ga dodajte drugim putem."); f.dataset.stanje = "greska"; li.append(f); }
       var dok = x.dokument, provera = x.potrebna_provera;
-      if (provera && RAZLOZI[tekst(provera.razlog)]) { var pr = el("p", "notice", RAZLOZI[tekst(provera.razlog)]); pr.dataset.stanje = "nepoznato"; li.append(pr); }
-      if (dok && !(provera && tekst(provera.razlog) === "ocr_failed")) {
+      /* OCR001: svi razlozi pregleda; `ocr_failed` SA opisom znači da deo dokumenta nije pročitan (ostatak jeste),
+       * bez opisa — da tekst uopšte nije pročitan. */
+      var provere = Array.isArray(x.potrebne_provere) && x.potrebne_provere.length ? x.potrebne_provere : (provera ? [provera] : []);
+      var nistaProcitano = false;
+      provere.forEach(function (q) {
+        var raz = tekst(q && q.razlog), polja = Array.isArray(q && q.polja) ? q.polja.map(tekst).filter(Boolean) : [];
+        var t = raz === "ocr_failed" && polja.length ? "Deo dokumenta nije pouzdano pročitan — " + polja.join("; ") + ". Proverite original pre oslanjanja na izvučene podatke." : RAZLOZI[raz];
+        if (raz === "ocr_failed" && !polja.length) nistaProcitano = true;
+        if (t) { var pr = el("p", "notice", t); pr.dataset.stanje = "nepoznato"; li.append(pr); }
+      });
+      if (dok && !nistaProcitano) {
         var meta = [nazivVrste(dok.tip) + " (pouzdanost " + procenat(dok.tip_pouzdanost) + ")"];
         if (dok.ocr_koriscen === true) meta.push("tekst pročitan OCR-om");
         li.append(el("p", "intake__meta", meta.join(" · ")));
@@ -187,10 +200,19 @@
         akcije.append(dugme("Odbij dokument", "text-btn", function (b) { odluci(p, "reject", b); }));
         li.append(el("p", "field__help", "Potvrdom kažete da ste pregledali označene podatke. Tek posle toga dokument može da se prikači predmetu."));
       }
-      if (st === "completed" && !j.predmet_id) akcije.append(dugme(trenutni.id ? "Prikači ovom predmetu" : "Otvori predmet iz ovog dokumenta",
+      /* OCR001: „prikačeno“ se čita iz izvedenog stanja servera (`job.prikacivanje`), ne iz `predmet_id`: predmet se
+       * beleži pre dokumenata i ostaje posle neuspelog ili prekinutog prikačivanja. */
+      var pr = prikacivanje(j);
+      if (st === "completed" && pr === "NIJE_PRIKACENO") akcije.append(dugme(trenutni.id ? "Prikači ovom predmetu" : "Otvori predmet iz ovog dokumenta",
         "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
-      if (j.predmet_id && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
-      else if (j.predmet_id) li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu."));
+      if (pr === "U_TOKU") { var ut = el("p", "notice", "Prikačivanje je u toku ili je upravo prekinuto. Dokument još nije potvrđen u predmetu; stanje se ponovo proverava."); ut.dataset.stanje = "nepoznato"; li.append(ut); }
+      else if (pr === "NEPOTPUNO" && (!trenutni.id || j.predmet_id === trenutni.id)) {
+        var np = el("p", "notice", "Prikačivanje nije završeno: dokument nije potvrđen u predmetu. Ponovite prikačivanje — deo koji je već sačuvan neće biti dupliran.");
+        np.dataset.stanje = "greska"; li.append(np);
+        if (st === "completed") akcije.append(dugme("Ponovi prikačivanje", "text-btn text-btn--primary", function (b) { prikaci(p, b); }));
+      } else if (pr === "NEPOTPUNO") { var nd = el("p", "notice", "Prikačivanje ovog dokumenta drugom vašem predmetu nije završeno. Nastavite ga iz tog predmeta."); nd.dataset.stanje = "greska"; li.append(nd); }
+      else if (pr === "PRIKACENO" && j.predmet_id === trenutni.id) li.append(el("p", "intake__done", "Prikačeno ovom predmetu."));
+      else if (pr === "PRIKACENO") li.append(el("p", "notice", "Ovaj dokument je već prikačen drugom vašem predmetu."));
       if (akcije.childNodes.length) li.append(akcije);
       var por = el("p", "notice intake__msg"); por.hidden = true; por.setAttribute("role", "status"); li.append(por);
       p.poruka = por;
@@ -243,18 +265,29 @@
         trenutni.otvara = true;
       }
       zakljucaj(p, b, true); javi(p, "ucitavanje", pid ? "Prikačivanje dokumenta predmetu…" : "Otvaranje predmeta iz dokumenta…");
+      p.od = Date.now();                                        // praćenje stanja posle prikačivanja ima svoj rok
+      /* OCR001: `ok` je true SAMO za potvrđeno potpuno prikačivanje; false nosi `prikacivanje` (DELIMICNO/NIJE_PRIKACENO). */
       var r = await api.send("/api/smart-intake/jobs/" + encodeURIComponent(p.id) + "/finalize", { telo: telo, token: sesija.token(),
-        oblik: function (x) { return x.ok === true; } });
+        oblik: function (x) { return typeof x.ok === "boolean"; } });
       if (!pid && moja === gen && trenutni) trenutni.otvara = false;
       if (moja !== gen || !zivi(p) || trenutni.id !== pid) return;
       zakljucaj(p, b, false);
       if (!pid && r.ok && r.podaci && ispravanId(r.podaci.predmet_id)) { otvoren(p, r.podaci); return; }
+      if (r.ok && r.podaci && r.podaci.ok !== true) {
+        var n = r.podaci, dup = Array.isArray(n.dokumenti) && n.dokumenti.some(function (q) { return q && q.razlog === "duplikat_u_drugom_predmetu"; });
+        javi(p, "greska", n.predmet_id && n.predmet_id !== pid ? "Ovaj dokument se prikačuje drugom vašem predmetu i to prikačivanje nije završeno; ovde nije prikačen."
+          : n.prikacivanje === "DELIMICNO" ? "Prikačivanje nije završeno: prikačeno je " + n.dokumenata_povezano + " od " + n.dokumenata_ukupno
+            + " delova dokumenta. Ponovite prikačivanje za ostatak — već prikačeni delovi neće biti duplirani."
+          : dup ? "Dokument NIJE prikačen: isti sadržaj već postoji u drugom vašem predmetu."
+          : "Dokument NIJE prikačen. Ponovite prikačivanje — ništa neće biti duplirano.");
+        prati(p);
+        osvezi();
+        return;
+      }
       if (r.ok && r.podaci) {
         var x = r.podaci, delovi = [];
         if (x.predmet_id && x.predmet_id !== pid) delovi.push("Ovaj dokument je već bio prikačen drugom vašem predmetu; ovde nije ponovo prikačen.");
         else delovi.push("Dokument je prikačen predmetu. Podaci predmeta nisu menjani.");
-        if (x.dokumenata_povezano !== undefined && x.dokumenata_ukupno !== undefined && x.dokumenata_povezano < x.dokumenata_ukupno)
-          delovi.push("Prikačeno je " + x.dokumenata_povezano + " od " + x.dokumenata_ukupno + " delova dokumenta; ponovite prikačivanje za ostatak.");
         if (x.rok_dodat === true) delovi.push("Rok pronađen u dokumentu upisan je u hronologiju predmeta kao podatak iz dokumenta — proverite ga.");
         else if (x.rok_preskocen_razlog === "niska_pouzdanost") delovi.push("Rok iz dokumenta nije upisan jer njegova pouzdanost nije dovoljna.");
         javi(p, delovi[0].indexOf("Dokument je prikačen") === 0 ? "uspeh" : "nepoznato", delovi.join(" "));
@@ -263,6 +296,9 @@
         return;
       }
       if (r.ok) { javi(p, "nepoznato", "Prikačivanje je prihvaćeno, ali odgovor nije mogao da se pročita. Proverite dokumente predmeta."); prati(p); osvezi(); return; }
+      /* OCR001: 409 = drugi pokušaj je u toku, prethodni je upravo prekinut, ili posao traži ručnu proveru. Ništa se ne
+       * šalje ponovo samo od sebe; stanje se čita sa servera. */
+      if (r.greska && r.greska.kod === "CONFLICT") { javi(p, "nepoznato", "Server sada ne prihvata prikačivanje (drugi pokušaj je u toku, prethodni je upravo prekinut ili dokument traži ručnu proveru). Dokument nije potvrđen u predmetu; stanje se ponovo proverava."); prati(p); return; }
       neuspeh(p, r.greska || {}, "Dokument nije prikačen.");
     }
 
@@ -277,7 +313,8 @@
       if (x.coi_status === "COI_PENDING") delovi.push("Provera sukoba interesa iz dokumenta je zakazana u pozadini — to nije rezultat; pre prihvatanja zastupanja pokrenite proveru u kartici Klijenti.");
       else if (x.coi_status === "COI_FAILED") delovi.push("Provera sukoba interesa iz dokumenta NIJE zakazana. Pokrenite je ručno u kartici Klijenti.");
       if (x.rok_dodat === true) delovi.push("Rok pronađen u dokumentu upisan je u hronologiju kao podatak iz dokumenta — proverite ga.");
-      javi(p, "uspeh", delovi.join(" "));
+      if (x.ok !== true) delovi.unshift("Dokument NIJE prikačen u novi predmet. Ponovite prikačivanje — predmet i deo koji je već sačuvan neće biti duplirani.");
+      javi(p, x.ok === true ? "uspeh" : "greska", delovi.join(" "));
       naOtvoren(trenutni.id, tekst(x.naziv));
       poslovi.forEach(function (q) { if (q !== p && q.podaci) prikazi(q, null); });
       prati(p);

@@ -1,6 +1,6 @@
 # BETA-DEF-003 — odbijeno prikačivanje (404) zaključava intake posao na 120 s
 
-**Status:** otvoren, NIJE ispravljen (nije kritičan za izdanje). Otkriven u OSB002 Task 1.
+**Status:** ISPRAVLJENO u OCR001 (`fix/ocr001-document-ingestion-reliability`): svaka greška posle zauzeća, uključujući ovaj 404, oslobađa zauzeće (`routers/smart_intake.py::_finalize_intake_job_core`). Dokaz: `tests/test_ocr001_finalizacija.py::test_odbijen_tudj_predmet_oslobadja_zauzece_pa_ispravan_predmet_radi_odmah`. Otkriven u OSB002 Task 1.
 **Ozbiljnost:** niska (UX, sam se oslobađa; nema curenja, nema pogrešnog upisa).
 
 ## Šta se dešava

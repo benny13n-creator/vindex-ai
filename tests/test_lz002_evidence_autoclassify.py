@@ -167,4 +167,6 @@ async def test_finalize_evidence_classification_failure_does_not_break_response(
     assert any(t.insert.called for t in tabele["predmeti"])           # predmet JESTE kreiran
     for t in tabele.get("intake_jobs", []):                          # ali posao nije obeležen kao prikačen
         for poziv in t.update.call_args_list:
-            assert "predmet_id" not in poziv.args[0] and "assimilation_complete" not in poziv.args[0]
+            # OCR001: izabran predmet se beleži pre dokumenata (nastavak u isti predmet); „prikačen“ je samo
+            # assimilation_complete, a on se ovde ne upisuje.
+            assert "assimilation_complete" not in poziv.args[0]

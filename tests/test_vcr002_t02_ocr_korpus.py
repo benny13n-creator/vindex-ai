@@ -231,12 +231,8 @@ def test_pad_upisa_pri_prikacivanju_nije_uspeh_a_ponovni_pokusaj_pravi_jedan_dok
     if f.status_code == 200:
         assert f.json().get("dokumenata_povezano", 0) == 0, f.json()   # ne sme tvrditi povezivanje
     assert "57014" not in f.text and "statement timeout" not in f.text  # bez sirove greške baze
-    # Zauzeće finalizacije (migracija 092) se NE oslobađa posle neočekivane greške; samo-isceljuje se posle
-    # prozora zastarelosti (120 s). Do tada je odgovor iskren 409 „u toku“, nikad drugi dokument.
-    rano = _prikaci(k, jid)
-    assert rano.status_code == 409 and _dokumenti(b) == []
-    from datetime import datetime, timedelta, timezone
-    b.tabele["intake_jobs"][0]["finalizing_at"] = (datetime.now(timezone.utc) - timedelta(seconds=121)).isoformat()
+    # OCR001: zauzeće finalizacije (migracija 092) se posle neočekivane greške OSLOBAĐA (ranije je posao ostajao
+    # zaključan 120 s — stanje iz QA incidenta), pa ponovni pokušaj odmah prolazi, i to bez drugog dokumenta.
     f2 = _prikaci(k, jid)
     assert f2.status_code == 200, f2.text
     assert f2.json()["dokumenata_povezano"] == 1 and len(_dokumenti(b)) == 1

@@ -122,7 +122,7 @@ def test_beta_def_004_pad_upisa_dogadjaja_posle_dokumenta(solo):
     f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A)
     del b.greske["events"]
     assert f.status_code == 503 and len(b.tabele["predmet_dokumenti"]) == 1
-    assert len(b.tabele["events"]) == pre and b.tabele["intake_jobs"][0]["predmet_id"] is None
+    assert len(b.tabele["events"]) == pre and not b.tabele["intake_jobs"][0]["assimilation_complete"]
     assert k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).status_code == 200
     _do_kraja_dogadjaja(b)
     assert b.tabele["predmet_dokazi"] and len(b.tabele["predmet_dokumenti"]) == 1

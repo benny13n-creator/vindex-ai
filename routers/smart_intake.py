@@ -42,6 +42,7 @@ import re
 import tempfile
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -280,7 +281,8 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     provera ovde daje jasnu 404 poruku umesto praznog reda."""
     res = await asyncio.to_thread(
         lambda: _get_supa().table("intake_jobs")
-            .select("id, status, source, attempts, last_error, created_at, completed_at, original_filename, predmet_id")
+            .select("id, status, source, attempts, last_error, created_at, completed_at, original_filename, predmet_id, "
+                    "assimilation_complete, finalizing_at")
             .eq("id", job_id)
             .eq("uploaded_by", user["user_id"])
             .maybe_single()
@@ -289,6 +291,10 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     if not res or not res.data:
         raise HTTPException(status_code=404, detail="Posao nije pronađen.")
     job = res.data
+    # OCR001: `predmet_id` sam po sebi nije dokaz prikačivanja (upisuje se pre dokumenata i ostaje posle
+    # delimičnog ishoda). Prikaz čita ovo izvedeno stanje, a interne kolone zauzeća se ne vraćaju.
+    job["prikacivanje"] = _stanje_prikacivanja(job)
+    job.pop("finalizing_at", None)
 
     # Program Intake Sprint 006 (2026-08-05) -- get_job_result()'s own
     # `.maybe_single()` call raises the moment a job has 2+ intake_documents
@@ -369,6 +375,11 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
             "razlog": review["reason"],
             "polja": review["low_confidence_fields"],
         } if review else None,
+        # OCR001: SVI nerazrešeni razlozi pregleda prvog dokumenta (npr. nesigurna vrsta I nepročitana strana).
+        "potrebne_provere": [
+            {"razlog": r["reason"], "polja": r["low_confidence_fields"]}
+            for r in ((all_documents[0].get("reviews") or ([review] if review else [])) if all_documents else [])
+        ],
         # Program Intake Sprint 006 (2026-08-05) -- full multi-document view,
         # additive alongside the fields above (which stay scoped to the
         # first/anchor document for backward compatibility with existing
@@ -857,6 +868,46 @@ def _new_client_linked_event_id(job_id: str) -> str:
     return str(_uuid.uuid5(_NS_VINDEX_EVENTS, "NewClientLinked:%s" % job_id))
 
 
+# OCR001: ishod prikačivanja posla predmetu, isti rečnik u odgovoru finalize-a, u paketu i u GET /jobs/{id}.
+# „POTPUNO“/„PRIKACENO“ znači: svaki dokument posla ima red u `predmet_dokumenti` ovog predmeta, koji je baza
+# vratila posle upisa (ili je već postojao). Sve drugo je nepotpuno, i to se kaže.
+PRIKACIVANJE_POTPUNO, PRIKACIVANJE_DELIMICNO, PRIKACIVANJE_NIJE = "POTPUNO", "DELIMICNO", "NIJE_PRIKACENO"
+
+
+def _stanje_prikacivanja(job: dict) -> str:
+    """Stanje prikačivanja za prikaz, isključivo iz trajnog reda posla (ne iz poslednjeg odgovora klijentu).
+
+    PRIKACENO — završeno i potvrđeno. U_TOKU — sveže zauzeće: pokušaj radi ili je upravo prekinut; novi pokušaj
+    se odbija dok zauzeće ne zastari (`intake_queue.FINALIZE_ZASTAREVA_S`). NEPOTPUNO — predmet je izabran, ali nije
+    svaki dokument potvrđen u njemu; ponovni pokušaj nastavlja u ISTI predmet. NIJE_PRIKACENO — nijedan predmet."""
+    if job.get("predmet_id") and job.get("assimilation_complete"):
+        return "PRIKACENO"
+    zauzeto = job.get("finalizing_at")
+    if zauzeto:
+        try:
+            od = datetime.fromisoformat(str(zauzeto).replace("Z", "+00:00"))
+            if od.tzinfo is None:
+                od = od.replace(tzinfo=timezone.utc)
+            if (datetime.now(timezone.utc) - od).total_seconds() < intake_queue.FINALIZE_ZASTAREVA_S:
+                return "U_TOKU"
+        except ValueError:
+            return "U_TOKU"            # nečitljiv trenutak: ne tvrditi da je slobodno
+    return "NEPOTPUNO" if job.get("predmet_id") else PRIKACIVANJE_NIJE
+
+
+async def _oslobodi_zauzece(job_id: str, finalizing_at) -> None:
+    """CAS na trenutak zauzeća: oslobađa samo SVOJE zauzeće (tuđe, novije ostaje), pa je bezbedno pozvati i kad je
+    grana već oslobodila zauzeće ili kad je posao u međuvremenu preuzet."""
+    try:
+        await asyncio.to_thread(
+            lambda: _get_supa().table("intake_jobs").update({"finalizing_at": None})
+                .eq("id", job_id).eq("finalizing_at", finalizing_at).execute()
+        )
+    except Exception as exc:
+        logger.error("[SMART_INTAKE] oslobađanje zauzeća neuspešno job=%s (ponovo obradiv posle zastarevanja): %s",
+                     job_id[:8], type(exc).__name__)
+
+
 async def _finalize_intake_job_core(
     job_id: str,
     request: Request,
@@ -864,6 +915,48 @@ async def _finalize_intake_job_core(
     user: dict,
     *,
     emit_document_accepted: bool = True,
+):
+    """OCR001 — granica greške oko jezgra finalizacije.
+
+    Incident (QA predmet, 2026-10-12): posao `completed`, `predmet_id` NULL, `finalizing_at` postavljen, nula
+    dokumenata u predmetu. Svaka neočekivana greška posle `claim_intake_finalize` izlazila je kao 500 bez
+    oslobađanja zauzeća, pa je svaki ponovni pokušaj narednih 120 s dobijao 409, a V2 je i dalje nudio „Prikači“.
+    Ovde se zauzeće oslobađa posle SVAKE greške koju proces doživi (pad procesa ne može da je doživi — tada
+    zauzeće zastareva, a GET /jobs/{id} to stanje prikazuje kao U_TOKU), i greška se ne predstavlja kao uspeh."""
+    zauzece: dict = {}
+    try:
+        return await _finalize_intake_job_jezgro(
+            job_id, request, body, user, emit_document_accepted=emit_document_accepted, zauzece=zauzece,
+        )
+    except HTTPException:
+        if zauzece:
+            await _oslobodi_zauzece(job_id, zauzece["finalizing_at"])
+        raise
+    except asyncio.CancelledError:
+        if zauzece:
+            await _oslobodi_zauzece(job_id, zauzece["finalizing_at"])
+        raise
+    except Exception as exc:
+        if not zauzece:
+            raise
+        await _oslobodi_zauzece(job_id, zauzece["finalizing_at"])
+        logger.error("[SMART_INTAKE] finalize job=%s prekinut greškom posle zauzeća (%s) -- zauzeće oslobođeno, "
+                     "prikačivanje NIJE potvrđeno.", job_id[:8], type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Prikačivanje nije završeno zbog privremene greške. Ponovite prikačivanje — deo koji je možda "
+                   "već sačuvan neće biti dupliran.",
+        )
+
+
+async def _finalize_intake_job_jezgro(
+    job_id: str,
+    request: Request,
+    body: FinalizeReq,
+    user: dict,
+    *,
+    emit_document_accepted: bool = True,
+    zauzece: dict,
 ):
     """Pretvara zavrsen Smart Intake posao u stvaran predmet — ovo je tacno
     obecanje iz UI-ja ("Otpremi tuzbu... i Vindex automatski kreira
@@ -918,6 +1011,7 @@ async def _finalize_intake_job_core(
         return {
             "ok": True, "predmet_id": job["predmet_id"], "already_finalized": True,
             "dokumenata_povezano": _cnt.count if _cnt.count is not None else 0,
+            "prikacivanje": PRIKACIVANJE_POTPUNO,
         }
 
     if job["status"] != "completed":
@@ -972,11 +1066,14 @@ async def _finalize_intake_job_core(
             return {
                 "ok": True, "predmet_id": refetch_data["predmet_id"], "already_finalized": True,
                 "dokumenata_povezano": _cnt.count if _cnt.count is not None else 0,
+                "prikacivanje": PRIKACIVANJE_POTPUNO,
             }
         raise HTTPException(
             status_code=409,
-            detail="Finalizacija je već u toku za ovaj posao — pokušajte ponovo za par sekundi.",
+            detail="Prikačivanje ovog dokumenta je već u toku ili je prethodni pokušaj upravo prekinut. "
+                   "Dokument još nije potvrđen u predmetu; novi pokušaj je moguć najkasnije za 2 minuta.",
         )
+    zauzece["finalizing_at"] = claimed["finalizing_at"]
 
     # Program Intake Sprint 006 (2026-08-05) -- get_job_result()'s own
     # `.maybe_single()` call would RAISE the moment a job has 2+
@@ -1095,15 +1192,23 @@ async def _finalize_intake_job_core(
             .execute()
     )
     recovered_predmet_id = (recovery_res.data or [{}])[0].get("predmet_id") if recovery_res.data else None
+    # OCR001: predmet izabran u prethodnom pokušaju (upisan na posao pre dokumenata, v. ispod) je takođe nastavak,
+    # i kad nijedan dokument još nije upisan. Bez ovoga je ponovni pokušaj „otvori predmet iz dokumenta“ posle
+    # neuspelog upisa dokumenta otvarao DRUGI predmet (dokazano: tests/test_ocr001_finalizacija.py).
+    recovered_predmet_id = recovered_predmet_id or job.get("predmet_id")
     resuming = bool(recovered_predmet_id)
 
     # ── Predmet: prikaci na postojeci (Scenario B), nastavi prekinuti pokusaj
     #    (Sprint 007), ili napravi novi ────────────────────────────────────
     if resuming:
         predmet_id = recovered_predmet_id
+        # OCR001: nastavak ide samo u predmet POZIVAOCA (ranije bez provere vlasnika — predmet je dolazio iz
+        # sopstvenog reda, ali stanje posla nije dokaz vlasništva nad predmetom).
         pred_res = await asyncio.to_thread(
-            lambda: supa.table("predmeti").select("naziv").eq("id", predmet_id).maybe_single().execute()
+            lambda: supa.table("predmeti").select("naziv").eq("id", predmet_id).eq("user_id", uid).maybe_single().execute()
         )
+        if not pred_res or not pred_res.data:
+            raise HTTPException(status_code=404, detail="Predmet za prikačivanje nije pronađen.")
         naziv = (pred_res.data or {}).get("naziv", "") if pred_res else ""
         logger.warning(
             "[SMART_INTAKE] finalize job=%s RESUME -- predmet=%s već kreiran u prethodnom (verovatno prekinutom) pokušaju; preskačem kreiranje predmeta/klijenta/roka, nastavljam samo dokumenta.",
@@ -1187,6 +1292,23 @@ async def _finalize_intake_job_core(
                     )
                 except Exception as _pke:
                     logger.warning("[SMART_INTAKE] PredmetKreiran durable event upis greška (nastavlja): %s", _pke)
+
+        # OCR001: izabran (ili upravo otvoren) predmet se trajno beleži na posao PRE dokumenata, uz isti CAS na
+        # zauzeće kao završni marker. `assimilation_complete` ostaje false, pa posao ostaje ponovo obradiv i
+        # GET /jobs/{id} ga prikazuje kao NEPOTPUNO, nikad kao prikačen. Ako proces padne posle ovog upisa, nastavak
+        # (gore) ide u ISTI predmet umesto da otvori drugi. Preostali prozor: pad između upisa novog predmeta i
+        # ovog reda (dve odvojene PostgREST naredbe, bez zajedničke transakcije).
+        _namera = await asyncio.to_thread(
+            lambda: supa.table("intake_jobs").update({"predmet_id": predmet_id})
+                .eq("id", job_id).eq("finalizing_at", claimed["finalizing_at"]).execute()
+        )
+        if not _namera.data:
+            logger.critical("[SMART_INTAKE] finalize job=%s izgubio zauzeće pre upisa dokumenata predmet=%s -- "
+                            "POTREBNA RUČNA PROVERA ako je predmet upravo otvoren.", job_id[:8], predmet_id)
+            raise HTTPException(
+                status_code=409,
+                detail="Prikačivanje je preuzeo drugi pokušaj. Proverite dokumente predmeta pre ponovnog pokušaja.",
+            )
 
     # ── Klijent (best-effort, ne obara finalize ako padne) ──────────────────
     # Program Intake Sprint 007: skipped entirely on resume -- client linking
@@ -1949,12 +2071,19 @@ async def _finalize_intake_job_core(
             detail="Dokument je sačuvan u predmetu, ali njegova obrada (dokazi, Genome) nije zakazana zbog privremene greške. Ponovite prikačivanje — dokument neće biti dupliran.",
         )
 
+    # OCR001: posao je prikačen tek kad SVAKI njegov dokument ima red u `predmet_dokumenti` ovog predmeta koji je
+    # baza vratila posle upisa (PostgREST vraća red tek posle commit-a) ili koji je već postojao (nastavak). Nepotpun
+    # ishod oslobađa zauzeće u istom CAS upisu, pa ponovni pokušaj odmah nastavlja u isti predmet.
+    _potpuno = doc_linked_count == len(documents)
+    prikacivanje = (PRIKACIVANJE_POTPUNO if _potpuno
+                    else PRIKACIVANJE_DELIMICNO if doc_linked_count else PRIKACIVANJE_NIJE)
+    _marker = {"predmet_id": predmet_id, "assimilation_complete": _potpuno}
+    if not _potpuno:
+        _marker["finalizing_at"] = None
     try:
         _cas_res = await asyncio.to_thread(
-            lambda: supa.table("intake_jobs").update({
-                "predmet_id": predmet_id,
-                "assimilation_complete": doc_linked_count == len(documents),
-            }).eq("id", job_id).eq("finalizing_at", claimed["finalizing_at"]).execute()
+            lambda: supa.table("intake_jobs").update(_marker)
+                .eq("id", job_id).eq("finalizing_at", claimed["finalizing_at"]).execute()
         )
         if not _cas_res.data:
             logger.critical(
@@ -2017,7 +2146,10 @@ async def _finalize_intake_job_core(
         )
 
     return {
-        "ok":          True,
+        # OCR001: `ok` je bio True i kad nijedan dokument nije upisan, pa je V2 javljao „Dokument je prikačen“.
+        # Sada je True samo za potvrđeno potpuno prikačivanje; `prikacivanje` kaže koje od tri stanja je nastupilo.
+        "ok":          _potpuno,
+        "prikacivanje": prikacivanje,
         "predmet_id":  predmet_id,
         "naziv":       naziv,
         # S6: odsustvo alarma vise ne sme da se cita kao "nema sukoba". Ovo polje
@@ -2143,7 +2275,11 @@ async def finalize_intake_jobs_batch(
             detalji.append({"job_id": job_id, "ok": False, "greska": "Neočekivana greška pri finalizaciji."})
             continue
 
-        uspesno += 1
+        # OCR001: posao čiji dokument nije potvrđen u predmetu nije „uspešno finalizovan“.
+        if result.get("ok"):
+            uspesno += 1
+        else:
+            neuspesno += 1
         predmet_id = result.get("predmet_id")
         if predmet_id:
             predmeti_dokumenti_count[predmet_id] = predmeti_dokumenti_count.get(predmet_id, 0) + (result.get("dokumenata_povezano") or 0)
@@ -2160,7 +2296,8 @@ async def finalize_intake_jobs_batch(
             rokovi_dodati += 1
         dokumenata_povezano_ukupno += result.get("dokumenata_povezano") or 0
         detalji.append({
-            "job_id": job_id, "ok": True, "predmet_id": predmet_id,
+            "job_id": job_id, "ok": bool(result.get("ok")), "predmet_id": predmet_id,
+            "prikacivanje": result.get("prikacivanje"),
             "already_finalized": result.get("already_finalized", False),
             "dokumenata_povezano": result.get("dokumenata_povezano"),
         })

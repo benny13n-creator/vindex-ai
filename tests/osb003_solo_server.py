@@ -172,6 +172,44 @@ async def _obradi():
     return JSONResponse({"poslova": poslova, "greske": sum(x.get("greske", 0) for x in rez)})
 
 
+# OCR001 — kvarovi na granici baze za browser test oporavka prikačivanja (frontend-v2-ng/tests/live-prijem-oporavak-e2e.mjs).
+# `kvar`: {"tabela", "radnja": "insert"|"*", "ukljucen"} → PostgREST statement timeout za tu radnju nad tom tabelom.
+# `zauzece`: {"starost_s"} → poslednjem intake poslu postavlja `finalizing_at` (kao proces ubijen posle zauzeća).
+from tests import ns005_harness as _H  # noqa: E402
+_KVAR: dict = {}
+_izvrsi = _H._Upit.execute
+
+
+def _izvrsi_sa_kvarom(self):
+    k = _KVAR.get(self.t)
+    if k and (k == "*" or self.radnja[0] == k):
+        raise Exception('{"code": "57014", "message": "canceling statement due to statement timeout"}')
+    return _izvrsi(self)
+
+
+mp.setattr(_H._Upit, "execute", _izvrsi_sa_kvarom)
+
+
+@api.app.post("/__osb003/kvar", include_in_schema=False)
+async def _kvar(z: dict):
+    if z.get("ukljucen"):
+        _KVAR[z["tabela"]] = z.get("radnja") or "*"
+    else:
+        _KVAR.pop(z.get("tabela"), None)
+    return JSONResponse({"kvarovi": sorted(_KVAR)})
+
+
+@api.app.post("/__osb003/zauzece", include_in_schema=False)
+async def _zauzece(z: dict):
+    from datetime import datetime, timedelta, timezone
+    poslovi = BAZA.tabele.get("intake_jobs", [])
+    if not poslovi:
+        return JSONResponse({"ok": False})
+    posao = sorted(poslovi, key=lambda j: j.get("created_at") or "")[-1]
+    posao["finalizing_at"] = (datetime.now(timezone.utc) - timedelta(seconds=int(z.get("starost_s", 0)))).isoformat()
+    return JSONResponse({"ok": True})
+
+
 @api.app.get("/__osb003/stanje", include_in_schema=False)
 async def _stanje():
     t = BAZA.tabele
@@ -183,6 +221,8 @@ async def _stanje():
         "vlasnici": sorted({r.get("user_id") or r.get("uploaded_by") for x in ("predmeti", "klijenti", "predmet_dokumenti", "predmet_dokazi")
                             for r in t.get(x, [])} - {None}),
         "nedispecovano": len([e for e in t.get("events", []) if e.get("dispatched_at") is None]),
+        "poslovi_prikaceni": len([j for j in t.get("intake_jobs", []) if j.get("assimilation_complete")]),
+        "poslovi_zauzeti": len([j for j in t.get("intake_jobs", []) if j.get("finalizing_at") and not j.get("assimilation_complete")]),
         "hronologija": len(t.get("predmet_hronologija", [])),
         "dokumenti_po_predmetu": sorted([sum(1 for d in t.get("predmet_dokumenti", []) if d.get("predmet_id") == p.get("id"))
                                          for p in t.get("predmeti", [])]),
