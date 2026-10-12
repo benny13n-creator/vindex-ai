@@ -3943,7 +3943,17 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 # v. TASK2 -- ovo NIJE pitanje svezine, nego da cinjenica nikad ne stize
                 # do prompta). Ista granica poverenja kao beleske/istorija ispod
                 # (T3, nepoverljiv sadrzaj, karantin + zapakuj_nepoverljivo).
-                dokazi_res = supa.table("predmet_dokazi").select("tvrdnja, snaga, kategorija").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).is_("deleted_at", "null").order("created_at", desc=True).limit(20).execute()
+                # VCR002 RC FIX 3: `*` jer poreklo (`izvor_tvrdnje` 135, `izvor_snage` 118, `nacin_pronalaska` 117,
+                # `dokument_id`) i `id` (članovi protivrečnosti) ulaze u kontekst; okruženje bez neke od tih migracija
+                # ne sme da izgubi ceo kontekst zbog nepostojeće kolone.
+                dokazi_res = supa.table("predmet_dokazi").select("*").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).is_("deleted_at", "null").order("created_at", desc=True).limit(20).execute()
+                # Trajne V2 protivrečnosti (predmet I korisnik); None = nisu pročitane, pa se to kaže u kontekstu.
+                try:
+                    from services.v2_projection import ucitaj_v2_kontradikcije_za_prikaz as _v2_kon
+                    _kontradikcije = await _v2_kon(supa, predmet_id, user["user_id"])
+                except Exception as _ke:
+                    logger.warning("[F5] protivrečnosti nisu pročitane predmet=%s: %s", predmet_id, _ke)
+                    _kontradikcije = None
                 # F1 (B-U-004-N1, 2026-08-23): KARANTIN KONTEKSTA PREDMETA.
                 #
                 # Route gate iznad (`_guard_analyze(req.pitanje)`) analizira SAMO
@@ -3989,11 +3999,10 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                                                  (r.get("odgovor") or "")[:300]),
                                       "istorija#%d" % i)
                 )
-                dokazi_tekst = "\n".join(
-                    f"- ({d.get('kategorija') or 'cinjenica'}, snaga={d.get('snaga') or 'nepoznata'}) {d['tvrdnja']}"
-                    for i, d in enumerate(dokazi_res.data or [])
-                    if d.get("tvrdnja") and _ctx_bezbedan(d["tvrdnja"], "dokaz#%d" % i)
-                )
+                # VCR002 RC FIX 3: tvrdnje sa poreklom iz kanonskog `poreklo_tvrdnje` i oznakom SPORNO iz trajnih V2
+                # protivrečnosti — nikad „utvrđene činjenice“ (ni navod pronađen u dokumentu nije dokazana činjenica).
+                from shared.genome_contract import kontekst_tvrdnji as _kontekst_tvrdnji
+                dokazi_tekst = _kontekst_tvrdnji(dokazi_res.data or [], _kontradikcije, bezbedan=_ctx_bezbedan)
                 if _ctx_karantin:
                     logger.warning("[CTX_KARANTIN] predmet=%s izolovano: %s",
                                    predmet_id, _ctx_karantin)
@@ -4029,7 +4038,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     from security.prompt_guard import zapakuj_nepoverljivo as _zapakuj_pred
                     delovi = []
                     if dokazi_tekst:
-                        delovi.append(f"Utvrđene činjenice u predmetu:\n{dokazi_tekst}")
+                        delovi.append(dokazi_tekst)
                     if beleske_tekst:
                         delovi.append(f"Beleške:\n{beleske_tekst}")
                     if istorija_tekst:
