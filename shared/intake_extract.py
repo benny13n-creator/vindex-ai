@@ -341,6 +341,55 @@ async def extract_free_text_entities(text: str) -> dict:
     return fallback
 
 
+# OCR001 (C2) — procesna uloga stranke mora biti NAVEDENA u tekstu, ne pogođena. Dokazano u QA testu: dostavnica
+# („Прималац: Пример Инвест Тест д.о.о.“) dala je istu firmu kao `plaintiff`; jedini izvor tog polja je model
+# (`extract_free_text_entities`), bez ikakve provere. Primalac, pošiljalac, adresat, tužilac, tuženi i klijent nisu
+# zamenljive uloge. Vrednost modela se zadržava SAMO ako se ime pojavljuje odmah posle oznake te uloge u samom tekstu
+# (latinica ili ćirilica, padeži); inače se uloga NE tvrdi (vrednost None, pouzdanost 0 → pregled).
+_ULOGA_OZNAKA = {
+    "plaintiff": re.compile(r"\b(?:tu[žz]ioc\w*|tu[žz]ilac|tu[žz]ilj\w*|tu[žz]itelj\w*|тужиоц\w*|тужилац|тужиљ\w*|тужитељ\w*)", re.IGNORECASE),
+    "defendant": re.compile(r"\b(?:tu[žz]en\w*|тужен\w*)", re.IGNORECASE),
+}
+_ULOGA_PROZOR = 160          # znakova posle oznake uloge u kojima ime mora da počne (isti red ili sledeći)
+_GRANICA_ULOGA = re.compile(
+    "|".join(r.pattern for r in _ULOGA_OZNAKA.values()) + r"|\bprotiv\b|\bпротив\b", re.IGNORECASE,
+)
+_CIR_LAT = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "ђ": "dj", "е": "e", "ж": "z", "з": "z", "и": "i", "ј": "j",
+    "к": "k", "л": "l", "љ": "lj", "м": "m", "н": "n", "њ": "nj", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+    "ћ": "c", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "c", "џ": "dz", "ш": "s",
+    "č": "c", "ć": "c", "đ": "dj", "š": "s", "ž": "z",
+})
+
+
+def _sravni(t: str) -> str:
+    return (t or "").lower().translate(_CIR_LAT)
+
+
+def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -> bool:
+    """True samo ako tekst EKSPLICITNO dodeljuje `entity_type` ulogu imenu `value`: posle oznake uloge („Tužilac:“,
+    „tuženog“, „Тужилац“…) u narednih `_ULOGA_PROZOR` znakova (do sledeće oznake uloge ili „protiv“) pojavljuje se
+    SVAKA značajna reč imena (poređenje po prvih 4 slova, bez obzira na pismo i padež). Nepoznata uloga ili prazna
+    vrednost → False. Strogo namerno: izostavljena uloga ide na pregled, pogrešna uloga bi tiho ušla u predmet."""
+    oznaka = _ULOGA_OZNAKA.get(entity_type)
+    if not oznaka or not value or not text:
+        return False
+    reci = [r[:4] for r in re.findall(r"\w+", _sravni(value)) if len(r) >= 3 and r not in ("doo", "ad", "iz")]
+    if not reci:
+        return False
+    for m in oznaka.finditer(text):
+        kraj = m.end() + _ULOGA_PROZOR
+        # Prozor se završava kod sledeće oznake bilo koje uloge ili kod „protiv“: „Tužilac: A protiv tuženog B“ ne sme
+        # da potvrdi B kao tužioca.
+        granica = _GRANICA_ULOGA.search(text, m.end())
+        if granica and granica.start() < kraj:
+            kraj = granica.start()
+        prozor = _sravni(text[m.end(): kraj])
+        if all(r in prozor for r in reci):
+            return True
+    return False
+
+
 async def extract_all_entities(text: str) -> list[dict]:
     """Glavna ulazna tačka — vraća listu {entity_type, value, confidence,
     extraction_method} za svih 8 tipova iz ENTITY_TYPES. Regex polja se
@@ -366,6 +415,9 @@ async def extract_all_entities(text: str) -> list[dict]:
 
     free_text = await extract_free_text_entities(text)
     for entity_type, (value, confidence) in free_text.items():
+        if entity_type in _ULOGA_OZNAKA and value and not uloga_navedena_u_tekstu(text, entity_type, value):
+            logger.info("[INTAKE_EXTRACT] %s iz modela odbačen: uloga nije navedena u tekstu dokumenta", entity_type)
+            value, confidence = None, 0.0
         if entity_type == "court" and court_regex:
             entities.append({"entity_type": "court", "value": court_regex, "confidence": court_conf, "extraction_method": "regex"})
         else:
