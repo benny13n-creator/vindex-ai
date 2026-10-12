@@ -11,8 +11,12 @@ Svi testovi su sintetički. Imena, brojevi predmeta i činjenice su izmišljeni.
 | `tests/test_vcr002_t04_podsetnici.py` | 10 | T04 | dva roka istog dana, dva predmeta, ponovljen cron, predmet u brisanju, stvarna kapija potvrde (4 stanja), pad lanca odluka, autentikacija cron ključa | 3/3 |
 | `tests/test_vcr002_t05_paralelni_savetnici.py` | 22 | T05 | vlasništvo, granica poverenja (dokument i opis), citati (provereni, izmišljeni, bez izvora, pad pretrage, dokument ≠ zakon, izuzet član na `/run`), delimičan neuspeh, naplata, budžet, duplikati, 5 pogrešnih ulaza, konkurencija A/B | 8/8 |
 | `tests/test_vcr002_t06_niz_savetnika.py` | 19 | T06 | tri koraka, izlaz u granici, završni ne nasleđuje proveru, prenesena halucinacija, tuđ predmet, pad 1. i 2. koraka, neočekivan izuzetak, budžet, 5 pogrešnih ulaza, 5 slučajeva trajne idempotencije | 6/6 |
-| `frontend-v2-ng/tests/live-agenti.mjs` | 43 provere (+20) | T07 | UI sva tri načina (fixture) | — |
-| `frontend-v2-ng/tests/live-savetnici-e2e.mjs` | 18 provera | T07 | UI ↔ pravi `api.app` (pozivi, naplata, granica, idempotencija, reload) | — |
+| `tests/test_vcr002_rc_fix1_brisanje_dokumenta.py` | 9 | RC FIX 1 | greška čitanja i povlačenja tvrdnji, pad posle brisanja, pad između koraka, kompenzacija, greška atomske funkcije, trka, nikad `-1` | 7/7 (zajedno sa PG) |
+| `tests/test_vcr002_rc_fix1_migracija137_pg.py` | 5 | RC FIX 1 | **pravi PostgreSQL 17**: jedna transakcija, rollback, vlasništvo, ponovni poziv, `EXECUTE`, konkurentan upis | (gore) |
+| `tests/test_vcr002_rc_fix2_niz_oporavak.py` | 4 | RC FIX 2 | pad radnika posle plaćenog koraka (IN_PROGRESS, izlaz nigde zabeležen, ponovna naplata) + čuvar V2 ulaza | 2/2 |
+| `tests/test_vcr002_rc_fix3_kontekst_pitanja.py` | 8 | RC FIX 3 | tačan tekst ka modelu: poreklo, snaga samo po advokatu, SPORNO (aktivna, za pregled, razrešena), tuđa sporna tačka, pad čitanja, granica poverenja | 7/7 |
+| `frontend-v2-ng/tests/live-agenti.mjs` | 38 provera (RC FIX 2) | T07 | UI: jedan savetnik, tri pogleda; niz isključen i ne šalje zahtev (fixture) | — |
+| `frontend-v2-ng/tests/live-savetnici-e2e.mjs` | 16 provera (RC FIX 2) | T07 | UI ↔ pravi `api.app`; nasilno izabran niz: 0 poziva modela, 0 naplata | — |
 
 ## Izvršenja
 

@@ -1,23 +1,32 @@
 # VCR002 — predaja kandidata za izdanje
 
-## Presuda: **CONDITIONAL GO — VERIFIED CANDIDATE, EXACT LIMITED DEPENDENCY**
+## Presuda (posle zatvaranja izdanja, 2026-10-12): **GO za spajanje kandidata `056a48e6` uz vaše odobrenje tačno tog kandidata**
 
-Kandidat je bezbedan za spajanje: nema materijalnog bezbednosnog kvara ni kvara integriteta, a svaki proizvodni kvar nađen u programu je ispravljen i dokazan. Uslov je samo ono što ovaj program **ne može** da dokaže bez vas: prijavljena provera u produkciji (QA nalog), tajna za podsetnike i stvaran pilot predmet. Ti uslovi ne blokiraju spajanje. Blokiraju samo tvrdnju „radi u produkciji za prijavljenog advokata“.
+Tri rizika koja su blokirala spajanje su zatvorena: integritet brisanja dokumenta, oporavak plaćenog niza i „utvrđene činjenice“. Sva tri su reprodukovana, imaju regresione testove i mutacije, a CI nema nijedan nov pad (detalji u `VCR002_RELEASE_CLOSURE.md`).
+
+Ono što ostaje **ne blokira spajanje**, već tvrdnju „radi u produkciji za prijavljenog advokata“:
+- QA nalog;
+- tajna za podsetnike;
+- pilot predmet;
+- primena migracije 137. Bez nje radi bezbedan put sa kompenzacijom.
+
+Prethodna presuda (CONDITIONAL GO za `38ac5fcd`) je **zamenjena**. Kandidat `38ac5fcd` se više ne preporučuje.
 
 ## 1. Kandidat
 
 - **Grana:** `program/vcr002-beta-operational-closure`, Draft PR **#20**.
-- **Kandidat (kod):** `38ac5fcd` (poslednja kodna izmena). Docs commit-i posle njega ne menjaju kod.
+- **Kandidat (kod):** **`056a48e6`** (`38ac5fcd` + FIX 1 `80dc114e` + FIX 2 `a1468152` + FIX 3 `056a48e6`). Docs commit-i posle njega ne menjaju kod.
 - **Osnova:** `main` = produkcija `b36235a3`.
 
-## 2. Obim izmena (bez migracija, tajni, cena, Cron-a)
+## 2. Obim izmena (jedna nova migracija u repo-u — 137, NIJE primenjena; bez tajni, cena, Cron-a)
 
 | Oblast | Fajlovi |
 |---|---|
-| Brisanje dokumenta povlači AI tvrdnje | `api.py` (`predmet_dokument_obrisi`) |
+| Brisanje dokumenta povlači AI tvrdnje (atomski, RC FIX 1) | `api.py` (`predmet_dokument_obrisi`), `services/event_bus.py`, **migracija 137 (nije primenjena)** |
+| Kontekst pravnog pitanja: poreklo tvrdnji i sporne tačke (RC FIX 3) | `api.py` (`pitanje`), `shared/genome_contract.py` |
 | Podsetnici | `routers/email_notif.py`, `.github/workflows/sms-cron.yml` |
 | Savetnici (paralelno, niz, citati, granica poverenja) | `routers/multi_agent.py`, `security/prompt_guard.py` (+1 oznaka), `shared/idempotency.py` (+1 ruta) |
-| V2 | `frontend-v2-ng/index.html`, `src/agenti-predmeta.js`, `src/app.css` |
+| V2 (niz savetnika isključen, RC FIX 2) | `frontend-v2-ng/index.html`, `src/agenti-predmeta.js`, `src/app.css` |
 | CI | `production-runtime.yml` (T02 korpus u produkcionoj slici), `.gitleaksignore` (1 obrazložen lažno pozitivan nalaz u dokumentaciji) |
 | Testovi | 5 novih Python fajlova, 2 frontend testa, fixture, `osb003_solo_server.py` (blok uz `VX_AGENTI=1`) |
 
@@ -29,16 +38,26 @@ Kandidat je bezbedan za spajanje: nema materijalnog bezbednosnog kvara ni kvara 
 | Predmet sa više dokumenata: identiteti, tvrdnje po izvoru, protivrečnost, hronologija sa izvorom, rok → potvrda → akcija, pitanje, istorija | ISOLATED (stvarne rute) |
 | Obrisan izvor više nije merodavan | ISOLATED + mutacije |
 | Podsetnik samo za potvrđen rok; dva roka istog dana; predmet u brisanju | ISOLATED (stvarna kapija potvrde) |
-| Paralelni savetnici i niz savetnika sa istim ugovorom kao pojedinačni | ISOLATED + mutacije 14/14 |
-| Sva tri načina rada savetnika u V2 | BROWSER_INTEGRATION nad pravim `api.app` (18/18) i fixture-om (43/43) |
+| Paralelni savetnici sa istim ugovorom kao pojedinačni | ISOLATED + mutacije |
+| U V2: jedan savetnik i tri pogleda; niz je isključen i ne šalje zahtev | BROWSER_INTEGRATION nad pravim `api.app` (16/16) i fixture-om (38/38) |
+| Brisanje dokumenta: nema uspeha dok AI tvrdnje ostaju aktivne; pad, greška i ponovni pokušaj | ISOLATED (ruta) + **pravi PostgreSQL 17** (migracija 137) + mutacije 7/7 |
+| Pravno pitanje: poreklo svake tvrdnje, SPORNO iz trajnih V2 protivrečnosti, bez „utvrđeno“ | ISOLATED (tačan tekst ka modelu) + mutacije 7/7 |
 | Autonomija NS007 | ISOLATED nad **stvarnim PostgreSQL-om** (163/163) |
 
 ## 4. Tačna nerazrešena ograničenja
 
 - **`LIM-T01`:** nijedan prijavljen tok nije posmatran u produkciji (nema QA naloga).
 - **`LIM-T02-1`:** posle neočekivane greške baze tokom prikačivanja, ponovni pokušaj oko 120 s dobija 409 „u toku… za par sekundi“. Integritet je očuvan, a poruka je netačna u trajanju.
-- **`LIM-T06-1`:** pad radnika usred niza ostavlja ključ u stanju IN_PROGRESS. Nova radnja advokata ponovo naplaćuje već plaćene korake prekinutog izvršenja.
-- **`OBS-T03-1`:** kontekst pravnog pitanja AI tvrdnje naziva „Utvrđene činjenice … snaga=jaka“, i dve protivrečne bez oznake (tekst prompta; odluka).
+- **`LIM-T06-1` → zatvoreno isključenjem (RC FIX 2):**
+  - niz savetnika nije dostupan u V2;
+  - backend ruta postoji, ali je niko ne poziva;
+  - ponovno uključenje traži trajnu evidenciju koraka (nova šema, posebno odobrenje).
+  - Isti pad u **jednom** i **paralelnom** savetniku moguć je samo u milisekundama između naplate i upisa odgovora. Kod niza su to minuti, pa ovo ostaje imenovano ograničenje.
+- **`OBS-T03-1` → ispravljeno (RC FIX 3).**
+- **`LIM-RC-1` (pre migracije 137):**
+  - Pad radnika tačno između povlačenja AI tvrdnji i brisanja reda ostavlja dokument u listi bez njegovih AI tvrdnji. Vektori su već uklonjeni, a uspeh nije prijavljen.
+  - Ponovni pokušaj završava brisanje.
+  - Migracija 137 zatvara ovaj prozor.
 - **`OBS-T03-2`:** rok iz obrisanog dokumenta ostaje u hronologiji kao istorija bez izvora, ali **nepotvrđen**, pa nikad nije operativan.
 - **`LIM-T03-3`:** sačuvan Genome (`case_dna.kontradikcije`) može do sledećeg osvežavanja da navodi protivrečnost čija je tvrdnja povučena brisanjem dokumenta. Sledeće osvežavanje je ne vidi (dokazano).
 - **Podsetnici i SMS:** isporuka nije posmatrana (tajna). SMS ruta prima samo osnivačev JWT.
@@ -50,7 +69,17 @@ Kandidat je bezbedan za spajanje: nema materijalnog bezbednosnog kvara ni kvara 
 
 ## 6. CI na kandidatu (poređenje identiteta palih testova sa `main` `b36235a3`)
 
-Poslednje pokretanje na `53d7d60a` (kod = `38ac5fcd`):
+**Zatvaranje izdanja — kandidat `056a48e6`:**
+
+| Workflow | Rezultat | Padovi | Novo u odnosu na `main` |
+|---|---|---|---|
+| Security Checks (38249352222) | **success** | — | — |
+| Test Suite 3.11 / 3.13 (38249352253) | failure (nasleđeno) | 174 / 174 (8787 passed) | **0** |
+| Production Runtime Parity (38249352357) | failure (nasleđeno) | 196 | **0** |
+| ↳ Docker build + boot; OCR u produkcionoj slici | **success**; OCR 32 passed | — | — |
+| V2 NG (38249372047) | **success** posle ponovnog pokretanja jednog posla | prvi pokušaj: `verify:live-matrix` → `demo-piksel`. Snimak HEAD naspram HEAD-a razlikovao se za 15 piksela po jednu nijansu. To je nasleđeni `FLAKY-DEMO-PIKSEL`; prag nije menjan. | — |
+
+**Prethodno, kandidat `38ac5fcd` (`53d7d60a`):**
 
 | Workflow | Rezultat | Padovi | Novo u odnosu na `main` |
 |---|---|---|---|
@@ -66,6 +95,10 @@ Poslednje pokretanje na `53d7d60a` (kod = `38ac5fcd`):
 - **Lokalno, pun Python paket na `38ac5fcd`:** kandidat 21 failed, 9296 passed; osnovica (`main`-ovo stablo) 22 failed, 9231 passed. Jedine razlike su Playwright testovi starog V1 UI-ja, koji kandidat ne dira. Pokrenuti sami prolaze 15/15 (paralelno opterećenje). **0 novih.**
 
 ## 7. Frontend (lokalno, sve `verify*` + `e2e:*` skripte)
+
+**Zatvaranje izdanja, `056a48e6`:** **45/45 PASS**, uključujući `verify:live-agenti` 38/38 i `e2e:savetnici` 16/16 (niz isključen).
+
+Prethodno:
 
 **45/45 PASS** na `aabbff26` (frontend nije menjan posle toga), uključujući `verify:live-agenti` 43/43 i `e2e:savetnici` 18/18. CI V2 NG na `aabbff26`: **success**.
 
@@ -110,13 +143,18 @@ Gitleaks: 1 lažno pozitivan nalaz u dokumentaciji (vrednost kolone `ai_klasifik
 
 ## 11. Kompatibilnost baze
 
-Nijedna nova kolona, tabela ni RPC.
+Nijedna nova kolona ni tabela. **Jedna nova RPC funkcija u migraciji 137** (`invalidate_dokument_and_ai_claims_and_emit_event`, novo ime, stara funkcija netaknuta). Aplikacija radi i pre i posle njene primene.
 - Koriste se postojeće tabele i kolone: `predmet_dokazi.deleted_at` / `izvor_tvrdnje` / `nacin_pronalaska`, `predmeti.brisanje_zapoceto` i `v2_mutation_idempotency`.
 - `brisanje_zapoceto` ima rezervni upit ako kolona ne postoji.
 
 ## 12. Zahtevi za migracije
 
-Nema. Migracija 136 (autonomija) je zasebna odluka (T09).
+- **Migracija 137** (`migrations/137_atomic_dokument_ai_claims_invalidation.sql`):
+  - preporučena **posle** spajanja, a pokrećete je vi;
+  - zavisi od 016, 073, 117 i 135, koje su sve već u produkciji;
+  - bez nje važi put sa kompenzacijom i `LIM-RC-1`;
+  - testirana samo nad izolovanim lokalnim PostgreSQL-om 17, ne na produkciji.
+- Migracija 136 (autonomija) je zasebna odluka (T09).
 
 ## 13. Spoljne zavisnosti
 
@@ -130,7 +168,8 @@ Vraćanje na `b36235a3` je čisto: nema šeme ni podataka koje kandidat jedini r
 
 ## 15. Odluke osnivača
 
-1. **Puštanje kandidata** `38ac5fcd` (spajanje PR #20 → automatski deploy).
+1. **Puštanje kandidata `056a48e6`** (spajanje PR #20 → automatski deploy). Odobrenje važi samo za tačno taj kandidat.
+1a. **Migracija 137** (posle spajanja; zatvara `LIM-RC-1`).
 2. **QA nalog** za prijavljenu proveru (T01), uz kanal za kredencijale van repo-a.
 3. **Podsetnici:**
    - uskladiti `CRON_SECRET` (Render) i `CRON_TOKEN` (GitHub), ili postaviti `CRON_SECRET`;
@@ -141,4 +180,4 @@ Vraćanje na `b36235a3` je čisto: nema šeme ni podataka koje kandidat jedini r
 6. **Pilot predmet** sa 3–4 stvarna dokumenta (B13 stvaran), uz dozvolu i pravila poverljivosti.
 7. **Miroslavljev izvorni dokument** (nije u repo-u ni na Drive-u).
 8. **Strategija, prediktor, šabloni u V2** (AI-pomaže / AI-odlučuje).
-9. **`OBS-T03-1`:** tekst konteksta pitanja („Utvrđene činjenice“ → npr. „Tvrdnje iz dokumenata (AI, neproverene)“, uz oznaku protivrečnosti).
+9. ~~`OBS-T03-1`~~ — ispravljeno u RC FIX 3. **Novo:** da li i kada graditi trajnu evidenciju koraka niza savetnika (nova šema), kako bi se niz u V2 ponovo uključio.
