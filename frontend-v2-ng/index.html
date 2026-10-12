@@ -590,6 +590,22 @@
             <p class="list-state" id="hron-stanje" hidden></p>
             <ol class="chrono" id="hron-lista" aria-label="Hronologija predmeta"></ol>
           </section>
+          <!-- VCR001 T07: zadaci predmeta (vidljivi i na Radnoj listi) -->
+          <section class="matter__section" aria-labelledby="zd-naslov">
+            <h2 class="matter__h2" id="zd-naslov">Zadaci</h2>
+            <form class="form" id="zd-forma" novalidate>
+              <div class="field"><label class="field__label" for="zd-naziv">Nov zadatak</label>
+                <input class="field__input" id="zd-naziv" maxlength="200"></div>
+              <div class="field"><label class="field__label" for="zd-rok">Rok (nije obavezno)</label>
+                <input class="field__input" id="zd-rok" type="date"></div>
+              <div class="field"><label class="field__label" for="zd-prioritet">Prioritet</label>
+                <select class="field__input" id="zd-prioritet"><option value="normalan">Normalan</option><option value="visoko">Visok</option><option value="hitno">Hitno</option><option value="nisko">Nizak</option></select></div>
+              <div class="form__actions"><button class="text-btn text-btn--line" id="zd-dodaj" type="submit" disabled>Dodaj zadatak</button></div>
+            </form>
+            <p class="notice" id="zd-poruka" role="status" aria-live="polite" hidden></p>
+            <p class="list-state" id="zd-stanje" role="status" hidden></p>
+            <ul class="reviews" id="zd-lista" aria-label="Zadaci predmeta"></ul>
+          </section>
           <!-- VCR001 T07: kalkulator zastarelosti (deterministički, ništa se ne upisuje) -->
           <section class="matter__section" aria-labelledby="zs-naslov">
             <h2 class="matter__h2" id="zs-naslov">Zastarelost potraživanja</h2>
@@ -925,6 +941,7 @@
   <script src="src/agenti-predmeta.js"></script>
   <script src="src/dokaz-unos.js"></script>
   <script src="src/zastarelost-kalkulator.js"></script>
+  <script src="src/zadaci-predmeta.js"></script>
   <script src="src/znanje.js"></script>
   <script src="src/law-brain.js"></script>
   <script src="src/nacrt-predmeta.js"></script>

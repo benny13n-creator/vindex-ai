@@ -95,6 +95,27 @@ zapisi("2", "napomena o subjektivnom/objektivnom roku je prikazana", /objektivni
 const posle = await stanje();
 zapisi("2", "kalkulator ništa ne upisuje", JSON.stringify([pre.tvrdnje, pre.hronologija, pre.akcije_otvorene]) === JSON.stringify([posle.tvrdnje, posle.hronologija, posle.akcije_otvorene]));
 
+// 3) zadaci (Rad) — dodat zadatak je i na Radnoj listi, „Završeno“ ga zatvara
+await p.goto(BASE + "/app" + hashPredmet + "/rad");
+await p.click("#tab-rad").catch(() => {});
+zapisi("3", "Rad: zadaci učitani (prazno)", await cekaj(() => /nema zadataka/.test(document.getElementById("zd-stanje").textContent), null, 15000), await txt("zd-stanje"));
+await p.fill("#zd-naziv", "Pribaviti dostavnicu od poslodavca");
+await p.fill("#zd-rok", "2026-10-20");
+await p.selectOption("#zd-prioritet", "visoko");
+await p.click("#zd-dodaj");
+zapisi("3", "zadatak dodat i prikazan u predmetu", await cekaj(() => /Pribaviti dostavnicu/.test(document.getElementById("zd-lista").innerText) && /rok 20\.10\.2026/.test(document.getElementById("zd-lista").innerText)),
+  (await txt("zd-lista")).slice(0, 160) + " | " + (await txt("zd-poruka")));
+await p.goto(BASE + "/app#/danas");
+zapisi("3", "zadatak je na Radnoj listi (dodeljen prijavljenom korisniku)", await cekaj(() => /Pribaviti dostavnicu/.test(document.body.innerText), null, 15000));
+await p.goto(BASE + "/app" + hashPredmet + "/rad");
+await p.click("#tab-rad").catch(() => {});
+await cekaj(() => /Pribaviti dostavnicu/.test(document.getElementById("zd-lista").innerText), null, 15000);
+await p.click('#zd-lista button[aria-label^="Označi kao završen"]');
+zapisi("3", "„Završeno“: status završen, bez dugmeta", await cekaj(() => /završen/.test(document.getElementById("zd-lista").innerText) && !document.querySelector("#zd-lista button")), (await txt("zd-lista")).slice(0, 160) + " | " + (await txt("zd-poruka")));
+await p.reload();
+await p.click("#tab-rad").catch(() => {});
+zapisi("3", "posle reload-a zadatak ostaje završen", await cekaj(() => /završen/.test(document.getElementById("zd-lista").innerText), null, 15000));
+
 const kraj = await stanje();
 zapisi("bezbednost", "svi upisi pripadaju prijavljenom korisniku", JSON.stringify(kraj.vlasnici) === '["uid-A"]', JSON.stringify(kraj.vlasnici));
 zapisi("bezbednost", "0 spoljnih veza", spoljni.length === 0 && kraj.spoljni_pokusaji === 0);
