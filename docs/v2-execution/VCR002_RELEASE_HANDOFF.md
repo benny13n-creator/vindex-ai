@@ -50,7 +50,20 @@ Kandidat je bezbedan za spajanje: nema materijalnog bezbednosnog kvara ni kvara 
 
 ## 6. CI na kandidatu (poređenje identiteta palih testova sa `main` `b36235a3`)
 
-Popunjeno u §6a (posle poslednjeg pokretanja).
+Poslednje pokretanje na `53d7d60a` (kod = `38ac5fcd`):
+
+| Workflow | Rezultat | Padovi | Novo u odnosu na `main` |
+|---|---|---|---|
+| Security Checks (38226846712) | **success** | — | — |
+| Test Suite 3.11 / 3.13 (38226846654) | failure (nasleđeno) | 174 / 174 (8766 passed) | **0** |
+| Production Runtime Parity (38226846662) | failure (nasleđeno) | pun paket 196 | **0** |
+| ↳ Byte-compile; Docker build + boot; OCR u produkcionoj slici | **success**; OCR 32 passed | — | — |
+| V2 NG (38226842140) | **success** | — | — |
+
+- **Međukorak `aabbff26`** je otkrio jednu pravu regresiju i jedan bezbednosni signal; oba su zatvorena u `38ac5fcd`:
+  - **Regresija** `test_p1_charge_on_failure.py::test_multi_agent_charges_only_for_agents_that_succeeded`: zakucan izvorni uslov `not r.get("greska")` je vraćen uz `stanje`. Ponašanje je isto. Lekcija iz VCR001 o punom paketu pre zatvaranja nije bila primenjena u T05.
+  - **Gitleaks** lažno pozitivan nalaz u dokumentaciji.
+- **Lokalno, pun Python paket na `38ac5fcd`:** kandidat 21 failed, 9296 passed; osnovica (`main`-ovo stablo) 22 failed, 9231 passed. Jedine razlike su Playwright testovi starog V1 UI-ja, koji kandidat ne dira. Pokrenuti sami prolaze 15/15 (paralelno opterećenje). **0 novih.**
 
 ## 7. Frontend (lokalno, sve `verify*` + `e2e:*` skripte)
 
