@@ -389,3 +389,15 @@ def _izolovan_ai_kontekst():
     yield
     _ap._request_ctx.set({})
     _ap._case_ctx.set({})
+
+
+@_pytest.fixture(autouse=True)
+def _izolovana_sonda_129():
+    """`shared/rokovi._sema_ima_129` kešira odgovor na nivou procesa (u produkciji jednom po procesu). U testovima je
+    vrednost `True` iz testa sa punom šemom curela u testove čija lažna baza ne poznaje `predmet_hronologija`, pa je
+    Case Actions pravilo za rok iz dokumenta (VCR001 T03) tamo čitalo tabelu koje u tom testu nema. Isti obrazac kao
+    `_izolovan_rate_limiter`: globalno stanje se resetuje s obe strane testa."""
+    from shared import rokovi
+    rokovi._resetuj_sondu()
+    yield
+    rokovi._resetuj_sondu()

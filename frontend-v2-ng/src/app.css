@@ -545,6 +545,8 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .warns { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 .warns:empty { display: none; }
 .warn { padding-left: var(--sp-3); border-left: 2px solid var(--attention); }
+.warn--ok { border-left-color: var(--line-strong, var(--border)); }
+.warn__list { margin: var(--sp-1) 0 0; padding-left: var(--sp-4); }
 .warn__title { margin: 0; font-weight: 500; }
 .warn__text { margin: 2px 0 0; color: var(--text-2); }
 .answer__context, .answer__confidence { margin: 0 0 var(--sp-2); color: var(--text-2); font-size: var(--fs-meta); }
@@ -707,3 +709,10 @@ a.text-btn { text-decoration: none; }
 .vp-izvod { margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); border-left: 2px solid var(--line); color: var(--text-2); font-size: var(--fs-meta); overflow-wrap: anywhere; white-space: pre-line; }
 .zp-prip { margin: 0 0 var(--sp-4); }
 .zp-prip .an-list { max-width: none; }
+/* VCR001 T02: izbor načina otvaranja predmeta — isti izgled kao traka kartica predmeta, sopstvena klasa
+   (.tabs__item broje testovi kartica predmeta). */
+.rezimi { display: flex; gap: var(--sp-6); padding: 0 var(--sheet-pad); border-bottom: 1px solid var(--line-strong); }
+.rezimi__item { padding: var(--sp-2) 0 var(--sp-3); margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent;
+  background: none; font: inherit; color: var(--text-2); cursor: pointer; }
+.rezimi__item:hover { color: var(--text-1); }
+.rezimi__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }

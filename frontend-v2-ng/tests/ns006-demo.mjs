@@ -86,8 +86,12 @@ const snimi = (p, sel, ime) => p.locator(sel).screenshot({ path: fileURLToPath(n
     await cekaj(s.p, () => /Analiza v2/.test(document.getElementById("an-verzija").textContent) && document.querySelectorAll("#an-kontr-aktivne > li").length === 1));
   await snimi(s.p, "#odeljak-analiza", "13-analiza.png");
   await s.p.click("#tab-pregled");
-  zapisi("14 Pregled", "„Sledeći korak“ = razrešiti protivrečnost",
-    await cekaj(s.p, () => /Razrešiti protivrečnost/.test(document.getElementById("zp-sledece").textContent)));
+  // VCR001 T03: nepotvrđen rok iz dokumenta (Rule 6) je, kao i svaki istekao rok (BLACKSWAN-CRIT-002), kritičan i po
+  // datumu dolazi prvi. Nova protivrečnost mora biti među kritičnim radnjama; „sledeći korak“ je pregled tog roka.
+  zapisi("14 Pregled", "„Zahteva pažnju“ sadrži razrešiti protivrečnost",
+    await cekaj(s.p, () => /Razrešiti protivrečnost/.test(document.getElementById("zp-paznja").textContent)));
+  zapisi("14 Pregled", "„Sledeći korak“ = rok iz dokumenta čeka potvrdu (kritičan, najraniji)",
+    await cekaj(s.p, () => /čeka vašu potvrdu/.test(document.getElementById("zp-sledece").textContent)));
   await snimi(s.p, "#zp-blok", "14-pregled.png");
   await s.zatvori();
 }

@@ -99,11 +99,14 @@ def _patch_submodules():
     passed by accident, never actually exercising Modul 10's wiring. Now
     explicitly mocked like every other module, so its wiring is genuinely
     tested below (see TestCronDailyCallsBackgroundAgents)."""
+    # VCR001: ponedeljkom (UTC) dispečer pokreće `_skeniraj_sl_glasnik` — bez zamene test je svakog ponedeljka
+    # dohvatao stvarni RSS Službenog glasnika (pravno-informacioni-sistem.rs) i rušio NS005 `test_nema_spoljne_mreze`.
     with patch("routers.workflow._check_escalations", new=AsyncMock(return_value={"proverenih": 5, "eskaliranih": 1})), \
          patch("routers.portal_monitoring.cron_proveri", new=AsyncMock(return_value={"provereno": 3, "promena": 0})), \
          patch("routers.email_notif.posalji_podsetnike", new=AsyncMock(return_value={"poslato": 4, "greske": 0})), \
          patch("routers.email_notif.onboarding_cron", new=AsyncMock(return_value={"poslato": 2, "greske": 0})), \
          patch("routers.email_notif.posalji_nedeljni_sazetak", new=AsyncMock(return_value={"poslato": 7, "greske": 0})), \
+         patch("routers.zakon_monitoring._skeniraj_sl_glasnik", new=AsyncMock(return_value={"skenirano": 0, "novih": 0})), \
          patch(
              "services.retention_service.execute_retention_cleanup",
              new=AsyncMock(return_value={

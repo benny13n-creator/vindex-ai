@@ -151,12 +151,52 @@ for (const [naziv, kuka, stanje, re] of [
   await cekaj(s.p, () => document.querySelectorAll("#nc-overa-lista .review").length > 0);
   let e = await ekran(s.p);
   zapisi("D.overa", "lista overe: samo sopstveni nacrti (ništa od B)", e.overa.length === 1 && !/TAJNI/.test(e.ceo), e.overa.join());
-  await s.p.click("#nc-overa-lista .review button:first-child");
-  await cekaj(s.p, () => !document.getElementById("nc-overa-poruka").hidden);
+  const dugmad = () => s.p.evaluate(() => [...document.querySelectorAll("#nc-overa-lista .review button")].map(b => b.textContent));
+  zapisi("D.overa", "nacrt na čekanju se ne odobrava iz liste naslepo (samo Otvori i Odbij)", JSON.stringify(await dugmad()) === JSON.stringify(["Otvori i pregledaj", "Odbij"]), JSON.stringify(await dugmad()));
+  // VCR001 T05: otvori → izmeni → odobri; odobrava se sačuvan tekst
+  await s.p.click('#nc-overa-lista .review button:has-text("Otvori i pregledaj")');
+  zapisi("D.trajno", "otvoren nacrt sa overe: tekst sa servera, „Čeka vašu overu“", await cekaj(s.p, () => /RANIJE IZRAĐEN NACRT st-old/.test(document.getElementById("nc-tekst").value)
+    && /Čeka vašu overu/.test(document.getElementById("nc-otvoren-stanje").textContent) && !document.getElementById("nc-odobri").hidden));
+  zapisi("D.trajno", "tekst nacrta se prikazuje kao tekst (bez izvršavanja HTML-a)", (await ekran(s.p)).xss === null);
+  await s.p.fill("#nc-tekst", "IZMENA ADVOKATA: tužilac traži 300.000 dinara.");
+  await s.p.click("#nc-odobri");
+  await cekaj(s.p, () => /odobren/.test(document.getElementById("nc-overa-poruka").textContent || ""));
   e = await ekran(s.p);
   zapisi("D.overa", "odobravanje: poruka bez internih brojeva, status osvežen", /odobren/.test(e.overaPoruka || "") && /nije dovoljna/.test(e.overaPoruka) && !/confidence|0\.85/.test(e.ceo), e.overaPoruka);
+  const patch = zahtevi(s, /\/api\/staging\/st-old\/tekst$/, "PATCH"), odobri = zahtevi(s, /\/api\/staging\/st-old\/approve$/);
+  zapisi("D.trajno", "pre odobrenja izmena je SAČUVANA (PATCH pa approve, tim redom)", patch.length === 1 && odobri.length === 1 && s.f.zahtevi.indexOf(patch[0]) < s.f.zahtevi.indexOf(odobri[0]),
+    JSON.stringify([patch.length, odobri.length]));
+  zapisi("D.trajno", "server je odobrio tekst koji je advokat video", s.KOR[TA].staging.find(x => x.id === "st-old").odobren_tekst === "IZMENA ADVOKATA: tužilac traži 300.000 dinara.");
   await cekaj(s.p, () => /odobren/.test(document.querySelector("#nc-overa-lista .review__meta").textContent));
-  zapisi("D.overa", "posle odluke stavka više nema dugmad (nije na čekanju)", await s.p.evaluate(() => document.querySelectorAll("#nc-overa-lista .review button").length === 0));
+  zapisi("D.overa", "posle odluke stavka ima samo „Otvori“ (nije na čekanju)", JSON.stringify(await dugmad()) === JSON.stringify(["Otvori"]), JSON.stringify(await dugmad()));
+  zapisi("D.trajno", "odobren nacrt je samo za čitanje, bez Sačuvaj/Odobri", await s.p.evaluate(() => document.getElementById("nc-tekst").readOnly
+    && document.getElementById("nc-sacuvaj").hidden && document.getElementById("nc-odobri").hidden));
+  // reload: radni proizvod je trajan
+  await s.p.reload();
+  await cekaj(s.p, () => document.querySelectorAll("#nc-overa-lista .review").length > 0);
+  await s.p.click('#nc-overa-lista .review button:has-text("Otvori")');
+  zapisi("D.trajno", "posle reload-a: isti izmenjen tekst, „odobren“, „izmenio advokat“", await cekaj(s.p, () => document.getElementById("nc-tekst").value === "IZMENA ADVOKATA: tužilac traži 300.000 dinara."
+    && /odobren/.test(document.getElementById("nc-otvoren-stanje").textContent) && /izmenio advokat/.test(document.getElementById("nc-otvoren-stanje").textContent)));
+  await s.zatvori();
+}
+{
+  // čuvanje bez odobrenja + reload; zatim konflikt (nacrt odlučen u drugom prozoru)
+  const s = await scenario();
+  await cekaj(s.p, () => document.querySelectorAll("#nc-overa-lista .review").length > 0);
+  await s.p.click('#nc-overa-lista .review button:has-text("Otvori i pregledaj")');
+  await cekaj(s.p, () => !document.getElementById("nc-sacuvaj").hidden);
+  await s.p.fill("#nc-tekst", "Radna verzija 2");
+  await s.p.click("#nc-sacuvaj");
+  zapisi("D.trajno", "„Sačuvaj izmene“: potvrda, nacrt i dalje čeka overu", await cekaj(s.p, () => /Izmene su sačuvane/.test(document.getElementById("nc-otvoren-stanje").textContent)));
+  await s.p.reload();
+  await cekaj(s.p, () => document.querySelectorAll("#nc-overa-lista .review").length > 0);
+  await s.p.click('#nc-overa-lista .review button:has-text("Otvori i pregledaj")');
+  zapisi("D.trajno", "posle reload-a sačuvana radna verzija je tu (nije odobrena)", await cekaj(s.p, () => document.getElementById("nc-tekst").value === "Radna verzija 2" && !document.getElementById("nc-odobri").hidden));
+  s.KOR[TA].staging.find(x => x.id === "st-old").status = "rejected";            // odlučeno negde drugde
+  await s.p.fill("#nc-tekst", "Kasna izmena");
+  await s.p.click("#nc-odobri");
+  zapisi("D.trajno", "konflikt: izmena posle tuđe odluke se NE čuva i NE odobrava, istina na ekranu", await cekaj(s.p, () => /u međuvremenu odobren ili odbijen/.test(document.getElementById("nc-otvoren-stanje").textContent))
+    && zahtevi(s, /\/api\/staging\/st-old\/approve$/).length === 0 && s.KOR[TA].staging.find(x => x.id === "st-old").tekst === "Radna verzija 2");
   await s.zatvori();
 }
 {

@@ -332,11 +332,14 @@ def _bez_potvrde() -> dict:
                       "pravni osnovi iz analize su predlozi modela, ne potvrđeno pravo."}
 
 
-def _hronologija(g: dict, ima_genome: bool) -> dict:
+def _hronologija(g: dict, ima_genome: bool, raz: Optional["Razresavac"] = None) -> dict:
+    """VCR001 T03 (A018 B8): svaka stavka nosi IZVOR (`lokacija` → `dokument_id`) kada je model naveo „DOK-NN“
+    i oznaka jednoznačno odgovara dokumentu ovog predmeta — isti zatvoren razrešavač kao kontradikcije i strategija.
+    Bez oznake (stariji Genome) ili nejednoznačno → `lokacija.dokument_id = None` (izvor se ne izmišlja)."""
     if not ima_genome:
         return _sekcija(NEPOZNATO)
     stavke, neispravni = [], 0
-    for d in g.get("datumi_kljucni") or []:
+    for _i, d in enumerate(g.get("datumi_kljucni") or []):
         if not isinstance(d, dict) or not _tekst(d.get("opis"), 500):
             neispravni += 1
             continue
@@ -344,9 +347,10 @@ def _hronologija(g: dict, ima_genome: bool) -> dict:
         znacaj = (d.get("znacaj") or "").strip().lower()
         if d.get("datum") and not datum:
             neispravni += 1
+        lok = raz.lokacija(d.get("lokacija"), f"datumi_kljucni[{_i}].lokacija") if (raz and d.get("lokacija")) else None
         stavke.append(_stavka("datum", AI_ANALYSIS, _tekst(d.get("opis"), 500), datum=datum,
                               datum_neispravan=bool(d.get("datum")) and not datum,
-                              znacaj=znacaj if znacaj in _ZNACAJ else None))
+                              znacaj=znacaj if znacaj in _ZNACAJ else None, lokacija=lok))
     stavke.sort(key=lambda s: (s["datum"] or "9999-99-99", s["id"]))
     return _sekcija(OK if stavke else PRAZNO, stavke, neispravnih=neispravni)
 
@@ -437,7 +441,7 @@ def sastavi(*, predmet: dict, case_dna: Optional[dict], dokumenti: Optional[list
         "cinjenice": cinjenice,
         "stranke": _strane(predmet, g, ima_genome),
         "pravna_pitanja": _pravna_pitanja(g, ima_genome),
-        "hronologija": _hronologija(g, ima_genome),
+        "hronologija": _hronologija(g, ima_genome, raz),
         "strategija": _strategija(g, ima_genome, raz),
         "nedostaje": _sekcija(NEPOZNATO if not ima_genome else (OK if nedostaje else PRAZNO), nedostaje),
         "metrike": klasifikuj_metrike(g) if ima_genome else [],

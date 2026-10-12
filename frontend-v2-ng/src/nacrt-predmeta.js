@@ -11,6 +11,9 @@
  *        `critique_applied:false` = ta provera NIJE potvrđena; nacrt odlazi na overu (staging).
  *   POST /api/nacrti/export/docx {tekst, naslov, tip} → .docx
  *   GET  /api/staging/predmet/{id} → {stavke}; POST /api/staging/{id}/approve|reject
+ *   VCR001 T05: GET /api/staging/{id} → ceo nacrt (tekst); PATCH /api/staging/{id}/tekst {tekst} → čuva izmenu
+ *        SAMO dok je nacrt na čekanju (409 posle odluke). Odobrava se tek OTVOREN nacrt, i to sačuvan tekst:
+ *        nesačuvana izmena se prvo čuva, pa se odobrava — u bazu znanja ulazi ono što je advokat video.
  *        Odobrenje može uneti nacrt u bazu znanja kancelarije (samo iznad praga kvaliteta).
  * Ništa od suda, roka, nadležnosti ni takse ovde NIJE provereno i ne tvrdi se.
  * Generisanje se nikad ne ponavlja automatski (trošak); dupli klik je zaključan.
@@ -26,6 +29,7 @@
   function napravi(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api;
+    var genOt = 0, radiOvera = false;
     var trenutni = null, katalog = null, gen = 0, genO = 0, genK = 0, k = null, kO = null, kK = null, salje = false, nacrt = null;
 
     function el(tag, cls, t) { var e = d.createElement(tag); if (cls) e.className = cls; if (t != null) e.textContent = t; return e; }
@@ -33,10 +37,13 @@
     function prekini(x) { if (x) x.abort(); return null; }
     function zakljucaj(da) { salje = da; $("nc-generisi").disabled = da || !katalog; $("nc-generisi").textContent = da ? "Izrada nacrta…" : "Izradi nacrt"; }
 
+    var ZA_GENERISAN = "Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)";
     function ocistiNacrt() {
-      nacrt = null;
+      nacrt = null; genOt++;
       $("nc-rezultat").hidden = true; $("nc-tekst").value = ""; $("nc-naslov-nacrta").textContent = "";
-      poruka("nc-provera", null); poruka("nc-docx-poruka", null);
+      $("nc-tekst").readOnly = false; $("nc-tekst-oznaka").textContent = ZA_GENERISAN;
+      $("nc-sacuvaj").hidden = true; $("nc-odobri").hidden = true;
+      poruka("nc-provera", null); poruka("nc-docx-poruka", null); poruka("nc-otvoren-stanje", null);
     }
     function ocisti() {
       gen++; genO++; genK++; k = prekini(k); kO = prekini(kO); kK = prekini(kK);
@@ -93,33 +100,108 @@
         li.dataset.stavka = String(x.id);
         li.append(el("span", "review__name", tekst(x.naziv) || tekst(x.tip) || "Nacrt"));
         li.append(el("span", "review__meta", [datum(x.created_at), STATUS_OVERE[tekst(x.status)] || tekst(x.status)].filter(Boolean).join(" · ")));
+        var akcije = el("span", "review__actions");
+        var ot = el("button", "text-btn text-btn--line", tekst(x.status) === "pending" ? "Otvori i pregledaj" : "Otvori"); ot.type = "button";
+        ot.setAttribute("aria-label", "Otvori nacrt: " + (tekst(x.naziv) || tekst(x.tip) || "Nacrt"));
+        ot.addEventListener("click", function () { otvori(String(x.id)); });
+        akcije.append(ot);
         if (tekst(x.status) === "pending") {
-          var akcije = el("span", "review__actions");
-          var da = el("button", "text-btn text-btn--line", "Odobri"); da.type = "button";
+          // Odobrenje je u otvorenom nacrtu (VCR001 T05): ne odobrava se tekst koji advokat nije video.
           var ne = el("button", "text-btn", "Odbij"); ne.type = "button";
-          da.addEventListener("click", function () { odluci(String(x.id), "approve", li); });
           ne.addEventListener("click", function () { odluci(String(x.id), "reject", li); });
-          akcije.append(da, ne); li.append(akcije);
+          akcije.append(ne);
         }
+        li.append(akcije);
         $("nc-overa-lista").append(li);
       });
     }
     async function odluci(sid, radnja, li) {
-      if (!trenutni) return;
+      if (!trenutni) return false;
       var id = trenutni.id, moja = genO;
-      li.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      if (li) li.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
       var r = await api.send("/api/staging/" + encodeURIComponent(sid) + "/" + radnja, { token: sesija.token(), oblik: function (x) { return typeof x.status === "string"; } });
-      if (moja !== genO || !trenutni || trenutni.id !== id) return;
+      if (moja !== genO || !trenutni || trenutni.id !== id) return false;
       if (r.ok && r.podaci) {
         poruka("nc-overa-poruka", "uspeh", radnja === "reject" ? "Nacrt je odbijen." : (r.podaci.indexed ? "Nacrt je odobren i dodat u bazu znanja kancelarije."
           : "Nacrt je odobren. Nije dodat u bazu znanja kancelarije jer ocena kvaliteta nije dovoljna."));
+        if (nacrt && nacrt.sid === sid) prikaziOtvoren({ status: radnja === "reject" ? "rejected" : "approved" });
         ucitajOveru();
-        return;
+        return true;
       }
-      li.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+      if (li) li.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
       var g = r.greska || {};
       poruka("nc-overa-poruka", g.ishodNepoznat ? "nepoznato" : "greska", g.ishodNepoznat ? "Ishod nije poznat. Osvežite listu pre ponovnog pokušaja."
         : g.kod === "NOT_FOUND" ? "Nacrt nije dostupan. Ništa nije promenjeno." : "Server je odbio zahtev. Ništa nije promenjeno.");
+      return false;
+    }
+
+    /* ── Otvoren nacrt sa overe (VCR001 T05) ── */
+    function prikaziOtvoren(promena) {
+      if (!nacrt || !nacrt.sid) return;
+      if (promena) Object.assign(nacrt, promena);
+      var naCekanju = nacrt.status === "pending";
+      $("nc-tekst").readOnly = !naCekanju;
+      $("nc-sacuvaj").hidden = !naCekanju; $("nc-odobri").hidden = !naCekanju;
+      $("nc-tekst-oznaka").textContent = naCekanju
+        ? "Tekst nacrta na overi (izmene sačuvajte; odobrava se sačuvan tekst)"
+        : "Tekst nacrta (" + (STATUS_OVERE[nacrt.status] || nacrt.status) + " — više se ne menja; izmene ulaze samo u .docx)";
+      poruka("nc-otvoren-stanje", naCekanju ? "nepoznato" : "uspeh",
+        (naCekanju ? "Čeka vašu overu." : "Nacrt je " + (STATUS_OVERE[nacrt.status] || nacrt.status) + ".")
+        + (nacrt.izmenjeno ? " Tekst je izmenio advokat" + (nacrt.izmenjenoAt ? " (" + datum(nacrt.izmenjenoAt) + ")" : "") + "." : " Tekst je onakav kakav je Vindex izradio."));
+    }
+    async function otvori(sid) {
+      if (!trenutni) return;
+      var moja = ++genOt, id = trenutni.id;
+      poruka("nc-overa-poruka", "ucitavanje", "Otvaranje nacrta…");
+      var r = await api.get("/api/staging/" + encodeURIComponent(sid), { token: sesija.token(), oblik: function (x) { return typeof x.tekst === "string" && typeof x.status === "string"; } });
+      if (moja !== genOt || !trenutni || trenutni.id !== id) return;
+      if (!r.ok) {
+        var g = r.greska || {};
+        poruka("nc-overa-poruka", "greska", g.kod === "NOT_FOUND" ? "Nacrt nije dostupan." : "Nacrt nije otvoren. Ništa nije promenjeno.");
+        return;
+      }
+      poruka("nc-overa-poruka", null); ocistiNacrt(); genOt = moja;
+      var x = r.podaci;
+      nacrt = { sid: sid, tekst: x.tekst, sacuvan: x.tekst, naziv: tekst(x.naziv) || "Nacrt", tip: tekst(x.tip), status: tekst(x.status),
+                izmenjeno: !!x.izmenio_advokat, izmenjenoAt: x.izmenjeno_at };
+      $("nc-naslov-nacrta").textContent = "Nacrt: " + nacrt.naziv;
+      $("nc-tekst").value = nacrt.tekst;
+      $("nc-rezultat").hidden = false;
+      prikaziOtvoren();
+      $("nc-naslov-nacrta").setAttribute("tabindex", "-1"); $("nc-naslov-nacrta").focus();
+    }
+    async function sacuvaj() {
+      if (!nacrt || !nacrt.sid || nacrt.status !== "pending" || radiOvera) return false;
+      var t = $("nc-tekst").value;
+      if (!t.trim()) { poruka("nc-otvoren-stanje", "greska", "Nacrt ne može biti prazan. Ništa nije sačuvano."); return false; }
+      if (t === nacrt.sacuvan) return true;
+      var sid = nacrt.sid, moja = genOt;
+      radiOvera = true; $("nc-sacuvaj").disabled = true; $("nc-odobri").disabled = true;
+      poruka("nc-otvoren-stanje", "ucitavanje", "Čuvanje izmena…");
+      var r = await api.send("/api/staging/" + encodeURIComponent(sid) + "/tekst", { metod: "PATCH", telo: { tekst: t.slice(0, 100000) }, token: sesija.token(),
+        oblik: function (x) { return x.sacuvano === true; } });
+      radiOvera = false; $("nc-sacuvaj").disabled = false; $("nc-odobri").disabled = false;
+      if (moja !== genOt || !nacrt || nacrt.sid !== sid) return false;
+      if (r.ok && r.podaci) {
+        nacrt.sacuvan = t; nacrt.izmenjeno = true; nacrt.izmenjenoAt = r.podaci.izmenjeno_at;
+        prikaziOtvoren();
+        poruka("nc-otvoren-stanje", "uspeh", "Izmene su sačuvane. Čeka vašu overu.");
+        return true;
+      }
+      var g = r.greska || {};
+      if (g.kod === "CONFLICT") { poruka("nc-otvoren-stanje", "greska", "Nacrt je u međuvremenu odobren ili odbijen — izmena nije sačuvana."); ucitajOveru(); return false; }
+      poruka("nc-otvoren-stanje", g.ishodNepoznat ? "nepoznato" : "greska", g.ishodNepoznat
+        ? "Ishod čuvanja nije poznat. Otvorite nacrt ponovo pre odobrenja." : "Izmene nisu sačuvane. Tekst je i dalje na ekranu.");
+      return false;
+    }
+    async function odobri() {
+      if (!nacrt || !nacrt.sid || nacrt.status !== "pending" || radiOvera) return;
+      var sid = nacrt.sid;
+      if (!(await sacuvaj())) return;                         // odobrava se SAČUVAN tekst — nikad onaj sa ekrana bez čuvanja
+      if (!nacrt || nacrt.sid !== sid) return;
+      radiOvera = true; $("nc-odobri").disabled = true; $("nc-sacuvaj").disabled = true;
+      await odluci(sid, "approve", null);
+      radiOvera = false; $("nc-odobri").disabled = false; $("nc-sacuvaj").disabled = false;
     }
 
     /* ── Izrada nacrta ── */
@@ -198,6 +280,8 @@
 
     $("nc-forma").addEventListener("submit", function (e) { e.preventDefault(); generisi(); });
     $("nc-docx").addEventListener("click", docx);
+    $("nc-sacuvaj").addEventListener("click", sacuvaj);
+    $("nc-odobri").addEventListener("click", odobri);
     var odjavi = sesija.naPromenu(function (novo, staro) { if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) { katalog = null; ocisti(); } });
 
     return { postavi: postavi, aktiviraj: aktiviraj, ocisti: ocisti, zaustavi: function () { odjavi(); ocisti(); } };

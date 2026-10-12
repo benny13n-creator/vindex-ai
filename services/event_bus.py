@@ -406,6 +406,8 @@ class EventBus:
         self.subscribe(EventType.MATTER_BECAME_TERMINAL,   handle_case_changed)
         # Wave 2, Task 2D — see SOURCE_INVALIDATED's own docstring above.
         self.subscribe(EventType.SOURCE_INVALIDATED,        handle_case_changed)
+        # VCR001 T03 — odluka advokata o roku (routers/rok_odluka.py) → refresh_case_actions (CONSEQUENCE_REGISTRY).
+        self.subscribe(EventType.MANUAL_CORRECTION_APPLIED, handle_case_changed)
 
     def subscribe(self, event_type: EventType, handler: HandlerType) -> None:
         """Registruje async handler za dati tip događaja."""

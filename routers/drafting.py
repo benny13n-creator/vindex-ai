@@ -1279,6 +1279,89 @@ async def staging_list_za_predmet(predmet_id: str, request: Request, user: dict 
     return {"stavke": r.data or []}
 
 
+# ── VCR001 T05: nacrt kao TRAJAN radni proizvod ─────────────────────────────────────────────────────────────────
+# Zatečeno (mereno): V2 lista overe je prikazivala samo naziv/datum/status uz „Odobri“, a tekst nacrta posle
+# reload-a nije mogao da se otvori — overa naslepo. Izmene advokata postojale su samo u polju za tekst, pa je
+# odobrenje u bazu znanja kancelarije unosilo NEIZMENJEN AI tekst: „odobreno“ nije bilo „pregledano“.
+_STAGING_TEKST_MAX = 100_000
+
+
+class StagingTekstReq(BaseModel):
+    tekst: str = Field(..., min_length=1, max_length=_STAGING_TEKST_MAX)
+
+    @field_validator("tekst")
+    @classmethod
+    def _neprazan(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Tekst nacrta ne može biti prazan.")
+        return v
+
+
+@router.get("/api/staging/{staging_id}")
+@limiter.limit("60/minute")
+async def staging_jedan(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Ceo nacrt (sa tekstom) — samo vlasnik; tuđ ili nepostojeći → 404 (bez razlike)."""
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory")
+            .select("id,predmet_id,tip,naziv,tekst,confidence_score,quality_detail,status,pinecone_indexed,created_at")
+            .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+    )
+    red = getattr(r, "data", None)
+    if not red:
+        raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    qd = red.pop("quality_detail", None) or {}
+    red["izmenio_advokat"] = bool(qd.get("izmenio_advokat"))
+    red["izmenjeno_at"] = qd.get("izmenjeno_at")
+    return red
+
+
+@router.patch("/api/staging/{staging_id}/tekst")
+@limiter.limit("30/minute")
+async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: Request,
+                                user: dict = Depends(get_current_user)):
+    """Advokatova izmena nacrta pre odluke. Dozvoljena SAMO dok je nacrt na čekanju (uslovni UPDATE na
+    `status='pending'` — ista brava kao odobrenje, F16): odobren ili odbijen nacrt je zapis odluke i ne menja se.
+    Quality Gate se ponovo računa nad IZMENJENIM tekstom (deterministički, bez modela), pa prag za bazu znanja
+    važi za ono što advokat zaista odobrava — uključujući član koji je sam dopisao."""
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("id,tip,status,predmet_id")
+            .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+    )
+    red = getattr(r, "data", None)
+    if not red:
+        raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    if red.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="Nacrt je već odobren ili odbijen — izmena više nije moguća.")
+
+    from services.quality_gate import evaluate_draft_quality
+    from shared.vector_origin import now_iso
+    kvalitet = await evaluate_draft_quality(req.tekst, red.get("tip") or "")
+    detalj = {**(kvalitet.get("detail") or {}), "izmenio_advokat": True, "izmenjeno_at": now_iso()}
+    upd = await asyncio.to_thread(
+        lambda: supa.table("staging_memory")
+            .update({"tekst": req.tekst, "confidence_score": kvalitet["confidence_score"], "quality_detail": detalj})
+            .eq("id", staging_id).eq("user_id", user["user_id"]).eq("status", "pending")
+            .execute()
+    )
+    if not upd.data:
+        raise HTTPException(status_code=409, detail="Nacrt je u međuvremenu odobren ili odbijen — izmena nije sačuvana.")
+    try:
+        from shared.audit_immutable import log_action
+        import hashlib as _hl
+        asyncio.create_task(log_action(
+            action="nacrt_izmenjen", user_id=user["user_id"], resource_type="staging", resource_id=staging_id,
+            metadata={"predmet_id": red.get("predmet_id"), "duzina": len(req.tekst),
+                      "sha256": _hl.sha256(req.tekst.encode("utf-8")).hexdigest()[:16],
+                      "confidence_score": kvalitet["confidence_score"]},
+        ))
+    except Exception as exc:
+        logger.warning("[STAGING] audit izmene nije upisan staging=%s: %s", staging_id, exc)
+    return {"status": "pending", "sacuvano": True, "confidence_score": kvalitet["confidence_score"],
+            "izmenio_advokat": True, "izmenjeno_at": detalj["izmenjeno_at"]}
+
+
 @router.post("/api/staging/{staging_id}/approve")
 @limiter.limit("20/minute")
 async def staging_approve(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
@@ -1335,6 +1418,10 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
             "indexed": bool(cur.get("pinecone_indexed")),
             "poruka": "Ovaj nacrt je već obrađen (odobren ili odbijen).",
         }
+    # VCR001 T05: promoviše se tekst IZ PREUZETOG reda (stanje u trenutku prelaska pending → approved), ne iz
+    # čitanja pre brave — izmena sačuvana između ta dva koraka inače ne bi bila ono što ulazi u bazu znanja.
+    if isinstance(claim_res.data, list) and claim_res.data and isinstance(claim_res.data[0], dict):
+        staging_row = {**staging_row, **claim_res.data[0]}
 
     promoted = False
     if float(staging_row.get("confidence_score") or 0) >= _APPROVAL_CONFIDENCE_THRESHOLD:

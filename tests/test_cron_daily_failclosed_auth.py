@@ -102,6 +102,16 @@ def _patch_pinecone_tmp_cleanup():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _patch_zakon_monitoring_scan():
+    """VCR001: ponedeljkom (UTC) dispečer pokreće `routers.zakon_monitoring._skeniraj_sl_glasnik`, koji dohvata
+    stvarni RSS Službenog glasnika (pravno-informacioni-sistem.rs). Test koji prođe auth je tada svakog ponedeljka
+    izlazio na mrežu (i rušio NS005 `test_nema_spoljne_mreze` zavisno od redosleda). Ovaj fajl meri samo HTTP status."""
+    from unittest.mock import AsyncMock
+    with patch("routers.zakon_monitoring._skeniraj_sl_glasnik", new=AsyncMock(return_value={"skenirano": 0, "novih": 0})):
+        yield
+
+
 class TestCronDailyFailsClosed:
     def test_missing_secret_env_and_missing_header_returns_401(self, monkeypatch):
         """Glavni regresioni test za nalaz iz izveštaja: BRIEFING_CRON_SECRET

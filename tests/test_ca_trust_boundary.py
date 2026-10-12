@@ -592,6 +592,11 @@ class _PredmetQ:
     def maybe_single(self):
         return self
 
+    def is_(self, *a, **k):
+        # VCR001 T04: `predmet_dokazi` (TASK 5) se čita sa `.is_("deleted_at", "null")`; bez ovoga je grana
+        # padala u `except` i M19 je bio crven i na main-u (nasleđen pad).
+        return self
+
     def execute(self):
         if self.tabela == "predmeti":
             return type("R", (), {"data": {"brisanje_zapoceto": None}})()

@@ -48,7 +48,11 @@
     "e2e:primary": "node tests/live-primary-e2e.mjs",
     "e2e:pre136": "node tests/live-pre136-e2e.mjs",
     "e2e:solo-tok": "node tests/live-solo-tok-e2e.mjs",
-    "e2e:site": "node tests/site-e2e.mjs"
+    "e2e:prijem-carobnjak": "node tests/live-prijem-carobnjak-e2e.mjs",
+    "e2e:organizacija": "node tests/live-organizacija-e2e.mjs",
+    "e2e:site": "node tests/site-e2e.mjs",
+    "verify:live-agenti": "node tests/live-agenti.mjs",
+    "e2e:dokaz-zastarelost": "node tests/live-dokaz-zastarelost-e2e.mjs"
   },
   "keywords": [],
   "author": "",

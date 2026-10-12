@@ -92,7 +92,7 @@ Vrati SAMO validan JSON (bez markdown):
     "ukupna_ekspozicija": "maksimalni iznos gubitka za tuzenog"
   },
   "datumi_kljucni": [
-    {"opis": "Dogadjaj koji je okidac spora", "datum": "YYYY-MM-DD", "znacaj": "kriticno|bitno|informativno"}
+    {"opis": "Dogadjaj koji je okidac spora", "datum": "YYYY-MM-DD", "znacaj": "kriticno|bitno|informativno", "lokacija": "DOK-XX str.Y -- iz KOG dokumenta datum potice; prazan string ako ne potice iz jednog konkretnog dokumenta"}
   ],
   "rokovi_kriticni": [
     {"naziv": "Rok zastarelosti/zalbeni rok/sl.", "datum": "YYYY-MM-DD ili null", "opis": "Posledica propustanja", "status": "aktivan|prosao|nepoznat", "lokacija": "DOK-XX str.Y -- iz KOG dokumenta rok potice; prazan string ako rok ne potice iz jednog konkretnog dokumenta"}

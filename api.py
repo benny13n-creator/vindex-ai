@@ -3841,6 +3841,9 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         # Sve fail-closed grane ispod ga ostavljaju na `False`, pa odgovor može
         # da kaže istinu o tome da li je predmet pročitan.
         _kontekst_ubacen = False
+        # VCR001 T04: ZAŠTO kontekst nije ušao — `kontekst_predmeta` (bool) to ne razlikuje, pa je V2 za predmet bez
+        # beleški i činjenica tvrdio „predmet nije mogao da se pročita“. UKLJUCEN | PRAZAN | IZOSTAVLJEN | NIJE_PROCITAN.
+        _kontekst_stanje = "NIJE_PROCITAN"
 
         # F1.5: ako frontend nije poslao history, dohvati iz ai_sessions (2h TTL)
         history = [{"q": h.q, "a": h.a} for h in req.history] if req.history else None
@@ -3908,11 +3911,16 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         # Bez ovoga bi sadrzaj predmeta koji se brise i dalje stizao modelu.
         # Greska u proveri => kontekst se preskace (fail-closed), sto je isti
         # smer kao postojeci `except` ispod.
+        # VCR001 T04: isti upit potvrđuje i VLASNIŠTVO (red postoji za ovog korisnika). Bez potvrde predmet ne ulazi
+        # ni u kontekst prompta ni u kontekst pretrage (`case_context`), a stanje ostaje NIJE_PROCITAN — tuđ predmet
+        # se ne razlikuje od nepostojećeg.
+        _vlasnik_potvrdjen = False
         if predmet_id:
             try:
                 _t = (_get_supa().table("predmeti").select("brisanje_zapoceto")
                       .eq("id", predmet_id).eq("user_id", user["user_id"])
                       .maybe_single().execute())
+                _vlasnik_potvrdjen = bool(getattr(_t, "data", None))
                 if _je_u_brisanju(getattr(_t, "data", None)):
                     logger.info("[BETA-DEL-001] predmet %s je u brisanju — kontekst se ne ubacuje",
                                 predmet_id)
@@ -3921,7 +3929,7 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                 logger.warning("[BETA-DEL-001] provera brisanja nije izvrsena za %s: %s — "
                                "kontekst se preskace", predmet_id, _te)
                 predmet_id = None
-        if predmet_id:
+        if predmet_id and _vlasnik_potvrdjen:
             try:
                 supa = _get_supa()
                 beleske_res  = supa.table("predmet_beleske").select("sadrzaj").eq("predmet_id", predmet_id).eq("user_id", user["user_id"]).order("created_at", desc=True).limit(5).execute()
@@ -4002,6 +4010,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                         ))
                     except Exception:
                         pass
+                # Čitanje je uspelo; ishod se menja u UKLJUCEN tek kad kontekst stvarno uđe u prompt.
+                _kontekst_stanje = "IZOSTAVLJEN" if _ctx_karantin else "PRAZAN"
                 if beleske_tekst or istorija_tekst or dokazi_tekst:
                     # ── C (B-U-004-F3): KONTEKST PREDMETA JE T3 ──────────────
                     #
@@ -4032,8 +4042,10 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
                     pitanje_za_agenta = f"{extra_context}\n\nPITANJE: {pitanje_za_agenta}"
                     # Jedina tačka u kojoj je kontekst stvarno ušao u prompt.
                     _kontekst_ubacen = True
+                    _kontekst_stanje = "UKLJUCEN"
                     logger.info("[F5] predmet_id=%s context injected (%d dokazi, %d beleški, %d istorija)", predmet_id, len(dokazi_res.data or []), len(beleske_res.data or []), len(istorija_res.data or []))
             except Exception:
+                _kontekst_stanje = "NIJE_PROCITAN"
                 logger.warning("[F5] predmet context load failed for predmet_id=%s — proceeding without", predmet_id)
 
         tip = await asyncio.to_thread(klasifikuj_pitanje, _skini_pii(req.pitanje))
@@ -4041,7 +4053,12 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         _firma_ns = await _get_firma_namespace(user["user_id"])
         _extra_ns = [_firma_ns] if _firma_ns else None
         _mem_ctx = await _fetch_firm_memory_context(user["user_id"], pitanje=req.pitanje)
-        rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
+        # VCR001 T04: pretraga dokumenata zna za TRENUTNI predmet (pojačanje istog predmeta, suženje posle _MAX_IN).
+        # Samo potvrđen vlasnik i predmet koji nije u brisanju; ACL (`shared/rag_acl`) ostaje jedina kapija pristupa.
+        from shared.ai_provenance import case_context as _pitanje_case_ctx
+        with _pitanje_case_ctx(predmet_id=predmet_id if _vlasnik_potvrdjen else None,
+                               module_name="pravno_pitanje", operation_name="ask_agent"):
+            rezultat = await pokreni(ask_agent, pitanje_za_agenta, history, _extra_ns, _mem_ctx)
         asyncio.create_task(log_cost_to_db(user["user_id"], "pitanje"))
         # UsageService.consume() already pre-deducted the credit above (same timing as the
         # old require_credits pre-deduction) — refund on cache-hit/blocked/genuine LLM
@@ -4098,6 +4115,8 @@ async def pitanje(req: PitanjeReq, request: Request, user: dict = Depends(Permis
         resp["kontekst_predmeta"] = (
             None if not (req.predmet_id or "").strip() else bool(_kontekst_ubacen)
         )
+        if (req.predmet_id or "").strip():
+            resp["kontekst_predmeta_stanje"] = _kontekst_stanje
         return resp
     except HTTPException:
         # BLACKSWAN-HIGH-004: pokreni()'s own 503 (AI queue-timeout) is an intentional,
