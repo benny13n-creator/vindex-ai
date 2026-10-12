@@ -15,7 +15,7 @@
     "T09",
     "R3"
   ],
-  "current_task": "FINAL_REPORT",
+  "current_task": "DONE",
   "completed_tasks": {
     "T00": "PASS_IMPLEMENTED",
     "T01": "PASS_IMPLEMENTED",
@@ -51,7 +51,7 @@
     "docs/v2-execution/VCR001_R2_GATE.md",
     "docs/v2-execution/VCR001_T08_AUTONOMY_READINESS.md"
   ],
-  "next_step": "Završni izveštaj docs/v2-execution/VCR001_FINAL_EXECUTION_REPORT.md; zatim odluke osnivača",
+  "next_step": "Čeka odluke osnivača (VCR001_FINAL_EXECUTION_REPORT.md §6)",
   "required_founder_decisions": [
     "merge/deploy svakog kandidata (R1/R2/R3) u produkciju",
     "migracija 136 i Render Cron za autonomiju (T08)",
