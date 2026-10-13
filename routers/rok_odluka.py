@@ -145,7 +145,14 @@ async def kandidati(
         raise HTTPException(status_code=503, detail="Rokovi trenutno nisu dostupni.")
 
     redovi = r.data or []
-    _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi])
+    # N03: lanac odluka se cita STROGO. Neprocitan lanac nije "niko nije
+    # odlucio" -- inace se odbijen rok vraca u Danas kao nov predlog, a
+    # potvrdjen spusta u predlog. Isto pravilo kao za pad hronologije iznad.
+    try:
+        _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi], True)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] citanje odluka palo: %s", exc)
+        raise HTTPException(status_code=503, detail="Stanje odluka o rokovima trenutno nije dostupno.")
     return {
         "rokovi": [
             {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl)}

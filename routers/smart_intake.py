@@ -42,7 +42,7 @@ import re
 import tempfile
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -731,13 +731,22 @@ def _deadline_to_iso(value: str) -> Optional[str]:
     YYYY-MM-DD i cutke odbacivala svaki stvaran rok."""
     if not value:
         return None
+    iso = None
     if _DEADLINE_DATE_RE.match(value):
-        return value
-    m = _DEADLINE_DATE_SR_RE.match(value)
-    if m:
-        dd, mm, yyyy = m.groups()
-        return f"{yyyy}-{mm}-{dd}"
-    return None
+        iso = value
+    else:
+        m = _DEADLINE_DATE_SR_RE.match(value)
+        if m:
+            dd, mm, yyyy = m.groups()
+            iso = f"{yyyy}-{mm}-{dd}"
+    if iso is None:
+        return None
+    # N03: oblik nije dovoljan -- "31.02.2025" prolazi regex, a nije datum.
+    try:
+        date.fromisoformat(iso)
+    except ValueError:
+        return None
+    return iso
 
 
 async def _create_new_predmet_from_value_map(
@@ -1578,6 +1587,11 @@ async def _finalize_intake_job_jezgro(
         _dl_dovoljan = _dl_potvrdjen or (
             _dl_conf is not None and float(_dl_conf) >= intake_documents.AUTO_ACCEPT_THRESHOLD
         )
+        if (value_map.get("deadline") or "").strip() and not deadline_iso:
+            # N03: izraz roka JESTE pronadjen ("7 dana", nemoguc datum), ali nema
+            # konkretnog kalendarskog datuma -- ne racuna se i ne upisuje, ali se
+            # to KAZE; inace izgleda isto kao dokument bez roka.
+            rok_preskocen_razlog = "bez_konkretnog_datuma"
         if deadline_iso and not _dl_dovoljan:
             rok_preskocen_razlog = "niska_pouzdanost"
             logger.info(
@@ -1648,6 +1662,8 @@ async def _finalize_intake_job_jezgro(
                 )
                 rok_dodat = True
             except Exception as exc:
+                # N03: pad upisa nije odsustvo roka -- razlog to razlikuje.
+                rok_preskocen_razlog = "upis_nije_uspeo"
                 logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
 
     # ── Dokumenti: decrypt → (po dokumentu) tekst-isečak → chunk → Pinecone →

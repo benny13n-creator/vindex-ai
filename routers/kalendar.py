@@ -74,7 +74,7 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> tuple[list[dict], 
             .limit(200)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id, dogadjaj, datum_iso, vaznost")
+            .select("id, predmet_id, dogadjaj, datum_iso, vaznost")
             .eq("user_id", uid)
             .gte("datum_iso", od_iso)
             .lte("datum_iso", do_iso)
@@ -163,6 +163,8 @@ async def _aggr_events(uid: str, od_iso: str, do_iso: str) -> tuple[list[dict], 
                 "predmet_id":    pid,
                 "predmet_naziv": pred_map.get(pid, ""),
                 "detalji": {
+                    # N03: identitet reda -- bez njega se izvoz ne moze vezati za odluku o roku.
+                    "id":        h.get("id"),
                     "vaznost":   h.get("vaznost"),
                     "dogadjaj":  h.get("dogadjaj"),
                 },
@@ -228,6 +230,24 @@ async def kalendar_ics_export(
         raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana")
 
     events, _meta = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
+
+    # N03: `.ics` je upis u advokatov spoljni kalendar. Rok koji je advokat
+    # ODBIO ne sme tamo zavrsiti kao obaveza (shared/rok_potvrda.py: odbijen rok
+    # nikad ne postaje izvrsiv). Lanac odluka se cita strogo -- neprocitan lanac
+    # nije „nista nije odbijeno".
+    _rok_ids = [str(e["detalji"]["id"]) for e in events
+                if e["tip"] != "rociste" and (e.get("detalji") or {}).get("id")]
+    _odl: dict = {}
+    if _rok_ids:
+        from shared.rok_potvrda import STANJE_ODBIJEN, odluke
+        try:
+            _odl = await asyncio.to_thread(odluke, _rok_ids, True)
+        except Exception as exc:
+            logger.error("[KALENDAR] ics: citanje odluka o rokovima palo: %s", exc)
+            raise HTTPException(status_code=503, detail="Stanje odluka o rokovima trenutno nije dostupno.")
+        events = [e for e in events
+                  if e["tip"] == "rociste"
+                  or _odl.get(str((e.get("detalji") or {}).get("id"))) != STANJE_ODBIJEN]
 
     ics_eventi = []
     for e in events:
