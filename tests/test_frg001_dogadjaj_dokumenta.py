@@ -84,10 +84,11 @@ def test_pad_upisa_dogadjaja_nije_lazno_zavrsen_i_ponovni_pokusaj_dovrsava(solo)
     assert f.status_code == 503, f.text
     # (detalj 5xx odgovora globalni handler zamenjuje opštom porukom; V2 5xx prikazuje kao „ishod nije poznat“)
     assert len(b.tabele["predmet_dokumenti"]) == 1                     # dokument JESTE sačuvan
-    assert posao["predmet_id"] is None and not posao["assimilation_complete"]   # ali posao nije „prikačen“
+    # OCR001: izabran predmet je zabeležen na posao pre dokumenata; „prikačen“ je samo assimilation_complete.
+    assert posao["predmet_id"] == pid and not posao["assimilation_complete"]   # ali posao nije „prikačen“
     assert posao["finalizing_at"] is None                              # zauzeće oslobođeno: odmah ponovljivo
     stanje = k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()
-    assert stanje["job"]["predmet_id"] is None and stanje["job"]["status"] == "completed"   # V2 opet nudi „Prikači“
+    assert stanje["job"]["prikacivanje"] == "NEPOTPUNO" and stanje["job"]["status"] == "completed"   # V2 nudi nastavak
     _do_kraja_dogadjaja(b)
     assert b.tabele["predmet_dokazi"] == []                            # bez događaja nema ni tvrdnji (stanje je nepotpuno)
 
@@ -109,7 +110,8 @@ def test_prekid_procesa_posle_upisa_dokumenta_pa_nastavak(solo, monkeypatch):
     assert _finalize(k, jid, pid).status_code == 500                    # zahtev je umro usred rada
     vrati()
     assert len(b.tabele["predmet_dokumenti"]) == 1 and _dogadjaji(b, "NewEvidenceRegistered") == []
-    assert posao["predmet_id"] is None and posao["finalizing_at"]       # nije prikačen; zauzeće još sveže
+    assert not posao["assimilation_complete"] and posao["finalizing_at"]   # nije prikačen; zauzeće još sveže
+    assert k.get(f"/api/smart-intake/jobs/{jid}", headers=A).json()["job"]["prikacivanje"] == "U_TOKU"
     assert _finalize(k, jid, pid).status_code == 409                    # istovremeni/brzi pokušaj: „u toku“
     posao["finalizing_at"] = (datetime.now(timezone.utc) - timedelta(seconds=121)).isoformat()
     f = _finalize(k, jid, pid)
@@ -125,7 +127,7 @@ def test_pad_samo_document_accepted_pa_oporavak_bez_duplog_dogadjaja_dokaza(solo
     assert _finalize(k, jid, pid).status_code == 503
     vrati()
     assert len(_dogadjaji(b, "NewEvidenceRegistered")) == 1 and _dogadjaji(b, "DocumentAccepted") == []
-    assert posao["predmet_id"] is None
+    assert not posao["assimilation_complete"]
     _do_kraja_dogadjaja(b)                                              # dokaz se klasifikuje već sada
     assert _finalize(k, jid, pid).status_code == 200
     _zavrseno_bez_duplikata(k, b, pid, jid)
@@ -140,7 +142,7 @@ def test_baza_pada_i_tokom_oporavka_stanje_ostaje_nepotpuno_i_oporavljivo(solo):
         b.greske["events"] = Exception(PAD_VEZE)
         assert _finalize(k, jid, pid).status_code == 503
         del b.greske["events"]
-        assert len(b.tabele["predmet_dokumenti"]) == 1 and posao["predmet_id"] is None
+        assert len(b.tabele["predmet_dokumenti"]) == 1 and not posao["assimilation_complete"]
     assert _finalize(k, jid, pid).status_code == 200
     _zavrseno_bez_duplikata(k, b, pid, jid)
 

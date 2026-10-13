@@ -336,7 +336,8 @@ async def test_fully_complete_job_still_takes_the_fast_exit_path():
     with patch("routers.smart_intake._get_supa", return_value=mock_supa):
         result = await finalize_intake_job("job-1", _fake_request(), FinalizeReq(), _fake_user())
 
-    assert result == {"ok": True, "predmet_id": "pred-DONE", "already_finalized": True, "dokumenata_povezano": 2}
+    assert result == {"ok": True, "predmet_id": "pred-DONE", "already_finalized": True, "dokumenata_povezano": 2,
+                      "prikacivanje": "POTPUNO"}
 
 
 @pytest.mark.anyio

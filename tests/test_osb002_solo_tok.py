@@ -420,11 +420,8 @@ def test_dokument_ne_moze_u_tudj_predmet_ni_tudj_posao(solo):
     tudj_posao = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pb}, headers=B)
     assert u_tudj.status_code == 404 and tudj_posao.status_code == 404
     assert b.tabele["predmet_dokumenti"] == []
-    # BETA-DEF-003 (zabeleženo, nije ispravljeno): 404 za tuđ/nepostojeći predmet se diže POSLE zauzimanja finalizacije
-    # i ne oslobađa ga (susedne grane greške ga oslobađaju) — posao je zaključan do isteka 120 s, pa se sam oslobađa.
-    assert k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).status_code == 409
-    from datetime import datetime, timedelta, timezone
-    b.tabele["intake_jobs"][0]["finalizing_at"] = (datetime.now(timezone.utc) - timedelta(seconds=121)).isoformat()
+    # BETA-DEF-003 — ISPRAVLJENO u OCR001: odbijanje posle zauzimanja finalizacije oslobađa zauzeće, pa prikačivanje
+    # u ispravan predmet radi odmah (ranije 409 do isteka 120 s).
     assert k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={"predmet_id": pid}, headers=A).status_code == 200
     assert [d["predmet_id"] for d in b.tabele["predmet_dokumenti"]] == [pid]
 

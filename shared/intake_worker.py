@@ -20,6 +20,7 @@ import asyncio
 import base64
 import logging
 import os
+import re
 import socket
 import tempfile
 import time
@@ -213,8 +214,11 @@ class IntakeWorker:
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(raw_bytes)
             tmp_path = Path(tmp.name)
+        necitljive: list[str] = []
         try:
             text, is_scanned, ocr_used, pages, ocr_confidence = await asyncio.to_thread(self._extract_text, tmp_path)
+            if not is_scanned:
+                necitljive = await asyncio.to_thread(self._nepotpuno_procitano, tmp_path, pages, ocr_used, ocr_confidence)
         finally:
             try:
                 tmp_path.unlink()
@@ -272,7 +276,7 @@ class IntakeWorker:
             # segments in the identical order -- we reconcile against the
             # ALREADY-PERSISTED rows (by position) rather than inserting new
             # ones, so already-completed segments are never reprocessed.
-            return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, segment_rows=existing_segment_rows, ocr_confidence=ocr_confidence)
+            return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, segment_rows=existing_segment_rows, ocr_confidence=ocr_confidence, necitljive=necitljive)
 
         if len(segments) <= 1:
             classification = await self._classify(text)
@@ -320,6 +324,10 @@ class IntakeWorker:
                     job_id, document_id, "segmentation_uncertain",
                     [f"strana {s.page_number}: {s.detail}" for s in uncertain_signals],
                 )
+            if necitljive:
+                # OCR001 (B4): deo dokumenta nije pročitan — dokument se ne sme predstaviti kao potpuno obrađen.
+                # Postojeći razlog `ocr_failed` (CHECK, migracija 093), sa opisom TAČNO onoga što nije pročitano.
+                await intake_documents.create_review_queue_entry(job_id, document_id, "ocr_failed", necitljive)
 
             entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
             processing_time_ms = int((time.monotonic() - t_start) * 1000)
@@ -336,14 +344,14 @@ class IntakeWorker:
                 "[INTAKE_WORKER] job=%s obrađen: tip=%s (%.2f) low_confidence=%s (%dms)",
                 job_id[:8], classification["document_type"], classification["confidence"], low_confidence_fields, processing_time_ms,
             )
-            return bool(low_confidence_fields) or bool(uncertain_signals)
+            return bool(low_confidence_fields) or bool(uncertain_signals) or bool(necitljive)
 
-        return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, ocr_confidence=ocr_confidence)
+        return await self._process_segments(job_id, t_start, pages, ocr_used, segments, uncertain_signals, ocr_confidence=ocr_confidence, necitljive=necitljive)
 
     async def _process_segments(
         self, job_id: str, t_start: float, pages: list[str], ocr_used: bool,
         segments: list, uncertain_signals: list, segment_rows: list[dict] | None = None,
-        ocr_confidence: float | None = None,
+        ocr_confidence: float | None = None, necitljive: list[str] | None = None,
     ) -> bool:
         """Program Intake Sprint 005 -- canonical multi-document hand-off
         (Phase 5 + Phase 6). Every segment enters the SAME classification/
@@ -371,6 +379,14 @@ class IntakeWorker:
                 if seg.start_page <= sig.page_number <= seg.end_page:
                     uncertain_by_segment_idx.setdefault(idx, []).append(sig)
                     break
+
+        # OCR001 (B4): opis nepročitane strane ide segmentu koji je sadrži; opis bez strane (jezik OCR-a) svakom segmentu.
+        necitljivo_po_segmentu: dict[int, list[str]] = {}
+        for opis in necitljive or []:
+            m = re.match(r"strana (\d+):", opis)
+            for idx, seg in enumerate(segments):
+                if not m or seg.start_page <= int(m.group(1)) <= seg.end_page:
+                    necitljivo_po_segmentu.setdefault(idx, []).append(opis)
 
         job_needs_review = False
         for idx, (seg, row) in enumerate(zip(segments, segment_rows)):
@@ -423,6 +439,9 @@ class IntakeWorker:
                             job_id, document_id, "segmentation_uncertain",
                             [f"strana {s.page_number}: {s.detail}" for s in uncertain_by_segment_idx[idx]],
                         )
+                        needs_review_this_segment = True
+                    if idx in necitljivo_po_segmentu:
+                        await intake_documents.create_review_queue_entry(job_id, document_id, "ocr_failed", necitljivo_po_segmentu[idx])
                         needs_review_this_segment = True
 
                     entity_confidence_map = {e["entity_type"]: e["confidence"] for e in entities}
@@ -511,6 +530,26 @@ class IntakeWorker:
     def _extract_text(path: Path) -> tuple[str, bool, bool, list[str] | None, float | None]:
         from uploaded_doc.extractor import extract
         return extract(path)
+
+    @staticmethod
+    def _nepotpuno_procitano(path: Path, pages: list[str] | None, ocr_used: bool,
+                             ocr_confidence: float | None = None) -> list[str]:
+        """OCR001 (B2/B4): opis onoga što NIJE pouzdano pročitano, za pregled advokata (prazno = ništa).
+        Strana sa vidljivim sadržajem a bez teksta, OCR bez srpskog jezičkog paketa i OCR niske pouzdanosti (npr.
+        okrenut sken: izmereno CER 82 %, ali ≥ 30 znakova „teksta“). Nemerljivo (None) se ne prijavljuje kao greška."""
+        from uploaded_doc.extractor import PRAG_POUZDANOSTI_OCR, necitljive_strane_pdf, upozorenje_jezika_ocr
+        opisi: list[str] = []
+        if pages and path.suffix.lower() == ".pdf":
+            for n in necitljive_strane_pdf(path, pages) or []:
+                opisi.append(f"strana {n}: sadržaj strane nije pročitan kao tekst")
+        if ocr_used:
+            jezik = upozorenje_jezika_ocr()
+            if jezik:
+                opisi.append(jezik)
+            if ocr_confidence is not None and ocr_confidence < PRAG_POUZDANOSTI_OCR:
+                opisi.append(f"OCR pouzdanost {round(ocr_confidence * 100)} % — tekst skeniranih strana je možda "
+                             "netačno pročitan (okrenut, mutan ili oštećen sken)")
+        return opisi
 
     @staticmethod
     async def _classify(text: str) -> dict:

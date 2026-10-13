@@ -91,6 +91,9 @@ def _make_supa(predmeti_matches=None, segment_map=None, fail_redni_broj=None):
             # the same shared .select.return_value.eq.return_value node.
             t.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = []
             t.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+            # OCR001: posle nejasnog ishoda upisa kod čita da li je red ipak upisan (.eq().eq().eq().limit());
+            # nepodešen MagicMock bi vratio „istinit“ red i lažno povezao dokument.
+            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
         elif name == "klijenti":
             t.select.return_value.eq.return_value.ilike.return_value.neq.return_value.execute.return_value.data = []
             t.insert.return_value.execute.return_value.data = [{"id": "kl-001"}]

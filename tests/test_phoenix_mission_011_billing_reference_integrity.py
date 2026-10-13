@@ -226,6 +226,7 @@ async def test_non_conflict_insert_failure_does_not_trigger_redni_retry():
     result = await _run_finalize_and_drain(mock_supa, [doc], FinalizeReq())
 
     assert result["dokumenata_povezano"] == 0
-    # All 6 fallback variants tried exactly once (no redni_broj retry loop
-    # triggered by a non-conflict error).
-    assert state["attempts"] == 6
+    # OCR001: a non-conflict, non-"missing column" failure is an ambiguous
+    # outcome -- the insert is attempted exactly once (no narrower variant,
+    # no redni_broj retry); the code re-reads instead of re-inserting.
+    assert state["attempts"] == 1

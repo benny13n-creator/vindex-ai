@@ -268,13 +268,20 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         doc = fitz.open(str(path))
         ocr_pages: list[str] = []
         ocr_confs: list[float] = []
+        ocr_strana = 0
         for page_num, page in enumerate(doc):
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
             page_text, page_conf = _ocr_image(img, ocr_lang)
+            # OCR001: kratak, ali ISPRAVAN digitalni tekst (npr. dostavnica od tri reda, < 80 znakova) više se ne
+            # zamenjuje kraćim ili praznim OCR rezultatom iste strane — digitalni sloj je tačniji od OCR-a.
+            if len((page_text or "").strip()) <= len(pages[page_num]):
+                ocr_pages.append(pages[page_num])
+                continue
             if not page_text:
                 logger.warning("[OCR] Stranica %d neuspešna", page_num + 1)
             ocr_pages.append(page_text)
+            ocr_strana += 1
             if page_conf is not None:
                 ocr_confs.append(page_conf)
         # Phoenix Closure (LIVINGSYS-DEBT-023): mean confidence across pages
@@ -284,12 +291,15 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
-        if len(ocr_text.strip()) > 100:
+        if ocr_strana and len(ocr_text.strip()) > 100:
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
-        else:
-            logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
-            _log_ocr_error("insufficient_text", path.name)
+        if total_chars > 0:
+            # OCR001: OCR nije dodao dovoljno. Dokument OSTAJE označen kao nepročitan (is_scanned=True → pregled, kao
+            # i ranije), ali se digitalni tekst (dopunjen stranama koje je OCR ipak pročitao) više ne briše.
+            return ocr_text, True, bool(ocr_strana), ocr_pages, ocr_confidence if ocr_strana else None
+        logger.warning("[OCR] OCR dao premalo teksta (%d chars)", len(ocr_text.strip()))
+        _log_ocr_error("insufficient_text", path.name)
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — skenirani PDF ne može biti obrađen", ie)
         _log_ocr_error("missing_dependencies", path.name)
@@ -297,7 +307,60 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         logger.error("[OCR] Neočekivana greška: %s", e)
         _log_ocr_error("unexpected_error", path.name)
 
+    if total_chars > 0:
+        # OCR001: OCR nedostupan ili pao — dokument ostaje označen kao nepročitan (is_scanned=True), ali digitalni tekst
+        # koji PDF stvarno ima se ne odbacuje (ranije: "", pa prikačen dokument nije imao nijedan znak teksta).
+        return "\n\n".join(pages), True, False, pages, None
     return "", True, False, None, None
+
+
+# OCR001 — potpunost strana. Strana sa manje od 30 znakova teksta (isti prag kao odluka o OCR-u iznad) koja ipak ima
+# vidljiv sadržaj nije pročitana: OCR nije uspeo, istekao je ili je dao prazan rezultat. Prazna strana (razdelnik)
+# nema sadržaja i nije greška. Udeo tamnih piksela meri se na 50 dpi u sivoj skali (bez OCR-a, ~ms po strani).
+PRAG_KRATKE_STRANE = 30
+PRAG_VIDLJIVOG_SADRZAJA = 0.005     # 0,5 % tamnih piksela: prazna/skenirana bela strana je ispod, red teksta je iznad
+# Prosečna pouzdanost reči OCR-a ispod koje se tekst skeniranih strana ne predstavlja kao pouzdano pročitan. Izmereno u
+# produkcionoj slici (OCR001, CI): ispravno čitanje 0,88–0,96; ćirilica engleskim modelom 0,40–0,62 (CER 71–80 %).
+PRAG_POUZDANOSTI_OCR = 0.75
+
+
+def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
+    """Strane (1-indeksirano) bez pročitanog teksta, a sa vidljivim sadržajem. None = nije moguće izmeriti (PDF se
+    ne može rasterizovati); pozivalac tada NE tvrdi ni da je strana pročitana ni da nije."""
+    kandidati = [i for i, t in enumerate(pages or []) if len((t or "").strip()) < PRAG_KRATKE_STRANE]
+    if not kandidati:
+        return []
+    try:
+        import fitz  # pymupdf
+        doc = fitz.open(str(path))
+        try:
+            if len(doc) != len(pages):
+                return None
+            necitljive = []
+            for i in kandidati:
+                uzorak = doc[i].get_pixmap(dpi=50, colorspace=fitz.csGRAY).samples
+                tamnih = len(uzorak) - len(uzorak.translate(None, bytes(range(128))))
+                if uzorak and tamnih / len(uzorak) >= PRAG_VIDLJIVOG_SADRZAJA:
+                    necitljive.append(i + 1)
+            return necitljive
+        finally:
+            doc.close()
+    except Exception as exc:
+        logger.warning("[OCR] potpunost strana nije izmerena za %s: %s", path.name, type(exc).__name__)
+        return None
+
+
+def upozorenje_jezika_ocr() -> Optional[str]:
+    """OCR001 (B2): bez srpskih paketa `_detect_ocr_lang` tiho pada na engleski model. Tekst pročitan tako ne sme da
+    izgleda kao pouzdano pročitan srpski dokument; pozivalac ovu poruku prikazuje uz dokument. None = oba paketa tu."""
+    try:
+        jezici = _detect_ocr_lang().split("+")
+    except Exception:
+        return "OCR jezici nisu provereni — tekst nije pročitan srpskim jezičkim modelom."
+    nedostaju = [ime for kod, ime in (("srp", "ćirilica"), ("srp_latn", "latinica")) if kod not in jezici]
+    if not nedostaju:
+        return None
+    return "OCR bez srpskog jezičkog paketa (" + ", ".join(nedostaju) + ") — tekst je možda netačno pročitan."
 
 
 def extract_docx(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:

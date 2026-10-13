@@ -592,7 +592,9 @@ export function prijemRuta(korisnici, kuke = {}) {
       if (!radnja && req.method === "GET") {
         posao.citanja++;
         if (kuke.napreduj) kuke.napreduj(posao, posao.citanja);
-        json(res, 200, { job: { id: posao.id, status: posao.status, attempts: posao.attempts, last_error: null, original_filename: posao.ime, predmet_id: posao.predmet_id },
+        // OCR001: izvedeno stanje prikačivanja, isti rečnik kao routers/smart_intake.py::_stanje_prikacivanja.
+        const prik = posao.prikacivanje || (posao.predmet_id ? "PRIKACENO" : "NIJE_PRIKACENO");
+        json(res, 200, { job: { id: posao.id, status: posao.status, attempts: posao.attempts, last_error: null, original_filename: posao.ime, predmet_id: posao.predmet_id, prikacivanje: prik },
           dokument: posao.dokument, entiteti: posao.entiteti, potrebna_provera: posao.provera, dokumenti: [] });
         return true;
       }
@@ -601,13 +603,16 @@ export function prijemRuta(korisnici, kuke = {}) {
       if (radnja === "/review/resolve") { if (posao.status === "awaiting_review") posao.status = "completed"; posao.provera = null; json(res, 200, { ok: true, already_finalized: false, review_resolved_now: true, job_status_advanced: true }); return true; }
       if (radnja === "/review/reject") { posao.status = "failed"; posao.provera = null; json(res, 200, { ok: true, review_resolved_now: true, job_status_rejected: true }); return true; }
       if (radnja === "/finalize") {
-        if (posao.predmet_id) { json(res, 200, { ok: true, predmet_id: posao.predmet_id, already_finalized: true, dokumenata_povezano: 1 }); return true; }
+        if (posao.prikacivanje === "U_TOKU") { json(res, 409, { detail: "Prikačivanje je već u toku." }); return true; }
+        if (posao.predmet_id && posao.prikacivanje !== "NEPOTPUNO") { json(res, 200, { ok: true, prikacivanje: "POTPUNO", predmet_id: posao.predmet_id, already_finalized: true, dokumenata_povezano: 1 }); return true; }
         if (posao.status === "awaiting_review") { json(res, 409, { detail: "Posao čeka proveru." }); return true; }
         if (!k.predmeti.some(x => x.id === telo.predmet_id && x.user_id === k.id)) { json(res, 404, { detail: "Predmet za prikačivanje nije pronađen." }); return true; }
-        posao.predmet_id = telo.predmet_id;
-        k.prikaceno = (k.prikaceno || []).concat([{ predmet_id: telo.predmet_id, ime: posao.ime }]);
-        json(res, 200, Object.assign({ ok: true, predmet_id: telo.predmet_id, coi_status: "COI_NOT_APPLICABLE", klijent_dodat: false, rok_dodat: false,
-          rok_preskocen_razlog: null, dokumenata_ukupno: 1, dokumenata_povezano: 1 }, kuke.finalize || {}));
+        posao.predmet_id = posao.predmet_id || telo.predmet_id;
+        const odg = Object.assign({ ok: true, prikacivanje: "POTPUNO", predmet_id: posao.predmet_id, coi_status: "COI_NOT_APPLICABLE", klijent_dodat: false, rok_dodat: false,
+          rok_preskocen_razlog: null, dokumenata_ukupno: 1, dokumenata_povezano: 1 }, typeof kuke.finalize === "function" ? kuke.finalize(posao) : (kuke.finalize || {}));
+        posao.prikacivanje = odg.ok === true ? undefined : "NEPOTPUNO";
+        if (odg.ok === true) k.prikaceno = (k.prikaceno || []).concat([{ predmet_id: posao.predmet_id, ime: posao.ime }]);
+        json(res, 200, odg);
         return true;
       }
     }
