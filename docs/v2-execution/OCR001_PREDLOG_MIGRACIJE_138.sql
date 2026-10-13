@@ -16,14 +16,22 @@
 --
 -- Bezbedno i bez ove migracije: kod obrađuje 23505 na ovom indeksu kao „isti dokument već postoji“ (poveže
 -- postojeći red), pa se može primeniti pre ili posle spajanja koda. Ne menja nijedan postojeći red.
+--
+-- Šta indeks NE pokriva (zato je ispravka u kodu obavezna i bez njega): red bez source_intake_job_id ili bez
+-- content_sha256 ima NULL u ključu i nikad nije u sukobu. Kod zato više nikad ne upisuje dokument Smart Intake-a bez
+-- tih kolona. Indeks ne štiti ni otvaranje predmeta — to štiti PRIMARY KEY predmeti(id) uz identitet predmeta
+-- izveden iz posla (routers/smart_intake.py::_id_predmeta_posla), bez migracije.
 -- ============================================================================
 
 -- [PROVERA] 1) Postojeći podaci — MORA vratiti 0 redova pre koraka 2. Ako vrati redove: NE brisati ništa
 --             automatski; to su već nastali duplikati i odluka o njima je osnivačeva.
-SELECT source_intake_job_id, content_sha256, predmet_id, count(*) AS redova, array_agg(id::text) AS dokumenti
+--             Grupiše TAČNO po ključu i uslovu indeksa iz koraka 2 (ne i po predmet_id: isti posao + sadržaj u dva
+--             predmeta takođe obara indeks, a provera po predmetu bi ga propustila — dokazano na Postgres-u).
+SELECT source_intake_job_id, content_sha256, count(*) AS redova,
+       array_agg(DISTINCT predmet_id::text) AS predmeti, array_agg(id::text) AS dokumenti
 FROM public.predmet_dokumenti
 WHERE source_intake_job_id IS NOT NULL AND content_sha256 IS NOT NULL
-GROUP BY source_intake_job_id, content_sha256, predmet_id
+GROUP BY source_intake_job_id, content_sha256
 HAVING count(*) > 1;
 
 -- [PRIMENA] 2) Indeks. Tabela je mala (beta), zato bez CONCURRENTLY: kratko zaključavanje upisa u predmet_dokumenti

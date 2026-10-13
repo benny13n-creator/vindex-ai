@@ -233,10 +233,81 @@ def test_provera_iz_predloga_nalazi_postojece_duplikate_i_indeks_tada_ne_nastaje
         _upisi(c, pid, uid, jid, 1)
         _upisi(c, pid, uid, jid, 2)                                          # duplikat nastao pre ispravke
         nadjeno = c.execute(_predlog("PROVERA")).fetchall()
-        assert len(nadjeno) == 1 and nadjeno[0][3] == 2
+        assert len(nadjeno) == 1 and nadjeno[0][2] == 2
         with pytest.raises(psycopg.errors.UniqueViolation):
             c.execute(_predlog("PRIMENA"))
         assert c.execute(_predlog("POTVRDA")).fetchall() == []
+
+
+# Prethodna verzija provere (grupisala i po predmet_id) — negativna kontrola za ispravku preflight-a.
+STARA_PROVERA = """SELECT source_intake_job_id, content_sha256, predmet_id, count(*) FROM public.predmet_dokumenti
+WHERE source_intake_job_id IS NOT NULL AND content_sha256 IS NOT NULL
+GROUP BY source_intake_job_id, content_sha256, predmet_id HAVING count(*) > 1"""
+
+
+def test_provera_koristi_kljuc_indeksa_isti_posao_i_sadrzaj_u_dva_predmeta(baza):
+    jid, pid, uid = _posao(baza)
+    with psycopg.connect(baza, autocommit=True) as c:
+        _upisi(c, pid, uid, jid, 1)
+        _upisi(c, uuid.uuid4(), uid, jid, 1)                                 # isti posao + sadržaj, drugi predmet
+        assert c.execute(STARA_PROVERA).fetchall() == []                     # stara provera: „bezbedno“ — pogrešno
+        nadjeno = c.execute(_predlog("PROVERA")).fetchall()
+        assert len(nadjeno) == 1 and nadjeno[0][2] == 2 and len(nadjeno[0][3]) == 2
+        with pytest.raises(psycopg.errors.UniqueViolation):                  # i indeks zaista tada ne nastaje
+            c.execute(_predlog("PRIMENA"))
+
+
+def test_provera_i_indeks_su_isti_skup_redova(baza):
+    """Tekstualno: kolone GROUP BY i WHERE provere su tačno kolone i WHERE indeksa."""
+    provera, primena = _predlog("PROVERA"), _predlog("PRIMENA")
+    grupa = re.search(r"GROUP BY (.*?)\s+HAVING", provera, re.S).group(1).replace(" ", "")
+    kljuc = re.search(r"\((.*?)\)\s+WHERE", primena, re.S).group(1).replace(" ", "")
+    assert grupa == kljuc == "source_intake_job_id,content_sha256"
+    uslov = lambda s: re.search(r"WHERE (.*?)(?:GROUP BY|;|$)", s, re.S).group(1).split()   # noqa: E731
+    assert uslov(provera) == uslov(primena.split("public.predmet_dokumenti", 1)[1])
+
+
+def test_138_ne_hvata_red_bez_identiteta_zato_kod_ne_sme_da_ga_upise(baza):
+    """RIZIK A: stara „uža varijanta“ upisa (posle isteka veze) ostavlja red sa NULL identitetom. Indeks 138 ga ne
+    vidi: sledeći upis istog dokumenta sa identitetom PROLAZI — dva reda istog dokumenta i sa indeksom."""
+    jid, pid, uid = _posao(baza)
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute(_predlog("PRIMENA"))
+        _upisi(c, pid, uid, jid, 1, sa_identitetom=False)
+        assert _postoji(c, uid) == []                                        # provera duplikata ga ne nalazi
+        _upisi(c, pid, uid, jid, 2)
+    assert _redova(baza) == 2
+
+
+def test_izveden_identitet_predmeta_drugi_upis_istog_posla_pada_atomski(baza):
+    """RIZIK B: dva procesa (ili ponovni pokušaj) otvaraju predmet za ISTI posao sa identitetom izvedenim iz posla.
+    PRIMARY KEY odbija drugi upis i kad su transakcije istovremene; poruka nosi 23505 koju kod prepoznaje."""
+    import routers.smart_intake as si
+    jid = str(uuid.uuid4())
+    pid = si._id_predmeta_posla(jid)
+    assert pid == si._id_predmeta_posla(jid) and pid != si._id_predmeta_posla(str(uuid.uuid4()))
+    with psycopg.connect(baza, autocommit=True) as c:
+        c.execute("CREATE TABLE public.predmeti (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, naziv text)")
+    ishod = {}
+    with psycopg.connect(baza) as a:
+        a.execute("INSERT INTO public.predmeti (id, user_id, naziv) VALUES (%s, %s, 'A')", (pid, uuid.uuid4()))
+
+        def _b():
+            try:
+                with psycopg.connect(baza, autocommit=True) as b:
+                    b.execute("INSERT INTO public.predmeti (id, user_id, naziv) VALUES (%s, %s, 'B')", (pid, uuid.uuid4()))
+                ishod["b"] = "upisano"
+            except psycopg.errors.UniqueViolation as e:
+                ishod["b"] = (e.sqlstate, str(e))
+        t = threading.Thread(target=_b)
+        t.start()
+        time.sleep(0.5)
+        assert t.is_alive(), "B je morao da čeka A-ovu transakciju na primarnom ključu"
+        a.commit()
+        t.join(10)
+    assert ishod["b"][0] == "23505" and 'duplicate key value violates unique constraint "predmeti_pkey"' in ishod["b"][1]
+    with psycopg.connect(baza, autocommit=True) as c:
+        assert c.execute("SELECT count(*), min(naziv) FROM public.predmeti").fetchone() == (1, "A")
 
 
 def test_rollback_iz_predloga_uklanja_samo_indeks(baza):

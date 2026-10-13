@@ -17,6 +17,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import pytest
 from postgrest.exceptions import APIError
 
@@ -60,6 +61,7 @@ class _Okruzenje:
         self.sukobi = []
         self.tacke = []                        # opšte barijere: _Tacka(uslov) — staje JEDNOM, pre izvršenja
         self.kvar = None                       # (uslov(upit), izuzetak) — pad procesa na granici baze, JEDNOM
+        self.kvarovi = []                      # [uslov, izuzetak, posle] — JEDNOM; posle=True: upis JE izvršen, odgovor izgubljen
 
 
 class _Tacka:
@@ -95,6 +97,24 @@ def _ukljuci(monkeypatch, b, indeksi, barijera_na_proveri=True):
         if kv and kv[0](self):
             o.kvar = None
             raise kv[1]
+        for kv in list(o.kvarovi):
+            if not kv[2] and kv[0](self):
+                o.kvarovi.remove(kv)
+                raise kv[1]
+        if self.t == "predmeti" and self.radnja[0] == "insert":
+            red = self.radnja[1]
+            with o.brava:                      # PRIMARY KEY predmeti(id): isti oblik greške kao PostgREST
+                if red.get("id") and any(x.get("id") == red["id"] for x in b.tabele.get("predmeti", [])):
+                    o.sukobi.append("predmeti_pkey")
+                    raise APIError({"code": "23505", "hint": None,
+                                    "message": 'duplicate key value violates unique constraint "predmeti_pkey"',
+                                    "details": f"Key (id)=({red['id']}) already exists."})
+                rez = orig(self)
+            for kv in list(o.kvarovi):
+                if kv[2] and kv[0](self):
+                    o.kvarovi.remove(kv)
+                    raise kv[1]
+            return rez
         if self.t == "predmet_dokumenti" and self.radnja[0] == "insert":
             with o.brava:
                 n = o.upisi
@@ -117,7 +137,12 @@ def _ukljuci(monkeypatch, b, indeksi, barijera_na_proveri=True):
                                 "details": f"Key ({', '.join(kolone)})=({', '.join(str(red[c]) for c in kolone)}) already exists.",
                                 "hint": None,
                             })
-                return orig(self)
+                rez = orig(self)
+            for kv in list(o.kvarovi):
+                if kv[2] and kv[0](self):
+                    o.kvarovi.remove(kv)
+                    raise kv[1]
+            return rez
         rez = orig(self)
         _cekaj_na_tacki(o, self, posle=True)
         if (barijera_na_proveri and self.t == "predmet_dokumenti" and self.radnja[0] == "select"
@@ -533,3 +558,189 @@ def test_A_ne_preuzima_zauzece_koje_je_u_medjuvremenu_drzao_B(ok, monkeypatch):
 
 class _UbijenProces(BaseException):
     """Pad procesa (OOM/SIGKILL): ne hvata ga `except Exception`."""
+
+
+# ── RIZIK A: nejasan ishod upisa dokumenta ne sme da postane „kolona ne postoji“ ──────────────────────────────────
+
+def _upis_dokumenta(u):
+    return getattr(u, "t", None) == "predmet_dokumenti" and u.radnja[0] == "insert"
+
+
+def _zavrsni_marker(u):
+    return (getattr(u, "t", None) == "intake_jobs" and u.radnja[0] == "update"
+            and isinstance(u.radnja[1], dict) and "assimilation_complete" in u.radnja[1])
+
+
+def _istek():
+    return httpx.ReadTimeout("The read operation timed out")
+
+
+def _redovi_pa(b):
+    return [d for d in b.tabele.get("predmet_dokumenti", []) if d.get("predmet_id") == PA]
+
+
+def _dokazi_pa(b):
+    return [e for e in b.tabele.get("events", [])
+            if e.get("predmet_id") == PA and "EVIDENCE" in str(e.get("event_type")).upper()]
+
+
+@pytest.mark.parametrize("sa_138", [False, True], ids=["bez_indeksa_138", "sa_indeksom_138"])
+def test_istek_pre_baze_ne_upisuje_dokument_bez_identiteta(ok, monkeypatch, sa_138):
+    """Upis sa svim kolonama identiteta istekne PRE nego što stigne do baze. Stari kod je to tumačio kao „kolona ne
+    postoji“ i upisivao užu varijantu BEZ source_intake_job_id/content_sha256; proces zatim padne pre završnog
+    markera; sledeći pokušaj taj red ne prepoznaje (traži po content_sha256) i upisuje isti dokument drugi put.
+    Indeks 138 to NE hvata: red bez identiteta ima NULL u ključu."""
+    k, b = ok
+    jid = _spreman(k, b)
+    indeksi = dict(INDEKSI_PRODUKCIJA, **(INDEKS_138 if sa_138 else {}))
+    o, sat = _ukljuci(monkeypatch, b, indeksi, barijera_na_proveri=False)
+    o.kvarovi += [[_upis_dokumenta, _istek(), False], [_zavrsni_marker, _UbijenProces(), False]]
+    rez = {}
+    _zahtev(rez, "A", jid, {"predmet_id": PA})
+    prvi = [dict(d) for d in _redovi_pa(b)]
+    o.kvarovi.clear()
+    sat.pomak += 121
+    s, j = _ponovo(k, jid, {"predmet_id": PA})
+    svi = _redovi_pa(b)
+    print(ascii(("MERENJE istek pre baze", sa_138, rez, [(d.get("redni_broj"), d.get("source_intake_job_id") is not None,
+                                                         bool(d.get("content_sha256"))) for d in svi], s, len(_dokazi_pa(b)))))
+    assert all(d.get("source_intake_job_id") == jid and d.get("content_sha256") for d in prvi + svi), (prvi, svi)
+    assert len(svi) == 1, svi
+    assert not (rez["A"][0] == 200 and rez["A"][1].get("prikacivanje") == "POTPUNO"), rez   # nije tvrdio uspeh
+    assert s == 200 and j["prikacivanje"] == "POTPUNO" and j["dokumenata_povezano"] == 1, (s, j)
+    assert len(_dokazi_pa(b)) == 1
+
+
+@pytest.mark.parametrize("sa_138", [False, True], ids=["bez_indeksa_138", "sa_indeksom_138"])
+def test_istek_posle_upisa_povezuje_upisan_red(ok, monkeypatch, sa_138):
+    """Upis JE izvršen, odgovor je izgubljen. Stari kod: uža varijanta pada na redni_broj, pa sledeći redni broj sa
+    punom varijantom upisuje isti dokument drugi put (bez 138). Ispravno: proveri da li je red upisan i poveži ga."""
+    k, b = ok
+    jid = _spreman(k, b)
+    indeksi = dict(INDEKSI_PRODUKCIJA, **(INDEKS_138 if sa_138 else {}))
+    o, sat = _ukljuci(monkeypatch, b, indeksi, barijera_na_proveri=False)
+    o.kvarovi.append([_upis_dokumenta, _istek(), True])
+    rez = {}
+    _zahtev(rez, "A", jid, {"predmet_id": PA})
+    svi = _redovi_pa(b)
+    print(ascii(("MERENJE istek posle upisa", sa_138, rez, len(svi), o.sukobi, len(_dokazi_pa(b)))))
+    assert len(svi) == 1 and svi[0]["source_intake_job_id"] == jid and svi[0]["content_sha256"], svi
+    assert rez["A"][0] == 200 and rez["A"][1]["prikacivanje"] == "POTPUNO", rez
+    assert _posao(b, jid)["assimilation_complete"] is True
+    assert len(_dokazi_pa(b)) == 1
+    s, j = _ponovo(k, jid, {"predmet_id": PA})
+    assert s == 200 and len(_redovi_pa(b)) == 1, (s, j)
+
+
+def test_dokazano_nedostajuca_kolona_tip_dokaza_zadrzava_identitet(ok, monkeypatch):
+    """Jedina kompatibilnost koja ostaje: PostgREST izričito kaže da kolona tip_dokaza ne postoji → upis bez nje,
+    ali sa svim kolonama identiteta."""
+    k, b = ok
+    jid = _spreman(k, b)
+    o, sat = _ukljuci(monkeypatch, b, dict(INDEKSI_PRODUKCIJA), barijera_na_proveri=False)
+    o.kvarovi.append([_upis_dokumenta, APIError({
+        "code": "PGRST204", "details": None, "hint": None,
+        "message": "Could not find the 'tip_dokaza' column of 'predmet_dokumenti' in the schema cache"}), False])
+    rez = {}
+    _zahtev(rez, "A", jid, {"predmet_id": PA})
+    svi = _redovi_pa(b)
+    assert len(svi) == 1 and "tip_dokaza" not in svi[0], svi
+    assert svi[0]["source_intake_job_id"] == jid and svi[0]["content_sha256"], svi
+    assert rez["A"][0] == 200 and rez["A"][1]["prikacivanje"] == "POTPUNO", rez
+
+
+def test_nedostajuca_kolona_identiteta_ne_upisuje_red_bez_identiteta(ok, monkeypatch):
+    k, b = ok
+    jid = _spreman(k, b)
+    o, sat = _ukljuci(monkeypatch, b, dict(INDEKSI_PRODUKCIJA), barijera_na_proveri=False)
+    o.kvarovi.append([_upis_dokumenta, APIError({
+        "code": "PGRST204", "details": None, "hint": None,
+        "message": "Could not find the 'content_sha256' column of 'predmet_dokumenti' in the schema cache"}), False])
+    rez = {}
+    _zahtev(rez, "A", jid, {"predmet_id": PA})
+    assert all(d.get("source_intake_job_id") == jid and d.get("content_sha256") for d in _redovi_pa(b)), _redovi_pa(b)
+    assert not (rez["A"][0] == 200 and rez["A"][1].get("prikacivanje") == "POTPUNO"), rez
+
+
+# ── RIZIK B: kasni zahtev za otvaranje predmeta ───────────────────────────────────────────────────────────────
+
+def _upis_predmeta(u):
+    return getattr(u, "t", None) == "predmeti" and u.radnja[0] == "insert"
+
+
+def _novi_predmeti(b, pre):
+    return [x for x in b.tabele["predmeti"] if x["id"] not in pre]
+
+
+def _kreiran(b, ids):
+    return [e for e in b.tabele.get("events", []) if e.get("event_type") == "predmet_kreiran" and e.get("predmet_id") in ids]
+
+
+@pytest.mark.parametrize("redovi", [None, BEZ_BROJA], ids=["sa_brojem_predmeta", "bez_broja_predmeta"])
+def test_kasni_upis_predmeta_A_ne_ostavlja_drugi_predmet(ok, monkeypatch, redovi):
+    """A drži zauzeće i šalje INSERT u predmeti; odgovor kasni dok zauzeće ne zastari; B preuzme i otvori predmet;
+    A-ov zahtev tek tada stigne. Stari kod: dva predmeta (A-ov bez veze sa poslom), dva PREDMET_KREIRAN.
+    Ispravno: jedan predmet, jedan događaj, A ne tvrdi uspeh."""
+    k, b = ok
+    jid = _spreman(k, b, redovi=redovi)
+    o, sat = _ukljuci(monkeypatch, b, dict(INDEKSI_PRODUKCIJA), barijera_na_proveri=False)
+    a_otvara = _Tacka(_upis_predmeta)
+    o.tacke.append(a_otvara)
+    pre = {p["id"] for p in b.tabele["predmeti"]}
+    rez = {}
+    ta = threading.Thread(target=_zahtev, args=(rez, "A", jid, {}))
+    ta.start()
+    assert a_otvara.stigao.wait(30)                    # A je poslao INSERT u predmeti; odgovor ne stiže
+    sat.pomak += 121
+    _zahtev(rez, "B", jid, {})                          # B preuzme zastarelo zauzeće i završi posao
+    a_otvara.pusti.set()                               # A-ov zahtev tek sada stiže do baze
+    ta.join(30)
+    p = _posao(b, jid)
+    novi = _novi_predmeti(b, pre)
+    ids = {x["id"] for x in novi}
+    van_posla = [e for e in b.tabele.get("events", []) if e.get("predmet_id") in ids - {p["predmet_id"]}]
+    print(ascii(("MERENJE kasni predmet", redovi is None, rez, len(novi), [x["id"] == p["predmet_id"] for x in novi],
+                 len(_kreiran(b, ids)), len(van_posla), o.sukobi)))
+    assert len(novi) == 1 and novi[0]["id"] == p["predmet_id"], (novi, p.get("predmet_id"))
+    assert len(_kreiran(b, ids)) == 1 and van_posla == [], (_kreiran(b, ids), van_posla)
+    assert rez["B"][0] == 200 and rez["B"][1]["ok"] is True and rez["B"][1]["prikacivanje"] == "POTPUNO", rez
+    assert rez["A"][0] == 409 and not rez["A"][1].get("ok"), rez
+    dok = [d for d in b.tabele["predmet_dokumenti"] if d.get("source_intake_job_id") == jid]
+    assert len(dok) == 1 and dok[0]["predmet_id"] == p["predmet_id"], dok
+    s, j = _ponovo(k, jid, {})
+    assert s == 200 and j["prikacivanje"] == "POTPUNO", (s, j)
+    assert len(_novi_predmeti(b, pre)) == 1
+
+
+@pytest.mark.parametrize("redovi", [None, BEZ_BROJA], ids=["sa_brojem_predmeta", "bez_broja_predmeta"])
+def test_izgubljen_odgovor_na_upis_predmeta_ponovni_pokusaj_isti_predmet(ok, monkeypatch, redovi):
+    """INSERT u predmeti JE izvršen, odgovor je izgubljen (A dobija grešku). Ponovni pokušaj ne sme da otvori drugi
+    predmet za isti posao, a predmet mora dobiti tačno jedan PREDMET_KREIRAN (inače Case Pipeline nikad ne krene)."""
+    k, b = ok
+    jid = _spreman(k, b, redovi=redovi)
+    o, sat = _ukljuci(monkeypatch, b, dict(INDEKSI_PRODUKCIJA), barijera_na_proveri=False)
+    o.kvarovi.append([_upis_predmeta, _istek(), True])
+    pre = {p["id"] for p in b.tabele["predmeti"]}
+    rez = {}
+    _zahtev(rez, "A", jid, {})
+    assert not (rez["A"][0] == 200 and rez["A"][1].get("ok") is True), rez
+    sat.pomak += 121
+    s, j = _ponovo(k, jid, {})
+    novi = _novi_predmeti(b, pre)
+    print(ascii(("MERENJE izgubljen odgovor predmeta", rez["A"][0], s, len(novi), len(_kreiran(b, {x["id"] for x in novi})))))
+    assert s == 200 and j["prikacivanje"] == "POTPUNO", (s, j)
+    assert len(novi) == 1 and novi[0]["id"] == _posao(b, jid)["predmet_id"], novi
+    assert len(_kreiran(b, {novi[0]["id"]})) == 1
+
+
+def test_tudj_korisnik_ne_dolazi_do_predmeta_posla(ok, monkeypatch):
+    k, b = ok
+    jid = _spreman(k, b)
+    o, sat = _ukljuci(monkeypatch, b, dict(INDEKSI_PRODUKCIJA), barijera_na_proveri=False)
+    pre = {p["id"] for p in b.tabele["predmeti"]}
+    rez = {}
+    _zahtev(rez, "B", jid, {}, korisnik="B")
+    assert rez["B"][0] == 404 and {p["id"] for p in b.tabele["predmeti"]} == pre, rez
+    _zahtev(rez, "A", jid, {})
+    novi = _novi_predmeti(b, pre)
+    assert rez["A"][0] == 200 and len(novi) == 1 and novi[0]["user_id"] == "uid-A", (rez, novi)

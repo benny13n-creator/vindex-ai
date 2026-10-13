@@ -205,3 +205,34 @@ Uz to, dva dodatna dokazana kvara iste klase:
 **Negativna kontrola:** na kodu pre ispravke pada 12 od 14 novih testova trke; prolaze samo test koji dokumentuje preostali prozor bez indeksa i test tuđeg korisnika. **Mutacije:** 10/10 uhvaćeno (bez provere pre upisa, bez provere pre predmeta, snimak pre zauzeća, uža varijanta posle 23505, sukob bez povezivanja, provera uvek prolazi, obnova bez CAS-a, token završnog CAS-a, progutan gubitak zauzeća, rezerva nula).
 
 **Bezbednost:** tuđi korisnik u trci dobija 404 i ne dira zauzeće; A zatim uspešno završava, vektori samo u A-ovom predmetu i prostoru imena. Ponovna provera postojećeg reda posle 23505 je ograničena na `user_id` pozivaoca i predmet posla.
+
+## 12. Završno zatvaranje integriteta podataka (pregled kandidata `4876e123`)
+
+Pregled je našao dva rizika koje §11 nije zatvorio. Oba su **reprodukovana** na `4876e123` i zatvorena bez migracije.
+
+**Rizik A — lestvica upisa gubi identitet.** Posle BILO KOJE greške (i isteka veze) upis je prelazio na užu varijantu bez `source_intake_job_id`/`content_sha256` (i bez `source_intake_job_segment_id`).
+
+| Scenario (`tests/test_ocr001_konkurentna_finalizacija.py::test_istek_*`) | `4876e123` | ispravka |
+|---|---|---|
+| Istek PRE baze, pad pre markera, ponovni pokušaj — bez 138 | 2 reda (prvi bez identiteta), 2 `NewEvidenceRegistered` | 1 red sa identitetom, 1 događaj |
+| Isto — **sa** indeksom 138 | **2 reda** (138 ne vidi red sa NULL ključem) | 1 red |
+| Upis izvršen, odgovor izgubljen — bez 138 | 2 reda (pad na `redni_broj`, pa sledeći broj) | 1 red, povezan, 200 POTPUNO |
+| Isto — sa 138 | 1 red | 1 red |
+
+Zaključak: **migracija 138 ne sprečava gubitak identiteta** (dokazano i na pravom Postgres-u: `test_138_ne_hvata_red_bez_identiteta…`). Ispravka: uže varijante bez 094/095 kolona su uklonjene — nemaju dokazanu potrebu (provera duplikata iznad već bira po `content_sha256`, zauzeće je `claim_intake_finalize` iz 095, pa bez tih kolona kod nikad ne stiže do upisa). Ostaje samo izostavljanje `tip_dokaza`/`tekst_sadrzaj` (016) i to **samo** kad baza izričito kaže da ta kolona ne postoji (PGRST204/42703 sa imenom kolone). Svaki drugi neuspeh je nejasan ishod: upis se ne ponavlja, nego se čita da li je red upisan (user + predmet + sadržaj) i povezuje se; ako nije — dokument ostaje nepovezan i ponovo obradiv, odgovor nije „POTPUNO“.
+
+**Rizik B — kasni zahtev za otvaranje predmeta.** A šalje INSERT u `predmeti`, odgovor kasni >120 s, B preuzme i otvori predmet, A-ov zahtev zatim stigne.
+
+| Mera | `4876e123` | ispravka |
+|---|---|---|
+| Novih predmeta | **2** (A-ov nije vezan za posao; sa brojem predmeta — dva predmeta istog broja, pa buduće prepoznavanje po broju postaje dvosmisleno) | 1 |
+| `predmet_kreiran` događaja | **2**, od toga 1 za nepovezan predmet | 1 |
+| A / B | 409 / 200 POTPUNO | 409 / 200 POTPUNO |
+| Izgubljen odgovor na INSERT, ponovni pokušaj (bez broja predmeta) | drugi predmet | isti predmet |
+| Isto, sa brojem predmeta | isti predmet, ali **0** `predmet_kreiran` (Case Pipeline ne kreće do reaper-a) | isti predmet, 1 događaj |
+
+Ispravka: predmet koji Smart Intake posao otvara dobija identitet izveden iz posla (`_id_predmeta_posla`, uuid5). Drugi INSERT istog posla pada na postojećem `PRIMARY KEY predmeti(id)` — atomski, i kod istovremenih transakcija (dokazano na pravom Postgres-u) — pa se koristi isti predmet (čitanje ograničeno na `user_id` vlasnika; predmet u brisanju → 409). `PREDMET_KREIRAN` za predmet posla nosi stabilan `events.id`, pa dva procesa ili ponovni pokušaj daju tačno jedan događaj. Indeks dokumenata (138) ovde ne igra nikakvu ulogu.
+
+**Migracija 138 — preflight ispravljen:** provera je grupisala i po `predmet_id`, pa je isti posao + sadržaj u dva predmeta prolazio kao „bezbedno“, a indeks bi pao. Sada grupiše tačno po ključu i uslovu indeksa (test poredi tekst provere i indeksa; negativna kontrola sa starom proverom). I dalje NIJE primenjen; ostaje opcioni (zatvara samo „zaglavljen poslat upis“ prozor iz §11).
+
+**Dokazi:** negativna kontrola — na `4876e123` pada 9 od 11 novih testova (prolaze „upis izvršen, odgovor izgubljen, sa 138“, gde indeks zaista štiti, i test tuđeg korisnika). Mutacije 10/10 uhvaćene. Pravi PostgreSQL 11/11. Bezbednost: tuđ korisnik dobija 404 i ne otvara predmet; ponovna upotreba predmeta i ponovno čitanje dokumenta ograničeni su na `user_id` pozivaoca.
