@@ -74,6 +74,25 @@ def set_request_context(
 
 
 @contextmanager
+def scoped_request_context(
+    user_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    correlation_id: Optional[str] = None,
+) -> Iterator[str]:
+    """N01 (2026-10-13): isto kao set_request_context, ali VRAĆA prethodnu
+    vrednost na izlazu. Za pozadinske petlje (Smart Intake worker) koje NISU
+    HTTP zahtev: jedan dugoživeći task obrađuje posao za poslom, pa bi `.set()`
+    bez restore-a preneo identitet vlasnika jednog posla na sledeći posao.
+    `user_id` se uvek postavlja IZRIČITO (i kad je None) — nikad se ne nasleđuje."""
+    cid = correlation_id or new_correlation_id()
+    token = _request_ctx.set({"user_id": user_id, "tenant_id": tenant_id, "correlation_id": cid})
+    try:
+        yield cid
+    finally:
+        _request_ctx.reset(token)
+
+
+@contextmanager
 def case_context(
     predmet_id: Optional[str] = None,
     document_id: Optional[str] = None,
