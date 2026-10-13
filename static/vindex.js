@@ -20570,8 +20570,11 @@ async function pred_upload_doc(file) {
     // "Sesija nije pronadjena ili je istekla". Mereno stvarnim pozivom: 404.
     var mainHtml = '';
     if (d.procena) {
-      var _rndr = (d.doc_type === 'presuda') ? pred_renderPresuda : pred_renderProcena;
-      mainHtml = _rndr(d.procena);
+      // N08: presuda dobija i sistemsku proveru (provera_presude) — citati/odluke
+      // koje sistem nije potvrdio, skraćen tekst, neprepoznati delovi, OCR.
+      mainHtml = (d.doc_type === 'presuda')
+        ? pred_renderPresuda(d.procena, d.provera_presude || null)
+        : pred_renderProcena(d.procena);
     } else {
       mainHtml = '<div style="color:var(--tx-3);font-size:0.78rem;">Dokument je učitan. Analiza nije generisana — pokušajte ručni unos.</div>';
     }
@@ -21059,14 +21062,46 @@ function pred_renderProcena(tekst) {
   return html;
 }
 
-function pred_renderPresuda(tekst) {
+// N08 (2026-10-13): sistemska provera analize presude. Ono što je sistem
+// proverio prikazuje se ODVOJENO od teksta modela; bez provere se nikad ne
+// tvrdi da je citat proveren.
+function pred_renderPresudaProvera(provera) {
+  var box = 'font-size:0.74rem;line-height:1.45;padding:0.45rem 0.6rem;margin:0 0 0.6rem;border:1px solid rgba(224,160,48,0.45);border-radius:2px;color:var(--tx-2);';
+  if (!provera) {
+    return '<div style="'+box+'"><b>Provera sistema nije izvršena</b> — nijedan citat ni broj odluke nije potvrđen.</div>';
+  }
+  var STAT = {POTVRDJEN_U_IZVORU:'✓ potvrđen u izvoru iz pravne baze', NAVEDEN_U_PRESUDI:'naveden u presudi — tekst propisa nije proveren', NEPROVEREN:'⚠ NEPROVEREN — nije u presudi ni u izvorima'};
+  var OSTAT = {NAVEDENA_U_PRESUDI:'navedena u presudi', U_IZVORU:'✓ u izvoru iz pravne baze', NEPROVERENA:'⚠ NEPROVERENA — nije u presudi ni u izvorima'};
+  var h = '<div style="'+box+'"><div style="font-weight:700;margin-bottom:0.25rem;">Provera sistema (nije deo AI analize)</div>';
+  (provera.upozorenja || []).forEach(function(u) { h += '<div>⚠ '+escHtml(u)+'</div>'; });
+  var st = (provera.citati && provera.citati.stavke) || [];
+  if (provera.citati && provera.citati.status === 'NEPOZNATO') h += '<div>Citati: provera nije izvršena — nijedan nije potvrđen.</div>';
+  if (st.length) {
+    h += '<div style="margin-top:0.3rem;font-weight:600;">Citirani članovi</div>';
+    st.forEach(function(c) {
+      h += '<div>čl. '+escHtml(c.clan)+(c.zakon ? ' '+escHtml(String(c.zakon).toUpperCase()) : '')+' — '+escHtml(STAT[c.status] || STAT.NEPROVEREN)+'</div>';
+    });
+  }
+  var od = provera.odluke || [];
+  if (od.length) {
+    h += '<div style="margin-top:0.3rem;font-weight:600;">Sudske odluke</div>';
+    od.forEach(function(o) { h += '<div>'+escHtml(o.oznaka)+' — '+escHtml(OSTAT[o.status] || OSTAT.NEPROVERENA)+'</div>'; });
+  }
+  if (!(provera.upozorenja || []).length && !st.length && !od.length) h += '<div>Bez upozorenja.</div>';
+  return h + '</div>';
+}
+
+function pred_renderPresuda(tekst, provera) {
   var sekcije = [
     {k:'1. REZIME PRESUDE',              icon:'', lbl:'Rezime presude',        isZalba:false},
     {k:'2. KLJUČNI ARGUMENTI SUDA',      icon:'',  lbl:'Argumenti suda',        isZalba:false},
     {k:'3. PRIMENJENI PROPISI',          icon:'', lbl:'Primenjeni propisi',     isZalba:false},
-    {k:'4. POTENCIJALNI ŽALBENI OSNOVI', icon:'', lbl:'Žalbeni osnovi',         isZalba:false},
-    {k:'5. PROCENA IZGLEDA ŽALBE',       icon:'', lbl:'Procena izgleda žalbe', isZalba:true},
+    {k:'4. POTENCIJALNI ŽALBENI OSNOVI', icon:'', lbl:'Mogući žalbeni osnovi — predlog za proveru advokata', isZalba:false},
+    {k:'5. PROCENA IZGLEDA ŽALBE',       icon:'', lbl:'Procena izgleda žalbe (AI procena)', isZalba:true},
   ];
+  var zaglavlje = '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.07em;color:var(--tx-3);text-transform:uppercase;margin-bottom:0.25rem;">Analiza presude</div>'
+    + '<div style="font-size:0.72rem;color:var(--tx-3);margin-bottom:0.5rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.06);">AI analiza — nije tekst presude. Proverite sa originalom pre upotrebe.</div>'
+    + pred_renderPresudaProvera(provera);
   var positions = [];
   sekcije.forEach(function(s) {
     var pos = tekst.indexOf(s.k);
@@ -21077,8 +21112,8 @@ function pred_renderPresuda(tekst) {
   positions.forEach(function(p) {
     if (!deduped.length || p.pos - deduped[deduped.length-1].pos > 5) deduped.push(p);
   });
-  if (!deduped.length) return '<pre style="font-size:0.78rem;white-space:pre-wrap;color:var(--tx-2);">'+escHtml(tekst)+'</pre>';
-  var html = '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.07em;color:var(--tx-3);text-transform:uppercase;margin-bottom:0.5rem;padding-bottom:0.3rem;border-bottom:1px solid rgba(255,255,255,0.06);">Analiza presude</div>';
+  if (!deduped.length) return zaglavlje + '<pre style="font-size:0.78rem;white-space:pre-wrap;color:var(--tx-2);">'+escHtml(tekst)+'</pre>';
+  var html = zaglavlje;
   deduped.forEach(function(x,i) {
     var start = x.pos + x.s.k.length;
     var end   = i+1 < deduped.length ? deduped[i+1].pos : tekst.length;
@@ -21101,7 +21136,7 @@ function pred_renderPresuda(tekst) {
         else                          { bg='rgba(248,113,113,0.12)'; cl='#f87171'; bc='rgba(248,113,113,0.35)'; }
         badgeHtml = '<div style="display:inline-flex;align-items:baseline;gap:0.45rem;background:'+bg+';border:1px solid '+bc+';border-radius:2px;padding:0.3rem 0.9rem;margin-bottom:0.55rem;">'
           +'<span style="font-size:1.05rem;font-weight:800;color:'+cl+';">'+ocena+'</span>'
-          +'<span style="font-size:0.67rem;color:'+cl+';opacity:0.75;font-weight:500;">izgled žalbe</span>'
+          +'<span style="font-size:0.67rem;color:'+cl+';opacity:0.75;font-weight:500;">izgled žalbe — AI procena, nije predviđanje ishoda</span>'
           +'</div>';
       }
     }

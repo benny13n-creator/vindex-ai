@@ -5368,6 +5368,11 @@ Zatim obrazloženje u 2-3 rečenice zašto si dao tu ocenu.
 
 PRAVILA:
 - Nikada ne garantuj ishod žalbe.
+- Ne navodi procenat ni verovatnoću uspeha žalbe; ocena NIZAK/SREDNJI/VISOK je kvalitativna procena, ne predviđanje.
+- Ne izračunavaj i ne navodi rok za žalbu niti datum isteka roka — rok zavisi od datuma dostavljanja, koji tekst presude ne sadrži; rok računa advokat.
+- Svaki žalbeni osnov veži za konkretan deo presude (izreka, obrazloženje, utvrđena činjenica); ako ga ne možeš vezati, ne navodi ga.
+- Brojeve sudskih odluka navodi SAMO ako se nalaze u tekstu presude.
+- Ako u tekstu nema izreke ili obrazloženja (ili je tekst skraćen/nečitljiv), to izričito napiši u sekciji 1 i ne popunjavaj taj deo pretpostavkama.
 - Budi objektivan — navedi i jake strane presude.
 - Koristi srpsku ekavicu i pravni registar.
 - Svaka sekcija max 6 redova.
@@ -5388,6 +5393,166 @@ _CITATION_GUARD = (
 )
 
 _PRESUDA_SYSTEM_PROMPT = _PRESUDA_SYSTEM_PROMPT + _CITATION_GUARD
+
+
+# ── N08 (2026-10-13): deterministička provera analize presude ────────────────
+# Prompt iznad je jedina zaštita koju je analiza presude imala: izlaz modela je
+# vraćan i čuvan doslovno, pa je izmišljen član ("Čl. 999 ZPP"), nepostojeća
+# odluka ("Rev 9999/2023") ili izračunat rok za žalbu izgledao isto kao tačan.
+# Ova provera NE menja tekst modela; vraća uz njega šta je sistem stvarno
+# proverio, istim kanonskim čuvarom citata kao pravno pitanje i savetnik
+# (`main._klasifikuj_citate`). Izvor za "potvrđen" je SAMO dostavljeni tekst iz
+# pravne baze; pojava broja člana u presudi se prikazuje odvojeno ("naveden u
+# presudi"), jer tekst presude nije tekst propisa. Pad provere = NEPOZNATO,
+# nikad "provereno".
+
+_N08_ODLUKA_RE = _re.compile(
+    r"(?<![a-z0-9])(rev2|rev|prev|gzrr|gzi|gz1|gz|pz|kzz|kz1|kz|uzp|uz|ipv|iz|p1|p2|p|k|kv)"
+    r"\s*\.?\s*(\d{1,6})\s*/\s*(\d{2,4})(?![0-9])"
+)
+_N08_OBRAZLOZENJE_RE = _re.compile(r"o\s*b\s*r\s*a\s*z\s*l\s*o\s*z\s*e\s*n\s*j\s*e(?![a-z])")
+_N08_IZREKA_FORMULE = (
+    "usvaja se", "odbija se", "obavezuje se", "ponistava se", "nalaze se", "utvrdjuje se",
+    "odbacuje se", "preinacuje se", "potvrdjuje se", "ukida se", "oglasava se krivim",
+    "oslobadja se", "osudjuje se", "izreka",
+)
+_N08_ROK_RE = _re.compile(
+    r"rok\w*\s+za\s+(?:izjavljivanje\s+|podnosenje\s+)?(?:zalb|reviz|prigovor)"
+    r"|u\s+roku\s+od\s+\d+"
+    r"|istic\w*\s+\d{1,2}\.\s?\d{1,2}\.|rok\w*(?:\s+\S+){0,3}\s+istic|istek\w*\s+rok"
+)
+_N08_PREDVIDJANJE_RE = _re.compile(
+    r"\d{1,3}\s*%|(?<!ne )garantovan|(?<!ne )garantuje|sigurno\s+(?:ce|uspe)|izvestan\s+uspeh"
+    r"|uspeh\s+je\s+izvestan|zasigurno"
+)
+
+
+def _n08_norm(tekst: str) -> str:
+    from main import _cirilica_u_latinicu, _normalizuj
+    return _re.sub(r"\s+", " ", _normalizuj(_cirilica_u_latinicu(tekst or "")))
+
+
+def _n08_kljuc_odluke(m) -> str:
+    return f"{m.group(1)}{m.group(2)}/{m.group(3)}"
+
+
+def _provera_analize_presude(
+    procena: str,
+    tekst_presude: str,
+    izvori: list,
+    text_limit: int,
+    *,
+    ocr_koriscen: bool = False,
+    ocr_pouzdanost=None,
+    strane=None,
+) -> dict:
+    """Šta je sistem (ne model) proverio u analizi presude. Tekst modela se ne menja."""
+    upozorenja: list[str] = []
+    presuda_n = _n08_norm(tekst_presude)
+    analizirano_n = _n08_norm((tekst_presude or "")[:text_limit])
+    procena_n = _n08_norm(procena)
+    izvori_n = _n08_norm(" ".join(izvori or []))
+
+    # Obuhvat
+    ukupno = len(tekst_presude or "")
+    skraceno = ukupno > text_limit
+    obuhvat = {"analizirano_znakova": min(ukupno, text_limit), "ukupno_znakova": ukupno, "skraceno": skraceno}
+    if skraceno:
+        upozorenja.append(
+            f"Analiziran je samo početak presude ({text_limit} od {ukupno} znakova) — "
+            "delovi posle toga nisu uzeti u obzir."
+        )
+
+    # Delovi presude (heuristika nad analiziranim delom — "nije prepoznat", ne "ne postoji")
+    m_obr = _N08_OBRAZLOZENJE_RE.search(analizirano_n)
+    granica = m_obr.start() if m_obr else len(analizirano_n)
+    izreka = any(0 <= analizirano_n.find(f) < granica for f in _N08_IZREKA_FORMULE)
+    delovi = {"izreka_prepoznata": bool(izreka), "obrazlozenje_prepoznato": bool(m_obr)}
+    if not izreka:
+        upozorenja.append("U analiziranom tekstu nije prepoznata izreka — rezime odluke suda može biti nepouzdan.")
+    if not m_obr:
+        upozorenja.append("U analiziranom tekstu nije prepoznato obrazloženje — argumenti suda nisu iz teksta presude.")
+
+    # OCR i strane bez teksta
+    prazne = [i + 1 for i, st in enumerate(strane or []) if len((st or "").strip()) < 20]
+    ocr = {"koriscen": bool(ocr_koriscen), "pouzdanost": ocr_pouzdanost, "strane_bez_teksta": prazne}
+    if ocr_koriscen:
+        pz = f" (prosečna pouzdanost {round(ocr_pouzdanost * 100)}%)" if isinstance(ocr_pouzdanost, (int, float)) else ""
+        upozorenja.append(f"Tekst je pročitan optičkim prepoznavanjem (OCR){pz} — proverite citate u originalu.")
+    if prazne:
+        upozorenja.append("Strane bez prepoznatog teksta: " + ", ".join(map(str, prazne)) + " — njihov sadržaj nije analiziran.")
+
+    # Citati članova
+    try:
+        from main import CITAT_IZUZET, CITAT_UNVERIFIED, _izvori_iz_konteksta, _klasifikuj_citate
+        citati = _klasifikuj_citate(procena or "", list(izvori or []))
+        po_zakonu = _izvori_iz_konteksta(list(izvori or []))
+        stavke = []
+        for c in citati:
+            if c["nivo"] == CITAT_UNVERIFIED:
+                u_izvoru = False
+            elif c["nivo"] == CITAT_IZUZET:
+                u_izvoru = po_zakonu.get(c.get("zakon") or "zoo", {}).get(c["clan"]) is False
+            else:
+                u_izvoru = True
+            u_presudi = bool(_re.search(
+                rf"(?:clan(?:a|u|om|ovi|ova|ovima)?|cl\.)\s*{_re.escape(c['clan'])}(?![0-9a-z])", presuda_n))
+            status = "POTVRDJEN_U_IZVORU" if u_izvoru else ("NAVEDEN_U_PRESUDI" if u_presudi else "NEPROVEREN")
+            stavke.append({"clan": c["clan"], "zakon": (c.get("zakon") or "").lstrip("?") or None,
+                           "u_presudi": u_presudi, "u_izvoru": u_izvoru, "status": status})
+        status_c = "BEZ_CITATA" if not stavke else (
+            "NEPROVERENI" if any(x["status"] == "NEPROVEREN" for x in stavke) else "PROVERENI")
+        citati_out = {"status": status_c, "stavke": stavke[:30]}
+        nepr = [x for x in stavke if x["status"] == "NEPROVEREN"]
+        if nepr:
+            def _oznaka(x):
+                z = x["zakon"]
+                return f"čl. {x['clan']}" + (f" {z.upper() if len(z) <= 6 else z}" if z else "")
+            upozorenja.append(
+                "Neproveren citat (nije u presudi ni u dostavljenim izvorima): "
+                + "; ".join(_oznaka(x) for x in nepr[:8])
+            )
+    except Exception as exc:
+        logger.warning("[N08] provera citata analize presude nije izvršena: %s", exc)
+        citati_out = {"status": "NEPOZNATO", "stavke": []}
+        upozorenja.append("Provera citata nije izvršena — nijedan citat nije potvrđen.")
+
+    # Brojevi sudskih odluka
+    u_presudi_k = {_n08_kljuc_odluke(m) for m in _N08_ODLUKA_RE.finditer(presuda_n)}
+    u_izvoru_k = {_n08_kljuc_odluke(m) for m in _N08_ODLUKA_RE.finditer(izvori_n)}
+    odluke, vidjene = [], set()
+    for m in _N08_ODLUKA_RE.finditer(procena_n):
+        k = _n08_kljuc_odluke(m)
+        if k in vidjene:
+            continue
+        vidjene.add(k)
+        oznaka = f"{m.group(1).capitalize()} {m.group(2)}/{m.group(3)}"
+        up, ui = k in u_presudi_k, k in u_izvoru_k
+        odluke.append({"oznaka": oznaka, "u_presudi": up, "u_izvoru": ui,
+                       "status": "NAVEDENA_U_PRESUDI" if up else ("U_IZVORU" if ui else "NEPROVERENA")})
+    nepr_o = [o["oznaka"] for o in odluke if o["status"] == "NEPROVERENA"]
+    if nepr_o:
+        upozorenja.append("Neproverena sudska odluka (nije u presudi ni u izvorima): " + "; ".join(nepr_o[:8]))
+
+    rok = bool(_N08_ROK_RE.search(procena_n))
+    if rok:
+        upozorenja.append("Analiza pominje rok — sistem ga nije izračunao; rok računajte od datuma dostavljanja presude.")
+    predvidjanje = bool(_N08_PREDVIDJANJE_RE.search(procena_n))
+    if predvidjanje:
+        upozorenja.append("Analiza iznosi procenat ili izvesnost ishoda — to je procena modela, ne činjenica.")
+
+    return {
+        "obuhvat": obuhvat, "delovi": delovi, "ocr": ocr, "citati": citati_out, "odluke": odluke[:20],
+        "rok_pomenut": rok, "procena_kao_cinjenica": predvidjanje, "upozorenja": upozorenja,
+    }
+
+
+def _provera_presude_tekst(provera) -> str:
+    """Trag provere u sačuvanoj istoriji — ponovno otvaranje ne sme izgubiti oznaku neproverenog."""
+    if not provera or not provera.get("upozorenja"):
+        return ""
+    return "\n\n— PROVERA SISTEMA (nije deo analize modela) —\n" + "\n".join(
+        f"⚠ {u}" for u in provera["upozorenja"])
 
 
 # ── F5.3: PRAVNA PROCENA ──────────────────────────────────────────────────────
@@ -6541,13 +6706,21 @@ async def predmet_upload_auto_analyze(
         except Exception as _s22e:
             logger.warning("[P3.4] upload Sekcija 22 greška: %s", _s22e)
 
+    # N08: deterministička provera analize presude (tekst modela ostaje nepromenjen).
+    provera_presude = None
+    if procena_tekst and doc_type == "presuda":
+        provera_presude = _provera_analize_presude(
+            procena_tekst, text, _law_chunks[:6], text_limit,
+            ocr_koriscen=bool(ocr_used), ocr_pouzdanost=_ocr_conf, strane=_pages,
+        )
+
     if procena_tekst:
         try:
             _get_supa().table("predmet_istorija").insert({
                 "predmet_id": predmet_id,
                 "user_id":    user.id,
                 "pitanje":    f"[Auto-analiza] {file.filename or 'dokument'}",
-                "odgovor":    procena_tekst,
+                "odgovor":    procena_tekst + _provera_presude_tekst(provera_presude),
                 "confidence": "MEDIUM",
             }).execute()
         except Exception:
@@ -6691,6 +6864,7 @@ async def predmet_upload_auto_analyze(
         "predmet_id":          predmet_id,
         "doc_type":            doc_type,
         "procena":             procena_tekst,
+        "provera_presude":     provera_presude,
         "auto_analyzed":       bool(procena_tekst),
         "hronologija_count":   hron_count,
         "metadata":            metapodaci,
