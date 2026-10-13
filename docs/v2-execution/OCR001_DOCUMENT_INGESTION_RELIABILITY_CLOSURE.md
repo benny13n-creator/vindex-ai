@@ -142,7 +142,7 @@ Dve su prvo preživele (M10, M11): lokalno nema `pytesseract`, pa test nije ulaz
 ## 8. Preostali rizici
 
 1. **Finalize ponovo radi OCR unutar HTTP zahteva** (INFERRED kao mogući uzrok incidenta). Tekst iz worker-a se ne čuva, pa izbegavanje traži novu kolonu. Odluka osnivača: čuvati izvučeni tekst (migracija) ili prihvatiti rizik.
-2. **Prozor zauzeća je 120 s, a finalize velikog skena može trajati duže.** Drugi pokušaj tada može da zauzme posao dok prvi još radi. Gubitnik dobija 409 („preuzeta… ručna provera“, LAMBDA006-INTAKE-001), ali dvostruki upis istog sadržaja nije sprečen ograničenjem baze.
+2. **Prozor zauzeća je 120 s, a finalize velikog skena može trajati duže.** ZATVOREN u aplikaciji završnim gejtom (§11): zauzeće se potvrđuje i obnavlja pre svakog nepovratnog upisa. Ostaje jedan prozor koji zatvara samo predlog migracije 138 (§11).
 3. **Ukupno trajanje OCR-a nema gornju granicu** (INFERRED): 500 strana × (45 s + 30 s) po strani. Posao stariji od 300 s u obradi `reap_stale_jobs` vraća u red dok ga prvi radnik još obrađuje.
 4. **Uloga stranke iz pravog modela** nije ponovo merena (plaćen poziv). Kapija je deterministička i dokazana nad izlazom modela iz QA nalaza.
 5. **Okrenut sken se ne ispravlja, samo označava** (pouzdanost 0,45 → pregled). Automatsko okretanje (Tesseract OSD) je nova mogućnost i traži odluku.
@@ -164,8 +164,44 @@ Pre puštanja OCR001 isti postupak radi i na sadašnjoj produkciji, ali tada neu
 
 ## 10. Odluke osnivača
 
-1. Odobrenje spajanja tačnog kandidata `7a9b2873` (spajanje na `main` pokreće puštanje u produkciju).
+1. Odobrenje spajanja tačnog kandidata iz §11 (zamenjuje `7a9b2873`; spajanje na `main` pokreće puštanje u produkciju).
 2. Odobrenje postupka oporavka QA posla (§9), posle puštanja.
 3. Rizik 1: čuvanje izvučenog teksta (migracija) da finalize ne radi OCR ponovo.
-4. Rizik 2/3: produžen prozor zauzeća i/ili gornja granica ukupnog trajanja OCR-a.
+4. Rizik 3: gornja granica ukupnog trajanja OCR-a.
+6. Predlog migracije 138 (§11): odobriti ili odbiti. Kod je ispravan i bez nje.
 5. Pristup Render logovima za utvrđivanje stvarnog izuzetka u 18:28:33Z.
+
+## 11. Završni gejt: konkurentna finalizacija istog posla (A i B)
+
+**Pitanje:** može li isti dokument istog posla biti upisan dvaput kad prvi finalize proces radi duže od 120 s, a drugi preuzme zastarelo zauzeće?
+
+**PROVEN na kodu pre ove izmene** (`tests/test_ocr001_konkurentna_finalizacija.py`, stvarne HTTP rute, dva zahteva u dve niti, kontrolisan sat, barijere na granici baze, jedinstveni indeksi tačno iz migracija 094/106 sa Postgres semantikom NULL-a). Nesegmentiran dokument (`source_intake_job_segment_id = NULL`), oba redosleda upisa:
+
+| Mera | Pre ispravke | Posle ispravke |
+|---|---|---|
+| Redova u `predmet_dokumenti` za posao | **2** (redni broj 1 i 2, isti `content_sha256`) | 1 |
+| Novih predmeta (novi predmet iz dokumenta) | 1 | 1 |
+| `NewEvidenceRegistered` događaja | **2** | 1 |
+| `DocumentAccepted` | 1 (stabilan identitet po poslu) | 1 |
+| Pinecone: pozivi / identiteta vektora | 2 / 1 (isti ID-evi, prepis) | 2 / 1 |
+| A | 409 posle upisa („preuzeta… ručna provera“) | 409 PRE upisa („nije ništa upisao“) |
+| B | 200 `ok:true`, „1 dokument“ — **netačno, u predmetu su 2** | 200 `ok:true`, 1 dokument |
+| `assimilation_complete` / `finalizing_at` | true / B-ov token | true / B-ov token |
+| Ponovni pokušaj posle trke | 200, već prikačeno, 2 reda | 200, već prikačeno, 1 red |
+
+Uz to, dva dodatna dokazana kvara iste klase:
+- **Segmentiran dokument:** indeks 094 odbija drugi upis, ali kod je odbijanje tretirao kao „kolona ne postoji“ i prelazio na užu varijantu upisa bez `source_intake_job_segment_id`, `content_sha256` i `source_intake_job_id` — isti dokument drugi put, **bez identiteta**. Isto bi se desilo i sa bilo kojim novim jedinstvenim indeksom: **migracija sama ne bi bila dovoljna.**
+- **Zastareo snimak posla:** B je stanje posla čitao PRE zauzeća; dokument bez broja predmeta tada je mogao da otvori drugi predmet.
+
+**Pravi PostgreSQL** (`tests/test_ocr001_trka_postgres.py`, privremen klaster 17, doslovan DDL iz 094/095/106): `claim_intake_finalize` daje zauzeće B-u dok A radi; SELECT-pa-INSERT dva procesa daje 2 reda; indeks 094 se zaobilazi upisom bez kolone segmenta; poruka 23505 ima isti oblik kao emulacija. Izvršeno lokalno; u CI se preskače ako nema `psycopg`.
+
+**Ispravka** (`routers/smart_intake.py`, bez migracije):
+1. `_potvrdi_zauzece` pre otvaranja novog predmeta i pre svakog upisa dokumenta. Dok je proteklo vreme od zauzeća (monotoni sat zabeležen PRE poziva zauzeća) manje od 120 − 30 s, niko drugi ne može da ga preuzme. Posle toga se obnavlja: CAS oslobađanje sopstvenog tokena, pa novo zauzeće; svako tuđe zauzeće u međuvremenu promenilo je token, pa proces odustaje pre upisa (409). Dug finalize bez takmaca se obnavlja i završava.
+2. Nastavak čita predmet iz reda koji vraća zauzeće (`RETURNING *`), ne iz snimka pre zauzeća.
+3. 23505 na indeksu identiteta (sve osim `redni_broj`) više ne pada na užu varijantu: postojeći red istog sadržaja u istom predmetu istog korisnika se poveže kao već prikačen.
+
+**Preostali prozor (samo baza ga zatvara):** upis poslat dok je zauzeće važilo, a koji „visi“ u mreži ili bazi duže od 30 s i stigne posle B-ovog upisa. Test `test_zaglavljen_poslat_upis_zatvara_samo_indeks_baze` to dokumentuje: bez indeksa 2 reda, sa predlogom 138 jedan red. Predlog: `docs/v2-execution/OCR001_PREDLOG_MIGRACIJE_138.sql` — provera postojećih podataka, primena, potvrda, rollback. Opseg je samo Smart Intake (`source_intake_job_id IS NOT NULL`); ručno otpremanje (api.py) koje svesno dozvoljava isti sadržaj dvaput nije pogođeno (dokazano na pravom Postgres-u). NIJE primenjen.
+
+**Negativna kontrola:** na kodu pre ispravke pada 12 od 14 novih testova trke; prolaze samo test koji dokumentuje preostali prozor bez indeksa i test tuđeg korisnika. **Mutacije:** 10/10 uhvaćeno (bez provere pre upisa, bez provere pre predmeta, snimak pre zauzeća, uža varijanta posle 23505, sukob bez povezivanja, provera uvek prolazi, obnova bez CAS-a, token završnog CAS-a, progutan gubitak zauzeća, rezerva nula).
+
+**Bezbednost:** tuđi korisnik u trci dobija 404 i ne dira zauzeće; A zatim uspešno završava, vektori samo u A-ovom predmetu i prostoru imena. Ponovna provera postojećeg reda posle 23505 je ograničena na `user_id` pozivaoca i predmet posla.
