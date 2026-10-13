@@ -175,6 +175,18 @@ def _detect_ocr_lang() -> str:
     return "eng"
 
 
+def _oslobodi_kes_rasterizacije() -> None:
+    """N02 (OCR memorija): MuPDF čuva DEKODIRANE slike strana u globalnom kešu procesa (podrazumevano do 256 MiB)
+    i NE oslobađa ih ni posle doc.close(). Svaka skenirana strana se ovde rasterizuje tačno jednom, pa keš nikad
+    nije pogođen — izmereno: +~25 MiB RSS po A4 strani na 300 dpi, do ~256 MiB koji ostaju zauzeti posle obrade.
+    Pražnjenje ne menja nijedan piksel (keš, ne podatak), pa ni OCR rezultat."""
+    try:
+        import fitz  # pymupdf
+        fitz.TOOLS.store_shrink(100)
+    except Exception:
+        pass
+
+
 def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], list[float]]:
     """OCR samo zadatih strana PDF-a (0-indeksirano). Vraća ({indeks: tekst} za strane sa prepoznatim tekstom,
     listu pouzdanosti). Bilo koja greška okruženja (nema pymupdf/tesseract) → ({}, []) — isto kao ranije."""
@@ -190,6 +202,8 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
         for i in indeksi:
             pixmap = doc[i].get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+            del pixmap
+            _oslobodi_kes_rasterizacije()
             tekst, conf = _ocr_image(img, ocr_lang)
             if tekst and tekst.strip():
                 dopuna[i] = tekst
@@ -272,6 +286,8 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         for page_num, page in enumerate(doc):
             pixmap = page.get_pixmap(dpi=300)
             img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+            del pixmap
+            _oslobodi_kes_rasterizacije()
             page_text, page_conf = _ocr_image(img, ocr_lang)
             # OCR001: kratak, ali ISPRAVAN digitalni tekst (npr. dostavnica od tri reda, < 80 znakova) više se ne
             # zamenjuje kraćim ili praznim OCR rezultatom iste strane — digitalni sloj je tačniji od OCR-a.
@@ -339,12 +355,14 @@ def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
             necitljive = []
             for i in kandidati:
                 uzorak = doc[i].get_pixmap(dpi=50, colorspace=fitz.csGRAY).samples
+                _oslobodi_kes_rasterizacije()
                 tamnih = len(uzorak) - len(uzorak.translate(None, bytes(range(128))))
                 if uzorak and tamnih / len(uzorak) >= PRAG_VIDLJIVOG_SADRZAJA:
                     necitljive.append(i + 1)
             return necitljive
         finally:
             doc.close()
+            _oslobodi_kes_rasterizacije()
     except Exception as exc:
         logger.warning("[OCR] potpunost strana nije izmerena za %s: %s", path.name, type(exc).__name__)
         return None
