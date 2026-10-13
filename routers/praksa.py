@@ -8,6 +8,7 @@ F3.3 /api/praksa/uporedi
 F3.x /api/praksa/search
 """
 import asyncio
+import hashlib
 import logging
 import os
 from typing import Optional
@@ -305,6 +306,17 @@ _RATIO_SYSTEM_PROMPT = (
 _IZREKA_ONLY = "__IZREKA_ONLY__"
 
 
+def _ratio_cache_key(decision_number: str, tekst: str) -> str:
+    """N09 (2026-10-13): ključ deljenog keša = broj odluke + otisak TEKSTA iz kog je ratio izveden.
+
+    Ranije je ključ bio samo broj odluke, a tekst šalje klijent: ratio izveden iz bilo kog teksta
+    poslatog pod brojem (navodi stranke, izdvojeno mišljenje, odluka drugog suda istog broja) služio se
+    posle SVIM korisnicima kao ratio te odluke. Sada je keširani ratio uvek izveden iz istog teksta
+    koji je poslat. Bez migracije: kolona `decision_number` je TEXT; stari unosi (samo broj) se ne čitaju."""
+    digest = hashlib.sha256((tekst or "").encode("utf-8")).hexdigest()[:16]
+    return f"{decision_number}#{digest}"
+
+
 def _get_ratio_from_cache(decision_number: str) -> Optional[str]:
     try:
         r = (_get_supa()
@@ -361,11 +373,12 @@ def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
     """Check cache → GPT-4o mini → cache. Thread-safe, never throws."""
     if not decision_number:
         return ""
-    cached = _get_ratio_from_cache(decision_number)
+    tekst_stripped = (tekst or "").strip()
+    cache_key = _ratio_cache_key(decision_number, tekst_stripped)
+    cached = _get_ratio_from_cache(cache_key)
     if cached:
         logger.debug("[RATIO] HIT %r", decision_number)
         return cached
-    tekst_stripped = (tekst or "").strip()
     logger.info("[RATIO] MISS %r — text_len=%d preview=%r",
                 decision_number, len(tekst_stripped), tekst_stripped[:80])
     if len(tekst_stripped) < 60:
@@ -380,7 +393,7 @@ def _extract_ratio_sync(decision_number: str, tekst: str) -> str:
         return ""
     if not ratio or "nije dostupno" in ratio.lower():
         return ""
-    _save_ratio_to_cache(decision_number, ratio)
+    _save_ratio_to_cache(cache_key, ratio)
     logger.info("[RATIO] MISS→extracted %r (%d chars)", decision_number, len(ratio))
     return ratio
 
@@ -408,6 +421,16 @@ _UPOREDI_USER_TEMPLATE = (
     "## 5. PREPORUKA ZA KONKRETNI PREDMET\n"
     "Koja je odluka relevantnija kao argument u postupku i zašto? Daj konkretnu preporuku."
 )
+
+
+class OdlukaViseznacna(ValueError):
+    """N09 (2026-10-13): isti broj odluke postoji u korpusu kod VIŠE sudova (npr. „Gž 77/2020" kod dva
+    apelaciona suda). Podklasa ValueError-a da postojeći pozivaoci i dalje ništa ne tvrde o odluci."""
+
+
+def _isti_sud_normalizovano(a: str, b: str) -> bool:
+    a, b = " ".join(a.lower().split()), " ".join(b.lower().split())
+    return a == b or a in b or b in a
 
 
 def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
@@ -451,6 +474,7 @@ def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
                         "section":     md.get("section", ""),
                         "text":        txt,
                         "chunk_index": int(md.get("chunk_index") or 0),
+                        "court":       (md.get("court") or "").strip(),
                     })
         except Exception as _fe:
             _sentry_capture(_fe)
@@ -462,6 +486,18 @@ def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
         raise RetrievalUnavailable(f"pretraga odluke nije izvršena u {neuspelih_ns} izvora")
     if not all_chunks:
         raise ValueError(f"Odluka \"{dn}\" nije pronađena u bazi sudskih odluka.")
+
+    # N09 (2026-10-13): filter je samo po broju, a broj nije jedinstven među sudovima. Delovi dve
+    # različite odluke se NIKAD ne spajaju u jedan tekst sa metapodacima prve.
+    sudovi: list = []
+    for c in all_chunks:
+        if c["court"] and not any(_isti_sud_normalizovano(c["court"], s) for s in sudovi):
+            sudovi.append(c["court"])
+    if len(sudovi) > 1:
+        raise OdlukaViseznacna(
+            f"Broj odluke \"{dn}\" postoji kod više sudova ({', '.join(sudovi)}); "
+            "odluka se ne može jednoznačno odrediti samo po broju."
+        )
 
     _sec_order = {"HEADER": 0, "IZREKA": 1, "OBRAZLOŽENJE": 2}
     all_chunks.sort(key=lambda c: (_sec_order.get(c["section"], 9), c["chunk_index"]))
@@ -504,12 +540,13 @@ def _pozovi_uporedi_api(user_msg: str) -> str:
 
 
 def _uporedi_sync(dn_a: str, dn_b: str) -> dict:
+    # N09 (2026-10-13): raise_on_error=True — nedostupan korpus NIJE „odluka nije pronađena".
+    from app.services.retrieve import RetrievalUnavailable
     try:
-        meta_a, tekst_a = _fetch_decision_chunks(dn_a)
-    except ValueError as e:
-        return {"error": str(e)}
-    try:
-        meta_b, tekst_b = _fetch_decision_chunks(dn_b)
+        meta_a, tekst_a = _fetch_decision_chunks(dn_a, raise_on_error=True)
+        meta_b, tekst_b = _fetch_decision_chunks(dn_b, raise_on_error=True)
+    except RetrievalUnavailable:
+        return {"error": "Baza sudskih odluka je trenutno nedostupna — postojanje odluke nije provereno. Pokušajte ponovo."}
     except ValueError as e:
         return {"error": str(e)}
 
