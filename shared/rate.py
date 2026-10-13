@@ -15,11 +15,21 @@ ijednog pokušaja da se Redis vrati na bezbedan način.
 Ovaj fajl to rešava koristeći ugrađene slowapi/limits mehanizme (NE custom
 Storage wrapper — provereno čitanjem izvora: `Limiter._check_request_limit`
 već hvata SVAKI izuzetak iz storage sloja u jednom `except Exception`):
-  - `in_memory_fallback_enabled=True` + `in_memory_fallback=<isti limiti>`:
-    na PRVU Redis grešku, slowapi interno prebacuje na in-memory limitere
+  - `in_memory_fallback_enabled=True` (BEZ liste `in_memory_fallback`):
+    na PRVU Redis grešku, slowapi prebacuje brojače na in-memory storage
     (po radniku — svaki gunicorn worker ima svoj), i periodično proverava
     da li se Redis oporavio (`storage.check()`) da se vrati na deljene
-    Redis brojače.
+    Redis brojače. Limiti ostaju ISTI kao sa Redis-om: limit rute
+    (`@limiter.limit("60/minute")`) za dekorisane rute, `_DEFAULT_LIMITS`
+    za ostale (preko SlowAPIMiddleware).
+
+    OCR001-STATUS-RECOVERY: NE prosleđivati `in_memory_fallback=<limiti>`.
+    U slowapi 0.1.9 (`Limiter._check_request_limit`) neprazna lista ne
+    služi kao „isti limiti u memoriji“ nego ZAMENJUJE limit svake rute dok
+    je Redis mrtav. Sa `in_memory_fallback=["60/hour"]` ruta stanja posla
+    (`60/minute`) dobijala je `60/hour`, pa je praćenje na 3 s dobijalo 429
+    posle tri minuta (produkcioni log). Prazna lista = normalan izbor limita
+    nad in-memory storage-om (tests/test_ocr001_status_rate_limit.py).
   - `swallow_errors=True`: krajnja bezbednosna mreža — ako i in-memory
     fallback putanja iz nekog razloga baci grešku, zahtev se PROPUŠTA
     (logged kao warning), nikad ne postane HTTP 500 zbog rate limitera.
@@ -37,9 +47,9 @@ from starlette.requests import Request
 
 logger = logging.getLogger("vindex.rate")
 
-# Isti default set koristi se i kao normalni limit i kao in-memory fallback
-# limit — namerno identičan, tako da se ponašanje ne menja semantički tokom
-# Redis ispada, samo koji storage stoji iza brojača.
+# Podrazumevani limit za rute bez sopstvenog `@limiter.limit(...)` (primenjuje
+# ga SlowAPIMiddleware). Važi isto i tokom Redis ispada — menja se samo storage
+# iza brojača, ne izbor limita (vidi docstring: bez `in_memory_fallback` liste).
 _DEFAULT_LIMITS = ["60/hour"]
 
 _REDIS_URL = os.getenv("REDIS_URL", "").strip()
@@ -83,7 +93,6 @@ def build_limiter(key_func: Callable[[Request], str], default_limits: list[str] 
             # Upstash latenciju, a dovoljno kratko da ispad bude neprimetan.
             storage_options={"socket_connect_timeout": 1.0, "socket_timeout": 1.0},
             in_memory_fallback_enabled=True,
-            in_memory_fallback=limits,
             swallow_errors=True,
         )
     logger.info("[RATE] In-memory limiter (REDIS_URL nije postavljen)")

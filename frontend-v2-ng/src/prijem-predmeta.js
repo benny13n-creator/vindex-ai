@@ -18,7 +18,19 @@
 (function (root) {
   "use strict";
 
-  var RAZMAK_MS = 3000, NAJDUZE_MS = 5 * 60 * 1000;
+  /* Praćenje stanja posla (OCR001-STATUS-RECOVERY). Ruta stanja ima „60/minute“ po IP adresi i putanji posla; jedan
+   * posao na 10 s je 6 zahteva u minutu, a svaki posao ima svoj brojač. Rok praćenja važi i kad zahtevi stalno padaju, a zahtev koji
+   * „visi“ prekida se posle ZAHTEV_MS. Posle 429 čeka se `Retry-After` ako ga server pošalje, inače ceo prozor limita. */
+  var RAZMAK_MS = 10000, NAJDUZE_MS = 5 * 60 * 1000, ZAHTEV_MS = 20000, POSLE_429_MS = 60000, NAJDUZE_CEKANJE_MS = 60000;
+  var KONACNE_GRESKE = { NOT_FOUND: "Posao nije dostupan.", AUTH_REQUIRED: "Prijava više nije važeća. Stanje posla se ne prati.",
+    FORBIDDEN: "Nemate pristup ovom poslu." };
+  function cekanjePosleGreske(g, uzastopno) {
+    if (g && g.kod === "RATE_LIMITED") {
+      var ra = Number(g.retryAfter);
+      return Number.isFinite(ra) && ra > 0 ? Math.min(Math.max(ra * 1000, RAZMAK_MS), NAJDUZE_MS) : POSLE_429_MS;
+    }
+    return Math.min(RAZMAK_MS * Math.pow(2, Math.max(0, uzastopno - 1)), NAJDUZE_CEKANJE_MS);   // 10 · 20 · 40 · 60 · 60 s
+  }
   var ZAVRSNA = { awaiting_review: 1, completed: 1, failed: 1 };
   var STANJA = { received: "U redu za obradu", preprocessing: "Priprema dokumenta", classifying: "Prepoznavanje vrste dokumenta",
     extracting: "Izdvajanje podataka", matching: "Povezivanje podataka", dedup_check: "Provera duplikata",
@@ -116,26 +128,43 @@
       prati(p);
     }
 
+    /* Sledeće čitanje se zakazuje samo ako staje u rok praćenja — i posle greške i posle 429. Ručna radnja (ispravka,
+     * pregled, prikačivanje) i dalje pokreće jedno sveže čitanje i kad je rok prošao. */
+    function zakazi(p, ms, napomena) {
+      if (Date.now() + ms - p.od > NAJDUZE_MS) {
+        prikazi(p, (napomena ? napomena + " " : "") + "Praćenje je zaustavljeno posle 5 minuta. Obrada se nastavlja na serveru — ponovo otpremite isti fajl da biste videli njen ishod.");
+        return;
+      }
+      if (napomena) prikazi(p, napomena);
+      p.tajmer = setTimeout(function () { prati(p); }, ms);
+    }
+
     async function prati(p) {
       zaustaviPracenje(p);
       if (!zivi(p)) return;
-      p.k = new AbortController();
-      var r = await api.get("/api/smart-intake/jobs/" + encodeURIComponent(p.id), { token: sesija.token(), signal: p.k.signal,
+      var k = p.k = new AbortController(), istekao = false;
+      var rok = setTimeout(function () { istekao = true; k.abort(); }, ZAHTEV_MS);
+      var r = await api.get("/api/smart-intake/jobs/" + encodeURIComponent(p.id), { token: sesija.token(), signal: k.signal,
         oblik: function (x) { return x.job && typeof x.job.status === "string" && Array.isArray(x.entiteti); } });
-      if (!zivi(p)) return;
+      clearTimeout(rok);
+      if (!zivi(p) || p.k !== k) return;                       // novo čitanje ili gašenje praćenja je preuzelo posao
       p.k = null;
       if (!r.ok) {
-        if (r.greska && r.greska.kod === "ABORTED") return;
-        prikazi(p, r.greska && r.greska.kod === "NOT_FOUND" ? "Posao nije dostupan." : "Stanje posla nije učitano zbog greške. Ovo ne znači da obrada nije uspela.");
-        p.tajmer = setTimeout(function () { prati(p); }, RAZMAK_MS * 2);
+        var g = r.greska || {};
+        if (g.kod === "ABORTED" && !istekao) return;
+        if (KONACNE_GRESKE[g.kod]) { p.greske = 0; prikazi(p, KONACNE_GRESKE[g.kod]); return; }
+        p.greske = (p.greske || 0) + 1;
+        zakazi(p, cekanjePosleGreske(g, p.greske), g.kod === "RATE_LIMITED"
+          ? "Server je privremeno ograničio broj zahteva; stanje posla se ponovo proverava malo kasnije. Ovo ne znači da obrada nije uspela."
+          : "Stanje posla nije učitano zbog greške. Ovo ne znači da obrada nije uspela.");
         return;
       }
+      p.greske = 0;
       p.podaci = r.podaci;
       var st = tekst(p.podaci.job.status);
       if (ZAVRSNA[st] && prikacivanje(p.podaci.job) !== "U_TOKU") { prikazi(p, null); return; }
-      if (Date.now() - p.od > NAJDUZE_MS) { prikazi(p, "Praćenje je zaustavljeno posle 5 minuta. Obrada se nastavlja na serveru — ponovo otpremite isti fajl da biste videli njen ishod."); return; }
       prikazi(p, null);
-      p.tajmer = setTimeout(function () { prati(p); }, RAZMAK_MS);
+      zakazi(p, RAZMAK_MS, null);
     }
 
     function prikazi(p, napomena) {

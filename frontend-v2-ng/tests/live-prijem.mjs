@@ -47,6 +47,9 @@ async function scenario(kuke = {}, { token = TA, korisnik = "kA", w = 1440, h = 
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
   const spoljni = [];
   await ctx.route("**/*", r => { const u = new URL(r.request().url()); if (u.hostname === "127.0.0.1") return r.continue(); spoljni.push(u.href); return r.abort(); });
+  // OCR001-STATUS-RECOVERY: praćenje stanja čeka 10 s; ovaj test proverava SADRŽAJ prikaza, pa taj razmak sabija na 3 s
+  // (tempo za koji su pisani njegovi rokovi). Stvarni razmak, 429, rok i „viseći“ zahtev meri tests/live-prijem-pracenje.mjs.
+  await ctx.addInitScript(() => { const st = window.setTimeout; window.setTimeout = (fn, ms, ...a) => st(fn, ms === 10000 ? 3000 : ms, ...a); });
   await ctx.addInitScript(() => { window.__prFetch = {}; const o = window.fetch.bind(window); window.fetch = (u, opt) => { const k = String(u).split("?")[0].replace(/[0-9a-f-]{36}|ent-[\w-]+/g, "{id}") + ":" + ((opt && opt.method) || "GET"); window.__prFetch[k] = (window.__prFetch[k] || 0) + 1; return o(u, opt).catch(e => { if (e && e.name === "AbortError") window.__prPrekinuto = (window.__prPrekinuto || 0) + 1; throw e; }); }; });
   await ctx.addInitScript(([k, v]) => {
     if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }

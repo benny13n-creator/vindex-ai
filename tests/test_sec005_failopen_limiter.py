@@ -12,12 +12,15 @@ sopstveni mehanizam, ne custom wrapper) to više ne radi — ni za mrežne greš
 dostupan ali vraća grešku, ne mrežni pad).
 
 VAŽNA, EMPIRIJSKI POTVRĐENA NIJANSA (ne pretpostavka): kada Redis storage
-padne, slowapi NE zadržava pojedinačni ("30/minute" na ovoj ruti, "10/minute"
-na onoj) limit po ruti — umesto toga, SVE rute privremeno dele JEDAN,
-globalni `in_memory_fallback` limit dok se Redis ne oporavi. Ovo je
-provereno direktnim čitanjem slowapi izvora (Limiter._check_request_limit)
-i potvrđeno eksperimentalno pre pisanja ovih testova — testovi ispod
-testiraju STVARNO ponašanje, ne ono što bi neko intuitivno očekivao.
+padne i Limiter ima NEPRAZNU listu `in_memory_fallback`, slowapi NE zadržava
+pojedinačni limit po ruti — ta lista ZAMENJUJE limit svake rute dok se Redis
+ne oporavi (Limiter._check_request_limit). Testovi ispod namerno grade
+limiter SA takvom listom i mere to ponašanje slowapi-ja.
+
+OCR001-STATUS-RECOVERY: produkcija (`shared.rate.build_limiter`) zato više
+NE prosleđuje tu listu — sa `["60/hour"]` je ruta stanja posla (`60/minute`)
+dobijala `60/hour`. Tokom ispada produkcija zadržava limit rute i
+podrazumevani limit; to dokazuje tests/test_ocr001_status_rate_limit.py.
 """
 import asyncio
 import os
@@ -55,9 +58,10 @@ def _redis_key(request: Request) -> str:
 
 
 def _build_redis_backed_limiter(redis_url: str, fallback_limits: list[str]) -> Limiter:
-    """Isti obrazac kao shared.rate.build_limiter(), izolovano konstruisan
-    po testu tako da testovi ne dele stanje preko istog Limiter singltona
-    (svaki test treba svoj MemoryStorage/_storage_dead da bi bio nezavisan)."""
+    """Fail-open obrazac (in-memory fallback + swallow_errors) SA eksplicitnom
+    `in_memory_fallback` listom — to NIJE produkciona konfiguracija (vidi
+    docstring modula), izolovano konstruisan po testu tako da testovi ne dele
+    stanje preko istog Limiter singltona."""
     return Limiter(
         key_func=_redis_key,
         default_limits=["60/hour"],
@@ -97,7 +101,7 @@ class TestFailOpenOnConnectionFailure:
         ne samo 'sve prolazi'."""
         limiter = _build_redis_backed_limiter("redis://localhost:1/0", ["3/minute"])
 
-        @limiter.limit("100/minute")  # rutin sopstveni limit — NE koristi se dok je storage mrtav
+        @limiter.limit("100/minute")  # NE koristi se dok je storage mrtav, jer ga zamenjuje `in_memory_fallback` lista
         async def route(request: Request):
             return {"ok": True}
 
