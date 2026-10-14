@@ -42,9 +42,15 @@
     if (s === "izvrsen" || s === "otkazan") return s;
     var o = IZ_ODLUKE[tekst(red && red.stanje_odluke).toUpperCase()];
     if (o && o !== "kandidat") return o;
-    if (STANJA[s]) return s;
+    /* NS2-A2: `potvrdjen` u koloni nije odluka — potvrdu nosi SAMO lanac odluka (`stanje_odluke`), isto kao
+     * kanonska `sme_pristupiti` za .ics i podsetnike. Pisac koji pri upisu stavi `potvrdjen` ne sme da napravi obavezu. */
+    if (STANJA[s] && s !== "potvrdjen") return s;
     return o || null;
   }
+  /* Poreklo (`izvor`, migracija 127) je podatak o NASTANKU zapisa, nikad odluka: nijedna vrednost ne potvrđuje rok. */
+  var POREKLO = { AI_AUTONOMOUS: "predložio sistem (AI)", AI_ASSISTED: "uneto uz pomoć AI", HUMAN_DIRECT: "uneto ručno",
+    DETERMINISTIC: "izračunato iz kataloga rokova", SYSTEM: "zabeležio sistem", LEGACY_UNKNOWN: "poreklo nepoznato", ai: "predložio sistem" };
+  function porekloTekst(v) { return POREKLO[tekst(v)] || "poreklo nije zabeleženo"; }
   function ispravanId(v) { return /^[A-Za-z0-9_-]{1,64}$/.test(tekst(v)); }
 
   /* Čist sastav (bez DOM-a): ista pravila kao v2/domain/danas.js::sastavi + sastaviKalendar. */
@@ -71,14 +77,15 @@
     });
     var poDatumu = function (a, b) { return a.datumIso === b.datumIso ? (a.vreme || "").localeCompare(b.vreme || "") : (a.datumIso < b.datumIso ? -1 : 1); };
     var sve = potvrdjeni.concat(rocista).filter(function (x) { return x.razlika !== null; }).sort(poDatumu);
-    var predlozi = aktivni.filter(function (r) { return stanjeZapisa(r) === "kandidat"; }).map(function (r) { return stavka(r, "predlog"); })
-      .filter(function (x) { return x.razlika !== null; }).sort(poDatumu);
+    var sviPredlozi = aktivni.filter(function (r) { return stanjeZapisa(r) === "kandidat"; }).map(function (r) { return stavka(r, "predlog"); });
+    var predlozi = sviPredlozi.filter(function (x) { return x.razlika !== null; }).sort(poDatumu);
     return {
       grupe: GRUPE.map(function (g) { return { kljuc: g[0], naziv: g[1], stavke: sve.filter(function (x) { return grupa(x.razlika) === g[0]; }) }; })
         .filter(function (g) { return g.stavke.length; }),
       kalendar: sve.filter(function (x) { return x.razlika >= 0; }),
       predlozi: predlozi,
       neizjavljeno: redovi.length - rokovi.length,
+      bezDatuma: sviPredlozi.length - predlozi.length,
     };
   }
 
@@ -119,7 +126,7 @@
       li.dataset.rok = x.id;
       var naziv = el("span", "review__name", x.opis);
       li.append(naziv);
-      li.append(el("span", "review__meta", [datumTekst(x.datumIso) + " · " + kadaTekst(x.razlika), x.predmet || "", x.izvor === "ai" ? "predložio sistem" : ""].filter(Boolean).join(" · ")));
+      li.append(el("span", "review__meta", [datumTekst(x.datumIso) + " · " + kadaTekst(x.razlika), x.predmet || "", porekloTekst(x.izvor), "čeka vašu odluku"].filter(Boolean).join(" · ")));
       var akcije = el("span", "review__actions");
       var da = el("button", "text-btn text-btn--line", "Potvrdi"); da.type = "button"; da.setAttribute("aria-label", "Potvrdi rok: " + x.opis);
       var ne = el("button", "text-btn", "Odbij"); ne.type = "button"; ne.setAttribute("aria-label", "Odbij rok: " + x.opis);
@@ -137,9 +144,12 @@
         if (moja !== gen) return;
         radi = false;
         if (r.ok) {
-          var potvrdjeno = radnja === "potvrdi";
-          stanje("da-poruka", "uspeh", potvrdjeno ? "Rok „" + x.opis + "“ je potvrđen: preuzeli ste ga za upotrebu. Potvrda ne znači da je sistem proverio njegovu tačnost."
+          /* NS2-A2: poruka se bira po stanju koje je SERVER pročitao iz lanca posle upisa, ne po kliknutom dugmetu.
+           * UNKNOWN (lanac nije pročitan), neispravan odgovor ili drugo stanje (odluka iz druge sesije) → ishod se ne tvrdi. */
+          var potvrdjeno = radnja === "potvrdi", st2 = r.podaci ? r.podaci.stanje_odluke : null;
+          if (st2 === (potvrdjeno ? "CONFIRMED" : "REJECTED")) stanje("da-poruka", "uspeh", potvrdjeno ? "Rok „" + x.opis + "“ je potvrđen: preuzeli ste ga za upotrebu. Potvrda ne znači da je sistem proverio njegovu tačnost."
             : "Rok „" + x.opis + "“ je odbijen. Ne briše se — ostaje u hronologiji predmeta.");
+          else stanje("da-poruka", "nepoznato", "Vaša odluka za rok „" + x.opis + "“ je primljena, ali trenutno stanje roka nije potvrđeno čitanjem. Spisak se ponovo učitava — proverite stanje pre ponovnog pokušaja.");
           ucitaj();
           return;
         }
@@ -147,6 +157,7 @@
         if (g.ishodNepoznat) { stanje("da-poruka", "nepoznato", "Ishod odluke za rok „" + x.opis + "“ nije poznat: veza je prekinuta ili server nije odgovorio ispravno. Spisak se ponovo učitava — proverite stanje pre ponovnog pokušaja."); ucitaj(); return; }
         da.disabled = false; ne.disabled = false;
         st.textContent = g.kod === "NOT_FOUND" ? "Rok nije dostupan. Ništa nije zabeleženo."
+          : g.kod === "CONFLICT" ? "Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo."
           : g.kod === "AUTH_REQUIRED" ? "Prijava više nije važeća. Ništa nije zabeleženo."
           : g.kod === "RATE_LIMITED" ? "Previše zahteva. Pokušajte malo kasnije. Ništa nije zabeleženo."
           : "Server je odbio zahtev. Ništa nije zabeleženo; rok ostaje nepotvrđen.";
@@ -208,7 +219,10 @@
       else if (!x.predlozi.length) stanje("da-predlozi-stanje", "prazno", "Nema predloženih rokova koji čekaju vašu odluku.");
       else stanje("da-predlozi-stanje", null);
       x.predlozi.forEach(function (p) { $("da-predlozi").append(redPredloga(p, moja)); });
-      if (x.neizjavljeno > 0) stanje("da-napomena", "prazno", x.neizjavljeno + (x.neizjavljeno === 1 ? " zapis hronologije nema" : " zapisa hronologije nema") + " oznaku da je rok, pa se ovde ne prikazuje ni kao obaveza ni kao predlog. Vidite ih u hronologiji predmeta.");
+      var napomene = [];
+      if (x.neizjavljeno > 0) napomene.push(x.neizjavljeno + (x.neizjavljeno === 1 ? " zapis hronologije nema" : " zapisa hronologije nema") + " oznaku da je rok, pa se ovde ne prikazuje ni kao obaveza ni kao predlog. Vidite ih u hronologiji predmeta.");
+      if (x.bezDatuma > 0) napomene.push(x.bezDatuma + (x.bezDatuma === 1 ? " predloženi rok nema ispravan datum" : " predloženih rokova nema ispravan datum") + ", pa se ovde ne prikazuje. Proverite ga u hronologiji predmeta.");
+      if (napomene.length) stanje("da-napomena", "prazno", napomene.join(" "));
 
       // Kalendar 30 dana: samo potvrđeni rokovi i ročišta, grupisano po mesecu i danu
       if (!x.kalendar.length) stanje("da-kalendar-stanje", nepotpuno.length ? "nepotpuno" : "prazno", nepotpuno.length ? "U učitanim podacima nema termina u narednih 30 dana." : "Nema potvrđenih rokova ni ročišta u narednih 30 dana.");
