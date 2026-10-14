@@ -12,7 +12,7 @@ on:
 
 jobs:
   b1:
-    if: ${{ !contains(github.event.head_commit.message, '[b2-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[b2-only]') && !contains(github.event.head_commit.message, '[skip-b1]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
@@ -70,3 +70,24 @@ jobs:
       - name: B2 discriminator sweep (production tessdata)
         run: |
           docker run --rm -e PYTHONIOENCODING=utf-8 -v "$PWD/ns2_measure:/m" vx sh -c "cd /app && python /m/b2sweep.py /m /m/fxb2s" 2>/dev/null | grep '^{"kind' | sed 's/^/B2SWEEP /'
+
+  ret:
+    if: ${{ contains(github.event.head_commit.message, '[ret]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Generate synthetic fixtures
+        run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
+      - name: Retention probe (no cgroup limit, 2 GiB) - which memory stays after each job
+        run: |
+          FEK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+          SEQ=scan_cyr_1p.pdf,scan_cyr_1p.pdf,mixed_6p.pdf,img_40mp_cmyk.jpg,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf,img_40mp_prog444.jpg,scan_10p.pdf,img_40mp_prog444.jpg,scan_cyr_1p.pdf
+          while read -r tag envs; do
+            [ -z "$tag" ] && continue
+            e=""; for kv in $(echo "$envs" | tr ',' ' '); do [ "$kv" != "-" ] && e="$e -e $kv"; done
+            echo "=== RETCASE $tag $envs"
+            docker run --rm --memory=2g $e --env-file ns2_measure/env.list -e FIELD_ENCRYPTION_KEY=$FEK -v "$PWD/ns2_measure:/m" vx               python /m/ret.py $SEQ 2>&1 | grep -E "^RET" | sed "s/^/$tag /"
+          done < ns2_measure/ret_cases.txt

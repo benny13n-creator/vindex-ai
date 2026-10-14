@@ -1,0 +1,4 @@
+base -
+arena2 MALLOC_ARENA_MAX=2
+mmap1m GLIBC_TUNABLES=glibc.malloc.mmap_threshold=1048576
+both MALLOC_ARENA_MAX=2,GLIBC_TUNABLES=glibc.malloc.mmap_threshold=1048576
