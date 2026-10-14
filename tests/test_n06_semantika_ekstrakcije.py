@@ -233,3 +233,27 @@ def test_ocr_dostavnice_ceo_tok_primalac_nije_stranka_i_original_ostaje(ok, monk
     tekst = " ".join(d.get("tekst_sadrzaj") or "" for d in docs)
     assert "OCR001-FRESH-2026-015" in tekst and "26.03.2025" in tekst
     assert b.tabele["predmet_hronologija"] == [], "datum uručenja ne sme postati rok"
+
+# Recenzija N06 (krug 2): oblik bez nepostojanog „a“ važi samo posle muške oznake u kosom padežu. Posle nominativa
+# ili ženske oznake „Petra“ je žensko ime — „Tužilja: Petra Ilić“ ne potvrđuje model-vrednost „Petar Ilić“.
+@pytest.mark.parametrize("tekst,tip,vrednost", [
+    ("Tužilja: Petra Ilić", "plaintiff", "Petar Ilić"),
+    ("Tužilac: Petra Ilić", "plaintiff", "Petar Ilić"),
+    ("Tužena: Petra Ilić", "defendant", "Petar Ilić"),
+    ("Тужиља: Петра Илић", "plaintiff", "Petar Ilić"),
+    ("u parnici tužilje Petre Ilić", "plaintiff", "Petar Ilić"),
+])
+def test_nepostojano_a_ne_vazi_posle_nominativa_ili_zenske_oznake(tekst, tip, vrednost):
+    assert _uloga(tekst, tip, vrednost) is False
+
+
+@pytest.mark.parametrize("tekst,tip,vrednost", [
+    ("u parnici tužioca Petra Ilića protiv tuženog", "plaintiff", "Petar Ilić"),
+    ("protiv tuženog Lazara Ilića", "defendant", "Lazar Ilić"),
+    ("presuda tuženom Petru Iliću", "defendant", "Petar Ilić"),
+    ("u parnici tužilje Petre Ilić", "plaintiff", "Petra Ilić"),   # žensko ime u kosom padežu, ženska vrednost
+    ("Tužilja: Petra Ilić", "plaintiff", "Petra Ilić"),
+])
+def test_nepostojano_a_posle_muskog_kosog_padeza_i_zenska_imena(tekst, tip, vrednost):
+    assert _uloga(tekst, tip, vrednost) is True
+

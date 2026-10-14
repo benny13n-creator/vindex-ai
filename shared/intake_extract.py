@@ -379,13 +379,22 @@ _NEPOSTOJANO_A = re.compile(r"[bcčćdđfghjklmnprsštvzž]a[bcčćdđfghjklmnpr
 
 
 def _osnove_reci(r: str) -> tuple:
-    """Prihvatljive osnove jedne reči imena: cela reč bez poslednjeg slova i, ako reč ima nepostojano „a“, i oblik
-    bez njega (aleksandar → aleksandr). Nijedna osnova nije kraća od N06 poređenja — nema povratka na 4 slova."""
-    osnove = [re.compile(re.escape(r[:max(4, len(r) - 1)]))]
+    """(osnova, osnova bez nepostojanog „a“ ili None) jedne reči imena: cela reč bez poslednjeg slova i, ako reč ima
+    nepostojano „a“, i oblik bez njega (aleksandar → aleksandr). Nijedna osnova nije kraća od N06 poređenja — nema
+    povratka na 4 slova."""
+    osnova = re.compile(re.escape(r[:max(4, len(r) - 1)]))
+    nepostojano = None
     if len(r) >= 5 and _NEPOSTOJANO_A.search(r):
         # Samo cela reč sa padežnim nastavkom: „petr“ ne sme da pogodi „Petrović“.
-        osnove.append(re.compile(r"(?<!\w)" + re.escape(r[:-2] + r[-1]) + r"(?:a|e|i|u|om|em|ima)?(?!\w)"))
-    return tuple(osnove)
+        nepostojano = re.compile(r"(?<!\w)" + re.escape(r[:-2] + r[-1]) + r"(?:a|e|i|u|om|em|ima)?(?!\w)")
+    return osnova, nepostojano
+
+
+# Oblik bez nepostojanog „a“ postoji samo u KOSOM padežu muškog imena (Aleksandra, Petru, Lazarom), pa se prihvata
+# samo posle oznake uloge u muškom kosom padežu („tužioca“, „tuženog“, „tuženom“…). Posle nominativa („Tužilac:“,
+# „Tužilja:“, „Tuženi:“) ili ženske oznake („tužilje“, „tuženoj“) „Petra“ je žensko ime Petra, ne Petar — recenzija:
+# „Tužilja: Petra Ilić“ je potvrđivala model-vrednost „Petar Ilić“. Nepoznat oblik oznake → bez nepostojanog „a“.
+_MUSKI_KOSI_PADEZ = re.compile(r"(?:tuzioc\w+|tuzitelj(?:a|u|em|om)|tuzen(?:og|oga|om|ome|omu))")
 
 
 def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -> bool:
@@ -409,7 +418,9 @@ def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -
         if granica and granica.start() < kraj:
             kraj = granica.start()
         prozor = _sravni(text[m.end(): kraj])
-        if all(any(o.search(prozor) for o in osnove) for osnove in reci):
+        kosi = _MUSKI_KOSI_PADEZ.fullmatch(_sravni(m.group(0))) is not None
+        if all(osnova.search(prozor) or (kosi and nepostojano is not None and nepostojano.search(prozor))
+               for osnova, nepostojano in reci):
             return True
     return False
 
