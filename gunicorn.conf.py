@@ -1,7 +1,12 @@
 import os
 
-# Workers: Render sets $WEB_CONCURRENCY based on instance type; default 4
-workers = int(os.getenv("WEB_CONCURRENCY", 4))
+# Workers: tacno $WEB_CONCURRENCY ako je postavljen, inace JEDAN radnik.
+# NS2 (2026-10-14): na 512 MiB instanci izmereno -- 4 radnika ne mogu ni da miruju
+# (OOM petlja), 2 radnika padaju na paru OCR poslova, 1 radnik prezivljava.
+# Podrazumevana vrednost je zato 1 (ista kao `workers` polje u /health u api.py),
+# da izostanak promenljive nikad ne udvostruci/ucetvorostruci memoriju.
+# Vise radnika = svesna odluka: WEB_CONCURRENCY na vecoj instanci.
+workers = int(os.getenv("WEB_CONCURRENCY", 1))
 worker_class = "uvicorn.workers.UvicornWorker"
 
 # Timeouts — AI pozivi mogu trajati do 90s
