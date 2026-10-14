@@ -178,6 +178,23 @@ for (const [naziv, kuka, re, ponovo] of [
   zapisi("D.istina", "degraded_sources[rocista] i odsečeni rokovi se kažu", /ročišta nisu učitana/.test(e.stanje || "") && /rokova ima više nego što je prikazano/.test(e.stanje), e.stanje);
   await s.zatvori();
 }
+// ── N03-FD6: izvor promenjen posle potvrde = upozorenje uz OBAVEZU, ne opoziv; pad provere se kaže ───────
+{
+  const s = await scenario({}, { pripremi: (KOR) => { KOR[TA].rokovi.find(x => x.id === "r-pot").izvorUklonjen = true; } });
+  await ucitano(s.p);
+  const e = await ekran(s.p);
+  const g = e.grupe.join(" / ");
+  zapisi("F.izvor", "potvrđen rok ostaje obaveza i nosi upozorenje da je dokument uklonjen posle potvrde", /Rok za odgovor na tužbu.*Posle vaše potvrde iz predmeta je uklonjen dokument\. Ne zna se da li je ovaj rok poticao iz njega/.test(g) && e.kalendar.includes("Rok za odgovor na tužbu"), g.slice(0, 220));
+  zapisi("F.izvor", "upozorenje samo uz taj rok (ne uz ostale obaveze)", (g.match(/Posle vaše potvrde/g) || []).length === 1);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ proveraIzvora: false });
+  await ucitano(s.p);
+  const e = await ekran(s.p);
+  zapisi("F.izvor", "pad provere izvora: pregled izričito NIJE potpun, obaveze i dalje vidljive", /^nepotpuno:Pregled NIJE potpun: nije provereno da li su izvori potvrđenih rokova menjani/.test(e.stanje || "") && /Rok za odgovor/.test(e.grupe.join()), e.stanje);
+  await s.zatvori();
+}
 {
   const s = await scenario({}, { pripremi: (KOR) => { KOR[TA].rokovi = []; KOR[TA].dogadjaji = []; } });
   await ucitano(s.p);

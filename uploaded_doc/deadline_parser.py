@@ -6,15 +6,19 @@ Funkcija `ekstrahuj_rokove` parsira srpske datume i relativne rokove
 iz pravnog teksta i vraća strukturirane dict-ove sa kontekstom i kategorijom.
 
 Phase 4.1 dodaci:
-  - `_extract_datum_dokumenta` — auto-detekcija datuma dokumenta
-  - `_parse_trajanje_dana`     — konverzija relativnog roka u broj dana
-  - `_kalkulisi_rok`           — kalkulacija konkretnog datuma + countdown
+  - `_extract_datum_dokumenta` — auto-detekcija datuma dokumenta (bez datuma prijema/dostave, N03-FD4)
+  - `_kalkulisi_rok`           — odbrojavanje SAMO za apsolutni datum; relativni rok se ne racuna (N03-FD3)
 """
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
+
+#: N03-FD3 — razlog zasto relativni rok nema konkretan datum: okidac (npr. dostava),
+#: pravna kvalifikacija i pravilo racunanja nisu provereni. Ranija konverzija
+#: `_parse_trajanje_dana` (mesec = 30 dana, radni dani kao kalendarski) je uklonjena.
+RACUN_IZOSTAVLJEN_RELATIVNI = "relativni_rok_okidac_i_pravilo_nisu_provereni"
 
 # ─── Meseci na srpskom ────────────────────────────────────────────────────────
 _MESECI_GEN = {
@@ -84,41 +88,109 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
     Detektuje datum dokumenta iz prvih 500 karaktera teksta.
     Vraća "DD.MM.YYYY" string ili None.
 
-    Traži tipične pravne fraze: "Dana ...", "Beograd, ...", "doneta ...",
-    "zaključen dana ..." i sl. Fallback: prvi DD.MM.YYYY u prvih 500 chars.
+    Traži tipične pravne fraze: "doneta ...", "zaključen dana ...", "datum
+    presude: ...", "Dana ...", "Beograd, ..." i sl. Fallback: prvi DD.MM.YYYY u
+    prvih 500 chars.
+
+    N03-FD4: datum PRIJEMA / DOSTAVE / URUČENJA nije datum dokumenta. Ranije je
+    prvi „dana DD.MM.YYYY" pobedjivao, pa je pečat „Primljeno dana 25.03.2025"
+    iznad presude donete 17.03.2025 postajao „datum presude". Sada se izričite
+    fraze izdavanja (donet, zaključen, datum presude) traže PRE generičkog
+    „dana", a datum kome u istom redu prethodi reč prijema/dostave se nikad ne
+    vraća. Kad je jedini datum datum prijema, rezultat je `None` (nepoznato),
+    ne pogodak.
     """
     probe = tekst[:500]
 
+    def _datum_prijema(pocetak: int, kraj: int) -> bool:
+        """Da li je pecat prijema/dostave/ekspedicije VEZAN BAS ZA OVAJ datum.
+
+        Vezan je kada:
+          1. u istom redu, izmedju prethodnog datuma (ili pocetka reda) i ovog datuma,
+             stoji rec pecata („Primljeno dana 25.03.2025");
+          2. rec pecata stoji ODMAH posle datuma, kao njegov predikat („25.03.2025
+             PRIMLJENO") — ne posle zareza, gde opisuje odluku („doneta 17.03.2025,
+             dostavljena strankama");
+          3. prethodni NEPRAZAN red je kratak natpis pecata BEZ sopstvenog datuma
+             („PRIMLJENO" iznad datuma) — BEZ OBZIRA na reci u redu datuma: pecat
+             cesto sadrzi „Dana: ..." ili „Mesto, ...", pa fraza izdavanja tu nije dokaz
+             da je datum datum dokumenta. Cena: „Dostava:\nBeograd, 17.03.2025" daje
+             `None` umesto 17.03 — nepoznato, nikad pogresno.
+        Pecat sa sopstvenim datumom ne prenosi se na sledeci red. Kad pravila ne mogu
+        da odluce, pozivalac vraca `None` — nepoznat datum je bolji od pogresnog."""
+        red_pocetak = probe.rfind("\n", 0, pocetak) + 1
+        pre = probe[red_pocetak:pocetak]
+        prethodni_datumi = list(_DATUM_RE.finditer(pre))
+        if prethodni_datumi:
+            pre = pre[prethodni_datumi[-1].end():]
+        if _PRIJEM_RE.search(pre):
+            return True
+        if _PRIJEM_POSLE_RE.match(probe[kraj:kraj + 30]):
+            return True
+        prethodni = [r.strip() for r in probe[:red_pocetak].split("\n")]
+        while prethodni and not prethodni[-1]:
+            prethodni.pop()
+        if not prethodni:
+            return False
+        natpis = prethodni[-1]
+        return (len(natpis) <= _NATPIS_PECATA_MAX and not _DATUM_RE.search(natpis)
+                and bool(_PRIJEM_RE.search(natpis)))
+
     # Fraze koje prethode datumu dokumenta (redosled je bitan — specifičnije pre generičnih)
     phrase_patterns = [
-        # "Dana DD.MM.YYYY" / "dana DD.MM.YYYY"
-        r"\bdana\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "datum presude/zaključenja/ugovora/dokumenta: DD.MM.YYYY"
         r"\bdatum\s+(?:presude|zaklju[čc][ie]?nja|ugovora|dokumenta)\s*[:\s]+(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "zaključen/zaključena dana DD.MM.YYYY"
         r"\bzaklju[čc]en[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "doneta/doneto/donet dana DD.MM.YYYY"
         r"\bdonet[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # ćirilica: "донета/донето/донет (дана) DD.MM.YYYY"
+        r"(?<!\w)донет[аои]?\s+(?:дана\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "Dana DD.MM.YYYY" / "dana DD.MM.YYYY" (i ćirilica „дана")
+        r"\bdana\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        r"(?<!\w)дана\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "Grad/Mesto, DD.MM.YYYY" — npr. "Beograd, 01.03.2025"
         r"\b[A-ZŠĐŽČĆ][a-zšđžčćA-ZŠĐŽČĆ]{2,20},\s*(\d{1,2}\.\d{1,2}\.\d{4})\b",
     ]
 
     for pat in phrase_patterns:
-        m = re.search(pat, probe, re.IGNORECASE)
-        if m:
+        for m in re.finditer(pat, probe, re.IGNORECASE):
+            if _datum_prijema(m.start(), m.end(1)):
+                continue
             raw = m.group(1)
             parts = raw.split(".")
             if len(parts) == 3 and _valid_date_parts(parts):
                 return f"{parts[0].zfill(2)}.{parts[1].zfill(2)}.{parts[2]}"
 
-    # Fallback: prvi DD.MM.YYYY u prvih 500 chars
-    m = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", probe)
-    if m:
+    # Fallback: prvi DD.MM.YYYY u prvih 500 chars koji nije datum prijema/dostave
+    for m in re.finditer(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", probe):
+        if _datum_prijema(m.start(), m.end()):
+            continue
         d, mo, y = m.group(1), m.group(2), m.group(3)
         if _valid_date_parts([d, mo, y]):
             return f"{d.zfill(2)}.{mo.zfill(2)}.{y}"
 
     return None
+
+
+#: N03-FD4 — TAČNI oblici pečata prijema, dostave, uručenja, ekspedicije i otpravka
+#: (latinica i ćirilica). Takav datum je činjenica o kretanju pismena, ne datum
+#: dokumenta. Kraj reči je obavezan: „Rešenje o prijemu u radni odnos" nije pečat.
+#: Početak reči NIJE ograničen — „neuručeno", „nedostavljeno" su takođe beleška o
+#: kretanju pismena, pa je isključenje takvog datuma ispravno.
+_PECAT = (
+    r"primljen[oa]?|zaprimljen[oa]?|prijem|prijema|prijemni|dostavljen[oa]?|dostava|dostave|"
+    r"dostavnic[aie]?|uru[čc]en[oa]?|ekspedovan[oa]?|ekspedicij[ae]|otpravljen[oa]?|pristigl[oa]?|"
+    r"примљен[оа]?|запримљен[оа]?|пријем|пријема|пријемни|достављен[оа]?|достава|доставе|"
+    r"доставниц[аие]?|уручен[оа]?|експедован[оа]?|експедициј[ае]|отправљен[оа]?|пристигл[оа]?"
+)
+_PRIJEM_RE = re.compile(r"(" + _PECAT + r")(?!\w)", re.IGNORECASE)
+#: Pečat kao PREDIKAT datuma: odmah posle datuma, bez zareza („25.03.2025 PRIMLJENO").
+_PRIJEM_POSLE_RE = re.compile(r"[\s.]*(" + _PECAT + r")(?!\w)", re.IGNORECASE)
+_DATUM_RE = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
+#: Natpis pečata je kratak red („PRIMLJENO", „Prijemni štambilj"); duži red je tekst,
+#: ne pečat, i ne sme da poništi datum ispod sebe.
+_NATPIS_PECATA_MAX = 40
 
 
 def _valid_date_parts(parts: list) -> bool:
@@ -128,40 +200,6 @@ def _valid_date_parts(parts: list) -> bool:
         return 1 <= d <= 31 and 1 <= mo <= 12 and 1900 <= y <= 2100
     except (ValueError, IndexError):
         return False
-
-
-# ─── Phase 4.1: Konverzija relativnog roka u dane ────────────────────────────
-
-def _parse_trajanje_dana(vrednost: str) -> Optional[int]:
-    """
-    Konvertuje relativni rok string u ekvivalentan broj dana.
-
-    Primeri:
-      "8 dana"           → 8
-      "15 radnih dana"   → 15
-      "3 meseca"         → 90
-      "1 godina"         → 365
-      "2 nedelje"        → 14
-      "narednog radnog dana" → 1
-    """
-    v = vrednost.lower().strip()
-
-    if "narednog radnog dana" in v:
-        return 1
-
-    m = re.search(r"(\d+)", v)
-    if not m:
-        return None
-    n = int(m.group(1))
-
-    if re.search(r"godin", v):
-        return n * 365
-    if re.search(r"mesec", v):
-        return n * 30
-    if re.search(r"nedelj", v):
-        return n * 7
-    # "dana", "dan", "radnih dana" — sve tretiramo kao kalendarske dane
-    return n
 
 
 # ─── Phase 4.1: Kalkulacija konkretnog datuma i countdowna ───────────────────
@@ -189,23 +227,16 @@ def _kalkulisi_rok(vrednost: str, tip: str, datum_dokumenta: Optional[str]) -> d
             return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
 
     elif tip == "relativni":
-        if not datum_dokumenta:
-            return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
-        try:
-            doc_dt = datetime.strptime(datum_dokumenta, "%d.%m.%Y")
-            n_dana  = _parse_trajanje_dana(vrednost)
-            if n_dana is None:
-                return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
-            rok_dt = doc_dt + timedelta(days=n_dana)
-            delta  = (rok_dt - today).days
-            return {
-                "konkretan_datum":     rok_dt.strftime("%d.%m.%Y"),
-                "konkretan_datum_iso": rok_dt.strftime("%Y-%m-%d"),
-                "istekao":             delta < 0,
-                "dana_do_roka":        delta,
-            }
-        except ValueError:
-            return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
+        # N03-FD3: relativni rok OSTAJE relativan. Ranije se ovde racunalo
+        # `datum dokumenta + N dana` (mesec = 30 dana, godina = 365, radni dani
+        # kao kalendarski), a „datum dokumenta" je bio automatski pogodjen. Rok
+        # ne tece od datuma dokumenta nego od okidaca (npr. dostave), a pravilo
+        # racunanja (pocetni dan, mesec po kalendaru, neradni dani) zavisi od
+        # pravne kvalifikacije koju sistem ovde nema. Zato NEMA datuma ni
+        # odbrojavanja, ni kad je datum dokumenta uneo korisnik — izraz ostaje
+        # kandidat za pregled, a razlog je eksplicitan.
+        return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None,
+                "racun_izostavljen": RACUN_IZOSTAVLJEN_RELATIVNI}
 
     return {"konkretan_datum": None, "konkretan_datum_iso": None, "istekao": False, "dana_do_roka": None}
 
@@ -346,5 +377,7 @@ def ekstrahuj_rokove(tekst: str, datum_dokumenta: Optional[str] = None) -> list[
         r["konkretan_datum"] = kalk["konkretan_datum"]
         r["istekao"]         = kalk["istekao"]
         r["dana_do_roka"]    = kalk["dana_do_roka"]
+        if kalk.get("racun_izostavljen"):
+            r["racun_izostavljen"] = kalk["racun_izostavljen"]
 
     return deduped

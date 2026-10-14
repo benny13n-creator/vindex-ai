@@ -45,8 +45,10 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
-    STANJE_NEPOTVRDJEN, odbij_rok, odluke, potvrdi_rok, stanje_roka,
+    STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_POTVRDJEN,
+    odbij_rok, odluke, potvrdi_rok, stanje_roka,
 )
 
 logger = logging.getLogger("vindex.rok_odluka")
@@ -145,12 +147,33 @@ async def kandidati(
         raise HTTPException(status_code=503, detail="Rokovi trenutno nisu dostupni.")
 
     redovi = r.data or []
-    _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi])
+    # N03: lanac odluka se cita STROGO. Neprocitan lanac nije "niko nije
+    # odlucio" -- inace se odbijen rok vraca u Danas kao nov predlog, a
+    # potvrdjen spusta u predlog. Isto pravilo kao za pad hronologije iznad.
+    try:
+        _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi], True)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] citanje odluka palo: %s", exc)
+        raise HTTPException(status_code=503, detail="Stanje odluka o rokovima trenutno nije dostupno.")
+    # N03-FD6: potvrda se NE ponistava kad se izvor promeni (veza rok -> dokument
+    # nije dokaziva), ali advokat dobija upozorenje za pregled. Pad ove provere ne
+    # obara pregled rokova — kaze se da provera nije uradjena.
+    _potvrdjeni = [x for x in redovi if stanje_roka(x.get("id"), _odl) == STANJE_POTVRDJEN]
+    provera_izvora_dostupna = True
+    _promenjen: set = set()
+    if _potvrdjeni:
+        try:
+            _promenjen = await asyncio.to_thread(izvor_uklonjen_posle_potvrde, _potvrdjeni)
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera izmena izvora pala: %s", exc)
+            provera_izvora_dostupna = False
     return {
         "rokovi": [
-            {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl)}
+            {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl),
+             "izvor_uklonjen_posle_potvrde": str(x.get("id")) in _promenjen}
             for x in redovi
         ],
+        "provera_izvora_dostupna": provera_izvora_dostupna,
         "ukupno": len(redovi),
         # Ako je lista puna, poslednji rokovi su odsecani -- to se KAZE, ne cuti.
         "odseceno": len(redovi) >= _MAX_KANDIDATA,
@@ -167,6 +190,22 @@ async def _javi_odluku(uid: str, red: dict, rok_id: str, odluka: str) -> None:
                            {"rok_id": str(rok_id), "odluka": odluka, "trigger": "rok_odluka"})
     except Exception as exc:
         logger.warning("[ROK_ODLUKA] događaj posle odluke nije upisan rok=%s: %s", rok_id, exc)
+
+
+async def _odgovor_posle_odluke(rok_id: str, red: dict) -> dict:
+    """N03-FD8: stanje odluke posle upisa se cita STROGO. Ranije je neprocitan
+    lanac davao `{}` pa je odgovor glasio UNCONFIRMED odmah posle uspesne
+    potvrde — izmisljeno stanje. Odluka JESTE zabelezena (`odluka_zabelezena`),
+    ali njeno trenutno stanje se ne zna, i to se kaze: `UNKNOWN`."""
+    try:
+        _odl = await asyncio.to_thread(odluke, [rok_id], True)
+        stanje = stanje_roka(rok_id, _odl)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] stanje posle odluke nije procitano rok=%s: %s", rok_id, exc)
+        stanje = STANJE_NEPOZNATO
+    return {"ok": True, "rok_id": rok_id, "odluka_zabelezena": True,
+            "stanje_odluke": stanje,
+            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
 
 
 @router.post("/api/rokovi/{rok_id}/potvrdi")
@@ -195,10 +234,7 @@ async def potvrdi(
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
     await _javi_odluku(uid, red, rok_id, "potvrda")
 
-    _odl = await asyncio.to_thread(odluke, [rok_id])
-    return {"ok": True, "rok_id": rok_id,
-            "stanje_odluke": stanje_roka(rok_id, _odl),
-            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+    return await _odgovor_posle_odluke(rok_id, red)
 
 
 @router.post("/api/rokovi/{rok_id}/odbij")
@@ -229,7 +265,4 @@ async def odbij(
             detail="Odluka nije zabeležena. Pokušajte ponovo.")
     await _javi_odluku(uid, red, rok_id, "odbijanje")
 
-    _odl = await asyncio.to_thread(odluke, [rok_id])
-    return {"ok": True, "rok_id": rok_id,
-            "stanje_odluke": stanje_roka(rok_id, _odl),
-            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+    return await _odgovor_posle_odluke(rok_id, red)

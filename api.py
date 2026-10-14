@@ -5070,22 +5070,29 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     # Zato se `stanje_odluke` dodaje SAMO redovima koji su IZJAVLJENI kao rok
     # (`vrsta='rok'`, migracija 129). Neizjavljen red ostaje bez tog polja —
     # fail-closed ostaje fail-closed, ovde se ne pogađa šta je rok.
-    # `odluke()` je i sam fail-closed: pad upita daje prazan rečnik, dakle
-    # sve nepotvrđeno; nikad „sve odobreno".
+    #
+    # N03-FD8: lanac odluka se cita STROGO. Ranije je pad citanja davao prazan
+    # recnik, pa je SVAKI rok — i odbijen i potvrdjen — stizao kao UNCONFIRMED:
+    # odbijen se vracao u „Za proveru", potvrdjen padao u predlog. Sada rok
+    # nosi `UNKNOWN` (stanje se ne zna), a `odluke_o_rokovima_dostupne=false`
+    # to kaze. Ostatak predmeta (dokumenti, beleske, klijenti, hronologija) se
+    # vraca normalno — pad jednog izvora ne gasi ceo spis.
     _hron = list(hronologija.data or [])
     _rok_ids = [str(h.get("id")) for h in _hron
                 if h.get("id") and _rokovi_domen.je_rok(h)]
+    _odluke_dostupne = True
     if _rok_ids:
+        from shared.rok_potvrda import (STANJE_NEPOZNATO as _NEPOZNATO, odluke as _odluke,
+                                        stanje_roka as _stanje_roka)
         try:
-            from shared.rok_potvrda import odluke as _odluke, stanje_roka as _stanje_roka
-            _mapa = await asyncio.to_thread(_odluke, _rok_ids)
-            for h in _hron:
-                if str(h.get("id")) in _rok_ids:
-                    h["stanje_odluke"] = _stanje_roka(str(h.get("id")), _mapa)
+            _mapa = await asyncio.to_thread(_odluke, _rok_ids, True)
         except Exception as _e:
-            # Bez stanja odluke Dosije pada nazad na „nepotvrđeno" — to je
-            # bezbedna strana: predlog ostaje predlog.
-            logger.warning("[PREDMETI] stanje odluke nije dohvaćeno za %s: %s", predmet_id, _e)
+            logger.error("[PREDMETI] stanje odluke o rokovima nije pročitano za %s: %s", predmet_id, _e)
+            _mapa, _odluke_dostupne = None, False
+        for h in _hron:
+            if str(h.get("id")) in _rok_ids:
+                h["stanje_odluke"] = (_stanje_roka(str(h.get("id")), _mapa) if _odluke_dostupne
+                                      else _NEPOZNATO)
 
     return {
         "predmet":         row.data,
@@ -5095,6 +5102,7 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
         "hronologija":     _hron,
         "komentari":       komentari.data,
         "klijenti_linked": klijenti_linked,
+        "odluke_o_rokovima_dostupne": _odluke_dostupne,
     }
 
 
@@ -7882,7 +7890,27 @@ async def predmet_confirm_links(
     # NAVISE: potcenjen rok advokat ne vidi, precenjen vidi i odbaci.
     from shared.rokovi import normalizuj_vaznost as _norm_vaznost
     _rok_greska: Optional[str] = None
+    # NS2-A1 (napomena pregleda): `dodaj_rok.datum_iso` ide u `predmet_hronologija.datum_iso`
+    # (DATE). Kartica šalje `datumi_kljucni[0].datum_iso || .datum` iz AI metapodataka,
+    # pa stiže i „15.11.2025" — koji baza sa DateStyle MDY čita kao MM.DD (05.11.2025 ->
+    # 11. maj) ili odbija. Prihvata se samo kalendarski ispravan GGGG-MM-DD ili DD.MM.GGGG
+    # (upisuje se kanonski GGGG-MM-DD); sve ostalo: NULA upisa roka, jasna poruka kroz
+    # postojeći ugovor `rok_greska` (front ga prikazuje; veze klijenata ostaju).
+    _rok_iso: Optional[str] = None
     if req.dodaj_rok:
+        _rok_sirov = str(req.dodaj_rok.get("datum_iso") or "").strip()
+        try:
+            if _re.fullmatch(r"\d{4}-\d{2}-\d{2}", _rok_sirov):
+                _rok_iso = date.fromisoformat(_rok_sirov).isoformat()
+            elif _re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}\.?", _rok_sirov):
+                _rok_iso = datetime.strptime(_rok_sirov.rstrip("."), "%d.%m.%Y").date().isoformat()
+        except ValueError:
+            _rok_iso = None
+    if req.dodaj_rok and not _rok_iso:
+        logger.warning("[CONFIRM-LINKS] rok odbijen — neispravan datum predmet=%s", predmet_id)
+        _rok_greska = ("Rok nije sačuvan — datum roka nije ispravan ili nedostaje. "
+                       "Unesite rok ručno u kartici Rokovi (dan, mesec i godina).")
+    elif req.dodaj_rok:
         rok = req.dodaj_rok
         _vaznost_rok = _norm_vaznost(rok.get("vaznost"))
         try:
@@ -7891,13 +7919,17 @@ async def predmet_confirm_links(
                     "predmet_id": predmet_id,
                     "user_id":    uid,
                     "dogadjaj":   (rok.get("naziv") or "Rok")[:200],
-                    "datum":      rok.get("datum_iso",""),
-                    "datum_iso":  rok.get("datum_iso",""),
+                    "datum":      _rok_iso,
+                    "datum_iso":  _rok_iso,
                     "vaznost":    _vaznost_rok,
                     "akter":      "Auto-detect (AI)",
                     # migracija 127 — W-CONFIRMLINKS: ruta `confirm-links`
                     # -- advokat je vec potvrdio ovaj rok pre upisa.
                     "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
+                    # NS2-A1: `dodaj_rok` je izričito stvaranje roka -> `vrsta='rok'`.
+                    # Klik "Potvrdi veze" NIJE kanonska potvrda (FAZA 6.5 lanac odluka):
+                    # `stanje` se ne upisuje, rok ostaje nepotvrđen. Pre 129 fragment je prazan.
+                    **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                 }).execute()
             )
             # Prazan rezultat je isto što i pad, samo tiše -- isti ugovor koji
