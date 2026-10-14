@@ -108,4 +108,11 @@ print("img_40mp", i40.size, i40.size[0] * i40.size[1])
 for name, (w, h) in {"page_a3": (842, 1191), "page_a2": (1191, 1684), "page_a1": (1684, 2384), "page_a0": (2384, 3370)}.items():
     l = lines("lat", 38); d = fitz.open(); add_scan(d, l, w, h); save(d, name + ".pdf", ["\n".join(l)])
 
+# 6. round 3 (appended last so earlier fixtures keep their random text): progressive with ordinary 4:2:0 chroma at 40 MP, and progressive 4:4:4 at ~20 MP (coefficient-buffer classes)
+i40.save(os.path.join(OUT, "img_40mp_prog420.jpg"), "JPEG", quality=90, progressive=True, subsampling=2)
+TRUTH["img_40mp_prog420.jpg"] = ["\n".join(l40)]
+l20 = lines("cyr", 38); i20 = scan_image(l20, dpi=450)             # ~3720 x 5262 = 19.6 MP
+i20.save(os.path.join(OUT, "img_20mp_prog444.jpg"), "JPEG", quality=90, progressive=True, subsampling=0)
+TRUTH["img_20mp_prog444.jpg"] = ["\n".join(l20)]
+del i20
 json.dump(TRUTH, open(os.path.join(OUT, "truth.json"), "w", encoding="utf-8"), ensure_ascii=False)

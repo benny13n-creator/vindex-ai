@@ -232,6 +232,47 @@ def _vrati_memoriju_sistemu() -> None:
         _malloc_trim = False
 
 
+# NS2 B1 (gunicorn, 512 MiB): glibc podrazumevano POMERA prag mmap-a naviše čim se oslobodi veliki bafer (do 32 MiB),
+# pa se sledeći baferi strane/slike (raster, PNG, PIL blokovi) uzimaju iz heap-a i posle oslobađanja OSTAJU u procesu —
+# malloc_trim ih ne vraća (izmereno: 196 → 313 MiB posle prvog OCR posla, ~46 MiB „slobodnog“ heap-a ostaje; posle
+# više poslova u gunicorn radniku do ~390 MiB, pa sledeći dokument OOM-ubija radnika). Fiksan prag od 1 MiB: svaki
+# bafer ≥ 1 MiB je zaseban mmap i vraća se sistemu odmah pri oslobađanju (izmereno: 313 → 267 MiB, bez rasta).
+# Pikseli i OCR se ne menjaju (alokator, ne podatak). Samo glibc (Linux, produkciona slika); drugde bez dejstva.
+_M_MMAP_THRESHOLD = -3
+PRAG_MMAP_BAJTOVA = 1 << 20
+_mmap_prag = None
+
+
+def _ogranici_zadrzavanje_memorije() -> None:
+    global _mmap_prag
+    if _mmap_prag is not None:
+        return
+    try:
+        import ctypes
+        _mmap_prag = bool(ctypes.CDLL("libc.so.6").mallopt(_M_MMAP_THRESHOLD, PRAG_MMAP_BAJTOVA))
+    except Exception:
+        _mmap_prag = False
+
+
+# NS2 B1: _RASTER_OCR_LOCK serijalizuje samo rasterizaciju i Tesseract, ali NE ostatak obrade dokumenta: dok jedna nit
+# dekodira veliku sliku (progresivni JPEG od 40 MP: +~270 MiB), druga je istovremeno parsirala svoj PDF (pypdf),
+# držala otvoren MuPDF dokument i svoje međurezultate — izmereno pod gunicorn-om i 512 MiB: par worker + finalizacija
+# OOM-ubija radnika iako se OCR nikad ne preklapa. Zato je CEO PDF/slika dokument jedan za drugim u procesu (worker,
+# finalizacija, otpremanja, napušteni zahtevi). Važi za JEDAN proces: više gunicorn radnika ovo ne pokriva.
+_DOKUMENT_LOCK = threading.Lock()
+
+
+def _jedan_dokument_u_procesu(fn):
+    import functools
+
+    @functools.wraps(fn)
+    def omotac(*args, **kwargs):
+        _ogranici_zadrzavanje_memorije()
+        with _DOKUMENT_LOCK:
+            return fn(*args, **kwargs)
+    return omotac
+
+
 def _dpi_strane(sirina_pt: float, visina_pt: float) -> int:
     """dpi rasterizacije strane: 300, osim ako bi raster prešao MAX_OCR_PIXELS — tada najveći dpi koji staje."""
     pikseli = (sirina_pt * OCR_DPI / 72.0) * (visina_pt * OCR_DPI / 72.0)
@@ -329,6 +370,7 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
         return {}, []
 
 
+@_jedan_dokument_u_procesu
 def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     """Return (text, is_scanned, ocr_used, pages, ocr_confidence).
 
@@ -365,6 +407,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         total_chars += len(text)
 
     avg_chars = total_chars / max(len(reader.pages), 1)
+    del reader      # NS2 B1: pypdf objekti (i učitani tokovi slika) se ne drže dok traje OCR
     # Threshold: <30 chars/stranica ili ukupno <80 = verovatno skenirani
     is_scanned = avg_chars < 30 or total_chars < 80
 
@@ -430,7 +473,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
-        if ocr_strana and len(ocr_text.strip()) > 100:
+        if ocr_strana and (len(ocr_text.strip()) > 100 or _kratak_ocr_procitan(ocr_text, ocr_confidence)):
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
         if total_chars > 0:
@@ -463,6 +506,26 @@ PRAG_VIDLJIVOG_SADRZAJA = 0.005     # 0,5 % tamnih piksela: prazna/skenirana bel
 PRAG_POUZDANOSTI_OCR = 0.75
 
 
+# NS2 B2 — KRATAK skeniran dokument (dostavnica, pečat „overeno“, rešenje od jednog reda). Pravilo „> 100 znakova“
+# je ispravno pročitan tekst od 15–99 znakova potpuno brisalo ("", strane None, „OCR nije uspeo“). Izmereno
+# (sintetički skenovi, produkcioni OCR poziv, NS2 B2): pravi kratak tekst od 15–40 znakova, i posle umanjenja,
+# zamućenja i JPEG q30, ima pouzdanost 0,85–0,93 i ≥ 2 reči sa ≥ 3 slova/cifre koje čine ≥ polovinu reči; šum
+# (potezi, lukovi, tačke) koji OCR pretvori u ≤ 100 znakova ima pouzdanost 0,58–0,77 i najviše 1 takvu reč. Kratak OCR
+# tekst se zato prihvata kao pročitan SAMO kad prođe oba uslova; inače ostaje nepročitan kao i ranije (bez teksta,
+# na pregled advokata). Tekst duži od 100 znakova ovo pravilo ne dira.
+MIN_PUNIH_RECI_KRATKOG_OCR = 2
+
+
+def _kratak_ocr_procitan(tekst: str, pouzdanost: Optional[float]) -> bool:
+    """Da li je OCR tekst od ≤ 100 znakova dovoljno pouzdan da se ne odbaci (v. komentar iznad)."""
+    if pouzdanost is None or pouzdanost < PRAG_POUZDANOSTI_OCR:
+        return False
+    reci = (tekst or "").split()
+    pune = [r for r in reci if sum(c.isalnum() for c in r) >= 3]
+    return len(pune) >= MIN_PUNIH_RECI_KRATKOG_OCR and 2 * len(pune) >= len(reci)
+
+
+@_jedan_dokument_u_procesu
 def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
     """Strane (1-indeksirano) bez pročitanog teksta, a sa vidljivim sadržajem. None = nije moguće izmeriti (PDF se
     ne može rasterizovati); pozivalac tada NE tvrdi ni da je strana pročitana ni da nije."""
@@ -558,6 +621,7 @@ def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
 
 
+@_jedan_dokument_u_procesu
 def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     """Return (text, is_scanned, ocr_used, pages, ocr_confidence) for a standalone
     photographed/scanned image — same return contract as extract_pdf, so
@@ -614,7 +678,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
         _log_ocr_error("unexpected_error", path.name)
         return "", True, False, None, None
 
-    if len(text) > 100:
+    if len(text) > 100 or _kratak_ocr_procitan(text, confidence):
         logger.info("[OCR] Uspešno — %d karaktera", len(text))
         return text, False, True, None, confidence
 

@@ -1,0 +1,13 @@
+# round 2: what is retained between jobs, and the Tesseract slowdown in the mixed+cyr pair
+s0 1 - sustained:scan_cyr_1p.pdf,img_40mp_prog444.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf -
+s1 1 - sustained:scan_cyr_1p.pdf,img_40mp_prog444.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf GLIBC_TUNABLES=glibc.malloc.mmap_threshold=1048576
+s2 1 - sustained:scan_cyr_1p.pdf,img_40mp_prog444.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf MALLOC_ARENA_MAX=2
+s3 1 - sustainedq:scan_cyr_1p.pdf,img_40mp_prog444.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf -
+s4 1 - sustained:scan_cyr_1p.pdf,img_40mp.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf -
+s5 1 - sustained:scan_cyr_1p.pdf,img_40mp.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf GLIBC_TUNABLES=glibc.malloc.mmap_threshold=1048576
+p0 1 - pair:mixed_6p.pdf@worker|scan_cyr_1p.pdf@finalize -
+p1 1 - pair:mixed_6p.pdf@worker|scan_cyr_1p.pdf@finalize OMP_THREAD_LIMIT=1
+p2 1 - noload:mixed_6p.pdf@worker|scan_cyr_1p.pdf@finalize -
+p3 1 0.5 single:scan_cyr_1p.pdf@finalize -
+p4 1 0.5 single:scan_cyr_1p.pdf@finalize OMP_THREAD_LIMIT=1
+p5 1 - single:scan_cyr_1p.pdf@finalize -
