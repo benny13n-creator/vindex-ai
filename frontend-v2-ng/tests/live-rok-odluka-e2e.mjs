@@ -84,8 +84,8 @@ zapisi("8.izvrsivo", "pre ijedne odluke .ics nema nijedan rok (404, ništa za iz
 // ── 3/4. Vidljivo u V2 pregledu ───────────────────────────────────────────────────────────────────────────────────
 const browser = await chromium.launch();
 const spoljni = [], greskeJS = [];
-async function sesija(token, korisnik, { w = 1440, h = 900 } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce" });
+async function sesija(token, korisnik, { w = 1440, h = 900, dodir = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, reducedMotion: "reduce", ...(dodir ? { hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : {}) });
   await ctx.route("**/*", r => {
     const u = new URL(r.request().url());
     if (u.hostname !== "127.0.0.1") { spoljni.push(u.href); return r.abort(); }
@@ -177,6 +177,17 @@ zapisi("9.istorija", "potvrđen „rok — potvrđen“, nepotvrđen (i sa kolon
 zapisi("9.istorija", "red bez `vrsta` nema oznaku odluke (nije rok)", !!hr("bez oznake") && !/rok —/.test(hr("bez oznake")));
 zapisi("jezik", "hronologija bez pozadinskih termina", !BACKEND_TERMINI.test(hron.join(" ")), (hron.join(" ").match(BACKEND_TERMINI) || [""])[0]);
 if (SNIMCI) await s1.p.screenshot({ path: join(SNIMCI, "a2-hronologija-desktop.png"), fullPage: true });
+// Lanac odluka nečitljiv: spis predmeta se i dalje vidi, ali rok ne sme izgledati potvrđen/odbijen — stanje je nepoznato.
+{
+  await kvar("audit_immutable", "select", true);
+  await s1.p.goto(BASE + "/app#/danas"); await s1.p.goto(BASE + `/app#/predmeti/${encodeURIComponent(PA)}/rad`);
+  await cekaj(s1.p, () => document.querySelectorAll("#hron-lista .chrono__item").length > 0 && /stanje odluke/.test(document.getElementById("hron-lista").innerText));
+  const hu = await s1.p.evaluate(() => [...document.querySelectorAll("#hron-lista .chrono__item")].map(li => li.innerText.replace(/\n/g, " | ")));
+  await kvar("audit_immutable", "select", false);
+  const hx = (t) => hu.find(x => x.includes(t)) || "";
+  zapisi("9.istorija", "lanac odluka nečitljiv: rokovi u hronologiji „rok — stanje odluke trenutno nije poznato“, nijedan „potvrđen“/„odbijen“",
+    ["žalbu na rešenje", "dopunu tužbe", "predlog za izvršenje"].every(t => /rok — stanje odluke trenutno nije poznato/.test(hx(t))) && !/rok — (potvrđen|odbijen)/.test(hu.join(" ")), hx("dopunu tužbe"));
+}
 await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
 
 // ── Adversarijalno ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -281,7 +292,7 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
 }
 // Telefon (390 px): pregled i odluka dodirom
 {
-  const m = await sesija("tok-A", "uid-A", { w: 390, h: 844 });
+  const m = await sesija("tok-A", "uid-A", { w: 390, h: 844, dodir: true });
   await ucitano(m.p);
   const mere = await m.p.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: innerWidth }));
   zapisi("telefon", "390 px: bez horizontalnog skrola", mere.sw <= mere.vw, `${mere.sw}/${mere.vw}`);
@@ -290,7 +301,10 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
   if (SNIMCI) await m.p.screenshot({ path: join(SNIMCI, "a2-danas-mobile.png"), fullPage: true });
   if (SNIMCI) await m.p.locator("#da-predlozi").screenshot({ path: join(SNIMCI, "a2-predlozi-mobile.png") });
   pre = m.citanja.length;
-  await m.p.locator(`#da-predlozi .review[data-rok="${R.MOB}"] button`).first().tap().catch(() => m.p.click(`#da-predlozi .review[data-rok="${R.MOB}"] button:first-of-type`));
+  zapisi("telefon", "kontekst je dodirni (hasTouch, isMobile)", await m.p.evaluate(() => navigator.maxTouchPoints > 0 && matchMedia("(pointer: coarse)").matches));
+  const cilj = await m.p.evaluate((id) => [...document.querySelectorAll(`#da-predlozi .review[data-rok="${id}"] button`)].map(b => { const r = b.getBoundingClientRect(); return `${b.textContent} ${Math.round(r.width)}x${Math.round(r.height)}`; }).join(", "), R.MOB);
+  console.log(`INFO  [telefon] veličina dodirnih ciljeva (cilj ≥ 40 px, samo merenje — bez izmene izgleda): ${cilj}`);
+  await m.p.locator(`#da-predlozi .review[data-rok="${R.MOB}"] button`).first().tap();
   await posleOdluke(m, pre);
   e = await ekran(m.p); st = await stanje();
   zapisi("telefon", "odluka sa telefona upisana i prikazana", JSON.stringify(odlukeZa(st, R.MOB)) === '["rok_potvrdjen"]' && /^uspeh:.*je potvrđen/.test(e.poruka || ""));
