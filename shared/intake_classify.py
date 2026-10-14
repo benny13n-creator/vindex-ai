@@ -53,6 +53,9 @@ _HEURISTICS: list[tuple[str, list[str]]] = [
 ]
 
 
+_DOSTAVNICA_OZNAKE = ("ДОСТАВНИЦА", "DOSTAVNICA", "ПОВРАТНИЦА", "POVRATNICA")
+
+
 def classify_heuristic(text: str) -> tuple[str, float] | None:
     """Vraća (document_type, confidence) ako je neka ključna reč prepoznata
     u zaglavlju teksta, inače None (poziva se LLM fallback). Confidence je
@@ -61,10 +64,16 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     case-matcha pa je 85% prihvatljivo kao heuristički signal, ne slepo
     veruj — LLM fallback postoji baš za slučajeve gde ovo nije dovoljno)."""
     head = (text or "")[:_HEAD_CHARS].upper()
+    # N06: dostavnica/povratnica imenuje URUČENO pismeno („Писмено: пресуда“) — ključna reč posle njenog naslova
+    # opisuje drugi dokument, ne ovaj. Tada odlučuje LLM (taksonomija nema tip „dostavnica“, pa je pošten ishod
+    # „other“), ne heuristika sa 0.85 za tuđi tip.
+    dostavnica = min((head.find(o) for o in _DOSTAVNICA_OZNAKE if o in head), default=-1)
     for doc_type, keywords in _HEURISTICS:
         for kw in keywords:
-            if kw.upper() in head:
-                return doc_type, 0.85
+            pozicija = head.find(kw.upper())
+            if pozicija < 0 or 0 <= dostavnica < pozicija:
+                continue
+            return doc_type, 0.85
     return None
 
 
