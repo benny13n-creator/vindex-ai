@@ -123,12 +123,31 @@ async def test_export_still_succeeds_when_every_table_reads():
     async def _noop_log(*a, **k):
         return None
 
-    ok = MagicMock()
-    ok.data = [{"id": "1"}]
-    chain = MagicMock()
-    chain.select.return_value.eq.return_value.order.return_value.execute.return_value = ok
+    # C1-F1/N1: izvoz cita po stranama (id > poslednji) do prazne strane.
+    # Ograniceni lazni upit (ne MagicMock lanac): petlja koja se ne zaustavlja
+    # PADA posle 50 citanja umesto da visi.
+    citanja = []
+
+    class _Upit:
+        def __init__(self):
+            self.posle = None
+
+        def select(self, *a, **k):
+            return self
+
+        eq = order = limit = select
+
+        def gt(self, _k, v):
+            self.posle = v
+            return self
+
+        def execute(self):
+            citanja.append(1)
+            assert len(citanja) <= 50, "petlja straničenja se ne zaustavlja"
+            return MagicMock(data=[] if self.posle is not None else [{"id": "1"}])
+
     supa = MagicMock()
-    supa.table.return_value = chain
+    supa.table.side_effect = lambda _ime: _Upit()
 
     with patch.object(de, "_get_supa", return_value=supa), \
          patch("shared.audit_immutable.log_action", new=_noop_log):

@@ -277,10 +277,10 @@
 <h3>14.2 Procedura izvoza podataka (GDPR čl. 20)</h3>
 <ol>
   <li><strong>Pristup:</strong> Dugme "Export podataka" u podešavanjima platforme, dostupno isključivo prijavljenom korisniku sa važećim JWT tokenom (<code>GET /api/export/complete</code>)</li>
-  <li><strong>Generisanje:</strong> ZIP arhiva se generiše na zahtev i vraća direktno u istom HTTP odgovoru (streaming) — nema međukoraka čuvanja na serveru niti slanja linka</li>
-  <li><strong>Sadržaj arhive (JSON fajlovi):</strong> predmeti, klijenti, billing stavke, metapodaci dokumenata, beleške, ročišta, hronologija, komentari</li>
-  <li><strong>Nije uključeno:</strong> originalni fajlovi dokumenata (PDF/DOCX) — arhiva sadrži samo njihove metapodatke. Fajlovi se dostavljaju na poseban zahtev na support@vindex.ai</li>
-  <li><strong>Audit:</strong> Svaki kompletan izvoz upisuje se u nepromenjivi audit log (user_id, vreme, format)</li>
+  <li><strong>Generisanje:</strong> ZIP arhiva se na zahtev u celosti pravi u radnoj memoriji servera, pa se vraća u istom HTTP odgovoru — ne čuva se u bazi ni u skladištu fajlova i ne šalje se link</li>
+  <li><strong>Sadržaj arhive (JSON fajlovi):</strong> predmeti, klijenti, billing stavke, metapodaci dokumenata, beleške, ročišta, hronologija, komentari. Lični identifikatori klijenata (JMBG, broj pasoša, PIB) nalaze se u arhivi samo u šifrovanom obliku i nisu čitljivi bez ključa koji drži Vindex AI. Arhiva obuhvata i klijente označene kao obrisane, sa oznakom statusa</li>
+  <li><strong>Nije uključeno:</strong> originalni fajlovi dokumenata (PDF/DOCX). Uz metapodatke dokumenata arhiva sadrži i tekst izdvojen iz dokumenta, gde postoji — to je izdvojeni tekst, ne original. Zahtev za fajlove podnosi se na privacy@vindex.ai</li>
+  <li><strong>Audit:</strong> Svaka uspešno napravljena arhiva izvoza upisuje se u nepromenjivi audit log (user_id, email, vreme, format, faza). Zapis potvrđuje da je arhiva napravljena i predata za slanje; server ne može da potvrdi da je preuzimanje kod korisnika završeno. Neuspeo izvoz upisuje se kao zaseban događaj, sa fazom u kojoj je pao. Upis u audit log ne blokira izvoz: ako audit log trenutno nije dostupan, izvoz se i dalje isporučuje, a propust se beleži u serverskom logu</li>
   <li>Dodatno je dostupan i lakši JSON izvoz osnovnih podataka o nalogu putem <code>GET /api/gdpr/export</code> (profil, tarifa, sažetak predmeta, billing, aktivnost) — ograničen na 5 zahteva/min</li>
   <li>Alternativno, uključujući originalne fajlove dokumenata: zahtev na privacy@vindex.ai uz email verifikaciju, odgovor u roku od 30 dana</li>
 </ol>
