@@ -242,6 +242,7 @@ def test_ocr_dostavnice_ceo_tok_primalac_nije_stranka_i_original_ostaje(ok, monk
     ("Tužena: Petra Ilić", "defendant", "Petar Ilić"),
     ("Тужиља: Петра Илић", "plaintiff", "Petar Ilić"),
     ("u parnici tužilje Petre Ilić", "plaintiff", "Petar Ilić"),
+    ("Tužioci: Petra Ilić i Marko Ilić", "plaintiff", "Petar Ilić"),   # krug 3: množina nije kosi padež
 ])
 def test_nepostojano_a_ne_vazi_posle_nominativa_ili_zenske_oznake(tekst, tip, vrednost):
     assert _uloga(tekst, tip, vrednost) is False
@@ -251,6 +252,8 @@ def test_nepostojano_a_ne_vazi_posle_nominativa_ili_zenske_oznake(tekst, tip, vr
     ("u parnici tužioca Petra Ilića protiv tuženog", "plaintiff", "Petar Ilić"),
     ("protiv tuženog Lazara Ilića", "defendant", "Lazar Ilić"),
     ("presuda tuženom Petru Iliću", "defendant", "Petar Ilić"),
+    ("presuda tužiocu Petru Iliću", "plaintiff", "Petar Ilić"),
+    ("sa tužiocem Petrom Ilićem", "plaintiff", "Petar Ilić"),
     ("u parnici tužilje Petre Ilić", "plaintiff", "Petra Ilić"),   # žensko ime u kosom padežu, ženska vrednost
     ("Tužilja: Petra Ilić", "plaintiff", "Petra Ilić"),
 ])

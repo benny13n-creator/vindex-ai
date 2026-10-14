@@ -394,7 +394,7 @@ def _osnove_reci(r: str) -> tuple:
 # samo posle oznake uloge u muškom kosom padežu („tužioca“, „tuženog“, „tuženom“…). Posle nominativa („Tužilac:“,
 # „Tužilja:“, „Tuženi:“) ili ženske oznake („tužilje“, „tuženoj“) „Petra“ je žensko ime Petra, ne Petar — recenzija:
 # „Tužilja: Petra Ilić“ je potvrđivala model-vrednost „Petar Ilić“. Nepoznat oblik oznake → bez nepostojanog „a“.
-_MUSKI_KOSI_PADEZ = re.compile(r"(?:tuzioc\w+|tuzitelj(?:a|u|em|om)|tuzen(?:og|oga|om|ome|omu))")
+_MUSKI_KOSI_PADEZ = re.compile(r"(?:tuzioc(?:a|u|em|om)|tuzitelj(?:a|u|em|om)|tuzen(?:og|oga|om|ome|omu))")
 
 
 def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -> bool:
