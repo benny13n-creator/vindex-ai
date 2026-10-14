@@ -89,6 +89,11 @@ save(d, "photo_48mp_a4.pdf", ["\n".join(l48)])
 #    4d. standalone image just under the documented 40 MP image limit
 l40 = lines("lat", 38); i40 = scan_image(l40, dpi=640)              # ~5292 x 7484 = 39.6 MP
 i40.save(os.path.join(OUT, "img_40mp.jpg"), "JPEG", quality=80); TRUTH["img_40mp.jpg"] = ["\n".join(l40)]
+i40.convert("L").save(os.path.join(OUT, "img_40mp.png"), "PNG"); TRUTH["img_40mp.png"] = ["\n".join(l40)]
+#    4e. the same 40 MP image embedded losslessly (Flate) in an A4 PDF: MuPDF cannot subsample-decode it
+b = io.BytesIO(); i40.save(b, "PNG")
+d = fitz.open(); p = d.new_page(width=595, height=842); p.insert_image(p.rect, stream=b.getvalue())
+save(d, "pdf_flate40_a4.pdf", ["\n".join(l40)])
 print("img_40mp", i40.size, i40.size[0] * i40.size[1])
 # 5. raster-size probes: the SAME 300 dpi A4 scan stretched over larger page formats -> constant decode,
 #    growing 300 dpi output raster (A3 17.4 MP, A2 34.8 MP, A1 69.6 MP, A0 139 MP)

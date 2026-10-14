@@ -1,22 +1,38 @@
-# id variant mode spec [cpus]
-b00 pr24 idle -
-b01 pr24 worker scan_cyr_1p.pdf
-b02 pr24 worker scan_10p.pdf
-b03 pr24 worker mixed_6p.pdf
-b04 pr24 worker photo_12mp_page72.pdf
-b05 pr24 worker photo_12mp_a4.pdf
-b06 pr24 worker photo_48mp_a4.pdf
-b07 pr24 worker img_12mp.jpg
-b08 pr24 worker img_40mp.jpg
-b09 pr24 worker page_a3.pdf
-b10 pr24 worker page_a2.pdf
-b11 pr24 worker page_a1.pdf
-b12 pr24 worker page_a0.pdf
-b13 pr24 threads scan_10p.pdf|scan_10p.pdf
-b14 pr24 threads scan_10p.pdf|mixed_6p.pdf
-b15 pr24 threads scan_cyr_1p.pdf|img_12mp.jpg
-b16 pr24 retries photo_12mp_page72.pdf:3
-b17 pr24 worker photo_12mp_page72.pdf
-b18 pr24 worker photo_12mp_page72.pdf
-b19 pr24 worker scan_cyr_1p.pdf 0.5
-b20 pr24 worker scan_10p.pdf 0.5
+# id variant mode spec [cpus|-] [mem: 512m default | none]
+n00 cand idle -
+n01 cand worker scan_cyr_1p.pdf
+n02 cand worker scan_10p.pdf
+n03 cand worker mixed_6p.pdf
+n04 cand worker photo_12mp_page72.pdf
+n05 cand worker photo_12mp_a4.pdf
+n06 cand worker photo_48mp_a4.pdf
+n07 cand worker img_12mp.jpg
+n08 cand worker img_40mp.jpg
+n08p cand worker img_40mp.png
+n08f cand worker pdf_flate40_a4.pdf
+n09 cand worker page_a3.pdf
+n10 cand worker page_a2.pdf
+n11 cand worker page_a1.pdf
+n12 cand worker page_a0.pdf
+n13 cand threads scan_10p.pdf|scan_10p.pdf
+n14 cand threads scan_10p.pdf|mixed_6p.pdf
+n15 cand threads scan_cyr_1p.pdf|img_12mp.jpg
+n15b cand threads photo_12mp_page72.pdf|img_40mp.png
+n16 cand retries photo_12mp_page72.pdf:3
+n17 cand retries img_40mp.png:3
+n19 cand worker scan_cyr_1p.pdf 0.5
+n20 cand worker scan_10p.pdf 0.5
+n21 cand threads scan_10p.pdf|scan_10p.pdf 0.5
+c12a v12 worker page_a1.pdf
+c12b v12 worker img_40mp.png
+c18a v18 worker page_a1.pdf
+c18b v18 worker img_40mp.png
+c18c v18 threads page_a1.pdf|img_40mp.png
+b08p pr24 worker img_40mp.png
+b08f pr24 worker pdf_flate40_a4.pdf
+q01 pr24 worker page_a2.pdf - none
+q02 pr24 worker img_40mp.jpg - none
+q03 pr24 worker pdf_flate40_a4.pdf - none
+q04 pr24 worker page_a1.pdf - none
+q05 pr24 worker photo_12mp_page72.pdf - none
+q06 pr24 worker img_40mp.png - none

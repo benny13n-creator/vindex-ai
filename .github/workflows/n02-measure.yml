@@ -39,6 +39,13 @@ jobs:
             echo "exit=$?"
           done
 
+      - name: Budget calibration variants of the candidate extractor
+        run: |
+          for v in 12 18; do
+            sed "s/^MAX_OCR_PIXELS = 15_000_000/MAX_OCR_PIXELS = ${v}_000_000/" uploaded_doc/extractor.py > n02_measure/variants/extractor_v$v.py
+            grep -c "^MAX_OCR_PIXELS = ${v}_000_000" n02_measure/variants/extractor_v$v.py
+          done
+
       - name: 512 MiB cases
         run: bash n02_measure/run_all.sh n02_measure/cases.txt
 

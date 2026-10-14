@@ -31,8 +31,8 @@ import api  # noqa: F401 — production baseline: the web process has the whole 
 logging.disable(logging.CRITICAL)
 base = {"rss_after_import_api_mib": rss_self(), "import_s": round(time.perf_counter() - t, 1)}
 
-if variant == "pr24":
-    sp = importlib.util.spec_from_file_location("uploaded_doc.extractor", "/m/variants/extractor_pr24.py")
+if os.path.exists(f"/m/variants/extractor_{variant}.py"):
+    sp = importlib.util.spec_from_file_location("uploaded_doc.extractor", f"/m/variants/extractor_{variant}.py")
     ex = importlib.util.module_from_spec(sp); sys.modules["uploaded_doc.extractor"] = ex; sp.loader.exec_module(ex)
 else:
     from uploaded_doc import extractor as ex
@@ -62,6 +62,14 @@ def cer(ist, pro):
     return round(_lev(i, _norm(pro)) / max(len(i), 1), 4)
 
 
+def word_recall(ist, pro):
+    """Order-insensitive: share of ground-truth words (multiset) found. CER alone over-penalises a changed
+    Tesseract reading order (e.g. a page segmented into two columns) that loses no characters."""
+    import collections
+    a = collections.Counter(_norm(ist).split()); b = collections.Counter(_norm(pro).split())
+    return round(sum((a & b).values()) / max(sum(a.values()), 1), 4)
+
+
 def run_one(name, worker):
     p = FX / name
     t0 = time.perf_counter(); r = {"file": name, "role": "worker" if worker else "finalize"}
@@ -78,6 +86,7 @@ def run_one(name, worker):
             if pages and len(pages) == len(tr):
                 r["cer_pages"] = [cer(a, b) for a, b in zip(tr, pages)]
             r["cer"] = cer("\n".join(tr), text)
+            r["wr"] = word_recall("\n".join(tr), text)
     except Exception as e:
         r.update(outcome="exception", exc=type(e).__name__, msg=str(e)[:160], secs=round(time.perf_counter() - t0, 2))
     return r
