@@ -21,7 +21,7 @@ from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared.query_timeout import gather_with_timeout
 from shared import rokovi as _rokovi_domen
-from shared.rok_potvrda import STANJE_POTVRDJEN, STANJE_ODBIJEN, odluke, stanje_roka
+from shared.rok_potvrda import STANJE_NEPOZNATO, STANJE_POTVRDJEN, STANJE_ODBIJEN, odluke, stanje_roka
 
 logger = logging.getLogger("vindex.dashboard")
 router = APIRouter(tags=["dashboard"])
@@ -272,7 +272,21 @@ async def command_center(
     # mechanism routers/rok_odluka.py's `/api/rokovi/kandidati` (V2 Danas'
     # candidate-confirmation surface) already uses. Resolved ONCE per
     # request for every candidate id here, not per row.
-    _odl = await asyncio.to_thread(odluke, [r.izvor_id for r in _kandidati_roka])
+    #
+    # N03-FD8: lanac odluka se cita STROGO. Ranije je pad citanja davao `{}`, pa
+    # se ODBIJEN rok vracao u `rokovi_7` kao predlog (UNCONFIRMED), a potvrdjen
+    # se spustao u predlog. Sada rok nosi `UNKNOWN`, `odluke_dostupne=false` to
+    # kaze, a `hitni_rokovi` (samo CONFIRMED) ostaje prazan -- ostatak pocetnog
+    # ekrana radi normalno.
+    odluke_dostupne = True
+    try:
+        _odl = await asyncio.to_thread(odluke, [r.izvor_id for r in _kandidati_roka], True)
+    except Exception as _oe:
+        logger.error("[DASHBOARD] stanje odluka o rokovima nije procitano: %s", _oe)
+        _odl, odluke_dostupne = {}, False
+
+    def _stanje(rid):
+        return stanje_roka(rid, _odl) if odluke_dostupne else STANJE_NEPOZNATO
     rokovi_7 = [
         {
             "id":            r.izvor_id,
@@ -289,7 +303,7 @@ async def command_center(
             # (UNCONFIRMED/CONFIRMED/REJECTED) `/api/rokovi/kandidati` and
             # `/api/rokovi/{id}/potvrdi`|`/odbij` already expose as
             # `stanje_odluke` -- reused verbatim, not reinvented.
-            "stanje_odluke": stanje_roka(r.izvor_id, _odl),
+            "stanje_odluke": _stanje(r.izvor_id),
         }
         for r in _kandidati_roka
         # REJECTED does not remain in an active/operational deadline list at
@@ -300,7 +314,7 @@ async def command_center(
         # proposal awaiting confirmation; it is excluded from
         # `hitni_rokovi` below and from the frontend's confirmed-only
         # per-matter deadline summary regardless of date proximity.
-        if stanje_roka(r.izvor_id, _odl) != STANJE_ODBIJEN
+        if _stanje(r.izvor_id) != STANJE_ODBIJEN
     ]
     rokovi_7.sort(key=lambda r: r.get("datum_iso") or "9999")
     # `hitni_rokovi` is the OPERATIONAL/urgent list (drives the dashboard's
@@ -445,6 +459,8 @@ async def command_center(
         "hitni_rokovi":      hitni_rokovi,
         # Prazna lista rokova je istina SAMO kad je ovo `True`.
         "rokovi_dostupni":   rokovi_dostupni,
+        # N03-FD8: False = stanje odluka nije procitano; rokovi nose UNKNOWN.
+        "odluke_dostupne":   odluke_dostupne,
         "neaktivni_30_dana": neaktivni_predmeti,
         "summary":           summary,
         # New OS fields

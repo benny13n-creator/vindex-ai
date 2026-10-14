@@ -100,7 +100,8 @@ def _supa(hronologija_postoji=False, insert_puca=None):
                 m.execute.return_value.data = [{}]
                 return m
             t.insert.side_effect = _insert
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
+            # N03-FD2: provera duplikata ima i cetvrti uslov (isti izvorni fajl).
+            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
                 [{"id": "hron-odbijen"}] if hronologija_postoji else []
             )
         elif name == "intake_job_segments":
@@ -1193,3 +1194,187 @@ def test_FD7_smart_intake_kandidat_otvara_case_action_pregleda(solo, sonda_129):
            and (a.get("dokaz") or {}).get("izvor") == "predmet_hronologija"]
     assert [a["dokaz"]["hronologija_id"] for a in akc] == ["si-sa-vrstom"]
     assert akc[0]["tip"] == "PLANIRATI_ROKOVE" and akc[0]["dokaz"]["stanje_odluke"] == STANJE_NEPOTVRDJEN
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# N03-FD — NALAZI NEZAVISNOG PREGLEDA (2026-10-14)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── FD8 / must-pass 9: dashboard i PDF izvoz ne izmisljaju UNCONFIRMED ─────
+
+def _dashboard_baza(b):
+    from datetime import timedelta
+    d = (date.today() + timedelta(days=2)).isoformat()
+    for red in b.tabele["predmet_hronologija"]:
+        if red["user_id"] == "uid-A":
+            red["datum_iso"] = d
+    return d
+
+
+def _dash(k):
+    r = k.get("/api/dashboard/command-center", headers=zaglavlje("A"))
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_FD8_dashboard_kontrola_stanja_i_bez_odbijenog(http):
+    k, b = http
+    _dashboard_baza(b)
+    j = _dash(k)
+    assert {r["id"]: r["stanje_odluke"] for r in j["rokovi_7_dana"]} == {
+        "r-kand": STANJE_NEPOTVRDJEN, "r-potvrdjen": STANJE_POTVRDJEN}
+    assert j["odluke_dostupne"] is True
+    assert [r["id"] for r in j["hitni_rokovi"]] == ["r-potvrdjen"]
+
+
+def test_FD8_dashboard_pad_lanca_ne_vaskrsava_odbijen_ni_ne_izmislja_predlog(http):
+    k, b = http
+    _dashboard_baza(b)
+    b.greske["audit_immutable"] = Exception("lanac nedostupan")
+    j = _dash(k)
+    stanja = {r["id"]: r["stanje_odluke"] for r in j["rokovi_7_dana"]}
+    assert STANJE_NEPOTVRDJEN not in stanja.values()                 # nijedan izmisljen predlog
+    assert set(stanja.values()) == {"UNKNOWN"}
+    assert j["odluke_dostupne"] is False and j["hitni_rokovi"] == []
+    assert j["rokovi_dostupni"] is True                               # ostatak ekrana radi
+    assert "TAJNI" not in str(j)
+
+
+def _pdf_hronologija(k, monkeypatch):
+    import routers.export as ex
+    uhvaceno = {}
+
+    def _gen(predmet, dokumenti, beleske, hronologija):
+        uhvaceno["h"] = hronologija
+        return b"%PDF-1.4 test"
+    monkeypatch.setattr(ex, "_generiši_pdf", _gen)
+    import api
+    monkeypatch.setattr(api, "require_pro", lambda *a, **kw: None, raising=False)
+    r = k.get(f"/api/predmeti/{PA}/pdf-export", headers=zaglavlje("A"))
+    assert r.status_code == 200, r.text
+    return {h["id"]: h["stanje_odluke"] for h in uhvaceno["h"]}
+
+
+def test_FD8_pdf_izvoz_kontrola_stanja(http, monkeypatch):
+    k, _ = http
+    assert _pdf_hronologija(k, monkeypatch) == {
+        "r-kand": STANJE_NEPOTVRDJEN, "r-odbijen": STANJE_ODBIJEN, "r-potvrdjen": STANJE_POTVRDJEN}
+
+
+def test_FD8_pdf_izvoz_pad_lanca_pise_nepoznato_ne_nepotvrdjeno(http, monkeypatch):
+    k, b = http
+    b.greske["audit_immutable"] = Exception("lanac nedostupan")
+    assert set(_pdf_hronologija(k, monkeypatch).values()) == {"UNKNOWN"}
+
+
+def test_FD8_pdf_oznaka_nepoznatog_stanja():
+    import predmet_pdf
+    src = open(predmet_pdf.__file__, encoding="utf-8").read()
+    assert '"[STANJE ODLUKE NEPOZNATO] "' in src
+    pdf = predmet_pdf.generiši_predmet_pdf({"naziv": "P"}, [], [], [
+        {"id": "x", "dogadjaj": "Rok", "datum_iso": "2025-03-25", "stanje_odluke": "UNKNOWN"}])
+    assert pdf[:4] == b"%PDF"
+
+
+# ── FD5 / must-pass 6: panel rokova iz dokumenta ne izvozi napolje ──────────
+
+def _vindex_funkcija(ime):
+    src = open(os.path.join(_KOREN, "static", "vindex.js"), encoding="utf-8-sig").read()
+    for prefiks in ("async function " + ime + "(", "function " + ime + "("):
+        i = src.find(prefiks)
+        if i >= 0:
+            break
+    assert i >= 0, ime
+    j, dubina = src.index("{", i), 0
+    for n in range(j, len(src)):
+        dubina += {"{": 1, "}": -1}.get(src[n], 0)
+        if dubina == 0:
+            return src[i:n + 1]
+
+
+@_nodemark
+def test_FD5_panel_rokova_iz_dokumenta_ne_nudi_spoljni_izvoz():
+    """Datum procitan iz dokumenta (cak i kad bi server vratio `konkretan_datum_iso`)
+    ne dobija .ics/Google/Outlook dugme ni `data-rok-iso`, a „Izvezi sve" ne salje
+    nista serveru ni spoljnom kalendaru."""
+    rok = {"tip": "apsolutni", "vrednost": D_25, "kontekst": "Rok za zalbu istice", "kategorija": "zalba",
+           "konkretan_datum": D_25, "konkretan_datum_iso": ISO_25, "istekao": False, "dana_do_roka": 30}
+    skripta = (
+        "var _ROK_ICONS={}; var pozivi=[]; var toast=[];"
+        "function showToast(t){toast.push(t);} function fetch(){pozivi.push('fetch');}"
+        "function dodajUKalendar(){pozivi.push('ics');} function otvoriGoogleKalendar(){pozivi.push('g');}"
+        "var document={querySelectorAll:function(){return [{dataset:{rokIso:'2025-03-25'}}];}};"
+        + _vindex_funkcija("_rok_render_alert") + _vindex_funkcija("_rok_build_card")
+        + _vindex_funkcija("sviRokoviUKalendar")
+        + f"var h=_rok_build_card({_json.dumps(rok)});"
+        "sviRokoviUKalendar().then(function(){process.stdout.write(JSON.stringify({h:h,pozivi:pozivi,toast:toast}));});")
+    p = _subprocess.run([_NODE, "-e", skripta], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert p.returncode == 0, p.stderr[-1500:]
+    x = _json.loads(p.stdout)
+    for zabranjeno in ("data-rok-iso", "btn-ics", "dodajUKalendar", "otvoriGoogleKalendar", "otvoriOutlookKalendar"):
+        assert zabranjeno not in x["h"], zabranjeno
+    assert "potvrdite u predmetu" in x["h"]
+    assert x["pozivi"] == [] and any("potvrdite u predmetu" in t for t in x["toast"])
+
+
+# ── FD4: pecat prijema/ekspedicije, i „prijemu" kao imenica ─────────────────
+
+@pytest.mark.parametrize("tekst", [
+    f"PRIMLJENO\n{D_25}\nRESENJE",
+    f"{D_25} PRIMLJENO\nRESENJE",
+    f"Ekspedovano {D_25}\nRESENJE",
+    f"Datum prijema: {D_25}\nRESENJE",
+])
+def test_FD4_pecat_u_susedstvu_datuma_nije_datum_dokumenta(tekst):
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(tekst) is None
+
+
+def test_FD4_prijem_kao_imenica_u_naslovu_ne_brise_pravi_datum():
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(f"Rešenje o prijemu u radni odnos, {D_17}\nZahtev od 01.02.2025") == D_17
+
+
+def test_FD4_pecat_iznad_ne_brise_datum_ispod_dugog_reda():
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    tekst = f"PRIMLJENO {D_25}\nOsnovni sud u Beogradu, odeljenje za parnicu, sudija pojedinac\nBeograd, {D_17}"
+    assert _extract_datum_dokumenta(tekst) == D_17
+
+
+# ── FD2: dedup samo za ISTI izvor — nov dokument ne nasledjuje odluku ───────
+
+def _supa_sa_hronologijom(redovi):
+    from tests.ns005_harness import Baza
+    baza = Baza({"predmet_hronologija": [dict(r) for r in redovi]})
+    supa = _supa()
+    prvobitna = supa.table.side_effect
+
+    def _tabela(ime):
+        return baza.table(ime) if ime == "predmet_hronologija" else prvobitna(ime)
+    supa.table.side_effect = _tabela
+    return supa, baza
+
+
+_RANIJI = {"id": "hron-raniji", "predmet_id": "pred-001", "user_id": _UID, "dogadjaj": "Rok iz dokumenta (presuda)",
+           "datum_iso": ISO_25, "izvor": "AI_AUTONOMOUS", "vrsta": "rok"}
+
+
+@pytest.mark.anyio
+async def test_FD2_drugi_dokument_istog_datuma_i_tipa_je_nov_kandidat(sonda_129):
+    """Raniji red (moguce odbijen ili potvrdjen) je iz DRUGOG fajla. Nov dokument
+    sa istim datumom i tipom NE sme biti „vec_postoji" — to bi znacilo da nasledjuje
+    tudju odluku. Nov red, nov nepotvrdjen kandidat."""
+    supa, baza = _supa_sa_hronologijom([{**_RANIJI, "dokument_naziv": "druga_presuda.pdf"}])
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
+    assert rez["rok_dodat"] is True and rez["rok_preskocen_razlog"] is None
+    novi = [r for r in baza.tabele["predmet_hronologija"] if r["id"] != "hron-raniji"]
+    assert len(novi) == 1 and novi[0]["dokument_naziv"] == "presuda.pdf"
+
+
+@pytest.mark.anyio
+async def test_FD2_kontrola_isti_izvorni_fajl_ostaje_idempotentan(sonda_129):
+    """Ponovna obrada ISTOG dokumenta (isti izvorni fajl) i dalje ne pravi duplikat (BLK-1 TEST J)."""
+    supa, baza = _supa_sa_hronologijom([{**_RANIJI, "dokument_naziv": "presuda.pdf"}])
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
+    assert rez["rok_dodat"] is False and rez["rok_preskocen_razlog"] == "vec_postoji"
+    assert len(baza.tabele["predmet_hronologija"]) == 1

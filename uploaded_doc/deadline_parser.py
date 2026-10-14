@@ -102,9 +102,17 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
     """
     probe = tekst[:500]
 
-    def _datum_prijema(pocetak: int) -> bool:
-        red = probe[:pocetak].rsplit("\n", 1)[-1][-80:]
-        return bool(_PRIJEM_RE.search(red))
+    def _datum_prijema(pocetak: int, kraj: int) -> bool:
+        """Pecat prijema/dostave/ekspedicije u NEPOSREDNOJ blizini datuma: isti red pre
+        datuma, isti red kratko posle datuma, ili kratak prethodni red („PRIMLJENO" iznad
+        datuma). Reci su tacni oblici pecata, ne koren — „o prijemu u radni odnos" nije pecat."""
+        pre = probe[:pocetak].rsplit("\n", 1)
+        isti_red_pre = pre[-1][-80:]
+        isti_red_posle = probe[kraj:].split("\n", 1)[0][:30]
+        prethodni_red = pre[0].rsplit("\n", 1)[-1].strip() if len(pre) == 2 else ""
+        if len(prethodni_red) > 40:
+            prethodni_red = ""
+        return any(_PRIJEM_RE.search(x) for x in (isti_red_pre, isti_red_posle, prethodni_red))
 
     # Fraze koje prethode datumu dokumenta (redosled je bitan — specifičnije pre generičnih)
     phrase_patterns = [
@@ -122,7 +130,7 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
 
     for pat in phrase_patterns:
         for m in re.finditer(pat, probe, re.IGNORECASE):
-            if _datum_prijema(m.start()):
+            if _datum_prijema(m.start(), m.end(1)):
                 continue
             raw = m.group(1)
             parts = raw.split(".")
@@ -131,7 +139,7 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
 
     # Fallback: prvi DD.MM.YYYY u prvih 500 chars koji nije datum prijema/dostave
     for m in re.finditer(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", probe):
-        if _datum_prijema(m.start()):
+        if _datum_prijema(m.start(), m.end()):
             continue
         d, mo, y = m.group(1), m.group(2), m.group(3)
         if _valid_date_parts([d, mo, y]):
@@ -140,12 +148,16 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
     return None
 
 
-#: N03-FD4 — reči koje u istom redu pre datuma znače prijem, dostavu ili uručenje
-#: (latinica i ćirilica). Takav datum je činjenica o kretanju pismena, ne datum
-#: dokumenta.
+#: N03-FD4 — TAČNI oblici pečata prijema, dostave, uručenja i ekspedicije (latinica i
+#: ćirilica), kao cele reči. Takav datum je činjenica o kretanju pismena, ne datum
+#: dokumenta. Namerno NE koren: „Rešenje o prijemu u radni odnos" nije pečat.
 _PRIJEM_RE = re.compile(
-    r"(primljen|prijem|zaprimljen|dostavlj|dostavnic|uru[čc]en|pristigl|"
-    r"примљен|пријем|запримљен|достављ|доставниц|уручен|пристигл)",
+    r"(?<![\w])("
+    r"primljen[oa]?|zaprimljen[oa]?|prijem|prijema|prijemni|dostavljen[oa]?|dostava|dostave|"
+    r"dostavnic[aie]?|uru[čc]en[oa]?|ekspedovan[oa]?|ekspedicij[ae]|pristigl[oa]?|"
+    r"примљен[оа]?|запримљен[оа]?|пријем|пријема|пријемни|достављен[оа]?|достава|доставе|"
+    r"доставниц[аие]?|уручен[оа]?|експедован[оа]?|експедициј[ае]|пристигл[оа]?"
+    r")(?![\w])",
     re.IGNORECASE,
 )
 

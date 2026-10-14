@@ -804,7 +804,7 @@ async def _rok_iz_dokumenta(
     # samo ponovno slanje PRE finalizacije — posle nje isti sadržaj dobija
     # nov `job_id` i prolazi ovuda ponovo. Rok je obaveza advokata; ista
     # obaveza upisana dvaput je isti oblik lažne informacije kao izmišljen
-    # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti
+    # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti izvorni fajl + isti
     # naziv događaja.
     _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
     nadjen_iso = deadline_iso
@@ -816,15 +816,21 @@ async def _rok_iz_dokumenta(
         deadline_iso = None
     if deadline_iso and _dl_dovoljan:
         try:
-            _postojeci = await asyncio.to_thread(
-                lambda: supa.table("predmet_hronologija")
-                    .select("id")
-                    .eq("predmet_id", predmet_id)
-                    .eq("datum_iso", deadline_iso)
-                    .eq("dogadjaj", _rok_dogadjaj)
-                    .limit(1)
-                    .execute()
-            )
+            # N03-FD2: duplikat je samo ISTI IZVOR (isti naziv izvornog fajla, koji se upisuje u
+            # `dokument_naziv`) — ponovna obrada istog dokumenta. Rok DRUGOG dokumenta sa istim
+            # datumom i istim tipom NIJE isti red: inace bi tiho nasledio odluku (potvrdu ili
+            # odbijanje) ranijeg reda, a to je ekvivalencija izvedena iz datuma.
+            _izvor_naziv = job.get("original_filename") or None
+
+            def _upit_duplikata():
+                q = (supa.table("predmet_hronologija")
+                     .select("id")
+                     .eq("predmet_id", predmet_id)
+                     .eq("datum_iso", deadline_iso)
+                     .eq("dogadjaj", _rok_dogadjaj))
+                q = q.eq("dokument_naziv", _izvor_naziv) if _izvor_naziv else q.is_("dokument_naziv", "null")
+                return q.limit(1).execute()
+            _postojeci = await asyncio.to_thread(_upit_duplikata)
             if _postojeci.data:
                 logger.info(
                     "[SMART_INTAKE] rok %s vec postoji u predmetu %s -- preskacem duplikat (job=%s)",
