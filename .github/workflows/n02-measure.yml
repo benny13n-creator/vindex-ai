@@ -31,41 +31,6 @@ jobs:
       - name: Generate synthetic fixtures
         run: docker run --rm -v "$PWD/n02_measure:/m" vx python /m/gen.py /m/fx
 
-      - name: MuPDF multithreading stress (no lock vs lock)
-        run: |
-          for l in 0 1; do
-            docker run --rm -e PYTHONWARNINGS=ignore -e LOCK=$l -e THREADS=4 -e ROUNDS=6 -v "$PWD/n02_measure:/m" vx \
-              python /m/mt_stress.py /m/fx/scan_10p.pdf /m/fx/mixed_6p.pdf /m/fx/scan_cyr_1p.pdf /m/fx/photo_12mp_a4.pdf 2>&1 | grep -v deprecated
-            echo "exit=$?"
-          done
-
-      - name: OCR proof suites inside the production image under 512 MiB (Serbian packs required)
-        run: |
-          set +e
-          for f in tests/test_n02_ocr_memorija.py tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py \
-                   tests/test_vcr002_t02_ocr_korpus.py tests/test_ocr001_ocr_korpus.py tests/test_extractor_image.py \
-                   tests/test_extractor_pdf_empty.py tests/test_b3_ocr_bez_laznog_uspeha.py tests/test_intake_worker_phase1a.py; do
-            for var in cand pr24; do
-              mnt=""
-              [ "$var" = "pr24" ] && mnt="-v $PWD/n02_measure/variants/extractor_pr24.py:/app/uploaded_doc/extractor.py:ro"
-              for lim in "--memory=512m --memory-swap=512m" ""; do
-                docker run --rm $lim $mnt                   -e SUPABASE_URL=https://fake.supabase.co -e SUPABASE_ANON_KEY=fake-anon-key                   -e SUPABASE_SERVICE_KEY=fake-service-key -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok                   -e OPENAI_API_KEY=sk-fake -e PINECONE_API_KEY=fake-pinecone -e PINECONE_HOST=https://fake.pinecone.io                   -e FOUNDER_EMAILS=ci@example.com -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 vx                   python -m pytest "$f" -q -rfEs -p no:randomly -p no:cacheprovider > /tmp/t.log 2>&1
-                ec=$?
-                echo "OCRTEST $var $f limit=[${lim:-none}] exit=$ec :: $(grep -aE '[0-9]+ (passed|failed|error)' /tmp/t.log | tail -n 1)"
-                grep -aE "^(FAILED|ERROR) " /tmp/t.log | cut -c1-220 | sed 's/^/   /'
-                grep -aE "^E  " /tmp/t.log | sort | uniq -c | sort -rn | head -n 4 | cut -c1-220 | sed 's/^/   /'
-                [ "$ec" = "137" ] || break
-              done
-            done
-          done
-
-      - name: Budget calibration variants of the candidate extractor
-        run: |
-          for v in 12 18; do
-            sed "s/^MAX_OCR_PIXELS = 15_000_000/MAX_OCR_PIXELS = ${v}_000_000/" uploaded_doc/extractor.py > n02_measure/variants/extractor_v$v.py
-            grep -c "^MAX_OCR_PIXELS = ${v}_000_000" n02_measure/variants/extractor_v$v.py
-          done
-
       - name: 512 MiB cases
         run: bash n02_measure/run_all.sh n02_measure/cases.txt
 

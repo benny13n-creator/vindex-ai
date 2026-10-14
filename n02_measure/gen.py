@@ -90,6 +90,9 @@ save(d, "photo_48mp_a4.pdf", ["\n".join(l48)])
 l40 = lines("lat", 38); i40 = scan_image(l40, dpi=640)              # ~5292 x 7484 = 39.6 MP
 i40.save(os.path.join(OUT, "img_40mp.jpg"), "JPEG", quality=80); TRUTH["img_40mp.jpg"] = ["\n".join(l40)]
 i40.convert("L").save(os.path.join(OUT, "img_40mp.png"), "PNG"); TRUTH["img_40mp.png"] = ["\n".join(l40)]
+i40.convert("CMYK").save(os.path.join(OUT, "img_40mp_cmyk.jpg"), "JPEG", quality=90); TRUTH["img_40mp_cmyk.jpg"] = ["\n".join(l40)]
+i40.save(os.path.join(OUT, "img_40mp_prog444.jpg"), "JPEG", quality=90, progressive=True, subsampling=0)
+TRUTH["img_40mp_prog444.jpg"] = ["\n".join(l40)]
 #    4e. the same 40 MP image embedded losslessly (Flate) in an A4 PDF: MuPDF cannot subsample-decode it
 b = io.BytesIO(); i40.save(b, "PNG")
 d = fitz.open(); p = d.new_page(width=595, height=842); p.insert_image(p.rect, stream=b.getvalue())
