@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import math
+import threading
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -175,27 +177,191 @@ def _detect_ocr_lang() -> str:
     return "eng"
 
 
+def _oslobodi_kes_rasterizacije() -> None:
+    """N02 (OCR memorija): MuPDF čuva DEKODIRANE slike strana u globalnom kešu procesa (podrazumevano do 256 MiB)
+    i NE oslobađa ih ni posle doc.close(). Svaka skenirana strana se ovde rasterizuje tačno jednom, pa keš nikad
+    nije pogođen — izmereno: +~25 MiB RSS po A4 strani na 300 dpi, do ~256 MiB koji ostaju zauzeti posle obrade.
+    Pražnjenje ne menja nijedan piksel (keš, ne podatak), pa ni OCR rezultat."""
+    try:
+        import fitz  # pymupdf
+        fitz.TOOLS.store_shrink(100)
+    except Exception:
+        pass
+
+
+# ─── N02 (Workstream B) — jedna strana u memoriji u celom procesu ─────────────────────────────────────────────────
+# Smart Intake worker, finalizacija i otpremanja pozivaju extract() preko asyncio.to_thread u ISTOM procesu.
+# Izmereno u produkcionoj slici pod 512 MiB (cgroup): uvezena aplikacija + uploaded_doc ~240 MiB; jedna A4 strana
+# na 300 dpi (rasterizacija + Tesseract) ~370-420 MiB; DVA istovremena OCR-a (worker + finalizacija) su OOM ubila
+# kontejner čak i za 1 stranu + 12 MP fotografiju. PyMuPDF uz to dokumentovano ne podržava rad iz više niti. Zato
+# se svaki poziv MuPDF-a i OCR rasterizovane strane/slike odvija pod ovim zaključavanjem: u procesu je u svakom
+# trenutku najviše jedna rasterizovana strana i jedan Tesseract. Zaključavanje se uzima po strani, ali
+# threading.Lock NIJE pravedno: izmereno (CI), nit koja ga pusti obično ga odmah ponovo uzme, pa drugi dokument
+# može da čeka da prvi završi ceo (latencija, ne memorija).
+_RASTER_OCR_LOCK = threading.Lock()
+
+# Najveći broj piksela slike koja ide u OCR (strana PDF-a posle rasterizacije ili samostalna fotografija).
+# Izmereno (CI, produkciona slika, --memory=512m, uvezen api): vrh kontejnera raste ~10,7 MiB po megapikselu
+# rastera (A4 8,7 MP → 359 MiB, A3 17,4 MP → 452 MiB, A2 34,8 MP → OOM; 40 MP fotografija → OOM). Granica je
+# izabrana tako da vrh pri samoj granici ostane ispod ~430 MiB, tj. da web proces zadrži ≥ 80 MiB za
+# istovremene zahteve. Strana iznad granice se NE odbija: rasterizuje se sa nižim dpi tako da stane u granicu
+# (A4/Letter/Legal na 300 dpi su ispod granice i ostaju nepromenjeni); fotografija iznad granice se pre OCR-a
+# smanjuje na granicu. Kvalitet je izmeren na sintetičkim dokumentima sa poznatim tekstom (N02 izveštaj).
+MAX_OCR_PIXELS = 15_000_000
+OCR_DPI = 300
+MIN_DEKODIRANIH_PIKSELA = 2480 * 3508   # A4 na 300 dpi: JPEG se ne dekodira umanjeno ispod ovoga
+
+_malloc_trim = None
+
+
+def _vrati_memoriju_sistemu() -> None:
+    """N02: posle svake OCR-ovane strane/slike vraća operativnom sistemu memoriju koju je glibc zadržao.
+    Izmereno pod 512 MiB: dve niti (worker + finalizacija) i POD zaključavanjem su OOM-ubile kontejner na dva
+    skena od 10 strana — svaka nit ima sopstvenu glibc malloc arenu koja posle velikih bafera strane (raster, PNG,
+    PIL kopije) zadržava oslobođenu memoriju, pa proces raste po niti (Python RSS 410 → 475 MiB). malloc_trim(0)
+    je samo glibc (Linux, produkciona slika); drugde (Windows, macOS, musl) je bez dejstva."""
+    global _malloc_trim
+    if _malloc_trim is False:
+        return
+    try:
+        if _malloc_trim is None:
+            import ctypes
+            _malloc_trim = ctypes.CDLL("libc.so.6").malloc_trim
+        _malloc_trim(0)
+    except Exception:
+        _malloc_trim = False
+
+
+# NS2 B1 (gunicorn, 512 MiB): glibc podrazumevano POMERA prag mmap-a naviše čim se oslobodi veliki bafer (do 32 MiB),
+# pa se sledeći baferi strane/slike (raster, PNG, PIL blokovi) uzimaju iz heap-a i posle oslobađanja OSTAJU u procesu —
+# malloc_trim ih ne vraća (izmereno: 196 → 313 MiB posle prvog OCR posla, ~46 MiB „slobodnog“ heap-a ostaje; posle
+# više poslova u gunicorn radniku do ~390 MiB, pa sledeći dokument OOM-ubija radnika). Fiksan prag od 1 MiB: svaki
+# bafer ≥ 1 MiB je zaseban mmap i vraća se sistemu odmah pri oslobađanju (izmereno: 313 → 267 MiB, bez rasta).
+# Pikseli i OCR se ne menjaju (alokator, ne podatak). Samo glibc (Linux, produkciona slika); drugde bez dejstva.
+_M_MMAP_THRESHOLD = -3
+PRAG_MMAP_BAJTOVA = 1 << 20
+_mmap_prag = None
+
+
+def _ogranici_zadrzavanje_memorije() -> None:
+    global _mmap_prag
+    if _mmap_prag is not None:
+        return
+    try:
+        import ctypes
+        _mmap_prag = bool(ctypes.CDLL("libc.so.6").mallopt(_M_MMAP_THRESHOLD, PRAG_MMAP_BAJTOVA))
+    except Exception:
+        _mmap_prag = False
+
+
+# NS2 B1: _RASTER_OCR_LOCK serijalizuje samo rasterizaciju i Tesseract, ali NE ostatak obrade dokumenta: dok jedna nit
+# dekodira veliku sliku (progresivni JPEG od 40 MP: +~270 MiB), druga je istovremeno parsirala svoj PDF (pypdf),
+# držala otvoren MuPDF dokument i svoje međurezultate — izmereno pod gunicorn-om i 512 MiB: par worker + finalizacija
+# OOM-ubija radnika iako se OCR nikad ne preklapa. Zato je CEO PDF/slika dokument jedan za drugim u procesu (worker,
+# finalizacija, otpremanja, napušteni zahtevi). Važi za JEDAN proces: više gunicorn radnika ovo ne pokriva.
+_DOKUMENT_LOCK = threading.Lock()
+
+
+def _jedan_dokument_u_procesu(fn):
+    import functools
+
+    @functools.wraps(fn)
+    def omotac(*args, **kwargs):
+        _ogranici_zadrzavanje_memorije()
+        with _DOKUMENT_LOCK:
+            return fn(*args, **kwargs)
+    return omotac
+
+
+def _dpi_strane(sirina_pt: float, visina_pt: float) -> int:
+    """dpi rasterizacije strane: 300, osim ako bi raster prešao MAX_OCR_PIXELS — tada najveći dpi koji staje."""
+    pikseli = (sirina_pt * OCR_DPI / 72.0) * (visina_pt * OCR_DPI / 72.0)
+    if pikseli <= MAX_OCR_PIXELS:
+        return OCR_DPI
+    return max(1, int(OCR_DPI * math.sqrt(MAX_OCR_PIXELS / pikseli)))
+
+
+def _zatvori_dokument(doc) -> None:
+    """Zatvara MuPDF dokument i odmah vraća ono što je on držao (keš + glibc). Izmereno: bez ovoga posle
+    PDF-a sa velikom ugrađenom slikom (97 MP, Flate) sledeći OCR u drugoj niti počinje ~90 MiB više.
+    Pozivalac drži _RASTER_OCR_LOCK."""
+    doc.close()
+    _oslobodi_kes_rasterizacije()
+    _vrati_memoriju_sistemu()
+
+
+def _rasterizuj_stranu(strana):
+    """PIL slika strane za OCR, u granici MAX_OCR_PIXELS. Pozivalac drži _RASTER_OCR_LOCK."""
+    import io
+    from PIL import Image
+
+    sirina, visina = float(strana.rect.width), float(strana.rect.height)
+    dpi = _dpi_strane(sirina, visina)
+    if dpi != OCR_DPI:
+        logger.info("[OCR] Strana %.0fx%.0f pt rasterizovana na %d dpi (granica %d piksela)",
+                    sirina, visina, dpi, MAX_OCR_PIXELS)
+    pixmap = strana.get_pixmap(dpi=dpi)
+    izvor = Image.open(io.BytesIO(pixmap.tobytes("png")))
+    del pixmap
+    _oslobodi_kes_rasterizacije()
+    # Ista konverzija koju _ocr_image ionako radi prvo (piksel-identično), ali se RGB original (3 bajta/piksel)
+    # više ne drži u procesu dok traje Tesseract — tada je zbir procesa i Tesseract-a najveći.
+    img = izvor.convert("L")
+    izvor.close()
+    return img
+
+
+def _u_granici_ocr(img):
+    """Samostalna fotografija iznad MAX_OCR_PIXELS se pre OCR-a smanjuje na granicu (siva skala, LANCZOS); ispod
+    granice se vraća ista, nepromenjena slika. Ulazna granica MAX_IMAGE_PIXELS (40 MP) ostaje ista: fotografija do
+    40 MP se i dalje prima i čita, samo se OCR ne radi na rasteru koji pod 512 MiB ubija proces."""
+    from PIL import Image
+
+    sirina, visina = img.size
+    if sirina * visina <= MAX_OCR_PIXELS:
+        return img
+    k = math.sqrt(MAX_OCR_PIXELS / (sirina * visina))
+    cilj = (max(1, int(sirina * k)), max(1, int(visina * k)))
+    logger.info("[OCR] Slika %dx%d smanjena na %dx%d pre OCR-a (granica %d piksela)", sirina, visina, *cilj, MAX_OCR_PIXELS)
+    # JPEG: dekodira odmah u sivoj skali i, kad može, već umanjeno (DCT 1/2, 1/4, 1/8) — ali nikad ispod
+    # MIN_DEKODIRANIH_PIKSELA (A4 na 300 dpi, referentni kvalitet skena). Izmereno (Windows, 40 MP): CMYK JPEG
+    # +344 → +86 MiB, običan JPEG +115 → +20 MiB pre OCR-a. Ostali formati (PNG): bez dejstva.
+    kd = math.sqrt(min(1.0, MIN_DEKODIRANIH_PIKSELA / (sirina * visina)))
+    img.draft("L", (max(1, math.ceil(sirina * kd)), max(1, math.ceil(visina * kd))))
+    siva = img.convert("L")
+    if siva.size[0] * siva.size[1] <= MAX_OCR_PIXELS:
+        return siva                     # dekoder je već umanjio ispod granice (i ne ispod MIN_DEKODIRANIH_PIKSELA)
+    manja = siva.resize(cilj, Image.Resampling.LANCZOS)
+    if siva is not img:
+        siva.close()
+    return manja
+
+
 def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], list[float]]:
     """OCR samo zadatih strana PDF-a (0-indeksirano). Vraća ({indeks: tekst} za strane sa prepoznatim tekstom,
     listu pouzdanosti). Bilo koja greška okruženja (nema pymupdf/tesseract) → ({}, []) — isto kao ranije."""
     try:
-        import io
         import fitz  # pymupdf
-        from PIL import Image
 
         ocr_lang = _detect_ocr_lang()
-        doc = fitz.open(str(path))
+        with _RASTER_OCR_LOCK:
+            doc = fitz.open(str(path))
         dopuna: dict[int, str] = {}
         confs: list[float] = []
-        for i in indeksi:
-            pixmap = doc[i].get_pixmap(dpi=300)
-            img = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            tekst, conf = _ocr_image(img, ocr_lang)
-            if tekst and tekst.strip():
-                dopuna[i] = tekst
-                if conf is not None:
-                    confs.append(conf)
-        doc.close()
+        try:
+            for i in indeksi:
+                with _RASTER_OCR_LOCK:
+                    img = _rasterizuj_stranu(doc[i])
+                    tekst, conf = _ocr_image(img, ocr_lang)
+                    del img
+                    _vrati_memoriju_sistemu()
+                if tekst and tekst.strip():
+                    dopuna[i] = tekst
+                    if conf is not None:
+                        confs.append(conf)
+        finally:
+            with _RASTER_OCR_LOCK:
+                _zatvori_dokument(doc)
         if dopuna:
             logger.info("[OCR] Mešovit PDF %s — OCR dopunio %d/%d strana bez teksta", path.name, len(dopuna), len(indeksi))
         return dopuna, confs
@@ -204,6 +370,7 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
         return {}, []
 
 
+@_jedan_dokument_u_procesu
 def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     """Return (text, is_scanned, ocr_used, pages, ocr_confidence).
 
@@ -240,6 +407,8 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         total_chars += len(text)
 
     avg_chars = total_chars / max(len(reader.pages), 1)
+    page = None     # NS2 B1 pregled: promenljiva petlje drži poslednju pypdf stranu (i čitač) živim tokom OCR mešovitog PDF-a
+    del reader      # NS2 B1: pypdf objekti (i učitani tokovi slika) se ne drže dok traje OCR
     # Threshold: <30 chars/stranica ili ukupno <80 = verovatno skenirani
     is_scanned = avg_chars < 30 or total_chars < 80
 
@@ -258,21 +427,35 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
 
     # OCR fallback for scanned/unreadable PDFs
     try:
-        import io
         import fitz  # pymupdf
-        from PIL import Image
 
         ocr_lang = _detect_ocr_lang()
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
 
-        doc = fitz.open(str(path))
+        with _RASTER_OCR_LOCK:
+            doc = fitz.open(str(path))
+            strane_doc = iter(doc)
         ocr_pages: list[str] = []
         ocr_confs: list[float] = []
         ocr_strana = 0
-        for page_num, page in enumerate(doc):
-            pixmap = page.get_pixmap(dpi=300)
-            img = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            page_text, page_conf = _ocr_image(img, ocr_lang)
+        try:
+            ocr_rezultati = []
+            while True:
+                with _RASTER_OCR_LOCK:      # učitavanje strane je takođe poziv MuPDF-a
+                    page = next(strane_doc, None)
+                    if page is None:
+                        break
+                    try:
+                        img = _rasterizuj_stranu(page)
+                    finally:
+                        del page        # MuPDF objekat strane se oslobađa pod zaključavanjem i kad render padne
+                    ocr_rezultati.append(_ocr_image(img, ocr_lang))
+                    del img
+                    _vrati_memoriju_sistemu()
+        finally:
+            with _RASTER_OCR_LOCK:
+                _zatvori_dokument(doc)
+        for page_num, (page_text, page_conf) in enumerate(ocr_rezultati):
             # OCR001: kratak, ali ISPRAVAN digitalni tekst (npr. dostavnica od tri reda, < 80 znakova) više se ne
             # zamenjuje kraćim ili praznim OCR rezultatom iste strane — digitalni sloj je tačniji od OCR-a.
             if len((page_text or "").strip()) <= len(pages[page_num]):
@@ -291,7 +474,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
-        if ocr_strana and len(ocr_text.strip()) > 100:
+        if ocr_strana and (len(ocr_text.strip()) > 100 or _kratak_ocr_procitan(ocr_text, ocr_confidence)):
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
         if total_chars > 0:
@@ -324,6 +507,26 @@ PRAG_VIDLJIVOG_SADRZAJA = 0.005     # 0,5 % tamnih piksela: prazna/skenirana bel
 PRAG_POUZDANOSTI_OCR = 0.75
 
 
+# NS2 B2 — KRATAK skeniran dokument (dostavnica, pečat „overeno“, rešenje od jednog reda). Pravilo „> 100 znakova“
+# je ispravno pročitan tekst od 15–99 znakova potpuno brisalo ("", strane None, „OCR nije uspeo“). Izmereno
+# (sintetički skenovi, produkcioni OCR poziv, NS2 B2): pravi kratak tekst od 15–40 znakova, i posle umanjenja,
+# zamućenja i JPEG q30, ima pouzdanost 0,85–0,93 i ≥ 2 reči sa ≥ 3 slova/cifre koje čine ≥ polovinu reči; šum
+# (potezi, lukovi, tačke) koji OCR pretvori u ≤ 100 znakova ima pouzdanost 0,58–0,77 i najviše 1 takvu reč. Kratak OCR
+# tekst se zato prihvata kao pročitan SAMO kad prođe oba uslova; inače ostaje nepročitan kao i ranije (bez teksta,
+# na pregled advokata). Tekst duži od 100 znakova ovo pravilo ne dira.
+MIN_PUNIH_RECI_KRATKOG_OCR = 2
+
+
+def _kratak_ocr_procitan(tekst: str, pouzdanost: Optional[float]) -> bool:
+    """Da li je OCR tekst od ≤ 100 znakova dovoljno pouzdan da se ne odbaci (v. komentar iznad)."""
+    if pouzdanost is None or pouzdanost < PRAG_POUZDANOSTI_OCR:
+        return False
+    reci = (tekst or "").split()
+    pune = [r for r in reci if sum(c.isalnum() for c in r) >= 3]
+    return len(pune) >= MIN_PUNIH_RECI_KRATKOG_OCR and 2 * len(pune) >= len(reci)
+
+
+@_jedan_dokument_u_procesu
 def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
     """Strane (1-indeksirano) bez pročitanog teksta, a sa vidljivim sadržajem. None = nije moguće izmeriti (PDF se
     ne može rasterizovati); pozivalac tada NE tvrdi ni da je strana pročitana ni da nije."""
@@ -332,19 +535,23 @@ def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
         return []
     try:
         import fitz  # pymupdf
-        doc = fitz.open(str(path))
-        try:
-            if len(doc) != len(pages):
-                return None
-            necitljive = []
-            for i in kandidati:
-                uzorak = doc[i].get_pixmap(dpi=50, colorspace=fitz.csGRAY).samples
-                tamnih = len(uzorak) - len(uzorak.translate(None, bytes(range(128))))
-                if uzorak and tamnih / len(uzorak) >= PRAG_VIDLJIVOG_SADRZAJA:
-                    necitljive.append(i + 1)
-            return necitljive
-        finally:
-            doc.close()
+        with _RASTER_OCR_LOCK:      # N02: MuPDF samo iz jedne niti u isto vreme (50 dpi, ~ms po strani)
+            doc = fitz.open(str(path))
+            try:
+                if len(doc) != len(pages):
+                    return None
+                necitljive = []
+                for i in kandidati:
+                    strana = doc[i]
+                    dpi = min(50, _dpi_strane(float(strana.rect.width), float(strana.rect.height)))
+                    uzorak = strana.get_pixmap(dpi=dpi, colorspace=fitz.csGRAY).samples
+                    _oslobodi_kes_rasterizacije()
+                    tamnih = len(uzorak) - len(uzorak.translate(None, bytes(range(128))))
+                    if uzorak and tamnih / len(uzorak) >= PRAG_VIDLJIVOG_SADRZAJA:
+                        necitljive.append(i + 1)
+                return necitljive
+            finally:
+                _zatvori_dokument(doc)
     except Exception as exc:
         logger.warning("[OCR] potpunost strana nije izmerena za %s: %s", path.name, type(exc).__name__)
         return None
@@ -415,6 +622,7 @@ def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
 
 
+@_jedan_dokument_u_procesu
 def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
     """Return (text, is_scanned, ocr_used, pages, ocr_confidence) for a standalone
     photographed/scanned image — same return contract as extract_pdf, so
@@ -454,8 +662,14 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
     try:
         ocr_lang = _detect_ocr_lang()
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
-        with Image.open(path) as img:
+        with _RASTER_OCR_LOCK, Image.open(path) as izvor:
+            img = _u_granici_ocr(izvor)
+            if img is izvor:
+                img = izvor.convert("L")    # piksel-identično konverziji u _ocr_image; original se ne drži tokom OCR-a
+            izvor.close()                   # pun dekodiran original se oslobađa pre OCR-a
             text, confidence = _ocr_image(img, ocr_lang)
+            del img
+            _vrati_memoriju_sistemu()
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — slika ne može biti obrađena", ie)
         _log_ocr_error("missing_dependencies", path.name)
@@ -465,7 +679,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
         _log_ocr_error("unexpected_error", path.name)
         return "", True, False, None, None
 
-    if len(text) > 100:
+    if len(text) > 100 or _kratak_ocr_procitan(text, confidence):
         logger.info("[OCR] Uspešno — %d karaktera", len(text))
         return text, False, True, None, confidence
 
