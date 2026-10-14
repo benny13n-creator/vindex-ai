@@ -209,6 +209,26 @@ _RASTER_OCR_LOCK = threading.Lock()
 MAX_OCR_PIXELS = 15_000_000
 OCR_DPI = 300
 
+_malloc_trim = None
+
+
+def _vrati_memoriju_sistemu() -> None:
+    """N02: posle svake OCR-ovane strane/slike vraća operativnom sistemu memoriju koju je glibc zadržao.
+    Izmereno pod 512 MiB: dve niti (worker + finalizacija) i POD zaključavanjem su OOM-ubile kontejner na dva
+    skena od 10 strana — svaka nit ima sopstvenu glibc malloc arenu koja posle velikih bafera strane (raster, PNG,
+    PIL kopije) zadržava oslobođenu memoriju, pa proces raste po niti (Python RSS 410 → 475 MiB). malloc_trim(0)
+    je samo glibc (Linux, produkciona slika); drugde (Windows, macOS, musl) je bez dejstva."""
+    global _malloc_trim
+    if _malloc_trim is False:
+        return
+    try:
+        if _malloc_trim is None:
+            import ctypes
+            _malloc_trim = ctypes.CDLL("libc.so.6").malloc_trim
+        _malloc_trim(0)
+    except Exception:
+        _malloc_trim = False
+
 
 def _dpi_strane(sirina_pt: float, visina_pt: float) -> int:
     """dpi rasterizacije strane: 300, osim ako bi raster prešao MAX_OCR_PIXELS — tada najveći dpi koji staje."""
@@ -272,6 +292,7 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
                     img = _rasterizuj_stranu(doc[i])
                     tekst, conf = _ocr_image(img, ocr_lang)
                     del img
+                    _vrati_memoriju_sistemu()
                 if tekst and tekst.strip():
                     dopuna[i] = tekst
                     if conf is not None:
@@ -363,6 +384,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
                     del page
                     ocr_rezultati.append(_ocr_image(img, ocr_lang))
                     del img
+                    _vrati_memoriju_sistemu()
         finally:
             with _RASTER_OCR_LOCK:
                 doc.close()
@@ -559,6 +581,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
                 izvor.close()       # pun dekodiran original se oslobađa pre OCR-a
             text, confidence = _ocr_image(img, ocr_lang)
             del img
+            _vrati_memoriju_sistemu()
     except ImportError as ie:
         logger.warning("[OCR] Potrebni paketi nisu instalirani (%s) — slika ne može biti obrađena", ie)
         _log_ocr_error("missing_dependencies", path.name)
