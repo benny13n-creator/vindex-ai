@@ -4,15 +4,17 @@ set -u
 IMG=${IMG:-vx}
 CASES=${1:-n02_measure/cases.txt}
 mkdir -p n02_measure/out n02_measure/logs
+# importing api requires a valid field key: a throwaway random one per job (never a literal in the repo)
+FEK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 while read -r id variant mode spec cpus; do
   [ -z "${id:-}" ] && continue
   case "$id" in \#*) continue;; esac
   extra=""
   [ -n "${cpus:-}" ] && extra="--cpus=$cpus"
   start=$(date +%s.%N)
-  docker run --name "c_$id" --memory=512m --memory-swap=512m $extra --env-file n02_measure/env.list \
+  docker run --name "c_$id" --memory=512m --memory-swap=512m $extra --env-file n02_measure/env.list -e FIELD_ENCRYPTION_KEY="$FEK" \
     -v "$PWD/n02_measure:/m" -e OUT=/m/out -e FX=/m/fx "$IMG" \
-    python /m/case.py "$id" "$variant" "$mode" "$spec" > "n02_measure/logs/$id.log" 2>&1
+    python /m/case.py "$id" "$variant" "$mode" "$spec" > "n02_measure/logs/$id.log" 2>&1 < /dev/null
   ec=$?
   end=$(date +%s.%N)
   oom=$(docker inspect -f '{{.State.OOMKilled}}' "c_$id")
