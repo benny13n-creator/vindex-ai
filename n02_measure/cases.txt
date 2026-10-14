@@ -1,7 +1,13 @@
-# id variant mode spec [cpus|-] [mem: 512m|none] [env K=V,K=V]
-x20 cand worker scan_10p.pdf 0.5 512m INSTR=1
-x21 cand threads scan_10p.pdf|scan_10p.pdf 0.5 512m INSTR=1
-x21n cand threads scan_10p.pdf|scan_10p.pdf 0.5 512m INSTR=1,NOSAMPLER=1
-x22 cand threads scan_cyr_1p.pdf|scan_cyr_1p.pdf 0.5 512m INSTR=1
-x23 cand threads scan_10p.pdf|scan_10p.pdf 1 512m INSTR=1
-x21p pr24 threads scan_10p.pdf|scan_10p.pdf 0.5 none INSTR=1
+# id variant mode spec [cpus|-] [mem: 512m|none] [env K=V,K=V]   (scoring deferred until all threads finish)
+h02 cand worker scan_10p.pdf - 512m INSTR=1
+h13 cand threads scan_10p.pdf|scan_10p.pdf - 512m INSTR=1
+h15b cand threads photo_12mp_page72.pdf|img_40mp.png - 512m INSTR=1
+h15d cand threads pdf_flate100_a4.pdf|img_40mp.jpg - 512m INSTR=1
+h15e cand threads pdf_flate100_a4.pdf|img_40mp.jpg - 512m INSTR=1
+h15f cand threads img_40mp.jpg|pdf_flate100_a4.pdf - 512m INSTR=1
+h20 cand worker scan_10p.pdf 0.5 512m INSTR=1
+h21 cand threads scan_10p.pdf|scan_10p.pdf 0.5 512m INSTR=1
+h23 cand threads scan_10p.pdf|scan_10p.pdf 1 512m INSTR=1
+h22 cand threads scan_cyr_1p.pdf|img_12mp.jpg 0.5 512m INSTR=1
+h21p pr24 threads scan_10p.pdf|scan_10p.pdf 0.5 none INSTR=1
+h23p pr24 threads scan_10p.pdf|scan_10p.pdf 1 none INSTR=1

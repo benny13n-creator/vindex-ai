@@ -45,17 +45,17 @@ jobs:
           for f in tests/test_n02_ocr_memorija.py tests/test_ns005_b_ocr.py tests/test_ns005_t14_smart_intake.py \
                    tests/test_vcr002_t02_ocr_korpus.py tests/test_ocr001_ocr_korpus.py tests/test_extractor_image.py \
                    tests/test_extractor_pdf_empty.py tests/test_b3_ocr_bez_laznog_uspeha.py tests/test_intake_worker_phase1a.py; do
-            for lim in "--memory=512m --memory-swap=512m" ""; do
-              docker run --rm $lim \
-                -e SUPABASE_URL=https://fake.supabase.co -e SUPABASE_ANON_KEY=fake-anon-key \
-                -e SUPABASE_SERVICE_KEY=fake-service-key -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok \
-                -e OPENAI_API_KEY=sk-fake -e PINECONE_API_KEY=fake-pinecone -e PINECONE_HOST=https://fake.pinecone.io \
-                -e FOUNDER_EMAILS=ci@example.com -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 vx \
-                python -m pytest "$f" -q -rs -p no:randomly -p no:cacheprovider > /tmp/t.log 2>&1
-              ec=$?
-              echo "OCRTEST $f limit=[${lim:-none}] exit=$ec :: $(grep -aE '[0-9]+ (passed|failed|error)' /tmp/t.log | tail -n 1)"
-              grep -aE "^(FAILED|ERROR) " /tmp/t.log | cut -c1-200 | sed 's/^/   /'
-              [ "$ec" = "137" ] || break
+            for var in cand pr24; do
+              mnt=""
+              [ "$var" = "pr24" ] && mnt="-v $PWD/n02_measure/variants/extractor_pr24.py:/app/uploaded_doc/extractor.py:ro"
+              for lim in "--memory=512m --memory-swap=512m" ""; do
+                docker run --rm $lim $mnt                   -e SUPABASE_URL=https://fake.supabase.co -e SUPABASE_ANON_KEY=fake-anon-key                   -e SUPABASE_SERVICE_KEY=fake-service-key -e SUPABASE_JWT_SECRET=fake-jwt-secret-longer-than-32-chars-ok                   -e OPENAI_API_KEY=sk-fake -e PINECONE_API_KEY=fake-pinecone -e PINECONE_HOST=https://fake.pinecone.io                   -e FOUNDER_EMAILS=ci@example.com -e VINDEX_REQUIRE_OCR=1 -e VINDEX_EXPECT_SRP=1 vx                   python -m pytest "$f" -q -rfEs -p no:randomly -p no:cacheprovider > /tmp/t.log 2>&1
+                ec=$?
+                echo "OCRTEST $var $f limit=[${lim:-none}] exit=$ec :: $(grep -aE '[0-9]+ (passed|failed|error)' /tmp/t.log | tail -n 1)"
+                grep -aE "^(FAILED|ERROR) " /tmp/t.log | cut -c1-220 | sed 's/^/   /'
+                grep -aE "^E  " /tmp/t.log | sort | uniq -c | sort -rn | head -n 4 | cut -c1-220 | sed 's/^/   /'
+                [ "$ec" = "137" ] || break
+              done
             done
           done
 

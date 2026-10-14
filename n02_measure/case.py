@@ -105,12 +105,7 @@ def run_one(name, worker):
         if worker and pages and p.suffix == ".pdf" and not scanned:
             r["necitljive"] = ex.necitljive_strane_pdf(p, pages)
         r["secs"] = round(time.perf_counter() - t0, 2)
-        tr = truth.get(name)
-        if tr:
-            if pages and len(pages) == len(tr):
-                r["cer_pages"] = [cer(a, b) for a, b in zip(tr, pages)]
-            r["cer"] = cer("\n".join(tr), text)
-            r["wr"] = word_recall("\n".join(tr), text)
+        r["_text"], r["_pages"] = text, pages      # scored AFTER every thread finished (scoring is CPU-heavy, holds the GIL)
     except Exception as e:
         r.update(outcome="exception", exc=type(e).__name__, msg=str(e)[:160], secs=round(time.perf_counter() - t0, 2))
     return r
@@ -136,6 +131,14 @@ else:
 wall = round(time.perf_counter() - t0, 2)
 time.sleep(0.3)
 sam.terminate(); sam.wait()
+for r in results:
+    text, pages = r.pop("_text", None), r.pop("_pages", None)
+    tr = truth.get(r["file"])
+    if text is not None and tr:
+        if pages and len(pages) == len(tr):
+            r["cer_pages"] = [cer(a, b) for a, b in zip(tr, pages)]
+        r["cer"] = cer("\n".join(tr), text)
+        r["wr"] = word_recall("\n".join(tr), text)
 
 
 def rd(p):
