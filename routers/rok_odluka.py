@@ -47,7 +47,7 @@ from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
 from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
-    STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_POTVRDJEN,
+    STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
     odbij_rok, odluke, potvrdi_rok, stanje_roka,
 )
 
@@ -222,6 +222,14 @@ async def _odgovor_posle_odluke(rok_id: str, red: dict) -> dict:
             "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
 
 
+def _bez_upisa(rok_id: str, red: dict, stanje: str) -> dict:
+    """NS2B-C F1: ista odluka je VEC u lancu (stanje upravo procitano strogo). Nista se ne
+    upisuje i ne tvrdi se nov upis (`odluka_zabelezena: False`); stanje je ono koje lanac kaze."""
+    return {"ok": True, "rok_id": rok_id, "odluka_zabelezena": False, "vec_odluceno": True,
+            "stanje_odluke": stanje,
+            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+
+
 @router.post("/api/rokovi/{rok_id}/potvrdi")
 @limiter.limit("60/minute")
 async def potvrdi(
@@ -254,6 +262,36 @@ async def potvrdi(
         raise HTTPException(
             status_code=409,
             detail="Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo.")
+
+    # NS2B-C: odbijen rok se ne potvrdjuje obicnom odlukom (zastareo prozor, ponovljen
+    # zahtev). Ova provera je SAMO za jasan odgovor i da se ne upise suvisan zapis — NIJE
+    # zastita od trke: upis nije uslovan. Zastitu daje `odluke()`, koja odbijanje cini
+    # zavrsnim bez obzira na redosled upisa. Neprocitan lanac → 503, nista se ne upisuje.
+    try:
+        _pre = await asyncio.to_thread(odluke, [rok_id], True)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] stanje pre potvrde nije procitano rok=%s: %s", rok_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+    if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
+        raise HTTPException(
+            status_code=409,
+            detail="Rok je već odbijen. Potvrda posle odbijanja nije moguća iz ovog prozora — osvežite stranicu.")
+    # NS2B-C F1: ponovljena potvrda VEC potvrdjenog roka ne upisuje nov red (lanac ne raste
+    # bez promene stanja). Jedini izuzetak je N03-FD6: posle uklanjanja dokumenta iz predmeta
+    # nova potvrda JESTE nova cinjenica (advokat je ponovo pregledao) i gasi upozorenje — tada
+    # se upisuje. Ako to ne moze da se proveri → 503, nista se ne upisuje.
+    if stanje_roka(rok_id, _pre) == STANJE_POTVRDJEN:
+        try:
+            _ponovni_pregled = str(rok_id) in await asyncio.to_thread(izvor_uklonjen_posle_potvrde, [red])
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera izvora pre ponovne potvrde pala rok=%s: %s", rok_id, exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+        if not _ponovni_pregled:
+            return _bez_upisa(rok_id, red, STANJE_POTVRDJEN)
 
     if not await potvrdi_rok(rok_id, uid, napomena=body.napomena):
         raise HTTPException(
@@ -289,6 +327,18 @@ async def odbij(
     supa = _get_supa()
     uid = user["user_id"]
     red = await _rok_u_vlasnistvu(supa, rok_id, uid)
+
+    # NS2B-C F1: odbijanje VEC odbijenog roka ne upisuje nov red — REJECTED je apsorbujuce,
+    # pa drugi zapis ne menja nista. Potvrdjen ili nepotvrdjen rok se i dalje odbija (upis).
+    # Pad citanja NE blokira odbijanje: oduzimanje izvrsivosti je bezbedan smer, pa se tada
+    # upisuje kao i ranije (najvise jedan suvisan red).
+    try:
+        _pre = await asyncio.to_thread(odluke, [rok_id], True)
+    except Exception as exc:
+        logger.warning("[ROK_ODLUKA] stanje pre odbijanja nije procitano rok=%s, odbijanje se upisuje: %s", rok_id, exc)
+        _pre = {}
+    if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
+        return _bez_upisa(rok_id, red, STANJE_ODBIJEN)
 
     if not await odbij_rok(rok_id, uid, napomena=body.napomena):
         raise HTTPException(

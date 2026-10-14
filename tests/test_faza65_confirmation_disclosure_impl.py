@@ -341,6 +341,13 @@ class _AuditUpit:
     def order(self, k, **kw):
         return _AuditUpit(sorted(self._r, key=lambda r: r.get(k, 0)))
 
+    # NS2B-C F1: odluke() cita lanac po stranama (`seq > poslednji`, `limit`).
+    def gt(self, k, v):
+        return _AuditUpit([r for r in self._r if r.get(k) is not None and r.get(k) > v])
+
+    def limit(self, n):
+        return _AuditUpit(self._r[:n])
+
     def execute(self):
         class R:
             pass
@@ -377,14 +384,15 @@ def test_odluke_odbijanje_daje_REJECTED_a_ne_CONFIRMED():
     assert sme_pristupiti({"id": "r1"}, m, potrosac=POTROSAC_KLIJENT) is False
 
 
-def test_odluke_poslednja_pobedjuje_u_oba_smera():
+def test_odluke_odbijanje_je_zavrsno_u_oba_redosleda():
+    """NS2B-C: potvrda -> odbijanje = REJECTED; odbijanje -> potvrda = i dalje REJECTED."""
     from shared import rok_potvrda as rp
     with patch("shared.deps._get_supa",
                lambda: _supa([_zapis("r1", "rok_potvrdjen", 1), _zapis("r1", "rok_odbijen", 2)])):
         assert rp.odluke(["r1"]) == {"r1": STANJE_ODBIJEN}
     with patch("shared.deps._get_supa",
                lambda: _supa([_zapis("r1", "rok_odbijen", 1), _zapis("r1", "rok_potvrdjen", 2)])):
-        assert rp.odluke(["r1"]) == {"r1": STANJE_POTVRDJEN}
+        assert rp.odluke(["r1"]) == {"r1": STANJE_ODBIJEN}
 
 
 def test_odluke_pad_upita_je_FAIL_CLOSED():
