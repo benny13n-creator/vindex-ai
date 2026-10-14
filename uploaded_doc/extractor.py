@@ -209,6 +209,7 @@ _RASTER_OCR_LOCK = threading.Lock()
 # smanjuje na granicu. Kvalitet je izmeren na sintetičkim dokumentima sa poznatim tekstom (N02 izveštaj).
 MAX_OCR_PIXELS = 15_000_000
 OCR_DPI = 300
+MIN_DEKODIRANIH_PIKSELA = 2480 * 3508   # A4 na 300 dpi: JPEG se ne dekodira umanjeno ispod ovoga
 
 _malloc_trim = None
 
@@ -281,8 +282,14 @@ def _u_granici_ocr(img):
     k = math.sqrt(MAX_OCR_PIXELS / (sirina * visina))
     cilj = (max(1, int(sirina * k)), max(1, int(visina * k)))
     logger.info("[OCR] Slika %dx%d smanjena na %dx%d pre OCR-a (granica %d piksela)", sirina, visina, *cilj, MAX_OCR_PIXELS)
-    img.draft("L", (sirina, visina))    # JPEG: dekodira odmah u sivoj skali (1 bajt/piksel); ostali formati: bez dejstva
+    # JPEG: dekodira odmah u sivoj skali i, kad može, već umanjeno (DCT 1/2, 1/4, 1/8) — ali nikad ispod
+    # MIN_DEKODIRANIH_PIKSELA (A4 na 300 dpi, referentni kvalitet skena). Izmereno (Windows, 40 MP): CMYK JPEG
+    # +344 → +86 MiB, običan JPEG +115 → +20 MiB pre OCR-a. Ostali formati (PNG): bez dejstva.
+    kd = math.sqrt(min(1.0, MIN_DEKODIRANIH_PIKSELA / (sirina * visina)))
+    img.draft("L", (max(1, math.ceil(sirina * kd)), max(1, math.ceil(visina * kd))))
     siva = img.convert("L")
+    if siva.size[0] * siva.size[1] <= MAX_OCR_PIXELS:
+        return siva                     # dekoder je već umanjio ispod granice (i ne ispod MIN_DEKODIRANIH_PIKSELA)
     manja = siva.resize(cilj, Image.Resampling.LANCZOS)
     if siva is not img:
         siva.close()
@@ -394,8 +401,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
                     page = next(strane_doc, None)
                     if page is None:
                         break
-                    img = _rasterizuj_stranu(page)
-                    del page
+                    try:
+                        img = _rasterizuj_stranu(page)
+                    finally:
+                        del page        # MuPDF objekat strane se oslobađa pod zaključavanjem i kad render padne
                     ocr_rezultati.append(_ocr_image(img, ocr_lang))
                     del img
                     _vrati_memoriju_sistemu()
