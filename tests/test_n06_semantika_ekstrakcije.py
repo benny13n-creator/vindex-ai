@@ -231,7 +231,8 @@ def test_ocr_dostavnice_ceo_tok_primalac_nije_stranka_i_original_ostaje(ok, monk
     docs = [d for d in b.tabele["predmet_dokumenti"] if d["predmet_id"] == PA]
     assert len(docs) == 2
     tekst = " ".join(d.get("tekst_sadrzaj") or "" for d in docs)
-    assert "OCR001-FRESH-2026-015" in tekst and "26.03.2025" in tekst
+    # Tekst je sačuvan (original ostaje); Debian Tesseract čita "OCR001" kao "OCRO01", pa se ne traži tačan OCR prefiksa.
+    assert "FRESH-2026-015" in tekst and "26.03.2025" in tekst
     assert b.tabele["predmet_hronologija"] == [], "datum uručenja ne sme postati rok"
 
 # Recenzija N06 (krug 2): oblik bez nepostojanog „a“ važi samo posle muške oznake u kosom padežu. Posle nominativa
