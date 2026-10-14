@@ -6,7 +6,8 @@ sys.path.insert(0, "/app")
 import fitz
 from PIL import Image, ImageFilter
 
-from uploaded_doc.extractor import MAX_JPEG_KOEFICIJENATA_BAJTOVA, _jpeg_bajtova_koeficijenata, _jpeg_okvir
+from uploaded_doc.extractor import _jpeg_bajtova_koeficijenata, _jpeg_okvir
+MAX_JPEG_KOEFICIJENATA_BAJTOVA = 128 << 20   # NS2b runda 1/2 prag (fixture tik ispod njega ostaje isti)
 
 Image.MAX_IMAGE_PIXELS = None
 OUT = sys.argv[1]
