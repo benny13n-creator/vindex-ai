@@ -249,9 +249,13 @@ def _rasterizuj_stranu(strana):
         logger.info("[OCR] Strana %.0fx%.0f pt rasterizovana na %d dpi (granica %d piksela)",
                     sirina, visina, dpi, MAX_OCR_PIXELS)
     pixmap = strana.get_pixmap(dpi=dpi)
-    img = Image.open(io.BytesIO(pixmap.tobytes("png")))
+    izvor = Image.open(io.BytesIO(pixmap.tobytes("png")))
     del pixmap
     _oslobodi_kes_rasterizacije()
+    # Ista konverzija koju _ocr_image ionako radi prvo (piksel-identično), ali se RGB original (3 bajta/piksel)
+    # više ne drži u procesu dok traje Tesseract — tada je zbir procesa i Tesseract-a najveći.
+    img = izvor.convert("L")
+    izvor.close()
     return img
 
 
@@ -577,8 +581,9 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
         with _RASTER_OCR_LOCK, Image.open(path) as izvor:
             img = _u_granici_ocr(izvor)
-            if img is not izvor:
-                izvor.close()       # pun dekodiran original se oslobađa pre OCR-a
+            if img is izvor:
+                img = izvor.convert("L")    # piksel-identično konverziji u _ocr_image; original se ne drži tokom OCR-a
+            izvor.close()                   # pun dekodiran original se oslobađa pre OCR-a
             text, confidence = _ocr_image(img, ocr_lang)
             del img
             _vrati_memoriju_sistemu()
