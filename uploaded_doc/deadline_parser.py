@@ -103,16 +103,38 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
     probe = tekst[:500]
 
     def _datum_prijema(pocetak: int, kraj: int) -> bool:
-        """Pecat prijema/dostave/ekspedicije u NEPOSREDNOJ blizini datuma: isti red pre
-        datuma, isti red kratko posle datuma, ili kratak prethodni red („PRIMLJENO" iznad
-        datuma). Reci su tacni oblici pecata, ne koren — „o prijemu u radni odnos" nije pecat."""
-        pre = probe[:pocetak].rsplit("\n", 1)
-        isti_red_pre = pre[-1][-80:]
-        isti_red_posle = probe[kraj:].split("\n", 1)[0][:30]
-        prethodni_red = pre[0].rsplit("\n", 1)[-1].strip() if len(pre) == 2 else ""
-        if len(prethodni_red) > 40:
-            prethodni_red = ""
-        return any(_PRIJEM_RE.search(x) for x in (isti_red_pre, isti_red_posle, prethodni_red))
+        """Da li je pecat prijema/dostave/ekspedicije VEZAN BAS ZA OVAJ datum.
+
+        Vezan je kada:
+          1. u istom redu, izmedju prethodnog datuma (ili pocetka reda) i ovog datuma,
+             stoji rec pecata („Primljeno dana 25.03.2025");
+          2. rec pecata stoji ODMAH posle datuma, kao njegov predikat („25.03.2025
+             PRIMLJENO") — ne posle zareza, gde opisuje odluku („doneta 17.03.2025,
+             dostavljena strankama");
+          3. prethodni NEPRAZAN red je kratak natpis pecata BEZ sopstvenog datuma
+             („PRIMLJENO" iznad datuma), a red ovog datuma nema frazu izdavanja
+             (donet/dana/zaključen/datum/„Mesto, ").
+        Pecat sa sopstvenim datumom ne prenosi se na sledeci red. Kad pravila ne mogu
+        da odluce, pozivalac vraca `None` — nepoznat datum je bolji od pogresnog."""
+        red_pocetak = probe.rfind("\n", 0, pocetak) + 1
+        pre = probe[red_pocetak:pocetak]
+        prethodni_datumi = list(_DATUM_RE.finditer(pre))
+        if prethodni_datumi:
+            pre = pre[prethodni_datumi[-1].end():]
+        if _PRIJEM_RE.search(pre):
+            return True
+        if _PRIJEM_POSLE_RE.match(probe[kraj:kraj + 30]):
+            return True
+        if _IZDAVANJE_RE.search(pre):
+            return False
+        prethodni = [r.strip() for r in probe[:red_pocetak].split("\n")]
+        while prethodni and not prethodni[-1]:
+            prethodni.pop()
+        if not prethodni:
+            return False
+        natpis = prethodni[-1]
+        return (len(natpis) <= _NATPIS_PECATA_MAX and not _DATUM_RE.search(natpis)
+                and bool(_PRIJEM_RE.search(natpis)))
 
     # Fraze koje prethode datumu dokumenta (redosled je bitan — specifičnije pre generičnih)
     phrase_patterns = [
@@ -148,18 +170,30 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
     return None
 
 
-#: N03-FD4 — TAČNI oblici pečata prijema, dostave, uručenja i ekspedicije (latinica i
-#: ćirilica), kao cele reči. Takav datum je činjenica o kretanju pismena, ne datum
-#: dokumenta. Namerno NE koren: „Rešenje o prijemu u radni odnos" nije pečat.
-_PRIJEM_RE = re.compile(
-    r"(?<![\w])("
+#: N03-FD4 — TAČNI oblici pečata prijema, dostave, uručenja, ekspedicije i otpravka
+#: (latinica i ćirilica). Takav datum je činjenica o kretanju pismena, ne datum
+#: dokumenta. Kraj reči je obavezan: „Rešenje o prijemu u radni odnos" nije pečat.
+#: Početak reči NIJE ograničen — „neuručeno", „nedostavljeno" su takođe beleška o
+#: kretanju pismena, pa je isključenje takvog datuma ispravno.
+_PECAT = (
     r"primljen[oa]?|zaprimljen[oa]?|prijem|prijema|prijemni|dostavljen[oa]?|dostava|dostave|"
-    r"dostavnic[aie]?|uru[čc]en[oa]?|ekspedovan[oa]?|ekspedicij[ae]|pristigl[oa]?|"
+    r"dostavnic[aie]?|uru[čc]en[oa]?|ekspedovan[oa]?|ekspedicij[ae]|otpravljen[oa]?|pristigl[oa]?|"
     r"примљен[оа]?|запримљен[оа]?|пријем|пријема|пријемни|достављен[оа]?|достава|доставе|"
-    r"доставниц[аие]?|уручен[оа]?|експедован[оа]?|експедициј[ае]|пристигл[оа]?"
-    r")(?![\w])",
+    r"доставниц[аие]?|уручен[оа]?|експедован[оа]?|експедициј[ае]|отправљен[оа]?|пристигл[оа]?"
+)
+_PRIJEM_RE = re.compile(r"(" + _PECAT + r")(?!\w)", re.IGNORECASE)
+#: Pečat kao PREDIKAT datuma: odmah posle datuma, bez zareza („25.03.2025 PRIMLJENO").
+_PRIJEM_POSLE_RE = re.compile(r"[\s.]*(" + _PECAT + r")(?!\w)", re.IGNORECASE)
+#: Fraza izdavanja u redu datuma: tada natpis pečata iz prethodnog reda ne važi.
+_IZDAVANJE_RE = re.compile(
+    r"(donet[aoi]?|donesen[aoi]?|zaklju[čc]en[aoi]?|dana|datum|донет[аои]?|закључен[аои]?|дана|датум)(?!\w)"
+    r"|^\s*(?:[UУ]\s+)?\w{3,25},\s*",
     re.IGNORECASE,
 )
+_DATUM_RE = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
+#: Natpis pečata je kratak red („PRIMLJENO", „Prijemni štambilj"); duži red je tekst,
+#: ne pečat, i ne sme da poništi datum ispod sebe.
+_NATPIS_PECATA_MAX = 40
 
 
 def _valid_date_parts(parts: list) -> bool:

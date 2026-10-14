@@ -1267,13 +1267,20 @@ def test_FD8_pdf_izvoz_pad_lanca_pise_nepoznato_ne_nepotvrdjeno(http, monkeypatc
     assert set(_pdf_hronologija(k, monkeypatch).values()) == {"UNKNOWN"}
 
 
-def test_FD8_pdf_oznaka_nepoznatog_stanja():
+@pytest.mark.parametrize("stanje,oznaka", [("UNKNOWN", "[STANJE ODLUKE NEPOZNATO]"),
+                                           ("UNCONFIRMED", "[NEPOTVR"), ("REJECTED", "[ODBIJENO]")])
+def test_FD8_pdf_oznaka_stanja_je_u_renderovanom_tekstu(stanje, oznaka):
+    """Meri se TEKST izrenderovanog PDF-a (PyMuPDF), ne prosledjeno stanje."""
+    import pymupdf
     import predmet_pdf
-    src = open(predmet_pdf.__file__, encoding="utf-8").read()
-    assert '"[STANJE ODLUKE NEPOZNATO] "' in src
     pdf = predmet_pdf.generiši_predmet_pdf({"naziv": "P"}, [], [], [
-        {"id": "x", "dogadjaj": "Rok", "datum_iso": "2025-03-25", "stanje_odluke": "UNKNOWN"}])
-    assert pdf[:4] == b"%PDF"
+        {"id": "x", "dogadjaj": "Rok za odgovor", "datum_iso": "2025-03-25", "stanje_odluke": stanje}])
+    with pymupdf.open(stream=pdf, filetype="pdf") as d:
+        tekst = " ".join(" ".join(st.get_text().split()) for st in d)
+    assert oznaka in tekst, tekst[-400:]
+    # Font PDF-a ne iscrtava „Đ" (postojece stanje), pa se za NEPOTVRĐENO meri prefiks.
+    ostale = {"[STANJE ODLUKE NEPOZNATO]", "[NEPOTVR", "[ODBIJENO]"} - {oznaka}
+    assert not any(o in tekst for o in ostale)
 
 
 # ── FD5 / must-pass 6: panel rokova iz dokumenta ne izvozi napolje ──────────
@@ -1378,3 +1385,33 @@ async def test_FD2_kontrola_isti_izvorni_fajl_ostaje_idempotentan(sonda_129):
     rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
     assert rez["rok_dodat"] is False and rez["rok_preskocen_razlog"] == "vec_postoji"
     assert len(baza.tabele["predmet_hronologija"]) == 1
+
+
+# ── FD4 (drugi pregled): pecat diskvalifikuje SAMO datum za koji je vezan ───
+
+@pytest.mark.parametrize("tekst,ocekivano", [
+    # pecat sa sopstvenim datumom se ne prenosi na datum izdavanja ispod
+    (f"Primljeno dana {D_25}\nPresuda doneta {D_17}", D_17),
+    (f"Примљено дана {D_25}\nПресуда донета {D_17}", D_17),
+    (f"PRIMLJENO {D_25}\nBeograd, {D_17}", D_17),
+    (f"PRIMLJENO {D_25}\n{D_17}", D_17),
+    # pecat vezan za RANIJI datum u istom redu ne diskvalifikuje kasniji datum
+    (f"Primljeno {D_25}, presuda od {D_17}", D_17),
+    # rec dostave posle zareza opisuje odluku, nije predikat datuma
+    (f"Presuda doneta {D_17}, dostavljena strankama", D_17),
+    # natpis bez datuma iznad reda sa frazom izdavanja („Mesto, " / „dana") ne vazi
+    (f"Dostava:\nBeograd, {D_17}", D_17),
+    ("Prijemni stempel\nU Beogradu, dana 12.03.2025", "12.03.2025"),
+    # natpis pecata preko praznog reda; otpravak — pecat, ne datum dokumenta
+    (f"PRIMLJENO\n\n{D_25}", None),
+    (f"Otpravljeno dana {D_25}", None),
+    # dug red teksta (ne natpis pecata) ne ponistava datum ispod sebe
+    (f"Napomena: dostava se vrsi preko pisarnice suda svakog radnog dana\n{D_17}", D_17),
+    # kratak natpis bez datuma iznad golog datuma = pecat
+    (f"Dostava\n{D_25}", None),
+    # pocetak reci nije ogranicen: „neuručeno" je takođe beleska o kretanju pismena
+    (f"Pošiljka neuručeno {D_25}\nRESENJE", None),
+])
+def test_FD4_pecat_vezan_za_datum(tekst, ocekivano):
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(tekst) == ocekivano
