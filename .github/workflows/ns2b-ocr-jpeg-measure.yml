@@ -40,6 +40,8 @@ jobs:
           sudo chmod a+r t_*.jpg; ls -la t_*.jpg
       - name: PDFs with the same JPEG bytes embedded
         run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen_mech_pdf.py /m/fxm
+      - name: Baseline CMYK/RGB around the draft boundary + CMYK in PDF (follow-up)
+        run: docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/gen_fx3.py /m/fxm
       - name: Mechanism probe (one fresh process per file; header bytes vs measured decode peak)
         run: |
           for f in $(ls ns2_measure/fxm | grep -E '\.(jpg|pdf)$'); do
@@ -61,6 +63,7 @@ jobs:
       fail-fast: false
       matrix:
         run: [r1, r2, r3]
+        part: [fa, fb]
     steps:
       - uses: actions/checkout@v4
       - name: Runner facts
@@ -73,8 +76,9 @@ jobs:
         run: |
           docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
           docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/gen_fx2.py /m/fx
+          docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/gen_fx3.py /m/fx
       - name: Falsification cases (gunicorn, WEB_CONCURRENCY=1, 512 MiB)
-        run: bash ns2_measure/run_b1.sh ns2_measure/cases_ns2b.txt ${{ matrix.run }}
+        run: bash ns2_measure/run_b1.sh ns2_measure/cases_ns2b_${{ matrix.part }}.txt ${{ matrix.run }}
       - name: Summary
         if: always()
         run: |
@@ -84,7 +88,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ns2b-fals-${{ matrix.run }}
+          name: ns2b-fals-${{ matrix.part }}-${{ matrix.run }}
           path: |
             ns2_measure/out/*.json
             ns2_measure/logs/*.log

@@ -23,6 +23,11 @@ from starlette.responses import JSONResponse  # noqa: E402
 from starlette.routing import Route  # noqa: E402
 
 app = api.app
+if os.environ.get("NS2B_NOFILTER") == "1":     # measurement only: true decode peak of inputs the candidate would reject
+    import uploaded_doc.extractor as _X
+    for _k in ("MAX_JPEG_DEKODIRANJA_BAJTOVA", "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", "MAX_JPEG_KOEFICIJENATA_BAJTOVA"):
+        if hasattr(_X, _k):
+            setattr(_X, _k, 1 << 40)
 FX = Path(os.environ.get("FX", "/m/fx"))
 
 

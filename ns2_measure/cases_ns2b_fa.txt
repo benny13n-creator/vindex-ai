@@ -1,0 +1,18 @@
+# NS2b follow-up part A: TRUE decode peak (filter disabled in the measurement app only) with a concurrent 10-page scan
+up_cmyk_20 1 - pair:scan_10p.pdf@worker|b_cmyk_20.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_25 1 - pair:scan_10p.pdf@worker|b_cmyk_25.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_28 1 - pair:scan_10p.pdf@worker|b_cmyk_28.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_30 1 - pair:scan_10p.pdf@worker|b_cmyk_30.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_32 1 - pair:scan_10p.pdf@worker|b_cmyk_32.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_34_6 1 - pair:scan_10p.pdf@worker|b_cmyk_34_6.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_35 1 - pair:scan_10p.pdf@worker|b_cmyk_35.jpg@finalize NS2B_NOFILTER=1
+up_cmyk_40 1 - pair:scan_10p.pdf@worker|b_cmyk_40.jpg@finalize NS2B_NOFILTER=1
+up_444_30 1 - pair:scan_10p.pdf@worker|b_444_30.jpg@finalize NS2B_NOFILTER=1
+up_444_32 1 - pair:scan_10p.pdf@worker|b_444_32.jpg@finalize NS2B_NOFILTER=1
+up_444_34_6 1 - pair:scan_10p.pdf@worker|b_444_34_6.jpg@finalize NS2B_NOFILTER=1
+up_420_30 1 - pair:scan_10p.pdf@worker|b_420_30.jpg@finalize NS2B_NOFILTER=1
+up_420_32 1 - pair:scan_10p.pdf@worker|b_420_32.jpg@finalize NS2B_NOFILTER=1
+up_420_34_6 1 - pair:scan_10p.pdf@worker|b_420_34_6.jpg@finalize NS2B_NOFILTER=1
+up_pdf_cmyk_30 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_30.pdf@finalize NS2B_NOFILTER=1
+up_pdf_cmyk_34_6 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_34_6.pdf@finalize NS2B_NOFILTER=1
+up_pdf_cmyk_40 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_40.pdf@finalize NS2B_NOFILTER=1
