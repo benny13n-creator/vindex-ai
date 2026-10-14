@@ -62,10 +62,17 @@ class OdlukaReq(BaseModel):
 
 
 async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str) -> dict:
-    """Vraca red ili dize 404. Nikad ne otkriva postojanje tudjeg roka."""
+    """Vraca red ili dize 404. Nikad ne otkriva postojanje tudjeg roka.
+
+    NS2-A2: posle migracije 129 cita se i `vrsta` — potvrda trazi da je red
+    IZJAVLJEN kao rok (vidi `potvrdi`). Pre 129 kolona ne postoji i projekcija
+    ostaje bajt u bajt ista kao ranije (isti obrazac kao `kandidati`)."""
+    _kolone = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"
+    if _rokovi_domen._sema_ima_129(supa):
+        _kolone += ", vrsta"
     r = await asyncio.to_thread(
         lambda: supa.table("predmet_hronologija")
-            .select("id, predmet_id, dogadjaj, datum_iso, vaznost, akter")
+            .select(_kolone)
             .eq("id", rok_id)
             .eq("user_id", uid)
             .maybe_single()
@@ -228,6 +235,18 @@ async def potvrdi(
     uid = user["user_id"]
     red = await _rok_u_vlasnistvu(supa, rok_id, uid)
 
+    # NS2-A2: potvrda daje IZVRSIVOST (podsetnici, .ics, klijent), a izlazni
+    # slojevi pitaju samo `sme_pristupiti` — koja ne zna za `vrsta`. Potvrdjen
+    # neizjavljen red (npr. „Predmet zatvoren") bio bi izvrsiva obaveza koju
+    # V2 Danas/Dosije ne prikazuju (filtriraju po `vrsta`). Zato se potvrda
+    # prima SAMO za red izjavljen kao rok. Pre migracije 129 `vrsta` ne postoji
+    # ni za jedan red, pa se zateceno ponasanje zadrzava (inace bi jedina
+    # ljudska kapija bila ugasena i za stvarne rokove).
+    if _rokovi_domen._sema_ima_129(supa) and not _rokovi_domen.je_rok(red):
+        raise HTTPException(
+            status_code=409,
+            detail="Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo.")
+
     if not await potvrdi_rok(rok_id, uid, napomena=body.napomena):
         raise HTTPException(
             status_code=503,
@@ -254,6 +273,10 @@ async def odbij(
     ekstrakcija napravi NOV red (a hronologija je insert-only, pa hoce), taj red
     je nov kandidat i trazi novu odluku. To je poznata praznina zivotnog ciklusa,
     dokumentovana u FAZI 6.5 — a ne tiho nasledjivanje odluke.
+
+    NS2-A2: za razliku od potvrde, odbijanje NE trazi `vrsta='rok'`. Odbijanje
+    samo oduzima izvrsivost (`sme_pristupiti` pusta jedino CONFIRMED), i jedini
+    je nacin da se opozove ranija potvrda reda koji nije izjavljen kao rok.
     """
     supa = _get_supa()
     uid = user["user_id"]
