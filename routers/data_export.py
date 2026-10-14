@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-GDPR Data Export — kancelarija preuzima sve svoje podatke.
-GET /api/export/complete → ZIP sa JSON fajlovima.
+GDPR Data Export — korisnik preuzima svoje zapise iz tabela navedenih u README-u.
+GET /api/export/complete → ZIP sa JSON fajlovima (bez originalnih fajlova dokumenata).
 """
 import io
 import json
@@ -24,7 +24,8 @@ Sadržaj:
   predmeti.json       — svi predmeti
   klijenti.json       — svi klijenti
   billing.json        — sve stavke naplate
-  dokumenti.json      — metadata dokumenata (bez fajlova)
+  dokumenti.json      — metadata dokumenata (bez fajlova); polje tekst_sadrzaj,
+                        gde postoji, je izvučeni tekst — nije original
   beleske.json        — beleške uz predmete
   rocista.json        — ročišta
   hronologija.json    — automatski generisana hronologija
@@ -66,24 +67,17 @@ async def _fetch(supa, table: str, uid: str, order: str = "created_at",
 @router.get("/complete")
 async def export_complete(user=Depends(get_current_user)):
     """
-    Exportuje SVE podatke korisnika kao ZIP sa JSON fajlovima.
+    Exportuje korisnikove zapise iz 8 tabela navedenih u README-u kao ZIP sa
+    JSON fajlovima. Originalni fajlovi dokumenata NISU ukljuceni (README to kaze).
     GDPR čl. 20 — pravo na prenosivost podataka.
     """
     from shared.audit_immutable import log_action as _imm_log
-    import asyncio as _aio
+    from shared.bg import spawn as _spawn_bg
 
     supa = _get_supa()
     uid  = user["user_id"]
     email = user.get("email", uid)
     now  = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
-
-    # Zabeleži export u nepromenjivi audit log — GDPR čl. 20 praćenje
-    _aio.create_task(_imm_log(
-        "data_export",
-        user_id=uid,
-        resource_type="all_user_data",
-        metadata={"email": email, "format": "zip"},
-    ))
 
     # NS001 — kolona za sortiranje mora postojati na TOJ tabeli, inače
     # PostgREST odbija ceo upit (42703), `_fetch` je upiše u `_failed`, i ZIP se
@@ -125,6 +119,17 @@ async def export_complete(user=Depends(get_current_user)):
                 "jer bi izgledao kao potpun. Pokušajte ponovo za koji minut."
             ),
         )
+
+    # N04: audit se upisuje tek POSLE uspeha. Ranije je `data_export` pisan pre
+    # citanja tabela, pa je i odbijen (503) izvoz ostajao u nepromenjivom logu
+    # kao izvrsen izvoz -- suprotno static/security.html §14.2 („Svaki kompletan
+    # izvoz upisuje se ..."). `spawn` drzi referencu na zadatak (S1-1).
+    _spawn_bg(_imm_log(
+        "data_export",
+        user_id=uid,
+        resource_type="all_user_data",
+        metadata={"email": email, "format": "zip"},
+    ))
 
     buf.seek(0)
     filename = f"vindex-export-{now}.zip"
