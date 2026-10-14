@@ -88,11 +88,16 @@ async def _fetch(supa, table: str, uid: str, order: str = "created_at",
             strana = q.order("id").limit(_STRANA).execute().data or []
             if not strana:
                 break
-            novi = strana[-1].get("id")
-            if novi is None or novi == poslednji:
-                raise RuntimeError("straničenje ne napreduje")
+            # C1-N1: id mora strogo da raste unutar strane i preko strana
+            # (uuid u Postgres-u se poredi bajt po bajt = leksikografski nad
+            # kanonskim heks zapisom). Inace bi strana van redosleda dala
+            # duplikate ili rupe, a izvoz bi izgledao uspesan.
+            for red in strana:
+                rid = red.get("id")
+                if rid is None or (poslednji is not None and str(rid) <= str(poslednji)):
+                    raise RuntimeError("stranicenje nije strogo rastuce po id")
+                poslednji = rid
             out.extend(strana)
-            poslednji = novi
         out.sort(key=_kljuc_redosleda(order))
         return out
     except Exception as e:

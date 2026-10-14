@@ -148,6 +148,10 @@ class _Upit:
 
     def execute(self):
         self.baza.citanja.append((self.tabela, tuple(self.filteri)))
+        # Ograniceno: petlja straničenja koja se ne zaustavlja PADA, ne visi (C1-N1)
+        if len(self.baza.citanja) > self.baza.budzet_citanja:
+            self.baza.prekoracen = True
+            raise RuntimeError("sinteticka baza: previse citanja")
         if self.tabela in self.baza.padovi:
             raise RuntimeError(f"sinteticki pad citanja: {self.tabela}")
         redovi = []
@@ -182,6 +186,8 @@ class FakeSupa:
         self.citanja = []
         self.storage_pozivi = []
         self.max_rows = 1000
+        self.budzet_citanja = 500
+        self.prekoracen = False
 
     def table(self, ime):
         return _Upit(self, ime)
@@ -215,7 +221,9 @@ async def _izvezi(supa, uid=A):
         except HTTPException as exc:
             for _ in range(5):
                 await asyncio.sleep(0)
+            assert not getattr(supa, "prekoracen", False), "petlja straničenja se ne zaustavlja"
             return exc, audit
+        assert not getattr(supa, "prekoracen", False), "petlja straničenja se ne zaustavlja"
         telo = b""
         async for deo in resp.body_iterator:
             telo += deo if isinstance(deo, bytes) else deo.encode()

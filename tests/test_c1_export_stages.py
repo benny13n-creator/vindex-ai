@@ -417,14 +417,94 @@ async def test_server_koji_ignorise_kljuc_ne_vrti_petlju_vec_pada():
     _napuni(supa, "rocista", 1500)
     izvorni_table = supa.table
 
+    pozivi = []
+
     def table(ime):
         q = izvorni_table(ime)
         q.gt = lambda *a, **k: q  # filter ignorisan: uvek ista prva strana
+        if ime == "rocista":
+            izvrsi = q.execute
+
+            def execute():
+                pozivi.append(1)
+                if len(pozivi) > 50:  # ograniceno: bez cuvara test PADA, ne visi
+                    raise AssertionError("petlja straničenja se ne zaustavlja")
+                return izvrsi()
+            q.execute = execute
         return q
     supa.table = table
     rez, audit = await _izvezi(supa)
     assert isinstance(rez, HTTPException) and rez.status_code == 503
     assert "rocista" in _samo(audit, "data_export_failed")[0]["metadata"]["failed_tables"]
+    assert len(pozivi) <= 3
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kvar", ["obrnut_redosled", "promesan_redosled", "duplikat_u_strani"])
+async def test_server_koji_ignorise_redosled_ne_daje_tihe_duplikate(kvar):
+    """Server vraca stranu van redosleda po `id` (ili sa duplikatom). Ranije:
+    500+500 dupliranih redova i `data_export`. Sada: neuspeh citanja."""
+    from fastapi import HTTPException
+
+    supa = FakeSupa()
+    _napuni(supa, "rocista", 1500)
+    izvorni_table = supa.table
+
+    def table(ime):
+        q = izvorni_table(ime)
+        if ime == "rocista":
+            izvrsi = q.execute
+
+            def execute():
+                r = izvrsi()
+                d = list(r.data)
+                if kvar == "obrnut_redosled":
+                    d.reverse()
+                elif kvar == "promesan_redosled" and len(d) > 2:
+                    d[0], d[-1] = d[-1], d[0]
+                elif kvar == "duplikat_u_strani" and len(d) > 2:
+                    d[1] = d[0]
+                r.data = d
+                return r
+            q.execute = execute
+        return q
+    supa.table = table
+    rez, audit = await _izvezi(supa)
+    assert isinstance(rez, HTTPException) and rez.status_code == 503
+    assert _samo(audit, "data_export") == []
+    [kw] = _samo(audit, "data_export_failed")
+    assert kw["metadata"]["failed_tables"] == ["rocista"]
+
+
+@pytest.mark.anyio
+async def test_strana_koja_se_preklapa_sa_prethodnom_je_neuspeh():
+    """Druga strana pocinje redom koji je vec procitan (server ignorise `gt`
+    samo delimicno) -- duplikat preko granice strane."""
+    from fastapi import HTTPException
+
+    supa = FakeSupa()
+    _napuni(supa, "rocista", 1500)
+    izvorni_table = supa.table
+    prva = {}
+
+    def table(ime):
+        q = izvorni_table(ime)
+        if ime == "rocista":
+            izvrsi = q.execute
+
+            def execute():
+                r = izvrsi()
+                if "poslednji" not in prva and r.data:
+                    prva["poslednji"] = r.data[-1]
+                elif r.data:
+                    r.data = [dict(prva["poslednji"])] + list(r.data)
+                return r
+            q.execute = execute
+        return q
+    supa.table = table
+    rez, audit = await _izvezi(supa)
+    assert isinstance(rez, HTTPException) and rez.status_code == 503
+    assert _samo(audit, "data_export") == []
 
 
 @pytest.mark.anyio
