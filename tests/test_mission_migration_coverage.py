@@ -117,7 +117,7 @@ class TestCopilotAkcijaRokMigrated:
         with patch("routers.copilot._pozovi_gpt4o_mini", new=AsyncMock(return_value=fake_gpt_response)), \
              patch("routers.copilot._get_supa", return_value=supa), \
              patch("shared.audit_immutable.log_action", side_effect=_fake_log_action):
-            result = await _handle_akcija_rok("Dodaj rok za ročište 1. septembra 2026", "pred-1", "u1")
+            result = await _handle_akcija_rok("Dodaj rok za podnesak 1. septembra 2026", "pred-1", "u1")
             import asyncio
             await asyncio.sleep(0)  # let the fire-and-forget audit task run
 

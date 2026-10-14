@@ -180,7 +180,7 @@ def test_handle_akcija_rok_prijavljuje_db_gresku_na_sentry():
          patch("openai.AsyncOpenAI"), \
          patch("routers.copilot._get_supa", return_value=fake_supa), \
          patch("routers.copilot._sentry_capture") as mock_sentry:
-        result = asyncio.run(_handle_akcija_rok("Dodaj rok za ročište 1.8.2026", "pred-1", "user-1"))
+        result = asyncio.run(_handle_akcija_rok("Dodaj rok za podnesak 1.8.2026", "pred-1", "user-1"))
 
     assert result["uspeh"] is False
     mock_sentry.assert_called_once()

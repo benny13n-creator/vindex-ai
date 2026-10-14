@@ -770,33 +770,94 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 # rokove (N03-FD3, `uploaded_doc/deadline_parser.py`), pa ni Copilot ne sme.
 #
 # Pravilo: datum se upisuje SAMO ako (1) u poruci stoji tačno jedan potpun i
-# kalendarski ispravan datum (dan, mesec, godina), (2) poruka nema relativan
-# izraz ni okidač (dostava/prijem/uručenje), i (3) datum koji model vrati je
-# BAŠ taj datum. Model nije autoritet: njegov datum se samo poredi, nikad ne
-# upisuje. Sve ostalo je istinito pojašnjenje — bez upisa.
+# kalendarski ispravan datum (dan, mesec, godina) u podržanom obliku, (2) poruka
+# nema NIJEDNU količinu trajanja („15 dana", „osam dana", „mesec dana",
+# „petnaestodnevni") ni drugi relativan izraz, (3) datum nije SIDRO — datum
+# događaja ili dokumenta („presuda od 12.03.2025", „ročište 20.11.2026",
+# „dostavljena 01.10.2026"), i (4) datum koji model vrati je BAŠ taj datum.
+# Model nije autoritet: njegov datum se samo poredi, nikad ne upisuje. Sve
+# ostalo je istinito pojašnjenje — bez upisa. Kad je nejasno: pitaj, ne upisuj.
+#
+# NS2-A3 pregled (F1): datum događaja upisan kao rok je gori ishod od pitanja —
+# „osam dana pre ročišta 20.11.2026" upisan kao 20.11.2026 je rok 8 dana KASNO.
 
-_ROK_ISO_RE = re.compile(r"(?<![\d.\-/])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d\-])")
-# „20.11." bez godine (lookahead isključuje „20.11.2026")
-_ROK_NEPOTPUN_BROJ_RE = re.compile(r"(?<![\d.])\d{1,2}\.\s?\d{1,2}\.(?!\s?\d)")
+# Brojevi rečima — latinica i ćirilica (osnovni, „-naest", „-deset", složeni
+# „dvadeset pet" se hvataju jer je poslednja reč pre jedinice i sama broj).
+_ROK_BROJ_LAT = (r"(?:\d{1,3}|jedan|jedn[aeiou]\w*|dva|dve|dvaju|tri|četiri|cetiri|pet|šest|sest|sedam|osam|"
+                 r"devet|deset|\w+naest|\w+deset|sto|stotinu|nekoliko|par|pola|mesec|godinu|nedelju|sedmicu)")
+_ROK_BROJ_CIR = (r"(?:\d{1,3}|један|једн\w*|два|две|три|четири|пет|шест|седам|осам|девет|десет|\w+наест|"
+                 r"\w+десет|сто|неколико|пар|пола|месец|годину|недељу|седмицу)")
+_ROK_TRAJANJE_RE = re.compile(
+    # količina + jedinica, bez obzira na predlog: „15 dana", „osam dana pre", „mesec dana"
+    rf"(?<![\w.]){_ROK_BROJ_LAT}(?!\w)\s+(?:radn\w*\s+|kalendarsk\w*\s+)?"
+    r"(?:dan|dana|dani|danima|nedelj\w*|sedmic\w*|mesec\w*|meseci|godin\w*)(?!\w)"
+    rf"|(?<![\w.]){_ROK_BROJ_CIR}(?!\w)\s+(?:радн\w*\s+)?"
+    r"(?:дан|дана|дани|недељ\w*|седмиц\w*|месец\w*|месеци|годин\w*)(?!\w)"
+    # pridevski oblik trajanja: „petnaestodnevni", „tromesečni", „dvonedeljni"
+    r"|(?<!\w)\w+(?:dnevn|nedeljn|mesečn|mesecn|godišnj|godisnj|дневн|недељн|месечн|годишњ)\w*",
+    re.IGNORECASE,
+)
 _ROK_RELATIVNI_RE = re.compile(
-    # latinica: „za sedam dana", „u roku od mesec dana", „nakon 3 meseca"
-    r"(?<!\w)(?:za|od|nakon|posle|kroz|unutar|narednih|sledećih|sledecih|narednog|sledećeg|sledeceg)"
-    r"\s+(?:\S+\s+){0,2}?(?:dan|dana|nedelj\w*|sedmic\w*|mesec\w*|meseci|godin\w*)(?!\w)"
-    r"|(?<!\w)(?:sutra|prekosutra)(?!\w)"
+    r"(?<!\w)(?:sutra|prekosutra|сутра|прекосутра)(?!\w)"
     r"|(?<!\w)(?:od|po|nakon|posle)\s+(?:dana\s+)?(?:dostav\w*|prijem\w*|uručenj\w*|urucenj\w*|pravosna\w*)"
-    # ćirilica
-    r"|(?<!\w)(?:за|од|након|после|кроз)\s+(?:\S+\s+){0,2}?(?:дан|дана|недељ\w*|месец\w*|месеци|годин\w*)(?!\w)"
-    r"|(?<!\w)(?:сутра|прекосутра)(?!\w)"
-    r"|(?<!\w)(?:од|по|након|после)\s+(?:дана\s+)?(?:достав\w*|пријем\w*|уручењ\w*|правоснаж\w*)",
+    r"|(?<!\w)(?:од|по|након|после)\s+(?:дана\s+)?(?:достав\w*|пријем\w*|уручењ\w*|правоснаж\w*)"
+    # kalendarski relativni izrazi bez broja: „krajem meseca", „idućeg ponedeljka"
+    r"|(?<!\w)(?:krajem|kraja|početkom|pocetkom|sredinom|polovinom|крајем|краја|почетком|средином)(?!\w)"
+    r"|(?<!\w)(?:iduć\w*|iduc\w*|naredn\w*|sledeć\w*|sledec\w*|наредн\w*|следећ\w*|идућ\w*)\s+\w+"
+    r"|(?<!\w)(?:ponedelj\w*|utor\w*|sred[aeu]|četvrt[ak]\w*|cetvrt[ak]\w*|pet[ak]\w*|petk\w*|subot\w*|"
+    r"понедељ\w*|утор\w*|сред[аеу]|четвртк?\w*|петак|петк\w*|субот\w*)(?!\w)",
+    re.IGNORECASE,
+)
+# SIDRO: datum događaja/dokumenta. Pre datuma (kratak prozor): predlozi računanja
+# i imenice okidača. Posle datuma: samo imenice okidača.
+_ROK_SIDRO_PRE_RE = re.compile(
+    r"(?<!\w)(?:od|pre|pred|posle|nakon|računajući|racunajuci|од|пре|пред|после|након|рачунајући)(?!\w)"
+    r"|(?<!\w)(?:presud|rešenj|resenj|dostav|primlj|prijem|uruč|uruc|donet|ročišt|rocist|podnet|zapisnik|"
+    r"broj|пресуд|решењ|достав|примљ|пријем|уруч|донет|рочишт|поднет|записник|број)\w*"
+    r"|(?<!\w)(?:br|бр)\.",
+    re.IGNORECASE,
+)
+_ROK_SIDRO_POSLE_RE = re.compile(
+    r"(?<!\w)(?:presud|rešenj|resenj|dostav|primlj|uruč|uruc|donet|ročišt|rocist|podnet|zapisnik|"
+    r"пресуд|решењ|достав|примљ|уруч|донет|рочишт|поднет|записник)\w*",
+    re.IGNORECASE,
+)
+# Uslovan, alternativan ili približan rok („31.12.2026 ili ranije ako sud odluči", „oko 20.11.2026").
+_ROK_USLOVNI_RE = re.compile(
+    r"(?<!\w)(?:ili|ako|ukoliko|osim|možda|mozda|eventualno|otprilike|oko|najranije|"
+    r"или|ако|уколико|осим|можда|евентуално|отприлике|око|најраније)(?!\w)",
+    re.IGNORECASE,
+)
+_ROK_SIDRO_PROZOR_PRE = 40
+_ROK_SIDRO_PROZOR_POSLE = 30
+
+_ROK_ISO_RE = re.compile(r"(?<![\d.\-/])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d\-/])")
+# „20. 11. 2026" / „20 . 11 . 2026" — isti oblik DD.MM.YYYY, sa razmacima.
+_ROK_TACKE_RAZMAK_RE = re.compile(r"(?<![\d.])(\d{1,2})\s*\.\s*(\d{1,2})\s*\.\s*(\d{4})(?!\d)")
+# „20.11." bez godine (lookahead isključuje „20.11.2026") i „20.11.26" (dvocifrena godina)
+_ROK_NEPOTPUN_BROJ_RE = re.compile(r"(?<![\d.])\d{1,2}\.\s?\d{1,2}\.(?!\s?\d)|(?<![\d.])\d{1,2}\.\d{1,2}\.\d{2}(?!\d)")
+# Oblici koje NE tumačimo (redosled dan/mesec nije dokaziv ili oblik nije podržan):
+# „20/11/2026", „20-11-2026", „2026/11/20", „P 20.11/2026", mesec ćirilicom.
+_ROK_NEPODRZAN_RE = re.compile(
+    r"(?<!\d)\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}(?!\d)"
+    r"|(?<!\d)\d{4}\s*/\s*\d{1,2}\s*/\s*\d{1,2}(?!\d)"
+    r"|(?<!\d)\d{1,2}\.\d{1,2}/\d{4}(?!\d)"
+    r"|(?<!\w)(?:јануар|фебруар|март|април|мај|јун|јул|август|септемб|октоб|новемб|децемб)\w*",
     re.IGNORECASE,
 )
 
 _ROK_POJASNJENJE = {
     "nevalidan_datum": "Datum {datum} ne postoji u kalendaru. Rok nije sačuvan — navedite ispravan datum isteka roka (dan, mesec i godina).",
-    "relativni_rok": ("Rok je izražen relativno (npr. „za 7 dana” ili „od dostave”). Vindex ne računa pravne rokove "
-                      "i nije sačuvao nijedan datum. Navedite tačan datum isteka roka (dan, mesec i godina)."),
-    "nepotpun_datum": "Datum nije potpun (nedostaje godina). Rok nije sačuvan — navedite dan, mesec i godinu.",
+    "nepodrzan_format": ("Ovaj oblik datuma nije podržan. Rok nije sačuvan — napišite datum isteka roka "
+                         "brojevima, kao 20.11.2026."),
+    "relativni_rok": ("Rok je izražen relativno (npr. „15 dana”, „za 7 dana” ili „od dostave”). Vindex ne računa "
+                      "pravne rokove i nije sačuvao nijedan datum. Navedite tačan datum isteka roka (dan, mesec i godina)."),
+    "nepotpun_datum": "Datum nije potpun (nedostaje godina ili je godina skraćena). Rok nije sačuvan — navedite dan, mesec i godinu (npr. 20.11.2026).",
     "bez_datuma": "U poruci nema datuma isteka roka. Rok nije sačuvan — navedite tačan datum (dan, mesec i godina).",
+    "datum_je_dogadjaj": ("Datum u poruci izgleda kao datum događaja ili dokumenta (npr. presude, dostave ili ročišta), "
+                          "ne roka. Rok nije sačuvan — napišite datum do kog ističe rok."),
+    "uslovni_rok": ("Rok u poruci je uslovan, alternativan ili približan (npr. „ili”, „ako”, „oko”). "
+                    "Rok nije sačuvan — napišite jedan datum do kog rok sigurno ističe."),
     "vise_datuma": "Poruka sadrži više datuma ({datum}). Rok nije sačuvan — navedite samo datum isteka roka.",
     "datum_nije_u_poruci": ("Datum roka nije mogao da se potvrdi iz vaše poruke. Rok nije sačuvan — "
                             "navedite tačan datum isteka roka (dan, mesec i godina)."),
@@ -807,13 +868,25 @@ def _datum_u_iso(vrednost) -> Optional[str]:
     """`YYYY-MM-DD` ili `DD.MM.YYYY` -> ISO; sve ostalo -> None. Ne pogađa."""
     from datetime import date as _date, datetime as _dt
     s = str(vrednost or "").strip()
-    if not s:
+    if not s or not s.isascii():
         return None
     try:
         return _date.fromisoformat(s[:10]).isoformat() if len(s) >= 10 and s[4] == "-" else \
             _dt.strptime(s, "%d.%m.%Y").date().isoformat()
     except (ValueError, IndexError):
         return None
+
+
+def _rok_relativni_parser(tekst: str) -> bool:
+    """Postojeći parser rokova (N03-FD3) kao nezavisan, drugi detektor relativnog roka."""
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+    return any(r.get("tip") != "apsolutni" for r in ekstrahuj_rokove(tekst))
+
+
+def _rok_je_sidro(tekst: str, pocetak: int, kraj: int) -> bool:
+    pre = tekst[max(0, pocetak - _ROK_SIDRO_PROZOR_PRE):pocetak]
+    posle = tekst[kraj:kraj + _ROK_SIDRO_PROZOR_POSLE]
+    return bool(_ROK_SIDRO_PRE_RE.search(pre)) or bool(_ROK_SIDRO_POSLE_RE.search(posle))
 
 
 def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
@@ -825,34 +898,51 @@ def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
     from datetime import date as _date
     from uploaded_doc.deadline_parser import ekstrahuj_rokove, _MESECI_GEN, _MESECI_NOM
     tekst = poruka or ""
-    validni: list = []
+
+    # Cifre van ASCII (npr. arapsko-indijske) — oblik nije podržan, ne „ne postoji".
+    if any(ch.isdigit() and not ch.isascii() for ch in tekst):
+        return None, "nepodrzan_format"
+
+    datumi: list = []        # (iso, pocetak, kraj)
     nevalidni: list = []
-    relativan = False
     for r in ekstrahuj_rokove(tekst):
         if r.get("tip") == "apsolutni":
             iso = _datum_u_iso(r.get("vrednost"))
-            (validni.append(iso) if iso else nevalidni.append(r.get("vrednost")))
-        else:
-            relativan = True
+            if iso:
+                datumi.append((iso, r.get("pozicija", 0), r.get("kraj", 0)))
+            else:
+                nevalidni.append(r.get("vrednost"))
+    for m in _ROK_TACKE_RAZMAK_RE.finditer(tekst):
+        try:
+            datumi.append((_date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat(), m.start(), m.end()))
+        except ValueError:
+            nevalidni.append(m.group(0))
     for m in _ROK_ISO_RE.finditer(tekst):
         try:
-            validni.append(_date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat())
+            datumi.append((_date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat(), m.start(), m.end()))
         except ValueError:
             nevalidni.append(m.group(0))
     meseci = "|".join(sorted(list(_MESECI_GEN) + list(_MESECI_NOM), key=len, reverse=True))
     nepotpun = bool(_ROK_NEPOTPUN_BROJ_RE.search(tekst)) or bool(
         re.search(rf"(?<!\w)\d{{1,2}}\.?\s+(?:{meseci})(?!\w)(?!\s+\d{{4}})", tekst, re.IGNORECASE))
-    relativan = relativan or bool(_ROK_RELATIVNI_RE.search(tekst))
+    relativan = (_rok_relativni_parser(tekst) or bool(_ROK_TRAJANJE_RE.search(tekst))
+                 or bool(_ROK_RELATIVNI_RE.search(tekst)))
 
     if nevalidni:
         return None, "nevalidan_datum"
     if relativan:
         return None, "relativni_rok"
+    if _ROK_NEPODRZAN_RE.search(tekst):
+        return None, "nepodrzan_format"
     if nepotpun:
         return None, "nepotpun_datum"
-    jedinstveni = sorted(set(validni))
+    jedinstveni = sorted({d[0] for d in datumi})
     if not jedinstveni:
         return None, "bez_datuma"
+    if any(_rok_je_sidro(tekst, p, k) for _, p, k in datumi):
+        return None, "datum_je_dogadjaj"
+    if _ROK_USLOVNI_RE.search(tekst):
+        return None, "uslovni_rok"
     if len(jedinstveni) > 1:
         return None, "vise_datuma"
     if datum_modela is ...:
@@ -976,7 +1066,10 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         # Ranije je vracao sirov AI izlaz (podrazumevano `bitan`) dok je u bazi
         # stajalo nesto drugo -- advokat je citao jedan nivo, sistem cuvao drugi.
         "vaznost": _vaznost,
-        "odgovor": f"Rok dodat za proveru: {ext['dogadjaj']} ({_datum_iso}) — nije potvrđen.",
+        "odgovor": (f"Rok dodat za proveru: {ext['dogadjaj']} ({_datum_iso}) — nije potvrđen."
+                    # NS2-A3 F3: datum u prošlosti se ne blokira (advokat može da beleži
+                    # istekao rok), ali se ne prećutkuje.
+                    + (" Pažnja: datum je u prošlosti." if _datum_iso < date.today().isoformat() else "")),
     }
 
 
