@@ -1,0 +1,49 @@
+name: NS2 OCR gunicorn 512 MiB measurement
+
+# Measurement-only branch (Night Sprint II, B1/B2). Never merged.
+# PRODUCTION Dockerfile image, started with the production start command shape `gunicorn ... -c gunicorn.conf.py`,
+# one fresh `--memory=512m --memory-swap=512m` container per case, memory sampled from the host cgroup.
+# Fixtures are synthetic (generated in the job); results contain only sizes, hashes, timings and CER.
+
+on:
+  push:
+    branches: [measure/ns2-ocr-cgroup]
+  workflow_dispatch:
+
+jobs:
+  b1:
+    if: ${{ !contains(github.event.head_commit.message, '[b2-only]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [r1, r2, r3]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner facts
+        run: |
+          nproc; free -m; uname -r
+          echo "cgroup fs: $(stat -fc %T /sys/fs/cgroup)"; docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Image facts
+        run: docker run --rm vx sh -c "python -V; gunicorn --version; tesseract --version 2>&1 | head -n 1; tesseract --list-langs 2>&1 | tr '\n' ' '"
+      - name: Generate synthetic fixtures
+        run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx
+      - name: B1 cases (gunicorn, 512 MiB)
+        run: bash ns2_measure/run_b1.sh ns2_measure/cases_b1.txt ${{ matrix.run }}
+      - name: Summary
+        if: always()
+        run: |
+          python3 ns2_measure/summarize.py
+          echo "NS2ROWS_BEGIN"; python3 -c "import json; [print('NS2ROW', json.dumps(r, ensure_ascii=False)) for r in json.load(open('ns2_measure/out/summary_rows.json'))]"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns2-b1-${{ matrix.run }}
+          path: |
+            ns2_measure/out/*.json
+            ns2_measure/logs/*.log
+          retention-days: 14
