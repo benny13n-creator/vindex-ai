@@ -7890,7 +7890,27 @@ async def predmet_confirm_links(
     # NAVISE: potcenjen rok advokat ne vidi, precenjen vidi i odbaci.
     from shared.rokovi import normalizuj_vaznost as _norm_vaznost
     _rok_greska: Optional[str] = None
+    # NS2-A1 (napomena pregleda): `dodaj_rok.datum_iso` ide u `predmet_hronologija.datum_iso`
+    # (DATE). Kartica šalje `datumi_kljucni[0].datum_iso || .datum` iz AI metapodataka,
+    # pa stiže i „15.11.2025" — koji baza sa DateStyle MDY čita kao MM.DD (05.11.2025 ->
+    # 11. maj) ili odbija. Prihvata se samo kalendarski ispravan GGGG-MM-DD ili DD.MM.GGGG
+    # (upisuje se kanonski GGGG-MM-DD); sve ostalo: NULA upisa roka, jasna poruka kroz
+    # postojeći ugovor `rok_greska` (front ga prikazuje; veze klijenata ostaju).
+    _rok_iso: Optional[str] = None
     if req.dodaj_rok:
+        _rok_sirov = str(req.dodaj_rok.get("datum_iso") or "").strip()
+        try:
+            if _re.fullmatch(r"\d{4}-\d{2}-\d{2}", _rok_sirov):
+                _rok_iso = date.fromisoformat(_rok_sirov).isoformat()
+            elif _re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}\.?", _rok_sirov):
+                _rok_iso = datetime.strptime(_rok_sirov.rstrip("."), "%d.%m.%Y").date().isoformat()
+        except ValueError:
+            _rok_iso = None
+    if req.dodaj_rok and not _rok_iso:
+        logger.warning("[CONFIRM-LINKS] rok odbijen — neispravan datum predmet=%s", predmet_id)
+        _rok_greska = ("Rok nije sačuvan — datum roka nije ispravan ili nedostaje. "
+                       "Unesite rok ručno u kartici Rokovi (dan, mesec i godina).")
+    elif req.dodaj_rok:
         rok = req.dodaj_rok
         _vaznost_rok = _norm_vaznost(rok.get("vaznost"))
         try:
@@ -7899,8 +7919,8 @@ async def predmet_confirm_links(
                     "predmet_id": predmet_id,
                     "user_id":    uid,
                     "dogadjaj":   (rok.get("naziv") or "Rok")[:200],
-                    "datum":      rok.get("datum_iso",""),
-                    "datum_iso":  rok.get("datum_iso",""),
+                    "datum":      _rok_iso,
+                    "datum_iso":  _rok_iso,
                     "vaznost":    _vaznost_rok,
                     "akter":      "Auto-detect (AI)",
                     # migracija 127 — W-CONFIRMLINKS: ruta `confirm-links`
