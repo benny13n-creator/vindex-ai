@@ -197,6 +197,27 @@ async def kalendar_pregled(
         raise HTTPException(status_code=422, detail="Raspon ne može biti veći od 365 dana")
 
     events, meta = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
+
+    # N03-FD5/FD8: ovo je INTERNI pogled — advokat vidi svaki svoj rok, i
+    # nepotvrdjen i odbijen (odbijen nije obrisan). Ali svaki rok nosi stanje
+    # odluke, da nijedan potrosac ovog odgovora (legacy „Google/Outlook" precica)
+    # ne bi nepotvrdjen rok izneo napolje kao obavezu. Neprocitan lanac odluka ne
+    # gasi kalendar (rocista i rokovi ostaju vidljivi), ali stanje je UNKNOWN —
+    # nikad izmisljeno UNCONFIRMED — i to se kaze u `odluke_dostupne`.
+    odluke_dostupne = True
+    _rok_ids = _ids_rokova(events)
+    if _rok_ids:
+        from shared.rok_potvrda import STANJE_NEPOZNATO, odluke, stanje_roka
+        try:
+            _odl = await asyncio.to_thread(odluke, _rok_ids, True)
+        except Exception as exc:
+            logger.error("[KALENDAR] pregled: citanje odluka o rokovima palo: %s", exc)
+            _odl, odluke_dostupne = None, False
+        for e in events:
+            rid = (e.get("detalji") or {}).get("id") if e["tip"] != "rociste" else None
+            if rid:
+                e["detalji"]["stanje_odluke"] = (stanje_roka(str(rid), _odl) if odluke_dostupne
+                                                 else STANJE_NEPOZNATO)
     return {
         "dogadjaji": events,
         "ukupno":    len(events),
@@ -205,7 +226,14 @@ async def kalendar_pregled(
         # Phoenix Closure (LIVINGSYS-DEBT-038 remainder): empty list / False on full success.
         "degraded_sources": meta["degraded_sources"],
         "truncated":        meta["truncated"],
+        "odluke_dostupne":  odluke_dostupne,
     }
+
+
+def _ids_rokova(events: list) -> list:
+    """`predmet_hronologija.id` svakog dogadjaja koji NIJE rociste."""
+    return [str(e["detalji"]["id"]) for e in events
+            if e["tip"] != "rociste" and (e.get("detalji") or {}).get("id")]
 
 
 @router.post("/api/kalendar/ics")
@@ -231,23 +259,28 @@ async def kalendar_ics_export(
 
     events, _meta = await _aggr_events(user["user_id"], od_date.isoformat(), do_date.isoformat())
 
-    # N03: `.ics` je upis u advokatov spoljni kalendar. Rok koji je advokat
-    # ODBIO ne sme tamo zavrsiti kao obaveza (shared/rok_potvrda.py: odbijen rok
-    # nikad ne postaje izvrsiv). Lanac odluka se cita strogo -- neprocitan lanac
-    # nije „nista nije odbijeno".
-    _rok_ids = [str(e["detalji"]["id"]) for e in events
-                if e["tip"] != "rociste" and (e.get("detalji") or {}).get("id")]
+    # N03-FD5: `.ics` je upis u advokatov SPOLJNI kalendar (isti efekat kao
+    # Google sinhronizacija). O tome odlucuje JEDINO kanonska politika
+    # `sme_pristupiti(..., EXPORT_EXTERNAL)`: prolazi samo rok koji je covek
+    # POTVRDIO. Nepotvrdjen i odbijen ne prolaze — bez izuzetka za izvor
+    # (AI, rucni unos, ZPP lanac), vaznost ili pouzdanost. Rociste je zaseban
+    # domenski objekat (tabela `rocista`) i zadrzava svoje ponasanje. Lanac
+    # odluka se cita strogo: neprocitan lanac nije „nista nije odbijeno" niti
+    # „sve je potvrdjeno" -> 503, nista se ne izvozi.
+    _rok_ids = _ids_rokova(events)
     _odl: dict = {}
     if _rok_ids:
-        from shared.rok_potvrda import STANJE_ODBIJEN, odluke
+        from shared.rok_potvrda import odluke
         try:
             _odl = await asyncio.to_thread(odluke, _rok_ids, True)
         except Exception as exc:
             logger.error("[KALENDAR] ics: citanje odluka o rokovima palo: %s", exc)
             raise HTTPException(status_code=503, detail="Stanje odluka o rokovima trenutno nije dostupno.")
-        events = [e for e in events
-                  if e["tip"] == "rociste"
-                  or _odl.get(str((e.get("detalji") or {}).get("id"))) != STANJE_ODBIJEN]
+    from shared import rokovi as _rokovi_domen
+    events = [e for e in events
+              if e["tip"] == "rociste"
+              or _rokovi_domen.sme_pristupiti({"id": (e.get("detalji") or {}).get("id")}, _odl,
+                                              potrosac=_rokovi_domen.POTROSAC_IZVOZ_SPOLJA)]
 
     ics_eventi = []
     for e in events:
@@ -273,7 +306,8 @@ async def kalendar_ics_export(
         })
 
     if not ics_eventi:
-        raise HTTPException(status_code=404, detail="Nema događaja u zadatom periodu")
+        raise HTTPException(status_code=404, detail="Nema ročišta ni potvrđenih rokova u zadatom periodu. "
+                                                    "Nepotvrđeni rokovi se ne izvoze u spoljni kalendar.")
 
     ics_str = generiši_ics_multi(ics_eventi)
     filename = f"vindex-kalendar-{od_date.isoformat()}-{do_date.isoformat()}.ics"

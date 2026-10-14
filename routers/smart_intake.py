@@ -749,6 +749,140 @@ def _deadline_to_iso(value: str) -> Optional[str]:
     return iso
 
 
+async def _rok_iz_dokumenta(
+    supa, *, predmet_id: str, uid: str, job: dict, job_id: str,
+    value_map: dict, meta_map: dict, tip_labela: str, vec_upisano: set,
+) -> dict:
+    """Rok iz JEDNOG dokumenta otpremanja -> nepotvrdjen kandidat u hronologiji.
+
+    N03-FD1: ranije je finalize citao rok SAMO iz prvog dokumenta
+    (`per_doc_meta_maps[0]`), pa je rok drugog dokumenta tiho nestajao. Sada se
+    ista pravila (prag, provera duplikata, razlog neupisa) primenjuju na svaki
+    dokument zasebno. Dva razlicita datuma se NE razresavaju: sistem nema dokaz
+    da li su ista obaveza, pa svaki ostaje zaseban kandidat, a odgovor to kaze.
+
+    Vraca `{datum_iso, dodat, razlog}`; `datum_iso` je konkretan datum NADJEN u
+    dokumentu (i kad nije upisan), `None` kad ga nema.
+    """
+    # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
+    #
+    # BLK-1, drugi sloj odbrane. Prvi sloj (shared/intake_extract.py::
+    # extract_deadline) više ne proglašava običan datum rokom. Ovaj sloj
+    # postoji zato što je docstring iznad ("ako je izvučen sa dovoljnom
+    # pouzdanošću") do 2026-08-24 bio NETAČAN: pouzdanost se ovde nije
+    # čitala uopšte — `value_map` je nije ni nosio — pa je svaka vrednost
+    # koja se dala pretvoriti u ISO datum završavala u kalendaru advokata.
+    #
+    # Upis se sada dešava samo kad je ispunjen bar jedan uslov:
+    #   • pouzdanost ≥ AUTO_ACCEPT_THRESHOLD (isti prag koji već odlučuje
+    #     šta ide u review queue — jedan prag, jedna istina), ili
+    #   • advokat je vrednost ispravio ili izričito pregledao.
+    # Sve ostalo ostaje vidljivo u `GET /jobs/{id}` kao kandidat sa svojom
+    # pouzdanošću, ali NE postaje obaveza u kalendaru.
+    rok_dodat = False
+    rok_preskocen_razlog = None
+    deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
+    _dl_meta = meta_map.get("deadline") or {}
+    _dl_conf = _dl_meta.get("confidence")
+    _dl_potvrdjen = bool(_dl_meta.get("potvrdio_covek"))
+    _dl_dovoljan = _dl_potvrdjen or (
+        _dl_conf is not None and float(_dl_conf) >= intake_documents.AUTO_ACCEPT_THRESHOLD
+    )
+    if (value_map.get("deadline") or "").strip() and not deadline_iso:
+        # N03: izraz roka JESTE pronadjen ("7 dana", nemoguc datum), ali nema
+        # konkretnog kalendarskog datuma -- ne racuna se i ne upisuje, ali se
+        # to KAZE; inace izgleda isto kao dokument bez roka.
+        rok_preskocen_razlog = "bez_konkretnog_datuma"
+    if deadline_iso and not _dl_dovoljan:
+        rok_preskocen_razlog = "niska_pouzdanost"
+        logger.info(
+            "[SMART_INTAKE] rok NIJE upisan (pouzdanost=%s < %s, bez ljudske potvrde) predmet=%s job=%s",
+            _dl_conf, intake_documents.AUTO_ACCEPT_THRESHOLD, predmet_id, job_id,
+        )
+    # BLK-1 / TEST J: isti dokument obrađen dva puta pravio je DVA identična
+    # roka u istom predmetu. Dedup na otpremanju (`already_submitted`) hvata
+    # samo ponovno slanje PRE finalizacije — posle nje isti sadržaj dobija
+    # nov `job_id` i prolazi ovuda ponovo. Rok je obaveza advokata; ista
+    # obaveza upisana dvaput je isti oblik lažne informacije kao izmišljen
+    # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti
+    # naziv događaja.
+    _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
+    nadjen_iso = deadline_iso
+    if deadline_iso and _dl_dovoljan and (deadline_iso, _rok_dogadjaj) in vec_upisano:
+        # N03-FD1: isti red (isti predmet, datum i naziv -- postojece pravilo BLK-1) vec je upisan
+        # iz drugog dela istog otpremanja. Ovo NIJE zakljucak o istoj obavezi: identitet je isti
+        # kao kod provere duplikata ispod, samo bez povratka u bazu.
+        rok_preskocen_razlog = "vec_postoji"
+        deadline_iso = None
+    if deadline_iso and _dl_dovoljan:
+        try:
+            _postojeci = await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija")
+                    .select("id")
+                    .eq("predmet_id", predmet_id)
+                    .eq("datum_iso", deadline_iso)
+                    .eq("dogadjaj", _rok_dogadjaj)
+                    .limit(1)
+                    .execute()
+            )
+            if _postojeci.data:
+                logger.info(
+                    "[SMART_INTAKE] rok %s vec postoji u predmetu %s -- preskacem duplikat (job=%s)",
+                    deadline_iso, predmet_id, job_id,
+                )
+                rok_preskocen_razlog = "vec_postoji"
+                deadline_iso = None
+        except Exception as exc:
+            # Provera duplikata NE sme da obori upis stvarnog roka -- gori
+            # ishod od duplog roka je nijedan rok.
+            logger.warning("[SMART_INTAKE] provera duplikata roka nije uspela (nastavljam): %s", exc)
+    if deadline_iso and _dl_dovoljan:
+        try:
+            await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").insert({
+                    "predmet_id": predmet_id,
+                    "user_id":    uid,
+                    # BLK-1: raniji naziv je bio "Rok — {tip_labela}", gde je
+                    # `tip_labela` TIP DOKUMENTA. U kalendaru je to čitano kao
+                    # vrsta roka ("Rok — ugovor"), što je tvrdnja koju sistem
+                    # nema čime da potkrepi. Sada naziv kaže tačno ono što
+                    # sistem zna: rok pronađen U dokumentu tog tipa. Isti
+                    # izraz koji provera duplikata iznad koristi — jedan
+                    # naziv, jedno mesto, inače dedup gleda drugu vrednost
+                    # nego što se upisuje.
+                    "dogadjaj":   _rok_dogadjaj,
+                    "datum":      deadline_iso,
+                    "datum_iso":  deadline_iso,
+                    "vaznost":    "važan",
+                    "akter":      "Smart Intake",
+                    # migracija 127 — W-SMARTINTAKE: rok je AI-
+                    # ekstrahovan iz dokumenta. Advokat je kliknuo
+                    # "Kreiraj predmet", ali OVAJ rok nikad nije video
+                    # -- klasifikacija ide po tvorcu SADRZAJA, ne po
+                    # kliku.
+                    "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
+                    # BLK-1 / provenance: kolona postoji od početka i ostajala
+                    # je NULL, pa advokat nije imao odgovor na pitanje "odakle
+                    # ovaj rok?". Naziv izvornog fajla je jedini podatak koji je
+                    # na ovom mestu već dostupan i koji taj odgovor daje.
+                    "dokument_naziv": job.get("original_filename") or None,
+                    # N03-FD7: bez `vrsta` red nije rok ni za jedan pregled (V2 Danas, Case Actions
+                    # Rule 6, stanje odluke u spisu predmeta) -- kandidat je bio NEVIDLJIV advokatu
+                    # koji jedini sme da ga potvrdi. Izjavljuje se samo VRSTA (rok iz dokumenta);
+                    # `stanje` se NE upisuje -- dok covek ne odluci, rok je nepotvrdjen (audit lanac).
+                    # Pre migracije 129 fragment je prazan i upis radi kao ranije.
+                    **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
+                }).execute()
+            )
+            rok_dodat = True
+            vec_upisano.add((deadline_iso, _rok_dogadjaj))
+        except Exception as exc:
+            # N03: pad upisa nije odsustvo roka -- razlog to razlikuje.
+            rok_preskocen_razlog = "upis_nije_uspeo"
+            logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+    return {"datum_iso": nadjen_iso, "dodat": rok_dodat, "razlog": rok_preskocen_razlog}
+
+
 async def _create_new_predmet_from_value_map(
     uid: str, body: "FinalizeReq", value_map: dict, tip_labela: str, job: dict, case_number: Optional[str],
 ) -> tuple[str, str]:
@@ -1417,6 +1551,8 @@ async def _finalize_intake_job_jezgro(
     klijent_kandidati: list[str] = []
     rok_dodat = False
     rok_preskocen_razlog = None
+    rokovi_iz_dokumenata: list[dict] = []
+    rokovi_razliciti_datumi = False
     if not resuming:
         # Program Intake Sprint 006 (2026-08-05) -- replaces the pre-Sprint-006
         # `.ilike("ime", klijent_ime)` query, a confirmed live bug: klijent_ime is
@@ -1563,108 +1699,24 @@ async def _finalize_intake_job_jezgro(
                     logger.error("[SMART_INTAKE] NEW_CLIENT_LINKED NIJE upisan posle %d pokusaja predmet=%s job=%s -- COI provera NIJE zakazana: %s",
                                  _COI_EMIT_POKUSAJA, predmet_id, job_id, _ee)
 
-        # ── Rok (ako je deadline izvučen sa dovoljnom pouzdanošću) ──────────────
-        #
-        # BLK-1, drugi sloj odbrane. Prvi sloj (shared/intake_extract.py::
-        # extract_deadline) više ne proglašava običan datum rokom. Ovaj sloj
-        # postoji zato što je docstring iznad ("ako je izvučen sa dovoljnom
-        # pouzdanošću") do 2026-08-24 bio NETAČAN: pouzdanost se ovde nije
-        # čitala uopšte — `value_map` je nije ni nosio — pa je svaka vrednost
-        # koja se dala pretvoriti u ISO datum završavala u kalendaru advokata.
-        #
-        # Upis se sada dešava samo kad je ispunjen bar jedan uslov:
-        #   • pouzdanost ≥ AUTO_ACCEPT_THRESHOLD (isti prag koji već odlučuje
-        #     šta ide u review queue — jedan prag, jedna istina), ili
-        #   • advokat je vrednost ispravio ili izričito pregledao.
-        # Sve ostalo ostaje vidljivo u `GET /jobs/{id}` kao kandidat sa svojom
-        # pouzdanošću, ali NE postaje obaveza u kalendaru.
-        rok_dodat = False
-        rok_preskocen_razlog = None
-        deadline_iso = _deadline_to_iso(value_map.get("deadline") or "")
-        _dl_meta = meta_map.get("deadline") or {}
-        _dl_conf = _dl_meta.get("confidence")
-        _dl_potvrdjen = bool(_dl_meta.get("potvrdio_covek"))
-        _dl_dovoljan = _dl_potvrdjen or (
-            _dl_conf is not None and float(_dl_conf) >= intake_documents.AUTO_ACCEPT_THRESHOLD
-        )
-        if (value_map.get("deadline") or "").strip() and not deadline_iso:
-            # N03: izraz roka JESTE pronadjen ("7 dana", nemoguc datum), ali nema
-            # konkretnog kalendarskog datuma -- ne racuna se i ne upisuje, ali se
-            # to KAZE; inace izgleda isto kao dokument bez roka.
-            rok_preskocen_razlog = "bez_konkretnog_datuma"
-        if deadline_iso and not _dl_dovoljan:
-            rok_preskocen_razlog = "niska_pouzdanost"
-            logger.info(
-                "[SMART_INTAKE] rok NIJE upisan (pouzdanost=%s < %s, bez ljudske potvrde) predmet=%s job=%s",
-                _dl_conf, intake_documents.AUTO_ACCEPT_THRESHOLD, predmet_id, job_id,
+        # ── Rok iz SVAKOG dokumenta otpremanja (N03-FD1) ─────────────────────────
+        # Pravila upisa su u `_rok_iz_dokumenta` (BLK-1 prag, provera duplikata,
+        # razlog neupisa). Nijedan datum ne pobedjuje zato sto je prvi: svaki
+        # dokument daje svoj nepotvrdjen kandidat, a razliciti datumi se KAZU.
+        _vec_upisano: set = set()
+        for _i, _d in enumerate(documents):
+            _tip_d = _DOC_TYPE_LABELS.get(((_d.get("document") or {}).get("document_type") or "other"), "dokument")
+            _ishod = await _rok_iz_dokumenta(
+                supa, predmet_id=predmet_id, uid=uid, job=job, job_id=job_id,
+                value_map=per_doc_value_maps[_i], meta_map=per_doc_meta_maps[_i],
+                tip_labela=_tip_d, vec_upisano=_vec_upisano,
             )
-        # BLK-1 / TEST J: isti dokument obrađen dva puta pravio je DVA identična
-        # roka u istom predmetu. Dedup na otpremanju (`already_submitted`) hvata
-        # samo ponovno slanje PRE finalizacije — posle nje isti sadržaj dobija
-        # nov `job_id` i prolazi ovuda ponovo. Rok je obaveza advokata; ista
-        # obaveza upisana dvaput je isti oblik lažne informacije kao izmišljen
-        # rok, samo tiši. Provera je uska: isti predmet + isti datum + isti
-        # naziv događaja.
-        _rok_dogadjaj = f"Rok iz dokumenta ({tip_labela})"
-        if deadline_iso and _dl_dovoljan:
-            try:
-                _postojeci = await asyncio.to_thread(
-                    lambda: supa.table("predmet_hronologija")
-                        .select("id")
-                        .eq("predmet_id", predmet_id)
-                        .eq("datum_iso", deadline_iso)
-                        .eq("dogadjaj", _rok_dogadjaj)
-                        .limit(1)
-                        .execute()
-                )
-                if _postojeci.data:
-                    logger.info(
-                        "[SMART_INTAKE] rok %s vec postoji u predmetu %s -- preskacem duplikat (job=%s)",
-                        deadline_iso, predmet_id, job_id,
-                    )
-                    rok_preskocen_razlog = "vec_postoji"
-                    deadline_iso = None
-            except Exception as exc:
-                # Provera duplikata NE sme da obori upis stvarnog roka -- gori
-                # ishod od duplog roka je nijedan rok.
-                logger.warning("[SMART_INTAKE] provera duplikata roka nije uspela (nastavljam): %s", exc)
-        if deadline_iso and _dl_dovoljan:
-            try:
-                await asyncio.to_thread(
-                    lambda: supa.table("predmet_hronologija").insert({
-                        "predmet_id": predmet_id,
-                        "user_id":    uid,
-                        # BLK-1: raniji naziv je bio "Rok — {tip_labela}", gde je
-                        # `tip_labela` TIP DOKUMENTA. U kalendaru je to čitano kao
-                        # vrsta roka ("Rok — ugovor"), što je tvrdnja koju sistem
-                        # nema čime da potkrepi. Sada naziv kaže tačno ono što
-                        # sistem zna: rok pronađen U dokumentu tog tipa. Isti
-                        # izraz koji provera duplikata iznad koristi — jedan
-                        # naziv, jedno mesto, inače dedup gleda drugu vrednost
-                        # nego što se upisuje.
-                        "dogadjaj":   _rok_dogadjaj,
-                        "datum":      deadline_iso,
-                        "datum_iso":  deadline_iso,
-                        "vaznost":    "važan",
-                        "akter":      "Smart Intake",
-                        # migracija 127 — W-SMARTINTAKE: rok je AI-
-                        # ekstrahovan iz dokumenta. Advokat je kliknuo
-                        # "Kreiraj predmet", ali OVAJ rok nikad nije video
-                        # -- klasifikacija ide po tvorcu SADRZAJA, ne po
-                        # kliku.
-                        "izvor":      _IZVOR.IZVOR_AI_AUTONOMOUS,
-                        # BLK-1 / provenance: kolona postoji od početka i ostajala
-                        # je NULL, pa advokat nije imao odgovor na pitanje "odakle
-                        # ovaj rok?". Naziv izvornog fajla je jedini podatak koji je
-                        # na ovom mestu već dostupan i koji taj odgovor daje.
-                        "dokument_naziv": job.get("original_filename") or None,
-                    }).execute()
-                )
-                rok_dodat = True
-            except Exception as exc:
-                # N03: pad upisa nije odsustvo roka -- razlog to razlikuje.
-                rok_preskocen_razlog = "upis_nije_uspeo"
-                logger.warning("[SMART_INTAKE] rok insert greška (non-fatal) predmet=%s: %s", predmet_id, exc)
+            _ishod["dokument_id"] = (_d.get("document") or {}).get("id")
+            rokovi_iz_dokumenata.append(_ishod)
+        rok_dodat = any(x["dodat"] for x in rokovi_iz_dokumenata)
+        # Zbirni razlog: prvi razlog koji postoji. Za jedan dokument isto kao ranije.
+        rok_preskocen_razlog = next((x["razlog"] for x in rokovi_iz_dokumenata if x["razlog"]), None)
+        rokovi_razliciti_datumi = len({x["datum_iso"] for x in rokovi_iz_dokumenata if x["datum_iso"]}) > 1
 
     # ── Dokumenti: decrypt → (po dokumentu) tekst-isečak → chunk → Pinecone →
     #    predmet_dokumenti ──────────────────────────────────────────────────
@@ -2311,6 +2363,11 @@ async def _finalize_intake_job_jezgro(
         # dokazan da bi ušao u kalendar". Drugi slučaj je informacija koju
         # advokat treba da vidi — zato nosi sopstveni razlog.
         "rok_preskocen_razlog": rok_preskocen_razlog,
+        # N03-FD1: ishod roka PO DOKUMENTU i signal da dokumenti navode razlicite
+        # datume. Signal NE tvrdi da je rec o istoj obavezi -- samo da advokat mora
+        # da ih pregleda; svaki upisan datum je zaseban nepotvrdjen kandidat.
+        "rokovi_iz_dokumenata": rokovi_iz_dokumenata,
+        "rokovi_razliciti_datumi": rokovi_razliciti_datumi,
         "dokument_povezan": doc_linked,
         # Program Intake Sprint 006 -- per-document assimilation outcome,
         # replacing the single aggregate flag above for any caller that

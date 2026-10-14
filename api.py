@@ -5070,22 +5070,29 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
     # Zato se `stanje_odluke` dodaje SAMO redovima koji su IZJAVLJENI kao rok
     # (`vrsta='rok'`, migracija 129). Neizjavljen red ostaje bez tog polja —
     # fail-closed ostaje fail-closed, ovde se ne pogađa šta je rok.
-    # `odluke()` je i sam fail-closed: pad upita daje prazan rečnik, dakle
-    # sve nepotvrđeno; nikad „sve odobreno".
+    #
+    # N03-FD8: lanac odluka se cita STROGO. Ranije je pad citanja davao prazan
+    # recnik, pa je SVAKI rok — i odbijen i potvrdjen — stizao kao UNCONFIRMED:
+    # odbijen se vracao u „Za proveru", potvrdjen padao u predlog. Sada rok
+    # nosi `UNKNOWN` (stanje se ne zna), a `odluke_o_rokovima_dostupne=false`
+    # to kaze. Ostatak predmeta (dokumenti, beleske, klijenti, hronologija) se
+    # vraca normalno — pad jednog izvora ne gasi ceo spis.
     _hron = list(hronologija.data or [])
     _rok_ids = [str(h.get("id")) for h in _hron
                 if h.get("id") and _rokovi_domen.je_rok(h)]
+    _odluke_dostupne = True
     if _rok_ids:
+        from shared.rok_potvrda import (STANJE_NEPOZNATO as _NEPOZNATO, odluke as _odluke,
+                                        stanje_roka as _stanje_roka)
         try:
-            from shared.rok_potvrda import odluke as _odluke, stanje_roka as _stanje_roka
-            _mapa = await asyncio.to_thread(_odluke, _rok_ids)
-            for h in _hron:
-                if str(h.get("id")) in _rok_ids:
-                    h["stanje_odluke"] = _stanje_roka(str(h.get("id")), _mapa)
+            _mapa = await asyncio.to_thread(_odluke, _rok_ids, True)
         except Exception as _e:
-            # Bez stanja odluke Dosije pada nazad na „nepotvrđeno" — to je
-            # bezbedna strana: predlog ostaje predlog.
-            logger.warning("[PREDMETI] stanje odluke nije dohvaćeno za %s: %s", predmet_id, _e)
+            logger.error("[PREDMETI] stanje odluke o rokovima nije pročitano za %s: %s", predmet_id, _e)
+            _mapa, _odluke_dostupne = None, False
+        for h in _hron:
+            if str(h.get("id")) in _rok_ids:
+                h["stanje_odluke"] = (_stanje_roka(str(h.get("id")), _mapa) if _odluke_dostupne
+                                      else _NEPOZNATO)
 
     return {
         "predmet":         row.data,
@@ -5095,6 +5102,7 @@ async def get_predmet(predmet_id: str, request: Request, authorization: str = He
         "hronologija":     _hron,
         "komentari":       komentari.data,
         "klijenti_linked": klijenti_linked,
+        "odluke_o_rokovima_dostupne": _odluke_dostupne,
     }
 
 

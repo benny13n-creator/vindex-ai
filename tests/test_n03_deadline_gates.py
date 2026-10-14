@@ -12,6 +12,10 @@ Testovi oznaceni `xfail(strict=True)` su DOKUMENTOVANE praznine koje traze
 odluku osnivaca (vidi izvestaj N03) — ne popravljaju se ovde jer bi popravka
 bila nova pravno-produktna odluka. `strict` znaci: ako neko promeni ponasanje,
 test pada i praznina se mora svesno zatvoriti.
+
+N03-FD ugovor (Workstream A, 2026-10-14): FD1, FD3, FD4, FD5 su ISPRAVLJENI
+(xfail uklonjen). FD2 i FD6 ostaju BLOCKED u delu koji trazi identitet tvrdnje
+(xfail zadrzan); dokaziv deo je pokriven testovima u sekciji „N03-FD" ispod.
 """
 from __future__ import annotations
 
@@ -156,7 +160,8 @@ async def test_S1_konflikt_upisani_rok_je_samo_AI_kandidat_bez_odluke():
         _dok([_ent("deadline", D_25, 0.95)], "dok-A"),
         _dok([_ent("deadline", D_26, 0.95)], "dok-B"),
     ])
-    assert len(supa.upisi) <= 1
+    # N03-FD1: svaki dokument daje SVOJ kandidat -- nijedan datum ne pobedjuje.
+    assert len(supa.upisi) == 2
     for red in supa.upisi:
         assert red["izvor"] == rokovi_domen.IZVOR_AI_AUTONOMOUS
         assert "stanje" not in red or red["stanje"] != rokovi_domen.STANJE_POTVRDJEN
@@ -165,13 +170,11 @@ async def test_S1_konflikt_upisani_rok_je_samo_AI_kandidat_bez_odluke():
     assert rez["rok_dodat"] in (True, False)
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD1: konflikt rokova izmedju dokumenata se ne prijavljuje — odluka osnivaca")
 @pytest.mark.anyio
 async def test_S1_konflikt_rokova_mora_ostati_vidljiv():
-    """INVARIJANTA: kontradikcija ostaje vidljiva. Danas finalize uzima rok
-    SAMO iz prvog dokumenta (`per_doc_meta_maps[0]`), drugi datum tiho nestaje
-    iz predmeta, a odgovor ne nosi nikakav signal konflikta (za razliku od
-    broja predmeta, gde konflikt daje 409)."""
+    """MUST-PASS 1 — INVARIJANTA: razlicit datum ostaje vidljiv. Ranije je
+    finalize uzimao rok SAMO iz prvog dokumenta (`per_doc_meta_maps[0]`), a
+    drugi datum je tiho nestajao (N03-FD1, ispravljeno)."""
     supa = _supa()
     rez = await _finalize(supa, [
         _dok([_ent("deadline", D_25, 0.95)], "dok-A"),
@@ -264,11 +267,11 @@ async def test_S3_finalize_ne_pravi_rok_iz_relativnog_izraza_i_to_KAZE():
     assert rez["rok_preskocen_razlog"] == "bez_konkretnog_datuma"
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD3: /api/dokument/rokovi racuna datum iz relativnog izraza (mesec=30 dana) bez pravnog osnova — odluka osnivaca")
 def test_S3_kandidat_lista_ne_racuna_datum_iz_relativnog_izraza():
-    """Legacy lista kandidata (`/api/dokument/rokovi`) od relativnog izraza i
-    AUTOMATSKI pogodjenog datuma dokumenta pravi konkretan datum i
-    „Istice za N dana". To je pravni racun bez izvora i bez kvalifikacije."""
+    """MUST-PASS 4. Legacy lista kandidata (`/api/dokument/rokovi`) je od
+    relativnog izraza i AUTOMATSKI pogodjenog datuma dokumenta pravila konkretan
+    datum i „Istice za N dana" (N03-FD3, ispravljeno: relativan rok ostaje
+    relativan)."""
     from uploaded_doc.deadline_parser import ekstrahuj_rokove
     rel = [r for r in ekstrahuj_rokove(_RESENJE_7, D_17) if r["tip"] == "relativni"]
     assert rel and all(r["konkretan_datum"] is None for r in rel), rel
@@ -290,11 +293,9 @@ def test_S4_ni_datum_presude_ni_datum_dostave_nisu_rok():
     assert extract_deadline(_PRESUDA) == (None, 0.0)
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD4: auto-detektovan 'datum dokumenta' uzima pecat prijema umesto datuma presude — odluka osnivaca")
 def test_S4_datum_dostave_ne_postaje_datum_dokumenta():
-    """`_extract_datum_dokumenta` (izvor za racun relativnih rokova u
-    /api/dokument/rokovi) uzima prvo „dana DD.MM.YYYY" — ovde pecat prijema —
-    i vraca ga kao datum dokumenta, uz `datum_dokumenta_izvor="auto"`."""
+    """MUST-PASS 5. `_extract_datum_dokumenta` je uzimao prvo „dana DD.MM.YYYY"
+    — ovde pecat prijema — kao datum dokumenta (N03-FD4, ispravljeno)."""
     from uploaded_doc.deadline_parser import _extract_datum_dokumenta
     assert _extract_datum_dokumenta(_PRESUDA) != D_25
 
@@ -454,7 +455,7 @@ def test_S7_genome_ponovo_isti_rok_ne_pravi_nov_red():
     assert baza.upisi == []
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD2: preformulisan AI rok posle odbijanja postaje nov kandidat (FAZA 6.5 poznata praznina) — odluka osnivaca")
+@pytest.mark.xfail(strict=True, reason="N03-FD2 BLOCKED: automatsko gasenje preformulisanog roka trazi identitet tvrdnje koji ne postoji (resource_id = id reda); bez njega bi to bilo zakljucivanje ekvivalencije iz datuma/teksta — zabranjeno ugovorom")
 def test_S7_genome_preformulisan_odbijen_rok_ne_vaskrsava():
     """Advokat je odbio rok 26.03.2025. Sledeci Genome refresh isti datum
     opise drugim recima -> nov red, nov nepotvrdjen kandidat. Odbijanje vazi
@@ -598,8 +599,9 @@ def test_HTTP_ics_pad_lanca_odluka_nije_izvoz_svega(http):
     assert r.status_code == 503
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD5: .ics izvozi NEPOTVRDJEN AI kandidat kao obavezu — odluka osnivaca (kanonska kapija vs oznaka)")
 def test_HTTP_ics_ne_izvozi_nepotvrdjen_AI_kandidat(http):
+    """MUST-PASS 6 — nepotvrdjen rok nije spoljna obaveza (N03-FD5, ispravljeno:
+    `.ics` sada pita `sme_pristupiti(..., EXPORT_EXTERNAL)`)."""
     k, _ = http
     r = _ics(k)
     assert r.status_code == 200
@@ -622,7 +624,7 @@ def test_S8_novi_datum_iz_izmenjenog_izvora_je_nov_kandidat_i_oba_su_vidljiva(ht
     assert stanja["r-potvrdjen"] == STANJE_POTVRDJEN
 
 
-@pytest.mark.xfail(strict=True, reason="N03-FD6: promena/brisanje izvora ne ponistava potvrdu roka — odluka osnivaca")
+@pytest.mark.xfail(strict=True, reason="N03-FD6 BLOCKED: automatska suspenzija potvrde trazi dokazanu vezu rok->dokument; Smart Intake rok nema dokument_id, Genome dokument_id je model-pripisan i FK ON DELETE SET NULL ga brise pri promeni. Dokaziv deo: upozorenje izvor_uklonjen_posle_potvrde")
 def test_S8_potvrda_ne_prezivljava_promenu_izvora(http):
     """Nijedan mehanizam ne veze potvrdu za stanje izvornog dokumenta:
     hronologija je insert-only, invalidacija izvora (migracije 131/137) ne
@@ -633,3 +635,561 @@ def test_S8_potvrda_ne_prezivljava_promenu_izvora(http):
          "datum_iso": ISO_25, "vaznost": "kritičan", "izvor": "AI_AUTONOMOUS", "vrsta": "rok"})
     from shared.rok_potvrda import potvrdjeni_ids
     assert "r-potvrdjen" not in potvrdjeni_ids(["r-potvrdjen", "r-novi-izvor"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# N03-FD — UGOVOR OSNIVACA (Workstream A, 2026-10-14)
+#
+# Must-pass 1-10 iz ugovora -> imena testova (vidi i izvestaj):
+#   1 test_S1_konflikt_rokova_mora_ostati_vidljiv, test_FD1_*
+#   2 test_FD2_isti_datum_drugi_tekst_nije_zakljucena_ista_obaveza
+#   3 test_FD2_odbijanje_ne_vaskrsava_kroz_preformulisan_red
+#   4 test_S3_kandidat_lista_ne_racuna_datum_iz_relativnog_izraza, test_FD3_*
+#   5 test_S4_datum_dostave_ne_postaje_datum_dokumenta, test_FD4_*
+#   6 test_HTTP_ics_ne_izvozi_nepotvrdjen_AI_kandidat, test_FD5_*
+#   7 test_FD6_istorijska_odluka_se_ne_brise_ni_ne_prepisuje
+#   8 test_FD7_*
+#   9 test_FD8_*
+#  10 test_FD10_*
+# ═══════════════════════════════════════════════════════════════════════════
+
+import json as _json
+import shutil as _shutil
+import subprocess as _subprocess
+
+_KOREN = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_NODE = _shutil.which("node")
+_nodemark = pytest.mark.skipif(_NODE is None, reason="node nije dostupan")
+
+
+@pytest.fixture
+def sonda_129():
+    rokovi_domen._resetuj_sondu()
+    yield
+    rokovi_domen._resetuj_sondu()
+
+
+# ── FD1 — razliciti datumi u dokumentima istog otpremanja ───────────────────
+
+@pytest.mark.anyio
+async def test_FD1_svaki_dokument_daje_svoj_kandidat_i_signal_razlicitih_datuma(sonda_129):
+    supa = _supa()
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)], "dok-A"),
+                                 _dok([_ent("deadline", D_26, 0.95)], "dok-B")])
+    assert sorted(r["datum_iso"] for r in supa.upisi) == [ISO_25, ISO_26]
+    assert rez["rok_dodat"] is True and rez["rokovi_razliciti_datumi"] is True
+    assert [(x["dokument_id"], x["datum_iso"], x["dodat"]) for x in rez["rokovi_iz_dokumenata"]] == [
+        ("dok-A", ISO_25, True), ("dok-B", ISO_26, True)]
+    for red in supa.upisi:
+        # Kandidat, ne obaveza: AI izvor, bez upisanog stanja, bez odluke -> nijedan kanal.
+        assert red["izvor"] == rokovi_domen.IZVOR_AI_AUTONOMOUS and "stanje" not in red
+        assert not rokovi_domen.sme_pokrenuti_obavezu({**red, "id": "x"}, set())
+
+
+@pytest.mark.anyio
+async def test_FD1_redosled_dokumenata_ne_bira_datum(sonda_129):
+    a, b = _supa(), _supa()
+    await _finalize(a, [_dok([_ent("deadline", D_25, 0.95)], "dok-A"), _dok([_ent("deadline", D_26, 0.95)], "dok-B")])
+    await _finalize(b, [_dok([_ent("deadline", D_26, 0.95)], "dok-B"), _dok([_ent("deadline", D_25, 0.95)], "dok-A")])
+    assert {r["datum_iso"] for r in a.upisi} == {r["datum_iso"] for r in b.upisi} == {ISO_25, ISO_26}
+
+
+@pytest.mark.anyio
+async def test_FD1_drugi_datum_ispod_praga_nije_upisan_ali_se_kaze(sonda_129):
+    supa = _supa()
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)], "dok-A"),
+                                 _dok([_ent("deadline", D_26, 0.50)], "dok-B")])
+    assert [r["datum_iso"] for r in supa.upisi] == [ISO_25]
+    assert rez["rok_dodat"] is True
+    assert rez["rok_preskocen_razlog"] == "niska_pouzdanost"          # drugi datum nije tiho odbacen
+    assert rez["rokovi_razliciti_datumi"] is True
+    assert rez["rokovi_iz_dokumenata"][1] == {"datum_iso": ISO_26, "dodat": False,
+                                              "razlog": "niska_pouzdanost", "dokument_id": "dok-B"}
+
+
+@pytest.mark.anyio
+async def test_FD1_isti_datum_isti_tip_je_isti_red_ne_dva(sonda_129):
+    """Kontrola: isti predmet + isti datum + isti naziv je POSTOJECE pravilo
+    duplikata (BLK-1) — vazi i unutar jednog otpremanja. Ne uvodi se nova
+    ekvivalencija; razliciti datumi nisu signalizirani jer ih nema."""
+    supa = _supa()
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)], "dok-A"),
+                                 _dok([_ent("deadline", D_25, 0.95)], "dok-B")])
+    assert [r["datum_iso"] for r in supa.upisi] == [ISO_25]
+    assert rez["rokovi_razliciti_datumi"] is False
+    assert rez["rokovi_iz_dokumenata"][1]["razlog"] == "vec_postoji"
+
+
+@pytest.mark.anyio
+async def test_FD1_isti_datum_razlicit_tip_dokumenta_su_dva_kandidata(sonda_129):
+    """Isti datum u RAZLICITIM dokumentima nije dokaz iste obaveze -> dva reda."""
+    supa = _supa()
+    await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)], "dok-A", tip="judgment"),
+                           _dok([_ent("deadline", D_25, 0.95)], "dok-B", tip="appeal")])
+    assert sorted(r["dogadjaj"] for r in supa.upisi) == ["Rok iz dokumenta (presuda)", "Rok iz dokumenta (žalba)"]
+
+
+@pytest.mark.anyio
+async def test_FD1_jedan_dokument_odgovor_kao_ranije(sonda_129):
+    supa = _supa()
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
+    assert rez["rok_dodat"] is True and rez["rok_preskocen_razlog"] is None
+    assert rez["rokovi_razliciti_datumi"] is False and len(rez["rokovi_iz_dokumenata"]) == 1
+
+
+# ── FD2 — preformulisan rok posle odbijanja ─────────────────────────────────
+
+def _dodaj(b, rid, datum, dogadjaj="Rok za odgovor", izvor="AI_AUTONOMOUS", korisnik="uid-A", predmet=PA, vrsta="rok"):
+    b.tabele["predmet_hronologija"].append(
+        {"id": rid, "user_id": korisnik, "predmet_id": predmet, "dogadjaj": dogadjaj,
+         "datum_iso": datum, "vaznost": "kritičan", "izvor": izvor, "vrsta": vrsta})
+
+
+def test_FD2_isti_datum_drugi_tekst_nije_zakljucena_ista_obaveza(http):
+    """MUST-PASS 2: odbijen je r-odbijen (25.03.2025). Nov red istog datuma i
+    drugog teksta NIJE ni sakriven (to bi bila ekvivalencija izvedena iz datuma)
+    ni oznacen kao odbijen — ostaje zaseban, vidljiv, nepotvrdjen kandidat."""
+    k, b = http
+    _dodaj(b, "r-preformulisan", ISO_25, "Rok iz dokumenta (presuda): odgovor na tuzbu")
+    stanja = {x["id"]: x["stanje_odluke"] for x in _kandidati(k).json()["rokovi"]}
+    assert stanja["r-odbijen"] == STANJE_ODBIJEN
+    assert stanja["r-preformulisan"] == STANJE_NEPOTVRDJEN
+
+
+def test_FD2_odbijanje_ne_vaskrsava_kroz_preformulisan_red(http):
+    """MUST-PASS 3: nijedan od dva reda ne dobija ovlascenje — ni odbijen (njegova
+    odluka ostaje), ni nov (ne nasledjuje nista). Ni .ics ni akcija."""
+    k, b = http
+    _dodaj(b, "r-preformulisan", ISO_25, "Rok iz dokumenta (presuda): odgovor na tuzbu")
+    assert "20250325" not in _ics(k).text
+    from shared.rok_potvrda import odluke, potvrdjeni_ids
+    assert odluke(["r-odbijen", "r-preformulisan"]) == {"r-odbijen": STANJE_ODBIJEN}
+    assert potvrdjeni_ids(["r-odbijen", "r-preformulisan"]) == set()
+
+
+def test_FD2_genome_preformulisan_je_nov_kandidat_bez_nasledjene_odluke():
+    from routers.case_dna import _sync_rokovi_to_hronologija
+    baza = _HronBaza([{"dogadjaj": "Rok za odgovor: na tuzbu", "datum_iso": ISO_26}])
+    genome = {"rokovi_kriticni": [{"naziv": "Rok za odgovor", "opis": "na tuzbu tuzioca",
+                                   "datum": ISO_26, "status": "aktivan"}]}
+    rokovi_domen._resetuj_sondu()
+    try:
+        asyncio.run(_sync_rokovi_to_hronologija(baza, "pred-001", _UID, genome))
+    finally:
+        rokovi_domen._resetuj_sondu()
+    assert len(baza.upisi) == 1
+    nov = baza.upisi[0]
+    assert nov["izvor"] == rokovi_domen.IZVOR_AI_AUTONOMOUS and "stanje" not in nov
+    assert not rokovi_domen.sme_pokrenuti_obavezu({**nov, "id": "novi-red"}, {"stari-red"})
+
+
+# ── FD3 — relativan rok ostaje relativan ────────────────────────────────────
+
+def test_FD3_ni_korisnikov_datum_dokumenta_ne_pokrece_racun():
+    from uploaded_doc.deadline_parser import RACUN_IZOSTAVLJEN_RELATIVNI, ekstrahuj_rokove
+    tekst = ("Zalba se podnosi u roku od 15 dana. Obaveza se izvrsava u roku od 2 meseca. "
+             "Placanje: rok od 1 mesec. Narednog radnog dana se dostavlja dokaz.")
+    rel = [r for r in ekstrahuj_rokove(tekst, D_17) if r["tip"] == "relativni"]
+    assert len(rel) >= 3
+    for r in rel:
+        assert r["konkretan_datum"] is None and r["dana_do_roka"] is None and r["istekao"] is False
+        assert r["racun_izostavljen"] == RACUN_IZOSTAVLJEN_RELATIVNI
+
+
+def test_FD3_nema_pravila_mesec_je_30_dana():
+    import uploaded_doc.deadline_parser as dp
+    assert not hasattr(dp, "_parse_trajanje_dana")
+
+
+def test_FD3_kontrola_apsolutni_datum_i_dalje_ima_odbrojavanje():
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+    aps = [r for r in ekstrahuj_rokove(f"Rok za zalbu istice {D_25}.") if r["tip"] == "apsolutni"]
+    assert aps and aps[0]["konkretan_datum"] == D_25 and isinstance(aps[0]["dana_do_roka"], int)
+    assert "racun_izostavljen" not in aps[0]
+
+
+# ── FD4 — datum prijema/dostave nije datum dokumenta ────────────────────────
+
+def test_FD4_jedini_datum_je_pecat_prijema_rezultat_nepoznat():
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(f"Primljeno dana {D_25}.\nRESENJE\nObavezuje se stranka.") is None
+    assert _extract_datum_dokumenta(f"Dostavnica: uruceno {D_25}\nRESENJE") is None
+
+
+def test_FD4_cirilicni_pecat_prijema_se_preskace():
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(f"Примљено {D_25}\nРЕШЕЊЕ\nБеоград, {D_17}") == D_17
+
+
+def test_FD4_kontrola_datum_donosenja_i_mesto_datum():
+    from uploaded_doc.deadline_parser import _extract_datum_dokumenta
+    assert _extract_datum_dokumenta(f"Beograd, {D_17}\nPRESUDA") == D_17
+    assert _extract_datum_dokumenta(f"Zapisnik sastavljen dana {D_17}.") == D_17
+
+
+def test_FD4_datum_dostave_nije_rok_ni_u_smart_intake():
+    """Datum dostave moze biti cinjenica, ali nikad rok iz dokumenta."""
+    assert extract_deadline(f"RESENJE\nResenje je dostavljeno dana {D_25}.\n") == (None, 0.0)
+
+
+# ── FD5 — spoljni izvoz samo uz ljudsku potvrdu ─────────────────────────────
+
+def _potvrdi_u_lancu(b, rid, korisnik="uid-A", akcija="rok_potvrdjen", vreme=None):
+    red = {"seq": 100 + len(b.tabele["audit_immutable"]), "action": akcija, "resource_type": "rok",
+           "resource_id": rid, "user_id": korisnik}
+    if vreme:
+        red["created_at"] = vreme
+    b.tabele["audit_immutable"].append(red)
+
+
+def test_FD5_rucni_rok_bez_potvrde_ne_ide_u_ics(http):
+    k, b = http
+    _dodaj(b, "r-rucni", "2025-03-18", "Rok za uplatu takse", izvor="HUMAN_DIRECT")
+    _dodaj(b, "r-nedeklarisan", "2025-03-19", "Rok bez vrste", izvor="HUMAN_DIRECT", vrsta=None)
+    telo = _ics(k).text
+    assert "20250318" not in telo and "20250319" not in telo
+
+
+def test_FD5_rucni_rok_posle_potvrde_ide_u_ics(http):
+    k, b = http
+    _dodaj(b, "r-rucni", "2025-03-18", "Rok za uplatu takse", izvor="HUMAN_DIRECT")
+    assert k.post("/api/rokovi/r-rucni/potvrdi", json={}, headers=zaglavlje("A")).status_code == 200
+    assert "20250318" in _ics(k).text
+
+
+def test_FD5_odbijanje_posle_potvrde_gasi_izvoz(http):
+    k, b = http
+    assert k.post("/api/rokovi/r-potvrdjen/odbij", json={}, headers=zaglavlje("A")).status_code == 200
+    r = _ics(k)
+    assert "20250326" not in r.text
+
+
+def test_FD5_rociste_zadrzava_izvoz_i_nije_rok(http):
+    k, b = http
+    b.tabele["rocista"].append({"id": "roc-A", "user_id": "uid-A", "predmet_id": PA, "datum": "2025-03-21",
+                                "status": "zakazano", "sud": "Osnovni sud u Beogradu"})
+    b.tabele["rocista"].append({"id": "roc-B", "user_id": "uid-B", "predmet_id": PB, "datum": "2025-03-22",
+                                "status": "zakazano", "sud": "TAJNI sud B"})
+    telo = _ics(k).text
+    assert "20250321" in telo and "20250322" not in telo and "TAJNI" not in telo
+    ev = k.get("/api/kalendar/pregled", params={"od": "2025-03-01", "do": "2025-03-31"}, headers=zaglavlje("A")).json()
+    roc = [e for e in ev["dogadjaji"] if e["tip"] == "rociste"]
+    assert len(roc) == 1 and "stanje_odluke" not in roc[0]["detalji"]
+
+
+def test_FD5_samo_rocista_bez_potvrdjenih_rokova_i_dalje_izvozi(http):
+    k, b = http
+    b.tabele["audit_immutable"] = []
+    b.tabele["rocista"].append({"id": "roc-A", "user_id": "uid-A", "predmet_id": PA, "datum": "2025-03-21",
+                                "status": "zakazano", "sud": "Osnovni sud"})
+    r = _ics(k)
+    assert r.status_code == 200 and "20250321" in r.text and "20250326" not in r.text
+
+
+def test_FD5_bez_rocista_i_potvrdjenih_rokova_404_kaze_zasto(http):
+    k, b = http
+    b.tabele["audit_immutable"] = []
+    r = _ics(k)
+    assert r.status_code == 404 and "Nepotvrđeni rokovi se ne izvoze" in r.json()["detail"]
+
+
+def test_FD5_pregled_je_interni_vidi_sve_sa_stanjem(http):
+    k, _ = http
+    r = k.get("/api/kalendar/pregled", params={"od": "2025-03-01", "do": "2025-03-31"}, headers=zaglavlje("A"))
+    assert r.status_code == 200 and "TAJNI" not in r.text
+    j = r.json()
+    stanja = {e["detalji"]["id"]: e["detalji"]["stanje_odluke"] for e in j["dogadjaji"] if e["tip"] != "rociste"}
+    assert stanja == {"r-kand": STANJE_NEPOTVRDJEN, "r-odbijen": STANJE_ODBIJEN, "r-potvrdjen": STANJE_POTVRDJEN}
+    assert j["odluke_dostupne"] is True and j["degraded_sources"] == []
+
+
+@pytest.mark.parametrize("izvor", list(rokovi_domen.IZVOR_DOZVOLJENI))
+@pytest.mark.parametrize("vaznost", list(rokovi_domen.VAZNOST_DOZVOLJENE))
+def test_FD5_nijedan_izvor_ni_vaznost_ne_izvozi_bez_potvrde(izvor, vaznost):
+    red = _red("r1", izvor=izvor, vaznost=vaznost)
+    for potrosac in (rokovi_domen.POTROSAC_IZVOZ_SPOLJA, rokovi_domen.POTROSAC_AKCIJA, rokovi_domen.POTROSAC_KLIJENT):
+        assert not rokovi_domen.sme_pristupiti(red, {}, potrosac=potrosac)
+        assert not rokovi_domen.sme_pristupiti(red, {"r1": "UNKNOWN"}, potrosac=potrosac)
+    assert rokovi_domen.sme_pristupiti(red, {}, potrosac=rokovi_domen.POTROSAC_INTERNI)
+
+
+def test_FD5_rok_bez_identiteta_ne_ide_napolje():
+    assert not rokovi_domen.sme_pristupiti({"id": None}, {}, potrosac=rokovi_domen.POTROSAC_IZVOZ_SPOLJA)
+
+
+# ── FD6 — promena izvora posle potvrde ──────────────────────────────────────
+
+_T_POTVRDE, _T_PRE, _T_POSLE = "2025-03-20T10:00:00+00:00", "2025-03-19T10:00:00+00:00", "2025-03-21T10:00:00+00:00"
+
+
+def _uklonjen_dokument(b, vreme, predmet=PA, tip="dokument"):
+    b.tabele.setdefault("events", []).append(
+        {"id": "ev-" + vreme + predmet + tip, "event_type": "SourceInvalidated", "user_id": "uid-A",
+         "predmet_id": predmet, "created_at": vreme, "payload": {"source_type": tip, "source_id": "dok-1"}})
+
+
+def _vremena_potvrde(b, vreme=_T_POTVRDE):
+    for z in b.tabele["audit_immutable"]:
+        z["created_at"] = vreme
+
+
+def _upozorenja(k):
+    j = _kandidati(k).json()
+    return {x["id"]: x["izvor_uklonjen_posle_potvrde"] for x in j["rokovi"]}, j
+
+
+def test_FD6_uklonjen_dokument_posle_potvrde_daje_upozorenje_bez_opoziva(http):
+    k, b = http
+    _vremena_potvrde(b)
+    _uklonjen_dokument(b, _T_POSLE)
+    upoz, j = _upozorenja(k)
+    assert upoz["r-potvrdjen"] is True                         # samo potvrdjen rok
+    assert upoz["r-kand"] is False and upoz["r-odbijen"] is False
+    assert j["provera_izvora_dostupna"] is True
+    # Upozorenje NIJE opoziv: odluka ostaje, politika je ista (BLOCKED deo).
+    stanja = {x["id"]: x["stanje_odluke"] for x in j["rokovi"]}
+    assert stanja["r-potvrdjen"] == STANJE_POTVRDJEN
+    assert "20250326" in _ics(k).text
+
+
+def test_FD6_ponovna_potvrda_gasi_upozorenje(http):
+    k, b = http
+    _vremena_potvrde(b)
+    _uklonjen_dokument(b, _T_POSLE)
+    _potvrdi_u_lancu(b, "r-potvrdjen", vreme="2025-03-22T10:00:00+00:00")
+    upoz, _ = _upozorenja(k)
+    assert upoz["r-potvrdjen"] is False
+
+
+def test_FD6_uklanjanje_pre_potvrde_ili_drugog_izvora_ne_upozorava(http):
+    k, b = http
+    _vremena_potvrde(b)
+    _uklonjen_dokument(b, _T_PRE)                               # pre potvrde: advokat je vec video stanje
+    _uklonjen_dokument(b, _T_POSLE, tip="dokaz")                # dokaz nije dokument iz kog je rok
+    _uklonjen_dokument(b, _T_POSLE, predmet=PB)                 # tudj predmet
+    upoz, _ = _upozorenja(k)
+    assert upoz["r-potvrdjen"] is False
+
+
+def test_FD6_pad_provere_izvora_ne_obara_pregled_rokova(http):
+    k, b = http
+    b.greske["events"] = Exception("events nedostupan")
+    r = _kandidati(k)
+    assert r.status_code == 200
+    assert r.json()["provera_izvora_dostupna"] is False
+    assert {x["id"]: x["stanje_odluke"] for x in r.json()["rokovi"]}["r-potvrdjen"] == STANJE_POTVRDJEN
+
+
+def test_FD6_istorijska_odluka_se_ne_brise_ni_ne_prepisuje(http):
+    """MUST-PASS 7: nov kandidat iz izmenjenog izvora, uklanjanje dokumenta i nove
+    odluke samo DODAJU zapise; nijedna ranija odluka nije obrisana ni izmenjena,
+    a hronologija se ne menja (odbijen != obrisan)."""
+    k, b = http
+    pre = [dict(z) for z in b.tabele["audit_immutable"]]
+    hron_pre = [dict(h) for h in b.tabele["predmet_hronologija"]]
+    _dodaj(b, "r-novi-izvor", ISO_25)
+    _uklonjen_dokument(b, _T_POSLE)
+    for rid, akcija in (("r-novi-izvor", "odbij"), ("r-potvrdjen", "odbij"), ("r-potvrdjen", "potvrdi")):
+        assert k.post(f"/api/rokovi/{rid}/{akcija}", json={}, headers=zaglavlje("A")).status_code == 200
+    _kandidati(k)
+    _ics(k)
+    posle = b.tabele["audit_immutable"]
+    assert posle[:len(pre)] == pre and len(posle) == len(pre) + 3
+    assert b.tabele["predmet_hronologija"][:len(hron_pre)] == hron_pre
+    assert not [z for z in b.dnevnik if z["tabela"] in ("audit_immutable", "predmet_hronologija")
+                and z["radnja"] in ("update", "upsert", "delete")]
+
+
+# ── FD7 — Smart Intake kandidat ulazi u ljudski pregled ─────────────────────
+
+@pytest.mark.anyio
+async def test_FD7_smart_intake_rok_izjavljuje_vrstu_bez_stanja(sonda_129):
+    supa = _supa()
+    await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
+    assert len(supa.upisi) == 1
+    red = supa.upisi[0]
+    assert red["vrsta"] == rokovi_domen.VRSTA_ROK                 # pre: kljuc nije postojao
+    assert "stanje" not in red                                     # nema auto-potvrde
+    assert red["izvor"] == rokovi_domen.IZVOR_AI_AUTONOMOUS and red["dokument_naziv"] == "presuda.pdf"
+
+
+@pytest.mark.anyio
+async def test_FD7_pre_migracije_129_upis_radi_bez_vrste(monkeypatch, sonda_129):
+    monkeypatch.setattr(rokovi_domen, "_KOLONE_129", False)
+    supa = _supa()
+    rez = await _finalize(supa, [_dok([_ent("deadline", D_25, 0.95)])])
+    assert rez["rok_dodat"] is True and len(supa.upisi) == 1 and "vrsta" not in supa.upisi[0]
+
+
+def _danas_sastavi(kand, kal):
+    skripta = (
+        "const fs=require('fs'); globalThis.window=globalThis;"
+        f"eval(fs.readFileSync({_json.dumps(os.path.join(_KOREN, 'frontend-v2-ng', 'src', 'danas.js'))},'utf8'));"
+        f"const x=window.VxDanas._sastavi({_json.dumps(kand)},{_json.dumps(kal)},null);"
+        "process.stdout.write(JSON.stringify(x));")
+    p = _subprocess.run([_NODE, "-e", skripta], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert p.returncode == 0, p.stderr[-1500:]
+    return _json.loads(p.stdout)
+
+
+@_nodemark
+@pytest.mark.anyio
+async def test_FD7_smart_intake_kandidat_je_predlog_u_V2_danas(sonda_129):
+    """Red TACNO onakav kakav Smart Intake upisuje (uhvacen iz finalize-a) ->
+    `/api/rokovi/kandidati` oblik -> V2 Danas: predlog sa „Potvrdi/Odbij", nikad
+    obaveza. Pre ispravke je padao u `neizjavljeno` (nevidljiv)."""
+    supa = _supa()
+    danas = date.today().isoformat()
+    await _finalize(supa, [_dok([_ent("deadline", danas, 0.95)])])
+    red = {**supa.upisi[0], "id": "si-1", "stanje_odluke": STANJE_NEPOTVRDJEN}
+    x = _danas_sastavi({"rokovi": [red]}, {"dogadjaji": []})
+    assert [p["id"] for p in x["predlozi"]] == ["si-1"]
+    assert x["grupe"] == [] and x["neizjavljeno"] == 0
+    bez_vrste = {k2: v for k2, v in red.items() if k2 != "vrsta"}
+    assert _danas_sastavi({"rokovi": [bez_vrste]}, {"dogadjaji": []})["neizjavljeno"] == 1   # stari kvar
+
+
+@pytest.mark.anyio
+async def test_FD7_smart_intake_kandidat_u_kandidatima_i_spisu(http, sonda_129):
+    k, b = http
+    supa = _supa()
+    await _finalize(supa, [_dok([_ent("deadline", D_17, 0.95)])])
+    b.tabele["predmet_hronologija"].append({**supa.upisi[0], "id": "si-1", "predmet_id": PA, "user_id": "uid-A"})
+    stanja = {x["id"]: x["stanje_odluke"] for x in _kandidati(k).json()["rokovi"]}
+    assert stanja["si-1"] == STANJE_NEPOTVRDJEN
+    spis = k.get(f"/api/predmeti/{PA}", headers=zaglavlje("A")).json()
+    h = next(x for x in spis["hronologija"] if x["id"] == "si-1")
+    assert h["stanje_odluke"] == STANJE_NEPOTVRDJEN
+    assert "20250317" not in _ics(k).text                          # i dalje nije spoljna obaveza
+
+
+# ── FD8 — neprocitan lanac odluka nije UNCONFIRMED ──────────────────────────
+
+def test_FD8_pregled_pad_lanca_daje_UNKNOWN_i_ne_gasi_kalendar(http):
+    k, b = http
+    b.tabele["rocista"].append({"id": "roc-A", "user_id": "uid-A", "predmet_id": PA, "datum": "2025-03-21",
+                                "status": "zakazano", "sud": "Osnovni sud"})
+    b.greske["audit_immutable"] = Exception("lanac nedostupan")
+    r = k.get("/api/kalendar/pregled", params={"od": "2025-03-01", "do": "2025-03-31"}, headers=zaglavlje("A"))
+    assert r.status_code == 200
+    j = r.json()
+    assert j["odluke_dostupne"] is False
+    stanja = {e["detalji"]["stanje_odluke"] for e in j["dogadjaji"] if e["tip"] != "rociste"}
+    assert stanja == {"UNKNOWN"}
+    assert [e["detalji"]["id"] for e in j["dogadjaji"] if e["tip"] == "rociste"] == ["roc-A"]
+
+
+def test_FD8_spis_predmeta_pad_lanca_daje_UNKNOWN_a_ostatak_ostaje(http):
+    k, b = http
+    ok = k.get(f"/api/predmeti/{PA}", headers=zaglavlje("A")).json()
+    assert ok["odluke_o_rokovima_dostupne"] is True
+    assert {h["id"]: h["stanje_odluke"] for h in ok["hronologija"]} == {
+        "r-kand": STANJE_NEPOTVRDJEN, "r-odbijen": STANJE_ODBIJEN, "r-potvrdjen": STANJE_POTVRDJEN}
+    b.greske["audit_immutable"] = Exception("lanac nedostupan")
+    r = k.get(f"/api/predmeti/{PA}", headers=zaglavlje("A"))
+    assert r.status_code == 200
+    j = r.json()
+    assert j["odluke_o_rokovima_dostupne"] is False
+    assert {h["id"]: h["stanje_odluke"] for h in j["hronologija"]} == {
+        "r-kand": "UNKNOWN", "r-odbijen": "UNKNOWN", "r-potvrdjen": "UNKNOWN"}
+    assert j["predmet"]["id"] == PA and isinstance(j["dokumenti"], list)
+
+
+def test_FD8_odgovor_posle_odluke_ne_izmislja_UNCONFIRMED(http, monkeypatch):
+    k, b = http
+    import routers.rok_odluka as ro
+    pravi = ro.odluke
+
+    def _pada(ids, strogo=False):
+        if strogo:
+            raise RuntimeError("lanac nedostupan")
+        return pravi(ids, strogo)
+    monkeypatch.setattr(ro, "odluke", _pada)
+    for akcija in ("potvrdi", "odbij"):
+        r = k.post(f"/api/rokovi/r-kand/{akcija}", json={}, headers=zaglavlje("A"))
+        assert r.status_code == 200, r.text
+        assert r.json()["stanje_odluke"] == "UNKNOWN" and r.json()["odluka_zabelezena"] is True
+    assert [z["action"] for z in b.tabele["audit_immutable"] if z["resource_id"] == "r-kand"] == [
+        "rok_potvrdjen", "rok_odbijen"]
+
+
+def test_FD8_odgovor_posle_odluke_kontrola(http):
+    k, _ = http
+    r = k.post("/api/rokovi/r-kand/potvrdi", json={}, headers=zaglavlje("A"))
+    assert r.json()["stanje_odluke"] == STANJE_POTVRDJEN
+
+
+@_nodemark
+def test_FD8_v2_dosije_nepoznato_nije_ni_obaveza_ni_prazno():
+    v2 = os.path.join(_KOREN, "v2").replace("\\", "/")
+    redovi = [{"id": "1", "dogadjaj": "Rok", "datum_iso": "2026-09-10", "vrsta": "rok", "stanje_odluke": "UNKNOWN"},
+              {"id": "2", "dogadjaj": "Rok", "datum_iso": "2026-09-11", "vrsta": "rok", "stanje_odluke": "UNKNOWN",
+               "stanje": "izvrsen"},
+              # Kolona `kandidat` NE sme da pretvori nepoznato stanje odluke u „Za proveru".
+              {"id": "3", "dogadjaj": "Rok", "datum_iso": "2026-09-12", "vrsta": "rok", "stanje_odluke": "UNKNOWN",
+               "stanje": "kandidat"}]
+    skripta = (f'import * as O from "file:///{v2}/domain/dosije.js";'
+               f"const r=O.uRokove({_json.dumps(redovi)}, new Date(2026,8,5));"
+               "process.stdout.write(JSON.stringify({o:r.obaveze.length,p:r.zaProveru.length,n:r.nepoznato.map(x=>x.id),z:r.razreseni}));")
+    p = _subprocess.run([_NODE, "--input-type=module", "-e", skripta], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert p.returncode == 0, p.stderr[-1500:]
+    assert _json.loads(p.stdout) == {"o": 0, "p": 0, "n": ["1", "3"], "z": 1}
+
+
+# ── FD10 — izolacija kancelarija u svakoj dodirnutoj putanji ────────────────
+
+def test_FD10_tudja_potvrda_ne_cini_moj_rok_izvrsivim(http):
+    k, b = http
+    pre = list(b.tabele["audit_immutable"])
+    for akcija in ("potvrdi", "odbij"):
+        r = k.post(f"/api/rokovi/r-kand/{akcija}", json={}, headers=zaglavlje("B"))
+        assert r.status_code == 404 and "Rok iz dokumenta" not in r.text
+    assert b.tabele["audit_immutable"] == pre
+    assert "20250317" not in _ics(k).text
+
+
+def test_FD10_pregled_ics_kandidati_spis_ne_otkrivaju_tudje(http):
+    k, b = http
+    _potvrdi_u_lancu(b, "r-B", korisnik="uid-B")
+    _uklonjen_dokument(b, _T_POSLE, predmet=PB)
+    for r in (k.get("/api/kalendar/pregled", params={"od": "2025-03-01", "do": "2025-03-31"}, headers=zaglavlje("A")),
+              _ics(k), _kandidati(k), k.get(f"/api/predmeti/{PA}", headers=zaglavlje("A"))):
+        assert "TAJNI" not in r.text and "r-B" not in r.text
+    assert k.get(f"/api/predmeti/{PB}", headers=zaglavlje("A")).status_code == 404
+    # B vidi SVOJ potvrdjen rok spolja; A-ovi rokovi tamo ne postoje.
+    rb = _ics(k, "B")
+    assert rb.status_code == 200 and "TAJNI" in rb.text and "20250326" not in rb.text and "20250317" not in rb.text
+
+
+from tests.test_osb002_solo_tok import _do_kraja_dogadjaja, _novi_predmet, solo  # noqa: E402,F401
+
+
+def _smart_intake_red(datum):
+    """Red TACNO onakav kakav Smart Intake finalize upisuje (uhvacen, ne napisan rukom)."""
+    supa = _supa()
+    asyncio.run(_finalize(supa, [_dok([_ent("deadline", datum, 0.95)])]))
+    rokovi_domen._resetuj_sondu()
+    assert len(supa.upisi) == 1
+    return dict(supa.upisi[0])
+
+
+def test_FD7_smart_intake_kandidat_otvara_case_action_pregleda(solo, sonda_129):
+    """Case Actions Rule 6 („Rok iz dokumenta čeka vašu potvrdu") vidi Smart
+    Intake kandidat; isti red bez `vrsta` (stanje pre ispravke) ne vidi."""
+    from datetime import timedelta
+    from services.event_bus import EventType, emit_durable
+    buduci = (date.today() + timedelta(days=12))
+    si = _smart_intake_red(buduci.strftime("%d.%m.%Y"))
+    k, b = solo
+    _, pid = _novi_predmet(k, b)
+    for rid, sa_vrstom in (("si-sa-vrstom", True), ("si-bez-vrste", False)):
+        red = {**si, "id": rid, "predmet_id": pid, "user_id": "uid-A"}
+        if not sa_vrstom:
+            red.pop("vrsta", None)
+        b.tabele["predmet_hronologija"].append(red)
+    asyncio.run(emit_durable(EventType.MANUAL_CORRECTION_APPLIED, "uid-A", pid, {"trigger": "test"}))
+    _do_kraja_dogadjaja(b)
+    akc = [a for a in b.tabele["case_actions"] if a["predmet_id"] == pid and a["status"] == "open"
+           and (a.get("dokaz") or {}).get("izvor") == "predmet_hronologija"]
+    assert [a["dokaz"]["hronologija_id"] for a in akc] == ["si-sa-vrstom"]
+    assert akc[0]["tip"] == "PLANIRATI_ROKOVE" and akc[0]["dokaz"]["stanje_odluke"] == STANJE_NEPOTVRDJEN
