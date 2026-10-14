@@ -64,6 +64,13 @@ def _make_target_supa(case_dna=None, tip="parnicno", dokazi=None, dokumenti=None
         # zato je i uhvatio promenu ugovora umesto da je tiho propusti.)
         if name == "predmet_issues":
             return _simple_select_table([])
+        # NS2-A2 (F1): sonda seme 129 vise ne pretvara SVAKI izuzetak u trajno „nema 129“ — samo izricit
+        # 42703/PGRST204. Ovaj laznjak je ranije na sondu pucao sa „unexpected table“, sto je tiho znacilo
+        # „pre 129, Rule 6 preskocen“. Sada je to IZRICITO: sema 129 postoji (kao produkcija), rokova nema.
+        if name == "predmet_hronologija":
+            t = MagicMock()
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return t
         raise AssertionError(f"unexpected table {name}")
 
     supa = MagicMock()
@@ -155,6 +162,13 @@ def _make_full_action_supa(case_dna=None, tip="parnicno", dokazi=None, dokumenti
         # zato je i uhvatio promenu ugovora umesto da je tiho propusti.)
         if name == "predmet_issues":
             return _simple_select_table([])
+        # NS2-A2 (F1): sonda seme 129 vise ne pretvara SVAKI izuzetak u trajno „nema 129“ — samo izricit
+        # 42703/PGRST204. Ovaj laznjak je ranije na sondu pucao sa „unexpected table“, sto je tiho znacilo
+        # „pre 129, Rule 6 preskocen“. Sada je to IZRICITO: sema 129 postoji (kao produkcija), rokova nema.
+        if name == "predmet_hronologija":
+            t = MagicMock()
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return t
         raise AssertionError(f"unexpected table {name}")
 
     supa = MagicMock()
