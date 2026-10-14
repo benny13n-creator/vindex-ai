@@ -351,8 +351,15 @@ _ULOGA_OZNAKA = {
     "defendant": re.compile(r"\b(?:tu[žz]en\w*|тужен\w*)", re.IGNORECASE),
 }
 _ULOGA_PROZOR = 160          # znakova posle oznake uloge u kojima ime mora da počne (isti red ili sledeći)
+# N06: prozor se zatvara i kod oznake DRUGE, nezamenljive uloge (primalac, pošiljalac, adresat, klijent, dostavljač,
+# punomoćnik, zastupnik). Bez toga je prozor od 160 znakova prelazio u sledeći red: „Tuženi: Jovan Jovanović\nPrimalac:
+# Primer Invest Test doo“ potvrđivao je PRIMAOCA kao tuženog kad ga je model tako označio.
+_DRUGE_ULOGE = (
+    r"\b(?:prima(?:lac|oc\w*)|прима(?:лац|оц\w*)|po[šs]ilja(?:lac|oc\w*)|пошиља(?:лац|оц\w*)|adresat\w*|адресат\w*"
+    r"|klijent\w*|клијент\w*|dostavlja[čc]\w*|достављач\w*|punomo[ćc]nik\w*|пуномоћник\w*|zastupnik\w*|заступник\w*)"
+)
 _GRANICA_ULOGA = re.compile(
-    "|".join(r.pattern for r in _ULOGA_OZNAKA.values()) + r"|\bprotiv\b|\bпротив\b", re.IGNORECASE,
+    "|".join(r.pattern for r in _ULOGA_OZNAKA.values()) + r"|\bprotiv\b|\bпротив\b|" + _DRUGE_ULOGE, re.IGNORECASE,
 )
 _CIR_LAT = str.maketrans({
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "ђ": "dj", "е": "e", "ж": "z", "з": "z", "и": "i", "ј": "j",
@@ -366,6 +373,30 @@ def _sravni(t: str) -> str:
     return (t or "").lower().translate(_CIR_LAT)
 
 
+# Nepostojano „a“: Aleksandar → Aleksandra, Petar → Petra, Novac → Novca. Reč koja se završava na suglasnik + „a“ +
+# suglasnik u padežu gubi to „a“, pa osnova bez poslednjeg slova („aleksanda“) ne odgovara tekstu.
+_NEPOSTOJANO_A = re.compile(r"[bcčćdđfghjklmnprsštvzž]a[bcčćdđfghjklmnprsštvzž]$")
+
+
+def _osnove_reci(r: str) -> tuple:
+    """(osnova, osnova bez nepostojanog „a“ ili None) jedne reči imena: cela reč bez poslednjeg slova i, ako reč ima
+    nepostojano „a“, i oblik bez njega (aleksandar → aleksandr). Nijedna osnova nije kraća od N06 poređenja — nema
+    povratka na 4 slova."""
+    osnova = re.compile(re.escape(r[:max(4, len(r) - 1)]))
+    nepostojano = None
+    if len(r) >= 5 and _NEPOSTOJANO_A.search(r):
+        # Samo cela reč sa padežnim nastavkom: „petr“ ne sme da pogodi „Petrović“.
+        nepostojano = re.compile(r"(?<!\w)" + re.escape(r[:-2] + r[-1]) + r"(?:a|u|om|em)(?!\w)")  # samo muški kosi padež jednine; -e/-i/-ima su ženski/množinski oblici
+    return osnova, nepostojano
+
+
+# Oblik bez nepostojanog „a“ postoji samo u KOSOM padežu muškog imena (Aleksandra, Petru, Lazarom), pa se prihvata
+# samo posle oznake uloge u muškom kosom padežu („tužioca“, „tuženog“, „tuženom“…). Posle nominativa („Tužilac:“,
+# „Tužilja:“, „Tuženi:“) ili ženske oznake („tužilje“, „tuženoj“) „Petra“ je žensko ime Petra, ne Petar — recenzija:
+# „Tužilja: Petra Ilić“ je potvrđivala model-vrednost „Petar Ilić“. Nepoznat oblik oznake → bez nepostojanog „a“.
+_MUSKI_KOSI_PADEZ = re.compile(r"(?:tuzioc(?:a|u|em|om)|tuzitelj(?:a|u|em|om)|tuzen(?:og|oga|om|ome|omu))")
+
+
 def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -> bool:
     """True samo ako tekst EKSPLICITNO dodeljuje `entity_type` ulogu imenu `value`: posle oznake uloge („Tužilac:“,
     „tuženog“, „Тужилац“…) u narednih `_ULOGA_PROZOR` znakova (do sledeće oznake uloge ili „protiv“) pojavljuje se
@@ -374,7 +405,9 @@ def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -
     oznaka = _ULOGA_OZNAKA.get(entity_type)
     if not oznaka or not value or not text:
         return False
-    reci = [r[:4] for r in re.findall(r"\w+", _sravni(value)) if len(r) >= 3 and r not in ("doo", "ad", "iz")]
+    # N06: poređenje po celoj reči bez POSLEDNJEG slova (padežni nastavak: Petrović → Petrovića, Marko → Marka), ne
+    # po prva 4 slova — sa 4 slova je „Jovan Petrović“ iz modela potvrđivan za „Petrovski“ ili OCR-ovo „Petrovlć“.
+    reci = [_osnove_reci(r) for r in re.findall(r"\w+", _sravni(value)) if len(r) >= 3 and r not in ("doo", "ad", "iz")]
     if not reci:
         return False
     for m in oznaka.finditer(text):
@@ -385,7 +418,9 @@ def uloga_navedena_u_tekstu(text: str, entity_type: str, value: Optional[str]) -
         if granica and granica.start() < kraj:
             kraj = granica.start()
         prozor = _sravni(text[m.end(): kraj])
-        if all(r in prozor for r in reci):
+        kosi = _MUSKI_KOSI_PADEZ.fullmatch(_sravni(m.group(0))) is not None
+        if all(osnova.search(prozor) or (kosi and nepostojano is not None and nepostojano.search(prozor))
+               for osnova, nepostojano in reci):
             return True
     return False
 

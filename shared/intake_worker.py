@@ -28,9 +28,29 @@ import uuid
 from pathlib import Path
 
 from shared import intake_documents, intake_queue, intake_segments
+from shared.ai_provenance import scoped_request_context
 from shared.intake_segment import PageText, segment_document, uncertain_boundaries
 
 logger = logging.getLogger("vindex.intake_worker")
+
+
+def _vlasnik_posla(job: dict) -> str | None:
+    """N01: vlasnik posla iz serverski upisanog reda intake_jobs (`uploaded_by`,
+    postavlja ga POST /upload iz verifikovanog JWT-a) — nikad iz klijentskog
+    ulaza. Ako nije validan UUID: None + glasan log. Bez sintetičkog/servisnog
+    korisnika: provenance bez vlasnika ostaje vidljivo neupisan, nikad pogrešno
+    pripisan."""
+    raw = job.get("uploaded_by")
+    if raw:
+        try:
+            return str(uuid.UUID(str(raw)))
+        except (ValueError, TypeError, AttributeError):
+            pass
+    logger.error(
+        "[INTAKE_WORKER] job=%s nema validnog vlasnika (uploaded_by) — AI provenance ovog posla neće biti pripisan nikome.",
+        str(job.get("id"))[:8],
+    )
+    return None
 
 _DEFAULT_POLL_INTERVAL_S = 2.0
 _DEFAULT_STALE_AFTER_S = 300
@@ -113,7 +133,13 @@ class IntakeWorker:
 
         job_id = job["id"]
         try:
-            needs_review = await self._process(job)
+            # N01 (2026-10-13): worker task je pokrenut iz startup hook-a, van
+            # svakog HTTP zahteva, pa AI provenance nije imao user_id -> upis u
+            # ai_forensics (user_id NOT NULL) padao je sa 23502. Identitet je
+            # vlasnik posla kako ga je server upisao pri upload-u (uploaded_by),
+            # vezan samo za trajanje obrade ovog posla.
+            with scoped_request_context(user_id=_vlasnik_posla(job)):
+                needs_review = await self._process(job)
             # Program Intake Sprint 004 (2026-08-05) -- ranije se OVDE
             # bezuslovno zvao mark_job_completed(), bez obzira da li je
             # _process() upravo napravio intake_review_queue red. Rezultat:
