@@ -272,6 +272,24 @@ const SPREMAN = (p) => { if (!p.dokument) { p.status = "completed"; p.dokument =
     && await fetchova(s.p, "/api/smart-intake/jobs/{id}/finalize:POST") === 1 && !/Prikačeno ovom predmetu/.test(e.poslovi[0].tekst), e.poslovi[0].msg);
   await s.zatvori();
 }
+// ── N03: razlog neupisanog roka je rečen, ne prećutan (nepoznat razlog doslovno, kao tekst) ─────────
+for (const [razlog, re] of [
+  ["bez_konkretnog_datuma", /Dokument pominje rok, ali bez konkretnog datuma — rok nije izračunat ni upisan/],
+  ["upis_nije_uspeo", /Rok iz dokumenta NIJE upisan: upis nije uspeo/],
+  ["niska_pouzdanost", /Rok iz dokumenta nije upisan jer njegova pouzdanost nije dovoljna/],
+  ["vec_postoji", /Rok iz dokumenta već postoji u hronologiji predmeta/],
+  ["<i>nov_razlog</i>", /Rok iz dokumenta nije upisan \(razlog: <i>nov_razlog<\/i>\)/],
+]) {
+  const s = await scenario({ napreduj: SPREMAN, finalize: () => ({ rok_preskocen_razlog: razlog }) });
+  await otpremi(s.p);
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"));
+  await s.p.click("text=Prikači ovom predmetu");
+  await cekaj(s.p, () => /Prikačeno ovom predmetu/.test(document.getElementById("pd-poslovi").innerText));
+  const e = await ekran(s.p);
+  const kurziv = await s.p.evaluate(() => document.querySelectorAll("#pd-poslovi i").length);
+  zapisi("N03.rok", `${razlog}: prikačen + razlog neupisanog roka rečen`, /^uspeh:Dokument je prikačen predmetu/.test(e.poslovi[0].msg || "") && re.test(e.poslovi[0].msg || "") && kurziv === 0, e.poslovi[0].msg);
+  await s.zatvori();
+}
 // ── G: raspored ─────────────────────────────────────────────────────────
 for (const [w, h] of [[390, 844], [1024, 768]]) {
   const s = await scenario({}, { w, h });
