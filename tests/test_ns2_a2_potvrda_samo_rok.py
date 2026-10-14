@@ -176,7 +176,23 @@ def test_sonda_istek_se_ne_kesira_i_ne_gasi_oznaku_pa_se_oporavlja():
     assert rokovi_domen._sema_ima_129(s) is True          # neodredjeno → kapija ukljucena, oznaka se upisuje
     assert rokovi_domen._KOLONE_129 is None               # ... ali se NE kesira
     assert rokovi_domen.oznake(vrsta=rokovi_domen.VRSTA_ROK, supa=_Sonda129([ISTEK, ISTEK])) == {"vrsta": "rok"}
+    rokovi_domen._NEODREDJENA_SONDA_DO = 0.0                # pauza posle neodredjene sonde istekla
     assert rokovi_domen._sema_ima_129(s) is True and rokovi_domen._KOLONE_129 is True   # oporavak: dokazano, kesirano
+    rokovi_domen._resetuj_sondu()
+
+
+def test_sonda_u_pauzi_posle_isteka_ne_blokira_radnika_novim_upitom():
+    # NS2-A2 pregled 2 (N1): sonda je sinhron poziv iz async rukovaoca; za vreme ispada baze ne sme svaki zahtev
+    # ponovo da ceka istek klijenta. U pauzi: bez upita, isto znacenje kao neodredjeno (kapija ukljucena).
+    rokovi_domen._resetuj_sondu()
+    s = _Sonda129([ISTEK, ISTEK])
+    assert rokovi_domen._sema_ima_129(s) is True and s.poziva == 2
+    for _ in range(5):
+        assert rokovi_domen._sema_ima_129(s) is True
+    assert s.poziva == 2 and rokovi_domen._KOLONE_129 is None
+    rokovi_domen._NEODREDJENA_SONDA_DO = 0.0
+    s.ishodi = [None]
+    assert rokovi_domen._sema_ima_129(s) is True and s.poziva == 3 and rokovi_domen._KOLONE_129 is True
     rokovi_domen._resetuj_sondu()
 
 

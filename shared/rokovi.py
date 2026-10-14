@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -705,6 +706,10 @@ def je_razresen(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> bool
 # Zato se sposobnost šeme proverava jednom po procesu i kešira.
 
 _KOLONE_129: Optional[bool] = None
+# NS2-A2 pregled 2 (N1): posle neodredjene sonde nova sonda tek posle pauze — sonda je sinhron poziv iz async
+# rukovaoca, pa bi za vreme ispada baze SVAKI zahtev ponovo blokirao radnika (do 2x istek klijenta).
+_PAUZA_NEODREDJENE_SONDE_S = 30.0
+_NEODREDJENA_SONDA_DO = 0.0
 
 
 def _nedostaje_kolona_129(exc: Exception) -> bool:
@@ -726,9 +731,11 @@ def _sema_ima_129(supa) -> bool:
       * citaoci traze `vrsta` — ako 129 nema, upit pada i to se kaze (503), ne vraca se lista bez oznake.
     Sledeci poziv ponovo proverava semu, pa se stanje pre migracije 129 i dalje prepoznaje i kesira.
     """
-    global _KOLONE_129
+    global _KOLONE_129, _NEODREDJENA_SONDA_DO
     if _KOLONE_129 is not None:
         return _KOLONE_129
+    if time.monotonic() < _NEODREDJENA_SONDA_DO:
+        return True                     # u pauzi posle neodredjene sonde: isto znacenje kao neodredjen ishod
     for _pokusaj in range(2):
         try:
             supa.table("predmet_hronologija").select("vrsta, stanje").limit(1).execute()
@@ -740,14 +747,16 @@ def _sema_ima_129(supa) -> bool:
                 _KOLONE_129 = False
                 return False
             _greska = exc
+    _NEODREDJENA_SONDA_DO = time.monotonic() + _PAUZA_NEODREDJENE_SONDE_S
     logger.warning("[ROKOVI] sema 129 nije proverena (%s) — ne kesira se; ovaj poziv podrazumeva kolone", _greska)
     return True
 
 
 def _resetuj_sondu() -> None:
     """Samo za testove."""
-    global _KOLONE_129
+    global _KOLONE_129, _NEODREDJENA_SONDA_DO
     _KOLONE_129 = None
+    _NEODREDJENA_SONDA_DO = 0.0
 
 
 def oznake(*, vrsta: str, stanje: Optional[str] = None, supa=None) -> dict:
