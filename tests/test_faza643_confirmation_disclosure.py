@@ -157,11 +157,12 @@ def test_audit_nosi_ko_sta_kada_koji_rok_i_redosled():
     assert '.order("seq")' in s2, "redosled odluka nije determinisan"
 
 
-def test_poslednja_odluka_pobedjuje():
+def test_odbijanje_je_zavrsno_nezavisno_od_redosleda():
+    """NS2B-C: ranije „poslednja pobedjuje"; sada je odbijanje apsorbujuce (vidi
+    test_ns2b_c_odbijen_rok_ostaje_odbijen.py za ponasanje)."""
     s = _izv("shared/rok_potvrda.py")
     telo = s[s.index("def odluke("):s.index("def stanje_roka(")]
-    assert '.order("seq")' in telo
-    assert "poslednja" in telo
+    assert "!= STANJE_ODBIJEN" in telo
 
 
 def test_potvrdjeni_ids_je_izveden_iz_odluke():

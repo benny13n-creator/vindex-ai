@@ -62,7 +62,7 @@ await umetni("KOL", { dogadjaj: "Rok za predlog za izvršenje", datum_iso: D(7),
 await umetni("BEZIZV", { dogadjaj: "Rok za uplatu takse", datum_iso: D(8), vrsta: "rok" });
 await umetni("BEZDAT", { dogadjaj: "Rok bez datuma", datum_iso: null, vrsta: "rok", izvor: "HUMAN_DIRECT" });
 const adv = [["DUP", "Rok za izjašnjenje o veštačenju", 9], ["TO", "Rok za dostavu dokaza", 10], ["AUD", "Rok za plaćanje predujma", 11],
-  ["UNK", "Rok za predlog svedoka", 13], ["CONC", "Rok za odgovor na reviziju", 14], ["DBL", "Rok za uređenje tužbe", 15], ["PR", "Rok za protivtužbu", 16], ["MOB", "Rok za podnesak sudu", 17]];
+  ["UNK", "Rok za predlog svedoka", 13], ["CONC", "Rok za odgovor na reviziju", 14], ["DBL", "Rok za uređenje tužbe", 15], ["PR", "Rok za protivtužbu", 16], ["MOB", "Rok za podnesak sudu", 17], ["PRE", "Rok za predlog veštaka", 19]];
 for (const [k, t, n] of adv) await umetni(k, { dogadjaj: t, datum_iso: D(n), izvor: "HUMAN_DIRECT", vrsta: "rok" });
 R.B = json(await zahtev("POST", "/__ns2/umetni", { telo: { predmet_id: PB, user_id: "uid-B", dogadjaj: "TAJNI rok B", datum_iso: D(4), datum: D(4), vaznost: "visok", vrsta: "rok", izvor: "HUMAN_DIRECT" } })).id;
 R.C = json(await zahtev("POST", "/__ns2/umetni", { telo: { predmet_id: PC, user_id: "uid-C", dogadjaj: "Rok za žalbu C", datum_iso: D(4), datum: D(4), vaznost: "visok", vrsta: "rok", izvor: "HUMAN_DIRECT" } })).id;
@@ -222,9 +222,22 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
   zapisi("audit-pad", "neuspeo upis u lanac: bez uspeha, „ishod nije poznat“", /^nepoznato:/.test(e.poruka || "") && !/“ je potvrđen:/.test(e.pogled), e.poruka);
   zapisi("audit-pad", "nijedan zapis; posle ponovnog čitanja rok i dalje čeka odluku", odlukeZa(st, R.AUD).length === 0 && e.predlozi.includes(R.AUD));
 }
-// Upis uspeo, ali lanac nije pročitan posle upisa → server vraća UNKNOWN
+// NS2B-C: lanac nije pročitan PRE potvrde → 503, ništa se ne upisuje, UI ne javlja uspeh
 {
   await kvar("audit_immutable", "select", true);
+  pre = s1.citanja.length;
+  await s1.p.click(`#da-predlozi .review[data-rok="${R.PRE}"] button:first-of-type`);
+  await posleOdluke(s1, pre);
+  e = await ekran(s1.p); st = await stanje();
+  await kvar("audit_immutable", "select", false);
+  zapisi("lanac-nepročitan", "lanac nečitljiv pre potvrde: bez uspeha, „ishod nije poznat“", /^nepoznato:/.test(e.poruka || "") && !/“ je potvrđen:/.test(e.poruka || ""), e.poruka);
+  zapisi("lanac-nepročitan", "nijedan zapis u lancu za taj rok", odlukeZa(st, R.PRE).length === 0);
+  await s1.p.reload(); await ucitano(s1.p);
+  zapisi("lanac-nepročitan", "posle osvežavanja rok i dalje čeka odluku", (await ekran(s1.p)).predlozi.includes(R.PRE));
+}
+// Upis uspeo, ali lanac nije pročitan posle upisa → server vraća UNKNOWN
+{
+  await kvar("audit_immutable", "select-posle-upisa", true);
   pre = s1.citanja.length;
   await s1.p.click(`#da-predlozi .review[data-rok="${R.UNK}"] button:first-of-type`);
   await posleOdluke(s1, pre);
@@ -250,12 +263,15 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
   const pokusaj = async (id) => { await s1.p.click(`#da-predlozi .review[data-rok="${id}"] button:first-of-type`);
     await cekaj(s1.p, (id) => { const li = document.querySelector(`#da-predlozi .review[data-rok="${id}"]`); return li && !li.querySelector("button").disabled && !li.querySelector("[role=status]").hidden && li.querySelector("[role=status]").textContent !== "Beleži se…"; }, id);
     return (await red(s1.p, id)) || ""; };
-  const t404 = await pokusaj("r-ne-postoji"), tB = await pokusaj(R.B), t409 = await pokusaj(R.NULL);
+  const t404 = await pokusaj("r-ne-postoji"), tB = await pokusaj(R.B);
+  await s1.p.click(`#da-predlozi .review[data-rok="${R.NULL}"] button:first-of-type`);
+  await cekaj(s1.p, () => !document.getElementById("da-poruka").hidden);
   e = await ekran(s1.p); st = await stanje();
+  const t409 = e.poruka || "";
   zapisi("nevazeci-id", "nepostojeći id → „Rok nije dostupan. Ništa nije zabeleženo.“", /Rok nije dostupan\. Ništa nije zabeleženo/.test(t404), t404.replace(/\n/g, " | "));
   zapisi("tudji-rok", "tuđ rok → isti odgovor kao nepostojeći (404), bez curenja", /Rok nije dostupan\. Ništa nije zabeleženo/.test(tB) && !/TAJNI/.test(e.pogled));
-  zapisi("neizjavljen", "red bez `vrsta` (podmetnut kao rok) → server 409: „nije označen kao rok … Ništa nije zabeleženo“", /nije označen kao rok.*Ništa nije zabeleženo/.test(t409), t409.replace(/\n/g, " | "));
-  zapisi("neizjavljen", "nijedan od tri pokušaja nije upisan u lanac", odlukeZa(st, "r-ne-postoji").length === 0 && odlukeZa(st, R.B).length === 0 && odlukeZa(st, R.NULL).length === 0 && !e.poruka);
+  zapisi("neizjavljen", "red bez `vrsta` (podmetnut kao rok) → server 409: „nije potvrđen … nije označen kao rok. Ništa nije zabeleženo“, bez uspeha", /^nepoznato:Rok „Neizjavljen red“ nije potvrđen: .*nije označen kao rok\. Ništa nije zabeleženo/.test(t409), t409.replace(/\n/g, " | "));
+  zapisi("neizjavljen", "nijedan od tri pokušaja nije upisan u lanac", odlukeZa(st, "r-ne-postoji").length === 0 && odlukeZa(st, R.B).length === 0 && odlukeZa(st, R.NULL).length === 0 && !/^uspeh/.test(e.poruka || ""));
   zapisi("datum", "predlog bez ispravnog datuma se ne prikazuje, ali se KAŽE", !e.predlozi.includes("r-los-datum") && /1 predloženi rok nema ispravan datum/.test(e.napomena || ""), e.napomena);
   await s1.p.unroute("**/api/rokovi/kandidati?*");
   await s1.p.reload(); await ucitano(s1.p);
@@ -284,10 +300,11 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
   zapisi("konkurentno", "potvrda (s1) pa odbijanje (zastarela): poslednja odluka važi → REJECTED; oba zapisa u lancu", JSON.stringify(odlukeZa(st, R.CONC)) === '["rok_potvrdjen","rok_odbijen"]' && kk.get(R.CONC) === "REJECTED");
   zapisi("konkurentno", "poruka zastarele sesije odgovara stanju koje je server pročitao (odbijen)", /^uspeh:.*je odbijen/.test(rez[R.CONC].poruka || ""), rez[R.CONC].poruka);
   zapisi("dupla-potvrda", "dupla potvrda: dva zapisa u lancu (append-only), stanje CONFIRMED, jedan zahtev iz UI-ja", JSON.stringify(odlukeZa(st, R.DBL)) === '["rok_potvrdjen","rok_potvrdjen"]' && kk.get(R.DBL) === "CONFIRMED" && /^uspeh:.*“ je potvrđen:/.test(rez[R.DBL].poruka || "") && rez[R.DBL].zahteva === 1);
-  zapisi("posle-odbijanja", "postojeći ugovor: potvrda posle odbijanja (zastarela sesija) VRAĆA izvršivost — poslednja odluka važi", JSON.stringify(odlukeZa(st, R.PR)) === '["rok_odbijen","rok_potvrdjen"]' && kk.get(R.PR) === "CONFIRMED");
+  zapisi("posle-odbijanja", "NS2B-C: potvrda posle odbijanja (zastarela sesija) → 409, bez upisa; rok ostaje REJECTED", JSON.stringify(odlukeZa(st, R.PR)) === '["rok_odbijen"]' && kk.get(R.PR) === "REJECTED" && rez[R.PR].zahteva === 1);
+  zapisi("posle-odbijanja", "zastarela sesija ne javlja uspeh: kaže da rok nije potvrđen i da se stanje promenilo", /^nepoznato:Rok „Rok za protivtužbu“ nije potvrđen: stanje roka se u međuvremenu promenilo \(npr\. već je odbijen\).*Ništa nije zabeleženo/.test(rez[R.PR].poruka || "") && !/“ je potvrđen:/.test(rez[R.PR].poruka || ""), rez[R.PR].poruka);
   zapisi("zastarelo", "posle svoje odluke svaka zastarela sesija je ponovo pročitala stanje (rok više nije predlog)", tri.every(id => rez[id].predlog === false));
   await s1.p.reload(); await ucitano(s1.p); e = await ekran(s1.p);
-  zapisi("zastarelo", "s1 posle osvežavanja: odbijen CONC nije obaveza; DBL i PR jesu", !e.kalendar.includes("Rok za odgovor na reviziju") && e.kalendar.includes("Rok za uređenje tužbe") && e.kalendar.includes("Rok za protivtužbu"));
+  zapisi("zastarelo", "s1 posle osvežavanja: odbijeni CONC i PR nisu obaveze; DBL jeste", !e.kalendar.includes("Rok za odgovor na reviziju") && e.kalendar.includes("Rok za uređenje tužbe") && !e.kalendar.includes("Rok za protivtužbu") && !e.obaveze.includes("Rok za protivtužbu"));
   for (const z of zs) await z.ctx.close();
 }
 // Telefon (390 px): pregled i odluka dodirom
@@ -327,12 +344,12 @@ await s1.p.goto(BASE + "/app#/danas"); await ucitano(s1.p);
 // ── Završno: nijedna nedozvoljena odluka; .ics bez duplikata ─────────────────────────────────────────────────────
 st = await stanje();
 const dozvoljeni = new Set([R.A1, R.LANAC, R.DUP, R.TO, R.UNK, R.CONC, R.DBL, R.PR, R.MOB]);
-zapisi("invarijanta", "svaki zapis u lancu odgovara izričitom kliku; ništa za KOL, BEZIZV, NULL, AUD, B, C", st.odluke.every(o => dozvoljeni.has(o.rok)) && [R.KOL, R.BEZIZV, R.NULL, R.AUD, R.B, R.C].every(id => odlukeZa(st, id).length === 0), JSON.stringify(st.odluke.map(o => o.akcija[4] + ":" + Object.keys(R).find(k => R[k] === o.rok))));
+zapisi("invarijanta", "svaki zapis u lancu odgovara izričitom kliku; ništa za KOL, BEZIZV, NULL, AUD, PRE, B, C", st.odluke.every(o => dozvoljeni.has(o.rok)) && [R.KOL, R.BEZIZV, R.NULL, R.AUD, R.PRE, R.B, R.C].every(id => odlukeZa(st, id).length === 0), JSON.stringify(st.odluke.map(o => o.akcija[4] + ":" + Object.keys(R).find(k => R[k] === o.rok))));
 const x2 = await ics();
-const potvrdjeni = ["Rok za dopunu tužbe", "Rok za izjašnjenje o veštačenju", "Rok za dostavu dokaza", "Rok za predlog svedoka", "Rok za uređenje tužbe", "Rok za protivtužbu", "Rok za podnesak sudu"];
+const potvrdjeni = ["Rok za dopunu tužbe", "Rok za izjašnjenje o veštačenju", "Rok za dostavu dokaza", "Rok za predlog svedoka", "Rok za uređenje tužbe", "Rok za podnesak sudu"];
 const broj = (t) => x2.t.split("\r\n").filter(l => l.startsWith("SUMMARY:") && l.includes(t)).length;
 zapisi("8.izvrsivo", ".ics: svaki potvrđen rok tačno jednom (i posle duple potvrde i prekida)", x2.s === 200 && vevent(x2.t) === potvrdjeni.length && potvrdjeni.every(t => broj(t) >= 1) && broj("Rok za uređenje tužbe") === 1 && broj("Rok za dostavu dokaza") === 1, `${vevent(x2.t)} događaja; ` + potvrdjeni.map(t => broj(t)).join(","));
-zapisi("8.izvrsivo", ".ics: bez odbijenih, predloga, neizjavljenih i tuđih", !/žalbu na rešenje|odgovor na reviziju|predlog za izvršenje|uplatu takse|plaćanje predujma|bez oznake|TAJNI|žalbu C/.test(x2.t));
+zapisi("8.izvrsivo", ".ics: bez odbijenih, predloga, neizjavljenih i tuđih", !/žalbu na rešenje|odgovor na reviziju|protivtužbu|predlog veštaka|predlog za izvršenje|uplatu takse|plaćanje predujma|bez oznake|TAJNI|žalbu C/.test(x2.t));
 await s1.ctx.close();
 await browser.close();
 zapisi("izolacija", "nijedan zahtev pregledača van 127.0.0.1", spoljni.length === 0, spoljni.slice(0, 2).join());

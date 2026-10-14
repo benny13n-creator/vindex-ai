@@ -154,10 +154,12 @@
           return;
         }
         var g = r.greska || {};
+        /* NS2B-C: 409 = stanje roka na serveru se razlikuje od ovog prozora (npr. rok je u međuvremenu odbijen)
+         * ili zapis nije označen kao rok. Ništa nije zabeleženo; prikaz se osvežava sa servera, bez tvrdnje o uspehu. */
+        if (g.kod === "CONFLICT") { stanje("da-poruka", "nepoznato", "Rok „" + x.opis + "“ nije potvrđen: stanje roka se u međuvremenu promenilo (npr. već je odbijen) ili zapis nije označen kao rok. Ništa nije zabeleženo. Spisak se ponovo učitava."); ucitaj(); return; }
         if (g.ishodNepoznat) { stanje("da-poruka", "nepoznato", "Ishod odluke za rok „" + x.opis + "“ nije poznat: veza je prekinuta ili server nije odgovorio ispravno. Spisak se ponovo učitava — proverite stanje pre ponovnog pokušaja."); ucitaj(); return; }
         da.disabled = false; ne.disabled = false;
         st.textContent = g.kod === "NOT_FOUND" ? "Rok nije dostupan. Ništa nije zabeleženo."
-          : g.kod === "CONFLICT" ? "Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo."
           : g.kod === "AUTH_REQUIRED" ? "Prijava više nije važeća. Ništa nije zabeleženo."
           : g.kod === "RATE_LIMITED" ? "Previše zahteva. Pokušajte malo kasnije. Ništa nije zabeleženo."
           : "Server je odbio zahtev. Ništa nije zabeleženo; rok ostaje nepotvrđen.";

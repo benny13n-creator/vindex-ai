@@ -207,11 +207,13 @@ def test_odbijanje_POSLE_potvrde_gasi_izvrsivost():
         assert rp.potvrdjeni_ids(["r1"]) == set()
 
 
-def test_potvrda_POSLE_odbijanja_vraca_izvrsivost():
+def test_potvrda_POSLE_odbijanja_NE_vraca_izvrsivost():
+    """NS2B-C (odluka osnivaca 2026-10-14): odbijanje je zavrsno. Potvrda upisana
+    posle odbijanja (zastareo prozor, trka) NE vraca izvrsivost."""
     from shared import rok_potvrda as rp
     zapisi = [_zapis("r1", "rok_odbijen", 1), _zapis("r1", "rok_potvrdjen", 2)]
     with patch("shared.deps._get_supa", lambda: _audit_supa(zapisi)):
-        assert rp.potvrdjeni_ids(["r1"]) == {"r1"}
+        assert rp.potvrdjeni_ids(["r1"]) == set()
 
 
 def test_pad_upita_ne_otvara_kapiju():

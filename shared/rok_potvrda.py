@@ -23,12 +23,27 @@ Nije identitet roka. Nije rezolucija identiteta. Nije spajanje opažanja.
 FAZA 6.1 je dokazala da identitet činjenice danas nije rešiv; ovaj modul to
 NE pokušava i ne sme se tako čitati.
 
-## Semantika
+## Semantika (NS2B-C, odluka osnivača 2026-10-14)
 
-Poslednja odluka pobeđuje, po `seq` (monotono raste, INSERT-only lanac).
-Odbijanje posle potvrde gasi izvršivost. Ponovljena potvrda ne menja ishod —
-idempotencija dolazi iz „poslednja pobeđuje", ne iz sprečavanja upisa: audit
-lanac po svojoj prirodi beleži SVAKI pokušaj, i to je poželjno.
+Odbijanje je ZAVRŠNO za običnu odluku. Stanje se izvodi iz SKUPA odluka, ne
+iz njihovog redosleda:
+
+  * ijedno odbijanje            -> REJECTED (bez obzira na kasnije potvrde)
+  * bar jedna potvrda, nijedno odbijanje -> CONFIRMED
+  * nijedna odluka              -> UNCONFIRMED (odsustvo iz recnika)
+  * lanac nije procitan         -> UNKNOWN kod pozivaoca (nikad CONFIRMED)
+
+Zasto skup, a ne „poslednja pobeđuje": upis u lanac je „procitaj pa upisi"
+bez uslovnog upisa u bazi (nema RPC-a ni zakljucavanja po roku), pa provera
+pre upisa NIJE dokaz pod konkurencijom — zastareo prozor ili trka dva
+zahteva moze upisati potvrdu posle odbijanja. Izvodjenje koje ne zavisi od
+redosleda cini taj upis bezopasnim: skup odluka samo raste, a REJECTED je
+apsorbujuce stanje, pa nijedan redosled, ponavljanje ni trka ne mogu odbijen
+rok uciniti potvrdjenim. Potvrda -> odbijanje i dalje radi. Ponovljena
+potvrda ili odbijanje ne menja ishod; lanac i dalje beleži SVAKI pokušaj.
+
+Namerno ponovno otvaranje odbijenog roka NE POSTOJI kao obicna odluka. Ako
+zatreba, to je zasebna, posebno revizibilna operacija (buduci rad).
 """
 from __future__ import annotations
 
@@ -88,14 +103,15 @@ STANJE_NEPOZNATO = "UNKNOWN"
 
 
 def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
-    """Poslednja odluka po roku: `{rok_id: CONFIRMED|REJECTED}`.
+    """Stanje odluke po roku: `{rok_id: CONFIRMED|REJECTED}`.
 
     Rok koji se ne pojavi u rezultatu je NEPOTVRDJEN. FAIL-CLOSED na svakom
     nivou: pad upita, prazan odgovor ili nedostupna tabela daju PRAZAN recnik —
     dakle sve je nepotvrdjeno. Nikad se ne vraca „sve odobreno".
 
-    Redosled je po `seq` (INSERT-only hash-lanac), pa poslednja odluka pobedjuje:
-    odbijanje posle potvrde gasi izvrsivost, potvrda posle odbijanja je vraca.
+    NS2B-C: izvodjenje NE zavisi od redosleda. Ijedno odbijanje daje REJECTED
+    (zavrsno — potvrda posle odbijanja, iz zastarelog prozora ili trke, ga ne
+    vraca); CONFIRMED samo ako postoji potvrda i nijedno odbijanje.
     """
     ids = [str(x) for x in (rok_ids or []) if x]
     if not ids:
@@ -117,12 +133,15 @@ def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
         logger.warning("[ROK_POTVRDA] citanje odluka palo — sve ostaje nepotvrdjeno: %s", exc)
         return {}
 
-    poslednja: dict = {}
+    stanje: dict = {}
     for red in (r.data or []):
-        akcija = red.get("action")
-        poslednja[str(red.get("resource_id"))] = (
-            STANJE_POTVRDJEN if akcija == AKCIJA_POTVRDA else STANJE_ODBIJEN)
-    return poslednja
+        rid, akcija = str(red.get("resource_id")), red.get("action")
+        if akcija != AKCIJA_POTVRDA:
+            # Odbijanje (i, fail-closed, svaka nepoznata akcija) je apsorbujuce.
+            stanje[rid] = STANJE_ODBIJEN
+        elif stanje.get(rid) != STANJE_ODBIJEN:
+            stanje[rid] = STANJE_POTVRDJEN
+    return stanje
 
 
 def stanje_roka(rok_id: str, odluke_mapa: Optional[dict] = None) -> str:

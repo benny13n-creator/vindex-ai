@@ -8,7 +8,7 @@ simulirana samo prijava i modeli), uz jednu razliku: radi STVARAN `shared.audit_
 
 Test rute (postoje SAMO u ovom procesu):
   POST /__ns2/umetni   — upis reda hronologije kakav proizvodi pisac (npr. A1 sa `vrsta='rok'`, ili zatečen pisac bez nje)
-  POST /__ns2/kvar     — {"tabela", "radnja": "insert"|"select"|"*", "ukljucen"} → PostgREST statement timeout
+  POST /__ns2/kvar     — {"tabela", "radnja": "insert"|"select"|"select-posle-upisa"|"*", "ukljucen"} → PostgREST statement timeout
   POST /__ns2/opozovi  — {"token"} → token više ne važi (istekla sesija → 401)
   GET  /__ns2/stanje   — lanac odluka o rokovima i redovi hronologije (sintetički podaci)
 """
@@ -50,8 +50,19 @@ _KVAR: dict = {}
 _izvrsi = _H._Upit.execute
 
 
+_POSLE_UPISA: set = set()
+
+
 def _izvrsi_sa_kvarom(self):
     k = _KVAR.get(self.t)
+    # NS2B-C: "select-posle-upisa" — citanje pada tek POSLE upisa u tabelu (potvrda sada cita
+    # lanac i pre upisa; ovo simulira lanac nedostupan izmedju upisa i citanja stanja).
+    if k == "select-posle-upisa":
+        if self.radnja[0] == "insert":
+            _POSLE_UPISA.add(self.t)
+        elif self.radnja[0] == "select" and self.t in _POSLE_UPISA:
+            raise Exception('{"code": "57014", "message": "canceling statement due to statement timeout"}')
+        return _izvrsi(self)
     if k and (k == "*" or self.radnja[0] == k):
         raise Exception('{"code": "57014", "message": "canceling statement due to statement timeout"}')
     return _izvrsi(self)
@@ -72,6 +83,7 @@ async def _kvar(z: dict):
         _KVAR[z["tabela"]] = z.get("radnja") or "*"
     else:
         _KVAR.pop(z.get("tabela"), None)
+        _POSLE_UPISA.discard(z.get("tabela"))
     return JSONResponse({"kvarovi": sorted(_KVAR)})
 
 

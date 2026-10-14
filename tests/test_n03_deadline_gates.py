@@ -990,7 +990,8 @@ def test_FD6_istorijska_odluka_se_ne_brise_ni_ne_prepisuje(http):
     hron_pre = [dict(h) for h in b.tabele["predmet_hronologija"]]
     _dodaj(b, "r-novi-izvor", ISO_25)
     _uklonjen_dokument(b, _T_POSLE)
-    for rid, akcija in (("r-novi-izvor", "odbij"), ("r-potvrdjen", "odbij"), ("r-potvrdjen", "potvrdi")):
+    # NS2B-C: potvrda posle odbijanja je 409 bez upisa, pa je redosled potvrdi -> odbij.
+    for rid, akcija in (("r-novi-izvor", "odbij"), ("r-potvrdjen", "potvrdi"), ("r-potvrdjen", "odbij")):
         assert k.post(f"/api/rokovi/{rid}/{akcija}", json={}, headers=zaglavlje("A")).status_code == 200
     _kandidati(k)
     _ics(k)
@@ -1100,9 +1101,21 @@ def test_FD8_odgovor_posle_odluke_ne_izmislja_UNCONFIRMED(http, monkeypatch):
     k, b = http
     import routers.rok_odluka as ro
     pravi = ro.odluke
+    # NS2B-C: potvrda cita lanac i PRE upisa (pad tada = 503 bez upisa, pokriveno u
+    # test_ns2b_c_*). Ovde lanac pada tek POSLE upisa.
+    zapisano = []
+    for ime in ("potvrdi_rok", "odbij_rok"):
+        _orig = getattr(ro, ime)
+
+        async def _omot(*a, _o=_orig, **kw):
+            ishod = await _o(*a, **kw)
+            zapisano.append(1)
+            return ishod
+        monkeypatch.setattr(ro, ime, _omot)
 
     def _pada(ids, strogo=False):
-        if strogo:
+        if strogo and zapisano:
+            zapisano.clear()
             raise RuntimeError("lanac nedostupan")
         return pravi(ids, strogo)
     monkeypatch.setattr(ro, "odluke", _pada)

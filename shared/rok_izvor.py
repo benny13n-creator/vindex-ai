@@ -56,12 +56,17 @@ def izvor_uklonjen_posle_potvrde(redovi: Iterable[dict]) -> set:
              .in_("action", [AKCIJA_POTVRDA, AKCIJA_ODBIJANJE])
              .order("seq")
              .execute())
+    # NS2B-C: isto pravilo kao `rok_potvrda.odluke` — odbijanje je zavrsno, pa potvrda
+    # upisana posle odbijanja (trka/zastareo prozor) ne vraca rok u „potvrdjen".
     potvrdjen_u: dict = {}
+    odbijeni: set = set()
     for z in (lanac.data or []):
         rid = str(z.get("resource_id"))
         if z.get("action") == AKCIJA_POTVRDA:
-            potvrdjen_u[rid] = _vreme(z.get("created_at"))
+            if rid not in odbijeni:
+                potvrdjen_u[rid] = _vreme(z.get("created_at"))
         else:
+            odbijeni.add(rid)
             potvrdjen_u.pop(rid, None)
     if not potvrdjen_u:
         return set()
