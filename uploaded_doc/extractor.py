@@ -191,12 +191,13 @@ def _oslobodi_kes_rasterizacije() -> None:
 
 # ─── N02 (Workstream B) — jedna strana u memoriji u celom procesu ─────────────────────────────────────────────────
 # Smart Intake worker, finalizacija i otpremanja pozivaju extract() preko asyncio.to_thread u ISTOM procesu.
-# Izmereno u produkcionoj slici pod 512 MiB (cgroup): uvezena aplikacija ~204 MiB; jedna A4 strana na 300 dpi
-# (rasterizacija + Tesseract) ~360-380 MiB; DVA istovremena OCR-a (worker + finalizacija) su OOM ubila kontejner
-# čak i za 1 stranu + 12 MP fotografiju. PyMuPDF uz to dokumentovano ne podržava rad iz više niti. Zato se svaki
-# poziv MuPDF-a i OCR rasterizovane strane/slike odvija pod ovim zaključavanjem: u procesu je u svakom trenutku
-# najviše jedna rasterizovana strana i jedan Tesseract. Zaključavanje je po strani (ne po dokumentu), pa dugačak
-# dokument ne blokira drugi dokument do kraja — naizmenično napreduju stranu po stranu.
+# Izmereno u produkcionoj slici pod 512 MiB (cgroup): uvezena aplikacija + uploaded_doc ~240 MiB; jedna A4 strana
+# na 300 dpi (rasterizacija + Tesseract) ~370-420 MiB; DVA istovremena OCR-a (worker + finalizacija) su OOM ubila
+# kontejner čak i za 1 stranu + 12 MP fotografiju. PyMuPDF uz to dokumentovano ne podržava rad iz više niti. Zato
+# se svaki poziv MuPDF-a i OCR rasterizovane strane/slike odvija pod ovim zaključavanjem: u procesu je u svakom
+# trenutku najviše jedna rasterizovana strana i jedan Tesseract. Zaključavanje se uzima po strani, ali
+# threading.Lock NIJE pravedno: izmereno (CI), nit koja ga pusti obično ga odmah ponovo uzme, pa drugi dokument
+# može da čeka da prvi završi ceo (latencija, ne memorija).
 _RASTER_OCR_LOCK = threading.Lock()
 
 # Najveći broj piksela slike koja ide u OCR (strana PDF-a posle rasterizacije ili samostalna fotografija).
@@ -208,6 +209,7 @@ _RASTER_OCR_LOCK = threading.Lock()
 # smanjuje na granicu. Kvalitet je izmeren na sintetičkim dokumentima sa poznatim tekstom (N02 izveštaj).
 MAX_OCR_PIXELS = 15_000_000
 OCR_DPI = 300
+MIN_DEKODIRANIH_PIKSELA = 2480 * 3508   # A4 na 300 dpi: JPEG se ne dekodira umanjeno ispod ovoga
 
 _malloc_trim = None
 
@@ -280,8 +282,14 @@ def _u_granici_ocr(img):
     k = math.sqrt(MAX_OCR_PIXELS / (sirina * visina))
     cilj = (max(1, int(sirina * k)), max(1, int(visina * k)))
     logger.info("[OCR] Slika %dx%d smanjena na %dx%d pre OCR-a (granica %d piksela)", sirina, visina, *cilj, MAX_OCR_PIXELS)
-    img.draft("L", (sirina, visina))    # JPEG: dekodira odmah u sivoj skali (1 bajt/piksel); ostali formati: bez dejstva
+    # JPEG: dekodira odmah u sivoj skali i, kad može, već umanjeno (DCT 1/2, 1/4, 1/8) — ali nikad ispod
+    # MIN_DEKODIRANIH_PIKSELA (A4 na 300 dpi, referentni kvalitet skena). Izmereno (Windows, 40 MP): CMYK JPEG
+    # +344 → +86 MiB, običan JPEG +115 → +20 MiB pre OCR-a. Ostali formati (PNG): bez dejstva.
+    kd = math.sqrt(min(1.0, MIN_DEKODIRANIH_PIKSELA / (sirina * visina)))
+    img.draft("L", (max(1, math.ceil(sirina * kd)), max(1, math.ceil(visina * kd))))
     siva = img.convert("L")
+    if siva.size[0] * siva.size[1] <= MAX_OCR_PIXELS:
+        return siva                     # dekoder je već umanjio ispod granice (i ne ispod MIN_DEKODIRANIH_PIKSELA)
     manja = siva.resize(cilj, Image.Resampling.LANCZOS)
     if siva is not img:
         siva.close()
@@ -393,8 +401,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
                     page = next(strane_doc, None)
                     if page is None:
                         break
-                    img = _rasterizuj_stranu(page)
-                    del page
+                    try:
+                        img = _rasterizuj_stranu(page)
+                    finally:
+                        del page        # MuPDF objekat strane se oslobađa pod zaključavanjem i kad render padne
                     ocr_rezultati.append(_ocr_image(img, ocr_lang))
                     del img
                     _vrati_memoriju_sistemu()

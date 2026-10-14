@@ -331,3 +331,119 @@ def test_posle_svake_ocr_strane_i_slike_memorija_se_vraca_sistemu(tmp_path, monk
 def test_vracanje_memorije_van_glibc_je_bez_dejstva():
     extractor._vrati_memoriju_sistemu()     # Windows/macOS/musl: nema libc.so.6 → tiho bez dejstva, nikad izuzetak
     extractor._vrati_memoriju_sistemu()
+
+
+# ── Nezavisni pregled (F1/F4): JPEG iznad granice se dekodira umanjeno; zatvaranje i dpi merenja su pokriveni ─────
+
+def test_veliki_jpeg_se_dekodira_umanjeno_ali_ne_ispod_a4_kvaliteta(tmp_path, monkeypatch):
+    """F1: draft() je ranije tražio PUNU veličinu, pa se JPEG od 40 MP uvek dekodirao ceo (CMYK +344 MiB pre OCR-a).
+    Sada dekoder umanjuje (DCT 1/2…), ali nikad ispod A4 na 300 dpi; PNG (bez draft-a) ide starim putem."""
+    from pathlib import Path
+    from PIL import ImageDraw
+    monkeypatch.setattr(extractor, "MAX_OCR_PIXELS", 1_000_000)
+    monkeypatch.setattr(extractor, "MIN_DEKODIRANIH_PIKSELA", 600_000)
+    jpg, png = tmp_path / "v.jpg", tmp_path / "v.png"
+    img = Image.new("RGB", (2000, 1600), "white")       # 3,2 MP: 1/2 → 0,8 MP (≥ 0,6 MP pod), 1/4 → 0,2 MP (ispod poda)
+    ImageDraw.Draw(img).rectangle((200, 200, 900, 400), fill="black")
+    img.save(str(jpg), "JPEG")
+    img.save(str(png), "PNG")
+    dekodirano = {}
+    pravi_convert = Image.Image.convert
+
+    def _convert(self, *a, **k):
+        if self.format in ("JPEG", "PNG") and self.filename:
+            dekodirano[Path(self.filename).suffix] = self.size     # veličina koju je dekoder stvarno napravio
+        return pravi_convert(self, *a, **k)
+
+    monkeypatch.setattr(Image.Image, "convert", _convert)
+    velicine = []
+    _meri(monkeypatch, ocr_sekundi=0, velicine=velicine)
+    extractor.extract_image(jpg)
+    extractor.extract_image(png)
+    assert dekodirano[".jpg"] == (1000, 800), dekodirano          # umanjeno već u dekoderu, ne pun raster
+    assert dekodirano[".png"] == (2000, 1600), dekodirano         # PNG nema draft: pun dekod, pa smanjenje
+    (w1, h1), (w2, h2) = velicine
+    assert 600_000 <= w1 * h1 <= 1_000_000, (w1, h1)             # nikad ispod poda, nikad iznad granice
+    assert w2 * h2 <= 1_000_000, (w2, h2)
+
+
+def test_svaki_otvoren_pdf_je_zatvoren_i_to_pod_zakljucavanjem(tmp_path, monkeypatch):
+    """F4 (R1, R5): dokument mora biti zatvoren (inače MuPDF drži dekodirane strane) i zatvaranje je poziv MuPDF-a."""
+    sken = tmp_path / "s.pdf"
+    _mali_sken(sken, 3)
+    m = _meri(monkeypatch, ocr_sekundi=0)
+    otvoreni = []
+    pravi_open = fitz.open
+
+    def _open(*a, **k):
+        d = pravi_open(*a, **k)
+        otvoreni.append(d)
+        return d
+
+    pravi_close = fitz.Document.close
+
+    def _close(self):
+        if not extractor._RASTER_OCR_LOCK.locked():
+            m.van_zakljucavanja.append("close")
+        return pravi_close(self)
+
+    monkeypatch.setattr(fitz, "open", _open)
+    monkeypatch.setattr(fitz.Document, "close", _close)
+    extractor.extract_pdf(sken)
+    extractor._ocr_strane_pdf(sken, [0, 2])
+    extractor.necitljive_strane_pdf(sken, ["", "", ""])
+    assert len(otvoreni) == 3 and all(d.is_closed for d in otvoreni), [d.is_closed for d in otvoreni]
+    assert not m.van_zakljucavanja, m.van_zakljucavanja
+
+
+def test_merenje_necitljivih_strana_ne_rasterizuje_ogromnu_stranu_na_50_dpi(tmp_path, monkeypatch):
+    """F4 (R3): strana 200x200 inča bi na fiksnih 50 dpi bila 100 MP; merenje ostaje u granici piksela."""
+    p = tmp_path / "ogromna.pdf"
+    d = fitz.open()
+    s = d.new_page(width=14400, height=14400)
+    b = io.BytesIO()
+    Image.new("RGB", (100, 100), "black").save(b, "PNG")
+    s.insert_image(s.rect, stream=b.getvalue())
+    d.save(str(p))
+    d.close()
+    rasteri = []
+    pravi = fitz.Page.get_pixmap
+
+    def _render(self, *a, **k):
+        pm = pravi(self, *a, **k)
+        rasteri.append(pm.width * pm.height)
+        return pm
+
+    monkeypatch.setattr(fitz.Page, "get_pixmap", _render)
+    assert extractor.necitljive_strane_pdf(p, [""]) == [1]
+    assert rasteri and max(rasteri) <= extractor.MAX_OCR_PIXELS, rasteri
+
+
+def test_original_fotografije_je_zatvoren_pre_ocr_a(tmp_path, monkeypatch):
+    """F4 (R4): pun dekodiran original ne sme da ostane u procesu dok traje Tesseract."""
+    from PIL import Image as PILImage
+    foto = tmp_path / "f.png"
+    _png(foto, 600, 800)
+    otvorene = []
+    pravi_open = PILImage.open
+
+    def _open(*a, **k):
+        im = pravi_open(*a, **k)
+        otvorene.append(im)
+        return im
+
+    monkeypatch.setattr(PILImage, "open", _open)
+    zatvoren_tokom_ocr = []
+
+    def _ocr(img, jezik):
+        try:
+            otvorene[-1].getpixel((0, 0))
+            zatvoren_tokom_ocr.append(False)
+        except (ValueError, AttributeError):
+            zatvoren_tokom_ocr.append(True)
+        return LAZNI_TEKST, 0.9
+
+    monkeypatch.setattr(extractor, "_ocr_image", _ocr)
+    monkeypatch.setattr(extractor, "_detect_ocr_lang", lambda: "eng")
+    extractor.extract_image(foto)
+    assert zatvoren_tokom_ocr == [True], zatvoren_tokom_ocr
