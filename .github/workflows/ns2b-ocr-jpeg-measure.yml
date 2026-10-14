@@ -1,0 +1,91 @@
+name: NS2b OCR JPEG coefficient-buffer measurement
+
+# Measurement-only branch (NS2 FINAL CORRECTIVE CYCLE, task A). Never merged.
+# PRODUCTION Dockerfile image built from this branch (candidate extractor = ns2b/ocr-jpeg), started with the
+# production start command shape `gunicorn ... -c gunicorn.conf.py`, WEB_CONCURRENCY=1, one fresh
+# `--memory=512m --memory-swap=512m` container per case, memory sampled from the host cgroup (memory.current +
+# memory.stat anon/file). Fixtures are synthetic (generated in the job); results contain only sizes, hashes,
+# timings and CER.
+
+on:
+  push:
+    branches: [measure/ns2b-ocr-jpeg]
+  workflow_dispatch:
+
+jobs:
+  mech:
+    if: ${{ !contains(github.event.head_commit.message, '[skip-mech]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Image facts
+        run: docker run --rm vx python -c "import PIL, fitz; from PIL import features; print('Pillow', PIL.__version__, 'libjpeg_turbo', features.version('libjpeg_turbo'), 'jpg', features.version('jpg'), fitz.__doc__)"
+      - name: Matrix fixtures (progressive/baseline x 444/422/420/gray/cmyk x 10-48 MP)
+        run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen_jpeg.py /m/fxm 10,20,30,40,48 | tail -n 3
+      - name: libjpeg-turbo transcodes (sequential multi-scan, arithmetic) on the host
+        run: |
+          sudo apt-get install -y -q libjpeg-turbo-progs > /dev/null
+          cd ns2_measure/fxm
+          printf '0;\n1;\n2;\n' > /tmp/seqms.txt
+          printf '0;\n1,2;\n' > /tmp/seqms2.txt
+          sudo jpegtran -copy none -scans /tmp/seqms.txt -outfile t_seqms_444_40.jpg m_base_444_40.jpg
+          sudo jpegtran -copy none -scans /tmp/seqms2.txt -outfile t_seqms2_444_40.jpg m_base_444_40.jpg
+          sudo jpegtran -copy none -scans /tmp/seqms.txt -outfile t_seqms_420_40.jpg m_base_420_40.jpg
+          sudo jpegtran -copy none -arithmetic -progressive -outfile t_arith_prog_444_40.jpg m_base_444_40.jpg
+          sudo jpegtran -copy none -arithmetic -outfile t_arith_seq_444_40.jpg m_base_444_40.jpg
+          sudo jpegtran -copy none -progressive -outfile t_jt_prog_444_40.jpg m_base_444_40.jpg
+          sudo chmod a+r t_*.jpg; ls -la t_*.jpg
+      - name: PDFs with the same JPEG bytes embedded
+        run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen_mech_pdf.py /m/fxm
+      - name: Mechanism probe (one fresh process per file; header bytes vs measured decode peak)
+        run: |
+          for f in $(ls ns2_measure/fxm | grep -E '\.(jpg|pdf)$'); do
+            docker run --rm -e PYTHONWARNINGS=ignore -v "$PWD/ns2_measure:/m" -w /app vx python /m/mech.py /m/fxm/$f 2>/dev/null | grep '^MECH' || echo "MECHFAIL $f"
+          done | tee ns2_measure/mech.log
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns2b-mech
+          path: ns2_measure/mech.log
+          retention-days: 14
+
+  fals:
+    if: ${{ !contains(github.event.head_commit.message, '[mech-only]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [r1, r2, r3]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner facts
+        run: |
+          nproc; free -m; uname -r
+          echo "cgroup fs: $(stat -fc %T /sys/fs/cgroup)"; docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Generate synthetic fixtures (round-3 set, then NS2b set)
+        run: |
+          docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
+          docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/gen_fx2.py /m/fx
+      - name: Falsification cases (gunicorn, WEB_CONCURRENCY=1, 512 MiB)
+        run: bash ns2_measure/run_b1.sh ns2_measure/cases_ns2b.txt ${{ matrix.run }}
+      - name: Summary
+        if: always()
+        run: |
+          python3 ns2_measure/summarize.py
+          echo "NS2ROWS_BEGIN"; python3 -c "import json; [print('NS2ROW', json.dumps(r, ensure_ascii=False)) for r in json.load(open('ns2_measure/out/summary_rows.json'))]"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns2b-fals-${{ matrix.run }}
+          path: |
+            ns2_measure/out/*.json
+            ns2_measure/logs/*.log
+          retention-days: 14

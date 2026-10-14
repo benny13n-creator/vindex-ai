@@ -49,8 +49,10 @@ class DocumentSafetyLimitExceeded(Exception):
     compression ratio, or entry count exceeds a safety threshold — BEFORE
     python-docx ever attempts to actually decompress the archive."""
 
-    def __init__(self, reason: str):
+    def __init__(self, reason: str, poruka: Optional[str] = None):
         self.reason = reason
+        # NS2b: poruka za korisnika (srpski, bez brojeva memorije); None = pozivalac koristi svoju opštu poruku.
+        self.poruka = poruka
         super().__init__(f"Zip-bomb guard tripped: {reason}")
 
 
@@ -311,6 +313,189 @@ def _rasterizuj_stranu(strana):
     return img
 
 
+# ─── NS2b — JPEG koji libjpeg mora celog da drži u memoriji (koeficijenti cele slike) ──────────────────────────────
+# Progresivni JPEG (i sekvencijalni čiji prvi prolaz ne nosi sve komponente) libjpeg dekodira tek pošto pročita SVE
+# prolaze, pa za svaku komponentu drži sve DCT koeficijente slike: blok 8x8 = 64 x 2 bajta. Taj bafer zavisi samo od
+# zaglavlja (dimenzije, komponente, faktori uzorkovanja) — NE od draft/umanjenja i ne od izlazne veličine. Izmereno
+# (NS2b, produkciona slika, gunicorn, 512 MiB): 40 MP progresivni 4:4:4 (229 MiB koeficijenata) dostiže 494–496 MiB.
+# Običan (sekvencijalan, jedan prolaz) JPEG se dekodira red po red i ovo se na njega ne odnosi. Provera čita samo
+# markere do prvog SOS (ništa se ne dekodira) i radi isto za samostalnu fotografiju i JPEG ugrađen u PDF.
+_JPEG_SOF = frozenset({0xC0, 0xC1, 0xC2, 0xC3, 0xC9, 0xCA, 0xCB})        # okviri koje libjpeg(-turbo) dekodira
+_JPEG_SOF_HIJERARHIJSKI = frozenset({0xC5, 0xC6, 0xC7, 0xCD, 0xCE, 0xCF})  # libjpeg ih odbija pre ikakve alokacije
+_JPEG_SOF_PROGRESIVNI = frozenset({0xC2, 0xCA})
+MAX_JPEG_KOEFICIJENATA_BAJTOVA = 128 * 1024 * 1024
+PORUKA_PREVELIK_JPEG = (
+    "Fotografija je sačuvana u formatu koji zahteva previše memorije za obradu (progresivni JPEG visoke "
+    "rezolucije). Sačuvajte je ponovo kao običan JPEG ili smanjite rezoluciju, pa pokušajte ponovo."
+)
+PORUKA_PREVELIK_JPEG_PDF = (
+    "Dokument sadrži sliku sačuvanu u formatu koji zahteva previše memorije za obradu (progresivni JPEG visoke "
+    "rezolucije). Sačuvajte dokument ponovo sa slikom manje rezolucije ili kao običan JPEG, pa pokušajte ponovo."
+)
+
+
+def _jpeg_sledeci_marker(f) -> Optional[int]:
+    """Kao libjpeg next_marker: preskače bajtove do 0xFF i FF punjenje; FF00 nije marker. None = kraj toka."""
+    while True:
+        b = f.read(1)
+        if not b:
+            return None
+        if b != b"\xff":
+            continue
+        while b == b"\xff":
+            b = f.read(1)
+        if not b:
+            return None
+        if b != b"\x00":
+            return b[0]
+
+
+def _jpeg_bajtova_koeficijenata(sirina: int, visina: int, komponente: list[tuple[int, int]]) -> int:
+    """Veličina bafera koeficijenata cele slike kako ga libjpeg alocira (jdcoefct.c, jinit_d_coef_controller):
+    po komponenti ceil(blokova po širini, h) x ceil(blokova po visini, v) blokova od 64 x 2 bajta."""
+    hmax = max(h for h, _ in komponente)
+    vmax = max(v for _, v in komponente)
+    ukupno = 0
+    for h, v in komponente:
+        sir_blokova = -(-sirina * h // (hmax * 8))
+        vis_blokova = -(-visina * v // (vmax * 8))
+        ukupno += (-(-sir_blokova // h) * h) * (-(-vis_blokova // v) * v) * 128
+    return ukupno
+
+
+def _jpeg_okvir(f) -> Optional[dict]:
+    """Zaglavlje JPEG toka (binarni fajl-objekat, od početka) do prvog SOS. None = nije JPEG ili ga libjpeg ionako
+    odbija pre dekodiranja (nema SOI/SOF/SOS, dupli SOF, hijerarhijski okvir, prazna slika, loše uzorkovanje).
+    `koeficijenti` = bajtovi koeficijenata cele slike kad ih libjpeg drži (više prolaza), inače 0."""
+    if f.read(2) != b"\xff\xd8":
+        return None
+    okvir = None
+    while True:
+        m = _jpeg_sledeci_marker(f)
+        if m is None or m in (0xD8, 0xD9):
+            return None
+        if m == 0x01 or 0xD0 <= m <= 0xD7:
+            continue                                    # samostalni markeri, bez dužine
+        duzina = f.read(2)
+        if len(duzina) < 2 or int.from_bytes(duzina, "big") < 2:
+            return None
+        n = int.from_bytes(duzina, "big") - 2
+        if m in _JPEG_SOF_HIJERARHIJSKI:
+            return None
+        if m in _JPEG_SOF:
+            if okvir is not None:
+                return None
+            d = f.read(n)
+            if len(d) < 6 or len(d) < 6 + 3 * d[5]:
+                return None
+            visina, sirina, nf = int.from_bytes(d[1:3], "big"), int.from_bytes(d[3:5], "big"), d[5]
+            komponente = [(d[6 + 3 * i + 1] >> 4, d[6 + 3 * i + 1] & 15) for i in range(nf)]
+            if not (sirina and visina and nf) or any(not (1 <= h <= 4 and 1 <= v <= 4) for h, v in komponente):
+                return None
+            okvir = {"sirina": sirina, "visina": visina, "komponente": komponente, "progresivni": m in _JPEG_SOF_PROGRESIVNI}
+            continue
+        if m == 0xDA:
+            if okvir is None:
+                return None
+            d = f.read(1)
+            if not d:
+                return None
+            # libjpeg (jdinput.c): ceo bafer kad je progresivan ILI prvi prolaz ne nosi sve komponente
+            okvir["vise_prolaza"] = okvir["progresivni"] or d[0] < len(okvir["komponente"])
+            okvir["koeficijenti"] = (_jpeg_bajtova_koeficijenata(okvir["sirina"], okvir["visina"], okvir["komponente"])
+                                     if okvir["vise_prolaza"] else 0)
+            return okvir
+        f.seek(n, 1)
+
+
+def _odbij_jpeg_preveliki_bafer(f, opis: str) -> None:
+    """DocumentSafetyLimitExceeded ako bi libjpeg za ovaj tok alocirao više od MAX_JPEG_KOEFICIJENATA_BAJTOVA.
+    Poziva se PRE svakog dekodiranja; čita samo zaglavlje. Loguju se samo dimenzije i veličine, nikad sadržaj."""
+    okvir = _jpeg_okvir(f)
+    if okvir is None or okvir["koeficijenti"] <= MAX_JPEG_KOEFICIJENATA_BAJTOVA:
+        return
+    uzorkovanje = ",".join(f"{h}x{v}" for h, v in okvir["komponente"])
+    razlog = (f"{opis}: JPEG {okvir['sirina']}x{okvir['visina']}, uzorkovanje {uzorkovanje}, "
+              f"progresivni={okvir['progresivni']}, koeficijenti {okvir['koeficijenti'] >> 20} MiB "
+              f"(max {MAX_JPEG_KOEFICIJENATA_BAJTOVA >> 20} MiB)")
+    logger.warning("[OCR] Odbijeno pre dekodiranja — %s", razlog)
+    raise DocumentSafetyLimitExceeded(razlog, poruka=PORUKA_PREVELIK_JPEG_PDF if opis.startswith("PDF") else PORUKA_PREVELIK_JPEG)
+
+
+class _TokFlate:
+    """JPEG unutar /FlateDecode: raspakuje se samo onoliko koliko čitanje zaglavlja traži (napred, u delovima)."""
+
+    def __init__(self, sirovo: bytes):
+        import zlib
+        self._d = zlib.decompressobj()
+        self._ulaz = memoryview(sirovo)
+        self._poz = 0
+        self._bafer = b""
+
+    def read(self, n: int) -> bytes:
+        while len(self._bafer) < n and not self._d.eof:
+            if self._d.unconsumed_tail:
+                ulaz = self._d.unconsumed_tail
+            elif self._poz < len(self._ulaz):
+                ulaz = self._ulaz[self._poz:self._poz + 65536]
+                self._poz += 65536
+            else:
+                break
+            self._bafer += self._d.decompress(ulaz, 65536)
+        deo, self._bafer = self._bafer[:n], self._bafer[n:]
+        return deo
+
+    def seek(self, n: int, odakle: int) -> None:
+        while n > 0:
+            k = len(self.read(min(n, 65536)))
+            if not k:
+                return
+            n -= k
+
+
+def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
+    """NS2b: isti uslov kao za fotografiju, za JPEG (DCTDecode) slike — i njihove maske — na stranama koje će MuPDF
+    rasterizovati (MuPDF dekodira ugrađen JPEG istim libjpeg putem: izmereno). Pozivalac drži _RASTER_OCR_LOCK.
+    Proverava se samo tok /DCTDecode ili [/FlateDecode /DCTDecode]; drugi lanci filtera se ne proveravaju."""
+    import io
+
+    provereni: set[int] = set()
+    for i in indeksi:
+        for slika in doc[i].get_images(full=True):
+            for xref in (slika[0], slika[1]):
+                if not xref or xref in provereni:
+                    continue
+                provereni.add(xref)
+                filtri = doc.xref_get_key(xref, "Filter")[1].replace("[", " ").replace("]", " ").split()
+                if "/DCTDecode" not in filtri:
+                    continue
+                if filtri == ["/DCTDecode"]:
+                    tok = io.BytesIO(doc.xref_stream_raw(xref))
+                elif filtri == ["/FlateDecode", "/DCTDecode"]:
+                    tok = _TokFlate(doc.xref_stream_raw(xref))
+                else:
+                    logger.info("[OCR] JPEG u PDF-u sa filterima %s nije proveren pre rasterizacije", "+".join(filtri))
+                    continue
+                _odbij_jpeg_preveliki_bafer(tok, f"PDF strana {i + 1}")
+
+
+def _proveri_jpeg_u_pdf(path: Path, indeksi) -> None:
+    """_odbij_jpeg_u_pdf za PDF na disku. Svaka DRUGA greška (PDF se ne otvara) ne menja dosadašnji tok: ista greška
+    će se pojaviti (i biti obrađena kao i ranije) pri samoj rasterizaciji."""
+    try:
+        import fitz  # pymupdf
+        with _RASTER_OCR_LOCK:
+            doc = fitz.open(str(path))
+            try:
+                _odbij_jpeg_u_pdf(doc, indeksi)
+            finally:
+                _zatvori_dokument(doc)
+    except DocumentSafetyLimitExceeded:
+        raise
+    except Exception as exc:
+        logger.info("[OCR] Provera JPEG slika u PDF-u nije izvršena: %s", type(exc).__name__)
+
+
 def _u_granici_ocr(img):
     """Samostalna fotografija iznad MAX_OCR_PIXELS se pre OCR-a smanjuje na granicu (siva skala, LANCZOS); ispod
     granice se vraća ista, nepromenjena slika. Ulazna granica MAX_IMAGE_PIXELS (40 MP) ostaje ista: fotografija do
@@ -418,12 +603,16 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         # Sada se OCR pokreće samo za strane bez tekstualnog sloja (< 30 znakova); potpuno digitalan PDF i dalje
         # ne poziva OCR. Neuspeh OCR-a ostavlja stranu praznom — nikad izmišljen tekst.
         kratke = [i for i, t in enumerate(pages) if len(t) < 30]
+        if kratke:
+            _proveri_jpeg_u_pdf(path, kratke)     # NS2b: pre ikakve rasterizacije
         dopuna, confs = _ocr_strane_pdf(path, kratke) if kratke else ({}, [])
         if not dopuna:
             return "\n\n".join(pages), False, False, pages, None
         for i, t in dopuna.items():
             pages[i] = t
         return "\n\n".join(pages), False, True, pages, ((sum(confs) / len(confs)) if confs else None)
+
+    _proveri_jpeg_u_pdf(path, range(len(pages)))     # NS2b: pre ikakve rasterizacije
 
     # OCR fallback for scanned/unreadable PDFs
     try:
@@ -543,6 +732,7 @@ def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
             try:
                 if len(doc) != len(pages):
                     return None
+                _odbij_jpeg_u_pdf(doc, kandidati)   # NS2b: opasan JPEG → nemerljivo (None), bez dekodiranja
                 necitljive = []
                 for i in kandidati:
                     strana = doc[i]
@@ -655,6 +845,9 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
                 raise DocumentSafetyLimitExceeded(
                     f"image is {width}x{height} ({width * height} pixels, max {MAX_IMAGE_PIXELS})"
                 )
+        # NS2b: po SADRŽAJU (ne po ekstenziji), pre ikakvog dekodiranja piksela.
+        with open(path, "rb") as tok:
+            _odbij_jpeg_preveliki_bafer(tok, "slika")
     except DocumentSafetyLimitExceeded:
         raise
     except Exception as e:

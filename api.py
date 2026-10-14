@@ -6033,7 +6033,7 @@ async def predmet_upload_auto_analyze(
                 )
                 raise HTTPException(
                     status_code=413,
-                    detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+                    detail=_dsle.poruka or "Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
                 )
             if is_scanned:
                 raise HTTPException(

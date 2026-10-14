@@ -1,0 +1,24 @@
+# NS2b falsification (gunicorn -c gunicorn.conf.py, WEB_CONCURRENCY=1, --memory=512m), candidate = ns2b/ocr-jpeg extractor
+f01 1 - single:img_40mp_prog444.jpg@worker -
+f01b 1 - single:img_40mp_prog444.jpg@finalize -
+f02 1 - single:img_prog444_below.jpg@worker -
+f02b 1 - single:img_40mp_prog420.jpg@worker -
+f02c 1 - single:img_prog444_96.jpg@worker -
+f03 1 - single:img_40mp.jpg@worker -
+f04 1 - single:img_40mp_cmyk.jpg@worker -
+f05 1 - single:img_12mp_exif.jpg@worker -
+f06 1 - single:img_40mp.png@worker -
+f07 1 - single:pdf_prog444_40.pdf@worker -
+f07z 1 - single:pdf_flatedct_prog444_40.pdf@worker -
+f07b 1 - single:pdf_prog444_below.pdf@worker -
+f07c 1 - single:pdf_prog444_96.pdf@worker -
+f07d 1 - single:pdf_prog420_40.pdf@worker -
+f07e 1 - single:pdf_base_40.pdf@worker -
+f08 1 - pair:scan_10p.pdf@worker|img_prog444_below.jpg@finalize -
+f08b 1 - pair:img_prog444_below.jpg@worker|scan_10p.pdf@finalize -
+f08c 1 - pair:scan_10p.pdf@worker|img_40mp_prog444.jpg@finalize -
+f08d 1 - pair:scan_10p.pdf@worker|pdf_prog444_below.pdf@finalize -
+f09 1 - seq:img_40mp_prog444.jpg@worker*5,img_40mp_prog444.jpg@finalize*5 -
+f10 1 - seq:img_40mp_prog444.jpg@worker,scan_cyr_1p.pdf@worker,img_40mp.jpg@worker,img_40mp_prog444.jpg@finalize,mixed_6p.pdf@worker,img_40mp_cmyk.jpg@worker,img_prog444_below.jpg@worker,pdf_prog444_40.pdf@worker,scan_10p.pdf@worker,img_40mp.png@worker,img_12mp_exif.jpg@worker,pdf_prog444_below.pdf@worker -
+f11 1 - idleload:30 -
+f12 1 - sustained:scan_cyr_1p.pdf,img_40mp_prog444.jpg,mixed_6p.pdf,img_40mp_cmyk.jpg,photo_48mp_a4.pdf,img_40mp.png,page_a0.pdf,pdf_flate100_a4.pdf -
