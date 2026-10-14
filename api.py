@@ -7906,6 +7906,10 @@ async def predmet_confirm_links(
                     # migracija 127 — W-CONFIRMLINKS: ruta `confirm-links`
                     # -- advokat je vec potvrdio ovaj rok pre upisa.
                     "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
+                    # NS2-A1: `dodaj_rok` je izričito stvaranje roka -> `vrsta='rok'`.
+                    # Klik "Potvrdi veze" NIJE kanonska potvrda (FAZA 6.5 lanac odluka):
+                    # `stanje` se ne upisuje, rok ostaje nepotvrđen. Pre 129 fragment je prazan.
+                    **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                 }).execute()
             )
             # Prazan rezultat je isto što i pad, samo tiše -- isti ugovor koji

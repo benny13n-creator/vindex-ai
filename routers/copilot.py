@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -760,11 +761,126 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     }
 
 
+# ─── NS2-A3: datum roka mora biti IZRIČIT u poruci advokata ─────────────────
+#
+# Ranije je prompt tražio od modela da relativne datume prevede u apsolutne, uz današnji
+# datum, pa je „za sedam dana" ili „15 dana od dostave" postajalo IZRAČUNAT
+# pravni datum u `predmet_hronologija` — bez okidača, bez pravila računanja,
+# sa današnjim danom kao pretpostavljenim početkom. Sistem ne računa pravne
+# rokove (N03-FD3, `uploaded_doc/deadline_parser.py`), pa ni Copilot ne sme.
+#
+# Pravilo: datum se upisuje SAMO ako (1) u poruci stoji tačno jedan potpun i
+# kalendarski ispravan datum (dan, mesec, godina), (2) poruka nema relativan
+# izraz ni okidač (dostava/prijem/uručenje), i (3) datum koji model vrati je
+# BAŠ taj datum. Model nije autoritet: njegov datum se samo poredi, nikad ne
+# upisuje. Sve ostalo je istinito pojašnjenje — bez upisa.
+
+_ROK_ISO_RE = re.compile(r"(?<![\d.\-/])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d\-])")
+# „20.11." bez godine (lookahead isključuje „20.11.2026")
+_ROK_NEPOTPUN_BROJ_RE = re.compile(r"(?<![\d.])\d{1,2}\.\s?\d{1,2}\.(?!\s?\d)")
+_ROK_RELATIVNI_RE = re.compile(
+    # latinica: „za sedam dana", „u roku od mesec dana", „nakon 3 meseca"
+    r"(?<!\w)(?:za|od|nakon|posle|kroz|unutar|narednih|sledećih|sledecih|narednog|sledećeg|sledeceg)"
+    r"\s+(?:\S+\s+){0,2}?(?:dan|dana|nedelj\w*|sedmic\w*|mesec\w*|meseci|godin\w*)(?!\w)"
+    r"|(?<!\w)(?:sutra|prekosutra)(?!\w)"
+    r"|(?<!\w)(?:od|po|nakon|posle)\s+(?:dana\s+)?(?:dostav\w*|prijem\w*|uručenj\w*|urucenj\w*|pravosna\w*)"
+    # ćirilica
+    r"|(?<!\w)(?:за|од|након|после|кроз)\s+(?:\S+\s+){0,2}?(?:дан|дана|недељ\w*|месец\w*|месеци|годин\w*)(?!\w)"
+    r"|(?<!\w)(?:сутра|прекосутра)(?!\w)"
+    r"|(?<!\w)(?:од|по|након|после)\s+(?:дана\s+)?(?:достав\w*|пријем\w*|уручењ\w*|правоснаж\w*)",
+    re.IGNORECASE,
+)
+
+_ROK_POJASNJENJE = {
+    "nevalidan_datum": "Datum {datum} ne postoji u kalendaru. Rok nije sačuvan — navedite ispravan datum isteka roka (dan, mesec i godina).",
+    "relativni_rok": ("Rok je izražen relativno (npr. „za 7 dana” ili „od dostave”). Vindex ne računa pravne rokove "
+                      "i nije sačuvao nijedan datum. Navedite tačan datum isteka roka (dan, mesec i godina)."),
+    "nepotpun_datum": "Datum nije potpun (nedostaje godina). Rok nije sačuvan — navedite dan, mesec i godinu.",
+    "bez_datuma": "U poruci nema datuma isteka roka. Rok nije sačuvan — navedite tačan datum (dan, mesec i godina).",
+    "vise_datuma": "Poruka sadrži više datuma ({datum}). Rok nije sačuvan — navedite samo datum isteka roka.",
+    "datum_nije_u_poruci": ("Datum roka nije mogao da se potvrdi iz vaše poruke. Rok nije sačuvan — "
+                            "navedite tačan datum isteka roka (dan, mesec i godina)."),
+}
+
+
+def _datum_u_iso(vrednost) -> Optional[str]:
+    """`YYYY-MM-DD` ili `DD.MM.YYYY` -> ISO; sve ostalo -> None. Ne pogađa."""
+    from datetime import date as _date, datetime as _dt
+    s = str(vrednost or "").strip()
+    if not s:
+        return None
+    try:
+        return _date.fromisoformat(s[:10]).isoformat() if len(s) >= 10 and s[4] == "-" else \
+            _dt.strptime(s, "%d.%m.%Y").date().isoformat()
+    except (ValueError, IndexError):
+        return None
+
+
+def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
+    """(datum_iso, None) ako je datum izričit i potvrđen, inače (None, razlog).
+
+    `datum_modela=...` (Ellipsis) znači „model još nije pitan" — proveravaju se
+    samo determinističke činjenice poruke. Čista funkcija; ne računa ništa.
+    """
+    from datetime import date as _date
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove, _MESECI_GEN, _MESECI_NOM
+    tekst = poruka or ""
+    validni: list = []
+    nevalidni: list = []
+    relativan = False
+    for r in ekstrahuj_rokove(tekst):
+        if r.get("tip") == "apsolutni":
+            iso = _datum_u_iso(r.get("vrednost"))
+            (validni.append(iso) if iso else nevalidni.append(r.get("vrednost")))
+        else:
+            relativan = True
+    for m in _ROK_ISO_RE.finditer(tekst):
+        try:
+            validni.append(_date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat())
+        except ValueError:
+            nevalidni.append(m.group(0))
+    meseci = "|".join(sorted(list(_MESECI_GEN) + list(_MESECI_NOM), key=len, reverse=True))
+    nepotpun = bool(_ROK_NEPOTPUN_BROJ_RE.search(tekst)) or bool(
+        re.search(rf"(?<!\w)\d{{1,2}}\.?\s+(?:{meseci})(?!\w)(?!\s+\d{{4}})", tekst, re.IGNORECASE))
+    relativan = relativan or bool(_ROK_RELATIVNI_RE.search(tekst))
+
+    if nevalidni:
+        return None, "nevalidan_datum"
+    if relativan:
+        return None, "relativni_rok"
+    if nepotpun:
+        return None, "nepotpun_datum"
+    jedinstveni = sorted(set(validni))
+    if not jedinstveni:
+        return None, "bez_datuma"
+    if len(jedinstveni) > 1:
+        return None, "vise_datuma"
+    if datum_modela is ...:
+        return jedinstveni[0], None
+    if _datum_u_iso(datum_modela) != jedinstveni[0]:
+        return None, "datum_nije_u_poruci"
+    return jedinstveni[0], None
+
+
+def _pojasnjenje_roka(razlog: str, poruka: str) -> dict:
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
+    datumi = ", ".join(r.get("vrednost") for r in ekstrahuj_rokove(poruka or "") if r.get("tip") == "apsolutni")
+    datumi = datumi or ", ".join(m.group(0) for m in _ROK_ISO_RE.finditer(poruka or ""))
+    return {"tip": "DODAJ_ROK", "uspeh": False, "potrebno_pojasnjenje": True, "razlog": razlog,
+            "odgovor": _ROK_POJASNJENJE[razlog].format(datum=datumi or "naveden")}
+
+
 async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict:
     """Extrahuje rok iz prirodnog jezika i upisuje u predmet_hronologija."""
     import json as _json
     from openai import AsyncOpenAI
     from datetime import date
+
+    # NS2-A3: deterministička provera poruke PRE modela — relativan, nepotpun,
+    # nepostojeći ili višestruk datum ne stiže ni do modela ni do baze.
+    _, _razlog = _odluka_o_datumu_roka(poruka)
+    if _razlog:
+        return _pojasnjenje_roka(_razlog, poruka)
 
     oai = AsyncOpenAI(api_key=OPENAI_API_KEY)
     # Operation Living System (Wave 5, Red Team, REPRODUCED HIGH): this prompt asked GPT for
@@ -778,7 +894,10 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         "Iz srpskog teksta izvuci podatke o roku. Vrati ISKLJUČIVO JSON:\n"
         '{"dogadjaj": str (naziv/opis roka), "datum_iso": str|null (YYYY-MM-DD), '
         '"vaznost": "kritičan|važan|informativan"}\n'
-        f"Danas je {date.today().isoformat()}. Relativne datume pretvori u apsolutne."
+        # NS2-A3: model NE računa. Ranije je prompt tražio prevod relativnih datuma
+        # u apsolutne uz današnji datum — izvor izmišljenih pravnih datuma.
+        "datum_iso je SAMO datum koji je u tekstu izričito naveden (dan, mesec i godina); "
+        "inače null. NE računaj datume i NE pretvaraj relativne izraze u datume."
     )
     try:
         from shared.ai_provenance import case_context as _ai_case_ctx
@@ -796,7 +915,14 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Nisam uspeo da prepoznam rok. Pokušajte: 'Dodaj rok — ročište 20. jula 2026.'"}
 
     if not (ext.get("dogadjaj") or "").strip():
-        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Naziv roka nije prepoznat. Pokušajte eksplicitno: 'Dodaj rok za pripremu do 15. jula.'"}
+        return {"tip":"DODAJ_ROK","uspeh":False,"odgovor":"Naziv roka nije prepoznat. Pokušajte eksplicitno: 'Dodaj rok za pripremu do 15.07.2027.'"}
+
+    # NS2-A3: model nije autoritet — njegov datum mora biti BAŠ datum iz poruke.
+    # Upisuje se datum iz poruke (kanonski ISO), nikad izlaz modela.
+    _datum_iso, _razlog = _odluka_o_datumu_roka(poruka, ext.get("datum_iso"))
+    if _razlog:
+        logger.info("[COPILOT-ROK] datum odbijen (%s) predmet=%s", _razlog, predmet_id)
+        return _pojasnjenje_roka(_razlog, poruka)
 
     supa = _get_supa()
     pred_ok = await asyncio.to_thread(
@@ -810,18 +936,26 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
     from shared.rokovi import normalizuj_vaznost as _norm_vaznost
     _vaznost = _norm_vaznost(ext.get("vaznost"))
     try:
-        await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
+        _ins = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
             "predmet_id": predmet_id,
             "user_id":    user_id,
             "dogadjaj":   ext["dogadjaj"][:200],
-            "datum":      ext.get("datum_iso",""),
-            "datum_iso":  ext.get("datum_iso",""),
+            "datum":      _datum_iso,
+            "datum_iso":  _datum_iso,
             "vaznost":    _vaznost,
             "akter":      "Copilot (AI)",
             # migracija 127 — W-COPILOT: advokat otkuca "Dodaj rok...";
             # model samo strukturira njegov tekst.
             "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
+            # NS2-A1: izričito stvaranje roka -> `vrsta='rok'` (migracija 129), inače ga
+            # V2 Danas i Case Actions ne vide kao rok. `stanje` se NE upisuje: komanda u
+            # Copilotu nije kanonska potvrda — rok ostaje nepotvrđen (audit lanac) i ne
+            # pokreće podsetnik ni izvoz. Pre migracije 129 fragment je prazan.
+            **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
         }).execute())
+        # 0 upisanih redova NIJE uspeh (isti ugovor kao confirm-links / rokovi_lanac).
+        if not getattr(_ins, "data", None):
+            raise RuntimeError("upis roka nije vratio nijedan red")
     except Exception as e:
         _sentry_capture(e)
         logger.error("[COPILOT-ROK] insert greška: %s", e)
@@ -837,12 +971,12 @@ async def _handle_akcija_rok(poruka: str, predmet_id: str, user_id: str) -> dict
         "tip":     "DODAJ_ROK",
         "uspeh":   True,
         "dogadjaj": ext["dogadjaj"],
-        "datum":   ext.get("datum_iso",""),
+        "datum":   _datum_iso,
         # B-U-006-N1: odgovor mora da nosi vrednost koja je STVARNO upisana.
         # Ranije je vracao sirov AI izlaz (podrazumevano `bitan`) dok je u bazi
         # stajalo nesto drugo -- advokat je citao jedan nivo, sistem cuvao drugi.
         "vaznost": _vaznost,
-        "odgovor": f"Rok dodat: {ext['dogadjaj']}" + (f" ({ext['datum_iso']})" if ext.get("datum_iso") else ""),
+        "odgovor": f"Rok dodat za proveru: {ext['dogadjaj']} ({_datum_iso}) — nije potvrđen.",
     }
 
 

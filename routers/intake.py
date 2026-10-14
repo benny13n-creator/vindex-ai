@@ -326,6 +326,10 @@ async def intake_kreiraj(
                     # migracija 127 — W-INTAKE-ROK: `body.prvi_rok` dolazi
                     # iz forme koju je advokat popunio.
                     "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
+                    # NS2-A1: polje `prvi_rok` je izričito stvaranje roka -> `vrsta='rok'`.
+                    # Klik "Kreiraj predmet" NIJE potvrda roka: `stanje` se ne upisuje,
+                    # rok ostaje nepotvrđen. Pre migracije 129 fragment je prazan.
+                    **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                 }).execute()
             )
             rok_dodat = True
