@@ -60,7 +60,8 @@
     function stavka(r, vrsta) {
       var dat = tekst(r.datum_iso || r.datum);
       return { vrsta: vrsta, id: tekst(r.id), opis: bezUkrasa(r.dogadjaj) || (vrsta === "predlog" ? "Predlog bez opisa" : "Rok bez opisa"),
-        predmetId: tekst(r.predmet_id), predmet: imena[r.predmet_id] || (nazivIzRegistra ? tekst(nazivIzRegistra(tekst(r.predmet_id))) : ""), vreme: "", datumIso: dat, razlika: razlika(dat), izvor: tekst(r.izvor) };
+        predmetId: tekst(r.predmet_id), predmet: imena[r.predmet_id] || (nazivIzRegistra ? tekst(nazivIzRegistra(tekst(r.predmet_id))) : ""), vreme: "", datumIso: dat, razlika: razlika(dat), izvor: tekst(r.izvor),
+        izvorUklonjen: r.izvor_uklonjen_posle_potvrde === true };
     }
     var potvrdjeni = aktivni.filter(function (r) { return stanjeZapisa(r) === "potvrdjen"; }).map(function (r) { return stavka(r, "rok"); });
     var rocista = dog.filter(function (e) { return e && e.tip === "rociste"; }).map(function (e) {
@@ -107,6 +108,9 @@
       li.append(el("span", "today__kind", x.vrsta === "rociste" ? "Ročište" : "Rok"));
       li.append(el("span", "today__what", x.opis));
       li.append(vezaPredmeta(x, "rad"));
+      /* N03-FD6: potvrda NIJE poništena (veza roka sa dokumentom nije dokaziva), ali advokat mora da zna da se izvor
+       * promenio posle njegove potvrde. Ne tvrdi se da je rok nevažeći. */
+      if (x.izvorUklonjen) li.append(el("span", "review__meta", "Posle vaše potvrde iz predmeta je uklonjen dokument. Ne zna se da li je ovaj rok poticao iz njega — proverite da li i dalje važi."));
       return li;
     }
 
@@ -182,6 +186,7 @@
       if (kal && Array.isArray(kal.degraded_sources) && kal.degraded_sources.indexOf("rocista") !== -1) nepotpuno.push("ročišta nisu učitana");
       if (kal && Array.isArray(kal.degraded_sources) && kal.degraded_sources.indexOf("predmeti") !== -1) nepotpuno.push("nazivi predmeta nisu učitani");
       if (kand && kand.odseceno) nepotpuno.push("rokova ima više nego što je prikazano");
+      if (kand && kand.provera_izvora_dostupna === false) nepotpuno.push("nije provereno da li su izvori potvrđenih rokova menjani");
       if (kal && kal.truncated) nepotpuno.push("ročišta ima više nego što je prikazano");
       nepotpuno = nepotpuno.filter(function (v, i, a) { return a.indexOf(v) === i; });
       stanje("da-stanje", nepotpuno.length ? "nepotpuno" : null, nepotpuno.length ? "Pregled NIJE potpun: " + nepotpuno.join("; ") + "." : "");

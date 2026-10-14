@@ -103,7 +103,7 @@ def _pozovi_kandidate(**kw):
     trag = {}
     supa = type("S", (), {"table": lambda self, ime: _Upit(trag)})()
     with patch.object(ro, "_get_supa", lambda: supa), \
-         patch.object(ro, "odluke", lambda ids: {}):
+         patch.object(ro, "odluke", lambda ids, *a, **k: {}):
         odgovor = asyncio.run(ro.kandidati(
             request=_req(), user={"user_id": "u1"}, **kw))
     return trag, odgovor

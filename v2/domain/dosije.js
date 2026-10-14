@@ -147,7 +147,13 @@ export function uHronologiju(niz) {
  * razresen ne ulazi u aktivne, kandidat je odvojen od potvrdjene obaveze.
  */
 export function uRokove(niz, sada) {
-  const rokovi = (niz || []).filter(jeRok);
+  const sviRokovi = (niz || []).filter(jeRok);
+  // N03-FD8: `stanje_odluke: "UNKNOWN"` znaci da lanac odluka NIJE procitan. Takav rok nije ni obaveza, ni predlog,
+  // ni razresen — i ne sme nestati (to bi izgledalo kao „nema rokova"). Ide u zasebnu listu `nepoznato`. Kolona
+  // `izvrsen`/`otkazan` i dalje ima prednost (audit lanac je ne izrazava).
+  const jeNepoznat = (r) => String(r.stanje_odluke || "").trim().toUpperCase() === "UNKNOWN"
+    && stanjeZapisa({ stanje: r.stanje }) !== STANJE.IZVRSEN && stanjeZapisa({ stanje: r.stanje }) !== STANJE.OTKAZAN;
+  const rokovi = sviRokovi.filter(r => !jeNepoznat(r));
   const aktivni = rokovi.filter(r => {
     const s = stanjeZapisa(r);
     return s !== STANJE.ODBIJEN && s !== STANJE.IZVRSEN && s !== STANJE.OTKAZAN;
@@ -169,8 +175,9 @@ export function uRokove(niz, sada) {
   return {
     obaveze: aktivni.filter(r => stanjeZapisa(r) === STANJE.POTVRDJEN).map(mapiraj).sort(sort),
     zaProveru: aktivni.filter(r => stanjeZapisa(r) === STANJE.KANDIDAT).map(mapiraj).sort(sort),
+    nepoznato: sviRokovi.filter(jeNepoznat).map(mapiraj).sort(sort),
     razreseni: rokovi.length - aktivni.length,
-    nedokazivo: (niz || []).length - rokovi.length,
+    nedokazivo: (niz || []).length - sviRokovi.length,
   };
 }
 

@@ -276,7 +276,8 @@ def _blk1_supa(hronologija_postoji=False):
                 m.execute.return_value.data = [{}]
                 return m
             t.insert.side_effect = _insert
-            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
+            # N03-FD2: provera duplikata ima i cetvrti uslov (isti izvorni fajl).
+            t.select.return_value.eq.return_value.eq.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = (
                 [{"id": "hron-postojeci"}] if hronologija_postoji else []
             )
         elif name == "intake_job_segments":

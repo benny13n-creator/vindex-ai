@@ -79,6 +79,12 @@ async def _zapisi(akcija: str, rok_id: str, user_id: str, napomena: Optional[str
 STANJE_NEPOTVRDJEN = "UNCONFIRMED"
 STANJE_POTVRDJEN = "CONFIRMED"
 STANJE_ODBIJEN = "REJECTED"
+#: N03-FD8 — lanac odluka NIJE PROCITAN. Ovo nije cetvrto stanje odluke nego
+#: odsustvo znanja o njoj: ne sme se prikazati kao UNCONFIRMED (to bi odbijen rok
+#: vratilo u predlog, a potvrdjen spustilo u predlog) niti kao „nema odluke".
+#: Kanonska politika ga tretira kao svako stanje koje nije CONFIRMED: interno
+#: vidljivo, spolja i za akciju ZABRANJENO.
+STANJE_NEPOZNATO = "UNKNOWN"
 
 
 def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:

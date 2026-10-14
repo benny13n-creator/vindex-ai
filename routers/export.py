@@ -18,7 +18,7 @@ from shared.deps import _get_supa, get_current_user, require_pro
 from docx_export import tekst_u_docx as _tekst_u_docx
 # FAZA 6.5: PDF izvoz je INTERNAL (advokatov radni spis) -- nepotvrdjen rok se
 # NE izostavlja nego OZNACAVA. Stanje dolazi iz kanonskog citaca odluka.
-from shared.rok_potvrda import odluke as _odluke, stanje_roka as _stanje_roka
+from shared.rok_potvrda import STANJE_NEPOZNATO as _NEPOZNATO, odluke as _odluke, stanje_roka as _stanje_roka
 
 router = APIRouter()
 
@@ -210,9 +210,18 @@ async def get_predmet_pdf_export(predmet_id: str, user: dict = Depends(get_curre
 
     # Svaki red nosi svoje stanje odluke; PDF ga prikazuje kao oznaku.
     _hron = hron_res.data or []
-    _odl = await asyncio.to_thread(_odluke, [h.get("id") for h in _hron])
+    # N03-FD8: strogo citanje. Ranije je pad citanja svaki rok u PDF-u oznacavao
+    # kao [NEPOTVRĐENO] -- i odbijen i potvrdjen. Neprocitano stanje je UNKNOWN i
+    # PDF to tako i pise; ostatak spisa se generise normalno.
+    try:
+        _odl = await asyncio.to_thread(_odluke, [h.get("id") for h in _hron], True)
+        _stanje = lambda rid: _stanje_roka(rid, _odl)  # noqa: E731
+    except Exception as _oe:
+        import logging as _logging
+        _logging.getLogger("vindex.export").error("[EXPORT] stanje odluka nije procitano: %s", _oe)
+        _stanje = lambda rid: _NEPOZNATO  # noqa: E731
     _hron_sa_stanjem = [
-        {**h, "stanje_odluke": _stanje_roka(h.get("id"), _odl)} for h in _hron
+        {**h, "stanje_odluke": _stanje(h.get("id"))} for h in _hron
     ]
 
     try:
