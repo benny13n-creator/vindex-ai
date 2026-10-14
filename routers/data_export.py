@@ -116,7 +116,6 @@ async def export_complete(user=Depends(get_current_user)):
     GDPR čl. 20 — pravo na prenosivost podataka.
     """
     from shared.audit_immutable import log_action as _imm_log
-    from shared.bg import spawn as _spawn_bg
 
     uid  = user["user_id"]
     email = user.get("email", uid)
@@ -149,22 +148,31 @@ async def export_complete(user=Depends(get_current_user)):
     # ni poruka ne tvrde. Neuspeh u bilo kojoj fazi ostavlja
     # `data_export_failed` (nikad `data_export`) -- samo faza, imena tabela i
     # klasa izuzetka; nikad sadrzaj arhive, tekst izuzetka ni email.
-    def _neuspeh(faza: str, **dodatno) -> None:
+    #
+    # NS2b-D: upis se CEKA (isti obrazac kao V34-V40 rute, npr.
+    # billing_entry_delete), ne zakazuje kroz `spawn`. Zakazan upis je posle
+    # `return` jos neizvrsen dok klijent vec prima ZIP; gasenje procesa u tom
+    # prozoru (shared/bg.py: spawn NIJE trajan) ostavlja isporucen izvoz bez
+    # zapisa, suprotno security.html §14.2. Neuspeh upisa i dalje NE blokira
+    # izvoz (log_action ugovor: best-effort na neuspeh, vidljiv samo u logu).
+    async def _upisi(akcija: str, meta: dict) -> None:
+        try:
+            await _imm_log(akcija, user_id=uid, resource_type="all_user_data",
+                           metadata=meta)
+        except Exception as e:
+            logger.warning("[EXPORT] audit %s nije upisan (%s)", akcija, type(e).__name__)
+
+    async def _neuspeh(faza: str, **dodatno) -> None:
         meta = {"format": "zip", "stage": faza, "archive_sent": False}
         meta.update(dodatno)
-        _spawn_bg(_imm_log(
-            "data_export_failed",
-            user_id=uid,
-            resource_type="all_user_data",
-            metadata=meta,
-        ), name="data_export_failed_audit")
+        await _upisi("data_export_failed", meta)
 
     # Faza 1 -> 2: klijent baze. Pad ovde znaci da nijedna tabela nije procitana.
     try:
         supa = _get_supa()
     except Exception as e:
         logger.error("[EXPORT] baza nedostupna (%s) -- izvoz NIJE napravljen", type(e).__name__)
-        _neuspeh("pre_retrieval", error_class=type(e).__name__)
+        await _neuspeh("pre_retrieval", error_class=type(e).__name__)
         raise HTTPException(
             status_code=503,
             detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo za koji minut.",
@@ -187,7 +195,7 @@ async def export_complete(user=Depends(get_current_user)):
                 del data
     except Exception as e:
         logger.error("[EXPORT] pravljenje arhive palo (%s) -- izvoz NIJE poslat", type(e).__name__)
-        _neuspeh("serialization", error_class=type(e).__name__)
+        await _neuspeh("serialization", error_class=type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo.",
@@ -196,7 +204,7 @@ async def export_complete(user=Depends(get_current_user)):
     # S4-4: never hand the data subject a partial archive that calls itself
     # complete. The ZIP is discarded rather than shipped.
     if _failed:
-        _neuspeh("retrieval", failed_tables=list(_failed))
+        await _neuspeh("retrieval", failed_tables=list(_failed))
         raise HTTPException(
             status_code=503,
             detail=(
@@ -209,19 +217,14 @@ async def export_complete(user=Depends(get_current_user)):
     # N04: audit se upisuje tek POSLE uspeha. Ranije je `data_export` pisan pre
     # citanja tabela, pa je i odbijen (503) izvoz ostajao u nepromenjivom logu
     # kao izvrsen izvoz -- suprotno static/security.html §14.2 („Svaki kompletan
-    # izvoz upisuje se ..."). `spawn` drzi referencu na zadatak (S1-1).
+    # izvoz upisuje se ..."). NS2b-D: upis se ceka (v. `_upisi`).
     # C1: zapis tvrdi samo fazu 3 -- isporuka klijentu nije serverski dokaziva.
-    _spawn_bg(_imm_log(
-        "data_export",
-        user_id=uid,
-        resource_type="all_user_data",
-        metadata={
-            "email": email,
-            "format": "zip",
-            "stage": "archive_generated",
-            "delivery": "not_verified_by_server",
-        },
-    ), name="data_export_audit")
+    await _upisi("data_export", {
+        "email": email,
+        "format": "zip",
+        "stage": "archive_generated",
+        "delivery": "not_verified_by_server",
+    })
 
     buf.seek(0)
     filename = f"vindex-export-{now}.zip"
