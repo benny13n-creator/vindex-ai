@@ -1,6 +1,16 @@
 # Builds the measurement table from n02_measure/out (no document text is ever stored there).
 import glob, json, os
 OUT = "n02_measure/out"
+
+
+def tess(calls):
+    if not calls:
+        return ""
+    fail = [x for x in calls if not x.get("ok")]
+    return f" || tess n={len(calls)} fail={len(fail)} max_s={max(x['s'] for x in calls)} " + " ".join(
+        f"[{x['th']}@{x['at']}:{x['s']}s{'' if x.get('ok') else 'X'}]" for x in calls)
+
+
 rows = []
 for ex in sorted(glob.glob(f"{OUT}/*.exit.json")):
     e = json.load(open(ex)); cid = e["case"]
@@ -18,7 +28,7 @@ for ex in sorted(glob.glob(f"{OUT}/*.exit.json")):
                  "cg_peak": c.get("cg_memory_peak_mib", "-"), "cg_peak_sampled": m(s.get("cg_current")), "cg_anon_peak": m(s.get("cg_anon")),
                  "rss_total": m(s.get("rss_total")), "rss_python": m(s.get("rss_python")), "rss_tess_each": m(s.get("rss_tesseract_each")),
                  "tess_conc": s.get("tesseract_concurrent"), "base_api": c.get("rss_after_import_api_mib"), "wall": c.get("wall_s"),
-                 "container_s": e.get("container_s"), "results": " ; ".join(fmt(r) for r in res)})
+                 "container_s": e.get("container_s"), "results": " ; ".join(fmt(r) for r in res) + tess(c.get("tess_calls"))})
 hdr = ["case", "variant", "mode", "cpus", "mem", "exit", "oomkilled", "oom_kill_events", "cg_peak", "cg_peak_sampled", "cg_anon_peak", "rss_total",
        "rss_python", "rss_tess_each", "tess_conc", "base_api", "wall", "container_s", "results"]
 lines = ["| " + " | ".join(hdr) + " |", "|" + "---|" * len(hdr)]

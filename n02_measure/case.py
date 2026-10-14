@@ -13,7 +13,7 @@ from pathlib import Path
 case_id, variant, mode, spec = sys.argv[1:5]
 OUT = Path(os.environ.get("OUT", "/m/out")); OUT.mkdir(parents=True, exist_ok=True)
 FX = Path(os.environ.get("FX", "/m/fx"))
-sam = subprocess.Popen([sys.executable, "/m/sampler.py", str(OUT / f"{case_id}.sampler.json")])
+sam = subprocess.Popen([sys.executable, "/m/sampler.py", str(OUT / f"{case_id}.sampler.json")]) if os.environ.get("NOSAMPLER") != "1" else subprocess.Popen(["sleep", "100000"])
 time.sleep(0.3)
 
 
@@ -39,6 +39,29 @@ else:
     from uploaded_doc import extractor as ex
 import fitz
 truth = json.load(open(FX / "truth.json", encoding="utf-8"))
+
+INSTR = []
+if os.environ.get("INSTR") == "1":
+    # Per-call timing of every Tesseract run (thread, start offset, duration, outcome) — no text recorded.
+    import pytesseract
+    _pravi_itd = pytesseract.image_to_data
+    T0 = time.perf_counter()
+
+    def _merena_itd(img, *a, **k):
+        s = time.perf_counter()
+        rec = {"th": threading.current_thread().name[-1:], "at": round(s - T0, 1), "px": img.size[0] * img.size[1],
+               "lang": k.get("lang"), "timeout": k.get("timeout")}
+        try:
+            out = _pravi_itd(img, *a, **k)
+            rec["ok"] = True
+            return out
+        except Exception as e:
+            rec["ok"] = False; rec["exc"] = type(e).__name__ + ":" + str(e)[:40]
+            raise
+        finally:
+            rec["s"] = round(time.perf_counter() - s, 1); INSTR.append(rec)
+
+    pytesseract.image_to_data = _merena_itd
 
 
 def _norm(t):
@@ -123,7 +146,7 @@ def rd(p):
 
 
 res = {"case": case_id, "variant": variant, "mode": mode, "spec": spec, "wall_s": wall, **base,
-       "pymupdf": fitz.VersionBind, "results": results,
+       "pymupdf": fitz.VersionBind, "results": results, "tess_calls": INSTR,
        "cg_memory_peak_mib": round(int(rd("/sys/fs/cgroup/memory.peak") or 0) / 2**20, 1),
        "cg_memory_events": dict(l.split() for l in rd("/sys/fs/cgroup/memory.events").splitlines() if l)}
 json.dump(res, open(OUT / f"{case_id}.json", "w"), ensure_ascii=False)

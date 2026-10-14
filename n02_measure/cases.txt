@@ -1,45 +1,7 @@
-# id variant mode spec [cpus|-] [mem: 512m default | none]   (all variants import api + uploaded_doc first)
-a00 pr24 idle -
-a01 pr24 worker scan_cyr_1p.pdf
-a02 pr24 worker scan_10p.pdf
-a03 pr24 worker mixed_6p.pdf
-a04 pr24 worker photo_12mp_page72.pdf
-a08 pr24 worker img_40mp.jpg
-a09 pr24 worker page_a3.pdf
-a10 pr24 worker page_a2.pdf
-a13 pr24 threads scan_10p.pdf|scan_10p.pdf
-a15 pr24 threads scan_cyr_1p.pdf|img_12mp.jpg
-a18 pr24 worker pdf_flate100_a4.pdf
-f00 cand idle -
-f01 cand worker scan_cyr_1p.pdf
-f02 cand worker scan_10p.pdf
-f03 cand worker mixed_6p.pdf
-f04 cand worker photo_12mp_page72.pdf
-f05 cand worker photo_12mp_a4.pdf
-f06 cand worker photo_48mp_a4.pdf
-f07 cand worker img_12mp.jpg
-f08 cand worker img_40mp.jpg
-f08p cand worker img_40mp.png
-f08f cand worker pdf_flate40_a4.pdf
-f18 cand worker pdf_flate100_a4.pdf
-f09 cand worker page_a3.pdf
-f10 cand worker page_a2.pdf
-f11 cand worker page_a1.pdf
-f12 cand worker page_a0.pdf
-f13 cand threads scan_10p.pdf|scan_10p.pdf
-f14 cand threads scan_10p.pdf|mixed_6p.pdf
-f15 cand threads scan_cyr_1p.pdf|img_12mp.jpg
-f15b cand threads photo_12mp_page72.pdf|img_40mp.png
-f15c cand threads page_a1.pdf|page_a0.pdf
-f15d cand threads pdf_flate100_a4.pdf|img_40mp.jpg
-f16 cand retries photo_12mp_page72.pdf:3
-f17 cand retries pdf_flate100_a4.pdf:2
-f19 cand worker scan_cyr_1p.pdf 0.5
-f21 cand threads scan_10p.pdf|scan_10p.pdf 0.5
-g11 v12 worker page_a1.pdf
-g08p v12 worker img_40mp.png
-g13 v12 threads scan_10p.pdf|scan_10p.pdf
-g15b v12 threads photo_12mp_page72.pdf|img_40mp.png
-g15c v12 threads page_a1.pdf|page_a0.pdf
-g04 v12 worker photo_12mp_page72.pdf
-g10 v12 worker page_a2.pdf
+# id variant mode spec [cpus|-] [mem: 512m|none] [env K=V,K=V]
+x20 cand worker scan_10p.pdf 0.5 512m INSTR=1
+x21 cand threads scan_10p.pdf|scan_10p.pdf 0.5 512m INSTR=1
+x21n cand threads scan_10p.pdf|scan_10p.pdf 0.5 512m INSTR=1,NOSAMPLER=1
+x22 cand threads scan_cyr_1p.pdf|scan_cyr_1p.pdf 0.5 512m INSTR=1
+x23 cand threads scan_10p.pdf|scan_10p.pdf 1 512m INSTR=1
+x21p pr24 threads scan_10p.pdf|scan_10p.pdf 0.5 none INSTR=1

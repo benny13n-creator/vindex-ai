@@ -56,4 +56,4 @@ while True:
         with open(tmp, "w") as f:
             json.dump(peak, f)
         os.replace(tmp, out)
-    time.sleep(0.01)
+    time.sleep(float(os.environ.get("SAMPLER_S", "0.01")))

@@ -6,13 +6,14 @@ CASES=${1:-n02_measure/cases.txt}
 mkdir -p n02_measure/out n02_measure/logs
 # importing api requires a valid field key: a throwaway random one per job (never a literal in the repo)
 FEK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-while read -r id variant mode spec cpus mem; do
+while read -r id variant mode spec cpus mem envs; do
   [ -z "${id:-}" ] && continue
   case "$id" in \#*) continue;; esac
   extra=""
   [ -n "${cpus:-}" ] && [ "$cpus" != "-" ] && extra="--cpus=$cpus"
   lim="--memory=512m --memory-swap=512m"
   [ "${mem:-}" = "none" ] && lim=""
+  for kv in $(echo "${envs:-}" | tr "," " "); do extra="$extra -e $kv"; done
   start=$(date +%s.%N)
   docker run --name "c_$id" $lim $extra --env-file n02_measure/env.list -e FIELD_ENCRYPTION_KEY="$FEK" \
     -v "$PWD/n02_measure:/m" -e OUT=/m/out -e FX=/m/fx "$IMG" \
