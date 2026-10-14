@@ -182,7 +182,7 @@ def _copilot(poruka, model_izlaz, supa, *, predmet_id=PRED, uid=UID):
 
 def test_A1_copilot_upisuje_vrstu_rok_bez_stanja():
     supa = _Supa()
-    r, _ = _copilot("Dodaj rok za odgovor na tužbu do 20.11.2026",
+    r, _ = _copilot("Dodaj rok za odgovor do 20.11.2026",
                     {"dogadjaj": "Odgovor na tužbu", "datum_iso": "2026-11-20", "vaznost": "kritičan"}, supa)
     assert r["uspeh"] is True, r
     assert len(supa.hron()) == 1
@@ -198,7 +198,7 @@ def test_A1_copilot_upisuje_vrstu_rok_bez_stanja():
 
 def test_A1_copilot_pre_migracije_129_upis_radi_bez_vrste():
     supa = _Supa(sema_129=False)
-    r, _ = _copilot("Dodaj rok 20.11.2026 za podnesak",
+    r, _ = _copilot("Dodaj rok za podnesak do 20.11.2026",
                     {"dogadjaj": "Podnesak", "datum_iso": "2026-11-20", "vaznost": "važan"}, supa)
     assert r["uspeh"] is True
     assert len(supa.hron()) == 1
@@ -356,7 +356,7 @@ def test_A3_prompt_ne_trazi_pretvaranje_relativnih_datuma():
 
 def test_A3_izricit_iso_datum_se_upisuje():
     supa = _Supa()
-    r, _ = _copilot("Dodaj rok za podnesak 2026-11-20",
+    r, _ = _copilot("Dodaj rok za podnesak do 2026-11-20",
                     {"dogadjaj": "Podnesak", "datum_iso": "2026-11-20", "vaznost": "važan"}, supa)
     assert r["uspeh"] is True and r["datum"] == "2026-11-20"
     assert supa.hron()[0]["datum_iso"] == "2026-11-20"
@@ -423,7 +423,8 @@ def test_A3_isti_datum_dva_zapisa_nije_konflikt():
     supa = _Supa()
     r, _ = _copilot("Dodaj rok 20.11.2026 (2026-11-20) za podnesak",
                     {"dogadjaj": "Podnesak", "datum_iso": "2026-11-20", "vaznost": "važan"}, supa)
-    assert r["uspeh"] is True and supa.hron()[0]["datum_iso"] == "2026-11-20"
+    # runda 4: nije konflikt datuma (razlog nije „vise_datuma"), ali oblik nije u gramatici
+    assert r["uspeh"] is False and r["razlog"] == "oblik_roka" and supa.hron() == []
 
 
 def test_A3_nepotpun_datum_bez_godine_nema_upisa():
@@ -452,7 +453,7 @@ def test_A3_falsifikovan_izlaz_modela_ne_stvara_datum(model_datum):
     """Poruka ima tačno jedan izričit datum; model vraća drugi (ili ništa).
     Server ne veruje modelu: nema upisa."""
     supa = _Supa()
-    r, gpt = _copilot("Dodaj rok za podnesak 20.11.2026",
+    r, gpt = _copilot("Dodaj rok za podnesak do 20.11.2026",
                       {"dogadjaj": "Podnesak", "datum_iso": model_datum, "vaznost": "važan"}, supa)
     assert len(gpt) == 1
     assert r["uspeh"] is False and r["razlog"] == "datum_nije_u_poruci", r
@@ -461,7 +462,7 @@ def test_A3_falsifikovan_izlaz_modela_ne_stvara_datum(model_datum):
 
 def test_A3_model_u_drugom_formatu_isti_datum_prolazi():
     supa = _Supa()
-    r, _ = _copilot("Dodaj rok za podnesak 20.11.2026",
+    r, _ = _copilot("Dodaj rok za podnesak do 20.11.2026",
                     {"dogadjaj": "Podnesak", "datum_iso": "20.11.2026", "vaznost": "važan"}, supa)
     assert r["uspeh"] is True
     assert supa.hron()[0]["datum_iso"] == "2026-11-20", "upisuje se kanonski ISO iz poruke"
@@ -498,8 +499,8 @@ def test_A3_ponovljen_zahtev_dokumentovano_ponasanje():
     ponašanja bila bi novo proizvodno ponašanje (van opsega A3)."""
     supa = _Supa()
     izlaz = {"dogadjaj": "Podnesak", "datum_iso": "2026-11-20", "vaznost": "važan"}
-    r1, _ = _copilot("Dodaj rok 20.11.2026 za podnesak", izlaz, supa)
-    r2, _ = _copilot("Dodaj rok 20.11.2026 za podnesak", izlaz, supa)
+    r1, _ = _copilot("Dodaj rok za podnesak do 20.11.2026", izlaz, supa)
+    r2, _ = _copilot("Dodaj rok za podnesak do 20.11.2026", izlaz, supa)
     assert r1["uspeh"] is True and r2["uspeh"] is True
     assert len(supa.hron()) == 2
     assert all("stanje" not in x for x in supa.hron())
@@ -541,12 +542,12 @@ PREGLED_PROBA = [
     ("Dodaj rok 15 dana, ročište 20.11.2026", (None, "relativni_rok")),
     ("Dodaj rok: rok 15 dana, ročište 20.11.2026", (None, "relativni_rok")),
     ("Додај рок: петнаестог маја 2027", (None, "nepodrzan_format")),
-    ("Додај рок за жалбу 20.11.2026", ("2026-11-20", None)),
+    ("Додај рок за жалбу 20.11.2026", (None, "oblik_roka")),  # runda 4: svrha bez oznake
     ("Додај рок: осам дана пре рочишта 20.11.2026", (None, "relativni_rok")),
     ("Dodaj rok: petnaestog maja 2027", ("2027-05-15", None)),
     ("Dodaj rok 20.11.", (None, "nepotpun_datum")),
     ("Dodaj rok 20/11/2026", (None, "nepodrzan_format")),
-    ("Dodaj rok 2026-11-20T10:00", ("2026-11-20", None)),
+    ("Dodaj rok 2026-11-20T10:00", (None, "oblik_roka")),  # runda 4: vreme nije u gramatici
     ("Dodaj rok 20.11.2026.", ("2026-11-20", None)),
     ("Dodaj rok ٢٠.11.2026", (None, "nepodrzan_format")),
     ("Dodaj rok u predmetu P 20.11/2026", (None, "nepodrzan_format")),
@@ -595,14 +596,12 @@ def test_A3P_probni_skup_recenzenta(poruka, ocekivano):
 # bez trajanja, NEPOSREDNO uveden oznakom isteka („do", „ističe", „rok <datum>",
 # „rok za <svrha> <datum>"). Vidi `_rok_izricit_istek` u routers/copilot.py.
 PRIHVACENO = [
-    ("Dodaj rok 20.11.2026 za dopunu tužbe", "2026-11-20"),
     ("Dodaj rok: rok ističe 20.11.2026", "2026-11-20"),
     ("Dodaj rok do 20.11.2026", "2026-11-20"),
-    ("Dodaj rok za podnesak 20.11.2026", "2026-11-20"),
-    # runda 3: „rok za odgovor na tužbu 20.11.2026" (datum odmah iza predmeta „na
-    # tužbu") je sada PITANJE; isti zahtev sa jakom oznakom „do" ostaje upis.
-    ("Dodaj rok za odgovor na tužbu do 20.11.2026", "2026-11-20"),
-    ("Dodaj rok 20. 11. 2026 za podnesak", "2026-11-20"),
+    ("Dodaj rok za podnesak do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za podnesak do 20. 11. 2026", "2026-11-20"),
+    # runda 4: ranije prihvaćeni „rok 20.11.2026 za dopunu tužbe", „rok za podnesak
+    # 20.11.2026", „rok za odgovor na tužbu do ..." su PITANJE — vidi BIVSI_UPISI.
 ]
 
 
@@ -647,14 +646,14 @@ def test_A3P_poruka_datum_je_dogadjaj_je_jasna():
                     {"dogadjaj": "Žalba", "datum_iso": "2025-03-12", "vaznost": "kritičan"}, supa)
     assert r["razlog"] == "datum_je_dogadjaj"
     assert "datum događaja ili dokumenta" in r["odgovor"] and "ne kao datum isteka roka" in r["odgovor"]
-    assert "do kog rok ističe" in r["odgovor"] and "„rok ističe 20.11.2026“" in r["odgovor"]
+    assert "„rok za žalbu ističe 20.11.2026“" in r["odgovor"] and "„rok za podnesak do 20.11.2026“" in r["odgovor"]
     assert "Rok nije sačuvan" in r["odgovor"]
 
 
 def test_A3P_forsirana_polja_modela_se_ignorisu():
     """Recenzentova proba: model vraća `vrsta`/`stanje`/`izvor`/tuđi id — upis ih ne preuzima."""
     supa = _Supa()
-    r, _ = _copilot("Dodaj rok za odgovor 20.11.2026",
+    r, _ = _copilot("Dodaj rok za odgovor do 20.11.2026",
                     {"dogadjaj": "X", "datum_iso": "2026-11-20", "vaznost": "kritičan",
                      "vrsta": "dogadjaj", "stanje": rokovi.STANJE_POTVRDJEN, "izvor": "manual",
                      "predmet_id": "tudji", "user_id": "tudji", "akter": "Advokat"}, supa)
@@ -722,6 +721,7 @@ def test_A3P_sidro_i_trajanje_dodatno(poruka, razlog):
 DOG = (None, "datum_je_dogadjaj")
 REL = (None, "relativni_rok")
 S20 = ("2026-11-20", None)
+OBL = (None, "oblik_roka")
 
 # HIGH (PROVEN u rundi 2): datum događaja je bio upisan kao rok. Sada: nikad.
 RUNDA2_HIGH = [
@@ -784,20 +784,20 @@ RUNDA2_PROBA = [
     ("Додај рок: у року од петнаест дана од 12.03.2025", REL),
     # dva datuma / broj predmeta / prošlost
     ("Dodaj rok do 20.11.2026 a ročište je 25.11.2026", DOG),
-    ("Dodaj rok do 20.11.2026, predmet P 1234/2026", S20),
+    ("Dodaj rok do 20.11.2026, predmet P 1234/2026", DOG),  # runda 4
     ("Dodaj rok do 20.11.2026, br. predmeta 12.03.2025", DOG),
     ("Dodaj rok 01.01.2025", ("2025-01-01", None)),
     ("DODAJ ROK ZA ZALBU NA PRESUDU OD 12.03.2025", DOG),
     # izričit istek — upis (uklj. LOW over-clarification iz runde 2 koji su sada upis)
     ("Dodaj rok: najkasnije do 20.11.2026", S20),
     ("Dodaj rok za odgovor na žalbu do 20.11.2026", S20),
-    ("Dodaj rok za dostavu dokaza do 20.11.2026", S20),
-    ("Dodaj rok za žalbu na rešenje do 20.11.2026", S20),
+    ("Dodaj rok za dostavu dokaza do 20.11.2026", DOG),  # runda 4: „dostav" u svrsi
+    ("Dodaj rok za žalbu na rešenje do 20.11.2026", DOG),  # runda 4: „rešenj" u svrsi
     # ostaje PITANJE: slaba oznaka „rok <datum>" + imenica dokumenta (presuda) u poruci
     ("Dodaj rok 20.11.2026 za žalbu na presudu", DOG),
     ("Dodaj rok: poslednji dan roka je 20.11.2026", S20),
     ("Dodaj rok do petka 20.11.2026", S20),
-    ("Dodaj rok za pripremu za ročište do 20.11.2026", S20),
+    ("Dodaj rok za pripremu za ročište do 20.11.2026", DOG),  # runda 4: „ročišt" u svrsi
     ("Dodaj rok za uplatu sudske takse do 20.11.2026", S20),
     ("Додај рок до 20.11.2026", S20),
     ("Dodaj rok: rok za izjašnjenje ističe 20. novembra 2026.", S20),
@@ -825,12 +825,12 @@ SOPSTVENI = [
     # glagol događaja bilo gde -> pitanje čak i uz jaku oznaku (namerno konzervativno)
     ("Presuda je doneta, rok ističe 20.11.2026", DOG),
     # slaba oznaka: posle datuma sme samo „za <svrha>" — nepoznata reč događaja u zagradi = pitaj
-    ("Dodaj rok 12.03.2025 (izveštaj veštaka)", DOG),
-    ("Додај рок 12.03.2025 (извештај вештака)", DOG),
+    ("Dodaj rok 12.03.2025 (izveštaj veštaka)", OBL),
+    ("Додај рок 12.03.2025 (извештај вештака)", OBL),
     ("Dodaj rok 20.11.2026, predmet P 1234/2026", DOG),
     # svrha sa „na <predmet>" neposredno ispred datuma (imenica nije na listi) = pitaj
-    ("Dodaj rok za žalbu na nalog 12.03.2025", DOG),
-    ("Додај рок за жалбу на налог 12.03.2025", DOG),
+    ("Dodaj rok za žalbu na nalog 12.03.2025", OBL),
+    ("Додај рок за жалбу на налог 12.03.2025", OBL),
     # glagol događaja poništava i jaku oznaku
     ("Dodaj rok, sastanak zakazan do 20.11.2026", DOG),
     # objašnjenje datuma kao događaja posle zareza (jaka oznaka ne pomaže)
@@ -842,7 +842,7 @@ SOPSTVENI = [
     ("Dodaj rok za ročište 20.11.2026", DOG),
     ("Dodaj rok za odgovor na tužbu 20.11.2026", DOG),
     ("Dodaj rok za žalbu 20.11.2026, presuda u prilogu", DOG),
-    ("20.11.2026", DOG),
+    ("20.11.2026", OBL),
     ("Додај рок, претрес заказан за 20.11.2026", DOG),
     ("Додај рок за жалбу, примили смо је 01.10.2026", DOG),
     # više datuma: „pre" ispred drugog datuma -> događaj (ubija mutant M10)
@@ -865,13 +865,13 @@ SOPSTVENI = [
     ("Додај рок: осмог дана, до 20.11.2026", REL),
     # izričit istek — upis
     ("Dodaj rok 20.11.2026", S20),
-    ("Dodaj rok: 20.11.2026 ističe", S20),
+    ("Dodaj rok: 20.11.2026 ističe", OBL),  # runda 4: oznaka posle datuma
     ("Dodaj rok zaključno sa 20.11.2026", S20),
     ("Додај рок закључно са 20.11.2026", S20),
     ("Dodaj rok: istek roka je 20.11.2026", S20),
     ("Dodaj rok do dana 20.11.2026", S20),
     ("Додај рок: рок је 20.11.2026", S20),
-    ("Додај рок за одговор 20.11.2026", S20),
+    ("Додај рок за одговор 20.11.2026", OBL),  # runda 4: svrha bez oznake
 ]
 
 
@@ -897,7 +897,7 @@ def test_A3R3_proslost_i_dalje_naglasena_uz_novo_pravilo():
 
 def test_A3R3_model_ne_moze_da_nametne_datum_uz_jaku_oznaku():
     supa = _Supa()
-    r, _ = _copilot("Dodaj rok za žalbu na rešenje do 20.11.2026",
+    r, _ = _copilot("Dodaj rok za žalbu do 20.11.2026",
                     {"dogadjaj": "Žalba", "datum_iso": "2026-11-21", "vaznost": "kritičan"}, supa)
     assert r["uspeh"] is False and r["razlog"] == "datum_nije_u_poruci" and supa.hron() == []
 
@@ -912,7 +912,9 @@ def test_A3R3_glagol_dogadjaja_sam_drzi_liniju(monkeypatch):
 def test_A3R3_slaba_oznaka_ne_vazi_uz_imenicu_dogadjaja():
     from routers.copilot import _odluka_o_datumu_roka
     assert _odluka_o_datumu_roka("Dodaj rok 20.11.2026 za odluku") == DOG
-    assert _odluka_o_datumu_roka("Dodaj rok 20.11.2026 za odgovor") == S20
+    # runda 4: datum mora biti poslednji — „rok <datum> za <svrha>" je pitanje
+    assert _odluka_o_datumu_roka("Dodaj rok 20.11.2026 za odgovor") == OBL
+    assert _odluka_o_datumu_roka("Dodaj rok za odgovor do 20.11.2026") == S20
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -955,3 +957,379 @@ def test_A1N_confirm_links_upisuje_kanonski_iso(ulaz, iso):
     r = _confirm(supa, {"naziv": "Žalba", "datum_iso": ulaz, "vaznost": "važan"})
     assert r["success"] is True and r["rok_dodat"] is True
     assert supa.hron()[0]["datum_iso"] == iso and supa.hron()[0]["datum"] == iso
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# A3 — RUNDA 4 (pregled bab5046d: NO-GO). Promenjena KLASA odluke: upis samo
+# kad CELA poruka odgovara gramatici `_ROK_GRAMATIKA_RE` (posle normalizacije);
+# sve ostalo je pitanje sa tačnim oblikom koji se prihvata.
+# ═════════════════════════════════════════════════════════════════════════════
+
+# HIGH/MEDIUM iz runde 3 (recenzent + zadatak): nijedan ne sme da upiše rok.
+RUNDA3_HIGH = [
+    ("Dodaj rok, rok za žalbu počinje 01.10.2026", "2026-10-01"),
+    ("Додај рок, рок за жалбу почиње 01.10.2026", "2026-10-01"),
+    ("Dodaj rok, rok za žalbu teče 01.10.2026", "2026-10-01"),
+    ("Dodaj rok, rok za žalbu kreće 01.10.2026", "2026-10-01"),
+    ("Dodaj rok, rok za žalbu se računa 01.10.2026", "2026-10-01"),
+    ("rok za žalbu počinje 01.10.2026", "2026-10-01"),
+    ("rok za žalbu teče 01.10.2026", "2026-10-01"),
+    ("rok za žalbu kreće 01.10.2026", "2026-10-01"),
+    ("rok za žalbu se računa 01.10.2026", "2026-10-01"),
+    ("Dodaj rok, rok nije do 20.11.2026", "2026-11-20"),
+    ("rok nije do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok, nije rok 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za suđenje 20.11.2026", "2026-11-20"),
+    ("Dodaj rok, suđenje do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok do 20.11.2026, a ročište je tada", "2026-11-20"),
+    ("Dodaj rok, presuda je bila do 01.10.2026 kod sudije", "2026-10-01"),
+    ("Dodaj rok, sudija na odmoru do 20.11.2026", "2026-11-20"),
+    ("Presuda je do 01.10.2026 bila u pisarnici, dodaj rok", "2026-10-01"),
+    ("Dodaj rok do ročišta 20.11.2026", "2026-11-20"),
+    ("Dodaj rok do 20.11.2026 ročište", "2026-11-20"),
+    ("Dodaj rok do 20.11.2026 jer tada počinje suđenje", "2026-11-20"),
+]
+
+
+@pytest.mark.parametrize("poruka,datum", RUNDA3_HIGH)
+def test_A3R4_runda3_high_nikad_upis(poruka, datum):
+    from routers.copilot import _odluka_o_datumu_roka
+    assert _odluka_o_datumu_roka(poruka)[0] is None
+    assert _odluka_o_datumu_roka(poruka, datum)[0] is None
+    supa = _Supa()
+    r, gpt = _copilot(poruka, {"dogadjaj": "Rok", "datum_iso": datum, "vaznost": "važan"}, supa)
+    assert r["uspeh"] is False and r["potrebno_pojasnjenje"] is True, r
+    assert supa.hron() == [] and gpt == []
+
+
+# Ceo probni skup recenzenta runde 3 (rev3_a3_probe + _rev3_probe_test):
+# (poruka, očekivanje recenzenta S/C/?, ishod runde 4).
+RUNDA3_PROBA = [
+    ('Dodaj rok do: 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok do — 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok do20.11.2026', '?', (None, 'oblik_roka')),
+    ('DODAJ ROK DO 20.11.2026', 'S', ('2026-11-20', None)),
+    ('dodaj rok istice 20.11.2026', 'S', ('2026-11-20', None)),
+    ('dodaj rok za zalbu do 20. 11. 2026.', 'S', ('2026-11-20', None)),
+    ('Dodaj rok do 20. novembra 2026.', 'S', ('2026-11-20', None)),
+    ('Додај рок до 20. новембра 2026.', 'S', (None, 'nepodrzan_format')),
+    ('Додај рок за жалбу истиче 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok: rok je 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok, najkasnije do petka 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok do petka 21.11.2026', 'C', (None, 'relativni_rok')),
+    ('Dodaj rok za žalbu do Apelacionog suda 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dostaviti do suda 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do daljeg 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok: dostaviti podnesak do suda, 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Rok za žalbu do višeg suda 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok od 01.10.2026 do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok u periodu od 01.10.2026. do 20.11.2026.', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, presuda dostavljena do 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Rešenje stiglo do nas 01.10.2026, dodaj rok', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rešenje došlo do nas 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Presuda je do 01.10.2026 bila u pisarnici, dodaj rok', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, presudu smo dobili 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, presuda je uručena advokatu 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok - presuda nam je došla 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, dobili smo rešenje 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, ugovor ističe 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok: zakup ističe 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok, punomoćje ističe 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok, garancija istice 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok, rok je bio 12.03.2025', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, rok nije do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, ne do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, nije rok 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, rok više nije 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, rok nije 20.11.2026 nego kasnije', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok "presuda od 12.03.2025" do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za žalbu. Ročište 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 za žalbu na presudu od 12.03.2025', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 za presudu', '?', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 za ročište', '?', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 kada je ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 jer je tada ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026, tada je ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026. Ročište.', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 i ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 - ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 kad počinje rasprava', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 jer tada počinje suđenje', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 — tada je glavna rasprava', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok ročište do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, ročište je do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, suđenje do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rasprava zakazana do 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok je 20.11.2026 jer je tad ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do dana ročišta 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do ročišta 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do ročišta, 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do rasprave 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do suđenja 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do pretresa 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Додај рок до рочишта 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do glavne rasprave 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do sledećeg ročišta 20.11.2026', 'C', (None, 'relativni_rok')),
+    ('Dodaj rok pre ročišta 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, ročište je 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, suđenje je 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, sud je zakazao 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok: saslušanje svedoka 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za saslušanje 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za ročište 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za suđenje 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za veštačenje 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za sastanak sa klijentom 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('rok za izlazak na uviđaj 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok 20.11.2026', 'S', ('2026-11-20', None)),
+    ('rok: 20.11.2026', 'S', ('2026-11-20', None)),
+    ('rok za podnesak 20.11.2026', 'S', (None, 'oblik_roka')),
+    ('rok za odgovor 20.11.2026', 'S', (None, 'oblik_roka')),
+    ('rocište 20.11.2026 dodaj rok', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok 20.11.2026 ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok 20.11.2026 suđenje', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok 20.11.2026 sastanak', 'C', (None, 'datum_je_dogadjaj')),
+    ('rok sednica 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('rok ročište 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('rok sudjenje 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('rok za glavni pretres 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Klijent je zvao i pitao za stanje predmeta. Rok je 20.11.2026.', 'S', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Klijent je zvao. Ročište 20.11.2026.', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok istice dvadesetog novembra 2026', '?', ('2026-11-20', None)),
+    ('Dodaj rok do 20 nov 2026', '?', (None, 'bez_datuma')),
+    ('Додај рок, рок је 20. новембар 2026.', 'S', (None, 'nepodrzan_format')),
+    ('Додај рок, рочиште је 20. новембра 2026.', 'C', (None, 'nepodrzan_format')),
+    ('Додај рок, суђење 20. новембра 2026.', 'C', (None, 'nepodrzan_format')),
+    ('Dodaj рок до 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok до рочишта 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 u 10:00 ročište', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok 20.11.2026 u 10:00', '?', (None, 'oblik_roka')),
+    ('Dodaj rok do 20.11.2026 do 15h', '?', (None, 'oblik_roka')),
+    ('Dodaj rok: rok je istekao 20.11.2025', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, rok je počeo 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok je tekao od 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok počinje 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok teče od 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok počinje da teče 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, početak roka 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, početak je 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok kreće 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok koji počinje 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok za žalbu počinje 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za početak 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, datum dostave 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, klijent je dobio pismo 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, pismo je dobijeno 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok: tužba podneta 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok: tužbu smo poslali 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za žalbu, odluka od 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za žalbu, odluka 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za žalbu (presuda 01.10.2026)', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, poslednji dan je 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok, poslednji dan za uplatu je 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok zaključno sa 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok zakljucno sa 20.11.2026', 'S', ('2026-11-20', None)),
+    ('Dodaj rok, poslednji dan ročišta je 20.11.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok za žalbu do 20.11.2026, presuda je od 12.03.2025', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 (presuda)', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 za odgovor na tužbu', '?', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026 za žalbu, ročište', '?', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, sledeće ročište do 20.11.2026', 'C', (None, 'relativni_rok')),
+    ('Dodaj rok, sud zaseda do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, sudija na odmoru do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, klijent u inostranstvu do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, kancelarija zatvorena do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, svedok nedostupan do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, pritvor traje do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, mera zabrane važi do 20.11.2026', '?', (None, 'oblik_roka')),
+    ('Dodaj rok, prekid postupka do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Dodaj rok, zastoj do 20.11.2026', 'C', (None, 'oblik_roka')),
+    ('Додај рок, рок за жалбу почиње 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, rok za žalbu teče 01.10.2026', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok do 20.11.2026, a ročište je tada', 'C', (None, 'datum_je_dogadjaj')),
+    ('Dodaj rok, presuda je bila do 01.10.2026 kod sudije', 'C', (None, 'datum_je_dogadjaj')),
+]
+
+
+def test_A3R4_proba_runde3_ima_144_ulaza():
+    assert len(RUNDA3_PROBA) == 144
+
+
+@pytest.mark.parametrize("poruka,rec,ocekivano", RUNDA3_PROBA)
+def test_A3R4_probni_skup_runde3(poruka, rec, ocekivano):
+    from routers.copilot import _odluka_o_datumu_roka
+    assert _odluka_o_datumu_roka(poruka) == ocekivano
+    if rec == "C":
+        assert ocekivano[0] is None, "recenzent: mora pitanje"
+
+
+# Sopstveni protivnički ulazi runde 4 — svaki je POKUŠAJ da se gramatika
+# zaobiđe (svrha nosi glagol/negaciju/događaj, višak teksta, homoglif...).
+SOPSTVENI_R4 = [
+    ("rok za žalbu počinje do 01.10.2026", DOG),
+    ("rok za žalbu teče do 01.10.2026", DOG),
+    ("rok za žalbu se računa do 01.10.2026", OBL),
+    ("rok za žalbu nije do 20.11.2026", OBL),
+    ("rok za žalbu ne ističe 20.11.2026", OBL),
+    ("rok za suđenje do 20.11.2026", DOG),
+    ("rok za sudjenje do 20.11.2026", DOG),
+    ("rok za sudenje do 20.11.2026", DOG),
+    ("рок за суђење до 20.11.2026", DOG),
+    ("ROK ZA ROČIŠTE DO 20.11.2026", DOG),
+    ("rok za žalbu bio je do 01.10.2026", OBL),
+    ("rok za žalbu je bio do 01.10.2026", OBL),
+    ("rok za žalbu pisala do 01.10.2026", OBL),        # glagolski pridev radni (-la)
+    ("rok za žalbu odobrena do 20.11.2026", OBL),      # glagolski pridev trpni (-ena)
+    ("rok za žalbu uzeta do 20.11.2026", OBL),         # trpni (-eta)
+    ("rok za žalbu pao do 20.11.2026", OBL),           # radni (-ao)
+    ("rok za žalbu od 01.10.2026", DOG),
+    ("rok za žalbu nakon presude do 20.11.2026", DOG),
+    ("rok do 20.11.2026 za žalbu", OBL),
+    ("rok za žalbu do 20.11.2026, presuda je od 12.03.2025", DOG),
+    ("rok za žalbu u periodu do 20.11.2026", OBL),
+    ("rok za žalbu do sledećeg ročišta 20.11.2026", REL),
+    ("rok za pritvor do 20.11.2026", OBL),
+    ("rok za žalbu kada je ročište do 20.11.2026", DOG),
+    ("Dodaj rok za rok do 20.11.2026", OBL),
+    ("rok za žalbu do petka 21.11.2026", REL),
+    ("rok je bio 12.03.2025", OBL),
+    ("rok za odgovor do 20.11.2026 godine kod sudije", OBL),
+    ("Dodaj rok, sudija na odmoru do 20.11.2026", OBL),
+    ("rok za žalbu tek do 20.11.2026", OBL),
+    ("rok za žalbu pоčinje do 01.10.2026", DOG),       # ćirilično „о" kao homoglif
+    ("rok​do 20.11.2026", OBL),                    # nevidljiv znak
+    ("rok za žalbu do 20.11.2026\nročište", DOG),
+    ("rok za pripremu izmenu dopunu ispravku uplatu odgovor podnesak do 20.11.2026", OBL),  # 7 reči
+    ("rok za žalbu do 20.11.2026 godine.", S20),
+    ("dodaj rok za žalbu do 20.11.2026 2026", OBL),
+    ("rok za žalbu do 2026-11-20 u 10:00", OBL),
+    ("Dodaj rok \"do 20.11.2026\"", OBL),
+    ("Dodaj novi rok do 20.11.2026", OBL),
+    ("rok za presudu ističe 20.11.2026", DOG),
+    # svaka lista zabrana mora sama da drži liniju (mutacije M1c/M1d/M1f/M2d/M3d)
+    ("rok za žalbu će biti do 20.11.2026", OBL),        # pomoćni glagol
+    ("rok za žalbu kada sud odredi do 20.11.2026", DOG),  # veznik
+    ("rok za žalbu traje do 20.11.2026", OBL),           # glagol stanja
+    ("rok za meru zabrane važi do 20.11.2026", OBL),
+    ("rok za žalbu stiže do 20.11.2026", DOG),           # glagol događaja (osnova)
+    ("rok za odgovor potpisan do 20.11.2026", OBL),      # trpni pridev (-an)
+]
+
+
+@pytest.mark.parametrize("poruka,ocekivano", SOPSTVENI_R4)
+def test_A3R4_sopstveni_protivnicki(poruka, ocekivano):
+    from routers.copilot import _odluka_o_datumu_roka
+    assert _odluka_o_datumu_roka(poruka) == ocekivano
+
+
+# Šta se UPISUJE (gramatika — svaka komanda, svaka oznaka, oba pisma).
+SACUVANO_R4 = [
+    ("Dodaj rok za odgovor do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za žalbu ističe 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za žalbu isteče 20.11.2026", "2026-11-20"),
+    ("rok za podnesak do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok najkasnije do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok: najkasnije do 20.11.2026", "2026-11-20"),
+    ("Upiši rok za uplatu sudske takse do 20.11.2026", "2026-11-20"),
+    ("Unesi rok za dopunu do 20.11.2026", "2026-11-20"),
+    ("Zabeleži rok: rok je 20.11.2026", "2026-11-20"),
+    ("Zapiši rok, rok ističe 20.11.2026", "2026-11-20"),
+    ("Postavi rok za reviziju do 20.11.2026", "2026-11-20"),
+    ("Додај рок за жалбу истиче 20.11.2026", "2026-11-20"),
+    ("Упиши рок за одговор до 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za izjašnjenje zaključno sa 20.11.2026", "2026-11-20"),
+    ("Dodaj rok zaključno do 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za podnošenje predloga je do 20.11.2026 godine", "2026-11-20"),
+    ("Dodaj rok: poslednji dan roka je 20.11.2026", "2026-11-20"),
+    ("Dodaj rok, poslednji dan je 20.11.2026", "2026-11-20"),
+    ("Dodaj rok: istek roka je 20.11.2026", "2026-11-20"),
+    ("Dodaj rok do petka 20.11.2026", "2026-11-20"),
+    ("Dodaj rok do dana 20.11.2026", "2026-11-20"),
+    ("Dodaj rok 20.11.2026", "2026-11-20"),
+    ("rok 2026-11-20", "2026-11-20"),
+    ("Dodaj rok za žalbu do 20. novembra 2026.", "2026-11-20"),
+    ("Dodaj rok do 20.11.2026. godine.", "2026-11-20"),
+    ("Dodaj rok do dvadesetog novembra 2026", "2026-11-20"),
+    ("DODAJ ROK ZA ZALBU DO 20.11.2026", "2026-11-20"),
+    ("Dodaj rok za odgovor na žalbu do 20.11.2026", "2026-11-20"),
+    ("rok za pripremu izmenu dopunu ispravku uplatu odgovor do 20.11.2026", "2026-11-20"),  # 6 reči
+    ("Dodaj   rok   za  žalbu   do 20.11.2026", "2026-11-20"),
+]
+
+
+@pytest.mark.parametrize("poruka,iso", SACUVANO_R4)
+def test_A3R4_gramatika_upisuje(poruka, iso):
+    from routers.copilot import _odluka_o_datumu_roka
+    assert _odluka_o_datumu_roka(poruka) == (iso, None)
+    supa = _Supa()
+    r, _ = _copilot(poruka, {"dogadjaj": "Rok", "datum_iso": iso, "vaznost": "važan"}, supa)
+    assert r["uspeh"] is True and supa.hron()[0]["datum_iso"] == iso
+    assert "stanje" not in supa.hron()[0] and "nije potvrđen" in r["odgovor"]
+
+
+# Cena preciznosti: ranije UPISANO (runda 3), sada PITANJE. Svaka je namerna:
+# datum nije poslednji, svrha bez oznake isteka, oznaka posle datuma, vreme,
+# ili svrha sadrži imenicu dokumenta/događaja (tužb, rešenj, dostav, ročišt).
+BIVSI_UPISI = [
+    ("Dodaj rok 20.11.2026 za dopunu tužbe", DOG),
+    ("Dodaj rok za podnesak 20.11.2026", OBL),
+    ("Dodaj rok za odgovor 20.11.2026", OBL),
+    ("Dodaj rok 20.11.2026 za podnesak", OBL),
+    ("Dodaj rok za podnesak 2026-11-20", OBL),
+    ("Dodaj rok 20. 11. 2026 za podnesak", OBL),
+    ("Dodaj rok 20.11.2026 (2026-11-20) za podnesak", OBL),
+    ("Додај рок за жалбу 20.11.2026", OBL),
+    ("Додај рок за одговор 20.11.2026", OBL),
+    ("Dodaj rok 2026-11-20T10:00", OBL),
+    ("Dodaj rok: 20.11.2026 ističe", OBL),
+    ("Dodaj rok za odgovor na tužbu do 20.11.2026", DOG),
+    ("Dodaj rok za žalbu na rešenje do 20.11.2026", DOG),
+    ("Dodaj rok za dostavu dokaza do 20.11.2026", DOG),
+    ("Dodaj rok za pripremu za ročište do 20.11.2026", DOG),
+    ("Dodaj rok do 20.11.2026, predmet P 1234/2026", DOG),
+]
+
+
+@pytest.mark.parametrize("poruka,ocekivano", BIVSI_UPISI)
+def test_A3R4_bivsi_upisi_su_pitanje_sa_oblikom(poruka, ocekivano):
+    from routers.copilot import _odluka_o_datumu_roka
+    assert _odluka_o_datumu_roka(poruka) == ocekivano
+    supa = _Supa()
+    r, gpt = _copilot(poruka, {"dogadjaj": "Rok", "datum_iso": "2026-11-20", "vaznost": "važan"}, supa)
+    assert r["uspeh"] is False and supa.hron() == [] and gpt == []
+    assert "„rok za žalbu ističe 20.11.2026“" in r["odgovor"] and "Rok nije sačuvan" in r["odgovor"]
+
+
+def test_A3R4_poruka_oblik_roka_tacan_oblik():
+    supa = _Supa()
+    r, _ = _copilot("Dodaj rok za podnesak 20.11.2026", {"dogadjaj": "X", "datum_iso": "2026-11-20",
+                                                         "vaznost": "važan"}, supa)
+    assert r["razlog"] == "oblik_roka" and r["potrebno_pojasnjenje"] is True
+    assert r["odgovor"] == ("Rok nije sačuvan. Napišite ga u obliku: „rok za žalbu ističe 20.11.2026“ "
+                            "ili „rok za podnesak do 20.11.2026“.")
+
+
+def test_A3R4_gramatika_proverava_datum_i_dan_nezavisno(monkeypatch):
+    """Provera datuma i dana u nedelji u `_rok_po_gramatici` drži liniju i kada
+    detektori relativnosti (koji inače hvataju neslaganje dana) ne vide ništa."""
+    import re as _re
+    from routers import copilot as cp
+    assert cp._rok_po_gramatici("rok do 20.11.2026", "2026-11-21") is False
+    nikad = _re.compile(r"(?!x)x")
+    monkeypatch.setattr(cp, "_ROK_RELATIVNI_RE", nikad)
+    monkeypatch.setattr(cp, "_ROK_TRAJANJE_RE", nikad)
+    monkeypatch.setattr(cp, "_rok_relativni_parser", lambda tekst: False)
+    assert cp._odluka_o_datumu_roka("Dodaj rok do petka 21.11.2026")[0] is None
+    assert cp._odluka_o_datumu_roka("Dodaj rok do petka 20.11.2026") == S20
+
+
+def test_A3R4_proslost_i_model_i_dalje_vaze():
+    supa = _Supa()
+    r, _ = _copilot("Dodaj rok za žalbu do 01.01.2025", {"dogadjaj": "X", "datum_iso": "2025-01-01",
+                                                          "vaznost": "važan"}, supa)
+    assert r["uspeh"] is True and "u prošlosti" in r["odgovor"]
+    supa = _Supa()
+    r, _ = _copilot("Dodaj rok za žalbu ističe 20.11.2026", {"dogadjaj": "X", "datum_iso": "2026-11-27",
+                                                              "vaznost": "važan"}, supa)
+    assert r["uspeh"] is False and r["razlog"] == "datum_nije_u_poruci" and supa.hron() == []

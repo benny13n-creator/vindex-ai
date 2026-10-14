@@ -769,7 +769,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 # sa današnjim danom kao pretpostavljenim početkom. Sistem ne računa pravne
 # rokove (N03-FD3, `uploaded_doc/deadline_parser.py`), pa ni Copilot ne sme.
 #
-# Pravilo (NS2-A3 runda 3 — DOZVOLJENA LISTA, podrazumevano je PITANJE):
+# Pravilo (NS2-A3 runda 4 — GRAMATIKA CELE PORUKE, podrazumevano je PITANJE):
 # datum se upisuje SAMO ako važi SVE:
 #   (1) u poruci je tačno jedan potpun, kalendarski ispravan datum (sa godinom)
 #       u podržanom obliku;
@@ -777,36 +777,27 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 #       „dvadesetak dana", „mesec i po", „48 sati", „osmog dana",
 #       „petnaestodnevni", „krajem meseca", „od dostave"...);
 #   (3) nema uslovne/približne reči („ili", „ako", „oko"...);
-#   (4) datum je NEPOSREDNO uveden OZNAKOM ISTEKA (vidi `_rok_izricit_istek`):
-#       JAKA oznaka (sama znači „kraj roka"):
-#           „do <d>", „najkasnije do <d>", „zaključno do/sa <d>", „do dana <d>",
-#           „ističe <d>" / „<d> ističe", „rok je <d>" („roka je"),
-#           „poslednji dan (roka) je <d>", „do <dan u nedelji> <d>" (samo ako
-#           se dan u nedelji SLAŽE sa datumom), ćirilica: до, најкасније до,
-#           закључно до/са, истиче, рок је, последњи дан (рока) је;
-#       SLABA oznaka (reč „rok" ispred datuma):
-#           „rok <d>", „rok: <d>", „rok za <svrha> <d>" (svrha = 1–4 reči, bez
-#           predloga na/od/iz/pre/posle/..., bez „tužb-", bez imenice/glagola
-#           događaja), ćirilica: рок <д>, рок за <сврха> <д>;
-#   (5) nigde u poruci nema GLAGOLA DOGAĐAJA ni objašnjenja datuma kao
-#       događaja („primili smo", „zaprimljeno", „održana", „zakazan",
-#       „predata", „stiglo", „doneta", „to je dan kada", „kada je"...);
-#   (6) uz SLABU oznaku: nigde u poruci nema IMENICE događaja/dokumenta
-#       (presuda, rešenje, odluka, dostava, prijem, ročište, rasprava, pretres,
-#       saslušanje, zapisnik, broj...), a posle datuma stoji samo „za <svrha>"
-#       (ili ništa, „godine", vreme, isti datum u zagradi);
-#       uz JAKU oznaku: imenica događaja negde DRUGDE ne smeta („rok za žalbu
-#       na rešenje do 20.11.2026"), ali ne sme stajati u klauzi odmah POSLE
-#       datuma, osim u obliku „za <svrha>" („do 20.11.2026 (ročište)" — pitaj);
-#   (7) datum koji model vrati je BAŠ taj datum.
+#   (4) CELA poruka (posle normalizacije: mala slova, ćirilica -> latinica,
+#       č/ć->c, š->s, ž->z, đ->dj, sabijeni razmaci, bez završne tačke) odgovara
+#       gramatici `_ROK_GRAMATIKA_RE`:
+#         [komanda[,:]] rok[,:] [[za <SVRHA>[,:]] OZNAKA[,:] [dan u nedelji]] DATUM [godine]
+#       komanda = dodaj|upiši|unesi|zabeleži|zapiši|postavi (opciono + „rok");
+#       OZNAKA  = [je] [najkasnije] do [dana] | [je] zaključno sa/do | ističe/isteče
+#                 [dana] | poslednji dan [roka] je | istek roka je | je;
+#       SVRHA   = 1–6 reči od samih slova, nijedna nije na listi `_ROK_SVRHA_ZABRANA`
+#                 (događaj/dokument, početak/računanje, negacija, pomoćni glagoli,
+#                 veznici, oblici glagolskog prideva);
+#       bez OZNAKE je dozvoljeno samo golo „rok <DATUM>";
+#   (5) dan u nedelji (ako postoji) se SLAŽE sa datumom;
+#   (6) datum koji model vrati je BAŠ taj datum.
 # Model nije autoritet: njegov datum se samo poredi, nikad ne upisuje. Sve
 # ostalo je istinito pojašnjenje — bez upisa. Kad je nejasno: pitaj, ne upisuj.
 #
-# NS2-A3 pregled (F1): datum događaja upisan kao rok je gori ishod od pitanja —
-# „osam dana pre ročišta 20.11.2026" upisan kao 20.11.2026 je rok 8 dana KASNO.
-# Runda 2 je radila po CRNOJ listi (sidro = poznata reč u prozoru) i propuštala
-# svaki događaj koji lista nije znala („primili smo je 01.10.2026", „odluka iz
-# 12.03.2025", „pretres zakazan za 20.11.2026"). Runda 3 obrće pravilo.
+# Zašto gramatika: rundi 2 (crna lista reči) i 3 (dozvoljena lista oznaka, ali
+# slobodan tekst oko njih) svaki pregled je našao novu reč koju lista ne zna
+# („rok počinje 01.10.2026", „rok nije do 20.11.2026", „suđenje do ...",
+# „Presuda je do 01.10.2026 bila u pisarnici"). Ovde se ne traže loše reči u
+# slobodnom tekstu — upisuje se samo poruka koja je CELA u poznatom obliku.
 
 # Brojevi rečima — latinica i ćirilica (osnovni, „-naest", „-deset", složeni
 # „dvadeset pet" se hvataju jer je poslednja reč pre jedinice i sama broj).
@@ -851,7 +842,7 @@ _ROK_USLOVNI_RE = re.compile(
     re.IGNORECASE,
 )
 
-# ─── NS2-A3 runda 3: oznake isteka (dozvoljena lista) ───────────────────────
+# ─── NS2-A3 runda 4: gramatika cele poruke ──────────────────────────────────
 _ROK_DANI_U_NEDELJI = (
     r"ponedeljak|ponedeljka|utorak|utorka|sreda|srede|sredu|četvrtak|četvrtka|cetvrtak|cetvrtka|"
     r"petak|petka|subota|subote|subotu|nedelja|nedelje|nedelju|"
@@ -861,65 +852,58 @@ _ROK_DANI_U_NEDELJI = (
 _ROK_DAN_BROJ = (("ponedelj", 0), ("utor", 1), ("sred", 2), ("četvrt", 3), ("cetvrt", 3), ("pet", 4),
                  ("subot", 5), ("nedelj", 6), ("понедељ", 0), ("утор", 1), ("сред", 2), ("четврт", 3),
                  ("пет", 4), ("субот", 5), ("недељ", 6))
-# Dan u nedelji NEPOSREDNO ispred datuma („petka 20.11.2026") — proverava se slaganje.
+# Dan u nedelji NEPOSREDNO ispred datuma („petka 20.11.2026") — samo za maskiranje
+# relativnosti; slaganje sa datumom proverava `_rok_dan_se_slaze`.
 _ROK_DAN_ISPRED_RE = re.compile(rf"(?<!\w)({_ROK_DANI_U_NEDELJI})\s*,?\s*$", re.IGNORECASE)
-# JAKA oznaka isteka, završava se TAČNO na početku datuma (traži se na tekstu pre datuma).
-_ROK_ZNAK_JAK_PRE_RE = re.compile(
-    r"(?:(?<!\w)(?:najkasnije\s+|zaključno\s+|zakljucno\s+)?do(?:\s+dana)?"
-    r"|(?<!\w)(?:zaključno|zakljucno)\s+sa?"
-    r"|(?<!\w)(?:ističe|istice|isteče|istece)(?:\s+dana)?"
-    r"|(?<!\w)rok\w*\s+je"
-    r"|(?<!\w)poslednji\s+dan\s+(?:roka\s+)?je"
-    r"|(?<!\w)(?:најкасније\s+|закључно\s+)?до(?:\s+дана)?"
-    r"|(?<!\w)закључно\s+са?"
-    r"|(?<!\w)(?:истиче|истече)(?:\s+дана)?"
-    r"|(?<!\w)рок\w*\s+је"
-    r"|(?<!\w)последњи\s+дан\s+(?:рока\s+)?је)"
-    rf"(?:\s+(?P<dan>{_ROK_DANI_U_NEDELJI}))?\s*[:,]?\s*$",
-    re.IGNORECASE,
+
+# Normalizacija za gramatiku: ćirilica -> latinica, bez dijakritika (č/ć->c, š->s, ž->z, đ->dj).
+_ROK_NORM = str.maketrans({
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "ђ": "dj", "е": "e", "ж": "z", "з": "z", "и": "i",
+    "ј": "j", "к": "k", "л": "l", "љ": "lj", "м": "m", "н": "n", "њ": "nj", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "ћ": "c", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "c", "џ": "dz", "ш": "s",
+    "č": "c", "ć": "c", "š": "s", "ž": "z", "đ": "dj",
+})
+
+# Reči koje SVRHA ne sme da sadrži (normalizovan oblik). Namerno široko: svaka
+# sumnja -> pitanje. (a) cele reči: predlozi računanja/porekla, negacija,
+# pomoćni glagoli, veznici, reči oznaka; (b) osnove: događaj/dokument/stanje i
+# glagoli početka/računanja/događaja; (c) završeci glagolskog prideva radnog
+# (-ao/-io/-la/-li/-le/-lo) i trpnog (-en/-ena/-an/-ana/-eta/-ata...).
+_ROK_SVRHA_ZABRANA = (
+    r"(?:od|nakon|posle|pre|pred|iz|protiv|sa|s|u|kod|prema|po|do|"
+    r"ne|nije|nisu|nikako|bez|nema|ni|niti|nego|"
+    r"je|su|bio|bila|bilo|bili|bile|biti|bice|bude|budu|ce|cu|ces|cemo|cete|bi|sam|si|smo|ste|"
+    r"kada|kad|dok|jer|ali|a|tada|tad|koji|koja|koje|kojim|sto|gde|cim|jos|vec|ili|ako|oko|osim|"
+    r"istice|istece|najkasnije|zakljucno|poslednji|istek|dan|dana|dani|datum|datuma|rok|roka|roku|"
+    r"traje|traju|vazi|vaze|zaseda|ostaje|pada|racunajuci)(?![a-z])"
+    r"|(?:presud|resenj|odluk|dostav|primlj|primi|zaprim|uruc|rocist|sudjen|suden|sudij|pretres|raspr|"
+    r"saslusanj|zapisnik|tuzb|sednic|uvidjaj|uvidaj|vestacenj|zakljucak|zakljuck|poziv|obavestenj|broj|"
+    r"predmet|sastan|termin|pocet|pocinj|poce|pocn|tec|tek|krec|kren|racun|zapoc|odrz|zakaz|predat|"
+    r"podnet|stig|stiz|donet|donesen|izrecen|objavljen|izdat|dobij|dobil|dobio|poslat|poslal|poslao|"
+    r"dosl|dosao|pritvor|zatvor|odmor|prekid|zastoj|odlag|odloz)"
+    r"|[a-z]*(?:[aeiou]o|l[aeio]|j?en[aeio]?|an[aeio]?|[ae]t[aeio])(?![a-z])"
 )
-# JAKA oznaka POSLE datuma: „20.11.2026 ističe", „20. novembra 2026. godine ističe".
-_ROK_ZNAK_JAK_POSLE_RE = re.compile(
-    r"\s*\.?\s*(?:godine|године)?\s*\.?\s*(?:ističe|istice|isteče|istece|истиче|истече)(?!\w)", re.IGNORECASE)
-# SLABA oznaka: reč „rok" neposredno ispred datuma, ili „rok za <svrha>".
-_ROK_ZNAK_SLAB_PRE_RE = re.compile(
-    r"(?<!\w)(?:rok|рок)(?:\s+(?:za|за)\s+(?P<svrha>[^\W\d_]+(?:\s+[^\W\d_]+){0,3}))?\s*[:\-–—]?\s*$",
-    re.IGNORECASE,
+_ROK_MESECI_NORM = (r"januara|februara|marta|aprila|maja|juna|jula|avgusta|septembra|oktobra|novembra|decembra|"
+                    r"januar|februar|mart|april|maj|jun|jul|avgust|septembar|oktobar|novembar|decembar")
+_ROK_GRAMATIKA_RE = re.compile(
+    r"^(?:(?:dodaj|upisi|unesi|zabelezi|zapisi|postavi)(?:\s+rok)?(?:\s*[:,]\s*|\s+))?"
+    r"rok(?:\s*[:,]\s*|\s+)"
+    r"(?:(?:za\s+(?P<svrha>(?:(?!" + _ROK_SVRHA_ZABRANA + r")[a-z]+\s+){1,6}))?"
+    r"(?:(?:je\s+)?(?:najkasnije\s+)?do(?:\s+dana)?|(?:je\s+)?zakljucno\s+(?:sa|do)"
+    r"|(?:istice|istece)(?:\s+dana)?|poslednji\s+dan\s+(?:roka\s+)?je|istek\s+roka\s+je|je)"
+    r"(?:\s*[:,\-–—]\s*|\s+)"
+    r"(?:(?P<dan>" + _ROK_DANI_U_NEDELJI + r")(?:\s*,\s*|\s+))?)?"
+    r"(?P<datum>\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*\d{4}|\d{4}-\d{1,2}-\d{1,2}"
+    r"|(?:\d{1,2}\.?|[a-z]+og)\s+(?:" + _ROK_MESECI_NORM + r")\s+\d{4})"
+    r"\.?(?:\s+godine)?$"
 )
-# U „rok za <svrha> <datum>" svrha ne sme da nosi predmet/predlog koji bi datum
-# vezao za drugi dokument („odgovor na tužbu 20.11.2026", „žalbu iz 12.03.2025").
-_ROK_SVRHA_ZABRANJENO_RE = re.compile(
-    r"(?<!\w)(?:na|protiv|iz|od|pre|pred|posle|nakon|po|sa|s|u|kod|prema|dan\w*|datum\w*|tužb\w*|tuzb\w*|"
-    r"на|против|из|од|пре|пред|после|након|по|са|с|у|код|према|дан\w*|датум\w*|тужб\w*)(?!\w)",
-    re.IGNORECASE,
-)
-# IMENICE događaja/dokumenta čiji datum NIJE datum isteka roka.
-_ROK_DOGADJAJ_IMENICA_RE = re.compile(
-    r"(?<!\w)(?:presud|rešenj|resenj|odluk|dostav|prijem|primitk|uručenj|urucenj|ročišt|rocist|rasprav|"
-    r"pretres|saslušanj|saslusanj|sednic|uviđaj|uvidjaj|veštačenj|vestacenj|zapisnik|zaključak|zaključk|"
-    r"zakljucak|zakljuck|poziv|obaveštenj|obavestenj|broj|"
-    r"пресуд|решењ|одлук|достав|пријем|уручењ|рочишт|расправ|претрес|саслушањ|седниц|увиђај|"
-    r"вештачењ|записник|закључак|закључк|позив|обавештењ|број)\w*"
-    r"|(?<!\w)(?:br|бр)\.",
-    re.IGNORECASE,
-)
-# GLAGOLI događaja i objašnjenja datuma kao događaja — bilo gde u poruci = pitaj.
-_ROK_DOGADJAJ_GLAGOL_RE = re.compile(
-    r"(?<!\w)(?:prim(?:io|ila|ili|ilo|ljen)\w*|zaprim\w*|dostav(?:io|ila|ili|ilo|ljen)\w*|"
-    r"uruč(?:io|ila|ili|ilo|en)\w*|uruc(?:io|ila|ili|ilo|en)\w*|donet\w*|donesen\w*|održ\w*|odrz\w*|"
-    r"zakaz\w*|predat\w*|preda(?:o|la|li|lo)(?!\w)|podnet\w*|podne(?:o|la|li|lo)(?!\w)|stig\w*|stiž\w*|"
-    r"stiz\w*|izrečen\w*|izrecen\w*|objavljen\w*|izdat[aoie]?(?!\w)|"
-    r"прим(?:ио|ила|или|ило|љен)\w*|заприм\w*|достав(?:ио|ила|или|ило|љен)\w*|уруч(?:ио|ила|или|ило|ен)\w*|"
-    r"донет\w*|донесен\w*|одрж\w*|заказ\w*|предат\w*|преда(?:о|ла|ли|ло)(?!\w)|поднет\w*|"
-    r"подне(?:о|ла|ли|ло)(?!\w)|стиг\w*|стиж\w*|изречен\w*|објављен\w*|издат[аоие]?(?!\w))"
-    r"|(?<!\w)(?:to\s+je\s+dan|kada\s+je|kad\s+je|kada\s+su|kad\s+su|dana\s+kada|"
-    r"то\s+је\s+дан|када\s+је|кад\s+је|када\s+су|кад\s+су|дана\s+када)(?!\w)",
-    re.IGNORECASE,
-)
-# Predlozi računanja/porekla — samo za izbor RAZLOGA kad poruka ima više datuma.
-_ROK_SIDRO_PREDLOG_RE = re.compile(
-    r"(?<!\w)(?:od|pre|pred|posle|nakon|iz|računajući|racunajuci|од|пре|пред|после|након|из|рачунајући)(?!\w)",
-    re.IGNORECASE,
+# Reči koje razlog neuspeha gramatike čine „datum_je_dogadjaj" (inače „oblik_roka").
+_ROK_DOGADJAJ_RE = re.compile(
+    r"(?<![a-z])(?:(?:od|nakon|posle|pre|pred|iz|racunajuci)(?![a-z])"
+    r"|presud|resenj|odluk|dostav|primlj|primi|zaprim|uruc|rocist|sudjen|suden|pretres|raspr|saslusanj|"
+    r"zapisnik|tuzb|sednic|uvidjaj|uvidaj|vestacenj|poziv|obavestenj|broj|br\.|predmet|sastan|pocet|pocinj|"
+    r"poce|pocn|tece|krec|kren|zapoc|odrz|zakaz|predat|podnet|stig|stiz|donet|donesen|izrecen|objavljen|"
+    r"dobij|dobil|dobio|poslal|poslao|dosl|dosao|kada|kad)"
 )
 
 _ROK_ISO_RE = re.compile(r"(?<![\d.\-/])(\d{4})-(\d{1,2})-(\d{1,2})(?![\d\-/])")
@@ -946,7 +930,10 @@ _ROK_POJASNJENJE = {
     "nepotpun_datum": "Datum nije potpun (nedostaje godina ili je godina skraćena). Rok nije sačuvan — navedite dan, mesec i godinu (npr. 20.11.2026).",
     "bez_datuma": "U poruci nema datuma isteka roka. Rok nije sačuvan — navedite tačan datum (dan, mesec i godina).",
     "datum_je_dogadjaj": ("Datum u poruci izgleda kao datum događaja ili dokumenta, ne kao datum isteka roka. "
-                          "Rok nije sačuvan. Napišite datum do kog rok ističe, npr. „rok ističe 20.11.2026“."),
+                          "Rok nije sačuvan. Napišite ga u obliku: „rok za žalbu ističe 20.11.2026“ "
+                          "ili „rok za podnesak do 20.11.2026“."),
+    "oblik_roka": ("Rok nije sačuvan. Napišite ga u obliku: „rok za žalbu ističe 20.11.2026“ "
+                   "ili „rok za podnesak do 20.11.2026“."),
     "uslovni_rok": ("Rok u poruci je uslovan, alternativan ili približan (npr. „ili”, „ako”, „oko”). "
                     "Rok nije sačuvan — napišite jedan datum do kog rok sigurno ističe."),
     "vise_datuma": "Poruka sadrži više datuma ({datum}). Rok nije sačuvan — navedite samo datum isteka roka.",
@@ -984,75 +971,15 @@ def _rok_dan_se_slaze(dan: Optional[str], iso: str) -> bool:
     return broj is not None and _date.fromisoformat(iso).weekday() == broj
 
 
-def _rok_vezan_za_dogadjaj(tekst: str, pocetak: int) -> bool:
-    """Klauza neposredno ispred datuma sadrži predlog računanja, imenicu ili glagol događaja."""
-    rep = re.split(r"[,;:(\n—–]", tekst[:pocetak])[-1][-40:]
-    return bool(_ROK_SIDRO_PREDLOG_RE.search(rep) or _ROK_DOGADJAJ_IMENICA_RE.search(rep)
-                or _ROK_DOGADJAJ_GLAGOL_RE.search(rep))
+def _rok_norm(tekst: str) -> str:
+    """Oblik za gramatiku: mala slova, latinica bez dijakritika, sabijeni razmaci, bez završne tačke."""
+    return " ".join((tekst or "").lower().translate(_ROK_NORM).split()).rstrip(" .")
 
 
-def _rok_jak_ostatak_ok(posle: str) -> bool:
-    """Uz JAKU oznaku: klauza odmah posle datuma je „za <svrha>" ili nema imenicu događaja."""
-    klauza = re.split(r"[,;]", posle, maxsplit=1)[0]
-    if re.match(r"\s*\.?\s*(?:godine|године)?\s*\.?\s*(?:za|за)\s", klauza, re.IGNORECASE):
-        return True
-    return not _ROK_DOGADJAJ_IMENICA_RE.search(klauza)
-
-
-def _rok_slab_ostatak_ok(posle: str) -> bool:
-    """Uz SLABU oznaku: posle datuma sme stajati samo ništa, „godine", vreme,
-    isti datum u zagradi, ili „za <svrha>". Sve drugo („— to je dan kada...",
-    „(presuda)", „ročište") može da objašnjava datum kao događaj -> pitaj."""
-    r = re.sub(r"^\s*(?:T|u\s+)?\d{1,2}:\d{2}(?::\d{2})?", "", posle, flags=re.IGNORECASE)
-    r = re.sub(r"\(\s*[\d.\-\s]+\)", " ", r)
-    r = re.sub(r"(?<!\w)(?:godine|године)(?!\w)", " ", r, flags=re.IGNORECASE)
-    r = r.strip(" \t\r\n.,;:!()-–—")
-    return r == "" or bool(re.match(r"(?:za|за)\s", r, re.IGNORECASE))
-
-
-def _rok_izricit_istek(tekst: str, datumi: list) -> bool:
-    """Tačka (4)–(6) pravila iznad: SVAKO pojavljivanje (jedinog) datuma mora biti
-    uvedeno oznakom isteka; izuzetak je isti datum ponovljen u zagradi."""
-    if _ROK_DOGADJAJ_GLAGOL_RE.search(tekst):
-        return False
-    ima_imenicu = bool(_ROK_DOGADJAJ_IMENICA_RE.search(tekst))
-    prihvaceno = False
-    for iso, p, k in datumi:
-        pre, posle = tekst[:p], tekst[k:]
-        if pre.rstrip().endswith("("):
-            continue  # „20.11.2026 (2026-11-20)" — ponovljen isti datum
-        m = _ROK_ZNAK_JAK_PRE_RE.search(pre)
-        jak = bool(m) and _rok_dan_se_slaze(m.group("dan"), iso)
-        jak = jak or bool(_ROK_ZNAK_JAK_POSLE_RE.match(posle))
-        if jak:
-            if not _rok_jak_ostatak_ok(posle):
-                return False
-            prihvaceno = True
-            continue
-        m = _ROK_ZNAK_SLAB_PRE_RE.search(pre)
-        svrha = (m.group("svrha") or "") if m else ""
-        if (m and not ima_imenicu and not _ROK_SVRHA_ZABRANJENO_RE.search(svrha)
-                and _rok_slab_ostatak_ok(posle)):
-            prihvaceno = True
-            continue
-        return False
-    return prihvaceno
-
-
-def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
-    """(datum_iso, None) ako je datum izričit i potvrđen, inače (None, razlog).
-
-    `datum_modela=...` (Ellipsis) znači „model još nije pitan" — proveravaju se
-    samo determinističke činjenice poruke. Čista funkcija; ne računa ništa.
-    """
+def _rok_datumi(tekst: str) -> tuple:
+    """Svi potpuni datumi u tekstu: ([(iso, pocetak, kraj)...], [nevalidni...]). Ne pogađa."""
     from datetime import date as _date
-    from uploaded_doc.deadline_parser import ekstrahuj_rokove, _MESECI_GEN, _MESECI_NOM
-    tekst = poruka or ""
-
-    # Cifre van ASCII (npr. arapsko-indijske) — oblik nije podržan, ne „ne postoji".
-    if any(ch.isdigit() and not ch.isascii() for ch in tekst):
-        return None, "nepodrzan_format"
-
+    from uploaded_doc.deadline_parser import ekstrahuj_rokove
     nadjeni: dict = {}       # pocetak -> (iso, pocetak, kraj)
     nevalidni: list = []
     for r in ekstrahuj_rokove(tekst):
@@ -1062,19 +989,41 @@ def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
                 nadjeni.setdefault(r.get("pozicija", 0), (iso, r.get("pozicija", 0), r.get("kraj", 0)))
             else:
                 nevalidni.append(r.get("vrednost"))
-    for m in _ROK_TACKE_RAZMAK_RE.finditer(tekst):
-        try:
-            nadjeni.setdefault(m.start(), (_date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat(),
-                                           m.start(), m.end()))
-        except ValueError:
-            nevalidni.append(m.group(0))
-    for m in _ROK_ISO_RE.finditer(tekst):
-        try:
-            nadjeni.setdefault(m.start(), (_date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat(),
-                                           m.start(), m.end()))
-        except ValueError:
-            nevalidni.append(m.group(0))
-    datumi = sorted(nadjeni.values(), key=lambda d: d[1])
+    for rx, d, mes, g in ((_ROK_TACKE_RAZMAK_RE, 1, 2, 3), (_ROK_ISO_RE, 3, 2, 1)):
+        for m in rx.finditer(tekst):
+            try:
+                nadjeni.setdefault(m.start(), (_date(int(m.group(g)), int(m.group(mes)), int(m.group(d))).isoformat(),
+                                               m.start(), m.end()))
+            except ValueError:
+                nevalidni.append(m.group(0))
+    return sorted(nadjeni.values(), key=lambda x: x[1]), nevalidni
+
+
+def _rok_po_gramatici(tekst: str, iso: str) -> bool:
+    """Tačke (4)–(5) pravila iznad: CELA poruka je u obliku `_ROK_GRAMATIKA_RE`,
+    njen DATUM je baš `iso`, a dan u nedelji (ako ga ima) se slaže sa datumom."""
+    m = _ROK_GRAMATIKA_RE.fullmatch(_rok_norm(tekst))
+    if not m:
+        return False
+    nadjeni, nevalidni = _rok_datumi(m.group("datum"))
+    return (not nevalidni and {d[0] for d in nadjeni} == {iso}
+            and _rok_dan_se_slaze(m.group("dan"), iso))
+
+
+def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
+    """(datum_iso, None) ako je datum izričit i potvrđen, inače (None, razlog).
+
+    `datum_modela=...` (Ellipsis) znači „model još nije pitan" — proveravaju se
+    samo determinističke činjenice poruke. Čista funkcija; ne računa ništa.
+    """
+    from uploaded_doc.deadline_parser import _MESECI_GEN, _MESECI_NOM
+    tekst = poruka or ""
+
+    # Cifre van ASCII (npr. arapsko-indijske) — oblik nije podržan, ne „ne postoji".
+    if any(ch.isdigit() and not ch.isascii() for ch in tekst):
+        return None, "nepodrzan_format"
+
+    datumi, nevalidni = _rok_datumi(tekst)
 
     # „do petka 20.11.2026": dan u nedelji koji se SLAŽE sa datumom nije relativan izraz —
     # maskira se samo za detekciju relativnosti. Neslaganje ostaje relativno (pitaj).
@@ -1104,12 +1053,10 @@ def _odluka_o_datumu_roka(poruka: str, datum_modela=...) -> tuple:
     if _ROK_USLOVNI_RE.search(tekst):
         return None, "uslovni_rok"
     if len(jedinstveni) > 1:
-        # Tačniji razlog advokatu: ako je bar jedan datum vezan za događaj, reci to.
-        if any(_rok_vezan_za_dogadjaj(tekst, p) for _, p, _ in datumi):
-            return None, "datum_je_dogadjaj"
-        return None, "vise_datuma"
-    if not _rok_izricit_istek(tekst, datumi):
-        return None, "datum_je_dogadjaj"
+        # Tačniji razlog advokatu: ako poruka pominje događaj ili računanje, reci to.
+        return None, ("datum_je_dogadjaj" if _ROK_DOGADJAJ_RE.search(_rok_norm(tekst)) else "vise_datuma")
+    if not _rok_po_gramatici(tekst, jedinstveni[0]):
+        return None, ("datum_je_dogadjaj" if _ROK_DOGADJAJ_RE.search(_rok_norm(tekst)) else "oblik_roka")
     if datum_modela is ...:
         return jedinstveni[0], None
     if _datum_u_iso(datum_modela) != jedinstveni[0]:
