@@ -47,8 +47,10 @@ def test_citanje_potvrda_upareno_po_resource_id():
     """FAZA 6.5: jedini citac odluka je `odluke()`; `potvrdjeni_ids` je izveden
     iz njega. Ugovor je nepromenjen — samo je vlasnik citanja jedan."""
     s = _izv("shared/rok_potvrda.py")
-    telo = s[s.index("def odluke("):s.index("def stanje_roka(")]
-    assert '.in_("resource_id", ids)' in telo
+    # NS2B-C F1: upit je u `procitaj_lanac` (stranicenje, id-jevi u grupama), koju `odluke()` poziva.
+    telo = s[s.index("def procitaj_lanac("):s.index("def stanje_roka(")]
+    assert "procitaj_lanac(ids" in telo[telo.index("def odluke("):]
+    assert '.in_("resource_id", grupa)' in telo
     assert '.eq("resource_type", RESURS)' in telo
     for zabranjeno in ("datum", "naziv", "vaznost", "akter"):
         assert zabranjeno not in telo, f"citanje potvrda gleda `{zabranjeno}`"

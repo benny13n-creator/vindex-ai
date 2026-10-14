@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Iterable, Optional
 
-from shared.rok_potvrda import AKCIJA_ODBIJANJE, AKCIJA_POTVRDA, RESURS
+from shared.rok_potvrda import AKCIJA_POTVRDA, procitaj_lanac
 
 
 def _vreme(v) -> Optional[datetime]:
@@ -49,18 +49,13 @@ def izvor_uklonjen_posle_potvrde(redovi: Iterable[dict]) -> set:
     from shared.deps import _get_supa
     supa = _get_supa()
     ids = [str(r["id"]) for r in redovi]
-    lanac = (supa.table("audit_immutable")
-             .select("action, resource_id, seq, created_at")
-             .eq("resource_type", RESURS)
-             .in_("resource_id", ids)
-             .in_("action", [AKCIJA_POTVRDA, AKCIJA_ODBIJANJE])
-             .order("seq")
-             .execute())
+    # NS2B-C F1: ceo lanac po stranama ili izuzetak (jedan upit je tiho secen na 1000 redova).
+    lanac = procitaj_lanac(ids, "action, resource_id, seq, created_at")
     # NS2B-C: isto pravilo kao `rok_potvrda.odluke` — odbijanje je zavrsno, pa potvrda
     # upisana posle odbijanja (trka/zastareo prozor) ne vraca rok u „potvrdjen".
     potvrdjen_u: dict = {}
     odbijeni: set = set()
-    for z in (lanac.data or []):
+    for z in lanac:
         rid = str(z.get("resource_id"))
         if z.get("action") == AKCIJA_POTVRDA:
             if rid not in odbijeni:

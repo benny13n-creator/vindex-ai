@@ -341,6 +341,13 @@ class _AuditUpit:
     def order(self, k, **kw):
         return _AuditUpit(sorted(self._r, key=lambda r: r.get(k, 0)))
 
+    # NS2B-C F1: odluke() cita lanac po stranama (`seq > poslednji`, `limit`).
+    def gt(self, k, v):
+        return _AuditUpit([r for r in self._r if r.get(k) is not None and r.get(k) > v])
+
+    def limit(self, n):
+        return _AuditUpit(self._r[:n])
+
     def execute(self):
         class R:
             pass

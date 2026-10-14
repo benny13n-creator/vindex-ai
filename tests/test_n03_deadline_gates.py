@@ -986,7 +986,10 @@ def test_FD6_istorijska_odluka_se_ne_brise_ni_ne_prepisuje(http):
     odluke samo DODAJU zapise; nijedna ranija odluka nije obrisana ni izmenjena,
     a hronologija se ne menja (odbijen != obrisan)."""
     k, b = http
-    pre = [dict(z) for z in b.tabele["audit_immutable"]]
+    # NS2B-C F1: ponovna potvrda potvrdjenog roka upisuje SAMO kad je posle potvrde uklonjen
+    # dokument (FD6 ponovni pregled); zato potvrda ima vreme PRE uklanjanja.
+    _vremena_potvrde(b)
+    pre =[dict(z) for z in b.tabele["audit_immutable"]]
     hron_pre = [dict(h) for h in b.tabele["predmet_hronologija"]]
     _dodaj(b, "r-novi-izvor", ISO_25)
     _uklonjen_dokument(b, _T_POSLE)

@@ -94,16 +94,24 @@ class _Lanac:
 
     def table(self, ime):
         assert ime == "audit_immutable", ime
+        self._posle = None
         return self
 
     def select(self, *a, **k): return self
     def eq(self, *a, **k): return self
     def in_(self, *a, **k): return self
     def order(self, *a, **k): return self
+    def limit(self, *a, **k): return self
+
+    def gt(self, k, v):                         # NS2B-C F1: odluke() cita lanac po stranama (seq > poslednji)
+        assert k == "seq", k
+        self._posle = v
+        return self
 
     def execute(self):
         import types
-        return types.SimpleNamespace(data=[{"action": a, "resource_id": r, "seq": i} for i, (r, a) in enumerate(self.odluke)])
+        return types.SimpleNamespace(data=[{"action": a, "resource_id": r, "seq": i} for i, (r, a) in enumerate(self.odluke)
+                                           if self._posle is None or i > self._posle])
 
 
 @pytest.mark.parametrize("odluke,salje", [

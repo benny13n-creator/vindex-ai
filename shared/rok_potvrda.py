@@ -40,7 +40,8 @@ zahteva moze upisati potvrdu posle odbijanja. Izvodjenje koje ne zavisi od
 redosleda cini taj upis bezopasnim: skup odluka samo raste, a REJECTED je
 apsorbujuce stanje, pa nijedan redosled, ponavljanje ni trka ne mogu odbijen
 rok uciniti potvrdjenim. Potvrda -> odbijanje i dalje radi. Ponovljena
-potvrda ili odbijanje ne menja ishod; lanac i dalje beleži SVAKI pokušaj.
+potvrda ili odbijanje ne menja ishod; od NS2B-C F1 ruta je i NE upisuje (lanac ne raste
+bez promene stanja), osim ponovne potvrde posle uklanjanja izvora (N03-FD6 ponovni pregled).
 
 Namerno ponovno otvaranje odbijenog roka NE POSTOJI kao obicna odluka. Ako
 zatreba, to je zasebna, posebno revizibilna operacija (buduci rad).
@@ -101,6 +102,63 @@ STANJE_ODBIJEN = "REJECTED"
 #: vidljivo, spolja i za akciju ZABRANJENO.
 STANJE_NEPOZNATO = "UNKNOWN"
 
+#: PostgREST/Supabase `max-rows` (podrazumevano 1000) TIHO sece odgovor bez opsega.
+#: Strana nikad nije veca od te granice (isti obrazac kao `routers/data_export._fetch`).
+_STRANA = 1000
+#: Broj `resource_id` vrednosti po upitu: `in.(...)` ide u URL, a cron (SMS/email/ICS)
+#: salje rokove SVIH korisnika odjednom. ~40 znakova po uuid-u → ~4 KB po upitu.
+_IDS_PO_UPITU = 100
+#: Gornja granica strana po grupi id-jeva (i uz `max-rows`=1 to je 10.000 odluka po grupi;
+#: uz 1000 po strani, 10 miliona). Prekoracenje je greska, ne „dovoljno" — petlja bez
+#: kraja nad neispravnim odgovorom nije citanje.
+_MAX_STRANA = 10_000
+
+
+def procitaj_lanac(rok_ids: Iterable[str], kolone: str) -> list:
+    """SVE odluke o datim rokovima, rastuce po `seq` — ili izuzetak. Nikad deo.
+
+    NS2B-C F1: jedan upit bez opsega PostgREST sece na `max-rows` (1000) bez greske, a
+    redovi su rastuci po `seq` — dakle padaju upravo NAJNOVIJE odluke. Kasnije odbijanje
+    je tako nestajalo, pa je odbijen rok citan kao CONFIRMED (ICS, SMS cron, portal...).
+
+    Zato: stranicenje po kljucu (`seq > poslednji`, `order(seq)`, `limit(_STRANA)`), kraj
+    TEK na PRAZNOJ strani (ne na kratkoj — i `max-rows` nizi od `_STRANA` je bezbedan),
+    `seq` strogo raste unutar i preko strana (inace duplikati/rupe → izuzetak), petlja je
+    ogranicena. Id-jevi se salju u grupama (`_IDS_PO_UPITU`). Pad bilo koje strane dize
+    izuzetak; pozivalac bira: strogo → UNKNOWN/503, inace prazno (nista potvrdjeno).
+    `rok_izvor` cita lanac ovom istom funkcijom — jedan citac, jedno pravilo.
+    """
+    ids = list(dict.fromkeys(str(x) for x in (rok_ids or []) if x))
+    from shared.deps import _get_supa
+    supa = _get_supa()
+    out: list = []
+    for i in range(0, len(ids), _IDS_PO_UPITU):
+        grupa = ids[i:i + _IDS_PO_UPITU]
+        poslednji = None
+        for _ in range(_MAX_STRANA):
+            q = (supa.table("audit_immutable")
+                 .select(kolone)
+                 .eq("resource_type", RESURS)
+                 .in_("resource_id", grupa)
+                 .in_("action", [AKCIJA_POTVRDA, AKCIJA_ODBIJANJE]))
+            if poslednji is not None:
+                q = q.gt("seq", poslednji)
+            strana = q.order("seq").limit(_STRANA).execute().data or []
+            if not strana:
+                break
+            for red in strana:
+                seq = red.get("seq")
+                if isinstance(seq, bool) or not isinstance(seq, int):
+                    raise RuntimeError("lanac odluka: seq nije ceo broj")
+                if poslednji is not None and seq <= poslednji:
+                    raise RuntimeError("lanac odluka: stranicenje nije strogo rastuce po seq")
+                poslednji = seq
+            out.extend(strana)
+        else:
+            raise RuntimeError("lanac odluka: prekoracen broj strana")
+    out.sort(key=lambda r: r["seq"])
+    return out
+
 
 def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
     """Stanje odluke po roku: `{rok_id: CONFIRMED|REJECTED}`.
@@ -117,14 +175,7 @@ def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
     if not ids:
         return {}
     try:
-        from shared.deps import _get_supa
-        r = (_get_supa().table("audit_immutable")
-             .select("action, resource_id, seq")
-             .eq("resource_type", RESURS)
-             .in_("resource_id", ids)
-             .in_("action", [AKCIJA_POTVRDA, AKCIJA_ODBIJANJE])
-             .order("seq")
-             .execute())
+        redovi = procitaj_lanac(ids, "action, resource_id, seq")
     except Exception as exc:
         # VCR001 T03: `strogo=True` (Case Actions) — iz ODSUSTVA odluke pozivalac izvodi obavezu, pa
         # neprocitan lanac ne sme da izgleda kao „nema odluka“. Podrazumevano ponasanje je nepromenjeno.
@@ -134,7 +185,7 @@ def odluke(rok_ids: Iterable[str], strogo: bool = False) -> dict:
         return {}
 
     stanje: dict = {}
-    for red in (r.data or []):
+    for red in redovi:
         rid, akcija = str(red.get("resource_id")), red.get("action")
         if akcija != AKCIJA_POTVRDA:
             # Odbijanje (i, fail-closed, svaka nepoznata akcija) je apsorbujuce.

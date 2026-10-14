@@ -167,6 +167,11 @@ class _Upit:
             return x is not None and str(v).strip("%").lower() in str(x).lower()
         if x is None:
             return False
+        # Kao Postgres za BIGSERIAL/numeric (npr. `seq`): brojevi se porede kao brojevi, ne kao tekst
+        # (kao tekst bi "99" > "100", pa bi stranicenje `seq > poslednji` vracalo istu stranu).
+        if (isinstance(x, (int, float)) and isinstance(v, (int, float))
+                and not isinstance(x, bool) and not isinstance(v, bool)):
+            return {"gte": x >= v, "gt": x > v, "lte": x <= v, "lt": x < v}.get(op, True)
         if op == "gte": return str(x) >= str(v)
         if op == "gt": return str(x) > str(v)
         if op == "lte": return str(x) <= str(v)

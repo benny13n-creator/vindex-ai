@@ -74,6 +74,10 @@ class _Upit:
     def lt(self, k, v):
         return self._novi([r for r in self._r if str(r.get(k, "")) < str(v)])
 
+    def gt(self, k, v):
+        # NS2B-C F1: odluke() straniči lanac po `seq > poslednji`; seq je BIGSERIAL → brojevno poređenje.
+        return self._novi([r for r in self._r if r.get(k) is not None and r.get(k) > v])
+
     def order(self, k, **kw):
         return self._novi(sorted(self._r, key=lambda r: (r.get(k) is None, r.get(k))))
 

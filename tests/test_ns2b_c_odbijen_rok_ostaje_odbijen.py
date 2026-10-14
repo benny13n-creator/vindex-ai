@@ -141,19 +141,22 @@ def test_2c_izvor_upozorenje_ne_vaskrsava_odbijen_rok(ok):
 # (3) ponovljen zahtev posle nepoznatog ishoda
 def test_3_dvostruka_potvrda_i_dvostruko_odbijanje(ok):
     k, b = ok
-    for _ in range(2):
+    # NS2B-C F1: ponovljena ista odluka je 200 sa stanjem iz lanca, ali BEZ novog reda
+    # (`odluka_zabelezena: False`) — lanac ne raste bez promene stanja.
+    for i in range(2):
         r = _post(k, "r-1", "potvrdi")
         assert r.status_code == 200 and r.json()["stanje_odluke"] == STANJE_POTVRDJEN
-    for _ in range(2):
+        assert r.json()["odluka_zabelezena"] is (i == 0)
+    for i in range(2):
         r = _post(k, "r-2", "odbij")
         assert r.status_code == 200 and r.json()["stanje_odluke"] == STANJE_ODBIJEN
-    assert _odluke_reda(b, "r-1") == [P, P] and _odluke_reda(b, "r-2") == [O, O]
-    # Izlazni slojevi pitaju STANJE (skup id-jeva), ne broj odluka: dve potvrde = jedan izvrsiv rok.
+        assert r.json()["odluka_zabelezena"] is (i == 0)
+    assert _odluke_reda(b, "r-1") == [P] and _odluke_reda(b, "r-2") == [O]
     assert potvrdjeni_ids(["r-1", "r-2"]) == {"r-1"}
-    # Ponovljeno odbijanje posle potvrde i dalje gasi; ponovljena potvrda posle toga je 409.
-    assert _post(k, "r-1", "odbij").status_code == 200
+    # Odbijanje POTVRDJENOG roka i dalje upisuje i gasi; ponovljena potvrda posle toga je 409.
+    assert _post(k, "r-1", "odbij").json()["odluka_zabelezena"] is True
     assert _post(k, "r-1", "potvrdi").status_code == 409
-    assert _odluke_reda(b, "r-1") == [P, P, O]
+    assert _odluke_reda(b, "r-1") == [P, O]
 
 
 # (4) i (10) drugi korisnik / izolacija kancelarija
