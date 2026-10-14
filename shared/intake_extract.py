@@ -386,7 +386,7 @@ def _osnove_reci(r: str) -> tuple:
     nepostojano = None
     if len(r) >= 5 and _NEPOSTOJANO_A.search(r):
         # Samo cela reč sa padežnim nastavkom: „petr“ ne sme da pogodi „Petrović“.
-        nepostojano = re.compile(r"(?<!\w)" + re.escape(r[:-2] + r[-1]) + r"(?:a|e|i|u|om|em|ima)?(?!\w)")
+        nepostojano = re.compile(r"(?<!\w)" + re.escape(r[:-2] + r[-1]) + r"(?:a|u|om|em)(?!\w)")  # samo muški kosi padež jednine; -e/-i/-ima su ženski/množinski oblici
     return osnova, nepostojano
 
 

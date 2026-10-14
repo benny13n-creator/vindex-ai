@@ -244,6 +244,8 @@ def test_ocr_dostavnice_ceo_tok_primalac_nije_stranka_i_original_ostaje(ok, monk
     ("Тужиља: Петра Илић", "plaintiff", "Petar Ilić"),
     ("u parnici tužilje Petre Ilić", "plaintiff", "Petar Ilić"),
     ("Tužioci: Petra Ilić i Marko Ilić", "plaintiff", "Petar Ilić"),   # krug 3: množina nije kosi padež
+    ("po tužbi tužioca Petre Ilić", "plaintiff", "Petar Ilić"),        # RC recenzija: -e je ženski oblik
+    ("nalaže se tuženom da Petri Ilić isplati", "defendant", "Petar Ilić"),  # RC recenzija: -i je ženski oblik
 ])
 def test_nepostojano_a_ne_vazi_posle_nominativa_ili_zenske_oznake(tekst, tip, vrednost):
     assert _uloga(tekst, tip, vrednost) is False
