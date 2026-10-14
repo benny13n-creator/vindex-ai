@@ -70,3 +70,70 @@ def test_rasterizacija_ne_ostavlja_dekodirane_strane_u_procesu(tmp_path, monkeyp
     assert ocr_used is True and skeniran is False and len(strane) == STRANA
     # Bez pražnjenja keša proces ovde zadržava ~250 MiB; sa njim ~0. Prag je široko između.
     assert zadrzano < 100, f"posle extract_pdf proces zadržava {zadrzano:.0f} MiB dekodiranih strana"
+
+
+# ── Ostala dva mesta rasterizacije (nalaz nezavisnog recenzenta: pokriven je bio samo extract_pdf) ──────────
+# Ugovor: posle SVAKE rasterizovane strane keš se prazni pre sledeće — inače dugačak mešovit/skeniran PDF
+# ponovo gomila dekodirane strane u procesu. Meri se redosled događaja (render → pražnjenje), ne RSS: brzo i
+# bez Tesseract-a. Mehanizam pražnjenja (store_shrink stvarno oslobađa memoriju) dokazuje test iznad.
+
+def _mali_sken(putanja, strana=3):
+    from PIL import ImageDraw
+    doc = fitz.open()
+    for i in range(strana):
+        img = Image.new("RGB", (400, 560), "white")
+        ImageDraw.Draw(img).rectangle((40 + i * 10, 40, 360, 200), fill="black")
+        b = io.BytesIO()
+        img.save(b, "PNG")
+        s = doc.new_page(width=595, height=842)
+        s.insert_image(s.rect, stream=b.getvalue())
+    doc.save(str(putanja))
+    doc.close()
+
+
+def _dnevnik_rasterizacije(monkeypatch):
+    dogadjaji = []
+    pravi = fitz.Page.get_pixmap
+
+    def _render(self, *a, **k):
+        dogadjaji.append("render")
+        return pravi(self, *a, **k)
+
+    monkeypatch.setattr(fitz.Page, "get_pixmap", _render)
+    monkeypatch.setattr(extractor, "_oslobodi_kes_rasterizacije", lambda: dogadjaji.append("prazni"))
+    return dogadjaji
+
+
+def _svaki_render_ispraznjen_pre_sledeceg(dogadjaji, broj):
+    assert dogadjaji.count("render") == broj, dogadjaji
+    for i, d in enumerate(dogadjaji):
+        if d == "render":
+            sledeci = next((x for x in dogadjaji[i + 1:] if x in ("render", "prazni")), None)
+            assert sledeci == "prazni", f"strana rasterizovana bez pražnjenja keša pre sledeće: {dogadjaji}"
+
+
+def test_ocr_strana_mesovitog_pdf_prazni_kes_posle_svake_strane(tmp_path, monkeypatch):
+    p = tmp_path / "mesovit.pdf"
+    _mali_sken(p, 3)
+    dogadjaji = _dnevnik_rasterizacije(monkeypatch)
+    monkeypatch.setattr(extractor, "_detect_ocr_lang", lambda: "eng")
+
+    def _lazni_ocr(img, jezik):
+        dogadjaji.append("ocr")
+        return "tekst strane", 0.9
+
+    monkeypatch.setattr(extractor, "_ocr_image", _lazni_ocr)
+    dopuna, confs = extractor._ocr_strane_pdf(p, [0, 1, 2])
+    assert sorted(dopuna) == [0, 1, 2] and confs == [0.9] * 3
+    _svaki_render_ispraznjen_pre_sledeceg(dogadjaji, 3)
+    # Pražnjenje ide PRE OCR-a: dekodirana strana ne sme da čeka u kešu dok traje spori Tesseract.
+    assert dogadjaji == ["render", "prazni", "ocr"] * 3, dogadjaji
+
+
+def test_merenje_necitljivih_strana_prazni_kes_posle_svake_strane(tmp_path, monkeypatch):
+    p = tmp_path / "sken.pdf"
+    _mali_sken(p, 3)
+    dogadjaji = _dnevnik_rasterizacije(monkeypatch)
+    necitljive = extractor.necitljive_strane_pdf(p, ["", "", ""])
+    assert necitljive == [1, 2, 3]
+    _svaki_render_ispraznjen_pre_sledeceg(dogadjaji, 3)
