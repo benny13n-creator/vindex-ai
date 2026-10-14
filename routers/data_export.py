@@ -74,7 +74,6 @@ async def export_complete(user=Depends(get_current_user)):
     from shared.audit_immutable import log_action as _imm_log
     from shared.bg import spawn as _spawn_bg
 
-    supa = _get_supa()
     uid  = user["user_id"]
     email = user.get("email", uid)
     now  = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
@@ -98,19 +97,43 @@ async def export_complete(user=Depends(get_current_user)):
         ("predmet_komentari", "komentari.json",    "kreirano"),
     ]
 
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        readme = _README.format(datum=now.replace("T", " "), email=email)
-        zf.writestr("README.txt", readme)
+    # C1 (Night Sprint II): faze izvoza se beleze istinito. Server moze da
+    # dokaze najvise fazu 3 (arhiva napravljena i predata odgovoru); da je
+    # klijent primio ceo odgovor server NE moze da dokaze, pa to nijedan zapis
+    # ni poruka ne tvrde. Neuspeh u bilo kojoj fazi ostavlja
+    # `data_export_failed` (nikad `data_export`) -- samo faza, imena tabela i
+    # klasa izuzetka; nikad sadrzaj arhive, tekst izuzetka ni email.
+    def _neuspeh(faza: str, **dodatno) -> None:
+        meta = {"format": "zip", "stage": faza, "archive_sent": False}
+        meta.update(dodatno)
+        _spawn_bg(_imm_log(
+            "data_export_failed",
+            user_id=uid,
+            resource_type="all_user_data",
+            metadata=meta,
+        ), name="data_export_failed_audit")
 
-        _failed: list[str] = []
-        for table, fname, order in tables:
-            data = await _fetch(supa, table, uid, order, errors=_failed)
-            zf.writestr(fname, json.dumps(data, ensure_ascii=False, indent=2, default=str))
+    # Faza 1 -> 2: klijent baze. Pad ovde znaci da nijedna tabela nije procitana.
+    try:
+        supa = _get_supa()
+    except Exception as e:
+        logger.error("[EXPORT] baza nedostupna (%s) -- izvoz NIJE napravljen", type(e).__name__)
+        _neuspeh("pre_retrieval", error_class=type(e).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo za koji minut.",
+        )
+
+    # Faza 2: citanje svih tabela PRE pravljenja arhive.
+    _failed: list[str] = []
+    podaci: list[tuple[str, list]] = []
+    for table, fname, order in tables:
+        podaci.append((fname, await _fetch(supa, table, uid, order, errors=_failed)))
 
     # S4-4: never hand the data subject a partial archive that calls itself
-    # complete. The ZIP is discarded rather than shipped.
+    # complete. Nothing is serialized or shipped.
     if _failed:
+        _neuspeh("retrieval", failed_tables=list(_failed))
         raise HTTPException(
             status_code=503,
             detail=(
@@ -120,16 +143,38 @@ async def export_complete(user=Depends(get_current_user)):
             ),
         )
 
+    # Faza 3: arhiva.
+    buf = io.BytesIO()
+    try:
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            readme = _README.format(datum=now.replace("T", " "), email=email)
+            zf.writestr("README.txt", readme)
+            for fname, data in podaci:
+                zf.writestr(fname, json.dumps(data, ensure_ascii=False, indent=2, default=str))
+    except Exception as e:
+        logger.error("[EXPORT] pravljenje arhive palo (%s) -- izvoz NIJE poslat", type(e).__name__)
+        _neuspeh("serialization", error_class=type(e).__name__)
+        raise HTTPException(
+            status_code=500,
+            detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo.",
+        )
+
     # N04: audit se upisuje tek POSLE uspeha. Ranije je `data_export` pisan pre
     # citanja tabela, pa je i odbijen (503) izvoz ostajao u nepromenjivom logu
     # kao izvrsen izvoz -- suprotno static/security.html §14.2 („Svaki kompletan
     # izvoz upisuje se ..."). `spawn` drzi referencu na zadatak (S1-1).
+    # C1: zapis tvrdi samo fazu 3 -- isporuka klijentu nije serverski dokaziva.
     _spawn_bg(_imm_log(
         "data_export",
         user_id=uid,
         resource_type="all_user_data",
-        metadata={"email": email, "format": "zip"},
-    ))
+        metadata={
+            "email": email,
+            "format": "zip",
+            "stage": "archive_generated",
+            "delivery": "not_verified_by_server",
+        },
+    ), name="data_export_audit")
 
     buf.seek(0)
     filename = f"vindex-export-{now}.zip"
