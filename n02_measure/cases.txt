@@ -1,0 +1,22 @@
+# id variant mode spec [cpus]
+b00 pr24 idle - 
+b01 pr24 worker scan_cyr_1p.pdf
+b02 pr24 worker scan_10p.pdf
+b03 pr24 worker mixed_6p.pdf
+b04 pr24 worker photo_12mp_page72.pdf
+b05 pr24 worker photo_12mp_a4.pdf
+b06 pr24 worker photo_48mp_a4.pdf
+b07 pr24 worker img_12mp.jpg
+b08 pr24 worker img_40mp.jpg
+b09 pr24 worker page_a3.pdf
+b10 pr24 worker page_a2.pdf
+b11 pr24 worker page_a1.pdf
+b12 pr24 worker page_a0.pdf
+b13 pr24 threads scan_10p.pdf|scan_10p.pdf
+b14 pr24 threads scan_10p.pdf|mixed_6p.pdf
+b15 pr24 threads scan_cyr_1p.pdf|img_12mp.jpg
+b16 pr24 retries photo_12mp_page72.pdf:3
+b17 pr24 worker photo_12mp_page72.pdf
+b18 pr24 worker photo_12mp_page72.pdf
+b19 pr24 worker scan_cyr_1p.pdf 0.5
+b20 pr24 worker scan_10p.pdf 0.5

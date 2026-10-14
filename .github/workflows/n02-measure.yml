@@ -1,0 +1,55 @@
+name: N02 OCR 512 MiB measurement
+
+# Measurement-only branch (N02 OCR memory/concurrency, Workstream B). Never merged.
+# Builds the PRODUCTION Dockerfile and runs each case in a fresh `--memory=512m --memory-swap=512m` container.
+# Fixtures are synthetic (generated in the job); results contain only sizes, hashes, timings and CER.
+
+on:
+  push:
+    branches: [measure/n02-linux-512m]
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Runner facts
+        run: |
+          nproc; free -m; uname -r
+          echo "cgroup fs: $(stat -fc %T /sys/fs/cgroup)"
+          docker version --format 'docker {{.Server.Version}}'
+
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+
+      - name: Image facts
+        run: |
+          docker run --rm vx sh -c "python -V; tesseract --version 2>&1 | head -n 1; tesseract --list-langs 2>&1 | tr '\n' ' '; echo; python -c 'import fitz,PIL,pypdf; print(\"pymupdf\", fitz.VersionBind, \"pillow\", PIL.__version__, \"pypdf\", pypdf.__version__)' 2>/dev/null"
+
+      - name: Generate synthetic fixtures
+        run: docker run --rm -v "$PWD/n02_measure:/m" vx python /m/gen.py /m/fx
+
+      - name: MuPDF multithreading stress (no lock vs lock)
+        run: |
+          for l in 0 1; do
+            docker run --rm -e PYTHONWARNINGS=ignore -e LOCK=$l -e THREADS=4 -e ROUNDS=6 -v "$PWD/n02_measure:/m" vx \
+              python /m/mt_stress.py /m/fx/scan_10p.pdf /m/fx/mixed_6p.pdf /m/fx/scan_cyr_1p.pdf /m/fx/photo_12mp_a4.pdf 2>&1 | grep -v deprecated
+            echo "exit=$?"
+          done
+
+      - name: 512 MiB cases
+        run: bash n02_measure/run_all.sh n02_measure/cases.txt
+
+      - name: Summary
+        if: always()
+        run: python3 n02_measure/summarize.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n02-measure-results
+          path: n02_measure/out/*.json
+          retention-days: 14
