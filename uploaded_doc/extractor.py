@@ -407,6 +407,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         total_chars += len(text)
 
     avg_chars = total_chars / max(len(reader.pages), 1)
+    page = None     # NS2 B1 pregled: promenljiva petlje drži poslednju pypdf stranu (i čitač) živim tokom OCR mešovitog PDF-a
     del reader      # NS2 B1: pypdf objekti (i učitani tokovi slika) se ne drže dok traje OCR
     # Threshold: <30 chars/stranica ili ukupno <80 = verovatno skenirani
     is_scanned = avg_chars < 30 or total_chars < 80

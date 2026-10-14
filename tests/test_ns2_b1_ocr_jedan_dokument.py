@@ -123,6 +123,7 @@ def _u_dve_niti(prvi, drugi):
     b.start()
     a.join(60)
     b.join(60)
+    assert not a.is_alive() and not b.is_alive(), "nit visi — zaključavanje nije pušteno"
     assert not greske, greske
 
 
@@ -190,6 +191,50 @@ def test_pypdf_citac_nije_ziv_dok_traje_ocr(tmp_path, monkeypatch):
     _, _, ocr_used, strane, _ = extractor.extract_pdf(sken)
     assert ocr_used and len(strane) == 2
     assert zivi_tokom_ocr == [0, 0], zivi_tokom_ocr
+
+
+def _mesovit(putanja):
+    """Strana 1 digitalan tekst (prosek iznad praga), strana 2 skenirana slika → mešovit put (_ocr_strane_pdf)."""
+    doc = fitz.open()
+    s = doc.new_page(width=595, height=842)
+    s.insert_text((50, 80), "Digitalni tekst strane jedan " * 4)
+    s.insert_text((50, 120), "Jos digitalnog teksta za prosek iznad praga " * 2)
+    doc.save(str(putanja))
+    doc.close()
+    _sken(putanja.with_name("sken_deo.pdf"), 1)
+    d, sk = fitz.open(str(putanja)), fitz.open(str(putanja.with_name("sken_deo.pdf")))
+    d.insert_pdf(sk)
+    sk.close()
+    d.save(str(putanja.with_name("m2.pdf")))
+    d.close()
+    putanja.with_name("m2.pdf").replace(putanja)
+
+
+def test_pypdf_citac_nije_ziv_dok_traje_ocr_mesovitog_pdf(tmp_path, monkeypatch):
+    """NS2 B1 pregled: i u mešovitom putu (digitalna + skenirana strana) pypdf čitač nije živ tokom OCR-a."""
+    m = tmp_path / "m.pdf"
+    _mesovit(m)
+    pravi_reader = pypdf.PdfReader
+    citaci = []
+
+    def _reader(*a, **k):
+        r = pravi_reader(*a, **k)
+        citaci.append(weakref.ref(r))
+        return r
+
+    zivi_tokom_ocr = []
+
+    def _ocr(img, jezik):
+        gc.collect()
+        zivi_tokom_ocr.append(sum(1 for c in citaci if c() is not None))
+        return TEKST, 0.9
+
+    monkeypatch.setattr(pypdf, "PdfReader", _reader)
+    monkeypatch.setattr(extractor, "_ocr_image", _ocr)
+    monkeypatch.setattr(extractor, "_detect_ocr_lang", lambda: "eng")
+    _, _, ocr_used, strane, _ = extractor.extract_pdf(m)
+    assert ocr_used and len(strane) == 2 and zivi_tokom_ocr, (ocr_used, strane, zivi_tokom_ocr)
+    assert set(zivi_tokom_ocr) == {0}, zivi_tokom_ocr
 
 
 class _LaznaLibc:
