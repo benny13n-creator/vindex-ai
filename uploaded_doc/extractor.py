@@ -474,7 +474,10 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
-        if ocr_strana and (len(ocr_text.strip()) > 100 or _kratak_ocr_procitan(ocr_text, ocr_confidence)):
+        # NS2 B2b (F3): pune reči se broje samo iz OCR-om pročitanih strana; zadržane digitalne strane (OCR001) ne smeju
+        # da dopune broj reči kojima se meri pouzdanost samo OCR strana.
+        samo_ocr = "\n".join(o for o, d in zip(ocr_pages, pages) if o != d)
+        if ocr_strana and (len(ocr_text.strip()) > 100 or _kratak_ocr_procitan(samo_ocr, ocr_confidence)):
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
         if total_chars > 0:
