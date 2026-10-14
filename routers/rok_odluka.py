@@ -61,23 +61,30 @@ class OdlukaReq(BaseModel):
     napomena: Optional[str] = Field(default=None, max_length=500)
 
 
-async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str) -> dict:
+async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str, sa_vrstom: bool = False) -> dict:
     """Vraca red ili dize 404. Nikad ne otkriva postojanje tudjeg roka.
 
     NS2-A2: posle migracije 129 cita se i `vrsta` — potvrda trazi da je red
     IZJAVLJEN kao rok (vidi `potvrdi`). Pre 129 kolona ne postoji i projekcija
-    ostaje bajt u bajt ista kao ranije (isti obrazac kao `kandidati`)."""
+    ostaje bajt u bajt ista kao ranije (isti obrazac kao `kandidati`).
+    Pozivalac jednom pita semu i istu vrednost koristi i za upit i za kapiju.
+    Pad citanja → 503 (ranije neuhvacen 500): stanje reda nije provereno, nista
+    se ne upisuje."""
     _kolone = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"
-    if _rokovi_domen._sema_ima_129(supa):
+    if sa_vrstom:
         _kolone += ", vrsta"
-    r = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija")
-            .select(_kolone)
-            .eq("id", rok_id)
-            .eq("user_id", uid)
-            .maybe_single()
-            .execute()
-    )
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .select(_kolone)
+                .eq("id", rok_id)
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] citanje roka palo rok=%s: %s", rok_id, exc)
+        raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
     if not r or not r.data:
         raise HTTPException(status_code=404, detail="Rok nije pronađen.")
     return r.data
@@ -233,7 +240,8 @@ async def potvrdi(
     """
     supa = _get_supa()
     uid = user["user_id"]
-    red = await _rok_u_vlasnistvu(supa, rok_id, uid)
+    ima_129 = _rokovi_domen._sema_ima_129(supa)
+    red = await _rok_u_vlasnistvu(supa, rok_id, uid, sa_vrstom=ima_129)
 
     # NS2-A2: potvrda daje IZVRSIVOST (podsetnici, .ics, klijent), a izlazni
     # slojevi pitaju samo `sme_pristupiti` — koja ne zna za `vrsta`. Potvrdjen
@@ -242,7 +250,7 @@ async def potvrdi(
     # prima SAMO za red izjavljen kao rok. Pre migracije 129 `vrsta` ne postoji
     # ni za jedan red, pa se zateceno ponasanje zadrzava (inace bi jedina
     # ljudska kapija bila ugasena i za stvarne rokove).
-    if _rokovi_domen._sema_ima_129(supa) and not _rokovi_domen.je_rok(red):
+    if ima_129 and not _rokovi_domen.je_rok(red):
         raise HTTPException(
             status_code=409,
             detail="Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo.")

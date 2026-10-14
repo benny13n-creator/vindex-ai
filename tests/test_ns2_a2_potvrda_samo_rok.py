@@ -136,8 +136,86 @@ def test_upit_vlasnistva_trazi_vrstu_samo_posle_129(ok, monkeypatch):
             u.select = _sel
             return u
     for sema in (True, False):
-        monkeypatch.setattr(rokovi_domen, "_KOLONE_129", sema)
-        red = asyncio.run(ro._rok_u_vlasnistvu(_Sonda(b), "r-rok", "uid-A"))
+        red = asyncio.run(ro._rok_u_vlasnistvu(_Sonda(b), "r-rok", "uid-A", sa_vrstom=sema))
         assert ("vrsta" in red) is sema
     assert vidjeno == ["id, predmet_id, dogadjaj, datum_iso, vaznost, akter, vrsta",
                        "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"]
+
+
+# ── F1: sonda seme 129 kesira samo DOKAZAN odgovor ───────────────────────────────────────────────────────────
+
+class _Sonda129:
+    """Lazna baza samo za sondu: redom vraca ishode iz liste (izuzetak ili uspeh)."""
+    def __init__(self, ishodi):
+        self.ishodi, self.poziva = list(ishodi), 0
+
+    def table(self, t):
+        return self
+
+    def select(self, *a, **k):
+        return self
+
+    def limit(self, *a):
+        return self
+
+    def execute(self):
+        self.poziva += 1
+        x = self.ishodi.pop(0) if self.ishodi else None
+        if isinstance(x, Exception):
+            raise x
+        return type("R", (), {"data": []})()
+
+
+ISTEK = Exception('{"code": "57014", "message": "canceling statement due to statement timeout"}')
+NEMA_KOLONE = Exception('{"code": "42703", "message": "column predmet_hronologija.vrsta does not exist"}')
+
+
+def test_sonda_istek_se_ne_kesira_i_ne_gasi_oznaku_pa_se_oporavlja():
+    rokovi_domen._resetuj_sondu()
+    s = _Sonda129([ISTEK, ISTEK, None])
+    assert rokovi_domen._sema_ima_129(s) is True          # neodredjeno → kapija ukljucena, oznaka se upisuje
+    assert rokovi_domen._KOLONE_129 is None               # ... ali se NE kesira
+    assert rokovi_domen.oznake(vrsta=rokovi_domen.VRSTA_ROK, supa=_Sonda129([ISTEK, ISTEK])) == {"vrsta": "rok"}
+    assert rokovi_domen._sema_ima_129(s) is True and rokovi_domen._KOLONE_129 is True   # oporavak: dokazano, kesirano
+    rokovi_domen._resetuj_sondu()
+
+
+def test_sonda_jedan_istek_pa_uspeh_u_istom_pozivu():
+    rokovi_domen._resetuj_sondu()
+    s = _Sonda129([ISTEK, None])
+    assert rokovi_domen._sema_ima_129(s) is True and s.poziva == 2 and rokovi_domen._KOLONE_129 is True
+    rokovi_domen._resetuj_sondu()
+
+
+@pytest.mark.parametrize("greska", [NEMA_KOLONE, Exception('{"code": "42703"}'), Exception('{"code": "PGRST204", "message": "Could not find the vrsta column"}')])
+def test_sonda_izricito_nema_kolone_kesira_false_pre_129(greska):
+    rokovi_domen._resetuj_sondu()
+    s = _Sonda129([greska])
+    assert rokovi_domen._sema_ima_129(s) is False and rokovi_domen._KOLONE_129 is False
+    assert rokovi_domen.oznake(vrsta=rokovi_domen.VRSTA_ROK, supa=s) == {}
+    assert s.poziva == 1
+    rokovi_domen._resetuj_sondu()
+
+
+def test_potvrda_pri_neodredjenoj_semi_kapija_ostaje(ok, monkeypatch):
+    """Istek sonde ne sme da pusti potvrdu reda koji nije rok; pravi rok se i dalje potvrdjuje."""
+    k, b = ok
+    pravi = rokovi_domen._sema_ima_129
+
+    def _neodredjeno(supa):
+        rokovi_domen._resetuj_sondu()
+        return pravi(_Sonda129([ISTEK, ISTEK]))
+    monkeypatch.setattr(rokovi_domen, "_sema_ima_129", _neodredjeno)
+    assert k.post("/api/rokovi/r-null/potvrdi", json={}, headers=zaglavlje("A")).status_code == 409
+    assert b.tabele["audit_immutable"] == []
+    assert k.post("/api/rokovi/r-rok/potvrdi", json={}, headers=zaglavlje("A")).status_code == 200
+    assert rokovi_domen._KOLONE_129 is None
+
+
+def test_citanje_roka_palo_503_bez_upisa(ok):
+    k, b = ok
+    b.greske["predmet_hronologija"] = ISTEK
+    for akcija in ("potvrdi", "odbij"):
+        r = k.post(f"/api/rokovi/r-rok/{akcija}", json={}, headers=zaglavlje("A"))
+        assert r.status_code == 503 and r.json().get("stanje_odluke") is None   # api.py maskira detalj 5xx
+    assert b.tabele["audit_immutable"] == []

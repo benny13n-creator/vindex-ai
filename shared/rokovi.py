@@ -707,17 +707,41 @@ def je_razresen(red: Optional[dict], odluke_mapa: Optional[dict] = None) -> bool
 _KOLONE_129: Optional[bool] = None
 
 
+def _nedostaje_kolona_129(exc: Exception) -> bool:
+    """Samo IZRICIT odgovor baze da kolona ne postoji (Postgres 42703 / PostgREST PGRST204) dokazuje da 129 nije
+    primenjena. Istek upita, pad veze ili 5xx NISU dokaz — isto pravilo kao `routers/smart_intake._nedostaje_kolona`."""
+    m = str(exc)
+    return "42703" in m or "PGRST204" in m or ("does not exist" in m.lower() and ("vrsta" in m or "stanje" in m))
+
+
 def _sema_ima_129(supa) -> bool:
+    """Da li `predmet_hronologija` ima `vrsta`/`stanje` (migracija 129).
+
+    NS2-A2 (F1): ranije je SVAKI izuzetak sonde trajno (do restarta procesa) kesirao `False` — jedan istek upita
+    gasio je u tom procesu kapiju potvrde (409), pisci su prestajali da upisuju `vrsta` (nov rok nevidljiv u V2), a
+    kandidati su gubili `vrsta`. Sada se kesira SAMO dokazan odgovor: uspeh → True, izricito „kolona ne postoji" →
+    False. Neodredjen ishod (posle jednog ponovnog pokusaja) se NE kesira i vraca `True` samo za taj poziv:
+      * kapija potvrde ostaje UKLJUCENA (red koji nije rok se nikad ne potvrdjuje);
+      * pisac upisuje `vrsta` — ako 129 zaista nema, upis pada izricito (42703) umesto da tiho izgubi oznaku;
+      * citaoci traze `vrsta` — ako 129 nema, upit pada i to se kaze (503), ne vraca se lista bez oznake.
+    Sledeci poziv ponovo proverava semu, pa se stanje pre migracije 129 i dalje prepoznaje i kesira.
+    """
     global _KOLONE_129
     if _KOLONE_129 is not None:
         return _KOLONE_129
-    try:
-        supa.table("predmet_hronologija").select("vrsta, stanje").limit(1).execute()
-        _KOLONE_129 = True
-    except Exception:
-        logger.info("[ROKOVI] migracija 129 nije primenjena — `vrsta`/`stanje` se ne upisuju")
-        _KOLONE_129 = False
-    return _KOLONE_129
+    for _pokusaj in range(2):
+        try:
+            supa.table("predmet_hronologija").select("vrsta, stanje").limit(1).execute()
+            _KOLONE_129 = True
+            return True
+        except Exception as exc:
+            if _nedostaje_kolona_129(exc):
+                logger.info("[ROKOVI] migracija 129 nije primenjena — `vrsta`/`stanje` se ne upisuju")
+                _KOLONE_129 = False
+                return False
+            _greska = exc
+    logger.warning("[ROKOVI] sema 129 nije proverena (%s) — ne kesira se; ovaj poziv podrazumeva kolone", _greska)
+    return True
 
 
 def _resetuj_sondu() -> None:
