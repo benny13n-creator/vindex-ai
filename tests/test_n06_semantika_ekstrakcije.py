@@ -122,6 +122,26 @@ def test_stvarno_navedena_stranka_u_padezu_ostaje(tekst, tip, vrednost):
     assert _uloga(tekst, tip, vrednost) is True
 
 
+# Recenzija N06: nepostojano „a“ u padežu (Aleksandar → Aleksandra) je bilo True na 020da293, a N06 ga je odbijao.
+@pytest.mark.parametrize("tekst,tip,vrednost", [
+    ("u parnici tužioca Aleksandra Jovanovića protiv tuženog", "plaintiff", "Aleksandar Jovanović"),
+    ("u parnici tužioca Petra Petrovića protiv tuženog", "plaintiff", "Petar Petrović"),
+    ("Тужилац Александар Јовановић, против туженог", "plaintiff", "Aleksandar Jovanović"),
+    ("tuženom Aleksandru Jovanoviću", "defendant", "Aleksandar Jovanović"),
+])
+def test_nepostojano_a_u_padezu_ostaje(tekst, tip, vrednost):
+    assert _uloga(tekst, tip, vrednost) is True
+
+
+@pytest.mark.parametrize("tekst,tip,vrednost", [
+    ("Tužilac: Aleksa Jovanović", "plaintiff", "Aleksandar Jovanović"),      # drugo ime, isti početak
+    ("Tužilac: Petrović Jovan", "plaintiff", "Petar Petrović"),               # „petr“ ne sme da pogodi „Petrović“
+    ("Tužilac: Aleksandrov Jovanović", "plaintiff", "Aleksandar Jovanović"),  # drugo ime, ista osnova
+])
+def test_nepostojano_a_ne_otvara_druga_imena(tekst, tip, vrednost):
+    assert _uloga(tekst, tip, vrednost) is False
+
+
 def test_ispravljeno_ime_kroz_stvaran_tok_ide_na_pregled():
     k, e = _obradi_tekst("TUŽBA\nTužilac: Marko Petrović\nTuženi: Jovan Petrovski iz Niša",
                          {"document_type": "lawsuit", "confidence": 0.9},
