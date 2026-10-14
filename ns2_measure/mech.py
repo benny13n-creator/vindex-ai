@@ -82,7 +82,12 @@ else:
             if img is izvor:
                 img = izvor.convert("L")
             return img.size
-    res["decoded_size"], res["rss_peak_mib"], res["rss_after_mib"], res["secs"] = phase(dec)
+    def dec_safe():
+        try:
+            return dec()
+        except Exception as e:  # noqa: BLE001  (e.g. arithmetic coding unsupported by Pillow's decoder)
+            return "ERR " + type(e).__name__ + ": " + str(e)[:120]
+    res["decoded_size"], res["rss_peak_mib"], res["rss_after_mib"], res["secs"] = phase(dec_safe)
 
 res["coef_mib"] = round(res["coef_bytes"] / 2**20, 1)
 print("MECH " + json.dumps(res), flush=True)

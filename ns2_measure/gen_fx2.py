@@ -71,10 +71,21 @@ ex = Image.Exif(); ex[0x010F] = "SyntheticPhone"; ex[0x0110] = "SP-1"; ex[0x0112
 ph.save(os.path.join(OUT, "img_12mp_exif.jpg"), "JPEG", quality=90, subsampling=2, exif=ex.tobytes())
 TRUTH["img_12mp_exif.jpg"] = ["\n".join(l)]; info("img_12mp_exif.jpg"); del ph
 # 2. high-quality progressive 4:4:4 just below the threshold (q95), and at ~96 MiB
-for name, target, off in (("img_prog444_below.jpg", MAX_JPEG_KOEFICIJENATA_BAJTOVA - (1 << 20), 2), ("img_prog444_96.jpg", 95 << 20, 3)):
-    w, h = dims_for_coef(target, [(1, 1)] * 3)
+from uploaded_doc.extractor import MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA
+for name, target, off, comps, sub in (("img_prog444_below.jpg", MAX_JPEG_KOEFICIJENATA_BAJTOVA - (1 << 20), 2, [(1, 1)] * 3, 0),
+                                      ("img_prog444_96.jpg", 95 << 20, 3, [(1, 1)] * 3, 0),
+                                      ("img_prog444_64.jpg", MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA - (1 << 20), 6, [(1, 1)] * 3, 0),
+                                      ("img_prog420_64.jpg", MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA - (1 << 20), 7, [(2, 2), (1, 1), (1, 1)], 2)):
+    w, h = dims_for_coef(target, comps)
     l = lines(38, off); im = page_image(l, w, h)
-    im.save(os.path.join(OUT, name), "JPEG", quality=95, progressive=True, subsampling=0)
+    im.save(os.path.join(OUT, name), "JPEG", quality=95, progressive=True, subsampling=sub)
+    TRUTH[name] = ["\n".join(l)]; info(name); del im
+# 2b. baseline CMYK just below 4 x MIN_DEKODIRANIH_PIKSELA (draft cannot halve it -> full-size CMYK decode; not a coefficient-buffer case)
+from uploaded_doc.extractor import MIN_DEKODIRANIH_PIKSELA
+for name, mp, off in (("img_cmyk_34mp.jpg", 4 * MIN_DEKODIRANIH_PIKSELA / 1e6 * 0.995, 4), ("img_cmyk_30mp.jpg", 30.0, 5)):
+    h = int(math.sqrt(mp * 1e6 * 842 / 595)); w = int(mp * 1e6 / h)
+    l = lines(38, off); im = page_image(l, w, h).convert("CMYK")
+    im.save(os.path.join(OUT, name), "JPEG", quality=90)
     TRUTH[name] = ["\n".join(l)]; info(name); del im
 # 3. JPEG embedded in PDF
 rd = lambda n: open(os.path.join(OUT, n), "rb").read()
@@ -84,6 +95,8 @@ pdf_with("pdf_prog420_40.pdf", rd("img_40mp_prog420.jpg"), TRUTH["img_40mp_prog4
 pdf_with("pdf_base_40.pdf", rd("img_40mp.jpg"), TRUTH["img_40mp.jpg"])
 pdf_with("pdf_prog444_below.pdf", rd("img_prog444_below.jpg"), TRUTH["img_prog444_below.jpg"])
 pdf_with("pdf_prog444_96.pdf", rd("img_prog444_96.jpg"), TRUTH["img_prog444_96.jpg"])
+pdf_with("pdf_prog444_64.pdf", rd("img_prog444_64.jpg"), TRUTH["img_prog444_64.jpg"])
+pdf_with("pdf_prog420_64.pdf", rd("img_prog420_64.jpg"), TRUTH["img_prog420_64.jpg"])
 for n in ("img_40mp_prog444.jpg", "img_40mp_prog420.jpg", "img_20mp_prog444.jpg", "img_40mp.jpg", "img_40mp_cmyk.jpg", "img_12mp.jpg"):
     info(n)
 json.dump(TRUTH, open(os.path.join(OUT, "truth.json"), "w", encoding="utf-8"), ensure_ascii=False)
