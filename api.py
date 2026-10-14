@@ -5426,6 +5426,8 @@ _N08_PREDVIDJANJE_RE = _re.compile(
     r"\d{1,3}\s*%|(?<!ne )garantovan|(?<!ne )garantuje|sigurno\s+(?:ce|uspe)|izvestan\s+uspeh"
     r"|uspeh\s+je\s+izvestan|zasigurno"
 )
+# Oznaka traga provere u sačuvanoj istoriji; legacy prikaz (`pred_renderPresuda`) seče tekst na njoj.
+_N08_OZNAKA_PROVERE = "— PROVERA SISTEMA (nije deo analize modela) —"
 
 
 def _n08_norm(tekst: str) -> str:
@@ -5484,7 +5486,9 @@ def _provera_analize_presude(
     analizirano_n = _n08_norm((tekst_presude or "")[:text_limit])
     procena_n = _n08_norm(procena)
     propisi, praksa = _n08_izvori_pravne_baze(izvori)
-    praksa_n = _n08_norm(" ".join(praksa))
+    # Samo zaglavlje pasusa ("SUDSKA PRAKSA [sud, broj, datum]") nosi odluku koju je
+    # korpus stvarno vratio; broj pomenut u telu tog pasusa nije proveren.
+    praksa_n = _n08_norm(" ".join(d.lstrip().split("\n", 1)[0] for d in praksa))
 
     # Obuhvat
     ukupno = len(tekst_presude or "")
@@ -5600,7 +5604,13 @@ def _provera_presude_tekst(provera) -> str:
     if not provera:
         return ""
     linije = [f"⚠ {u}" for u in provera.get("upozorenja") or []] or ["Bez upozorenja sistema."]
-    return "\n\n— PROVERA SISTEMA (nije deo analize modela) —\n" + "\n".join(linije)
+    return "\n\n" + _N08_OZNAKA_PROVERE + "\n" + "\n".join(linije)
+
+
+def _n08_bez_oznake_provere(tekst: str) -> str:
+    """Model ne sme da odštampa oznaku sistemske provere — prikaz bi njegov tekst
+    smatrao proverom sistema (ili sakrio sve posle nje)."""
+    return (tekst or "").replace(_N08_OZNAKA_PROVERE, "PROVERA SISTEMA (navod iz AI teksta)")
 
 
 # ── F5.3: PRAVNA PROCENA ──────────────────────────────────────────────────────
@@ -6757,6 +6767,7 @@ async def predmet_upload_auto_analyze(
     # N08: deterministička provera analize presude (tekst modela ostaje nepromenjen).
     provera_presude = None
     if procena_tekst and doc_type == "presuda":
+        procena_tekst = _n08_bez_oznake_provere(procena_tekst)
         try:
             provera_presude = _provera_analize_presude(
                 procena_tekst, text, _law_chunks[:6], text_limit,
