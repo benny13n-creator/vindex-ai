@@ -318,7 +318,7 @@
         if (x.predmet_id && x.predmet_id !== pid) delovi.push("Ovaj dokument je već bio prikačen drugom vašem predmetu; ovde nije ponovo prikačen.");
         else delovi.push("Dokument je prikačen predmetu. Podaci predmeta nisu menjani.");
         if (x.rok_dodat === true) delovi.push("Rok pronađen u dokumentu upisan je u hronologiju predmeta kao podatak iz dokumenta — proverite ga.");
-        else if (x.rok_preskocen_razlog) delovi.push(porukaPreskocenogRoka(x.rok_preskocen_razlog));
+        dodajPorukeRoka(x, delovi);
         javi(p, delovi[0].indexOf("Dokument je prikačen") === 0 ? "uspeh" : "nepoznato", delovi.join(" "));
         prati(p);
         osvezi();
@@ -345,6 +345,12 @@
       return Object.prototype.hasOwnProperty.call(RAZLOZI_ROKA, razlog) ? RAZLOZI_ROKA[razlog]
         : "Rok iz dokumenta nije upisan (razlog: " + tekst(razlog) + ").";
     }
+    /* N03-FD1: razlog neupisa se kaže i kad je rok iz DRUGOG dela otpremanja upisan; različiti datumi u dokumentima
+     * se ne razrešavaju — svaki je zaseban predlog, a advokat to mora da zna. Nema tvrdnje da je reč o istoj obavezi. */
+    function dodajPorukeRoka(x, delovi) {
+      if (x.rok_preskocen_razlog) delovi.push(porukaPreskocenogRoka(x.rok_preskocen_razlog));
+      if (x.rokovi_razliciti_datumi === true) delovi.push("Delovi dokumenta navode različite datume roka. Nijedan nije izabran umesto drugog: svaki upisan datum je zaseban predlog koji čeka vašu potvrdu ili odbijanje. Sistem ne zna da li je reč o istoj obavezi — proverite ih u dokumentu.");
+    }
 
     function otvoren(p, x) {
       trenutni.id = tekst(x.predmet_id);
@@ -355,7 +361,7 @@
       if (x.coi_status === "COI_PENDING") delovi.push("Provera sukoba interesa iz dokumenta je zakazana u pozadini — to nije rezultat; pre prihvatanja zastupanja pokrenite proveru u kartici Klijenti.");
       else if (x.coi_status === "COI_FAILED") delovi.push("Provera sukoba interesa iz dokumenta NIJE zakazana. Pokrenite je ručno u kartici Klijenti.");
       if (x.rok_dodat === true) delovi.push("Rok pronađen u dokumentu upisan je u hronologiju kao podatak iz dokumenta — proverite ga.");
-      else if (x.rok_preskocen_razlog) delovi.push(porukaPreskocenogRoka(x.rok_preskocen_razlog));
+      dodajPorukeRoka(x, delovi);
       if (x.ok !== true) delovi.unshift("Dokument NIJE prikačen u novi predmet. Ponovite prikačivanje — predmet i deo koji je već sačuvan neće biti duplirani.");
       javi(p, x.ok === true ? "uspeh" : "greska", delovi.join(" "));
       naOtvoren(trenutni.id, tekst(x.naziv));

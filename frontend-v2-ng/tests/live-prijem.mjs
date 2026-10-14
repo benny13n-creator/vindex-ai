@@ -290,6 +290,30 @@ for (const [razlog, re] of [
   zapisi("N03.rok", `${razlog}: prikačen + razlog neupisanog roka rečen`, /^uspeh:Dokument je prikačen predmetu/.test(e.poslovi[0].msg || "") && re.test(e.poslovi[0].msg || "") && kurziv === 0, e.poslovi[0].msg);
   await s.zatvori();
 }
+// ── N03-FD1: različiti datumi roka u delovima dokumenta se KAŽU; razlog neupisa drugog dela se ne prećutkuje ──
+{
+  const s = await scenario({ napreduj: SPREMAN, finalize: () => ({ rok_dodat: true, rok_preskocen_razlog: "niska_pouzdanost", rokovi_razliciti_datumi: true }) });
+  await otpremi(s.p);
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"));
+  await s.p.click("text=Prikači ovom predmetu");
+  await cekaj(s.p, () => /Prikačeno ovom predmetu/.test(document.getElementById("pd-poslovi").innerText));
+  const e = await ekran(s.p);
+  const m = e.poslovi[0].msg || "";
+  zapisi("N03.FD1", "upisan rok + razlog neupisa drugog dela + različiti datumi, bez tvrdnje da je ista obaveza",
+    /^uspeh:Dokument je prikačen predmetu/.test(m) && /upisan je u hronologiju/.test(m) && /pouzdanost nije dovoljna/.test(m)
+    && /Delovi dokumenta navode različite datume roka\. Nijedan nije izabran umesto drugog/.test(m) && /Sistem ne zna da li je reč o istoj obavezi/.test(m), m);
+  await s.zatvori();
+}
+{
+  const s = await scenario({ napreduj: SPREMAN, finalize: () => ({ rok_dodat: true, rok_preskocen_razlog: null, rokovi_razliciti_datumi: false }) });
+  await otpremi(s.p);
+  await cekaj(s.p, () => [...document.querySelectorAll("#pd-poslovi button")].some(b => b.textContent === "Prikači ovom predmetu"));
+  await s.p.click("text=Prikači ovom predmetu");
+  await cekaj(s.p, () => /Prikačeno ovom predmetu/.test(document.getElementById("pd-poslovi").innerText));
+  const e = await ekran(s.p);
+  zapisi("N03.FD1", "kontrola: jedan datum — nema poruke o različitim datumima", !/različite datume/.test(e.poslovi[0].msg || ""), e.poslovi[0].msg);
+  await s.zatvori();
+}
 // ── G: raspored ─────────────────────────────────────────────────────────
 for (const [w, h] of [[390, 844], [1024, 768]]) {
   const s = await scenario({}, { w, h });

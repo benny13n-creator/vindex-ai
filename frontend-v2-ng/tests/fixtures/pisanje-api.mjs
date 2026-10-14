@@ -525,8 +525,9 @@ export function rokoviRuta(korisnici, kuke = {}) {
     if (p === "/api/rokovi/kandidati" && req.method === "GET") {
       const od = url.searchParams.get("od") || "";
       const r = k.rokovi.filter(x => x.datum_iso >= od).map(x => ({ id: x.id, predmet_id: x.predmet_id, dogadjaj: x.dogadjaj, datum_iso: x.datum_iso, izvor: x.izvor || "ai",
-        ...(x.vrsta ? { vrsta: x.vrsta } : {}), ...(x.stanje ? { stanje: x.stanje } : {}), stanje_odluke: x.odluka || "UNCONFIRMED" }));
-      json(res, 200, { rokovi: r, ukupno: r.length, odseceno: !!kuke.odseceno }); return true;
+        ...(x.vrsta ? { vrsta: x.vrsta } : {}), ...(x.stanje ? { stanje: x.stanje } : {}), stanje_odluke: x.odluka || "UNCONFIRMED",
+        izvor_uklonjen_posle_potvrde: x.izvorUklonjen === true }));
+      json(res, 200, { rokovi: r, ukupno: r.length, odseceno: !!kuke.odseceno, provera_izvora_dostupna: kuke.proveraIzvora !== false }); return true;
     }
     if (p === "/api/kalendar/pregled" && req.method === "GET") {
       let t = { dogadjaji: k.dogadjaji || [], degraded_sources: [], truncated: false };

@@ -9519,7 +9519,9 @@ var _rokovi_debounce = null;
 function _rok_render_alert(rok) {
   if (rok.dana_do_roka === null || rok.dana_do_roka === undefined) {
     if (rok.tip === 'relativni') {
-      return '<div class="rok-nepoznat">Datum dokumenta nepoznat — unesite ručno</div>';
+      // N03-FD3: relativni rok se NE pretvara u datum — početak roka (npr. dostava) i pravilo
+      // računanja nisu provereni. Ranija poruka je tvrdila da fali samo datum dokumenta.
+      return '<div class="rok-nepoznat">Relativni rok — datum se ne računa automatski: početak roka (npr. dostava) i pravilo računanja nisu provereni. Utvrdite ga i unesite ručno.</div>';
     }
     return '';
   }
@@ -9590,7 +9592,8 @@ async function _doc_fetch_rokove() {
     }
     if (hintEl) {
       if (d.datum_dokumenta_izvor === 'auto') {
-        hintEl.textContent = '✓ Auto-detektovan';
+        // N03-FD4: automatski pronađen datum je pretpostavka, ne utvrđen datum dokumenta.
+        hintEl.textContent = 'Pronađen automatski — proverite';
       } else if (d.datum_dokumenta_izvor === 'korisnik') {
         hintEl.textContent = '';
       } else {
@@ -14494,6 +14497,11 @@ function kalDayClick(iso) {
   var html = '';
   evs.forEach(function(e) {
     var tipLabel = e.tip === 'rociste' ? 'Ročište' : e.tip === 'rok_zastarelost' ? 'Rok' : e.tip === 'napomena' ? 'Napomena' : 'Rok';
+    // N03-FD5/FD8: interni kalendar prikazuje i nepotvrđen i odbijen rok, ali NE kao potvrđenu obavezu.
+    var _so = e.tip !== 'rociste' && e.detalji ? e.detalji.stanje_odluke : null;
+    if (_so === 'UNCONFIRMED') tipLabel += ' · predlog, čeka potvrdu';
+    else if (_so === 'REJECTED') tipLabel += ' · odbijen';
+    else if (_so === 'UNKNOWN') tipLabel += ' · stanje odluke nepoznato';
     var col = e.tip === 'rociste' ? 'rgba(255,255,255,0.72)' : e.tip === 'rok_zastarelost' ? '#f87171' : e.tip === 'napomena' ? '#8a8f98' : '#fbbf24';
     var _kalDetClick = e.predmet_id ? ' onclick="_dashGoToPredmet(\'' + _kalEsc(e.predmet_id) + '\')" style="cursor:pointer;"' : '';
     html += '<div style="padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05);"' + _kalDetClick + '>';
@@ -14562,6 +14570,8 @@ var kalendarLoad = function() {
     // identical to "everything's fine, just no events" with no signal at all.
     var _existingWarn = document.getElementById('kal-degraded-warn');
     if (_existingWarn) _existingWarn.remove();
+    var _existingOdl = document.getElementById('kal-odluke-warn');
+    if (_existingOdl) _existingOdl.remove();
     var _degraded = data.degraded_sources || [];
     if ((_degraded.length || data.truncated) && bodyEl && bodyEl.parentNode) {
       var _w = document.createElement('div');
@@ -14571,6 +14581,14 @@ var kalendarLoad = function() {
         ? ('⚠ Kalendar možda nepotpun -- neki izvori trenutno nedostupni (' + _degraded.join(', ') + ').')
         : '⚠ Prikazan je deo događaja -- previše je za prikaz odjednom.';
       bodyEl.parentNode.insertBefore(_w, bodyEl);
+    }
+    // N03-FD8: stanje odluka o rokovima nije pročitano — rokovi se prikazuju, ali se ne zna da li su potvrđeni.
+    if (data.odluke_dostupne === false && bodyEl && bodyEl.parentNode) {
+      var _wo = document.createElement('div');
+      _wo.id = 'kal-odluke-warn';
+      _wo.style.cssText = 'color:#e0a030;font-size:0.72rem;padding:0.4rem 0.6rem;margin-bottom:0.5rem;border-left:2px solid #e0a030;background:rgba(224,160,48,0.06);';
+      _wo.textContent = '⚠ Stanje odluka o rokovima trenutno nije dostupno -- ne zna se koji su rokovi potvrđeni.';
+      bodyEl.parentNode.insertBefore(_wo, bodyEl);
     }
     if (!_kalAllEvents.length) {
       if (praznoEl) praznoEl.style.display = '';
@@ -14591,7 +14609,10 @@ function kalendarIcsExport() {
     headers: { 'Authorization': 'Bearer ' + currentSession.access_token }
   })
   .then(function(r) {
-    if (!r.ok) { showToast('Nema događaja za izvoz.', 'warn'); return null; }
+    // N03-FD5/FD8: 503 = stanje odluka o rokovima nije pročitano (ništa nije izvezeno); 404 = nema ročišta ni
+    // POTVRĐENIH rokova. Nepotvrđeni rokovi se ne izvoze u spoljni kalendar.
+    if (r.status === 503) { showToast('Izvoz NIJE napravljen: stanje odluka o rokovima trenutno nije dostupno. Pokušajte ponovo.', 'err'); return null; }
+    if (!r.ok) { showToast('Nema ročišta ni potvrđenih rokova za izvoz. Nepotvrđeni rokovi se ne izvoze u spoljni kalendar.', 'warn'); return null; }
     return r.blob();
   })
   .then(function(blob) {
@@ -14613,8 +14634,12 @@ async function kalendarGoogleExport() {
     });
     if (!r.ok) { showToast('Nema događaja.', 'warn'); return; }
     var d = await r.json();
-    var eventi = (d.dogadjaji || d.eventi || []);
-    if (!eventi.length) { showToast('Nema nadolazećih događaja za Google Kalendar.', 'warn'); return; }
+    // N03-FD5: spoljni kalendar dobija SAMO ročište ili POTVRĐEN rok (kanonska politika EXPORT_EXTERNAL);
+    // nepotvrđen, odbijen ili rok nepoznatog stanja odluke se ne iznosi napolje.
+    var eventi = (d.dogadjaji || d.eventi || []).filter(function(e) {
+      return e.tip === 'rociste' || ((e.detalji || {}).stanje_odluke === 'CONFIRMED');
+    });
+    if (!eventi.length) { showToast('Nema ročišta ni potvrđenih rokova za Google Kalendar.', 'warn'); return; }
     var first = eventi[0];
     var datum = (first.datum || '').slice(0,10);
     var naslov = first.naslov || 'Vindex AI Rokovi';
@@ -14632,8 +14657,12 @@ async function kalendarOutlookExport() {
     });
     if (!r.ok) { showToast('Nema događaja.', 'warn'); return; }
     var d = await r.json();
-    var eventi = (d.dogadjaji || d.eventi || []);
-    if (!eventi.length) { showToast('Nema nadolazećih događaja za Outlook.', 'warn'); return; }
+    // N03-FD5: spoljni kalendar dobija SAMO ročište ili POTVRĐEN rok (kanonska politika EXPORT_EXTERNAL);
+    // nepotvrđen, odbijen ili rok nepoznatog stanja odluke se ne iznosi napolje.
+    var eventi = (d.dogadjaji || d.eventi || []).filter(function(e) {
+      return e.tip === 'rociste' || ((e.detalji || {}).stanje_odluke === 'CONFIRMED');
+    });
+    if (!eventi.length) { showToast('Nema ročišta ni potvrđenih rokova za Outlook.', 'warn'); return; }
     var first = eventi[0];
     var datum = (first.datum || '').slice(0,10);
     var naslov = first.naslov || 'Vindex AI Rokovi';

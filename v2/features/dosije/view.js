@@ -418,8 +418,20 @@ function sekcijaRokovi(d, ciklus, predmetId, radnje, sada) {
   // zasebne stvari i moraju se videti (i moci dodati) i kad rokova nema.
   // Rani izlaz je ovde jednom vec sakrio oba obrasca — predmet bez rokova
   // nije predmet bez posla.
-  if (!r.obaveze.length && !r.zaProveru.length) {
+  // N03-FD8: kad stanje odluka nije procitano, „nema rokova" bi bila neistina.
+  const nepoznato = r.nepoznato || [];
+  if (!r.obaveze.length && !r.zaProveru.length && !nepoznato.length) {
     s.appendChild(prazno("Za ovaj predmet nema evidentiranih rokova."));
+  }
+  if (nepoznato.length) {
+    const b = el("div", "v2-podblok v2-podblok--provera");
+    b.appendChild(el("h3", "v2-natkapa", "Stanje odluke nije dostupno"));
+    b.appendChild(el("p", "v2-provera__uvod",
+      "Stanje odluka o ovim rokovima trenutno nije moguće pročitati. Ne zna se da li su potvrđeni, odbijeni ili čekaju odluku — ne smatrajte ih ni obavezom ni odbijenim. Osvežite predmet kasnije."));
+    const ul = el("ul", "v2-rok");
+    for (const x of nepoznato) ul.appendChild(rokRed(x));
+    b.appendChild(ul);
+    s.appendChild(b);
   }
   if (r.obaveze.length) {
     const b = el("div", "v2-podblok");
