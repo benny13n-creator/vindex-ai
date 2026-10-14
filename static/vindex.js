@@ -21092,6 +21092,17 @@ function pred_renderPresudaProvera(provera) {
 }
 
 function pred_renderPresuda(tekst, provera) {
+  // Istorija: provera nije objekat nego trag sačuvan uz tekst (api._provera_presude_tekst).
+  // Odvaja se od AI teksta — inače bi upozorenja završila u sekciji 5 kao deo AI procene.
+  var OZNAKA_PROVERE = '— PROVERA SISTEMA (nije deo analize modela) —';
+  var iProvere = tekst.indexOf(OZNAKA_PROVERE);
+  if (iProvere !== -1) {
+    var linije = tekst.slice(iProvere + OZNAKA_PROVERE.length).split('\n').map(function(l) { return l.trim(); })
+      .filter(function(l) { return l && l !== 'Bez upozorenja sistema.'; })
+      .map(function(l) { return l.replace(/^⚠\s*/, ''); });
+    tekst = tekst.slice(0, iProvere).replace(/\s+$/, '');
+    if (!provera) provera = {upozorenja: linije};
+  }
   var sekcije = [
     {k:'1. REZIME PRESUDE',              icon:'', lbl:'Rezime presude',        isZalba:false},
     {k:'2. KLJUČNI ARGUMENTI SUDA',      icon:'',  lbl:'Argumenti suda',        isZalba:false},

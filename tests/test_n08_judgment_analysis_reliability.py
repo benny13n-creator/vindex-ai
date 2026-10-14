@@ -18,6 +18,8 @@ Ugovor pouzdanosti koji se meri:
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# `api` pravi OpenAI klijent pri importu; test nikad ne zove mrezu.
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-n08")
 
 import io
 import json
@@ -418,3 +420,127 @@ def test_prikaz_bez_provere_ne_tvrdi_proverenost():
     html = _render(_llm_izlaz(), None)
     assert "AI analiza" in html
     assert "nije izvršena" in html
+
+
+# ── Nezavisna recenzija (2026-10-14): "pravna baza" = samo zvanični korpus ──
+
+# Advokatov sopstveni pasus (format `doc_formatter.format_doc_passage`) — NIJE pravna baza.
+_IZVOR_ADVOKATOV_NACRT = (
+    "KORISNIKOV DOKUMENT — OVAJ PREDMET [nacrt_zalbe.docx, chunk 0]\n\n"
+    "Nacrt žalbe: prema stavu Vrhovnog suda Rev 9999/2023, primenjuje se član 999 Zakona o "
+    "parničnom postupku."
+)
+# Ručno pisane ZR napomene koje upload ubacuje za radne sporove — NISU pasus iz korpusa.
+_ZR_NAPOMENE = "ZR Član 176: Poslodavac može otkazati ugovor o radu bez otkaznog roka zaposlenom..."
+_IZVOR_PRAKSA_REV = (
+    "SUDSKA PRAKSA [Vrhovni sud, Rev 1234/2020, 01.02.2021]\nOblast: radno pravo\n\n"
+    "Zaposleni kome je nezakonito prestao radni odnos ima pravo na vraćanje na rad."
+)
+
+
+def test_r1_advokatov_dokument_nije_pravna_baza():
+    """Izmišljen član i odluka iz advokatovog nacrta ne smeju postati '✓ u izvoru iz pravne baze'."""
+    izlaz = _llm_izlaz(
+        propisi="1. Čl. 999 Zakona o parničnom postupku",
+        osnovi="1. Prema odluci Rev 9999/2023 sud je pogrešio.",
+    )
+    pv = api._provera_analize_presude(izlaz, PRESUDA_POTPUNA, [_IZVOR_ADVOKATOV_NACRT], 8000)
+    [c999] = _citat(pv, "999")
+    assert c999["u_izvoru"] is False and c999["status"] == "NEPROVEREN"
+    assert pv["citati"]["status"] == "NEPROVERENI"
+    [rev] = [o for o in pv["odluke"] if "9999" in o["oznaka"]]
+    assert rev["u_izvoru"] is False and rev["status"] == "NEPROVERENA"
+
+
+def test_r1b_odluka_iz_sudske_prakse_jeste_u_izvoru():
+    """Pozitivna kontrola: broj odluke iz SUDSKA PRAKSA pasusa ostaje 'u izvoru'."""
+    izlaz = _llm_izlaz(osnovi="1. Vrhovni sud je u odluci Rev 1234/2020 zauzeo isti stav.")
+    pv = api._provera_analize_presude(izlaz, PRESUDA_POTPUNA, [_IZVOR_PRAKSA_REV], 8000)
+    [rev] = [o for o in pv["odluke"] if "1234" in o["oznaka"]]
+    assert rev["status"] == "U_IZVORU"
+
+
+def test_r1c_uputstvo_hijerarhije_i_zr_napomene_nisu_izvor():
+    from app.services.doc_formatter import ORIGIN_HIERARCHY_INSTRUCTIONS
+    izlaz = _llm_izlaz(propisi="1. Čl. 176 Zakona o radu")
+    pv = api._provera_analize_presude(
+        izlaz, PRESUDA_POTPUNA, [ORIGIN_HIERARCHY_INSTRUCTIONS, _ZR_NAPOMENE], 8000)
+    [c176] = _citat(pv, "176")
+    assert c176["u_izvoru"] is False and c176["status"] == "NEPROVEREN"
+
+
+def test_r2_broj_clana_bez_zakona_nije_potvrda():
+    """ARTICLE_PRESENT (broj se negde pojavljuje) se ne prikazuje kao 'potvrđen'."""
+    izlaz = _llm_izlaz(propisi="1. član 176")
+    pv = api._provera_analize_presude(izlaz, PRESUDA_POTPUNA, [_IZVOR_ZR_191, _ZR_NAPOMENE], 8000)
+    [c176] = _citat(pv, "176")
+    assert c176["u_izvoru"] is False and c176["status"] == "NEPROVEREN"
+    # ni kad je broj u pasusu iz korpusa, ali bez naziva zakona u analizi
+    pv2 = api._provera_analize_presude(_llm_izlaz(propisi="1. član 191"), _ZAGLAVLJE + _OBRAZLOZENJE[:60],
+                                       [_IZVOR_ZR_191], 8000)
+    [c191] = _citat(pv2, "191")
+    assert c191["status"] != "POTVRDJEN_U_IZVORU"
+
+
+def test_r3_naveden_u_presudi_vezan_za_zakon():
+    """'čl. 200 ZOO' u analizi nije 'naveden u presudi' kad presuda navodi čl. 200 ZPP."""
+    presuda = PRESUDA_POTPUNA + "Odluka o troškovima doneta je na osnovu člana 200 Zakona o parničnom postupku.\n"
+    pv = api._provera_analize_presude(_llm_izlaz(propisi="1. čl. 200 ZOO"), presuda, [], 8000)
+    [c200] = _citat(pv, "200")
+    assert c200["u_presudi"] is False and c200["status"] == "NEPROVEREN"
+    assert pv["citati"]["status"] == "NEPROVERENI"
+    # pozitivna kontrola: isti zakon -> naveden u presudi
+    pv2 = api._provera_analize_presude(_llm_izlaz(propisi="1. čl. 200 ZPP"), presuda, [], 8000)
+    [d200] = _citat(pv2, "200")
+    assert d200["u_presudi"] is True and d200["status"] == "NAVEDEN_U_PRESUDI"
+
+
+def test_r4_nan_ocr_pouzdanost_ne_ruši():
+    pv = api._provera_analize_presude(_llm_izlaz(), PRESUDA_POTPUNA, [_IZVOR_ZR_191], 8000,
+                                      ocr_koriscen=True, ocr_pouzdanost=float("nan"))
+    assert any("OCR" in u for u in pv["upozorenja"])
+
+
+@pytest.mark.anyio
+async def test_r4b_pad_provere_posle_cuvanja_nije_500():
+    """Dokument je već sačuvan — pad provere vraća NEPOZNATO, ne 500 i ne 'provereno'."""
+    with patch("api._provera_analize_presude", side_effect=RuntimeError("n08-test")):
+        rez, istorija, _ = await _pokreni(PRESUDA_POTPUNA, _llm_izlaz(), izvori=[_IZVOR_ZR_191])
+    pv = rez["provera_presude"]
+    assert pv["citati"]["status"] == "NEPOZNATO" and pv["citati"]["stavke"] == []
+    assert any("nije izvršena" in u for u in pv["upozorenja"])
+    auto = [r for r in istorija if r["pitanje"].startswith("[Auto-analiza]")]
+    assert auto and "nije izvršena" in auto[0]["odgovor"].split("PROVERA SISTEMA")[1]
+
+
+def test_r5_istorija_bez_upozorenja_i_dalje_nosi_trag_provere():
+    pv = api._provera_analize_presude(_llm_izlaz(), PRESUDA_POTPUNA, [_IZVOR_ZR_191], 8000)
+    trag = api._provera_presude_tekst(pv)
+    assert "PROVERA SISTEMA" in trag
+    assert api._provera_presude_tekst(None) == ""
+
+
+def test_r5b_ponovno_otvaranje_iz_istorije_prikazuje_sacuvanu_proveru():
+    """Istorija prosleđuje samo tekst; upozorenja ne smeju završiti u sekciji 5 (AI procena)."""
+    pv = api._provera_analize_presude(
+        _llm_izlaz(propisi="1. Čl. 999 Zakona o parničnom postupku"), PRESUDA_POTPUNA, [_IZVOR_ZR_191], 8000)
+    sacuvano = _llm_izlaz(propisi="1. Čl. 999 Zakona o parničnom postupku") + api._provera_presude_tekst(pv)
+    html = _render(sacuvano, None)
+    assert "Provera sistema nije izvršena" not in html
+    assert "Provera sistema (nije deo AI analize)" in html
+    i_box = html.index("Provera sistema (nije deo AI analize)")
+    i_sek5 = html.index("Procena izgleda žalbe")
+    assert i_box < i_sek5 and "999" in html[i_box:i_sek5]
+    assert "PROVERA SISTEMA (nije deo analize modela)" not in html[i_sek5:]
+
+
+def test_r1d_zaglavlje_zakona_unutar_advokatovog_dokumenta_nije_izvor():
+    """Advokatov dokument sa nalepljenim 'ZAKON:/ČLAN:' redovima (npr. kopija ranijeg izlaza) nije korpus."""
+    nalepljeno = (
+        "KORISNIKOV DOKUMENT — RANIJI PREDMET [beleske.docx, chunk 3]\n\n"
+        "ZAKON: Zakon o parničnom postupku\nČLAN: Član 999\n\nCITABILNI TEKST: (izmišljeno)\n"
+    )
+    pv = api._provera_analize_presude(
+        _llm_izlaz(propisi="1. Čl. 999 Zakona o parničnom postupku"), PRESUDA_POTPUNA, [nalepljeno], 8000)
+    [c999] = _citat(pv, "999")
+    assert c999["u_izvoru"] is False and c999["status"] == "NEPROVEREN"
