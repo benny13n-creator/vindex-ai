@@ -19,5 +19,5 @@ while read -r id variant mode spec cpus; do
   docker rm "c_$id" > /dev/null
   echo "{\"case\":\"$id\",\"exit\":$ec,\"oomkilled\":$oom,\"cpus\":\"${cpus:-}\",\"container_s\":$(python3 -c "print(round($end-$start,1))")}" > "n02_measure/out/$id.exit.json"
   echo "N02EXIT $id variant=$variant mode=$mode spec=$spec exit=$ec oomkilled=$oom"
-  grep -E "N02CASE|Traceback|Error|Killed" "n02_measure/logs/$id.log" | grep -v "^N02CASE" | tail -n 5 | sed 's/^/   /'
+  if [ "$ec" != "0" ]; then grep -v "deprecated" "n02_measure/logs/$id.log" | tail -n 12 | cut -c1-300 | sed 's/^/   /'; fi
 done < "$CASES"

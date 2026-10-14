@@ -1,5 +1,5 @@
 # id variant mode spec [cpus]
-b00 pr24 idle - 
+b00 pr24 idle -
 b01 pr24 worker scan_cyr_1p.pdf
 b02 pr24 worker scan_10p.pdf
 b03 pr24 worker mixed_6p.pdf
