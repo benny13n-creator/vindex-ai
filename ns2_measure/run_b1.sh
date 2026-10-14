@@ -8,11 +8,12 @@ IMG=${IMG:-vx}
 CASES=$1; TAG=$2
 mkdir -p ns2_measure/out ns2_measure/logs
 FEK=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-while read -r id workers cpus scenario; do
+while read -r id workers cpus scenario envs; do
   [ -z "${id:-}" ] && continue
   case "$id" in \#*) continue;; esac
   cid_name="c_${id}_${TAG}"; case_id="${id}_${TAG}"
   extra=""; [ "$cpus" != "-" ] && extra="--cpus=$cpus"
+  for kv in $(echo "${envs:-}" | tr "," " "); do [ "$kv" != "-" ] && extra="$extra -e $kv"; done
   rm -f "ns2_measure/out/$case_id.stop"
   docker run -d --name "$cid_name" --memory=512m --memory-swap=512m $extra -p 10000:10000 \
     --env-file ns2_measure/env.list -e FIELD_ENCRYPTION_KEY="$FEK" -e WEB_CONCURRENCY="$workers" -e PORT=10000 \
@@ -30,7 +31,7 @@ while read -r id workers cpus scenario; do
   oomk=$(docker inspect -f '{{.State.OOMKilled}}' "$cid_name"); st=$(docker inspect -f '{{.State.Status}}' "$cid_name")
   boots=$(grep -c "Booting worker" "ns2_measure/logs/$case_id.log"); kills=$(grep -c "SIGKILL" "ns2_measure/logs/$case_id.log")
   docker rm -f "$cid_name" > /dev/null
-  echo "{\"case\":\"$case_id\",\"id\":\"$id\",\"run\":\"$TAG\",\"workers\":\"$workers\",\"cpus\":\"$cpus\",\"scenario\":\"$scenario\",\"container_oomkilled\":$oomk,\"state\":\"$st\",\"worker_boots\":$boots,\"worker_sigkills\":$kills,\"secs\":$(( $(date +%s) - start ))}" > "ns2_measure/out/$case_id.exit.json"
-  echo "NS2EXIT $case_id workers=$workers cpus=$cpus $scenario oomkilled=$oomk boots=$boots sigkills=$kills"
+  echo "{\"case\":\"$case_id\",\"id\":\"$id\",\"run\":\"$TAG\",\"workers\":\"$workers\",\"cpus\":\"$cpus\",\"scenario\":\"$scenario\",\"envs\":\"${envs:-}\",\"container_oomkilled\":$oomk,\"state\":\"$st\",\"worker_boots\":$boots,\"worker_sigkills\":$kills,\"secs\":$(( $(date +%s) - start ))}" > "ns2_measure/out/$case_id.exit.json"
+  echo "NS2EXIT $case_id workers=$workers cpus=$cpus envs=${envs:-} $scenario oomkilled=$oomk boots=$boots sigkills=$kills"
   grep -E "SIGKILL|out of memory|Worker exiting|Traceback" "ns2_measure/logs/$case_id.log" | head -n 5 | cut -c1-200 | sed 's/^/   /'
 done < "$CASES"

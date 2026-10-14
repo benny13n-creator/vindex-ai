@@ -70,8 +70,22 @@ async def _ocr(request):
     return JSONResponse(out)
 
 
+import ctypes  # noqa: E402
+
+
+class _MI2(ctypes.Structure):
+    _fields_ = [(n, ctypes.c_size_t) for n in ("arena", "ordblks", "smblks", "hblks", "hblkhd", "usmblks", "fsmblks", "uordblks", "fordblks", "keepcost")]
+
+
+_libc = ctypes.CDLL("libc.so.6")
+_libc.mallinfo2.restype = _MI2
+
+
 async def _rss(request):
-    return JSONResponse({"pid": os.getpid(), "rss_mib": _rss_mib()})
+    m = _libc.mallinfo2(); M = lambda b: round(b / 2**20, 1)
+    thr = next(int(l.split()[1]) for l in open("/proc/self/status") if l.startswith("Threads:"))
+    return JSONResponse({"pid": os.getpid(), "rss_mib": _rss_mib(), "heap_total": M(m.arena), "heap_inuse": M(m.uordblks),
+                         "heap_free": M(m.fordblks), "mmapped": M(m.hblkhd), "threads": thr})
 
 
 app.router.routes.insert(0, Route("/__ns2m/ocr", _ocr, methods=["GET"]))

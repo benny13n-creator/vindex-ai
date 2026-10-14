@@ -132,7 +132,8 @@ def baseline(tag):
     time.sleep(2.0)
     s, b, _ = get("/__ns2m/rss", timeout=30)
     w = json.loads(b) if s == 200 else {}
-    return {"tag": tag, "t": round(time.time() - T0, 1), "cg_mib": cgcur(), "worker_rss_mib": w.get("rss_mib"), "pid": w.get("pid")}
+    return {"tag": tag, "t": round(time.time() - T0, 1), "cg_mib": cgcur(), "worker_rss_mib": w.get("rss_mib"), "pid": w.get("pid"),
+            "heap_free": w.get("heap_free"), "heap_total": w.get("heap_total"), "mmapped": w.get("mmapped"), "threads": w.get("threads")}
 
 
 R = {"case": case_id, "scenario": scenario}
@@ -173,10 +174,10 @@ else:
         R["load"] = L.stats()
         R["baselines"] = [baseline("after_retry")]
         time.sleep(25); R["baselines"].append(baseline("after_abandoned_threads"))
-    elif kind == "sustained":
+    elif kind in ("sustained", "sustainedq"):
         rot = arg.split(",")
         R["results"] = []; R["baselines"] = []
-        with Load(threads=3, think=0.05) as L:
+        with Load(threads=0 if kind == "sustainedq" else 3, think=0.05) as L:
             for i in range(20):
                 f = rot[i % len(rot)]
                 r = ocr(f, "worker"); r["seq"] = i + 1; R["results"].append(r)
