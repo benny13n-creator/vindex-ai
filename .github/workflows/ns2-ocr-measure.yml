@@ -47,3 +47,26 @@ jobs:
             ns2_measure/out/*.json
             ns2_measure/logs/*.log
           retention-days: 14
+
+  b2:
+    if: ${{ contains(github.event.head_commit.message, '[b2]') || contains(github.event.head_commit.message, '[b2-only]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Generate B2 fixtures
+        run: docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen_b2.py /m/fxb2
+      - name: B2 probe - base extractor (942b2053) vs candidate (NS2 B2)
+        run: |
+          for v in base cand; do
+            cmd="cd /app && python /m/b2probe.py /m/fxb2"
+            [ "$v" = cand ] && cmd="cp /m/variants/extractor_b2.py /app/uploaded_doc/extractor.py && $cmd"
+            echo "=== B2PROBE $v"
+            docker run --rm --env-file ns2_measure/env.list -e FIELD_ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))") \
+              -e PYTHONIOENCODING=utf-8 -v "$PWD/ns2_measure:/m" vx sh -c "$cmd" 2>/dev/null | grep '^{' | sed "s/^/B2PROBE $v /"
+          done
+      - name: B2 discriminator sweep (production tessdata)
+        run: |
+          docker run --rm -e PYTHONIOENCODING=utf-8 -v "$PWD/ns2_measure:/m" vx sh -c "cd /app && python /m/b2sweep.py /m /m/fxb2s" 2>/dev/null | grep '^{"kind' | sed 's/^/B2SWEEP /'
