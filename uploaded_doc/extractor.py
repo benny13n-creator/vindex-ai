@@ -430,7 +430,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         ocr_confidence = (sum(ocr_confs) / len(ocr_confs)) if ocr_confs else None
 
         ocr_text = "\n\n".join(p for p in ocr_pages if p)
-        if ocr_strana and len(ocr_text.strip()) > 100:
+        if ocr_strana and (len(ocr_text.strip()) > 100 or _kratak_ocr_procitan(ocr_text, ocr_confidence)):
             logger.info("[OCR] Uspešno — %d karaktera iz %d stranica", len(ocr_text), len(ocr_pages))
             return ocr_text, False, True, ocr_pages, ocr_confidence
         if total_chars > 0:
@@ -461,6 +461,25 @@ PRAG_VIDLJIVOG_SADRZAJA = 0.005     # 0,5 % tamnih piksela: prazna/skenirana bel
 # Prosečna pouzdanost reči OCR-a ispod koje se tekst skeniranih strana ne predstavlja kao pouzdano pročitan. Izmereno u
 # produkcionoj slici (OCR001, CI): ispravno čitanje 0,88–0,96; ćirilica engleskim modelom 0,40–0,62 (CER 71–80 %).
 PRAG_POUZDANOSTI_OCR = 0.75
+
+
+# NS2 B2 — KRATAK skeniran dokument (dostavnica, pečat „overeno“, rešenje od jednog reda). Pravilo „> 100 znakova“
+# je ispravno pročitan tekst od 15–99 znakova potpuno brisalo ("", strane None, „OCR nije uspeo“). Izmereno
+# (sintetički skenovi, produkcioni OCR poziv, NS2 B2): pravi kratak tekst od 15–40 znakova, i posle umanjenja,
+# zamućenja i JPEG q30, ima pouzdanost 0,85–0,93 i ≥ 2 reči sa ≥ 3 slova/cifre koje čine ≥ polovinu reči; šum
+# (potezi, lukovi, tačke) koji OCR pretvori u ≤ 100 znakova ima pouzdanost 0,58–0,77 i najviše 1 takvu reč. Kratak OCR
+# tekst se zato prihvata kao pročitan SAMO kad prođe oba uslova; inače ostaje nepročitan kao i ranije (bez teksta,
+# na pregled advokata). Tekst duži od 100 znakova ovo pravilo ne dira.
+MIN_PUNIH_RECI_KRATKOG_OCR = 2
+
+
+def _kratak_ocr_procitan(tekst: str, pouzdanost: Optional[float]) -> bool:
+    """Da li je OCR tekst od ≤ 100 znakova dovoljno pouzdan da se ne odbaci (v. komentar iznad)."""
+    if pouzdanost is None or pouzdanost < PRAG_POUZDANOSTI_OCR:
+        return False
+    reci = (tekst or "").split()
+    pune = [r for r in reci if sum(c.isalnum() for c in r) >= 3]
+    return len(pune) >= MIN_PUNIH_RECI_KRATKOG_OCR and 2 * len(pune) >= len(reci)
 
 
 def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
@@ -614,7 +633,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
         _log_ocr_error("unexpected_error", path.name)
         return "", True, False, None, None
 
-    if len(text) > 100:
+    if len(text) > 100 or _kratak_ocr_procitan(text, confidence):
         logger.info("[OCR] Uspešno — %d karaktera", len(text))
         return text, False, True, None, confidence
 
