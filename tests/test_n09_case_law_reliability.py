@@ -338,3 +338,23 @@ def test_11f_razlika_samo_u_velikim_slovima_i_razmacima_nije_viseznacnost():
     var = [_chunk("Gž 77/2020", "  APELACIONI   SUD U BEOGRADU ", "2020-03-03", "OBRAZLOŽENJE", "Varijanta BEOGRAD3.", 3)]
     meta, tekst = _fetch("Gž 77/2020", GZ_BG + var)
     assert "BEOGRAD3" in tekst
+
+
+# ─── 11g. recenzija krug 2: interpunkcija nije deo identiteta suda ──────
+
+@pytest.mark.parametrize("naziv", [
+    "Apelacioni sud u Beogradu.",
+    "Apelacioni sud, u Beogradu",
+    "Apelacioni  sud u Beogradu",
+    "(Apelacioni sud u Beogradu)",
+])
+def test_11g_interpunkcija_istog_suda_se_spaja(naziv):
+    var = [_chunk("Gž 77/2020", naziv, "2020-03-03", "OBRAZLOŽENJE", "Varijanta BEOGRAD4.", 4)]
+    meta, tekst = _fetch("Gž 77/2020", GZ_BG + var)
+    assert "BEOGRAD" in tekst and "BEOGRAD4" in tekst
+
+
+def test_11h_interpunkcija_ne_spaja_razlicite_sudove():
+    ni = [_chunk("Gž 77/2020", "Apelacioni sud u Nisu.", "2020-11-11", "IZREKA", "PREINAČUJE SE NIŠ.", 0)]
+    with pytest.raises(praksa.OdlukaViseznacna):
+        _fetch("Gž 77/2020", GZ_BG + ni)

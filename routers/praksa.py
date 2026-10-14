@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -434,7 +435,10 @@ def _kljuc_suda(sud: str) -> str:
     Samo jednakost ključeva znači „isti sud". Podniz NIJE dovoljan: „Apelacioni sud" je podniz i
     „…u Beogradu" i „…u Nišu", pa bi kao most spojio dve različite odluke (nalaz recenzije N09)."""
     from main import _cirilica_u_latinicu, _normalizuj
-    return " ".join(_normalizuj(_cirilica_u_latinicu(sud or "")).split())
+    t = _normalizuj(_cirilica_u_latinicu(sud or ""))
+    # Interpunkcija nije deo identiteta suda: „…u Beogradu." == „…u Beogradu" (nalaz recenzije, krug 2).
+    t = re.sub(r"[.,;:\"'()\-]", " ", t)
+    return " ".join(t.split())
 
 
 def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
