@@ -289,3 +289,52 @@ def test_10_cinjenice_a_i_b_se_ne_mesaju():
     assert "CCC" in a and "CCC" not in b
     assert "BBB" in b and "BBB" not in a
     assert out["odluka_a"]["broj"] == "Rev 999/2021" and out["odluka_b"]["broj"] == "Rev 1234/2020"
+
+
+# ─── 11. nalazi nezavisne recenzije: identitet suda ──────────────────────
+
+def _fetch(dn, corpus):
+    with patch("app.services.retrieve._get_index", return_value=FakeIndex(corpus)), \
+         patch.object(praksa, "_sentry_capture"):
+        return praksa._fetch_decision_chunks(dn)
+
+
+def test_11_opsti_naziv_suda_nije_most_izmedju_dva_suda():
+    # „Apelacioni sud" je podniz oba konkretna naziva; ranije je spajao Beograd i Niš u jedan tekst.
+    opsti = [_chunk("Gž 77/2020", "Apelacioni sud", "2020-03-03", "HEADER", "Gž 77/2020 OPŠTI deo.", 0)]
+    with pytest.raises(praksa.OdlukaViseznacna):
+        _fetch("Gž 77/2020", opsti + GZ_BG + GZ_NI)
+    out, msg = _uporedi("Gž 77/2020", "Rev 999/2021", FakeIndex(opsti + GZ_BG + GZ_NI + REV_999))
+    assert msg is None and "više" in out["error"]
+
+
+def test_11b_opsti_i_konkretan_naziv_se_odbijaju_fail_safe():
+    opsti = [_chunk("Gž 77/2020", "Apelacioni sud", "2020-03-03", "HEADER", "Gž 77/2020 OPŠTI deo.", 0)]
+    with pytest.raises(praksa.OdlukaViseznacna):
+        _fetch("Gž 77/2020", opsti + GZ_BG)
+
+
+def test_11c_prazan_sud_uz_imenovan_sud_se_odbija():
+    # Dokumentovano ponašanje: deo bez naziva suda se ne pripisuje imenovanom sudu bez dokaza.
+    bez = [_chunk("Gž 77/2020", "", "2020-03-03", "OBRAZLOŽENJE", "Deo bez suda NEPOZNATO.", 5)]
+    with pytest.raises(praksa.OdlukaViseznacna) as ei:
+        _fetch("Gž 77/2020", GZ_BG + bez)
+    assert "sud nije naveden" in str(ei.value)
+
+
+def test_11d_svi_delovi_bez_suda_se_prihvataju():
+    bez = [dict(c, md=dict(c["md"], court="")) for c in REV_999]
+    meta, tekst = _fetch("Rev 999/2021", bez)
+    assert "CCC" in tekst
+
+
+def test_11e_cirilica_i_latinica_istog_suda_se_spajaju():
+    cir = [_chunk("Gž 77/2020", "Апелациони суд у Београду", "2020-03-03", "OBRAZLOŽENJE", "Ćirilični deo BEOGRAD2.", 2)]
+    meta, tekst = _fetch("Gž 77/2020", GZ_BG + cir)
+    assert "BEOGRAD" in tekst and "BEOGRAD2" in tekst
+
+
+def test_11f_razlika_samo_u_velikim_slovima_i_razmacima_nije_viseznacnost():
+    var = [_chunk("Gž 77/2020", "  APELACIONI   SUD U BEOGRADU ", "2020-03-03", "OBRAZLOŽENJE", "Varijanta BEOGRAD3.", 3)]
+    meta, tekst = _fetch("Gž 77/2020", GZ_BG + var)
+    assert "BEOGRAD3" in tekst

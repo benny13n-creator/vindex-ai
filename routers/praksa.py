@@ -428,9 +428,13 @@ class OdlukaViseznacna(ValueError):
     apelaciona suda). Podklasa ValueError-a da postojeći pozivaoci i dalje ništa ne tvrde o odluci."""
 
 
-def _isti_sud_normalizovano(a: str, b: str) -> bool:
-    a, b = " ".join(a.lower().split()), " ".join(b.lower().split())
-    return a == b or a in b or b in a
+def _kljuc_suda(sud: str) -> str:
+    """Naziv suda za poređenje: ćirilica → latinica, bez dijakritika, mala slova, sažete praznine.
+
+    Samo jednakost ključeva znači „isti sud". Podniz NIJE dovoljan: „Apelacioni sud" je podniz i
+    „…u Beogradu" i „…u Nišu", pa bi kao most spojio dve različite odluke (nalaz recenzije N09)."""
+    from main import _cirilica_u_latinicu, _normalizuj
+    return " ".join(_normalizuj(_cirilica_u_latinicu(sud or "")).split())
 
 
 def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
@@ -489,10 +493,16 @@ def _fetch_decision_chunks(dn: str, raise_on_error: bool = False) -> tuple:
 
     # N09 (2026-10-13): filter je samo po broju, a broj nije jedinstven među sudovima. Delovi dve
     # različite odluke se NIKAD ne spajaju u jedan tekst sa metapodacima prve.
+    # Pravilo (fail-safe): svaki različit ključ suda je poseban sud — i opšti naziv („Apelacioni sud")
+    # i prazan sud. Prazan sud se prihvata samo kad NIJEDAN deo nema naziv suda (nema šta da se
+    # razlikuje); pomešan sa imenovanim sudom ne može se dokazati da je ista odluka, pa se odbija.
     sudovi: list = []
+    vidjeni: set = set()
     for c in all_chunks:
-        if c["court"] and not any(_isti_sud_normalizovano(c["court"], s) for s in sudovi):
-            sudovi.append(c["court"])
+        k = _kljuc_suda(c["court"])
+        if k not in vidjeni:
+            vidjeni.add(k)
+            sudovi.append(c["court"] or "sud nije naveden")
     if len(sudovi) > 1:
         raise OdlukaViseznacna(
             f"Broj odluke \"{dn}\" postoji kod više sudova ({', '.join(sudovi)}); "
