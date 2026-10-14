@@ -1399,9 +1399,22 @@ async def test_FD2_kontrola_isti_izvorni_fajl_ostaje_idempotentan(sonda_129):
     (f"Primljeno {D_25}, presuda od {D_17}", D_17),
     # rec dostave posle zareza opisuje odluku, nije predikat datuma
     (f"Presuda doneta {D_17}, dostavljena strankama", D_17),
-    # natpis bez datuma iznad reda sa frazom izdavanja („Mesto, " / „dana") ne vazi
-    (f"Dostava:\nBeograd, {D_17}", D_17),
-    ("Prijemni stempel\nU Beogradu, dana 12.03.2025", "12.03.2025"),
+    # natpis pecata bez datuma iznad datuma diskvalifikuje datum BEZ OBZIRA na „Mesto, " / „dana"
+    # u redu datuma (pecat ih cesto sadrzi). Cena: i pravi datum ispod ovakvog natpisa postaje
+    # nepoznat — None umesto moguce pogresnog datuma (ugovor: nikad pecat kao datum presude).
+    (f"Dostava:\nBeograd, {D_17}", None),
+    ("Prijemni stempel\nU Beogradu, dana 12.03.2025", None),
+    # recenzent: pecat sa „Dana:" / „Mesto," / iznad naziva suda
+    (f"PRIMLJENO\nDana: {D_25}\nBroj: P 1/24", None),
+    (f"PRIMLJENO\nBeograd, {D_25}", None),
+    (f"OSNOVNI SUD\nPRIMLJENO\ndana {D_25}", None),
+    # cirilica: pecat iznad „Дана", datum donosenja ispod — „донета" se prepoznaje
+    (f"ПРИМЉЕНО\nДана {D_25}\nПресуда донета {D_17}", D_17),
+    (f"Пресуда донета {D_17}", D_17),
+    # cirilicna fraza izdavanja ima prednost nad ranijim datumom, kao i latinicna
+    (f"Захтев од 01.02.2025\nПресуда донета {D_17}", D_17),
+    (f"Захтев од 01.02.2025\nЗаписник сачињен дана {D_17}", D_17),
+    (f"Zahtev od 01.02.2025\nPresuda doneta {D_17}", D_17),
     # natpis pecata preko praznog reda; otpravak — pecat, ne datum dokumenta
     (f"PRIMLJENO\n\n{D_25}", None),
     (f"Otpravljeno dana {D_25}", None),

@@ -112,8 +112,10 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
              PRIMLJENO") — ne posle zareza, gde opisuje odluku („doneta 17.03.2025,
              dostavljena strankama");
           3. prethodni NEPRAZAN red je kratak natpis pecata BEZ sopstvenog datuma
-             („PRIMLJENO" iznad datuma), a red ovog datuma nema frazu izdavanja
-             (donet/dana/zaključen/datum/„Mesto, ").
+             („PRIMLJENO" iznad datuma) — BEZ OBZIRA na reci u redu datuma: pecat
+             cesto sadrzi „Dana: ..." ili „Mesto, ...", pa fraza izdavanja tu nije dokaz
+             da je datum datum dokumenta. Cena: „Dostava:\nBeograd, 17.03.2025" daje
+             `None` umesto 17.03 — nepoznato, nikad pogresno.
         Pecat sa sopstvenim datumom ne prenosi se na sledeci red. Kad pravila ne mogu
         da odluce, pozivalac vraca `None` — nepoznat datum je bolji od pogresnog."""
         red_pocetak = probe.rfind("\n", 0, pocetak) + 1
@@ -125,8 +127,6 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
             return True
         if _PRIJEM_POSLE_RE.match(probe[kraj:kraj + 30]):
             return True
-        if _IZDAVANJE_RE.search(pre):
-            return False
         prethodni = [r.strip() for r in probe[:red_pocetak].split("\n")]
         while prethodni and not prethodni[-1]:
             prethodni.pop()
@@ -144,8 +144,11 @@ def _extract_datum_dokumenta(tekst: str) -> Optional[str]:
         r"\bzaklju[čc]en[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "doneta/doneto/donet dana DD.MM.YYYY"
         r"\bdonet[ao]?\s+(?:dana\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
-        # "Dana DD.MM.YYYY" / "dana DD.MM.YYYY"
+        # ćirilica: "донета/донето/донет (дана) DD.MM.YYYY"
+        r"(?<!\w)донет[аои]?\s+(?:дана\s+)?(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        # "Dana DD.MM.YYYY" / "dana DD.MM.YYYY" (i ćirilica „дана")
         r"\bdana\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
+        r"(?<!\w)дана\s+(\d{1,2}\.\d{1,2}\.\d{4})\b",
         # "Grad/Mesto, DD.MM.YYYY" — npr. "Beograd, 01.03.2025"
         r"\b[A-ZŠĐŽČĆ][a-zšđžčćA-ZŠĐŽČĆ]{2,20},\s*(\d{1,2}\.\d{1,2}\.\d{4})\b",
     ]
@@ -184,12 +187,6 @@ _PECAT = (
 _PRIJEM_RE = re.compile(r"(" + _PECAT + r")(?!\w)", re.IGNORECASE)
 #: Pečat kao PREDIKAT datuma: odmah posle datuma, bez zareza („25.03.2025 PRIMLJENO").
 _PRIJEM_POSLE_RE = re.compile(r"[\s.]*(" + _PECAT + r")(?!\w)", re.IGNORECASE)
-#: Fraza izdavanja u redu datuma: tada natpis pečata iz prethodnog reda ne važi.
-_IZDAVANJE_RE = re.compile(
-    r"(donet[aoi]?|donesen[aoi]?|zaklju[čc]en[aoi]?|dana|datum|донет[аои]?|закључен[аои]?|дана|датум)(?!\w)"
-    r"|^\s*(?:[UУ]\s+)?\w{3,25},\s*",
-    re.IGNORECASE,
-)
 _DATUM_RE = re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{4}\b")
 #: Natpis pečata je kratak red („PRIMLJENO", „Prijemni štambilj"); duži red je tekst,
 #: ne pečat, i ne sme da poništi datum ispod sebe.
