@@ -127,7 +127,8 @@ def test_ocr_strana_mesovitog_pdf_prazni_kes_posle_svake_strane(tmp_path, monkey
     assert sorted(dopuna) == [0, 1, 2] and confs == [0.9] * 3
     _svaki_render_ispraznjen_pre_sledeceg(dogadjaji, 3)
     # Pražnjenje ide PRE OCR-a: dekodirana strana ne sme da čeka u kešu dok traje spori Tesseract.
-    assert dogadjaji == ["render", "prazni", "ocr"] * 3, dogadjaji
+    # (Workstream B: i posle zatvaranja dokumenta — poslednje „prazni“.)
+    assert dogadjaji == ["render", "prazni", "ocr"] * 3 + ["prazni"], dogadjaji
 
 
 def test_merenje_necitljivih_strana_prazni_kes_posle_svake_strane(tmp_path, monkeypatch):
@@ -323,7 +324,8 @@ def test_posle_svake_ocr_strane_i_slike_memorija_se_vraca_sistemu(tmp_path, monk
     extractor.extract_pdf(sken)
     extractor._ocr_strane_pdf(sken, [0, 1])
     extractor.extract_image(foto)
-    assert dogadjaji == ["ocr", "vrati"] * 6, dogadjaji
+    # PDF: posle svake strane + posle zatvaranja dokumenta; fotografija: posle OCR-a.
+    assert dogadjaji == ["ocr", "vrati"] * 3 + ["vrati"] + ["ocr", "vrati"] * 2 + ["vrati"] + ["ocr", "vrati"], dogadjaji
 
 
 def test_vracanje_memorije_van_glibc_je_bez_dejstva():

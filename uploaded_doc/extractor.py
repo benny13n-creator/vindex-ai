@@ -238,6 +238,15 @@ def _dpi_strane(sirina_pt: float, visina_pt: float) -> int:
     return max(1, int(OCR_DPI * math.sqrt(MAX_OCR_PIXELS / pikseli)))
 
 
+def _zatvori_dokument(doc) -> None:
+    """Zatvara MuPDF dokument i odmah vraća ono što je on držao (keš + glibc). Izmereno: bez ovoga posle
+    PDF-a sa velikom ugrađenom slikom (97 MP, Flate) sledeći OCR u drugoj niti počinje ~90 MiB više.
+    Pozivalac drži _RASTER_OCR_LOCK."""
+    doc.close()
+    _oslobodi_kes_rasterizacije()
+    _vrati_memoriju_sistemu()
+
+
 def _rasterizuj_stranu(strana):
     """PIL slika strane za OCR, u granici MAX_OCR_PIXELS. Pozivalac drži _RASTER_OCR_LOCK."""
     import io
@@ -303,7 +312,7 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
                         confs.append(conf)
         finally:
             with _RASTER_OCR_LOCK:
-                doc.close()
+                _zatvori_dokument(doc)
         if dopuna:
             logger.info("[OCR] Mešovit PDF %s — OCR dopunio %d/%d strana bez teksta", path.name, len(dopuna), len(indeksi))
         return dopuna, confs
@@ -391,7 +400,7 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
                     _vrati_memoriju_sistemu()
         finally:
             with _RASTER_OCR_LOCK:
-                doc.close()
+                _zatvori_dokument(doc)
         for page_num, (page_text, page_conf) in enumerate(ocr_rezultati):
             # OCR001: kratak, ali ISPRAVAN digitalni tekst (npr. dostavnica od tri reda, < 80 znakova) više se ne
             # zamenjuje kraćim ili praznim OCR rezultatom iste strane — digitalni sloj je tačniji od OCR-a.
@@ -468,8 +477,7 @@ def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
                         necitljive.append(i + 1)
                 return necitljive
             finally:
-                doc.close()
-                _oslobodi_kes_rasterizacije()
+                _zatvori_dokument(doc)
     except Exception as exc:
         logger.warning("[OCR] potpunost strana nije izmerena za %s: %s", path.name, type(exc).__name__)
         return None
