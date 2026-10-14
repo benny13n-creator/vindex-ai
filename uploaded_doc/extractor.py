@@ -191,12 +191,13 @@ def _oslobodi_kes_rasterizacije() -> None:
 
 # ─── N02 (Workstream B) — jedna strana u memoriji u celom procesu ─────────────────────────────────────────────────
 # Smart Intake worker, finalizacija i otpremanja pozivaju extract() preko asyncio.to_thread u ISTOM procesu.
-# Izmereno u produkcionoj slici pod 512 MiB (cgroup): uvezena aplikacija ~204 MiB; jedna A4 strana na 300 dpi
-# (rasterizacija + Tesseract) ~360-380 MiB; DVA istovremena OCR-a (worker + finalizacija) su OOM ubila kontejner
-# čak i za 1 stranu + 12 MP fotografiju. PyMuPDF uz to dokumentovano ne podržava rad iz više niti. Zato se svaki
-# poziv MuPDF-a i OCR rasterizovane strane/slike odvija pod ovim zaključavanjem: u procesu je u svakom trenutku
-# najviše jedna rasterizovana strana i jedan Tesseract. Zaključavanje je po strani (ne po dokumentu), pa dugačak
-# dokument ne blokira drugi dokument do kraja — naizmenično napreduju stranu po stranu.
+# Izmereno u produkcionoj slici pod 512 MiB (cgroup): uvezena aplikacija + uploaded_doc ~240 MiB; jedna A4 strana
+# na 300 dpi (rasterizacija + Tesseract) ~370-420 MiB; DVA istovremena OCR-a (worker + finalizacija) su OOM ubila
+# kontejner čak i za 1 stranu + 12 MP fotografiju. PyMuPDF uz to dokumentovano ne podržava rad iz više niti. Zato
+# se svaki poziv MuPDF-a i OCR rasterizovane strane/slike odvija pod ovim zaključavanjem: u procesu je u svakom
+# trenutku najviše jedna rasterizovana strana i jedan Tesseract. Zaključavanje se uzima po strani, ali
+# threading.Lock NIJE pravedno: izmereno (CI), nit koja ga pusti obično ga odmah ponovo uzme, pa drugi dokument
+# može da čeka da prvi završi ceo (latencija, ne memorija).
 _RASTER_OCR_LOCK = threading.Lock()
 
 # Najveći broj piksela slike koja ide u OCR (strana PDF-a posle rasterizacije ili samostalna fotografija).
