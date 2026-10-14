@@ -94,6 +94,11 @@ i40.convert("L").save(os.path.join(OUT, "img_40mp.png"), "PNG"); TRUTH["img_40mp
 b = io.BytesIO(); i40.save(b, "PNG")
 d = fitz.open(); p = d.new_page(width=595, height=842); p.insert_image(p.rect, stream=b.getvalue())
 save(d, "pdf_flate40_a4.pdf", ["\n".join(l40)])
+#    4f. ~97 MP lossless (Flate) image in an A4 PDF: the embedded-image decode is NOT bounded by the output raster
+l100 = lines("cyr", 38); i100 = scan_image(l100, dpi=1000).convert("L")       # ~8268 x 11693 = 96.7 MP
+b = io.BytesIO(); i100.save(b, "PNG"); del i100
+d = fitz.open(); p = d.new_page(width=595, height=842); p.insert_image(p.rect, stream=b.getvalue())
+save(d, "pdf_flate100_a4.pdf", ["\n".join(l100)])
 print("img_40mp", i40.size, i40.size[0] * i40.size[1])
 # 5. raster-size probes: the SAME 300 dpi A4 scan stretched over larger page formats -> constant decode,
 #    growing 300 dpi output raster (A3 17.4 MP, A2 34.8 MP, A1 69.6 MP, A0 139 MP)

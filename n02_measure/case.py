@@ -28,6 +28,7 @@ os.chdir("/app")
 import logging
 t = time.perf_counter()
 import api  # noqa: F401 — production baseline: the web process has the whole app imported
+import uploaded_doc  # noqa: F401 — loaded by production on the first document (chunker/ingest, ~37 MiB); same for every variant
 logging.disable(logging.CRITICAL)
 base = {"rss_after_import_api_mib": rss_self(), "import_s": round(time.perf_counter() - t, 1)}
 
