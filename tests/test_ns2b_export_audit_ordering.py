@@ -130,7 +130,7 @@ async def test_audit_koji_baci_izuzetak_ne_obara_izvoz(caplog):
     with caplog.at_level(logging.WARNING), \
          patch.object(de, "_get_supa", return_value=FakeSupa()), \
          patch("shared.audit_immutable.log_action", new=_baci):
-        resp = await de.export_complete(user={"user_id": A, "email": "a@x.rs"})
+        resp = await de.export_complete(user={"user_id": A, "email": "tajna.adresa@x.rs"})
         telo = b""
         async for deo in resp.body_iterator:
             telo += deo
@@ -140,6 +140,7 @@ async def test_audit_koji_baci_izuzetak_ne_obara_izvoz(caplog):
     assert set(_sadrzaj(telo)) == {"README.txt", *TABELE_IZVOZA.values()}
     assert "data_export" in caplog.text and "RuntimeError" in caplog.text
     assert "TAJNA-NS2B-AUDIT" not in caplog.text
+    assert "tajna.adresa" not in caplog.text          # pregled D F1: metapodaci (e-posta) nikad u logu
 
 
 @pytest.mark.anyio
