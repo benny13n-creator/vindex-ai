@@ -24,6 +24,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-n08")
 import io
 import json
 import re
+import shutil
 import subprocess
 import types
 from pathlib import Path
@@ -388,6 +389,9 @@ def test_provera_pad_cuvara_je_nepoznato_nikad_provereno():
 # ── Prikaz (legacy FE) ──────────────────────────────────────────────────────
 
 def _render(tekst: str, provera) -> str:
+    # Produkciona slika (Runtime Parity) nema node; prikaz se meri u Test Suite poslu.
+    if shutil.which("node") is None:
+        pytest.skip("node nije dostupan u ovom okruženju")
     js = (REPO_ROOT / "static" / "vindex.js").read_text(encoding="utf-8-sig")
     m = re.search(r"function pred_renderPresuda\(tekst, provera\) \{.*?\n\}\r?\n", js, re.S)
     assert m, "pred_renderPresuda(tekst, provera) nije pronađen"
