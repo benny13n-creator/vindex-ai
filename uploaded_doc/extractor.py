@@ -333,6 +333,9 @@ def _rasterizuj_stranu(strana):
 # strana (≥ 75 MiB rezerve, isti razred kao već primljeni CMYK/PNG od 40 MP i sken od 10 strana).
 # JPEG u PDF-u: MuPDF uz koeficijente drži i ceo tok i raster strane, vrh ≈ 345–360 MiB + koeficijenti (96 MiB → 440,
 # 127 MiB → 486, uz sken 502) — zato se tu meri bafer koeficijenata, sa nižim pragom.
+_JPEG_SOF = frozenset({0xC0, 0xC1, 0xC2, 0xC3, 0xC9, 0xCA, 0xCB})        # okviri koje libjpeg(-turbo) dekodira
+_JPEG_SOF_HIJERARHIJSKI = frozenset({0xC5, 0xC6, 0xC7, 0xCD, 0xCE, 0xCF})  # libjpeg ih odbija pre ikakve alokacije
+_JPEG_SOF_PROGRESIVNI = frozenset({0xC2, 0xCA})
 MAX_JPEG_DEKODIRANJA_BAJTOVA = 150 * 1024 * 1024
 MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA = 64 * 1024 * 1024
 PORUKA_PREVELIK_JPEG = (
