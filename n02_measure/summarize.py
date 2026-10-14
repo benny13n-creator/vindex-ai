@@ -12,7 +12,7 @@ for ex in sorted(glob.glob(f"{OUT}/*.exit.json")):
         if r.get("outcome") == "exception":
             return f"{r['file']}:{r['exc']}"
         q = r.get("cer"); cp = r.get("cer_pages")
-        return f"{r['file']}:{r.get('role','')[:1]} {r.get('secs')}s cer={q} wr={r.get('wr')} conf={r.get('conf')} chars={r.get('chars')}" + (f" pages_cer_max={max(cp)}" if cp else "") + (f" att={r['attempt']} rss={r['rss_after_mib']}" if 'attempt' in r else "")
+        return f"{r['file']}:{r.get('role','')[:1]} {r.get('secs')}s cer={q} wr={r.get('wr')} conf={r.get('conf')} chars={r.get('chars')} sha={r.get('sha')}" + (f" pages_cer_max={max(cp)}" if cp else "") + (f" att={r['attempt']} rss={r['rss_after_mib']}" if 'attempt' in r else "")
     rows.append({"case": cid, "variant": c.get("variant", "?"), "mode": c.get("mode", "?"), "cpus": e.get("cpus"), "mem": e.get("mem", "512m"),
                  "exit": e["exit"], "oomkilled": e["oomkilled"], "oom_kill_events": (c.get("cg_memory_events") or {}).get("oom_kill", "?"),
                  "cg_peak": c.get("cg_memory_peak_mib", "-"), "cg_peak_sampled": m(s.get("cg_current")), "cg_anon_peak": m(s.get("cg_anon")),
