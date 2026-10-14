@@ -1,0 +1,41 @@
+name: NS2B runtime worker-count measurement
+
+# Measurement-only branch (NS2 FINAL CORRECTIVE CYCLE, TASK B). Never merged.
+# PRODUCTION Dockerfile image; command `gunicorn api:app -c gunicorn.conf.py` (old = dd619e9a conf, new = 6e08073b conf);
+# fresh --memory=512m --memory-swap=512m container per case; host-side cgroup reads. Fake env values only.
+
+on:
+  push:
+    branches: [measure/ns2b-runtime]
+  workflow_dispatch:
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [r1, r2]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner facts
+        run: |
+          nproc; free -m; uname -r
+          echo "cgroup fs: $(stat -fc %T /sys/fs/cgroup)"; docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Image facts
+        run: |
+          docker run --rm vx sh -c "python -V; gunicorn --version; grep -n WEB_CONCURRENCY /app/gunicorn.conf.py /app/api.py"
+          grep -n WEB_CONCURRENCY ns2b_measure/gunicorn_old.conf.py
+          git log --oneline -3
+      - name: Cases
+        run: bash ns2b_measure/run.sh ns2b_measure/cases.txt
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns2b-runtime-${{ matrix.run }}
+          path: ns2b_measure/out/*.log
+          retention-days: 14

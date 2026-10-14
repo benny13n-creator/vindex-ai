@@ -1,0 +1,10 @@
+# id mem conf WEB_CONCURRENCY cmd
+o_unset 512m old - gunicorn
+o_w1 512m old 1 gunicorn
+o_w2 512m old 2 gunicorn
+n_unset 512m new - gunicorn
+n_w1 512m new 1 gunicorn
+n_w2 512m new 2 gunicorn
+d_cmd 512m none - dockercmd
+cal_o_unset_2g 2g old - gunicorn
+cal_n_w2_2g 2g new 2 gunicorn
