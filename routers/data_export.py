@@ -52,13 +52,52 @@ class ExportIncomplete(Exception):
     """
 
 
+#: PostgREST/Supabase `max-rows` (podrazumevano 1000): odgovor bez straničenja
+#: se TIHO seče na tu granicu. Strana ne sme biti veća od nje.
+_STRANA = 1000
+
+
+def _kljuc_redosleda(order: str):
+    """Redosled u izvozu kao ranije `order(<kolona>)` (rastuće, NULL na kraju),
+    sa `id` kao stabilnim razbijačem nerešenog."""
+    def k(r):
+        v = r.get(order)
+        return (v is None, "" if v is None else str(v), str(r.get("id")))
+    return k
+
+
 async def _fetch(supa, table: str, uid: str, order: str = "created_at",
                  errors: list | None = None) -> list:
+    """Svi redovi korisnika iz tabele, po stranama.
+
+    C1-F1 (Night Sprint II): jedan upit bez opsega PostgREST seče na `max-rows`
+    (1000) bez ikakve greške -- izvoz je bio „uspešan" i nepotpun. Čita se po
+    ključu (`id > poslednji`, `order(id)`), ne po offsetu: brisanje reda
+    između dve strane ne može da pomeri i preskoči neki drugi red. Petlja se
+    prekida tek na PRAZNOJ strani, ne na „kratkoj" -- tako ni niži `max-rows`
+    od `_STRANA` ne može tiho da odseče ostatak. Pad bilo koje strane je pad
+    cele tabele (izvoz se odbija, `data_export_failed`).
+    """
     try:
-        r = supa.table(table).select("*").eq("user_id", uid).order(order).execute()
-        return r.data or []
+        out: list = []
+        poslednji = None
+        while True:
+            q = supa.table(table).select("*").eq("user_id", uid)
+            if poslednji is not None:
+                q = q.gt("id", poslednji)
+            strana = q.order("id").limit(_STRANA).execute().data or []
+            if not strana:
+                break
+            novi = strana[-1].get("id")
+            if novi is None or novi == poslednji:
+                raise RuntimeError("straničenje ne napreduje")
+            out.extend(strana)
+            poslednji = novi
+        out.sort(key=_kljuc_redosleda(order))
+        return out
     except Exception as e:
-        logger.error("[EXPORT] %s greška — export je NEPOTPUN: %s", table, e)
+        # Samo klasa izuzetka: tekst greške baze može da nosi vrednost iz reda.
+        logger.error("[EXPORT] %s greška (%s) — export je NEPOTPUN", table, type(e).__name__)
         if errors is not None:
             errors.append(table)
         return []
@@ -86,6 +125,8 @@ async def export_complete(user=Depends(get_current_user)):
     # HTTP 503 "podaci iz sledećih tabela nisu mogli da se pročitaju: klijenti,
     # predmet_komentari". Dakle prenosivost podataka (ZZPL čl. 36 / GDPR čl. 20)
     # nije radila ni za jednog korisnika.
+    # C1-F1: kolona se vise ne salje PostgREST-u (upit ide po `id`); koristi se
+    # samo za redosled u izvozu (`_kljuc_redosleda`).
     tables = [
         ("predmeti",          "predmeti.json",     "created_at"),
         ("klijenti",          "klijenti.json",     "kreirano"),
@@ -124,14 +165,31 @@ async def export_complete(user=Depends(get_current_user)):
             detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo za koji minut.",
         )
 
-    # Faza 2: citanje svih tabela PRE pravljenja arhive.
+    # Faze 2 i 3, tabela po tabela: u memoriji je istovremeno samo jedna
+    # tabela (kao JSON) i ZIP -- ne svih 8. ZIP se salje tek ako je SVAKA
+    # tabela procitana do kraja; inace se odbacuje.
     _failed: list[str] = []
-    podaci: list[tuple[str, list]] = []
-    for table, fname, order in tables:
-        podaci.append((fname, await _fetch(supa, table, uid, order, errors=_failed)))
+    buf = io.BytesIO()
+    try:
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            readme = _README.format(datum=now.replace("T", " "), email=email)
+            zf.writestr("README.txt", readme)
+            for table, fname, order in tables:
+                data = await _fetch(supa, table, uid, order, errors=_failed)
+                if _failed:
+                    continue  # arhiva se ionako odbacuje; samo se imenuju sve pale tabele
+                zf.writestr(fname, json.dumps(data, ensure_ascii=False, indent=2, default=str))
+                del data
+    except Exception as e:
+        logger.error("[EXPORT] pravljenje arhive palo (%s) -- izvoz NIJE poslat", type(e).__name__)
+        _neuspeh("serialization", error_class=type(e).__name__)
+        raise HTTPException(
+            status_code=500,
+            detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo.",
+        )
 
     # S4-4: never hand the data subject a partial archive that calls itself
-    # complete. Nothing is serialized or shipped.
+    # complete. The ZIP is discarded rather than shipped.
     if _failed:
         _neuspeh("retrieval", failed_tables=list(_failed))
         raise HTTPException(
@@ -141,22 +199,6 @@ async def export_complete(user=Depends(get_current_user)):
                 f"pročitaju: {', '.join(_failed)}. Nepotpun export vam nije poslat "
                 "jer bi izgledao kao potpun. Pokušajte ponovo za koji minut."
             ),
-        )
-
-    # Faza 3: arhiva.
-    buf = io.BytesIO()
-    try:
-        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            readme = _README.format(datum=now.replace("T", " "), email=email)
-            zf.writestr("README.txt", readme)
-            for fname, data in podaci:
-                zf.writestr(fname, json.dumps(data, ensure_ascii=False, indent=2, default=str))
-    except Exception as e:
-        logger.error("[EXPORT] pravljenje arhive palo (%s) -- izvoz NIJE poslat", type(e).__name__)
-        _neuspeh("serialization", error_class=type(e).__name__)
-        raise HTTPException(
-            status_code=500,
-            detail="Izvoz nije napravljen i nije vam poslat. Pokušajte ponovo.",
         )
 
     # N04: audit se upisuje tek POSLE uspeha. Ranije je `data_export` pisan pre

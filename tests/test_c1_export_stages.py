@@ -109,7 +109,7 @@ async def test_vise_palih_tabela_sve_imenovane_jedan_zapis():
     [kw] = _samo(audit, "data_export_failed")
     assert sorted(kw["metadata"]["failed_tables"]) == ["klijenti", "rocista"]
     # citanje se ne prekida na prvom padu: svih 8 tabela je pokusano
-    assert len(supa.citanja) == len(TABELE_IZVOZA)
+    assert {t for t, _ in supa.citanja} == set(TABELE_IZVOZA)
 
 
 # ── faza 3: pad pravljenja arhive ──────────────────────────────────────────
@@ -300,3 +300,162 @@ def test_tudji_id_u_upitu_i_zaglavlju_ne_menja_vlasnika_izvoza():
         assert ("user_id", A) in filteri, (tabela, filteri)
         assert ("user_id", B) not in filteri, (tabela, filteri)
     assert all(kw["user_id"] == A for _, kw in audit)
+
+
+# ── C1-F1: PostgREST max-rows (1000) ne sme tiho da skrati izvoz ───────────
+
+def _napuni(supa, tabela, n, uid=A):
+    supa.podaci[tabela] = [
+        {"id": f"r-{i}", "user_id": uid, "predmet_id": "p", "datum_iso": f"2026-01-{(i % 28) + 1:02d}",
+         "dogadjaj": "sinteticki"}
+        for i in range(n)
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("n", [0, 1, 999, 1000, 1001, 1500, 2000, 2500])
+async def test_svi_redovi_preko_max_rows_su_izvezeni(n):
+    supa = FakeSupa()
+    assert supa.max_rows == 1000
+    _napuni(supa, "predmet_hronologija", n)
+    supa.podaci["predmet_hronologija"] += [{"id": "tudji", "user_id": B, "datum_iso": "2026-01-01"}]
+    (resp, telo), audit = await _izvezi(supa)
+    izvezeno = json.loads(_sadrzaj(telo)["hronologija.json"])
+    ids = [r["id"] for r in izvezeno]
+    assert len(ids) == n
+    assert set(ids) == {f"r-{i}" for i in range(n)}
+    assert [a for a, _ in audit] == ["data_export"]
+
+
+@pytest.mark.anyio
+async def test_nizi_max_rows_od_strane_ne_skracuje_izvoz():
+    """Petlja staje na PRAZNOJ strani, ne na kratkoj: i server sa max-rows=300
+    daje kompletan izvoz."""
+    supa = FakeSupa()
+    supa.max_rows = 300
+    _napuni(supa, "predmet_dokumenti", 1000)
+    (resp, telo), audit = await _izvezi(supa)
+    assert len(json.loads(_sadrzaj(telo)["dokumenti.json"])) == 1000
+    assert [a for a, _ in audit] == ["data_export"]
+
+
+class _PadNaStrani(FakeSupa):
+    """Druga strana zadate tabele pada (npr. istek konekcije usred citanja)."""
+
+    def __init__(self, tabela, strana=2, **kw):
+        super().__init__(**kw)
+        self._t, self._s, self._n = tabela, strana, 0
+
+    def table(self, ime):
+        q = super().table(ime)
+        if ime == self._t:
+            izvrsi = q.execute
+
+            def execute():
+                self._n += 1
+                if self._n == self._s:
+                    raise RuntimeError(TAJNA)
+                return izvrsi()
+            q.execute = execute
+        return q
+
+
+@pytest.mark.anyio
+async def test_pad_usred_stranicenja_je_neuspeh_citanja(caplog):
+    from fastapi import HTTPException
+
+    supa = _PadNaStrani("predmet_hronologija")
+    _napuni(supa, "predmet_hronologija", 1500)
+    with caplog.at_level(logging.DEBUG):
+        rez, audit = await _izvezi(supa)
+    assert isinstance(rez, HTTPException) and rez.status_code == 503
+    assert _samo(audit, "data_export") == []
+    [kw] = _samo(audit, "data_export_failed")
+    assert kw["metadata"]["stage"] == "retrieval"
+    assert kw["metadata"]["failed_tables"] == ["predmet_hronologija"]
+    _bez_tajne(audit)
+    # C1-F3: u logu je samo klasa izuzetka, ne tekst greske baze
+    assert TAJNA not in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_brisanje_izmedju_strana_ne_preskace_druge_redove():
+    """Offset bi posle brisanja reda sa prve strane preskocio jedan red sa
+    druge. Kljuc (`id > poslednji`) ne preskace."""
+    supa = FakeSupa()
+    _napuni(supa, "predmet_hronologija", 1500)
+    obrisan = {}
+
+    izvorni_table = supa.table
+
+    def table(ime):
+        q = izvorni_table(ime)
+        if ime == "predmet_hronologija":
+            izvrsi = q.execute
+
+            def execute():
+                r = izvrsi()
+                if not obrisan and r.data:
+                    prvi = r.data[0]["id"]
+                    supa.podaci[ime] = [x for x in supa.podaci[ime] if x["id"] != prvi]
+                    obrisan["id"] = prvi
+                return r
+            q.execute = execute
+        return q
+    supa.table = table
+    (resp, telo), _ = await _izvezi(supa)
+    ids = {r["id"] for r in json.loads(_sadrzaj(telo)["hronologija.json"])}
+    assert ids == {f"r-{i}" for i in range(1500)}
+
+
+@pytest.mark.anyio
+async def test_server_koji_ignorise_kljuc_ne_vrti_petlju_vec_pada():
+    from fastapi import HTTPException
+
+    supa = FakeSupa()
+    _napuni(supa, "rocista", 1500)
+    izvorni_table = supa.table
+
+    def table(ime):
+        q = izvorni_table(ime)
+        q.gt = lambda *a, **k: q  # filter ignorisan: uvek ista prva strana
+        return q
+    supa.table = table
+    rez, audit = await _izvezi(supa)
+    assert isinstance(rez, HTTPException) and rez.status_code == 503
+    assert "rocista" in _samo(audit, "data_export_failed")[0]["metadata"]["failed_tables"]
+
+
+@pytest.mark.anyio
+async def test_redosled_izvoza_po_koloni_pa_id_deterministican():
+    supa = FakeSupa()
+    supa.podaci["predmet_hronologija"] = [
+        {"id": "z", "user_id": A, "datum_iso": "2026-01-01"},
+        {"id": "a", "user_id": A, "datum_iso": "2026-03-01"},
+        {"id": "m", "user_id": A, "datum_iso": None},
+        {"id": "b", "user_id": A, "datum_iso": "2026-01-01"},
+    ]
+    (resp, telo), _ = await _izvezi(supa)
+    ids = [r["id"] for r in json.loads(_sadrzaj(telo)["hronologija.json"])]
+    assert ids == ["b", "z", "a", "m"]
+
+
+def test_upit_trazi_stabilan_redosled_po_id_i_stranu_najvise_max_rows():
+    import routers.data_export as de
+
+    supa = FakeSupa()
+    _napuni(supa, "rocista", 10)
+    upiti = []
+    izvorni_table = supa.table
+
+    def table(ime):
+        q = izvorni_table(ime)
+        upiti.append(q)
+        return q
+    supa.table = table
+    asyncio.run(de._fetch(supa, "rocista", A, "datum"))
+    assert upiti
+    for q in upiti:
+        assert q.redosled == ["id"]
+        assert q.granica is not None and q.granica <= 1000

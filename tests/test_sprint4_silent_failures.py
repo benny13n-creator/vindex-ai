@@ -126,7 +126,12 @@ async def test_export_still_succeeds_when_every_table_reads():
     ok = MagicMock()
     ok.data = [{"id": "1"}]
     chain = MagicMock()
-    chain.select.return_value.eq.return_value.order.return_value.execute.return_value = ok
+    # C1-F1: izvoz cita po stranama (id > poslednji) do prazne strane.
+    prazno = MagicMock()
+    prazno.data = []
+    eq = chain.select.return_value.eq.return_value
+    eq.order.return_value.limit.return_value.execute.return_value = ok
+    eq.gt.return_value.order.return_value.limit.return_value.execute.return_value = prazno
     supa = MagicMock()
     supa.table.return_value = chain
 

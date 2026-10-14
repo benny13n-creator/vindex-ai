@@ -100,6 +100,8 @@ class _Upit:
         self.baza, self.tabela = baza, tabela
         self.filteri = []
         self.single = False
+        self.redosled = []
+        self.granica = None
 
     def select(self, *_a, **_k):
         return self
@@ -112,10 +114,16 @@ class _Upit:
         self.filteri.append((k, ("in", tuple(vs))))
         return self
 
-    def order(self, *_a, **_k):
+    def gt(self, k, v):
+        self.filteri.append((k, ("gt", v)))
         return self
 
-    def limit(self, *_a, **_k):
+    def order(self, kolona, *_a, **_k):
+        self.redosled.append(kolona)
+        return self
+
+    def limit(self, n, *_a, **_k):
+        self.granica = n
         return self
 
     def maybe_single(self):
@@ -148,12 +156,21 @@ class _Upit:
             for k, v in self.filteri:
                 if isinstance(v, tuple) and v and v[0] == "in":
                     ok = ok and r.get(k) in v[1]
+                elif isinstance(v, tuple) and v and v[0] == "gt":
+                    ok = ok and r.get(k) is not None and str(r.get(k)) > str(v[1])
                 else:
                     ok = ok and r.get(k) == v
             if ok:
                 redovi.append(dict(r))
         if self.single:
             return _Res(redovi[0] if redovi else None)
+        for kolona in reversed(self.redosled):
+            redovi.sort(key=lambda r, c=kolona: (r.get(c) is None, str(r.get(c))))
+        if self.granica is not None:
+            redovi = redovi[:self.granica]
+        # PostgREST `max-rows`: odgovor se TIHO seče, bez greške (C1-F1)
+        if self.baza.max_rows is not None:
+            redovi = redovi[:self.baza.max_rows]
         return _Res(redovi)
 
 
@@ -164,6 +181,7 @@ class FakeSupa:
         self.mutacije = []
         self.citanja = []
         self.storage_pozivi = []
+        self.max_rows = 1000
 
     def table(self, ime):
         return _Upit(self, ime)
