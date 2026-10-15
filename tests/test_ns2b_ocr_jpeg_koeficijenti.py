@@ -313,66 +313,25 @@ def test_digitalan_pdf_bez_rasterizacije_nije_odbijen(monkeypatch, tmp_path):
     assert skeniran is False and ocr is False and len(strane) == 1
 
 
-def test_pdf_sa_obicnim_jpeg_ispod_praga_nije_odbijen(monkeypatch, tmp_path):
-    data = _jpeg(subsampling=0)
-    p = _pdf(tmp_path, [("jpeg", data)])
-    assert _okvir(data)["koeficijenti"] == 0
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 320 * 480 * 3)     # tačno raster slike (bez umanjenja)
+def test_pdf_sa_obicnim_jpeg_nije_odbijen(monkeypatch, tmp_path):
+    """Običan JPEG u PDF-u: bafer koeficijenata je 0, pa se ovim pravilom ne odbija (raster još nije pokriven)."""
+    p = _pdf(tmp_path, [("jpeg", _jpeg(subsampling=0))])
+    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
     assert X.extract(p)[2] is True
 
 
-@pytest.mark.parametrize("mode,n", [("RGB", 3), ("CMYK", 4), ("L", 1)])
-def test_pdf_obican_jpeg_sa_prevelikim_rasterom_odbijen_pre_rasterizacije(monkeypatch, tmp_path, mode, n):
-    """MuPDF dekodira ugrađen JPEG u n bajtova po pikselu; mala slika razvučena na celu stranu se ne umanjuje."""
-    data = _jpeg(mode=mode)
+def test_provera_pdf_ne_cita_smestaj_slike(monkeypatch, tmp_path):
+    """NS2b F2: page.get_image_rects/get_image_info dekodira slike strane — provera ih ne sme pozivati."""
+    data = _jpeg(progressive=True, subsampling=0)
     p = _pdf(tmp_path, [("jpeg", data)])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 320 * 480 * n - 1)
+    for ime in ("get_image_rects", "get_image_info", "get_image_bbox", "get_text", "get_textpage"):
+        monkeypatch.setattr(fitz.Page, ime, lambda *a, **k: (_ for _ in ()).throw(AssertionError("dekodiranje u proveri")))
+    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", _okvir(data)["koeficijenti"] - 1)
     _bez_rasterizacije(monkeypatch)
-    with pytest.raises(DocumentSafetyLimitExceeded) as ei:
+    with pytest.raises(DocumentSafetyLimitExceeded):
         X.extract(p)
-    assert ei.value.poruka == X.PORUKA_PREVELIK_JPEG_PDF
-
-
-class _M:
-    def __init__(self, a, b, c, d):
-        self.a, self.b, self.c, self.d = a, b, c, d
-
-
-def test_mupdf_umanjenje_kao_izmereno():
-    """Izmereno (NS2b, CI): 5317x7523 na A4 pri 300 dpi → MuPDF dekodira 1/2; 4944x6997 → bez umanjenja."""
-    a4 = [_M(595, 0, 0, 842)]
-    ok = lambda w, h, n: {"sirina": w, "visina": h, "komponente": [(1, 1)] * n, "koeficijenti": 0}
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 4), a4, 300) == 2659 * 3762 * 4
-    assert X._mupdf_dekodiran_raster(ok(4944, 6997, 4), a4, 300) == 4944 * 6997 * 4
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(150, 0, 0, 210)], 300) == 665 * 941 * 3   # 1/8
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(1, 0, 0, 1)], 300) == 665 * 941 * 3       # najviše 1/8 (DCT)
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [], 300) == 5317 * 7523 * 3                  # smeštaj nepoznat
-    # zarotirana slika: širina slike ide u visinu na strani
-    assert X._mupdf_dekodiran_raster(ok(7523, 5317, 3), [_M(0, -595, 842, 0)], 300) == 7523 * 5317 * 3
-    assert X._mupdf_dekodiran_raster(ok(7523, 5317, 3), [_M(0, -842, 595, 0)], 300) == 3762 * 2659 * 3
-    # rotacija: potreban raster se računa iz dužine vektora (a, b) i (c, d), kao u MuPDF-u
-    assert X._mupdf_dekodiran_raster(ok(5000, 8000, 3), [_M(0, -842, 595, 0)], 300) == 5000 * 8000 * 3
-    # granica: umanjuje se tek kad je polovina VEĆA od prikaza + 2 piksela (konzervativno: inače veći raster)
-    assert X._mupdf_dekodiran_raster(ok(4962, 8000, 3), a4, 300) == 4962 * 8000 * 3
-    assert X._mupdf_dekodiran_raster(ok(4964, 8000, 3), a4, 300) == 2482 * 4000 * 3
-    # više smeštaja: računa se najveći raster
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(150, 0, 0, 210), a4[0]], 300) == 2659 * 3762 * 3
-
-
-def test_pdf_podrazumevani_prag_izmerene_klase():
-    """Izmereno (NS2b): CMYK 30 i 34,6 MP na A4 (bez umanjenja) → OOM pod 512 MiB → odbijeno; CMYK i RGB 40 MP (1/2),
-    fotografija 48 MP (1/2) → primljeno; progresivni 4:4:4 22,3 MP (koeficijenti i raster ~64 MiB) → primljeno."""
-    T = X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA
-    a4 = [_M(595, 0, 0, 842)]
-    ok = lambda w, h, n: {"sirina": w, "visina": h, "komponente": [(1, 1)] * n, "koeficijenti": 0}
-    assert X._mupdf_dekodiran_raster(ok(4606, 6513, 4), a4, 300) > T
-    assert X._mupdf_dekodiran_raster(ok(4944, 6997, 4), a4, 300) > T
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 4), a4, 300) <= T
-    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), a4, 300) <= T
-    assert X._mupdf_dekodiran_raster(ok(5790, 8186, 3), a4, 300) <= T
-    assert X._mupdf_dekodiran_raster(ok(3974, 5622, 3), a4, 300) <= T
 
 
 def test_necitljive_strane_ne_rasterizuje_opasan_jpeg(monkeypatch, tmp_path):

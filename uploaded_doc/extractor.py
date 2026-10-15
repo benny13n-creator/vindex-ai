@@ -332,7 +332,8 @@ def _rasterizuj_stranu(strana):
 # progresivni 4:4:4 od 22,3 MP, procena 148 MiB → vrh kontejnera 404–409 MiB sam, 436–437 MiB uz istovremen sken od 10
 # strana (≥ 75 MiB rezerve, isti razred kao već primljeni CMYK/PNG od 40 MP i sken od 10 strana).
 # JPEG u PDF-u: MuPDF uz koeficijente drži i ceo tok i raster strane, vrh ≈ 345–360 MiB + koeficijenti (96 MiB → 440,
-# 127 MiB → 486, uz sken 502) — zato se tu meri bafer koeficijenata, sa nižim pragom.
+# 127 MiB → 486, uz sken 502) — zato se tu meri bafer koeficijenata, sa nižim pragom. Dekodiran raster OBIČNOG JPEG-a
+# u PDF-u se još NE meri (v. _odbij_jpeg_u_pdf).
 _JPEG_SOF = frozenset({0xC0, 0xC1, 0xC2, 0xC3, 0xC9, 0xCA, 0xCB})        # okviri koje libjpeg(-turbo) dekodira
 _JPEG_SOF_HIJERARHIJSKI = frozenset({0xC5, 0xC6, 0xC7, 0xCD, 0xCE, 0xCF})  # libjpeg ih odbija pre ikakve alokacije
 _JPEG_SOF_PROGRESIVNI = frozenset({0xC2, 0xCA})
@@ -502,36 +503,17 @@ class _TokFlate:
             n -= k
 
 
-def _mupdf_dekodiran_raster(okvir: dict, matrice, dpi: int) -> int:
-    """Bajtovi rastera u koji MuPDF dekodira ugrađen JPEG: n bajtova po pikselu (n = broj komponenti), u veličini koju
-    MuPDF sam bira — umanjuje 1/2, 1/4, 1/8 (DCT) dok slika ostaje veća od svog prikaza na strani pri dpi rasterizacije
-    (+2 piksela, kao fz_get_pixmap_from_image). Izmereno (NS2b): 4944x6997 na A4 → bez umanjenja (2472 < 2481);
-    5317x7523 → 1/2. Bez poznatog smeštaja na strani: bez umanjenja (najveći raster)."""
-    w, h, n = okvir["sirina"], okvir["visina"], len(okvir["komponente"])
-    najvise = 0
-    for m in (matrice or [None]):
-        l2 = 0
-        if m is not None:
-            pw = math.hypot(m.a, m.b) * dpi / 72.0
-            ph = math.hypot(m.c, m.d) * dpi / 72.0
-            while l2 < 3 and (w >> (l2 + 1)) > pw + 2 and (h >> (l2 + 1)) > ph + 2:
-                l2 += 1
-        f = 1 << l2
-        najvise = max(najvise, -(-w // f) * -(-h // f) * n)
-    return najvise
-
-
 def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
     """NS2b: za JPEG (DCTDecode) slike — i njihove maske — na stranama koje će MuPDF rasterizovati: bafer koeficijenata
-    (MuPDF dekodira istim libjpeg putem: izmereno) i dekodiran raster slike (_mupdf_dekodiran_raster), svaki do
-    MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA. Pozivalac drži _RASTER_OCR_LOCK.
+    (MuPDF dekodira istim libjpeg putem: izmereno) do MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA. Pozivalac drži
+    _RASTER_OCR_LOCK. Ne poziva ništa što dekodira sliku (NS2b F2: page.get_image_rects/get_image_info dekodira sve
+    slike strane u keš MuPDF-a — izmereno OOM i na PDF-ovima koji su ranije prolazili; zato se smeštaj ne čita).
+    NIJE pokriveno: dekodiran raster OBIČNOG JPEG-a u PDF-u (CMYK 30 i 34,6 MP na A4 → OOM, izmereno) — otvoreno.
     Proverava se samo tok /DCTDecode ili [/FlateDecode /DCTDecode]; drugi lanci filtera se ne proveravaju."""
     okviri: dict[int, Optional[dict]] = {}
     for i in indeksi:
         try:
-            strana = doc[i]
-            slike = strana.get_images(full=True)
-            dpi = _dpi_strane(float(strana.rect.width), float(strana.rect.height))
+            slike = doc[i].get_images(full=True)
         except Exception as exc:        # provera nikad ne obara OCR koji bi inače prošao; ista greška ide u render
             logger.info("[OCR] Slike strane %d nisu proverene: %s", i + 1, type(exc).__name__)
             continue
@@ -544,14 +526,8 @@ def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
                 okvir = okviri[xref]
                 if okvir is None:
                     continue
-                try:
-                    matrice = [m for _r, m in strana.get_image_rects(xref, transform=True)]
-                except Exception:
-                    matrice = []
-                raster = _mupdf_dekodiran_raster(okvir, matrice, dpi)
                 _odbij_jpeg_preveliki_bafer(okvir, f"PDF strana {i + 1}", MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA,
-                                            PORUKA_PREVELIK_JPEG_PDF,
-                                            procena=lambda o, r=raster: max(o["koeficijenti"], r))
+                                            PORUKA_PREVELIK_JPEG_PDF)
 
 
 def _jpeg_okvir_xref(doc, xref: int, i: int) -> Optional[dict]:
