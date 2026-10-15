@@ -123,3 +123,58 @@ Preporuka pre #37: dodati `tests/test_qa05_slika_finalize.py` u listu OCR testov
 - Posle #38: ponovo otpremiti 02 (predlog tužbe), 04 (zapisnik), 05 (potvrda) u NOV test predmet; očekivano: tužba / model (ne `contract`) / model.
 - Posle #36: dosije, hronologija, analiza, prijem i Znanje bez engleskih oznaka; hard refresh.
 - Rokovi i Genome protivrečnosti ostaju pod HOLD; u beti ih tretirati kao AI predloge.
+
+---
+
+## 9. Završni release gejt (korekcija, 15.10.2026, kasnije)
+
+### 9.1 PR #38 — tri nova lažna pozitiva → **HOLD**
+| Slučaj (korpus 79) | Očekivano | Bilo (`7588fce4`) | Uzrok |
+|---|---|---|---|
+| memorandum `RAČUN: 205-…` pa `TUŽBA` | lawsuit | invoice | red memoranduma počinje ključnom reči; „prvi red pobeđuje“ |
+| `REŠENJE Iv 55/24` pa `ŽALBA` | appeal | court_decision | broj pobijanog akta iznad naslova |
+| `RAČUN BR 5 I UGOVOR` pa `TUŽBA` | lawsuit | invoice | prelomljen OCR red velikim slovima |
+
+Tri uzastopne korekcije, svaka sa novim nezavisnim korpusom:
+- `e9dee23f` (preskoči red sa pozivom na akt): korpus 79 → 0 novih; nov korpus (51) → 22 nova → NO-GO.
+- `b509b0a8` (samo jednoznačno zaglavlje): 79/51 → 0; nov korpus (65) → 24 nova (naslov malim slovima + red druge vrste velikim slovima) → NO-GO.
+- `dd29c45b` (+ veto naslova malim slovima + saglasnost sa ranijim pravilom): 79/51/65 → 0; tvrdnja „po konstrukciji ne vraća vrstu koju ranije pravilo nije vraćalo“ potvrđena na 70.000 nasumičnih zaglavlja (0 kontraprimera van genitiva); goli genitiv „TUŽBE …“ → 12 novih u korpusu 4 → NO-GO.
+- `50cf7988` (genitiv samo u frazi PREDLOG/NACRT TUŽBE, predlog pregledača): 79/51/65 → **0**; korpus 4 → **1** (dvosmislen „PREDLOG TUŽBE ZA RAZVOD — INTERNI MEMO“). Nije prošao nov nezavisni pregled — po dogovoru bez beskonačnih ciklusa.
+
+Cena: na 215 sintetičkih zaglavlja heuristika odgovara mnogo ređe (oko 145 od 195 u korpusima 79/51/65 ide modelu, ranije 12). Samouvereno pogrešnih: 4/0/11 (stara heuristika 36/4/28) — sve isto kao stara.
+**Odluka osnivača:** (a) prihvatiti `50cf7988` uz još jedan nezavisni pregled, ili (b) ostaviti #38 van ovog izdanja (stara heuristika ostaje; beta greške `contract` ostaju poznate).
+
+### 9.2 Kombinovani gejt (#35 + #36 + #37 + #38)
+Head-ovi odgovaraju izveštajima: #35 `6da18ded`, #36 `62fc2625`, #37 `08990674`; #38 `e9dee23f` → `dd29c45b` → `50cf7988`. Spajanje u izolovanom stablu (lokalno, nikad gurnuto) bez konflikata; PR-ovi ne dele fajlove.
+- Ceo Python paket, integracija sa `e9dee23f`: **19 padova = isti skup kao bazna linija `main`**, 10.738 prolazi.
+- Ceo Python paket, integracija sa `dd29c45b`: **19 padova = isti skup kao bazna linija `main`**, 10.755 prolazi. (`50cf7988` menja samo listu ključnih reči tužbe; klasifikacioni i intake testovi na njemu: 580 prolazi, 3 pada = isti `[trio]` kao `main`.)
+- Kombinovani scenario (dva korisnika; predlog tužbe PDF + fotografija potvrde JPG → stvaran worker → finalize → događaji koje je finalize upisao → stvaran dispečer iz #35): tužba iz naslova, potvrda nije `contract`, 4/4 dokumenta tačno jednom, 4 audit radnje, odvojeni predmeti i namespace-ovi, 16/16 događaja dispečovano pod identitetom vlasnika reda, `correlation_id` očuvan, kontekst vraćen. Svi testovi sprinta + scenario: 135 prolazi, 2 preskočena (stvaran Tesseract).
+- Playwright nad integracijom: 19 paketa, **1.157 provera, 0 FAIL** (uključujući nazivi 53 sa 404 i delimičnim rečnikom).
+- CI na GitHub-u: #35/#36/#37 isti ID-jevi padova kao `main` (pytest 174 na 3.11 i 3.13, Parity 195); #38 isto posle ponovljenog posla (povremen `test_hearing_cc[upravni]`).
+
+### 9.3 Procedura puštanja (Render: autoDeploy=yes, trigger=commit, branch=main)
+Svaki merge u `main` je produkcioni deploy. Produkcija sada: `/api/version` → `3ab9343e`, `identity_proven: true`.
+
+**Korak 1 — samo PR #37** (jedan red koda, bez migracije):
+1. Pre: CI #37 isti kao `main` (✓); niko drugi ne spaja u tom prozoru.
+2. Osnivač: „Ready for review“ → merge PR #37 (jedan merge commit).
+3. Praćenje deploy-a (Render): build + boot bez grešaka; zatim `GET /api/version` → `commit` = novi SHA `main`, `identity_proven: true`; `GET /health` → `status: ok`.
+4. Prvih 60 min u logovima: nema `validation error for UploadedDocChunk`; nema `KREIRAN/PRIKAČEN ALI 0/` za nove poslove; 5xx na `/api/smart-intake/*` i `/api/predmeti/*/upload` ne raste.
+5. Ručni test osnivača na NOVOM sintetičkom predmetu: nova JPG i PNG fotografija → pregled → prikači → 1/1, dokument u predmetu. **Posao fotografije 05 se ne dira** dok osnivač ne odluči posebno (nastavak je moguć bez ponovnog otpremanja, dokazano lokalno).
+6. Rollback: Render „Rollback“ na prethodni deploy (`3ab9343e`) — bez promene podataka; ili revert merge commit-a kroz PR (i to je deploy). Dokumenti prikačeni posle ispravke ostaju ispravni (oznaka `jpg` je samo metapodatak vektora).
+
+**Korak 2 — PR #36** (samo prikaz): isti obrazac; provera: dosije, hronologija, analiza, prijem, Znanje bez engleskih oznaka; hard refresh. Rollback: isto.
+**Korak 3 — PR #35** (forenzika identiteta): posle deploy-a `ai_forensics` redovi za `case_pipeline` treba da nose `user_id` (agregatni read-only broj); rollback isto.
+**#38:** ne puštati dok osnivač ne odluči (§9.1).
+Između koraka: jedan PR po deploy-u, provera iz tačaka 3–4 pre sledećeg.
+
+### 9.4 Status
+| PR | Status | Konačni SHA |
+|---|---|---|
+| #37 fotografija | **GO** (za pregled i pojedinačno puštanje kao prvi) | `08990674` |
+| #36 srpski nazivi | **GO** | `62fc2625` |
+| #35 forenzika identiteta | **GO** | `6da18ded` |
+| #38 klasifikacija | **HOLD** (odluka osnivača, §9.1) | `50cf7988` |
+| #39 izveštaj | samo dokumentacija | ovaj commit |
+
+Prvi produkcioni korak koji traži odobrenje osnivača: **merge PR #37 (`08990674`) u `main`** — to automatski pokreće Render deploy; zatim provera iz §9.3. Ništa nije spojeno, nijedan deploy nije pokrenut, Render konfiguracija nije menjana, produkcioni posao fotografije 05 nije diran.
