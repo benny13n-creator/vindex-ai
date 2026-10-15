@@ -23,7 +23,6 @@
     RAZRESENA: "razrešena", ZAMENJENA: "zamenjena", NEPOTVRDJENA_TVRDNJAMA: "navodi je analiza; nije vezana za tvrdnje" };
   var POTPORA = { LOCIRANA_U_DOKUMENTU: "pronađeno u dokumentu", DOKUMENT_BEZ_LOKACIJE: "vezano za dokument, mesto nije pronađeno",
     BEZ_POTPORE: "bez dokumenta" };
-  var ULOGA = { tuzilac: "tužilac", tuzeni: "tuženi", svedok: "svedok", vestak: "veštak", zastupnik: "zastupnik", ostalo: "ostalo" };
   var SPREMNOST = { READY: "Spremno — nema otvorenih radnji", PARTIALLY_READY: "Delimično spremno", BLOCKED: "Blokirano",
     CRITICAL_GAP: "Kritičan nedostatak", UNKNOWN: "Nije moguće proceniti" };
   var KOMPLETNOST = { COMPLETE: "kompletna", PARTIAL: "delimična", DEGRADED: "delimično dostupna", UNKNOWN: "nije izračunata" };
@@ -159,7 +158,7 @@
         if (s.vrsta === "sustina_spora") $("an-sustina").append(stavkaListe(s.vrednost, s.poreklo, [meta(s.naslov)]));
       });
       niz(g.stranke && g.stranke.stavke).forEach(function (s) {
-        $("an-stranke").append(stavkaListe(s.vrednost, s.poreklo, [meta((s.uloga ? (ULOGA[s.uloga] || s.uloga.replace(/_/g, " ")) : "uloga nije navedena") + (s.potvrdjeno_analizom ? " · analiza se slaže" : ""))]));
+        $("an-stranke").append(stavkaListe(s.vrednost, s.poreklo, [meta((s.uloga_neispravna ? "uloga iz analize nije prepoznata" : root.VxNazivi.ulogaStranke(s.uloga)) + (s.potvrdjeno_analizom ? " · analiza se slaže" : ""))]));
       });
       var pouzdane = niz(g.cinjenice && g.cinjenice.stavke).filter(function (s) { return s.poreklo === "SOURCE_FACT" || s.poreklo === "HUMAN_CONFIRMED"; });
       pouzdane.slice(0, 12).forEach(function (s) {
@@ -206,7 +205,7 @@
       }
       niz(dz.dokumenti).forEach(function (x) {
         var k = x.klasifikacija || {};
-        var opis = k.stanje === "NEUSPESNA" ? "klasifikacija nije uspela" : k.stanje === "NIJE_KLASIFIKOVAN" ? "nije klasifikovan" : tekst(k.tip).replace(/_/g, " ");
+        var opis = k.stanje === "NEUSPESNA" ? "klasifikacija nije uspela" : k.stanje === "NIJE_KLASIFIKOVAN" ? "nije klasifikovan" : root.VxNazivi.vrstaDokumenta(k.tip);
         var li = stavkaListe(x.naziv || "Dokument", null, [meta(opis + " · tvrdnji: " + x.broj_tvrdnji), dugmeIzvora(x.id, x.naziv, null)]);
         li.dataset.klasifikacija = tekst(k.stanje);
         $("an-dokumenti").append(li);
@@ -260,7 +259,7 @@
       var v = x.vrednost;
       switch (x.kljuc) {
         case "pokrivenost_procene": return v.procenjeno + " od " + v.ukupno + " tvrdnji ima procenu dokaza";
-        case "nedostajuci_tipovi": return v.length ? v.map(function (t) { return tekst(t).replace(/_/g, " "); }).join(", ") : "nijedan";
+        case "nedostajuci_tipovi": return v.length ? v.map(function (t) { return root.VxNazivi.vrstaDokumenta(t); }).join(", ") : "nijedan";
         case "rocista": return v.u_narednih_30_dana + " u narednih 30 dana · " + v.u_narednih_7_dana + " u narednih 7 dana · " + v.propustena + " propušteno";
         case "procesni_rizik": return tekst(v) + " (pravilo, nije procena ishoda)";
         case "kontradikcije": return v.aktivnih + " aktivnih (" + v.kriticnih + " kritičnih) · " + v.za_pregled + " traži pregled";

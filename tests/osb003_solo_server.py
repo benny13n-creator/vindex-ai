@@ -236,4 +236,20 @@ async def _stanje():
     })
 
 
+# QA-03: opcioni sintetički „stari zapisi“ ({tabela: [redovi]} iz JSON fajla u VX_OSB003_SEME), upisani pre pokretanja —
+# za browser proveru prikaza naziva nad podacima kakvi već postoje u bazi. `GET /__osb003/seme` vraća iste kolone tih
+# redova posle testa (dokaz da prikaz ništa nije menjao). Bez promenljive: ponašanje servera je nepromenjeno.
+_SEME_PUT = os.environ.get("VX_OSB003_SEME")
+if _SEME_PUT:
+    with open(_SEME_PUT, encoding="utf-8") as _f:
+        _SEME = json.load(_f)
+    for _t, _redovi in _SEME.items():
+        BAZA.table(_t).insert(_redovi).execute()
+
+    @api.app.get("/__osb003/seme", include_in_schema=False)
+    async def _seme():
+        return JSONResponse({t: [{k: r.get(k) for k in redovi[0]} for r in BAZA.tabele.get(t, [])
+                                 if r.get("id") in {x["id"] for x in redovi}] for t, redovi in _SEME.items()})
+
+
 uvicorn.run(api.app, host="127.0.0.1", port=PORT, lifespan="off", log_level="warning", access_log=False)

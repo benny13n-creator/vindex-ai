@@ -35,11 +35,8 @@
   var STANJA = { received: "U redu za obradu", preprocessing: "Priprema dokumenta", classifying: "Prepoznavanje vrste dokumenta",
     extracting: "Izdvajanje podataka", matching: "Povezivanje podataka", dedup_check: "Provera duplikata",
     awaiting_review: "Čeka vaš pregled", completed: "Obrađeno — spremno za prikačivanje", failed: "Obrada nije uspela" };
-  var POLJA = { case_number: "Broj predmeta", court: "Sud", judge: "Sudija", plaintiff: "Tužilac", defendant: "Tuženi",
-    deadline: "Rok", amount: "Iznos", date: "Datum", contract_party: "Ugovorna strana", claim_basis: "Osnov zahteva" };
-  var VRSTE = { court_decision: "Sudska odluka", judgment: "Presuda", lawsuit: "Tužba", complaint: "Tužba", appeal: "Žalba",
-    contract: "Ugovor", power_of_attorney: "Punomoćje", invoice: "Faktura", decision: "Rešenje", summons: "Poziv suda",
-    notice: "Obaveštenje", other: "Ostalo", unknown: "Nije prepoznato" };
+  /* QA-03: nazivi vrsta dokumenata i izdvojenih polja su u src/nazivi.js (isti rečnik kao dosije i analiza). */
+  var NAZIVI = root.VxNazivi;
   var RAZLOZI = { ocr_failed: "Tekst dokumenta nije mogao da se pročita (OCR nije uspeo). Ništa nije izvučeno.",
     classification_uncertain: "Vrsta dokumenta nije pouzdano prepoznata.", low_confidence_extraction: "Neki podaci nisu pouzdano izdvojeni.",
     segmentation_uncertain: "Nije sigurno gde jedan dokument prestaje, a drugi počinje." };
@@ -52,8 +49,8 @@
   function prikacivanje(j) { var s = tekst(j && j.prikacivanje); return PRIKACIVANJA[s] ? s : (j && j.predmet_id ? "PRIKACENO" : "NIJE_PRIKACENO"); }
   function ispravanId(v) { return /^[A-Za-z0-9_-]{1,64}$/.test(tekst(v)); }
   function procenat(p) { var n = Number(p); return Number.isFinite(n) ? Math.round(n * 100) + "%" : "—"; }
-  function nazivPolja(t) { return POLJA[t] || tekst(t).replace(/_/g, " "); }
-  function nazivVrste(t) { return VRSTE[tekst(t)] || tekst(t).replace(/_/g, " ") || "Nije prepoznato"; }
+  function nazivPolja(t) { return NAZIVI.poljePodatka(t); }
+  function nazivVrste(t) { return NAZIVI.vrstaDokumenta(t) || "Nije prepoznato"; }
 
   function napravi(o) {
     /* VCR001 T02: isti modul služi i strani „Nov predmet → Iz dokumenta“ (prefiks „nd“, ID-jevi nd-*). U tom režimu

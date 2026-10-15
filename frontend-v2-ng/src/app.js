@@ -348,10 +348,6 @@
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
-  /* Isti rečnik vrsta koji koristi postojeći /app (static/vindex.js, izbor vrste
-   * predmeta); nepoznata vrednost se prikazuje doslovno. */
-  var NAZIV_VRSTE = { parnicno: "Parnični", krivicno: "Krivični", upravno: "Upravni", radno: "Radno", porodicno: "Porodičnopravni",
-                      nasledjivanje: "Ostavinski", privredno: "Privredno", nepokretnosti: "Nepokretnosti", ostalo: "Ostalo" };
   var brojFormat = new Intl.NumberFormat("sr-Latn-RS", { maximumFractionDigits: 2 });
   var STANJE_PREDMETA = {
     "ucitavanje": ["Učitavanje predmeta…", "Podaci predmeta se učitavaju sa servera."],
@@ -483,7 +479,7 @@
     }
     var dl = $("predmet-cinjenice");
     cinjenica(dl, "Broj predmeta", p.broj);
-    cinjenica(dl, "Vrsta", Object.prototype.hasOwnProperty.call(NAZIV_VRSTE, p.tip) ? NAZIV_VRSTE[p.tip] : p.tip);
+    cinjenica(dl, "Vrsta", window.VxNazivi.vrstaPredmeta(p.tip));
     cinjenica(dl, "Tužilac", p.tuzilac);
     cinjenica(dl, "Tuženi", p.tuzeni);
     cinjenica(dl, "Vrednost spora", p.vrednost !== null ? brojFormat.format(p.vrednost) + " RSD" : "");
@@ -508,7 +504,7 @@
       var b = el("button", "docs__item");
       b.type = "button"; b.dataset.dok = d.id;
       b.append(el("span", "docs__name", d.naziv || "Dokument bez naziva"));
-      var meta = [d.tip ? d.tip.replace(/_/g, " ") : "", d.datum ? datum(d.datum) : ""].filter(Boolean).join(" · ");
+      var meta = [window.VxNazivi.vrstaDokumenta(d.tip), d.datum ? datum(d.datum) : ""].filter(Boolean).join(" · ");
       if (meta) b.append(el("span", "docs__meta", meta));
       li.append(b); lista.append(li);
     });
@@ -564,7 +560,7 @@
     $("dok-sadrzaj").hidden = false;
     $("dok-naslov").textContent = d.naziv || "Dokument bez naziva";
     var dl = $("dok-cinjenice");
-    cinjenica(dl, "Vrsta dokumenta", d.tip ? d.tip.replace(/_/g, " ") : "");
+    cinjenica(dl, "Vrsta dokumenta", window.VxNazivi.vrstaDokumenta(d.tip));
     cinjenica(dl, "Dodat", d.datum ? datum(d.datum) : "");
     cinjenica(dl, "Veličina", d.velicinaKb !== null ? brojFormat.format(d.velicinaKb) + " KB" : "");
     cinjenica(dl, "Redni broj", d.redniBroj);
