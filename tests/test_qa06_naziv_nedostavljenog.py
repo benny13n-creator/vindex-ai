@@ -170,3 +170,16 @@ def test_niz_savetnika(ag):
                headers=zaglavlje("A"))
     assert r.status_code == 200, r.text
     assert all(x["pominje_nedostavljene"] == ["DOK-02 (zapisnik_rociste.pdf)"] for x in r.json()["rezultati"])
+
+
+def test_nesaglasnost_server_dostavio_model_tvrdi_da_nije_procitao(ag):
+    """Produkcioni QA oblik: evidencija kaže da je DOK-01 dostavljen, a odgovor modela kaže da ga nije pročitao.
+    Evidencija ostaje serverova i tačna; nema lažnog upozorenja „pominje nedostavljen“. Sistem NE tumači rečenicu
+    modela (poznato ograničenje — nesaglasnost se ne označava automatski, oba podatka su vidljiva u V2)."""
+    pr, st = ag
+    k, _ = pr(_baza7())
+    st["odgovor"] = "Nisam pročitao DOK-01 (ugovor.pdf), pa ne mogu da potvrdim rok."
+    d = _run(k, "Šta piše u DOK-01?")
+    iz = d["izvori_predmeta"]
+    assert iz["ukljuceni"][0]["oznaka"] == "DOK-01" and iz["ukljuceni"][0]["trazen"] is True
+    assert iz["odgovor_pominje_nedostavljene"] == [] and d["odgovor"] == st["odgovor"]

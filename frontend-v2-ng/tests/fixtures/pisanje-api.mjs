@@ -709,7 +709,8 @@ export function agentRuta(korisnici, kuke = {}) {
     const provera = kuke.provera !== undefined ? kuke.provera
       : { status: "NEPROVERENI", ukupno: 2, izvori_dostavljeni: true, neprovereni: [{ clan: "999", zakon: "zoo", razlog: "nije u dostavljenom izvoru tog zakona" }] };
     const telo = { agent: b.agent, naziv: "Research Agent", ikona: "🔍", task: b.task, suggested_next: "drafting",
-      odgovor: "## 1. OSNOV ODGOVORNOSTI 📥\n**Osnov** je član 154 ZOO, a dopunski član 999 ZOO.\n\n## 2. DOKAZI\nPribaviti račune. <img src=x onerror=\"window.__xss=21\">",
+      odgovor: kuke.odgovor !== undefined ? kuke.odgovor
+        : "## 1. OSNOV ODGOVORNOSTI 📥\n**Osnov** je član 154 ZOO, a dopunski član 999 ZOO.\n\n## 2. DOKAZI\nPribaviti račune. <img src=x onerror=\"window.__xss=21\">",
       kontekst_predmeta: kontekst, izvori_predmeta: kontekst ? (kuke.izvori !== undefined ? kuke.izvori : izvoriPredmeta()) : null };
     if (provera !== null) telo.provera_citata = provera;
     json(res, 200, telo);
