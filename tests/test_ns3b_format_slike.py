@@ -388,3 +388,73 @@ def test_dokument_ruta_ne_prima_slike():
     """routers/dokument.py nije ruta za samostalne slike (samo PDF/DOCX) — ne može da zaobiđe proveru."""
     from routers import dokument
     assert not (set(dokument._ALLOWED_SUFFIXES) & set(X.IMAGE_SUFFIXES))
+
+
+# ── Pregled dfae3dbe: kratki prefiksi potpisa, JPEG-LS, formats= na svakom Image.open ───────────────────────────
+
+KRATKI_PREFIKSI = [
+    pytest.param(b"\xff\xd8\x00\x10" + b"\x00" * 60, "foto.jpg", id="ff_d8_bez_ff"),
+    pytest.param(b"\xff\xd8" + b"JFIF" * 16, "foto.jpeg", id="ff_d8_smece"),
+    pytest.param(b"\x89PNG" + b"\x00" * 60, "foto.png", id="png_4_bajta_pa_nule"),
+    pytest.param(b"\x89PNG\r\n\x00\x00" + b"\x00" * 60, "foto.png", id="png_6_bajtova"),
+]
+
+
+@pytest.mark.parametrize("data, ime", KRATKI_PREFIKSI)
+def test_kratak_prefiks_potpisa_nije_slika(data, ime):
+    assert X.format_slike_po_sadrzaju(data[:8]) is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("data, ime", KRATKI_PREFIKSI)
+async def test_api_upload_kratak_prefiks_415_bez_cuvanja(data, ime):
+    e, m_extract, m_upload = await _api_upload(ime, "image/jpeg" if ime.endswith(("jpg", "jpeg")) else "image/png", data)
+    assert isinstance(e, HTTPException) and e.status_code == 415 and e.detail == PORUKA_NIJE_JPEG_PNG
+    m_extract.assert_not_called()
+    m_upload.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_smart_intake_kratak_prefiks_odbijen_bez_posla_i_cuvanja():
+    po_imenu, enqueue, upload = await _si_upload(
+        [(f"{i}_{ime}", data, "image/jpeg") for i, (data, ime) in enumerate(p.values for p in KRATKI_PREFIKSI)])
+    assert len(po_imenu) == 4
+    for r in po_imenu.values():
+        assert r["ok"] is False and r["greska"] == PORUKA_NIJE_JPEG_PNG
+    enqueue.assert_not_awaited()
+    upload.assert_not_called()
+
+
+def _jpeg_ls() -> bytes:
+    """JPEG-LS (SOF55, FF D8 FF F7): deli JPEG potpis, ali ga libjpeg/Pillow ne dekodira."""
+    sof = bytes([8, 0, 64, 0, 64, 1, 1, 0x11, 0])
+    return b"\xff\xd8\xff\xf7" + (len(sof) + 2).to_bytes(2, "big") + sof + _seg(0xDA, bytes([1, 1, 0, 0, 0, 0])) + b"\x00" * 32 + b"\xff\xd9"
+
+
+def test_jpeg_ls_odbija_pillow_pri_otvaranju_bez_dekodiranja(monkeypatch, tmp_path):
+    """Politika: JPEG-LS prolazi proveru potpisa (FF D8 FF), ali ga Pillow JPEG dekoder odbija već pri čitanju
+    zaglavlja → čist neuspeh ('nečitljivo'), bez dekodiranja, bez OCR-a, bez lažnog uspeha."""
+    p = tmp_path / "ls.jpg"
+    p.write_bytes(_jpeg_ls())
+    dogadjaji = []
+    monkeypatch.setattr(ImageFile.ImageFile, "load", lambda self: dogadjaji.append("DEKODIRANJE"))
+    monkeypatch.setattr(X, "_ocr_image", lambda *a: dogadjaji.append("OCR") or ("tekst " * 40, 0.9))
+    assert X.extract(p)[:3] == ("", True, False)
+    assert dogadjaji == []
+
+
+def test_svako_otvaranje_slike_ogranicava_format(monkeypatch, tmp_path):
+    """Svaki Image.open u extract_image (provera, dimenzije, OCR) prosleđuje formats=("JPEG", "PNG")."""
+    p = tmp_path / "foto.jpg"
+    p.write_bytes(_slika("JPEG"))
+    pozivi = []
+    pravi_open = Image.open
+
+    def _open(fp, mode="r", formats=None):
+        pozivi.append(tuple(formats) if formats else None)
+        return pravi_open(fp, mode, formats)
+
+    monkeypatch.setattr(Image, "open", _open)
+    _ocr_uspeva(monkeypatch)
+    assert X.extract(p)[2] is True
+    assert pozivi == [X.FORMATI_SLIKE] * 3
