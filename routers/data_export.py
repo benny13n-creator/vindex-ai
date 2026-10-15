@@ -3,6 +3,7 @@
 GDPR Data Export — korisnik preuzima svoje zapise iz tabela navedenih u README-u.
 GET /api/export/complete → ZIP sa JSON fajlovima (bez originalnih fajlova dokumenata).
 """
+import asyncio
 import io
 import json
 import logging
@@ -55,6 +56,19 @@ class ExportIncomplete(Exception):
 #: PostgREST/Supabase `max-rows` (podrazumevano 1000): odgovor bez straničenja
 #: se TIHO seče na tu granicu. Strana ne sme biti veća od nje.
 _STRANA = 1000
+
+#: NS3-C: gornja granica cekanja na kanonski audit upis (sekunde). Upis su dva
+#: kratka poziva baze (+ do 5 ponavljanja na prev_hash sudar). `asyncio.to_thread`
+#: se NE MOZE prekinuti: posle isteka nit moze i dalje da upise red -- ishod je
+#: NEPOZNAT, pa se izvoz ne salje (fail-closed).
+_AUDIT_TIMEOUT_S = 15.0
+
+#: NS3-C: istinita privremena greska kada upis u audit log nije dokazan.
+#: Ne tvrdi ni da je izvoz poslat ni da je zapis upisan.
+_PORUKA_AUDIT_NEDOKAZAN = (
+    "Izvoz vam nije poslat jer upis u nepromenjivi audit log nije potvrđen. "
+    "Pokušajte ponovo za koji minut."
+)
 
 
 def _kljuc_redosleda(order: str):
@@ -153,14 +167,33 @@ async def export_complete(user=Depends(get_current_user)):
     # billing_entry_delete), ne zakazuje kroz `spawn`. Zakazan upis je posle
     # `return` jos neizvrsen dok klijent vec prima ZIP; gasenje procesa u tom
     # prozoru (shared/bg.py: spawn NIJE trajan) ostavlja isporucen izvoz bez
-    # zapisa, suprotno security.html §14.2. Neuspeh upisa i dalje NE blokira
-    # izvoz (log_action ugovor: best-effort na neuspeh, vidljiv samo u logu).
-    async def _upisi(akcija: str, meta: dict) -> None:
+    # zapisa, suprotno security.html §14.2.
+    #
+    # NS3-C (odluka osnivaca): za USPESAN izvoz upis je USLOV isporuke, ne
+    # best-effort. `log_action` vraca id upisanog reda samo kada je PostgREST
+    # vratio upisan red (`_build_and_insert`: `result.data[0]["id"]`); None
+    # znaci neuspeh, progutan izuzetak ili akciju van AUDITABLE_ACTIONS.
+    # Dokaz = neprazan string id. Sve ostalo (None, izuzetak, istek roka =
+    # ishod NEPOZNAT) -> ZIP se ne salje. Vraca razlog neuspeha ili None.
+    async def _upisi(akcija: str, meta: dict) -> str | None:
         try:
-            await _imm_log(akcija, user_id=uid, resource_type="all_user_data",
-                           metadata=meta)
+            zapis = await asyncio.wait_for(
+                _imm_log(akcija, user_id=uid, resource_type="all_user_data",
+                         metadata=meta),
+                timeout=_AUDIT_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            razlog = "timeout"
         except Exception as e:
-            logger.warning("[EXPORT] audit %s nije upisan (%s)", akcija, type(e).__name__)
+            razlog = type(e).__name__
+        else:
+            if isinstance(zapis, str) and zapis:
+                return None
+            razlog = "not_persisted"
+        # Sink koji je pao ne moze sam da zabelezi svoj pad: samo operativni
+        # log -- akcija i razlog, nikad e-posta, sadrzaj arhive ni tekst greske.
+        logger.error("[EXPORT] audit %s NIJE dokazano upisan (%s)", akcija, razlog)
+        return razlog
 
     async def _neuspeh(faza: str, **dodatno) -> None:
         meta = {"format": "zip", "stage": faza, "archive_sent": False}
@@ -219,12 +252,23 @@ async def export_complete(user=Depends(get_current_user)):
     # kao izvrsen izvoz -- suprotno static/security.html §14.2 („Svaki kompletan
     # izvoz upisuje se ..."). NS2b-D: upis se ceka (v. `_upisi`).
     # C1: zapis tvrdi samo fazu 3 -- isporuka klijentu nije serverski dokaziva.
-    await _upisi("data_export", {
-        "email": email,
+    # NS3-C: bez e-poste -- red vec nosi user_id, a §14.2 obecava samo
+    # (user_id, vreme, format). Nepromenjiv log ne sme da cuva vise PII nego sto
+    # je potrebno (iz njega se nista ne moze obrisati).
+    razlog = await _upisi("data_export", {
         "format": "zip",
         "stage": "archive_generated",
         "delivery": "not_verified_by_server",
     })
+    if razlog is not None:
+        # NS3-C: upis nije dokazan -> arhiva se odbacuje, nijedan bajt ne izlazi.
+        buf.close()
+        if razlog != "timeout":
+            # Brz neuspeh: pokusaj istinitog zapisa o odbijenom izvozu. Posle
+            # isteka roka se ne pokusava (sink ne odgovara; drugi rok bi samo
+            # produzio cekanje korisnika).
+            await _neuspeh("audit_unproven", reason=razlog)
+        raise HTTPException(status_code=503, detail=_PORUKA_AUDIT_NEDOKAZAN)
 
     buf.seek(0)
     filename = f"vindex-export-{now}.zip"
