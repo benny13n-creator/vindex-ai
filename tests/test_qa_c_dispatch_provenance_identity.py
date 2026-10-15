@@ -81,10 +81,14 @@ async def _dispecuj(redovi, handleri, inserti=None, update=None):
         return await eb.dispatch_pending_events()
 
 
+tenanti = []
+
+
 def _belezi(vidjeno, baci_za=()):
     async def _h(e):
         ctx = ai_provenance.current_context()
         vidjeno.append((e.event_id, ctx.get("user_id"), ctx.get("correlation_id")))
+        tenanti.append(ctx.get("tenant_id"))
         if e.event_id in baci_za:
             raise RuntimeError("sinteticki pad handlera")
     return _h
@@ -246,3 +250,11 @@ async def test_dogadjaj_i_dalje_nosi_originalni_user_id_reda():
 ])
 def test_vlasnik_dogadjaja(ulaz, izlaz):
     assert eb._vlasnik_dogadjaja(ulaz) == izlaz
+
+
+@pytest.mark.anyio
+async def test_tenant_id_se_ne_izvodi_iz_vlasnika_dogadjaja():
+    """Ispravka postavlja SAMO user_id; tenant_id ostaje None kao pre (pregled QA-C, mutacija M8)."""
+    tenanti.clear()
+    await _dispecuj([_red("e1", U_A, cid="c1"), _red("e2", U_B, cid="c2")], {eb.EventType.ROK_DODAN: [_belezi([])]})
+    assert tenanti == [None, None]
