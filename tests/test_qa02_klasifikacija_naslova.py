@@ -107,6 +107,26 @@ def test_bez_prepoznatog_naslova_nema_lazno_sigurne_vrste(tekst):
     assert classify_heuristic(tekst) is None
 
 
+@pytest.mark.parametrize("tekst,tip", [
+    # Završni gejt: tri NOVA lažna pozitiva iz nezavisnog korpusa (79 slučajeva) — red koji počinje ključnom reči, ali
+    # iza nje odmah stoji „:“ ili broj, oznaka je/poziv na drugi akt, ne naslov ovog dokumenta.
+    ("ADVOKATSKA KANCELARIJA PETROVIĆ\nBulevar oslobođenja 12, Novi Sad\nRAČUN: 205-0000001234567-89\nTUŽBA\n"
+     "Tužilac: TEST ALFA DOO", "lawsuit"),
+    ("REŠENJE Iv 55/24\nŽALBA\nprotiv rešenja", "appeal"),
+    ("TUŽILAC SE POZIVA NA\nRAČUN BR 5 I UGOVOR\nTUŽBA", "lawsuit"),
+])
+def test_poziv_na_drugi_akt_nije_naslov(tekst, tip):
+    assert classify_heuristic(tekst) == (tip, 0.85)
+
+
+@pytest.mark.parametrize("tekst", ["RAČUN br. 15/2026\nKupac: TEST BETA DOO", "FAKTURA br. 123\nKupac: TEST BETA DOO",
+                                   "PRESUDA P 123/2025\nU IME NARODA", "УГОВОР бр. 12/2026\nо испоруци"])
+def test_kljucna_rec_sa_brojem_ide_modelu(tekst):
+    """Isti oblik („RAČUN BR 5“) je bio uzrok lažnog pozitiva, pa se ne pogađa ni kad je to stvarno naslov:
+    pošten ishod je postojeći model, ne samouverena heuristika."""
+    assert classify_heuristic(tekst) is None
+
+
 def test_taksonomija_nepromenjena():
     assert DOCUMENT_TYPES == ("lawsuit", "response", "appeal", "judgment", "contract", "invoice",
                               "power_of_attorney", "evidence", "email", "court_decision", "enforcement",

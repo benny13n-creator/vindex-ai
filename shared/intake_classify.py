@@ -69,6 +69,8 @@ _NASLOVI_VAN_TAKSONOMIJE = (
 
 
 _REDNI_BROJ = re.compile(r"^\d{1,2}[.)]\s+")
+# Ostatak reda posle ključne reči: „:“, „br./broj/no“ ili kratka oznaka upisnika pa broj („Iv 55/24“, „P. 12“, „5/2026“).
+_POZIV_NA_AKT = re.compile(r"\s*(?::|(?:br|бр|broj|број|no)\b\.?|[^\W\d_]{0,4}\.?\s*\d)", re.IGNORECASE)
 
 
 def _red_naslova(red: str) -> str:
@@ -100,7 +102,9 @@ def _naslovni_tip(red: str):
                 if _pocinje_recju(k, kw) and (najbolji is None or len(kw) > len(najbolji[1])):
                     najbolji = (doc_type, kw)
         if najbolji:
-            return najbolji
+            # QA-02 (završni gejt): iza ključne reči odmah dvotačka ili broj → oznaka/poziv na DRUGI akt, ne naslov
+            # („RAČUN: 205-…“ u memorandumu, „REŠENJE Iv 55/24“ u zaglavlju žalbe, „RAČUN BR 5…“). Red se preskače.
+            return None if _POZIV_NA_AKT.match(k[len(najbolji[1]):]) else najbolji
     return None
 
 
