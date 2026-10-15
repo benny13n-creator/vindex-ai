@@ -8,6 +8,11 @@
  *   poljePodatka(kod)    Smart Intake `entity_type` (shared/intake_extract.py::ENTITY_TYPES).
  *   akter(naziv)         `predmet_hronologija.akter`. Prevode se SAMO interni nazivi procesa, uz zadržano poreklo
  *                        (AI / šablon / sistem); svaka druga vrednost je ime osobe, suda ili firme i ostaje doslovno.
+ *   vrstaPredmeta(kod)   `predmeti.tip` (i grupe „Iskustva kancelarije“).
+ *   ulogaStranke(kod)    Genome `stranke[].uloga`.
+ *
+ * Ako ovaj fajl ne stigne (404, prekid mreže), index.html odmah iza njega postavlja REZERVU bez ijednog prevoda:
+ * oznaka se prikazuje doslovno uz napomenu da srpski naziv nije učitan — ekran radi, ništa se ne nagađa.
  *
  * Nepoznata oznaka se NE prevodi nagađanjem: prikazuje se kao nepoznata, sa doslovnom oznakom.
  */
@@ -55,6 +60,28 @@
     "Learning Engine": "Sistem — zatvaranje predmeta"
   };
 
+  /* `predmeti.tip`: šifre starog /app (static/vindex.js), V2 unosa (nov-predmet.js::KLJUC) i Smart Intake-a („opsti“).
+   * Rečnik vrsta je otvoren (advokat sme da UPIŠE svoju vrstu, a stari /app ima i „radni“, „privredni“…), pa se
+   * nepoznata vrednost prikazuje doslovno. Kao nepoznata oznaka se označava samo šifra sa „_“ — to piše program. */
+  var VRSTE_PREDMETA = {
+    // static/vindex.js (isti nazivi kao ranije u app.js)
+    parnicno: "Parnični", krivicno: "Krivični", upravno: "Upravni", radno: "Radno", porodicno: "Porodičnopravni",
+    nasledjivanje: "Ostavinski", privredno: "Privredno", nepokretnosti: "Nepokretnosti", ostalo: "Ostalo",
+    radni: "Radni",                                    // static/vindex.js (oznaka liste predmeta)
+    // nov-predmet.js::KLJUC (nazivi su ključevi koje advokat bira u istom polju)
+    radni_spor: "Radni spor", ugovorni_spor: "Ugovorni spor", naknada_stete: "Naknada štete",
+    potrosacki_spor: "Potrošački spor", nasledstvo: "Nasledstvo", krivicni: "Krivični", upravni: "Upravni",
+    prekrsajni: "Prekršajni", izvrsni: "Izvršni", privredni: "Privredni", porodicni: "Porodični", opsti: "Opšti",
+    // services/law_brain.py::pregled_znanja — grupa predmeta bez upisane vrste
+    "nije naveden": "Vrsta nije navedena"
+  };
+  var SIFRA = /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/;
+
+  /* Genome `stranke[].uloga` (routers/case_dna.py: tuzilac|tuzeni|svedok|vestak|zastupnik|ostalo); prikazuje se
+   * malim slovom, unutar reda. */
+  var ULOGE = { tuzilac: "tužilac", tuzeni: "tuženi", svedok: "svedok", vestak: "veštak", zastupnik: "zastupnik",
+                ostalo: "ostalo" };
+
   function tekst(v) { return String(v == null ? "" : v).trim(); }
   function ima(mapa, k) { return Object.prototype.hasOwnProperty.call(mapa, k); }
 
@@ -76,5 +103,20 @@
     return ima(AKTERI, k) ? AKTERI[k] : k;
   }
 
-  root.VxNazivi = Object.freeze({ vrstaDokumenta: vrstaDokumenta, poljePodatka: poljePodatka, akter: akter });
+  /** "" kad vrste nema; šifra van rečnika → „Nepoznata vrsta predmeta (oznaka …)“; tekst advokata → doslovno. */
+  function vrstaPredmeta(kod) {
+    var k = tekst(kod);
+    if (!k) return "";
+    if (ima(VRSTE_PREDMETA, k)) return VRSTE_PREDMETA[k];
+    return SIFRA.test(k) ? "Nepoznata vrsta predmeta (oznaka „" + k.slice(0, 60) + "“)" : k;
+  }
+
+  function ulogaStranke(kod) {
+    var k = tekst(kod);
+    if (!k) return "uloga nije navedena";
+    return ima(ULOGE, k) ? ULOGE[k] : "neprepoznata uloga (oznaka „" + k.slice(0, 60) + "“)";
+  }
+
+  root.VxNazivi = Object.freeze({ vrstaDokumenta: vrstaDokumenta, poljePodatka: poljePodatka, akter: akter,
+                                  vrstaPredmeta: vrstaPredmeta, ulogaStranke: ulogaStranke });
 })(window);

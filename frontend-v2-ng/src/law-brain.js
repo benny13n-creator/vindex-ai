@@ -105,7 +105,7 @@
       var isk = z.iskustvo;
       if (sekcija(isk, "lb-isk-stanje", "Još nema završenih predmeta koje možete da vidite.")) {
         niz(isk.grupe).forEach(function (g) {
-          var glavni = (tekst(g.tip) || "Vrsta nije navedena") + " — " + g.relevantnih + (g.relevantnih === 1 ? " završen predmet" : " završenih predmeta");
+          var glavni = (root.VxNazivi.vrstaPredmeta(g.tip) || "Vrsta nije navedena") + " — " + g.relevantnih + (g.relevantnih === 1 ? " završen predmet" : " završenih predmeta");
           var li = A.stavka({ trust_class: g.sa_ljudskim_ishodom ? "HUMAN_CONFIRMED_OUTCOME" : "SOURCE_CASE_FACT" }, glavni,
             niz(g.recenice).slice(1).concat(g.sa_ljudskim_ishodom ? [] : ["Ishod nije zabeležen ni za jedan — iskustvo bez ishoda."])
               .concat(g.sa_ljudskim_ishodom && g.mali_uzorak ? ["Mali uzorak — opis, ne pravilo."] : []));

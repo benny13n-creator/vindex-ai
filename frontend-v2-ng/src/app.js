@@ -348,10 +348,6 @@
   }
 
   var NAZIV_STATUSA = { aktivan: "Aktivan", cekanje: "Na čekanju", zatvoren: "Zatvoren", arhiviran: "Arhiviran" };
-  /* Isti rečnik vrsta koji koristi postojeći /app (static/vindex.js, izbor vrste
-   * predmeta); nepoznata vrednost se prikazuje doslovno. */
-  var NAZIV_VRSTE = { parnicno: "Parnični", krivicno: "Krivični", upravno: "Upravni", radno: "Radno", porodicno: "Porodičnopravni",
-                      nasledjivanje: "Ostavinski", privredno: "Privredno", nepokretnosti: "Nepokretnosti", ostalo: "Ostalo" };
   var brojFormat = new Intl.NumberFormat("sr-Latn-RS", { maximumFractionDigits: 2 });
   var STANJE_PREDMETA = {
     "ucitavanje": ["Učitavanje predmeta…", "Podaci predmeta se učitavaju sa servera."],
@@ -483,7 +479,7 @@
     }
     var dl = $("predmet-cinjenice");
     cinjenica(dl, "Broj predmeta", p.broj);
-    cinjenica(dl, "Vrsta", Object.prototype.hasOwnProperty.call(NAZIV_VRSTE, p.tip) ? NAZIV_VRSTE[p.tip] : p.tip);
+    cinjenica(dl, "Vrsta", window.VxNazivi.vrstaPredmeta(p.tip));
     cinjenica(dl, "Tužilac", p.tuzilac);
     cinjenica(dl, "Tuženi", p.tuzeni);
     cinjenica(dl, "Vrednost spora", p.vrednost !== null ? brojFormat.format(p.vrednost) + " RSD" : "");

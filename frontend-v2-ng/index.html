@@ -936,6 +936,24 @@
   <script src="src/api.js"></script>
   <script src="src/session.js"></script>
   <script src="src/nazivi.js"></script>
+  <script>
+    /* QA-03: src/nazivi.js nije stigao (404, prekid mreže) — ekrani ne smeju da puknu ni da nagađaju. Ovde NEMA
+       prevoda (jedini rečnik je nazivi.js): oznaka se prikazuje doslovno, uz napomenu; akter ostaje kako je upisan. */
+    if (!window.VxNazivi) {
+      window.VxNazivi = (function () {
+        function oznaka(v) { return String(v == null ? "" : v).trim().slice(0, 60); }
+        function nijeUcitan(v) { var k = oznaka(v); return k ? "„" + k + "“ (srpski naziv nije učitan)" : ""; }
+        return Object.freeze({
+          nedostupan: true,
+          vrstaDokumenta: nijeUcitan,
+          poljePodatka: function (v) { return nijeUcitan(v) || "Nepoznato polje"; },
+          akter: function (v) { return String(v == null ? "" : v).trim(); },
+          vrstaPredmeta: nijeUcitan,
+          ulogaStranke: function (v) { return nijeUcitan(v) || "uloga nije navedena"; }
+        });
+      })();
+    }
+  </script>
   <script src="src/live.js"></script>
   <script src="src/predmeti.js"></script>
   <script src="src/predmet.js"></script>

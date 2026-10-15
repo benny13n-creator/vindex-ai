@@ -39,8 +39,13 @@ const hr = (n, akter, dogadjaj, vrsta) => ({ id: `0a0a0a0a-5555-4000-8000-000000
 const ent = (n, tip, vrednost) => ({ id: `0a0a0a0a-6666-4000-8000-00000000000${n}`, document_id: ID, intake_job_id: J, entity_type: tip,
   value: vrednost, confidence: 0.95, reviewed: false, corrected_value: null, created_at: T });
 const SEME = {
-  predmeti: [{ id: P, user_id: "uid-A", naziv: "QA-03 sinteticki predmet", tip: "parnicno", status: "aktivan", opis: "",
-    created_at: T, updated_at: T, case_dna: {}, observation_version: 0 }],
+  predmeti: [{ id: P, user_id: "uid-A", naziv: "QA-03 sinteticki predmet", tip: "opsti", status: "aktivan", opis: "",
+    tuzilac: "TEST ALFA DOO", created_at: T, updated_at: T, observation_version: 0,
+    case_dna: { stranke: [{ ime: "Petar Svedok", uloga: "svedok" }, { ime: "Marko Nepoznati", uloga: "qa_uloga" }] } },
+    // „Iskustvo kancelarije“ grupiše ZAVRŠENE predmete po `tip`: stara šifra, nepoznata šifra, tekst koji je upisao advokat
+    ...[["parnicno", "a2"], ["qa_interni_tip", "a3"], ["Spor oko zakupa", "a4"]].map(([tip, n]) => ({
+      id: `0a0a0a0a-1111-4000-8000-0000000000${n}`, user_id: "uid-A", naziv: "Zavrsen " + n, tip, status: "zatvoren", opis: "",
+      created_at: T, updated_at: T, case_dna: {}, observation_version: 0 }))],
   predmet_dokumenti: [dok(1, "Ugovor.pdf", "contract"), dok(2, "Odgovor.pdf", "response"), dok(3, "Presuda.pdf", "sudska_odluka"),
     dok(4, "Nepoznato.pdf", "qa_interni_kod")],
   predmet_hronologija: [hr(1, "Pipeline (AI)", "Isporuka iz opisa", "rok"), hr(2, "Smart Intake", "Rok iz dokumenta (ugovor)", "rok"),
@@ -138,6 +143,65 @@ await p.goto(`${BASE}/app#/predmeti/${P}/analiza`);
 const naslov = await p.evaluate(() => [document.getElementById("an-genome-naslov").textContent,
   document.querySelector('[data-an-skok="an-genome-naslov"]').textContent]);
 zapisi("analiza", "„Genome“ zamenjen sa „Slika predmeta“ (naslov i skok)", naslov[0] === "Slika predmeta" && naslov[1] === "Slika predmeta", naslov.join(" / "));
+const stranke = await cekaj(() => /Petar Svedok/.test(document.getElementById("an-stranke").innerText)) ? await tekst("#an-stranke") : "";
+zapisi("analiza", "uloga svedok → „svedok“", /Petar Svedok[\s\S]*svedok/.test(stranke), stranke.replace(/\n/g, " | ").slice(0, 300));
+zapisi("analiza", "uloga iz analize van skupa → „uloga iz analize nije prepoznata“ (ne „nije navedena“)",
+  /Marko Nepoznati[\s\S]*uloga iz analize nije prepoznata/.test(stranke));
+zapisi("analiza", "uloga iz evidencije predmeta → „tužilac“", /TEST ALFA DOO[\s\S]*tužilac/.test(stranke));
+
+// ── Predmet i „Iskustvo kancelarije“: vrsta predmeta ─────────────────────────────────────────────────────────────
+await p.goto(`${BASE}/app#/predmeti/${P}`);
+zapisi("predmet", "vrsta „opsti“ (Smart Intake) → „Opšti“", await cekaj(() => /Vrsta\s*Opšti/.test(document.getElementById("predmet-cinjenice").innerText)),
+  await tekst("#predmet-cinjenice"));
+await p.goto(`${BASE}/app#/znanje`);
+const isk = await cekaj(() => document.querySelectorAll("#lb-iskustvo li").length === 3) ? await tekst("#lb-iskustvo li") : "";
+zapisi("znanje", "„parnicno“ → „Parnični“", /Parnični — 1 završen predmet/.test(isk), isk.replace(/\n/g, " | ").slice(0, 400));
+zapisi("znanje", "nepoznata šifra vrste prikazana kao nepoznata", /Nepoznata vrsta predmeta \(oznaka „qa_interni_tip“\)/.test(isk));
+zapisi("znanje", "vrsta koju je upisao advokat ostaje doslovno", /Spor oko zakupa — 1 završen predmet/.test(isk));
+zapisi("znanje", "nijedna šifra vrste prikazana sirovo", !/(^|\n)(parnicno|qa_interni_tip) —/.test(isk));
+
+// ── Rečnik nije stigao (404): ekrani rade, ništa se ne nagađa, napomena na srpskom ─────────────────────────────────
+const ctx404 = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+const greske404 = [];
+let trazenRecnik = 0;
+await ctx404.route("**/*", r => {
+  const u = new URL(r.request().url());
+  if (u.hostname !== "127.0.0.1") { spoljni.push(u.href); return r.abort(); }
+  if (u.pathname === "/static/vindex.js") return r.fulfill({ status: 200, contentType: "text/javascript", body: "/* legacy blokiran */" });
+  if (u.pathname.endsWith("/nazivi.js")) { trazenRecnik++; return r.fulfill({ status: 404, contentType: "text/plain", body: "Not Found" }); }
+  return r.continue();
+});
+await ctx404.addInitScript(([k, v]) => { if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(k, v); } },
+  [KLJUC, JSON.stringify({ access_token: "tok-A", refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: "uid-A" } })]);
+const q = await ctx404.newPage();
+q.setDefaultTimeout(10000);
+q.on("pageerror", e => greske404.push(String(e)));
+const cekajQ = (fn, ms = 15000) => q.waitForFunction(fn, null, { timeout: ms }).then(() => true, () => false);
+const tekstQ = (sel) => q.evaluate((s) => [...document.querySelectorAll(s)].map(e => e.innerText).join("\n"), sel);
+await q.goto(`${BASE}/app#/predmeti/${P}/dokumenti`);
+zapisi("bez rečnika", "rečnik je zaista tražen i odbijen (404), rezerva aktivna", await cekajQ(() => window.VxNazivi && window.VxNazivi.nedostupan === true) && trazenRecnik > 0);
+zapisi("bez rečnika", "lista dokumenata NIJE prazna", await cekajQ(() => document.querySelectorAll("#dok-lista .docs__item").length === 4));
+const lista404 = await tekstQ("#dok-lista .docs__meta");
+zapisi("bez rečnika", "oznaka doslovno uz srpsku napomenu „srpski naziv nije učitan“", /„contract“ \(srpski naziv nije učitan\)/.test(lista404)
+  && /„qa_interni_kod“ \(srpski naziv nije učitan\)/.test(lista404), lista404.replace(/\n/g, " | "));
+zapisi("bez rečnika", "nema nagađanog prevoda (ni „Ugovor“, ni „Odgovor na tužbu“)", !/Ugovor|Odgovor na tužbu|Sudska odluka/.test(lista404));
+await q.goto(`${BASE}/app#/predmeti/${P}`);
+zapisi("bez rečnika", "predmet: vrsta doslovno uz napomenu", await cekajQ(() => /„opsti“ \(srpski naziv nije učitan\)/.test(document.getElementById("predmet-cinjenice").innerText)));
+await q.goto(`${BASE}/app#/predmeti/${P}/rad`);
+zapisi("bez rečnika", "hronologija prikazana (11), akter onako kako je upisan", await cekajQ(() => document.querySelectorAll("#hron-lista li").length === 11)
+  && /Pipeline \(AI\)/.test(await tekstQ("#hron-lista li")));
+await q.goto(`${BASE}/app#/predmeti/${P}/analiza`);
+zapisi("bez rečnika", "analiza: stranke prikazane", await cekajQ(() => /Petar Svedok[\s\S]*„svedok“ \(srpski naziv nije učitan\)/.test(document.getElementById("an-stranke").innerText)));
+await q.goto(`${BASE}/app#/znanje`);
+zapisi("bez rečnika", "iskustvo kancelarije prikazano", await cekajQ(() => /„parnicno“ \(srpski naziv nije učitan\)/.test(document.getElementById("lb-iskustvo").innerText)));
+await q.goto(`${BASE}/app#/predmeti/${P}/prijem`);
+zapisi("bez rečnika", "prijem: forma prikazana", await cekajQ(() => { const f = document.getElementById("pd-fajlovi"); return f && !f.closest("[hidden]"); }));
+await q.setInputFiles("#pd-fajlovi", PDF);
+await q.click("#pd-otpremi");
+zapisi("bez rečnika", "prijem: vrsta i polja doslovno uz napomenu", await cekajQ(() => /„response“ \(srpski naziv nije učitan\)/.test(document.getElementById("pd-poslovi").innerText)
+  && /„law_cited“ \(srpski naziv nije učitan\)/.test(document.getElementById("pd-poslovi").innerText)), (await tekstQ("#pd-poslovi")).replace(/\n/g, " | ").slice(0, 400));
+zapisi("bez rečnika", "0 JS grešaka bez rečnika", greske404.length === 0, greske404.join(" | ").slice(0, 300));
+await ctx404.close();
 
 // ── Podaci nepromenjeni ───────────────────────────────────────────────────────────────────────────────────────────
 const posle = (await get("/__osb003/seme")).b;

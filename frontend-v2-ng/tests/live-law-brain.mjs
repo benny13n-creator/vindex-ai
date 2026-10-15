@@ -87,7 +87,7 @@ const tekstStranice = (p) => p.evaluate(() => document.body.innerText);
       ids: [...document.querySelectorAll("[id]")].map(e => e.id) };
   });
   zapisi("znanje", "raniji predmeti po vrsti: opis sa imeniocem, bez procenata",
-    r.isk.length === 1 && /radni — 1 završen predmet/.test(r.isk[0].t) && /1 nagodba/.test(r.isk[0].t) && /Veličina uzorka: 1/.test(r.isk[0].t)
+    r.isk.length === 1 && /^Radni — 1 završen predmet/m.test(r.isk[0].t) && /1 nagodba/.test(r.isk[0].t) && /Veličina uzorka: 1/.test(r.isk[0].t)
       && /Mali uzorak/.test(r.isk[0].t) && !/%/.test(r.isk[0].t), r.isk[0] && r.isk[0].t.replace(/\n/g, " | "));
   zapisi("znanje", "verifikovani rad nosi oznaku „Overio advokat” i predmet",
     r.rad.length === 1 && r.rad[0].trust === "LAWYER_VERIFIED_ARTIFACT" && /Overio advokat/.test(r.rad[0].t) && /Petrović protiv Gradnja Invest DOO/.test(r.rad[0].t));
