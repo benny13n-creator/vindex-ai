@@ -117,6 +117,16 @@ def test_naslov_malim_slovima_je_veto(tekst):
     assert classify_heuristic(tekst) is None
 
 
+@pytest.mark.parametrize("tekst", [
+    # Završni pregled (korpus 4): goli genitiv nije tužba — izveštaj, spisak, predmet mejla; „TUŽBENI ZAHTEV“
+    "TUŽBE PROTIV REPUBLIKE SRBIJE — PREGLED\nStanje na dan 1.10.2026.",
+    "ТУЖБЕ И ПРЕДЛОЗИ — ИНТЕРНО УПУТСТВО\nза сараднике",
+    "TUŽBE – STATUS PREDMETA\nPoštovani kolega,",
+])
+def test_goli_genitiv_nije_tuzba(tekst):
+    assert classify_heuristic(tekst) is None
+
+
 @pytest.mark.parametrize("tekst", [ZAPISNIK_CIR, ZAPISNIK_LAT, POTVRDA, DOSTAVNICA_PRESUDA, NEPOZNAT,
                                    "Poštovani, u prilogu vam šaljem Ugovor i TUŽBU.",
                                    "Ugovor o isporuci\nzaključen je 01.08.2026.",          # naslov nije istaknut

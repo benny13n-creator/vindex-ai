@@ -40,8 +40,11 @@ DOCUMENT_TYPES = (
 # latinica namerno paralelno, srpski pravni dokumenti mešaju oba pisma.
 _HEAD_CHARS = 400
 _HEURISTICS: list[tuple[str, list[str]]] = [
-    # QA-02: i genitiv — naslov „PREDLOG TUŽBE“ / „ПРЕДЛОГ ТУЖБЕ“ (beta QA predlog tužbe je bio `contract`)
-    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA", "ТУЖБЕ", "TUŽBE", "TUZBE"]),
+    # QA-02: i „PREDLOG/NACRT TUŽBE“ (beta QA predlog tužbe je bio `contract`).
+    # Genitiv SAMO u frazi (završni pregled): goli „TUŽBE …“ je naslov izveštaja/spiska/mejla („TUŽBE PROTIV …
+    # — PREGLED“), a podniz „TUŽBE“ je i u „TUŽBENI ZAHTEV“.
+    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA", "PREDLOG TUŽBE", "PREDLOG TUZBE", "ПРЕДЛОГ ТУЖБЕ",
+                           "NACRT TUŽBE", "NACRT TUZBE", "НАЦРТ ТУЖБЕ"]),
     ("appeal",             ["ЖАЛБА", "ŽALBA", "ZALBA", "PRIGOVOR", "ПРИГОВОР"]),
     ("response",           ["ОДГОВОР НА ТУЖБУ", "ODGOVOR NA TUŽBU", "ODGOVOR NA TUZBU"]),
     ("judgment",           ["ПРЕСУДА", "PRESUDA"]),
