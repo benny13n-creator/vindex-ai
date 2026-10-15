@@ -104,6 +104,16 @@ def test_extract_image_corrupt_file_fails_cleanly(tmp_path):
     path = tmp_path / "not_really_an_image.jpg"
     path.write_bytes(b"this is not image data at all")
 
+    # NS3-B: sadržaj koji nije JPEG/PNG je terminalno odbijen sa tačnom porukom (ranije: "OCR nije uspeo").
+    from uploaded_doc.extractor import PORUKA_NIJE_JPEG_PNG
+    try:
+        extract_image(path)
+        assert False, "expected DocumentSafetyLimitExceeded"
+    except DocumentSafetyLimitExceeded as e:
+        assert e.poruka == PORUKA_NIJE_JPEG_PNG
+
+    # JPEG potpis, a ostatak smeće: i dalje čist neuspeh, bez izuzetka i bez lažnog OCR uspeha.
+    path.write_bytes(b"\xff\xd8\xff\xe0" + b"this is not image data at all")
     text, is_scanned, ocr_used, _pages, _conf = extract_image(path)
 
     assert is_scanned is True
@@ -127,7 +137,7 @@ def test_extract_image_rejects_oversized_dimensions(tmp_path, monkeypatch):
         def __enter__(self): return self
         def __exit__(self, *a): return False
 
-    def _fake_open(p):
+    def _fake_open(p, *a, **kw):
         return _FakeImg()
 
     with patch("PIL.Image.open", _fake_open):

@@ -450,7 +450,7 @@ async def test_upload_u_predmet_vraca_413_sa_porukom_za_korisnika():
     supa = base._supa_upload_succeeds()
     patches = base._base_patches(supa, extract_side_effect=DocumentSafetyLimitExceeded("slika: ...", poruka=X.PORUKA_PREVELIK_JPEG))
     with pytest.raises(HTTPException) as ei:
-        await base._run_with_patches(patches, filename="foto.jpg", content_type="image/jpeg")
+        await base._run_with_patches(patches, filename="foto.jpg", content_type="image/jpeg", content=_jpeg())
     assert ei.value.status_code == 413 and ei.value.detail == X.PORUKA_PREVELIK_JPEG
 
 

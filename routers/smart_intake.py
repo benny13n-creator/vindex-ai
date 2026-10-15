@@ -154,6 +154,8 @@ async def upload_intake_documents(
     if not files:
         raise HTTPException(status_code=422, detail="Nijedan fajl nije poslat.")
 
+    from uploaded_doc.extractor import IMAGE_SUFFIXES, PORUKA_NIJE_JPEG_PNG, format_slike_po_sadrzaju
+
     supa = _get_supa()
     results = []
     _upload_started_at = time.monotonic()
@@ -185,6 +187,10 @@ async def upload_intake_documents(
             continue
         if len(raw) < 1:
             results.append({"filename": f.filename, "ok": False, "greska": "Fajl je prazan."})
+            continue
+        # NS3-B: fotografija po SADRŽAJU (JPEG/PNG), ne po ekstenziji -- odbijena odmah, bez čuvanja i bez posla.
+        if suffix in IMAGE_SUFFIXES and format_slike_po_sadrzaju(raw[:8]) is None:
+            results.append({"filename": f.filename, "ok": False, "greska": PORUKA_NIJE_JPEG_PNG})
             continue
 
         content_sha256 = hashlib.sha256(raw).hexdigest()

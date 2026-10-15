@@ -5973,6 +5973,11 @@ async def predmet_upload_auto_analyze(
     raw = await file.read()
     if len(raw) > _MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Fajl je preko 10MB")
+    # NS3-B: fotografija se prihvata po SADRŽAJU (JPEG/PNG), ne po ekstenziji/MIME -- odbijeno pre čuvanja i obrade.
+    from uploaded_doc.extractor import IMAGE_SUFFIXES, PORUKA_NIJE_JPEG_PNG, format_slike_po_sadrzaju
+    if suffix in IMAGE_SUFFIXES and format_slike_po_sadrzaju(raw[:8]) is None:
+        logger.warning("[NS3-B] Upload odbijen: %r nije JPEG/PNG po sadržaju (predmet=%s)", file.filename, predmet_id)
+        raise HTTPException(status_code=415, detail=PORUKA_NIJE_JPEG_PNG)
 
     # Program Intake Sprint 001 (2026-08-04) -- ovaj endpoint je ranije NIKAD
     # nije čuvao originalni fajl bilo gde: tempfile se briše u finally bloku
