@@ -100,23 +100,38 @@ def test_citirani_dokument_ne_preuzima_vrstu(tekst, nije):
                                    "Ugovor o isporuci\nzaključen je 01.08.2026.",          # naslov nije istaknut
                                    "Zapisnik o primopredaji\nUGOVOR br 12/2026",            # stop-reč malim slovima
                                    "Potvrda o isporuci\nUGOVOR br 12/2026",
-                                   "Br. 5 DOSTAVNICA\nPRESUDA P 1/2025"])                   # oznaka dostavnice u redu
+                                   "Br. 5 DOSTAVNICA\nPRESUDA P 1/2025",                    # oznaka dostavnice u redu
+                                   "ZAPISNIK O PRIMOPREDAJI\nUGOVOR O ISPORUCI OPREME",      # posle stop-reči ništa
+                                   "Potvrda o isporuci\nUGOVOR O ISPORUCI OPREME"])
 def test_bez_prepoznatog_naslova_nema_lazno_sigurne_vrste(tekst):
     """Nijedna od 12 vrsta nije pouzdano prepoznata → heuristika ćuti (odlučuje postojeći model, sa svojom
     pouzdanošću i `other` kad nije siguran) — nikad `contract` 0.85 zbog broja ugovora u telu."""
     assert classify_heuristic(tekst) is None
 
 
-@pytest.mark.parametrize("tekst,tip", [
-    # Završni gejt: tri NOVA lažna pozitiva iz nezavisnog korpusa (79 slučajeva) — red koji počinje ključnom reči, ali
-    # iza nje odmah stoji „:“ ili broj, oznaka je/poziv na drugi akt, ne naslov ovog dokumenta.
+@pytest.mark.parametrize("tekst,tudja", [
+    # Završni gejt — nezavisni korpusi (79 + 51 slučaj). Zaglavlje koje NIJE jednoznačno (poziv na drugi akt sa „:“ ili
+    # brojem, ili redovi dve različite vrste) ne sme dati samouverenu vrstu: odlučuje postojeći model.
+    # Tri nova lažna pozitiva iz korpusa 79 (bilo: invoice / court_decision / invoice):
     ("ADVOKATSKA KANCELARIJA PETROVIĆ\nBulevar oslobođenja 12, Novi Sad\nRAČUN: 205-0000001234567-89\nTUŽBA\n"
-     "Tužilac: TEST ALFA DOO", "lawsuit"),
-    ("REŠENJE Iv 55/24\nŽALBA\nprotiv rešenja", "appeal"),
-    ("TUŽILAC SE POZIVA NA\nRAČUN BR 5 I UGOVOR\nTUŽBA", "lawsuit"),
+     "Tužilac: TEST ALFA DOO", "invoice"),
+    ("REŠENJE Iv 55/24\nŽALBA\nprotiv rešenja", "court_decision"),
+    ("TUŽILAC SE POZIVA NA\nRAČUN BR 5 I UGOVOR\nTUŽBA", "invoice"),
+    # Klasa A (pravilo „preskoči red“ iz e9dee23f): pravi naslov sa „:“/brojem, kasniji red druge vrste
+    ("TUŽBA: radi isplate duga\nOsnovnom sudu u Beogradu\nTužilac: X\nTuženi: Y\nDokazi:\n1. UGOVOR o zajmu od 01.02.2025.\n"
+     "2. Opomena", "contract"),
+    ("PUNOMOĆJE br. 3/2026\nVlastodavac: Marko Marković\nza zastupanje u vezi sa:\nUGOVOR O ZAKUPU poslovnog prostora", "contract"),
+    ("UGOVOR od 01.08.2026\nZakupodavac: X\nRAČUN ZAKUPODAVCA kod banke Intesa", "invoice"),
+    # Klasa B (prvi red pobeđuje): memorandum, pobijani akt ili sporni ugovor iznad naslova
+    ("Advokat Petar Petrović\nRAČUN ZA UPLATU: 205-123456-78\nTUŽBA\nOsnovnom sudu u Beogradu", "invoice"),
+    ("Advokat Petar Petrović\nRAČUN IBAN RS35 1600 0000 0000\nTUŽBA\nOsnovnom sudu", "invoice"),
+    ("Viši sud u Beogradu\nREŠENJE Posl. br. Iv 55/24\nŽALBA\nizvršnog dužnika", "court_decision"),
+    ("Виши суд у Београду\nРЕШЕЊЕ Ипв(И) 12/24\nЖАЛБА\nизвршног дужника", "court_decision"),
+    ("Apelacioni sud\nPRESUDA OSNOVNOG SUDA P 123/2025\nŽALBA tuženog", "judgment"),
+    ("Osnov:\nUGOVOR O ZAKUPU br. 5/2024\nTUŽBA\nTužilac: X", "contract"),
 ])
-def test_poziv_na_drugi_akt_nije_naslov(tekst, tip):
-    assert classify_heuristic(tekst) == (tip, 0.85)
+def test_nejednoznacno_zaglavlje_ide_modelu(tekst, tudja):
+    assert classify_heuristic(tekst) is None, tudja
 
 
 @pytest.mark.parametrize("tekst", ["RAČUN br. 15/2026\nKupac: TEST BETA DOO", "FAKTURA br. 123\nKupac: TEST BETA DOO",

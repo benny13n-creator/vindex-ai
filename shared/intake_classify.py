@@ -89,8 +89,9 @@ def _pocinje_recju(red: str, rec: str) -> bool:
 
 
 def _naslovni_tip(red: str):
-    """(tip, ključna reč) kad red POČINJE ključnom reči (ili prefiksom pa ključnom reči); duža reč pobeđuje
-    („ODGOVOR NA TUŽBU“ > „TUŽBA“, „РЕШЕЊЕ О ИЗВРШЕЊУ“ > „РЕШЕЊЕ“). Inače None."""
+    """(tip, poziv) kad red POČINJE ključnom reči (ili prefiksom pa ključnom reči); duža reč pobeđuje
+    („ODGOVOR NA TUŽBU“ > „TUŽBA“, „РЕШЕЊЕ О ИЗВРШЕЊУ“ > „РЕШЕЊЕ“). `poziv` = iza reči odmah „:“ ili broj
+    („RAČUN: 205-…“, „REŠENJE Iv 55/24“) — oznaka/poziv na drugi akt, ne pouzdan naslov. Inače None."""
     kandidati = [red]
     for p in _PREFIKSI_NASLOVA:
         if _pocinje_recju(red, p):
@@ -102,9 +103,7 @@ def _naslovni_tip(red: str):
                 if _pocinje_recju(k, kw) and (najbolji is None or len(kw) > len(najbolji[1])):
                     najbolji = (doc_type, kw)
         if najbolji:
-            # QA-02 (završni gejt): iza ključne reči odmah dvotačka ili broj → oznaka/poziv na DRUGI akt, ne naslov
-            # („RAČUN: 205-…“ u memorandumu, „REŠENJE Iv 55/24“ u zaglavlju žalbe, „RAČUN BR 5…“). Red se preskače.
-            return None if _POZIV_NA_AKT.match(k[len(najbolji[1]):]) else najbolji
+            return najbolji[0], bool(_POZIV_NA_AKT.match(k[len(najbolji[1]):]))
     return None
 
 
@@ -119,7 +118,13 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     QA-02: vrstu određuje NASLOV — red zaglavlja koji POČINJE ključnom reči napisanom velikim slovima — a ne
     usputno pominjanje drugog dokumenta („po Ugovoru…“, „navodi tužbe…“). Ranije je pobeđivala prva vrsta iz
     liste čija se reč javi bilo gde u zaglavlju, pa su predlog tužbe, zapisnik i potvrda isporuke postajali
-    `contract`, a odgovor na tužbu koji pominje „TUŽBA“ — `lawsuit`. Bez prepoznatog naslova: None (model)."""
+    `contract`, a odgovor na tužbu koji pominje „TUŽBA“ — `lawsuit`. Bez prepoznatog naslova: None (model).
+
+    QA-02 završni gejt: heuristika odgovara SAMO kad je zaglavlje jednoznačno. Svi redovi koji počinju ključnom reči
+    (do stop-reči ili dostavnice) moraju dati istu vrstu, i nijedan ne sme biti poziv na drugi akt („RAČUN: 205-…“,
+    „REŠENJE Iv 55/24“, „UGOVOR O ZAKUPU br. 5“). Inače None → postojeći model. „Prvi red pobeđuje“ je u nezavisnim
+    korpusima davao samouverene pogrešne vrste kad memorandum, broj pobijanog akta ili sporni ugovor stoje iznad
+    stvarnog naslova."""
     head = (text or "")[:_HEAD_CHARS]
     head_upper = head.upper()
     # N06: dostavnica/povratnica imenuje URUČENO pismeno („Писмено: пресуда“) — ključna reč posle njenog naslova
@@ -127,20 +132,23 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     # „other“), ne heuristika sa 0.85 za tuđi tip.
     dostavnica = min((head_upper.find(o) for o in _DOSTAVNICA_OZNAKE if o in head_upper), default=-1)
     pozicija = 0
+    tipovi: set = set()
     for sirov in head.split("\n"):
         pocetak, pozicija = pozicija, pozicija + len(sirov) + 1
         if 0 <= dostavnica < pocetak:          # red je posle oznake dostavnice: opisuje uručeno pismeno
-            return None
+            break
         red = _red_naslova(sirov)
         if not red:
             continue
-        # Stop-reč se traži i u naslovu pisanom malim slovima („Zapisnik o primopredaji“): ishod je samo None.
+        # Stop-reč (i malim slovima, „Zapisnik o primopredaji“): sve posle nje opisuje drugi dokument.
         if any(_pocinje_recju(red.upper(), n) for n in _NASLOVI_VAN_TAKSONOMIJE):
-            return None
+            break
         nadjen = _naslovni_tip(red)
         if nadjen:
-            return nadjen[0], 0.85
-    return None
+            if nadjen[1]:                      # poziv na drugi akt u zaglavlju → zaglavlje nije jednoznačno
+                return None
+            tipovi.add(nadjen[0])
+    return (tipovi.pop(), 0.85) if len(tipovi) == 1 else None
 
 
 _LLM_SYSTEM = """Ti si klasifikator pravnih dokumenata za srpske advokate. Na osnovu teksta dokumenta, odredi tip dokumenta.
