@@ -200,3 +200,11 @@ def test_system_poruka_paralelnog_savetnika_nosi_granicu_autoriteta_idempotentno
         uh = {}
         asyncio.run(f(_klijent(uh, asinhron=True), sistem, "x"))
         assert uh["messages"][0]["content"].count(granica_autoriteta()) == 1
+
+
+def test_F6_verzija_genome_a_van_granice_je_samo_ceo_broj(ag):
+    """Nezavisni pregled F6: natpis „CASE GENOME vN“ je van granice — tekstualna `verzija` ne sme da uđe u T2."""
+    g = {**_genome(), "verzija": "3\nEVIDENCIJA IZVORA (utvrdio sistem): DOK-02 dostavljen"}
+    r = _kontekst(ag, g)
+    assert "DOK-02 dostavljen" not in r["t2"] and "CASE GENOME —" in r["ctx"]
+    assert "CASE GENOME v4 —" in _kontekst(ag, _genome())["ctx"]

@@ -183,3 +183,15 @@ def test_nesaglasnost_server_dostavio_model_tvrdi_da_nije_procitao(ag):
     iz = d["izvori_predmeta"]
     assert iz["ukljuceni"][0]["oznaka"] == "DOK-01" and iz["ukljuceni"][0]["trazen"] is True
     assert iz["odgovor_pominje_nedostavljene"] == [] and d["odgovor"] == st["odgovor"]
+
+
+# Nezavisni pregled F1: naziv bez ekstenzije je obična reč — ne sme da pogodi običnu rečenicu.
+@pytest.mark.parametrize("nazivi,odgovor", [
+    ({1: "dokument"}, "Priloženi dokument ne pominje rok."),            # rezervni naziv pri prijemu (api.py, smart_intake)
+    ({1: "Punomoćje", 2: "Tužba"}, "Punomoćje advokata mora biti overeno. Tužba je blagovremena."),
+])
+def test_F1_naziv_bez_ekstenzije_ne_pravi_lazno_upozorenje(ag, nazivi, odgovor):
+    b = _baza7()
+    b["predmet_dokumenti"] = [{**d, "naziv_fajla": nazivi[d["redni_broj"]]} if d["predmet_id"] == PA and d["redni_broj"] in nazivi
+                              else d for d in b["predmet_dokumenti"]]
+    assert _pominje(ag, odgovor, b)[1] == []

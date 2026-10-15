@@ -506,6 +506,9 @@ def _trazeni_iz_zahteva(zahtev: str, meta: list) -> tuple:
     return trazeni, nepostojeci
 
 
+_RE_EKSTENZIJA = re.compile(r"\.[a-z0-9]{2,5}$")
+
+
 def _nazivi_nedostavljenih_u_odgovoru(odgovor: str, nazivi: list) -> list:
     """QA-06: TAČAN naziv fajla (iz spiska OVOG predmeta) koji odgovor pominje, a čiji tekst savetnik nije dobio.
     Bez delimičnog poklapanja: duži poznat naziv koji sadrži kraći („aneks ugovor.pdf“ ⊃ „ugovor.pdf“) zauzima mesto,
@@ -514,7 +517,9 @@ def _nazivi_nedostavljenih_u_odgovoru(odgovor: str, nazivi: list) -> list:
     po_nazivu: dict = {}
     for n in nazivi:
         kljuc = unicodedata.normalize("NFC", n["naziv"]).strip().lower()
-        if len(kljuc) >= 5 and kljuc in mala:
+        # Pregled (F1): samo naziv FAJLA (sa ekstenzijom) — „dokument“ (rezervni naziv pri prijemu) ili „Tužba“ su
+        # obične reči i pogađale bi običnu rečenicu.
+        if len(kljuc) >= 5 and _RE_EKSTENZIJA.search(kljuc) and kljuc in mala:
             po_nazivu.setdefault(kljuc, []).append(n)
     pogoci = []
     for kljuc, stavke in po_nazivu.items():
@@ -762,7 +767,8 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                 if genome_u_kontekstu:
                     gi = genome.get("pravna_teorija", {})
                     v = genome.get("verzija", "")
-                    v_str = f" v{v}" if v else ""
+                    # Pregled (F6): natpis je van granice — u njega ide samo ceo broj, nikad tekst iz Genome-a.
+                    v_str = f" v{v}" if isinstance(v, int) and not isinstance(v, bool) and v else ""
                     # QA-08/QA-06: Genome je AI sažetak — nikad „izvor istine“ umesto dokumenta koji model nije video.
                     # Noćni sprint T02: model ga piše IZ teksta dokumenata, pa je nepoverljiv kao i oni (T3) — sadržaj
                     # ide u granicu poverenja (`g`); natpis i napomenu piše server, van nje.
