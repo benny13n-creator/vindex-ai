@@ -25,7 +25,7 @@ jobs:
       - name: Generate synthetic fixtures
         run: |
           docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
-          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx; done
+          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3 gen_ns3b; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx; done
       - name: Estimate vs real rasterization (one fresh process per file and mode, no memory limit)
         run: |
           for f in $(ls ns2_measure/fx | grep -E '\.pdf$'); do
@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       matrix:
         run: [r1, r2, r3]
-        part: [a, b]
+        part: [c]
     steps:
       - uses: actions/checkout@v4
       - name: Runner facts
@@ -61,7 +61,7 @@ jobs:
       - name: Generate synthetic fixtures
         run: |
           docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
-          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx > /dev/null; done
+          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3 gen_ns3b; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx > /dev/null; done
           sudo chmod -R a+rw ns2_measure/fx
       - name: Cases (gunicorn, WEB_CONCURRENCY=1, 512 MiB)
         run: bash ns2_measure/run_b1.sh ns2_measure/cases_ns3_${{ matrix.part }}.txt ${{ matrix.run }}

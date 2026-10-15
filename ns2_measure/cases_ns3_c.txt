@@ -1,0 +1,20 @@
+# NS3-A confirmation round (after review N1/N2): candidate guard, gunicorn W=1, 512 MiB
+c_g2 1 - single:ns3_grupe_2.pdf@worker -
+c_g4 1 - single:ns3_grupe_4.pdf@worker -
+c_g8 1 - single:ns3_grupe_8.pdf@worker -
+c_g1 1 - single:ns3_grupe_1.pdf@worker -
+c_smaskgs 1 - single:ns3_smask_gs.pdf@worker -
+c_skengrupa 1 - single:ns3_sken_grupa_strane.pdf@worker -
+c_logo 1 - single:ns3_digital_logo_grupa.pdf@worker -
+c_dag22 1 - single:ns3_dag_22.pdf@worker -
+c_cmyk30 1 - single:pdf_b_cmyk_30.pdf@worker -
+c_cmyk40 1 - single:pdf_b_cmyk_40.pdf@worker -
+c_rgb24 1 - single:pdf_b_rgb_24_a4.pdf@worker -
+c_jpxrgb 1 - single:ns3_jpx_rgb_300.pdf@worker -
+c_scan10 1 - single:scan_10p.pdf@worker -
+c_mixed 1 - single:mixed_6p.pdf@worker -
+c_digital 1 - single:ns3_digital_10p.pdf@worker -
+c_p_c40 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_40.pdf@finalize -
+c_p_jpx 1 - pair:scan_10p.pdf@worker|ns3_jpx_rgb_300.pdf@finalize -
+c_p_rgb24 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_24_a4.pdf@finalize -
+c_p_g4 1 - pair:scan_10p.pdf@worker|ns3_grupe_4.pdf@finalize -
