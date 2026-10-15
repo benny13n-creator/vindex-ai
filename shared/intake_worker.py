@@ -177,11 +177,23 @@ class IntakeWorker:
             self.jobs_processed += 1
         except Exception as exc:
             self.jobs_failed += 1
-            logger.error("[INTAKE_WORKER] %s obrada neuspešna za job=%s: %s", self.worker_id, str(job_id)[:8], exc)
-            await intake_queue.mark_job_failed(
-                job_id, str(exc)[:500],
-                job.get("attempts", 0), job.get("max_attempts", 5),
-            )
+            from uploaded_doc.extractor import DocumentSafetyLimitExceeded
+            if isinstance(exc, DocumentSafetyLimitExceeded):
+                # NS2b: bezbednosna granica ulaza je deterministička (isti fajl → isto odbijanje, bez dekodiranja), pa
+                # se posao odmah završava kao trajno neuspešan — bez ponovnih pokušaja. Original ostaje sačuvan.
+                pokusaja = job.get("attempts", 0)
+                logger.warning("[INTAKE_WORKER] %s job=%s odbijen pre obrade (bezbednosna granica): %s",
+                               self.worker_id, str(job_id)[:8], exc.reason)
+                await intake_queue.mark_job_failed(
+                    job_id, exc.poruka or "Fajl je odbijen — sadržaj prelazi bezbednosni limit obrade.",
+                    pokusaja, pokusaja + 1,
+                )
+            else:
+                logger.error("[INTAKE_WORKER] %s obrada neuspešna za job=%s: %s", self.worker_id, str(job_id)[:8], exc)
+                await intake_queue.mark_job_failed(
+                    job_id, str(exc)[:500],
+                    job.get("attempts", 0), job.get("max_attempts", 5),
+                )
 
         await intake_queue.record_heartbeat(self.worker_id, self.jobs_processed, self.jobs_failed)
         return True
