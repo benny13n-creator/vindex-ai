@@ -1,0 +1,32 @@
+M1_uspeh_uvek: rc=1 KILLED | 11 failed, 85 passed, 98 warnings in 7.65s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_log_action_vraca_none_nema_zipa
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[True]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[1]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[vrednost3]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_nedostupan_db_audit_sink_nema_zipa
+M2_none_prihvacen: rc=1 KILLED | 10 failed, 86 passed, 98 warnings in 7.67s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_log_action_vraca_none_nema_zipa
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[True]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[1]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[vrednost3]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_nedostupan_db_audit_sink_nema_zipa
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_akcija_van_auditable_actions_nije_uspeh
+M3_samo_truthy: rc=1 KILLED | 3 failed, 93 passed, 98 warnings in 7.55s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[True]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[1]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[vrednost3]
+M4_razlog_ignorisan: rc=1 KILLED | 15 failed, 81 passed, 98 warnings in 7.59s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_log_action_vraca_none_nema_zipa
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[True]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[1]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_ne_string_ili_prazan_id_nije_dokaz[vrednost3]
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_log_action_baca_nema_zipa
+M5_bez_roka: rc=1 KILLED | 2 failed, 94 passed, 98 warnings in 13.63s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_istek_roka_ishod_nepoznat_nema_zipa
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_istek_roka_sa_pravim_log_action_nit_koja_visi_nema_zipa
+M6_email_vracen: rc=1 KILLED | 2 failed, 94 passed, 98 warnings in 7.66s
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_pravi_log_action_sa_upisanim_redom_daje_zip_i_red_nosi_lanac
+    FAILED tests/test_ns3_export_audit_fail_closed.py::test_novi_zapis_uspeha_bez_e_poste
+restore sha256 2f8d6f9135909a7f96886c388e4408c4b352fb8414d6d08f9384a5c19fdf5ae6 2f8d6f9135909a7f96886c388e4408c4b352fb8414d6d08f9384a5c19fdf5ae6 OK
