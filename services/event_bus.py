@@ -932,6 +932,24 @@ def _is_missing_function_error(exc: Exception) -> bool:
     return "pgrst202" in msg or "42883" in msg or "could not find the function" in msg
 
 
+def _vlasnik_dogadjaja(user_id) -> str | None:
+    """`events.user_id` kao identitet za provenance kontekst dispatch-a, ili None.
+
+    Kolona je TEXT bez provere (migracija 073) i u produkciji nosi i test-talog koji nije UUID
+    (migracija 115). Takva vrednost se ne prosledjuje: identitet se ne pogadja i ne zamenjuje
+    drugim korisnikom -- AI poziv tada ostaje bez korisnika, kao i pre ove izmene."""
+    if not isinstance(user_id, str) or not user_id.strip():
+        return None
+    vrednost = user_id.strip().lower()
+    try:
+        kanonski = str(uuid.UUID(vrednost))
+    except ValueError:
+        return None
+    # Samo kanonski oblik (kao sto ga pise Postgres/Supabase Auth); `{...}`, `urn:uuid:` i oblik
+    # bez crtica nisu identitet koji je server upisao.
+    return kanonski if kanonski == vrednost else None
+
+
 async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict[str, int]:
     """Čita do batch_size nedispečovanih redova iz 'events', pokreće handlere
     preko bus.publish_async(), i markira dispatched_at. Best-effort po redu —
@@ -951,6 +969,7 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
     tiho se vraća na prethodno ponašanje (funkcionalno identično kao pre ove
     izmene za single-worker slučaj, i dalje izloženo istom riziku dok se
     migracija ne pokrene)."""
+    from shared.ai_provenance import scoped_request_context
     from shared.deps import _get_supa
 
     supa = _get_supa()
@@ -1062,7 +1081,14 @@ async def dispatch_pending_events(batch_size: int = DISPATCH_BATCH_SIZE) -> dict
             event_id       = str(row_id),
         )
         try:
-            await bus.publish_async(event)
+            # QA-C (2026-10-15): handleri se ovde izvrsavaju van HTTP zahteva, pa AI poziv u njima
+            # (npr. Case Pipeline iz PredmetKreiran) nije imao korisnika u provenance kontekstu --
+            # `ai_forensics.user_id` je NOT NULL i red je tiho propadao. Vlasnik je `events.user_id`
+            # (pise ga samo server; RLS: samo service_role). Kontekst vazi samo za ovaj red i vraca
+            # se i kad handler baci izuzetak; nevalidan identitet ostaje None, nikad prethodni.
+            with scoped_request_context(user_id=_vlasnik_dogadjaja(row.get("user_id")),
+                                        correlation_id=event.correlation_id):
+                await bus.publish_async(event)
             await _mark_dispatched(supa, row_id)
             dispatched += 1
         except Exception as exc:
