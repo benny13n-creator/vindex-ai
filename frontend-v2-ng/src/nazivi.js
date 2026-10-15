@@ -43,9 +43,11 @@
     "Pipeline (AI)": "AI predlog iz opisa predmeta",
     "Smart Intake": "AI predlog iz otpremljenog dokumenta",
     "Genome (AI)": "AI analiza dokumenata predmeta",
-    "Auto-detect (AI)": "AI prepoznavanje, potvrdio advokat",
+    // api.py (confirm-links) i routers/intake.py: klik „Potvrdi veze“ / „Kreiraj predmet“ NIJE potvrda roka — naziv
+    // zato ne sme da kaže „potvrdio“; stanje odluke prikazuje se zasebno („čeka vašu odluku“).
+    "Auto-detect (AI)": "AI prepoznavanje iz dokumenta",
     "Copilot (AI)": "AI asistent, na zahtev advokata",
-    "Intake Wizard (AI)": "AI predlog pri prijemu, potvrdio advokat",
+    "Intake Wizard (AI)": "Uneto pri prijemu predmeta (AI predlog)",
     // routers/intake.py: sadržaj je statički katalog šablona, ne model (oznaka „(AI)“ je istorijski netačna)
     "Template (AI)": "Šablon predmeta",
     "Intake Wizard — šablon": "Šablon predmeta",

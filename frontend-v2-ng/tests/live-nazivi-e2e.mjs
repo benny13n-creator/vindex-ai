@@ -6,7 +6,7 @@
 
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtemp, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -45,7 +45,10 @@ const SEME = {
     dok(4, "Nepoznato.pdf", "qa_interni_kod")],
   predmet_hronologija: [hr(1, "Pipeline (AI)", "Isporuka iz opisa", "rok"), hr(2, "Smart Intake", "Rok iz dokumenta (ugovor)", "rok"),
     hr(3, "Template (AI)", "Priprema podneska", null), hr(4, "Osnovni sud u Beogradu", "Zakazano ročište", null),
-    hr(5, "Case Evolution Engine", "Stigao nov dokaz", null)],
+    hr(5, "Case Evolution Engine", "Stigao nov dokaz", null), hr(6, "Auto-detect (AI)", "Rok iz potvrđenih veza", "rok"),
+    hr(7, "Intake Wizard (AI)", "Rok iz opisa problema", "rok"), hr(8, "Copilot (AI)", "Rok koji je advokat zatražio", "rok"),
+    hr(9, "Genome (AI)", "Rok iz analize dokumenata", "rok"), { ...hr(0, "Learning Engine", "Predmet zatvoren", null), id: "0a0a0a0a-5555-4000-8000-000000000010" },
+    { ...hr(0, "Intake Wizard — šablon", "Korak iz šablona", null), id: "0a0a0a0a-5555-4000-8000-000000000011" }],
   intake_jobs: [{ id: J, status: "awaiting_review", source: "dropzone", attempts: 0, uploaded_by: "uid-A", idempotency_key: "uid-A:" + sha,
     content_sha256: sha, storage_path: "uid-A/qa03", original_filename: "Odgovor na tuzbu.pdf", mime_type: "application/pdf",
     created_at: T, completed_at: T, predmet_id: null, assimilation_complete: false, finalizing_at: null, last_error: null }],
@@ -83,7 +86,7 @@ p.setDefaultTimeout(10000);
 p.on("pageerror", e => greskeJS.push(String(e)));
 const cekaj = (fn, arg, ms = 15000) => p.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const tekst = (sel) => p.evaluate((s) => [...document.querySelectorAll(s)].map(e => e.innerText).join("\n"), sel);
-const ENGLESKI = /\b(contract|response|lawsuit|law_cited|law cited|Pipeline|Smart Intake|Template \(AI\)|Case Evolution|Genome)\b/;
+const ENGLESKI = /\b(contract|response|lawsuit|law_cited|law cited|Pipeline|Smart Intake|Template \(AI\)|Case Evolution|Genome|Auto-detect|Copilot|Intake Wizard|Learning Engine)\b/;
 
 // ── Dosije: lista dokumenata i detalj ───────────────────────────────────────────────────────────────────────────────
 await p.goto(`${BASE}/app#/predmeti/${P}/dokumenti`);
@@ -99,12 +102,20 @@ zapisi("dosije", "detalj: „Vrsta dokumenta“ = Ugovor (ne contract)",
 
 // ── Hronologija: interni nazivi procesa sa zadržanim poreklom; ime suda doslovno ──────────────────────────────────────
 await p.goto(`${BASE}/app#/predmeti/${P}/rad`);
-zapisi("hronologija", "hronologija učitana", await cekaj(() => document.querySelectorAll("#hron-lista li").length === 5));
+zapisi("hronologija", "hronologija učitana", await cekaj(() => document.querySelectorAll("#hron-lista li").length === 11));
 const hron = await tekst("#hron-lista li");
 zapisi("hronologija", "Pipeline (AI) → „AI predlog iz opisa predmeta“", /AI predlog iz opisa predmeta/.test(hron));
 zapisi("hronologija", "Smart Intake → „AI predlog iz otpremljenog dokumenta“", /AI predlog iz otpremljenog dokumenta/.test(hron));
 zapisi("hronologija", "Template (AI) → „Šablon predmeta“ (statički katalog, ne model)", /Šablon predmeta/.test(hron));
 zapisi("hronologija", "Case Evolution Engine → „Sistem — praćenje predmeta“", /Sistem — praćenje predmeta/.test(hron));
+zapisi("hronologija", "Auto-detect (AI) → „AI prepoznavanje iz dokumenta“", /AI prepoznavanje iz dokumenta/.test(hron));
+zapisi("hronologija", "Intake Wizard (AI) → „Uneto pri prijemu predmeta (AI predlog)“", /Uneto pri prijemu predmeta \(AI predlog\)/.test(hron));
+zapisi("hronologija", "Copilot (AI) → „AI asistent, na zahtev advokata“", /AI asistent, na zahtev advokata/.test(hron));
+zapisi("hronologija", "Genome (AI) → „AI analiza dokumenata predmeta“", /AI analiza dokumenata predmeta/.test(hron));
+zapisi("hronologija", "Learning Engine → „Sistem — zatvaranje predmeta“", /Sistem — zatvaranje predmeta/.test(hron));
+zapisi("hronologija", "Intake Wizard — šablon → „Šablon predmeta“", (hron.match(/Šablon predmeta/g) || []).length === 2);
+zapisi("hronologija", "nijedan naziv procesa ne tvrdi potvrdu (rok i dalje „čeka vašu odluku“)", !/potvrdi/i.test(hron.replace(/potvrđenih veza/g, ""))
+  && (hron.match(/čeka vašu odluku/g) || []).length === 6, hron.replace(/\n/g, " | ").slice(0, 600));
 zapisi("hronologija", "stvarni akter (sud) ostaje doslovno", /Osnovni sud u Beogradu/.test(hron));
 zapisi("hronologija", "nijedan interni naziv procesa", !ENGLESKI.test(hron), hron.replace(/\n/g, " | "));
 
@@ -137,5 +148,6 @@ zapisi("bezbednost", "0 JS grešaka", greskeJS.length === 0, greskeJS.join(" | "
 zapisi("bezbednost", "0 zahteva van 127.0.0.1", spoljni.length === 0, spoljni.slice(0, 3).join(" "));
 
 await browser.close(); srv.kill();
+await rm(dir, { recursive: true, force: true });
 console.log(`\n${ukupno - pada}/${ukupno} PASS`);
 process.exit(pada ? 1 : 0);
