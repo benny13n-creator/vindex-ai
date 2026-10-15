@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """NS2b (OCR, P0): JPEG za koji bi libjpeg morao da drži koeficijente cele slike (progresivni ili sekvencijalni sa
-više prolaza) odbija se PRE dekodiranja kad taj bafer prelazi MAX_JPEG_KOEFICIJENATA_BAJTOVA — po sadržaju, ne po
+više prolaza) odbija se PRE dekodiranja kad procena dekodiranja (MAX_JPEG_DEKODIRANJA_BAJTOVA) ili, u PDF-u, bafer prelazi prag — po sadržaju, ne po
 ekstenziji; isto za JPEG ugrađen u PDF. Običan (jedan prolaz) JPEG se nikad ne odbija po ovom pravilu.
 Odbijanje je DocumentSafetyLimitExceeded sa porukom za korisnika; intake worker ga završava bez ponovnih pokušaja."""
 import io
+import math
 import os
 import sys
 import types
@@ -140,7 +141,7 @@ def test_slika_iznad_praga_odbijena_pre_dekodiranja_bez_obzira_na_ekstenziju(mon
     data = _jpeg(progressive=True, subsampling=0)
     p = tmp_path / ime
     p.write_bytes(data)
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", _okvir(data)["koeficijenti"] - 1)
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", X._jpeg_procena_dekodiranja(_okvir(data)) - 1)
     _bez_dekodiranja(monkeypatch)
     with pytest.raises(DocumentSafetyLimitExceeded) as ei:
         X.extract(p)
@@ -149,11 +150,23 @@ def test_slika_iznad_praga_odbijena_pre_dekodiranja_bez_obzira_na_ekstenziju(mon
     assert p.read_bytes() == data      # original netaknut
 
 
+def test_obican_cmyk_iznad_praga_odbijen_pre_dekodiranja(monkeypatch, tmp_path):
+    """Isti uslov pokriva i OBIČAN (jedan prolaz) JPEG kad je dekodiran raster prevelik (CMYK: 4 + 4 + 1 B po pikselu)."""
+    data = _jpeg(mode="CMYK")
+    p = tmp_path / "c.jpg"
+    p.write_bytes(data)
+    assert _okvir(data)["koeficijenti"] == 0
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", X._jpeg_procena_dekodiranja(_okvir(data)) - 1)
+    _bez_dekodiranja(monkeypatch)
+    with pytest.raises(DocumentSafetyLimitExceeded):
+        X.extract(p)
+
+
 def test_prag_granica_tacno_na_pragu_prihvaceno(monkeypatch, tmp_path):
     data = _jpeg(progressive=True, subsampling=0)
     p = tmp_path / "a.jpg"
     p.write_bytes(data)
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", _okvir(data)["koeficijenti"])
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", X._jpeg_procena_dekodiranja(_okvir(data)))
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     pozvan = []
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: (pozvan.append(img.size) or ("tekst " * 40, 0.9)))
@@ -161,27 +174,79 @@ def test_prag_granica_tacno_na_pragu_prihvaceno(monkeypatch, tmp_path):
     assert pozvan == [(320, 480)] and ocr is True and skeniran is False
 
 
-def test_obican_jpeg_iste_velicine_nikad_odbijen(monkeypatch, tmp_path):
-    p = tmp_path / "a.jpg"
-    p.write_bytes(_jpeg(subsampling=0))
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", 0)
-    monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
-    monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
-    assert X.extract(p)[2] is True
-
-
 def test_png_sa_ekstenzijom_jpg_nije_pogodjen(monkeypatch, tmp_path):
     p = tmp_path / "a.jpg"
     b = io.BytesIO(); Image.new("L", (100, 100), 255).save(b, "PNG"); p.write_bytes(b.getvalue())
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", 0)
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", 0)
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
     assert X.extract(p)[2] is True
 
 
-def test_podrazumevani_prag_odbija_izmereni_40mp_444_a_prima_40mp_420():
-    assert X._jpeg_bajtova_koeficijenata(5317, 7523, [(1, 1)] * 3) > X.MAX_JPEG_KOEFICIJENATA_BAJTOVA
-    assert X._jpeg_bajtova_koeficijenata(5317, 7523, [(2, 2), (1, 1), (1, 1)]) <= X.MAX_JPEG_KOEFICIJENATA_BAJTOVA
+# ── Procena dekodiranja: korak po korak kao extract_image → _u_granici_ocr ────────────────────────────────────────
+
+def _ok(w, h, nf, koef=0):
+    return {"sirina": w, "visina": h, "komponente": [(1, 1)] * nf, "koeficijenti": koef}
+
+
+@pytest.mark.parametrize("nf,bpp_ukupno", [(1, 1 + 1), (3, 4 + 1), (4, 4 + 4 + 1)])
+def test_procena_bez_draft_bajtova_po_pikselu_po_rezimu(nf, bpp_ukupno):
+    """≤ MAX_OCR_PIXELS: dekodira se u izvornom režimu Pillow-a (L 1 B, RGB/CMYK 4 B), pa convert("L")."""
+    assert X._jpeg_procena_dekodiranja(_ok(2000, 3000, nf)) == 2000 * 3000 * bpp_ukupno
+
+
+def test_procena_draft_skala_i_pod():
+    # 30 MP: umanjenje 1/2 bi palo ispod MIN_DEKODIRANIH_PIKSELA → dekodira se pun CMYK (9 B/piksel)
+    w, h = 4606, 6513
+    assert X._jpeg_procena_dekodiranja(_ok(w, h, 4)) == w * h * 9
+    # 40 MP: 1/2 je dozvoljeno (≥ A4 na 300 dpi) → izlaz ceil(w/2) x ceil(h/2), 9 B/piksel
+    w, h = 5317, 7523
+    assert X._jpeg_procena_dekodiranja(_ok(w, h, 4)) == 2659 * 3762 * 9
+    # RGB 30 MP: draft u L (1 B), siva kopija (1 B), umanjenje na MAX_OCR_PIXELS: među-slika + rezultat
+    w, h = 4606, 6513
+    k = math.sqrt(X.MAX_OCR_PIXELS / (w * h)); nw, nh = int(w * k), int(h * k)
+    assert X._jpeg_procena_dekodiranja(_ok(w, h, 3)) == w * h + (w * h + nw * h + nw * nh)
+
+
+def test_procena_prati_pod_dekodiranja(monkeypatch):
+    w, h = 4606, 6513
+    monkeypatch.setattr(X, "MIN_DEKODIRANIH_PIKSELA", 1_000_000)        # niži pod → dozvoljeno 1/4
+    assert X._jpeg_procena_dekodiranja(_ok(w, h, 4)) == (-(-w // 4)) * (-(-h // 4)) * 9
+
+
+def test_procena_koeficijenti_samo_dok_traje_dekodiranje():
+    o = _ok(5317, 7523, 3, koef=240293760)
+    assert X._jpeg_procena_dekodiranja(o) == 2659 * 3762 + 240293760
+
+
+def test_podrazumevani_prag_izmerene_klase():
+    """Izmerene klase (NS2b): odbijeni CMYK 20–34,8 MP i progresivni 4:4:4 40 MP; primljeni CMYK 40 MP, progresivni
+    4:2:0 40 MP, progresivni 4:4:4 tik ispod starog praga (22,3 MP), telefon 12 MP, običan RGB do 40 MP."""
+    T = X.MAX_JPEG_DEKODIRANJA_BAJTOVA
+    P = X._jpeg_procena_dekodiranja
+    koef = X._jpeg_bajtova_koeficijenata
+    assert T == 150 << 20
+    assert P(_ok(5317, 7523, 3, koef(5317, 7523, [(1, 1)] * 3))) > T
+    assert P({"sirina": 5317, "visina": 7523, "komponente": [(2, 2), (1, 1), (1, 1)],
+              "koeficijenti": koef(5317, 7523, [(2, 2), (1, 1), (1, 1)])}) <= T
+    assert P(_ok(3974, 5622, 3, koef(3974, 5622, [(1, 1)] * 3))) <= T              # 22,3 MP progresivni 4:4:4
+    for mp in (20, 25, 30, 34.6):
+        h = int(math.sqrt(mp * 1e6 * 842 / 595)); w = int(mp * 1e6 / h)
+        assert P(_ok(w, h, 4)) > T, mp
+    assert P(_ok(5317, 7523, 4)) <= T
+    assert P(_ok(3000, 4000, 3)) <= T
+
+
+def test_obican_rgb_i_siv_jpeg_nikad_ne_prelazi_prag():
+    """Svaki običan (jedan prolaz) RGB/sivi JPEG do ulazne granice od 40 MP ostaje ispod praga — proverava se cela
+    rešetka veličina, uključujući granicu umanjenja (34,8 MP) i najgore razmere stranica."""
+    T = X.MAX_JPEG_DEKODIRANJA_BAJTOVA
+    for odnos in (1.0, 842 / 595, 2.0, 4.0):
+        for mp10 in range(5, 401):
+            px = mp10 * 100_000
+            h = int(math.sqrt(px * odnos)); w = max(1, px // h)
+            for nf in (1, 3):
+                assert X._jpeg_procena_dekodiranja(_ok(w, h, nf)) <= T, (w, h, nf)
 
 
 # ── PDF: ugrađen JPEG proverava se pre rasterizacije ───────────────────────────────────────────────────────────
@@ -248,12 +313,66 @@ def test_digitalan_pdf_bez_rasterizacije_nije_odbijen(monkeypatch, tmp_path):
     assert skeniran is False and ocr is False and len(strane) == 1
 
 
-def test_pdf_sa_obicnim_jpeg_nije_odbijen(monkeypatch, tmp_path):
-    p = _pdf(tmp_path, [("jpeg", _jpeg(subsampling=0))])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)
+def test_pdf_sa_obicnim_jpeg_ispod_praga_nije_odbijen(monkeypatch, tmp_path):
+    data = _jpeg(subsampling=0)
+    p = _pdf(tmp_path, [("jpeg", data)])
+    assert _okvir(data)["koeficijenti"] == 0
+    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 320 * 480 * 3)     # tačno raster slike (bez umanjenja)
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
     assert X.extract(p)[2] is True
+
+
+@pytest.mark.parametrize("mode,n", [("RGB", 3), ("CMYK", 4), ("L", 1)])
+def test_pdf_obican_jpeg_sa_prevelikim_rasterom_odbijen_pre_rasterizacije(monkeypatch, tmp_path, mode, n):
+    """MuPDF dekodira ugrađen JPEG u n bajtova po pikselu; mala slika razvučena na celu stranu se ne umanjuje."""
+    data = _jpeg(mode=mode)
+    p = _pdf(tmp_path, [("jpeg", data)])
+    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 320 * 480 * n - 1)
+    _bez_rasterizacije(monkeypatch)
+    with pytest.raises(DocumentSafetyLimitExceeded) as ei:
+        X.extract(p)
+    assert ei.value.poruka == X.PORUKA_PREVELIK_JPEG_PDF
+
+
+class _M:
+    def __init__(self, a, b, c, d):
+        self.a, self.b, self.c, self.d = a, b, c, d
+
+
+def test_mupdf_umanjenje_kao_izmereno():
+    """Izmereno (NS2b, CI): 5317x7523 na A4 pri 300 dpi → MuPDF dekodira 1/2; 4944x6997 → bez umanjenja."""
+    a4 = [_M(595, 0, 0, 842)]
+    ok = lambda w, h, n: {"sirina": w, "visina": h, "komponente": [(1, 1)] * n, "koeficijenti": 0}
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 4), a4, 300) == 2659 * 3762 * 4
+    assert X._mupdf_dekodiran_raster(ok(4944, 6997, 4), a4, 300) == 4944 * 6997 * 4
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(150, 0, 0, 210)], 300) == 665 * 941 * 3   # 1/8
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(1, 0, 0, 1)], 300) == 665 * 941 * 3       # najviše 1/8 (DCT)
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [], 300) == 5317 * 7523 * 3                  # smeštaj nepoznat
+    # zarotirana slika: širina slike ide u visinu na strani
+    assert X._mupdf_dekodiran_raster(ok(7523, 5317, 3), [_M(0, -595, 842, 0)], 300) == 7523 * 5317 * 3
+    assert X._mupdf_dekodiran_raster(ok(7523, 5317, 3), [_M(0, -842, 595, 0)], 300) == 3762 * 2659 * 3
+    # rotacija: potreban raster se računa iz dužine vektora (a, b) i (c, d), kao u MuPDF-u
+    assert X._mupdf_dekodiran_raster(ok(5000, 8000, 3), [_M(0, -842, 595, 0)], 300) == 5000 * 8000 * 3
+    # granica: umanjuje se tek kad je polovina VEĆA od prikaza + 2 piksela (konzervativno: inače veći raster)
+    assert X._mupdf_dekodiran_raster(ok(4962, 8000, 3), a4, 300) == 4962 * 8000 * 3
+    assert X._mupdf_dekodiran_raster(ok(4964, 8000, 3), a4, 300) == 2482 * 4000 * 3
+    # više smeštaja: računa se najveći raster
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), [_M(150, 0, 0, 210), a4[0]], 300) == 2659 * 3762 * 3
+
+
+def test_pdf_podrazumevani_prag_izmerene_klase():
+    """Izmereno (NS2b): CMYK 30 i 34,6 MP na A4 (bez umanjenja) → OOM pod 512 MiB → odbijeno; CMYK i RGB 40 MP (1/2),
+    fotografija 48 MP (1/2) → primljeno; progresivni 4:4:4 22,3 MP (koeficijenti i raster ~64 MiB) → primljeno."""
+    T = X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA
+    a4 = [_M(595, 0, 0, 842)]
+    ok = lambda w, h, n: {"sirina": w, "visina": h, "komponente": [(1, 1)] * n, "koeficijenti": 0}
+    assert X._mupdf_dekodiran_raster(ok(4606, 6513, 4), a4, 300) > T
+    assert X._mupdf_dekodiran_raster(ok(4944, 6997, 4), a4, 300) > T
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 4), a4, 300) <= T
+    assert X._mupdf_dekodiran_raster(ok(5317, 7523, 3), a4, 300) <= T
+    assert X._mupdf_dekodiran_raster(ok(5790, 8186, 3), a4, 300) <= T
+    assert X._mupdf_dekodiran_raster(ok(3974, 5622, 3), a4, 300) <= T
 
 
 def test_necitljive_strane_ne_rasterizuje_opasan_jpeg(monkeypatch, tmp_path):
@@ -271,7 +390,7 @@ def test_necitljive_strane_ne_rasterizuje_opasan_jpeg(monkeypatch, tmp_path):
 
 def test_podrazumevani_prag_pdf_nizi_od_praga_slike():
     """Izmereno: JPEG u PDF-u nosi ~70 MiB više od iste fotografije (MuPDF tok + raster strane)."""
-    assert X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA == 64 << 20 and X.MAX_JPEG_KOEFICIJENATA_BAJTOVA == 128 << 20
+    assert X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA == 64 << 20 and X.MAX_JPEG_DEKODIRANJA_BAJTOVA == 150 << 20
     assert X._jpeg_bajtova_koeficijenata(3720, 5262, [(1, 1)] * 3) > X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA   # 20 MP 4:4:4
     assert X._jpeg_bajtova_koeficijenata(3720, 5262, [(2, 2), (1, 1), (1, 1)]) <= X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA
 
@@ -279,13 +398,13 @@ def test_podrazumevani_prag_pdf_nizi_od_praga_slike():
 def test_pragovi_slike_i_pdf_su_odvojeni(monkeypatch, tmp_path):
     data = _jpeg(progressive=True, subsampling=0)
     p = _pdf(tmp_path, [("jpeg", data)])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", 0)          # prag slike ne važi za PDF
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", 0)            # prag slike ne važi za PDF
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
     assert X.extract(p)[2] is True
     foto = tmp_path / "f.jpg"
     foto.write_bytes(data)
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_BAJTOVA", 128 << 20)
+    monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", 150 << 20)
     monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)      # prag PDF-a ne važi za fotografiju
     assert X.extract(foto)[2] is True
 
