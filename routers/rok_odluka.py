@@ -45,8 +45,10 @@ from pydantic import BaseModel, Field
 from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 from shared import rokovi as _rokovi_domen
+from shared.rok_izvor import izvor_uklonjen_posle_potvrde
 from shared.rok_potvrda import (
-    STANJE_NEPOTVRDJEN, odbij_rok, odluke, potvrdi_rok, stanje_roka,
+    STANJE_NEPOTVRDJEN, STANJE_NEPOZNATO, STANJE_ODBIJEN, STANJE_POTVRDJEN,
+    odbij_rok, odluke, potvrdi_rok, stanje_roka,
 )
 
 logger = logging.getLogger("vindex.rok_odluka")
@@ -59,16 +61,30 @@ class OdlukaReq(BaseModel):
     napomena: Optional[str] = Field(default=None, max_length=500)
 
 
-async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str) -> dict:
-    """Vraca red ili dize 404. Nikad ne otkriva postojanje tudjeg roka."""
-    r = await asyncio.to_thread(
-        lambda: supa.table("predmet_hronologija")
-            .select("id, predmet_id, dogadjaj, datum_iso, vaznost, akter")
-            .eq("id", rok_id)
-            .eq("user_id", uid)
-            .maybe_single()
-            .execute()
-    )
+async def _rok_u_vlasnistvu(supa, rok_id: str, uid: str, sa_vrstom: bool = False) -> dict:
+    """Vraca red ili dize 404. Nikad ne otkriva postojanje tudjeg roka.
+
+    NS2-A2: posle migracije 129 cita se i `vrsta` — potvrda trazi da je red
+    IZJAVLJEN kao rok (vidi `potvrdi`). Pre 129 kolona ne postoji i projekcija
+    ostaje bajt u bajt ista kao ranije (isti obrazac kao `kandidati`).
+    Pozivalac jednom pita semu i istu vrednost koristi i za upit i za kapiju.
+    Pad citanja → 503 (ranije neuhvacen 500): stanje reda nije provereno, nista
+    se ne upisuje."""
+    _kolone = "id, predmet_id, dogadjaj, datum_iso, vaznost, akter"
+    if sa_vrstom:
+        _kolone += ", vrsta"
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("predmet_hronologija")
+                .select(_kolone)
+                .eq("id", rok_id)
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] citanje roka palo rok=%s: %s", rok_id, exc)
+        raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
     if not r or not r.data:
         raise HTTPException(status_code=404, detail="Rok nije pronađen.")
     return r.data
@@ -145,12 +161,33 @@ async def kandidati(
         raise HTTPException(status_code=503, detail="Rokovi trenutno nisu dostupni.")
 
     redovi = r.data or []
-    _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi])
+    # N03: lanac odluka se cita STROGO. Neprocitan lanac nije "niko nije
+    # odlucio" -- inace se odbijen rok vraca u Danas kao nov predlog, a
+    # potvrdjen spusta u predlog. Isto pravilo kao za pad hronologije iznad.
+    try:
+        _odl = await asyncio.to_thread(odluke, [x.get("id") for x in redovi], True)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] citanje odluka palo: %s", exc)
+        raise HTTPException(status_code=503, detail="Stanje odluka o rokovima trenutno nije dostupno.")
+    # N03-FD6: potvrda se NE ponistava kad se izvor promeni (veza rok -> dokument
+    # nije dokaziva), ali advokat dobija upozorenje za pregled. Pad ove provere ne
+    # obara pregled rokova — kaze se da provera nije uradjena.
+    _potvrdjeni = [x for x in redovi if stanje_roka(x.get("id"), _odl) == STANJE_POTVRDJEN]
+    provera_izvora_dostupna = True
+    _promenjen: set = set()
+    if _potvrdjeni:
+        try:
+            _promenjen = await asyncio.to_thread(izvor_uklonjen_posle_potvrde, _potvrdjeni)
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera izmena izvora pala: %s", exc)
+            provera_izvora_dostupna = False
     return {
         "rokovi": [
-            {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl)}
+            {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl),
+             "izvor_uklonjen_posle_potvrde": str(x.get("id")) in _promenjen}
             for x in redovi
         ],
+        "provera_izvora_dostupna": provera_izvora_dostupna,
         "ukupno": len(redovi),
         # Ako je lista puna, poslednji rokovi su odsecani -- to se KAZE, ne cuti.
         "odseceno": len(redovi) >= _MAX_KANDIDATA,
@@ -167,6 +204,30 @@ async def _javi_odluku(uid: str, red: dict, rok_id: str, odluka: str) -> None:
                            {"rok_id": str(rok_id), "odluka": odluka, "trigger": "rok_odluka"})
     except Exception as exc:
         logger.warning("[ROK_ODLUKA] događaj posle odluke nije upisan rok=%s: %s", rok_id, exc)
+
+
+async def _odgovor_posle_odluke(rok_id: str, red: dict) -> dict:
+    """N03-FD8: stanje odluke posle upisa se cita STROGO. Ranije je neprocitan
+    lanac davao `{}` pa je odgovor glasio UNCONFIRMED odmah posle uspesne
+    potvrde — izmisljeno stanje. Odluka JESTE zabelezena (`odluka_zabelezena`),
+    ali njeno trenutno stanje se ne zna, i to se kaze: `UNKNOWN`."""
+    try:
+        _odl = await asyncio.to_thread(odluke, [rok_id], True)
+        stanje = stanje_roka(rok_id, _odl)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] stanje posle odluke nije procitano rok=%s: %s", rok_id, exc)
+        stanje = STANJE_NEPOZNATO
+    return {"ok": True, "rok_id": rok_id, "odluka_zabelezena": True,
+            "stanje_odluke": stanje,
+            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+
+
+def _bez_upisa(rok_id: str, red: dict, stanje: str) -> dict:
+    """NS2B-C F1: ista odluka je VEC u lancu (stanje upravo procitano strogo). Nista se ne
+    upisuje i ne tvrdi se nov upis (`odluka_zabelezena: False`); stanje je ono koje lanac kaze."""
+    return {"ok": True, "rok_id": rok_id, "odluka_zabelezena": False, "vec_odluceno": True,
+            "stanje_odluke": stanje,
+            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
 
 
 @router.post("/api/rokovi/{rok_id}/potvrdi")
@@ -187,7 +248,50 @@ async def potvrdi(
     """
     supa = _get_supa()
     uid = user["user_id"]
-    red = await _rok_u_vlasnistvu(supa, rok_id, uid)
+    ima_129 = _rokovi_domen._sema_ima_129(supa)
+    red = await _rok_u_vlasnistvu(supa, rok_id, uid, sa_vrstom=ima_129)
+
+    # NS2-A2: potvrda daje IZVRSIVOST (podsetnici, .ics, klijent), a izlazni
+    # slojevi pitaju samo `sme_pristupiti` — koja ne zna za `vrsta`. Potvrdjen
+    # neizjavljen red (npr. „Predmet zatvoren") bio bi izvrsiva obaveza koju
+    # V2 Danas/Dosije ne prikazuju (filtriraju po `vrsta`). Zato se potvrda
+    # prima SAMO za red izjavljen kao rok. Pre migracije 129 `vrsta` ne postoji
+    # ni za jedan red, pa se zateceno ponasanje zadrzava (inace bi jedina
+    # ljudska kapija bila ugasena i za stvarne rokove).
+    if ima_129 and not _rokovi_domen.je_rok(red):
+        raise HTTPException(
+            status_code=409,
+            detail="Ovaj zapis nije označen kao rok, pa se ne može potvrditi. Ništa nije zabeleženo.")
+
+    # NS2B-C: odbijen rok se ne potvrdjuje obicnom odlukom (zastareo prozor, ponovljen
+    # zahtev). Ova provera je SAMO za jasan odgovor i da se ne upise suvisan zapis — NIJE
+    # zastita od trke: upis nije uslovan. Zastitu daje `odluke()`, koja odbijanje cini
+    # zavrsnim bez obzira na redosled upisa. Neprocitan lanac → 503, nista se ne upisuje.
+    try:
+        _pre = await asyncio.to_thread(odluke, [rok_id], True)
+    except Exception as exc:
+        logger.error("[ROK_ODLUKA] stanje pre potvrde nije procitano rok=%s: %s", rok_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+    if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
+        raise HTTPException(
+            status_code=409,
+            detail="Rok je već odbijen. Potvrda posle odbijanja nije moguća iz ovog prozora — osvežite stranicu.")
+    # NS2B-C F1: ponovljena potvrda VEC potvrdjenog roka ne upisuje nov red (lanac ne raste
+    # bez promene stanja). Jedini izuzetak je N03-FD6: posle uklanjanja dokumenta iz predmeta
+    # nova potvrda JESTE nova cinjenica (advokat je ponovo pregledao) i gasi upozorenje — tada
+    # se upisuje. Ako to ne moze da se proveri → 503, nista se ne upisuje.
+    if stanje_roka(rok_id, _pre) == STANJE_POTVRDJEN:
+        try:
+            _ponovni_pregled = str(rok_id) in await asyncio.to_thread(izvor_uklonjen_posle_potvrde, [red])
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera izvora pre ponovne potvrde pala rok=%s: %s", rok_id, exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+        if not _ponovni_pregled:
+            return _bez_upisa(rok_id, red, STANJE_POTVRDJEN)
 
     if not await potvrdi_rok(rok_id, uid, napomena=body.napomena):
         raise HTTPException(
@@ -195,10 +299,7 @@ async def potvrdi(
             detail="Odluka nije zabeležena. Pokušajte ponovo — rok ostaje nepotvrđen.")
     await _javi_odluku(uid, red, rok_id, "potvrda")
 
-    _odl = await asyncio.to_thread(odluke, [rok_id])
-    return {"ok": True, "rok_id": rok_id,
-            "stanje_odluke": stanje_roka(rok_id, _odl),
-            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+    return await _odgovor_posle_odluke(rok_id, red)
 
 
 @router.post("/api/rokovi/{rok_id}/odbij")
@@ -218,10 +319,26 @@ async def odbij(
     ekstrakcija napravi NOV red (a hronologija je insert-only, pa hoce), taj red
     je nov kandidat i trazi novu odluku. To je poznata praznina zivotnog ciklusa,
     dokumentovana u FAZI 6.5 — a ne tiho nasledjivanje odluke.
+
+    NS2-A2: za razliku od potvrde, odbijanje NE trazi `vrsta='rok'`. Odbijanje
+    samo oduzima izvrsivost (`sme_pristupiti` pusta jedino CONFIRMED), i jedini
+    je nacin da se opozove ranija potvrda reda koji nije izjavljen kao rok.
     """
     supa = _get_supa()
     uid = user["user_id"]
     red = await _rok_u_vlasnistvu(supa, rok_id, uid)
+
+    # NS2B-C F1: odbijanje VEC odbijenog roka ne upisuje nov red — REJECTED je apsorbujuce,
+    # pa drugi zapis ne menja nista. Potvrdjen ili nepotvrdjen rok se i dalje odbija (upis).
+    # Pad citanja NE blokira odbijanje: oduzimanje izvrsivosti je bezbedan smer, pa se tada
+    # upisuje kao i ranije (najvise jedan suvisan red).
+    try:
+        _pre = await asyncio.to_thread(odluke, [rok_id], True)
+    except Exception as exc:
+        logger.warning("[ROK_ODLUKA] stanje pre odbijanja nije procitano rok=%s, odbijanje se upisuje: %s", rok_id, exc)
+        _pre = {}
+    if stanje_roka(rok_id, _pre) == STANJE_ODBIJEN:
+        return _bez_upisa(rok_id, red, STANJE_ODBIJEN)
 
     if not await odbij_rok(rok_id, uid, napomena=body.napomena):
         raise HTTPException(
@@ -229,7 +346,4 @@ async def odbij(
             detail="Odluka nije zabeležena. Pokušajte ponovo.")
     await _javi_odluku(uid, red, rok_id, "odbijanje")
 
-    _odl = await asyncio.to_thread(odluke, [rok_id])
-    return {"ok": True, "rok_id": rok_id,
-            "stanje_odluke": stanje_roka(rok_id, _odl),
-            "dogadjaj": red.get("dogadjaj"), "datum_iso": red.get("datum_iso")}
+    return await _odgovor_posle_odluke(rok_id, red)

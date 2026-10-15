@@ -186,6 +186,9 @@ def generiši_predmet_pdf(
                 _dog = "[NEPOTVRĐENO] " + _dog
             elif _stanje == "REJECTED":
                 _dog = "[ODBIJENO] " + _dog
+            elif _stanje == "UNKNOWN":
+                # N03-FD8: lanac odluka nije procitan -- ne zna se da li je potvrdjen.
+                _dog = "[STANJE ODLUKE NEPOZNATO] " + _dog
             tbl_data.append([
                 _fmt_date(h.get("datum_iso") or h.get("datum")),
                 Paragraph(_dog, s["body"]),

@@ -83,6 +83,8 @@
 
     function stanjeListe(id, tekst, oznaka) { var s = $(id); s.hidden = !tekst; s.textContent = tekst || ""; if (oznaka) s.dataset.stanje = oznaka; else delete s.dataset.stanje; }
 
+    var ODLUKA_ROKA = { CONFIRMED: "rok — potvrđen", REJECTED: "rok — odbijen", UNCONFIRMED: "rok — čeka vašu odluku",
+      UNKNOWN: "rok — stanje odluke trenutno nije poznato" };
     function postavi(v) {
       ocisti();
       var s = sesija.stanje();
@@ -104,7 +106,9 @@
         var t = el("time", "chrono__date", h.datum ? datum(h.datum) : "—"); if (/^\d{4}-\d{2}-\d{2}$/.test(h.datum)) t.dateTime = h.datum;
         var tekst = el("span", "chrono__text", h.dogadjaj);
         li.append(t, tekst);
-        var meta = [h.akter, h.vaznost ? "važnost: " + h.vaznost : ""].filter(Boolean).join(" · ");
+        /* NS2-A2: odbijen rok ostaje u hronologiji i to se KAŽE; stanje je iz lanca odluka, ne iz porekla zapisa. */
+        var odluka = h.stanjeOdluke ? (ODLUKA_ROKA[h.stanjeOdluke] || ODLUKA_ROKA.UNKNOWN) : "";
+        var meta = [odluka, h.akter, h.vaznost ? "važnost: " + h.vaznost : ""].filter(Boolean).join(" · ");
         if (meta) li.append(el("span", "chrono__meta", meta));
         $("hron-lista").append(li);
       });

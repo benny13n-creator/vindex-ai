@@ -59,7 +59,9 @@
   function mapirajHronologiju(niz) {
     if (!Array.isArray(niz)) return null;
     return niz.filter(function (x) { return x && typeof x === "object"; })
-      .map(function (x) { return { dogadjaj: tekst(x.dogadjaj), datum: datumIso(x.datum_iso) || datumIso(x.datum) || tekst(x.datum), vaznost: tekst(x.vaznost), akter: tekst(x.akter) }; })
+      .map(function (x) { return { dogadjaj: tekst(x.dogadjaj), datum: datumIso(x.datum_iso) || datumIso(x.datum) || tekst(x.datum), vaznost: tekst(x.vaznost), akter: tekst(x.akter),
+        /* NS2-A2: server dodaje `stanje_odluke` SAMO redu izjavljenom kao rok (api.py, iz lanca odluka). */
+        stanjeOdluke: typeof x.stanje_odluke === "string" ? x.stanje_odluke : "" }; })
       .filter(function (x) { return x.dogadjaj; });
   }
 

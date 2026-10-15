@@ -258,10 +258,10 @@ async def dokument_upload(
 
         try:
             text, is_scanned, ocr_used, _pages, _ocr_conf = await asyncio.to_thread(extract, tmp_path)
-        except DocumentSafetyLimitExceeded:
+        except DocumentSafetyLimitExceeded as _dsle:
             raise HTTPException(
                 status_code=413,
-                detail="Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
+                detail=_dsle.poruka or "Fajl je odbijen — sadržaj posle raspakivanja prelazi bezbednosni limit.",
             )
 
         if is_scanned:

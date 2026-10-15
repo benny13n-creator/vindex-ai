@@ -91,6 +91,10 @@ AUDITABLE_ACTIONS: set[str] = {
     "2fa_enable", "2fa_disable",
     # Export i brisanje podataka
     "data_export", "account_delete", "gdpr_erasure",
+    # Night Sprint II C1 (2026-10-14) -- neuspeo izvoz (routers/data_export.py).
+    # Zaseban naziv jer bi `data_export` za odbijen izvoz bio lazna tvrdnja.
+    # Bez sheme: `action` je VARCHAR(100) bez CHECK-a (migracija 043).
+    "data_export_failed",
     # Admin akcije
     "admin_access", "user_role_change", "firm_settings_change",
     # AI operacije (samo metadata, ne sadržaj)

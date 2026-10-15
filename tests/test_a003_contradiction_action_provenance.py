@@ -59,6 +59,13 @@ def _make_target_supa(case_dna):
         # izvrsava nepromenjen, sto je bas ono sto ovaj fajl i meri.
         if name in ("predmet_dokazi", "predmet_dokumenti", "rocista", "predmet_issues"):
             return _empty_table()
+        # NS2-A2 (F1): sonda seme 129 vise ne pretvara SVAKI izuzetak u trajno „nema 129“ — samo izricit
+        # 42703/PGRST204. Ovaj laznjak je ranije na sondu pucao sa „unexpected table“, sto je tiho znacilo
+        # „pre 129, Rule 6 preskocen“. Sada je to IZRICITO: sema 129 postoji (kao produkcija), rokova nema.
+        if name == "predmet_hronologija":
+            t = MagicMock()
+            t.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return t
         raise AssertionError(f"neočekivana tabela {name}")
 
     supa = MagicMock()

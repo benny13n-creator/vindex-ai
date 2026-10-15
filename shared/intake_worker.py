@@ -52,6 +52,23 @@ def _vlasnik_posla(job: dict) -> str | None:
     )
     return None
 
+
+# NS2 B2b (F2) — entitet izvučen iz teksta koji je (ceo ili delom) pročitan OCR-om nikad ne prelazi prag automatskog
+# prihvatanja. Izmereno (NS2 B2 recenzija): OCR pouzdanost je prosek po rečima, pa kratak, delom pogrešno pročitan tekst
+# („Rok za zalbu 15 дапа од dostave“) ima 0,92; regex ekstrakcija mu ipak daje 0,95 (broj predmeta) / 0,95 (rok), pa je
+# polje bilo `needs_review=false`, a finalize je rok upisivao u kalendar bez provere advokata. Plafon ispod
+# AUTO_ACCEPT_THRESHOLD koristi postojeći mehanizam (review queue `low_confidence_extraction`, `needs_review` u
+# GET /jobs, finalize ne upisuje rok bez ljudske potvrde) — bez nove kolone i bez novog praga. Važi za SVE OCR dokumente,
+# ne samo kratke: isti prosek po rečima važi i za tekst > 100 znakova.
+OCR_PLAFON_POUZDANOSTI_ENTITETA = round(intake_documents.AUTO_ACCEPT_THRESHOLD - 0.01, 2)
+
+
+def _ocr_entiteti_na_pregled(entities: list[dict], ocr_used: bool) -> list[dict]:
+    if not ocr_used:
+        return entities
+    return [{**e, "confidence": min(e["confidence"], OCR_PLAFON_POUZDANOSTI_ENTITETA)} for e in entities]
+
+
 _DEFAULT_POLL_INTERVAL_S = 2.0
 _DEFAULT_STALE_AFTER_S = 300
 _DEFAULT_REAP_EVERY_N_TICKS = 30
@@ -160,11 +177,23 @@ class IntakeWorker:
             self.jobs_processed += 1
         except Exception as exc:
             self.jobs_failed += 1
-            logger.error("[INTAKE_WORKER] %s obrada neuspešna za job=%s: %s", self.worker_id, str(job_id)[:8], exc)
-            await intake_queue.mark_job_failed(
-                job_id, str(exc)[:500],
-                job.get("attempts", 0), job.get("max_attempts", 5),
-            )
+            from uploaded_doc.extractor import DocumentSafetyLimitExceeded
+            if isinstance(exc, DocumentSafetyLimitExceeded):
+                # NS2b: bezbednosna granica ulaza je deterministička (isti fajl → isto odbijanje, bez dekodiranja), pa
+                # se posao odmah završava kao trajno neuspešan — bez ponovnih pokušaja. Original ostaje sačuvan.
+                pokusaja = job.get("attempts", 0)
+                logger.warning("[INTAKE_WORKER] %s job=%s odbijen pre obrade (bezbednosna granica): %s",
+                               self.worker_id, str(job_id)[:8], exc.reason)
+                await intake_queue.mark_job_failed(
+                    job_id, exc.poruka or "Fajl je odbijen — sadržaj prelazi bezbednosni limit obrade.",
+                    pokusaja, pokusaja + 1,
+                )
+            else:
+                logger.error("[INTAKE_WORKER] %s obrada neuspešna za job=%s: %s", self.worker_id, str(job_id)[:8], exc)
+                await intake_queue.mark_job_failed(
+                    job_id, str(exc)[:500],
+                    job.get("attempts", 0), job.get("max_attempts", 5),
+                )
 
         await intake_queue.record_heartbeat(self.worker_id, self.jobs_processed, self.jobs_failed)
         return True
@@ -244,7 +273,7 @@ class IntakeWorker:
         try:
             text, is_scanned, ocr_used, pages, ocr_confidence = await asyncio.to_thread(self._extract_text, tmp_path)
             if not is_scanned:
-                necitljive = await asyncio.to_thread(self._nepotpuno_procitano, tmp_path, pages, ocr_used, ocr_confidence)
+                necitljive = await asyncio.to_thread(self._nepotpuno_procitano, tmp_path, pages, ocr_used, ocr_confidence, text)
         finally:
             try:
                 tmp_path.unlink()
@@ -306,7 +335,7 @@ class IntakeWorker:
 
         if len(segments) <= 1:
             classification = await self._classify(text)
-            entities = await self._extract_entities(text)
+            entities = _ocr_entiteti_na_pregled(await self._extract_entities(text), ocr_used)
 
             document_id = await intake_documents.create_document(
                 job_id,
@@ -439,7 +468,7 @@ class IntakeWorker:
                 document_id = None
                 try:
                     classification = await self._classify(segment_text)
-                    entities = await self._extract_entities(segment_text)
+                    entities = _ocr_entiteti_na_pregled(await self._extract_entities(segment_text), ocr_used)
 
                     document_id = await intake_documents.create_document(
                         job_id, classification["document_type"], classification["confidence"],
@@ -559,7 +588,7 @@ class IntakeWorker:
 
     @staticmethod
     def _nepotpuno_procitano(path: Path, pages: list[str] | None, ocr_used: bool,
-                             ocr_confidence: float | None = None) -> list[str]:
+                             ocr_confidence: float | None = None, tekst: str | None = None) -> list[str]:
         """OCR001 (B2/B4): opis onoga što NIJE pouzdano pročitano, za pregled advokata (prazno = ništa).
         Strana sa vidljivim sadržajem a bez teksta, OCR bez srpskog jezičkog paketa i OCR niske pouzdanosti (npr.
         okrenut sken: izmereno CER 82 %, ali ≥ 30 znakova „teksta“). Nemerljivo (None) se ne prijavljuje kao greška."""
@@ -575,6 +604,13 @@ class IntakeWorker:
             if ocr_confidence is not None and ocr_confidence < PRAG_POUZDANOSTI_OCR:
                 opisi.append(f"OCR pouzdanost {round(ocr_confidence * 100)} % — tekst skeniranih strana je možda "
                              "netačno pročitan (okrenut, mutan ili oštećen sken)")
+            elif tekst is not None and len(tekst.strip()) <= 100:
+                # NS2 B2b (F2): kratak OCR tekst (≤ 100 znakova) prihvaćen je na slabijem dokazu (uploaded_doc/extractor.py
+                # ::_kratak_ocr_procitan) — pouzdanost je prosek po rečima, pa i delom pogrešno pročitan red prolazi.
+                # Advokat to vidi kroz postojeći opis nepouzdano pročitanog dela, ne kao „pročitano“.
+                pouzdanost = f", pouzdanost {round(ocr_confidence * 100)} %" if ocr_confidence is not None else ""
+                opisi.append(f"kratak tekst ({len(tekst.strip())} znakova) mašinski pročitan sa skena (OCR{pouzdanost}) — "
+                             "tekst skeniranih strana je možda netačno pročitan")
         return opisi
 
     @staticmethod

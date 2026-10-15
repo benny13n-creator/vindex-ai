@@ -139,7 +139,9 @@ def test_skeniran_pdf_kroz_pravi_ocr_do_pregleda(ok):
     d = g.json()
     assert d["dokument"]["ocr_koriscen"] is True
     broj = [e for e in d["entiteti"] if e["entity_type"] == "case_number"][0]
-    assert broj["value"] == "P 1234/2026" and broj["confidence"] >= 0.9 and broj["needs_review"] is False   # iz PRAVOG OCR teksta
+    assert broj["value"] == "P 1234/2026"   # iz PRAVOG OCR teksta
+    # NS2 B2b: entitet iz OCR teksta nikad nije automatski prihvaćen (pregled advokata, finalize ga ne tretira kao siguran).
+    assert broj["confidence"] < 0.9 and broj["needs_review"] is True
     assert d["potrebna_provera"] and "document_type" in d["potrebna_provera"]["polja"]
 
 

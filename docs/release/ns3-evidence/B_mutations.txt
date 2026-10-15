@@ -1,0 +1,12 @@
+M1 bez provere potpisa u extract_image: KILLED | ['1 failed, 10 warnings in 5.57s'] ['FAILED tests/test_ns3b_format_slike.py::test_nepodrzan_sadrzaj_odbijen_pre_otvaranja_i_dekodiranja[tiff_cmyk_kao_jpg]']
+M2 Image.open bez formats= (sva 3): KILLED | ['1 failed, 9 passed, 10 warnings in 6.27s'] ['FAILED tests/test_ns3b_format_slike.py::test_drugi_sloj_pillow_ne_bira_drugi_format_ni_bez_provere_potpisa[tiff_cmyk_kao_jpg]']
+M1+M2 stari kod: KILLED | ['1 failed, 10 warnings in 5.64s'] ['FAILED tests/test_ns3b_format_slike.py::test_nepodrzan_sadrzaj_odbijen_pre_otvaranja_i_dekodiranja[tiff_cmyk_kao_jpg]']
+M3 potpis uvek JPEG: KILLED | ['1 failed, 10 warnings in 5.68s'] ['FAILED tests/test_ns3b_format_slike.py::test_nepodrzan_sadrzaj_odbijen_pre_otvaranja_i_dekodiranja[tiff_cmyk_kao_jpg]']
+M4 FORMATI_SLIKE + TIFF i bez potpisa: KILLED | ['1 failed, 10 warnings in 5.67s'] ['FAILED tests/test_ns3b_format_slike.py::test_nepodrzan_sadrzaj_odbijen_pre_otvaranja_i_dekodiranja[tiff_cmyk_kao_jpg]']
+M5 api ruta bez provere sadrzaja: KILLED | ['1 failed, 37 passed, 10 warnings in 6.04s'] ['FAILED tests/test_ns3b_format_slike.py::test_api_upload_nepodrzan_sadrzaj_415_pre_cuvanja_i_obrade[<lambda>-foto.jpg-image/jpeg0]']
+M6 smart intake bez provere sadrzaja: KILLED | ['1 failed, 51 passed, 10 warnings in 6.03s'] ['FAILED tests/test_ns3b_format_slike.py::test_smart_intake_nepodrzan_sadrzaj_odbijen_odmah_bez_posla_i_cuvanja']
+M7 api odbija i prave slike (obrnut uslov): KILLED | ['1 failed, 37 passed, 10 warnings in 6.05s'] ['FAILED tests/test_ns3b_format_slike.py::test_api_upload_nepodrzan_sadrzaj_415_pre_cuvanja_i_obrade[<lambda>-foto.jpg-image/jpeg0]']
+R-M3 JPEG potpis skracen na FF D8: KILLED | ['1 failed, 55 passed, 10 warnings in 6.05s'] ['FAILED tests/test_ns3b_format_slike.py::test_kratak_prefiks_potpisa_nije_slika[ff_d8_bez_ff]']
+R-M8 PNG potpis skracen na 89PNG: KILLED | ['1 failed, 57 passed, 10 warnings in 5.96s'] ['FAILED tests/test_ns3b_format_slike.py::test_kratak_prefiks_potpisa_nije_slika[png_4_bajta_pa_nule]']
+R-M1 OCR Image.open bez formats=: KILLED | ['1 failed, 65 passed, 10 warnings in 6.03s'] ['FAILED tests/test_ns3b_format_slike.py::test_svako_otvaranje_slike_ogranicava_format']
+restore sha256 OK

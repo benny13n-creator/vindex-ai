@@ -272,7 +272,7 @@ async def test_akcija_rok_normalizes_out_of_schema_vaznost_before_insert():
     with patch.object(cp, "_get_supa", return_value=supa), \
          patch.object(cp, "_pozovi_gpt4o_mini", new=_fake_gpt), \
          patch("shared.audit_immutable.log_action", new=AsyncMock()):
-        result = await cp._handle_akcija_rok("Dodaj rok za pripremu do 1. septembra", "pred-1", "user-1")
+        result = await cp._handle_akcija_rok("Dodaj rok za pripremu do 1. septembra 2026", "pred-1", "user-1")
 
     assert result.get("uspeh") is not False
     assert len(insert_calls) == 1

@@ -189,6 +189,23 @@ async def intake_kreiraj(
     uid  = user["user_id"]
     supa = _get_supa()
 
+    # NS2-A1 (napomena pregleda): `prvi_rok` se upisuje u `predmet_hronologija.datum_iso`
+    # (DATE). Ranije je stizao bez provere — „15.11.2025" ili „sutra" bi pao tek na
+    # bazi (rok tiho izgubljen uz kreiran predmet) ili bi ga baza pročitala kao
+    # MM.DD. Sada: samo kalendarski ispravan GGGG-MM-DD, provereno PRE kreiranja predmeta.
+    if body.prvi_rok is not None and body.prvi_rok != "":
+        _rok_ok = bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.prvi_rok))
+        if _rok_ok:
+            try:
+                date.fromisoformat(body.prvi_rok)
+            except ValueError:
+                _rok_ok = False
+        if not _rok_ok:
+            raise HTTPException(
+                status_code=422,
+                detail="Datum roka nije ispravan — unesite datum kao GGGG-MM-DD (npr. 2026-11-20). Predmet nije kreiran.",
+            )
+
     opis_delovi = [body.opis] if body.opis else []
     if body.protivna_strana:
         opis_delovi.append(f"Protivna strana: {body.protivna_strana}")
@@ -326,6 +343,10 @@ async def intake_kreiraj(
                     # migracija 127 — W-INTAKE-ROK: `body.prvi_rok` dolazi
                     # iz forme koju je advokat popunio.
                     "izvor":      _IZVOR.IZVOR_AI_ASSISTED,
+                    # NS2-A1: polje `prvi_rok` je izričito stvaranje roka -> `vrsta='rok'`.
+                    # Klik "Kreiraj predmet" NIJE potvrda roka: `stanje` se ne upisuje,
+                    # rok ostaje nepotvrđen. Pre migracije 129 fragment je prazan.
+                    **_IZVOR.oznake(vrsta=_IZVOR.VRSTA_ROK, supa=supa),
                 }).execute()
             )
             rok_dodat = True
