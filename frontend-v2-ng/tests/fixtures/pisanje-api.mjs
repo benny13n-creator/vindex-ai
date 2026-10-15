@@ -633,6 +633,15 @@ export function prijemRuta(korisnici, kuke = {}) {
 /* VCR001 T06 — GET /api/agents/lista (zatvoren spisak) i POST /api/agents/run (routers/multi_agent.py).
  * kontekst_predmeta: true samo za pozivaočev predmet, false za tuđ, null bez predmet_id.
  * kuke.provera = provera_citata koju „server“ vraća (podrazumevano: jedan izmišljen član; null = polje izostaje). */
+/* QA-08: `izvori_predmeta` kao routers/multi_agent.py — šta je od dokumenata STVARNO dostavljeno savetniku.
+ * Podrazumevano: 7 dokumenata, dostavljeno 5 najnovijih u celini, DOK-02 i DOK-01 nisu. kuke.izvori zamenjuje ceo objekat. */
+const oz = (n) => "DOK-" + String(n).padStart(2, "0");
+export function izvoriPredmeta(prom = {}) {
+  return { dokumenata_u_predmetu: 7, greska_citanja: false,
+    ukljuceni: [7, 6, 5, 4, 3].map(n => ({ oznaka: oz(n), naziv: `${n}.pdf`, trazen: false, potpun: true, znakova_dostavljeno: 900, znakova_ukupno: 900 })),
+    izostavljeni: [2, 1].map(n => ({ oznaka: oz(n), naziv: `${n}.pdf` })), izostavljenih_ukupno: 2, bez_teksta: [],
+    trazeni_nisu_dostavljeni: [], genome_sazetak: false, svi_dokumenti_u_celini: false, odgovor_pominje_nedostavljene: [], ...prom };
+}
 const AGENTI = [["intake", "Intake Agent", "📥"], ["research", "Research Agent", "🔍"], ["drafting", "Drafting Agent", "✍️"],
                 ["litigation", "Litigation Agent", "⚖️"], ["billing", "Billing Agent", "💰"], ["deadline", "Deadline Agent", "⏰"]];
 export function agentRuta(korisnici, kuke = {}) {
@@ -651,6 +660,7 @@ export function agentRuta(korisnici, kuke = {}) {
       let b; try { b = JSON.parse(sirovo || "{}"); } catch { json(res, 400, {}); return true; }
       (kuke.upisano || (() => {}))({ ...b, _putanja: url.pathname, _kljuc: req.headers["idempotency-key"] || null });
       const kontekst = b.predmet_id ? k.predmeti.some(x => x.id === b.predmet_id && x.user_id === k.id) : null;
+      const izvori = kontekst ? (kuke.izvori !== undefined ? kuke.izvori : izvoriPredmeta()) : null;
       const PROVERE = {
         research: { status: "PROVERENI", ukupno: 1, neprovereni: [], izvori_dostavljeni: true },
         litigation: { status: "NEPROVERENI", ukupno: 1, izvori_dostavljeni: true, neprovereni: [{ clan: "999", zakon: "zoo", razlog: "nije u dostavljenom izvoru tog zakona" }] },
@@ -663,9 +673,10 @@ export function agentRuta(korisnici, kuke = {}) {
         const agenti = [...new Set((b.agenti || []).filter(a => AGENTI.some(x => x[0] === a)))].slice(0, 3);
         const rezultati = agenti.map(a => padaju.has(a)
           ? { agent_id: a, naziv: a, ikona: "", stanje: "NEUSPEH", odgovor: "", greska: "Savetnik trenutno nije dostupan. Ništa nije naplaćeno za ovog savetnika.", provera_citata: null }
-          : { agent_id: a, naziv: a, ikona: "", stanje: "USPEH", odgovor: tekstAg(a), greska: null, provera_citata: PROVERE[a] });
+          : { agent_id: a, naziv: a, ikona: "", stanje: "USPEH", odgovor: tekstAg(a), greska: null, provera_citata: PROVERE[a],
+              pominje_nedostavljene: (kuke.pominje || {})[a] || [] });
         const usp = rezultati.filter(r => r.stanje === "USPEH").length;
-        json(res, 200, { tip: "paralelna_analiza", agenti, rezultati, task: b.task, kontekst_predmeta: kontekst,
+        json(res, 200, { tip: "paralelna_analiza", agenti, rezultati, task: b.task, kontekst_predmeta: kontekst, izvori_predmeta: izvori,
           uspesnih: usp, neuspesnih: rezultati.length - usp, naplaceno_savetnika: usp });
         return true;
       }
@@ -682,7 +693,7 @@ export function agentRuta(korisnici, kuke = {}) {
       }
       const isp = rezultati.filter(r => r.stanje === "USPEH");
       json(res, 200, { tip: "pipeline", pipeline: niz, koraci: rezultati.length, rezultati, kompletan: !prekid && isp.length === niz.length,
-        prekid, iz_kesa: false, kontekst_predmeta: kontekst, naplaceno_koraka: isp.length,
+        prekid, iz_kesa: false, kontekst_predmeta: kontekst, izvori_predmeta: izvori, naplaceno_koraka: isp.length,
         provera_citata_zavrsnog: isp.length ? isp[isp.length - 1].provera_citata : null, potreban_pregled_advokata: true });
       return true;
     }
@@ -699,7 +710,7 @@ export function agentRuta(korisnici, kuke = {}) {
       : { status: "NEPROVERENI", ukupno: 2, izvori_dostavljeni: true, neprovereni: [{ clan: "999", zakon: "zoo", razlog: "nije u dostavljenom izvoru tog zakona" }] };
     const telo = { agent: b.agent, naziv: "Research Agent", ikona: "🔍", task: b.task, suggested_next: "drafting",
       odgovor: "## 1. OSNOV ODGOVORNOSTI 📥\n**Osnov** je član 154 ZOO, a dopunski član 999 ZOO.\n\n## 2. DOKAZI\nPribaviti račune. <img src=x onerror=\"window.__xss=21\">",
-      kontekst_predmeta: kontekst };
+      kontekst_predmeta: kontekst, izvori_predmeta: kontekst ? (kuke.izvori !== undefined ? kuke.izvori : izvoriPredmeta()) : null };
     if (provera !== null) telo.provera_citata = provera;
     json(res, 200, telo);
     return true;

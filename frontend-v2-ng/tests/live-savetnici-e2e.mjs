@@ -81,7 +81,9 @@ const s0 = await stanje();
 await pokreni("pojedinacno", "research");
 let e = await ekran();
 let s = await stanje();
-zapisi("A", "odgovor jednog savetnika sa proverom citata i kontekstom predmeta", /Pravno istraživanje/.test(e.naslov) && e.vrh.length === 1 && /uz podatke i dokumente ovog predmeta/.test(e.kontekst || ""), JSON.stringify(e.vrh));
+// QA-08: predmet je otvoren ručno, BEZ dokumenata — ranije je ekran ipak tvrdio „savet je dat uz podatke i dokumente“.
+zapisi("A", "odgovor jednog savetnika sa proverom citata; kontekst kaže da savet NIJE zasnovan na dokumentima (predmet ih nema)",
+  /Pravno istraživanje/.test(e.naslov) && e.vrh.length === 1 && /nema dokumenata; savet nije zasnovan na dokumentima/.test(e.kontekst || ""), JSON.stringify([e.vrh, e.kontekst]));
 zapisi("A", "server: jedan poziv modela, jedna naplata", s.pozivi_modela.filter(x => x.startsWith("agent:")).length === 1 && s.naplaceno_jedinica - s0.naplaceno_jedinica === 1, JSON.stringify([s.pozivi_modela, s.naplaceno_jedinica]));
 zapisi("A", "trajna idempotencija: /api/agents/run COMPLETED", s.idempotencija.filter(x => x === "/api/agents/run:COMPLETED").length === 1, JSON.stringify(s.idempotencija));
 const sA = s;
