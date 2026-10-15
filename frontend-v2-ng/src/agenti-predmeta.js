@@ -139,9 +139,11 @@
         + (del.length ? " Delimično (samo početak): " + oznake(del) + "." : "")
         + (iz.izostavljenih_ukupno ? " Ostali (" + iz.izostavljenih_ukupno + ") nisu pročitani u ovom odgovoru — za određeni dokument navedite njegov redni broj, npr. DOK-01." : "");
       var nisu = (Array.isArray(iz.trazeni_nisu_dostavljeni) ? iz.trazeni_nisu_dostavljeni : []).map(function (x) {
-        return tekst(x.oznaka) + (x.razlog === "NE_POSTOJI" ? " ne postoji u ovom predmetu" : x.razlog === "BEZ_TEKSTA" ? " nema izdvojen tekst" : " nije dostavljen (ograničenje broja dokumenata)");
+        return tekst(x.oznaka) + (x.razlog === "NE_POSTOJI" ? " ne postoji u ovom predmetu" : x.razlog === "BEZ_TEKSTA" ? " nema izdvojen tekst"
+          : x.razlog === "OGRANICENJE" ? " nije dostavljen (ograničenje broja dokumenata)" : " nije pročitan (nije utvrđeno zašto)");
       });
-      if (nisu.length) t += " Traženo, a NIJE pročitano: " + nisu.join("; ") + ".";
+      var visak = (Number(iz.trazenih_nedostavljenih_ukupno) || 0) - nisu.length;
+      if (nisu.length) t += " Traženo, a NIJE pročitano: " + nisu.join("; ") + (visak > 0 ? " i još " + visak : "") + ".";
       var potpun = !iz.greska_citanja && n > 0 && iz.svi_dokumenti_u_celini === true && !nisu.length;
       poruka("ag-kontekst", potpun ? "uspeh" : "nepoznato", t);
     }
