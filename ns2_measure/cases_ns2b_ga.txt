@@ -1,0 +1,14 @@
+# NS2b follow-up round 2 part A: true peak (filter off) of baseline JPEG full-page in PDF + concurrent 10-page scan; final-code pairs
+vp_rgb_16 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_16_a4.pdf@finalize NS2B_NOFILTER=1
+vp_rgb_20 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_20_a4.pdf@finalize NS2B_NOFILTER=1
+vp_rgb_22 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_22_a4.pdf@finalize NS2B_NOFILTER=1
+vp_rgb_24 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_24_a4.pdf@finalize NS2B_NOFILTER=1
+vp_rgb_28 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_28_a4.pdf@finalize NS2B_NOFILTER=1
+vp_rgb_34_6 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_34_6_a4.pdf@finalize NS2B_NOFILTER=1
+vp_cmyk_14 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_14_a4.pdf@finalize NS2B_NOFILTER=1
+vp_cmyk_16 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_16_a4.pdf@finalize NS2B_NOFILTER=1
+vp_cmyk_20 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_20_a4.pdf@finalize NS2B_NOFILTER=1
+gp0 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_30.pdf@finalize -
+gp1 1 - pair:scan_10p.pdf@worker|pdf_prog444_64.pdf@finalize -
+gp2 1 - pair:scan_10p.pdf@worker|img_prog444_below.jpg@finalize -
+gp3 1 - pair:scan_10p.pdf@worker|b_cmyk_20.jpg@finalize -

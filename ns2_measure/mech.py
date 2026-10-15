@@ -56,7 +56,14 @@ if p.endswith(".pdf"):
     for xref, _sm, iw, ih, _bpc, ics, *_rest in doc[0].get_images(full=True):
         raw = doc.xref_stream_raw(xref)
         ok = X._jpeg_okvir(io.BytesIO(raw))
-        imgs.append({"xref": xref, "filter": doc.xref_get_key(xref, "Filter")[1], "okvir": ok, "wh": [iw, ih], "cs": ics})
+        ok2 = X._jpeg_okvir_xref(doc, xref, 0) if hasattr(X, "_jpeg_okvir_xref") else ok
+        rast = None
+        if ok2 and hasattr(X, "_mupdf_dekodiran_raster"):
+            pg = doc[0]
+            rast = round(X._mupdf_dekodiran_raster(ok2, [m for _r, m in pg.get_image_rects(xref, transform=True)],
+                                                   X._dpi_strane(pg.rect.width, pg.rect.height)) / 2**20, 1)
+        imgs.append({"xref": xref, "filter": doc.xref_get_key(xref, "Filter")[1], "okvir": ok, "wh": [iw, ih], "cs": ics,
+                     "raster_mib": rast, "coef_mib_xref": round((ok2 or {}).get("koeficijenti", 0) / 2**20, 1)})
     res["images"] = imgs
     res["coef_bytes"] = sum((i["okvir"] or {}).get("koeficijenti", 0) for i in imgs)
     _, res["rss_peak_mib"], res["rss_after_mib"], res["secs"] = phase(lambda: X._rasterizuj_stranu(doc[0]))

@@ -502,41 +502,74 @@ class _TokFlate:
             n -= k
 
 
-def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
-    """NS2b: isti uslov kao za fotografiju, za JPEG (DCTDecode) slike — i njihove maske — na stranama koje će MuPDF
-    rasterizovati (MuPDF dekodira ugrađen JPEG istim libjpeg putem: izmereno). Pozivalac drži _RASTER_OCR_LOCK.
-    Proverava se samo tok /DCTDecode ili [/FlateDecode /DCTDecode]; drugi lanci filtera se ne proveravaju."""
-    import io
+def _mupdf_dekodiran_raster(okvir: dict, matrice, dpi: int) -> int:
+    """Bajtovi rastera u koji MuPDF dekodira ugrađen JPEG: n bajtova po pikselu (n = broj komponenti), u veličini koju
+    MuPDF sam bira — umanjuje 1/2, 1/4, 1/8 (DCT) dok slika ostaje veća od svog prikaza na strani pri dpi rasterizacije
+    (+2 piksela, kao fz_get_pixmap_from_image). Izmereno (NS2b): 4944x6997 na A4 → bez umanjenja (2472 < 2481);
+    5317x7523 → 1/2. Bez poznatog smeštaja na strani: bez umanjenja (najveći raster)."""
+    w, h, n = okvir["sirina"], okvir["visina"], len(okvir["komponente"])
+    najvise = 0
+    for m in (matrice or [None]):
+        l2 = 0
+        if m is not None:
+            pw = math.hypot(m.a, m.b) * dpi / 72.0
+            ph = math.hypot(m.c, m.d) * dpi / 72.0
+            while l2 < 3 and (w >> (l2 + 1)) > pw + 2 and (h >> (l2 + 1)) > ph + 2:
+                l2 += 1
+        f = 1 << l2
+        najvise = max(najvise, -(-w // f) * -(-h // f) * n)
+    return najvise
 
-    provereni: set[int] = set()
+
+def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
+    """NS2b: za JPEG (DCTDecode) slike — i njihove maske — na stranama koje će MuPDF rasterizovati: bafer koeficijenata
+    (MuPDF dekodira istim libjpeg putem: izmereno) i dekodiran raster slike (_mupdf_dekodiran_raster), svaki do
+    MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA. Pozivalac drži _RASTER_OCR_LOCK.
+    Proverava se samo tok /DCTDecode ili [/FlateDecode /DCTDecode]; drugi lanci filtera se ne proveravaju."""
+    okviri: dict[int, Optional[dict]] = {}
     for i in indeksi:
         try:
-            slike = doc[i].get_images(full=True)
+            strana = doc[i]
+            slike = strana.get_images(full=True)
+            dpi = _dpi_strane(float(strana.rect.width), float(strana.rect.height))
         except Exception as exc:        # provera nikad ne obara OCR koji bi inače prošao; ista greška ide u render
             logger.info("[OCR] Slike strane %d nisu proverene: %s", i + 1, type(exc).__name__)
             continue
         for slika in slike:
             for xref in (slika[0], slika[1]):
-                if not xref or xref in provereni:
+                if not xref:
                     continue
-                provereni.add(xref)
+                if xref not in okviri:
+                    okviri[xref] = _jpeg_okvir_xref(doc, xref, i)
+                okvir = okviri[xref]
+                if okvir is None:
+                    continue
                 try:
-                    filtri = re.findall(r"/[^\s/\[\]<>()]+", doc.xref_get_key(xref, "Filter")[1])   # "[/A/B]" ili "[ /A /B ]"
-                    if "/DCTDecode" not in filtri:
-                        continue
-                    if filtri == ["/DCTDecode"]:
-                        tok = io.BytesIO(doc.xref_stream_raw(xref))
-                    elif filtri == ["/FlateDecode", "/DCTDecode"]:
-                        tok = _TokFlate(doc.xref_stream_raw(xref))
-                    else:
-                        logger.info("[OCR] JPEG u PDF-u sa filterima %s nije proveren pre rasterizacije", "+".join(filtri))
-                        continue
-                    okvir = _jpeg_okvir(tok)
-                except Exception as exc:
-                    logger.info("[OCR] JPEG u PDF-u (strana %d) nije proveren: %s", i + 1, type(exc).__name__)
-                    continue
+                    matrice = [m for _r, m in strana.get_image_rects(xref, transform=True)]
+                except Exception:
+                    matrice = []
+                raster = _mupdf_dekodiran_raster(okvir, matrice, dpi)
                 _odbij_jpeg_preveliki_bafer(okvir, f"PDF strana {i + 1}", MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA,
-                                            PORUKA_PREVELIK_JPEG_PDF)
+                                            PORUKA_PREVELIK_JPEG_PDF,
+                                            procena=lambda o, r=raster: max(o["koeficijenti"], r))
+
+
+def _jpeg_okvir_xref(doc, xref: int, i: int) -> Optional[dict]:
+    """Zaglavlje JPEG toka slike `xref` (None = nije JPEG, nepoznat lanac filtera ili greška čitanja)."""
+    import io
+
+    try:
+        filtri = re.findall(r"/[^\s/\[\]<>()]+", doc.xref_get_key(xref, "Filter")[1])   # "[/A/B]" ili "[ /A /B ]"
+        if "/DCTDecode" not in filtri:
+            return None
+        if filtri == ["/DCTDecode"]:
+            return _jpeg_okvir(io.BytesIO(doc.xref_stream_raw(xref)))
+        if filtri == ["/FlateDecode", "/DCTDecode"]:
+            return _jpeg_okvir(_TokFlate(doc.xref_stream_raw(xref)))
+        logger.info("[OCR] JPEG u PDF-u sa filterima %s nije proveren pre rasterizacije", "+".join(filtri))
+    except Exception as exc:
+        logger.info("[OCR] JPEG u PDF-u (strana %d) nije proveren: %s", i + 1, type(exc).__name__)
+    return None
 
 
 def _u_granici_ocr(img):
