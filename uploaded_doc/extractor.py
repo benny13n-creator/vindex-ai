@@ -513,6 +513,9 @@ _JPX_BAJTOVA_PO_UZORKU = 4          # OpenJPEG dekodira u int32 po uzorku, MuPDF
 _TOKOVNI_TIPOVI = frozenset({"FZ_IMAGE_RAW", "FZ_IMAGE_FAX", "FZ_IMAGE_FLATE", "FZ_IMAGE_LZW", "FZ_IMAGE_RLD",
                              "FZ_IMAGE_BROTLI", "FZ_IMAGE_JBIG2", "FZ_IMAGE_JPEG"})
 _snimac_slika = None
+# Isecanje maskom slike (meka maska, /SMask): crtač dok traje maska drži novi sloj strane, masku i umanjenu masku.
+# Lokalno izmereno (RGB 16 MP + siva maska 16 MP na A4/300): +60 MiB iznad iste slike bez maske → 9 B po pikselu sloja.
+_SLOJ_MASKE_BAJTOVA_PO_PIKSELU = 9
 
 
 class _NeproverljivPdf(Exception):
@@ -535,7 +538,11 @@ def _klasa_snimaca_slika():
             self.use_virtual_fill_image()
             self.use_virtual_fill_image_mask()
             self.use_virtual_clip_image_mask()
+            for ime in ("clip_path", "clip_stroke_path", "clip_text", "clip_stroke_text", "pop_clip"):
+                getattr(self, "use_virtual_" + ime)()
             self.slike: list[dict] = []
+            self.strana_px = 0
+            self.stek: list[int] = []       # otvorena isecanja; maska slike drži sloj veličine strane (v. _SLOJ_MASKE)
 
         def _zabelezi(self, slika, ctm, maska: bool) -> None:
             cb = m.ll_fz_compressed_image_buffer(slika)
@@ -552,7 +559,7 @@ def _klasa_snimaca_slika():
                 "indeksirana": indeksirana,
                 "baza_n": m.ll_fz_colorspace_n(m.ll_fz_base_colorspace(cs)) if indeksirana else 0,
                 "matte": bool(slika.use_colorkey and slika.mask), "okvir": okvir,
-                "dx": math.hypot(ctm.a, ctm.b), "dy": math.hypot(ctm.c, ctm.d),
+                "dx": math.hypot(ctm.a, ctm.b), "dy": math.hypot(ctm.c, ctm.d), "stek": sum(self.stek),
             })
 
         def fill_image(self, ctx, slika, ctm, alpha, color_params):
@@ -563,6 +570,17 @@ def _klasa_snimaca_slika():
 
         def clip_image_mask(self, ctx, slika, ctm, scissor):
             self._zabelezi(slika, ctm, True)
+            povrsina = (int(math.hypot(ctm.a, ctm.b)) + 1) * (int(math.hypot(ctm.c, ctm.d)) + 1)
+            self.stek.append(min(povrsina, self.strana_px) * _SLOJ_MASKE_BAJTOVA_PO_PIKSELU)
+
+        def clip_path(self, *a):
+            self.stek.append(0)
+
+        clip_stroke_path = clip_text = clip_stroke_text = clip_path
+
+        def pop_clip(self, ctx):
+            if self.stek:
+                self.stek.pop()
 
     _snimac_slika = _SnimacSlika
     return _snimac_slika
@@ -597,6 +615,7 @@ def _mupdf_bajtovi_slike(s: dict, strana_px: int) -> tuple[int, int]:
             prolazno = w * h * s["n"] * _JPX_BAJTOVA_PO_UZORKU
     if s["okvir"] is not None:
         prolazno = max(prolazno, s["okvir"]["koeficijenti"])    # progresivni JPEG: koeficijenti cele slike
+    prolazno += s["stek"]
     px = tw * th
     umanjuje = s["dx"] < tw and s["dy"] < th
     raster = min(min(dx, tw) * min(dy, th), strana_px) * 3 if umanjuje else 0
@@ -604,7 +623,7 @@ def _mupdf_bajtovi_slike(s: dict, strana_px: int) -> tuple[int, int]:
         posle = px * 3 + raster                     # pretvaranje u RGB pre umanjenja, pa umanjena slika
     else:
         posle = 2 * raster if umanjuje else px * 3  # među-slika + umanjena; ili pretvaranje boja posle
-    return kes, max(prolazno, posle)
+    return kes, max(prolazno, posle + s["stek"])
 
 
 def _tokovi_sadrzaja_strane(strana_obj) -> list[int]:
@@ -853,7 +872,8 @@ def _umetnuti_niz(lx: _Lekser) -> Optional[list]:
 
 
 def _umetnuta_slika_bajtova(d: dict, tok: _TokSadrzaja, podaci: int) -> tuple[int, int]:
-    """(puno dekodiranje, koeficijenti JPEG-a) umetnute slike kako je učitava pdf_load_image_imp (bez umanjenja)."""
+    """(puno dekodiranje, najveća prolazna: koeficijenti JPEG-a ili CMYK→RGB) umetnute slike, kako je učitava
+    pdf_load_image_imp (bez umanjenja)."""
     import io
     import zlib
 
@@ -908,7 +928,7 @@ def _umetnuta_slika_bajtova(d: dict, tok: _TokSadrzaja, podaci: int) -> tuple[in
             raise _NeproverljivPdf("umetnuta slika: zaglavlje JPEG-a nije pročitano")
         if okvir is not None:
             koef = okvir["koeficijenti"]
-    return w * h * (n + alfa), koef
+    return w * h * (n + alfa), max(koef, w * h * 3 if n > 3 else 0)
 
 
 def _umetnute_slike(pdf, num: int) -> list[tuple[int, int]]:
@@ -960,10 +980,14 @@ def _procena_rastera_strane(doc, i: int, dpi: int) -> tuple[int, str]:
                 raise
             except Exception as exc:                # tok koji MuPDF ne može da pročita ne može ni da interpretira
                 logger.info("[OCR] Tok sadržaja %d strane %d nije pročitan: %s", num, i + 1, type(exc).__name__)
+    # Umetnuta slika se dekodira pri čitanju sadržaja (puna veličina, prolazno) i ponovo pri crtanju; pre interpretera
+    # se računa najgore (bez umanjenja): oba dekodiranja + najveća prolazna. Prava umetnuta slika je mala (PDF 1.7, 8.9.7).
     prolazno_umetnute = max((d + k for d, k in umetnute), default=0)
-    if strana_b + prolazno_umetnute > MAX_PDF_RASTER_BAJTOVA:   # interpreter bi je dekodirao već pri popisu
-        return strana_b + prolazno_umetnute, f"umetnuta slika ({len(umetnute)} na strani)"
+    pre = strana_b + sum(d for d, _ in umetnute) + prolazno_umetnute
+    if pre > MAX_PDF_RASTER_BAJTOVA:                # interpreter bi je dekodirao već pri popisu
+        return pre, f"umetnuta slika ({len(umetnute)} na strani)"
     snimac = _klasa_snimaca_slika()()
+    snimac.strana_px = strana_px
     z = dpi / 72.0
     try:
         m.fz_run_page(strana.this, snimac, m.FzMatrix(z, 0, 0, z, 0, 0), m.FzCookie())
@@ -977,7 +1001,8 @@ def _procena_rastera_strane(doc, i: int, dpi: int) -> tuple[int, str]:
         prolazno = max(prolazno, p)
         if k + p > najveca_b:
             najveca, najveca_b = f"{s['tip']} {s['w']}x{s['h']}x{s['n']}", k + p
-    return strana_b + kes + prolazno, najveca
+    # posle MuPDF-a (_rasterizuj_stranu): raster strane (3 B) dok se pravi PNG, PIL RGB (4 B) i siva kopija (1 B)
+    return max(strana_b + kes + prolazno, strana_px * 8), najveca
 
 
 def _odbij_pdf_preveliki_raster(doc, indeksi, dpi_strane=None) -> None:
