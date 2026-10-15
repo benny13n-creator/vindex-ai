@@ -106,6 +106,19 @@ def test_parser_preskace_segmente_smece_i_punjenje():
     assert o is not None and o["sirina"] == 5000 and o["visina"] == 7000 and o["vise_prolaza"]
 
 
+@pytest.mark.parametrize("prazan", [b"\xff\xfe\x00\x00", b"\xff\xfe\x00\x01", b"\xff\xef\x00\x00"])
+def test_segment_duzine_0_ili_1_ne_zaobilazi_proveru(prazan):
+    """Pregled A F1: libjpeg i Pillow segment dužine 0/1 čitaju kao prazan i dekodiraju dalje -- parser ne sme da odustane."""
+    o = _okvir(SOI + prazan + _sof(0xC2, 7744, 5164, [(1, 1)] * 3) + _sos(3))
+    assert o is not None and o["vise_prolaza"]
+    assert o["koeficijenti"] == X._jpeg_bajtova_koeficijenata(7744, 5164, [(1, 1)] * 3)
+    pravi = _jpeg(progressive=True)
+    umetnut = pravi[:2] + prazan + pravi[2:]
+    with Image.open(io.BytesIO(umetnut)) as im:
+        im.load()                                       # Pillow zaista dekodira takav fajl
+    assert _okvir(umetnut)["koeficijenti"] == _okvir(pravi)["koeficijenti"] > 0
+
+
 @pytest.mark.parametrize("data", [
     b"\x89PNG\r\n\x1a\n" + b"\x00" * 40,                                       # nije JPEG
     SOI + _sof(0xC2, 100, 100, [(1, 1)]),                                       # nema SOS

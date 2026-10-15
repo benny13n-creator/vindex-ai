@@ -392,9 +392,10 @@ def _jpeg_okvir(f) -> Optional[dict]:
         if m == 0x01 or 0xD0 <= m <= 0xD7:
             continue                                    # samostalni markeri, bez dužine
         duzina = f.read(2)
-        if len(duzina) < 2 or int.from_bytes(duzina, "big") < 2:
+        if len(duzina) < 2:
             return None
-        n = int.from_bytes(duzina, "big") - 2
+        # libjpeg/Pillow dužinu 0 ili 1 tretiraju kao prazan segment i nastavljaju (pregled A F1) -- isto i ovde
+        n = max(0, int.from_bytes(duzina, "big") - 2)
         if m in _JPEG_SOF_HIJERARHIJSKI:
             return None
         if m in _JPEG_SOF:
