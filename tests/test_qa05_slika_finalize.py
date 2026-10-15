@@ -72,6 +72,18 @@ def ocr(monkeypatch):
     return pozivi
 
 
+@pytest.fixture
+def audit(monkeypatch):
+    """Beleži poslovne audit radnje (harness ih inače guta — `ns005_harness` zamenjuje `log_action` praznom)."""
+    import shared.audit_immutable as a
+    radnje = []
+
+    async def _log(action, *args, **kw):
+        radnje.append(action)
+    monkeypatch.setattr(a, "log_action", _log)
+    return radnje
+
+
 def _stara_sema(monkeypatch):
     """Model pre ispravke (produkcija `3ab9343e`): samo pdf/docx/txt. Zamena u `chunker`-u, koji ga instancira."""
     from typing import Literal
@@ -102,8 +114,8 @@ def _stanje(k, jid, korisnik="A"):
 
 
 def _snimak(b):
-    return {t: len(b.tabele.get(t, [])) for t in ("predmeti", "predmet_dokumenti", "events", "audit_immutable",
-                                                   "intake_jobs", "predmet_hronologija")} | {"vektori": len(b.vektori)}
+    return {t: len(b.tabele.get(t, [])) for t in ("predmeti", "predmet_dokumenti", "events", "intake_jobs",
+                                                   "predmet_hronologija")} | {"vektori": len(b.vektori)}
 
 
 # ── Model: tačno skup formata koji upload putevi zaista prosleđuju ────────────────────────────────────────────────
@@ -220,17 +232,19 @@ def test_pre_ispravke_produkcioni_ishod_0_od_1_pa_nastavak_bez_ponovnog_otpreman
     assert _dokumenti(b)[0]["source_intake_job_id"] == jid
 
 
-def test_ponovljen_finalize_posle_uspeha_ne_pravi_nista_novo(ok, ocr):
+def test_ponovljen_finalize_posle_uspeha_ne_pravi_nista_novo(ok, ocr, audit):
     k, b = ok
     jid = _spreman_foto(k, "jpg")
     assert _prikaci(k, jid).json()["prikacivanje"] == "POTPUNO"
-    pre = _snimak(b)
+    assert audit.count("document_assimilated") == 1, audit
+    pre, audit_pre = _snimak(b), list(audit)
     dog_pre = sorted(str(e.get("event_type")) for e in b.tabele["events"])
     for _ in range(2):
         f = _prikaci(k, jid)
         assert f.status_code == 200 and f.json()["already_finalized"] is True, f.text
         assert f.json()["prikacivanje"] == "POTPUNO" and f.json()["dokumenata_povezano"] == 1
     assert _snimak(b) == pre
+    assert audit == audit_pre, "ponovljen finalize je upisao novu audit radnju"
     assert sorted(str(e.get("event_type")) for e in b.tabele["events"]) == dog_pre
 
 
@@ -405,3 +419,27 @@ async def test_api_otpremanje_fotografije_u_predmet_prolazi_chunk_do_vektorskog_
             pytest.fail(f"otpremanje fotografije nije stiglo do vektorskog upisa: {type(e).__name__}: {str(e)[:200]}")
     [m] = stiglo
     assert m.source_format == fmt and "24.08.2026" in " ".join(c.text for c in m.chunks)
+
+
+def test_pre_ispravke_novi_predmet_nastavak_u_isti_predmet_bez_duplikata(ok, ocr, monkeypatch, audit):
+    """Isto kao produkcija, ali finalize bez izabranog predmeta (otvara nov): dva neuspela pokušaja pod starim
+    modelom, pa nastavak — jedan predmet, jedan dokument, jedna audit radnja dokumenta, događaji bez duplikata."""
+    k, b = ok
+    jid = _spreman_foto(k, "jpg")
+    assert k.post(f"/api/smart-intake/jobs/{jid}/review/resolve", headers=zaglavlje("A")).status_code == 200
+    pre_predmeta = len(b.tabele["predmeti"])
+    with monkeypatch.context() as m:
+        _stara_sema(m)
+        for _ in range(2):
+            f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={}, headers=zaglavlje("A"))
+            assert f.status_code == 200 and f.json()["prikacivanje"] == "NIJE_PRIKACENO", f.text
+    novi = _posao(b, jid)["predmet_id"]
+    assert novi and len(b.tabele["predmeti"]) == pre_predmeta + 1 and _dokumenti(b, novi) == []
+    f = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={}, headers=zaglavlje("A"))
+    assert f.status_code == 200 and f.json()["prikacivanje"] == "POTPUNO" and f.json()["predmet_id"] == novi, f.text
+    assert len(b.tabele["predmeti"]) == pre_predmeta + 1 and len(_dokumenti(b, novi)) == 1
+    assert audit.count("document_assimilated") == 1, audit
+    tipovi = [str(e.get("event_type")) for e in b.tabele["events"] if e.get("predmet_id") == novi]
+    assert len(tipovi) == len(set(tipovi)), tipovi                 # nijedan događaj dvaput
+    f2 = k.post(f"/api/smart-intake/jobs/{jid}/finalize", json={}, headers=zaglavlje("A"))
+    assert f2.json()["already_finalized"] is True and audit.count("document_assimilated") == 1
