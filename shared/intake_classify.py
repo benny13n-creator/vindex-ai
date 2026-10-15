@@ -40,7 +40,8 @@ DOCUMENT_TYPES = (
 # latinica namerno paralelno, srpski pravni dokumenti mešaju oba pisma.
 _HEAD_CHARS = 400
 _HEURISTICS: list[tuple[str, list[str]]] = [
-    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA"]),
+    # QA-02: i genitiv — naslov „PREDLOG TUŽBE“ / „ПРЕДЛОГ ТУЖБЕ“ (beta QA predlog tužbe je bio `contract`)
+    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA", "ТУЖБЕ", "TUŽBE", "TUZBE"]),
     ("appeal",             ["ЖАЛБА", "ŽALBA", "ZALBA", "PRIGOVOR", "ПРИГОВОР"]),
     ("response",           ["ОДГОВОР НА ТУЖБУ", "ODGOVOR NA TUŽBU", "ODGOVOR NA TUZBU"]),
     ("judgment",           ["ПРЕСУДА", "PRESUDA"]),
@@ -55,6 +56,49 @@ _HEURISTICS: list[tuple[str, list[str]]] = [
 
 _DOSTAVNICA_OZNAKE = ("ДОСТАВНИЦА", "DOSTAVNICA", "ПОВРАТНИЦА", "POVRATNICA")
 
+# QA-02: reč koja sme da stoji ispred ključne reči naslova („PREDLOG TUŽBE“ je tužba; „NACRT UGOVORA“ nije
+# prepoznat jer je „UGOVORA“ drugi oblik — tada odlučuje model).
+_PREFIKSI_NASLOVA = ("PREDLOG", "ПРЕДЛОГ", "NACRT", "НАЦРТ")
+# QA-02: naslovi pismena kojih nema u taksonomiji (DOCUMENT_TYPES). Kad je takav naslov prvi, svaki kasniji red koji
+# počinje ključnom reči opisuje DRUGI dokument (zapisnik/potvrda „po UGOVORU br. …“) — isto pravilo kao N06 za
+# dostavnicu, samo vezano za početak reda. Pošten ishod je model (`other` kad nije siguran), ne tuđi tip sa 0.85.
+_NASLOVI_VAN_TAKSONOMIJE = (
+    "ЗАПИСНИК", "ZAPISNIK", "ПОТВРДА", "POTVRDA", "ОТПРЕМНИЦА", "OTPREMNICA", "ПРИЗНАНИЦА", "PRIZNANICA",
+    "ИЗЈАВА", "IZJAVA", "ОБАВЕШТЕЊЕ", "OBAVEŠTENJE", "OBAVESTENJE",
+) + _DOSTAVNICA_OZNAKE
+
+
+def _red_naslova(red: str) -> str:
+    """Red bez okolnih razmaka i crtica/zvezdica; razmaknut naslov („T U Ž B A“, „R E Š E NJ E“) se sastavlja."""
+    red = red.strip().lstrip("-–—*•· ").strip()
+    delovi = red.split()
+    if len(delovi) >= 4 and all(len(d) <= 2 for d in delovi):
+        red = "".join(delovi)
+    return red
+
+
+def _pocinje_recju(red: str, rec: str) -> bool:
+    """`rec` je na početku reda, napisana VELIKIM slovima kao u izvoru, i iza nje nije slovo (UGOVOR ≠ UGOVORU)."""
+    return red.startswith(rec) and not red[len(rec):len(rec) + 1].isalpha()
+
+
+def _naslovni_tip(red: str):
+    """(tip, ključna reč) kad red POČINJE ključnom reči (ili prefiksom pa ključnom reči); duža reč pobeđuje
+    („ODGOVOR NA TUŽBU“ > „TUŽBA“, „РЕШЕЊЕ О ИЗВРШЕЊУ“ > „РЕШЕЊЕ“). Inače None."""
+    kandidati = [red]
+    for p in _PREFIKSI_NASLOVA:
+        if _pocinje_recju(red, p):
+            kandidati.append(red[len(p):].lstrip())
+    for k in kandidati:
+        najbolji = None
+        for doc_type, keywords in _HEURISTICS:
+            for kw in keywords:
+                if _pocinje_recju(k, kw) and (najbolji is None or len(kw) > len(najbolji[1])):
+                    najbolji = (doc_type, kw)
+        if najbolji:
+            return najbolji
+    return None
+
 
 def classify_heuristic(text: str) -> tuple[str, float] | None:
     """Vraća (document_type, confidence) ako je neka ključna reč prepoznata
@@ -62,18 +106,31 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     namerno konzervativan (0.85) — dovoljno visok za auto-accept prag (§14
     dizajn review, ≥90% opšte, ali klasifikacija ovde nosi manji rizik od
     case-matcha pa je 85% prihvatljivo kao heuristički signal, ne slepo
-    veruj — LLM fallback postoji baš za slučajeve gde ovo nije dovoljno)."""
-    head = (text or "")[:_HEAD_CHARS].upper()
+    veruj — LLM fallback postoji baš za slučajeve gde ovo nije dovoljno).
+
+    QA-02: vrstu određuje NASLOV — red zaglavlja koji POČINJE ključnom reči napisanom velikim slovima — a ne
+    usputno pominjanje drugog dokumenta („po Ugovoru…“, „navodi tužbe…“). Ranije je pobeđivala prva vrsta iz
+    liste čija se reč javi bilo gde u zaglavlju, pa su predlog tužbe, zapisnik i potvrda isporuke postajali
+    `contract`, a odgovor na tužbu koji pominje „TUŽBA“ — `lawsuit`. Bez prepoznatog naslova: None (model)."""
+    head = (text or "")[:_HEAD_CHARS]
+    head_upper = head.upper()
     # N06: dostavnica/povratnica imenuje URUČENO pismeno („Писмено: пресуда“) — ključna reč posle njenog naslova
     # opisuje drugi dokument, ne ovaj. Tada odlučuje LLM (taksonomija nema tip „dostavnica“, pa je pošten ishod
     # „other“), ne heuristika sa 0.85 za tuđi tip.
-    dostavnica = min((head.find(o) for o in _DOSTAVNICA_OZNAKE if o in head), default=-1)
-    for doc_type, keywords in _HEURISTICS:
-        for kw in keywords:
-            pozicija = head.find(kw.upper())
-            if pozicija < 0 or 0 <= dostavnica < pozicija:
-                continue
-            return doc_type, 0.85
+    dostavnica = min((head_upper.find(o) for o in _DOSTAVNICA_OZNAKE if o in head_upper), default=-1)
+    pozicija = 0
+    for sirov in head.split("\n"):
+        pocetak, pozicija = pozicija, pozicija + len(sirov) + 1
+        if 0 <= dostavnica < pocetak:          # red je posle oznake dostavnice: opisuje uručeno pismeno
+            return None
+        red = _red_naslova(sirov)
+        if not red:
+            continue
+        if any(_pocinje_recju(red, n) for n in _NASLOVI_VAN_TAKSONOMIJE):
+            return None
+        nadjen = _naslovni_tip(red)
+        if nadjen:
+            return nadjen[0], 0.85
     return None
 
 
