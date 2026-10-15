@@ -101,11 +101,11 @@ Rizici: pogrešna vrsta „datum_dogadjaja“ za stvarni procesni rok → propu�
 | PR | base | head | CI | Padovi naspram `main` |
 |---|---|---|---|---|
 | #35 forenzika identiteta | `3ab9343e` | `6da18ded` | Test Suite ✗, Runtime Parity ✗, Security ✓ | pytest 3.11/3.13: 174 = isti ID-jevi kao `main`; Parity 195 = isti ID-jevi |
-| #36 srpski nazivi | `3ab9343e` | `62fc2625` | ranije `54a07e14`: isto kao #35; nov head čeka CI | isto kao `main` (za `54a07e14`) |
-| #37 fotografija | `3ab9343e` | `08990674` | čeka CI | lokalno ceo paket = `main` |
-| #38 klasifikacija | `3ab9343e` | `7588fce4` | čeka CI | lokalno intake skup = `main` |
+| #36 srpski nazivi | `3ab9343e` | `62fc2625` | Test Suite ✗, Parity ✗, Security ✓ | pytest 3.11/3.13: 174 = isti ID-jevi; Parity 195 = isti |
+| #37 fotografija | `3ab9343e` | `08990674` | Test Suite ✗, Parity ✗, Security ✓ | pytest 174 = isti; Parity 195 = isti; lokalno 19 = `main` |
+| #38 klasifikacija | `3ab9343e` | `7588fce4` | Test Suite ✗, Parity ✗, Security ✓ | Parity 195 = isti; pytest 3.13 prvi pokušaj +1 (`test_hearing_cc[upravni]`, 404, ne koristi klasifikator; prolazi na 3.11 i lokalno 4/4) → ponovljen posao: 174 = isti ID-jevi na 3.11 i 3.13 |
 
-`main` (`3ab9343e`) sam ima crven Test Suite i Runtime Parity (174/195 padova, pre ovog sprinta); ovaj sprint ih ne menja.
+**Nijedan nov CI pad u odnosu na `main`** (poređeni tačni ID-jevi, ne broj). `main` (`3ab9343e`) sam ima crven Test Suite i Runtime Parity (174/195 padova, pre ovog sprinta); ovaj sprint ih ne menja.
 PR #35: kriterijumi ispunjeni (31 test, mutacije ubijene, ceo paket = `main`, pregled GO WITH NOTES) → preporuka za pregled osnivača kao zaseban kandidat.
 
 Preklapanja: #36 (frontend), #37 (`uploaded_doc/schema.py`), #38 (`shared/intake_classify.py`), #35 (`services/event_bus.py`) ne dele nijedan fajl → spajanje bez konflikata.
