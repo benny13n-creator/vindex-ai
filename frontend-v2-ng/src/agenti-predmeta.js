@@ -119,9 +119,36 @@
       });
       zatvori();
     }
-    function prikaziKontekst(kp) {
-      if (kp === false) poruka("ag-kontekst", "nepoznato", "Podaci ovog predmeta NISU pročitani; savet je opšti.");
-      else if (kp === true) poruka("ag-kontekst", "uspeh", "Savet je dat uz podatke i dokumente ovog predmeta.");
+    /* QA-08: „predmet pročitan“ (kp) NIJE „dokumenti pročitani“. Šta je savetnik stvarno dobio javlja server
+     * (`izvori_predmeta`); bez te evidencije se ne tvrdi da je savet zasnovan na dokumentima. */
+    function oznake(lista) {
+      var a = (Array.isArray(lista) ? lista : []).map(function (x) { return tekst(x && x.oznaka); }).filter(Boolean);
+      return a.slice(0, 12).join(", ") + (a.length > 12 ? " i još " + (a.length - 12) : "");
+    }
+    function prikaziKontekst(kp, iz) {
+      if (kp === false) { poruka("ag-kontekst", "nepoznato", "Podaci ovog predmeta NISU pročitani; savet je opšti."); return; }
+      if (kp !== true) return;
+      if (!iz || typeof iz !== "object") { poruka("ag-kontekst", "nepoznato", "Predmet je pročitan, ali nije utvrđeno koje je dokumente savetnik dobio."); return; }
+      var uk = Array.isArray(iz.ukljuceni) ? iz.ukljuceni : [], n = iz.dokumenata_u_predmetu;
+      var del = uk.filter(function (u) { return !u.potpun; });
+      var t;
+      if (iz.greska_citanja) t = "Dokumenti predmeta nisu (potpuno) pročitani zbog greške. Ne oslanjajte se na savet kao na pregled dokumenata.";
+      else if (!n) t = "Predmet je pročitan, ali nema dokumenata; savet nije zasnovan na dokumentima.";
+      else if (!uk.length) t = "Savetnik nije dobio tekst nijednog od " + n + " dokumenata predmeta.";
+      else t = "Savetnik je dobio tekst " + uk.length + " od " + n + " dokumenata: " + oznake(uk) + "."
+        + (del.length ? " Delimično (samo početak): " + oznake(del) + "." : "")
+        + (iz.izostavljenih_ukupno ? " Ostali (" + iz.izostavljenih_ukupno + ") nisu pročitani u ovom odgovoru — za određeni dokument navedite njegov redni broj, npr. DOK-01." : "");
+      var nisu = (Array.isArray(iz.trazeni_nisu_dostavljeni) ? iz.trazeni_nisu_dostavljeni : []).map(function (x) {
+        return tekst(x.oznaka) + (x.razlog === "NE_POSTOJI" ? " ne postoji u ovom predmetu" : x.razlog === "BEZ_TEKSTA" ? " nema izdvojen tekst" : " nije dostavljen (ograničenje broja dokumenata)");
+      });
+      if (nisu.length) t += " Traženo, a NIJE pročitano: " + nisu.join("; ") + ".";
+      var potpun = !iz.greska_citanja && n > 0 && iz.svi_dokumenti_u_celini === true && !nisu.length;
+      poruka("ag-kontekst", potpun ? "uspeh" : "nepoznato", t);
+    }
+    function upozoriNedostavljene(lista, ime) {
+      var oz = (Array.isArray(lista) ? lista : []).map(tekst).filter(Boolean);
+      if (oz.length) upozorenjeVrh("nedostavljeni", (ime ? ime + ": " : "") + "odgovor pominje " + oz.join(", ")
+        + ", čiji tekst savetnik nije dobio — te tvrdnje nisu proverene u izvoru.");
     }
     /* Jedan rezultat kombinovanog rada: naslov, stanje, SOPSTVENA provera citata, tekst. */
     function blokRezultata(agent, stanje, provera, odgovor, napomena) {
@@ -148,7 +175,8 @@
       var neusp = rez.filter(function (x) { return x.stanje !== "USPEH"; }).length;
       if (neusp) upozorenjeVrh("delimicno", "Odgovorilo je " + (rez.length - neusp) + " od " + rez.length + " savetnika. Savetnici koji nisu odgovorili nisu naplaćeni.");
       upozorenjeVrh("pregled", "Radni materijal: pre upotrebe ga mora pregledati advokat. Citati su provereni za svakog savetnika posebno.", "ok");
-      prikaziKontekst(p.kontekst_predmeta);
+      prikaziKontekst(p.kontekst_predmeta, p.izvori_predmeta);
+      rez.forEach(function (x) { if (x.stanje === "USPEH") upozoriNedostavljene(x.pominje_nedostavljene, NAZIV[x.agent_id]); });
       $("ag-tekst").replaceChildren();
       rez.forEach(function (x) { blokRezultata(x.agent_id, x.stanje === "USPEH" ? "USPEH" : "NEUSPEH", x.provera_citata, x.odgovor); });
     }
@@ -164,7 +192,7 @@
       var ul = el("ul", "warns"); li.append(ul); zav.append(li);
       prikaziCitate(p.provera_citata_zavrsnog, ul, "Završni odgovor: ");
       upozorenjeVrh("pregled", "Radni materijal, ne pravni zaključak: pre upotrebe ga mora pregledati advokat. Provera citata ranijeg koraka ne važi za završni odgovor.", "ok");
-      prikaziKontekst(p.kontekst_predmeta);
+      prikaziKontekst(p.kontekst_predmeta, p.izvori_predmeta);
       $("ag-tekst").replaceChildren();
       rez.forEach(function (x) {
         blokRezultata(x.agent, x.stanje === "USPEH" ? "USPEH" : "NEUSPEH", x.provera_citata, x.output,
@@ -203,7 +231,8 @@
         if (n === "pojedinacno") {
           $("ag-odgovor-naslov").textContent = "Savetnik: " + NAZIV[agent];
           prikaziCitate(r.podaci.provera_citata);
-          prikaziKontekst(r.podaci.kontekst_predmeta);
+          prikaziKontekst(r.podaci.kontekst_predmeta, r.podaci.izvori_predmeta);
+          upozoriNedostavljene(r.podaci.izvori_predmeta && r.podaci.izvori_predmeta.odgovor_pominje_nedostavljene);
           prikaziTekst(r.podaci.odgovor);
         } else if (n === "paralelno") {
           var p = r.podaci;

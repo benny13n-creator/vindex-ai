@@ -64,7 +64,9 @@ const EMODZI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
   e = await ekran(s.p);
   zapisi("A.odgovor", "odgovor prikazan sa naslovom savetnika i naslovima odeljaka", e.odgovor && /Pravno istraživanje/.test(e.naslov) && e.naslovi.join("|") === "1. OSNOV ODGOVORNOSTI|2. DOKAZI", e.naslovi.join("|"));
   zapisi("A.citati", "neproveren član je izričito naveden (Član 999)", e.citati.length === 1 && /^citati-neprovereni:/.test(e.citati[0]) && /Član 999 \(zoo\)/.test(e.citati[0]) && /nije potvrđen/.test(e.citati[0]), e.citati.join());
-  zapisi("A.kontekst", "savet je dat uz podatke ovog predmeta", /uz podatke i dokumente ovog predmeta/.test(e.kontekst || ""));
+  // QA-08: ranije „savet je dat uz podatke i dokumente ovog predmeta“ — tvrdnja koju server nije mogao da dokaže.
+  zapisi("A.kontekst", "kaže TAČNO koje je dokumente savetnik dobio i koje nije", /Savetnik je dobio tekst 5 od 7 dokumenata: DOK-07, DOK-06, DOK-05, DOK-04, DOK-03\./.test(e.kontekst || "")
+    && /Ostali \(2\) nisu pročitani/.test(e.kontekst || "") && !/uz podatke i dokumente ovog predmeta/.test(e.kontekst || ""), e.kontekst);
   zapisi("A.bezbednost", "tekst odgovora bez izvršavanja HTML-a, bez emodžija i bez **", e.xss === null && !EMODZI.test(e.tekst + e.naslovi.join()) && !/\*\*/.test(e.tekst), e.tekst.slice(0, 80));
   zapisi("A.ugovor", "zahtev nosi agent, zadatak i predmet (bez user_id)", tela.length === 1 && tela[0].agent === "research" && tela[0].predmet_id === s.A[0].id && !("user_id" in tela[0]), JSON.stringify(tela[0]));
   await s.zatvori();
@@ -156,7 +158,7 @@ async function pokreniKomb(p, nacin, zadatak = "Pripremi tužbu za naknadu štet
   zapisi("E.paralelno", "tri odeljka, svaki sa SOPSTVENOM proverom citata", e.odgovor && e.blokovi.length === 3
     && e.blokovi[0].citati[0].startsWith("citati-provereni:") && e.blokovi[1].citati[0].startsWith("citati-neprovereni:") && /Član 999/.test(e.blokovi[1].citati[0])
     && e.blokovi[2].citati[0].startsWith("bez-citata:"), JSON.stringify(e.blokovi.map(b => [b.agent, b.citati.map(c => c.split(":")[0])])));
-  zapisi("E.paralelno", "radni materijal za pregled advokata; kontekst predmeta naveden", e.vrh.some(v => v.startsWith("pregled:")) && /uz podatke i dokumente ovog predmeta/.test(e.kontekst || ""));
+  zapisi("E.paralelno", "radni materijal za pregled advokata; kontekst predmeta naveden", e.vrh.some(v => v.startsWith("pregled:")) && /Savetnik je dobio tekst 5 od 7 dokumenata/.test(e.kontekst || ""), e.kontekst);
   zapisi("E.ugovor", "jedan zahtev sa tačno tri proverena savetnika, predmetom i ključem idempotencije, bez user_id",
     tela.length === 1 && tela[0]._putanja === "/api/agents/run-parallel" && tela[0].agenti.join() === "research,litigation,intake"
     && tela[0].predmet_id === s.A[0].id && !!tela[0]._kljuc && !("user_id" in tela[0]), JSON.stringify(tela[0]));
@@ -222,6 +224,59 @@ for (const [w, h] of [[390, 844]]) {
   const m = await s.p.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: innerWidth }));
   zapisi("G.raspored", `${w}px: bez horizontalnog skrola sa tri pogleda`, m.sw <= m.vw, `${m.sw}/${m.vw}`);
   await s.zatvori();
+}
+
+// ── Q (QA-08): ekran kaže koje je dokumente savetnik STVARNO dobio; nikad „uz dokumente“ bez evidencije servera ─────
+{
+  const { izvoriPredmeta } = await import("./fixtures/pisanje-api.mjs");
+  const DOK = (n, potpun = true) => ({ oznaka: "DOK-" + String(n).padStart(2, "0"), naziv: n + ".pdf", trazen: false, potpun, znakova_dostavljeno: potpun ? 900 : 5000, znakova_ukupno: potpun ? 900 : 30000 });
+  const stanjeKonteksta = (p) => p.evaluate(() => { const n = document.getElementById("ag-kontekst"); return n.hidden ? null : n.dataset.stanje; });
+  for (const [naziv, izvori, re, ocekivanoStanje] of [
+    ["traženi ne postoji", izvoriPredmeta({ trazeni_nisu_dostavljeni: [{ oznaka: "DOK-09", razlog: "NE_POSTOJI", razlog_tekst: "ne postoji u ovom predmetu" }] }),
+      /Traženo, a NIJE pročitano: DOK-09 ne postoji u ovom predmetu\./, "nepoznato"],
+    ["traženi iznad ograničenja", izvoriPredmeta({ trazeni_nisu_dostavljeni: [{ oznaka: "DOK-06", razlog: "OGRANICENJE", razlog_tekst: "" }] }),
+      /DOK-06 nije dostavljen \(ograničenje broja dokumenata\)/, "nepoznato"],
+    ["traženi bez teksta", izvoriPredmeta({ bez_teksta: [{ oznaka: "DOK-04", naziv: "4.pdf" }], trazeni_nisu_dostavljeni: [{ oznaka: "DOK-04", razlog: "BEZ_TEKSTA", razlog_tekst: "" }] }),
+      /DOK-04 nema izdvojen tekst/, "nepoznato"],
+    ["delimičan dokument", izvoriPredmeta({ ukljuceni: [DOK(1, false), DOK(7)], izostavljenih_ukupno: 5 }),
+      /dobio tekst 2 od 7 dokumenata: DOK-01, DOK-07\. Delimično \(samo početak\): DOK-01\./, "nepoznato"],
+    ["svi u celini", izvoriPredmeta({ dokumenata_u_predmetu: 3, ukljuceni: [DOK(3), DOK(2), DOK(1)], izostavljeni: [], izostavljenih_ukupno: 0, svi_dokumenti_u_celini: true }),
+      /^Savetnik je dobio tekst 3 od 3 dokumenata: DOK-03, DOK-02, DOK-01\.$/, "uspeh"],
+    ["predmet bez dokumenata", izvoriPredmeta({ dokumenata_u_predmetu: 0, ukljuceni: [], izostavljeni: [], izostavljenih_ukupno: 0 }),
+      /nema dokumenata; savet nije zasnovan na dokumentima/, "nepoznato"],
+    ["greška čitanja", izvoriPredmeta({ dokumenata_u_predmetu: null, greska_citanja: true, ukljuceni: [], izostavljeni: [], izostavljenih_ukupno: 0 }),
+      /nisu \(potpuno\) pročitani zbog greške/, "nepoznato"],
+    ["server bez evidencije", null, /nije utvrđeno koje je dokumente savetnik dobio/, "nepoznato"],
+  ]) {
+    const s = await scenario({ izvori });
+    await pokreni(s.p);
+    const e = await ekran(s.p);
+    const st = await stanjeKonteksta(s.p);
+    zapisi("Q.izvori", naziv, re.test(e.kontekst || "") && st === ocekivanoStanje && !/uz podatke i dokumente/.test(e.kontekst || ""), `${st} | ${e.kontekst}`);
+    await s.zatvori();
+  }
+  {
+    const s = await scenario({ izvori: izvoriPredmeta({ odgovor_pominje_nedostavljene: ["DOK-02", "DOK-01"] }) });
+    await pokreni(s.p);
+    const e = await ekran(s.p);
+    zapisi("Q.pominje", "odgovor pominje nepročitane dokumente: izričito upozorenje", e.citati.some(c => /^nedostavljeni:.*odgovor pominje DOK-02, DOK-01, čiji tekst savetnik nije dobio/.test(c)), e.citati.join(" | "));
+    await s.zatvori();
+  }
+  {
+    const s = await scenario({ pominje: { litigation: ["DOK-01"] } });
+    await pokreniKomb(s.p, "paralelno");
+    const e = await ekranKomb(s.p);
+    zapisi("Q.pominje", "tri pogleda: upozorenje samo za savetnika koji pominje nepročitan dokument",
+      e.vrh.filter(v => v.startsWith("nedostavljeni:")).length === 1 && e.vrh.some(v => /^nedostavljeni:Parnična strategija: odgovor pominje DOK-01/.test(v)), e.vrh.join(" | "));
+    await s.zatvori();
+  }
+  {
+    const s = await scenario({ izvori: izvoriPredmeta({ ukljuceni: [{ ...DOK(1), oznaka: "<img src=x onerror=window.__xss=99>" }] }) });
+    await pokreni(s.p);
+    const e = await ekran(s.p);
+    zapisi("Q.bezbednost", "oznaka iz odgovora servera se prikazuje kao tekst", e.xss === null, String(e.xss));
+    await s.zatvori();
+  }
 }
 
 await browser.close();
