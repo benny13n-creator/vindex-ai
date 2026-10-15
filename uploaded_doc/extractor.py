@@ -516,6 +516,12 @@ _snimac_slika = None
 # Isecanje maskom slike (meka maska, /SMask): crtač dok traje maska drži novi sloj strane, masku i umanjenu masku.
 # Lokalno izmereno (RGB 16 MP + siva maska 16 MP na A4/300): +60 MiB iznad iste slike bez maske → 9 B po pikselu sloja.
 _SLOJ_MASKE_BAJTOVA_PO_PIKSELU = 9
+# Transparentna grupa (/Group /S /Transparency, i grupa strane) i meka maska ExtGState-a: crtač za svaku otvorenu grupu
+# drži novi sloj veličine njene oblasti (RGB + alfa); grupa sa knockout još i oblik i alfu grupe. Lokalno izmereno
+# (A4/300): ugnežđene knockout grupe +75 MiB po nivou (pregled N1: 4 nivoa → +316 MiB, 2–5 KB fajl); izolovana grupa
+# strane oko skena +34 MiB. Otvorene grupe i maske se sabiraju (najveći istovremeni zbir), kao i ostali slojevi.
+_SLOJ_GRUPE_BAJTOVA_PO_PIKSELU = 4
+_SLOJ_GRUPE_KNOCKOUT_BAJTOVA_PO_PIKSELU = 9
 
 
 class _NeproverljivPdf(Exception):
@@ -538,11 +544,14 @@ def _klasa_snimaca_slika():
             self.use_virtual_fill_image()
             self.use_virtual_fill_image_mask()
             self.use_virtual_clip_image_mask()
-            for ime in ("clip_path", "clip_stroke_path", "clip_text", "clip_stroke_text", "pop_clip"):
+            for ime in ("clip_path", "clip_stroke_path", "clip_text", "clip_stroke_text", "pop_clip",
+                        "begin_group", "end_group", "begin_mask", "end_mask"):
                 getattr(self, "use_virtual_" + ime)()
             self.slike: list[dict] = []
             self.strana_px = 0
-            self.stek: list[int] = []       # otvorena isecanja; maska slike drži sloj veličine strane (v. _SLOJ_MASKE)
+            self.strana_w = self.strana_h = 0.0
+            self.stek: list[int] = []       # otvorena isecanja i grupe; maska slike i grupa drže sloj (v. _SLOJ_*)
+            self.max_stek = 0
 
         def _zabelezi(self, slika, ctm, maska: bool) -> None:
             cb = m.ll_fz_compressed_image_buffer(slika)
@@ -572,6 +581,26 @@ def _klasa_snimaca_slika():
             self._zabelezi(slika, ctm, True)
             povrsina = (int(math.hypot(ctm.a, ctm.b)) + 1) * (int(math.hypot(ctm.c, ctm.d)) + 1)
             self.stek.append(min(povrsina, self.strana_px) * _SLOJ_MASKE_BAJTOVA_PO_PIKSELU)
+            self.max_stek = max(self.max_stek, sum(self.stek))
+
+        def _sloj(self, oblast, bajtova_po_pikselu: int) -> None:
+            w = max(0.0, min(float(oblast.x1), self.strana_w) - max(float(oblast.x0), 0.0))
+            h = max(0.0, min(float(oblast.y1), self.strana_h) - max(float(oblast.y0), 0.0))
+            self.stek.append(min((int(w) + 1) * (int(h) + 1), self.strana_px) * bajtova_po_pikselu)
+            self.max_stek = max(self.max_stek, sum(self.stek))
+
+        def begin_group(self, ctx, oblast, cs, izolovana, knockout, blendmode, alpha):
+            self._sloj(oblast, _SLOJ_GRUPE_KNOCKOUT_BAJTOVA_PO_PIKSELU if knockout else _SLOJ_GRUPE_BAJTOVA_PO_PIKSELU)
+
+        def end_group(self, ctx):
+            if self.stek:
+                self.stek.pop()
+
+        def begin_mask(self, ctx, oblast, luminosity, cs, bc, color_params):
+            self._sloj(oblast, _SLOJ_GRUPE_BAJTOVA_PO_PIKSELU)    # posle end_mask maska ostaje do pop_clip
+
+        def end_mask(self, ctx, *a):
+            pass
 
         def clip_path(self, *a):
             self.stek.append(0)
@@ -626,14 +655,31 @@ def _mupdf_bajtovi_slike(s: dict, strana_px: int) -> tuple[int, int]:
     return kes, max(prolazno, posle + s["stek"])
 
 
+MAX_POSETA_OBJEKATA_STRANE = 20_000             # obične strane: desetine do stotine objekata
+
+
 def _tokovi_sadrzaja_strane(strana_obj) -> list[int]:
     """Brojevi objekata tokova sadržaja koje MuPDF interpretira za stranu: sadržaj, forme (ugnežđene), šabloni,
     meke maske ExtGState-a, Type3 glifovi, izgled anotacija. Šira lista je bezbedna (više provere), uža nije."""
     import pymupdf
     m = pymupdf.mupdf
     ime = m.pdf_new_name
-    vidjeni: set[int] = set()
+    vidjeni: set[int] = set()                       # SVI posećeni indirektni objekti (ne samo tokovi): pregled N2
     tokovi: list[int] = []
+    poseta = [0]
+
+    def nov(o) -> bool:
+        """False ako je indirektan objekat već obiđen. Ograničen broj poseta: bez toga lanac rečnika koji se
+        međusobno referišu (2 KB) daje 2^N obilazaka pod _RASTER_OCR_LOCK (pregled N2: 33 s za N=22)."""
+        poseta[0] += 1
+        if poseta[0] > MAX_POSETA_OBJEKATA_STRANE:
+            raise _NeproverljivPdf("previše objekata u sadržaju strane")
+        if m.pdf_is_indirect(o):
+            num = m.pdf_to_num(o)
+            if num in vidjeni:
+                return False
+            vidjeni.add(num)
+        return True
 
     def vrednosti(d):
         return [m.pdf_dict_get_val(d, i) for i in range(m.pdf_dict_len(d))] if m.pdf_is_dict(d) else []
@@ -641,10 +687,11 @@ def _tokovi_sadrzaja_strane(strana_obj) -> list[int]:
     def tok(o, dubina=0):
         if dubina > 64:
             raise _NeproverljivPdf("preduboko ugnežđen sadržaj strane")
+        if not nov(o):
+            return
         if m.pdf_is_stream(o):
             num = m.pdf_to_num(o)
-            if num and num not in vidjeni:
-                vidjeni.add(num)
+            if num:
                 tokovi.append(num)
                 resursi(m.pdf_dict_get(o, ime("Resources")), dubina + 1)
         elif m.pdf_is_array(o):
@@ -655,7 +702,9 @@ def _tokovi_sadrzaja_strane(strana_obj) -> list[int]:
                 tok(v, dubina + 1)
 
     def resursi(res, dubina):
-        if not m.pdf_is_dict(res):
+        if dubina > 64:
+            raise _NeproverljivPdf("preduboko ugnežđen sadržaj strane")
+        if not m.pdf_is_dict(res) or not nov(res):
             return
         for v in vrednosti(m.pdf_dict_get(res, ime("XObject"))) + vrednosti(m.pdf_dict_get(res, ime("Pattern"))):
             if m.pdf_is_stream(v) and not m.pdf_name_eq(m.pdf_dict_get(v, ime("Subtype")), ime("Image")):
@@ -988,6 +1037,7 @@ def _procena_rastera_strane(doc, i: int, dpi: int) -> tuple[int, str]:
         return pre, f"umetnuta slika ({len(umetnute)} na strani)"
     snimac = _klasa_snimaca_slika()()
     snimac.strana_px = strana_px
+    snimac.strana_w, snimac.strana_h = float(pw), float(ph)
     z = dpi / 72.0
     try:
         m.fz_run_page(strana.this, snimac, m.FzMatrix(z, 0, 0, z, 0, 0), m.FzCookie())
@@ -1002,7 +1052,9 @@ def _procena_rastera_strane(doc, i: int, dpi: int) -> tuple[int, str]:
         if k + p > najveca_b:
             najveca, najveca_b = f"{s['tip']} {s['w']}x{s['h']}x{s['n']}", k + p
     # posle MuPDF-a (_rasterizuj_stranu): raster strane (3 B) dok se pravi PNG, PIL RGB (4 B) i siva kopija (1 B)
-    return max(strana_b + kes + prolazno, strana_px * 8), najveca
+    if snimac.max_stek:
+        najveca = f"{najveca}; slojevi grupa/maski {snimac.max_stek >> 20} MiB".lstrip("; ")
+    return max(strana_b + kes + max(prolazno, snimac.max_stek), strana_px * 8), najveca
 
 
 def _odbij_pdf_preveliki_raster(doc, indeksi, dpi_strane=None) -> None:

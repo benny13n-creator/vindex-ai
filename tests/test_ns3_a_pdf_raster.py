@@ -178,10 +178,10 @@ def test_meka_maska_i_sablonska_maska_ulaze_u_procenu(tmp_path):
 def test_maska_drzi_sloj_i_dok_traje_dekodiranje(tmp_path):
     """Progresivni JPEG pod mekom maskom: koeficijenti i sloj maske postoje istovremeno."""
     d = fitz.open(); pg = d.new_page(width=595, height=842)
-    pg.insert_image(A4, stream=_zag(3000, 4000, RGB, progresivni=True), mask=_zag(3000, 4000, [(1, 1)]))
+    pg.insert_image(A4, stream=_zag(4000, 5600, RGB, progresivni=True), mask=_zag(4000, 5600, [(1, 1)]))
     b, _ = X._procena_rastera_strane(fitz.open(str(_sacuvaj(d, tmp_path))), 0, 300)
-    koef = X._jpeg_bajtova_koeficijenata(3000, 4000, RGB)
-    assert b >= 2480 * 3509 * 3 + 3000 * 4000 * 4 + koef + 2480 * 3509 * X._SLOJ_MASKE_BAJTOVA_PO_PIKSELU
+    koef = X._jpeg_bajtova_koeficijenata(4000, 5600, RGB)                # 128 MiB: veće od ostalih prolaznih
+    assert b >= 2480 * 3509 * 3 + 4000 * 5600 * 4 + koef + 2480 * 3509 * X._SLOJ_MASKE_BAJTOVA_PO_PIKSELU
 
 
 def test_velika_strana_bez_slika_pil_faza():
@@ -319,3 +319,96 @@ def test_necitljive_strane_proverava_na_svom_dpi(tmp_path, monkeypatch):
     monkeypatch.setattr(X, "_procena_rastera_strane", lambda doc, i, d: (dpi.append(d), pravo(doc, i, d))[1])
     monkeypatch.setattr(fitz.Page, "get_pixmap", lambda self, *a, **k: type("P", (), {"samples": bytes([255]) * 100})())
     assert X.necitljive_strane_pdf(p, [""]) == [] and dpi == [50]
+
+
+# ── Pregled N1: transparentne grupe i meke maske; N2: eksponencijalan graf objekata ───────────────────────────────
+
+def _forma(d, sadrzaj: bytes, resursi: str = "<<>>", grupa: str = "/Group<</S/Transparency/I true/K true>>") -> int:
+    x = d.get_new_xref()
+    d.update_object(x, f"<</Type/XObject/Subtype/Form/BBox[0 0 595 842]{grupa}/Resources{resursi}>>")
+    d.update_stream(x, sadrzaj)
+    return x
+
+
+def _ugnezdene_grupe(tmp_path, n, grupa="/Group<</S/Transparency/I true/K true>>"):
+    d = fitz.open(); pg = d.new_page(width=595, height=842)
+    x = _forma(d, b"0.5 g 0 0 595 842 re f", grupa=grupa)
+    for _ in range(n - 1):
+        x = _forma(d, b"0.9 g 0 0 10 10 re f /G Do", f"<</XObject<</G {x} 0 R>>>>", grupa=grupa)
+    d.xref_set_key(pg.xref, "Resources", f"<</XObject<</G {x} 0 R>>>>")
+    c = d.get_new_xref(); d.update_object(c, "<<>>"); d.update_stream(c, b"/G Do")
+    d.xref_set_key(pg.xref, "Contents", f"{c} 0 R")
+    return _sacuvaj(d, tmp_path, f"g{n}.pdf")
+
+
+def test_ugnezdene_transparentne_grupe_odbijene(tmp_path, bez_rasterizacije):
+    """N1: 4 ugnežđene knockout grupe preko cele strane (~2 KB) → +316 MiB pri crtanju (izmereno)."""
+    reason = _odbijen(_ugnezdene_grupe(tmp_path, 4))
+    assert "slojevi grupa" in reason
+
+
+def test_grupe_se_racunaju_po_dubini_ne_po_broju(tmp_path):
+    b1, _ = X._procena_rastera_strane(fitz.open(str(_ugnezdene_grupe(tmp_path, 1))), 0, 300)
+    b2, _ = X._procena_rastera_strane(fitz.open(str(_ugnezdene_grupe(tmp_path, 2))), 0, 300)
+    sloj = 2480 * 3509 * X._SLOJ_GRUPE_KNOCKOUT_BAJTOVA_PO_PIKSELU
+    assert b2 - b1 >= sloj
+    # iste grupe jedna POSLE druge (ne ugnežđene) drže najviše jedan sloj istovremeno
+    d = fitz.open(); pg = d.new_page(width=595, height=842)
+    xs = [_forma(d, b"0.5 g 0 0 595 842 re f") for _ in range(6)]
+    d.xref_set_key(pg.xref, "Resources", "<</XObject<<" + "".join(f"/G{i} {x} 0 R" for i, x in enumerate(xs)) + ">>>>")
+    c = d.get_new_xref(); d.update_object(c, "<<>>"); d.update_stream(c, b" ".join(f"/G{i} Do".encode() for i in range(6)))
+    d.xref_set_key(pg.xref, "Contents", f"{c} 0 R")
+    b6, _ = X._procena_rastera_strane(fitz.open(str(_sacuvaj(d, tmp_path, "uzastopne.pdf"))), 0, 300)
+    assert b6 == b1
+
+
+def test_meka_maska_stanja_grafike_se_racuna(tmp_path):
+    d = fitz.open(); pg = d.new_page(width=595, height=842)
+    mx = _forma(d, b"0.7 g 0 0 595 842 re f", grupa="")         # bez /Group: sloj dolazi samo od maske
+    d.xref_set_key(pg.xref, "Resources", f"<</ExtGState<</S0<</SMask<</S/Luminosity/G {mx} 0 R>>>>>>>>")
+    c = d.get_new_xref(); d.update_object(c, "<<>>"); d.update_stream(c, b"/S0 gs 0 g 0 0 595 842 re f")
+    d.xref_set_key(pg.xref, "Contents", f"{c} 0 R")
+    b, opis = X._procena_rastera_strane(fitz.open(str(_sacuvaj(d, tmp_path))), 0, 300)
+    assert b >= 2480 * 3509 * (3 + X._SLOJ_GRUPE_BAJTOVA_PO_PIKSELU) and "slojevi" in opis
+
+
+def test_sken_u_grupi_strane_i_digitalni_providan_logo_prihvaceni(tmp_path, lazan_ocr):
+    """Word/LibreOffice izvoz: /Group na strani oko skena 300 dpi; digitalna strana sa providnim logom."""
+    d = fitz.open(); pg = d.new_page(width=595, height=842); pg.insert_image(A4, stream=_zag(2480, 3508, RGB))
+    d.xref_set_key(pg.xref, "Group", "<</S/Transparency/CS/DeviceRGB/I true>>")
+    assert X.extract(_sacuvaj(d, tmp_path, "sken.pdf"))[2] is True
+    d = fitz.open(); pg = d.new_page(width=595, height=842)
+    for i in range(5):
+        pg.insert_text((50, 60 + i * 19), f"{i + 1}. Digitalni podnesak sa providnim logotipom u zaglavlju.", fontsize=11)
+    logo = io.BytesIO(); Image.new("RGBA", (400, 200), (200, 30, 30, 120)).save(logo, "PNG")
+    pg.insert_image(fitz.Rect(400, 20, 560, 100), stream=logo.getvalue())
+    d.xref_set_key(pg.xref, "Group", "<</S/Transparency/CS/DeviceRGB/I true>>")
+    p = _sacuvaj(d, tmp_path, "logo.pdf")
+    assert X.necitljive_strane_pdf(p, [""]) is not None              # meri se (nije odbijeno)
+    X._odbij_pdf_preveliki_raster(fitz.open(str(p)), [0])             # ni na 300 dpi
+
+
+def _dag(tmp_path, n):
+    d = fitz.open(); pg = d.new_page(width=595, height=842)
+    pr = d.get_new_xref(); d.update_object(pr, "<</x 1>>")
+    for _ in range(n):
+        x = d.get_new_xref(); d.update_object(x, f"<</a {pr} 0 R /b {pr} 0 R>>"); pr = x
+    a = pg.add_rect_annot(fitz.Rect(10, 10, 50, 50))
+    d.xref_set_key(a.xref, "AP", f"<</N {pr} 0 R>>")
+    p = tmp_path / f"dag{n}.pdf"; d.save(str(p), garbage=0); d.close()
+    return p
+
+
+def test_eksponencijalan_graf_objekata_je_linearan(tmp_path):
+    """N2: lanac od 40 rečnika sa dve reference na prethodni = 2^40 puteva; svaki objekat se obilazi jednom."""
+    import time
+    doc = fitz.open(str(_dag(tmp_path, 40)))
+    t = time.perf_counter()
+    X._procena_rastera_strane(doc, 0, 300)
+    assert time.perf_counter() - t < 2
+
+
+def test_budzet_poseta_iscrpljen_je_neproverljivo(tmp_path, bez_rasterizacije, monkeypatch):
+    monkeypatch.setattr(X, "MAX_POSETA_OBJEKATA_STRANE", 10)
+    reason = _odbijen(_dag(tmp_path, 20), X.PORUKA_PDF_NEPROVERLJIV)
+    assert "previše objekata" in reason and "bezbednost nije utvr" in reason
