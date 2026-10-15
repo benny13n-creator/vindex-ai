@@ -206,7 +206,7 @@
       }
       niz(dz.dokumenti).forEach(function (x) {
         var k = x.klasifikacija || {};
-        var opis = k.stanje === "NEUSPESNA" ? "klasifikacija nije uspela" : k.stanje === "NIJE_KLASIFIKOVAN" ? "nije klasifikovan" : tekst(k.tip).replace(/_/g, " ");
+        var opis = k.stanje === "NEUSPESNA" ? "klasifikacija nije uspela" : k.stanje === "NIJE_KLASIFIKOVAN" ? "nije klasifikovan" : root.VxNazivi.vrstaDokumenta(k.tip);
         var li = stavkaListe(x.naziv || "Dokument", null, [meta(opis + " · tvrdnji: " + x.broj_tvrdnji), dugmeIzvora(x.id, x.naziv, null)]);
         li.dataset.klasifikacija = tekst(k.stanje);
         $("an-dokumenti").append(li);
@@ -260,7 +260,7 @@
       var v = x.vrednost;
       switch (x.kljuc) {
         case "pokrivenost_procene": return v.procenjeno + " od " + v.ukupno + " tvrdnji ima procenu dokaza";
-        case "nedostajuci_tipovi": return v.length ? v.map(function (t) { return tekst(t).replace(/_/g, " "); }).join(", ") : "nijedan";
+        case "nedostajuci_tipovi": return v.length ? v.map(function (t) { return root.VxNazivi.vrstaDokumenta(t); }).join(", ") : "nijedan";
         case "rocista": return v.u_narednih_30_dana + " u narednih 30 dana · " + v.u_narednih_7_dana + " u narednih 7 dana · " + v.propustena + " propušteno";
         case "procesni_rizik": return tekst(v) + " (pravilo, nije procena ishoda)";
         case "kontradikcije": return v.aktivnih + " aktivnih (" + v.kriticnih + " kritičnih) · " + v.za_pregled + " traži pregled";

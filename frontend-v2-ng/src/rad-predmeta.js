@@ -108,7 +108,7 @@
         li.append(t, tekst);
         /* NS2-A2: odbijen rok ostaje u hronologiji i to se KAŽE; stanje je iz lanca odluka, ne iz porekla zapisa. */
         var odluka = h.stanjeOdluke ? (ODLUKA_ROKA[h.stanjeOdluke] || ODLUKA_ROKA.UNKNOWN) : "";
-        var meta = [odluka, h.akter, h.vaznost ? "važnost: " + h.vaznost : ""].filter(Boolean).join(" · ");
+        var meta = [odluka, root.VxNazivi.akter(h.akter), h.vaznost ? "važnost: " + h.vaznost : ""].filter(Boolean).join(" · ");
         if (meta) li.append(el("span", "chrono__meta", meta));
         $("hron-lista").append(li);
       });

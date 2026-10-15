@@ -508,7 +508,7 @@
       var b = el("button", "docs__item");
       b.type = "button"; b.dataset.dok = d.id;
       b.append(el("span", "docs__name", d.naziv || "Dokument bez naziva"));
-      var meta = [d.tip ? d.tip.replace(/_/g, " ") : "", d.datum ? datum(d.datum) : ""].filter(Boolean).join(" · ");
+      var meta = [window.VxNazivi.vrstaDokumenta(d.tip), d.datum ? datum(d.datum) : ""].filter(Boolean).join(" · ");
       if (meta) b.append(el("span", "docs__meta", meta));
       li.append(b); lista.append(li);
     });
@@ -564,7 +564,7 @@
     $("dok-sadrzaj").hidden = false;
     $("dok-naslov").textContent = d.naziv || "Dokument bez naziva";
     var dl = $("dok-cinjenice");
-    cinjenica(dl, "Vrsta dokumenta", d.tip ? d.tip.replace(/_/g, " ") : "");
+    cinjenica(dl, "Vrsta dokumenta", window.VxNazivi.vrstaDokumenta(d.tip));
     cinjenica(dl, "Dodat", d.datum ? datum(d.datum) : "");
     cinjenica(dl, "Veličina", d.velicinaKb !== null ? brojFormat.format(d.velicinaKb) + " KB" : "");
     cinjenica(dl, "Redni broj", d.redniBroj);
