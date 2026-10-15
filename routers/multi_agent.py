@@ -9,6 +9,7 @@ import asyncio
 import logging
 import json
 import re
+import unicodedata
 from fastapi import APIRouter, Depends, HTTPException, Request
 from shared.rate import limiter
 from pydantic import BaseModel, Field
@@ -480,18 +481,59 @@ def _trazeni_iz_zahteva(zahtev: str, meta: list) -> tuple:
     return trazeni, nepostojeci
 
 
+def _nazivi_nedostavljenih_u_odgovoru(odgovor: str, nazivi: list) -> list:
+    """QA-06: TAČAN naziv fajla (iz spiska OVOG predmeta) koji odgovor pominje, a čiji tekst savetnik nije dobio.
+    Bez delimičnog poklapanja: duži poznat naziv koji sadrži kraći („aneks ugovor.pdf“ ⊃ „ugovor.pdf“) zauzima mesto,
+    a naziv koji je i dostavljen i nedostavljen (dva dokumenta istog naziva) ne dokazuje ništa — preskače se."""
+    mala = unicodedata.normalize("NFC", odgovor).lower()
+    po_nazivu: dict = {}
+    for n in nazivi:
+        kljuc = unicodedata.normalize("NFC", n["naziv"]).strip().lower()
+        if len(kljuc) >= 5 and kljuc in mala:
+            po_nazivu.setdefault(kljuc, []).append(n)
+    pogoci = []
+    for kljuc, stavke in po_nazivu.items():
+        for m in re.finditer(r"(?<![\w.-])" + re.escape(kljuc) + r"(?![\w-]|\.\w)", mala):
+            pogoci.append((m.start(), m.end(), stavke))
+    zauzeto, out = [], []
+    for poc, kraj, stavke in sorted(pogoci, key=lambda x: (x[0] - x[1], x[0])):        # duži naziv prvi
+        if any(poc < z_kraj and z_poc < kraj for z_poc, z_kraj in zauzeto):
+            continue
+        zauzeto.append((poc, kraj))
+        if not any(s["dostavljen"] for s in stavke):
+            out.extend((poc, s) for s in stavke)
+    return [s for _poc, s in sorted(out, key=lambda x: x[0])]
+
+
 def _pominje_nedostavljene(odgovor: str, izvori: Optional[dict]) -> list:
-    """Oznake DOK-NN koje odgovor pominje, a čiji tekst savetnik NIJE dobio (ili ne postoje u predmetu). Ne menja
-    odgovor; V2 ih prikazuje kao tvrdnje koje nisu proverene u izvoru."""
+    """Dokumenti koje odgovor pominje, a čiji tekst savetnik NIJE dobio: oznaka DOK-NN (i za dokument koji ne postoji
+    u predmetu), ili tačan naziv fajla iz ovog predmeta — tada „DOK-NN (naziv)“. Ne menja odgovor; V2 ih prikazuje
+    kao tvrdnje koje nisu proverene u izvoru."""
     if not izvori or not odgovor:
         return []
     dobijeni = {u["oznaka"] for u in izvori.get("ukljuceni") or []}
-    out = []
+    out, oznake = [], set()
     for rn in _brojevi_oznaka(odgovor):
         oz = _oznaka_dok(rn)
-        if oz not in dobijeni and oz not in out:
+        if oz not in dobijeni and oz not in oznake:
             out.append(oz)
+            oznake.add(oz)
+    for s in _nazivi_nedostavljenih_u_odgovoru(odgovor, izvori.get("_nazivi") or []):
+        if s["oznaka"] not in oznake:
+            out.append(f"{s['oznaka']} ({s['naziv'][:80]})")
+            oznake.add(s["oznaka"])
     return out[:_MAKS_OZNAKA_U_SPISKU]
+
+
+def _javni_izvori(izvori: Optional[dict], odgovor: Optional[str] = None) -> Optional[dict]:
+    """Evidencija za API odgovor: bez internih polja (`_…`, npr. pun spisak naziva) — odgovor ne raste sa brojem
+    dokumenata. Uz `odgovor` dodaje i `odgovor_pominje_nedostavljene`."""
+    if izvori is None:
+        return None
+    javni = {k: v for k, v in izvori.items() if not k.startswith("_")}
+    if odgovor is not None:
+        javni["odgovor_pominje_nedostavljene"] = _pominje_nedostavljene(odgovor, izvori)
+    return javni
 
 
 def _evidencija_za_model(izvori: dict, izostavljeni: list) -> str:
@@ -683,6 +725,11 @@ async def _kontekst_predmeta(supa, uid: str, predmet_id: Optional[str], zahtev: 
                     "svi_dokumenti_u_celini": (bool(meta) and not greska_citanja and not spisak_nepotpun
                                                and len(ukljuceni) == len(meta)
                                                and all(u["potpun"] for u in ukljuceni)),
+                    # QA-06: INTERNO (ne ide u API, v. `_javni_izvori`) — nazivi svih pročitanih dokumenata ovog
+                    # predmeta, za prepoznavanje naziva nedostavljenog dokumenta u odgovoru. Bez novog upita.
+                    "_nazivi": [{"oznaka": _oznaka_dok(d["redni_broj"]), "naziv": d.get("naziv_fajla") or "",
+                                 "dostavljen": _oznaka_dok(d["redni_broj"]) in {u["oznaka"] for u in ukljuceni}}
+                                for d in meta if isinstance(d.get("redni_broj"), int) and (d.get("naziv_fajla") or "").strip()],
                 }
                 _evidencija = (_evidencija_za_model({**izvori, "trazeni_nisu_dostavljeni": trazeni_nisu}, izostavljeni)
                                if meta or greska_citanja or nepostojeci else "")
@@ -920,8 +967,7 @@ async def run_agent(req: AgentReq, request: Request, user=Depends(PermissionServ
         "provera_citata": _proveri_citate_agenta(odgovor, izvori_baze),
         "kontekst_predmeta": (None if not req.predmet_id else predmet_verifikovan),
         # QA-08: šta je od dokumenata predmeta STVARNO dostavljeno modelu (sistemska evidencija, ne tvrdnja modela)
-        "izvori_predmeta": (None if izvori_predmeta is None else
-                            {**izvori_predmeta, "odgovor_pominje_nedostavljene": _pominje_nedostavljene(odgovor, izvori_predmeta)}),
+        "izvori_predmeta": _javni_izvori(izvori_predmeta, odgovor),
     }
 
 
@@ -1064,7 +1110,7 @@ async def run_parallel(req: ParalelnaReq, request: Request, user=Depends(Permiss
         "rezultati": list(rezultati),
         "task":    req.task,
         "kontekst_predmeta": (None if not req.predmet_id else predmet_verifikovan),
-        "izvori_predmeta": izvori_predmeta,
+        "izvori_predmeta": _javni_izvori(izvori_predmeta),
         "naplaceno_savetnika": len(_uspesni),
         "uspesnih": len(_uspesni),
         "neuspesnih": n_needed - len(_uspesni),
