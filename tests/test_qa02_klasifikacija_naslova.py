@@ -67,13 +67,9 @@ Od 01.09.2026. naša nova adresa je Bulevar 1, Beograd. Ugovor i ostali UGOVORI 
     (PREDLOG_TUZBE_LAT, "lawsuit"),
     (PREDLOG_TUZBE_ASCII, "lawsuit"),
     (PREDLOG_TUZBE_CIR, "lawsuit"),
-    (ODGOVOR_LAT, "response"),
     (ODGOVOR_CIR, "response"),
-    (UGOVOR, "contract"),
     ("UGOVOR O ISPORUCI\nStrane su TEST ALFA DOO i TEST BETA DOO.", "contract"),
-    ("T U Ž B A\nTužilac: TEST ALFA DOO", "lawsuit"),                       # razmaknut naslov
     ("ПРЕСУДА\nУ ИМЕ НАРОДА", "judgment"),
-    ("РЕШЕЊЕ О ИЗВРШЕЊУ\nна основу веродостојне исправе", "enforcement"),   # duži naslov pobeđuje „РЕШЕЊЕ“
     ("PRIGOVOR NA REŠENJE\nIzjavljujem prigovor.", "appeal"),
     ("UGOVORNA KAZNA PO ČLANU 5\nTUŽBA\nTužilac: TEST ALFA DOO", "lawsuit"),   # UGOVOR ≠ UGOVORNA
     ("1. TUŽBA\nTužilac: TEST ALFA DOO", "lawsuit"),                           # redni broj ispred naslova
@@ -92,7 +88,33 @@ def test_naslov_odredjuje_vrstu(tekst, tip):
 ])
 def test_citirani_dokument_ne_preuzima_vrstu(tekst, nije):
     r = classify_heuristic(tekst)
-    assert r is not None and r[0] != nije, r
+    assert r is None or r[0] != nije, r
+
+
+@pytest.mark.parametrize("tekst", [
+    ODGOVOR_LAT,                                                    # naslov: odgovor; ranije pravilo: tužba (telo)
+    UGOVOR,                                                         # naslov: ugovor; ranije pravilo: tužba (telo)
+    "T U Ž B A\nTužilac: TEST ALFA DOO",                            # ranije pravilo ne vidi razmaknut naslov
+    "РЕШЕЊЕ О ИЗВРШЕЊУ\nна основу веродостојне исправе",            # ranije pravilo: „РЕШЕЊЕ“ (court_decision)
+])
+def test_naslov_i_ranije_pravilo_se_ne_slazu_odlucuje_model(tekst):
+    """Završni gejt: kad se naslov i ranije pravilo (bilo gde u zaglavlju) ne slažu, zaglavlje je dvosmisleno —
+    heuristika ćuti umesto da bira. Ranije je ovde bar jedno od dva pravila bilo samouvereno pogrešno."""
+    assert classify_heuristic(tekst) is None
+
+
+@pytest.mark.parametrize("tekst", [
+    # Treći nezavisni korpus: naslov malim slovima + jedan red velikim slovima druge vrste (bilo: judgment, contract…)
+    "Viši sud u Beogradu\nŽalba tužioca\nPobijana odluka:\nPRESUDA OSNOVNOG SUDA U BEOGRADU P. 1234/2023 OD 1.2.2024",
+    "Osnovnom sudu u Beogradu\nTužba\nTužilac: X\nUGOVOR O ZAJMU od 1.2.2025",
+    "Odgovor na tužbu\nTuženi: Y\nPRESUDA KOJOM SE USVAJA tužbeni zahtev bi bila nezakonita",
+    # samo veto ovo hvata (ranije pravilo bi se složilo sa pogrešnim redom velikim slovima):
+    "Advokatska kancelarija Petrović\nFaktura za advokatske usluge\nTUŽBA - SASTAV 30.000 RSD\nTUŽBA - TAKSA 5.000 RSD",
+    "Račun za pravne usluge\nŽALBA NA PRESUDU 45.000 RSD",
+    "Izvršni predlog\nIzvršni poverilac: Marko\nREŠENJE O IZVRŠENJU PREDLAŽE SE",
+])
+def test_naslov_malim_slovima_je_veto(tekst):
+    assert classify_heuristic(tekst) is None
 
 
 @pytest.mark.parametrize("tekst", [ZAPISNIK_CIR, ZAPISNIK_LAT, POTVRDA, DOSTAVNICA_PRESUDA, NEPOZNAT,
@@ -169,9 +191,9 @@ def anyio_backend():
 @pytest.mark.parametrize("redovi,tip,metod", [
     (PREDLOG_TUZBE_ASCII.split("\n"), "lawsuit", "heuristic"),
     (["OSNOVNI SUD U BEOGRADU", "Tuzeni: TEST BETA DOO", "ODGOVOR NA TUZBU",
-      "Tuzeni osporava TUZBA navode i poziva se na UGOVOR o isporuci."], "response", "heuristic"),
+      "Tuzeni osporava TUZBA navode i poziva se na UGOVOR o isporuci."], "other", "llm"),
     (["UGOVOR O ISPORUCI OPREME", "zakljucen 01.08.2026. izmedju TEST ALFA DOO i TEST BETA DOO",
-      "Za sporove je nadlezan sud u Beogradu (TUZBA se podnosi tom sudu)."], "contract", "heuristic"),
+      "Za sporove je nadlezan sud u Beogradu (TUZBA se podnosi tom sudu)."], "other", "llm"),
     (ZAPISNIK_LAT.replace("š", "s").split("\n"), "other", "llm"),             # model iz fixture-a: other 0.5
     (["POTVRDA O DOPUNSKOJ ISPORUCI", "Po UGOVORU br. 12/2026 isporucena su 3 monitora 24.08.2026."], "other", "llm"),
 ])

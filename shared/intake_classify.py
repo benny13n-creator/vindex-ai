@@ -133,6 +133,7 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     dostavnica = min((head_upper.find(o) for o in _DOSTAVNICA_OZNAKE if o in head_upper), default=-1)
     pozicija = 0
     tipovi: set = set()
+    tipovi_veto: set = set()
     for sirov in head.split("\n"):
         pocetak, pozicija = pozicija, pozicija + len(sirov) + 1
         if 0 <= dostavnica < pocetak:          # red je posle oznake dostavnice: opisuje uručeno pismeno
@@ -143,12 +144,35 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
         # Stop-reč (i malim slovima, „Zapisnik o primopredaji“): sve posle nje opisuje drugi dokument.
         if any(_pocinje_recju(red.upper(), n) for n in _NASLOVI_VAN_TAKSONOMIJE):
             break
+        veto = _naslovni_tip(red.upper()) if red != red.upper() else None
+        if veto:                               # naslov malim slovima („Žalba tužioca“): samo glas PROTIV, nikad za
+            tipovi_veto.add(veto[0])
         nadjen = _naslovni_tip(red)
         if nadjen:
             if nadjen[1]:                      # poziv na drugi akt u zaglavlju → zaglavlje nije jednoznačno
                 return None
             tipovi.add(nadjen[0])
-    return (tipovi.pop(), 0.85) if len(tipovi) == 1 else None
+    if len(tipovi) != 1 or not tipovi_veto <= tipovi:
+        return None
+    tip = tipovi.pop()
+    # Treći korpus pregleda: i jednoznačan red velikim slovima može biti tuđi akt („Pobijana odluka: / PRESUDA …“
+    # ispod naslova „Žalba“ napisanog malim slovima). Zato heuristika odgovara samo kad se slaže i sa ranijim
+    # pravilom (bilo gde u zaglavlju); neslaganje = dvosmisleno zaglavlje → model. Po konstrukciji ova funkcija ne
+    # može da vrati vrstu koju ranije pravilo nije vraćalo — nema NOVIH lažno pozitivnih vrsta.
+    return (tip, 0.85) if _ranije_pravilo(head_upper, dostavnica) == tip else None
+
+
+def _ranije_pravilo(head_upper: str, dostavnica: int):
+    """Pravilo pre QA-02 (3ab9343e): prva vrsta iz `_HEURISTICS` čija se reč javi bilo gde u zaglavlju, uz N06
+    pravilo dostavnice. Jedina razlika je genitiv „TUŽBE“ u listi (beta „PREDLOG TUŽBE“). Koristi se samo kao
+    saglasnost, nikad samostalno."""
+    for doc_type, keywords in _HEURISTICS:
+        for kw in keywords:
+            p = head_upper.find(kw.upper())
+            if p < 0 or 0 <= dostavnica < p:
+                continue
+            return doc_type
+    return None
 
 
 _LLM_SYSTEM = """Ti si klasifikator pravnih dokumenata za srpske advokate. Na osnovu teksta dokumenta, odredi tip dokumenta.
