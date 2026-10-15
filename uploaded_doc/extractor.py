@@ -276,6 +276,22 @@ def _jedan_dokument_u_procesu(fn):
     return omotac
 
 
+# NS3-A: MuPDF bira format po SADRŽAJU, ne po ekstenziji: TIFF sa dodatim malim PDF-om i ekstenzijom .pdf prolazi
+# pypdf, a MuPDF ga otvara kao TIFF (is_pdf=False, i uz filetype="pdf") i dekodira celu sliku mimo provere rastera PDF
+# strane (pregled Task B: +434 MiB). PDF putanja zato prihvata samo ono što MuPDF zaista čita kao PDF.
+PORUKA_NIJE_PDF = "Fajl nije ispravan PDF dokument. Sačuvajte ga ponovo kao PDF, pa pokušajte ponovo."
+
+
+def _otvori_pdf(fitz, path: Path):
+    """fitz.open za PDF putanju; DocumentSafetyLimitExceeded ako MuPDF fajl ne čita kao PDF. Poziva se pod _RASTER_OCR_LOCK."""
+    doc = fitz.open(str(path))
+    if not doc.is_pdf:
+        doc.close()
+        logger.warning("[OCR] Odbijeno — %s se ne otvara kao PDF", path.name)
+        raise DocumentSafetyLimitExceeded("PDF putanja: MuPDF fajl ne otvara kao PDF", poruka=PORUKA_NIJE_PDF)
+    return doc
+
+
 def _dpi_strane(sirina_pt: float, visina_pt: float) -> int:
     """dpi rasterizacije strane: 300, osim ako bi raster prešao MAX_OCR_PIXELS — tada najveći dpi koji staje."""
     pikseli = (sirina_pt * OCR_DPI / 72.0) * (visina_pt * OCR_DPI / 72.0)
@@ -331,21 +347,19 @@ def _rasterizuj_stranu(strana):
 # Prag: najveća procena izmerena kao bezbedna pod produkcionom topologijom (gunicorn, WEB_CONCURRENCY=1, 512 MiB):
 # progresivni 4:4:4 od 22,3 MP, procena 148 MiB → vrh kontejnera 404–409 MiB sam, 436–437 MiB uz istovremen sken od 10
 # strana (≥ 75 MiB rezerve, isti razred kao već primljeni CMYK/PNG od 40 MP i sken od 10 strana).
-# JPEG u PDF-u: MuPDF uz koeficijente drži i ceo tok i raster strane, vrh ≈ 345–360 MiB + koeficijenti (96 MiB → 440,
-# 127 MiB → 486, uz sken 502) — zato se tu meri bafer koeficijenata, sa nižim pragom. Dekodiran raster OBIČNOG JPEG-a
-# u PDF-u se još NE meri (v. _odbij_jpeg_u_pdf).
+# JPEG u PDF-u: MuPDF uz koeficijente drži i ceo tok i raster strane (96 MiB koeficijenata → 440, 127 MiB → 486, uz
+# sken 502) — tu se koeficijenti računaju u procenu rastera strane (NS3-A, v. _odbij_pdf_preveliki_raster).
 _JPEG_SOF = frozenset({0xC0, 0xC1, 0xC2, 0xC3, 0xC9, 0xCA, 0xCB})        # okviri koje libjpeg(-turbo) dekodira
 _JPEG_SOF_HIJERARHIJSKI = frozenset({0xC5, 0xC6, 0xC7, 0xCD, 0xCE, 0xCF})  # libjpeg ih odbija pre ikakve alokacije
 _JPEG_SOF_PROGRESIVNI = frozenset({0xC2, 0xCA})
 MAX_JPEG_DEKODIRANJA_BAJTOVA = 150 * 1024 * 1024
-MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA = 64 * 1024 * 1024
 PORUKA_PREVELIK_JPEG = (
     "Fotografija je sačuvana u formatu koji zahteva previše memorije za obradu (npr. progresivni ili CMYK JPEG "
     "visoke rezolucije). Sačuvajte je ponovo kao običan JPEG ili smanjite rezoluciju, pa pokušajte ponovo."
 )
 PORUKA_PREVELIK_JPEG_PDF = (
-    "Dokument sadrži sliku sačuvanu u formatu koji zahteva previše memorije za obradu (progresivni JPEG visoke "
-    "rezolucije). Sačuvajte dokument ponovo sa slikom manje rezolucije ili kao običan JPEG, pa pokušajte ponovo."
+    "Dokument sadrži sliku čija obrada zahteva previše memorije (slika veoma visoke rezolucije, npr. CMYK ili "
+    "progresivni JPEG). Sačuvajte dokument ponovo sa slikama manje rezolucije (npr. 300 dpi), pa pokušajte ponovo."
 )
 
 
@@ -473,80 +487,542 @@ def _odbij_jpeg_preveliki_bafer(okvir: Optional[dict], opis: str, granica: int, 
     raise DocumentSafetyLimitExceeded(razlog, poruka=poruka)
 
 
-class _TokFlate:
-    """JPEG unutar /FlateDecode: raspakuje se samo onoliko koliko čitanje zaglavlja traži (napred, u delovima)."""
-
-    def __init__(self, sirovo: bytes):
-        import zlib
-        self._d = zlib.decompressobj()
-        self._ulaz = memoryview(sirovo)
-        self._poz = 0
-        self._bafer = b""
-
-    def read(self, n: int) -> bytes:
-        while len(self._bafer) < n and not self._d.eof:
-            if self._d.unconsumed_tail:
-                ulaz = self._d.unconsumed_tail
-            elif self._poz < len(self._ulaz):
-                ulaz = self._ulaz[self._poz:self._poz + 65536]
-                self._poz += 65536
-            else:
-                break
-            self._bafer += self._d.decompress(ulaz, 65536)
-        deo, self._bafer = self._bafer[:n], self._bafer[n:]
-        return deo
-
-    def seek(self, n: int, odakle: int) -> None:
-        while n > 0:
-            k = len(self.read(min(n, 65536)))
-            if not k:
-                return
-            n -= k
-
-
-def _odbij_jpeg_u_pdf(doc, indeksi) -> None:
-    """NS2b: za JPEG (DCTDecode) slike — i njihove maske — na stranama koje će MuPDF rasterizovati: bafer koeficijenata
-    (MuPDF dekodira istim libjpeg putem: izmereno) do MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA. Pozivalac drži
-    _RASTER_OCR_LOCK. Ne poziva ništa što dekodira sliku (NS2b F2: page.get_image_rects/get_image_info dekodira sve
-    slike strane u keš MuPDF-a — izmereno OOM i na PDF-ovima koji su ranije prolazili; zato se smeštaj ne čita).
-    NIJE pokriveno: dekodiran raster OBIČNOG JPEG-a u PDF-u (CMYK 30 i 34,6 MP na A4 → OOM, izmereno) — otvoreno.
-    Proverava se samo tok /DCTDecode ili [/FlateDecode /DCTDecode]; drugi lanci filtera se ne proveravaju."""
-    okviri: dict[int, Optional[dict]] = {}
-    for i in indeksi:
-        try:
-            slike = doc[i].get_images(full=True)
-        except Exception as exc:        # provera nikad ne obara OCR koji bi inače prošao; ista greška ide u render
-            logger.info("[OCR] Slike strane %d nisu proverene: %s", i + 1, type(exc).__name__)
-            continue
-        for slika in slike:
-            for xref in (slika[0], slika[1]):
-                if not xref:
-                    continue
-                if xref not in okviri:
-                    okviri[xref] = _jpeg_okvir_xref(doc, xref, i)
-                okvir = okviri[xref]
-                if okvir is None:
-                    continue
-                _odbij_jpeg_preveliki_bafer(okvir, f"PDF strana {i + 1}", MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA,
-                                            PORUKA_PREVELIK_JPEG_PDF)
+# ─── NS3-A — memorija rasterizacije strane PDF-a, procenjena PRE prve rasterizacije ───────────────────────────────
+# Prva opasna alokacija je MuPDF-ovo dekodiranje ugrađene slike unutar page.get_pixmap (draw-device.c
+# fz_draw_fill_image → image.c fz_get_pixmap_from_image): slika se umanjuje samo 2^k puta, gde je k najveći za koji
+# umanjena slika ostaje ≥ veličine slike na rasteru strane + 2 px. JPEG se umanjuje već u dekoderu (do 1/8), ostali
+# tokovi (Flate, LZW, Fax, JBIG2...) red po red, a JPX i indeksirane slike tek posle punog dekodiranja. Dekodirana
+# slika ostaje u kešu MuPDF-a dok se strana ne iscrta; slika sa više od 3 komponente (CMYK) se PRE umanjenja
+# pretvara u RGB (još 3 B po pikselu), a umanjenje pravi među-sliku i sliku veličine rastera. Primer (izmereno,
+# NS2b/NS3): običan CMYK JPEG od 30 MP preko cele A4 strane na 300 dpi dekodira se u punoj veličini (4606/2 < 2481)
+# → 114 MiB CMYK + 86 MiB RGB → OOM pod 512 MiB; CMYK od 40 MP se dekodira na 1/2 → 38 + 29 MiB i prolazi.
+# Provera zato pušta stranu kroz MuPDF interpreter sa uređajem koji samo BELEŽI svaku sliku koju bi crtač iscrtao
+# (XObject, ugnežđene forme, maske, šabloni, Type3, anotacije — isti fz_run_page i ista matrica kao get_pixmap), a
+# ne dekodira ništa: interpreter učitava samo kompresovan tok. Izuzetak su UMETNUTE slike (BI … ID … EI) koje MuPDF
+# dekodira u punoj veličini već pri čitanju sadržaja — zato se tokovi sadržaja strane pre toga pretražuju bez
+# interpretera (u delovima od 64 KiB) i njihovo puno dekodiranje ulazi u procenu.
+# Procena strane = raster strane + zbir dekodiranih slika (keš) + najveća prolazna alokacija (CMYK→RGB i umanjenje,
+# koeficijenti progresivnog JPEG-a, radna memorija JPX dekodera, puno dekodiranje umetnute slike). Lokalno izmereno
+# (MuPDF 1.28, A4/300 dpi): procena je ≥ stvarnog prirasta rastera i najviše ~25 MiB iznad njega.
+MAX_PDF_RASTER_BAJTOVA = 150 * 1024 * 1024
+PORUKA_PDF_NEPROVERLJIV = (
+    "Dokument nije bilo moguće bezbedno proveriti pre obrade (neuobičajen zapis slike u PDF-u). Sačuvajte ili "
+    "odštampajte dokument ponovo kao PDF, pa pokušajte ponovo."
+)
+_JPX_BAJTOVA_PO_UZORKU = 4          # OpenJPEG dekodira u int32 po uzorku, MuPDF zatim pravi sliku od 1 B po uzorku
+_TOKOVNI_TIPOVI = frozenset({"FZ_IMAGE_RAW", "FZ_IMAGE_FAX", "FZ_IMAGE_FLATE", "FZ_IMAGE_LZW", "FZ_IMAGE_RLD",
+                             "FZ_IMAGE_BROTLI", "FZ_IMAGE_JBIG2", "FZ_IMAGE_JPEG"})
+_snimac_slika = None
+# Isecanje maskom slike (meka maska, /SMask): crtač dok traje maska drži novi sloj strane, masku i umanjenu masku.
+# Lokalno izmereno (RGB 16 MP + siva maska 16 MP na A4/300): +60 MiB iznad iste slike bez maske → 9 B po pikselu sloja.
+_SLOJ_MASKE_BAJTOVA_PO_PIKSELU = 9
 
 
-def _jpeg_okvir_xref(doc, xref: int, i: int) -> Optional[dict]:
-    """Zaglavlje JPEG toka slike `xref` (None = nije JPEG, nepoznat lanac filtera ili greška čitanja)."""
+class _NeproverljivPdf(Exception):
+    """Provera nije mogla da utvrdi veličinu slike (neuobičajen zapis) — tada se ne pretpostavlja da je bezbedna."""
+
+
+def _klasa_snimaca_slika():
+    """Uređaj (mupdf.FzDevice2) koji beleži slike koje bi crtač iscrtao — bez dekodiranja. Klasa se pravi jednom."""
+    global _snimac_slika
+    if _snimac_slika is not None:
+        return _snimac_slika
     import io
+    import pymupdf
+    m = pymupdf.mupdf
+    tipovi = {getattr(m, ime): ime for ime in _TOKOVNI_TIPOVI | {"FZ_IMAGE_JPX", "FZ_IMAGE_UNKNOWN"} if hasattr(m, ime)}
 
-    try:
-        filtri = re.findall(r"/[^\s/\[\]<>()]+", doc.xref_get_key(xref, "Filter")[1])   # "[/A/B]" ili "[ /A /B ]"
-        if "/DCTDecode" not in filtri:
+    class _SnimacSlika(m.FzDevice2):
+        def __init__(self):
+            super().__init__()
+            self.use_virtual_fill_image()
+            self.use_virtual_fill_image_mask()
+            self.use_virtual_clip_image_mask()
+            for ime in ("clip_path", "clip_stroke_path", "clip_text", "clip_stroke_text", "pop_clip"):
+                getattr(self, "use_virtual_" + ime)()
+            self.slike: list[dict] = []
+            self.strana_px = 0
+            self.stek: list[int] = []       # otvorena isecanja; maska slike drži sloj veličine strane (v. _SLOJ_MASKE)
+
+        def _zabelezi(self, slika, ctm, maska: bool) -> None:
+            cb = m.ll_fz_compressed_image_buffer(slika)
+            tip = tipovi.get(cb.params.type, "?") if cb else None
+            cs = None if maska else slika.colorspace
+            indeksirana = bool(cs and m.ll_fz_colorspace_is_indexed(cs))
+            okvir = None
+            if tip == "FZ_IMAGE_JPEG" and cb.buffer:        # samo zaglavlje, iz kompresovanog toka (bez kopije)
+                tok = m.fz_buffer_storage_memoryview(m.FzBuffer(m.ll_fz_keep_buffer(cb.buffer)))
+                okvir = _jpeg_okvir(io.BytesIO(tok))
+            self.slike.append({
+                "w": int(slika.w), "h": int(slika.h), "tip": tip, "dekodirana": bool(slika.decoded),
+                "n": 1 if maska else int(slika.n), "alfa": bool(cs is None or slika.use_colorkey),
+                "indeksirana": indeksirana,
+                "baza_n": m.ll_fz_colorspace_n(m.ll_fz_base_colorspace(cs)) if indeksirana else 0,
+                "matte": bool(slika.use_colorkey and slika.mask), "okvir": okvir,
+                "dx": math.hypot(ctm.a, ctm.b), "dy": math.hypot(ctm.c, ctm.d), "stek": sum(self.stek),
+            })
+
+        def fill_image(self, ctx, slika, ctm, alpha, color_params):
+            self._zabelezi(slika, ctm, False)
+
+        def fill_image_mask(self, ctx, slika, ctm, cs, boja, alpha, color_params):
+            self._zabelezi(slika, ctm, True)
+
+        def clip_image_mask(self, ctx, slika, ctm, scissor):
+            self._zabelezi(slika, ctm, True)
+            povrsina = (int(math.hypot(ctm.a, ctm.b)) + 1) * (int(math.hypot(ctm.c, ctm.d)) + 1)
+            self.stek.append(min(povrsina, self.strana_px) * _SLOJ_MASKE_BAJTOVA_PO_PIKSELU)
+
+        def clip_path(self, *a):
+            self.stek.append(0)
+
+        clip_stroke_path = clip_text = clip_stroke_text = clip_path
+
+        def pop_clip(self, ctx):
+            if self.stek:
+                self.stek.pop()
+
+    _snimac_slika = _SnimacSlika
+    return _snimac_slika
+
+
+def _mupdf_bajtovi_slike(s: dict, strana_px: int) -> tuple[int, int]:
+    """(bajtova dekodirane slike koja ostaje u kešu, najveća prolazna alokacija) za jedno iscrtavanje, kako ih pravi
+    MuPDF 1.2x (image.c fz_get_pixmap_from_image / compressed_image_get_pixmap, draw-device.c fz_draw_fill_image)."""
+    w, h = s["w"], s["h"]
+    if w <= 0 or h <= 0:
+        return 0, 0
+    dx, dy = int(s["dx"]) + 1, int(s["dy"]) + 1     # veličina na rasteru (+1: gridfit) → nikad veći faktor od MuPDF-a
+    l2 = 0
+    if not s["matte"]:
+        while (w >> (l2 + 1)) >= min(dx, w) + 2 and (h >> (l2 + 1)) >= min(dy, h) + 2 and l2 < 6:
+            l2 += 1
+    n = s["n"] + (1 if s["alfa"] else 0)
+    prolazno = 0
+    if s["dekodirana"]:
+        tw, th, kes = w, h, 0                       # već dekodirana pri učitavanju (ne dolazi iz PDF toka)
+    elif s["tip"] in _TOKOVNI_TIPOVI and not s["indeksirana"]:
+        f = 1 << l2
+        tw, th = -(-w // f), -(-h // f)             # umanjuje dekoder ili tok red po red
+        kes = tw * th * n
+    else:                                           # JPX, indeksirana, nepoznat tip: puno dekodiranje, pa umanjenje
+        tw, th = w, h
+        if s["indeksirana"]:
+            n = s["baza_n"] + (1 if s["alfa"] else 0)
+            prolazno = w * h                        # indeksi pre pretvaranja u osnovni prostor boja
+        kes = w * h * n
+        if s["tip"] == "FZ_IMAGE_JPX":
+            prolazno = w * h * s["n"] * _JPX_BAJTOVA_PO_UZORKU
+    if s["okvir"] is not None:
+        prolazno = max(prolazno, s["okvir"]["koeficijenti"])    # progresivni JPEG: koeficijenti cele slike
+    prolazno += s["stek"]
+    px = tw * th
+    umanjuje = s["dx"] < tw and s["dy"] < th
+    raster = min(min(dx, tw) * min(dy, th), strana_px) * 3 if umanjuje else 0
+    if s["n"] > 3 and not s["indeksirana"]:
+        posle = px * 3 + raster                     # pretvaranje u RGB pre umanjenja, pa umanjena slika
+    else:
+        posle = 2 * raster if umanjuje else px * 3  # među-slika + umanjena; ili pretvaranje boja posle
+    return kes, max(prolazno, posle + s["stek"])
+
+
+def _tokovi_sadrzaja_strane(strana_obj) -> list[int]:
+    """Brojevi objekata tokova sadržaja koje MuPDF interpretira za stranu: sadržaj, forme (ugnežđene), šabloni,
+    meke maske ExtGState-a, Type3 glifovi, izgled anotacija. Šira lista je bezbedna (više provere), uža nije."""
+    import pymupdf
+    m = pymupdf.mupdf
+    ime = m.pdf_new_name
+    vidjeni: set[int] = set()
+    tokovi: list[int] = []
+
+    def vrednosti(d):
+        return [m.pdf_dict_get_val(d, i) for i in range(m.pdf_dict_len(d))] if m.pdf_is_dict(d) else []
+
+    def tok(o, dubina=0):
+        if dubina > 64:
+            raise _NeproverljivPdf("preduboko ugnežđen sadržaj strane")
+        if m.pdf_is_stream(o):
+            num = m.pdf_to_num(o)
+            if num and num not in vidjeni:
+                vidjeni.add(num)
+                tokovi.append(num)
+                resursi(m.pdf_dict_get(o, ime("Resources")), dubina + 1)
+        elif m.pdf_is_array(o):
+            for i in range(m.pdf_array_len(o)):
+                tok(m.pdf_array_get(o, i), dubina + 1)
+        elif m.pdf_is_dict(o):                      # /AP /N sa stanjima, /CharProcs
+            for v in vrednosti(o):
+                tok(v, dubina + 1)
+
+    def resursi(res, dubina):
+        if not m.pdf_is_dict(res):
+            return
+        for v in vrednosti(m.pdf_dict_get(res, ime("XObject"))) + vrednosti(m.pdf_dict_get(res, ime("Pattern"))):
+            if m.pdf_is_stream(v) and not m.pdf_name_eq(m.pdf_dict_get(v, ime("Subtype")), ime("Image")):
+                tok(v, dubina)
+        for gs in vrednosti(m.pdf_dict_get(res, ime("ExtGState"))):
+            sm = m.pdf_dict_get(gs, ime("SMask"))
+            if m.pdf_is_dict(sm):
+                tok(m.pdf_dict_get(sm, ime("G")), dubina)
+        for font in vrednosti(m.pdf_dict_get(res, ime("Font"))):
+            if m.pdf_name_eq(m.pdf_dict_get(font, ime("Subtype")), ime("Type3")):
+                tok(m.pdf_dict_get(font, ime("CharProcs")), dubina)
+                resursi(m.pdf_dict_get(font, ime("Resources")), dubina + 1)
+
+    tok(m.pdf_dict_get(strana_obj, ime("Contents")))
+    resursi(m.pdf_dict_get_inheritable(strana_obj, ime("Resources")), 0)
+    annots = m.pdf_dict_get(strana_obj, ime("Annots"))
+    for i in range(m.pdf_array_len(annots) if m.pdf_is_array(annots) else 0):
+        tok(m.pdf_dict_get(m.pdf_dict_get(m.pdf_array_get(annots, i), ime("AP")), ime("N")))
+    return tokovi
+
+
+# PDF lekser (pdf-lex.c): beline i graničnici. "BI" se traži kao bilo koje pojavljivanje iza kog sledi belina,
+# graničnik ili kraj (i u nizu znakova, imenu, posle broja): šire od MuPDF-a, nikad uže.
+_PDF_BELINE = b"\x00\t\n\x0c\r "
+_PDF_GRANICNICI = b"()<>[]{}/%"
+_BI = re.compile(rb"BI(?=[\x00\t\n\x0c\r ()<>\[\]{}/%])")
+_DELIC_TOKA = 65536
+MAX_UMETNUTI_RECNIK_BAJTOVA = 1 << 20           # rečnik umetnute slike duži od ovoga se ne prihvata kao bezbedan
+MAX_UMETNUTO_ZAGLAVLJE_BAJTOVA = 256 * 1024     # koliko podataka posle ID se čita za zaglavlje umetnutog JPEG-a
+_UMETNUTI_PROSTORI = {b"G": 1, b"DeviceGray": 1, b"CalGray": 1, b"RGB": 3, b"DeviceRGB": 3, b"CalRGB": 3,
+                      b"CMYK": 4, b"DeviceCMYK": 4}
+
+
+class _TokSadrzaja:
+    """Tok sadržaja kroz MuPDF filtere, čitan u delovima; drži samo ono što pretraga još nije prešla."""
+
+    def __init__(self, pdf, num: int):
+        import pymupdf
+        self._m = pymupdf.mupdf
+        self._stm = self._m.pdf_open_stream_number(pdf, num)
+        self._buf = self._m.fz_new_buffer(_DELIC_TOKA)
+        self.b = b""
+        self.o = 0                                  # apsolutni položaj b[0]
+        self.kraj = False
+
+    def dopuni(self) -> bool:
+        if self.kraj:
+            return False
+        k = self._m.ll_fz_read(self._stm.m_internal, self._buf.m_internal.data, _DELIC_TOKA)
+        if not k:
+            self.kraj = True
+            return False
+        self.b += self._m.raw_to_python_bytes(self._buf.m_internal.data, k)
+        return True
+
+    def bajt(self, poz: int) -> Optional[int]:
+        while poz - self.o >= len(self.b):
+            if not self.dopuni():
+                return None
+        return self.b[poz - self.o]
+
+    def kriska(self, poz: int, n: int) -> bytes:
+        while poz + n - self.o > len(self.b) and self.dopuni():
+            pass
+        return self.b[poz - self.o:poz - self.o + n]
+
+    def odseci(self, poz: int) -> None:
+        if poz > self.o:
+            self.b = self.b[poz - self.o:]
+            self.o = poz
+
+
+class _Lekser:
+    """Tokeni kao pdf_lex (dovoljno za rečnik umetnute slike: imena sa #xx, brojevi, nizovi znakova, nizovi, rečnici,
+    ključne reči). Čita najviše MAX_UMETNUTI_RECNIK_BAJTOVA od početka."""
+
+    def __init__(self, tok: _TokSadrzaja, poz: int):
+        self.t, self.poz, self.granica = tok, poz, poz + MAX_UMETNUTI_RECNIK_BAJTOVA
+
+    def _c(self) -> Optional[int]:
+        if self.poz >= self.granica:
+            raise _NeproverljivPdf("umetnuta slika: rečnik predug")
+        c = self.t.bajt(self.poz)
+        if c is not None:
+            self.poz += 1
+        return c
+
+    def _rec(self, prvi: bytes = b"") -> bytes:
+        s = bytearray(prvi)
+        while True:
+            c = self.t.bajt(self.poz)
+            if c is None or c in _PDF_BELINE or c in _PDF_GRANICNICI:
+                return bytes(s)
+            self.poz += 1
+            if c == 0x23:                           # '#xx' u imenu
+                a, b = self.t.bajt(self.poz), self.t.bajt(self.poz + 1)
+                if a is not None and b is not None and bytes([a, b]).isalnum():
+                    try:
+                        s.append(int(bytes([a, b]), 16))
+                        self.poz += 2
+                        continue
+                    except ValueError:
+                        pass
+            s.append(c)
+
+    def token(self) -> tuple[str, object]:
+        while True:
+            c = self._c()
+            if c is None:
+                return "EOF", None
+            if c in _PDF_BELINE:
+                continue
+            if c == 0x25:                           # komentar do kraja reda
+                while (c := self._c()) is not None and c not in (0x0A, 0x0D):
+                    pass
+                continue
+            if c == 0x2F:
+                return "NAME", self._rec()
+            if c == 0x28:                           # (niz znakova) sa ugnežđenim zagradama i \ izlazom
+                dubina = 1
+                while dubina:
+                    c = self._c()
+                    if c is None:
+                        return "EOF", None
+                    if c == 0x5C:
+                        self._c()
+                    elif c == 0x28:
+                        dubina += 1
+                    elif c == 0x29:
+                        dubina -= 1
+                return "STRING", None
+            if c == 0x3C:
+                if self.t.bajt(self.poz) == 0x3C:
+                    self.poz += 1
+                    return "OPEN_DICT", None
+                while (c := self._c()) is not None and c != 0x3E:
+                    pass
+                return "STRING", None
+            if c == 0x3E:
+                if self.t.bajt(self.poz) == 0x3E:
+                    self.poz += 1
+                    return "CLOSE_DICT", None
+                return "ERROR", None
+            if c == 0x29:
+                return "ERROR", None
+            if c in b"[]{}":
+                return {0x5B: "OPEN_ARRAY", 0x5D: "CLOSE_ARRAY"}.get(c, "BRACE"), None
+            rec = self._rec(bytes([c]))
+            if c in b"+-.0123456789":
+                broj = re.match(rb"[+-]?(\d+\.?\d*|\.\d*)", rec)
+                tekst = broj.group(0) if broj else b""
+                self.poz -= len(rec) - len(tekst)   # pdf_lex: broj se završava na prvom znaku koji nije broj
+                if not tekst or tekst in (b"+", b"-", b"."):
+                    return ("INT", 0) if tekst else ("KEYWORD", rec)
+                return ("REAL", float(tekst)) if b"." in tekst else ("INT", int(tekst))
+            return {b"true": ("TRUE", True), b"false": ("FALSE", False), b"null": ("NULL", None),
+                    b"R": ("R", None)}.get(rec, ("KEYWORD", rec))
+
+
+def _umetnuti_recnik(lx: _Lekser) -> Optional[dict]:
+    """pdf_parse_dict za BI: vrednosti po ključu ili None ako bi MuPDF prijavio grešku (slika se tada ne učitava).
+    Indirektan objekat → ("R", a, b)."""
+    d: dict = {}
+    tip, v = lx.token()
+    while True:
+        if tip == "CLOSE_DICT" or (tip == "KEYWORD" and v == b"ID"):
+            return d
+        if tip != "NAME":
             return None
-        if filtri == ["/DCTDecode"]:
-            return _jpeg_okvir(io.BytesIO(doc.xref_stream_raw(xref)))
-        if filtri == ["/FlateDecode", "/DCTDecode"]:
-            return _jpeg_okvir(_TokFlate(doc.xref_stream_raw(xref)))
-        logger.info("[OCR] JPEG u PDF-u sa filterima %s nije proveren pre rasterizacije", "+".join(filtri))
-    except Exception as exc:
-        logger.info("[OCR] JPEG u PDF-u (strana %d) nije proveren: %s", i + 1, type(exc).__name__)
-    return None
+        kljuc = v
+        tip, v = lx.token()
+        if tip in ("OPEN_ARRAY", "OPEN_DICT"):
+            d[kljuc] = (_umetnuti_niz if tip == "OPEN_ARRAY" else _umetnuti_recnik)(lx)
+            if d[kljuc] is None:
+                return None                         # MuPDF baca grešku za ceo rečnik
+        elif tip in ("NAME", "REAL", "STRING", "TRUE", "FALSE", "NULL"):
+            d[kljuc] = (tip, v)
+        elif tip == "INT":
+            a = v
+            tip, v = lx.token()
+            if tip in ("CLOSE_DICT", "NAME") or (tip == "KEYWORD" and v == b"ID"):
+                d[kljuc] = ("INT", a)
+                continue                            # goto skip: ovaj token je sledeći ključ / kraj
+            if tip == "INT":
+                b = v
+                tip, v = lx.token()
+                if tip == "R":
+                    d[kljuc] = ("R", a, b)
+                    tip, v = lx.token()
+                    continue
+            d[kljuc] = ("NULL", None)
+        elif tip == "EOF":
+            return None
+        else:
+            d[kljuc] = ("NULL", None)
+        tip, v = lx.token()
+
+
+def _umetnuti_niz(lx: _Lekser) -> Optional[list]:
+    niz: list = []
+    while True:
+        tip, v = lx.token()
+        if tip == "EOF":
+            return None
+        if tip == "CLOSE_ARRAY":
+            return niz
+        if tip in ("OPEN_ARRAY", "OPEN_DICT"):
+            v = (_umetnuti_niz if tip == "OPEN_ARRAY" else _umetnuti_recnik)(lx)
+            if v is None:
+                return None
+            niz.append(v)
+        else:
+            niz.append((tip, v))
+
+
+def _umetnuta_slika_bajtova(d: dict, tok: _TokSadrzaja, podaci: int) -> tuple[int, int]:
+    """(puno dekodiranje, najveća prolazna: koeficijenti JPEG-a ili CMYK→RGB) umetnute slike, kako je učitava
+    pdf_load_image_imp (bez umanjenja)."""
+    import io
+    import zlib
+
+    def vrednost(*kljucevi):
+        for k in kljucevi:
+            if k in d:
+                return d[k]
+        return None
+
+    def ceo(*kljucevi) -> int:
+        v = vrednost(*kljucevi)
+        if v is None or not isinstance(v, tuple):
+            return 0
+        if v[0] == "R":
+            raise _NeproverljivPdf("umetnuta slika: vrednost je indirektan objekat")
+        return int(v[1]) if v[0] in ("INT", "REAL") else 0
+
+    w, h = ceo(b"W", b"Width"), ceo(b"H", b"Height")
+    if w <= 0 or h <= 0:
+        return 0, 0                                 # MuPDF: "image width is zero" — ništa se ne dekodira
+    maska = vrednost(b"IM", b"ImageMask") == ("TRUE", True)
+    cs = vrednost(b"CS", b"ColorSpace")
+    if maska or cs is None:
+        n = 1
+    elif isinstance(cs, tuple) and cs[0] == "NAME" and cs[1] in _UMETNUTI_PROSTORI:
+        n = _UMETNUTI_PROSTORI[cs[1]]
+    elif isinstance(cs, tuple) and cs[0] == "R":
+        raise _NeproverljivPdf("umetnuta slika: prostor boja je indirektan objekat")
+    else:
+        n = 32                                      # indeksiran, imenovan resurs, DeviceN: najgori slučaj
+    alfa = 1 if maska or isinstance(vrednost(b"Mask"), list) else 0
+    f = vrednost(b"F", b"Filter")
+    filtri = [x[1] for x in (f if isinstance(f, list) else [f]) if isinstance(x, tuple) and x[0] == "NAME"]
+    koef = 0
+    if filtri and filtri[-1] in (b"DCT", b"DCTDecode"):
+        sirovo = tok.kriska(podaci, MAX_UMETNUTO_ZAGLAVLJE_BAJTOVA)
+        pre = filtri[:-1]
+        try:
+            if not pre:
+                zaglavlje = sirovo
+            elif pre in ([b"AHx"], [b"ASCIIHexDecode"]):
+                hexa = re.sub(rb"[^0-9A-Fa-f]", b"", sirovo.split(b">")[0])
+                zaglavlje = bytes.fromhex(hexa[: len(hexa) // 2 * 2].decode())
+            elif pre in ([b"Fl"], [b"FlateDecode"]):
+                zaglavlje = zlib.decompressobj().decompress(sirovo, MAX_UMETNUTO_ZAGLAVLJE_BAJTOVA)
+            else:
+                raise ValueError("lanac filtera")
+        except Exception:
+            raise _NeproverljivPdf(f"umetnuta slika: JPEG iza filtera {'+'.join(x.decode('latin-1') for x in filtri)}")
+        okvir = _jpeg_okvir(io.BytesIO(zaglavlje))
+        if okvir is None and len(sirovo) >= MAX_UMETNUTO_ZAGLAVLJE_BAJTOVA:
+            raise _NeproverljivPdf("umetnuta slika: zaglavlje JPEG-a nije pročitano")
+        if okvir is not None:
+            koef = okvir["koeficijenti"]
+    return w * h * (n + alfa), max(koef, w * h * 3 if n > 3 else 0)
+
+
+def _umetnute_slike(pdf, num: int) -> list[tuple[int, int]]:
+    """(puno dekodiranje, koeficijenti JPEG-a) za svaku umetnutu sliku (BI … ID) u toku sadržaja `num`. Tok se čita
+    kroz MuPDF filtere u delovima (bez interpretera, bez dekodiranja slika). Svako "BI" se proverava, i u nizu znakova
+    ili binarnim podacima slike: lažno pronađena slika najviše poveća procenu, propuštena bi bila opasna."""
+    tok = _TokSadrzaja(pdf, num)
+    rezultat: list[tuple[int, int]] = []
+    poz = 0
+    while True:
+        m_bi = _BI.search(tok.b, poz - tok.o)
+        if m_bi is None:
+            poz = max(poz, tok.o + len(tok.b) - 2)  # "BI" preko granice dela ostaje za sledeći krug
+            tok.odseci(poz)
+            if not tok.dopuni():
+                return rezultat
+            continue
+        pocetak = tok.o + m_bi.start()
+        lx = _Lekser(tok, pocetak + 2)
+        d = _umetnuti_recnik(lx)
+        if d is not None:
+            podaci = lx.poz + 1                     # jedna belina posle ID (ili posle >>), \r\n kao jedna
+            if tok.bajt(lx.poz) == 0x0D and tok.bajt(lx.poz + 1) == 0x0A:
+                podaci += 1
+            rezultat.append(_umetnuta_slika_bajtova(d, tok, podaci))
+        poz = pocetak + 2
+        tok.odseci(poz)
+
+
+def _strana_px(strana, dpi: int) -> tuple[int, int]:
+    return (math.ceil(float(strana.rect.width) * dpi / 72.0), math.ceil(float(strana.rect.height) * dpi / 72.0))
+
+
+def _procena_rastera_strane(doc, i: int, dpi: int) -> tuple[int, str]:
+    """(procena memorije u bajtovima, opis najveće slike) za rasterizaciju strane `i` na `dpi` — bez dekodiranja."""
+    import pymupdf
+    m = pymupdf.mupdf
+    strana = doc[i]
+    pw, ph = _strana_px(strana, dpi)
+    strana_px = pw * ph
+    strana_b = strana_px * 3
+    umetnute: list[tuple[int, int]] = []
+    pdf = m.pdf_specifics(doc.this)
+    if pdf.m_internal:
+        for num in _tokovi_sadrzaja_strane(m.pdf_page_from_fz_page(strana.this).obj()):
+            try:
+                umetnute.extend(_umetnute_slike(pdf, num))
+            except _NeproverljivPdf:
+                raise
+            except Exception as exc:                # tok koji MuPDF ne može da pročita ne može ni da interpretira
+                logger.info("[OCR] Tok sadržaja %d strane %d nije pročitan: %s", num, i + 1, type(exc).__name__)
+    # Umetnuta slika se dekodira pri čitanju sadržaja (puna veličina, prolazno) i ponovo pri crtanju; pre interpretera
+    # se računa najgore (bez umanjenja): oba dekodiranja + najveća prolazna. Prava umetnuta slika je mala (PDF 1.7, 8.9.7).
+    prolazno_umetnute = max((d + k for d, k in umetnute), default=0)
+    pre = strana_b + sum(d for d, _ in umetnute) + prolazno_umetnute
+    if pre > MAX_PDF_RASTER_BAJTOVA:                # interpreter bi je dekodirao već pri popisu
+        return pre, f"umetnuta slika ({len(umetnute)} na strani)"
+    snimac = _klasa_snimaca_slika()()
+    snimac.strana_px = strana_px
+    z = dpi / 72.0
+    try:
+        m.fz_run_page(strana.this, snimac, m.FzMatrix(z, 0, 0, z, 0, 0), m.FzCookie())
+        m.fz_close_device(snimac)
+    except Exception as exc:                        # crtač staje na istom mestu; računa se ono što bi stigao da iscrta
+        logger.info("[OCR] Slike strane %d delimično popisane: %s", i + 1, type(exc).__name__)
+    kes, prolazno, najveca, najveca_b = 0, prolazno_umetnute, "", -1
+    for s in snimac.slike:
+        k, p = _mupdf_bajtovi_slike(s, strana_px)
+        kes += k
+        prolazno = max(prolazno, p)
+        if k + p > najveca_b:
+            najveca, najveca_b = f"{s['tip']} {s['w']}x{s['h']}x{s['n']}", k + p
+    # posle MuPDF-a (_rasterizuj_stranu): raster strane (3 B) dok se pravi PNG, PIL RGB (4 B) i siva kopija (1 B)
+    return max(strana_b + kes + prolazno, strana_px * 8), najveca
+
+
+def _odbij_pdf_preveliki_raster(doc, indeksi, dpi_strane=None) -> None:
+    """NS3-A: DocumentSafetyLimitExceeded ako bi rasterizacija neke od zadatih strana (na dpi koji će zaista biti
+    korišćen) prešla MAX_PDF_RASTER_BAJTOVA — PRE prve rasterizacije, bez dekodiranja ijedne slike iz PDF toka i bez
+    punjenja keša MuPDF-a. Pozivalac drži _RASTER_OCR_LOCK. Loguju se samo dimenzije i veličine."""
+    for i in indeksi:
+        strana = doc[i]
+        dpi = dpi_strane(strana) if dpi_strane else _dpi_strane(float(strana.rect.width), float(strana.rect.height))
+        try:
+            bajtova, opis = _procena_rastera_strane(doc, i, dpi)
+        except _NeproverljivPdf as exc:
+            razlog = f"PDF strana {i + 1}: {exc} — nije analizirano jer bezbednost nije utvrđena"
+            logger.warning("[OCR] Odbijeno pre rasterizacije — %s", razlog)
+            raise DocumentSafetyLimitExceeded(razlog, poruka=PORUKA_PDF_NEPROVERLJIV)
+        if bajtova > MAX_PDF_RASTER_BAJTOVA:
+            razlog = (f"PDF strana {i + 1} na {dpi} dpi: {opis}, procena {bajtova >> 20} MiB "
+                      f"(max {MAX_PDF_RASTER_BAJTOVA >> 20} MiB)")
+            logger.warning("[OCR] Odbijeno pre rasterizacije — %s", razlog)
+            raise DocumentSafetyLimitExceeded(razlog, poruka=PORUKA_PREVELIK_JPEG_PDF)
 
 
 def _u_granici_ocr(img):
@@ -583,12 +1059,12 @@ def _ocr_strane_pdf(path: Path, indeksi: list[int]) -> tuple[dict[int, str], lis
 
         ocr_lang = _detect_ocr_lang()
         with _RASTER_OCR_LOCK:
-            doc = fitz.open(str(path))
+            doc = _otvori_pdf(fitz, path)
         dopuna: dict[int, str] = {}
         confs: list[float] = []
         try:
             with _RASTER_OCR_LOCK:
-                _odbij_jpeg_u_pdf(doc, indeksi)     # NS2b: pre prve rasterizacije
+                _odbij_pdf_preveliki_raster(doc, indeksi)     # NS3-A: pre prve rasterizacije
             for i in indeksi:
                 with _RASTER_OCR_LOCK:
                     img = _rasterizuj_stranu(doc[i])
@@ -675,14 +1151,14 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
 
         with _RASTER_OCR_LOCK:
-            doc = fitz.open(str(path))
+            doc = _otvori_pdf(fitz, path)
             strane_doc = iter(doc)
         ocr_pages: list[str] = []
         ocr_confs: list[float] = []
         ocr_strana = 0
         try:
             with _RASTER_OCR_LOCK:
-                _odbij_jpeg_u_pdf(doc, range(len(doc)))     # NS2b: pre prve rasterizacije
+                _odbij_pdf_preveliki_raster(doc, range(len(doc)))     # NS3-A: pre prve rasterizacije
             ocr_rezultati = []
             while True:
                 with _RASTER_OCR_LOCK:      # učitavanje strane je takođe poziv MuPDF-a
@@ -775,6 +1251,10 @@ def _kratak_ocr_procitan(tekst: str, pouzdanost: Optional[float]) -> bool:
     return len(pune) >= MIN_PUNIH_RECI_KRATKOG_OCR and 2 * len(pune) >= len(reci)
 
 
+def _dpi_uzorka_potpunosti(strana) -> int:
+    return min(50, _dpi_strane(float(strana.rect.width), float(strana.rect.height)))
+
+
 @_jedan_dokument_u_procesu
 def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
     """Strane (1-indeksirano) bez pročitanog teksta, a sa vidljivim sadržajem. None = nije moguće izmeriti (PDF se
@@ -785,15 +1265,16 @@ def necitljive_strane_pdf(path: Path, pages: list[str]) -> Optional[list[int]]:
     try:
         import fitz  # pymupdf
         with _RASTER_OCR_LOCK:      # N02: MuPDF samo iz jedne niti u isto vreme (50 dpi, ~ms po strani)
-            doc = fitz.open(str(path))
+            doc = _otvori_pdf(fitz, path)
             try:
                 if len(doc) != len(pages):
                     return None
-                _odbij_jpeg_u_pdf(doc, kandidati)   # NS2b: opasan JPEG → nemerljivo (None), bez dekodiranja
+                # NS3-A: preveliki raster → nemerljivo (None), bez dekodiranja; isti dpi kao uzorak ispod
+                _odbij_pdf_preveliki_raster(doc, kandidati, _dpi_uzorka_potpunosti)
                 necitljive = []
                 for i in kandidati:
                     strana = doc[i]
-                    dpi = min(50, _dpi_strane(float(strana.rect.width), float(strana.rect.height)))
+                    dpi = _dpi_uzorka_potpunosti(strana)
                     uzorak = strana.get_pixmap(dpi=dpi, colorspace=fitz.csGRAY).samples
                     _oslobodi_kes_rasterizacije()
                     tamnih = len(uzorak) - len(uzorak.translate(None, bytes(range(128))))
