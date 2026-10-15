@@ -10,7 +10,9 @@ class UploadedDocChunk(BaseModel):
     chunk_id: str
     session_id: str
     source_filename: str
-    source_format: Literal["pdf", "docx", "txt"]
+    # QA-05: tačno formati koje `extractor.extract` čita i koje upload putevi prosleđuju kao ekstenziju
+    # (`routers/smart_intake.py`, `api.py`): fotografija je `jpg`/`jpeg`/`png` (v. extractor.IMAGE_SUFFIXES).
+    source_format: Literal["pdf", "docx", "txt", "jpg", "jpeg", "png"]
     source_sha256: str
     chunk_index: int
     chunk_mode: Literal["article_aware", "recursive"]
