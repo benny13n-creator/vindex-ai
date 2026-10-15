@@ -68,9 +68,13 @@ _NASLOVI_VAN_TAKSONOMIJE = (
 ) + _DOSTAVNICA_OZNAKE
 
 
+_REDNI_BROJ = re.compile(r"^\d{1,2}[.)]\s+")
+
+
 def _red_naslova(red: str) -> str:
-    """Red bez okolnih razmaka i crtica/zvezdica; razmaknut naslov („T U Ž B A“, „R E Š E NJ E“) se sastavlja."""
-    red = red.strip().lstrip("-–—*•· ").strip()
+    """Red bez okolnih razmaka, crtica/zvezdica, navodnika i rednog broja („1. TUŽBA“, „„UGOVOR…“”); razmaknut
+    naslov („T U Ž B A“, „R E Š E NJ E“) se sastavlja."""
+    red = _REDNI_BROJ.sub("", red.strip().lstrip("-–—*•·„“”\"'«» ").strip())
     delovi = red.split()
     if len(delovi) >= 4 and all(len(d) <= 2 for d in delovi):
         red = "".join(delovi)
@@ -126,7 +130,8 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
         red = _red_naslova(sirov)
         if not red:
             continue
-        if any(_pocinje_recju(red, n) for n in _NASLOVI_VAN_TAKSONOMIJE):
+        # Stop-reč se traži i u naslovu pisanom malim slovima („Zapisnik o primopredaji“): ishod je samo None.
+        if any(_pocinje_recju(red.upper(), n) for n in _NASLOVI_VAN_TAKSONOMIJE):
             return None
         nadjen = _naslovni_tip(red)
         if nadjen:

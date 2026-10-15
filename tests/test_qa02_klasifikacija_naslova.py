@@ -75,6 +75,9 @@ Od 01.09.2026. naša nova adresa je Bulevar 1, Beograd. Ugovor i ostali UGOVORI 
     ("ПРЕСУДА\nУ ИМЕ НАРОДА", "judgment"),
     ("РЕШЕЊЕ О ИЗВРШЕЊУ\nна основу веродостојне исправе", "enforcement"),   # duži naslov pobeđuje „РЕШЕЊЕ“
     ("PRIGOVOR NA REŠENJE\nIzjavljujem prigovor.", "appeal"),
+    ("UGOVORNA KAZNA PO ČLANU 5\nTUŽBA\nTužilac: TEST ALFA DOO", "lawsuit"),   # UGOVOR ≠ UGOVORNA
+    ("1. TUŽBA\nTužilac: TEST ALFA DOO", "lawsuit"),                           # redni broj ispred naslova
+    ("„UGOVOR O ZAKUPU“\nzaključen 01.08.2026.", "contract"),                  # naslov pod navodnicima
 ])
 def test_naslov_odredjuje_vrstu(tekst, tip):
     assert classify_heuristic(tekst) == (tip, 0.85)
@@ -94,7 +97,10 @@ def test_citirani_dokument_ne_preuzima_vrstu(tekst, nije):
 
 @pytest.mark.parametrize("tekst", [ZAPISNIK_CIR, ZAPISNIK_LAT, POTVRDA, DOSTAVNICA_PRESUDA, NEPOZNAT,
                                    "Poštovani, u prilogu vam šaljem Ugovor i TUŽBU.",
-                                   "Ugovor o isporuci\nzaključen je 01.08.2026."])          # naslov nije istaknut
+                                   "Ugovor o isporuci\nzaključen je 01.08.2026.",          # naslov nije istaknut
+                                   "Zapisnik o primopredaji\nUGOVOR br 12/2026",            # stop-reč malim slovima
+                                   "Potvrda o isporuci\nUGOVOR br 12/2026",
+                                   "Br. 5 DOSTAVNICA\nPRESUDA P 1/2025"])                   # oznaka dostavnice u redu
 def test_bez_prepoznatog_naslova_nema_lazno_sigurne_vrste(tekst):
     """Nijedna od 12 vrsta nije pouzdano prepoznata → heuristika ćuti (odlučuje postojeći model, sa svojom
     pouzdanošću i `other` kad nije siguran) — nikad `contract` 0.85 zbog broja ugovora u telu."""
