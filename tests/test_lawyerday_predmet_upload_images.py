@@ -68,6 +68,14 @@ def _mock_supa_owns_predmet(predmet_id: str = "pred-1", uid: str = "user-0000-00
     return supa
 
 
+def _prava_slika(fmt: str) -> bytes:
+    """NS3-B: slika se prihvata po SADRZAJU -- upload testovi salju pravu (malu) JPEG/PNG sliku."""
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (8, 8), "white").save(b, fmt)
+    return b.getvalue()
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -92,7 +100,7 @@ async def test_jpg_photo_upload_passes_validation_and_reaches_extract():
         with pytest.raises(_StopAfterGuard):
             await api.predmet_upload_auto_analyze(
                 "pred-1", _fake_request(),
-                _upload_file("fotografija_dokumenta.jpg", "image/jpeg"),
+                _upload_file("fotografija_dokumenta.jpg", "image/jpeg", _prava_slika("JPEG")),
                 authorization="Bearer test-token",
             )
 
@@ -109,7 +117,7 @@ async def test_png_photo_upload_passes_validation_and_reaches_extract():
         with pytest.raises(_StopAfterGuard):
             await api.predmet_upload_auto_analyze(
                 "pred-1", _fake_request(),
-                _upload_file("skenirano.png", "image/png"),
+                _upload_file("skenirano.png", "image/png", _prava_slika("PNG")),
                 authorization="Bearer test-token",
             )
 

@@ -871,6 +871,36 @@ def extract_txt(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
 # document and sends the photo directly).
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png")
 
+# NS3-B: samostalna slika se prihvata samo kad je SADRŽAJ zaista JPEG ili PNG — ekstenzija i MIME koje šalje klijent
+# ne odlučuju. Pillow bi inače po sadržaju otvorio bilo koji svoj format (TIFF, GIF, BMP, WebP...) i dekodirao ga van
+# JPEG zaštite memorije (izmereno: CMYK TIFF od 2,2 MB preimenovan u .jpg → +347 MiB). MPO (više JPEG slika u jednom
+# fajlu, neki telefoni) JESTE JPEG: počinje običnim JPEG tokom, Pillow ga otvara JPEG dekoderom i dekodira samo prvu
+# sliku, čije zaglavlje čita i _jpeg_okvir — pa ga pokriva ista JPEG zaštita. Potpisi = Pillow-ovi JPEG/PNG _accept.
+FORMATI_SLIKE = ("JPEG", "PNG")
+_POTPISI_SLIKE = ((b"\xff\xd8\xff", "JPEG"), (b"\x89PNG\r\n\x1a\n", "PNG"))
+PORUKA_NIJE_JPEG_PNG = (
+    "Fajl nije prava JPEG ili PNG slika — njegov sadržaj je u drugom formatu, bez obzira na ekstenziju. "
+    "Sačuvajte ili izvezite fotografiju kao JPEG ili PNG (ili pošaljite PDF), pa pokušajte ponovo."
+)
+
+
+def format_slike_po_sadrzaju(pocetak: bytes) -> Optional[str]:
+    """'JPEG' / 'PNG' po prvim bajtovima sadržaja (≥ 8), inače None. Ništa se ne dekodira."""
+    for potpis, fmt in _POTPISI_SLIKE:
+        if pocetak.startswith(potpis):
+            return fmt
+    return None
+
+
+def _odbij_sliku_koja_nije_jpeg_png(path: Path) -> None:
+    """DocumentSafetyLimitExceeded ako sadržaj nije JPEG/PNG — pre bilo kakvog otvaranja slike ili dekodiranja."""
+    with open(path, "rb") as tok:
+        pocetak = tok.read(8)
+    if format_slike_po_sadrzaju(pocetak) is None:
+        razlog = f"slika: sadržaj nije JPEG ni PNG (prvi bajtovi {pocetak[:4].hex()})"
+        logger.warning("[OCR] Odbijeno pre dekodiranja — %s", razlog)
+        raise DocumentSafetyLimitExceeded(razlog, poruka=PORUKA_NIJE_JPEG_PNG)
+
 
 @_jedan_dokument_u_procesu
 def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optional[float]]:
@@ -891,12 +921,14 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
     from PIL import Image
 
     try:
-        with Image.open(path) as probe:
+        _odbij_sliku_koja_nije_jpeg_png(path)
+        # NS3-B: samo JPEG/PNG dekoder -- ni jedan drugi Pillow format ne moze biti izabran po sadrzaju.
+        with Image.open(path, formats=FORMATI_SLIKE) as probe:
             probe.verify()
         # verify() invalidates the image object for further use (Pillow's own
         # documented behavior) -- reopen for the actual pixel-dimension check
         # and OCR pass below.
-        with Image.open(path) as img:
+        with Image.open(path, formats=FORMATI_SLIKE) as img:
             width, height = img.size
             if width * height > MAX_IMAGE_PIXELS:
                 raise DocumentSafetyLimitExceeded(
@@ -916,7 +948,7 @@ def extract_image(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Opt
     try:
         ocr_lang = _detect_ocr_lang()
         logger.info("[OCR] Pokrenuti OCR za %s — jezik: %s", path.name, ocr_lang)
-        with _RASTER_OCR_LOCK, Image.open(path) as izvor:
+        with _RASTER_OCR_LOCK, Image.open(path, formats=FORMATI_SLIKE) as izvor:
             img = _u_granici_ocr(izvor)
             if img is izvor:
                 img = izvor.convert("L")    # piksel-identično konverziji u _ocr_image; original se ne drži tokom OCR-a

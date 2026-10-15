@@ -38,6 +38,14 @@ def _upload_file(filename: str, content: bytes = b"fake bytes for test") -> Uplo
     return UploadFile(filename=filename, file=io.BytesIO(content), headers=Headers({"content-type": "application/octet-stream"}))
 
 
+def _prava_slika(fmt: str) -> bytes:
+    """NS3-B: slika se prihvata po SADRZAJU -- upload testovi salju pravu (malu) JPEG/PNG sliku."""
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (8, 8), "white").save(b, fmt)
+    return b.getvalue()
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -72,7 +80,7 @@ async def test_image_upload_accepted_and_enqueued():
          patch("routers.smart_intake._encrypt", return_value=b"encrypted-bytes"), \
          patch("routers.smart_intake.intake_queue.enqueue_job", new=AsyncMock(return_value="job-abc123")):
         result = await upload_intake_documents(
-            _fake_request(), [_upload_file("served_decision.jpg")], _fake_user(),
+            _fake_request(), [_upload_file("served_decision.jpg", _prava_slika("JPEG"))], _fake_user(),
         )
 
     assert result["rezultati"][0]["ok"] is True
@@ -89,7 +97,7 @@ async def test_png_upload_accepted():
          patch("routers.smart_intake._encrypt", return_value=b"encrypted-bytes"), \
          patch("routers.smart_intake.intake_queue.enqueue_job", new=AsyncMock(return_value="job-def456")):
         result = await upload_intake_documents(
-            _fake_request(), [_upload_file("skenirano_resenje.png")], _fake_user(),
+            _fake_request(), [_upload_file("skenirano_resenje.png", _prava_slika("PNG"))], _fake_user(),
         )
 
     assert result["rezultati"][0]["ok"] is True
@@ -153,7 +161,7 @@ async def test_mixed_batch_valid_and_invalid_reported_independently():
          patch("routers.smart_intake.intake_queue.enqueue_job", new=AsyncMock(return_value="job-xyz")):
         result = await upload_intake_documents(
             _fake_request(),
-            [_upload_file("photo.jpg"), _upload_file("virus.exe")],
+            [_upload_file("photo.jpg", _prava_slika("JPEG")), _upload_file("virus.exe")],
             _fake_user(),
         )
 
