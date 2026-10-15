@@ -290,11 +290,18 @@ def _bez_rasterizacije(monkeypatch):
     monkeypatch.setattr(X, "_ocr_image", lambda *a: (_ for _ in ()).throw(AssertionError("OCR pre odbijanja")))
 
 
+def _zaglavlje(w, h, comps, progresivni=False) -> bytes:
+    """Samo zaglavlje JPEG-a (SOI, SOF, SOS, EOI): provera ga čita, a ništa se ne dekodira (test nikad ne rasterizuje)."""
+    return SOI + _sof(0xC2 if progresivni else 0xC0, w, h, comps) + _sos(len(comps)) + bytes(16) + b"\xff\xd9"
+
+
+# NS3-A: koeficijenti progresivnog JPEG-a u PDF-u ulaze u procenu rastera strane (MAX_PDF_RASTER_BAJTOVA)
+_PROG_40MP = _zaglavlje(5317, 7523, [(1, 1)] * 3, progresivni=True)     # 229 MiB koeficijenata
+
+
 @pytest.mark.parametrize("flate", [False, True])
 def test_skeniran_pdf_sa_opasnim_jpeg_odbijen_pre_rasterizacije(monkeypatch, tmp_path, flate):
-    data = _jpeg(progressive=True, subsampling=0)
-    p = _pdf(tmp_path, [("jpeg", data)], flate=flate)
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", _okvir(data)["koeficijenti"] - 1)
+    p = _pdf(tmp_path, [("jpeg", _PROG_40MP)], flate=flate)
     _bez_rasterizacije(monkeypatch)
     with pytest.raises(DocumentSafetyLimitExceeded) as ei:
         X.extract(p)
@@ -302,10 +309,8 @@ def test_skeniran_pdf_sa_opasnim_jpeg_odbijen_pre_rasterizacije(monkeypatch, tmp
 
 
 def test_mesovit_pdf_proverava_samo_strane_koje_ce_ici_u_ocr(monkeypatch, tmp_path):
-    data = _jpeg(progressive=True, subsampling=0)
     tekst = "Ovo je digitalna strana sa dovoljno teksta da se ne salje u OCR. " * 3
-    p = _pdf(tmp_path, [("tekst", tekst), ("jpeg", data)])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", _okvir(data)["koeficijenti"] - 1)
+    p = _pdf(tmp_path, [("tekst", tekst), ("jpeg", _PROG_40MP)])
     _bez_rasterizacije(monkeypatch)
     with pytest.raises(DocumentSafetyLimitExceeded) as ei:
         X.extract(p)
@@ -314,22 +319,20 @@ def test_mesovit_pdf_proverava_samo_strane_koje_ce_ici_u_ocr(monkeypatch, tmp_pa
 
 def test_digitalan_pdf_bez_rasterizacije_nije_odbijen(monkeypatch, tmp_path):
     """Opasna slika na strani SA tekstom: strana se ne rasterizuje, pa nema ni odbijanja."""
-    data = _jpeg(progressive=True, subsampling=0)
     tekst = "Digitalna strana sa slikom i dovoljno teksta za tekstualni sloj dokumenta. " * 3
     d = fitz.open(); pg = d.new_page(width=595, height=842)
-    pg.insert_image(fitz.Rect(300, 500, 500, 800), stream=data); pg.insert_text((50, 72), tekst[:90], fontsize=9)
+    pg.insert_image(fitz.Rect(300, 500, 500, 800), stream=_PROG_40MP); pg.insert_text((50, 72), tekst[:90], fontsize=9)
     pg.insert_text((50, 100), tekst[90:180], fontsize=9)
     p = tmp_path / "dig.pdf"; d.save(str(p)); d.close()
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)
+    monkeypatch.setattr(X, "MAX_PDF_RASTER_BAJTOVA", 0)
     _bez_rasterizacije(monkeypatch)
     tekst_out, skeniran, ocr, strane, _ = X.extract(p)
     assert skeniran is False and ocr is False and len(strane) == 1
 
 
 def test_pdf_sa_obicnim_jpeg_nije_odbijen(monkeypatch, tmp_path):
-    """Običan JPEG u PDF-u: bafer koeficijenata je 0, pa se ovim pravilom ne odbija (raster još nije pokriven)."""
+    """Običan JPEG u PDF-u ispod praga: rasterizuje se i čita OCR-om kao i ranije."""
     p = _pdf(tmp_path, [("jpeg", _jpeg(subsampling=0))])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)
     monkeypatch.setattr(X, "_detect_ocr_lang", lambda: "eng")
     monkeypatch.setattr(X, "_ocr_image", lambda img, lang: ("tekst " * 40, 0.9))
     assert X.extract(p)[2] is True
@@ -337,34 +340,28 @@ def test_pdf_sa_obicnim_jpeg_nije_odbijen(monkeypatch, tmp_path):
 
 def test_provera_pdf_ne_cita_smestaj_slike(monkeypatch, tmp_path):
     """NS2b F2: page.get_image_rects/get_image_info dekodira slike strane — provera ih ne sme pozivati."""
-    data = _jpeg(progressive=True, subsampling=0)
-    p = _pdf(tmp_path, [("jpeg", data)])
-    for ime in ("get_image_rects", "get_image_info", "get_image_bbox", "get_text", "get_textpage"):
+    p = _pdf(tmp_path, [("jpeg", _PROG_40MP)])
+    for ime in ("get_image_rects", "get_image_info", "get_image_bbox", "get_text", "get_textpage", "get_pixmap"):
         monkeypatch.setattr(fitz.Page, ime, lambda *a, **k: (_ for _ in ()).throw(AssertionError("dekodiranje u proveri")))
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", _okvir(data)["koeficijenti"] - 1)
     _bez_rasterizacije(monkeypatch)
     with pytest.raises(DocumentSafetyLimitExceeded):
         X.extract(p)
 
 
 def test_necitljive_strane_ne_rasterizuje_opasan_jpeg(monkeypatch, tmp_path):
-    data = _jpeg(progressive=True, subsampling=0)
-    p = _pdf(tmp_path, [("jpeg", data)])
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)
+    p = _pdf(tmp_path, [("jpeg", _jpeg(progressive=True, subsampling=0))])
+    monkeypatch.setattr(X, "MAX_PDF_RASTER_BAJTOVA", 0)
     pravo = fitz.Page.get_pixmap
     pozivi = []
     monkeypatch.setattr(fitz.Page, "get_pixmap", lambda self, *a, **k: (pozivi.append(1), pravo(self, *a, **k))[1])
     assert X.necitljive_strane_pdf(p, [""]) is None
     assert pozivi == []
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 128 << 20)
+    monkeypatch.setattr(X, "MAX_PDF_RASTER_BAJTOVA", 150 << 20)
     assert X.necitljive_strane_pdf(p, [""]) == [] and pozivi == [1]     # ispod praga: meri se kao i ranije
 
 
-def test_podrazumevani_prag_pdf_nizi_od_praga_slike():
-    """Izmereno: JPEG u PDF-u nosi ~70 MiB više od iste fotografije (MuPDF tok + raster strane)."""
-    assert X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA == 64 << 20 and X.MAX_JPEG_DEKODIRANJA_BAJTOVA == 150 << 20
-    assert X._jpeg_bajtova_koeficijenata(3720, 5262, [(1, 1)] * 3) > X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA   # 20 MP 4:4:4
-    assert X._jpeg_bajtova_koeficijenata(3720, 5262, [(2, 2), (1, 1), (1, 1)]) <= X.MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA
+def test_podrazumevani_prag_pdf_i_slike():
+    assert X.MAX_PDF_RASTER_BAJTOVA == 150 << 20 and X.MAX_JPEG_DEKODIRANJA_BAJTOVA == 150 << 20
 
 
 def test_pragovi_slike_i_pdf_su_odvojeni(monkeypatch, tmp_path):
@@ -377,7 +374,7 @@ def test_pragovi_slike_i_pdf_su_odvojeni(monkeypatch, tmp_path):
     foto = tmp_path / "f.jpg"
     foto.write_bytes(data)
     monkeypatch.setattr(X, "MAX_JPEG_DEKODIRANJA_BAJTOVA", 150 << 20)
-    monkeypatch.setattr(X, "MAX_JPEG_KOEFICIJENATA_PDF_BAJTOVA", 0)      # prag PDF-a ne važi za fotografiju
+    monkeypatch.setattr(X, "MAX_PDF_RASTER_BAJTOVA", 0)                 # prag PDF-a ne važi za fotografiju
     assert X.extract(foto)[2] is True
 
 
