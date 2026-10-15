@@ -68,6 +68,8 @@
     parnicno: "Parnični", krivicno: "Krivični", upravno: "Upravni", radno: "Radno", porodicno: "Porodičnopravni",
     nasledjivanje: "Ostavinski", privredno: "Privredno", nepokretnosti: "Nepokretnosti", ostalo: "Ostalo",
     radni: "Radni",                                    // static/vindex.js (oznaka liste predmeta)
+    // routers/intake.py (šabloni predmeta) i routers/integracije.py (uvoz)
+    gradjansko: "Građansko", izvrsenje: "Izvršenje", clio_import: "Uvezen iz Clio-a",
     // nov-predmet.js::KLJUC (nazivi su ključevi koje advokat bira u istom polju)
     radni_spor: "Radni spor", ugovorni_spor: "Ugovorni spor", naknada_stete: "Naknada štete",
     potrosacki_spor: "Potrošački spor", nasledstvo: "Nasledstvo", krivicni: "Krivični", upravni: "Upravni",

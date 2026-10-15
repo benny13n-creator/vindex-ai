@@ -203,6 +203,28 @@ zapisi("bez rečnika", "prijem: vrsta i polja doslovno uz napomenu", await cekaj
 zapisi("bez rečnika", "0 JS grešaka bez rečnika", greske404.length === 0, greske404.join(" | ").slice(0, 300));
 await ctx404.close();
 
+// ── Delimičan (stariji) rečnik bez vrstaPredmeta/ulogaStranke: rezerva umesto TypeError-a ────────────────────────────
+const ctxStar = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+const greskeStar = [];
+await ctxStar.route("**/*", r => {
+  const u = new URL(r.request().url());
+  if (u.hostname !== "127.0.0.1") { spoljni.push(u.href); return r.abort(); }
+  if (u.pathname === "/static/vindex.js") return r.fulfill({ status: 200, contentType: "text/javascript", body: "/* legacy blokiran */" });
+  if (u.pathname.endsWith("/nazivi.js")) return r.fulfill({ status: 200, contentType: "text/javascript",
+    body: "window.VxNazivi = Object.freeze({ vrstaDokumenta: function (k) { return k; }, poljePodatka: function (k) { return k; }, akter: function (k) { return k; } });" });
+  return r.continue();
+});
+await ctxStar.addInitScript(([k, v]) => { if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(k, v); } },
+  [KLJUC, JSON.stringify({ access_token: "tok-A", refresh_token: "r", expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: "uid-A" } })]);
+const s2 = await ctxStar.newPage();
+s2.on("pageerror", e => greskeStar.push(String(e)));
+await s2.goto(`${BASE}/app#/predmeti/${P}`);
+zapisi("stari rečnik", "predmet prikazan preko rezerve (vrsta doslovno uz napomenu)", await s2.waitForFunction(
+  () => window.VxNazivi.nedostupan === true && /„opsti“ \(srpski naziv nije učitan\)/.test(document.getElementById("predmet-cinjenice").innerText),
+  null, { timeout: 15000 }).then(() => true, () => false));
+zapisi("stari rečnik", "0 JS grešaka", greskeStar.length === 0, greskeStar.join(" | ").slice(0, 300));
+await ctxStar.close();
+
 // ── Podaci nepromenjeni ───────────────────────────────────────────────────────────────────────────────────────────
 const posle = (await get("/__osb003/seme")).b;
 zapisi("podaci", "stari zapisi u bazi identični pre i posle (tip_dokaza, akter, document_type, entity_type…)", pre === posle && pre.length > 100);

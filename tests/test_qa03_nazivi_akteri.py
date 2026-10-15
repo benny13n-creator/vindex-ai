@@ -77,3 +77,31 @@ def test_ljudski_akter_nije_u_recniku():
     recnik = _akteri_recnika()
     for k in SRPSKI_DOSLOVNO:
         assert k.strip() not in recnik
+
+
+def _vrste_predmeta() -> dict:
+    blok = re.search(r"var VRSTE_PREDMETA = \{(.*?)\n  \};", NAZIVI, re.S).group(1)
+    return {k.strip(): v for k, v in re.findall(r'"?([a-z][a-z_ ]*)"?:\s*"([^"]+)"', blok)}
+
+
+def test_vrsta_predmeta_iz_v2_unosa_vraca_isti_naziv_koji_je_advokat_izabrao():
+    """nov-predmet.js::KLJUC (naziv → šifra) i nazivi.js::VRSTE_PREDMETA (šifra → naziv) su dve strane istog ugovora:
+    šifra mora da se prikaže kao izabran naziv (veliko početno slovo), inače bi „radni_spor“ mogao postati „Krivični“."""
+    src = (KOREN / "frontend-v2-ng" / "src" / "nov-predmet.js").read_text(encoding="utf-8")
+    kljuc = dict(re.findall(r'"([^"]+)":\s*"([^"]+)"', re.search(r"var KLJUC = \{(.*?)\};", src, re.S).group(1)))
+    vrste = _vrste_predmeta()
+    assert len(kljuc) >= 14
+    for naziv, sifra in kljuc.items():
+        if sifra[:1].isupper():          # „Parnica“: čuva se sam naziv, prikazuje se doslovno
+            continue
+        assert vrste.get(sifra) == naziv[:1].upper() + naziv[1:], (naziv, sifra, vrste.get(sifra))
+
+
+def test_programske_sifre_vrste_predmeta_imaju_naziv():
+    """Šifre koje backend upisuje u `predmeti.tip` kao literal: Smart Intake (`opsti`), šabloni prijema
+    (`gradjansko`, `izvrsenje`), uvoz (`clio_import`). Svaka postoji u kodu i ima srpski naziv."""
+    vrste = _vrste_predmeta()
+    izvori = {"opsti": "smart_intake.py", "gradjansko": "intake.py", "izvrsenje": "intake.py", "clio_import": "integracije.py"}
+    for sifra, fajl in izvori.items():
+        assert f'"tip":     "{sifra}"' in (KOREN / "routers" / fajl).read_text(encoding="utf-8") or             f'"tip":   "{sifra}"' in (KOREN / "routers" / fajl).read_text(encoding="utf-8"), (fajl, sifra)
+        assert sifra in vrste, sifra

@@ -939,7 +939,8 @@
   <script>
     /* QA-03: src/nazivi.js nije stigao (404, prekid mreže) — ekrani ne smeju da puknu ni da nagađaju. Ovde NEMA
        prevoda (jedini rečnik je nazivi.js): oznaka se prikazuje doslovno, uz napomenu; akter ostaje kako je upisan. */
-    if (!window.VxNazivi) {
+    var vxN = window.VxNazivi;   // i delimičan (stariji) rečnik bez svih funkcija → rezerva, ne TypeError na ekranu
+    if (!vxN || ["vrstaDokumenta", "poljePodatka", "akter", "vrstaPredmeta", "ulogaStranke"].some(function (f) { return typeof vxN[f] !== "function"; })) {
       window.VxNazivi = (function () {
         function oznaka(v) { return String(v == null ? "" : v).trim().slice(0, 60); }
         function nijeUcitan(v) { var k = oznaka(v); return k ? "„" + k + "“ (srpski naziv nije učitan)" : ""; }
