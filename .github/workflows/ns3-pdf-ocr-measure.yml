@@ -1,0 +1,81 @@
+name: NS3-A PDF OCR memory measurement
+
+# Measurement-only branch (NS3 FINAL BETA RELIABILITY CLOSURE, task A). Never merged.
+# PRODUCTION Dockerfile image built from this branch (candidate extractor = ns3/pdf-ocr), started with the production
+# start command shape `gunicorn ... -c gunicorn.conf.py`, WEB_CONCURRENCY=1, one fresh `--memory=512m
+# --memory-swap=512m` container per case, memory sampled from the host cgroup. Fixtures are synthetic (generated in
+# the job); results contain only sizes, hashes, timings and CER.
+
+on:
+  push:
+    branches: [measure/ns3-pdf-ocr]
+  workflow_dispatch:
+
+jobs:
+  mech:
+    if: ${{ !contains(github.event.head_commit.message, '[skip-mech]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Image facts
+        run: docker run --rm vx python -c "import PIL, fitz; from PIL import features; print('Pillow', PIL.__version__, 'jpg', features.version('jpg'), 'jp2', features.check('jpg_2000'), fitz.__doc__)"
+      - name: Generate synthetic fixtures
+        run: |
+          docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
+          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx; done
+      - name: Estimate vs real rasterization (one fresh process per file and mode, no memory limit)
+        run: |
+          for f in $(ls ns2_measure/fx | grep -E '\.pdf$'); do
+            for mode in guard render; do
+              docker run --rm -e PYTHONWARNINGS=ignore -v "$PWD/ns2_measure:/m" -w /app vx python /m/mech3.py /m/fx/$f $mode 2>/dev/null | grep '^MECH3' || echo "MECH3FAIL $f $mode"
+            done
+          done | tee ns2_measure/mech3.log
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns3-mech
+          path: ns2_measure/mech3.log
+          retention-days: 14
+
+  fals:
+    if: ${{ !contains(github.event.head_commit.message, '[mech-only]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [r1, r2, r3]
+        part: [a, b]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Runner facts
+        run: |
+          nproc; free -m; uname -r
+          echo "cgroup fs: $(stat -fc %T /sys/fs/cgroup)"; docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'
+      - name: Build the production image (Dockerfile)
+        run: docker build -q -t vx .
+      - name: Generate synthetic fixtures
+        run: |
+          docker run --rm -v "$PWD/ns2_measure:/m" vx python /m/gen.py /m/fx > /dev/null
+          for g in gen_fx2 gen_fx3 gen_fx4 gen_ns3; do docker run --rm -v "$PWD/ns2_measure:/m" -w /app vx python /m/$g.py /m/fx > /dev/null; done
+          sudo chmod -R a+rw ns2_measure/fx
+      - name: Cases (gunicorn, WEB_CONCURRENCY=1, 512 MiB)
+        run: bash ns2_measure/run_b1.sh ns2_measure/cases_ns3_${{ matrix.part }}.txt ${{ matrix.run }}
+      - name: Summary
+        if: always()
+        run: |
+          python3 ns2_measure/summarize.py
+          echo "NS2ROWS_BEGIN"; python3 -c "import json; [print('NS2ROW', json.dumps(r, ensure_ascii=False)) for r in json.load(open('ns2_measure/out/summary_rows.json'))]"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ns3-fals-${{ matrix.part }}-${{ matrix.run }}
+          path: |
+            ns2_measure/out/*.json
+            ns2_measure/logs/*.log
+          retention-days: 14

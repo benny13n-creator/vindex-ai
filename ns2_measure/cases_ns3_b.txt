@@ -1,0 +1,15 @@
+# NS3-A round 1, part B: repeated processing, concurrent pairs (candidate), and calibration with the guard OFF (NS3_NOGUARD=1)
+b_seq 1 - seq:pdf_b_cmyk_30.pdf@worker*2,ns3_inline_cmyk30.pdf@worker,ns3_annot_cmyk30.pdf@finalize,scan_cyr_1p.pdf@worker,pdf_b_cmyk_40.pdf@worker,mixed_6p.pdf@worker,ns3_jpx_rgb_300.pdf@worker -
+b_p_c30 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_30.pdf@finalize -
+b_p_c40 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_40.pdf@finalize -
+b_p_jpx 1 - pair:scan_10p.pdf@worker|ns3_jpx_rgb_300.pdf@finalize -
+b_p_rgb24 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_24_a4.pdf@finalize -
+v_cmyk30 1 - single:pdf_b_cmyk_30.pdf@worker NS3_NOGUARD=1
+v_rgb28 1 - single:pdf_b_rgb_28_a4.pdf@worker NS3_NOGUARD=1
+v_rgb34 1 - single:pdf_b_rgb_34_6_a4.pdf@worker NS3_NOGUARD=1
+v_cmyk16 1 - single:pdf_b_cmyk_16_a4.pdf@worker NS3_NOGUARD=1
+v_cmyk20 1 - single:pdf_b_cmyk_20_a4.pdf@worker NS3_NOGUARD=1
+v_prog420 1 - single:pdf_prog420_64.pdf@worker NS3_NOGUARD=1
+v_smask 1 - single:ns3_smask.pdf@worker NS3_NOGUARD=1
+vp_rgb28 1 - pair:scan_10p.pdf@worker|pdf_b_rgb_28_a4.pdf@finalize NS3_NOGUARD=1
+vp_cmyk16 1 - pair:scan_10p.pdf@worker|pdf_b_cmyk_16_a4.pdf@finalize NS3_NOGUARD=1
