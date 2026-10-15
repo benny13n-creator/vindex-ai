@@ -9,9 +9,9 @@ Ugovor koji se meri (vidi izvestaj):
     glavni zahtev" -- pad upisa se guta i vraca None (best-effort NA NEUSPEH).
   * shared/bg.py: spawn NE cini posao trajnim; task umire sa procesom.
 
-Dakle: neuspesan upis ne obara izvoz (vec mereno u test_c1_export_stages), ali
-pokusaj upisa mora biti ZAVRSEN pre nego sto ijedan bajt arhive napusti
-server. Sa `spawn` je upis tek zakazan kada odgovor krene; gasenje procesa
+Dakle: pokusaj upisa mora biti ZAVRSEN pre nego sto ijedan bajt arhive napusti
+server. NS3-C (odluka osnivaca): nedokazan upis uspeha sada ODBIJA izvoz
+(fail-closed; v. test_ns3_export_audit_fail_closed). Sa `spawn` je upis tek zakazan kada odgovor krene; gasenje procesa
 posle isporuke a pre upisa ostavlja isporucen izvoz bez zapisa.
 
 Sve sinteticko: lazni Supabase iz test_n04, bez mreze.
@@ -119,10 +119,11 @@ async def test_neuspeh_upis_zavrsen_pre_greske_klijentu(scenario):
 
 
 @pytest.mark.anyio
-async def test_audit_koji_baci_izuzetak_ne_obara_izvoz(caplog):
-    """log_action po ugovoru ne baca; ako ipak baci (regresija), izvoz ostaje
-    isporucen (ugovor: audit nikad ne blokira zahtev) a pad je vidljiv u logu."""
+async def test_audit_koji_baci_izuzetak_odbija_izvoz(caplog):
+    """NS3-C (fail-closed, odluka osnivaca): ako upis baci, ZIP se NE salje
+    (503); pad je vidljiv u logu bez teksta izuzetka i bez e-poste."""
     import routers.data_export as de
+    from fastapi import HTTPException
 
     async def _baci(action, **kw):
         raise RuntimeError("TAJNA-NS2B-AUDIT")
@@ -130,31 +131,31 @@ async def test_audit_koji_baci_izuzetak_ne_obara_izvoz(caplog):
     with caplog.at_level(logging.WARNING), \
          patch.object(de, "_get_supa", return_value=FakeSupa()), \
          patch("shared.audit_immutable.log_action", new=_baci):
-        resp = await de.export_complete(user={"user_id": A, "email": "tajna.adresa@x.rs"})
-        telo = b""
-        async for deo in resp.body_iterator:
-            telo += deo
+        with pytest.raises(HTTPException) as exc:
+            await de.export_complete(user={"user_id": A, "email": "tajna.adresa@x.rs"})
         for _ in range(5):
             await asyncio.sleep(0)
-    assert resp.status_code == 200
-    assert set(_sadrzaj(telo)) == {"README.txt", *TABELE_IZVOZA.values()}
+    assert exc.value.status_code == 503
     assert "data_export" in caplog.text and "RuntimeError" in caplog.text
     assert "TAJNA-NS2B-AUDIT" not in caplog.text
     assert "tajna.adresa" not in caplog.text          # pregled D F1: metapodaci (e-posta) nikad u logu
 
 
 @pytest.mark.anyio
-async def test_nedostupan_audit_sink_vidljiv_u_logu_izvoz_isporucen(caplog):
-    """Best-effort na neuspeh (log_action ugovor): izvoz isporucen, a pad upisa
-    je detektabilan samo kroz log upozorenje -- ne kroz odgovor."""
+async def test_nedostupan_audit_sink_vidljiv_u_logu_izvoz_odbijen(caplog):
+    """NS3-C: nedostupan sink -> izvoz odbijen (503), pad vidljiv u logu."""
     import routers.data_export as de
     import shared.audit_immutable as ai
+    from fastapi import HTTPException
 
     with caplog.at_level(logging.WARNING), \
          patch.object(de, "_get_supa", return_value=FakeSupa()), \
          patch.object(ai, "_build_and_insert", side_effect=ConnectionError("down")):
-        resp = await de.export_complete(user={"user_id": A, "email": "a@x.rs"})
-        poruke_pri_odgovoru = caplog.text
+        with pytest.raises(HTTPException) as exc:
+            await de.export_complete(user={"user_id": A, "email": "tajna.adresa@x.rs"})
+        poruke = caplog.text
         await _ubij_pozadinu()
-    assert resp.status_code == 200
-    assert "[AUDIT_IMMUTABLE]" in poruke_pri_odgovoru
+    assert exc.value.status_code == 503
+    assert "[AUDIT_IMMUTABLE]" in poruke
+    assert "[EXPORT] audit data_export NIJE dokazano upisan" in poruke
+    assert "tajna.adresa" not in poruke

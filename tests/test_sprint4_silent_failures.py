@@ -120,8 +120,9 @@ async def test_export_still_succeeds_when_every_table_reads():
     """No regression: a healthy export must still be produced."""
     import routers.data_export as de
 
+    # NS3-C: isporuka zahteva dokazan audit upis (id reda); None bi bio 503.
     async def _noop_log(*a, **k):
-        return None
+        return "audit-id"
 
     # C1-F1/N1: izvoz cita po stranama (id > poslednji) do prazne strane.
     # Ograniceni lazni upit (ne MagicMock lanac): petlja koja se ne zaustavlja

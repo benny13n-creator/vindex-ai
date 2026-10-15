@@ -8,7 +8,8 @@ Faze: 1 zahtev; 2 citanje zavrseno; 3 arhiva napravljena; 4 odgovor zapocet;
     `data_export_failed` sa fazom, a NIKAD `data_export`;
   * uspesan zapis tvrdi samo fazu 3 i izricito kaze da isporuka nije dokaziva;
   * nijedan zapis ne nosi sadrzaj arhive ni tekst izuzetka;
-  * pad audit upisa ne obara izvoz i ne pretvara neuspeh u uspeh;
+  * pad audit upisa ne pretvara neuspeh u uspeh; NS3-C: nedokazan upis
+    uspeha ODBIJA izvoz (fail-closed, ranije best-effort);
   * ID iz zahteva (query/zaglavlje) nikad ne menja vlasnika izvoza.
 
 Sve sinteticko: lazni Supabase iz test_n04, bez mreze.
@@ -248,13 +249,16 @@ async def _izvezi_pravi_audit(supa):
 
 
 @pytest.mark.anyio
-async def test_nedostupan_audit_ne_obara_uspesan_izvoz():
+async def test_nedostupan_audit_odbija_izvoz_bez_arhive():
+    """NS3-C (odluka osnivaca, fail-closed): bez dokazanog audit upisa nema
+    isporuke. Ranije (best-effort) je ovde ZIP bio isporucen."""
     import shared.audit_immutable as ai
+    from fastapi import HTTPException
 
     with patch.object(ai, "_build_and_insert", side_effect=ConnectionError("audit down")):
-        (resp, telo), _ = await _izvezi_pravi_audit(FakeSupa())
-    assert resp.status_code == 200
-    assert set(_sadrzaj(telo)) == {"README.txt", *TABELE_IZVOZA.values()}
+        rez, _ = await _izvezi_pravi_audit(FakeSupa())
+    assert isinstance(rez, HTTPException) and rez.status_code == 503
+    assert "nije poslat" in rez.detail
 
 
 @pytest.mark.anyio
