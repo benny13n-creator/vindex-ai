@@ -13534,7 +13534,7 @@ async function billing_sendEmail(fakturaId) {
 
 var _cmdkOpenState = false;
 var _cmdkTimer     = null;
-var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci';
+var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci,komentari';
 var _cmdkResults   = [];
 var _cmdkFocusIdx  = -1;
 
@@ -13555,10 +13555,11 @@ var _CMDK_ICONS = {
   billing:     {bg:'rgba(255,255,255,0.05)', label:'Naplata'},
   hronologija: {bg:'rgba(200,100,255,0.10)', label:'Hronologija'},
   beleska:     {bg:'rgba(255,255,255,0.06)', label:'Beleška'},
+  komentar:    {bg:'rgba(255,255,255,0.06)', label:'Komentar'},
   zadatak:     {bg:'rgba(255,255,255,0.05)', label:'Zadatak'},
 };
-var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske','zadaci'];
-var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska',zadaci:'zadatak'};
+var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske','komentari','zadaci'];
+var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska',komentari:'komentar',zadaci:'zadatak'};
 
 function cmdkOpen() {
   if (!currentSession) return;
