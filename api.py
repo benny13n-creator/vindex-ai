@@ -1940,6 +1940,25 @@ def api_version():
     }
 
 
+_EMAIL_BROJACI = ("poslato", "greske", "preskoceno", "neisporuceno")
+
+
+def _email_podsetnici_status(rez) -> str:
+    """Status email modula dnevnog dispečera iz brojača `posalji_podsetnike` (TENFRONTS-M01).
+
+    ok = izvršeno bez greške (uklj. 0 poslatih); nema_primalaca = nema aktivnih profila (nije isporuka);
+    neisporuceno = rezervisano, SMTP pao — ishod nepoznat; greska = greske > 0 ili nevalidan oblik."""
+    if not isinstance(rez, dict) or any(type(rez.get(k)) is not int or rez[k] < 0 for k in _EMAIL_BROJACI):
+        return "greska"
+    if rez["greske"]:
+        return "greska"
+    if rez["neisporuceno"]:
+        return "neisporuceno"
+    if not rez["poslato"] and rez.get("napomena") == "Nema aktivnih profila":
+        return "nema_primalaca"
+    return "ok"
+
+
 @app.post("/api/cron/daily")
 async def cron_daily(request: Request):
     """
@@ -2153,8 +2172,14 @@ async def cron_daily(request: Request):
     try:
         from routers.email_notif import posalji_podsetnike as _email_podsetnici_cron
         _em_r = await asyncio.wait_for(_email_podsetnici_cron(request, _cron_user), timeout=60)
-        _stavke_obradjene += int((_em_r or {}).get("poslato", 0))
-        rezultati["email_podsetnici"] = {**(_em_r or {}), "status": "ok",
+        # TENFRONTS-M01: status iz brojača, ne konstanta. `greske`/`neisporuceno` > 0 ili oblik bez 4
+        # nenegativna cela brojača (isti ugovor kao email-cron.yml) = neuspeh modula; ništa se ne ponavlja.
+        _em_status = _email_podsetnici_status(_em_r)
+        if isinstance(_em_r, dict) and type(_em_r.get("poslato")) is int and _em_r["poslato"] > 0:
+            _stavke_obradjene += _em_r["poslato"]
+        if _em_status in ("greska", "neisporuceno"):
+            _broj_grešaka += 1
+        rezultati["email_podsetnici"] = {**(_em_r if isinstance(_em_r, dict) else {}), "status": _em_status,
                                           "duration_ms": round((_time.monotonic() - _t_em) * 1000)}
     except asyncio.TimeoutError:
         rezultati["email_podsetnici"] = {"status": "timeout", "greska": "Prekoraceno 60s",
