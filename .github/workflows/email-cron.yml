@@ -31,15 +31,65 @@ jobs:
       # fix corrects the header but the call still needs `CRON_TOKEN` (as
       # sent here, now via X-Cron-Key) to equal Render's CRON_SECRET value.
       # Flagged for founder verification in the Wave 4 action pack.
+      #
+      # Night sprint T04 (2026-10-17): HTTP 2xx NIJE uspeh posla. Endpoint vraća
+      # 200 i kada je `greske` > 0 (rezervacija nije uspela) ili `neisporuceno` > 0
+      # (rezervisano, SMTP pao — ishod nepoznat). Zeleno je samo: 2xx + JSON sa 4
+      # nenegativna cela brojača + greske=0 + neisporuceno=0. `neisporuceno` traži
+      # RUČNU proveru — posao se ne ponavlja automatski (rezervacija sprečava duplikat,
+      # pa bi ponavljanje svejedno preskočilo). „poslato“ znači da je SMTP prihvatio
+      # poruku, ne da je stigla u sanduče. Ključ ide kroz env, ne u izvor skripte;
+      # telo odgovora se ne ispisuje — samo brojači. Ugovor:
+      # tests/test_alerts_email_cron_contract.py.
       - name: Pošalji email podsetnike
+        env:
+          CRON_KEY: ${{ secrets.CRON_TOKEN }}
         run: |
-          http_code=$(curl -s -o /tmp/email_cron_response.json -w "%{http_code}" -X POST https://vindex.rs/email-notif/send-reminders \
-            -H "X-Cron-Key: ${{ secrets.CRON_TOKEN }}" \
-            -H "Content-Type: application/json")
-          echo "HTTP $http_code"
-          cat /tmp/email_cron_response.json
-          echo ""
-          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-            echo "::error::email-notif/send-reminders returned HTTP $http_code -- treating as job failure, not silent success."
+          if [ -z "$(printf '%s' "$CRON_KEY" | tr -d '[:space:]')" ]; then
+            echo "::error::Cron ključ (GitHub secret) je prazan -- zahtev NIJE poslat (JOB_FAILED)."
             exit 1
           fi
+          odgovor="$(mktemp)"
+          http_code=$(curl -sS --max-time 120 -o "$odgovor" -w "%{http_code}" -X POST https://vindex.rs/email-notif/send-reminders \
+            -H "X-Cron-Key: $CRON_KEY" \
+            -H "Content-Type: application/json") || {
+            echo "::error::email-notif/send-reminders: transportna greška ili timeout -- ishod nepoznat, ne ponavljati automatski (JOB_FAILED)."
+            exit 1
+          }
+          echo "HTTP $http_code"
+          if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "::error::email-notif/send-reminders returned HTTP $http_code -- treating as job failure, not silent success (JOB_FAILED)."
+            exit 1
+          fi
+          python3 - "$odgovor" <<'PY'
+          import json, sys
+          try:
+              with open(sys.argv[1], encoding="utf-8") as f:
+                  d = json.load(f)
+          except Exception as e:
+              print("::error::Odgovor nije validan JSON (%s) -- JOB_FAILED." % type(e).__name__)
+              sys.exit(1)
+          if not isinstance(d, dict):
+              print("::error::Odgovor nije JSON objekat -- JOB_FAILED.")
+              sys.exit(1)
+          POLJA = ("poslato", "greske", "preskoceno", "neisporuceno")
+          lose = [p for p in POLJA if type(d.get(p)) is not int or d[p] < 0]
+          if lose:
+              print("::error::Brojači nedostaju ili nisu nenegativni celi brojevi: %s -- JOB_FAILED." % ", ".join(lose))
+              sys.exit(1)
+          n = {p: d[p] for p in POLJA}
+          print("poslato=%(poslato)d greske=%(greske)d preskoceno=%(preskoceno)d neisporuceno=%(neisporuceno)d" % n)
+          if n["greske"]:
+              print("::error::%d podsetnik(a) nije rezervisano ni poslato -- JOB_FAILED." % n["greske"])
+              sys.exit(1)
+          if n["neisporuceno"]:
+              print("::error::%d podsetnik(a) rezervisano, SMTP slanje nije uspelo -- DELIVERY_UNCONFIRMED. "
+                    "Potrebna ručna provera; posao NE ponavljati automatski." % n["neisporuceno"])
+              sys.exit(1)
+          if n["poslato"]:
+              print("SMTP_ACCEPTED / INBOX_UNCONFIRMED: SMTP je prihvatio %d poruka; prijem u sanduče nije potvrđen." % n["poslato"])
+          elif d.get("napomena") == "Nema aktivnih profila":
+              print("NO_RECIPIENTS: nema aktivnih email profila -- ništa nije poslato; ovo nije dokaz isporuke.")
+          else:
+              print("JOB_EXECUTED: nijedan potvrđen rok nije dospeo za podsetnik (0 poslato).")
+          PY
