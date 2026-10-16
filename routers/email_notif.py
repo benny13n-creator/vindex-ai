@@ -302,7 +302,16 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
             try:
                 _aktivni_r = supa.table("predmeti").select("id,brisanje_zapoceto").eq("user_id", uid) \
                     .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
-            except Exception:
+            except Exception as exc:
+                # T07: rezervni upit (bez kolone) SAMO kada kolona ne postoji (pre migracije 114). Bilo koja
+                # druga greška bi ga pretvorila u dozvolu za predmet u brisanju → fail-closed: korisnik se
+                # preskače i greška je vidljiva u `greske`.
+                _t = str(exc)
+                if not ("42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t)):
+                    logger.error("[EMAIL-CRON] provera aktivnih predmeta neuspešna, podsetnici preskočeni uid=%.8s: %s",
+                                 uid, type(exc).__name__)
+                    greske += 1
+                    continue
                 _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
                     .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
             _aktivni_ids = {p["id"] for p in (_aktivni_r.data or []) if not p.get("brisanje_zapoceto")}
