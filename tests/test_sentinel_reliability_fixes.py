@@ -344,7 +344,9 @@ async def test_upload_raises_honest_error_when_document_insert_fails_after_pinec
          patch("uploaded_doc.extractor.extract", return_value=("Sadržaj dokumenta.", False, False, None, None)), \
          patch("uploaded_doc.chunker.chunk_document",
                return_value=types.SimpleNamespace(total_chunks=1)), \
-         patch("uploaded_doc.ingest.ingest_session", return_value=1):
+         patch("uploaded_doc.ingest.ingest_session", return_value=1), \
+         patch("uploaded_doc.ingest._get_pinecone_index",  # TENFRONTS-M05: čišćenje orphan vektora, bez mreže
+               return_value=MagicMock(list=MagicMock(return_value=iter([[]])))):
         with pytest.raises(Exception) as exc_info:
             await api.predmet_upload_auto_analyze(
                 "pred-1", _fake_request(),
