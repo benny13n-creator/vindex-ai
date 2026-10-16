@@ -24,6 +24,7 @@ router = APIRouter(tags=["search"])
 
 _VALID_VRSTE = {"predmeti", "klijenti", "dokumenti", "billing", "hronologija", "beleske", "komentari", "zadaci"}
 _PO_PREDMETIMA = {"hronologija", "beleske", "komentari"}   # pretražuju se kroz predmete pozivaoca
+_MAX_PREDMETA_PO_UPITU = 200   # TENFRONTS-M04: preko ovoga se te vrste pretražuju delimično → `nepotpuno`
 _MAX_LIMIT   = 10
 _MAX_Q_LEN   = 200
 
@@ -198,7 +199,7 @@ def _search_hronologija(supa, uid: str, q: str, limit: int, pids: Optional[list[
         return []
     r = (supa.table("predmet_hronologija")
          .select("id, predmet_id, dogadjaj, datum_iso, vaznost")
-         .in_("predmet_id", pids[:200])
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
          .ilike("dogadjaj", f"%{q2}%")
          .limit(limit)
          .execute())
@@ -222,7 +223,7 @@ def _search_beleske(supa, uid: str, q: str, limit: int, pids: Optional[list[str]
         return []
     r = (supa.table("predmet_beleske")
          .select("id, predmet_id, sadrzaj, created_at")
-         .in_("predmet_id", pids[:200])
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
          .ilike("sadrzaj", f"%{q2}%")
          .limit(limit)
          .execute())
@@ -248,7 +249,7 @@ def _search_komentari(supa, uid: str, q: str, limit: int, pids: Optional[list[st
         return []
     r = (supa.table("predmet_komentari")
          .select("id, predmet_id, tekst, kreirano")
-         .in_("predmet_id", pids[:200])
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
          .ilike("tekst", f"%{q2}%")
          .limit(limit)
          .execute())
@@ -335,6 +336,13 @@ async def global_search(
             nepotpuno.append(tip)
         else:
             grouped[tip] = res
+
+    # TENFRONTS-M04: korisnik sa više od `_MAX_PREDMETA_PO_UPITU` predmeta — vrste koje idu kroz predmete
+    # pretražene su samo delimično. To nije „nema rezultata“; kaže se kroz isti `nepotpuno` marker.
+    if cached_pids is not None and len(cached_pids) > _MAX_PREDMETA_PO_UPITU:
+        for tip in tasks:
+            if tip in _PO_PREDMETIMA and tip not in nepotpuno:
+                nepotpuno.append(tip)
 
     ukupno = sum(len(v) for v in grouped.values())
     response = {"q": q, "ukupno": ukupno, **grouped}

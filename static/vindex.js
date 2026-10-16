@@ -13622,7 +13622,7 @@ function cmdkRender(items, nepotpuno, failed) {
   var el = document.getElementById('cmdk-results');
   if (!el) return;
   var nepotpunoNotice = (nepotpuno && nepotpuno.length)
-    ? '<div style="padding:.4rem 1.2rem;font-size:.68rem;color:#fbbf24;">⚠ Deo pretrage nije uspeo (' + nepotpuno.length + ' kategorija) — rezultati mogu biti nepotpuni.</div>'
+    ? '<div style="padding:.4rem 1.2rem;font-size:.68rem;color:#fbbf24;">⚠ Deo pretrage nije potpun (' + nepotpuno.length + ' kategorija) — rezultati mogu biti nepotpuni.</div>'
     : '';
   if (!items.length) {
     var inp = document.getElementById('cmdk-input');

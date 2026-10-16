@@ -75,7 +75,7 @@
       });
       if (nepotpuno.length) {
         $("pr-nepotpuno").hidden = false;
-        $("pr-nepotpuno").textContent = "Pretraga nije potpuna: nije pretraženo — " + nepotpuno.map(function (v) { return NASLOV[v].toLowerCase(); }).join(", ") + ". Odsustvo rezultata u tim grupama ne znači da ih nema.";
+        $("pr-nepotpuno").textContent = "Pretraga nije potpuna: nije u potpunosti pretraženo — " + nepotpuno.map(function (v) { return NASLOV[v].toLowerCase(); }).join(", ") + ". Odsustvo rezultata u tim grupama ne znači da ih nema.";
       }
       if (!ukupno) stanje(nepotpuno.length ? "U pretraženim grupama nema rezultata za „" + q + "“." : "Nema rezultata za „" + q + "“.", "prazno");
       else stanje(ukupno + (ukupno === 1 ? " rezultat" : " rezultata") + " za „" + q + "“.", "uspeh");
