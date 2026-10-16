@@ -1,7 +1,10 @@
 name: SMS Podsetnici za rokove
+# Night sprint T08 (2026-10-17): automatsko pokretanje ISKLJUČENO. Zakazani posao je od 2026-10-12 svaki dan
+# dobijao 401 (ruta prima samo osnivačev JWT, ne CRON_TOKEN), a produkcioni `/sms/status` je prijavio da
+# provider nije konfigurisan — SMS isporuka NIJE operativna. Ponovno uključivanje (vratiti `schedule:` ispod)
+# traži odluku osnivača o autorizaciji SMS rute i potvrdu Twilio konfiguracije. `workflow_dispatch` ostaje
+# samo za budući kontrolisani ručni test.
 on:
-  schedule:
-    - cron: '0 7 * * *'
   workflow_dispatch:
 
 jobs:
