@@ -573,6 +573,8 @@ IZVOR_MEMORIJA   = "MEMORIJA_KANCELARIJE"
 IZVOR_DOKAZ      = "DOKAZNI_TEKST_KORISNIKA"
 # VCR002 T06: izlaz prethodnog AI koraka u nizu savetnika — generisan sadržaj, nikad naredba ni proverena činjenica.
 IZVOR_AI_KORAK   = "IZLAZ_PRETHODNOG_SAVETNIKA"
+# Case Genome: sažetak koji je model napisao IZ teksta dokumenata — izveden, nepoverljiv, nikad naredba ni evidencija.
+IZVOR_AI_SAZETAK = "AI_SAZETAK_PREDMETA"
 
 
 def granica_autoriteta() -> str:
