@@ -781,12 +781,9 @@ async def ispravi_vrstu_dokumenta(document_id: str, request: Request, body: Vrst
             logger.warning("[SMART_INTAKE] zapis ispravke vrste neuspešan dok=%s: %s", document_id[:8], type(exc).__name__)
         if not zapisano:
             vraceno = await _vrati_vrstu(document_id, body.vrsta, stara)
-            raise NamerniHTTPException(
-                status_code=503,
-                detail=("Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna."
-                        if vraceno else
-                        "Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu."),
-            )
+            if vraceno:
+                raise NamerniHTTPException(status_code=503, detail="Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna.")
+            raise NamerniHTTPException(status_code=503, detail="Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu.")
         logger.info("[SMART_INTAKE] vrsta dokumenta ispravljena dok=%s %s -> %s", document_id[:8], stara, body.vrsta)
         return {"ok": True, "document_id": document_id, "vrsta": body.vrsta, "prethodna": stara, "promenjeno": True}
     finally:
@@ -1435,7 +1432,7 @@ async def _finalize_intake_job_jezgro(
     # QA-02: vrsta koju je advokat izabrao pre prikačivanja ulazi u predmet SA oznakom ljudske odluke, pa je
     # kasnija AI klasifikacija dokaza ne menja. Pad ovog čitanja prekida prikačivanje (503, zauzeće se
     # oslobađa) — bez njega bi ljudska vrsta ušla u predmet kao AI vrednost.
-    vrste_advokata = await intake_documents.vrste_advokata(job_id, [d["document"] for d in documents])
+    vrste_advokata = await intake_documents.vrste_advokata(job_id, [d["document"] for d in documents], supa=supa)
 
     # Program Intake Sprint 003 (2026-08-05) -- result["review"] je ranije
     # bio ucitan a NIKAD procitan (Sprint 003 Fork C §1.6a) -- finalize nije

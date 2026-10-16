@@ -355,7 +355,7 @@ async def ispravi_vrstu(document_id: str, nova: str, prethodna: str) -> bool:
     return bool(res.data)
 
 
-async def vrste_advokata(intake_job_id: str, documents: list[dict]) -> dict:
+async def vrste_advokata(intake_job_id: str, documents: list[dict], supa=None) -> dict:
     """{document_id: vrsta} za dokumente posla čiju TRENUTNU vrstu je odredio advokat.
 
     Veza ispravke sa dokumentom je deterministička, nikad po nazivu fajla: segmentiran posao → `segment_id`
@@ -363,7 +363,7 @@ async def vrste_advokata(intake_job_id: str, documents: list[dict]) -> dict:
     dokument) → ispravka bez `segment_id`. Sve drugo se ne povezuje."""
     if not documents:
         return {}
-    supa = _get_supa()
+    supa = supa or _get_supa()
     res = await asyncio.to_thread(
         lambda: supa.table("intake_processing_outcomes").select("document_type, segment_id, fields_corrected")
             .eq("intake_job_id", intake_job_id).eq("user_corrected", True).execute()

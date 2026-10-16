@@ -650,11 +650,8 @@ async def ispravi_vrstu_u_predmetu(request: Request, predmet_id: str, dok_id: st
         except Exception as exc:
             logger.error("[EVIDENCE] vraćanje vrste neuspešno dok=%s: %s", dok_id, type(exc).__name__)
             vraceno = False
-        raise NamerniHTTPException(
-            status_code=503,
-            detail=("Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna."
-                    if vraceno else
-                    "Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu."),
-        )
+        if vraceno:
+            raise NamerniHTTPException(status_code=503, detail="Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna.")
+        raise NamerniHTTPException(status_code=503, detail="Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu.")
     logger.info("[EVIDENCE] vrsta dokumenta ispravljena u predmetu dok=%s %s -> %s", dok_id, stara, req.vrsta)
     return {"ok": True, "dokument_id": dok_id, "vrsta": req.vrsta, "prethodna": stara, "promenjeno": True}
