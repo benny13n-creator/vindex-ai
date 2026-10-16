@@ -629,7 +629,11 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
     urgentni = [h for h in _buduci if _rokovi_hitni.je_hitan_za_prikaz(h, _odl_cp, odluke_dostupne=_odl_cp_ok)]
     _hitni_ids = {id(h) for h in urgentni}
     # Pad čitanja rokova nije „nema rokova“.
-    _hitni_nema = "nepoznato (rokovi nisu pročitani)" if isinstance(hron_r, Exception) else "nema"
+    # Ni nepročitan lanac odluka (potvrđen AI rok se tada ne broji) nije „nema“.
+    _hitni_nema = ("nepoznato (rokovi nisu pročitani)" if isinstance(hron_r, Exception)
+                   else "nepoznato (potvrde rokova nisu pročitane)" if not _odl_cp_ok else "nema")
+    if not _odl_cp_ok and urgentni:
+        _hitni_nema = ""
     nadolazeci = sorted([h for h in hron if (h.get("datum_iso") or "") >= today_iso], key=lambda x: x.get("datum_iso", ""))[:6]
 
     # Alat 1: Sudska praksa (Pinecone)
@@ -689,7 +693,8 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         f"Opis: {(pred.get('opis') or '')[:400]}",
         dokumenti_blok,
         f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:60] for b in beleske[:3]) or 'nema'}",
-        f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or _hitni_nema}",
+        f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or _hitni_nema}"
+        + (" (potvrde rokova nisu pročitane — lista može biti nepotpuna)" if (not _odl_cp_ok and urgentni) else ""),
         f"Nadolazeći: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in nadolazeci[:5]) or 'nema'}",
         f"Relevantna praksa VKS: {praksa_kontekst or 'nije pronađena'}",
         f"Zahtev advokata: {poruka}",

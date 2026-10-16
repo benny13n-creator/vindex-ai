@@ -280,6 +280,8 @@ def test_7_pad_lanca_odluka(http):
     assert {h["id"] for h in w["rokovi"]["urgentni"]} == {"covek-kritican"}
     p2 = _get(k, "/portfolio/dashboard")
     assert p2["odluke_dostupne"] is False
+    pl = _get(k, "/api/portfolio")
+    assert pl["odluke_o_rokovima_dostupne"] is False
     r = k.get("/billing/report/mesecni", headers=zaglavlje("A"))
     assert r.status_code == 503 and "odluke o rokovima" in r.text
 
@@ -437,3 +439,19 @@ def test_7_copilot_pad_hronologije_nije_nema(http, monkeypatch):
     b.greske["predmet_hronologija"] = Exception("hronologija nedostupna")
     rez, poruke = _copilot_plan(monkeypatch, b)
     assert "Hitni rokovi: nepoznato (rokovi nisu pročitani)" in poruke[0]
+
+
+def test_7_copilot_pad_lanca_nije_nema(http, monkeypatch):
+    _, b = http
+    b.greske["audit_immutable"] = Exception("lanac nedostupan")
+    rez, poruke = _copilot_plan(monkeypatch, b)
+    hitni_red = next(l for l in poruke[0].splitlines() if l.startswith("Hitni rokovi:"))
+    # Ljudski kritičan rok ostaje, ali model dobija upozorenje da lista može biti nepotpuna.
+    assert "Rok covek-kritican" in hitni_red and "potvrde rokova nisu pročitane" in hitni_red
+    assert "Rok za odgovor" not in hitni_red
+
+
+def test_v2_kancelarija_ne_prikazuje_umanjen_broj():
+    import os
+    s = open(os.path.join(os.path.dirname(__file__), "..", "frontend-v2-ng", "src", "kancelarija.js"), encoding="utf-8").read()
+    assert 'x.odluke_dostupne === false ? "nije poznato' in s

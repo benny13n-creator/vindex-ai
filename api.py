@@ -8113,6 +8113,8 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
         },
         "rokovi_ove_nedelje": rokovi_7[:10],
         "hitni_predmeti":     hitni[:5],
+        # QA-01 B4: false = lanac odluka nije pročitan; AI predlozi nisu brojani kao hitni.
+        "odluke_o_rokovima_dostupne": _odl_pf_ok,
         "neaktivni":          neaktivni_list[:5],
         "po_tipu":            po_tipu,
     }
