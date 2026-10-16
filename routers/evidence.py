@@ -158,23 +158,29 @@ from shared.evidence_write import (              # noqa: E402
 )
 
 
-def _upisi_ai_vrstu(supa, dokument_id: str, polja: dict) -> bool:
-    """True = AI vrsta upisana; False = red ne postoji ili nosi vrstu advokata (`OZNAKA_VRSTE_ADVOKATA`).
+# Ishodi `_upisi_ai_vrstu`.
+AI_VRSTA_UPISANA, AI_VRSTA_ZADRZANA, AI_VRSTA_NEUPISANA = "upisana", "zadrzana", "neupisana"
+
+
+def _upisi_ai_vrstu(supa, dokument_id: str, polja: dict) -> str:
+    """Upisuje AI vrstu i `ai_tags` SAMO jednim uslovnim UPDATE-om: red sa oznakom advokata (`OZNAKA_VRSTE_ADVOKATA`)
+    se ne pogađa, pa ljudska ispravka sačuvana u bilo kom trenutku pre ovog upisa ostaje.
 
     `ai_tags->>oznaka IS NULL` je uslov PostgREST-a nad JSONB kolonom (stari redovi gde je `ai_tags` JSON
-    string daju NULL, pa se ponašaju kao ranije). Ako baza odbije uslov, čita se oznaka pa upisuje — taj put
-    ima prozor između čitanja i upisa i zato se loguje."""
-    from shared.evidence_graph import OZNAKA_VRSTE_ADVOKATA, _ai_tags
+    string daju NULL, pa se ponašaju kao ranije). Ako baza odbije uslov, AI vrsta se NE upisuje: čitanje oznake
+    pa bezuslovan upis ostavlja prozor u kome advokat sačuva vrstu, a AI je odmah prepiše (PR #43 pregled).
+
+    AI_VRSTA_UPISANA = upisano; AI_VRSTA_ZADRZANA = red ne postoji ili nosi vrstu advokata;
+    AI_VRSTA_NEUPISANA = atomski uslov nije izvršen, vrsta i `ai_tags` nisu dirani."""
+    from shared.evidence_graph import OZNAKA_VRSTE_ADVOKATA
     try:
         res = (supa.table("predmet_dokumenti").update(polja).eq("id", dokument_id)
                .is_("ai_tags->>" + OZNAKA_VRSTE_ADVOKATA, "null").execute())
-        return bool(res.data)
     except Exception as exc:
-        logger.error("[EVIDENCE] uslovni upis vrste odbijen (%s) — čitam oznaku advokata pa upisujem", type(exc).__name__)
-    red = supa.table("predmet_dokumenti").select("ai_tags").eq("id", dokument_id).execute()
-    if not red.data or _ai_tags(red.data[0].get("ai_tags")).get(OZNAKA_VRSTE_ADVOKATA):
-        return False
-    return bool(supa.table("predmet_dokumenti").update(polja).eq("id", dokument_id).execute().data)
+        logger.error("[EVIDENCE] uslovni upis vrste odbijen (%s) dokument=%s — AI vrsta NIJE upisana",
+                     type(exc).__name__, dokument_id)
+        return AI_VRSTA_NEUPISANA
+    return AI_VRSTA_UPISANA if res.data else AI_VRSTA_ZADRZANA
 
 
 def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> dict:
@@ -225,12 +231,16 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
         # QA-02: vrstu koju je odredio advokat AI ne menja. Uslov je u ISTOM UPDATE-u (red sa oznakom se ne
         # pogađa), pa ljudska ispravka upisana u bilo kom trenutku pre ovog upisa ostaje — bez čitanja pa
         # pisanja. Red sa oznakom dobija samo pravne elemente; vrsta i `ai_tags` (sa oznakom) ostaju.
-        if _upisi_ai_vrstu(supa, dokument_id, _ai_upis):
+        # Ako atomski uslov nije izvršen, vrsta i `ai_tags` ostaju; pravni elementi (samo AI ih piše) se upisuju.
+        _ishod_vrste = _upisi_ai_vrstu(supa, dokument_id, _ai_upis)
+        if _ishod_vrste == AI_VRSTA_UPISANA:
             logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
         else:
             _ostalo = supa.table("predmet_dokumenti").update(
                 {"pravni_elementi": _ai_upis["pravni_elementi"]}).eq("id", dokument_id).execute()
-            if _ostalo.data:
+            if _ishod_vrste == AI_VRSTA_NEUPISANA:
+                rezultat["_vrsta_neupisana"] = True
+            elif _ostalo.data:
                 rezultat["_vrsta_zadrzana"] = True
                 logger.info("[EVIDENCE] dokument=%s: vrstu je odredio advokat — AI vrsta nije upisana", dokument_id)
         # klasifikuj_i_sacuvaj is a plain sync function invoked via
@@ -575,6 +585,10 @@ async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depe
     _greska = bool((rezultat or {}).get("ai_tags", {}).get("_klasifikacija_greska"))
     if _greska:
         return {"ok": False, "poruka": "Reklasifikacija nije uspela (AI greška). Pokušajte ponovo, kredit nije naplaćen."}
+
+    if (rezultat or {}).get("_vrsta_neupisana"):
+        return {"ok": False, "poruka": "Reklasifikacija nije sačuvana: vrsta dokumenta nije mogla bezbedno da se upiše. "
+                                       "Vrsta je ostala nepromenjena, kredit nije naplaćen."}
 
     await UsageService.consume(user["user_id"], user.get("email", ""), "evidence")
     if (rezultat or {}).get("_vrsta_zadrzana"):

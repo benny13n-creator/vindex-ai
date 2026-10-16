@@ -290,29 +290,102 @@ def test_4_AI_ne_prepisuje_red_sa_oznakom_advokata_bez_rute(ok, ai_tags_kao_stri
     assert _dok_predmeta(b, jid2)["tip_dokaza"] == "podnesak"
 
 
-def test_4_uslov_odbijen_od_baze_rezervni_put_i_dalje_cuva_odluku(ok, monkeypatch):
-    """Ako PostgREST odbije `ai_tags->>…` uslov, klasifikacija čita oznaku pre upisa — ljudska vrsta ostaje."""
-    k, b = ok
+def _odbij_jsonb_uslov(monkeypatch, posle_citanja_oznake=None):
+    """PostgREST odbija `ai_tags->>…` uslov. `posle_citanja_oznake` se izvršava odmah POSLE (eventualnog)
+    čitanja samo `ai_tags` reda — tačno prozor između čitanja i upisa u starom rezervnom putu."""
     from tests import ns005_harness as h
+    orig = h._Upit.execute
+    stanje = {"jsonb_odbijen": 0, "citanja_oznake": 0}
+
+    def execute(self):
+        if any(kl and "->>" in kl for _, kl, _v in self.filt):
+            stanje["jsonb_odbijen"] += 1
+            raise Exception('{"code": "PGRST100", "message": "failed to parse filter"}')
+        rez = orig(self)
+        if (self.t == "predmet_dokumenti" and self.radnja[0] == "select" and self.kol == "ai_tags"
+                and posle_citanja_oznake and not stanje["citanja_oznake"]):
+            stanje["citanja_oznake"] += 1
+            posle_citanja_oznake()
+        return rez
+    monkeypatch.setattr(h._Upit, "execute", execute)
+    return stanje
+
+
+def test_4_trka_advokat_upisuje_izmedju_citanja_oznake_i_AI_upisa(ok, monkeypatch):
+    """Baza odbije JSONB uslov → AI ne sme da upiše vrstu bezuslovno. Advokat sačuva „žalbu“ dok AI klasifikacija
+    traje; AI vrsta „podnesak“ ne sme da je prepiše, a oznaka ljudske odluke ne sme da nestane."""
+    from routers.evidence import klasifikuj_i_sacuvaj
+    k, b = ok
+    jid = _spreman(k)
+    _prikaci(k, jid)
+    red = _dok_predmeta(b, jid)
+    assert red["tip_dokaza"] == "lawsuit" and OZNAKA not in _tagovi(red)
+    odgovori = []
+
+    def advokat_cuva():
+        odgovori.append(_ispravi_u_predmetu(k, red["id"], "appeal", "lawsuit"))
+    stanje = _odbij_jsonb_uslov(monkeypatch, advokat_cuva)
+    b.ai_vrsta = "podnesak"
+    rez = klasifikuj_i_sacuvaj(PA, red["id"], "dokument.txt", TUZBA, "uid-A")
+
+    assert stanje["jsonb_odbijen"] >= 1
+    if not odgovori:                      # bez čitanja oznake advokat čuva posle AI upisa — i tada mora da uspe
+        advokat_cuva()
+    assert odgovori[0].status_code == 200, odgovori[0].text
+    red = _dok_predmeta(b, jid)
+    assert red["tip_dokaza"] == "appeal", "AI je prepisao vrstu koju je advokat upravo sačuvao"
+    assert _tagovi(red).get(OZNAKA, {}).get("tip") == "appeal", "AI je obrisao oznaku ljudske odluke"
+    assert _aud(b)[-1]["metadata"]["novo"] == "appeal"
+    assert not rez.get("_vrsta_zadrzana")
+
+
+def test_4_uslov_odbijen_AI_ne_upisuje_vrstu_bez_atomskog_uslova(ok, monkeypatch):
+    """Bez atomskog uslova AI ne upisuje ni vrstu ni `ai_tags` — ni kad oznake nema. Pravni elementi,
+    tvrdnje i završetak klasifikacije i dalje rade; „Reklasifikuj“ ne prijavljuje uspeh i ne naplaćuje."""
+    k, b = ok
+    jid = _spreman(k)
+    _prikaci(k, jid)
+    red = _dok_predmeta(b, jid)
+    stari_tagovi = red.get("ai_tags")
+    stanje = _odbij_jsonb_uslov(monkeypatch)
+    _ai_klasifikacija(b, red["id"])
+    assert stanje["jsonb_odbijen"] >= 1
+    red = _dok_predmeta(b, jid)
+    assert red["tip_dokaza"] == "lawsuit"                      # AI vrsta nije upisana
+    assert red.get("ai_tags") == stari_tagovi
+    assert red["pravni_elementi"] == ["naknada štete"]         # nezavisni deo klasifikacije upisan
+    assert red["klasifikovan_at"]
+    assert [t["dokument_id"] for t in b.tabele["predmet_dokazi"]] == [red["id"]]
+
+    import routers.evidence as ev
+    naplate = []
+
+    async def _naplata(*a, **kw):
+        naplate.append(a)
+    monkeypatch.setattr(ev.UsageService, "consume", _naplata)
+    # Ruta se zove direktno (kao tests/test_phoenix_mission_006_*): test baza nema feature_registry red.
+    from unittest.mock import MagicMock
+    from starlette.requests import Request as _Req
+    zahtev = _Req({"type": "http", "method": "POST", "path": "/", "headers": [], "query_string": b"",
+                   "app": MagicMock(), "state": MagicMock(), "client": ("127.0.0.1", 1234)})
+    odg = asyncio.run(ev.reklasifikuj(zahtev, PA, red["id"], {"user_id": "uid-A", "email": ""}))
+    assert odg["ok"] is False and "nije sačuvana" in odg["poruka"], odg
+    assert naplate == []
+    assert _dok_predmeta(b, jid)["tip_dokaza"] == "lawsuit"
+
+
+def test_4_uslov_odbijen_ljudska_vrsta_ostaje(ok, monkeypatch):
+    """Isti odbijen uslov sa već sačuvanom ljudskom vrstom: vrsta i oznaka ostaju."""
+    k, b = ok
     jid = _spreman(k)
     doc_id = _posao(k, jid)["dokument"]["document_id"]
     assert _ispravi(k, doc_id, "appeal", "lawsuit").status_code == 200
     _prikaci(k, jid)
-    orig = h._Upit.execute
-
-    def execute(self):
-        if any(kl and "->>" in kl for _, kl, _v in self.filt):
-            raise Exception('{"code": "PGRST100", "message": "failed to parse filter"}')
-        return orig(self)
-    monkeypatch.setattr(h._Upit, "execute", execute)
+    _odbij_jsonb_uslov(monkeypatch)
     red = _dok_predmeta(b, jid)
     _ai_klasifikacija(b, red["id"])
-    assert _dok_predmeta(b, jid)["tip_dokaza"] == "appeal"
-    # i bez oznake rezervni put upisuje AI vrstu (ne gasi klasifikaciju)
-    jid2 = _spreman(k, tekst=TUZBA_2)
-    _prikaci(k, jid2)
-    _ai_klasifikacija(b, _dok_predmeta(b, jid2)["id"])
-    assert _dok_predmeta(b, jid2)["tip_dokaza"] == "podnesak"
+    red = _dok_predmeta(b, jid)
+    assert red["tip_dokaza"] == "appeal" and _tagovi(red)[OZNAKA]["tip"] == "appeal"
 
 
 # ── 5: dva korisnika ne mogu ispravljati dokumente jedan drugog ───────────────────────────────────────

@@ -62,7 +62,7 @@ UI i baza u svakom koraku: izbor „Tužba“ → „Žalba“ (baza `appeal`, 1
 | Nalaz | Ozbiljnost | Status |
 |---|---|---|
 | `risk_engine` „nedostajući dokumenti“ poredi sa srpskim šiframa (`podnesak`…). Izmereno: `tip_dokaza='appeal'` ili `'lawsuit'` → „nedostaje podnesak“. Isto važi već danas za nesigurno klasifikovane dokumente (finalize upisuje englesku šifru, AI se preskače); ljudska ispravka to proširuje na ispravljene dokumente. | MATERIAL (postojeći dug) | NIJE ispravljeno — odluka osnivača (jedinstven rečnik ili mapiranje) |
-| `ai_tags->>…` uslov: klijent generiše `ai_tags->>_vrsta_advokat=is.null` (provereno, postgrest 2.28.3); prihvatanje na stvarnom PostgREST-u je INFERRED (dokumentovana sintaksa), nije izvršeno. Ako ga baza odbije: rezervni put čuva odluku (test). | MINOR | dokumentovano |
+| `ai_tags->>…` uslov na stvarnom PostgREST-u. Prvobitni rezervni put (čitanje oznake pa bezuslovan upis) imao je trku — vidi §7. | MATERIAL (nezavisan pregled PR #43) | ISPRAVLJENO u §7; uslov potvrđen na izolovanom PostgREST 12.2.3 + Postgres 17 |
 | Ispravka pre prikačivanja drži zauzeće finalizacije; ako proces padne usred, prikačivanje čeka do 120 s (prikaz kaže „u toku“). Dva dela istog posla se ne mogu ispravljati istovremeno (drugi dobija 409). | MINOR | prihvaćeno |
 | Delimično prikačen posao: ispravka u prijemu odbijena („ispravite u predmetu“) i za još neprikačen deo. | MINOR | prihvaćeno |
 | Dokument istog sadržaja već u predmetu (dedupe) ne prenosi ljudsku vrstu na postojeći red. | MINOR | prihvaćeno |
@@ -77,15 +77,51 @@ UI i baza u svakom koraku: izbor „Tužba“ → „Žalba“ (baza `appeal`, 1
 | Vrsta iz dozvoljene taksonomije | PASS |
 | Tačno jedan dokument | PASS (segment/ID, nikad naziv) |
 | Bez ovlašćenja nema promene | PASS (404/401) |
-| Ljudska odluka > kasniji AI | PASS (uslovni UPDATE) |
+| Ljudska odluka > kasniji AI | PASS (jedan uslovni UPDATE; bez rezervnog čitanja pa upisa — §7) |
 | Opstaje kroz refresh/finalize/pozadinu | PASS (pytest + Playwright) |
 | Audit staro → novo + akter, inače nema uspeha | PASS |
 | Novija ljudska ispravka se ne gazi | PASS (CAS + zauzeće) |
 | Dozvole, RLS, migracije, gejt rokova | nepromenjeno |
-| Stvarni PostgREST / produkcija | UNKNOWN (bez produkcionih upisa) |
+| Stvarni PostgREST (izolovana lokalna baza) | PASS — §7 |
+| Supabase produkcija (verzija PostgREST-a, RLS, `service_role`) | UNKNOWN (bez produkcionih upisa) |
 
 ## 6. Verdikt
 
-**PASS_FOR_SUPERVISED_BETA** — bloker „advokat ne može da ispravi vrstu dokumenta“ zatvoren i dokazan kroz stvarne rute, worker, prikačivanje, AI posledicu i pravi pregledač nad pravim `api.app`. Uz napomene iz §4 (MATERIAL: rečnik za `risk_engine`; INFERRED: PostgREST JSON uslov na stvarnoj bazi).****
+**PASS_FOR_SUPERVISED_BETA** — bloker „advokat ne može da ispravi vrstu dokumenta“ zatvoren i dokazan kroz stvarne rute, worker, prikačivanje, AI posledicu i pravi pregledač nad pravim `api.app`. Uz napomene iz §4 (MATERIAL: rečnik za `risk_engine`). PostgREST JSON uslov potvrđen na izolovanoj bazi (§7); na Supabase produkciji UNKNOWN.
 
 Odluke osnivača: (1) push grane i Draft PR; (2) jedinstven rečnik vrsta za `risk_engine` (postojeći dug); (3) da li QA-02 #38 (heuristika → model) uopšte ide pre ovog puta ispravke — ova grana je od `main` i ne sadrži #38.
+
+## 7. PR #43 — adversarial zatvaranje (trka u `_upisi_ai_vrstu`)
+
+**Nalaz (nezavisan pregled):** kada PostgREST odbije `ai_tags->>_vrsta_advokat=is.null`, kod je čitao oznaku pa radio BEZUSLOVAN UPDATE. Advokat koji sačuva vrstu između ta dva koraka dobija 200 i audit zapis, a AI je odmah prepisuje.
+
+**RED na `09f199ff`** — `test_4_trka_advokat_upisuje_izmedju_citanja_oznake_i_AI_upisa`: uslov odbijen, advokat sačuva `appeal` tačno posle AI čitanja oznake → ruta 200, audit `novo: appeal`, a red završava sa `tip_dokaza='podnesak'` (`AssertionError: 'podnesak' == 'appeal'`). Drugi RED: `test_4_uslov_odbijen_AI_ne_upisuje_vrstu_bez_atomskog_uslova` (`'podnesak' == 'lawsuit'`).
+
+**Ispravka (`routers/evidence.py`):**
+- `_upisi_ai_vrstu` upisuje vrstu i `ai_tags` ISKLJUČIVO jednim uslovnim UPDATE-om; vraća `upisana` / `zadrzana` / `neupisana`. Rezervno čitanje pa upis je uklonjeno.
+- Ako baza odbije uslov (`neupisana`): vrsta i `ai_tags` ostaju netaknuti; pravni elementi se i dalje upisuju (njih piše samo AI), tvrdnje i `klasifikovan_at` rade kao i ranije; greška se loguje.
+- „Reklasifikuj“ u tom slučaju vraća `ok: false` („Reklasifikacija nije sačuvana… kredit nije naplaćen“) — nikad lažan uspeh, bez naplate.
+- Jedino mesto gde AI piše `tip_dokaza` u postojeći red je ova funkcija (pretraga: ostali upisi su novi redovi ili tekst prompta).
+
+**Test ugovor promenjen namerno:** stari `test_4_uslov_odbijen_od_baze_rezervni_put_i_dalje_cuva_odluku` je u drugom delu zahtevao da AI upiše vrstu i kad je uslov odbijen — tačno uklonjeno nebezbedno ponašanje. Zamenjen sa: `test_4_uslov_odbijen_ljudska_vrsta_ostaje` (prvi deo, nepromenjen smisao) i `test_4_uslov_odbijen_AI_ne_upisuje_vrstu_bez_atomskog_uslova` (novi ugovor). Ruta „Reklasifikuj“ se u tom testu zove direktno (kao `test_phoenix_mission_006_*`) jer lažna baza nema `feature_registry` red.
+
+**GREEN:** `tests/test_qa02_rucna_vrsta.py` 33/33. Kontrola da AI i dalje klasifikuje dokument bez ljudske odluke kada uslov radi: `test_2_kontrola_bez_ispravke_AI_i_dalje_odredjuje_vrstu`, `test_4_AI_ne_prepisuje…[False|True]` — prolaze.
+
+**Mutacije (`rel/mut_trka.py`, binarno vraćanje):** stari kod → 2 pada; izuzetak vraća `zadrzana` → 2; „Reklasifikuj“ ignoriše `neupisana` → 1; bez JSONB uslova → 7; preskočeni pravni elementi pri `neupisana` → 1; kontrola → 0.
+
+**Stvarni PostgREST (izolovano, lokalno, bez produkcije):** novi privremeni Postgres 17.9 klaster (`initdb` u scratchpad-u, 127.0.0.1:55432, uništiv) + zvanični PostgREST 12.2.3 (127.0.0.1:55433); tabela po migraciji 016 (`ai_tags JSONB`). Prava funkcija `_upisi_ai_vrstu` iz grane preko postgrest-py 2.28.3:
+- PostgREST prihvata `PATCH /predmet_dokumenti?id=eq.…&ai_tags-%3E%3E_vrsta_advokat=is.null` (200).
+- Redovi bez oznake — `ai_tags` NULL, objekat, stari JSON string (`jsonb` string), niz — `upisana`, vrsta `podnesak`.
+- Red sa oznakom → `zadrzana`, vrsta `appeal` i oznaka ostaju. Nepostojeći red → `zadrzana`.
+- Sekvencijalna trka (advokat CAS upis kao ruta u predmetu, pa AI) → `zadrzana`.
+- **Istovremena trka:** advokatova transakcija upiše vrstu + oznaku i drži red; AI PATCH čeka na zaključanom redu (izmereno). Posle COMMIT-a Postgres ponovo proverava uslov → `zadrzana`, vrsta `appeal`. Kontrola: posle ROLLBACK-a → `upisana`, vrsta `podnesak`.
+- Klaster i PostgREST ugašeni posle provere; postojeća lokalna Postgres usluga nije dirana.
+
+**Regresija:** 38 test fajlova koji dodiruju `routers/evidence` / klasifikaciju / „Reklasifikuj“: 450 prolaza, 0 padova, 46 preskočenih (svi `test_wave9_billing_invariant` — traže lokalni Postgres; nevezano). Python 3.11 CI na ažuriranoj grani: vidi PR #43.
+
+**Preostalo UNKNOWN:**
+- Supabase produkcija: tačna verzija PostgREST-a, `service_role` + RLS, stvarni redovi `ai_tags` — nije izvršeno (bez produkcionih upisa). Lokalna provera koristi PostgREST 12.2.3 i ulogu bez RLS-a.
+- Ako produkcioni PostgREST ipak odbije uslov: vrsta se ne upisuje (bezbedno), pravni elementi da; „Reklasifikuj“ to prijavljuje; pozadinska klasifikacija samo loguje grešku, a `klasifikovan_at` se upisuje kad tvrdnje uspeju, pa se AI vrsta za taj dokument ne pokušava ponovo automatski.
+- Playwright `live-vrsta-dokumenta-e2e` nije ponovo pokrenut (izmena je samo pozadinski AI upis i odgovor „Reklasifikuj“ kada baza odbije uslov; to V2 tok ne izaziva).
+
+**Verdikt nalaza:** CLOSED — nebezbedan put uklonjen, atomski uslov potvrđen na stvarnom PostgREST-u i pod stvarnom istovremenošću u izolovanoj bazi. Ukupni verdikt ostaje **PASS_FOR_SUPERVISED_BETA** uz UNKNOWN za Supabase produkciju.
