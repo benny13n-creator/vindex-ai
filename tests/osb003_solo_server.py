@@ -231,6 +231,12 @@ async def _stanje():
         "naplaceno_jedinica": sum(getattr(BAZA, "naplaceno_jedinica", [])),
         "idempotencija": sorted("%s:%s" % (z.get("path"), z.get("state")) for z in t.get("v2_mutation_idempotency", [])
                                 if str(z.get("path", "")).startswith("/api/agents/")),
+        # QA-02: vrsta po dokumentu (naziv fajla je sintetički) + da li nosi oznaku ljudske odluke; broj audit zapisa ispravke.
+        "vrste_predmeta": sorted("%s=%s%s" % (d.get("naziv_fajla"), d.get("tip_dokaza"),
+                                              "*" if isinstance(d.get("ai_tags"), dict) and d["ai_tags"].get("_vrsta_advokat") else "")
+                                 for d in t.get("predmet_dokumenti", [])),
+        "vrste_prijema": sorted(str(d.get("document_type")) for d in t.get("intake_documents", [])),
+        "ispravke_vrste_audit": len([a for a in t.get("audit_immutable", []) if a.get("action") == "dokument_vrsta_ispravljena"]),
         "autonomy_upisi": len([z for z in BAZA.dnevnik if z["tabela"].startswith("autonomy")
                                and z["radnja"] in ("insert", "update", "upsert", "delete", "rpc")]),
     })

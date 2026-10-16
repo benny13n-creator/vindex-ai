@@ -37,6 +37,11 @@ POTPORA_LOCIRANA = "LOCIRANA_U_DOKUMENTU"      # tvrdnja pronađena u tekstu svo
 POTPORA_DOKUMENT = "DOKUMENT_BEZ_LOKACIJE"     # vezana za dokument, mesto nije pronađeno
 POTPORA_NEMA = "BEZ_POTPORE"                   # nije vezana ni za jedan dokument ovog predmeta
 
+# QA-02: vrstu dokumenta odredio je advokat. Ključ u `predmet_dokumenti.ai_tags` (postojeća JSONB kolona,
+# bez migracije), upisan ISTIM upisom kao `tip_dokaza`. AI klasifikacija (routers/evidence.py::
+# klasifikuj_i_sacuvaj) ne menja vrstu reda koji ga nosi.
+OZNAKA_VRSTE_ADVOKATA = "_vrsta_advokat"
+
 KLASIFIKACIJA_USPESNA = "USPESNA"
 KLASIFIKACIJA_NEUSPESNA = "NEUSPESNA"
 KLASIFIKACIJA_NIJE = "NIJE_KLASIFIKOVAN"
@@ -56,6 +61,8 @@ def _ai_tags(v: Any) -> dict:
 
 def klasifikacija_dokumenta(d: dict) -> dict:
     tagovi = _ai_tags(d.get("ai_tags"))
+    if tagovi.get(OZNAKA_VRSTE_ADVOKATA) and d.get("tip_dokaza"):
+        return {"stanje": KLASIFIKACIJA_USPESNA, "tip": d.get("tip_dokaza"), "odredio": "advokat"}
     if tagovi.get("_klasifikacija_greska"):
         return {"stanje": KLASIFIKACIJA_NEUSPESNA, "tip": None}
     if not d.get("klasifikovan_at"):

@@ -78,6 +78,9 @@ AUDITABLE_ACTIONS: set[str] = {
     # kanonski resolve_review() poziv (ranije nije ni postojao poziv koji
     # bi ovo trebalo da loguje — nova, jedina kapija za "review razrešen").
     "entity_corrected", "dokument_review_resolved",
+    # QA-02 (2026-10-16) -- advokat menja vrstu jednog dokumenta (pre prikacivanja ili u predmetu);
+    # metadata nosi staro -> novo. Bez unosa bi `log_action` vratio None i ispravka bi bila odbijena (503).
+    "dokument_vrsta_ispravljena",
     # FAZA 6.2 (2026-09-02) -- ljudska odluka o AI opazenom roku. Isti oblik
     # kao "dokument_review_resolved" iznad: covek preuzima odgovornost za
     # nalaz koji je proizveo model. Bez ovih unosa `log_action` bi TIHO

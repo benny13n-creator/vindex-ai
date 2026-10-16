@@ -547,6 +547,48 @@
     $("dok-tekst").hidden = false;
   }
 
+  /* QA-02: advokat menja vrstu JEDNOG dokumenta u predmetu (POST /api/evidence/predmeti/{p}/dokumenti/{d}/vrsta).
+   * Šifre su shared/intake_classify.py::DOCUMENT_TYPES (tests/test_qa02_rucna_vrsta.py proverava da su iste).
+   * Šalje se i vrsta koju je advokat video: ako je u međuvremenu promenjena, server odbija (409). */
+  var VRSTE_IZBOR = ["lawsuit", "response", "appeal", "judgment", "contract", "invoice", "power_of_attorney", "evidence",
+    "email", "court_decision", "enforcement", "legal_opinion", "other"];
+  var porukaVrste = null;   // {dok, stanje, tekst} — preživljava ponovno učitavanje predmeta posle čuvanja
+
+  function izmenaVrste(dl, d) {
+    var dd = el("dd", "intake__fix");
+    var sel = el("select", "field__input");
+    sel.id = "dok-vrsta-izbor";
+    sel.setAttribute("aria-label", "Nova vrsta dokumenta");
+    VRSTE_IZBOR.forEach(function (v) { var op = el("option", null, window.VxNazivi.vrstaDokumenta(v)); op.value = v; sel.append(op); });
+    if (VRSTE_IZBOR.indexOf(d.tip) >= 0) sel.value = d.tip;
+    var b = el("button", "text-btn text-btn--line", "Sačuvaj vrstu"); b.type = "button"; b.id = "dok-vrsta-sacuvaj";
+    var por = el("p", "notice"); por.id = "dok-vrsta-poruka"; por.setAttribute("role", "status"); por.hidden = true;
+    function javi(stanje, t) { por.hidden = false; por.dataset.stanje = stanje; por.textContent = t; }
+    if (porukaVrste && porukaVrste.dok === d.id) { javi(porukaVrste.stanje, porukaVrste.tekst); porukaVrste = null; }
+    b.addEventListener("click", async function () {
+      var vrsta = sel.value, pid = detaljPodaci && detaljPodaci.predmet.id;
+      if (!pid || b.disabled) return;
+      if (vrsta === d.tip) { javi("greska", "Izaberite drugu vrstu dokumenta."); sel.focus(); return; }
+      b.disabled = true; sel.disabled = true; javi("ucitavanje", "Čuvanje vrste dokumenta…");
+      var r = await window.VxApi.send("/api/evidence/predmeti/" + encodeURIComponent(pid) + "/dokumenti/" + encodeURIComponent(d.id) + "/vrsta", {
+        telo: { vrsta: vrsta, prethodna: d.tip || null }, token: window.VxSesija.token(),
+        oblik: function (x) { return x.ok === true && typeof x.vrsta === "string"; } });
+      if (!detaljPodaci || detaljPodaci.predmet.id !== pid || izabraniDok !== d.id) return;
+      var g = r.greska || {};
+      porukaVrste = { dok: d.id,
+        stanje: r.ok ? "uspeh" : (g.ishodNepoznat ? "nepoznato" : "greska"),
+        tekst: r.ok ? "Vrsta dokumenta je sačuvana: " + window.VxNazivi.vrstaDokumenta(vrsta) + "."
+          : g.ishodNepoznat ? "Ishod nije poznat. Prikaz je ponovo učitan — proverite vrstu dokumenta."
+          : g.kod === "CONFLICT" ? "Vrsta nije promenjena: u međuvremenu je promenjena. Prikaz je ponovo učitan — proverite vrstu."
+          : g.kod === "NOT_FOUND" ? "Dokument nije dostupan. Vrsta nije promenjena."
+          : "Server je odbio zahtev. Vrsta nije promenjena." };
+      cekaDokument = d.id;
+      detalj.osvezi();
+    });
+    dd.append(sel, b, por);
+    dl.append(el("dt", null, "Promena vrste"), dd);
+  }
+
   function izaberiDokument(id) {
     if (!detaljPodaci) return;
     var d = detaljPodaci.dokumenti.find(function (x) { return x.id === id; });
@@ -561,6 +603,7 @@
     $("dok-naslov").textContent = d.naziv || "Dokument bez naziva";
     var dl = $("dok-cinjenice");
     cinjenica(dl, "Vrsta dokumenta", window.VxNazivi.vrstaDokumenta(d.tip));
+    izmenaVrste(dl, d);
     cinjenica(dl, "Dodat", d.datum ? datum(d.datum) : "");
     cinjenica(dl, "Veličina", d.velicinaKb !== null ? brojFormat.format(d.velicinaKb) + " KB" : "");
     cinjenica(dl, "Redni broj", d.redniBroj);

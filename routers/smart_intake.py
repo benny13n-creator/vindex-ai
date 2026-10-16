@@ -51,9 +51,12 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
+from shared.http_errors import NamerniHTTPException
 from shared.rate import limiter
 from shared import intake_documents, intake_queue, intake_segments, case_assimilation
 from shared import rokovi as _IZVOR  # migracija 127 — kanonske vrednosti `izvor`
+from shared.intake_classify import DOCUMENT_TYPES
+from shared.evidence_graph import OZNAKA_VRSTE_ADVOKATA
 
 logger = logging.getLogger("vindex.smart_intake")
 router = APIRouter(prefix="/api/smart-intake", tags=["smart_intake"])
@@ -381,9 +384,23 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
     # possibly-superseded value as if it were still current.
     already_finalized = bool(job.get("predmet_id"))
 
+    # QA-02: da li je TRENUTNU vrstu odredio advokat. Pad čitanja ne obara prikaz posla: vrednost je tada
+    # None (nepoznato), ne False.
+    try:
+        _vrste_adv = await intake_documents.vrste_advokata(job_id, [d["document"] for d in all_documents])
+    except Exception as _ve:
+        _vrste_adv = None
+        logger.warning("[SMART_INTAKE] vrste advokata nisu pročitane job=%s: %s", job_id[:8], type(_ve).__name__)
+
+    def _odredio_advokat(doc_id):
+        return None if _vrste_adv is None else doc_id in _vrste_adv
+
     return {
         "job": job,
+        "dozvoljene_vrste": list(DOCUMENT_TYPES),
         "dokument": {
+            "document_id": document["id"] if document else None,
+            "tip_odredio_advokat": _odredio_advokat(document["id"]) if document else None,
             "tip": document["document_type"] if document else None,
             "tip_pouzdanost": document["classification_confidence"] if document else None,
             "ocr_koriscen": document["ocr_used"] if document else None,
@@ -414,6 +431,7 @@ async def intake_job_status(job_id: str, request: Request, user: dict = Depends(
         "dokumenti": [{
             "document_id": d["document"]["id"],
             "tip": d["document"]["document_type"],
+            "tip_odredio_advokat": _odredio_advokat(d["document"]["id"]),
             "tip_pouzdanost": d["document"]["classification_confidence"],
             "ocr_koriscen": d["document"]["ocr_used"],
             "entiteti": _sa_predlozima(_entiteti_view(d["entities"]), d["entities"]),
@@ -677,6 +695,110 @@ async def correct_entity(
         logger.warning("[SMART_INTAKE] entity_corrected audit log greška: %s", ae)
 
     return result
+
+
+class VrstaReq(BaseModel):
+    vrsta: str = Field(..., max_length=40)
+    # Vrsta koju je advokat VIDEO. Upis prolazi samo ako je i dalje ta (CAS): novija ispravka iz drugog
+    # prozora ne sme biti tiho pregažena.
+    prethodna: str = Field(..., max_length=40)
+
+
+@router.post("/documents/{document_id}/vrsta")
+@limiter.limit("30/minute")
+async def ispravi_vrstu_dokumenta(document_id: str, request: Request, body: VrstaReq,
+                                  user: dict = Depends(get_current_user)):
+    """QA-02 — advokat menja vrstu JEDNOG dokumenta pre prikačivanja predmetu.
+
+    Vlasništvo kao `entities/{id}/correct`: intake_documents.intake_job_id → intake_jobs.uploaded_by. Za vreme
+    upisa ispravka drži postojeće zauzeće finalizacije (`claim_intake_finalize`), pa prikačivanje ne može da
+    pročita staru vrstu dok se nova upisuje. Posle prikačivanja vrsta se menja u predmetu
+    (POST /api/evidence/predmeti/{predmet_id}/dokumenti/{id}/vrsta), ne ovde.
+
+    Uspeh se prijavljuje tek kad su upisani vrsta, zapis ljudske odluke i audit. Ako bilo koji od poslednja
+    dva padne, vrsta se vraća na prethodnu (CAS) i odgovor je 503."""
+    if body.vrsta not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=422, detail="Nepoznata vrsta dokumenta.")
+    uid = user["user_id"]
+    supa = _get_supa()
+
+    doc_res = await asyncio.to_thread(
+        lambda: supa.table("intake_documents").select("id, intake_job_id, document_type, classification_confidence")
+            .eq("id", document_id).maybe_single().execute()
+    )
+    doc = doc_res.data if doc_res else None
+    job = None
+    if doc:
+        job_res = await asyncio.to_thread(
+            lambda: supa.table("intake_jobs").select("id, status, predmet_id, assimilation_complete")
+                .eq("id", doc["intake_job_id"]).eq("uploaded_by", uid).maybe_single().execute()
+        )
+        job = job_res.data if job_res else None
+    if not doc or not job:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+    job_id = job["id"]
+    if job.get("predmet_id") or job.get("assimilation_complete"):
+        raise HTTPException(status_code=409, detail="Dokument je već prikačen predmetu — vrstu ispravite u predmetu.")
+    if job.get("status") not in ("completed", "awaiting_review"):
+        raise HTTPException(status_code=409, detail="Dokument još nije obrađen ili je odbijen — vrsta se ne može menjati.")
+
+    # Deterministička veza ispravke sa dokumentom (nikad naziv fajla): segment dokumenta, ili nesegmentiran posao.
+    segment = await intake_segments.get_segment_for_document(document_id)
+    if not segment and await intake_segments.get_segments_for_job(job_id):
+        raise HTTPException(status_code=409, detail="Dokument se ne može pouzdano povezati sa delom otpremljenog fajla — ispravka nije upisana.")
+
+    claimed = await intake_queue.claim_finalize(job_id)
+    if not claimed:
+        raise HTTPException(status_code=409, detail="Prikačivanje ovog dokumenta je u toku. Sačekajte i osvežite prikaz.")
+    try:
+        if claimed.get("predmet_id"):
+            raise HTTPException(status_code=409, detail="Dokument je već prikačen predmetu — vrstu ispravite u predmetu.")
+        stara = doc["document_type"]
+        if stara == body.vrsta:
+            # Ponovljen klik ili ista vrednost: ništa se ne upisuje.
+            return {"ok": True, "document_id": document_id, "vrsta": stara, "promenjeno": False}
+        if stara != body.prethodna:
+            raise HTTPException(status_code=409, detail="Vrsta je u međuvremenu promenjena. Osvežite prikaz i ponovite izbor.")
+        if not await intake_documents.ispravi_vrstu(document_id, body.vrsta, body.prethodna):
+            raise HTTPException(status_code=409, detail="Vrsta je u međuvremenu promenjena. Osvežite prikaz i ponovite izbor.")
+
+        zapisano = False
+        try:
+            await intake_documents.write_processing_outcome(
+                intake_job_id=job_id, document_type=body.vrsta, ocr_confidence=None,
+                entity_confidence={"document_type": doc.get("classification_confidence")}, processing_time_ms=0,
+                user_corrected=True, fields_corrected=[intake_documents.POLJE_VRSTE],
+                correction_reason=f"document_type: {stara} -> {body.vrsta}", error_source=None,
+                raise_on_error=True, segment_id=segment["id"] if segment else None,
+            )
+            from shared.audit_immutable import log_action
+            zapisano = bool(await log_action(
+                "dokument_vrsta_ispravljena", user_id=uid, resource_type="intake_documents", resource_id=document_id,
+                ip=request.client.host if request.client else None,
+                metadata={"staro": stara, "novo": body.vrsta, "intake_job_id": job_id, "faza": "pre_prikacivanja"},
+            ))
+        except Exception as exc:
+            logger.warning("[SMART_INTAKE] zapis ispravke vrste neuspešan dok=%s: %s", document_id[:8], type(exc).__name__)
+        if not zapisano:
+            vraceno = await _vrati_vrstu(document_id, body.vrsta, stara)
+            raise NamerniHTTPException(
+                status_code=503,
+                detail=("Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna."
+                        if vraceno else
+                        "Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu."),
+            )
+        logger.info("[SMART_INTAKE] vrsta dokumenta ispravljena dok=%s %s -> %s", document_id[:8], stara, body.vrsta)
+        return {"ok": True, "document_id": document_id, "vrsta": body.vrsta, "prethodna": stara, "promenjeno": True}
+    finally:
+        await _oslobodi_zauzece(job_id, claimed["finalizing_at"])
+
+
+async def _vrati_vrstu(document_id: str, nova: str, stara: str) -> bool:
+    try:
+        return await intake_documents.ispravi_vrstu(document_id, stara, nova)
+    except Exception as exc:
+        logger.error("[SMART_INTAKE] vraćanje vrste neuspešno dok=%s: %s", document_id[:8], type(exc).__name__)
+        return False
 
 
 @router.get("/admin/health")
@@ -1310,6 +1432,10 @@ async def _finalize_intake_job_jezgro(
     documents = await intake_documents.get_job_documents(job_id)
     if not documents:
         raise HTTPException(status_code=409, detail="Klasifikacija nije dostupna za ovaj posao.")
+    # QA-02: vrsta koju je advokat izabrao pre prikačivanja ulazi u predmet SA oznakom ljudske odluke, pa je
+    # kasnija AI klasifikacija dokaza ne menja. Pad ovog čitanja prekida prikačivanje (503, zauzeće se
+    # oslobađa) — bez njega bi ljudska vrsta ušla u predmet kao AI vrednost.
+    vrste_advokata = await intake_documents.vrste_advokata(job_id, [d["document"] for d in documents])
 
     # Program Intake Sprint 003 (2026-08-05) -- result["review"] je ranije
     # bio ucitan a NIKAD procitan (Sprint 003 Fork C §1.6a) -- finalize nije
@@ -2035,6 +2161,9 @@ async def _finalize_intake_job_jezgro(
                 # NEW_EVIDENCE_REGISTERED ispod, činio je da posledica UVEK vrati
                 # "skipped_already_classified" — dokument iz Smart Intake-a nikad nije dobio tvrdnje.
                 _variant_full = {**_base_rn, "tip_dokaza": doc_type_i, "tekst_sadrzaj": seg_text[:100_000]}
+                if doc_id in vrste_advokata:
+                    _variant_full["ai_tags"] = {OZNAKA_VRSTE_ADVOKATA: {
+                        "tip": doc_type_i, "akter": uid, "izvor": "prijem", "intake_document_id": doc_id}}
                 _redni_conflict = False
                 for extra in (_variant_full, dict(_base_rn)):
                     try:
