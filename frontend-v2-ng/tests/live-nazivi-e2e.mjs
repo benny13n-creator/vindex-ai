@@ -47,7 +47,9 @@ const SEME = {
       id: `0a0a0a0a-1111-4000-8000-0000000000${n}`, user_id: "uid-A", naziv: "Zavrsen " + n, tip, status: "zatvoren", opis: "",
       created_at: T, updated_at: T, case_dna: {}, observation_version: 0 }))],
   predmet_dokumenti: [dok(1, "Ugovor.pdf", "contract"), dok(2, "Odgovor.pdf", "response"), dok(3, "Presuda.pdf", "sudska_odluka"),
-    dok(4, "Nepoznato.pdf", "qa_interni_kod")],
+    dok(4, "Nepoznato.pdf", "qa_interni_kod"),
+    // Noćni sprint T03: sačuvana vrsta je `podnesak`, a naziv fajla sugeriše „odgovor na tužbu“ — prikaz sledi vrstu, ne naziv.
+    dok(5, "Odgovor na tuzbu - nacrt.pdf", "podnesak")],
   predmet_hronologija: [hr(1, "Pipeline (AI)", "Isporuka iz opisa", "rok"), hr(2, "Smart Intake", "Rok iz dokumenta (ugovor)", "rok"),
     hr(3, "Template (AI)", "Priprema podneska", null), hr(4, "Osnovni sud u Beogradu", "Zakazano ročište", null),
     hr(5, "Case Evolution Engine", "Stigao nov dokaz", null), hr(6, "Auto-detect (AI)", "Rok iz potvrđenih veza", "rok"),
@@ -95,10 +97,13 @@ const ENGLESKI = /\b(contract|response|lawsuit|law_cited|law cited|Pipeline|Smar
 
 // ── Dosije: lista dokumenata i detalj ───────────────────────────────────────────────────────────────────────────────
 await p.goto(`${BASE}/app#/predmeti/${P}/dokumenti`);
-zapisi("dosije", "lista dokumenata učitana", await cekaj(() => document.querySelectorAll("#dok-lista .docs__item").length === 4));
+zapisi("dosije", "lista dokumenata učitana", await cekaj(() => document.querySelectorAll("#dok-lista .docs__item").length === 5));
 const lista = await tekst("#dok-lista .docs__meta");
 zapisi("dosije", "contract → „Ugovor“, response → „Odgovor na tužbu“, sudska_odluka → „Sudska odluka“",
   /Ugovor/.test(lista) && /Odgovor na tužbu/.test(lista) && /Sudska odluka/.test(lista), lista.replace(/\n/g, " | "));
+const red5 = await tekst(`#dok-lista .docs__item[data-dok="${SEME.predmet_dokumenti[4].id}"] .docs__meta`);
+zapisi("dosije", "vrsta `podnesak` sa nazivom „Odgovor na tuzbu…“ ostaje „Podnesak“ (naziv fajla ne menja vrstu)",
+  /Podnesak/.test(red5) && !/Odgovor na tužbu/.test(red5), red5.replace(/\n/g, " | "));
 zapisi("dosije", "nepoznata oznaka prikazana kao nepoznata, ne kao pravni pojam", /Nepoznata vrsta dokumenta \(oznaka „qa_interni_kod“\)/.test(lista));
 zapisi("dosije", "nijedan engleski/interni naziv u listi", !ENGLESKI.test(lista), lista.replace(/\n/g, " | "));
 await p.click(`#dok-lista .docs__item[data-dok="${SEME.predmet_dokumenti[0].id}"]`);
@@ -180,7 +185,7 @@ const cekajQ = (fn, ms = 15000) => q.waitForFunction(fn, null, { timeout: ms }).
 const tekstQ = (sel) => q.evaluate((s) => [...document.querySelectorAll(s)].map(e => e.innerText).join("\n"), sel);
 await q.goto(`${BASE}/app#/predmeti/${P}/dokumenti`);
 zapisi("bez rečnika", "rečnik je zaista tražen i odbijen (404), rezerva aktivna", await cekajQ(() => window.VxNazivi && window.VxNazivi.nedostupan === true) && trazenRecnik > 0);
-zapisi("bez rečnika", "lista dokumenata NIJE prazna", await cekajQ(() => document.querySelectorAll("#dok-lista .docs__item").length === 4));
+zapisi("bez rečnika", "lista dokumenata NIJE prazna", await cekajQ(() => document.querySelectorAll("#dok-lista .docs__item").length === 5));
 const lista404 = await tekstQ("#dok-lista .docs__meta");
 zapisi("bez rečnika", "oznaka doslovno uz srpsku napomenu „srpski naziv nije učitan“", /„contract“ \(srpski naziv nije učitan\)/.test(lista404)
   && /„qa_interni_kod“ \(srpski naziv nije učitan\)/.test(lista404), lista404.replace(/\n/g, " | "));

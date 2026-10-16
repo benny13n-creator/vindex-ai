@@ -334,6 +334,60 @@ async def correct_entity(entity_id: str, corrected_value: str, resolved_by: str,
     return {"entity_id": entity_id, "entity_type": entity["entity_type"], "corrected_value": corrected_value}
 
 
+# ── QA-02: vrsta dokumenta koju je odredio advokat ─────────────────────────
+# `intake_documents` nema kolonu za poreklo vrste (`classification_method` CHECK dozvoljava samo
+# 'heuristic'/'llm', migracija 074), pa je ljudska odluka red u `intake_processing_outcomes` sa
+# `user_corrected=true`, `fields_corrected=['document_type']` i NOVOM vrstom u `document_type` —
+# ista tabela i isti oblik kao 10-sekundna ispravka entiteta. Dokument ima vrstu advokata samo ako
+# je njegova TRENUTNA vrsta jednaka nekoj vrsti koju je advokat izabrao: red preostao posle vraćene
+# (neuspele) ispravke zato ne može da proglasi AI vrednost ljudskom.
+POLJE_VRSTE = "document_type"
+
+
+async def ispravi_vrstu(document_id: str, nova: str, prethodna: str) -> bool:
+    """CAS: menja vrstu samo ako je i dalje `prethodna` (ono što je advokat video). False = promenjena u
+    međuvremenu ili red ne postoji — nikad tiho prepisivanje novije ispravke."""
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("intake_documents").update({"document_type": nova})
+            .eq("id", document_id).eq("document_type", prethodna).execute()
+    )
+    return bool(res.data)
+
+
+async def vrste_advokata(intake_job_id: str, documents: list[dict], supa=None) -> dict:
+    """{document_id: vrsta} za dokumente posla čiju TRENUTNU vrstu je odredio advokat.
+
+    Veza ispravke sa dokumentom je deterministička, nikad po nazivu fajla: segmentiran posao → `segment_id`
+    ispravke → `intake_job_segments.document_id`; nesegmentiran posao (bez redova segmenata, tačno jedan
+    dokument) → ispravka bez `segment_id`. Sve drugo se ne povezuje."""
+    if not documents:
+        return {}
+    supa = supa or _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("intake_processing_outcomes").select("document_type, segment_id, fields_corrected")
+            .eq("intake_job_id", intake_job_id).eq("user_corrected", True).execute()
+    )
+    izbori = [r for r in (res.data or []) if POLJE_VRSTE in (r.get("fields_corrected") or []) and r.get("document_type")]
+    if not izbori:
+        return {}
+    from shared import intake_segments
+    segmenti = await intake_segments.get_segments_for_job(intake_job_id)
+    if segmenti:
+        dok_po_segmentu = {s["id"]: s.get("document_id") for s in segmenti}
+        izabrano: dict = {}
+        for r in izbori:
+            dok = dok_po_segmentu.get(r.get("segment_id"))
+            if dok:
+                izabrano.setdefault(dok, set()).add(r["document_type"])
+    elif len(documents) == 1:
+        izabrano = {documents[0]["id"]: {r["document_type"] for r in izbori if not r.get("segment_id")}}
+    else:
+        return {}
+    return {d["id"]: d.get("document_type") for d in documents
+            if d.get("document_type") in izabrano.get(d["id"], set())}
+
+
 async def resolve_review_queue_for_job(intake_job_id: str, resolved_by: str) -> bool:
     """Poziva se kad su sve niske-confidence stavke za jedan posao
     ispravljene — markira review queue red kao rešen. Idempotentno:

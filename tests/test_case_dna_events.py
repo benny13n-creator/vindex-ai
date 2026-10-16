@@ -512,7 +512,8 @@ async def test_sync_rokovi_inserts_active_deadline():
     assert n == 1
     insert_call = supa.table.return_value.insert.call_args[0][0]
     assert insert_call["datum_iso"] == "2026-08-15"
-    assert insert_call["vaznost"] == "kritičan"
+    # QA-01 B1 (2026-10-16): nepotvrđen Genome predlog više nije „kritičan“.
+    assert insert_call["vaznost"] == "važan"
     assert insert_call["akter"] == "Genome (AI)"
 
 

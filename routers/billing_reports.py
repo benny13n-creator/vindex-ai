@@ -621,7 +621,7 @@ async def billing_mesecni(
             .lte("datum_fakture", do_inc_iso)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("id,datum_iso,dogadjaj,vaznost,predmet_id")
+            .select("id,datum_iso,dogadjaj,vaznost,predmet_id,izvor,akter")
             .eq("user_id", uid)
             .eq("vaznost", "kritičan")
             .lt("datum_iso", today_iso)
@@ -647,6 +647,15 @@ async def billing_mesecni(
     entries     = _mora(billing_r,     "stavke naplate")
     fakture     = _mora(fakture_r,     "fakture")
     prekoraceni = _mora(rokovi_r,      "prekoračeni rokovi")
+    # QA-01 B2/B4: prošao datum nepotvrđenog AI predloga NIJE prekoračen rok —
+    # datum je prošao i status treba proveriti, ali to nije propuštena obaveza.
+    # Broji se samo ono što `je_hitan_za_prikaz` dozvoljava; nepročitan lanac
+    # odluka je 503, kao i svaki drugi izvor ovog broja.
+    from shared import rokovi as _rokovi_hitni
+    _odl, _odl_ok = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, prekoraceni)
+    if not _odl_ok:
+        _mora(RuntimeError("lanac odluka o rokovima"), "odluke o rokovima")
+    prekoraceni = [r for r in prekoraceni if _rokovi_hitni.je_hitan_za_prikaz(r, _odl)]
     sledeci14   = _mora(hronologija_r, "nadolazeći rokovi")
 
     # B2-MESECNI-001 — TRI POJMA KOJA SE NE SMEJU MEŠATI.

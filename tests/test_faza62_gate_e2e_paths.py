@@ -310,9 +310,16 @@ def test_vaznost_semantika_nije_promenjena():
     assert en._ACTIONABLE_VAZNOST == ["kritičan", "važan"]
 
 
-def test_genome_i_dalje_upisuje_kritican():
-    """Gejt NE menja proizvodjaca. Genome sme da kaze `kritičan` — samo to vise
-    nije ovlascenje. Ako bi neko "resio" problem menjanjem upisa, ovo pada."""
+def test_genome_vise_ne_upisuje_kritican_a_gejt_ostaje():
+    """OLD: zaključavalo se da Genome i dalje upisuje `kritičan` — FAZA 6.2 je
+         rešila OVLAŠĆENJE gejtom, ne promenom proizvođača.
+    NEW: Genome upisuje `važan` (QA-01 B1). Gejt je i dalje jedina dozvola i
+         ne čita `vaznost` (test_vaznost_semantika_nije_promenjena ostaje).
+    WHY: osnivač je u Beta Reliability Closure (2026-10-16) odobrio da
+         nepotvrđen AI predlog ne nosi „kritičan“ — legacy prikazi su ga
+         pokazivali kao potvrđen kritičan rok. Ovo NIJE zamena za gejt."""
     s = _izvor("routers/case_dna.py")
-    assert '"vaznost":    "kritičan"' in s, \
-        "proizvodjac je promenjen umesto da je postavljena granica"
+    assert '"vaznost":    "važan"' in s and '"vaznost":    "kritičan"' not in s
+    import inspect
+    from shared import rokovi
+    assert "vaznost" not in inspect.getsource(rokovi.sme_pokrenuti_obavezu).split('"""')[-1]

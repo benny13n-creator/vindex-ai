@@ -4827,7 +4827,7 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
     hron_r, dokazi_r, dokumenti_r, rocista_r, actions_r = await asyncio.gather(
         asyncio.to_thread(
             lambda: supa.table("predmet_hronologija")
-                .select("predmet_id,datum_iso,dogadjaj,vaznost")
+                .select("id,predmet_id,datum_iso,dogadjaj,vaznost,izvor,akter")
                 .in_("predmet_id", pred_ids)
                 .gte("datum_iso", today_iso)
                 .order("datum_iso")
@@ -4919,12 +4919,17 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
         if pid not in action_prio_map or key < action_prio_map[pid]:
             action_prio_map[pid] = key
 
+    # QA-01 B4: nepotvrđen AI predlog nije hitan rok (shared/rokovi.py::je_hitan_za_prikaz).
+    from shared import rokovi as _rokovi_hitni
+    _odl_dash, _odl_dash_ok = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, hron_r.data or [])
+
     _RISK_SCORE = {"visok": 4, "srednji": 2, "nizak": 1}
     enriched = []
     for p in predmeti:
         pid       = p["id"]
         hron      = hron_map.get(pid, [])
-        urgentni  = [h for h in hron if h.get("vaznost") == "kritičan"]
+        urgentni  = [h for h in hron
+                     if _rokovi_hitni.je_hitan_za_prikaz(h, _odl_dash, odluke_dostupne=_odl_dash_ok)]
         sledeci   = hron[0] if hron else None
         rizik     = risk_map.get(pid, {})
         nivo      = rizik.get("nivo", "")
@@ -4973,6 +4978,8 @@ async def predmeti_dashboard(request: Request, user: dict = Depends(get_current_
             "ukupno":              len(predmeti),
             "visok_rizik":         sum(1 for e in enriched if e["rizik_nivo"] == "visok"),
             "hitni_rokovi":        sum(e["urgentni_rokovi_count"] for e in enriched),
+            # QA-01 B4: false = lanac odluka nije pročitan; AI predlozi tada nisu brojani.
+            "odluke_o_rokovima_dostupne": _odl_dash_ok,
             "bez_rizik_procene":   sum(1 for e in enriched if not e["rizik_nivo"]),
         },
     }
@@ -7514,12 +7521,16 @@ async def predmet_workspace(
         except Exception as e:
             logger.warning("[WORKSPACE] komunikacija greška: %s", e)
 
-    # Step 5: Urgentni rokovi (kritičan + datum u budućnosti)
+    # Step 5: Urgentni rokovi (kritičan + datum u budućnosti).
+    # QA-01 B4: nepotvrđen AI predlog nije hitan; ostaje u `rokovi.hronologija`.
     from datetime import date
+    from shared import rokovi as _rokovi_hitni
     today_iso = date.today().isoformat()
+    _buduci_ws = [h for h in (hronologija_r.data or []) if (h.get("datum_iso") or "") >= today_iso]
+    _odl_ws, _odl_ws_ok = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, _buduci_ws)
     urgentni_rokovi = [
-        h for h in (hronologija_r.data or [])
-        if h.get("vaznost") == "kritičan" and (h.get("datum_iso") or "") >= today_iso
+        h for h in _buduci_ws
+        if _rokovi_hitni.je_hitan_za_prikaz(h, _odl_ws, odluke_dostupne=_odl_ws_ok)
     ]
 
     # Step 5b: Procesni rizik — G-027/AR-01 jedini deterministicki izvor istine.
@@ -7761,6 +7772,8 @@ async def predmet_workspace(
             "urgentni":       urgentni_rokovi,
             "po_hitnosti":    rokovi_po_hitnosti,
             "hronologija":    hronologija_r.data or [],
+            # QA-01 B4: false = lanac odluka nije pročitan; AI predlozi nisu u `urgentni`.
+            "odluke_dostupne": _odl_ws_ok,
         },
         "komentari":          komentari_r.data or [],
         "beleske":            beleske_r.data or [],
@@ -8002,7 +8015,7 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
 
     hron_r, risk_r, aktivnost_r, pk_r = await asyncio.gather(
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id,dogadjaj,datum_iso,vaznost")
+            .select("id,predmet_id,dogadjaj,datum_iso,vaznost,izvor,akter")
             .in_("predmet_id", aktv_ids)
             .gte("datum_iso", today_iso)
             .lte("datum_iso", next14)
@@ -8066,12 +8079,16 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
                 "poslednja_aktivnost": last[:10] if last else None,
             })
 
+    # QA-01 B4: nepotvrđen AI predlog nije hitan rok (shared/rokovi.py::je_hitan_za_prikaz).
+    from shared import rokovi as _rokovi_hitni
+    _odl_pf, _odl_pf_ok = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, hron_all)
     _RSCORE = {"visok":4,"srednji":2,"nizak":1}
     hitni = []
     for p in aktivni:
         pid  = p["id"]
         nivo = risk_map_pf.get(pid,{}).get("nivo","")
-        urg  = sum(1 for h in hron_map_pf.get(pid,[]) if h.get("vaznost")=="kritičan")
+        urg  = sum(1 for h in hron_map_pf.get(pid,[])
+                   if _rokovi_hitni.je_hitan_za_prikaz(h, _odl_pf, odluke_dostupne=_odl_pf_ok))
         if nivo=="visok" or urg>0:
             hitni.append({
                 "id": pid, "naziv": p["naziv"], "tip": p.get("tip",""),
@@ -8096,6 +8113,8 @@ async def portfolio_intelligence(request: Request, user: dict = Depends(get_curr
         },
         "rokovi_ove_nedelje": rokovi_7[:10],
         "hitni_predmeti":     hitni[:5],
+        # QA-01 B4: false = lanac odluka nije pročitan; AI predlozi nisu brojani kao hitni.
+        "odluke_o_rokovima_dostupne": _odl_pf_ok,
         "neaktivni":          neaktivni_list[:5],
         "po_tipu":            po_tipu,
     }

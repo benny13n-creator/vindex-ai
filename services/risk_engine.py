@@ -38,6 +38,19 @@ logger = logging.getLogger("vindex.risk_engine")
 # Nije strength klasa -- ne ulazi ni u jedan brojač, procenat ni bonus/kaznu.
 SNAGA_NEPROCENJENO = "Nije procenjeno"
 
+# Vrsta iz prijema/ljudske ispravke je engleska šifra (shared/intake_classify.DOCUMENT_TYPES),
+# a EXPECTED_DOCS koristi srpske kategorije — bez ovoga advokatova „žalba“ daje lažno
+# „Nedostaje podnesak“. Samo jednoznačni parovi; ostale šifre (enforcement, email, invoice,
+# power_of_attorney, evidence, legal_opinion, other) se namerno ne mapiraju.
+_VRSTA_U_KATEGORIJU = {
+    "lawsuit": "podnesak",
+    "response": "podnesak",
+    "appeal": "podnesak",
+    "judgment": "sudska_odluka",
+    "court_decision": "sudska_odluka",
+    "contract": "ugovor",
+}
+
 
 def calculate_procesni_rizik(
     dokazi: list[dict],
@@ -97,7 +110,7 @@ def calculate_procesni_rizik(
 
     # ── Nedostajući dokumenti ────────────────────────────────────────────────
     expected = expected_docs.get(tip_predmeta, expected_docs["ostalo"])
-    postojeci_tipovi = {d.get("tip_dokaza") for d in dokumenti if d.get("tip_dokaza")}
+    postojeci_tipovi = {_VRSTA_U_KATEGORIJU.get(t, t) for t in (d.get("tip_dokaza") for d in dokumenti) if t}
     nedostajuci = [t for t in expected if t not in postojeci_tipovi]
 
     predstojeći = 0

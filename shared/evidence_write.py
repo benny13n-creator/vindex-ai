@@ -147,7 +147,7 @@ POKRIVENOST_PROCENJENO   = "EVIDENCE_ASSESSED"
 
 # ── Konstante utemeljenja (preseljene iz routers/evidence.py, nepromenjene) ──
 _CHARS_PO_STRANICI = 2500  # gruba procena (12pt font, A4, standardni razmak)
-_PROBE_MAX_LEN = 100  # lociraj_tvrdnju proverava SAMO prvih ovoliko karaktera tvrdnje
+_PROBE_MAX_LEN = 100  # najduža tvrdnja koja sme dobiti „jaka“ (DC-005); lociraj_tvrdnju traži celu tvrdnju (QA-06)
 _SNAGA_MIN_TVRDNJA_LEN = 20  # ispod ovoga, substring poklapanje je previse opste (npr. samo ime stranke) da bi bio pouzdan signal
 
 _PRAZNA_LOKACIJA: dict[str, Any] = {
@@ -211,7 +211,12 @@ def lociraj_tvrdnju(tekst: str, tvrdnja: str) -> dict:
     if not tekst or not tvrdnja:
         return dict(_PRAZNA_LOKACIJA)
 
-    probe = re.sub(r"\.{2,}$|…$", "", tvrdnja.strip()).rstrip()[:_PROBE_MAX_LEN]
+    # QA-06 (2026-10-16): traži se CELA tvrdnja, ne prvih `_PROBE_MAX_LEN`
+    # znakova. Ranije je tvrdnja duža od 100 znakova, tačna na početku a
+    # izmišljena u nastavku, dobijala `egzaktan` i u V2 prikaz „pronađeno u
+    # dokumentu“ — rep nikad nije proveren. Završni „…“ i dalje znači da citat
+    # namerno nije ceo. `_PROBE_MAX_LEN` ostaje samo granica za „jaka“ (DC-005).
+    probe = re.sub(r"\.{2,}$|…$", "", tvrdnja.strip()).rstrip()
     if not probe:
         return dict(_PRAZNA_LOKACIJA)
 

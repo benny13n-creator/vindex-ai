@@ -894,6 +894,23 @@ def _priority_by_days(days_until: int) -> str:
     return "medium"
 
 
+def _priority_rok_kandidat(days_until: int) -> str:
+    """Prioritet PREGLEDA nepotvrđenog AI roka (Rule 6), QA-01 B3.
+
+    Predstojeći kandidat zadržava prioritet po danima — advokat mora stići da ga
+    potvrdi pre isteka. Prošao datum NE postaje `critical` samo zato što je broj
+    dana negativan: datum je prošao, status treba proveriti (`medium`, ostaje na
+    Radnoj listi u „predstojećem“). Prošao datum ne znači ni da je obaveza izvršena.
+    """
+    if days_until < 0:
+        return "medium"
+    return _priority_by_days(days_until)
+
+
+#: Tekst razloga za prošao datum nepotvrđenog AI roka (QA-01 B2).
+RAZLOG_DATUM_PROSAO = "Datum je prošao — proveriti status."
+
+
 def _stable_key(*parts: str) -> str:
     import hashlib as _hashlib
     return _hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:24]
@@ -1094,11 +1111,12 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
                 actions.append({
                     "tip": "PLANIRATI_ROKOVE",
                     "razlog": (f"Rok iz dokumenta čeka vašu potvrdu: {_naziv} — {_d.isoformat()}"
-                               + (f" (prošao pre {abs(_dani)} dan(a))" if _dani < 0 else f" (za {_dani} dan(a))")),
+                               + (f" (pre {abs(_dani)} dan(a)). {RAZLOG_DATUM_PROSAO}" if _dani < 0
+                                  else f" (za {_dani} dan(a))")),
                     "dokaz": {"izvor": "predmet_hronologija", "hronologija_id": str(x["id"]),
                               "dokument_id": x.get("dokument_id"), "datum": _d.isoformat(), "stanje_odluke": "UNCONFIRMED",
                               "izvor_roka": x.get("izvor")},
-                    "prioritet": _priority_by_days(_dani),
+                    "prioritet": _priority_rok_kandidat(_dani),
                     "rok": _d.isoformat(),
                     "dedupe_key": _stable_key("rok_kandidat", str(x["id"])),
                 })

@@ -274,6 +274,28 @@ for (const [w, h] of [[390, 844]]) {
     await s.zatvori();
   }
   {
+    // QA-06: server prepoznaje i tačan naziv fajla — upozorenje nosi oznaku i naziv, naziv (koji je uneo korisnik) kao tekst.
+    const s = await scenario({ izvori: izvoriPredmeta({ odgovor_pominje_nedostavljene: ["DOK-02 (zapisnik_rociste.pdf)", "DOK-01 (<img src=x onerror=window.__xss=98>.pdf)"] }) });
+    await pokreni(s.p);
+    const e = await ekran(s.p);
+    zapisi("Q.pominje", "naziv fajla nepročitanog dokumenta: upozorenje sa oznakom i nazivom, naziv kao tekst",
+      e.citati.some(c => /^nedostavljeni:.*odgovor pominje DOK-02 \(zapisnik_rociste\.pdf\), DOK-01 \(<img src=x onerror=window\.__xss=98>\.pdf\), čiji tekst savetnik nije dobio/.test(c))
+        && e.xss !== 98, e.citati.join(" | ") + " | xss=" + e.xss);
+    await s.zatvori();
+  }
+  {
+    // Nesaglasnost: server je DOK-01 dostavio, a model tvrdi da ga nije pročitao. Ekran ne skriva ni jedno ni drugo —
+    // evidencija servera i tekst odgovora su oba vidljivi; sistem NE pokušava da tumači rečenicu modela.
+    const s = await scenario({ izvori: izvoriPredmeta({ ukljuceni: [{ ...DOK(1), trazen: true }, DOK(7)], izostavljenih_ukupno: 5 }),
+                               odgovor: "Nisam pročitao DOK-01, pa ne mogu da potvrdim rok isporuke." });
+    await pokreni(s.p, "research", "Šta piše u DOK-01?");
+    const e = await ekran(s.p);
+    zapisi("Q.nesaglasnost", "server: DOK-01 dostavljen; model: nije pročitan — oba vidljiva, bez lažnog upozorenja",
+      /dobio tekst 2 od 7 dokumenata: DOK-01, DOK-07/.test(e.kontekst || "") && /Nisam pročitao DOK-01/.test(e.tekst)
+        && !e.citati.some(c => c.startsWith("nedostavljeni:")), `${e.kontekst} | ${e.tekst.slice(0, 80)} | ${e.citati.join(" | ")}`);
+    await s.zatvori();
+  }
+  {
     const s = await scenario({ izvori: izvoriPredmeta({ ukljuceni: [{ ...DOK(1), oznaka: "<img src=x onerror=window.__xss=99>" }] }) });
     await pokreni(s.p);
     const e = await ekran(s.p);

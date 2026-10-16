@@ -158,6 +158,31 @@ from shared.evidence_write import (              # noqa: E402
 )
 
 
+# Ishodi `_upisi_ai_vrstu`.
+AI_VRSTA_UPISANA, AI_VRSTA_ZADRZANA, AI_VRSTA_NEUPISANA = "upisana", "zadrzana", "neupisana"
+
+
+def _upisi_ai_vrstu(supa, dokument_id: str, polja: dict) -> str:
+    """Upisuje AI vrstu i `ai_tags` SAMO jednim uslovnim UPDATE-om: red sa oznakom advokata (`OZNAKA_VRSTE_ADVOKATA`)
+    se ne pogađa, pa ljudska ispravka sačuvana u bilo kom trenutku pre ovog upisa ostaje.
+
+    `ai_tags->>oznaka IS NULL` je uslov PostgREST-a nad JSONB kolonom (stari redovi gde je `ai_tags` JSON
+    string daju NULL, pa se ponašaju kao ranije). Ako baza odbije uslov, AI vrsta se NE upisuje: čitanje oznake
+    pa bezuslovan upis ostavlja prozor u kome advokat sačuva vrstu, a AI je odmah prepiše (PR #43 pregled).
+
+    AI_VRSTA_UPISANA = upisano; AI_VRSTA_ZADRZANA = red ne postoji ili nosi vrstu advokata;
+    AI_VRSTA_NEUPISANA = atomski uslov nije izvršen, vrsta i `ai_tags` nisu dirani."""
+    from shared.evidence_graph import OZNAKA_VRSTE_ADVOKATA
+    try:
+        res = (supa.table("predmet_dokumenti").update(polja).eq("id", dokument_id)
+               .is_("ai_tags->>" + OZNAKA_VRSTE_ADVOKATA, "null").execute())
+    except Exception as exc:
+        logger.error("[EVIDENCE] uslovni upis vrste odbijen (%s) dokument=%s — AI vrsta NIJE upisana",
+                     type(exc).__name__, dokument_id)
+        return AI_VRSTA_NEUPISANA
+    return AI_VRSTA_UPISANA if res.data else AI_VRSTA_ZADRZANA
+
+
 def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: str, user_id: str) -> dict:
     """Poziva se u pozadini posle uploada. Klasifikuje i upisuje u predmet_dokumenti.
 
@@ -194,8 +219,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
         # timestamp, written on every single document classification --
         # this update either silently rejected the whole update or stored
         # an unusable value since whenever this code was written.
-        from datetime import datetime as _dt, timezone as _tz
-        supa.table("predmet_dokumenti").update({
+        _ai_upis = {
             "tip_dokaza":      rezultat.get("tip_dokaza", "ostalo"),
             "pravni_elementi": rezultat.get("pravni_elementi", []),
             "ai_tags":         json.dumps(rezultat.get("ai_tags", {})),
@@ -203,8 +227,22 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
             # idempotencije (services/case_evolution.py::_consequence_evidence_classify). Upisan pre
             # tvrdnji, prolazna greška upisa tvrdnji ispod je tvrdnje gubila trajno: posledica je
             # proglašavana završenom, a ponovni pokušaj preskakan. Upisuje se tek kad tvrdnje uspeju.
-        }).eq("id", dokument_id).execute()
-        logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
+        }
+        # QA-02: vrstu koju je odredio advokat AI ne menja. Uslov je u ISTOM UPDATE-u (red sa oznakom se ne
+        # pogađa), pa ljudska ispravka upisana u bilo kom trenutku pre ovog upisa ostaje — bez čitanja pa
+        # pisanja. Red sa oznakom dobija samo pravne elemente; vrsta i `ai_tags` (sa oznakom) ostaju.
+        # Ako atomski uslov nije izvršen, vrsta i `ai_tags` ostaju; pravni elementi (samo AI ih piše) se upisuju.
+        _ishod_vrste = _upisi_ai_vrstu(supa, dokument_id, _ai_upis)
+        if _ishod_vrste == AI_VRSTA_UPISANA:
+            logger.info("[EVIDENCE] Klasifikovan dokument=%s tip=%s", dokument_id, rezultat.get("tip_dokaza"))
+        else:
+            _ostalo = supa.table("predmet_dokumenti").update(
+                {"pravni_elementi": _ai_upis["pravni_elementi"]}).eq("id", dokument_id).execute()
+            if _ishod_vrste == AI_VRSTA_NEUPISANA:
+                rezultat["_vrsta_neupisana"] = True
+            elif _ostalo.data:
+                rezultat["_vrsta_zadrzana"] = True
+                logger.info("[EVIDENCE] dokument=%s: vrstu je odredio advokat — AI vrsta nije upisana", dokument_id)
         # klasifikuj_i_sacuvaj is a plain sync function invoked via
         # asyncio.to_thread() from a worker thread with NO running event
         # loop of its own -- asyncio.create_task() would raise RuntimeError
@@ -548,5 +586,86 @@ async def reklasifikuj(request: Request, predmet_id: str, dok_id: str, user=Depe
     if _greska:
         return {"ok": False, "poruka": "Reklasifikacija nije uspela (AI greška). Pokušajte ponovo, kredit nije naplaćen."}
 
+    if (rezultat or {}).get("_vrsta_neupisana"):
+        return {"ok": False, "poruka": "Reklasifikacija nije sačuvana: vrsta dokumenta nije mogla bezbedno da se upiše. "
+                                       "Vrsta je ostala nepromenjena, kredit nije naplaćen."}
+
     await UsageService.consume(user["user_id"], user.get("email", ""), "evidence")
+    if (rezultat or {}).get("_vrsta_zadrzana"):
+        return {"ok": True, "vrsta_zadrzana": True,
+                "poruka": "Reklasifikacija završena. Vrstu dokumenta odredio je advokat, pa je AI nije promenio."}
     return {"ok": True, "poruka": "Reklasifikacija završena."}
+
+
+class VrstaDokumentaReq(BaseModel):
+    vrsta: str
+    # Vrsta koju je advokat VIDEO (`null` = dokument nije imao vrstu). Upis prolazi samo ako je i dalje ta (CAS).
+    prethodna: Optional[str] = None
+
+
+@router.post("/predmeti/{predmet_id}/dokumenti/{dok_id}/vrsta")
+@limiter.limit("30/minute")
+async def ispravi_vrstu_u_predmetu(request: Request, predmet_id: str, dok_id: str, req: VrstaDokumentaReq,
+                                   user=Depends(require_user)):
+    """QA-02 — advokat menja vrstu JEDNOG dokumenta u predmetu (`predmet_dokumenti.tip_dokaza`).
+
+    Vlasništvo kao `get_evidence`: predmet i dokument moraju pripadati korisniku, a dokument tom predmetu.
+    Vrsta i oznaka ljudske odluke (`ai_tags._vrsta_advokat`) upisuju se JEDNIM uslovnim UPDATE-om, pa ih AI
+    klasifikacija posle toga ne menja. Uspeh se prijavljuje tek posle audit zapisa; ako audit padne, vrsta i
+    `ai_tags` se vraćaju (CAS) i odgovor je 503."""
+    import asyncio
+    from datetime import datetime as _dt, timezone as _tz
+    from shared.evidence_graph import OZNAKA_VRSTE_ADVOKATA, _ai_tags
+    from shared.intake_classify import DOCUMENT_TYPES
+
+    if req.vrsta not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=422, detail="Nepoznata vrsta dokumenta.")
+    supa = get_supa()
+    uid = user["user_id"]
+    pr, dok = await asyncio.gather(
+        asyncio.to_thread(lambda: supa.table("predmeti").select("id").eq("id", predmet_id).eq("user_id", uid).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,tip_dokaza,ai_tags")
+                          .eq("id", dok_id).eq("predmet_id", predmet_id).eq("user_id", uid).execute()),
+    )
+    if not pr.data or not dok.data:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+    red = dok.data[0]
+    stara, stari_tagovi = red.get("tip_dokaza"), red.get("ai_tags")
+    tagovi = _ai_tags(stari_tagovi)
+    if stara == req.vrsta and tagovi.get(OZNAKA_VRSTE_ADVOKATA):
+        return {"ok": True, "dokument_id": dok_id, "vrsta": stara, "promenjeno": False}
+    if stara != req.prethodna:
+        raise HTTPException(status_code=409, detail="Vrsta je u međuvremenu promenjena. Osvežite prikaz i ponovite izbor.")
+
+    novi_tagovi = {**tagovi, OZNAKA_VRSTE_ADVOKATA: {
+        "tip": req.vrsta, "prethodna": stara, "akter": uid, "izvor": "predmet", "vreme": _dt.now(_tz.utc).isoformat()}}
+
+    def _cas(polja: dict, ocekivana):
+        q = supa.table("predmet_dokumenti").update(polja).eq("id", dok_id).eq("user_id", uid)
+        q = q.is_("tip_dokaza", "null") if ocekivana is None else q.eq("tip_dokaza", ocekivana)
+        return bool(q.execute().data)
+
+    if not await asyncio.to_thread(_cas, {"tip_dokaza": req.vrsta, "ai_tags": novi_tagovi}, stara):
+        raise HTTPException(status_code=409, detail="Vrsta je u međuvremenu promenjena. Osvežite prikaz i ponovite izbor.")
+
+    zapis = None
+    try:
+        from shared.audit_immutable import log_action
+        zapis = await log_action(
+            "dokument_vrsta_ispravljena", user_id=uid, resource_type="predmet_dokumenti", resource_id=dok_id,
+            ip=request.client.host if request.client else None,
+            metadata={"staro": stara, "novo": req.vrsta, "predmet_id": predmet_id, "faza": "u_predmetu"},
+        )
+    except Exception as exc:
+        logger.warning("[EVIDENCE] audit ispravke vrste neuspešan dok=%s: %s", dok_id, type(exc).__name__)
+    if not zapis:
+        try:
+            vraceno = await asyncio.to_thread(_cas, {"tip_dokaza": stara, "ai_tags": stari_tagovi}, req.vrsta)
+        except Exception as exc:
+            logger.error("[EVIDENCE] vraćanje vrste neuspešno dok=%s: %s", dok_id, type(exc).__name__)
+            vraceno = False
+        if vraceno:
+            raise NamerniHTTPException(status_code=503, detail="Ispravka vrste nije sačuvana: zapis o promeni nije upisan. Vrsta je ostala prethodna.")
+        raise NamerniHTTPException(status_code=503, detail="Ishod ispravke nije poznat: vrsta je možda promenjena bez zapisa o promeni. Osvežite prikaz i proverite vrstu.")
+    logger.info("[EVIDENCE] vrsta dokumenta ispravljena u predmetu dok=%s %s -> %s", dok_id, stara, req.vrsta)
+    return {"ok": True, "dokument_id": dok_id, "vrsta": req.vrsta, "prethodna": stara, "promenjeno": True}

@@ -90,7 +90,9 @@
       var x = r.podaci, wrap = $("ka-portfolio");
       var dl = el("dl", "facts");
       [["Predmeta ukupno", x.ukupno_predmeta], ["Aktivnih", broj(x.ukupno_aktivnih)], ["Rokova u narednih 7 dana", Array.isArray(x.rokovi_7_dana) ? x.rokovi_7_dana.length : null],
-       ["Kritičnih rokova u 7 dana", Array.isArray(x.hitni_rokovi) ? x.hitni_rokovi.length : null], ["Bez aktivnosti 30+ dana", x.neaktivni_30_dana.length]].forEach(function (p) {
+       /* QA-01 B4: lanac odluka nije pročitan → broj kritičnih nije poznat, ne prikazuje se umanjen broj. */
+       ["Kritičnih rokova u 7 dana", x.odluke_dostupne === false ? "nije poznato (potvrde rokova nisu pročitane)"
+         : (Array.isArray(x.hitni_rokovi) ? x.hitni_rokovi.length : null)], ["Bez aktivnosti 30+ dana", x.neaktivni_30_dana.length]].forEach(function (p) {
         if (p[1] === null || p[1] === undefined) return;
         dl.append(el("dt", null, p[0]), el("dd", null, String(p[1])));
       });
