@@ -272,7 +272,9 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         profili_r = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute()
         profili   = profili_r.data or []
         if not profili:
-            return {"poslato": 0, "greske": 0, "napomena": "Nema aktivnih profila"}
+            # Isti brojači kao uobičajen odgovor — cron (email-cron.yml) odbija odgovor bez njih.
+            return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0,
+                    "napomena": "Nema aktivnih profila"}
 
         # Get user emails from Supabase auth via profiles (or use billing pattern)
         # We fetch user emails from profiles table which has email
