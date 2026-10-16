@@ -930,7 +930,13 @@ async def _sync_rokovi_to_hronologija(supa, predmet_id: str, uid: str, genome: d
                 "dogadjaj":   dg,
                 "datum":      dt,
                 "datum_iso":  dt,
-                "vaznost":    "kritičan",
+                # QA-01 B1: važnost nepotvrđenog AI predloga NIJE „kritičan“.
+                # „kritičan“ je ranije bio upisan u kodu za svaki Genome rok, pa je
+                # predlog izgledao kao potvrđen kritičan rok. `važan` je postojeća
+                # vrednost (CHECK), ista koju upisuje Smart Intake za svoj kandidat.
+                # Prošao datum se i dalje upisuje kao kandidat: prošao datum ne
+                # znači da je obaveza izvršena (QA-01 B2) — status proverava advokat.
+                "vaznost":    "važan",
                 "akter":      "Genome (AI)",
                 "dokument_naziv": dn,
                 # migracija 127 — W-GENOME: Genome sam izvlaci rok iz

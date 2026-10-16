@@ -611,7 +611,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         # _handle_analiza_predmeta above: metadata-only, text fetched
         # separately for the bounded selected subset only.
         asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id, naziv_fajla, created_at, status, redni_broj").eq("predmet_id", predmet_id).order("redni_broj").execute()),
-        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("dogadjaj,datum_iso,vaznost").eq("predmet_id", predmet_id).order("datum_iso").execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id,dogadjaj,datum_iso,vaznost,izvor,akter").eq("predmet_id", predmet_id).order("datum_iso").execute()),
         return_exceptions=True,
     )
 
@@ -621,7 +621,15 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
 
     from datetime import date
     today_iso = date.today().isoformat()
-    urgentni = [h for h in hron if h.get("vaznost") == "kritičan" and (h.get("datum_iso") or "") >= today_iso]
+    # QA-01 B4: nepotvrđen AI predlog nije hitan rok (shared/rokovi.py::je_hitan_za_prikaz);
+    # ostaje u `nadolazeci`, ali bez oznake „Kritičan rok“.
+    from shared import rokovi as _rokovi_hitni
+    _buduci = [h for h in hron if (h.get("datum_iso") or "") >= today_iso]
+    _odl_cp, _odl_cp_ok = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, _buduci)
+    urgentni = [h for h in _buduci if _rokovi_hitni.je_hitan_za_prikaz(h, _odl_cp, odluke_dostupne=_odl_cp_ok)]
+    _hitni_ids = {id(h) for h in urgentni}
+    # Pad čitanja rokova nije „nema rokova“.
+    _hitni_nema = "nepoznato (rokovi nisu pročitani)" if isinstance(hron_r, Exception) else "nema"
     nadolazeci = sorted([h for h in hron if (h.get("datum_iso") or "") >= today_iso], key=lambda x: x.get("datum_iso", ""))[:6]
 
     # Alat 1: Sudska praksa (Pinecone)
@@ -681,7 +689,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         f"Opis: {(pred.get('opis') or '')[:400]}",
         dokumenti_blok,
         f"Beleške: {' | '.join((b.get('sadrzaj','') or '')[:60] for b in beleske[:3]) or 'nema'}",
-        f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or 'nema'}",
+        f"Hitni rokovi: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in urgentni[:3]) or _hitni_nema}",
         f"Nadolazeći: {' | '.join((h.get('dogadjaj','') or '')+'('+h.get('datum_iso','')+')' for h in nadolazeci[:5]) or 'nema'}",
         f"Relevantna praksa VKS: {praksa_kontekst or 'nije pronađena'}",
         f"Zahtev advokata: {poruka}",
@@ -738,7 +746,7 @@ async def _handle_plan_predmeta(poruka: str, predmet_id: str, user_id: str) -> d
         _rok_rows.append({
             "naziv": h.get("dogadjaj") or "Rok",
             "datum": h.get("datum_iso") or "",
-            "posledica_propustanja": "Kritičan rok -- moguć gubitak prava/roka." if h.get("vaznost") == "kritičan" else "",
+            "posledica_propustanja": "Kritičan rok -- moguć gubitak prava/roka." if id(h) in _hitni_ids else "",
         })
     _kriticni_rokovi = _rok_rows[:5]
 
