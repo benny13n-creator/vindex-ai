@@ -192,8 +192,12 @@ async def get_profil(request: Request, user: dict = Depends(get_current_user)):
                      .maybe_single()
                      .execute()
     )
-    if not res.data:
-        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": user.get("email")}
+    # TENFRONTS-M02: supabase 2.28.3 `maybe_single().execute()` vraća None kada reda nema → ranije 500,
+    # a stari UI je tada tiho ostajao bez stanja. `smtp_ok` je i bez profila istinit (UI njegovo odsustvo
+    # čita kao „nije konfigurisan“). Profil se ne kreira; obaveštenja ostaju isključena do uključivanja.
+    if res is None or not res.data:
+        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": user.get("email"),
+                "smtp_ok": bool(_SMTP_HOST)}
     d = res.data
     return {**d, "email": user.get("email"), "smtp_ok": bool(_SMTP_HOST)}
 
