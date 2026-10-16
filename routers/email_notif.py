@@ -178,6 +178,14 @@ class EmailNotifReq(BaseModel):
     nedeljni: bool = True
 
 
+def _adresa_primaoca(supa, user_id: str) -> str:
+    """TENFRONTS-M10: JEDINI izvor adrese primaoca — `profiles.email` vlasnika (VCR002: „Primalac: isključivo
+    vlasnik profila“), isti koji koristi zakazani podsetnik. Adresa iz prijave (JWT) se NE koristi kao
+    zamena: oznaka „Šalje se na“ i probni email moraju pokazati/proveriti ono kuda podsetnici stvarno idu."""
+    r = supa.table("profiles").select("email").eq("id", user_id).maybe_single().execute()
+    return ((r.data or {}).get("email") or "").strip() if r is not None else ""
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/email-notif/profil")
@@ -195,11 +203,12 @@ async def get_profil(request: Request, user: dict = Depends(get_current_user)):
     # TENFRONTS-M02: supabase 2.28.3 `maybe_single().execute()` vraća None kada reda nema → ranije 500,
     # a stari UI je tada tiho ostajao bez stanja. `smtp_ok` je i bez profila istinit (UI njegovo odsustvo
     # čita kao „nije konfigurisan“). Profil se ne kreira; obaveštenja ostaju isključena do uključivanja.
+    adresa = await asyncio.to_thread(_adresa_primaoca, supa, user["user_id"]) or None
     if res is None or not res.data:
-        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": user.get("email"),
+        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": adresa,
                 "smtp_ok": bool(_SMTP_HOST)}
     d = res.data
-    return {**d, "email": user.get("email"), "smtp_ok": bool(_SMTP_HOST)}
+    return {**d, "email": adresa, "smtp_ok": bool(_SMTP_HOST)}
 
 
 @router.post("/email-notif/profil")
@@ -237,8 +246,8 @@ async def obrisi_profil(request: Request, user: dict = Depends(get_current_user)
 @router.post("/email-notif/test")
 @limiter.limit("3/minute")
 async def test_email(request: Request, user: dict = Depends(get_current_user)):
-    """Šalje test email na login adresu korisnika."""
-    to_addr = user.get("email", "")
+    """Šalje test email na adresu na koju idu podsetnici (`profiles.email`, TENFRONTS-M10)."""
+    to_addr = await asyncio.to_thread(_adresa_primaoca, _get_supa(), user["user_id"])
     if not to_addr:
         raise HTTPException(status_code=400, detail="Email adresa nije dostupna.")
     if not _SMTP_HOST:

@@ -44,6 +44,9 @@ class _Baza:
         self.red, self.upisi = red, []
 
     def table(self, ime):
+        # TENFRONTS-M10: GET profil čita i `profiles.email` (kanonski primalac) — ista adresa kao ranije u JWT-u.
+        if ime == "profiles":
+            return _Upit(self, {"id": "u-1", "email": "advokat@example.invalid"})
         assert ime == "korisnik_email_notif"
         return _Upit(self, self.red)
 
