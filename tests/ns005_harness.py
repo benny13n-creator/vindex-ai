@@ -155,6 +155,14 @@ class _Upit:
     @staticmethod
     def _poklapa(r, op, k, v):
         x = r.get(k)
+        if k and "->>" in k:
+            # Kao Postgres `jsonb ->> 'kljuc'`: tekst ključa objekta; za JSON string, broj ili NULL kolonu → NULL.
+            kol, kljuc = k.split("->>", 1)
+            obj = r.get(kol)
+            x = obj.get(kljuc) if isinstance(obj, dict) else None
+            if x is not None and not isinstance(x, str):
+                import json as _json
+                x = _json.dumps(x)
         if op == "eq":
             return x == v or (x is not None and v is not None and str(x) == str(v))
         if op == "neq":

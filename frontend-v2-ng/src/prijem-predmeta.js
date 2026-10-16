@@ -196,6 +196,30 @@
         if (dok.ocr_koriscen === true) meta.push("tekst pročitan OCR-om");
         li.append(el("p", "intake__meta", meta.join(" · ")));
       }
+      /* QA-02: advokat bira vrstu JEDNOG dokumenta (svaki deo segmentiranog fajla posebno), pre prikačivanja.
+       * Šalje se i vrsta koju je video (`prethodna`): novija ispravka iz drugog prozora se ne gazi (409). */
+      var vrste = Array.isArray(x.dozvoljene_vrste) ? x.dozvoljene_vrste.map(tekst).filter(Boolean) : [];
+      var delovi = (Array.isArray(x.dokumenti) && x.dokumenti.length ? x.dokumenti : (dok ? [dok] : []))
+        .filter(function (q) { return q && ispravanId(q.document_id); });
+      if (vrste.length && delovi.length && !nistaProcitano && !j.predmet_id && (st === "awaiting_review" || st === "completed")
+          && prikacivanje(j) !== "U_TOKU") {
+        var blok = el("div", "intake__vrste");
+        delovi.forEach(function (q, i) {
+          var red = el("p", "intake__fix");
+          var sel = el("select", "field__input intake__vrsta");
+          var naziv = "Vrsta dokumenta" + (delovi.length > 1 ? " — deo " + (i + 1) : "");
+          sel.setAttribute("aria-label", naziv);
+          sel.dataset.dokument = tekst(q.document_id);
+          vrste.forEach(function (v) { var op = el("option", null, nazivVrste(v)); op.value = v; sel.append(op); });
+          if (vrste.indexOf(tekst(q.tip)) >= 0) sel.value = tekst(q.tip);
+          var b = el("button", "text-btn text-btn--line", "Sačuvaj vrstu"); b.type = "button";
+          b.addEventListener("click", function () { sacuvajVrstu(p, q, sel, b); });
+          red.append(el("span", null, naziv + ": "), sel, b);
+          if (q.tip_odredio_advokat === true) red.append(el("span", "intake__flag", " · odredio advokat"));
+          blok.append(red);
+        });
+        li.append(blok);
+      }
       var ents = (x.entiteti || []).filter(function (e) { return e && ispravanId(e.entity_id); });
       if (ents.length) {
         var dl = el("dl", "facts facts--doc");
@@ -266,6 +290,23 @@
       zakljucaj(p, b, false);
       if (r.ok) { javi(p, "uspeh", "Ispravka je sačuvana: " + nazivPolja(e.entity_type) + "."); prati(p); return; }
       neuspeh(p, r.greska || {}, "Ispravka nije sačuvana.");
+    }
+
+    async function sacuvajVrstu(p, q, sel, b) {
+      if (p.radi || !zivi(p)) return;
+      var vrsta = tekst(sel.value), prethodna = tekst(q.tip);
+      if (!vrsta || vrsta === prethodna) { javi(p, "greska", "Izaberite drugu vrstu dokumenta."); sel.focus(); return; }
+      var moja = gen;
+      zakljucaj(p, b, true); javi(p, "ucitavanje", "Čuvanje vrste dokumenta…");
+      var r = await api.send("/api/smart-intake/documents/" + encodeURIComponent(tekst(q.document_id)) + "/vrsta", {
+        telo: { vrsta: vrsta, prethodna: prethodna }, token: sesija.token(),
+        oblik: function (x) { return x.ok === true && typeof x.vrsta === "string"; } });
+      if (moja !== gen || !zivi(p)) return;
+      zakljucaj(p, b, false);
+      if (r.ok) { javi(p, "uspeh", "Vrsta dokumenta je sačuvana: " + nazivVrste(vrsta) + "."); prati(p); return; }
+      var g = r.greska || {};
+      if (g.kod === "CONFLICT") { javi(p, "greska", "Vrsta nije promenjena: u međuvremenu je promenjena ili je prikačivanje u toku. Stanje je ponovo učitano — proverite vrstu."); prati(p); return; }
+      neuspeh(p, g, "Vrsta nije promenjena.");
     }
 
     async function odluci(p, radnja, b) {
