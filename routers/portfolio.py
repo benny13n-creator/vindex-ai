@@ -47,7 +47,7 @@ async def portfolio_dashboard(
             .eq("user_id", uid)
             .execute()),
         asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-            .select("predmet_id, dogadjaj, datum_iso, vaznost")
+            .select("id, predmet_id, dogadjaj, datum_iso, vaznost, izvor, akter")
             .eq("user_id", uid)
             .gte("datum_iso", today_iso)
             .lte("datum_iso", in_14_iso)
@@ -101,6 +101,12 @@ async def portfolio_dashboard(
     # ── Rokovi ────────────────────────────────────────────────────────────────
     rokovi_7:  list[dict] = []
     rokovi_14: list[dict] = []
+    hitni_rokovi: list[dict] = []
+
+    # QA-01 B4: nepotvrđen AI predlog nije „kritičan rok“ (shared/rokovi.py::je_hitan_za_prikaz).
+    # Ostaje vidljiv u `rokovi_7_dana`/`rokovi_14_dana`; pad lanca odluka kaže `odluke_dostupne=false`.
+    from shared import rokovi as _rokovi_hitni
+    _odl, odluke_dostupne = await asyncio.to_thread(_rokovi_hitni.odluke_za_hitne, rokovi)
 
     for r in rokovi:
         pid = r.get("predmet_id", "")
@@ -114,10 +120,10 @@ async def portfolio_dashboard(
         }
         if datum <= in_7_iso:
             rokovi_7.append(entry)
+            if _rokovi_hitni.je_hitan_za_prikaz(r, _odl, odluke_dostupne=odluke_dostupne):
+                hitni_rokovi.append(entry)
         else:
             rokovi_14.append(entry)
-
-    hitni_rokovi = [r for r in rokovi_7 if r.get("vaznost") == "kritičan"]
 
     # ── Neaktivni predmeti (30+ dana bez beleske/hronologije) ─────────────────
     neaktivni: list[dict] = []
@@ -150,6 +156,7 @@ async def portfolio_dashboard(
         "rokovi_7_dana":     rokovi_7,
         "rokovi_14_dana":    rokovi_14,
         "hitni_rokovi":      hitni_rokovi,
+        "odluke_dostupne":   odluke_dostupne,
         "neaktivni_30_dana": neaktivni,
         "summary":           " ".join(delovi),
     }

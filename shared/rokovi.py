@@ -603,6 +603,66 @@ def filtriraj_izvrsive(redovi: Optional[list], potvrdjeni_ids: Optional[set] = N
     return [r for r in (redovi or []) if sme_pokrenuti_obavezu(r, potvrdjeni_ids)]
 
 
+# ── QA-01 B4 — legacy brojači „hitnih rokova“ ──────────────────────────────
+# `/api/predmeti/dashboard`, `/api/predmeti/{id}/workspace` i `/api/portfolio`
+# brojali su kao hitan SVAKI red sa `vaznost=="kritičan"`. Genome je tu vrednost
+# upisivao u kodu za svaki AI predlog, pa je nepotvrđen predlog izgledao kao
+# potvrđen kritičan rok. Pravilo ispod je SAMO PRIKAZ — ništa ne ovlašćuje i ne
+# dira `sme_pokrenuti_obavezu`.
+#
+# `izvor`/`akter` ovde samo ODUZIMAJU: AI predlog mora imati ljudsku potvrdu iz
+# lanca odluka da bi bio hitan. Ljudski unos (ročište, rok koji je advokat sam
+# uneo) ostaje kakav je bio — da se postojeća obaveza ne bi sakrila.
+
+#: Izvori za koje je `vaznost` procena modela, ne advokata.
+IZVORI_AI_PREDLOGA: tuple = (IZVOR_AI_AUTONOMOUS, IZVOR_AI_ASSISTED)
+
+
+def je_ai_predlog(red: Optional[dict]) -> bool:
+    """Red čiju važnost je procenio model. `akter` pokriva redove pre migracije 127."""
+    return bool(red) and ((red.get("izvor") or "") in IZVORI_AI_PREDLOGA
+                          or je_ai_poreklo(red.get("akter")))
+
+
+def je_hitan_za_prikaz(red: Optional[dict], odluke_mapa: Optional[dict] = None,
+                       *, odluke_dostupne: bool = True) -> bool:
+    """Sme li legacy prikaz da broji ovaj red kao HITAN rok?
+
+    - samo `vaznost=="kritičan"` (nepromenjen kriterijum);
+    - odbijen rok nikad (odluka iz lanca);
+    - AI predlog samo kad je čovek potvrdio. Ako lanac odluka nije pročitan,
+      AI predlog se NE broji (stanje se ne zna), a pozivalac to mora reći.
+    """
+    if not red or red.get("vaznost") != "kritičan":
+        return False
+    from shared.rok_potvrda import STANJE_ODBIJEN, STANJE_POTVRDJEN, stanje_roka
+    rid = red.get("id")
+    stanje = stanje_roka(rid, odluke_mapa) if (rid and odluke_dostupne) else None
+    if stanje == STANJE_ODBIJEN:
+        return False
+    if je_ai_predlog(red):
+        return stanje == STANJE_POTVRDJEN
+    return True
+
+
+def odluke_za_hitne(redovi: Optional[list]) -> tuple:
+    """Jedno čitanje lanca odluka za kritične redove legacy prikaza.
+
+    Vraća `(odluke_mapa, odluke_dostupne)`. Čita se STROGO: pad nije „niko nije
+    odlučio“, nego `odluke_dostupne=False`.
+    """
+    ids = [str(r["id"]) for r in (redovi or [])
+           if r.get("id") and r.get("vaznost") == "kritičan"]
+    if not ids:
+        return {}, True
+    from shared.rok_potvrda import odluke
+    try:
+        return odluke(ids, True), True
+    except Exception as exc:
+        logger.error("[ROKOVI] lanac odluka za hitne rokove nije pročitan: %s", exc)
+        return {}, False
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # Z016.2 — MINIMALNI UGOVOR ROKA: VRSTA i STANJE (migracija 129)
 # ════════════════════════════════════════════════════════════════════════════

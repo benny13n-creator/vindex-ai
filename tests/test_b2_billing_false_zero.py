@@ -98,6 +98,9 @@ SEMA = {
     "predmet_hronologija": {
         "id", "predmet_id", "user_id", "dokument_naziv", "datum", "datum_iso",
         "dogadjaj", "akter", "vaznost", "created_at",
+        # Migracija 127 (posle merenja iznad): `izvor`. Kanonski čitalac
+        # shared/rokovi.py::_KOLONE ga bira u produkciji od Wave 3 (2026-09-20).
+        "izvor",
     },
 }
 
