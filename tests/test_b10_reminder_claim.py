@@ -181,7 +181,9 @@ def _pokreni(baza, smtp_puca=False):
             raise RuntimeError("SMTP 421 service unavailable")
         poslati.append((to_addr, subject))
 
-    with patch.object(en, "_get_supa", return_value=baza), \
+    # SMTP je „konfigurisan“ (samo slanje je zamenjeno) — bez hosta endpoint ne rezerviše ni ne šalje (T06).
+    with patch.object(en, "_SMTP_HOST", "smtp.test.invalid"), \
+         patch.object(en, "_get_supa", return_value=baza), \
          patch.object(en, "_smtp_send", _fake_smtp), \
          patch.object(en, "_email_html", lambda *a, **k: "<html/>"):
         rez = asyncio.run(en.posalji_podsetnike(_request(), user={"user_id": "cron", "email": ""}))

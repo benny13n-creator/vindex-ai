@@ -26,6 +26,13 @@ from unittest.mock import patch
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _smtp_konfigurisan(monkeypatch):
+    """SMTP je „konfigurisan“ (samo slanje je zamenjeno) — bez hosta endpoint ne rezerviše ni ne šalje."""
+    import routers.email_notif as _en
+    monkeypatch.setattr(_en, "_SMTP_HOST", "smtp.test.invalid")
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 UID = "u-1"

@@ -289,8 +289,6 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         for profil in profili:
             uid        = profil["user_id"]
             to_addr    = email_map.get(uid, "")
-            if not to_addr:
-                continue
 
             # Operation Living System (Wave 3, Portfolio Scale team, REPRODUCED CRITICAL): this
             # cron never filtered by predmeti.status -- a deadline belonging to an archived/
@@ -342,6 +340,15 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 if not rokovi:
                     continue
                 if not rokovi:
+                    continue
+
+                # T06: poznat ne-pokušaj (nema adrese / SMTP nije konfigurisan) je GREŠKA bez rezervacije —
+                # ne `neisporuceno` (nepoznat ishod) i ne sme trajno da potroši podsetnik. Ranije se profil bez
+                # adrese preskakao bez traga, a bez SMTP-a se rezervacija upisivala pa slanje padalo.
+                if not to_addr or not _SMTP_HOST:
+                    logger.error("[EMAIL-CRON] slanje nemoguće (%s), rezervacija NIJE upisana uid=%.8s dana_pre=%d datum=%s",
+                                 "nema adrese" if not to_addr else "SMTP nije konfigurisan", uid, dana_pre, target_iso)
+                    greske += 1
                     continue
 
                 # ── TASK 1: TRAJNI CLAIM PRE SLANJA ──────────────────────────

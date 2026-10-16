@@ -51,3 +51,57 @@ def test_pad_rezervacije_je_greska_bez_slanja():
     rez, poslati = b10._pokreni(baza)
     assert _oblik(rez) == {"poslato": 0, "greske": 1, "preskoceno": 0, "neisporuceno": 0}
     assert poslati == []
+
+
+# ── T06: neuspeh slanja nije nevidljiv ni lažno „nepotvrđen“ ───────────────────
+
+def _pokreni_bez_smtp(baza, monkeypatch):
+    """Stvarni `_smtp_send` sa nekonfigurisanim hostom; `smtplib.SMTP` puca ako se ikad konstruiše."""
+    import routers.email_notif as en
+
+    def _nema_mreze(*a, **k):
+        raise AssertionError("pokušana SMTP konekcija")
+    monkeypatch.setattr(en, "_SMTP_HOST", "")
+    monkeypatch.setattr(en.smtplib, "SMTP", _nema_mreze)
+    monkeypatch.setattr(en, "_get_supa", lambda: baza)
+    monkeypatch.setattr(en, "_email_html", lambda *a, **k: "<html/>")
+    import asyncio
+    return asyncio.run(en.posalji_podsetnike(b10._request(), user={"user_id": "cron", "email": ""}))
+
+
+def test_smtp_nije_konfigurisan_greska_bez_trosenja_rezervacije(monkeypatch):
+    """Poznat ne-pokušaj nije `neisporuceno` (nepoznat ishod) i ne sme trajno da potroši podsetnik."""
+    baza = b10.FakeBaza([b10._rok(b10._sutra())])
+    rez = _pokreni_bez_smtp(baza, monkeypatch)
+    assert _oblik(rez) == {"poslato": 0, "greske": 1, "preskoceno": 0, "neisporuceno": 0}
+    assert baza.log == [], "rezervacija upisana iako slanje nije bilo moguće"
+
+
+def test_smtp_nije_konfigurisan_bez_dospelog_roka_nije_greska(monkeypatch):
+    baza = b10.FakeBaza([])
+    rez = _pokreni_bez_smtp(baza, monkeypatch)
+    assert _oblik(rez) == dict.fromkeys(POLJA, 0)
+
+
+def test_aktivan_profil_bez_adrese_sa_dospelim_rokom_je_greska_bez_pii(caplog):
+    baza = b10.FakeBaza([b10._rok(b10._sutra())])
+    baza.tabele["profiles"] = [{"id": b10.UID, "email": ""}]
+    with caplog.at_level("DEBUG"):
+        rez, poslati = b10._pokreni(baza)
+    assert _oblik(rez) == {"poslato": 0, "greske": 1, "preskoceno": 0, "neisporuceno": 0}
+    assert poslati == [] and baza.log == []
+    assert b10.MAIL not in caplog.text
+    assert "@" not in caplog.text
+
+
+def test_aktivan_profil_bez_adrese_bez_dospelog_roka_nije_greska():
+    baza = b10.FakeBaza([])
+    baza.tabele["profiles"] = []
+    rez, poslati = b10._pokreni(baza)
+    assert _oblik(rez) == dict.fromkeys(POLJA, 0) and poslati == []
+
+
+def test_uspeh_ne_upisuje_adresu_u_log(caplog):
+    with caplog.at_level("DEBUG"):
+        rez, _ = b10._pokreni(b10.FakeBaza([b10._rok(b10._sutra())]))
+    assert rez["poslato"] == 1 and b10.MAIL not in caplog.text
