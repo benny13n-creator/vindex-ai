@@ -20479,7 +20479,9 @@ function _genomeBackgroundWatch(predmetId, verzijaPre) {
     } catch (e) { /* tiho — sledeći pokušaj ili gornji limit */ }
     if (attempts >= maxAttempts) {
       clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null;
-      if (hint) hint.textContent = defaultHint; // manuelni refresh i dalje radi
+      // TENFRONTS-M09 (KEYSTONE-006): istek čekanja NIJE uspeh ni neuspeh — osvežavanje je možda još u toku.
+      // Prikazana analiza je prethodna verzija; ništa se ne pokreće ponovo automatski (manuelni refresh i dalje radi).
+      if (hint) hint.textContent = 'Osvežavanje analize nije potvrđeno ni posle 90 s — možda je još u toku ili nije uspelo. Prikazana je prethodna verzija; proverite kasnije ili pokrenite osvežavanje ručno.';
     }
   }, 15000);
 }
