@@ -1288,7 +1288,7 @@ async def get_case_dna(predmet_id: str, user=Depends(get_current_user)):
     except Exception as exc:
         raise HTTPException(500, str(exc))
 
-    if not row.data:
+    if row is None or not row.data:      # NS3-N15: maybe_single() → None za 0 redova; bez ovoga 500 umesto 404
         raise HTTPException(404, "Predmet nije pronadjen")
 
     genome = row.data.get("case_dna") or {}

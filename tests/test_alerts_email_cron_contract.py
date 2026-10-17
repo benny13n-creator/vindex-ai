@@ -58,6 +58,9 @@ def _izrazi(tekst, tajna):
     return tekst
 
 
+MRTAV_PROXY = "http://127.0.0.1:9"   # discard port: niko ne sluša, veza odmah odbijena
+
+
 def pokreni(tmp_path, http="200", telo=None, curl_izlaz=0, tajna=TAJNA):
     _, posao, korak = _korak()
     alat = tmp_path / "bin"
@@ -78,6 +81,12 @@ def pokreni(tmp_path, http="200", telo=None, curl_izlaz=0, tajna=TAJNA):
                 "MOCK_BODY_FILE": str(telo_f) if telo is not None else "",
                 "PATH": str(alat) + os.pathsep + env.get("PATH", "")})
     env["PYTHONIOENCODING"] = "utf-8"   # GitHub ubuntu runner je UTF-8
+    # NS3 gejt 4 (drugi, nezavisni sloj): i kad bi korak ipak dobio PRAVI curl, svaki HTTP(S) zahtev ide na mrtav
+    # lokalni port (curl tada ne razrešava ni ime cilja) — nijedan paket ka produkciji. NO_PROXY se briše.
+    for _k in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+        env[_k] = MRTAV_PROXY
+    for _k in ("NO_PROXY", "no_proxy"):
+        env.pop(_k, None)
     for k in ("PYTHONHOME", "PYTHONPATH"):
         env.pop(k, None)
     # Na Linux-u (CI) PATH preskače fajl bez izvršnog bita i nalazi PRAVI curl — korak bi tada gađao produkcioni

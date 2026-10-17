@@ -160,6 +160,9 @@ def test_bez_tajne_ili_sa_pogresnim_kljucem_403_a_sa_ispravnim_prolazi(monkeypat
     @app.post("/probe")
     async def _probe(user: dict = Depends(en._require_cron_or_founder)):
         return {"ok": True, "uid": user["user_id"]}
+    # NS3-N01: Bearer grana zove `_verify_token` → Supabase SDK + JWKS ka `SUPABASE_URL` (stvaran mrežni pokušaj).
+    # Za ne-JWT vrednost stvarna funkcija vraća None; zamena to zadržava bez mreže.
+    monkeypatch.setattr(en, "_verify_token", lambda token: None)
     k = TestClient(app)
     monkeypatch.setattr(en, "_CRON_SECRET", "")
     assert k.post("/probe", headers={"X-Cron-Key": ""}).status_code == 403          # neconfigurisana tajna: nikad prazno = prazno

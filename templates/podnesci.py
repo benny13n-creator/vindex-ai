@@ -1527,6 +1527,10 @@ def popuni_sablon(tip: str, entiteti: dict, obogacivanje: dict,
     if not sablon:
         return "Nepoznat tip podneska."
 
+    # NS3-N13: ekstrakcioni promptovi modelu kažu „ako nije naveden, ostavi prazno“, pa nepoznato polje stiže kao
+    # "" / null / razmaci. Bez ovoga `entiteti.get(k, "[… — POPUNITI]")` vraća prazno i oznaka nestaje („Tužilac: ,“).
+    entiteti = {k: v for k, v in (entiteti or {}).items() if v is not None and str(v).strip()}
+
     merged = {}
 
     if tip == "tuzba_naknada_stete":

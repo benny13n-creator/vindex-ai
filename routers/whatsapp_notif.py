@@ -503,7 +503,7 @@ async def get_pretplata(
 
     twilio_ok = _twilio_konfigurisan()
 
-    if not res.data:
+    if res is None or not res.data:      # NS3-N15: maybe_single() → None za 0 redova (postgrest 2.28.3)
         return {
             "registrovan": False,
             "aktivan": False,

@@ -427,7 +427,7 @@ async def post_rokovi_lanac(
                         .maybe_single()
                         .execute()
         )
-        if not pred_res.data:
+        if pred_res is None or not pred_res.data:   # NS3-N15: maybe_single() → None za 0 redova; bez ovoga 500
             raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
         # migracija 129 — ZPP lanac racuna rokove iz statickog kataloga, pa

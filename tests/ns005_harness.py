@@ -79,6 +79,9 @@ class _Upit:
         return self
 
     def _f(self, op, k, v):
+        if getattr(self, "_negacija", False):            # `.not_.<filter>` (postgrest-py property)
+            self._negacija = False
+            op = "not:" + op
         self.filt.append((op, k, v))
         return self
 
@@ -95,7 +98,10 @@ class _Upit:
     def is_(self, k, v):
         return self._f("is", k, None if str(v).lower() == "null" else v)
 
-    def not_(self, *a, **k):
+    @property
+    def not_(self):
+        # NS3-N12: kao postgrest-py — `not_` je PROPERTY i negira SLEDEĆI filter (`.not_.is_("k", "null")`).
+        self._negacija = True
         return self
 
     def or_(self, izraz, *a, **k):
@@ -194,6 +200,9 @@ class _Upit:
             for op, k, v in self.filt:
                 if op == "or":
                     if not any(self._poklapa(r, o2, k2, v2.replace("*", "%")) for k2, o2, v2 in v):
+                        ok = False
+                elif op.startswith("not:"):
+                    if self._poklapa(r, op[4:], k, v):
                         ok = False
                 elif not self._poklapa(r, op, k, v):
                     ok = False
