@@ -26,6 +26,7 @@ BASH = shutil.which("bash")
 pytestmark = pytest.mark.skipif(BASH is None, reason="bash nije dostupan")
 
 LAZNI_CURL = r'''#!/usr/bin/env bash
+if [ "$1" = "--vindex-lazni-curl" ]; then echo LAZNI_CURL_OK; exit 0; fi
 printf '%s\n' "$@" >> "$MOCK_LOG"
 echo "---" >> "$MOCK_LOG"
 out=""; prev=""
@@ -79,6 +80,15 @@ def pokreni(tmp_path, http="200", telo=None, curl_izlaz=0, tajna=TAJNA):
     env["PYTHONIOENCODING"] = "utf-8"   # GitHub ubuntu runner je UTF-8
     for k in ("PYTHONHOME", "PYTHONPATH"):
         env.pop(k, None)
+    # Na Linux-u (CI) PATH preskače fajl bez izvršnog bita i nalazi PRAVI curl — korak bi tada gađao produkcioni
+    # URL. Zato izvršni bit, i pre pokretanja provera da `curl` u tom okruženju jeste lažni (pravi curl na
+    # nepoznatu opciju izlazi bez mreže). Ako nije — test pada, korak se NE pokreće.
+    for alatka in ("curl", "python3"):
+        (alat / alatka).chmod(0o755)
+    proba = subprocess.run([BASH, "--noprofile", "--norc", "-c", "curl --vindex-lazni-curl"], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", env=env, cwd=str(tmp_path), timeout=30)
+    if proba.stdout.strip() != "LAZNI_CURL_OK":
+        pytest.fail("lažni curl nije prvi na PATH-u — workflow korak se ne pokreće da ne bi gađao produkciju")
     r = subprocess.run([BASH, "--noprofile", "--norc", "-eo", "pipefail", str(skripta)],
                        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, cwd=str(tmp_path), timeout=60)
     pozivi = log.read_text(encoding="utf-8").split("---\n")[:-1] if log.exists() else []

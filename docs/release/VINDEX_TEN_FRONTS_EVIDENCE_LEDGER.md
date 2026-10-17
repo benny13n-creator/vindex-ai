@@ -231,3 +231,8 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 - Ispravka (samo test): tri `reap_*` zamenjena u postojećem `_patch_submodules` fixture-u, istim oblikom koji vraćaju stvarne funkcije (`checked/backfilled`, `checked/reaped`). Tvrdnje nepromenjene.
 - Posle: **0 pokušaja**, 10 passed. Mutacija `_email_podsetnici_status → "greska"` u `api.py` → 3 pada (test i dalje izvršava stvarni dispečer); `api.py` vraćen, bez izmene.
 - Isti razred, NIJE menjano (van naloga): `tests/test_cron_daily_failclosed_auth.py::…test_secret_configured_and_header_matches_passes_auth` — 11 DNS upita ka `fake.supabase.co`.
+
+**CI nalaz posle otvaranja PR #45 (2026-10-17) — stvarni pozivi ka produkciji iz alerts testova.**
+- 13 novih CI padova (`test_alerts_email_cron_contract.py` ×6, `test_alerts_email_integration.py` ×7) sa „HTTP 403“: lažni `curl` je pisan bez izvršnog bita; Windows/Git Bash to ne proverava, Linux runner preskače takav fajl na PATH-u i izvršava PRAVI `curl` → workflow korak je slao `POST https://vindex.rs/email-notif/send-reminders` sa sintetičkim ključem (`test-kljuc-…`).
+- Posledica: produkcija je odbila svaki zahtev u `_require_cron_or_founder` (403 pre bilo kakvog rada) — nema slanja, rezervacije ni upisa. Testovi koji očekuju neuspeh su pri tome „prošli“ iz pogrešnog razloga.
+- Ispravka (samo test, `pokreni`): `chmod 0o755` lažnih alata + fail-closed proba `curl --vindex-lazni-curl` pre pokretanja koraka; ako `curl` nije lažni → `pytest.fail`, korak se ne pokreće. Mutacija „lažni curl van PATH-a“ → 35/36 pada na probi (pravi curl na nepoznatu opciju izlazi bez mreže). Lokalno 44 passed.
