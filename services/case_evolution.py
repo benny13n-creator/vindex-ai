@@ -684,6 +684,11 @@ async def _consequence_evidence_classify(event: Event) -> str:
             "[CASE_EVOLUTION] evidence_classification: AI klasifikacija neuspešna za dokument=%s (fallback 'ostalo' upisan)",
             dokument_id,
         )
+        # TENFRONTS-M06 (KEYSTONE-003): trajan trag neuspeha. `result_ref` ide u
+        # case_evolution_consequences i u audit_immutable; za dokument sa ljudskom vrstom (QA-02) to je
+        # JEDINI trajan zapis, jer se `ai_tags` sa zastavicom tada namerno ne upisuje. Bez ponavljanja:
+        # `klasifikovan_at` je upisan, posledica je završena — ishod je „završeno sa AI neuspehom“.
+        return f"{dokument_id}:ai_klasifikacija_neuspesna"
     return str(dokument_id)
 
 

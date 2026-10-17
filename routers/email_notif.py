@@ -178,6 +178,14 @@ class EmailNotifReq(BaseModel):
     nedeljni: bool = True
 
 
+def _adresa_primaoca(supa, user_id: str) -> str:
+    """TENFRONTS-M10: JEDINI izvor adrese primaoca — `profiles.email` vlasnika (VCR002: „Primalac: isključivo
+    vlasnik profila“), isti koji koristi zakazani podsetnik. Adresa iz prijave (JWT) se NE koristi kao
+    zamena: oznaka „Šalje se na“ i probni email moraju pokazati/proveriti ono kuda podsetnici stvarno idu."""
+    r = supa.table("profiles").select("email").eq("id", user_id).maybe_single().execute()
+    return ((r.data or {}).get("email") or "").strip() if r is not None else ""
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/email-notif/profil")
@@ -192,10 +200,15 @@ async def get_profil(request: Request, user: dict = Depends(get_current_user)):
                      .maybe_single()
                      .execute()
     )
-    if not res.data:
-        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": user.get("email")}
+    # TENFRONTS-M02: supabase 2.28.3 `maybe_single().execute()` vraća None kada reda nema → ranije 500,
+    # a stari UI je tada tiho ostajao bez stanja. `smtp_ok` je i bez profila istinit (UI njegovo odsustvo
+    # čita kao „nije konfigurisan“). Profil se ne kreira; obaveštenja ostaju isključena do uključivanja.
+    adresa = await asyncio.to_thread(_adresa_primaoca, supa, user["user_id"]) or None
+    if res is None or not res.data:
+        return {"aktivan": False, "dan_7": True, "dan_3": True, "dan_1": True, "email": adresa,
+                "smtp_ok": bool(_SMTP_HOST)}
     d = res.data
-    return {**d, "email": user.get("email"), "smtp_ok": bool(_SMTP_HOST)}
+    return {**d, "email": adresa, "smtp_ok": bool(_SMTP_HOST)}
 
 
 @router.post("/email-notif/profil")
@@ -233,8 +246,8 @@ async def obrisi_profil(request: Request, user: dict = Depends(get_current_user)
 @router.post("/email-notif/test")
 @limiter.limit("3/minute")
 async def test_email(request: Request, user: dict = Depends(get_current_user)):
-    """Šalje test email na login adresu korisnika."""
-    to_addr = user.get("email", "")
+    """Šalje test email na adresu na koju idu podsetnici (`profiles.email`, TENFRONTS-M10)."""
+    to_addr = await asyncio.to_thread(_adresa_primaoca, _get_supa(), user["user_id"])
     if not to_addr:
         raise HTTPException(status_code=400, detail="Email adresa nije dostupna.")
     if not _SMTP_HOST:
@@ -272,7 +285,9 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         profili_r = supa.table("korisnik_email_notif").select("*").eq("aktivan", True).execute()
         profili   = profili_r.data or []
         if not profili:
-            return {"poslato": 0, "greske": 0, "napomena": "Nema aktivnih profila"}
+            # Isti brojači kao uobičajen odgovor — cron (email-cron.yml) odbija odgovor bez njih.
+            return {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0,
+                    "napomena": "Nema aktivnih profila"}
 
         # Get user emails from Supabase auth via profiles (or use billing pattern)
         # We fetch user emails from profiles table which has email
@@ -287,8 +302,6 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
         for profil in profili:
             uid        = profil["user_id"]
             to_addr    = email_map.get(uid, "")
-            if not to_addr:
-                continue
 
             # Operation Living System (Wave 3, Portfolio Scale team, REPRODUCED CRITICAL): this
             # cron never filtered by predmeti.status -- a deadline belonging to an archived/
@@ -302,7 +315,16 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
             try:
                 _aktivni_r = supa.table("predmeti").select("id,brisanje_zapoceto").eq("user_id", uid) \
                     .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
-            except Exception:
+            except Exception as exc:
+                # T07: rezervni upit (bez kolone) SAMO kada kolona ne postoji (pre migracije 114). Bilo koja
+                # druga greška bi ga pretvorila u dozvolu za predmet u brisanju → fail-closed: korisnik se
+                # preskače i greška je vidljiva u `greske`.
+                _t = str(exc)
+                if not ("42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t)):
+                    logger.error("[EMAIL-CRON] provera aktivnih predmeta neuspešna, podsetnici preskočeni uid=%.8s: %s",
+                                 uid, type(exc).__name__)
+                    greske += 1
+                    continue
                 _aktivni_r = supa.table("predmeti").select("id").eq("user_id", uid) \
                     .not_.in_("status", ["zatvoren", "arhiviran", "odbijen"]).execute()
             _aktivni_ids = {p["id"] for p in (_aktivni_r.data or []) if not p.get("brisanje_zapoceto")}
@@ -340,6 +362,15 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 if not rokovi:
                     continue
                 if not rokovi:
+                    continue
+
+                # T06: poznat ne-pokušaj (nema adrese / SMTP nije konfigurisan) je GREŠKA bez rezervacije —
+                # ne `neisporuceno` (nepoznat ishod) i ne sme trajno da potroši podsetnik. Ranije se profil bez
+                # adrese preskakao bez traga, a bez SMTP-a se rezervacija upisivala pa slanje padalo.
+                if not to_addr or not _SMTP_HOST:
+                    logger.error("[EMAIL-CRON] slanje nemoguće (%s), rezervacija NIJE upisana uid=%.8s dana_pre=%d datum=%s",
+                                 "nema adrese" if not to_addr else "SMTP nije konfigurisan", uid, dana_pre, target_iso)
+                    greske += 1
                     continue
 
                 # ── TASK 1: TRAJNI CLAIM PRE SLANJA ──────────────────────────

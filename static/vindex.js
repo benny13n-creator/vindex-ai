@@ -13534,7 +13534,7 @@ async function billing_sendEmail(fakturaId) {
 
 var _cmdkOpenState = false;
 var _cmdkTimer     = null;
-var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci';
+var _cmdkVrste     = 'predmeti,klijenti,hronologija,beleske,dokumenti,billing,zadaci,komentari';
 var _cmdkResults   = [];
 var _cmdkFocusIdx  = -1;
 
@@ -13555,10 +13555,11 @@ var _CMDK_ICONS = {
   billing:     {bg:'rgba(255,255,255,0.05)', label:'Naplata'},
   hronologija: {bg:'rgba(200,100,255,0.10)', label:'Hronologija'},
   beleska:     {bg:'rgba(255,255,255,0.06)', label:'Beleška'},
+  komentar:    {bg:'rgba(255,255,255,0.06)', label:'Komentar'},
   zadatak:     {bg:'rgba(255,255,255,0.05)', label:'Zadatak'},
 };
-var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske','zadaci'];
-var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska',zadaci:'zadatak'};
+var _CMDK_ORDER = ['predmeti','klijenti','dokumenti','billing','hronologija','beleske','komentari','zadaci'];
+var _CMDK_TIP_MAP = {predmeti:'predmet',klijenti:'klijent',dokumenti:'dokument',billing:'billing',hronologija:'hronologija',beleske:'beleska',komentari:'komentar',zadaci:'zadatak'};
 
 function cmdkOpen() {
   if (!currentSession) return;
@@ -13621,7 +13622,7 @@ function cmdkRender(items, nepotpuno, failed) {
   var el = document.getElementById('cmdk-results');
   if (!el) return;
   var nepotpunoNotice = (nepotpuno && nepotpuno.length)
-    ? '<div style="padding:.4rem 1.2rem;font-size:.68rem;color:#fbbf24;">⚠ Deo pretrage nije uspeo (' + nepotpuno.length + ' kategorija) — rezultati mogu biti nepotpuni.</div>'
+    ? '<div style="padding:.4rem 1.2rem;font-size:.68rem;color:#fbbf24;">⚠ Deo pretrage nije potpun (' + nepotpuno.length + ' kategorija) — rezultati mogu biti nepotpuni.</div>'
     : '';
   if (!items.length) {
     var inp = document.getElementById('cmdk-input');
@@ -20478,7 +20479,9 @@ function _genomeBackgroundWatch(predmetId, verzijaPre) {
     } catch (e) { /* tiho — sledeći pokušaj ili gornji limit */ }
     if (attempts >= maxAttempts) {
       clearInterval(_genomeBgWatchTimer); _genomeBgWatchTimer = null;
-      if (hint) hint.textContent = defaultHint; // manuelni refresh i dalje radi
+      // TENFRONTS-M09 (KEYSTONE-006): istek čekanja NIJE uspeh ni neuspeh — osvežavanje je možda još u toku.
+      // Prikazana analiza je prethodna verzija; ništa se ne pokreće ponovo automatski (manuelni refresh i dalje radi).
+      if (hint) hint.textContent = 'Osvežavanje analize nije potvrđeno ni posle 90 s — možda je još u toku ili nije uspelo. Prikazana je prethodna verzija; proverite kasnije ili pokrenite osvežavanje ručno.';
     }
   }, 15000);
 }

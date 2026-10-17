@@ -24,6 +24,13 @@ from unittest.mock import MagicMock, patch
 from starlette.requests import Request as StarletteRequest
 
 
+@pytest.fixture(autouse=True)
+def _smtp_konfigurisan(monkeypatch):
+    """SMTP je „konfigurisan“ (samo slanje je zamenjeno) — bez hosta endpoint ne rezerviše ni ne šalje."""
+    import routers.email_notif as _en
+    monkeypatch.setattr(_en, "_SMTP_HOST", "smtp.test.invalid")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # FAZA 6.4.2 — SVI ROKOVI U OVIM FIXTURE-IMA SU POTVRDJENI
 #

@@ -17,6 +17,13 @@ import pytest
 
 from tests import test_b10_reminder_claim as b10
 
+
+@pytest.fixture(autouse=True)
+def _smtp_konfigurisan(monkeypatch):
+    """SMTP je „konfigurisan“ (samo slanje je zamenjeno) — bez hosta endpoint ne rezerviše ni ne šalje."""
+    import routers.email_notif as _en
+    monkeypatch.setattr(_en, "_SMTP_HOST", "smtp.test.invalid")
+
 UID, PID, P2 = b10.UID, b10.PID, "p-2"
 
 

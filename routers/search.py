@@ -2,10 +2,10 @@
 """
 Vindex AI — routers/search.py
 
-GET /api/search?q=...&vrste=predmeti,klijenti,dokumenti,billing,hronologija,beleske,zadaci&limit=5
+GET /api/search?q=...&vrste=predmeti,klijenti,dokumenti,billing,hronologija,beleske,komentari,zadaci&limit=5
 
 Globalna pretraga: pretražuje predmete, klijente, dokumente, billing, hronologiju,
-beleške i zadatke korisnika. Vrši ilike pretragu po ključnim tekstualnim kolonama.
+beleške, timske komentare i zadatke korisnika. Vrši ilike pretragu po ključnim tekstualnim kolonama.
 """
 from __future__ import annotations
 
@@ -22,7 +22,9 @@ from shared.rate import limiter
 logger = logging.getLogger("vindex.search")
 router = APIRouter(tags=["search"])
 
-_VALID_VRSTE = {"predmeti", "klijenti", "dokumenti", "billing", "hronologija", "beleske", "zadaci"}
+_VALID_VRSTE = {"predmeti", "klijenti", "dokumenti", "billing", "hronologija", "beleske", "komentari", "zadaci"}
+_PO_PREDMETIMA = {"hronologija", "beleske", "komentari"}   # pretražuju se kroz predmete pozivaoca
+_MAX_PREDMETA_PO_UPITU = 200   # TENFRONTS-M04: preko ovoga se te vrste pretražuju delimično → `nepotpuno`
 _MAX_LIMIT   = 10
 _MAX_Q_LEN   = 200
 
@@ -197,7 +199,7 @@ def _search_hronologija(supa, uid: str, q: str, limit: int, pids: Optional[list[
         return []
     r = (supa.table("predmet_hronologija")
          .select("id, predmet_id, dogadjaj, datum_iso, vaznost")
-         .in_("predmet_id", pids[:200])
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
          .ilike("dogadjaj", f"%{q2}%")
          .limit(limit)
          .execute())
@@ -221,7 +223,7 @@ def _search_beleske(supa, uid: str, q: str, limit: int, pids: Optional[list[str]
         return []
     r = (supa.table("predmet_beleske")
          .select("id, predmet_id, sadrzaj, created_at")
-         .in_("predmet_id", pids[:200])
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
          .ilike("sadrzaj", f"%{q2}%")
          .limit(limit)
          .execute())
@@ -237,6 +239,32 @@ def _search_beleske(supa, uid: str, q: str, limit: int, pids: Optional[list[str]
     ]
 
 
+def _search_komentari(supa, uid: str, q: str, limit: int, pids: Optional[list[str]] = None) -> list[dict]:
+    """TENFRONTS-M03 (LD-006): timski komentari. Ista granica kao `routers/komentari.py::get_komentari` —
+    komentare predmeta vidi vlasnik predmeta — pa se traži samo u predmetima pozivaoca (kao beleške)."""
+    q2   = q.replace("%", "")
+    if pids is None:
+        pids = _get_user_predmet_ids(supa, uid)
+    if not pids:
+        return []
+    r = (supa.table("predmet_komentari")
+         .select("id, predmet_id, tekst, kreirano")
+         .in_("predmet_id", pids[:_MAX_PREDMETA_PO_UPITU])
+         .ilike("tekst", f"%{q2}%")
+         .limit(limit)
+         .execute())
+    return [
+        {
+            "tip":     "komentar",
+            "id":      row["id"],
+            "naziv":   (row.get("tekst") or "")[:80],
+            "preview": (row.get("kreirano") or "")[:10],
+            "meta":    {"predmet_id": row.get("predmet_id")},
+        }
+        for row in (r.data or [])
+    ]
+
+
 _SEARCHERS = {
     "predmeti":   _search_predmeti,
     "klijenti":   _search_klijenti,
@@ -244,6 +272,7 @@ _SEARCHERS = {
     "billing":    _search_billing,
     "hronologija": _search_hronologija,
     "beleske":    _search_beleske,
+    "komentari":  _search_komentari,
     "zadaci":     _search_zadaci,
 }
 
@@ -275,13 +304,13 @@ async def global_search(
         tražene = _VALID_VRSTE
 
     # N+1 eliminacija: ako se traže i hronologija i beleske, dohvati predmet_ids jednom
-    needs_pids = tražene & {"hronologija", "beleske"}
+    needs_pids = tražene & _PO_PREDMETIMA
     cached_pids: Optional[list[str]] = None
     if needs_pids:
         cached_pids = await _db(lambda: _get_user_predmet_ids(supa, uid))
 
     def _make_task(tip: str, fn):
-        if tip in ("hronologija", "beleske"):
+        if tip in _PO_PREDMETIMA:
             return _db(lambda fn=fn: fn(supa, uid, q, limit, cached_pids))
         return _db(lambda fn=fn: fn(supa, uid, q, limit))
 
@@ -307,6 +336,13 @@ async def global_search(
             nepotpuno.append(tip)
         else:
             grouped[tip] = res
+
+    # TENFRONTS-M04: korisnik sa više od `_MAX_PREDMETA_PO_UPITU` predmeta — vrste koje idu kroz predmete
+    # pretražene su samo delimično. To nije „nema rezultata“; kaže se kroz isti `nepotpuno` marker.
+    if cached_pids is not None and len(cached_pids) > _MAX_PREDMETA_PO_UPITU:
+        for tip in tasks:
+            if tip in _PO_PREDMETIMA and tip not in nepotpuno:
+                nepotpuno.append(tip)
 
     ukupno = sum(len(v) for v in grouped.values())
     response = {"q": q, "ukupno": ukupno, **grouped}

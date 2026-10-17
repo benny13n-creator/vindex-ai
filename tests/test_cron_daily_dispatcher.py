@@ -101,12 +101,17 @@ def _patch_submodules():
     tested below (see TestCronDailyCallsBackgroundAgents)."""
     # VCR001: ponedeljkom (UTC) dispečer pokreće `_skeniraj_sl_glasnik` — bez zamene test je svakog ponedeljka
     # dohvatao stvarni RSS Službenog glasnika (pravno-informacioni-sistem.rs) i rušio NS005 `test_nema_spoljne_mreze`.
+    # HANDOFF 2026-10-17: tri `reap_*` modula su ovde radila stvarno — njihov `.execute()` u nitima je razrešavao
+    # `fake.supabase.co` (3 DNS upita po testu, dokazano deny-all snimačem). Zamenjeni kao i ostali moduli.
     with patch("routers.workflow._check_escalations", new=AsyncMock(return_value={"proverenih": 5, "eskaliranih": 1})), \
          patch("routers.portal_monitoring.cron_proveri", new=AsyncMock(return_value={"provereno": 3, "promena": 0})), \
-         patch("routers.email_notif.posalji_podsetnike", new=AsyncMock(return_value={"poslato": 4, "greske": 0})), \
+         patch("routers.email_notif.posalji_podsetnike", new=AsyncMock(return_value={"poslato": 4, "greske": 0, "preskoceno": 0, "neisporuceno": 0})), \
          patch("routers.email_notif.onboarding_cron", new=AsyncMock(return_value={"poslato": 2, "greske": 0})), \
          patch("routers.email_notif.posalji_nedeljni_sazetak", new=AsyncMock(return_value={"poslato": 7, "greske": 0})), \
          patch("routers.zakon_monitoring._skeniraj_sl_glasnik", new=AsyncMock(return_value={"skenirano": 0, "novih": 0})), \
+         patch("services.event_bus.reap_missing_pipeline_events", new=AsyncMock(return_value={"checked": 0, "backfilled": 0})), \
+         patch("services.event_bus.reap_missing_rociste_events", new=AsyncMock(return_value={"checked": 0, "backfilled": 0})), \
+         patch("routers.billing.reap_orphan_fakture", new=AsyncMock(return_value={"reaped": 0})), \
          patch(
              "services.retention_service.execute_retention_cleanup",
              new=AsyncMock(return_value={
