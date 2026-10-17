@@ -83,7 +83,7 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 | Tests passed | 14 (m04) + 94 (m03, search, bu002, lz003, iron_lawyer) = 108 |
 | Tests failed / skipped | 0 / 0 |
 | Known uncertainty | redosled `predmeti` bez `.order` → koji predmeti ulaze u prvih 200 nije definisano (postojeće ponašanje, nije menjano); Playwright za poruke NOT_RUN |
-| Local commit | vidi git log (M04) |
+| Local commit | `30e39d6f2db615b2b445a26efe31728f411591e2` |
 | Status | ACCEPTED_VERIFIED |
 | Next allowed | YES |
 
@@ -140,7 +140,7 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 | Adversarial test | mutacija „bez `.eq(user_id)`“ → 2 pada (tuđi, prazan uid) — test zaista hvata gubitak granice |
 | Files changed | samo test (nov, 5); produkcioni kod NIJE menjan |
 | Known uncertainty | lažna baza modeluje `single()` prema izvoru postgrest 2.28.3; stvarni PostgREST nije pozvan. Defense-in-depth izmena NIJE urađena jer nije potrebna (nije izmišljena ranjivost) |
-| Local commit | test-only commit (vidi git log M07) |
+| Local commit | `9bb13bf8b5e9b44c30a7e0c999882c7207d34c76` (samo test) |
 | Status | NO_CHANGE_NEEDED_PROVEN |
 | Next allowed | YES |
 
@@ -156,7 +156,7 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 | Adversarial test | mutacija „metapodaci predmeta u ulazu“ → 2 pada |
 | Files changed | samo test (nov, 4); kod NIJE menjan |
 | Known uncertainty (INFERRED) | Genome `stranke` potiču iz DOKUMENATA; ako advokat ručno promeni tužioca/tuženog, analiza i dalje prikazuje stranke iz dokumenata — to je razlika izvora, ne zastarelost; nije menjano (bila bi nova semantika prikaza) |
-| Local commit | test-only (vidi git log M08) |
+| Local commit | `b4cc5b107880caaa453270571dd2bd00c190325f` (samo test) |
 | Status | NO_CHANGE_NEEDED_PROVEN |
 | Next allowed | YES |
 
@@ -211,3 +211,23 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 | Files changed | none |
 | Status | NO_CHANGE_NEEDED_PROVEN (nije zamenila primarnu misiju kao nova implementacija) |
 | R02–R04 | NIJE procenjeno: R02 verovatno traži novu politiku obaveštenja (STOP uslov rezerve), R03/R04 su otvorena pretraga backlog-a — van „ne lovi backlog“ pravila |
+
+## HANDOFF 2026-10-17 — ispravka dokaza pre Draft PR-a
+
+**M03/M04 (zahtev osnivača: „izostavljeni iz tabele“).** Provereno: oba su u matrici izveštaja (odeljak C) i u ovom ledgeru; nedostajao je samo pun SHA za M04 (i M07/M08) u redu „Local commit“ — ispravljeno gore. Implementacija nije menjana.
+
+| | M03 | M04 |
+|---|---|---|
+| Pun SHA | `277435d4993dbbb846b4210cafcb72afa179821e` | `30e39d6f2db615b2b445a26efe31728f411591e2` |
+| Izmenjeni fajlovi | index.html, routers/search.py, static/sw.js, static/vindex.js, tests/test_tenfronts_m03_search_komentari.py | frontend-v2-ng/src/pretraga.js, routers/search.py, static/vindex.js, tests/test_tenfronts_m04_search_ogranicenje.py |
+| Negativni test PONOVLJEN 2026-10-17 na kodu pre ispravke (`git archive` roditelja + test fajl) | `a0a00e19`: **7 failed / 7 passed** (isto kao zapis) | `277435d4`: **9 failed / 5 passed** (isto kao zapis) |
+| Posle ispravke | 14 passed | 14 passed (zajedno 28 passed) |
+| Granica | komentari samo iz `_get_user_predmet_ids` = `predmeti.eq("user_id", uid)` — ista granica kao `komentari.py::get_komentari`; tuđi komentar i anomalija se ne nalaze; mutacija „bez `in_` filtera“ → 5 pada | 1 upit nad `predmeti` (`.limit(500)`), `pids[:200]` po upitu; >200 → `nepotpuno`; 200 → bez oznake; mutacije „bez oznake“ (7) i `>=` (1) padaju |
+
+**Mrežni poziv u `tests/test_cron_daily_dispatcher.py`.**
+- Snimač „deny-all“ (pytest plugin u scratchpad-u, odbija svaki DNS upit i svaki ne-loopback `connect`, beleži host i stek; NIJEDAN stvaran zahtev nije poslat): **21 pokušaj, svi `getaddrinfo('fake.supabase.co')`** — 3 po testu × 7 testova koji zovu dispečer.
+- Izvor: sam dispečer (`api.py::cron_daily`) poziva `services/event_bus.py::reap_missing_pipeline_events` (`:1260`), `reap_missing_rociste_events` (`:1330`) i `routers/billing.py::reap_orphan_fakture` (`:1268`); njihov `.execute()` u `asyncio.to_thread` niti gađa Supabase klijent sa test URL-om. Ne test, ne pozadinski zadatak.
+- Kategorija odredišta: izmišljeni test host (`fake.supabase.co`, sankcionisan u `tests/conftest.py` i u CI `tests.yml`/`production-runtime.yml`/`v2-ng.yml`); conftest odbija produkcione Supabase kredencijale i blokira upravljane DB hostove → nije produkcija, nema upisa.
+- Ispravka (samo test): tri `reap_*` zamenjena u postojećem `_patch_submodules` fixture-u, istim oblikom koji vraćaju stvarne funkcije (`checked/backfilled`, `checked/reaped`). Tvrdnje nepromenjene.
+- Posle: **0 pokušaja**, 10 passed. Mutacija `_email_podsetnici_status → "greska"` u `api.py` → 3 pada (test i dalje izvršava stvarni dispečer); `api.py` vraćen, bez izmene.
+- Isti razred, NIJE menjano (van naloga): `tests/test_cron_daily_failclosed_auth.py::…test_secret_configured_and_header_matches_passes_auth` — 11 DNS upita ka `fake.supabase.co`.

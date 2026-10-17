@@ -70,7 +70,7 @@ Pre izveštaja je radni prostor bio čist. Alerts worktree (`40d98288`, 0 izmena
    - M05: mutacija „široki prefiks“ nije primenjena zbog CRLF-a. Odbačena i ponovljena.
    - M10: mutacija oznake je preživela. Dodat je test za granu sa postojećim profilom.
 2. **M05 bezbednost brisanja.** Naivno brisanje po prefiksu bi obrisalo vektore postojećeg dokumenta istog sadržaja, jer su ID-jevi deterministički. Zato se briše samo ako nijedan red ne nosi isti identitet, uz post-proveru za trku.
-3. **Nalaz u postojećem harness-u (M01).** `test_cron_daily_dispatcher` ne zamenjuje tri `reap_*` modula, pa pri svakom pokretanju pokušava **stvaran mrežni poziv**. Postojeći fajl nije menjan; moj test ih zamenjuje.
+3. **Nalaz u postojećem harness-u (M01).** `test_cron_daily_dispatcher` ne zamenjuje tri `reap_*` modula, pa pri svakom pokretanju pokušava **stvaran mrežni poziv**. Postojeći fajl nije menjan; moj test ih zamenjuje. **Dopuna 2026-10-17 (handoff):** odredište je izmišljeni test host `fake.supabase.co` (ne produkcija); tri modula su zamenjena i u ovom fajlu (samo test), posle toga 0 pokušaja — v. ledger, odeljak HANDOFF.
 4. **Nalaz u grupnom pokretanju (M05).** Dva postojeća testa grane „insert pao“ pokušala su stvaran Pinecone poziv, jer je čišćenje novi saradnik. Dodata im je zamena indeksa; tvrdnje su nepromenjene.
 5. **Klasa defekta (nije menjano, van scope-a).** Postoji 66 poziva `maybe_single().execute()`. Svaki koji čita `.data` bez provere `None` vraća 500 za 0 redova. Primeri: M02 (ispravljeno), a `komentari.py` za tuđi predmet vraća 500 umesto 403 (i dalje fail-closed).
 6. **Odbačene istorijske tvrdnje.**
