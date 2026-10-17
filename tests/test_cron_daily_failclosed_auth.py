@@ -112,6 +112,32 @@ def _patch_zakon_monitoring_scan():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _patch_dispatcher_io():
+    """NS3-N01: pozitivna kontrola prolazi auth i izvršava CEO dispečer. Bez ovih zamena devet modula je stvarno
+    radilo — među njima i `posalji_podsetnike` (email podsetnici), zadrška/brisanje, pozadinski agenti i `reap_*`
+    — i pokušavalo 11 mrežnih poziva ka `SUPABASE_URL` (izmereno NS3 zabranom mreže). Ovaj fajl meri samo auth
+    granicu (HTTP status); modularna logika ima svoje testove. Oblik povratnih vrednosti = stvarni ugovor."""
+    from contextlib import ExitStack
+    from unittest.mock import AsyncMock
+    zamene = {
+        "routers.workflow._check_escalations": {"proverenih": 0, "eskaliranih": 0},
+        "routers.portal_monitoring.cron_proveri": {"provereno": 0, "promena": 0},
+        "routers.email_notif.posalji_podsetnike": {"poslato": 0, "greske": 0, "preskoceno": 0, "neisporuceno": 0},
+        "routers.email_notif.onboarding_cron": {"poslato": 0, "greske": 0},
+        "routers.email_notif.posalji_nedeljni_sazetak": {"poslato": 0, "greske": 0},
+        "services.retention_service.execute_retention_cleanup": {"_summary": {"ukupno_obrisano": 0, "greske": 0}},
+        "services.event_bus.reap_missing_pipeline_events": {"checked": 0, "backfilled": 0},
+        "services.event_bus.reap_missing_rociste_events": {"checked": 0, "backfilled": 0},
+        "routers.billing.reap_orphan_fakture": {"checked": 0, "reaped": 0},
+        "workers.background_agents.run_background_agents": {"korisnika_obradjeno": 0, "greske": 0},
+    }
+    with ExitStack() as stek:
+        for meta, rez in zamene.items():
+            stek.enter_context(patch(meta, new=AsyncMock(return_value=rez)))
+        yield
+
+
 class TestCronDailyFailsClosed:
     def test_missing_secret_env_and_missing_header_returns_401(self, monkeypatch):
         """Glavni regresioni test za nalaz iz izveštaja: BRIEFING_CRON_SECRET
