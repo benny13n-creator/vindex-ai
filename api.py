@@ -1969,6 +1969,14 @@ def _poslato_greske_status(rez) -> str:
     return "greska" if rez["greske"] else "ok"
 
 
+def _poslato_validno(rez) -> int:
+    """PR #46 C02: koliko je poruka modul stvarno obradio — validan nenegativan ceo `poslato`, bez obzira na
+    `greske` (delimičan uspeh i dalje je obrađen posao; neuspeh se računa odvojeno). Nevalidan oblik = 0."""
+    if isinstance(rez, dict) and type(rez.get("poslato")) is int and rez["poslato"] > 0:
+        return rez["poslato"]
+    return 0
+
+
 @app.post("/api/cron/daily")
 async def cron_daily(request: Request):
     """
@@ -2205,9 +2213,8 @@ async def cron_daily(request: Request):
         from routers.email_notif import onboarding_cron as _onboarding_cron_fn
         _ob_r = await asyncio.wait_for(_onboarding_cron_fn(request, _cron_user), timeout=60)
         _ob_status = _poslato_greske_status(_ob_r)
-        if _ob_status == "ok":
-            _stavke_obradjene += _ob_r["poslato"]
-        else:
+        _stavke_obradjene += _poslato_validno(_ob_r)   # PR #46 C02: i pri delimičnom uspehu (kao email_podsetnici)
+        if _ob_status != "ok":
             _broj_grešaka += 1
         rezultati["onboarding"] = {**(_ob_r if isinstance(_ob_r, dict) else {}), "status": _ob_status,
                                    "duration_ms": round((_time.monotonic() - _t_ob) * 1000)}
@@ -2226,9 +2233,8 @@ async def cron_daily(request: Request):
             from routers.email_notif import posalji_nedeljni_sazetak as _nedeljni_sazetak_cron
             _ns_r = await asyncio.wait_for(_nedeljni_sazetak_cron(request, _cron_user), timeout=60)
             _ns_status = _poslato_greske_status(_ns_r)
-            if _ns_status == "ok":
-                _stavke_obradjene += _ns_r["poslato"]
-            else:
+            _stavke_obradjene += _poslato_validno(_ns_r)   # PR #46 C02: i pri delimičnom uspehu
+            if _ns_status != "ok":
                 _broj_grešaka += 1
             rezultati["nedeljni_sazetak"] = {**(_ns_r if isinstance(_ns_r, dict) else {}), "status": _ns_status,
                                               "duration_ms": round((_time.monotonic() - _t_ns) * 1000)}
