@@ -39,6 +39,13 @@ _AUDIT_LABELS = {
 }
 
 
+# NS3-N11: iste oznake kao V2 (`frontend-v2-ng/src/rad-predmeta.js::ODLUKA_ROKA`).
+_ODLUKA_ROKA = {
+    "CONFIRMED": "rok — potvrđen", "REJECTED": "rok — odbijen", "UNCONFIRMED": "rok — čeka vašu odluku",
+    "UNKNOWN": "rok — stanje odluke trenutno nije poznato",
+}
+
+
 def _fmt(iso: Optional[str]) -> str:
     if not iso:
         return ""
@@ -140,9 +147,24 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
     # 4) Hronologija (AI-generisana iz dokumenata)
     _zatvaranje_vec_u_hronologiji = False
     try:
+        # NS3-N11: rok koji čeka odluku advokata ne sme izgledati kao potvrđen (ni odbijen kao važeći). Isti
+        # obrazac kao workspace ruta (api.py, N03-FD8): `stanje_odluke` SAMO za red izjavljen kao rok
+        # (`vrsta`, migracija 129), lanac odluka čitan STROGO; pad čitanja = UNKNOWN, ne UNCONFIRMED.
+        from shared import rokovi as _rokovi_dom
+        _ima_129 = _rokovi_dom._sema_ima_129(supa)
         hron_r = supa.table("predmet_hronologija").select(
-            "dogadjaj,akter,datum,datum_iso,vaznost"
+            "id,dogadjaj,akter,datum,datum_iso,vaznost" + (",vrsta" if _ima_129 else "")
         ).eq("predmet_id", predmet_id).eq("user_id", uid).order("datum_iso").execute()
+        _rok_ids = [str(h["id"]) for h in (hron_r.data or []) if h.get("id") and _rokovi_dom.je_rok(h)]
+        _odluke_mapa, _odluke_ok = None, True
+        if _rok_ids:
+            from shared import rok_potvrda as _rp
+            try:
+                _odluke_mapa = _rp.odluke(_rok_ids, True)
+            except Exception as _oe:
+                logger.warning("[ITL] odluke o rokovima nisu pročitane: %s", _oe)
+                _odluke_ok = False
+                _degraded_sources.append("odluke_o_rokovima")
         for h in hron_r.data or []:
             if (h.get("dogadjaj") or "").startswith("Predmet zatvoren"):
                 _zatvaranje_vec_u_hronologiji = True
@@ -159,6 +181,11 @@ async def intelligence_timeline(predmet_id: str, user=Depends(get_current_user))
                 "boja": boja,
                 "vaznost": vaznost,
             })
+            if str(h.get("id")) in _rok_ids:
+                from shared import rok_potvrda as _rp
+                _st = _rp.stanje_roka(str(h["id"]), _odluke_mapa) if _odluke_ok else _rp.STANJE_NEPOZNATO
+                events[-1]["stanje_odluke"] = _st
+                events[-1]["badge"] = _ODLUKA_ROKA.get(_st, _ODLUKA_ROKA[_rp.STANJE_NEPOZNATO])
     except Exception as e:
         logger.warning("[ITL] hronologija: %s", e)
         _degraded_sources.append("hronologija")
