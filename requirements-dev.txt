@@ -1,0 +1,7 @@
+# Test-only dependencies. Installed by CI next to requirements.txt; NEVER by the
+# production Dockerfile (it installs requirements.txt only).
+#   pytest-asyncio -- 15 test files use @pytest.mark.asyncio (148 tests). Without
+#                     it CI reports "async def functions are not natively
+#                     supported" for every one of them (NS3-N02). Pinned to the
+#                     version the suite is run with locally.
+pytest-asyncio==1.4.0
