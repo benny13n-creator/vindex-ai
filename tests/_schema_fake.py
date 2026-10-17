@@ -129,6 +129,12 @@ class _Upit:
         self._redovi = self._redovi[a:b + 1]
         return self
 
+    @property
+    def not_(self):
+        # postgrest-py: `not_` je PROPERTY (`.not_.is_(...)`), ne metoda. Kao i `is_`, filter prolazi — pozivalac
+        # mora sam proveriti vrednost (NS3-N12); `__getattr__` bi vratio funkciju i lanac bi pukao.
+        return self
+
     def __getattr__(self, ime):
         # `is_`, `not_`, `single`, `maybe_single`, `insert`, ... — prolaze
         def poziv(*a, **k):

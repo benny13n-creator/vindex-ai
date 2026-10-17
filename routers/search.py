@@ -182,6 +182,21 @@ def _search_billing(supa, uid: str, q: str, limit: int) -> list[dict]:
     ]
 
 
+def _predmeti_u_brisanju(supa, uid: str) -> set[str]:
+    """NS3-N12: predmeti pozivaoca sa tombstone-om (BETA-DEL-001) — u pretrazi se „ponašaju kao da ne postoje“,
+    isto kao `api.py::_je_u_brisanju` i `shared/rag_acl.py`. Bez kolone (pre migracije 114) tombstone ne može ni
+    da postoji → prazan skup. Svaka druga greška se diže: pozivalac tada ne prikazuje ništa vezano za predmete."""
+    try:
+        r = (supa.table("predmeti").select("id, brisanje_zapoceto")
+             .eq("user_id", uid).not_.is_("brisanje_zapoceto", "null").execute())
+    except Exception as e:
+        _t = str(e)
+        if "42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t):
+            return set()
+        raise
+    return {str(row["id"]) for row in (r.data or []) if row.get("id") and row.get("brisanje_zapoceto")}
+
+
 def _get_user_predmet_ids(supa, uid: str) -> list[str]:
     r = (supa.table("predmeti")
          .select("id")
@@ -336,6 +351,26 @@ async def global_search(
             nepotpuno.append(tip)
         else:
             grouped[tip] = res
+
+    # NS3-N12: ništa iz predmeta u brisanju — ni sam predmet, ni zapis koji nosi `meta.predmet_id` tog predmeta.
+    # Ako se tombstone ne može proveriti, rezultati vezani za predmete se ne prikazuju (fail-closed) i to se kaže.
+    try:
+        _u_brisanju = await _db(lambda: _predmeti_u_brisanju(supa, uid))
+    except Exception as _te:
+        logger.warning("[SEARCH] provera predmeta u brisanju nije uspela: %s", _te)
+        _u_brisanju = None
+    for tip in list(grouped):
+        stavke = grouped[tip]
+        vezane = [x for x in stavke if x.get("tip") == "predmet" or (x.get("meta") or {}).get("predmet_id")]
+        if _u_brisanju is None:
+            if vezane:
+                grouped[tip] = [x for x in stavke if x not in vezane]
+            if tip not in nepotpuno and (vezane or tip in ("predmeti", "dokumenti") or tip in _PO_PREDMETIMA):
+                nepotpuno.append(tip)
+        elif _u_brisanju:
+            grouped[tip] = [x for x in stavke if not (
+                (x.get("tip") == "predmet" and str(x.get("id")) in _u_brisanju)
+                or str((x.get("meta") or {}).get("predmet_id")) in _u_brisanju)]
 
     # TENFRONTS-M04: korisnik sa više od `_MAX_PREDMETA_PO_UPITU` predmeta — vrste koje idu kroz predmete
     # pretražene su samo delimično. To nije „nema rezultata“; kaže se kroz isti `nepotpuno` marker.

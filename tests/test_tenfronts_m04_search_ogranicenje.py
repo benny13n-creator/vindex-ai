@@ -75,7 +75,10 @@ def test_predmeti_dokumenti_nisu_pogodjeni_ogranicenjem():
 
 def test_upiti_ostaju_ograniceni():
     _, supa = _pretrazi(501)
-    assert supa._dnevnik["tabele"].count("predmeti") == 1          # bez N+1
+    # bez N+1: jedan upit za skup predmeta + (NS3-N12) jedan konstantan upit za predmete u brisanju
+    # (šema ovog testa je pre migracije 114: upit za tombstone se odbija na koloni, pa je skup prazan)
+    assert supa._dnevnik["tabele"].count("predmeti") == 2
+    assert [k for t, k in supa._dnevnik["select"] if t == "predmeti"] == ["id"]
     import inspect
     src = inspect.getsource(S)
     assert ".limit(500)" in src and "pids[:_MAX_PREDMETA_PO_UPITU]" in src
