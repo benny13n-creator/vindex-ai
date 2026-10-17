@@ -21,7 +21,7 @@ SMS: `sms-cron.yml` ima samo `workflow_dispatch` (raspored uklonjen u Alerts spr
 
 ## 3. Ko dobija podsetnik (PROVEN)
 
-Red u `korisnik_email_notif` sa `aktivan = true` i uključenim `dan_7/dan_3/dan_1` · predmet aktivan (nije zatvoren/arhiviran/odbijen/u brisanju) · rok `vaznost` iz `_ACTIONABLE_VAZNOST` · rok ljudski ili AI rok koji je advokat potvrdio (INV-2) · adresa = `profiles.email` vlasnika (jedini primalac; isto važi za probni email i oznaku „Šalje se na“ posle TENFRONTS-M10) · `EMAIL_SMTP_HOST` podešen (inače `greske`, bez rezervacije).
+Red u `korisnik_email_notif` sa `aktivan = true` i uključenim `dan_7/dan_3/dan_1` · predmet aktivan (nije zatvoren/arhiviran/odbijen/u brisanju) · rok `vaznost` iz `_ACTIONABLE_VAZNOST` · **svaki rok — i ručno unet — potvrđen od advokata** (lanac odluka `rok_potvrdjen`, INV-2 / FAZA 6.4.2: poreklo ne ovlašćuje; potvrda u V2 ekranu Danas, `POST /api/rokovi/{id}/potvrdi`) · adresa = `profiles.email` vlasnika (jedini primalac; isto važi za probni email i oznaku „Šalje se na“ posle TENFRONTS-M10) · `EMAIL_SMTP_HOST` podešen (inače `greske`, bez rezervacije).
 
 Uključivanje: **samo stari UI** (`/app-legacy` → podešavanja email obaveštenja → `POST /email-notif/profil`; ruta vraća 503 bez `EMAIL_SMTP_HOST`). V2 (`/app`) nema taj ekran. Poslednje read-only merenje (pre ovog sprinta): 0 aktivnih profila.
 
@@ -45,7 +45,7 @@ Prijem u sanduče potvrđuje samo primalac (ili log provajdera). Ništa u Vindex
 3. Odlučiti da li se `/api/cron/daily` zakazuje (i gde). Ako da — oba okidača rade isti posao; rezervacija sprečava duplo slanje istog (korisnik, predmet, datum, dana_pre).
 4. Jedan beta nalog: u `/app-legacy` uključiti email obaveštenja (stvara red `korisnik_email_notif`); proveriti oznaku „Šalje se na“ = adresa iz profila.
 5. „Pošalji test email“ → očekivano `✓ Test email poslat na <adresa>`; potvrditi **prijem** u sandučetu tog naloga.
-6. Uneti (ili potvrditi AI) kritičan rok za sutra u aktivnom predmetu tog naloga.
+6. Uneti kritičan rok za sutra u aktivnom predmetu tog naloga **i potvrditi ga** (V2 → Danas → Potvrdi). Nepotvrđen rok — i ručno unet — ne šalje ništa (`test_faza62_gate_e2e_paths::test_ljudski_rok_TAKODJE_trazi_potvrdu`).
 7. GitHub → Actions → „Email Podsetnici za rokove“ → Run workflow. Zeleno = HTTP 2xx + 4 validna brojača + `greske = 0` + `neisporuceno = 0`.
 8. Potvrditi prijem podsetnika u sanduče. Tek tada: „jedan podsetnik isporučen“ — za taj nalog, taj dan.
 
