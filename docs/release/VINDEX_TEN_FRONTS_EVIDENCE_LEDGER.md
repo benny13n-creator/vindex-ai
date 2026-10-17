@@ -105,7 +105,7 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 | Tests failed / skipped | 0 / 2 (`test_qa05_slika_finalize` — Tesseract nije instaliran lokalno) |
 | Known uncertainty | stvarni Pinecone `list(prefix)`/`delete` NIJE pozvan (LOCAL_TEST_ONLY); rezidualna trka istovremenog uspešnog upload-a istog sadržaja → otkriva se post-proverom (VERIFICATION_FAILED + ERROR „potrebna reindeksacija“), ne sprečava; dokument upisan kroz fallback bez `content_sha256` ne bi bio prepoznat kao vlasnik istih vektora (kolona 095 primenjena u prod) ; ingest koji sam baci ne-kvota izuzetak (pre upisa reda) nije u scope-u |
 | Local commit | `cddf2c9f` |
-| Status | ACCEPTED_VERIFIED |
+| Status | **DEFERRED** — vraćeno u korektivnoj kapiji PR #45 (v. kraj ledgera); prvobitno ACCEPTED_VERIFIED |
 | Next allowed | YES |
 
 ## M06 — Background processing durable failure evidence (KEYSTONE-003)
@@ -236,3 +236,17 @@ Brojevi testova su iz stvarnih pokretanja (`python -m pytest … -p no:randomly`
 - 13 novih CI padova (`test_alerts_email_cron_contract.py` ×6, `test_alerts_email_integration.py` ×7) sa „HTTP 403“: lažni `curl` je pisan bez izvršnog bita; Windows/Git Bash to ne proverava, Linux runner preskače takav fajl na PATH-u i izvršava PRAVI `curl` → workflow korak je slao `POST https://vindex.rs/email-notif/send-reminders` sa sintetičkim ključem (`test-kljuc-…`).
 - Posledica: produkcija je odbila svaki zahtev u `_require_cron_or_founder` (403 pre bilo kakvog rada) — nema slanja, rezervacije ni upisa. Testovi koji očekuju neuspeh su pri tome „prošli“ iz pogrešnog razloga.
 - Ispravka (samo test, `pokreni`): `chmod 0o755` lažnih alata + fail-closed proba `curl --vindex-lazni-curl` pre pokretanja koraka; ako `curl` nije lažni → `pytest.fail`, korak se ne pokreće. Mutacija „lažni curl van PATH-a“ → 35/36 pada na probi (pravi curl na nepoznatu opciju izlazi bez mreže). Lokalno 44 passed.
+
+## KOREKTIVNA KAPIJA PR #45 — M05 (2026-10-17)
+
+| Field | Content |
+|---|---|
+| Polazni HEAD | `8b9c693311b0cd384f14ef2c4eae4328f519c9f9` |
+| T01 — RED (stvarna funkcija, lažna baza + indeks u memoriji) | A: provera baze (nema reda) → `list()` → `delete()`; B (isti sadržaj, isti predmet) upisuje iste ID-eve i red. (1) B-ov red upisan pre A-ovog `delete()` → B-ovi vektori obrisani, A = `VERIFICATION_FAILED` (otkriveno tek POSLE gubitka). (2) B-ov red upisan posle A-ove završne provere → B-ovi vektori obrisani, A = **`DELETED`** (bez signala). **2 failed** |
+| T02 — analiza | Pinecone nema uslovno brisanje; ID-evi su deterministički (predmet + verzija), B upisuje vektore PRE reda u bazi, pa nijedna provera baze (ni neposredno pre `delete()`) ne vidi B u letu; procesni lock ne pokriva više radnika/instanci; metapodatak vlasnika bi B prepisao upsert-om, a provera→brisanje ostaje prozor. Bezbedno rešenje traži migraciju, nov protokol ili promenu identiteta vektora — van ovlašćenja |
+| Odluka | **DEFERRED** — vraćen samo `cddf2c9f` (aktivacija u `api.py`, helper, `test_tenfronts_m05_orphan_vektori.py`, zamene indeksa u `test_sentinel_reliability_fixes.py` i `test_sprint002_pipeline_a_orphan_cleanup.py`). Sva 4 izmenjena fajla bajt-identična stanju `30e39d6f` |
+| Nerešeno | posle neuspelog upisa reda vektori ostaju u namespace-u vlasnika i dostupni su pretrazi predmeta (prvobitni PHOENIX-004) |
+| Nov test | `tests/test_m05_bez_destruktivnog_ciscenja.py` (3): neuspeo upis → 500 i NIJEDAN poziv indeksa; uspešan upload → bez brisanja; helper ne postoji. Mutacija „vrati M05“ → 2 pada |
+| T03 | sa odloženim M05 nema destruktivnog čišćenja: normalan upload, neuspeo upis, isti sadržaj, istovremeni upis, drugi predmet, deljen namespace, timeout, pad Pinecone-a i ponovljeno čišćenje svode se na „indeks se ne dira“ |
+| Regresija | 22 fajla koji koriste `vector_deletion`/upload + svi Ten Fronts testovi + nov test: **539 passed, 2 skipped, 0 failed** |
+| T04 — V2 | `frontend-v2-ng` nema build skriptu (ES moduli bez bundlera); propisana provera je job „V2 NG frontend suites“ iz `v2-ng.yml`: `npm ci` + svaki `verify*` skript uz `serve.mjs 4317`, Node 24.15.0, Chromium (Playwright). Lokalno (Windows): **32/32 PASS, listed 32 = executed 32**; `verify:live-rocista-pretraga` 38/38. Jobovi `e2e`, `python311` i `docker` iz istog workflow-a NISU pokretani |

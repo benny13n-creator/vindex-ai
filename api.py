@@ -6255,23 +6255,6 @@ async def predmet_upload_auto_analyze(
         # ARCHITECTURAL_DEBT_REGISTER.md), ali korisnik više ne dobija lažan
         # signal uspeha niti AI analizu duha-dokumenta.
         if not _dok_id:
-            # TENFRONTS-M05 (PHOENIX-004): vektori ovog upload-a su već upisani, a reda nema — bez čišćenja
-            # ostaju u deljenom namespace-u i dostupni pretrazi predmeta. Briše se tačno identitet ovog
-            # upload-a (predmet + verzija sadržaja), i to samo ako ga nijedan postojeći red ne deli.
-            # Neuspeh čišćenja se ne guta: ERROR log sa ishodom; korisnik i dalje dobija istu 500.
-            if count:
-                try:
-                    from shared.vector_deletion import obrisi_vektore_neupisanog_dokumenta as _ocisti_orphan
-                    from uploaded_doc.ingest import _get_pinecone_index as _pc_index
-                    _orph = await asyncio.to_thread(lambda: _ocisti_orphan(
-                        _get_supa(), _pc_index(), user_id=user.id, predmet_id=predmet_id,
-                        namespace=_owner_ns, verzija=_content_sha256))
-                    if _orph.uspeh:
-                        logger.info("[P1.1] orphan vektori uklonjeni predmet=%s: %s", predmet_id, _orph.as_dict())
-                    else:
-                        logger.error("[P1.1] ORPHAN vektori NISU uklonjeni predmet=%s: %s", predmet_id, _orph.as_dict())
-                except Exception as _oe:
-                    logger.error("[P1.1] ORPHAN čišćenje puklo predmet=%s: %s", predmet_id, type(_oe).__name__)
             raise HTTPException(
                 status_code=500,
                 detail="Dokument je otpremljen, ali nije uspešno sačuvan u sistemu — analiza nije pokrenuta. Pokušajte ponovo.",

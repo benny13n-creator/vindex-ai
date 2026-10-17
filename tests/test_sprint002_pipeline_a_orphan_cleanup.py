@@ -128,8 +128,6 @@ def _base_patches(supa, extract_return=None, extract_side_effect=None, ingest_si
         patches.append(patch("uploaded_doc.ingest.ingest_session", side_effect=ingest_side_effect))
     else:
         patches.append(patch("uploaded_doc.ingest.ingest_session", return_value=1))
-    # TENFRONTS-M05: neuspeli upis reda sada čisti vektore preko Pinecone indeksa — bez zamene bi test zvao mrežu.
-    patches.append(patch("uploaded_doc.ingest._get_pinecone_index", return_value=MagicMock(list=MagicMock(return_value=iter([[]])))))
     return patches
 
 

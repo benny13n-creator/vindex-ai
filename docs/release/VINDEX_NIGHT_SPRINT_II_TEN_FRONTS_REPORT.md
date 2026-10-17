@@ -7,7 +7,7 @@ Sve izvršene misije su zatvorene sa dokazom. Lokalni rad je završen. Ništa ni
 ## A. Izvršni rezime
 
 Od 10 primarnih misija:
-- **8 je otklonilo stvarne, reprodukovane defekte**: M01, M02, M03, M04, M05, M06, M09 i M10.
+- **8 je otklonilo stvarne, reprodukovane defekte**: M01, M02, M03, M04, M05, M06, M09 i M10. **Korekcija 2026-10-17 (korektivna kapija PR #45): M05 je VRAĆEN i ODLOŽEN** — čišćenje je pod istovremenim upload-om brisalo vektore uspešnog dokumenta. Ostaje **7 ispravki**.
 - **2 su dokazale da je postojeći kod već ispravan** i zatvorene su bez izmene koda: M07 i M08.
 - Rezerva **R01** je procenjena i takođe je već ispravna. Nije uračunata kao ispravka.
 - Blokiranih i neuspelih misija nema.
@@ -43,7 +43,7 @@ Pre izveštaja je radni prostor bio čist. Alerts worktree (`40d98288`, 0 izmena
 | M02 | UI prikazuje lažno „nije konfigurisan“ | Lažno upozorenje NIJE reprodukovano u runtime-u. Stvarni defekt: `maybe_single()` vraća None → **500** za svakog korisnika bez profila; 5 RED | ACCEPTED_VERIFIED | 8 (3 izvršavaju stvarnu UI funkciju u Node-u) | `a0a00e19` |
 | M03 | Komentari nisu u pretrazi | PROVEN; granica vidljivosti preuzeta iz `komentari.py`; 7 RED | ACCEPTED_VERIFIED | 14 | `277435d4` |
 | M04 | Prećutno skraćivanje pretrage | PROVEN za više od 200 predmeta (hronologija, beleške, komentari), bez `nepotpuno`; 9 RED | ACCEPTED_VERIFIED | 14 | `30e39d6f` |
-| M05 | Sirotni vektori posle neuspelog upisa | PROVEN na stvarnom endpointu; dodatno otkriveno da isti sadržaj u istom predmetu deli ID-jeve vektora | ACCEPTED_VERIFIED | 15 | `cddf2c9f` |
+| M05 | Sirotni vektori posle neuspelog upisa | PROVEN na stvarnom endpointu; dodatno otkriveno da isti sadržaj u istom predmetu deli ID-jeve vektora | ~~ACCEPTED_VERIFIED~~ **DEFERRED** (vraćeno) | 15 → uklonjeno; 3 nova (bez brisanja) | `cddf2c9f` (revert) |
 | M06 | Pozadinski neuspesi samo u logu | Većinom ZASTARELO (outbox + verify-or-raise). Preostao defekt: AI neuspeh na dokumentu sa ljudskom vrstom nema trajan trag; 2 RED | ACCEPTED_VERIFIED | 4 | `f7106674` |
 | M07 | Genome refresh bez prekida posle provere vlasnika | Kod je VEĆ bezbedan: `.single()` diže izuzetak, a `except` izlazi pre bilo kakve posledice | NO_CHANGE_NEEDED_PROVEN | 5 | `9bb13bf8` (test) |
 | M08 | Genome zastareo posle izmene predmeta | Premisa ne važi: Genome ulaz su samo dokumenti i tvrdnje, ne izmenjiva polja | NO_CHANGE_NEEDED_PROVEN | 4 | `b4cc5b10` (test) |
@@ -53,7 +53,7 @@ Pre izveštaja je radni prostor bio čist. Alerts worktree (`40d98288`, 0 izmena
 
 ## D. Stvarni inženjerski učinak
 
-- **Nezavisno otklonjenih defekata: 8.**
+- **Nezavisno otklonjenih defekata: 8** — posle korektivne kapije **7** (M05 odložen).
 - **Već ispravnih komponenti potvrđenih dokazom: 2 primarne + 1 rezerva.**
 - **Blokiranih: 0.**
 - **Novih regresionih testova: 99** u 10 novih fajlova (20+8+14+14+15+4+5+4+6+9).
@@ -102,7 +102,7 @@ Pre izveštaja je radni prostor bio čist. Alerts worktree (`40d98288`, 0 izmena
   - stvarni Pinecone, SMTP, PostgREST i Supabase nisu pozivani;
   - Playwright nije pokretan za ⌘K paletu, poruke pretrage ni Genome hint.
 - M03 i M09 važe za stari UI (`/app-legacy`). V2 nema prikaz komentara ni Genome watcher; V2 nije menjan sem teksta u M04.
-- M05: ostaje rizik trke sa istovremenim uspešnim upload-om istog sadržaja. Taj slučaj se otkriva (VERIFICATION_FAILED + ERROR „potrebna reindeksacija“), ali se ne sprečava.
+- M05: ostaje rizik trke sa istovremenim uspešnim upload-om istog sadržaja. Taj slučaj se otkriva (VERIFICATION_FAILED + ERROR „potrebna reindeksacija“), ali se ne sprečava. **Korekcija: nije se ni pouzdano otkrivao (ishod DELETED kad B upiše red posle A-ove završne provere) — M05 vraćen, v. ledger.**
 - M06: trag je trajan (`result_ref` u posledici i auditu), ali nijedan ekran ga ne prikazuje.
 - M10: da li se kod stvarnih korisnika `profiles.email` razlikuje od adrese za prijavu: UNKNOWN.
 - Da li Render Cron poziva `/api/cron/daily`: UNKNOWN.
@@ -127,3 +127,11 @@ Pre izveštaja je radni prostor bio čist. Alerts worktree (`40d98288`, 0 izmena
 Kombinovana lokalna grana je **podobna za nezavisan release review** (Draft PR + CI poređenje po imenima testova). **To nije odobrenje za produkciju.** Podsetnici i dalje zahtevaju korake iz runbook-a alerts sprinta (ključ, SMTP, opt-in) pre bilo kakve tvrdnje o isporuci.
 
 Detaljan dokaz po misiji: `docs/release/VINDEX_TEN_FRONTS_EVIDENCE_LEDGER.md`.
+
+## Korekcija 2026-10-17 — M05 odložen (korektivna kapija PR #45)
+
+- Trka reprodukovana nad stvarnom `obrisi_vektore_neupisanog_dokumenta` (lažna baza i indeks): uspešan upload B istog sadržaja u istom predmetu gubi vektore u oba rasporeda; kad B upiše red posle A-ove završne provere, A prijavljuje `DELETED` — bez ikakvog signala.
+- Nema dokazano bezbedne minimalne ispravke bez migracije, novog protokola ili promene identiteta vektora (Pinecone nema uslovno brisanje; B upisuje vektore pre reda; svaka provera ostavlja prozor; procesni lock ne pokriva više instanci).
+- Vraćen samo M05 (`cddf2c9f`): aktivacija u `api.py`, helper u `shared/vector_deletion.py`, njegov test i zamene indeksa u dva postojeća testa. Ostale ispravke nedirnute.
+- **Prvobitni defekt ostaje NEREŠEN:** posle neuspelog upisa reda vektori ostaju u namespace-u i dostupni pretrazi predmeta. Bezbedno rešenje traži odluku osnivača (npr. ID vektora po upload-u, ili koordinacija kroz bazu).
+- Nov test `tests/test_m05_bez_destruktivnog_ciscenja.py` čuva invarijantu „neuspeo upload ne dira indeks“.
