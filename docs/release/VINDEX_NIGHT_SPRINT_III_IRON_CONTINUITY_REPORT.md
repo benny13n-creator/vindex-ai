@@ -44,14 +44,14 @@ Ništa nije pushovano, spojeno ni pušteno. Izdanje čeka odluku osnivača (HOLD
 | N15 | `maybe_single()` → None → 500 (5 mesta) | FIXED_VERIFIED. Ostalih 60 kandidata je samo inventarisano. | `a42fd95a` |
 | N16 | M05 vektori siročad: arhitektonska odluka | DEFECT_PROVEN_DEFERRED (samo dokument) | `05b5c22b` |
 
-Zbir: 10 FIXED_VERIFIED, 5 NO_CHANGE_NEEDED_PROVEN, 1 DEFECT_PROVEN_DEFERRED (N16). Odložen je i deo N04 (duplikat po danu).
+Zbir: **8 funkcionalnih ispravki** (N03, N04, N05, N06, N11, N12, N13, N15) + **2 poboljšanja infrastrukture/testova** (N01, N02) = 10 FIXED_VERIFIED; **5 potvrđenih postojećih ponašanja** (N07, N08, N09, N10, N14); **1 arhitektonski dokument M05** (N16, nije implementiran). Odložen je i deo N04 (duplikat po danu).
 
 ## C. Stvarne ispravke (šta je bilo pokvareno → šta sada radi)
 
 1. **N03.** Kada interni poziv za onboarding ili nedeljni pregled ima `greske > 0` ili nevažeći rezultat, dnevni cron je ranije ipak beležio „ok“. Sada `_poslato_greske_status` vraća „greska“ za svaki rezultat koji nije dokazano čist.
 2. **N04.** Dugme „Deaktiviraj“ za email podsetnike je pokazivalo uspeh i kad server odbije zahtev. Sada se proverava `r.ok` i prikazuje se crvena poruka sa razlogom.
 3. **N05.** Smart Intake je vraćao `klijent_dodat: true` i kada upis u `predmet_klijenti` nije uspeo. Sada je vrednost `true` samo posle stvarnog upisa.
-4. **N06.** Oštećen ili lažni PDF je davao HTTP 500. Sada daje kontrolisanu poruku „nije PDF“ (`DocumentSafetyLimitExceeded`).
+4. **N06.** Oštećen ili lažan PDF je izazivao pypdf izuzetak koji je Smart Intake worker tretirao kao privremenu grešku: posao je ponavljan do 5 puta (~7,5 min) i završavao sirovim engleskim tekstom. Sada je to trajno odbijanje sa porukom „nije PDF“ (`DocumentSafetyLimitExceeded`, postojeći terminalni put).
 5. **N11.** Hronologija je prikazivala rok bez stanja potvrde. Sada svaki rok nosi `stanje_odluke` i oznaku, iz istog izvora kao V2 Danas. Ako izvor ne odgovori, stanje je UNKNOWN i ta degradacija se prijavljuje (fail-closed).
 6. **N12.** Globalna pretraga je vraćala predmete čije je brisanje započeto i njihove dokumente. Sada ih filtrira. Ako čitanje tombstone-a ne uspe, rezultati vezani za predmet se izostavljaju i označavaju kao nepotpuni.
 7. **N13.** Kada model vrati `""`, `null` ili razmake, nacrt je ostajao prazan na tom mestu („Tužilac: ,“). Sada ostaje vidljiva oznaka `[… — POPUNITI]`.
@@ -171,6 +171,26 @@ Pre spajanja je potrebno:
 3. ručna provera N04 (vindex.js) i N11 u browseru posle deploy-a.
 
 Ovo nije oznaka spremnosti za produkciju; to je preporuka za pregled.
+
+## N. Handoff gejtovi (dodato pri pripremi Draft PR-a)
+
+### Klasifikacija tri nova rizika (izvor + izvršen dokaz na OBA stabla)
+
+| Rizik | Izvor | Dokaz | Klasa |
+|---|---|---|---|
+| 1. Brisanje deljenih vektora između identičnih dokumenata | `shared/vector_deletion.py` (identitet `prefiks_dokumenta(predmet_id, content_sha256)`); fajl **nije menjan** na grani | demo na `469085b6` i na grani: `DELETED 3`, drugom dokumentu ostaje 0/3 | **EXISTING BASELINE DEFECT** |
+| 2. Upload paralelan sa brisanjem predmeta | `api.py::predmet_upload_auto_analyze` bira `select("id,naziv,tip")` bez `brisanje_zapoceto` — baseline `api.py:5987`, grana `api.py:6005` (identičan red) | čitanje izvora na oba stabla | **EXISTING BASELINE DEFECT** |
+| 3. Isti dan: podsetnik drugog predmeta se ne šalje | `routers/email_notif.py` (grana menja samo komentar) | demo na oba stabla: drugo pokretanje `poslato 0, preskoceno 0` — i nije prijavljeno kao preskočeno | **EXISTING BASELINE DEFECT** |
+
+Grana ne dodaje nijedan poziv brisanja vektora niti Pinecone operaciju (`git diff` produkcionog koda: 0 pogodaka za pinecone/delete/vector).
+
+### Izolacija CI-ja (gejt 4)
+
+- Python sloj: brana u `tests/conftest.py` (`getaddrinfo`) nepromenjena; CI env koristi samo lažne vrednosti (`fake.supabase.co`, `sk-fake`).
+- Jedini test koji izvršava workflow korak sa produkcionim URL-om je `tests/test_alerts_email_cron_contract.py` (`https://vindex.rs/email-notif/send-reminders`). Do sada ga je štitio jedan sloj (lažni `curl` + proba).
+- **Dodat drugi, nezavisan sloj:** okruženje koraka dobija `HTTP(S)_PROXY`/`ALL_PROXY` = `http://127.0.0.1:9` (mrtav port), `NO_PROXY` se briše.
+- **Adversarijalni dokaz:** mutant bez lažnog `curl`-a i bez probe (tačno scenario PR #45), sa posmatračem na mestu mrtvog porta: pravi `curl` je poslao `CONNECT vindex.rs:443` **posmatraču, ne mreži**; test pada. U pravom testu taj zahtev ide na port 9 i odbija se lokalno. Mutant nad baseline-om NIJE pokrenut (išao bi u produkciju).
+- Rezultat: `test_alerts_email_cron_contract.py` + kanarinac N01 = 40 passed.
 
 ---
 
