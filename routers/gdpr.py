@@ -163,7 +163,8 @@ async def gdpr_export(request: Request, user: dict = Depends(get_current_user)):
             .select("id,email,full_name,created_at,subscription_type,addons,subscription_expires_at,subscription_seats_extra")
             .eq("id", uid).maybe_single().execute()
         )
-        profil = profile_r.data or {}
+        # NS3-N15: postgrest 2.28.3 `maybe_single()` za 0 redova vraća None (ne objekat) — red nije obavezan.
+        profil = (profile_r.data if profile_r is not None else None) or {}
         # Stvarna pretplata — ISKLJUČIVO iz profiles.subscription_type (Faza 72.5:
         # korisnik_plan je obrisan izvor, nikad ažuriran otkad je UsageService
         # preuzeo kredit-tracking, GDPR izvoz ne sme prikazati zastarelu tarifu).
@@ -185,7 +186,7 @@ async def gdpr_export(request: Request, user: dict = Depends(get_current_user)):
             "plan":           plan,
             "predmeti":       predm_r.data or [],
             "billing_stavke": billing_r.data or [],
-            "email_podesavanja": email_r.data or {},
+            "email_podesavanja": (email_r.data if email_r is not None else None) or {},
             "poslednje_aktivnosti": usage_r.data or [],
         }
 

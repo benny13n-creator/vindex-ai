@@ -15711,7 +15711,14 @@ function emailNotifDeaktivaj() {
   if (!currentSession) return;
   _vxConfirm('Deaktivirati email notifikacije?', async function() {
     try {
-      await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      var r = await fetch('/email-notif/profil', {method:'DELETE', headers:{'Authorization':'Bearer '+currentSession.access_token}});
+      if (!r.ok) {
+        // NS3-N04: neuspelo povlačenje saglasnosti ne sme da izgleda uspešno — podsetnici bi i dalje stizali.
+        var d = {}; try { d = await r.json(); } catch(_) {}
+        _enMsg(d.detail || 'Deaktivacija nije potvrđena. Pokušajte ponovo.', '#f87171');
+        await emailNotifLoad();
+        return;
+      }
       _enMsg('Email notifikacije deaktivirane.');
       await emailNotifLoad();
     } catch(e) { _enMsg('Veza sa serverom nije uspela. Proverite internet i pokušajte ponovo.','#f87171'); }

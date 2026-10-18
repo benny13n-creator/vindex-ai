@@ -49,8 +49,12 @@ SEMA = {
     "klijenti": {"id", "ime", "prezime", "firma", "tip", "email", "status",
                  "aktivan", "user_id"},
     "rocista": {"id", "sud", "datum", "vreme", "predmet_id", "status", "user_id"},
+    # `izvor`: migracija 127 (FAZA 6.4), primenjena na produkciji i potvrdjena
+    # uzivo 2026-09-02 (FAZA 6.6: kolona postoji, NOT NULL aktivan). Sonda iz
+    # 2026-08-21 je prethodila migraciji; `shared/rokovi.py::_KOLONE` je
+    # selektuje od `82e869b7`.
     "predmet_hronologija": {"id", "predmet_id", "dogadjaj", "datum_iso", "datum",
-                            "vaznost", "akter", "user_id"},
+                            "vaznost", "akter", "user_id", "izvor"},
     "briefing_istorija": {"user_id", "datum", "ai_briefing", "statistike", "created_at"},
 }
 

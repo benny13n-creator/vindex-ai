@@ -50,7 +50,7 @@ async def _proveri_vlasnistvo_predmeta(predmet_id: str, user_id: str) -> None:
             .maybe_single()
             .execute()
     )
-    if not pred.data:
+    if pred is None or not pred.data:    # NS3-N15: maybe_single() → None za 0 redova; bez ovoga 500 umesto 404
         raise HTTPException(status_code=404, detail="Predmet nije pronađen.")
 
 

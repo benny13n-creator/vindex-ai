@@ -182,6 +182,21 @@ def _search_billing(supa, uid: str, q: str, limit: int) -> list[dict]:
     ]
 
 
+def _predmeti_u_brisanju(supa, uid: str) -> set[str]:
+    """NS3-N12: predmeti pozivaoca sa tombstone-om (BETA-DEL-001) — u pretrazi se „ponašaju kao da ne postoje“,
+    isto kao `api.py::_je_u_brisanju` i `shared/rag_acl.py`. Bez kolone (pre migracije 114) tombstone ne može ni
+    da postoji → prazan skup. Svaka druga greška se diže: pozivalac tada ne prikazuje ništa vezano za predmete."""
+    try:
+        r = (supa.table("predmeti").select("id, brisanje_zapoceto")
+             .eq("user_id", uid).not_.is_("brisanje_zapoceto", "null").execute())
+    except Exception as e:
+        _t = str(e)
+        if "42703" in _t or ("brisanje_zapoceto" in _t and "does not exist" in _t):
+            return set()
+        raise
+    return {str(row["id"]) for row in (r.data or []) if row.get("id") and row.get("brisanje_zapoceto")}
+
+
 def _get_user_predmet_ids(supa, uid: str) -> list[str]:
     r = (supa.table("predmeti")
          .select("id")
@@ -304,15 +319,33 @@ async def global_search(
         tražene = _VALID_VRSTE
 
     # N+1 eliminacija: ako se traže i hronologija i beleske, dohvati predmet_ids jednom
+    # NS3-N12: tombstone se čita PRE pretrage (PR #46 C01): filtriranje tek posle `.limit()` u bazi je moglo da
+    # izbaci jedini vraćeni red i tiho sakrije živ pogodak iza predmeta u brisanju. Ako se tombstone ne može
+    # proveriti, rezultati vezani za predmete se ne prikazuju (fail-closed) i to se kaže — vidi ispod.
+    try:
+        _u_brisanju = await _db(lambda: _predmeti_u_brisanju(supa, uid))
+    except Exception as _te:
+        logger.warning("[SEARCH] provera predmeta u brisanju nije uspela: %s", _te)
+        _u_brisanju = None
+
     needs_pids = tražene & _PO_PREDMETIMA
     cached_pids: Optional[list[str]] = None
     if needs_pids:
         cached_pids = await _db(lambda: _get_user_predmet_ids(supa, uid))
+        if _u_brisanju:
+            # Vrste koje idu kroz listu predmeta: predmet u brisanju se ni ne pretražuje → limit važi za žive.
+            cached_pids = [p for p in cached_pids if str(p) not in _u_brisanju]
+
+    # Predmet se u rezultatu pojavljuje najviše jednom, pa `limit + broj predmeta u brisanju` tačno pokriva
+    # isključene. Ostale vrste (dokumenti, zadaci, billing) nemaju takvu granicu — za njih `nepotpuno` ispod.
+    trazeni_limit = {tip: limit for tip in _SEARCHERS}
+    if _u_brisanju:
+        trazeni_limit["predmeti"] = min(limit + len(_u_brisanju), _MAX_PREDMETA_PO_UPITU)
 
     def _make_task(tip: str, fn):
         if tip in _PO_PREDMETIMA:
             return _db(lambda fn=fn: fn(supa, uid, q, limit, cached_pids))
-        return _db(lambda fn=fn: fn(supa, uid, q, limit))
+        return _db(lambda fn=fn, n=trazeni_limit[tip]: fn(supa, uid, q, n))
 
     tasks = {
         tip: _make_task(tip, fn)
@@ -336,6 +369,26 @@ async def global_search(
             nepotpuno.append(tip)
         else:
             grouped[tip] = res
+
+    # NS3-N12: ništa iz predmeta u brisanju — ni sam predmet, ni zapis koji nosi `meta.predmet_id` tog predmeta.
+    for tip in list(grouped):
+        stavke = grouped[tip]
+        vezane = [x for x in stavke if x.get("tip") == "predmet" or (x.get("meta") or {}).get("predmet_id")]
+        if _u_brisanju is None:
+            if vezane:
+                grouped[tip] = [x for x in stavke if x not in vezane]
+            if tip not in nepotpuno and (vezane or tip in ("predmeti", "dokumenti") or tip in _PO_PREDMETIMA):
+                nepotpuno.append(tip)
+        elif _u_brisanju:
+            zivi = [x for x in stavke if not (
+                (x.get("tip") == "predmet" and str(x.get("id")) in _u_brisanju)
+                or str((x.get("meta") or {}).get("predmet_id")) in _u_brisanju)]
+            grouped[tip] = zivi[:limit]
+            # PR #46 C01: baza je vratila pun (traženi) limit, filter je deo izbacio i ostalo je manje od limita —
+            # iza limita mogu postojati živi pogoci koje upit nije video. Nije „nema rezultata“; kaže se `nepotpuno`.
+            if (len(zivi) < len(stavke) and len(zivi) < limit
+                    and len(stavke) >= trazeni_limit.get(tip, limit) and tip not in nepotpuno):
+                nepotpuno.append(tip)
 
     # TENFRONTS-M04: korisnik sa više od `_MAX_PREDMETA_PO_UPITU` predmeta — vrste koje idu kroz predmete
     # pretražene su samo delimično. To nije „nema rezultata“; kaže se kroz isti `nepotpuno` marker.

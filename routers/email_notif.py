@@ -355,9 +355,10 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     .execute()
                 )
                 rokovi = [r for r in (rokovi_r.data or []) if r.get("predmet_id") in _aktivni_ids]
-                # INV-2: nepotvrdjen AI rok NE SME da posalje email. Skup
-                # potvrda se cita tek ako ima AI redova -- nula dodatnih upita
-                # za predmete koje je vodio covek.
+                # INV-2 / FAZA 6.4.2: NIJEDAN nepotvrdjen rok ne sme da posalje
+                # email -- ni AI ni rucno unet (poreklo ne ovlascuje). Skup
+                # potvrda se cita za sve redove (NS3-N10: raniji komentar je
+                # tvrdio da se cita samo za AI redove).
                 rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
                 if not rokovi:
                     continue

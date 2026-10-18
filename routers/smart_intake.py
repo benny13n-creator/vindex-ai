@@ -1683,6 +1683,7 @@ async def _finalize_intake_job_jezgro(
     coi_event_id = None
     klijent_ime = ""
     klijent_nesiguran = False
+    klijent_povezan = False   # NS3-N05: True tek kad je red u `predmet_klijenti` stvarno upisan
     klijent_kandidati: list[str] = []
     rok_dodat = False
     rok_preskocen_razlog = None
@@ -1755,6 +1756,7 @@ async def _finalize_intake_job_jezgro(
                             "uloga_klijenta": "stranka",
                         }).execute()
                     )
+                    klijent_povezan = True
             except Exception as exc:
                 logger.warning("[SMART_INTAKE] klijent link greška (non-fatal) predmet=%s: %s", predmet_id, exc)
 
@@ -2488,7 +2490,9 @@ async def _finalize_intake_job_jezgro(
         # kaze da li je COI provera zakazana; UI prikaz je zaseban zadatak.
         "coi_status":   coi_stanje,
         "coi_event_id": coi_event_id,
-        "klijent_dodat": bool(klijent_ime) and not klijent_nesiguran,
+        # NS3-N05: samo stvarno upisana veza. Ranije `bool(klijent_ime) and not klijent_nesiguran` — i kad su upis
+        # klijenta ili `predmet_klijenti` pali (non-fatal `except` iznad), pa je V2 javljao „Klijent ... povezan“.
+        "klijent_dodat": klijent_povezan,
         # Program Intake Sprint 006, Phase 2 (Ownership Resolution) -- never
         # silently guesses between 2+ same-name clients (mission's own named
         # edge case). Surfaced explicitly instead of hidden inside a

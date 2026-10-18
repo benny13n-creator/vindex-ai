@@ -1165,9 +1165,18 @@ def extract_pdf(path: Path) -> tuple[str, bool, bool, Optional[list[str]], Optio
     filtered join structurally could not provide."""
     import pypdf
 
-    reader = pypdf.PdfReader(str(path))
-    if len(reader.pages) > MAX_PDF_PAGES:
-        raise DocumentSafetyLimitExceeded(f"{len(reader.pages)} PDF pages (max {MAX_PDF_PAGES})")
+    # NS3-N06: fajl koji pypdf ne može ni da otvori (HTML/tekst preimenovan u .pdf, odsečen, oštećen) je isti
+    # deterministički „nije PDF“ ishod kao NS3-A provera ispod (MuPDF) — ne privremena greška. Bez ovoga je Smart
+    # Intake posao ponavljan do max_attempts i završavao sa sirovim tekstom pypdf-a umesto poruke advokatu.
+    try:
+        reader = pypdf.PdfReader(str(path))
+        broj_strana = len(reader.pages)
+    except pypdf.errors.PdfReadError as e:
+        logger.warning("[PDF] Odbijeno — %s se ne čita kao PDF (%s)", path.name, type(e).__name__)
+        raise DocumentSafetyLimitExceeded(f"PDF putanja: pypdf ne čita fajl ({type(e).__name__})",
+                                          poruka=PORUKA_NIJE_PDF) from e
+    if broj_strana > MAX_PDF_PAGES:
+        raise DocumentSafetyLimitExceeded(f"{broj_strana} PDF pages (max {MAX_PDF_PAGES})")
 
     pages: list[str] = []
     total_chars = 0

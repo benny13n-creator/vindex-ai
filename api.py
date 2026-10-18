@@ -1959,6 +1959,24 @@ def _email_podsetnici_status(rez) -> str:
     return "ok"
 
 
+def _poslato_greske_status(rez) -> str:
+    """NS3-N03: status onboarding / nedeljni sažetak modula iz njihovog ugovora `{"poslato": int, "greske": int}`.
+
+    ok = izvršeno bez greške (uklj. 0 poslatih i „nema primalaca“ sa napomenom); greska = greske > 0 ili
+    nevalidan oblik (nema oba nenegativna cela brojača). Ne uvodi nove statuse; ništa se ne ponavlja."""
+    if not isinstance(rez, dict) or any(type(rez.get(k)) is not int or rez[k] < 0 for k in ("poslato", "greske")):
+        return "greska"
+    return "greska" if rez["greske"] else "ok"
+
+
+def _poslato_validno(rez) -> int:
+    """PR #46 C02: koliko je poruka modul stvarno obradio — validan nenegativan ceo `poslato`, bez obzira na
+    `greske` (delimičan uspeh i dalje je obrađen posao; neuspeh se računa odvojeno). Nevalidan oblik = 0."""
+    if isinstance(rez, dict) and type(rez.get("poslato")) is int and rez["poslato"] > 0:
+        return rez["poslato"]
+    return 0
+
+
 @app.post("/api/cron/daily")
 async def cron_daily(request: Request):
     """
@@ -2194,8 +2212,11 @@ async def cron_daily(request: Request):
     try:
         from routers.email_notif import onboarding_cron as _onboarding_cron_fn
         _ob_r = await asyncio.wait_for(_onboarding_cron_fn(request, _cron_user), timeout=60)
-        _stavke_obradjene += int((_ob_r or {}).get("poslato", 0))
-        rezultati["onboarding"] = {**(_ob_r or {}), "status": "ok",
+        _ob_status = _poslato_greske_status(_ob_r)
+        _stavke_obradjene += _poslato_validno(_ob_r)   # PR #46 C02: i pri delimičnom uspehu (kao email_podsetnici)
+        if _ob_status != "ok":
+            _broj_grešaka += 1
+        rezultati["onboarding"] = {**(_ob_r if isinstance(_ob_r, dict) else {}), "status": _ob_status,
                                    "duration_ms": round((_time.monotonic() - _t_ob) * 1000)}
     except asyncio.TimeoutError:
         rezultati["onboarding"] = {"status": "timeout", "greska": "Prekoraceno 60s",
@@ -2211,8 +2232,11 @@ async def cron_daily(request: Request):
         try:
             from routers.email_notif import posalji_nedeljni_sazetak as _nedeljni_sazetak_cron
             _ns_r = await asyncio.wait_for(_nedeljni_sazetak_cron(request, _cron_user), timeout=60)
-            _stavke_obradjene += int((_ns_r or {}).get("poslato", 0))
-            rezultati["nedeljni_sazetak"] = {**(_ns_r or {}), "status": "ok",
+            _ns_status = _poslato_greske_status(_ns_r)
+            _stavke_obradjene += _poslato_validno(_ns_r)   # PR #46 C02: i pri delimičnom uspehu
+            if _ns_status != "ok":
+                _broj_grešaka += 1
+            rezultati["nedeljni_sazetak"] = {**(_ns_r if isinstance(_ns_r, dict) else {}), "status": _ns_status,
                                               "duration_ms": round((_time.monotonic() - _t_ns) * 1000)}
         except asyncio.TimeoutError:
             rezultati["nedeljni_sazetak"] = {"status": "timeout", "greska": "Prekoraceno 60s",
