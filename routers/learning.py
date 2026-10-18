@@ -107,6 +107,49 @@ def _safe_one(r) -> dict:
     return d or {}
 
 
+_STRANA = 1000  # PostgREST max-rows po odgovoru
+
+
+def _preracunaj_obrasce(supa, uid: str, tip_spora: str) -> int:
+    """NS4-T3: `case_patterns` za (korisnik, vrsta spora) kao FUNKCIJA `outcome_log`-a (jedan red po predmetu).
+
+    Ranije su se brojači UVEĆAVALI samo pri prvom ishodu predmeta: ispravka pobeda → poraz zadržavala je staru
+    pobedu, promena faktora/vrste spora stari doprinos, a dva istovremena prva slanja oba uvećavala. Preračunavanje
+    iz izvora je idempotentno — ponovljeno slanje, ispravka i trka daju isti zbir. Faktor koji više nema nijedan
+    ishod ostaje sa nulama (red se ne briše). Vraća broj faktora sa bar jednim ishodom; greška se propušta."""
+    from types import SimpleNamespace
+    from shared.stranicenje import strana_ili_prazna
+    ishodi, od = [], 0
+    while True:
+        # offset iza kraja (tačno _STRANA redova, ili obrisani između strana) = PGRST103 → prazna strana
+        r = strana_ili_prazna(
+            lambda p=od: (supa.table("outcome_log").select("predmet_id,ishod,presudni_faktori")
+                          .eq("user_id", uid).eq("tip_spora", tip_spora).order("predmet_id")
+                          .range(p, p + _STRANA - 1).execute()),
+            lambda: SimpleNamespace(count=None))
+        strana = _safe(r)
+        ishodi += strana
+        if len(strana) < _STRANA:
+            break
+        od += _STRANA
+    brojaci: dict = {}
+    for o in ishodi:
+        for f in dict.fromkeys((o.get("presudni_faktori") or [])[:10]):
+            b = brojaci.setdefault(f, {"pobede": 0, "porazi": 0, "ukupno": 0})
+            b["pobede"] += o.get("ishod") == "pobeda"
+            b["porazi"] += o.get("ishod") == "poraz"
+            b["ukupno"] += 1
+    postojeci = {x["faktor"]: x["id"] for x in _safe(
+        supa.table("case_patterns").select("id,faktor").eq("user_id", uid).eq("tip_spora", tip_spora).execute())}
+    for f in sorted(set(brojaci) | set(postojeci)):
+        vr = brojaci.get(f, {"pobede": 0, "porazi": 0, "ukupno": 0})
+        if f in postojeci:
+            supa.table("case_patterns").update(vr).eq("id", postojeci[f]).execute()
+        else:
+            supa.table("case_patterns").insert({"user_id": uid, "tip_spora": tip_spora, "faktor": f, **vr}).execute()
+    return len(brojaci)
+
+
 async def _dohvati_predmet(supa, predmet_id: str, uid: str) -> dict:
     r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
@@ -156,7 +199,7 @@ async def zabeleži_ishod(
     try:
         _post = await asyncio.to_thread(
             lambda: supa.table("outcome_log")
-                .select("id,ishod,presudni_faktori")
+                .select("id,ishod,presudni_faktori,tip_spora")
                 .eq("predmet_id", req.predmet_id)
                 .eq("user_id", uid)
                 .limit(1)
@@ -206,44 +249,17 @@ async def zabeleži_ishod(
             detail="Ishod predmeta nije sačuvan. Predmet NIJE zatvoren — pokušajte ponovo.",
         )
 
-    # 2. Update case_patterns za svaki faktor — samo za PRVI zabeležen ishod predmeta
-    je_pobeda = req.ishod == "pobeda"
-    je_poraz  = req.ishod == "poraz"
-    for faktor in ([] if postojeci_ishod else req.presudni_faktori[:10]):
-        try:
-            existing = await asyncio.to_thread(
-                lambda f=faktor: supa.table("case_patterns")
-                    .select("id,pobede,porazi")
-                    .eq("user_id", uid)
-                    .eq("tip_spora", tip_spora)
-                    .eq("faktor", f)
-                    .limit(1)
-                    .execute()
-            )
-            rows = _safe(existing)
-            if rows:
-                row = rows[0]
-                await asyncio.to_thread(
-                    lambda r=row, f=faktor: supa.table("case_patterns").update({
-                        "pobede": r["pobede"] + (1 if je_pobeda else 0),
-                        "porazi": r["porazi"] + (1 if je_poraz  else 0),
-                        "ukupno": r.get("ukupno", r["pobede"] + r["porazi"]) + 1,
-                    }).eq("id", r["id"]).execute()
-                )
-            else:
-                await asyncio.to_thread(
-                    lambda f=faktor: supa.table("case_patterns").insert({
-                        "user_id":   uid,
-                        "tip_spora": tip_spora,
-                        "faktor":    f,
-                        "pobede":    1 if je_pobeda else 0,
-                        "porazi":    1 if je_poraz  else 0,
-                        "ukupno":    1,
-                    }).execute()
-                )
-            faktori_azurirani += 1
-        except Exception as e:
-            logger.warning("[LEARNING] case_patterns greška za faktor %s: %s", faktor, e)
+    # 2. case_patterns — NS4-T3: preračun iz outcome_log-a za vrstu spora ovog i (ako se promenila) prethodnog
+    # ishoda; isti ishod (ponovljeno slanje) ne dira ništa. Neuspeh je non-fatal kao i ranije: ishod je sačuvan,
+    # brojači se ispravljaju pri sledećem upisu ishoda te vrste.
+    if not isti_ishod:
+        _vrste = {tip_spora} | ({postojeci_ishod.get("tip_spora")} if postojeci_ishod and postojeci_ishod.get("tip_spora") else set())
+        for _vrsta in sorted(v for v in _vrste if v):
+            try:
+                await asyncio.to_thread(_preracunaj_obrasce, supa, uid, _vrsta)
+            except Exception as e:
+                logger.warning("[LEARNING] case_patterns preračun nije uspeo tip=%s: %s", _vrsta, e)
+        faktori_azurirani = len(dict.fromkeys(req.presudni_faktori[:10]))
 
     # 3. Ažuriraj recommendation_log za ovaj predmet (postavljanje vrednosti — idempotentno; preskače se
     # samo kad se ništa nije promenilo)
@@ -468,6 +484,17 @@ async def recommendation_feedback(
 
 # ─── ENDPOINT 4: Slični predmeti (Collective Intelligence) ────────────────────
 
+# NS4-T3: najmanji broj uporedivih predmeta sa ZABELEŽENIM ishodom ispod kog se ne iznosi nikakav zbirni zaključak.
+_MIN_UZORAK = 3
+_NAPOMENA_ISTORIJA = ("Ovo je opis istorije kancelarije, nije predviđanje ishoda i nije dokaz da je navedeni "
+                      "faktor uzrok ishoda. Sličnost je procena po nazivu i vrsti predmeta, ne po činjenicama.")
+
+
+def _bez_uporedivih() -> dict:
+    return {"slicni_predmeti": [], "ukupno_slicnih": 0, "uzorak": 0, "stanje": "NEDOVOLJNO_PODATAKA",
+            "strategija_preporuka": "Nema zatvorenih predmeta sa zabeleženim ishodom za poređenje."}
+
+
 @router.get("/slicni-predmeti/{predmet_id}")
 @limiter.limit("10/minute")
 async def slicni_predmeti(
@@ -498,10 +525,10 @@ async def slicni_predmeti(
         zatvoreni = _safe(zatvoreni_r)
     except Exception as e:
         logger.warning("[LEARNING] zatvoreni predmeti greška: %s", e)
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        return _bez_uporedivih()
 
     if not zatvoreni:
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        return _bez_uporedivih()
 
     # Dohvati outcome_log za zatvorene predmete
     zids = [p["id"] for p in zatvoreni[:30]]
@@ -519,7 +546,7 @@ async def slicni_predmeti(
     # Samo predmeti sa poznatim ishodom
     sa_ishodom = [p for p in zatvoreni if p["id"] in outcomes_map]
     if not sa_ishodom:
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        return _bez_uporedivih()
 
     # GPT-4o-mini rangira sličnost
     lista_txt = "\n".join(
@@ -564,7 +591,7 @@ async def slicni_predmeti(
         logger.warning("[LEARNING] GPT sličnost greška: %s", e)
         # Fallback: vrati prvih 5 istog tipa
         rangirani = [
-            {"predmet_id_prefix": p["id"][:8], "slicnost": 60, "razlog": "Isti tip spora"}
+            {"predmet_id_prefix": p["id"][:8], "slicnost": None, "razlog": "Isti tip spora (ocena sličnosti nije dostupna)"}
             for p in sa_ishodom[:5]
             if p.get("tip") == predmet.get("tip")
         ]
@@ -588,15 +615,20 @@ async def slicni_predmeti(
             "trajanje_meseci":    outcome.get("trajanje_meseci"),
             "presudni_faktori":   outcome.get("presudni_faktori", []),
             "komentar":           outcome.get("komentar", ""),
-            "slicnost":           r.get("slicnost", 0),
+            "slicnost":           r.get("slicnost"),
             "razlog":             r.get("razlog", ""),
         })
 
-    # Strategijska preporuka
-    strategija = ""
-    if result:
-        pobede = [x for x in result if x["ishod"] == "pobeda"]
-        win_r  = round(len(pobede) / len(result) * 100) if result else 0
+    # Strategijska preporuka — NS4-T3: uzorak se uvek navodi; bez procenta i bez tvrdnje o uzroku. Ranije je već
+    # JEDAN predmet davao „win rate 100%“ i „X je bio presudni faktor u pobedama“.
+    n = len(result)
+    pobede = [x for x in result if x["ishod"] == "pobeda"]
+    if n < _MIN_UZORAK:
+        stanje = "NEDOVOLJNO_PODATAKA"
+        strategija = (f"Premalo uporedivih predmeta sa zabeleženim ishodom ({n}) za bilo kakav zbirni zaključak."
+                      if n else "Nema uporedivih predmeta sa zabeleženim ishodom.")
+    else:
+        stanje = "OPIS_ISTORIJE"
         top_faktori: dict[str, int] = {}
         for p in pobede:
             for f in (p.get("presudni_faktori") or []):
@@ -604,8 +636,9 @@ async def slicni_predmeti(
         top = sorted(top_faktori.items(), key=lambda x: x[1], reverse=True)[:2]
         top_names = [_FAKTORI_LABELS.get(f, f) for f, _ in top]
         strategija = (
-            f"Na osnovu {len(result)} sličnih predmeta (win rate {win_r}%)"
-            + (f", {top_names[0]} je bio presudni faktor u pobedama." if top_names else ".")
+            f"Od {n} sličnih predmeta sa zabeleženim ishodom, {len(pobede)} je završeno pobedom."
+            + (f" U tim predmetima advokati su kao presudno najčešće navodili: {', '.join(top_names)}." if top_names else "")
+            + " " + _NAPOMENA_ISTORIJA
         )
 
     if _ai_koriscen:
@@ -614,6 +647,8 @@ async def slicni_predmeti(
     return {
         "slicni_predmeti":     result,
         "ukupno_slicnih":      len(result),
+        "uzorak":              n,
+        "stanje":              stanje,
         "strategija_preporuka": strategija,
     }
 

@@ -123,6 +123,7 @@
       if (moja !== genO || !trenutni || trenutni.id !== id) return false;
       if (r.ok && r.podaci) {
         poruka("nc-overa-poruka", "uspeh", radnja === "reject" ? "Nacrt je odbijen." : (r.podaci.indexed ? "Nacrt je odobren i dodat u bazu znanja kancelarije."
+          : r.podaci.razlog === "INDEKSIRANJE_NIJE_USPELO" ? "Nacrt je odobren, ali upis u bazu znanja kancelarije nije uspeo — nacrt nije pretraživ u znanju kancelarije."
           : "Nacrt je odobren. Nije dodat u bazu znanja kancelarije jer ocena kvaliteta nije dovoljna."));
         if (nacrt && nacrt.sid === sid) prikaziOtvoren({ status: radnja === "reject" ? "rejected" : "approved" });
         ucitajOveru();

@@ -437,7 +437,9 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
             await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").insert(_dok_row).execute())
         else:
             raise
-    return True
+    # NS4-T5: uspeh promocije = dokument je CEO u indeksu. Ranije `return True` i kad je upisano manje delova od
+    # očekivanog — ruta je tada tvrdila „dodat u bazu znanja“ i postavljala `pinecone_indexed=True`.
+    return _indeksiran
 
 
 # Program Phoenix, Mission 010 (LIVINGSYS-DEBT-013): _izvori_kontekst and
@@ -1424,7 +1426,8 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
         staging_row = {**staging_row, **claim_res.data[0]}
 
     promoted = False
-    if float(staging_row.get("confidence_score") or 0) >= _APPROVAL_CONFIDENCE_THRESHOLD:
+    ispod_praga = float(staging_row.get("confidence_score") or 0) < _APPROVAL_CONFIDENCE_THRESHOLD
+    if not ispod_praga:
         try:
             promoted = await _promote_staged_draft_to_pinecone(supa, {**staging_row, **update_fields})
         except Exception as exc:
@@ -1438,8 +1441,16 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
 
     if promoted:
         return {"status": "approved", "indexed": True, "poruka": "Nacrt odobren i dodat u bazu znanja kancelarije."}
+    if not ispod_praga:
+        # NS4-T5: ranije je i ovaj slučaj (ocena IZNAD praga, upis u indeks pao ili nepotpun) vraćao poruku
+        # „confidence_score je ispod praga“ — pogrešan razlog, a advokat nije znao da upis nije uspeo.
+        return {
+            "status": "approved", "indexed": False, "razlog": "INDEKSIRANJE_NIJE_USPELO",
+            "poruka": ("Nacrt je odobren, ali upis u bazu znanja kancelarije nije uspeo — nacrt nije pretraživ "
+                       "u znanju kancelarije. Ponovno odobravanje ga ne dodaje; podrška može da ponovi upis."),
+        }
     return {
-        "status": "approved", "indexed": False,
+        "status": "approved", "indexed": False, "razlog": "ISPOD_PRAGA",
         "poruka": (
             "Nacrt je označen kao odobren, ali confidence_score "
             f"({staging_row.get('confidence_score')}) je ispod praga {_APPROVAL_CONFIDENCE_THRESHOLD} "

@@ -447,7 +447,7 @@ async def _update_style_profile(kancelarija_id: str, supa) -> dict:
     try:
         r = await asyncio.to_thread(
             lambda: supa.table("ai_corrections")
-                .select("original_output, edited_output, context_type, tip_dokumenta")
+                .select("id, original_output, edited_output, context_type, tip_dokumenta")
                 .eq("kancelarija_id", kancelarija_id)
                 .eq("processed", False)
                 .limit(50)
@@ -563,19 +563,27 @@ async def _update_style_profile(kancelarija_id: str, supa) -> dict:
                     }).execute()
                 )
         except Exception as e:
+            # NS4-T4: profil nije upisan → korekcije se NE potvrđuju (ranije su se ipak označavale obrađenim i
+            # bile zauvek izgubljene za profil). Sledeći prolaz ih vidi ponovo.
             logger.error("[CORRECTIONS] profile upsert greška: %s", e)
+            return {"ok": False, "error": "profile_write_failed", "processed": 0}
 
-        # Markir korekcije kao processed
+        # NS4-T4: potvrđuju se TAČNO analizirani redovi (po id-u), ne „svi neobrađeni u kancelariji" — ranije su
+        # se potvrđivali i redovi preko `.limit(50)` i oni upisani posle čitanja serije, bez ikakve analize.
+        ids = [row["id"] for row in rows if row.get("id")]
         try:
             await asyncio.to_thread(
                 lambda: supa.table("ai_corrections")
                     .update({"processed": True})
                     .eq("kancelarija_id", kancelarija_id)
+                    .in_("id", ids)
                     .eq("processed", False)
                     .execute()
             )
         except Exception as e:
-            logger.debug("[CORRECTIONS] mark processed greška: %s", e)
+            # Profil je upisan, potvrda nije: sledeći prolaz ponovo broji ove redove u `korekcija_count`.
+            logger.error("[CORRECTIONS] mark processed greška: %s", e)
+            return {"ok": False, "error": "ack_failed", "processed": 0, "profil_upisan": True}
 
         logger.info("[CORRECTIONS] firma=%s processed=%d stil=%s", kancelarija_id[:8], n, stil_update.get("ton"))
         return {"ok": True, "processed": n, "stil_update": stil_update}
