@@ -40,7 +40,11 @@ DOCUMENT_TYPES = (
 # latinica namerno paralelno, srpski pravni dokumenti mešaju oba pisma.
 _HEAD_CHARS = 400
 _HEURISTICS: list[tuple[str, list[str]]] = [
-    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA"]),
+    # QA-02: i „PREDLOG/NACRT TUŽBE“ (beta QA predlog tužbe je bio `contract`).
+    # Genitiv SAMO u frazi (završni pregled): goli „TUŽBE …“ je naslov izveštaja/spiska/mejla („TUŽBE PROTIV …
+    # — PREGLED“), a podniz „TUŽBE“ je i u „TUŽBENI ZAHTEV“.
+    ("lawsuit",           ["ТУЖБА", "TUŽBA", "TUZBA", "PREDLOG TUŽBE", "PREDLOG TUZBE", "ПРЕДЛОГ ТУЖБЕ",
+                           "NACRT TUŽBE", "NACRT TUZBE", "НАЦРТ ТУЖБЕ"]),
     ("appeal",             ["ЖАЛБА", "ŽALBA", "ZALBA", "PRIGOVOR", "ПРИГОВОР"]),
     ("response",           ["ОДГОВОР НА ТУЖБУ", "ODGOVOR NA TUŽBU", "ODGOVOR NA TUZBU"]),
     ("judgment",           ["ПРЕСУДА", "PRESUDA"]),
@@ -55,6 +59,56 @@ _HEURISTICS: list[tuple[str, list[str]]] = [
 
 _DOSTAVNICA_OZNAKE = ("ДОСТАВНИЦА", "DOSTAVNICA", "ПОВРАТНИЦА", "POVRATNICA")
 
+# QA-02: reč koja sme da stoji ispred ključne reči naslova („PREDLOG TUŽBE“ je tužba; „NACRT UGOVORA“ nije
+# prepoznat jer je „UGOVORA“ drugi oblik — tada odlučuje model).
+_PREFIKSI_NASLOVA = ("PREDLOG", "ПРЕДЛОГ", "NACRT", "НАЦРТ")
+# QA-02: naslovi pismena kojih nema u taksonomiji (DOCUMENT_TYPES). Kad je takav naslov prvi, svaki kasniji red koji
+# počinje ključnom reči opisuje DRUGI dokument (zapisnik/potvrda „po UGOVORU br. …“) — isto pravilo kao N06 za
+# dostavnicu, samo vezano za početak reda. Pošten ishod je model (`other` kad nije siguran), ne tuđi tip sa 0.85.
+_NASLOVI_VAN_TAKSONOMIJE = (
+    "ЗАПИСНИК", "ZAPISNIK", "ПОТВРДА", "POTVRDA", "ОТПРЕМНИЦА", "OTPREMNICA", "ПРИЗНАНИЦА", "PRIZNANICA",
+    "ИЗЈАВА", "IZJAVA", "ОБАВЕШТЕЊЕ", "OBAVEŠTENJE", "OBAVESTENJE",
+) + _DOSTAVNICA_OZNAKE
+
+
+_REDNI_BROJ = re.compile(r"^\d{1,2}[.)]\s+")
+# Ostatak reda posle ključne reči: „:“, „br./broj/no“ ili kratka oznaka upisnika pa broj („Iv 55/24“, „P. 12“, „5/2026“).
+_POZIV_NA_AKT = re.compile(r"\s*(?::|(?:br|бр|broj|број|no)\b\.?|[^\W\d_]{0,4}\.?\s*\d)", re.IGNORECASE)
+
+
+def _red_naslova(red: str) -> str:
+    """Red bez okolnih razmaka, crtica/zvezdica, navodnika i rednog broja („1. TUŽBA“, „„UGOVOR…“”); razmaknut
+    naslov („T U Ž B A“, „R E Š E NJ E“) se sastavlja."""
+    red = _REDNI_BROJ.sub("", red.strip().lstrip("-–—*•·„“”\"'«» ").strip())
+    delovi = red.split()
+    if len(delovi) >= 4 and all(len(d) <= 2 for d in delovi):
+        red = "".join(delovi)
+    return red
+
+
+def _pocinje_recju(red: str, rec: str) -> bool:
+    """`rec` je na početku reda, napisana VELIKIM slovima kao u izvoru, i iza nje nije slovo (UGOVOR ≠ UGOVORU)."""
+    return red.startswith(rec) and not red[len(rec):len(rec) + 1].isalpha()
+
+
+def _naslovni_tip(red: str):
+    """(tip, poziv) kad red POČINJE ključnom reči (ili prefiksom pa ključnom reči); duža reč pobeđuje
+    („ODGOVOR NA TUŽBU“ > „TUŽBA“, „РЕШЕЊЕ О ИЗВРШЕЊУ“ > „РЕШЕЊЕ“). `poziv` = iza reči odmah „:“ ili broj
+    („RAČUN: 205-…“, „REŠENJE Iv 55/24“) — oznaka/poziv na drugi akt, ne pouzdan naslov. Inače None."""
+    kandidati = [red]
+    for p in _PREFIKSI_NASLOVA:
+        if _pocinje_recju(red, p):
+            kandidati.append(red[len(p):].lstrip())
+    for k in kandidati:
+        najbolji = None
+        for doc_type, keywords in _HEURISTICS:
+            for kw in keywords:
+                if _pocinje_recju(k, kw) and (najbolji is None or len(kw) > len(najbolji[1])):
+                    najbolji = (doc_type, kw)
+        if najbolji:
+            return najbolji[0], bool(_POZIV_NA_AKT.match(k[len(najbolji[1]):]))
+    return None
+
 
 def classify_heuristic(text: str) -> tuple[str, float] | None:
     """Vraća (document_type, confidence) ako je neka ključna reč prepoznata
@@ -62,18 +116,65 @@ def classify_heuristic(text: str) -> tuple[str, float] | None:
     namerno konzervativan (0.85) — dovoljno visok za auto-accept prag (§14
     dizajn review, ≥90% opšte, ali klasifikacija ovde nosi manji rizik od
     case-matcha pa je 85% prihvatljivo kao heuristički signal, ne slepo
-    veruj — LLM fallback postoji baš za slučajeve gde ovo nije dovoljno)."""
-    head = (text or "")[:_HEAD_CHARS].upper()
+    veruj — LLM fallback postoji baš za slučajeve gde ovo nije dovoljno).
+
+    QA-02: vrstu određuje NASLOV — red zaglavlja koji POČINJE ključnom reči napisanom velikim slovima — a ne
+    usputno pominjanje drugog dokumenta („po Ugovoru…“, „navodi tužbe…“). Ranije je pobeđivala prva vrsta iz
+    liste čija se reč javi bilo gde u zaglavlju, pa su predlog tužbe, zapisnik i potvrda isporuke postajali
+    `contract`, a odgovor na tužbu koji pominje „TUŽBA“ — `lawsuit`. Bez prepoznatog naslova: None (model).
+
+    QA-02 završni gejt: heuristika odgovara SAMO kad je zaglavlje jednoznačno. Svi redovi koji počinju ključnom reči
+    (do stop-reči ili dostavnice) moraju dati istu vrstu, i nijedan ne sme biti poziv na drugi akt („RAČUN: 205-…“,
+    „REŠENJE Iv 55/24“, „UGOVOR O ZAKUPU br. 5“). Inače None → postojeći model. „Prvi red pobeđuje“ je u nezavisnim
+    korpusima davao samouverene pogrešne vrste kad memorandum, broj pobijanog akta ili sporni ugovor stoje iznad
+    stvarnog naslova."""
+    head = (text or "")[:_HEAD_CHARS]
+    head_upper = head.upper()
     # N06: dostavnica/povratnica imenuje URUČENO pismeno („Писмено: пресуда“) — ključna reč posle njenog naslova
     # opisuje drugi dokument, ne ovaj. Tada odlučuje LLM (taksonomija nema tip „dostavnica“, pa je pošten ishod
     # „other“), ne heuristika sa 0.85 za tuđi tip.
-    dostavnica = min((head.find(o) for o in _DOSTAVNICA_OZNAKE if o in head), default=-1)
+    dostavnica = min((head_upper.find(o) for o in _DOSTAVNICA_OZNAKE if o in head_upper), default=-1)
+    pozicija = 0
+    tipovi: set = set()
+    tipovi_veto: set = set()
+    for sirov in head.split("\n"):
+        pocetak, pozicija = pozicija, pozicija + len(sirov) + 1
+        if 0 <= dostavnica < pocetak:          # red je posle oznake dostavnice: opisuje uručeno pismeno
+            break
+        red = _red_naslova(sirov)
+        if not red:
+            continue
+        # Stop-reč (i malim slovima, „Zapisnik o primopredaji“): sve posle nje opisuje drugi dokument.
+        if any(_pocinje_recju(red.upper(), n) for n in _NASLOVI_VAN_TAKSONOMIJE):
+            break
+        veto = _naslovni_tip(red.upper()) if red != red.upper() else None
+        if veto:                               # naslov malim slovima („Žalba tužioca“): samo glas PROTIV, nikad za
+            tipovi_veto.add(veto[0])
+        nadjen = _naslovni_tip(red)
+        if nadjen:
+            if nadjen[1]:                      # poziv na drugi akt u zaglavlju → zaglavlje nije jednoznačno
+                return None
+            tipovi.add(nadjen[0])
+    if len(tipovi) != 1 or not tipovi_veto <= tipovi:
+        return None
+    tip = tipovi.pop()
+    # Treći korpus pregleda: i jednoznačan red velikim slovima može biti tuđi akt („Pobijana odluka: / PRESUDA …“
+    # ispod naslova „Žalba“ napisanog malim slovima). Zato heuristika odgovara samo kad se slaže i sa ranijim
+    # pravilom (bilo gde u zaglavlju); neslaganje = dvosmisleno zaglavlje → model. Po konstrukciji ova funkcija ne
+    # može da vrati vrstu koju ranije pravilo nije vraćalo — nema NOVIH lažno pozitivnih vrsta.
+    return (tip, 0.85) if _ranije_pravilo(head_upper, dostavnica) == tip else None
+
+
+def _ranije_pravilo(head_upper: str, dostavnica: int):
+    """Pravilo pre QA-02 (3ab9343e): prva vrsta iz `_HEURISTICS` čija se reč javi bilo gde u zaglavlju, uz N06
+    pravilo dostavnice. Jedina razlika je genitiv „TUŽBE“ u listi (beta „PREDLOG TUŽBE“). Koristi se samo kao
+    saglasnost, nikad samostalno."""
     for doc_type, keywords in _HEURISTICS:
         for kw in keywords:
-            pozicija = head.find(kw.upper())
-            if pozicija < 0 or 0 <= dostavnica < pozicija:
+            p = head_upper.find(kw.upper())
+            if p < 0 or 0 <= dostavnica < p:
                 continue
-            return doc_type, 0.85
+            return doc_type
     return None
 
 
