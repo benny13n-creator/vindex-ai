@@ -5,3 +5,12 @@
 #                     supported" for every one of them (NS3-N02). Pinned to the
 #                     version the suite is run with locally.
 pytest-asyncio==1.4.0
+#   psycopg[binary] -- drajver za dokaze nad PRAVIM izolovanim PostgreSQL-om (scripts/test_db.py,
+#                     naplata, migracije, NS4 G1/G2/O1/O3). Bez njega su ti testovi bili preskočeni,
+#                     a fail-closed `test_db.py verify` je vraćao kod 3 pre ikakve provere hosta/porta.
+#   anthropic, google-generativeai -- samo ugovor adaptera u shared/ai_fabric.py (test_ai_fabric_contract
+#                     9/10, SDK klijent je zamenjen; bez mreže i bez plaćenih poziva). Produkcija ih ne
+#                     instalira i ti provajderi tamo nisu konfigurisani.
+psycopg[binary]==3.3.4
+anthropic==0.120.0
+google-generativeai==0.8.6
