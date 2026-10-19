@@ -60,10 +60,11 @@ def zabelezi_ishod_predmeta(b, p):
              "presudni_faktori": list(p.get("p_faktori") or []), "trajanje_meseci": p.get("p_trajanje_meseci"),
              "vrednost_spora_rsd": p.get("p_vrednost_spora"), "komentar": p.get("p_komentar"), "tip_spora": tip,
              "uzroci": list(p.get("p_uzroci") or []), "kontekst_poraza": p.get("p_kontekst_poraza")}
+    sada = _sada().isoformat()  # kao DEFAULT now() (037) i `updated_at = now()` u ON CONFLICT (139)
     if stari:
-        stari.update(polja)
+        stari.update(polja, updated_at=sada)
     else:
-        ol.append({"id": str(uuid.uuid4()), **polja})
+        ol.append({"id": str(uuid.uuid4()), **polja, "created_at": sada, "updated_at": sada})
     b.dnevnik.append({"tabela": "outcome_log", "radnja": "upsert", "filteri": []})
     for vrsta in sorted({x for x in (tip, stari_tip) if x}):
         _zbir(b, uid, vrsta)

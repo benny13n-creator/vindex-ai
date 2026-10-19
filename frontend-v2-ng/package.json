@@ -55,7 +55,10 @@
     "e2e:dokaz-zastarelost": "node tests/live-dokaz-zastarelost-e2e.mjs",
     "e2e:savetnici": "node tests/live-savetnici-e2e.mjs",
     "e2e:prijem-oporavak": "node tests/live-prijem-oporavak-e2e.mjs",
-    "e2e:nazivi": "node tests/live-nazivi-e2e.mjs"
+    "e2e:nazivi": "node tests/live-nazivi-e2e.mjs",
+    "verify:live-prijem-pracenje": "node tests/live-prijem-pracenje.mjs",
+    "e2e:rok-odluka": "node tests/live-rok-odluka-e2e.mjs",
+    "e2e:vrsta-dokumenta": "node tests/live-vrsta-dokumenta-e2e.mjs"
   },
   "keywords": [],
   "author": "",
