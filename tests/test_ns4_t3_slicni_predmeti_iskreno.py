@@ -18,7 +18,10 @@ TEK = "aaaaaaaa-4444-4000-8000-000000000001"
 
 
 def _zatvoren(i, ishod_tip="radni"):
-    return {"id": f"aaaaaaaa-4444-4000-8000-0000000001{i:02d}", "user_id": "uid-A", "naziv": f"Zatvoren {i}",
+    # NS4-R3: međusobno razlikovani identiteti i u prvih 8 znakova. Ranije zajednički prefiks `aaaaaaaa` — test
+    # „uzorak 4" je prolazio iako je ruta JEDAN predmet brojala četiri puta (v. test_ns4r_nezavisni_pregled).
+    c = f"{i + 1:x}"
+    return {"id": f"{c * 4}c0de-4444-4000-8000-0000000001{i:02d}", "user_id": "uid-A", "naziv": f"Zatvoren {i}",
             "status": "zatvoren", "tip": ishod_tip}
 
 
@@ -44,7 +47,7 @@ def svet(monkeypatch):
 
 def _model_rangira(monkeypatch, zatv):
     monkeypatch.setenv("OPENAI_API_KEY", "test-nije-pravi")
-    odgovor = {"rezultati": [{"predmet_id_prefix": p["id"][:8], "slicnost": 90,
+    odgovor = {"rezultati": [{"predmet_id": p["id"], "slicnost": 90,
                               "razlog": "isti tip"} for p in zatv]}
 
     def _lazni(_client, **_kw):
@@ -86,6 +89,7 @@ def test_uzorak_prikazan_i_bez_tvrdnje_o_uzroku(svet, monkeypatch):
     rez = _zovi(k)
     s = rez["strategija_preporuka"]
     assert rez.get("uzorak") == 4 and "4" in s
+    assert len({x["predmet_id"] for x in rez["slicni_predmeti"]}) == 4, "uzorak nisu četiri različita predmeta"
     assert "presudni faktor u pobedama" not in s, "izbor advokata predstavljen kao uzrok pobede"
     assert "nije predviđanje" in s.lower() or "ne predviđanje" in s.lower()
 

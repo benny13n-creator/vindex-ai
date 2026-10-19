@@ -1446,8 +1446,11 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
         # „confidence_score je ispod praga“ — pogrešan razlog, a advokat nije znao da upis nije uspeo.
         return {
             "status": "approved", "indexed": False, "razlog": "INDEKSIRANJE_NIJE_USPELO",
-            "poruka": ("Nacrt je odobren, ali upis u bazu znanja kancelarije nije uspeo — nacrt nije pretraživ "
-                       "u znanju kancelarije. Ponovno odobravanje ga ne dodaje; podrška može da ponovi upis."),
+            # NS4-R2: deo delova je možda fizički upisan — ne tvrdi se „nije pretraživ", nego ono što sistem zna:
+            # upis nije potvrđen kao potpun, pa se nacrt ne koristi kao overen izvor (`vazece_overe`).
+            "poruka": ("Nacrt je odobren, ali upis u bazu znanja kancelarije nije potvrđen kao potpun — sistem ga "
+                       "zato ne koristi kao overen izvor u znanju kancelarije. Ponovno odobravanje ga ne dodaje; "
+                       "podrška može da ponovi upis."),
         }
     return {
         "status": "approved", "indexed": False, "razlog": "ISPOD_PRAGA",

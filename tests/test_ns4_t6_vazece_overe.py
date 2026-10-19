@@ -16,7 +16,10 @@ P1, P2 = "aaaaaaaa-6666-4000-8000-000000000001", "aaaaaaaa-6666-4000-8000-000000
 
 def _baza():
     return h5.Baza({"staging_memory": [
-        {"id": "s-ok", "predmet_id": P1, "status": "approved", "is_lawyer_approved": True},
+        # NS4-R2: overen vektor važi samo uz `pinecone_indexed=True` (potpun upis) — v. test_ns4r_nezavisni_pregled
+        {"id": "s-ok", "predmet_id": P1, "status": "approved", "is_lawyer_approved": True, "pinecone_indexed": True},
+        {"id": "s-nepotpun", "predmet_id": P1, "status": "approved", "is_lawyer_approved": True,
+         "pinecone_indexed": False},
         {"id": "s-ceka", "predmet_id": P1, "status": "pending", "is_lawyer_approved": False},
         {"id": "s-odbijen", "predmet_id": P1, "status": "rejected", "is_lawyer_approved": False},
         {"id": "s-bez-overe", "predmet_id": P1, "status": "approved", "is_lawyer_approved": False},
@@ -26,6 +29,7 @@ def _baza():
 
 @pytest.mark.parametrize("parent,predmet,vazi", [
     ("s-ok", P1, True),
+    ("s-nepotpun", P1, False),      # odobren, upis u indeks nepotpun/pao
     ("s-ceka", P1, False),
     ("s-odbijen", P1, False),
     ("s-bez-overe", P1, False),

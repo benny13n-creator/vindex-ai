@@ -215,6 +215,9 @@ async def zabeleži_ishod(
     isti_ishod = bool(postojeci_ishod) and postojeci_ishod.get("ishod") == req.ishod and (
         sorted(postojeci_ishod.get("presudni_faktori") or []) == sorted(req.presudni_faktori or [])
     )
+    # NS4-R1: advokat je mogao da promeni SAMO vrstu spora (`predmeti.tip`) — isti ishod i faktori. `outcome_log`
+    # se tada upisuje sa novom vrstom, ali `isti_ishod` je preskakao preračun: doprinos je ostajao u staroj vrsti.
+    ista_vrsta = bool(postojeci_ishod) and postojeci_ishod.get("tip_spora") == tip_spora
 
     # 1. Upsert outcome_log (uključuje root cause analizu)
     try:
@@ -252,7 +255,7 @@ async def zabeleži_ishod(
     # 2. case_patterns — NS4-T3: preračun iz outcome_log-a za vrstu spora ovog i (ako se promenila) prethodnog
     # ishoda; isti ishod (ponovljeno slanje) ne dira ništa. Neuspeh je non-fatal kao i ranije: ishod je sačuvan,
     # brojači se ispravljaju pri sledećem upisu ishoda te vrste.
-    if not isti_ishod:
+    if not (isti_ishod and ista_vrsta):
         _vrste = {tip_spora} | ({postojeci_ishod.get("tip_spora")} if postojeci_ishod and postojeci_ishod.get("tip_spora") else set())
         for _vrsta in sorted(v for v in _vrste if v):
             try:
@@ -490,6 +493,10 @@ _NAPOMENA_ISTORIJA = ("Ovo je opis istorije kancelarije, nije predviđanje ishod
                       "faktor uzrok ishoda. Sličnost je procena po nazivu i vrsti predmeta, ne po činjenicama.")
 
 
+_ISTORIJA_NEDOSTUPNA = ("Istorija ishoda kancelarije trenutno nije dostupna — ovo NIJE potvrda da sličnih "
+                        "predmeta nema. Pokušajte ponovo.")
+
+
 def _bez_uporedivih() -> dict:
     return {"slicni_predmeti": [], "ukupno_slicnih": 0, "uzorak": 0, "stanje": "NEDOVOLJNO_PODATAKA",
             "strategija_preporuka": "Nema zatvorenih predmeta sa zabeleženim ishodom za poređenje."}
@@ -524,8 +531,9 @@ async def slicni_predmeti(
         )
         zatvoreni = _safe(zatvoreni_r)
     except Exception as e:
+        # NS4-R4: greška čitanja nije prazna istorija — „nema uporedivih predmeta" bi bila neproverena tvrdnja.
         logger.warning("[LEARNING] zatvoreni predmeti greška: %s", e)
-        return _bez_uporedivih()
+        raise HTTPException(status_code=503, detail=_ISTORIJA_NEDOSTUPNA)
 
     if not zatvoreni:
         return _bez_uporedivih()
@@ -540,8 +548,9 @@ async def slicni_predmeti(
                 .execute()
         )
         outcomes_map = {o["predmet_id"]: o for o in _safe(outcomes_r)}
-    except Exception:
-        outcomes_map = {}
+    except Exception as e:
+        logger.warning("[LEARNING] outcome_log greška (slični predmeti): %s", e)
+        raise HTTPException(status_code=503, detail=_ISTORIJA_NEDOSTUPNA)
 
     # Samo predmeti sa poznatim ishodom
     sa_ishodom = [p for p in zatvoreni if p["id"] in outcomes_map]
@@ -549,8 +558,10 @@ async def slicni_predmeti(
         return _bez_uporedivih()
 
     # GPT-4o-mini rangira sličnost
+    # NS4-R3: model dobija i vraća PUN id. Ranije prvih 8 znakova — predmeti sa istim prefiksom su se slivali u
+    # jedan, pa je isti predmet brojan više puta kao „više sličnih predmeta".
     lista_txt = "\n".join(
-        f'[{i+1}] predmet_id={p["id"][:8]} naziv="{p.get("naziv","")[:60]}" '
+        f'[{i+1}] predmet_id={p["id"]} naziv="{p.get("naziv","")[:60]}" '
         f'tip={p.get("tip","?")}'
         for i, p in enumerate(sa_ishodom[:20])
     )
@@ -561,7 +572,7 @@ async def slicni_predmeti(
         f'opis="{(predmet.get("opis") or "")[:300]}"\n\n'
         f'Zatvoreni predmeti kancelarije:\n{lista_txt}\n\n'
         f'Rangira top 5 najsličnijih. Vrati SAMO JSON niz:\n'
-        f'[{{"predmet_id_prefix":"prva 8 slova","slicnost":85,"razlog":"..."}}]\n'
+        f'[{{"predmet_id":"pun predmet_id iz liste","slicnost":85,"razlog":"..."}}]\n'
         f'Ekavica. Budi konkretan o razlogu sličnosti.'
     )
 
@@ -591,21 +602,30 @@ async def slicni_predmeti(
         logger.warning("[LEARNING] GPT sličnost greška: %s", e)
         # Fallback: vrati prvih 5 istog tipa
         rangirani = [
-            {"predmet_id_prefix": p["id"][:8], "slicnost": None, "razlog": "Isti tip spora (ocena sličnosti nije dostupna)"}
+            {"predmet_id": p["id"], "slicnost": None, "razlog": "Isti tip spora (ocena sličnosti nije dostupna)"}
             for p in sa_ishodom[:5]
             if p.get("tip") == predmet.get("tip")
         ]
     else:
         _ai_koriscen = True
 
-    # Enrich sa outcome podacima
-    predmet_by_prefix = {p["id"][:8]: p for p in sa_ishodom}
-    result = []
+    # Enrich sa outcome podacima — NS4-R3: identitet po punom id-u; prefiks (stari oblik odgovora) samo ako je
+    # JEDINSTVEN među kandidatima. Dvosmislen/nepoznat identitet se odbacuje; isti predmet se broji jednom.
+    po_id = {p["id"]: p for p in sa_ishodom}
+    po_prefiksu: dict = {}
+    for p in sa_ishodom:
+        po_prefiksu.setdefault(p["id"][:8], []).append(p)
+    result, vidjeni = [], set()
     for r in rangirani[:5]:
-        prefix = r.get("predmet_id_prefix", "")[:8]
-        p = predmet_by_prefix.get(prefix)
-        if not p:
+        if not isinstance(r, dict):
             continue
+        p = po_id.get(str(r.get("predmet_id") or ""))
+        if p is None:
+            kandidati = po_prefiksu.get(str(r.get("predmet_id_prefix") or "")[:8]) or []
+            p = kandidati[0] if len(kandidati) == 1 else None
+        if not p or p["id"] in vidjeni:
+            continue
+        vidjeni.add(p["id"])
         outcome = outcomes_map.get(p["id"], {})
         result.append({
             "predmet_id":         p["id"],

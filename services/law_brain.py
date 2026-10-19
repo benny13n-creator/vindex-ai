@@ -845,7 +845,11 @@ def vazece_overe(supa, parovi) -> set:
     """JEDINO pravilo važenja LAWYER_VERIFIED vektora (Law Brain pretraga i RAG `retrieve_documents`):
     `parent_id` postoji, njegov staging red je `approved` + `is_lawyer_approved` i pripada ISTOM predmetu kao
     vektor (Task 20 — overa se ne može „pozajmiti"). Odbijanje posle promocije (Task 21) gasi vektor ODMAH,
-    bez čekanja na brisanje iz Pinecone-a. Greška baze se propušta — pozivalac bira fail-closed."""
+    bez čekanja na brisanje iz Pinecone-a. Greška baze se propušta — pozivalac bira fail-closed.
+
+    NS4-R2: i `pinecone_indexed is True` — promocija ga postavlja SAMO kad je ceo dokument u indeksu
+    (`ingest_je_potpun`). Posle nepotpunog upisa ili pada usred upisa delovi mogu fizički postojati u Pinecone-u,
+    a red je `approved`; bez ovog uslova ti delovi su servirani kao kompletan, overen izvor."""
     trazeni = {}
     for parent, predmet in parovi:
         if parent:
@@ -853,10 +857,11 @@ def vazece_overe(supa, parovi) -> set:
     if not trazeni:
         return set()
     out = set()
-    for r in _in_upit(supa, "staging_memory", "id,predmet_id,status,is_lawyer_approved", "id", trazeni):
+    for r in _in_upit(supa, "staging_memory", "id,predmet_id,status,is_lawyer_approved,pinecone_indexed", "id",
+                      trazeni):
         rid = str(r.get("id") or "")
         if (r.get("status") == "approved" and r.get("is_lawyer_approved") is True
-                and rid in trazeni and str(r.get("predmet_id") or "") == trazeni[rid]):
+                and r.get("pinecone_indexed") is True and rid in trazeni and str(r.get("predmet_id") or "") == trazeni[rid]):
             out.add(rid)
     return out
 
