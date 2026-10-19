@@ -33,6 +33,16 @@ def _real_request(path="/api/multi-agent/pipeline"):
     })
 
 
+@pytest.fixture(autouse=True)
+def _izolovan_kes_politika(monkeypatch):
+    """Keš `shared.feature_registry` je globalan za proces: test koji ga ranije napuni (nasumičan redosled u CI-ju)
+    uključi proveru budžeta niza, a ona bez baze daje 503. Ovi testovi mere ponašanje niza i naplatu kroz zamenjen
+    run_agent, pa počinju od istog stanja kao kad se pokreću sami: prazan keš."""
+    import shared.feature_registry as fr
+    monkeypatch.setattr(fr, "_CACHE", {})
+    monkeypatch.setattr(fr, "_CACHE_LOADED_AT", 0.0)
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
