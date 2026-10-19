@@ -194,8 +194,19 @@ Bez DROP-a, bez prepisivanja podataka, bez masovnog backfill-a. Provera posle pr
 svakog fajla. **Nijedna nije izvršena na produkciji.**
 
 ## 9. CI
-Vidi odeljak „CI" u odgovoru osnivaču / PR. Lokalno: sve iznad. CI nema PostgreSQL servis → PG testovi se u CI
-preskaču (navedeno, ne prikriva se).
+
+Draft PR **#47** (https://github.com/benny13n-creator/vindex-ai/pull/47), head `16dbc3a4` (kod `ed7c7ee2` + izveštaj).
+Poređenje ID-eva padova sa CI-jem osnove `cc8bd548` (isti poslovi):
+
+| Posao | Grana (job id) | Osnova (job id) | ID-evi padova |
+|---|---|---|---|
+| pytest (Python 3.11) | 9 failed, 11058 passed, 219 skipped (118230434522) | 9 failed, 10936 passed, 90 skipped (117748418770) | identični, 0 novih |
+| pytest (Python 3.13) | 9 failed, 11058 passed, 219 skipped (118230434047) | 9 failed, 10936 passed, 90 skipped (117748419042) | identični, 0 novih |
+| Import app + full suite (3.11, prod) | 10 failed, 10533 passed (118230432993) | 10 failed, 10412 passed (117748419093) | identični, 0 novih |
+| Byte-compile 3.11, Docker build + boot, SAST, semgrep, dependency-scan, secret-scan | success | — | — |
+
++129 preskočenih = PostgreSQL dokazi (CI nema PostgreSQL servis; lokalno 130 passed). Padovi osnove su postojeći,
+nepovezani sa NS4 (isti ID-evi pre i posle). PR NIJE spojen.
 
 ## 10. Plan puštanja (posle odobrenja)
 1. Osnivač primenjuje 138, 139, 140 u Supabase SQL editoru i pokreće provere iz zaglavlja (očekivani rezultati navedeni).
