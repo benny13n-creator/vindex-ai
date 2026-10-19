@@ -10,8 +10,9 @@ Ovde, kroz STVARNE legacy rute `/api/firma-memorija/*`:
   • suspendovan / uklonjen član i član sa zastarelom vrednošću `aktivan` (pre migracije 067) ne vide ništa;
   • solo advokat (bez kancelarije) ne dobija ničije znanje;
   • tuđ, nepostojeći i neispravan `predmet` u upisu beleške → isti 404, ništa upisano;
-  • `client_memory` (profil klijenta po IMENU) — kolega vidi profil tuđeg klijenta: zabeleženo kao strogi xfail
-    (odluka osnivača; tabela nema vlasnika, vidi izveštaj NS4 §Task 2).
+  • `client_memory` (profil klijenta) — bio vezan za IME, kolega je video profil tuđeg klijenta (strogi xfail do
+    NS4 završnog zatvaranja). Sada vezan za identitet klijenta i vlasnika: test ispod PROLAZI; matrica u
+    tests/test_ns4f_o2_profil_klijenta.py.
 """
 import pytest
 
@@ -93,8 +94,6 @@ def test_beleska_uz_predmet_koji_korisnik_ne_sme_da_vidi_se_ne_upisuje(svet, ent
     assert len(baza.tabele["memory_entries"]) == pre
 
 
-@pytest.mark.xfail(strict=True, reason="NS4-T2 nalaz: client_memory je vezan za IME klijenta, bez vlasnika — "
-                                       "kolega iz kancelarije čita profil tuđeg klijenta. Odluka osnivača.")
 def test_kolega_ne_vidi_profil_tudjeg_klijenta(svet):
     napravi, _ = svet
     k, baza = napravi()

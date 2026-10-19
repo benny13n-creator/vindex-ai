@@ -122,6 +122,9 @@ def test_odobrenje_koristi_preuzeti_red_a_ne_zastarelo_citanje(ok, monkeypatch):
         def __init__(self, s):
             self.s = s
 
+        def rpc(self, *a, **kw):                     # NS4 O3: završetak promocije je RPC (migracija 140)
+            return self.s.rpc(*a, **kw)
+
         def table(self, ime):
             t = self.s.table(ime)
             if ime != "staging_memory":

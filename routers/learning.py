@@ -107,47 +107,11 @@ def _safe_one(r) -> dict:
     return d or {}
 
 
-_STRANA = 1000  # PostgREST max-rows po odgovoru
-
-
-def _preracunaj_obrasce(supa, uid: str, tip_spora: str) -> int:
-    """NS4-T3: `case_patterns` za (korisnik, vrsta spora) kao FUNKCIJA `outcome_log`-a (jedan red po predmetu).
-
-    Ranije su se brojači UVEĆAVALI samo pri prvom ishodu predmeta: ispravka pobeda → poraz zadržavala je staru
-    pobedu, promena faktora/vrste spora stari doprinos, a dva istovremena prva slanja oba uvećavala. Preračunavanje
-    iz izvora je idempotentno — ponovljeno slanje, ispravka i trka daju isti zbir. Faktor koji više nema nijedan
-    ishod ostaje sa nulama (red se ne briše). Vraća broj faktora sa bar jednim ishodom; greška se propušta."""
-    from types import SimpleNamespace
-    from shared.stranicenje import strana_ili_prazna
-    ishodi, od = [], 0
-    while True:
-        # offset iza kraja (tačno _STRANA redova, ili obrisani između strana) = PGRST103 → prazna strana
-        r = strana_ili_prazna(
-            lambda p=od: (supa.table("outcome_log").select("predmet_id,ishod,presudni_faktori")
-                          .eq("user_id", uid).eq("tip_spora", tip_spora).order("predmet_id")
-                          .range(p, p + _STRANA - 1).execute()),
-            lambda: SimpleNamespace(count=None))
-        strana = _safe(r)
-        ishodi += strana
-        if len(strana) < _STRANA:
-            break
-        od += _STRANA
-    brojaci: dict = {}
-    for o in ishodi:
-        for f in dict.fromkeys((o.get("presudni_faktori") or [])[:10]):
-            b = brojaci.setdefault(f, {"pobede": 0, "porazi": 0, "ukupno": 0})
-            b["pobede"] += o.get("ishod") == "pobeda"
-            b["porazi"] += o.get("ishod") == "poraz"
-            b["ukupno"] += 1
-    postojeci = {x["faktor"]: x["id"] for x in _safe(
-        supa.table("case_patterns").select("id,faktor").eq("user_id", uid).eq("tip_spora", tip_spora).execute())}
-    for f in sorted(set(brojaci) | set(postojeci)):
-        vr = brojaci.get(f, {"pobede": 0, "porazi": 0, "ukupno": 0})
-        if f in postojeci:
-            supa.table("case_patterns").update(vr).eq("id", postojeci[f]).execute()
-        else:
-            supa.table("case_patterns").insert({"user_id": uid, "tip_spora": tip_spora, "faktor": f, **vr}).execute()
-    return len(brojaci)
+# NS4 G1/G2: `case_patterns` se više NE preračunava u Pythonu (čitanje → računanje → upis u zasebnim PostgREST
+# pozivima: zastareo upis je prepisivao tačan zbir, čitanje bez straničenja pucalo iznad max-rows, a pad između
+# upisa ishoda i preračuna ostavljao zbir zastarelim). Ishod i zbir upisuje JEDNA transakcija u bazi —
+# `zabelezi_ishod_predmeta` (migracija 139). Dokaz nad stvarnim PostgreSQL-om: tests/test_ns4f_pg_ishod.py.
+_RPC_ISHOD = "zabelezi_ishod_predmeta"
 
 
 async def _dohvati_predmet(supa, predmet_id: str, uid: str) -> dict:
@@ -219,49 +183,33 @@ async def zabeleži_ishod(
     # se tada upisuje sa novom vrstom, ali `isti_ishod` je preskakao preračun: doprinos je ostajao u staroj vrsti.
     ista_vrsta = bool(postojeci_ishod) and postojeci_ishod.get("tip_spora") == tip_spora
 
-    # 1. Upsert outcome_log (uključuje root cause analizu)
+    # 1+2. Ishod i `case_patterns` u JEDNOJ transakciji (NS4 G1/G2, migracija 139): brava po korisniku,
+    # vlasništvo predmeta i vrsta spora čitaju se u transakciji, zbir za novu i (ako se promenila) staru vrstu
+    # spora računa se skupovno iz `outcome_log` (bez ograničenja broja redova). Greška → ni ishod ni zbir nisu
+    # upisani (rollback) — isto kao ranije pri padu upisa ishoda: predmet ostaje otvoren, advokat ponavlja.
     try:
         await asyncio.to_thread(
-            lambda: supa.table("outcome_log").upsert({
-                "predmet_id":        req.predmet_id,
-                "user_id":           uid,
-                "ishod":             req.ishod,
-                "presudni_faktori":  req.presudni_faktori,
-                "trajanje_meseci":   req.trajanje_meseci,
-                "vrednost_spora_rsd": req.vrednost_spora_rsd,
-                "komentar":          (req.komentar or "")[:2000],
-                "tip_spora":         tip_spora,
-                "uzroci":            req.uzroci[:10],
-                "kontekst_poraza":   (req.kontekst_poraza or "")[:3000],
-            }, on_conflict="predmet_id").execute()
+            lambda: supa.rpc(_RPC_ISHOD, {
+                "p_user_id":         uid,
+                "p_predmet_id":      req.predmet_id,
+                "p_ishod":           req.ishod,
+                "p_faktori":         req.presudni_faktori,
+                "p_trajanje_meseci": req.trajanje_meseci,
+                "p_vrednost_spora":  req.vrednost_spora_rsd,
+                "p_komentar":        (req.komentar or "")[:2000],
+                "p_uzroci":          req.uzroci[:10],
+                "p_kontekst_poraza": (req.kontekst_poraza or "")[:3000],
+            }).execute()
         )
     except Exception as e:
-        # S1-5 (2026-08-09): this swallowed the ONE write the endpoint exists to
-        # perform, then carried on to close the case and return
-        # "Čestitamo! Iskustvo sa ovim predmetom sada pomaže budućim analizama."
-        #
-        # The lawyer sees success, the case is closed, and the outcome row does
-        # not exist -- so the feedback form is no longer reachable, benchmarks
-        # and AI-Sudija calibration never see it, and the one datum the entire
-        # learning product is built on is lost with no way to re-enter it.
-        #
-        # Fail instead. The case stays open, so the lawyer can retry.
-        logger.error("[LEARNING] outcome_log upsert nije uspeo — prekidam: %s", e)
+        # S1-5 (2026-08-09): ranije se pad jedinog upisa zbog kog ruta postoji gutao, predmet zatvarao i
+        # advokatu javljao uspeh. Neuspeh se prijavljuje; predmet ostaje otvoren (sledeći korak se ne izvršava).
+        logger.error("[LEARNING] upis ishoda nije uspeo — prekidam: %s", type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail="Ishod predmeta nije sačuvan. Predmet NIJE zatvoren — pokušajte ponovo.",
         )
-
-    # 2. case_patterns — NS4-T3: preračun iz outcome_log-a za vrstu spora ovog i (ako se promenila) prethodnog
-    # ishoda; isti ishod (ponovljeno slanje) ne dira ništa. Neuspeh je non-fatal kao i ranije: ishod je sačuvan,
-    # brojači se ispravljaju pri sledećem upisu ishoda te vrste.
     if not (isti_ishod and ista_vrsta):
-        _vrste = {tip_spora} | ({postojeci_ishod.get("tip_spora")} if postojeci_ishod and postojeci_ishod.get("tip_spora") else set())
-        for _vrsta in sorted(v for v in _vrste if v):
-            try:
-                await asyncio.to_thread(_preracunaj_obrasce, supa, uid, _vrsta)
-            except Exception as e:
-                logger.warning("[LEARNING] case_patterns preračun nije uspeo tip=%s: %s", _vrsta, e)
         faktori_azurirani = len(dict.fromkeys(req.presudni_faktori[:10]))
 
     # 3. Ažuriraj recommendation_log za ovaj predmet (postavljanje vrednosti — idempotentno; preskače se

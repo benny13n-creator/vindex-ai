@@ -134,29 +134,13 @@ def test_zatvaranje_ne_izmislja_ishod(svet):
     assert [o["predmet_id"] for o in baza.tabele["outcome_log"]] == [PA2]
 
 
-def test_tacno_puna_strana_ne_obara_preracun(svet, monkeypatch):
-    """Broj ishoda = tačno veličina strane: sledeći `range` je iza kraja → PostgREST PGRST103. Preračun mora da
-    završi sa tačnim brojem (ranije nezaštićeno — uhvatila ga je klasna provera `test_z017_registar_offset`)."""
-    import routers.learning as L
-    from shared.stranicenje import KOD_VAN_OPSEGA
+def test_zbir_racuna_jedna_transakcija_u_bazi_ne_python(svet):
+    """NS4 G1/G2 — zamenjuje raniji test Python straničenja (`_STRANA`/PGRST103): taj mehanizam je UKLONJEN.
+    Ruta više ne čita i ne piše `case_patterns` sama; ishod i zbir idu kroz JEDAN poziv `zabelezi_ishod_predmeta`
+    (migracija 139, jedna transakcija). Granicu strane (tačno 1000 i više od 1000 redova), trke i pad usred
+    transakcije dokazuje tests/test_ns4f_pg_ishod.py nad STVARNIM PostgreSQL-om."""
     k, baza = svet
-    monkeypatch.setattr(L, "_STRANA", 1)
-    izvorni = baza.table
-
-    def sa_416(ime):
-        u = izvorni(ime)
-        if ime == "outcome_log":
-            iz = u.execute
-
-            def execute():
-                if (u.radnja[0] == "select" and u.opseg and any(f[1] == "tip_spora" for f in u.filt)
-                        and u.opseg[0] >= len(baza.tabele["outcome_log"])):
-                    e = Exception("Requested range not satisfiable")
-                    e.code = KOD_VAN_OPSEGA
-                    raise e
-                return iz()
-            u.execute = execute
-        return u
-    monkeypatch.setattr(baza, "table", sa_416)
     _posalji(k, PA, "pobeda", ["svedoci"])
+    assert len([d for d in baza.dnevnik if d["tabela"] == "rpc:zabelezi_ishod_predmeta"]) == 1
+    assert [d for d in baza.dnevnik if d["tabela"] == "case_patterns"] == [], "Python opet piše zbir mimo transakcije"
     assert _obrasci(baza) == {"svedoci": (1, 0, 1)}

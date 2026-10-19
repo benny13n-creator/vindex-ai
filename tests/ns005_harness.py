@@ -355,6 +355,10 @@ class Baza:
         self.jedinstveno = {"v2_mutation_idempotency": ("user_id", "idempotency_key")}
         # RPC implementacije po imenu (npr. intake red u tests/ns005_intake_fake.py); bez nje rpc vraća [].
         self.rpc_impl = {}
+        # NS4 zavrsno zatvaranje: migracije 139/140 (ishod predmeta, ponovni upis nacrta) -- Python verzije za
+        # testove rute; SQL semantiku dokazuju tests/test_ns4f_pg_*.py nad stvarnim PostgreSQL-om.
+        from tests.ns4f_rpc_fake import RPC_NS4
+        self.rpc_impl.update(RPC_NS4)
         self.podrazumevano = {}   # {tabela: {kolona: DEFAULT}} — kao DEFAULT u šemi
         self.storage = _Skladiste()
 

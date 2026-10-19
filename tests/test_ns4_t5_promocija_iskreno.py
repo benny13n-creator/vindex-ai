@@ -27,6 +27,7 @@ def _red(conf=0.95, sid="st-n4"):
 def _odobri(red, promocija):
     supa = MagicMock()
     supa.table.return_value = _StagingMemoryTable(red)
+    supa.rpc.side_effect = supa.table.return_value.rpc      # NS4 O3: završetak promocije je RPC (migracija 140)
     pozivi = {"n": 0}
 
     async def _promo(_supa, _row):

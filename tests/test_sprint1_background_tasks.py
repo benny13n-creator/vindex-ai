@@ -328,7 +328,9 @@ def test_learning_outcome_failure_does_not_report_success():
     import routers.learning as lr
 
     src = inspect.getsource(lr)
-    idx = src.index('supa.table("outcome_log").upsert(')
+    # NS4 G1/G2: ishod se upisuje JEDNIM RPC-om (ishod + zbir u jednoj transakciji, migracija 139) umesto
+    # `supa.table("outcome_log").upsert(` — sidro je novo mesto upisa; asercije ispod su nepromenjene.
+    idx = src.index("supa.rpc(_RPC_ISHOD")
     after = src[idx:idx + 2000]
     assert "raise HTTPException" in after, "a failed outcome write must fail the request"
     assert "NIJE zatvoren" in after, (
