@@ -46,8 +46,7 @@
 <h2>Ko je rukovalac podacima</h2>
 <p>Rukovalac podacima o ličnosti u smislu ZZPL (Zakon o zaštiti podataka o ličnosti, "Sl. glasnik RS" br. 87/2018) i GDPR (Uredba EU 2016/679) je:</p>
 <div class="card">
-  <div class="card-title">Vindex d.o.o.</div>
-  <div>Beograd, Republika Srbija</div>
+  <div class="card-title">Benjamin Nađ, osnivač Vindex AI</div>
   <div>Email: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a></div>
 </div>
 
@@ -103,7 +102,7 @@
 <div class="card">
   <div class="card-title">Pinecone Systems, Inc. — Vektorska baza</div>
   <div><strong>Lokacija:</strong> SAD (us-east-1)</div>
-  <div><strong>Podaci:</strong> Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — ne originalni tekst dokumenata. Embeddings predstavljaju matematičke vektore i nisu namenjeni niti pogodni za rekonstrukciju originalnog dokumenta. Iako ne sadrže originalni tekst u čitljivom obliku, tretiraju se kao podaci koji podležu svim odgovarajućim merama zaštite.</div>
+  <div><strong>Podaci:</strong> vektorske reprezentacije (embeddings) delova dokumenata i, uz svaki deo kao metapodatak, tekstualni segment tog dela dokumenta (do 40.000 znakova), koji služi za pretragu. Originalni fajl se ne šalje Pinecone-u, ali se tekstualni sadržaj dokumenta tamo čuva u segmentima. Ti segmenti nisu dodatno šifrovani na nivou aplikacije.</div>
   <div><strong>Izolovano po korisniku:</strong> Da</div>
   <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
 </div>
@@ -130,7 +129,7 @@
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
   <tr><td>Nalog (email, ime)</td><td>Anonimizacija odmah po odobrenom zahtevu za brisanje naloga.</td><td>Ugovor / čl. 17 GDPR</td></tr>
   <tr><td>Predmeti, klijenti i dokumenti</td><td>Zadržavaju se nepromenjeni nakon brisanja naloga, u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ne brišu se automatski povodom zahteva za brisanje naloga.<br><small style="color:#64748b;">Obrazloženje: obaveza čuvanja advokatskih spisa (Zakon o advokaturi) postoji nezavisno od statusa korisničkog naloga u Platformi. Brisanje ovih podataka mimo zakonskog roka zahteva poseban, dokumentovan zahtev na privacy@vindex.ai.</small></td><td>Zakon o advokaturi / legitimni interes čuvanja poslovne evidencije</td></tr>
-  <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
+  <tr><td>Vektori i tekstualni segmenti dokumenata (Pinecone)</td><td>Poseban rok nije utvrđen; brisanje naloga ih ne briše, jer se predmeti i dokumenti zadržavaju.</td><td>—</td></tr>
   <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
   <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
   <tr><td>Audit logovi</td><td>2 godine</td><td>Legitimni interes</td></tr>

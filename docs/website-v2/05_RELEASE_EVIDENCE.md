@@ -113,7 +113,7 @@ Spajanje PR-a → Render AutoDeploy. Bez ručnog deploy-a i bez migracija.
 5. `/sitemap.xml` sadrži 7 stranica; `/robots.txt` i dalje sadrži `Disallow: /api/`.
 6. `/app` = V2 (naslov „Aktivni predmeti · Vindex“).
 7. `/app-legacy?posle=app` bez sesije prikazuje „Prijava u Vindex“, bez „847“.
-8. `/sw.js` sadrži `vindex-v157`.
+8. `/sw.js` sadrži `vindex-v158`.
 9. Keš:
    - `Cache-Control: public, max-age=300` na stranicama;
    - posle najviše 5 minuta `/` ne sme vraćati stari naslov „Vindex — predmeti, rokovi i spisi…“.
@@ -172,3 +172,28 @@ CI rezultati za konačni HEAD, SHA spajanja i SHA na Renderu upisuju se u koment
 
 12. `/privacy` sadrži odeljak `id="beta-prijava"` i rečenicu „ne uključuje automatske backup-e“; `/dpa` ne sadrži „DPA potpisan“; `/bezbednosni-list` ne sadrži „Argon2id“.
 13. Jednak odgovor za poznatu i nepoznatu adresu u produkciji proverava se samo adresama koje je osnivač odobrio. Postupak: osnivač pošalje istu svoju adresu dva puta, a agent poredi oba odgovora; nijedna tuđa adresa se ne koristi.
+
+## 9. Night Sprint V (2026-10-21)
+
+Nalazi i zahtev osnivaču: `04_PUBLIC_CLAIMS_REVIEW.md` §G–H.
+
+| Fajl | Izmena | Razlog |
+|---|---|---|
+| `requirements.txt` | `pillow==13.0.0` | 8 CVE-ova u 12.3.0 (Security Checks pao na `a7d161e7`) |
+| `routers/waitlist.py` | escapovan HTML obaveštenja; naslov bez prelaza reda; 10/h po klijentu + 20/h i 100/dan ukupno | G11: limit po klijentu se zaobilazi `X-Forwarded-For`-om |
+| `privacy.html`, `terms.html`, `static/dpa.html`, `static/security.html`, `static/bezbednosni-list.html`, `index.html` | „Vindex d.o.o.“ → „Benjamin Nađ, osnivač Vindex AI“ / „Vindex AI“; Pinecone tekstualni segmenti | pravno lice ne postoji; `uploaded_doc/ingest.py:165` |
+| `static/sw.js` | `vindex-v157` → `vindex-v158` | menja se legacy `index.html` (pravilo projekta) |
+| `tests/test_website_v2_remediacija.py` | limit, escapovanje, Pinecone, identitet | regresioni testovi; mutacije M13–M16 uhvaćene |
+
+Nepromenjeno: dizajn, 7 stranica, katalog, `site/funkcije.json`, V2 aplikacija, auth, RLS, šema, globalni limiter.
+
+**Lokalno:**
+- `test_website_v2_remediacija.py` + `test_website_public.py`: 253 prolaza.
+- Regresija:
+  - testovi limitera i bezbednosti (12 fajlova, seme 1234): 437 prolaza i 1 preskočen;
+  - `test_lambda001_beta_readiness_fixes`: 13 prolaza.
+- `e2e:site`: 355/355.
+- Pillow 13 (91 OCR/slika fajl): isti rezultat kao 12.3.0.
+- `pip-audit`: čisto.
+
+**CI na konačnom HEAD-u** i odluka GO/NO-GO: u komentaru PR #48.

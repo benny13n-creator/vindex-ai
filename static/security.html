@@ -118,7 +118,7 @@
 </ul>
 <h3>5.3 Pinecone</h3>
 <ul>
-  <li>Čuvaju se isključivo matematički vektori (embeddings), ne originalni tekst</li>
+  <li>Uz vektore (embeddings) čuvaju se i tekstualni segmenti dokumenata kao metapodatak, radi pretrage; originalni fajl se ne šalje Pinecone-u, a segmenti nisu dodatno šifrovani na nivou aplikacije</li>
   <li>Namespace izolacija po korisniku — vektori jednog korisnika nisu dostupni drugom</li>
 </ul>
 
@@ -220,7 +220,7 @@
 
 <h2>12. Odgovornost i kontakt</h2>
 <ul>
-  <li><strong>Rukovalac podacima:</strong> Vindex d.o.o., Srbija</li>
+  <li><strong>Rukovalac podacima:</strong> Benjamin Nađ, osnivač Vindex AI</li>
   <li><strong>DPO kontakt:</strong> privacy@vindex.ai</li>
   <li><strong>Bezbednosni incidenti:</strong> security@vindex.ai</li>
   <li><strong>Status servisa:</strong> /status</li>
@@ -279,7 +279,7 @@
   <tr><th>Kategorija</th><th>Radnja</th><th>Rok</th></tr>
   <tr><td>Nalog (email, ime)</td><td>Anonimizacija</td><td>Odmah po odobrenom zahtevu</td></tr>
   <tr><td>Predmeti, klijenti, dokumenti</td><td>Zadržavaju se nepromenjeni (zakonska obaveza čuvanja spisa)</td><td>Do posebnog, dokumentovanog zahteva i pravne procene</td></tr>
-  <tr><td>Pinecone embeddings vezani za predmete</td><td>Zadržavaju se dok su predmeti aktivni u bazi</td><td>Prati status predmeta, ne nalog</td></tr>
+  <tr><td>Pinecone vektori i tekstualni segmenti vezani za predmete</td><td>Zadržavaju se; brisanje naloga ih ne briše</td><td>Poseban rok nije utvrđen</td></tr>
   <tr><td>Privremeni AI upload namespace-i (tmp_*)</td><td>Automatsko brisanje po isteku (nezavisno od statusa naloga)</td><td>Definisano vreme isteka po sesiji</td></tr>
   <tr><td>Backup kopije baze</td><td>Automatski backup-i ne postoje na aktivnom planu baze</td><td>—</td></tr>
   <tr><td>Aplikacioni logovi (Render.com)</td><td>Automatsko brisanje</td><td>90 dana od nastanka</td></tr>

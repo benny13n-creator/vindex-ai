@@ -225,23 +225,62 @@ def test_nedostupna_baza_nije_uspeh(baza, gde):
 # P0-B.2 — zaštita od zloupotrebe (postojeći globalni limit)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_globalni_limit_stize_do_forme_i_ne_lomi_legitimnu_prijavu(baza):
-    """Ruta nema sopstveni dekorator; SlowAPIMiddleware primenjuje
-    `_DEFAULT_LIMITS` (60/hour po klijentu). Prva prijava prolazi, 61. sa iste
-    adrese klijenta dobija 429 sa JSON telom, a ni jedan odbijen zahtev ne
-    upisuje ništa."""
-    from shared.rate import _DEFAULT_LIMITS, limiter
-    assert _DEFAULT_LIMITS == ["60/hour"] and limiter.enabled
+def test_limit_po_klijentu_ne_lomi_legitimnu_prijavu(baza):
+    """10 prijava sa istog klijenta prolazi, 11. dobija 429 sa JSON telom i
+    ništa ne upisuje."""
+    from shared.rate import limiter
+    assert limiter.enabled
     tabela, _ = baza
     k = TestClient(api.app)
-    prvi = _prijava(k, "limit0@example.com")
-    assert prvi.status_code == 200
-    for i in range(1, 60):
+    for i in range(10):
         assert _prijava(k, f"limit{i}@example.com").status_code == 200, i
-    r = _prijava(k, "limit60@example.com")
-    assert r.status_code == 429, r.status_code
-    assert "greska" in r.json()
-    assert len(tabela.redovi) == 60
+    r = _prijava(k, "limit10@example.com")
+    assert r.status_code == 429 and "greska" in r.json()
+    assert len(tabela.redovi) == 10
+
+
+def test_lazni_x_forwarded_for_ne_zaobilazi_ukupnu_granicu(baza):
+    """Night Sprint V (G11): ključ po klijentu je krajnje levi X-Forwarded-For,
+    koji napadač menja po volji. Ukupna granica (20/h za sve klijente) mora
+    zaustaviti 21. prijavu bez obzira na zaglavlje. Negativna kontrola: bez
+    ukupne granice svih 25 zahteva prolazi (mereno pre ispravke)."""
+    tabela, _ = baza
+    k = TestClient(api.app)
+    kodovi = [k.post("/waitlist/prijava", json={"ime": "Spam", "email": f"spam{i}@example.com"},
+                     headers={"X-Forwarded-For": f"203.0.113.{i}"}).status_code for i in range(25)]
+    assert kodovi[:20] == [200] * 20, kodovi
+    assert set(kodovi[20:]) == {429}, kodovi
+    assert len(tabela.redovi) == 20
+
+
+def test_obavestenje_escapuje_unos_sa_forme():
+    """HTML obaveštenje osnivaču ne sme izvršiti ni prikazati sirov HTML iz
+    javne forme, a ime ne sme ubaciti novo zaglavlje poruke."""
+    from email import message_from_string
+    import routers.waitlist as w
+    poslato = []
+
+    class _Smtp:
+        def __init__(self, *a, **k): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def starttls(self): pass
+        def login(self, *a): pass
+        def sendmail(self, od, za, poruka): poslato.append(poruka)
+
+    p = w.WaitlistPrijava(ime="<script>alert(1)</script>\nBcc: x@example.com", email="a@example.com",
+                          firma='<img src=x onerror="z()">', telefon="<b>1</b>", poruka="<a href='javascript:z()'>k</a>")
+    with patch.multiple(w, _SMTP_HOST="smtp.example", _SMTP_USER="u", _SMTP_PASS="p", _NOTIFY_TO="n@example.com"), \
+         patch("routers.waitlist.smtplib.SMTP", _Smtp):
+        w._send_notification(p)
+    assert len(poslato) == 1
+    m = message_from_string(poslato[0])
+    assert "Bcc" not in m and "\n" not in str(m["Subject"])
+    html_deo = next(d.get_payload(decode=True).decode("utf-8") for d in m.walk() if d.get_content_type() == "text/html")
+    for sirovo in ("<script>", "<img", "<b>1", "javascript:z()'>"):
+        assert sirovo not in html_deo, sirovo
+    assert "&lt;script&gt;" in html_deo and "&lt;img" in html_deo
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -279,6 +318,8 @@ NEPODRZANO = [
     ("GDPR/ZZPL usklađen", r"GDPR \(EU\)\s*Usklađen|ZZPL \(Srbija\)\s*Usklađen"),
     ("zaposleni nemaju pristup", r"Zaposleni Pružaoca usluge nemaju pristup"),
     ("audit svih pristupa", r"Audit logging svih pristupa|Svaki pristup production bazi"),
+    ("Pinecone čuva samo vektore", r"ne originalni tekst|isključivo matematički vektori|nisu namenjeni niti pogodni za rekonstrukciju"),
+    ("izmišljen pravni subjekt", r"Vindex d\.o\.o|Vindex doo|Vindex DOO"),
     ("dvofaktorska prijava (ne postoji u aplikaciji)", r"[Dd]vofaktorska autentifikacija \(opciono\)|Opciona dvofaktorska autentifikacija"),
 ]
 
@@ -321,3 +362,25 @@ def test_beta_stranica_upucuje_na_odeljak_politike():
     k = TestClient(api.app)
     assert 'href="/privacy#beta-prijava"' in k.get("/beta").text
     assert 'id="beta-prijava"' in k.get("/privacy").text
+
+
+def test_pinecone_tekst_je_opisan(tekstovi):
+    """`uploaded_doc/ingest.py` upisuje `"text": text_stored` u Pinecone metapodatke."""
+    for ruta in ("/privacy", "/security"):
+        assert "tekstualni segment" in tekstovi[ruta], ruta
+
+
+def test_osnivac_je_naveden_tacnom_ulogom(tekstovi):
+    for ruta in ("/privacy", "/terms", "/dpa", "/security"):
+        t = tekstovi[ruta]
+        assert re.search(r"Benjamin(a)? Nađ(a)?, osniva(č|ča) Vindex AI", t), ruta
+        assert not re.search(r"(CEO|[Dd]irektor|[Pp]redstavnik)\s.{0,20}Vindex", t), ruta
+
+
+def test_aplikacija_i_sajt_ne_navode_izmisljen_subjekt_ni_privatni_status():
+    k = TestClient(api.app)
+    for ruta in ("/app-legacy", "/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"):
+        t = k.get(ruta).text
+        assert not re.search(r"Vindex d\.o\.o|Vindex doo", t), ruta
+        for fraza in ("bez registrovane firme", "neregistrovan", "firma još ne postoji", "registracija firme"):
+            assert fraza not in t.lower(), (ruta, fraza)

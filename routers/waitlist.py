@@ -30,6 +30,7 @@ CREATE POLICY "service_only" ON waitlist USING (false);
 -------------------------------------------------------
 """
 import asyncio
+import html as _html
 import logging
 import os
 import smtplib
@@ -37,10 +38,11 @@ from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, field_validator
 
 from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
+from shared.rate import limiter
 
 logger = logging.getLogger("vindex.waitlist")
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
@@ -92,8 +94,12 @@ def _send_notification(prijava: WaitlistPrijava) -> None:
         logger.warning("SMTP nije konfigurisan — waitlist email preskočen")
         return
     try:
+        # Unos sa javne forme ide u HTML poruku samo escapovan, a u zaglavlje
+        # bez prelaza reda (ime može da sadrži `<script>` ili prelaz reda).
+        e = {k: _html.escape(getattr(prijava, k) or "", quote=True)
+             for k in ("ime", "email", "firma", "telefon", "poruka")}
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"🎉 Vindex AI: nova prijava od {prijava.ime}"
+        msg["Subject"] = f"🎉 Vindex AI: nova prijava od {' '.join(prijava.ime.split())}"
         msg["From"]    = _EMAIL_FROM or _SMTP_USER
         msg["To"]      = _NOTIFY_TO
 
@@ -111,15 +117,15 @@ def _send_notification(prijava: WaitlistPrijava) -> None:
   <h2 style="margin:0 0 20px;color:#0099bb;font-size:20px;">🎉 Nova prijava — Vindex AI</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <tr><td style="padding:7px 0;color:#666;width:80px;vertical-align:top;">Ime</td>
-        <td style="padding:7px 0;font-weight:700;">{prijava.ime}</td></tr>
+        <td style="padding:7px 0;font-weight:700;">{e['ime']}</td></tr>
     <tr><td style="padding:7px 0;color:#666;vertical-align:top;">Email</td>
-        <td style="padding:7px 0;"><a href="mailto:{prijava.email}" style="color:#0099bb;">{prijava.email}</a></td></tr>
+        <td style="padding:7px 0;"><a href="mailto:{e['email']}" style="color:#0099bb;">{e['email']}</a></td></tr>
     <tr><td style="padding:7px 0;color:#666;vertical-align:top;">Firma</td>
-        <td style="padding:7px 0;">{prijava.firma or '—'}</td></tr>
+        <td style="padding:7px 0;">{e['firma'] or '—'}</td></tr>
     <tr><td style="padding:7px 0;color:#666;vertical-align:top;">Telefon</td>
-        <td style="padding:7px 0;">{prijava.telefon or '—'}</td></tr>
+        <td style="padding:7px 0;">{e['telefon'] or '—'}</td></tr>
     <tr><td style="padding:7px 0;color:#666;vertical-align:top;">Poruka</td>
-        <td style="padding:7px 0;color:#444;font-style:{'italic' if prijava.poruka else 'normal'};">{prijava.poruka or '—'}</td></tr>
+        <td style="padding:7px 0;color:#444;font-style:{'italic' if prijava.poruka else 'normal'};">{e['poruka'] or '—'}</td></tr>
   </table>
   <p style="margin:20px 0 0;font-size:12px;color:#aaa;">{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</p>
 </div></body></html>"""
@@ -151,12 +157,23 @@ def _je_duplikat(exc: Exception) -> bool:
     return getattr(exc, "code", None) == "23505"
 
 
+# Night Sprint V (G11): ključ po klijentu (`_get_real_ip`) čita krajnje levi
+# X-Forwarded-For, koji klijent sam postavlja, pa ga promenljivo zaglavlje
+# zaobilazi. Zato forma ima i UKUPNU granicu koja ne zavisi od zaglavlja:
+# najviše 20 prijava na sat i 100 na dan za sve klijente zajedno (Redis kada
+# postoji, inače po procesu). Prekoračenje = 429; sajt tada kaže da prijava nije
+# potvrđena. Lažni upisi su ograničeni brojem, a ne samo poštenjem klijenta.
+_GLOBALNI_KLJUC = "waitlist-prijava-svi-klijenti"
+
+
 @router.post("/prijava")
-async def waitlist_prijava(body: WaitlistPrijava):
+@limiter.limit("10/hour")
+@limiter.limit("20/hour;100/day", key_func=lambda request: _GLOBALNI_KLJUC)
+async def waitlist_prijava(request: Request, body: WaitlistPrijava):
     """
     Javni endpoint — bez autentifikacije.
     Hvata prijave sa landing stranice i šalje notifikaciju osnivaču.
-    Ograničenje učestalosti: globalni SlowAPIMiddleware (`shared.rate._DEFAULT_LIMITS`).
+    Ograničenje učestalosti: 10/h po klijentu + 20/h i 100/dan ukupno (vidi iznad).
     """
     email_clean = str(body.email).strip().lower()
     supa = _get_supa()

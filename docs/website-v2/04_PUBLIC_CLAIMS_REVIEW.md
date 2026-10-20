@@ -130,3 +130,58 @@ Ovo su jedine činjenice koje agent ne sme da izmisli. Sve ostalo je završeno i
 | **F.5** | `/privacy` „Izmene … uz pisano obaveštenje Korisnika najmanje 14 dana unapred“ | Ove ispravke menjaju tekst Politike. Većinom su to ispravke netačnih činjenica (bez novih obaveza za korisnika), uz novi odeljak o beta prijavi. | — | odluka da li postojeće korisnike obaveštavate pre objavljivanja. Predlog: ispravke činjenica ne smatrati izmenom koja zahteva rok od 14 dana; o tome odlučuje osnivač. |
 
 Uz to je potrebno i **odobrenje za javno objavljivanje** ovog teksta (direktiva §11.5). Merge se ne radi bez njega.
+
+## G. Night Sprint V — završna istinitost i bezbednost (2026-10-21)
+
+Osnivač je potvrdio: **Vindex AI je naziv proizvoda i brenda; Benjamin Nađ je osnivač; registrovano pravno lice „Vindex d.o.o.“ ne postoji.** Privatni poslovni status osnivača se ne objavljuje.
+
+### G.1 Ispravke
+
+| # | Dokument | Original | Problem | Dokaz | Nova formulacija | Preostalo |
+|---|---|---|---|---|---|---|
+| N-01 | `/privacy`, `/terms`, `/dpa`, `/security` §12, modal uslova i privatnosti u `index.html` (`/app-legacy`) | „Vindex d.o.o.“ kao rukovalac, pružalac i obrađivač; „Beograd, Republika Srbija“; „Sedište: Srbija“ | pravno lice ne postoji | izjava osnivača (Night Sprint V §5.1) | „Benjamin Nađ, osnivač Vindex AI“; mesto i sedište uklonjeni (nisu potvrđeni) | da je osnivač rukovalac i ugovorna strana, sledi iz toga što drugog lica nema; **potvrda osnivača tražena u §H** |
+| N-02 | `/bezbednosni-list` podnožje | „Vindex d.o.o. · Srbija“ | isto | isto | „Vindex AI“ (brend u podnožju, ne ugovorna strana) | — |
+| N-03 | `/privacy` (Pinecone), red čuvanja | „Numeričke vektorske reprezentacije … — ne originalni tekst … nisu … pogodni za rekonstrukciju“; „Embeddings — dok je nalog aktivan“ | `uploaded_doc/ingest.py:165` upisuje `"text": text_stored` (do 40.000 znakova) u metapodatke; `routers/batch_ingest.py:96` takođe (sudske odluke) | kod | vektori **i tekstualni segmenti** dokumenta; originalni fajl se ne šalje; segmenti nisu dodatno šifrovani; „Poseban rok nije utvrđen; brisanje naloga ih ne briše“ | lokacija „SAD (us-east-1)“ i „izolovano po korisniku“ nisu menjani (nisu deo nalaza) |
+| N-04 | `/security` §5.3, §14.3 | „Čuvaju se isključivo matematički vektori, ne originalni tekst“; „dok su predmeti aktivni … prati status predmeta“ | isto; brisanje nije dokazano | isto | tekstualni segmenti se čuvaju kao metapodatak; „Zadržavaju se; brisanje naloga ih ne briše — poseban rok nije utvrđen“ | — |
+
+Nijedan javni tekst ne navodi privatni status osnivača, ne tvrdi da je pravno lice „registrovano“ i ne navodi MB, PIB ni sedište.
+
+### G.2 Beta forma
+
+- **HTML obaveštenje:** ime, adresa, kancelarija, telefon i poruka ulazili su u HTML e-poruku bez escapovanja. Sada su escapovani (`html.escape`), a naslov nema prelaz reda. Test je uhvatio i stvaran kvar sopstvene ispravke: lokalna promenljiva `html` prekrivala je istoimeni modul, pa se obaveštenje ne bi poslalo. Ispravljeno je preko `import html as _html`.
+- **Zloupotreba (G11):** ključ limita po klijentu je krajnja leva vrednost `X-Forwarded-For`, koju klijent sam bira. Lokalno je dokazano da se zaobilazi promenljivim zaglavljem. Produkcioni proxy lanac nije ispitan, jer bi ispitivanje zahtevalo masovne zahteve prema produkciji; neautorizovane rute sa niskim limitom ne služe kao sonda, jer prijava odbija zahtev pre brojanja.
+  - Zato ruta sada ima **ukupnu granicu koja ne zavisi od zaglavlja: 20 na sat i 100 na dan za sve klijente**, plus 10 na sat po klijentu.
+  - Brojač je u Redis-u; produkcija `/health` prijavljuje `"redis": true` i `"workers": 1`.
+  - Lažni upisi su time ograničeni na najviše 100 dnevno, umesto da budu neograničeni.
+  - Cena: kada je granica dostignuta, i legitimna prijava dobija 429, a sajt kaže „Server nije potvrdio prijavu (429). Pokušajte ponovo kasnije“. Do sada je tabela `waitlist` u produkciji imala 0 redova.
+  - Globalni limiter (sve ostale rute) nije menjan.
+
+### G.3 Pillow
+
+`pillow` 12.3.0 → 13.0.0, jedina objavljena verzija sa ispravkama za 8 CVE-ova (`requires_python >=3.11`; postoje točkovi za cp311 i cp313).
+- Napomene o izdanju (nekompatibilne izmene: I-mode PNG, `get_child_images`, `Image._show`, `ImageCms.product_*`, `ExifTags.IFD.Makernote`): nijednu Vindex ne koristi (grep).
+- Lokalno, u izolovanom venv-u (Python 3.13), isti skup od 91 test-fajla vezanog za slike i OCR daje isti rezultat sa 12.3.0 i 13.0.0: 2278 prošlo, 3 ista poznata lokalna pada (`test_faza1_pristupacnost`).
+- Lokalni `pip-audit -r requirements.txt` sa postojeća dva izuzetka: „No known vulnerabilities found“.
+- Python 3.11, Docker build i OCR u produkcionoj slici (Tesseract, Poppler, srpski paketi) dokazuje CI (05 §9).
+
+### G.4 Mutacije
+
+| ID | Mutacija | Rezultat |
+|---|---|---|
+| M13 | uklonjena ukupna granica | uhvaćena (`test_lazni_x_forwarded_for_ne_zaobilazi_ukupnu_granicu`) |
+| M14 | vraćeno sirovo ime u HTML | uhvaćena (`test_obavestenje_escapuje_unos_sa_forme`) |
+| M15 | vraćeno „ne originalni tekst“ | uhvaćena |
+| M16 | vraćeno „Vindex d.o.o.“ u Uslove | uhvaćena |
+
+## H. Release gate — šta samo osnivač može da zatvori
+
+Kod je završen; ovo su jedine preostale nepoznanice. Ne objavljuju se dok nisu razrešene.
+
+| # | Činjenica | Zašto blokira | Dokaz koji nedostaje | Šta je urađeno do tada |
+|---|---|---|---|---|
+| H.1 | **`privacy@vindex.ai` radi i domen je Vindexov** | Kanal za prava lica mora primati poštu. `vindex.ai` je registrovan 2023-01-10, tri godine pre prvog commita projekta (2026-03-29); vlasnik je sakriven (Withheld for Privacy, registrar Namecheap). MX zapisi vode na Fastmail. `vindex.rs` nema MX. | jedna probna poruka na `privacy@vindex.ai` koju je osnivač primio, ili druga adresa koju osnivač stvarno čita | ništa nije izmišljeno; adresa nije menjana |
+| H.2 | **Osnivač je rukovalac podataka i ugovorna strana** | Nema pravnog lica, pa je jedino stvarno lice osnivač. To je pravna kvalifikacija, ne izmišljen podatak; potvrditi je može samo on. | jedna rečenica potvrde | tekst već kaže „Benjamin Nađ, osnivač Vindex AI“ |
+| H.3 | **Pravni osnov i rok čuvanja beta prijava** | Predloženi predugovorni osnov (ZZPL čl. 12 st. 1 tač. 2) nije potvrđen, a „do brisanja na zahtev“ nije rok. | odluka; predlog: „osnov: radnje na zahtev lica pre zaključenja ugovora; rok: prijava se briše 12 meseci posle prijema ako nalog nije otvoren“. Brisanje vrši administrator ručno, jer automatsko ne postoji. | tekst u grani je predlog i nije objavljen |
+| H.4 | **Obaveštenje 14 dana pre izmene Politike** | Politika obećava korisnicima pisano obaveštenje 14 dana unapred. U produkciji postoji **141 profil** (čitanje, 2026-10-21). | odluka: (a) obavestiti i objaviti posle 14 dana, ili (b) objaviti odmah, jer većina izmena ispravlja netačne bezbednosne tvrdnje i ne uvodi nove obaveze, uz istovremeno obaveštenje | — |
+
+Redosled ako osnivač izabere (b): merge → deploy → isti dan e-poruka korisnicima sa spiskom ispravki iz §E i §G. Netačne tvrdnje (backup, potpisani ugovori, RLS, Pinecone, „Vindex d.o.o.“) i dalje stoje u produkciji dok se ovo ne spoji.
