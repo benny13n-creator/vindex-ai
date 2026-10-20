@@ -125,3 +125,50 @@ Spajanje PR-a → Render AutoDeploy. Bez ručnog deploy-a i bez migracija.
 11. Konzola pregledača na `/` i `/beta`: 0 grešaka. Mreža: nijedan spoljni zahtev.
 
 **Povratak:** revert commita spajanja → AutoDeploy. Bez migracija, pa nema ni povratka šeme.
+
+## 8. Završna remedijacija istinitosti (2026-10-20)
+
+Detalji tvrdnji, dokaza i zahteva osnivaču su u `04_PUBLIC_CLAIMS_REVIEW.md` §E–F.
+
+### 8.1 Šta je bilo neispravno
+
+- Javni pravni i bezbednosni dokumenti su obećavali backup koji aktivni plan nema. Tvrdili su i da su DPA/SCC potpisani, da RLS sam štiti podatke, šire šifrovanje od stvarnog, Argon2id za lozinke, 2FA, penetracione testove, audit svih pristupa i „GDPR usklađen“.
+- `POST /waitlist/prijava` je otkrivao stanje proizvoljne adrese. Džoker `_` u adresi pogađao je tuđu prijavu. Istovremena prijava iste adrese davala je HTTP 500.
+- Politika privatnosti nije opisivala beta prijavu.
+
+### 8.2 Šta je izmenjeno (najmanje)
+
+| Fajl | Izmena |
+|---|---|
+| `routers/waitlist.py` | jedan neutralan odgovor; `eq` umesto `ilike`; 23505 = isti odgovor bez drugog obaveštenja; log bez ličnih podataka |
+| `site/sajt.js` | tekst greške 5xx ne tvrdi siguran neuspeh |
+| `site/_izvor/beta.html` (+ generisane stranice: samo `?v=` heš i jedan link) | link na `/privacy#beta-prijava` |
+| `privacy.html` | P-01, P-03, P-04, P-05, P-08, P-09, P-14 |
+| `static/security.html` | P-02, P-03, P-04, P-05, P-09, P-11, P-12, P-13 |
+| `static/bezbednosni-list.html` | P-04, P-05, P-06, P-07 |
+| `static/dpa.html` | P-03, P-05, P-09, P-10, P-11 (ugovorne obaveze nisu menjane) |
+| `static/ai-disclosure.html` | P-03 |
+| `tests/test_website_v2_remediacija.py` (nov), `tests/test_website_public.py` (mock `ilike`→`eq`), `frontend-v2-ng/tests/site-e2e.mjs` (novi tekst 5xx) | testovi |
+
+### 8.3 Šta je ostalo nedirnuto
+
+Dizajn, 7 stranica, navigacija, katalog i `site/funkcije.json` (matrica 02 se nije promenila), pre-auth ekran, V2 aplikacija, auth/registracija, krediti, cene, rokovi, RLS i šema (bez migracije), `static/sw.js`, limiter i infrastruktura. `/terms` nije menjan (sadrži samo pravni identitet, F.1).
+
+### 8.4 RED → GREEN (lokalno)
+
+| Skup | Pre ispravke | Posle |
+|---|---|---|
+| `tests/test_website_v2_remediacija.py` | 24 pada / 5 prolaza | 30 prolaza |
+| `test_website_public.py`, `test_website_v2_remediacija.py`, `test_v2_ng_primary.py`, `test_sec005_rate_limiting.py`, `test_wave10_rate_limiter_isolation.py`, `test_ocr001_status_rate_limit.py` (`--randomly-seed=1234`) | — | 317 prolaza, 1 preskočen |
+| `test_api_security`, `test_gdpr_delete`, `test_n04_case_export_integrity`, `test_ns2b_export_audit_ordering`, `test_ns3_export_audit_fail_closed`, `test_security_p1_p2`, `test_xss_sanitization_sweep`, `test_sec009_pii_encryption`, `test_sec005_failopen_limiter` | — | 163 prolaza |
+| `npm run e2e:site` (7 stranica × 6 širina, beta forma: 6 ishoda, pre-auth) | — | 355/355 |
+| Mutacije M10–M12 (`routers/waitlist.py`) | — | 3/3 uhvaćene (M10 tek posle ispravke lažno zelenog testa, vidi 04 §E.2) |
+
+### 8.5 CI, merge i deploy
+
+CI rezultati za konačni HEAD, SHA spajanja i SHA na Renderu upisuju se u komentar PR #48, ne u novi commit na `main`. Tako se ne izaziva novi deploy.
+
+### 8.6 Dopuna provere posle puštanja (uz §7)
+
+12. `/privacy` sadrži odeljak `id="beta-prijava"` i rečenicu „ne uključuje automatske backup-e“; `/dpa` ne sadrži „DPA potpisan“; `/bezbednosni-list` ne sadrži „Argon2id“.
+13. Jednak odgovor za poznatu i nepoznatu adresu u produkciji proverava se samo adresama koje je osnivač odobrio. Postupak: osnivač pošalje istu svoju adresu dva puta, a agent poredi oba odgovora; nijedna tuđa adresa se ne koristi.

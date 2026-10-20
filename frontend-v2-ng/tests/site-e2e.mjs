@@ -216,7 +216,7 @@ async function beta(odgovor, popuni = true) {
     /evidentirana za adresu petar@primer\.rs/.test(u.ishod) && /ne šalje e-poštom/.test(u.ishod) && !/aktivan/.test(u.ishod) && u.uloga === "status" && u.fokus === "beta-ishod" && u.dugme
     && u.poslato && u.poslato.ime === "Petar Primer" && u.poslato.firma === "AK Primer", u.ishod);
   const s = await beta({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Internal Server Error" }) });
-  zapisi("beta", "greška servera (500): „Prijava nije sačuvana“, role=alert, bez uspeha", /nije sačuvana/.test(s.ishod) && s.uloga === "alert" && !/evidentirana/.test(s.ishod) && !s.dugme, s.ishod);
+  zapisi("beta", "greška servera (500): „Server nije potvrdio prijavu“ (ishod upisa nije tvrđen), role=alert, bez uspeha", /nije potvrdio prijavu/.test(s.ishod) && !/nije sačuvana/.test(s.ishod) && s.uloga === "alert" && !/evidentirana/.test(s.ishod) && !s.dugme, s.ishod);
   const v = await beta({ status: 422, contentType: "application/json", body: JSON.stringify({ detail: [{ loc: ["body", "email"], msg: "value is not a valid email address" }] }) });
   zapisi("beta", "greška validacije (422): polje e-pošte označeno, poruka o proveri podataka", /proverite unete podatke/.test(v.ishod) && v.nevazeca.includes("beta-email"), v.ishod);
   const k = await beta("prekid");
@@ -224,7 +224,7 @@ async function beta(odgovor, popuni = true) {
   const prazno = await beta(null, false);
   zapisi("beta", "prazna forma: ništa se ne šalje, obe greške uz polja, fokus na prvom", prazno.nevazeca.join() === "beta-ime,beta-email" && prazno.fokus === "beta-ime" && prazno.poruke.length === 2, JSON.stringify(prazno));
   const stvarno = await beta(null, true);
-  zapisi("beta", "stvaran api.py bez dostupne baze: forma prikazuje grešku, nikad uspeh", /nije sačuvana|nije poznato/.test(stvarno.ishod) && !/evidentirana/.test(stvarno.ishod), stvarno.ishod);
+  zapisi("beta", "stvaran api.py bez dostupne baze: forma prikazuje grešku, nikad uspeh", /nije potvrdio|nije poznato/.test(stvarno.ishod) && !/evidentirana/.test(stvarno.ishod), stvarno.ishod);
 }
 
 // ── Pre-auth ulaz (/app-legacy, kuda V2 /app šalje neprijavljenog korisnika) ──

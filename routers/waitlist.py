@@ -133,51 +133,65 @@ def _send_notification(prijava: WaitlistPrijava) -> None:
             s.login(_SMTP_USER, _SMTP_PASS)
             s.sendmail(msg["From"], [_NOTIFY_TO], msg.as_string())
 
-        logger.info("Waitlist notifikacija poslata za %s", prijava.email)
+        logger.info("Waitlist notifikacija predata SMTP serveru")
     except Exception as exc:
         logger.warning("Waitlist email nije uspeo: %s", exc)
 
 
 # ── Endpointovi ──────────────────────────────────────────────────────────────
 
+# Website V2 (P0-B): isti odgovor za novu i već evidentiranu adresu. Ranije su
+# tri različite poruke otkrivale da li je proizvoljna adresa na listi i da li
+# ima aktivan nalog. Sada odgovor ne zavisi od stanja adrese.
+_NEUTRALAN_ODGOVOR = {"ok": True, "poruka": "Prijava je evidentirana."}
+
+
+def _je_duplikat(exc: Exception) -> bool:
+    """Jedinstveni indeks `lower(email)` (migracija 055) odbio je drugi upis."""
+    return getattr(exc, "code", None) == "23505"
+
+
 @router.post("/prijava")
 async def waitlist_prijava(body: WaitlistPrijava):
     """
     Javni endpoint — bez autentifikacije.
     Hvata prijave sa landing stranice i šalje notifikaciju osnivaču.
+    Ograničenje učestalosti: globalni SlowAPIMiddleware (`shared.rate._DEFAULT_LIMITS`).
     """
     email_clean = str(body.email).strip().lower()
     supa = _get_supa()
 
-    # Duplikat check
+    # Duplikat check — `eq`, ne `ilike`: u `ilike` su `_` i `%` džokeri, pa je
+    # `a_b@` pogađao tuđi `axb@`. Upis uvek čuva `email_clean`, pa je `eq` tačan.
     existing = await _db(lambda: supa.table("waitlist")
-                         .select("id, status")
-                         .ilike("email", email_clean)
+                         .select("id")
+                         .eq("email", email_clean)
                          .execute())
     if existing.data:
-        st = existing.data[0].get("status", "pending")
-        if st == "active":
-            return {"ok": True, "poruka": "Vaš nalog je već aktivan. Prijavite se!"}
-        return {"ok": True, "poruka": "Već ste na listi! Javićemo vam se uskoro."}
+        return dict(_NEUTRALAN_ODGOVOR)
 
-    await _db(lambda: supa.table("waitlist").insert({
-        "ime":        body.ime,
-        "email":      email_clean,
-        "firma":      body.firma,
-        "telefon":    body.telefon,
-        "poruka":     body.poruka,
-        "status":     "pending",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }).execute())
+    try:
+        await _db(lambda: supa.table("waitlist").insert({
+            "ime":        body.ime,
+            "email":      email_clean,
+            "firma":      body.firma,
+            "telefon":    body.telefon,
+            "poruka":     body.poruka,
+            "status":     "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }).execute())
+    except Exception as exc:
+        # Istovremena prijava iste adrese: drugi upis odbija jedinstveni indeks.
+        # Zapis postoji, pa je odgovor isti; obaveštenje je već poslao prvi.
+        if _je_duplikat(exc):
+            return dict(_NEUTRALAN_ODGOVOR)
+        raise
 
     # Ne blokira odgovor — email ide u pozadini
     asyncio.create_task(asyncio.to_thread(_send_notification, body))
 
-    logger.info("Nova waitlist prijava: %s <%s>", body.ime, email_clean)
-    return {
-        "ok": True,
-        "poruka": "Prijava primljena! Javićemo vam se čim otvorimo pristup.",
-    }
+    logger.info("Nova waitlist prijava")
+    return dict(_NEUTRALAN_ODGOVOR)
 
 
 @router.get("/admin/lista")

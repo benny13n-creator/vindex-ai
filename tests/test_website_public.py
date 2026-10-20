@@ -676,7 +676,7 @@ def test_beta_prijava_neuspeh_baze_nije_uspeh():
     """Kada upis ne uspe, server ne sme vratiti ok:true (sajt bi prikazao uspeh)."""
     from unittest.mock import MagicMock, patch
     supa = MagicMock()
-    supa.table.return_value.select.return_value.ilike.return_value.execute.return_value = MagicMock(data=[])
+    supa.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
     supa.table.return_value.insert.return_value.execute.side_effect = RuntimeError("baza nedostupna")
     k = TestClient(api.app, raise_server_exceptions=False)
     with patch("routers.waitlist._get_supa", return_value=supa):

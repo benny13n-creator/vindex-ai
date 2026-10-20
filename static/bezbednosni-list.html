@@ -32,7 +32,7 @@
 <button class="print-btn no-print" onclick="window.print()">⬇ Preuzmi PDF</button>
 
 <h1>Kako Vindex AI štiti advokatsku tajnu i podatke o klijentima</h1>
-<p class="subtitle">Bezbednosni list · v1.0 · Jul 2026 · Svaka tvrdnja na ovoj strani proverena je naspram izvornog koda platforme, ne samo naspram namere ili plana.</p>
+<p class="subtitle">Bezbednosni list · v1.0 · Jul 2026, ispravke činjenica 2026-10-20 · Svaka tvrdnja na ovoj strani proverena je naspram izvornog koda platforme, ne samo naspram namere ili plana.</p>
 
 <p class="lede">Vindex AI je platforma za advokatske kancelarije. Advokatska tajna nije marketinška fraza za nas — to je pravni standard prema kom je sistem projektovan. Ispod su tri stuba te zaštite, sa tačno onim što je implementirano, bez ičega što tek treba da bude izgrađeno.</p>
 
@@ -44,13 +44,13 @@
   <li>Puna specifikacija: <strong>vindex.ai/ai-disclosure</strong></li>
 </ul>
 
-<h2><span class="num">2</span> Enkripcija: AES-256-GCM, Argon2id, TLS 1.2/1.3, Row-Level Security</h2>
+<h2><span class="num">2</span> Šifrovanje i kontrola pristupa: AES-256-GCM, TLS 1.2/1.3, provera na serveru</h2>
 <ul class="proof">
-  <li>Dokumenti klijenata se enkriptuju <strong>AES-256-GCM na nivou aplikacije, pre nego što napuste server</strong> — čak ni direktan pristup skladištu podataka (storage provajderu) ne otkriva sadržaj dokumenta.</li>
-  <li>Osetljivi lični podaci (JMBG, broj pasoša, PIB) enkriptovani su AES-256-GCM na nivou baze podataka — nikad se ne čuvaju u čitljivom (plaintext) obliku.</li>
-  <li>Lozinke se čuvaju isključivo kao Argon2id heš (OWASP-preporučeni parametri) — nepovratno, nikad u čitljivom obliku.</li>
+  <li>Originalni fajlovi koje advokat otpremi u predmet (otpremanje dokumenta, prijem dokumenata, trezor klijenta) šifruju se <strong>AES-256-GCM na nivou aplikacije, pre upisa u skladište</strong>. Nije obuhvaćeno: izdvojeni tekst dokumenata, koji se čuva u bazi radi pretrage, i fajlovi poslati kroz klijentski portal.</li>
+  <li>Osetljivi lični podaci (JMBG, broj pasoša, PIB) enkriptovani su AES-256-GCM na nivou aplikacije, pre upisa u bazu — nikad se ne čuvaju u čitljivom (plaintext) obliku.</li>
+  <li>Lozinkama za prijavu upravlja Supabase Auth; aplikacioni server ih ne čuva.</li>
   <li>Sva komunikacija između pregledača i servera štiti se sa TLS 1.2/1.3 i HSTS politikom koja prisilno zahteva enkriptovanu vezu.</li>
-  <li>Row Level Security (RLS) na nivou baze podataka fizički odvaja podatke svakog korisnika — greška u aplikativnom kodu ne može izložiti tuđe podatke.</li>
+  <li>Aplikacioni server pristupa bazi privilegovanim servisnim ključem, koji ne podleže pravilima Row Level Security (RLS). Granicu između naloga zato sprovodi provera na serveru pri svakom zahtevu; RLS ne štiti od greške u serverskom kodu.</li>
 </ul>
 
 <h2><span class="num">3</span> Podaci ostaju vaše vlasništvo — kontrola i anonimizacija na zahtev</h2>

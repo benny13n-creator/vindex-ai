@@ -94,7 +94,10 @@
         if (poEmailu) greskaPolja("email", "Server nije prihvatio ovu adresu e-pošte.");
         prikaziIshod("greska", ["Prijava nije sačuvana: proverite unete podatke i pošaljite ponovo."]);
       } else {
-        prikaziIshod("greska", ["Prijava nije sačuvana zbog greške na serveru (" + o.status + "). Pokušajte ponovo kasnije."]);
+        prikaziIshod("greska", [
+          "Server nije potvrdio prijavu (" + o.status + "). Pokušajte ponovo kasnije.",
+          "Ista adresa se ne upisuje dva puta, pa je ponovno slanje bezbedno."
+        ]);
       }
       dugme.disabled = false;
       dugme.textContent = "Pošaljite prijavu";

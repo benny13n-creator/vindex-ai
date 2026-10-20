@@ -64,3 +64,69 @@ Nivo dokaza:
 
 - Prijavljena produkcija nije proverena funkciju po funkciju: nema QA naloga u produkciji. Statusi „Dostupno“ počivaju na CI/E2E dokazima nad istim kodom i na produkcionim čitanjima gde su navedena.
 - Nijedna funkcija nije potvrđena radom stvarnih advokata na stvarnim predmetima (VCR002: nijedan zahtev nema nivo REAL_USER_ACCEPTED).
+
+## E. Završna remedijacija istinitosti (2026-10-20, posle direktive osnivača)
+
+Pravilo: dokazan problem → najmanja ispravka → ciljani dokaz. Menjani su samo sporni segmenti; dizajn, stranice, katalog i registar od 67 funkcija nisu dirani. Svaka stavka ispod ima test u `tests/test_website_v2_remediacija.py`, koji je pre ispravke pao (RED), a posle prošao (GREEN).
+
+### E.1 Ispravljene javne tvrdnje
+
+| # | Dokument | Original | Problem | Dokaz | Nova formulacija | Preostalo ograničenje |
+|---|---|---|---|---|---|---|
+| P-01 | `/privacy` | „Backup: Dnevni automatski backup sa 30-dnevnim rokom čuvanja“; red „Backup — 30 dana (rolling)“ | aktivni Supabase plan je Free i nema automatske backup-e | Supabase Dashboard (osnivač, direktiva §4.A) | „aktivni plan baze (Supabase Free) ne uključuje automatske backup-e. Vindex trenutno nema potvrđen sistem automatskog backup-a i ne obećava rok oporavka podataka.“ | stvaran rizik gubitka podataka ostaje; to je poslovna odluka, ne tekst |
+| P-02 | `/security` §6, §11, §14.3; §3 | tabela backup-a (dnevno/30 dana, PITR 7 dana, S3 versioning 90 dana), RTO 4 h / RPO 24 h, „Backup baze 30 dana“, „backup kopije… max 30 dana“, „AES-256 … backupi“ | isto kao P-01; PITR i S3 versioning nisu potvrđeni | isto | §6 je jedna rečenica: plan ne uključuje automatske backup-e ni PITR; Vindex ne objavljuje frekvenciju, rok, RPO ni RTO. Redovi u §11 i §14.3 kažu da backup ne postoji. | `docs/security/DISASTER_RECOVERY_PLAN.md` (interni) i dalje navodi ciljeve RPO/RTO kao *policy target*; nije javan |
+| P-03 | `/dpa` Aneks B; `/security` §5.2 i §9; `/privacy` (OpenAI, Pinecone); `/ai-disclosure` | „✓ DPA potpisan“, „✓ SCC potpisan“, „SCC su potpisani“, „Ugovor: EU SCC“, „SAD — EU SCC garancije“, „primenjuju se sledeće zaštitne mere: … SCC“ | nijedan potpisan DPA ni SCC nije predočen | pretraga repozitorijuma i dokumentacije: nema ugovora | status „Nije potvrđeno“; „zaključenje standardnih ugovornih klauzula (SCC) … nije potvrđeno“; u DPA: SCC je *predviđeni* mehanizam, zaključenje nije potvrđeno | **odluka/dokaz osnivača (F.2)**; ugovorne obaveze DPA nisu menjane |
+| P-04 | `/privacy`, `/security` §4, `/bezbednosni-list` | „RLS — svaki korisnik pristupa isključivo sopstvenim podacima na nivou baze“; „čak i direktan DB pristup ne može da vrati tuđe podatke“; „greška u aplikativnom kodu ne može izložiti tuđe podatke“; „Svaki red u svakoj tabeli sadrži user_id“ | backend koristi servisni ključ koji zaobilazi RLS | `docs/security/PUBLIC_SECURITY_CLAIMS.md` Lista B (SEC-004); registar J02 | granicu sprovodi provera na serveru pri svakom zahtevu; servisni ključ ne podleže RLS-u; RLS ne štiti od greške u serverskom kodu | — |
+| P-05 | `/bezbednosni-list`, `/security` §3, `/privacy`, `/dpa` | „Dokumenti klijenata se enkriptuju AES-256-GCM na nivou aplikacije“; „AES-256 (Supabase)“ bez obuhvata | fajlovi iz klijentskog portala (`portal-uploads`) se ne šifruju; izdvojeni tekst nije šifrovan | `docs/security/CLIENT_PORTAL_UPLOAD_FORENSICS.md`; `routers/client_portal.py`; registar J05 | šifruju se (AES-256-GCM) originalni fajlovi koje advokat otpremi u predmet (otpremanje, prijem dokumenata, trezor klijenta) i JMBG/pasoš/PIB; izuzeti: izdvojeni tekst i fajlovi iz klijentskog portala. Šifrovanje u mirovanju na nivou baze pripisano je pružaocu, „prema njegovoj dokumentaciji“. | šifrovanje portala nije ispravljeno (van obima) |
+| P-06 | `/bezbednosni-list` | „Lozinke se čuvaju isključivo kao Argon2id heš“ | Argon2id nema nijedno pozivno mesto; lozinke drži Supabase Auth | `security/crypto.py` (SEC-023); Lista B | „Lozinkama za prijavu upravlja Supabase Auth; aplikacioni server ih ne čuva.“ | — |
+| P-07 | `/bezbednosni-list` | JMBG/pasoš/PIB „na nivou baze podataka“ | šifruje se na nivou aplikacije pre upisa | `klijenti/router.py`, `security/crypto.py` | „na nivou aplikacije, pre upisa u bazu“ | — |
+| P-08 | `/privacy` | „Zaposleni Pružaoca usluge nemaju pristup sadržaju predmeta“; „operativni pristup … uz obavezno evidentiranje u audit logu“ | administrator ima tehnički pristup preko konzola pružalaca; taj pristup ne beleži audit aplikacije | servisni ključ / Supabase konzola | tehnički pristup ima ovlašćeni administrator; koristi se samo za incident ili kritičnu grešku; ne beleži ga audit log aplikacije | — |
+| P-09 | `/privacy`, `/dpa`, `/security` §7.1 | „Sve kritične operacije se beleže“; „Audit logging svih pristupa podacima“; „Svaki pristup production bazi … se beleži“ | audit postoji samo za određene operacije | `klijenti/router.py` (VIEW_CONFIDENTIAL), `routers/data_export.py`, `routers/gdpr.py` | „određene osetljive operacije (uvid u šifrovane identifikatore klijenta, potpun izvoz podataka, brisanje naloga)“ | — |
+| P-10 | `/dpa` | „Redovni bezbednosni pregledi i penetracioni testovi“ | penetracioni test ne postoji (`/security` §9: „U planu“) | registar J08 | „Interni bezbednosni pregledi izvornog koda“ | — |
+| P-11 | `/dpa`, `/security` §2.1 | „Dvofaktorska autentifikacija (opciono)“; „Opciona 2FA putem Supabase TOTP“ | 2FA ne postoji ni u legacy ni u V2 interfejsu | grep `mfa/totp` u `static/vindex.js`, `frontend-v2-ng/src`, backend: 0 | uklonjeno | — |
+| P-12 | `/security` §9 | GDPR „Usklađen“, ZZPL „Usklađen“ | nezavisna ocena ne postoji; DPA/SCC nepotvrđeni (zabranjena tvrdnja „Potpuno GDPR usklađeno“) | Lista B | „Nije nezavisno ocenjeno“ | — |
+| P-13 | `/security` §1 | API server „Render.com (EU)“ (a `/privacy` kaže „SAD“) | region nije potvrđen; dokumenti protivreče | `render.yaml` bez regiona | „Render.com“ | region servera nije javno naveden |
+| P-14 | `/privacy`, `/beta` | Politika ne opisuje beta prijavu | forma prikuplja 5 polja bez obaveštenja | `routers/waitlist.py` | novi odeljak `#beta-prijava`: podaci, svrha, pravni osnov, primaoci, čuvanje, prava i kanal; `/beta` linkuje na njega | pravni osnov je **predlog** (F.3); čuvanje opisuje stvarno stanje (bez automatskog brisanja) |
+| P-15 | `/beta` (frontend), greška 5xx | „Prijava nije sačuvana zbog greške na serveru“ | posle prekida veze sa bazom upis je mogao uspeti, pa tvrdnja o sigurnom neuspehu nije tačna | `site/sajt.js` | „Server nije potvrdio prijavu (kod). … ponovno slanje je bezbedno.“ | — |
+
+Dokumenti nose oznaku „ispravke činjenica 2026-10-20“ uz postojeću verziju. Nijedna obaveza iz DPA ili Uslova nije dodata ni uklonjena, osim dve netačne stavke na listi mera (P-10, P-11) i statusa ugovora (P-03).
+
+### E.2 Beta prijava (P0-B)
+
+| Pitanje | Pre | Posle | Dokaz |
+|---|---|---|---|
+| Otkrivanje stanja adrese | tri poruke: nova / „Već ste na listi“ / „Vaš nalog je već aktivan“ | jedna: `{"ok": true, "poruka": "Prijava je evidentirana."}` za svaki ishod, iste dužine | `test_poznata_adresa_dobija_isti_odgovor_kao_nova[pending/contacted/active]`, `test_odgovor_ne_sadrzi_reci_o_nalogu_ili_listi` |
+| Džoker u adresi | `ilike` → `a_b@x` pogađa `axb@x`; nova prijava se ne čuva | `eq` nad sačuvanim malim slovima | `test_dzoker_u_adresi_ne_pogadja_tudju_prijavu` |
+| Istovremene prijave | drugi upis → `23505` → HTTP 500 | 23505 = isti neutralan odgovor; 1 red, 1 obaveštenje | `test_dve_istovremene_prijave_iste_adrese` (barijera garantuje da oba čitanja prođu pre upisa) |
+| Nedostupna baza | 5xx | 5xx, nikad `ok:true`, nema obaveštenja | `test_nedostupna_baza_nije_uspeh[citanje/upis]` |
+| Lični podaci u logu | ime i adresa u `logger.info` | log bez ličnih podataka | čitanje koda |
+| Zloupotreba | globalni `SlowAPIMiddleware`, 60/h po klijentu | nepromenjeno (već efektivno; nije dodat dupli limit) | `test_globalni_limit_stize_do_forme…`: 61. zahtev → 429 JSON, odbijeni ne upisuju |
+
+**Ograničenje zaštite od zloupotrebe (otvoreno, ne blokira):** ključ limita je krajnja leva vrednost `X-Forwarded-For` (`shared/rate.py::_get_real_ip`), koju klijent može sam da postavi. Lokalno izmereno: 61 zahtev sa različitim `X-Forwarded-For` → 61 × 200. Da li produkcioni lanac (Cloudflare → Render) prosleđuje zaglavlje klijenta, nije provereno, jer bi provera zahtevala zloupotrebu produkcije. Ovo važi za sve rute platforme, ne samo za formu. Bez Redis-a brojači su po procesu. Pošto odgovor više ne otkriva stanje adrese, zaobilaženje limita ne daje nabrajanje adresa. Ostaje mogućnost masovnog upisa različitih adresa (red u bazi + obaveštenje). Ispravka je odluka o pouzdanom zaglavlju (npr. `CF-Connecting-IP`) za ceo limiter; to je izmena van ovog obima.
+
+**Konzistentnost:** prvo pokretanje testa istovremenih prijava (sa kašnjenjem umesto barijere) bilo je **lažno zeleno**: mutacija M10 (uklonjeno hvatanje 23505) je preživela, jer je prvi upis stizao pre drugog čitanja. Test je promenjen na barijeru, posle čega je M10 uhvaćena. Mutacije: M10 uhvaćena, M11 (`ilike` vraćen) uhvaćena, M12 (status u odgovoru) uhvaćena.
+
+### E.3 Status nalaza iz odeljka C
+
+| ID | Status posle remedijacije |
+|---|---|
+| S-01 | **zatvoren** za backup, DPA/SCC, RLS, šifrovanje, Argon2id, audit, pen test, 2FA, „usklađen“ (E.1). Otvoren samo za pravni identitet (F.1). |
+| W-01 | **zatvoren** (E.2) |
+| W-02 | limit: **dokumentovan**, efektivan po klijentu, uz ograničenje `X-Forwarded-For`. Saglasnost: ne uvodi se, jer predloženi osnov nije saglasnost (F.3). |
+| L-01 | **zatvoren** tekstom (P-14); pravni osnov čeka potvrdu (F.3) |
+| E-01 | **delimično**: `vindex.ai` ima MX zapise (Fastmail), `vindex.rs` nema MX. Da li osnivač prima poštu na `privacy@vindex.ai` nije potvrđeno (F.4). |
+| R-01, T-01, O-01, D-01 | nepromenjeno (van obima direktive) |
+
+## F. Jedan konsolidovan zahtev osnivaču (FOUNDER LEGAL IDENTITY CONFIRMATION REQUIRED)
+
+Ovo su jedine činjenice koje agent ne sme da izmisli. Sve ostalo je završeno i ne zavisi od njih.
+
+| # | Dokument i sporna tvrdnja | Zašto je neophodno | Šta je završeno bez toga | Šta ne sme biti objavljeno dok je UNKNOWN |
+|---|---|---|---|---|
+| **F.1** | `/privacy` („Rukovalac … je: Vindex d.o.o., Beograd“), `/terms` („pravni odnos između Vindex d.o.o. …“), `/dpa` („Obrađivač: Vindex d.o.o.“), `/security` §12, `/bezbednosni-list` podnožje, modal uslova u `index.html` | Rukovalac i ugovorna strana moraju biti stvarno lice. U repozitorijumu nema dokaza da „Vindex d.o.o.“ postoji (nema PIB-a, MB-a ni izvoda iz APR-a). | sve ispravke E.1/E.2 | spajanje ovog PR-a kao „zatvoreno“; tekst ostaje nepromenjen, jer agent ne izmišlja firmu i ne briše ime. **Treba:** tačan pravni naziv, sedište, MB i PIB, ili potvrda da operater nije registrovano pravno lice (tada: ime i prezime operatera / preduzetnika i adresa). |
+| **F.2** | `/dpa` Aneks B i odeljak o prenosu, `/privacy`, `/security` §5.2/§9, `/ai-disclosure`: status DPA i SCC sa Supabase, OpenAI, Pinecone i Render | Tvrdnja „potpisan“ zahteva ugovor. | tekst sada kaže „Nije potvrđeno“, što je tačno | ništa dodatno: tekst je već bezbedan. Ako postoje prihvaćeni DPA (npr. kroz podešavanja naloga dobavljača), dostavite ih i status se menja u „Zaključen (datum)“. |
+| **F.3** | `/privacy#beta-prijava`, „Pravni osnov: preduzimanje radnji na vaš zahtev pre zaključenja ugovora (čl. 12 st. 1 tač. 2 ZZPL; čl. 6 st. 1 tač. b GDPR)“; čuvanje: „automatsko brisanje ne postoji; prijava se čuva dok je ne obrišemo na vaš zahtev“ | Pravni osnov i rok čuvanja određuje rukovalac, ne agent. **Ovo je predlog AI pregleda, nije pravno mišljenje.** | tekst opisuje stvarno ponašanje sistema | potvrdite ili zamenite ove dve rečenice. Ako želite rok (npr. brisanje N meseci posle kraja beta perioda), to je nova operativna obaveza bez automatske podrške u kodu. |
+| **F.4** | `privacy@vindex.ai` (Politika, DPA, Bezbednosni list, AI Disclosure) kao kanal za ostvarivanje prava; `legal@`, `security@`, `support@vindex.ai` | Kanal za prava mora stvarno primati poštu. DNS: `vindex.ai` MX → messagingengine.com (Fastmail); `vindex.rs` nema MX. | — | potvrda da `privacy@vindex.ai` stiže u sanduče koje čitate (jedna probna poruka). U suprotnom treba navesti adresu koja radi. |
+| **F.5** | `/privacy` „Izmene … uz pisano obaveštenje Korisnika najmanje 14 dana unapred“ | Ove ispravke menjaju tekst Politike. Većinom su to ispravke netačnih činjenica (bez novih obaveza za korisnika), uz novi odeljak o beta prijavi. | — | odluka da li postojeće korisnike obaveštavate pre objavljivanja. Predlog: ispravke činjenica ne smatrati izmenom koja zahteva rok od 14 dana; o tome odlučuje osnivač. |
+
+Uz to je potrebno i **odobrenje za javno objavljivanje** ovog teksta (direktiva §11.5). Merge se ne radi bez njega.
