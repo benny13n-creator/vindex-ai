@@ -19,6 +19,18 @@ let pada = 0, ukupno = 0;
 const zapisi = (g, n, ok, d = "") => { ukupno++; if (!ok) pada++; console.log(`${ok ? "PASS" : "FAIL"}  [${g}] ${n}${d ? " — " + d : ""}`); };
 const D = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const DT = (n) => { const [y, m, d] = D(n).split("-"); return `${d}.${m}.${y}.`; };
+// Nezavisno proročište (ne čita odgovor API-ja koji se testira): rok koji ističe na neradni dan ističe prvog narednog
+// radnog dana. Neradni: subota, nedelja, državni praznici (1–2.1, 7.1, 15–16.2, 1–2.5, 11.11) i pravoslavni Veliki
+// petak – Vaskrsni ponedeljak (Meeus, julijanski kalendar + 13 dana; važi 1900–2099). Datumi su lokalni, u podne.
+const ISO = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+const vaskrs = (g) => { const a = g % 4, b = g % 7, c = g % 19, d = (19 * c + 15) % 30, e = (2 * a + 4 * b - d + 34) % 7;
+  return new Date(g, Math.floor((d + e + 114) / 31) - 1, ((d + e + 114) % 31) + 1 + 13, 12); };
+const neradan = (dt) => { if (dt.getDay() === 0 || dt.getDay() === 6) return true;
+  if (["1-1", "1-2", "1-7", "2-15", "2-16", "5-1", "5-2", "11-11"].includes(`${dt.getMonth() + 1}-${dt.getDate()}`)) return true;
+  const v = vaskrs(dt.getFullYear()); return [-2, -1, 0, 1].some(k => ISO(new Date(v.getFullYear(), v.getMonth(), v.getDate() + k, 12)) === ISO(dt)); };
+const radniDan = (iso) => { const [y, m, d] = iso.split("-").map(Number); const dt = new Date(y, m - 1, d, 12);
+  while (neradan(dt)) dt.setDate(dt.getDate() + 1); return ISO(dt); };
+const ZPP = radniDan(D(12)), ZPP_DT = ZPP.split("-").reverse().join(".") + ".";
 const BACKEND_TERMINI = /HUMAN_DIRECT|AI_ASSISTED|AI_AUTONOMOUS|DETERMINISTIC|LEGACY_UNKNOWN|UNCONFIRMED|CONFIRMED|REJECTED|UNKNOWN|audit|stanje_odluke|vrsta|undefined|null\b|\[object/;
 
 const env = { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" };
@@ -37,6 +49,10 @@ const json = (x) => { try { return JSON.parse(x.b); } catch { return null; } };
 let spreman = false;
 for (let i = 0; i < 300 && !spreman; i++) { spreman = (await zahtev("GET", "/app")).s === 200; if (!spreman) await new Promise(r => setTimeout(r, 300)); }
 zapisi("server", "pravi api.app, primarni V2 /app odgovara", spreman, spreman ? "" : srvIzlaz.slice(-600));
+const KONTROLE = [["2026-10-30", "2026-10-30"], ["2026-10-31", "2026-11-02"], ["2026-11-01", "2026-11-02"], ["2026-11-11", "2026-11-12"],
+  ["2026-04-10", "2026-04-14"], ["2027-04-30", "2027-05-04"], ["2026-12-31", "2026-12-31"], ["2027-01-01", "2027-01-04"], ["2027-01-07", "2027-01-08"]];
+zapisi("0.proročište", "radni dan ostaje; vikend, državni i pokretni praznik → prvi naredni radni dan",
+  KONTROLE.every(([u, o]) => radniDan(u) === o), JSON.stringify(KONTROLE.map(([u]) => [u, radniDan(u)])));
 if (!spreman) { srv.kill(); process.exit(1); }
 const stanje = async () => json(await zahtev("GET", "/__ns2/stanje"));
 const kvar = (tabela, radnja, ukljucen) => zahtev("POST", "/__ns2/kvar", { telo: { tabela, radnja, ukljucen } });
@@ -71,7 +87,7 @@ R.C = json(await zahtev("POST", "/__ns2/umetni", { telo: { predmet_id: PC, user_
 let st = await stanje();
 const lanacRed = st.hronologija.find(h => h.predmet_id === PA && h.izvor === "DETERMINISTIC");
 R.LANAC = lanacRed && lanacRed.id;
-zapisi("2.upis", "ZPP rok je upisan kao izjavljen rok (vrsta=rok, izvor=DETERMINISTIC) u predmet A", !!lanacRed && lanacRed.vrsta === "rok" && lanacRed.korisnik === "uid-A" && lanacRed.datum_iso === D(12), JSON.stringify(lanacRed));
+zapisi("2.upis", "ZPP rok je upisan kao izjavljen rok (vrsta=rok, izvor=DETERMINISTIC) u predmet A", !!lanacRed && lanacRed.vrsta === "rok" && lanacRed.korisnik === "uid-A" && lanacRed.datum_iso === ZPP, `očekivano ${ZPP} (D(12)=${D(12)}) — ` + JSON.stringify(lanacRed));
 zapisi("2.upis", "nijedna odluka ne postoji pre ljudske radnje (ni za HUMAN_DIRECT, DETERMINISTIC, AI_ASSISTED, `stanje=potvrdjen`)", st.odluke.length === 0, JSON.stringify(st.odluke));
 let k0 = await kandidati("tok-A");
 const ids0 = new Map((k0.j && k0.j.rokovi || []).map(x => [x.id, x]));
@@ -122,7 +138,7 @@ zapisi("3.vidljivo", "rok iz A1 pisca je predlog za odluku", e.predlozi.includes
 zapisi("4.prikaz", "predlog nosi stvaran datum, opis, predmet i poreklo „uneto ručno“ + „čeka vašu odluku“",
   !!tA1 && tA1.includes("Rok za dopunu tužbe") && tA1.includes(DT(5)) && tA1.includes("Petrović protiv Gradnja Invest") && tA1.includes("uneto ručno") && tA1.includes("čeka vašu odluku"), (tA1 || "").replace(/\n/g, " | "));
 const tL = await red(s1.p, R.LANAC);
-zapisi("4.prikaz", "ZPP rok: „izračunato iz kataloga rokova“, datum " + DT(12), !!tL && tL.includes("izračunato iz kataloga rokova") && tL.includes(DT(12)), (tL || "").replace(/\n/g, " | "));
+zapisi("4.prikaz", "ZPP rok: „izračunato iz kataloga rokova“, datum " + ZPP_DT, !!tL && tL.includes("izračunato iz kataloga rokova") && tL.includes(ZPP_DT), (tL || "").replace(/\n/g, " | "));
 const tK = await red(s1.p, R.KOL), tBI = await red(s1.p, R.BEZIZV);
 zapisi("4.prikaz", "AI_ASSISTED: „uneto uz pomoć AI“; bez porekla: „poreklo nije zabeleženo“", !!tK && tK.includes("uneto uz pomoć AI") && !!tBI && tBI.includes("poreklo nije zabeleženo"));
 zapisi("invarijanta", "kolona `stanje=potvrdjen` bez odluke NIJE obaveza ni u kalendaru — ostaje predlog", e.predlozi.includes(R.KOL) && !e.obaveze.includes("Rok za predlog za izvršenje") && !e.kalendar.includes("Rok za predlog za izvršenje"));

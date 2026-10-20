@@ -86,12 +86,15 @@ const snimi = (p, sel, ime) => p.locator(sel).screenshot({ path: fileURLToPath(n
     await cekaj(s.p, () => /Analiza v2/.test(document.getElementById("an-verzija").textContent) && document.querySelectorAll("#an-kontr-aktivne > li").length === 1));
   await snimi(s.p, "#odeljak-analiza", "13-analiza.png");
   await s.p.click("#tab-pregled");
-  // VCR001 T03: nepotvrđen rok iz dokumenta (Rule 6) je, kao i svaki istekao rok (BLACKSWAN-CRIT-002), kritičan i po
-  // datumu dolazi prvi. Nova protivrečnost mora biti među kritičnim radnjama; „sledeći korak“ je pregled tog roka.
+  // QA-01 B3 (d4fb9c50; services/case_evolution.py `_priority_rok_kandidat`, tests/test_qa01_rokovi_semantika.py):
+  // nepotvrđen AI rok čiji je datum PROŠAO nije kritičan (`medium`, „Datum je prošao — proveriti status.“) — prošao
+  // datum nepotvrđenog predloga ne znači potvrđen propušten rok. Rok fiksture (2025-05-24) je prošao, pa je jedina
+  // kritična radnja nova protivrečnost: ona je i u „Zahteva pažnju“ i „Sledeći korak“. Pregled roka ostaje na Danas (15).
   zapisi("14 Pregled", "„Zahteva pažnju“ sadrži razrešiti protivrečnost",
     await cekaj(s.p, () => /Razrešiti protivrečnost/.test(document.getElementById("zp-paznja").textContent)));
-  zapisi("14 Pregled", "„Sledeći korak“ = rok iz dokumenta čeka potvrdu (kritičan, najraniji)",
-    await cekaj(s.p, () => /čeka vašu potvrdu/.test(document.getElementById("zp-sledece").textContent)));
+  zapisi("14 Pregled", "„Sledeći korak“ = kritična protivrečnost; prošao nepotvrđen AI rok nije predstavljen kao kritičan",
+    await cekaj(s.p, () => { const t = document.getElementById("zp-sledece").textContent;
+      return /Razrešiti protivrečnost/.test(t) && /kritično/.test(t) && /datum uručenja rešenja o otkazu/.test(t) && !/čeka vašu potvrdu/.test(t); }));
   await snimi(s.p, "#zp-blok", "14-pregled.png");
   await s.zatvori();
 }
@@ -99,6 +102,10 @@ const snimi = (p, sel, ime) => p.locator(sel).screenshot({ path: fileURLToPath(n
   const s = await scenario({ hash: "#/danas", h: 1400 });
   zapisi("15 Danas", "kritična radnja na vrhu radne liste, sa razlogom i vezom na predmet",
     await cekaj(s.p, () => { const k = document.querySelector('#rl-korpe [data-korpa="kriticno"]'); return !!k && /datum uručenja rešenja o otkazu/.test(k.textContent) && !!k.querySelector("a"); }));
+  zapisi("15 Danas", "prošao nepotvrđen rok iz dokumenta ostaje vidljiv: „Predstojeće“, srednje, čeka potvrdu, upozorenje da je datum prošao",
+    await cekaj(s.p, () => { const k = document.querySelector('#rl-korpe [data-korpa="kriticno"]'), p = document.querySelector('#rl-korpe [data-korpa="predstojece"]');
+      return !!p && /Rok iz dokumenta čeka vašu potvrdu/.test(p.textContent) && /Datum je prošao — proveriti status\./.test(p.textContent)
+        && /rok 24\.05\.2025\./.test(p.textContent) && /srednje/.test(p.textContent) && !!k && !/čeka vašu potvrdu/.test(k.textContent); }));
   await snimi(s.p, "#danas-pogled .matter__section--first", "15-danas.png");
   await s.zatvori();
 }

@@ -73,6 +73,9 @@ def pg(tmp_path_factory):
     b = _bin()
     if b is None:
         pytest.skip("PostgreSQL binarni fajlovi nisu dostupni")
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        # initdb odbija root (posao prod-runtime radi u kontejneru kao root); dokaz se izvršava u Test Suite 3.11/3.13.
+        pytest.skip("initdb ne radi kao root — dokaz trke se izvršava u poslu bez root-a")
     d = tmp_path_factory.mktemp("pgtrka") / "data"
     port = _slobodan_port()
     subprocess.run([str(b / "initdb"), "-D", str(d), "-U", "postgres", "-A", "trust", "-E", "UTF8", "--no-locale"],

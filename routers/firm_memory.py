@@ -21,8 +21,8 @@ Endpoints:
   GET  /api/firma-memorija/pretrazi           — AI pretraga relevantnih memorija
   GET  /api/firma-memorija/sudija/{ime}       — profil sudije
   POST /api/firma-memorija/sudija/sacuvaj     — ažuriraj profil sudije
-  GET  /api/firma-memorija/klijent/{ime}      — profil klijenta
-  POST /api/firma-memorija/klijent/sacuvaj    — ažuriraj profil klijenta
+  GET  /api/firma-memorija/klijent/{klijent_id} — profil SOPSTVENOG klijenta (NS4 O2: identitet, ne ime)
+  POST /api/firma-memorija/klijent/sacuvaj    — ažuriraj profil sopstvenog klijenta (obavezan klijent_id)
   GET  /api/firma-memorija/partner/{uid}      — profil partnera
   DELETE /api/firma-memorija/{id}             — ukloni memoriju
   GET  /api/firma-memorija/sve               — sve aktivne memorije firme
@@ -32,6 +32,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -88,6 +89,54 @@ async def _vidljiv_red_ili_404(supa, uid: str, kancelarija_id, memorija_id: str,
     if not red or not await asyncio.to_thread(_vidljive, supa, uid, [red]):
         raise HTTPException(status_code=404, detail="Memorija nije pronađena.")
     return red
+
+
+# NS4 O2: profil klijenta (`client_memory`) je bio vezan za IME klijenta u kancelariji — kolega je čitao i menjao
+# profil tuđeg klijenta (`ilike` po imenu), a dva klijenta istog imena delila su profil. Članstvo u kancelariji
+# NIJE pristup klijentu: profil je vezan za IDENTITET klijenta (`klijenti.id`) i vidi ga/menja samo VLASNIK tog
+# klijenta (`klijenti.user_id`) — isto pravilo kao za klijentske beleške (`shared/memorija_vidljivost`). Ime nije
+# akreditiv i ne učestvuje u autorizaciji.
+#
+# Ključ reda: `client_memory.klijent_ime` = "klijent:<uuid>". Postojeće ograničenje UNIQUE(kancelarija_id,
+# klijent_ime) (046) time postaje jedinstvenost po IDENTITETU klijenta — bez migracije, bez sudara istoimenih
+# klijenata (ranije: tuđi istoimeni profil → greška upisa koja odaje njegovo postojanje). Redovi bez tog ključa
+# (stari, vezani za ime; produkcija 2026-10-19: 0 redova) se NE služe i NE spajaju — nema dokazanog identiteta.
+_CM_PREFIKS = "klijent:"
+
+
+def _cm_kljuc(klijent_id: str) -> str:
+    return _CM_PREFIKS + klijent_id
+
+
+def _kanonski_uuid(v) -> Optional[str]:
+    try:
+        return str(uuid.UUID(str(v)))
+    except (ValueError, TypeError, AttributeError):
+        return None
+
+
+async def _moj_klijent(supa, uid: str, ref) -> Optional[str]:
+    """Kanonski id klijenta SAMO ako je `ref` UUID klijenta čiji je vlasnik `uid` i nije obrisan; inače None.
+    Nepostojeći, tuđ, obrisan i neispravan identitet daju ISTI ishod (bez proročišta). Greška baze se PROPUŠTA —
+    pozivalac vraća grešku, nikad „prikaži"."""
+    kid = _kanonski_uuid(ref)
+    if not kid:
+        return None
+    r = await asyncio.to_thread(
+        lambda: supa.table("klijenti").select("id,user_id,deleted_at")
+            .eq("id", kid).eq("user_id", uid).limit(1).execute())
+    red = (getattr(r, "data", None) or [None])[0]
+    if not red or str(red.get("id")) != kid or str(red.get("user_id") or "") != str(uid) or red.get("deleted_at"):
+        return None
+    return kid
+
+
+async def _profil_klijenta(supa, kancelarija_id, klijent_id: str, kolone: str) -> Optional[dict]:
+    r = await asyncio.to_thread(
+        lambda: supa.table("client_memory").select(kolone)
+            .eq("kancelarija_id", kancelarija_id).eq("klijent_id", klijent_id)
+            .eq("klijent_ime", _cm_kljuc(klijent_id)).limit(1).execute())
+    return (getattr(r, "data", None) or [None])[0]
 
 
 def _apply_trust(memorije: list[dict], supa, kancelarija_id: str) -> list[dict]:
@@ -165,7 +214,9 @@ class SudijaSacuvajReq(BaseModel):
 
 
 class KlijentSacuvajReq(BaseModel):
-    klijent_ime:       str
+    # NS4 O2: identitet je `klijent_id` (klijent čiji je vlasnik pozivalac); ime se ne koristi za autorizaciju
+    # ni za izbor reda (zadržano u ugovoru radi kompatibilnosti starih klijenata).
+    klijent_ime:       Optional[str] = None
     klijent_id:        Optional[str] = None
     prihvata_nagodbu:  Optional[bool] = None
     preferira_brze:    Optional[bool] = None
@@ -298,6 +349,7 @@ async def kontekst_za_ai(
     sudija_ime: Optional[str] = None,
     klijent_ime: Optional[str] = None,
     partner_uid: Optional[str] = None,
+    klijent_id: Optional[str] = None,
 ):
     """
     Vraća sve memorije relevantne za konkretni predmet/situaciju.
@@ -363,30 +415,34 @@ async def kontekst_za_ai(
         except Exception:
             pass
 
-    if klijent_ime:
-        mem = await _fetch_memorije(klijent_ime, "klijent")
+    # NS4 O2: klijentski deo samo za SOPSTVENOG klijenta po identitetu (`klijent_id`); samo ime ne daje ništa.
+    # Greška provere vlasništva → klijentski deo se izostavlja (zatvoreno), nikad tuđi profil u promptu.
+    kid = None
+    if klijent_id:
+        try:
+            kid = await _moj_klijent(supa, uid, klijent_id)
+        except Exception:
+            kid = None
+    if kid:
+        oznaka = (klijent_ime or "").strip()[:120]
+        mem = await _fetch_memorije(kid, "klijent")
         if mem:
             memorije_count += len(mem)
-            delovi.append(f"MEMORIJA O KLIJENTU {klijent_ime.upper()}:")
+            delovi.append(f"MEMORIJA O KLIJENTU {oznaka.upper()}:" if oznaka else "MEMORIJA O KLIJENTU:")
             for m in mem:
                 delovi.append(f"  [{m['tip'].upper()}] {m['sadrzaj']}")
 
         try:
-            cm = await asyncio.to_thread(
-                lambda: supa.table("client_memory")
-                    .select("prihvata_nagodbu, preferira_brze, rizik_profil, napomene")
-                    .eq("kancelarija_id", kancelarija_id)
-                    .ilike("klijent_ime", f"%{klijent_ime}%")
-                    .maybe_single()
-                    .execute()
-            )
-            if cm.data:
+            cm = await _profil_klijenta(supa, kancelarija_id, kid,
+                                        "prihvata_nagodbu, preferira_brze, rizik_profil, napomene")
+            if cm:
                 memorije_count += 1
-                if cm.data.get("prihvata_nagodbu") is False:
-                    delovi.append(f"  VAZNO: Klijent {klijent_ime} NIKAD ne prihvata nagodbu.")
-                elif cm.data.get("prihvata_nagodbu") is True:
-                    delovi.append(f"  Klijent {klijent_ime} otvoren za nagodbu.")
-                if cm.data.get("rizik_profil") == "visok":
+                ko = f"Klijent {oznaka}" if oznaka else "Klijent"
+                if cm.get("prihvata_nagodbu") is False:
+                    delovi.append(f"  VAZNO: {ko} NIKAD ne prihvata nagodbu.")
+                elif cm.get("prihvata_nagodbu") is True:
+                    delovi.append(f"  {ko} otvoren za nagodbu.")
+                if cm.get("rizik_profil") == "visok":
                     delovi.append(f"  Visokorizican klijent — biti oprezan sa savetima.")
         except Exception:
             pass
@@ -525,14 +581,15 @@ async def sacuvaj_sudiju(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/klijent/{klijent_ime}")
+@router.get("/klijent/{klijent_ref}")
 @limiter.limit("30/minute")
 async def get_klijent_profil(
-    klijent_ime: str,
+    klijent_ref: str,
     request: Request,
     user: dict = Depends(get_current_user),
 ):
-    """Vraća profil klijenta — preferencije, stavovi, istorija odluka."""
+    """Profil SOPSTVENOG klijenta po identitetu (`klijenti.id`). Tuđ, nepostojeći, obrisan klijent ili ime umesto
+    identiteta → isti prazan odgovor kao klijent bez profila (NS4 O2 — bez proročišta postojanja)."""
     uid  = user["user_id"]
     supa = _get_supa()
     kancelarija_id = await _get_kancelarija_id(supa, uid)
@@ -540,21 +597,17 @@ async def get_klijent_profil(
         raise HTTPException(status_code=400, detail="Niste član kancelarije.")
 
     try:
-        cm_r, mem_r = await asyncio.gather(
-            asyncio.to_thread(
-                lambda: supa.table("client_memory")
-                    .select("*")
-                    .eq("kancelarija_id", kancelarija_id)
-                    .ilike("klijent_ime", f"%{klijent_ime}%")
-                    .limit(1)
-                    .execute()
-            ),
+        kid = await _moj_klijent(supa, uid, klijent_ref)
+        if not kid:
+            return {"profil": None, "memorije": []}
+        profil, mem_r = await asyncio.gather(
+            _profil_klijenta(supa, kancelarija_id, kid, "*"),
             asyncio.to_thread(
                 lambda: supa.table("memory_entries")
                     .select("tip, sadrzaj, vaznost, created_at, entity_type, entity_id")
                     .eq("kancelarija_id", kancelarija_id)
                     .eq("entity_type", "klijent")
-                    .ilike("entity_id", f"%{klijent_ime}%")
+                    .eq("entity_id", kid)
                     .eq("aktivan", True)
                     .order("vaznost", desc=True)
                     .limit(_SKUP_ZA_FILTER)
@@ -562,11 +615,12 @@ async def get_klijent_profil(
             ),
         )
         return {
-            "profil":   (cm_r.data or [None])[0],
+            "profil":   profil,
             "memorije": (await asyncio.to_thread(_vidljive, supa, uid, mem_r.data or []))[:20],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("[FIRM_MEMORY] profil klijenta nije dostupan: %s", type(e).__name__)
+        raise HTTPException(status_code=503, detail="Profil klijenta trenutno nije dostupan.")
 
 
 @router.post("/klijent/sacuvaj")
@@ -576,12 +630,15 @@ async def sacuvaj_klijenta(
     payload: KlijentSacuvajReq,
     user: dict = Depends(get_current_user),
 ):
-    """Kreira ili ažurira memoriju o klijentu."""
+    """Kreira ili ažurira profil SOPSTVENOG klijenta (NS4 O2: obavezan `klijent_id` klijenta čiji je pozivalac
+    vlasnik; tuđ ili nepostojeći identitet → isti 404, bez upisa)."""
     uid  = user["user_id"]
     supa = _get_supa()
     kancelarija_id = await _get_kancelarija_id(supa, uid)
     if not kancelarija_id:
         raise HTTPException(status_code=400, detail="Niste član kancelarije.")
+    if not payload.klijent_id:
+        raise HTTPException(status_code=422, detail="Profil klijenta zahteva identitet klijenta (klijent_id).")
 
     update: dict = {"updated_at": _now()}
     if payload.prihvata_nagodbu  is not None: update["prihvata_nagodbu"]  = payload.prihvata_nagodbu
@@ -589,38 +646,44 @@ async def sacuvaj_klijenta(
     if payload.komunikacija_tip  is not None: update["komunikacija_tip"]  = payload.komunikacija_tip
     if payload.rizik_profil      is not None: update["rizik_profil"]      = payload.rizik_profil
     if payload.napomene          is not None: update["napomene"]          = payload.napomene[:1000]
-    if payload.klijent_id        is not None: update["klijent_id"]        = payload.klijent_id
 
     try:
-        existing = await asyncio.to_thread(
-            lambda: supa.table("client_memory")
-                .select("id, kljucne_odluke")
-                .eq("kancelarija_id", kancelarija_id)
-                .eq("klijent_ime", payload.klijent_ime)
-                .maybe_single()
-                .execute()
-        )
-        if existing.data:
-            eid = existing.data["id"]
-            if payload.kljucna_odluka:
-                prev = existing.data.get("kljucne_odluke") or []
-                prev.append({"odluka": payload.kljucna_odluka, "datum": _now()[:10]})
-                update["kljucne_odluke"] = prev[-20:]
-            await asyncio.to_thread(
-                lambda: supa.table("client_memory").update(update).eq("id", eid).execute()
-            )
-        else:
-            update.update({
-                "kancelarija_id": kancelarija_id,
-                "klijent_ime":    payload.klijent_ime,
-                "kljucne_odluke": [{"odluka": payload.kljucna_odluka, "datum": _now()[:10]}] if payload.kljucna_odluka else [],
-            })
-            await asyncio.to_thread(
-                lambda: supa.table("client_memory").insert(update).execute()
-            )
-        return {"ok": True}
+        kid = await _moj_klijent(supa, uid, payload.klijent_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("[FIRM_MEMORY] provera vlasništva klijenta nije uspela: %s", type(e).__name__)
+        raise HTTPException(status_code=503, detail="Profil klijenta trenutno nije moguće sačuvati.")
+    if not kid:
+        raise HTTPException(status_code=404, detail="Klijent nije pronađen.")
+
+    async def _azuriraj(postojeci: dict):
+        polja = dict(update)
+        if payload.kljucna_odluka:
+            prev = list(postojeci.get("kljucne_odluke") or [])
+            prev.append({"odluka": payload.kljucna_odluka, "datum": _now()[:10]})
+            polja["kljucne_odluke"] = prev[-20:]
+        await asyncio.to_thread(
+            lambda: supa.table("client_memory").update(polja)
+                .eq("id", postojeci["id"]).eq("kancelarija_id", kancelarija_id).eq("klijent_id", kid).execute())
+
+    postojeci = await _profil_klijenta(supa, kancelarija_id, kid, "id, kljucne_odluke")
+    if postojeci:
+        await _azuriraj(postojeci)
+        return {"ok": True}
+    novi = {**update, "kancelarija_id": kancelarija_id, "klijent_id": kid, "klijent_ime": _cm_kljuc(kid),
+            "kljucne_odluke": ([{"odluka": payload.kljucna_odluka, "datum": _now()[:10]}]
+                               if payload.kljucna_odluka else [])}
+    try:
+        await asyncio.to_thread(lambda: supa.table("client_memory").insert(novi).execute())
+    except Exception as e:
+        # Istovremeni prvi upis istog klijenta: UNIQUE(kancelarija_id, klijent_ime) = jedinstvenost po identitetu.
+        # Pobednikov red se ažurira; svaka druga greška se prijavljuje (bez detalja baze).
+        if "23505" not in str(e):
+            raise
+        postojeci = await _profil_klijenta(supa, kancelarija_id, kid, "id, kljucne_odluke")
+        if not postojeci:
+            raise
+        await _azuriraj(postojeci)
+    return {"ok": True}
 
 
 @router.get("/partner/{partner_uid}")

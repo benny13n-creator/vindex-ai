@@ -2479,7 +2479,7 @@ async function learningStatsLoad() {
     var _prihOdb = (d.preporuke_prihvaceno || 0) + (d.preporuke_odbijeno || 0);
     wrap.innerHTML = '<div style="font-size:.72rem;color:var(--tx-3);margin-bottom:.6rem;line-height:1.5;">' + _htmlEsc(d.poruka || '') + '</div>'
       + rows
-      + '<div style="font-size:.65rem;color:var(--tx-3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0)
+      + '<div style="font-size:.6875rem;color:var(--tx-3);margin-top:.5rem;">AI analiza pokrenuto: ' + (d.ukupno_analiza || 0)
       + (_prihOdb > 0 ? ' · Preporuke prihvaćeno: ' + (d.preporuke_prihvaceno || 0) + ' · Odbijeno: ' + (d.preporuke_odbijeno || 0) : '')
       + '</div>';
   } catch (e) {
@@ -2552,7 +2552,7 @@ async function planLoad() {
 
     if (badge) {
       badge.textContent = label;
-      badge.style.cssText = 'font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(0,212,255,0.07);color:'+color+';border:1px solid rgba(0,212,255,0.12);';
+      badge.style.cssText = 'font-size:.6875rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(0,212,255,0.07);color:'+color+';border:1px solid rgba(0,212,255,0.12);';
       badge.style.display = '';
     }
     var planVal = document.getElementById('settings-plan-val');
@@ -10289,7 +10289,7 @@ function pred_renderList() {
     var rizikHtml = '—';
     if (di.rizik_nivo) {
       var rColor = _RIZIK_COLOR[di.rizik_nivo] || 'rgba(255,255,255,.4)';
-      rizikHtml = '<span style="font-size:0.68rem;font-weight:700;color:'+rColor+';letter-spacing:.04em;">'+di.rizik_nivo.toUpperCase()+'</span>';
+      rizikHtml = '<span style="font-size:.6875rem;font-weight:700;color:'+rColor+';letter-spacing:.04em;">'+di.rizik_nivo.toUpperCase()+'</span>';
     }
     var rokHtml = '—';
     if (di.urgentni_rokovi_count && di.urgentni_rokovi_count > 0) {
@@ -10300,7 +10300,7 @@ function pred_renderList() {
       +'<td onclick="event.stopPropagation()"><input type="checkbox" class="pred-chk"'+chked+' onclick="pred_toggleOznaci(\''+p.id+'\')"></td>'
       +'<td style="font-weight:600;">'+escHtml(p.naziv)+'</td>'
       +'<td><span class="pred-badge '+tipCls+'">'+escHtml(p.tip)+'</span></td>'
-      +'<td><span class="'+statusCls+'" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span></td>'
+      +'<td><span class="'+statusCls+'" style="font-size:.6875rem;font-weight:700;letter-spacing:0.06em;">'+statusLbl+'</span></td>'
       +'<td>'+rizikHtml+'</td>'
       +'<td>'+rokHtml+'</td>'
       +'<td class="vx-caption">Otvori →</td>'
@@ -19572,7 +19572,7 @@ function _ccc_render(el, d) {
       '</div>',
       '<div style="text-align:center;flex-shrink:0;padding:.4rem .7rem;background:rgba(255,255,255,.04);border-radius:2px;min-width:60px;">',
         '<div style="font-size:1.5rem;font-weight:800;line-height:1;color:'+hsColor+';">'+hs+'</div>',
-        '<div style="font-size:.58rem;color:var(--tx-3);margin-top:.15rem;">Health</div>',
+        '<div style="font-size:.6875rem;color:var(--tx-3);margin-top:.15rem;">Health</div>',
       '</div>',
     '</div>',
 

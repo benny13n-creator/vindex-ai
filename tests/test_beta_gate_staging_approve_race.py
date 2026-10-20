@@ -76,6 +76,21 @@ class _StagingMemoryTable:
         self._filters = {}
         return res
 
+    def rpc(self, ime, params):
+        """NS4 O3: završetak promocije je RPC `zavrsi_promociju_nacrta` (migracija 140) — zatvara SAMO pokušaj sa
+        istim tokenom; `pinecone_indexed` samo ako je red i dalje odobren. Ista semantika kao SQL."""
+        res = MagicMock()
+        if ime == "zavrsi_promociju_nacrta" and params.get("p_token") \
+                and self._row.get("promocija_token") == params["p_token"]:
+            self._row["pinecone_indexed"] = bool(params.get("p_indeksiran")) and self._row.get("status") == "approved"
+            self._row["promocija_token"] = None
+            self._row["promocija_preuzeta_at"] = None
+            res.data = self._row["pinecone_indexed"]
+        else:
+            res.data = False
+        res.execute.return_value = res
+        return res
+
 
 @pytest.mark.anyio
 async def test_second_concurrent_approve_does_not_promote_again():
@@ -89,6 +104,7 @@ async def test_second_concurrent_approve_does_not_promote_again():
     table = _StagingMemoryTable(row)
     supa = MagicMock()
     supa.table.return_value = table
+    supa.rpc.side_effect = table.rpc
 
     promote_calls = {"n": 0}
 
@@ -119,6 +135,7 @@ async def test_single_approve_still_promotes_and_persists_indexed_flag():
     table = _StagingMemoryTable(row)
     supa = MagicMock()
     supa.table.return_value = table
+    supa.rpc.side_effect = table.rpc
 
     async def _fake_promote(supa, staged_row):
         return True
@@ -144,6 +161,7 @@ async def test_below_threshold_confidence_claims_row_but_does_not_promote():
     table = _StagingMemoryTable(row)
     supa = MagicMock()
     supa.table.return_value = table
+    supa.rpc.side_effect = table.rpc
 
     promote_calls = {"n": 0}
 

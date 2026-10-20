@@ -11,6 +11,8 @@
  *        `critique_applied:false` = ta provera NIJE potvrđena; nacrt odlazi na overu (staging).
  *   POST /api/nacrti/export/docx {tekst, naslov, tip} → .docx
  *   GET  /api/staging/predmet/{id} → {stavke}; POST /api/staging/{id}/approve|reject
+ *   NS4 O3: POST /api/staging/{id}/ponovi-upis — samo kad server kaže `ponovni_upis_moguc` (odobren, iznad praga,
+ *        upis nije potvrđen kao potpun); konačnu podobnost proverava server (atomsko preuzimanje).
  *   VCR001 T05: GET /api/staging/{id} → ceo nacrt (tekst); PATCH /api/staging/{id}/tekst {tekst} → čuva izmenu
  *        SAMO dok je nacrt na čekanju (409 posle odluke). Odobrava se tek OTVOREN nacrt, i to sačuvan tekst:
  *        nesačuvana izmena se prvo čuva, pa se odobrava — u bazu znanja ulazi ono što je advokat video.
@@ -111,6 +113,11 @@
           ne.addEventListener("click", function () { odluci(String(x.id), "reject", li); });
           akcije.append(ne);
         }
+        if (x.ponovni_upis_moguc === true) {
+          var pu = el("button", "text-btn", "Ponovi upis u bazu znanja"); pu.type = "button";
+          pu.addEventListener("click", function () { odluci(String(x.id), "ponovi-upis", li); });
+          akcije.append(pu);
+        }
         li.append(akcije);
         $("nc-overa-lista").append(li);
       });
@@ -122,7 +129,8 @@
       var r = await api.send("/api/staging/" + encodeURIComponent(sid) + "/" + radnja, { token: sesija.token(), oblik: function (x) { return typeof x.status === "string"; } });
       if (moja !== genO || !trenutni || trenutni.id !== id) return false;
       if (r.ok && r.podaci) {
-        poruka("nc-overa-poruka", "uspeh", radnja === "reject" ? "Nacrt je odbijen." : (r.podaci.indexed ? "Nacrt je odobren i dodat u bazu znanja kancelarije."
+        poruka("nc-overa-poruka", "uspeh", radnja === "reject" ? "Nacrt je odbijen." : (r.podaci.indexed ? (radnja === "ponovi-upis" ? "Nacrt je dodat u bazu znanja kancelarije." : "Nacrt je odobren i dodat u bazu znanja kancelarije.")
+          : r.podaci.razlog === "INDEKSIRANJE_NIJE_USPELO" ? "Nacrt je odobren, ali upis u bazu znanja kancelarije nije potvrđen kao potpun — sistem ga zato ne koristi kao overen izvor u znanju kancelarije. Upis možete ponoviti iz liste."
           : "Nacrt je odobren. Nije dodat u bazu znanja kancelarije jer ocena kvaliteta nije dovoljna."));
         if (nacrt && nacrt.sid === sid) prikaziOtvoren({ status: radnja === "reject" ? "rejected" : "approved" });
         ucitajOveru();
@@ -131,7 +139,9 @@
       if (li) li.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
       var g = r.greska || {};
       poruka("nc-overa-poruka", g.ishodNepoznat ? "nepoznato" : "greska", g.ishodNepoznat ? "Ishod nije poznat. Osvežite listu pre ponovnog pokušaja."
-        : g.kod === "NOT_FOUND" ? "Nacrt nije dostupan. Ništa nije promenjeno." : "Server je odbio zahtev. Ništa nije promenjeno.");
+        : g.kod === "NOT_FOUND" ? "Nacrt nije dostupan. Ništa nije promenjeno."
+        : radnja === "ponovi-upis" ? "Ponovni upis sada nije moguć (nacrt nije podoban ili je upis već u toku). Osvežite listu."
+        : "Server je odbio zahtev. Ništa nije promenjeno.");
       return false;
     }
 

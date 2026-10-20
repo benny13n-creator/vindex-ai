@@ -107,6 +107,13 @@ def _safe_one(r) -> dict:
     return d or {}
 
 
+# NS4 G1/G2: `case_patterns` se više NE preračunava u Pythonu (čitanje → računanje → upis u zasebnim PostgREST
+# pozivima: zastareo upis je prepisivao tačan zbir, čitanje bez straničenja pucalo iznad max-rows, a pad između
+# upisa ishoda i preračuna ostavljao zbir zastarelim). Ishod i zbir upisuje JEDNA transakcija u bazi —
+# `zabelezi_ishod_predmeta` (migracija 139). Dokaz nad stvarnim PostgreSQL-om: tests/test_ns4f_pg_ishod.py.
+_RPC_ISHOD = "zabelezi_ishod_predmeta"
+
+
 async def _dohvati_predmet(supa, predmet_id: str, uid: str) -> dict:
     r = await asyncio.to_thread(
         lambda: supa.table("predmeti")
@@ -156,7 +163,7 @@ async def zabeleži_ishod(
     try:
         _post = await asyncio.to_thread(
             lambda: supa.table("outcome_log")
-                .select("id,ishod,presudni_faktori")
+                .select("id,ishod,presudni_faktori,tip_spora")
                 .eq("predmet_id", req.predmet_id)
                 .eq("user_id", uid)
                 .limit(1)
@@ -172,78 +179,38 @@ async def zabeleži_ishod(
     isti_ishod = bool(postojeci_ishod) and postojeci_ishod.get("ishod") == req.ishod and (
         sorted(postojeci_ishod.get("presudni_faktori") or []) == sorted(req.presudni_faktori or [])
     )
+    # NS4-R1: advokat je mogao da promeni SAMO vrstu spora (`predmeti.tip`) — isti ishod i faktori. `outcome_log`
+    # se tada upisuje sa novom vrstom, ali `isti_ishod` je preskakao preračun: doprinos je ostajao u staroj vrsti.
+    ista_vrsta = bool(postojeci_ishod) and postojeci_ishod.get("tip_spora") == tip_spora
 
-    # 1. Upsert outcome_log (uključuje root cause analizu)
+    # 1+2. Ishod i `case_patterns` u JEDNOJ transakciji (NS4 G1/G2, migracija 139): brava po korisniku,
+    # vlasništvo predmeta i vrsta spora čitaju se u transakciji, zbir za novu i (ako se promenila) staru vrstu
+    # spora računa se skupovno iz `outcome_log` (bez ograničenja broja redova). Greška → ni ishod ni zbir nisu
+    # upisani (rollback) — isto kao ranije pri padu upisa ishoda: predmet ostaje otvoren, advokat ponavlja.
     try:
         await asyncio.to_thread(
-            lambda: supa.table("outcome_log").upsert({
-                "predmet_id":        req.predmet_id,
-                "user_id":           uid,
-                "ishod":             req.ishod,
-                "presudni_faktori":  req.presudni_faktori,
-                "trajanje_meseci":   req.trajanje_meseci,
-                "vrednost_spora_rsd": req.vrednost_spora_rsd,
-                "komentar":          (req.komentar or "")[:2000],
-                "tip_spora":         tip_spora,
-                "uzroci":            req.uzroci[:10],
-                "kontekst_poraza":   (req.kontekst_poraza or "")[:3000],
-            }, on_conflict="predmet_id").execute()
+            lambda: supa.rpc(_RPC_ISHOD, {
+                "p_user_id":         uid,
+                "p_predmet_id":      req.predmet_id,
+                "p_ishod":           req.ishod,
+                "p_faktori":         req.presudni_faktori,
+                "p_trajanje_meseci": req.trajanje_meseci,
+                "p_vrednost_spora":  req.vrednost_spora_rsd,
+                "p_komentar":        (req.komentar or "")[:2000],
+                "p_uzroci":          req.uzroci[:10],
+                "p_kontekst_poraza": (req.kontekst_poraza or "")[:3000],
+            }).execute()
         )
     except Exception as e:
-        # S1-5 (2026-08-09): this swallowed the ONE write the endpoint exists to
-        # perform, then carried on to close the case and return
-        # "Čestitamo! Iskustvo sa ovim predmetom sada pomaže budućim analizama."
-        #
-        # The lawyer sees success, the case is closed, and the outcome row does
-        # not exist -- so the feedback form is no longer reachable, benchmarks
-        # and AI-Sudija calibration never see it, and the one datum the entire
-        # learning product is built on is lost with no way to re-enter it.
-        #
-        # Fail instead. The case stays open, so the lawyer can retry.
-        logger.error("[LEARNING] outcome_log upsert nije uspeo — prekidam: %s", e)
+        # S1-5 (2026-08-09): ranije se pad jedinog upisa zbog kog ruta postoji gutao, predmet zatvarao i
+        # advokatu javljao uspeh. Neuspeh se prijavljuje; predmet ostaje otvoren (sledeći korak se ne izvršava).
+        logger.error("[LEARNING] upis ishoda nije uspeo — prekidam: %s", type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail="Ishod predmeta nije sačuvan. Predmet NIJE zatvoren — pokušajte ponovo.",
         )
-
-    # 2. Update case_patterns za svaki faktor — samo za PRVI zabeležen ishod predmeta
-    je_pobeda = req.ishod == "pobeda"
-    je_poraz  = req.ishod == "poraz"
-    for faktor in ([] if postojeci_ishod else req.presudni_faktori[:10]):
-        try:
-            existing = await asyncio.to_thread(
-                lambda f=faktor: supa.table("case_patterns")
-                    .select("id,pobede,porazi")
-                    .eq("user_id", uid)
-                    .eq("tip_spora", tip_spora)
-                    .eq("faktor", f)
-                    .limit(1)
-                    .execute()
-            )
-            rows = _safe(existing)
-            if rows:
-                row = rows[0]
-                await asyncio.to_thread(
-                    lambda r=row, f=faktor: supa.table("case_patterns").update({
-                        "pobede": r["pobede"] + (1 if je_pobeda else 0),
-                        "porazi": r["porazi"] + (1 if je_poraz  else 0),
-                        "ukupno": r.get("ukupno", r["pobede"] + r["porazi"]) + 1,
-                    }).eq("id", r["id"]).execute()
-                )
-            else:
-                await asyncio.to_thread(
-                    lambda f=faktor: supa.table("case_patterns").insert({
-                        "user_id":   uid,
-                        "tip_spora": tip_spora,
-                        "faktor":    f,
-                        "pobede":    1 if je_pobeda else 0,
-                        "porazi":    1 if je_poraz  else 0,
-                        "ukupno":    1,
-                    }).execute()
-                )
-            faktori_azurirani += 1
-        except Exception as e:
-            logger.warning("[LEARNING] case_patterns greška za faktor %s: %s", faktor, e)
+    if not (isti_ishod and ista_vrsta):
+        faktori_azurirani = len(dict.fromkeys(req.presudni_faktori[:10]))
 
     # 3. Ažuriraj recommendation_log za ovaj predmet (postavljanje vrednosti — idempotentno; preskače se
     # samo kad se ništa nije promenilo)
@@ -468,6 +435,21 @@ async def recommendation_feedback(
 
 # ─── ENDPOINT 4: Slični predmeti (Collective Intelligence) ────────────────────
 
+# NS4-T3: najmanji broj uporedivih predmeta sa ZABELEŽENIM ishodom ispod kog se ne iznosi nikakav zbirni zaključak.
+_MIN_UZORAK = 3
+_NAPOMENA_ISTORIJA = ("Ovo je opis istorije kancelarije, nije predviđanje ishoda i nije dokaz da je navedeni "
+                      "faktor uzrok ishoda. Sličnost je procena po nazivu i vrsti predmeta, ne po činjenicama.")
+
+
+_ISTORIJA_NEDOSTUPNA = ("Istorija ishoda kancelarije trenutno nije dostupna — ovo NIJE potvrda da sličnih "
+                        "predmeta nema. Pokušajte ponovo.")
+
+
+def _bez_uporedivih() -> dict:
+    return {"slicni_predmeti": [], "ukupno_slicnih": 0, "uzorak": 0, "stanje": "NEDOVOLJNO_PODATAKA",
+            "strategija_preporuka": "Nema zatvorenih predmeta sa zabeleženim ishodom za poređenje."}
+
+
 @router.get("/slicni-predmeti/{predmet_id}")
 @limiter.limit("10/minute")
 async def slicni_predmeti(
@@ -497,11 +479,12 @@ async def slicni_predmeti(
         )
         zatvoreni = _safe(zatvoreni_r)
     except Exception as e:
+        # NS4-R4: greška čitanja nije prazna istorija — „nema uporedivih predmeta" bi bila neproverena tvrdnja.
         logger.warning("[LEARNING] zatvoreni predmeti greška: %s", e)
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        raise HTTPException(status_code=503, detail=_ISTORIJA_NEDOSTUPNA)
 
     if not zatvoreni:
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        return _bez_uporedivih()
 
     # Dohvati outcome_log za zatvorene predmete
     zids = [p["id"] for p in zatvoreni[:30]]
@@ -513,17 +496,20 @@ async def slicni_predmeti(
                 .execute()
         )
         outcomes_map = {o["predmet_id"]: o for o in _safe(outcomes_r)}
-    except Exception:
-        outcomes_map = {}
+    except Exception as e:
+        logger.warning("[LEARNING] outcome_log greška (slični predmeti): %s", e)
+        raise HTTPException(status_code=503, detail=_ISTORIJA_NEDOSTUPNA)
 
     # Samo predmeti sa poznatim ishodom
     sa_ishodom = [p for p in zatvoreni if p["id"] in outcomes_map]
     if not sa_ishodom:
-        return {"slicni_predmeti": [], "ukupno_slicnih": 0, "strategija_preporuka": ""}
+        return _bez_uporedivih()
 
     # GPT-4o-mini rangira sličnost
+    # NS4-R3: model dobija i vraća PUN id. Ranije prvih 8 znakova — predmeti sa istim prefiksom su se slivali u
+    # jedan, pa je isti predmet brojan više puta kao „više sličnih predmeta".
     lista_txt = "\n".join(
-        f'[{i+1}] predmet_id={p["id"][:8]} naziv="{p.get("naziv","")[:60]}" '
+        f'[{i+1}] predmet_id={p["id"]} naziv="{p.get("naziv","")[:60]}" '
         f'tip={p.get("tip","?")}'
         for i, p in enumerate(sa_ishodom[:20])
     )
@@ -534,7 +520,7 @@ async def slicni_predmeti(
         f'opis="{(predmet.get("opis") or "")[:300]}"\n\n'
         f'Zatvoreni predmeti kancelarije:\n{lista_txt}\n\n'
         f'Rangira top 5 najsličnijih. Vrati SAMO JSON niz:\n'
-        f'[{{"predmet_id_prefix":"prva 8 slova","slicnost":85,"razlog":"..."}}]\n'
+        f'[{{"predmet_id":"pun predmet_id iz liste","slicnost":85,"razlog":"..."}}]\n'
         f'Ekavica. Budi konkretan o razlogu sličnosti.'
     )
 
@@ -564,21 +550,30 @@ async def slicni_predmeti(
         logger.warning("[LEARNING] GPT sličnost greška: %s", e)
         # Fallback: vrati prvih 5 istog tipa
         rangirani = [
-            {"predmet_id_prefix": p["id"][:8], "slicnost": 60, "razlog": "Isti tip spora"}
+            {"predmet_id": p["id"], "slicnost": None, "razlog": "Isti tip spora (ocena sličnosti nije dostupna)"}
             for p in sa_ishodom[:5]
             if p.get("tip") == predmet.get("tip")
         ]
     else:
         _ai_koriscen = True
 
-    # Enrich sa outcome podacima
-    predmet_by_prefix = {p["id"][:8]: p for p in sa_ishodom}
-    result = []
+    # Enrich sa outcome podacima — NS4-R3: identitet po punom id-u; prefiks (stari oblik odgovora) samo ako je
+    # JEDINSTVEN među kandidatima. Dvosmislen/nepoznat identitet se odbacuje; isti predmet se broji jednom.
+    po_id = {p["id"]: p for p in sa_ishodom}
+    po_prefiksu: dict = {}
+    for p in sa_ishodom:
+        po_prefiksu.setdefault(p["id"][:8], []).append(p)
+    result, vidjeni = [], set()
     for r in rangirani[:5]:
-        prefix = r.get("predmet_id_prefix", "")[:8]
-        p = predmet_by_prefix.get(prefix)
-        if not p:
+        if not isinstance(r, dict):
             continue
+        p = po_id.get(str(r.get("predmet_id") or ""))
+        if p is None:
+            kandidati = po_prefiksu.get(str(r.get("predmet_id_prefix") or "")[:8]) or []
+            p = kandidati[0] if len(kandidati) == 1 else None
+        if not p or p["id"] in vidjeni:
+            continue
+        vidjeni.add(p["id"])
         outcome = outcomes_map.get(p["id"], {})
         result.append({
             "predmet_id":         p["id"],
@@ -588,15 +583,20 @@ async def slicni_predmeti(
             "trajanje_meseci":    outcome.get("trajanje_meseci"),
             "presudni_faktori":   outcome.get("presudni_faktori", []),
             "komentar":           outcome.get("komentar", ""),
-            "slicnost":           r.get("slicnost", 0),
+            "slicnost":           r.get("slicnost"),
             "razlog":             r.get("razlog", ""),
         })
 
-    # Strategijska preporuka
-    strategija = ""
-    if result:
-        pobede = [x for x in result if x["ishod"] == "pobeda"]
-        win_r  = round(len(pobede) / len(result) * 100) if result else 0
+    # Strategijska preporuka — NS4-T3: uzorak se uvek navodi; bez procenta i bez tvrdnje o uzroku. Ranije je već
+    # JEDAN predmet davao „win rate 100%“ i „X je bio presudni faktor u pobedama“.
+    n = len(result)
+    pobede = [x for x in result if x["ishod"] == "pobeda"]
+    if n < _MIN_UZORAK:
+        stanje = "NEDOVOLJNO_PODATAKA"
+        strategija = (f"Premalo uporedivih predmeta sa zabeleženim ishodom ({n}) za bilo kakav zbirni zaključak."
+                      if n else "Nema uporedivih predmeta sa zabeleženim ishodom.")
+    else:
+        stanje = "OPIS_ISTORIJE"
         top_faktori: dict[str, int] = {}
         for p in pobede:
             for f in (p.get("presudni_faktori") or []):
@@ -604,8 +604,9 @@ async def slicni_predmeti(
         top = sorted(top_faktori.items(), key=lambda x: x[1], reverse=True)[:2]
         top_names = [_FAKTORI_LABELS.get(f, f) for f, _ in top]
         strategija = (
-            f"Na osnovu {len(result)} sličnih predmeta (win rate {win_r}%)"
-            + (f", {top_names[0]} je bio presudni faktor u pobedama." if top_names else ".")
+            f"Od {n} sličnih predmeta sa zabeleženim ishodom, {len(pobede)} je završeno pobedom."
+            + (f" U tim predmetima advokati su kao presudno najčešće navodili: {', '.join(top_names)}." if top_names else "")
+            + " " + _NAPOMENA_ISTORIJA
         )
 
     if _ai_koriscen:
@@ -614,6 +615,8 @@ async def slicni_predmeti(
     return {
         "slicni_predmeti":     result,
         "ukupno_slicnih":      len(result),
+        "uzorak":              n,
+        "stanje":              stanje,
         "strategija_preporuka": strategija,
     }
 

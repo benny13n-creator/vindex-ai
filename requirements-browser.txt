@@ -1,0 +1,3 @@
+# Samo za CI merenje vidljive veličine teksta legacy interfejsa (tests/assets/font_pod_merenje.py).
+# Instalira se u ZASEBAN venv (VINDEX_PLAYWRIGHT_PYTHON) — ne u test okruženje i ne u produkcionu sliku.
+playwright==1.60.0

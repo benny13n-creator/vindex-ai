@@ -53,10 +53,14 @@ def svet(monkeypatch):
         "predmeti": [{"id": PA, "user_id": "uid-A", "status": "zatvoren"}, {"id": PA2, "user_id": "uid-A", "status": "zatvoren"},
                      {"id": PB, "user_id": "uid-B", "status": "zatvoren"}],
         "predmet_delegiranja": [],
-        "staging_memory": [{"id": "s-ok", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True},
-                           {"id": "s-ok2", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True},
+        "staging_memory": [{"id": "s-ok", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True, "pinecone_indexed": True},
+                           {"id": "s-ok2", "user_id": "uid-A", "predmet_id": PA, "status": "approved", "is_lawyer_approved": True,
+                            "pinecone_indexed": True},
                            {"id": "s-odbijen", "user_id": "uid-A", "predmet_id": PA2, "status": "rejected", "is_lawyer_approved": False},
-                           {"id": "s-B", "user_id": "uid-B", "predmet_id": PB, "status": "approved", "is_lawyer_approved": True}],
+                           {"id": "s-B", "user_id": "uid-B", "predmet_id": PB, "status": "approved", "is_lawyer_approved": True,
+                            "pinecone_indexed": True}],
+        # NS4-R2: odobreni redovi ciji vektori postoje u indeksu imaju pinecone_indexed=True (promocija ga uvek upisuje,
+        # od migracije 088); fake baza bez toga podrazumeva False = „upis nepotpun“.
     })
     from app.services import retrieve as rt
     pozivi = []

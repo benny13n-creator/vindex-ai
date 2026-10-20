@@ -204,10 +204,55 @@ def test_fetch_with_timeout_helper_present_and_used_by_pred_upload_doc():
     assert "_fetchWithTimeout(BASE_URL + '/api/predmeti/' + activePredmetId + '/upload'" in vindex_js
 
 
+def _js_funkcija(izvor: str, potpis: str) -> str:
+    """Izvor top-level funkcije iz static/vindex.js: od potpisa do prve `}` u koloni 0."""
+    i = izvor.index(potpis)
+    return izvor[i:izvor.index("\n}\n", i) + 3]
+
+
+# Ponašanje se meri u Node-u nad STVARNIM izvorom `_fetchWithTimeout` i `pred_upload_doc`: sat se ubrzava
+# (zakazani abort okida odmah), a `fetch` ili visi do abort-a ili odmah pada kao mrežna greška.
+_UPLOAD_HARNESS = r"""
+const _pravi = globalThis.setTimeout, zakazano = [];
+var setTimeout = (fn, ms) => { zakazano.push(ms); return _pravi(fn, 0); };
+var clearTimeout = globalThis.clearTimeout;
+const el = {}; var document = { getElementById: (id) => el[id] || (el[id] = { id, style: {}, textContent: "", innerHTML: "" }) };
+var activePredmetId = "p1", currentSession = { access_token: "t" }, _genomeDnaCache = {}, BASE_URL = "";
+var FormData = function () { this.append = () => {}; };
+var nacin = "";
+var fetch = (url, opt) => nacin === "visi"
+  ? new Promise((_, odbij) => opt.signal.addEventListener("abort", () => { const e = new Error("aborted"); e.name = "AbortError"; odbij(e); }))
+  : Promise.reject(new TypeError("Failed to fetch"));
+__FUNKCIJE__
+(async () => {
+  const izlaz = {};
+  for (const n of ["visi", "mreza"]) {
+    nacin = n; zakazano.length = 0; el["pred-upload-error"] = undefined;
+    await pred_upload_doc({ name: "tuzba.pdf", size: 1000 });
+    izlaz[n] = { poruka: document.getElementById("pred-upload-error").textContent, zakazano: [...zakazano] };
+  }
+  console.log(JSON.stringify(izlaz));
+})();
+"""
+
+
 def test_pred_upload_doc_distinguishes_timeout_error_message():
+    """Isteklo vreme otpremanja (abort iz `_fetchWithTimeout`) i mrežna greška daju RAZLIČITE poruke.
+
+    Ranije je test tražio literal `AbortError` u prvih 6000 znakova funkcije; funkcija je narasla
+    (6522), pa je pad bio artefakt prozora, ne ponašanja. Sada se meri samo ponašanje.
+    """
+    import json, subprocess
     vindex_js = open(os.path.join(REPO_ROOT, "static", "vindex.js"), encoding="utf-8").read()
-    marker = "async function pred_upload_doc(file) {"
-    assert marker in vindex_js
-    body = vindex_js.split(marker, 1)[1][:6000]
-    assert "AbortError" in body
-    assert "predugo trajalo" in body
+    funkcije = (_js_funkcija(vindex_js, "async function _fetchWithTimeout(url, options, timeoutMs) {")
+                + _js_funkcija(vindex_js, "async function pred_upload_doc(file) {"))
+    r = subprocess.run(["node", "-"], input=_UPLOAD_HARNESS.replace("__FUNKCIJE__", funkcije),
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert r.stdout.strip(), "pred_upload_doc se nije završio — rok otpremanja nije prekinuo zahtev koji visi"
+    izlaz = json.loads(r.stdout.strip().splitlines()[-1])
+
+    assert izlaz["visi"]["zakazano"] == [90000], "upload mora imati sopstveni rok od 90 s"
+    assert izlaz["visi"]["poruka"] == "Otpremanje je predugo trajalo. Pokušajte ponovo."
+    assert izlaz["mreza"]["poruka"] == "Nema veze sa serverom. Proverite konekciju."
+    assert izlaz["visi"]["poruka"] != izlaz["mreza"]["poruka"]

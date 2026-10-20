@@ -257,9 +257,15 @@ def test_sacuvan_odgovor_sifrovan_bez_tela_zahteva_i_tokena(ok):
     assert not ({"body", "request_body", "authorization", "headers"} & set(red))
 
 
-def test_nezasticene_rute_ignorisu_kljuc(ok):
+def test_nezasticene_rute_ignorisu_kljuc(ok, monkeypatch):
     k, b, _ = ok
-    k.post("/api/praksa/search", json={"query": "naknada štete"}, headers=_sa_kljucem("A", K()))
+    # Meri se samo da ključ na nezaštićenoj ruti ne pravi zapis. Stvarna pretraga prakse bi gradila embedding
+    # (tiktoken/OpenAI) preko spoljne mreže, što `test_nema_spoljne_mreze` zabranjuje — zamenjena je samo ona.
+    import routers.praksa as praksa
+    pozivi = []
+    monkeypatch.setattr(praksa, "_praksa_search_sync", lambda *a: pozivi.append(a) or {"results": [], "total": 0})
+    r = k.post("/api/praksa/search", json={"query": "naknada štete"}, headers=_sa_kljucem("A", K()))
+    assert r.status_code == 200 and len(pozivi) == 1, "ruta pretrage nije stvarno izvršena"
     k.post("/api/nacrti/export/docx", json={"tekst": "x", "naslov": "x", "tip": "x"}, headers=_sa_kljucem("A", K()))
     assert b.tabele[TAB] == []
 

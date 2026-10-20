@@ -771,7 +771,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .pred-item{display:flex;align-items:center;gap:0.7rem;padding:0.95rem 1.05rem;min-height:44px;background:rgba(13,17,23,0.5);backdrop-filter: none;-webkit-backdrop-filter: none;border:1px solid rgba(255,255,255,0.08);border-radius:4px;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s;}
 .pred-item:hover,.pred-item.active{background:rgba(255,255,255,0.045);border-color:rgba(0,212,255,0.45);}
 .pred-naziv{flex:1;font-size:0.84rem;color:#e8eaf0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pred-badge{font-size:0.6rem;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.06);color: var(--tx-3);}
+.pred-badge{font-size:.6875rem;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.06);color: var(--tx-3);}
 .pred-badge.radni{background:rgba(0,212,255,0.08);color:#00d4ff;}
 .pred-badge.privredni{background:rgba(201,168,76,0.12);color:#c9a84c;}
 .pred-detail{margin-top:0.9rem;border-top:1px solid rgba(255,255,255,0.07);padding-top:0.9rem;display:none;}
@@ -796,7 +796,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .pck-cards{display:grid;grid-template-columns:repeat(3,1fr);}
 .pck-card{padding:.6rem .75rem;border-right:1px solid rgba(255,255,255,.05);}
 .pck-card:last-child{border-right:none;}
-.pck-card-lbl{font-size:.6rem;color: var(--tx-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem;}
+.pck-card-lbl{font-size:.6875rem;color: var(--tx-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.28rem;}
 .pck-card-val{font-size:.79rem;color:#fff;line-height:1.4;}
 .pck-card-sub{font-size:.71rem;color: var(--tx-3);margin-top:.18rem;line-height:1.4;}
 .pck-rizik-badge{display:inline-block;padding:.12rem .45rem;border-radius:4px;font-size:.74rem;font-weight:600;letter-spacing:.03em;}
@@ -809,7 +809,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
 .pck-prio-badge.odlozen{background:rgba(255,255,255,.06);color: var(--tx-3);}
 .pck-rok-item{font-size:.75rem;color:#f0c060;margin-bottom:.16rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pck-loading{padding:.8rem 1rem;text-align:center;font-size:.77rem;color: var(--tx-3);font-style:italic;}
-.pck-faktor{font-size:.68rem;margin-bottom:.1rem;}
+.pck-faktor{font-size:.6875rem;margin-bottom:.1rem;}
 .pck-faktor.plus{color:rgba(100,220,140,.82);}
 .pck-faktor.minus{color:rgba(255,130,130,.72);}
 @media(max-width:600px){.pck-cards{grid-template-columns:1fr;}.pck-card{border-right:none;border-bottom:1px solid rgba(255,255,255,.05);}.pck-card:last-child{border-bottom:none;}}
@@ -1936,7 +1936,7 @@ select option:hover,select option:focus,select option:checked{background-color:r
   color: rgba(255,255,255,0.78) !important;
 }
 .settings-row-sub {
-  font-family: var(--font-mono) !important; font-size: 0.6rem !important;
+  font-family: var(--font-mono) !important; font-size: .6875rem !important;
   letter-spacing: 0.06em !important; color: var(--tx-4) !important;
   margin-top: 2px !important;
 }
@@ -3086,7 +3086,7 @@ body {
   border-radius: var(--r-sm);
   color: var(--blue);
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: .6875rem;
   letter-spacing: 0.06em;
   cursor: pointer;
   transition: background var(--t-fast), border-color var(--t-fast);
@@ -3106,9 +3106,9 @@ body {
   flex-shrink: 0;
 }
 .nav-user-email {
-  font-size: 0.6rem;
+  font-size: .6875rem;
   color: rgba(255,255,255,0.52);
-  max-width: 130px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4596,7 +4596,7 @@ select.pro-input option { background: var(--surface); }
   letter-spacing: 0.06em;
 }
 .vx-land-foot-disc {
-  font-size: 0.6rem;
+  font-size: .6875rem;
   color: var(--tx-4);
   max-width: 400px;
   text-align: right;
@@ -5953,7 +5953,7 @@ i[data-lucide] svg {
   border-radius: 3px;
 }
 .smart-chips-title {
-  font-size: .62rem; color: var(--tx-3);
+  font-size: .6875rem; color: var(--tx-3);
   text-transform: uppercase; letter-spacing: .1em; margin-bottom: .45rem;
 }
 .smart-chips-row { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -6222,7 +6222,7 @@ i[data-lucide] svg {
     border: none;
     cursor: pointer;
     color: var(--tx-3);
-    font-size: 0.6rem;
+    font-size: .6875rem;
     font-weight: 600;
     letter-spacing: .03em;
     text-transform: uppercase;
@@ -8861,8 +8861,8 @@ body.light-theme .t-tab.active .vx-tab-ico svg { stroke: rgba(0,153,187,0.90) !i
   --vx-warning:  #f0b429;
 
   /* Tipografska skala */
-  --vx-t-section:  0.60rem;   /* UPPERCASE meta-labela */
-  --vx-t-caption:  0.68rem;   /* Opis, sekundarni tekst */
+  --vx-t-section:  0.6875rem;   /* UPPERCASE meta-labela */
+  --vx-t-caption:  0.6875rem;   /* Opis, sekundarni tekst */
   --vx-t-body:     0.82rem;   /* Osnova */
   --vx-t-heading:  0.90rem;   /* Naslovi unutar panela */
 

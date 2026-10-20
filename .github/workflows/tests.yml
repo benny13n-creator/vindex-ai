@@ -56,6 +56,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-dev.txt
 
+      # Izolovan TEST PostgreSQL kroz kanonski scripts/test_db.py (loopback, sistemski temp, --auth=trust samo na
+      # 127.0.0.1) i fail-closed `verify` PRE testova. Bez ovoga su dokazi nad pravom bazom (naplata, migracije,
+      # NS4 G1/G2/O1/O3) bili preskočeni. Binarni fajlovi su na runner-u van PATH-a; socket direktorijum
+      # /var/run/postgresql pripada korisniku postgres, pa ga runner dobija samo za ovaj efemerni posao.
+      - name: Isolated test PostgreSQL (scripts/test_db.py up + verify)
+        shell: bash
+        run: |
+          VINDEX_PG_BIN="$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n 1)"
+          echo "VINDEX_PG_BIN=$VINDEX_PG_BIN" >> "$GITHUB_ENV"
+          export VINDEX_PG_BIN
+          sudo install -d -o "$(id -u)" -g "$(id -g)" /var/run/postgresql
+          python scripts/test_db.py up
+          python scripts/test_db.py verify
+          echo "VINDEX_PG_TEST_DSN=postgresql://postgres@127.0.0.1:55433/postgres" >> "$GITHUB_ENV"
+
+      # Merenje vidljive veličine teksta legacy interfejsa (tests/test_faza1_izvor_pod.py) traži Chromium.
+      # Playwright ide u ZASEBAN venv: test ga poziva kao poseban proces, pa ostali Playwright testovi ne menjaju
+      # stanje (bez pregledača se i dalje preskaču kao do sada). Nedostupan pregledač je PAD testa, ne preskok.
+      - name: Isolated browser for the legacy text-size measurement (Playwright venv)
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/pw"
+          "$RUNNER_TEMP/pw/bin/pip" install -q -r requirements-browser.txt
+          "$RUNNER_TEMP/pw/bin/python" -m playwright install --with-deps chromium
+          echo "VINDEX_PLAYWRIGHT_PYTHON=$RUNNER_TEMP/pw/bin/python" >> "$GITHUB_ENV"
+
       - name: Run pytest
         # -rs: report SKIPPED with reasons. Without it the 59 real-PostgreSQL
         # tests covering migrations 107 and 108 -- the credit-race closure the

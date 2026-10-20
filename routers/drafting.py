@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
@@ -320,6 +321,50 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
 _APPROVAL_CONFIDENCE_THRESHOLD = 0.85
 
 
+def _putanja_nacrta(staging_id) -> str:
+    return f"draft/staging/{staging_id}"
+
+
+def _red_nacrta(supa, predmet_id, putanja: str):
+    r = (supa.table("predmet_dokumenti").select("id").eq("predmet_id", predmet_id)
+         .eq("storage_path", putanja).limit(1).execute())
+    d = getattr(r, "data", None)
+    return d[0] if isinstance(d, list) and d and isinstance(d[0], dict) else None
+
+
+def _azuriraj_red_nacrta(supa, postojeci: dict, red: dict) -> None:
+    polja = {k: v for k, v in red.items() if k in ("status", "naziv_fajla", "pinecone_namespace", "velicina_kb",
+                                                   "tekst_sadrzaj", "tip_dokaza")}
+    supa.table("predmet_dokumenti").update(polja).eq("id", postojeci["id"]).execute()
+
+
+# NS4 O3: oporavljiva promocija. Jedan aktivan pokušaj po nacrtu (`staging_memory.promocija_token`, migracija 140):
+# prvo odobrenje ga uzima zajedno sa prelaskom pending → approved, ponovni upis atomski preko
+# `preuzmi_ponovni_upis_nacrta` (samo podoban nacrt), a zatvara ga SAMO isti token (`zavrsi_promociju_nacrta`) —
+# zastareo radnik ne prepisuje noviji ishod. Napušten pokušaj (pad procesa) može se preuzeti posle roka.
+# Identitet vektora je stabilan (predmet + heš teksta + redni broj dela) → ponovni upis prepisuje, ne duplira.
+# Ovo je „bar jednom + idempotentno", NE „tačno jednom" preko PostgreSQL-a i Pinecone-a.
+_PROMOCIJA_ISTEK_S = 600
+
+
+async def _zavrsi_promociju(supa, staging_id: str, token: str, indeksiran: bool) -> bool:
+    r = await asyncio.to_thread(lambda: supa.rpc("zavrsi_promociju_nacrta", {
+        "p_staging_id": staging_id, "p_token": token, "p_indeksiran": bool(indeksiran)}).execute())
+    d = getattr(r, "data", None)
+    return (d[0] if isinstance(d, list) and d else d) is True
+
+
+def _ponovni_upis_moguc(red: dict) -> bool:
+    """Podobnost za ponovni upis iz POSTOJEĆIH kolona (za prikaz dugmeta); konačnu odluku donosi atomsko
+    preuzimanje u bazi (uključuje i „pokušaj u toku")."""
+    try:
+        ocena = float(red.get("confidence_score") or 0)
+    except (TypeError, ValueError):
+        return False
+    return (red.get("status") == "approved" and red.get("is_lawyer_approved") is True
+            and red.get("pinecone_indexed") is not True and ocena >= _APPROVAL_CONFIDENCE_THRESHOLD)
+
+
 async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     """Poziva se SAMO iz POST /api/staging/{id}/approve, i SAMO ako
     is_lawyer_approved=True I confidence_score >= 0.85 (oba uslova, v.
@@ -405,7 +450,9 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
     _dok_row = {
         "predmet_id": predmet_id, "user_id": user_id,
         "naziv_fajla": f"AI Nacrt (odobren) — {naziv}",
-        "storage_path": f"draft/{session_id}",
+        # NS4 O3: stabilan identitet knjigovodstvenog reda nacrta (ranije `draft/<nasumičan session_id>` → svaki
+        # ponovni pokušaj bi dodao nov red). Jedinstvenost sprovodi baza (migracija 140, delimični UNIQUE indeks).
+        "storage_path": _putanja_nacrta(staging_row["id"]),
         "pinecone_namespace": owner_ns,
         "status": "indeksirano" if _indeksiran else "sacuvano",
         "velicina_kb": max(1, len(tekst.encode("utf-8")) // 1024),
@@ -422,9 +469,20 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
         # isti taj koji stvarni klasifikator koristi) -- ne nova reč.
         "tip_dokaza": "podnesak",
     }
+    # NS4 O3: ponovni pokušaj (ili istovremeni pokušaj posle isteka roka) ažurira ISTI red umesto da doda nov.
+    _postojeci_dok = await asyncio.to_thread(_red_nacrta, supa, predmet_id, _dok_row["storage_path"])
+    if _postojeci_dok:
+        await asyncio.to_thread(_azuriraj_red_nacrta, supa, _postojeci_dok, _dok_row)
+        return _indeksiran
     try:
         await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").insert(_dok_row).execute())
     except Exception as _ie:
+        if "23505" in str(_ie):
+            _postojeci_dok = await asyncio.to_thread(_red_nacrta, supa, predmet_id, _dok_row["storage_path"])
+            if _postojeci_dok:      # drugi pokušaj je upisao isti red između čitanja i upisa
+                await asyncio.to_thread(_azuriraj_red_nacrta, supa, _postojeci_dok, _dok_row)
+                return _indeksiran
+            raise                   # druga jedinstvenost (npr. redni_broj) — ne gutati
         # LAMBDA008-SCHEMA-001 defense-in-depth: mirrors api.py/smart_intake.py's own
         # column-may-not-exist fallback (migration 105 adds redni_broj/tekst_sadrzaj,
         # applied by the founder per this repo's standing convention, not automatically)
@@ -437,7 +495,9 @@ async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
             await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").insert(_dok_row).execute())
         else:
             raise
-    return True
+    # NS4-T5: uspeh promocije = dokument je CEO u indeksu. Ranije `return True` i kad je upisano manje delova od
+    # očekivanog — ruta je tada tvrdila „dodat u bazu znanja“ i postavljala `pinecone_indexed=True`.
+    return _indeksiran
 
 
 # Program Phoenix, Mission 010 (LIVINGSYS-DEBT-013): _izvori_kontekst and
@@ -1276,7 +1336,7 @@ async def staging_list_za_predmet(predmet_id: str, request: Request, user: dict 
             .order("created_at", desc=True)
             .execute()
     )
-    return {"stavke": r.data or []}
+    return {"stavke": [{**x, "ponovni_upis_moguc": _ponovni_upis_moguc(x)} for x in (r.data or [])]}
 
 
 # ── VCR001 T05: nacrt kao TRAJAN radni proizvod ─────────────────────────────────────────────────────────────────
@@ -1362,6 +1422,57 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
             "izmenio_advokat": True, "izmenjeno_at": detalj["izmenjeno_at"]}
 
 
+_PORUKA_NEPOTPUN_UPIS = (
+    "Nacrt je odobren, ali upis u bazu znanja kancelarije nije potvrđen kao potpun — sistem ga zato ne koristi "
+    "kao overen izvor u znanju kancelarije. Upis možete ponoviti.")
+
+
+@router.post("/api/staging/{staging_id}/ponovi-upis")
+@limiter.limit("10/minute")
+async def staging_ponovi_upis(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """NS4 O3: ponovni upis ODOBRENOG nacrta čiji upis nije potvrđen kao potpun. Samo vlasnik; samo nacrt koji je
+    i dalje odobren, iznad praga kvaliteta, nije potvrđeno indeksiran i nema aktivnog pokušaja (atomsko
+    preuzimanje u bazi). Ne zaobilazi advokatsku overu ni prag; isti tekst → isti ID-evi vektora."""
+    supa = _get_supa()
+    try:
+        sid = str(uuid.UUID(str(staging_id)))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    try:
+        r = await asyncio.to_thread(lambda: supa.rpc("preuzmi_ponovni_upis_nacrta", {
+            "p_staging_id": sid, "p_user_id": user["user_id"],
+            "p_prag": _APPROVAL_CONFIDENCE_THRESHOLD, "p_istek_sekundi": _PROMOCIJA_ISTEK_S}).execute())
+    except Exception as exc:
+        logger.warning("[STAGING_RETRY] preuzimanje nije uspelo staging_id=%s: %s", sid, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje nacrta trenutno nije moguće proveriti. Ništa nije promenjeno.")
+    redovi = r.data if isinstance(getattr(r, "data", None), list) else []
+    if not redovi:
+        cur = await asyncio.to_thread(
+            lambda: supa.table("staging_memory").select("status,is_lawyer_approved,pinecone_indexed,confidence_score")
+                .eq("id", sid).eq("user_id", user["user_id"]).maybe_single().execute())
+        red = getattr(cur, "data", None)
+        if not red:
+            raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+        if red.get("status") == "approved" and red.get("pinecone_indexed") is True:
+            return {"status": "approved", "indexed": True, "poruka": "Nacrt je već u bazi znanja kancelarije."}
+        raise HTTPException(status_code=409, detail=(
+            "Ponovni upis nije moguć: nacrt nije odobren, ocena kvaliteta je ispod praga ili je upis već u toku."))
+    staging_row = redovi[0]
+    token = staging_row.get("promocija_token")
+    promoted = False
+    try:
+        promoted = await _promote_staged_draft_to_pinecone(supa, staging_row)
+    except Exception as exc:
+        _sentry_capture(exc)
+        logger.warning("[STAGING_RETRY] promocija neuspešna staging_id=%s: %s", sid, type(exc).__name__)
+        promoted = False
+    promoted = await _zavrsi_promociju(supa, sid, token, promoted) and promoted
+    if promoted:
+        return {"status": "approved", "indexed": True, "poruka": "Nacrt je dodat u bazu znanja kancelarije."}
+    return {"status": "approved", "indexed": False, "razlog": "INDEKSIRANJE_NIJE_USPELO",
+            "poruka": _PORUKA_NEPOTPUN_UPIS, "ponovni_upis_moguc": True}
+
+
 @router.post("/api/staging/{staging_id}/approve")
 @limiter.limit("20/minute")
 async def staging_approve(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
@@ -1377,11 +1488,15 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
     staging_row = row_res.data
 
     from shared.vector_origin import now_iso
+    token = str(uuid.uuid4())
     update_fields = {
         "is_lawyer_approved": True,
         "approved_by": user["user_id"],
         "approved_at": now_iso(),
         "status": "approved",
+        # NS4 O3: prelaz pending → approved je i preuzimanje promocije — ponovni upis ne može da teče uporedo.
+        "promocija_token": token,
+        "promocija_preuzeta_at": now_iso(),
     }
 
     # Final Beta Gate F16 (HIGH): claim the row FIRST, atomically, BEFORE any
@@ -1424,7 +1539,8 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
         staging_row = {**staging_row, **claim_res.data[0]}
 
     promoted = False
-    if float(staging_row.get("confidence_score") or 0) >= _APPROVAL_CONFIDENCE_THRESHOLD:
+    ispod_praga = float(staging_row.get("confidence_score") or 0) < _APPROVAL_CONFIDENCE_THRESHOLD
+    if not ispod_praga:
         try:
             promoted = await _promote_staged_draft_to_pinecone(supa, {**staging_row, **update_fields})
         except Exception as exc:
@@ -1432,14 +1548,22 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
             logger.warning("[STAGING_APPROVE] promocija neuspešna staging_id=%s: %s", staging_id, exc)
             promoted = False
 
-    await asyncio.to_thread(
-        lambda: supa.table("staging_memory").update({"pinecone_indexed": promoted}).eq("id", staging_id).execute()
-    )
+    promoted = await _zavrsi_promociju(supa, staging_id, token, promoted) and promoted
 
     if promoted:
         return {"status": "approved", "indexed": True, "poruka": "Nacrt odobren i dodat u bazu znanja kancelarije."}
+    if not ispod_praga:
+        # NS4-T5: ranije je i ovaj slučaj (ocena IZNAD praga, upis u indeks pao ili nepotpun) vraćao poruku
+        # „confidence_score je ispod praga“ — pogrešan razlog, a advokat nije znao da upis nije uspeo.
+        return {
+            "status": "approved", "indexed": False, "razlog": "INDEKSIRANJE_NIJE_USPELO",
+            # NS4-R2: deo delova je možda fizički upisan — ne tvrdi se „nije pretraživ", nego ono što sistem zna:
+            # upis nije potvrđen kao potpun, pa se nacrt ne koristi kao overen izvor (`vazece_overe`).
+            "poruka": _PORUKA_NEPOTPUN_UPIS,
+            "ponovni_upis_moguc": True,
+        }
     return {
-        "status": "approved", "indexed": False,
+        "status": "approved", "indexed": False, "razlog": "ISPOD_PRAGA",
         "poruka": (
             "Nacrt je označen kao odobren, ali confidence_score "
             f"({staging_row.get('confidence_score')}) je ispod praga {_APPROVAL_CONFIDENCE_THRESHOLD} "

@@ -401,3 +401,22 @@ def _izolovana_sonda_129():
     rokovi._resetuj_sondu()
     yield
     rokovi._resetuj_sondu()
+
+
+def _isprazni_feature_registry():
+    import shared.feature_registry as fr
+    fr._CACHE = {}
+    fr._CACHE_LOADED_AT = 0.0
+    fr._DEPS_CACHE = {}
+    fr._DEPS_CACHE_LOADED_AT = 0.0
+
+
+@_pytest.fixture(autouse=True)
+def _izolovan_feature_registry():
+    """`shared/feature_registry` kešira politike na nivou procesa (TTL 60 s). Testovi koji ga pune (lažna baza sa
+    `feature_registry` ili direktan upis u `_CACHE`) ostavljali su ga svežim, pa je `multi_agent` sa kreditima
+    curio u testove niza (`test_p1_charge_on_failure`, `test_multi_agent`) i uključivao proveru budžeta koja bez
+    baze daje 503 — samo pod nekim nasumičnim redosledom (CI, py3.11/3.13). Isti obrazac kao gore."""
+    _isprazni_feature_registry()
+    yield
+    _isprazni_feature_registry()

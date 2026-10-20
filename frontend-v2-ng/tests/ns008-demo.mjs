@@ -63,7 +63,7 @@ const ANALIZA = `#/predmeti/${encodeURIComponent(S.CUR)}/analiza`;
   const ok = await cekaj(s.p, () => !document.getElementById("lb-sadrzaj").hidden);
   const t = await s.p.evaluate(() => document.getElementById("lb-znanje").innerText);
   zapisi("1 Znanje", "iskustvo kancelarije: vrste predmeta, overen rad, potvrđena lekcija, beleška kolege",
-    ok && /radni — 1 završen predmet/.test(t) && /Tužba — poništaj rešenja o otkazu/.test(t) && /dostavnicu rešenja/.test(t) && /Beleška kolege/.test(t));
+    ok && /Radni — 1 završen predmet/.test(t) && /Tužba — poništaj rešenja o otkazu/.test(t) && /dostavnicu rešenja/.test(t) && /Beleška kolege/.test(t));
   await snimi(s.p, "#lb-znanje", "1-znanje.png");
   await s.zatvori();
 }
