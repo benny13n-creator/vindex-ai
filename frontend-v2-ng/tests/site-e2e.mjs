@@ -233,7 +233,13 @@ for (const tema of ["dark", "light"]) {
     const p = await ctx.newPage();
     const greske = [];
     p.on("pageerror", e => greske.push(String(e)));
-    await p.goto(BASE + "/app-legacy?posle=app");
+    const odg = await p.goto(BASE + "/app-legacy?posle=app");
+    const ima = await p.evaluate(() => !!document.getElementById("vx-landing"));
+    if (!ima) {
+      zapisi(`pre-auth@${tema}-${ek}`, "/app-legacy servira legacy dokument sa #vx-landing", false,
+        `${odg && odg.status()} ${p.url()} ${(await p.content()).slice(0, 300).replace(/\s+/g, " ")}`);
+      await ctx.close(); continue;
+    }
     if (tema === "light") await p.evaluate(() => document.body.classList.add("light-theme"));
     await p.waitForFunction(() => getComputedStyle(document.getElementById("vx-landing")).display !== "none", null, { timeout: 10000 }).catch(() => {});
     await p.evaluate(() => document.fonts.ready);

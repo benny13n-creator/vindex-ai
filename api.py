@@ -1825,6 +1825,10 @@ def sajt_skript():
 
 
 if (BASE_DIR / "site" / "snimci").is_dir():
+    # Python `mimetypes` na produkcionom Linux-u (python:3.11-slim) ne zna za .webp, pa bi
+    # StaticFiles slao `application/octet-stream` (uhvaćeno u CI-ju, PR #48).
+    import mimetypes as _mimetypes
+    _mimetypes.add_type("image/webp", ".webp")
     app.mount("/v2/site/snimci", _StaticFiles(directory=str(BASE_DIR / "site" / "snimci")), name="sajt_snimci")
 
 
