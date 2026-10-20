@@ -71,6 +71,17 @@ jobs:
           python scripts/test_db.py verify
           echo "VINDEX_PG_TEST_DSN=postgresql://postgres@127.0.0.1:55433/postgres" >> "$GITHUB_ENV"
 
+      # Merenje vidljive veličine teksta legacy interfejsa (tests/test_faza1_izvor_pod.py) traži Chromium.
+      # Playwright ide u ZASEBAN venv: test ga poziva kao poseban proces, pa ostali Playwright testovi ne menjaju
+      # stanje (bez pregledača se i dalje preskaču kao do sada). Nedostupan pregledač je PAD testa, ne preskok.
+      - name: Isolated browser for the legacy text-size measurement (Playwright venv)
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/pw"
+          "$RUNNER_TEMP/pw/bin/pip" install -q -r requirements-browser.txt
+          "$RUNNER_TEMP/pw/bin/python" -m playwright install --with-deps chromium
+          echo "VINDEX_PLAYWRIGHT_PYTHON=$RUNNER_TEMP/pw/bin/python" >> "$GITHUB_ENV"
+
       - name: Run pytest
         # -rs: report SKIPPED with reasons. Without it the 59 real-PostgreSQL
         # tests covering migrations 107 and 108 -- the credit-race closure the

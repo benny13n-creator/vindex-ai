@@ -15,11 +15,14 @@ Merenje u pregledaču ostaje **glavni** dokaz: ono jedino zna ko pobeđuje u
 kaskadi od 13 definicija `.t-tab` i 2.119 `!important` pravila. Ali ono ne
 pokriva ceo proizvod. Zato mu treba deterministička dopuna — ovaj fajl.
 
-Ova dva testa NE zamenjuju merenje. Oni zatvaraju rupu koju merenje ima.
+Testovi alfe i kretanja NE zamenjuju merenje; zatvaraju rupu koju merenje ima.
+Veličina teksta se od NS4 meri u pregledaču (vidi `test_nijedna_velicina_teksta_nije_ispod_poda`).
 """
 import io
 import os
 import re
+
+import pytest
 
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -86,22 +89,82 @@ def test_nijedna_deklaracija_teksta_nije_ispod_poda_alfe():
         len(prekrsaji), POD_ALFE, "\n  ".join(prekrsaji[:15]))
 
 
-def test_nijedna_velicina_teksta_nije_ispod_poda():
-    prekrsaji = []
-    for i, l in enumerate(_linije("index.html"), 1):
-        for m in FONT.finditer(l):
-            if _u_pikselima(m) < POD_FONTA:
-                prekrsaji.append("index.html:%d  %.1fpx" % (i, _u_pikselima(m)))
-    for i, l in _css_van_zakljucanog():
-        for m in FONT.finditer(l):
-            if _u_pikselima(m) < POD_FONTA:
-                prekrsaji.append("vindex.css:%d  %.1fpx" % (i, _u_pikselima(m)))
-    for i, l in _js_van_zakljucanog():
-        for m in FONT.finditer(l):
-            if _u_pikselima(m) < POD_FONTA:
-                prekrsaji.append("vindex.js:%d  %.1fpx" % (i, _u_pikselima(m)))
-    assert not prekrsaji, "%d veličina ispod %.0fpx:\n  %s" % (
-        len(prekrsaji), POD_FONTA, "\n  ".join(prekrsaji[:15]))
+# ── VELIČINA TEKSTA: meri se ono što korisnik vidi ──────────────────────────
+#
+# Prethodna verzija je brojala SIROVE deklaracije `font-size` u izvoru (567) i bila
+# je crvena od uvođenja (7eb32be1). Deklaracija ne dokazuje prikaz: pregazi je drugo
+# pravilo, ne pogađa nijedan prikazan element ili pripada skrivenom stanju. Odluka
+# osnivača (NS4, opcija 2): ugovor je EFEKTIVNA veličina vidljivog teksta u stvarnim
+# legacy scenarijima, merena u Chromium-u kroz `getComputedStyle`. Prag ostaje 11px.
+#
+# Scenariji (tests/assets/font_pod_merenje.py): početni ekran, svaki tab aplikacije,
+# lista i detalj predmeta i lista klijenata sa determinističkim podacima — tamna i
+# svetla tema, desktop i mobilni prikaz, zatvorena mreža. Merenje se izvršava kao
+# zaseban proces interpretera sa Playwright-om (`VINDEX_PLAYWRIGHT_PYTHON`, inače
+# tekući). Nedostupan pregledač ili neučitan scenario je NEUSPEH, nikada preskok.
+
+_MERENJE = os.path.join(_KOREN, "tests", "assets", "font_pod_merenje.py")
+
+
+def _meri(*argumenti):
+    import json
+    import subprocess
+    import sys
+
+    py = os.environ.get("VINDEX_PLAYWRIGHT_PYTHON") or sys.executable
+    r = subprocess.run([py, _MERENJE] + list(argumenti), capture_output=True, text=True, timeout=600)
+    izlaz = r.stdout.strip().splitlines()
+    podaci = json.loads(izlaz[-1]) if izlaz else {}
+    if r.returncode != 0 or "greska" in podaci:
+        pytest.fail("merenje u pregledaču nije izvršeno (izlaz %d): %s\n%s"
+                    % (r.returncode, podaci.get("greska", "bez izlaza"), r.stderr[-1500:]))
+    return podaci
+
+
+def _staticki_broj():
+    """Dijagnostika (NIJE dokaz prikaza): sirove deklaracije < 11px u izvoru."""
+    return sum(_u_pikselima(m) < POD_FONTA
+               for rel in ("index.html", "static/vindex.css", "static/vindex.js")
+               for l in _linije(rel) for m in FONT.finditer(l))
+
+
+@pytest.mark.parametrize("ekran", ["desktop", "mobilni"])
+@pytest.mark.parametrize("tema", ["dark", "light"])
+def test_nijedna_velicina_teksta_nije_ispod_poda(tema, ekran):
+    scenariji = _meri("scenariji", tema, ekran)["scenariji"]
+
+    assert [k for k, _ in scenariji] == [
+        "LANDING", "tab-h", "tab-p", "predmet-detalj", "tab-k", "tab-kal", "tab-aiws", "tab-s", "tab-dok",
+        "tab-zadaci-g", "tab-fin", "tab-kanc", "tab-settings"]
+    ispod = {}
+    for kontekst, r in scenariji:
+        for x in r["ispod"]:
+            ispod.setdefault((x["putanja"], x["tekst"], x["px"]), (x, []))[1].append(kontekst)
+    opis = "\n".join(
+        "  %.2fpx  %dx%d  %s  %r  [%s]  pravilo: %s %s"
+        % (x["px"], x["w"], x["h"], x["putanja"][-70:], x["tekst"], ",".join(gde[:3]),
+           (x["poreklo"] or {}).get("sel", "?"), (x["poreklo"] or {}).get("v", ""))
+        for x, gde in sorted(ispod.values(), key=lambda z: z[0]["px"])[:25])
+    assert not ispod, ("tema=%s ekran=%s: %d vidljivih tekstualnih elemenata ispod %.0fpx "
+                       "(u izvoru ima %d sirovih deklaracija < 11px — dijagnostika, ne dokaz):\n%s"
+                       % (tema, ekran, len(ispod), POD_FONTA, _staticki_broj(), opis))
+
+
+def test_merilo_prijavljuje_vidljiv_tekst_od_10px():
+    """Negativna kontrola: vidljiv red liste predmeta sveden na efektivnih 10px MORA biti prijavljen."""
+    r = _meri("kontrola-10px")
+    assert r["pre"]["izmereno"] >= 10 and not r["pre"]["ispod"], r["pre"]["ispod"][:3]
+    assert [(x["tekst"], x["px"]) for x in r["posle"]["ispod"]] == [
+        ("Tužba — poništaj rešenja o otkazu", 10.0)], r["posle"]["ispod"]
+
+
+def test_merilo_ne_prijavljuje_pregazenu_skrivenu_ni_neaktivnu_deklaraciju():
+    """Kontrola lažnog pozitiva: 9px pregaženo jačim pravilom, 6px koje ne pogađa ništa i 8px na
+    skrivenom elementu nisu efektivni sitan tekst."""
+    r = _meri("kontrola-pregazeno")
+    assert r["efektivno"] == "13px", r["efektivno"]
+    assert r["rez"]["izmereno"] >= 10
+    assert not r["rez"]["ispod"], r["rez"]["ispod"][:3]
 
 
 def test_smanjeno_kretanje_je_globalno():

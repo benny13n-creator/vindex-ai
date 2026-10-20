@@ -486,13 +486,13 @@
       <!-- ── Progres do sledećeg otključavanja ─────────────────── -->
       <div id="vx-pd-progress" style="display:none;padding:.7rem .9rem .4rem;border-top:1px solid rgba(255,255,255,.06);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
-          <span style="font-size:.6rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Do sledećeg otključavanja</span>
-          <span id="vx-pd-next-label" style="font-size:.6rem;color:var(--tx-3);font-weight:700;"></span>
+          <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Do sledećeg otključavanja</span>
+          <span id="vx-pd-next-label" style="font-size:.6875rem;color:var(--tx-3);font-weight:700;"></span>
         </div>
         <div style="height:3px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;">
           <div id="vx-pd-bar" style="height:100%;background:linear-gradient(90deg,rgba(255,255,255,0.45),rgba(255,255,255,0.75));border-radius:3px;transition:width .6s ease;width:0%;"></div>
         </div>
-        <div id="vx-pd-hint" style="font-size:.58rem;color:var(--tx-4);margin-top:.3rem;text-align:right;"></div>
+        <div id="vx-pd-hint" style="font-size:.6875rem;color:var(--tx-4);margin-top:.3rem;text-align:right;"></div>
       </div>
       <div class="vx-sidebar-foot">
         <div class="vx-foot-row" onclick="toggleLightTheme()" title="Prebacite između tamne i svetle teme">
@@ -607,10 +607,10 @@
               <!-- ── Glavna kolona: lista predmeta ─────────────────────── -->
               <div class="pred-page-main">
                 <button class="pred-new-btn" onclick="intakeOtvori()">Otvori novi predmet</button>
-                <div style="font-size:0.62rem;color:var(--tx-3);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
+                <div style="font-size:.6875rem;color:var(--tx-3);text-align:center;margin-top:0.3rem;">Vodićemo vas kroz 5 koraka i automatski popuniti podatke iz dokumentacije.</div>
                 <button class="pred-new-btn" onclick="siOtvori()" style="margin-top:0.5rem;background:rgba(255,255,255,0.03);">Otpremi dokumenta</button>
-                <div style="font-size:0.62rem;color:var(--tx-3);text-align:center;margin-top:0.3rem;">Imate tužbu, presudu ili fotografije? Otpremite ih — Vindex prepoznaje tip i izvlači podatke automatski.</div>
-                <div id="pred-dashboard-alert" style="display:none;font-size:0.65rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:2px;color:#ffbb70;letter-spacing:.03em;"></div>
+                <div style="font-size:.6875rem;color:var(--tx-3);text-align:center;margin-top:0.3rem;">Imate tužbu, presudu ili fotografije? Otpremite ih — Vindex prepoznaje tip i izvlači podatke automatski.</div>
+                <div id="pred-dashboard-alert" style="display:none;font-size:.6875rem;padding:0.3rem 0.65rem;margin:0.35rem 0 0;background:rgba(255,187,112,.07);border:1px solid rgba(255,187,112,.2);border-radius:2px;color:#ffbb70;letter-spacing:.03em;"></div>
                 <div id="pred-sort-bar" style="display:flex;gap:0.45rem;margin:1.1rem 0 0.5rem;flex-wrap:wrap;align-items:center;">
                   <button class="vx-pill pred-sort-btn is-active" data-sort="svi"       onclick="pred_setSort('svi')">Svi</button>
                   <button class="vx-pill pred-sort-btn"           data-sort="prioritet" onclick="pred_setSort('prioritet')">Prioritet</button>
@@ -665,7 +665,7 @@
                 </div>
                 <!-- Opposing counsel tracker -->
                 <div id="opposing-counsel-wrap" class="vx-card" style="margin-top:0.7rem;">
-                  <button onclick="opposing_toggle()" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:0.6rem;color:var(--tx-3);letter-spacing:.08em;text-transform:uppercase;width:100%;">
+                  <button onclick="opposing_toggle()" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:.6875rem;color:var(--tx-3);letter-spacing:.08em;text-transform:uppercase;width:100%;">
                     <span id="opposing-chevron">▶</span> Suprotne strane <span id="opposing-count-badge" style="display:none;background:rgba(255,255,255,.06);border-radius:3px;padding:0 4px;font-size:0.58rem;color:var(--tx-3);"></span>
                   </button>
                   <div id="opposing-counsel-panel" style="display:none;margin-top:0.5rem;"></div>
@@ -750,33 +750,33 @@
                 <div id="pred-quick-action" style="margin-bottom:.9rem;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(255,255,255,0.04));border:1px solid rgba(99,102,241,0.3);border-radius:3px;display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;">
                   <div>
                     <div style="font-size:.8rem;font-weight:700;color:rgba(210,205,255,.9);">Kompletna AI analiza predmeta</div>
-                    <div style="font-size:.68rem;color:var(--tx-3);margin-top:.2rem;">6 agenata paralelno: pravni revizor, analiza rizika, crveni tim, procena ishoda i strategija — za 2–3 min.</div>
+                    <div style="font-size:.6875rem;color:var(--tx-3);margin-top:.2rem;">6 agenata paralelno: pravni revizor, analiza rizika, crveni tim, procena ishoda i strategija — za 2–3 min.</div>
                   </div>
                   <button onclick="this.textContent='Pokrećem...';this.disabled=true;pred_launchKompletnaAnaliza();var _b=this;setTimeout(function(){_b.textContent='Analiziraj';_b.disabled=false;},2500);" style="flex-shrink:0;padding:.55rem 1.1rem;background:linear-gradient(135deg,rgba(99,102,241,0.25),rgba(0,212,255,0.12));border:1px solid rgba(99,102,241,0.5);border-radius:2px;color:rgba(220,215,255,.95);font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;letter-spacing:.02em;">Analiziraj</button>
                 </div>
                 <div id="pred-status-panel" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:0.55rem 0 0.6rem;padding:0.7rem;background:rgba(255,255,255,0.04);border-radius:2px;">
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Tužilac</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Tužilac</span>
     <span id="pred-s-tuzilac" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-tuzilac','tuzilac','text')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Tuženi</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Tuženi</span>
     <span id="pred-s-tuzeni" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-tuzeni','tuzeni','text')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Oblast</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Oblast</span>
     <span id="pred-s-oblast" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-oblast','tip','oblast-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Rizik (ručno)</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Rizik (ručno)</span>
     <span id="pred-s-rizik" style="font-size:0.8rem;color:var(--tx-3);cursor:pointer;" title="Ručno podešena procena — AI procenu vidite u kartici 'Procena rizika' niže. Kliknite za izmenu" onclick="_predInlineEdit('pred-s-rizik','rizik','rizik-select')">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Nedostaju dokazi</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Nedostaju dokazi</span>
     <span id="pred-s-dokazi" style="font-size:0.8rem;color:#fff;">—</span>
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;">
-    <span style="font-size:0.65rem;color:var(--tx-3);text-transform:uppercase;">Vrednost spora</span>
+    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;">Vrednost spora</span>
     <span id="pred-s-vrednost" style="font-size:0.8rem;color:#fff;cursor:pointer;" title="Kliknite za izmenu" onclick="_predInlineEdit('pred-s-vrednost','vrednost_spora','text')">—</span>
   </div>
 </div>
@@ -838,27 +838,27 @@
                    iznad; prikazivanje oba bi bilo vizuelno dupliranje, ne dodatna informacija. -->
                 <div id="matter-intel-bar" class="pred-scorecard-section" style="display:none;">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-                    <span style="font-size:.6rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Dokazna statistika</span>
+                    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Dokazna statistika</span>
                     <button onclick="matter_intel_load()" style="font-size:.65rem;background:none;border:none;color:var(--tx-3);cursor:pointer;" title="Osveži">↺</button>
                   </div>
                   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;">
                     <div style="text-align:center;">
                       <div id="mi-snaga" style="font-size:.85rem;font-weight:700;color:var(--tx-2);">—</div>
-                      <div style="font-size:.6rem;color:var(--tx-3);">Snaga dokaza</div>
+                      <div style="font-size:.6875rem;color:var(--tx-3);">Snaga dokaza</div>
                     </div>
                     <div style="text-align:center;">
                       <div id="mi-nedostaje" style="font-size:.85rem;font-weight:700;color:#f87171;">—</div>
-                      <div style="font-size:.6rem;color:var(--tx-3);">Nedostaje dokaza</div>
+                      <div style="font-size:.6875rem;color:var(--tx-3);">Nedostaje dokaza</div>
                     </div>
                     <div style="text-align:center;">
                       <div id="mi-rokovi" style="font-size:.85rem;font-weight:700;color:var(--tx-2);">—</div>
-                      <div style="font-size:.6rem;color:var(--tx-3);">Predstojeći rokovi</div>
+                      <div style="font-size:.6875rem;color:var(--tx-3);">Predstojeći rokovi</div>
                     </div>
                     <div style="text-align:center;">
                       <div style="font-size:.85rem;font-weight:700;color:var(--tx-2);">
                         <span id="mi-health">—%</span><span id="mi-trend" style="display:none;margin-left:.25rem;font-size:.75rem;"></span>
                       </div>
-                      <div style="font-size:.6rem;color:var(--tx-3);">Ocena zdravlja</div>
+                      <div style="font-size:.6875rem;color:var(--tx-3);">Ocena zdravlja</div>
                     </div>
                   </div>
                   <div style="display:none;">
@@ -872,7 +872,7 @@
                 </div>
               <!-- Case Ready Score — Spremnost, drugi (ne konkurentski) koncept od rizika iznad -->
               <div id="pred-crs-wrap" class="pred-scorecard-section" style="display:none;">
-                <div style="font-size:.6rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">Spremnost predmeta</div>
+                <div style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">Spremnost predmeta</div>
                 <div style="display:flex;align-items:center;gap:.75rem;">
                   <div style="position:relative;width:52px;height:52px;flex-shrink:0;">
                     <svg width="52" height="52" viewBox="0 0 52 52">
@@ -885,7 +885,7 @@
                   </div>
                   <div style="flex:1;min-width:0;">
                     <div id="pred-crs-status" style="font-size:.82rem;font-weight:600;color:var(--tx-2);">—</div>
-                    <div style="font-size:.62rem;color:var(--tx-4);margin-top:.12rem;line-height:1.35;">100 = potpuno spreman · kliknite Analiziraj</div>
+                    <div style="font-size:.6875rem;color:var(--tx-4);margin-top:.12rem;line-height:1.35;">100 = potpuno spreman · kliknite Analiziraj</div>
                   </div>
                   <button id="pred-crs-run-btn" onclick="pred_runPipeline()"
                     style="flex-shrink:0;padding:.32rem .6rem;border:1px solid rgba(255,255,255,0.12);border-radius:2px;
@@ -896,7 +896,7 @@
                 </div>
                 <div id="pred-crs-checklist" style="margin-top:.6rem;display:flex;flex-wrap:wrap;gap:.35rem .6rem;"></div>
                 <div id="pred-crs-copilot" style="display:none;margin-top:.6rem;padding:.45rem .6rem;background:rgba(255,255,255,0.03);border:1px solid rgba(0,212,255,0.07);border-radius:2px;font-size:.74rem;color:var(--tx-2);line-height:1.5;">
-                  <span style="font-size:.65rem;font-weight:700;color:var(--tx-2);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;">Preporuka — sledeći korak</span>
+                  <span style="font-size:.6875rem;font-weight:700;color:var(--tx-2);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.2rem;">Preporuka — sledeći korak</span>
                   <span id="pred-crs-copilot-txt"></span>
                 </div>
               </div>
@@ -1028,8 +1028,8 @@
                 <!-- Klijentski uploadi -->
                 <div style="margin-top:.7rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,0.05);">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
-                    <span style="font-size:.67rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Dokumenti od klijenta</span>
-                    <button onclick="portal_loadUploads()" style="font-size:.67rem;color:var(--tx-3);background:none;border:none;cursor:pointer;padding:0;">↻ Osveži</button>
+                    <span style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em;">Dokumenti od klijenta</span>
+                    <button onclick="portal_loadUploads()" style="font-size:.6875rem;color:var(--tx-3);background:none;border:none;cursor:pointer;padding:0;">↻ Osveži</button>
                   </div>
                   <div id="portal-uploads-list" style="font-size:.72rem;color:var(--tx-3);">—</div>
                 </div>
@@ -2664,7 +2664,7 @@
             <div class="settings-section" id="kancelarija-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>Tim</span>
-                <span id="kancelarija-loading" style="font-size:0.65rem;color:var(--tx-3);">učitavanje...</span>
+                <span id="kancelarija-loading" style="font-size:.6875rem;color:var(--tx-3);">učitavanje...</span>
               </div>
 
               <!-- no firma -->
@@ -3402,15 +3402,15 @@
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:.55rem .75rem;background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,0.06);border-radius:2px;">
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(0,120,212,0.08);border:1px solid rgba(0,120,212,0.20);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span style="font-size:.63rem;color:#60a5fa;font-weight:600;">Microsoft Azure EU</span>
+                <span style="font-size:.6875rem;color:#60a5fa;font-weight:600;">Microsoft Azure EU</span>
               </div>
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.16);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                <span style="font-size:.63rem;color:#4ade80;font-weight:600;">GDPR uskladjeno</span>
+                <span style="font-size:.6875rem;color:#4ade80;font-weight:600;">GDPR uskladjeno</span>
               </div>
               <div style="display:flex;align-items:center;gap:.3rem;padding:.25rem .55rem;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.16);border-radius:4px;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span style="font-size:.63rem;color:#fbbf24;font-weight:600;">Vasi podaci ostaju u EU</span>
+                <span style="font-size:.6875rem;color:#fbbf24;font-weight:600;">Vasi podaci ostaju u EU</span>
               </div>
             </div>
 
@@ -3499,7 +3499,7 @@
             <div class="settings-section" id="plan-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>Moj plan</span>
-                <span id="plan-badge" style="font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(255,255,255,.07);color:var(--tx-3);display:none;"></span>
+                <span id="plan-badge" style="font-size:.6875rem;font-weight:700;letter-spacing:.06em;padding:.1rem .5rem;border-radius:4px;background:rgba(255,255,255,.07);color:var(--tx-3);display:none;"></span>
               </div>
               <div id="plan-usage-wrap" style="margin-bottom:.65rem;">
                 <div style="color:var(--tx-4);font-size:.78rem;">Učitavam...</div>
@@ -3517,10 +3517,10 @@
               <div id="dim-module-card" style="border:1px solid rgba(255,255,255,0.08);border-radius:3px;padding:1rem 1.1rem;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.15rem;">
                   <div>
-                    <div style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,212,255,0.65);margin-bottom:.25rem;">Compliance Suite</div>
+                    <div style="font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,212,255,0.65);margin-bottom:.25rem;">Compliance Suite</div>
                     <div style="font-size:.9rem;font-weight:700;color:var(--tx-1);">Vindex AI - Digitalna imovina & usklađenost</div>
                   </div>
-                  <span id="dim-status-badge" style="flex-shrink:0;font-size:.6rem;font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;"></span>
+                  <span id="dim-status-badge" style="flex-shrink:0;font-size:.6875rem;font-weight:700;letter-spacing:.06em;padding:.15rem .5rem;border-radius:3px;white-space:nowrap;"></span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.25rem .75rem;margin:.75rem 0;">
                   <div style="font-size:.74rem;color:var(--tx-3);">✓ CARF/DAC8</div>
@@ -3582,34 +3582,34 @@
             <div class="settings-section" id="sef-settings-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>SEF e-Faktura</span>
-                <span id="sef-status-badge" style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.4rem;border-radius:4px;display:none;"></span>
+                <span id="sef-status-badge" style="font-size:.6875rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.4rem;border-radius:4px;display:none;"></span>
               </div>
               <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem;">
                 <div class="settings-row-sub" style="margin-bottom:0.25rem;">Konfigurišite SEF API ključ i podatke o advokatskoj kancelariji za slanje e-faktura.</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem;width:100%;">
                   <div>
-                    <div style="font-size:0.62rem;color:var(--tx-3);margin-bottom:0.15rem;">PIB kancelarije (9 cifara)</div>
+                    <div style="font-size:.6875rem;color:var(--tx-3);margin-bottom:0.15rem;">PIB kancelarije (9 cifara)</div>
                     <input type="text" id="sef-pib" maxlength="9" placeholder="123456789"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;">
                   </div>
                   <div>
-                    <div style="font-size:0.62rem;color:var(--tx-3);margin-bottom:0.15rem;">Naziv kancelarije</div>
+                    <div style="font-size:.6875rem;color:var(--tx-3);margin-bottom:0.15rem;">Naziv kancelarije</div>
                     <input type="text" id="sef-naziv" maxlength="200" placeholder="Advokat Petrović"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;">
                   </div>
                   <div>
-                    <div style="font-size:0.62rem;color:var(--tx-3);margin-bottom:0.15rem;">Adresa</div>
+                    <div style="font-size:.6875rem;color:var(--tx-3);margin-bottom:0.15rem;">Adresa</div>
                     <input type="text" id="sef-adresa" maxlength="300" placeholder="Knez Mihailova 10"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;">
                   </div>
                   <div>
-                    <div style="font-size:0.62rem;color:var(--tx-3);margin-bottom:0.15rem;">Mesto</div>
+                    <div style="font-size:.6875rem;color:var(--tx-3);margin-bottom:0.15rem;">Mesto</div>
                     <input type="text" id="sef-mesto" maxlength="100" placeholder="Beograd"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;">
                   </div>
                 </div>
                 <div style="width:100%;">
-                  <div style="font-size:0.62rem;color:var(--tx-3);margin-bottom:0.15rem;">SEF API ključ <span style="color:rgb(255,100,100);">(čuva se enkriptovano)</span></div>
+                  <div style="font-size:.6875rem;color:var(--tx-3);margin-bottom:0.15rem;">SEF API ključ <span style="color:rgb(255,100,100);">(čuva se enkriptovano)</span></div>
                   <input type="password" id="sef-apikey" maxlength="500" placeholder="Novi API ključ (ostavite prazno da ne menjate)"
                     style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:5px 8px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;">
                 </div>
@@ -3665,7 +3665,7 @@
                   </label>
                   <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;color:var(--tx-2);margin-top:0.25rem;padding-top:0.25rem;border-top:1px solid rgba(255,255,255,0.06);">
                     <input type="checkbox" id="en-nedeljni" style="accent-color:rgba(255,255,255,0.65);" checked>
-                    <span>Nedeljni sažetak <span style="font-size:0.65rem;color:var(--tx-3);">(ponedeljak ujutru — rokovi, ročišta, naplata)</span></span>
+                    <span>Nedeljni sažetak <span style="font-size:.6875rem;color:var(--tx-3);">(ponedeljak ujutru — rokovi, ročišta, naplata)</span></span>
                   </label>
                 </div>
                 <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.1rem;">
@@ -3681,29 +3681,29 @@
             <div class="settings-section" id="integracije-section">
               <div class="settings-section-hd" style="display:flex;align-items:center;justify-content:space-between;">
                 <span>Spoljne integracije</span>
-                <span style="font-size:0.6rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.45rem;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--tx-2);border:1px solid rgba(255,255,255,0.10);">PRO</span>
+                <span style="font-size:.6875rem;font-weight:700;letter-spacing:.06em;padding:0.1rem 0.45rem;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--tx-2);border:1px solid rgba(255,255,255,0.10);">PRO</span>
               </div>
               <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:0.35rem;">
                 <div class="settings-row-sub">REST API za spoljne sisteme (Clio, iManage, vlastite integracije). Koristite API ključ iz sekcije Predmeti → 🔑.</div>
                 <div style="display:flex;flex-direction:column;gap:0.22rem;width:100%;margin-top:0.2rem;">
                   <div style="display:flex;align-items:center;gap:0.5rem;">
-                    <span style="font-size:0.68rem;color:var(--tx-3);min-width:80px;">Analiza</span>
+                    <span style="font-size:.6875rem;color:var(--tx-3);min-width:80px;">Analiza</span>
                     <code id="integr-url-analyze" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 7px;color:var(--tx-2);cursor:pointer;" onclick="integr_copy('analyze')" title="Klikni za kopiranje">POST /v1/analyze</code>
-                    <button onclick="integr_copy('analyze')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                    <button onclick="integr_copy('analyze')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:.6875rem;cursor:pointer;">kopuj</button>
                   </div>
                   <div style="display:flex;align-items:center;gap:0.5rem;">
-                    <span style="font-size:0.68rem;color:var(--tx-3);min-width:80px;">Predmeti</span>
+                    <span style="font-size:.6875rem;color:var(--tx-3);min-width:80px;">Predmeti</span>
                     <code style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 7px;color:var(--tx-2);">GET/POST /v1/predmeti</code>
                   </div>
                   <div style="display:flex;align-items:center;gap:0.5rem;">
-                    <span style="font-size:0.68rem;color:var(--tx-3);min-width:80px;">Clio</span>
+                    <span style="font-size:.6875rem;color:var(--tx-3);min-width:80px;">Clio</span>
                     <code id="integr-url-clio" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 7px;color:var(--tx-2);cursor:pointer;" onclick="integr_copy('clio')" title="Klikni za kopiranje">POST /v1/webhook/clio</code>
-                    <button onclick="integr_copy('clio')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                    <button onclick="integr_copy('clio')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:.6875rem;cursor:pointer;">kopuj</button>
                   </div>
                   <div style="display:flex;align-items:center;gap:0.5rem;">
-                    <span style="font-size:0.68rem;color:var(--tx-3);min-width:80px;">iManage</span>
+                    <span style="font-size:.6875rem;color:var(--tx-3);min-width:80px;">iManage</span>
                     <code id="integr-url-imanage" style="flex:1;font-size:0.72rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:3px 7px;color:var(--tx-2);cursor:pointer;" onclick="integr_copy('imanage')" title="Klikni za kopiranje">POST /v1/webhook/imanage</code>
-                    <button onclick="integr_copy('imanage')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:0.68rem;cursor:pointer;">kopuj</button>
+                    <button onclick="integr_copy('imanage')" style="background:none;border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:2px 6px;color:var(--tx-4);font-size:.6875rem;cursor:pointer;">kopuj</button>
                   </div>
                 </div>
                 <div style="font-size:0.69rem;color:var(--tx-3);margin-top:0.15rem;">Header: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">X-Vindex-Key: vndx_...</code></div>
@@ -3716,7 +3716,7 @@
 
               <!-- FAQ accordion -->
               <div style="margin-bottom:1rem;">
-                <div style="font-size:0.62rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Najčešća pitanja</div>
+                <div style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Najčešća pitanja</div>
 
                 <div class="pomoc-faq-item" id="faq-0">
                   <div class="pomoc-faq-q" onclick="pomocFaqToggle(0)">
@@ -3781,7 +3781,7 @@
 
               <!-- Kontakt forma -->
               <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:0.85rem;">
-                <div style="font-size:0.62rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Pošaljite poruku timu</div>
+                <div style="font-size:.6875rem;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.5rem;">Pošaljite poruku timu</div>
                 <select id="pomoc-kategorija"
                   style="width:100%;background:rgba(13,27,42,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:2px;padding:6px 10px;color:var(--tx-1);font-size:0.78rem;outline:none;font-family:inherit;cursor:pointer;margin-bottom:0.4rem;">
                   <option value="tehnicko">Tehnički problem</option>

@@ -152,6 +152,17 @@ jobs:
           python scripts/test_db.py verify
           echo "VINDEX_PG_TEST_DSN=postgresql://postgres@127.0.0.1:55433/postgres" >> "$GITHUB_ENV"
 
+      # Merenje vidljive veličine teksta legacy interfejsa (tests/test_faza1_izvor_pod.py) traži Chromium.
+      # Playwright ide u ZASEBAN venv: test ga poziva kao poseban proces, pa ostali Playwright testovi ne menjaju
+      # stanje (bez pregledača se i dalje preskaču kao do sada). Nedostupan pregledač je PAD testa, ne preskok.
+      - name: Isolated browser for the legacy text-size measurement (Playwright venv)
+        shell: bash
+        run: |
+          python -m venv /opt/pw
+          /opt/pw/bin/pip install -q -r requirements-browser.txt
+          /opt/pw/bin/python -m playwright install --with-deps chromium
+          echo "VINDEX_PLAYWRIGHT_PYTHON=/opt/pw/bin/python" >> "$GITHUB_ENV"
+
       - name: Import the ASGI app exactly as gunicorn does
         env:
           # shared/deps.py raises at import time when this is unset, and no
