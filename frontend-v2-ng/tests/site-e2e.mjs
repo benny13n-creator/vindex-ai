@@ -53,7 +53,9 @@ const STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvo
 const EKRANI = [["360", 360, 740], ["390", 390, 844], ["768", 768, 1024], ["1280", 1280, 800], ["1440", 1440, 900], ["1920", 1920, 1080]];
 const ime = (put) => put === "/" ? "pocetna" : put.slice(1);
 async function kontekst(opcije = {}) {
-  const ctx = await browser.newContext({ reducedMotion: "reduce", ...opcije });
+  // Legacy /app-legacy registruje /sw.js; pri prvoj instalaciji `controllerchange` ponovo učitava stranicu
+  // (static/vindex.js), pa bi merenje palo usred navigacije. Ponašanje SW-a meri e2e:sw-isolation.
+  const ctx = await browser.newContext({ reducedMotion: "reduce", serviceWorkers: "block", ...opcije });
   const spoljni = [];
   await ctx.route("**/*", r => { const u = new URL(r.request().url()); if (u.hostname === "127.0.0.1") return r.continue(); spoljni.push(u.href); return r.abort(); });
   return { ctx, spoljni };
