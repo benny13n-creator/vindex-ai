@@ -1,6 +1,9 @@
 # NIGHT SPRINT IV — završno zatvaranje (O1, O2, O3, G1, G2)
 
-**Konačni status: B. NS4 CODE COMPLETE — RELEASE APPROVAL REQUIRED**
+**Konačni status (2026-10-20): B. NS4 RELEASE BLOCKED — EXACT EXTERNAL ACTION REQUIRED**
+(kod i CI gotovi i zeleni; migracije 138–140 čekaju primenu osnivača — vidi §13. Raniji status ispod je istorija.)
+
+~~Konačni status: B. NS4 CODE COMPLETE — RELEASE APPROVAL REQUIRED~~
 
 Svih pet stavki je ispravljeno i dokazano lokalno (O2 bez migracije; O1, G1/G2 i O3 kroz tri aditivne migracije
 138–140, dokazane nad stvarnim PostgreSQL-om). Kod G1/G2 i O3 **zahteva** migracije 139 i 140 — prema pravilu
@@ -237,3 +240,82 @@ nepovezani sa NS4 (isti ID-evi pre i posle). PR NIJE spojen.
 - Docker build/boot nije pokrenut lokalno (nema Docker-a) — pokriva CI `production-runtime`.
 - Poznat pad zavisan od redosleda `test_ns008_t21_revocation::test_deaktivirana_beleska_nestaje` (i na osnovi).
 - Učenje kancelarije NIJE potvrđeno u produkciji (0 ishoda, 0 kancelarija, 0 nacrta na overi).
+
+## 13. Završna kapija — 2026-10-20 (zeleni CI, font test po opciji 2)
+
+### 13.1 CI na tačnom SHA `060b3278ce267aecea6b451d7f986cb62c5d578a`
+
+| Posao | Run / job | Rezultat |
+|---|---|---|
+| pytest Python 3.11 | Test Suite [39393113463](https://github.com/benny13n-creator/vindex-ai/actions/runs/39393113463) / 118529160001 | **success** — 11422 passed, 75 skipped, 2 xfailed, 0 failed |
+| pytest Python 3.13 | isti run / 118529159946 | **success** — 11422 passed, 75 skipped, 2 xfailed, 0 failed |
+| Production Runtime Parity (3.11, prod kontejner) | [39393113402](https://github.com/benny13n-creator/vindex-ai/actions/runs/39393113402) / 118529159722 | **success** — 11436 passed, 71 skipped, 2 xfailed |
+| Byte-compile 3.11; Docker build + boot | isti run / 118529160215, 118529160322 | **success** |
+| Security Checks | [39393113404](https://github.com/benny13n-creator/vindex-ai/actions/runs/39393113404) | **success** |
+| V2 NG (workflow_dispatch, 4 posla) | [39393120312](https://github.com/benny13n-creator/vindex-ai/actions/runs/39393120312) | **success** |
+
+NS4 PostgreSQL dokazi (G1/G2/O1/O3, `tests/ns4f_*`) izvršeni u sva tri Python posla nad izolovanim test klasterom
+(`scripts/test_db.py verify`, fail-closed): 0 preskočenih. Preostali preskoci su postojeći i dokumentovani
+(Playwright testovi bez pregledača u test okruženju; `VX_TEST_PG_DSN` za ns007/vcr002-137; Tesseract gde nije
+predviđen) i nisu vezani za NS4 bezbednost/integritet.
+
+Ispravke prethodnog kruga (commitovi `33f93df6`, `ed44bd6b`, `65715726`, `2978da67`): test baza (psycopg +
+izolovan klaster), test zavisnosti AI adaptera, Node u prod CI poslu, AbortError test → test ponašanja, NS006/NS008/
+rok-odluka usklađeni sa kanonskim pravilima, izolacija keša politika u conftest-u.
+
+### 13.2 Font test — opcija 2 (odluka osnivača)
+
+- **Originalni dokaz:** `test_faza1_izvor_pod::test_nijedna_velicina_teksta_nije_ispod_poda` brojao je sirove
+  `font-size` deklaracije (567); crven od uvođenja `7eb32be1`, isti broj u svakom kasnijem commitu — NS4 nije uzrok.
+- **Root cause:** statički test meri deklaracije, ne prikaz (pregažena/neaktivna/skrivena pravila se broje), a
+  stvarno prikazanih slučajeva ispod 11px je zaista bilo: merenjem u Chromium-u **770 prikaza na 52 ekrana**
+  (13 scenarija × 2 teme × 2 ekrana) — više od ranije procene 17, jer su sada uključeni dinamički podaci.
+  Pobednička pravila (CDP kaskada) svedena na 48 inline deklaracija u `index.html`, 5 u `vindex.js`, 9 CSS pravila
+  i 2 tokena tipografske skale.
+- **Minimalna ispravka:** samo ta pobednička pravila → `.6875rem` (11px); `.nav-user-email` max-width 130→150px
+  (isti broj znakova; bez toga bi se e-pošta sekla). Bez globalne promene `font-size`, bez promene fontova, boja,
+  razmaka, rasporeda; `#tab-h` (zaključan) i V2 netaknuti; `sw.js` v155→v156.
+- **Test:** meri efektivni `getComputedStyle` vidljivog teksta (početni ekran, 11 tabova, lista i detalj predmeta,
+  lista klijenata; determinističke fiksture, zatvorena mreža); prag 11px; scenario koji se ne učita ili pregledač koji
+  nije dostupan = **pad**, ne preskok; čeka kraj animacija prikaza (inače bi tekst panela bio pogrešno izostavljen).
+  Pokreće se kao zaseban proces interpretera sa Playwright-om (`VINDEX_PLAYWRIGHT_PYTHON`, `requirements-browser.txt`).
+- **Negativne kontrole:** (1) mutacija izvora `Tužilac` → `.625rem` → test pada i prijavljuje `10.00px … 'Tužilac'
+  [predmet-detalj] pravilo: [style] 0.625rem`; vraćanje → prolaz; (2) token `--vx-t-caption` vraćen na 0.68rem → 25
+  prijavljenih elemenata; (3) interpreter bez Playwright-a → `Failed: … playwright nije instaliran`; (4) isključeno
+  učitavanje klijenata → `scenario tab-k se nije učitao`; trajne kontrole u testu: vidljiv element na 10px se
+  prijavljuje, pregažena/neaktivna/skrivena deklaracija se ne prijavljuje.
+- **Vizuelna regresija (pre/posle, 52 ekrana):** horizontalni preliv 0/0, odsečen tekst 24/24 (nijedan nov),
+  preklapanja tekstualnih elemenata 0/0; jedine promenjene veličine su one ispod 11px (sada 11px). Snimci pre/posle
+  za listu predmeta, status panel, statistiku predmeta, spremnost, podešavanja i listu klijenata (lokalni dokaz).
+- **Konačni rezultat:** 0 vidljivih tekstova ispod 11px u svim obuhvaćenim scenarijima; CI zelen (13.1).
+
+### 13.3 Migracije — kapija NIJE prođena
+
+- Produkcija (čitanje 2026-10-20): `/health` `commit = cc8bd54`; funkcije 139/140 ne postoje; kolone `promocija_*` ne
+  postoje; 0 duplikata `draft/staging/*` → 138–140 NISU primenjene, šema kompatibilna.
+- Agent nema bezbedan produkcioni DDL kanal (nema `SUPABASE_DB_URL`, tokena ni `exec_sql` RPC-a) → migracije NISU
+  izvršene i NE prijavljuju se kao primenjene. Paket za predaju: `docs/release/NS4_MIGRATION_HANDOFF.md` (heševi,
+  redosled, provere samo za čitanje, očekivani rezultati, zaustavljanje).
+- Zato: PR #47 NIJE spojen, deploy NIJE izvršen (kod zavisi od RPC funkcija 139/140).
+
+### 13.4 Acceptance
+
+| Kriterijum | Status |
+|---|---|
+| Font test meri stvarni vidljivi tekst; pozitivna i negativna kontrola | ✓ |
+| Bez nedozvoljene vizuelne regresije | ✓ |
+| Python 3.11 / 3.13 / Production Runtime Parity / V2 NG / Security / Docker | ✓ (13.1) |
+| NS4 PostgreSQL testovi PASS | ✓ |
+| Migracije 138 / 139 / 140 primenjene i verifikovane | ✗ — čeka osnivača |
+| PR #47 spojen; Render deploy; `/health` SHA; produkcioni smoke | ✗ — posle migracija |
+
+**Jedina preostala akcija:** osnivač primenjuje 138 → 139 → 140 po `docs/release/NS4_MIGRATION_HANDOFF.md` i javlja
+rezultate provera (ili postavlja `SUPABASE_DB_URL` kao promenljivu okruženja na mašini agenta). Posle toga agent,
+bez nove implementacije: provera šeme → Ready → merge → Render → `/health` → smoke → zatvaranje.
+
+### 13.5 Van ovog sprinta (nije zatvoreno)
+- `tests/test_faza1_pristupacnost.py` (u CI-ju se preskače — Playwright nije u test okruženju): lokalno 3 crvena
+  testa istog FAZA1 font ugovora (statički sirovi CSS, statički min u `index.html`, merenje nad veštački „otkrivenim"
+  svim skrivenim panelima). Uključivanje svih Playwright testova u CI je zasebna odluka.
+- Učenje kancelarije NIJE empirijski potvrđeno radom stvarnih beta advokata.
+
