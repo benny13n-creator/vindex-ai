@@ -1,356 +1,199 @@
 <!doctype html>
-<html lang="sr-Latn" data-theme="dark">
+<html lang="sr-Latn">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vindex — predmeti, rokovi i spisi advokatske kancelarije</title>
-  <meta name="description" content="Vindex vodi predmete, klijente, ročišta i rokove advokatske kancelarije, odgovara na pravna pitanja uz izvore, pravi nacrte podnesaka i vodi naplatu — samo nad podacima koji su uneti.">
-  <meta name="color-scheme" content="dark">
-  <link rel="canonical" href="https://vindex.rs/">
-  <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
-  <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
-  <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
-  <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/600.css">
-  <!-- Javni sajt (NS004): ista vizuelna porodica kao radni prostor V2 (frontend-v2-ng).
-       Svaka tvrdnja na ovoj strani ima živ put u proizvodu: docs/ns004-site-claims.md. -->
-  <style>
-    :root {
-      --font-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
-      --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-      --bg: #0d0e10; --bg-sheet: #131417; --bg-panel: #16181b; --bg-selected: #1e2229;
-      --line: #24272c; --line-strong: #33373e;
-      --text-1: #e8e6e1; --text-2: #a9acb2; --text-3: #8a8e95;
-      --accent: #7aa2dc; --focus: #98b8e8;
-      --pad: clamp(16px, 4vw, 56px);
-      --max: 1200px;
-      --ease: cubic-bezier(0.2, 0, 0, 1);
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-    body {
-      margin: 0; background: var(--bg); color: var(--text-1);
-      font-family: var(--font-sans); font-size: 1rem; line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-    }
-    #pozadina { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-    .strana { position: relative; z-index: 1; }
-    a { color: inherit; }
-    :focus { outline: none; }
-    :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 3px; }
-    .skip { position: absolute; left: var(--pad); top: -60px; z-index: 5; padding: 8px 16px; background: var(--bg-sheet); border: 1px solid var(--line-strong); border-radius: 4px; text-decoration: none; }
-    .skip:focus { top: 12px; }
-    .okvir { max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); }
-
-    /* Zaglavlje */
-    .zaglavlje { border-bottom: 1px solid var(--line); background: rgba(13, 14, 16, 0.92); position: sticky; top: 0; z-index: 3; }
-    .zaglavlje .okvir { display: flex; align-items: center; gap: 24px; height: 64px; }
-    .logo { display: flex; align-items: center; flex: none; }
-    .logo img { display: block; height: 32px; width: auto; }
-    .zaglavlje nav { margin-left: auto; }
-    .meni { display: flex; gap: 24px; list-style: none; padding: 0; margin: 0; }
-    .meni a { color: var(--text-2); text-decoration: none; font-size: 0.9375rem; }
-    .meni a:hover { color: var(--text-1); }
-    .dugme {
-      display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 18px;
-      background: var(--text-1); color: var(--bg); border: 1px solid var(--text-1); border-radius: 4px;
-      font-weight: 500; font-size: 0.9375rem; text-decoration: none; white-space: nowrap;
-      transition: background 160ms var(--ease), color 160ms var(--ease);
-    }
-    .dugme:hover { background: transparent; color: var(--text-1); }
-    .dugme--malo { height: 36px; padding: 0 14px; }
-
-    /* Uvod */
-    .uvod { padding: clamp(56px, 9vw, 120px) 0 clamp(48px, 7vw, 88px); border-bottom: 1px solid var(--line); }
-    .nadnaslov { margin: 0 0 16px; color: var(--accent); font-size: 0.875rem; letter-spacing: 0.04em; text-transform: uppercase; }
-    h1 { margin: 0; max-width: 18ch; font-family: var(--font-serif); font-weight: 500; font-size: clamp(2rem, 4.2vw, 3.25rem); line-height: 1.12; letter-spacing: -0.01em; }
-    .uvod p.vodeci { margin: 24px 0 0; max-width: 60ch; color: var(--text-2); font-size: 1.0625rem; }
-    .uvod .akcije { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin-top: 36px; }
-    .tekst-link { color: var(--text-2); text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
-    .tekst-link:hover { color: var(--text-1); border-bottom-color: var(--text-2); }
-
-    /* Odeljci */
-    .odeljak { padding: clamp(56px, 8vw, 104px) 0; border-bottom: 1px solid var(--line); }
-    h2 { margin: 0 0 12px; font-family: var(--font-serif); font-weight: 500; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.2; }
-    .odeljak > .okvir > p.uvodni { margin: 0 0 40px; max-width: 62ch; color: var(--text-2); }
-    .koraci { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line-strong); }
-    .korak { padding: 28px 28px 8px 0; }
-    .korak + .korak { padding-left: 28px; border-left: 1px solid var(--line); }
-    .korak__broj { color: var(--accent); font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-    .korak h3 { margin: 8px 0 10px; font-family: var(--font-serif); font-weight: 500; font-size: 1.25rem; line-height: 1.3; }
-    .korak p { margin: 0; color: var(--text-2); }
-    .korak:nth-child(3n+1) { padding-left: 0; border-left: 0; }
-    .korak:nth-child(n+4) { border-top: 1px solid var(--line); }
-
-    /* Šematski prikaz radnog prostora — oblici, bez podataka */
-    .prikaz { margin-top: 56px; }
-    .ekran { border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; background: var(--bg-sheet); }
-    .ekran__traka { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
-    .ekran__traka img { height: 18px; width: auto; display: block; }
-    .ekran__telo { display: grid; grid-template-columns: 168px minmax(0, 1fr); min-height: 340px; }
-    .ekran__nav { border-right: 1px solid var(--line); padding: 16px 12px; background: var(--bg); }
-    .ekran__stavka { display: block; padding: 6px 10px; border-radius: 4px; color: var(--text-1); font-size: 0.8125rem; background: rgba(122, 162, 220, 0.12); box-shadow: inset 2px 0 0 var(--accent); }
-    .ekran__glavni { display: grid; grid-template-rows: auto auto 1fr; min-width: 0; }
-    .ekran__glava { padding: 18px 22px 10px; }
-    .crta { display: block; height: 8px; border-radius: 2px; background: var(--line-strong); }
-    .crta--naslov { width: 46%; height: 14px; background: #3b4048; }
-    .crta--meta { width: 22%; margin-top: 10px; }
-    .ekran__kartice { display: flex; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--line-strong); font-size: 0.8125rem; color: var(--text-2); }
-    .ekran__kartice span { padding: 6px 0 8px; }
-    .ekran__kartice .aktivna { color: var(--text-1); box-shadow: inset 0 -2px 0 var(--accent); }
-    .ekran__dok { display: grid; grid-template-columns: minmax(150px, 34%) minmax(0, 1fr); min-height: 0; }
-    .ekran__lista { border-right: 1px solid var(--line); }
-    .ekran__red { padding: 12px 16px; border-bottom: 1px solid var(--line); }
-    .ekran__red .crta { width: 78%; }
-    .ekran__red .crta + .crta { width: 44%; margin-top: 8px; height: 6px; background: var(--line); }
-    .ekran__red--izabran { background: var(--bg-selected); box-shadow: inset 2px 0 0 var(--accent); }
-    .ekran__tekst { padding: 20px 24px; display: grid; gap: 11px; align-content: start; }
-    .ekran__tekst .crta { background: #2c3036; height: 7px; }
-    .prikaz figcaption { margin-top: 14px; color: var(--text-3); font-size: 0.875rem; }
-
-    /* Načela */
-    .nacela { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line-strong); }
-    .nacelo { padding: 28px 28px 8px 0; }
-    .nacelo + .nacelo { padding-left: 28px; border-left: 1px solid var(--line); }
-    .nacelo h3 { margin: 0 0 10px; font-family: var(--font-serif); font-weight: 500; font-size: 1.1875rem; }
-    .nacelo p { margin: 0; color: var(--text-2); }
-    .nacelo:nth-child(3n+1) { padding-left: 0; border-left: 0; }
-    .nacelo:nth-child(n+4) { border-top: 1px solid var(--line); }
-
-    /* Pristup */
-    .pristup .okvir { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; }
-    .pristup p { margin: 0; color: var(--text-2); max-width: 52ch; }
-
-    /* Podnožje */
-    .podnozje { padding: 40px 0 56px; color: var(--text-3); font-size: 0.875rem; }
-    .podnozje .okvir { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between; }
-    .podnozje ul { display: flex; flex-wrap: wrap; gap: 8px 22px; list-style: none; margin: 0; padding: 0; }
-    .podnozje a { color: var(--text-2); text-decoration: none; }
-    .podnozje a:hover { color: var(--text-1); text-decoration: underline; text-underline-offset: 3px; }
-
-    @media (max-width: 960px) {
-      .koraci, .nacela { grid-template-columns: minmax(0, 1fr); }
-      .korak, .korak + .korak, .nacelo, .nacelo + .nacelo { padding: 24px 0 20px; border-left: 0; }
-      .korak + .korak, .nacelo + .nacelo { border-top: 1px solid var(--line); }
-    }
-    @media (max-width: 720px) {
-      .meni { display: none; }
-      .logo { margin-right: auto; }
-      .ekran__telo { grid-template-columns: minmax(0, 1fr); }
-      .ekran__nav { display: none; }
-      .ekran__dok { grid-template-columns: minmax(0, 1fr); }
-      .ekran__lista { border-right: 0; border-bottom: 1px solid var(--line); }
-      .ekran__red:nth-child(n+3) { display: none; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije</title>
+<meta name="description" content="Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.">
+<link rel="canonical" href="https://vindex.rs/">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d0e10">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="sr_RS">
+<meta property="og:site_name" content="Vindex">
+<meta property="og:title" content="Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije">
+<meta property="og:description" content="Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.">
+<meta property="og:url" content="https://vindex.rs/">
+<meta property="og:image" content="https://vindex.rs/v2/site/snimci/registar.webp">
+<meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/static/favicon-vindex-32.png">
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
+<link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
+<link rel="stylesheet" href="/v2/site/sajt.css?v=1e4be406d2">
+<!-- Generisano: scripts/gradi_sajt.py iz site/_izvor/index.html i site/funkcije.json. Ne menjati ručno. -->
 </head>
-<body>
-  <a class="skip" href="#sadrzaj">Preskoči na sadržaj</a>
-  <canvas id="pozadina" aria-hidden="true"></canvas>
-  <div class="strana">
-    <header class="zaglavlje">
-      <div class="okvir">
-        <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
-        <nav aria-label="Glavna navigacija">
-          <ul class="meni">
-            <li><a href="#rad">Kako radi</a></li>
-            <li><a href="#nacela">Načela</a></li>
-            <li><a href="#pristup">Pristup</a></li>
-          </ul>
-        </nav>
-        <a class="dugme dugme--malo" href="/app">Uđi u aplikaciju</a>
+<body class="sajt">
+<a class="skip" href="#sadrzaj">Preskoči na sadržaj</a>
+<canvas id="pozadina" aria-hidden="true"></canvas>
+<div class="strana">
+<header class="zaglavlje">
+  <div class="okvir">
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
+    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+    <div class="zaglavlje__akcije">
+      <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
+      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+    </div>
+    <details class="meni-mob">
+      <summary>Meni</summary>
+      <div class="meni-mob__panel">
+        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+        <div class="meni-mob__akcije">
+          <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+          <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
+        </div>
       </div>
-    </header>
-
-    <main id="sadrzaj" tabindex="-1">
-      <section class="uvod" aria-labelledby="naslov">
-        <div class="okvir">
-          <p class="nadnaslov">Radni prostor advokatske kancelarije</p>
-          <h1 id="naslov">Predmeti, rokovi i spisi vaše kancelarije.</h1>
-          <p class="vodeci">Vindex vodi predmete, klijente, ročišta i rokove, odgovara na pravna pitanja uz navedene izvore,
-            pravi nacrte podnesaka i vodi naplatu po tarifi. Vidite tačno ono što je uneto — bez primera i bez pretpostavki.</p>
-          <div class="akcije">
-            <a class="dugme" href="/app">Uđi u aplikaciju</a>
-            <a class="tekst-link" href="#rad">Kako radi</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="odeljak" id="rad" aria-labelledby="rad-naslov">
-        <div class="okvir">
-          <h2 id="rad-naslov">Kako radi</h2>
-          <p class="uvodni">Od otvaranja predmeta do nacrta, rokova i naplate.</p>
-          <ol class="koraci">
-            <li class="korak">
-              <span class="korak__broj">01</span>
-              <h3>Predmeti</h3>
-              <p>Otvorite nov predmet, izmenite njegove podatke, vodite beleške i hronologiju. Listu predmeta pretražujete
-                i sortirate; prikazuju se samo polja koja su zaista uneta.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">02</span>
-              <h3>Klijenti</h3>
-              <p>Povežite klijenta sa predmetom ili ga upišite kao novog. Pre povezivanja Vindex proverava sukob interesa:
-                utvrđen sukob blokira vezu, a nepotpuna provera traži vašu izričitu potvrdu.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">03</span>
-              <h3>Spisi i pretraga</h3>
-              <p>Dokumenti predmeta sa izdvojenim tekstom; ako tekst nije izdvojen, to piše jasno. Jedna pretraga kroz
-                predmete, dokumente, beleške i hronologiju.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">04</span>
-              <h3>Pravno pitanje</h3>
-              <p>Postavite pitanje u vezi sa predmetom. Odgovor navodi izvore iz zakona na koje se oslanja; kada izvori
-                nisu dostupni, to se izričito kaže.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">05</span>
-              <h3>Praksa i stavovi</h3>
-              <p>Pretraga sudske prakse i internih stavova kancelarije, na jednom mestu.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">06</span>
-              <h3>Nacrt podneska</h3>
-              <p>Nacrt izabrane vrste podneska je polazna tačka koju pregleda advokat. Mesta gde član nije potkrepljen
-                izvorom su označena; nacrt preuzimate kao Word dokument, a izrađeni nacrti čekaju vašu overu.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">07</span>
-              <h3>Ročišta i rokovi</h3>
-              <p>Ročišta predmeta i potvrđeni rokovi na ekranu Danas i u kalendaru za narednih 30 dana. Predloženi rok
-                čeka vašu potvrdu i dotle se ne prikazuje kao obaveza.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">08</span>
-              <h3>Naplata</h3>
-              <p>Stavke po advokatskoj tarifi, po satu ili po iznosu, tajmer za rad na predmetu i nacrt fakture od
-                izabranih stavki. Iznos po tarifi računa program.</p>
-            </li>
-            <li class="korak">
-              <span class="korak__broj">09</span>
-              <h3>Kancelarija</h3>
-              <p>Tim kancelarije i pregled rokova i neaktivnih predmeta preko svih vaših predmeta.</p>
-            </li>
-          </ol>
-
-          <figure class="prikaz">
-            <div class="ekran" aria-hidden="true">
-              <div class="ekran__traka"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></div>
-              <div class="ekran__telo">
-                <div class="ekran__nav"><span class="ekran__stavka">Predmeti</span></div>
-                <div class="ekran__glavni">
-                  <div class="ekran__glava"><span class="crta crta--naslov"></span><span class="crta crta--meta"></span></div>
-                  <div class="ekran__kartice"><span>Pregled</span><span class="aktivna">Dokumenti</span></div>
-                  <div class="ekran__dok">
-                    <div class="ekran__lista">
-                      <div class="ekran__red"><span class="crta"></span><span class="crta"></span></div>
-                      <div class="ekran__red ekran__red--izabran"><span class="crta"></span><span class="crta"></span></div>
-                      <div class="ekran__red"><span class="crta"></span><span class="crta"></span></div>
-                      <div class="ekran__red"><span class="crta"></span><span class="crta"></span></div>
-                    </div>
-                    <div class="ekran__tekst">
-                      <span class="crta" style="width: 52%; height: 11px; background: #3b4048"></span>
-                      <span class="crta" style="width: 94%"></span><span class="crta" style="width: 88%"></span>
-                      <span class="crta" style="width: 91%"></span><span class="crta" style="width: 62%"></span>
-                      <span class="crta" style="width: 96%"></span><span class="crta" style="width: 84%"></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <figcaption>Šematski prikaz: dokumenti otvorenog predmeta i izabran dokument. Bez stvarnih podataka.</figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <section class="odeljak" id="prijem" aria-labelledby="prijem-naslov">
-        <div class="okvir">
-          <h2 id="prijem-naslov">Prijem dokumenata</h2>
-          <p class="uvodni">Dokumenti i skenovi ulaze u predmet preko pregleda, ne mimo njega.</p>
-          <ul class="nacela">
-            <li class="nacelo">
-              <h3>Skenovi i fotografije</h3>
-              <p>Skenirani PDF i fotografije (JPG, PNG) prolaze kroz OCR sa srpskim latiničnim jezičkim paketom;
-                digitalni PDF se čita direktno, bez OCR-a. Kada tekst ne može da se pročita, to piše — ništa se ne izmišlja.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Podaci kao predlog</h3>
-              <p>Iz pročitanog teksta izdvajaju se podaci kao što su broj predmeta, sud, stranke, iznos i rok, svaki sa svojom
-                pouzdanošću. Nesiguran podatak je označen i traži vaš pregled; ispravka ne briše original.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Dokument u predmetu</h3>
-              <p>Tek posle vašeg pregleda dokument se prikačuje predmetu u kome radite. Prikačivanje ne menja podatke
-                predmeta i ne pravi klijenta iz pročitanog teksta.</p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="odeljak" id="nacela" aria-labelledby="nacela-naslov">
-        <div class="okvir">
-          <h2 id="nacela-naslov">Načela rada</h2>
-          <p class="uvodni">Radni prostor pokazuje stanje kakvo jeste.</p>
-          <ul class="nacela">
-            <li class="nacelo">
-              <h3>Stvarni podaci</h3>
-              <p>Radni prostor prikazuje podatke vaše kancelarije. Primeri i probni sadržaj se u njemu ne prikazuju.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Svoji predmeti</h3>
-              <p>Svaki nalog vidi samo predmete kojima ima pristup.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Greška je greška</h3>
-              <p>Kada podaci ne mogu da se učitaju, to piše jasno. Neuspelo učitavanje se nikad ne prikazuje kao prazna lista.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Vi odlučujete</h3>
-              <p>Predloženi rok važi tek kad ga potvrdite, a potvrda ne znači da je program proverio njegovu tačnost.
-                Nacrt je polazna tačka, ne gotov podnesak.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Izvor uz odgovor</h3>
-              <p>Pravni odgovor navodi izvore na koje se oslanja. Kada izvori nisu dostupni, odgovor to kaže umesto da nagađa.</p>
-            </li>
-            <li class="nacelo">
-              <h3>Neizvestan ishod se kaže</h3>
-              <p>Ako veza pukne posle slanja, Vindex ne tvrdi ni da je sačuvano ni da nije: kaže da ishod nije poznat
-                i ponovo čita stanje. Upis se nikad ne ponavlja sam.</p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="odeljak pristup" id="pristup" aria-labelledby="pristup-naslov">
-        <div class="okvir">
-          <div>
-            <h2 id="pristup-naslov">Pristup</h2>
-            <p>Prijava koristi vaš postojeći Vindex nalog.</p>
-          </div>
-          <a class="dugme" href="/app">Uđi u aplikaciju</a>
-        </div>
-      </section>
-    </main>
-
-    <footer class="podnozje">
-      <div class="okvir">
-        <span>© 2026 Vindex</span>
-        <nav aria-label="Pravne informacije">
-          <ul>
-            <li><a href="/privacy">Privatnost</a></li>
-            <li><a href="/terms">Uslovi korišćenja</a></li>
-            <li><a href="/security">Bezbednost</a></li>
-            <li><a href="/bezbednosni-list">Bezbednosni list</a></li>
-            <li><a href="/dpa">Obrada podataka (DPA)</a></li>
-            <li><a href="/ai-disclosure">Upotreba AI</a></li>
-          </ul>
-        </nav>
-      </div>
-    </footer>
+    </details>
   </div>
-  <script src="/v2/site/potpis.js"></script>
+</header>
+<main id="sadrzaj" tabindex="-1">
+<section class="uvod" aria-labelledby="naslov">
+  <div class="okvir">
+    <p class="nadnaslov">Radni prostor advokatske kancelarije</p>
+    <h1 id="naslov">Predmeti, dokumenti, rokovi i pravni rad na jednom mestu.</h1>
+    <p class="vodeci">Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema
+      informacije i predloge; advokat proverava izvore, odlučuje i potvrđuje radnje.</p>
+    <div class="akcije">
+      <a class="dugme" href="/beta">Prijavite se za beta testiranje</a>
+      <a class="tekst-link" href="/kako-radi">Pogledajte kako radi</a>
+    </div>
+    <figure class="snimak uvod__snimak">
+      <div class="snimak__okvir"><picture><source media="(max-width: 640px)" srcset="/v2/site/snimci/registar-mobilni.webp" width="780" height="1240"><img src="/v2/site/snimci/registar.webp" width="1600" height="1000" fetchpriority="high"
+        alt="Ekran Aktivni predmeti u aplikaciji Vindex: lista od osam predmeta sa nazivom, strankama, brojem predmeta, stanjem i datumom izmene."></picture></div>
+      <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Stvaran ekran aplikacije Vindex (registar predmeta) sa izmišljenim predmetima.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="tok-naslov">
+  <div class="okvir">
+    <h2 id="tok-naslov">Tok rada u predmetu</h2>
+    <p class="uvodni">Svaki korak ima jasnog nosioca. Ono što Vindex pročita ili predloži ostaje predlog dok ga advokat ne potvrdi.</p>
+    <ol class="tok">
+      <li><h3>Predmet</h3><p>Otvarate predmet ručno, iz opisa problema ili iz dokumenta.</p><span class="ko ko--advokat">vi otvarate</span></li>
+      <li><h3>Dokumenti</h3><p>Dokumenti i skenovi ulaze u predmet; Vindex čita tekst, uključujući OCR.</p><span class="ko">Vindex čita</span></li>
+      <li><h3>Podaci i dokazi</h3><p>Izdvojeni podaci i tvrdnje vezani su za dokument iz kog potiču.</p><span class="ko ko--potvrda">čeka pregled</span></li>
+      <li><h3>Rokovi i radnje</h3><p>Prepoznat rok čeka vašu odluku; radna lista pokazuje šta je sledeće.</p><span class="ko ko--potvrda">čeka potvrdu</span></li>
+      <li><h3>Pravna pomoć</h3><p>Pitanje uz izvore iz propisa, savetnik i nacrt podneska.</p><span class="ko">AI predlaže</span></li>
+      <li><h3>Odluka</h3><p>Rok, nacrt i podatak postaju važeći tek posle vaše odluke.</p><span class="ko ko--advokat">vi odlučujete</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="oblasti-naslov">
+  <div class="okvir">
+    <h2 id="oblasti-naslov">Šta Vindex danas radi</h2>
+    <p class="uvodni">Glavne oblasti rada. Potpun spisak, sa statusom i ograničenjima svake funkcije, nalazi se u katalogu.</p>
+    <ul class="mreza">
+      <li><h3>Predmeti i klijenti</h3>
+        <ul><li>registar sa pretragom i sortiranjem</li><li>izmena podataka, beleške i hronologija</li><li>provera sukoba interesa pre povezivanja klijenta</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#predmeti">Predmeti i klijenti</a></li>
+      <li><h3>Prijem i dokumenti</h3>
+        <ul><li>više dokumenata odjednom, uključujući skenove</li><li>OCR za ćirilicu i latinicu</li><li>izdvojeni podaci kao predlog za pregled</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#dokumenti">Prijem i dokumenti</a></li>
+      <li><h3>Dokazi i stanje predmeta</h3>
+        <ul><li>tvrdnje vezane za izvorni dokument</li><li>protivrečnosti između dokumenata</li><li>šta se promenilo i šta je sledeće</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#dokazi">Dokazi i stanje predmeta</a></li>
+      <li><h3>Rokovi i ročišta</h3>
+        <ul><li>predloženi rokovi čekaju vašu odluku</li><li>ekran Danas i kalendar za 30 dana</li><li>zadaci i radna lista</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#rokovi">Rokovi i ročišta</a></li>
+      <li><h3>Pravno istraživanje i nacrti</h3>
+        <ul><li>pravno pitanje uz navedene propise</li><li>sudska praksa i interni stavovi</li><li>nacrt podneska sa overom advokata</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#istrazivanje">Istraživanje i nacrti</a></li>
+      <li><h3>Naplata i kancelarija</h3>
+        <ul><li>stavke po advokatskoj tarifi i tajmer</li><li>nacrt fakture od izabranih stavki</li><li>pregled tima i portfolija</li></ul>
+        <a class="tekst-link" href="/funkcionalnosti#naplata">Naplata i kancelarija</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="kontrola-naslov">
+  <div class="okvir">
+    <h2 id="kontrola-naslov">Izvori i ljudska kontrola</h2>
+    <p class="uvodni">Vindex ne donosi pravne odluke. Mehanizmi ispod postoje u aplikaciji i dostupni su u svakom predmetu.</p>
+    <ul class="mreza">
+      <li><h3>Poreklo svake stavke</h3><p>Stavke analize predmeta nose poreklo: dokument, potvrda advokata, proračun ili AI analiza. AI analiza je uvek označena.</p></li>
+      <li><h3>Izvor uz pravni odgovor</h3><p>Odgovor na pravno pitanje navodi propise na koje se oslanja. Član koji ne postoji u izvorima se odbija, a kada izvori nisu dostupni, to se kaže.</p></li>
+      <li><h3>Potvrda advokata</h3><p>Predloženi rok, vrsta dokumenta, izdvojeni podaci i nacrt postaju važeći tek posle vaše odluke. Potvrda roka ne znači da je program proverio njegovu tačnost.</p></li>
+      <li><h3>Greška se ne skriva</h3><p>Neuspelo učitavanje se nikad ne prikazuje kao prazna lista. Kada ishod upisa nije poznat, Vindex to kaže i ponovo čita stanje.</p></li>
+      <li><h3>Samo vaši predmeti</h3><p>Server iz prijave određuje ko traži podatke i vraća samo predmete kojima nalog ima pristup.</p></li>
+      <li><h3>Znanje bez prečica</h3><p>Ništa ne postaje znanje kancelarije bez odobrenja advokata. Nova kancelarija počinje praznim iskustvom, ne tuđim podacima.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="ekrani-naslov">
+  <div class="okvir">
+    <h2 id="ekrani-naslov">Stvarni ekrani aplikacije</h2>
+    <p class="uvodni">Snimci su napravljeni u aplikaciji Vindex sa izmišljenim predmetima. Ne prikazuju AI odgovore, presude ni podatke stvarnih klijenata.</p>
+    <div class="snimci">
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/danas.webp" width="1600" height="1222" loading="lazy"
+          alt="Ekran Danas: radna lista zadataka, obaveze za narednih sedam dana i predloženi rok za odgovor na tužbu sa dugmadima Potvrdi i Odbij."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Danas: radna lista, obaveze i predloženi rok koji čeka odluku. Podaci su izmišljeni.</figcaption>
+      </figure>
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/rad-predmeta.webp" width="1600" height="1333" loading="lazy"
+          alt="Ekran Rad na predmetu: ročište u Osnovnom sudu u Novom Sadu, beleška, hronologija i forma za nov zadatak."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Rad na predmetu: ročišta, beleške, hronologija i zadaci. Podaci su izmišljeni.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="beta-naslov">
+  <div class="okvir">
+    <h2 id="beta-naslov">Vindex je u kontrolisanom beta testiranju</h2>
+    <p class="uvodni">Aplikacija se razvija i testira. Funkcije su proverene automatskim testovima nad
+      izmišljenim podacima; sistematsko iskustvo iz rada advokata na stvarnim predmetima tek se prikuplja. Pojedine funkcije zavise od
+      paketa dodeljenog nalogu, a šta još nije dostupno piše na stranici <a class="tekst-link" href="/razvoj">Razvoj</a>.</p>
+    <div class="akcije">
+      <a class="dugme" href="/beta">Prijavite se za beta testiranje</a>
+      <a class="tekst-link" href="/app">Već imate nalog? Uđite u aplikaciju</a>
+    </div>
+  </div>
+</section>
+</main>
+<footer class="podnozje">
+  <div class="okvir">
+    <div class="podnozje__redovi">
+      <div>
+        <h2>Vindex</h2>
+        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+      </div>
+      <nav aria-label="Sajt">
+        <h2>Sajt</h2>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/razvoj">Razvoj</a></li>
+          <li><a href="/bezbednost">Bezbednost</a></li>
+          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/app">Prijava u aplikaciju</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Dokumenti">
+        <h2>Dokumenti</h2>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Ugovor o obradi podataka</a></li>
+          <li><a href="/ai-disclosure">Upotreba AI</a></li>
+          <li><a href="/status">Status servisa</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="podnozje__dno">
+      <span>© 2026 Vindex</span>
+      <span>Vindex ne zamenjuje profesionalno rasuđivanje advokata.</span>
+    </div>
+  </div>
+</footer>
+</div>
+<script src="/v2/site/potpis.js"></script>
+<script src="/v2/site/sajt.js?v=1e4be406d2"></script>
 </body>
 </html>

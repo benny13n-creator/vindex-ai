@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="sr-Latn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beta testiranje — Vindex</title>
+<meta name="description" content="Prijava za kontrolisano beta testiranje Vindexa za advokate i advokatske kancelarije u Srbiji.">
+<link rel="canonical" href="https://vindex.rs/beta">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d0e10">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="sr_RS">
+<meta property="og:site_name" content="Vindex">
+<meta property="og:title" content="Beta testiranje — Vindex">
+<meta property="og:description" content="Prijava za kontrolisano beta testiranje Vindexa za advokate i advokatske kancelarije u Srbiji.">
+<meta property="og:url" content="https://vindex.rs/beta">
+<meta property="og:image" content="https://vindex.rs/v2/site/snimci/registar.webp">
+<meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/static/favicon-vindex-32.png">
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
+<link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
+<link rel="stylesheet" href="/v2/site/sajt.css?v=1e4be406d2">
+<!-- Generisano: scripts/gradi_sajt.py iz site/_izvor/beta.html i site/funkcije.json. Ne menjati ručno. -->
+</head>
+<body class="sajt">
+<a class="skip" href="#sadrzaj">Preskoči na sadržaj</a>
+<canvas id="pozadina" aria-hidden="true"></canvas>
+<div class="strana">
+<header class="zaglavlje">
+  <div class="okvir">
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
+    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+    <div class="zaglavlje__akcije">
+      <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
+      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+    </div>
+    <details class="meni-mob">
+      <summary>Meni</summary>
+      <div class="meni-mob__panel">
+        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+        <div class="meni-mob__akcije">
+          <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+          <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
+        </div>
+      </div>
+    </details>
+  </div>
+</header>
+<main id="sadrzaj" tabindex="-1">
+<section class="uvod uvod--strana" aria-labelledby="naslov">
+  <div class="okvir">
+    <p class="nadnaslov">Beta testiranje</p>
+    <h1 id="naslov">Prijava za beta testiranje Vindexa.</h1>
+    <p class="vodeci">Vindex je u kontrolisanom razvoju i testiranju. Prijava za beta testiranje je zahtev da vas kontaktiramo i uključimo
+      u testiranje uz podršku. Sama prijava ne otvara nalog.</p>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="sta-naslov">
+  <div class="okvir">
+    <h2 id="sta-naslov">Šta znači beta</h2>
+    <ul class="mreza">
+      <li><h3>Za koga je</h3><p>Za advokate i advokatske kancelarije u Srbiji koji žele da Vindex koriste u svakodnevnom radu i da kažu šta im nedostaje.</p></li>
+      <li><h3>Šta dobijate</h3><p>Nalog u aplikaciji sa funkcijama opisanim u <a class="tekst-link" href="/funkcionalnosti">katalogu</a>. Pojedine funkcije zavise od paketa dodeljenog nalogu.</p></li>
+      <li><h3>Šta još nije gotovo</h3><p>Deo funkcija je u razvoju i jasno je označen na stranici <a class="tekst-link" href="/razvoj">Razvoj</a>. Beta znači da je moguće naići na greške.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="forma-naslov">
+  <div class="okvir">
+    <h2 id="forma-naslov">Prijava</h2>
+    <p class="uvodni">Prijava čuva ime, adresu e-pošte i ono što unesete u ostala polja, kako bismo vas kontaktirali u vezi sa beta
+      testiranjem. Obavezna su samo ime i e-pošta.</p>
+    <noscript><p class="napomena">Za slanje prijave potreban je JavaScript u pregledaču.</p></noscript>
+    <form class="forma" id="beta-forma" novalidate>
+      <div class="polje">
+        <label for="beta-ime">Ime i prezime <span class="obavezno">(obavezno)</span></label>
+        <input id="beta-ime" name="ime" type="text" autocomplete="name" maxlength="120" required aria-describedby="greska-ime">
+        <p class="polje__greska" id="greska-ime" hidden></p>
+      </div>
+      <div class="polje">
+        <label for="beta-email">E-pošta <span class="obavezno">(obavezno)</span></label>
+        <input id="beta-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="greska-email">
+        <p class="polje__greska" id="greska-email" hidden></p>
+      </div>
+      <div class="polje">
+        <label for="beta-firma">Kancelarija</label>
+        <input id="beta-firma" name="firma" type="text" autocomplete="organization" maxlength="200">
+      </div>
+      <div class="polje">
+        <label for="beta-telefon">Telefon</label>
+        <input id="beta-telefon" name="telefon" type="tel" autocomplete="tel" maxlength="40">
+      </div>
+      <div class="polje polje--sirko">
+        <label for="beta-poruka">Kako radite i šta vam je važno</label>
+        <textarea id="beta-poruka" name="poruka" maxlength="500"></textarea>
+      </div>
+      <div class="ishod" id="beta-ishod" tabindex="-1" hidden></div>
+      <div class="forma__dno">
+        <button class="dugme" id="beta-posalji" type="submit">Pošaljite prijavu</button>
+        <span class="tiho">Potvrda se ne šalje e-poštom. Rok za odgovor ne obećavamo.</span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="nalog-naslov">
+  <div class="okvir">
+    <h2 id="nalog-naslov">Nalog u aplikaciji</h2>
+    <p class="uvodni">Ako već imate Vindex nalog, prijavite se u aplikaciju. Nalog možete otvoriti i sami u aplikaciji (Registracija);
+      nov nalog dobija ograničen broj kredita za funkcije koje koriste jezički model.</p>
+    <a class="dugme dugme--sporedno" href="/app">Uđite u aplikaciju</a>
+  </div>
+</section>
+</main>
+<footer class="podnozje">
+  <div class="okvir">
+    <div class="podnozje__redovi">
+      <div>
+        <h2>Vindex</h2>
+        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+      </div>
+      <nav aria-label="Sajt">
+        <h2>Sajt</h2>
+        <ul>
+          <li><a href="/kako-radi">Kako radi</a></li>
+          <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
+          <li><a href="/za-advokate">Za advokate</a></li>
+          <li><a href="/razvoj">Razvoj</a></li>
+          <li><a href="/bezbednost">Bezbednost</a></li>
+          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/app">Prijava u aplikaciju</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Dokumenti">
+        <h2>Dokumenti</h2>
+        <ul>
+          <li><a href="/privacy">Politika privatnosti</a></li>
+          <li><a href="/terms">Uslovi korišćenja</a></li>
+          <li><a href="/dpa">Ugovor o obradi podataka</a></li>
+          <li><a href="/ai-disclosure">Upotreba AI</a></li>
+          <li><a href="/status">Status servisa</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="podnozje__dno">
+      <span>© 2026 Vindex</span>
+      <span>Vindex ne zamenjuje profesionalno rasuđivanje advokata.</span>
+    </div>
+  </div>
+</footer>
+</div>
+<script src="/v2/site/potpis.js"></script>
+<script src="/v2/site/sajt.js?v=1e4be406d2"></script>
+</body>
+</html>

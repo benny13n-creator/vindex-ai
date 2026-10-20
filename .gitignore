@@ -215,3 +215,4 @@ vindex_scraper_output/
 data/ingest_all_log*.txt
 data/ingest_sp_log.txt
 data/ingest_sp_err.txt
+site/snimci-izvor/

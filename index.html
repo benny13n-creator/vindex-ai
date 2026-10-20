@@ -55,6 +55,9 @@
         referrerpolicy="no-referrer"
         defer></script>
 
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
+<link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
+<link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
 <link rel="stylesheet" href="/static/vindex.css?v=1">
 
 </head>
@@ -69,8 +72,8 @@
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">&#x2715;</button>
     <div class="modal-badge">Vindex AI — Beta</div>
-    <div class="modal-title" id="auth-modal-title">Dobrodošli.<br>15 besplatnih upita.</div>
-    <p class="modal-sub" id="auth-modal-sub">Registracija je potpuno besplatna i ne zahteva podatke sa kartice.</p>
+    <div class="modal-title" id="auth-modal-title">Dobrodošli.</div>
+    <p class="modal-sub" id="auth-modal-sub">Prijavite se na vaš nalog.</p>
     <div class="auth-tabs" id="auth-tabs-row">
       <button class="auth-tab active" id="auth-login-tab" onclick="setAuthMode('login')">Prijava</button>
       <button class="auth-tab" id="auth-reg-tab" onclick="setAuthMode('register')">Registracija</button>
@@ -4147,67 +4150,35 @@
   </div>
 </div>
 
-<div id="vx-landing" class="vx-landing">
-  <nav class="vx-land-nav">
-    <a href="#" class="vx-land-logo">Vindex<em>AI</em></a>
-    <a href="#" id="nav-cta-btn" class="vx-land-nav-cta" onclick="openModal();return false;">Prijavite se &rarr;</a>
-  </nav>
+<!-- Website V2: pre-auth ulaz u vizuelnom identitetu V2 radnog prostora. Bez tvrdnji o proizvodu; one žive
+     na javnom sajtu i dolaze iz site/funkcije.json. ID-jevi vx-landing i nav-cta-btn ostaju (static/vindex.js). -->
+<div id="vx-landing" class="vx-landing vxp">
+  <header class="vxp-traka">
+    <a href="/" class="vxp-logo" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
+    <a href="#" id="nav-cta-btn" class="vxp-dugme vxp-dugme--sporedno" onclick="openModal();return false;">Prijavite se</a>
+  </header>
 
-  <main class="vx-land-hero">
-    <div class="vx-land-badge-pill">
-      <div class="vx-land-badge-dot"></div>
-      Pravni Operativni Sistem &mdash; Republika Srbija
+  <main class="vxp-telo">
+    <p class="vxp-nad">Radni prostor advokatske kancelarije</p>
+    <h1 class="vxp-h1">Prijava u Vindex</h1>
+    <p class="vxp-tekst">Prijavite se svojim Vindex nalogom da biste nastavili rad na predmetima, dokumentima i rokovima.</p>
+    <div class="vxp-akcije">
+      <button class="vxp-dugme" type="button" onclick="openModal()">Prijavite se</button>
+      <a class="vxp-link" href="/beta">Prijava za beta testiranje</a>
     </div>
-
-    <h1 class="vx-land-h1">Vindex<em>AI</em></h1>
-    <p class="vx-land-tagline">Pravo na dohvat ruke.</p>
-
-    <p class="vx-land-sub">
-      Operativni sistem za advokatske kancelarije. Predmeti, klijenti, rokovi i dokumenti organizovani.
-      Analiza koja radi umesto vas &mdash; unutar svakog predmeta.
-    </p>
-
-    <div class="vx-land-ctas">
-      <button class="vx-land-btn-primary" onclick="wl_open()">Zatražite rani pristup &rarr;</button>
-      <button class="vx-land-btn-secondary" onclick="openModal()">Već imam nalog</button>
-    </div>
-    <div class="vx-land-wl-strip">
-      <div class="wl-badge">Beta · Ograničen broj mesta</div>
-      <div class="vx-land-wl-note">Prijavite se i javićemo vam se čim otvorimo pristup. Besplatno tokom beta faze.</div>
-    </div>
-
-    <div class="vx-land-features">
-      <div class="vx-land-feat">
-        <div class="vx-land-feat-icon">&#x2696;</div>
-        <div class="vx-land-feat-title">Predmeti</div>
-        <div class="vx-land-feat-text">Svaki predmet &mdash; svoja istorija, dokumenti, rokovi, klijenti. Ništa se ne gubi.</div>
-      </div>
-      <div class="vx-land-feat">
-        <div class="vx-land-feat-icon">&#x25D7;</div>
-        <div class="vx-land-feat-title">Rokovi</div>
-        <div class="vx-land-feat-text">Automatska obaveštenja 7, 2 i 1 dan pre isteka. Sistem prati rokove umesto vas.</div>
-      </div>
-      <div class="vx-land-feat">
-        <div class="vx-land-feat-icon">&#x25C6;</div>
-        <div class="vx-land-feat-title">Pravno istraživanje</div>
-        <div class="vx-land-feat-text">847 zakona Srbije pretraženo za manje od 10 sekundi. Citat, član, zakon &mdash; tačno.</div>
-      </div>
-      <div class="vx-land-feat">
-        <div class="vx-land-feat-icon">&#x25C8;</div>
-        <div class="vx-land-feat-title">Klijenti</div>
-        <div class="vx-land-feat-text">CRM za pravne kancelarije. Poverljivi podaci zaštićeni AES-256.</div>
-      </div>
-    </div>
+    <nav class="vxp-veze" aria-label="Javni sajt">
+      <a href="/">Početna</a>
+      <a href="/kako-radi">Kako radi</a>
+      <a href="/funkcionalnosti">Funkcionalnosti</a>
+      <a href="/bezbednost">Bezbednost</a>
+    </nav>
   </main>
 
-  <footer class="vx-land-foot">
-    <div class="vx-land-foot-copy">&copy; 2026 Vindex AI. Sva prava zadržana.</div>
-    <div class="vx-land-foot-disc">Vindex AI ne zamenjuje profesionalno pravno rasuđivanje advokata.</div>
-    <div class="vx-land-foot-links" style="margin-top:.5rem;font-size:.8rem;">
-      <a href="/privacy" target="_blank" style="color:inherit;text-decoration:underline;">Politika privatnosti</a>
-      &nbsp;·&nbsp;
-      <a href="/terms" target="_blank" style="color:inherit;text-decoration:underline;">Uslovi korišćenja</a>
-    </div>
+  <footer class="vxp-dno">
+    <span>&copy; 2026 Vindex</span>
+    <span>Vindex ne zamenjuje profesionalno rasuđivanje advokata.</span>
+    <a href="/privacy">Politika privatnosti</a>
+    <a href="/terms">Uslovi korišćenja</a>
   </footer>
 </div>
 

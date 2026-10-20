@@ -1744,19 +1744,39 @@ def root():
     return {"status": "ok", "servis": "Vindex AI"}
 
 
-# NS004: povučene marketinške stranice. Njihove tvrdnje nisu imale živ put u
-# proizvodu (docs/ns004-site-claims.md); trajno preusmerenje na odgovarajući
-# odeljak nove početne strane, da stari linkovi i pretraživači ne pucaju.
+# Website V2: javne stranice. Generiše ih scripts/gradi_sajt.py iz site/_izvor/ i
+# site/funkcije.json (jedini izvor istine o funkcijama i njihovom statusu).
+_JAVNE_STRANICE = {
+    "/kako-radi": "kako-radi.html",
+    "/funkcionalnosti": "funkcionalnosti.html",
+    "/za-advokate": "za-advokate.html",
+    "/razvoj": "razvoj.html",
+    "/bezbednost": "bezbednost.html",
+    "/beta": "beta.html",
+}
+
+
+def _javna_stranica(fajl: str):
+    def _ruta():
+        return FileResponse(BASE_DIR / "site" / fajl, media_type="text/html; charset=utf-8",
+                            headers={"Cache-Control": "public, max-age=300"})
+    return _ruta
+
+
+for _put, _fajl in _JAVNE_STRANICE.items():
+    app.add_api_route(_put, _javna_stranica(_fajl), methods=["GET", "HEAD"], include_in_schema=False)
+
+
+# Stare javne adrese bez sopstvene stranice: trajno preusmerenje na stranicu
+# koja ih nasleđuje, da stari linkovi i pretraživači ne pucaju. Digitalna
+# imovina, vizija i tehnologija nemaju V2 korisnički tok (docs/ns004-site-claims.md).
 _POVUCENE_STRANICE = {
-    "/kako-radi": "/#rad",
-    "/sposobnosti": "/#rad",
-    "/za-advokate": "/#rad",
+    "/sposobnosti": "/funkcionalnosti",
+    "/platforma": "/kako-radi",
+    "/kontakt": "/beta",
     "/web3": "/",
-    "/bezbednost": "/#nacela",
     "/vizija": "/",
     "/tehnologija": "/",
-    "/beta": "/#pristup",
-    "/kontakt": "/#pristup",
 }
 
 
@@ -1788,6 +1808,24 @@ def sajt_potpis():
 if (_SAJT_V2_DIR / "fonts").is_dir() and (_SAJT_V2_DIR / "brand").is_dir():
     app.mount("/v2/site/fonts", _StaticFiles(directory=str(_SAJT_V2_DIR / "fonts")), name="sajt_fonts")
     app.mount("/v2/site/brand", _StaticFiles(directory=str(_SAJT_V2_DIR / "brand")), name="sajt_brand")
+
+
+# Website V2: stil i skript sajta (verzija u upitu `?v=` je heš sadržaja iz
+# scripts/gradi_sajt.py) i snimci stvarnih V2 ekrana sa izmišljenim podacima.
+@app.get("/v2/site/sajt.css", include_in_schema=False)
+def sajt_stil():
+    return FileResponse(str(BASE_DIR / "site" / "sajt.css"), media_type="text/css; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"})
+
+
+@app.get("/v2/site/sajt.js", include_in_schema=False)
+def sajt_skript():
+    return FileResponse(str(BASE_DIR / "site" / "sajt.js"), media_type="text/javascript; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff"})
+
+
+if (BASE_DIR / "site" / "snimci").is_dir():
+    app.mount("/v2/site/snimci", _StaticFiles(directory=str(BASE_DIR / "site" / "snimci")), name="sajt_snimci")
 
 
 @app.get("/privacy")
@@ -2682,7 +2720,13 @@ async def diagnose(x_admin_key: str = Header(default="")):
 # Prvi element para je putanja, drugi je prioritet.
 _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/", "1.0"),
-    # NS004: povučene marketinške stranice (301 na početnu) nisu u sitemap-u.
+    # Website V2: javne stranice. Preusmerene stare adrese (301) nisu u sitemap-u.
+    ("/kako-radi", "0.8"),
+    ("/funkcionalnosti", "0.8"),
+    ("/za-advokate", "0.7"),
+    ("/bezbednost", "0.6"),
+    ("/razvoj", "0.5"),
+    ("/beta", "0.6"),
     # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
     ("/privacy", "0.4"),
     ("/terms", "0.4"),

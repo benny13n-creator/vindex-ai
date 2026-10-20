@@ -1,0 +1,66 @@
+<section class="uvod uvod--strana" aria-labelledby="naslov">
+  <div class="okvir">
+    <p class="nadnaslov">Beta testiranje</p>
+    <h1 id="naslov">Prijava za beta testiranje Vindexa.</h1>
+    <p class="vodeci">Vindex je u kontrolisanom razvoju i testiranju. Prijava za beta testiranje je zahtev da vas kontaktiramo i uključimo
+      u testiranje uz podršku. Sama prijava ne otvara nalog.</p>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="sta-naslov">
+  <div class="okvir">
+    <h2 id="sta-naslov">Šta znači beta</h2>
+    <ul class="mreza">
+      <li><h3>Za koga je</h3><p>Za advokate i advokatske kancelarije u Srbiji koji žele da Vindex koriste u svakodnevnom radu i da kažu šta im nedostaje.</p></li>
+      <li><h3>Šta dobijate</h3><p>Nalog u aplikaciji sa funkcijama opisanim u <a class="tekst-link" href="/funkcionalnosti">katalogu</a>. Pojedine funkcije zavise od paketa dodeljenog nalogu.</p></li>
+      <li><h3>Šta još nije gotovo</h3><p>Deo funkcija je u razvoju i jasno je označen na stranici <a class="tekst-link" href="/razvoj">Razvoj</a>. Beta znači da je moguće naići na greške.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="forma-naslov">
+  <div class="okvir">
+    <h2 id="forma-naslov">Prijava</h2>
+    <p class="uvodni">Prijava čuva ime, adresu e-pošte i ono što unesete u ostala polja, kako bismo vas kontaktirali u vezi sa beta
+      testiranjem. Obavezna su samo ime i e-pošta.</p>
+    <noscript><p class="napomena">Za slanje prijave potreban je JavaScript u pregledaču.</p></noscript>
+    <form class="forma" id="beta-forma" novalidate>
+      <div class="polje">
+        <label for="beta-ime">Ime i prezime <span class="obavezno">(obavezno)</span></label>
+        <input id="beta-ime" name="ime" type="text" autocomplete="name" maxlength="120" required aria-describedby="greska-ime">
+        <p class="polje__greska" id="greska-ime" hidden></p>
+      </div>
+      <div class="polje">
+        <label for="beta-email">E-pošta <span class="obavezno">(obavezno)</span></label>
+        <input id="beta-email" name="email" type="email" autocomplete="email" maxlength="254" required aria-describedby="greska-email">
+        <p class="polje__greska" id="greska-email" hidden></p>
+      </div>
+      <div class="polje">
+        <label for="beta-firma">Kancelarija</label>
+        <input id="beta-firma" name="firma" type="text" autocomplete="organization" maxlength="200">
+      </div>
+      <div class="polje">
+        <label for="beta-telefon">Telefon</label>
+        <input id="beta-telefon" name="telefon" type="tel" autocomplete="tel" maxlength="40">
+      </div>
+      <div class="polje polje--sirko">
+        <label for="beta-poruka">Kako radite i šta vam je važno</label>
+        <textarea id="beta-poruka" name="poruka" maxlength="500"></textarea>
+      </div>
+      <div class="ishod" id="beta-ishod" tabindex="-1" hidden></div>
+      <div class="forma__dno">
+        <button class="dugme" id="beta-posalji" type="submit">Pošaljite prijavu</button>
+        <span class="tiho">Potvrda se ne šalje e-poštom. Rok za odgovor ne obećavamo.</span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="nalog-naslov">
+  <div class="okvir">
+    <h2 id="nalog-naslov">Nalog u aplikaciji</h2>
+    <p class="uvodni">Ako već imate Vindex nalog, prijavite se u aplikaciju. Nalog možete otvoriti i sami u aplikaciji (Registracija);
+      nov nalog dobija ograničen broj kredita za funkcije koje koriste jezički model.</p>
+    <a class="dugme dugme--sporedno" href="/app">Uđite u aplikaciju</a>
+  </div>
+</section>
