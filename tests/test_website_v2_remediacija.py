@@ -353,7 +353,7 @@ def test_politika_privatnosti_opisuje_beta_prijavu(tekstovi):
     o = m.group(1)
     for deo in ("ime", "adres", "kancelarij", "telefon", "poruk",       # podaci
                 "svrh", "pravni osnov", "čuva", "briš",                 # svrha, osnov, čuvanje
-                "Supabase", "e-pošte", "ne otvara nalog", "privacy@"):  # primaoci, granice, kanal
+                "Supabase", "e-pošte", "ne otvara nalog", "benny13.n@gmail.com"):  # primaoci, granice, kanal
         assert deo.lower() in o.lower(), f"beta odeljak ne pominje: {deo}"
     # Prijava ne sme da postane marketinška saglasnost ni newsletter.
     assert "ne koristi za marketing" in o and "nije prijava na newsletter" in o
