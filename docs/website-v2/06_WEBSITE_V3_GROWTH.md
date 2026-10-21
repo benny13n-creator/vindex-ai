@@ -90,3 +90,4 @@ Poverljivost: dijalog šalje samo `kategorija`, `poruka` i `kontekst`. `kontekst
 - Svetla verzija: originalne boje. Tamna verzija: iste linije, V i slova u boji kosti, stub i lovor u zlatu.
 - Zamenjeno: zaglavlje sajta, V2 gornja traka (obe teme), stara aplikacija (javna strana, bočna i mobilna traka), portal za klijente, stranica statusa, favicon i PWA ikone (`*-v4.png`), manifest, `sw.js` v162.
 - Izvorni logo je 357×305 px, pa se prikazuje samo umanjen (najviše 48 px visine), da se pikseli ne vide.
+- **Security Checks na `f74309bf`:** novi CVE-2026-113786 u `pypdf 6.20.1` (objavljen posle prethodnog zelenog CI-ja). `pypdf==6.21.1`; 1049 lokalnih testova vezanih za PDF/OCR/prijem prolazi, lokalni `pip-audit` čist uz postojeće izuzetke.
