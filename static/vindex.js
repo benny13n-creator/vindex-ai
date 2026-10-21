@@ -23247,7 +23247,7 @@ async function pomocPosalji() {
     var d = await r.json();
     if (r.ok) {
       txt.value = '';
-      if (msg) { msg.style.display=''; msg.style.color='#4ade80'; msg.textContent='Poruka poslata. Odgovorićemo u roku od 24h.'; }
+      if (msg) { msg.style.display=''; msg.style.color=d.email_poslat === true ? '#4ade80' : '#fbbf24'; msg.textContent=d.email_poslat === true ? 'Prijava je prosleđena osnivaču.' : 'Prijava je evidentirana. Dostava email obaveštenja nije potvrđena; za hitan problem pišite na benny13.n@gmail.com.'; }
     } else {
       var errTxt = (d && d.detail) ? d.detail : 'Greška pri slanju.';
       if (msg) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent=errTxt; }

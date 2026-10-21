@@ -1750,7 +1750,6 @@ _JAVNE_STRANICE = {
     "/kako-radi": "kako-radi.html",
     "/funkcionalnosti": "funkcionalnosti.html",
     "/za-advokate": "za-advokate.html",
-    "/razvoj": "razvoj.html",
     "/bezbednost": "bezbednost.html",
     "/beta": "beta.html",
 }
@@ -1774,6 +1773,7 @@ _POVUCENE_STRANICE = {
     "/sposobnosti": "/funkcionalnosti",
     "/platforma": "/kako-radi",
     "/kontakt": "/beta",
+    "/razvoj": "/funkcionalnosti",
     "/web3": "/",
     "/vizija": "/",
     "/tehnologija": "/",
@@ -2729,7 +2729,6 @@ _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/funkcionalnosti", "0.8"),
     ("/za-advokate", "0.7"),
     ("/bezbednost", "0.6"),
-    ("/razvoj", "0.5"),
     ("/beta", "0.6"),
     # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
     ("/privacy", "0.4"),

@@ -50,11 +50,11 @@ import api  # noqa: E402
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Website V2: javne stranice (generiše scripts/gradi_sajt.py).
-STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"]
+STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"]
 
 # Stare adrese bez sopstvene stranice → 301 na stranicu koja ih nasleđuje.
 POVUCENE = {
-    "/sposobnosti": "/funkcionalnosti", "/platforma": "/kako-radi", "/kontakt": "/beta",
+    "/sposobnosti": "/funkcionalnosti", "/platforma": "/kako-radi", "/kontakt": "/beta", "/razvoj": "/funkcionalnosti",
     "/web3": "/", "/vizija": "/", "/tehnologija": "/",
 }
 
@@ -580,14 +580,15 @@ def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
         assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
 
 
-def test_razvoj_prikazuje_samo_odobrene_planove_kao_nedostupne(klijent):
-    reg = _registar()
-    na_sajtu = _stavke(_tekst(klijent, "/razvoj"))
-    ocekivano = {f["id"] for f in reg["funkcije"] if f["javno"] and f["status"] == "PLANNED_APPROVED"}
-    assert set(na_sajtu) == ocekivano
-    for fid, (status, tekst) in na_sajtu.items():
-        assert status == "PLANNED_APPROVED"
-        assert "Nije dostupno" in tekst and "još nije dostupno" in tekst, f"{fid}: plan nije jasno označen kao nedostupan"
+def test_razvoj_nije_javna_roadmap_stranica(klijent):
+    """Razvojna mapa ne izlaže planove konkurenciji kroz javnu rutu."""
+    r = klijent.get("/razvoj", follow_redirects=False)
+    assert r.status_code == 301
+    assert r.headers["location"] == "/funkcionalnosti"
+    for ruta in STRANICE:
+        t = _tekst(klijent, ruta)
+        assert 'href="/razvoj"' not in t
+    assert "/razvoj" not in klijent.get("/sitemap.xml").text
 
 
 @pytest.mark.parametrize("ruta", STRANICE)
@@ -718,3 +719,17 @@ def test_pre_auth_ulaz_cuva_ugovor_prijave_i_vodi_na_beta(klijent):
     telo = _tekst(klijent, "/app-legacy")
     assert '<div class="modal-title" id="auth-modal-title">Dobrodošli.</div>' in telo
     assert "15 besplatnih upita.</div>" not in telo, "početni naslov modala prijave ne sme biti tekst registracije"
+
+
+def test_nova_pozicija_i_rani_pristup(klijent):
+    pocetna = _tekst(klijent, "/")
+    assert "Više vremena za odluke" in pocetna
+    assert "Prijavi se za rani pristup" in pocetna
+    assert 'id="sektori"' in pocetna
+    assert "potencijalne profesionalne scenarije" in pocetna
+    assert "nije samo AI odgovor" not in pocetna.lower()  # ne tvrditi neupotrebljivu superlativnu prednost
+    bezbednost = _tekst(klijent, "/bezbednost")
+    for provider in ("Supabase", "Render", "Pinecone", "OpenAI API"):
+        assert provider in bezbednost
+    assert "Originalni PDF/DOCX fajlovi nisu deo" in bezbednost
+    assert "bezbedniji od ChatGPT Business/Enterprise" in bezbednost

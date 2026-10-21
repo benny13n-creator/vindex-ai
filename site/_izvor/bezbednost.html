@@ -1,9 +1,39 @@
 <section class="uvod uvod--strana" aria-labelledby="naslov">
   <div class="okvir">
     <p class="nadnaslov">Bezbednost i zaštita podataka</p>
-    <h1 id="naslov">Kako Vindex štiti pristup podacima i gde su granice te zaštite.</h1>
-    <p class="vodeci">Ova stranica opisuje samo mehanizme koji postoje u kodu aplikacije i provereni su automatskim testovima. Vindex
-      nema nezavisnu bezbednosnu sertifikaciju niti spoljno ispitivanje prodora.</p>
+    <h1 id="naslov">Zaštita nije slogan. Važno je ko pristupa podacima, gde se čuvaju i kako ih preuzimate.</h1>
+    <p class="vodeci">Vindex kombinuje autorizovan pristup radnom prostoru, kontrolu predmeta na serveru, zaštitu prenosa i jasna pravila za AI obradu. U nastavku je pregled infrastrukture i stvarnih granica svakog mehanizma.</p>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tok-podataka" aria-labelledby="gde-su-podaci">
+  <div class="okvir">
+    <p class="nadnaslov">Kuda prolaze informacije</p>
+    <h2 id="gde-su-podaci">Ko čuva i obrađuje podatke?</h2>
+    <p class="uvodni">Vindex nije skladište unutar ChatGPT razgovora. Platforma ima sopstveni aplikacioni tok, a različiti dobavljači obrađuju različite vrste podataka. Tačan obuhvat i pravne informacije nalaze se u <a class="tekst-link" href="/privacy">Politici privatnosti</a>.</p>
+    <ul class="mreza">
+      <li><h3>Supabase — baza i fajlovi</h3><p>Čuva podatke naloga i aplikacione zapise; skladištenje dokumenata zavisi od konkretnog toka. Pristup se proverava kroz serversku autorizaciju.</p></li>
+      <li><h3>Render — izvršavanje aplikacije</h3><p>Pokreće Vindex API, obrađuje zahteve i prosleđuje podatke onim servisima koji su potrebni za traženu funkciju.</p></li>
+      <li><h3>Pinecone — pretraga sadržaja</h3><p>Čuva vektorske reprezentacije i tekstualne segmente kao metapodatke za semantičku pretragu. To nije skladište samo anonimnih brojeva.</p></li>
+      <li><h3>OpenAI API — AI obrada</h3><p>Za odabrane AI funkcije obrađuje tekst koji aplikacija pošalje modelu. Ne treba pretpostaviti da svaki dokument automatski ostaje isključivo unutar Vindex infrastrukture.</p></li>
+    </ul>
+  </div>
+</section>
+<section class="odeljak odeljak--tih" aria-labelledby="izvoz-naslov">
+  <div class="okvir">
+    <h2 id="izvoz-naslov">Kako preuzimate svoje podatke?</h2>
+    <p class="uvodni">U klasičnoj aplikaciji dostupan je zahtev za izvoz: ZIP sa JSON zapisima predmeta, klijenata, naplate, metapodataka dokumenata, beležaka, ročišta, hronologije i komentara. Originalni PDF/DOCX fajlovi nisu deo tog ZIP-a; za njih se upućuje poseban zahtev na <a class="tekst-link" href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>.</p>
+    <p class="tiho">Neuspešan ili nepotpun izvoz ne prikazuje se kao uspešan. Izvoz, brisanje naloga i brisanje poslovnih spisa nisu ista operacija; detalji su navedeni u pravnim dokumentima.</p>
+  </div>
+</section>
+<section class="odeljak" aria-labelledby="poredjenje-naslov">
+  <div class="okvir">
+    <h2 id="poredjenje-naslov">Vindex i opšti AI chat: drugačiji način rada</h2>
+    <ul class="mreza">
+      <li><h3>Opšti AI chat</h3><p>Razgovor sa modelom odličan je za pitanja, objašnjenja i rad na tekstu. Pravila čuvanja i poslovne zaštite zavise od odabrane usluge i podešavanja.</p></li>
+      <li><h3>Vindex</h3><p>Fokus je na organizaciji predmeta, povezivanju izvornih dokumenata, dokazima, koracima rada i autorizovanom pristupu. AI je samo jedna komponenta tog toka.</p></li>
+      <li><h3>Bez neosnovane superiornosti</h3><p>Ne tvrdimo da je Vindex bezbedniji od ChatGPT Business/Enterprise, niti da poseduje nezavisne sertifikate koje nema. Poređenje se odnosi na namenu i strukturu radnog toka.</p></li>
+    </ul>
   </div>
 </section>
 

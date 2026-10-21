@@ -928,6 +928,35 @@
       <p class="panel__foot" id="demo-date"></p>
     </aside>
 
+    <!-- Prijava problema: samo korisnički opis, bez automatskog čitanja spisa,
+         promptova, tokena, screenshot-a ili drugih poverljivih podataka. -->
+    <button class="vx-prijava-fab" id="vx-prijava-toggle" type="button"
+      aria-controls="vx-prijava-panel" aria-expanded="false" aria-label="Prijavite problem u Vindexu" title="Prijavite problem">
+      <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8 9 9 0 0 1-4-.9L3 20l1.4-4.6A8 8 0 1 1 20 11.5Z"/><path d="M8 12h8M8 8.5h8"/></svg>
+    </button>
+    <section class="vx-prijava-panel" id="vx-prijava-panel" role="dialog" aria-modal="false" aria-labelledby="vx-prijava-naslov" hidden>
+      <div class="vx-prijava-glava"><h2 id="vx-prijava-naslov">Prijavite problem</h2>
+        <button id="vx-prijava-zatvori" class="vx-prijava-zatvori" type="button" aria-label="Zatvorite prijavu">×</button></div>
+      <p class="vx-prijava-uvod">Greška, netačan AI odgovor ili predlog za poboljšanje? Napišite šta se dogodilo.</p>
+      <form id="vx-prijava-forma">
+        <label for="vx-prijava-tip">Vrsta prijave</label>
+        <select id="vx-prijava-tip" name="kategorija" required>
+          <option value="tehnicko">Greška ili bug</option>
+          <option value="ai">Netačan AI odgovor</option>
+          <option value="podatak">Netačan podatak ili dokument</option>
+          <option value="predlog">Predlog poboljšanja</option>
+          <option value="ostalo">Drugo</option>
+        </select>
+        <label for="vx-prijava-tekst">Šta treba da proverimo?</label>
+        <textarea id="vx-prijava-tekst" name="poruka" rows="5" minlength="10" maxlength="3000" required
+          placeholder="Opišite korake, šta ste očekivali i šta se dogodilo."></textarea>
+        <p class="vx-prijava-privatnost">Ne unosite imena klijenata, tekst poverljivih spisa, lozinke ili tokene. Sistem ne prilaže sadržaj predmeta automatski.</p>
+        <p class="vx-prijava-ishod" id="vx-prijava-ishod" role="status" aria-live="polite" hidden></p>
+        <button class="vx-prijava-salji" id="vx-prijava-salji" type="submit">Pošalji prijavu</button>
+      </form>
+      <a class="vx-prijava-mejl" id="vx-prijava-mejl" href="mailto:benny13.n@gmail.com?subject=Vindex%20AI%20-%20prijava%20problema">Pošalji direktno e-poštom ↗</a>
+    </section>
+
     <div class="scrim" id="scrim" hidden></div>
     <div class="toast" id="status" role="status" aria-live="polite"></div>
   </div>
@@ -984,5 +1013,6 @@
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>
+  <script src="src/feedback-prijava.js"></script>
 </body>
 </html>
