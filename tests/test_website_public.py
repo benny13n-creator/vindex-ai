@@ -741,7 +741,7 @@ def test_pre_auth_ulaz_cuva_ugovor_prijave_i_vodi_na_beta(klijent):
     ulaz = _pre_auth_ulaz(klijent)
     assert 'id="nav-cta-btn"' in ulaz and "openModal()" in ulaz, "prijava mora ostati postojeći modal"
     assert 'href="/beta"' in ulaz
-    assert "/v2/site/brand/vindex-lockup-tamna.svg" in ulaz
+    assert "/v2/site/brand/vindex-logo-tamna.png" in ulaz
     telo = _tekst(klijent, "/app-legacy")
     assert '<div class="modal-title" id="auth-modal-title">Dobrodošli.</div>' in telo
     assert "15 besplatnih upita.</div>" not in telo, "početni naslov modala prijave ne sme biti tekst registracije"

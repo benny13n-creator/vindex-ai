@@ -56,8 +56,9 @@ pa produkcioni preview nikad podrazumevano ne prikazuje demo podatke. `?rezim=de
 ostaje dostupan za QA i jasno je označen. Odgovor nosi `X-Robots-Tag: noindex, nofollow, noarchive`.
 
 **Kanonski logo**: `brand/` sadrži SAMO dva fajla novog logoa (Website V3, odluka
-osnivača 2026-10-21: V sa stubom i lovorom; `.gitattributes`: binarno):
-`vindex-lockup-tamna.svg` (tamna tema) i `vindex-lockup-svetla.svg` (svetla tema; svetla
+osnivača 2026-10-21: logo A2 „Heritage Crest“ izdvojen 1:1 iz slike osnivača,
+`scripts/brand/izdvoji_logo.py`; `.gitattributes`: binarno):
+`vindex-logo-tamna.png` (tamna tema) i `vindex-logo-svetla.png` (svetla tema; svetla
 gornja traka ostaje `#F6F7F8`). Isti fajlovi služe sajt (`/v2/site/brand/`) i staru
 aplikaciju. Tema se bira CSS-om; logo se ne menja (bez filtera, senke, isecanja, izobličenja).
 Ikone (favicon, PWA) su `static/favicon-vindex-v4-*.png` i `static/icon-*-v4.png`.

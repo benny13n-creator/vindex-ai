@@ -84,7 +84,7 @@ def zaglavlje(ruta: str) -> str:
     meni = "".join(li(r, m) for r, m in stavke)
     return f"""<header class="zaglavlje">
   <div class="okvir">
-    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-lockup-tamna.svg" alt="" width="660" height="200"></a>
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-tamna.png" alt="" width="357" height="305"></a>
     <nav aria-label="Glavna navigacija"><ul class="meni">{meni}</ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>

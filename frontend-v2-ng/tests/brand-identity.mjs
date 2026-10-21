@@ -3,8 +3,8 @@
 //
 // Dokazuje, u stvarnom Chromium-u, za svaku temu i stanje ekrana:
 //   • bajtovi runtime logoa = kanonski fajlovi (SHA-256), u brand/ nema ničeg drugog;
-//   • tamna tema → svetlo V i zlato, svetla → crno V i tamnije zlato (oba providni SVG,
-//     Website V3 2026-10-21; izvor scripts/brand/gradi_logo.py);
+//   • tamna tema → ceo znak u zlatu, svetla → originalne boje (oba providni PNG izdvojen
+//     1:1 iz slike osnivača, Website V3 2026-10-21; scripts/brand/izdvoji_logo.py);
 //   • bez rastezanja, isecanja, filtera, sjaja, senke, maske, transformacije;
 //   • gornja traka i sve kontrole: isti okviri kao foundation 1eb20976;
 //   • svetla traka #F6F7F8, kontrole čitljive; tamna traka nepromenjena;
@@ -36,8 +36,8 @@ function zapisi(grupa, naziv, ok, detalj = "") {
 
 // ── 1. Integritet izvora (bez pregledača) ───────────────────────────────
 const KANON = {
-  "vindex-lockup-tamna.svg": "41316e6996171107f97347eafc0a87cf87f76c9f7c42668035bac2450eae619e",
-  "vindex-lockup-svetla.svg": "cf177ffd4805268d0022c61c99f7c9def59b5c81c8da7a746cb1b8c84f1d380a",
+  "vindex-logo-tamna.png": "b075aba3a0eb8c3a303e64e4b7f9b594090e2f2bce1e7d0dae6f7a072f81bb71",
+  "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
 };
 const brand = (await readdir(join(KOREN, "brand"))).sort();
 zapisi("integritet", "brand/ sadrži SAMO dva runtime fajla (bez reference, vektora, ikonica, PDF-a, manifesta)", JSON.stringify(brand) === JSON.stringify(Object.keys(KANON).sort()), brand.join(","));
@@ -52,7 +52,7 @@ zapisi("integritet", "logo nije ugrađen kao data:/base64 u HTML, CSS ili JS (se
 zapisi("integritet", "nema tehničkog vektora, favicon-a ni manifest-a u V2", !/Technical_(White|Black)_VECTOR|rel="(icon|manifest|apple-touch-icon)"/.test(izvorni));
 const SRC = (index.match(/<a class="wordmark"[\s\S]*?<\/a>/) || [""])[0];
 zapisi("integritet", "oznaka linka: dva <img alt=\"\"> sa odobrenim fajlovima i izvornim width/height",
-  SRC.includes(`src="${LOGO.dark.fajl}" alt="" width="660" height="200"`) && SRC.includes(`src="${LOGO.light.fajl}" alt="" width="660" height="200"`) && (SRC.match(/<img/g) || []).length === 2);
+  SRC.includes(`src="${LOGO.dark.fajl}" alt="" width="357" height="305"`) && SRC.includes(`src="${LOGO.light.fajl}" alt="" width="357" height="305"`) && (SRC.match(/<img/g) || []).length === 2);
 
 // ── 2. Serveri: HEAD i foundation ───────────────────────────────────────
 const refDir = await mkdtemp(join(tmpdir(), "vx-brand-ref-"));
@@ -117,16 +117,15 @@ async function pikselDokaz0(p, u, ime) {
   const [uz] = await pikseli(png, [s({ x: L.x + L.w + 4, y: L.y + L.h / 2, w: 2, h: 2, c: [0, 0, 0] })], u.viewport);
   if (!uz.n) throw new Error("površina pored logoa je van snimka");
   const c = uz.prvi;
-  // Providne oblasti lockup-a (660×200; znak 25..175 × 23..189, slova 214..654 × 70..138,
-  // izmereno getBBox-om, uz 2 jedinice za debljinu linija) moraju biti iste kao traka.
-  const kx = L.w / 660, ky = L.h / 200, U = 1;
+  // Potpuno providne oblasti logoa (357×305, alfa = 0, izmereno u fajlu) moraju biti iste kao traka.
+  const kx = L.w / 357, ky = L.h / 305, U = 1;
   const o = (x0, y0, x1, y1) => ({ x: L.x + x0 * kx + U, y: L.y + y0 * ky + U, w: (x1 - x0) * kx - 2 * U, h: (y1 - y0) * ky - 2 * U, c });
-  const ivice = [o(0, 0, 660, 20), o(0, 0, 22, 200), o(178, 0, 211, 200), o(214, 0, 660, 67), o(214, 141, 660, 200)];
+  const ivice = [o(0, 0, 70, 75), o(290, 0, 357, 75), o(0, 120, 60, 222), o(300, 120, 357, 222)];
   const r = await pikseli(png, ivice, u.viewport);
   const maks = Math.max(...r.map(x => x.maks));
   const okolo = await pikseli(png, [{ x: Math.max(0, L.x - 6), y: L.y, w: 4, h: L.h, c }, { x: L.x, y: Math.max(0, L.y - 3), w: L.w, h: 2, c }], u.viewport);
   const maksO = Math.max(...okolo.map(x => x.maks));
-  return [[`${u.tema === "light" ? "svetla" : "tamna"}: providne oblasti SVG-a i traka oko logoa = površina trake (±2) — nema kutije ni oreola`,
+  return [[`${u.tema === "light" ? "svetla" : "tamna"}: providne oblasti logoa i traka oko njega = površina trake (±2) — nema kutije ni oreola`,
     maks <= 2 && maksO <= 2 && r.every(x => x.n > 0), `površina ${c.join(",")}, maks ${maks}/255, okolo ${maksO}/255, ${r.map(x => x.n).join("/")} px`]];
 }
 

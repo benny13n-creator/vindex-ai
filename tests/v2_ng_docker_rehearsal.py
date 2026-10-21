@@ -34,16 +34,16 @@ LAZNO = {
     "FOUNDER_EMAILS": "ci@example.com", "PORT": "8000",
 }
 KANONSKI_LOGO = {
-    "vindex-lockup-tamna.svg": "41316e6996171107f97347eafc0a87cf87f76c9f7c42668035bac2450eae619e",
-    "vindex-lockup-svetla.svg": "cf177ffd4805268d0022c61c99f7c9def59b5c81c8da7a746cb1b8c84f1d380a",
+    "vindex-logo-tamna.png": "b075aba3a0eb8c3a303e64e4b7f9b594090e2f2bce1e7d0dae6f7a072f81bb71",
+    "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
 }
 LEGACY = ["/health", "/", "/app", "/app-v2", "/sw.js", "/manifest.json", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
 # NS004: primarni /app, stabilni asseti i legacy rezerva.
 PRIMARNI = ["/app-legacy", "/app-legacy?posle=app", "/v2/app/src/app.js", "/v2/app/src/runtime.js",
-            "/v2/app/brand/vindex-lockup-tamna.svg", "/v2/app/tests/live-api.mjs", "/v2/app/package.json"]
+            "/v2/app/brand/vindex-logo-tamna.png", "/v2/app/tests/live-api.mjs", "/v2/app/package.json"]
 PREVIEW = ["/v2/preview", "/v2/preview/", "/v2/preview?x=1", "/v2/preview/?rezim=live", "/v2/preview/?rezim=demo",
            "/v2/preview/src/app.js", "/v2/preview/src/runtime.js", "/v2/preview/fonts/ibm-plex-sans/400.css",
-           "/v2/preview/brand/vindex-lockup-tamna.svg", "/v2/preview/brand/vindex-lockup-svetla.svg"]
+           "/v2/preview/brand/vindex-logo-tamna.png", "/v2/preview/brand/vindex-logo-svetla.png"]
 SKRIVENO = ["/v2/preview/tests/live-api.mjs", "/v2/preview/README.md", "/v2/preview/package.json", "/v2/preview/serve.mjs",
             "/v2/preview/brand/Vindex_Approved_Reference_Source.png", "/v2/preview/brand/MANIFEST_SHA256.txt",
             "/v2/preview/brand/%2e%2e/serve.mjs", "/v2/preview/index.html"]
@@ -181,7 +181,7 @@ if d:
            and "/v2/preview/" not in d["_app_telo"] and d["_primarni_log"])
     zapisi("D-PRIMARY-ON", "/v2/app asseti bajt-identični repozitorijumu, logo kanonski",
            d["/v2/app/src/app.js"]["sha"] == sha(NG / "src/app.js") and d["/v2/app/src/runtime.js"]["sha"] == sha(NG / "src/runtime.js")
-           and d["/v2/app/brand/vindex-lockup-tamna.svg"]["sha"] == KANONSKI_LOGO["vindex-lockup-tamna.svg"])
+           and d["/v2/app/brand/vindex-logo-tamna.png"]["sha"] == KANONSKI_LOGO["vindex-logo-tamna.png"])
     zapisi("D-PRIMARY-ON", "tests/ i package.json nisu izloženi", d["/v2/app/tests/live-api.mjs"]["status"] == 404 and d["/v2/app/package.json"]["status"] == 404)
     if a:
         zapisi("D-PRIMARY-ON", "/app-legacy = klasičan /app iz stanja A (rezerva)", d["/app-legacy"]["norm"] == a["/app"]["norm"])
