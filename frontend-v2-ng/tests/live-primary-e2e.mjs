@@ -201,7 +201,11 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
 {
   const stub = "window.doLogout = function () { localStorage.removeItem(" + JSON.stringify(KLJUC) + "); location.reload(); };";
   const o = await otvori(null, "/", { legacyStub: stub });
-  zapisi("P7.tok", "javni sajt: „Uđi u aplikaciju“ vodi na /app", (await o.p.evaluate(() => [...document.querySelectorAll("a.dugme")].every(a => a.getAttribute("href") === "/app"))));
+  // Website V2: primarni poziv sajta je prijava za beta (/beta); ulaz u aplikaciju („Prijava“) i dalje vodi na /app.
+  zapisi("P7.tok", "javni sajt: „Prijava“ vodi na /app, ostali pozivi samo na /beta", (await o.p.evaluate(() => {
+    const h = [...document.querySelectorAll("a.dugme")].map(a => a.getAttribute("href"));
+    return h.includes("/app") && h.every(x => x === "/app" || x === "/beta");
+  })));
   await o.p.click("header a.dugme");
   await cekaj(o.p, () => location.pathname === "/app" && document.getElementById("empty").dataset.stanje === "bez-prijave");
   zapisi("P7.tok", "/app bez prijave: V2 primarni, poziv na postojeću prijavu", (await ekran(o.p)).prijava === "/app-legacy?posle=app");

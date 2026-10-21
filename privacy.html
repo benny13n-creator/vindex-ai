@@ -39,17 +39,21 @@
 
 <h1>Politika privatnosti</h1>
 <div class="meta">
-  Vindex AI &nbsp;·&nbsp; Verzija: 2026-07-05 &nbsp;·&nbsp; Primena od: 2026-07-05<br>
-  Kontakt za zaštitu podataka: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a>
+  Vindex AI &nbsp;·&nbsp; Verzija: 2026-07-05, ispravke činjenica 2026-10-21 &nbsp;·&nbsp; Primena od: 2026-07-05<br>
+  Kontakt za zaštitu podataka: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>
+</div>
+
+<div class="highlight" id="ispravke-2026-10-21">
+  <strong>Ispravke od 2026-10-21.</strong> Ispravljene su netačne činjenične tvrdnje o backup-u baze, šifrovanju i kontroli pristupa, zaključenim ugovorima o prenosu podataka (SCC), sadržaju koji se čuva u Pinecone-u, identitetu pružaoca usluge i kontakt adresi. Razgraničeno je kada je Vindex rukovalac, a kada obrađivač podataka. Dodat je opis obrade prijava za beta testiranje. Ove ispravke ne menjaju način na koji se podaci obrađuju, već ga tačno opisuju. Prethodnu verziju možete dobiti na zahtev na <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>.
 </div>
 
 <h2>Ko je rukovalac podacima</h2>
-<p>Rukovalac podacima o ličnosti u smislu ZZPL (Zakon o zaštiti podataka o ličnosti, "Sl. glasnik RS" br. 87/2018) i GDPR (Uredba EU 2016/679) je:</p>
+<p>Rukovalac podacima o ličnosti u smislu ZZPL (Zakon o zaštiti podataka o ličnosti, "Sl. glasnik RS" br. 87/2018) i GDPR (Uredba EU 2016/679) za podatke koje Vindex obrađuje u sopstvene svrhe (korisnički nalog, prijave za beta testiranje, komunikacija sa korisnicima i tehničke evidencije) je:</p>
 <div class="card">
-  <div class="card-title">Vindex d.o.o.</div>
-  <div>Beograd, Republika Srbija</div>
-  <div>Email: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a></div>
+  <div class="card-title">Benjamin Nađ, osnivač Vindex AI</div>
+  <div>Email: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a></div>
 </div>
+<p id="podaci-klijenata"><strong>Podaci klijenata advokata.</strong> Za podatke o klijentima, strankama i drugim licima koje advokat ili kancelarija unose u predmete i dokumente rukovalac je advokat ili kancelarija, jer oni određuju svrhu te obrade. Vindex te podatke obrađuje u njihovo ime, kao obrađivač, samo radi funkcija koje korisnik pokrene. Odnos rukovaoca i obrađivača uređuje <a href="/dpa">Ugovor o obradi podataka (DPA)</a> (čl. 45 ZZPL; čl. 28 GDPR), koji stupa na snagu potpisivanjem.</p>
 
 <h2>Koje podatke prikupljamo</h2>
 <table>
@@ -80,7 +84,7 @@
   </tr>
   <tr>
     <td><strong>Legitimni interes</strong><br><small>čl. 6 st. 1 tač. f GDPR</small></td>
-    <td>Bezbednost platforme, detekcija zloupotrebe, audit logovi</td>
+    <td>Bezbednost platforme, detekcija zloupotrebe, audit logovi; razmatranje prijava za beta testiranje</td>
   </tr>
 </table>
 
@@ -98,14 +102,14 @@
   <div><strong>Podaci:</strong> Tekst upita i dokumenti koje korisnik eksplicitno šalje AI funkcijama</div>
   <div><strong>Trening modela: NE</strong> — u skladu sa OpenAI API politikom (važeća od marta 2023), podaci poslati putem API-ja ne koriste se za treniranje OpenAI modela. Preporučujemo periodičnu proveru važeće verzije politike na <a href="https://openai.com/enterprise-privacy" target="_blank">openai.com/enterprise-privacy</a>.</div>
   <div><strong>Zadržavanje:</strong> Max 30 dana, zatim automatsko brisanje</div>
-  <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
+  <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
 </div>
 <div class="card">
   <div class="card-title">Pinecone Systems, Inc. — Vektorska baza</div>
   <div><strong>Lokacija:</strong> SAD (us-east-1)</div>
-  <div><strong>Podaci:</strong> Numeričke vektorske reprezentacije sadržaja dokumenata (embeddings) — ne originalni tekst dokumenata. Embeddings predstavljaju matematičke vektore i nisu namenjeni niti pogodni za rekonstrukciju originalnog dokumenta. Iako ne sadrže originalni tekst u čitljivom obliku, tretiraju se kao podaci koji podležu svim odgovarajućim merama zaštite.</div>
+  <div><strong>Podaci:</strong> vektorske reprezentacije (embeddings) delova dokumenata i, uz svaki deo kao metapodatak, tekstualni segment tog dela dokumenta (do 40.000 znakova), koji služi za pretragu. Originalni fajl se ne šalje Pinecone-u, ali se tekstualni sadržaj dokumenta tamo čuva u segmentima. Ti segmenti nisu dodatno šifrovani na nivou aplikacije.</div>
   <div><strong>Izolovano po korisniku:</strong> Da</div>
-  <div><strong>Ugovor:</strong> EU Standard Contractual Clauses (SCC)</div>
+  <div><strong>Mehanizam prenosa:</strong> zaključenje standardnih ugovornih klauzula (SCC) sa ovim dobavljačem nije potvrđeno.</div>
 </div>
 <div class="card">
   <div class="card-title">Render Services, Inc. — Hosting</div>
@@ -114,32 +118,44 @@
   <div><strong>Certifikati:</strong> SOC 2 Type II</div>
 </div>
 
+<h2 id="beta-prijava">Prijava za beta testiranje</h2>
+<p>Forma na stranici <a href="/beta">vindex.rs/beta</a> služi samo za prijavu za beta testiranje. Ona ne otvara nalog i ne šalje automatsku potvrdu e-poštom.</p>
+<ul>
+  <li><strong>Podaci:</strong> ime i prezime i adresa e-pošte (obavezno); naziv kancelarije, telefon i poruka (neobavezno, samo ako ih unesete).</li>
+  <li><strong>Svrha:</strong> da pregledamo prijavu i da vas kontaktiramo u vezi sa uključivanjem u beta testiranje. Podaci iz prijave se ne koriste u druge svrhe.</li>
+  <li><strong>Pravni osnov:</strong> legitimni interes Vindexa da razmotri zahtev koji ste sami poslali i da vas kontaktira u vezi sa njim (čl. 12 st. 1 tač. 6 ZZPL; čl. 6 st. 1 tač. f GDPR). Prijava se ne koristi za marketing i nije prijava na newsletter.</li>
+  <li><strong>Gde se čuvaju i ko ih prima:</strong> prijava se preko aplikacionog servera (Render) upisuje u bazu (Supabase). Obaveštenje sa podacima iz prijave šalje se Vindexu preko pružaoca usluge slanja e-pošte. Prijave može da vidi samo administrator Vindexa.</li>
+  <li><strong>Čuvanje:</strong> prijava za koju nije otvoren nalog briše se najkasnije šest meseci od prijema. Ako dobijete nalog, prijava se briše najkasnije 30 dana posle otvaranja naloga, a podaci naloga se čuvaju prema rokovima za nalog navedenim niže. Prijava se briše i ranije, ako je povučete, podnesete prigovor ili zatražite brisanje. Zajedno sa prijavom briše se i e-poruka sa obaveštenjem o njoj. Brisanje ne vrši automatski sistem: administrator najmanje jednom u 30 dana pregleda prijave i ručno briše one kojima ističe rok. Ista adresa se ne upisuje dva puta.</li>
+  <li><strong>Vaša prava:</strong> uvid, ispravku ili brisanje prijave, kao i prigovor na obradu (čl. 37 ZZPL), možete podneti na <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>. Posle prigovora prijava se briše.</li>
+</ul>
+
 <h2>Rokovi čuvanja podataka</h2>
 <table>
   <tr><th>Kategorija podataka</th><th>Rok čuvanja</th><th>Osnov</th></tr>
   <tr><td>Nalog (email, ime)</td><td>Anonimizacija odmah po odobrenom zahtevu za brisanje naloga.</td><td>Ugovor / čl. 17 GDPR</td></tr>
-  <tr><td>Predmeti, klijenti i dokumenti</td><td>Zadržavaju se nepromenjeni nakon brisanja naloga, u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ne brišu se automatski povodom zahteva za brisanje naloga.<br><small style="color:#64748b;">Obrazloženje: obaveza čuvanja advokatskih spisa (Zakon o advokaturi) postoji nezavisno od statusa korisničkog naloga u Platformi. Brisanje ovih podataka mimo zakonskog roka zahteva poseban, dokumentovan zahtev na privacy@vindex.ai.</small></td><td>Zakon o advokaturi / legitimni interes čuvanja poslovne evidencije</td></tr>
-  <tr><td>Embeddings (Pinecone)</td><td>Dok je nalog aktivan</td><td>Ugovor</td></tr>
+  <tr><td>Predmeti, klijenti i dokumenti</td><td>Zadržavaju se nepromenjeni nakon brisanja naloga, u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ne brišu se automatski povodom zahteva za brisanje naloga.<br><small style="color:#64748b;">Obrazloženje: obaveza čuvanja advokatskih spisa (Zakon o advokaturi) postoji nezavisno od statusa korisničkog naloga u Platformi. Brisanje ovih podataka mimo zakonskog roka zahteva poseban, dokumentovan zahtev na benny13.n@gmail.com.</small></td><td>Zakon o advokaturi / legitimni interes čuvanja poslovne evidencije</td></tr>
+  <tr><td>Vektori i tekstualni segmenti dokumenata (Pinecone)</td><td>Poseban rok nije utvrđen; brisanje naloga ih ne briše, jer se predmeti i dokumenti zadržavaju.</td><td>—</td></tr>
   <tr><td>AI upiti (OpenAI)</td><td>Max 30 dana</td><td>OpenAI politika</td></tr>
   <tr><td>Fakturisanje i računovodstvo</td><td>10 godina</td><td>Zakon o računovodstvu</td></tr>
   <tr><td>Audit logovi</td><td>2 godine</td><td>Legitimni interes</td></tr>
-  <tr><td>Backup</td><td>30 dana (rolling)</td><td>Ugovor</td></tr>
+  <tr><td>Prijava za beta testiranje</td><td>Najkasnije šest meseci od prijema; ako je otvoren nalog, najkasnije 30 dana posle otvaranja. Briše se ručno (videti odeljak iznad).</td><td>Legitimni interes</td></tr>
+  <tr><td>Backup baze</td><td>Aktivni plan baze (Supabase Free) ne uključuje automatske backup-e baze, pa rok čuvanja backup-a ne postoji.</td><td>—</td></tr>
 </table>
 
 <h2>Bezbednost podataka</h2>
 <ul>
-  <li><strong>Enkripcija u tranzitu:</strong> TLS 1.3 za sve veze između klijenta i servera</li>
-  <li><strong>Enkripcija pri skladištenju:</strong> AES-256 (Supabase)</li>
-  <li><strong>Kontrola pristupa:</strong> Row Level Security (RLS) — svaki korisnik pristupa isključivo sopstvenim podacima na nivou baze podataka</li>
-  <li><strong>Pristup zaposlenih:</strong> Pristup podacima korisnika ograničen je po principu najmanjih privilegija (least privilege). Operativni pristup sadržaju predmeta odobrava se isključivo kada je neophodan za rešavanje bezbednosnog incidenta ili kritične tehničke poteškoće, uz obavezno evidentiranje u audit logu.</li>
-  <li><strong>Audit logovi:</strong> Sve kritične operacije se beleže sa vremenskim žigom i identifikatorom korisnika</li>
-  <li><strong>Backup:</strong> Dnevni automatski backup sa 30-dnevnim rokom čuvanja</li>
+  <li><strong>Enkripcija u tranzitu:</strong> TLS 1.2/1.3 (HTTPS) za veze između pregledača i servera</li>
+  <li><strong>Enkripcija pri skladištenju:</strong> na nivou infrastrukture pružaoca baze (Supabase), prema njegovoj dokumentaciji. Na nivou aplikacije dodatno se šifruju (AES-256-GCM) JMBG, broj pasoša i PIB klijenta i originalni fajlovi koje advokat otpremi u predmet. Izdvojeni tekst dokumenata i fajlovi poslati kroz klijentski portal nisu dodatno šifrovani na nivou aplikacije.</li>
+  <li><strong>Kontrola pristupa:</strong> aplikacioni server pristupa bazi privilegovanim servisnim ključem, koji ne podleže pravilima Row Level Security (RLS). Zato granicu između naloga sprovodi provera na serveru pri svakom zahtevu, a ne same RLS politike baze.</li>
+  <li><strong>Administrativni pristup:</strong> tehnički pristup bazi i skladištu ima ovlašćeni administrator sistema preko administrativnih naloga pružalaca infrastrukture. Sadržaju predmeta se tim putem pristupa samo kada je neophodno za rešavanje bezbednosnog incidenta ili kritične tehničke greške. Takav pristup ne beleži audit log aplikacije.</li>
+  <li><strong>Audit logovi:</strong> određene osetljive operacije (uvid u šifrovane identifikatore klijenta, potpun izvoz podataka, brisanje naloga) beleže se u audit log koji se ne može menjati.</li>
+  <li><strong>Backup:</strong> aktivni plan baze (Supabase Free) ne uključuje automatske backup-e. Vindex trenutno nema potvrđen sistem automatskog backup-a i ne obećava rok oporavka podataka.</li>
   <li><strong>Incident response:</strong> U slučaju povrede zaštite podataka, nadzorni organ se obaveštava bez nepotrebnog odlaganja u skladu sa GDPR čl. 33 (rok od 72 sata primenjuje se na prijavu nadzornom organu, ne automatski na svaki incident). Korisnici se obaveštavaju kada postoji visok rizik po njihova prava i slobode (GDPR čl. 34).</li>
 </ul>
 
 <h2>Pristup podacima i profesionalna tajna</h2>
 <div class="highlight">
-  Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik eksplicitno pokrene. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Zaposleni Pružaoca usluge nemaju pristup sadržaju predmeta korisnika.
+  Pristup sadržaju predmeta ograničen je isključivo na tehničku obradu potrebnu za izvršenje funkcija koje korisnik eksplicitno pokrene. Vindex AI ne pregledava, ne analizira niti koristi sadržaj predmeta u bilo koje druge svrhe. Tehnički pristup bazi ima ovlašćeni administrator sistema i koristi ga samo u slučajevima navedenim u odeljku „Bezbednost podataka“.
 </div>
 
 <h2>Vaša prava</h2>
@@ -148,18 +164,18 @@
   <li><strong>Pravo na pristup (čl. 26 ZZPL / čl. 15 GDPR):</strong> Uvid u podatke koji se o vama obrađuju</li>
   <li><strong>Pravo na ispravku (čl. 29 ZZPL / čl. 16 GDPR):</strong> Ispravka netačnih podataka</li>
   <li><strong>Pravo na brisanje (čl. 30 ZZPL / čl. 17 GDPR):</strong> Na zahtev, identifikacioni podaci naloga (email, ime) se odmah anonimizuju. Predmeti, klijenti i dokumenti se zadržavaju u skladu sa zakonskom obavezom advokata da čuva spise predmeta — njihovo brisanje se rešava posebnim, dokumentovanim zahtevom</li>
-  <li><strong>Pravo na prenosivost (čl. 36 ZZPL / čl. 20 GDPR):</strong> Export podataka u mašinski čitljivom formatu (JSON), samouslužno putem dugmeta "Export podataka" u podešavanjima. Originalni fajlovi dokumenata dostavljaju se na poseban zahtev na privacy@vindex.ai</li>
+  <li><strong>Pravo na prenosivost (čl. 36 ZZPL / čl. 20 GDPR):</strong> Export podataka u mašinski čitljivom formatu (JSON), samouslužno putem dugmeta "Export podataka" u podešavanjima. Originalni fajlovi dokumenata dostavljaju se na poseban zahtev na benny13.n@gmail.com</li>
   <li><strong>Pravo na prigovor (čl. 37 ZZPL / čl. 21 GDPR):</strong> Prigovor na obradu zasnovanu na legitimnom interesu</li>
   <li><strong>Pravo na povlačenje saglasnosti:</strong> U svakom trenutku, bez uticaja na zakonitost prethodne obrade</li>
 </ul>
-<p>Zahteve šaljite na: <a href="mailto:privacy@vindex.ai">privacy@vindex.ai</a>. Rok za odgovor: <strong>30 dana</strong>.<br>
+<p>Zahteve šaljite na: <a href="mailto:benny13.n@gmail.com">benny13.n@gmail.com</a>. Rok za odgovor: <strong>30 dana</strong>.<br>
 Imate pravo na pritužbu Povereniku za informacije od javnog značaja i zaštitu podataka o ličnosti (<a href="https://www.poverenik.rs" target="_blank">poverenik.rs</a>).</p>
 
 <h2>Izmene Politike privatnosti</h2>
 <p>Pružalac usluge može izmeniti ovu Politiku uz pisano obaveštenje Korisnika najmanje 14 dana unapred. Aktuelna verzija uvek je dostupna na ovoj adresi.</p>
 
 <footer>
-  Vindex AI &nbsp;·&nbsp; privacy@vindex.ai &nbsp;·&nbsp;
+  Vindex AI &nbsp;·&nbsp; benny13.n@gmail.com &nbsp;·&nbsp;
   <a href="/terms">Uslovi korišćenja</a> &nbsp;·&nbsp;
   <a href="/ai-disclosure">AI Disclosure</a> &nbsp;·&nbsp;
   <a href="/dpa">DPA</a>

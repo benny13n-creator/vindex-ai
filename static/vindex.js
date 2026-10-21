@@ -1119,9 +1119,9 @@ function openSubscription() {
   if (STRIPE_URL) {
     window.open(STRIPE_URL, '_blank');
   } else {
-    showToast('Za PRO pretplatu kontaktirajte: info@vindex.rs', 'info');
+    showToast('Za PRO pretplatu kontaktirajte: benny13.n@gmail.com', 'info');
     setTimeout(function() {
-      window.location.href = 'mailto:info@vindex.rs?subject=Pretplata%20Vindex%20AI';
+      window.location.href = 'mailto:benny13.n@gmail.com?subject=Pretplata%20Vindex%20AI';
     }, 800);
   }
 }
@@ -8253,7 +8253,7 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
       btn.textContent = '⚠ Bez sadržaja — pokušajte ponovo';
       btn.disabled = false;
       showToast('Prijava je zabeležena, ali BEZ teksta odgovora. Ako je sadržaj '
-                + 'bitan, pošaljite ga na kontakt@vindex.ai.', 'err');
+                + 'bitan, pošaljite ga na benny13.n@gmail.com.', 'err');
       return;
     }
     // Oba kanala pala. Poruka baze je sirov engleski PostgREST tekst i ne
@@ -8263,7 +8263,7 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
     btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
     btn.disabled = false;
     showToast('Prijava NIJE zabeležena. Pokušajte ponovo ili nam pišite na '
-              + 'kontakt@vindex.ai.', 'err');
+              + 'benny13.n@gmail.com.', 'err');
   } catch(e) {
     console.error('[Vindex] sendFeedback greška:', e);
     btn.textContent = '\u26d1 Prijavi neta\u010dan odgovor'; btn.disabled = false;
@@ -8514,7 +8514,7 @@ async function pricing_kontakt(plan) {
       });
     }
   } catch(e) {}
-  window.open('mailto:kontakt@vindex.ai?subject=' + subject + '&body=' + body);
+  window.open('mailto:benny13.n@gmail.com?subject=' + subject + '&body=' + body);
   if (plan !== 'enterprise') {
     closeProModal();
     showToast('Otvoren je vaš email klijent. Pošaljite nam poruku i aktiviraćemo vaš plan!');

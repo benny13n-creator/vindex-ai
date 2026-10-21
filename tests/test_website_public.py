@@ -28,6 +28,13 @@ povučene (301 na odgovarajući odeljak). Ugovori tih stranica (Beta forma, /web
 ograde, devet stranica) prevedeni su u: povučena ruta preusmerava, njen stari
 sadržaj više nije dostupan, a početna ne ponavlja nijednu od tih tvrdnji.
 Matrica tvrdnji: docs/ns004-site-claims.md.
+
+WEBSITE V2 (founder mandat „Website V2 Master Implementation“, 2026-10-20): sajt je
+ponovo višestraničan, ali svaka funkcija na njemu dolazi iz JEDNOG registra
+(`site/funkcije.json`) sa statusom i dokazom. Povučene adrese koje sada imaju
+stranicu (/kako-radi, /za-advokate, /bezbednost, /beta) to više nisu; ostale
+stare adrese preusmeravaju na stranicu koja ih nasleđuje. §9 meri ugovor sadržaja:
+javna stranica ne sme reći ni više ni manje od registra.
 """
 import os
 import re
@@ -42,13 +49,13 @@ import api  # noqa: E402
 
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# NS004: javni sajt je jedna početna strana.
-STRANICE = ["/"]
+# Website V2: javne stranice (generiše scripts/gradi_sajt.py).
+STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"]
 
-# Povučene marketinške stranice → 301 na odeljak početne (docs/ns004-site-claims.md).
+# Stare adrese bez sopstvene stranice → 301 na stranicu koja ih nasleđuje.
 POVUCENE = {
-    "/kako-radi": "/#rad", "/sposobnosti": "/#rad", "/za-advokate": "/#rad", "/web3": "/",
-    "/bezbednost": "/#nacela", "/vizija": "/", "/tehnologija": "/", "/beta": "/#pristup", "/kontakt": "/#pristup",
+    "/sposobnosti": "/funkcionalnosti", "/platforma": "/kako-radi", "/kontakt": "/beta",
+    "/web3": "/", "/vizija": "/", "/tehnologija": "/",
 }
 
 # Ulaz u aplikaciju: `/app` (founder). Isključen V2 primarni prekidač → legacy
@@ -192,6 +199,34 @@ ZABRANJENO = [
     "propustite rok",
     "pratite rokove",
     "automatski prat",
+    # Website V2 founder lista zabranjenih tvrdnji (bez svežeg dokaza).
+    "manje od 10 sekundi",
+    "nikad više nećete propustiti",
+    "automatski šalje sva obaveštenja",
+    "100% tačn",
+    "AES-256",
+    "potpuno GDPR",
+    "sertifikovana bezbednost",
+    "potpuno automatizovan",
+    "donosi ispravne pravne odluke",
+    "zamenjuje advokata",
+    "najnaprednij",
+    "uštedite",
+    "hiljade zadovoljnih",
+    "zadovoljnih korisnika",
+    "najbolji pravni",
+    "jedini sistem",
+    "besplatno zauvek",
+    "ograničeno na",
+    "ograničen broj mesta",
+    "transformacija advokature",
+    "game changer",
+    "pametniji od čoveka",
+    "bez napora",
+    "jednim klikom",
+    "neverovatn",
+    "naučio iz hiljada",
+    "AI menja sve",
 ]
 
 
@@ -311,11 +346,16 @@ def test_pocetna_ne_linkuje_povucene_stranice(klijent):
         assert f'href="{ruta}"' not in telo, f"početna linkuje povučenu stranicu {ruta}"
 
 
-def test_pocetna_nema_formu_za_listu_cekanja(klijent):
-    """POST /waitlist/prijava postoji, ali nije dokazan u produkciji bez upisa —
-    po founder pravilu sajt ga u NS004 ne nudi (docs/ns004-site-claims.md)."""
-    telo = _tekst(klijent, "/")
-    assert "/waitlist/prijava" not in telo and "<form" not in telo
+def test_beta_forma_postoji_samo_na_stranici_beta(klijent):
+    """Website V2: jedna prijavna putanja — /beta, POST /waitlist/prijava (sajt.js).
+    Nijedna druga stranica nema formu."""
+    for ruta in STRANICE:
+        ima = "<form" in _tekst(klijent, ruta)
+        assert ima == (ruta == "/beta"), f"{ruta}: forma {'postoji' if ima else 'ne postoji'}"
+    telo = _tekst(klijent, "/beta")
+    for polje in ('name="ime"', 'name="email"', 'name="firma"', 'name="telefon"', 'name="poruka"'):
+        assert polje in telo, f"/beta nema polje {polje}"
+    assert "/waitlist/prijava" in klijent.get("/v2/site/sajt.js").text
 
 
 def test_waitlist_endpoint_prima_polja_koja_forma_salje(klijent):
@@ -341,23 +381,27 @@ def test_waitlist_endpoint_prima_polja_koja_forma_salje(klijent):
     )
 
 
-def test_pocetna_ne_obecava_email_potvrdu(klijent):
-    """SMTP se tiho preskače ako env nije podešen — sajt ne sme obećati mejl."""
-    telo = _vidljivi_tekst(klijent, "/").lower()
-    for izraz in ("proverite inboks", "potvrda je poslata", "poslali smo vam mejl",
-                  "poslali smo vam email"):
-        assert izraz not in telo, f"početna obećava mejl koji možda nije poslat: {izraz!r}"
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_sajt_ne_obecava_email_potvrdu(klijent, ruta):
+    """SMTP se tiho preskače ako env nije podešen — sajt ne sme obećati mejl.
+    Poruke ishoda beta prijave piše sajt.js, pa se meri i on."""
+    tela = [_vidljivi_tekst(klijent, ruta).lower(), klijent.get("/v2/site/sajt.js").text.lower()]
+    for telo in tela:
+        for izraz in ("proverite inboks", "potvrda je poslata", "poslali smo vam mejl",
+                      "poslali smo vam email", "proverite e-poštu", "dobićete potvrdu"):
+            assert izraz not in telo, f"{ruta} obećava mejl koji možda nije poslat: {izraz!r}"
 
 
-@pytest.mark.parametrize("izraz", [r"cen[aeu]", r"€", r"\bRSD\b",
+@pytest.mark.parametrize("ruta", STRANICE)
+@pytest.mark.parametrize("izraz", [r"\bcen[aeu]\b", r"€", r"\bRSD\b",
                                   r"dinara\s+mesečno", r"pretplat"])
-def test_pocetna_ne_pominje_cenu(klijent, izraz):
+def test_sajt_ne_pominje_cenu(klijent, ruta, izraz):
     """Nijedan plan se ne može kupiti; sajt ne govori o ceni.
 
-    Granica reči je obavezna: `cena` kao podniz pogađa `proCENAt`.
+    Granica reči je obavezna: `cena` kao podniz pogađa `proCENAt` i `proCENA`.
     """
-    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, "/"))
-    assert not re.search(izraz, telo, re.I), f"početna pominje {izraz!r}"
+    telo = re.sub(r"<[^>]+>", " ", _vidljivi_tekst(klijent, ruta))
+    assert not re.search(izraz, telo, re.I), f"{ruta} pominje {izraz!r}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -369,7 +413,8 @@ def test_sitemap_navodi_pocetnu_i_pravne_a_ne_povucene(klijent):
     assert r.status_code == 200
     from urllib.parse import urlparse
     lokacije = [urlparse(u).path or "/" for u in re.findall(r"<loc>([^<]+)</loc>", r.text)]
-    assert "/" in lokacije
+    for ruta in STRANICE:
+        assert ruta in lokacije, f"sitemap ne navodi {ruta}"
     for ruta in ("/privacy", "/terms", "/security", "/dpa", "/ai-disclosure", "/bezbednosni-list"):
         assert ruta in lokacije, f"sitemap ne navodi {ruta}"
     for ruta in POVUCENE:
@@ -429,13 +474,15 @@ def test_registracija_je_stvarno_otvorena(klijent):
     assert r.status_code in (400, 422), f"neočekivan odgovor: {r.status_code}"
 
 
-def test_pocetna_ima_jedan_ulaz_u_aplikaciju(klijent):
-    """Jedan poziv na akciju, jedno odredište: /app (founder). Bez obećanja
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_pozivi_na_akciju_vode_samo_na_beta_ili_prijavu(klijent, ruta):
+    """Website V2: primarni poziv je prijava za beta (/beta), sporedni je ulaz u
+    aplikaciju (/app). Nijedno dugme ne vodi nigde drugde. Bez obećanja
     besplatnog ili automatskog naloga."""
-    telo = _tekst(klijent, "/")
+    telo = _tekst(klijent, ruta)
     ulazi = set(re.findall(r'<a[^>]+class="dugme[^"]*"[^>]+href="([^"]+)"', telo))
-    assert ulazi == {APP_ULAZ}, f"pozivi na akciju vode na {ulazi}"
-    vidljivo = _vidljivi_tekst(klijent, "/").lower()
+    assert ulazi <= {APP_ULAZ, "/beta"} and ulazi, f"{ruta}: pozivi na akciju vode na {ulazi}"
+    vidljivo = _vidljivi_tekst(klijent, ruta).lower()
     for izraz in ("besplatno", "odmah dobijate nalog", "automatski nalog"):
         assert izraz not in vidljivo, f"početna obećava nalog: {izraz!r}"
 
@@ -449,6 +496,225 @@ def test_web3_stranica_je_povucena_a_pocetna_je_ne_reklamira(klijent):
     (301 na početnu), a početna je ne reklamira. Obim modula (usklađenost i
     provera porekla, nikad trgovanje) ostaje u proizvodu; sajt o njemu ćuti."""
     assert klijent.get("/web3", follow_redirects=False).status_code == 301
-    telo = _cist_tekst(klijent, "/").lower()
-    for izraz in ("web3", "digitalna imovina", "kripto", "blockchain", "trgovanj", "defi", "prinos"):
-        assert izraz not in telo, f"početna pominje {izraz!r}"
+    for ruta in STRANICE:
+        telo = _cist_tekst(klijent, ruta).lower()
+        for izraz in ("web3", "digitalna imovina", "kripto", "blockchain", "trgovanj", "defi", "prinos"):
+            assert izraz not in telo, f"{ruta} pominje {izraz!r}"
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 9. UGOVOR SADRŽAJA — sajt kaže tačno ono što registar kaže (Website V2)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `site/funkcije.json` je jedini izvor istine o funkcijama, statusu i dokazu
+# (docs/website-v2/02_PRODUCT_CAPABILITY_TRUTH_MATRIX.md je izveden iz njega).
+# Meri se ODGOVOR SERVERA: stavka koja postoji u registru a server je ne pošalje,
+# ili stranica koja tvrdi nešto čega u registru nema, oba su pad.
+
+import html as _html  # noqa: E402
+import json  # noqa: E402
+
+JAVNI_KATALOG = {"V2_AVAILABLE", "AVAILABLE_WITH_LIMITATIONS", "LEGACY_ONLY"}
+
+
+def _registar():
+    with open(os.path.join(_KOREN, "site", "funkcije.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _html_tekst(s: str) -> str:
+    return re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", " ", s)))
+
+
+def _stavke(telo: str) -> dict:
+    """{id: (status, vidljiv tekst stavke)} iz elemenata sa data-id."""
+    out = {}
+    obrazac = r'<(li|article) class="(?:stavka|plan)" id="f-[^"]+" data-id="([^"]+)" data-status="([^"]+)"[^>]*>(.*?)</\1>'
+    for m in re.finditer(obrazac, telo, flags=re.S):
+        out[m.group(2)] = (m.group(3), _html_tekst(m.group(4)))
+    return out
+
+
+def test_generisane_stranice_su_uskladjene_sa_izvorom():
+    """Ručna izmena generisane stranice ili registra bez ponovne gradnje = pad."""
+    sys.path.insert(0, os.path.join(_KOREN, "scripts"))
+    import gradi_sajt
+    for put, sadrzaj in gradi_sajt.izgradi().items():
+        with open(put, "rb") as f:
+            sacuvano = f.read().decode("utf-8").replace("\r\n", "\n")
+        assert sacuvano == sadrzaj, f"{put} nije usklađen — pokrenite python scripts/gradi_sajt.py"
+
+
+def test_registar_je_potpun_i_dosledan():
+    reg = _registar()
+    obavezno = {"id", "oblast", "naziv", "status", "radnja", "v2_ulaz", "backend", "pravo", "test", "ogranicenje",
+                "podaci", "javno", "javni_opis", "izvor", "verifikovano"}
+    ids = [f["id"] for f in reg["funkcije"]]
+    assert len(ids) == len(set(ids)), "dupli ID u registru"
+    oblasti = {o["id"] for o in reg["oblasti"]}
+    for f in reg["funkcije"]:
+        assert obavezno <= set(f), f"{f.get('id')}: nedostaju polja {obavezno - set(f)}"
+        assert f["status"] in reg["statusi"], f"{f['id']}: nepoznat status"
+        assert f["oblast"] in oblasti, f"{f['id']}: nepoznata oblast"
+        if f["javno"]:
+            assert f["javni_opis"].strip(), f"{f['id']}: javna stavka bez javne formulacije"
+            assert reg["statusi"][f["status"]]["javno"], f"{f['id']}: status {f['status']} se ne sme prikazati javno"
+        if f["status"] == "PLANNED_APPROVED" and f["javno"]:
+            assert f.get("problem") and f.get("umesto"), f"{f['id']}: plan bez problema/zamene"
+        if f["status"] == "AVAILABLE_WITH_LIMITATIONS":
+            assert f["ogranicenje"].strip(), f"{f['id']}: „uz ograničenje“ bez navedenog ograničenja"
+
+
+def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
+    reg = _registar()
+    na_sajtu = _stavke(_tekst(klijent, "/funkcionalnosti"))
+    ocekivano = {f["id"]: f for f in reg["funkcije"] if f["javno"] and f["status"] in JAVNI_KATALOG}
+    assert set(na_sajtu) == set(ocekivano), (
+        f"nedostaje: {sorted(set(ocekivano) - set(na_sajtu))}; višak: {sorted(set(na_sajtu) - set(ocekivano))}")
+    for fid, (status, tekst) in na_sajtu.items():
+        f = ocekivano[fid]
+        assert status == f["status"], f"{fid}: status na sajtu {status}, u registru {f['status']}"
+        assert reg["statusi"][status]["javno"] in tekst, f"{fid}: nema vidljive oznake statusa"
+        # Ograničenje je deo javne formulacije — ne sme se izgubiti putem.
+        assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
+
+
+def test_razvoj_prikazuje_samo_odobrene_planove_kao_nedostupne(klijent):
+    reg = _registar()
+    na_sajtu = _stavke(_tekst(klijent, "/razvoj"))
+    ocekivano = {f["id"] for f in reg["funkcije"] if f["javno"] and f["status"] == "PLANNED_APPROVED"}
+    assert set(na_sajtu) == ocekivano
+    for fid, (status, tekst) in na_sajtu.items():
+        assert status == "PLANNED_APPROVED"
+        assert "Nije dostupno" in tekst and "još nije dostupno" in tekst, f"{fid}: plan nije jasno označen kao nedostupan"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_nijedna_neobjavljiva_funkcija_nije_na_sajtu(klijent, ruta):
+    """IMPLEMENTED_NOT_EXPOSED, EXPERIMENTAL, UNVERIFIED_OR_REJECTED i stavke sa
+    javno=false ne pojavljuju se ni kao stavka ni po nazivu; plan nikad nije u katalogu."""
+    reg = _registar()
+    stavke = _stavke(_tekst(klijent, ruta))
+    vidljivo = _cist_tekst(klijent, ruta).lower()
+    for f in reg["funkcije"]:
+        if not f["javno"] or not reg["statusi"][f["status"]]["javno"]:
+            assert f["id"] not in stavke, f"{ruta} prikazuje neobjavljivu stavku {f['id']}"
+            assert f["naziv"].lower() not in vidljivo, f"{ruta} pominje neobjavljivu funkciju {f['naziv']!r}"
+        if f["status"] == "PLANNED_APPROVED" and ruta == "/funkcionalnosti":
+            assert f["id"] not in stavke, f"plan {f['id']} prikazan u katalogu dostupnih funkcija"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_nema_izmisljene_socijalne_potvrde(klijent, ruta):
+    """Nema preporuka, ocena, broja korisnika ni strukturisanih podataka o oceni."""
+    telo = _tekst(klijent, ruta)
+    vidljivo = _cist_tekst(klijent, ruta).lower()
+    for izraz in ("★", "korisnika koristi", "kancelarija koristi", "preporučuju", "recenzij", "partneri", "rekli su"):
+        assert izraz not in vidljivo, f"{ruta}: {izraz!r}"
+    assert "aggregateRating" not in telo and '"Review"' not in telo
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_svaki_snimak_je_oznacen_kao_demonstracioni(klijent, ruta):
+    telo = _tekst(klijent, ruta)
+    for fig in re.findall(r'<figure class="snimak[^"]*">.*?</figure>', telo, flags=re.S):
+        assert "Demonstracioni prikaz" in fig and "izmišljen" in fig, f"{ruta}: snimak bez oznake demonstracionog prikaza"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_slike_postoje_i_imaju_opis_i_dimenzije(klijent, ruta):
+    for img in re.findall(r"<img\b[^>]*>", _tekst(klijent, ruta)):
+        src = re.search(r'src="([^"]+)"', img).group(1)
+        assert 'alt="' in img and 'width="' in img and 'height="' in img, f"{ruta}: {img[:80]}"
+        assert klijent.get(src).status_code == 200, f"{ruta}: slika {src} ne postoji"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_svi_unutrasnji_linkovi_rade(klijent, ruta):
+    """Nema mrtvih linkova: svaka unutrašnja adresa posle preusmerenja odgovara 200."""
+    for href in set(re.findall(r'href="(/[^"#]*)', _tekst(klijent, ruta))):
+        r = klijent.get(href, follow_redirects=True)
+        assert r.status_code == 200, f"{ruta}: link {href} → {r.status_code}"
+
+
+@pytest.mark.parametrize("ruta", STRANICE)
+def test_sidra_unutar_sajta_postoje(klijent, ruta):
+    for strana, sidro in set(re.findall(r'href="(/[^"#]*)#([^"]+)"', _tekst(klijent, ruta))):
+        assert f'id="{sidro}"' in _tekst(klijent, strana or ruta), f"{ruta}: sidro {strana}#{sidro} ne postoji"
+
+
+def test_naslovi_i_opisi_su_jedinstveni_a_canonical_tacan(klijent):
+    naslovi, opisi = set(), set()
+    for ruta in STRANICE:
+        telo = _tekst(klijent, ruta)
+        naslov = re.search(r"<title>([^<]+)</title>", telo).group(1)
+        opis = re.search(r'<meta name="description" content="([^"]+)"', telo).group(1)
+        assert naslov not in naslovi and opis not in opisi, f"{ruta}: ponovljen naslov ili opis"
+        naslovi.add(naslov)
+        opisi.add(opis)
+        assert f'<link rel="canonical" href="https://vindex.rs{ruta}">' in telo
+        assert f'<meta property="og:url" content="https://vindex.rs{ruta}">' in telo
+
+
+def test_stil_skript_i_snimci_su_dostupni_bez_legacy_kesa(klijent):
+    """Asseti sajta žive pod /v2/site/, koje legacy /sw.js preskače."""
+    for put, tip in (("/v2/site/sajt.css", "text/css"), ("/v2/site/sajt.js", "javascript"),
+                     ("/v2/site/snimci/registar.webp", "image/webp"), ("/v2/site/potpis.js", "javascript")):
+        r = klijent.get(put)
+        assert r.status_code == 200 and tip in r.headers["content-type"], put
+    assert 'url.pathname.startsWith("/v2/")' in klijent.get("/sw.js").text
+
+
+def test_stare_adrese_koje_sada_imaju_stranicu_ne_preusmeravaju(klijent):
+    for ruta in ("/kako-radi", "/za-advokate", "/bezbednost", "/beta"):
+        r = klijent.get(ruta, follow_redirects=False)
+        assert r.status_code == 200 and "<h1" in r.text, ruta
+
+
+def test_beta_prijava_neuspeh_baze_nije_uspeh():
+    """Kada upis ne uspe, server ne sme vratiti ok:true (sajt bi prikazao uspeh)."""
+    from unittest.mock import MagicMock, patch
+    supa = MagicMock()
+    supa.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+    supa.table.return_value.insert.return_value.execute.side_effect = RuntimeError("baza nedostupna")
+    k = TestClient(api.app, raise_server_exceptions=False)
+    with patch("routers.waitlist._get_supa", return_value=supa):
+        r = k.post("/waitlist/prijava", json={"ime": "Test", "email": "neuspeh.website@example.com"})
+    assert r.status_code >= 500
+    assert '"ok":true' not in r.text.replace(" ", "")
+
+
+def test_beta_prijava_sa_neispravnom_adresom_je_422(klijent):
+    r = klijent.post("/waitlist/prijava", json={"ime": "Test", "email": "nije-adresa"})
+    assert r.status_code == 422
+    assert any("email" in (d.get("loc") or []) for d in r.json()["detail"])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 10. PRE-AUTH ULAZ (/app-legacy — kuda V2 /app šalje neprijavljenog korisnika)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _pre_auth_ulaz(klijent) -> str:
+    telo = _vidljivi_tekst(klijent, "/app-legacy")
+    m = re.search(r'<div id="vx-landing" class="vx-landing vxp">(.*?)\n</div>\n', telo, flags=re.S)
+    assert m, "pre-auth ulaz (#vx-landing.vxp) nije pronađen"
+    return m.group(1)
+
+
+def test_pre_auth_ulaz_nema_zastarelih_tvrdnji(klijent):
+    ulaz = _pre_auth_ulaz(klijent)
+    tekst = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", ulaz)).lower()
+    for izraz in ZABRANJENO + ["847", "10 sekundi", "aes", "obaveštenja 7", "ograničen broj", "besplatn",
+                               "dohvat ruke", "operativni sistem", "radi umesto vas"]:
+        assert izraz.lower() not in tekst, f"pre-auth ulaz sadrži {izraz!r}"
+
+
+def test_pre_auth_ulaz_cuva_ugovor_prijave_i_vodi_na_beta(klijent):
+    ulaz = _pre_auth_ulaz(klijent)
+    assert 'id="nav-cta-btn"' in ulaz and "openModal()" in ulaz, "prijava mora ostati postojeći modal"
+    assert 'href="/beta"' in ulaz
+    assert "/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" in ulaz
+    telo = _tekst(klijent, "/app-legacy")
+    assert '<div class="modal-title" id="auth-modal-title">Dobrodošli.</div>' in telo
+    assert "15 besplatnih upita.</div>" not in telo, "početni naslov modala prijave ne sme biti tekst registracije"

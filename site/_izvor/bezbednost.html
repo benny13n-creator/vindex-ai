@@ -1,0 +1,66 @@
+<section class="uvod uvod--strana" aria-labelledby="naslov">
+  <div class="okvir">
+    <p class="nadnaslov">Bezbednost i zaštita podataka</p>
+    <h1 id="naslov">Kako Vindex štiti pristup podacima i gde su granice te zaštite.</h1>
+    <p class="vodeci">Ova stranica opisuje samo mehanizme koji postoje u kodu aplikacije i provereni su automatskim testovima. Vindex
+      nema nezavisnu bezbednosnu sertifikaciju niti spoljno ispitivanje prodora.</p>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="pristup-naslov">
+  <div class="okvir">
+    <h2 id="pristup-naslov">Pristup i izolacija podataka</h2>
+    <ul class="mreza">
+      <li><h3>Prijava</h3><p>Pristup aplikaciji zahteva prijavu na Vindex nalog. Radni prostor V2 koristi istu sesiju i nema sopstvenu prijavu.</p></li>
+      <li><h3>Samo predmeti naloga</h3><p>Server iz prijave određuje ko traži podatke i vraća samo predmete kojima taj nalog ima pristup. Tuđ predmet daje isti odgovor kao nepostojeći.</p></li>
+      <li><h3>Granica je na serveru</h3><p>Aplikacioni server pristupa bazi privilegovanim servisnim ključem. Zato granicu pristupa sprovodi provera na serveru, a ne isključivo pravila same baze.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="ai-naslov">
+  <div class="okvir">
+    <h2 id="ai-naslov">AI rezultati i ljudska kontrola</h2>
+    <ul class="mreza">
+      <li><h3>Jezički model spoljnog dobavljača</h3><p>Pravna pitanja, nacrti, savetnici i deo analize predmeta koriste jezički model spoljnog dobavljača. Tekst koji se šalje modelu i dobavljač su opisani u dokumentu <a class="tekst-link" href="/ai-disclosure">Upotreba AI</a>.</p></li>
+      <li><h3>Poreklo i izvori</h3><p>Stavke analize nose poreklo, a AI analiza je uvek označena. Odgovor na pravno pitanje navodi propise; član koji ne postoji u izvorima se odbija.</p></li>
+      <li><h3>Odluka ostaje advokatu</h3><p>Rokovi, izdvojeni podaci, vrsta dokumenta, nacrti i znanje kancelarije postaju važeći tek posle odluke advokata. Model može da pogreši; zato ništa od toga ne postaje važeće samo.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="cuvanje-naslov">
+  <div class="okvir">
+    <h2 id="cuvanje-naslov">Čuvanje i šifrovanje</h2>
+    <ul class="mreza">
+      <li><h3>Originalni fajlovi iz prijema</h3><p>Fajl primljen kroz prijem dokumenata šifruje se na aplikacionom serveru pre čuvanja u skladištu.</p></li>
+      <li><h3>Izdvojeni tekst</h3><p>Tekst izdvojen iz dokumenta čuva se u bazi da bi pretraga radila i nije dodatno šifrovan na nivou aplikacije.</p></li>
+      <li><h3>Osetljiva polja klijenta</h3><p>JMBG, broj pasoša i PIB klijenta čuvaju se šifrovani na nivou aplikacije; po tim poljima se ne pretražuje.</p></li>
+    </ul>
+    <p class="tiho">Za ostale podatke važi zaštita pružalaca infrastrukture na kojima aplikacija radi; ovaj opis je ne proširuje niti je nezavisno potvrđuje. Veza sa sajtom i aplikacijom koristi HTTPS.</p>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="evidencija-naslov">
+  <div class="okvir">
+    <h2 id="evidencija-naslov">Evidencija i vaši podaci</h2>
+    <ul class="mreza">
+      <li><h3>Promene u predmetu</h3><p>Promene stanja predmeta i odluke o rokovima beleže se kao događaji predmeta sa poreklom. To nije potpun revizorski trag svih radnji na nalogu.</p></li>
+      <li><h3>Izvoz i anonimizacija</h3><p>Izvoz podataka naloga i anonimizacija naloga dostupni su u klasičnom interfejsu aplikacije. Predmeti i spisi se pri anonimizaciji zadržavaju zbog obaveze čuvanja spisa.</p></li>
+      <li><h3>Greška se kaže</h3><p>Kada podaci ne mogu da se učitaju ili ishod upisa nije poznat, aplikacija to kaže umesto da prikaže praznu listu ili lažan uspeh.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="dokumenti-naslov">
+  <div class="okvir">
+    <h2 id="dokumenti-naslov">Pravni dokumenti</h2>
+    <p class="uvodni">Uslovi korišćenja, obrada podataka i upotreba AI uređeni su posebnim dokumentima.</p>
+    <ul class="mreza">
+      <li><h3><a class="tekst-link" href="/privacy">Politika privatnosti</a></h3></li>
+      <li><h3><a class="tekst-link" href="/terms">Uslovi korišćenja</a></h3></li>
+      <li><h3><a class="tekst-link" href="/dpa">Ugovor o obradi podataka</a></h3></li>
+      <li><h3><a class="tekst-link" href="/ai-disclosure">Upotreba AI</a></h3></li>
+    </ul>
+  </div>
+</section>
