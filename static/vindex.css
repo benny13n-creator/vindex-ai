@@ -9984,7 +9984,7 @@ body.light-theme #delete-account-btn { color: #991b1b !important; }
 .vxp .vxp-traka { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px;
   padding: 0 clamp(16px, 4vw, 56px); border-bottom: 1px solid var(--vxp-line); }
 .vxp .vxp-logo { display: flex; align-items: center; padding: 8px 0; }
-.vxp .vxp-logo img { display: block; height: 30px; width: auto; }
+.vxp .vxp-logo img { display: block; height: 40px; width: auto; }
 .vxp .vxp-telo { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: clamp(56px, 12vh, 140px) clamp(16px, 4vw, 56px) 64px; }
 .vxp .vxp-nad { margin: 0 0 16px; color: var(--vxp-accent); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
 .vxp .vxp-h1 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-weight: 500; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.12; color: var(--vxp-t1); }
@@ -10012,10 +10012,20 @@ body.light-theme .vx-landing.vxp {
 }
 body.light-theme .vxp .vxp-dugme:not(.vxp-dugme--sporedno) { color: #fbfaf8 !important; }
 body.light-theme .vxp .vxp-dugme--sporedno:hover { background: #f1f0ec; }
-body.light-theme .vxp .vxp-logo img { content: url("/v2/site/brand/Vindex_Protected_Light_Surface.png"); height: 44px; }
+body.light-theme .vxp .vxp-logo img { content: url("/v2/site/brand/vindex-lockup-svetla.svg"); }
 body.light-theme .vxp .vxp-traka { background: #f6f7f8; } /* V2 NS003: boja margine lockup-a */
 /* Pre prijave legacy plutajuće kontrole (glas, povratne informacije, mobilna navigacija aplikacije, ukrasni kursor, prazan kontejner
    obaveštenja) nemaju funkciju. Skrivaju se SAMO dok je ulaz prikazan; vindex.js ga posle prijave
    postavlja na display:none, pa se tada sve vraća nepromenjeno. */
 body:has(#vx-landing.vxp:not([style*="none"])) :is(#vx-voice-fab, #feedback-fab, #cursor, #cursor-ring, #vx-mobile-nav, #vx-mobile-fab) { display: none !important; }
 body:has(#vx-landing.vxp:not([style*="none"])) #toast-container:empty { display: none !important; }
+
+/* Logo (Website V3, 2026-10-21): slika umesto teksta „Vindex AI“; svetla tema ima svoju datoteku. */
+.vx-logo-mark { display: inline-flex !important; align-items: center !important; text-decoration: none !important; }
+.vx-logo-img { display: block; width: auto; height: 34px; }
+.vx-topbar-logo-mobile .vx-logo-img { height: 28px; }
+.vx-topbar-logo-mobile { display: none; align-items: center; }
+@media (max-width: 768px) { .vx-topbar-logo-mobile { display: inline-flex; } }
+.vx-logo-img--svetla { display: none; }
+body.light-theme .vx-logo-img--tamna { display: none; }
+body.light-theme .vx-logo-img--svetla { display: block; }

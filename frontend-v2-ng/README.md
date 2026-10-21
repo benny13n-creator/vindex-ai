@@ -55,12 +55,12 @@ nije `1`/`true`/`yes`): adresa bez `rezim` se preusmerava na `/v2/preview/?rezim
 pa produkcioni preview nikad podrazumevano ne prikazuje demo podatke. `?rezim=demo`
 ostaje dostupan za QA i jasno je označen. Odgovor nosi `X-Robots-Tag: noindex, nofollow, noarchive`.
 
-**Kanonski logo (samo V2)**: `brand/` sadrži SAMO dva fajla iz zaključanog paketa
-`Vindex_Logo_CANONICAL_FINAL`, bajt-identična paketu (`.gitattributes`: binarno):
-`Vindex_Transparent_EXACT_LOOK.svg` (tamna tema) i `Vindex_Protected_Light_Surface.png`
-(svetla tema; svetla gornja traka je `#F6F7F8`, boja margine lockup-a — founder odluka).
-Tema se bira CSS-om; logo se ne menja (bez filtera, senke, isecanja, izobličenja).
-Postojeći `/app`, `/app-v2`, favicon, manifest i Service Worker nisu dirani.
+**Kanonski logo**: `brand/` sadrži SAMO dva fajla novog logoa (Website V3, odluka
+osnivača 2026-10-21: V sa stubom i lovorom; `.gitattributes`: binarno):
+`vindex-lockup-tamna.svg` (tamna tema) i `vindex-lockup-svetla.svg` (svetla tema; svetla
+gornja traka ostaje `#F6F7F8`). Isti fajlovi služe sajt (`/v2/site/brand/`) i staru
+aplikaciju. Tema se bira CSS-om; logo se ne menja (bez filtera, senke, isecanja, izobličenja).
+Ikone (favicon, PWA) su `static/favicon-vindex-v4-*.png` i `static/icon-*-v4.png`.
 Provera: `npm run verify:brand`.
 
 **LIVE**: dodaj `?rezim=live`. Bilo koja druga vrednost `rezim` je glasna greška

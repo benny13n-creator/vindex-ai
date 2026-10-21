@@ -68,19 +68,18 @@ svg .fill { fill: currentColor; stroke: none; }
   width: calc(var(--nav-w) - var(--sp-5) - var(--sp-4));
   display: flex; align-items: center;
 }
-/* Kanonski logo (paket Vindex_Logo_CANONICAL_FINAL, NS003): odobrene datoteke
- * bez ikakve obrade — bez filtera, providnosti, senke, maske, isecanja ili
- * izobličenja; samo visina, širina sledi izvornu razmeru. Tamna tema: providni
- * „exact look“ SVG na tamnoj, mirnoj traci. Svetla tema: zaštićeni lockup na
- * tamnoj podlozi (nikad prebojen ili invertovan). Tema se bira samo CSS-om. */
+/* Kanonski logo (Website V3, odluka osnivača 2026-10-21): V sa stubom i lovorom.
+ * Datoteke se prikazuju bez ikakve obrade — bez filtera, providnosti, senke,
+ * maske, isecanja ili izobličenja; samo visina, širina sledi izvornu razmeru.
+ * Tamna tema: svetlo V i zlato na tamnoj traci. Svetla tema: crno V i tamnije
+ * zlato (posebna datoteka, nikad prebojena ili invertovana). Bira se samo CSS-om. */
 .wordmark__logo { display: block; flex: none; width: auto; }
-.wordmark__logo--tamna { height: 32px; }
-.wordmark__logo--svetla { height: 44px; display: none; }
+.wordmark__logo--tamna { height: 36px; }
+.wordmark__logo--svetla { height: 36px; display: none; }
 :root[data-theme="light"] .wordmark__logo--tamna { display: none; }
 :root[data-theme="light"] .wordmark__logo--svetla { display: block; }
-/* Founder odluka NS003 (opcija 3): svetla gornja traka dobija tačno boju
- * neprovidne margine zaštićenog lockup-a (#F6F7F8), da se margina stopi sa
- * površinom. Menja se SAMO pozadina .topbar u svetloj temi. */
+/* Founder odluka NS003 (opcija 3): svetla gornja traka je #F6F7F8. Novi logo
+ * je providan, pa boja trake ostaje ista. Menja se SAMO pozadina .topbar u svetloj temi. */
 :root[data-theme="light"] .topbar { background: #F6F7F8; }
 :root[data-nav="skupljena"] .wordmark { width: auto; }
 

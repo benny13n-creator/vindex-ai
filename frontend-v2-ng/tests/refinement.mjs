@@ -93,9 +93,9 @@ const bezHorizontalnog = p => p.evaluate(() => document.documentElement.scrollWi
       ts: s.textShadow, bi: s.backgroundImage, f: si ? si.filter : "", bs: si ? si.boxShadow : "", tekst: e.textContent.trim(), ime: e.getAttribute("aria-label"), href: e.getAttribute("href"),
       traka: document.querySelector(".topbar").getBoundingClientRect().height }; });
   const h1 = await p.$eval(".sheet__title", e => parseFloat(getComputedStyle(e).fontSize));
-  // Slova „VINDEX“ zauzimaju 129/309 visine providnog logoa (izmereno u kanonskom rasteru).
-  const slova = wm.h * 129 / 309;
-  zapisi("wordmark", "kanonski logo (tamna tema: providni exact-look SVG), podređen naslovu strane", wm.src === "brand/Vindex_Transparent_EXACT_LOOK.svg" && wm.nw === 1183 && wm.h < wm.traka && slova < h1,
+  // Slova „VINDEX“ zauzimaju 68/200 visine logoa (getBBox: 70..138 od 200).
+  const slova = wm.h * 68 / 200;
+  zapisi("wordmark", "kanonski logo (tamna tema: providni SVG), podređen naslovu strane", wm.src === "brand/vindex-lockup-tamna.svg" && wm.nw === 660 && wm.h < wm.traka && slova < h1,
     `logo ${wm.w.toFixed(1)}×${wm.h}px, slova ${slova.toFixed(1)}px naspram h1 ${h1}px, traka ${wm.traka}px`);
   zapisi("wordmark", "bez sjaja, senke, filtera i gradijenta; razmera izvorna", wm.ts === "none" && wm.bi === "none" && wm.f === "none" && wm.bs === "none" && Math.abs(wm.w - wm.h * wm.nw / wm.nh) <= 0.5, `filter ${wm.f}`);
   zapisi("wordmark", "link: isto odredište (#glavni) i ime „Vindex — Aktivni predmeti“, bez dupliranog „Vindex“ za čitač ekrana",

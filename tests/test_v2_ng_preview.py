@@ -52,7 +52,7 @@ PUTANJE_PREVIEW = [
     "/v2/preview/src/app.js", "/v2/preview/src/api.js",
     "/v2/preview/fonts/ibm-plex-sans/400.css",
     "/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2",
-    "/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "/v2/preview/brand/Vindex_Protected_Light_Surface.png",
+    "/v2/preview/brand/vindex-lockup-tamna.svg", "/v2/preview/brand/vindex-lockup-svetla.svg",
 ]
 NEIZLOZENO = [
     "/v2/preview/tests/fixtures/original.html", "/v2/preview/package.json", "/v2/preview/serve.mjs",
@@ -62,13 +62,14 @@ NEIZLOZENO = [
     "/v2/preview/brand/", "/v2/preview/brand/%2e%2e/serve.mjs", "/v2/preview/brand/..%2f..%2fapi.py",
     "/v2/preview/brand/Vindex_Approved_Reference_Source.png", "/v2/preview/brand/Vindex_Technical_White_VECTOR.svg",
     "/v2/preview/brand/MANIFEST_SHA256.txt", "/v2/preview/.gitattributes",
+    "/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "/v2/preview/brand/Vindex_Protected_Light_Surface.png",
 ]
 
-# NS003 Task 4: SHA-256 iz MANIFEST_SHA256.txt kanonskog paketa
-# Vindex_Logo_CANONICAL_FINAL (paket nije u repozitorijumu; runtime kopije jesu).
+# Website V3 (odluka osnivaca 2026-10-21): novi logo; izvor je scripts/brand/gradi_logo.py.
+# Stari NS003 fajlovi moraju vracati 404 (NEIZLOZENO).
 KANONSKI_LOGO = {
-    "Vindex_Transparent_EXACT_LOOK.svg": "a69b32383295eb8c3850bb01581bb370433bb1761a935f88f878a1fc4afffc3f",
-    "Vindex_Protected_Light_Surface.png": "7485ddff765080615bcd90f04f383762770c41d8cf9e24fb21171088024eeae9",
+    "vindex-lockup-tamna.svg": "41316e6996171107f97347eafc0a87cf87f76c9f7c42668035bac2450eae619e",
+    "vindex-lockup-svetla.svg": "cf177ffd4805268d0022c61c99f7c9def59b5c81c8da7a746cb1b8c84f1d380a",
 }
 NEPROMENJENO = ["/app", "/app-v2", "/sw.js", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
 
@@ -188,8 +189,8 @@ def test_ukljucen_servira_v2_index_bez_kesa(ukljucen):
     ("/v2/preview/src/app.js", "src/app.js"), ("/v2/preview/src/api.js", "src/api.js"),
     ("/v2/preview/fonts/ibm-plex-sans/400.css", "fonts/ibm-plex-sans/400.css"),
     ("/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2", "fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2"),
-    ("/v2/preview/brand/Vindex_Transparent_EXACT_LOOK.svg", "brand/Vindex_Transparent_EXACT_LOOK.svg"),
-    ("/v2/preview/brand/Vindex_Protected_Light_Surface.png", "brand/Vindex_Protected_Light_Surface.png"),
+    ("/v2/preview/brand/vindex-lockup-tamna.svg", "brand/vindex-lockup-tamna.svg"),
+    ("/v2/preview/brand/vindex-lockup-svetla.svg", "brand/vindex-lockup-svetla.svg"),
 ])
 def test_ukljucen_asseti_ispod_iste_rute(ukljucen, put, fajl):
     assert ukljucen[put]["status"] == 200
@@ -224,7 +225,7 @@ def test_brand_sadrzi_samo_dva_kanonska_fajla_bajt_identicna_paketu():
 
 
 def test_ukljucen_logo_se_servira_bajt_identican_sa_tacnim_tipom(ukljucen):
-    tipovi = {"Vindex_Transparent_EXACT_LOOK.svg": "image/svg+xml", "Vindex_Protected_Light_Surface.png": "image/png"}
+    tipovi = {"vindex-lockup-tamna.svg": "image/svg+xml", "vindex-lockup-svetla.svg": "image/svg+xml"}
     for ime, sha in KANONSKI_LOGO.items():
         r = ukljucen["/v2/preview/brand/" + ime]
         assert r["status"] == 200 and r["sha"] == sha, (ime, r["status"])

@@ -10,10 +10,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vindex AI">
-<link rel="apple-touch-icon" href="/static/icon-192-v3.png">
+<link rel="apple-touch-icon" href="/static/icon-192-v4.png">
 <title>Vindex AI - Pravni operativni sistem za Srbiju</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,300;1,8..60,400&family=Source+Sans+3:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23010308'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%234aa8ff'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-vindex-v4-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/static/favicon-vindex-v4-64.png">
 <!--
   CDN BEZBEDNOST — Napomene za razvojni tim:
   1. Sve skripte imaju crossorigin="anonymous" i referrerpolicy="no-referrer"
@@ -412,7 +413,7 @@
 
     <aside class="vx-sidebar" id="vx-sidebar">
       <div class="vx-logo-wrap">
-        <span class="vx-logo-mark">Vindex <em>AI</em></span>
+        <a href="/app" class="vx-logo-mark" aria-label="Vindex"><img class="vx-logo-img vx-logo-img--tamna" src="/v2/site/brand/vindex-lockup-tamna.svg" alt="" width="660" height="200"><img class="vx-logo-img vx-logo-img--svetla" src="/v2/site/brand/vindex-lockup-svetla.svg" alt="" width="660" height="200"></a>
       </div>
       <nav class="vx-nav" id="t-tabs-el" role="tablist" aria-label="Glavna navigacija">
         <!-- ── Grupa 1: Dnevni rad ── -->
@@ -516,7 +517,7 @@
 
       <div class="vx-topbar">
         <!-- Logo vidljiv samo na mobilnom (sidebar logo skriven) -->
-        <span class="vx-topbar-logo-mobile">Vindex <em>AI</em></span>
+        <span class="vx-topbar-logo-mobile" role="img" aria-label="Vindex"><img class="vx-logo-img vx-logo-img--tamna" src="/v2/site/brand/vindex-lockup-tamna.svg" alt="" width="660" height="200"><img class="vx-logo-img vx-logo-img--svetla" src="/v2/site/brand/vindex-lockup-svetla.svg" alt="" width="660" height="200"></span>
         <div class="vx-global-search" onclick="cmdkOpen()" title="Globalna pretraga (⌘K)" style="cursor:pointer;">
           <span class="vx-search-icon">⌕</span>
           <span class="vx-search-ph">Pretraži predmete, klijente, dokumente, zadatke...</span>
@@ -4154,7 +4155,7 @@
      na javnom sajtu i dolaze iz site/funkcije.json. ID-jevi vx-landing i nav-cta-btn ostaju (static/vindex.js). -->
 <div id="vx-landing" class="vx-landing vxp">
   <header class="vxp-traka">
-    <a href="/" class="vxp-logo" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
+    <a href="/" class="vxp-logo" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-lockup-tamna.svg" alt="" width="660" height="200"></a>
     <a href="#" id="nav-cta-btn" class="vxp-dugme vxp-dugme--sporedno" onclick="openModal();return false;">Prijavite se</a>
   </header>
 
