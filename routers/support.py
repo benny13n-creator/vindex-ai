@@ -3,8 +3,16 @@
 Vindex AI — routers/support.py
 
 POST /api/support/poruka — korisnik šalje poruku timu podrške.
-Poruka stiže emailom na FOUNDER_EMAILS i upisuje se u Supabase
-tabelu support_tickets (ako postoji).
+Poruka se upisuje u Supabase tabelu support_tickets (migracija 049) i šalje
+emailom na FOUNDER_EMAILS kada je SMTP podešen.
+
+Website V3 (prijava problema iz V2 aplikacije): odgovor kaže ŠTA se stvarno
+desilo. `ok: true` samo kada je poruka sačuvana ili predata SMTP serveru;
+inače 503 — korisnik ne sme videti „poslato“ za poruku koja nije nigde stigla.
+Ranije je ruta uvek vraćala uspeh (i obećavala odgovor „u roku od 24h“), iako
+je tihi `logger.debug` gutao neuspeo upis, a bez SMTP-a email se preskakao.
+
+GET /api/support/admin/lista — osnivač vidi prijave (FOUNDER_EMAILS).
 """
 from __future__ import annotations
 
@@ -42,7 +50,7 @@ _KATEGORIJE = {
     "tehnicko":  "Tehnički problem",
     "nalog":     "Nalog i pretplata",
     "ai":        "AI / tačnost odgovora",
-    "podatak":   "Podatak ili odluka",
+    "podatak":   "Podaci ili dokument",
     "predlog":   "Predlog / ideja",
     "feedback":  "Iskustvo / ocena",
     "ostalo":    "Ostalo",
@@ -86,12 +94,19 @@ class SupportPoruka(BaseModel):
         return v
 
 
+def _bez_preloma(v) -> str:
+    """Vrednost za email zaglavlje: bez prelaza reda (nema ubacivanja zaglavlja)."""
+    return " ".join(str(v or "").split())
+
+
 def _send_support_email(user_email: str, kategorija: str, poruka: str,
                          rating: Optional[int] = None, kontekst: Optional[str] = None,
-                         screenshot_base64: Optional[str] = None) -> None:
+                         screenshot_base64: Optional[str] = None,
+                         broj: Optional[str] = None) -> bool:
+    """Vraća True ako je poruka predata SMTP serveru za bar jednu adresu osnivača."""
     if not _SMTP_HOST:
         logger.warning("SMTP nije konfigurisan — support email nije poslat")
-        return
+        return False
 
     kat_label = _KATEGORIJE.get(kategorija, "Ostalo")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -150,13 +165,15 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
 </div>
 </body></html>"""
 
+    predato = False
+    oznaka = f" #{_bez_preloma(broj)[:8]}" if broj else ""
     for to_addr in FOUNDER_EMAILS:
         try:
             msg = MIMEMultipart("mixed")
-            msg["Subject"] = f"[Vindex podrška] {kat_label} — od {user_email}"
+            msg["Subject"] = f"[Vindex podrška{oznaka}] {kat_label} — od {_bez_preloma(user_email)}"
             msg["From"]    = _FROM_ADDR
             msg["To"]      = to_addr
-            msg["Reply-To"] = user_email
+            msg["Reply-To"] = _bez_preloma(user_email)
             alt = MIMEMultipart("alternative")
             alt.attach(MIMEText(html_body, "html", "utf-8"))
             msg.attach(alt)
@@ -171,16 +188,20 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
             with smtplib.SMTP(_SMTP_HOST, _SMTP_PORT, timeout=15) as smtp:
                 smtp.ehlo()
                 smtp.starttls()
-                smtp.login(_SMTP_USER, _SMTP_PASS)
+                if _SMTP_USER:
+                    smtp.login(_SMTP_USER, _SMTP_PASS)
                 smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
+            predato = True
         except Exception as e:
-            logger.error("Support email greška ka %s: %s", to_addr, e)
+            logger.error("Support email nije predat SMTP serveru: %s", type(e).__name__)
+    return predato
 
 
 async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, poruka: str,
-                        rating: Optional[int] = None, kontekst: Optional[str] = None) -> None:
+                        rating: Optional[int] = None, kontekst: Optional[str] = None) -> Optional[str]:
+    """Upisuje prijavu i vraća njen `id`, ili None ako upis nije uspeo."""
     try:
-        await asyncio.to_thread(
+        res = await asyncio.to_thread(
             lambda: supa.table("support_tickets").insert({
                 "user_id":    user_id,
                 "email":      user_email,
@@ -191,7 +212,13 @@ async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, por
             }).execute()
         )
     except Exception as e:
-        logger.debug("support_tickets tabela možda ne postoji: %s", e)
+        logger.error("support_tickets upis nije uspeo: %s", type(e).__name__)
+        return None
+    redovi = getattr(res, "data", None) or []
+    if not redovi or not isinstance(redovi[0], dict) or not redovi[0].get("id"):
+        logger.error("support_tickets upis nije vratio red")
+        return None
+    return str(redovi[0]["id"])
 
 
 @router.post("/api/support/poruka")
@@ -201,17 +228,48 @@ async def support_poruka(
     payload: SupportPoruka,
     user: dict = Depends(get_current_user),
 ):
+    # Identitet pošiljaoca je ISKLJUČIVO iz tokena; model nema polje za
+    # korisnika ni adresu, pa ga telo zahteva ne može promeniti.
     user_id    = user["user_id"]
     user_email = user.get("email", "")
 
     supa = _get_supa()
 
-    await asyncio.to_thread(
+    # Prvo trajni upis (broj prijave ide i u email), pa obaveštenje.
+    broj = await _save_ticket(supa, user_id, user_email, payload.kategorija, payload.poruka,
+                              payload.rating, payload.kontekst)
+    obavesteno = await asyncio.to_thread(
         _send_support_email, user_email, payload.kategorija, payload.poruka,
-        payload.rating, payload.kontekst, payload.screenshot_base64,
+        payload.rating, payload.kontekst, payload.screenshot_base64, broj,
     )
-    await _save_ticket(supa, user_id, user_email, payload.kategorija, payload.poruka,
-                        payload.rating, payload.kontekst)
 
-    logger.info("Support poruka primljena od %s [%s]", user_email, payload.kategorija)
-    return {"ok": True, "message": "Poruka je poslata. Odgovorićemo u roku od 24h."}
+    if not broj and not obavesteno:
+        logger.error("Support poruka [%s] nije ni sačuvana ni poslata", payload.kategorija)
+        raise HTTPException(status_code=503, detail="Poruka nije sačuvana ni poslata. Pokušajte ponovo kasnije.")
+
+    logger.info("Support poruka [%s]: sačuvana=%s, email=%s", payload.kategorija, bool(broj), obavesteno)
+    kratak = broj[:8] if broj else None
+    return {
+        "ok": True,
+        "sacuvano": bool(broj),
+        "obavesteno": obavesteno,
+        "broj": kratak,
+        "message": (f"Poruka je primljena i sačuvana pod brojem {kratak}." if broj
+                    else "Poruka je primljena i prosleđena podršci."),
+    }
+
+
+@router.get("/api/support/admin/lista")
+async def support_admin_lista(user: dict = Depends(get_current_user)):
+    """Samo osnivač — poslednjih 200 prijava, najnovije prve."""
+    if (user.get("email") or "").lower() not in FOUNDER_EMAILS:
+        raise HTTPException(status_code=403, detail="Samo osnivač.")
+    supa = _get_supa()
+    res = await asyncio.to_thread(
+        lambda: supa.table("support_tickets")
+        .select("id,email,kategorija,poruka,kontekst,created_at")
+        .order("created_at", desc=True)
+        .limit(200)
+        .execute()
+    )
+    return {"prijave": res.data or []}

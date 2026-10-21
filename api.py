@@ -1750,7 +1750,6 @@ _JAVNE_STRANICE = {
     "/kako-radi": "kako-radi.html",
     "/funkcionalnosti": "funkcionalnosti.html",
     "/za-advokate": "za-advokate.html",
-    "/razvoj": "razvoj.html",
     "/bezbednost": "bezbednost.html",
     "/beta": "beta.html",
 }
@@ -1777,6 +1776,9 @@ _POVUCENE_STRANICE = {
     "/web3": "/",
     "/vizija": "/",
     "/tehnologija": "/",
+    # Website V3 (founder): planovi razvoja nisu javni. Stari link ne puca, a
+    # sadržaj plana se više ne šalje (stranica je obrisana iz site/).
+    "/razvoj": "/funkcionalnosti",
 }
 
 
@@ -2729,7 +2731,6 @@ _SITEMAP_PUTANJE: list[tuple[str, str]] = [
     ("/funkcionalnosti", "0.8"),
     ("/za-advokate", "0.7"),
     ("/bezbednost", "0.6"),
-    ("/razvoj", "0.5"),
     ("/beta", "0.6"),
     # Postojece pravne stranice -- vec javne, servirane iz ruta iznad.
     ("/privacy", "0.4"),

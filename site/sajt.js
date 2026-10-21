@@ -1,14 +1,33 @@
-/* Vindex — javni sajt: filter kataloga i prijava za beta testiranje.
+/* Vindex — javni sajt: otkrivanje odeljaka, pretraga kataloga i prijava za rani pristup.
  * Bez spoljnih biblioteka i bez praćenja. Sajt radi i bez ovog skripta; skript
  * samo dodaje filter i šalje formu. */
 (function () {
   "use strict";
 
-  /* ── Katalog: filter po statusu i tekstu ─────────────────────────── */
+  /* ── Otkrivanje odeljaka pri skrolovanju (Website V3) ─────────────── */
+  /* Bez JS-a i uz „manje pokreta“ sve je odmah vidljivo: klasa `pokret` se
+   * dodaje tek kada postoji IntersectionObserver i korisnik nije tražio mir. */
+  var mirno = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var zaOtkrivanje = Array.prototype.slice.call(document.querySelectorAll(".otkrij"));
+  if (!mirno && "IntersectionObserver" in window && zaOtkrivanje.length) {
+    document.body.classList.add("pokret");
+    var posmatrac = new IntersectionObserver(function (unosi) {
+      unosi.forEach(function (u) {
+        if (u.isIntersecting) { u.target.classList.add("vidljivo"); posmatrac.unobserve(u.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    zaOtkrivanje.forEach(function (el) { posmatrac.observe(el); });
+    /* Sidro u adresi (npr. /funkcionalnosti#rokovi): ciljni odeljak odmah vidljiv. */
+    if (location.hash) {
+      var cilj = document.getElementById(location.hash.slice(1));
+      if (cilj) { (cilj.classList.contains("otkrij") ? [cilj] : []).concat(Array.prototype.slice.call(cilj.querySelectorAll(".otkrij"))).forEach(function (el) { el.classList.add("vidljivo"); }); }
+    }
+  }
+
+  /* ── Katalog: pretraga po tekstu ────────────────────────────────── */
   var katalog = document.getElementById("katalog-stavke");
   if (katalog) {
     var upit = document.getElementById("filter-tekst");
-    var status = document.getElementById("filter-status");
     var rezultat = document.getElementById("filter-rezultat");
     var stavke = Array.prototype.slice.call(katalog.querySelectorAll(".stavka"));
     var oblasti = Array.prototype.slice.call(katalog.querySelectorAll(".oblast"));
@@ -17,24 +36,22 @@
     };
     var primeni = function () {
       var q = normalizuj(upit.value.trim());
-      var st = status.value;
       var vidljivih = 0;
       stavke.forEach(function (s) {
-        var ok = (!st || s.getAttribute("data-status") === st) && (!q || normalizuj(s.textContent).indexOf(q) !== -1);
+        var ok = !q || normalizuj(s.textContent).indexOf(q) !== -1;
         s.hidden = !ok;
         if (ok) vidljivih++;
       });
-      oblasti.forEach(function (o) { o.hidden = !o.querySelector(".stavka:not([hidden])"); });
+      oblasti.forEach(function (o) { o.hidden = !o.querySelector(".stavka:not([hidden])"); o.classList.add("vidljivo"); });
       rezultat.textContent = vidljivih === stavke.length
-        ? "Prikazane su sve stavke (" + stavke.length + ")."
-        : "Prikazano " + vidljivih + " od " + stavke.length + " stavki.";
+        ? "Prikazane su sve funkcije (" + stavke.length + ")."
+        : "Prikazano " + vidljivih + " od " + stavke.length + " funkcija.";
     };
     document.getElementById("filter").hidden = false;
     upit.addEventListener("input", primeni);
-    status.addEventListener("change", primeni);
   }
 
-  /* ── Prijava za beta testiranje ──────────────────────────────────── */
+  /* ── Prijava za rani pristup (beta testiranje) ──────────────────────────────────── */
   var forma = document.getElementById("beta-forma");
   if (!forma) return;
   var ishod = document.getElementById("beta-ishod");

@@ -723,3 +723,53 @@ a.text-btn { text-decoration: none; }
   background: none; font: inherit; color: var(--text-2); cursor: pointer; }
 .rezimi__item:hover { color: var(--text-1); }
 .rezimi__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }
+
+/* ── Prijava problema ili predloga (Website V3) ──────────────────────────
+ * Stalno dugme u donjem desnom uglu; samo za prijavljenog korisnika (LIVE).
+ * Radna površina dobija donji prostor da dugme ne prekriva poslednji red. */
+.prijava-dugme {
+  position: fixed; right: var(--sp-4); bottom: var(--sp-4); z-index: 35;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; cursor: pointer;
+  background: var(--bg-panel); color: var(--text-1);
+  border: 1px solid var(--line-strong); border-radius: 50%;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.prijava-dugme:hover { border-color: var(--accent); background: var(--bg-hover); }
+.prijava-dugme:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.prijava-dugme svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.prijava-dugme[hidden] { display: none; }
+:root[data-prijava="da"] .sheet { padding-bottom: calc(var(--sheet-pad) + 64px); }
+
+.prijava {
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto;
+  padding: 0; background: var(--bg-sheet); color: var(--text-1);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+}
+.prijava::backdrop { background: rgba(0, 0, 0, 0.45); }
+:root[data-theme="light"] .prijava::backdrop { background: rgba(20, 22, 26, 0.28); }
+.prijava__forma { display: grid; gap: var(--sp-4); padding: var(--sp-6); }
+.prijava__forma h2 { margin: 0; font-family: var(--font-serif); font-weight: 500; font-size: var(--fs-heading); }
+.prijava__napomena { margin: 0; color: var(--text-2); font-size: var(--fs-meta); line-height: var(--lh-body); }
+.prijava__napomena strong { color: var(--text-1); font-weight: 500; }
+.prijava__polje { display: grid; gap: var(--sp-2); }
+.prijava__polje label { font-size: var(--fs-meta); color: var(--text-2); }
+.prijava__polje select, .prijava__polje textarea {
+  width: 100%; min-height: 40px; padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-input); color: var(--text-1); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); font: inherit; font-size: var(--fs-body);
+}
+.prijava__polje textarea { min-height: 128px; resize: vertical; }
+.prijava__polje select:focus-visible, .prijava__polje textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.prijava__polje [aria-invalid="true"] { border-color: var(--attention); }
+.prijava__pomoc { margin: 0; color: var(--text-3); font-size: var(--fs-small); }
+.prijava__greska { margin: 0; color: var(--attention); font-size: var(--fs-small); }
+.prijava__ishod { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: var(--fs-meta); }
+.prijava__ishod--uspeh { border-left: 3px solid var(--state-active); }
+.prijava__ishod--greska { border-left: 3px solid var(--attention); }
+.prijava__dno { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.prijava__dno .text-btn { min-height: 40px; }
+@media (max-width: 640px) {
+  .prijava-dugme { right: var(--sp-3); bottom: var(--sp-3); }
+  .prijava__forma { padding: var(--sp-4); }
+}

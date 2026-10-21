@@ -256,7 +256,7 @@
 <h2>14. Procedura brisanja i izvoza podataka</h2>
 <h3>14.1 Procedura brisanja naloga (GDPR čl. 17)</h3>
 <ol>
-  <li>Endpoint <code>DELETE /api/gdpr/account</code> postoji i izvršava anonimizaciju odmah po pozivu, ali trenutno <strong>nije izložen kao samouslužno dugme</strong> u podešavanjima platforme — jedini put je zahtev na benny13.n@gmail.com (ili direktan autentifikovan API poziv za tehničke/integracione korisnike)</li>
+  <li>Endpoint <code>DELETE /api/gdpr/account</code> postoji i izvršava anonimizaciju odmah po pozivu. Korisnik ga pokreće sam, dugmetom „Obriši nalog“ u Podešavanjima klasičnog interfejsa; zahtev se može poslati i na benny13.n@gmail.com</li>
   <li>Verifikacija identiteta (email potvrda pošiljaoca zahteva)</li>
   <li><strong>Po odobrenju zahteva, izvršenje je trenutno (bez čekanja u redu):</strong> identifikacioni podaci naloga (email, ime) se anonimizuju (npr. <code>deleted_xxxxxxxx@deleted.vindex.rs</code>); email notifikacije se deaktiviraju; radnja se upisuje u nepromenjivi audit log</li>
   <li><strong>Zadržava se nepromenjeno:</strong> predmeti, klijenti i dokumenti povezani sa nalogom — u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ovi podaci ostaju zaštićeni istim merama enkripcije i kontrole pristupa kao i ranije, ali se ne brišu automatski povodom brisanja naloga</li>

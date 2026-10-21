@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bezbednost i zaštita podataka — Vindex</title>
-<meta name="description" content="Kako Vindex štiti pristup podacima, kako označava AI rezultate i gde su granice zaštite.">
+<meta name="description" content="Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu, kako se izvoze i brišu — opisano onako kako Vindex stvarno radi.">
 <link rel="canonical" href="https://vindex.rs/bezbednost">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d0e10">
@@ -12,7 +12,7 @@
 <meta property="og:locale" content="sr_RS">
 <meta property="og:site_name" content="Vindex">
 <meta property="og:title" content="Bezbednost i zaštita podataka — Vindex">
-<meta property="og:description" content="Kako Vindex štiti pristup podacima, kako označava AI rezultate i gde su granice zaštite.">
+<meta property="og:description" content="Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu, kako se izvoze i brišu — opisano onako kako Vindex stvarno radi.">
 <meta property="og:url" content="https://vindex.rs/bezbednost">
 <meta property="og:image" content="https://vindex.rs/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
-<link rel="stylesheet" href="/v2/site/sajt.css?v=9a7b146811">
+<link rel="stylesheet" href="/v2/site/sajt.css?v=1281ed4289">
 <!-- Generisano: scripts/gradi_sajt.py iz site/_izvor/bezbednost.html i site/funkcije.json. Ne menjati ručno. -->
 </head>
 <body class="sajt">
@@ -31,17 +31,17 @@
 <header class="zaglavlje">
   <div class="okvir">
     <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
-    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost" aria-current="page">Bezbednost</a></li></ul></nav>
+    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/bezbednost" aria-current="page">Bezbednost</a></li></ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
-      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+      <a class="dugme dugme--malo" href="/beta">Prijavi se za rani pristup</a>
     </div>
     <details class="meni-mob">
       <summary>Meni</summary>
       <div class="meni-mob__panel">
-        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost" aria-current="page">Bezbednost</a></li></ul></nav>
+        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/bezbednost" aria-current="page">Bezbednost</a></li></ul></nav>
         <div class="meni-mob__akcije">
-          <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+          <a class="dugme dugme--malo" href="/beta">Prijavi se za rani pristup</a>
           <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
         </div>
       </div>
@@ -52,67 +52,175 @@
 <section class="uvod uvod--strana" aria-labelledby="naslov">
   <div class="okvir">
     <p class="nadnaslov">Bezbednost i zaštita podataka</p>
-    <h1 id="naslov">Kako Vindex štiti pristup podacima i gde su granice te zaštite.</h1>
-    <p class="vodeci">Ova stranica opisuje samo mehanizme koji postoje u kodu aplikacije i provereni su automatskim testovima. Vindex
-      nema nezavisnu bezbednosnu sertifikaciju niti spoljno ispitivanje prodora.</p>
+    <h1 id="naslov">Vaši podaci, jasno objašnjeni.</h1>
+    <p class="vodeci">Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu i šta se dešava pri izvozu i brisanju — opisano
+      onako kako aplikacija stvarno radi. Pravno obavezujući opis obrade je u <a class="tekst-link" href="/privacy">Politici privatnosti</a>.</p>
+    <nav class="pitanja-nav" aria-label="Pitanja na ovoj stranici">
+      <ul>
+        <li><a href="#pristup">Ko može da pristupi?</a></li>
+        <li><a href="#cuvanje">Gde se čuvaju?</a></li>
+        <li><a href="#ai">Šta ide AI modelu?</a></li>
+        <li><a href="#dokumenti">Kako su dokumenti zaštićeni?</a></li>
+        <li><a href="#izvoz">Kako se izvoze?</a></li>
+        <li><a href="#brisanje">Šta pri brisanju?</a></li>
+        <li><a href="#upravljanje">Ko upravlja podacima?</a></li>
+        <li><a href="#poredjenje">Vindex i opšti AI asistent</a></li>
+      </ul>
+    </nav>
   </div>
 </section>
 
-<section class="odeljak" aria-labelledby="pristup-naslov">
-  <div class="okvir">
-    <h2 id="pristup-naslov">Pristup i izolacija podataka</h2>
-    <ul class="mreza">
-      <li><h3>Prijava</h3><p>Pristup aplikaciji zahteva prijavu na Vindex nalog. Radni prostor V2 koristi istu sesiju i nema sopstvenu prijavu.</p></li>
-      <li><h3>Samo predmeti naloga</h3><p>Server iz prijave određuje ko traži podatke i vraća samo predmete kojima taj nalog ima pristup. Tuđ predmet daje isti odgovor kao nepostojeći.</p></li>
-      <li><h3>Granica je na serveru</h3><p>Aplikacioni server pristupa bazi privilegovanim servisnim ključem. Zato granicu pristupa sprovodi provera na serveru, a ne isključivo pravila same baze.</p></li>
-    </ul>
+<section class="odeljak" id="pristup" aria-labelledby="pristup-naslov">
+  <div class="okvir pitanje">
+    <h2 id="pristup-naslov" class="otkrij">Ko može da pristupi mojim podacima?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <p><strong>Vi, preko svog naloga.</strong> Pristup aplikaciji zahteva prijavu. Server iz prijave određuje ko traži podatke
+        i vraća samo predmete kojima taj nalog ima pristup; tuđ predmet daje isti odgovor kao nepostojeći.</p>
+      <p><strong>Granica je na serveru.</strong> Aplikacioni server pristupa bazi privilegovanim servisnim ključem, pa granicu
+        pristupa sprovodi provera na serveru pri svakom zahtevu, a ne isključivo pravila same baze.</p>
+      <p><strong>Administrator sistema.</strong> Tehnički pristup bazi i skladištu ima ovlašćeni administrator, preko naloga
+        pružalaca infrastrukture, i koristi ga samo za bezbednosni incident ili kritičnu tehničku grešku. Takav pristup ne beleži
+        evidencija aplikacije.</p>
+    </div>
   </div>
 </section>
 
-<section class="odeljak odeljak--tih" aria-labelledby="ai-naslov">
-  <div class="okvir">
-    <h2 id="ai-naslov">AI rezultati i ljudska kontrola</h2>
-    <ul class="mreza">
-      <li><h3>Jezički model spoljnog dobavljača</h3><p>Pravna pitanja, nacrti, savetnici i deo analize predmeta koriste jezički model spoljnog dobavljača. Tekst koji se šalje modelu i dobavljač su opisani u dokumentu <a class="tekst-link" href="/ai-disclosure">Upotreba AI</a>.</p></li>
-      <li><h3>Poreklo i izvori</h3><p>Stavke analize nose poreklo, a AI analiza je uvek označena. Odgovor na pravno pitanje navodi propise; član koji ne postoji u izvorima se odbija.</p></li>
-      <li><h3>Odluka ostaje advokatu</h3><p>Rokovi, izdvojeni podaci, vrsta dokumenta, nacrti i znanje kancelarije postaju važeći tek posle odluke advokata. Model može da pogreši; zato ništa od toga ne postaje važeće samo.</p></li>
-    </ul>
+<section class="odeljak odeljak--tih" id="cuvanje" aria-labelledby="cuvanje-naslov">
+  <div class="okvir pitanje">
+    <h2 id="cuvanje-naslov" class="otkrij">Gde se čuvaju podaci?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <p>Vindex radi na infrastrukturi spoljnih pružalaca usluga. Svaki dobija samo podatke potrebne za svoj deo posla.</p>
+      <div class="tabela-omot">
+        <table class="tabela">
+          <caption class="sr-only">Pružaoci usluga i podaci koje obrađuju</caption>
+          <thead><tr><th scope="col">Pružalac</th><th scope="col">Uloga</th><th scope="col">Podaci</th><th scope="col">Lokacija</th></tr></thead>
+          <tbody>
+            <tr><td data-label="Pružalac">Supabase</td><td data-label="Uloga">Baza, skladište fajlova, prijava</td><td data-label="Podaci">Predmeti, klijenti, dokumenti i izdvojeni tekst, nalog</td><td data-label="Lokacija">EU (Frankfurt)</td></tr>
+            <tr><td data-label="Pružalac">Render</td><td data-label="Uloga">Aplikacioni server</td><td data-label="Podaci">Zahtevi u obradi, aplikacioni logovi</td><td data-label="Lokacija">SAD</td></tr>
+            <tr><td data-label="Pružalac">OpenAI</td><td data-label="Uloga">Jezički model</td><td data-label="Podaci">Tekst koji šalje funkcija koju pokrenete (videti ispod)</td><td data-label="Lokacija">SAD i EU</td></tr>
+            <tr><td data-label="Pružalac">Pinecone</td><td data-label="Uloga">Pretraga po značenju</td><td data-label="Podaci">Vektorski zapisi i tekstualni segmenti dokumenata</td><td data-label="Lokacija">SAD</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tiho">Zaključenje standardnih ugovornih klauzula (SCC) sa dobavljačima u SAD nije potvrđeno. Automatske rezervne
+        kopije baze trenutno nisu uključene. Detalji: <a class="tekst-link" href="/privacy">Politika privatnosti</a>.</p>
+    </div>
   </div>
 </section>
 
-<section class="odeljak" aria-labelledby="cuvanje-naslov">
-  <div class="okvir">
-    <h2 id="cuvanje-naslov">Čuvanje i šifrovanje</h2>
-    <ul class="mreza">
-      <li><h3>Originalni fajlovi iz prijema</h3><p>Fajl primljen kroz prijem dokumenata šifruje se na aplikacionom serveru pre čuvanja u skladištu.</p></li>
-      <li><h3>Izdvojeni tekst</h3><p>Tekst izdvojen iz dokumenta čuva se u bazi da bi pretraga radila i nije dodatno šifrovan na nivou aplikacije.</p></li>
-      <li><h3>Osetljiva polja klijenta</h3><p>JMBG, broj pasoša i PIB klijenta čuvaju se šifrovani na nivou aplikacije; po tim poljima se ne pretražuje.</p></li>
-    </ul>
-    <p class="tiho">Za ostale podatke važi zaštita pružalaca infrastrukture na kojima aplikacija radi; ovaj opis je ne proširuje niti je nezavisno potvrđuje. Veza sa sajtom i aplikacijom koristi HTTPS.</p>
+<section class="odeljak" id="ai" aria-labelledby="ai-naslov">
+  <div class="okvir pitanje">
+    <h2 id="ai-naslov" class="otkrij">Šta se šalje AI modelu?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <p><strong>Samo ono što traži funkcija koju pokrenete.</strong> Pravno pitanje, savetnik, nacrt podneska, deo analize
+        predmeta i predlog podataka iz opisa ili dokumenta šalju jezičkom modelu spoljnog dobavljača (OpenAI, preko API-ja) tekst
+        potreban za taj zadatak: vaše pitanje i relevantne delove predmeta ili dokumenta.</p>
+      <p><strong>Obrada nije samo u Vindexu.</strong> Taj tekst napušta Vindexovu infrastrukturu i obrađuje ga dobavljač prema
+        svojoj politici za API; podaci poslati preko API-ja, prema toj politici, ne koriste se za treniranje modela i čuvaju se
+        ograničeno vreme. Šta tačno ide modelu piše u dokumentu <a class="tekst-link" href="/ai-disclosure">Upotreba AI</a>.</p>
+      <p><strong>Rezultat je predlog.</strong> Model može da pogreši. Zato je AI rezultat označen, odgovor navodi izvore, a rok,
+        podatak i nacrt postaju važeći tek posle vaše odluke.</p>
+    </div>
   </div>
 </section>
 
-<section class="odeljak odeljak--tih" aria-labelledby="evidencija-naslov">
-  <div class="okvir">
-    <h2 id="evidencija-naslov">Evidencija i vaši podaci</h2>
-    <ul class="mreza">
-      <li><h3>Promene u predmetu</h3><p>Promene stanja predmeta i odluke o rokovima beleže se kao događaji predmeta sa poreklom. To nije potpun revizorski trag svih radnji na nalogu.</p></li>
-      <li><h3>Izvoz i anonimizacija</h3><p>Izvoz podataka naloga i anonimizacija naloga dostupni su u klasičnom interfejsu aplikacije. Predmeti i spisi se pri anonimizaciji zadržavaju zbog obaveze čuvanja spisa.</p></li>
-      <li><h3>Greška se kaže</h3><p>Kada podaci ne mogu da se učitaju ili ishod upisa nije poznat, aplikacija to kaže umesto da prikaže praznu listu ili lažan uspeh.</p></li>
-    </ul>
+<section class="odeljak odeljak--tih" id="dokumenti" aria-labelledby="dokumenti-naslov">
+  <div class="okvir pitanje">
+    <h2 id="dokumenti-naslov" class="otkrij">Kako su dokumenti zaštićeni?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <ul class="lista">
+        <li><strong>U prenosu:</strong> veza sa sajtom i aplikacijom koristi HTTPS.</li>
+        <li><strong>Originalni fajl iz prijema</strong> šifruje se na aplikacionom serveru pre čuvanja u skladištu.</li>
+        <li><strong>Osetljiva polja klijenta</strong> (JMBG, broj pasoša, PIB) čuvaju se šifrovana na nivou aplikacije; po njima se zato ne pretražuje.</li>
+        <li><strong>Izdvojeni tekst dokumenta</strong> čuva se u bazi radi pretrage i nije dodatno šifrovan na nivou aplikacije;
+          isto važi za tekstualne segmente u Pinecone-u i fajlove poslate kroz klijentski portal.</li>
+        <li><strong>Ostali podaci</strong> imaju zaštitu pružalaca infrastrukture na kojima aplikacija radi.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
-<section class="odeljak" aria-labelledby="dokumenti-naslov">
+<section class="odeljak" id="izvoz" aria-labelledby="izvoz-naslov">
+  <div class="okvir pitanje">
+    <h2 id="izvoz-naslov" class="otkrij">Kako se podaci izvoze?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <ul class="lista">
+        <li><strong>Podaci naloga i predmeta:</strong> u klasičnom interfejsu (Podešavanja) preuzimate ZIP arhivu sa JSON
+          fajlovima: predmeti, klijenti, stavke naplate, beleške, ročišta, hronologija, komentari i podaci o dokumentima sa
+          izdvojenim tekstom.</li>
+        <li><strong>Originalni fajlovi</strong> (PDF, DOCX i drugi) nisu u toj arhivi; dostavljaju se na zahtev.</li>
+        <li><strong>Nacrt podneska</strong> preuzimate pojedinačno kao Word dokument.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" id="brisanje" aria-labelledby="brisanje-naslov">
+  <div class="okvir pitanje">
+    <h2 id="brisanje-naslov" class="otkrij">Šta se dešava pri brisanju?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <ul class="lista">
+        <li><strong>Nalog:</strong> brisanje naloga pokrećete sami u klasičnom interfejsu (Podešavanja). Ime i adresa naloga se
+          odmah anonimizuju; radnja je nepovratna.</li>
+        <li><strong>Predmeti i spisi</strong> se pri tome zadržavaju, zbog obaveze advokata da čuva spise predmeta. Njihovo brisanje
+          rešava se posebnim pisanim zahtevom.</li>
+        <li><strong>Tekstualni segmenti u Pinecone-u</strong> se brisanjem naloga ne brišu; poseban rok za njih nije utvrđen.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="odeljak" id="upravljanje" aria-labelledby="upravljanje-naslov">
+  <div class="okvir pitanje">
+    <h2 id="upravljanje-naslov" class="otkrij">Ko upravlja podacima?</h2>
+    <div class="pitanje__odgovor otkrij">
+      <p><strong>Podaci o vašem nalogu</strong> (nalog, komunikacija, tehničke evidencije): rukovalac je Vindex — Benjamin Nađ,
+        osnivač Vindex AI.</p>
+      <p><strong>Podaci o vašim klijentima i strankama</strong> u predmetima: rukovalac ste vi, advokat ili kancelarija, jer vi
+        određujete svrhu obrade. Vindex te podatke obrađuje u vaše ime, kao obrađivač, samo radi funkcija koje pokrenete. Odnos
+        uređuje <a class="tekst-link" href="/dpa">Ugovor o obradi podataka</a>, koji stupa na snagu potpisivanjem.</p>
+    </div>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" id="poredjenje" aria-labelledby="poredjenje-naslov">
   <div class="okvir">
-    <h2 id="dokumenti-naslov">Pravni dokumenti</h2>
-    <p class="uvodni">Uslovi korišćenja, obrada podataka i upotreba AI uređeni su posebnim dokumentima.</p>
-    <ul class="mreza">
-      <li><h3><a class="tekst-link" href="/privacy">Politika privatnosti</a></h3></li>
-      <li><h3><a class="tekst-link" href="/terms">Uslovi korišćenja</a></h3></li>
-      <li><h3><a class="tekst-link" href="/dpa">Ugovor o obradi podataka</a></h3></li>
-      <li><h3><a class="tekst-link" href="/ai-disclosure">Upotreba AI</a></h3></li>
+    <h2 id="poredjenje-naslov" class="otkrij">Vindex i opšti AI asistent</h2>
+    <p class="uvodni otkrij">Opšti AI asistenti, kao što je ChatGPT, svestrani su alati za pitanja, pisanje i rad sa priloženim
+      fajlovima, a mogu da pamte kontekst razgovora i projekata. Vindex je napravljen za drugačiji posao: za rad u okviru predmeta.
+      Poređenje opisuje namenu, ne tvrdi da je jedan alat bezbedniji od drugog — to zavisi od plana i podešavanja koja koristite.</p>
+    <div class="tabela-omot otkrij">
+      <table class="tabela tabela--poredjenje">
+        <caption class="sr-only">Poređenje namene opšteg AI asistenta i Vindexa</caption>
+        <thead><tr><th scope="col">Pitanje</th><th scope="col">Opšti AI asistent</th><th scope="col">Vindex</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Namena</th><td data-label="Opšti AI asistent">Širok spektar zadataka: pitanja, pisanje, analiza teksta.</td><td data-label="Vindex">Rad advokata u predmetu: dokumenti, dokazi, rokovi, pravna pitanja i nacrti.</td></tr>
+          <tr><th scope="row">Organizacija rada</th><td data-label="Opšti AI asistent">Razgovori i projekti; strukturu predmeta uređujete sami.</td><td data-label="Vindex">Predmet je osnovna celina: klijenti, dokumenti, ročišta, zadaci i hronologija.</td></tr>
+          <tr><th scope="row">Dokumenti</th><td data-label="Opšti AI asistent">Fajlove prilažete razgovoru ili projektu.</td><td data-label="Vindex">Dokumenti pripadaju predmetu; izdvojeni podaci i tvrdnje ostaju vezani za dokument.</td></tr>
+          <tr><th scope="row">Izvori</th><td data-label="Opšti AI asistent">Zavisi od načina korišćenja i alata koje uključite.</td><td data-label="Vindex">Odgovor navodi propise; član koji ne postoji u izvorima se odbija.</td></tr>
+          <tr><th scope="row">Ljudska potvrda</th><td data-label="Opšti AI asistent">Odgovor je tekst koji sami procenjujete.</td><td data-label="Vindex">Rok, podatak i nacrt imaju izričit korak potvrde pre nego što postanu važeći.</td></tr>
+          <tr><th scope="row">Kontinuitet</th><td data-label="Opšti AI asistent">Kontekst razgovora ili projekta.</td><td data-label="Vindex">Šta se promenilo u predmetu, šta traži pažnju i sledeći korak.</td></tr>
+          <tr><th scope="row">Jezički model</th><td data-label="Opšti AI asistent">Model dobavljača asistenta.</td><td data-label="Vindex">Model spoljnog dobavljača (OpenAI) preko API-ja, za funkcije koje ga koriste.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="odeljak" aria-labelledby="granice-naslov">
+  <div class="okvir">
+    <h2 id="granice-naslov" class="otkrij">Šta je dobro da znate pre početka</h2>
+    <ul class="kartice kartice--2">
+      <li class="kartica otkrij"><h3>Nezavisna provera</h3><p>Vindex nema nezavisnu bezbednosnu sertifikaciju niti spoljno ispitivanje prodora. Opis na ovoj stranici zasniva se na kodu aplikacije i automatskim testovima.</p></li>
+      <li class="kartica otkrij"><h3>Rezervne kopije</h3><p>Aktivni plan baze ne uključuje automatske rezervne kopije, pa Vindex ne obećava rok oporavka podataka.</p></li>
+      <li class="kartica otkrij"><h3>Evidencija radnji</h3><p>Promene stanja predmeta i odluke o rokovima beleže se kao događaji predmeta. To nije potpun revizorski trag svih radnji na nalogu.</p></li>
+      <li class="kartica otkrij"><h3>Prijava problema</h3><p>Iz aplikacije možete prijaviti grešku ili netačan AI odgovor; prijava ne prilaže sadržaj predmeta.</p></li>
     </ul>
+    <p class="otkrij">Pravni dokumenti:
+      <a class="tekst-link" href="/privacy">Politika privatnosti</a> ·
+      <a class="tekst-link" href="/terms">Uslovi korišćenja</a> ·
+      <a class="tekst-link" href="/dpa">Ugovor o obradi podataka</a> ·
+      <a class="tekst-link" href="/ai-disclosure">Upotreba AI</a></p>
   </div>
 </section>
 </main>
@@ -121,7 +229,7 @@
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+        <p>Pravni radni prostor: predmeti, dokumenti, dokazi, rokovi i pravna pitanja, povezani sa svojim izvorom.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -129,9 +237,8 @@
           <li><a href="/kako-radi">Kako radi</a></li>
           <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
-          <li><a href="/razvoj">Razvoj</a></li>
           <li><a href="/bezbednost">Bezbednost</a></li>
-          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/beta">Rani pristup</a></li>
           <li><a href="/app">Prijava u aplikaciju</a></li>
         </ul>
       </nav>
@@ -154,6 +261,6 @@
 </footer>
 </div>
 <script src="/v2/site/potpis.js"></script>
-<script src="/v2/site/sajt.js?v=9a7b146811"></script>
+<script src="/v2/site/sajt.js?v=1281ed4289"></script>
 </body>
 </html>

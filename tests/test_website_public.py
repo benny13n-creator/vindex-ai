@@ -50,12 +50,14 @@ import api  # noqa: E402
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Website V2: javne stranice (generiše scripts/gradi_sajt.py).
-STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"]
+# Website V3: /razvoj je povučen (planovi razvoja nisu javni) — vidi POVUCENE.
+STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"]
 
 # Stare adrese bez sopstvene stranice → 301 na stranicu koja ih nasleđuje.
 POVUCENE = {
     "/sposobnosti": "/funkcionalnosti", "/platforma": "/kako-radi", "/kontakt": "/beta",
     "/web3": "/", "/vizija": "/", "/tehnologija": "/",
+    "/razvoj": "/funkcionalnosti",
 }
 
 # Ulaz u aplikaciju: `/app` (founder). Isključen V2 primarni prekidač → legacy
@@ -567,6 +569,10 @@ def test_registar_je_potpun_i_dosledan():
 
 
 def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
+    """Website V3: katalog nema statusne oznake (posetilac ne čita interne kodove), ali
+    sadrži TAČNO dostupne javne funkcije, interni status ostaje u `data-status`, javna
+    formulacija (sa granicom funkcije) je prikazana u celosti, a funkcija koja radi samo
+    u klasičnom interfejsu to i kaže."""
     reg = _registar()
     na_sajtu = _stavke(_tekst(klijent, "/funkcionalnosti"))
     ocekivano = {f["id"]: f for f in reg["funkcije"] if f["javno"] and f["status"] in JAVNI_KATALOG}
@@ -575,19 +581,40 @@ def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
     for fid, (status, tekst) in na_sajtu.items():
         f = ocekivano[fid]
         assert status == f["status"], f"{fid}: status na sajtu {status}, u registru {f['status']}"
-        assert reg["statusi"][status]["javno"] in tekst, f"{fid}: nema vidljive oznake statusa"
         # Ograničenje je deo javne formulacije — ne sme se izgubiti putem.
         assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
+        if status == "LEGACY_ONLY":
+            assert "klasičnom interfejsu" in tekst, f"{fid}: ne kaže da radi samo u klasičnom interfejsu"
+        else:
+            assert "U aplikaciji:" in tekst, f"{fid}: ne kaže gde je u aplikaciji"
+    vidljivo = _cist_tekst(klijent, "/funkcionalnosti")
+    for s_ in ("Dostupno uz ograničenje", "Klasični interfejs", "U razvoju"):
+        assert s_ not in vidljivo, f"katalog i dalje prikazuje statusnu oznaku {s_!r}"
 
 
-def test_razvoj_prikazuje_samo_odobrene_planove_kao_nedostupne(klijent):
+def test_planovi_razvoja_nisu_javni(klijent):
+    """Website V3 (founder): planovi razvoja se ne objavljuju. /razvoj trajno preusmerava,
+    nijedna javna stranica, sitemap ni javni asset ne navode planiranu funkciju, a registar
+    (interni izvor istine) i dalje čuva planove."""
     reg = _registar()
-    na_sajtu = _stavke(_tekst(klijent, "/razvoj"))
-    ocekivano = {f["id"] for f in reg["funkcije"] if f["javno"] and f["status"] == "PLANNED_APPROVED"}
-    assert set(na_sajtu) == ocekivano
-    for fid, (status, tekst) in na_sajtu.items():
-        assert status == "PLANNED_APPROVED"
-        assert "Nije dostupno" in tekst and "još nije dostupno" in tekst, f"{fid}: plan nije jasno označen kao nedostupan"
+    planovi = [f for f in reg["funkcije"] if f["status"] == "PLANNED_APPROVED"]
+    assert planovi, "registar više nema planove — interni podaci ne smeju nestati"
+    r = klijent.get("/razvoj", follow_redirects=False)
+    assert r.status_code == 301 and r.headers["location"] == "/funkcionalnosti"
+    assert "/razvoj" not in klijent.get("/sitemap.xml").text
+    povrsine = [_cist_tekst(klijent, ruta) for ruta in STRANICE]
+    povrsine += [klijent.get(a).text for a in ("/v2/site/sajt.js", "/v2/site/sajt.css")]
+    for ruta in STRANICE:
+        assert 'href="/razvoj"' not in _tekst(klijent, ruta), f"{ruta} linkuje /razvoj"
+    for f in planovi:
+        for t in povrsine:
+            assert f["naziv"].lower() not in t.lower(), f"plan {f['id']} ({f['naziv']}) je javno vidljiv"
+            assert f'f-{f["id"]}' not in t
+    for t in povrsine[:len(STRANICE)]:
+        assert not re.search(r"\bu razvoju\b|uskoro|planirano|roadmap", t, re.I), "javna stranica najavljuje razvoj"
+    # Registar se ne servira kao javni fajl.
+    for put in ("/site/funkcije.json", "/v2/site/funkcije.json", "/funkcije.json"):
+        assert klijent.get(put).status_code == 404, put
 
 
 @pytest.mark.parametrize("ruta", STRANICE)

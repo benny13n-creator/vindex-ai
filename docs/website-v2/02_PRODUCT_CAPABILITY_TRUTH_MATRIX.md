@@ -4,7 +4,8 @@
 > Produkcija u trenutku provere: `77733e11a1cce9d95b4c893216742fcb396e80ec`; datum provere: 2026-10-20.
 
 Status određuje šta sajt sme da kaže. Javno se prikazuju samo stavke sa `javno: true` i statusom
-V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog) ili PLANNED_APPROVED (razvoj).
+V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog). PLANNED_APPROVED se od Website V3
+ne objavljuje (planovi razvoja nisu javni; /razvoj je povučen).
 
 ## Statusi
 
