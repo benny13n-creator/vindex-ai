@@ -389,12 +389,12 @@ def test_aplikacija_i_sajt_ne_navode_izmisljen_subjekt_ni_privatni_status():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Final Closure — kontakt na domenu osnivača, uloge, beta osnov, naplata
+# Final Closure — stvarni kontakt osnivača, uloge, beta osnov, naplata
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Osnivač je potvrdio: `vindex.ai` nije njegov domen; jedini domen je `vindex.rs`.
-# Kontakt adresa na tuđem domenu šalje zahteve lica i podatke trećem licu.
-TUDJA_ADRESA = re.compile(r"[\w.+-]+@vindex\.ai\b", re.I)
+# Neaktivne @vindex.rs adrese ne primaju poštu; javni kontakt je Gmail koji je osnivač potvrdio.
+NEAKTIVNA_ADRESA = re.compile(r"[\w.+-]+@vindex\.(?:ai|rs)\b", re.I)
 
 # Fajlovi iz kojih korisnik dobija kontakt adresu: pravne stranice, legacy
 # aplikacija i serverske poruke. (`ics_export.py` koristi `@vindex.ai` samo kao
@@ -412,16 +412,16 @@ def _koren(p):
 
 
 @pytest.mark.parametrize("fajl", KONTAKT_POVRSINE)
-def test_nijedna_kontakt_adresa_nije_na_tudjem_domenu(fajl):
+def test_nijedna_kontakt_adresa_nije_na_neaktivnom_domenu(fajl):
     with open(_koren(fajl), encoding="utf-8-sig") as f:
-        nadjeno = TUDJA_ADRESA.findall(f.read())
+        nadjeno = NEAKTIVNA_ADRESA.findall(f.read())
     assert not nadjeno, f"{fajl}: {sorted(set(nadjeno))}"
 
 
-def test_pravni_dokumenti_upucuju_na_vindex_rs(tekstovi):
+def test_pravni_dokumenti_upucuju_na_potvrdjeni_kontakt(tekstovi):
     for ruta in ("/privacy", "/dpa", "/security", "/ai-disclosure", "/bezbednosni-list"):
-        assert "privacy@vindex.rs" in tekstovi[ruta], ruta
-    assert "kontakt@vindex.rs" in tekstovi["/terms"]
+        assert "benny13.n@gmail.com" in tekstovi[ruta], ruta
+    assert "benny13.n@gmail.com" in tekstovi["/terms"]
 
 
 def test_nema_lica_za_zastitu_podataka_koje_nije_imenovano(tekstovi):
@@ -464,3 +464,11 @@ def test_ispravke_su_vidljivo_oznacene(tekstovi):
     # Obećanje o 14 dana za izmene nije uklonjeno ni oslabljeno.
     assert "najmanje 14 dana unapred" in tekstovi["/privacy"]
     assert "najmanje 14 dana pre primene izmena" in tekstovi["/terms"]
+
+
+@pytest.mark.parametrize("fajl", KONTAKT_POVRSINE)
+def test_aktivan_javni_kontakt_je_osnivacev_gmail(fajl):
+    with open(_koren(fajl), encoding="utf-8-sig") as f:
+        tekst = f.read()
+    assert "benny13.n@gmail.com" in tekst, fajl
+    assert not NEAKTIVNA_ADRESA.search(tekst), fajl

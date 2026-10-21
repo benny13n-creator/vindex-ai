@@ -232,3 +232,8 @@ Nepromenjeno: dizajn, 7 stranica, katalog, V2 aplikacija, auth, šema, limiter.
 - `/privacy` i `/terms` sadrže „Ispravke od 2026-10-21“ i `@vindex.rs`;
 - nijedna od stranica `/privacy`, `/terms`, `/dpa`, `/security`, `/ai-disclosure`, `/bezbednosni-list`, `/status` i `/app-legacy` ne sadrži `@vindex.ai`;
 - `/sw.js` sadrži `vindex-v159`.
+
+
+## 11. Founder contact override (2026-10-21)
+
+Osnivač je kao jedinu trenutno aktuelnu javnu adresu naveo `benny13.n@gmail.com`. Korigovane su aktivne kontakt površine (13 fajlova), testovi i legacy service-worker cache `vindex-v160`. Istorijski kontakti u ranijim izveštajima nisu retroaktivno prepravljani. Za finalni GO zahtevati aktuelni CI na novom HEAD-u, proveru produkcije posle deploy-a i odgovarajuće obaveštavanje pogođenih korisnika. Osnivač potvrđuje adresu, ali nije nezavisno izvršen test prijema poruke.

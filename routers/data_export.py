@@ -33,7 +33,7 @@ Sadržaj:
   komentari.json      — komentari uz predmete
 
 Napomena: Fajlovi dokumenata (PDF, DOCX...) nisu uključeni u ovaj export.
-Za preuzimanje fajlova kontaktirajte: kontakt@vindex.rs
+Za preuzimanje fajlova kontaktirajte: benny13.n@gmail.com
 
 Prava: Imate pravo na prenosivost podataka prema ZZPL čl. 36 i GDPR čl. 20.
 """

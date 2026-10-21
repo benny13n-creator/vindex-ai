@@ -328,3 +328,15 @@ Predlog nije primenjen. Usvajanje bi menjalo samu klauzulu o 14 dana, pa bi i on
 | Uslovi opisuju beta uslugu? | Do sada nisu („pretplatni model prema važećem cenovniku“); ispravljeno |
 
 Odluka o ograničenju odgovornosti („iznos pretplate plaćen u 12 meseci“) i nadležnosti („Privredni sud u Beogradu“, iako je pružalac fizičko lice) je **usko pravno pitanje za kasniju proveru**. Ugovorni uslovi se ne menjaju bez pravne osnove, pa to ne blokira sajt.
+
+
+## K. Founder contact override — 2026-10-21 (final release amendment)
+
+Osnivač Benjamin Nađ izričito je potvrdio da je njegova **trenutna kontakt adresa** `benny13.n@gmail.com` i zahtevao da se Website V2 završi bez podešavanja `@vindex.rs` sandučića. Ova odluka zamenjuje prethodni nerešeni kontakt gate iz §I.1; **ne menja istorijski dokaz** da `vindex.rs` nema aktivne MX kontakte.
+
+- Jedini javni kontakt za privatnost, pravna pitanja, korisničku podršku i prijavu problema do daljeg je `benny13.n@gmail.com`.
+- U aktivnim tekstovima i porukama uklonjene su `privacy@vindex.rs`, `kontakt@vindex.rs` i `info@vindex.rs`. Nisu izmišljeni novi mailbox-i.
+- PROVEN: osnivač je lično naveo adresu kao trenutni kontakt. UNKNOWN: nezavisni test prijema sa druge adrese nije obavljen ovde; ne tvrditi suprotno.
+- Gmail adresa je svesni privremeni javni kontakt osnivača, ne dokaz da postoji registrovano pravno lice.
+- Odredba o 14 dana i obaveza obaveštavanja pogođenih korisnika ostaju posebna odgovornost; samo ispravka kontakta nije pravni GO za sve izmene.
+- Regression testovi proveravaju da nijedna aktivna kontakt površina ne upućuje na neaktivni `@vindex.rs` / tuđi `@vindex.ai` i da prikazuje potvrđeni Gmail.
