@@ -77,3 +77,9 @@ Poverljivost: dijalog šalje samo `kategorija`, `poruka` i `kontekst`. `kontekst
 1. **SMTP u produkciji** (UNKNOWN). Prijava radi i bez njega (trajni upis), ali email osnivaču stiže samo ako je SMTP podešen. Provera posle deploya: jedna stvarna prijava iz aplikacije sa osnivačevog naloga.
 2. **Javni repozitorijum** izlaže interne planove (§4, tačka 3). Rešenje je odluka osnivača (privatni repozitorijum), ne izmena koda.
 3. Lokacija baze „EU (Frankfurt)“ preuzeta je iz Politike privatnosti (INFERRED), nije nezavisno merena.
+
+## 6. CI ispravke na prvom HEAD-u (`584f1ed1`)
+
+- **Security Checks:** 4 nova CVE-a u `pypdf 6.19.0` (CVE-2026-113792…113795, objavljeni posle poslednjeg zelenog CI-ja; nisu posledica ovog PR-a). `pypdf==6.20.1` je najmanja verzija sa ispravkama. 1050 lokalnih testova vezanih za PDF daju isti rezultat sa starom i novom verzijom; lokalni `pip-audit` je čist uz postojeće izuzetke. Novih izuzetaka nema.
+- **Test Suite / Parity:** `test_bu007…::test_W5` je tražio svesnu proveru nove privilegovane rute `GET /api/support/admin/lista`. Ruta čita identitet samo iz `get_current_user` (verifikovan token) i poredi `user.get("email")` sa `FOUNDER_EMAILS`, bez ulaza iz tela ili upita. Broj je zato podignut sa 62 na 63, uz obrazloženje u testu. To je bio jedini pad u 11.676 testova.
+

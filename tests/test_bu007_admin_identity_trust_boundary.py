@@ -236,7 +236,10 @@ def test_W4_privilegovane_odluke_koriste_iskljucivo_user_email():
 # Snimljeno AST inventarom 2026-08-22 nad 614 ruta. Broj je namerno pribijen:
 # nova privilegovana ruta MORA da natera svesnu proveru da li prolazi kroz
 # kanonsku granicu poverenja, umesto da se tiho pridruži.
-_OCEKIVANO_PRIVILEGOVANIH = 62
+# Website V3 (2026-10-21): +1 — GET /api/support/admin/lista (routers/support.py).
+# Provereno: identitet iz `get_current_user` (verifikovan token), `user.get("email")`
+# protiv FOUNDER_EMAILS; nema ulaza iz tela ni upita (W4/W5 prolaze).
+_OCEKIVANO_PRIVILEGOVANIH = 63
 
 
 def _privilegovane_rute():
