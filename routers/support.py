@@ -88,10 +88,10 @@ class SupportPoruka(BaseModel):
 
 def _send_support_email(user_email: str, kategorija: str, poruka: str,
                          rating: Optional[int] = None, kontekst: Optional[str] = None,
-                         screenshot_base64: Optional[str] = None) -> None:
+                         screenshot_base64: Optional[str] = None) -> bool:
     if not _SMTP_HOST:
         logger.warning("SMTP nije konfigurisan — support email nije poslat")
-        return
+        return False
 
     kat_label = _KATEGORIJE.get(kategorija, "Ostalo")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -150,7 +150,10 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
 </div>
 </body></html>"""
 
-    for to_addr in FOUNDER_EMAILS:
+    poslatih = 0
+    # Poruke idu na osnivačevu potvrđenu javnu adresu, ne na nepoznate
+    # istorijske support primaoce. Ovo ne menja FOUNDER_EMAILS za autorizaciju.
+    for to_addr in ("benny13.n@gmail.com",):
         try:
             msg = MIMEMultipart("mixed")
             msg["Subject"] = f"[Vindex podrška] {kat_label} — od {user_email}"
@@ -173,14 +176,16 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
                 smtp.starttls()
                 smtp.login(_SMTP_USER, _SMTP_PASS)
                 smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
+                poslatih += 1
         except Exception as e:
-            logger.error("Support email greška ka %s: %s", to_addr, e)
+            logger.error("Support email nije poslat (%s)", type(e).__name__)
+    return poslatih > 0
 
 
 async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, poruka: str,
-                        rating: Optional[int] = None, kontekst: Optional[str] = None) -> None:
+                        rating: Optional[int] = None, kontekst: Optional[str] = None) -> bool:
     try:
-        await asyncio.to_thread(
+        rezultat = await asyncio.to_thread(
             lambda: supa.table("support_tickets").insert({
                 "user_id":    user_id,
                 "email":      user_email,
@@ -190,8 +195,10 @@ async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, por
                 "kontekst":   kontekst,
             }).execute()
         )
+        return bool(getattr(rezultat, "data", None))
     except Exception as e:
-        logger.debug("support_tickets tabela možda ne postoji: %s", e)
+        logger.warning("Support ticket nije sačuvan (%s)", type(e).__name__)
+        return False
 
 
 @router.post("/api/support/poruka")
@@ -204,14 +211,35 @@ async def support_poruka(
     user_id    = user["user_id"]
     user_email = user.get("email", "")
 
-    supa = _get_supa()
-
-    await asyncio.to_thread(
+    # Ne vraćati lažno "poruka je poslata": SMTP i tabela su nezavisni
+    # odredišni kanali. Nijedan neuspeh ne sme izgledati kao potvrđen prijem.
+    email_poslat = await asyncio.to_thread(
         _send_support_email, user_email, payload.kategorija, payload.poruka,
         payload.rating, payload.kontekst, payload.screenshot_base64,
     )
-    await _save_ticket(supa, user_id, user_email, payload.kategorija, payload.poruka,
-                        payload.rating, payload.kontekst)
-
-    logger.info("Support poruka primljena od %s [%s]", user_email, payload.kategorija)
-    return {"ok": True, "message": "Poruka je poslata. Odgovorićemo u roku od 24h."}
+    sacuvano = False
+    try:
+        sacuvano = await _save_ticket(
+            _get_supa(), user_id, user_email, payload.kategorija,
+            payload.poruka, payload.rating, payload.kontekst,
+        )
+    except Exception as exc:
+        logger.warning("Support skladište nije dostupno (%s)", type(exc).__name__)
+    if not (email_poslat or sacuvano):
+        raise HTTPException(
+            status_code=503,
+            detail="Prijava nije potvrđena: nije sačuvana niti poslata e-poštom. "
+                   "Pošaljite poruku direktno na benny13.n@gmail.com.",
+        )
+    logger.info("Support prijava prihvaćena [%s]; email_poslat=%s, sacuvano=%s",
+                payload.kategorija, email_poslat, sacuvano)
+    return {
+        "ok": True,
+        "email_poslat": email_poslat,
+        "evidentirano": sacuvano,
+        "message": (
+            "Prijava je primljena i prosleđena osnivaču."
+            if email_poslat else
+            "Prijava je evidentirana, ali dostava email obaveštenja nije potvrđena."
+        ),
+    }

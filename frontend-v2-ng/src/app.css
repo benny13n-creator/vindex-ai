@@ -723,3 +723,24 @@ a.text-btn { text-decoration: none; }
   background: none; font: inherit; color: var(--text-2); cursor: pointer; }
 .rezimi__item:hover { color: var(--text-1); }
 .rezimi__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }
+
+
+/* Prijava problema: ne menja navigaciju, samo diskretna ugaona akcija. */
+.vx-prijava-fab { position: fixed; z-index: 85; bottom: max(20px, env(safe-area-inset-bottom)); right: max(18px, env(safe-area-inset-right)); display: grid; place-items: center; width: 52px; height: 52px; border: 1px solid var(--accent, #7aa2dc); border-radius: 50%; background: #172333; color: #c4e4ff; cursor: pointer; box-shadow: 0 9px 28px rgba(0,0,0,.38); transition: transform .2s ease, box-shadow .2s ease; }
+.vx-prijava-fab:hover { transform: translateY(-3px); box-shadow: 0 12px 35px rgba(70,139,200,.18); }
+.vx-prijava-fab:focus-visible, .vx-prijava-panel :focus-visible { outline: 2px solid #9bcfff; outline-offset: 3px; }
+.vx-prijava-panel[hidden] { display: none !important; }
+.vx-prijava-panel { position: fixed; z-index: 86; right: max(18px, env(safe-area-inset-right)); bottom: calc(86px + env(safe-area-inset-bottom)); width: min(380px, calc(100vw - 36px)); max-height: min(670px, calc(100dvh - 110px)); overflow: auto; padding: 20px; border: 1px solid #3b526d; border-radius: 12px; background: #141a21; color: #e7ebf0; box-shadow: 0 18px 70px rgba(0,0,0,.65); font: 400 14px/1.45 "IBM Plex Sans", sans-serif; }
+.vx-prijava-glava { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vx-prijava-glava h2 { font: 500 24px/1.25 "Source Serif 4", Georgia, serif; margin: 0; }
+.vx-prijava-zatvori { border: 0; color: #b5c7da; background: transparent; font-size: 26px; cursor: pointer; }
+.vx-prijava-uvod { color: #b9c3ce; margin: 10px 0 18px; }
+.vx-prijava-panel label { display: block; margin: 12px 0 5px; font-weight: 600; }
+.vx-prijava-panel select, .vx-prijava-panel textarea { display: block; width: 100%; border: 1px solid #4a5764; border-radius: 5px; padding: 10px; background: #0e1319; color: #e7ebf0; font: inherit; }
+.vx-prijava-panel textarea { resize: vertical; min-height: 112px; }
+.vx-prijava-privatnost { color: #aab8c5; font-size: 12px; margin: 10px 0; }
+.vx-prijava-ishod { border-left: 3px solid #8bb9ef; padding: 10px; background: #202c38; }
+.vx-prijava-salji { width: 100%; min-height: 42px; padding: 8px 12px; margin: 8px 0; background: #7aa2dc; color: #08131e; border: 0; border-radius: 4px; font-weight: 600; cursor: pointer; }
+.vx-prijava-salji:disabled { cursor: progress; opacity: .65; }
+.vx-prijava-mejl { display: inline-block; margin-top: 8px; color: #9bcfff; }
+@media (prefers-reduced-motion: reduce) { .vx-prijava-fab { transition: none; } .vx-prijava-fab:hover { transform: none; } }

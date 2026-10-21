@@ -4,7 +4,7 @@
   "produkcija": "77733e11a1cce9d95b4c893216742fcb396e80ec",
   "statusi": {
     "V2_AVAILABLE": {"javno": "Dostupno", "opis": "Ulaz u V2 aplikaciji, backend, ugovor pristupa i test toka postoje."},
-    "AVAILABLE_WITH_LIMITATIONS": {"javno": "Dostupno uz ograničenje", "opis": "Dostupno korisniku, uz dokumentovanu granicu kvaliteta, obuhvata, paketa ili režima."},
+    "AVAILABLE_WITH_LIMITATIONS": {"javno": "Dostupno u aplikaciji", "opis": "Dostupno korisniku, uz dokumentovanu granicu kvaliteta, obuhvata, paketa ili režima."},
     "LEGACY_ONLY": {"javno": "Klasični interfejs", "opis": "Radi kroz klasični interfejs (/app-legacy), nije u toku V2 aplikacije."},
     "IMPLEMENTED_NOT_EXPOSED": {"javno": null, "opis": "Kod i testovi postoje, ali korisnik nema funkcionalan ulaz. Ne prikazuje se javno."},
     "EXPERIMENTAL": {"javno": null, "opis": "Samo ograničen, interni ili eksperimentalni tok. Ne prikazuje se javno."},

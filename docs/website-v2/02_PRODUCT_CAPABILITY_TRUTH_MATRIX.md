@@ -11,7 +11,7 @@ V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog) ili PLANNED_APP
 | Status | Javna oznaka | Značenje | Broj stavki |
 |---|---|---|---|
 | `V2_AVAILABLE` | Dostupno | Ulaz u V2 aplikaciji, backend, ugovor pristupa i test toka postoje. | 21 |
-| `AVAILABLE_WITH_LIMITATIONS` | Dostupno uz ograničenje | Dostupno korisniku, uz dokumentovanu granicu kvaliteta, obuhvata, paketa ili režima. | 23 |
+| `AVAILABLE_WITH_LIMITATIONS` | Dostupno u aplikaciji | Dostupno korisniku, uz dokumentovanu granicu kvaliteta, obuhvata, paketa ili režima. | 23 |
 | `LEGACY_ONLY` | Klasični interfejs | Radi kroz klasični interfejs (/app-legacy), nije u toku V2 aplikacije. | 12 |
 | `IMPLEMENTED_NOT_EXPOSED` | — (ne prikazuje se) | Kod i testovi postoje, ali korisnik nema funkcionalan ulaz. Ne prikazuje se javno. | 3 |
 | `EXPERIMENTAL` | — (ne prikazuje se) | Samo ograničen, interni ili eksperimentalni tok. Ne prikazuje se javno. | 0 |

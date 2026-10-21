@@ -247,3 +247,25 @@ body.sajt {
 .sajt .legenda { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; }
 .sajt .legenda li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sajt .plan h2 { margin-bottom: 12px; }
+
+
+/* Website V2 positioning — suptilna dinamika uz postojeći dark/cyan identitet. */
+.sajt .uvod--pokret h1 { max-width: 1050px; letter-spacing: -.035em; animation: vx-pojavi .76s ease both; }
+.sajt .uvod--pokret h1 em { font-weight: inherit; font-style: normal; color: var(--accent-strong); }
+.sajt .uvod--pokret .vodeci { animation: vx-pojavi .9s .1s ease both; }
+.sajt .uvod--pokret .akcije { animation: vx-pojavi .9s .18s ease both; }
+.sajt .ziva-tacka { display: inline-block; width: 8px; height: 8px; margin-right: 9px; border-radius: 50%; background: var(--accent-strong); box-shadow: 0 0 0 4px var(--accent-quiet); animation: vx-disanje 2.8s ease-in-out infinite; vertical-align: middle; }
+.sajt .dugme--glavna { border-color: var(--accent); box-shadow: 0 5px 26px rgba(122,162,220,.12); }
+.sajt .dugme--glavna:hover { transform: translateY(-2px); box-shadow: 0 9px 34px rgba(122,162,220,.24); }
+.sajt .vrednost-traka { display: flex; flex-wrap: wrap; gap: 12px 28px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: clamp(20px,3vw,44px) 0; padding: 14px 0; color: var(--text-2); font-size: .87rem; }
+.sajt .vrednost-traka b { color: var(--accent-strong); font-size: .76rem; margin-right: 6px; font-family: "JetBrains Mono", monospace; }
+.sajt .odeljak--razlika { border-top: 1px solid var(--line); }
+.sajt .odeljak--sektori .mreza li { position: relative; transition: transform .24s var(--ease), border-color .24s var(--ease); }
+.sajt .odeljak--sektori .mreza li:hover { transform: translateY(-4px); border-color: var(--accent); }
+.sajt .odeljak--poziv { background: radial-gradient(ellipse at 75% 0%, rgba(122,162,220,.16), transparent 62%), var(--bg-sheet); border-top: 1px solid var(--line-strong); }
+@keyframes vx-pojavi { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes vx-disanje { 0%, 100% { box-shadow: 0 0 0 4px var(--accent-quiet); } 50% { box-shadow: 0 0 0 10px rgba(122,162,220,0); } }
+@media (prefers-reduced-motion: reduce) {
+  .sajt .uvod--pokret h1, .sajt .uvod--pokret .vodeci, .sajt .uvod--pokret .akcije, .sajt .ziva-tacka { animation: none !important; }
+  .sajt .dugme--glavna:hover, .sajt .odeljak--sektori .mreza li:hover { transform: none; }
+}

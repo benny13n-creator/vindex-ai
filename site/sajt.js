@@ -84,7 +84,7 @@
         dugme.hidden = true;
         prikaziIshod("uspeh", [
           "Prijava je evidentirana za adresu " + email + ".",
-          "Prijave pojedinačno pregleda tim Vindexa. Ova prijava ne otvara nalog, a potvrda se ne šalje e-poštom."
+          "Prijave pojedinačno pregleda osnivač Vindexa. Ova prijava ne otvara nalog, a potvrda se ne šalje e-poštom."
         ]);
         return;
       }
@@ -100,14 +100,14 @@
         ]);
       }
       dugme.disabled = false;
-      dugme.textContent = "Pošaljite prijavu";
+      dugme.textContent = "Prijavi se za rani pristup";
     }, function () {
       prikaziIshod("greska", [
         "Veza sa serverom je prekinuta, pa nije poznato da li je prijava sačuvana.",
         "Možete je bezbedno poslati ponovo: ista adresa se ne upisuje dva puta."
       ]);
       dugme.disabled = false;
-      dugme.textContent = "Pošaljite prijavu";
+      dugme.textContent = "Prijavi se za rani pristup";
     });
   });
 })();

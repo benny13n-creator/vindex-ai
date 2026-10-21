@@ -26,19 +26,17 @@ DOMEN = "https://vindex.rs"
 STRANICE = [
     # (izvor, izlaz, ruta, naslov, opis, stavka menija)
     ("index", "index.html", "/", "Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije",
-     "Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.", None),
+     "Vindex povezuje dokumente, predmete, rokove, dokaze i izvore u jedan radni prostor u kome stručnjak donosi odluke.", None),
     ("kako-radi", "kako-radi.html", "/kako-radi", "Kako radi — Vindex",
      "Tok rada u Vindexu od otvaranja predmeta do odluke advokata: šta radite vi, šta radi Vindex i gde je potrebna vaša potvrda.", "Kako radi"),
     ("funkcionalnosti", "funkcionalnosti.html", "/funkcionalnosti", "Funkcionalnosti — Vindex",
-     "Katalog funkcija Vindexa sa statusom dostupnosti i ograničenjima: predmeti, dokumenti, dokazi, rokovi, pravno istraživanje, nacrti, naplata.", "Funkcionalnosti"),
+     "Funkcije za organizaciju predmeta, dokumentacije, dokaza, rokova, pravnog istraživanja i nacrta.", "Funkcionalnosti"),
     ("za-advokate", "za-advokate.html", "/za-advokate", "Za advokate — Vindex",
      "Primeri toka rada u advokatskoj kancelariji sa funkcijama koje danas postoje u Vindexu, uz granice svake funkcije.", "Za advokate"),
-    ("razvoj", "razvoj.html", "/razvoj", "Razvoj — Vindex",
-     "Funkcije Vindexa za koje postoji odluka o razvoju. Nijedna od njih danas nije dostupna.", "Razvoj"),
     ("bezbednost", "bezbednost.html", "/bezbednost", "Bezbednost i zaštita podataka — Vindex",
-     "Kako Vindex štiti pristup podacima, kako označava AI rezultate i gde su granice zaštite.", "Bezbednost"),
-    ("beta", "beta.html", "/beta", "Beta testiranje — Vindex",
-     "Prijava za kontrolisano beta testiranje Vindexa za advokate i advokatske kancelarije u Srbiji.", None),
+     "Gde se čuvaju i obrađuju podaci, kako funkcioniše kontrola pristupa i kako se preuzimaju korisnički zapisi.", "Bezbednost"),
+    ("beta", "beta.html", "/beta", "Rani pristup — Vindex",
+     "Prijavite interesovanje za rani pristup pravnom operativnom sistemu Vindex AI.", None),
 ]
 JAVNI_STATUSI = ["V2_AVAILABLE", "AVAILABLE_WITH_LIMITATIONS", "LEGACY_ONLY"]
 e = html.escape
@@ -67,7 +65,7 @@ def zaglavlje(ruta: str) -> str:
     <nav aria-label="Glavna navigacija"><ul class="meni">{meni}</ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
-      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+      <a class="dugme dugme--malo" href="/beta">Prijavi se za rani pristup</a>
     </div>
     <details class="meni-mob">
       <summary>Meni</summary>
@@ -88,7 +86,7 @@ PODNOZJE = """<footer class="podnozje">
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+        <p>Dokumenti, predmeti, izvori i odluke u povezanom radnom prostoru.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -96,9 +94,8 @@ PODNOZJE = """<footer class="podnozje">
           <li><a href="/kako-radi">Kako radi</a></li>
           <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
-          <li><a href="/razvoj">Razvoj</a></li>
           <li><a href="/bezbednost">Bezbednost</a></li>
-          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/beta">Rani pristup</a></li>
           <li><a href="/app">Prijava u aplikaciju</a></li>
         </ul>
       </nav>
