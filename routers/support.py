@@ -89,9 +89,9 @@ class SupportPoruka(BaseModel):
 def _send_support_email(user_email: str, kategorija: str, poruka: str,
                          rating: Optional[int] = None, kontekst: Optional[str] = None,
                          screenshot_base64: Optional[str] = None) -> None:
-    if not _SMTP_HOST:
-        logger.warning("SMTP nije konfigurisan — support email nije poslat")
-        return
+    if not _SMTP_HOST or not _SMTP_USER or not _SMTP_PASS or not _FROM_ADDR:
+        logger.warning("SMTP nije potpuno konfigurisan — support email nije poslat")
+        return False
 
     kat_label = _KATEGORIJE.get(kategorija, "Ostalo")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -150,7 +150,7 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
 </div>
 </body></html>"""
 
-    for to_addr in FOUNDER_EMAILS:
+    for to_addr in (os.getenv("VINDEX_SUPPORT_EMAIL") or "benny13.n@gmail.com",):
         try:
             msg = MIMEMultipart("mixed")
             msg["Subject"] = f"[Vindex podrška] {kat_label} — od {user_email}"
@@ -173,8 +173,10 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
                 smtp.starttls()
                 smtp.login(_SMTP_USER, _SMTP_PASS)
                 smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
+            return True
         except Exception as e:
             logger.error("Support email greška ka %s: %s", to_addr, e)
+    return False
 
 
 async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, poruka: str,
@@ -206,10 +208,13 @@ async def support_poruka(
 
     supa = _get_supa()
 
-    await asyncio.to_thread(
+    poslato = await asyncio.to_thread(
         _send_support_email, user_email, payload.kategorija, payload.poruka,
         payload.rating, payload.kontekst, payload.screenshot_base64,
     )
+    if not poslato:
+        # Ne prijavljuj uspeh kada SMTP nedostaje ili dobavljač odbije slanje.
+        raise HTTPException(status_code=503, detail="Email prijava nije potvrđena. Pišite na benny13.n@gmail.com.")
     await _save_ticket(supa, user_id, user_email, payload.kategorija, payload.poruka,
                         payload.rating, payload.kontekst)
 

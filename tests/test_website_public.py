@@ -580,14 +580,17 @@ def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
         assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
 
 
-def test_razvoj_prikazuje_samo_odobrene_planove_kao_nedostupne(klijent):
+def test_razvoj_ne_otkriva_internu_mapu(klijent):
+    # Javna stranica ostaje dostupna radi starih URL-ova, ali bez roadmap stavki.
     reg = _registar()
     na_sajtu = _stavke(_tekst(klijent, "/razvoj"))
-    ocekivano = {f["id"] for f in reg["funkcije"] if f["javno"] and f["status"] == "PLANNED_APPROVED"}
-    assert set(na_sajtu) == ocekivano
-    for fid, (status, tekst) in na_sajtu.items():
-        assert status == "PLANNED_APPROVED"
-        assert "Nije dostupno" in tekst and "još nije dostupno" in tekst, f"{fid}: plan nije jasno označen kao nedostupan"
+    assert not na_sajtu, "javni razvojni plan mora ostati neobjavljen"
+    javno = _cist_tekst(klijent, "/razvoj").lower()
+    for f in reg["funkcije"]:
+        if f["status"] == "PLANNED_APPROVED":
+            assert f["naziv"].lower() not in javno, f"roadmap stavka objavljena: {f['id']}"
+    for ruta in ("/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"):
+        assert 'href="/razvoj"' not in _tekst(klijent, ruta), ruta
 
 
 @pytest.mark.parametrize("ruta", STRANICE)

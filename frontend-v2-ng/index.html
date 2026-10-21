@@ -21,6 +21,15 @@
   <link rel="stylesheet" href="fonts/source-serif-4/600.css">
   <link rel="stylesheet" href="src/tokens.css">
   <link rel="stylesheet" href="src/app.css">
+<style id="vx-prijava-stil">
+.vx-prijava-dugme{position:fixed;bottom:22px;right:22px;z-index:90;width:52px;height:52px;border-radius:50%;border:1px solid #5476a8;background:#315c93;color:white;box-shadow:0 10px 28px #0006;cursor:pointer;font-size:23px}
+.vx-prijava-panel{position:fixed;bottom:82px;right:22px;z-index:91;width:min(370px,calc(100vw - 36px));padding:20px;background:var(--bg-panel,#17191c);color:var(--text-1,#f1f1f1);border:1px solid var(--line-strong,#444);box-shadow:0 20px 48px #0008;border-radius:9px}
+.vx-prijava-panel h2{font-size:1.1rem;margin:0 0 10px}.vx-prijava-panel label{display:block;margin:10px 0 5px}
+.vx-prijava-panel textarea,.vx-prijava-panel select{display:block;width:100%;box-sizing:border-box;background:var(--bg-input,#111);color:inherit;border:1px solid var(--line-strong,#555);border-radius:5px;padding:9px;font:inherit}
+.vx-prijava-panel textarea{min-height:105px;resize:vertical}.vx-prijava-panel .vx-prijava-akcije{display:flex;gap:10px;margin-top:13px}
+.vx-prijava-panel button{cursor:pointer;border-radius:5px;padding:9px 13px}.vx-prijava-panel [data-poruka]{font-size:.89rem;margin:12px 0 0}
+@media(max-width:480px){.vx-prijava-dugme{bottom:12px;right:12px}.vx-prijava-panel{bottom:70px;right:12px}}
+</style>
 </head>
 <body>
   <a class="skip" href="#glavni">Preskoči na listu predmeta</a>
@@ -932,6 +941,18 @@
     <div class="toast" id="status" role="status" aria-live="polite"></div>
   </div>
 
+<button id="vx-prijava-otvori" class="vx-prijava-dugme" type="button" aria-label="Prijavite grešku ili netačan odgovor" aria-controls="vx-prijava-panel" aria-expanded="false" title="Prijavite problem" hidden>✉</button>
+<section id="vx-prijava-panel" class="vx-prijava-panel" aria-labelledby="vx-prijava-naslov" hidden>
+<h2 id="vx-prijava-naslov">Prijavite problem</h2>
+<p>Prijavite grešku, neispravan podatak ili AI odgovor. Nemojte unositi poverljive podatke klijenata u opis prijave.</p>
+<form id="vx-prijava-forma">
+<label for="vx-prijava-vrsta">Vrsta problema</label>
+<select id="vx-prijava-vrsta" required><option value="tehnicko">Tehnička greška</option><option value="ai">Netačan AI odgovor</option><option value="podatak">Netačan podatak</option><option value="ostalo">Ostalo</option></select>
+<label for="vx-prijava-tekst">Opis problema</label>
+<textarea id="vx-prijava-tekst" minlength="10" maxlength="3000" required placeholder="Opišite šta se dogodilo i gde."></textarea>
+<div class="vx-prijava-akcije"><button type="submit">Pošaljite prijavu</button><button id="vx-prijava-zatvori" type="button">Zatvori</button></div>
+<p data-poruka role="status" aria-live="polite"></p>
+</form></section>
   <script src="src/runtime.js"></script>
   <script src="src/api.js"></script>
   <script src="src/session.js"></script>
@@ -984,5 +1005,28 @@
   <script src="src/demo-data.js"></script>
   <script src="src/signature-background.js"></script>
   <script src="src/app.js"></script>
+<script id="vx-prijava-skripta">
+(function(){
+"use strict";
+var dugme=document.getElementById("vx-prijava-otvori"),panel=document.getElementById("vx-prijava-panel"),form=document.getElementById("vx-prijava-forma"),status=form.querySelector("[data-poruka]");
+function prikazi(open){panel.hidden=!open;dugme.setAttribute("aria-expanded",String(open));if(open)document.getElementById("vx-prijava-vrsta").focus();else dugme.focus();}
+if(window.VxRuntime && window.VxRuntime.rezim===window.VxRuntime.LIVE)dugme.hidden=false;
+dugme.addEventListener("click",function(){prikazi(panel.hidden);});
+document.getElementById("vx-prijava-zatvori").addEventListener("click",function(){prikazi(false);});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!panel.hidden)prikazi(false);});
+form.addEventListener("submit",async function(e){
+e.preventDefault();status.textContent="";
+if(!form.reportValidity())return;
+var token=window.VxSesija&&window.VxSesija.token();
+if(!token){status.textContent="Za slanje prijave prijavite se na svoj nalog.";return;}
+var send=form.querySelector('[type="submit"]');send.disabled=true;
+try{
+ var r=await window.VxApi.send("/api/support/poruka",{token:token,telo:{kategorija:document.getElementById("vx-prijava-vrsta").value,poruka:document.getElementById("vx-prijava-tekst").value.trim(),kontekst:(location.pathname+location.hash).slice(0,100)}});
+ if(r&&r.ok){status.textContent="Prijava je prihvaćena. Hvala na povratnoj informaciji.";form.reset();}
+ else{status.textContent=r&&r.greska&&r.greska.ishodNepoznat?"Nije poznato da li je prijava primljena. Proverite pre ponovnog slanja.":"Slanje nije potvrđeno. Pišite direktno na benny13.n@gmail.com.";}
+}catch(_){status.textContent="Slanje nije potvrđeno. Kontakt: benny13.n@gmail.com.";}finally{send.disabled=false;}
+});
+})();
+</script>
 </body>
 </html>

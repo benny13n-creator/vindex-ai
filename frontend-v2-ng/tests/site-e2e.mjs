@@ -122,7 +122,7 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
     const u = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return b.top >= 0 && b.bottom <= innerHeight; };
     return { h1: u("h1"), opis: u(".uvod .vodeci"), cta: u('.uvod a.dugme[href="/beta"]'), h1px: parseFloat(getComputedStyle(document.querySelector("h1")).fontSize) };
   });
-  zapisi(`prvi-ekran@${ek}`, "naslov (≥ 34 px), opis i „Prijavite se za beta testiranje“ vidljivi bez pomeranja", r.h1 && r.opis && r.cta && r.h1px >= 34, JSON.stringify(r));
+  zapisi(`prvi-ekran@${ek}`, "naslov (≥ 34 px), opis i „Prijavi se za rani pristup“ vidljivi bez pomeranja", r.h1 && r.opis && r.cta && r.h1px >= 34, JSON.stringify(r));
   await ctx.close();
 }
 
@@ -132,14 +132,14 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
   const p = await ctx.newPage();
   await p.goto(BASE + "/");
   const fokusi = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 8; i++) {
     await p.keyboard.press("Tab");
     fokusi.push(await p.evaluate(() => { const a = document.activeElement, s = getComputedStyle(a);
       return { t: (a.textContent || a.getAttribute("aria-label") || "").trim().slice(0, 24), obris: s.outlineStyle !== "none" && parseFloat(s.outlineWidth) >= 2 }; }));
   }
   zapisi("tastatura", "prvi Tab: „Preskoči na sadržaj“; svaki fokus ima vidljiv obris ≥ 2 px", fokusi[0].t === "Preskoči na sadržaj" && fokusi.every(f => f.obris), fokusi.map(f => f.t + (f.obris ? "" : "(!)")).join(" → "));
-  zapisi("tastatura", "redosled: preskok → logo → navigacija → Prijava → Beta pristup",
-    JSON.stringify(fokusi.map(f => f.t)) === JSON.stringify(["Preskoči na sadržaj", "Vindex — početna", "Kako radi", "Funkcionalnosti", "Za advokate", "Razvoj", "Bezbednost", "Prijava", "Beta pristup"]), fokusi.map(f => f.t).join(" → "));
+  zapisi("tastatura", "redosled: preskok → logo → navigacija → Prijava → Rani pristup",
+    JSON.stringify(fokusi.map(f => f.t)) === JSON.stringify(["Preskoči na sadržaj", "Vindex — početna", "Kako radi", "Funkcionalnosti", "Za advokate", "Bezbednost", "Prijava", "Rani pristup"]), fokusi.map(f => f.t).join(" → "));
   await p.keyboard.press("Shift+Tab"); await p.keyboard.press("Shift+Tab");
   await p.goto(BASE + "/");
   await p.keyboard.press("Tab"); await p.keyboard.press("Enter");
@@ -153,8 +153,8 @@ for (const [ek, w, h] of [["390", 390, 844], ["1440", 1440, 900]]) {
   const pre = await p.evaluate(() => ({ meni: getComputedStyle(document.querySelector(".meni")).display, mob: !!document.querySelector(".meni-mob").getBoundingClientRect().height }));
   await p.click(".meni-mob summary");
   const linkovi = await p.evaluate(() => [...document.querySelectorAll(".meni-mob__panel a")].filter(a => a.getBoundingClientRect().height >= 40).map(a => a.getAttribute("href")));
-  zapisi("mobilni-meni", "desktop meni skriven, „Meni“ otvara sve stranice, Beta pristup i Prijavu (cilj ≥ 40 px)",
-    pre.meni === "none" && pre.mob && ["/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta", "/app"].every(x => linkovi.includes(x)), linkovi.join(","));
+  zapisi("mobilni-meni", "desktop meni skriven, „Meni“ otvara aktivne stranice, Rani pristup i Prijavu (cilj ≥ 40 px)",
+    pre.meni === "none" && pre.mob && ["/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta", "/app"].every(x => linkovi.includes(x)), linkovi.join(","));
   await p.click('.meni-mob__panel a[href="/funkcionalnosti"]');
   zapisi("mobilni-meni", "link iz menija otvara stranicu", await p.evaluate(() => location.pathname === "/funkcionalnosti"));
   await ctx.close();
