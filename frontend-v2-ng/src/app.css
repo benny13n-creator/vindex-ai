@@ -723,3 +723,23 @@ a.text-btn { text-decoration: none; }
   background: none; font: inherit; color: var(--text-2); cursor: pointer; }
 .rezimi__item:hover { color: var(--text-1); }
 .rezimi__item[aria-current="page"] { color: var(--text-1); font-weight: 500; border-bottom-color: var(--accent); }
+
+/* Jedinstven, nenametljiv kanal za prijavu problema — V2 radni prostor. */
+.vx-feedback { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); font-family: "IBM Plex Sans", sans-serif; }
+.vx-feedback__toggle { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 9px 14px; border: 1px solid var(--line-strong); background: var(--bg-panel); color: var(--text-1); border-radius: 999px; cursor: pointer; box-shadow: 0 6px 26px rgba(0,0,0,.3); }
+.vx-feedback__toggle:hover { background: var(--bg-hover); border-color: var(--accent); }
+.vx-feedback__panel { position: absolute; right: 0; bottom: calc(100% + 12px); width: min(370px, calc(100vw - 32px)); max-height: min(620px, calc(100dvh - 110px)); overflow-y: auto; padding: 18px; border: 1px solid var(--line-strong); background: var(--bg-panel); color: var(--text-1); border-radius: 10px; box-shadow: 0 22px 65px rgba(0,0,0,.48); }
+.vx-feedback__panel[hidden], .vx-feedback__outcome[hidden] { display: none !important; }
+.vx-feedback__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vx-feedback__header h2 { margin: 0; font-size: 1.07rem; color: var(--text-1); }
+.vx-feedback__close { border: 0; background: transparent; color: var(--text-2); font-size: 26px; cursor: pointer; width: 36px; height: 36px; }
+.vx-feedback__intro { font-size: .87rem; line-height: 1.55; color: var(--text-2); margin: 8px 0 16px; }
+.vx-feedback__panel form { display: grid; gap: 8px; }
+.vx-feedback__panel label { font-size: .85rem; color: var(--text-1); font-weight: 500; }
+.vx-feedback__panel select, .vx-feedback__panel textarea { width: 100%; min-width: 0; padding: 10px; background: var(--bg-input); color: var(--text-1); border: 1px solid var(--line-strong); border-radius: 5px; font: inherit; }
+.vx-feedback__panel textarea { resize: vertical; }
+.vx-feedback__panel select:focus-visible, .vx-feedback__panel textarea:focus-visible, .vx-feedback__panel button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.vx-feedback__send { margin-top: 6px; min-height: 42px; padding: 8px 14px; border-radius: 5px; border: 1px solid var(--accent); background: var(--accent); color: #111519; font-weight: 600; cursor: pointer; }
+.vx-feedback__send:disabled { opacity: .6; cursor: wait; }
+.vx-feedback__outcome { margin: 5px 0 0; font-size: .88rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media(max-width:480px) { .vx-feedback__toggle span { display: none; } .vx-feedback__toggle { width: 48px; height: 48px; justify-content: center; padding: 8px; } }

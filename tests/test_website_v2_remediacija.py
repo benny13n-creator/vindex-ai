@@ -381,7 +381,7 @@ def test_osnivac_je_naveden_tacnom_ulogom(tekstovi):
 
 def test_aplikacija_i_sajt_ne_navode_izmisljen_subjekt_ni_privatni_status():
     k = TestClient(api.app)
-    for ruta in ("/app-legacy", "/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"):
+    for ruta in ("/app-legacy", "/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"):
         t = k.get(ruta).text
         assert not re.search(r"Vindex d\.o\.o|Vindex doo", t), ruta
         for fraza in ("bez registrovane firme", "neregistrovan", "firma još ne postoji", "registracija firme"):

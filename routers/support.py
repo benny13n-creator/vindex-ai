@@ -3,7 +3,7 @@
 Vindex AI — routers/support.py
 
 POST /api/support/poruka — korisnik šalje poruku timu podrške.
-Poruka stiže emailom na FOUNDER_EMAILS i upisuje se u Supabase
+Poruka stiže emailom na potvrđenu adresu osnivača i upisuje se u Supabase
 tabelu support_tickets (ako postoji).
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from security.html_sanitize import sanitize_user_input
-from shared.deps import FOUNDER_EMAILS, _get_supa, get_current_user
+from shared.deps import _get_supa, get_current_user
 from shared.rate import limiter
 
 logger = logging.getLogger("vindex.support")
@@ -35,6 +35,7 @@ _SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))
 _SMTP_USER = os.getenv("EMAIL_SMTP_USER", "")
 _SMTP_PASS = os.getenv("EMAIL_SMTP_PASS", "")
 _FROM_ADDR = os.getenv("EMAIL_FROM", "") or _SMTP_USER
+_SUPPORT_TO = os.getenv("SUPPORT_NOTIFY_TO", "benny13.n@gmail.com").strip()
 
 _MAX_SCREENSHOT_B64_CHARS = 4_000_000  # ~3MB slika posle base64 overhead-a
 
@@ -88,10 +89,10 @@ class SupportPoruka(BaseModel):
 
 def _send_support_email(user_email: str, kategorija: str, poruka: str,
                          rating: Optional[int] = None, kontekst: Optional[str] = None,
-                         screenshot_base64: Optional[str] = None) -> None:
-    if not _SMTP_HOST:
-        logger.warning("SMTP nije konfigurisan — support email nije poslat")
-        return
+                         screenshot_base64: Optional[str] = None) -> bool:
+    if not all((_SMTP_HOST, _SMTP_USER, _SMTP_PASS, _FROM_ADDR, _SUPPORT_TO)):
+        logger.error("Support email nije poslat: SMTP/recipient nije konfigurisan")
+        return False
 
     kat_label = _KATEGORIJE.get(kategorija, "Ostalo")
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -150,7 +151,7 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
 </div>
 </body></html>"""
 
-    for to_addr in FOUNDER_EMAILS:
+    for to_addr in (_SUPPORT_TO,):
         try:
             msg = MIMEMultipart("mixed")
             msg["Subject"] = f"[Vindex podrška] {kat_label} — od {user_email}"
@@ -173,8 +174,10 @@ def _send_support_email(user_email: str, kategorija: str, poruka: str,
                 smtp.starttls()
                 smtp.login(_SMTP_USER, _SMTP_PASS)
                 smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
+            return True
         except Exception as e:
             logger.error("Support email greška ka %s: %s", to_addr, e)
+    return False
 
 
 async def _save_ticket(supa, user_id: str, user_email: str, kategorija: str, poruka: str,
@@ -206,12 +209,14 @@ async def support_poruka(
 
     supa = _get_supa()
 
-    await asyncio.to_thread(
+    isporuceno = await asyncio.to_thread(
         _send_support_email, user_email, payload.kategorija, payload.poruka,
         payload.rating, payload.kontekst, payload.screenshot_base64,
     )
+    if not isporuceno:
+        raise HTTPException(status_code=503, detail="Prijava nije poslata; pokušajte kasnije ili pišite na benny13.n@gmail.com.")
     await _save_ticket(supa, user_id, user_email, payload.kategorija, payload.poruka,
                         payload.rating, payload.kontekst)
 
     logger.info("Support poruka primljena od %s [%s]", user_email, payload.kategorija)
-    return {"ok": True, "message": "Poruka je poslata. Odgovorićemo u roku od 24h."}
+    return {"ok": True, "message": "Prijava je predata sistemu za e-poštu."}

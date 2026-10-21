@@ -50,7 +50,7 @@ import api  # noqa: E402
 _KOREN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Website V2: javne stranice (generiše scripts/gradi_sajt.py).
-STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/razvoj", "/bezbednost", "/beta"]
+STRANICE = ["/", "/kako-radi", "/funkcionalnosti", "/za-advokate", "/bezbednost", "/beta"]
 
 # Stare adrese bez sopstvene stranice → 301 na stranicu koja ih nasleđuje.
 POVUCENE = {
@@ -580,14 +580,13 @@ def test_katalog_prikazuje_tacno_javne_funkcije_sa_tacnim_statusom(klijent):
         assert re.sub(r"\s+", " ", f["javni_opis"]) in tekst, f"{fid}: javna formulacija nije prikazana u celosti"
 
 
-def test_razvoj_prikazuje_samo_odobrene_planove_kao_nedostupne(klijent):
-    reg = _registar()
-    na_sajtu = _stavke(_tekst(klijent, "/razvoj"))
-    ocekivano = {f["id"] for f in reg["funkcije"] if f["javno"] and f["status"] == "PLANNED_APPROVED"}
-    assert set(na_sajtu) == ocekivano
-    for fid, (status, tekst) in na_sajtu.items():
-        assert status == "PLANNED_APPROVED"
-        assert "Nije dostupno" in tekst and "još nije dostupno" in tekst, f"{fid}: plan nije jasno označen kao nedostupan"
+def test_roadmap_nije_javna_stranica(klijent):
+    r = klijent.get("/razvoj", follow_redirects=False)
+    assert r.status_code == 301
+    assert r.headers.get("location") == "/funkcionalnosti"
+    for ruta in STRANICE:
+        telo = _tekst(klijent, ruta)
+        assert 'href="/razvoj"' not in telo, ruta
 
 
 @pytest.mark.parametrize("ruta", STRANICE)

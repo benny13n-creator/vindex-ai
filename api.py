@@ -1750,7 +1750,6 @@ _JAVNE_STRANICE = {
     "/kako-radi": "kako-radi.html",
     "/funkcionalnosti": "funkcionalnosti.html",
     "/za-advokate": "za-advokate.html",
-    "/razvoj": "razvoj.html",
     "/bezbednost": "bezbednost.html",
     "/beta": "beta.html",
 }
@@ -1774,6 +1773,7 @@ _POVUCENE_STRANICE = {
     "/sposobnosti": "/funkcionalnosti",
     "/platforma": "/kako-radi",
     "/kontakt": "/beta",
+    "/razvoj": "/funkcionalnosti",  # roadmap se ne izlaže na javnom website-u
     "/web3": "/",
     "/vizija": "/",
     "/tehnologija": "/",
