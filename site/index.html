@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije</title>
-<meta name="description" content="Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.">
+<title>Vindex — od dokumenata do jasnih odluka</title>
+<meta name="description" content="Vindex povezuje predmete, dokumente, dokaze, rokove i pravna pitanja u jedan radni prostor. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.">
 <link rel="canonical" href="https://vindex.rs/">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d0e10">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="sr_RS">
 <meta property="og:site_name" content="Vindex">
-<meta property="og:title" content="Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije">
-<meta property="og:description" content="Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.">
+<meta property="og:title" content="Vindex — od dokumenata do jasnih odluka">
+<meta property="og:description" content="Vindex povezuje predmete, dokumente, dokaze, rokove i pravna pitanja u jedan radni prostor. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.">
 <meta property="og:url" content="https://vindex.rs/">
 <meta property="og:image" content="https://vindex.rs/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="/static/favicon-vindex-32.png">
+<link rel="icon" type="image/png" href="/static/favicon-vindex-v4-32.png">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
-<link rel="stylesheet" href="/v2/site/sajt.css?v=9a7b146811">
+<link rel="stylesheet" href="/v2/site/sajt.css?v=b1f54f527a">
 <!-- Generisano: scripts/gradi_sajt.py iz site/_izvor/index.html i site/funkcije.json. Ne menjati ručno. -->
 </head>
 <body class="sajt">
@@ -30,18 +30,18 @@
 <div class="strana">
 <header class="zaglavlje">
   <div class="okvir">
-    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
-    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-tamna.png" alt="" width="357" height="305"></a>
+    <nav aria-label="Glavna navigacija"><ul class="meni"><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
-      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+      <a class="dugme dugme--malo" href="/beta">Prijavi se za rani pristup</a>
     </div>
     <details class="meni-mob">
       <summary>Meni</summary>
       <div class="meni-mob__panel">
-        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/razvoj">Razvoj</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
+        <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul><li><a href="/kako-radi">Kako radi</a></li><li><a href="/funkcionalnosti">Funkcionalnosti</a></li><li><a href="/za-advokate">Za advokate</a></li><li><a href="/bezbednost">Bezbednost</a></li></ul></nav>
         <div class="meni-mob__akcije">
-          <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+          <a class="dugme dugme--malo" href="/beta">Prijavi se za rani pristup</a>
           <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
         </div>
       </div>
@@ -49,108 +49,204 @@
   </div>
 </header>
 <main id="sadrzaj" tabindex="-1">
-<section class="uvod" aria-labelledby="naslov">
+<section class="uvod uvod--glavni" aria-labelledby="naslov">
   <div class="okvir">
-    <p class="nadnaslov">Radni prostor advokatske kancelarije</p>
-    <h1 id="naslov">Predmeti, dokumenti, rokovi i pravni rad na jednom mestu.</h1>
-    <p class="vodeci">Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema
-      informacije i predloge; advokat proverava izvore, odlučuje i potvrđuje radnje.</p>
-    <div class="akcije">
-      <a class="dugme" href="/beta">Prijavite se za beta testiranje</a>
-      <a class="tekst-link" href="/kako-radi">Pogledajte kako radi</a>
+    <p class="nadnaslov ulaz ulaz--1">Pravni radni prostor</p>
+    <h1 id="naslov" class="ulaz ulaz--2">Od dokumenata do jasnih odluka.</h1>
+    <p class="vodeci ulaz ulaz--3">Vindex povezuje predmete, dokumente, dokaze, rokove i pravna pitanja u jedan radni prostor. Svaki
+      podatak ostaje vezan za izvor iz kog potiče, a važeći postaje tek kada ga advokat potvrdi.</p>
+    <ul class="uvod__koristi ulaz ulaz--3" aria-label="Ukratko">
+      <li>Manje traženja po fasciklama i porukama</li>
+      <li>Više jasnoće u svakom predmetu</li>
+      <li>Odluka uvek ostaje vama</li>
+    </ul>
+    <div class="akcije ulaz ulaz--4">
+      <a class="dugme dugme--istaknuto" href="/beta">Prijavi se za rani pristup</a>
+      <a class="tekst-link" href="/kako-radi">Pogledaj kako Vindex radi</a>
     </div>
-    <figure class="snimak uvod__snimak">
-      <div class="snimak__okvir"><picture><source media="(max-width: 640px)" srcset="/v2/site/snimci/registar-mobilni.webp" width="780" height="1240"><img src="/v2/site/snimci/registar.webp" width="1600" height="1000" fetchpriority="high"
+    <figure class="snimak uvod__snimak ulaz ulaz--5">
+      <div class="snimak__okvir snimak__okvir--sjaj"><picture><source media="(max-width: 640px)" srcset="/v2/site/snimci/registar-mobilni.webp" width="780" height="1240"><img src="/v2/site/snimci/registar.webp" width="1600" height="1000" fetchpriority="high"
         alt="Ekran Aktivni predmeti u aplikaciji Vindex: lista od osam predmeta sa nazivom, strankama, brojem predmeta, stanjem i datumom izmene."></picture></div>
       <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Stvaran ekran aplikacije Vindex (registar predmeta) sa izmišljenim predmetima.</figcaption>
     </figure>
   </div>
 </section>
 
+<section class="odeljak" aria-labelledby="razlika-naslov">
+  <div class="okvir">
+    <p class="nadnaslov otkrij">Zašto Vindex</p>
+    <h2 id="razlika-naslov" class="otkrij">Radni prostor, a ne još jedan prozor za pitanja.</h2>
+    <p class="uvodni otkrij">Opšti AI asistent odgovara na ono što mu napišete. Vindex radi u okviru vašeg predmeta: zna koji su
+      dokumenti u njemu, odakle potiče svaki podatak i šta još čeka vašu odluku.</p>
+    <ul class="kartice kartice--3">
+      <li class="kartica otkrij"><span class="kartica__oznaka">01</span><h3>Kontekst ostaje na okupu</h3>
+        <p>Dokumenti, beleške, hronologija, ročišta i zadaci jednog predmeta su zajedno. Pravno pitanje postavljate u kontekstu
+          predmeta, a ne u praznom razgovoru.</p></li>
+      <li class="kartica otkrij"><span class="kartica__oznaka">02</span><h3>Podatak zna odakle je došao</h3>
+        <p>Tvrdnje i podaci izdvojeni iz dokumenta ostaju vezani za taj dokument. Kada se dva dokumenta razlikuju, vidite oba izvora.</p></li>
+      <li class="kartica otkrij"><span class="kartica__oznaka">03</span><h3>Izvori uz odgovor</h3>
+        <p>Odgovor na pravno pitanje navodi propise na koje se oslanja. Član koji ne postoji u izvorima se odbija, a kada izvori nisu
+          dostupni, to piše.</p></li>
+      <li class="kartica otkrij"><span class="kartica__oznaka">04</span><h3>Vi potvrđujete</h3>
+        <p>Predloženi rok, izdvojeni podaci, vrsta dokumenta i nacrt postaju važeći tek posle vaše odluke. AI rezultat je uvek
+          označen kao AI rezultat.</p></li>
+      <li class="kartica otkrij"><span class="kartica__oznaka">05</span><h3>Rad se nastavlja gde je stao</h3>
+        <p>Na vrhu predmeta piše šta se promenilo, šta traži pažnju i koji je sledeći korak.</p></li>
+      <li class="kartica otkrij"><span class="kartica__oznaka">06</span><h3>Znanje vaše kancelarije</h3>
+        <p>Interni stavovi, odobreni nacrti i iskustvo iz zatvorenih predmeta ostaju u kancelariji i grade se samo iz vašeg rada.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="odeljak odeljak--tih" aria-labelledby="istaknuto-naslov">
+  <div class="okvir">
+    <p class="nadnaslov otkrij">U aplikaciji danas</p>
+    <h2 id="istaknuto-naslov" class="otkrij">Ono što svakog dana oduzima vreme, na jednom ekranu.</h2>
+
+    <article class="istaknuto otkrij" aria-labelledby="ist-1">
+      <div class="istaknuto__tekst">
+        <h3 id="ist-1">Dokumenti koji se čitaju umesto da se pretražuju</h3>
+        <dl>
+          <div><dt>Problem</dt><dd>Podnesci, rešenja i skenovi stižu kao fajlovi u kojima se broj predmeta, sud, stranke i rok traže ručno.</dd></div>
+          <div><dt>Šta Vindex radi</dt><dd>Prima više dokumenata odjednom, čita skenove OCR-om za ćirilicu i latinicu i predlaže vrstu
+            dokumenta i podatke, svaki sa oznakom pouzdanosti.</dd></div>
+          <div><dt>Vaša korist</dt><dd>Podaci iz dokumenta su pred vama na pregled. Ispravka ne briše original, a nesiguran podatak je označen.</dd></div>
+        </dl>
+        <a class="tekst-link" href="/funkcionalnosti#dokumenti">Funkcije za dokumente</a>
+      </div>
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/dokumenti.webp" width="1600" height="1000" loading="lazy"
+          alt="Kartica Dokumenti u predmetu: tužba, otpusna lista i punomoćje sa vrstom dokumenta i datumom."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Dokumenti predmeta sa vrstom i datumom prijema. Podaci su izmišljeni.</figcaption>
+      </figure>
+    </article>
+
+    <article class="istaknuto istaknuto--obrnuto otkrij" aria-labelledby="ist-2">
+      <div class="istaknuto__tekst">
+        <h3 id="ist-2">Jutro koje počinje jasnom listom</h3>
+        <dl>
+          <div><dt>Problem</dt><dd>Rokovi, ročišta i zadaci su razbacani po predmetima, kalendarima i beleškama.</dd></div>
+          <div><dt>Šta Vindex radi</dt><dd>Ekran Danas okuplja radnu listu, potvrđene rokove i ročišta za narednih 30 dana preko svih
+            predmeta. Rok prepoznat u dokumentu čeka vašu odluku.</dd></div>
+          <div><dt>Vaša korist</dt><dd>Jedan pregled obaveza, iz kog otvarate predmet. Ako neki izvor nije učitan, lista je označena kao nepotpuna.</dd></div>
+        </dl>
+        <a class="tekst-link" href="/funkcionalnosti#rokovi">Funkcije za rokove</a>
+      </div>
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/danas.webp" width="1600" height="1222" loading="lazy"
+          alt="Ekran Danas: radna lista zadataka, obaveze za narednih sedam dana i predloženi rok za odgovor na tužbu sa dugmadima Potvrdi i Odbij."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Danas: radna lista, obaveze i predloženi rok koji čeka odluku. Podaci su izmišljeni.</figcaption>
+      </figure>
+    </article>
+
+    <article class="istaknuto otkrij" aria-labelledby="ist-3">
+      <div class="istaknuto__tekst">
+        <h3 id="ist-3">Ceo predmet na jednom mestu</h3>
+        <dl>
+          <div><dt>Problem</dt><dd>Beleške, ročišta, hronologija i zadaci vode se u različitim alatima, pa slika predmeta zavisi od pamćenja.</dd></div>
+          <div><dt>Šta Vindex radi</dt><dd>Rad na predmetu objedinjuje ročišta, beleške, hronologiju i zadatke, a Analiza pokazuje
+            činjenice, dokaze i protivrečnosti sa poreklom svake stavke.</dd></div>
+          <div><dt>Vaša korist</dt><dd>Kada otvorite predmet posle nekoliko nedelja, odmah vidite šta se desilo i šta je sledeće.</dd></div>
+        </dl>
+        <a class="tekst-link" href="/funkcionalnosti#dokazi">Funkcije za dokaze i stanje predmeta</a>
+      </div>
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/rad-predmeta.webp" width="1600" height="1333" loading="lazy"
+          alt="Ekran Rad na predmetu: ročište u Osnovnom sudu u Novom Sadu, beleška, hronologija i forma za nov zadatak."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Rad na predmetu: ročišta, beleške, hronologija i zadaci. Podaci su izmišljeni.</figcaption>
+      </figure>
+    </article>
+
+    <article class="istaknuto istaknuto--obrnuto otkrij" aria-labelledby="ist-4">
+      <div class="istaknuto__tekst">
+        <h3 id="ist-4">Pravno pitanje sa izvorima i nacrt kao polazna tačka</h3>
+        <dl>
+          <div><dt>Problem</dt><dd>Odgovor bez izvora mora ponovo da se proveri od početka, a nacrt se piše od prazne stranice.</dd></div>
+          <div><dt>Šta Vindex radi</dt><dd>Odgovara na pitanje u kontekstu predmeta uz propise na koje se oslanja, pretražuje sudsku
+            praksu i interne stavove kancelarije i pravi nacrt podneska sa označenim mestima bez potkrepljenja.</dd></div>
+          <div><dt>Vaša korist</dt><dd>Polazna tačka sa izvorima koju proveravate, umesto prazne stranice. Nacrt postaje rad kancelarije tek kada ga odobrite.</dd></div>
+        </dl>
+        <a class="tekst-link" href="/funkcionalnosti#istrazivanje">Funkcije za istraživanje i nacrte</a>
+      </div>
+      <figure class="snimak">
+        <div class="snimak__okvir"><img src="/v2/site/snimci/znanje.webp" width="1600" height="1000" loading="lazy"
+          alt="Ekran Znanje: pretraga sudske prakse, interni stavovi kancelarije i prazan prikaz iskustva kancelarije."></div>
+        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Znanje: sudska praksa i interni stavovi kancelarije. Podaci su izmišljeni.</figcaption>
+      </figure>
+    </article>
+  </div>
+</section>
+
 <section class="odeljak" aria-labelledby="tok-naslov">
   <div class="okvir">
-    <h2 id="tok-naslov">Tok rada u predmetu</h2>
-    <p class="uvodni">Svaki korak ima jasnog nosioca. Ono što Vindex pročita ili predloži ostaje predlog dok ga advokat ne potvrdi.</p>
-    <ol class="tok">
-      <li><h3>Predmet</h3><p>Otvarate predmet ručno, iz opisa problema ili iz dokumenta.</p><span class="ko ko--advokat">vi otvarate</span></li>
-      <li><h3>Dokumenti</h3><p>Dokumenti i skenovi ulaze u predmet; Vindex čita tekst, uključujući OCR.</p><span class="ko">Vindex čita</span></li>
-      <li><h3>Podaci i dokazi</h3><p>Izdvojeni podaci i tvrdnje vezani su za dokument iz kog potiču.</p><span class="ko ko--potvrda">čeka pregled</span></li>
-      <li><h3>Rokovi i radnje</h3><p>Prepoznat rok čeka vašu odluku; radna lista pokazuje šta je sledeće.</p><span class="ko ko--potvrda">čeka potvrdu</span></li>
+    <p class="nadnaslov otkrij">Tok rada</p>
+    <h2 id="tok-naslov" class="otkrij">Od dokumenta do odluke, korak po korak.</h2>
+    <p class="uvodni otkrij">Svaki korak ima jasnog nosioca. Ono što Vindex pročita ili predloži ostaje predlog dok ga advokat ne potvrdi.</p>
+    <ol class="tok tok--pokret otkrij">
+      <li><h3>Dokument</h3><p>Dokumenti i skenovi ulaze u predmet kroz Prijem dokumenata.</p><span class="ko ko--advokat">vi dodajete</span></li>
+      <li><h3>Čitanje</h3><p>Vindex čita tekst, uključujući OCR, i predlaže vrstu dokumenta.</p><span class="ko">Vindex čita</span></li>
+      <li><h3>Podaci i dokazi</h3><p>Izdvojeni podaci i tvrdnje ostaju vezani za dokument iz kog potiču.</p><span class="ko ko--potvrda">čeka pregled</span></li>
+      <li><h3>Rokovi i zadaci</h3><p>Prepoznat rok čeka vašu odluku; radna lista pokazuje šta je sledeće.</p><span class="ko ko--potvrda">čeka potvrdu</span></li>
       <li><h3>Pravna pomoć</h3><p>Pitanje uz izvore iz propisa, savetnik i nacrt podneska.</p><span class="ko">AI predlaže</span></li>
       <li><h3>Odluka</h3><p>Rok, nacrt i podatak postaju važeći tek posle vaše odluke.</p><span class="ko ko--advokat">vi odlučujete</span></li>
     </ol>
   </div>
 </section>
 
-<section class="odeljak odeljak--tih" aria-labelledby="oblasti-naslov">
+<section class="odeljak odeljak--tih" aria-labelledby="sektori-naslov">
   <div class="okvir">
-    <h2 id="oblasti-naslov">Šta Vindex danas radi</h2>
-    <p class="uvodni">Glavne oblasti rada. Potpun spisak, sa statusom i ograničenjima svake funkcije, nalazi se u katalogu.</p>
-    <ul class="mreza">
-      <li><h3>Predmeti i klijenti</h3>
-        <ul><li>registar sa pretragom i sortiranjem</li><li>izmena podataka, beleške i hronologija</li><li>provera sukoba interesa pre povezivanja klijenta</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#predmeti">Predmeti i klijenti</a></li>
-      <li><h3>Prijem i dokumenti</h3>
-        <ul><li>više dokumenata odjednom, uključujući skenove</li><li>OCR za ćirilicu i latinicu</li><li>izdvojeni podaci kao predlog za pregled</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#dokumenti">Prijem i dokumenti</a></li>
-      <li><h3>Dokazi i stanje predmeta</h3>
-        <ul><li>tvrdnje vezane za izvorni dokument</li><li>protivrečnosti između dokumenata</li><li>šta se promenilo i šta je sledeće</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#dokazi">Dokazi i stanje predmeta</a></li>
-      <li><h3>Rokovi i ročišta</h3>
-        <ul><li>predloženi rokovi čekaju vašu odluku</li><li>ekran Danas i kalendar za 30 dana</li><li>zadaci i radna lista</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#rokovi">Rokovi i ročišta</a></li>
-      <li><h3>Pravno istraživanje i nacrti</h3>
-        <ul><li>pravno pitanje uz navedene propise</li><li>sudska praksa i interni stavovi</li><li>nacrt podneska sa overom advokata</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#istrazivanje">Istraživanje i nacrti</a></li>
-      <li><h3>Naplata i kancelarija</h3>
-        <ul><li>stavke po advokatskoj tarifi i tajmer</li><li>nacrt fakture od izabranih stavki</li><li>pregled tima i portfolija</li></ul>
-        <a class="tekst-link" href="/funkcionalnosti#naplata">Naplata i kancelarija</a></li>
+    <p class="nadnaslov otkrij">Primena</p>
+    <h2 id="sektori-naslov" class="otkrij">Gde Vindex može da donese vrednost.</h2>
+    <p class="uvodni otkrij">Vindex je danas napravljen za advokatske kancelarije. Njegov način rada — dokumenti povezani sa
+      predmetom, podaci sa izvorom i odluka kod stručnjaka — važan je i drugim timovima koji rade sa mnogo dokumenata. Za njih
+      Vindex danas nema posebne module; primenu procenjujemo zajedno sa vama.</p>
+    <ul class="sektori">
+      <li class="sektor sektor--danas otkrij"><span class="sektor__status">Za ovo je Vindex napravljen</span>
+        <h3>Advokatske kancelarije</h3><p>Predmeti, prijem dokumenata, dokazi, rokovi, pravna pitanja, nacrti podnesaka i naplata.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Javnobeležničke kancelarije</h3><p>Organizacija isprava i prateće dokumentacije uz svaki predmet.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Pravni sektori kompanija</h3><p>Ugovori, sporovi i interni stavovi na jednom mestu, sa poreklom svakog podatka.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Osiguravajuće kuće</h3><p>Dokumentacija odštetnih zahteva i sporova povezana sa predmetom i izvorom.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Banke i finansijske institucije</h3><p>Pregled ugovorne i sudske dokumentacije i praćenje predmeta naplate i sporova.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Timovi za usklađenost i regulativu</h3><p>Pronalaženje informacija u propisima i internim dokumentima, uz navedeni izvor.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Računovodstvene i revizorske organizacije</h3><p>Organizacija prateće dokumentacije i nalaza po klijentu i predmetu rada.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Konsultantske organizacije</h3><p>Dokumenti, beleške i zadaci jednog angažmana povezani u celinu.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Korporativna administracija i ugovorni timovi</h3><p>Pregled ugovora, rokova i obaveza iz dokumenata, uz potvrdu odgovorne osobe.</p></li>
+      <li class="sektor otkrij"><span class="sektor__status">Moguća primena</span>
+        <h3>Timovi sa mnogo dokumenata</h3><p>Strukturisano čitanje, pretraga i povezivanje dokumenata sa poslom kome pripadaju.</p></li>
     </ul>
+    <p class="tiho otkrij">„Moguća primena“ opisuje vrstu posla, ne gotov proizvod: Vindex za te oblasti nema posebne funkcije,
+      odobrenja ni potvrde regulatora.</p>
   </div>
 </section>
 
-<section class="odeljak" aria-labelledby="kontrola-naslov">
+<section class="odeljak" aria-labelledby="zastita-naslov">
   <div class="okvir">
-    <h2 id="kontrola-naslov">Izvori i ljudska kontrola</h2>
-    <p class="uvodni">Vindex ne donosi pravne odluke. Mehanizmi ispod postoje u aplikaciji i dostupni su u svakom predmetu.</p>
-    <ul class="mreza">
-      <li><h3>Poreklo svake stavke</h3><p>Stavke analize predmeta nose poreklo: dokument, potvrda advokata, proračun ili AI analiza. AI analiza je uvek označena.</p></li>
-      <li><h3>Izvor uz pravni odgovor</h3><p>Odgovor na pravno pitanje navodi propise na koje se oslanja. Član koji ne postoji u izvorima se odbija, a kada izvori nisu dostupni, to se kaže.</p></li>
-      <li><h3>Potvrda advokata</h3><p>Predloženi rok, vrsta dokumenta, izdvojeni podaci i nacrt postaju važeći tek posle vaše odluke. Potvrda roka ne znači da je program proverio njegovu tačnost.</p></li>
-      <li><h3>Greška se ne skriva</h3><p>Neuspelo učitavanje se nikad ne prikazuje kao prazna lista. Kada ishod upisa nije poznat, Vindex to kaže i ponovo čita stanje.</p></li>
-      <li><h3>Samo vaši predmeti</h3><p>Server iz prijave određuje ko traži podatke i vraća samo predmete kojima nalog ima pristup.</p></li>
-      <li><h3>Znanje bez prečica</h3><p>Ništa ne postaje znanje kancelarije bez odobrenja advokata. Nova kancelarija počinje praznim iskustvom, ne tuđim podacima.</p></li>
+    <p class="nadnaslov otkrij">Zaštita podataka</p>
+    <h2 id="zastita-naslov" class="otkrij">Kontrola nad podacima je deo načina rada.</h2>
+    <ul class="kartice kartice--4">
+      <li class="kartica otkrij"><h3>Kontrolisan pristup</h3><p>Server iz prijave određuje ko traži podatke i vraća samo predmete kojima nalog ima pristup.</p></li>
+      <li class="kartica otkrij"><h3>Odvojeni radni podaci</h3><p>Predmeti, dokumenti i znanje jedne kancelarije ne mešaju se sa podacima drugih naloga.</p></li>
+      <li class="kartica otkrij"><h3>Proverljivi rezultati</h3><p>Svaka stavka analize nosi poreklo, a AI rezultat je označen i čeka vašu odluku.</p></li>
+      <li class="kartica otkrij"><h3>Otvoreno o obradi</h3><p>Koji dobavljači obrađuju podatke i šta se šalje AI modelu piše na stranici o bezbednosti.</p></li>
     </ul>
+    <p class="otkrij"><a class="tekst-link" href="/bezbednost">Kako Vindex štiti podatke</a></p>
   </div>
 </section>
 
-<section class="odeljak odeljak--tih" aria-labelledby="ekrani-naslov">
+<section class="odeljak odeljak--zavrsni" aria-labelledby="zavrsni-naslov">
   <div class="okvir">
-    <h2 id="ekrani-naslov">Stvarni ekrani aplikacije</h2>
-    <p class="uvodni">Snimci su napravljeni u aplikaciji Vindex sa izmišljenim predmetima. Ne prikazuju AI odgovore, presude ni podatke stvarnih klijenata.</p>
-    <div class="snimci">
-      <figure class="snimak">
-        <div class="snimak__okvir"><img src="/v2/site/snimci/danas.webp" width="1600" height="1222" loading="lazy"
-          alt="Ekran Danas: radna lista zadataka, obaveze za narednih sedam dana i predloženi rok za odgovor na tužbu sa dugmadima Potvrdi i Odbij."></div>
-        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Danas: radna lista, obaveze i predloženi rok koji čeka odluku. Podaci su izmišljeni.</figcaption>
-      </figure>
-      <figure class="snimak">
-        <div class="snimak__okvir"><img src="/v2/site/snimci/rad-predmeta.webp" width="1600" height="1333" loading="lazy"
-          alt="Ekran Rad na predmetu: ročište u Osnovnom sudu u Novom Sadu, beleška, hronologija i forma za nov zadatak."></div>
-        <figcaption><span class="demo-oznaka">Demonstracioni prikaz</span> Rad na predmetu: ročišta, beleške, hronologija i zadaci. Podaci su izmišljeni.</figcaption>
-      </figure>
-    </div>
-  </div>
-</section>
-
-<section class="odeljak" aria-labelledby="beta-naslov">
-  <div class="okvir">
-    <h2 id="beta-naslov">Vindex je u kontrolisanom beta testiranju</h2>
-    <p class="uvodni">Aplikacija se razvija i testira. Funkcije su proverene automatskim testovima nad
-      izmišljenim podacima; sistematsko iskustvo iz rada advokata na stvarnim predmetima tek se prikuplja. Pojedine funkcije zavise od
-      paketa dodeljenog nalogu, a šta još nije dostupno piše na stranici <a class="tekst-link" href="/razvoj">Razvoj</a>.</p>
-    <div class="akcije">
-      <a class="dugme" href="/beta">Prijavite se za beta testiranje</a>
+    <h2 id="zavrsni-naslov" class="otkrij">Spremni da upoznate novi način rada sa dokumentima i informacijama?</h2>
+    <p class="uvodni otkrij">Rani pristup otvaramo postepeno: svaku prijavu pregledamo i uključujemo kancelarije uz lično upoznavanje sa aplikacijom.</p>
+    <div class="akcije otkrij">
+      <a class="dugme dugme--istaknuto" href="/beta">Prijavi se za rani pristup</a>
       <a class="tekst-link" href="/app">Već imate nalog? Uđite u aplikaciju</a>
     </div>
   </div>
@@ -161,7 +257,7 @@
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+        <p>Pravni radni prostor: predmeti, dokumenti, dokazi, rokovi i pravna pitanja, povezani sa svojim izvorom.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -169,9 +265,8 @@
           <li><a href="/kako-radi">Kako radi</a></li>
           <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
-          <li><a href="/razvoj">Razvoj</a></li>
           <li><a href="/bezbednost">Bezbednost</a></li>
-          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/beta">Rani pristup</a></li>
           <li><a href="/app">Prijava u aplikaciju</a></li>
         </ul>
       </nav>
@@ -194,6 +289,6 @@
 </footer>
 </div>
 <script src="/v2/site/potpis.js"></script>
-<script src="/v2/site/sajt.js?v=9a7b146811"></script>
+<script src="/v2/site/sajt.js?v=b1f54f527a"></script>
 </body>
 </html>

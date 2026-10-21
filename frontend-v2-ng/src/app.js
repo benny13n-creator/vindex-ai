@@ -877,6 +877,8 @@
     dokazUnos = window.VxDokazUnos.napravi({ sesija: window.VxSesija, api: window.VxApi, posle: function () { if (analizaPredmeta) analizaPredmeta.osvezi(); } });
     zastarelost = window.VxZastarelostKalkulator.napravi({ sesija: window.VxSesija, api: window.VxApi });
     zadaciPredmeta = window.VxZadaciPredmeta.napravi({ sesija: window.VxSesija, api: window.VxApi });
+    /* Website V3: prijava problema ili predloga — samo prijavljenom korisniku (LIVE). */
+    if (window.VxPrijavaProblema) window.VxPrijavaProblema.napravi({ sesija: window.VxSesija, api: window.VxApi });
     /* NS006 Task 11 — Pregled: šta se promenilo, šta traži pažnju, sledeći korak (samo čitanje, bez modela). */
     ziviPregled = window.VxZiviPregled.napravi({ sesija: window.VxSesija, api: window.VxApi,
       adresaAnalize: function (id) { return adresaPredmeta(id, "analiza"); },

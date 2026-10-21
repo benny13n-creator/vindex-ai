@@ -5,8 +5,10 @@
 
 Izvori:
   site/_izvor/<strana>.html  — sadržaj <main> svake stranice
-  site/funkcije.json         — jedini izvor istine za katalog (/funkcionalnosti), razvoj (/razvoj)
-                               i matricu dokaza (docs/website-v2/02_PRODUCT_CAPABILITY_TRUTH_MATRIX.md)
+  site/funkcije.json         — jedini izvor istine za katalog (/funkcionalnosti) i matricu dokaza
+                               (docs/website-v2/02_PRODUCT_CAPABILITY_TRUTH_MATRIX.md)
+Website V3 (founder): planovi razvoja se NE objavljuju. Stranica /razvoj je povučena
+(301 na /funkcionalnosti); PLANNED_APPROVED stavke ostaju samo u internoj matrici.
 Zaglavlje, podnožje i <head> su ovde, jednom, za sve stranice. Generisani fajlovi se čuvaju u git-u
 (server ih servira kao statične fajlove, bez koraka gradnje u produkciji); tests/test_website_public.py
 proverava da su usklađeni sa izvorom.
@@ -25,22 +27,41 @@ DOMEN = "https://vindex.rs"
 
 STRANICE = [
     # (izvor, izlaz, ruta, naslov, opis, stavka menija)
-    ("index", "index.html", "/", "Vindex — predmeti, dokumenti, rokovi i pravni rad advokatske kancelarije",
-     "Vindex povezuje evidenciju predmeta, dokumente, rokove i alate za pravnu analizu. Sistem priprema informacije i predloge; advokat proverava izvore i odlučuje.", None),
+    ("index", "index.html", "/", "Vindex — od dokumenata do jasnih odluka",
+     "Vindex povezuje predmete, dokumente, dokaze, rokove i pravna pitanja u jedan radni prostor. Svaki podatak ostaje vezan za svoj izvor, a odluka ostaje advokatu.", None),
     ("kako-radi", "kako-radi.html", "/kako-radi", "Kako radi — Vindex",
      "Tok rada u Vindexu od otvaranja predmeta do odluke advokata: šta radite vi, šta radi Vindex i gde je potrebna vaša potvrda.", "Kako radi"),
     ("funkcionalnosti", "funkcionalnosti.html", "/funkcionalnosti", "Funkcionalnosti — Vindex",
-     "Katalog funkcija Vindexa sa statusom dostupnosti i ograničenjima: predmeti, dokumenti, dokazi, rokovi, pravno istraživanje, nacrti, naplata.", "Funkcionalnosti"),
+     "Funkcije koje Vindex danas nudi, grupisane po poslu: organizacija predmeta, čitanje dokumenata, dokazi, istraživanje, nacrti, rokovi i zaštita.", "Funkcionalnosti"),
     ("za-advokate", "za-advokate.html", "/za-advokate", "Za advokate — Vindex",
      "Primeri toka rada u advokatskoj kancelariji sa funkcijama koje danas postoje u Vindexu, uz granice svake funkcije.", "Za advokate"),
-    ("razvoj", "razvoj.html", "/razvoj", "Razvoj — Vindex",
-     "Funkcije Vindexa za koje postoji odluka o razvoju. Nijedna od njih danas nije dostupna.", "Razvoj"),
     ("bezbednost", "bezbednost.html", "/bezbednost", "Bezbednost i zaštita podataka — Vindex",
-     "Kako Vindex štiti pristup podacima, kako označava AI rezultate i gde su granice zaštite.", "Bezbednost"),
-    ("beta", "beta.html", "/beta", "Beta testiranje — Vindex",
-     "Prijava za kontrolisano beta testiranje Vindexa za advokate i advokatske kancelarije u Srbiji.", None),
+     "Ko pristupa podacima, gde se čuvaju, šta se šalje AI modelu, kako se izvoze i brišu — opisano onako kako Vindex stvarno radi.", "Bezbednost"),
+    ("beta", "beta.html", "/beta", "Rani pristup — Vindex",
+     "Prijava za rani pristup Vindexu: kontrolisano uključivanje advokata i kancelarija u rad sa aplikacijom, uz podršku.", None),
 ]
 JAVNI_STATUSI = ["V2_AVAILABLE", "AVAILABLE_WITH_LIMITATIONS", "LEGACY_ONLY"]
+CTA = "Prijavi se za rani pristup"
+
+# Katalog je grupisan po poslu koji korisnik obavlja (ne po tehničkim oblastima):
+# ORGANIZUJ → RAZUMI → POVEŽI → ANALIZIRAJ → PRIPREMI → DELUJ, pa kontrola i zaštita.
+# (sidro, naslov, uvod, oblasti iz registra)
+GRUPE = [
+    ("predmeti", "Organizujte predmete i klijente",
+     "Registar, podaci predmeta, beleške, hronologija i klijenti, sa proverom sukoba interesa.", ["A", "H"]),
+    ("dokumenti", "Razumite dokumente",
+     "Dokumenti i skenovi ulaze u predmet; Vindex čita tekst i predlaže vrstu i podatke za vaš pregled.", ["B"]),
+    ("dokazi", "Povežite podatke i dokaze",
+     "Tvrdnje ostaju vezane za dokument iz kog potiču; razlike između dokumenata su vidljive.", ["C"]),
+    ("istrazivanje", "Istražite i iskoristite znanje kancelarije",
+     "Pravno pitanje uz izvore, savetnici, sudska praksa i iskustvo iz vaših predmeta.", ["E", "G"]),
+    ("nacrti", "Pripremite podneske i naplatu",
+     "Nacrt kao polazna tačka koju overava advokat, i evidencija rada za naplatu.", ["F", "I"]),
+    ("rokovi", "Delujte na vreme",
+     "Rokovi, ročišta i zadaci preko svih predmeta, sa vašom potvrdom svakog predloženog roka.", ["D"]),
+    ("zastita", "Kontrola i zaštita",
+     "Pristup po nalogu, poreklo svakog podatka i istinit prikaz grešaka.", ["J", "K"]),
+]
 e = html.escape
 
 
@@ -63,18 +84,18 @@ def zaglavlje(ruta: str) -> str:
     meni = "".join(li(r, m) for r, m in stavke)
     return f"""<header class="zaglavlje">
   <div class="okvir">
-    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/Vindex_Transparent_EXACT_LOOK.svg" alt="" width="1183" height="309"></a>
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-tamna.png" alt="" width="357" height="305"></a>
     <nav aria-label="Glavna navigacija"><ul class="meni">{meni}</ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
-      <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+      <a class="dugme dugme--malo" href="/beta">{CTA}</a>
     </div>
     <details class="meni-mob">
       <summary>Meni</summary>
       <div class="meni-mob__panel">
         <nav aria-label="Glavna navigacija (mobilni prikaz)"><ul>{meni}</ul></nav>
         <div class="meni-mob__akcije">
-          <a class="dugme dugme--malo" href="/beta">Beta pristup</a>
+          <a class="dugme dugme--malo" href="/beta">{CTA}</a>
           <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
         </div>
       </div>
@@ -88,7 +109,7 @@ PODNOZJE = """<footer class="podnozje">
     <div class="podnozje__redovi">
       <div>
         <h2>Vindex</h2>
-        <p>Radni prostor za predmete, dokumente, rokove i pravni rad advokatske kancelarije. U kontrolisanom beta testiranju.</p>
+        <p>Pravni radni prostor: predmeti, dokumenti, dokazi, rokovi i pravna pitanja, povezani sa svojim izvorom.</p>
       </div>
       <nav aria-label="Sajt">
         <h2>Sajt</h2>
@@ -96,9 +117,8 @@ PODNOZJE = """<footer class="podnozje">
           <li><a href="/kako-radi">Kako radi</a></li>
           <li><a href="/funkcionalnosti">Funkcionalnosti</a></li>
           <li><a href="/za-advokate">Za advokate</a></li>
-          <li><a href="/razvoj">Razvoj</a></li>
           <li><a href="/bezbednost">Bezbednost</a></li>
-          <li><a href="/beta">Beta testiranje</a></li>
+          <li><a href="/beta">Rani pristup</a></li>
           <li><a href="/app">Prijava u aplikaciju</a></li>
         </ul>
       </nav>
@@ -121,71 +141,46 @@ PODNOZJE = """<footer class="podnozje">
 </footer>"""
 
 
-def status_oznaka(reg: dict, st: str) -> str:
-    return f'<span class="status status--{st}">{e(reg["statusi"][st]["javno"])}</span>'
-
-
-def katalog(reg: dict) -> tuple[str, str]:
+def katalog(reg: dict) -> str:
+    """Katalog po poslu. Javno: samo dostupne funkcije (JAVNI_STATUSI); interni status
+    ostaje u `data-status` (testovi), a posetiocu se kaže samo gde funkcija radi.
+    Granica funkcije je deo njene javne formulacije i prikazuje se u celosti."""
     javne = [f for f in reg["funkcije"] if f["javno"] and f["status"] in JAVNI_STATUSI]
+    poznate = {o for g in GRUPE for o in g[3]}
+    assert {f["oblast"] for f in javne} <= poznate, "javna funkcija van GRUPE"
     nav, delovi = [], []
-    for o in reg["oblasti"]:
-        stavke = [f for f in javne if f["oblast"] == o["id"]]
+    for sidro, naslov, uvod, oblasti in GRUPE:
+        stavke = [f for o in oblasti for f in javne if f["oblast"] == o]
         if not stavke:
             continue
-        nav.append(f'<li><a href="#{o["sidro"]}">{e(o["naziv"])}</a></li>')
+        nav.append(f'<li><a href="#{sidro}">{e(naslov)}</a></li>')
         redovi = []
         for f in stavke:
-            gde = ("U klasičnom interfejsu aplikacije" if f["status"] == "LEGACY_ONLY"
+            gde = ("Dostupno u klasičnom interfejsu aplikacije" if f["status"] == "LEGACY_ONLY"
                    else "U aplikaciji: " + f["v2_ulaz"].replace("/app → ", ""))
             redovi.append(
                 f'<li class="stavka" id="f-{f["id"]}" data-id="{f["id"]}" data-status="{f["status"]}">'
-                f'<div><h3>{e(f["naziv"])}</h3><p>{e(f["javni_opis"])}</p><p class="stavka__gde">{e(gde)}</p></div>'
-                f'<div class="stavka__status">{status_oznaka(reg, f["status"])}</div></li>')
-        delovi.append(f'<section class="oblast" id="{o["sidro"]}" aria-labelledby="o-{o["sidro"]}">'
-                      f'<h2 id="o-{o["sidro"]}">{e(o["naziv"])}</h2><ul class="stavke">{"".join(redovi)}</ul></section>')
-    opcije = "".join(f'<option value="{s}">{e(reg["statusi"][s]["javno"])}</option>' for s in JAVNI_STATUSI)
-    sadrzaj = f"""<div class="katalog">
-      <nav class="katalog__nav" aria-label="Oblasti"><ul>{"".join(nav)}</ul></nav>
+                f'<div><h3>{e(f["naziv"])}</h3><p>{e(f["javni_opis"])}</p><p class="stavka__gde">{e(gde)}</p></div></li>')
+        delovi.append(f'<section class="oblast otkrij" id="{sidro}" aria-labelledby="o-{sidro}">'
+                      f'<h2 id="o-{sidro}">{e(naslov)}</h2><p class="oblast__uvod">{e(uvod)}</p>'
+                      f'<ul class="stavke">{"".join(redovi)}</ul></section>')
+    return f"""<div class="katalog">
+      <nav class="katalog__nav" aria-label="Grupe funkcija"><ul>{"".join(nav)}</ul></nav>
       <div id="katalog-stavke">
         <div class="filter" id="filter" hidden>
           <div class="filter__polje"><label for="filter-tekst">Pretraga funkcija</label><input id="filter-tekst" type="search" autocomplete="off"></div>
-          <div><label for="filter-status">Status</label><select id="filter-status"><option value="">Svi statusi</option>{opcije}</select></div>
           <p class="filter__rezultat" id="filter-rezultat" role="status" aria-live="polite"></p>
         </div>
         {"".join(delovi)}
       </div>
     </div>"""
-    legenda = "".join(f'<li>{status_oznaka(reg, s)} <span class="tiho">{e(t)}</span></li>' for s, t in [
-        ("V2_AVAILABLE", "radi u aplikaciji V2"),
-        ("AVAILABLE_WITH_LIMITATIONS", "radi u aplikaciji, uz navedenu granicu"),
-        ("LEGACY_ONLY", "radi samo u klasičnom interfejsu aplikacije")])
-    return sadrzaj, f'<ul class="legenda" aria-label="Značenje statusa">{legenda}</ul>'
-
-
-def razvoj(reg: dict) -> str:
-    out = []
-    for f in reg["funkcije"]:
-        if not (f["javno"] and f["status"] == "PLANNED_APPROVED"):
-            continue
-        out.append(f"""<article class="plan" id="f-{f["id"]}" data-id="{f["id"]}" data-status="{f["status"]}" aria-labelledby="p-{f["id"]}">
-      <div><h2 id="p-{f["id"]}">{e(f["naziv"])}</h2>{status_oznaka(reg, f["status"])}</div>
-      <dl>
-        <div><dt>Šta je planirano</dt><dd>{e(f["javni_opis"])}</dd></div>
-        <div><dt>Problem koji rešava</dt><dd>{e(f["problem"])}</dd></div>
-        <div><dt>Šta postoji danas</dt><dd>{e(f["umesto"])}</dd></div>
-        <div><dt>Dostupnost</dt><dd>Nije dostupno. Datum isporuke nije određen.</dd></div>
-      </dl>
-    </article>""")
-    return "\n    ".join(out)
 
 
 def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
     telo = (SAJT / "_izvor" / f"{izvor}.html").read_text(encoding="utf-8")
     if "<!--KATALOG-->" in telo:
-        k, legenda = katalog(reg)
-        telo = telo.replace("<!--KATALOG-->", k).replace("<!--STATUSI-->", legenda)
-    if "<!--RAZVOJ-->" in telo:
-        telo = telo.replace("<!--RAZVOJ-->", razvoj(reg))
+        telo = telo.replace("<!--KATALOG-->", katalog(reg))
+    telo = telo.replace("<!--CTA-->", CTA)
     v = verzija()
     url = DOMEN + ruta
     return f"""<!doctype html>
@@ -207,7 +202,7 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 <meta property="og:image" content="{DOMEN}/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="/static/favicon-vindex-32.png">
+<link rel="icon" type="image/png" href="/static/favicon-vindex-v4-32.png">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
@@ -238,7 +233,8 @@ def matrica(reg: dict) -> str:
               "> Generisano iz `site/funkcije.json` skriptom `scripts/gradi_sajt.py`. Ne menjati ručno.",
               f"> Produkcija u trenutku provere: `{reg['produkcija']}`; datum provere: {reg['verifikovano']}.", "",
               "Status određuje šta sajt sme da kaže. Javno se prikazuju samo stavke sa `javno: true` i statusom",
-              "V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog) ili PLANNED_APPROVED (razvoj).", "",
+              "V2_AVAILABLE, AVAILABLE_WITH_LIMITATIONS i LEGACY_ONLY (katalog). PLANNED_APPROVED se od Website V3",
+              "ne objavljuje (planovi razvoja nisu javni; /razvoj je povučen).", "",
               "## Statusi", "", "| Status | Javna oznaka | Značenje | Broj stavki |", "|---|---|---|---|"]
     for s, d in reg["statusi"].items():
         redovi.append(f"| `{s}` | {d['javno'] or '— (ne prikazuje se)'} | {d['opis']} | {br.get(s, 0)} |")

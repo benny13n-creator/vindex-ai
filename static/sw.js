@@ -1,14 +1,14 @@
 // sw.js — Vindex AI Service Worker
 // Serviran sa /sw.js (root) — scope "/" pokriva /app i /api/*
 
-const CACHE_NAME = "vindex-v160";
+const CACHE_NAME = "vindex-v162";
 
 const PRECACHE = [
   "/offline",
   "/static/supabase.min.js",
   "/static/manifest.json",
-  "/static/icon-192-v3.png",
-  "/static/icon-512-v3.png",
+  "/static/icon-192-v4.png",
+  "/static/icon-512-v4.png",
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────
@@ -161,8 +161,8 @@ self.addEventListener("push", event => {
   event.waitUntil(
     self.registration.showNotification(data.title || "Vindex AI", {
       body:    data.body || "Imate novi podsetnik",
-      icon:    "/static/icon-192.png",
-      badge:   "/static/icon-192.png",
+      icon:    "/static/icon-192-v4.png",
+      badge:   "/static/favicon-vindex-v4-64.png",
       data:    { url: data.url || "/app" },
       actions: [
         { action: "otvori",  title: "Otvori" },

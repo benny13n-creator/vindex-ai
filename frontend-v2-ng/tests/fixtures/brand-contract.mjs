@@ -1,4 +1,5 @@
-// Ugovor kanonskog Vindex identiteta u gornjoj traci (NS003 Task 4).
+// Ugovor kanonskog Vindex identiteta u gornjoj traci (NS003 Task 4; logo zamenjen
+// u Website V3 2026-10-21 odlukom osnivača: logo A2 izdvojen 1:1 iz slike osnivača, providni PNG).
 //
 // Jedino nameravane promene vizuelnog izgleda u odnosu na foundation 1eb20976:
 //   TAMNA:  samo prostor bivšeg tekstualnog „Vindex“ (sada kanonski logo);
@@ -7,10 +8,10 @@
 // geometrijskim ugovorom; van njih poređenje ostaje kakvo je bilo.
 
 export const LOGO = {
-  dark: { klasa: "wordmark__logo--tamna", fajl: "brand/Vindex_Transparent_EXACT_LOOK.svg", w: 1183, h: 309 },
-  light: { klasa: "wordmark__logo--svetla", fajl: "brand/Vindex_Protected_Light_Surface.png", w: 1800, h: 500 },
+  dark: { klasa: "wordmark__logo--tamna", fajl: "brand/vindex-logo-tamna.png", w: 357, h: 305 },
+  light: { klasa: "wordmark__logo--svetla", fajl: "brand/vindex-logo-svetla.png", w: 357, h: 305 },
 };
-/* Boja neprovidne margine zaštićenog lockup-a (sva 392 499 piksela margine). */
+/* Pozadina svetle gornje trake (founder odluka NS003; novi logo je providan). */
 export const SVETLA_TRAKA = "rgb(246, 247, 248)";
 export const KONTROLE = ["#nav-toggle", ".demo-badge", "#panel-toggle", "#theme-toggle", ".account"];
 

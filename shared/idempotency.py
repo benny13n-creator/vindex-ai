@@ -98,6 +98,9 @@ ZASTICENE_RUTE = tuple((m, re.compile(p)) for m, p in (
     ("PATCH", rf"^/api/learning/lessons/{_SEG}/potvrdi$"),
     ("POST", rf"^/api/law-brain/predmeti/{_SEG}/sinteza$"),
     ("POST", rf"^/api/law-brain/rad/{_SEG}/predlozi-znanje$"),
+    # Website V3: prijava problema iz V2 (upis u support_tickets + email osnivaču);
+    # mrežno ponavljanje istog klika = jedna prijava i jedan email.
+    ("POST", r"^/api/support/poruka$"),
     # VCR002 T06: savetnici troše kredit (pipeline: po koraku). Ponovljen mrežni zahtev sa istim ključem dobija sačuvan
     # odgovor, istovremen dobija 409 IN_PROGRESS — trajno, preko radnika i restarta (zamena za keš procesa).
     ("POST", r"^/api/agents/(run|run-parallel|pipeline)$"),
