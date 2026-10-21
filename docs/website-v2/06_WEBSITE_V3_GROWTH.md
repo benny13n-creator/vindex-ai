@@ -83,3 +83,10 @@ Poverljivost: dijalog šalje samo `kategorija`, `poruka` i `kontekst`. `kontekst
 - **Security Checks:** 4 nova CVE-a u `pypdf 6.19.0` (CVE-2026-113792…113795, objavljeni posle poslednjeg zelenog CI-ja; nisu posledica ovog PR-a). `pypdf==6.20.1` je najmanja verzija sa ispravkama. 1050 lokalnih testova vezanih za PDF daju isti rezultat sa starom i novom verzijom; lokalni `pip-audit` je čist uz postojeće izuzetke. Novih izuzetaka nema.
 - **Test Suite / Parity:** `test_bu007…::test_W5` je tražio svesnu proveru nove privilegovane rute `GET /api/support/admin/lista`. Ruta čita identitet samo iz `get_current_user` (verifikovan token) i poredi `user.get("email")` sa `FOUNDER_EMAILS`, bez ulaza iz tela ili upita. Broj je zato podignut sa 62 na 63, uz obrazloženje u testu. To je bio jedini pad u 11.676 testova.
 
+
+## 7. Novi logo (odluka osnivača 2026-10-21)
+
+- Logo A2 („Heritage Crest“) je izdvojen 1:1 iz slike osnivača (`scripts/brand/izdvoji_logo.py`); uklonjena je samo papirna pozadina. Prethodna precrtana verzija je odbijena i uklonjena.
+- Svetla verzija: originalne boje. Tamna verzija: iste linije, V i slova u boji kosti, stub i lovor u zlatu.
+- Zamenjeno: zaglavlje sajta, V2 gornja traka (obe teme), stara aplikacija (javna strana, bočna i mobilna traka), portal za klijente, stranica statusa, favicon i PWA ikone (`*-v4.png`), manifest, `sw.js` v162.
+- Izvorni logo je 357×305 px, pa se prikazuje samo umanjen (najviše 48 px visine), da se pikseli ne vide.

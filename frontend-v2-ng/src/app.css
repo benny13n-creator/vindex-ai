@@ -74,8 +74,8 @@ svg .fill { fill: currentColor; stroke: none; }
  * Tamna tema: V i slova u boji kosti, stub i lovor u zlatu. Svetla tema:
  * originalne boje — crno V i slova, zlatni stub i lovor. Bira se samo CSS-om. */
 .wordmark__logo { display: block; flex: none; width: auto; }
-.wordmark__logo--tamna { height: 46px; }
-.wordmark__logo--svetla { height: 46px; display: none; }
+.wordmark__logo--tamna { height: 40px; }
+.wordmark__logo--svetla { height: 40px; display: none; }
 :root[data-theme="light"] .wordmark__logo--tamna { display: none; }
 :root[data-theme="light"] .wordmark__logo--svetla { display: block; }
 /* Founder odluka NS003 (opcija 3): svetla gornja traka je #F6F7F8. Novi logo

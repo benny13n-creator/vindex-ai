@@ -44,7 +44,7 @@ body.sajt {
 .sajt .zaglavlje { position: sticky; top: 0; z-index: 5; background: rgba(13, 14, 16, 0.94); border-bottom: 1px solid var(--line); }
 .sajt .zaglavlje .okvir { display: flex; align-items: center; gap: 20px; min-height: 64px; }
 .sajt .logo { display: flex; align-items: center; flex: none; padding: 8px 0; }
-.sajt .logo img { display: block; height: 56px; width: auto; }
+.sajt .logo img { display: block; height: 48px; width: auto; }
 .sajt .meni { display: flex; gap: 4px; list-style: none; padding: 0; margin: 0 0 0 auto; }
 .sajt .meni a { display: block; padding: 8px 10px; color: var(--text-2); text-decoration: none; font-size: 0.9375rem; border-radius: var(--radius); }
 .sajt .meni a:hover { color: var(--text-1); background: var(--bg-hover); }
