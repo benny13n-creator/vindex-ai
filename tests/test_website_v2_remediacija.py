@@ -355,7 +355,9 @@ def test_politika_privatnosti_opisuje_beta_prijavu(tekstovi):
                 "svrh", "pravni osnov", "čuva", "briš",                 # svrha, osnov, čuvanje
                 "Supabase", "e-pošte", "ne otvara nalog", "privacy@"):  # primaoci, granice, kanal
         assert deo.lower() in o.lower(), f"beta odeljak ne pominje: {deo}"
-    assert "newsletter" not in o.lower() and "marketin" not in o.lower()
+    # Prijava ne sme da postane marketinška saglasnost ni newsletter.
+    assert "ne koristi za marketing" in o and "nije prijava na newsletter" in o
+    assert not re.search(r"(saglasnost|pristanak) za (marketing|newsletter)", o, re.I)
 
 
 def test_beta_stranica_upucuje_na_odeljak_politike():
@@ -384,3 +386,81 @@ def test_aplikacija_i_sajt_ne_navode_izmisljen_subjekt_ni_privatni_status():
         assert not re.search(r"Vindex d\.o\.o|Vindex doo", t), ruta
         for fraza in ("bez registrovane firme", "neregistrovan", "firma još ne postoji", "registracija firme"):
             assert fraza not in t.lower(), (ruta, fraza)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Final Closure — kontakt na domenu osnivača, uloge, beta osnov, naplata
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Osnivač je potvrdio: `vindex.ai` nije njegov domen; jedini domen je `vindex.rs`.
+# Kontakt adresa na tuđem domenu šalje zahteve lica i podatke trećem licu.
+TUDJA_ADRESA = re.compile(r"[\w.+-]+@vindex\.ai\b", re.I)
+
+# Fajlovi iz kojih korisnik dobija kontakt adresu: pravne stranice, legacy
+# aplikacija i serverske poruke. (`ics_export.py` koristi `@vindex.ai` samo kao
+# UID kalendarskog događaja, ne kao adresu; promena bi duplirala događaje.)
+KONTAKT_POVRSINE = [
+    "privacy.html", "terms.html", "index.html", "static/dpa.html",
+    "static/security.html", "static/bezbednosni-list.html", "static/ai-disclosure.html",
+    "static/status.html", "static/vindex.js", "routers/gdpr.py", "routers/drafting.py",
+    "routers/data_export.py", "scripts/dr_runbook.py",
+]
+
+
+def _koren(p):
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), p)
+
+
+@pytest.mark.parametrize("fajl", KONTAKT_POVRSINE)
+def test_nijedna_kontakt_adresa_nije_na_tudjem_domenu(fajl):
+    with open(_koren(fajl), encoding="utf-8-sig") as f:
+        nadjeno = TUDJA_ADRESA.findall(f.read())
+    assert not nadjeno, f"{fajl}: {sorted(set(nadjeno))}"
+
+
+def test_pravni_dokumenti_upucuju_na_vindex_rs(tekstovi):
+    for ruta in ("/privacy", "/dpa", "/security", "/ai-disclosure", "/bezbednosni-list"):
+        assert "privacy@vindex.rs" in tekstovi[ruta], ruta
+    assert "kontakt@vindex.rs" in tekstovi["/terms"]
+
+
+def test_nema_lica_za_zastitu_podataka_koje_nije_imenovano(tekstovi):
+    for ruta, t in tekstovi.items():
+        assert not re.search(r"\bDPO\b|[Ll]ice za zaštitu podataka o ličnosti je", t), ruta
+
+
+def test_politika_razdvaja_rukovaoca_i_obradjivaca(tekstovi):
+    t = tekstovi["/privacy"]
+    assert "u sopstvene svrhe" in t
+    m = re.search(r"Podaci klijenata advokata\.(.*?)Koje podatke prikupljamo", t)
+    assert m, "nema razgraničenja za podatke klijenata"
+    o = m.group(1)
+    assert "rukovalac je advokat" in o and "kao obrađivač" in o and "čl. 45 ZZPL" in o
+
+
+def test_beta_prijava_legitimni_interes_i_rok(tekstovi):
+    t = tekstovi["/privacy"]
+    o = re.search(r"Prijava za beta testiranje(.*?)Rokovi čuvanja podataka", t).group(1)
+    assert "legitimni interes" in o and "čl. 12 st. 1 tač. 6 ZZPL" in o
+    assert "tač. 2 ZZPL" not in o, "ostao je stari, nepotvrđeni osnov"
+    assert "najkasnije šest meseci od prijema" in o and "najkasnije 30 dana posle otvaranja naloga" in o
+    assert "prigovor" in o and "ručno" in o and "ne vrši automatski sistem" in o
+    assert "Do brisanja na zahtev" not in t and "dok je ne obrišemo na vaš zahtev" not in t
+    # Rok od šest meseci je operativno pravilo, ne zakonski rok.
+    assert not re.search(r"zakonsk\w* rok\w* od šest meseci", t)
+
+
+def test_uslovi_ne_tvrde_da_postoji_cenovnik_ili_naplata(tekstovi):
+    t = tekstovi["/terms"]
+    assert "važećem cenovniku objavljenom" not in t
+    assert "Naplata nije uvedena i cenovnik nije objavljen" in t
+    assert "Odredbe ovog odeljka primenjuju se tek kada se uvede plaćeno korišćenje" in t
+    assert "godišnjom pretplatom" not in tekstovi["/dpa"]
+
+
+def test_ispravke_su_vidljivo_oznacene(tekstovi):
+    for ruta in ("/privacy", "/terms"):
+        assert "Ispravke od 2026-10-21" in tekstovi[ruta], ruta
+    # Obećanje o 14 dana za izmene nije uklonjeno ni oslabljeno.
+    assert "najmanje 14 dana unapred" in tekstovi["/privacy"]
+    assert "najmanje 14 dana pre primene izmena" in tekstovi["/terms"]

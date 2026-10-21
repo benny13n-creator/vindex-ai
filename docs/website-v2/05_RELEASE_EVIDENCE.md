@@ -113,7 +113,7 @@ Spajanje PR-a → Render AutoDeploy. Bez ručnog deploy-a i bez migracija.
 5. `/sitemap.xml` sadrži 7 stranica; `/robots.txt` i dalje sadrži `Disallow: /api/`.
 6. `/app` = V2 (naslov „Aktivni predmeti · Vindex“).
 7. `/app-legacy?posle=app` bez sesije prikazuje „Prijava u Vindex“, bez „847“.
-8. `/sw.js` sadrži `vindex-v158`.
+8. `/sw.js` sadrži `vindex-v159`.
 9. Keš:
    - `Cache-Control: public, max-age=300` na stranicama;
    - posle najviše 5 minuta `/` ne sme vraćati stari naslov „Vindex — predmeti, rokovi i spisi…“.
@@ -197,3 +197,38 @@ Nepromenjeno: dizajn, 7 stranica, katalog, `site/funkcije.json`, V2 aplikacija, 
 - `pip-audit`: čisto.
 
 **CI na konačnom HEAD-u** i odluka GO/NO-GO: u komentaru PR #48.
+
+## 10. Final Closure (2026-10-21)
+
+Nalazi i odluke: `04_PUBLIC_CLAIMS_REVIEW.md` §I.
+
+| Fajl | Izmena | Razlog |
+|---|---|---|
+| 13 fajlova (pravne stranice, `index.html`, `static/vindex.js`, `static/status.html`, `routers/gdpr.py`, `routers/drafting.py`, `routers/data_export.py`, `scripts/dr_runbook.py`) | `*@vindex.ai` → `privacy@vindex.rs` / `kontakt@vindex.rs` | `vindex.ai` nije domen osnivača |
+| `privacy.html` | rukovalac/obrađivač; beta: legitimni interes, rok 6 meseci / 30 dana, prigovor, ručno brisanje; oznaka ispravki | A2–A4 |
+| `terms.html` | „Naplata nije uvedena i cenovnik nije objavljen“; odeljak o pretplati važi tek uz naplatu | Faza C |
+| `static/dpa.html`, `static/security.html` | bez „godišnje pretplate“; „DPO“ → „Kontakt za zaštitu podataka“ | ne postoje |
+| `static/sw.js` | `vindex-v158` → `vindex-v159` | menjaju se legacy `index.html` i `vindex.js` |
+| `tests/test_website_v2_remediacija.py` | 19 novih testova; mutacije M17–M21 uhvaćene | regresija |
+
+Nepromenjeno: dizajn, 7 stranica, katalog, V2 aplikacija, auth, šema, limiter.
+
+**Lokalno:**
+- `test_website_v2_remediacija.py` + `test_website_public.py`: 272 prolaza.
+- GDPR, drafting, export, SW i `lambda001` testovi: 280 prolaza, 1 preskočen.
+
+**Mutacije:**
+| ID | Mutacija | Uhvaćena |
+|---|---|---|
+| M17 | `kontakt@vindex.ai` vraćen u `vindex.js` | da |
+| M18 | vraćen osnov iz tač. 2 | da |
+| M19 | vraćen „važeći cenovnik“ | da |
+| M20 | vraćen „DPO“ | da |
+| M21 | rukovalac podataka klijenata je „Vindex“ | da |
+
+**Produkcija (čitanje):** `waitlist` = 0 redova; `auth.users` = 141. `vindex.rs` nema MX zapis.
+
+**Smoke posle deploya, dopuna §7/§8.6:**
+- `/privacy` i `/terms` sadrže „Ispravke od 2026-10-21“ i `@vindex.rs`;
+- nijedna od stranica `/privacy`, `/terms`, `/dpa`, `/security`, `/ai-disclosure`, `/bezbednosni-list`, `/status` i `/app-legacy` ne sadrži `@vindex.ai`;
+- `/sw.js` sadrži `vindex-v159`.

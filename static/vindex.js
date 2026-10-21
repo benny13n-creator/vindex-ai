@@ -8253,7 +8253,7 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
       btn.textContent = '⚠ Bez sadržaja — pokušajte ponovo';
       btn.disabled = false;
       showToast('Prijava je zabeležena, ali BEZ teksta odgovora. Ako je sadržaj '
-                + 'bitan, pošaljite ga na kontakt@vindex.ai.', 'err');
+                + 'bitan, pošaljite ga na kontakt@vindex.rs.', 'err');
       return;
     }
     // Oba kanala pala. Poruka baze je sirov engleski PostgREST tekst i ne
@@ -8263,7 +8263,7 @@ async function sendFeedback(btn, pitanjeEnc, odgovorEnc) {
     btn.textContent = '⚠ Nije poslato — pokušajte ponovo';
     btn.disabled = false;
     showToast('Prijava NIJE zabeležena. Pokušajte ponovo ili nam pišite na '
-              + 'kontakt@vindex.ai.', 'err');
+              + 'kontakt@vindex.rs.', 'err');
   } catch(e) {
     console.error('[Vindex] sendFeedback greška:', e);
     btn.textContent = '\u26d1 Prijavi neta\u010dan odgovor'; btn.disabled = false;
@@ -8514,7 +8514,7 @@ async function pricing_kontakt(plan) {
       });
     }
   } catch(e) {}
-  window.open('mailto:kontakt@vindex.ai?subject=' + subject + '&body=' + body);
+  window.open('mailto:kontakt@vindex.rs?subject=' + subject + '&body=' + body);
   if (plan !== 'enterprise') {
     closeProModal();
     showToast('Otvoren je vaš email klijent. Pošaljite nam poruku i aktiviraćemo vaš plan!');

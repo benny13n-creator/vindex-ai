@@ -100,7 +100,7 @@ Procenjeno vreme oporavka: {rto}
 Preduzte sledeće korake:
 {koraci}
 
-Ukoliko imate pitanja, kontaktirajte nas na: support@vindex.ai
+Ukoliko imate pitanja, kontaktirajte nas na: kontakt@vindex.rs
 
 Vindex AI tim
 ---
@@ -245,7 +245,7 @@ def check_rpo_rto() -> bool:
     )
     check("RTO (Recovery Time Objective)", True, f"{RTO_HOURS}h — Render rollback + Supabase restore")
     check("P0 Procedura", True, "docs/security/DISASTER_RECOVERY_PLAN.md §4 (zvaničan plan)")
-    check("Kontakti", True, "support@vindex.ai, Render dashboard, Supabase dashboard")
+    check("Kontakti", True, "kontakt@vindex.rs, Render dashboard, Supabase dashboard")
     print()
     print("  NAPOMENA: Ručno testiranje restore procedure:")
     print("    1. Supabase Dashboard → Project Settings → Backups")

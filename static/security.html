@@ -221,8 +221,8 @@
 <h2>12. Odgovornost i kontakt</h2>
 <ul>
   <li><strong>Rukovalac podacima:</strong> Benjamin Nađ, osnivač Vindex AI</li>
-  <li><strong>DPO kontakt:</strong> privacy@vindex.ai</li>
-  <li><strong>Bezbednosni incidenti:</strong> security@vindex.ai</li>
+  <li><strong>Kontakt za zaštitu podataka:</strong> privacy@vindex.rs</li>
+  <li><strong>Bezbednosni incidenti:</strong> kontakt@vindex.rs</li>
   <li><strong>Status servisa:</strong> /status</li>
   <li><strong>DPA:</strong> /dpa — dostupan za preuzimanje i potpisivanje</li>
 </ul>
@@ -256,11 +256,11 @@
 <h2>14. Procedura brisanja i izvoza podataka</h2>
 <h3>14.1 Procedura brisanja naloga (GDPR čl. 17)</h3>
 <ol>
-  <li>Endpoint <code>DELETE /api/gdpr/account</code> postoji i izvršava anonimizaciju odmah po pozivu, ali trenutno <strong>nije izložen kao samouslužno dugme</strong> u podešavanjima platforme — jedini put je zahtev na privacy@vindex.ai (ili direktan autentifikovan API poziv za tehničke/integracione korisnike)</li>
+  <li>Endpoint <code>DELETE /api/gdpr/account</code> postoji i izvršava anonimizaciju odmah po pozivu, ali trenutno <strong>nije izložen kao samouslužno dugme</strong> u podešavanjima platforme — jedini put je zahtev na privacy@vindex.rs (ili direktan autentifikovan API poziv za tehničke/integracione korisnike)</li>
   <li>Verifikacija identiteta (email potvrda pošiljaoca zahteva)</li>
   <li><strong>Po odobrenju zahteva, izvršenje je trenutno (bez čekanja u redu):</strong> identifikacioni podaci naloga (email, ime) se anonimizuju (npr. <code>deleted_xxxxxxxx@deleted.vindex.rs</code>); email notifikacije se deaktiviraju; radnja se upisuje u nepromenjivi audit log</li>
   <li><strong>Zadržava se nepromenjeno:</strong> predmeti, klijenti i dokumenti povezani sa nalogom — u skladu sa zakonskom obavezom advokata da čuva spise predmeta. Ovi podaci ostaju zaštićeni istim merama enkripcije i kontrole pristupa kao i ranije, ali se ne brišu automatski povodom brisanja naloga</li>
-  <li>Ako korisnik želi i brisanje poslovnih podataka (predmeta/dokumenata) mimo zakonskog roka čuvanja, to se rešava posebnim, pisanim zahtevom na privacy@vindex.ai uz procenu zakonskih obaveza čuvanja pre izvršenja</li>
+  <li>Ako korisnik želi i brisanje poslovnih podataka (predmeta/dokumenata) mimo zakonskog roka čuvanja, to se rešava posebnim, pisanim zahtevom na privacy@vindex.rs uz procenu zakonskih obaveza čuvanja pre izvršenja</li>
   <li>Izuzeci koji se uvek čuvaju duže: billing zapisi (Zakon o računovodstvu, 10 godina), anonimizovani audit logovi</li>
   <li>Potvrda anonimizacije šalje se na email korisnika</li>
 </ol>
@@ -269,10 +269,10 @@
   <li><strong>Pristup:</strong> Dugme "Export podataka" u podešavanjima platforme, dostupno isključivo prijavljenom korisniku sa važećim JWT tokenom (<code>GET /api/export/complete</code>)</li>
   <li><strong>Generisanje:</strong> ZIP arhiva se generiše na zahtev i vraća direktno u istom HTTP odgovoru (streaming) — nema međukoraka čuvanja na serveru niti slanja linka</li>
   <li><strong>Sadržaj arhive (JSON fajlovi):</strong> predmeti, klijenti, billing stavke, metapodaci dokumenata, beleške, ročišta, hronologija, komentari</li>
-  <li><strong>Nije uključeno:</strong> originalni fajlovi dokumenata (PDF/DOCX) — arhiva sadrži samo njihove metapodatke. Fajlovi se dostavljaju na poseban zahtev na support@vindex.ai</li>
+  <li><strong>Nije uključeno:</strong> originalni fajlovi dokumenata (PDF/DOCX) — arhiva sadrži samo njihove metapodatke. Fajlovi se dostavljaju na poseban zahtev na kontakt@vindex.rs</li>
   <li><strong>Audit:</strong> Svaki kompletan izvoz upisuje se u nepromenjivi audit log (user_id, vreme, format)</li>
   <li>Dodatno je dostupan i lakši JSON izvoz osnovnih podataka o nalogu putem <code>GET /api/gdpr/export</code> (profil, tarifa, sažetak predmeta, billing, aktivnost) — ograničen na 5 zahteva/min</li>
-  <li>Alternativno, uključujući originalne fajlove dokumenata: zahtev na privacy@vindex.ai uz email verifikaciju, odgovor u roku od 30 dana</li>
+  <li>Alternativno, uključujući originalne fajlove dokumenata: zahtev na privacy@vindex.rs uz email verifikaciju, odgovor u roku od 30 dana</li>
 </ol>
 <h3>14.3 Šta se dešava sa podacima po brisanju naloga</h3>
 <table>

@@ -925,7 +925,7 @@ async def feedback(req: FeedbackReq, user: dict = Depends(get_current_user)):
                      user["user_id"], qh, _exc)
         return _greska_odgovor(
             503, "Prijava NIJE zabeležena. Pokušajte ponovo ili nam pišite na "
-                 "kontakt@vindex.ai.")
+                 "kontakt@vindex.rs.")
 
     logger.info("Feedback [uid=%.8s] tip=%s [q=%s]", user["user_id"], req.tip, qh)
     return {"status": "ok"}

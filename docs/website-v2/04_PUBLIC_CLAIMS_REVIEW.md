@@ -185,3 +185,146 @@ Kod je završen; ovo su jedine preostale nepoznanice. Ne objavljuju se dok nisu 
 | H.4 | **Obaveštenje 14 dana pre izmene Politike** | Politika obećava korisnicima pisano obaveštenje 14 dana unapred. U produkciji postoji **141 profil** (čitanje, 2026-10-21). | odluka: (a) obavestiti i objaviti posle 14 dana, ili (b) objaviti odmah, jer većina izmena ispravlja netačne bezbednosne tvrdnje i ne uvodi nove obaveze, uz istovremeno obaveštenje | — |
 
 Redosled ako osnivač izabere (b): merge → deploy → isti dan e-poruka korisnicima sa spiskom ispravki iz §E i §G. Netačne tvrdnje (backup, potpisani ugovori, RLS, Pinecone, „Vindex d.o.o.“) i dalje stoje u produkciji dok se ovo ne spoji.
+
+
+## I. Final Closure (2026-10-21) — odgovori osnivača i šta iz njih sledi
+
+Osnivač je u mandatu „Final Closure Night Sprint“ potvrdio sledeće:
+- rukovalac je za sopstvene podatke Vindexa (H.2 zatvoren);
+- jedini domen koji poseduje je `vindex.rs`, a `vindex.ai` **nije njegov**;
+- preporučeni osnov za beta prijavu je legitimni interes, a rok čuvanja šest meseci.
+
+### I.1 Kontakt (A1)
+
+| Činjenica | Dokaz | Status |
+|---|---|---|
+| Javne adrese `privacy@`, `legal@`, `security@`, `support@` i `kontakt@vindex.ai` su na tuđem domenu | izjava osnivača; `vindex.ai` registrovan 2023-01-10, sa sakrivenim vlasnikom i MX zapisom ka Fastmail-u | PROVEN (izjava) |
+| U produkciji (`77733e1`) korisnici zahteve iz oblasti privatnosti i povratne informacije (legacy `mailto:kontakt@vindex.ai`) šalju na domen trećeg lica | `static/vindex.js`, `privacy.html`, `routers/gdpr.py` i ostali na `origin/main` | PROVEN |
+| `vindex.rs` ima NS kod Cloudflare-a (`abby`/`jose.ns.cloudflare.com`) i **nema MX zapis** (2026-10-21, upit preko 8.8.8.8 vraća samo SOA) | `nslookup -type=MX vindex.rs 8.8.8.8` | PROVEN |
+| `privacy@vindex.rs` i `kontakt@vindex.rs` mogu da prime poštu | — | **FAIL: adrese ne postoje, jer bez MX zapisa pošta na domen ne može da se isporuči** |
+
+U grani su sve kontakt adrese zamenjene:
+- **`privacy@vindex.rs`**: zaštita podataka, prava lica, DPA, beta prijava;
+- **`kontakt@vindex.rs`**: Uslovi, podrška, bezbednosni incidenti, povratne informacije iz aplikacije, serverske poruke.
+
+Zamena obuhvata 13 fajlova: pravne stranice, `index.html`, `static/vindex.js`, `static/status.html`, `routers/gdpr.py`, `routers/drafting.py`, `routers/data_export.py` i `scripts/dr_runbook.py`.
+- `ics_export.py` zadržava `@vindex.ai` kao UID kalendarskog događaja. To nije adresa, a promena bi korisnicima duplirala događaje.
+- „DPO kontakt“ u `/security` je promenjen u „Kontakt za zaštitu podataka“, jer lice za zaštitu podataka nije imenovano.
+
+**FOUNDER ACTION: CONFIGURE AND VERIFY PRIVACY CONTACT ON VINDEX.RS**
+1. Cloudflare → `vindex.rs` → Email → Email Routing → Enable. Cloudflare sam dodaje MX i SPF zapise.
+2. Destination address: inbox koji osnivač čita; potvrditi link koji Cloudflare pošalje.
+3. Routing rules: `privacy@vindex.rs` i `kontakt@vindex.rs` → taj inbox.
+4. Iz drugog naloga poslati poruku na obe adrese i potvrditi da su stigle.
+5. Odgovoriti na jednu od njih. Email Routing samo prima poštu: odgovor odlazi sa adrese inboxa, što je dovoljno za prijem i odgovor na zahteve.
+
+Agent posle toga sam proverava MX zapis. Prijem poruke potvrđuje samo osnivač.
+
+### I.2 Rukovalac i obrađivač (A2)
+
+- Politika privatnosti: Benjamin Nađ je rukovalac **samo za podatke koje Vindex obrađuje u sopstvene svrhe**: nalog, beta prijave, komunikaciju i tehničke evidencije.
+- Za podatke o klijentima, strankama i drugim licima u predmetima rukovalac je advokat ili kancelarija, a Vindex je obrađivač (čl. 45 ZZPL; čl. 28 GDPR). Odnos uređuje DPA, koji stupa na snagu potpisivanjem.
+- Ovo samo usklađuje Politiku sa DPA, objavljenim od 2026-07-05 („Klijent (Rukovalac)“, „Obrađivač (Vindex AI)“), i sa definicijom rukovaoca kao lica koje određuje svrhu obrade (čl. 4 ZZPL).
+- Iz DPA uklonjena je rečenica „Za poslovne korisnike sa godišnjom pretplatom DPA je standardni aneks“, jer pretplata ne postoji.
+- **Usko pravno pitanje, ne blokira sajt:** da li je ijedan DPA zaista potpisan (UNKNOWN). Bez potpisanog DPA, obrada stvarnih podataka klijenata nema ugovor koji traži čl. 45 st. 3 ZZPL. Zato je REAL-DATA beta NO-GO (§J).
+
+### I.3 Beta prijava: procena legitimnog interesa (A3)
+
+| # | Pitanje | Odgovor |
+|---|---|---|
+| 1 | Konkretan i zakonit interes? | Da: razmotriti zahtev koji je lice samo poslalo i odgovoriti na njega. |
+| 2 | Neophodno? | Da: bez imena i adrese nema odgovora. Telefon, kancelarija i poruka su neobavezni. |
+| 3 | Manji obim podataka? | Obavezno je samo ime i adresa; ostalo je dobrovoljno. Manje od toga onemogućava kontakt. |
+| 4 | Razumno očekivanje? | Da: lice popunjava formu „prijava za beta testiranje“, a stranica i Politika kažu šta se čuva i zašto. |
+| 5 | Uticaj na prava? | Nizak: kontakt podaci profesionalca, bez posebnih kategorija, bez profilisanja i bez automatskog odlučivanja. Pristup ima samo administrator. |
+| 6 | Prigovor? | Na `privacy@vindex.rs`. Prijava se posle prigovora briše (čl. 37 ZZPL). |
+| 7 | Posebne kategorije, dodatni rizik? | Ne traže se. Slobodno polje „poruka“ može da sadrži bilo šta; ublaženo je rokom čuvanja i pristupom samo administratora. Kopija stiže e-poštom osnivaču, pa se i ona briše po roku. |
+| 8 | Mere ograničenja | Rok od šest meseci; nema marketinga ni newslettera; nema sekundarne svrhe; ograničenje 10/h po klijentu i 20/h i 100/dan ukupno; neutralan odgovor bez otkrivanja postoji li adresa. |
+
+**Zaključak (INFERRED, nije pravno mišljenje):** legitimni interes (čl. 12 st. 1 tač. 6 ZZPL; čl. 6 st. 1 tač. f GDPR) je odgovarajući osnov. Interes ne preteže nad pravima lica jer je obrada mala, očekivana i ograničena rokom. Raniji predlog „predugovorne radnje“ (tač. 2) je zamenjen; prijava nije nužno korak ka ugovoru.
+
+### I.4 Čuvanje i postupak brisanja (A4, A5)
+
+- **Čitanje, 2026-10-21:** tabela `waitlist` u produkciji ima **0 redova**. Nijedan postojeći zapis nije pogođen niti obrisan.
+- **Pravilo (operativno, nije zakonski rok):**
+  - nerešena prijava se briše najkasnije šest meseci od prijema;
+  - posle otvaranja naloga briše se najkasnije za 30 dana;
+  - briše se i ranije kod povlačenja, prigovora ili zahteva za brisanje.
+- **Ko i kada:** osnivač, najmanje jednom u 30 dana (podsetnik u sopstvenom kalendaru).
+- **Kako:**
+  1. Supabase → Table Editor → `waitlist`.
+  2. Izdvojiti redove gde je `created_at` stariji od **pet** meseci, ili `status = 'active'`. Prag od pet meseci, uz pregled svakih 30 dana, garantuje brisanje pre šest meseci.
+  3. Za svaki red proveriti da li je u toku razgovor koji se odnosi baš na beta pristup. Ako jeste i lice to očekuje, red se zadržava do sledećeg pregleda, ali najviše do roka.
+  4. Obrisati redove (Delete rows) i iz inboxa obrisati e-poruke „Vindex AI: nova prijava od …“ za iste osobe.
+  5. U privatnu evidenciju (ne u repo i ne u bazu) upisati samo datum pregleda i broj obrisanih redova, bez imena i adresa.
+- Automatsko brisanje se ne obećava. Cron, migracija i nova tabela nisu dodati, jer ručni postupak pouzdano pokriva sadašnji obim (0 redova, najviše 100 dnevno).
+- Brisanje reda iz `waitlist` ne dira nalog. Nalog je u `auth.users` i `profiles`, a ne u ovoj tabeli.
+
+### I.5 Rok od 14 dana (Faza B)
+
+Klauzula u Politici glasi: „Pružalac usluge može izmeniti ovu Politiku uz pisano obaveštenje Korisnika najmanje 14 dana unapred.“ U Uslovima je ista obaveza („najmanje 14 dana pre primene izmena“). Nijedna klauzula nije uklonjena niti oslabljena; to proverava test `test_ispravke_su_vidljivo_oznacene`.
+
+| Izmena | Klasa | Obrazloženje |
+|---|---|---|
+| backup, šifrovanje, RLS i servisni ključ, administrativni pristup, audit, Argon2id, 2FA, pen test | FACTUAL CORRECTION | obrada je i ranije bila takva; tekst ju je pogrešno opisivao |
+| SCC/DPA „potpisani“ → „nije potvrđeno“ | FACTUAL CORRECTION | isto |
+| Pinecone čuva tekstualne segmente | FACTUAL CORRECTION | `uploaded_doc/ingest.py:165` |
+| „Vindex d.o.o.“ → Benjamin Nađ, osnivač Vindex AI | FACTUAL CORRECTION | subjekt ne postoji; ugovorna strana je uvek bilo isto lice |
+| kontakt `@vindex.ai` → `@vindex.rs` | FACTUAL CORRECTION | stara adresa nije pružaočeva |
+| rukovalac/obrađivač za podatke klijenata | FACTUAL CORRECTION | usklađeno sa DPA koji važi od 2026-07-05 i sa čl. 4 ZZPL; prava korisnika se ne smanjuju |
+| odeljak o beta prijavi (osnov, rok, prigovor) | nova informacija, ne izmena postojećeg odnosa | važi za nove prijave; postojećih prijava nema (0 redova); nijednom korisniku se ništa ne menja |
+| Uslovi: „naplata nije uvedena“; odeljak o pretplati važi tek uz naplatu | FACTUAL CORRECTION | cenovnik i naplata ne postoje (`api.py`: `/pricing` uklonjen, `STRIPE_URL` prazan); niko nije platio |
+
+Nijedna izmena nije MATERIAL CHANGE ni UNCERTAIN LEGAL EFFECT. Zato se ispravke objavljuju odmah, a ne posle 14 dana:
+- one ne menjaju obradu niti obaveze, već istinito opisuju postojeće stanje;
+- odlaganje bi značilo svesno objavljivanje netačnih informacija još 14 dana (čl. 5 i čl. 23 ZZPL). Uključujući i to da korisnici zahteve šalju na tuđi domen.
+
+Klauzula o 14 dana štiti od nepovoljnih budućih izmena, a ispravka ne može „stupiti na snagu kasnije“ jer je stvarno stanje već takvo. (INFERRED; nije pravno mišljenje.)
+
+Uslovi ispunjenja:
+- Datum je vidljiv („Ispravke od 2026-10-21“ na `/privacy` i `/terms`).
+- Prethodna verzija je sačuvana: produkcioni tekst je na `77733e11` (`git show 77733e11:privacy.html` itd.) i dostavlja se na zahtev, kako Politika i kaže.
+- **Pisano obaveštenje istog dana:** nacrt je u I.7. Šalje ga osnivač, ne agent.
+
+**Postojeći nalozi (čitanje, agregat, bez ličnih podataka):**
+- 141 nalog u `auth.users`;
+- 130 adresa po obrascu testnog ili sintetičkog naloga (`test`, `qa`, `demo`, `e2e`, `vindex.rs` i slično);
+- 11 ostalih: 2 sa prijavom u poslednjih 90 dana, 8 starijih, 1 nepotvrđena bez prijave.
+
+Klasifikacija po obrascu je INFERRED. Konačan spisak primalaca utvrđuje osnivač u Supabase-u; spisak se ne čuva u repou.
+
+### I.6 Predlog trajnog pravila (B4)
+
+Predlog nije primenjen. Usvajanje bi menjalo samu klauzulu o 14 dana, pa bi i ono tražilo prethodno obaveštenje.
+
+> Izmene ove Politike koje menjaju svrhu ili pravni osnov obrade, rokove čuvanja ili vaša prava objavljujemo i šaljemo vam e-poštom najmanje 14 dana pre primene. Ispravke netačnih ili zastarelih činjeničnih navoda, koje ne menjaju obradu, objavljujemo odmah, sa datumom i opisom ispravke, i o njima vas obaveštavamo e-poštom. Novu svrhu obrade ne započinjemo pre nego što vas o njoj obavestimo i, kada je to potrebno, pribavimo vaš pristanak. Izmene ne deluju unazad i ne umanjuju prava u vezi sa već prikupljenim podacima.
+
+### I.7 Nacrt obaveštenja korisnicima (ne šalje se automatski)
+
+> Naslov: Vindex AI — ispravke Politike privatnosti i Uslova korišćenja
+>
+> Poštovani,
+>
+> obaveštavamo vas da smo 2026-10-21 ispravili netačne navode u Politici privatnosti i Uslovima korišćenja. Način na koji Vindex obrađuje vaše podatke nije promenjen; tekstovi sada tačno opisuju stvarno stanje:
+> - baza podataka trenutno nema automatske backup-e;
+> - standardne ugovorne klauzule (SCC) sa dobavljačima u SAD nisu potvrđene;
+> - u Pinecone-u se, uz vektore, čuvaju i tekstualni segmenti dokumenata;
+> - opseg šifrovanja i kontrole pristupa opisan je tačno;
+> - pružalac usluge je Benjamin Nađ, osnivač Vindex AI; naplata nije uvedena;
+> - za podatke o vašim klijentima vi ste rukovalac, a Vindex obrađivač;
+> - **nova adresa za zaštitu podataka je privacy@vindex.rs, a za ostala pitanja kontakt@vindex.rs. Ne koristite ranije adrese na domenu vindex.ai.**
+>
+> Ispravljeni tekstovi: https://vindex.rs/privacy i https://vindex.rs/terms. Prethodnu verziju možete dobiti na zahtev.
+>
+> Benjamin Nađ, osnivač Vindex AI
+
+### I.8 Uslovi i naplata (Faza C)
+
+| Provera | Rezultat |
+|---|---|
+| Naplata aktivna? | Ne: `STRIPE_URL = ''` (`static/vindex.js:124`); `routers/product_intelligence.py`: „Stripe nije integrisan“ |
+| Plaćeni ugovori? | Nema dokaza da postoje; osnivač kaže da nema prihoda (INFERRED: nema ih) |
+| Cenovnik na sajtu? | Ne: `/pricing` je uklonjen (`api.py`), a V2 sajt nema cena |
+| Uslovi opisuju beta uslugu? | Do sada nisu („pretplatni model prema važećem cenovniku“); ispravljeno |
+
+Odluka o ograničenju odgovornosti („iznos pretplate plaćen u 12 meseci“) i nadležnosti („Privredni sud u Beogradu“, iako je pružalac fizičko lice) je **usko pravno pitanje za kasniju proveru**. Ugovorni uslovi se ne menjaju bez pravne osnove, pa to ne blokira sajt.

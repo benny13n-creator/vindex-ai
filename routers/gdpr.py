@@ -255,7 +255,7 @@ async def gdpr_delete_account(request: Request, user: dict = Depends(get_current
         raise _Namerni(
             status_code=503,
             detail="Brisanje naloga NIJE izvršeno. Vaši podaci su nepromenjeni. "
-                   "Pokušajte ponovo ili nam pišite na kontakt@vindex.ai.",
+                   "Pokušajte ponovo ili nam pišite na kontakt@vindex.rs.",
         )
     logger.info("[GDPR] account deleted uid=%.8s", uid)
 
