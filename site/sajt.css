@@ -351,3 +351,35 @@ body.sajt {
   .sajt .ulaz { animation: none; }
   .sajt .kartica:hover, .sajt .sektor:hover, .sajt .dugme--istaknuto:hover, .sajt .istaknuto:hover .snimak__okvir { transform: none; }
 }
+
+/* ── Crna i boja kosti (odluka osnivača 2026-10-21) ───────────
+ * Dve glavne boje: crna (zaglavlje, uvod, završni poziv, podnožje) i boja kosti
+ * (sadržajni odeljci). Tekst i akcenti ostaju isti; na kosti dobijaju tamnije
+ * nijanse iste boje, da kontrast ostane ≥ 4,5:1. Tanke linije dele odeljke. */
+:root {
+  --bg: #0b0b0b; --bg-sheet: #121212; --bg-panel: #161616; --bg-hover: #1c1c1c; --bg-selected: #202020; --bg-input: #0f0f0f;
+  --line: #262626; --line-strong: #363636;
+}
+.sajt .zaglavlje { background: rgba(11, 11, 11, 0.96); }
+.sajt .odeljak:not(.odeljak--zavrsni) {
+  --bg: #f2eee6; --bg-sheet: #faf8f3; --bg-panel: #fffdf8; --bg-hover: #e8e3d8; --bg-selected: #e2dccf; --bg-input: #fffdf9;
+  --line: #ddd6c9; --line-strong: #c3bbab;
+  --text-1: #141414; --text-2: #3f3c36; --text-3: #5c574e;
+  --accent: #3a63a0; --accent-strong: #2b5290; --accent-quiet: rgba(58, 99, 160, 0.10); --focus: #2b5290;
+  --ok: #3f6b4c; --ceka: #7a5b1e; --zatvoreno: #5c574e; --greska: #9a3b2e;
+  --demo-bg: rgba(122, 91, 30, 0.08); --demo-line: rgba(122, 91, 30, 0.35); --demo-text: #6b4f18;
+  background: var(--bg); color: var(--text-1); color-scheme: light;
+}
+.sajt .odeljak.odeljak--tih:not(.odeljak--zavrsni) { --bg: #eae5da; --bg-hover: #e0dacd; background: var(--bg); }
+.sajt .odeljak--zavrsni { background: var(--bg); }
+.sajt .podnozje { background: var(--bg); border-top: 1px solid var(--line); }
+.sajt .odeljak:not(.odeljak--zavrsni) .kartica,
+.sajt .odeljak:not(.odeljak--zavrsni) .sektor { background: var(--bg-sheet); }
+.sajt .odeljak:not(.odeljak--zavrsni) .kartica:hover { border-color: rgba(43, 82, 144, 0.45); background: var(--bg-panel); }
+.sajt .odeljak:not(.odeljak--zavrsni) .sektor--danas { border-color: rgba(43, 82, 144, 0.45); background: var(--accent-quiet); }
+.sajt .odeljak:not(.odeljak--zavrsni) .sektor--danas .sektor__status { border-color: rgba(43, 82, 144, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .ko--potvrda { border-color: rgba(122, 91, 30, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .ko--advokat { border-color: rgba(63, 107, 76, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .snimak__okvir { border-color: #1f1f1f; }
+.sajt .odeljak:not(.odeljak--zavrsni) .istaknuto:hover .snimak__okvir { box-shadow: 0 24px 60px -30px rgba(20, 20, 20, 0.45); }
+.sajt .odeljak:not(.odeljak--zavrsni) .dugme--istaknuto:hover { box-shadow: 0 10px 30px -14px rgba(20, 20, 20, 0.5); }
