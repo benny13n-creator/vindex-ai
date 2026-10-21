@@ -71,7 +71,7 @@ svg .fill { fill: currentColor; stroke: none; }
 /* Kanonski logo (Website V3, odluka osnivača 2026-10-21): logo A2 izdvojen 1:1 iz slike osnivača.
  * Datoteke se prikazuju bez ikakve obrade — bez filtera, providnosti, senke,
  * maske, isecanja ili izobličenja; samo visina, širina sledi izvornu razmeru.
- * Tamna tema: ceo znak u zlatu (kao tamna varijanta na istoj slici). Svetla tema:
+ * Tamna tema: V i slova u boji kosti, stub i lovor u zlatu. Svetla tema:
  * originalne boje — crno V i slova, zlatni stub i lovor. Bira se samo CSS-om. */
 .wordmark__logo { display: block; flex: none; width: auto; }
 .wordmark__logo--tamna { height: 46px; }

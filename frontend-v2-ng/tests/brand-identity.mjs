@@ -3,7 +3,7 @@
 //
 // Dokazuje, u stvarnom Chromium-u, za svaku temu i stanje ekrana:
 //   • bajtovi runtime logoa = kanonski fajlovi (SHA-256), u brand/ nema ničeg drugog;
-//   • tamna tema → ceo znak u zlatu, svetla → originalne boje (oba providni PNG izdvojen
+//   • tamna tema → V i slova u boji kosti uz zlato, svetla → originalne boje (oba providni PNG izdvojen
 //     1:1 iz slike osnivača, Website V3 2026-10-21; scripts/brand/izdvoji_logo.py);
 //   • bez rastezanja, isecanja, filtera, sjaja, senke, maske, transformacije;
 //   • gornja traka i sve kontrole: isti okviri kao foundation 1eb20976;
@@ -36,7 +36,7 @@ function zapisi(grupa, naziv, ok, detalj = "") {
 
 // ── 1. Integritet izvora (bez pregledača) ───────────────────────────────
 const KANON = {
-  "vindex-logo-tamna.png": "b075aba3a0eb8c3a303e64e4b7f9b594090e2f2bce1e7d0dae6f7a072f81bb71",
+  "vindex-logo-tamna.png": "addaf75cdb780261375d5c5e1efee6b691f13cc0361dc8796e64efa5d701a7ca",
   "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
 };
 const brand = (await readdir(join(KOREN, "brand"))).sort();

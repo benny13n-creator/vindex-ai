@@ -7,8 +7,7 @@ Izlaz: vindex-logo-svetla.png i vindex-logo-tamna.png (357x305, providna pozadin
 vindex-znak-tamna.png (samo znak, za ikone).
 
 Svetla verzija: originalne boje (crno V i slova, zlatni stub i lovor) na providnoj podlozi.
-Tamna verzija: isti crtež; crni delovi (V i VINDEX) dobijaju zlatni ton kao u tamnoj
-varijanti na istoj slici (gornji desni kadar A2), zlatni delovi ostaju isti.
+Tamna verzija: isti crtež; V i VINDEX u boji kosti, stub i lovor u zlatu (malo svetlijem).
 """
 import sys
 from pathlib import Path
@@ -44,19 +43,16 @@ def sacuvaj(boje, ime):
 
 sacuvaj(fg, "vindex-logo-svetla.png")
 
-# Tamna: crni delovi (niska zasićenost i niska svetlina) → zlato. Zlato iz samog crteža:
-# srednja boja zlatnih piksela (zasićenih), pa se senčenje crnog prenosi kao svetlina zlata.
+# Tamna (odluka osnivača 2026-10-21): linije iste, menjaju se samo boje. V i slova
+# dobijaju boju kosti sa senčenjem originala; stub i lovor ostaju zlatni, podignuti 15%
+# da na crnoj imaju istu snagu kao na beloj. Meka težina (bez tvrde granice) čuva ivice.
 sv = fg.mean(axis=2)
 zas = fg.max(axis=2) - fg.min(axis=2)
-zlatni = (a > 0.9) & (zas > 40)
-zlato = np.median(fg[zlatni], axis=0)
-print("zlato", zlato)
-crno = (zas < 40) & (sv < 120)
-t = np.clip(sv / 120.0, 0, 1)[..., None]           # 0 = najtamnije crno
-svetlo_zlato = np.minimum(zlato * 1.18, 255)
-tamno_zlato = zlato * 0.78
-preslikano = tamno_zlato + (svetlo_zlato - tamno_zlato) * t
-tamna = np.where(crno[..., None], preslikano, fg)
+w = (np.clip((45 - zas) / 25, 0, 1) * np.clip((150 - sv) / 50, 0, 1))[..., None]
+t = np.clip(sv / 110, 0, 1)[..., None]
+KOST_TAMNA, KOST_SVETLA = np.array([214.0, 206, 190]), np.array([242.0, 237, 227])
+kost = KOST_TAMNA + (KOST_SVETLA - KOST_TAMNA) * t
+tamna = w * kost + (1 - w) * np.clip(fg * 1.15, 0, 255)
 sacuvaj(tamna, "vindex-logo-tamna.png")
 # Samo znak (redovi do praznog pojasa iznad slova), za favicon i ikonu aplikacije.
 red = np.where((a > 0).any(axis=1))[0]

@@ -34,7 +34,7 @@ LAZNO = {
     "FOUNDER_EMAILS": "ci@example.com", "PORT": "8000",
 }
 KANONSKI_LOGO = {
-    "vindex-logo-tamna.png": "b075aba3a0eb8c3a303e64e4b7f9b594090e2f2bce1e7d0dae6f7a072f81bb71",
+    "vindex-logo-tamna.png": "addaf75cdb780261375d5c5e1efee6b691f13cc0361dc8796e64efa5d701a7ca",
     "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
 }
 LEGACY = ["/health", "/", "/app", "/app-v2", "/sw.js", "/manifest.json", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
