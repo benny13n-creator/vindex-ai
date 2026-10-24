@@ -3,12 +3,13 @@
 //
 // Dokazuje, u stvarnom Chromium-u, za svaku temu i stanje ekrana:
 //   • bajtovi runtime logoa = kanonski fajlovi (SHA-256), u brand/ nema ničeg drugog;
-//   • tamna tema → V i slova u boji kosti uz zlato, svetla → originalne boje (oba providni PNG izdvojen
-//     1:1 iz slike osnivača, Website V3 2026-10-21; scripts/brand/izdvoji_logo.py);
+//   • finalni logo (2026-10-24) izdvojen 1:1 iz slike osnivača (scripts/brand/izdvoji_finalni_logo.py):
+//     tamna tema → providni PNG u boji kosti, svetla → isti kadar sa izvornom tamnoplavom podlogom;
 //   • bez rastezanja, isecanja, filtera, sjaja, senke, maske, transformacije;
 //   • gornja traka i sve kontrole: isti okviri kao foundation 1eb20976;
 //   • svetla traka #F6F7F8, kontrole čitljive; tamna traka nepromenjena;
-//   • providne oblasti SVG-a = površina trake u obe teme (nema kutije ni oreola);
+//   • tamna: providne oblasti logoa = površina trake (nema kutije ni oreola); svetla: izvorna podloga
+//     u kadru logoa, traka oko njega netaknuta (nema oreola);
 //   • nema preliva; link, ime za čitač ekrana i tastatura nepromenjeni.
 
 import { chromium } from "playwright";
@@ -36,8 +37,8 @@ function zapisi(grupa, naziv, ok, detalj = "") {
 
 // ── 1. Integritet izvora (bez pregledača) ───────────────────────────────
 const KANON = {
-  "vindex-logo-tamna.png": "addaf75cdb780261375d5c5e1efee6b691f13cc0361dc8796e64efa5d701a7ca",
-  "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
+  "vindex-logo-final-tamna.png": "e58a072685c58ec73d0722285d601cce1b9e392d70997722f1af28972b8472f2",
+  "vindex-logo-final-svetla.png": "6de99485112794d618d4b11f8c1a1defcaaf709c50a5d9d9b8ddc9fc93e7b3b2",
 };
 const brand = (await readdir(join(KOREN, "brand"))).sort();
 zapisi("integritet", "brand/ sadrži SAMO dva runtime fajla (bez reference, vektora, ikonica, PDF-a, manifesta)", JSON.stringify(brand) === JSON.stringify(Object.keys(KANON).sort()), brand.join(","));
@@ -52,7 +53,7 @@ zapisi("integritet", "logo nije ugrađen kao data:/base64 u HTML, CSS ili JS (se
 zapisi("integritet", "nema tehničkog vektora, favicon-a ni manifest-a u V2", !/Technical_(White|Black)_VECTOR|rel="(icon|manifest|apple-touch-icon)"/.test(izvorni));
 const SRC = (index.match(/<a class="wordmark"[\s\S]*?<\/a>/) || [""])[0];
 zapisi("integritet", "oznaka linka: dva <img alt=\"\"> sa odobrenim fajlovima i izvornim width/height",
-  SRC.includes(`src="${LOGO.dark.fajl}" alt="" width="357" height="305"`) && SRC.includes(`src="${LOGO.light.fajl}" alt="" width="357" height="305"`) && (SRC.match(/<img/g) || []).length === 2);
+  SRC.includes(`src="${LOGO.dark.fajl}" alt="" width="398" height="287"`) && SRC.includes(`src="${LOGO.light.fajl}" alt="" width="398" height="287"`) && (SRC.match(/<img/g) || []).length === 2);
 
 // ── 2. Serveri: HEAD i foundation ───────────────────────────────────────
 const refDir = await mkdtemp(join(tmpdir(), "vx-brand-ref-"));
@@ -117,16 +118,18 @@ async function pikselDokaz0(p, u, ime) {
   const [uz] = await pikseli(png, [s({ x: L.x + L.w + 4, y: L.y + L.h / 2, w: 2, h: 2, c: [0, 0, 0] })], u.viewport);
   if (!uz.n) throw new Error("površina pored logoa je van snimka");
   const c = uz.prvi;
-  // Potpuno providne oblasti logoa (357×305, alfa = 0, izmereno u fajlu) moraju biti iste kao traka.
-  const kx = L.w / 357, ky = L.h / 305, U = 1;
-  const o = (x0, y0, x1, y1) => ({ x: L.x + x0 * kx + U, y: L.y + y0 * ky + U, w: (x1 - x0) * kx - 2 * U, h: (y1 - y0) * ky - 2 * U, c });
-  const ivice = [o(0, 0, 70, 75), o(290, 0, 357, 75), o(0, 120, 60, 222), o(300, 120, 357, 222)];
+  // Oblasti levo i desno od znaka (398×287, izmereno u fajlu): u tamnoj verziji potpuno providne (alfa = 0) —
+  // moraju biti iste kao traka; u svetloj verziji to je izvorna tamnoplava podloga (srednja boja izmerena u fajlu).
+  const kx = L.w / 398, ky = L.h / 287, U = 1, svetla = u.tema === "light";
+  const o = (x0, y0, x1, y1, cs) => ({ x: L.x + x0 * kx + U, y: L.y + y0 * ky + U, w: (x1 - x0) * kx - 2 * U, h: (y1 - y0) * ky - 2 * U, c: svetla ? cs : c });
+  const ivice = [o(0, 0, 80, 75, [10, 21, 38]), o(318, 0, 398, 75, [11, 22, 40]), o(0, 100, 80, 190, [7, 17, 33]), o(318, 100, 398, 190, [8, 18, 34])];
   const r = await pikseli(png, ivice, u.viewport);
-  const maks = Math.max(...r.map(x => x.maks));
+  const maks = Math.max(...r.map(x => x.maks)), tol = svetla ? 8 : 2;
   const okolo = await pikseli(png, [{ x: Math.max(0, L.x - 6), y: L.y, w: 4, h: L.h, c }, { x: L.x, y: Math.max(0, L.y - 3), w: L.w, h: 2, c }], u.viewport);
   const maksO = Math.max(...okolo.map(x => x.maks));
-  return [[`${u.tema === "light" ? "svetla" : "tamna"}: providne oblasti logoa i traka oko njega = površina trake (±2) — nema kutije ni oreola`,
-    maks <= 2 && maksO <= 2 && r.every(x => x.n > 0), `površina ${c.join(",")}, maks ${maks}/255, okolo ${maksO}/255, ${r.map(x => x.n).join("/")} px`]];
+  return [[svetla ? "svetla: kadar logoa nosi izvornu tamnoplavu podlogu (±8), traka oko njega = površina trake (±2) — nema oreola"
+    : "tamna: providne oblasti logoa i traka oko njega = površina trake (±2) — nema kutije ni oreola",
+    maks <= tol && maksO <= 2 && r.every(x => x.n > 0), `površina ${c.join(",")}, maks ${maks}/255, okolo ${maksO}/255, ${r.map(x => x.n).join("/")} px`]];
 }
 
 async function otvori(port, { w = 1440, h = 900, tema = "dark", nav = "puna", motion = "reduce", panel = false } = {}) {

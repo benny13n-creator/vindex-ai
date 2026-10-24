@@ -10012,7 +10012,7 @@ body.light-theme .vx-landing.vxp {
 }
 body.light-theme .vxp .vxp-dugme:not(.vxp-dugme--sporedno) { color: #fbfaf8 !important; }
 body.light-theme .vxp .vxp-dugme--sporedno:hover { background: #f1f0ec; }
-body.light-theme .vxp .vxp-logo img { content: url("/v2/site/brand/vindex-logo-svetla.png"); }
+body.light-theme .vxp .vxp-logo img { content: url("/v2/site/brand/vindex-logo-final-svetla.png"); }
 body.light-theme .vxp .vxp-traka { background: #f6f7f8; } /* V2 NS003: boja margine lockup-a */
 /* Pre prijave legacy plutajuće kontrole (glas, povratne informacije, mobilna navigacija aplikacije, ukrasni kursor, prazan kontejner
    obaveštenja) nemaju funkciju. Skrivaju se SAMO dok je ulaz prikazan; vindex.js ga posle prijave
