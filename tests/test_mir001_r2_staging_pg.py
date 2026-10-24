@@ -44,15 +44,24 @@ def _napuni(dsn):
 
 
 @pytest.fixture(scope="module")
-def baze():
+def _baze_modula():
     P.potreban_pg()
     pre, posle = P.nova_baza(sa_ns4=True), P.nova_baza(sa_ns4=True)
     P.primeni(posle, "141_staging_memory_bez_direktnog_upisa.sql")
-    for d in (pre, posle):
-        _napuni(d)
     yield pre, posle
     for d in (pre, posle):
         P.obrisi_bazu(d)
+
+
+@pytest.fixture
+def baze(_baze_modula):
+    """Isto početno stanje pre SVAKOG testa: test_5/test_7 (backend) namerno odobravaju i menjaju redove, a CI meša
+    redosled (pytest-randomly) — bez ovoga tvrdnje o nepromenjenom redu zavise od redosleda, ne od 141."""
+    for d in _baze_modula:
+        with _psy().connect(d, autocommit=True) as c:
+            c.execute("DELETE FROM public.staging_memory")
+        _napuni(d)
+    return _baze_modula
 
 
 def _kao(dsn, uloga, sub, sql, params=()):

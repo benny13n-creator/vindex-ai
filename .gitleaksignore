@@ -120,3 +120,9 @@ dc29b7641c0afeb996b94b3c8c0ff19b660fdc5d:.env:openai-api-key:1
 # literal column value `izvor_tvrdnje='ai_klasifikacija'` (claim author enum from
 # shared/evidence_write.py::IZVOR_TVRDNJE_AI) in prose. Read from the commit blob; not a credential.
 4a51a2c8286076fd35f983c2384e104e52187c61:docs/v2-execution/VCR002_TASK_LEDGER.md:generic-api-key:137
+
+# ── MIR001 (2026-10-24) synthetic grading-file false positive ─────────────
+# docs/v2-execution/mir001_c3b_model/final_closure/t03/b3/ocene_sifre.json:62 at 30cfbd5a -- the matched
+# "secret" is the JSON field NAME "M2_obrazlozenje" (blind-grader rationale field, beside "M2_citat") in a
+# synthetic Golden Case grading file. Read from the commit blob; not a credential.
+30cfbd5a09da1ca017f6502b4d386b4f20d85444:docs/v2-execution/mir001_c3b_model/final_closure/t03/b3/ocene_sifre.json:generic-api-key:62
