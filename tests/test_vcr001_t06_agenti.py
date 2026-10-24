@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tests.ns005_harness import ocisti, pripremi, zaglavlje
+from tests.nacrt_json_zamena import kao_json
 
 PA, PB = "pred-A-1", "pred-B-1"
 ZOO = ("ZAKON: Zakon o obligacionim odnosima\nČLAN: Član 154\n"
@@ -57,6 +58,7 @@ def ag(monkeypatch):
         r.choices[0].message.content = stanje["odgovor"]
         return r
     monkeypatch.setattr(MA, "_pozovi_agent_api", _model)
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", kao_json(_model))     # C3b: nacrt iz spisa = JSON
     import app.services.retrieve as R
     monkeypatch.setattr(R, "retrieve_documents", lambda *a, **kw: (list(stanje["izvori"]), {}))
     yield k, b, stanje

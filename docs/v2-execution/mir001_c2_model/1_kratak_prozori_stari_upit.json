@@ -1,0 +1,228 @@
+{
+ "duzina": 4599,
+ "pozicija_kasne": 4364,
+ "novi_put": [
+  {
+   "cinjenice": [
+    "Tužilac je uplatio avans za treću turu koja nije isporučena",
+    "Tužilac je pretrpeo štetu zbog neispunjenja ugovornih obaveza",
+    "Tužilac je tražio naknadu ugovorne kazne od investitora",
+    "tužilac osporava višu silu",
+    "tuženi nije obavestio tužioca",
+    "tužilac platio sudsku taksu"
+   ],
+   "ekstrakcija": {
+    "ukupno_znakova": 4599,
+    "procitano_znakova": 4599,
+    "potpuno": true,
+    "prozora": 2,
+    "neprocitani_prozori": [],
+    "cinjenica_izdvojeno": 6,
+    "cinjenica_odbaceno": 0
+   },
+   "tokeni": [
+    [
+     1885,
+     351
+    ],
+    [
+     803,
+     192
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "Tužilac je uplatio avans za treću turu koja nije isporučena",
+    "Tužilac je pretrpeo štetu zbog neispunjenja ugovornih obaveza",
+    "Tužilac je tražio naknadu ugovorne kazne od investitora",
+    "tužilac osporava visoku silu",
+    "tuženi nije obavestio tužioca u roku",
+    "tuženi priznao dug"
+   ],
+   "ekstrakcija": {
+    "ukupno_znakova": 4599,
+    "procitano_znakova": 4599,
+    "potpuno": true,
+    "prozora": 2,
+    "neprocitani_prozori": [],
+    "cinjenica_izdvojeno": 6,
+    "cinjenica_odbaceno": 0
+   },
+   "tokeni": [
+    [
+     1885,
+     351
+    ],
+    [
+     803,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "Tužilac je uplatio avans za treću turu",
+    "Treća tura nikada nije isporučena",
+    "Tužilac je pretrpeo štetu zbog neispunjenja ugovornih obaveza",
+    "tužilac osporava visoku silu",
+    "tuženi nije obavestio tužioca o višoj sili",
+    "tuženi priznao dug"
+   ],
+   "ekstrakcija": {
+    "ukupno_znakova": 4599,
+    "procitano_znakova": 4599,
+    "potpuno": true,
+    "prozora": 2,
+    "neprocitani_prozori": [],
+    "cinjenica_izdvojeno": 6,
+    "cinjenica_odbaceno": 0
+   },
+   "tokeni": [
+    [
+     1885,
+     329
+    ],
+    [
+     803,
+     198
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "Tužilac je uplatio avans za treću turu koja nije isporučena.",
+    "Tužilac je pretrpeo štetu zbog nabavke profila od drugog dobavljača.",
+    "Tuženi je priznao kašnjenje, ali ga je pripisao višoj sili.",
+    "tužilac osporava višu silu",
+    "tuženi nije obavestio tužioca",
+    "tuženi priznao dug"
+   ],
+   "ekstrakcija": {
+    "ukupno_znakova": 4599,
+    "procitano_znakova": 4599,
+    "potpuno": true,
+    "prozora": 2,
+    "neprocitani_prozori": [],
+    "cinjenica_izdvojeno": 6,
+    "cinjenica_odbaceno": 0
+   },
+   "tokeni": [
+    [
+     1885,
+     352
+    ],
+    [
+     803,
+     190
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "Tužilac je uplatio avans za treću turu",
+    "Treća tura nikada nije isporučena",
+    "Tužilac je pretrpeo štetu zbog neispunjenja ugovornih obaveza",
+    "tužilac osporava visoku silu",
+    "tuženi nije obavestio tužioca o višoj sili",
+    "tuženi priznao dug"
+   ],
+   "ekstrakcija": {
+    "ukupno_znakova": 4599,
+    "procitano_znakova": 4599,
+    "potpuno": true,
+    "prozora": 2,
+    "neprocitani_prozori": [],
+    "cinjenica_izdvojeno": 6,
+    "cinjenica_odbaceno": 0
+   },
+   "tokeni": [
+    [
+     1885,
+     334
+    ],
+    [
+     803,
+     194
+    ]
+   ],
+   "kasna_izdvojena": false
+  }
+ ],
+ "stari_put": [
+  {
+   "cinjenice": [
+    "zaključen ugovor o isporuci",
+    "neispunjenje ugovornih obaveza",
+    "izostanak isporuke treće ture"
+   ],
+   "tokeni": [
+    [
+     1011,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "zaključen ugovor o isporuci",
+    "neispunjenje ugovornih obaveza",
+    "izostanak isporuke treće ture"
+   ],
+   "tokeni": [
+    [
+     1011,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "zaključen ugovor o isporuci",
+    "neispunjenje ugovornih obaveza",
+    "izostanak isporuke treće ture"
+   ],
+   "tokeni": [
+    [
+     1011,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "zaključen ugovor o isporuci",
+    "neispunjenje ugovornih obaveza",
+    "izostanak isporuke treće ture"
+   ],
+   "tokeni": [
+    [
+     1011,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  },
+  {
+   "cinjenice": [
+    "zaključen ugovor o isporuci",
+    "neispunjenje ugovornih obaveza",
+    "izostanak isporuke treće ture"
+   ],
+   "tokeni": [
+    [
+     1011,
+     196
+    ]
+   ],
+   "kasna_izdvojena": false
+  }
+ ]
+}

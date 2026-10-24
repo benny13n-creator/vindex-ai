@@ -1,0 +1,647 @@
+{
+ "duzina": 16082,
+ "pozicija_presudne": 12370,
+ "presudna": "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+ "gust": {
+  "stari_upit": [
+   {
+    "cinjenice": [
+     "Tužilac je podneo tužbu radi naplate",
+     "Tužilac je reklamirao kvalitet isporučene robe",
+     "Tuženi je odgovarao na reklamacije da profili odgovaraju standardu.",
+     "Tuženi je priznao dug prema tužiocu.",
+     "tužilac je reklamirao kvalitet isporuke",
+     "Tuženi je isporučio profile na gradilište",
+     "Tuženi je odgovorio na reklamacije",
+     "Tuženi je uplatio iznose po fakturama vezanim za isporučene profile.",
+     "Tužilac je fakturama obračunao isporučene količine profila.",
+     "tuženi je uplatio iznose po fakturama",
+     "Tužilac je reklamirao kvalitet isporučenih profila",
+     "Tužilac je izdao više faktura za isporučene tone profila"
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 12,
+     "cinjenica_odbaceno": 0,
+     "cinjenice_potpune": true
+    },
+    "pozivi": [
+     {
+      "ulaz": 2001,
+      "izlaz": 500,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2058,
+      "izlaz": 557,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2067,
+      "izlaz": 769,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2061,
+      "izlaz": 576,
+      "prekinut": false
+     },
+     {
+      "ulaz": 871,
+      "izlaz": 318,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": false,
+    "presudna_locirana": false,
+    "locirano": 0,
+    "ukupno": 12
+   },
+   {
+    "cinjenice": [
+     "Tužba radi naplate između Gradnja Invest DOO i Metal Profil DOO",
+     "tužilac je reklamirao kvalitet isporučene robe",
+     "Tužilac je reklamirao kvalitet isporuka profila.",
+     "Tužilac je reklamirao kvalitet isporučenih profila.",
+     "tužilac je reklamirao kvalitet isporuke",
+     "Reklamacije na kvalitet isporučenih profila",
+     "tuženi je odgovorio na reklamacije",
+     "Tuženi je odgovarao na reklamacije da profili odgovaraju standardu.",
+     "Tuženi je priznao dug prema tužiocu.",
+     "tuženi je uplatio iznose po fakturama",
+     "Uplate tuženog po fakturama",
+     "tužilac je izdao više faktura za isporučene tone profila",
+     "Tuženi je izvršio uplate po fakturama.",
+     "Tužilac je fakturama obračunao isporučene količine profila."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 14,
+     "cinjenica_odbaceno": 0,
+     "cinjenice_potpune": true
+    },
+    "pozivi": [
+     {
+      "ulaz": 2001,
+      "izlaz": 491,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2058,
+      "izlaz": 555,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2067,
+      "izlaz": 677,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2061,
+      "izlaz": 501,
+      "prekinut": false
+     },
+     {
+      "ulaz": 871,
+      "izlaz": 318,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": false,
+    "presudna_locirana": false,
+    "locirano": 0,
+    "ukupno": 14
+   },
+   {
+    "cinjenice": [
+     "Tužba radi naplate između Gradnja Invest DOO i Metal Profil DOO",
+     "Tužilac je reklamirao kvalitet isporučene robe",
+     "Tuženi je uplatio iznose po fakturama.",
+     "Tužilac je reklamirao kvalitet isporučenih profila",
+     "tužilac je reklamirao kvalitet isporuke",
+     "Reklamacije na kvalitet isporučenih profila",
+     "Tuženi je odgovorio na reklamacije",
+     "Tuženi je odgovorio na reklamacije da profili odgovaraju standardu.",
+     "Tuženi je priznao dug prema tužiocu",
+     "Uplate tuženog po fakturama",
+     "Tužilac je izdao više faktura za isporučene tone profila",
+     "Tužilac je fakturama obračunao isporučene količine profila"
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 12,
+     "cinjenica_odbaceno": 0,
+     "cinjenice_potpune": true
+    },
+    "pozivi": [
+     {
+      "ulaz": 2001,
+      "izlaz": 530,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2058,
+      "izlaz": 549,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2067,
+      "izlaz": 686,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2061,
+      "izlaz": 533,
+      "prekinut": false
+     },
+     {
+      "ulaz": 871,
+      "izlaz": 318,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": false,
+    "presudna_locirana": false,
+    "locirano": 0,
+    "ukupno": 12
+   },
+   {
+    "cinjenice": [
+     "Tužba radi naplate između Gradnja Invest DOO i Metal Profil DOO",
+     "tužilac reklamirao kvalitet isporučene robe",
+     "Tužilac je reklamirao kvalitet isporuka profila.",
+     "Tužilac je reklamirao kvalitet isporučenih profila.",
+     "tužilac je reklamirao kvalitet isporuke",
+     "Reklamacije na kvalitet isporučenih profila",
+     "tuženi odgovorio na reklamacije",
+     "Tuženi je odgovarao na reklamacije da profili odgovaraju standardu.",
+     "Tuženi je priznao dug prema tužiocu.",
+     "tuženi je uplatio iznose po fakturama",
+     "Uplate tuženog po fakturama",
+     "izvršene isplate po fakturama",
+     "Tuženi je izvršio uplate po fakturama.",
+     "Tužilac je izdao više faktura za isporučene tone profila.",
+     "kontrolor kvaliteta je sačinio zapisnike o pregledu isporuke"
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 15,
+     "cinjenica_odbaceno": 0,
+     "cinjenice_potpune": true
+    },
+    "pozivi": [
+     {
+      "ulaz": 2001,
+      "izlaz": 506,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2058,
+      "izlaz": 538,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2067,
+      "izlaz": 744,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2061,
+      "izlaz": 542,
+      "prekinut": false
+     },
+     {
+      "ulaz": 871,
+      "izlaz": 319,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": false,
+    "presudna_locirana": false,
+    "locirano": 0,
+    "ukupno": 15
+   },
+   {
+    "cinjenice": [
+     "Tužba radi naplate između Gradnja Invest DOO i Metal Profil DOO",
+     "tužilac je reklamirao kvalitet isporučene robe",
+     "Tužilac je reklamirao kvalitet isporuka profila.",
+     "Tužilac je reklamirao kvalitet isporučenih profila.",
+     "tužilac je reklamirao kvalitet isporuke",
+     "Reklamacije na kvalitet isporučenih profila",
+     "tuženi je odgovorio na reklamacije",
+     "Tuženi je odgovarao na reklamacije da profili odgovaraju standardu.",
+     "Tuženi je priznao dug prema tužiocu.",
+     "kontrolor kvaliteta je sačinio zapisnike o pregledu isporuke",
+     "Uplate tuženog po fakturama",
+     "tužilac je izdao više faktura za isporučene tone profila",
+     "Tuženi je uplatio iznose po fakturama."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 13,
+     "cinjenica_odbaceno": 0,
+     "cinjenice_potpune": true
+    },
+    "pozivi": [
+     {
+      "ulaz": 2001,
+      "izlaz": 506,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2058,
+      "izlaz": 555,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2067,
+      "izlaz": 719,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2061,
+      "izlaz": 539,
+      "prekinut": false
+     },
+     {
+      "ulaz": 871,
+      "izlaz": 319,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": false,
+    "presudna_locirana": false,
+    "locirano": 0,
+    "ukupno": 13
+   }
+  ],
+  "novi_upit": [
+   {
+    "cinjenice": [
+     "Tuzilac Gradnja Invest DOO i tuzeni Metal Profil DOO zakljucili su 12.12.2024. Ugovor o isporuci br. 44/2024.",
+     "Tuzilac je fakturom br. 143/2025 od 04.01.2025. zaracunao isporuku 38 tona profila u iznosu od 409.000,00 dinara.",
+     "Tuzeni je dana 01.05.2025. uplatio 699.000,00 dinara po fakturi br. 174/2025, sto se vidi iz izvoda br. 15.",
+     "Tuzilac je fakturom br. 211/2025 od 15.01.2025. zaracunao isporuku 23 tona profila u iznosu od 1232.000,00 dinara.",
+     "Dopisom od 27.08.2025. tuzilac je reklamirao kvalitet 37 tona profila iz otpremnice br. 247.",
+     "Tuzeni je dana 18.02.2025. uplatio 731.000,00 dinara po fakturi br. 108/2025, sto se vidi iz izvoda br. 38.",
+     "Tuzeni je dana 20.07.2025. uplatio 1399.000,00 dinara po fakturi br. 145/2025, sto se vidi iz izvoda br. 11.",
+     "Tuzeni je dana 17.09.2025. uplatio 1887.000,00 dinara po fakturi br. 179/2025, sto se vidi iz izvoda br. 3.",
+     "Tuzeni je dana 17.08.2025. uplatio 1015.000,00 dinara po fakturi br. 219/2025, sto se vidi iz izvoda br. 17.",
+     "Kontrolor kvaliteta tuzioca sacinio je 01.11.2025. zapisnik br. 248 o pregledu isporuke od 36 tona.",
+     "Tuzilac je fakturom br. 111/2025 od 18.12.2025. zaracunao isporuku 6 tona profila u iznosu od 1255.000,00 dinara.",
+     "Dopisom od 13.02.2025. tuzilac je reklamirao kvalitet 32 tona profila iz otpremnice br. 140.",
+     "Dopisom od 25.03.2025. tuzilac je reklamirao kvalitet 40 tona profila iz otpremnice br. 180.",
+     "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+     "Tuzeni je dana 16.05.2025. uplatio 1035.000,00 dinara po fakturi br. 249/2025, sto se vidi iz izvoda br. 2.",
+     "Dopisom od 03.04.2025. tuzilac je reklamirao kvalitet 7 tona profila iz otpremnice br. 103.",
+     "Kontrolor kvaliteta tuzioca sacinio je 22.12.2025. zapisnik br. 138 o pregledu isporuke od 5 tona.",
+     "Tuzilac je fakturom br. 184/2025 od 18.01.2025. zaracunao isporuku 17 tona profila u iznosu od 491.000,00 dinara.",
+     "Tuzilac je fakturom br. 220/2025 od 22.11.2025. zaracunao isporuku 29 tona profila u iznosu od 1444.000,00 dinara.",
+     "Tuzilac je fakturom br. 250/2025 od 24.09.2025. zaracunao isporuku 36 tona profila u iznosu od 288.000,00 dinara."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 34,
+     "cinjenica_odbaceno": 14,
+     "cinjenice_potpune": false
+    },
+    "pozivi": [
+     {
+      "ulaz": 2178,
+      "izlaz": 847,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2235,
+      "izlaz": 846,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2244,
+      "izlaz": 397,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2238,
+      "izlaz": 883,
+      "prekinut": false
+     },
+     {
+      "ulaz": 1048,
+      "izlaz": 582,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": true,
+    "presudna_locirana": true,
+    "locirano": 20,
+    "ukupno": 20
+   },
+   {
+    "cinjenice": [
+     "Tuzilac Gradnja Invest DOO i tuzeni Metal Profil DOO zakljucili su 12.12.2024. Ugovor o isporuci br. 44/2024.",
+     "Tuzilac je fakturom br. 143/2025 od 04.01.2025. zaracunao isporuku 38 tona profila u iznosu od 409.000,00 dinara.",
+     "Tuzeni je dana 01.05.2025. uplatio 699.000,00 dinara po fakturi br. 174/2025, sto se vidi iz izvoda br. 15.",
+     "Tuzilac je fakturom br. 211/2025 od 15.01.2025. zaracunao isporuku 23 tona profila u iznosu od 1232.000,00 dinara.",
+     "Tuzilac je fakturom br. 246/2025 od 02.03.2025. zaracunao isporuku 25 tona profila u iznosu od 314.000,00 dinara.",
+     "Tuzeni je dana 18.02.2025. uplatio 731.000,00 dinara po fakturi br. 108/2025, sto se vidi iz izvoda br. 38.",
+     "Tuzeni je dana 20.07.2025. uplatio 1399.000,00 dinara po fakturi br. 145/2025, sto se vidi iz izvoda br. 11.",
+     "Tuzeni je dana 17.09.2025. uplatio 1887.000,00 dinara po fakturi br. 179/2025, sto se vidi iz izvoda br. 3.",
+     "Tuzeni je dana 17.08.2025. uplatio 1015.000,00 dinara po fakturi br. 219/2025, sto se vidi iz izvoda br. 17.",
+     "Dopisom od 27.08.2025. tuzilac je reklamirao kvalitet 37 tona profila iz otpremnice br. 247.",
+     "Tuzilac je fakturom br. 111/2025 od 18.12.2025. zaracunao isporuku 6 tona profila u iznosu od 1255.000,00 dinara.",
+     "Dopisom od 13.02.2025. tuzilac je reklamirao kvalitet 32 tona profila iz otpremnice br. 140.",
+     "Dopisom od 25.03.2025. tuzilac je reklamirao kvalitet 40 tona profila iz otpremnice br. 180.",
+     "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+     "Kontrolor kvaliteta tuzioca sacinio je 01.11.2025. zapisnik br. 248 o pregledu isporuke od 36 tona.",
+     "Dopisom od 03.04.2025. tuzilac je reklamirao kvalitet 7 tona profila iz otpremnice br. 103.",
+     "Tuzeni je na reklamaciju od 11.03.2025. odgovorio da profili odgovaraju standardu SRPS EN 10025.",
+     "Tuzilac je fakturom br. 184/2025 od 18.01.2025. zaracunao isporuku 17 tona profila u iznosu od 491.000,00 dinara.",
+     "Tuzilac je fakturom br. 220/2025 od 22.11.2025. zaracunao isporuku 29 tona profila u iznosu od 1444.000,00 dinara.",
+     "Tuzeni je dana 16.05.2025. uplatio 1035.000,00 dinara po fakturi br. 249/2025, sto se vidi iz izvoda br. 2."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 40,
+     "cinjenica_odbaceno": 20,
+     "cinjenice_potpune": false
+    },
+    "pozivi": [
+     {
+      "ulaz": 2178,
+      "izlaz": 814,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2235,
+      "izlaz": 842,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2244,
+      "izlaz": 659,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2238,
+      "izlaz": 673,
+      "prekinut": false
+     },
+     {
+      "ulaz": 1048,
+      "izlaz": 590,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": true,
+    "presudna_locirana": true,
+    "locirano": 20,
+    "ukupno": 20
+   },
+   {
+    "cinjenice": [
+     "Tuzilac Gradnja Invest DOO i tuzeni Metal Profil DOO zakljucili su 12.12.2024. Ugovor o isporuci br. 44/2024.",
+     "Tuzilac je fakturom br. 143/2025 od 04.01.2025. zaracunao isporuku 38 tona profila u iznosu od 409.000,00 dinara.",
+     "Tuzeni je dana 01.05.2025. uplatio 699.000,00 dinara po fakturi br. 174/2025, sto se vidi iz izvoda br. 15.",
+     "Tuzeni je dana 17.08.2025. uplatio 1015.000,00 dinara po fakturi br. 219/2025, sto se vidi iz izvoda br. 17.",
+     "Tuzilac je fakturom br. 246/2025 od 02.03.2025. zaracunao isporuku 25 tona profila u iznosu od 314.000,00 dinara.",
+     "Tuzeni je dana 18.02.2025. uplatio 731.000,00 dinara po fakturi br. 108/2025, sto se vidi iz izvoda br. 38.",
+     "Tuzeni je dana 20.07.2025. uplatio 1399.000,00 dinara po fakturi br. 145/2025, sto se vidi iz izvoda br. 11.",
+     "Tuzeni je dana 17.09.2025. uplatio 1887.000,00 dinara po fakturi br. 179/2025, sto se vidi iz izvoda br. 3.",
+     "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+     "Dopisom od 27.08.2025. tuzilac je reklamirao kvalitet 37 tona profila iz otpremnice br. 247.",
+     "Tuzilac je fakturom br. 111/2025 od 18.12.2025. zaracunao isporuku 6 tona profila u iznosu od 1255.000,00 dinara.",
+     "Dopisom od 11.03.2025. tuzilac je reklamirao kvalitet 32 tona profila iz otpremnice br. 140.",
+     "Dopisom od 25.03.2025. tuzilac je reklamirao kvalitet 40 tona profila iz otpremnice br. 180.",
+     "Tuzilac je fakturom br. 220/2025 od 22.11.2025. zaracunao isporuku 29 tona profila u iznosu od 1444.000,00 dinara.",
+     "Kontrolor kvaliteta tuzioca sacinio je 01.11.2025. zapisnik br. 248 o pregledu isporuke od 36 tona.",
+     "Dopisom od 03.04.2025. tuzilac je reklamirao kvalitet 7 tona profila iz otpremnice br. 103.",
+     "Tuzeni je na reklamaciju od 12.03.2025. odgovorio da profili odgovaraju standardu SRPS EN 10025.",
+     "Tuzilac je fakturom br. 184/2025 od 18.01.2025. zaracunao isporuku 17 tona profila u iznosu od 491.000,00 dinara.",
+     "Tuzeni je dana 09.08.2025. uplatio 639.000,00 dinara po fakturi br. 229/2025, sto se vidi iz izvoda br. 2.",
+     "Tuzeni je dana 16.05.2025. uplatio 1035.000,00 dinara po fakturi br. 249/2025, sto se vidi iz izvoda br. 2."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 39,
+     "cinjenica_odbaceno": 19,
+     "cinjenice_potpune": false
+    },
+    "pozivi": [
+     {
+      "ulaz": 2178,
+      "izlaz": 847,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2235,
+      "izlaz": 601,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2244,
+      "izlaz": 570,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2238,
+      "izlaz": 911,
+      "prekinut": false
+     },
+     {
+      "ulaz": 1048,
+      "izlaz": 572,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": true,
+    "presudna_locirana": true,
+    "locirano": 19,
+    "ukupno": 20
+   },
+   {
+    "cinjenice": [
+     "Tuzilac Gradnja Invest DOO i tuzeni Metal Profil DOO zakljucili su 12.12.2024. Ugovor o isporuci br. 44/2024.",
+     "Tuzilac je fakturom br. 143/2025 od 04.01.2025. zaracunao isporuku 38 tona profila u iznosu od 409.000,00 dinara.",
+     "Tuzeni je dana 01.05.2025. uplatio 699.000,00 dinara po fakturi br. 174/2025, sto se vidi iz izvoda br. 15.",
+     "Tuzilac je fakturom br. 211/2025 od 15.01.2025. zaracunao isporuku 23 tona profila u iznosu od 1232.000,00 dinara.",
+     "Tuzilac je fakturom br. 246/2025 od 02.03.2025. zaracunao isporuku 25 tona profila u iznosu od 314.000,00 dinara.",
+     "Tuzeni je dana 18.02.2025. uplatio 731.000,00 dinara po fakturi br. 108/2025, sto se vidi iz izvoda br. 38.",
+     "Tuzeni je dana 20.07.2025. uplatio 1399.000,00 dinara po fakturi br. 145/2025, sto se vidi iz izvoda br. 11.",
+     "Tuzeni je dana 17.09.2025. uplatio 1887.000,00 dinara po fakturi br. 179/2025, sto se vidi iz izvoda br. 3.",
+     "Tuzeni je dana 17.08.2025. uplatio 1015.000,00 dinara po fakturi br. 219/2025, sto se vidi iz izvoda br. 17.",
+     "Dopisom od 27.08.2025. tuzilac je reklamirao kvalitet 37 tona profila iz otpremnice br. 247.",
+     "Tuzilac je fakturom br. 111/2025 od 18.12.2025. zaracunao isporuku 6 tona profila u iznosu od 1255.000,00 dinara.",
+     "Dopisom od 13.02.2025. tuzilac je reklamirao kvalitet 32 tona profila iz otpremnice br. 140.",
+     "Dopisom od 25.03.2025. tuzilac je reklamirao kvalitet 40 tona profila iz otpremnice br. 180.",
+     "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+     "Kontrolor kvaliteta tuzioca sacinio je 01.11.2025. zapisnik br. 248 o pregledu isporuke od 36 tona.",
+     "Dopisom od 03.04.2025. tuzilac je reklamirao kvalitet 7 tona profila iz otpremnice br. 103.",
+     "Tuzeni je na reklamaciju od 11.03.2025. odgovorio da profili odgovaraju standardu SRPS EN 10025.",
+     "Tuzilac je fakturom br. 184/2025 od 18.01.2025. zaracunao isporuku 17 tona profila u iznosu od 491.000,00 dinara.",
+     "Tuzilac je fakturom br. 220/2025 od 22.11.2025. zaracunao isporuku 29 tona profila u iznosu od 1444.000,00 dinara.",
+     "Tuzeni je dana 16.05.2025. uplatio 1035.000,00 dinara po fakturi br. 249/2025, sto se vidi iz izvoda br. 2."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 40,
+     "cinjenica_odbaceno": 20,
+     "cinjenice_potpune": false
+    },
+    "pozivi": [
+     {
+      "ulaz": 2178,
+      "izlaz": 847,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2235,
+      "izlaz": 846,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2244,
+      "izlaz": 577,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2238,
+      "izlaz": 884,
+      "prekinut": false
+     },
+     {
+      "ulaz": 1048,
+      "izlaz": 590,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": true,
+    "presudna_locirana": true,
+    "locirano": 20,
+    "ukupno": 20
+   },
+   {
+    "cinjenice": [
+     "Tuzilac Gradnja Invest DOO i tuzeni Metal Profil DOO zakljucili su 12.12.2024. Ugovor o isporuci br. 44/2024.",
+     "Tuzilac je fakturom br. 143/2025 od 04.01.2025. zaracunao isporuku 38 tona profila u iznosu od 409.000,00 dinara.",
+     "Tuzeni je dana 01.05.2025. uplatio 699.000,00 dinara po fakturi br. 174/2025, sto se vidi iz izvoda br. 15.",
+     "Tuzilac je fakturom br. 211/2025 od 15.01.2025. zaracunao isporuku 23 tona profila u iznosu od 1232.000,00 dinara.",
+     "Tuzilac je fakturom br. 246/2025 od 02.03.2025. zaracunao isporuku 25 tona profila u iznosu od 314.000,00 dinara.",
+     "Tuzeni je dana 18.02.2025. uplatio 731.000,00 dinara po fakturi br. 108/2025, sto se vidi iz izvoda br. 38.",
+     "Tuzeni je dana 20.07.2025. uplatio 1399.000,00 dinara po fakturi br. 145/2025, sto se vidi iz izvoda br. 11.",
+     "Tuzeni je dana 17.09.2025. uplatio 1887.000,00 dinara po fakturi br. 179/2025, sto se vidi iz izvoda br. 3.",
+     "Tuzeni je dana 17.08.2025. uplatio 1015.000,00 dinara po fakturi br. 219/2025, sto se vidi iz izvoda br. 17.",
+     "Dopisom od 27.08.2025. tuzilac je reklamirao kvalitet 37 tona profila iz otpremnice br. 247.",
+     "Tuzilac je fakturom br. 111/2025 od 18.12.2025. zaracunao isporuku 6 tona profila u iznosu od 1255.000,00 dinara.",
+     "Dopisom od 13.02.2025. tuzilac je reklamirao kvalitet 32 tona profila iz otpremnice br. 140.",
+     "Dopisom od 25.03.2025. tuzilac je reklamirao kvalitet 40 tona profila iz otpremnice br. 180.",
+     "Tuzeni je dopisom br. 118/26 od 03.03.2026. godine pismeno priznao dug prema tuziocu u iznosu od 2.345.678,00 dinara i obavezao se da ga isplati do 31.03.2026. godine.",
+     "Kontrolor kvaliteta tuzioca sacinio je 01.11.2025. zapisnik br. 248 o pregledu isporuke od 36 tona.",
+     "Dopisom od 03.04.2025. tuzilac je reklamirao kvalitet 7 tona profila iz otpremnice br. 103.",
+     "Tuzeni je na reklamaciju od 11.03.2025. odgovorio da profili odgovaraju standardu SRPS EN 10025.",
+     "Tuzilac je fakturom br. 184/2025 od 18.01.2025. zaracunao isporuku 17 tona profila u iznosu od 491.000,00 dinara.",
+     "Tuzilac je fakturom br. 218/2025 od 01.12.2025. zaracunao isporuku 34 tona profila u iznosu od 1228.000,00 dinara.",
+     "Tuzeni je dana 16.05.2025. uplatio 1035.000,00 dinara po fakturi br. 249/2025, sto se vidi iz izvoda br. 2."
+    ],
+    "ekstrakcija": {
+     "ukupno_znakova": 16082,
+     "procitano_znakova": 16082,
+     "potpuno": true,
+     "prozora": 5,
+     "neprocitani_prozori": [],
+     "cinjenica_izdvojeno": 40,
+     "cinjenica_odbaceno": 20,
+     "cinjenice_potpune": false
+    },
+    "pozivi": [
+     {
+      "ulaz": 2178,
+      "izlaz": 859,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2235,
+      "izlaz": 846,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2244,
+      "izlaz": 551,
+      "prekinut": false
+     },
+     {
+      "ulaz": 2238,
+      "izlaz": 606,
+      "prekinut": false
+     },
+     {
+      "ulaz": 1048,
+      "izlaz": 572,
+      "prekinut": false
+     }
+    ],
+    "presudna_tvrdnja": true,
+    "presudna_locirana": true,
+    "locirano": 20,
+    "ukupno": 20
+   }
+  ]
+ },
+ "golden_tip": {
+  "stari_upit": {
+   "DOK-01": "podnesak",
+   "DOK-02": "podnesak",
+   "DOK-03": "podnesak",
+   "DOK-04": "podnesak",
+   "DOK-05": "vestacki_nalaz",
+   "DOK-06": "vestacki_nalaz",
+   "DOK-07": "sudska_odluka"
+  },
+  "novi_upit": {
+   "DOK-01": "podnesak",
+   "DOK-02": "podnesak",
+   "DOK-03": "podnesak",
+   "DOK-04": "podnesak",
+   "DOK-05": "vestacki_nalaz",
+   "DOK-06": "podnesak",
+   "DOK-07": "sudska_odluka"
+  }
+ }
+}

@@ -1,0 +1,61 @@
+posle_A {'nacrta': 15, 'izostavljeno_recenica': 74, 'O1_ukupno': 9, 'O1_uklonjeno': 5, 'P_ukupno': 3, 'P_uklonjeno': 3, 'I_ukupno': 1, 'I_uklonjeno': 1}
+posle_B {'nacrta': 15, 'izostavljeno_recenica': 9, 'P_ukupno': 6, 'P_uklonjeno': 0, 'I_ukupno': 4, 'I_uklonjeno': 1}
+posle_C1 {'nacrta': 15, 'izostavljeno_recenica': 77, 'O1_ukupno': 10, 'O1_uklonjeno': 10, 'P_ukupno': 12, 'P_uklonjeno': 11}
+posle_C2 {'nacrta': 15, 'izostavljeno_recenica': 38, 'P_ukupno': 13, 'P_uklonjeno': 10, 'I_ukupno': 4, 'I_uklonjeno': 1}
+posle_H1 {'nacrta': 10, 'izostavljeno_recenica': 21, 'P_ukupno': 1, 'P_uklonjeno': 1}
+posle_H2 {'nacrta': 10, 'izostavljeno_recenica': 52, 'R_ukupno': 8, 'R_uklonjeno': 8, 'O1_ukupno': 5, 'O1_uklonjeno': 4, 'P_ukupno': 7, 'P_uklonjeno': 7, 'I_ukupno': 1, 'I_uklonjeno': 1}
+pre_A {'nacrta': 15, 'izostavljeno_recenica': 45, 'O1_ukupno': 5, 'O1_uklonjeno': 5}
+pre_C1 {'nacrta': 15, 'izostavljeno_recenica': 36, 'O1_ukupno': 8, 'O1_uklonjeno': 8, 'P_ukupno': 14, 'P_uklonjeno': 13, 'R_ukupno': 5, 'R_uklonjeno': 5}
+   posle_A O1 OSTALO #4: Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije potrebna jer postojeći nalaz već jasno utvrđuje uzrok i vis
+   posle_A O1 OSTALO #11: Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dodatna veštačenja nisu potrebna jer postojeći nalaz jasno ukazuje na u
+   posle_A O1 OSTALO #0: Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije neophodna ... Međutim, u slučaju da sud odluči drugačije, t
+   posle_A O1 OSTALO #5: Iako je sud već prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dodatno veštačenje nije potrebno ... Međutim, ukoliko sud smatra da
+   posle_B P OSTALO #4: u tužbi tražena naknada štete u ukupnom iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara za oštećenu robu u hali (DOK-01, DOK-03)
+   posle_B I OSTALO #4: ukupnom iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara – prema DOK-01 i DOK-03 600.000 je dodatno uz 4.200.000
+   posle_B P OSTALO #3: Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara za oštećenu robu u hali, kako je na
+   posle_B P OSTALO #13: u tužbi zatražena naknada štete u iznosu od 4.200.000 dinara, uključujući i dodatnih 600.000 dinara za oštećenu robu u hali (DOK-01)
+   posle_B I OSTALO #13: u tužbi zatražena naknada štete u iznosu od 4.200.000 dinara, uključujući i dodatnih 600.000 dinara (DOK-01) – 600.000 je traženo dodatno u DOK-03, tu
+   posle_B I OSTALO #2: jer je veštak u svom nalazu jasno naveo metodologiju i izvore na osnovu kojih je donet zaključak
+   posle_B P OSTALO #12: ali naglašava da je u tužbi dodatno traženo 600.000 dinara za oštećenu robu u hali, što ukupno iznosi 4.200.000 dinara (DOK-01) — netacno; 600.000 dod
+   posle_B P OSTALO #8: Tužilac ostaje pri zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara za oštećenu robu u hali, kako je već nav
+   posle_C1 P OSTALO #14: što do danas nije vidljivo iz spisa da je učinjeno.
+   posle_C2 I OSTALO #9: veštak imao dovoljno informacija i dokaza za donošenje svog mišljenja, uključujući i pregled relevantne dokumentacije
+   posle_C2 P OSTALO #12: Tužilac ostaje pri svom tužbenom zahtevu i traži naknadu štete u ukupnom iznosu od 4.200.000 dinara, uključujući i dodatnu štetu za oštećenu robu u ha
+   posle_C2 I OSTALO #12: u ukupnom iznosu od 4.200.000 dinara, uključujući i dodatnu štetu za oštećenu robu u hali
+   posle_C2 I OSTALO #0: jer je veštak u svom nalazu jasno naveo metodologiju i osnov za svoje zaključke
+   posle_C2 P OSTALO #5: Tužilac ostaje pri zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara
+   posle_C2 P OSTALO #11: Molimo sud da uzme u obzir navedeno prilikom odlučivanja na ročištu zakazanom za 18.11.2026. — precutkuje DOK-07 i rasprava od 15.07.
+   posle_H2 O1 OSTALO #7: jer je sud već prihvatio predlog za dopunu veštačenja (DOK-07). Tužilac smatra da je nalaz veštaka potpun i objektivan, te da dodatni uvid u građevins
+   pre_C1 P OSTALO #8: Tužilac će se izjasniti po izvršenju ove radnje ukoliko bude potrebno.
+== izostavljeno u posle_B_izost 9
+    #13 odluka suda opisana sopstvenim rečima, a: - Da li je sud već odlučio o visini štete ili je to još uvek sporno pitanje.
+    #6 tvrdnja da je veštak ili sud nešto „utvr: Veštak je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosači solarnih panela nisu ošteti
+    #6 tvrdnja da je veštak ili sud nešto „utvr: Tužilac smatra da dopuna veštačenja nije potrebna, jer je veštak već utvrdio uzrok prokišnjavanja koji je u direktnoj vezi sa radovima koje 
+    #11 izvršenje/ispunjenje naloga nije utvrđen: Smatramo da je veštak postupio u skladu sa nalogom suda i da je njegovo mišljenje zasnovano na relevantnim činjenicama i dokazima.
+    #12 tvrdnja da je veštak ili sud nešto „utvr: Predlog tuženog za dopunu veštačenja smatramo neosnovanim, jer je veštak već utvrdio relevantne činjenice.
+    #8 odluka suda opisana sopstvenim rečima, a: Smatramo da je veštak postupao u skladu sa nalogom suda i da je njegov nalaz sveobuhvatan i potkrepljen relevantnim dokazima.
+    #1 tok ili istek roka nije utvrđen iz spisa: **Rok za podnošenje:** [PROVERITI rok: da li je podnesak blagovremen]
+    #1 tvrdnja da je veštak ili sud nešto „utvr: Veštak je utvrdio da je uzrok prokišnjavanja krova hale neodgovarajuće izvedena hidroizolacija na spoju atike, a ne postavljanje solarnih pa
+    #1 tvrdnja da je veštak ili sud nešto „utvr: Tužilac smatra da dopuna veštačenja nije potrebna, jer je veštak već utvrdio uzrok prokišnjavanja koji nije povezan sa postavljanjem solarni
+== izostavljeno u posle_H1_izost 21
+    #3 odluka suda opisana sopstvenim rečima, a: U vezi sa izjašnjenjem tuženog na nalaz veštaka od 01.07.2026. godine (DOK-06), tužilac se protivi predlogu tuženog za dopunu veštačenja, ko
+    #3 tvrdnja o nepotrebnosti/prestanku/dejstv: Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno, jer je sud već odlučio o tom pitanju.
+    #3 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.
+    #1 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.
+    #4 tvrdnja o nepotrebnosti/prestanku/dejstv: Smatramo da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.
+    #4 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.
+    #9 odluka suda opisana sopstvenim rečima, a: Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno, što je sud već potvrdio odbijanjem predloga tuženog za dopunu veš
+    #9 odustanak/povlačenje prikazan bez odluke: 3. **Napomena o povlačenju zahteva:**
+    #9 rečenica o predmetu naloga suda čije sta: - Sud odbija predlog tuženog za dopunu veštačenja (DOK-07).
+    #0 tvrdnja da je veštak ili sud nešto „utvr: Veštak je utvrdio da nosači solarnih panela nisu oštetili hidroizolaciju krova, što je u skladu sa tvrdnjama tužioca da su solarni paneli po
+    #0 rečenica o predmetu naloga suda čije sta: Tužilac se protivi izjašnjenju tuženog od 01.07.2026. godine (DOK-06), u kojem tuženi osporava nalaz veštaka i predlaže dopunu veštačenja.
+    #5 pravosnažnost/konačnost odluke nije utvr: Sud je već odbio predlog tuženog za dopunu veštačenja (DOK-07), te smatramo da je pitanje veštačenja pravosnažno rešeno.
+    #5 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.
+    #7 tvrdnja o nepotrebnosti/prestanku/dejstv: Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.
+    #7 tvrdnja o nepotrebnosti/prestanku/dejstv: Tužilac predlaže da sud usvoji precizirani tužbeni zahtev u iznosu od 3.150.000 dinara, u skladu sa nalazom veštaka, i da odbije sve neosnov
+    #7 rečenica o predmetu naloga suda čije sta: - Sud odbija predlog tuženog za dopunu veštačenja (DOK-07).
+    #2 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.
+    #8 odluka suda opisana sopstvenim rečima, a: Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan, što je sud već potvrdio odbijanjem predlog
+    #8 rečenica o predmetu naloga suda čije sta: - Sud odbija predlog tuženog za dopunu veštačenja (DOK-07).
+    #6 odluka suda opisana sopstvenim rečima, a: Smatramo da je nalaz veštaka potpun i da dodatna veštačenja nisu potrebna, što je sud već potvrdio odbijanjem predloga tuženog za dopunu veš
+    #6 rečenica o predmetu naloga suda čije sta: - DOK-07: Sud odbija predlog tuženog za dopunu veštačenja.

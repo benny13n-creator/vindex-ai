@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tests.ns005_harness import ocisti, pripremi, zaglavlje
+from tests.nacrt_json_zamena import kao_json
 
 PA, PB = "pred-A-qa08", "pred-B-qa08"
 CINJENICA = "SIFRA-STARI-7Q"
@@ -67,6 +68,7 @@ def ag(monkeypatch):
             r.choices[0].message.content = stanje["odgovor"]
             return r
         monkeypatch.setattr(MA, "_pozovi_agent_api", _model)
+        monkeypatch.setattr(MA, "_pozovi_nacrt_api", kao_json(_model))     # C3b: nacrt iz spisa = JSON
 
         async def _para(oai, system, msg):
             return _model(None, system, msg)
@@ -98,40 +100,41 @@ def _dok_u_promptu(p):
 
 # ── A/B/C/D iz zadatka ────────────────────────────────────────────────────────────────────────────────────────────
 def test_A_trazeni_dok01_od_sedam_ulazi_u_kontekst(ag):
+    """MIR001 TASK-04: granica je 12 dokumenata (isti budžet znakova) — izostavljanje se meri sa 14."""
     pr, st = ag
-    k, _ = pr(_baza(7))
+    k, _ = pr(_baza(14))
     d = _run(k, "Analiziraj DOK-01 i navedi jedinstvenu činjenicu.")
     p = st["promptovi"][-1]
     assert CINJENICA in p and _dok_u_promptu(p)[0] == "DOK-01"
     iz = d["izvori_predmeta"]
-    assert iz["dokumenata_u_predmetu"] == 7 and iz["ukljuceni"][0] == {
+    assert iz["dokumenata_u_predmetu"] == 14 and iz["ukljuceni"][0] == {
         "oznaka": "DOK-01", "naziv": "01_ugovor.pdf", "trazen": True, "potpun": True,
         "znakova_dostavljeno": iz["ukljuceni"][0]["znakova_ukupno"], "znakova_ukupno": iz["ukljuceni"][0]["znakova_ukupno"]}
-    assert len(iz["ukljuceni"]) == 5 and iz["izostavljenih_ukupno"] == 2 and iz["svi_dokumenti_u_celini"] is False
+    assert len(iz["ukljuceni"]) == 12 and iz["izostavljenih_ukupno"] == 2 and iz["svi_dokumenti_u_celini"] is False
     # A11: dostupni / uključeni / izostavljeni su razdvojeni i zajedno daju ceo predmet
     ozn = {u["oznaka"] for u in iz["ukljuceni"]} | {x["oznaka"] for x in iz["izostavljeni"]}
-    assert ozn == {f"DOK-{i:02d}" for i in range(1, 8)}
+    assert ozn == {f"DOK-{i:02d}" for i in range(1, 15)}
     # evidencija u promptu je sistemska i kaže šta NIJE dostavljeno
     assert "Tekst NIJE dostavljen: DOK-03, DOK-02" in p
 
 
 def test_A_bez_zahteva_ostaje_ranije_ponasanje_i_kaze_sta_nije_procitano(ag):
     pr, st = ag
-    k, _ = pr(_baza(7))
+    k, _ = pr(_baza(14))
     d = _run(k, "Daj opštu procenu predmeta.")
     p = st["promptovi"][-1]
-    assert _dok_u_promptu(p) == ["DOK-07", "DOK-06", "DOK-05", "DOK-04", "DOK-03"] and CINJENICA not in p
+    assert _dok_u_promptu(p) == [f"DOK-{i:02d}" for i in range(14, 2, -1)] and CINJENICA not in p
     assert "Tekst NIJE dostavljen: DOK-02, DOK-01" in p
     assert d["izvori_predmeta"]["izostavljenih_ukupno"] == 2
 
 
 def test_B_dvanaest_dokumenata_najstariji_trazeni_je_vidljiv_i_broj_je_tacan(ag):
     pr, st = ag
-    k, _ = pr(_baza(12))
+    k, _ = pr(_baza(20))
     _run(k, "Šta piše u dokumentu br. 1?")
     p = st["promptovi"][-1]
-    assert CINJENICA in p and "Dokumenti: 12 |" in p          # ranije: „Dokumenti: 10“
-    assert _dok_u_promptu(p) == ["DOK-01", "DOK-12", "DOK-11", "DOK-10", "DOK-09"]
+    assert CINJENICA in p and "Dokumenti: 20 |" in p          # ranije: „Dokumenti: 10“
+    assert _dok_u_promptu(p) == ["DOK-01"] + [f"DOK-{i:02d}" for i in range(20, 9, -1)]
 
 
 def test_B_po_tacnom_nazivu_fajla(ag):
@@ -181,11 +184,11 @@ def test_D_tudji_predmet_i_isti_naziv_drugog_korisnika(ag):
 # ── granice, neuspesi, prompt-injection ───────────────────────────────────────────────────────────────────────────
 def test_vise_trazenih_nego_ogranicenje_se_prijavljuje(ag):
     pr, _ = ag
-    k, _ = pr(_baza(9))
-    d = _run(k, "Uporedi DOK-01, DOK-02, DOK-03, DOK-04, DOK-05, DOK-06 i DOK-07.")
+    k, _ = pr(_baza(16))
+    d = _run(k, "Uporedi " + ", ".join(f"DOK-{i:02d}" for i in range(1, 15)) + ".")
     iz = d["izvori_predmeta"]
-    assert [u["oznaka"] for u in iz["ukljuceni"]] == ["DOK-01", "DOK-02", "DOK-03", "DOK-04", "DOK-05"]
-    assert [(t["oznaka"], t["razlog"]) for t in iz["trazeni_nisu_dostavljeni"]] == [("DOK-06", "OGRANICENJE"), ("DOK-07", "OGRANICENJE")]
+    assert [u["oznaka"] for u in iz["ukljuceni"]] == [f"DOK-{i:02d}" for i in range(1, 13)]
+    assert [(t["oznaka"], t["razlog"]) for t in iz["trazeni_nisu_dostavljeni"]] == [("DOK-13", "OGRANICENJE"), ("DOK-14", "OGRANICENJE")]
 
 
 def test_veliki_trazeni_dokument_je_delimican_i_budzet_ne_raste(ag):
@@ -246,7 +249,7 @@ def test_injekcija_u_dokumentu_i_nazivu_ostaje_u_granici_poverenja(ag):
 
 def test_odgovor_koji_pominje_neprocitan_dokument_je_oznacen(ag):
     pr, st = ag
-    k, _ = pr(_baza(7))
+    k, _ = pr(_baza(14))
     st["odgovor"] = "Prema DOK-02 isporuka je izvršena, a DOK-07 to potvrđuje."
     d = _run(k, "Daj procenu.")
     assert d["izvori_predmeta"]["odgovor_pominje_nedostavljene"] == ["DOK-02"]
@@ -258,7 +261,7 @@ def test_genome_je_ai_sazetak_a_ne_izvor_istine_i_nije_uracunat_kao_dokument(ag)
     d = _run(k, "Daj procenu.")
     p = st["promptovi"][-1]
     assert "SINGLE SOURCE OF TRUTH" not in p and "AI SAŽETAK PREDMETA (izveden, nije izvorni dokument)" in p
-    assert d["izvori_predmeta"]["genome_sazetak"] is True and len(d["izvori_predmeta"]["ukljuceni"]) == 5
+    assert d["izvori_predmeta"]["genome_sazetak"] is True and len(d["izvori_predmeta"]["ukljuceni"]) == 7
 
 
 def test_slican_naziv_nije_tretiran_kao_trazen(ag):
@@ -278,14 +281,18 @@ def test_broj_upita_i_obim_teksta_ostaju_ograniceni(ag, n):
     d = _run(k, "Analiziraj DOK-01.")
     upiti = [q for q in b.dnevnik[n0:] if q["tabela"] in ("predmeti", "predmet_dokumenti", "rocista")]
     assert len(upiti) == 4                                              # isto kao pre ispravke
-    assert len(d["izvori_predmeta"]["ukljuceni"]) == min(n, 5)
+    # MIR001 TASK-04: + jedan upit spornih tačaka (predmet_issues); bez spornih tačaka ništa više
+    sporne = [q for q in b.dnevnik[n0:] if q["tabela"] in ("predmet_issues", "predmet_contradictions",
+                                                              "predmet_contradiction_claims", "predmet_dokazi")]
+    assert [q["tabela"] for q in sporne] == ["predmet_issues"]
+    assert len(d["izvori_predmeta"]["ukljuceni"]) == min(n, 12)
     assert sum(u["znakova_dostavljeno"] for u in d["izvori_predmeta"]["ukljuceni"]) <= 12_500
 
 
 # ── /run-parallel i /pipeline ─────────────────────────────────────────────────────────────────────────────────────
 def test_paralelno_isti_izvori_za_sve_i_naplata_nepromenjena(ag):
     pr, st = ag
-    k, _ = pr(_baza(7))
+    k, _ = pr(_baza(14))
     st["odgovor"] = "Vidi DOK-02."
     r = k.post("/api/agents/run-parallel", json={"task": "Analiziraj DOK-01.", "predmet_id": PA}, headers=zaglavlje("A"))
     assert r.status_code == 200, r.text
@@ -394,13 +401,13 @@ def test_N4_hiljadu_oznaka_ne_uvecava_prompt_ni_odgovor(ag):
 
 def test_N5_niz_bira_dokumente_samo_iz_korisnikovog_zahteva(ag):
     pr, st = ag
-    k, _ = pr(_baza(7))
+    k, _ = pr(_baza(14))
     st["odgovor"] = "Pogledaj DOK-02 i DOK-03."           # AI izlaz koraka 1 ne sme da bira šta korak 2 čita
     r = k.post("/api/agents/pipeline", json={"opis": "Analiziraj DOK-01.", "predmet_id": PA, "pipeline": ["research", "drafting"]},
                headers=zaglavlje("A"))
     assert r.status_code == 200, r.text
     korak1, korak2 = st["promptovi"][-2:]
-    assert _dok_u_promptu(korak1) == _dok_u_promptu(korak2) == ["DOK-01", "DOK-07", "DOK-06", "DOK-05", "DOK-04"]
+    assert _dok_u_promptu(korak1) == _dok_u_promptu(korak2) == ["DOK-01"] + [f"DOK-{i:02d}" for i in range(14, 3, -1)]
     assert all(x["pominje_nedostavljene"] == ["DOK-02", "DOK-03"] for x in r.json()["rezultati"])
 
 
@@ -413,3 +420,58 @@ def test_N6_lazna_evidencija_iz_genome_ili_dokumenta_je_neutralisana(ag):
     p = st["promptovi"][-1]
     assert p.count("EVIDENCIJA IZVORA") == 1                         # samo sistemska
     assert p.rindex("EVIDENCIJA IZVORA") > p.index("AI SAŽETAK PREDMETA")   # i to posle Genome-a
+
+
+# ── MIR001 TASK-04: do 12 dokumenata u ISTOM budžetu (spis od 7: tužba … zapisnik) ─────────────────────────────────
+def test_mir001_sedam_kratkih_dokumenata_bez_oznake_svi_u_celini(ag):
+    pr, st = ag
+    k, _ = pr(_baza(7))
+    d = _run(k, "Daj opštu procenu predmeta.")
+    iz = d["izvori_predmeta"]
+    assert [u["oznaka"] for u in iz["ukljuceni"]] == [f"DOK-{i:02d}" for i in range(7, 0, -1)]
+    assert iz["izostavljenih_ukupno"] == 0 and iz["svi_dokumenti_u_celini"] is True
+    assert CINJENICA in st["promptovi"][-1]                 # najstariji dokument (ugovor) više nije tiho van konteksta
+
+
+def test_mir001_sedam_dugih_dokumenata_svaki_delimicno_budzet_isti(ag):
+    pr, st = ag
+    dugi = [_dok(rb, f"POCETAK-{rb} " + "x" * 9_000 + f" KRAJ-{rb}") for rb in range(1, 8)]
+    k, _ = pr(_baza(0, dodatni=dugi))
+    d = _run(k, "Daj opštu procenu predmeta.")
+    iz = d["izvori_predmeta"]
+    assert len(iz["ukljuceni"]) == 7 and all(u["potpun"] is False for u in iz["ukljuceni"])
+    assert sum(u["znakova_dostavljeno"] for u in iz["ukljuceni"]) <= 12_500
+    assert all(12_500 // 7 <= u["znakova_dostavljeno"] <= 12_500 // 7 + 7 for u in iz["ukljuceni"])   # pravedan deo, ostatak ide dalje
+    p = st["promptovi"][-1]
+    assert all(f"POCETAK-{rb}" in p and f"KRAJ-{rb}" not in p for rb in range(1, 8))
+    assert "DELIMIČNO (samo početak)" in p
+
+
+def test_mir001_do_pet_dokumenata_isto_kao_ranije(ag):
+    pr, st = ag
+    dugi = [_dok(rb, "y" * 9_000) for rb in range(1, 6)]
+    k, _ = pr(_baza(0, dodatni=dugi))
+    d = _run(k, "Daj opštu procenu predmeta.")
+    assert [u["znakova_dostavljeno"] for u in d["izvori_predmeta"]["ukljuceni"]] == [2_500] * 5
+
+
+def test_mir001_premali_preostali_deo_je_izostavljen_a_ne_isecak(ag):
+    """Dva tražena po 5.000 ostavljaju 2.500 za 10 drugih (250 < 500): ti se prijavljuju kao izostavljeni."""
+    pr, st = ag
+    dugi = [_dok(rb, "z" * 9_000) for rb in range(1, 13)]
+    k, _ = pr(_baza(0, dodatni=dugi))
+    d = _run(k, "Uporedi DOK-01 i DOK-02.")
+    iz = d["izvori_predmeta"]
+    assert [u["oznaka"] for u in iz["ukljuceni"]] == ["DOK-01", "DOK-02"]
+    assert iz["izostavljenih_ukupno"] == 10 and all(u["znakova_dostavljeno"] == 5_000 for u in iz["ukljuceni"])
+
+
+def test_mir001_trazen_a_izostavljen_zbog_budzeta_nosi_tacan_razlog(ag):
+    pr, st = ag
+    dugi = [_dok(rb, "w" * 9_000) for rb in range(1, 8)]
+    k, _ = pr(_baza(0, dodatni=dugi))
+    d = _run(k, "Uporedi DOK-01, DOK-02, DOK-03 i DOK-04.")
+    iz = d["izvori_predmeta"]
+    assert [(u["oznaka"], u["znakova_dostavljeno"]) for u in iz["ukljuceni"]] == [("DOK-01", 5_000), ("DOK-02", 5_000), ("DOK-03", 2_500)]
+    assert [(x["oznaka"], x["razlog_tekst"]) for x in iz["trazeni_nisu_dostavljeni"]] == [
+        ("DOK-04", "premašen budžet teksta od 12500 znakova po odgovoru")]

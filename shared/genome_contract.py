@@ -527,6 +527,10 @@ def sastavi(*, predmet: dict, case_dna: Optional[dict], dokumenti: Optional[list
         if g.get("_genome_docs_preskoceno"):
             nes.append({"vrsta": "dokumenti_izostavljeni", "kolicina": g.get("_genome_docs_preskoceno"),
                         "opis": "Deo dokumenata nije ušao u analizu (ograničenje veličine)."})
+        if g.get("_tvrdnje_van_analize"):
+            nes.append({"vrsta": "tvrdnje_izostavljene",
+                        "opis": "Analiza nije videla sve tvrdnje predmeta (ograničenje veličine) — protivrečnosti među "
+                                "tvrdnjama koje nije videla nisu otkrivene, a postojeće se zato ne zatvaraju."})
         ver = g.get("_verifikacija") or {}
         if ver.get("odluka") == "require_review":
             nes.append({"vrsta": "analiza_trazi_pregled", "kolicina": len(ver.get("hard_flags") or []),
@@ -549,7 +553,7 @@ def sastavi(*, predmet: dict, case_dna: Optional[dict], dokumenti: Optional[list
         kompletnost = NEPOZNATO
     elif not dok_ok or not dz_ok:
         kompletnost = DEGRADIRANO
-    elif (g.get("_dokumenti_bez_teksta") or g.get("_genome_docs_preskoceno")
+    elif (g.get("_dokumenti_bez_teksta") or g.get("_genome_docs_preskoceno") or g.get("_tvrdnje_van_analize")
           or (broj_dok is not None and analizirano is not None and analizirano < broj_dok)):
         kompletnost = "PARTIAL"
     else:

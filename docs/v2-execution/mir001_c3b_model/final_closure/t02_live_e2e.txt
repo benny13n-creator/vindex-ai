@@ -1,0 +1,53 @@
+﻿PASS  [server] pravi api.app nad bazom koja upisuje
+PASS  [0.spis] predmet napravljen — 3c403bba-dff1-419f-83e7-32de82fbe72b
+PASS  [0.spis] 7 dokumenata u predmetu (stvaran prijem i OCR) — [7]
+PASS  [1.predlog] savetnik: naslov kaže „AI radni predlog — samo za pregled, ne ide u dokument za sud“ — AI radni predlog — samo za pregled, ne ide u dokument za sud (usvajanje: kartica Nacrt)
+PASS  [1.predlog] server: jedan poziv modela, jedna naplata, AI predlog na pregledu (nema dokumenta za sud) — [["agent:drafting:c3b"],1,["nacrt_iz_spisa"]]
+PASS  [2.ekran] lista: „AI predlog — za pregled, ne izvozi se“
+PASS  [2.ekran] tri dela sa naslovima: AI predlog (NE ide u dokument) / procesne informacije / tekst koji će biti izvezen — ["1. AI predlog — samo za pregled. Ovaj tekst NE ide u dokument za sud.","2. Procesne informacije — vaša provera pre odobrenja","3. Tekst koji će biti izvezen u dokument za sud"]
+PASS  [2.ekran] staro polje i dugmad (Sačuvaj/Odobri/DOCX nad AI tekstom) nisu ponuđeni
+PASS  [2.ekran] dokument za sud je prazan; ništa iz AI predloga nije u njemu — Dokument za sud još ne postoji. Ništa iz AI predloga nije u njemu.
+PASS  [2.ekran] pogrešno tumačenje uz AUTENTIČAN izvod: prikazano kao AI predlog, izvor „nije proveren“, nije odlučeno — {"t":"Kako je sud odbio predlog za dopunu vestacenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), dopuna vestacenja nije potrebna i tuzilac je ne predlaze.","s":"Nije odlučeno — nije u dokumentu za sud","meta":"Izvori koje navodi AI (nisu provereni): DOK-07"}
+PASS  [2.ekran] 8 procesnih tačaka, nijedna unapred odlučena — ["","","","","","","",""]
+PASS  [2.ekran] procesne informacije: doslovan izvod iz DOK-07 kao kandidat, „značenje nije utvrđeno“ — Odluke suda i njihovo mesto u toku postupka
+
+Iz spisa (doslovno, značenje nije utvrđeno): DOK-07 — „Sud prihvata predlog za dopunu vestacenja.“ · Kasnije u spisu: DOK-06 stranka_predlaze (ranije, dejs
+PASS  [2.ekran] izvor DOK-07 se otvara iz stavke (tekst dokumenta iz spisa)
+PASS  [3.prazno] prazan dokument za sud se ne odobrava (poruka, bez upisa)
+PASS  [4.nesacuvano] usvajanje uz nesačuvan tekst (dokument još ne postoji): odbijeno uz poruku, tekst ostaje, ništa upisano
+PASS  [4.nesacuvano] nesačuvan izbor tačke preživljava nastanak dokumenta za sud (prvo usvajanje) i označen je
+PASS  [4.usvajanje] dokument za sud = samo usvojene stavke (bez pogrešne i bez upozorenja AI) — PRIVREDNOM SUDU U PRIMERGRADU
+Broj predmeta: P 9901/2026
+
+Vestak u nalazu navodi da je uzrok prokisnjavanja neodgovarajuce izvedena hidroizolacija na spoju atike (DOK-05).
+
+Tuzilac osporava navode tuzenog iz izjasnjenja na nalaz (DOK-06) i smatra da je nalaz vestaka potpun i jasan.
+PASS  [4.usvajanje] svaka stavka pokazuje svoju odluku rečima — ["Usvojeno u dokument za sud","Usvojeno u dokument za sud","Ne usvajam — ne ulazi u dokument za sud","Usvojeno u dokument za sud","Nije odlučeno — nije u dokumentu za sud"]
+PASS  [4.usvajanje] baza: odluke o stavkama upisane (3 USVOJENO, 1 ODBACENO), dokument na čekanju, AI predlog NEPROMENJEN — ["S-01USVOJENO","S-02USVOJENO","S-04USVOJENO","S-03ODBACENO"]
+PASS  [5.nesacuvano] čuvanje teksta ne briše nesačuvan izbor tačke (označen „Nesačuvana izmena“)
+PASS  [5.tacke] nesačuvana odluka o tački: odobrenje zaustavljeno pre servera (poruka), dokument na čekanju — Imate nesačuvane odluke o procesnim informacijama (2). Sačuvajte ih ili ih vratite — odobrava se samo ono što je sačuvano. Ništa nije odobreno.
+PASS  [5.tacke] bez odluka o procesnim tačkama: nije odobreno, razlog prikazan — ["Procesne tačke bez vaše odluke: Osnovni iznos tužbenog zahteva; Dodatni (proširen ili preinačen) zahtev; Povlačenje ili izmena zahteva; Odluke suda i njihovo mesto u toku postupka; Nalog suda za postupanje; Dokaz o uplati — ili da ga u raspoloživim spisima nema; Rok — poznat ili nepoznat; Nedostajući ili nečitljiv dokument."]
+PASS  [6.tacke] opis bez izabrane odluke: ne čuva se tiho (poruka, ništa upisano)
+PASS  [6.tacke] opis sa novim redom na kraju: posle čuvanja nema „Nesačuvana izmena“ (poređenje kao server)
+PASS  [6.tacke] baza: 8 odluka advokata (ODLUKE_SUDA = ISPRAVLJENO sa njegovim opisom), upisao uid-A
+PASS  [6.tacke] sačuvana odluka se ne može vratiti na „— izaberite —“ (opcija onemogućena)
+PASS  [6.B1] izmenjen SAMO opis sačuvane tačke (odluka ista), nije sačuvan → odobrenje zaustavljeno; baza: stari opis, na čekanju — {"odluka":"ISPRAVLJENO","tekst":"Sud je 15.07.2026. PRIHVATIO predlog za dopunu vestacenja (DOK-07).","izvori":[],"by":"uid-A","at":"2026-10-24T11:09:50.852814+00:00"}
+PASS  [6.B1] izbor tačke promenjen na ekranu, nije sačuvan → odobrenje zaustavljeno; baza: na čekanju, UPLATA i dalje NEPOZNATO; izbor ostaje na ekranu — ["pending",{"odluka":"NEPOZNATO","tekst":"","izvori":[],"by":"uid-A","at":"2026-10-24T11:09:50.852819+00:00"}]
+PASS  [7.odobrenje] baza: odobren TAČNO tekst sa ekrana (sha256), bez upisa u znanje — ["approved",true]
+PASS  [7.odobrenje] ekran: tekst zaključan, nema više usvajanja, „sistem nije proverio da su tvrdnje tačne“ — {"ro":true,"docx":true,"stanje":"Odobren dokument za sud (verzija 1, 24.10.2026.). .docx sadrži ovaj tekst (osnovno formatiranje: red sa „# “ je naslov, **…** podebljano). Usvajanje je vaša odluka — sistem nije proverio da su tvrdnje tačne.","dugmad":0}
+PASS  [7.docx] DOCX: pasusi = odobren tekst (red po red), bez naslova „NACRT IZ SPISA“, bez podnožja „Vindex AI“, bez internih napomena — [8,5,[""]]
+PASS  [7.docx] advokatov sopstveni tekst je u DOCX-u
+PASS  [8.trajno] lista posle reload-a: AI predlog + „dokument za sud — odobren“ — 24.10.2026. · dokument za sud — odobren | 24.10.2026. · AI predlog — za pregled, ne izvozi se
+PASS  [8.trajno] otvoren odobren dokument: isti tekst, zaključan
+PASS  [8.verzija] nova verzija: na čekanju, bez odobrenja i bez odluka; v1 ostaje odobrena; ekran nije zaključan — [["approved",1],["pending",2]]
+PASS  [8.verzija] ekran nove verzije: nijedna tačka nije izabrana (ne nasleđuje odluke iz v1), nema „Nesačuvana izmena“ — ["","","","","","","",""]
+PASS  [8.verzija] „Odbij“ iz liste za otvorenu verziju 2: ekran se osvežava sa servera (odbijena, bez dugmadi)
+PASS  [9.verzija] baza: v2 odbijena, v1 i dalje odobrena
+PASS  [9.izolacija] drugi korisnik: dokument za sud 404, DOCX 404 — 404/404
+PASS  [9.granica] AI predlog se ne izvozi (409), ni opštim izvozom (409) — 409/409
+PASS  [9.trosak] usvajanje ne poziva model i ne naplaćuje (ukupno 1 poziv nacrta, 1 naplata) — [1,1]
+PASS  [9.trosak] AI predlog nepromenjen do kraja (sha256)
+PASS  [bezbednost] 0 spoljnih veza — []
+PASS  [bezbednost] bez JS grešaka i bez 5xx — [[],[]]
+
+44/44 PASS

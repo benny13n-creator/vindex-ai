@@ -1,0 +1,7 @@
+﻿UHVACENO G4 naslov ne nastavlja :: 18 failed, 181 passed, 13 warnings in 68.56s (0:01:08)
+UHVACENO H1 markdown se ne skida :: 1 failed, 198 passed, 13 warnings in 67.35s (0:01:07)
+UHVACENO H2 naslov bez dvotacke se ne prepoznaje :: 5 failed, 194 passed, 13 warnings in 67.84s (0:01:07)
+UHVACENO H5 napomena u istom redu :: 1 failed, 198 passed, 13 warnings in 67.87s (0:01:07)
+UHVACENO H8 bez granice klauze :: 1 failed, 198 passed, 13 warnings in 68.20s (0:01:08)
+UHVACENO H9 interna (a) napomena :: 1 failed, 198 passed, 13 warnings in 68.32s (0:01:08)
+svi fajlovi vraceni bajt-identicno

@@ -1,0 +1,5 @@
+81bd7684 (worktree):
+1213 passed, 137 skipped in 266.10s (0:04:26)
+HEAD 6f9b584b + t03 (+ test_mir001_c3b_usvajanje.py):
+1232 passed, 137 skipped in 309.71s (0:05:09)
+padovi: 0 / 0 (skup padova identican, prazan)

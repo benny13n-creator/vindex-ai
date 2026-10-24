@@ -57,8 +57,10 @@ def okr(monkeypatch):
 def _reconcile(event_id="dog-1"):
     from services.case_evolution import _consequence_refresh_case_actions
     from services.event_bus import Event, EventType
+    # MIR001 C1: opšti okidač usklađivanja (otkazano ročište, V2 stanje, zatvoren predmet NISU povlačenje izvora) —
+    # `SourceInvalidated` bez izvora više ne zatvara ništa (veza nije dokaziva).
     return asyncio.run(_consequence_refresh_case_actions(Event(
-        type=EventType.SOURCE_INVALIDATED, user_id="uid-A", predmet_id=PA, payload={}, event_id=event_id)))
+        type=EventType.MANUAL_CORRECTION_APPLIED, user_id="uid-A", predmet_id=PA, payload={}, event_id=event_id)))
 
 
 def _otvorene(baza):

@@ -345,6 +345,33 @@ for (const [w, tema, hash] of [[360, "light", "#/danas"], [360, "dark", `#/pripr
   await s.zatvori();
 }
 
+// ── MIR001 TASK-08: CASE_CHANGE_BRIEF (šema cb-1) — sadržaj prepisan iz STVARNOG izlaza izvršioca nad Golden Case-om ──
+{
+  const CB = {
+    work_type: "CASE_CHANGE_BRIEF", status: "READY_FOR_REVIEW", quality_state: "DETERMINISTIC",
+    title: "Promena predmeta — Alfa Fiktiv protiv Beta Primer Gradnja (analiza v8)",
+    reason: "U predmet je primljen dokument (2026-10-22). Pregled promene analize predmeta (v8) priprema se samo ako je tu promenu proizveo prijem dokumenta.",
+    summary: "3 promena u analizi predmeta (v7 → v8); 1 novih radnji iz ove promene.",
+    content_json: { vrsta: "CASE_CHANGE_BRIEF", schema: "cb-1", verzija: 8, prethodna_verzija: 7, promena_ukupno: 2,
+      promene: [{ vrsta: "rok_dodat", oznaka: "+", opis: "Nov rok u analizi: 2026-10-28", poreklo: "AI_ANALYSIS", staro: null, novo: "2026-10-28" },
+                { vrsta: "dokumenti_analize", oznaka: "+", opis: "Dokumenata u analizi: 7 → 8 <img src=x onerror=window.__xss=7>", poreklo: "DETERMINISTIC_DERIVATION", staro: 7, novo: 8 }],
+      radnje: [{ id: "a1", tip: "PLANIRATI_ROKOVE", razlog: "Rok iz dokumenta čeka vašu potvrdu: Rok za izjasnjenje na dopunu nalaza vestaka — 2026-10-28", prioritet: "high", rok: "2026-10-28", status: "open" }],
+      nepoznato: [] },
+    source_refs: [{ vrsta: "genome_verzija", verzija: 8 }],
+  };
+  const s = await scenario({ hash: `#/pripremljeno/${HP}`, kuke: { izmeni: ({ p, metod }, t) => metod === "GET" && /work-items\/.+/.test(p) ? { ...t, ...CB } : t } });
+  await cekaj(s.p, () => !document.getElementById("vpr-sadrzaj").hidden);
+  const tx = await DOK(s);
+  const x = await s.p.evaluate(() => ({ xss: window.__xss || null, h: [...document.querySelectorAll("#vpr-delovi h2")].map(e => e.textContent),
+    naslov: document.getElementById("vpr-naslov").textContent, razlog: document.getElementById("vpr-razlog").textContent }));
+  zapisi("cb-1", "pregled promene: sekcije promena i novih radnji, rok i razlog radnje, bez modela",
+    x.h.includes("Šta se promenilo u analizi predmeta (v7 → v8)") && x.h.includes("Nove radnje iz ove promene")
+    && /Nov rok u analizi: 2026-10-28/.test(tx) && /čeka vašu potvrdu/.test(tx) && /bez modela\. Ništa nije poslato ni izmenjeno/.test(tx)
+    && /Zašto je pripremljeno: U predmet je primljen dokument/.test(x.razlog), JSON.stringify(x.h));
+  zapisi("cb-1", "sadržaj iz podataka je tekst, ne HTML (bez izvršavanja)", x.xss === null && /<img src=x/.test(tx));
+  await s.zatvori();
+}
+
 await browser.close();
 zapisi("bezbednost", "nijedna JS greška na stranici", !konzola.some(l => l.startsWith("PAGEERROR")), konzola.filter(l => l.startsWith("PAGEERROR")).slice(0, 2).join(" | "));
 zapisi("bezbednost", "nijedan token u konzoli", ![TA, TB].some(t => konzola.join("\n").includes(t)));

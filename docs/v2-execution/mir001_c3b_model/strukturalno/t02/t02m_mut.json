@@ -1,0 +1,406 @@
+{
+ "cmd": [
+  "powershell",
+  "-NoProfile",
+  "-Command",
+  ". '<scratchpad>/ocr.ps1'; python -X utf8 -m pytest tests/test_mir001_c3b_nacrt_za_sud.py tests/test_mir001_c3_procesno_stanje.py tests/test_mir001_t06_nacrt_iz_spisa.py tests/test_mir001_c4_e2e.py tests/test_mir001_t10_ceo_tok.py -q -p no:randomly -p no:cacheprovider --no-header --show-capture=no 2>$null | Select-Object -Last 1"
+ ],
+ "mutacije": [
+  {
+   "ime": "Y1 granica/razdelnik iz izlaza modela se ne neutralisu",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    tekst = _RE_TOKEN.sub(_tok, neutralisi(tekst_za_sud))",
+   "new": "    tekst = _RE_TOKEN.sub(_tok, tekst_za_sud)"
+  },
+  {
+   "ime": "Y2 lazan cuvar mesta se ne neutralise",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    return re.sub(r\"\\[\\s*izostavljeno\\b\", \"(izostavljeno — navod)\", t, flags=re.IGNORECASE)",
+   "new": "    return t"
+  },
+  {
+   "ime": "Y3 razdelnik U+2063 se ne uklanja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    t = (tekst or \"\").replace(_SEP, \"\")",
+   "new": "    t = (tekst or \"\")"
+  },
+  {
+   "ime": "Y4 slicna granica se ne neutralise",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if re.search(r\"═{2,}|={3,}\", red) and re.search(r\"intern|vindex|vxndex\", k):",
+   "new": "        if False:"
+  },
+  {
+   "ime": "Y5 izvoz bez jedinstvene granice",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if broj != 1:",
+   "new": "    if broj > 1:"
+  },
+  {
+   "ime": "Y6 izvoz sa nerazresenim mestom",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if _RE_CUVAR.search(sud) or re.search(r\"\\[PROVERITI\\b|\\[\\[\\s*PS-\", sud, re.IGNORECASE):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y10 pravosnaznost ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if _RE_PRAVOSNAZNO.search(bez):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y11 buduce izvrsenje ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if (nalozi_sa_rokom or stanje.get(\"greska\")) and _RE_BUDUCE.search(bez)",
+   "new": "    if False and _RE_BUDUCE.search(bez)"
+  },
+  {
+   "ime": "Y12 uslovna odluka ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if ima_nalog and _RE_USLOVNO.search(bez):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y14 sopstvene reci nikad",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if not _odluka_svojim_recima_potvrdjena(seg, dog, sudski_tok):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y15 glagol koji izvod ne potvrdjuje prolazi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            return False                                   # glagol koji izvod ne može da potvrdi",
+   "new": "            continue"
+  },
+  {
+   "ime": "Y17 utvrdio ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if _RE_UTVRDIO.search(bez) and not sudski_tok:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y21 nepoznato rociste iskljuceno",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if any(o & osn_rec for o in nepoznata_rocista) and not (_RE_USLOV.search(bez) or preneseno):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y22 nepoznato rociste dozvoljava navodima",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "and not (_RE_USLOV.search(bez) or preneseno):",
+   "new": "and not (_RE_USLOV.search(bez) or pripisano):"
+  },
+  {
+   "ime": "Y23 interni redovi ostaju",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if not (naslov or _RE_INTERNO.search(k) or re.match(r\"^\\W*\\[proveriti\\b\", k) or _RE_NAPOMENA_U_REDU.search(k)):",
+   "new": "        if True:"
+  },
+  {
+   "ime": "Y24 nepouzdano stanje nije najstroze",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    ima_nalog = bool(stanje.get(\"greska\")) or any(",
+   "new": "    ima_nalog = any("
+  },
+  {
+   "ime": "Y25 nepostojeca oznaka ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if \"NE POSTOJI]]\" in seg:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y26 cirilica se ne preslovljava",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    return PS._n((t or \"\").translate(_CIR))",
+   "new": "    return PS._n(t or \"\")"
+  },
+  {
+   "ime": "Y28 prelom reda uvek kraj recenice",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            if sled and sled.group(1).islower():",
+   "new": "            if False:"
+  },
+  {
+   "ime": "Y29 kapija posle naplate",
+   "fajl": "routers/multi_agent.py",
+   "old": "            kapija = _NZ.zastiti(odgovor, stanje)",
+   "new": "            kapija = None"
+  },
+  {
+   "ime": "Y30 paralelni nacrt iz spisa dozvoljen",
+   "fajl": "routers/multi_agent.py",
+   "old": "    if \"drafting\" in agenti_ids and req.predmet_id:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y31 export.py pusta granicu",
+   "fajl": "routers/export.py",
+   "old": "    if GRANICA in req.tekst:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y32 opsti izvoz pusta granicu",
+   "fajl": "routers/drafting.py",
+   "old": "    if GRANICA in (req.tekst or \"\"):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y33 DOCX sa pregleda bez vlasnika",
+   "fajl": "routers/drafting.py",
+   "old": "select(\"id,tip,naziv,tekst\")\n            .eq(\"id\", staging_id).eq(\"user_id\", user[\"user_id\"])",
+   "new": "select(\"id,tip,naziv,tekst\")\n            .eq(\"id\", staging_id)"
+  },
+  {
+   "ime": "Y34 DOCX sa pregleda izvozi ceo tekst",
+   "fajl": "routers/drafting.py",
+   "old": "    if red.get(\"tip\") == _TIP_NACRTA_IZ_SPISA_STAGING or GRANICA in tekst:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y35 odseceni odgovor prihvacen",
+   "fajl": "routers/multi_agent.py",
+   "old": "            if resp.choices[0].finish_reason == \"length\":",
+   "new": "            if False:"
+  },
+  {
+   "ime": "Y36 procesno stanje se ne utvrdjuje",
+   "fajl": "routers/multi_agent.py",
+   "old": "        procesno=(agent_id == \"drafting\" and bool(req.predmet_id)))",
+   "new": "        procesno=False)"
+  },
+  {
+   "ime": "Y9 rok ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if _RE_ROK.search(bez) and not _izvor_kaze(_RE_ROK):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y18 odustanak ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if ima_nalog and _RE_ODUSTANAK.search(bez) and not priznaje and not _izvor_kaze(_RE_ODUSTANAK):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y7 uplata ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if (_RE_UPLATA.search(bez) or (nalog_o_uplati and",
+   "new": "    if (False and (nalog_o_uplati and"
+  },
+  {
+   "ime": "Y8 izvrsenje ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if izvrsenje and not _izvor_kaze(_RE_STANJE, grupe_rec or None):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Y13 nepotrebnost bez izricitog priznanja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "and _RE_NEPOTREBNO.search(bez) and not (priznaje_jasno and stav and",
+   "new": "and _RE_NEPOTREBNO.search(bez) and not (priznaje and stav and"
+  },
+  {
+   "ime": "Y19 pravilo predmeta iskljuceno",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if o_predmetu and not ((stav and priznaje_jasno and not _RE_STANJE.search(bez)) or pripisano or parafraza",
+   "new": "    if False and not ((stav and priznaje_jasno and not _RE_STANJE.search(bez)) or pripisano or parafraza"
+  },
+  {
+   "ime": "Y20 pravilo predmeta stav bez priznanja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if o_predmetu and not ((stav and priznaje_jasno and",
+   "new": "    if o_predmetu and not ((stav and"
+  },
+  {
+   "ime": "Z1 dejstvo ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if (ima_nalog or o_stanju) and _RE_DEJSTVO.search(bez):",
+   "new": "    if False:"
+  },
+  {
+   "ime": "Z2 navod bez provere izvora",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    preneseno = bool(_RE_PRENESENO.search(bez)) and (bool(izvori) or dok_navoda)",
+   "new": "    preneseno = bool(_RE_PRENESENO.search(bez)) and bool(_RE_DOK.search(seg) or tokeni)"
+  },
+  {
+   "ime": "Z3 izvor ne mora da sadrzi tvrdnju",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            rx.search(_n(d[\"izvod\"])) and (grupe is None or grupe & _grupe(_n(d[\"izvod\"])))\n            and pol",
+   "new": "            True\n            and pol"
+  },
+  {
+   "ime": "Z4 izvor bez grupe radnje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            rx.search(_n(d[\"izvod\"])) and (grupe is None or grupe & _grupe(_n(d[\"izvod\"])))\n            and pol",
+   "new": "            rx.search(_n(d[\"izvod\"]))\n            and pol"
+  },
+  {
+   "ime": "Z5 bez prenosa predmeta na zamenicu",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    o_stanju = o_predmetu or (ima_nalog and prethodni_predmet and (not sadrzaj or bool(_RE_ANAFORA.search(bez))))",
+   "new": "    o_stanju = o_predmetu"
+  },
+  {
+   "ime": "Z6 izricito priznanje = bilo koja oznaka DOK",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    priznaje_jasno = sudski_tok or parafraza or (priznaje and bool(re.search(r\"\\b(?:odluk|nalog|naloz|resenj|zapisnik)\\w*\", bez)))",
+   "new": "    priznaje_jasno = priznaje"
+  },
+  {
+   "ime": "Z7 parafraza bez uloga stranaka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            return osn <= o and uloge <= u and (sudski_tok or bool(osn - _OPSTE_UVEK))",
+   "new": "            return osn <= o and (sudski_tok or bool(osn - _OPSTE_UVEK))"
+  },
+  {
+   "ime": "Z8 prozor parafraze stane na oznaci/zagradi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        prozor = re.split(r\"[,;.]|\\b(?:jer|pa|te|a|cime|sto|time)\\b\", ostatak, maxsplit=1)[0]",
+   "new": "        prozor = re.split(r\"[,;.()|]|\\b(?:jer|pa|te|a|cime|sto|time)\\b\", bez_s[m.end():], maxsplit=1)[0]"
+  },
+  {
+   "ime": "Z9 opste reci su sadrzaj",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    sadrzaj = osn_rec - _OPSTE_UVEK - {w[:5]",
+   "new": "    sadrzaj = osn_rec - {w[:5]"
+  },
+  {
+   "ime": "Z10 uplata drugim recima ostaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    if (_RE_UPLATA.search(bez) or (nalog_o_uplati and",
+   "new": "    if (_RE_UPLATA.search(bez) or (False and"
+  },
+  {
+   "ime": "Z11 opsti glagol izvrsenja ne vazi za svaki nalog",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        bool(grupe_rec & grupe_naloga) or (\"IZVRSENJE\" in grupe_rec and o_predmetu and not navodima)",
+   "new": "        bool(grupe_rec & grupe_naloga)"
+  },
+  {
+   "ime": "Z12 sinonimi predmeta iskljuceni",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    for rx, osn in _SINONIMI:",
+   "new": "    for rx, osn in ():"
+  },
+  {
+   "ime": "Z13 parafraza bez razlikujuce reci",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            return osn <= o and uloge <= u and (sudski_tok or bool(osn - _OPSTE_UVEK))",
+   "new": "            return osn <= o and uloge <= u"
+  },
+  {
+   "ime": "G1 polaritet se ne proverava",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            and pol <= _polaritet(_n(d[\"izvod\"]), rx) for d in izvori)",
+   "new": "            for d in izvori)"
+  },
+  {
+   "ime": "G2 negacija ispred se ne vidi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        elif _RE_NEG_U.search(m.group()) or _RE_NEG_U.search(pre):",
+   "new": "        elif _RE_NEG_U.search(m.group()):"
+  },
+  {
+   "ime": "G3 blok bez nastavka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        while j < len(redovi) and redovi[j].strip() and (naslov or",
+   "new": "        while False and (naslov or"
+  },
+  {
+   "ime": "G4 naslov ne nastavlja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        while j < len(redovi) and redovi[j].strip() and (naslov or re.match(",
+   "new": "        while j < len(redovi) and redovi[j].strip() and (False or re.match("
+  },
+  {
+   "ime": "G5 premesteno bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and _RE_RED_O_NACRTU.match(k) and not naslov:",
+   "new": "        if True:"
+  },
+  {
+   "ime": "H1 markdown se ne skida",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        k = _n(re.sub(r\"[*#_>`]+\", \" \", red)).strip()",
+   "new": "        k = _n(red).strip()"
+  },
+  {
+   "ime": "H2 naslov bez dvotacke se ne prepoznaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        naslov = bool(_RE_NASLOV.match(k)) or (bool(_RE_INTERNO.search(k)) and k.endswith(\":\"))",
+   "new": "        naslov = bool(_RE_INTERNO.search(k)) and k.endswith(\":\")"
+  },
+  {
+   "ime": "H3 izolovan red bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and _RE_RED_O_NACRTU.match(k) and not naslov:",
+   "new": "        if len(blok) == 1 and not naslov:"
+  },
+  {
+   "ime": "H4 ai red dobija cuvar",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and _RE_RED_O_NACRTU.match(k) and not naslov:",
+   "new": "        if False:"
+  },
+  {
+   "ime": "H5 napomena u istom redu",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": " or _RE_NAPOMENA_U_REDU.search(k)):",
+   "new": "):"
+  },
+  {
+   "ime": "H6 modalitet se ne vidi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if _RE_MODAL.search(pre) or _RE_MODAL.search(m.group()):",
+   "new": "        if False:"
+  },
+  {
+   "ime": "H7 prozor 3 reci",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-6:])",
+   "new": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-3:])"
+  },
+  {
+   "ime": "H8 bez granice klauze",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-6:])",
+   "new": "        pre = \" \".join(t[:m.start()].split()[-6:])"
+  },
+  {
+   "ime": "H9 interna (a) napomena",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "|intern[aei]\\s+napomen\\w*|upozorenj\\w*\\s+za\\s+advokat\\w*\"",
+   "new": "|interne?\\s+napomenX|upozorenj\\w*\\s+za\\s+advokat\\w*\""
+  },
+  {
+   "ime": "H10 model nije procitao",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "|\\bmodel\\w*\\s+(?:nije|ni|ne)\\s+(?:procit|pregled|potvrd|uzeo)\\w*|",
+   "new": "|"
+  },
+  {
+   "ime": "G9 glagoli predaje/prijema",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "                        r\"nije\\s+preduze\\w*|predao|predala|predat\\w*|stigl\\w*|stigao|primio|primila|primljen\\w*|\"\n                        r\"zaprimljen\\w*)\\b\")",
+   "new": "                        r\"nije\\s+preduze\\w*)\\b\")"
+  },
+  {
+   "ime": "G10 trazena/pomenuta kao anafora",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "                         r\"trazen\\w*|pomenut\\w*|naveden\\w*)\\b\")",
+   "new": "                         r\"XXXX)\\b\")"
+  },
+  {
+   "ime": "G11 neutralizacija oznake bloka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    t = (tekst or \"\").replace(_SEP, \"\").replace(_BLOK, \"\")",
+   "new": "    t = (tekst or \"\").replace(_SEP, \"\")"
+  },
+  {
+   "ime": "H11 mesan red sa oznakom AI bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and _RE_RED_O_NACRTU.match(k) and not naslov:",
+   "new": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and not naslov:"
+  }
+ ]
+}

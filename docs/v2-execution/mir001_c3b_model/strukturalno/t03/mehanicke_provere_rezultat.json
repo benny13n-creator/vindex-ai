@@ -1,0 +1,21 @@
+{
+ "ukupno": 100,
+ "statistika": {
+  "status_200": 100,
+  "sa_cuvarom": 94,
+  "bez_cuvara": 6
+ },
+ "P5_200_bar_95": true,
+ "nalazi": [
+  {
+   "izlaz": "H1_09",
+   "pravilo": "P5",
+   "opis": "posle ispravke PATCH 200 DOCX 409"
+  },
+  {
+   "izlaz": "N1_00",
+   "pravilo": "P5",
+   "opis": "posle ispravke PATCH 200 DOCX 409"
+  }
+ ]
+}

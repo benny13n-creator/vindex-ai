@@ -1,0 +1,2129 @@
+{
+ "A_nalog": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_pre_A.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 231,
+     "kraj": 273,
+     "izvod": "Sud prihvata predlog za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_PRIHVATA",
+     "kandidati": [
+      "SUD_PRIHVATA"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-03",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_PREDLAZE",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 274,
+     "kraj": 343,
+     "izvod": "Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_NALAZE",
+     "kandidati": [
+      "SUD_NALAZE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-02",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_NAVODI",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": [
+      "DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+      "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+     ],
+     "rok": {
+      "trajanje_dana": 15,
+      "pocetak_iz_izvoda": null,
+      "tok_i_istek": "UNKNOWN"
+     },
+     "izvrsenje": "UNKNOWN"
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 344,
+     "kraj": 410,
+     "izvod": "Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_NAVODI"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 411,
+     "kraj": 477,
+     "izvod": "Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_ODUSTAJE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 478,
+     "kraj": 528,
+     "izvod": "Sledece rociste zakazano je za 18.11.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_ZAKAZANO",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-11",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-12",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-13",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-14",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-15",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“",
+    "DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+    "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ },
+ "B_kasniji_odustanak": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_pre_C1.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-08",
+     "oznaka": "DOK-08",
+     "tekst_sha256": "40eec2b50eb35b256048ee73cd0ec38eba6698499ab5c6d8445bc6409dee3fcb",
+     "pocetak": 106,
+     "kraj": 155,
+     "izvod": "Tuzeni odustaje od predloga za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_ODUSTAJE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-09-05",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-08",
+     "oznaka": "DOK-08",
+     "tekst_sha256": "40eec2b50eb35b256048ee73cd0ec38eba6698499ab5c6d8445bc6409dee3fcb",
+     "pocetak": 156,
+     "kraj": 207,
+     "izvod": "Tuzeni navodi da gradjevinski dnevnik nije sacuvan.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-09-05",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 231,
+     "kraj": 273,
+     "izvod": "Sud prihvata predlog za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_PRIHVATA",
+     "kandidati": [
+      "SUD_PRIHVATA"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-03",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_PREDLAZE",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      },
+      {
+       "id": "PS-04",
+       "oznaka": "DOK-08",
+       "vrsta": "STRANKA_ODUSTAJE",
+       "odnos": "KASNIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": [
+      "DOK-07: da li DOK-08 (stranka_odustaje, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno"
+     ],
+     "stanje": "CONTESTED"
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 274,
+     "kraj": 343,
+     "izvod": "Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_NALAZE",
+     "kandidati": [
+      "SUD_NALAZE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-02",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_NAVODI",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      },
+      {
+       "id": "PS-05",
+       "oznaka": "DOK-08",
+       "vrsta": "STRANKA_NAVODI",
+       "odnos": "KASNIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": [
+      "DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+      "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata",
+      "DOK-07: da li DOK-08 (stranka_navodi, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno"
+     ],
+     "rok": {
+      "trajanje_dana": 15,
+      "pocetak_iz_izvoda": null,
+      "tok_i_istek": "UNKNOWN"
+     },
+     "izvrsenje": "UNKNOWN",
+     "stanje": "CONTESTED"
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 344,
+     "kraj": 410,
+     "izvod": "Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_NAVODI"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 411,
+     "kraj": 477,
+     "izvod": "Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_ODUSTAJE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "b2760bffc3b0208118f33daf21b7036635059a557447af0881c53831a56eee12",
+     "pocetak": 478,
+     "kraj": 528,
+     "izvod": "Sledece rociste zakazano je za 18.11.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_ZAKAZANO",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-11",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-12",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-13",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-14",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-15",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-16",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-17",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“",
+    "DOK-07: da li DOK-08 (stranka_odustaje, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno",
+    "DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+    "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata",
+    "DOK-07: da li DOK-08 (stranka_navodi, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ },
+ "C_bez_zapisnika": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_pre_C2.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "36526ac99b56f1b843a38f274c87500ce4546085b3330074f7be29c23f5b8c98",
+     "pocetak": 106,
+     "kraj": 219,
+     "izvod": "Tuzeni navodi da je na rocistu odrzanom 15.07.2026. godine raspravljano o njegovom predlogu za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI_O_SUDU",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-20",
+     "kasniji": [],
+     "nepoznato": [
+      "DOK-07: zapisnik sa ročišta od 15.07.2026 nije među pročitanim dokumentima — ishod ročišta NEPOZNAT"
+     ]
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "36526ac99b56f1b843a38f274c87500ce4546085b3330074f7be29c23f5b8c98",
+     "pocetak": 220,
+     "kraj": 265,
+     "izvod": "Tuzeni ponavlja predlog za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-11",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-12",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "među pročitanim dokumentima nema dokumenta prepoznatog kao sudski",
+    "DOK-07: zapisnik sa ročišta od 15.07.2026 nije među pročitanim dokumentima — ishod ročišta NEPOZNAT"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ },
+ "D_predujam": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_posle_H2.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "28e57c0d429df7a24bb82e66dfeb82243bb48ee8c37c3466a7ca42471962a949",
+     "pocetak": 231,
+     "kraj": 273,
+     "izvod": "Sud prihvata predlog za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_PRIHVATA",
+     "kandidati": [
+      "SUD_PRIHVATA"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-03",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_PREDLAZE",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "28e57c0d429df7a24bb82e66dfeb82243bb48ee8c37c3466a7ca42471962a949",
+     "pocetak": 274,
+     "kraj": 397,
+     "izvod": "Sud nalaze tuziocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_NALAZE",
+     "kandidati": [
+      "SUD_NALAZE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-03",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_PREDLAZE",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": [
+      "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+      "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+      "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+     ],
+     "rok": {
+      "trajanje_dana": 8,
+      "pocetak_iz_izvoda": "od prijema zapisnika",
+      "tok_i_istek": "UNKNOWN"
+     },
+     "uplata": "UNKNOWN",
+     "izvrsenje": "UNKNOWN"
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "28e57c0d429df7a24bb82e66dfeb82243bb48ee8c37c3466a7ca42471962a949",
+     "pocetak": 398,
+     "kraj": 464,
+     "izvod": "Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_NAVODI"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "28e57c0d429df7a24bb82e66dfeb82243bb48ee8c37c3466a7ca42471962a949",
+     "pocetak": 465,
+     "kraj": 531,
+     "izvod": "Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_ODUSTAJE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "28e57c0d429df7a24bb82e66dfeb82243bb48ee8c37c3466a7ca42471962a949",
+     "pocetak": 532,
+     "kraj": 582,
+     "izvod": "Sledece rociste zakazano je za 18.11.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_ZAKAZANO",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-11",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-12",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-13",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-14",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-15",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“",
+    "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+    "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+    "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ },
+ "H1_odbijeno": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_posle_H1.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "f94b7a7028d1266cbb8de67ae768f5f43811c9ba033c6f1b4061bfe1dd266eba",
+     "pocetak": 231,
+     "kraj": 279,
+     "izvod": "Sud odbija predlog tuzenog za dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_ODBIJA",
+     "kandidati": [
+      "SUD_ODBIJA"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [
+      {
+       "id": "PS-03",
+       "oznaka": "DOK-06",
+       "vrsta": "STRANKA_PREDLAZE",
+       "odnos": "RANIJE",
+       "dejstvo": "UNKNOWN"
+      }
+     ],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "f94b7a7028d1266cbb8de67ae768f5f43811c9ba033c6f1b4061bfe1dd266eba",
+     "pocetak": 280,
+     "kraj": 346,
+     "izvod": "Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_NAVODI"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "f94b7a7028d1266cbb8de67ae768f5f43811c9ba033c6f1b4061bfe1dd266eba",
+     "pocetak": 347,
+     "kraj": 413,
+     "izvod": "Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_U_SUDSKOM_DOKUMENTU",
+     "kandidati": [
+      "STRANKA_ODUSTAJE"
+     ],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-07",
+     "oznaka": "DOK-07",
+     "tekst_sha256": "f94b7a7028d1266cbb8de67ae768f5f43811c9ba033c6f1b4061bfe1dd266eba",
+     "pocetak": 414,
+     "kraj": 464,
+     "izvod": "Sledece rociste zakazano je za 18.11.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "SUD",
+     "vrsta": "SUD_ZAKAZANO",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "SUD",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ZAPISNIK SA ROCISTA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-15",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-11",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-12",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-13",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-14",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ },
+ "B0_nema_odluke": {
+  "izvor_snimka": "docs/v2-execution/mir001_c3b_model/t03/snimak_pre_B.json",
+  "stanje": {
+   "dogadjaji": [
+    {
+     "id": "PS-01",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 126,
+     "kraj": 178,
+     "izvod": "Tuzeni osporava nalaz vestaka od 15.06.2026. godine.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-02",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 179,
+     "kraj": 243,
+     "izvod": "Tuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-03",
+     "dokument_id": "DOK-06",
+     "oznaka": "DOK-06",
+     "tekst_sha256": "6b9805a077b3176b6d60e78ddacb709681916361e97c5f8ee7526b0b6d5e6d15",
+     "pocetak": 244,
+     "kraj": 278,
+     "izvod": "Tuzeni predlaze dopunu vestacenja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "IZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-07-01",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-04",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni predlaze vestacenje od strane vestaka gradjevinske struke.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-05",
+     "dokument_id": "DOK-04",
+     "oznaka": "DOK-04",
+     "tekst_sha256": "241e33aefeeb281c134d95eff179e1ebc9bbb91b0ee28152d2809c6ccc519c62",
+     "pocetak": 172,
+     "kraj": 242,
+     "izvod": "Tuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZENI",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZENI",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZENOG (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-20",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-06",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 106,
+     "kraj": 203,
+     "izvod": "Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-07",
+     "dokument_id": "DOK-03",
+     "oznaka": "DOK-03",
+     "tekst_sha256": "0afcfe051d370747d8e0531d41d89c93f08d7feabc18ddf3ba39ba8164dcb26a",
+     "pocetak": 287,
+     "kraj": 348,
+     "izvod": "Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "TUZILAC",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "TUZILAC",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "PODNESAK TUZIOCA (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-04-02",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-08",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 106,
+     "kraj": 171,
+     "izvod": "Tuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-09",
+     "dokument_id": "DOK-02",
+     "oznaka": "DOK-02",
+     "tekst_sha256": "49a3137293196ac7d9cbbda4dc9b0a9e7f5853e056d961fa133204b4ad0ed97b",
+     "pocetak": 320,
+     "kraj": 411,
+     "izvod": "Tuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_NAVODI",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "ODGOVOR NA TUZBU (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-03-12",
+     "kasniji": [],
+     "nepoznato": []
+    },
+    {
+     "id": "PS-10",
+     "dokument_id": "DOK-01",
+     "oznaka": "DOK-01",
+     "tekst_sha256": "d36765a8c64c8923756fdb06d7280621057dc25b715f171a31b69cffca4e4eca",
+     "pocetak": 546,
+     "kraj": 603,
+     "izvod": "Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.",
+     "klasa": "VERIFIED_SOURCE_FACT",
+     "akter": "STRANKA",
+     "vrsta": "STRANKA_PREDLAZE",
+     "kandidati": [],
+     "klasa_tumacenja": "UNKNOWN",
+     "vrsta_dokumenta": {
+      "akter": "STRANKA",
+      "osnov": "NASLOV",
+      "klasa": "UNKNOWN",
+      "naslov": "TUZBA radi naknade stete (SINTETICKI PREDMET)"
+     },
+     "datum_dokumenta": "2026-02-10",
+     "kasniji": [],
+     "nepoznato": []
+    }
+   ],
+   "nepoznato": [
+    "među pročitanim dokumentima nema dokumenta prepoznatog kao sudski"
+   ],
+   "potpunost": "POTPUNO",
+   "odbaceni": []
+  }
+ }
+}

@@ -1,0 +1,77 @@
+===  1 podnesak 'Predmet: Primedbe na zapisnik'
+  nepoznato: ['DOK-09: vrsta dokumenta nije utvrđena (naslov nije prepoznat) — može sadržati odluku suda;', 'među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  1b podnesak 'Veza: resenje'
+  DOK-09 TUZILAC/NASLOV STRANKA_NAVODI_O_SUDU VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud je usvojio tuzbeni zahtev u celosti.'
+  nepoznato: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  2 zapisnik belezi predlog stranke
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-07 STRANKA/NASLOV STRANKA_U_SUDSKOM_DOKUMENTU VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Punomocnik tuzenog predlaze da sud odbije tuzbeni zahtev kao neosnovan.'
+  DOK-07 STRANKA/NASLOV STRANKA_U_SUDSKOM_DOKUMENTU VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Punomocnik tuzioca navodi da je sud vec usvojio njihov predlog na ranijem rocistu.'
+  nepoznato: ['DOK-07: rečenica pripisana stranci pominje odluku suda — ko odlučuje, nije utvrđeno — „Pun', 'DOK-07: rečenica pripisana stranci pominje odluku suda — ko odlučuje, nije utvrđeno — „Pun', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  3 narativ ranije odluke
+  DOK-10 SUD/NASLOV SUD_NARATIV VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-09-20 stanje=None kasniji=[] | 'Resenjem od 01.03.2026. sud je prihvatio predlog za dopunu vestacenja, ali je to resenje ukinuto od strane viseg suda.'
+  nepoznato: ['DOK-10: rečenica suda — sud narativ, značenje i važenje nisu utvrđeni — „Resenjem od 01.03']
+===  4 identicni dokumenti
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-08', 'ISTOG_DANA')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-08', 'ISTOG_DANA')] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-08 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-07', 'ISTOG_DANA')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-08 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-07', 'ISTOG_DANA')] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  nepoznato: ['DOK-07: da li DOK-08 (sud_prihvata, istog_dana) menja ovu odluku ili pokazuje postupanje —', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-07: da li DOK-08 (sud_nalaze, istog_dana) menja ovu odluku ili pokazuje postupanje — n', 'DOK-08: da li DOK-07 (sud_prihvata, istog_dana) menja ovu odluku ili pokazuje postupanje —', 'DOK-08: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-08: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-08: da li DOK-07 (sud_nalaze, istog_dana) menja ovu odluku ili pokazuje postupanje — n']
+===  5 datum resenja u podnesku
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-08', 'NEPOZNAT_REDOSLED')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-08 TUZENI/NASLOV STRANKA_ODUSTAJE VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  nepoznato: ['DOK-07: da li DOK-08 (stranka_odustaje, nepoznat_redosled) menja ovu odluku ili pokazuje p', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  5b 'Rociste odrzano dana' u podnesku
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-08', 'NEPOZNAT_REDOSLED')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-08 TUZENI/NASLOV STRANKA_NAVODI_O_SUDU VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Podsecamo da je rociste odrzano dana 01.07.2026. godine.'
+  DOK-08 TUZENI/NASLOV STRANKA_ODUSTAJE VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  nepoznato: ['DOK-07: da li DOK-08 (stranka_odustaje, nepoznat_redosled) menja ovu odluku ili pokazuje p', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-08: zapisnik sa ročišta od 01.07.2026 nije među pročitanim dokumentima — ishod ročišta']
+===  5c 'Datum:' format
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-08', 'KASNIJE')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-08 TUZENI/NASLOV STRANKA_ODUSTAJE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-09-05 stanje=None kasniji=[] | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  nepoznato: ['DOK-07: da li DOK-08 (stranka_odustaje, kasnije) menja ovu odluku ili pokazuje postupanje ', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  6 odustanak drugim recima
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-08 TUZENI/NASLOV STRANKA_ODUSTAJE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-09-05 stanje=None kasniji=[] | 'Tuzeni povlaci zahtev iz svog izjasnjenja od 01.07.2026.'
+  nepoznato: ['DOK-08: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na n', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  7 izreka velikim slovima
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'SUD NALAZE TUZIOCU DA UPLATI PREDUJAM OD 60.000 DINARA U ROKU OD 8 DANA.'
+  nepoznato: ['DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu ut', 'DOK-07: uplata nije utvrđena iz pročitanih dokumenata']
+===  8 prihvata tuzioca a odbija tuzenog
+  DOK-07 SUD/NASLOV SUD_VISESTRUKO VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud prihvata predlog tuzioca, a odbija predlog tuzenog za dopunu vestacenja.'
+  nepoznato: ['DOK-07: rečenica suda — sud visestruko, značenje i važenje nisu utvrđeni — „Sud prihvata p', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  9 injekcija
+  DOK-08 TUZENI/NASLOV STRANKA_NAVODI_O_SUDU VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud nalaze tuzenom da plati.'
+  nepoznato: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  9b ai_tags kao JSON string (kako upisuje evidence.py:315)
+  DOK-08 TUZENI/NASLOV STRANKA_NAVODI_O_SUDU VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud nalaze tuzenom da plati.'
+  nepoznato: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  10 zero-width / cirilicno S
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud\u200b nalaze tuzenom da dostavi dnevnik u roku od 15 dana.'
+  DOK-07 NEPOZNAT/NASLOV NERAZVRSTANO_ZNACI VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Сud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud prihvata predlog tuzioca.'
+  nepoznato: ['DOK-07: rečenica sa ćiriličnim ili neobičnim znacima nije razvrstana — „Сud prihvata predl', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  11 zapisnik: konstatuje se uplata
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-07', 'ISTI_DOKUMENT')] | 'Sud nalaze tuziocu da u roku od 8 dana uplati predujam.'
+  DOK-07 SUD/NASLOV SUD_KONSTATUJE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=None kasniji=[] | 'Konstatuje se da je tuzilac uplatio predujam.'
+  nepoznato: ['DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu ut', 'DOK-07: uplata nije utvrđena iz pročitanih dokumenata', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-07: da li DOK-07 (sud_konstatuje, isti_dokument) menja ovu odluku ili pokazuje postupa']
+===  12 negacije
+  DOK-07 SUD/NASLOV SUD_NERAZVRSTANO VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Predlog tuzenog se ne usvaja.'
+  DOK-07 SUD/NASLOV SUD_NERAZVRSTANO VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud je odlucio da ne prihvati predlog.'
+  DOK-07 SUD/NASLOV SUD_NERAZVRSTANO VERIFIED_SOURCE_FACT/UNKNOWN datum=None stanje=None kasniji=[] | 'Sud ne nalazi osnov da prihvati predlog.'
+  nepoznato: ['DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Predlog tuze', 'DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Sud je odluc', 'DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Sud ne nalaz']
+13 None/None odbaceni= ['DOK-01'] 0
+13b bez user_id u redu, uid=None odbaceni= ['DOK-01'] 0
+===  14 kasnije resenje suda ukida
+  DOK-07 SUD/NASLOV SUD_PRIHVATA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-11', 'KASNIJE')] | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD/NASLOV SUD_NALAZE VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-07-15 stanje=CONTESTED kasniji=[('DOK-11', 'NEPOZNAT_PREDMET')] | 'Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.'
+  DOK-11 SUD/NASLOV SUD_UKIDA VERIFIED_SOURCE_FACT/UNKNOWN datum=2026-09-20 stanje=None kasniji=[] | 'Ukida se zakljucak o dopuni vestacenja.'
+  nepoznato: ['DOK-07: da li DOK-11 (sud_ukida, kasnije) menja ovu odluku ili pokazuje postupanje — nije ', 'DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu u', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-07: DOK-11 sadrži ukidanje odluke — koje odluke, nije utvrđeno']

@@ -1,0 +1,26 @@
+﻿UHVACENO Y1 granica/razdelnik iz izlaza modela se ne neutralisu :: 3 failed, 170 passed, 13 warnings in 66.43s (0:01:06)
+UHVACENO Y2 lazan cuvar mesta se ne neutralise :: 1 failed, 172 passed, 13 warnings in 65.29s (0:01:05)
+UHVACENO Y3 razdelnik U+2063 se ne uklanja :: 1 failed, 172 passed, 13 warnings in 66.22s (0:01:06)
+UHVACENO Y4 slicna granica se ne neutralise :: 1 failed, 172 passed, 13 warnings in 65.87s (0:01:05)
+UHVACENO Y5 izvoz bez jedinstvene granice :: 1 failed, 172 passed, 13 warnings in 65.97s (0:01:05)
+UHVACENO Y6 izvoz sa nerazresenim mestom :: 7 failed, 166 passed, 13 warnings in 65.92s (0:01:05)
+UHVACENO Y10 pravosnaznost ostaje :: 1 failed, 172 passed, 13 warnings in 66.38s (0:01:06)
+UHVACENO Y11 buduce izvrsenje ostaje :: 1 failed, 172 passed, 13 warnings in 66.13s (0:01:06)
+UHVACENO Y12 uslovna odluka ostaje :: 1 failed, 172 passed, 13 warnings in 66.06s (0:01:06)
+UHVACENO Y14 sopstvene reci nikad :: 8 failed, 165 passed, 13 warnings in 66.07s (0:01:06)
+UHVACENO Y15 glagol koji izvod ne potvrdjuje prolazi :: 2 failed, 171 passed, 13 warnings in 65.79s (0:01:05)
+UHVACENO Y17 utvrdio ostaje :: 2 failed, 171 passed, 13 warnings in 65.49s (0:01:05)
+UHVACENO Y21 nepoznato rociste iskljuceno :: 6 failed, 167 passed, 13 warnings in 65.50s (0:01:05)
+UHVACENO Y22 nepoznato rociste dozvoljava navodima :: 1 failed, 172 passed, 13 warnings in 65.96s (0:01:05)
+python : Traceback (most recent call last):
+At line:1 char:491
++ ... cratchpad'; python -X utf8 "$S\mut.py" "$S\t02e_mut.json" 2>&1 | Out- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<scratchpad>
+54b7-4bf6-9b94-6f6a1350ba84\scratchpad\mut.py", line 16, in <module>
+    assert orig.count(old) == 1, (m["ime"], orig.count(old))
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('Y23 interni redovi ostaju', 0)

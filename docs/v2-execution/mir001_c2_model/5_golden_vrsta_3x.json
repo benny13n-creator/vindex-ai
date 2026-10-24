@@ -1,0 +1,48 @@
+{
+ "stari_upit": {
+  "DOK-01": {
+   "podnesak": 3
+  },
+  "DOK-02": {
+   "podnesak": 3
+  },
+  "DOK-03": {
+   "podnesak": 3
+  },
+  "DOK-04": {
+   "podnesak": 3
+  },
+  "DOK-05": {
+   "vestacki_nalaz": 3
+  },
+  "DOK-06": {
+   "podnesak": 3
+  },
+  "DOK-07": {
+   "sudska_odluka": 3
+  }
+ },
+ "novi_upit": {
+  "DOK-01": {
+   "podnesak": 3
+  },
+  "DOK-02": {
+   "podnesak": 3
+  },
+  "DOK-03": {
+   "podnesak": 3
+  },
+  "DOK-04": {
+   "podnesak": 3
+  },
+  "DOK-05": {
+   "vestacki_nalaz": 3
+  },
+  "DOK-06": {
+   "podnesak": 3
+  },
+  "DOK-07": {
+   "sudska_odluka": 3
+  }
+ }
+}

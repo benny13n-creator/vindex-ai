@@ -215,6 +215,13 @@ Srpski. Ekavica."""
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+class _Tvrdnje(list):
+    """Tvrdnje za Genome prompt. `potpune=False`: lista NE sadrži sve žive tvrdnje predmeta (odsečena na
+    `_MAKS_TVRDNJI` ili nepročitana) — tada model nije mogao da vidi svaku tvrdnju, pa izostanak sporne tačke
+    iz njegovog odgovora nije dokaz da je ona nestala (MIR001 TASK-03)."""
+    potpune = True
+
+
 async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
     """Core Consolidation Sec 1.3 (2026-07-22) — Case Genome je jedini
     vlasnik istine o predmetu; Evidence Vault (predmet_dokazi) vise ne sme
@@ -236,13 +243,18 @@ async def _fetch_dokazi_kontekst(supa, predmet_id: str) -> list[dict]:
                 .eq("predmet_id", predmet_id)
                 .is_("deleted_at", "null")
                 .order("id")
-                .limit(_MAKS_TVRDNJI)
+                .limit(_MAKS_TVRDNJI + 1)
                 .execute()
         )
-        return r.data or []
+        redovi = r.data or []
+        out = _Tvrdnje(redovi[:_MAKS_TVRDNJI])
+        out.potpune = len(redovi) <= _MAKS_TVRDNJI
+        return out
     except Exception as exc:
         logger.warning("[GENOME] Dokazi kontekst greška (nije kritično): %s", exc)
-        return []
+        out = _Tvrdnje()
+        out.potpune = False
+        return out
 
 
 # CELINA 2 (2026-07-24): raniji docs[:8] + tekst[:4500] je za predmet sa
@@ -336,6 +348,10 @@ async def _extract_genome(
             header += f" | Vrsta: {tip}"
         if kb:
             header += f" | {kb}KB"
+        if len(deo_teksta) < len(tekst):
+            # MIR001 C2: granica je eksplicitna, ne tiha — model ne sme da zaključi da ostatak dokumenta ne postoji
+            header += (f" | TEKST SKRAĆEN: prikazano prvih {len(deo_teksta)} od {len(tekst)} znakova; činjenice iz ostatka "
+                       f"mogu biti samo u bloku EVIDENCE VAULT ispod (ako su izdvojene)")
         header += "]"
         parts.append(f"{header}\n{deo_teksta}")
 
@@ -384,6 +400,8 @@ async def _extract_genome(
         result = json.loads(raw)
         result["_genome_docs_count"] = len(parts)
         result["_genome_docs_preskoceno"] = docs_preskoceno
+        if not getattr(dokazi, "potpune", True):
+            result["_tvrdnje_van_analize"] = True
         # Reliability Patch (2026-07-18) — snaga_predmeta_procent/snaga_predmeta se
         # RACUNAJU backend-om iz snaga_faktori, ne uzima se GPT-ovo samo-prijavljeno
         # broj (anchoring bug otkriven Reality Validation batch-om — videti
@@ -1187,7 +1205,8 @@ async def _do_genome_refresh(
         # mehanizam, ne novo stanje.
         _v2 = await upisi_v2_opazanje(
             predmet_id=predmet_id, user_id=uid, genome=genome,
-            dokazi=dokazi_ctx, event_id=event_id)
+            dokazi=dokazi_ctx, event_id=event_id,
+            tvrdnje_potpune=getattr(dokazi_ctx, "potpune", True))
         logger.info("[A017] V2 opazanje upisano predmet=%s kandidata=%d odbijeno=%d "
                     "kompletno=%s v_obs=%s", predmet_id, _v2["kandidata"],
                     _v2["odbijeno"], _v2["kompletno"], _v2["observation_version"])
@@ -1455,7 +1474,8 @@ async def _refresh_case_dna_body(predmet_id: str, request: Request, user) -> dic
     try:
         _v2 = await upisi_v2_opazanje(
             predmet_id=predmet_id, user_id=uid, genome=genome,
-            dokazi=dokazi_ctx, event_id=None)
+            dokazi=dokazi_ctx, event_id=None,
+            tvrdnje_potpune=getattr(dokazi_ctx, "potpune", True))
         logger.info("[A017] V2 opazanje upisano (manual) predmet=%s kandidata=%d "
                     "odbijeno=%d kompletno=%s", predmet_id, _v2["kandidata"],
                     _v2["odbijeno"], _v2["kompletno"])

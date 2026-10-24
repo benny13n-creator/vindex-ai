@@ -1,0 +1,10 @@
+UHVACENO Y7 uplata ostaje :: 2 failed, 108 passed, 13 warnings in 66.16s (0:01:06)
+UHVACENO Y9 rok ostaje :: 1 failed, 109 passed, 13 warnings in 66.33s (0:01:06)
+UHVACENO Y10 pravosnaznost ostaje :: 1 failed, 109 passed, 13 warnings in 66.27s (0:01:06)
+UHVACENO Y11 buduce izvrsenje ostaje :: 1 failed, 109 passed, 13 warnings in 65.20s (0:01:05)
+UHVACENO Y12 uslovna odluka ostaje :: 1 failed, 109 passed, 13 warnings in 65.82s (0:01:05)
+UHVACENO Y17 utvrdio ostaje :: 1 failed, 109 passed, 13 warnings in 65.76s (0:01:05)
+UHVACENO Y18 odustanak ostaje :: 1 failed, 109 passed, 13 warnings in 67.61s (0:01:07)
+UHVACENO Y26 cirilica se ne preslovljava :: 1 failed, 109 passed, 13 warnings in 66.69s (0:01:06)
+UHVACENO Y28 prelom reda uvek kraj recenice :: 1 failed, 109 passed, 13 warnings in 66.21s (0:01:06)
+svi fajlovi vraceni bajt-identicno

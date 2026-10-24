@@ -169,14 +169,23 @@ async def ucitaj_v2_kontradikcije(supa, predmet_id: str) -> list[dict]:
     dok_po_dokazu: dict[str, str] = {}
     if svi_dokazi:
         dz = await asyncio.to_thread(
-            lambda: supa.table("predmet_dokazi").select("id,dokument_id")
+            lambda: supa.table("predmet_dokazi").select("id,dokument_id,deleted_at")
                        .in_("id", svi_dokazi).execute()
         )
-        dok_po_dokazu = {d["id"]: d.get("dokument_id") for d in ((dz.data if dz else None) or [])}
+        dzr = (dz.data if dz else None) or []
+        dok_po_dokazu = {d["id"]: d.get("dokument_id") for d in dzr}
+        povucene = {d["id"] for d in dzr if d.get("deleted_at")}
+    else:
+        povucene = set()
 
     out = []
     for k in kontradikcije:
-        claim_ids = clanovi.get(k["id"], [])
+        # MIR001 TASK-07: povučena tvrdnja (izvor obrisan, `deleted_at`) nije strana sporne tačke. Tačka kojoj nisu ostale
+        # dve žive strane nije više nešto za razrešavanje — akcija se zatvara u ISTOM usklađivanju (posle SourceInvalidated),
+        # a ne tek kad slučajno stigne drugi događaj.
+        claim_ids = [c for c in clanovi.get(k["id"], []) if c not in povucene]
+        if len(claim_ids) < 2:
+            continue
         out.append({
             **k,
             "issue_label": (issues.get(k["issue_id"]) or {}).get("label"),
@@ -227,6 +236,18 @@ async def ucitaj_v2_kontradikcije_za_prikaz(supa, predmet_id: str, uid: str, mak
              "clanovi": sorted(clanovi.get(k["id"], []), key=lambda c: str(c["dokaz_id"])),
              "claim_ids": sorted(str(c["dokaz_id"]) for c in clanovi.get(k["id"], []) if not c["uklonjen"])}
             for k in kontradikcije]
+
+
+async def predmet_ima_v2(supa, predmet_id: str) -> bool:
+    """MIR001 TASK-07: da li predmet uopšte ima V2 sporne tačke (bez obzira na stanje). Greška čitanja se propagira —
+    pozivalac (usklađivanje akcija) tada ne menja akcije na osnovu nepotpunih podataka."""
+    import asyncio
+    if not predmet_id:
+        return False
+    r = await asyncio.to_thread(
+        lambda: supa.table("predmet_issues").select("id").eq("predmet_id", predmet_id).execute()
+    )
+    return bool((r.data if r else None) or [])
 
 
 async def v2_akcije_za_predmet(supa, predmet_id: str) -> list[dict]:

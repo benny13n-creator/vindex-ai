@@ -1,0 +1,602 @@
+{
+ "X83700": {
+  "scenarij": "N2",
+  "indeks": 7,
+  "spis": "SPIS-2",
+  "deo": 1
+ },
+ "X17101": {
+  "scenarij": "H2",
+  "indeks": 9,
+  "spis": "SPIS-6",
+  "deo": 2
+ },
+ "X28102": {
+  "scenarij": "C1",
+  "indeks": 8,
+  "spis": "SPIS-7",
+  "deo": 3
+ },
+ "X62403": {
+  "scenarij": "C2",
+  "indeks": 7,
+  "spis": "SPIS-8",
+  "deo": 4
+ },
+ "X58204": {
+  "scenarij": "C1",
+  "indeks": 1,
+  "spis": "SPIS-7",
+  "deo": 1
+ },
+ "X34105": {
+  "scenarij": "H1",
+  "indeks": 9,
+  "spis": "SPIS-1",
+  "deo": 2
+ },
+ "X51006": {
+  "scenarij": "N4",
+  "indeks": 3,
+  "spis": "SPIS-10",
+  "deo": 3
+ },
+ "X43007": {
+  "scenarij": "H1",
+  "indeks": 6,
+  "spis": "SPIS-1",
+  "deo": 4
+ },
+ "X64108": {
+  "scenarij": "A",
+  "indeks": 6,
+  "spis": "SPIS-4",
+  "deo": 1
+ },
+ "X98609": {
+  "scenarij": "C1",
+  "indeks": 7,
+  "spis": "SPIS-7",
+  "deo": 2
+ },
+ "X83810": {
+  "scenarij": "N3",
+  "indeks": 0,
+  "spis": "SPIS-3",
+  "deo": 3
+ },
+ "X56011": {
+  "scenarij": "N4",
+  "indeks": 9,
+  "spis": "SPIS-10",
+  "deo": 4
+ },
+ "X49012": {
+  "scenarij": "H2",
+  "indeks": 6,
+  "spis": "SPIS-6",
+  "deo": 1
+ },
+ "X23613": {
+  "scenarij": "H2",
+  "indeks": 8,
+  "spis": "SPIS-6",
+  "deo": 2
+ },
+ "X80514": {
+  "scenarij": "C1",
+  "indeks": 4,
+  "spis": "SPIS-7",
+  "deo": 3
+ },
+ "X48215": {
+  "scenarij": "N2",
+  "indeks": 0,
+  "spis": "SPIS-2",
+  "deo": 4
+ },
+ "X36316": {
+  "scenarij": "H2",
+  "indeks": 4,
+  "spis": "SPIS-6",
+  "deo": 1
+ },
+ "X49217": {
+  "scenarij": "H1",
+  "indeks": 8,
+  "spis": "SPIS-1",
+  "deo": 2
+ },
+ "X46918": {
+  "scenarij": "N2",
+  "indeks": 6,
+  "spis": "SPIS-2",
+  "deo": 3
+ },
+ "X48019": {
+  "scenarij": "N4",
+  "indeks": 4,
+  "spis": "SPIS-10",
+  "deo": 4
+ },
+ "X96520": {
+  "scenarij": "C2",
+  "indeks": 8,
+  "spis": "SPIS-8",
+  "deo": 1
+ },
+ "X93921": {
+  "scenarij": "N1",
+  "indeks": 8,
+  "spis": "SPIS-9",
+  "deo": 2
+ },
+ "X74322": {
+  "scenarij": "B",
+  "indeks": 3,
+  "spis": "SPIS-5",
+  "deo": 3
+ },
+ "X38623": {
+  "scenarij": "H1",
+  "indeks": 1,
+  "spis": "SPIS-1",
+  "deo": 4
+ },
+ "X65324": {
+  "scenarij": "A",
+  "indeks": 8,
+  "spis": "SPIS-4",
+  "deo": 1
+ },
+ "X44625": {
+  "scenarij": "N3",
+  "indeks": 5,
+  "spis": "SPIS-3",
+  "deo": 2
+ },
+ "X76526": {
+  "scenarij": "H2",
+  "indeks": 2,
+  "spis": "SPIS-6",
+  "deo": 3
+ },
+ "X38927": {
+  "scenarij": "B",
+  "indeks": 6,
+  "spis": "SPIS-5",
+  "deo": 4
+ },
+ "X20128": {
+  "scenarij": "C1",
+  "indeks": 3,
+  "spis": "SPIS-7",
+  "deo": 1
+ },
+ "X30529": {
+  "scenarij": "B",
+  "indeks": 4,
+  "spis": "SPIS-5",
+  "deo": 2
+ },
+ "X84630": {
+  "scenarij": "A",
+  "indeks": 1,
+  "spis": "SPIS-4",
+  "deo": 3
+ },
+ "X90431": {
+  "scenarij": "B",
+  "indeks": 0,
+  "spis": "SPIS-5",
+  "deo": 4
+ },
+ "X34932": {
+  "scenarij": "N4",
+  "indeks": 0,
+  "spis": "SPIS-10",
+  "deo": 1
+ },
+ "X86833": {
+  "scenarij": "N2",
+  "indeks": 2,
+  "spis": "SPIS-2",
+  "deo": 2
+ },
+ "X97834": {
+  "scenarij": "N1",
+  "indeks": 3,
+  "spis": "SPIS-9",
+  "deo": 3
+ },
+ "X62735": {
+  "scenarij": "C1",
+  "indeks": 6,
+  "spis": "SPIS-7",
+  "deo": 4
+ },
+ "X84336": {
+  "scenarij": "N4",
+  "indeks": 7,
+  "spis": "SPIS-10",
+  "deo": 1
+ },
+ "X67037": {
+  "scenarij": "C2",
+  "indeks": 3,
+  "spis": "SPIS-8",
+  "deo": 2
+ },
+ "X79838": {
+  "scenarij": "H1",
+  "indeks": 5,
+  "spis": "SPIS-1",
+  "deo": 3
+ },
+ "X82539": {
+  "scenarij": "A",
+  "indeks": 0,
+  "spis": "SPIS-4",
+  "deo": 4
+ },
+ "X13140": {
+  "scenarij": "B",
+  "indeks": 5,
+  "spis": "SPIS-5",
+  "deo": 1
+ },
+ "X99041": {
+  "scenarij": "N3",
+  "indeks": 6,
+  "spis": "SPIS-3",
+  "deo": 2
+ },
+ "X85942": {
+  "scenarij": "N1",
+  "indeks": 6,
+  "spis": "SPIS-9",
+  "deo": 3
+ },
+ "X17443": {
+  "scenarij": "H2",
+  "indeks": 0,
+  "spis": "SPIS-6",
+  "deo": 4
+ },
+ "X29344": {
+  "scenarij": "N4",
+  "indeks": 1,
+  "spis": "SPIS-10",
+  "deo": 1
+ },
+ "X99345": {
+  "scenarij": "H2",
+  "indeks": 7,
+  "spis": "SPIS-6",
+  "deo": 2
+ },
+ "X60446": {
+  "scenarij": "N1",
+  "indeks": 7,
+  "spis": "SPIS-9",
+  "deo": 3
+ },
+ "X50647": {
+  "scenarij": "N2",
+  "indeks": 3,
+  "spis": "SPIS-2",
+  "deo": 4
+ },
+ "X91648": {
+  "scenarij": "N1",
+  "indeks": 1,
+  "spis": "SPIS-9",
+  "deo": 1
+ },
+ "X10349": {
+  "scenarij": "H1",
+  "indeks": 0,
+  "spis": "SPIS-1",
+  "deo": 2
+ },
+ "X81350": {
+  "scenarij": "N3",
+  "indeks": 9,
+  "spis": "SPIS-3",
+  "deo": 3
+ },
+ "X10251": {
+  "scenarij": "C2",
+  "indeks": 1,
+  "spis": "SPIS-8",
+  "deo": 4
+ },
+ "X91952": {
+  "scenarij": "N2",
+  "indeks": 5,
+  "spis": "SPIS-2",
+  "deo": 1
+ },
+ "X62253": {
+  "scenarij": "B",
+  "indeks": 2,
+  "spis": "SPIS-5",
+  "deo": 2
+ },
+ "X55754": {
+  "scenarij": "C1",
+  "indeks": 5,
+  "spis": "SPIS-7",
+  "deo": 3
+ },
+ "X19455": {
+  "scenarij": "A",
+  "indeks": 2,
+  "spis": "SPIS-4",
+  "deo": 4
+ },
+ "X34356": {
+  "scenarij": "N3",
+  "indeks": 4,
+  "spis": "SPIS-3",
+  "deo": 1
+ },
+ "X55457": {
+  "scenarij": "A",
+  "indeks": 3,
+  "spis": "SPIS-4",
+  "deo": 2
+ },
+ "X10058": {
+  "scenarij": "C1",
+  "indeks": 9,
+  "spis": "SPIS-7",
+  "deo": 3
+ },
+ "X41559": {
+  "scenarij": "N1",
+  "indeks": 9,
+  "spis": "SPIS-9",
+  "deo": 4
+ },
+ "X52060": {
+  "scenarij": "B",
+  "indeks": 9,
+  "spis": "SPIS-5",
+  "deo": 1
+ },
+ "X20961": {
+  "scenarij": "C2",
+  "indeks": 5,
+  "spis": "SPIS-8",
+  "deo": 2
+ },
+ "X46162": {
+  "scenarij": "N3",
+  "indeks": 2,
+  "spis": "SPIS-3",
+  "deo": 3
+ },
+ "X98263": {
+  "scenarij": "A",
+  "indeks": 4,
+  "spis": "SPIS-4",
+  "deo": 4
+ },
+ "X36664": {
+  "scenarij": "C2",
+  "indeks": 0,
+  "spis": "SPIS-8",
+  "deo": 1
+ },
+ "X11965": {
+  "scenarij": "N2",
+  "indeks": 9,
+  "spis": "SPIS-2",
+  "deo": 2
+ },
+ "X82966": {
+  "scenarij": "N4",
+  "indeks": 6,
+  "spis": "SPIS-10",
+  "deo": 3
+ },
+ "X20267": {
+  "scenarij": "N3",
+  "indeks": 1,
+  "spis": "SPIS-3",
+  "deo": 4
+ },
+ "X82068": {
+  "scenarij": "B",
+  "indeks": 7,
+  "spis": "SPIS-5",
+  "deo": 1
+ },
+ "X33069": {
+  "scenarij": "N3",
+  "indeks": 7,
+  "spis": "SPIS-3",
+  "deo": 2
+ },
+ "X85470": {
+  "scenarij": "N3",
+  "indeks": 8,
+  "spis": "SPIS-3",
+  "deo": 3
+ },
+ "X54971": {
+  "scenarij": "C2",
+  "indeks": 9,
+  "spis": "SPIS-8",
+  "deo": 4
+ },
+ "X20272": {
+  "scenarij": "B",
+  "indeks": 8,
+  "spis": "SPIS-5",
+  "deo": 1
+ },
+ "X24773": {
+  "scenarij": "A",
+  "indeks": 7,
+  "spis": "SPIS-4",
+  "deo": 2
+ },
+ "X13474": {
+  "scenarij": "H2",
+  "indeks": 3,
+  "spis": "SPIS-6",
+  "deo": 3
+ },
+ "X66075": {
+  "scenarij": "A",
+  "indeks": 5,
+  "spis": "SPIS-4",
+  "deo": 4
+ },
+ "X15476": {
+  "scenarij": "A",
+  "indeks": 9,
+  "spis": "SPIS-4",
+  "deo": 1
+ },
+ "X14277": {
+  "scenarij": "C2",
+  "indeks": 6,
+  "spis": "SPIS-8",
+  "deo": 2
+ },
+ "X53178": {
+  "scenarij": "H1",
+  "indeks": 2,
+  "spis": "SPIS-1",
+  "deo": 3
+ },
+ "X60879": {
+  "scenarij": "H1",
+  "indeks": 7,
+  "spis": "SPIS-1",
+  "deo": 4
+ },
+ "X51280": {
+  "scenarij": "C2",
+  "indeks": 2,
+  "spis": "SPIS-8",
+  "deo": 1
+ },
+ "X78881": {
+  "scenarij": "C2",
+  "indeks": 4,
+  "spis": "SPIS-8",
+  "deo": 2
+ },
+ "X83582": {
+  "scenarij": "N2",
+  "indeks": 4,
+  "spis": "SPIS-2",
+  "deo": 3
+ },
+ "X55483": {
+  "scenarij": "N1",
+  "indeks": 2,
+  "spis": "SPIS-9",
+  "deo": 4
+ },
+ "X66184": {
+  "scenarij": "H2",
+  "indeks": 5,
+  "spis": "SPIS-6",
+  "deo": 1
+ },
+ "X47285": {
+  "scenarij": "N1",
+  "indeks": 0,
+  "spis": "SPIS-9",
+  "deo": 2
+ },
+ "X94186": {
+  "scenarij": "C1",
+  "indeks": 2,
+  "spis": "SPIS-7",
+  "deo": 3
+ },
+ "X63587": {
+  "scenarij": "C1",
+  "indeks": 0,
+  "spis": "SPIS-7",
+  "deo": 4
+ },
+ "X54288": {
+  "scenarij": "N4",
+  "indeks": 2,
+  "spis": "SPIS-10",
+  "deo": 1
+ },
+ "X45489": {
+  "scenarij": "H2",
+  "indeks": 1,
+  "spis": "SPIS-6",
+  "deo": 2
+ },
+ "X63790": {
+  "scenarij": "H1",
+  "indeks": 4,
+  "spis": "SPIS-1",
+  "deo": 3
+ },
+ "X88391": {
+  "scenarij": "N2",
+  "indeks": 8,
+  "spis": "SPIS-2",
+  "deo": 4
+ },
+ "X54292": {
+  "scenarij": "N1",
+  "indeks": 4,
+  "spis": "SPIS-9",
+  "deo": 1
+ },
+ "X34993": {
+  "scenarij": "N4",
+  "indeks": 8,
+  "spis": "SPIS-10",
+  "deo": 2
+ },
+ "X45694": {
+  "scenarij": "N1",
+  "indeks": 5,
+  "spis": "SPIS-9",
+  "deo": 3
+ },
+ "X46195": {
+  "scenarij": "H1",
+  "indeks": 3,
+  "spis": "SPIS-1",
+  "deo": 4
+ },
+ "X35596": {
+  "scenarij": "B",
+  "indeks": 1,
+  "spis": "SPIS-5",
+  "deo": 1
+ },
+ "X95197": {
+  "scenarij": "N2",
+  "indeks": 1,
+  "spis": "SPIS-2",
+  "deo": 2
+ },
+ "X43498": {
+  "scenarij": "N3",
+  "indeks": 3,
+  "spis": "SPIS-3",
+  "deo": 3
+ },
+ "X21299": {
+  "scenarij": "N4",
+  "indeks": 5,
+  "spis": "SPIS-10",
+  "deo": 4
+ }
+}

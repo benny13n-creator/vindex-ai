@@ -40,6 +40,9 @@ from tests.test_osb002_solo_tok import postavi_solo  # noqa: E402
 
 mp = pytest.MonkeyPatch()
 _, BAZA = postavi_solo(mp)
+# DEFAULT-i iz migracije 088 (baza u memoriji ih inače ne zna; prava baza ih upisuje sama) — isto kao t06 fixture
+BAZA.podrazumevano.setdefault("staging_memory", {}).update({"status": "pending", "is_lawyer_approved": False,
+                                                           "pinecone_indexed": False, "quality_detail": {}, "naziv": ""})
 # Kao produkcija danas: migracija 136 NIJE primenjena (PostgREST PGRST205 za tabele autonomije).
 for _t in ("autonomy_cycles", "autonomy_work_items"):
     BAZA.greske[_t] = Exception('{"code": "PGRST205", "message": "Could not find the table public.%s in the schema cache"}' % _t)
@@ -131,6 +134,27 @@ if os.environ.get("VX_AGENTI") == "1":
     async def _stanje_kredita(uid, email):
         return 100
     mp.setattr(_MA, "_pozovi_agent_api", _agent_sync)
+    from tests.nacrt_json_zamena import kao_json as _kao_json  # noqa: E402
+    mp.setattr(_MA, "_pozovi_nacrt_api", _kao_json(_agent_sync, bez_pravila=True))   # C3b: nacrt iz spisa = JSON
+    if os.environ.get("VX_NACRT_C3B") == "1":
+        # MIR001 C3b FINAL CLOSURE (live-c3b-usvajanje-e2e.mjs): AI predlog sa AUTENTIČNIM izvodom iz DOK-07 („Sud prihvata
+        # predlog za dopunu vestacenja.“) i POGREŠNIM tumačenjem (sud „odbio“), tačnom stavkom i upozorenjem AI.
+        import re as _re  # noqa: E402
+
+        def _nacrt_c3b(client, system, user_msg):
+            POZIVI_MODELA.append("agent:drafting:c3b")
+            m = _re.search(r"\[\[(PS-\d+)\]\] DOK-07 \| akter po tekstu: SUD \| vrsta \(kandidat\): SUD_PRIHVATA", user_msg)
+            tekst = "\n\n".join([
+                "PRIVREDNOM SUDU U PRIMERGRADU\nBroj predmeta: P 9901/2026",
+                "Vestak u nalazu navodi da je uzrok prokisnjavanja neodgovarajuce izvedena hidroizolacija na spoju atike (DOK-05).",
+                "Kako je sud odbio predlog za dopunu vestacenja [[%s]], dopuna vestacenja nije potrebna i tuzilac je ne predlaze."
+                % (m.group(1) if m else "PS-99"),
+                "Tuzilac osporava navode tuzenog iz izjasnjenja na nalaz (DOK-06) i smatra da je nalaz vestaka potpun i jasan.",
+                "⚠️ Ovaj nacrt je izradila AI; mora ga pregledati advokat."])
+            telo = json.dumps({"tekst_za_sud": tekst, "napomene_za_advokata": ["Proveriti iznos zahteva."]}, ensure_ascii=False)
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=telo),
+                                                                        finish_reason="stop")])
+        mp.setattr(_MA, "_pozovi_nacrt_api", _nacrt_c3b)
     mp.setattr(_MA, "_pozovi_para_api", _agent_async)
     mp.setattr(_US, "get_policy", _politika_agenti)
     mp.setattr(_US.UsageService, "balance", staticmethod(_stanje_kredita))
@@ -237,6 +261,13 @@ async def _stanje():
                                  for d in t.get("predmet_dokumenti", [])),
         "vrste_prijema": sorted(str(d.get("document_type")) for d in t.get("intake_documents", [])),
         "ispravke_vrste_audit": len([a for a in t.get("audit_immutable", []) if a.get("action") == "dokument_vrsta_ispravljena"]),
+        # MIR001 C3b: nacrti na pregledu — tip, status, sha256 teksta i zapis usvajanja (bez sadržaja teksta)
+        "nacrti": [{"id": x.get("id"), "tip": x.get("tip"), "status": x.get("status"),
+                    "sha256": __import__("hashlib").sha256((x.get("tekst") or "").encode("utf-8")).hexdigest(),
+                    "usvajanje": {k: v for k, v in ((x.get("quality_detail") or {}).get("usvajanje") or {}).items()
+                                  if k in ("verzija", "odobreno", "stavke", "procesne_tacke")},
+                    "pinecone_indexed": x.get("pinecone_indexed")} for x in t.get("staging_memory", [])],
+        "vektori": len(getattr(BAZA, "vektori", []) or []),
         "autonomy_upisi": len([z for z in BAZA.dnevnik if z["tabela"].startswith("autonomy")
                                and z["radnja"] in ("insert", "update", "upsert", "delete", "rpc")]),
     })

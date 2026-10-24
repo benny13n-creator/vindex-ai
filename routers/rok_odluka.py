@@ -140,7 +140,7 @@ async def kandidati(
                 # potrosac ne moze da DOKAZE poreklo reda, a pogadjanje po
                 # tekstu ili po `akter` je tacno ono sto se ovde ne sme raditi.
                 "dokument_naziv, izvor")
-    _kolone = (_osnovne + ", vrsta, stanje") if _rokovi_domen._sema_ima_129(supa) else _osnovne
+    _kolone = (_osnovne + ", vrsta, stanje, dokument_id") if _rokovi_domen._sema_ima_129(supa) else _osnovne
 
     def _upit():
         q = (supa.table("predmet_hronologija")
@@ -181,10 +181,28 @@ async def kandidati(
         except Exception as exc:
             logger.error("[ROK_ODLUKA] provera izmena izvora pala: %s", exc)
             provera_izvora_dostupna = False
+    # MIR001 TASK-07: predlog roka čiji je izvorni dokument obrisan označava se ISTIM pravilom kao Case Actions Rule 6
+    # (`izvor_povucen`) — Danas ga ne nudi na potvrdu kao da izvor postoji. Pad čitanja dokumenata = provera nije urađena.
+    _povucen: set = set()
+    _sumnjivi = [x for x in redovi if x.get("akter") == _rokovi_domen.AKTER_GENOME and x.get("dokument_naziv")
+                 and "dokument_id" in x and not x.get("dokument_id")]
+    if _sumnjivi:
+        try:
+            _pids = sorted({x["predmet_id"] for x in _sumnjivi if x.get("predmet_id")})
+            _dr = await asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("predmet_id,naziv_fajla")
+                                          .eq("user_id", uid).in_("predmet_id", _pids).execute())
+            _nazivi: dict = {}
+            for d in (_dr.data or []):
+                _nazivi.setdefault(d.get("predmet_id"), set()).add(d.get("naziv_fajla"))
+            _povucen = {str(x["id"]) for x in _sumnjivi if _rokovi_domen.izvor_povucen(x, _nazivi.get(x.get("predmet_id"), set()))}
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] provera povučenog izvora pala: %s", exc)
+            provera_izvora_dostupna = False
     return {
         "rokovi": [
             {**x, "stanje_odluke": stanje_roka(x.get("id"), _odl),
-             "izvor_uklonjen_posle_potvrde": str(x.get("id")) in _promenjen}
+             "izvor_uklonjen_posle_potvrde": str(x.get("id")) in _promenjen,
+             "izvor_povucen": str(x.get("id")) in _povucen}
             for x in redovi
         ],
         "provera_izvora_dostupna": provera_izvora_dostupna,

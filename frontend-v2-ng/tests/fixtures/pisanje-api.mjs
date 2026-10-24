@@ -400,6 +400,20 @@ export function nacrtRuta(korisnici, kuke = {}) {
       json(res, 200, { status: "pending", sacuvano: true, confidence_score: 0.5, izmenio_advokat: true, izmenjeno_at: s.izmenjeno_at });
       return true;
     }
+    // MIR001 C3b: DOCX nacrta sa pregleda — server izvozi SAČUVAN tekst, samo deo pre interne granice; čuvar mesta → 409.
+    const md = /^\/api\/staging\/([^/]+)\/docx$/.exec(p);
+    if (md && req.method === "POST") {
+      (kuke.upisano || (() => {}))(p, b);
+      const s = k.staging.find(x => x.id === decodeURIComponent(md[1]));
+      if (!s) { json(res, 404, { detail: "Nacrt nije pronađen." }); return true; }
+      const t = String(s.tekst || ""), G = "═══ VINDEX — INTERNE NAPOMENE ZA ADVOKATA";
+      const sud = t.split(G)[0];
+      if ((t.split(G).length !== 2 && s.tip === "nacrt_iz_spisa") || /\[IZOSTAVLJENO I-\d+:|\[PROVERITI/.test(sud)) { json(res, 409, { detail: "nerazrešeno" }); return true; }
+      s.izvezen_tekst = sud.trimEnd();
+      res.writeHead(200, { "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Content-Disposition": 'attachment; filename="Nacrt_iz_spisa.docx"' });
+      res.end(Buffer.from("PK fake docx " + sud.slice(0, 50)));
+      return true;
+    }
     const ma = /^\/api\/staging\/([^/]+)\/(approve|reject)$/.exec(p);
     if (ma && req.method === "POST") {
       const s = k.staging.find(x => x.id === decodeURIComponent(ma[1]));
@@ -526,7 +540,7 @@ export function rokoviRuta(korisnici, kuke = {}) {
       const od = url.searchParams.get("od") || "";
       const r = k.rokovi.filter(x => x.datum_iso >= od).map(x => ({ id: x.id, predmet_id: x.predmet_id, dogadjaj: x.dogadjaj, datum_iso: x.datum_iso, izvor: x.izvor || "ai",
         ...(x.vrsta ? { vrsta: x.vrsta } : {}), ...(x.stanje ? { stanje: x.stanje } : {}), stanje_odluke: x.odluka || "UNCONFIRMED",
-        izvor_uklonjen_posle_potvrde: x.izvorUklonjen === true }));
+        izvor_uklonjen_posle_potvrde: x.izvorUklonjen === true, izvor_povucen: x.izvorPovucen === true }));
       json(res, 200, { rokovi: r, ukupno: r.length, odseceno: !!kuke.odseceno, provera_izvora_dostupna: kuke.proveraIzvora !== false }); return true;
     }
     if (p === "/api/kalendar/pregled" && req.method === "GET") {

@@ -1,0 +1,27 @@
+UHVACENO X1 granica iz izlaza modela se ne neutralise :: 1 failed, 58 passed, 13 warnings in 60.77s (0:01:00)
+UHVACENO X2 lazan cuvar mesta se ne neutralise :: 1 failed, 58 passed, 13 warnings in 59.90s
+UHVACENO X3 izvoz bez jedinstvene granice :: 1 failed, 58 passed, 13 warnings in 60.25s (0:01:00)
+UHVACENO X4 izvoz sa cuvarom mesta :: 2 failed, 57 passed, 13 warnings in 59.86s
+UHVACENO X5 uplata ostaje :: 1 failed, 58 passed, 13 warnings in 60.10s (0:01:00)
+UHVACENO X6 rok ostaje :: 1 failed, 58 passed, 13 warnings in 59.74s
+NEUHVACENO X7 pravosnaznost ostaje :: 59 passed, 13 warnings in 59.40s
+NEUHVACENO X8 buduce izvrsenje ostaje :: 59 passed, 13 warnings in 59.69s
+UHVACENO X9 uslovna odluka ostaje :: 1 failed, 58 passed, 13 warnings in 59.71s
+UHVACENO X10 nepotrebnost dozvoljena bez priznanja :: 4 failed, 55 passed, 14 warnings in 59.84s
+UHVACENO X11 nepotrebnost nikad :: 8 failed, 51 passed, 13 warnings in 59.87s
+UHVACENO X12 sopstvene reci o odluci ostaju :: 1 failed, 58 passed, 13 warnings in 60.28s (0:01:00)
+UHVACENO X13 svaka parafraza potvrdjena :: 1 failed, 58 passed, 13 warnings in 59.64s
+UHVACENO X14 utvrdio ostaje :: 1 failed, 58 passed, 13 warnings in 59.37s
+NEUHVACENO X15 odustanak bez odluke ostaje :: 59 passed, 13 warnings in 59.43s
+UHVACENO X16 bezuslovan predlog uz nepoznato rociste ostaje :: 2 failed, 57 passed, 13 warnings in 59.98s
+UHVACENO X17 interni redovi ostaju u tekstu za sud :: 6 failed, 53 passed, 13 warnings in 59.89s
+UHVACENO X18 napomene bez izostavljenog :: 3 failed, 56 passed, 13 warnings in 60.01s (0:01:00)
+UHVACENO X19 nepouzdano stanje nije najstroze :: 1 failed, 58 passed, 13 warnings in 59.69s
+UHVACENO X20 odseceni odgovor prihvacen :: 1 failed, 58 passed, 13 warnings in 60.26s (0:01:00)
+UHVACENO X21 prazan tekst za sud prihvacen :: 1 failed, 58 passed, 14 warnings in 59.85s
+UHVACENO X22 nacrt bez internog dela :: 6 failed, 53 passed, 13 warnings in 60.47s (0:01:00)
+UHVACENO X23 procesno stanje se ne utvrdjuje :: 7 failed, 52 passed, 12 warnings in 59.62s
+UHVACENO X24 opsti izvoz pusta interne napomene :: 1 failed, 58 passed, 13 warnings in 60.03s (0:01:00)
+UHVACENO X25 DOCX sa pregleda bez vlasnika :: 1 failed, 58 passed, 13 warnings in 59.79s
+UHVACENO X26 DOCX sa pregleda izvozi ceo tekst :: 3 failed, 56 passed, 13 warnings in 60.37s (0:01:00)
+svi fajlovi vraceni bajt-identicno

@@ -493,6 +493,19 @@ a.chrono__text, a.people__name { color: var(--text-1); }
 .draft .matter__h2 { margin: 0; }
 .draft__label { margin: 0; color: var(--text-2); }
 .draft__text { min-height: 420px; font-family: var(--font-serif); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; resize: vertical; }
+/* MIR001 C3b: AI predlog / procesne informacije / dokument za sud — razlika je u naslovima i rečima, ne u boji */
+.adopt { display: flex; flex-direction: column; gap: var(--sp-6); }
+.adopt__part { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+.adopt__part--court { border-top: 2px solid var(--line-strong); }
+.adopt__h { margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-1); }
+.adopt__list { margin: 0; padding: 0 0 0 var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4); }
+.adopt__item { display: flex; flex-direction: column; gap: var(--sp-2); }
+.adopt__text { margin: 0; font-family: var(--font-serif); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adopt__meta { margin: 0; color: var(--text-2); font-size: var(--fs-meta); }
+.adopt__state { margin: 0; font-size: var(--fs-meta); font-weight: 600; color: var(--text-1); }
+.adopt__pre { margin: var(--sp-2) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-meta); color: var(--text-2); }
+.adopt__reasons { margin: 0; padding-left: var(--sp-5); color: var(--text-1); }
+.adopt__reasons:empty { display: none; }
 .today__group + .today__group { margin-top: var(--sp-5); }
 .today__list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; border-top: 1px solid var(--line); max-width: 880px; }
 .today__item { display: grid; grid-template-columns: minmax(150px, 210px) 72px minmax(0, 1fr) minmax(0, 220px); gap: var(--sp-1) var(--sp-4); align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }

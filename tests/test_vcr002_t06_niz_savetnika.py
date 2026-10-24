@@ -11,6 +11,7 @@ import uuid
 import pytest
 
 from tests.ns005_harness import ocisti, pripremi, zaglavlje, SPOLJNI_POKUSAJI
+from tests.nacrt_json_zamena import kao_json
 
 PA, PB = "pred-A-1", "pred-B-1"
 ZOO = ("ZAKON: Zakon o obligacionim odnosima\nČLAN: Član 154\n"
@@ -63,6 +64,7 @@ def niz(monkeypatch):
         return types.SimpleNamespace(choices=[types.SimpleNamespace(message=types.SimpleNamespace(
             content=st["odgovori"].get(agent, "Odgovor bez citata."))) ])
     monkeypatch.setattr(MA, "_pozovi_agent_api", _model)
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", kao_json(_model, bez_pravila=True))     # C3b: nacrt iz spisa = JSON
     import app.services.retrieve as R
     monkeypatch.setattr(R, "retrieve_documents", lambda *a, **kw: (list(st["izvori"]), {}))
     MA._PIPELINE_RESULTS.clear()

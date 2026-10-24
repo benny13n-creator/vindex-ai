@@ -1,0 +1,4 @@
+﻿UHVACENO X7 pravosnaznost ostaje :: 1 failed, 64 passed, 13 warnings in 61.29s (0:01:01)
+UHVACENO X8 buduce izvrsenje ostaje :: 2 failed, 63 passed, 13 warnings in 61.28s (0:01:01)
+UHVACENO X15 odustanak bez odluke ostaje :: 1 failed, 64 passed, 13 warnings in 61.89s (0:01:01)
+svi fajlovi vraceni bajt-identicno

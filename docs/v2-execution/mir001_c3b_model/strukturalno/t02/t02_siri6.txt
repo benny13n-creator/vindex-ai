@@ -1,0 +1,1 @@
+﻿1255 passed, 29 skipped, 2 xfailed, 98 warnings in 163.33s (71 fajl, OCR, -p no:randomly; posle ispravke N3 5. prolaza)

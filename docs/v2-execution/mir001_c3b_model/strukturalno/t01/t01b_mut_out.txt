@@ -1,0 +1,50 @@
+﻿UHVACENO U1 kasniji podnesak ne cini odluku spornom :: 1 failed, 64 passed in 1.49s
+UHVACENO U2 stranka u istom zapisniku uvek osporava :: 1 failed, 64 passed in 1.48s
+UHVACENO U3 tumacenje proglaseno VERIFIED :: 6 failed, 59 passed in 1.58s
+UHVACENO U4 vrsta po naslovu proglasena VERIFIED :: 1 failed, 64 passed in 1.48s
+UHVACENO U5 naslov bilo gde u redu (Veza/Predmet) :: 3 failed, 62 passed in 1.51s
+UHVACENO U6 preneseni govor se ne proverava :: 1 failed, 64 passed in 1.48s
+UHVACENO U7 subjekat stranka se ne proverava :: 3 failed, 62 passed in 1.50s
+UHVACENO U8 narativ ranije odluke se ne prepoznaje :: 3 failed, 62 passed in 1.52s
+UHVACENO U9 ukidanje bez veze ne osporava ostale :: 1 failed, 64 passed in 1.48s
+UHVACENO U10 kasniji akt suda u drugom dokumentu ne osporava :: 2 failed, 63 passed in 1.49s
+UHVACENO U11 visestruka odluka -> prva :: 1 failed, 64 passed in 1.49s
+UHVACENO U12 velika slova posle naslova se preskacu :: 1 failed, 64 passed in 1.49s
+UHVACENO U13 negacija se_ne_usvaja :: 1 failed, 64 passed in 1.48s
+UHVACENO U14 nerazvrstana recenica suda tiha :: 1 failed, 64 passed in 1.49s
+UHVACENO U15 nevidljivi znaci se ne uklanjaju :: 1 failed, 64 passed in 1.50s
+UHVACENO U16 cirilica tiha :: 2 failed, 63 passed in 1.50s
+UHVACENO U17 datum bilo gde u redu :: 2 failed, 63 passed in 1.53s
+UHVACENO U18 datum menja duzinu (dj) :: 1 failed, 64 passed in 1.49s
+UHVACENO U19 vise datuma -> prvi :: 1 failed, 64 passed in 1.49s
+UHVACENO U20 ai_tags kao potvrda :: 1 failed, 64 passed in 1.50s
+UHVACENO U21 sukob vrste precutan :: 1 failed, 64 passed in 1.49s
+UHVACENO U22 prazan identitet dozvoljen :: 1 failed, 64 passed in 1.48s
+UHVACENO U23 tudji red prihvacen :: 1 failed, 64 passed in 1.49s
+UHVACENO U24 potvrda izvoda bez sha :: 1 failed, 64 passed in 1.48s
+UHVACENO U25 uplata VERIFIED :: 6 failed, 59 passed in 1.56s
+UHVACENO U26 tok roka poznat :: 3 failed, 62 passed in 1.51s
+UHVACENO U27 tvrdnja o odsustvu dokaza uplate :: 1 failed, 64 passed in 1.50s
+UHVACENO U28 konstatacija suda se ne vezuje :: 2 failed, 63 passed in 1.50s
+UHVACENO U29 rocište bez zapisnika tiho :: 2 failed, 63 passed in 1.50s
+UHVACENO U30 nepoznat akter u dokumentu bez naslova postaje sud :: 3 failed, 62 passed in 1.51s
+UHVACENO U31 sudski dokument bez odluke precutan :: 1 failed, 64 passed in 1.49s
+UHVACENO U32 nepotpunost ignorisana :: 1 failed, 64 passed in 1.49s
+UHVACENO U33 bez podele na recenice u redu :: 1 failed, 64 passed in 1.49s
+UHVACENO U34 sece posle datuma :: 1 failed, 64 passed in 1.49s
+UHVACENO U35 nevezan odustanak tih :: 2 failed, 63 passed in 1.50s
+UHVACENO V1 dativ kao subjekat stranke :: 1 failed, 64 passed in 1.48s
+UHVACENO V2 pasiv sa se kao subjekat stranke :: 1 failed, 64 passed in 1.49s
+UHVACENO V3 sirok preneseni govor :: 1 failed, 64 passed in 1.50s
+UHVACENO V4 recenica stranke sa odlukom tiha :: 1 failed, 64 passed in 1.49s
+UHVACENO V5 bez obrnutog bezlicnog naloga :: 4 failed, 61 passed in 1.52s
+UHVACENO V12 izreka obavezuje se nije nalog :: 1 failed, 64 passed in 1.52s
+UHVACENO V6 inicijal sece recenicu :: 1 failed, 64 passed in 1.48s
+UHVACENO V7 dva naslova bez sukoba :: 1 failed, 64 passed in 1.49s
+UHVACENO V8 naslov spojen sa telom :: 1 failed, 64 passed in 1.49s
+UHVACENO V9 datum citiran usred reda :: 2 failed, 63 passed in 1.50s
+UHVACENO V10 nevezan odustanak samo uz prepoznat nalog :: 1 failed, 64 passed in 1.48s
+UHVACENO V11 golo ranije je narativ :: 1 failed, 64 passed in 1.50s
+UHVACENO W1 datum rocista samo iz stroge oznake :: 1 failed, 64 passed in 1.48s
+UHVACENO W2 poruka tvrdi odsustvo zapisnika :: 1 failed, 64 passed in 1.50s
+svi fajlovi vraceni bajt-identicno

@@ -1,0 +1,258 @@
+{
+ "opis": "MIR001 TASK-04 — stvaran gpt-4o (temperatura 0,35, max 2000, isti kao routers/multi_agent.py::_pozovi_agent_api) nad TAČNIM produkcionim promptom savetnika za sintetički Golden Case (tests/mir001_golden_case.py). 3 uzorka po pitanju. 'prolazi' = pravilo PRISUSTVA ključnih vrednosti (scratchpad ponovi_t04.py); NE meri pripisivanje dokumentu ni navod-kao-činjenicu — vidi ledger TASK-04.",
+ "pitanja": {
+  "P1": {
+   "agent": "research",
+   "pitanje": "Koliki je garantni rok za krovne radove po ugovoru stranaka?",
+   "odgovor_u": [
+    "DOK-01"
+   ]
+  },
+  "P2": {
+   "agent": "research",
+   "pitanje": "Do kada tuzeni treba da dostavi gradjevinski dnevnik i kada je sledece rociste?",
+   "odgovor_u": [
+    "DOK-07"
+   ]
+  },
+  "P3": {
+   "agent": "litigation",
+   "pitanje": "Kako se tuzbeni zahtev menjao od tuzbe do poslednjeg rocista?",
+   "odgovor_u": [
+    "DOK-01",
+    "DOK-07"
+   ]
+  },
+  "P4": {
+   "agent": "litigation",
+   "pitanje": "Kada je tuzeni primio reklamaciju? Sta tvrdi koja strana i cime je to potkrepljeno?",
+   "odgovor_u": [
+    "DOK-01",
+    "DOK-02",
+    "DOK-03"
+   ]
+  },
+  "P5": {
+   "agent": "research",
+   "pitanje": "Sta pise u gradjevinskom dnevniku za jun 2025. godine?",
+   "odgovor_u": []
+  },
+  "P6": {
+   "agent": "litigation",
+   "pitanje": "Da li je tuzilac blagovremeno reklamirao nedostatak i kakva je pravna posledica ako nije?",
+   "odgovor_u": [
+    "DOK-01",
+    "DOK-02",
+    "DOK-03"
+   ]
+  },
+  "P7": {
+   "agent": "research",
+   "pitanje": "Uporedi DOK-02, DOK-05 i DOK-09 i navedi sta svaki kaze o uzroku prokisnjavanja.",
+   "odgovor_u": [
+    "DOK-02",
+    "DOK-05"
+   ]
+  }
+ },
+ "pre_ispravke": {
+  "P1": [
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89, 57/89, Sl. gl. SRJ 31/93, Sl. gl. SCG 1/2003 – Ustavna povelja, Sl. gl. RS 18/2020**\n  - **čl. 605** (proveriti stav u aktuelnom tekstu zakona): Odredbe o odgovornosti izvođača radova za nedostatke u građevinskim radovima. \n  - **čl. 608** (proveriti stav u aktuelnom tekstu zakona): Odredbe o garantnom roku za građevinske radove.\n\n- **Zakon o planiranju i izgradnji, Sl. gl. RS 72/2009, 81/2009 - ispr., 64/2010 - odluka US, 24/2011, 121/2012, 42/2013 - odluka US, 50/2013 - odluka US, 98/2013 - odluka US, 132/2014, 145/2014, 83/2018, 31/2019, 37/2019 - dr. zakon, 9/2020, 52/2021, 50/2023**\n  - **čl. 148** (proveriti stav u aktuelnom tekstu zakona): Odredbe o tehničkom pregledu i odgovornosti izvođača radova.\n\n## 2. SUDSKA PRAKSA\n\nNema dostupnih konkretnih odluka u bazi za ovaj predmet. Preporučuje se pretraga na sudskapraksa.rs, paragraf.rs ili u bazi odluka Vrhovnog kasacionog suda za slične slučajeve.\n\n## 3. PRAVNI STANDARD\n\nU praksi, garantni rok za građevinske radove često zavisi od ugovora između stranaka, ali zakon predviđa minimalne rokove. Tipično, garantni rok može biti od dve do pet godina, zavisno od prirode radova i ugovornih odredbi.\n\n## 4. PRAKTIČNA PRIMENA\n\nU konkretnom slučaju, potrebno je pregledati ugovor između stranaka da bi se utvrdio tačan garantni rok. Ako ugovor ne sadrži specifične odredbe o garantnom roku, primenjuju se zakonske odredbe.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika je nejasnoća u ugovornim odredbama o garantnom roku, što može dovesti do spora o tome da li je izvođač radova odgovoran za nedostatke. Takođe, postoji pravna nesigurnost u vezi sa tumačenjem zakonskih odredbi ako nisu jasno definisane u ugovoru.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nZa određivanje garantnog roka za krovne radove, relevantne su sledeće zakonske odredbe:\n\n- **čl. 635 st. 1 Zakona o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - odluka USJ, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99, 35/99, 44/99, 29/2001 i Sl. gl. SCG 55/2004, 61/2005 i Sl. gl. RS 18/2020** — Ova odredba reguliše odgovornost izvođača radova za nedostatke u izvedenim radovima. Ugovorne strane mogu ugovoriti garantni rok, ali ukoliko nije ugovoren, primenjuju se zakonski rokovi.\n- **čl. 634 ZOO** — Ova odredba se odnosi na rokove za prijavu nedostataka i rokove za podnošenje tužbe.\n\n## 2. SUDSKA PRAKSA\n\nU ovom trenutku, baza nije vratila relevantne sudske odluke koje bi direktno osvetlile pitanje garantnog roka za krovne radove. Preporučuje se konsultacija sa bazama sudskih odluka kao što su sudskapraksa.rs, paragraf.rs, ili baza odluka Vrhovnog kasacionog suda RS za konkretne presude.\n\n## 3. PRAVNI STANDARD\n\nPrema opštem pravnom standardu, izvođač radova odgovara za nedostatke u izvedenim radovima tokom garantnog roka koji je ugovoren između stranaka. U nedostatku ugovorenog roka, primenjuju se zakonski rokovi koji mogu varirati u zavisnosti od vrste radova i prirode nedostataka.\n\n## 4. PRAKTIČNA PRIMENA\n\nU konkretnom slučaju, potrebno je proveriti ugovor između stranaka kako bi se utvrdilo da li je predviđen specifičan garantni rok za krovne radove. Ukoliko nije, primenjuju se zakonski rokovi iz ZOO. Takođe, važno je razmotriti sve relevantne okolnosti, kao što su datum završetka radova i datum prijave nedostataka.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika u ovom slučaju je mogućnost različitih tumačenja ugovornih odredbi ili zakonskih odredbi u vezi sa garantnim rokom. Takođe, postoji pravna nesigurnost u pogledu toga da li su svi relevantni dokazi i dokumentacija pravilno prikupljeni i prezentovani sudu.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\n### Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99, 35/99, Sl. gl. SCG 1/2003 – Ustavna povelja\n- **čl. 605 ZOO**: Odgovornost izvođača za nedostatke građevinskih radova. Ovaj član propisuje da izvođač radova odgovara za nedostatke u izvedenim radovima koji se pojave u roku od dve godine od predaje i primopredaje radova, osim ako ugovorom nije drugačije određeno.\n\n### Zakon o planiranju i izgradnji (ZPI), Sl. gl. RS 72/2009, 81/2009, 64/2010, 24/2011, 121/2012, 42/2013, 50/2013, 98/2013, 132/2014, 145/2014, 83/2018, 31/2019, 37/2019\n- **čl. 148 ZPI**: Određuje obaveze izvođača u pogledu kvaliteta izvedenih radova i odgovornost za eventualne nedostatke.\n\n## 2. SUDSKA PRAKSA\n\nNema dostupnih konkretnih sudskih odluka u bazi za ovaj predmet. Preporučuje se konsultovanje baza kao što su sudskapraksa.rs, paragraf.rs, ili VKS baza odluka za konkretne presude.\n\n## 3. PRAVNI STANDARD\n\nU doktrini i praksi, garantni rokovi za građevinske radove često se određuju ugovorom između stranaka. Ako ugovorom nije drugačije predviđeno, primenjuje se zakonski rok od dve godine za odgovornost izvođača za nedostatke, kako je propisano čl. 605 ZOO.\n\n## 4. PRAKTIČNA PRIMENA\n\nU konkretnom slučaju, ako ugovor između stranaka ne sadrži drugačije odredbe o garantnom roku, primenjuje se zakonski rok od dve godine od dana primopredaje radova. S obzirom na to da je gradjevinska dozvola izdata 01.02.2024. godine, a solarni paneli postavljeni 10.10.2025. godine, bitno je utvrditi datum primopredaje radova kako bi se precizno odredio početak garantnog roka.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika u ovom slučaju može biti nejasnoća u vezi sa datumom primopredaje radova, što može uticati na početak tečenja garantnog roka. Takođe, ukoliko postoji ugovor između stranaka koji predviđa drugačiji garantni rok, to može promeniti primenu zakonskih odredbi. Preporučuje se pažljivo ispitivanje ugovora i drugih relevantnih dokumenata kako bi se utvrdili svi relevantni detalji.",
+    "prolazi": false
+   }
+  ],
+  "P2": [
+   {
+    "odgovor": "Na osnovu dostavljenih informacija iz dokumenta \"Zapisnik sa ročišta\" (DOK-07), tuženi je obavezan da dostavi građevinski dnevnik u roku od 15 dana od dana ročišta. S obzirom da je ročište održano 15.07.2026. godine, rok za dostavu građevinskog dnevnika ističe 30.07.2026. godine.\n\nSledeće ročište je zakazano za 18.11.2026. godine.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011...**\n  - **čl. 7** (Načelo kontradiktornosti) — Stranke imaju pravo da se izjasne o svim činjenicama i dokazima.\n  - **čl. 233** (Rokovi za dostavljanje dokaza) — Sud može odrediti rokove za dostavljanje dokaza.\n\n## 2. SUDSKA PRAKSA\n\nNema dostupnih konkretnih sudskih odluka u bazi za ovaj predmet. Preporučuje se pregled relevantnih baza kao što su sudskapraksa.rs ili VKS baza odluka za dodatne informacije.\n\n## 3. PRAVNI STANDARD\n\nUobičajeno je da sudovi odrede rokove za dostavljanje dokaza kako bi se obezbedila efikasnost postupka i omogućilo strankama da se pripreme za suđenje. Rokovi se obično određuju u skladu sa složenošću predmeta i potrebom za dodatnim dokazima.\n\n## 4. PRAKTIČNA PRIMENA\n\nNa osnovu zapisnika sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana od dana održavanja ročišta, tj. od 15.07.2026. godine. Sledeće ročište je zakazano za 18.11.2026. godine.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nPostoji rizik da tuženi ne dostavi građevinski dnevnik u predviđenom roku, što može uticati na dalji tok postupka. U takvim slučajevima, sud može primeniti sankcije ili produžiti rok, u zavisnosti od razloga za kašnjenje. Takođe, može doći do sporova oko relevantnosti i sadržaja dostavljenih dokaza.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Na osnovu zapisnika sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana. Sledeće ročište je zakazano za 18. novembar 2026. godine.",
+    "prolazi": false
+   }
+  ],
+  "P3": [
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. U početku, tužilac je, pored osnovnog zahteva za naknadu štete, tražio i dodatnih 600.000 dinara za oštećenu robu u hali, kako je navedeno u podnesku tužioca od 02.04.2026. godine (DOK-03).\n\n2. Na poslednjem ročištu održanom 15.07.2026. godine, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07).",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. U podnesku tužioca od 02.04.2026. godine, tužilac je tražio naknadu štete zbog prokišnjavanja krova hale, kao i dodatnih 600.000 dinara za oštećenu robu u hali.\n\n2. Na ročištu održanom 15.07.2026. godine, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara.\n\nDakle, tužbeni zahtev je konačno preciziran na 3.150.000 dinara, bez dodatnog zahteva za oštećenu robu.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. U podnesku tužioca od 02.04.2026. godine, tužilac je zahtevao naknadu štete za prokišnjavanje krova hale i dodatno tražio 600.000 dinara za oštećenu robu u hali.\n\n2. Na ročištu održanom 15.07.2026. godine, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara za štetu na krovu hale i povukao zahtev za naknadu štete na robi od 600.000 dinara.",
+    "prolazi": false
+   }
+  ],
+  "P4": [
+   {
+    "odgovor": "Tuženi je primio reklamaciju dana 08.09.2025. godine, što je potkrepljeno povratnicom PK-4471 koju je tužilac priložio u svom podnesku od 02.04.2026. godine. Tužilac tvrdi da su solarni paneli postavljeni nakon što je došlo do prokišnjavanja, tačnije 10.10.2025. godine, što implicira da uzrok štete nije povezan sa postavljanjem solarnih panela. Tuženi osporava nalaz veštaka i tvrdi da eventualna šteta ne prelazi iznos od 1.100.000 dinara, te predlaže dopunu veštačenja.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tužilac tvrdi da je reklamacija uručena tuženom dana 08.09.2025. godine, što je potkrepljeno prilaganjem povratnice PK-4471. Tuženi nije izneo konkretan datum prijema reklamacije u dostavljenim dokumentima, niti je osporio datum koji je naveo tužilac.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tuženi je primio reklamaciju dana 08.09.2025. godine. Ovo je potkrepljeno povratnicom PK-4471 koju je tužilac priložio u svom podnesku od 02.04.2026. godine. Tužilac tvrdi da su solarni paneli postavljeni tek 10.10.2025. godine, nakon što je već došlo do prokišnjavanja.",
+    "prolazi": false
+   }
+  ],
+  "P5": [
+   {
+    "odgovor": "Nažalost, nemam pristup građevinskom dnevniku niti njegovom sadržaju za jun 2025. godine, jer tekst tog dokumenta nije dostavljen u okviru dostupnih podataka. Prema zapisniku sa ročišta, sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, što znači da je taj dokument relevantan za predmet, ali njegov sadržaj nije poznat iz dostavljenih dokumenata.\n\nAko imate pristup sudskim spisima ili drugim relevantnim izvorima, preporučujem da proverite sadržaj građevinskog dnevnika direktno iz tih izvora.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Nažalost, nemam pristup sadržaju građevinskog dnevnika za jun 2025. godine jer taj dokument nije dostavljen u okviru dostupnih dokumenata predmeta. U zapisniku sa ročišta (DOK-07) navedeno je da je sud naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, ali sadržaj tog dnevnika nije prikazan u dostavljenim dokumentima. \n\nPreporučujem da se obratite sudu ili stranama u postupku kako biste dobili uvid u traženi dokument.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Nažalost, nemam pristup građevinskom dnevniku za jun 2025. godine jer tekst tog dokumenta nije dostavljen u okviru dostupnih dokumenata predmeta. Prema zapisniku sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, što znači da bi taj dokument mogao biti ključan za utvrđivanje činjenica u vezi sa izvođenjem radova i eventualnim uzrocima štete.\n\nAko je građevinski dnevnik dostavljen sudu, trebalo bi da bude deo sudskog spisa, i možete zatražiti uvid u njega putem vašeg pravnog zastupnika ili direktno od suda, u skladu sa pravilima o dostupnosti sudskih spisa.",
+    "prolazi": true
+   }
+  ],
+  "P6": [
+   {
+    "odgovor": "**Blagovremenost reklamacije:**\n\nNa osnovu dostavljenih dokumenata, tužilac je podneo reklamaciju dana 08.09.2025. godine, što je evidentirano povratnicom PK-4471. Ključno pitanje je da li je ova reklamacija podneta u zakonskom roku.\n\n**Pravna posledica neblagovremene reklamacije:**\n\nAko tužilac nije blagovremeno reklamirao nedostatak, to može dovesti do gubitka prava na naknadu štete zbog propuštanja prekluzivnog roka za reklamaciju. Prema Zakonu o obligacionim odnosima, reklamacija mora biti podneta u razumnom roku nakon što je oštećena strana saznala za nedostatak. Ako se utvrdi da je reklamacija podneta nakon isteka ovog roka, tuženi može osporavati osnovanost tužbenog zahteva zbog neblagovremene reklamacije.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tužilac je dostavio povratnicu PK-4471 o uručenju reklamacije dana 08.09.2025. godine. Ključni datum za procenu blagovremenosti reklamacije je kada je tužilac saznao ili mogao saznati za nedostatak. Pošto je gradjevinska dozvola izdata 01.02.2024. godine, a solarni paneli postavljeni 10.10.2025. godine, prokisnjavanje je moralo biti primećeno pre postavljanja panela. Ako je tužilac saznao za nedostatak pre 08.09.2025, reklamacija bi mogla biti neblagovremena.\n\nPravna posledica neblagovremene reklamacije može biti gubitak prava na naknadu štete zbog nedostatka. Međutim, to zavisi od ugovora i primenljivog zakona o obligacionim odnosima. Ako tuženi uspe da dokaže da je reklamacija bila neblagovremena, tužilac bi mogao izgubiti pravo na naknadu štete.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "Tužilac je dostavio povratnicu PK-4471 o uručenju reklamacije dana 08.09.2025. godine. Da bi reklamacija bila blagovremena, potrebno je da bude podneta u roku koji je predviđen ugovorom ili zakonom nakon što je tužilac saznao za nedostatak. \n\nU ovom slučaju, ključni datum je kada je tužilac saznao za prokišnjavanje. Ako je saznao pre 08.09.2025. godine i nije podneo reklamaciju u odgovarajućem roku, postoji mogućnost da reklamacija bude neblagovremena. U tom slučaju, pravna posledica može biti gubitak prava na naknadu štete zbog neblagovremene reklamacije.\n\nTuženi bi mogao iskoristiti ovu potencijalnu slabost tako što bi osporio blagovremenost reklamacije, što bi moglo dovesti do odbijanja tužbenog zahteva za naknadu štete.",
+    "prolazi": false
+   }
+  ],
+  "P7": [
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nZa rešavanje ovog spora relevantni su sledeći propisi:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - odluka USJ, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99, 35/99, 44/99, 29/2001, 55/2004, 61/2005, 31/2011 i Sl. gl. RS 18/2020**\n  - **čl. 608** — Odgovornost izvođača za nedostatke\n  - **čl. 619** — Prava naručioca u slučaju nedostataka\n  - **čl. 634** — Garancija za kvalitet\n\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011, 49/2013 - odluka US, 74/2013 - odluka US, 55/2014, 87/2018, 18/2020**\n  - **čl. 7** — Načelo kontradiktornosti\n  - **čl. 223** — Izvođenje dokaza veštačenjem\n\n## 2. SADRŽAJ DOKUMENATA\n\n### DOK-01: Tužba\n- Tužilac tvrdi da je prokišnjavanje krova hale primećeno 02.09.2025. godine.\n- Tuženi je završio radove na krovu 15.06.2025. godine.\n- Tužilac zahteva naknadu štete zbog prokišnjavanja.\n\n### DOK-02: Odgovor na tužbu\n- Tuženi osporava tužbeni zahtev i tvrdi da je prokišnjavanje posledica ugradnje solarnih panela od strane trećeg lica 10.08.2025. godine.\n\n### DOK-03: Podnesak tužioca\n- Tužilac tvrdi da su solarni paneli postavljeni 10.10.2025. godine, nakon što je prokišnjavanje već primećeno.\n\n### DOK-04: Podnesak tuženog\n- Tuženi predlaže veštačenje i tvrdi da eventualna šteta ne prelazi 1.100.000 dinara.\n\n### DOK-05: Nalaz i mišljenje veštaka\n- Veštak zaključuje da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a ne nosači solarnih panela.\n\n## 3. PRAVNI STANDARD\n\nPrema ZOO, izvođač radova odgovara za nedostatke u izvedenim radovima u garantnom roku. U ovom slučaju, garantni rok je pet godina. Ako je nedostatak posledica loše izvedenih radova, tužilac ima pravo na naknadu štete.\n\n## 4. PRAKTIČNA PRIMENA\n\nNa osnovu veštačenja, čini se da je uzrok prokišnjavanja loša hidroizolacija, što bi moglo ukazivati na odgovornost tuženog. Tužilac bi mogao imati pravo na naknadu štete u skladu sa ZOO.\n\n## 5. RIZICI I NEODREĐENOSTI\n\n- Postoji spor oko datuma postavljanja solarnih panela, što može uticati na ocenu uzroka prokišnjavanja.\n- Sud će morati da proceni relevantnost veštačenja i da li je bilo dodatnih faktora koji su doprineli šteti.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\n### Materijalni zakoni\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - odluka USJ, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99, 35/99, 44/99, 57/99, 9/01, 1/03 - odluka SUS i Sl. gl. RS 18/2020)**\n  - **čl. 608 ZOO** — Odgovornost izvođača za nedostatke u izvedenim radovima.\n  - **čl. 619 ZOO** — Rokovi za prijavu nedostataka i odgovornost izvođača.\n\n### Procesni zakoni\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011, 49/2013 - odluka US, 74/2013 - odluka US, 55/2014, 87/2018, 18/2020)**\n  - **čl. 7 ZPP** — Načelo kontradiktornosti.\n  - **čl. 232 ZPP** — Izvođenje dokaza veštačenjem.\n\n## 2. SADRŽAJ DOKUMENATA\n\n### DOK-01: Tužba\n- Tužilac tvrdi da je prokišnjavanje krova hale primećeno 02.09.2025. godine.\n- Reklamacija je podneta 08.09.2025. godine.\n- Ugovorom je predviđen garantni rok od pet godina za krovne radove.\n\n### DOK-02: Odgovor na tužbu\n- Tuženi tvrdi da je prva reklamacija primljena 20.11.2025. godine.\n- Tuženi navodi da je treće lice postavilo solarne panele 10.08.2025. godine, pre prokišnjavanja, i da je to uzrok prokišnjavanja.\n\n### DOK-03: Podnesak tužioca\n- Tužilac tvrdi da su solarni paneli postavljeni 10.10.2025. godine, nakon što je prokišnjavanje već primećeno.\n- Priložena je povratnica o uručivanju reklamacije 08.09.2025. godine.\n\n### DOK-04: Podnesak tuženog\n- Tuženi predlaže veštačenje da se utvrdi uzrok prokišnjavanja.\n- Tuženi osporava visinu štete koju tužilac potražuje.\n\n### DOK-05: Nalaz i mišljenje veštaka\n- Veštak zaključuje da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike.\n- Nosaci solarnih panela nisu oštetili hidroizolaciju krova.\n- Visina štete procenjena na 3.150.000 dinara.\n\n## 3. PRAVNI STANDARD\n\nPrema opštem pravnom standardu, izvođač radova odgovara za nedostatke u izvedenim radovima tokom garantnog roka, osim ako dokaže da je uzrok nedostataka u spoljnim faktorima ili delovanju trećih lica. Veštačenje je ključno za utvrđivanje uzroka štete.\n\n## 4. PRAKTIČNA PRIMENA\n\nU ovom slučaju, veštačenje je od presudnog značaja za utvrđivanje odgovornosti. Nalaz veštaka koji ukazuje na neodgovarajuću hidroizolaciju kao uzrok prokišnjavanja podržava tužbeni zahtev tužioca. Međutim, tuženi može pokušati da ospori nalaz veštaka ili da dokaže da je treće lice odgovorno za štetu.\n\n## 5. RIZICI I NEODREĐENOSTI\n\n- **Neodređenost u vezi sa datumom postavljanja solarnih panela**: Postoji neslaganje između stranaka o tome kada su solarni paneli postavljeni, što može uticati na utvrđivanje odgovornosti.\n- **Visina štete**: Postoji razlika između iznosa koji tužilac potražuje i iznosa koji je veštak procenio, što može biti predmet daljeg spora.\n\nZa dalje istraživanje konkretnih presuda, preporučuje se pregled baze sudskih odluka kao što su sudskapraksa.rs, paragraf.rs ili baza odluka VKS.",
+    "prolazi": false
+   },
+   {
+    "odgovor": "## Analiza uzroka prokišnjavanja prema dostavljenim dokumentima\n\n### 1. DOK-01: Tužba\n- **Tužilac**: Alfa Fiktiv DOO\n- **Navodi**: Prokišnjavanje krova hale primećeno je 02.09.2025. godine. Tuženi je završio radove 15.06.2025. godine, a reklamacija je podneta 08.09.2025. godine. Tužilac zahteva naknadu štete zbog prokišnjavanja krova, pozivajući se na ugovoreni garantni rok od pet godina.\n\n### 2. DOK-02: Odgovor na tužbu\n- **Tuženi**: Beta Primer Gradnja DOO\n- **Navodi**: Osporava tužbeni zahtev i tvrdi da je prokišnjavanje posledica ugradnje solarnih panela od strane trećeg lica, koji su postavljeni 10.08.2025. godine. Prvu reklamaciju je primio 20.11.2025. godine.\n\n### 3. DOK-03: Podnesak tužioca\n- **Tužilac**: Alfa Fiktiv DOO\n- **Navodi**: Solarni paneli su postavljeni 10.10.2025. godine, nakon što je prokišnjavanje već primećeno. Prilaže povratnicu kao dokaz da je reklamacija uručena 08.09.2025. godine.\n\n### 4. DOK-04: Podnesak tuženog\n- **Tuženi**: Beta Primer Gradnja DOO\n- **Navodi**: Predlaže veštačenje i tvrdi da eventualna šteta ne prelazi 1.100.000 dinara.\n\n### 5. DOK-05: Nalaz i mišljenje veštaka\n- **Veštak**: Petar Izmišljeni\n- **Navodi**: Uzrok prokišnjavanja je neodgovarajuće izvedena hidroizolacija na spoju atike. Nosaci solarnih panela nisu oštetili hidroizolaciju krova. Visina štete procenjena na 3.150.000 dinara.\n\n### 6. DOK-06: Nije dostavljen\n- **Napomena**: Tekst ovog dokumenta nije dostavljen, te ne mogu pružiti informacije o njegovom sadržaju.\n\n## Zaključak\nPrema dostavljenim dokumentima, uzrok prokišnjavanja prema veštačenju je neodgovarajuće izvedena hidroizolacija, a ne postavljanje solarnih panela. Tužilac i tuženi imaju različite tvrdnje u vezi sa vremenskim sledom događaja i odgovornošću za prokišnjavanje, što je ključno za dalji tok spora.",
+    "prolazi": false
+   }
+  ]
+ },
+ "posle_ispravke": {
+  "P1": [
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nU ovom slučaju, relevantan je Ugovor o građenju broj 12/2024, zaključen između stranaka, koji je naveden u tužbi. Prema čl. 9 tog ugovora, ugovoren je garantni rok od pet godina za krovne radove.\n\nOsim ugovora, opšti propisi koji se mogu primeniti uključuju:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - odluka USJ, 57/89, Sl. gl. SRJ 31/93, Sl. gl. SCG 1/2003 - Ustavna povelja**:\n  - čl. 608 st. 1 ZOO: Odgovornost izvođača za nedostatke u izvedenim radovima u garantnom roku.\n\n## 2. SUDSKA PRAKSA\n\nNema konkretnih sudskih odluka iz baze koje se odnose na ovaj slučaj. Preporučuje se konsultacija sa bazama sudskih odluka kao što su sudskapraksa.rs ili VKS baza odluka za slične slučajeve.\n\n## 3. PRAVNI STANDARD\n\nU praksi, garantni rokovi za građevinske radove često variraju zavisno od ugovora između stranaka. Standardni garantni rokovi za krovne radove obično se kreću između 2 i 5 godina, u zavisnosti od složenosti radova i materijala.\n\n## 4. PRAKTIČNA PRIMENA\n\nU ovom slučaju, ugovorom je jasno definisan garantni rok od pet godina za krovne radove. To znači da je izvođač dužan da otkloni sve nedostatke koji se pojave u tom periodu, ukoliko su rezultat neodgovarajuće izvedenih radova.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika u ovom slučaju je utvrđivanje tačnog uzroka prokišnjavanja krova, s obzirom na protivrečne tvrdnje o uzroku i vremenu postavljanja solarnih panela. Takođe, postoji neizvesnost u vezi sa tačnim datumom prijema reklamacije, što može uticati na ostvarivanje prava iz garantnog roka.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nU ovom slučaju, relevantni propisi uključuju:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - dr. zakon, 57/89, Sl. gl. SRJ 31/93, Sl. gl. SCG 1/2003 - Ustavna povelja**:\n  - **čl. 608** — Odredbe o odgovornosti za materijalne nedostatke.\n  - **čl. 612** — Odgovornost izvođača za nedostatke u garantnom roku.\n\n## 2. SUDSKA PRAKSA\n\nNema konkretnih sudskih odluka dostupnih u bazi za ovaj predmet. Preporuka je da se za konkretne presude konsultuju baze sudske prakse kao što su sudskapraksa.rs, paragraf.rs ili baza odluka Vrhovnog kasacionog suda.\n\n## 3. PRAVNI STANDARD\n\nU praksi, garantni rokovi za građevinske radove često zavise od ugovornih odredbi između stranaka. Uobičajeno je da se za krovne radove ugovara garantni rok od nekoliko godina, ali to može varirati u zavisnosti od specifičnih uslova ugovora.\n\n## 4. PRAKTIČNA PRIMENA\n\nU ovom konkretnom slučaju, prema tužbi, članom 9 Ugovora broj 12/2024, ugovoren je garantni rok od pet godina za krovne radove. To znači da je tuženi u obavezi da otkloni sve nedostatke koji se pojave u tom periodu, ukoliko su posledica neadekvatno izvedenih radova.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nJedan od rizika u ovom slučaju je sporna tačka oko datuma prijema reklamacije i datuma postavljanja solarnih panela. Ove kontradiktorne tvrdnje mogu uticati na utvrđivanje odgovornosti za prokišnjavanje krova. Takođe, postoji pravna nesigurnost oko tačne primene ugovornih odredbi u vezi sa garantnim rokom, posebno ako se pojave dodatni faktori koji mogu uticati na stanje krova (npr. postavljanje solarnih panela).",
+    "prolazi": false
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nU ovom slučaju, relevantne zakonske odredbe uključuju:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99, 35/99, 44/99, 29/2001, 55/2004, 61/2005 i Sl. gl. RS 18/2020**: \n  - **čl. 608** - Ugovor o građenju, koji reguliše prava i obaveze ugovornih strana u vezi sa izvođenjem građevinskih radova.\n  - **čl. 619** - Odgovornost izvođača za nedostatke u izvedenim radovima i garantni rokovi.\n\n## 2. SUDSKA PRAKSA\n\nNema dostupnih konkretnih sudskih odluka u bazi za ovaj predmet. Preporučuje se konsultacija sa bazama kao što su sudskapraksa.rs, paragraf.rs, ili VKS baza odluka za dodatne informacije.\n\n## 3. PRAVNI STANDARD\n\nPrema članu 619 ZOO, izvođač radova odgovara za nedostatke u izvedenim radovima u garantnom roku, koji može biti ugovoren između stranaka. Ako nije drugačije ugovoreno, važe opšti rokovi i standardi iz zakona.\n\n## 4. PRAKTIČNA PRIMENA\n\nU konkretnom slučaju, stranke su ugovorile garantni rok od pet godina za krovne radove, kako je navedeno u članu 9 Ugovora o građenju broj 12/2024. To znači da izvođač radova, Beta Primer Gradnja DOO, ima obavezu da u tom periodu otkloni sve nedostatke koji se pojave na krovu.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nMogući rizici uključuju nejasnoće u vezi sa datumima prijema reklamacija i postavljanja solarnih panela, što može uticati na utvrđivanje odgovornosti za prokišnjavanje krova. Takođe, postoji pravna nesigurnost u vezi sa tačnim uzrokom oštećenja i eventualnom odgovornošću trećih lica.",
+    "prolazi": false
+   }
+  ],
+  "P2": [
+   {
+    "odgovor": "Na osnovu dostavljenih dokumenata, tuženi je obavezan da dostavi građevinski dnevnik u roku od 15 dana od dana održavanja ročišta, koje je održano 15.07.2026. godine. To znači da je krajnji rok za dostavu građevinskog dnevnika 30.07.2026. godine.\n\nSledeće ročište je zakazano za 18.11.2026. godine.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Na osnovu dostupnih informacija iz zapisnika sa ročišta (DOK-07), tuženi je obavezan da dostavi građevinski dnevnik u roku od 15 dana od dana održavanja ročišta, koje je bilo 15.07.2026. godine. To znači da je krajnji rok za dostavu građevinskog dnevnika 30.07.2026. godine.\n\nSledeće ročište je zakazano za 18.11.2026. godine.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Na osnovu dostavljenih informacija iz zapisnika sa ročišta (DOK-07), tuženi je obavezan da dostavi građevinski dnevnik u roku od 15 dana od dana održavanja ročišta, koje je bilo 15.07.2026. godine. To znači da je rok za dostavu građevinskog dnevnika do 30.07.2026. godine.\n\nSledeće ročište je zakazano za 18.11.2026. godine.",
+    "prolazi": true
+   }
+  ],
+  "P3": [
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. U tužbi podnetoj 10.02.2026. godine, tužilac je tražio naknadu štete u iznosu od 4.200.000 dinara.\n\n2. Na ročištu održanom 15.07.2026. godine, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. U tužbi od 10.02.2026. godine, tužilac je tražio naknadu štete u iznosu od 4.200.000 dinara.\n2. Na poslednjem ročištu održanom 15.07.2026. godine, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Tužbeni zahtev se menjao na sledeći način:\n\n1. **U tužbi** (DOK-01), tužilac je tražio naknadu štete u iznosu od 4.200.000 dinara, uključujući i zahtev za naknadu štete na robi u hali od 600.000 dinara.\n\n2. **Na poslednjem ročištu** (DOK-07), tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara.\n\nDakle, ukupni iznos tužbenog zahteva je smanjen sa 4.200.000 dinara na 3.150.000 dinara, a zahtev za naknadu štete na robi je povučen.",
+    "prolazi": true
+   }
+  ],
+  "P4": [
+   {
+    "odgovor": "**Datum prijema reklamacije:**\n\n1. **Tužilac tvrdi:** \n   - Da je tuženi primio reklamaciju dana 08.09.2025. godine.\n   - Potkrepljeno povratnicom PK-4471 o uručenju reklamacije.\n\n2. **Tuženi tvrdi:**\n   - Da je prvu reklamaciju tužioca primio tek dana 20.11.2025. godine.\n   - Nema dodatnih dokaza u dokumentima koji potkrepljuju ovu tvrdnju.\n\n**Protivrečnost:** Postoji kontradikcija između tvrdnji tužioca i tuženog u vezi sa datumom prijema reklamacije. Tužilac je dostavio povratnicu kao dokaz, dok tuženi nije dostavio dokaz koji bi potvrdio njegovu tvrdnju.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "**Datum prijema reklamacije:**\n\n1. **Tvrdnja tužioca:** \n   - Tužilac tvrdi da je tuženi primio reklamaciju dana 08.09.2025. godine.\n   - Ovo je potkrepljeno prilaganjem povratnice PK-4471 o uručenju reklamacije.\n\n2. **Tvrdnja tuženog:** \n   - Tuženi tvrdi da je prvu reklamaciju primio tek dana 20.11.2025. godine.\n   - Nema dodatnih informacija o dokazima koje tuženi koristi za potkrepljenje ove tvrdnje.\n\n**Zaključak:** Postoji protivrečnost u tvrdnjama o datumu prijema reklamacije, što je ključna sporna tačka u predmetu. Tužilac se oslanja na povratnicu kao dokaz, dok tuženi osporava ovaj datum bez navođenja konkretnih dokaza u dostavljenim dokumentima.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "**Datum prijema reklamacije:**\n\n1. **Tvrdnja tužioca:** Tužilac tvrdi da je tuženi primio reklamaciju dana 08.09.2025. godine. Ova tvrdnja je potkrepljena prilaganjem povratnice PK-4471 o uručenju reklamacije.\n\n2. **Tvrdnja tuženog:** Tuženi osporava ovu tvrdnju i navodi da je prvu reklamaciju tužioca primio tek dana 20.11.2025. godine.\n\n**Protivrečnost:** Postoji kontradikcija između tvrdnji tužioca i tuženog u vezi sa datumom prijema reklamacije. Tužilac se oslanja na povratnicu kao dokaz, dok tuženi osporava tačnost tog datuma.",
+    "prolazi": true
+   }
+  ],
+  "P5": [
+   {
+    "odgovor": "Nažalost, nemam pristup građevinskom dnevniku za jun 2025. godine u okviru ovog predmeta. Prema zapisniku sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, što znači da bi taj dokument mogao biti dostavljen sudu, ali nije među dokumentima koje sam pregledao.\n\nZa informacije o sadržaju građevinskog dnevnika, preporučujem da se obratite sudu ili stranama u postupku koje imaju pristup tom dokumentu. Građevinski dnevnik može sadržati ključne informacije o izvođenju radova, što može biti relevantno za utvrđivanje uzroka štete na krovu hale.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Nažalost, nemam pristup građevinskom dnevniku za jun 2025. godine, jer taj dokument nije dostavljen u okviru dostupnih dokumenata u ovom predmetu. Prema zapisniku sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, što znači da bi taj dokument mogao biti ključan za dalji tok postupka. Preporučujem da se proveri da li je taj dokument dostavljen sudu i da se izvrši uvid u njegov sadržaj kako bi se utvrdile relevantne činjenice za predmet.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "Nažalost, nisam u mogućnosti da pružim informacije o sadržaju građevinskog dnevnika za jun 2025. godine, jer takav dokument nije dostavljen u okviru ovog predmeta. Prema zapisniku sa ročišta (DOK-07), sud je naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana, ali nije navedeno da je taj dokument već dostavljen ili pregledan. \n\nZa dalju analizu, preporučujem da se obrati pažnja na to da li će taj dokument biti dostavljen i kako će uticati na dalji tok postupka.",
+    "prolazi": true
+   }
+  ],
+  "P6": [
+   {
+    "odgovor": "**Da li je tužilac blagovremeno reklamirao nedostatak?**\n\nNa osnovu dostavljenih dokumenata, postoji kontradikcija u vezi sa datumom prijema reklamacije. Tužilac tvrdi da je reklamacija primljena 08.09.2025. godine, dok tuženi tvrdi da je prva reklamacija primljena tek 20.11.2025. godine. Ova kontradikcija mora biti razrešena kroz dodatne dokaze, kao što su povratnice ili svedoci, kako bi se utvrdilo da li je reklamacija zaista podneta blagovremeno.\n\n**Pravna posledica ako reklamacija nije blagovremena:**\n\nAko se utvrdi da tužilac nije blagovremeno reklamirao nedostatak, to može imati značajne posledice po njegov zahtev za naknadu štete. Prema članu 403 Zakona o obligacionim odnosima, kupac gubi pravo na reklamaciju ako ne obavesti prodavca o nedostatku u razumnom roku. U ovom slučaju, ako se utvrdi da je reklamacija podneta tek 20.11.2025. godine, što je više od dva meseca nakon što je prokišnjavanje primećeno 02.09.2025. godine, tužilac bi mogao izgubiti pravo na naknadu štete zbog neblagovremenog obaveštavanja.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "**Da li je tužilac blagovremeno reklamirao nedostatak?**\n\nNa osnovu dostavljenih dokumenata, postoji kontradikcija u vezi sa datumom prijema reklamacije. Tužilac tvrdi da je reklamacija predata 08.09.2025. godine, dok tuženi tvrdi da je prva reklamacija primljena tek 20.11.2025. godine. Ova kontradikcija mora biti razrešena dokazima, kao što je povratnica PK-4471 koju tužilac prilaže.\n\n**Pravna posledica ako reklamacija nije blagovremena:**\n\nAko se utvrdi da tužilac nije blagovremeno reklamirao nedostatak, to može uticati na pravo tužioca da zahteva naknadu štete. Prema Zakonu o obligacionim odnosima, reklamacija mora biti podneta u razumnom roku nakon otkrivanja nedostatka, a neblagovremena reklamacija može dovesti do gubitka prava na naknadu štete. Sud će proceniti da li je rok od otkrivanja prokišnjavanja (02.09.2025.) do prijema reklamacije razuman u kontekstu ugovornog odnosa i prirode nedostatka.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "**Da li je tužilac blagovremeno reklamirao nedostatak?**\n\nPostoje dve protivrečne tvrdnje u vezi sa datumom prijema reklamacije:\n\n1. Tužilac tvrdi da je reklamacija primljena 08.09.2025. godine (DOK-01).\n2. Tuženi tvrdi da je prva reklamacija primljena tek 20.11.2025. godine (DOK-02).\n\nDa bi se utvrdilo da li je reklamacija blagovremena, potrebno je utvrditi koji je datum tačan. Tužilac je priložio povratnicu PK-4471 o uručenju reklamacije 08.09.2025. godine (DOK-03), što može biti ključni dokaz za dokazivanje blagovremenosti.\n\n**Pravna posledica ako reklamacija nije blagovremena:**\n\nAko se utvrdi da tužilac nije blagovremeno reklamirao nedostatak, to može imati značajne pravne posledice. Prema Zakonu o obligacionim odnosima, neblagovremeno prijavljivanje nedostatka može dovesti do gubitka prava na naknadu štete, jer se smatra da je tužilac propustio da obavesti drugu stranu u razumnom roku nakon što je otkrio ili mogao otkriti nedostatak. Ovo bi moglo rezultirati odbijanjem tužbenog zahteva.",
+    "prolazi": true
+   }
+  ],
+  "P7": [
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nU ovom predmetu, relevantni zakoni uključuju:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - odluka USJ i 57/89, Sl. gl. SRJ 31/93, Sl. gl. SCG 1/2003 - Ustavna povelja i Sl. gl. RS 18/2020**:\n  - **čl. 154 st. 1 ZOO**: Osnov za naknadu štete je postojanje štete, uzročna veza i krivica.\n  - **čl. 619 st. 1 ZOO**: Odgovornost izvođača za nedostatke u izvedenim radovima.\n\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011, 49/2013 - odluka US, 74/2013 - odluka US, 55/2014**:\n  - **čl. 7 st. 1 ZPP**: Načelo kontradiktornosti, stranke su dužne da iznesu sve činjenice i predlože dokaze.\n\n## 2. SUDSKA PRAKSA\n\nNema konkretnih sudskih odluka dostupnih u bazi za ovaj slučaj. Preporučuje se pregled sudske prakse na sudskapraksa.rs ili paragraf.rs za slične slučajeve.\n\n## 3. PRAVNI STANDARD\n\nU doktrini i sudskoj praksi, izvođač radova je odgovoran za nedostatke u izvedenim radovima u garantnom roku, osim ako dokaže da su nedostaci nastali usled spoljašnjih faktora ili krivicom trećih lica. Postojanje uzročne veze između radova i nastale štete je ključno.\n\n## 4. PRAKTIČNA PRIMENA\n\nNa osnovu dostavljenih dokumenata:\n\n- **DOK-02 (Odgovor na tužbu)**: Tuženi tvrdi da je prokišnjavanje posledica ugradnje solarnih panela od strane trećeg lica.\n- **DOK-05 (Nalaz i mišljenje veštaka)**: Veštak zaključuje da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.\n- **DOK-09** nije dostavljen, pa ne mogu da tvrdim šta sadrži.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nPostoji pravna nesigurnost u vezi sa tačnim uzrokom prokišnjavanja. Protivrečne tvrdnje o datumu prijema reklamacije i datumu postavljanja solarnih panela mogu uticati na ishod spora. Sud će morati da proceni verodostojnost dokaza i izjava strana kako bi utvrdio odgovornost za štetu.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\nU ovom slučaju, relevantni propisi uključuju:\n\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89 - US, 57/89, Sl. gl. SRJ 31/93, 22/99, 23/99 - US, 35/99 - US, 44/99, 46/99 - US, 16/01 - US, 19/01 - US, 31/01 - US, 57/01 - US, 73/01, 17/03 - US, 4/05 - US, 5/05 - US, 107/05 - dr. zakon, 108/05 - dr. zakon, Sl. gl. RS 12/06 - dr. zakon, 20/09 - dr. zakon, 46/13 - dr. zakon, 93/14 - dr. zakon, 6/15 - dr. zakon, 44/18 - dr. zakon, 95/18 - dr. zakon, 91/19 - dr. zakon, 104/19 - dr. zakon, 111/21 - dr. zakon, 119/21 - dr. zakon, 140/21 - dr. zakon, 95/22 - dr. zakon, 119/22 - dr. zakon, 140/22 - dr. zakon**  \n  - **čl. 608 do 626**: Odgovornost za nedostatke u građevinskim radovima.\n  - **čl. 154 st. 1**: Odgovornost za štetu.\n  - **čl. 634**: Garantni rokovi.\n\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011, 49/2013 - odluka US, 74/2013 - odluka US, 55/2014, 87/2018, 18/2020 - odluka US, 62/2021 - odluka US, 90/2021 - odluka US, 130/2021 - odluka US, 129/2022 - odluka US, 140/2022 - odluka US**  \n  - **čl. 7**: Načelo kontradiktornosti.\n  - **čl. 232**: Izvođenje dokaza veštačenjem.\n\n## 2. SADRŽAJ DOKUMENATA\n\n- **DOK-02 (Odgovor na tužbu)**: Tuženi tvrdi da je prokišnjavanje posledica ugradnje solarnih panela od strane trećeg lica, što implicira da oni nisu odgovorni za nedostatke u hidroizolaciji.\n\n- **DOK-05 (Nalaz i mišljenje veštaka)**: Veštak je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike i da nosači solarnih panela nisu oštetili hidroizolaciju krova.\n\n- **DOK-09** nije dostavljen, pa ne mogu da navedem njegov sadržaj. Prema evidenciji, ovaj dokument ne postoji u predmetu.\n\n## 3. PRAVNI STANDARD\n\nPrema ZOO, izvođač radova je odgovoran za nedostatke u građevinskim radovima tokom garantnog roka, osim ako dokaže da su nedostaci nastali usled okolnosti za koje on nije odgovoran. U ovom slučaju, veštačenje je ključno za utvrđivanje uzroka štete.\n\n## 4. PRAKTIČNA PRIMENA\n\nU praksi, sud će se osloniti na nalaz veštaka da bi utvrdio uzrok prokišnjavanja. Ako se dokaže da je uzrok neodgovarajuća hidroizolacija, tuženi može biti odgovoran za štetu. Ako se dokaže da je uzrok postavljanje solarnih panela, odgovornost može biti prebačena na treće lice.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nPostoji pravna nesigurnost u vezi sa tačnim uzrokom prokišnjavanja, što može uticati na ishod spora. Protivrečne tvrdnje o datumu prijema reklamacije i postavljanju solarnih panela takođe mogu uticati na procenu odgovornosti.",
+    "prolazi": true
+   },
+   {
+    "odgovor": "## 1. PRIMENJIVI PROPISI\n\n### Materijalni zakoni\n- **Zakon o obligacionim odnosima (ZOO), Sl. gl. SFRJ 29/78, 39/85, 45/89, 57/89, Sl. gl. SRJ 31/93, Sl. gl. SCG 1/2003 – Ustavna povelja, i Sl. gl. RS 18/2020**: Odredbe o odgovornosti za štetu (čl. 154 i dalje), kao i o odgovornosti iz ugovora o građenju.\n- **Zakon o izgradnji objekata (ZIO), Sl. gl. RS 72/2009, 81/2009 - ispr., 64/2010 - odluka US, 24/2011, 121/2012, 42/2013 - odluka US, 50/2013 - odluka US, 98/2013 - odluka US, 132/2014, 145/2014, 83/2018, 31/2019, 37/2019 - dr. zakon, 9/2020, 52/2021, 15/2023)**: Odredbe o odgovornosti izvođača radova.\n\n### Procesni zakoni\n- **Zakon o parničnom postupku (ZPP), Sl. gl. RS 72/2011, 49/2013 - odluka US, 74/2013 - odluka US, 55/2014, 87/2018, 18/2020, 62/2021)**: Odredbe o dokazivanju (čl. 223 i dalje), kao i o veštačenju (čl. 261 i dalje).\n\n## 2. SADRŽAJ DOKUMENATA\n\n### DOK-02: Odgovor na tužbu\n- Tuženi osporava tužbeni zahtev i tvrdi da je prokišnjavanje posledica ugradnje solarnih panela od strane trećeg lica.\n\n### DOK-05: Nalaz i mišljenje veštaka\n- Veštak građevinske struke utvrđuje da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike. Nosaci solarnih panela nisu oštetili hidroizolaciju krova.\n\n### DOK-09\n- Nije dostavljen u predmetu, stoga nije moguće analizirati njegov sadržaj.\n\n## 3. PRAVNI STANDARD\n\nU praksi, odgovornost za štetu u građevinskim radovima često se utvrđuje na osnovu ugovora o građenju i nalaza veštaka. Veštak ima ključnu ulogu u određivanju uzroka štete, a sud se oslanja na njegovu procenu.\n\n## 4. PRAKTIČNA PRIMENA\n\nNa osnovu veštačenja, sud će verovatno razmatrati odgovornost tuženog za neodgovarajuće izvedene radove. Ako se utvrdi da su radovi izvedeni protivno ugovoru ili standardima struke, tuženi može biti odgovoran za štetu.\n\n## 5. RIZICI I NEODREĐENOSTI\n\nPostoji pravna nesigurnost u vezi sa tačnim uzrokom štete zbog kontradiktornih tvrdnji o vremenu postavljanja solarnih panela i prijema reklamacije. Sud će morati da razjasni ove činjenice kako bi pravilno primenio pravne norme.",
+    "prolazi": false
+   }
+  ]
+ }
+}

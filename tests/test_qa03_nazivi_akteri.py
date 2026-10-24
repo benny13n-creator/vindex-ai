@@ -20,11 +20,19 @@ def _akteri_recnika() -> dict:
     return dict(re.findall(r'"([^"]+)":\s*"([^"]+)"', blok))
 
 
+# MIR001 R4: `shared/procesno_stanje.py` koristi ključ `akter` za INTERNO pripisivanje događaja spisa (SUD / stranka /
+# NEPOZNAT) u bloku za model i snimku predloga — nikad ne upisuje `predmet_hronologija` (dokaz:
+# `test_procesno_stanje_ne_upisuje_hronologiju`), pa njegove vrednosti nisu potpisi aktera hronologije.
+NIJE_HRONOLOGIJA = {"shared/procesno_stanje.py"}
+
+
 def _backend_potpisi() -> dict:
     """{doslovan potpis: [fajl:linija]} za svaki `"akter": "<literal>"` / f-string prefiks u backend kodu."""
     nadjeno: dict = {}
     for p in [KOREN / "api.py", *sorted((KOREN / "routers").glob("*.py")), *sorted((KOREN / "services").glob("*.py")),
               *sorted((KOREN / "shared").glob("*.py"))]:
+        if p.relative_to(KOREN).as_posix() in NIJE_HRONOLOGIJA:
+            continue
         for i, red in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
             if red.lstrip().startswith("#"):
                 continue
@@ -48,6 +56,18 @@ def test_svaki_interni_potpis_ima_srpski_naziv():
     assert not nepokriveni, f"interni naziv procesa bez srpskog naziva: {nepokriveni}"
     nepoznati = {k: v for k, v in potpisi.items() if not INTERNI.search(k) and k not in SRPSKI_DOSLOVNO}
     assert not nepoznati, f"nov potpis aktera — odlučiti: prevod u nazivi.js ili doslovno: {nepoznati}"
+
+
+def test_procesno_stanje_ne_upisuje_hronologiju():
+    """Izuzetak iz skenera važi samo dok procesno stanje ne piše hronologiju ni bazu i dok ga hronologija ne čita."""
+    for ime in NIJE_HRONOLOGIJA:
+        t = (KOREN / ime).read_text(encoding="utf-8")
+        assert "predmet_hronologija" not in t and ".table(" not in t and ".insert(" not in t, ime
+    for p in [KOREN / "api.py", *(KOREN / "routers").glob("*.py"), *(KOREN / "services").glob("*.py"),
+              *(KOREN / "shared").glob("*.py")]:
+        t = p.read_text(encoding="utf-8")
+        if "predmet_hronologija" in t:
+            assert "procesno_stanje" not in t, p.relative_to(KOREN).as_posix()
 
 
 def test_recnik_nema_mrtvih_ni_izmisljenih_potpisa():

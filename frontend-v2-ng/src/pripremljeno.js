@@ -107,6 +107,29 @@
       return s;
     }
 
+    /* MIR001 TASK-08: pregled promene predmeta (CASE_CHANGE_BRIEF, šema cb-1) — deterministički, bez modela. */
+    function prikaziPromenu(c, koren) {
+      var s1 = sekcija("Šta se promenilo u analizi predmeta (v" + tekst(c.prethodna_verzija) + " → v" + tekst(c.verzija) + ")");
+      if (!niz(c.promene).length) s1.append(el("p", "list-state", "Analiza nema promena; vidi otvorene radnje."));
+      else s1.append(lista(c.promene, function (x) {
+        var sn = [x.staro != null ? "bilo: " + tekst(typeof x.staro === "object" ? JSON.stringify(x.staro) : x.staro) : "",
+                  x.novo != null ? "sada: " + tekst(typeof x.novo === "object" ? JSON.stringify(x.novo) : x.novo) : ""].filter(Boolean).join(" · ");
+        return stavkaPorekla(tekst(x.opis) || tekst(x.oznaka), x.poreklo, [sn ? el("p", "an-item__meta", sn) : null]);
+      }));
+      if ((c.promena_ukupno || 0) > niz(c.promene).length) s1.append(el("p", "list-state", "Prikazano " + niz(c.promene).length + " od " + c.promena_ukupno + " promena."));
+      koren.append(s1);
+      var s2 = sekcija("Nove radnje iz ove promene");
+      if (!niz(c.radnje).length) s2.append(el("p", "list-state", "Promena nije otvorila nove radnje."));
+      else s2.append(lista(c.radnje, function (x) { return stavkaPorekla(tekst(x.razlog), "DETERMINISTIC_DERIVATION", [el("p", "an-item__meta", (x.rok ? "rok " + datum(x.rok) : "bez roka"))]); }));
+      koren.append(s2);
+      if (niz(c.nepoznato).length) {
+        var s3 = sekcija("Šta nije utvrđeno");
+        s3.append(lista(c.nepoznato, function (x) { return stavkaPorekla(tekst(x.razlog), null, []); }));
+        koren.append(s3);
+      }
+      koren.append(el("p", "an-item__meta", "Pripremio sistem iz analize predmeta, bez modela. Ništa nije poslato ni izmenjeno."));
+    }
+
     function prikaziPripremuRocista(c, koren) {
       var r = c.rociste || {};
       var s1 = sekcija("Ročište");
@@ -200,6 +223,7 @@
       var c = w.content_json || {};
       if (w.work_type === "HEARING_PREP" && c.rociste) prikaziPripremuRocista(c, koren);
       else if (w.work_type === "PRECEDENT_IMPACT" && c.izvor) prikaziUticajPrakse(c, koren);
+      else if (w.work_type === "CASE_CHANGE_BRIEF" && c.schema === "cb-1") prikaziPromenu(c, koren);
       else koren.append(el("p", "list-state", "Sadržaj nije dostupan za ovaj rad."));
       $("vpr-sadrzaj").hidden = false;
       $("vpr-odluka-blok").hidden = w.status !== "READY_FOR_REVIEW";
