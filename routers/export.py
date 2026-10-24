@@ -43,6 +43,8 @@ async def post_export_docx(req: DocxExportRequest, user: dict = Depends(get_curr
     import re as _re
     if len(req.tekst.strip()) < 20:
         raise HTTPException(status_code=422, detail="Tekst je prekratak za export.")
+    if "═══ VINDEX — INTERNE NAPOMENE" in req.tekst:                           # R3 rollback guard
+        raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene — ova verzija ga ne izvozi.")
     docx_bytes = await asyncio.to_thread(_tekst_u_docx, req.naslov, req.tekst, req.tip)
     safe = _re.sub(r"[^\w\-]", "_", req.naslov)[:50]
     filename = f"vindex_{safe}.docx"

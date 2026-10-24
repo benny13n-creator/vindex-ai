@@ -320,6 +320,15 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
 
 _APPROVAL_CONFIDENCE_THRESHOLD = 0.85
 
+# MIR001 FINAL RELEASE R3 — ZAŠTITA CILJA POVRATKA (rollback guard nad f33dcce8). Ako se aplikacija vrati sa MIR001
+# grane, u `staging_memory` mogu ostati redovi NOVOG toka: AI radni predlog (`nacrt_iz_spisa`) i dokument za sud
+# (`dokument_za_sud`). Ova verzija ne zna njihov ugovor (usvajanje, revizija, 8 procesnih odluka), pa ih NE odobrava,
+# NE menja, NE upisuje u bazu znanja i ne izvozi tekst sa internim napomenama. Čitanje i odbijanje rade.
+_TIPOVI_NOVOG_TOKA = ("nacrt_iz_spisa", "dokument_za_sud")
+_GRANICA_NAPOMENA = "═══ VINDEX — INTERNE NAPOMENE"
+_PORUKA_NOVI_TOK = ("Ovaj nacrt pripada novom toku izrade dokumenta za sud koji ova verzija aplikacije ne podržava — "
+                    "ne može se odobriti, menjati ni upisati u bazu znanja. Ništa nije promenjeno.")
+
 
 def _putanja_nacrta(staging_id) -> str:
     return f"draft/staging/{staging_id}"
@@ -362,7 +371,8 @@ def _ponovni_upis_moguc(red: dict) -> bool:
     except (TypeError, ValueError):
         return False
     return (red.get("status") == "approved" and red.get("is_lawyer_approved") is True
-            and red.get("pinecone_indexed") is not True and ocena >= _APPROVAL_CONFIDENCE_THRESHOLD)
+            and red.get("pinecone_indexed") is not True and ocena >= _APPROVAL_CONFIDENCE_THRESHOLD
+            and red.get("tip") not in _TIPOVI_NOVOG_TOKA)                      # R3 rollback guard
 
 
 async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
@@ -1305,6 +1315,9 @@ async def export_nacrt_docx(
         pass
 
     naslov = req.naslov or req.tip or "Nacrt"
+    if req.tip in _TIPOVI_NOVOG_TOKA or _GRANICA_NAPOMENA in (req.tekst or ""):  # R3 rollback guard
+        raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene ili pripada novom toku izrade "
+                                                    "dokumenta za sud — ova verzija ga ne izvozi.")
 
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, req.tekst, naslov, firma_info)
@@ -1392,6 +1405,8 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
     red = getattr(r, "data", None)
     if not red:
         raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    if red.get("tip") in _TIPOVI_NOVOG_TOKA:                                    # R3 rollback guard
+        raise HTTPException(status_code=409, detail=_PORUKA_NOVI_TOK)
     if red.get("status") != "pending":
         raise HTTPException(status_code=409, detail="Nacrt je već odobren ili odbijen — izmena više nije moguća.")
 
@@ -1438,6 +1453,14 @@ async def staging_ponovi_upis(staging_id: str, request: Request, user: dict = De
         sid = str(uuid.UUID(str(staging_id)))
     except (ValueError, TypeError):
         raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    try:                                                                        # R3 rollback guard
+        vrsta = await asyncio.to_thread(lambda: supa.table("staging_memory").select("tip")
+                                        .eq("id", sid).eq("user_id", user["user_id"]).maybe_single().execute())
+    except Exception as exc:
+        logger.warning("[STAGING_RETRY] čitanje vrste nije uspelo staging_id=%s: %s", sid, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje nacrta trenutno nije moguće proveriti. Ništa nije promenjeno.")
+    if ((getattr(vrsta, "data", None) or {}).get("tip")) in _TIPOVI_NOVOG_TOKA:
+        raise HTTPException(status_code=409, detail=_PORUKA_NOVI_TOK)
     try:
         r = await asyncio.to_thread(lambda: supa.rpc("preuzmi_ponovni_upis_nacrta", {
             "p_staging_id": sid, "p_user_id": user["user_id"],
@@ -1486,6 +1509,8 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
     staging_row = row_res.data
+    if staging_row.get("tip") in _TIPOVI_NOVOG_TOKA:                           # R3 rollback guard
+        raise HTTPException(status_code=409, detail=_PORUKA_NOVI_TOK)
 
     from shared.vector_origin import now_iso
     token = str(uuid.uuid4())
@@ -1579,10 +1604,13 @@ async def staging_reject(staging_id: str, request: Request, user: dict = Depends
     zapis u staging_memory (audit trail — zašto je nešto odbijeno)."""
     supa = _get_supa()
     row_res = await asyncio.to_thread(
-        lambda: supa.table("staging_memory").select("id").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+        lambda: supa.table("staging_memory").select("id,tip,status").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
+    if row_res.data.get("tip") == "dokument_za_sud" and row_res.data.get("status") != "pending":   # R3 rollback guard
+        # odobren dokument za sud je zapis odluke advokata (MIR001 C3b) — ne odbija se naknadno
+        raise HTTPException(status_code=409, detail=_PORUKA_NOVI_TOK)
 
     await asyncio.to_thread(
         lambda: supa.table("staging_memory").update({"status": "rejected", "is_lawyer_approved": False}).eq("id", staging_id).execute()

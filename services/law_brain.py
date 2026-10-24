@@ -337,10 +337,14 @@ def artifact_item(red: dict, predmet: dict) -> Optional[LawBrainItem]:
         stanje, klasa, validnost, loza = ART_PENDING, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
     else:
         stanje, klasa, validnost, loza = ART_INCONSISTENT, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
+    excerpt = red.get("tekst") or ""
+    if red.get("tip") in ("nacrt_iz_spisa", "dokument_za_sud"):                # R3 rollback guard: nikad znanje
+        klasa, loza = AI_WORK_PRODUCT, ("AI_GENERATED",)
+        excerpt = excerpt.split("═══ VINDEX — INTERNE NAPOMENE", 1)[0].rstrip()
     return LawBrainItem(
         source_kind="artifact", source_owner="staging_memory", source_id=str(red["id"]),
         scope=SCOPE_USER, trust_class=klasa, validity=validnost,
-        title=red.get("naziv") or red.get("tip") or "Nacrt", excerpt=red.get("tekst") or "",
+        title=red.get("naziv") or red.get("tip") or "Nacrt", excerpt=excerpt,
         predmet_id=str(predmet["id"]), created_at=red.get("created_at"),
         updated_at=red.get("approved_at") or red.get("created_at"), lineage=loza, state=stanje,
         attrs=(("tip", red.get("tip")), ("confidence_score", red.get("confidence_score")),
