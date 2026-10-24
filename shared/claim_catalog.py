@@ -70,7 +70,11 @@ from typing import Any, Iterable, Optional
 # Gornja granica broja tvrdnji koje ulaze u prompt. Postojala je i pre A014, kao
 # `.limit(20)` u `_fetch_dokazi_kontekst`; ovde je izdvojena da bi granica imala
 # JEDNOG vlasnika — katalog i prompt ne smeju da se razilaze.
-MAKS_TVRDNJI = 20
+# MIR001 TASK-03: 20 je bilo manje od jednog običnog spisa (7 procesnih dokumenata = 31 tvrdnja),
+# pa tvrdnje tužbe i odgovora na tužbu nikad nisu stizale do modela i njihova protivrečnost nije
+# mogla da nastane. 60 tvrdnji ≈ 6.000 znakova uz 60.000 znakova dokumenata. Preko granice važi
+# `potpune=False` (routers/case_dna.py::_fetch_dokazi_kontekst): opažanje tada nije kompletno.
+MAKS_TVRDNJI = 60
 
 PREFIKS = "CLAIM-"
 

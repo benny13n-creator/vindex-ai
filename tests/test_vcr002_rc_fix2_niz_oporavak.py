@@ -20,6 +20,7 @@ import uuid
 from pathlib import Path
 
 from tests.test_vcr002_t06_niz_savetnika import _niz, niz  # noqa: F401
+from tests.nacrt_json_zamena import kao_json
 
 KOREN = Path(__file__).resolve().parent.parent
 PLACENI_IZLAZ = "ISTRAZIVANJE-KORAK-1: placen rad koji se ne sme izgubiti"
@@ -39,6 +40,7 @@ def _ubij_posle_prvog_koraka(st, monkeypatch):
             raise _Pad("radnik je umro tokom drugog koraka")
         return pravi(client, system, user_msg)
     monkeypatch.setattr(MA, "_pozovi_agent_api", _model)
+    monkeypatch.setattr(MA, "_pozovi_nacrt_api", kao_json(_model, bez_pravila=True))     # C3b: nacrt iz spisa = JSON
     st["odgovori"]["research"] = PLACENI_IZLAZ
 
 

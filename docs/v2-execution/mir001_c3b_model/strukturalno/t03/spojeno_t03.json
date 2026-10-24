@@ -1,0 +1,3224 @@
+{
+ "po_scenariju": {
+  "A": {
+   "n": 10,
+   "M6_A": 10,
+   "O2_A": 10,
+   "Q_A": 24.0,
+   "M6_B": 10,
+   "O2_B": 10,
+   "Q_B": 25.0,
+   "M8_A": 2,
+   "M8_B": 2
+  },
+  "B": {
+   "n": 10,
+   "M1_A": 7,
+   "M6_A": 7,
+   "O2_A": 10,
+   "Q_A": 29.0,
+   "M1_B": 7,
+   "M6_B": 7,
+   "O2_B": 10,
+   "Q_B": 30.0,
+   "M8_A": 3,
+   "M8_B": 3
+  },
+  "C1": {
+   "n": 10,
+   "M6_A": 9,
+   "O2_A": 10,
+   "Q_A": 30.0,
+   "M6_B": 9,
+   "O2_B": 10,
+   "Q_B": 33.0,
+   "M8_A": 2,
+   "M5_B": 1,
+   "M8_B": 2
+  },
+  "C2": {
+   "n": 10,
+   "M1_A": 2,
+   "M6_A": 9,
+   "O2_A": 10,
+   "Q_A": 26.0,
+   "M1_B": 3,
+   "M6_B": 9,
+   "O2_B": 10,
+   "Q_B": 24.0,
+   "M5_A": 1,
+   "M5_B": 1,
+   "M7_B": 3,
+   "M8_A": 4,
+   "M8_B": 4
+  },
+  "H1": {
+   "n": 10,
+   "M8_A": 2,
+   "M6_A": 10,
+   "O2_A": 10,
+   "Q_A": 28.0,
+   "M8_B": 2,
+   "M6_B": 10,
+   "O2_B": 10,
+   "Q_B": 28.0
+  },
+  "H2": {
+   "n": 10,
+   "M6_A": 9,
+   "O2_A": 9,
+   "Q_A": 22.0,
+   "M6_B": 9,
+   "O2_B": 9,
+   "Q_B": 27.0,
+   "M8_A": 4,
+   "M8_B": 4
+  },
+  "N1": {
+   "n": 10,
+   "M7_A": 2,
+   "M6_A": 2,
+   "O2_A": 10,
+   "Q_A": 32.0,
+   "M7_B": 2,
+   "M6_B": 2,
+   "O2_B": 10,
+   "Q_B": 31.0,
+   "M8_A": 4,
+   "M8_B": 4,
+   "M5_A": 2,
+   "M5_B": 2,
+   "M1_A": 1,
+   "M1_B": 1
+  },
+  "N2": {
+   "n": 10,
+   "M6_A": 10,
+   "O2_A": 10,
+   "Q_A": 27.0,
+   "M6_B": 10,
+   "O2_B": 10,
+   "Q_B": 28.0,
+   "M7_A": 2,
+   "M8_A": 3,
+   "M8_B": 3,
+   "M7_B": 1
+  },
+  "N3": {
+   "n": 10,
+   "M6_A": 10,
+   "O2_A": 10,
+   "Q_A": 22.0,
+   "M6_B": 10,
+   "O2_B": 10,
+   "Q_B": 25.0,
+   "M5_A": 3,
+   "M3_B": 1,
+   "M5_B": 1,
+   "M7_B": 1,
+   "M8_A": 3,
+   "M8_B": 3
+  },
+  "N4": {
+   "n": 10,
+   "M6_A": 10,
+   "O2_A": 10,
+   "Q_A": 20.0,
+   "M6_B": 10,
+   "O2_B": 10,
+   "Q_B": 23.0,
+   "M2_A": 1,
+   "M1_B": 1,
+   "M2_B": 1,
+   "M8_A": 1,
+   "M8_B": 1
+  }
+ },
+ "nalazi": [
+  {
+   "sifra": "X82539",
+   "izlaz": "A_00",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosaci solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac smatra da dopuna veštačenja nije potrebna, jer je veštak već jasno utvrdio uzrok štete.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis nalaza, argument tužioca (iako sud prihvatio dopunu, to je stav stranke) i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X82539",
+   "izlaz": "A_00",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosaci solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac smatra da dopuna veštačenja nije potrebna, jer je veštak već jasno utvrdio uzrok štete.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05, argument tužioca (iako je sud dopunu već prihvatio, ostaje mnjenje stranke), tačan opis DOK-07."
+  },
+  {
+   "sifra": "X84630",
+   "izlaz": "A_01",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Tužilac podseća sud da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju odluke iz DOK-07. Rečenica o očekivanju da će dopuna „biti izvršena na sledećem ročištu“ s pravom je izostavljena."
+  },
+  {
+   "sifra": "X84630",
+   "izlaz": "A_01",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana",
+    "Tužilac podseća sud da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis odluka i radnji iz DOK-07. Treca recenica (dopuna ce „biti izvršena na sledećem ročištu“) nema osnova u spisu."
+  },
+  {
+   "sifra": "X19455",
+   "izlaz": "A_02",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05. Rečenica „...nije potrebno dodatno veštačenje (DOK-06)“ nije ubrojana, jer pogrešno navodi DOK-06 kao izvor stava tužioca."
+  },
+  {
+   "sifra": "X19455",
+   "izlaz": "A_02",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05. Rečenica o potpunosti nalaza nije ubrojana jer je mišljenje tužioca pogrešno citirano uz DOK-06 (podnesak tuženog)."
+  },
+  {
+   "sifra": "X55457",
+   "izlaz": "A_03",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X55457",
+   "izlaz": "A_03",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka (DOK-06), tužilac smatra da tvrdnja tuženog da veštak nije izvršio uvid u građevinski dnevnik ne menja suštinu nalaza, budući da je uzrok prokišnjavanja jasno utvrđen.",
+    "Tužilac napominje da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Pripisan argument tužioca i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X55457",
+   "izlaz": "A_03",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X55457",
+   "izlaz": "A_03",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka (DOK-06), tužilac smatra da tvrdnja tuženog da veštak nije izvršio uvid u građevinski dnevnik ne menja suštinu nalaza, budući da je uzrok prokišnjavanja jasno utvrđen.",
+    "Tužilac napominje da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X98263",
+   "izlaz": "A_04",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Sud je već prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno prenose DOK-07."
+  },
+  {
+   "sifra": "X98263",
+   "izlaz": "A_04",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Sud je već prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju DOK-07."
+  },
+  {
+   "sifra": "X66075",
+   "izlaz": "A_05",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka već dovoljno jasan i da dodatno veštačenje nije potrebno, jer je utvrđeno da nosači solarnih panela nisu uzrokovali oštećenje.",
+    "Tužilac podseća da je na prethodnom ročištu precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi u iznosu od 600.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“))."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-07."
+  },
+  {
+   "sifra": "X66075",
+   "izlaz": "A_05",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka već dovoljno jasan i da dodatno veštačenje nije potrebno, jer je utvrđeno da nosači solarnih panela nisu uzrokovali oštećenje.",
+    "Tužilac podseća da je na prethodnom ročištu precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi u iznosu od 600.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“))."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-07."
+  },
+  {
+   "sifra": "X64108",
+   "izlaz": "A_06",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tuženi je osporio nalaz veštaka i predložio dopunu veštačenja, tvrdeći da veštak nije izvršio uvid u građevinski dnevnik (DOK-06).",
+    "Sud je prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“) (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), te povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "S obzirom na to da je sledeće ročište zakazano za 18.11.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sledece rociste zakazano je za 18.11.2026. godine.“), tužilac očekuje da će dopuna veštačenja biti izvršena pre tog roka, kako bi se postupak mogao nastaviti bez daljih odlaganja."
+   ],
+   "obrazlozenje": "Sve cetiri recenice su tacni opisi spisa ili ocekivanje koje je ispravno pripisano tuziocu, i ne tvrde da je nalog izvrsen."
+  },
+  {
+   "sifra": "X64108",
+   "izlaz": "A_06",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tuženi je osporio nalaz veštaka i predložio dopunu veštačenja, tvrdeći da veštak nije izvršio uvid u građevinski dnevnik (DOK-06).",
+    "Sud je prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“) (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), te povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "S obzirom na to da je sledeće ročište zakazano za 18.11.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sledece rociste zakazano je za 18.11.2026. godine.“), tužilac očekuje da će dopuna veštačenja biti izvršena pre tog roka, kako bi se postupak mogao nastaviti bez daljih odlaganja."
+   ],
+   "obrazlozenje": "Sve četiri rečenice su tačan opis spisa (DOK-06, DOK-07) ili očekivanje tužioca bez tvrdnje o izvršenju; izostavljanje je ispraznilo tekst."
+  },
+  {
+   "sifra": "X24773",
+   "izlaz": "A_07",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X24773",
+   "izlaz": "A_07",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac očekuje da će na sledećem ročištu biti razmotreno stanje postupka u svetlu dopunjenog veštačenja, ukoliko je isto sprovedeno."
+   ],
+   "obrazlozenje": "Uslovno sročena, tačna rečenica o daljem toku. Prva izostavljena rečenica je nelogična (dopuna nepotrebna jer ju je sud prihvatio) pa nije uračunata."
+  },
+  {
+   "sifra": "X24773",
+   "izlaz": "A_07",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X24773",
+   "izlaz": "A_07",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac očekuje da će na sledećem ročištu biti razmotreno stanje postupka u svetlu dopunjenog veštačenja, ukoliko je isto sprovedeno."
+   ],
+   "obrazlozenje": "Ispravno ograđen procesni tekst. Prva izostavljena rečenica nije ubrojana jer je unutrašnje protivrečna (dopuna „nije potrebna“ jer ju je sud prihvatio)."
+  },
+  {
+   "sifra": "X65324",
+   "izlaz": "A_08",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Smatramo da je nalaz veštaka sveobuhvatan i da nije potrebno dodatno veštačenje.",
+    "Međutim, ukoliko sud smatra da je dopuna veštačenja potrebna, tužilac će postupiti u skladu sa odlukom suda.",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "- Tužilac podseća da je sud naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“), te očekujemo da će tuženi postupiti po tom nalogu."
+   ],
+   "obrazlozenje": "Svih pet su stavovi tuzioca ili tacni opisi zapisnika; nijedna ne tvrdi da je nalog izvrsen. Recenica o potpisu s pravom je izostavljena."
+  },
+  {
+   "sifra": "X65324",
+   "izlaz": "A_08",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "- Tužilac podseća da je sud naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“), te očekujemo da će tuženi postupiti po tom nalogu."
+   ],
+   "obrazlozenje": "Tri rečenice su tačne prema DOK-05/DOK-07. Ostale (da dopuna nije potrebna i „ukoliko sud smatra da je dopuna potrebna“) prikazuju kao otvoreno pitanje o kome je sud već odlučio, pa su s pravom izostavljene; red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X15476",
+   "izlaz": "A_09",
+   "scenarij": "A",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Molimo sud da u skladu sa prethodno donetim odlukama nastavi sa postupkom i da se na sledećem ročištu zakazanom za 18.11.2026. godine razmotri dopunjeni nalaz veštaka, ukoliko je isti dostavljen u skladu sa nalogom suda."
+   ],
+   "obrazlozenje": "Uslovni procesni predlog koji ne tvrdi da je nalog izvrsen. Prva izostavljena recenica je nelogicna (osporava tvrdnju tuzenog „jer je sud prihvatio“ njegov predlog), pa je nije trebalo zadrzati bez prerade."
+  },
+  {
+   "sifra": "X15476",
+   "izlaz": "A_09",
+   "scenarij": "A",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog na nalaz veštaka (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“).",
+    "Molimo sud da u skladu sa prethodno donetim odlukama nastavi sa postupkom i da se na sledećem ročištu zakazanom za 18.11.2026. godine razmotri dopunjeni nalaz veštaka, ukoliko je isti dostavljen u skladu sa nalogom suda."
+   ],
+   "obrazlozenje": "Obe rečenice tačno prikazuju odluku iz DOK-07 (prva ima nelogičnu vezu „jer“, ali činjenice su tačne), a druga je uslovni predlog koji ne tvrdi da je dopuna dostavljena."
+  },
+  {
+   "sifra": "X90431",
+   "izlaz": "B_00",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "tužbeni zahtev podnet za iznos od 4.200.000 dinara, koji uključuje i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara",
+   "obrazlozenje": "Po DOK-03 tužilac „dodatno“ traži 600.000, dakle preko 4.200.000 iz tužbe; zahtev od 600.000 nije sadržan u iznosu od 4.200.000.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X90431",
+   "izlaz": "B_00",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ukazuje da je veštak utvrdio visinu štete u iznosu od 3.150.000 dinara."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05."
+  },
+  {
+   "sifra": "X90431",
+   "izlaz": "B_00",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "tužilac podseća sud da je tužbeni zahtev podnet za iznos od 4.200.000 dinara, koji uključuje i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara",
+   "obrazlozenje": "Tužba (DOK-01, 10.02.2026) glasi na 4.200.000; zahtev od 600.000 je postavljen naknadno (DOK-03: „dodatno trazi“) i nije sadržan u 4.200.000. Tekst pogrešno prikazuje visinu i strukturu tužbenog zahteva.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X90431",
+   "izlaz": "B_00",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ukazuje da je veštak utvrdio visinu štete u iznosu od 3.150.000 dinara."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05."
+  },
+  {
+   "sifra": "X35596",
+   "izlaz": "B_01",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka sveobuhvatan i da nije potrebno dodatno veštačenje, jer je veštak već utvrdio da nosioci solarnih panela nisu oštetili hidroizolaciju krova, što je u skladu sa tvrdnjom tužioca da su solarni paneli postavljeni nakon što je prokišnjavanje već primećeno."
+   ],
+   "obrazlozenje": "Argument je ispravno pripisan tuziocu i odgovara DOK-03 i DOK-05."
+  },
+  {
+   "sifra": "X35596",
+   "izlaz": "B_01",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka sveobuhvatan i da nije potrebno dodatno veštačenje, jer je veštak već utvrdio da nosioci solarnih panela nisu oštetili hidroizolaciju krova, što je u skladu sa tvrdnjom tužioca da su solarni paneli postavljeni nakon što je prokišnjavanje već primećeno."
+   ],
+   "obrazlozenje": "Legitiman argument tužioca zasnovan na DOK-05 i DOK-03; bez njega je izjašnjenje na DOK-06 bez sadržaja."
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "U vezi sa stanjem postupka, tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za naknadu štete u iznosu od 600.000 dinara za oštećenu robu u hali (DOK-03).",
+   "obrazlozenje": "DOK-03 traži 600.000 dodatno uz 4.200.000; tvrdnja da 4.200.000 uključuje 600.000 suprotna je spisu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka sveobuhvatan i da je pravilno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca."
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "U vezi sa stanjem postupka, tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za naknadu štete u iznosu od 600.000 dinara za oštećenu robu u hali (DOK-03).",
+   "obrazlozenje": "Dodatni zahtev iz DOK-03 je uz, a ne u okviru 4.200.000 (ukupno 4.800.000); iznos zahteva je pogrešno iskazan.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X62253",
+   "izlaz": "B_02",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka sveobuhvatan i da je pravilno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Stav tužioca o nalazu."
+  },
+  {
+   "sifra": "X74322",
+   "izlaz": "B_03",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatni zahtev za 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Po DOK-03 tužilac „dodatno“ traži 600.000 din, dakle preko 4.200.000 (ukupno 4.800.000); tekst prikazuje 600.000 kao deo 4.200.000.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X74322",
+   "izlaz": "B_03",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X74322",
+   "izlaz": "B_03",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatni zahtev za 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Po spisu tuzba trazi 4.200.000 (DOK-01), a 600.000 je trazeno DODATNO (DOK-03); nije sadrzano u 4.200.000. Iznos zahteva je pogresno prikazan.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X74322",
+   "izlaz": "B_03",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, koji uključuje i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara, kako je navedeno u podnesku od 02.04.2026. godine (DOK-03).",
+   "obrazlozenje": "Prema DOK-01 i DOK-03 tužilac traži 4.200.000 i dodatno 600.000; tvrdnja da 4.200.000 uključuje 600.000 suprotna je spisu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka, datim dana 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer smatramo da je veštak postupio u skladu sa nalogom suda i pravilima struke."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca i tačan opis DOK-06."
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, koji uključuje i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara, kako je navedeno u podnesku od 02.04.2026. godine (DOK-03).",
+   "obrazlozenje": "Prema DOK-03 600.000 je zahtevano „dodatno“ uz 4.200.000 iz tužbe (ukupno 4.800.000); tvrdnja da je sadržano u 4.200.000 nema osnova u spisu i pogrešno određuje visinu zahteva.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X30529",
+   "izlaz": "B_04",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog na nalaz veštaka, datim dana 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer smatramo da je veštak postupio u skladu sa nalogom suda i pravilima struke."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca o izjašnjenju tuženog (formulacija o „nalogu suda“ je uobičajena)."
+  },
+  {
+   "sifra": "X13140",
+   "izlaz": "B_05",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za 600.000 dinara za oštećenu robu u hali, kako je navedeno u podnesku od 02.04.2026. godine (DOK-03).",
+   "obrazlozenje": "Po DOK-03 zahtev od 600.000 je dodatni, a ne deo iznosa od 4.200.000, pa ukupno iznosi 4.800.000. Recima „uključujući i“ tekst zahtev prikazuje kao 4.200.000 ukupno. Osim toga, 4.200.000 potice iz tuzbe (DOK-01), a ne iz DOK-03.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X13140",
+   "izlaz": "B_05",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Takođe, tužilac prihvata visinu štete koju je veštak utvrdio u iznosu od 3.150.000 dinara."
+   ],
+   "obrazlozenje": "Stav tuzioca o nalazu je ispravno pripisan i ne tvrdi nista o stanju postupka."
+  },
+  {
+   "sifra": "X13140",
+   "izlaz": "B_05",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za 600.000 dinara za oštećenu robu u hali, kako je navedeno u podnesku od 02.04.2026. godine (DOK-03).",
+   "obrazlozenje": "Prema DOK-03 tužilac 600.000 din. traži „dodatno“, uz 4.200.000 din. iz tužbe (ukupno 4.800.000 din.); „uključujući“ pogrešno prikazuje visinu tužbenog zahteva.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X13140",
+   "izlaz": "B_05",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Takođe, tužilac prihvata visinu štete koju je veštak utvrdio u iznosu od 3.150.000 dinara."
+   ],
+   "obrazlozenje": "Tačan prikaz DOK-05 kao stava tužioca (strateški treba uskladiti sa zahtevom, ali nije netačan). Red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X82068",
+   "izlaz": "B_07",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, kako je navedeno u tužbi (DOK-01), uključujući i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara (DOK-03).",
+   "obrazlozenje": "Po DOK-03 zahtev od 600.000 je dodatni, pa zahtev ukupno iznosi 4.800.000. Recima „uključujući i“ tekst ga prikazuje kao deo iznosa od 4.200.000.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X82068",
+   "izlaz": "B_07",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Predlog tuženog za dopunu veštačenja smatramo neosnovanim, s obzirom na to da je veštak već utvrdio relevantne činjenice."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tuzioca."
+  },
+  {
+   "sifra": "X82068",
+   "izlaz": "B_07",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, kako je navedeno u tužbi (DOK-01), uključujući i dodatni zahtev za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara (DOK-03).",
+   "obrazlozenje": "U DOK-03 600.000 din. se traži „dodatno“, nije sadržano u 4.200.000 din.; „uključujući“ pogrešno prikazuje visinu zahteva.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X82068",
+   "izlaz": "B_07",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Predlog tuženog za dopunu veštačenja smatramo neosnovanim, s obzirom na to da je veštak već utvrdio relevantne činjenice."
+   ],
+   "obrazlozenje": "Legitiman argument tužioca o nerešenom predlogu tuženog; red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X20272",
+   "izlaz": "B_08",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac podseća da je već podneo zahtev za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatni zahtev za 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Zahtev od 600.000 je po DOK-03 dodatni, a ne ukljucen u 4.200.000 (ukupno je 4.800.000).",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20272",
+   "izlaz": "B_08",
+   "scenarij": "B",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosači solarnih panela nisu oštetili hidroizolaciju krova."
+   ],
+   "obrazlozenje": "Stav tuzioca o nalazu, tacno prenet iz DOK-05."
+  },
+  {
+   "sifra": "X20272",
+   "izlaz": "B_08",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac podseća da je već podneo zahtev za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatni zahtev za 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Prema DOK-03 600.000 din. je dodatni zahtev uz 4.200.000 din. iz tužbe, a ne njihov deo; uz to se citira samo DOK-03, iako je 4.200.000 din. iz DOK-01.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20272",
+   "izlaz": "B_08",
+   "scenarij": "B",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosači solarnih panela nisu oštetili hidroizolaciju krova."
+   ],
+   "obrazlozenje": "Tačan prikaz DOK-05 kao stava tužioca; bez njega je odeljak o nalazu ostao bez stava."
+  },
+  {
+   "sifra": "X63587",
+   "izlaz": "C1_00",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac povlači zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno preneto iz DOK-07 (sadašnje vreme ponavlja formulaciju zapisnika)."
+  },
+  {
+   "sifra": "X63587",
+   "izlaz": "C1_00",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac povlači zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07 (uz manju stilsku ispravku vremena)."
+  },
+  {
+   "sifra": "X58204",
+   "izlaz": "C1_01",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine, tužilac primećuje da je tuženi osporavao nalaz veštaka i predlagao dopunu veštačenja (DOK-06).",
+    "Tužilac smatra da dalja dopuna veštačenja nije potrebna s obzirom na odustajanje tuženog i prihvatanje nalaza veštaka."
+   ],
+   "obrazlozenje": "Prva recenica tacno opisuje DOK-06, a druga je argument tuzioca koji je ispravno njemu pripisan."
+  },
+  {
+   "sifra": "X58204",
+   "izlaz": "C1_01",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine, tužilac primećuje da je tuženi osporavao nalaz veštaka i predlagao dopunu veštačenja (DOK-06).",
+    "Tužilac smatra da dalja dopuna veštačenja nije potrebna s obzirom na odustajanje tuženog i prihvatanje nalaza veštaka."
+   ],
+   "obrazlozenje": "Prva rečenica tačno opisuje DOK-06; druga je jasno pripisan argument tužioca, pa je mogla ostati."
+  },
+  {
+   "sifra": "X94186",
+   "izlaz": "C1_02",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis precizacije iz DOK-07."
+  },
+  {
+   "sifra": "X94186",
+   "izlaz": "C1_02",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-07."
+  },
+  {
+   "sifra": "X20128",
+   "izlaz": "C1_03",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X20128",
+   "izlaz": "C1_03",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M5",
+   "citat": "Tužilac ukazuje da je tuženi u podnesku od 05.09.2026. godine odustao od predloga za dopunu veštačenja i naveo da građevinski dnevnik nije sačuvan (DOK-08). || Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, što je u skladu sa nalazom veštaka (DOK-07). Takođe, tužilac je povukao zahtev za naknadu štete na robi u iznosu od 600.000 dinara (DOK-07).",
+   "obrazlozenje": "Odeljak „Stanje postupka“ koristi DOK-07, ali prećutkuje glavnu odluku iz istog zapisnika (sud je prihvatio dopunu veštačenja i naložio tuženom da dostavi dnevnik). Uz navod o odustanku tuženog, tekst ostavlja utisak da je predlog bio nerešen i da je odustankom pitanje dopune zatvoreno, što ne odgovara spisu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20128",
+   "izlaz": "C1_03",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X80514",
+   "izlaz": "C1_04",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Napominjemo da je tuženi odustao od predloga za dopunu veštačenja (DOK-08), te smatramo da je nalaz veštaka konačan i da ga sud treba prihvatiti kao osnov za donošenje odluke.",
+    "Takođe, povukli smo zahtev za naknadu štete na robi od 600.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“))."
+   ],
+   "obrazlozenje": "Tačno pripisan odustanak tuženog uz argument i tačan opis povlačenja. Rečenica o tome da „tuženi nije dostavio građevinski dnevnik“ nije ubrojana jer spis to ne utvrđuje izričito."
+  },
+  {
+   "sifra": "X80514",
+   "izlaz": "C1_04",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Napominjemo da je tuženi odustao od predloga za dopunu veštačenja (DOK-08), te smatramo da je nalaz veštaka konačan i da ga sud treba prihvatiti kao osnov za donošenje odluke.",
+    "Takođe, povukli smo zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-08 uz pripisan stav tuzioca, i tacan opis povlacenja iz DOK-07. Recenica da „tuženi nije dostavio građevinski dnevnik“ nije legitimna jer spis ne utvrdjuje (ne)postupanje po nalogu."
+  },
+  {
+   "sifra": "X55754",
+   "izlaz": "C1_05",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid nije potreban, posebno imajući u vidu da je tuženi kasnije odustao od predloga za dopunu veštačenja (DOK-06, DOK-08).",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Sud je na ročištu održanom 15.07.2026. godine prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“)."
+   ],
+   "obrazlozenje": "Pripisan argument uz tačan opis odustanka i tačni opisi odluka iz DOK-07. Rečenica „Tužilac očekuje da će tuženi postupiti po nalogu suda“ nije ubrojana jer ignoriše DOK-08 (dnevnik nije sačuvan)."
+  },
+  {
+   "sifra": "X55754",
+   "izlaz": "C1_05",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid nije potreban, posebno imajući u vidu da je tuženi kasnije odustao od predloga za dopunu veštačenja (DOK-06, DOK-08).",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara",
+    "Sud je na ročištu održanom 15.07.2026. godine prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana"
+   ],
+   "obrazlozenje": "Pripisan stav uz tacan opis DOK-08 i tacan opis odluke i radnji iz DOK-07. „Tužilac očekuje da će tuženi postupiti po nalogu suda“ zanemaruje navod iz DOK-08 da dnevnik nije sacuvan."
+  },
+  {
+   "sifra": "X62735",
+   "izlaz": "C1_06",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Stoga, tvrdnje tuženog u vezi sa građevinskim dnevnikom ne mogu biti osnov za osporavanje nalaza veštaka.",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis nalaza, argument tužioca i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X62735",
+   "izlaz": "C1_06",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Stoga, tvrdnje tuženog u vezi sa građevinskim dnevnikom ne mogu biti osnov za osporavanje nalaza veštaka.",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05, legitiman argument tužioca, tačan opis DOK-07."
+  },
+  {
+   "sifra": "X98609",
+   "izlaz": "C1_07",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X98609",
+   "izlaz": "C1_07",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ukazuje da je sud već naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“), te je tuženi u podnesku od 05.09.2026. godine naveo da građevinski dnevnik nije sačuvan (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni navodi da gradjevinski dnevnik nije sacuvan.“).",
+    "Tužilac predlaže da sud, ukoliko nije odlučeno na ročištu, preispita odluku o dopuni veštačenja, s obzirom na to da je tuženi odustao od predloga za dopunu veštačenja (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni odustaje od predloga za dopunu vestacenja.“)."
+   ],
+   "obrazlozenje": "Prva je tačan opis naloga i navoda tuženog (pripisan tuženom); druga je ispravno sročen predlog tužioca koji ne tvrdi da je odluka promenjena."
+  },
+  {
+   "sifra": "X98609",
+   "izlaz": "C1_07",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X98609",
+   "izlaz": "C1_07",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ukazuje da je sud već naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“), te je tuženi u podnesku od 05.09.2026. godine naveo da građevinski dnevnik nije sačuvan (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni navodi da gradjevinski dnevnik nije sacuvan.“).",
+    "Tužilac predlaže da sud, ukoliko nije odlučeno na ročištu, preispita odluku o dopuni veštačenja, s obzirom na to da je tuženi odustao od predloga za dopunu veštačenja (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni odustaje od predloga za dopunu vestacenja.“)."
+   ],
+   "obrazlozenje": "Prva rečenica tačno prenosi nalog suda i navod tuženog (pripisan tuženom); druga je ispravno pripisan predlog tužioca zasnovan na odustanku tuženog, uz ispravno shvatanje da odluka stoji dok se ne preispita."
+  },
+  {
+   "sifra": "X28102",
+   "izlaz": "C1_08",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Takođe, tužilac ukazuje da je tuženi odustao od predloga za dopunu veštačenja (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni odustaje od predloga za dopunu vestacenja.“).",
+    "Tužilac je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju DOK-08 i DOK-07 uz doslovne citate; odustanak tuženog je ključan argument tužioca."
+  },
+  {
+   "sifra": "X28102",
+   "izlaz": "C1_08",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Takođe, tužilac ukazuje da je tuženi odustao od predloga za dopunu veštačenja (DOK-08, podnesak tuzenog (sinteticki predmet), 05.09.2026.: „Tuzeni odustaje od predloga za dopunu vestacenja.“).",
+    "Tužilac je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povukavši zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Obe recenice su tacan opis spisa (DOK-08, DOK-07) i mogle su ostati u tekstu za sud."
+  },
+  {
+   "sifra": "X10058",
+   "izlaz": "C1_09",
+   "scenarij": "C1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis precizacije iz DOK-07."
+  },
+  {
+   "sifra": "X10058",
+   "izlaz": "C1_09",
+   "scenarij": "C1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-07."
+  },
+  {
+   "sifra": "X36664",
+   "izlaz": "C2_00",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Visina štete iznosi 3.150.000 dinara, što je u skladu sa tužbenim zahtevom.",
+   "obrazlozenje": "U SPIS-8 zahtev nije preciziran: iznosi 4.200.000 (DOK-01) plus 600.000 (DOK-03), pa procena od 3.150.000 nije u skladu sa tuzbenim zahtevom.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X36664",
+   "izlaz": "C2_00",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosači solarnih panela nisu oštetili hidroizolaciju krova (DOK-05).",
+    "Smatramo da je nalaz veštaka sveobuhvatan i da dodatno veštačenje nije potrebno.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja i da se postupak nastavi po postojećem nalazu veštaka."
+   ],
+   "obrazlozenje": "Sve tri su ispravno pripisani stavovi i predlozi tuzioca; predlog za dopunu je ponovljen (DOK-07), pa je otvoren."
+  },
+  {
+   "sifra": "X36664",
+   "izlaz": "C2_00",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Visina štete iznosi 3.150.000 dinara, što je u skladu sa tužbenim zahtevom. || Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja",
+   "obrazlozenje": "U SPIS-8 tužbeni zahtev je 4.200.000 din. (uz dodatnih 600.000 din.), a preciziranje nije zabeleženo, pa tvrdnja o „skladu sa tužbenim zahtevom“ nema osnova. Drugi navod (da je na ročištu raspravljano o predlogu) tužilac iznosi kao činjenicu, a spis ga sadrži samo kao navod tuženog (DOK-07); zapisnika nema.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X36664",
+   "izlaz": "C2_00",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosači solarnih panela nisu oštetili hidroizolaciju krova (DOK-05).",
+    "Smatramo da je nalaz veštaka sveobuhvatan i da dodatno veštačenje nije potrebno.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja i da se postupak nastavi po postojećem nalazu veštaka."
+   ],
+   "obrazlozenje": "Tačan prikaz DOK-05 i legitimni stavovi i predlozi tužioca; tuženi je predlog ponovio (DOK-07). Red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X10251",
+   "izlaz": "C2_01",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja (DOK-07).",
+   "obrazlozenje": "DOK-07 je podnesak tuženog, a ne zapisnik; to što je raspravljano je samo navod tuženog, koji tekst iznosi kao činjenicu („podseća sud“) bez pripisivanja tuženom.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X10251",
+   "izlaz": "C2_01",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja (DOK-07).",
+   "obrazlozenje": "U spisu nema zapisnika sa ročišta 15.07.2026.; da se raspravljalo navodi samo tuženi u svom podnesku. Tužilac to iznosi kao utvrđenu činjenicu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X10251",
+   "izlaz": "C2_01",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M5",
+   "citat": "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja (DOK-07).",
+   "obrazlozenje": "DOK-07 je podnesak tuženog, ne zapisnik; tvrdnja tuženog predstavljena je kao činjenica koju potvrđuje dokument.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X10251",
+   "izlaz": "C2_01",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja (DOK-07).",
+   "obrazlozenje": "Šta se desilo na ročištu 15.07.2026. je nepoznato; tekst prikazuje održavanje ročišta i raspravu kao poznate (ishod ostavlja uslovno otvorenim).",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X51280",
+   "izlaz": "C2_02",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac se izjašnjava na izjašnjenje tuženog od 01.07.2026. godine (DOK-06), u kojem tuženi osporava nalaz veštaka i predlaže dopunu veštačenja.",
+    "Tužilac smatra da dodatno veštačenje nije potrebno, s obzirom na to da je veštak već dao jasno mišljenje o uzroku prokišnjavanja koje nije povezano sa postavljanjem solarnih panela.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja i da se postupak nastavi na osnovu već dostavljenih dokaza."
+   ],
+   "obrazlozenje": "Tacan opis DOK-06 i ispravno pripisani stavovi i predlozi tuzioca; predlog tuzenog je ponovljen (DOK-07), pa je otvoren."
+  },
+  {
+   "sifra": "X51280",
+   "izlaz": "C2_02",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac se izjašnjava na izjašnjenje tuženog od 01.07.2026. godine (DOK-06), u kojem tuženi osporava nalaz veštaka i predlaže dopunu veštačenja.",
+    "Tužilac smatra da dodatno veštačenje nije potrebno, s obzirom na to da je veštak već dao jasno mišljenje o uzroku prokišnjavanja koje nije povezano sa postavljanjem solarnih panela.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja i da se postupak nastavi na osnovu već dostavljenih dokaza."
+   ],
+   "obrazlozenje": "Tačan opis DOK-06 i legitimni argument i predlog tužioca o predlogu koji tuženi ponavlja (DOK-07); red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X67037",
+   "izlaz": "C2_03",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X67037",
+   "izlaz": "C2_03",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "1. Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "2. Tužilac se protivi predlogu tuženog za dopunu veštačenja, jer smatra da je veštačenje već obuhvatilo sve relevantne aspekte i da dodatno veštačenje nije potrebno."
+   ],
+   "obrazlozenje": "Ispravno pripisani argumenti tužioca; u SPIS-8 nema odluke koja bi im protivrečila."
+  },
+  {
+   "sifra": "X67037",
+   "izlaz": "C2_03",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "U vezi sa stanjem postupka, tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja",
+   "obrazlozenje": "Održavanje i sadržaj ročišta od 15.07. poznati su samo iz navoda tuženog (nema zapisnika); tužilac to „podseća“ sud kao utvrđenu činjenicu. Ograda „ukoliko već nije odlučeno“ odnosi se samo na odluku.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X67037",
+   "izlaz": "C2_03",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X67037",
+   "izlaz": "C2_03",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "1. Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "2. Tužilac se protivi predlogu tuženog za dopunu veštačenja, jer smatra da je veštačenje već obuhvatilo sve relevantne aspekte i da dodatno veštačenje nije potrebno."
+   ],
+   "obrazlozenje": "Ispravno pripisani argumenti tužioca — srž traženog izjašnjenja na DOK-06; njihovim izostavljanjem sekcija o tuženom je prazna."
+  },
+  {
+   "sifra": "X78881",
+   "izlaz": "C2_04",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X78881",
+   "izlaz": "C2_04",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da predlog tuženog za dopunu veštačenja nije osnovan, s obzirom na to da je veštak već utvrdio relevantne činjenice."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca."
+  },
+  {
+   "sifra": "X78881",
+   "izlaz": "C2_04",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Takođe, tužilac podseća sud da je na ročištu održanom 15.07.2026. godine raspravljano o predlogu tuženog za dopunu veštačenja",
+   "obrazlozenje": "Postojanje i sadržaj ročišta poznati su samo iz navoda tuženog; tekst ga prikazuje kao utvrđenu činjenicu bez ograde o ishodu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X78881",
+   "izlaz": "C2_04",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X78881",
+   "izlaz": "C2_04",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da predlog tuženog za dopunu veštačenja nije osnovan, s obzirom na to da je veštak već utvrdio relevantne činjenice."
+   ],
+   "obrazlozenje": "Ispravno pripisan stav tužioca."
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Prema spisu 600.000 je dodatni zahtev uz 4.200.000, a ne njegov deo.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, kao i predlog tuženog za dopunu veštačenja.",
+    "Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno."
+   ],
+   "obrazlozenje": "Ispravno pripisani argumenti tužioca; u SPIS-8 o predlogu nije poznata odluka."
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac ostaje pri svom tužbenom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući i dodatni zahtev za 600.000 dinara za oštećenu robu u hali (DOK-03, podnesak tuzioca (sinteticki predmet), 02.04.2026.: „Tuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.“).",
+   "obrazlozenje": "Citirani DOK-03 kaže „dodatno“; 600.000 nije uključeno u 4.200.000 (ukupno 4.800.000).",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X20961",
+   "izlaz": "C2_05",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, kao i predlog tuženog za dopunu veštačenja.",
+    "Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno."
+   ],
+   "obrazlozenje": "Ispravno pripisani stavovi tužioca — jedini sadržaj sekcije o izjašnjenju tuženog."
+  },
+  {
+   "sifra": "X14277",
+   "izlaz": "C2_06",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X14277",
+   "izlaz": "C2_06",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "2. Tužilac se protivi predlogu tuženog za dopunu veštačenja, jer smatramo da je nalaz već dovoljno obuhvatan i jasan."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca; u SPIS-8 nema poznate odluke o predlogu."
+  },
+  {
+   "sifra": "X14277",
+   "izlaz": "C2_06",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X14277",
+   "izlaz": "C2_06",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "2. Tužilac se protivi predlogu tuženog za dopunu veštačenja, jer smatramo da je nalaz već dovoljno obuhvatan i jasan."
+   ],
+   "obrazlozenje": "Ispravno pripisan predlog tužioca."
+  },
+  {
+   "sifra": "X62403",
+   "izlaz": "C2_07",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka i visine štete.",
+    "U vezi sa predlogom tuženog za dopunu veštačenja, ponovljenim u podnesku od 20.07.2026. godine (DOK-07), tužilac smatra da dodatno veštačenje nije potrebno, s obzirom na to da je veštak već utvrdio sve relevantne činjenice vezane za uzrok i visinu štete."
+   ],
+   "obrazlozenje": "Oba su argumenti tužioca, a predlog tuženog iz DOK-07 je tačno opisan; obeležje za potpis nije legitiman tekst."
+  },
+  {
+   "sifra": "X62403",
+   "izlaz": "C2_07",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka i visine štete.",
+    "U vezi sa predlogom tuženog za dopunu veštačenja, ponovljenim u podnesku od 20.07.2026. godine (DOK-07), tužilac smatra da dodatno veštačenje nije potrebno, s obzirom na to da je veštak već utvrdio sve relevantne činjenice vezane za uzrok i visinu štete."
+   ],
+   "obrazlozenje": "Obe rečenice su argument tužioca; druga tačno opisuje DOK-07 (tuženi ponavlja predlog). Obeležje [PROVERITI] nije legitiman tekst."
+  },
+  {
+   "sifra": "X96520",
+   "izlaz": "C2_08",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac osporava tvrdnje tuženog iznete u izjašnjenju na nalaz veštaka, prema kojima veštak nije izvršio uvid u građevinski dnevnik i predlaže dopunu veštačenja (DOK-06).",
+    "Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "Predlažemo da sud odbije predlog tuženog za dopunu veštačenja i donese presudu u skladu sa nalazom veštaka."
+   ],
+   "obrazlozenje": "Sve tri su ispravno pripisani argumenti i predlozi tuzioca. Predlog za dopunu je otvoren, jer ga je tuzeni ponovio u DOK-07."
+  },
+  {
+   "sifra": "X96520",
+   "izlaz": "C2_08",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac osporava tvrdnje tuženog iznete u izjašnjenju na nalaz veštaka, prema kojima veštak nije izvršio uvid u građevinski dnevnik i predlaže dopunu veštačenja (DOK-06).",
+    "Smatramo da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "Predlažemo da sud odbije predlog tuženog za dopunu veštačenja i donese presudu u skladu sa nalazom veštaka."
+   ],
+   "obrazlozenje": "Tačno pripisani stavovi i predlozi tužioca; predlog tuženog je u spisu ponovljen (DOK-07), pa je predlog za odbijanje legitiman bez obzira na nepoznat ishod ročišta."
+  },
+  {
+   "sifra": "X54971",
+   "izlaz": "C2_09",
+   "scenarij": "C2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja, s obzirom na to da je nalaz veštaka već dostavljen i da je potpun."
+   ],
+   "obrazlozenje": "Argument i predlog tužioca bez netačne tvrdnje o odluci suda."
+  },
+  {
+   "sifra": "X54971",
+   "izlaz": "C2_09",
+   "scenarij": "C2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja, s obzirom na to da je nalaz veštaka već dostavljen i da je potpun."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument i predlog tužioca; predlog tuženog je u spisu ponovljen i nerešen."
+  },
+  {
+   "sifra": "X10349",
+   "izlaz": "H1_00",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X10349",
+   "izlaz": "H1_00",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je veštačenje sprovedeno u skladu sa pravilima struke, te da dodatno veštačenje nije potrebno, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Stanje postupka je takvo da je tužilac precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno odgovaraju zapisniku u SPIS-1."
+  },
+  {
+   "sifra": "X10349",
+   "izlaz": "H1_00",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X10349",
+   "izlaz": "H1_00",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je veštačenje sprovedeno u skladu sa pravilima struke, te da dodatno veštačenje nije potrebno, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Stanje postupka je takvo da je tužilac precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe tačno odgovaraju zapisniku SPIS-1."
+  },
+  {
+   "sifra": "X38623",
+   "izlaz": "H1_01",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik i smatra da dodatno veštačenje nije potrebno, s obzirom na to da je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac takođe želi da istakne da je povukao zahtev za naknadu štete na robi u iznosu od 600.000 dinara, što je evidentirano u zapisniku sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno prenose DOK-07."
+  },
+  {
+   "sifra": "X38623",
+   "izlaz": "H1_01",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik i smatra da dodatno veštačenje nije potrebno, s obzirom na to da je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac takođe želi da istakne da je povukao zahtev za naknadu štete na robi u iznosu od 600.000 dinara, što je evidentirano u zapisniku sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju DOK-07 SPIS-1."
+  },
+  {
+   "sifra": "X53178",
+   "izlaz": "H1_02",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno vršiti dopunu veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "U vezi sa stanjem postupka, tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), te da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno prikazuju odluke iz DOK-07 uz doslovne citate."
+  },
+  {
+   "sifra": "X53178",
+   "izlaz": "H1_02",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno vršiti dopunu veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja",
+    "U vezi sa stanjem postupka, tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara"
+   ],
+   "obrazlozenje": "Obe su tacne prema DOK-07 i predstavljaju sustinu trazenog izjasnjenja."
+  },
+  {
+   "sifra": "X46195",
+   "izlaz": "H1_03",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "1. Tužilac osporava tvrdnju tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "2. Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "2. Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07 i argument tužioca."
+  },
+  {
+   "sifra": "X46195",
+   "izlaz": "H1_03",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "1. Tužilac osporava tvrdnju tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "2. Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "2. Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno pozivanje na odluku od 15.07.2026., argument tužioca i tačan opis povlačenja."
+  },
+  {
+   "sifra": "X63790",
+   "izlaz": "H1_04",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, što je i sud potvrdio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Što se tiče stanja postupka, tužilac je već precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), a povukao je zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno prikazuju DOK-07."
+  },
+  {
+   "sifra": "X63790",
+   "izlaz": "H1_04",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, što je i sud potvrdio odbijanjem predloga tuženog za dopunu veštačenja",
+    "Što se tiče stanja postupka, tužilac je već precizirao tužbeni zahtev na iznos od 3.150.000 dinara"
+   ],
+   "obrazlozenje": "Obe su tacne prema DOK-07."
+  },
+  {
+   "sifra": "X79838",
+   "izlaz": "H1_05",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), i povlači zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Stav tužioca o nalazu i tačan opis precizacije i povlačenja, uz citat zapisnika."
+  },
+  {
+   "sifra": "X79838",
+   "izlaz": "H1_05",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-05 i DOK-07 (uz manju vremensku nepreciznost „povlači“ umesto „povukao je“)."
+  },
+  {
+   "sifra": "X43007",
+   "izlaz": "H1_06",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, s obzirom na to da je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Odbijanje dopune i povlačenje zahteva tačno su preneti iz DOK-07; argument je ispravno pripisan tužiocu."
+  },
+  {
+   "sifra": "X43007",
+   "izlaz": "H1_06",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa izjašnjenjem tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, s obzirom na to da je sud već odbio predlog tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju DOK-07 SPIS-1 i ispravno su argument/navod tužioca."
+  },
+  {
+   "sifra": "X60879",
+   "izlaz": "H1_07",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07."
+  },
+  {
+   "sifra": "X60879",
+   "izlaz": "H1_07",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07."
+  },
+  {
+   "sifra": "X49217",
+   "izlaz": "H1_08",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X49217",
+   "izlaz": "H1_08",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nema potrebe za dopunom veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Podsećamo da je tužilac precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno odgovaraju zapisniku DOK-07 u SPIS-1."
+  },
+  {
+   "sifra": "X49217",
+   "izlaz": "H1_08",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X49217",
+   "izlaz": "H1_08",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nema potrebe za dopunom veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Podsećamo da je tužilac precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice tačno odgovaraju zapisniku iz SPIS-1."
+  },
+  {
+   "sifra": "X34105",
+   "izlaz": "H1_09",
+   "scenarij": "H1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka jasan i potpun, te da nema potrebe za dopunom veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac podseća da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Ukoliko sud smatra da su potrebna dodatna pojašnjenja, tužilac je spreman da ih pruži na zakazanom ročištu dana 18.11.2026. godine."
+   ],
+   "obrazlozenje": "U SPIS-1 sud je zaista odbio dopunu i tužilac je precizirao/povukao zahtev; treća rečenica je uobičajen procesni tekst."
+  },
+  {
+   "sifra": "X34105",
+   "izlaz": "H1_09",
+   "scenarij": "H1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka jasan i potpun, te da nema potrebe za dopunom veštačenja, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac podseća da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Ukoliko sud smatra da su potrebna dodatna pojašnjenja, tužilac je spreman da ih pruži na zakazanom ročištu dana 18.11.2026. godine."
+   ],
+   "obrazlozenje": "U SPIS-1 sud je zaista odbio dopunu, a zahtev je precizno opisan; treća rečenica je uobičajen procesni tekst."
+  },
+  {
+   "sifra": "X17443",
+   "izlaz": "H2_00",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), u kojem tuženi osporava nalaz veštaka i predlaže dopunu veštačenja, tužilac smatra da je nalaz veštaka dovoljno jasan i potpun, te da dodatna veštačenja nisu potrebna.",
+    "Međutim, tužilac će postupiti po nalogu suda i izvršiti uplatu predujma za dopunu veštačenja u iznosu od 60.000 dinara, kako je naloženo zapisnikom sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara.“).",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca, tačan opis naloga (najava buduće uplate, bez tvrdnje da je izvršena) i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X17443",
+   "izlaz": "H2_00",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), u kojem tuženi osporava nalaz veštaka i predlaže dopunu veštačenja, tužilac smatra da je nalaz veštaka dovoljno jasan i potpun, te da dodatna veštačenja nisu potrebna.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-07. Rečenica o budućoj uplati predujma nije ubrojana jer implicitno tvrdi da uplata nije izvršena, što spis ne utvrđuje."
+  },
+  {
+   "sifra": "X45489",
+   "izlaz": "H2_01",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X45489",
+   "izlaz": "H2_01",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog na nalaz veštaka (DOK-06), tužilac smatra da tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik nisu od značaja za utvrđivanje uzroka štete, s obzirom na to da je veštak jasno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument. Protivljenje dopuni (već prihvaćenoj) i „postupio po nalogu suda i precizirao“ (nema naloga) s pravom su izostavljeni."
+  },
+  {
+   "sifra": "X45489",
+   "izlaz": "H2_01",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X45489",
+   "izlaz": "H2_01",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog na nalaz veštaka (DOK-06), tužilac smatra da tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik nisu od značaja za utvrđivanje uzroka štete, s obzirom na to da je veštak jasno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Argument tužioca. Protivljenje dopuni (o kojoj je sud već odlučio) i tvrdnja da je tužilac „postupio po nalogu suda“ precizirajući zahtev ne bi bili ispravni."
+  },
+  {
+   "sifra": "X76526",
+   "izlaz": "H2_02",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara, kako je navedeno u zapisniku sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis precizacije. Rečenica „spreman da uplati predujam“ s pravom je izostavljena jer prejudicira neutvrđeno stanje uplate i roka."
+  },
+  {
+   "sifra": "X76526",
+   "izlaz": "H2_02",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara, kako je navedeno u zapisniku sa ročišta od 15.07.2026. godine"
+   ],
+   "obrazlozenje": "Tacan opis DOK-07. Recenica da je tuzilac „spreman da uplati predujam“ nije legitimna (podrazumeva neuplatu i ignorise rok koji je mozda istekao)."
+  },
+  {
+   "sifra": "X13474",
+   "izlaz": "H2_03",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče stanja postupka, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara, i spreman je za nastavak postupka na zakazanom ročištu dana 18.11.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis stanja iz DOK-07. Rečenica „ukoliko sud smatra drugačije“ s pravom je izostavljena jer prikazuje dopunu kao neodlučenu, a tvrdnja o izvršenoj uplati jer je neutvrđena."
+  },
+  {
+   "sifra": "X13474",
+   "izlaz": "H2_03",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče stanja postupka, tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara, i spreman je za nastavak postupka na zakazanom ročištu dana 18.11.2026. godine"
+   ],
+   "obrazlozenje": "Tacan opis DOK-07. „ali će postupiti po nalogu suda ukoliko sud smatra drugačije“ prikazuje vec doneti nalog kao neodlucen; „Tužilac je izvršio uplatu predujma“ spis ne utvrdjuje."
+  },
+  {
+   "sifra": "X66184",
+   "izlaz": "H2_05",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+    "Tužilac je, u skladu sa zapisnikom sa ročišta od 15.07.2026. godine, precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“).",
+    "Takođe, tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Ispravno pripisan stav i tacan prenos zapisnika."
+  },
+  {
+   "sifra": "X66184",
+   "izlaz": "H2_05",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+    "Tužilac je, u skladu sa zapisnikom sa ročišta od 15.07.2026. godine, precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“).",
+    "Takođe, tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Prva rečenica je argument tužioca na prigovor tuženog, a druga i treća tačno citiraju DOK-07. Red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X49012",
+   "izlaz": "H2_06",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik i da je potrebno dopuniti veštačenje.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“) i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Sve tri recenice su stav tuzioca o nalazu, argument tuzioca ili tacan opis zapisnika. Bez njih tekst nema smisla."
+  },
+  {
+   "sifra": "X49012",
+   "izlaz": "H2_06",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik i da je potrebno dopuniti veštačenje.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“) i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Prihvatanje nalaza i osporavanje su stavovi tužioca koji tačno prenose DOK-05/DOK-06; preciziranje i povlačenje su tačno citirani iz DOK-07. Red sa [PROVERITI] nije legitiman."
+  },
+  {
+   "sifra": "X99345",
+   "izlaz": "H2_07",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X99345",
+   "izlaz": "H2_07",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče stanja postupka, tužilac je, prema zapisniku sa ročišta od 15.07.2026. godine (DOK-07), precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara, te je sud prihvatio predlog za dopunu veštačenja i naložio uplatu predujma za dopunu veštačenja u iznosu od 60.000 dinara."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika DOK-07. Tvrdnja o izvršenoj uplati je s pravom izostavljena."
+  },
+  {
+   "sifra": "X99345",
+   "izlaz": "H2_07",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X99345",
+   "izlaz": "H2_07",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je veštačenje sprovedeno u skladu sa pravilima struke i da dodatni uvid u građevinski dnevnik nije neophodan, s obzirom na to da je veštak već utvrdio uzrok prokišnjavanja.",
+    "Što se tiče stanja postupka, tužilac je, prema zapisniku sa ročišta od 15.07.2026. godine (DOK-07), precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao zahtev za naknadu štete na robi od 600.000 dinara, te je sud prihvatio predlog za dopunu veštačenja i naložio uplatu predujma za dopunu veštačenja u iznosu od 60.000 dinara."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis zapisnika; rečenica o izvršenoj uplati ispravno izostavljena."
+  },
+  {
+   "sifra": "X23613",
+   "izlaz": "H2_08",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X23613",
+   "izlaz": "H2_08",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika. Rečenica „nije potrebno dodatno veštačenje“ nije uračunata jer sud je dopunu već prihvatio."
+  },
+  {
+   "sifra": "X23613",
+   "izlaz": "H2_08",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X23613",
+   "izlaz": "H2_08",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, s obzirom na to da je veštak već utvrdio uzrok i visinu štete.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Prva je stav tužioca (argument), druga tačan opis zapisnika."
+  },
+  {
+   "sifra": "X17101",
+   "izlaz": "H2_09",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X17101",
+   "izlaz": "H2_09",
+   "scenarij": "H2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "3. Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“)), povukavši zahtev za naknadu štete na robi od 600.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)).",
+    "4. Tužilac je u obavezi da uplati predujam za dopunu veštačenja u iznosu od 60.000 dinara u roku od 8 dana od prijema zapisnika ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara.“))."
+   ],
+   "obrazlozenje": "Obe rečenice su tačan opis zapisnika DOK-07 (preciziranje/povlačenje i nalog o predujmu bez tvrdnje o uplati)."
+  },
+  {
+   "sifra": "X17101",
+   "izlaz": "H2_09",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X17101",
+   "izlaz": "H2_09",
+   "scenarij": "H2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "3. Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“)), povukavši zahtev za naknadu štete na robi od 600.000 dinara ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)).",
+    "4. Tužilac je u obavezi da uplati predujam za dopunu veštačenja u iznosu od 60.000 dinara u roku od 8 dana od prijema zapisnika ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara.“))."
+   ],
+   "obrazlozenje": "Obe rečenice tačno opisuju zapisnik od 15.07.2026. (preciziranje/povlačenje i nalog o predujmu). Obećanje „Tužilac će postupiti po nalogu…“ nije ubrojano jer prejudicira neutvrđeno stanje uplate."
+  },
+  {
+   "sifra": "X47285",
+   "izlaz": "N1_00",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M7",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, kako je navedeno u tužbi (DOK-01), kao i dodatnom zahtevu za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara (DOK-03).",
+   "obrazlozenje": "Zapisnik DOK-07 je nečitljiv, pa nije poznato da li je zahtev na ročištu menjan; tekst stanje zahteva prikazuje kao poznato i nepromenjeno.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X47285",
+   "izlaz": "N1_00",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nije potrebna dopuna veštačenja, jer je veštak jasno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Ispravno pripisan argument tužioca."
+  },
+  {
+   "sifra": "X47285",
+   "izlaz": "N1_00",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Tužilac ostaje pri svom zahtevu za naknadu štete u iznosu od 4.200.000 dinara, kako je navedeno u tužbi (DOK-01), kao i dodatnom zahtevu za naknadu štete za oštećenu robu u hali u iznosu od 600.000 dinara (DOK-03).",
+   "obrazlozenje": "Zapisnik (DOK-07) je nečitljiv, pa nije poznato da li je zahtev menjan; tekst stanje zahteva prikazuje kao nepromenjeno, bez ograde.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X47285",
+   "izlaz": "N1_00",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nije potrebna dopuna veštačenja, jer je veštak jasno utvrdio uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Stav tužioca."
+  },
+  {
+   "sifra": "X54292",
+   "izlaz": "N1_04",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X54292",
+   "izlaz": "N1_04",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X45694",
+   "izlaz": "N1_05",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "tužilac ističe da je reklamaciju u vezi sa prokišnjavanjem podneo dana 08.09.2025. godine, što je u skladu sa priloženom povratnicom PK-4471 (DOK-03, podnesak tuzioca (sinteticki predmet), 02.04.2026.: „Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.“)",
+   "obrazlozenje": "Navedeni citat se odnosi na datum postavljanja panela, a ne na povratnicu. Povratnica dokazuje uručenje 08.09.2025, a ne datum podnošenja reklamacije.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X45694",
+   "izlaz": "N1_05",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X45694",
+   "izlaz": "N1_05",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M5",
+   "citat": "što je u skladu sa priloženom povratnicom PK-4471 (DOK-03, podnesak tuzioca (sinteticki predmet), 02.04.2026.: „Tuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.“)",
+   "obrazlozenje": "Navedeni citat iz DOK-03 odnosi se na datum postavljanja panela, ne na povratnicu; tvrdnja je potkrepljena pogresnim citatom.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X45694",
+   "izlaz": "N1_05",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X85942",
+   "izlaz": "N1_06",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac se protivi predlogu tuženog za dopunu veštačenja, budući da je nalaz i mišljenje veštaka već dovoljno jasno i precizno utvrdilo uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Legitiman procesni stav tužioca; ne tvrdi ništa o odluci suda."
+  },
+  {
+   "sifra": "X85942",
+   "izlaz": "N1_06",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac se protivi predlogu tuženog za dopunu veštačenja, budući da je nalaz i mišljenje veštaka već dovoljno jasno i precizno utvrdilo uzrok prokišnjavanja."
+   ],
+   "obrazlozenje": "Legitiman, ispravno pripisan predlog tuzioca o predlogu tuzenog."
+  },
+  {
+   "sifra": "X60446",
+   "izlaz": "N1_07",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M1",
+   "citat": "tužilac ostaje pri zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Po DOK-03 600.000 din se traži dodatno uz 4.200.000; tekst ga prikazuje kao deo 4.200.000.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X60446",
+   "izlaz": "N1_07",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "te da je reklamacija tužioca dostavljena tuženom dana 08.09.2025. godine, što je u skladu sa dostavljenom povratnicom PK-4471 (DOK-01, tuzba radi naknade stete (sinteticki predmet), 10.02.2026.: „Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.“)",
+   "obrazlozenje": "Povratnica PK-4471 potiče iz DOK-03, a navedeni citat iz DOK-01 se odnosi na iznos zahteva i ne potkrepljuje tvrdnju o dostavi reklamacije.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X60446",
+   "izlaz": "N1_07",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "tužilac ostaje pri zahtevu za naknadu štete u iznosu od 4.200.000 dinara, uključujući dodatnih 600.000 dinara za oštećenu robu u hali",
+   "obrazlozenje": "Po spisu je 600.000 trazeno dodatno uz 4.200.000 (DOK-03), a ne kao deo tog iznosa.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X60446",
+   "izlaz": "N1_07",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M5",
+   "citat": "što je u skladu sa dostavljenom povratnicom PK-4471 (DOK-01, tuzba radi naknade stete (sinteticki predmet), 10.02.2026.: „Tuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.“)",
+   "obrazlozenje": "Povratnica PK-4471 prilozena je uz DOK-03; navedeni izvor i citat iz DOK-01 ne odnose se na dostavu reklamacije.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X93921",
+   "izlaz": "N1_08",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M7",
+   "citat": "Tužilac takođe podseća sud da je u podnesku od 02.04.2026. godine (DOK-03) već zatražio dodatnu naknadu štete u iznosu od 600.000 dinara za oštećenu robu u hali, što je i dalje predmet našeg zahteva. || S obzirom na navedeno, tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja",
+   "obrazlozenje": "Zapisnik DOK-07 je nečitljiv, pa se ne zna da li je zahtev u međuvremenu menjan ni da li je o dopuni već odlučeno; tekst oba pitanja prikazuje kao poznata (zahtev nepromenjen, predlog nerešen).",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X93921",
+   "izlaz": "N1_08",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK) || [Potpis tužioca]",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X93921",
+   "izlaz": "N1_08",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Tužilac takođe podseća sud da je u podnesku od 02.04.2026. godine (DOK-03) već zatražio dodatnu naknadu štete u iznosu od 600.000 dinara za oštećenu robu u hali, što je i dalje predmet našeg zahteva. || S obzirom na navedeno, tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja",
+   "obrazlozenje": "Zapisnik sa ročišta (DOK-07) je nečitljiv; tekst prikazuje kao poznato da zahtev od 600.000 nije menjan i (implicitno) da o dopuni još nije odlučeno, bez ikakve ograde.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X93921",
+   "izlaz": "N1_08",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK) (4a — izvoz dozvoljen)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X41559",
+   "izlaz": "N1_09",
+   "scenarij": "N1",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X41559",
+   "izlaz": "N1_09",
+   "scenarij": "N1",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X48215",
+   "izlaz": "N2_00",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "3. Tužilac podseća sud da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika DOK-07."
+  },
+  {
+   "sifra": "X48215",
+   "izlaz": "N2_00",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "3. Tužilac podseća sud da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07."
+  },
+  {
+   "sifra": "X95197",
+   "izlaz": "N2_01",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M7",
+   "citat": "Tužilac smatra da je veštačenje kompletno i da nije potrebno dodatno veštačenje, s obzirom da je sud već odbio predlog tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+   "obrazlozenje": "Spis je protivrečan (DOK-07 prihvata dopunu i nalaže dnevnik, DOK-08 odbija predlog); tekst pitanje prikazuje kao rešeno bez pomena protivrečnosti.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X95197",
+   "izlaz": "N2_01",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X95197",
+   "izlaz": "N2_01",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac se izjašnjava na izjašnjenje tuženog od 01.07.2026. godine (DOK-06), kojim tuženi osporava nalaz veštaka i predlaže dopunu veštačenja.",
+    "U vezi sa stanjem postupka, tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), a da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-06 i zapisnika DOK-07."
+  },
+  {
+   "sifra": "X95197",
+   "izlaz": "N2_01",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X95197",
+   "izlaz": "N2_01",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac se izjašnjava na izjašnjenje tuženog od 01.07.2026. godine (DOK-06), kojim tuženi osporava nalaz veštaka i predlaže dopunu veštačenja.",
+    "U vezi sa stanjem postupka, tužilac podseća da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), a da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-06 i zapisnika."
+  },
+  {
+   "sifra": "X86833",
+   "izlaz": "N2_02",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M7",
+   "citat": "Sud je već odbio predlog tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“), te smatramo da dodatno veštačenje nije potrebno.",
+   "obrazlozenje": "Spis je protivrečan (15.07. dopuna prihvaćena i naložena dostava dnevnika, 10.09. predlog odbijen); tekst pitanje dopune prikazuje kao rešeno, bez pomena ranije odluke i naloga.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X86833",
+   "izlaz": "N2_02",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X86833",
+   "izlaz": "N2_02",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče stanja postupka, tužilac podseća da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika DOK-07."
+  },
+  {
+   "sifra": "X86833",
+   "izlaz": "N2_02",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X86833",
+   "izlaz": "N2_02",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče stanja postupka, tužilac podseća da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika."
+  },
+  {
+   "sifra": "X50647",
+   "izlaz": "N2_03",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, kao i predlog za dopunu veštačenja, koji je sud već odbio (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac smatra da je veštačenje sprovedeno u skladu sa pravilima struke i da dodatna dopuna nije potrebna.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis kasnije odluke iz DOK-08, argument tužioca i tačan opis DOK-07."
+  },
+  {
+   "sifra": "X50647",
+   "izlaz": "N2_03",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, kao i predlog za dopunu veštačenja, koji je sud već odbio (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac smatra da je veštačenje sprovedeno u skladu sa pravilima struke i da dodatna dopuna nije potrebna.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno pozivanje na poslednju odluku (DOK-08), argument tužioca, tačan opis DOK-07."
+  },
+  {
+   "sifra": "X83582",
+   "izlaz": "N2_04",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a ne postavljanje solarnih panela.",
+    "U vezi sa stanjem postupka, tužilac podseća da je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“), te da je tužbeni zahtev sada preciziran na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“)."
+   ],
+   "obrazlozenje": "Stav o nalazu i tačan opis DOK-07. Rečenica o osporavanju „s obzirom na to da je sud već naložio tuženom da dostavi građevinski dnevnik“ nije ubrojana: zaključak ne sledi, a status naloga posle 10.09. je nejasan."
+  },
+  {
+   "sifra": "X83582",
+   "izlaz": "N2_04",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Tužilac smatra da je sud pravilno odbio predlog tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“), jer je nalaz veštaka jasan i precizan.",
+   "obrazlozenje": "Spis je protivrecan (15.07. dopuna prihvacena i nalozen dnevnik, 10.09. predlog odbijen); tekst prikazuje pitanje dopune kao reseno odbijanjem, bez pominjanja ranije odluke i naloga.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X83582",
+   "izlaz": "N2_04",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a ne postavljanje solarnih panela.",
+    "U vezi sa izjašnjenjem tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, s obzirom na to da je sud već naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana",
+    "U vezi sa stanjem postupka, tužilac podseća da je povukao zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-05 i DOK-07; njihovo izostavljanje je upravo ucinilo prikaz stanja jednostranim."
+  },
+  {
+   "sifra": "X91952",
+   "izlaz": "N2_05",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac podseća da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Recenica tacno prenosi zapisnik DOK-07."
+  },
+  {
+   "sifra": "X91952",
+   "izlaz": "N2_05",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac podseća da je na ročištu održanom 15.07.2026. godine precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno citirano iz DOK-07; odeljak „O stanju postupka“ je zbog izostavljanja ostao prazan. Red [PROVERITI: ime i prezime advokata] je obeležje."
+  },
+  {
+   "sifra": "X46918",
+   "izlaz": "N2_06",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka građevinske struke Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka u delu koji se odnosi na utvrđeni uzrok prokišnjavanja, odnosno neodgovarajuće izvedenu hidroizolaciju na spoju atike.",
+    "Tužilac podseća da je sud na ročištu održanom dana 15.07.2026. godine prihvatio predlog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), ali je na ročištu održanom dana 10.09.2026. godine odbio predlog tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“)."
+   ],
+   "obrazlozenje": "Stav tužioca o nalazu i tačan hronološki opis obe odluke. Rečenica koja osporava tuženog „jer je sud već naložio tuženom da dostavi građevinski dnevnik“ nije ubrojana: zaključak ne sledi, a status naloga posle 10.09. nije jasan."
+  },
+  {
+   "sifra": "X46918",
+   "izlaz": "N2_06",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka građevinske struke Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka u delu koji se odnosi na utvrđeni uzrok prokišnjavanja, odnosno neodgovarajuće izvedenu hidroizolaciju na spoju atike.",
+    "U vezi sa izjašnjenjem tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana",
+    "Tužilac podseća da je sud na ročištu održanom dana 15.07.2026. godine prihvatio predlog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), ali je na ročištu održanom dana 10.09.2026. godine odbio predlog tuženog za dopunu veštačenja"
+   ],
+   "obrazlozenje": "Sve tri su tacan opis DOK-05/DOK-07/DOK-08 (treca verno prikazuje obe odluke) i mogle su ostati."
+  },
+  {
+   "sifra": "X83700",
+   "izlaz": "N2_07",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe recenice tacno prenose spis: poslednja odluka 10.09.2026. jeste odbijanje dopune, a povlacenje zahteva od 600.000 jeste u zapisniku. Rezervisano mesto za potpis s oznakom PROVERITI s pravom je izostavljeno."
+  },
+  {
+   "sifra": "X83700",
+   "izlaz": "N2_07",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, što je sud već odlučio odbijanjem predloga tuženog za dopunu veštačenja (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "- Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe rečenice su tačne prema spisu (DOK-08 je poslednja odluka o dopuni; povlačenje je u DOK-07) i bile su legitiman sadržaj; red sa [PROVERITI] potpisom nije legitiman tekst."
+  },
+  {
+   "sifra": "X88391",
+   "izlaz": "N2_08",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“) i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05 i DOK-07."
+  },
+  {
+   "sifra": "X88391",
+   "izlaz": "N2_08",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“) i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05 i DOK-07."
+  },
+  {
+   "sifra": "X11965",
+   "izlaz": "N2_09",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X11965",
+   "izlaz": "N2_09",
+   "scenarij": "N2",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatramo da je predlog za dopunu veštačenja neopravdan, naročito imajući u vidu da je sud već odbio taj predlog (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac se izjašnjava da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Ukoliko sud nije odlučio o pitanju dostavljanja građevinskog dnevnika od strane tuženog, tužilac predlaže da se utvrdi da li je tuženi postupio po nalogu suda (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“)."
+   ],
+   "obrazlozenje": "Prva tačno citira DOK-08 (uz rezervu protivrečnosti sa DOK-07), druga je tačan opis zapisnika, treća je uslovno sročen legitiman predlog."
+  },
+  {
+   "sifra": "X11965",
+   "izlaz": "N2_09",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X11965",
+   "izlaz": "N2_09",
+   "scenarij": "N2",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatramo da je predlog za dopunu veštačenja neopravdan, naročito imajući u vidu da je sud već odbio taj predlog (DOK-08, zapisnik sa rocista (sinteticki predmet), 10.09.2026.: „Sud odbija predlog tuzenog za dopunu vestacenja.“).",
+    "Tužilac se izjašnjava da je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Ukoliko sud nije odlučio o pitanju dostavljanja građevinskog dnevnika od strane tuženog, tužilac predlaže da se utvrdi da li je tuženi postupio po nalogu suda (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuzenom da dostavi gradjevinski dnevnik u roku od 15 dana.“)."
+   ],
+   "obrazlozenje": "Sve tri tačno odgovaraju spisu (poslednja odluka od 10.09., zapisnik od 15.07.) i ispravno su pripisane; treća je uslovljen predlog."
+  },
+  {
+   "sifra": "X83810",
+   "izlaz": "N3_00",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i precizan, te da dopuna veštačenja nije potrebna.",
+    "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen.",
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara, kako je navedeno u zapisniku sa ročišta od 15.07.2026. godine."
+   ],
+   "obrazlozenje": "Pripisan argument i tačni opisi DOK-08, DOK-09 i DOK-07. Rečenica „Tužilac će dostaviti dokaz o uplati predujma na sledećem ročištu“ nije ubrojana jer pretpostavlja neutvrđenu uplatu."
+  },
+  {
+   "sifra": "X83810",
+   "izlaz": "N3_00",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i precizan, te da dopuna veštačenja nije potrebna.",
+    "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen.",
+    "Tužilac ostaje pri preciziranom tužbenom zahtevu na iznos od 3.150.000 dinara, kako je navedeno u zapisniku sa ročišta od 15.07.2026. godine."
+   ],
+   "obrazlozenje": "Pripisan stav tuzioca i tacni opisi DOK-08, DOK-09 i DOK-07. Recenica „Tužilac će dostaviti dokaz o uplati predujma“ nije legitimna jer pretpostavlja uplatu koju spis ne utvrdjuje; potpisni red sa PROVERITI nije tekst za sud."
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Kao stanje postupka iznosi se samo tvrdnja tužioca, a prećutkuje se DOK-09 (sud konstatuje da dokaz o uplati nije dostavljen), pa prikaz stanja postaje obmanjujući.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-09. Rečenica „Tužilac smatra da su navodi tuženog neosnovani, budući da je sud već prihvatio predlog za dopunu...“ nije ubrojana, jer joj je obrazloženje nelogično; „Tužilac će dostaviti dokaz o uplati...“ nije ubrojana, jer pretpostavlja uplatu."
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M3",
+   "citat": "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Tužilac u sopstvenom podnesku ponavlja svoju tvrdnju o uplati kao jedino stanje, iako spis uplatu ne utvrđuje, a sud konstatuje da dokaz nije dostavljen.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M5",
+   "citat": "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Prećutano je obaveštenje suda DOK-09 (01.09.2026) da dokaz o uplati nije dostavljen, pa opis stanja postupka postaje obmanjujući.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M7",
+   "citat": "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Uplata predujma je protivrečna (DOK-08 vs DOK-09); tekst iznosi samo jednu stranu i time je prikazuje kao rešenu u korist tužioca.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X20267",
+   "izlaz": "N3_01",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-09 koji je trebalo da ostane. Rečenica o „neosnovanim“ navodima nije ubrojana (nelogično obrazloženje), a obećanje dostave dokaza implicira neutvrđenu uplatu."
+  },
+  {
+   "sifra": "X46162",
+   "izlaz": "N3_02",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "Tužilac je u podnesku od 20.07.2026. godine naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Tužilac u sopstvenom podnesku ponavlja navod o uplati, a prećutkuje obaveštenje suda od 01.09.2026. (DOK-09) da dokaz nije dostavljen. Tako sudu implicitno tvrdi da je obaveza izvršena.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X46162",
+   "izlaz": "N3_02",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nema potrebe za dopunom veštačenja.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-09. „Tužilac će na ročištu dostaviti dokaz o uplati predujma“ nije ubrojano jer pretpostavlja neutvrđenu uplatu."
+  },
+  {
+   "sifra": "X46162",
+   "izlaz": "N3_02",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nema potrebe za dopunom veštačenja.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Pripisan stav i tacan opis DOK-09. „Tužilac će na ročištu dostaviti dokaz o uplati predujma“ pretpostavlja uplatu koju spis ne utvrdjuje."
+  },
+  {
+   "sifra": "X43498",
+   "izlaz": "N3_03",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M5",
+   "citat": "Tužilac je, prema podnesku od 20.07.2026. godine, naveo da je uplatio predujam za dopunu veštačenja (DOK-08).",
+   "obrazlozenje": "Ponavlja se navod o uplati, a prećutkuje obaveštenje suda od 01.09.2026. (DOK-09) da dokaz nije dostavljen, pa tekst sudu implicitno sugeriše izvršenu obavezu.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X43498",
+   "izlaz": "N3_03",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je veštačenje već dovoljno i da dodatna dopuna nije potrebna, s obzirom na to da je veštak već dao svoj stručni nalaz.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-09. Obećanje dostave dokaza i predlog „ukoliko sud smatra da je to neophodno“ nisu ubrojani: pretpostavljaju neutvrđenu uplatu, odnosno prikazuju dopunu kao neodlučenu."
+  },
+  {
+   "sifra": "X43498",
+   "izlaz": "N3_03",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je veštačenje već dovoljno i da dodatna dopuna nije potrebna, s obzirom na to da je veštak već dao svoj stručni nalaz.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Pripisan stav i tacan opis DOK-09. Recenice o dostavljanju dokaza i o dopuni „ukoliko sud smatra da je to neophodno“ pretpostavljaju neutvrdjenu uplatu i prikazuju vec donetu odluku kao otvorenu."
+  },
+  {
+   "sifra": "X34356",
+   "izlaz": "N3_04",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "5. Tužilac je povukao zahtev za naknadu štete na robi u iznosu od 600.000 dinara, što je evidentirano u zapisniku sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Povlacenje je tacno preneto. Recenica o uplacenom predujmu s pravom je izostavljena, jer sud u DOK-09 konstatuje da dokaz o uplati nije dostavljen."
+  },
+  {
+   "sifra": "X34356",
+   "izlaz": "N3_04",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "5. Tužilac je povukao zahtev za naknadu štete na robi u iznosu od 600.000 dinara, što je evidentirano u zapisniku sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno prema DOK-07. Tačka 4 (da je predujam „već uplaćen“) s pravom je izostavljena jer sud u DOK-09 konstatuje da dokaz nije dostavljen; red sa potpisom je obeležje."
+  },
+  {
+   "sifra": "X44625",
+   "izlaz": "N3_05",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X44625",
+   "izlaz": "N3_05",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis zapisnika. Rečenice o uplati predujma su s pravom izostavljene (sud konstatuje da dokaz nije dostavljen)."
+  },
+  {
+   "sifra": "X44625",
+   "izlaz": "N3_05",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X44625",
+   "izlaz": "N3_05",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka sveobuhvatan i da nije potrebno dodatno veštačenje.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Stav tužioca i tačan opis zapisnika. Rečenice o uplati predujma ispravno su izostavljene (uplata nije utvrđena, DOK-09)."
+  },
+  {
+   "sifra": "X99041",
+   "izlaz": "N3_06",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X99041",
+   "izlaz": "N3_06",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-09. Rečenice o izvršenoj uplati i obećanju dostave dokaza su s pravom izostavljene."
+  },
+  {
+   "sifra": "X99041",
+   "izlaz": "N3_06",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X99041",
+   "izlaz": "N3_06",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati nije dostavljen (DOK-09)."
+   ],
+   "obrazlozenje": "Stav tužioca i tačan opis DOK-09. Rečenice da je uplata izvršena i da će dokaz biti priložen ispravno su izostavljene."
+  },
+  {
+   "sifra": "X33069",
+   "izlaz": "N3_07",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X33069",
+   "izlaz": "N3_07",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09: „Sud konstatuje da dokaz o uplati predujma za dopunu vestacenja nije dostavljen.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-09. Tvrdnja o uplati i obećanje dostave dokaza su s pravom izostavljeni."
+  },
+  {
+   "sifra": "X33069",
+   "izlaz": "N3_07",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X33069",
+   "izlaz": "N3_07",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+    "Međutim, sud je u obaveštenju od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09: „Sud konstatuje da dokaz o uplati predujma za dopunu vestacenja nije dostavljen.“)."
+   ],
+   "obrazlozenje": "Stav tužioca i tačan opis DOK-09; rečenice o izvršenoj uplati i obećanju dostave dokaza ispravno izostavljene."
+  },
+  {
+   "sifra": "X85470",
+   "izlaz": "N3_08",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao je zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačan opis DOK-07. Rečenica „tužilac je uplatio predujam“ s pravom je izostavljena (DOK-09)."
+  },
+  {
+   "sifra": "X85470",
+   "izlaz": "N3_08",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao je zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Pripisan stav i tacan opis DOK-07. „tužilac je uplatio predujam“ tvrdi uplatu kao cinjenicu, a DOK-09 kaze da dokaz nije dostavljen."
+  },
+  {
+   "sifra": "X81350",
+   "izlaz": "N3_09",
+   "scenarij": "N3",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac smatra da nije potrebna dopuna veštačenja jer je nalaz i mišljenje veštaka dovoljno jasno i precizno.",
+    "- Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "- Sud je prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma u iznosu od 60.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca i tačni opisi DOK-07. Rečenica „Tužilac je podneo dokaz o uplati predujma“ s pravom je izostavljena: protivreči DOK-09, a DOK-08 je samo navod."
+  },
+  {
+   "sifra": "X81350",
+   "izlaz": "N3_09",
+   "scenarij": "N3",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "- Tužilac smatra da nije potrebna dopuna veštačenja jer je nalaz i mišljenje veštaka dovoljno jasno i precizno.",
+    "- Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara",
+    "- Sud je prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma u iznosu od 60.000 dinara"
+   ],
+   "obrazlozenje": "Pripisan stav i tacan opis DOK-07. Recenica „Tužilac je podneo dokaz o uplati predujma“ nije legitimna: DOK-08 sadrzi samo navod o uplati, a DOK-09 kaze da dokaz nije dostavljen."
+  },
+  {
+   "sifra": "X34932",
+   "izlaz": "N4_00",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava izjašnjenje tuženog kojim se osporava nalaz veštaka i predlaže dopunu veštačenja (DOK-06).",
+    "Smatramo da je nalaz veštaka sveobuhvatan i da dodatno veštačenje nije potrebno, jer je jasno utvrđeno da nosači solarnih panela nisu uzrokovali štetu.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Sve tri su ispravno pripisani argumenti ili tacan opis zapisnika."
+  },
+  {
+   "sifra": "X34932",
+   "izlaz": "N4_00",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava izjašnjenje tuženog kojim se osporava nalaz veštaka i predlaže dopunu veštačenja (DOK-06).",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Osporavanje je stav tužioca, a preciziranje i povlačenje su tačno citirani. Rečenica da „dodatno veštačenje nije potrebno“ protivreči već donetoj odluci o prihvatanju dopune, pa je opravdano izostavljena; potpis je obeležje."
+  },
+  {
+   "sifra": "X29344",
+   "izlaz": "N4_01",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Smatramo da je nalaz veštaka sveobuhvatan i da nije potrebno dodatno veštačenje.",
+    "Podsećamo da je sud prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma u iznosu od 60.000 dinara u roku od 8 dana ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.“)).",
+    "Tužilac ostaje pri svom tužbenom zahtevu i predlaže da sud, nakon sprovedene dopune veštačenja, donese presudu u korist tužioca."
+   ],
+   "obrazlozenje": "Sve tri su tacne: stav tuzioca, doslovan prenos naloga bez tvrdnje o uplati, i predlog tuzioca."
+  },
+  {
+   "sifra": "X29344",
+   "izlaz": "N4_01",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Podsećamo da je sud prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma u iznosu od 60.000 dinara u roku od 8 dana ((DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.“)).",
+    "Tužilac ostaje pri svom tužbenom zahtevu i predlaže da sud, nakon sprovedene dopune veštačenja, donese presudu u korist tužioca."
+   ],
+   "obrazlozenje": "Prva rečenica tačno citira DOK-07; druga je legitiman predlog tužioca usklađen sa odlukom o dopuni. Rečenica da „nije potrebno dodatno veštačenje“ protivreči odluci, pa je opravdano izostavljena."
+  },
+  {
+   "sifra": "X54288",
+   "izlaz": "N4_02",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Međutim, ukoliko sud smatra da je dopuna potrebna, tužilac će postupiti u skladu sa nalogom suda (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“).",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Obe su tacne i ne tvrde nista o uplati. Protivljenje predlogu za dopunu s pravom je izostavljeno, jer predlog prikazuje kao otvoren iako ga je sud vec prihvatio."
+  },
+  {
+   "sifra": "X54288",
+   "izlaz": "N4_02",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukavši zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno prema DOK-07. Protivljenje dopuni i „ukoliko sud smatra da je dopuna potrebna“ prikazuju kao otvoreno pitanje o kome je sud već odlučio (prihvatio dopunu), pa su s pravom izostavljeni."
+  },
+  {
+   "sifra": "X51006",
+   "izlaz": "N4_03",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka kompletan i da dodatna veštačenja nisu potrebna."
+   ],
+   "obrazlozenje": "Pripisan stav tužioca, legitiman argument. Druga izostavljena rečenica („spreman da uplati ... ukoliko sud to smatra potrebnim“) s pravom je izostavljena jer prikazuje naloženu uplatu kao još neodlučenu."
+  },
+  {
+   "sifra": "X51006",
+   "izlaz": "N4_03",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka kompletan i da dodatna veštačenja nisu potrebna."
+   ],
+   "obrazlozenje": "Ispravno pripisan stav tuzioca. Druga izostavljena recenica („spreman da uplati ... ukoliko sud to smatra potrebnim“) nije legitimna jer prikazuje vec doneti nalog kao neodlucen i podrazumeva da uplata nije izvrsena."
+  },
+  {
+   "sifra": "X48019",
+   "izlaz": "N4_04",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog iz izjašnjenja na nalaz veštaka od 01.07.2026. godine, kojim tuženi osporava nalaz veštaka i predlaže dopunu veštačenja, tvrdeći da veštak nije izvršio uvid u građevinski dnevnik (DOK-06).",
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačno pripisan navod tuženog, argument tužioca i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X48019",
+   "izlaz": "N4_04",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac osporava tvrdnje tuženog iz izjašnjenja na nalaz veštaka od 01.07.2026. godine, kojim tuženi osporava nalaz veštaka i predlaže dopunu veštačenja, tvrdeći da veštak nije izvršio uvid u građevinski dnevnik (DOK-06).",
+    "Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara i povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-06, ispravno pripisan argument tužioca i tačan opis DOK-07."
+  },
+  {
+   "sifra": "X21299",
+   "izlaz": "N4_05",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis nalaza, argument tužioca i tačan opis zapisnika."
+  },
+  {
+   "sifra": "X21299",
+   "izlaz": "N4_05",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, a da nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-05, argument tužioca, tačan opis DOK-07."
+  },
+  {
+   "sifra": "X82966",
+   "izlaz": "N4_06",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M2",
+   "citat": "Tužilac smatra da je nalaz veštaka potpun i da nije potrebna dopuna veštačenja, s obzirom na to da je sud već prihvatio predlog za dopunu veštačenja",
+   "obrazlozenje": "Odluka kojom je dopuna prihvaćena i naložena navodi se kao razlog zašto dopuna nije potrebna, pa naložena radnja ispada nepotrebna. Ovo je protivrečno samoj odluci.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X82966",
+   "izlaz": "N4_06",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Stav tužioca o nalazu i tačan opis povlačenja iz DOK-07."
+  },
+  {
+   "sifra": "X82966",
+   "izlaz": "N4_06",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M1",
+   "citat": "Tužilac smatra da je nalaz veštaka potpun i da nije potrebna dopuna veštačenja, s obzirom na to da je sud već prihvatio predlog za dopunu veštačenja",
+   "obrazlozenje": "Prihvatanje dopune vestacenja od strane suda navodi se kao razlog zbog kog dopuna nije potrebna, sto je suprotno smislu odluke iz DOK-07.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X82966",
+   "izlaz": "N4_06",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M2",
+   "citat": "Tužilac smatra da je nalaz veštaka potpun i da nije potrebna dopuna veštačenja, s obzirom na to da je sud već prihvatio predlog za dopunu veštačenja",
+   "obrazlozenje": "Dopuna koju je sud prihvatio prikazana je kao nepotrebna, a sama odluka kao osnov za to; dejstvo odluke je izvrnuto.",
+   "citat_u_tekstu_za_sud": true
+  },
+  {
+   "sifra": "X82966",
+   "izlaz": "N4_06",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac prihvata nalaz i mišljenje veštaka Petra Izmišljenog, koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosači solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara"
+   ],
+   "obrazlozenje": "Tacan opis DOK-05 i DOK-07."
+  },
+  {
+   "sifra": "X84336",
+   "izlaz": "N4_07",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac smatra da je nalaz veštaka potpun i da nema potrebe za dopunom.",
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao je zahtev za naknadu štete na robi od 600.000 dinara, a sud je prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma za dopunu veštačenja u iznosu od 60.000 dinara (DOK-07)."
+   ],
+   "obrazlozenje": "Prva je ispravno pripisan stav tuzioca; druga tacno prenosi DOK-07 i ne tvrdi da je predujam uplacen."
+  },
+  {
+   "sifra": "X84336",
+   "izlaz": "N4_07",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povukao je zahtev za naknadu štete na robi od 600.000 dinara, a sud je prihvatio predlog za dopunu veštačenja i naložio tužiocu uplatu predujma za dopunu veštačenja u iznosu od 60.000 dinara (DOK-07)."
+   ],
+   "obrazlozenje": "Tačan opis DOK-07 bez tvrdnje o uplati. Rečenica da „nema potrebe za dopunom“ protivreči već donetoj odluci, pa je opravdano izostavljena."
+  },
+  {
+   "sifra": "X34993",
+   "izlaz": "N4_08",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X34993",
+   "izlaz": "N4_08",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosioci solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Takođe, tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Tačan opis nalaza DOK-05 i zapisnika DOK-07. Uslovni predlog da se odbije dopuna nije uračunat jer je sud o dopuni već odlučio (prihvatio)."
+  },
+  {
+   "sifra": "X34993",
+   "izlaz": "N4_08",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M8",
+   "citat": "NACRT IZ SPISA (SAVETNIK)",
+   "obrazlozenje": "",
+   "citat_u_tekstu_za_sud": false
+  },
+  {
+   "sifra": "X34993",
+   "izlaz": "N4_08",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "U vezi sa nalazom i mišljenjem veštaka Petra Izmišljenog od 15.06.2026. godine (DOK-05), tužilac prihvata nalaz veštaka koji je utvrdio da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, te da nosioci solarnih panela nisu oštetili hidroizolaciju krova.",
+    "Smatramo da je nalaz veštaka sveobuhvatan i da dodatno veštačenje nije potrebno.",
+    "Takođe, tužilac je povukao zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "Ukoliko sud nije odlučio o predlogu tuženog za dopunu veštačenja na prethodnom ročištu, tužilac predlaže da se isti odbije kao neosnovan, s obzirom na preciznost i sveobuhvatnost postojećeg nalaza veštaka."
+   ],
+   "obrazlozenje": "Tačan opis nalaza (uz slovnu grešku „nosioci“), stav tužioca, tačan opis zapisnika i uslovni predlog tužioca."
+  },
+  {
+   "sifra": "X56011",
+   "izlaz": "N4_09",
+   "scenarij": "N4",
+   "oznacivac": "A",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Međutim, s obzirom na to da je sud već prihvatio predlog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), tužilac će postupiti u skladu sa nalogom suda (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.“).",
+    "Tužilac je, u skladu sa zapisnikom sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca, tačan opis odluke i naloga (bez tvrdnje da je uplaćeno) i tačan opis preciziranja i povlačenja."
+  },
+  {
+   "sifra": "X56011",
+   "izlaz": "N4_09",
+   "scenarij": "N4",
+   "oznacivac": "B",
+   "merilo": "M6",
+   "citat": [
+    "Što se tiče izjašnjenja tuženog od 01.07.2026. godine (DOK-06), tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, te smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "Međutim, s obzirom na to da je sud već prihvatio predlog za dopunu veštačenja (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“), tužilac će postupiti u skladu sa nalogom suda (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.“).",
+    "Tužilac je, u skladu sa zapisnikom sa ročišta od 15.07.2026. godine (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“)."
+   ],
+   "obrazlozenje": "Argument tužioca ispravno pripisan; tačan opis rešenja o dopuni i naloga (bez tvrdnje da je uplaćeno); tačan opis preciziranja i povlačenja."
+  }
+ ]
+}

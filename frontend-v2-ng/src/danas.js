@@ -67,7 +67,7 @@
       var dat = tekst(r.datum_iso || r.datum);
       return { vrsta: vrsta, id: tekst(r.id), opis: bezUkrasa(r.dogadjaj) || (vrsta === "predlog" ? "Predlog bez opisa" : "Rok bez opisa"),
         predmetId: tekst(r.predmet_id), predmet: imena[r.predmet_id] || (nazivIzRegistra ? tekst(nazivIzRegistra(tekst(r.predmet_id))) : ""), vreme: "", datumIso: dat, razlika: razlika(dat), izvor: tekst(r.izvor),
-        izvorUklonjen: r.izvor_uklonjen_posle_potvrde === true };
+        izvorUklonjen: r.izvor_uklonjen_posle_potvrde === true, izvorPovucen: r.izvor_povucen === true };
     }
     var potvrdjeni = aktivni.filter(function (r) { return stanjeZapisa(r) === "potvrdjen"; }).map(function (r) { return stavka(r, "rok"); });
     var rocista = dog.filter(function (e) { return e && e.tip === "rociste"; }).map(function (e) {
@@ -131,6 +131,8 @@
       var da = el("button", "text-btn text-btn--line", "Potvrdi"); da.type = "button"; da.setAttribute("aria-label", "Potvrdi rok: " + x.opis);
       var ne = el("button", "text-btn", "Odbij"); ne.type = "button"; ne.setAttribute("aria-label", "Odbij rok: " + x.opis);
       var st = el("span", "review__meta"); st.setAttribute("role", "status"); st.hidden = true;
+      /* MIR001 TASK-07: dokument iz kog je rok predložen uklonjen je iz predmeta — predlog nema izvor, pa se ne nudi potvrda. */
+      if (x.izvorPovucen) { da.hidden = true; li.append(el("span", "review__meta", "Dokument iz kog je ovaj rok predložen uklonjen je iz predmeta — rok više nema izvor. Možete ga odbiti; ako i dalje važi, unesite ga ručno.")); }
       akcije.append(da, ne, st); li.append(akcije);
       if (ispravanId(x.predmetId)) { var a = el("a", "review__meta", "Otvori predmet"); a.href = adresaPredmeta(x.predmetId, "rad"); li.append(a); }
       var radi = false;

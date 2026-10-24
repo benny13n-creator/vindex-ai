@@ -1,0 +1,343 @@
+{
+ "scenarij": "N4",
+ "ruta": 200,
+ "pozivi_modela": 1,
+ "naplate": 1,
+ "greske_modela": [],
+ "sirov_izlaz_modela": [
+  "{\"tekst_za_sud\": \"PRIVREDNI SUD U PRIMERGRADU\\nBroj predmeta: P 9901/2026\\n\\nTužilac: Alfa Fiktiv DOO, Primergrad\\nTuženi: Beta Primer Gradnja DOO, Fiktivgrad\\n\\nPODNESAK TUŽIOCA\\n\\nPoštovani sude,\\n\\nU vezi sa ročištem zakazanim za 18.11.2026. godine, tužilac se izjašnjava na nalaz i mišljenje veštaka građevinske struke Petra Izmišljenog, dostavljenog u predmetu pod brojem [[DOK-05]].\\n\\n1. **Izjašnjenje na nalaz veštaka**\\n   Tužilac prihvata nalaz i mišljenje veštaka u kojem se navodi da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosaci solarnih panela nisu oštetili hidroizolaciju krova. Visina štete iznosi 3.150.000 dinara.\\n\\n2. **Izjašnjenje na izjašnjenje tuženog**\\n   U vezi sa izjašnjenjem tuženog na nalaz veštaka [[DOK-06]], tužilac osporava tvrdnju tuženog da veštak nije izvršio uvid u građevinski dnevnik. Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.\\n\\n3. **Stanje postupka**\\n   Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara [[PS-06]], [[PS-07]].\\n\\nTužilac predlaže da sud uvaži nalaz veštaka kao osnovan i da se na osnovu istog donese odluka u korist tužioca.\\n\\nS poštovanjem,\\n\\n[PROVERITI: Ime i prezime ovlašćenog lica]\\n[PROVERITI: Potpis]\\nDatum: 24.10.2026. godine\", \"napomene_za_advokata\": [\"Proveriti ime i prezime ovlašćenog lica za potpisivanje podneska.\", \"Proveriti da li je uplata predujma za dopunu veštačenja izvršena, jer to nije utvrđeno iz pročitanih dokumenata.\", \"Napomena: Sud je prihvatio predlog za dopunu veštačenja i naložio uplatu predujma [[PS-04]], [[PS-05]].\", \"⚠️ Ovaj nacrt generisala je AI i mora ga pregledati i potpisati ovlašćeni advokat pre podnošenja sudu.\"]}",
+  "stop"
+ ],
+ "dokumenti_spisa": [
+  {
+   "oznaka": "DOK-01",
+   "ime": "01 Tuzba.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nTUZBA radi naknade stete (SINTETICKI PREDMET)\nTuzilac: Alfa Fiktiv DOO, Primergrad\nTuzeni: Beta Primer Gradnja DOO, Fiktivgrad\nStranke su zakljucile Ugovor o gradjenju broj 12/2024 dana 15.03.2024. godine.\nTuzeni je zavrsio radove na krovu hale dana 15.06.2025. godine.\nProkisnjavanje krova hale primeceno je dana 02.09.2025. godine.\nTuzeni je reklamaciju tuzioca primio dana 08.09.2025. godine.\nClanom 9 Ugovora 12/2024 ugovoren je garantni rok od pet godina za krovne radove.\nTuzilac trazi naknadu stete u iznosu od 4.200.000 dinara.\nDatum tuzbe: 10.02.2026. godine."
+  },
+  {
+   "oznaka": "DOK-02",
+   "ime": "02 Odgovor na tuzbu.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nODGOVOR NA TUZBU (SINTETICKI PREDMET)\nTuzeni Beta Primer Gradnja DOO osporava tuzbeni zahtev u celosti.\nTuzeni je prvu reklamaciju tuzioca primio tek dana 20.11.2025. godine.\nTrece lice je postavilo solarne panele na krov hale dana 10.08.2025. godine.\nTuzeni tvrdi da je prokisnjavanje posledica ugradnje solarnih panela od strane treceg lica.\nDatum odgovora: 12.03.2026. godine."
+  },
+  {
+   "oznaka": "DOK-03",
+   "ime": "03 Podnesak tuzioca.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nPODNESAK TUZIOCA (SINTETICKI PREDMET)\nTuzilac tvrdi da su solarni paneli postavljeni tek dana 10.10.2025. godine, posle prokisnjavanja.\nTuzilac prilaze povratnicu PK-4471 o urucenju reklamacije dana 08.09.2025. godine.\nTuzilac dodatno trazi 600.000 dinara za ostecenu robu u hali.\nDatum podneska: 02.04.2026. godine."
+  },
+  {
+   "oznaka": "DOK-04",
+   "ime": "04 Podnesak tuzenog.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nPODNESAK TUZENOG (SINTETICKI PREDMET)\nTuzeni predlaze vestacenje od strane vestaka gradjevinske struke.\nTuzeni tvrdi da eventualna steta ne prelazi iznos od 1.100.000 dinara.\nDatum podneska: 20.04.2026. godine."
+  },
+  {
+   "oznaka": "DOK-05",
+   "ime": "05 Nalaz i misljenje vestaka.pdf",
+   "tekst": "NALAZ I MISLJENJE VESTAKA\nBroj predmeta: P 9901/2026\nSINTETICKI PREDMET\nVestak gradjevinske struke Petar Izmisljeni.\nUzrok prokisnjavanja je neodgovarajuce\nizvedena hidroizolacija na spoju atike.\nNosaci solarnih panela nisu ostetili\nhidroizolaciju krova.\nVisina stete iznosi 3.150.000 dinara.\nDatum nalaza: 15.06.2026. godine."
+  },
+  {
+   "oznaka": "DOK-06",
+   "ime": "06 Izjasnjenje na nalaz vestaka.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nIZJASNJENJE TUZENOG NA NALAZ VESTAKA (SINTETICKI PREDMET)\nTuzeni osporava nalaz vestaka od 15.06.2026. godine.\nTuzeni tvrdi da vestak nije izvrsio uvid u gradjevinski dnevnik.\nTuzeni predlaze dopunu vestacenja.\nDatum izjasnjenja: 01.07.2026. godine."
+  },
+  {
+   "oznaka": "DOK-07",
+   "ime": "07 Zapisnik sa rocista.pdf",
+   "tekst": "PRIVREDNI SUD U PRIMERGRADU (SINTETICKI)\nBroj predmeta: P 9901/2026\nZAPISNIK SA ROCISTA (SINTETICKI PREDMET)\nRociste odrzano dana 15.07.2026. godine.\nUvidom u gradjevinsku dozvolu utvrdjeno je da je izdata dana 01.02.2024. godine.\nSud prihvata predlog za dopunu vestacenja.\nSud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.\nTuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.\nTuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.\nSledece rociste zakazano je za 18.11.2026. godine."
+  }
+ ],
+ "predlog": {
+  "verzija_ugovora": 1,
+  "status_teksta": "AI_RADNI_PREDLOG",
+  "sha256": "ab76ba0f360e2dc1acf8bfb895cf9d7c0dee0ca0512f959754aeb4f80571afce",
+  "stavke": [
+   {
+    "id": "S-01",
+    "tekst": "PRIVREDNI SUD U PRIMERGRADU\nBroj predmeta: P 9901/2026",
+    "sha256": "734126da6c1bfea9b94c90ee262b0b2368e69fad292c2f8a2dad53e6fb77a2d8",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-02",
+    "tekst": "Tužilac: Alfa Fiktiv DOO, Primergrad\nTuženi: Beta Primer Gradnja DOO, Fiktivgrad",
+    "sha256": "18e8deb74953fc3fd35dcd0df76e926a08f34f48589a286d8fc42d2e89838b07",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-03",
+    "tekst": "PODNESAK TUŽIOCA",
+    "sha256": "a9b3888423826451653911d7f129cf6bfafa02b57c451e108b3626ab54a0997d",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-04",
+    "tekst": "Poštovani sude,",
+    "sha256": "0f232df1ea68ab5a904da621d66af918ca6010c02091aaf237ac4861bdab981c",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-05",
+    "tekst": "U vezi sa ročištem zakazanim za 18.11.2026. godine, tužilac se izjašnjava na nalaz i mišljenje veštaka građevinske struke Petra Izmišljenog, dostavljenog u predmetu pod brojem [[DOK-05]].",
+    "sha256": "b7acf0763f0d4d4b4942647a3d9593bab130ca770e2215c108b1da9825382c4b",
+    "izvori": [
+     "DOK-05"
+    ],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-06",
+    "tekst": "1. **Izjašnjenje na nalaz veštaka**\n   Tužilac prihvata nalaz i mišljenje veštaka u kojem se navodi da je uzrok prokišnjavanja neodgovarajuće izvedena hidroizolacija na spoju atike, dok nosaci solarnih panela nisu oštetili hidroizolaciju krova. Visina štete iznosi 3.150.000 dinara.",
+    "sha256": "a5eae1b249d97edaa3cb4f6b124553e648deb415edcbc8c2a82ec8fdd7facc1c",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-07",
+    "tekst": "2. **Izjašnjenje na izjašnjenje tuženog**\n   U vezi sa izjašnjenjem tuženog na nalaz veštaka [[DOK-06]], tužilac osporava tvrdnju tuženog da veštak nije izvršio uvid u građevinski dnevnik. Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+    "sha256": "adb8d85279c00b423fcffc343bd3ddf009404367d650c6eae6da0b430f8b98eb",
+    "izvori": [
+     "DOK-06"
+    ],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-08",
+    "tekst": "3. **Stanje postupka**\n   Tužilac je precizirao tužbeni zahtev na iznos od 3.150.000 dinara, povlačeći zahtev za naknadu štete na robi od 600.000 dinara (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac je precizirao tuzbeni zahtev na iznos od 3.150.000 dinara.“), (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“).",
+    "sha256": "15c4b59a86da1faf69af6696d61b0b23796e842ce6437f97b9532c803cde583d",
+    "izvori": [
+     "DOK-07"
+    ],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-09",
+    "tekst": "Tužilac predlaže da sud uvaži nalaz veštaka kao osnovan i da se na osnovu istog donese odluka u korist tužioca.",
+    "sha256": "5dadc864669ea887995241928537ee84c53fd256f1ac5bfe66265b87b40b8ae0",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-10",
+    "tekst": "S poštovanjem,",
+    "sha256": "7597b6db904366898e1749c534a61ebe8816d8b2c000d1b37aefa49a5f7fd849",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   },
+   {
+    "id": "S-11",
+    "tekst": "[PROVERITI: Ime i prezime ovlašćenog lica]\n[PROVERITI: Potpis]\nDatum: 24.10.2026. godine",
+    "sha256": "22a2278565354f38a798eea689e94d9a09615ab87c516c8c7c23ba9a507f76d9",
+    "izvori": [],
+    "status": "AI_RADNI_PREDLOG"
+   }
+  ],
+  "dokumenti": [
+   {
+    "oznaka": "DOK-05",
+    "naziv": "05 Nalaz i misljenje vestaka.pdf",
+    "dokument_id": "01e3bdc9-5fd9-42d2-8d7a-87253f989b59",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-06",
+    "naziv": "06 Izjasnjenje na nalaz vestaka.pdf",
+    "dokument_id": "ad84a9b9-3404-4f47-ad43-70647d531e06",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-07",
+    "naziv": "07 Zapisnik sa rocista.pdf",
+    "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-04",
+    "naziv": "04 Podnesak tuzenog.pdf",
+    "dokument_id": "cd37442a-df6c-464d-bf05-2752c7198c9b",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-03",
+    "naziv": "03 Podnesak tuzioca.pdf",
+    "dokument_id": "753bc795-4ac8-4bf3-9988-33521d2fa39e",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-02",
+    "naziv": "02 Odgovor na tuzbu.pdf",
+    "dokument_id": "ebb80c2b-33d9-4294-ac34-ab9767f4f4fa",
+    "stanje": "PROCITAN"
+   },
+   {
+    "oznaka": "DOK-01",
+    "naziv": "01 Tuzba.pdf",
+    "dokument_id": "ac79a236-4191-42b8-aecb-8beba2538cd5",
+    "stanje": "PROCITAN"
+   }
+  ],
+  "procesne_tacke": [
+   {
+    "kljuc": "OSNOVNI_ZAHTEV",
+    "naziv": "Osnovni iznos tužbenog zahteva",
+    "kandidati": [],
+    "pomoc": "Sistem ne izdvaja iznose zahteva. Proverite tužbu i podneske stranaka."
+   },
+   {
+    "kljuc": "DODATNI_ZAHTEV",
+    "naziv": "Dodatni (proširen ili preinačen) zahtev",
+    "kandidati": [],
+    "pomoc": "Sistem ne izdvaja dodatni, proširen ni preinačen zahtev. Proverite podneske stranaka."
+   },
+   {
+    "kljuc": "POVLACENJE_IZMENA",
+    "naziv": "Povlačenje ili izmena zahteva",
+    "kandidati": [
+     {
+      "ps": "PS-07",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.",
+      "akter_po_tekstu": "STRANKA",
+      "vrsta_kandidat": "STRANKA_U_SUDSKOM_DOKUMENTU",
+      "nije_utvrdjeno": [],
+      "kasnije": []
+     }
+    ],
+    "pomoc": ""
+   },
+   {
+    "kljuc": "ODLUKE_SUDA",
+    "naziv": "Odluke suda i njihovo mesto u toku postupka",
+    "kandidati": [
+     {
+      "ps": "PS-04",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sud prihvata predlog za dopunu vestacenja.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_PRIHVATA",
+      "nije_utvrdjeno": [],
+      "kasnije": [
+       "DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)"
+      ]
+     },
+     {
+      "ps": "PS-05",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_NALAZE",
+      "nije_utvrdjeno": [
+       "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+       "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+       "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+      ],
+      "kasnije": [
+       "DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)"
+      ]
+     },
+     {
+      "ps": "PS-08",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sledece rociste zakazano je za 18.11.2026. godine.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_ZAKAZANO",
+      "nije_utvrdjeno": [],
+      "kasnije": []
+     }
+    ],
+    "pomoc": ""
+   },
+   {
+    "kljuc": "NALOG",
+    "naziv": "Nalog suda za postupanje",
+    "kandidati": [
+     {
+      "ps": "PS-05",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_NALAZE",
+      "nije_utvrdjeno": [
+       "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+       "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+       "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+      ],
+      "kasnije": [
+       "DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)"
+      ]
+     }
+    ],
+    "pomoc": ""
+   },
+   {
+    "kljuc": "UPLATA",
+    "naziv": "Dokaz o uplati — ili da ga u raspoloživim spisima nema",
+    "kandidati": [
+     {
+      "ps": "PS-05",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_NALAZE",
+      "nije_utvrdjeno": [
+       "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+       "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+       "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+      ],
+      "kasnije": [
+       "DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)"
+      ]
+     }
+    ],
+    "pomoc": ""
+   },
+   {
+    "kljuc": "ROK",
+    "naziv": "Rok — poznat ili nepoznat",
+    "kandidati": [
+     {
+      "ps": "PS-05",
+      "oznaka": "DOK-07",
+      "dokument_id": "2b76fc1f-5fe5-4f94-8df4-536b0c3b120f",
+      "izvod": "Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.",
+      "akter_po_tekstu": "SUD",
+      "vrsta_kandidat": "SUD_NALAZE",
+      "nije_utvrdjeno": [
+       "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+       "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+       "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+      ],
+      "kasnije": [
+       "DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)"
+      ]
+     }
+    ],
+    "pomoc": ""
+   },
+   {
+    "kljuc": "NEDOSTAJUCI_DOKUMENT",
+    "naziv": "Nedostajući ili nečitljiv dokument",
+    "kandidati": [],
+    "pomoc": "Sistem nije zabeležio nepročitan dokument; to ne znači da u spisu ne nedostaje dokument."
+   }
+  ],
+  "nije_utvrdjeno": [
+   "DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“",
+   "DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa",
+   "DOK-07: uplata nije utvrđena iz pročitanih dokumenata",
+   "DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata"
+  ],
+  "potpunost": "POTPUNO"
+ },
+ "interno": "═══ VINDEX — INTERNE NAPOMENE ZA ADVOKATA (upisao sistem; NISU deo podneska i ne izvoze se u DOCX) ═══\nPROCESNO STANJE IZ SPISA (utvrdio sistem; izvodi su doslovni, a da li je reč o odluci suda i da li važi NIJE utvrđeno):\n- PS-04 (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud prihvata predlog za dopunu vestacenja.“) — kandidat: SUD_PRIHVATA; kasnije: DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)\n- PS-05 (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sud nalaze tuziocu da uplati predujam za dopunu vestacenja u iznosu od 60.000 dinara u roku od 8 dana.“) — kandidat: SUD_NALAZE; kasnije: DOK-06 stranka_predlaze (ranije, dejstvo NEUTVRĐENO)\n- PS-08 (DOK-07, zapisnik sa rocista (sinteticki predmet), 15.07.2026.: „Sledece rociste zakazano je za 18.11.2026. godine.“) — kandidat: SUD_ZAKAZANO\nNIJE UTVRĐENO IZ SPISA:\n- DOK-07: stranka_odustaje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvrđeno — „Tuzilac povlaci zahtev za naknadu stete na robi od 600.000 dinara.“\n- DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa\n- DOK-07: uplata nije utvrđena iz pročitanih dokumenata\n- DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata\nNAPOMENE SAVETNIKA (AI):\n- Proveriti ime i prezime ovlašćenog lica za potpisivanje podneska.\n- Proveriti da li je uplata predujma za dopunu veštačenja izvršena, jer to nije utvrđeno iz pročitanih dokumenata.\n- Napomena: Sud je prihvatio predlog za dopunu veštačenja i naložio uplatu predujma [[PS-04]], [[PS-05]].\n- ⚠️ Ovaj nacrt generisala je AI i mora ga pregledati i potpisati ovlašćeni advokat pre podnošenja sudu.\n\n———\nPROVERA PRE UPOTREBE (upisao sistem; nije deo podneska — ukloniti pre podnošenja):\n- Pravni citati koji NISU potvrđeni u izvorima prava: nema.\n- Dokumenti predmeta koje savetnik NIJE pročitao: nema.\n- Svaku činjenicu proverite prema označenom dokumentu; navodi stranaka i nalaz veštaka nisu utvrđene činjenice.",
+ "status_teksta": "AI_RADNI_PREDLOG",
+ "K4_fali_iz_sirovog": []
+}

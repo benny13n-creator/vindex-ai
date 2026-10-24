@@ -97,6 +97,7 @@ const ekran = (p) => p.evaluate(() => {
     metrikeStavke: li("an-metrike").map(x => x.textContent),
     sav: document.getElementById("odeljak-analiza").textContent,
     cinjenice: t("an-cinjenice"), ceo: document.body.innerText,
+    cinjeniceStavke: li("an-cinjenice").map(x => x.innerText), cinjeniceNaslov: document.getElementById("an-cinjenice").previousElementSibling.textContent,
     tabovi: [...document.querySelectorAll(".tabs__item")].filter(a => a.getClientRects().length).map(a => a.childNodes[0].textContent.trim()),
     aktivni: document.querySelector(".tabs__item[aria-current='page']") ? document.querySelector(".tabs__item[aria-current='page']").id : null,
     xss: window.__xss || null,
@@ -129,6 +130,12 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
   zapisi("dokazi", "sažetak dokaza iz grafa (5 tvrdnji, 2 u protivrečnosti)", /5 tvrdnji/.test(e.sazetak) && /2 u protivrečnosti/.test(e.sazetak), e.sazetak);
   const d3 = e.dokumenti.find(x => /Platni listići/.test(x[1]));
   zapisi("dokazi", "pala klasifikacija se prikazuje kao neuspeh, ne kao „ostalo“", d3 && d3[0] === "NEUSPESNA" && /klasifikacija nije uspela/.test(d3[1]) && !/ostalo/.test(d3[1]), d3 && d3[1]);
+  // MIR001 TASK-03: navod iz dokumenta nije činjenica; navodi u aktivnoj protivrečnosti nose „SPORNO“ i idu prvi
+  const spornoUI = e.cinjeniceStavke.map(x => /SPORNO — datum uručenja rešenja o otkazu/.test(x));
+  zapisi("genome", "naslov kaže „navodi iz dokumenata“, ne „činjenice“", e.cinjeniceNaslov === "Ključni navodi iz dokumenata", e.cinjeniceNaslov);
+  zapisi("genome", "oba navoda aktivne protivrečnosti nose „SPORNO — <tačka>“ i prikazani su prvi; nesporni ne",
+    spornoUI.length >= 3 && spornoUI[0] && spornoUI[1] && !spornoUI.slice(2).some(Boolean) && /Rešenje je uručeno|Pošiljka je uručena/.test(e.cinjeniceStavke[0]) && /nije primio lično/.test(e.cinjeniceStavke[2]),
+    JSON.stringify(e.cinjeniceStavke.map(x => x.replace(/\s+/g, " ").slice(0, 70))));
   zapisi("genome", "ključne činjenice = samo iz dokumenta i od advokata", /Rešenje je uručeno/.test(e.cinjenice) && /nije primio lično/.test(e.cinjenice) && !/480\.000/.test(e.cinjenice), e.cinjenice.slice(0, 120));
   zapisi("genome", "pravni osnovi su „predlog analize — nije potvrđeno“ + signal za nemoguć član",
     /nije potvrđeno u izvorima prava/.test(e.osnovi) && /broj člana je van uobičajenog opsega/.test(e.osnovi), e.osnovi.slice(0, 160));
@@ -158,7 +165,8 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
   // izvor → Dokumenti sa izabranim dokumentom
   await s.p.click("#an-kontr-aktivne button.an-src >> text=/Dostavnica/");
   const otvoren = await cekaj(s.p, (id) => location.hash.endsWith("/dokumenti") && document.querySelector(`#dok-lista [data-dok="${id}"]`)?.getAttribute("aria-current") === "true", D2);
-  zapisi("izvor", "„Izvor: Dostavnica“ otvara Dokumente sa izabranim dokumentom (bez mrtvog linka)", otvoren && zahtevi(s, new RegExp(`/dokumenti/${D2}/preview$`)).length === 1);
+  zapisi("izvor", "„Izvor: Dostavnica“ otvara Dokumente sa izabranim dokumentom (bez mrtvog linka)", otvoren && zahtevi(s, new RegExp(`/dokumenti/${D2}/preview$`)).length === 1,
+    `otvoren=${otvoren} preview=${zahtevi(s, new RegExp(`/dokumenti/${D2}/preview$`)).length} hash=${await s.p.evaluate(() => location.hash)}`);
   zapisi("bezbednost", "0 spoljnih zahteva", s.spoljni.length === 0, s.spoljni.slice(0, 2).join(","));
   await s.zatvori();
 }
@@ -196,6 +204,21 @@ const ZABRANJENO = /verovatnoća uspeha|šans[ae]|predviđanje (ishoda|presude)|
   await gotovo(s2.p);
   zapisi("granica", "potpun odgovor: bez upozorenja o skraćivanju", await s2.p.evaluate(() => document.getElementById("an-skraceno").hidden));
   await s2.zatvori();
+}
+
+// ── 3b. MIR001 TASK-03: veliki spis — 14 nespornih navoda ispred spornih; sporni ipak vidljivi i prvi, ostatak najavljen ──
+{
+  const s = await scenario({ kuke: { izmeni: (put, telo) => {
+    if (!/genome-v2$/.test(put) || !telo.cinjenice) return telo;
+    const dodatni = Array.from({ length: 14 }, (_, i) => ({ ...telo.cinjenice.stavke[0], id: "d" + i, vrednost: "Nesporan navod broj " + i }));
+    telo.cinjenice.stavke = dodatni.concat([...telo.cinjenice.stavke].reverse());
+    return telo;
+  } } });
+  await gotovo(s.p);
+  const st = await s.p.evaluate(() => [...document.querySelectorAll("#an-cinjenice > li")].map(x => x.innerText.replace(/\s+/g, " ")));
+  zapisi("genome", "veliki spis: oba sporna navoda prva (ne skriva ih granica od 12), ostatak najavljen",
+    /SPORNO/.test(st[0]) && /SPORNO/.test(st[1]) && !st.slice(2, 12).some(x => /SPORNO/.test(x)) && /Prikazano 12 od 17 navoda/.test(st[st.length - 1]), JSON.stringify(st.map(x => x.slice(0, 40))));
+  await s.zatvori();
 }
 
 // ── 4. Greške ────────────────────────────────────────────────────────────────

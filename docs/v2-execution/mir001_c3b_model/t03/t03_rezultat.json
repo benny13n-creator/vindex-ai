@@ -1,0 +1,929 @@
+{
+ "tab": {
+  "pre_A": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "GRANICNO": 4,
+    "NE": 10,
+    "DA": 1
+   },
+   "S": {
+    "DA": 7,
+    "NE": 8
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "NE": 15
+   },
+   "K": {
+    "NEPRIMENLJIVO": 15
+   },
+   "UZ": {
+    "NEPRIMENLJIVO": 10,
+    "DA": 3,
+    "NE": 2
+   },
+   "U": {
+    "NE": 15
+   },
+   "I": {
+    "NE": 15
+   },
+   "R": {
+    "NE": 15
+   },
+   "N": {
+    "NEMA": 15
+   },
+   "O2": {
+    "DA": 5,
+    "NE": 10
+   },
+   "S_okvir": {
+    "STAV_UZ_ODLUKU": 6,
+    "GOLA": 1
+   },
+   "Q": {
+    "zbir": 47.0
+   }
+  },
+  "posle_A": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "DA": 2,
+    "GRANICNO": 7,
+    "NE": 6
+   },
+   "S": {
+    "DA": 10,
+    "NE": 5
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "DA": 3,
+    "NE": 12
+   },
+   "K": {
+    "NEPRIMENLJIVO": 15
+   },
+   "UZ": {
+    "DA": 5,
+    "NEPRIMENLJIVO": 10
+   },
+   "U": {
+    "DA": 15
+   },
+   "I": {
+    "DA": 1,
+    "NE": 14
+   },
+   "R": {
+    "NE": 15
+   },
+   "N": {
+    "TACNA": 15
+   },
+   "O2": {
+    "NE": 9,
+    "DA": 6
+   },
+   "S_okvir": {
+    "GOLA": 2,
+    "STAV_UZ_ODLUKU": 7,
+    "OBRAZLOZEN_PREDLOG": 1
+   },
+   "Q": {
+    "zbir": 46.5
+   }
+  },
+  "posle_H2": {
+   "n": {
+    "n": 10
+   },
+   "O1": {
+    "NE": 5,
+    "DA": 2,
+    "GRANICNO": 3
+   },
+   "S": {
+    "NE": 3,
+    "DA": 7
+   },
+   "G": {
+    "NE": 10
+   },
+   "P": {
+    "NE": 3,
+    "DA": 7
+   },
+   "K": {
+    "NEPRIMENLJIVO": 10
+   },
+   "UZ": {
+    "NEPRIMENLJIVO": 7,
+    "NE": 3
+   },
+   "U": {
+    "DA": 9,
+    "NE": 1
+   },
+   "I": {
+    "NE": 9,
+    "DA": 1
+   },
+   "R": {
+    "DA": 8,
+    "NE": 2
+   },
+   "N": {
+    "TACNA": 10
+   },
+   "O2": {
+    "NE": 7,
+    "DA": 3
+   },
+   "Q": {
+    "zbir": 22.0
+   },
+   "S_okvir": {
+    "GOLA": 2,
+    "STAV_UZ_ODLUKU": 4,
+    "OBRAZLOZEN_PREDLOG": 1
+   }
+  },
+  "posle_B": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "NEPRIMENLJIVO": 15
+   },
+   "S": {
+    "NEPRIMENLJIVO": 15
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "DA": 6,
+    "NE": 9
+   },
+   "K": {
+    "NEPRIMENLJIVO": 15
+   },
+   "UZ": {
+    "NE": 11,
+    "DA": 4
+   },
+   "U": {
+    "DA": 15
+   },
+   "I": {
+    "DA": 4,
+    "NE": 11
+   },
+   "R": {
+    "NE": 15
+   },
+   "N": {
+    "TACNA": 14,
+    "SABLON": 1
+   },
+   "O2": {
+    "DA": 15
+   },
+   "Q": {
+    "zbir": 41.0
+   },
+   "S_okvir": {}
+  },
+  "posle_H1": {
+   "n": {
+    "n": 10
+   },
+   "O1": {
+    "NE": 10
+   },
+   "S": {
+    "NE": 4,
+    "NEPRIMENLJIVO": 6
+   },
+   "G": {
+    "NE": 10
+   },
+   "P": {
+    "NE": 9,
+    "DA": 1
+   },
+   "K": {
+    "NEPRIMENLJIVO": 10
+   },
+   "UZ": {
+    "NEPRIMENLJIVO": 10
+   },
+   "U": {
+    "NEPRIMENLJIVO": 10
+   },
+   "I": {
+    "NE": 10
+   },
+   "R": {
+    "NE": 10
+   },
+   "N": {
+    "TACNA": 10
+   },
+   "O2": {
+    "DA": 9,
+    "NE": 1
+   },
+   "Q": {
+    "zbir": 39.0
+   },
+   "S_okvir": {}
+  },
+  "posle_C2": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "NEPRIMENLJIVO": 15
+   },
+   "S": {
+    "NEPRIMENLJIVO": 15
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "DA": 13,
+    "NE": 2
+   },
+   "K": {
+    "NEPRIMENLJIVO": 15
+   },
+   "UZ": {
+    "NE": 15
+   },
+   "U": {
+    "DA": 15
+   },
+   "I": {
+    "NE": 11,
+    "DA": 4
+   },
+   "R": {
+    "NE": 15
+   },
+   "N": {
+    "TACNA": 13,
+    "SABLON": 2
+   },
+   "O2": {
+    "DA": 15
+   },
+   "Q": {
+    "zbir": 42.0
+   },
+   "S_okvir": {}
+  },
+  "pre_C1": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "GRANICNO": 5,
+    "NE": 7,
+    "DA": 3
+   },
+   "S": {
+    "DA": 7,
+    "NE": 8
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "DA": 14,
+    "NE": 1
+   },
+   "K": {
+    "NE": 15
+   },
+   "UZ": {
+    "NE": 10,
+    "NEPRIMENLJIVO": 2,
+    "DA": 3
+   },
+   "U": {
+    "NE": 15
+   },
+   "I": {
+    "NE": 15
+   },
+   "R": {
+    "DA": 5,
+    "NE": 10
+   },
+   "N": {
+    "NEMA": 15
+   },
+   "O2": {
+    "NE": 13,
+    "DA": 2
+   },
+   "S_okvir": {
+    "STAV_UZ_ODLUKU": 4,
+    "GOLA": 3
+   },
+   "Q": {
+    "zbir": 35.0
+   }
+  },
+  "posle_C1": {
+   "n": {
+    "n": 15
+   },
+   "O1": {
+    "DA": 7,
+    "NE": 5,
+    "GRANICNO": 3
+   },
+   "S": {
+    "DA": 9,
+    "NE": 6
+   },
+   "G": {
+    "NE": 15
+   },
+   "P": {
+    "DA": 12,
+    "NE": 3
+   },
+   "K": {
+    "NE": 14,
+    "DA": 1
+   },
+   "UZ": {
+    "NE": 10,
+    "NEPRIMENLJIVO": 1,
+    "DA": 4
+   },
+   "U": {
+    "NE": 15
+   },
+   "I": {
+    "NE": 15
+   },
+   "R": {
+    "NE": 15
+   },
+   "N": {
+    "SABLON": 7,
+    "NETACNA": 8
+   },
+   "O2": {
+    "NE": 12,
+    "DA": 3
+   },
+   "S_okvir": {
+    "GOLA": 7,
+    "STAV_UZ_ODLUKU": 1,
+    "OBRAZLOZEN_PREDLOG": 1
+   },
+   "Q": {
+    "zbir": 39.0
+   }
+  }
+ },
+ "detalji": {
+  "pre_A": [
+   {
+    "sifra": "T494000",
+    "indeks": 14,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik ne bi promenio suštinu nalaza. Međutim, s obzirom da je sud već naložio dostavljanje građevinskog dnevnika (DOK-07), tužilac će se izjasniti po izvršenju te radnje.",
+     "dodatni uvid u građevinski dnevnik ne bi promenio suštinu nalaza"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T991039",
+    "indeks": 13,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU",
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "dodatni uvid u građevinski dnevnik ne bi promenio zaključke veštaka. Takođe, napominjemo da je sud već prihvatio predlog za dopunu veštačenja",
+     "Smatramo da je veštačenje sprovedeno u skladu sa pravilima struke i da dodatni uvid u građevinski dnevnik ne bi promenio zaključke veštaka. Takođe, napominjemo da je sud već prihvatio predlog za dopunu veštačenja",
+     "dodatni uvid u građevinski dnevnik ne bi promenio zaključke veštaka",
+     "dodatni uvid u građevinski dnevnik ne bi promenio zaključke veštaka"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T625054",
+    "indeks": 11,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da dopuna veštačenja nije potrebna, s obzirom na to da je veštak već utvrdio uzrok prokišnjavanja i visinu štete.",
+     "Tužilac smatra da dopuna veštačenja nije potrebna"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T818063",
+    "indeks": 12,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T796104",
+    "indeks": 0,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Tužilac osporava tvrdnje tuženog da veštak nije izvršio uvid u građevinski dnevnik, jer je sud već naložio dostavljanje građevinskog dnevnika (DOK-07). Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik neće promeniti utvrđene činjenice o uzroku štete.",
+     "dodatni uvid u građevinski dnevnik neće promeniti utvrđene činjenice o uzroku štete"
+    ],
+    "oznaceno": false
+   }
+  ],
+  "posle_A": [
+   {
+    "sifra": "T151001",
+    "indeks": 1,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac predlaže da se, nakon dostavljanja građevinskog dnevnika od strane tuženog, sud izjasni o potrebi za dodatnim veštačenjem, uzimajući u obzir već prihvaćeni nalaz veštaka (DOK-07).",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T473002",
+    "indeks": 4,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije potrebna jer postojeći nalaz već jasno utvrđuje uzrok i visinu štete.",
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije potrebna"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T413021",
+    "indeks": 11,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dodatna veštačenja nisu potrebna jer postojeći nalaz jasno ukazuje na uzrok i visinu štete.",
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dodatna veštačenja nisu potrebna; takođe: dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja."
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T762032",
+    "indeks": 12,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU",
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka štete",
+     "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka štete",
+     "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka štete",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka štete, s obzirom na to da je veštak već precizno odredio uzrok prokišnjavanja"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T858048",
+    "indeks": 0,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije neophodna ... Međutim, u slučaju da sud odluči drugačije, tužilac će se prilagoditi daljim instrukcijama suda.",
+     "tužilac smatra da dopuna nije neophodna jer nalaz veštaka već jasno ukazuje na uzrok i visinu štete"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T761061",
+    "indeks": 2,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka sveobuhvatan i da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T584070",
+    "indeks": 6,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Tužilac predlaže da se na sledećem ročištu ... razmotri dopuna veštačenja ukoliko tuženi dostavi građevinski dnevnik u skladu sa nalogom suda (DOK-07).",
+     "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik ne bi promenio utvrđene činjenice"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T571078",
+    "indeks": 10,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i relevantan, te da nije potrebno dodatno veštačenje. Međutim, ukoliko sud smatra drugačije, tužilac će se povinovati odluci suda o dopuni veštačenja (DOK-07).",
+     "te da nije potrebno dodatno veštačenje"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T444109",
+    "indeks": 5,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Iako je sud već prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dodatno veštačenje nije potrebno ... Međutim, ukoliko sud smatra da je dopuna neophodna, tužilac će u potpunosti sarađivati.",
+     "tužilac smatra da dodatno veštačenje nije potrebno, jer je postojeći nalaz dovoljno jasan i precizan"
+    ],
+    "oznaceno": true
+   }
+  ],
+  "posle_H2": [
+   {
+    "sifra": "T944009",
+    "indeks": 1,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac predlaže da sud odbije predlog tuženog za dopunu veštačenja, s obzirom na to da je veštak već dao jasno i stručno mišljenje",
+     "Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T215019",
+    "indeks": 3,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "smatra da je nalaz veštaka potpun i da ne zahteva dodatnu dopunu. Sud je već prihvatio predlog za dopunu veštačenja (DOK-07), te tužilac smatra da je to pitanje rešeno.",
+     "nalaz veštaka potpun i da ne zahteva dodatnu dopunu"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T648038",
+    "indeks": 6,
+    "O1": "DA",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Međutim, ukoliko sud smatra da je dopuna neophodna, tužilac će postupiti po nalogu suda i uplatiti predujam za dopunu veštačenja u iznosu od 60.000 dinara u roku određenom od strane suda.",
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da je postojeći nalaz veštaka dovoljan za donošenje odluke u ovom predmetu."
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T769045",
+    "indeks": 7,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "jer je sud već prihvatio predlog za dopunu veštačenja (DOK-07). Tužilac smatra da je nalaz veštaka potpun i objektivan, te da dodatni uvid u građevinski dnevnik nije neophodan",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T650077",
+    "indeks": 5,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka sveobuhvatan i temeljan, te da dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja.",
+     "dodatni uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": false
+   }
+  ],
+  "pre_C1": [
+   {
+    "sifra": "T206011",
+    "indeks": 2,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik ne bi promenio utvrđene činjenice.",
+     "dodatni uvid u građevinski dnevnik ne bi promenio utvrđene činjenice"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T166036",
+    "indeks": 14,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "dodatni uvid u građevinski dnevnik nije neophodan, s obzirom da je tuženi u podnesku od 05.09.2026. godine (DOK-08) naveo da građevinski dnevnik nije sačuvan.",
+     "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T669041",
+    "indeks": 7,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA",
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+     "nije potrebno dodatno veštačenje",
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje."
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T747047",
+    "indeks": 4,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac napominje da je tuženi odustao od predloga za dopunu veštačenja, što dodatno potvrđuje da nema potrebe za daljim radnjama u vezi sa ovim nalazom (DOK-08).",
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje."
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T145094",
+    "indeks": 5,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "s obzirom da je sud već naložio tuženom da dostavi građevinski dnevnik (DOK-07). Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.",
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje."
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T442097",
+    "indeks": 1,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     ""
+    ],
+    "citati": [
+     "Tužilac predlaže da se na sledećem ročištu ... razmotri dopuna veštačenja, ukoliko tuženi dostavi građevinski dnevnik u skladu sa nalogom suda."
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T510102",
+    "indeks": 6,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Sud je već odlučio da prihvati predlog za dopunu veštačenja (DOK-07). Tužilac se neće protiviti ovoj odluci, ali smatra da dopuna veštačenja neće promeniti već utvrđene činjenice",
+     "dodatni uvid u građevinski dnevnik nije potreban"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T675103",
+    "indeks": 10,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Smatramo da je nalaz veštaka potpun i da ne postoji potreba za dodatnim uvidom u građevinski dnevnik",
+     "ne postoji potreba za dodatnim uvidom u građevinski dnevnik, naročito s obzirom na to da je tuženi u podnesku od 05.09.2026. godine (DOK-08) naveo da građevinski dnevnik nije sačuvan"
+    ],
+    "oznaceno": true
+   }
+  ],
+  "posle_C1": [
+   {
+    "sifra": "T812014",
+    "indeks": 11,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac konstatuje da je tuženi odustao od predloga za dopunu veštačenja (DOK-08), te smatra da su sve relevantne činjenice već utvrđene i da nema potrebe za daljim veštačenjem.",
+     "Tužilac smatra da je nalaz veštaka sveobuhvatan i da ne zahteva dodatnu dopunu."
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T541023",
+    "indeks": 4,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i da dodatna veštačenja nisu potrebna, posebno imajući u vidu da je tuženi u međuvremenu odustao od predloga za dopunu veštačenja (DOK-08).",
+     "dodatna veštačenja nisu potrebna, posebno imajući u vidu da je tuženi u međuvremenu odustao od predloga za dopunu veštačenja (DOK-08)"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T532030",
+    "indeks": 2,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja ... što dodatno potvrđuje da nema potrebe za daljim ispitivanjem u vezi sa građevinskim dnevnikom.",
+     "Tužilac smatra da uvid u građevinski dnevnik nije neophodan za utvrđivanje uzroka prokišnjavanja"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T288040",
+    "indeks": 7,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     ""
+    ],
+    "citati": [
+     "Tužilac je upoznat sa odustankom tuženog od predloga za dopunu veštačenja i smatra da je nalaz veštaka dovoljno jasan i potpun."
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T374055",
+    "indeks": 1,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac je primio na znanje podnesak tuženog od 05.09.2026. godine (DOK-08), kojim tuženi odustaje od predloga za dopunu veštačenja, te smatra da je pitanje veštačenja time rešeno.",
+     "smatra da je pitanje veštačenja time rešeno"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T557059",
+    "indeks": 14,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "STAV_UZ_ODLUKU",
+     "STAV_UZ_ODLUKU"
+    ],
+    "citati": [
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije potrebna ... Međutim, ukoliko sud smatra da je dopuna neophodna, tužilac će se povinovati odluci suda.",
+     "Međutim, ukoliko sud smatra da je dopuna neophodna, tužilac će se povinovati odluci suda.",
+     "tužilac smatra da dopuna nije potrebna s obzirom na to da je veštak već jasno utvrdio uzrok štete",
+     "Iako je sud prihvatio predlog za dopunu veštačenja (DOK-07), tužilac smatra da dopuna nije potrebna s obzirom na to da je veštak već jasno utvrdio uzrok štete."
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T869074",
+    "indeks": 13,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje, s obzirom da je tuženi odustao od predloga za dopunu veštačenja (DOK-08).",
+     "nije potrebno dodatno veštačenje, s obzirom da je tuženi odustao od predloga za dopunu veštačenja (DOK-08)"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T588075",
+    "indeks": 8,
+    "O1": "GRANICNO",
+    "S_okvir": [
+     "",
+     ""
+    ],
+    "citati": [
+     "S obzirom na to da je tuženi odustao od predloga za dopunu veštačenja (DOK-08), tužilac predlaže da sud prihvati nalaz veštaka kao osnovan",
+     "S obzirom na to da je tuženi odustao od predloga za dopunu veštačenja (DOK-08), tužilac predlaže da sud prihvati nalaz veštaka kao osnovan"
+    ],
+    "oznaceno": false
+   },
+   {
+    "sifra": "T740098",
+    "indeks": 10,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Takođe, tužilac smatra da dopuna veštačenja nije potrebna, imajući u vidu da je tuženi odustao od predloga za dopunu veštačenja (DOK-08).",
+     "tužilac smatra da dopuna veštačenja nije potrebna, imajući u vidu da je tuženi odustao od predloga za dopunu veštačenja (DOK-08)"
+    ],
+    "oznaceno": true
+   },
+   {
+    "sifra": "T480101",
+    "indeks": 6,
+    "O1": "DA",
+    "S_okvir": [
+     "GOLA"
+    ],
+    "citati": [
+     "Tužilac smatra da, s obzirom na odustanak tuženog od predloga za dopunu veštačenja i na činjenicu da građevinski dnevnik nije sačuvan (DOK-08), nema potrebe za daljom dopunom veštačenja.",
+     "nema potrebe za daljom dopunom veštačenja"
+    ],
+    "oznaceno": true
+   }
+  ],
+  "posle_C2": [],
+  "posle_B": [],
+  "posle_H1": []
+ },
+ "slaganje": {
+  "O1_isto": 12,
+  "S_isto": 11,
+  "P_isto": 12,
+  "U_isto": 12,
+  "R_isto": 11,
+  "I_isto": 12,
+  "K_isto": 12,
+  "UZ_isto": 8,
+  "N_isto": 10,
+  "UZ_razlicito": 4,
+  "S_razlicito": 1,
+  "N_razlicito": 2,
+  "R_razlicito": 1
+ }
+}

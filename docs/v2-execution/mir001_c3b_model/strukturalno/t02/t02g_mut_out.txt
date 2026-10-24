@@ -1,0 +1,12 @@
+﻿UHVACENO G1 polaritet se ne proverava :: 2 failed, 170 passed, 13 warnings in 66.91s (0:01:06)
+UHVACENO G2 negacija ispred se ne vidi :: 1 failed, 171 passed, 13 warnings in 67.48s (0:01:07)
+UHVACENO G3 blok bez nastavka :: 6 failed, 166 passed, 13 warnings in 67.18s (0:01:07)
+NEUHVACENO G4 naslov sa dvotackom ne nastavlja :: 172 passed, 13 warnings in 66.78s (0:01:06)
+UHVACENO G5 blok bez cuvara :: 6 failed, 166 passed, 13 warnings in 67.58s (0:01:07)
+UHVACENO G6 lazna granica bez cuvara :: 1 failed, 171 passed, 13 warnings in 67.05s (0:01:07)
+UHVACENO G7 mnozina/varijante naslova :: 3 failed, 169 passed, 13 warnings in 67.70s (0:01:07)
+UHVACENO G8 naslov Napomena: :: 1 failed, 171 passed, 13 warnings in 67.79s (0:01:07)
+UHVACENO G9 glagoli predaje/prijema :: 3 failed, 169 passed, 13 warnings in 66.53s (0:01:06)
+UHVACENO G10 trazena/pomenuta kao anafora :: 1 failed, 171 passed, 13 warnings in 65.69s (0:01:05)
+NEUHVACENO G11 neutralizacija oznake bloka :: 172 passed, 13 warnings in 65.73s (0:01:05)
+svi fajlovi vraceni bajt-identicno

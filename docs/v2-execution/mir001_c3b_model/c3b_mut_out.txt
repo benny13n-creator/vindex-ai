@@ -1,0 +1,16 @@
+UHVACENO M1 jezgro pravila nije u sistemskoj poruci (naslov) :: 3 failed, 10 passed, 11 warnings in 28.09s
+UHVACENO M2 vraceno staro pravilo o rokovima :: 1 failed, 12 passed, 10 warnings in 27.71s
+UHVACENO M3 podsetnik bloka ne upucuje na sistemska pravila :: 2 failed, 11 passed, 9 warnings in 28.19s
+UHVACENO M4 jezgro prepisano i u korisnicku poruku :: 1 failed, 12 passed, 10 warnings in 27.98s
+UHVACENO M5 promenjen sistem drugog savetnika (litigation) :: 1 failed, 12 passed, 10 warnings in 27.64s
+UHVACENO M6 bez obaveznog odeljka za advokata :: 1 failed, 12 passed, 10 warnings in 27.96s
+UHVACENO M7 odluke mogu biti i podnesak stranke :: 1 failed, 12 passed, 10 warnings in 27.77s
+UHVACENO M8 bez pravila o recenici o predmetu odluke :: 1 failed, 12 passed, 10 warnings in 27.99s
+UHVACENO M9 bez pravila o kasnijem podnesku :: 1 failed, 12 passed, 10 warnings in 27.80s
+UHVACENO M10 drafting pravila i kod drugog savetnika :: 1 failed, 12 passed, 10 warnings in 27.77s
+UHVACENO R1 odeljak bezuslovno (i za ne-podneske) :: 1 failed, 12 passed, 10 warnings in 27.74s
+UHVACENO R2 izuzetak provere za svaku recenicu sa oznakom :: 1 failed, 12 passed, 10 warnings in 27.71s
+UHVACENO R3 zabranjen predlog preispitivanja (F1) :: 1 failed, 12 passed, 10 warnings in 27.99s
+UHVACENO R4 izuzetak za oznaku na pocetku recenice :: 1 failed, 12 passed, 10 warnings in 28.16s
+UHVACENO R5 izuzetak za oznaku oblika DOK-n — opis :: 1 failed, 12 passed, 10 warnings in 27.36s
+svi fajlovi vraceni bajt-identicno

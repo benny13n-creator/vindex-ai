@@ -60,7 +60,7 @@ dobro.
 
 Dozvoljeni tipovi za tip_dokaza:
 - sudska_odluka (presuda, rešenje, zaključak suda)
-- podnesak (tužba, žalba, prigovor, zahtev stranke)
+- podnesak (tužba, žalba, prigovor, zahtev stranke; izjašnjenje stranke je podnesak i kad se odnosi na nalaz veštaka)
 - ugovor (ugovor o radu, kupoprodajni, zakup, zastupanje)
 - dopis (pismena komunikacija, obaveštenje, upozorenje)
 - medicinska_dokumentacija (nalaz, izveštaj, otpusna lista)
@@ -70,6 +70,11 @@ Dozvoljeni tipovi za tip_dokaza:
 - ostalo
 
 Pravni elementi su konkretni uslovi koje ovaj dokument pokriva (npr. "uzročna veza", "visina štete", "poslovna sposobnost").
+
+"kljucne_cinjenice": pravno odlučne činjenice iz OVOG izvoda, najviše 8, poređane od najodlučnije. Svaka je DOSLOVAN
+izvod iz teksta — prepiši rečenicu ili njen deo tačno kako stoji (ista slova, bez dodavanja dijakritika, ista
+interpunkcija), bez spajanja podataka iz različitih rečenica. Prednost imaju priznanja, odluke suda, rokovi, uručenja,
+iznosi i datumi — bez obzira na to gde se u izvodu nalaze. Ne navodi opšte opise („tužilac je pretrpeo štetu“).
 
 Vrati SAMO JSON bez markdown fenci."""
 
@@ -81,12 +86,93 @@ def _pozovi_evidence_api(client, user_msg: str):
     return client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0,
-        max_tokens=600,
+        max_tokens=_MAKS_IZLAZNIH_TOKENA,
         messages=[
             {"role": "system", "content": _CLASSIFY_SYSTEM},
             {"role": "user", "content": user_msg},
         ],
     )
+
+
+# MIR001 C2 — čitanje celog dokumenta u EKSPLICITNO ograničenim prozorima (umesto jednog izvoda od 1.500 znakova, posle
+# kojeg je kasna činjenica tiho nestajala iz tvrdnji). Isti model, isti poziv, isti upis tvrdnji; granice su konstante,
+# a dokument duži od pokrivenog dela beleži se kao DELIMIČNO pročitan (`ai_tags._ekstrakcija`), nikad kao potpun.
+_PROZOR_ZNAKOVA = 4000
+_PREKLOP_ZNAKOVA = 200            # činjenica na granici prozora ne sme da se preseče
+_MAKS_PROZORA = 6                 # ≤ 6 poziva gpt-4o-mini po dokumentu; ≈ 23.000 znakova
+_MAKS_CINJENICA = 20              # po dokumentu (ranije 5); deli se naizmenično po prozorima
+_MAKS_IZLAZNIH_TOKENA = 1500      # ranije 600; gust prozor (8 doslovnih činjenica + oznake) izmeren 627–863, 1/25 > 1000
+OZNAKA_EKSTRAKCIJE = "_ekstrakcija"
+
+
+def _prozori_teksta(tekst: str) -> list[tuple[int, str]]:
+    t = tekst or ""
+    prozori, od = [], 0
+    while od < len(t) and len(prozori) < _MAKS_PROZORA:
+        prozori.append((od, t[od:od + _PROZOR_ZNAKOVA]))
+        if od + _PROZOR_ZNAKOVA >= len(t):
+            break
+        od += _PROZOR_ZNAKOVA - _PREKLOP_ZNAKOVA
+    return prozori
+
+
+def _normalizuj_cinjenicu(c: str) -> str:
+    return " ".join(str(c).split()).casefold().rstrip(".")
+
+
+def _klasifikuj_ceo_dokument(naziv: str, tekst: str) -> dict:
+    """Prvi prozor daje klasifikaciju (vrsta, elementi, oznake) i činjenice; svaki sledeći SAMO činjenice. Duplikati se
+    spajaju (preklop prozora), a činjenice iznad `_MAKS_CINJENICA` se odbacuju i to se beleži. Prozor čiji poziv
+    padne ostaje NEpročitan. Pad PRVOG prozora je neuspeh klasifikacije kao i do sada (bez daljih poziva)."""
+    t = tekst or ""
+    prozori = _prozori_teksta(t)
+    rezultat = _klasifikuj_dokument(naziv, prozori[0][1] if prozori else "")
+    tagovi = rezultat.setdefault("ai_tags", {}) if isinstance(rezultat, dict) else {}
+    if not isinstance(rezultat, dict) or tagovi.get("_klasifikacija_greska"):
+        return rezultat
+    vidjene: set = set()
+
+    def _nove(lista):                                                  # redosled modela = od najodlučnije
+        out = []
+        for c in (lista if isinstance(lista, list) else []):           # string nije lista činjenica
+            n = _normalizuj_cinjenicu(c)
+            if isinstance(c, str) and n and n not in vidjene:
+                vidjene.add(n)
+                out.append(c)
+        return out
+    elementi = rezultat.get("pravni_elementi") or []
+    prvi = list(rezultat.get("kljucne_cinjenice") or [])
+    element_po = {c: (elementi[j] if j < len(elementi) else None) for j, c in enumerate(prvi) if isinstance(c, str)}
+    po_prozoru = [_nove(prvi)]
+    procitano, neprocitani = [(0, len(prozori[0][1]))] if prozori else [], []
+    for i, (od, deo) in enumerate(prozori[1:], start=2):
+        r = _klasifikuj_dokument(f"{naziv} (deo {i}/{len(prozori)})", deo)
+        if not isinstance(r, dict) or (r.get("ai_tags") or {}).get("_klasifikacija_greska"):
+            neprocitani.append(i)
+            continue
+        procitano.append((od, od + len(deo)))
+        po_prozoru.append(_nove(r.get("kljucne_cinjenice")))
+    pokriveno, kraj = 0, 0
+    for a, b in sorted(procitano):                                     # unija pročitanih opsega
+        pokriveno += max(0, b - max(a, kraj))
+        kraj = max(kraj, b)
+    # Granica se deli NAIZMENIČNO po prozorima (prva iz svakog, pa druga…): odbacivanje ne pogađa samo kraj dokumenta.
+    izabrane, red = [], 0
+    while len(izabrane) < _MAKS_CINJENICA and any(red < len(p) for p in po_prozoru):
+        izabrane += [p[red] for p in po_prozoru if red < len(p)][:_MAKS_CINJENICA - len(izabrane)]
+        red += 1
+    ukupno = sum(len(p) for p in po_prozoru)
+    rezultat["kljucne_cinjenice"] = izabrane
+    # pravni element ide SAMO uz činjenicu prvog prozora za koju ga je model dao (veza po činjenici, ne po poziciji)
+    rezultat["_pravni_element_po_cinjenici"] = [element_po.get(c) for c in izabrane]
+    tagovi[OZNAKA_EKSTRAKCIJE] = {
+        "ukupno_znakova": len(t), "procitano_znakova": pokriveno,
+        "potpuno": bool(prozori) and pokriveno >= len(t),
+        "prozora": len(prozori), "neprocitani_prozori": neprocitani,
+        "cinjenica_izdvojeno": ukupno, "cinjenica_odbaceno": ukupno - len(izabrane),
+        "cinjenice_potpune": ukupno == len(izabrane),
+    }
+    return rezultat
 
 
 def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
@@ -95,8 +181,12 @@ def _klasifikuj_dokument(naziv: str, tekst_izvod: str) -> dict:
         from openai import OpenAI
         import json
         client = OpenAI()
-        user_msg = f"Naziv dokumenta: {naziv}\n\nTekst (izvod, max 1500 znakova):\n{tekst_izvod[:1500]}"
+        user_msg = (f"Naziv dokumenta: {naziv}\n\n"
+                    f"Tekst (izvod, max {_PROZOR_ZNAKOVA} znakova):\n{tekst_izvod[:_PROZOR_ZNAKOVA]}")
         resp = _pozovi_evidence_api(client, user_msg)
+        if getattr(resp.choices[0], "finish_reason", None) == "length":
+            # MIR001 C2: prekinut JSON nije rezultat — prozor je NEpročitan (prvi prozor: neuspeh klasifikacije)
+            raise ValueError(f"odgovor klasifikatora prekinut na {_MAKS_IZLAZNIH_TOKENA} tokena")
         raw = (resp.choices[0].message.content or "").strip()
         if raw.startswith("```"):
             raw = "\n".join(l for l in raw.splitlines() if not l.strip().startswith("```"))
@@ -208,7 +298,7 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
     # whatever request-level correlation_id the upload endpoint already set.
     from shared.ai_provenance import case_context as _ai_case_ctx
     with _ai_case_ctx(predmet_id=predmet_id, document_id=dokument_id, module_name="evidence", operation_name="klasifikacija"):
-        rezultat = _klasifikuj_dokument(naziv, tekst)
+        rezultat = _klasifikuj_ceo_dokument(naziv, tekst)
 
     try:
         # Program Sigma, Master Sprint 002 (2026-08-06) -- found and fixed:
@@ -280,9 +370,12 @@ def klasifikuj_i_sacuvaj(predmet_id: str, dokument_id: str, naziv: str, tekst: s
                 "tvrdnja":        c,
                 "kategorija":     "cinjenica",
                 "dokument_id":    dokument_id,
-                "pravni_element": pravni_elm[i] if i < len(pravni_elm) else None,
+                "pravni_element": ((rezultat["_pravni_element_po_cinjenici"][i]
+                                    if i < len(rezultat["_pravni_element_po_cinjenici"]) else None)
+                                   if "_pravni_element_po_cinjenici" in rezultat
+                                   else (pravni_elm[i] if i < len(pravni_elm) else None)),
             }
-            for i, c in enumerate(cinjenice[:5])
+            for i, c in enumerate(cinjenice[:_MAKS_CINJENICA])
         ]
         if stavke:
             _rez_upisa = upisi_dokaze(

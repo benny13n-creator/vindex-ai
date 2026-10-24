@@ -1,0 +1,109 @@
+﻿........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 34%]
+........................................................................ [ 40%]
+.................................................x.........x............ [ 46%]
+........................................................................ [ 52%]
+..................................................................ssssss [ 57%]
+sss..................................................................... [ 63%]
+........................................................................ [ 69%]
+...................................ssssssssssssssssssss................. [ 75%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 98%]
+..................                                                       [100%]
+============================== warnings summary ===============================
+routers\style_checker.py:88
+  C:\vindex-miroslav\tests\..\routers\style_checker.py:88: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    uzorci: List[str] = Field(..., min_items=1, description="Lista tekstova dokumenata za analizu")
+
+routers\profitabilnost.py:224
+  C:\vindex-miroslav\tests\..\routers\profitabilnost.py:224: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    sortiranje: str = Query("naplaceno", regex="^(naplaceno|sati|satnica|nefakturisano)$"),
+
+api.py:848
+  C:\vindex-miroslav\tests\..\api.py:848: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+<python>\Lib\site-packages\fastapi\applications.py:4656
+<python>\Lib\site-packages\fastapi\applications.py:4656
+<python>\Lib\site-packages\fastapi\applications.py:4656
+  <python>\Lib\site-packages\fastapi\applications.py:4656: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+api.py:863
+  C:\vindex-miroslav\tests\..\api.py:863: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+api.py:878
+  C:\vindex-miroslav\tests\..\api.py:878: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+<python>\Lib\site-packages\fastapi\testclient.py:1
+  <python>\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_c1_export_stages.py: 38 warnings
+tests/test_n04_case_export_integrity.py: 18 warnings
+tests/test_n05_tenant_negative.py: 1 warning
+tests/test_ns3_export_audit_fail_closed.py: 22 warnings
+  C:\vindex-miroslav\tests\..\routers\data_export.py:136: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now  = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+
+tests/test_faza1_bugfixes_2026_07_24.py::test_semanticka_pretraga_hvata_gresku_embeddinga
+tests/test_multi_agent.py::test_run_parallel_exercises_thread_wrapped_predmet_fetch
+  <python>\Lib\site-packages\supabase\_sync\client.py:309: DeprecationWarning: The 'timeout' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_faza1_bugfixes_2026_07_24.py::test_semanticka_pretraga_hvata_gresku_embeddinga
+tests/test_multi_agent.py::test_run_parallel_exercises_thread_wrapped_predmet_fetch
+  <python>\Lib\site-packages\supabase\_sync\client.py:309: DeprecationWarning: The 'verify' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_intake_status_writers.py::test_kreiraj_demo_predmet_document_has_explicit_demo_status
+  <python>\Lib\unittest\mock.py:2247: RuntimeWarning: coroutine 'log_action' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_intake_status_writers.py::test_kreiraj_demo_predmet_document_has_explicit_demo_status
+  <python>\Lib\unittest\mock.py:2247: RuntimeWarning: coroutine 'intake_kreiraj.<locals>._run_pipeline' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_mir001_c3_procesno_stanje.py::test_bez_odluke_u_spisu_protivljenje_dopuni_ostaje_u_tekstu_za_sud
+tests/test_mir001_c3_procesno_stanje.py::test_drugi_savetnici_bez_bloka_i_bez_oznake
+tests/test_mir001_c4_e2e.py::test_ceo_tok_dug_dokument_odluka_suda_brisanje_izvora
+tests/test_mir001_t06_nacrt_iz_spisa.py::test_odobren_nacrt_iz_spisa_ne_postaje_izvor_ni_znanje_kancelarije
+  C:\vindex-miroslav\tests\..\tests\ns005_harness.py:418: RuntimeWarning: coroutine '_stage_draft_for_review' was never awaited
+    for _ime, _mod in list(_sys.modules.items()):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1211 passed, 29 skipped, 2 xfailed, 98 warnings in 165.78s (0:02:45)

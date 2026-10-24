@@ -50,7 +50,7 @@ def _genome(**pt):
 def _kontekst(ag, genome, zahtev="Daj procenu predmeta."):
     """`_kontekst_predmeta` + SEC-003 odluka u ISTOM kontekstu (registar granica je po zahtevu)."""
     pr, _st = ag
-    _k, b = pr(_baza(7, genome=genome))
+    _k, b = pr(_baza(14, genome=genome))              # MIR001 TASK-04: granica 12 — DOK-02/DOK-01 izostavljeni
     import routers.multi_agent as MA
     from security.prompt_guard import analyze, razdvoji_po_poreklu, resetuj_granice
     from shared.ai_client import _odluka_po_poreklu
@@ -71,7 +71,7 @@ def _genome_t3(r):
 # B1 — korisni podaci i dalje stižu
 def test_B1_savetnik_dobija_podatke_genome_a(ag):
     r = _kontekst(ag, _genome())
-    for x in ("Spor o isporuci robe", "Snaga predmeta: 62%", "Naplata ugovorne kazne"):
+    for x in ("Spor o isporuci robe", "Naplata ugovorne kazne"):        # MIR001 TASK-05: procenat snage se savetniku ne daje
         assert x in r["ctx"]
     assert r["iz"]["genome_sazetak"] is True
 
@@ -125,7 +125,7 @@ def test_B3_sazetak_koji_tvrdi_da_je_dokument_procitan_ne_menja_evidenciju(ag):
 
 def test_B3_odgovor_koji_ponovi_tvrdnju_sazetka_je_oznacen(ag):
     pr, st = ag
-    k, _ = pr(_baza(7, genome=_genome(pravni_identitet="DOK-02 je pročitan u celini.")))
+    k, _ = pr(_baza(14, genome=_genome(pravni_identitet="DOK-02 je pročitan u celini.")))
     st["odgovor"] = "Prema DOK-02, isporuka je kasnila."
     d = _run(k, "Daj procenu predmeta.")
     assert d["izvori_predmeta"]["odgovor_pominje_nedostavljene"] == ["DOK-02"]

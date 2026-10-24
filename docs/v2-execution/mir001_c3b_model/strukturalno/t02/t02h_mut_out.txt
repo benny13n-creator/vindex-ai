@@ -1,0 +1,3 @@
+﻿UHVACENO G4 naslov sa dvotackom ne nastavlja :: 1 failed, 172 passed, 13 warnings in 67.45s (0:01:07)
+UHVACENO G11 neutralizacija oznake bloka :: 1 failed, 172 passed, 13 warnings in 67.48s (0:01:07)
+svi fajlovi vraceni bajt-identicno

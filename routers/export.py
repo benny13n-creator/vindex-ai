@@ -43,6 +43,11 @@ async def post_export_docx(req: DocxExportRequest, user: dict = Depends(get_curr
     import re as _re
     if len(req.tekst.strip()) < 20:
         raise HTTPException(status_code=422, detail="Tekst je prekratak za export.")
+    from shared.nacrt_za_sud import GRANICA
+    if GRANICA in req.tekst:
+        # MIR001 C3b STRUCTURAL: tekst sa internim napomenama se ne izvozi ovim putem (v. POST /api/staging/{id}/docx)
+        raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene za advokata. Nacrt sa pregleda "
+                                                    "izvezite iz pregleda nacrta — u DOCX ide samo tekst za sud.")
     docx_bytes = await asyncio.to_thread(_tekst_u_docx, req.naslov, req.tekst, req.tip)
     safe = _re.sub(r"[^\w\-]", "_", req.naslov)[:50]
     filename = f"vindex_{safe}.docx"

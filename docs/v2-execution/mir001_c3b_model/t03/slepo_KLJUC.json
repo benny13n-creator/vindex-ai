@@ -1,0 +1,674 @@
+{
+ "T494000": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 14,
+  "spis": "SPIS-1"
+ },
+ "T151001": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 1,
+  "spis": "SPIS-1"
+ },
+ "T473002": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 4,
+  "spis": "SPIS-1"
+ },
+ "T720003": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 2,
+  "spis": "SPIS-6"
+ },
+ "T680004": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 4,
+  "spis": "SPIS-2"
+ },
+ "T275005": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 14,
+  "spis": "SPIS-2"
+ },
+ "T535006": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 3,
+  "spis": "SPIS-5"
+ },
+ "T182007": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 3,
+  "spis": "SPIS-2"
+ },
+ "T320008": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 10,
+  "spis": "SPIS-2"
+ },
+ "T944009": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 1,
+  "spis": "SPIS-6"
+ },
+ "T633010": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 13,
+  "spis": "SPIS-4"
+ },
+ "T206011": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 2,
+  "spis": "SPIS-3"
+ },
+ "T378012": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 2,
+  "spis": "SPIS-1"
+ },
+ "T661013": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 9,
+  "spis": "SPIS-1"
+ },
+ "T812014": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 11,
+  "spis": "SPIS-3"
+ },
+ "T840015": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 1,
+  "spis": "SPIS-4"
+ },
+ "T102016": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 11,
+  "spis": "SPIS-3"
+ },
+ "T851017": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 13,
+  "spis": "SPIS-3"
+ },
+ "T996018": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 0,
+  "spis": "SPIS-3"
+ },
+ "T215019": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 3,
+  "spis": "SPIS-6"
+ },
+ "T761020": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 10,
+  "spis": "SPIS-1"
+ },
+ "T413021": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 11,
+  "spis": "SPIS-1"
+ },
+ "T587022": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 13,
+  "spis": "SPIS-2"
+ },
+ "T541023": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 4,
+  "spis": "SPIS-3"
+ },
+ "T385024": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 6,
+  "spis": "SPIS-2"
+ },
+ "T245025": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 9,
+  "spis": "SPIS-3"
+ },
+ "T856026": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 9,
+  "spis": "SPIS-4"
+ },
+ "T179027": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 12,
+  "spis": "SPIS-3"
+ },
+ "T116028": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 5,
+  "spis": "SPIS-1"
+ },
+ "T424029": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 12,
+  "spis": "SPIS-4"
+ },
+ "T532030": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 2,
+  "spis": "SPIS-3"
+ },
+ "T300031": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 1,
+  "spis": "SPIS-5",
+  "preklop_u_delu": 3
+ },
+ "T762032": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 12,
+  "spis": "SPIS-1",
+  "preklop_u_delu": 1
+ },
+ "T701033": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 2,
+  "spis": "SPIS-4"
+ },
+ "T600034": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 2,
+  "spis": "SPIS-2"
+ },
+ "T848035": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 6,
+  "spis": "SPIS-4"
+ },
+ "T166036": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 14,
+  "spis": "SPIS-3"
+ },
+ "T494037": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 7,
+  "spis": "SPIS-1",
+  "preklop_u_delu": 3
+ },
+ "T648038": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 6,
+  "spis": "SPIS-6"
+ },
+ "T991039": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 13,
+  "spis": "SPIS-1",
+  "preklop_u_delu": 3
+ },
+ "T288040": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 7,
+  "spis": "SPIS-3"
+ },
+ "T669041": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 7,
+  "spis": "SPIS-3",
+  "preklop_u_delu": 1
+ },
+ "T393042": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 12,
+  "spis": "SPIS-3"
+ },
+ "T314043": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 11,
+  "spis": "SPIS-2"
+ },
+ "T934044": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 8,
+  "spis": "SPIS-4"
+ },
+ "T769045": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 7,
+  "spis": "SPIS-6"
+ },
+ "T952046": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 9,
+  "spis": "SPIS-6"
+ },
+ "T747047": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 4,
+  "spis": "SPIS-3"
+ },
+ "T858048": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 0,
+  "spis": "SPIS-1"
+ },
+ "T132049": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 1,
+  "spis": "SPIS-1"
+ },
+ "T649050": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 3,
+  "spis": "SPIS-1"
+ },
+ "T347051": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 12,
+  "spis": "SPIS-2"
+ },
+ "T883052": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 8,
+  "spis": "SPIS-6"
+ },
+ "T597053": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 3,
+  "spis": "SPIS-3"
+ },
+ "T625054": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 11,
+  "spis": "SPIS-1"
+ },
+ "T374055": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 1,
+  "spis": "SPIS-3"
+ },
+ "T698056": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 4,
+  "spis": "SPIS-5"
+ },
+ "T464057": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 13,
+  "spis": "SPIS-1"
+ },
+ "T513058": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 9,
+  "spis": "SPIS-5",
+  "preklop_u_delu": 1
+ },
+ "T557059": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 14,
+  "spis": "SPIS-3",
+  "preklop_u_delu": 2
+ },
+ "T101060": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 8,
+  "spis": "SPIS-2"
+ },
+ "T761061": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 2,
+  "spis": "SPIS-1"
+ },
+ "T867062": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 9,
+  "spis": "SPIS-3",
+  "preklop_u_delu": 2
+ },
+ "T818063": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 12,
+  "spis": "SPIS-1"
+ },
+ "T726064": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 4,
+  "spis": "SPIS-1"
+ },
+ "T757065": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 3,
+  "spis": "SPIS-4"
+ },
+ "T640066": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 0,
+  "spis": "SPIS-2"
+ },
+ "T529067": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 3,
+  "spis": "SPIS-1"
+ },
+ "T524068": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 5,
+  "spis": "SPIS-2",
+  "preklop_u_delu": 2
+ },
+ "T266069": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 9,
+  "spis": "SPIS-1"
+ },
+ "T584070": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 6,
+  "spis": "SPIS-1"
+ },
+ "T649071": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 4,
+  "spis": "SPIS-6"
+ },
+ "T905072": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 7,
+  "spis": "SPIS-2"
+ },
+ "T220073": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 0,
+  "spis": "SPIS-5"
+ },
+ "T869074": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 13,
+  "spis": "SPIS-3"
+ },
+ "T588075": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 8,
+  "spis": "SPIS-3",
+  "preklop_u_delu": 2
+ },
+ "T259076": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 0,
+  "spis": "SPIS-4"
+ },
+ "T650077": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 5,
+  "spis": "SPIS-6"
+ },
+ "T571078": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 10,
+  "spis": "SPIS-1"
+ },
+ "T717079": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 14,
+  "spis": "SPIS-1"
+ },
+ "T333080": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 0,
+  "spis": "SPIS-3"
+ },
+ "T224081": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 8,
+  "spis": "SPIS-1",
+  "preklop_u_delu": 2
+ },
+ "T859082": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 5,
+  "spis": "SPIS-3"
+ },
+ "T109083": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 3,
+  "spis": "SPIS-3"
+ },
+ "T470084": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 4,
+  "spis": "SPIS-4"
+ },
+ "T562085": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 8,
+  "spis": "SPIS-1"
+ },
+ "T975086": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 6,
+  "spis": "SPIS-1"
+ },
+ "T676087": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 5,
+  "spis": "SPIS-5"
+ },
+ "T949088": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 5,
+  "spis": "SPIS-4"
+ },
+ "T799089": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 7,
+  "spis": "SPIS-5",
+  "preklop_u_delu": 2
+ },
+ "T995090": {
+  "grupa": "posle",
+  "scenario": "H2",
+  "indeks": 0,
+  "spis": "SPIS-6"
+ },
+ "T673091": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 7,
+  "spis": "SPIS-1"
+ },
+ "T963092": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 2,
+  "spis": "SPIS-5"
+ },
+ "T774093": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 10,
+  "spis": "SPIS-4"
+ },
+ "T145094": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 5,
+  "spis": "SPIS-3"
+ },
+ "T973095": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 7,
+  "spis": "SPIS-4"
+ },
+ "T955096": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 9,
+  "spis": "SPIS-2"
+ },
+ "T442097": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 1,
+  "spis": "SPIS-3"
+ },
+ "T740098": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 10,
+  "spis": "SPIS-3"
+ },
+ "T732099": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 11,
+  "spis": "SPIS-4"
+ },
+ "T107100": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 8,
+  "spis": "SPIS-5"
+ },
+ "T480101": {
+  "grupa": "posle",
+  "scenario": "C1",
+  "indeks": 6,
+  "spis": "SPIS-3"
+ },
+ "T510102": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 6,
+  "spis": "SPIS-3"
+ },
+ "T675103": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 10,
+  "spis": "SPIS-3"
+ },
+ "T796104": {
+  "grupa": "pre",
+  "scenario": "A",
+  "indeks": 0,
+  "spis": "SPIS-1"
+ },
+ "T833105": {
+  "grupa": "posle",
+  "scenario": "C2",
+  "indeks": 14,
+  "spis": "SPIS-4"
+ },
+ "T335106": {
+  "grupa": "pre",
+  "scenario": "C1",
+  "indeks": 8,
+  "spis": "SPIS-3"
+ },
+ "T727107": {
+  "grupa": "posle",
+  "scenario": "B",
+  "indeks": 1,
+  "spis": "SPIS-2"
+ },
+ "T911108": {
+  "grupa": "posle",
+  "scenario": "H1",
+  "indeks": 6,
+  "spis": "SPIS-5"
+ },
+ "T444109": {
+  "grupa": "posle",
+  "scenario": "A",
+  "indeks": 5,
+  "spis": "SPIS-1"
+ }
+}

@@ -205,6 +205,27 @@ for (const [naziv, kuka, stanje, re] of [
   zapisi("D.istina", "lista overe 500 → „nije prazna lista“", /nije prazna/.test((await ekran(s.p)).overaStanje || ""));
   await s.zatvori();
 }
+{
+  // MIR001 C3b FINAL CLOSURE: nacrt iz spisa je AI RADNI PREDLOG. Stari nacrt (bez zapisa za usvajanje) se prikazuje SAMO
+  // za čitanje, bez izvoza i bez odobrenja; ne označava se retroaktivno. Tok usvajanja meri live-c3b-usvajanje-e2e.mjs.
+  const s = await scenario();
+  const G = "═══ VINDEX — INTERNE NAPOMENE ZA ADVOKATA (upisao sistem; NISU deo podneska i ne izvoze se u DOCX) ═══";
+  s.KOR[TA].staging.unshift({ id: "st-iz", predmet_id: s.A[0].id, naziv: "Nacrt iz spisa (savetnik)", tip: "nacrt_iz_spisa", status: "pending",
+    created_at: "2026-10-23T09:00:00Z", tekst: "PODNESAK\nTužilac ostaje pri zahtevu.\n\n" + G + "\nINTERNO: napomena" });
+  await s.p.reload();
+  await cekaj(s.p, () => document.querySelectorAll("#nc-overa-lista .review").length > 1);
+  const oznaka = await s.p.evaluate(() => document.querySelector("#nc-overa-lista .review:first-child .review__meta").textContent);
+  zapisi("D.predlog", "lista kaže rečima: AI predlog — ne izvozi se", /AI predlog — za pregled, ne izvozi se/.test(oznaka), oznaka);
+  await s.p.click('#nc-overa-lista .review:first-child button:has-text("Otvori i pregledaj")');
+  await cekaj(s.p, () => /pre kontrolisanog usvajanja/.test(document.getElementById("nc-otvoren-stanje").textContent));
+  const e = await s.p.evaluate(() => ({ ro: document.getElementById("nc-tekst").readOnly, v: document.getElementById("nc-tekst").value,
+    akcije: document.getElementById("nc-akcije").hidden, usv: document.getElementById("nc-usvajanje").hidden }));
+  zapisi("D.predlog", "stari nacrt iz spisa: samo čitanje, bez internih napomena, bez Sačuvaj/Odobri/DOCX",
+    e.ro && e.v === "PODNESAK\nTužilac ostaje pri zahtevu." && e.akcije && e.usv, JSON.stringify(e));
+  zapisi("D.predlog", "nijedan zahtev za izvoz, izmenu ni odobrenje", zahtevi(s, /\/api\/staging\/st-iz\/(docx|tekst|approve)$/).length === 0
+    && zahtevi(s, /^\/api\/nacrti\/export\/docx$/).length === 0 && zahtevi(s, /\/api\/staging\/st-iz\/tekst$/, "PATCH").length === 0);
+  await s.zatvori();
+}
 // ── E: zastarelo i sesija ────────────────────────────────────────────────
 {
   const s = await scenario({ pre: (p) => p === "/api/podnesak" ? new Promise(r => setTimeout(r, 1300)) : null });

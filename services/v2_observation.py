@@ -67,7 +67,7 @@ def _poznati_dokazi(dokazi: Any) -> dict[str, dict]:
 
 async def upisi_v2_opazanje(
     *, predmet_id: str, user_id: str, genome: dict, dokazi: Any,
-    event_id: Optional[str] = None,
+    event_id: Optional[str] = None, tvrdnje_potpune: bool = True,
 ) -> dict:
     """Materijalizuje Genome kontradikcije i upisuje CEO paket atomarno.
 
@@ -88,7 +88,9 @@ async def upisi_v2_opazanje(
     # Odbijen kandidat znači: Genome JESTE video kontradikciju, a mi je nismo
     # mogli izraziti. Tvrditi kompletnost tada bi značilo zatvoriti spornu tačku
     # na koju se odbijeni odnosio — tihi gubitak, ne čišćenje.
-    kompletno = not odbijeni
+    # MIR001 TASK-03: isto važi kad model nije video SVE žive tvrdnje predmeta (katalog odsečen ili
+    # nepročitan) — sporna tačka čije tvrdnje nisu bile u promptu nije „više neopažena“, nego nevidljiva.
+    kompletno = not odbijeni and tvrdnje_potpune
 
     tezine = {i: k["_tezina"] for i, k in enumerate(kandidati) if k.get("_tezina")}
 
@@ -98,6 +100,9 @@ async def upisi_v2_opazanje(
         kompletno_opazanje=kompletno,
     )
 
+    if not tvrdnje_potpune:
+        logger.info("[MIR001] predmet=%s V2 opažanje NIJE kompletno — model nije video sve tvrdnje predmeta; "
+                    "neopažene kontradikcije se NE zatvaraju", predmet_id)
     if odbijeni:
         logger.info(
             "[A017] predmet=%s V2 opažanje NIJE kompletno — %d kandidata upisano, "

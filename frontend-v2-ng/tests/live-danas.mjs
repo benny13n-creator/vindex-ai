@@ -178,6 +178,17 @@ for (const [naziv, kuka, re, ponovo] of [
   zapisi("D.istina", "degraded_sources[rocista] i odsečeni rokovi se kažu", /ročišta nisu učitana/.test(e.stanje || "") && /rokova ima više nego što je prikazano/.test(e.stanje), e.stanje);
   await s.zatvori();
 }
+// ── MIR001 TASK-07: predlog roka čiji je izvorni dokument obrisan — bez „Potvrdi“, sa razlogom; ostali predlozi isti ──
+{
+  const s = await scenario({}, { pripremi: (KOR) => { KOR[TA].rokovi.find(x => x.id === "r-kand").izvorPovucen = true; } });
+  await ucitano(s.p);
+  const r = await s.p.evaluate(() => { const li = document.querySelector('[data-rok="r-kand"]'); const xs = document.querySelector('[data-rok="r-xss"]');
+    const vid = (el, t) => [...el.querySelectorAll("button")].some(b => b.textContent === t && !b.hidden);
+    return li && xs ? { tekst: li.innerText, potvrdi: vid(li, "Potvrdi"), odbij: vid(li, "Odbij"), drugiPotvrdi: vid(xs, "Potvrdi") } : null; });
+  zapisi("F.povucen", "predlog bez izvora: nema „Potvrdi“, ima „Odbij“ i razlog; drugi predlog i dalje nudi potvrdu",
+    !!r && !r.potvrdi && r.odbij && /uklonjen je iz predmeta — rok više nema izvor/.test(r.tekst) && r.drugiPotvrdi, JSON.stringify(r).slice(0, 200));
+  await s.zatvori();
+}
 // ── N03-FD6: izvor promenjen posle potvrde = upozorenje uz OBAVEZU, ne opoziv; pad provere se kaže ───────
 {
   const s = await scenario({}, { pripremi: (KOR) => { KOR[TA].rokovi.find(x => x.id === "r-pot").izvorUklonjen = true; } });

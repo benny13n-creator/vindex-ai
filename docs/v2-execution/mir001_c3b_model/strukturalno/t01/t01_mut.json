@@ -1,0 +1,143 @@
+{
+ "cmd": [
+  "python",
+  "-X",
+  "utf8",
+  "-m",
+  "pytest",
+  "tests/test_mir001_c3b_procesno_stanje_ugovor.py",
+  "-q",
+  "-p",
+  "no:randomly",
+  "-p",
+  "no:cacheprovider"
+ ],
+ "mutacije": [
+  {
+   "ime": "T1 kasniji podnesak ne cini odluku spornom",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "            if odnos != \"RANIJE\":\n                o[\"stanje\"] = CONTESTED",
+   "new": "            if odnos == \"KASNIJE_X\":\n                o[\"stanje\"] = CONTESTED"
+  },
+  {
+   "ime": "T2 obrasci suda vaze i za podnesak stranke",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        obrasci = (_OBRASCI_SUDA if vrsta[\"akter\"] == \"SUD\" else",
+   "new": "        obrasci = (_OBRASCI_SUDA if vrsta[\"akter\"] in (\"SUD\", \"TUZENI\", \"TUZILAC\") else"
+  },
+  {
+   "ime": "T3 potvrda izvoda bez sha256",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "            and sha256_teksta(tekst) == sha and tekst[pocetak:kraj] == izvod)",
+   "new": "            and tekst[pocetak:kraj] == izvod)"
+  },
+  {
+   "ime": "T4 potvrda izvoda bez poredjenja teksta",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "            and sha256_teksta(tekst) == sha and tekst[pocetak:kraj] == izvod)",
+   "new": "            and sha256_teksta(tekst) == sha)"
+  },
+  {
+   "ime": "T5 nema oznake nepoznate uplate",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "            dog[\"uplata\"] = UNKNOWN\n",
+   "new": "            dog[\"uplata\"] = VERIFIED\n"
+  },
+  {
+   "ime": "T6 tok roka proglasen poznatim",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "\"pocetak_iz_izvoda\": rok.group(2), \"tok_i_istek\": UNKNOWN}",
+   "new": "\"pocetak_iz_izvoda\": rok.group(2), \"tok_i_istek\": VERIFIED}"
+  },
+  {
+   "ime": "T7 bez provere predmeta i korisnika",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        if str(d.get(\"predmet_id\")) != str(predmet_id) or str(d.get(\"user_id\")) != str(user_id):",
+   "new": "        if False:"
+  },
+  {
+   "ime": "T8 vrsta advokata se ignorise",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "    if advokat not in _VRSTA_SUD | _VRSTA_STRANKA:\n        return po_naslovu",
+   "new": "    if True:\n        return po_naslovu"
+  },
+  {
+   "ime": "T9 sukob naslova i advokata precutan",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "    if v and (v == \"SUD\") != sud:",
+   "new": "    if False:"
+  },
+  {
+   "ime": "T10 recenica tela moze biti naslov",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        if not (s.isupper() or (len(s) <= 80 and not re.search(r\"[.!?]$\", s))):\n            continue",
+   "new": "        pass"
+  },
+  {
+   "ime": "T11 negiran glas suda posle prihvatanja",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "    (\"SUD_NERAZVRSTANO\", re.compile(_SUD_GLAS + r\"(?:ni(?:je|su)\\b|ne\\s)|\\bne\\s+(?:prihvata|usvaja|nalaze|odbija|odbacuje)\\s+se\\b\")),\n",
+   "new": ""
+  },
+  {
+   "ime": "T12 nepoznat akter postaje sud",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        obrasci = (_OBRASCI_SUDA if vrsta[\"akter\"] == \"SUD\" else",
+   "new": "        obrasci = (_OBRASCI_SUDA if vrsta[\"akter\"] in (\"SUD\", \"NEPOZNAT\") else"
+  },
+  {
+   "ime": "T13 ishod rocista bez zapisnika se ne prijavljuje",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "            if dr and dr not in datumi_sudskih:",
+   "new": "            if dr and dr in datumi_sudskih:"
+  },
+  {
+   "ime": "T14 neprocitani dokumenti ne menjaju potpunost",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "\"potpunost\": \"NEPOTPUNO\" if nepr else \"POTPUNO\"",
+   "new": "\"potpunost\": \"POTPUNO\""
+  },
+  {
+   "ime": "T15 vise datuma -> bira se prvi",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "    if len(kandidati) != 1:",
+   "new": "    if len(kandidati) == 0:"
+  },
+  {
+   "ime": "T16 AI tip_dokaza se koristi kao vrsta",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "    tag = ai_tags.get(OZNAKA_VRSTE_ADVOKATA) if isinstance(ai_tags, dict) else None",
+   "new": "    tag = (ai_tags.get(OZNAKA_VRSTE_ADVOKATA) or ai_tags) if isinstance(ai_tags, dict) else None"
+  },
+  {
+   "ime": "T17 izvrsenje naloga poznato",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        dog[\"izvrsenje\"] = UNKNOWN\n",
+   "new": "        dog[\"izvrsenje\"] = \"NIJE_IZVRSENO\"\n"
+  },
+  {
+   "ime": "T18 nepoznat akter ne oznacen",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "                vrsta_dog = \"NEPOZNAT_AKTER\"            # liči",
+   "new": "                vrsta_dog = None            # liči"
+  },
+  {
+   "ime": "T19 bezlicni oblik prihvatanja se ne prepoznaje",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "r\"(?:prihvat|usvaj|usvoj)\\w*|\\b(?:prihvata|usvaja)\\s+se\\b\"",
+   "new": "r\"(?:prihvat|usvaj|usvoj)\\w*\""
+  },
+  {
+   "ime": "T20 sudski dokument bez odluke precutan",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        if not any(x[\"oznaka\"] == oz and x[\"akter\"] == \"SUD\" for x in dogadjaji):",
+   "new": "        if False:"
+  },
+  {
+   "ime": "T21 nepoznata vrsta dokumenta precutana",
+   "fajl": "shared/procesno_stanje.py",
+   "old": "        if vrsta[\"akter\"] == \"NEPOZNAT\":\n",
+   "new": "        if vrsta[\"akter\"] == \"NEPOZNAT_X\":\n"
+  }
+ ]
+}

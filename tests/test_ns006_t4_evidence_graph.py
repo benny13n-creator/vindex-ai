@@ -115,7 +115,10 @@ def test_pala_klasifikacija_ostaje_neuspeh(okruzenje):
     dok = {d["id"]: d for d in _graf(k).json()["dokazi"]["dokumenti"]}
     assert dok[D2]["klasifikacija"] == {"stanje": "NEUSPESNA", "tip": None}, "„ostalo“ posle pada nije rezultat"
     assert dok[D3]["klasifikacija"] == {"stanje": "NIJE_KLASIFIKOVAN", "tip": None}
-    assert dok[D1]["klasifikacija"] == {"stanje": "USPESNA", "tip": "sudska_odluka"}
+    # MIR001 C2: uspešna klasifikacija nosi i stanje čitanja (kratak dokument → pročitan u celini)
+    assert dok[D1]["klasifikacija"] == {"stanje": "USPESNA", "tip": "sudska_odluka",
+                                        "citanje": {"potpuno": True, "procitano_znakova": 163, "ukupno_znakova": 163,
+                                                    "cinjenica_odbaceno": 0, "cinjenice_potpune": True}}
     assert _graf(k).json()["dokazi"]["sazetak"]["neuspesnih_klasifikacija"] == 1
 
 

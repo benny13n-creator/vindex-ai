@@ -218,9 +218,13 @@ def _make_fake(dokazi=None, dokumenti=None, rocista=None, case_actions=None, tip
     })
 
 
-def _event(event_id):
+def _event(event_id, payload=None):
+    # MIR001 C1: produkcioni RPC (migracije 131/133/137) uvek nosi izvor; bez njega veza nije dokaziva i ništa se ne zatvara
     return Event(type=EventType.SOURCE_INVALIDATED, user_id="user-1", predmet_id=PID,
-                 payload={}, correlation_id="corr-1", event_id=event_id)
+                 payload=payload or {}, correlation_id="corr-1", event_id=event_id)
+
+
+_ROCISTE_OBRISANO = {"source_type": "rociste", "source_id": "roc-del-1"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -256,7 +260,7 @@ async def test_rociste_deletion_closes_its_own_deadline_action():
 
     existing_action = {
         "id": "ca-1", "predmet_id": PID, "tip": "PRIPREMITI_PODNESAK", "status": "open",
-        "dedupe_key": "roc-hash-1", "razlog": "x", "prioritet": "high", "rok": None,
+        "dedupe_key": "roc-hash-1", "razlog": "x", "prioritet": "high", "rok": None, "dokaz": {"rociste_id": "roc-del-1"},
         "updated_at": "2026-09-01T00:00:00+00:00",
     }
     # Rociste already deleted (this is what the reconcile sees AFTER the
@@ -265,7 +269,7 @@ async def test_rociste_deletion_closes_its_own_deadline_action():
     fake = _make_fake(rocista=[], case_actions=[existing_action])
 
     with patch("services.case_evolution._get_supa", return_value=fake):
-        result = await _consequence_refresh_case_actions(_event("evt-del-1"))
+        result = await _consequence_refresh_case_actions(_event("evt-del-1", _ROCISTE_OBRISANO))
 
     assert "closed=1" in result
     assert fake.tables["case_actions"][0]["status"] == "closed"
@@ -336,7 +340,7 @@ async def test_retry_same_event_id_produces_no_duplicate_effect():
 
     existing_action = {
         "id": "ca-1", "predmet_id": PID, "tip": "PRIPREMITI_PODNESAK", "status": "open",
-        "dedupe_key": "roc-hash-1", "razlog": "x", "prioritet": "high", "rok": None,
+        "dedupe_key": "roc-hash-1", "razlog": "x", "prioritet": "high", "rok": None, "dokaz": {"rociste_id": "roc-del-1"},
         "updated_at": "2026-09-01T00:00:00+00:00",
     }
     fake = _make_fake(rocista=[], case_actions=[existing_action])
@@ -344,9 +348,9 @@ async def test_retry_same_event_id_produces_no_duplicate_effect():
 
     with patch("services.case_evolution._get_supa", return_value=fake), \
          patch("shared.audit_immutable.log_action", new=AsyncMock()):
-        await handle_case_changed(_event("evt-retry-src-1"))
+        await handle_case_changed(_event("evt-retry-src-1", _ROCISTE_OBRISANO))
         n1 = len(fake.tables["case_actions"])
-        await handle_case_changed(_event("evt-retry-src-1"))
+        await handle_case_changed(_event("evt-retry-src-1", _ROCISTE_OBRISANO))
         n2 = len(fake.tables["case_actions"])
 
     # A document-less, evidence-less matter also trips the risk engine's

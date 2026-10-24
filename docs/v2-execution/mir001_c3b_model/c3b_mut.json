@@ -1,0 +1,100 @@
+{
+ "cmd": [
+  "powershell",
+  "-NoProfile",
+  "-Command",
+  ". '<scratchpad>/ocr.ps1'; python -m pytest tests/test_mir001_c3b_pravila.py tests/test_mir001_c3_procesno_stanje.py -q -p no:randomly"
+ ],
+ "mutacije": [
+  {
+   "ime": "M1 jezgro pravila nije u sistemskoj poruci (naslov)",
+   "fajl": "routers/multi_agent.py",
+   "old": "PROCESNO STANJE — OBAVEZNA PRAVILA (važe i kad",
+   "new": "PROCESNO STANJE — PRAVILA (važe i kad"
+  },
+  {
+   "ime": "M2 vraceno staro pravilo o rokovima",
+   "fajl": "routers/multi_agent.py",
+   "old": "- Rok računaj prema današnjem datumu samo kad spis pokazuje i dan od kog rok teče;",
+   "new": "- Rokove računaj prema današnjem datumu iz konteksta.\n- X;"
+  },
+  {
+   "ime": "M3 podsetnik bloka ne upucuje na sistemska pravila",
+   "fajl": "routers/multi_agent.py",
+   "old": "primeni „PROCESNO STANJE — OBAVEZNA PRAVILA“ iz sistemske poruke na ove redove ",
+   "new": "na ove redove "
+  },
+  {
+   "ime": "M4 jezgro prepisano i u korisnicku poruku",
+   "fajl": "routers/multi_agent.py",
+   "old": "              \"— o čemu je sud odlučio, to NIJE otvoreno pitanje.\\n\")",
+   "new": "              \"— o čemu je sud odlučio, to NIJE otvoreno pitanje. Kasniji podnesak stranke (odustanak, ponovljen predlog, prigovor) NE menja odluku.\\n\")"
+  },
+  {
+   "ime": "M5 promenjen sistem drugog savetnika (litigation)",
+   "fajl": "routers/multi_agent.py",
+   "old": "istekao rok navedi kao istekao.",
+   "new": "istekao rok navedi kao istekao!"
+  },
+  {
+   "ime": "M6 bez obaveznog odeljka za advokata",
+   "fajl": "routers/multi_agent.py",
+   "old": "„NAPOMENA ZA ADVOKATA — PROCESNO STANJE (ukloniti pre podnošenja)“",
+   "new": "„NAPOMENA“"
+  },
+  {
+   "ime": "M7 odluke mogu biti i podnesak stranke",
+   "fajl": "routers/multi_agent.py",
+   "old": " — nikad podnesak stranke;",
+   "new": ";"
+  },
+  {
+   "ime": "M8 bez pravila o recenici o predmetu odluke",
+   "fajl": "routers/multi_agent.py",
+   "old": "mora u istoj rečenici navesti odluku sa oznakom dokumenta",
+   "new": "može navesti odluku"
+  },
+  {
+   "ime": "M9 bez pravila o kasnijem podnesku",
+   "fajl": "routers/multi_agent.py",
+   "old": "Kasniji podnesak stranke (odustanak, ponovljen predlog, prigovor) NE menja odluku: navedi",
+   "new": "Navedi"
+  },
+  {
+   "ime": "M10 drafting pravila i kod drugog savetnika",
+   "fajl": "routers/multi_agent.py",
+   "old": "- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao.",
+   "new": "- Rokove računaj od datuma iz dokumenata u odnosu na današnji datum iz konteksta; istekao rok navedi kao istekao. PROCESNO STANJE — OBAVEZNA PRAVILA"
+  },
+  {
+   "ime": "R1 odeljak bezuslovno (i za ne-podneske)",
+   "fajl": "routers/multi_agent.py",
+   "old": "Kad je dostavljen spis i nacrt je tipa (A) — podnesak u sudskom postupku —, posle upozorenja",
+   "new": "Kad je dostavljen spis, posle upozorenja"
+  },
+  {
+   "ime": "R2 izuzetak provere za svaku recenicu sa oznakom",
+   "fajl": "routers/multi_agent.py",
+   "old": "or _RE_SAMO_OZNAKA.match(r):",
+   "new": "or \"[proveriti procesno stanje\" in r:"
+  },
+  {
+   "ime": "R3 zabranjen predlog preispitivanja (F1)",
+   "fajl": "routers/multi_agent.py",
+   "old": "da sud odluku preispita, izmeni, ograniči obim ili od radnje odustane",
+   "new": "da sud ograniči obim"
+  },
+  {
+   "ime": "R4 izuzetak za oznaku na pocetku recenice",
+   "fajl": "routers/multi_agent.py",
+   "old": "\\[proveriti procesno stanje[^\\]]*\\]\\W*$\")",
+   "new": "\\[proveriti procesno stanje\")"
+  },
+  {
+   "ime": "R5 izuzetak za oznaku oblika DOK-n — opis",
+   "fajl": "routers/multi_agent.py",
+   "old": "or _RE_SAMO_OZNAKA.match(r):",
+   "new": "or _RE_SAMO_OZNAKA.match(r) or __import__('re').search(r'\\[proveriti procesno stanje: dok-\\d+ — ', r):"
+  }
+ ]
+}

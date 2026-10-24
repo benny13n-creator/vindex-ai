@@ -59,15 +59,29 @@ def _ai_tags(v: Any) -> dict:
     return {}
 
 
+def citanje_dokumenta(tagovi: dict) -> Optional[dict]:
+    """MIR001 C2: koliko je teksta ekstrakcija tvrdnji pročitala (routers/evidence.py::_klasifikuj_ceo_dokument).
+    `None` = nepoznato (dokument klasifikovan pre C2 ili vrstu je odredio advokat pre AI upisa) — NIKAD „potpuno“."""
+    e = tagovi.get("_ekstrakcija")
+    if not isinstance(e, dict) or not isinstance(e.get("potpuno"), bool):
+        return None
+    return {k: e.get(k) for k in ("potpuno", "procitano_znakova", "ukupno_znakova", "cinjenica_odbaceno", "cinjenice_potpune")}
+
+
+def _sa_citanjem(k: dict, tagovi: dict) -> dict:
+    c = citanje_dokumenta(tagovi)
+    return {**k, "citanje": c} if c is not None else k                # bez ključa = nepoznato, nikad „potpuno“
+
+
 def klasifikacija_dokumenta(d: dict) -> dict:
     tagovi = _ai_tags(d.get("ai_tags"))
     if tagovi.get(OZNAKA_VRSTE_ADVOKATA) and d.get("tip_dokaza"):
-        return {"stanje": KLASIFIKACIJA_USPESNA, "tip": d.get("tip_dokaza"), "odredio": "advokat"}
+        return _sa_citanjem({"stanje": KLASIFIKACIJA_USPESNA, "tip": d.get("tip_dokaza"), "odredio": "advokat"}, tagovi)
     if tagovi.get("_klasifikacija_greska"):
         return {"stanje": KLASIFIKACIJA_NEUSPESNA, "tip": None}
     if not d.get("klasifikovan_at"):
         return {"stanje": KLASIFIKACIJA_NIJE, "tip": None}
-    return {"stanje": KLASIFIKACIJA_USPESNA, "tip": d.get("tip_dokaza")}
+    return _sa_citanjem({"stanje": KLASIFIKACIJA_USPESNA, "tip": d.get("tip_dokaza")}, tagovi)
 
 
 def _kljuc_elementa(v: Optional[str]) -> Optional[str]:

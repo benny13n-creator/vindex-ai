@@ -1,0 +1,203 @@
+{
+  "P8600": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "NE USVAJAM"},
+    "zamene": [
+      {"staro": "TUŽILAC: Alfa Fiktiv DOO, [PROVERITI: adresa]", "novo": "TUŽILAC: Alfa Fiktiv DOO, Primergrad"},
+      {"staro": "TUŽENI: Beta Primer Gradnja DOO, [PROVERITI: adresa]", "novo": "TUŽENI: Beta Primer Gradnja DOO, Fiktivgrad"},
+      {"staro": "nosaci solarnih panela", "novo": "nosači solarnih panela"},
+      {"staro": "Tužilac smatra da je nalaz veštaka potpun i da nema potrebe za dopunom veštačenja. Međutim, ukoliko sud smatra da je dopuna potrebna, tužilac će postupiti po nalogu suda.", "novo": "Tužilac smatra da je nalaz veštaka potpun. Sud je na ročištu održanom 15.07.2026. godine prihvatio predlog za dopunu veštačenja i naložio tužiocu da u roku od 8 dana od prijema zapisnika uplati predujam za dopunu veštačenja u iznosu od 60.000 dinara (DOK-07)."},
+      {"staro": "[PROVERITI: ime i prezime ovlašćenog lica]", "novo": "Za tužioca Alfa Fiktiv DOO"},
+      {"staro": "[PROVERITI: potpis]", "novo": ""}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom od 10.02.2026. traženo je 4.200.000 dinara (DOK-01); tužilac je na ročištu 15.07.2026. precizirao tužbeni zahtev na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Podneskom od 02.04.2026. tužilac je dodatno tražio 600.000 dinara za oštećenu robu (DOK-03); taj zahtev je povučen na ročištu 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "Na ročištu 15.07.2026. tužilac je povukao zahtev od 600.000 dinara za robu i precizirao tužbeni zahtev na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "POTVRDJENO", "tekst": "Ročište 15.07.2026. (DOK-07): sud je prihvatio predlog tuženog (DOK-06, ranije) za dopunu veštačenja, naložio tužiocu uplatu predujma od 60.000 dinara i zakazao sledeće ročište za 18.11.2026."},
+      "NALOG": {"odluka": "POTVRDJENO", "tekst": "Tužiocu je naloženo da u roku od 8 dana od prijema zapisnika uplati predujam od 60.000 dinara za dopunu veštačenja (DOK-07)."},
+      "UPLATA": {"odluka": "NEPOZNATO", "tekst": "U spisu nema dokaza o uplati predujma ni podneska o uplati."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Rok od 8 dana teče od prijema zapisnika, a datum prijema zapisnika nije u spisu; da li je rok istekao ne može se utvrditi. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog dokumenta; u spisu nema dokaza o prijemu zapisnika, dokaza o uplati predujma ni dopunskog nalaza veštaka."}
+    },
+    "obrazlozenje": "Odbijeno je samo AI upozorenje (S-12). U S-07 uklonjeno je tvrđenje da nema potrebe za dopunom i uslovno „ukoliko sud smatra“, jer je sud dopunu već prihvatio 15.07.2026. i naložio predujam; adrese i potpis su popunjeni iz spisa ili uklonjeni."
+  },
+  "P7701": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "USVAJAM"},
+    "zamene": [
+      {"staro": ", jer je veštak u svom nalazu jasno naveo metode i izvore koje je koristio prilikom veštačenja", "novo": ""},
+      {"staro": "u iznosu od 4.200.000 dinara, uključujući dodatni zahtev za 600.000 dinara za oštećenu robu u hali (DOK-03)", "novo": "u iznosu od 4.200.000 dinara (DOK-01), kao i dodatni zahtev za 600.000 dinara za oštećenu robu u hali (DOK-03)"},
+      {"staro": "[PROVERITI: Ime i prezime ovlašćenog lica]", "novo": "Za tužioca Alfa Fiktiv DOO"},
+      {"staro": "[PROVERITI: Potpis]", "novo": ""}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom od 10.02.2026. traženo je 4.200.000 dinara (DOK-01); izmena zahteva nije u spisu."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Podneskom od 02.04.2026. tužilac dodatno traži 600.000 dinara za oštećenu robu u hali (DOK-03), pored iznosa iz tužbe (ne u okviru njega)."},
+      "POVLACENJE_IZMENA": {"odluka": "POTVRDJENO", "tekst": "U spisu nema povlačenja ni preinačenja zahteva."},
+      "ODLUKE_SUDA": {"odluka": "NEPOZNATO", "tekst": "U spisu nema nijednog sudskog dokumenta (zapisnika, rešenja); ni zakazivanje ročišta za 18.11.2026. nije dokumentovano u spisu."},
+      "NALOG": {"odluka": "NEPOZNATO", "tekst": "U spisu nema naloga suda; pošto nema sudskih dokumenata, ne može se isključiti da nalog postoji."},
+      "UPLATA": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "U spisu nema naloga za uplatu."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Procesni rokovi nisu vidljivi iz spisa; ročište 18.11.2026. navedeno je samo u zahtevu, ne i u dokumentu suda."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "NEPOZNATO", "tekst": "Nema nečitljivog dokumenta, ali u spisu nema nijednog zapisnika ni poziva za ročište od 18.11.2026., pa je verovatno da sudski dokumenti nedostaju."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene uz ispravke. Iz S-07 uklonjena je izmišljena tvrdnja da je veštak u nalazu naveo metode i izvore (nalaz to ne sadrži), a u S-09 ispravljeno je da 600.000 dinara nije uključeno u 4.200.000 dinara, već se traži dodatno; potpis je zamenjen bez nerazrešenih mesta."
+  },
+  "P6722": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "NE USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "USVAJAM"},
+    "zamene": [
+      {"staro": "[Potpis tužioca]", "novo": "Za tužioca Alfa Fiktiv DOO"}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "NEPOZNATO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); zapisnik sa ročišta (DOK-07) je skeniran i nečitljiv, pa se ne može utvrditi da li je zahtev kasnije menjan."},
+      "DODATNI_ZAHTEV": {"odluka": "NEPOZNATO", "tekst": "Podneskom od 02.04.2026. dodatno je traženo 600.000 dinara (DOK-03), pored iznosa iz tužbe; da li je taj zahtev i dalje aktivan ne može se utvrditi zbog nečitljivog DOK-07."},
+      "POVLACENJE_IZMENA": {"odluka": "NEPOZNATO", "tekst": "DOK-07 je nečitljiv; povlačenje ili izmena se ne mogu ni potvrditi ni isključiti."},
+      "ODLUKE_SUDA": {"odluka": "NEPOZNATO", "tekst": "Jedini sudski dokument (DOK-07, zapisnik) čitljiv je samo u naslovu; odluke suda nisu poznate."},
+      "NALOG": {"odluka": "NEPOZNATO", "tekst": "Nije utvrdivo zbog nečitljivog DOK-07."},
+      "UPLATA": {"odluka": "NEPOZNATO", "tekst": "Nije utvrdivo da li postoji nalog za uplatu; dokaza o uplati u spisu nema."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Nije utvrdivo zbog nečitljivog DOK-07; ročište 18.11.2026. navedeno je samo u zahtevu."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "ISPRAVLJENO", "tekst": "DOK-07 (zapisnik sa ročišta) je skeniran i nečitljiv — čitljiv je samo naslov; potrebno je pribaviti čitljiv primerak."}
+    },
+    "obrazlozenje": "Odbijena je S-08 jer ponavlja zahtev od 4.200.000 dinara „uključujući“ 600.000 dinara, što je netačno (600.000 se traži dodatno), a stanje zahteva posle ročišta nije poznato jer je zapisnik (DOK-07) nečitljiv. Ostale stavke odgovaraju spisu; potpis je zamenjen."
+  },
+  "P1883": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "USVAJAM"},
+    "zamene": [
+      {"staro": "[Potpis tužioca]", "novo": "Za tužioca Alfa Fiktiv DOO"}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); na ročištu 15.07.2026. tužilac je precizirao zahtev na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara za robu (DOK-03) povučen je na ročištu 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "15.07.2026. povučen je zahtev od 600.000 dinara i zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "ISPRAVLJENO", "tekst": "Na ročištu 15.07.2026. sud je prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07); na kasnijem ročištu 10.09.2026. sud je odbio predlog tuženog za dopunu veštačenja (DOK-08) — to je poslednja odluka o dopuni. Sledeće ročište: 18.11.2026."},
+      "NALOG": {"odluka": "POTVRDJENO", "tekst": "Nalog tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07); u spisu nema podatka da je dnevnik dostavljen."},
+      "UPLATA": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "U spisu nema naloga za uplatu predujma."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Početak roka od 15 dana za dostavljanje dnevnika nije naveden u zapisniku, pa se istek ne može pouzdano utvrditi. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog dokumenta; u spisu nema podneska tuženog kojim bi dostavio građevinski dnevnik."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene jer odgovaraju spisu; S-07 tačno navodi kasniju odluku suda od 10.09.2026. kojom je dopuna veštačenja odbijena. Jedina ispravka je zamena oznake za potpis."
+  },
+  "P4464": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM"},
+    "zamene": [
+      {"staro": "Smatramo da je nalaz veštaka potpun i da dodatni uvid u građevinski dnevnik nije neophodan, s obzirom na to da je veštak već utvrdio uzrok prokišnjavanja.", "novo": "Tužilac smatra da je nalaz veštaka potpun i jasan, a o predlogu za dopunu veštačenja sud je već odlučio na ročištu održanom 15.07.2026. godine (DOK-07)."},
+      {"staro": " Ukoliko sud nije odlučio o dopuni veštačenja na prethodnom ročištu, tužilac predlaže da se na sledećem ročištu razmotri potreba za istim.", "novo": ""},
+      {"staro": "Tužilac ostaje pri svom tužbenom zahtevu", "novo": "Tužilac ostaje pri preciziranom tužbenom zahtevu u iznosu od 3.150.000 dinara"},
+      {"staro": "[Potpis tužioca ili njegovog zastupnika]", "novo": "Za tužioca Alfa Fiktiv DOO"}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); 15.07.2026. zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara (DOK-03) povučen je 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "15.07.2026. povučen je zahtev od 600.000 dinara i zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "POTVRDJENO", "tekst": "Ročište 15.07.2026.: sud je prihvatio predlog tuženog za dopunu veštačenja, naložio tuženom dostavljanje građevinskog dnevnika u roku od 15 dana i zakazao ročište za 18.11.2026. (DOK-07)."},
+      "NALOG": {"odluka": "POTVRDJENO", "tekst": "Tuženom je naloženo da dostavi građevinski dnevnik u roku od 15 dana (DOK-07); da li je postupio, nije vidljivo iz spisa."},
+      "UPLATA": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "U spisu nema naloga za uplatu predujma."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Početak roka od 15 dana nije naveden, pa istek nije pouzdano utvrdiv. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog dokumenta; u spisu nema dokaza da je tuženi dostavio građevinski dnevnik ni dopunskog nalaza."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene uz ispravke. Iz S-08 uklonjena je rečenica „ukoliko sud nije odlučio o dopuni“, jer je sud 15.07.2026. dopunu prihvatio, a u S-07 je zamenjeno tvrđenje da uvid u dnevnik nije neophodan, jer je sud dnevnik već naložio; S-09 je usklađena sa preciziranim zahtevom."
+  },
+  "P9985": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM"},
+    "zamene": [
+      {"staro": "[PROVERITI: Ime i prezime ovlašćenog lica]", "novo": "Za tužioca Alfa Fiktiv DOO"},
+      {"staro": "[PROVERITI: Potpis]", "novo": ""}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); 15.07.2026. zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara (DOK-03) povučen je 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "15.07.2026. povučen je zahtev od 600.000 dinara i zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "POTVRDJENO", "tekst": "Ročište 15.07.2026.: sud je odbio predlog tuženog za dopunu veštačenja i zakazao ročište za 18.11.2026. (DOK-07)."},
+      "NALOG": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "U spisu nema naloga suda strankama."},
+      "UPLATA": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "Nema naloga za uplatu predujma."},
+      "ROK": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "Nema otvorenog procesnog roka iz spisa; sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog ni očigledno nedostajućeg dokumenta."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene jer su u skladu sa spisom, uključujući tačno navedenu odluku suda od 15.07.2026. kojom je dopuna veštačenja odbijena. Ispravljeno je samo mesto za potpis."
+  },
+  "P6246": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "NE USVAJAM"},
+    "zamene": [
+      {"staro": "Tužilac smatra da je nalaz veštaka potpun i da dodatno veštačenje nije potrebno.", "novo": "Tužilac smatra da je nalaz veštaka potpun, a sud je na ročištu održanom 15.07.2026. godine prihvatio predlog za dopunu veštačenja (DOK-07)."},
+      {"staro": "Tužilac je podneo podnesak u kojem navodi da je uplatio predujam za dopunu veštačenja (DOK-08).", "novo": "Tužilac je podneskom od 20.07.2026. godine naveo da je uplatio predujam za dopunu veštačenja (DOK-08), a sud je obaveštenjem od 01.09.2026. godine konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."},
+      {"staro": "[Potpis]", "novo": "Za tužioca Alfa Fiktiv DOO"}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); 15.07.2026. zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara (DOK-03) povučen je 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "15.07.2026. povučen je zahtev od 600.000 dinara i zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "ISPRAVLJENO", "tekst": "Ročište 15.07.2026.: sud je prihvatio dopunu veštačenja, naložio tužiocu predujam od 60.000 dinara u roku od 8 dana od prijema zapisnika i zakazao ročište za 18.11.2026. (DOK-07). Obaveštenjem od 01.09.2026. sud je konstatovao da dokaz o uplati predujma nije dostavljen (DOK-09)."},
+      "NALOG": {"odluka": "POTVRDJENO", "tekst": "Tužiocu je naloženo da uplati predujam od 60.000 dinara u roku od 8 dana od prijema zapisnika (DOK-07)."},
+      "UPLATA": {"odluka": "ISPRAVLJENO", "tekst": "Tužilac je samo naveo da je uplatio predujam (DOK-08, 20.07.2026.); dokaza o uplati u spisu nema, a sud je 01.09.2026. konstatovao da dokaz nije dostavljen (DOK-09). Uplata nije dokazana."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Rok od 8 dana teče od prijema zapisnika, a datum prijema nije u spisu; istek se ne može pouzdano utvrditi. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "ISPRAVLJENO", "tekst": "Nedostaje dokaz o uplati predujma (sud to konstatuje u DOK-09); nečitljivog dokumenta nema."}
+    },
+    "obrazlozenje": "Odbijeno je samo AI upozorenje (S-12). S-09 je dopunjena obaveštenjem suda od 01.09.2026. da dokaz o uplati nije dostavljen, jer bez toga stanje postupka navodi samo tvrdnju tužioca; iz S-08 uklonjeno je da dopuna nije potrebna, jer ju je sud već prihvatio."
+  },
+  "P9727": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM", "S-12": "USVAJAM"},
+    "zamene": [
+      {"staro": "posebno imajući u vidu da je tuženi kasnije odustao od predloga za dopunu veštačenja (DOK-08).", "novo": "posebno imajući u vidu da je sud na ročištu od 15.07.2026. godine prihvatio predlog za dopunu veštačenja i naložio tuženom da dostavi građevinski dnevnik u roku od 15 dana (DOK-07), a da je tuženi podneskom od 05.09.2026. godine odustao od predloga za dopunu veštačenja i naveo da građevinski dnevnik nije sačuvan (DOK-08). Time prigovor tuženog da veštak nije izvršio uvid u građevinski dnevnik gubi svaki osnov."},
+      {"staro": "[Potpis]", "novo": "Za tužioca Alfa Fiktiv DOO"}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); 15.07.2026. zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara (DOK-03) povučen je 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "Tužilac je 15.07.2026. povukao zahtev od 600.000 dinara i precizirao zahtev na 3.150.000 dinara (DOK-07). Odustanak tuženog od predloga za dopunu veštačenja (DOK-08) nije povlačenje tužbenog zahteva, već dokaznog predloga."},
+      "ODLUKE_SUDA": {"odluka": "POTVRDJENO", "tekst": "Ročište 15.07.2026.: sud je prihvatio predlog za dopunu veštačenja, naložio tuženom dostavljanje građevinskog dnevnika u roku od 15 dana i zakazao ročište za 18.11.2026. (DOK-07). Posle odustanka tuženog (DOK-08) nova odluka suda o dopuni nije u spisu."},
+      "NALOG": {"odluka": "ISPRAVLJENO", "tekst": "Tuženom je naloženo dostavljanje građevinskog dnevnika (DOK-07); tuženi je 05.09.2026. naveo da dnevnik nije sačuvan (DOK-08), dakle po nalogu nije postupio."},
+      "UPLATA": {"odluka": "NIJE_PRIMENLJIVO", "tekst": "U spisu nema naloga za uplatu predujma."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Početak roka od 15 dana nije naveden u zapisniku; tuženi dnevnik ni do 05.09.2026. nije dostavio. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog dokumenta; građevinski dnevnik nije dostavljen (tuženi navodi da nije sačuvan)."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene. S-07 je dopunjena odlukom suda od 15.07.2026. o prihvatanju dopune i nalogu za dnevnik, kao i navodom tuženog da dnevnik nije sačuvan, jer to ide u korist tužioca i daje tačno stanje; potpis je zamenjen."
+  },
+  "P7668": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "NE USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM"},
+    "zamene": [
+      {"staro": "[PROVERITI: Ime i prezime ovlašćenog lica]", "novo": "Za tužioca Alfa Fiktiv DOO"},
+      {"staro": "[PROVERITI: Potpis]", "novo": ""}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "NEPOZNATO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); zapisnik sa ročišta od 15.07.2026. nije u spisu, pa se ne zna da li je zahtev na ročištu menjan."},
+      "DODATNI_ZAHTEV": {"odluka": "NEPOZNATO", "tekst": "Podneskom od 02.04.2026. dodatno je traženo 600.000 dinara (DOK-03), pored iznosa iz tužbe; da li je i dalje aktivan nije utvrdivo bez zapisnika."},
+      "POVLACENJE_IZMENA": {"odluka": "NEPOZNATO", "tekst": "Nema zapisnika sa ročišta od 15.07.2026.; povlačenje ili izmena se ne mogu ni potvrditi ni isključiti."},
+      "ODLUKE_SUDA": {"odluka": "NEPOZNATO", "tekst": "U spisu nema sudskih dokumenata; iz podneska tuženog (DOK-07) vidi se samo da je ročište održano 15.07.2026. i da se raspravljalo o dopuni veštačenja, a ishod nije poznat."},
+      "NALOG": {"odluka": "NEPOZNATO", "tekst": "Bez zapisnika se ne zna da li je sud izdao neki nalog."},
+      "UPLATA": {"odluka": "NEPOZNATO", "tekst": "Ne zna se da li postoji nalog za uplatu; dokaza o uplati u spisu nema."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Rokovi nisu utvrdivi bez zapisnika; ročište 18.11.2026. navedeno je samo u zahtevu."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "ISPRAVLJENO", "tekst": "U spisu nedostaje zapisnik sa ročišta od 15.07.2026. (njegovo postojanje proizlazi iz DOK-07), kao i poziv za ročište od 18.11.2026."}
+    },
+    "obrazlozenje": "Odbijena je S-08 jer navodi da zahtev od 4.200.000 dinara „uključuje“ 600.000 dinara, što je netačno, a stanje zahteva posle ročišta od 15.07.2026. nije poznato jer zapisnik nedostaje u spisu. Ostale stavke su usvojene; potpis je zamenjen."
+  },
+  "P6159": {
+    "stavke": {"S-01": "USVAJAM", "S-02": "USVAJAM", "S-03": "USVAJAM", "S-04": "USVAJAM", "S-05": "USVAJAM", "S-06": "USVAJAM", "S-07": "USVAJAM", "S-08": "USVAJAM", "S-09": "USVAJAM", "S-10": "USVAJAM", "S-11": "USVAJAM"},
+    "zamene": [
+      {"staro": ", dostavljenog u predmetu pod brojem [[DOK-05]]", "novo": " od 15.06.2026. godine"},
+      {"staro": "nosaci solarnih panela", "novo": "nosači solarnih panela"},
+      {"staro": "U vezi sa izjašnjenjem tuženog na nalaz veštaka [[DOK-06]],", "novo": "U vezi sa izjašnjenjem tuženog na nalaz veštaka od 01.07.2026. godine,"},
+      {"staro": "Tužilac smatra da je nalaz veštaka potpun i da nije potrebno dodatno veštačenje.", "novo": "Tužilac smatra da je nalaz veštaka potpun, a sud je na ročištu održanom 15.07.2026. godine prihvatio predlog za dopunu veštačenja i naložio tužiocu da u roku od 8 dana uplati predujam u iznosu od 60.000 dinara (DOK-07)."},
+      {"staro": "[PROVERITI: Ime i prezime ovlašćenog lica]", "novo": "Za tužioca Alfa Fiktiv DOO"},
+      {"staro": "[PROVERITI: Potpis]", "novo": ""}
+    ],
+    "dodatni_tekst": "",
+    "tacke": {
+      "OSNOVNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Tužbom je traženo 4.200.000 dinara (DOK-01); 15.07.2026. zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "DODATNI_ZAHTEV": {"odluka": "ISPRAVLJENO", "tekst": "Dodatni zahtev od 600.000 dinara (DOK-03) povučen je 15.07.2026. (DOK-07)."},
+      "POVLACENJE_IZMENA": {"odluka": "ISPRAVLJENO", "tekst": "15.07.2026. povučen je zahtev od 600.000 dinara i zahtev je preciziran na 3.150.000 dinara (DOK-07)."},
+      "ODLUKE_SUDA": {"odluka": "POTVRDJENO", "tekst": "Ročište 15.07.2026.: sud je prihvatio predlog tuženog za dopunu veštačenja, naložio tužiocu predujam od 60.000 dinara u roku od 8 dana i zakazao ročište za 18.11.2026. (DOK-07)."},
+      "NALOG": {"odluka": "POTVRDJENO", "tekst": "Tužiocu je naloženo da uplati predujam od 60.000 dinara za dopunu veštačenja u roku od 8 dana (DOK-07)."},
+      "UPLATA": {"odluka": "NEPOZNATO", "tekst": "U spisu nema dokaza o uplati predujma ni podneska o uplati."},
+      "ROK": {"odluka": "NEPOZNATO", "tekst": "Zapisnik ne navodi od kada teče rok od 8 dana; ako bi tekao od ročišta 15.07.2026., davno bi istekao, ali početak nije pouzdano utvrđen. Sledeće ročište je 18.11.2026."},
+      "NEDOSTAJUCI_DOKUMENT": {"odluka": "POTVRDJENO", "tekst": "Nema nečitljivog dokumenta; u spisu nema dokaza o uplati predujma ni dopunskog nalaza veštaka."}
+    },
+    "obrazlozenje": "Sve stavke su usvojene uz ispravke: uklonjene su sistemske oznake [[DOK-05]] i [[DOK-06]] (DOK-05 nije broj predmeta), a u S-07 zamenjeno je tvrđenje da dopuna nije potrebna jer je sud 15.07.2026. dopunu prihvatio i naložio tužiocu predujam. Potpis je zamenjen."
+  }
+}

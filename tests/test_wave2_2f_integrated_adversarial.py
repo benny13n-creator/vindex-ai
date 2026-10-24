@@ -173,9 +173,9 @@ def _predmet_row(status="aktivan"):
     return {"id": PID, "user_id": "user-1", "naziv": "Zdrav predmet", "case_dna": {}, "tip": "parnicno", "status": status}
 
 
-def _event(event_id, predmet_id=PID, event_type=EventType.SOURCE_INVALIDATED):
+def _event(event_id, predmet_id=PID, event_type=EventType.SOURCE_INVALIDATED, payload=None):
     return Event(type=event_type, user_id="user-1", predmet_id=predmet_id,
-                 payload={}, correlation_id="corr-1", event_id=event_id)
+                 payload=payload or {}, correlation_id="corr-1", event_id=event_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -242,7 +242,8 @@ async def test_stale_delayed_event_cannot_beat_a_newer_deletion():
         await _consequence_refresh_case_actions(_event("evt-fresh-delete"))
     fake.tables["rocista"] = []  # the deletion itself
     with patch("services.case_evolution._get_supa", return_value=fake):
-        closure = await _consequence_refresh_case_actions(_event("evt-fresh-delete-reconcile"))
+        closure = await _consequence_refresh_case_actions(_event("evt-fresh-delete-reconcile",
+                                                                 payload={"source_type": "rociste", "source_id": "roc-1"}))
     assert "closed=1" in closure
     assert [r for r in fake.tables["case_actions"] if r["status"] == "open" and r["tip"] == "PRIPREMITI_PODNESAK"] == []
 

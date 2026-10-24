@@ -1,0 +1,2 @@
+﻿UHVACENO Y23 interni redovi ostaju :: 31 failed, 168 passed, 14 warnings in 68.17s (0:01:08)
+svi fajlovi vraceni bajt-identicno

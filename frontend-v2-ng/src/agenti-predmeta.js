@@ -231,7 +231,10 @@
       if (r.ok && r.podaci) {
         poruka("ag-stanje", null);
         if (n === "pojedinacno") {
-          $("ag-odgovor-naslov").textContent = "Savetnik: " + NAZIV[agent];
+          // MIR001 C3b: nacrt iz spisa je AI RADNI PREDLOG — naslov to kaže rečima; dokument za sud se sastavlja
+          // izričitim usvajanjem na kartici Nacrt (ovaj tekst se ne izvozi).
+          $("ag-odgovor-naslov").textContent = r.podaci.status_teksta === "AI_RADNI_PREDLOG"
+            ? "AI radni predlog — samo za pregled, ne ide u dokument za sud (usvajanje: kartica Nacrt)" : "Savetnik: " + NAZIV[agent];
           prikaziCitate(r.podaci.provera_citata);
           prikaziKontekst(r.podaci.kontekst_predmeta, r.podaci.izvori_predmeta);
           upozoriNedostavljene(r.podaci.izvori_predmeta && r.podaci.izvori_predmeta.odgovor_pominje_nedostavljene);
@@ -251,6 +254,9 @@
       if (r.status === 402) { poruka("ag-stanje", "greska", "Nemate dovoljno kredita za ovaj način rada. Ništa nije pokrenuto ni naplaćeno."); return; }
       if (r.status === 503) { poruka("ag-stanje", "greska", "AI servis trenutno nije dostupan. Savet nije dobijen; pokušajte kasnije."); return; }
       if (g.ishodNepoznat) { poruka("ag-stanje", "nepoznato", "Odgovor nije dobijen: veza je prekinuta ili server nije odgovorio ispravno. Ne ponavljajte odmah — rad je možda naplaćen."); return; }
+      // MIR001 R4: 409 PRE izrade (nacrt iz spisa upravo izrađen). 409 mrežnog ponavljanja (`Idempotency-Key`) je gore:
+      // ishod nepoznat — prvo izvršavanje možda teče i biće naplaćeno (GATE-R4 B1).
+      if (r.status === 409 && n === "pojedinacno" && agent === "drafting") { poruka("ag-stanje", "greska", "AI radni predlog za ovaj predmet je upravo izrađen — nalazi se na kartici Nacrt. Ništa nije pokrenuto ni naplaćeno; novi predlog možete zatražiti za pola minuta."); return; }
       poruka("ag-stanje", "greska", {
         FORBIDDEN: "Savetnik nije dostupan za vaš nalog (profesionalni paket) ili su krediti potrošeni.",
         RATE_LIMITED: "Previše zahteva u kratkom roku. Pokušajte ponovo malo kasnije.",

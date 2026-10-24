@@ -1,0 +1,22 @@
+﻿UHVACENO T1 kasniji podnesak ne cini odluku spornom :: 3 failed, 24 passed in 1.43s
+UHVACENO T2 obrasci suda vaze i za podnesak stranke :: 6 failed, 21 passed in 1.50s
+UHVACENO T3 potvrda izvoda bez sha256 :: 1 failed, 26 passed in 1.43s
+UHVACENO T4 potvrda izvoda bez poredjenja teksta :: 1 failed, 26 passed in 1.42s
+UHVACENO T5 nema oznake nepoznate uplate :: 2 failed, 25 passed in 1.43s
+UHVACENO T6 tok roka proglasen poznatim :: 4 failed, 23 passed in 1.45s
+UHVACENO T7 bez provere predmeta i korisnika :: 1 failed, 26 passed in 1.43s
+UHVACENO T8 vrsta advokata se ignorise :: 1 failed, 26 passed in 1.41s
+UHVACENO T9 sukob naslova i advokata precutan :: 1 failed, 26 passed in 1.42s
+UHVACENO T10 recenica tela moze biti naslov :: 2 failed, 25 passed in 1.43s
+UHVACENO T11 negiran glas suda posle prihvatanja :: 2 failed, 25 passed in 1.43s
+UHVACENO T12 nepoznat akter postaje sud :: 1 failed, 26 passed in 1.43s
+UHVACENO T13 ishod rocista bez zapisnika se ne prijavljuje :: 2 failed, 25 passed in 1.43s
+UHVACENO T14 neprocitani dokumenti ne menjaju potpunost :: 1 failed, 26 passed in 1.42s
+UHVACENO T15 vise datuma -> bira se prvi :: 1 failed, 26 passed in 1.41s
+UHVACENO T16 AI tip_dokaza se koristi kao vrsta :: 1 failed, 26 passed in 1.42s
+UHVACENO T17 izvrsenje naloga poznato :: 3 failed, 24 passed in 1.44s
+UHVACENO T18 nepoznat akter ne oznacen :: 2 failed, 25 passed in 1.43s
+UHVACENO T19 bezlicni oblik prihvatanja se ne prepoznaje :: 1 failed, 26 passed in 1.42s
+UHVACENO T20 sudski dokument bez odluke precutan :: 1 failed, 26 passed in 1.42s
+UHVACENO T21 nepoznata vrsta dokumenta precutana :: 1 failed, 26 passed in 1.43s
+svi fajlovi vraceni bajt-identicno

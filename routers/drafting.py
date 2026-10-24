@@ -243,7 +243,8 @@ def _greska_odgovor(status_code: int, poruka: str) -> JSONResponse:
 # automatskim Quality Gate skorom (services/quality_gate.py) i čeka
 # eksplicitnu advokatsku potvrdu (v. POST /api/staging/{id}/approve) PRE
 # nego što ijedan vektor uđe u Pinecone.
-async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str) -> None:
+async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: str, tekst: str,
+                                  dodatni_detalj: dict | None = None) -> None:
     """Fire-and-forget (asyncio.create_task) -- ne sme da uspori odgovor
     korisniku niti da greška ovde ikad utiče na već generisan i vraćen nacrt."""
     try:
@@ -273,7 +274,10 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
                 .gte("created_at", _recent_cutoff)
                 .limit(1).execute()
         )
-        if _dup_r.data:
+        # MIR001 R4: AI radni predlog iz spisa je NAPLAĆEN pre ovog upisa — tiho odbacivanje bi značilo naplatu bez
+        # predloga na pregledu. Mrežno ponavljanje istog zahteva već zaustavlja `Idempotency-Key`, a drugi klik u prozoru
+        # `run_agent` odbija PRE modela i naplate; ako ipak stigne (trka pre ovog upisa), svaka naplata ima svoj predlog.
+        if _dup_r.data and tip != "nacrt_iz_spisa":
             logger.info(
                 "[STAGING] predmet=%s tip=%s -- duplikat unutar %ds prozora, preskočeno (id=%s)",
                 predmet_id, tip, _STAGING_RETRY_WINDOW_SECONDS, _dup_r.data[0]["id"],
@@ -295,7 +299,8 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
                 "naziv": naziv,
                 "tekst": tekst,
                 "confidence_score": quality["confidence_score"],
-                "quality_detail": quality["detail"],
+                # C3b FINAL CLOSURE: AI radni predlog nosi i svoj snimak (`predlog`) — v. shared/usvajanje_nacrta
+                "quality_detail": {**(quality["detail"] or {}), **(dodatni_detalj or {})},
             }).execute()
         )
         logger.info(
@@ -319,6 +324,8 @@ async def _stage_draft_for_review(user: dict, predmet_id: str, tip: str, naziv: 
 
 
 _APPROVAL_CONFIDENCE_THRESHOLD = 0.85
+_TIP_IZ_SPISA = "nacrt_iz_spisa"      # = routers.multi_agent._TIP_NACRTA_IZ_SPISA
+_TIP_DOKUMENT_ZA_SUD = "dokument_za_sud"   # = shared.usvajanje_nacrta.TIP_DOKUMENTA_ZA_SUD
 
 
 def _putanja_nacrta(staging_id) -> str:
@@ -362,7 +369,8 @@ def _ponovni_upis_moguc(red: dict) -> bool:
     except (TypeError, ValueError):
         return False
     return (red.get("status") == "approved" and red.get("is_lawyer_approved") is True
-            and red.get("pinecone_indexed") is not True and ocena >= _APPROVAL_CONFIDENCE_THRESHOLD)
+            and red.get("pinecone_indexed") is not True and ocena >= _APPROVAL_CONFIDENCE_THRESHOLD
+            and red.get("tip") not in (_TIP_IZ_SPISA, _TIP_DOKUMENT_ZA_SUD))   # MIR001 T06/C3b: nikad u znanje
 
 
 async def _promote_staged_draft_to_pinecone(supa, staging_row: dict) -> bool:
@@ -1177,8 +1185,10 @@ class DocxExportReq(BaseModel):
     tip:    str = Field("", max_length=100)
 
 
-def _nacrt_to_docx(tekst: str, naslov: str, firma_info: dict | None = None) -> bytes:
-    """Konvertuje nacrt tekst u .docx sa kancelarijskim headerom. Vraća bytes."""
+def _nacrt_to_docx(tekst: str, naslov: str, firma_info: dict | None = None, za_sud: bool = False) -> bytes:
+    """Konvertuje nacrt tekst u .docx sa kancelarijskim headerom. Vraća bytes.
+    `za_sud=True` (C3b FINAL CLOSURE, samo odobren dokument za sud): bez automatskog naslova i bez sistemskog podnožja
+    („Generisano … Vindex AI“) — telo je tačno odobren tekst; zaglavlje kancelarije (podaci korisnika) ostaje."""
     import io
     from docx import Document
     from docx.shared import Pt, Cm, RGBColor
@@ -1236,12 +1246,13 @@ def _nacrt_to_docx(tekst: str, naslov: str, firma_info: dict | None = None) -> b
         pPr.append(pBdr)
 
     # Naslov
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run(naslov.upper())
-    run.bold = True
-    run.font.size = Pt(13)
-    doc.add_paragraph()
+    if not za_sud:
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(naslov.upper())
+        run.bold = True
+        run.font.size = Pt(13)
+        doc.add_paragraph()
 
     # Sadržaj — markdown-aware parsing
     for linija in tekst.split("\n"):
@@ -1263,18 +1274,36 @@ def _nacrt_to_docx(tekst: str, naslov: str, firma_info: dict | None = None) -> b
                     run.font.size = Pt(11)
 
     # Footer
-    from datetime import date as _date
-    footer = doc.sections[0].footer
-    fp = footer.paragraphs[0]
-    fp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run = fp.add_run(f"Generisano: {_date.today().strftime('%d.%m.%Y.')} | Vindex AI")
-    run.font.size = Pt(8)
-    run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
+    if not za_sud:
+        from datetime import date as _date
+        footer = doc.sections[0].footer
+        fp = footer.paragraphs[0]
+        fp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        run = fp.add_run(f"Generisano: {_date.today().strftime('%d.%m.%Y.')} | Vindex AI")
+        run.font.size = Pt(8)
+        run.font.color.rgb = RGBColor(0xAA, 0xAA, 0xAA)
 
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+async def _firma_za_zaglavlje(supa, uid: str):
+    """Firma/SEF podaci za zaglavlje DOCX-a (ili None) — isti za izvoz teksta i za izvoz nacrta sa pregleda."""
+    try:
+        r = await asyncio.to_thread(
+            lambda: supa.table("sef_podesavanja")
+                .select("seller_pib,seller_naziv,seller_adresa,seller_mesto")
+                .eq("user_id", uid)
+                .maybe_single()
+                .execute()
+        )
+        if r and r.data:
+            return r.data
+    except Exception as _exc:
+        _sentry_capture(_exc)
+    return None
 
 
 @router.post("/api/nacrti/export/docx")
@@ -1285,26 +1314,21 @@ async def export_nacrt_docx(
     user: dict = Depends(get_current_user),
 ):
     """Preuzmi nacrt kao .docx fajl sa kancelarijskim headerom."""
-    uid = user["user_id"]
     supa = _get_supa()
-
-    # Dohvati firma/SEF info za header
-    firma_info = None
-    try:
-        r = await asyncio.to_thread(
-            lambda: supa.table("sef_podesavanja")
-                .select("seller_pib,seller_naziv,seller_adresa,seller_mesto")
-                .eq("user_id", uid)
-                .maybe_single()
-                .execute()
-        )
-        if r and r.data:
-            firma_info = r.data
-    except Exception as _exc:
-        _sentry_capture(_exc)
-        pass
-
+    firma_info = await _firma_za_zaglavlje(supa, user["user_id"])
     naslov = req.naslov or req.tip or "Nacrt"
+    from shared.nacrt_za_sud import GRANICA
+    from shared.usvajanje_nacrta import TIP_DOKUMENTA_ZA_SUD, TIP_PREDLOGA
+    if req.tip in (TIP_PREDLOGA, TIP_DOKUMENTA_ZA_SUD):
+        # C3b FINAL CLOSURE (GATE-00 N1): AI radni predlog i dokument za sud se izvoze SAMO sa pregleda, iz sačuvanog
+        # i odobrenog teksta (`POST /api/staging/{id}/docx`) — nikad iz teksta koji šalje pregledač.
+        raise HTTPException(status_code=409, detail="Nacrt iz spisa se izvozi samo kao odobren dokument za sud, iz "
+                                                    "pregleda nacrta.")
+    if GRANICA in (req.tekst or ""):
+        # MIR001 C3b STRUCTURAL: tekst sa internim napomenama se ne izvozi ovim putem (ovde server ne zna šta je
+        # tekst za sud) — nacrt sa pregleda se izvozi preko `POST /api/staging/{id}/docx`.
+        raise HTTPException(status_code=409, detail="Tekst sadrži interne napomene za advokata. Nacrt sa pregleda "
+                                                    "izvezite iz pregleda nacrta — u DOCX ide samo tekst za sud.")
 
     try:
         docx_bytes = await asyncio.to_thread(_nacrt_to_docx, req.tekst, naslov, firma_info)
@@ -1319,6 +1343,73 @@ async def export_nacrt_docx(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/api/staging/{staging_id}/docx")
+@limiter.limit("30/minute")
+async def staging_docx(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """MIR001 C3b STRUCTURAL — DOCX nacrta sa pregleda: SAČUVAN tekst iz baze (ne tekst iz pregledača), samo vlasnik
+    (tuđ ili nepostojeći → 404). Nacrt iz spisa (AI radni predlog) se ne izvozi → 409. Dokument za sud (C3b FINAL
+    CLOSURE): samo ODOBREN, i samo tekst čiji sha256 je tačno odobren; bez automatskog naslova i sistemskog podnožja.
+    Nacrt druge vrste: isti tekst kao do sada, ali tekst sa granicom se ne izvozi ceo (deo pre jedine granice, inače 409)."""
+    from shared.nacrt_za_sud import GRANICA, za_izvoz
+    from shared import usvajanje_nacrta as UN
+    supa = _get_supa()
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("id,tip,naziv,tekst,status,quality_detail")
+            .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+    )
+    red = getattr(r, "data", None)
+    if not red:
+        raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    tekst = red.get("tekst") or ""
+    if red.get("tip") == _TIP_NACRTA_IZ_SPISA_STAGING:
+        # C3b FINAL CLOSURE TASK-00: nacrt iz spisa je AI RADNI PREDLOG — ne izvozi se kao dokument za sud (ni stari,
+        # ni odobren ranijim „odobri“). Leksička kapija koja je ranije „čistila“ tekst za izvoz je povučena (GATE-03).
+        raise HTTPException(status_code=409, detail="AI radni predlog se ne izvozi kao dokument za sud. Usvojite tekst "
+                                                    "u dokument za sud i odobrite ga.")
+    if red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD:
+        odobreno = ((red.get("quality_detail") or {}).get("usvajanje") or {}).get("odobreno") or {}
+        if red.get("status") != "approved" or not odobreno.get("sha256"):
+            raise HTTPException(status_code=409, detail="Dokument za sud nije odobren. Izvozi se samo odobren tekst.")
+        if UN.sha(tekst) != odobreno["sha256"]:
+            raise HTTPException(status_code=409, detail="Sačuvan tekst se razlikuje od odobrenog — izvoz nije dozvoljen.")
+        razlozi = UN.nedozvoljen_sadrzaj(tekst)
+        if razlozi:                                            # odbrana u dubini: serverski natpis ne ide u sudski DOCX
+            raise HTTPException(status_code=409, detail=" ".join(razlozi) + " Odobren tekst se pri izvozu ne menja: "
+                                "napravite novu verziju, ispravite tekst i odobrite je (ako je AI predlog izrađen pre "
+                                "ovog pravila, potreban je novi predlog).")
+        try:
+            docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, "", await _firma_za_zaglavlje(supa, user["user_id"]),
+                                                 True)
+        except Exception as e:
+            logger.error("DOCX export (dokument za sud) greška: %s", type(e).__name__)
+            raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
+        _audit_usvajanja("dokument_za_sud_izvezen", user, staging_id, {"sha256": odobreno["sha256"]})
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="Dokument_za_sud.docx"'},
+        )
+    if GRANICA in tekst:
+        tekst, razlog = za_izvoz(tekst)
+        if razlog:
+            raise HTTPException(status_code=409, detail=razlog)
+    naslov = red.get("naziv") or red.get("tip") or "Nacrt"
+    try:
+        docx_bytes = await asyncio.to_thread(_nacrt_to_docx, tekst, naslov, await _firma_za_zaglavlje(supa, user["user_id"]))
+    except Exception as e:
+        logger.error("DOCX export (staging) greška: %s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="Greška pri generisanju DOCX fajla.")
+    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in naslov)[:40]
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.docx"'},
+    )
+
+
+_TIP_NACRTA_IZ_SPISA_STAGING = "nacrt_iz_spisa"      # = routers/multi_agent.py::_TIP_NACRTA_IZ_SPISA
 
 
 # ─── Institutional Memory V2 (2026-07-26) — Staging Memory review endpoints ──
@@ -1373,6 +1464,23 @@ async def staging_jedan(staging_id: str, request: Request, user: dict = Depends(
     qd = red.pop("quality_detail", None) or {}
     red["izmenio_advokat"] = bool(qd.get("izmenio_advokat"))
     red["izmenjeno_at"] = qd.get("izmenjeno_at")
+    # C3b FINAL CLOSURE: AI radni predlog nosi snimak za usvajanje i spisak dokumenata za sud nastalih iz njega;
+    # dokument za sud nosi zapis usvajanja (šta je advokat usvojio, odbacio, odlučio i odobrio).
+    from shared import usvajanje_nacrta as UN
+    if red.get("tip") == UN.TIP_PREDLOGA:
+        red["status_teksta"] = UN.STATUS_PREDLOGA
+        red["predlog"] = qd.get("predlog")
+        dz = await asyncio.to_thread(
+            lambda: supa.table("staging_memory").select("id,status,quality_detail,created_at")
+                .eq("user_id", user["user_id"]).eq("predmet_id", red.get("predmet_id"))
+                .eq("tip", UN.TIP_DOKUMENTA_ZA_SUD).execute())
+        red["dokumenti_za_sud"] = [
+            {"id": x["id"], "status": x.get("status"), "verzija": _usvajanje(x).get("verzija"), "created_at": x.get("created_at")}
+            for x in (dz.data or []) if _usvajanje(x).get("predlog_id") == str(red["id"])]
+    elif red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD:
+        dok = {**red, "quality_detail": qd}
+        pr = await _red_staging(supa, _usvajanje(dok).get("predlog_id"), user["user_id"])
+        red["usvajanje"] = _prikaz_dokumenta(dok, _snimak_predloga(pr))
     return red
 
 
@@ -1386,7 +1494,7 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
     važi za ono što advokat zaista odobrava — uključujući član koji je sam dopisao."""
     supa = _get_supa()
     r = await asyncio.to_thread(
-        lambda: supa.table("staging_memory").select("id,tip,status,predmet_id")
+        lambda: supa.table("staging_memory").select("id,tip,status,predmet_id,tekst,quality_detail")
             .eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
     red = getattr(r, "data", None)
@@ -1394,17 +1502,30 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
         raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
     if red.get("status") != "pending":
         raise HTTPException(status_code=409, detail="Nacrt je već odobren ili odbijen — izmena više nije moguća.")
+    from shared import usvajanje_nacrta as UN
+    if red.get("tip") == UN.TIP_PREDLOGA:
+        # C3b FINAL CLOSURE: AI radni predlog je zapis onoga što je AI predložio — ne menja se; advokat piše i
+        # menja tekst u dokumentu za sud.
+        raise HTTPException(status_code=409, detail="AI radni predlog se ne menja. Tekst menjate u dokumentu za sud.")
 
     from services.quality_gate import evaluate_draft_quality
     from shared.vector_origin import now_iso
     kvalitet = await evaluate_draft_quality(req.tekst, red.get("tip") or "")
     detalj = {**(kvalitet.get("detail") or {}), "izmenio_advokat": True, "izmenjeno_at": now_iso()}
-    upd = await asyncio.to_thread(
-        lambda: supa.table("staging_memory")
-            .update({"tekst": req.tekst, "confidence_score": kvalitet["confidence_score"], "quality_detail": detalj})
-            .eq("id", staging_id).eq("user_id", user["user_id"]).eq("status", "pending")
-            .execute()
-    )
+    za_sud = red.get("tip") == UN.TIP_DOKUMENTA_ZA_SUD
+    if za_sud:
+        # zapis usvajanja ostaje; izmena važi samo nad pročitanim tekstom i revizijom (bez izgubljenog usvajanja u trci)
+        detalj["usvajanje"] = _usvajanje(red)
+        detalj["usvajanje_rev"] = _rev(red) + 1
+
+    def _azuriraj():
+        q = (supa.table("staging_memory")
+             .update({"tekst": req.tekst, "confidence_score": kvalitet["confidence_score"], "quality_detail": detalj})
+             .eq("id", staging_id).eq("user_id", user["user_id"]).eq("status", "pending"))
+        if za_sud:
+            q = q.eq("tekst", red.get("tekst") or "").eq("quality_detail->>usvajanje_rev", str(_rev(red)))
+        return q.execute()
+    upd = await asyncio.to_thread(_azuriraj)
     if not upd.data:
         raise HTTPException(status_code=409, detail="Nacrt je u međuvremenu odobren ili odbijen — izmena nije sačuvana.")
     try:
@@ -1420,6 +1541,273 @@ async def staging_sacuvaj_tekst(staging_id: str, req: StagingTekstReq, request: 
         logger.warning("[STAGING] audit izmene nije upisan staging=%s: %s", staging_id, exc)
     return {"status": "pending", "sacuvano": True, "confidence_score": kvalitet["confidence_score"],
             "izmenio_advokat": True, "izmenjeno_at": detalj["izmenjeno_at"]}
+
+
+# ─── MIR001 C3b FINAL CLOSURE TASK-01: AI radni predlog → izričito usvajanje → dokument za sud ──────────────────────
+# Ugovor: `shared/usvajanje_nacrta`. AI radni predlog (`nacrt_iz_spisa`) je nepromenljiv i ne izvozi se; dokument za
+# sud (`dokument_za_sud`) je poseban red čiji tekst nastaje samo od stavki koje je advokat usvojio i teksta koji je sam
+# napisao, uz advokatovu odluku o svakoj od osam procesnih tačaka. Bez nove šeme: `tip` je tekst, zapis je u
+# `quality_detail` (jsonb, migracija 088). Svaka izmena je uslovna (`status='pending'` i nepromenjen tekst).
+class StavkaReq(BaseModel):
+    stavka: str = Field(..., pattern=r"^S-\d{2,3}$")
+    odluka: str = Field(..., pattern=r"^(USVOJENO|ODBACENO)$")
+
+
+class ProcesneTackeReq(BaseModel):
+    tacke: dict = Field(..., min_length=1, max_length=8)
+
+
+def _audit_usvajanja(akcija: str, user: dict, staging_id: str, metadata: dict) -> None:
+    try:
+        from shared.audit_immutable import log_action
+        asyncio.create_task(log_action(action=akcija, user_id=user["user_id"], resource_type="staging",
+                                       resource_id=staging_id, metadata=metadata))
+    except Exception as exc:
+        logger.warning("[USVAJANJE] audit %s nije upisan staging=%s: %s", akcija, staging_id, type(exc).__name__)
+
+
+async def _red_staging(supa, staging_id, uid: str) -> Optional[dict]:
+    if not staging_id:
+        return None
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("*").eq("id", staging_id).eq("user_id", uid).maybe_single().execute())
+    return getattr(r, "data", None)
+
+
+def _usvajanje(red: Optional[dict]) -> dict:
+    return dict(((red or {}).get("quality_detail") or {}).get("usvajanje") or {})
+
+
+def _snimak_predloga(red: Optional[dict]) -> Optional[dict]:
+    return ((red or {}).get("quality_detail") or {}).get("predlog") or None
+
+
+async def _predlog_dokumenta(supa, dok: dict, uid: str) -> tuple:
+    """(red predloga, snimak) iz kog je dokument za sud nastao — isti vlasnik, isti predmet, tekst predloga nepromenjen
+    od izrade (sha256 snimka). Inače 409: usvajanje bez proverljivog porekla se ne radi."""
+    from shared import usvajanje_nacrta as UN
+    from shared.nacrt_za_sud import GRANICA
+    usv = _usvajanje(dok)
+    pr = await _red_staging(supa, usv.get("predlog_id"), uid)
+    snimak = _snimak_predloga(pr)
+    if (not pr or pr.get("tip") != UN.TIP_PREDLOGA or str(pr.get("predmet_id")) != str(dok.get("predmet_id"))
+            or pr.get("status") == "rejected"
+            or not snimak or int(snimak.get("verzija_ugovora") or 0) < UN.VERZIJA_UGOVORA
+            or snimak.get("sha256") != usv.get("predlog_sha256")
+            or UN.sha((pr.get("tekst") or "").split(GRANICA, 1)[0].strip()) != snimak.get("sha256")):
+        raise HTTPException(status_code=409, detail="AI predlog ovog dokumenta nije dostupan ili je promenjen — "
+                                                    "usvajanje nije moguće.")
+    return pr, snimak
+
+
+def _prikaz_dokumenta(dok: dict, snimak: Optional[dict]) -> dict:
+    from shared import usvajanje_nacrta as UN
+    usv, tekst = _usvajanje(dok), dok.get("tekst") or ""
+    out = {"id": dok["id"], "tip": UN.TIP_DOKUMENTA_ZA_SUD, "status": dok.get("status"), "tekst": tekst,
+           "sha256": UN.sha(tekst), "verzija": usv.get("verzija"), "predlog_id": usv.get("predlog_id"),
+           "prethodna_verzija_id": usv.get("prethodna_verzija_id"), "procesne_tacke": usv.get("procesne_tacke") or {},
+           "odobreno": usv.get("odobreno"), "stavke": UN.stanje_stavki(tekst, usv, snimak or {}),
+           # Usvajanje je odluka advokata, ne provera izvora: ništa ovde nije SOURCE_VERIFIED.
+           "provera_izvora": "NIJE_IZVRSENA_SERVEROM", "rev": _rev(dok)}
+    if dok.get("status") == "pending":
+        out["razlozi_protiv_odobrenja"] = UN.razlozi_protiv_odobrenja(tekst, usv, snimak or {})
+    return out
+
+
+def _rev(red: Optional[dict]) -> int:
+    try:
+        return int(((red or {}).get("quality_detail") or {}).get("usvajanje_rev") or 0)
+    except (TypeError, ValueError):
+        return -1
+
+
+async def _uslovno_azuriraj_dokument(supa, dok: dict, uid: str, polja: dict) -> dict:
+    """Upis u dokument za sud samo ako je red i dalje onakav kakav je pročitan: na čekanju, isti tekst i ista revizija
+    zapisa usvajanja (`quality_detail.usvajanje_rev`, raste sa svakim upisom). Paralelan upis (npr. odluka o tački
+    dok traje odobrenje) → 409, nikad tiho prepisan zapis (GATE-01 B1)."""
+    rev = _rev(dok)
+    polja = {**polja, "quality_detail": {**(polja.get("quality_detail") or dok.get("quality_detail") or {}),
+                                         "usvajanje_rev": rev + 1}}
+    upd = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").update(polja).eq("id", dok["id"]).eq("user_id", uid)
+            .eq("status", "pending").eq("tekst", dok.get("tekst") or "")
+            .eq("quality_detail->>usvajanje_rev", str(rev)).execute())
+    if not upd.data:
+        raise HTTPException(status_code=409, detail="Dokument za sud je u međuvremenu promenjen, odobren ili odbijen — "
+                                                    "osvežite i pokušajte ponovo. Ništa nije promenjeno.")
+    return {**dok, **(upd.data[0] if isinstance(upd.data, list) and isinstance(upd.data[0], dict) else polja)}
+
+
+async def _dokument_na_cekanju(supa, staging_id: str, uid: str) -> dict:
+    from shared import usvajanje_nacrta as UN
+    dok = await _red_staging(supa, staging_id, uid)
+    if not dok:
+        raise HTTPException(status_code=404, detail="Dokument nije pronađen.")
+    if dok.get("tip") != UN.TIP_DOKUMENTA_ZA_SUD:
+        raise HTTPException(status_code=409, detail="Ovo nije dokument za sud.")
+    if dok.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="Dokument za sud je odobren ili odbijen i više se ne menja — "
+                                                    "napravite novu verziju.")
+    return dok
+
+
+@router.post("/api/staging/{staging_id}/dokument-za-sud")
+@limiter.limit("20/minute")
+async def staging_dokument_za_sud(staging_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Dokument za sud iz AI radnog predloga `staging_id`. Postoji li verzija na čekanju — vraća nju (ponovljen zahtev
+    ne pravi novu). Ako je poslednja odobrena — nova verzija kreće od njenog teksta, BEZ odobrenja i bez odluka o
+    procesnim tačkama (izmena posle odobrenja ne nasleđuje odobrenje). Tekst se ne prepisuje iz predloga."""
+    from shared import usvajanje_nacrta as UN
+    from shared.vector_origin import now_iso
+    supa, uid = _get_supa(), user["user_id"]
+    pr = await _red_staging(supa, staging_id, uid)
+    if not pr:
+        raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    if pr.get("tip") != UN.TIP_PREDLOGA:
+        raise HTTPException(status_code=409, detail="Dokument za sud nastaje samo iz AI radnog predloga nacrta iz spisa.")
+    snimak = _snimak_predloga(pr)
+    if not snimak:
+        raise HTTPException(status_code=409, detail="Ovaj nacrt je izrađen pre kontrolisanog usvajanja i nema zapis za "
+                                                    "usvajanje. Izradite novi predlog.")
+    if int(snimak.get("verzija_ugovora") or 0) < UN.VERZIJA_UGOVORA:
+        # R1: stariji zapis nema odvojen tekst za dokument (izvod bez interne oznake spisa) — ne usvaja se
+        raise HTTPException(status_code=409, detail="Ovaj AI predlog je izrađen pre pravila o izvorima u dokumentu za "
+                                                    "sud. Izradite novi predlog.")
+    if pr.get("status") == "rejected":
+        raise HTTPException(status_code=409, detail="AI predlog je odbačen.")
+    r = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("*").eq("user_id", uid).eq("predmet_id", pr["predmet_id"])
+            .eq("tip", UN.TIP_DOKUMENTA_ZA_SUD).execute())
+    moji = [x for x in (r.data or []) if _usvajanje(x).get("predlog_id") == str(pr["id"])]
+    na_cekanju = [x for x in moji if x.get("status") == "pending"]
+    if na_cekanju:
+        return _prikaz_dokumenta(na_cekanju[0], snimak)
+    odobreni = sorted((x for x in moji if x.get("status") == "approved"), key=lambda x: _usvajanje(x).get("verzija") or 0)
+    prethodni = odobreni[-1] if odobreni else None
+    usv = {"predlog_id": str(pr["id"]), "predlog_sha256": snimak["sha256"],
+           "verzija": max([_usvajanje(x).get("verzija") or 0 for x in moji] or [0]) + 1,
+           "prethodna_verzija_id": prethodni["id"] if prethodni else None,
+           "stavke": list(_usvajanje(prethodni).get("stavke") or []) if prethodni else [],
+           "procesne_tacke": {}, "odobreno": None, "kreirano_at": now_iso()}
+    ins = await asyncio.to_thread(lambda: supa.table("staging_memory").insert({
+        "user_id": uid, "kancelarija_id": pr.get("kancelarija_id"), "predmet_id": pr["predmet_id"],
+        "tip": UN.TIP_DOKUMENTA_ZA_SUD, "naziv": f"Dokument za sud — verzija {usv['verzija']}",
+        "tekst": (prethodni or {}).get("tekst") or "", "confidence_score": 0,
+        "quality_detail": {"usvajanje": usv, "usvajanje_rev": 0},
+    }).execute())
+    dok = ins.data[0] if isinstance(ins.data, list) and ins.data else None
+    if not dok:
+        raise HTTPException(status_code=503, detail="Dokument za sud nije napravljen. Ništa nije promenjeno.")
+    # Paralelan ponovljen zahtev (dupli klik): bez jedinstvenog ograničenja u šemi oba upisa mogu da prođu. Posle upisa
+    # se zato bira JEDNA verzija na čekanju (najranija po created_at, pa id); suvišna, upravo napravljena i još
+    # netaknuta (revizija 0) se briše, a vraća se izabrana.
+    r2 = await asyncio.to_thread(
+        lambda: supa.table("staging_memory").select("*").eq("user_id", uid).eq("predmet_id", pr["predmet_id"])
+            .eq("tip", UN.TIP_DOKUMENTA_ZA_SUD).eq("status", "pending").execute())
+    cekaju = sorted((x for x in (r2.data or []) if _usvajanje(x).get("predlog_id") == str(pr["id"])),
+                    key=lambda x: (str(x.get("created_at") or ""), str(x.get("id"))))
+    if cekaju and str(cekaju[0]["id"]) != str(dok["id"]):
+        await asyncio.to_thread(
+            lambda: supa.table("staging_memory").delete().eq("id", dok["id"]).eq("user_id", uid)
+                .eq("status", "pending").eq("quality_detail->>usvajanje_rev", "0").execute())
+        return _prikaz_dokumenta(cekaju[0], snimak)
+    _audit_usvajanja("dokument_za_sud_kreiran", user, dok["id"], {"predmet_id": pr["predmet_id"], "predlog_id": pr["id"],
+                                                                  "verzija": usv["verzija"]})
+    return _prikaz_dokumenta(dok, snimak)
+
+
+@router.post("/api/staging/{staging_id}/stavka")
+@limiter.limit("60/minute")
+async def staging_stavka(staging_id: str, req: StavkaReq, request: Request, user: dict = Depends(get_current_user)):
+    """Advokatova odluka o JEDNOJ stavci AI predloga. USVOJENO: server dodaje tekst stavke iz snimka predloga (po id-u,
+    ne iz pregledača) na kraj dokumenta za sud. ODBACENO: stavka ne ulazi u dokument (zapis odluke). Ponovljena ista
+    odluka ne menja ništa. Usvojena stavka se ne odbacuje naknadno — uklanja se izmenom teksta."""
+    from shared.vector_origin import now_iso
+    supa, uid = _get_supa(), user["user_id"]
+    dok = await _dokument_na_cekanju(supa, staging_id, uid)
+    pr, snimak = await _predlog_dokumenta(supa, dok, uid)
+    s = next((x for x in snimak.get("stavke") or [] if x["id"] == req.stavka), None)
+    if not s:
+        raise HTTPException(status_code=404, detail="Stavka ne postoji u AI predlogu.")
+    usv = _usvajanje(dok)
+    ranije = next((x for x in usv.get("stavke") or [] if x["id"] == req.stavka), None)
+    if ranije and ranije.get("odluka") == req.odluka:
+        return _prikaz_dokumenta(dok, snimak)
+    if ranije and ranije.get("odluka") == "USVOJENO":
+        raise HTTPException(status_code=409, detail="Stavka je već usvojena u tekst. Uklonite je izmenom teksta.")
+    tekst = dok.get("tekst") or ""
+    za_dok = s["tekst_za_dokument"]                     # R1: izvod bez interne oznake spisa (snimak verzije 2)
+    if req.odluka == "USVOJENO":
+        tekst = f"{tekst.rstrip()}\n\n{za_dok}" if tekst.strip() else za_dok
+    zapis = [x for x in usv.get("stavke") or [] if x["id"] != req.stavka] + [
+        {"id": s["id"], "odluka": req.odluka, "sha256": s["sha256"], "sha256_za_dokument": s["sha256_za_dokument"],
+         "by": uid, "at": now_iso()}]
+    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "stavke": zapis}}
+    dok = await _uslovno_azuriraj_dokument(supa, dok, uid, {"tekst": tekst, "quality_detail": qd})
+    _audit_usvajanja("dokument_za_sud_stavka", user, staging_id, {"stavka": s["id"], "odluka": req.odluka,
+                                                                  "stavka_sha256": s["sha256"][:16]})
+    return _prikaz_dokumenta(dok, snimak)
+
+
+@router.post("/api/staging/{staging_id}/procesne-tacke")
+@limiter.limit("60/minute")
+async def staging_procesne_tacke(staging_id: str, req: ProcesneTackeReq, request: Request,
+                                 user: dict = Depends(get_current_user)):
+    """Advokatove odluke o procesnim tačkama (potvrđeno / ispravljeno / nepoznato / nije primenljivo, uz njegov opis
+    stanja). Upisuje ih samo ovaj zahtev korisnika — sistem ih nikad ne popunjava. Odluka nije provera izvora."""
+    from shared import usvajanje_nacrta as UN
+    from shared.vector_origin import now_iso
+    supa, uid = _get_supa(), user["user_id"]
+    dok = await _dokument_na_cekanju(supa, staging_id, uid)
+    pr, snimak = await _predlog_dokumenta(supa, dok, uid)
+    poznati = {d["oznaka"] for d in snimak.get("dokumenti") or [] if d.get("oznaka")}
+    for k, o in req.tacke.items():
+        razlog = UN.proveri_odluku_tacke(k, o, poznati)
+        if razlog:
+            raise HTTPException(status_code=422, detail=razlog)
+    usv = _usvajanje(dok)
+    tacke = {**(usv.get("procesne_tacke") or {}), **{
+        k: {"odluka": o["odluka"], "tekst": (o.get("tekst") or "").strip(), "izvori": list(o.get("izvori") or []),
+            "by": uid, "at": now_iso()} for k, o in req.tacke.items()}}
+    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "procesne_tacke": tacke}}
+    dok = await _uslovno_azuriraj_dokument(supa, dok, uid, {"quality_detail": qd})
+    _audit_usvajanja("dokument_za_sud_procesne_tacke", user, staging_id, {k: tacke[k]["odluka"] for k in req.tacke})
+    return _prikaz_dokumenta(dok, snimak)
+
+
+async def _odobri_dokument_za_sud(supa, dok: dict, request: Request, user: dict) -> dict:
+    """Odobrenje TAČNO određenog teksta: telo `{"sha256": …}` mora odgovarati sačuvanom tekstu (advokat odobrava ono
+    što je video). Uslovi: osam procesnih tačaka odlučeno, nema serverskih natpisa ni nerazrešenih mesta, nema
+    doslovne AI stavke koja nije usvojena. Bez upisa u bazu znanja i bez promocije."""
+    from shared import usvajanje_nacrta as UN
+    from shared.vector_origin import now_iso
+    uid = user["user_id"]
+    if dok.get("status") != "pending":
+        return {"status": dok.get("status"), "indexed": False, "poruka": "Ovaj dokument je već obrađen (odobren ili odbijen)."}
+    try:
+        telo = await request.json()
+    except Exception:
+        telo = None
+    trazeni = telo.get("sha256") if isinstance(telo, dict) else None
+    vidjena_rev = telo.get("rev") if isinstance(telo, dict) else None
+    tekst = dok.get("tekst") or ""
+    if not isinstance(trazeni, str) or trazeni != UN.sha(tekst) or vidjena_rev != _rev(dok):
+        raise HTTPException(status_code=409, detail={"razlog": "TEKST_NIJE_ISTI", "poruka": (
+            "Odobrava se tačno tekst i odluke koje ste videli (u međuvremenu je nešto promenjeno ili zahtev nije iz "
+            "pregleda nacrta). Osvežite dokument za sud i odobrite ga ponovo.")})
+    pr, snimak = await _predlog_dokumenta(supa, dok, uid)
+    usv = _usvajanje(dok)
+    razlozi = UN.razlozi_protiv_odobrenja(tekst, usv, snimak)
+    if razlozi:
+        raise HTTPException(status_code=409, detail={"razlog": "NIJE_SPREMNO", "razlozi": razlozi})
+    sad = now_iso()
+    qd = {**(dok.get("quality_detail") or {}), "usvajanje": {**usv, "odobreno": {"sha256": trazeni, "by": uid, "at": sad}}}
+    await _uslovno_azuriraj_dokument(supa, dok, uid, {"status": "approved", "is_lawyer_approved": True, "approved_by": uid,
+                                                      "approved_at": sad, "quality_detail": qd})
+    _audit_usvajanja("dokument_za_sud_odobren", user, dok["id"], {"predmet_id": dok.get("predmet_id"), "sha256": trazeni,
+                                                                  "verzija": usv.get("verzija")})
+    return {"status": "approved", "indexed": False, "razlog": "DOKUMENT_ZA_SUD", "sha256": trazeni,
+            "poruka": "Dokument za sud je odobren. Ne dodaje se u bazu znanja kancelarije ni u dokumente predmeta."}
 
 
 _PORUKA_NEPOTPUN_UPIS = (
@@ -1438,6 +1826,16 @@ async def staging_ponovi_upis(staging_id: str, request: Request, user: dict = De
         sid = str(uuid.UUID(str(staging_id)))
     except (ValueError, TypeError):
         raise HTTPException(status_code=404, detail="Nacrt nije pronađen.")
+    # MIR001 TASK-06: nacrt iz spisa (savetnik) se ne upisuje u bazu znanja ni ponovnim upisom — provera PRE preuzimanja.
+    try:
+        vrsta = await asyncio.to_thread(lambda: supa.table("staging_memory").select("tip")
+                                        .eq("id", sid).eq("user_id", user["user_id"]).maybe_single().execute())
+    except Exception as exc:
+        logger.warning("[STAGING_RETRY] čitanje vrste nije uspelo staging_id=%s: %s", sid, type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Stanje nacrta trenutno nije moguće proveriti. Ništa nije promenjeno.")
+    if ((getattr(vrsta, "data", None) or {}).get("tip")) in (_TIP_IZ_SPISA, _TIP_DOKUMENT_ZA_SUD):
+        raise HTTPException(status_code=409, detail={"razlog": "NACRT_IZ_SPISA",
+                            "poruka": "Nacrt iz spisa se ne dodaje u bazu znanja kancelarije. Ništa nije promenjeno."})
     try:
         r = await asyncio.to_thread(lambda: supa.rpc("preuzmi_ponovni_upis_nacrta", {
             "p_staging_id": sid, "p_user_id": user["user_id"],
@@ -1486,6 +1884,13 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
     staging_row = row_res.data
+    # C3b FINAL CLOSURE TASK-01: AI radni predlog se ne odobrava (nije dokument ni znanje); dokument za sud se odobra-
+    # va po svom ugovoru (tačan tekst, procesne tačke, bez promocije) — `_odobri_dokument_za_sud`.
+    if staging_row.get("tip") == _TIP_IZ_SPISA:
+        raise HTTPException(status_code=409, detail={"razlog": "AI_RADNI_PREDLOG", "poruka": (
+            "AI radni predlog se ne odobrava. Usvojite tekst u dokument za sud i odobrite dokument.")})
+    if staging_row.get("tip") == _TIP_DOKUMENT_ZA_SUD:
+        return await _odobri_dokument_za_sud(supa, staging_row, request, user)
 
     from shared.vector_origin import now_iso
     token = str(uuid.uuid4())
@@ -1540,7 +1945,10 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
 
     promoted = False
     ispod_praga = float(staging_row.get("confidence_score") or 0) < _APPROVAL_CONFIDENCE_THRESHOLD
-    if not ispod_praga:
+    # MIR001 TASK-06: nacrt iz spisa (savetnik) je radni nacrt — odobren AI tekst ne postaje dokument predmeta ni deo baze
+    # znanja kancelarije, pa ne može da se vrati kao „izvor“ u dalju analizu istog predmeta.
+    iz_spisa = staging_row.get("tip") == _TIP_IZ_SPISA
+    if not ispod_praga and not iz_spisa:
         try:
             promoted = await _promote_staged_draft_to_pinecone(supa, {**staging_row, **update_fields})
         except Exception as exc:
@@ -1550,6 +1958,9 @@ async def staging_approve(staging_id: str, request: Request, user: dict = Depend
 
     promoted = await _zavrsi_promociju(supa, staging_id, token, promoted) and promoted
 
+    if iz_spisa:
+        return {"status": "approved", "indexed": False, "razlog": "NACRT_IZ_SPISA",
+                "poruka": "Nacrt je odobren kao radni nacrt. Nacrt iz spisa se ne dodaje u bazu znanja kancelarije ni u dokumente predmeta."}
     if promoted:
         return {"status": "approved", "indexed": True, "poruka": "Nacrt odobren i dodat u bazu znanja kancelarije."}
     if not ispod_praga:
@@ -1579,10 +1990,21 @@ async def staging_reject(staging_id: str, request: Request, user: dict = Depends
     zapis u staging_memory (audit trail — zašto je nešto odbijeno)."""
     supa = _get_supa()
     row_res = await asyncio.to_thread(
-        lambda: supa.table("staging_memory").select("id").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
+        lambda: supa.table("staging_memory").select("id,tip,status").eq("id", staging_id).eq("user_id", user["user_id"]).maybe_single().execute()
     )
     if not row_res.data:
         raise HTTPException(status_code=404, detail="Nacrt na čekanju nije pronađen.")
+    if row_res.data.get("tip") == _TIP_DOKUMENT_ZA_SUD and row_res.data.get("status") != "pending":
+        # C3b FINAL CLOSURE (GATE-01 N4): odobren dokument za sud je zapis odluke — ne odbija se naknadno
+        raise HTTPException(status_code=409, detail="Dokument za sud je već odobren ili odbijen. Izmene idu u novu verziju.")
+    if row_res.data.get("tip") == _TIP_DOKUMENT_ZA_SUD:
+        # GATE-01 N-a: uslovno, da odobrenje završeno u međuvremenu ne bude prepisano odbijanjem
+        upd = await asyncio.to_thread(
+            lambda: supa.table("staging_memory").update({"status": "rejected", "is_lawyer_approved": False})
+                .eq("id", staging_id).eq("user_id", user["user_id"]).eq("status", "pending").execute())
+        if not upd.data:
+            raise HTTPException(status_code=409, detail="Dokument za sud je u međuvremenu odobren ili odbijen.")
+        return {"status": "rejected", "indexed": False}
 
     await asyncio.to_thread(
         lambda: supa.table("staging_memory").update({"status": "rejected", "is_lawyer_approved": False}).eq("id", staging_id).execute()

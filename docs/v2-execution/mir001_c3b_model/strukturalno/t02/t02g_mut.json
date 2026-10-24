@@ -1,0 +1,76 @@
+{
+ "cmd": [
+  "powershell",
+  "-NoProfile",
+  "-Command",
+  ". '<scratchpad>/ocr.ps1'; python -X utf8 -m pytest tests/test_mir001_c3b_nacrt_za_sud.py tests/test_mir001_c3_procesno_stanje.py tests/test_mir001_t06_nacrt_iz_spisa.py tests/test_mir001_c4_e2e.py tests/test_mir001_t10_ceo_tok.py -q -p no:randomly -p no:cacheprovider --no-header --show-capture=no 2>$null | Select-Object -Last 1"
+ ],
+ "mutacije": [
+  {
+   "ime": "G1 polaritet se ne proverava",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            and pol <= _polaritet(_n(d[\"izvod\"]), rx) for d in izvori)",
+   "new": "            for d in izvori)"
+  },
+  {
+   "ime": "G2 negacija ispred se ne vidi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    return {\"-\" if (_RE_NEG_U.search(m.group()) or _RE_NEG_ISPRED.search(t[max(0, m.start() - 40):m.start()]))",
+   "new": "    return {\"-\" if (_RE_NEG_U.search(m.group()))"
+  },
+  {
+   "ime": "G3 blok bez nastavka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        while j < len(redovi) and redovi[j].strip() and (naslov or",
+   "new": "        while False and (naslov or"
+  },
+  {
+   "ime": "G4 naslov sa dvotackom ne nastavlja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        naslov = red.rstrip().endswith(\":\")",
+   "new": "        naslov = False"
+  },
+  {
+   "ime": "G5 blok bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) > 1 or \"(natpis uklonjen)\" in red:",
+   "new": "        if False:"
+  },
+  {
+   "ime": "G6 lazna granica bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) > 1 or \"(natpis uklonjen)\" in red:",
+   "new": "        if len(blok) > 1:"
+  },
+  {
+   "ime": "G7 mnozina/varijante naslova",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "_RE_INTERNO = re.compile(r\"⚠|napomen\\w*\\s+za\\s+advokat\\w*|interne?\\s+napomen\\w*|upozorenj\\w*\\s+za\\s+advokat\\w*\"",
+   "new": "_RE_INTERNO = re.compile(r\"⚠|napomena\\s+za\\s+advokata|interne?\\s+napomenX|upozorenjX\\s+za\\s+advokat\\w*\""
+  },
+  {
+   "ime": "G8 naslov Napomena:",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "                         r\"|^\\W*(?:napomen[ae]|upozorenj[ea]|interno|za\\s+advokata)\\s*:|\\(natpis\\s+uklonjen\\)|ukloniti",
+   "new": "                         r\"|\\(natpis\\s+uklonjen\\)|ukloniti"
+  },
+  {
+   "ime": "G9 glagoli predaje/prijema",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "                        r\"nije\\s+preduze\\w*|predao|predala|predat\\w*|stigl\\w*|stigao|primio|primila|primljen\\w*|\"\n                        r\"zaprimljen\\w*)\\b\")",
+   "new": "                        r\"nije\\s+preduze\\w*)\\b\")"
+  },
+  {
+   "ime": "G10 trazena/pomenuta kao anafora",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "                         r\"trazen\\w*|pomenut\\w*|naveden\\w*)\\b\")",
+   "new": "                         r\"XXXX)\\b\")"
+  },
+  {
+   "ime": "G11 neutralizacija oznake bloka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "    t = (tekst or \"\").replace(_SEP, \"\").replace(_BLOK, \"\")",
+   "new": "    t = (tekst or \"\").replace(_SEP, \"\")"
+  }
+ ]
+}

@@ -962,7 +962,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         # ("Nedostaje X u spisu" -> PRIBAVITI_DOKAZ), so a permanently-empty
         # tip_dokaza would make that action a permanent false positive on
         # every case, violating Agent 4's "no conclusion without source" rule.
-        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("naziv_fajla,status,tip_dokaza").eq("predmet_id", predmet_id).execute()),
+        asyncio.to_thread(lambda: supa.table("predmet_dokumenti").select("id,naziv_fajla,status,tip_dokaza").eq("predmet_id", predmet_id).execute()),
         asyncio.to_thread(lambda: supa.table("rocista").select("id,sud,datum,status").eq("predmet_id", predmet_id).order("datum").execute()),
         return_exceptions=True,
     )
@@ -1091,7 +1091,7 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     if _rokovi_dom._sema_ima_129(supa):
         try:
             _hr = await asyncio.to_thread(lambda: supa.table("predmet_hronologija")
-                .select("id,dogadjaj,datum_iso,izvor,dokument_id").eq("predmet_id", predmet_id)
+                .select("id,dogadjaj,datum_iso,izvor,dokument_id,dokument_naziv,akter").eq("predmet_id", predmet_id)
                 .eq("vrsta", _rokovi_dom.VRSTA_ROK).execute())
         except Exception as _he:
             raise RuntimeError(f"case_actions reconcile: izvor 'predmet_hronologija' nije pročitan za predmet={predmet_id} — "
@@ -1104,9 +1104,14 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
                 _mapa = await asyncio.to_thread(_odluke, [str(x["id"]) for x in _predlozi], True)
             except Exception as _oe:
                 raise RuntimeError(f"case_actions reconcile: lanac odluka o rokovima nije pročitan za predmet={predmet_id}") from _oe
+            # MIR001 TASK-07: Genome rok čiji je izvorni dokument u međuvremenu obrisan nije više predlog za pregled — red
+            # ostaje u hronologiji kao istorija, a otvorena akcija se zatvara istim negativnim reconcile-om (ranije je ostajala
+            # „čeka vašu potvrdu“ bez izvora). Isto pravilo označava taj rok u `/api/rokovi/kandidati` (shared/rokovi.py).
             for x in _predlozi:
                 if str(x["id"]) in _mapa:
                     continue                                   # advokat je odlučio — nije više akcija pregleda
+                if _rokovi_dom.izvor_povucen(x, {d.get("naziv_fajla") for d in dok_data}):
+                    continue                                   # izvor povučen — nije više akcija pregleda
                 try:
                     _d = datetime.fromisoformat(str(x["datum_iso"])[:10]).date()
                 except ValueError:
@@ -1157,14 +1162,25 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
     # Predmet bez tvrdnji (`predmet_dokazi = 0`) ne moze imati V2 kontradikciju
     # (A014 tamo pada zatvoreno), pa za njega ovo vraca praznu listu i legacy
     # putanja ostaje netaknuta -- sto je i uslov iz A015 §14.
-    from services.v2_projection import v2_akcije_za_predmet
+    from services.v2_projection import predmet_ima_v2, v2_akcije_za_predmet
     _v2_akcije = await v2_akcije_za_predmet(supa, predmet_id)
     if _v2_akcije:
         actions.extend(_v2_akcije)
         return actions
+    # MIR001 TASK-07: „ili-ili“ važi za PREDMET, ne za trenutnu listu. Predmet sa V2 spornim tačkama čije su sve strane
+    # povučene (brisanje tvrdnje ili dokumenta) nema više šta da razrešava — legacy grana bi istu protivrečnost iz
+    # sačuvanog Genome-a vratila kao otvorenu, pod drugim ključem.
+    if await predmet_ima_v2(supa, predmet_id):
+        return actions
 
     _TEZINA_PRIORITET = {"kriticna": "critical", "vazna": "high", "manja": "medium"}
+    # MIR001 TASK-07: sačuvan Genome može do sledećeg osvežavanja da navodi protivrečnost iz OBRISANOG dokumenta
+    # (LIM-T03-3); ovde bi je, čim V2 nema živih strana, vratio kao otvorenu akciju. `dokument_id_1/2` su razrešeni pri
+    # nastanku (routers/case_dna.py) — strana čiji dokument više ne postoji u predmetu nije osnov za akciju.
+    _postojeci_dok_ids = {d.get("id") for d in dok_data}
     for k in (case_dna.get("kontradikcije") or []):
+        if any(_di and _di not in _postojeci_dok_ids for _di in (k.get("dokument_id_1"), k.get("dokument_id_2"))):
+            continue
         opis = k.get("opis") or ""
         loc1 = k.get("lokacija_1") or ""
         loc2 = k.get("lokacija_2") or ""
@@ -1213,6 +1229,30 @@ async def _compute_target_actions(predmet_id: str) -> list[dict]:
         })
 
     return actions
+
+
+# MIR001 C1 — dokaziva veza radnje sa povučenim izvorom: samo polja koja je radnja sama nosila pri nastanku (dokaz /
+# izvor_dokumenti); nikad naziv fajla, pozicija ni vreme. Vraća naziv polja koje dokazuje vezu, ili None.
+_POLJA_VEZE = {
+    "dokument": ("dokument_id", "dokument_id_1", "dokument_id_2", "dokument_ids"),
+    "dokaz": ("claim_ids",),
+    "rociste": ("rociste_id",),
+}
+RAZLOG_ZATVARANJA_IZVOR_POVUCEN = "IZVOR_POVUCEN"
+RAZLOG_ZATVARANJA_CINJENICA_NESTALA = "CINJENICA_VISE_NE_VAZI"
+
+
+def veza_sa_izvorom(akcija: dict, source_type: str, source_id: str) -> str | None:
+    if not source_id:
+        return None
+    dokaz = akcija.get("dokaz") if isinstance(akcija.get("dokaz"), dict) else {}
+    for polje in _POLJA_VEZE.get(str(source_type), ()):
+        v = dokaz.get(polje)
+        if (str(source_id) in [str(x) for x in v if x is not None]) if isinstance(v, list) else (v is not None and str(v) == str(source_id)):
+            return polje
+    if source_type == "dokument" and str(source_id) in [str(x) for x in (akcija.get("izvor_dokumenti") or []) if x is not None]:
+        return "izvor_dokumenti"
+    return None
 
 
 async def _consequence_refresh_case_actions(event: Event) -> str:
@@ -1300,10 +1340,11 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
     # silently overwriting the fresher decision -- whichever call actually reads the row's current
     # state last still wins, but neither can silently clobber the other's already-applied result.
     existing_res = await asyncio.to_thread(
-        lambda: supa.table("case_actions").select("id,dedupe_key,updated_at").eq("predmet_id", predmet_id).eq("status", "open").execute()
+        lambda: supa.table("case_actions").select("id,dedupe_key,updated_at,tip,razlog,dokaz,prioritet,rok,izvor_dokumenti")
+            .eq("predmet_id", predmet_id).eq("status", "open").execute()
     )
     existing_rows = (existing_res.data if existing_res else None) or []
-    existing_by_key = {r["dedupe_key"]: {"id": r["id"], "updated_at": r.get("updated_at")} for r in existing_rows}
+    existing_by_key = {r["dedupe_key"]: {**r, "updated_at": r.get("updated_at")} for r in existing_rows}
 
     created, updated, closed = 0, 0, 0
     # Wave 2, Task 2E (VINDEX-V1-EXECUTION-CONTRACT.md) -- PROVEN problem:
@@ -1358,12 +1399,48 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
                     raise
                 logger.info("[CASE_EVOLUTION] case_action already created concurrently, skipping: predmet=%s key=%s", predmet_id, key)
 
+    # MIR001 C1 — nijedno zatvaranje bez razloga. Povlačenje izvora (SourceInvalidated) zatvara SAMO radnju čija je veza sa
+    # tim izvorom dokaziva (`veza_sa_izvorom`); radnja bez dokazive veze ostaje otvorena i to se beleži u auditu
+    # (`zadrzane_actions`) — sledeće usklađivanje drugim događajem je zatvara sa opštim razlogom. Razlog i izvor se pišu
+    # u ISTI UPDATE kao status (`dokaz.zatvaranje`, postojeća JSONB kolona — atomično sa promenom statusa, bez migracije);
+    # razlog otvaranja i ostatak `dokaz`-a ostaju netaknuti.
+    _pl = event.payload if isinstance(event.payload, dict) else {}
+    _povlacenje = event.type == EventType.SOURCE_INVALIDATED
+    _src_type, _src_id = str(_pl.get("source_type") or ""), str(_pl.get("source_id") or "")
+    zadrzane_entries: list[dict] = []
     for key, existing in existing_by_key.items():
         if key not in target_by_key:
+            if _povlacenje:
+                _polje = veza_sa_izvorom(existing, _src_type, _src_id)
+                if not _polje:
+                    # Status se ne menja; zadržavanje se beleži NA REDU (`dokaz.zadrzano`), da bi kasnije zatvaranje
+                    # drugim događajem moralo da ga navede — inače bi ga pripisalo samo nepovezanom događaju.
+                    _zadrzano = {"razlog": "VEZA_SA_POVUCENIM_IZVOROM_NIJE_DOKAZIVA", "source_type": _src_type,
+                                 "source_id": _src_id, "event_type": event.type.value, "event_id": event.event_id}
+                    _dokaz_z = existing.get("dokaz") if isinstance(existing.get("dokaz"), dict) else {}
+                    if {k: v for k, v in (_dokaz_z.get("zadrzano") or {}).items() if k != "zadrzano_at"} != _zadrzano:
+                        _hold_q = (supa.table("case_actions")
+                                   .update({"dokaz": {**_dokaz_z, "zadrzano": {**_zadrzano, "zadrzano_at": _now_iso}},
+                                            "updated_at": _now_iso})
+                                   .eq("id", existing["id"]).eq("status", "open"))
+                        if existing["updated_at"] is not None:
+                            _hold_q = _hold_q.eq("updated_at", existing["updated_at"])
+                        await asyncio.to_thread(_hold_q.execute)
+                    zadrzane_entries.append({"id": existing["id"], "dedupe_key": key, **_zadrzano})
+                    continue
+                _zatvaranje = {"razlog": RAZLOG_ZATVARANJA_IZVOR_POVUCEN, "source_type": _src_type,
+                               "source_id": _src_id, "veza": _polje}
+            else:
+                _zatvaranje = {"razlog": RAZLOG_ZATVARANJA_CINJENICA_NESTALA}
+            _zatvaranje.update({"event_type": event.type.value, "event_id": event.event_id, "zatvoreno_at": _now_iso})
+            _dokaz_pre = existing.get("dokaz") if isinstance(existing.get("dokaz"), dict) else {}
+            if isinstance(_dokaz_pre.get("zadrzano"), dict):
+                _zatvaranje["posle_zadrzavanja"] = _dokaz_pre["zadrzano"]       # ranije povlačenje izvora, bez dokazive veze
             _snapshot_updated_at = existing["updated_at"]
             _close_query = (
                 supa.table("case_actions")
-                    .update({"status": "closed", "closed_at": _now_iso, "updated_at": _now_iso})
+                    .update({"status": "closed", "closed_at": _now_iso, "updated_at": _now_iso,
+                             "dokaz": {**_dokaz_pre, "zatvaranje": _zatvaranje}})
                     .eq("id", existing["id"]).eq("status", "open")
             )
             if _snapshot_updated_at is not None:
@@ -1380,7 +1457,10 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
             # actually performed.
             if _close_res and _close_res.data:
                 closed += 1
-                closed_entries.append({"id": existing["id"], "dedupe_key": key})
+                closed_entries.append({"id": existing["id"], "dedupe_key": key, "zatvaranje": _zatvaranje,
+                                       "prethodno": {"status": "open", "updated_at": _snapshot_updated_at,
+                                                     **{k: existing.get(k) for k in ("tip", "razlog", "prioritet", "rok")},
+                                                     "dokaz": _dokaz_pre}})
 
     try:
         from shared.audit_immutable import log_action
@@ -1400,6 +1480,7 @@ async def _consequence_refresh_case_actions(event: Event) -> str:
                 "created_actions": created_entries,
                 "updated_actions": updated_entries,
                 "closed_actions": closed_entries,
+                "zadrzane_actions": zadrzane_entries,
             },
         )
     except Exception as audit_exc:

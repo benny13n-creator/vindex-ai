@@ -160,10 +160,19 @@
       niz(g.stranke && g.stranke.stavke).forEach(function (s) {
         $("an-stranke").append(stavkaListe(s.vrednost, s.poreklo, [meta((s.uloga_neispravna ? "uloga iz analize nije prepoznata" : root.VxNazivi.ulogaStranke(s.uloga)) + (s.potvrdjeno_analizom ? " · analiza se slaže" : ""))]));
       });
-      var pouzdane = niz(g.cinjenice && g.cinjenice.stavke).filter(function (s) { return s.poreklo === "SOURCE_FACT" || s.poreklo === "HUMAN_CONFIRMED"; });
-      pouzdane.slice(0, 12).forEach(function (s) {
-        $("an-cinjenice").append(stavkaListe(s.vrednost, s.poreklo, [dugmeIzvora(s.dokument_id, dokNaziv[s.dokument_id], s.lokacija)]));
+      /* MIR001 TASK-03: navod iz dokumenta nije utvrđena činjenica. Navod koji učestvuje u aktivnoj protivrečnosti nosi
+       * „SPORNO“ i ide prvi, da ga granica prikaza ne sakrije (spis od 7 dokumenata ima i 35 navoda). */
+      var sporno = {};
+      niz(g.kontradikcije && g.kontradikcije.aktivne).forEach(function (k) {
+        niz(k.ucesnici).forEach(function (u) { (sporno[u.tvrdnja_id] = sporno[u.tvrdnja_id] || []).push(tekst(k.sporna_tacka) || "sporna tačka"); });
       });
+      var pouzdane = niz(g.cinjenice && g.cinjenice.stavke).filter(function (s) { return s.poreklo === "SOURCE_FACT" || s.poreklo === "HUMAN_CONFIRMED"; });
+      pouzdane = pouzdane.filter(function (s) { return sporno[s.id]; }).concat(pouzdane.filter(function (s) { return !sporno[s.id]; }));
+      pouzdane.slice(0, 12).forEach(function (s) {
+        $("an-cinjenice").append(stavkaListe(s.vrednost, s.poreklo, [sporno[s.id] ? meta("SPORNO — " + sporno[s.id].join("; ")) : null,
+          dugmeIzvora(s.dokument_id, dokNaziv[s.dokument_id], s.lokacija)]));
+      });
+      if (pouzdane.length > 12) $("an-cinjenice").append(el("li", "list-state", "Prikazano 12 od " + pouzdane.length + " navoda; svi su u odeljku Dokazi."));
       if (!pouzdane.length) $("an-cinjenice").append(el("li", "list-state", g.cinjenice && g.cinjenice.stanje === "DEGRADED"
         ? "Tvrdnje nisu pročitane." : "Nema tvrdnji iz dokumenata ni tvrdnji koje je uneo advokat."));
       niz(g.pravna_pitanja && g.pravna_pitanja.stavke).forEach(function (s) {

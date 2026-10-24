@@ -1,0 +1,84 @@
+#### N1-N7 recheck
+===  N1a Tuziocu se nalaze
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=8 upl=UNKNOWN | 'Tuziocu se nalaze da u roku od 8 dana uplati predujam od 60.000 dinara.'
+  nep: ['DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: uplata nije utvrđena iz pročitanih dokumenata', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  N1b Strankama se nalaze
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=8 upl=None | 'Strankama se nalaze da u roku od 8 dana dostave pisane izjave.'
+  nep: ['DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  N1c Nakon sto je tuzeni predlozio
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Nakon sto je tuzeni predlozio dopunu vestacenja, sud prihvata predlog i odredjuje dopunu.'
+  nep: []
+===  N1d kako tuzilac predlaze
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud nalaze tuzenom da dostavi dnevnik, kako tuzilac predlaze, jer sud nalazi da je to potrebno.'
+  nep: ['DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  N2 inicijal/din
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=30 upl=None | 'Sud nalaze vestaku M. Markovicu da u roku od 30 dana dostavi dopunu nalaza.'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=8 upl=UNKNOWN | 'Sud nalaze tuziocu da uplati predujam od 60.000 din. u roku od 8 dana.'
+  nep: ['DOK-07: da li rok od 30 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata', 'DOK-07: da li rok od 8 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: uplata nije utvrđena iz pročitanih dokumenata']
+===  N3 ranije stavljen + odustanak
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=CONTESTED kas=[('DOK-08', 'KASNIJE')] rok=None upl=None | 'Sud prihvata ranije stavljen predlog tuzenog za dopunu vestacenja.'
+  DOK-08 TUZENI STRANKA_ODUSTAJE kand=[] vd=TUZENI/UNKNOWN dat=2026-09-05 st=None kas=[] rok=None upl=None | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  nep: ['DOK-07: da li DOK-08 (stranka_odustaje, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno']
+===  N4 citat usred / sam red
+  DOK-08 TUZENI STRANKA_NAVODI_IZVRSENJE kand=[] vd=TUZENI/UNKNOWN dat=None st=None kas=[] rok=None upl=None | 'Tuzeni navodi da je postupio.'
+  DOK-09 TUZENI STRANKA_NAVODI_IZVRSENJE kand=[] vd=TUZENI/UNKNOWN dat=2026-06-15 st=None kas=[] rok=None upl=None | 'U Beogradu, dana 15.06.2026. godine\nTuzeni navodi da je postupio.'
+  nep: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  N5 dva naslova
+  DOK-09 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/CONTESTED dat=None st=None kas=[] rok=None upl=None | 'Sud nalaze tuzenom da plati.'
+  nep: ['DOK-09: vrsta dokumenta sporna (dva naslova različite vrste: „Zakljucak suda od 10.07.2026 - odgovor tuzenog“ / „PODNESA', 'DOK-09: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+#### NOVI
+===  A1 Stranke se upozoravaju
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  nep: []
+===  A2 Tuzeni se obavezuje u PODNESKU (citat presude)
+  nep: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  A2b Tuzeni se obavezuje u ZAPISNIKU (izjava stranke)
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Tuzeni se obavezuje da ce do sledeceg rocista dostaviti gradjevinski dnevnik.'
+  nep: ['DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  A2c Tuzeni se protivi / se saglasava
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  nep: ['DOK-07: rečenica sudskog dokumenta nije razvrstana — „Tuzeni se protivi predlogu i trazi da se predlog odbija.“', 'DOK-07: rečenica sudskog dokumenta nije razvrstana — „Tuzilac se saglasava da se predlog prihvata.“']
+===  A3 preneseni govor bez 'da'
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_ODBIJA kand=['SUD_ODBIJA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Prema navodima tuzenog, sud je vec odbio predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_ODBIJA kand=['SUD_ODBIJA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Po predlogu tuzioca sud odbija predlog tuzenog za izvodjenje dokaza saslusanjem svedoka.'
+  DOK-07 STRANKA STRANKA_U_SUDSKOM_DOKUMENTU kand=['STRANKA_NAVODI_O_SUDU'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Punomocnik tuzenog: sud je vec usvojio predlog.'
+  nep: ['DOK-07: rečenica pripisana stranci pominje odluku suda — ko odlučuje, nije utvrđeno — „Punomocnik tuzenog: sud je vec us']
+===  A3b preneseni govor 'kao i da sud'
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 STRANKA STRANKA_U_SUDSKOM_DOKUMENTU kand=['STRANKA_NAVODI_IZVRSENJE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Punomocnik tuzioca je istakao da je dnevnik dostavljen, kao i da sud treba da odbije predlog.'
+  nep: ['DOK-07: stranka_navodi_izvrsenje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvr']
+===  A4 negacija sa 'se odbija'
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 SUD SUD_NERAZVRSTANO kand=[] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Predlog tuzenog se ne odbija, vec se ostavlja za kasnije.'
+  DOK-07 SUD SUD_NERAZVRSTANO kand=[] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Ne odbija se predlog.'
+  DOK-07 SUD SUD_NERAZVRSTANO kand=[] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Predlog se ne prihvata.'
+  nep: ['DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Predlog tuzenog se ne odbija, vec se ostav', 'DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Ne odbija se predlog.“', 'DOK-07: rečenica suda — sud nerazvrstano, značenje i važenje nisu utvrđeni — „Predlog se ne prihvata.“']
+===  A5 CRLF datumi
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=CONTESTED kas=[('DOK-08', 'KASNIJE')] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-08 TUZENI STRANKA_ODUSTAJE kand=[] vd=TUZENI/UNKNOWN dat=2026-09-05 st=None kas=[] rok=None upl=None | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  nep: ['DOK-07: da li DOK-08 (stranka_odustaje, kasnije) menja ovu odluku ili pokazuje postupanje — nije utvrđeno']
+===  A6 datum labela/datum u dva reda; 'dana' bez zareza
+  DOK-08 TUZENI STRANKA_ODUSTAJE kand=[] vd=TUZENI/UNKNOWN dat=None st=None kas=[] rok=None upl=None | 'Tuzeni odustaje od predloga za dopunu vestacenja.'
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=None st=CONTESTED kas=[('DOK-08', 'NEPOZNAT_REDOSLED')] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  nep: ['DOK-07: da li DOK-08 (stranka_odustaje, nepoznat_redosled) menja ovu odluku ili pokazuje postupanje — nije utvrđeno']
+===  A7 nominativ glas suda? 'Vestak se obavezuje' / 'Stranka koja ne uplati'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=30 upl=None | 'Vestak se obavezuje da dopunu dostavi u roku od 30 dana.'
+  DOK-07 STRANKA STRANKA_U_SUDSKOM_DOKUMENTU kand=['STRANKA_NAVODI_IZVRSENJE'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Stranka koja ne uplati predujam snosi posledice.'
+  nep: ['DOK-07: stranka_navodi_izvrsenje nije tekstom vezan ni za jednu odluku suda — da li se odnosi na neku od njih, nije utvr', 'DOK-07: da li rok od 30 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  A8 presuda izreka 'OBAVEZUJE SE tuzeni'
+  DOK-07 SUD SUD_NALAZE kand=['SUD_NALAZE'] vd=SUD/UNKNOWN dat=None st=None kas=[] rok=15 upl=None | 'OBAVEZUJE SE tuzeni da tuziocu isplati 3.150.000 dinara u roku od 15 dana.'
+  DOK-07 SUD SUD_ODBIJA kand=['SUD_ODBIJA'] vd=SUD/UNKNOWN dat=None st=None kas=[] rok=None upl=None | 'Odbija se zahtev tuzioca za kamatu.'
+  nep: ['DOK-07: da li rok od 15 dana teče ili je istekao — početak roka i pravilo računanja nisu utvrđeni iz spisa', 'DOK-07: da li je postupljeno po nalogu — nije utvrđeno iz pročitanih dokumenata']
+===  A9 'se odbija' u podnesku koji opisuje
+  DOK-08 TUZILAC STRANKA_PREDLAZE kand=[] vd=TUZILAC/UNKNOWN dat=None st=None kas=[] rok=None upl=None | 'Tuzilac predlaze da se odbija predlog tuzenog.'
+  nep: ['među pročitanim dokumentima nema dokumenta prepoznatog kao sudski']
+===  A10 rasprava 'tuzeni predlaze da sud' sa tackom-zarezom
+  DOK-07 SUD SUD_PRIHVATA kand=['SUD_PRIHVATA'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Sud prihvata predlog za dopunu vestacenja.'
+  DOK-07 STRANKA STRANKA_U_SUDSKOM_DOKUMENTU kand=['STRANKA_NAVODI_O_SUDU'] vd=SUD/UNKNOWN dat=2026-07-15 st=None kas=[] rok=None upl=None | 'Tuzeni navodi; sud odbija predlog tuzioca za vestacenje.'
+  nep: ['DOK-07: rečenica pripisana stranci pominje odluku suda — ko odlučuje, nije utvrđeno — „Tuzeni navodi; sud odbija predlog']

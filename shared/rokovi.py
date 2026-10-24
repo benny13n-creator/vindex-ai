@@ -779,6 +779,19 @@ def _nedostaje_kolona_129(exc: Exception) -> bool:
     return "42703" in m or "PGRST204" in m or ("does not exist" in m.lower() and ("vrsta" in m or "stanje" in m))
 
 
+AKTER_GENOME = "Genome (AI)"
+
+
+def izvor_povucen(red: dict, nazivi_dokumenata_predmeta) -> bool:
+    """MIR001 TASK-07 — JEDNO pravilo (Case Actions Rule 6 i `/api/rokovi/kandidati`): Genome rok čiji je izvorni
+    dokument obrisan. `routers/case_dna.py::_sync_rokovi_to_hronologija` upisuje `dokument_naziv` SAMO iz razrešenog
+    `dokument_id`, a brisanje dokumenta postavlja `dokument_id` na NULL (FK ON DELETE SET NULL) — pa „naziv postoji,
+    id je NULL, a dokumenta tog naziva u predmetu više nema“ znači da izvor više ne postoji. Smart Intake red nema
+    `dokument_id` od nastanka, a stari redovi su `LEGACY_UNKNOWN` (127) — za njih se ovo ne zaključuje."""
+    return (red.get("akter") == AKTER_GENOME and bool(red.get("dokument_naziv")) and not red.get("dokument_id")
+            and red["dokument_naziv"] not in nazivi_dokumenata_predmeta)
+
+
 def _sema_ima_129(supa) -> bool:
     """Da li `predmet_hronologija` ima `vrsta`/`stanje` (migracija 129).
 

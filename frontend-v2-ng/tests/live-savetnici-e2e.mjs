@@ -119,6 +119,21 @@ await cekaj(() => !document.getElementById("ag-posalji").disabled);
 s = await stanje();
 zapisi("D", "reload ne pokreće savetnike ponovo (bez poziva modela i naplate)", s.pozivi_modela.length === preReload, String(s.pozivi_modela.length - preReload));
 zapisi("D", "svi upisi pripadaju prijavljenom korisniku", JSON.stringify(s.vlasnici) === '["uid-A"]', JSON.stringify(s.vlasnici));
+// E) MIR001 R4 (GATE-R4 B1): 409 mrežnog ponavljanja (`Idempotency-Key`, ishod NEPOZNAT) se ne sme prikazati kao
+// „ništa nije naplaćeno"; samo 409 provere pre izrade nacrta iz spisa kaže „upravo izrađen … ništa nije naplaćeno".
+for (const [ime, agent, telo, ocekivano, zabranjeno] of [
+  ["mrežno ponavljanje u toku (nacrt): ishod nepoznat, ne „ništa nije naplaćeno\"", "drafting", { kod: "IDEMPOTENCY_IN_PROGRESS" }, /Ne ponavljajte odmah/, /Ništa nije pokrenuto|upravo izrađen/],
+  ["mrežno ponavljanje u toku (drugi savetnik): ishod nepoznat", "research", { kod: "IDEMPOTENCY_IN_PROGRESS" }, /Ne ponavljajte odmah/, /Ništa nije pokrenuto|upravo izrađen/],
+  ["isti ključ, drugo telo: ishod nepoznat", "drafting", { kod: "IDEMPOTENCY_CONFLICT" }, /Ne ponavljajte odmah/, /Ništa nije pokrenuto|upravo izrađen/],
+  ["nacrt upravo izrađen (provera pre izrade): ništa nije naplaćeno", "drafting", { detail: "AI radni predlog za ovaj predmet je upravo izrađen." }, /upravo izrađen.*Ništa nije pokrenuto ni naplaćeno/, /Ne ponavljajte/],
+  ["409 drugog savetnika nije poruka o nacrtu", "research", { detail: "Sukob." }, /odbio zahtev/, /upravo izrađen|Ništa nije pokrenuto/],
+]) {
+  await p.route("**/api/agents/run", rt => rt.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify(telo) }), { times: 1 });
+  await pokreni("pojedinacno", agent);
+  const t = (await ekran()).stanje || "";
+  zapisi("E", ime, ocekivano.test(t) && !zabranjeno.test(t), t);
+}
+
 zapisi("bezbednost", "0 spoljnih veza", spoljni.length === 0 && s.spoljni_pokusaji === 0);
 zapisi("bezbednost", "bez JS grešaka i bez 5xx", greskeJS.length === 0 && api500.length === 0, JSON.stringify([greskeJS.slice(0, 2), api500.slice(0, 3)]));
 

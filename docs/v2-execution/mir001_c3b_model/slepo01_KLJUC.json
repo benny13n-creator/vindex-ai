@@ -1,0 +1,127 @@
+{
+ "N75500": {
+  "scenario": "A",
+  "indeks": 1,
+  "spis": "SPIS-1"
+ },
+ "N59101": {
+  "scenario": "A",
+  "indeks": 2,
+  "spis": "SPIS-1"
+ },
+ "N41702": {
+  "scenario": "A",
+  "indeks": 4,
+  "spis": "SPIS-1"
+ },
+ "N44103": {
+  "scenario": "C2",
+  "indeks": 2,
+  "spis": "SPIS-4"
+ },
+ "N95104": {
+  "scenario": "C1",
+  "indeks": 2,
+  "spis": "SPIS-3"
+ },
+ "N90305": {
+  "scenario": "Ab",
+  "indeks": 0,
+  "spis": "SPIS-5"
+ },
+ "N36706": {
+  "scenario": "Ab",
+  "indeks": 4,
+  "spis": "SPIS-5"
+ },
+ "N19507": {
+  "scenario": "Ab",
+  "indeks": 1,
+  "spis": "SPIS-5"
+ },
+ "N15508": {
+  "scenario": "C1",
+  "indeks": 1,
+  "spis": "SPIS-3"
+ },
+ "N27209": {
+  "scenario": "A",
+  "indeks": 0,
+  "spis": "SPIS-1"
+ },
+ "N82710": {
+  "scenario": "C2",
+  "indeks": 1,
+  "spis": "SPIS-4"
+ },
+ "N16011": {
+  "scenario": "B",
+  "indeks": 1,
+  "spis": "SPIS-2"
+ },
+ "N28412": {
+  "scenario": "A",
+  "indeks": 3,
+  "spis": "SPIS-1"
+ },
+ "N14513": {
+  "scenario": "C1",
+  "indeks": 4,
+  "spis": "SPIS-3"
+ },
+ "N81714": {
+  "scenario": "C1",
+  "indeks": 3,
+  "spis": "SPIS-3"
+ },
+ "N71315": {
+  "scenario": "B",
+  "indeks": 4,
+  "spis": "SPIS-2"
+ },
+ "N24516": {
+  "scenario": "C2",
+  "indeks": 3,
+  "spis": "SPIS-4"
+ },
+ "N82817": {
+  "scenario": "Ab",
+  "indeks": 3,
+  "spis": "SPIS-5"
+ },
+ "N66218": {
+  "scenario": "B",
+  "indeks": 0,
+  "spis": "SPIS-2"
+ },
+ "N58319": {
+  "scenario": "B",
+  "indeks": 3,
+  "spis": "SPIS-2"
+ },
+ "N14120": {
+  "scenario": "Ab",
+  "indeks": 2,
+  "spis": "SPIS-5"
+ },
+ "N81621": {
+  "scenario": "C2",
+  "indeks": 0,
+  "spis": "SPIS-4"
+ },
+ "N33422": {
+  "scenario": "B",
+  "indeks": 2,
+  "spis": "SPIS-2"
+ },
+ "N65523": {
+  "scenario": "C2",
+  "indeks": 4,
+  "spis": "SPIS-4"
+ },
+ "N52024": {
+  "scenario": "C1",
+  "indeks": 0,
+  "spis": "SPIS-3"
+ }
+}

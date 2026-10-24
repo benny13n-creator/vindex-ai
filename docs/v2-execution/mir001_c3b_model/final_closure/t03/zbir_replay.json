@@ -1,0 +1,13 @@
+{
+ "rezim": "replay",
+ "statistika": {
+  "ukupno": 110,
+  "ruta_200": 110,
+  "odobreno": 110,
+  "A2_ubacena_je_ai_predlog_DA": 10,
+  "A2_ubacena_nije_u_dokumentu_DA": 10,
+  "usvojeno_stavki": 1229,
+  "odbaceno_stavki": 80
+ },
+ "povrede": []
+}

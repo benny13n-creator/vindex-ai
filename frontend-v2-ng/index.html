@@ -693,11 +693,39 @@
             <p class="notice" id="nc-otvoren-stanje" role="status" aria-live="polite" hidden></p>
             <label class="field__label" id="nc-tekst-oznaka" for="nc-tekst">Tekst nacrta (izmene ovde ulaze samo u .docx koji preuzmete; ne čuvaju se na serveru)</label>
             <textarea class="field__input draft__text" id="nc-tekst" rows="24" spellcheck="false"></textarea>
-            <div class="form__actions">
+            <div class="form__actions" id="nc-akcije">
               <button class="text-btn text-btn--line" id="nc-sacuvaj" type="button" hidden>Sačuvaj izmene</button>
               <button class="text-btn text-btn--primary" id="nc-odobri" type="button" hidden>Odobri ovaj tekst</button>
               <button class="text-btn text-btn--line" id="nc-docx" type="button">Preuzmi kao Word (.docx)</button></div>
             <p class="notice" id="nc-docx-poruka" role="status" aria-live="polite" hidden></p>
+            <div class="adopt" id="nc-usvajanje" hidden>
+              <section class="adopt__part" aria-labelledby="nc-predlog-naslov">
+                <h3 class="adopt__h" id="nc-predlog-naslov">1. AI predlog — samo za pregled. Ovaj tekst NE ide u dokument za sud.</h3>
+                <p class="field__help">U dokument za sud ulazi samo ono što izričito usvojite ili sami napišete. Svaku stavku pre usvajanja proverite prema izvoru: citat uz stavku je izvor koji je AI izabrao, a ne dokaz da je tvrdnja tačna.</p>
+                <ol class="adopt__list" id="nc-stavke" aria-label="Stavke AI predloga"></ol>
+                <details class="adopt__notes"><summary>Napomene savetnika i sistema (interne — ne idu u dokument za sud)</summary>
+                  <pre class="adopt__pre" id="nc-napomene"></pre></details>
+              </section>
+              <section class="adopt__part" aria-labelledby="nc-tacke-naslov">
+                <h3 class="adopt__h" id="nc-tacke-naslov">2. Procesne informacije — vaša provera pre odobrenja</h3>
+                <p class="field__help">O svakoj tački odlučujete vi. Sistem prikazuje doslovne izvode iz spisa; njihovo značenje i važenje nije utvrđeno. Ako stanje ne možete pouzdano da utvrdite, izaberite „Nepoznato“ — tako i ostaje zabeleženo.</p>
+                <ol class="adopt__list" id="nc-tacke" aria-label="Procesne informacije"></ol>
+                <div class="form__actions"><button class="text-btn text-btn--line" id="nc-tacke-sacuvaj" type="button">Sačuvaj odluke o procesnim informacijama</button></div>
+              </section>
+              <section class="adopt__part adopt__part--court" aria-labelledby="nc-sud-naslov">
+                <h3 class="adopt__h" id="nc-sud-naslov">3. Tekst koji će biti izvezen u dokument za sud</h3>
+                <p class="notice" id="nc-sud-stanje" role="status" aria-live="polite"></p>
+                <label class="field__label" for="nc-sud-tekst">Dokument za sud (samo usvojene stavke i vaš tekst; kad ga odobrite, .docx sadrži ovaj tekst — red sa „# “ postaje naslov, **…** podebljano)</label>
+                <textarea class="field__input draft__text" id="nc-sud-tekst" rows="18" spellcheck="false"></textarea>
+                <ul class="adopt__reasons" id="nc-razlozi" aria-label="Šta još sprečava odobrenje"></ul>
+                <div class="form__actions">
+                  <button class="text-btn text-btn--line" id="nc-sud-sacuvaj" type="button">Sačuvaj tekst</button>
+                  <button class="text-btn text-btn--primary" id="nc-sud-odobri" type="button">Odobri dokument za sud</button>
+                  <button class="text-btn text-btn--line" id="nc-sud-docx" type="button" hidden>Preuzmi odobren dokument (.docx)</button>
+                  <button class="text-btn text-btn--line" id="nc-sud-nova" type="button" hidden>Nova verzija (bez odobrenja)</button></div>
+                <p class="notice" id="nc-sud-poruka" role="status" aria-live="polite" hidden></p>
+              </section>
+            </div>
           </section>
           <section class="matter__section" aria-labelledby="nc-overa-naslov">
             <h2 class="matter__h2" id="nc-overa-naslov">Nacrti na overi</h2>
@@ -798,7 +826,7 @@
               <p class="list-state" id="an-genome-stanje" hidden></p>
               <h3 class="answer__h">Suština predmeta</h3><ul class="an-list" id="an-sustina"></ul>
               <h3 class="answer__h">Stranke</h3><ul class="an-list" id="an-stranke"></ul>
-              <h3 class="answer__h">Ključne činjenice</h3><ul class="an-list" id="an-cinjenice"></ul>
+              <h3 class="answer__h">Ključni navodi iz dokumenata</h3><ul class="an-list" id="an-cinjenice"></ul>
               <h3 class="answer__h">Otvorena pravna pitanja</h3><ul class="an-list" id="an-pitanja"></ul>
               <h3 class="answer__h">Pravni osnovi koje predlaže analiza</h3>
               <p class="field__help">Nisu potvrđeni u izvorima prava. Proverite ih pre upotrebe.</p>

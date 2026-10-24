@@ -1,0 +1,4 @@
+﻿UHVACENO Y13 nepotrebnost bez izricitog priznanja :: 1 failed, 156 passed, 13 warnings in 67.24s (0:01:07)
+UHVACENO Z2 navod bez provere izvora :: 1 failed, 156 passed, 13 warnings in 67.50s (0:01:07)
+UHVACENO Z5 bez prenosa predmeta na zamenicu :: 1 failed, 156 passed, 13 warnings in 67.37s (0:01:07)
+svi fajlovi vraceni bajt-identicno

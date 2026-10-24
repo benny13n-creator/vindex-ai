@@ -1,0 +1,11 @@
+{
+ "rezim": "primeni",
+ "statistika": {
+  "ukupno": 10,
+  "ruta_200": 10,
+  "odobreno": 10,
+  "usvojeno_stavki": 112,
+  "odbaceno_stavki": 4
+ },
+ "povrede": []
+}

@@ -27,7 +27,7 @@ def test_dnevni_dispecer_odvojen_od_autonomije():
 def test_legacy_registar_tacno_dva_agenta_preporuka():
     import workers.background_agents as ba
     assert set(ba._agent_registry()) == {"court_portal_watcher", "precedents_radar"}
-    assert set(ba._work_agents()) == {"HEARING_PREP", "PRECEDENT_IMPACT"}
+    assert set(ba._work_agents()) == {"HEARING_PREP", "PRECEDENT_IMPACT", "CASE_CHANGE_BRIEF"}   # MIR001 TASK-08
 
 
 def test_legacy_prolaz_ne_pravi_autonomni_rad(monkeypatch):

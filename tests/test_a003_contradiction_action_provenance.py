@@ -57,8 +57,18 @@ def _make_target_supa(case_dna):
         # A015: `_compute_target_actions` sada prvo pita ima li predmet V2
         # kontradikcije. Prazan odgovor znaci „nema V2" -> legacy Rule 3 se
         # izvrsava nepromenjen, sto je bas ono sto ovaj fajl i meri.
-        if name in ("predmet_dokazi", "predmet_dokumenti", "rocista", "predmet_issues"):
+        if name in ("predmet_dokazi", "rocista", "predmet_issues"):
             return _empty_table()
+        if name == "predmet_dokumenti":
+            # MIR001 TASK-07: kontradikcija ciji dokument vise NE postoji u predmetu se ne projektuje (izvor povucen).
+            # Ovaj fajl meri prenos identiteta POSTOJECIH dokumenata, pa lažnjak vraca dokumente na koje kontradikcije
+            # pokazuju — kao stvarna baza.
+            t = _empty_table()
+            ids = sorted({x for k in ((case_dna or {}).get("kontradikcije") or [])
+                          for x in (k.get("dokument_id_1"), k.get("dokument_id_2")) if x})
+            t.select.return_value.eq.return_value.execute.return_value = MagicMock(
+                data=[{"id": i, "naziv_fajla": f"{i}.pdf", "status": "indeksirano", "tip_dokaza": "dopis"} for i in ids])
+            return t
         # NS2-A2 (F1): sonda seme 129 vise ne pretvara SVAKI izuzetak u trajno „nema 129“ — samo izricit
         # 42703/PGRST204. Ovaj laznjak je ranije na sondu pucao sa „unexpected table“, sto je tiho znacilo
         # „pre 129, Rule 6 preskocen“. Sada je to IZRICITO: sema 129 postoji (kao produkcija), rokova nema.

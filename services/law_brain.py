@@ -311,6 +311,8 @@ ART_PENDING = "PENDING_REVIEW"
 ART_REJECTED = "REJECTED"
 ART_REJECTED_STILL_INDEXED = "REJECTED_STILL_INDEXED"   # odbijen posle promocije — vektor još postoji
 ART_INCONSISTENT = "INCONSISTENT"                       # npr. status approved bez advokatske potvrde
+_TIPOVI_NACRTA_ZA_SUD = ("nacrt_iz_spisa", "dokument_za_sud")   # = shared.usvajanje_nacrta TIP_PREDLOGA / TIP_DOKUMENTA_ZA_SUD
+_GRANICA_NAPOMENA = "═══ VINDEX — INTERNE NAPOMENE"             # početak shared.nacrt_za_sud.GRANICA
 ARTEFAKT_KOLONE = ("id,user_id,predmet_id,tip,naziv,tekst,confidence_score,is_lawyer_approved,approved_at,"
                    "status,pinecone_indexed,created_at")
 
@@ -337,10 +339,19 @@ def artifact_item(red: dict, predmet: dict) -> Optional[LawBrainItem]:
         stanje, klasa, validnost, loza = ART_PENDING, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
     else:
         stanje, klasa, validnost, loza = ART_INCONSISTENT, AI_WORK_PRODUCT, UNKNOWN, ("AI_GENERATED",)
+    excerpt = red.get("tekst") or ""
+    if red.get("tip") in _TIPOVI_NACRTA_ZA_SUD:
+        # MIR001 C3b FINAL CLOSURE: AI radni predlog i dokument za sud su rad na predmetu, ne znanje kancelarije —
+        # odobrenje dokumenta za sud je usvajanje teksta, ne provera izvora (nikad LAWYER_VERIFIED_ARTIFACT).
+        # Interne napomene predloga (posle serverske granice) se ne prikazuju kao sadržaj.
+        klasa = AI_WORK_PRODUCT
+        if stanje in (ART_INDEXED, ART_APPROVED_NOT_INDEXED):
+            validnost, loza = UNKNOWN, ("AI_GENERATED", "LAWYER_ADOPTED")
+        excerpt = excerpt.split(_GRANICA_NAPOMENA, 1)[0].rstrip()
     return LawBrainItem(
         source_kind="artifact", source_owner="staging_memory", source_id=str(red["id"]),
         scope=SCOPE_USER, trust_class=klasa, validity=validnost,
-        title=red.get("naziv") or red.get("tip") or "Nacrt", excerpt=red.get("tekst") or "",
+        title=red.get("naziv") or red.get("tip") or "Nacrt", excerpt=excerpt,
         predmet_id=str(predmet["id"]), created_at=red.get("created_at"),
         updated_at=red.get("approved_at") or red.get("created_at"), lineage=loza, state=stanje,
         attrs=(("tip", red.get("tip")), ("confidence_score", red.get("confidence_score")),

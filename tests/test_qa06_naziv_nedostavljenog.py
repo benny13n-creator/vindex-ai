@@ -19,9 +19,11 @@ TUDJI = "tajni_izvestaj_klijenta_b.pdf"
 
 
 def _baza7():
-    """Sedam dokumenata; bez traženog dokumenta model dobija DOK-07…DOK-03, a DOK-02 i DOK-01 su izostavljeni."""
+    """Sedam imenovanih + sedam novijih neutralnih dokumenata (MIR001 TASK-04: granica je 12); bez traženog dokumenta
+    model dobija DOK-14…DOK-03, a DOK-02 i DOK-01 su izostavljeni."""
     nazivi = {1: "ugovor.pdf", 2: "zapisnik_rociste.pdf", 3: "aneks ugovor.pdf", 4: "ugovor_2.pdf",
-              5: "05_dopis.pdf", 6: "06_racun.pdf", 7: "07_opomena.pdf"}
+              5: "05_dopis.pdf", 6: "06_racun.pdf", 7: "07_opomena.pdf",
+              **{rb: f"{rb:02d}_prilog.pdf" for rb in range(8, 15)}}
     dok = [_dok(rb, f"Dokument {rb}. Neutralan sadržaj.", naziv) for rb, naziv in nazivi.items()]
     dok.append(_dok(1, "TAJNA-B", TUDJI, predmet=PB, uid="uid-B"))
     dok.append(_dok(2, "TAJNA-B2", "zapisnik_rociste.pdf", predmet=PB, uid="uid-B"))
@@ -42,7 +44,7 @@ def _pominje(ag, odgovor, baza=None):
 def test_postavka_dva_izostavljena(ag):
     d, _ = _pominje(ag, "OK")
     iz = d["izvori_predmeta"]
-    assert [u["oznaka"] for u in iz["ukljuceni"]] == ["DOK-07", "DOK-06", "DOK-05", "DOK-04", "DOK-03"]
+    assert [u["oznaka"] for u in iz["ukljuceni"]] == [f"DOK-{i:02d}" for i in range(14, 2, -1)]
     assert [x["oznaka"] for x in iz["izostavljeni"]] == ["DOK-02", "DOK-01"]
 
 

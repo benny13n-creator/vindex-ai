@@ -1,0 +1,100 @@
+{
+ "cmd": [
+  "powershell",
+  "-NoProfile",
+  "-Command",
+  ". '<scratchpad>/ocr.ps1'; python -X utf8 -m pytest tests/test_mir001_c3b_nacrt_za_sud.py tests/test_mir001_c3_procesno_stanje.py tests/test_mir001_t06_nacrt_iz_spisa.py tests/test_mir001_c4_e2e.py tests/test_mir001_t10_ceo_tok.py -q -p no:randomly -p no:cacheprovider --no-header --show-capture=no 2>$null | Select-Object -Last 1"
+ ],
+ "mutacije": [
+  {
+   "ime": "G1 polaritet se ne proverava",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "            and pol <= _polaritet(_n(d[\"izvod\"]), rx) for d in izvori)",
+   "new": "            for d in izvori)"
+  },
+  {
+   "ime": "G2 negacija ispred se ne vidi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        elif _RE_NEG_U.search(m.group()) or _RE_NEG_U.search(pre):",
+   "new": "        elif _RE_NEG_U.search(m.group()):"
+  },
+  {
+   "ime": "G3 blok bez nastavka",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        while j < len(redovi) and redovi[j].strip() and (naslov or",
+   "new": "        while False and (naslov or"
+  },
+  {
+   "ime": "G4 naslov ne nastavlja",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        while j < len(redovi) and redovi[j].strip() and (naslov or re.match(",
+   "new": "        while j < len(redovi) and redovi[j].strip() and (False or re.match("
+  },
+  {
+   "ime": "G5 premesteno bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and not naslov:",
+   "new": "        if True:"
+  },
+  {
+   "ime": "H1 markdown se ne skida",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        k = _n(re.sub(r\"[*#_>`]+\", \" \", red)).strip()",
+   "new": "        k = _n(red).strip()"
+  },
+  {
+   "ime": "H2 naslov bez dvotacke se ne prepoznaje",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        naslov = bool(_RE_NASLOV.match(k)) or (bool(_RE_INTERNO.search(k)) and k.endswith(\":\"))",
+   "new": "        naslov = bool(_RE_INTERNO.search(k)) and k.endswith(\":\")"
+  },
+  {
+   "ime": "H3 izolovan red bez cuvara",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and not naslov:",
+   "new": "        if len(blok) == 1 and not naslov:"
+  },
+  {
+   "ime": "H4 ai red dobija cuvar",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if len(blok) == 1 and _RE_SAMO_AI.search(k) and not naslov:",
+   "new": "        if False:"
+  },
+  {
+   "ime": "H5 napomena u istom redu",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": " or _RE_NAPOMENA_U_REDU.search(k)):",
+   "new": "):"
+  },
+  {
+   "ime": "H6 modalitet se ne vidi",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        if _RE_MODAL.search(pre) or _RE_MODAL.search(m.group()):",
+   "new": "        if False:"
+  },
+  {
+   "ime": "H7 prozor 3 reci",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-6:])",
+   "new": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-3:])"
+  },
+  {
+   "ime": "H8 bez granice klauze",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "        pre = \" \".join(_RE_KLAUZA.split(t[:m.start()])[-1].split()[-6:])",
+   "new": "        pre = \" \".join(t[:m.start()].split()[-6:])"
+  },
+  {
+   "ime": "H9 interna (a) napomena",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "|intern[aei]\\s+napomen\\w*|upozorenj\\w*\\s+za\\s+advokat\\w*\"",
+   "new": "|interne?\\s+napomenX|upozorenj\\w*\\s+za\\s+advokat\\w*\""
+  },
+  {
+   "ime": "H10 model nije procitao",
+   "fajl": "shared/nacrt_za_sud.py",
+   "old": "|\\bmodel\\w*\\s+(?:nije|ni|ne)\\s+(?:procit|pregled|potvrd|uzeo)\\w*|",
+   "new": "|"
+  }
+ ]
+}
