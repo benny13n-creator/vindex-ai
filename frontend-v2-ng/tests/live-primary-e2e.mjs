@@ -111,7 +111,7 @@ for (const adresa of ["/app", "/app?rezim=demo", "/app?rezim=nesto"]) {
   zapisi("P3.primarni", "stvarni predmeti korisnika A (12), LIVE", e.redovi === 12 && e.stanje === "registar" && !DEMO.test(e.tekst), `${e.redovi}`);
   // NS005 Task 7/9: „Znanje“ i „Kancelarija“ su kompletni, testirani moduli (live-znanje, live-kancelarija);
   // ostali nedovršeni moduli i dalje su uklonjeni.
-  zapisi("P3.primarni", "navigacija: „Danas“, „Predmeti“, „Znanje“ i „Kancelarija“ (nedovršeni moduli su uklonjeni)", JSON.stringify(e.moduli) === JSON.stringify(["Danas", "Predmeti", "Znanje", "Kancelarija"]), e.moduli.join(","));
+  zapisi("P3.primarni", "navigacija: „Danas“, „Predmeti“, „Znanje“, „Kancelarija“, „Podešavanja“ (nedovršeni moduli su uklonjeni)", JSON.stringify(e.moduli) === JSON.stringify(["Danas", "Predmeti", "Znanje", "Kancelarija", "Podešavanja"]), e.moduli.join(","));
   zapisi("P3.primarni", "bez panela „Zahteva pažnju“, demo značke i „Demo nalog“", !e.panel && !e.panelDugme && !e.znacka && !e.nalog);
   zapisi("P3.primarni", "odjava vodi kroz postojeću odjavu (/app-legacy?odjava=1)", e.odjava === "/app-legacy?odjava=1", String(e.odjava));
   for (const sel of [".sidenav__item", "#nav-collapse", ".wordmark"]) await o.p.click(sel).catch(() => {});
@@ -274,7 +274,7 @@ for (const hash of ["#access_token=vx-lazni-oporavak&type=recovery", "#login", "
       pretraga: vid(document.getElementById("pretraga-link")), nov: vid(document.getElementById("nov-predmet-link")),
     };
   });
-  zapisi("P9.nav", "LIVE bočna navigacija: Danas, Predmeti, Znanje, Kancelarija", JSON.stringify(nav.moduli) === JSON.stringify(["Danas", "Predmeti", "Znanje", "Kancelarija"]), nav.moduli.join(","));
+  zapisi("P9.nav", "LIVE bočna navigacija: Danas, Predmeti, Znanje, Kancelarija, Podešavanja", JSON.stringify(nav.moduli) === JSON.stringify(["Danas", "Predmeti", "Znanje", "Kancelarija", "Podešavanja"]), nav.moduli.join(","));
   zapisi("P9.nav", "nedovršena „Usklađenost“ nije izložena", !nav.uskladjenost);
   zapisi("P9.nav", "akcije „Pretraga“ i „Nov predmet“ su vidljive", nav.pretraga && nav.nov, JSON.stringify(nav));
   await p.click('#rows tr[data-id="korisnik-A-00000"] .case__name');
