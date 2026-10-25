@@ -45,7 +45,8 @@
    * van `/api/` ne prolazi. */
   function dozvoljenaPutanja(p) {
     return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0 || p === "/portfolio/dashboard" || p.indexOf("/billing/") === 0
-      || p.indexOf("/zastarelost/") === 0;   /* VCR001 T07: deterministički kalkulator (routers/zastarelost.py) */
+      || p.indexOf("/zastarelost/") === 0
+      || p === "/email-notif/profil" || p === "/email-notif/test";  /* B10: samo postojeće rute naloga */   /* VCR001 T07: deterministički kalkulator (routers/zastarelost.py) */
   }
 
   function napraviAdresu(putanja, parametri) {
@@ -130,7 +131,7 @@
    * Odvojeno od `get` NAMERNO: čitanje bez posledice, pisanje sa posledicom.
    * Iste granice kao `get` (isti izvor, `/api/...`, bez kolačića, bez
    * preusmeravanja, bez ispisa), plus:
-   *  • samo metodi koje V2 stvarno koristi; DELETE ne postoji u ovom sloju;
+   *  • POST/PATCH; DELETE dozvoljen samo za /email-notif/profil (B10 deaktivacija);
    *  • telo ne sme nositi vlasnika (`user_id`, `owner_id`, `tenant_id`…) —
    *    pripadnost određuje server iz tokena;
    *  • NIKAD se ne ponavlja;
@@ -141,7 +142,7 @@
    * Kodovi pored onih iz `get`: BAD_REQUEST 400 · CONFLICT 409 ·
    * TOO_LARGE 413 · UNSUPPORTED_MEDIA 415 · VALIDATION_ERROR 422 ·
    * OUTCOME_UNKNOWN (mreža/prekid posle slanja). */
-  var METODI_PISANJA = { POST: 1, PATCH: 1 };
+  var METODI_PISANJA = { POST: 1, PATCH: 1, DELETE: 1 };
   var ZABRANJENA_POLJA = { user_id: 1, userid: 1, uid: 1, owner_id: 1, tenant_id: 1, vlasnik_id: 1 };
 
   function kodPisanja(s) {
@@ -190,12 +191,14 @@
   /**
    * POST/PATCH /api/... sa tokenom tekuće sesije.
    * @param {string} putanja
-   * @param {{metod?: "POST"|"PATCH", telo?: Object|FormData, token?: string, signal?: AbortSignal, oblik?: function(*):boolean}} opcije
+   * @param {{metod?: "POST"|"PATCH"|"DELETE", telo?: Object|FormData, token?: string, signal?: AbortSignal, oblik?: function(*):boolean}} opcije
    */
   async function send(putanja, opcije) {
     opcije = opcije || {};
     var metod = String(opcije.metod || "POST").toUpperCase();
-    if (!METODI_PISANJA[metod]) return greska("CONFIG_ERROR", "Metod nije dozvoljen.", 0);
+    if (!METODI_PISANJA[metod] || (metod === "DELETE" && putanja !== "/email-notif/profil")) {
+      return greska("CONFIG_ERROR", "Metod nije dozvoljen.", 0);
+    }
     var adresa;
     try { adresa = napraviAdresu(putanja, null); }
     catch (e) { return greska("CONFIG_ERROR", e.message, 0); }
