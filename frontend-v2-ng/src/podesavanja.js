@@ -141,21 +141,24 @@
       izvrsi("/email-notif/profil", null, "DELETE", "Email podsetnici su isključeni.");
     });
 
+    function pokreni() {
+      if (sesija.stanje().stanje !== sesija.STANJA.PRIJAVLJEN) {
+        poruka("pn-stanje", "Prijavite se da biste podesili svoje podsetnike.", "greska");
+        return;
+      }
+      ucitaj();
+    }
+
+    /* Promena naloga dok je pogled otvoren: stari podaci se brišu, a pogled se puni za novi nalog. */
+    var otvoren = false;
     var odjavi = sesija.naPromenu(function (novo, staro) {
-      if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) ocisti();
+      if (novo.korisnik !== staro.korisnik || novo.stanje !== staro.stanje) { ocisti(); if (otvoren) pokreni(); }
     });
     ocisti();
     return {
-      otvori: function () {
-        ocisti();
-        if (sesija.stanje().stanje !== sesija.STANJA.PRIJAVLJEN) {
-          poruka("pn-stanje", "Prijavite se da biste podesili svoje podsetnike.", "greska");
-          return;
-        }
-        ucitaj();
-      },
-      zatvori: ocisti,
-      zaustavi: function () { odjavi(); ocisti(); },
+      otvori: function () { otvoren = true; ocisti(); pokreni(); },
+      zatvori: function () { otvoren = false; ocisti(); },
+      zaustavi: function () { otvoren = false; odjavi(); ocisti(); },
     };
   }
 

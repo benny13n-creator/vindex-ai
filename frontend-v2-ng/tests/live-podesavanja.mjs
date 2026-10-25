@@ -88,11 +88,17 @@ proveri("Isključivanje je ciljani DELETE iste korisničke putanje", zahtevi.som
 const neDozvoli = await page.evaluate(() => window.VxApi.send("/api/predmeti", { token: "test", metod: "DELETE" }));
 proveri("DELETE za ostale API rute je i dalje lokalno zabranjen", neDozvoli.ok === false && neDozvoli.greska.kod === "CONFIG_ERROR");
 
-await page.evaluate(([k, v]) => { localStorage.setItem(k, v); window.dispatchEvent(new Event("focus")); }, [KLJUC, sesija("korisnik-B", B)]);
-await page.waitForFunction(() => document.getElementById("pn-adresa").textContent === "—");
-await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja");
+// Promena naloga dok je pogled otvoren: isti dokument (goto na isti URL sa hešom NE učitava stranicu ponovo).
+const pre = zahtevi.length;
+const odmah = await page.evaluate(([k, v]) => { localStorage.setItem(k, v); window.dispatchEvent(new Event("focus"));
+  return document.getElementById("podesavanja-pogled").innerText; }, [KLJUC, sesija("korisnik-B", B)]);
 await page.waitForFunction(() => document.getElementById("pn-adresa").textContent.includes("b10-b@example.test"));
-proveri("Promena naloga A→B ne zadržava adresu A", (await page.locator("#pn-adresa").innerText()) === adrese[B]
+proveri("Promena naloga A→B u otvorenom pogledu: adresa A odmah nestaje, pogled se puni za B", !odmah.includes(adrese[A])
+  && (await page.locator("#pn-adresa").innerText()) === adrese[B]
+  && zahtevi.slice(pre).length > 0 && zahtevi.slice(pre).every(x => x.token === B));
+await page.reload();
+await page.waitForFunction(() => document.getElementById("pn-adresa").textContent.includes("b10-b@example.test"));
+proveri("Posle ponovnog učitavanja nalog B ne vidi adresu A", (await page.locator("#pn-adresa").innerText()) === adrese[B]
   && !(await page.locator("#podesavanja-pogled").innerText()).includes(adrese[A]));
 
 pokvarenoCitanje = true;
