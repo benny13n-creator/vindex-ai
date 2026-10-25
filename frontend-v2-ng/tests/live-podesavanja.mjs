@@ -27,7 +27,7 @@ const f = await pokreniFixture(predmetiRuta({
   [B]: { id: "korisnik-B", predmeti: napraviPredmete("korisnik-B", 1) }
 }));
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
-await ctx.addInitScript(([k, v]) => { localStorage.setItem(k, v); }, [KLJUC, sesija("korisnik-A", A)]);
+await ctx.addInitScript(([k, v]) => { if (!sessionStorage.getItem("vx-init")) { sessionStorage.setItem("vx-init", "1"); localStorage.setItem(k, v); } }, [KLJUC, sesija("korisnik-A", A)]);
 const spolja = [];
 await ctx.route("**/*", async route => {
   const req = route.request(), url = new URL(req.url());
