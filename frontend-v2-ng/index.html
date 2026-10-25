@@ -66,6 +66,9 @@
         <li><a class="sidenav__item" href="#" data-modul="Kancelarija" title="Kancelarija">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 17V6.5L10 3l6.5 3.5V17M2.5 17h15M7 17v-4.5h6V17M7 9h.01M10 9h.01M13 9h.01"/></svg>
           <span class="sidenav__label">Kancelarija</span></a></li>
+        <li id="podesavanja-nav" hidden><a class="sidenav__item" href="#" data-modul="Podešavanja" title="Podešavanja">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.2"/><path d="M8.5 2.5h3l.6 2.1 2 .9 1.9-1 2.1 2.2-1 1.8.9 2 .9.4v3l-2.1.6-.9 2 1 1.8-2.1 2.1-1.9-1-2 .9-.6 2.1h-3l-.6-2.1-2-.9-1.9 1-2.1-2.1 1-1.8-.9-2L1 13v-3l2.1-.6.9-2-1-1.8 2.1-2.2 1.9 1 2-.9z"/></svg>
+          <span class="sidenav__label">Podešavanja</span></a></li>
         <li><a class="sidenav__item" href="#" data-modul="Usklađenost" title="Usklađenost">
           <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5l6 2.3v4.6c0 3.8-2.6 6.6-6 8.1-3.4-1.5-6-4.3-6-8.1V4.8z"/><path d="M7.3 10l1.9 1.9 3.6-3.8"/></svg>
           <span class="sidenav__label">Usklađenost</span></a></li>
@@ -343,6 +346,36 @@
             <p class="field__help">Indeks od 0 do 100 računa program iz rokova, dokaza, naplate i aktivnosti vaših predmeta. Izračunavanje troši kredit.</p>
             <p class="list-state" id="ka-zdravlje-stanje" role="status" hidden></p>
             <div id="ka-zdravlje"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- B10: lična email podešavanja u aktuelnom V2 interfejsu (samo LIVE). -->
+      <section class="matter" id="podesavanja-pogled" hidden aria-labelledby="pn-naslov">
+        <div class="matter__head">
+          <h1 class="sheet__title matter__title" id="pn-naslov" tabindex="-1">Podešavanja</h1>
+          <p class="matter__ref">Lični podsetnici za potvrđene rokove vaših predmeta.</p>
+        </div>
+        <div class="matter__body">
+          <section class="matter__section matter__section--first" aria-labelledby="pn-email-naslov">
+            <h2 class="matter__h2" id="pn-email-naslov">Email podsetnici</h2>
+            <p class="field__help">Podsetnici se šalju samo za rokove koje je advokat potvrdio. Email ide na adresu ovog naloga.</p>
+            <p class="field__help">Primalac: <strong id="pn-adresa">—</strong></p>
+            <p class="field__help" id="pn-aktivno"></p>
+            <p class="list-state" id="pn-stanje" role="status" aria-live="polite" hidden></p>
+            <div class="field">
+              <label class="field__label" for="pn-dan-7"><input id="pn-dan-7" type="checkbox" disabled> 7 dana pre roka</label>
+              <label class="field__label" for="pn-dan-3"><input id="pn-dan-3" type="checkbox" disabled> 3 dana pre roka</label>
+              <label class="field__label" for="pn-dan-1"><input id="pn-dan-1" type="checkbox" disabled> 1 dan pre roka</label>
+              <label class="field__label" for="pn-nedeljni"><input id="pn-nedeljni" type="checkbox" disabled> Nedeljni sažetak</label>
+            </div>
+            <div class="form__actions">
+              <button class="text-btn text-btn--primary" id="pn-sacuvaj" type="button" disabled>Sačuvaj i aktiviraj</button>
+              <button class="text-btn text-btn--line" id="pn-test" type="button" hidden disabled>Pošalji testni email</button>
+              <button class="text-btn" id="pn-deaktiviraj" type="button" hidden disabled>Isključi podsetnike</button>
+            </div>
+            <p class="field__help">Testni email se šalje samo kada kliknete dugme. Prijem proverite u svom inboxu; uspeh slanja nije potvrda prijema.</p>
+            <p class="notice" id="pn-poruka" role="status" aria-live="polite" hidden></p>
           </section>
         </div>
       </section>
@@ -1008,6 +1041,7 @@
   <script src="src/radna-lista.js"></script>
   <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
+  <script src="src/podesavanja.js"></script>
   <script src="src/prijava-problema.js"></script>
   <script src="src/danas.js"></script>
   <script src="src/demo-data.js"></script>
