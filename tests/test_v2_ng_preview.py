@@ -52,7 +52,7 @@ PUTANJE_PREVIEW = [
     "/v2/preview/src/app.js", "/v2/preview/src/api.js",
     "/v2/preview/fonts/ibm-plex-sans/400.css",
     "/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2",
-    "/v2/preview/brand/vindex-logo-tamna.png", "/v2/preview/brand/vindex-logo-svetla.png",
+    "/v2/preview/brand/vindex-logo-final-tamna.png", "/v2/preview/brand/vindex-logo-final-svetla.png",
 ]
 NEIZLOZENO = [
     "/v2/preview/tests/fixtures/original.html", "/v2/preview/package.json", "/v2/preview/serve.mjs",
@@ -69,8 +69,8 @@ NEIZLOZENO = [
 # Website V3 (odluka osnivaca 2026-10-21): logo A2 izdvojen 1:1 iz slike osnivaca (scripts/brand/izdvoji_logo.py).
 # Stari NS003 fajlovi moraju vracati 404 (NEIZLOZENO).
 KANONSKI_LOGO = {
-    "vindex-logo-tamna.png": "addaf75cdb780261375d5c5e1efee6b691f13cc0361dc8796e64efa5d701a7ca",
-    "vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d",
+    "vindex-logo-final-tamna.png": "e58a072685c58ec73d0722285d601cce1b9e392d70997722f1af28972b8472f2",
+    "vindex-logo-final-svetla.png": "6de99485112794d618d4b11f8c1a1defcaaf709c50a5d9d9b8ddc9fc93e7b3b2",
 }
 NEPROMENJENO = ["/app", "/app-v2", "/sw.js", "/offline", "/static/vindex.js", "/static/sw.js", "/api/predmeti"]
 
@@ -190,8 +190,8 @@ def test_ukljucen_servira_v2_index_bez_kesa(ukljucen):
     ("/v2/preview/src/app.js", "src/app.js"), ("/v2/preview/src/api.js", "src/api.js"),
     ("/v2/preview/fonts/ibm-plex-sans/400.css", "fonts/ibm-plex-sans/400.css"),
     ("/v2/preview/fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2", "fonts/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2"),
-    ("/v2/preview/brand/vindex-logo-tamna.png", "brand/vindex-logo-tamna.png"),
-    ("/v2/preview/brand/vindex-logo-svetla.png", "brand/vindex-logo-svetla.png"),
+    ("/v2/preview/brand/vindex-logo-final-tamna.png", "brand/vindex-logo-final-tamna.png"),
+    ("/v2/preview/brand/vindex-logo-final-svetla.png", "brand/vindex-logo-final-svetla.png"),
 ])
 def test_ukljucen_asseti_ispod_iste_rute(ukljucen, put, fajl):
     assert ukljucen[put]["status"] == 200
@@ -226,7 +226,7 @@ def test_brand_sadrzi_samo_dva_kanonska_fajla_bajt_identicna_paketu():
 
 
 def test_ukljucen_logo_se_servira_bajt_identican_sa_tacnim_tipom(ukljucen):
-    tipovi = {"vindex-logo-tamna.png": "image/png", "vindex-logo-svetla.png": "image/png"}
+    tipovi = {"vindex-logo-final-tamna.png": "image/png", "vindex-logo-final-svetla.png": "image/png"}
     for ime, sha in KANONSKI_LOGO.items():
         r = ukljucen["/v2/preview/brand/" + ime]
         assert r["status"] == 200 and r["sha"] == sha, (ime, r["status"])

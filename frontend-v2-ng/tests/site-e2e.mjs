@@ -104,7 +104,7 @@ for (const [ek, w, h] of EKRANI) {
       `min ${r.najmanji}px ${losKontrast.slice(0, 2).map(b => b.t + " " + kontrast(b.c, b.bg).toFixed(2)).join(" | ")}`);
     zapisi(g, "dugmad i polja visine ≥ 40 px", r.ciljevi.length === 0, r.ciljevi.join(","));
     zapisi(g, "svi pozivi na akciju vode samo na /beta ili /app, a /beta je ponuđen", r.cta.includes("/beta") && r.cta.every(x => x === "/beta" || x === "/app"), r.cta.join(","));
-    zapisi(g, "kanonski logo u izvornoj razmeri", r.logo.put === "/v2/site/brand/vindex-logo-tamna.png" && r.logo.nw === 357 && Math.abs(r.logo.w - r.logo.h * 357 / 305) <= 0.5);
+    zapisi(g, "kanonski logo u izvornoj razmeri", r.logo.put === "/v2/site/brand/vindex-logo-final-tamna.png" && r.logo.nw === 398 && Math.abs(r.logo.w - r.logo.h * 398 / 287) <= 0.5);
     zapisi(g, "sve slike učitane", r.slike.length === 0, r.slike.join(","));
     if (["390", "1440"].includes(ek)) await p.screenshot({ path: join(OUT, `${ime(put)}-${ek}.png`), fullPage: true });
     if (ek === "1440" && put === "/") await p.screenshot({ path: join(OUT, `pocetna-1440-prvi-ekran.png`) });

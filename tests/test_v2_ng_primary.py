@@ -28,8 +28,8 @@ import pytest
 
 KOREN = Path(__file__).resolve().parent.parent
 NG = KOREN / "frontend-v2-ng"
-LOGO = {"brand/vindex-logo-tamna.png": "addaf75cdb780261375d5c5e1efee6b691f13cc0361dc8796e64efa5d701a7ca",
-        "brand/vindex-logo-svetla.png": "8ef61a5accd6a276db94ac69f05b2ab1e680587bc6355d79dce3154c87476b5d"}
+LOGO = {"brand/vindex-logo-final-tamna.png": "e58a072685c58ec73d0722285d601cce1b9e392d70997722f1af28972b8472f2",
+        "brand/vindex-logo-final-svetla.png": "6de99485112794d618d4b11f8c1a1defcaaf709c50a5d9d9b8ddc9fc93e7b3b2"}
 
 POMOCNIK = r"""
 import hashlib, json, re, sys

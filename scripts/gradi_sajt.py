@@ -84,7 +84,7 @@ def zaglavlje(ruta: str) -> str:
     meni = "".join(li(r, m) for r, m in stavke)
     return f"""<header class="zaglavlje">
   <div class="okvir">
-    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-tamna.png" alt="" width="357" height="305"></a>
+    <a class="logo" href="/" aria-label="Vindex — početna"><img src="/v2/site/brand/vindex-logo-final-tamna.png" alt="" width="398" height="287"></a>
     <nav aria-label="Glavna navigacija"><ul class="meni">{meni}</ul></nav>
     <div class="zaglavlje__akcije">
       <a class="dugme dugme--sporedno dugme--malo" href="/app">Prijava</a>
@@ -202,7 +202,7 @@ def stranica(reg: dict, izvor: str, ruta: str, naslov: str, opis: str) -> str:
 <meta property="og:image" content="{DOMEN}/v2/site/snimci/registar.webp">
 <meta property="og:image:alt" content="Demonstracioni prikaz ekrana Aktivni predmeti u aplikaciji Vindex, sa izmišljenim predmetima.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" href="/static/favicon-vindex-v4-32.png">
+<link rel="icon" type="image/png" href="/static/favicon-vindex-v5-32.png">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/400.css">
 <link rel="stylesheet" href="/v2/site/fonts/ibm-plex-sans/500.css">
 <link rel="stylesheet" href="/v2/site/fonts/source-serif-4/500.css">
