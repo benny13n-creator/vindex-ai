@@ -59,7 +59,8 @@
     "verify:live-prijem-pracenje": "node tests/live-prijem-pracenje.mjs",
     "e2e:rok-odluka": "node tests/live-rok-odluka-e2e.mjs",
     "e2e:vrsta-dokumenta": "node tests/live-vrsta-dokumenta-e2e.mjs",
-    "e2e:prijava-problema": "node tests/live-prijava-problema-e2e.mjs"
+    "e2e:prijava-problema": "node tests/live-prijava-problema-e2e.mjs",
+    "verify:live-podesavanja": "node tests/live-podesavanja.mjs"
   },
   "keywords": [],
   "author": "",

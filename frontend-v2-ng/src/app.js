@@ -337,6 +337,7 @@
     if (/^#\/pretraga\/?$/.test(location.hash)) return { pogled: "pretraga" };
     if (/^#\/znanje\/?$/.test(location.hash)) return { pogled: "znanje" };
     if (/^#\/kancelarija\/?$/.test(location.hash)) return { pogled: "kancelarija" };
+    if (/^#\/podesavanja\/?$/.test(location.hash)) return { pogled: "podesavanja" };
     if (/^#\/danas\/?$/.test(location.hash)) return { pogled: "danas" };
     var mp = /^#\/pripremljeno\/([0-9a-fA-F-]{36})\/?$/.exec(location.hash);
     if (mp) return { pogled: "pripremljeno", id: mp[1] };
@@ -628,12 +629,12 @@
     }
   }
 
-  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, danas = null, pogledRada = null, pripremljeno = null, pripremljenoPogled = null;
+  var novPredmet = null, pretraga = null, znanje = null, kancelarija = null, podesavanja = null, danas = null, pogledRada = null, pripremljeno = null, pripremljenoPogled = null;
   /* Radni pogledi bez predmeta: id sekcije + kontroler (otvori/zatvori). */
-  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], danas: ["danas-pogled", danas], pripremljeno: ["pripremljeno-pogled", pripremljenoPogled] }; }
+  function pogledi() { return { nov: ["nov-predmet", novPredmet], pretraga: ["pretraga-pogled", pretraga], znanje: ["znanje-pogled", znanje], kancelarija: ["kancelarija-pogled", kancelarija], podesavanja: ["podesavanja-pogled", podesavanja], danas: ["danas-pogled", danas], pripremljeno: ["pripremljeno-pogled", pripremljenoPogled] }; }
   /* Aktivna stavka navigacije prati pogled (Znanje ili Predmeti). */
   function uskladiNavigaciju() {
-    var stavke = { znanje: '.sidenav__item[href="#/znanje"]', kancelarija: '.sidenav__item[href="#/kancelarija"]', danas: '.sidenav__item[href="#/danas"]' };
+    var stavke = { znanje: '.sidenav__item[href="#/znanje"]', kancelarija: '.sidenav__item[href="#/kancelarija"]', podesavanja: '.sidenav__item[href="#/podesavanja"]', danas: '.sidenav__item[href="#/danas"]' };
     var modul = Object.prototype.hasOwnProperty.call(stavke, pogledRada) ? pogledRada : null;
     Object.keys(stavke).forEach(function (m) {
       var a = document.querySelector(stavke[m]);
@@ -815,9 +816,9 @@
     var primarni = rt.prikaz === rt.PRIMARNI;
     /* NS005: Znanje je stvaran, testiran modul — u LIVE postaje pravi link (pre uklanjanja
      * nedovršenih modula u primarnom prikazu). DEMO zadržava prototip. */
-    [["Danas", "#/danas"], ["Znanje", "#/znanje"], ["Kancelarija", "#/kancelarija"]].forEach(function (m) {
+    [["Danas", "#/danas"], ["Znanje", "#/znanje"], ["Kancelarija", "#/kancelarija"], ["Podešavanja", "#/podesavanja"]].forEach(function (m) {
       var a = document.querySelector('.sidenav__item[data-modul="' + m[0] + '"]');
-      if (a) { a.removeAttribute("data-modul"); a.setAttribute("href", m[1]); }
+      if (a) { a.removeAttribute("data-modul"); a.setAttribute("href", m[1]); if (m[0] === "Podešavanja") a.closest("li").hidden = false; }
     });
     if (primarni) {
       koren.dataset.prikaz = "primarni";
@@ -931,6 +932,7 @@
       zaustavi: function () { znanjePrakse.zaustavi(); znanjeKancelarije.zaustavi(); },
     };
     kancelarija = window.VxKancelarija.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta });
+    podesavanja = window.VxPodesavanja.napravi({ sesija: window.VxSesija, api: window.VxApi });
     /* Nazivi predmeta bez ročišta: iz već učitanog registra (isti korisnik; registar se prazni pri promeni sesije). */
     var danasObaveze = window.VxDanas.napravi({ sesija: window.VxSesija, api: window.VxApi, adresaPredmeta: adresaPredmeta,
       nazivPredmeta: function (id) { for (var i = 0; i < indeks.length; i++) if (String(indeks[i].p.id) === id) return indeks[i].p.naziv; return ""; } });
