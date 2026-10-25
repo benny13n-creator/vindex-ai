@@ -42,11 +42,11 @@
   /* Dozvoljeni prefiksi API-ja na istom izvoru. `/klijenti` (klijenti/router.py),
    * `/interni-stavovi/` (routers/interni.py) i tačno `/portfolio/dashboard`
    * (routers/portfolio.py) su postojeći ruteri bez `/api` prefiksa; ništa drugo
-   * van `/api/` ne prolazi. */
+   * van `/api/` ne prolazi osim ovde eksplicitno navedenih B10 ruta. */
   function dozvoljenaPutanja(p) {
     return p.indexOf("/api/") === 0 || p === "/klijenti" || p.indexOf("/klijenti/") === 0 || p.indexOf("/interni-stavovi/") === 0 || p === "/portfolio/dashboard" || p.indexOf("/billing/") === 0
-      || p.indexOf("/zastarelost/") === 0
-      || p === "/email-notif/profil" || p === "/email-notif/test";  /* B10: samo postojeće rute naloga */   /* VCR001 T07: deterministički kalkulator (routers/zastarelost.py) */
+      || p.indexOf("/zastarelost/") === 0  /* deterministički kalkulator */
+      || p === "/email-notif/profil" || p === "/email-notif/test";  /* B10: samo rute korisničkog profila i probe */
   }
 
   function napraviAdresu(putanja, parametri) {
