@@ -32,7 +32,7 @@ const D = {
   pdf: join(dir, "01 Tuzba digitalna.pdf"), sken: join(dir, "02 Resenje skenirano.pdf"),
   foto: join(dir, "03 Dostavnica fotografija.png"), docx: join(dir, "04 Ugovor o radu.docx"),
   doc: join(dir, "05 Stari ugovor.doc"), lazni: join(dir, "06 Lazni ugovor.docx"),
-  pdf2: join(dir, "07 Opomena digitalna.pdf"), pdf3: join(dir, "08 Zalba digitalna.pdf"), pdf4: join(dir, "09 Prilog digitalni.pdf"),
+  pdf2: join(dir, "07 Opomena digitalna.pdf"), pdf3: join(dir, "08 Zalba digitalna.pdf"), pdf4: join(dir, "09 Prilog digitalni.pdf"), pdf5: join(dir, "10 Punomocje digitalno.pdf"), pdf6: join(dir, "11 Racun digitalni.pdf"),
 };
 const gen = spawnSync(PY, ["-c", `
 import io
@@ -50,6 +50,10 @@ pdf(r"${D.pdf}", ["OSNOVNI SUD U BEOGRADU", "Broj predmeta: P 5521/2026", "Tuzil
 pdf(r"${D.pdf2}", ["OPOMENA PRED TUZBU", "Poverilac: Milica Zlatic", "Duznik: Zlatna Linija DOO", "Iznos: 210.000,00 dinara."])
 pdf(r"${D.pdf3}", ["ZALBA NA RESENJE O OTKAZU", "Zaliteljka: Milica Zlatic iz Beograda", "Protiv: Zlatna Linija DOO Beograd",
                    "Zalba se podnosi zbog nezakonitosti resenja o otkazu ugovora o radu."])
+pdf(r"${D.pdf5}", ["PUNOMOCJE ZA ZASTUPANJE", "Vlastodavac: Petar Drugi iz Novog Sada", "Punomocnik: advokat iz Beograda",
+                   "Punomocje se daje za zastupanje u parnicnom postupku."])
+pdf(r"${D.pdf6}", ["RACUN ZA ADVOKATSKE USLUGE", "Klijent: Petar Drugi iz Novog Sada", "Iznos: 45.000,00 dinara",
+                   "Racun se odnosi na sastav tuzbe i zastupanje."])
 pdf(r"${D.pdf4}", ["PRILOG UZ ZALBU", "Platne liste za period od 01.11.2025. do 31.01.2026.", "Zaposlena: Milica Zlatic iz Beograda",
                    "Poslodavac: Zlatna Linija DOO Beograd"])
 # skenirana strana BEZ tekstualnog sloja
@@ -92,6 +96,7 @@ const kaoB = (p, metod = "GET", telo) => zahtev(p, { method: metod, headers: { A
 
 const browser = await chromium.launch();
 const spoljni = [], greskeJS = [], api500 = [];
+let ubacen503 = false;                                   // E3c: test SAM vraća 503 za listu predmeta — to nije greška servera
 async function kontekst(tok, uid) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   await ctx.route("**/*", r => {
@@ -105,7 +110,7 @@ async function kontekst(tok, uid) {
   const p = await ctx.newPage();
   p.setDefaultTimeout(8000);
   p.on("pageerror", e => greskeJS.push(String(e)));
-  p.on("response", s => { const u = new URL(s.url()); if (u.pathname.startsWith("/api/") && s.status() >= 500) api500.push(`${s.status()} ${u.pathname}`); });
+  p.on("response", s => { const u = new URL(s.url()); if (u.pathname.startsWith("/api/") && s.status() >= 500 && !(ubacen503 && u.pathname === "/api/predmeti")) api500.push(`${s.status()} ${u.pathname}`); });
   return { ctx, p };
 }
 const { ctx, p } = await kontekst("tok-A", "uid-A");
@@ -122,6 +127,9 @@ const ime = (put) => put.split(/[\\/]/).pop();
 const pauza = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function naNovPredmet() {
+  // Kao advokat koji počinje NOV predmet: izlazi sa stranice pa otvara „Nov predmet“ (isti hash ne otvara pogled ponovo,
+  // a nastavak iste sesije „Iz dokumenta“ namerno prikačuje dokumente upravo otvorenom predmetu).
+  await p.goto(BASE + "/app#/");
   await p.goto(BASE + "/app#/predmeti/nov");
   await cekaj(() => { const f = document.getElementById("nov-forma"); return f && !f.closest("[hidden]"); });
 }
@@ -355,6 +363,80 @@ const tE4c = await p.evaluate(() => document.querySelectorAll("#nd-poslovi li.in
 z = await zlatni();
 zapisi("E", "dokument već prikačen drugom predmetu se ne kopira u novi",
   /drugom vašem predmetu/.test(tE4c) && z.dokumenti.filter(d => d.naziv_fajla === ime(D.docx)).length === 1 && z.predmeti.length === predPre + 1, tE4c.slice(0, 300));
+
+// E4d nepoznat ishod (iz dokumenta) kad zahtev NIJE stigao do servera: drugi dokument ne sme da otvori predmet
+await naNovPredmet();
+await p.click("#nov-rezim-dokument");
+await p.selectOption("#nd-klijent-strana", "plaintiff");
+await p.setInputFiles("#nd-fajlovi", [D.pdf5, D.pdf6]);
+await p.click("#nd-otpremi");
+await cekaj(() => document.querySelectorAll("#nd-poslovi li.intake").length === 2);
+await obradi();
+for (const f of [D.pdf5, D.pdf6]) {
+  for (let i = 0; i < 3; i++) {
+    await cekaj(([i]) => [...document.querySelectorAll("#nd-poslovi li.intake")].some(x => (x.querySelector(".intake__name") || {}).textContent === i && /Otvori predmet iz ovog dokumenta|Potvrđujem pregled/.test(x.innerText)), [ime(f)], 10000);
+    const t = await posao("nd", ime(f));
+    if (/Otvori predmet iz ovog dokumenta/.test(t)) break;
+    if (/Potvrđujem pregled/.test(t)) { await klikPosao("nd", ime(f), "Potvrđujem pregled"); await pauza(400); await obradi(); }
+  }
+}
+const predPreD = (await zlatni()).predmeti.length;
+await p.route("**/api/smart-intake/jobs/*/finalize", (r) => r.abort("connectionreset"));       // nikad ne stiže do servera
+await klikPosao("nd", ime(D.pdf5), "Otvori predmet iz ovog dokumenta");
+await cekaj(([i]) => [...document.querySelectorAll("#nd-poslovi li.intake")].some(x => (x.querySelector(".intake__name") || {}).textContent === i
+  && /još nije otvoren|Ishod nije poznat/.test(x.innerText)), [ime(D.pdf5)], 20000);
+await p.unroute("**/api/smart-intake/jobs/*/finalize");
+await klikPosao("nd", ime(D.pdf6), "Otvori predmet iz ovog dokumenta");
+await pauza(1500);
+const tDrugi = await posao("nd", ime(D.pdf6));
+zapisi("E", "nepoznat ishod (iz dokumenta, zahtev nije stigao): drugi dokument NE otvara predmet i to kaže",
+  (await zlatni()).predmeti.length === predPreD && /upravo otvara iz drugog dokumenta/.test(tDrugi), tDrugi.slice(-250));
+await cekaj(([i]) => [...document.querySelectorAll("#nd-poslovi li.intake")].some(x => (x.querySelector(".intake__name") || {}).textContent === i
+  && [...x.querySelectorAll("button")].some(b => b.textContent === "Otvori predmet iz ovog dokumenta" && !b.disabled)), [ime(D.pdf5)], 10000);
+await klikPosao("nd", ime(D.pdf5), "Otvori predmet iz ovog dokumenta");
+zapisi("E", "isti dokument ponavlja otvaranje → tačno 1 predmet", await cekaj(() => !document.getElementById("nd-otvoren").hidden, null, 20000)
+  && (await zlatni()).predmeti.length === predPreD + 1, `${(await zlatni()).predmeti.length - predPreD}`);
+const tD2 = await doKraja("nd", ime(D.pdf6));
+z = await zlatni();
+const predD = z.predmeti.find(x => z.dokumenti.some(d => d.predmet_id === x.id && d.naziv_fajla === ime(D.pdf5)));
+zapisi("E", "drugi dokument je zatim prikačen ISTOM predmetu", !!predD && z.dokumenti.some(d => d.predmet_id === predD.id && d.naziv_fajla === ime(D.pdf6))
+  && z.predmeti.length === predPreD + 1 && /Prikačeno ovom predmetu/.test(tD2), tD2.slice(-200));
+
+// E3b nepoznat ishod (iz opisa) kad zahtev NIJE stigao do servera: proverom liste → „nije otvoren“, ponovni pokušaj → 1 predmet
+await naNovPredmet();
+await predlogIzOpisa("Klijent Ana Treca traži raskid ugovora o zakupu sa Treca Nekretnine DOO. Oznaka NEPOZNAT-02.");
+await p.fill("#npo-naziv", "Treća protiv Treća Nekretnine — zakup");
+await klijentICoi("Ana", "Treća");
+await cekaj(() => !document.getElementById("npo-otvori").disabled, null, 5000);
+await p.route("**/api/intake/kreiraj", (r) => r.abort("connectionreset"));
+await p.click("#npo-otvori");
+const nijeOtvoren = await cekaj(() => /NIJE otvoren \(provereno/.test(document.getElementById("npo-poruka").textContent), null, 15000);
+await p.unroute("**/api/intake/kreiraj");
+zapisi("E", "nepoznat ishod (iz opisa, zahtev nije stigao): provera liste kaže „nije otvoren“, ponovni pokušaj dozvoljen",
+  nijeOtvoren && !(await p.isDisabled("#npo-otvori")), await tekstEl("npo-poruka"));
+await p.click("#npo-otvori");
+await cekaj(() => /#\/predmeti\/[^/]+$/.test(location.hash) && !/nov$/.test(location.hash), null, 15000);
+z = await zlatni();
+zapisi("E", "ponovni pokušaj posle „nije otvoren“ → tačno 1 predmet", z.predmeti.filter(x => x.naziv === "Treća protiv Treća Nekretnine — zakup").length === 1);
+
+// E3c nepoznat ishod (iz opisa) kad se lista ne može pročitati: otvaranje pod tim nazivom zaključano
+await naNovPredmet();
+await predlogIzOpisa("Klijent Ivan Cetvrti traži naknadu štete od Cetvrta Gradnja DOO zbog kašnjenja radova. Oznaka NEPOZNAT-03.");
+const NAZIV3 = "Četvrti protiv Četvrta Gradnja — kašnjenje";
+await p.fill("#npo-naziv", NAZIV3);
+await klijentICoi("Ivan", "Četvrti");
+await cekaj(() => !document.getElementById("npo-otvori").disabled, null, 5000);
+ubacen503 = true;
+await p.route("**/api/predmeti?*", (r) => r.fulfill({ status: 503, contentType: "application/json", body: "{}" }));
+await p.route("**/api/intake/kreiraj", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
+await p.click("#npo-otvori");
+const zakljucano = await cekaj(() => /zaključano/.test(document.getElementById("npo-poruka").textContent), null, 15000);
+await p.unroute("**/api/intake/kreiraj"); await p.unroute("**/api/predmeti?*"); ubacen503 = false;
+await p.fill("#npo-naziv", NAZIV3 + "x"); await p.fill("#npo-naziv", NAZIV3);
+zapisi("E", "lista nečitljiva posle nepoznatog ishoda: otvaranje pod istim nazivom ostaje zaključano (i posle izmene pa vraćanja naziva)",
+  zakljucano && await p.isDisabled("#npo-otvori"), await tekstEl("npo-poruka"));
+z = await zlatni();
+zapisi("E", "zaključano: tačno 1 predmet tog naziva", z.predmeti.filter(x => x.naziv === NAZIV3).length === 1);
 
 // E5 sukob interesa: ime klijenta je stranka u AKTIVNOM predmetu (tuženi iz zlatnog predmeta)
 await naNovPredmet();

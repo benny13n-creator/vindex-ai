@@ -80,10 +80,10 @@ Nije defekt (proveriti, ne menjati):
 
 | # | Fajl | Izmena |
 |---|---|---|
-| D1 | `frontend-v2-ng/src/prijem-predmeta.js` | `p.otvara` dok ishod nije poznat; `trenutni.otvara` (blokada drugog otvaranja) se NE skida pri nepoznatom ishodu; ponovno čitanje posla (`usvojiIliOslobodi`) usvaja `job.predmet_id` kao predmet sesije, ili skida blokadu kad posao bez predmeta pokaže konačno stanje |
-| D2 | `frontend-v2-ng/src/nov-predmet-prijem.js` | pre slanja: ID-jevi predmeta tačno tog naziva (`GET /api/predmeti?q=&view=summary`); posle nepoznatog ishoda: ponovno čitanje i poređenje — 1 nov = otvoren (prelaz na njega), 0 = nije (sme ponovo), inače otvaranje zaključano (`sumnja`) dok se naziv ne promeni |
+| D1 | `frontend-v2-ng/src/prijem-predmeta.js` | `trenutni.otvara` = ID posla koji otvara predmet (vlasnik): dok ishod nije poznat, DRUGI dokument ne sme da otvori predmet i to mu se kaže; ponovno čitanje posla (`usvojiIliOslobodi`) usvaja `job.predmet_id` kao predmet sesije; posao bez predmeta NE skida blokadu (zahtev može još biti u redu na serveru) — samo isti posao sme da ponovi otvaranje (server ga atomski zauzima, zakasneli prvi zahtev ne otvara drugi predmet) |
+| D2 | `frontend-v2-ng/src/nov-predmet-prijem.js` | pre slanja: ID-jevi predmeta tačno tog naziva (`GET /api/predmeti?q=&view=summary`); posle nepoznatog ishoda (uz 2,5 s čekanja na upis u toku): ponovno čitanje i poređenje — 1 nov = otvoren (prelaz na njega), 0 = nije (sme ponovo), inače otvaranje pod TIM nazivom zaključano (`sumnja = naziv`) |
 | D3 | `shared/intake_worker.py` | `ocr_used=bool(ocr_used)` (stvarna vrednost ekstraktora) umesto `True` |
-| D4 | `frontend-v2-ng/src/prijem-predmeta.js` | `prazan_tekst` → tačna poruka („ponovno prikačivanje neće pomoći“), bez dugmeta „Ponovi prikačivanje“; isto i za otvaranje iz dokumenta |
+| D4 | `frontend-v2-ng/src/prijem-predmeta.js` | `prazan_tekst` u odgovoru prikačivanja → tačna poruka („ponovno prikačivanje neće pomoći“), bez dugmeta „Ponovi prikačivanje“; isto za otvaranje iz dokumenta; segmentiran dokument sa delom bez teksta kaže da taj deo neće biti prikačen. **Ograničenje:** posle reload-a stanje posla ne nosi razlog, pa se prvo prikaže opšte „Ponovite prikačivanje“; jedan pokušaj zatim vraća tačan razlog |
 | D5 | `routers/smart_intake.py` | potpis sadržaja pri otpremanju: PDF (`%PDF-` u prvih 1024 B), DOCX (`PK\x03\x04`) — isto pravilo kao postojeće za JPEG/PNG; odbijen fajl se ne čuva i nema posla |
 
 Bez migracija, bez nove rute, bez promene vizuelnog identiteta. Izmenjeni postojeći testovi (staro očekivanje protivreči zahtevu D):
@@ -99,7 +99,7 @@ CI: `tests/test_n1_zlatni_prijem.py` dodat u oba OCR koraka `production-runtime.
 
 ## Dokazi
 
-### Zlatni E2E (browser) — `node tests/live-zlatni-prijem-e2e.mjs` → **41/41 PASS** (lokalno, bez Tesseract-a)
+### Zlatni E2E (browser) — `node tests/live-zlatni-prijem-e2e.mjs` → **48/48 PASS** (lokalno, bez Tesseract-a; pre ispravki 29/38)
 Stvarno: V2 /app u Chromium-u, `api.app` rute, provere vlasništva, intake worker, ekstraktor (pypdf/python-docx), dedupe, finalize.
 **Simulirano:** predlog iz opisa (model), klasifikacija kad heuristika ne odluči, stranke iz slobodnog teksta, embedding/Pinecone,
 prijava (token). **OCR nije simuliran** — lokalno nedostaje, pa test meri vidljiv neuspeh; stvaran OCR meri backend zlatni test u CI-ju.
@@ -117,6 +117,9 @@ prijava (token). **OCR nije simuliran** — lokalno nedostaje, pa test meri vidl
 | dupli klik na prikačivanje → 1 dokument | PASS |
 | nepoznat ishod (opis): 1 predmet, advokat prebačen na njega | PASS (pre: FAIL, 2 predmeta) |
 | nepoznat ishod (dokument): 1 predmet, prepoznat kao OVAJ; drugi dokument u ISTI predmet | PASS (pre: FAIL) |
+| nepoznat ishod (dokument), zahtev nije stigao: drugi dokument NE otvara predmet i kaže zašto; isti dokument ponovi → 1 predmet; drugi dokument zatim u isti | PASS |
+| nepoznat ishod (opis), zahtev nije stigao: „NIJE otvoren (provereno)“ → ponovni pokušaj → 1 predmet | PASS |
+| nepoznat ishod (opis), lista nečitljiva: otvaranje pod tim nazivom zaključano i posle izmene pa vraćanja naziva | PASS |
 | dokument već prikačen drugom predmetu se ne kopira | PASS |
 | sukob interesa: zaustavljeno, bez kategorične tvrdnje | PASS |
 | B: predmet/dokument/posao/ispravka/prikačivanje/klijent A → 404; B ništa nije promenio; B u pregledaču ne vidi predmet A | PASS |
@@ -124,12 +127,38 @@ prijava (token). **OCR nije simuliran** — lokalno nedostaje, pa test meri vidl
 | 0 spoljnih veza, 0 JS grešaka, 0 odgovora 5xx | PASS |
 
 ### Zlatni backend — `python -m pytest tests/test_n1_zlatni_prijem.py` → **6/6 PASS** lokalno (grana bez OCR-a)
-U CI-ju (Tesseract, `VINDEX_REQUIRE_OCR=1`) isti test traži 4/4 prikačena, `ocr_used=True` za sken i fotografiju i tekst
-„OTKAZU“/„DOSTAVNICA“ u predmetu — rezultat: vidi CI ispod.
+U CI-ju (Tesseract, `VINDEX_REQUIRE_OCR=1`) isti test traži 4/4 prikačena, `ocr_used=True` za sken i fotografiju i ≥ 3
+očekivane reči u tekstu svakog.
 
-### Mutacije (svaka ispravka vraćena na staro, binarno; `scratchpad/n1_mutacije.py`) — **7/7 ubijeno**
-D3 (pytest 2 pada) · D5 (pytest 3) · D1 (E2E 2) · D2 (E2E 2) · D4 (E2E 1) · D3 u browseru (E2E 3) · D5 u browseru (E2E 1).
+**Stvaran OCR — CI `c997a8f4` (prvi pokušaj):**
+- posao „Import app + full suite on production Python (3.11)“ (Tesseract bez srpskog paketa): korak OCR proof PASS, uključujući N1 zlatni test (4/4).
+- produkciona Docker slika (srp + srp_latn): **4/4 dokumenta prikačena** (`len(dok) == 4` prošao), ali je moja provera
+  „OTKAZU u tekstu“ pala jer je stvaran OCR pročitao `RESENJE О ОТКАДЈ UGOVORA О RADU … MILICA ДАПС IZ BEOGRADA` — **ćirilična slova
+  u latiničnom tekstu**. Provera je ispravljena da traži pročitane reči umesto tačnosti koju OCR nema. Nalaz kvaliteta OCR-a (izbor
+  jezičkog modela za latinične skenove) je van N1 i prijavljen je kao rizik.
+
+### Mutacije (svaka ispravka vraćena na staro, binarno; `scratchpad/n1_mutacije.py`) — **9/9 ubijeno**
+D3 (pytest 2 pada) · D5 (pytest 3) · D1 usvajanje (E2E 2) · D1 vlasnik otvaranja (E2E 2) · D2 ponovno čitanje (E2E 4) ·
+D2 zaključavanje (E2E 1) · D4 (E2E 1) · D3 u browseru (E2E 3) · D5 u browseru (E2E 1).
 Napomena: kod D3 u browseru lažno `ocr_used=True` menja i detekciju „OCR dostupan“ u testu — pada drugim proverama, ali pada.
+
+### Nezavisni adversarial pregled (zaseban agent, samo čitanje + ciljani testovi)
+Bez regresije izolacije i autorizacije; D2, D3, D5 potvrđeni. Nalazi i ishod:
+
+| Nalaz | Ishod |
+|---|---|
+| D1: blokada se skidala kad ponovno čitanje pokaže posao bez predmeta, a zahtev je mogao još biti u redu → drugi dokument otvara drugi predmet (materijalno, usko) | ISPRAVLJENO: vlasnik otvaranja; blokada se ne skida; test E4d + mutacija |
+| D1: drugi dokumenti su ćutke ignorisali klik dok je ishod nepoznat | ISPRAVLJENO: poruka „predmet se upravo otvara iz drugog dokumenta“ |
+| D1: poruka „ponovite prikačivanje“ dok je prikačivanje u toku, ostajala i posle uspeha | ISPRAVLJENO: poruka po stanju (U_TOKU/NEPOTPUNO/PRIKACENO), osvežava se |
+| D4: segmentiran dokument sa delom bez teksta → „ponovite za ostatak“ | ISPRAVLJENO |
+| D4: posle reload-a razlog nije poznat | OSTAJE (bez serverske izmene): opšta poruka, jedan pokušaj vraća tačan razlog |
+| D2: zaključavanje se skidalo bilo kojom izmenom naziva | ISPRAVLJENO: zaključan TAJ naziv; test E3c + mutacija |
+| D2: upis u toku u trenutku ponovnog čitanja | UBLAŽENO: 2,5 s čekanja; serverski prozor od 5 s ostaje druga zaštita |
+| D2: istoimeni predmet iz drugog prozora između dva čitanja se usvaja | OSTAJE (prihvatljivo: isti korisnik, isti naziv) |
+| D5: lozinkom zaštićen DOCX dobija poruku „drugi format“ | ISPRAVLJENO: poruka pominje lozinku |
+| D5: druge rute otpremanja (`api.py`, `routers/dokument.py`) nemaju proveru potpisa | OSTAJE (postojeće, van V2 prijema) |
+| testovi nisu pokrivali granu „ništa nije kreirano“, zaključavanje, drugi dokument dok je ishod nepoznat | DODATO: E3b, E3c, E4d |
+| dnevnik je tvrdio više od koda za D4 i D1 | ISPRAVLJENO u ovom dokumentu |
 
 ### Regresija (lokalno, Windows)
 | Komanda | Ukupno | Pass | Fail | Skip |
@@ -167,3 +196,7 @@ CI ne pokreće V2 browser testove za PR ka `main` — rezultati iznad su lokalni
    servera; UI to sada tačno kaže).
 4. „Ručno“ (`POST /api/predmeti`) ima istu klasu kao D2 (nepoznat ishod → poruka, bez ponovnog čitanja); van N1 (nije na listi tokova).
 5. Doslovni Bojanov tekst — `REQUIREMENT_SOURCE_MISSING`; izvor „četiri izričite stavke“ (A018) — UNKNOWN.
+6. **Kvalitet OCR-a u produkcionoj slici:** latinični sken je pročitan sa ćiriličnim slovima umešanim u reči (CI `c997a8f4`). Tekst
+   stiže do predmeta, ali pretraga i ekstrakcija nad njim mogu promašiti. Izbor jezika OCR-a za latinične dokumente — zaseban zadatak.
+7. Ostanak u istoj sesiji „Iz dokumenta“ posle otvaranja predmeta prikačuje nove dokumente TOM predmetu (dizajn, UI to prikazuje);
+   za nov predmet advokat napušta stranicu. Da li to odgovara očekivanju advokata: UNKNOWN (pitanje za Bojana).
