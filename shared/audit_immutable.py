@@ -213,6 +213,9 @@ AUDITABLE_ACTIONS: set[str] = {
     "client_portal_upload_delete", "billing_entry_delete", "faktura_create",
     "recurring_template_delete", "user_webhook_delete",
     "integration_webhook_delete", "tarifa_update",
+    # Settings Master Sprint P1.5 (2026-10-26): izmene kancelarije koje nisu prelaz mesta (SeatService ih ne
+    # beleži): naziv kancelarije i uloga člana. Pozivi: routers/kancelarija.py promeni_naziv / promeni_ulogu.
+    "kancelarija_naziv_promena", "kancelarija_uloga_promena",
     # V39-A2 (2026-08-10) — ispravka V32/V33 plana. V33 je izostavio
     # "saradnik_uklonjen" na osnovu tvrdnje da akcija "već postoji"; ta tvrdnja
     # je bila tačna za klijent_create i predmet_create, ali NE i za ovu. Bez
