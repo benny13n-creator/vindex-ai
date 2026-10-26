@@ -59,3 +59,26 @@ send 100/100, session 38/38, isolation 25/25, kancelarija 20/20, podesavanja 24/
 | SEC-GCAL | OAuth `state`=user_id, tokeni u čistom tekstu | otvoreno; integracija nije korisnički dostupna |
 | SEC-CLIO-TENANT | globalna Clio tajna + `vindex_user_id` iz tela | otvoreno; integracija nije korisnički dostupna |
 | FUNC-API-LIMIT | „dnevni“ limit API ključa bez resetovanja | otvoreno, van scope-a |
+
+## Nezavisni adversarial pregled (zaseban agent, bez uvida u autorove zaključke)
+Nijedna od 8 invarijanti nije prekršena. Nalazi i ishod:
+| # | Nalaz | Ishod |
+|---|---|---|
+| 1 | Ista adresa u dve kancelarije / dva ACTIVE članstva → `maybe_single()` baca (2+ reda) → trajni 503 na `/moja`, 500 na prihvati/odbij; lažna baza u testu je to sakrivala | **ispravljeno** `cae47730` (+6 testova, lažna baza sada baca kao biblioteka) |
+| 2 | Pripremljeno „Potvrdi uklanjanje“ preživljava druge radnje | **ispravljeno** `5525b143` (mutacija pada) |
+| 3 | TEST primer koristi beogradski dan, zakazivanje UTC dan | bez izmene: sledeće stvarno pokretanje (08:00 UTC) cilja isti beogradski dan; noćnog pokretanja nema |
+| 4 | Dve provere u testu bile zakucane na `true` | **ispravljeno** `5525b143` |
+| 5 | V1 dugme „Test email“ (bez tela) sada šalje proveru dostave, ne „Za 3 dana“ | namerno (ugovor P0); naznačeno u PR-u |
+| 6 | Nedešifrovan SEF ključ prikazan kao „podešen“ (znakovi šifrata) | **ispravljeno** `9c362dc9` |
+| 7 | Gubitak unosa pri odbijenom pozivu / SEF upisu | **ispravljeno** `5525b143` |
+| 8 | Član vidi email adrese ostalih članova | bez izmene: isti podaci su već prikazani u postojećem V2 modulu Kancelarija i dolaze iz postojećeg `/moja` |
+
+## Plan produkcionog smoke testa (posle spajanja i puštanja; sintetički nalog, bez stvarnih korisnika)
+1. `GET /api/version` → novi commit; `sw_cache` nepromenjen (V2 asseti su pod `/v2/app/@<token>/`).
+2. `/app#/podesavanja` → 8 kartica redom; telefon (375 px) → izbor odeljka; obe teme.
+3. Moj nalog: email i plan sintetičkog naloga; „Odjavi se“ vodi na `/app-legacy?odjava=1`.
+4. Obaveštenja: sačuvati samo 7 dana → izbor testa nudi „dostava“ i „7“; poslati TEST 7 na testni inbox → naslov „TEST — Vindex AI — Za 7 dana — kritični rokovi“, oznaka TEST, datum = danas (Srbija) + 7. Ponoviti za 3 i 1 (rate limit 3/min). Automatsko slanje proveriti tek posle podešavanja Render `CRON_SECRET`.
+5. Kancelarija (sintetički administrator + član): `/moja` za člana i za nalog bez kancelarije → 200 (ne 503); preimenovanje, uloga, poziv nove adrese (201), poziv iste adrese iz druge kancelarije → 409.
+6. Finansije: satnica sačuvati pa vratiti; SEF bez stvarnog ključa ne dirati na produkciji (samo prikaz stanja).
+7. Privatnost: ZIP izvoz sintetičkog naloga; brisanje naloga NE izvršavati na produkciji.
+8. Integracije: samo prikaz; nijedan zahtev ka `/api/integrations`, `/api/webhooks`, `/v1/`.
