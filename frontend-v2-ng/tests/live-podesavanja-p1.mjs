@@ -175,7 +175,19 @@ if (deo("kancelarija")) {
   await page.locator("#pn-kanc-poziv-email").fill("novi.clan@example.test");
   await page.locator("#pn-kanc-poziv-posalji").click();
   await page.waitForFunction(() => /već član/.test(document.getElementById("pn-kanc-poruka").textContent));
-  proveri("Kancelarija: ponovljen poziv → 409 → jasna poruka, bez duplikata", s.clanovi.filter(c => c.email === "novi.clan@example.test").length === 1);
+  proveri("Kancelarija: ponovljen poziv → 409 → jasna poruka, bez duplikata, unos ostaje za ispravku", s.clanovi.filter(c => c.email === "novi.clan@example.test").length === 1
+    && (await page.locator("#pn-kanc-poziv-email").inputValue()) === "novi.clan@example.test");
+  // Nezavisni pregled, nalaz 2: pripremljeno uklanjanje ne preživljava drugu radnju.
+  await clan(page, "clan-c").getByRole("button", { name: "Ukloni iz kancelarije" }).click();
+  proveri("Kancelarija: prvi klik priprema uklanjanje", await clan(page, "clan-c").getByRole("button", { name: "Potvrdi uklanjanje" }).count() === 1);
+  await page.locator("#pn-kanc-naziv-unos").fill("Kancelarija Posle");
+  await page.locator("#pn-kanc-naziv-sacuvaj").click();
+  await page.waitForFunction(() => /Naziv kancelarije je sačuvan/.test(document.getElementById("pn-kanc-poruka").textContent));
+  proveri("Kancelarija: posle druge radnje uklanjanje više nije pripremljeno (traži ponovo dva klika)", await clan(page, "clan-c").getByRole("button", { name: "Potvrdi uklanjanje" }).count() === 0
+    && await clan(page, "clan-c").getByRole("button", { name: "Ukloni iz kancelarije" }).count() === 1 && s.clanovi.find(c => c.id === "clan-c").status !== "REMOVED");
+  await page.locator("#pn-kanc-naziv-unos").fill("Nova Kancelarija");
+  await page.locator("#pn-kanc-naziv-sacuvaj").click();
+  await page.waitForFunction(() => document.getElementById("pn-kanc-naziv").textContent === "Nova Kancelarija");
 
   // Neizvestan ishod i greška upisa
   s.pada["PUT /api/kancelarija/naziv"] = 502;
@@ -276,6 +288,12 @@ if (deo("finansije")) {
   await page.waitForFunction(() => /SEF podaci su sačuvani/.test(document.getElementById("pn-sef-poruka").textContent) && document.getElementById("pn-sef-naziv").value === "Advokat A d.o.o.");
   proveri("SEF: izmena bez novog ključa ne šalje api_key i zadržava sačuvani", !("api_key" in JSON.parse(odZahteva(n).find(z => z.metod === "POST").telo))
     && s.sef[KORISNICI.A.token].api_key === SEF_KLJUC);
+  s.pada["POST /api/sef/podesavanja"] = 422;
+  await page.locator("#pn-sef-naziv").fill("Neprihvaćen naziv");
+  await page.locator("#pn-sef-sacuvaj").click();
+  await page.waitForFunction(() => /nije prihvatio unos/.test(document.getElementById("pn-sef-poruka").textContent));
+  proveri("SEF: odbijen upis (422) ne briše nesačuvane izmene", (await page.locator("#pn-sef-naziv").inputValue()) === "Neprihvaćen naziv");
+  delete s.pada["POST /api/sef/podesavanja"];
   proveri("Finansije: nijedan zahtev ka slanju faktura", !s.zahtevi.some(z => /\/sef\/posalji|\/faktur/.test(z.putanja)));
 
   // Promena naloga A→B: SEF podaci A nestaju odmah
@@ -315,9 +333,13 @@ if (deo("privatnost")) {
   proveri("Privatnost: izvoz je GET sa tokenom A, dupli klik = jedan zahtev, ime iz servera", izvozi.length === 1 && izvozi[0].metod === "GET" && izvozi[0].token === KORISNICI.A.token
     && preuzimanje.suggestedFilename() === "vindex-export-2026-10-26T10-00-00.zip");
   s.pada["GET /api/export/complete"] = 503;
+  let preuzeto = 0;
+  page.on("download", () => preuzeto++);
   await page.locator("#pn-izvoz").click();
   await page.waitForFunction(() => /nije napravljen/.test(document.getElementById("pn-izvoz-poruka").textContent));
-  proveri("Privatnost: 503 izvoza (dnevnik nije dokazan) → bez fajla, jasna greška", true);
+  await page.waitForTimeout(500);
+  proveri("Privatnost: 503 izvoza (dnevnik nije dokazan) → bez fajla, jasna greška", preuzeto === 0
+    && (await tekst(page, "#pn-izvoz-poruka")).startsWith("Izvoz nije napravljen") && (await page.locator("#pn-izvoz-poruka").getAttribute("data-stanje")) === "greska");
   delete s.pada["GET /api/export/complete"];
 
   proveri("Brisanje: dugme je onemogućeno bez potvrde", await page.locator("#pn-brisanje").isDisabled());
@@ -332,7 +354,8 @@ if (deo("privatnost")) {
   s.pada["DELETE /api/gdpr/account"] = 502;
   await page.locator("#pn-brisanje").click();
   await page.waitForFunction(() => /nije potvrdio ishod/.test(document.getElementById("pn-brisanje-poruka").textContent));
-  proveri("Brisanje: 5xx → ishod nepoznat, ne „uspeh“ ni „nije izvršeno“", true);
+  proveri("Brisanje: 5xx → ishod nepoznat, ne „uspeh“ ni „nije izvršeno“", (await page.locator("#pn-brisanje-poruka").getAttribute("data-stanje")) === "nepoznato"
+    && !/Vaš korisnički nalog je anonimizovan|Ništa nije promenjeno/.test(await tekst(page, "#pn-brisanje-poruka")) && s.anonimizovani.length === 0);
   delete s.pada["DELETE /api/gdpr/account"];
   n = s.zahtevi.length;
   await page.locator("#pn-brisanje").dblclick();

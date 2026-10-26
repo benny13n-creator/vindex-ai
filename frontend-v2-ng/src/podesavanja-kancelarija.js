@@ -140,24 +140,27 @@
     }
 
     async function radnja(putanja, metod, telo, uspeh) {
-      if (zauzeto || !jeAdmin()) return;
+      if (zauzeto || !jeAdmin()) return false;
+      /* Pripremljeno uklanjanje važi samo do sledeće radnje — ne preživljava preimenovanje, promenu uloge i sl. */
+      potvrda = null;
       var moj = era;
       zakljucaj(true);
       poruka("pn-kanc-poruka", "ucitavanje", "Zahtev je u toku…");
       var r = await api.send(putanja, { metod: metod, telo: telo, token: sesija.token() });
-      if (moj !== era) return;
+      if (moj !== era) return false;
       if (r.ok && !(r.podaci && r.podaci.ok === true)) {
         await ucitaj();
         if (moj === era) poruka("pn-kanc-poruka", "nepoznato", "Server je prihvatio zahtev, ali potvrda nije čitljiva. Lista je osvežena.");
-        return;
+        return false;
       }
       if (!r.ok) {
         var t = greska(r);
         await ucitaj();
         if (moj === era) poruka("pn-kanc-poruka", r.greska.ishodNepoznat ? "nepoznato" : "greska", t);
-        return;
+        return false;
       }
       await ucitaj(uspeh);
+      return true;
     }
 
     $("pn-kanc-naziv-forma").addEventListener("submit", function (e) {
@@ -171,8 +174,10 @@
       e.preventDefault();
       var em = $("pn-kanc-poziv-email").value.trim().toLowerCase(), u = $("pn-kanc-poziv-uloga").value;
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) || em.length > 255) { poruka("pn-kanc-poruka", "greska", "Unesite ispravnu email adresu."); return; }
-      $("pn-kanc-poziv-email").value = "";
-      radnja("/api/kancelarija/pozovi", "POST", { email: em, uloga: u }, "Poziv za " + em + " je dodat. Email se ne šalje.");
+      var moj = era;
+      /* Unos se briše tek kada server potvrdi poziv — pri 409/422 adresa ostaje za ispravku. */
+      radnja("/api/kancelarija/pozovi", "POST", { email: em, uloga: u }, "Poziv za " + em + " je dodat. Email se ne šalje.")
+        .then(function (ok) { if (ok && moj === era) $("pn-kanc-poziv-email").value = ""; });
     });
 
     function pokreni() {

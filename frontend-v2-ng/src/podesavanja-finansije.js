@@ -126,9 +126,12 @@
       zauzetoSat = false;
       var tekstPoruke = r.ok && r.podaci ? "Satnica je sačuvana: " + iznos(r.podaci.tarifa_po_satu) + " RSD." : r.ok ? "Server je prihvatio zahtev, ali potvrda nije čitljiva." : greskaUpisa(r);
       var st = r.ok && r.podaci ? "uspeh" : (r.ok || r.greska.ishodNepoznat) ? "nepoznato" : "greska";
-      var s2 = await api.get("/api/tarife/moja-satnica", { token: sesija.token(), oblik: function (x) { return typeof x.tarifa_po_satu === "number"; } });
-      if (moja !== era) return;
-      if (s2.ok) prikaziSatnicu(s2);
+      /* Odbijen upis (4xx) ne briše unos; posle uspeha ili nepoznatog ishoda prikazuje se stanje sa servera. */
+      if (st !== "greska") {
+        var s2 = await api.get("/api/tarife/moja-satnica", { token: sesija.token(), oblik: function (x) { return typeof x.tarifa_po_satu === "number"; } });
+        if (moja !== era) return;
+        if (s2.ok) prikaziSatnicu(s2);
+      }
       poruka("pn-satnica-poruka", st, tekstPoruke);
       osvezi();
     });
@@ -153,9 +156,11 @@
       zauzetoSef = false;
       var tekstPoruke = r.ok && r.podaci ? "SEF podaci su sačuvani." : r.ok ? "Server je prihvatio zahtev, ali potvrda nije čitljiva." : greskaUpisa(r);
       var st = r.ok && r.podaci ? "uspeh" : (r.ok || r.greska.ishodNepoznat) ? "nepoznato" : "greska";
-      var s2 = await api.get("/api/sef/podesavanja", { token: sesija.token(), oblik: function (x) { return typeof x.konfigurisano === "boolean"; } });
-      if (moja !== era) return;
-      if (s2.ok) prikaziSef(s2);
+      if (st !== "greska") {
+        var s2 = await api.get("/api/sef/podesavanja", { token: sesija.token(), oblik: function (x) { return typeof x.konfigurisano === "boolean"; } });
+        if (moja !== era) return;
+        if (s2.ok) prikaziSef(s2);
+      }
       poruka("pn-sef-poruka", st, tekstPoruke);
       osvezi();
     });
