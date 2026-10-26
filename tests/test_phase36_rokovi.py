@@ -31,13 +31,15 @@ def test_kalkulisi_privreda_3_godine():
     assert rez.datum_zastarelosti == date(2026, 6, 1)
 
 
-def test_kalkulisi_cek_6_meseci():
-    from zastarelost import kalkulisi_zastarelost
-    poc = date(2026, 1, 1)
-    rez = kalkulisi_zastarelost("cek", poc)
-    assert rez.datum_zastarelosti == date(2026, 7, 1)
-    assert "meseci" in rez.rok_opis
-    assert rez.rok_godina == 0
+def test_cek_i_menica_nisu_u_katalogu():
+    """N4: stavke „cek“ (navodila Zakon o menici za ček) i „menjacki“ nisu proverljive prema lokalnim tekstovima
+    zakona (Zakon o menici i Zakon o čeku nisu u data/laws/pdfs) — kalkulator ih više ne nudi."""
+    import pytest
+    from zastarelost import ROKOVI_ZASTARELOSTI, kalkulisi_zastarelost
+    for tip in ("cek", "menjacki"):
+        assert tip not in ROKOVI_ZASTARELOSTI
+        with pytest.raises(ValueError):
+            kalkulisi_zastarelost(tip, date(2026, 1, 1))
 
 
 def test_kalkulisi_zalbeni_upravni_15_dana():
@@ -77,10 +79,10 @@ def test_kalkulisi_nepoznat_tip_baca_valueerror():
         kalkulisi_zastarelost("nepostojeci_tip", date.today())
 
 
-def test_kalkulisi_napomena_za_menjacki():
+def test_kalkulisi_napomena_za_zalbu_parnicnu():
     from zastarelost import kalkulisi_zastarelost
-    rez = kalkulisi_zastarelost("menjacki", date(2024, 1, 1))
-    assert rez.napomena != ""
+    rez = kalkulisi_zastarelost("zalba_parnicna", date(2024, 1, 1))
+    assert "8 dana" in rez.napomena
 
 
 def test_kalkulisi_bez_napomene_za_opsti():

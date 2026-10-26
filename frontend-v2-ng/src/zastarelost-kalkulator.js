@@ -58,9 +58,15 @@
       }
       var x = r.podaci, ul = $("zs-rezultat-lista");
       poruka(null);
-      var glavno = x.isteklo ? "Zastarelost je NASTUPILA " + tekst(x.datum_zastarelosti) + "." : "Zastarelost nastupa " + tekst(x.datum_zastarelosti) + " (za " + x.dana_preostalo + " dan(a)).";
+      var procesni = tekst(x.vrsta) === "procesni";
+      var glavno = procesni ? (x.isteklo ? "Rok je ISTEKAO " + tekst(x.datum_zastarelosti) + "." : "Rok ističe " + tekst(x.datum_zastarelosti) + " (za " + x.dana_preostalo + " dan(a)).")
+        : (x.isteklo ? "Zastarelost je NASTUPILA " + tekst(x.datum_zastarelosti) + "." : "Zastarelost nastupa " + tekst(x.datum_zastarelosti) + " (za " + x.dana_preostalo + " dan(a)).");
       var li = el("li", x.isteklo ? "warn" : "an-item"); li.append(el("span", "an-item__text", glavno)); ul.append(li);
-      [["Rok", x.rok_opis], ["Zakonski osnov", x.zakonski_osnov], ["Rok teče od", x.datum_pocetka], ["Napomena", x.napomena]].forEach(function (p) {
+      /* N4: poslednji kalendarski dan na neradni dan → pomeren po pravilu o računanju rokova (uz izvor neradnih dana). */
+      var pomereno = tekst(x.pomereno_razlog) ? "Poslednji kalendarski dan " + tekst(x.kalendarski_poslednji_dan) + " pada u " + tekst(x.pomereno_razlog)
+        + " — rok ističe prvog narednog radnog dana (" + tekst(x.pravilo_racunanja) + ")." : "";
+      [["Rok", x.rok_opis], ["Zakonski osnov", x.zakonski_osnov], ["Rok teče od", x.datum_pocetka], ["Pomeranje", pomereno], ["Napomena", x.napomena],
+        ["Neradni dani", tekst(x.izvor_neradnih_dana) ? "subota, nedelja i državni praznici — " + tekst(x.izvor_neradnih_dana) + "." : ""]].forEach(function (p) {
         if (tekst(p[1])) { var s = el("li", "an-item"); s.append(el("span", "an-item__text", p[0] + ": " + tekst(p[1]))); ul.append(s); }
       });
       $("zs-rezultat").hidden = false;

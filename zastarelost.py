@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Phase 3.6 — Kalkulator zastarelosti po srpskom pravu.
-ZOO, ZR, ZPP, ZIO, ZOM, ZZP, ZUP, ZUS, ZKP rokovi.
+Phase 3.6 — Kalkulator zastarelosti i procesnih rokova po srpskom pravu.
+N4 (2026-10-27): katalog proveren prema lokalnim tekstovima zakona (ZOO, ZR, ZPP, ZIO, ZUP, ZUS, ZKP);
+poslednji dan na neradni dan se pomera po pravilu o računanju rokova (shared/neradni_dani.py).
 """
 from __future__ import annotations
 
@@ -20,209 +21,126 @@ class ZastarelostRezultat:
     rok_godina:        int
     rok_opis:          str
     datum_pocetka:     date
-    datum_zastarelosti: date
+    datum_zastarelosti: date            # pravno poslednji dan (posle pomeranja sa neradnog dana)
     dana_preostalo:    int   # negativno = isteklo
     isteklo:           bool
     napomena:          str
+    vrsta:             str = "zastarelost"          # "zastarelost" | "procesni"
+    kalendarski_poslednji_dan: Optional[date] = None
+    pomereno_razlog:   str = ""                     # "nedelju" / "subotu" / "državni praznik" kad je pomereno
+    pravilo_racunanja: str = ""
+    izvor_neradnih_dana: str = ""
 
 
-# ─── Katalog rokova zastarelosti ─────────────────────────────────────────────
-# Svaki unos: "naziv", "osnov", "opis", i JEDAN od: "godine" | "meseci" | "dani"
+# ─── Katalog ─────────────────────────────────────────────────────────────────
+# N4 (2026-10-27): SVAKA stavka je proverena prema lokalnom tekstu zakona (data/laws/pdfs, UTF-8 tekst; verzije
+# u zaglavljima: ZOO 18/2020, ZPP 10/2023, ZKP 62/2021, ZUP 2/2023-US, ZUS 111/2009, ZIO 91/2025, ZR 109/2025).
+# Uklonjene su stavke koje lokalni tekst ne potvrđuje ili koje su bile pogrešne: „potrošačka“ (ZZP čl. 22 je o
+# nasrtljivoj praksi), „nasledna potraživanja“ (ZN čl. 142 je podisporuka; pravo na zaostavštinu ne zastareva,
+# čl. 221), „predlog za izvršenje 10 god.“ (nije pravilo ZIO — ispravno: ZOO čl. 379), „vanredno preispitivanje“
+# (ne postoji u ZUP), „saobraćajna nezgoda ZOO 378“ (čl. 378 je jednogodišnji rok; opšte pravilo je čl. 376),
+# „šteta od krivičnog dela“ (čl. 377 nema fiksni rok — zavisi od KZ), menica/ček/poreski (zakoni nisu lokalni).
+# Ispravljeni članovi i rokovi: komunalne → ZOO 378 (1 god., domaćinstvo); žalba ZPP 367 (bilo 357); revizija 403
+# (bilo 393); prigovor na platni nalog 457 (bilo 459); povraćaj 110 (bilo 113); ZUP žalba 153 (bilo 147);
+# ZKP žalba 432 (bilo 362); neosnovano lišenje slobode ZKP 591, 3 god. (bilo 588, 6 meseci).
+# `racunanje` = pravilo za poslednji dan na neradni dan (ZPP čl. 103 st. 5 izričito važi i za zastarelost).
+_ZPP = "ZPP čl. 103 st. 4–5: ako poslednji dan pada u nedelju, na državni praznik ili drugi dan kad sud ne radi (ovde: i subota), rok ističe protekom prvog narednog radnog dana"
+_ZUP = "ZUP čl. 80 st. 5: ako poslednji dan pada na dan u kome organ ne radi, rok ističe kad protekne prvi naredni radni dan"
+_ZKP = "ZKP čl. 224: ako poslednji dan pada na državni praznik, subotu ili nedelju, rok ističe protekom prvog narednog radnog dana"
+_ZIO = "ZIO čl. 39 → ZPP čl. 103 st. 4"
+_ZUS = "ZUS čl. 74 → ZPP čl. 103 st. 4–5"
+
 ROKOVI_ZASTARELOSTI: dict[str, dict] = {
-    "opsti": {
-        "naziv": "Opšti rok zastarelosti",
-        "osnov": "ZOO čl. 371",
-        "godine": 10,
-        "opis":   "Ugovorna i vanugovorna potraživanja — opšti rok",
-    },
-    "privreda": {
-        "naziv": "Međusobna potraživanja privrednih subjekata",
-        "osnov": "ZOO čl. 374",
-        "godine": 3,
-        "opis":   "Potraživanja iz privrednih ugovora između privrednih subjekata",
-    },
-    "periodicna": {
-        "naziv": "Periodična potraživanja (kirija, kamata, alimentacija)",
-        "osnov": "ZOO čl. 372",
-        "godine": 3,
-        "opis":   "Godišnje i kraće periodične obaveze, uključujući kamate",
-    },
-    "radni_spor": {
-        "naziv": "Potraživanja iz radnog odnosa",
-        "osnov": "ZR čl. 196",
-        "godine": 3,
-        "opis":   "Potraživanja zaposlenog prema poslodavcu iz radnog odnosa",
-    },
-    "naknada_stete": {
-        "naziv": "Naknada štete — subjektivni rok",
-        "osnov": "ZOO čl. 376 st. 1",
-        "godine": 3,
-        "opis":   "Od saznanja za štetu i učinioca (subjektivni rok)",
-        "napomena": "Subjektivni rok — teče od saznanja. Proverite i objektivni rok (5 god. od nastanka štete, ZOO čl. 376 st. 2).",
-    },
-    "naknada_stete_obj": {
-        "naziv": "Naknada štete — objektivni rok",
-        "osnov": "ZOO čl. 376 st. 2",
-        "godine": 5,
-        "opis":   "Od nastanka štete bez obzira na saznanje",
-    },
-    "saobracan_udes": {
-        "naziv": "Naknada štete — saobraćajna nezgoda",
-        "osnov": "ZOO čl. 378",
-        "godine": 3,
-        "opis":   "Od dana saznanja za štetu i odgovorno lice",
-    },
-    "potroskac": {
-        "naziv": "Potrošačka potraživanja",
-        "osnov": "ZZP čl. 22",
-        "godine": 3,
-        "opis":   "Potraživanja potrošača prema trgovcu",
-    },
-    "komunalne": {
-        "naziv": "Komunalne usluge (struja, voda, gas, telefon)",
-        "osnov": "ZOO čl. 372",
-        "godine": 3,
-        "opis":   "Mesečna i kvartalna potraživanja komunalnih preduzeća",
-    },
-    "menjacki": {
-        "naziv": "Mjenični zahtev (imac prema akceptantu)",
-        "osnov": "ZOM čl. 93",
-        "godine": 3,
-        "opis":   "Zahtev imaoca prema akceptantu od dospelosti menice",
-        "napomena": "Zahtev imaoca prema indosantima zastareva za 1 godinu od dana protesta.",
-    },
-    "cek": {
-        "naziv": "Čekovni zahtev imaoca prema trasantu",
-        "osnov": "ZOM čl. 186",
-        "meseci": 6,
-        "opis":   "Zahtev imaoca čeka prema trasantu",
-        "napomena": "Rok za prezentaciju čeka je 8 dana (lokalni) ili 20 dana (isti država). Zastarelost teče od isteka roka prezentacije.",
-    },
-    "zalbeni_upravni": {
-        "naziv": "Žalba u upravnom postupku",
-        "osnov": "ZUP čl. 147",
-        "dani":  15,
-        "opis":  "Rok za žalbu na prvostepeno rešenje — 15 dana od dostavljanja",
-    },
-    "tuzba_upravni_spor": {
-        "naziv": "Tužba u upravnom sporu",
-        "osnov": "ZUS čl. 18",
-        "dani":  30,
-        "opis":  "Rok za pokretanje upravnog spora — 30 dana od dostavljanja",
-    },
-    "zalbeni_krivicni": {
-        "naziv": "Žalba na presudu (krivični postupak)",
-        "osnov": "ZKP čl. 362",
-        "dani":  15,
-        "opis":  "Rok za žalbu na prvostepenu presudu — 15 dana od dostavljanja",
-    },
-    "revizija": {
-        "naziv": "Revizija (ZPP)",
-        "osnov": "ZPP čl. 393",
-        "dani":  30,
-        "opis":  "Rok za izjavljivanje revizije — 30 dana od dostavljanja presude",
-    },
-    "izvrsenje": {
-        "naziv": "Predlog za izvršenje",
-        "osnov": "ZIO čl. 52",
-        "godine": 10,
-        "opis":  "Rok za podnošenje predloga za izvršenje na osnovu izvršne isprave",
-    },
-    "zalba_parnicna": {
-        "naziv": "Žalba na prvostepenu presudu (parnični)",
-        "osnov": "ZPP čl. 357 st. 1",
-        "dani":  15,
-        "opis":  "Rok za izjavljivanje žalbe — 15 dana od dostavljanja presude",
-        "napomena": "Rok je 30 dana ako je stranka bila sprečena da prisustvuje. Pravosnažnost prestaje da teče danom izjavljivanja žalbe.",
-    },
-    "prigovor_platni_nalog": {
-        "naziv": "Prigovor na platni nalog (ZPP)",
-        "osnov": "ZPP čl. 459",
-        "dani":  8,
-        "opis":  "Rok za izjavljivanje prigovora na platni nalog — 8 dana od dostavljanja",
-        "napomena": "Propušteni rok se može nadoknaditi predlogom za povraćaj u pređašnje stanje (čl. 111 ZPP).",
-    },
-    "otkaz_pobijanje": {
-        "naziv": "Tužba za poništaj otkaza ugovora o radu",
-        "osnov": "ZR čl. 195",
-        "dani":  60,
-        "opis":  "Rok za podnošenje tužbe — 60 dana od dana dostavljanja odluke o otkazu",
-        "napomena": "Najkritičniji rok u radnom pravu — propuštanje je nenadoknadivo.",
-    },
-    "zalba_izvrsenje": {
-        "naziv": "Žalba u izvršnom postupku",
-        "osnov": "ZIO čl. 25 st. 2",
-        "dani":  8,
-        "opis":  "Rok za žalbu na rešenje u izvršnom postupku — 8 dana od dostavljanja",
-    },
-    "naknada_stete_krivicni": {
-        "naziv": "Naknada štete od krivičnog dela",
-        "osnov": "ZOO čl. 377",
-        "godine": 3,
-        "opis":  "Zastarelost potraživanja naknade štete nastale krivičnim delom (od saznanja za učinioca i štetu)",
-        "napomena": "Ako je krivičnim zakonom predviđen duži rok zastarelosti krivičnog gonjenja, taj rok važi i za naknadu štete.",
-    },
-    "nasledna_potrazivanja": {
-        "naziv": "Nasledna potraživanja",
-        "osnov": "ZN čl. 142",
-        "godine": 3,
-        "opis":  "Zastarelost naslednih potraživanja — 3 godine od saznanja za nasleđe",
-        "napomena": "Apsolutni rok: 10 godina od otvaranja nasledstva bez obzira na saznanje.",
-    },
-    "poreski": {
-        "naziv": "Zastarelost poreske obaveze",
-        "osnov": "ZPPPA čl. 114",
-        "godine": 5,
-        "opis":  "Zastarelost prava poreske administracije na utvrđivanje i naplatu poreza",
-        "napomena": "Apsolutni rok zastarelosti je 10 godina. Prekida se svakim aktom Poreske uprave.",
-    },
-    "predlog_povracaj": {
-        "naziv": "Predlog za povraćaj u pređašnje stanje (ZPP)",
-        "osnov": "ZPP čl. 113",
-        "dani":  8,
-        "opis":  "Rok za podnošenje predloga — 8 dana od prestanka uzroka propuštanja",
-        "napomena": "Ne može se koristiti posle 60 dana od dana propuštanja.",
-    },
-    "zahtev_vanredno_preispitivanje": {
-        "naziv": "Zahtev za vanredno preispitivanje pravnosnažnog rešenja",
-        "osnov": "ZUP čl. 256",
-        "dani":  30,
-        "opis":  "Rok za zahtev za vanredno preispitivanje — 30 dana od dostavljanja pravnosnažnog rešenja",
-    },
-    "naknada_stete_neosnovano_lisen": {
-        "naziv": "Naknada štete — neosnovano lišenje slobode",
-        "osnov": "ZKP čl. 588",
-        "meseci": 6,
-        "opis":  "Rok za zahtev za naknadu štete zbog neosnovane osude ili neosnovanog lišenja slobode",
-        "napomena": "Od pravosnažnosti oslobađajuće presude, odbijalice ili obustave postupka.",
-    },
+    "opsti": {"naziv": "Opšti rok zastarelosti", "osnov": "ZOO čl. 371", "godine": 10, "racunanje": _ZPP,
+              "opis": "Potraživanja za koja zakon ne određuje drugi rok — teče od dana dospelosti (ZOO čl. 361)"},
+    "privreda": {"naziv": "Međusobna potraživanja pravnih lica iz ugovora o prometu robe i usluga", "osnov": "ZOO čl. 374 st. 1",
+                 "godine": 3, "racunanje": _ZPP, "opis": "Između PRAVNIH LICA, iz ugovora o prometu robe i usluga",
+                 "napomena": "Zastarevanje teče odvojeno za svaku isporuku robe, izvršeni rad ili uslugu (čl. 374 st. 2)."},
+    "periodicna": {"naziv": "Povremena potraživanja (kamata, izdržavanje, anuiteti)", "osnov": "ZOO čl. 372 st. 1", "godine": 3,
+                   "racunanje": _ZPP, "opis": "Od dospelosti SVAKOG pojedinog davanja",
+                   "napomena": "Ne važi za otplate u obrocima (čl. 372 st. 2). Samo pravo zastareva za 5 godina (čl. 373); pravo na zakonsko izdržavanje ne zastareva (čl. 373 st. 3)."},
+    "zakupnina": {"naziv": "Potraživanje zakupnine", "osnov": "ZOO čl. 375", "godine": 3, "racunanje": _ZPP,
+                  "opis": "Zakupnina, bilo da se plaća povremeno ili u ukupnom iznosu"},
+    "radni_spor": {"naziv": "Novčana potraživanja iz radnog odnosa", "osnov": "ZR čl. 196", "godine": 3, "racunanje": _ZPP,
+                   "opis": "Od dana nastanka obaveze"},
+    "naknada_stete": {"naziv": "Naknada štete — subjektivni rok", "osnov": "ZOO čl. 376 st. 1", "godine": 3, "racunanje": _ZPP,
+                      "opis": "Od kad je oštećeni doznao za štetu i za lice koje ju je učinilo",
+                      "napomena": "Proverite i objektivni rok: u svakom slučaju 5 godina od nastanka štete (čl. 376 st. 2). Za štetu od krivičnog dela rok može biti duži (čl. 377) — ne računa se ovde. Šteta od povrede ugovora: rok te obaveze (st. 3)."},
+    "naknada_stete_obj": {"naziv": "Naknada štete — objektivni rok", "osnov": "ZOO čl. 376 st. 2", "godine": 5, "racunanje": _ZPP,
+                          "opis": "Od kad je šteta nastala, bez obzira na saznanje"},
+    "komunalne": {"naziv": "Struja, toplotna energija, gas, voda, telefon — za potrebe domaćinstva", "osnov": "ZOO čl. 378 st. 1 tač. 1 i 3",
+                  "godine": 1, "racunanje": _ZPP, "opis": "Struja, toplotna energija, gas, voda — za potrebe DOMAĆINSTVA; telefon i pošta (tač. 3)",
+                  "napomena": "Uslov „za potrebe domaćinstva“ važi za struju, toplotnu energiju, gas, vodu, dimničarske usluge i održavanje čistoće (tač. 1); za telefon i poštu (tač. 3) tog uslova nema. Zastarevanje teče iako su isporuke produžene (čl. 378 st. 2)."},
+    "presudjeno": {"naziv": "Potraživanje utvrđeno pravnosnažnom odlukom ili poravnanjem", "osnov": "ZOO čl. 379 st. 1", "godine": 10,
+                   "racunanje": _ZPP, "opis": "I kad zakon inače predviđa kraći rok",
+                   "napomena": "Povremena potraživanja iz takve odluke koja dospevaju ubuduće zastarevaju u roku za povremena potraživanja (čl. 379 st. 2)."},
+    "zalba_parnicna": {"naziv": "Žalba na prvostepenu presudu (parnični postupak)", "osnov": "ZPP čl. 367", "dani": 15, "vrsta": "procesni",
+                       "racunanje": _ZPP, "opis": "Od dana dostavljanja prepisa presude",
+                       "napomena": "U meničnim i čekovnim sporovima rok je 8 dana (čl. 367). Posebne odredbe (npr. sporovi male vrednosti) mogu propisati drugačiji rok."},
+    "revizija": {"naziv": "Revizija (parnični postupak)", "osnov": "ZPP čl. 403", "dani": 30, "vrsta": "procesni", "racunanje": _ZPP,
+                 "opis": "Od dana dostavljanja drugostepene pravnosnažne presude",
+                 "napomena": "Revizija nije dozvoljena u svakom sporu — proverite dozvoljenost pre računanja roka."},
+    "prigovor_platni_nalog": {"naziv": "Prigovor na platni nalog", "osnov": "ZPP čl. 457 st. 2", "dani": 8, "vrsta": "procesni",
+                              "racunanje": _ZPP, "opis": "Od dana dostavljanja platnog naloga",
+                              "napomena": "U meničnim i čekovnim sporovima rok je 3 dana (čl. 457 st. 2)."},
+    "predlog_povracaj": {"naziv": "Predlog za vraćanje u pređašnje stanje", "osnov": "ZPP čl. 110", "dani": 8, "vrsta": "procesni",
+                         "racunanje": _ZPP, "opis": "Od dana kad je prestao razlog propuštanja (ili kad je stranka saznala za propuštanje)",
+                         "napomena": "Posle 60 dana od dana propuštanja vraćanje se ne može tražiti (čl. 110); u privrednim sporovima taj rok je 30 dana (čl. 486)."},
+    "otkaz_pobijanje": {"naziv": "Spor protiv rešenja kojim je povređeno pravo zaposlenog (npr. otkaz)", "osnov": "ZR čl. 195", "dani": 60,
+                        "vrsta": "procesni", "racunanje": _ZPP, "opis": "Od dana dostavljanja rešenja, odnosno saznanja za povredu prava"},
+    "zalba_izvrsenje": {"naziv": "Žalba ili prigovor u izvršnom postupku", "osnov": "ZIO čl. 25 st. 1", "dani": 8, "vrsta": "procesni",
+                        "racunanje": _ZIO, "opis": "Od dana dostavljanja rešenja",
+                        "napomena": "Zakon za pojedina rešenja može odrediti duži ili kraći rok (čl. 25 st. 1)."},
+    "zalbeni_upravni": {"naziv": "Žalba u upravnom postupku", "osnov": "ZUP čl. 153 st. 1", "dani": 15, "vrsta": "procesni",
+                        "racunanje": _ZUP, "opis": "Od obaveštavanja stranke o rešenju", "napomena": "Ako zakonom nije drukčije propisano."},
+    "tuzba_upravni_spor": {"naziv": "Tužba u upravnom sporu", "osnov": "ZUS čl. 18 st. 1", "dani": 30, "vrsta": "procesni",
+                           "racunanje": _ZUS, "opis": "Od dana dostavljanja upravnog akta stranci",
+                           "napomena": "Zakon može propisati kraći rok (čl. 18 st. 1); poseban rok važi kad akt nije dostavljen (čl. 18 st. 3)."},
+    "zalbeni_krivicni": {"naziv": "Žalba na prvostepenu presudu (krivični postupak)", "osnov": "ZKP čl. 432", "dani": 15, "vrsta": "procesni",
+                         "racunanje": _ZKP, "opis": "Od dana dostavljanja prepisa presude",
+                         "napomena": "Posebne odredbe (npr. skraćeni postupak) mogu propisati kraći rok — proverite."},
+    "naknada_stete_neosnovano_lisen": {"naziv": "Naknada štete — neosnovana osuda ili neosnovano lišenje slobode", "osnov": "ZKP čl. 591",
+                                       "godine": 3, "racunanje": _ZPP,
+                                       "opis": "Od pravnosnažnosti prvostepene odbijajuće ili oslobađajuće presude, odnosno rešenja o obustavi",
+                                       "napomena": "Ako je o žalbi odlučivao apelacioni sud — od dana prijema njegove odluke (čl. 591). Prethodno se podnosi zahtev ministarstvu (čl. 588); dok taj postupak traje zastarelost ne teče (čl. 589 st. 3) — to se ovde ne računa."},
 }
 
 
 def kalkulisi_zastarelost(tip: str, datum_pocetka: date) -> ZastarelostRezultat:
-    """Kalkuliše datum zastarelosti za dati tip potraživanja od datuma početka."""
+    """Datum isteka za dati tip od datuma događaja (dostavljanje, dospelost, saznanje…).
+
+    Dani: prvi dan roka je dan POSLE događaja, pa je poslednji dan = događaj + N (ZPP čl. 103 st. 2, ZUP čl. 80
+    st. 2, ZKP čl. 224, ZOO čl. 77 st. 1). Meseci/godine: dan istog broja; ako ga nema — poslednji dan meseca
+    (relativedelta). Poslednji dan na neradni dan → prvi naredni radni dan (`racunanje`; shared/neradni_dani.py).
+    Prekid i zastoj zastarelosti se NE računaju.
+    """
+    from shared.neradni_dani import IZVOR_PRAZNIKA, prvi_radni_od, razlog
     if tip not in ROKOVI_ZASTARELOSTI:
         raise ValueError(f"Nepoznat tip zastarelosti: {tip!r}")
 
     r = ROKOVI_ZASTARELOSTI[tip]
-    danas = date.today()
+    try:
+        from routers.email_notif import _danas_beograd
+        danas = _danas_beograd()
+    except Exception:
+        danas = date.today()
 
     if r.get("dani"):
-        datum_zastarelosti = datum_pocetka + timedelta(days=r["dani"])
+        kalendarski = datum_pocetka + timedelta(days=r["dani"])
         rok_opis = f"{r['dani']} dana"
         rok_godina = 0
     elif r.get("meseci"):
-        datum_zastarelosti = datum_pocetka + relativedelta(months=r["meseci"])
+        kalendarski = datum_pocetka + relativedelta(months=r["meseci"])
         rok_opis = f"{r['meseci']} meseci"
         rok_godina = 0
     else:
         g = r["godine"]
-        datum_zastarelosti = datum_pocetka + relativedelta(years=g)
-        rok_opis = f"{g} {'godina' if g >= 5 else 'godine'}"
+        kalendarski = datum_pocetka + relativedelta(years=g)
+        rok_opis = f"{g} {'godina' if g >= 5 or g == 1 else 'godine'}" if g != 1 else "1 godina"
         rok_godina = g
 
-    dana_preostalo = (datum_zastarelosti - danas).days
-    isteklo = dana_preostalo < 0
+    datum_isteka = prvi_radni_od(kalendarski)
+    dana_preostalo = (datum_isteka - danas).days
 
     return ZastarelostRezultat(
         tip_potrazivanja=r["naziv"],
@@ -230,10 +148,15 @@ def kalkulisi_zastarelost(tip: str, datum_pocetka: date) -> ZastarelostRezultat:
         rok_godina=rok_godina,
         rok_opis=rok_opis,
         datum_pocetka=datum_pocetka,
-        datum_zastarelosti=datum_zastarelosti,
+        datum_zastarelosti=datum_isteka,
         dana_preostalo=dana_preostalo,
-        isteklo=isteklo,
+        isteklo=dana_preostalo < 0,
         napomena=r.get("napomena", ""),
+        vrsta=r.get("vrsta", "zastarelost"),
+        kalendarski_poslednji_dan=kalendarski,
+        pomereno_razlog=razlog(kalendarski) if datum_isteka != kalendarski else "",
+        pravilo_racunanja=r.get("racunanje", ""),
+        izvor_neradnih_dana=IZVOR_PRAZNIKA,
     )
 
 

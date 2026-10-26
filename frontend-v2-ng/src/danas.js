@@ -135,9 +135,40 @@
       var st = el("span", "review__meta"); st.setAttribute("role", "status"); st.hidden = true;
       /* MIR001 TASK-07: dokument iz kog je rok predložen uklonjen je iz predmeta — predlog nema izvor, pa se ne nudi potvrda. */
       if (x.izvorPovucen) { da.hidden = true; li.append(el("span", "review__meta", "Dokument iz kog je ovaj rok predložen uklonjen je iz predmeta — rok više nema izvor. Možete ga odbiti; ako i dalje važi, unesite ga ručno.")); }
-      akcije.append(da, ne, st); li.append(akcije);
+      /* N4: ispravka pogrešno pročitanog datuma — nov rok sa datumom advokata se potvrđuje, predlog se odbija (server). */
+      var isp = el("button", "text-btn", "Ispravi datum"); isp.type = "button"; isp.setAttribute("aria-label", "Ispravi datum roka: " + x.opis);
+      var ispForma = el("span", "review__actions"); ispForma.hidden = true;
+      var ispDatum = el("input", "field__input"); ispDatum.type = "date"; ispDatum.setAttribute("aria-label", "Tačan datum roka: " + x.opis);
+      var ispSacuvaj = el("button", "text-btn text-btn--line", "Sačuvaj tačan datum"); ispSacuvaj.type = "button";
+      ispForma.append(ispDatum, ispSacuvaj);
+      if (x.izvorPovucen) isp.hidden = true;
+      akcije.append(da, ne, isp, st); li.append(akcije); li.append(ispForma);
       if (ispravanId(x.predmetId)) { var a = el("a", "review__meta", "Otvori predmet"); a.href = adresaPredmeta(x.predmetId, "rad"); li.append(a); }
       var radi = false;
+      isp.addEventListener("click", function () { ispForma.hidden = false; ispDatum.value = ""; ispDatum.focus();   /* N4: prazno — tačan datum unosi advokat (isti datum = „Potvrdi“) */ });
+      ispSacuvaj.addEventListener("click", async function () {
+        if (radi || moja !== gen || !ispravanId(x.id)) return;
+        var s = sesija.stanje();
+        if (s.stanje !== sesija.STANJA.PRIJAVLJEN || s.korisnik !== korisnik) { st.hidden = false; st.textContent = "Niste prijavljeni. Ništa nije zabeleženo."; return; }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(ispDatum.value)) { st.hidden = false; st.textContent = "Unesite tačan datum."; ispDatum.focus(); return; }
+        radi = true; [da, ne, isp, ispSacuvaj].forEach(function (b) { b.disabled = true; }); st.hidden = false; st.textContent = "Beleži se…";
+        var r = await api.send("/api/rokovi/" + encodeURIComponent(x.id) + "/ispravi", { telo: { datum_iso: ispDatum.value }, token: sesija.token(),
+          oblik: function (y) { return y.ok === true && typeof y.datum_iso === "string"; } });
+        if (moja !== gen) return;
+        radi = false;
+        var g = r.greska || {};
+        if (r.ok && r.podaci && r.podaci.stanje_odluke === "CONFIRMED") {
+          stanje("da-poruka", r.podaci.stari_odbijen ? "uspeh" : "nepoznato", "Rok „" + x.opis + "“ je upisan sa datumom koji ste uneli (" + datumTekst(r.podaci.datum_iso) + ") i potvrđen."
+            + (r.podaci.stari_odbijen ? " Predlog sa pogrešnim datumom je odbijen i ostaje u hronologiji." : " Predlog sa pogrešnim datumom NIJE odbijen — odbijte ga sami."));
+          ucitaj(); return;
+        }
+        if (g.kod === "CONFLICT" || g.ishodNepoznat || r.status === 503) {
+          stanje("da-poruka", "nepoznato", "Ispravka roka „" + x.opis + "“ nije potvrđena (" + (g.poruka || "stanje se promenilo ili ishod nije poznat") + "). Spisak se ponovo učitava — proverite pre ponovnog pokušaja.");
+          ucitaj(); return;
+        }
+        [da, ne, isp, ispSacuvaj].forEach(function (b) { b.disabled = false; });
+        st.textContent = g.kod === "VALIDATION_ERROR" ? "Datum nije prihvaćen. Ništa nije zabeleženo." : "Server je odbio ispravku. Ništa nije zabeleženo.";
+      });
       async function odluci(radnja) {
         if (radi || moja !== gen || !ispravanId(x.id)) return;
         var s = sesija.stanje();

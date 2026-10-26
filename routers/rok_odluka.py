@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from datetime import date, timedelta
 from typing import Optional
 
@@ -365,3 +366,101 @@ async def odbij(
     await _javi_odluku(uid, red, rok_id, "odbijanje")
 
     return await _odgovor_posle_odluke(rok_id, red)
+
+
+# ── N4: ispravka PREDLOGA roka (pogrešno pročitan datum) ─────────────────────
+#
+# Potvrda prihvata TAČNO taj red, a red se ne menja (nema puta izmene hronologije). Kad je OCR/model pročitao
+# pogrešan datum, advokat je mogao samo da odbije i — u V2 — nije imao gde da upiše tačan. Ispravka zato:
+#   1) upisuje NOV red `vrsta='rok'`, `izvor=HUMAN_DIRECT` (advokat je uneo datum), uz isti predmet, dokument
+#      i opis kao predlog;
+#   2) potvrđuje NOV red (advokat je izričito dao vrednost — to je njegova odluka, ne AI predlog);
+#   3) odbija STARI predlog (napomena pokazuje na nov red).
+# Redosled je izabran tako da delimičan neuspeh nikad ne izgubi rok: pad posle (1) ostavlja nov red kao predlog
+# uz stari; pad posle (2) ostavlja stari predlog vidljiv uz potvrđen nov — oba stanja se kažu u odgovoru.
+# Samo NEPOTVRĐEN predlog se ispravlja ovde; dva istovremena zahteva za isti rok → drugi dobija 409.
+
+_ISPRAVKA_U_TOKU: set = set()
+_AKTER_ISPRAVKE = "Advokat (ispravka predloga)"
+
+
+class IspravkaReq(BaseModel):
+    datum_iso: str = Field(..., min_length=10, max_length=10)
+    dogadjaj:  Optional[str] = Field(default=None, max_length=500)
+
+
+@router.post("/api/rokovi/{rok_id}/ispravi")
+@limiter.limit("30/minute")
+async def ispravi(
+    rok_id: str,
+    body: IspravkaReq,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", body.datum_iso):
+            raise ValueError
+        novi_datum = date.fromisoformat(body.datum_iso)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Datum mora biti GGGG-MM-DD. Ništa nije zabeleženo.")
+    supa = _get_supa()
+    uid = user["user_id"]
+    ima_129 = _rokovi_domen._sema_ima_129(supa)
+    red = await _rok_u_vlasnistvu(supa, rok_id, uid, sa_vrstom=ima_129)
+    if ima_129 and not _rokovi_domen.je_rok(red):
+        raise HTTPException(status_code=409, detail="Ovaj zapis nije označen kao rok. Ništa nije zabeleženo.")
+    # Nalaz pregleda N4: isti datum nije ispravka — to je potvrda AI datuma i ide kroz „Potvrdi“ (poreklo ostaje AI).
+    if str(red.get("datum_iso") or "")[:10] == novi_datum.isoformat():
+        raise HTTPException(status_code=409, detail="Datum je isti kao u predlogu — to nije ispravka. Ako je predlog tačan, koristite „Potvrdi“. Ništa nije zabeleženo.")
+    kljuc = (uid, str(rok_id))
+    if kljuc in _ISPRAVKA_U_TOKU:
+        raise HTTPException(status_code=409, detail="Ispravka ovog roka je već u toku. Osvežite spisak.")
+    _ISPRAVKA_U_TOKU.add(kljuc)
+    try:
+        try:
+            _pre = await asyncio.to_thread(odluke, [rok_id], True)
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] stanje pre ispravke nije procitano rok=%s: %s", rok_id, exc)
+            raise HTTPException(status_code=503, detail="Stanje roka trenutno nije moguće proveriti. Ništa nije zabeleženo.")
+        if stanje_roka(rok_id, _pre) != STANJE_NEPOTVRDJEN:
+            raise HTTPException(status_code=409, detail="Ispravlja se samo nepotvrđen predlog; ovaj rok je već potvrđen ili odbijen. Ništa nije zabeleženo.")
+        try:
+            izvor_r = await asyncio.to_thread(
+                lambda: supa.table("predmet_hronologija").select("dokument_id, dokument_naziv")
+                    .eq("id", rok_id).eq("user_id", uid).maybe_single().execute())
+            izvor = (izvor_r.data if izvor_r else None) or {}
+        except Exception:
+            izvor = {}
+        opis = (body.dogadjaj or "").strip() or red.get("dogadjaj") or "Rok"
+        # Ponovni pokušaj posle delimičnog neuspeha ne pravi DRUGI nov rok: postojeća ispravka (isti predmet, opis,
+        # datum, akter ispravke) se koristi ponovo.
+        try:
+            post_r = await asyncio.to_thread(lambda: supa.table("predmet_hronologija").select("id")
+                .eq("user_id", uid).eq("predmet_id", red.get("predmet_id")).eq("datum_iso", novi_datum.isoformat())
+                .eq("akter", _AKTER_ISPRAVKE).eq("dogadjaj", opis[:500]).limit(1).execute())
+            postojeci = (post_r.data or [{}])[0].get("id") if post_r and post_r.data else None
+        except Exception:
+            postojeci = None
+        try:
+            nov_r = None if postojeci else await asyncio.to_thread(lambda: supa.table("predmet_hronologija").insert({
+                "predmet_id": red.get("predmet_id"), "user_id": uid, "dogadjaj": opis[:500],
+                "datum": novi_datum.isoformat(), "datum_iso": novi_datum.isoformat(),
+                "vaznost": red.get("vaznost") or _rokovi_domen.normalizuj_vaznost("bitan"),
+                "akter": _AKTER_ISPRAVKE, "izvor": _rokovi_domen.IZVOR_HUMAN_DIRECT,
+                "dokument_id": izvor.get("dokument_id"), "dokument_naziv": izvor.get("dokument_naziv"),
+                **_rokovi_domen.oznake(vrsta=_rokovi_domen.VRSTA_ROK, supa=supa),
+            }).execute())
+            nov_id = postojeci or (nov_r.data or [{}])[0].get("id")
+        except Exception as exc:
+            logger.error("[ROK_ODLUKA] ispravka: nov rok nije upisan rok=%s: %s", rok_id, exc)
+            nov_id = None
+        if not nov_id:
+            raise HTTPException(status_code=503, detail="Ispravljen rok nije upisan. Predlog je ostao nepromenjen.")
+        if not await potvrdi_rok(nov_id, uid, napomena=f"Ispravka predloga roka {rok_id}"):
+            raise HTTPException(status_code=503, detail="Ispravljen rok je upisan, ali NIJE potvrđen — vidi se kao nov predlog uz stari. Potvrdite ga ručno.")
+        odbijen = await odbij_rok(rok_id, uid, napomena=f"Ispravljen — tačan rok je {nov_id}")
+        await _javi_odluku(uid, red, nov_id, "potvrda")
+    finally:
+        _ISPRAVKA_U_TOKU.discard(kljuc)
+    return {"ok": True, "rok_id": nov_id, "ispravljen_rok_id": rok_id, "datum_iso": novi_datum.isoformat(),
+            "stanje_odluke": STANJE_POTVRDJEN, "stari_odbijen": bool(odbijen)}

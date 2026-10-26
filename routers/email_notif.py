@@ -116,7 +116,8 @@ def _smtp_send(to_addr: str, subject: str, html: str) -> None:
         smtp.sendmail(_FROM_ADDR, [to_addr], msg.as_bytes())
 
 
-def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "", test: bool = False) -> str:
+def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str = "", test: bool = False,
+                rocista: Optional[list] = None) -> str:
     if dana_pre == 1:
         naslov = "⚠️ Sutra ističe rok!"
         boja   = "#ef4444"
@@ -129,6 +130,11 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
         naslov = "📅 Za 7 dana — kritični rokovi"
         boja   = "#3b82f6"
         opis   = "Sledeći kritični rokovi ističu za <strong>7 dana</strong>:"
+    if rocista:
+        # N4: podsetnik sa ročištem ne sme da kaže samo „ističe rok“.
+        kada = "<strong>SUTRA</strong>" if dana_pre == 1 else f"za <strong>{dana_pre} dana</strong>"
+        naslov = _naslov_podsetnika(dana_pre, bool(rokovi), True).replace("Vindex AI — ", "📅 ")
+        opis = (f"Potvrđeni rokovi i zakazana ročišta {kada}:" if rokovi else f"Zakazana ročišta {kada}:")
 
     rows_html = "".join(
         f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
@@ -136,6 +142,14 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
         f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;white-space:nowrap;">'
         f'{html.escape(str(r.get("datum_iso","")))}</td></tr>'
         for r in rokovi
+    ) + "".join(
+        # N4: ročište u istom podsetniku — sud, sudnica i vreme (sve iz zapisa koji je advokat uneo).
+        f'<tr><td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#e2e8f0;">'
+        f'Ročište — {html.escape(str(r.get("sud") or "Sud"))}'
+        f'{(", sudnica " + html.escape(str(r.get("sudnica")))) if r.get("sudnica") else ""}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #1e293b;color:#94a3b8;white-space:nowrap;">'
+        f'{html.escape(str(r.get("datum") or ""))}{(" u " + html.escape(str(r.get("vreme"))[:5])) if r.get("vreme") else ""}</td></tr>'
+        for r in (rocista or [])
     )
 
     unsub = f' <a href="{make_unsub_url(user_id, email)}" style="color:#64748b;">Odjavi se</a>' if user_id and email else ""
@@ -174,8 +188,11 @@ def _email_html(rokovi: list[dict], dana_pre: int, user_id: str = "", email: str
 </body></html>"""
 
 
-def _naslov_podsetnika(dana_pre: int) -> str:
-    """Jedan izvor naslova za zakazani podsetnik i za njegov TEST primer."""
+def _naslov_podsetnika(dana_pre: int, ima_rokova: bool = True, ima_rocista: bool = False) -> str:
+    """Jedan izvor naslova za zakazani podsetnik i za njegov TEST primer (N4: i za ročišta)."""
+    if ima_rocista:
+        sta = "rok i ročište" if ima_rokova else "ročište"
+        return f"Vindex AI — {'Sutra' if dana_pre == 1 else f'Za {dana_pre} dana'}: {sta}"
     return f"Vindex AI — {'Sutra ističe rok!' if dana_pre == 1 else f'Za {dana_pre} dana — kritični rokovi'}"
 
 
@@ -408,10 +425,11 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
 
                 target_iso = target_date.isoformat()
 
-                # Check if already sent
-                dup = supa.table("email_notif_log").select("id").eq("user_id", uid).eq("datum_roka", target_iso).eq("dana_pre", dana_pre).limit(1).execute()
-                if dup.data:
-                    continue
+                # N4: „već poslato“ je po PREDMETU (isti ključ kao UNIQUE rezervacija), ne po korisniku — ranije je
+                # jedan poslat podsetnik za datum gasio podsetnik za DRUGI predmet istog datuma (npr. rok potvrđen
+                # između dva pokretanja istog dana).
+                dup = supa.table("email_notif_log").select("predmet_id").eq("user_id", uid).eq("datum_roka", target_iso).eq("dana_pre", dana_pre).execute()
+                _vec_rezervisani = {r.get("predmet_id") for r in (dup.data or [])}
 
                 rokovi_r = (
                     supa.table("predmet_hronologija")
@@ -430,9 +448,21 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                 # potvrda se cita za sve redove (NS3-N10: raniji komentar je
                 # tvrdio da se cita samo za AI redove).
                 rokovi = _filtriraj_izvrsive(rokovi, _potvrdjeni_ids([r.get("id") for r in rokovi]))
-                if not rokovi:
+                # N4 (Bojan: „podsetnike za ročišta“): ZAKAZANA ročišta istog dana. Ročište unosi advokat (ili ga
+                # zakazuje iz predloga) — nije AI predlog, pa ne traži potvrdu; otkazano/odloženo/održano ne šalje.
+                try:
+                    rocista_r = (supa.table("rocista").select("id, predmet_id, sud, sudnica, datum, vreme, status")
+                                 .eq("user_id", uid).eq("datum", target_iso).execute())
+                except Exception as exc:
+                    # Pad čitanja ročišta ne obara ceo cron za sve korisnike; vidi se kao greška (ne kao „0 poslato“).
+                    logger.error("[EMAIL-CRON] ročišta nisu pročitana uid=%.8s: %s", uid, type(exc).__name__)
+                    greske += 1
                     continue
-                if not rokovi:
+                rocista = [r for r in (rocista_r.data or []) if r.get("predmet_id") in _aktivni_ids
+                           and (r.get("status") or "zakazano") == "zakazano"]
+                rokovi = [r for r in rokovi if r.get("predmet_id") not in _vec_rezervisani]
+                rocista = [r for r in rocista if r.get("predmet_id") not in _vec_rezervisani]
+                if not rokovi and not rocista:
                     continue
 
                 # T06: poznat ne-pokušaj (nema adrese / SMTP nije konfigurisan) je GREŠKA bez rezervacije —
@@ -473,7 +503,7 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     "predmet_id": pid,
                     "datum_roka": target_iso,
                     "dana_pre":   dana_pre,
-                } for pid in dict.fromkeys(rok.get("predmet_id", "") for rok in rokovi)]
+                } for pid in dict.fromkeys(x.get("predmet_id", "") for x in [*rokovi, *rocista])]
                 try:
                     supa.table("email_notif_log").insert(claim_rows).execute()
                 except Exception as exc:
@@ -489,8 +519,8 @@ async def posalji_podsetnike(request: Request, user: dict = Depends(_require_cro
                     greske += 1
                     continue
 
-                subject = _naslov_podsetnika(dana_pre)
-                html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr)
+                subject = _naslov_podsetnika(dana_pre, bool(rokovi), bool(rocista))
+                html    = _email_html(rokovi, dana_pre, user_id=uid, email=to_addr, rocista=rocista)
 
                 try:
                     _smtp_send(to_addr, subject, html)
@@ -714,7 +744,9 @@ async def posalji_nedeljni_sazetak(request: Request, user: dict = Depends(_requi
             _kandidati = list(rokovi_r.data or []) + list(hitnih_r.data or [])
             _potvrdjeni = _potvrdjeni_ids([r.get("id") for r in _kandidati])
             rokovi     = _filtriraj_izvrsive(rokovi_r.data or [], _potvrdjeni)
-            rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])]
+            # N4: otkazano / odloženo / održano ročište ne ide u nedeljni pregled kao predstojeće.
+            rocista    = [{"datum_iso": r.get("datum", ""), "dogadjaj": r.get("sud", "Sud"), "tip": "rociste"} for r in (rocista_r.data or [])
+                          if (r.get("status") or "zakazano") == "zakazano"]
             neplaceno  = sum(float(r.get("iznos_rsd", 0) or 0) for r in (billing_r.data or []))
             hitnih     = len(set(r.get("predmet_id")
                                  for r in _filtriraj_izvrsive(hitnih_r.data or [], _potvrdjeni)))
