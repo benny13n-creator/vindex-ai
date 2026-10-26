@@ -491,6 +491,26 @@
               <p class="notice" id="pn-sef-poruka" role="status" aria-live="polite" hidden></p>
             </form>
           </section>
+          <!-- P3 Integracije: samo tačno stanje postojećih veza (inventar u SETTINGS_MASTER_SPRINT_STATE.md). Bez kontrola,
+               bez tehničkih webhook putanja, bez ključeva. Ništa se ne povezuje niti šalje iz ovog ekrana. -->
+          <section class="matter__section matter__section--first" id="pn-integracije" data-pn-sekcija="integracije" hidden aria-labelledby="pn-integr-naslov">
+            <h2 class="matter__h2" id="pn-integr-naslov">Integracije</h2>
+            <p class="field__help">Stanje postojećih veza sa drugim servisima. Nijedna veza se ne pokreće iz ovog ekrana.</p>
+            <ul class="people" id="pn-integr-lista" aria-label="Integracije">
+              <li class="people__item" data-integracija="sef"><span class="people__name">SEF — sistem elektronskih faktura</span>
+                <span class="people__meta">Dostupno za podešavanje: podaci prodavca i API ključ su u odeljku <a href="#/podesavanja/finansije">Finansije i plan</a>. Slanje faktura na SEF iz ovog prikaza nije dostupno.</span></li>
+              <li class="people__item" data-integracija="email"><span class="people__name">Email podsetnici za rokove</span>
+                <span class="people__meta">Dostupno: uključivanje i test u odeljku <a href="#/podesavanja/obavestenja">Obaveštenja</a>.</span></li>
+              <li class="people__item" data-integracija="kalendar"><span class="people__name">Google Calendar</span>
+                <span class="people__meta">Nije dostupno: povezivanje naloga nije završeno ni podešeno za upotrebu.</span></li>
+              <li class="people__item" data-integracija="clio"><span class="people__name">Clio i iManage</span>
+                <span class="people__meta">Nije dostupno: ne postoji korisničko povezivanje sa ovim servisima.</span></li>
+              <li class="people__item" data-integracija="webhook"><span class="people__name">Webhook obaveštenja i programski pristup (API)</span>
+                <span class="people__meta">Nije dostupno u ovom prikazu. Webhook-ovi trenutno ne dobijaju događaje iz Vindexa. API ključevi (PRO) ostaju u klasičnom prikazu.</span></li>
+              <li class="people__item" data-integracija="sms"><span class="people__name">SMS i WhatsApp</span>
+                <span class="people__meta">Nije dostupno: kanal nije podešen za slanje.</span></li>
+            </ul>
+          </section>
           <!-- P1.3 Privatnost i podaci (src/podesavanja-privatnost.js): GET /api/export/complete (ZIP), DELETE /api/gdpr/account. -->
           <section class="matter__section matter__section--first" id="pn-privatnost" data-pn-sekcija="privatnost" hidden aria-labelledby="pn-privatnost-naslov">
             <h2 class="matter__h2" id="pn-privatnost-naslov">Privatnost i podaci</h2>

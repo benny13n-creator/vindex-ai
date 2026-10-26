@@ -112,4 +112,7 @@
   root.VxPodesavanjaSekcije = root.VxPodesavanjaSekcije || {};
   root.VxPodesavanjaSekcije.privatnost = napravi;
   root.VxPodesavanjaSekcije.pomoc = pomoc;
+  /* P3 Integracije: statičan, tačan pregled stanja (nijedna integracija nema kompletan lanac postoji → ovlašćeno →
+     podešeno → testirano; inventar: docs/v2-execution/SETTINGS_MASTER_SPRINT_STATE.md). Bez zahteva i kontrola. */
+  root.VxPodesavanjaSekcije.integracije = pomoc;
 })(window);

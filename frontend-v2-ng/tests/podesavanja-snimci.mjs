@@ -8,7 +8,7 @@ import { podesavanjaRuta, podesavanjaMock, KORISNICI, sesija, KLJUC } from "./fi
 
 const DIR = process.env.PN_SNIMCI_DIR || "snimci-podesavanja";
 mkdirSync(DIR, { recursive: true });
-const SEKCIJE = (process.env.PN_SEKCIJE || "nalog,izgled,obavestenja,kancelarija,finansije,privatnost,pomoc").split(",");
+const SEKCIJE = (process.env.PN_SEKCIJE || "nalog,izgled,obavestenja,kancelarija,finansije,integracije,privatnost,pomoc").split(",");
 const s = podesavanjaMock();
 s.sef[KORISNICI.B.token] = { seller_pib: "123456789", seller_naziv: "Advokatska kancelarija Test", seller_adresa: "Ulica 1", seller_mesto: "Beograd", api_key: "XXXXXXXXXXXXWXYZ" };
 s.profilEmail[KORISNICI.B.token] = { aktivan: true, dan_7: true, dan_3: false, dan_1: true, nedeljni: true };

@@ -8,7 +8,7 @@ import { podesavanjaRuta, podesavanjaMock, KORISNICI, sesija, KLJUC } from "./fi
 let pada = 0;
 function proveri(naziv, uslov) { console.log((uslov ? "PASS" : "FAIL") + "  " + naziv); if (!uslov) pada++; }
 
-const OCEKIVANE = (process.env.PN_SEKCIJE || "nalog,izgled,obavestenja,kancelarija,finansije,privatnost,pomoc").split(",");
+const OCEKIVANE = (process.env.PN_SEKCIJE || "nalog,izgled,obavestenja,kancelarija,finansije,integracije,privatnost,pomoc").split(",");
 const NAZIVI = { nalog: "Moj nalog", izgled: "Izgled i rad", obavestenja: "Obaveštenja", kancelarija: "Kancelarija",
   finansije: "Finansije i plan", integracije: "Integracije", privatnost: "Privatnost i podaci", pomoc: "Pomoć i informacije" };
 
