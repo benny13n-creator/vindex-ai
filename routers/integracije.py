@@ -366,17 +366,36 @@ class WebhookReq(BaseModel):
     naziv:  Optional[str] = Field(default=None, max_length=100)
 
 
-def _slanje_webhook_sync(url: str, payload: str, secret: Optional[str]) -> None:
+# SEC (2026-10-26): ovaj sistem (user_webhooks) nije dobio NIGHT-009 zaštitu koju ima routers/integrations.py —
+# registracija je čuvala BILO KOJI URL (http://169.254.169.254/, http://127.0.0.1:..., file://), a test ruta je
+# zatim sa servera slala POST tamo: slepi SSRF dostupan svakom prijavljenom korisniku. Isti validator (javni https,
+# port 443, nijedna razrešena adresa privatna/loopback/link-local) sada važi pri upisu I pri svakom slanju (DNS
+# rebinding), a preusmeravanja se ne prate (302 ka unutrašnjoj adresi bi zaobišao proveru).
+from routers.integrations import _validiraj_webhook_url
+
+
+class _BezPreusmeravanja(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_WEBHOOK_OPENER = urllib.request.build_opener(_BezPreusmeravanja)
+
+
+def _slanje_webhook_sync(url: str, payload: str, secret: Optional[str]) -> bool:
+    """Vraća True samo ako je odredište odgovorilo 2xx. Nikad ne prati preusmeravanje."""
     headers = {"Content-Type": "application/json"}
     if secret:
         sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
         headers["X-Vindex-Signature"] = f"sha256={sig}"
     req_obj = urllib.request.Request(url, data=payload.encode(), headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req_obj, timeout=10) as resp:
-            logger.debug("Webhook isporucen url=%s status=%s", url, resp.status)
+        with _WEBHOOK_OPENER.open(req_obj, timeout=10) as resp:
+            logger.debug("Webhook isporucen status=%s", resp.status)
+            return 200 <= resp.status < 300
     except Exception as exc:
-        logger.warning("Webhook greška url=%s: %s", url, exc)
+        logger.warning("Webhook greška: %s", type(exc).__name__)
+        return False
 
 
 async def trigger_webhook(event: str, user_id: str, data: dict) -> None:
@@ -401,6 +420,11 @@ async def trigger_webhook(event: str, user_id: str, data: dict) -> None:
         ts = datetime.now(timezone.utc).isoformat()
         payload = json.dumps({"event": event, "timestamp": ts, "data": data}, ensure_ascii=False)
         for wh in hookovi:
+            try:
+                _validiraj_webhook_url(wh["url"])
+            except HTTPException:
+                logger.warning("trigger_webhook: preskočen URL koji nije javni https")
+                continue
             await asyncio.to_thread(_slanje_webhook_sync, wh["url"], payload, wh.get("secret"))
     except Exception as exc:
         logger.warning("trigger_webhook greška: %s", exc)
@@ -416,6 +440,7 @@ async def webhook_registruj(
     uid  = user["user_id"]
     supa = _get_supa()
 
+    await asyncio.to_thread(_validiraj_webhook_url, body.url)
     eventi = [e for e in body.events if e in _DOZVOLJENI_EVENTI]
     if not eventi:
         raise HTTPException(status_code=400, detail=f"Nijedan validan event. Dozvoljeni: {sorted(_DOZVOLJENI_EVENTI)}")
@@ -490,10 +515,13 @@ async def webhook_test(
     r = await asyncio.to_thread(
         lambda: supa.table("user_webhooks").select("*").eq("id", webhook_id).eq("user_id", uid).maybe_single().execute()
     )
-    if not r.data:
+    # postgrest 2.28.3: 0 redova → None (NS3-N15); ranije 500 umesto 404.
+    if r is None or not r.data:
         raise HTTPException(status_code=404, detail="Webhook nije pronađen.")
     wh = r.data
+    await asyncio.to_thread(_validiraj_webhook_url, wh["url"])   # i pri slanju (DNS rebinding, stari redovi)
     ts      = datetime.now(timezone.utc).isoformat()
     payload = json.dumps({"event": "test", "timestamp": ts, "data": {"message": "Vindex AI webhook test"}}, ensure_ascii=False)
-    await asyncio.to_thread(_slanje_webhook_sync, wh["url"], payload, wh.get("secret"))
-    return {"success": True, "url": wh["url"], "timestamp": ts}
+    isporuceno = await asyncio.to_thread(_slanje_webhook_sync, wh["url"], payload, wh.get("secret"))
+    # Ranije uvek success: True, i kada slanje nije uspelo.
+    return {"success": isporuceno, "url": wh["url"], "timestamp": ts}
