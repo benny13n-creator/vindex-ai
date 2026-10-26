@@ -167,8 +167,19 @@ async def delete_webhook(
 _WEBHOOK_DOZVOLJENI_PORTOVI = {443}
 
 
-def _validiraj_webhook_url(url: str) -> None:
-    """Raises HTTPException if `url` is not a public https endpoint."""
+def _adresa_nije_javna(ip) -> bool:
+    # ::ffff:10.0.0.7 is the same private host; Python 3.11 is_private does not see through the IPv6 wrapper.
+    if ip.version == 6 and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_reserved or ip.is_multicast or ip.is_unspecified)
+
+
+def _validiraj_webhook_url(url: str) -> list:
+    """Raises HTTPException if `url` is not a public https endpoint.
+
+    Returns the resolved addresses it checked, so a sender can connect to exactly
+    those instead of resolving the name a second time (DNS rebinding / TOCTOU)."""
     import ipaddress
     import socket
     from urllib.parse import urlparse
@@ -188,15 +199,17 @@ def _validiraj_webhook_url(url: str) -> None:
     except OSError:
         raise HTTPException(status_code=400, detail="Webhook host nije moguće razrešiti.")
 
+    adrese = []
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        if _adresa_nije_javna(ip):
             # Deliberately does not echo the resolved address back.
             raise HTTPException(
                 status_code=400,
                 detail="Webhook URL mora pokazivati na javnu adresu.",
             )
+        adrese.append(str(ip))
+    return adrese
 
 @router.post("/api/integrations/webhook/test/{webhook_id}")
 @limiter.limit("5/minute")
