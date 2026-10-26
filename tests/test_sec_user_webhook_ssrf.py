@@ -129,15 +129,6 @@ def test_tudji_ili_nepostojeci_webhook_404_ne_500(k):
     assert k.poslato == []
 
 
-def test_slanje_ne_prati_preusmeravanje():
-    import urllib.request
-    import routers.integracije as ig
-    h = ig._BezPreusmeravanja()
-    zahtev = urllib.request.Request("https://javni.example/h", data=b"{}", method="POST")
-    assert h.redirect_request(zahtev, None, 302, "Found", {}, "http://169.254.169.254/") is None
-    assert any(isinstance(x, ig._BezPreusmeravanja) for x in ig._WEBHOOK_OPENER.handlers)
-
-
 def test_trigger_preskace_interni_url(k, monkeypatch):
     import asyncio
     import routers.integracije as ig
@@ -147,3 +138,140 @@ def test_trigger_preskace_interni_url(k, monkeypatch):
     ]
     asyncio.run(ig.trigger_webhook("predmet.kreiran", UID, {"x": 1}))
     assert k.poslato == ["https://javni.example/h"]
+
+
+# ── DNS rebinding / TOCTOU (2026-10-26) ─────────────────────────────────────────────────────────────────────
+# Ranije: validator je razrešio ime, a urllib ga je pri povezivanju razrešio PONOVO (i čitao HTTPS_PROXY) — DNS je
+# mogao da odgovori javnom adresom proveri i 169.254.169.254 konekciji. Sada slanje razrešava jednom i TCP otvara
+# samo ka proverenoj adresi. Mreža je zamenjena: getaddrinfo vraća zadat niz odgovora, create_connection beleži
+# adresu i vraća kraj socketpair-a, TLS kontekst beleži server_hostname (pravi kontekst se proverava posebno).
+
+JAVNA, PRIVATNA = "93.184.216.34", "169.254.169.254"
+ODGOVOR_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+
+
+@pytest.fixture
+def mreza(monkeypatch):
+    import routers.integracije as ig
+    m = types.SimpleNamespace(odgovori=[], dns_pozivi=0, konekcije=[], sni=[], odgovor=ODGOVOR_200, zahtevi=[])
+
+    def _gai(host, port, *a, **kw):
+        m.dns_pozivi += 1
+        ip = m.odgovori.pop(0) if len(m.odgovori) > 1 else m.odgovori[0]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))]
+
+    def _poveži(adresa, timeout=None, *a, **kw):
+        m.konekcije.append(adresa)
+        klijent, server = socket.socketpair()
+        server.sendall(m.odgovor)
+        m.zahtevi.append(server)
+        return klijent
+
+    class _TLS:
+        def wrap_socket(self, sock, server_hostname=None, **kw):
+            m.sni.append(server_hostname)
+            return sock
+
+    monkeypatch.setattr(socket, "getaddrinfo", _gai)
+    monkeypatch.setattr(socket, "create_connection", _poveži)
+    monkeypatch.setattr(ig, "_TLS_KONTEKST", _TLS())
+    yield m
+    for s in m.zahtevi:
+        s.close()
+
+
+def _primljeno(m):
+    s = m.zahtevi[-1]
+    s.settimeout(2)
+    deo, sve = b"x", b""
+    while deo:
+        try:
+            deo = s.recv(65536)
+        except (socket.timeout, OSError):
+            break
+        sve += deo
+    return sve.decode("latin-1")
+
+
+def test_dns_rebinding_izmedju_provere_i_slanja_privatna_adresa_ne_dobija_konekciju(mreza):
+    """Ruta proveri ime (javno), DNS se zatim promeni na metadata adresu: konekcija se ne otvara uopšte."""
+    import routers.integracije as ig
+    from shared.deps import get_current_user
+    from shared.rate import limiter
+    baza = _Baza()
+    baza.redovi.append({"id": "wh-1", "user_id": UID, "url": "https://rebind.example/h", "aktivan": True, "events": ["test"]})
+    mreza.odgovori = [JAVNA, PRIVATNA]
+    app = FastAPI()
+    app.include_router(ig.router)
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": UID, "email": "wh@example.invalid"}
+    import unittest.mock as um
+    with um.patch.object(ig, "_get_supa", lambda: baza), um.patch.object(limiter, "enabled", False):
+        r = TestClient(app, raise_server_exceptions=False).post("/api/webhooks/test/wh-1")
+    assert mreza.dns_pozivi == 2
+    assert mreza.konekcije == []
+    assert r.status_code == 200 and r.json()["success"] is False
+
+
+def test_konekcija_ide_na_proverenu_adresu_a_tls_identitet_je_hostname(mreza):
+    """Ime se razrešava tačno jednom; posle toga DNS vraća privatnu adresu, ali TCP ide na proverenu javnu."""
+    import routers.integracije as ig
+    mreza.odgovori = [JAVNA, PRIVATNA]
+    assert ig._slanje_webhook_sync("https://javni.example/put?a=1", '{"x":1}', "tajna") is True
+    assert mreza.dns_pozivi == 1
+    assert mreza.konekcije == [(JAVNA, 443)]
+    assert mreza.sni == ["javni.example"]
+    zahtev = _primljeno(mreza)
+    assert zahtev.startswith("POST /put?a=1 HTTP/1.1\r\n")
+    assert "Host: javni.example\r\n" in zahtev and "X-Vindex-Signature: sha256=" in zahtev
+
+
+def test_privatna_adresa_pri_slanju_nikad_ne_dobija_konekciju(mreza):
+    import routers.integracije as ig
+    for ip in (PRIVATNA, "10.0.0.7", "127.0.0.1", "::1", "::ffff:10.0.0.7", "0.0.0.0"):
+        mreza.odgovori = [ip]
+        assert ig._slanje_webhook_sync("https://javni.example/h", "{}", None) is False, ip
+    assert mreza.konekcije == []
+
+
+def test_vezana_konekcija_odbija_neproverenu_adresu_i_bez_razresavanja(mreza):
+    """Druga linija odbrane: connect() sam proverava adresu na koju ide."""
+    import routers.integracije as ig
+    with pytest.raises(ConnectionRefusedError):
+        ig._VezanaHTTPS("javni.example", PRIVATNA).connect()
+    assert mreza.konekcije == [] and mreza.dns_pozivi == 0
+
+
+def test_preusmeravanje_se_ne_prati(mreza):
+    import routers.integracije as ig
+    mreza.odgovori = [JAVNA]
+    mreza.odgovor = (b"HTTP/1.1 302 Found\r\nLocation: http://169.254.169.254/latest/meta-data/\r\n"
+                     b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+    assert ig._slanje_webhook_sync("https://javni.example/h", "{}", None) is False
+    assert mreza.konekcije == [(JAVNA, 443)]
+
+
+def test_proxy_iz_okruzenja_se_ne_koristi(mreza, monkeypatch):
+    import routers.integracije as ig
+    for ime in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"):
+        monkeypatch.setenv(ime, "http://10.0.0.1:3128")
+    monkeypatch.delenv("NO_PROXY", raising=False)
+    monkeypatch.delenv("no_proxy", raising=False)
+    mreza.odgovori = [JAVNA]
+    assert ig._slanje_webhook_sync("https://javni.example/h", "{}", None) is True
+    assert mreza.konekcije == [(JAVNA, 443)]
+
+
+def test_tls_kontekst_proverava_sertifikat_i_hostname():
+    import ssl
+    import routers.integracije as ig
+    assert ig._TLS_KONTEKST.verify_mode == ssl.CERT_REQUIRED and ig._TLS_KONTEKST.check_hostname is True
+    assert ig._VezanaHTTPS("javni.example", JAVNA)._context is ig._TLS_KONTEKST
+
+
+def test_registracija_odbija_ipv4_mapiranu_privatnu_adresu(k):
+    ADRESE["mapirana.example"] = "::ffff:10.0.0.7"
+    try:
+        r = k.c.post("/api/webhooks", json={"url": "https://mapirana.example/h", "events": ["predmet.kreiran"]})
+    finally:
+        del ADRESE["mapirana.example"]
+    assert r.status_code == 400 and k.baza.redovi == []

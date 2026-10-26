@@ -11,8 +11,8 @@ Ovaj fajl (F3.7 "Korisnički webhook sistem" ispod, /api/webhooks/*) i
 routers/integrations.py (/api/integrations/webhook/*) su DVA nezavisna,
 potpuno neisprepletena outbound-webhook sistema:
   - Ova implementacija: tabela `user_webhooks`, dot-notation eventi
-    (_DOZVOLJENI_EVENTI), klijent bira svoj secret, sync urllib.request
-    poziv (asyncio.to_thread), trigger_webhook(event, user_id, data).
+    (_DOZVOLJENI_EVENTI), klijent bira svoj secret, sync http.client
+    poziv vezan za proverenu adresu (asyncio.to_thread), trigger_webhook(event, user_id, data).
   - integrations.py: tabela `webhooks`, snake_case eventi + "sve" wildcard,
     server generiše kriptografski secret (secrets.token_hex), native async
     httpx poziv, trigger_webhook(user_id, event, data) -- OBRNUT REDOSLED
@@ -31,11 +31,15 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import http.client
+import ipaddress
 import json
 import logging
 import os
 import re
-import urllib.request
+import socket
+import ssl
+import urllib.parse
 from datetime import date, datetime, timezone
 from typing import Any, List, Optional
 
@@ -371,31 +375,55 @@ class WebhookReq(BaseModel):
 # zatim sa servera slala POST tamo: slepi SSRF dostupan svakom prijavljenom korisniku. Isti validator (javni https,
 # port 443, nijedna razrešena adresa privatna/loopback/link-local) sada važi pri upisu I pri svakom slanju (DNS
 # rebinding), a preusmeravanja se ne prate (302 ka unutrašnjoj adresi bi zaobišao proveru).
-from routers.integrations import _validiraj_webhook_url
+# TOCTOU (2026-10-26): urllib je pri povezivanju ponovo razrešavao ime, pa je odgovor DNS-a mogao da se promeni
+# između provere i konekcije (javna → 169.254.169.254), a ProxyHandler je čitao HTTPS_PROXY iz okruženja. Slanje
+# sada razrešava ime TAČNO JEDNOM (validator vraća proverene adrese), TCP otvara isključivo ka toj adresi, TLS
+# proverava sertifikat i šalje SNI za originalni hostname; http.client ne prati preusmeravanja i ne koristi proxy.
+from routers.integrations import _adresa_nije_javna, _validiraj_webhook_url
+
+_TLS_KONTEKST = ssl.create_default_context()   # CERT_REQUIRED + check_hostname
 
 
-class _BezPreusmeravanja(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+class _VezanaHTTPS(http.client.HTTPSConnection):
+    """HTTPS konekcija čiji TCP ide samo na `ip` (već proverenu adresu), a TLS identitet je `host`."""
 
+    def __init__(self, host: str, ip: str):
+        super().__init__(host, 443, timeout=10, context=_TLS_KONTEKST)
+        self._ip = ip
 
-_WEBHOOK_OPENER = urllib.request.build_opener(_BezPreusmeravanja)
+    def connect(self):
+        if _adresa_nije_javna(ipaddress.ip_address(self._ip)):
+            raise ConnectionRefusedError("odredište nije javna adresa")
+        sock = socket.create_connection((self._ip, 443), self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 
 def _slanje_webhook_sync(url: str, payload: str, secret: Optional[str]) -> bool:
     """Vraća True samo ako je odredište odgovorilo 2xx. Nikad ne prati preusmeravanje."""
+    try:
+        adrese = _validiraj_webhook_url(url)          # jedino razrešavanje imena za ovo slanje
+    except HTTPException:
+        logger.warning("Webhook preskočen: odredište nije javni https")
+        return False
+    if not adrese:
+        return False
+    deo = urllib.parse.urlsplit(url)
+    putanja = (deo.path or "/") + (f"?{deo.query}" if deo.query else "")
     headers = {"Content-Type": "application/json"}
     if secret:
         sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
         headers["X-Vindex-Signature"] = f"sha256={sig}"
-    req_obj = urllib.request.Request(url, data=payload.encode(), headers=headers, method="POST")
+    conn = _VezanaHTTPS(deo.hostname, adrese[0])
     try:
-        with _WEBHOOK_OPENER.open(req_obj, timeout=10) as resp:
-            logger.debug("Webhook isporucen status=%s", resp.status)
-            return 200 <= resp.status < 300
+        conn.request("POST", putanja, body=payload.encode(), headers=headers)
+        resp = conn.getresponse()
+        logger.debug("Webhook isporucen status=%s", resp.status)
+        return 200 <= resp.status < 300
     except Exception as exc:
         logger.warning("Webhook greška: %s", type(exc).__name__)
         return False
+    finally:
+        conn.close()
 
 
 async def trigger_webhook(event: str, user_id: str, data: dict) -> None:
