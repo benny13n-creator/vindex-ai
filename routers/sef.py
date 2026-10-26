@@ -43,6 +43,7 @@ GET  /api/sef/pregled-xml/{faktura_id} — preuzima UBL XML bez slanja (sandbox/
 from __future__ import annotations
 
 import asyncio
+import types
 import json
 import logging
 import os
@@ -103,10 +104,16 @@ async def _db(fn):
     return await asyncio.to_thread(fn)
 
 
+# P1.6 (Settings sprint): pregled ključa koji ide u pregledač nosi samo poslednja 4 znaka (ranije prva 4 + poslednja
+# 4 = 8 znakova tajne u svakom odgovoru). Dovoljno da advokat prepozna koji je ključ sačuvan.
 def _mask_key(key: str) -> str:
     if len(key) <= 8:
         return "***"
-    return key[:4] + "***" + key[-4:]
+    return "***" + key[-4:]
+
+
+# postgrest 2.28.3: `maybe_single().execute()` za 0 redova vraća None (NS3-N15) — ovo je grana „nema reda“.
+_NEMA_REDA = types.SimpleNamespace(data=None)
 
 
 def _validate_ubl_xml(xml_str: str) -> tuple[bool, str]:
@@ -236,7 +243,7 @@ async def get_sef_podesavanja(
                       .select("seller_pib,seller_naziv,seller_adresa,seller_mesto,api_key,updated_at")
                       .eq("user_id", uid)
                       .maybe_single()
-                      .execute())
+                      .execute() or _NEMA_REDA)
         if not r.data:
             return {"konfigurisano": False, "podaci": None}
         d = r.data
@@ -257,8 +264,10 @@ async def get_sef_podesavanja(
             },
         }
     except Exception as e:
-        logger.warning("[SEF] podesavanja get greška: %s", e)
-        return {"konfigurisano": False, "podaci": None, "napomena": "Tabela sef_podesavanja ne postoji — pokrenite SQL migraciju."}
+        # P1.6: pad čitanja NIJE „nije konfigurisano“ (ranije: lažno prazno stanje + pogrešna poruka o migraciji —
+        # bez reda je svako čitanje padalo ovde, jer je `.data` čitan nad None).
+        logger.warning("[SEF] podesavanja get greška: %s", type(e).__name__)
+        raise HTTPException(status_code=503, detail="SEF podešavanja trenutno nisu dostupna.")
 
 
 @router.post("/podesavanja")
@@ -280,7 +289,7 @@ async def post_sef_podesavanja(
                                  .select("api_key")
                                  .eq("user_id", uid)
                                  .maybe_single()
-                                 .execute())
+                                 .execute() or _NEMA_REDA)
             if existing.data and existing.data.get("api_key"):
                 final_api_key_enc = existing.data["api_key"]
             else:
@@ -288,7 +297,8 @@ async def post_sef_podesavanja(
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"DB greška pri proveri API ključa: {e}")
+            logger.warning("[SEF] provera postojećeg ključa: %s", type(e).__name__)
+            raise HTTPException(status_code=503, detail="Provera sačuvanog SEF ključa trenutno nije moguća. Ništa nije sačuvano.")
     else:
         final_api_key_enc = encrypt_field(body.api_key)
 
@@ -309,8 +319,8 @@ async def post_sef_podesavanja(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("[SEF] podesavanja upsert greška: %s", e)
-        raise HTTPException(status_code=500, detail=f"DB greška: {e}")
+        logger.warning("[SEF] podesavanja upsert greška: %s", type(e).__name__)
+        raise HTTPException(status_code=500, detail="Čuvanje SEF podešavanja nije uspelo.")
 
     logger.info("[SEF] podesavanja saved uid=%.8s pib=%s", uid, body.seller_pib)
     return {"ok": True, "seller_pib": body.seller_pib, "seller_naziv": body.seller_naziv}
