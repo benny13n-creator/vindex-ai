@@ -82,3 +82,10 @@ Nijedna od 8 invarijanti nije prekršena. Nalazi i ishod:
 6. Finansije: satnica sačuvati pa vratiti; SEF bez stvarnog ključa ne dirati na produkciji (samo prikaz stanja).
 7. Privatnost: ZIP izvoz sintetičkog naloga; brisanje naloga NE izvršavati na produkciji.
 8. Integracije: samo prikaz; nijedan zahtev ka `/api/integrations`, `/api/webhooks`, `/v1/`.
+
+## CI (GitHub Actions)
+- PR #57 `de665786`: 10/11 — pytest 3.11 i 3.13, pun paket na produkcionom Pythonu 3.11, build slike, SAST, semgrep i secret-scan prolaze. `dependency-scan` pada isključivo na pypdf 6.21.1 (3 CVE); PR #55 to rešava (njegov CI je 11/11). Raniji `10fa4342` je imao tačno 6 padova `test_ns0051` (ispravljeno u `de665786`).
+- PR #55 `0580e9c2`: 11/11.
+- PR #56 `9da6abef`: 10/11, `dependency-scan` samo pypdf (kao na main).
+- V2 browser testovi se u CI ne pokreću za PR ka main (`v2-ng.yml` samo za `feature/vindex-v2-*`) — V2 rezultati su lokalni.
+- Lokalno (Windows) pun paket: 14 padova koji postoje i na nepromenjenom main stablu (lokalno okruženje; u CI ih nema).
