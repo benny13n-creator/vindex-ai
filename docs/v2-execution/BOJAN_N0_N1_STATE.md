@@ -187,6 +187,10 @@ Bez regresije izolacije i autorizacije; D2, D3, D5 potvrđeni. Nalazi i ishod:
 
 CI ne pokreće V2 browser testove za PR ka `main` — rezultati iznad su lokalni.
 
+**CI `5eb1289b`: 11/11 PASS.** OCR koraci sa stvarnim Tesseract-om (`VINDEX_REQUIRE_OCR=1`, preskok = pad): 64 passed u poslu
+Python 3.11 (bez srpskog paketa) i 64 passed u produkcionoj Docker slici (srp + srp_latn), uključujući N1 zlatni test sa 4/4
+prikačena dokumenta. Pun paket na produkcionom Python-u 3.11: 12238 passed, 72 skipped, 0 failed.
+
 ---
 
 ## Preostali rizici / odluke osnivača
