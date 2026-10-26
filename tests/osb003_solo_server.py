@@ -273,6 +273,32 @@ async def _stanje():
     })
 
 
+@api.app.get("/__osb003/zlatni", include_in_schema=False)
+async def _zlatni():
+    """N1 Golden Intake: relacije koje browser test proverava u bazi (identiteti i oznake, bez sadržaja dokumenata).
+    `marker` je sintetička oznaka iz opisa spora, da se proveri da je opis sačuvan bez vraćanja celog teksta."""
+    t = BAZA.tabele
+    marker = "ZLATNI-7731"
+    dok_posla = {d.get("id"): d.get("intake_job_id") for d in t.get("intake_documents", [])}
+    return JSONResponse({
+        "predmeti": [{"id": p.get("id"), "user_id": p.get("user_id"), "naziv": p.get("naziv"),
+                      "opis_sacuvan": marker in (p.get("opis") or "")} for p in t.get("predmeti", [])],
+        "klijenti": [{"id": k.get("id"), "user_id": k.get("user_id")} for k in t.get("klijenti", [])],
+        "veze": [{"predmet_id": v.get("predmet_id"), "klijent_id": v.get("klijent_id")} for v in t.get("predmet_klijenti", [])],
+        "dokumenti": [{"id": d.get("id"), "predmet_id": d.get("predmet_id"), "user_id": d.get("user_id"), "naziv_fajla": d.get("naziv_fajla"),
+                       "posao": d.get("source_intake_job_id"), "ima_tekst": bool((d.get("tekst_sadrzaj") or "").strip())}
+                      for d in t.get("predmet_dokumenti", [])],
+        "poslovi": [{"id": j.get("id"), "uploaded_by": j.get("uploaded_by"), "status": j.get("status"), "predmet_id": j.get("predmet_id"),
+                     "prikacen": bool(j.get("assimilation_complete")), "ime": j.get("original_filename")} for j in t.get("intake_jobs", [])],
+        "prijem_dokumenti": [{"posao": d.get("intake_job_id"), "ocr_used": d.get("ocr_used")} for d in t.get("intake_documents", [])],
+        "ispravke": [{"entity_id": e.get("id"), "posao": dok_posla.get(e.get("document_id")), "tip": e.get("entity_type"),
+                      "original": e.get("value"), "ispravka": e.get("corrected_value")}
+                     for e in t.get("extracted_entities", []) if e.get("corrected_value")],
+        "rokovi": [{"predmet_id": h.get("predmet_id"), "vrsta": h.get("vrsta"), "stanje": h.get("stanje"), "izvor": h.get("izvor")}
+                   for h in t.get("predmet_hronologija", [])],
+    })
+
+
 # QA-03: opcioni sintetički „stari zapisi“ ({tabela: [redovi]} iz JSON fajla u VX_OSB003_SEME), upisani pre pokretanja —
 # za browser proveru prikaza naziva nad podacima kakvi već postoje u bazi. `GET /__osb003/seme` vraća iste kolone tih
 # redova posle testa (dokaz da prikaz ništa nije menjao). Bez promenljive: ponašanje servera je nepromenjeno.
