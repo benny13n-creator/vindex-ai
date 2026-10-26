@@ -20,6 +20,7 @@
   var DANA_UNAZAD = 90, DANA_UNAPRED = 30, DANA_OBAVEZE = 7;
   var IZ_ODLUKE = { CONFIRMED: "potvrdjen", REJECTED: "odbijen", UNCONFIRMED: "kandidat" };
   var STANJA = { kandidat: 1, potvrdjen: 1, odbijen: 1, izvrsen: 1, otkazan: 1 };
+  var NEAKTIVNA_ROCISTA = { otkazano: 1, odlozeno: 1, odrzano: 1 };
   var MESECI = ["januar", "februar", "mart", "april", "maj", "jun", "jul", "avgust", "septembar", "oktobar", "novembar", "decembar"];
   var DANI = ["nedelja", "ponedeljak", "utorak", "sreda", "četvrtak", "petak", "subota"];
   var GRUPE = [["propusteno", "Propušteno"], ["danas", "Danas"], ["sutra", "Sutra"], ["nedelja", "Narednih 7 dana"]];
@@ -70,7 +71,8 @@
         izvorUklonjen: r.izvor_uklonjen_posle_potvrde === true, izvorPovucen: r.izvor_povucen === true };
     }
     var potvrdjeni = aktivni.filter(function (r) { return stanjeZapisa(r) === "potvrdjen"; }).map(function (r) { return stavka(r, "rok"); });
-    var rocista = dog.filter(function (e) { return e && e.tip === "rociste"; }).map(function (e) {
+    /* N3: obaveza je samo ZAKAZANO ročište; otkazano / odloženo / održano ostaje istorija u predmetu (bez stanja = zakazano). */
+    var rocista = dog.filter(function (e) { return e && e.tip === "rociste" && !NEAKTIVNA_ROCISTA[tekst((e.detalji || {}).status).toLowerCase()]; }).map(function (e) {
       var d = e.detalji || {}, dat = tekst(e.datum);
       return { vrsta: "rociste", id: tekst(d.id), opis: [tekst(d.sud), tekst(d.sudnica)].filter(Boolean).join(", ") || "Ročište",
         predmetId: tekst(e.predmet_id), predmet: tekst(e.predmet_naziv), vreme: tekst(e.vreme), datumIso: dat, razlika: razlika(dat) };

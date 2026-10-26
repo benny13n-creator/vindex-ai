@@ -87,6 +87,9 @@ AUDITABLE_ACTIONS: set[str] = {
     # vratio None, pa bi rok izgledao nepotvrdjen zauvek -- a gejt je
     # fail-closed, sto znaci da potvrda nikad ne bi mogla da se da.
     "rok_potvrdjen", "rok_odbijen",
+    # N3 (2026-10-26) -- advokat odbacuje PREDLOG ročišta pročitan iz dokumenta
+    # (`routers/rocista.py`); predlog bez ovog zapisa ostaje vidljiv kao predlog.
+    "rociste_predlog_odbacen",
     # Klijenti
     "klijent_create", "klijent_delete",
     # Autentifikacija
