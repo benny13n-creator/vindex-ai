@@ -93,8 +93,8 @@
     }
     function uskladi() {
       var ime = imeKlijenta();
-      $("npo-klijent-izbor").textContent = klijent ? "Izabran klijent iz kartoteke: " + klijent.ime : (ime ? "Nov klijent: " + ime : "Klijent nije izabran.");
-      var coiOk = !!coi && coi.ime === ime && (coi.i.nastavak === "slobodno" || (coi.i.nastavak === "potvrda" && $("npo-coi-potvrda").checked));
+      $("npo-klijent-izbor").textContent = klijent ? "Izabran klijent iz kartoteke: " + klijent.ime + (klijent.meta ? " (" + klijent.meta + ")" : "") : (ime ? "Nov klijent: " + ime : "Klijent nije izabran.");
+      var coiOk = !!coi && coi.ime === ime && coi.kid === (klijent ? klijent.id : null) && (coi.i.nastavak === "slobodno" || (coi.i.nastavak === "potvrda" && $("npo-coi-potvrda").checked));
       $("npo-otvori").disabled = radi || sumnja === tekst($("npo-naziv").value).slice(0, 200) || !predlog || tekst($("npo-naziv").value).length < 2 || !ime || !coiOk;
     }
 
@@ -108,8 +108,14 @@
       if (!r.ok) { if (r.greska && r.greska.kod === "ABORTED") return; $("npo-klijenti").replaceChildren(el("li", "field__help", "Kartoteka nije učitana.")); return; }
       $("npo-klijenti").replaceChildren.apply($("npo-klijenti"), r.podaci.klijenti.filter(function (k) { return k && ispravanId(k.id); }).map(function (k) {
         var ime = [tekst(k.ime), tekst(k.prezime)].filter(Boolean).join(" ") || tekst(k.firma) || "Klijent bez imena";
-        var li = el("li"), b = el("button", "pick__item", ime); b.type = "button";
-        b.addEventListener("click", function () { klijent = { id: tekst(k.id), ime: ime }; $("npo-ime").value = ""; $("npo-prezime").value = ""; uskladi(); });
+        // N2: dve osobe istog imena moraju da se razlikuju pri izboru — kontakt i datum upisa u kartoteku
+        var upisan = /^(\d{4})-(\d{2})-(\d{2})/.exec(tekst(k.kreirano));
+        var meta = [tekst(k.firma) && tekst(k.firma) !== ime ? tekst(k.firma) : "", tekst(k.email), tekst(k.telefon),
+          upisan ? "upisan " + Number(upisan[3]) + "." + Number(upisan[2]) + "." + upisan[1] + "." : ""].filter(Boolean).join(" · ");
+        var li = el("li"), b = el("button", "pick__item"); b.type = "button";
+        b.append(el("span", "pick__name", ime));
+        if (meta) b.append(el("span", "pick__meta", meta));
+        b.addEventListener("click", function () { klijent = { id: tekst(k.id), ime: ime, meta: meta }; $("npo-ime").value = ""; $("npo-prezime").value = ""; uskladi(); });
         li.append(b); return li;
       }));
     }
@@ -131,13 +137,13 @@
     async function proveriCoi() {
       var ime = imeKlijenta();
       if (!ime) { poruka("greska", "Prvo izaberite ili upišite klijenta."); return; }
-      var moja = gen;
+      var moja = gen, kidPre = klijent ? klijent.id : null;    // ishod važi samo za klijenta za koga je provera poslata
       $("npo-proveri").disabled = true; poruka("ucitavanje", "Provera sukoba interesa…");
       var r = await api.send("/api/conflict-check", { telo: { ime_prezime: ime.slice(0, 200) }, token: sesija.token(),
         oblik: function (x) { return typeof x.status === "string"; } });
       if (moja !== gen) return;
       $("npo-proveri").disabled = false;
-      coi = { ime: ime, i: ishodCoi(r.ok ? r.podaci : null, null) };
+      coi = { ime: ime, kid: kidPre, i: ishodCoi(r.ok ? r.podaci : null, null, kidPre) };
       prikaziCoi(coi.i);
       poruka(null);
       uskladi();
@@ -161,6 +167,7 @@
           return;
         }
         klijent = { id: tekst(rk.podaci.klijent.id), ime: imeKlijenta() };      // ponovni pokušaj ne pravi drugog klijenta
+        if (coi && coi.kid === null && coi.ime === klijent.ime) coi.kid = klijent.id;   // provera je rađena za OVOG, tada još neupisanog klijenta
         $("npo-ime").value = ""; $("npo-prezime").value = "";
         kid = klijent.id;
       }

@@ -195,6 +195,10 @@ def _conflict_reason(termin: str, matched_val: str, score: int, context: str) ->
 # silently fell through conflict screening as "not active", the opposite of what a conflict-
 # of-interest check should ever silently do. Both spellings now recognized; no other module
 # needed to change.
+# N2: uloge u `predmet_klijenti.uloga_klijenta` koje znače „naš klijent u tom predmetu“ (isti skup kao
+# `routers/intake.py::_CLIENT_ROLES`). Samo izričita uloga iz ovog skupa sme da kaže V2-u „isti klijent“.
+_ULOGE_KLIJENTA = frozenset({"stranka", "tuzilac"})
+
 _AKTIVNI_STATUSI  = {"aktivan", "u toku", "u_toku", "priprema", "odložen", "žalba"}
 _ZATVORENI_STATUSI = {"zatvoren", "rešen", "povučen", "odbačen", "arhiviran"}
 
@@ -328,6 +332,26 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
         logger.warning("[CONFLICT/S1] predmeti greška: %s", exc)
         sloj_status["predmeti"] = "greška"
 
+    # N2: za predmete pogođene po imenu (sloj 1) — koji klijenti su u njima NAŠI klijenti (izričita uloga).
+    # Ime klijenta u nazivu sopstvenog predmeta („Marković protiv …“) inače izgleda kao stranka u aktivnom
+    # predmetu. Samo obogaćenje: pad ovog upita ne menja status, a V2 tada ništa ne razlikuje (konzervativno).
+    _s1_pids = [k["predmet_id"] for k in konflikti if k.get("sloj") == "predmeti" and k.get("predmet_id")]
+    if _s1_pids:
+        try:
+            _veze_s1 = await asyncio.to_thread(
+                lambda: supa.table("predmet_klijenti").select("predmet_id,klijent_id,uloga_klijenta")
+                    .in_("predmet_id", _s1_pids).execute()
+            )
+            _klijenti_po_predmetu: dict = {}
+            for v in (_veze_s1.data or []):
+                if (v.get("uloga_klijenta") or "").strip().lower() in _ULOGE_KLIJENTA and v.get("klijent_id"):
+                    _klijenti_po_predmetu.setdefault(v.get("predmet_id"), []).append(v["klijent_id"])
+            for k in konflikti:
+                if k.get("sloj") == "predmeti":
+                    k["klijenti_predmeta"] = _klijenti_po_predmetu.get(k.get("predmet_id"), [])
+        except Exception as exc:
+            logger.warning("[CONFLICT/S1] veze klijenata nisu pročitane (bez razlikovanja istog klijenta): %s", exc)
+
     # ── SLOJ 2: Klijenti — ime, firma, email (fuzzy) ─────────────────────────
     #
     # BETA-P1-COLUMN-DRIFT-007 / DRIFT-001.
@@ -388,24 +412,30 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
         if matching_klijent_ids:
             kpr_all = await asyncio.to_thread(
                 lambda: supa.table("predmet_klijenti").select(
-                    "klijent_id,predmet_id,uloga,predmeti(naziv,status,tip)"
+                    "klijent_id,predmet_id,uloga,uloga_klijenta,predmeti(naziv,status,tip)"
                 ).in_("klijent_id", matching_klijent_ids).execute()
             )
 
+            # N2: predmet pogođen u sloju 1 se ovde ne ponavlja (kao ranije), ali VIŠE klijenata istog imena u
+            # istom predmetu daje po nalaz za svakog — ranije je prvi red sakrivao ostale (imenjak iza izabranog).
+            _s1_videni = set(reviewed)
+            _s2_videni: set = set()
             for kp in (kpr_all.data or []):
                 pp   = kp.get("predmeti") or {}
                 pid  = kp.get("predmet_id","")
                 kid  = kp.get("klijent_id","")
-                if pid in reviewed:
+                if pid in _s1_videni or (pid, kid) in _s2_videni:
                     continue
 
                 k       = matching_klijenti_map.get(kid, {})
-                uloga   = kp.get("uloga","") or ""
+                # N2 (nalaz pregleda): svi današnji upisi veze pišu `uloga_klijenta`; stara kolona `uloga` ima samo
+                # podrazumevano 'stranka', pa je uloga protivne strane ranije uvek čitana kao „klijent“.
+                uloga   = (kp.get("uloga_klijenta") or kp.get("uloga") or "")
                 display = (k.get("firma","") or "").strip() or \
                           f"{k.get('ime','') or ''} {k.get('prezime','') or ''}".strip() or "?"
                 score   = match_scores.get(kid, CONFLICT_WARN)
 
-                je_suprotna = any(x in uloga.lower() for x in ("suprotna","protivna","tuženi","oponent"))
+                je_suprotna = any(x in uloga.lower() for x in ("suprotna","protivna","tuženi","tuzeni","oponent"))
                 je_bivsi    = _is_closed(pp.get("status","")) or "bivši" in uloga.lower() or "bivsi" in uloga.lower()
                 tip_k = "suprotna_strana" if je_suprotna else ("bivsi_klijent" if je_bivsi else "klijent_u_sistemu")
 
@@ -413,6 +443,10 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
                 konflikti.append({
                     "sloj":            "klijenti",
                     "tip_konflikta":   tip_k,
+                    # N2: identitet pogođenog zapisa — klijent izabran iz kartoteke nije u sukobu SAM SA SOBOM
+                    # (V2 to razlikuje od imenjaka; status ovde ostaje isti).
+                    "klijent_id":      kid,
+                    "uloga_klijent":   (uloga.strip().lower() in _ULOGE_KLIJENTA) and not je_suprotna and not je_bivsi,
                     "sever":           "VISOK" if (je_suprotna and _is_active(pp.get("status",""))) else "SREDNJI",
                     "predmet_id":      pid,
                     "predmet_naziv":   pp.get("naziv",""),
@@ -425,6 +459,7 @@ async def check_conflict(req: ConflictReq, user=Depends(PermissionService.requir
                     "opis":            f"{label}'{display}' ({score}%) nastupao kao '{uloga}' u predmetu '{pp.get('naziv','')}' [{pp.get('status','')}]",
                 })
                 reviewed.add(pid)
+                _s2_videni.add((pid, kid))
 
     except Exception as exc:
         logger.warning("[CONFLICT/S2] klijenti greška: %s", exc)
