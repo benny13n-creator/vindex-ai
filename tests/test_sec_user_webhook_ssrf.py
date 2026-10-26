@@ -7,6 +7,7 @@ success: True → slepi SSRF ka unutrašnjim adresama za svakog prijavljenog kor
 ISPRAVKA: isti validator kao routers/integrations.py pri upisu i pri svakom slanju; bez praćenja preusmeravanja;
 test vraća stvaran ishod. NIJEDAN test ne izlazi na mrežu (getaddrinfo i opener su zamenjeni)."""
 import socket
+import ssl
 import types
 
 import pytest
@@ -168,6 +169,9 @@ def mreza(monkeypatch):
         return klijent
 
     class _TLS:
+        # HTTPSConnection na Python 3.11 čita ova dva polja već u __init__ (kao kod pravog konteksta).
+        verify_mode, check_hostname = ssl.CERT_REQUIRED, True
+
         def wrap_socket(self, sock, server_hostname=None, **kw):
             m.sni.append(server_hostname)
             return sock
