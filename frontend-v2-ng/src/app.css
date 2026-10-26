@@ -785,3 +785,7 @@ a.text-btn { text-decoration: none; }
   .prijava-dugme { right: var(--sp-3); bottom: var(--sp-3); }
   .prijava__forma { padding: var(--sp-4); }
 }
+
+/* P1.1 Podešavanja: na širokom ekranu odeljci su kartice (.tabs), na telefonu jedan izbor (select). */
+.pn-izbor { display: none; margin-bottom: var(--sp-5); max-width: 360px; }
+@media (max-width: 859px) { .pn-sekcije { display: none; } .pn-izbor { display: flex; } }

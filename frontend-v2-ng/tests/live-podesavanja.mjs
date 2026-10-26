@@ -61,7 +61,7 @@ await ctx.route("**/*", async route => {
 });
 const page = await ctx.newPage(), greske = [];
 page.on("pageerror", e => greske.push(String(e)));
-await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja");
+await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja/obavestenja");
 await page.waitForFunction(() => document.getElementById("pn-adresa").textContent.includes("b10-a@example.test"));
 proveri("V2 Podešavanja su vidljiva u istoj navigaciji", !await page.locator("#podesavanja-nav").evaluate(el => el.hidden)
   && await page.locator("#podesavanja-pogled").isVisible()
@@ -129,7 +129,7 @@ proveri("Posle ponovnog učitavanja nalog B ne vidi adresu A", (await page.locat
 
 pokvarenoCitanje = true;
 await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/predmeti/nov");
-await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja");
+await page.goto("http://127.0.0.1:" + f.port + "/?rezim=live#/podesavanja/obavestenja");
 await page.waitForFunction(() => document.getElementById("pn-stanje").textContent.includes("nisu učitana"));
 proveri("GET 503: nema lažnog praznog stanja i nema aktivacije", await page.locator("#pn-sacuvaj").isDisabled()
   && await page.locator("#pn-test").isHidden());

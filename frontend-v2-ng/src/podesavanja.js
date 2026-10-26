@@ -1,11 +1,61 @@
-/* Vindex V2 NG — B10: lična podešavanja email podsetnika.
+/* Vindex V2 NG — Podešavanja: ljuska odeljaka (P1.1) + B10 email podsetnici (odeljak „Obaveštenja“).
  * Postojeći backend ostaje jedini izvor istine; nema novih rokova ili slanja bez klika.
  * Sesija iz VxSesija, HTTP samo preko VxApi; nema identiteta korisnika u zahtevu.
+ * Ostali odeljci se registruju u `VxPodesavanjaSekcije` (src/podesavanja-*.js, učitani pre ovog fajla);
+ * odeljak bez registrovanog kontrolera se ne prikazuje — nema praznih kartica.
  */
 (function (root) {
   "use strict";
 
+  var REDOSLED = [["nalog", "Moj nalog"], ["izgled", "Izgled i rad"], ["obavestenja", "Obaveštenja"],
+    ["kancelarija", "Kancelarija"], ["finansije", "Finansije i plan"], ["integracije", "Integracije"],
+    ["privatnost", "Privatnost i podaci"], ["pomoc", "Pomoć i informacije"]];
+
   function napravi(o) {
+    var d = root.document, $ = function (id) { return d.getElementById(id); };
+    var registar = root.VxPodesavanjaSekcije || {}, sekcije = { obavestenja: napraviObavestenja(o) };
+    REDOSLED.forEach(function (s) { if (!sekcije[s[0]] && typeof registar[s[0]] === "function" && $("pn-" + s[0])) sekcije[s[0]] = registar[s[0]](o); });
+    var dostupne = REDOSLED.filter(function (s) { return sekcije[s[0]]; });
+    var traka = $("pn-sekcije"), izbor = $("pn-sekcija-izbor"), aktivna = null, otvoren = false;
+    dostupne.forEach(function (s) {
+      var a = d.createElement("a");
+      a.className = "tabs__item"; a.href = "#/podesavanja/" + s[0]; a.dataset.sekcija = s[0]; a.textContent = s[1];
+      traka.appendChild(a);
+      var op = d.createElement("option");
+      op.value = s[0]; op.textContent = s[1];
+      izbor.appendChild(op);
+    });
+    izbor.addEventListener("change", function () { root.location.hash = "#/podesavanja/" + izbor.value; });
+
+    function prikazi(id) {
+      if (!sekcije[id]) {
+        var trazena = id;
+        id = dostupne[0][0];
+        if (trazena) root.history.replaceState(null, "", "#/podesavanja/" + id);
+      }
+      if (aktivna === id) return;
+      if (aktivna) { sekcije[aktivna].zatvori(); $("pn-" + aktivna).hidden = true; }
+      aktivna = id;
+      $("pn-" + id).hidden = false;
+      traka.querySelectorAll(".tabs__item").forEach(function (a) {
+        if (a.dataset.sekcija === id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+      });
+      izbor.value = id;
+      sekcije[id].otvori();
+    }
+    return {
+      otvori: function (sekcija) { otvoren = true; prikazi(sekcija || null); },
+      sekcija: function (sekcija) { if (otvoren) prikazi(sekcija || null); },
+      zatvori: function () {
+        if (aktivna) { sekcije[aktivna].zatvori(); $("pn-" + aktivna).hidden = true; }
+        aktivna = null; otvoren = false;
+      },
+      zaustavi: function () { Object.keys(sekcije).forEach(function (k) { sekcije[k].zaustavi(); }); aktivna = null; otvoren = false; },
+      sekcije: function () { return dostupne.map(function (s) { return s[0]; }); },
+    };
+  }
+
+  function napraviObavestenja(o) {
     var d = root.document, $ = function (id) { return d.getElementById(id); };
     var sesija = o.sesija, api = o.api, redniBroj = 0, citanje = null, zauzeto = false, profil = null;
 

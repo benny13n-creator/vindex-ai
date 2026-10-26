@@ -354,10 +354,28 @@
       <section class="matter" id="podesavanja-pogled" hidden aria-labelledby="pn-naslov">
         <div class="matter__head">
           <h1 class="sheet__title matter__title" id="pn-naslov" tabindex="-1">Podešavanja</h1>
-          <p class="matter__ref">Lični podsetnici za potvrđene rokove vaših predmeta.</p>
+          <p class="matter__ref">Lična podešavanja naloga i rada. Server odlučuje šta vaš nalog sme da vidi i menja.</p>
         </div>
+        <!-- P1.1: sekundarna navigacija; odeljak se ovde pojavljuje tek kada ima stvarnu funkciju (puni src/podesavanja.js). -->
+        <nav class="tabs pn-sekcije" id="pn-sekcije" aria-label="Odeljci podešavanja"></nav>
         <div class="matter__body">
-          <section class="matter__section matter__section--first" aria-labelledby="pn-email-naslov">
+          <div class="field pn-izbor">
+            <label class="field__label" for="pn-sekcija-izbor">Odeljak podešavanja</label>
+            <select class="field__input" id="pn-sekcija-izbor"></select>
+          </div>
+          <!-- P1.2 Moj nalog (src/podesavanja-nalog.js): samo potvrđeni ugovori — GET /api/me, GET /api/plan/status. -->
+          <section class="matter__section matter__section--first" id="pn-nalog" data-pn-sekcija="nalog" hidden aria-labelledby="pn-nalog-naslov">
+            <h2 class="matter__h2" id="pn-nalog-naslov">Moj nalog</h2>
+            <p class="list-state" id="pn-nalog-stanje" role="status" aria-live="polite" hidden></p>
+            <dl class="facts" id="pn-nalog-podaci" hidden>
+              <dt>Email naloga</dt><dd id="pn-nalog-email"></dd>
+              <dt>Aktivni plan</dt><dd id="pn-nalog-plan"></dd>
+            </dl>
+            <p class="field__help">Lozinka: link za promenu lozinke stiže na email naloga. Pokrećete ga u klasičnom prikazu, u Podešavanjima, dugmetom „Resetuj“. <a href="/app-legacy">Otvori klasični prikaz</a></p>
+            <p class="field__help">Nalog je lični. Podaci kancelarije i njeni članovi su u odeljku Kancelarija.</p>
+            <div class="form__actions"><a class="text-btn text-btn--line" id="pn-nalog-odjava" href="/app" hidden>Odjavi se</a></div>
+          </section>
+          <section class="matter__section matter__section--first" id="pn-obavestenja" data-pn-sekcija="obavestenja" hidden aria-labelledby="pn-email-naslov">
             <h2 class="matter__h2" id="pn-email-naslov">Email podsetnici</h2>
             <p class="field__help">Podsetnici se šalju samo za rokove koje je advokat potvrdio. Email ide na adresu ovog naloga.</p>
             <p class="field__help">Primalac: <strong id="pn-adresa">—</strong></p>
@@ -1045,6 +1063,7 @@
   <script src="src/radna-lista.js"></script>
   <script src="src/pripremljeno.js"></script>
   <script src="src/kancelarija.js"></script>
+  <script src="src/podesavanja-nalog.js"></script>
   <script src="src/podesavanja.js"></script>
   <script src="src/prijava-problema.js"></script>
   <script src="src/danas.js"></script>
