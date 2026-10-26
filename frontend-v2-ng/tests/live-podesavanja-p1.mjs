@@ -87,6 +87,18 @@ if (deo("nalog")) {
   await ctx.close();
 }
 
+// ═══ P1.4 Obaveštenja: samo dokazano operativan kanal (email) ══════════════
+if (deo("obavestenja")) {
+  const { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/obavestenja");
+  const sms = [];
+  page.on("request", q => { const u = new URL(q.url()); if (u.pathname.startsWith("/sms/") || u.pathname.startsWith("/api/whatsapp")) sms.push(u.pathname); });
+  await page.waitForFunction(() => document.getElementById("pn-adresa").textContent.includes("@"));
+  proveri("Obaveštenja: SMS/WhatsApp jasno označeni kao nedostupni, bez kontrola", /nisu dostupni/.test(await tekst(page, "#pn-sms-napomena"))
+    && (await page.locator("#pn-obavestenja input[type=tel]").count()) === 0);
+  proveri("Obaveštenja: nijedan poziv SMS/WhatsApp ruta", sms.length === 0);
+  await ctx.close();
+}
+
 // ═══ P1.3 Privatnost i podaci + Pomoć ══════════════════════════════════════
 if (deo("privatnost")) {
   let { ctx, page } = await otvori(KORISNICI.A, LIVE + "#/podesavanja/privatnost");
